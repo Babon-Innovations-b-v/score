@@ -246,7 +246,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   the game's checkout. A name the library does not hold is a gap: the object (and what stands on it), the rock or
   the sound is left out and named once. A walkway tube's kit is laid along the
   record's `tube_length` as the game's TubeKit lays it. `test_a_scene_record_builds_what_it_names.py` checks the builders, the lights' units and
-  turns, the kit lamps, the tube's laying and every real record.
+  turns, the kit lamps and the tube's laying.
 
 - **The sound stage** (`sound.py`) is the prim writer (`audio_prim`) the assembly writes `layers/sound.usda` with
   (`score/stages/assembly/sounds.py`, from the place's accepted sound output, which reads its design): room tones,

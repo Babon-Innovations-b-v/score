@@ -1,16 +1,43 @@
-"""Check what a place's scene record adds to its stage (tools/usd/scene.py), on records made here: the code builders'
+"""tools/usd/scene.py: what a place's scene record adds to its stage, on records made here: the code builders'
 shapes (a room's walls with a doorway cut, a deck with a pit's hole, a dome closing at its top, a turned rocket, a
 flattened ring, the ship's hull with its windows lying flat on it), a structure piece painted with its library
 surface and carrying its roof layer and the plain thing a primitive says it is, a piece built in its own frame and
-placed, a place shown turned and stretched, the game's lights in the stage's units with the game's own numbers kept,
-a kit room's lamps hung where HubKit hangs them, a walkway tube laid bay by bay along its length, a kit piece the
-game moves shifted by its node, a kit light's night glow kept to its
-picture's bright parts, the engine's seeded random numbers, the planned rocks lying as the game lays them, the ground
-shader's detail baked with a decal, a water's lit columns, the night's glow, a
-column of light and a shown place's left-out piece, a lamp's shaft of light and a day sky's dome, and every real record in data/scene naming only builders,
-surfaces, plain kinds and fields that exist.
+placed, a place shown turned and stretched and one shown in itself, the game's lights in the stage's units with the
+game's own numbers kept, a kit room's lamps hung where HubKit hangs them, a walkway tube laid bay by bay along its
+length, a kit piece the game moves shifted by its node, a kit light's night glow kept to its picture's bright parts,
+the engine's seeded random numbers (PCG's own reference run), the planned rocks lying as the game lays them, the
+ground shader's detail baked with a decal, a water's lit columns, the night's glow, a column of light and a shown
+place's left-out piece, a lamp's shaft of light and a day sky's dome, and the owner's rejected names refused.
+(The check of every real record in data/scene went with the records, retired 2026-10-21: it read nothing.)
 
-Run: .venv/bin/python tools/usd/test_a_scene_record_builds_what_it_names.py   (make tests runs it with the framework's environment)
+Breaks that turn each check red (each applied once and seen red, 2026-10-27):
+- check_builders: builders.py room_walls' `cut = (0.0, float(door["wide"]), float(door["tall"]))` made `cut = None`.
+- check_sky_builders: builders.py pcg32_floats' `state = (state + seed) & mask` made `(state + seed + 1) & mask`.
+- check_lights_and_structure: scene.py reach_matched's `(2.0 - float(entry.get("attenuation", 1.0)))` made
+  `(float(entry.get("attenuation", 1.0)) - 2.0)`.
+- check_night_glow: export.py night_glow_map's `linear * glow["strength"] * share[..., None]` made
+  `linear * glow["strength"]` (dark parts glow too).
+- check_stretched_fixture: scene.py's `Gf.Vec3f(*stretch) * scale if stretch is not None else Gf.Vec3f(scale)` made
+  `Gf.Vec3f(scale)`.
+- check_metal_map: glb_asset.py's metallic `texture.CreateOutput("b", ...)` made `texture.CreateOutput("r", ...)`.
+- check_sky: scene.py write_places' shared prims without "Sky" (a shown place's sky kept).
+- check_shafts_and_dome: scene.py write_shafts' `float(entry["angle"])` made `2 * float(entry["angle"])`.
+- check_light_pieces: scene.py write_places' leave_out `.SetActive(False)` made `.SetActive(True)`.
+- check_labels_and_glow: scene.py glow_material's `channel * float(glow.get("strength", 1.0))` made `channel`.
+- check_shared_paint: scene.py's shared-paint `if name:` made `if False:`.
+- check_kit_lamps: scene.py kit_lights' `-(size[2] / 2 + 0.05)` made `-(size[2] / 2)`.
+- check_tube: export.py tube_spots' `spot[2, 3] = length * index / count` made `spot[2, 3] = bay * index`.
+- check_moved: scene.py moved_pieces' `matrix[:3, 3] += shift` dropped.
+- check_ring_and_placing: builders.py torus' `tube * flatten * math.sin(round_angle)` made `tube *
+  math.sin(round_angle)`.
+- check_shown_in_itself: scene.py write_places' `AddReference("./base.usda", f"/{place}")` made the shown place's
+  whole stage `../../<stage>/<stage>.usda`.
+- check_planned_rocks: rocks.py's `sunk += 0.5 * size * abs(math.sin(tip))` made `sunk += 0.0`.
+- check_ground_detail: ground_detail.py's decal mix `colour = colour * (1.0 - share) + ...` made `colour = colour`.
+- check_dust: scene.py dust_points' `lift = draws[:, 2] * high` made `* high * 2`.
+- check_rejected: scene.py refuse_rejected's `back = sorted(rejected_names(scene) & set(names))` made `back = []`.
+
+Run: .venv/bin/python tools/usd/test_a_scene_record_builds_what_it_names.py
 """
 import json
 import math
@@ -141,10 +168,13 @@ def check_lights_and_structure(folder):
 
 
 def check_sky_builders():
-    """The engine's seeded random numbers are Godot's (its RandomNumberGenerator of seed 9, as this port of
-    random_pcg.h draws it: its first draws pinned so a change to the port shows, not checked against a running Godot),
-    and a haze shell closes round its body in each of the game's FogVolume shapes."""
-    assert [round(float(value), 6) for value in builders.pcg32_floats(9, 3)] == [0.896333, 0.085484, 0.925146]
+    """The engine's seeded random numbers are PCG32's as Godot draws them: seeded 42 on sequence 54, PCG's own
+    reference run (pcg-c-basic's pcg32-demo) draws 0xa15c02b7 0x7b47f409 0xba1d3330 0x83d2f293 0xbfa4784b 0xcbed606e,
+    and randf makes a float of each two (random_pcg.h: the first's leading zeros its exponent, the second, its lowest
+    and highest bits set, the mantissa): 0xfb47f409 / 2^32, 0x83d2f293 / 2^32, 0xcbed606f / 2^32. And a haze shell
+    closes round its body in each of the game's FogVolume shapes."""
+    expected = [float(np.float32(mantissa)) / 2 ** 32 for mantissa in (0xfb47f409, 0x83d2f293, 0xcbed606f)]
+    assert np.allclose(builders.pcg32_floats(42, 3, increment=54), expected, rtol=1e-7), expected
     for shape in ("box", "cylinder", "ellipsoid"):
         shell = builders.haze_volume(shape, [1.0, 2.0, 3.0], [4.0, 2.0, 6.0], None)
         assert np.allclose(shell["points"].min(axis=0), [-1.0, 1.0, 0.0], atol=1e-6), shape
@@ -359,7 +389,6 @@ def check_ring_and_placing(folder):
     matrix = UsdGeom.Xformable(stage.GetPrimAtPath(f"/{PLACE}/Places/tube")).ComputeLocalToWorldTransform(
         Usd.TimeCode.Default())
     assert np.allclose(np.asarray(matrix.Transform((0.0, 0.0, 2.0))), [2.0, 0.0, 0.0], atol=1e-6)
-    check_shown_in_itself(folder)
 
 
 def check_shown_in_itself(folder):
@@ -525,44 +554,6 @@ def check_labels_and_glow(folder):
     assert 0.2 < tall < 0.5, tall  # two lines of a 48 pixel font at 3 mm a pixel
 
 
-def check_records():
-    """Every record names builders that exist with their own arguments, a library surface for each (the library
-    answers whether it holds it: every old surface was retired on 2026-10-21, and bind_surface names a missing one),
-    and views with an eye, an aim and a field of view."""
-    for path in sorted(scene.SCENES.glob("*.json")):
-        record = json.loads(path.read_text())
-        for key in ("structure", "ground", "water"):
-            for entry in record.get(key, []):
-                assert entry["builder"] in scene.BUILDERS, (path.name, entry["builder"])
-                assert isinstance(entry["surface"], str) and entry["surface"], (path.name, entry["name"])
-                assert entry.get("plain", "plate") in placeholders.PLAIN_KINDS, (path.name, entry["name"])
-                scene.built_meshes(entry)
-        assert "backdrop" not in record, path.name  # no picture of a place on a ring: the far city is built in 3D
-        for entry in record.get("lights", []):
-            assert entry["type"] in ("omni", "spot", "sun"), (path.name, entry)
-        assert record.get("views"), path.name
-        for view in record["views"]:
-            assert len(view["eye"]) == 3 and len(view["aim"]) == 3 and view["fov"] > 0, (path.name, view)
-        if record.get("inside"):
-            assert "floor" in record, path.name
-        environment = record.get("environment", {})
-        haze = environment.get("haze")
-        if haze:
-            assert haze["shape"] in ("box", "cylinder", "ellipsoid", "ring") and haze.get("from"), path.name
-            assert haze["centre"] != "ball" or record.get("planned_ground"), path.name
-            if haze["shape"] != "ring":
-                builders.haze_volume(haze["shape"], [0.0, 0.0, 0.0], haze["size"], None)
-        for beam in environment.get("beams", []):
-            assert beam.get("from") and beam["high"] > beam["low"] and beam["radius"] > 0.0, (path.name, beam)
-        assert not environment.get("glow") or environment["glow"].get("from"), path.name
-        for entry in record.get("water", []):
-            for lit in entry.get("mirror", {}).get("lit", []):
-                assert lit.get("from") and lit["high"] > lit["low"] and lit["half_width"] > 0.0, (path.name, lit)
-        for entry in record.get("places", []):
-            for left in entry.get("leave_out", []):
-                assert left["prim"] and left.get("why"), (path.name, entry["name"])
-
-
 def check_rejected():
     """A record that holds again a thing its owner_rejected names is refused, and so are a kit piece's row and an
     effect of that name; an owner_rejected entry in words alone names nothing."""
@@ -576,8 +567,6 @@ def check_rejected():
         assert "['pad']" in str(error) and "the kit" in str(error), error
     else:
         raise AssertionError("a rejected name came back unrefused")
-    for path in sorted(scene.SCENES.glob("*.json")):
-        scene.record(path.stem)  # every real record keeps out what its owner rejected
 
 
 def check_shafts_and_dome(folder):
@@ -622,40 +611,31 @@ def check_shafts_and_dome(folder):
     assert at(30.0, sun_bearing) > at(30.0, sun_bearing + 90.0)
 
 
+CHECKS = (check_builders, check_sky_builders, check_lights_and_structure, check_night_glow, check_stretched_fixture,
+          check_metal_map, check_sky, check_shafts_and_dome, check_light_pieces, check_labels_and_glow,
+          check_shared_paint, check_kit_lamps, check_tube, check_moved, check_ring_and_placing, check_shown_in_itself,
+          check_planned_rocks, check_ground_detail, check_dust, check_rejected)
+
+
 def main():
+    """Every check, each in a folder of its own where it takes one; a failing one is named and the rest still run."""
+    import inspect
     stand_ins = tempfile.TemporaryDirectory()
     stand_in_library(pathlib.Path(stand_ins.name), ("roof_steel_paint", "deck", "harbour_water"))
-    check_builders()
-    check_sky_builders()
-    with tempfile.TemporaryDirectory() as folder:
-        check_lights_and_structure(pathlib.Path(folder))
-        check_night_glow(pathlib.Path(folder))
-        check_stretched_fixture(pathlib.Path(folder))
-        check_metal_map(pathlib.Path(folder))
-    with tempfile.TemporaryDirectory() as folder:
-        check_sky(pathlib.Path(folder))
-    with tempfile.TemporaryDirectory() as folder:
-        check_shafts_and_dome(pathlib.Path(folder))
-    with tempfile.TemporaryDirectory() as folder:
-        check_light_pieces(pathlib.Path(folder))
-    with tempfile.TemporaryDirectory() as folder:
-        check_labels_and_glow(pathlib.Path(folder))
-    with tempfile.TemporaryDirectory() as folder:
-        check_shared_paint(pathlib.Path(folder))
-    check_kit_lamps()
-    check_tube()
-    check_moved()
-    with tempfile.TemporaryDirectory() as folder:
-        check_ring_and_placing(pathlib.Path(folder))
-    with tempfile.TemporaryDirectory() as folder:
-        check_planned_rocks(pathlib.Path(folder))
-    with tempfile.TemporaryDirectory() as folder:
-        check_ground_detail(pathlib.Path(folder))
-    with tempfile.TemporaryDirectory() as folder:
-        check_dust(pathlib.Path(folder))
-    check_records()
-    check_rejected()
-    print("test_a_scene_record_builds_what_it_names: ok")
+    failed = []
+    for check in CHECKS:
+        try:
+            if inspect.signature(check).parameters:
+                with tempfile.TemporaryDirectory() as folder:
+                    check(pathlib.Path(folder))
+            else:
+                check()
+            print(f"ok    {check.__name__}")
+        except Exception as error:  # noqa: BLE001 - named and counted, the run fails below
+            failed.append(check.__name__)
+            print(f"FAIL  {check.__name__}: {type(error).__name__}: {error}")
+    stand_ins.cleanup()
+    sys.exit(1 if failed else 0)
 
 
 if __name__ == "__main__":
