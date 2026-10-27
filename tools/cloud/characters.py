@@ -56,8 +56,9 @@ PERSON_MINUTES = 43
 DISK_GB = 200
 POLL_SECONDS = 30
 # The programs of tools/characters a make folder may run, by the name its spec gives: the maker's chain, and a body's
-# motion read off a video (score/stages/video_clips).
-PROGRAMS = {"prop_chain.py": "maker/prop_chain.py", "video_motion.py": "clips/video_motion.py"}
+# motion read off a video (score/stages/video_clips), and the scene-made clips (score/stages/scene_clips).
+PROGRAMS = {"prop_chain.py": "maker/prop_chain.py", "video_motion.py": "clips/video_motion.py",
+            "scene_clips.py": "clips/scene_clips.py"}
 
 
 def price(makes, account, classes, minutes=None):

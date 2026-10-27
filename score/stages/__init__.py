@@ -26,7 +26,7 @@ from score import checks, contracts, graph
 from score.checks import grain
 from score.stages import (animals, assembly, cast, complete, crops, demo_film, design_layers, earth_seed, effects,
                           gaps, images, library, light, motion, people, people_cloth, physics, scene_record, settling,
-                          shapes_first, shell_split, sim_body, sound,
+                          scene_clips, shapes_first, shell_split, sim_body, sound,
                           surface_tiles, surfaces, terrain, video_clips)
 from score.stages.surfaces import bake_check, body_faces, carry, claude_asks, library_reads, route_check
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
@@ -223,6 +223,13 @@ PEOPLE_CLOTH = graph.Stage("people-cloth", "place", people_cloth.make, people_cl
                            optional=DRESS_ROWS + BODY_ROWS,
                            beside={name: (name, 1) for name in people_cloth.LIBRARY_ROWS},
                            neighbours=people_cloth.library_place, applies=designed("people"))
+# Experimental (PRD #56): each walker of the place's accepted cast gets a Kimodo clip made from its own route through
+# the scene, the ground under its feet held by foot constraints (score/stages/scene_clips), on one rented characters
+# machine. Nothing reads it yet, so no other row's key moves.
+SCENE_CLIPS = graph.Stage(scene_clips.ROW, "place", scene_clips.make, scene_clips.CONTRACT, scene_clips.CHECKS,
+                          files=scene_clips.files, after={"cast": ("cast", 1), "scene-record": ("scene-record", 1),
+                                                          "terrain": ("grounds", 2)},
+                          paid=True, euros=scene_clips.EUROS, applies=designed("people"))
 # Experimental (PRD #6) until the owner has heard it: each place's sound layer data (its sounds, their files and levels,
 # MOSS takes for briefs no environment file answers, paid), for the place's assembly to write into its stage.
 SOUND = graph.Stage("sound", "place", sound.make, sound.LAYER, sound.CHECKS, files=sound.files, paid=True,
@@ -443,7 +450,7 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
           SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(code_marked, map(
               boxed_split, map(designed_rough, shapes_first.rows()))))))),
           *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, CAST, CHARACTERS, SIM_BODY,
-          PEOPLE_CLOTH, MOTION,
+          PEOPLE_CLOTH, SCENE_CLIPS, MOTION,
           *light.ROWS, *crops.ROWS,
           surface_tiles.STAGE,
           # Experimental (#52): each animal row a design shows, its body and its clips (score/stages/animals).
