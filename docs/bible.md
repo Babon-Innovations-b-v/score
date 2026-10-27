@@ -348,27 +348,33 @@ branch names a scene or a world.
   row included. A library with too few surfaces to tell variant n from a lower one is refused before the bake as a
   named library gap, never repeated quietly.
   **Each person is also a sim body** (`score/stages/sim_body`, row `sim-body@<place>`, free, experimental, #65; PRD
-  #56): built straight from SOMA's 23 segments in the rig its clips play (`people-clips-made`'s `rig.npz`: a rigid
-  segment a kept joint at SOMA's bind frame, a free root and ball joints, no template resizing), each segment's mass
-  share and inertia from the rig's closed surface cut into 1 cm voxels by strongest skin weight, a box collider round
-  its volume; its mass the stated weight, else height squared times the reference BMI of its sex (NCD-RisC 2016:
-  24.5 men, 24.8 women, the mean of both unstated), marked estimated (#64). Its clip drives it: Newton's `eval_ik`
-  turns the clip's segment frames into joint angles, MuJoCo position actuators track them (their damping the joints'
-  own), the root's height is free, so its weight rests on a floor at its spot by contact, under the gravity of the
-  body the scene stands on; a root helper (OpenSim's residuals) holds its horizontal path and turn, recorded. It runs
-  in Newton's own Python (`physics/inside/newton_env.sh`) on this machine, on MuJoCo's CPU backend (it repeats bit
-  for bit; MuJoCo Warp's deterministic mode breaks a body over 60 dofs, #60). Per frame it writes joint angles and
-  the clip's, joint torques, the floor's push and the root helper (`measures/<name>.json`), and each body as guide
-  segments with their UsdPhysics mass and spherical joints under its character's prim (`layers/sim_bodies.usda`).
-  **The person moves by it** (`score/stages/cast/driven.py`, in the characters layer the assembly takes): its
-  skeleton plays a SkelAnimation of its own, each SOMA joint the sim has a segment for turned as its segment was, Hips
-  on the sim's path (its height times the body's size against the rig's, plus the clip's lift); Root, HeadEnd and the
+  #56): a musculoskeletal body, MyoFullBody (MyoSuite's, as MuscleMimic's pinned wheel publishes it: its bones, 123
+  joints, 416 muscles and their tendons; fetched by sha256, never committed), sized to the person's own build per
+  segment (thigh, shin, foot, upper arm and forearm by the rig's joint distances, the rest by its standing height,
+  each muscle's length range with its path), its mass the stated weight, else height squared times the reference BMI
+  of its sex (NCD-RisC 2016: 24.5 men, 24.8 women, the mean of both unstated), marked estimated (#64). The movement is
+  the clip's (or Kimodo's) and the body follows it exactly, root included (owner, 2026-10-27): its joint angles are
+  fitted to the clip's SOMA segment turns in the model's own coordinates with MuJoCo's couplings kept (the knee, the
+  lumbar levels, the shoulder rhythm), the path moved up once so its lowest point meets the ground. Newton builds the
+  MuJoCo model (SolverMuJoCo on MuJoCo's CPU backend, in `physics/inside/newton_env.sh`, on this machine) and its
+  physics is that movement's, frame by frame: the inverse dynamics, the ground's push at every collider point within
+  3 cm of the scene's own drawn ground (its triangles, under the gravity of the body the scene stands on), and one
+  bounded least squares sharing the needed forces between those contacts, the joints' range stops and the muscles
+  (static optimisation, least squared activation, passive forces in, the whole body's balance kept first); what neither can give is the pelvis' residual and the joints' reserves,
+  measured and never applied. Per frame it writes the SOMA segments' turns and the clip's, joint moments, the ground's
+  push and each foot's, the residual, each muscle's activation and force and each SOMA segment's pose riding its bone
+  (`measures/<name>.json`), and each body as its bones (meshes, every frame) and muscles (lines coloured by
+  activation) under its character's prim (`layers/sim_bodies.usda`).
+  **The person moves with it** (`score/stages/cast/driven.py`, in the characters layer the assembly takes): its
+  skeleton plays a SkelAnimation of its own from the record's poses (since the musculoskeletal body, the clip's own
+  segment frames: the movement is the clip's), Hips on that path (its height times the body's size against the rig's, plus the clip's lift); Root, HeadEnd and the
   toe ends, every other translation, the blend shapes and the frames after the sim's keep the clip's; the sim body is
   referenced beside it as a guide, in the skeleton's frame, from the same start. A person the sim did not run, one
   held still and the crowd keep their clip, said why (`characters.json`, `score:motion`). Gated on `on its sim body`
-  (each foot joint within 5 cm of the sim body's foot in every simulated frame). Gated on `on floor` (2 cm), `carries` (the floor's mean push within 5% of the weight) and `follows`
-  (5 degrees mean off the clip). Not yet: muscles (#60), the scene's own geometry under the feet, a walker's cast path,
-  a person's own SOMA shape.
+  (each foot joint within 5 cm of the sim body's foot, riding its calcaneus, in every frame). The sim body is gated on `on floor`
+  (2 cm), `lands`, `carries` (the ground's mean push within 5% of the weight), `follows` (5 degrees mean off the clip)
+  and `residual` (Hicks et al. 2015: at most 5% of the weight, and a moment at most 1% of it times the centre of mass'
+  height). Not yet: muscles driving a forward simulation, a walker's cast path, a person's own SOMA shape.
   **A person's loose cloth is simulated on its sim body** (`score/stages/people_cloth`, row `people-cloth@<place>`,
   free, experimental). The owner retired Newton cloth for people on 2026-10-10 (the GarmentCode drapes: patterns sewn
   and settled on a still body, then baked, whose silhouettes failed the reference and whose coat blew up; the SOMA
