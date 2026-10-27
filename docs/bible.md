@@ -363,6 +363,21 @@ branch names a scene or a world.
   yet assembled). Gated on `on floor` (2 cm), `carries` (the floor's mean push within 5% of the weight) and `follows`
   (5 degrees mean off the clip). Not yet: muscles (#60), the scene's own geometry under the feet, a walker's cast path,
   a person's own SOMA shape.
+  **A person's loose cloth is simulated on its sim body** (`score/stages/people_cloth`, row `people-cloth@<place>`,
+  free, experimental). The owner retired Newton cloth for people on 2026-10-10 (the GarmentCode drapes: patterns sewn
+  and settled on a still body, then baked, whose silhouettes failed the reference and whose coat blew up; the SOMA
+  shell replaced them on 2026-10-13) and brought it back on 2026-10-27 ("bring back"), now that every person has a
+  sim body. It is not the drapes: the built, dressed garment keeps its shape, and only its loose points move. A point
+  is loose where the shell gate calls it loose cloth (its offset off the fitted SOMA shell over `bodies.OFFSET_MOST`);
+  every other point rides the skin. The person's skeleton plays the sim body's run (each segment's turn against its
+  parent, on the person's own bones), the body surface under the clothes is cut into one mesh collider a sim segment
+  moving with it, and Newton's VBD (`inside/cloth.py`, the physics env, this PC's card, run-to-run deterministic)
+  simulates each garment part with loose points, its cloth values from its library surface's recipe in
+  `data/physics/cloth.json` (cotton from Larionov et al. 2022, never typed in code). Its layer hides the baked part
+  and lays a time-sampled mesh in its place under the character (`layers/people_cloth.usdc`, not yet assembled).
+  Gated on `through` (no loose point deeper in the body than the cloth's 3 mm), `stretch` (10% past the longer of
+  its built and skin length) and `rests` (on a still clip, 1 cm/s off the skin at the end). Not yet: self contact,
+  the characters layer's clip cut and start, a design whose people wear a skirt, coat or cape (none does today).
 - **Crops** (`score/stages/crops`): kinds and beds read off the design (a growing row standing on a bed). Every other
   plant (CONTEXT.md: a tree, a shrub, a potted plant) is a model like any other and no layer of its own; the Buy
   screen counts every plant of the design (`design_layers.plants_of`) apart from the crops' steps (owner, 2026-10-24).

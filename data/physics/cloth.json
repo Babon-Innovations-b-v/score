@@ -1,0 +1,14 @@
+{
+ "about": "Cloth materials for a person's loose garment parts (score/stages/people_cloth, Newton's VBD, owner 2026-10-27), keyed by the library recipe a part's surface is made with (data/library/materials.json `recipes`): a part whose recipe has no row here is not simulated and is named. Each row: its areal density (kg/m2), its membrane's Young's modulus (N/m, the mean of warp and weft), shear modulus (N/m) and Poisson's ratio, its bending stiffness (J, the energy per squared radian of one hinge in a discrete bending model), each with its source. The stage turns them into Newton's: mu the shear modulus, lambda E nu / (1 - nu^2) (plane stress), the edge stiffness the bending stiffness over the part's mean edge length (Newton's hinge energy is half its stiffness times the edge's length times the squared angle).",
+ "recipes": {
+  "cloth": {
+   "is": "plain woven cloth (the library's `cloth` recipe): cotton",
+   "density": 0.224,
+   "young": 30.54,
+   "shear": 4.971,
+   "poisson": 0.3058,
+   "bending": 1.19e-7,
+   "source": "Larionov, Eckert, Wolff and Stuyck, Estimating Cloth Elasticity Parameters Using Position-Based Simulation of Compliant Constrained Dynamics, arXiv:2212.08790 (2022), Table 2, cotton: density 0.0224 g/cm2, E_u 30823 and E_v 30266, shear 4971, Poisson 0.3058, bending 1.19, in the paper's centimetre-gram-second units (dyn/cm for the moduli, erg for the bending stiffness: the units are read from its statement that it uses CGS, the table names none)"
+  }
+ }
+}
