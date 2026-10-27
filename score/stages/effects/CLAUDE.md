@@ -14,6 +14,16 @@ design.
   fails an emitter on no inventory row's object and a row that emits with no object on the stage. A new effect is a
   new kind in `data/checks/effects.json` measured on footage and named by a row kind, never an entry for one scene. A
   per-row parameter a rule cannot choose is one recorded model call per scene inside the batch, never typed by hand.
+- **How an effect is made is one rule, never a pick** (owner, 2026-10-27: "how does the framework decide?").
+  `data/checks/effects.json` `methods` maps what a kind is made of (its `matter`) to its maker, with the reason:
+  grains (sand, dust piles, cuttings, snow) are Newton's implicit MPM, drawn as one surface built from every grain;
+  cloth and cables would be Newton's VBD (no such kind yet: the stage refuses it until it has a maker); steam, mist,
+  smoke and fog, and fire, rocket exhaust and sparks, are baked particles, since Newton 1.7.0 has no gas, flame or
+  light solver; a glow is the record's keyed lights. `from_design.py` writes each emitter's `made_by` and `drawn` from
+  it and `made` dispatches on it; no stage code names a place or an object. A kind's parameter that neither the
+  design nor a rule gives is named in its `asked` (the drill's bore and how much it brings up) and read off the
+  locked concept by one claude-code call per scene (`asked.py`, EUR 0, cached and ledgered, so the row runs only on
+  the owner's PC), its numbers and reasons kept in `record.json`.
 - **The old records are retired** (`data/effects/<place>.json`, written for the old concepts; owner, 2026-10-21: all
   old stuff is retired). The completion gate's contents check reads the emitters on the stage; the review's renders
   read no effects views.
@@ -43,8 +53,8 @@ design.
   particles, and the films' visual check (`../complete/visual`) sees them; a new render of its own would only repeat
   them.
   Today's measured kinds are steam off a kettle and a hob, a humidifier's mist and a drilling rig's cuttings (the
-  first effect Newton makes: a granular pile by implicit MPM, `inside/`, its flank held to the slip faces measured on
-  Mars); the old records' pump-down fog,
+  first effect Newton makes: a granular pile by implicit MPM, `inside/`, drawn as a surface from all its grains, its
+  flank held to the slip faces measured on Mars); the old records' pump-down fog,
   vacuum vents, Mars drift, dust devils, cigarette smoke and the launch's flame were tied to the game's cycles and
   places and wait to become kinds of their own.
 - **Indoors stays indoors.** A record lists its `interiors` (upright cylinders, `[]` for none) whenever an emitter
@@ -58,5 +68,6 @@ design.
   branch is gone.
 - `test_effects_ride_their_design.py` makes a small kitchen stage itself, makes its effects from its design (the
   stove's and the kettle's steam at their measured spots), passes every gate and fails `designed` on a row with no
-  object; a drilling rig on Mars lays its pile (Newton's run stood in for by a cone) and fails `footage` on one too
-  flat.
+  object; a drilling rig on Mars lays its pile as a surface (Newton's run stood in for by a cone, the scene's ask by
+  a stand-in answer) and fails `footage` on one too flat; an ask left unanswered stops the row; every kind is made
+  by its matter's method.

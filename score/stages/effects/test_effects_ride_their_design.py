@@ -1,8 +1,10 @@
 """A scene's effects are made from its design, ride their objects at their measured spots, and pass every gate;
 a row that emits with no object on the stage fails `designed` (effects/__init__.py, from_design.py). The stage is a
-small kitchen made here; no record is written for the scene. A drilling rig's cuttings are a pile Newton makes
-(inside/newton_pile.py, in the physics trial's own Python on a card): here its run is stood in for by a cone of the
-slope given, laid on the stage as the layer lays the run's particles, under the gravity of the body its site is on.
+small kitchen made here; no record is written for the scene. How each effect is made is one rule by what it is made
+of (effects.json `methods`): a drilling rig's cuttings are grains, a pile Newton makes (inside/newton_pile.py, in the
+physics trial's own Python on a card) and drawn as one surface: here its run is stood in for by a cone surface of the
+slope given, under the gravity of the body its site is on, its bore and amount the scene's one model call's answer
+(stood in for here).
 
 Breaks that turn it red (each applied once and seen red, then reverted):
 - `from_design.spot_on`: `middle + at * half` read as `middle`  -> the first test (the kettle's spout at its box's
@@ -15,6 +17,12 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `tools/usd/effects.write_clip`: `baked(emitter)` not read (the emitter baked as a Godot particle)  -> the third
   test (the pile is not the one Newton made, `footage` fails).
 - `effects.poured`: the body's gravity left out of the emitter  -> the third test (no Mars pull on the emitter).
+- `effects.poured`: the row's asked values left out of the pile (`**entry["asked"]["values"]` dropped)  -> the third
+  test (the pile has no volume).
+- `asked.read`: a line not answered let through  -> the fourth test (no ValueError).
+- `effects.made`: the `newton-mpm` branch made `particles`  -> the third test (the pile is baked as particles, no
+  surface).
+- data/checks/effects.json: a kind's `matter` removed, or a matter's `made_by` removed  -> the fifth test.
 """
 import json
 import math
@@ -24,6 +32,7 @@ import numpy as np
 
 from score import checks
 from score.stages import effects
+from score.stages.effects import asked
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PLACE = "toy"
@@ -74,30 +83,50 @@ def toy_inputs(folder, inventory=INVENTORY, objects=OBJECTS):
 
 
 def cone(asked, baked, slope):
-    """Stands in for Newton's run: the pile `asked` (its count drawn, its samples a second over its seconds) as a
-    cone of `slope` degrees on the collar, filled from its middle up as it pours, at rest once poured."""
+    """Stands in for Newton's run: the pile `asked` (its samples a second over its seconds) as a cone surface of
+    `slope` degrees on the collar, grown to its whole volume as it pours, at rest once poured."""
     pile = json.loads(pathlib.Path(asked).read_text())
-    count, samples = int(pile["count"]), int(round(float(pile["seconds"]) * float(pile["samples"]))) + 1
+    samples = int(round(float(pile["seconds"]) * float(pile["samples"]))) + 1
     tall = (3.0 * float(pile["volume"]) * math.tan(math.radians(slope)) ** 2 / math.pi) ** (1.0 / 3.0)
-    wide = tall / math.tan(math.radians(slope))
-    draws = np.random.default_rng(int(pile["seed"])).random((count, 3))
-    out_by = np.sqrt(draws[:, 0]) * wide
-    spots = np.stack([out_by * np.cos(2 * math.pi * draws[:, 1]), draws[:, 2] * (tall - out_by * tall / wide),
-                      out_by * np.sin(2 * math.pi * draws[:, 1])], axis=1)
-    let_out = np.arange(samples)[:, None] / float(pile["samples"]) >= draws[None, :, 0] * float(pile["pour"])
-    np.savez(baked, points=np.where(let_out[..., None], spots[None], 0.0).astype(np.float32),
-             widths=np.where(let_out, 0.01, 0.0).astype(np.float32))
+    rings, around = np.linspace(0.0, 1.0, 201), np.linspace(0.0, 2 * math.pi, 64, endpoint=False)
+    out_by = np.repeat(rings, len(around)) * tall / math.tan(math.radians(slope))
+    turn = np.tile(around, len(rings))
+    shape = np.stack([out_by * np.cos(turn), tall * (1.0 - np.repeat(rings, len(around))), out_by * np.sin(turn)], 1)
+    ring, step = np.meshgrid(np.arange(len(rings) - 1), np.arange(len(around)), indexing="ij")
+    first, beside = ring * len(around) + step, ring * len(around) + (step + 1) % len(around)
+    faces = np.stack([first, beside, first + len(around), beside, beside + len(around), first + len(around)], -1)
+    vertices, indices = [], []
+    for sample in range(samples):
+        poured = min(sample / float(pile["samples"]) / float(pile["pour"]), 1.0)
+        vertices.append(shape * poured ** (1.0 / 3.0) if poured else np.zeros((0, 3)))
+        indices.append(faces.ravel() if poured else np.zeros(0, int))
+    np.savez(baked, vertices=np.concatenate(vertices).astype(np.float32),
+             vertex_starts=np.cumsum([0] + [len(part) for part in vertices]),
+             indices=np.concatenate(indices).astype(np.int32),
+             index_starts=np.cumsum([0] + [len(part) for part in indices]), grains=123)
+
+
+def answered(volume):
+    """Stands in for the scene's one model call: every line asked answered (the bore 0.1 m, the volume given)."""
+    def asked(bodies, caller):
+        wants = json.loads(next(iter(bodies.values()))["contents"][0]["parts"][1]["text"].split("\n", 1)[1])
+        return {key: json.dumps({"answers": [dict(want, value=volume if want["parameter"] == "volume" else 0.1,
+                                                  why="stood in") for want in wants]}) for key in bodies}
+    return asked
 
 
 def drill_inputs(folder, monkeypatch, slope):
     """The toy place with a drilling rig on Mars (its site the Campgrounds'), Newton's run a cone of `slope`."""
     pathlib.Path(folder).mkdir()
     rig = (("drilling_rig_1", (-1.0, 0.0, -1.0), (1.0, 8.0, 1.0), (0.0, 0.0, 0.0)),)
-    inventory = {"rows": [{"id": "drilling_rig", "name": "drilling rig", "noun": "drill"}]}
+    inventory = {"rows": [{"id": "drilling_rig", "name": "drilling rig", "noun": "drill", "size": [2.0, 2.0, 8.0]}]}
     inputs = toy_inputs(folder, inventory, rig)
     (pathlib.Path(folder) / "within.json").write_text(json.dumps({"within": {PLACE: {"within": "campgrounds"}}}))
+    (pathlib.Path(folder) / "concept.png").write_bytes(b"a picture")
     monkeypatch.setattr(effects, "newton_pile", lambda asked, baked: cone(asked, baked, slope))
-    return dict(inputs, physics=REPO / "data/physics/setting.json", within=pathlib.Path(folder) / "within.json")
+    monkeypatch.setattr(asked.claude_code, "asked", answered(0.12))
+    return dict(inputs, physics=REPO / "data/physics/setting.json", within=pathlib.Path(folder) / "within.json",
+                concept=pathlib.Path(folder) / "concept.png")
 
 
 def answers(inputs, folder):
@@ -147,5 +176,29 @@ def test_a_drilling_rig_lays_its_newton_pile_on_mars_and_is_held_to_the_slip_fac
     stage = Usd.Stage.Open(str(out / "layers/effects.usda"))
     emitter = stage.GetPrimAtPath(f"/{PLACE}/Objects/drilling_rig_1/drilling_rig_1_drill_cuttings")
     assert abs(emitter.GetAttribute("score:effect:gravity").Get()[1] + 3.71) < 0.02  # Mars's, its site's body
+    assert stage.GetPrimAtPath(f"{emitter.GetPath()}/drilling_rig_1_drill_cuttings_surface").GetTypeName() == "Mesh"
+    entry = json.loads((out / "record.json").read_text())["effects"][0]
+    assert (entry["made_by"], entry["asked"]["values"]) == ("newton-mpm", {"bore": 0.1, "volume": 0.12}), entry
     _, flat = answers(drill_inputs(tmp_path / "flat", monkeypatch, 22.0), tmp_path / "flat")
     assert flat["footage"].answer == checks.FAIL, flat["footage"].reason
+
+
+def test_a_parameter_the_scene_was_asked_and_not_answered_stops_the_row():
+    wants = asked.wanted([({"id": "drilling_rig", "name": "drilling rig", "size": [2.0, 2.0, 8.0]}, "drill_cuttings")],
+                         json.loads((REPO / "data/checks/effects.json").read_text()))
+    assert {want["parameter"] for want in wants} == {"bore", "volume"}
+    answer = json.dumps({"answers": [dict(wants[0], value=0.1, why="read off the picture")]})
+    try:
+        asked.read(answer, wants)
+    except ValueError as error:
+        assert "volume" in str(error) or "bore" in str(error), error
+    else:
+        raise AssertionError("an unanswered parameter was let through")
+
+
+def test_every_effect_kind_is_made_by_the_one_rule_for_its_matter():
+    library = json.loads((REPO / "data/checks/effects.json").read_text())
+    made = {name: library["methods"][kind["matter"]]["made_by"] for name, kind in library["kinds"].items()}
+    assert made == {"steam_jet": "particles", "steam_rise": "particles", "humidifier_mist": "particles",
+                    "drill_cuttings": "newton-mpm"}, made
+    assert all(method["why"] for name, method in library["methods"].items() if name != "about")
