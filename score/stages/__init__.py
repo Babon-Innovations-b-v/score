@@ -26,7 +26,7 @@ from score import checks, contracts, graph
 from score.checks import grain
 from score.stages import (animals, assembly, cast, complete, crops, demo_film, design_layers, earth_seed, effects,
                           gaps, images, library, light, motion, people, physics, scene_record, settling,
-                          shapes_first, shell_split, sound,
+                          shapes_first, shell_split, sim_body, sound,
                           surface_tiles, surfaces, terrain, video_clips)
 from score.stages.surfaces import bake_check, body_faces, carry, library_reads, route_check
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
@@ -203,6 +203,12 @@ CHARACTERS = graph.Stage("characters-layer", "place", characters_layer.make, cha
                          characters_layer.CHECKS, files=characters_layer.files,
                          after={"cast": ("cast", 1), **{name: ("people-dress", 1) for name in DRESS_ROWS}},
                          optional=DRESS_ROWS, applies=designed("people"))
+# Experimental (#65, PRD #56): each character of the place's accepted cast as a sim body on Newton, built from SOMA's
+# segments in the rig its clips play (people-clips-made), driven by its clip and standing on the floor by contact
+# (score/stages/sim_body). Nothing reads it yet, so no other row's key moves.
+SIM_BODY = graph.Stage("sim-body", "place", sim_body.make, sim_body.CONTRACT, sim_body.CHECKS, files=sim_body.files,
+                       after={"cast": ("cast", 1), sim_body.CLIPS_ROW: (sim_body.CLIPS_ROW, 1)},
+                       applies=designed("people"))
 # Experimental (PRD #6) until the owner has heard it: each place's sound layer data (its sounds, their files and levels,
 # MOSS takes for briefs no environment file answers, paid), for the place's assembly to write into its stage.
 SOUND = graph.Stage("sound", "place", sound.make, sound.LAYER, sound.CHECKS, files=sound.files, paid=True,
@@ -422,7 +428,7 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
           SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(code_marked, map(
               boxed_split, map(designed_rough, shapes_first.rows()))))))),
-          *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, CAST, CHARACTERS, MOTION,
+          *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, CAST, CHARACTERS, SIM_BODY, MOTION,
           *light.ROWS, *crops.ROWS,
           surface_tiles.STAGE,
           # Experimental (#52): each animal row a design shows, its body and its clips (score/stages/animals).
