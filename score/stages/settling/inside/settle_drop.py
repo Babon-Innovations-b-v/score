@@ -19,7 +19,7 @@ stacked in it meets its floor, not its hull's top. Loose objects collide with th
 other but what they are stacked on (a convex hull spans a hollow: one hull section lying on a panel rested on its hull
 while the drawn hull stood 4 cm clear, 2026-10-08). One that starts inside a static (a layout fault) would be thrown out
 of it, so it collides with the ground alone and is reported. Newton steps it with MuJoCo's solver on Newton's own
-contacts, deterministic, SECONDS under gravity (or until everything has been still QUIET_SECONDS) with each body's
+contacts (sorted), SECONDS under gravity (or until everything has been still QUIET_SECONDS) with each body's
 speed damped every frame (DAMPING_LINEAR, DAMPING_ANGULAR), so nothing bounces off or keeps rolling; each object's last
 pose is taken. Two loose objects whose
 drawn triangles cross at rest are reported (`overlaps`).
@@ -62,7 +62,9 @@ MARGIN = 0.004
 # Room for this many contacts a loose body (Newton reduces each pair's to a few), and the solver's rows a contact (an
 # elliptic cone: 3). Sized by Newton from the ground's triangles, the solver asked for 3.4 billion (toy, 2026-10-27).
 # The cone is elliptic: on MuJoCo's default pyramid every box on the toy's 5.7 degree slope spun 7 degrees about its up
-# as it landed. The Jacobian is dense: deterministic mode ran a sparse one out of the card's memory.
+# as it landed. The solve is not Warp's deterministic mode: over 32 dofs (6 loose bodies) MuJoCo Warp's sparse
+# Jacobian sizes its sorted records past 2^31 (19 billion for 20 bodies, the patched mujoco-warp too), a dense one
+# stops at 60 dofs, and its sparse inertia solve is wrong over 60 dofs in a tree (#60). Newton's contacts are sorted.
 CONTACTS = 64
 ROWS = 3
 # Beside the stage: its hollow objects' convex parts (tools/usd/convex_parts.py's FILE).
@@ -248,8 +250,8 @@ class Drop:
         self.model = builder.finalize(device=wp.get_preferred_device())
         self.room = CONTACTS * len(self.bodies)
         self.solver = newton.solvers.SolverMuJoCo(
-            self.model, use_mujoco_contacts=False, integrator="euler", cone="elliptic", jacobian="dense",
-            deterministic=wp.DeterministicMode.RUN_TO_RUN, nconmax=self.room, njmax=self.room * ROWS)
+            self.model, use_mujoco_contacts=False, integrator="euler", cone="elliptic", nconmax=self.room,
+            njmax=self.room * ROWS)
         self.now, self.next = self.model.state(), self.model.state()
         self.control = self.model.control()
         self.pipeline = newton.CollisionPipeline(self.model, deterministic=True, rigid_contact_max=self.room)
