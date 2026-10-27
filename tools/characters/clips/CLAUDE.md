@@ -1,7 +1,10 @@
 # tools/characters/clips/
 
 The tools for video clips (CONTEXT.md "video clip", #52): a body's motion read off the creator's video and put onto
-the people's rig. They are run by the row `video-clip-<clip>` (`score/stages/video_clips`).
+the people's rig. They are run by the row `video-clip-<clip>` (`score/stages/video_clips`). Beside them,
+`scene_clips.py` is the scene-made clips' program (CONTEXT.md "scene-made clip", row `scene-clips@<place>`,
+`score/stages/scene_clips`): on the rented characters machine it runs `kimodo_gen` on each clip's constraints file
+with people/clips.py's walking sentence, model and seed, then the maker's rig step; it builds no constraint itself.
 
 - `video_motion.py` runs on the rented characters machine (`../../cloud/characters.py` program
   `video_motion.py`, through `../maker/chain.py`'s step runner). It runs sam3dbody-cpp's offline extractor on the

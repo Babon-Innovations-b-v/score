@@ -378,6 +378,16 @@ branch names a scene or a world.
   Gated on `through` (no loose point deeper in the body than the cloth's 3 mm), `stretch` (10% past the longer of
   its built and skin length) and `rests` (on a still clip, 1 cm/s off the skin at the end). Not yet: self contact,
   the characters layer's clip cut and start, a design whose people wear a skirt, coat or cape (none does today).
+  **A walker's clip is made from its world** (`score/stages/scene_clips`, row `scene-clips@<place>`, paid,
+  experimental; PRD #56; CONTEXT.md "scene-made clip"): its cast route (its `path`, else a straight leg the way it
+  faces) walked at its pace and checked on the cast's own geometry (the ground under every frame, cut where it runs
+  into a solid or finds no ground within a knee) becomes Kimodo constraints: the dense root path with its heading,
+  and each foot at its stance's middle as SOMA77's rest pose whose sole stands on the scene's ground under that foot
+  (checked against Kimodo's own FK). Kimodo makes the clip on one rented characters machine (`kimodo_gen
+  --constraints`, the walking sentence, model and fixed seed), with the rig, as `people-clips-made` writes them.
+  Kimodo has no ground of its own and its post-processing pulls a toe in contact back to one flat floor, so a clip
+  over ground that is not flat is made without it, its skate left to the sim body's contacts. Gated on `made`, `path
+  held` (hips 10 cm off the route on the mean) and `feet held` (soles 5 cm off their ground). Nothing reads it yet.
 - **Crops** (`score/stages/crops`): kinds and beds read off the design (a growing row standing on a bed). Every other
   plant (CONTEXT.md: a tree, a shrub, a potted plant) is a model like any other and no layer of its own; the Buy
   screen counts every plant of the design (`design_layers.plants_of`) apart from the crops' steps (owner, 2026-10-24).
