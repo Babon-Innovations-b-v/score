@@ -6,7 +6,7 @@
     python -m score.conductor logs [--lines N]   # logs.tails: run logs, fault reports, unit journals, boot logs, as text
     python -m score.conductor disk               # disk.report: free room and the biggest folders, the rest in a file
     python -m score.conductor clean-frozen       # disk.clean: remove the frozen copies no run needs, what it freed
-    python -m score.conductor clean-cache [--making-only]  # disk.clean_cache: with no run live, the cache made again free
+    python -m score.conductor clean-cache [--making-only]  # disk.clean_cache: checkouts relinked, the cache cleared
 """
 import argparse
 import json
@@ -75,10 +75,11 @@ def clean_cache(making_only):
         done = disk.clean_cache(names=("making",) if making_only else tuple(disk.CLEARED))
     except disk.Unprovable as why:
         done = {"refused": str(why)}
+    relinked = f"checkouts relinked, {done.get('relinked_gb', 0.0)} GB of copies freed"
     if done["refused"]:
-        print(f"clean-cache: refused, nothing removed: {done['refused']}", flush=True)
+        print(f"clean-cache: {relinked}; refused, nothing removed: {done['refused']}", flush=True)
         sys.exit(1)
-    print(f"clean-cache: removed {', '.join(done['removed']) or 'nothing'}; freed {done['freed_gb']} GB, "
+    print(f"clean-cache: {relinked}; removed {', '.join(done['removed']) or 'nothing'}; freed {done['freed_gb']} GB, "
           f"{disk.free_gb():.1f} GB free", flush=True)
 
 

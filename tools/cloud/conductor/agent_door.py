@@ -18,7 +18,8 @@ as an argument list, never through a shell, and only when it is one of these:
     clean-frozen                                python -m score.conductor clean-frozen: remove the frozen copies no
                                                 registered run needs and no process works in (2026-10-26: the
                                                 data disk full); refused while it cannot tell, never the store or design
-    clean-cache                                 python -m score.conductor clean-cache: with no run live, remove the
+    clean-cache                                 python -m score.conductor clean-cache: checkouts' copies made links
+                                                to the stored blobs (safe with a run live); with no run live, remove the
                                                 store cache's folders made again for free (makes left behind,
                                                 checkouts, evidence copies, review pages, scratch); refused with the
                                                 reason otherwise; never store/objects, paid drops or work/pixal

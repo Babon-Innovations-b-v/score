@@ -7,7 +7,9 @@ key. Every case runs on a store of its own in the temp folder.
 Each test's break (applied once, seen red, reverted), in score/store/__init__.py unless named:
 - named by content: durable.put_tree names the output with a random field added to its listing.
 - checkout read-only: place_blob chmods the copy 0o644.
-- writable checkout leaves the store alone: place_blob hard-links the stored blob instead of copying it.
+- checkout links the blob: linked_read_only returns False at its start.
+- writable blob never linked: linked_read_only drops its write-bit check.
+- relink only whole copies: relink drops `or file_hash(path) != sha`.
 - agent kept out of owner areas: write_once's agent check ends `and False`.
 - nothing overwritten: durable.write_once drops its exists check and copies over the target instead of linking.
 - newest accept: current_accept returns `standing[0]`.
@@ -77,17 +79,53 @@ def test_a_checkout_gives_the_output_back_read_only():
     raise AssertionError("a stored output could be written over")
 
 
-def test_a_checked_out_file_made_writable_leaves_the_stored_bytes_alone():
-    """Fault (review of step 0, 2026-10-11): a checkout was a hard link sharing the stored blob's inode, so a stage
-    that chmod-ed a checked-out file and wrote it changed the stored output in place."""
+def test_a_checkout_links_the_stored_bytes_and_no_write_through_it_reaches_them():
+    """2026-10-27: checkouts copied every output they gave out (16 GB in an hour beside a 22 GB store on the conductor).
+    A checkout is a hard link to the read-only blob: no second copy, a write through it is refused, and a save that
+    replaces the file or adds one changes the checkout's entries only, never the blob."""
+    store = a_store()
+    output = store.put_tree(a_folder({"a.txt": "a", "b.txt": "b"}))
+    blob = store.objects.path(f"blobs/{store.listing(output)['a.txt']}")
+    folder = store.checkout(output)
+    assert (folder / "a.txt").samefile(blob) and blob.stat().st_nlink == 2, "a checkout copied the stored bytes"
+    for write in (lambda: open(folder / "a.txt", "r+b"), lambda: open(folder / "a.txt", "ab"),
+                  lambda: (folder / "a.txt").write_text("changed")):
+        try:
+            write()
+        except PermissionError:
+            continue
+        raise AssertionError("a stored file could be written through its checkout")
+    (folder / "saved.txt").write_text("a save beside it")
+    (folder / "saved.txt").replace(folder / "a.txt")  # a save that writes new and renames over its input
+    assert blob.read_text() == "a" and file_hash(blob) == store.listing(output)["a.txt"], "the stored bytes changed"
+    assert (store.checkout(output) / "a.txt").samefile(blob), "a changed checkout was handed out again"
+
+
+def test_a_writable_blob_is_copied_never_linked():
     store = a_store()
     output = store.put_tree(a_folder({"a.txt": "a"}))
+    blob = store.objects.path(f"blobs/{store.listing(output)['a.txt']}")
+    blob.chmod(0o644)  # a blob not stored by put_blob (a restore, a hand copy)
     checked = store.checkout(output) / "a.txt"
-    checked.chmod(0o644)
-    checked.write_text("changed")
-    sha = store.listing(output)["a.txt"]
-    assert file_hash(store.objects.path(f"blobs/{sha}")) == sha, "the stored bytes changed through a checkout"
-    assert (store.checkout(output) / "a.txt").read_text() == "a", "a changed checkout was handed out again"
+    assert not checked.samefile(blob) and checked.read_text() == "a" and not checked.stat().st_mode & 0o222
+
+
+def test_relink_makes_a_checkouts_whole_copies_links_and_leaves_a_changed_one():
+    """The conductor's checkouts made as copies before this, freed with a run live (disk.clean-cache)."""
+    store = a_store()
+    output = store.put_tree(a_folder({"a.txt": "a" * 5000, "b.txt": "b"}))
+    folder = store.checkout(output)
+    for name, text in (("a.txt", "a" * 5000), ("b.txt", "changed")):  # an old copy, and a copy a make wrote over
+        (folder / name).unlink()
+        (folder / name).write_text(text)
+        (folder / name).chmod(0o444)
+    reader = open(folder / "a.txt", "rb")  # a node reading the copy while it is relinked
+    assert store.relink(output) == 5000
+    assert (folder / "a.txt").samefile(store.objects.path(f"blobs/{store.listing(output)['a.txt']}"))
+    assert reader.read() == b"a" * 5000 and (folder / "b.txt").read_text() == "changed"
+    reader.close()
+    assert sorted(path.name for path in folder.iterdir()) == ["a.txt", "b.txt"]
+    assert not list(store.cache.rglob("*.partial")) and store.relink(output) == 0
 
 
 def owner_write(environment, area="acc" + "epts", by="owner"):
