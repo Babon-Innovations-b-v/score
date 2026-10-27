@@ -321,6 +321,9 @@ READS_THE_LOOP = {
     "surface-tiles": "tile pictures of the scene's library surfaces for its shell, lays no model",
     "settle": "the motion layer's physics: not on an adapter yet (#41's motion track)",
     "crops-layer": "the motion layer's growth: not on an adapter yet (#41's motion track)",
+    "motion": "the moving objects' baked models laid as the settle lays them: not on an adapter yet (#41's motion "
+              "track)",
+    "effects-layer": "the emitting objects' baked models laid as the settle lays them: not on an adapter yet (#41)",
 }
 # Every paid row outside the loop and what it makes: none a model, but the named exceptions MADE_OUTSIDE holds.
 MAKES_NO_MODEL = {
