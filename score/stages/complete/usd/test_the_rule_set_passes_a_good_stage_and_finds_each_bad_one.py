@@ -1,13 +1,26 @@
-"""The USD correctness check (score/stages/complete/usd): SCORE's rule set passes a good stage, fails a bad one by
-rule, its own triangle-collider rule fires only on a dynamic body, and a place's findings.json is written from a
-store of the test's own."""
+"""The USD correctness check (score/stages/complete/usd): SCORE's rule set passes a good stage (Y up, metres), fails a
+bad one by each rule it breaks, its own triangle-collider rule fires only on a dynamic body, a warning rule never
+fails the place, a rule's many findings are one problem, and a place's findings.json is judged from its accepted
+assembly in a store of the test's own.
+
+Breaks that turn each test red (each applied once and seen red, 2026-10-27):
+- test_the_good_stage_has_no_error: rules.py's ERRORS given "UpAxisZChecker" first (SCORE's Y up made a fault).
+- test_the_bad_stage_fails_by_each_rule_it_breaks: rules.py's ERRORS without "ExtentsChecker".
+- test_a_triangle_collider_is_a_fault_only_on_a_dynamic_body: rules.dynamic_body's
+  `return prim if enabled is not False and not kinematic else None` made `return prim if enabled is not False else
+  None` (a kinematic body counted as dynamic).
+- test_a_warning_rule_never_fails_the_place: rules.severity made `return "error"` (every rule an error).
+- test_findings_group_one_rule_and_message_into_one_problem: judged.grouped's `"count": len(prims)` made `"count": 1`.
+- test_a_place_is_judged_on_its_accepted_assembly_from_the_store: __main__.answer made `return "pass"`.
+"""
 import json
 
-from score.stages.complete.gaps.gaps_test import made, verdict
+from score import review
 from score.stages.complete.usd import __main__ as check
 from score.stages.complete.usd import judged, rules
 from score.store import Store
 
+STAMP = "2026-10-19T10:00:00.000000+00:00"
 CUBE = """
         point3f[] points = [(0,0,0), (1,0,0), (1,1,0), (0,1,0), (0,0,1), (1,0,1), (1,1,1), (0,1,1)]
         int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
@@ -97,6 +110,25 @@ def rules_hit(found, severity="error"):
     return {issue["rule"] for issue in found if issue["severity"] == severity}
 
 
+def accepted(store, folder, node, files):
+    """One node's output stored, its finish record and a passing judgement written, and accepted as the runner does."""
+    folder.mkdir(parents=True, exist_ok=True)
+    for name, text in files.items():
+        (folder / name).write_text(text)
+    output = store.put_tree(folder)
+    key = f"key-{node.replace('@', '-')}"
+    stage, place = node.split("@")
+    store.write_record(node, key, {"node": node, "key": key, "output": output, "stage": stage, "place": place,
+                                   "finished": STAMP, "started": STAMP, "minutes": 1.0, "euros": 0, "after": {},
+                                   "files": {}})
+    verdicts = {"made": {"check": "made", "answer": "pass", "reason": "0 faults", "measures": {}, "better": {},
+                         "findings": []}}
+    store.write_judgement(node, key, "e1", {"node": node, "key": key, "output": output, "evidence": "e1",
+                                            "at": STAMP, "answer": "pass", "verdicts": verdicts})
+    review.accept_automatically(store, node, output)
+    return output
+
+
 def test_the_good_stage_has_no_error(tmp_path):
     found = judged.issues(stage_of(tmp_path, GOOD))
     assert rules_hit(found) == set(), [issue for issue in found if issue["severity"] == "error"]
@@ -107,11 +139,6 @@ def test_the_bad_stage_fails_by_each_rule_it_breaks(tmp_path):
     for rule in ("DefaultPrimChecker", "StageMetadataChecker", "MissingReferenceChecker", "DanglingOverPrimChecker",
                  "ExtentsChecker", "MassChecker", "TriangleColliderOnDynamicBody"):
         assert rule in hit, (rule, hit)
-
-
-def test_y_up_is_never_a_fault_and_the_rule_set_names_no_z_up_rule():
-    assert "UpAxisZChecker" not in (*rules.ERRORS, *rules.WARNINGS)
-    assert {rule.__name__ for rule in rules.engine().enabled_rules} >= {"StageMetadataChecker", "RigidBodyChecker"}
 
 
 def test_a_triangle_collider_is_a_fault_only_on_a_dynamic_body(tmp_path):
@@ -125,10 +152,12 @@ def test_a_triangle_collider_is_a_fault_only_on_a_dynamic_body(tmp_path):
 
 
 def test_a_warning_rule_never_fails_the_place(tmp_path):
-    found = judged.issues(stage_of(tmp_path, GOOD))
-    written = check.written_for("place", "assembly@place", "out", found + [
-        {"rule": "ManifoldChecker", "severity": "warning", "message": "2 edges are non-manifold.", "prim": "/x"}])
-    assert written["answer"] == "pass" and written["counts"]["warning"] >= 1 and written["findings"] == []
+    """A stage whose meshes have no normals: NormalsExistChecker tells of it, and the place still passes."""
+    bare = GOOD.replace(GOOD_MESH, GOOD_MESH[:GOOD_MESH.index("        normal3f[]")])
+    found = judged.issues(stage_of(tmp_path, bare))
+    written = check.written_for("place", "assembly@place", "out", found)
+    assert "NormalsExistChecker" in rules_hit(found, "warning"), found
+    assert written["answer"] == "pass" and written["counts"]["warning"] >= 1 and written["findings"] == [], written
 
 
 def test_findings_group_one_rule_and_message_into_one_problem():
@@ -141,8 +170,7 @@ def test_findings_group_one_rule_and_message_into_one_problem():
 
 def test_a_place_is_judged_on_its_accepted_assembly_from_the_store(tmp_path):
     store = Store.in_folder(tmp_path / "store")
-    output = made(store, tmp_path / "made", "assembly@place", {"place.usda": BAD},
-                  {"made": verdict("made", "pass")})
+    output = accepted(store, tmp_path / "made", "assembly@place", {"place.usda": BAD})
     written = check.judged_place(store, "place", tmp_path / "out" / "place")
     on_disk = json.loads((tmp_path / "out/place/findings.json").read_text())
     assert on_disk == written and written["answer"] == "fail"
