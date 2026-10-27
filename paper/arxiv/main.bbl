@@ -1,4 +1,4 @@
-\begin{thebibliography}{48}
+\begin{thebibliography}{51}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -276,6 +276,32 @@ Scott~D. Uhlrich, Antoine Falisse, {\L}ukasz Kidzi{\'n}ski, Julie Muccini,
 \newblock {OpenCap}: Human movement dynamics from smartphone videos.
 \newblock \emph{PLOS Computational Biology}, 19\penalty0 (10):\penalty0
   e1011462, 2023.
+
+\bibitem[Caggiano et~al.(2022)Caggiano, Wang, Durandau, Sartori, and
+  Kumar]{caggiano2022myosuite}
+Vittorio Caggiano, Huawei Wang, Guillaume Durandau, Massimo Sartori, and Vikash
+  Kumar.
+\newblock {MyoSuite}: A contact-rich simulation suite for musculoskeletal motor
+  control.
+\newblock \emph{arXiv preprint arXiv:2205.13600}, 2022.
+
+\bibitem[Holzbaur et~al.(2005)Holzbaur, Murray, and Delp]{holzbaur2005upper}
+Katherine R.~S. Holzbaur, Wendy~M. Murray, and Scott~L. Delp.
+\newblock A model of the upper extremity for simulating musculoskeletal surgery
+  and analyzing neuromuscular control.
+\newblock \emph{Annals of Biomedical Engineering}, 33\penalty0 (6):\penalty0
+  829--840, 2005.
+\newblock \doi{10.1007/s10439-005-3320-7}.
+
+\bibitem[Saul et~al.(2015)Saul, Hu, Goehler, Vidt, Daly, Velisar, and
+  Murray]{saul2015benchmarking}
+Katherine~R. Saul, Xiao Hu, Craig~M. Goehler, Meghan~E. Vidt, Melissa Daly,
+  Anca Velisar, and Wendy~M. Murray.
+\newblock Benchmarking of dynamic simulation predictions in two software
+  platforms using an upper limb musculoskeletal model.
+\newblock \emph{Computer Methods in Biomechanics and Biomedical Engineering},
+  18\penalty0 (13):\penalty0 1445--1458, 2015.
+\newblock \doi{10.1080/10255842.2014.916698}.
 
 \bibitem[{NVIDIA}(2026)]{gemx}
 {NVIDIA}.
