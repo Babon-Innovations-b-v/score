@@ -86,6 +86,9 @@ unless named):
 - test_the_scalp_is_drawn_under_the_hair: under_hair's `first[moving] - HAIR_GAP` made `+`.
 - test_the_main_shapes_keep_offsets_made_of_few_directions: principal_shapes' largest-first `[::-1]` dropped.
 - test_the_longest_edge_of_each_triangle: route_stretch.longest_edges' `.max(1)` made `.min(1)`.
+- test_a_boots_shaft_follows_the_shin_and_its_sole_the_foot: route_build.shafted's `FOOT_DEGREES - degrees` made
+  `degrees - FOOT_DEGREES` (the sole on the shin, the shaft on the foot), or shaft_tops' `> ... + SHAFT_FROM` made
+  `<` (a tall boot left wholly on its foot).
 - test_a_web_bridging_the_legs_fails_the_stretch_check: route_stretch.grown's `- rest` made `/ rest` (a ratio, not
   metres), or MOST_METRES raised past the 0.21 m the pre-route astronaut's crotch web grew walking.
 - test_the_body_under_a_cut_web_is_drawn_inside_in_the_cut_garments_cloth: under_layer's `np.isfinite(near) &`
@@ -837,6 +840,25 @@ def test_the_main_shapes_keep_offsets_made_of_few_directions():
 def test_the_longest_edge_of_each_triangle():
     points = np.array([[0.0, 0, 0], [3.0, 0, 0], [0.0, 4.0, 0]])
     assert route_stretch.longest_edges(points, np.array([[0, 1, 2]])).tolist() == [5.0]
+
+
+def test_a_boots_shaft_follows_the_shin_and_its_sole_the_foot():
+    names = ["LeftFoot", "LeftShin", "RightFoot", "RightShin"]
+    bind = np.tile(np.eye(4), (4, 1, 1))
+    bind[0, :3, 3], bind[1, :3, 3] = [0.1, 0.06, 0.0], [0.1, 0.48, 0.0]  # left ankle and knee
+    bind[2, :3, 3], bind[3, :3, 3] = [-0.1, 0.06, 0.0], [-0.1, 0.48, 0.0]
+    # The left boot: its shaft's top over the ankle, its toe cap ahead of it, its heel under it, its sides graded.
+    points = np.array([[0.1, 0.23, 0.0], [0.1, 0.03, 0.15], [0.1, 0.0, -0.04], [0.1, 0.12, 0.06]])
+    weights = np.zeros((4, 4))
+    weights[:, 0] = 1.0
+    document = {"materials": [{"extras": {"role": "hard"}}]}
+    tops = route_build.shaft_tops(document, [route_build.Surface(0, points, None, weights, None)], names, bind)
+    assert tops == {(0, 1): 0.23}
+    found = route_build.shafted(points, weights, bind, tops)
+    assert found[0, 1] == 1.0 and found[1, 0] == 1.0 and found[2, 0] == 1.0
+    assert 0.0 < found[3, 1] < 1.0 and np.allclose(found.sum(1), 1.0)
+    shoe = points * [1.0, 0.3, 1.0]  # its top 7 cm up: not past SHAFT_FROM over the ankle, so nothing bends
+    assert route_build.shaft_tops(document, [route_build.Surface(0, shoe, None, weights, None)], names, bind) == {}
 
 
 def test_a_web_bridging_the_legs_fails_the_stretch_check():

@@ -313,6 +313,7 @@ CHECKS_TABLE = pathlib.Path.home() / ".farm-factory-props/score-coordinator/prop
 # The reviewer's count of skin and hard parts through cloth (2026-10-10), in the repo with its depth beyond the margin.
 BODYCLOTH = HERE / "bodycloth.py"
 RIGID_MOST = 1.2
+FLEX_MOST = 1.75  # pokes.FLEX_MOST
 SHIPPED_TRIANGLES = 29849
 LEAN_MOST_CM = 1.5
 # The shipped bodies' outfit nodes by the prop route's outfit names; each is measured alone.
@@ -367,6 +368,9 @@ def table_rows(spec, outfit, folder, take):
     stretched = max(clip["rigid_stretch"] for clip in poked["clips"].values())
     rows.append(("pokes.py", "hard parts' edges at their longest against the bind, worst frame", f"{stretched:.3f}x",
                  f"<= {RIGID_MOST}x", "pass" if poked["verdict"]["rigid"] else "FAIL"))
+    flexed = max(clip["flex_stretch"] for clip in poked["clips"].values())
+    rows.append(("pokes.py", "boot shafts' graded edges at their longest against the bind, worst frame",
+                 f"{flexed:.3f}x", f"<= {FLEX_MOST}x", "pass" if poked["verdict"]["flex"] else "FAIL"))
     triangles = json.loads((folder / "out" / f"{spec['name']}.json").read_text())["levels"][outfit]["triangles"]
     rows.append(("build", "outfit triangles (tucks and prints in)", f"{triangles:,}", f"<= {SHIPPED_TRIANGLES:,}",
                  "pass" if triangles <= SHIPPED_TRIANGLES else "FAIL"))

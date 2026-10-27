@@ -18,6 +18,7 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `dress.flat_materials`: the normal map left out of the maps it asks for  -> the flat factors test.
 - `dress.worn_name`: `role in KEPT_ROLES` read as `False`  -> the variants test (the visor changes in variant 1).
 - `clips.usable`: `if not passes` read as `if False`  -> the clip by clip test.
+- `clips.per_clip`: the flexible check's `<= FLEX_MOST` read as `<= float("inf")`  -> the clip by clip test (the 2.4x shaft).
 - `full.full_looks`: `>= FAR_SHARE` read as `>= 0.0`  -> the full-or-far tests.
 """
 import json
@@ -152,7 +153,7 @@ def test_people_are_made_by_the_loop_on_a_line_no_place_owns():
         assert not [path for path in found.values() if "work/pixal" in str(path)], found
 
 
-def write_checks(folder, deep, bind_deep, tuck_over=0):
+def write_checks(folder, deep, bind_deep, tuck_over=0, flex=1.3):
     """A body's records with two clips: walking with the given counts, standing clean."""
     checks = folder / "checks"
     checks.mkdir(parents=True)
@@ -160,9 +161,11 @@ def write_checks(folder, deep, bind_deep, tuck_over=0):
         "margin_mm": 3.0, "bind": {"deep_by_part": {"boot_r": bind_deep}},
         "clips": {"walking": {"deep_by_part": {"boot_r": deep}, "deepest_mm": 9.0},
                   "standing": {"deep_by_part": {"boot_r": bind_deep}, "deepest_mm": 2.0}}}))
-    clip = {"worst_tuck_out_mm": 2.0, "frames_tuck_over": 0, "rigid_stretch": 1.0, "most_crossings": 10}
+    clip = {"worst_tuck_out_mm": 2.0, "frames_tuck_over": 0, "rigid_stretch": 1.0, "flex_stretch": 1.3,
+            "most_crossings": 10}
     (checks / "pokes.json").write_text(json.dumps({"rest_crossings": 10, "clips": {
-        "walking": dict(clip, worst_tuck_out_mm=2.0 + tuck_over, frames_tuck_over=tuck_over), "standing": clip}}))
+        "walking": dict(clip, worst_tuck_out_mm=2.0 + tuck_over, frames_tuck_over=tuck_over, flex_stretch=flex),
+        "standing": clip}}))
     (checks / "pokes_shipped.json").write_text(json.dumps({"rest_crossings": 10, "clips": {
         "walking": {"most_crossings": 20}, "standing": {"most_crossings": 20}}}))
 
@@ -179,6 +182,11 @@ def test_a_body_is_judged_clip_by_clip():
         assert passing == ["standing"] and len(failing["walking"]) == 2, failing
         verdict = bodies.judge_clips(folder, {}, {})
         assert verdict.answer == "pass" and verdict.measures["failing"] == 1 and "walking" in verdict.findings[0]
+    with tempfile.TemporaryDirectory() as held:
+        folder = pathlib.Path(held)
+        write_checks(folder, deep=13, bind_deep=13, flex=2.4)  # the boot shaft's sharp blend, sitting
+        passing, failing = clips.usable(folder)
+        assert passing == ["standing"] and failing["walking"] == ["flexible: boot shafts at 2.4x"], failing
 
 
 def test_a_far_only_look_is_judged_on_its_far_body():

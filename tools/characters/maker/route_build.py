@@ -19,7 +19,8 @@ body's look and clips rebuilt on the SOMA-X base with the route's four changes, 
 - the base body drawn in the suit's cloth under the cut webs (`under_layer`), so the gap where an arm lifts off the
   side shows cloth, not the inside of the suit, only where it lies under the cloth (`--no-under` leaves it out).
 
-Hard parts, hands and hair keep their made weights (one joint each). The far body is copied as it is.
+Hard parts, hands and hair keep their made weights (one joint each), but a boot's shaft, graded from its foot onto its
+shin round the ankle (`shafted`), with the cloth eased onto it. The far body is copied as it is.
 """
 import argparse
 import json
@@ -38,6 +39,16 @@ import route_bind  # noqa: E402
 import route_head  # noqa: E402
 
 JOINTS_A_POINT = 4
+# A boot's shaft bends (owner, 2026-10-27): ridden wholly by its foot, the astronaut's 17 cm shaft swung forward with
+# the sitting clip's 61-degree pointed foot and stretched the trouser cuff over it 12 cm. Footwear rising above its
+# ankle is graded from its foot onto its shin like a fan round the ankle joint, by the angle a point stands off the
+# shin's line (ankle to knee): wholly the shin within SHAFT_DEGREES, wholly the foot from FOOT_DEGREES, so the sole
+# and the foot stay rigid and the bend spreads round the ankle; a point's swing between the two turns grows with its
+# distance from the ankle as its share's change per metre shrinks, so every ring takes the same part of the bend
+# (graded by height, the shaft's top rings took it and stretched 2.0 times sitting).
+SHAFT_FROM = 0.03  # metres over the ankle joint a footwear's top must rise to have a shaft
+SHAFT_DEGREES = 5.0
+FOOT_DEGREES = 90.0
 SHAPES = 24
 OLD_HEAD = ("skin_head", "eyes", "irises", "eyebrows")
 NODE = "work"
@@ -174,12 +185,42 @@ def skin_share(points, weights, skin, parents):
     return skin_weights[nearest], np.where(mine, share, 0.0)[:, None]
 
 
+def shaft_tops(document, surfaces, names, bind):
+    """{(foot, shin): the top of the footwear riding that foot}, for each foot whose footwear (a hard part riding it)
+    rises over its ankle joint by more than SHAFT_FROM: the shafts that bend."""
+    tops = {}
+    for side in ("Left", "Right"):
+        foot, shin = names.index(f"{side}Foot"), names.index(f"{side}Shin")
+        heights = [surface.points[:surface.tuck_from or len(surface.points), 1].max() for surface in surfaces
+                   if role_of(document, surface) == "hard" and surface.weights.sum(0).argmax() == foot]
+        if heights and max(heights) > bind[foot, 1, 3] + SHAFT_FROM:
+            tops[(foot, shin)] = float(max(heights))
+    return tops
+
+
+def shafted(points, weights, bind, tops):
+    """Weights with each point's foot share graded onto its shin by the angle it stands off the shin's line at the
+    ankle joint (SHAFT_DEGREES, FOOT_DEGREES), for each foot whose footwear has a shaft (`tops`, shaft_tops)."""
+    found = weights.copy()
+    for foot, shin in tops:
+        ankle = bind[foot, :3, 3]
+        line = bind[shin, :3, 3] - ankle
+        away = points - ankle
+        cosine = away @ line / np.maximum(np.linalg.norm(away, axis=1) * np.linalg.norm(line), 1e-9)
+        degrees = np.degrees(np.arccos(np.clip(cosine, -1.0, 1.0)))
+        moved = found[:, foot] * np.clip((FOOT_DEGREES - degrees) / (FOOT_DEGREES - SHAFT_DEGREES), 0.0, 1.0)
+        found[:, foot] -= moved
+        found[:, shin] += moved
+    return found
+
+
 def garment_bind(garments, label_points, base_points, base_faces, base_weights, names, bind, cut, hard, skin,
-                 parents):
+                 parents, tops):
     """The welded garments' regions (by the nearest of `label_points`), bind, weights and web edges
     (route_bind.py); the weights then eased onto the hard parts next to them (prop_build.hard_share: a trouser
     leg goes with the boot it covers, or the boot's tuck shows through it, 19 mm on the player standing) and onto the
-    skin parts next to them (skin_share); `eased`, how far each point rides a hard or skin part."""
+    skin parts next to them (skin_share), a boot's graded up its shaft as the boot is (`tops`, shafted); `eased`, how
+    far each point rides a hard or skin part."""
     numbers, places, edges, starts = welding(garments)
     regions = route_bind.point_regions(places, edges, label_points, route_bind.base_regions(base_weights, names))
     bound = route_bind.bound_by_region(places, regions, base_points, base_faces, base_weights, names)
@@ -190,7 +231,7 @@ def garment_bind(garments, label_points, base_points, base_faces, base_weights, 
     weights = route_bind.smoothed(bound.carried(base_weights), edges[~web])
     weights = route_bind.kept_to_limb(weights, regions, names)
     target, hard_eased = prop_build.hard_share(places, weights, *hard, list(names), parents)
-    weights = weights * (1 - hard_eased) + target * hard_eased
+    weights = shafted(places, weights * (1 - hard_eased) + target * hard_eased, bind, tops)
     target, skin_eased = skin_share(places, weights, skin, parents)
     weights = weights * (1 - skin_eased) + target * skin_eased
     return {"numbers": numbers, "starts": starts, "regions": regions, "bound": bound, "weights": weights,
@@ -591,9 +632,10 @@ def build(options):
     surfaces = surfaces_of(document, blob, body_node(document))
     base_points = base[f"{options.base_body}_points"]
     garments = [surface for surface in surfaces if role_of(document, surface) == pokes.GARMENT]
+    tops = shaft_tops(document, surfaces, names, bind)
     welded = garment_bind(garments, base[f"{options.labels}_points"], base_points, base["faces"], base["weights"],
                           names, bind, not options.no_cut, hard_points(document, surfaces, names),
-                          skin_points(document, surfaces), np.asarray(rig["parents"]))
+                          skin_points(document, surfaces), np.asarray(rig["parents"]), tops)
     correctives = np.load(options.correctives) if options.correctives else None
     clips = [animation["name"] for animation in document["animations"]]
     welded_moves = clip_offsets(correctives, clips, welded) if correctives is not None else None
@@ -605,6 +647,9 @@ def build(options):
         out.append(new)
         cut_faces, closings = cut_faces + removed, closings + middles
     kept = kept_surfaces(document, surfaces, options.face)
+    for surface in kept:
+        if role_of(document, surface) == "hard":
+            surface.weights = shafted(surface.points, surface.weights, bind, tops)
     bands_rebound(document, kept, out, np.asarray(rig["parents"]))
     old_head, head_record, hair_record, old_document, old_blob = (
         drawn_head(options, document, surfaces, rig, base, names, bind) if options.face == "drawn"

@@ -4,7 +4,9 @@ hidden: a failing clip stays on the body's record and its page with what failed 
 
 Per-clip checks, from the body's records (checks/pokes.json, checks/bodycloth.json):
     tucks               no tuck point over pokes.POKE_MM outside the person's surface in any frame of the clip
-    rigid               the hard parts' edges at most RIGID_MOST of their bind length
+    rigid               the hard parts' edges riding one joint at most RIGID_MOST of their bind length
+    flexible            a boot shaft's graded edges at most FLEX_MOST (pokes.py's flex_stretch; a record from
+                        before it has none: unknown, never passed)
     cloth through cloth the clip's worst garment crossings no more than the shipped body's same clip
     body through cloth  no part's own edges deeper than the margin through the cloth more often than at the bind
 """
@@ -12,6 +14,7 @@ import json
 import pathlib
 
 RIGID_MOST = 1.2
+FLEX_MOST = 1.75  # pokes.FLEX_MOST: a fan of 85 degrees round the ankle bending 61 degrees, about 1 + 61/85
 
 
 def per_clip(output):
@@ -30,6 +33,9 @@ def per_clip(output):
         found[clip] = {
             "tucks": (record["frames_tuck_over"] == 0, f"worst tuck {record['worst_tuck_out_mm']} mm"),
             "rigid": (record["rigid_stretch"] <= RIGID_MOST, f"hard parts at {record['rigid_stretch']}x"),
+            "flexible": (record.get("flex_stretch", float("inf")) <= FLEX_MOST,
+                         f"boot shafts at {record['flex_stretch']}x" if "flex_stretch" in record
+                         else "boot shafts not measured"),
             "cloth through cloth": (record["most_crossings"] <= bar,
                                     f"{record['most_crossings']} crossings, the shipped body's {bar}"),
             "body through cloth": (deep is not None and not over,
