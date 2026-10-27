@@ -4,13 +4,14 @@ clears a paid run.
 
 Reads the Claude Code PreToolUse payload on stdin and blocks an agent from:
 
-1. Running the owner's commands: Python that names ``score.review`` (or ``score/review``, or its ``__main__.py``)
-   together with the words accept, reject, spend, waive or stop (his money yes, which writes an environment's stop line),
-   quoted or not.
-2. Calling them from Python, or writing a script that does: a shell command that runs Python or writes a file and
-   holds a call to ``accept(``, ``reject(``, ``spend(``, ``waive(``, ``write_once(``, ``write_accept(``,
-   ``write_reject(``, ``write_spend_yes(``, ``write_waiver(``, ``write_clearance(`` or ``set_line(``; a Write or
-   Edit outside the framework package (``score/``) with such a call.
+1. Running the owner's commands: a command part that runs Python on ``score.review`` (or ``score/review``, or its
+   ``__main__.py``) with accept, reject, spend, waive or stop (his money yes, which writes an environment's stop line)
+   as its subcommand, quoted or not.
+2. Calling them from Python, or writing a script that does: a shell command that runs Python, or writes a file
+   outside the framework package, and holds a call to ``accept(``, ``reject(``, ``spend(``, ``waive(``,
+   ``write_once(``, ``write_accept(``, ``write_reject(``, ``write_spend_yes(``, ``write_waiver(``,
+   ``write_clearance(`` or ``set_line(``; a Write or Edit of a code file outside the framework package (``score/``)
+   with such a call.
 3. Taking Claude Code's mark off a process (``unset CLAUDECODE``, ``env -u``, ``env -i``, ``CLAUDECODE=``), or
    faking a terminal (``script -c``, ``unbuffer``) for a ``score`` command: the store refuses an agent's process the
    owner's areas by that mark (score/store ``running_under_agent``), and the review commands want a terminal.
@@ -24,7 +25,10 @@ Reads the Claude Code PreToolUse payload on stdin and blocks an agent from:
 Running the stages stays allowed, and with it the runner's own automatic accept and clearance (score/graph,
 score.adapters.compute), which this guard does not see: they are written by the framework's code, only when every
 gate passed and nothing got worse, or the inputs passed and the stop has room. Reading stays allowed:
-``grep``, ``ls`` and ``cat`` of those folders, a redirect to an unrelated file, a review page, the tests.
+``grep``, ``ls`` and ``cat`` of those folders, a redirect to an unrelated file, a review page, the tests. So do code
+edits and text that only mention the owner's words (owner, 2026-10-27, his "yes" to narrowing this guard to the
+commands that actually run his accept, reject, waive or spend): a test run under a path or ``-k`` holding "accept", a
+commit message, a heredoc into the framework, a doc that quotes ``accept(``.
 
 A benchmark grant (the owner's standing rule of 2026-10-20, root CLAUDE.md) passes: the session that asked him writes
 his yes with ``score.adapters.compute.grant_benchmark(answer, question, euros)`` (benchmark only, at most EUR 20,
@@ -47,11 +51,11 @@ import re
 import sys
 
 _PYTHON = re.compile(r"\b(python3?(\.\d+)?|uv\s+run)\b|/python\b")
-_REVIEW = re.compile(r"score[./]review|__main__\.py")
-_OWNER_WORD = re.compile(r"\b(accept|reject|spend|waive|stop)\b")
+_REVIEW_RUN = re.compile(r"^\s*(\S+=\S*\s+)*(sudo\s+)?((ba)?sh\s+-\S*c\s+['\"]?|eval\s+['\"]?)?(uv\s+run\s+)?\S*python3?(\.\d+)?\s+(-\S+\s+)*"
+                         r"(-m\s+)?\S*(score[./]review(/__main__\.py)?|__main__\.py)\s+['\"]?"
+                         r"(accept|reject|spend|waive|stop)\b")
 _OWNER_CALL = re.compile(r"\b(accept|reject|spend|waive|write_once|write_accept|write_reject|write_spend_yes|"
                          r"write_waiver|write_clearance|set_line)\s*\(")
-_FILE_WRITE = re.compile(r"(^|[^<>&0-9])>>?|\btee\b")
 _AGENT_MARK = re.compile(r"\b(CLAUDECODE|CLAUDE_CODE_ENTRYPOINT|AI_AGENT)\b")
 _UNMARK = re.compile(r"\bunset\b|\benv\s+(-\S+\s+)*(-u|--unset|-i|--ignore-environment)\b|\b(CLAUDECODE|"
                      r"CLAUDE_CODE_ENTRYPOINT|AI_AGENT)=|environ|\bpop\b|\bdel\b")
@@ -63,6 +67,9 @@ _SEGMENTS = re.compile(r"\|\||&&|[;|\n]")
 _REDIRECT_INTO_OWNER = re.compile(r"(^|[^<>&0-9])>>?\s*['\"]?[^\s'\"]*(accepts|rejects|waivers|spend-yes|clearances|stops|grants)/")
 _WRITER = re.compile(r"^\s*(\S+=\S*\s+)*(sudo\s+)?(\S*/)?(tee|cp|mv|ln|rm|touch|install|rsync|dd|chmod|chown|"
                      r"truncate|python3?(\.\d+)?|uv)\b|\bsed\s+(-\S+\s+)*-i|\bfind\b.*\s-(delete|exec)\b")
+_WRITE_TARGET = re.compile(r"(?:(?:^|[^<>&0-9])>>?|\btee\s+(?:-\S+\s+)*)\s*['\"]?([^\s'\";|&<>]+)")
+_QUOTED = re.compile(r"'[^']*'|\"(?:[^\"\\]|\\.)*\"")
+_TEXT_FILE = re.compile(r"\.(md|txt|rst|tex|bib)$")
 _FRAMEWORK = re.compile(r"(^|/)score/(checks|contracts|store|graph|review|adapters|stages)/|(^|/)\.claude/hooks/")
 
 _MESSAGE = (
@@ -77,11 +84,21 @@ _MESSAGE = (
 
 def _owner_command(command):
     """Why a shell command runs or calls the owner's accept, reject, spend or waive, or None."""
-    if _PYTHON.search(command) and _REVIEW.search(command) and _OWNER_WORD.search(command):
+    if any(_REVIEW_RUN.search(segment) for segment in _SEGMENTS.split(_QUOTED.sub(_blank_separators, command))):
         return "runs the owner's accept, reject, spend or waive command"
-    if _OWNER_CALL.search(command) and (_PYTHON.search(command) or _FILE_WRITE.search(command)):
+    if _OWNER_CALL.search(command) and (_PYTHON.search(command) or _script_write(command)):
         return "calls the owner's accept, reject, spend or waive from Python, or writes a script that does"
     return None
+
+
+def _blank_separators(quoted):
+    """A quoted string with its command separators blanked, so a commit message's ``; python ...`` is not a command."""
+    return re.sub(r"[;&|\n]", " ", quoted.group(0))
+
+
+def _script_write(command):
+    """Whether a shell command writes a file outside the framework package."""
+    return any(not _FRAMEWORK.search(target) for target in _WRITE_TARGET.findall(command))
 
 
 def _unmarking(command):
@@ -114,7 +131,7 @@ def _file_offence(path, content):
         return f"writes {path}"
     if _FRAMEWORK.search(path):
         return None
-    if _OWNER_CALL.search(content):
+    if _OWNER_CALL.search(content) and not _TEXT_FILE.search(path):
         return f"writes a call to the owner's accept, reject, spend or waive into {path}"
     if _AGENT_MARK.search(content):
         return f"writes code that touches Claude Code's mark into {path}"
