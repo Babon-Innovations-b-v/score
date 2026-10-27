@@ -1598,6 +1598,34 @@ def test_a_node_that_ended_holds_no_memory_so_light_nodes_start_as_fast_as_they_
     assert set(found) == {"clean@hangar", "clean@station", "count@hangar", "count@station"}, found
     assert time.monotonic() - begun < graph.RAMP_SECONDS, time.monotonic() - begun
 
+
+def test_an_input_is_hashed_again_once_it_changed_and_never_kept_while_it_just_changed(tmp_path, monkeypatch):
+    """A settled file's hash is kept and read once; the same size rewritten is hashed anew; a file changed within
+    SETTLED_NS is never kept. Break: score/graph/__init__.py: 'found.st_size, found.st_mtime_ns, found.st_ctime_ns)'
+    -> 'found.st_size)' -> the rewritten file keeps its old hash."""
+    monkeypatch.setattr(graph, "HASHED", {})
+    read, hashed = [], graph.file_hash
+    monkeypatch.setattr(graph, "file_hash", lambda path: read.append(path) or hashed(path))
+    folder = tmp_path / "inputs"
+    folder.mkdir()
+    (folder / "a.json").write_text("aaaa")
+    settled = time.time_ns() - 10 * graph.SETTLED_NS
+    os.utime(folder / "a.json", ns=(settled, settled))
+    later = time.time_ns() + 10 * graph.SETTLED_NS
+    monkeypatch.setattr(graph.time, "time_ns", lambda: later)  # its ctime (now) settled too
+    first = graph.source_hash(folder)
+    assert graph.source_hash(folder) == first and len(read) == 1, read
+    (folder / "a.json").write_text("bbbb")
+    os.utime(folder / "a.json", ns=(settled, settled))  # the same size and mtime: only its ctime moved
+    second = graph.source_hash(folder)
+    assert second != first and second == graph.listing_hash({"a.json": hashed(folder / "a.json")})
+    monkeypatch.undo()
+    monkeypatch.setattr(graph, "HASHED", {})
+    monkeypatch.setattr(graph, "file_hash", lambda path: read.append(path) or hashed(path))
+    (folder / "a.json").write_text("cccc")  # changed just now: read every time, never kept
+    graph.source_hash(folder), graph.source_hash(folder)
+    assert len(read) == 4 and not graph.HASHED, read
+
 # --- a run's end: one result line, every process it started ended, what it held released (score/__main__.py) -------
 
 @contextlib.contextmanager
