@@ -338,6 +338,22 @@ branch names a scene or a world.
   hair and clothes differ and no body is made again. `cast_check.py`'s nobody-twice holds for everyone, copies of one
   row included. A library with too few surfaces to tell variant n from a lower one is refused before the bake as a
   named library gap, never repeated quietly.
+  **Each person is also a sim body** (`score/stages/sim_body`, row `sim-body@<place>`, free, experimental, #65; PRD
+  #56): built straight from SOMA's 23 segments in the rig its clips play (`people-clips-made`'s `rig.npz`: a rigid
+  segment a kept joint at SOMA's bind frame, a free root and ball joints, no template resizing), each segment's mass
+  share and inertia from the rig's closed surface cut into 1 cm voxels by strongest skin weight, a box collider round
+  its volume; its mass the stated weight, else height squared times the reference BMI of its sex (NCD-RisC 2016:
+  24.5 men, 24.8 women, the mean of both unstated), marked estimated (#64). Its clip drives it: Newton's `eval_ik`
+  turns the clip's segment frames into joint angles, MuJoCo position actuators track them (their damping the joints'
+  own), the root's height is free, so its weight rests on a floor at its spot by contact, under the gravity of the
+  body the scene stands on; a root helper (OpenSim's residuals) holds its horizontal path and turn, recorded. It runs
+  in Newton's own Python (`physics/inside/newton_env.sh`) on this machine, on MuJoCo's CPU backend (it repeats bit
+  for bit; MuJoCo Warp's deterministic mode breaks a body over 60 dofs, #60). Per frame it writes joint angles and
+  the clip's, joint torques, the floor's push and the root helper (`measures/<name>.json`), and each body as guide
+  segments with their UsdPhysics mass and spherical joints under its character's prim (`layers/sim_bodies.usda`, not
+  yet assembled). Gated on `on floor` (2 cm), `carries` (the floor's mean push within 5% of the weight) and `follows`
+  (5 degrees mean off the clip). Not yet: muscles (#60), the scene's own geometry under the feet, a walker's cast path,
+  a person's own SOMA shape.
 - **Crops** (`score/stages/crops`): kinds and beds read off the design (a growing row standing on a bed). Every other
   plant (CONTEXT.md: a tree, a shrub, a potted plant) is a model like any other and no layer of its own; the Buy
   screen counts every plant of the design (`design_layers.plants_of`) apart from the crops' steps (owner, 2026-10-24).
