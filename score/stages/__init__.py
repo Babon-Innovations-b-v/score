@@ -25,7 +25,7 @@ import pathlib
 from score import checks, contracts, graph
 from score.checks import grain
 from score.stages import (animals, assembly, cast, complete, crops, demo_film, design_layers, earth_seed, effects,
-                          gaps, images, library, light, motion, people, physics, scene_record, settling,
+                          gaps, images, library, light, motion, people, people_cloth, physics, scene_record, settling,
                           shapes_first, shell_split, sim_body, sound,
                           surface_tiles, surfaces, terrain, video_clips)
 from score.stages.surfaces import bake_check, body_faces, carry, claude_asks, library_reads, route_check
@@ -209,6 +209,20 @@ CHARACTERS = graph.Stage("characters-layer", "place", characters_layer.make, cha
 SIM_BODY = graph.Stage("sim-body", "place", sim_body.make, sim_body.CONTRACT, sim_body.CHECKS, files=sim_body.files,
                        after={"cast": ("cast", 1), sim_body.CLIPS_ROW: (sim_body.CLIPS_ROW, 1)},
                        applies=designed("people"))
+# Experimental (owner, 2026-10-27, "bring back"): each character's loose garment parts as cloth on Newton's VBD against
+# its sim body's moving segments (score/stages/people_cloth), its dressed and built bodies optional reads as the
+# characters layer's are, its cloth values the part's library recipe's (data/physics/cloth.json). Nothing reads it yet,
+# so no other row's key moves.
+BODY_ROWS = tuple(row.name for row in people.ROWS if row.name.startswith(f"{people_cloth.BODY}-"))
+PEOPLE_CLOTH = graph.Stage("people-cloth", "place", people_cloth.make, people_cloth.CONTRACT, people_cloth.CHECKS,
+                           files=people_cloth.files,
+                           after={"cast": ("cast", 1), people_cloth.SIM_ROW: ("sim-body", 1),
+                                  people_cloth.CLIPS_ROW: (people_cloth.CLIPS_ROW, 1),
+                                  **{name: ("people-dress", 1) for name in DRESS_ROWS},
+                                  **{name: ("people-body", 1) for name in BODY_ROWS}},
+                           optional=DRESS_ROWS + BODY_ROWS,
+                           beside={name: (name, 1) for name in people_cloth.LIBRARY_ROWS},
+                           neighbours=people_cloth.library_place, applies=designed("people"))
 # Experimental (PRD #6) until the owner has heard it: each place's sound layer data (its sounds, their files and levels,
 # MOSS takes for briefs no environment file answers, paid), for the place's assembly to write into its stage.
 SOUND = graph.Stage("sound", "place", sound.make, sound.LAYER, sound.CHECKS, files=sound.files, paid=True,
@@ -428,7 +442,8 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
           SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(code_marked, map(
               boxed_split, map(designed_rough, shapes_first.rows()))))))),
-          *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, CAST, CHARACTERS, SIM_BODY, MOTION,
+          *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, CAST, CHARACTERS, SIM_BODY,
+          PEOPLE_CLOTH, MOTION,
           *light.ROWS, *crops.ROWS,
           surface_tiles.STAGE,
           # Experimental (#52): each animal row a design shows, its body and its clips (score/stages/animals).
