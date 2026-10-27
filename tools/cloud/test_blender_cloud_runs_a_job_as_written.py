@@ -19,11 +19,10 @@ No machine is rented: each test reads the command, job or offers the module buil
 - test_one_class_is_fixed_at_price_time_and_no_stock_keeps_the_first: in batch.py `one_class_in_stock`, `next(iter(stocked
   + sold), None)` -> `next(iter(sold), None)` (the first class asked though another is in stock).
 - test_a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks: in `one_job`, `    kept.keep(job)` -> `    pass`.
-- test_a_job_that_brought_none_of_its_outputs_back_failed_and_its_report_says_why: in `one_job`, `if
+- test_a_job_that_brought_none_of_its_outputs_back_failed: in `one_job`, `if
   job.get("outputs") and not came:` -> `if False:`; or in `run_job`, drop `inputs.link_named(log_folder, host,
   job.get("outputs", ()))`.
 """
-import json
 import os
 import pathlib
 import shlex
@@ -176,7 +175,7 @@ def test_a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks(tmp_path, monkeypa
     assert (making / "shot0.png").read_text() == "shot 0"
 
 
-def test_a_job_that_brought_none_of_its_outputs_back_failed_and_its_report_says_why(tmp_path, monkeypatch):
+def test_a_job_that_brought_none_of_its_outputs_back_failed(tmp_path, monkeypatch):
     """surfaces-bake@campgrounds (2026-10-27): twelve paint and bake jobs ended well, wrote their outputs through a
     path the machine did not link as this side does, and counted done with nothing back; the row raised for all."""
     import spread
@@ -196,10 +195,7 @@ def test_a_job_that_brought_none_of_its_outputs_back_failed_and_its_report_says_
     def nothing_back(folder, sources, destination, *extra):
         raise subprocess.CalledProcessError(23, "rsync")
     monkeypatch.setattr(blender_cloud.batch, "copy", nothing_back)
-    with pytest.raises(spread.JobFailed):
+    with pytest.raises(spread.JobFailed, match="none of its outputs came back"):
         blender_cloud.one_job({"folder": tmp_path, "host": "host"}, (3, job), None)
     assert linked == job["outputs"], linked  # its outputs reached through the links its paths are named through
     assert blender_cloud.kept.missing([job]) == [job]  # nothing kept as done
-    blender_cloud.report(tmp_path / "report.json", [{}, {}, {}, job], [3], tmp_path)
-    (reported,) = [entry for entry in json.loads((tmp_path / "report.json").read_text())["jobs"] if entry["error"]]
-    assert reported["outputs"] == job["outputs"] and "none of its outputs came back" in reported["error"], reported

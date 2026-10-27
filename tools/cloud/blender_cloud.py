@@ -228,11 +228,6 @@ def serve(run, machine, queue, idle_minutes):
             last = time.time()
 
 
-# Each job's error by its number in this call (one_job's; --report writes them): a job that failed is its caller's
-# gap, named with why and its log.
-ERRORS = {}
-
-
 def one_job(machine, share, card):
     """One of a spread run's jobs on a machine: a script that fails raises spread.JobFailed, a machine that stops
     answering a ConnectionError; a script that ended well and brought none of its outputs back failed too (it wrote
@@ -244,24 +239,12 @@ def one_job(machine, share, card):
     try:
         seconds, came = run_job(log_folder, host, number, job, card is not None)
     except subprocess.CalledProcessError as failed:
-        ERRORS[number] = f"its command exited with {failed.returncode} (log {log})"
         spread.raise_for(failed.returncode, f"job {number} ({job['script']}, {log})")
-    except Exception as error:
-        ERRORS[number] = f"{error} (log {log})"
-        raise
     machine.setdefault("unit_seconds", []).append(seconds)
     if job.get("outputs") and not came:
-        ERRORS[number] = f"its script ended well but none of its outputs came back (log {log})"
-        raise spread.JobFailed(f"job {number} ({job['script']}, {log}): none of its outputs came back")
+        raise spread.JobFailed(f"job {number} ({job['script']}, {log}): its script ended well but none of its "
+                               "outputs came back")
     kept.keep(job)
-
-
-def report(path, jobs, left, run_folder):
-    """--report: each job of the call, its outputs, and whether it ended well or why not (ERRORS), as JSON."""
-    path.write_text(json.dumps({"run": str(run_folder), "jobs": [
-        {"number": number, "outputs": job.get("outputs", []),
-         "error": ERRORS.get(number) or ("failed or never ran" if number in left else None)}
-        for number, job in enumerate(jobs)]}, indent=1))
 
 
 def still_to_run(jobs):
@@ -431,8 +414,6 @@ def main():
     parser.add_argument("--classes", help="capability classes in order, comma separated: the first the "
                         "run's warm pool holds, else the first in stock, else the first sold")
     parser.add_argument(detached.FLAG, action="store_true", help="progress to a log, one result line at the end")
-    parser.add_argument("--report", type=pathlib.Path, help="write each job's outcome here as JSON (its outputs, why "
-                        "it failed or never ran)")
     options = parser.parse_args()
     if not options.jobs and not options.serve and not options.dry_run:
         # a caller with nothing left to send (surfaces-bake@people, every take a gap, 2026-10-22) rented a card
@@ -462,7 +443,7 @@ def main():
     run_folder = batch.BATCHES / (time.strftime("blender-%Y%m%d-%H%M%S") + f"-{os.getpid()}")
     run_folder.mkdir(parents=True)
     run = pictures.Run(run_folder, started + allowed_minutes * 60)
-    left = list(range(len(jobs)))
+    left = []
     try:
         if options.serve:
             machines = pictures.rent_machines(run, account, found, 1, kind=KIND)
@@ -470,7 +451,6 @@ def main():
                 (options.serve / "failed").write_text("no machine could be rented")
                 raise SystemExit("no machine could be rented")
             serve(run, machines[0], options.serve, IDLE_MINUTES)
-            left = []
         else:
             left = run_spread(run, account, found, count, jobs)
             if not run.machines:
@@ -485,8 +465,6 @@ def main():
                  "wall_minutes": (time.time() - started) / 60}
         ledger.record(entry)
         (run_folder / "cloud.json").write_text(json.dumps(entry, indent=1))
-        if options.report:
-            report(options.report, jobs, left, run_folder)
         batch.say(f"blender: {len(jobs)} jobs in {entry['wall_minutes']:.1f} min on {len(entry['machines'])} machines, "
                   f"€{entry['euros']:.2f}")
     if left:
