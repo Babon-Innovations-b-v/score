@@ -9,7 +9,8 @@ scratch repo, so no test edits the real config.
 The break that turns each test red (applied once each, seen red, reverted):
 
 - test_accept_guard_blocks_the_owners_actions: `_owner_area_write` returns None at once.
-- test_accept_guard_allows_reading_running_and_the_framework: drop `if _FRAMEWORK.search(path): return None`.
+- test_accept_guard_allows_reading_running_and_the_framework: drop `if _FRAMEWORK.search(path): return None`; or
+  drop the `not _TEXT_FILE.search(path)` in `_file_offence`.
 - test_accept_guard_lets_a_benchmark_grant_pass: add `grant_benchmark` to `_OWNER_CALL`'s names.
 - test_completion_guard_refuses_a_false_done_claim: `claimed` returns `set()` at once.
 - test_completion_guard_lets_an_honest_stop_end: drop `or _NEGATION.search(sentence)` in `claimed`.
@@ -82,6 +83,8 @@ OWNER_ACTIONS = [
     bash(".venv/bin/python -c 'from score.store import Store; Store.default().write_once(\"acc\"+\"epts/a@b/1.json\", {})'"),
     bash("python -m score.review \"accept\" a@b o"),
     bash("cd score/review && python __main__.py accept a@b o"),
+    bash("uv run python -m score.review waive render@hub gate --reason x"),
+    bash("git status; bash -c '.venv/bin/python -m score.review accept a@b o'"),
     bash("script -qc '.venv/bin/python -m score.review page a@b' /dev/null"),
     bash("cat > /tmp/do_it.py <<EOF\nfrom score import review\nreview.accept(store, 'a@b', 'o', 'me')\nEOF"),
     # taking Claude Code's mark off a process
@@ -127,6 +130,13 @@ READ_AND_RUN = [
     {"tool_name": "Edit", "tool_input": {"file_path": "score/review/__init__.py"}},
     {"tool_name": "Edit", "tool_input": {"file_path": "/repo/score/review/review_test.py",
                                          "new_string": "review.accept(store, node, output, 'me')"}},
+    # code edits and text that only mention the owner's words (owner, 2026-10-27: narrow it to his actual actions)
+    bash("cd /tmp/wt-accept && .venv/bin/python -m pytest score/review/tests"),
+    bash(".venv/bin/python -m pytest score/graph score/review -k 'accept or stop'"),
+    bash("git commit -m 'review: a bought batch accepts; python -m score.review accept stays his'"),
+    bash("cat > score/graph/tests/test_x.py <<EOF\nreview.accept(store, node, output, 'me')\nEOF"),
+    {"tool_name": "Edit", "tool_input": {"file_path": "/repo/docs/bible.md",
+                                         "new_string": "the runner calls `review.accept(store, node, output)`"}},
     {"tool_name": "Artifact", "tool_input": {"action": "read_db", "collection": "accepts"}},
     {"tool_name": "Artifact", "tool_input": {"action": "write_db", "collection": "notes", "doc_id": "n1",
                                              "data": {"text": "acceptance criteria, spend and waivers"}}},
