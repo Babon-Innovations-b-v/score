@@ -359,8 +359,14 @@ branch names a scene or a world.
   in Newton's own Python (`physics/inside/newton_env.sh`) on this machine, on MuJoCo's CPU backend (it repeats bit
   for bit; MuJoCo Warp's deterministic mode breaks a body over 60 dofs, #60). Per frame it writes joint angles and
   the clip's, joint torques, the floor's push and the root helper (`measures/<name>.json`), and each body as guide
-  segments with their UsdPhysics mass and spherical joints under its character's prim (`layers/sim_bodies.usda`, not
-  yet assembled). Gated on `on floor` (2 cm), `carries` (the floor's mean push within 5% of the weight) and `follows`
+  segments with their UsdPhysics mass and spherical joints under its character's prim (`layers/sim_bodies.usda`).
+  **The person moves by it** (`score/stages/cast/driven.py`, in the characters layer the assembly takes): its
+  skeleton plays a SkelAnimation of its own, each SOMA joint the sim has a segment for turned as its segment was, Hips
+  on the sim's path (its height times the body's size against the rig's, plus the clip's lift); Root, HeadEnd and the
+  toe ends, every other translation, the blend shapes and the frames after the sim's keep the clip's; the sim body is
+  referenced beside it as a guide, in the skeleton's frame, from the same start. A person the sim did not run, one
+  held still and the crowd keep their clip, said why (`characters.json`, `score:motion`). Gated on `on its sim body`
+  (each foot joint within 5 cm of the sim body's foot in every simulated frame). Gated on `on floor` (2 cm), `carries` (the floor's mean push within 5% of the weight) and `follows`
   (5 degrees mean off the clip). Not yet: muscles (#60), the scene's own geometry under the feet, a walker's cast path,
   a person's own SOMA shape.
   **A person's loose cloth is simulated on its sim body** (`score/stages/people_cloth`, row `people-cloth@<place>`,

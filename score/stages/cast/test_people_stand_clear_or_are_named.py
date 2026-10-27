@@ -1,6 +1,7 @@
 """The cast stands every person and crowd copy on something solid, clear of every solid and of each other, or leaves
 them out by name; a look with no usable dressed body is an accepted gap named down the line, never a stand-in
-(cast/__init__.py, measure.py, spread.py, layer.py).
+(cast/__init__.py, measure.py, spread.py, layer.py); a person whose place's sim body ran plays its simulated motion,
+its feet on its sim body's, and one without keeps its clip, named (driven.py).
 
 Measured on a toy place made here (a 10 m floor and a 1 m crate), small crowds and plans written here, and the
 characters layer made with no dressed body at all. The hub's round-three seed and the motion work's built body the
@@ -20,18 +21,23 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `cast.on_levels`: `at[1] + min(heights)` read as `at[1]`  -> the levels test.
 - `layer.make`: `if row is None or row not in inputs:` read as `if row is None:`  -> the layer test (it reaches for
   a body that is not there instead of naming the gap).
+- `driven.driven_locals`: `size * local[1, 3] + lift` read as `local[1, 3]`  -> the sim body test (feet off).
+- `driven.write_driven`: Hips' simulated translation not written  -> the sim body test (the clip's path kept).
+- `driven.lay_sim_body`: the Turned transform not set  -> the sim body test (the sim body mirrored off the skin).
+- `driven.judge_on_its_sim_body`: `> FEET_WITHIN` read as `> 1.0`  -> the feet-leave test.
 - tools/characters/cast_check.py `repeated_people`: `len(names) > 1` read as `> 9`  -> the variants test.
 """
 import json
 import pathlib
 import sys
 
+import numpy as np
 import pytest
 from pxr import Usd, UsdGeom
 
 from score import checks
 from score.stages import cast
-from score.stages.cast import layer, measure, spread
+from score.stages.cast import driven, layer, measure, spread
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PLACES = REPO / "data/definitions/place.json"
@@ -284,3 +290,158 @@ def test_a_group_wears_only_its_kit_and_the_copied_body_sizes_agree():
     assert {mix["worn"]["plain"][0] for mix in mixes} == {"plain_uniform_olive"}
     assert (measure.BODY_RADIUS, measure.KNEE, measure.HEAD) == (cast_check.BODY_RADIUS, cast_check.KNEE,
                                                                  cast_check.HEAD)
+
+
+# --- a person driven by its sim body (driven.py) -------------------------------------------------------------------
+
+TOY_JOINTS = ("Root", "Root/Hips", "Root/Hips/LeftLeg", "Root/Hips/LeftLeg/LeftFoot", "Root/Hips/RightLeg",
+              "Root/Hips/RightLeg/RightFoot", "Root/Hips/HeadEnd")
+TOY_PARENTS = np.array([-1, 0, 1, 2, 1, 4, 1])
+TOY_PLACES = ((0, 0, 0), (0, 1.0, 0), (0.1, 0.9, 0), (0.1, 0.05, 0), (-0.1, 0.9, 0), (-0.1, 0.05, 0), (0, 1.7, 0))
+TOY_SIZE, TOY_LIFT, TOY_FRAMES = 1.1, -0.005, 10
+
+
+def moved(x=0.0, y=0.0, z=0.0, turn=0.0):
+    """A 4 x 4 turned `turn` degrees about z and moved by (x, y, z)."""
+    from scipy.spatial.transform import Rotation
+    found = np.eye(4)
+    found[:3, :3], found[:3, 3] = Rotation.from_euler("z", turn, degrees=True).as_matrix(), (x, y, z)
+    return found
+
+
+def chained(locals_):
+    worlds = []
+    for joint, local in enumerate(locals_):
+        worlds.append(local if TOY_PARENTS[joint] < 0 else worlds[TOY_PARENTS[joint]] @ local)
+    return worlds
+
+
+def toy_rig():
+    """The mean rig: TOY_JOINTS at TOY_PLACES, its standing clip TOY_FRAMES frames of the bind pose."""
+    bind = np.array([moved(*place) for place in TOY_PLACES])
+    rest = [bind[0]] + [np.linalg.inv(bind[TOY_PARENTS[joint]]) @ bind[joint] for joint in range(1, len(bind))]
+    return {"names": np.array([path.rpartition("/")[2] for path in TOY_JOINTS]), "parents": TOY_PARENTS,
+            "bind": bind, "clip_standing": np.repeat(np.array(rest)[None], TOY_FRAMES, axis=0)}
+
+
+def toy_asset(folder, rig):
+    """A dressed body as skel_usd writes one, TOY_SIZE times the rig, turned about up as the people's bodies are, its
+    standing clip two frames longer than the sim's, its Hips lifted TOY_LIFT."""
+    from pxr import Gf, Sdf, UsdSkel, Vt
+    folder.mkdir(parents=True)
+    path = folder / "toy.usdc"
+    stage = Usd.Stage.CreateNew(str(path))
+    stage.SetTimeCodesPerSecond(30)
+    root = UsdSkel.Root.Define(stage, "/Character")
+    stage.SetDefaultPrim(root.GetPrim())
+    UsdGeom.Xform.Define(stage, "/Character/Turned").AddTransformOp().Set(Gf.Matrix4d().SetRotate(
+        Gf.Rotation(Gf.Vec3d(0, 1, 0), 180)))
+    UsdGeom.Scope.Define(stage, "/Character/Turned/Body")
+    skeleton = UsdSkel.Skeleton.Define(stage, "/Character/Turned/Skeleton")
+    skeleton.CreateJointsAttr(Vt.TokenArray(TOY_JOINTS))
+    bind = [Gf.Matrix4d(moved(*(np.array(place) * TOY_SIZE)).T.tolist()) for place in TOY_PLACES]
+    skeleton.CreateBindTransformsAttr(Vt.Matrix4dArray(bind))
+    skeleton.CreateRestTransformsAttr(Vt.Matrix4dArray(bind))
+    clip = UsdSkel.Animation.Define(stage, "/Character/Animations/standing")
+    clip.CreateJointsAttr(Vt.TokenArray(TOY_JOINTS))
+    clip.CreateScalesAttr(Vt.Vec3hArray([Gf.Vec3h(1, 1, 1)] * len(TOY_JOINTS)))
+    local = rig["clip_standing"][0]
+    places = [local[joint, :3, 3] * (1 if joint else 0) * TOY_SIZE for joint in range(len(TOY_JOINTS))]
+    places[1] = places[1] + (0, TOY_LIFT, 0)
+    for frame in range(TOY_FRAMES + 2):
+        clip.CreateRotationsAttr().Set(Vt.QuatfArray([Gf.Quatf(1, 0, 0, 0)] * len(TOY_JOINTS)), frame)
+        clip.CreateTranslationsAttr().Set(Vt.Vec3fArray([Gf.Vec3f(*map(float, place)) for place in places]), frame)
+    root.GetPrim().SetCustomDataByKey("score:clip_seconds", {"standing": (TOY_FRAMES + 1) / 30})
+    UsdSkel.BindingAPI.Apply(skeleton.GetPrim()).CreateAnimationSourceRel().SetTargets(
+        [Sdf.Path("/Character/Animations/standing")])
+    stage.GetRootLayer().Save()
+    return path
+
+
+def toy_sim(folder, rig):
+    """A sim-body output for bram: its hips walked 0.3 m along x and let down 2 cm, its left leg swung 20 degrees,
+    each segment's pose a frame (measures/bram.json) and keyed on its guide prim (layers/sim_bodies.usda)."""
+    from pxr import Gf, Sdf
+    from scipy.spatial.transform import Rotation
+    segments = ["Hips", "LeftLeg", "LeftFoot", "RightLeg", "RightFoot"]
+    frames = []
+    for frame in range(TOY_FRAMES):
+        local = [np.array(matrix) for matrix in rig["clip_standing"][frame]]
+        local[1] = moved(0.3 * frame / TOY_FRAMES, -0.02) @ local[1]
+        local[2] = local[2] @ moved(turn=20.0)
+        worlds = dict(zip([path.rpartition("/")[2] for path in TOY_JOINTS], chained(local)))
+        frames.append({"poses": [[*worlds[name][:3, 3], *Rotation.from_matrix(worlds[name][:3, :3]).as_quat()]
+                                 for name in segments], "worlds": worlds})
+    (folder / "measures").mkdir(parents=True)
+    (folder / "measures/bram.json").write_text(json.dumps([{"poses": frame["poses"]} for frame in frames]))
+    (folder / "sim_bodies.json").write_text(json.dumps({"bodies": {"bram": {"segments": {name: 1.0 for name in
+                                                                                          segments}}}}))
+    (folder / "layers").mkdir()
+    stage = Usd.Stage.CreateNew(str(folder / "layers/sim_bodies.usda"))
+    for name in segments:
+        op = UsdGeom.Xform.Define(stage, f"/hub/Characters/bram/SimBody/{name}").AddTransformOp()
+        for frame, entry in enumerate(frames):
+            op.Set(Gf.Matrix4d(entry["worlds"][name].T.tolist()), frame)
+    stage.GetRootLayer().Save()
+    return Sdf
+
+
+def laid_driven(tmp_path, people):
+    """The characters layer's people laid and driven as driven.make does, on the toy body, rig and sim body."""
+    from pxr import Sdf
+    rig = toy_rig()
+    out = tmp_path / "out"
+    asset = toy_asset(out / layer.ASSETS, rig)
+    np.savez(tmp_path / "rig.npz", **rig)
+    toy_sim(tmp_path / "sim", rig)
+    inputs = {driven.SIM_ROW: tmp_path / "sim", driven.CLIPS_ROW: tmp_path}
+    (out / "layers").mkdir()
+    stage = Usd.Stage.Open(Sdf.Layer.CreateNew(str(out / layer.LAYER)))
+    sim = driven.sim_of(inputs, out)
+    looks = {}
+    for single in people:
+        layer.lay_person(stage, "/hub/Characters", single, asset)
+        looks[single["name"]] = {"look": single["look"]}
+    driven.drive_people(stage, out / layer.LAYER, "hub", people, looks, sim)
+    stage.GetRootLayer().Save()
+    (out / layer.RECORD).write_text(json.dumps({"place": "hub", "looks": looks}))
+    return out, Usd.Stage.Open(str(out / layer.LAYER))
+
+
+TOY_PERSON = {"name": "bram", "character": "bram", "look": "bram/work", "at": [1.0, 0.0, 2.0], "turn": 90.0,
+              "doing": "standing", "start": 0.2}
+
+
+def test_a_person_moves_by_its_sim_body_its_feet_on_its_sim_bodys_and_one_without_keeps_its_clip(tmp_path):
+    """Bram's sim body walked his hips 0.3 m and swung his left leg: his skeleton plays it (his feet within FEET_WITHIN
+    of the sim body's, which stands beside him in his skeleton's frame, both from his clip's start), the joints with
+    no segment and the frames after the sim's keep the clip's; nev has no sim body and keeps his clip, named."""
+    out, stage = laid_driven(tmp_path, [TOY_PERSON, dict(TOY_PERSON, name="nev", character="nev")])
+    record = json.loads((out / layer.RECORD).read_text())["looks"]
+    assert record["bram"]["motion"]["by"] == "its sim body"
+    assert sorted(record["bram"]["motion"]["clip keeps"]) == ["HeadEnd", "Root"]
+    assert record["nev"]["motion"] == {"by": "its clip", "why": "its sim body was not run (sim_bodies.json's "
+                                                                "`left out` says why)"}
+    assert stage.GetPrimAtPath("/hub/Characters/nev").GetCustomDataByKey("score:motion").startswith("its clip")
+    off = driven.feet_off(out / layer.LAYER, "hub", "bram", record["bram"]["motion"])
+    # every centimetre of it TOY_SIZE's longer legs (the sim body is the rig's size): the swung foot 0.29 m out
+    assert off == pytest.approx(0.039, abs=0.002) and off < driven.FEET_WITHIN
+    from pxr import UsdSkel
+    played = UsdSkel.Animation(stage.GetPrimAtPath("/hub/Characters/bram/SimDriven"))
+    start = record["bram"]["motion"]["start"]
+    assert played.GetTranslationsAttr().Get(TOY_FRAMES - 1 - start)[1][0] == pytest.approx(0.27, abs=1e-4)
+    assert played.GetTranslationsAttr().Get(TOY_FRAMES + 1 - start)[1][0] == pytest.approx(0.0)  # the clip's again
+    verdict = driven.judge_on_its_sim_body(out, {}, None)
+    assert verdict.answer == checks.PASS and verdict.measures["driven"] == 1, verdict
+    assert verdict.findings == ("nev keeps its clip: its sim body was not run (sim_bodies.json's `left out` says why)",)
+
+
+def test_a_person_whose_feet_leave_its_sim_bodys_fails(tmp_path):
+    """A skeleton that kept its clip's hips while its sim body walked off fails `on its sim body` by name."""
+    out, stage = laid_driven(tmp_path, [TOY_PERSON])
+    stage.GetPrimAtPath("/hub/Characters/bram/Turned/Skeleton").GetRelationship("skel:animationSource").SetTargets(
+        ["/hub/Characters/bram/Animations/standing"])
+    stage.GetRootLayer().Save()
+    verdict = driven.judge_on_its_sim_body(out, {}, None)
+    assert verdict.answer == checks.FAIL and verdict.measures["worst foot m"] > 0.3, verdict
+    assert verdict.findings[0].startswith("bram: a foot"), verdict
