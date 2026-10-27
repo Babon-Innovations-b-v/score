@@ -34,11 +34,11 @@ scene's own ground. `__init__.py`'s docstring has the make and the gates; `insid
 - **Set up as its makers do, and where not** (2026-10-27, sources and numbers on #65): MuscleMimic's own fixes are
   taken (1.0.6, below `MODEL`); its retargeting (GMR with a fitted SMPL-H shape; site welds) and KINESIS' (SMPL joint
   positions, SLSQP for the first pose) track joint-centre places first and turns second, on a source body fitted to
-  the model; ours fits turns first with the pelvis' and feet's places. The model's hip joints stand 8.7 cm behind
-  SOMA's at the bind when the pelvis rides the Hips (`RIDES`); placing them on SOMA's hip joints and reading the
-  places off the model posed at the bind took the rig's walking clip from 8.3 to 7.4 degrees off but lifted the
-  Kimodo walker's feet 2 to 3 cm off its ground in stance (residual 12 to 37 N median, 0 push on some frames), so it
-  is not kept: the frame-0 `shift` would have to change with it. Their simulation settings (timestep, iterations,
+  the model; so does ours for the legs (`JOINTS`: the model's hip, knee, ankle and toe joints on SOMA's; the hips
+  stood 8.7 cm behind SOMA's when the pelvis rode the Hips). The elbows and wrists are not placed: without SOMA's
+  trunk fitted to the model's, they leaned the pelvis and chest 34 and 23 degrees off the clip. Their ground rule (the
+  lowest point over all frames) floated the walkers 2 to 4 cm in stance with frames carried by nothing, so the path
+  stands on its ground at its median frame (`grounded`). Their simulation settings (timestep, iterations,
   friction 1, joint damping and armature) are the model's for stepping; nothing is stepped here, and the damping and
   armature Newton builds match MuJoCo's own compile, as do every muscle's parameters and coupling.
 - **Mass by #64's rule**: the cast's stated `weight` (kg), else `height` (m, else the body's own) squared times the
@@ -54,9 +54,10 @@ scene's own ground. `__init__.py`'s docstring has the make and the gates; `insid
   the thighs: MyoFullBody's own), since SOMA's A-pose bind is far from it (`CALIBRATED`; a rig with no standing clip
   falls back to the bind, named in `calibrated on`); the fit holds each joint lightly to the frame before
   (`FIT_STEADY`), or the hanging arm's plane of elevation (MoBL-ARMS' gimbal) swings frame to frame. The SOMA forearm
-  rides the ulna, so its hand's twist is the forearm's pronation. The path is moved up once so its lowest point stands
-  on the ground at the first frame (`shift`), then low-passed (zero-lag 4th-order Butterworth at 6 Hz, Winter 2009)
-  before it is differentiated.
+  rides the ulna, so its hand's twist is the forearm's pronation. The legs' joint centres are placed first, their
+  turns second (`JOINTS`, above). The path is low-passed (zero-lag 4th-order Butterworth at 6 Hz, Winter 2009) before
+  it is differentiated, then moved up or down once so its lowest point stands on the ground at its median frame
+  (`shift`, `grounded`): a stance frame may go up to about 3 cm into it (`on floor` reads it).
 - **Its frame is the skin's**: the person's spot and turn, then the dressed body's Turned (`TURNED`, 180 degrees about
   up, prop_build.py's root node), so the ground it walks is the ground under the skin's feet (`own_frame`). MuJoCo's
   frame is Z up; `TO_OWN` turns everything back to the person's Y up.
