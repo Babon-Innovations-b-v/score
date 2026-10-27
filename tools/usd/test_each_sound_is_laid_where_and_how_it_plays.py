@@ -1,11 +1,19 @@
-"""Check the sound stage's prim writer (tools/usd/sound.py's audio_prim) without Blender and without the world's
-release: on a small stage of the hub made here, with a world folder of short made sounds and the test's own sound
-entries (the library's sounds are withdrawn, 2026-10-21), a room tone is a non-spatial loop, the console's hum a
-spatial loop at the console at its level's gain, a library surface points at its footstep in the bank, every file is
-copied into the stage and found from the layer, and the base is untouched; and the soundtrack hears a spatial sound
-louder near it and on the side it stands.
+"""tools/usd/sound.py: each sound is laid where and how it plays. Its prim writer (audio_prim), without Blender, on a
+small stage of the hub made here with the test's own made tones: left to its entry, a room tone on the ambience bus
+is a non-spatial loop and a footstep a spatial one-off; the console's hum is at its level's gain; a library surface
+points at its footstep in the bank; every file is copied into the stage and found from the layer; the base is
+untouched; a sound with no file is written nowhere; sound.py's own soundtrack (no caller since hearing.py, still its
+code) hears a spatial sound louder near it and on its side; and a looping motion's sounds come back every round.
 
-Run: .venv/bin/python tools/usd/test_each_sound_is_laid_where_and_how_it_plays.py   (make tests runs it with the framework's environment)
+Breaks that turn each check red (each applied once and seen red, 2026-10-27):
+- check_the_layer: sound.audio_prim's `spatial = entry.get("bus") not in NON_SPATIAL_BUSES` made `spatial = True`;
+  and sound.gain's `10.0 ** (float(volume_db) / 20.0)` made `/ 10.0` (each red on its own).
+- check_the_soundtrack: sound.heard_gain's `np.cross(forward, [0.0, 1.0, 0.0])` made
+  `np.cross([0.0, 1.0, 0.0], forward)` (left and right swapped).
+- check_the_rounds: sound.rounds_of's `math.ceil(SOUND_SPAN_SECONDS / length)` made `math.floor(...)` (the last round
+  before the span's end left out).
+
+Run: .venv/bin/python tools/usd/test_each_sound_is_laid_where_and_how_it_plays.py
 """
 import os
 import pathlib
@@ -95,13 +103,17 @@ def laid_sounds(sound, out):
 def check_the_layer(sound, out):
     laid_sounds(sound, out)
     stage = Usd.Stage.Open(str(out / f"{PLACE}.usda"))
-    tone_prim = UsdMedia.SpatialAudio(stage.GetPrimAtPath(f"/{PLACE}/Sound/Room/habitat"))
-    assert tone_prim.GetAuralModeAttr().Get() == UsdMedia.Tokens.nonSpatial
-    assert tone_prim.GetPlaybackModeAttr().Get() == UsdMedia.Tokens.loopFromStage
+    # Left to the entry: a room tone on the ambience bus is a non-spatial loop, a footstep on the effects bus a
+    # spatial one-off.
+    scratch = Usd.Stage.CreateInMemory()
+    room = sound.audio_prim(scratch, "/room", "habitat", ENTRIES["habitat"], out)
+    step = sound.audio_prim(scratch, "/step", "footsteps_deck", ENTRIES["footsteps_deck"], out)
+    assert (room.GetAuralModeAttr().Get(), room.GetPlaybackModeAttr().Get()) == (
+        UsdMedia.Tokens.nonSpatial, UsdMedia.Tokens.loopFromStage)
+    assert (step.GetAuralModeAttr().Get(), step.GetPlaybackModeAttr().Get()) == (
+        UsdMedia.Tokens.spatial, UsdMedia.Tokens.onceFromStart)
     hum = UsdMedia.SpatialAudio(stage.GetPrimAtPath(f"/{PLACE}/Objects/console_1/Sound"))
-    assert hum and hum.GetAuralModeAttr().Get() == UsdMedia.Tokens.spatial
-    level = hum.GetPrim().GetAttribute("score:sound:volumeDb").Get()
-    assert abs(hum.GetGainAttr().Get() - 10 ** (level / 20)) < 1e-6
+    assert abs(hum.GetGainAttr().Get() - 0.354813) < 1e-6  # -9 dB as a linear amplitude
     assert pathlib.Path(hum.GetFilePathAttr().Get().resolvedPath).exists()
     deck = stage.GetPrimAtPath(f"/{PLACE}/Library/deck")
     targets = deck.GetRelationship("score:sound:footstep").GetTargets()

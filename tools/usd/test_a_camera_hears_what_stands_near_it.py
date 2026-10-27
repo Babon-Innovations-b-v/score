@@ -1,14 +1,24 @@
-"""Check what a camera hears (tools/usd/hearing.py) without Blender and without the world's release: on a small stage of
-the hub made here (its sound layer written with sound.py's prim writer from the test's own sounds, with a
-world folder of short made tones), a spatial sound is heard louder
-near it and on the side it stands; a shown place's room tone is not heard, and outside (the place's own room on the
-suit's bus) only what the boots feel carries; a walk steps on the floor's footstep and a stand does not; a step sounds
-as the library finish under it (a library tile's by its `score:surface`), a baked piece naming none as the finished
-floor it lies on, and with no finish under the feet as nothing; every track is
-mixed at the one gain, so a quieter stage stays quieter, its peak under the ceiling; and a bed is what the camera hears
-standing before its first moment.
+"""tools/usd/hearing.py: a camera hears what stands near it, at one gain. Without Blender, on a small stage of the hub
+made here (its sound layer written with sound.py's prim writer from the test's own made tones): a spatial sound is
+heard louder near it and on the side it stands; a shown place's room tone is not heard, and outside (the place's own
+room on the suit's bus) only what the boots feel carries; a walk steps on the floor's footstep and a stand does not; a
+step sounds as the library finish under it (a library tile's by its `score:surface`), a baked piece naming none as
+the finished floor it lies on, and with no finish under the feet as nothing; every track is mixed at the one gain, so
+a quieter stage stays quieter, its peak under the ceiling; and a bed is what the camera hears standing before its
+first moment.
 
-Run: .venv/bin/python tools/usd/test_a_camera_hears_what_stands_near_it.py   (make tests runs it with the framework's environment)
+Breaks that turn each check red (each applied once and seen red, 2026-10-27):
+- check_the_finish_underfoot: hearing.footstep_of's `if not surface: continue` made `if not surface: return None` (a
+  baked plate silent, not the deck it lies on).
+- check_the_soundtrack: hearing.heard_gain's `np.cross(forward, [0.0, 1.0, 0.0])` made
+  `np.cross([0.0, 1.0, 0.0], forward)` (left and right swapped).
+- check_what_is_heard: hearing.shown_air's body made `return False` (a shown place's room tone heard).
+- check_the_footsteps: hearing.stride_frames' `found, next_step = [], STRIDE_METRES / 2.0` made
+  `found, next_step = [], 0.0` (a step at the first frame, standing too).
+- check_one_level: hearing.mastered's `scaled = mix * 10.0 ** (MIX_GAIN_DB / 20.0) / ceiling` made
+  `scaled = mix / max(float(np.abs(mix).max()), 1e-12) * 0.5` (each track pressed to its own loudness).
+
+Run: .venv/bin/python tools/usd/test_a_camera_hears_what_stands_near_it.py
 """
 import os
 import pathlib

@@ -1,12 +1,26 @@
-"""Check the walkthrough camera's path on a place made here: two rooms side by side, the wall between them with one
-doorway, and a path from a corner of one to the far corner of the other (the straight line between them meets the
-wall) goes through the doorway and nowhere else, at eye height, clear of everything along every step; the same seed
-gives the same path; a loop through both rooms closes on itself; the views are in the review walk's format; a
-place's characters, one alone and a crowd's instances, stand in the way as boxes where they stand, and one who walks
-where they stand at each moment; a thing the stage moves (a moving thing) stands in the way where it is at each moment, its
-particles and its people aside; and an eye's clearance is its true distance from walls and people.
+"""tools/usd/camera_paths.py: a walkthrough camera's path keeps clear of everything. On two rooms made here, side by side
+with one doorway in the wall between them, a path from a corner of one to the far corner of the other (the straight
+line meets the wall) goes through the doorway and nowhere else, at eye height, clear along every step, the same seed
+the same path, in the review walk's format; a loop through both rooms closes on itself; a place's characters, one
+alone and a crowd's instances, stand in the way as boxes where they stand, and one who walks where they stand at each
+moment; a thing the stage moves stands in the way where it is at each moment, its particles and its people aside;
+and an eye's clearance is its true distance from walls and people.
 
-Run: .venv/bin/python tools/usd/test_a_walk_goes_through_doorways_clear_of_everything.py   (make tests runs it with the framework's environment)
+Breaks that turn each test red (each applied once and seen red, 2026-10-27):
+- a_path_between_rooms_goes_through_the_doorway: camera_paths.leg's
+  `if edges_walkable(scenes, start, goal, clearance, eye)[0]:` made `if True:` (the straight line through the wall).
+- a_loop_round_both_rooms_closes: camera_paths.laid_out's `np.array(list(path) + ([path[0]] if closed else []))` made
+  `np.array(list(path))` (the loop's way back left out).
+- people_stand_in_the_way: camera_paths.crowd_corners' `reshape(-1, 4, 4) @ world` made `reshape(-1, 4, 4)` (a
+  crowd's instances not moved with the instancer).
+- a_walking_person_is_followed: camera_paths.people_corners' `single_corners(singles, Usd.TimeCode(time))` made
+  `single_corners(singles, Usd.TimeCode(times[0]))` (a walker read only where they start).
+- a_moving_thing_is_followed: camera_paths.moves' `if prim.GetName() in NOT_SOLID:` made `if False:` (the people and
+  the particles counted as moving things).
+- clearance_is_measured_on_every_side: camera_paths.mesh_tree's `[np.asarray(mesh.area_faces) > FLAT_AREA]` made
+  `[np.asarray(mesh.area_faces) >= 0]` (a triangle with no area kept in FCL's tree).
+
+Run: .venv/bin/python tools/usd/test_a_walk_goes_through_doorways_clear_of_everything.py
 """
 import pathlib
 import sys
