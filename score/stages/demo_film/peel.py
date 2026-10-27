@@ -7,7 +7,7 @@ third of the shot; or, closer, the camera following one walker (`close_walker`).
 
     python -m score.stages.demo_film.peel <job folder> --cast <cast.json> --sim <sim-body output> --rig <rig.npz>
         --dressed <body.glb> [--seconds 5] [--size 1280 720] [--samples 64] [--close [--clips <scene_clips.json>]]
-        [--ground <triangles.npy>]
+        [--ground <triangles.npy>] [--build <people-body rig.npz>]
 
 Free and local: the frames are drawn by `blender/body_peel.py` in this machine's Blender (tools/blender/session.py's
 set-up, `-b` on its card), never a paid row; no row makes a peel's frames yet (the environment film names the cut as
@@ -141,7 +141,7 @@ def person_arrays(record, rig, frames, boxes, names, shown):
     moves = clip_worlds(rig, record["clip"]) @ np.linalg.inv(np.asarray(rig["bind"], dtype=float))
     return {"points": points_to_z(mesh[shown]), "boxes": to_z(worlds[shown]), "moves": to_z(moves[shown]),
             "bind_heads": points_to_z(np.asarray(rig["bind"], dtype=float)[:, :3, 3]),
-            "arrow_start": points_to_z(starts[shown, :3]), "arrow_vector": points_to_z(vectors[shown]),
+            "arrow_start": points_to_z(starts[shown]), "arrow_vector": points_to_z(vectors[shown]),
             "placed": to_z(where)}
 
 
@@ -196,13 +196,14 @@ def close_walker(cast, clips=None):
     return max(walkers, key=lambda name: (relief.get(name, -1.0), -walkers.index(name)))
 
 
-def job_of(folder, cast, sim, rig_path, dressed, seconds, size, samples, close=None, ground=None):
+def job_of(folder, cast, sim, rig_path, dressed, seconds, size, samples, close=None, ground=None, build=None):
     """Write the Blender job (job.json and one npz a person) into `folder` and return its path: the wide shot of
     everyone, or, `close` naming one of them, the close-up following that person alone (no one else between it and
     the camera). `ground`: the scene's ground under them (n x 3 x 3 triangles, the place's frame, Y up; else a flat
-    floor at 0)."""
+    floor at 0). `build`: the person's built body rig (people-body's rig.npz), which the sim body was built at
+    (sim_body.person_rig); else the clips rig as it is."""
     record = json.loads((sim / "sim_bodies.json").read_text())
-    rig = dict(np.load(rig_path))
+    rig = sim_body.person_rig(dict(np.load(rig_path)), build)[0]
     people, shown = [], None
     for single in cast["characters"]:
         name = single["name"]
@@ -288,6 +289,7 @@ def main():
     parser.add_argument("--close", action="store_true", help="follow one walker (close_walker) instead of all")
     parser.add_argument("--clips", type=pathlib.Path, help="scene-clips' scene_clips.json, for close_walker")
     parser.add_argument("--ground", type=pathlib.Path, help="the scene's ground triangles (.npy, n x 3 x 3, Y up)")
+    parser.add_argument("--build", type=pathlib.Path, help="the person's built body rig (people-body's rig.npz)")
     arguments = parser.parse_args()
     arguments.folder.mkdir(parents=True, exist_ok=True)
     cast = json.loads(arguments.cast.read_text())
@@ -295,7 +297,8 @@ def main():
         if arguments.close else None
     job = job_of(arguments.folder, cast, arguments.sim, arguments.rig, arguments.dressed, arguments.seconds,
                  arguments.size, arguments.samples, close,
-                 np.load(arguments.ground) if arguments.ground else None)
+                 np.load(arguments.ground) if arguments.ground else None,
+                 dict(np.load(arguments.build)) if arguments.build else None)
     drawn(job)
     out = joined(arguments.folder, round(arguments.seconds * RATE))
     print(f"peel: {round(arguments.seconds * RATE)} frames in {out}")
