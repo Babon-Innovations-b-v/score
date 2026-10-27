@@ -250,6 +250,26 @@ def test_the_runner_accepts_by_itself_only_what_passed_and_got_no_worse():
     assert found["clean@hangar"] == "fresh" and found["count@hangar"].startswith("blocked: clean@hangar's output")
 
 
+def test_a_bought_batch_accepts_a_passing_worse_output_and_writes_the_drop_down_for_review():
+    """Owner, 2026-10-27: inside a bought batch a result that passes every check is accepted though a measure is worse,
+    the drop written down for him to review after the batch, never a wait. The brief of 6 words that waits outside a
+    batch (above) is accepted in one, its accept quoting his rule with the worse measure in its status.
+    Break: score/graph/__init__.py: 'against, self.bought)' -> 'against)'"""
+    world, store, outputs = ready_world()
+    brief(world, "hangar", "a ship in a long dark hall")
+    a_runner(world, store).run(PLACES)
+    worse = give_evidence(store, a_runner(world, store), "hangar", 10)
+    assert a_runner(world, store).run(PLACES)["clean@hangar"] == "judged again, output kept: pass"
+    assert store.accepted("clean@hangar") == outputs["hangar"]
+    runner = a_runner(world, store)
+    runner.bought = True
+    found = runner.run(PLACES)
+    assert found["clean@hangar"] == "fresh, accepted automatically" and store.accepted("clean@hangar") == worse, found
+    given = store.accepts("clean@hangar")[-1]
+    assert given["worse_reason"] == review.IN_BATCH and given["worse"], given
+    assert given["status"].startswith("to review after the batch, worse: "), given
+
+
 def test_a_record_naming_a_stage_the_table_lacks_is_stale_not_a_crash():
     """Fault (2026-10-12): an accepted record named a stage another runner wrote into the store; status crashed.
     Break: score/graph/__init__.py: '                   if before in self.stages}' -> '                   }'"""

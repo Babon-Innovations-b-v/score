@@ -566,6 +566,7 @@ class Runner:
         self.began = {}  # {node: epoch seconds its process started} (start): score run's pool forecast (row_due)
         self.objects = None  # the object filter (`score run --object`): the names a selecting stage keeps, or None
         self.free_only = False  # a free-only run (PAID_LEFT): nothing cleared, paid nodes left for the Buy
+        self.bought = False  # a bought batch (his checkout or benchmark grant): a passing worse output is accepted
         unknown = {before for stage in stages for before in (*stage.after, *stage.beside)} - set(self.stages)
         if unknown:
             raise ValueError(f"stages read stages the table lacks: {sorted(unknown)}")
@@ -934,7 +935,7 @@ class Runner:
         judged = review.newest_judgement(self.store, record)
         against = self.rejudged_accepted(stage, place) if judged and (judged["answer"] == checks.PASS or (
             review.fails_only_on_gaps(judged["verdicts"], self.store.waivers(node, keyed["key"])))) else None
-        accepted = review.accept_automatically(self.store, node, record["output"], against)
+        accepted = review.accept_automatically(self.store, node, record["output"], against, self.bought)
         return f"{done}, accepted automatically" if accepted else done
 
     def rejudged_accepted(self, stage, place):

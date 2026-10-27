@@ -14,7 +14,8 @@ made before, and who accepted it. Pages are written in the store's cache, never 
 
 The runner accepts an output by itself (the owner's answer of 2026-10-11: from concept and style on everything runs
 automatically) when its newest judgement passes once the owner's waivers for its key count, its scorecard is no worse
-than the accepted output's, and the owner never rejected it; the accept says it is the runner's. The owner may reject
+than the accepted output's, and the owner never rejected it; the accept says it is the runner's. Inside a bought batch
+a passing worse output is accepted too, its drop written in the accept's status for him (IN_BATCH). The owner may reject
 any accepted output from his terminal: the accepted output moves back to the one accepted before it, and every later
 node that read it goes stale (score/graph). His own accept is refused for an output that did not pass, and for a
 worse one unless he writes why (`worse_reason`). Rejects, his accepts, waivers and spend yeses come only from `python
@@ -32,6 +33,10 @@ from score.store import RUNNER
 # blocking check is this one is complete apart from accepted gaps (CONTEXT.md): a stage's `gapped` reads it, and the
 # runner takes it automatically with that status (overseer, 2026-10-17); any other fail is never taken so.
 GAPPED = "accepted gaps"
+# The owner's rule of 2026-10-27, his "yes": a passing output of a bought batch is accepted though a measure got worse.
+IN_BATCH = ("Inside a bought batch, a result that passes every check is accepted automatically, even when a measure is "
+            "worse than before; the drop is written down for you to review after the batch, never as a wait. Accepts "
+            "stay yours outside batches.")
 
 STYLE = """
 :root { --ground: #fbfaf7; --ink: #1d1d1b; --soft: #6b6a66; --line: #dddad2; --pass: #1f7a3a; --fail: #b3261e;
@@ -128,18 +133,31 @@ def gapped_status(verdicts, waived):
     return f"complete apart from accepted gaps ({gapped['measures'].get('gaps', len(gapped.get('findings') or ()))})"
 
 
-def accept_automatically(store, node, output, against=None):
+def accept_automatically(store, node, output, against=None, bought=False):
     """The runner's accept of an output that passed (or fails only on its accepted gaps: complete apart from accepted
     gaps, its status recorded), is no worse than the accepted one and that the owner has not rejected; the accept,
     or None when one of those does not hold. `against`: the accepted output's scorecard judged now by today's gates
-    (the runner's rejudged_accepted), compared in place of the one stored when it was judged."""
+    (the runner's rejudged_accepted), compared in place of the one stored when it was judged. `bought`: the run is a
+    bought batch (his checkout or his benchmark grant), where a worse output is accepted too (accept_in_batch)."""
     if store.rejected(node, output):
         return None
     try:
         return accept(store, node, output, RUNNER, "accepted automatically: every gate passed and nothing got worse "
                       "than the accepted output", against=against, on_gaps=True)
     except Refused:
-        return within_owners_accept(store, node, output)
+        allowed = within_owners_accept(store, node, output)
+    return allowed or (accept_in_batch(store, node, output, against) if bought else None)
+
+
+def accept_in_batch(store, node, output, against=None):
+    """The runner's accept, inside a bought batch, of a passing output worse than the accepted one (IN_BATCH): its
+    worse measures written in the accept's status for the owner to review after the batch; None when it did not
+    pass."""
+    try:
+        return accept(store, node, output, RUNNER, "accepted automatically inside a bought batch", worse_reason=IN_BATCH,
+                      against=against, on_gaps=True, to_review=True)
+    except Refused:
+        return None
 
 
 def owners_allowance(store, node):
@@ -182,10 +200,10 @@ def reject(store, node, output, by, reason):
     return written
 
 
-def accept(store, node, output, by, reason="", worse_reason=None, against=None, on_gaps=False):
+def accept(store, node, output, by, reason="", worse_reason=None, against=None, on_gaps=False, to_review=False):
     """Move the node's accepted output to `output`: refused unless it passed (`on_gaps`, the runner's: or fails only
-    on its accepted gaps, recorded with that status) and no score is worse, or the owner says why it may be worse. The
-    accept, as written."""
+    on its accepted gaps, recorded with that status) and no score is worse, or the owner says why it may be worse
+    (`to_review`: its worse measures go in the status, for him to review). The accept, as written."""
     record = record_of(store, node, output)
     if record is None:
         raise Refused(f"{node} has no output {output}")
@@ -199,6 +217,8 @@ def accept(store, node, output, by, reason="", worse_reason=None, against=None, 
     if worse and not worse_reason:
         raise Refused(f"{node}'s output {output[:12]} is worse than the accepted one: {'; '.join(worse)}. "
                       "Accept it only with a written reason (--worse).")
+    if to_review and worse:
+        status = "; ".join(filter(None, [status, f"to review after the batch, worse: {'; '.join(worse)}"]))
     written = {"node": node, "output": output, "key": record["key"], "by": by, "at": now(), "reason": reason,
                **({"status": status} if status else {}), "worse": worse, "worse_reason": worse_reason,
                "allowed": allowed_moves(judgement["verdicts"], accepted_card(store, node, output)) if worse else {}}
