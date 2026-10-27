@@ -1,30 +1,25 @@
 {
   "inputs": {
     "paper/build/build.py": "c484217c7cdd373dc8488cf4422284369cba4b3a0965b5d8204df6d6d4a199f3",
-    "paper/figures/fig-k2.jpg": "b60e05e13b6d02d760ffef166301a4f912ca63672543c45ad29f969992742980",
-    "paper/figures/fig-k7.jpg": "8ab1866f68dec59d3d7e7643b33e1e54c186b1fa789caf8219daf84f9fe7c33c",
-    "paper/figures/fig-k9.jpg": "efa128a1c9e7519b5a56989bd69894c5505659788df5e4cf2862b56a3edb7599",
     "paper/source/ieee.csl": "b4c7619fc16c45a31e4cc3271eab94ffe83192d3b4c7fc729470a3b459448de3",
     "paper/source/markers.lua": "5c7ee052f652b1ad8079441d7e9bac35c9380fac13a77baed501e6f3a998cfc9",
-    "paper/source/refs.bib": "f55427b11d8e8771d8c0f14a5111ae47308fc19feab436e9e4f31623ce93037d",
-    "paper/source/score.md": "631780d08cb45c65bf839afea7e16a64510399ac4c6ac8cdcb090d5b2f644dee"
+    "paper/source/refs.bib": "022464856f30996f097663825999acb0bb4a87217ff9023f2fed7466396a0b06",
+    "paper/source/score.md": "f2b5212fd8c2832cc48d14ba9100d40dbb841127550bca4fa9aad253ac7a284e"
   },
   "outputs": {
-    "paper/arxiv/content/abstract.tex": "780151d8906ef2c1b6abf7570d6e236b76ab39f83e11987a06b3fa1bce597608",
-    "paper/arxiv/content/evidence.tex": "2055789089872bc6071cbbc1102259b1cca9f6688a567cad8444ee7cd798becc",
-    "paper/arxiv/content/introduction.tex": "c186d8d7c893c3433b0216c6dc56f562b3ef77ec3e9c12f00caf9d8a1b24b5d5",
-    "paper/arxiv/content/limitations_future_work_and_conclusion.tex": "76cb91188309c33948b5cb8facc78daa67aa2a9c7cba3e7d553699a564af228c",
-    "paper/arxiv/content/stages_and_their_gates.tex": "45696c27424542e2bfa97f66dc1860798b03f577a45f5f3f2e3e104c098b98a5",
-    "paper/arxiv/content/teaser.tex": "3f0ae46f8d4cafe4e98fe42e7e78d5b8c5fe10eaced90ad4cecfb05687b9798e",
-    "paper/arxiv/content/the_framework.tex": "de0c26a1102047718859323afa0e1176506ab05a25ea14db827d90198f32ee56",
-    "paper/arxiv/figures/fig-k2.jpg": "b60e05e13b6d02d760ffef166301a4f912ca63672543c45ad29f969992742980",
-    "paper/arxiv/figures/fig-k7.jpg": "8ab1866f68dec59d3d7e7643b33e1e54c186b1fa789caf8219daf84f9fe7c33c",
-    "paper/arxiv/figures/fig-k9.jpg": "efa128a1c9e7519b5a56989bd69894c5505659788df5e4cf2862b56a3edb7599",
-    "paper/arxiv/main.bbl": "263d428326ae4ccbd71cfe276c8a13f37775697220139a48498bd999ce6189a5",
-    "paper/arxiv/main.pdf": "c42a7e0a87dadd0659fa9b5c2a4171243898a46a5466beea7f175cedd7be41dd",
-    "paper/arxiv/main.tex": "812fb7327f02a3a99b602745c27e5db3ae44639cc290032cfa462855c6c0d371",
-    "paper/arxiv/refs.bib": "f55427b11d8e8771d8c0f14a5111ae47308fc19feab436e9e4f31623ce93037d",
-    "paper/out/score.pdf": "d66989ebd91d3d44e3cba1cc943e5c301550bb03448d8f0cb3e01806e2472c6f",
-    "paper/out/score.tex": "07819b37585af2a5a77d1f9c10d50b70692200a7940d4e5ef82f931ad3d4e38a"
+    "paper/arxiv/content/abstract.tex": "9a2c719b908870e1d3f7c1dd1463338bacf742527c6234c86cfb653cde26d42d",
+    "paper/arxiv/content/evidence_environment_1.tex": "d64556581f4de88751d211cf40219716cff0af72119bf579330b4d3f64e8bcef",
+    "paper/arxiv/content/future_work_people_true_to_the_person.tex": "975976decfc0c7ccb84e70e6dcaa90d6ebbf1e22458da559a828bf99be299df8",
+    "paper/arxiv/content/introduction.tex": "c7c20fefe0d0e543a2750077ad3721ce2ecfdb4acd87f082773557a427761190",
+    "paper/arxiv/content/limitations_and_conclusion.tex": "95ce7ceca441314f5fcb83bf37ebf862124aca60126265eaaa2762f5a43766f7",
+    "paper/arxiv/content/method_building_an_environment.tex": "edb5a50dac6d7462d9041d437220cfa9c1e462e3dae4d79988f36145e14a606e",
+    "paper/arxiv/content/teaser.tex": "52c442ed1d2222c32238b49c8483edf106aee8081b287ab0abe9d363f8c9bf4b",
+    "paper/arxiv/content/the_framework.tex": "770af614fefcda75f3a3b4a41b395f37c4dd4150b97ad479705fb8d88b5ee4d2",
+    "paper/arxiv/main.bbl": "4998ee6b28478a58aaf2e79a6decb829c8385f548ba24a29469e793990d93f28",
+    "paper/arxiv/main.pdf": "8105027de64e59c97511eacb992e4c51e66bf15c3f66d3eb0a2366fcfa2c1bad",
+    "paper/arxiv/main.tex": "6d72fa826a2f5a0444a56508eaab4193765ca58e13434d8c9da1f47b3f385cca",
+    "paper/arxiv/refs.bib": "022464856f30996f097663825999acb0bb4a87217ff9023f2fed7466396a0b06",
+    "paper/out/score.pdf": "9d545d65d67a5cf27d9c9eb448e18f169065f3fad818ad4e1b9a62de996a081f",
+    "paper/out/score.tex": "ae7b6ee747068b68c3c03c495ce2c2ccc21ff0742d511af99496f42aade56019"
   }
 }

@@ -1,4 +1,4 @@
-\begin{thebibliography}{34}
+\begin{thebibliography}{41}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -21,11 +21,6 @@ Diego Arg{\"u}ello.
   bad for the industry}.
 \newblock Game Developer, February 2026.
 \newblock Reporting GDC's 2026 State of the Game Industry survey.
-
-\bibitem[{Pixar Animation Studios} and {Alliance for OpenUSD}(2026)]{openusd}
-{Pixar Animation Studios} and {Alliance for OpenUSD}.
-\newblock {OpenUSD}: Universal scene description, 2026.
-\newblock URL \url{https://openusd.org/}.
 
 \bibitem[Bruce et~al.(2024)Bruce, Dennis, Edwards, Parker-Holder,
   et~al.]{bruce2024genie}
@@ -170,16 +165,6 @@ Ruicheng Wang et~al.
   details.
 \newblock \emph{arXiv preprint arXiv:2507.02546}, 2025{\natexlab{b}}.
 
-\bibitem[Lin et~al.(2025)Lin, Lin, Pan, Yan, Feng, Mu, and
-  Fragkiadaki]{lin2025partcrafter}
-Yuchen Lin, Chenguo Lin, Panwang Pan, Honglei Yan, Yiqiang Feng, Yadong Mu, and
-  Katerina Fragkiadaki.
-\newblock {PartCrafter}: Structured {3D} mesh generation via compositional
-  latent diffusion transformers.
-\newblock In \emph{Advances in Neural Information Processing Systems
-  (NeurIPS)}, 2025.
-\newblock arXiv:2506.05573.
-
 \bibitem[Wu et~al.(2026)Wu, Lou, Liu, Du, Guo, and Guo]{wu2026production}
 Jiafeng Wu, Zhuofan Lou, Jian Liu, Dazhao Du, Chunchao Guo, and Song Guo.
 \newblock From visual synthesis to interactive worlds: Toward production-ready
@@ -193,6 +178,37 @@ Zhifei Yang, Guangyao Zhai, Keyang Lu, YuYang Yin, Chao Zhang, Zhen Xiao, Jieyi
 \newblock {FlowScene}: Style-consistent indoor scene generation with multimodal
   graph rectified flow.
 \newblock \emph{arXiv preprint arXiv:2603.19598}, 2026{\natexlab{a}}.
+
+\bibitem[{Pixar Animation Studios} and {Alliance for OpenUSD}(2026)]{openusd}
+{Pixar Animation Studios} and {Alliance for OpenUSD}.
+\newblock {OpenUSD}: Universal scene description, 2026.
+\newblock URL \url{https://openusd.org/}.
+
+\bibitem[Todorov et~al.(2012)Todorov, Erez, and Tassa]{todorov2012mujoco}
+Emanuel Todorov, Tom Erez, and Yuval Tassa.
+\newblock {MuJoCo}: A physics engine for model-based control.
+\newblock In \emph{IEEE/RSJ International Conference on Intelligent Robots and
+  Systems (IROS)}, pages 5026--5033, 2012.
+
+\bibitem[{The Newton Developers}(2026)]{newton}
+{The Newton Developers}.
+\newblock {Newton}: a {GPU}-accelerated physics simulation engine, 2026.
+\newblock URL \url{https://github.com/newton-physics/newton}.
+\newblock Version 1.6.1 used here (SolverMuJoCo). Apache-2.0.
+
+\bibitem[Macklin(2022)]{warp}
+Miles Macklin.
+\newblock {Warp}: A high-performance {Python} framework for {GPU} simulation
+  and graphics, 2022.
+\newblock URL \url{https://github.com/NVIDIA/warp}.
+\newblock Version 1.18.0 used here. Apache-2.0 since 1.6.2.
+
+\bibitem[{Google DeepMind} and {NVIDIA}(2026)]{mujocowarp}
+{Google DeepMind} and {NVIDIA}.
+\newblock {MuJoCo Warp}: a {GPU}-optimized version of the {MuJoCo} physics
+  simulator, 2026.
+\newblock URL \url{https://github.com/google-deepmind/mujoco_warp}.
+\newblock Apache-2.0.
 
 \bibitem[{Google}(2026{\natexlab{a}})]{gemini31pro}
 {Google}.
@@ -216,6 +232,12 @@ Alexander Raistrick, Karhan Kayan, Jack Nugent, David Yan, Lingjie Mei, Meenal
   generation in {Python}.
 \newblock \emph{arXiv preprint arXiv:2604.26943}, 2026.
 
+\bibitem[Coumans and Bai(2021)]{bullet}
+Erwin Coumans and Yunfei Bai.
+\newblock {Bullet} physics {SDK} and {PyBullet}, 2021.
+\newblock URL \url{https://github.com/bulletphysics/bullet3}.
+\newblock Used here through Blender 5.0.1.
+
 \bibitem[{OpenMOSS-Team}(2026)]{moss2026}
 {OpenMOSS-Team}.
 \newblock {MOSS-SoundEffect} v2.0.
@@ -229,6 +251,12 @@ Yusong Wu, Ke~Chen, Tianyu Zhang, et~al.
   fusion and keyword-to-caption augmentation.
 \newblock \emph{arXiv preprint arXiv:2211.06687}, 2022.
 
+\bibitem[Saito et~al.(2026)Saito, Li, de~Ruyter, Guerrero,
+  et~al.]{saito2026soma}
+Jun Saito, Jiefeng Li, Michael de~Ruyter, Miguel Guerrero, et~al.
+\newblock {SOMA}: Unifying parametric human body models.
+\newblock \emph{arXiv preprint arXiv:2603.16858}, 2026.
+
 \bibitem[Yang et~al.(2026{\natexlab{b}})Yang, Kukreja, Pinkus, others, and
   Kitani]{yang2026sam3dbody}
 Xitong Yang, Devansh Kukreja, Don Pinkus, others, and Kris Kitani.
@@ -240,5 +268,20 @@ Xitong Yang, Devansh Kukreja, Don Pinkus, others, and Kris Kitani.
 Davis Rempe, Mathis Petrovich, Ye~Yuan, Haotian Zhang, Xue~Bin Peng, et~al.
 \newblock {Kimodo}: Scaling controllable human motion generation.
 \newblock \emph{arXiv preprint arXiv:2603.15546}, 2026.
+
+\bibitem[Uhlrich et~al.(2023)Uhlrich, Falisse, Kidzi{\'n}ski, Muccini, Ko,
+  Chaudhari, Hicks, and Delp]{uhlrich2023opencap}
+Scott~D. Uhlrich, Antoine Falisse, {\L}ukasz Kidzi{\'n}ski, Julie Muccini,
+  Michael Ko, Akshay~S. Chaudhari, Jennifer~L. Hicks, and Scott~L. Delp.
+\newblock {OpenCap}: Human movement dynamics from smartphone videos.
+\newblock \emph{PLOS Computational Biology}, 19\penalty0 (10):\penalty0
+  e1011462, 2023.
+
+\bibitem[{NVIDIA}(2026)]{gemx}
+{NVIDIA}.
+\newblock {GEM-X}: Monocular whole-body {3D} human pose estimation using the
+  {SOMA} body model, 2026.
+\newblock URL \url{https://github.com/NVlabs/GEM-X}.
+\newblock Apache-2.0.
 
 \end{thebibliography}
