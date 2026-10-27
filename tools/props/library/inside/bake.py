@@ -495,14 +495,26 @@ class Atlas:
         for channel, _ in CHANNELS:
             for index, material in enumerate(channel_materials(found_by_slot, channel)):
                 high.data.materials[index] = material
-            for target, pictures in zip(targets, self.sets):
-                with_target(target, pictures[channel])
-            self._bake(channel, "EMIT", **across)
+            self._bake_maps(targets, channel, "EMIT", across)
         for index, material in enumerate(shaded_materials(found_by_slot)):
             high.data.materials[index] = material
-        for target, pictures in zip(targets, self.sets):
-            with_target(target, pictures["normal"])
-        self._bake("normal", "NORMAL", **across)
+        self._bake_maps(targets, "normal", "NORMAL", across)
+
+    def _bake_maps(self, targets, channel, kind, across):
+        """`channel` baked into every map's picture. One map: one bake, as a shared set always was. A split piece: one
+        bake a map, the others' materials on a one-pixel stand-in, so Cycles holds one map's pixels at a time: baked all
+        at once, base's dome module (604 m2, 16 maps of 4096) took 25.3 GB, near this PC's 27 GB machine (env1,
+        2026-10-27), and the ship's 22 maps would pass it."""
+        if self.maps == 1:
+            with_target(targets[0], self.sets[0][channel])
+            self._bake(channel, kind, **across)
+            return
+        aside = bpy.data.images.get("bake_aside") or new_picture("bake_aside", 1, False)
+        for number, pictures in enumerate(self.sets):
+            for other, target in enumerate(targets):
+                with_target(target, pictures[channel] if other == number else aside)
+            bpy.ops.object.bake(type=kind, margin=MARGIN_PIXELS, use_clear=True, normal_space="TANGENT", **across)
+        self.first[channel] = False
 
     def finish(self):
         """glTF's metal-roughness picture of each map from its baked roughness and metal: roughness in green, metal
