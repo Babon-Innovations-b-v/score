@@ -82,7 +82,41 @@ def parse(argv):
     for name in ("high", "answer", "question"):
         yes.add_argument(name)
     commands.add_parser("buy", help="his Buy under a yes from buy-yes, once (checkout/chat_yes.py)").add_argument("yes")
+    decide_yes = commands.add_parser("decide-yes", help="the owner's decision made in a session, quoted "
+                                                        "(sync/chat_decisions.py)")
+    decide_yes.add_argument("decision", help="accept, reject, waive, lock-concept, lock-film or go")
+    decide_yes.add_argument("target", help="the node, place, film or environment it applies to")
+    for name in ("output", "check", "sha", "reason", "worse-reason"):
+        decide_yes.add_argument(f"--{name}", default="")
+    for name in ("answer", "question"):
+        decide_yes.add_argument(name)
+    commands.add_parser("decide", help="his decision under a yes from decide-yes, once "
+                                       "(sync/chat_decisions.py)").add_argument("yes")
     return parser.parse_args(argv)
+
+
+def decide_yes(options):
+    from score.dashboard.sync import chat_decisions
+    migrate()
+    try:
+        yes = chat_decisions.record(options.decision, options.target, options.answer, options.question,
+                                    output=options.output, check=options.check, sha=options.sha,
+                                    reason=options.reason, worse_reason=options.worse_reason)
+    except chat_decisions.Refused as refused:
+        sys.exit(f"decide-yes: refused: {refused}")
+    print(f"decide-yes {yes['id']}: {yes['decision']} {json.dumps(yes['target'])}")
+
+
+def decide(options):
+    from score.dashboard.sync import chat_decisions
+    migrate()
+    try:
+        applied = chat_decisions.apply(options.yes)
+    except chat_decisions.Refused as refused:
+        sys.exit(f"decide {options.yes}: refused: {refused}")
+    print(f"decide {options.yes}: {applied.state}: {applied.detail}")
+    if applied.state != "done":
+        sys.exit(1)
 
 
 def buy_yes(options):
@@ -353,6 +387,10 @@ def main(argv=None):
         buy_yes(options)
     elif options.command == "buy":
         buy(options)
+    elif options.command == "decide-yes":
+        decide_yes(options)
+    elif options.command == "decide":
+        decide(options)
     else:
         check()
 

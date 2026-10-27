@@ -12,6 +12,10 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_accept_guard_allows_reading_running_and_the_framework: drop `if _FRAMEWORK.search(path): return None`; or
   drop the `not _TEXT_FILE.search(path)` in `_file_offence`.
 - test_accept_guard_lets_a_benchmark_grant_pass: add `grant_benchmark` to `_OWNER_CALL`'s names.
+- test_accept_guard_blocks_an_agents_own_locks_and_a_decision_without_his_yes: in `_owner_command`, `not
+  _YES_ID.match(...)` -> `False`; or drop the `_LOCK_CALL` check.
+- test_accept_guard_lets_his_decision_through_only_as_decide_with_its_yes_id: `_YES_ID` made `^$` (every id refused),
+  or drop `and not _DASHBOARD.search(path)` in `_file_offence`.
 - test_completion_guard_refuses_a_false_done_claim: `claimed` returns `set()` at once.
 - test_completion_guard_lets_an_honest_stop_end: drop `or _NEGATION.search(sentence)` in `claimed`.
   Or in `_says_all_done`, return `bool(re.search(every, sentence, re.IGNORECASE))` (any "all places" counts).
@@ -166,6 +170,49 @@ def test_accept_guard_lets_a_benchmark_grant_pass():
     tagged = ("SCORE_BENCHMARK_GRANT=20261020T120000.000000+0000 .venv/bin/python -m score run world1 --detach "
               "--place campgrounds --stage pixal")
     assert [run(HOOKS / "accept_guard.py", bash(command))[0] for command in (grant, tagged)] == [ALLOW, ALLOW]
+
+
+YES = "20261027T170000123456Z"
+OWN_LOCKS_AND_STEPS = [
+    bash(".venv/bin/python -m score.dashboard decide"),
+    bash(".venv/bin/python -m score.dashboard decide 'accept closeup@hub'"),
+    bash("python3 tools/cloud/this_pc.py decide accept"),
+    bash("ssh -i ~/.ssh/score_conductor_agents score@1.2.3.4 'decide lock-film'"),
+    bash("python -c 'from score.dashboard.pages import actions; actions.concept_pick(\"joey\", {\"place\": \"hub\"})'"),
+    bash("python -c 'from score.dashboard.pages import films; films.film_locked(\"joey\", {\"film\": \"f\"})'"),
+    bash("python -c 'from score.review import concepts; concepts.pick(s, \"hub\", \"sha\", \"joey\")'"),
+    bash(f"python -c 'from score.dashboard.sync import chat_decisions as c; c.chat_decisions.apply(\"{YES}\")'"),
+    bash("python -c 'from score.dashboard.sync import applying; applying.apply({\"kind\": \"decision\"}, s)'"),
+    bash(f"python -c 'from score.review import web; web.decision_yes_spent(s, \"{YES}\", {{}})'"),
+    bash("echo '{}' > ~/.farm-factory-props/dashboard/films/locked/env.json"),
+    bash("cp x.json store/objects/concepts/hub/picks/1.json"),
+    {"tool_name": "Write", "tool_input": {"file_path": "/tmp/lock.py",
+                                          "content": "from score.dashboard.pages import films\nfilms.film_locked(u, p)\n"}},
+]
+CHAT_ROUTE = [
+    bash(f".venv/bin/python -m score.dashboard decide {YES}"),
+    bash(f"python3 tools/cloud/this_pc.py decide {YES}"),
+    bash(f"ssh -i ~/.ssh/score_conductor_agents -o IdentitiesOnly=yes score@1.2.3.4 'decide {YES}'"),
+    bash(".venv/bin/python -m score.dashboard decide-yes lock-film env 'Yes, lock it' 'Lock film env as shown?'"),
+    bash("ssh score@1.2.3.4 \"decide-yes accept closeup@hub --output abc 'yes' 'Accept closeup@hub abc?'\""),
+    bash("SCORE_OWNERS_GO=20261027T170000Z python3 tools/cloud/this_pc.py env1"),
+    bash("git commit -m 'sync: python -m score.dashboard decide <yes id> applies it'"),
+    {"tool_name": "Write", "tool_input": {"file_path": "/repo/score/dashboard/sync/chat_decisions.py",
+                                          "content": "applying.apply(request, source)\n"}},
+]
+
+
+@pytest.mark.parametrize("payload", OWN_LOCKS_AND_STEPS, ids=range(len(OWN_LOCKS_AND_STEPS)))
+def test_accept_guard_blocks_an_agents_own_locks_and_a_decision_without_his_yes(payload):
+    """The owner's decisions in chat (owner, 2026-10-27): an agent's own lock, a call into the chat route's steps,
+    or the apply without a recorded yes's id stays blocked."""
+    code, said, _ = run(HOOKS / "accept_guard.py", payload)
+    assert code == BLOCK and "only the owner accepts or rejects" in said, payload
+
+
+@pytest.mark.parametrize("payload", CHAT_ROUTE, ids=range(len(CHAT_ROUTE)))
+def test_accept_guard_lets_his_decision_through_only_as_decide_with_its_yes_id(payload):
+    assert run(HOOKS / "accept_guard.py", payload)[0] == ALLOW, payload
 
 
 # completion_guard: a stop may not claim a place it worked on is done while the place's gate does not pass.

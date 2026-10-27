@@ -20,6 +20,9 @@ Spending and moving are the owner's (machine.py, agent_door.sh, prepare.sh):
   Break: drop `--free` from the door's `run` rewrite in agent_door.py.
   Break: drop `env.pop("SCORE_BENCHMARK_GRANT")` in the door's `environment` -> a smuggled grant passes.
   Break: drop the latch refusal of a benchmark.
+- The owner's decisions in chat go through the door as decide-yes and decide <yes id> alone, and a run's go only
+  as `--go <id>` (owner, 2026-10-27). Break: drop `env.pop("SCORE_OWNERS_GO")` in `environment` -> a smuggled go
+  passes. Break: drop the `GRANT_ID.match` refusal of `decide` -> `decide 'y 1'` runs.
 - The door's job-log reads a cloud job's log under a frozen home's work/cloud only, its tail capped, and nothing a
   link or `..` leads out of it (2026-10-27: surfaces-bake@campgrounds' failed jobs, their logs out of reach).
   Break: in `job_log`, `and any(found.is_relative_to(folder) for folder in allowed)` -> `` (a link out of it read).
@@ -252,7 +255,8 @@ def door(tmp_path):
         env_file.write_text(env_file_text)
         env = {name: value for name, value in os.environ.items() if name not in AGENT_MARKERS}
         env.update({"SCORE_DOOR_REPO": str(checkout), "SCORE_DOOR_ENV": str(env_file), "DOOR_RECORD": str(record),
-                    "SSH_ORIGINAL_COMMAND": asked, "SCORE_BENCHMARK_GRANT": "smuggled"})
+                    "SSH_ORIGINAL_COMMAND": asked, "SCORE_BENCHMARK_GRANT": "smuggled",
+                    "SCORE_OWNERS_GO": "smuggled"})
         done = subprocess.run(["sh", str(HERE / "agent_door.sh")], env=env, capture_output=True, text=True,
                               timeout=60)
         argv = (record / "argv").read_text().splitlines() if (record / "argv").exists() else None
@@ -279,6 +283,27 @@ def test_the_door_refuses_a_shell_a_paid_run_the_owners_commands_and_anything_un
     for asked in ("benchmark g1 world1 --detach", "buy 20261025T1700000000"):
         code, why, argv, _ = door(asked, "SCORE_FREE_ONLY=1\n")
         assert code == 126 and argv is None and "latch" in why, asked
+
+
+def test_the_doors_decisions_record_his_quoted_yes_then_apply_it_by_its_id_and_a_go_tags_its_run(door):
+    """The owner's decision made in chat (owner, 2026-10-27): decide-yes records his yes, decide applies it by its id
+    alone, both marked as an agent's (the apply lifts the marks in its own process only); a run's go is his recorded
+    go, a smuggled one dropped."""
+    for asked in ("decide", "decide a b", "decide 'y 1'", "decide-yes accept x 'yes'", "decide-yes --output h a x y",
+                  "run world1 --detach --go", "run world1 --detach --go 'g 1'"):
+        code, why, argv, _ = door(asked)
+        assert code == 126 and argv is None and "refused" in why, (asked, code, why)
+    code, why, argv, env = door("decide-yes accept closeup@hub --output abc 'Yes, accept it' 'Accept closeup@hub abc?'")
+    assert code == 0 and argv == ["-m", "score.dashboard", "decide-yes", "accept", "closeup@hub", "--output", "abc",
+                                  "Yes, accept it", "Accept closeup@hub abc?"], (why, argv)
+    code, why, argv, env = door("decide 20261027T170000123456Z")
+    assert code == 0 and argv == ["-m", "score.dashboard", "decide", "20261027T170000123456Z"], (why, argv)
+    assert all(env.get(marker) == "1" for marker in AGENT_MARKERS) and env["SCORE_FREE_ONLY"] == "1"
+    code, why, argv, env = door("run world1 --go 20261027T170000123456Z --detach")
+    assert code == 0 and argv == ["-m", "score", "run", "world1", "--detach", "--free"], (why, argv)
+    assert env["SCORE_OWNERS_GO"] == "20261027T170000123456Z" and env["SCORE_FREE_ONLY"] == "1"
+    code, why, argv, env = door("run world1 --detach")
+    assert code == 0 and "SCORE_OWNERS_GO" not in env, env  # a smuggled go is dropped
 
 
 def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):

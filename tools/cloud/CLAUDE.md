@@ -43,7 +43,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   machine. `python3 tools/cloud/this_pc.py env1` (through the agents' door's `store-pull` and `store-push`, the
   agents' key: owner, 2026-10-27, never his own key on the conductor) pulls what a run reads into `~/.score-this-pc`, runs `score run world1 --free` there (a free-only run on this PC's
   card also makes its paid rows, with no ticket, so a Google ask its cache does not answer fails, saying so:
-  `graph.on_this_pc`) and pushes the new store objects and takes back, adding only: the door never replaces a file the conductor holds. The owner's one-time
+  `graph.on_this_pc`) and pushes the new store objects and takes back, adding only: the door never replaces a file the conductor holds. Its `decide-yes` and `decide <yes id>`
+  are the door's, against that run's home (owner, 2026-10-27), and `env1 --go <id>` tags the run with his go
+  (SCORE_OWNERS_GO: a bought batch for the in-batch accept). The owner's one-time
   step: `sudo usermod -aG docker $USER`. The rule below that no model runs on the owner's PC holds everywhere else.
 - **The only way models are made**, one or a hundred: no model runs on the owner's PC (owner,
   2026-10-03; `../local_models.py`). `batch.py` makes models, `pictures.py` pictures, `scene.py`

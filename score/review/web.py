@@ -41,6 +41,16 @@ approved in a Claude Code session (root CLAUDE.md, owner 2026-10-25), his answer
     web.buy_yes_written(store, yes)     # his quoted yes, grants/buy/<id>.json (score/dashboard/checkout/chat_yes.py)
     web.buy_yes_spent(store, yes_id, record)   # marked used once, grants/buy-used/<id>.json: one yes, one checkout
     with web.as_owner_under(store, yes_id): ...   # that one checkout run as his: the agent markers lifted
+
+Every other owner-only decision may be made in a Claude Code session the same way (root CLAUDE.md, owner 2026-10-27:
+"i hate the rule that i cant make discisions in chat aswell"): his quoted yes to one accept, reject, waiver, concept
+lock or film lock, or his go for a run (score/dashboard/sync/chat_decisions.py), applied once through the cockpit's
+own request code.
+
+    web.decision_yes_written(store, yes)   # grants/decide/<id>.json
+    web.decision_yes_spent(store, yes_id, record)   # grants/decide-used/<id>.json: one yes, one decision
+    with web.as_owner_deciding(store, yes_id): ...   # that one decision applied as his: the agent markers lifted
+    web.owners_go(store, go_id, world)     # his go for a run of `world` (a run tagged OWNERS_GO), or None
 """
 import contextlib
 import os
@@ -49,6 +59,10 @@ from score import graph, review
 from score.store import AGENT_MARKERS, RUNNER
 
 BUY_YESES, BUY_USED = "grants/buy", "grants/buy-used"
+DECISION_YESES, DECISION_USED = "grants/decide", "grants/decide-used"
+# A run the owner started himself, by his go recorded in a session (owner, 2026-10-27, his "sure"): it names the go's
+# id, and the runner treats it as a bought batch for the in-batch accept (review.IN_BATCH).
+OWNERS_GO = "SCORE_OWNERS_GO"
 
 DECISIONS = ("accept", "reject")
 
@@ -121,11 +135,61 @@ def as_owner_under(store, yes_id):
     PermissionError for a yes not marked used."""
     if not buy_yes(store, yes_id) or not buy_yes_used(store, yes_id):
         raise PermissionError(f"no spent Buy yes {yes_id}: only his quoted yes, marked used, runs his checkout")
+    with markers_lifted():
+        yield
+
+
+@contextlib.contextmanager
+def markers_lifted():
+    """The agent markers taken off this process, and put back after."""
     kept = {name: os.environ.pop(name) for name in AGENT_MARKERS if name in os.environ}
     try:
         yield
     finally:
         os.environ.update(kept)
+
+
+def decision_yes_written(store, yes):
+    """Keep his decision approved in a session once (grants/decide/<id>.json); the yes. review.Refused unless it
+    quotes his answer and the question he answered."""
+    if not str(yes.get("answer") or "").strip() or not str(yes.get("question") or "").strip():
+        raise review.Refused("a decision made in chat quotes the owner's answer and the question he answered, both")
+    store.write_once(f"{DECISION_YESES}/{yes['id']}.json", yes)
+    return yes
+
+
+def decision_yes(store, yes_id):
+    """His decision yes `yes_id` as written, or None."""
+    return store.read(f"{DECISION_YESES}/{yes_id}.json")
+
+
+def decision_yes_used(store, yes_id):
+    """Whether the yes `yes_id` was applied already (or spent on a decision that was refused)."""
+    return store.objects.exists(f"{DECISION_USED}/{yes_id}.json")
+
+
+def decision_yes_spent(store, yes_id, record):
+    """Mark the decision yes `yes_id` used, once; FileExistsError when it was already."""
+    store.write_once(f"{DECISION_USED}/{yes_id}.json", record)
+
+
+@contextlib.contextmanager
+def as_owner_deciding(store, yes_id):
+    """This process as the owner's own for the one decision his yes `yes_id` covers, once it is marked used
+    (decision_yes_spent): the agent markers lifted, so the store takes his accept, reject, waiver or lock, and put back
+    after. PermissionError for a yes not marked used."""
+    if not decision_yes(store, yes_id) or not decision_yes_used(store, yes_id):
+        raise PermissionError(f"no spent decision yes {yes_id}: only his quoted yes, marked used, applies his decision")
+    with markers_lifted():
+        yield
+
+
+def owners_go(store, go_id, world):
+    """His go recorded in a session for a run of `world` (a decision yes of decision "go"), or None."""
+    yes = decision_yes(store, go_id) if go_id else None
+    if yes and yes.get("decision") == "go" and (yes.get("target") or {}).get("world") == world:
+        return yes
+    return None
 
 
 def google_month(euros, by):

@@ -1379,6 +1379,18 @@ def disk_refused():
         sys.exit(stopped.REFUSED)
 
 
+def owners_go_said(go):
+    """Whether the run carries the owner's go (score.review.web.owners_go), said in the log either way when one is
+    named: such a run counts as a bought batch for review.IN_BATCH, owner 2026-10-27."""
+    from score.review import web
+    named = os.environ.get(web.OWNERS_GO)
+    if named and go:
+        print(f"the owner's go {named} ({go['at']}, \"{go['answer']}\"): a bought batch for review.IN_BATCH", flush=True)
+    elif named:
+        print(f"{web.OWNERS_GO}={named} names no go of the owner for this environment: not a bought batch", flush=True)
+    return bool(go)
+
+
 def main(argv=None):
     conductor.apply_free_only()  # the owner's kill switch latch (score/conductor/kill.py): free only while it holds
     options = parse(argv)
@@ -1418,8 +1430,10 @@ def main(argv=None):
     if options.command == "run":
         options.free = runner.free_only = options.free or os.environ.get(conductor.FREE_ONLY) == "1"
         from score.adapters import compute
-        runner.bought = not options.free and (bool(os.environ.get(compute.GRANT)) or (options.rebuy_reason or "")
-                                              .startswith("the owner's checkout "))
+        from score.review import web
+        runner.bought = owners_go_said(web.owners_go(runner.store, os.environ.get(web.OWNERS_GO), options.world)) or (
+            not options.free and (bool(os.environ.get(compute.GRANT)) or (options.rebuy_reason or "")
+                                  .startswith("the owner's checkout ")))
     places, whole = options.place or stages.places(runner.world, runner.store), not options.place
     if options.command == "plan":
         print(json.dumps(plan_json(runner, places, whole, options)))

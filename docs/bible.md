@@ -296,7 +296,10 @@ Inside a bought batch the runner also accepts a passing output that got worse (o
 "Inside a bought batch, a result that passes every check is accepted automatically, even when a measure is worse
 than before; the drop is written down for you to review after the batch, never as a wait. Accepts stay yours outside
 batches."). A bought batch is a run his checkout started (its re-buy reason begins "the owner's checkout ") or one under
-his benchmark grant, never a free-only run (`Runner.bought`, set in `score/__main__.py`). The accept is the runner's,
+his benchmark grant, or a run carrying his go recorded in a session (owner, 2026-10-27, his "sure" to: "let a free run
+you started accept passing results on its own, like a bought batch, so the run doesn't stop for clicks";
+`SCORE_OWNERS_GO`, `score.review.web.owners_go`, `architecture/cockpit`), never another free-only run (`Runner.bought`,
+set in `score/__main__.py`). The accept is the runner's,
 its `worse_reason` his rule (`review.IN_BATCH`), and its worse measures stand in its status ("to review after the
 batch, worse: ...") on the step's cockpit page (`review.accept_in_batch`).
 
@@ -488,6 +491,26 @@ owner areas (accepts, rejects, waivers, spend yeses, clearances, stops, grants) 
 the runner's own automatic accept and clearance excepted; `python -m score.review` wants a terminal; and
 `.claude/hooks/accept_guard.py` blocks the other routes. An agent's design edit is written only with his words and the
 time attached (`score/review/plans.py` `kept_record`, `asked`; `workflow/loop`).
+
+**Owner-only decisions in chat** (owner, 2026-10-27: "i hate the rule that i cant make discisions in chat aswell").
+Every owner-only decision may also be his answer in a Claude Code session, applied exactly like his click: an accept,
+a reject, a waiver, a concept lock, a film lock, as a Buy already was (`checkout/chat_yes.py`). The session asks with
+its question tool, naming what the decision applies to; `decide-yes` records his yes once in the store
+(`grants/decide/<id>.json`: his answer, the question, the time, the decision and its target as it stood: the node, the
+output and the node's accepted output then; the check; the place, the draw and its lock then; the film and the sha256
+of its script as his editor shows it), and `decide <yes id>` applies it once (`grants/decide-used/<id>.json`, written
+first) as the request his click makes, through `sync/applying.apply` with his name and the agent markers lifted in that
+process only (`score.review.web.as_owner_deciding`), so every check of his click runs; it is refused when its target
+changed since the question, like a changed basket refuses a Buy (`score/dashboard/sync/chat_decisions.py`). Both are
+verbs of the agents' door, and of `tools/cloud/this_pc.py` against a run's own home on his PC (its records reach the
+conductor with that run's push). The accept guard still blocks an agent's own accept, reject, waive or lock, and the
+apply command without a recorded yes's id. His go for a run (`decide-yes go <environment>`) is carried by the run
+(`SCORE_OWNERS_GO`), which then counts as a bought batch for the in-batch accept (`architecture/lifecycles`).
+
+The cockpit stays the surface other creators use (owner, 2026-10-27: "the cockpit is also just there for us to make us
+accountable for making the framework usable for other people"): kept complete and working, so the framework stays
+usable by people who are not in a session. A decision made in chat writes the same record as his click and shows on
+the cockpit as his, so the two never diverge.
 
 **Release.** `build/release`: the coordinating session moves the hosted pin once for a group of landed
 changes.

@@ -9,6 +9,8 @@ Breaks (each applied once, seen red, reverted):
 - agent_door.py `store_missing`: name every path, not only those missing -> the push carries files the conductor
   holds (its own add-only refusal is the door's test).
 - this_pc.py `ENVIRONMENT`: drop "SCORE_FREE_ONLY": "1" -> a run here may buy (its runs are not free only).
+- this_pc.py `run_environment`: drop `found.pop(OWNERS_GO, None)` -> a go from this shell tags every run.
+- this_pc.py `deciding`: `run_environment(home)` -> `os.environ` -> the decision reaches the PC's old home.
 """
 import pathlib
 import subprocess
@@ -72,3 +74,27 @@ def test_a_run_here_is_free_only_on_this_pcs_card_in_its_own_home(tmp_path, monk
         "SCORE_CLOUD": "local", "SCORE_FREE_ONLY": "1", "SCORE_INPUTS_DIRECT": "1", "SCORE_MAX_MACHINES": "all=1"}
     assert environment["PROPS_HOME"] == str(home) and (home / "cloud/ssh_key.pub").exists()
     assert (home / "env").is_symlink()
+
+
+def test_a_run_here_carries_the_owners_go_only_when_named_and_decisions_reach_its_own_store(tmp_path, monkeypatch):
+    """His go (owner, 2026-10-27) tags only the run that names it, never one from this shell; decide-yes and decide
+    run the cockpit's command against this home's store with the owner his cockpit names."""
+    monkeypatch.setattr(this_pc, "PC_ENV", tmp_path / "env")
+    monkeypatch.setenv(this_pc.OWNERS_GO, "smuggled")
+    home = this_pc.prepared(tmp_path / "home")
+    assert this_pc.OWNERS_GO not in this_pc.run_environment(home)
+    arguments, go = this_pc.go_taken(["world1", "--go", "20261027T170000Z", "--place", "hub"])
+    assert arguments == ["world1", "--place", "hub"] and go == "20261027T170000Z"
+    assert this_pc.run_environment(home, go)[this_pc.OWNERS_GO] == go
+    assert this_pc.go_taken(["world1"]) == (["world1"], None)
+    ran = []
+    monkeypatch.setattr(this_pc.subprocess, "run", lambda command, **given: ran.append((command, given["env"])) or
+                        subprocess.CompletedProcess(command, 0))
+    monkeypatch.delenv("SCORE_OWNER", raising=False)
+    monkeypatch.setattr(this_pc, "DASHBOARD_ENV", tmp_path / "dashboard.env")
+    (tmp_path / "dashboard.env").write_text("SCORE_OWNER=joey\n")
+    assert this_pc.deciding(home, "decide", ["20261027T170000Z"]) == 0
+    command, environment = ran[0]
+    assert command[1:] == ["-m", "score.dashboard", "decide", "20261027T170000Z"]
+    assert environment["PROPS_HOME"] == str(home) and environment["SCORE_OWNER"] == "joey"
+    assert this_pc.OWNERS_GO not in environment
