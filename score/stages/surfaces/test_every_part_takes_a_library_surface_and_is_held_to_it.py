@@ -199,6 +199,8 @@ tests it turned red:
   a_body_whose_physics_the_setting_lacks_gets_no_face
 - claude_asks.py: `"finish-route-list", ` deleted from ROWS  -> the_four_asks_go_to_claude_and_the_faces_stay
 - claude_asks.py: `module.ask = gemini` -> `pass`  -> the_four_asks_go_to_claude_and_the_faces_stay
+- claude_asks.py: `again[take] = repaired(bodies[take], answer, off, levels)` -> `pass`  ->
+  a_palette_answer_off_its_own_palette_is_asked_once_more_told_why
 """
 import inspect
 import io
@@ -2590,3 +2592,33 @@ def test_the_four_asks_go_to_claude_and_the_faces_stay(monkeypatch):
     assert sent == [scene_palette.CALLER, scene_library.CALLER, route_list.CALLER, route_recheck.CALLER]
     assert not hasattr(rows["body-face-earth"].make, "__wrapped__")
     assert "claude_code" not in inspect.getsource(body_faces) and "route_ask.asked" in inspect.getsource(body_faces)
+
+
+
+def test_a_palette_answer_off_its_own_palette_is_asked_once_more_told_why(monkeypatch):
+    """A palette answer whose dirt token is not its own (env1's shiplock, 2026-10-27) is asked once more with the
+    answer and why after the question, and that answer kept; a good answer, and the other rows, ask once."""
+    levels = ["new", "worked", "worn"]
+    off = {"palette": coined(("steel", "#9ba2a9"), ("hazard", "#f2c21a"), ("glass", "#24313a"), ("lamp", "#ffffff")),
+           "wear": "worn", "cause": "scuffed", "dirt": 0.4, "dirt_token": "soot-grime"}
+    fixed = {**off, "palette": [*off["palette"], *coined(("soot-grime", "#3a3633"))]}
+    sent, first = [], [off]
+
+    def asked(bodies, caller):
+        sent.append(bodies)
+        told = any("cannot be used" in part.get("text", "") for body in bodies.values()
+                   for part in body["contents"][0]["parts"])
+        return {take: json.dumps(fixed if told else first[0]) for take in bodies}
+    monkeypatch.setattr(claude_asks.claude_code, "asked", asked)
+    bodies = {"cockpit": scene_palette.palette_body([], levels)}
+    answers = claude_asks.answered(bodies, scene_palette)
+    assert len(sent) == 2 and scene_palette.palette_of(answers["cockpit"], levels)["wear"]["dirt_token"] == "soot-grime"
+    again = sent[1]["cockpit"]["contents"][0]["parts"][-1]["text"]
+    assert "soot-grime" in again and "cannot be used" in again and "worn" in again, again
+    assert bodies["cockpit"]["contents"][0]["parts"][-1]["text"] != again  # the first body kept as it was asked
+    sent.clear()
+    first[0] = fixed
+    assert claude_asks.answered(bodies, scene_palette) and len(sent) == 1, sent  # a good answer: asked once
+    sent.clear()
+    first[0] = off
+    assert claude_asks.answered(bodies, scene_library) and len(sent) == 1, sent  # another row: never asked again
