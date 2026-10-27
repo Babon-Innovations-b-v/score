@@ -59,6 +59,11 @@ machine that deletes itself. No model runs on the coordinating machine (`tools/p
   "yeah" to bakes and small renders taking whichever machine is free first, and "cant u just get a faster cpu"): a
   Blender job or library bake takes either, Cycles on what it lands on at the same settings, the most cores first;
   anything that runs a model takes a card only.
+- **This PC's card** (owner, 2026-10-27): `SCORE_CLOUD=local` (`tools/cloud/backends/local.py`) makes the owner's
+  16 GB card one machine of the runners' own (a Docker container reached over ssh like a rented one), EUR 0, one job
+  at a time; kinds that need more card stay cloud jobs and say so. `python3 tools/cloud/this_pc.py env1` pulls the
+  store from the conductor, runs world1 free only here (paid rows that need only the card run too) and pushes the new
+  outputs back by adding files, so the conductor's sync shows them.
 - `tools/usd`: the OpenUSD writers and checks (export, colliders, physics, motion, sound, complete).
 - `tools/characters`: rigging, clips and the characters layer; `tools/sound`: the sound picker and loudness rule;
   `tools/review`: review pages, films' checks and the viewer; `tools/blender`: headless Blender, never a window.
@@ -569,7 +574,8 @@ GitHub Actions; every command runs locally.
   stage; not `/healthz`, which babon's Caddy answers with its own body), the one pin the conductor's checkout follows,
   so one release moves both; a uv.lock change waits while a run's frozen copy uses the checkout's `.venv`.
 
-Render checks run Blender headless on a rented machine, never here; nothing here runs Godot.
+Render checks run Blender headless on a rented machine, never here, except on this PC's own card as its machine
+(`SCORE_CLOUD=local`, `tools/cloud/this_pc.py`; once: `sudo usermod -aG docker $USER`); nothing here runs Godot.
 
 ## workflow/loop
 

@@ -27,6 +27,20 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `secret_store.py` (an environment variable, else the backend's store). Anything provider-specific a
   new runner needs goes into the provider interface and every backend, never into the runner.
 
+- **This PC's card is one machine of its own** (`SCORE_CLOUD=local`, `backends/local.py`, `this_pc.py`; owner,
+  2026-10-27: "couldnt u just finish the rest of env1 on this gpu aswell", then "yes"): one Docker container on this
+  PC (Ubuntu 24.04 with CUDA's base, sshd, the card through WSL's `/dev/dxg`), reached as root over ssh like a
+  rented machine, so no runner changes; never rented and never billed (its offers are `parked` at EUR 0, so
+  `batch.rent` orders nothing, and `park.adopt` hands it out through `park.here`, no clearance asked, its ledger rows
+  EUR 0 with the measured minutes), one claim at a time over the whole PC (a file lock; a busy claim waits and asks
+  again), never parked, its claim ended by a container restart that ends whatever the job left on the card, its
+  set-up kept but for the newest mark. A kind too big for its 16 GB (`local.TOO_BIG`: judge, pictures-20b,
+  characters, meshparts, moss-sound) is refused at its claim with the GB, and a class above one 24 GB card is never
+  offered: those stay cloud jobs. `python3 tools/cloud/this_pc.py env1` (the owner's: his ssh key to the conductor)
+  pulls what a run reads into `~/.score-this-pc`, runs `score run world1 --free` there (a free-only run on this PC's
+  card also makes its paid rows, with no ticket, so a Google ask its cache does not answer fails, saying so:
+  `graph.on_this_pc`) and pushes the new store objects and takes back with `--ignore-existing`. The owner's one-time
+  step: `sudo usermod -aG docker $USER`. The rule below that no model runs on the owner's PC holds everywhere else.
 - **The only way models are made**, one or a hundred: no model runs on the owner's PC (owner,
   2026-10-03; `../local_models.py`). `batch.py` makes models, `pictures.py` pictures, `scene.py`
   a scene's steps (target, SAM 3 cut-outs, MoGe-2 depth, redraws) on one card, then its objects

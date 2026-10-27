@@ -48,6 +48,9 @@ break that turns each red (applied once, seen red, reverted):
 - test_each_kinds_clean_up_removes_its_runs_files_and_keeps_its_set_up: `CLEANUPS["pixal"]`'s `rm -rf in out queue
   logs closed status.json run.log` -> `rm -rf /root/batch`.
 - test_a_taken_machine_keeps_only_its_newest_set_up_mark: `STALE_MARKS`, `tail -n +2` -> `tail -n +1`.
+- test_this_pcs_card_is_taken_free_one_claim_at_a_time_and_never_parked: in `adopt`, drop `if hasattr(cloud,
+  "take"): return here(...)` -> the claim asks a clearance and finds nothing parked; or in `park`, drop `if
+  machine.get("here"): return False` -> the PC's machine is listed as parked.
 - test_a_pixal_fleet_takes_a_parked_card_before_it_orders_one: in batch.py `rent_fleet`, `machine =
   park_taken(fleet, fleet.offers, len(fleet.machines) + 1, "pixal", DISK_GB)` -> `machine = None`.
 """
@@ -432,3 +435,31 @@ def test_a_pixal_fleet_takes_a_parked_card_before_it_orders_one(calls, monkeypat
     while not tended and time.time() < deadline:
         time.sleep(0.05)
     assert tended == ["c-pixal"]
+
+
+def test_this_pcs_card_is_taken_free_one_claim_at_a_time_and_never_parked(calls, monkeypatch):
+    held = []
+
+    def take(kind, public_key):
+        if kind == "judge":
+            raise ValueError("a judge job needs about 30 GB of card")
+        if held:
+            return None  # another claim holds this PC
+        held.append(kind)
+        return {"id": "score-this-pc:1", "zone": "this-pc", "type": "score-this-pc", "class": "gpu-16gb", "cards": 1,
+                "price": 0.0, "unit_minutes": 1, "host": "172.17.0.2", "disk_gb": 500, "here": True}
+
+    monkeypatch.setattr(cloud, "take", take, raising=False)
+    monkeypatch.setattr(batch, "ssh_key", lambda: "ssh-ed25519 AAAA runner")
+    monkeypatch.setattr(batch.compute, "require_cleared", lambda what, store=None: pytest.fail("cleared " + what))
+    first = run_of("here")
+    taken = batch.park_taken(first, CARD_OFFERS, 1, KIND, 60)
+    assert taken["id"] == "score-this-pc:1" and taken in first.machines and calls.remote == [park.STALE_MARKS]
+    assert batch.park_taken(run_of("busy"), CARD_OFFERS, 1, KIND, 60) is None  # one claim at a time
+    with pytest.raises(batch.compute.Refused, match="30 GB"):
+        batch.park_taken(run_of("big"), CARD_OFFERS, 1, "judge", 60)
+    taken["healthy"] = True
+    with park.wanting(OTHER):  # a claim waits, yet this PC's card is never parked: its claim ends
+        batch.delete_machine(taken)
+    assert calls.deleted == ["score-this-pc:1"] and not list(park.PARKED.glob("*.json"))
+    assert ledger.machine_row({**taken, "deleted": taken["adopted"] + 600})["euros"] == 0.0
