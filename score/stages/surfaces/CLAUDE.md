@@ -139,7 +139,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   on the flex tier (`LIST_TIER`, half price, a 900 s timeout: the request's own `serviceTier`, never set in
   `google_spend`). 
 - **Each such gap is a batch gap carried down the line** (`../batch_gaps.py`, score's overlay): the list (no usable
-  answer, or a list off the library), the split (any fault), the bake (a take's job that brought nothing back) and
+  answer, or a list off the library), the split (any fault), the bake (a take's job that brought nothing back, named with its job's error and log from
+  `blender_cloud.py --report`; only a call that brought no take back stops the row, naming each job's error) and
   the recheck name theirs in `batch-gaps.json`, each with those of the rows they read; the views leave out a take the
   prop route's gaps name, the split leaves out the list's, the parts list them as left out, and the table moves only
   those takes' faults from each row's gate (`stages.BATCH_GATES`). The rows after the views declare a take's raw

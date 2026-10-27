@@ -130,13 +130,16 @@ def send_inputs(log_folder, host, locals_):
 
 
 def bring_back(log_folder, host, local):
-    """One output (file or folder) from the machine to its own place here; a missing one is said, not raised."""
+    """One output (file or folder) from the machine to its own place here; a missing one is said, not raised.
+    Whether it came."""
     local = pathlib.Path(local).resolve()
     local.parent.mkdir(parents=True, exist_ok=True)
     try:
         batch.copy(log_folder, [f"root@{host}:{local}"], f"{local.parent}/")
+        return True
     except subprocess.CalledProcessError:
         batch.say(f"the machine wrote no {local}")
+        return False
 
 
 def ship(log_folder, host, jobs):
@@ -156,20 +159,22 @@ def set_up(log_folder, host, jobs):
 
 
 def run_job(log_folder, host, number, job, card):
-    """One job: its inputs up, its output folders made, the script run, its outputs back (also when it fails)."""
+    """One job: its inputs up, its output folders made (reached through the links its paths are named through, as
+    its inputs are: inputs.link_named), the script run, its outputs back (also when it fails); its seconds and how
+    many of its outputs came back."""
     send_inputs(log_folder, host, job.get("inputs", ()))
+    inputs.link_named(log_folder, host, job.get("outputs", ()))
     for local in job.get("outputs", ()):
         batch.remote(log_folder, host, f"mkdir -p {shlex.quote(str(pathlib.Path(local).resolve().parent))}",
                      check=True)
-    began = time.time()
+    began, came = time.time(), 0
     try:
         with (log_folder / f"job{number}.log").open("w") as log:
             batch.remote(log_folder, host, run_line(job, card), check=True, stdout=log, stderr=subprocess.STDOUT)
     finally:
-        for local in job.get("outputs", ()):
-            bring_back(log_folder, host, local)
+        came = sum(bring_back(log_folder, host, local) for local in job.get("outputs", ()))
         batch.say(f"Blender job {number} ({job['script']}): {(time.time() - began) / 60:.1f} min")
-    return round(time.time() - began, 1)
+    return round(time.time() - began, 1), came
 
 
 def touched(machine, job):
@@ -215,7 +220,7 @@ def serve(run, machine, queue, idle_minutes):
                 # Every job's folders go up again, so a script edited during a chain runs as it is now.
                 ship(log_folder, host, [job])
                 touched(machine, job)
-                seconds = run_job(log_folder, host, int(waiting[0].stem), job, card)
+                seconds, _ = run_job(log_folder, host, int(waiting[0].stem), job, card)
                 machine.setdefault("unit_seconds", []).append(seconds)
                 waiting[0].with_suffix(".done").write_text(str(seconds))
             except subprocess.CalledProcessError as failed:
@@ -223,17 +228,40 @@ def serve(run, machine, queue, idle_minutes):
             last = time.time()
 
 
+# Each job's error by its number in this call (one_job's; --report writes them): a job that failed is its caller's
+# gap, named with why and its log.
+ERRORS = {}
+
+
 def one_job(machine, share, card):
     """One of a spread run's jobs on a machine: a script that fails raises spread.JobFailed, a machine that stops
-    answering a ConnectionError."""
+    answering a ConnectionError; a script that ended well and brought none of its outputs back failed too (it wrote
+    them somewhere nothing reads: surfaces-bake@campgrounds, 2026-10-27, twelve such jobs counted done)."""
     number, job = share
     log_folder, host = machine["folder"], machine["host"]
+    log = log_folder / f"job{number}.log"
     touched(machine, job)
     try:
-        machine.setdefault("unit_seconds", []).append(run_job(log_folder, host, number, job, card is not None))
+        seconds, came = run_job(log_folder, host, number, job, card is not None)
     except subprocess.CalledProcessError as failed:
-        spread.raise_for(failed.returncode, f"job {number} ({job['script']}, {log_folder / f'job{number}.log'})")
+        ERRORS[number] = f"its command exited with {failed.returncode} (log {log})"
+        spread.raise_for(failed.returncode, f"job {number} ({job['script']}, {log})")
+    except Exception as error:
+        ERRORS[number] = f"{error} (log {log})"
+        raise
+    machine.setdefault("unit_seconds", []).append(seconds)
+    if job.get("outputs") and not came:
+        ERRORS[number] = f"its script ended well but none of its outputs came back (log {log})"
+        raise spread.JobFailed(f"job {number} ({job['script']}, {log}): none of its outputs came back")
     kept.keep(job)
+
+
+def report(path, jobs, left, run_folder):
+    """--report: each job of the call, its outputs, and whether it ended well or why not (ERRORS), as JSON."""
+    path.write_text(json.dumps({"run": str(run_folder), "jobs": [
+        {"number": number, "outputs": job.get("outputs", []),
+         "error": ERRORS.get(number) or ("failed or never ran" if number in left else None)}
+        for number, job in enumerate(jobs)]}, indent=1))
 
 
 def still_to_run(jobs):
@@ -403,6 +431,8 @@ def main():
     parser.add_argument("--classes", help="capability classes in order, comma separated: the first the "
                         "run's warm pool holds, else the first in stock, else the first sold")
     parser.add_argument(detached.FLAG, action="store_true", help="progress to a log, one result line at the end")
+    parser.add_argument("--report", type=pathlib.Path, help="write each job's outcome here as JSON (its outputs, why "
+                        "it failed or never ran)")
     options = parser.parse_args()
     if not options.jobs and not options.serve and not options.dry_run:
         # a caller with nothing left to send (surfaces-bake@people, every take a gap, 2026-10-22) rented a card
@@ -432,7 +462,7 @@ def main():
     run_folder = batch.BATCHES / (time.strftime("blender-%Y%m%d-%H%M%S") + f"-{os.getpid()}")
     run_folder.mkdir(parents=True)
     run = pictures.Run(run_folder, started + allowed_minutes * 60)
-    left = []
+    left = list(range(len(jobs)))
     try:
         if options.serve:
             machines = pictures.rent_machines(run, account, found, 1, kind=KIND)
@@ -440,6 +470,7 @@ def main():
                 (options.serve / "failed").write_text("no machine could be rented")
                 raise SystemExit("no machine could be rented")
             serve(run, machines[0], options.serve, IDLE_MINUTES)
+            left = []
         else:
             left = run_spread(run, account, found, count, jobs)
             if not run.machines:
@@ -454,6 +485,8 @@ def main():
                  "wall_minutes": (time.time() - started) / 60}
         ledger.record(entry)
         (run_folder / "cloud.json").write_text(json.dumps(entry, indent=1))
+        if options.report:
+            report(options.report, jobs, left, run_folder)
         batch.say(f"blender: {len(jobs)} jobs in {entry['wall_minutes']:.1f} min on {len(entry['machines'])} machines, "
                   f"€{entry['euros']:.2f}")
     if left:

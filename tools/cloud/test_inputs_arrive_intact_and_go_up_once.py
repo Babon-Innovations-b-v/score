@@ -22,8 +22,11 @@ turns each red (applied once, seen red, reverted):
   `return [{"path": "x"}]`.
 - test_the_blender_runner_sends_directly_what_the_store_did_not_bring: in blender_cloud.py `send_inputs`, `not in
   arrived` -> `in arrived`.
-- test_an_input_named_through_a_link_is_linked_at_its_named_path: in inputs.py `named_links`, `if named != resolved:`
-  -> `if False:`.
+- test_an_input_named_through_a_link_is_linked_at_its_named_path: in inputs.py `named_links`, `if at != target:` ->
+  `if False:`.
+- test_a_folder_link_on_the_way_is_one_link_up_there_so_outputs_land_where_they_come_back_from: in inputs.py
+  `named_links`, `for end in range(2, len(parts) + 1):` -> `for end in [len(parts)]:` (only the file's own link, as
+  before 2026-10-27); or in `link_named`, drop `rm -rf {shlex.quote(at)}`.
 """
 import hashlib
 import http.server
@@ -34,6 +37,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import types
 
 HERE = pathlib.Path(__file__).resolve().parent
 os.environ["PROPS_WORK"] = tempfile.mkdtemp(prefix="inputs-test-work-")  # the key memo's folder (paths.WORK): own
@@ -196,3 +200,30 @@ def test_an_input_named_through_a_link_is_linked_at_its_named_path(tmp_path):
     (tmp_path / "pixal" / "plain.glb").write_bytes(b"model")
     found = inputs.named_links([tmp_path / "pixal" / "rover.glb", tmp_path / "pixal" / "plain.glb"])
     assert found == {str(tmp_path / "pixal" / "rover.glb"): str((tmp_path / "pixal5" / "rover.glb").resolve())}
+
+
+def test_a_folder_link_on_the_way_is_one_link_up_there_so_outputs_land_where_they_come_back_from(tmp_path,
+                                                                                                    monkeypatch):
+    """surfaces-bake@campgrounds (2026-10-27): the frozen run's making folder was named through `<copy>.home/store`, a
+    link to the store; the listing was linked file by file into a real folder up there, so the paint wrote its outputs
+    into that folder and the runner, bringing back from the resolved path, found none of them in any job."""
+    store = tmp_path / "home" / "store"
+    making = store / "cache" / "making" / "k-1"
+    making.mkdir(parents=True)
+    (making / ".bake-crate.json").write_text("{}")
+    copy_home = tmp_path / "frozen" / "run.home"
+    copy_home.mkdir(parents=True)
+    (copy_home / "store").symlink_to(store)
+    named = copy_home / "store" / "cache" / "making" / "k-1"
+    found = inputs.named_links([named / ".bake-crate.json", named / "labelled" / "crate", named / "made"])
+    assert found == {str(copy_home / "store"): str(store.resolve())}, found
+    commands = []
+    monkeypatch.setitem(sys.modules, "batch", types.SimpleNamespace(
+        remote=lambda folder, host, command, check: commands.append(command)))
+    inputs.link_named(tmp_path, "host", [named / ".bake-crate.json"])
+    # the machine as the old file links left it: a real folder where the link lies here
+    (copy_home / "store").unlink()
+    (named / "labelled").mkdir(parents=True)
+    for _ in range(2):  # and once more with the link right: left alone
+        subprocess.run(["sh", "-c", commands[0]], check=True)
+    assert (copy_home / "store").is_symlink() and (named / ".bake-crate.json").samefile(making / ".bake-crate.json")

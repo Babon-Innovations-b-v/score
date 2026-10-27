@@ -3,8 +3,9 @@ rents (owner's lead, 2026-10-20, #18): nothing heavy runs on this PC, whose prop
 (crane-r1's paint peaked at 34.8 GB on a rented machine, 2026-10-12). One job a take (its one model, or each model
 the place bakes from it, so a take is painted once) through blender_cloud.py on the bake's card classes
 (place_line.CLASSES), every job once: a job that fails is its take's batch gap (batch-gaps.json,
-score/stages/batch_gaps.py), left out of the paint and named in the gate, whose fault the table moves to complete;
-only a call that brought no take back (a set-up fault) stops the row.
+score/stages/batch_gaps.py) with the job's error and log (blender_cloud.py --report), left out of the paint and named
+in the gate, whose fault the table moves to complete; only a call that brought no take back (a set-up fault) stops
+the row, naming each job's error.
 
 Here, free, before anything is rented: each part's library surface from the parts row (place_line.method_surfaces,
 its proposals into the finish registry), with the list's settings where the part has them (route_settings: the
@@ -138,19 +139,22 @@ def make_bake(inputs, out, seed, params):
              for take in sorted(set(models.values()))}
     files = job_files(short, out, records, heads)
     jobs = [card_job(inputs, short, out, take, files[take]) for take in heads]
+    report = out / ".bake-report.json"
     done = subprocess.run([str(prop_env.PROPS_PYTHON), str(place_line.REPO / "tools/cloud/blender_cloud.py"), *map(str, jobs),
-                           "--who", f"surfaces-bake-{data['place']}", "--classes", place_line.CLASSES],
-                          cwd=place_line.REPO, capture_output=True, text=True)
+                           "--report", str(report), "--who", f"surfaces-bake-{data['place']}",
+                           "--classes", place_line.CLASSES], cwd=place_line.REPO, capture_output=True, text=True)
     (out / "bake.log").write_text(done.stdout[-20000:] + done.stderr[-20000:])
     unbaked = sorted(take for take in heads if not (out / "labelled" / take / "labels.json").exists()
                      or not (out / "entries" / f"{take}.json").exists())
-    if done.returncode and len(unbaked) == len(heads):
-        raise RuntimeError(f"blender_cloud.py paint and bake failed: {done.stderr[-3000:]}")
+    why = job_errors(report, out, unbaked)
+    if heads and len(unbaked) == len(heads):
+        raise RuntimeError("blender_cloud.py paint and bake brought no take back (a set-up fault): "
+                           f"{'; '.join(f'{take}: {error}' for take, error in why.items())}\n{done.stderr[-3000:]}")
     for path in out.glob(".bake-*"):
         path.unlink()
     import score.stages.batch_gaps as batch_gaps  # here: the bake job runs this module in the prop environment
     batch_gaps.write(out, [batch_gaps.gap(f"{take}: not baked", "surfaces-bake", "baked", (take,),
-                                          [f"{take}: its paint and bake job brought nothing back (bake.log)"],
+                                          [f"{take}: its paint and bake job brought nothing back: {why[take]}"],
                                           "the take's bake job ran once in the batch and failed") for take in unbaked])
     heads = {take: head for take, head in heads.items() if take not in unbaked}
     painted = {take: json.loads((out / "labelled" / take / "labels.json").read_text()) for take in heads}
@@ -162,6 +166,15 @@ def make_bake(inputs, out, seed, params):
                                                 for model, entry in entries.items()}, indent=1))
     (out / "specs.json").write_text(json.dumps(head["specs"], indent=1))
     (out / "elsewhere.json").write_text(json.dumps(place_line.claims(short), indent=1))
+
+
+def job_errors(report, out, takes):
+    """{take: why its job brought nothing back} for `takes`, from blender_cloud.py's report (each job by its labelled
+    take among its outputs), else said as unknown with where to look."""
+    jobs = json.loads(report.read_text())["jobs"] if report.exists() else []
+    found = {take: job["error"] for job in jobs for take in takes
+             if str(out / "labelled" / take) in job["outputs"] and job.get("error")}
+    return {take: found.get(take, "no error reported (bake.log)") for take in takes}
 
 
 def stands(labelled):

@@ -207,27 +207,39 @@ def fetch(log_folder, host, items):
 
 
 def named_links(locals_):
-    """{path as the job names it: the file it resolves to} for each input named through a link: an input lands at its
-    resolved path (staged and sent alike), so the named one is made a link to it up there too."""
+    """{where a link lies on the machine: what it resolves to} for each link on the way to an input as the job names
+    it, top down: an input lands at its resolved path (staged and sent alike), so every link of its named path is
+    made up there too, and every other path the job names through the same links (its outputs, a file beside its
+    listing) is the same place on the machine as here. A folder link made as a folder of file links wrote a job's
+    outputs into a second folder up there that nothing brought back (surfaces-bake@campgrounds, 2026-10-27: its
+    making folder named through the frozen run's home, `<copy>.home/store` a link to the store)."""
     found = {}
     for local in locals_:
-        named = os.path.abspath(local)
-        resolved = str(pathlib.Path(local).resolve())
-        if named != resolved:
-            found[named] = resolved
+        parts = pathlib.PurePath(os.path.abspath(local)).parts
+        for end in range(2, len(parts) + 1):
+            named = os.path.join(*parts[:end])
+            if os.path.islink(named):
+                at = os.path.join(os.path.realpath(os.path.dirname(named)), parts[end - 1])
+                target = os.path.realpath(named)
+                if at != target:
+                    found[at] = target
     return found
 
 
 def link_named(log_folder, host, locals_):
-    """Each input named through a link reachable on the machine at its named path (garage's rover, named
-    work/pixal/kit5-rover-3.glb, lands at work/pixal5/: Blender's import found no file there, 2026-10-12)."""
+    """Each link on the way to the job's paths made on the machine (named_links), so a path the job names reaches
+    what it reaches here (garage's rover, named work/pixal/kit5-rover-3.glb, lands at work/pixal5/: Blender's import
+    found no file there, 2026-10-12). One already right is left alone; a folder up there where a link lies here holds
+    only what a job wrote there through the old file links, and is replaced."""
     import batch
 
     links = named_links(locals_)
     if links:
         batch.remote(log_folder, host, " && ".join(
-            f"mkdir -p {shlex.quote(os.path.dirname(named))} && ln -sfn {shlex.quote(resolved)} {shlex.quote(named)}"
-            for named, resolved in links.items()), check=True)
+            f"mkdir -p {shlex.quote(os.path.dirname(at))} && {{ [ \"$(readlink -f {shlex.quote(at)})\" = "
+            f"{shlex.quote(target)} ] || {{ {{ [ -L {shlex.quote(at)} ] || rm -rf {shlex.quote(at)}; }} && "
+            f"ln -sfnT {shlex.quote(target)} {shlex.quote(at)}; }}; }}"
+            for at, target in links.items()), check=True)
 
 
 def through_store(log_folder, host, locals_):
