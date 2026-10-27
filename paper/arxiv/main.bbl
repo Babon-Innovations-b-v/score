@@ -309,6 +309,11 @@ Maximilian St{\"o}lzle, David M{\"u}ller, Agon Serifi, Ruben Grandia, Espen
   constraints on motion diffusion models via noise optimization.
 \newblock \emph{arXiv preprint arXiv:2610.30500}, 2026.
 
+\bibitem[Huo et~al.(2026)Huo, Zhang, Song, Song, Zuo, and Yu]{huo2026biohuman}
+Yujun Huo, He~Zhang, Chentao Song, Honglin Song, Zongyu Zuo, and Tao Yu.
+\newblock {BioHuman}: Learning biomechanical human representations from video.
+\newblock \emph{arXiv preprint arXiv:2605.14772}, 2026.
+
 \bibitem[Simos et~al.(2025)Simos, Chiappa, and Mathis]{simos2025kinesis}
 Merkourios Simos, Alberto~Silvio Chiappa, and Alexander Mathis.
 \newblock {KINESIS}: Motion imitation for human musculoskeletal locomotion.
@@ -326,10 +331,5 @@ Chengkun Li, Cheryl Wang, Bianca Ziliotto, Merkourios Simos, Jozsef Kovecses,
 Zhengyi Luo, Jinkun Cao, Alexander Winkler, Kris Kitani, and Weipeng Xu.
 \newblock Perpetual humanoid control for real-time simulated avatars.
 \newblock \emph{arXiv preprint arXiv:2305.06456}, 2023.
-
-\bibitem[Huo et~al.(2026)Huo, Zhang, Song, Song, Zuo, and Yu]{huo2026biohuman}
-Yujun Huo, He~Zhang, Chentao Song, Honglin Song, Zongyu Zuo, and Tao Yu.
-\newblock {BioHuman}: Learning biomechanical human representations from video.
-\newblock \emph{arXiv preprint arXiv:2605.14772}, 2026.
 
 \end{thebibliography}
