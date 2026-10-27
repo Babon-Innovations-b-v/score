@@ -88,9 +88,9 @@ RECORD = "moves.json"
 
 def files(place):
     """What the stage reads: the scene's design inventory, the row-kind rules, the moving kinds and their speeds, and
-    its seed stage with its kit."""
+    its seed stage with its kit and its design's surface data (which bakes of other places it lays, as the settle)."""
     return {**row_kinds.DESIGNED, "kinds": "{data}/checks/motion.json", "seed": "{seeds}/usd-r3/{place}",
-            **layer_base.files(place)}
+            "surfaces": "{home}/design/surfaces/{place}.json", **layer_base.files(place)}
 
 
 def read_json(path):

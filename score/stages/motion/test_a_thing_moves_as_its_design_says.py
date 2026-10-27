@@ -13,6 +13,7 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/motion/test
 import copy
 import json
 import pathlib
+import shutil
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
@@ -150,6 +151,42 @@ def test_a_row_that_moves_with_no_object_fails_designed(tmp_path):
     verdict = judge("designed", out, inputs)
     assert verdict.answer == checks.FAIL
     assert verdict.findings == ("crane moves (swing), and no object of it stands on the stage",), verdict.findings
+
+
+def a_baked_door(bake, paint, out, models=None):
+    """The bake's door_1 written as the assembly's asset of it (baked.take_bake's place, its repaint left out): a leaf
+    0.9 m wide, 2 m tall and 0.1 m thick."""
+    stage = Usd.Stage.CreateNew(str(pathlib.Path(out) / "assets/door_1.usdc"))
+    stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/door_1").GetPrim())
+    box(stage, "/door_1/leaf", (-0.45, 0.0, -0.05), (0.45, 2.0, 0.05))
+    stage.GetRootLayer().Save()
+
+
+def test_a_design_s_door_waiting_on_its_bake_stands_on_the_stage_and_swings(tmp_path, monkeypatch):
+    """Fault (Batch 1, 2026-10-27, 24 places): the scene record's design objects wait on the surface line's bake, and
+    the motion stage read no bake, so every moving row had no object and `designed` failed it. The door's object
+    waits in the accepted record; the bake made its model, so it stands on the stage, swings, and `designed` passes.
+    Break: score/stages/layer_base.py: `grounded.take_bakes(inputs, folder, seed.name)` -> `pass`"""
+    import score.stages.assembly.baked as baked
+    monkeypatch.setattr(baked, "take_bake", a_baked_door)
+    inputs = toy_inputs(tmp_path, ROWS, extra=())
+    shutil.rmtree(inputs["seed"].parent)
+    inputs["seed"] = a_seed(tmp_path, {}, [thing for thing in DESIGNED if thing[0] != "door_1"])
+    door = {"name": "door_1", "row": "door", "bake": "door_1", "kind": "object", "at": [3.0, 0.0, 1.0],
+            "rotation": [0.0, 0.0, 0.0, 1.0], "waiting": "its model door_1 comes from the surface line's bake"}
+    (tmp_path / "record/record").mkdir(parents=True)
+    (tmp_path / f"record/record/{PLACE}.json").write_text(json.dumps({"place": PLACE, "objects": [door]}))
+    (tmp_path / "bake/made").mkdir(parents=True)
+    (tmp_path / "bake/baked.json").write_text(json.dumps({"door_1": {}}))
+    (tmp_path / "bake/made/door_1.gltf").write_text("{}")
+    (tmp_path / "kit.json").write_text(json.dumps({"pieces": []}))
+    (tmp_path / "surfaces.json").write_text("{}")
+    inputs.update({"scene-record": tmp_path / "record", "kit": tmp_path / "kit.json", "surfaces-bake": tmp_path / "bake",
+                   "surfaces-paint": tmp_path, "surfaces": tmp_path / "surfaces.json"})
+    out, record = made(inputs, tmp_path)
+    verdict = judge("designed", out, inputs)
+    assert record["missing"] == [] and verdict.answer == checks.PASS, (record["missing"], verdict.findings)
+    assert f"/{PLACE}/Objects/door_1" in [entry["prim"] for entry in record["moves"]], record
 
 
 # A post standing in the quarter the door sweeps opening its rule's way (rotateY +90: from +x of its hinge (2.55, 1)

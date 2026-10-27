@@ -1,13 +1,17 @@
 """The stage a layer stage writes its layer over and judges it on (the effects and motion stages): the place's seed
 with its accepted scene record written over the seed's record prims as the assembly writes it
 (assembly/record.py's take_record), or the seed alone where the place has none. The design's objects stand on it by
-their names (`<row>_<n>`), which the layers find by the row-kind classification (score/stages/row_kinds.py). It
-imports the assembly's record module alone, so the assembly's own edits move no layer's key."""
+their names (`<row>_<n>`), which the layers find by the row-kind classification (score/stages/row_kinds.py): each
+waits in the record on its row's model and is laid once the surface line's bake made it (assembly/grounded.py's
+take_bakes, where the stage reads the bake; Batch 1, 2026-10-27: the motion stage read none, so every moving row of
+every place had no object). Its code version follows grounded.py's imports, the assembly package's with them, as
+the settle's does: the bakes are laid by the assembly's own code, never a copy of it."""
 import contextlib
 import pathlib
 import shutil
 import tempfile
 
+import score.stages.assembly.grounded as grounded
 import score.stages.assembly.record as record
 from score.store import PROPS_HOME
 
@@ -49,7 +53,9 @@ def built(inputs):
             elif (seed / part).exists():
                 shutil.copy2(seed / part, folder / part)
         writable(folder)
+        (folder / "assets").mkdir(exist_ok=True)  # the bakes are written there; a seed laying no kit piece has none
         record.take_record(inputs, folder, seed.name)
+        grounded.take_bakes(inputs, folder, seed.name)
         yield folder
 
 
