@@ -74,6 +74,10 @@ ENV = HOME / "envs/newton_env"
 MODEL = ("https://files.pythonhosted.org/packages/23/2b/ab89ceca9f1d99b8a4d5525aa96918c91a20c094e6f8b22e4f7daa816a3a/"
          "musclemimic_models-1.0.5-py3-none-any.whl",
          "32b11b363d104f35e6db5331ef89be9df14e3a2189428f471cbc217377ecf436")
+# Kept under MyoHub's Apache-2.0 (owner, 2026-10-27, #65); written into every body record.
+ATTRIBUTION = ("MyoFullBody: MyoSuite and myo_sim (MyoHub, Apache-2.0), as MuscleMimic Models 1.0.5 publishes it; "
+               "its arm and hand derived from MoBL-ARMS: Holzbaur, Murray and Delp 2005, "
+               "doi:10.1007/s10439-005-3320-7, and Saul et al. 2015, doi:10.1080/10255842.2014.916698")
 CLIPS_ROW = "people-clips-made"
 LAYER = "layers/sim_bodies.usda"
 RECORD = "sim_bodies.json"
@@ -94,6 +98,7 @@ TURNED = 180.0
 BODY = "people-body"  # a look's built body row: its rig.npz is the person's own build (prop_rig.py)
 CARRIED = 0.05  # share of the weight
 FOLLOWED = 5.0  # degrees
+STANDING = "standing"  # the rig's clip a body is calibrated on (inside/sim_body.py offsets)
 # Hicks, Uchida, Seth, Rajagopal and Delp 2015, "Is my model good enough?", J Biomech Eng 137(2):020905, section 3.1.3:
 # residual forces at most 5% of the net external force, residual moments at most 1% of the centre of mass' height times
 # it. No external force is measured here, so the body's weight stands in for it.
@@ -291,9 +296,13 @@ def make(inputs, out, seed, params):
                               "rig": {"names": [str(name) for name in rig["names"]],
                                       "parents": np.asarray(rig["parents"]).tolist(),
                                       "bind": np.asarray(rig["bind"]).tolist()},
-                              "segments": [str(rig["names"][joint]) for joint in kept], "targets": str(targets)})
+                              "segments": [str(rig["names"][joint]) for joint in kept], "targets": str(targets),
+                              "standing": clip_frames(rig, STANDING, kept)[0].tolist()
+                              if f"clip_{STANDING}" in rig else None})
         records[single["name"]] = {"clip": single["doing"], "at": single["at"], "turn": single.get("turn", 0.0),
                                    "mass": mass, "ground": {"solids": under, "triangles": len(ground)},
+                                   "calibrated on": f"the rig's {STANDING} clip, as the model's zero pose"
+                                   if f"clip_{STANDING}" in rig else "SOMA's bind: the rig has no standing clip",
                                    "size": {"of the rig": round(size, 4),
                                             "from": row if row in inputs else f"the rig's: no {row} taken"}}
     if cast.get("crowd"):
@@ -312,7 +321,8 @@ def make(inputs, out, seed, params):
     shutil.rmtree(out / "clips")
     (out / "job.json").unlink(missing_ok=True)
     (out / RECORD).write_text(json.dumps({"place": place, "on": body, "gravity": gravity, "engine": run["engine"],
-                                          "rate": RATE, "model": MODEL[0].rpartition("/")[2], "bodies": records,
+                                          "rate": RATE, "model": {"wheel": MODEL[0].rpartition("/")[2],
+                                                                  "attribution": ATTRIBUTION}, "bodies": records,
                                           "left out": left_out}, indent=1))
 
 
