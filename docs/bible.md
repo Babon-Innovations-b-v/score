@@ -355,7 +355,9 @@ branch names a scene or a world.
   of its sex (NCD-RisC 2016: 24.5 men, 24.8 women, the mean of both unstated), marked estimated (#64). The movement is
   the clip's (or Kimodo's) and the body follows it exactly, root included (owner, 2026-10-27): its joint angles are
   fitted to the clip's SOMA segment turns in the model's own coordinates with MuJoCo's couplings kept (the knee, the
-  lumbar levels, the shoulder rhythm), the path moved up once so its lowest point meets the ground. Newton builds the
+  lumbar levels, the shoulder rhythm), the arms calibrated on the rig's standing clip as the model's zero pose
+  (OpenSense's way), the path moved up once so its lowest point meets the ground and low-passed at 6 Hz (zero-lag
+  Butterworth, Winter 2009) before it is differentiated. Newton builds the
   MuJoCo model (SolverMuJoCo on MuJoCo's CPU backend, in `physics/inside/newton_env.sh`, on this machine) and its
   physics is that movement's, frame by frame: the inverse dynamics, the ground's push at every collider point within
   3 cm of the scene's own drawn ground (its triangles, under the gravity of the body the scene stands on), and one

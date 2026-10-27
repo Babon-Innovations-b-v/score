@@ -14,7 +14,9 @@ seed whose ground is one raised square, its engine run stood in by a written one
 triangles in its own frame (its spot and turn, then the dressed body's Turned), leaves out by name a body no solid is
 near, names the clip the rig lacks and the crowd, weighs each body by the scene's gravity, and writes the layer: each
 SOMA segment an Xform at its pose every frame holding the bone it rides, another bone under Bones, and the muscles as
-lines coloured by activation. Newton and MuJoCo are not run here (the model's run takes minutes); the real run's
+lines coloured by activation; the record names the model's attribution (MyoSuite, MoBL-ARMS); each body is
+calibrated on the rig's standing clip, its first frame handed to the run.
+Newton and MuJoCo are not run here (the model's run takes minutes); the real run's
 numbers are on #65.
 
 Breaks that turn each check red (each applied once and seen red, reverted, 2026-10-27):
@@ -31,7 +33,8 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - the_make_stands_each_body_on_its_own_ground_under_its_character: ground_of's `np.linalg.inv(frame)` made `frame`;
   own_frame's `turn + TURNED` made `turn`; make's `if not len(ground)` check dropped; write_layer's
   `points @ carried[:3, :3].T + carried[:3, 3]` made `points` (a ridden bone drawn in its body's frame, not its
-  segment's); its colour's `shade` made 0.
+  segment's); its colour's `shade` made 0; make's `clip_frames(rig, STANDING, kept)[0]` made `rig["bind"][kept]`
+  (calibrated on the bind, not the standing clip); the record's `"attribution": ATTRIBUTION` made `""`.
 
 Run: .venv/bin/python -m pytest score/stages/sim_body/test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual.py
 """
@@ -185,7 +188,8 @@ def written_run(job):
     riders = np.zeros((20, 2, 7))
     riders[:, :, 6] = 1.0
     riders[:, 0, 1] = 0.5  # the Hips segment 0.5 m up, the Shin at the origin
-    arrays = {"ann/bones": bones, "ann/segments": riders, "ann/paths": np.tile([[0.0, 0.4, 0.0], [0.0, 0.1, 0.0]], (20, 1)).astype(np.float32),
+    arrays = {"ann/bones": bones, "ann/segments": riders,
+              "ann/paths": np.tile([[0.0, 0.4, 0.0], [0.0, 0.1, 0.0]], (20, 1)).astype(np.float32),
               "ann/counts": np.full((20, 1), 2, dtype=np.int32)}
     for bone in entry["bones"]:
         arrays[f"ann/mesh/{bone}/points"] = np.array([[0, 0, 0], [0.1, 0, 0], [0, 0.1, 0]], dtype=np.float32)
@@ -195,6 +199,9 @@ def written_run(job):
 
 def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_path, monkeypatch):
     rig = toy_rig()
+    bent = np.eye(4)
+    bent[1:3, 1:3] = [[np.cos(0.2), -np.sin(0.2)], [np.sin(0.2), np.cos(0.2)]]
+    rig["clip_standing"][:, 2] = rig["clip_standing"][:, 2] @ bent  # its standing shin bent off the bind
     (tmp_path / "clips").mkdir()
     np.savez(tmp_path / "clips/rig.npz", **rig)
     toy_seed(tmp_path / "seed")
@@ -210,6 +217,7 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
         assert [person["name"] for person in job["people"]] == ["ann"]
         person = job["people"][0]
         assert person["segments"] == ["Hips", "Shin"] and person["kg"] == 50.0 and job["model"] == "fetched"
+        assert np.asarray(person["standing"]) == pytest.approx(sim_body.clip_frames(rig, "standing", [1, 2])[0])
         ground = np.load(person["targets"])["ground"]
         assert ground[:, :, 1] == pytest.approx(0.1)
         # the square's corner (3, 5) is (2, 3) from ann's spot: turned back her 30 degrees and the dressed body's
@@ -230,7 +238,9 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
     assert ann["measures"]["weight N"] == pytest.approx(81.0) and ann["segments"] == {"Hips": "pelvis",
                                                                                       "Shin": "tibia_l"}
     assert ann["ground"] == {"solids": ["Ground/Ground"], "triangles": 2}
+    assert ann["calibrated on"].startswith("the rig's standing clip")
     assert [line.split(":")[0] for line in record["left out"]] == ["bob", "cid", "crowd"]
+    assert "Holzbaur" in record["model"]["attribution"] and "Apache-2.0" in record["model"]["attribution"]
     stage = Usd.Stage.Open(str(out / sim_body.LAYER))
     root = "/toy/Characters/ann/SimBody"
     cache = UsdGeom.XformCache(5)

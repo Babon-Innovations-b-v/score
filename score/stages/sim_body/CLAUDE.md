@@ -14,15 +14,20 @@ scene's own ground. `__init__.py`'s docstring has the make and the gates; `insid
   Never bring back a helper or any force that holds the body up or on its path: a trip or a float must show as a
   residual that fails.
 - **The body is MyoFullBody, never a box body or a template of our own**: MuscleMimic's wheel (`MODEL`, pinned URL and
-  sha256), fetched once to `$PROPS_HOME/models/<sha>` by `fetched`, never committed. Its licence: Apache-2.0, meshes
-  from myo_sim (Apache-2.0); the arm and hand muscles and joints descend from MoBL-ARMS, whose model definition was
-  released for non-commercial use only (the wheel's NOTICE): an owner's decision before any commercial use.
+  sha256), fetched once to `$PROPS_HOME/models/<sha>` by `fetched`, never committed. Kept under MyoHub's Apache-2.0
+  (owner, 2026-10-27, #65). Attribution, also in every `sim_bodies.json` (`ATTRIBUTION`): MyoSuite and myo_sim
+  (MyoHub, Apache-2.0), with the arm and hand derived from MoBL-ARMS: Holzbaur, Murray and Delp 2005
+  (doi:10.1007/s10439-005-3320-7) and Saul et al. 2015 (doi:10.1080/10255842.2014.916698).
   `inside/myo.py` writes each person's file: #60's import fixes (names without '-', full muscle parameters, explicit
   inertials, multi-joint bodies split into 1 g wrappers, Euler), the floor gone.
 - **Each body is the person's own build**: the rig moved onto its look's built body (`people-body-<look>`'s rig.npz,
   an optional read, `person_rig`), recorded as `size`. MyoFullBody is sized to it per segment: thigh, shin, foot, upper
   arm and forearm by the person's joint distances, the rest by its standing height (#64: SOMA's hip and shoulder widths
   carry no signal); each muscle's length range with its path (OpenSim's scaling), its peak force kept.
+- **Its muscles pull at rest**: MyoFullBody's own muscles carry large passive forces at its zero pose (middle deltoid
+  561 N, rectus femoris 555 N, rectus abdominis 308 N; 5.3 kN in all, the same in myo_sim's MyoLegs and MyoTorso), so
+  static optimisation holds the lumbar extensors near full activation standing. It is the published model's, not the
+  sizing's (the sized file gives the same forces); changing it is changing MyoSuite's muscles, not a set-up here.
 - **Mass by #64's rule**: the cast's stated `weight` (kg), else `height` (m, else the body's own) squared times the
   reference BMI of `sex` (NCD-RisC 2016, the mean of both unstated), marked `estimated`, spread over the model's bodies
   as the model's masses times their scale cubed. Never tune a mass, a weight in the solve or a gate to pass: fix the
@@ -31,8 +36,14 @@ scene's own ground. `__init__.py`'s docstring has the make and the gates; `insid
   to body with the limb's bone swung onto SOMA's A-pose: `offsets`), fitted by damped least squares in the model's own
   leading coordinates, MuJoCo's joint couplings kept (`fitted`, `Couplings`); Newton's eval_ik and IKSolver drop the
   couplings, so they are not used. What MyoFullBody lacks (`LACKS`: a rigid neck and thorax, one lumbar joint spread
-  over five levels, the shoulder rhythm, hinge knees and ankles) is recorded in each body's model record. The path is
-  moved up once so its lowest point stands on the ground at the first frame (`shift`).
+  over five levels, the shoulder rhythm, hinge knees and ankles) is recorded in each body's model record. The arms are
+  calibrated as OpenSense does, on the rig's `standing` clip taken as the model's zero pose (arms hanging, palms to
+  the thighs: MyoFullBody's own), since SOMA's A-pose bind is far from it (`CALIBRATED`; a rig with no standing clip
+  falls back to the bind, named in `calibrated on`); the fit holds each joint lightly to the frame before
+  (`FIT_STEADY`), or the hanging arm's plane of elevation (MoBL-ARMS' gimbal) swings frame to frame. The SOMA forearm
+  rides the ulna, so its hand's twist is the forearm's pronation. The path is moved up once so its lowest point stands
+  on the ground at the first frame (`shift`), then low-passed (zero-lag 4th-order Butterworth at 6 Hz, Winter 2009)
+  before it is differentiated.
 - **Its frame is the skin's**: the person's spot and turn, then the dressed body's Turned (`TURNED`, 180 degrees about
   up, prop_build.py's root node), so the ground it walks is the ground under the skin's feet (`own_frame`). MuJoCo's
   frame is Z up; `TO_OWN` turns everything back to the person's Y up.

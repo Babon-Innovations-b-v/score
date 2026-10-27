@@ -6,7 +6,8 @@ character's sim body of one scene, each MyoFullBody sized to the person (myo.py)
 
 job.json (written by score/stages/sim_body): {"rate", "gravity", "model" (the fetched model's folder), "people":
 [{"name", "kg", "height" (the person's own standing height, m), "rig" ({"names", "parents", "bind"}: the person's rig),
-"segments" ([SOMA segment name], in the order of `targets`), "targets" (an .npz whose `world` is frames x segments x
+"segments" ([SOMA segment name], in the order of `targets`), "standing" (each segment's frame in the rig's
+standing clip's first frame, or null), "targets" (an .npz whose `world` is frames x segments x
 4 x 4: each segment's frame in the clip, and `ground` n x 3 x 3: the scene's triangles it may touch, both in the
 person's own frame, Y up)}]}.
 
@@ -20,12 +21,14 @@ newton for the physics"): the body, root included, follows it exactly, and the p
   MyoFullBody cannot do follows as near as its joints allow (LACKS).
 - The whole path is moved up or down once, so the body's lowest point stands on its ground at the first frame (SOMA's
   joints are rig joints: its ankle is lower than the model's, #64); nothing else of the motion is changed.
-- Velocities and accelerations: the angles' differences, low-passed at CUTOFF (Winter's 6 Hz).
+- The fitted path low-passed at CUTOFF (Winter's 6 Hz, zero lag) before it is differentiated; velocities and
+  accelerations its central differences.
 - The physics, frame by frame, on the MuJoCo model Newton builds (SolverMuJoCo on MuJoCo's CPU backend; nothing is
   stepped): the generalised forces the movement needs (inverse dynamics, armature and passive forces in), the ground's
   contacts (each collider's surface points within REACH of the drawn triangles under them, the triangle's normal, moving
   under SLIDE_MOST), and one bounded least squares (`shared`) that gives the forces to the ground (each contact a
-  friction pyramid, FRICTION), to a joint at an end of its range (`stops`) and to the muscles (activations 0 to 1 on each muscle's force-length-velocity, its
+  friction pyramid, FRICTION), to a joint at an end of its range (`stops`) and to the muscles (activations 0 to 1 on
+  each muscle's force-length-velocity, its
   passive force in), least squared activation first, the pelvis' six balance rows BALANCE times dearer than a joint's;
   what they cannot give is left over: the residual on the pelvis
   (force and moment, OpenSim's residual actuators) and each joint's reserve. Neither is applied to anything: they are
@@ -34,7 +37,8 @@ newton for the physics"): the body, root included, follows it exactly, and the p
 out.json: {"engine", "rate", "people": {name: {"model" (the person's model record), "muscles" ([name]), "joints" ([name]
 of each driven dof), "com height" (m, frame 0, over its ground), "shift" (m, the path's one move up), "frames":
 [{"angles": [[x, y, z] degrees, rotation vector, per SOMA segment but the first, against its parent, as the body's
-segment riding its bone turns], "targets": [...the clip's...], "torques": [N m per joint], "ground": [x, y, z] N (the ground's push), "lowest": m (the lowest collider
+segment riding its bone turns], "targets": [...the clip's...], "torques": [N m per joint], "ground": [x, y, z] N
+(the ground's push), "lowest": m (the lowest collider
 point's height over the ground, null off it), "feet": {segment: [its lowest collider point's height over the ground
 (null off it), the ground's upward push on it N]} (FEET), "residual": [force xyz N, moment xyz N m], "reserve": N m
 (the largest joint reserve), "activations": [0..1 per muscle], "forces": [N per muscle, tension], "poses": [[x, y, z,
@@ -64,7 +68,7 @@ FEET = ("Foot", "ToeBase")
 # Each SOMA segment and the MyoFullBody body it rides ({side} its side's letter); the first carries the pelvis.
 RIDES = {"Hips": "pelvis", "Spine1": "lumbar4", "Spine2": "lumbar2", "Chest": "torso", "Neck1": "head",
          "Neck2": "head", "Head": "head", "{Side}Shoulder": "clavicle_{side}", "{Side}Arm": "humerus_{side}",
-         "{Side}ForeArm": "radius_{side}", "{Side}Hand": "lunate_{side}", "{Side}Leg": "femur_{side}",
+         "{Side}ForeArm": "ulna_{side}", "{Side}Hand": "lunate_{side}", "{Side}Leg": "femur_{side}",
          "{Side}Shin": "tibia_{side}", "{Side}Foot": "calcn_{side}", "{Side}ToeBase": "toes_{side}"}
 # The segments whose turn the fit follows; the rest ride their bodies: MyoFullBody has no joint of its own for them.
 TARGETS = ("Hips", "Chest", "{Side}Arm", "{Side}ForeArm", "{Side}Hand", "{Side}Leg", "{Side}Shin", "{Side}Foot",
@@ -80,12 +84,19 @@ BONES = {"{Side}Shoulder": ("{Side}Arm", "clavicle_{side}", "humerus_{side}"),
          "{Side}Leg": ("{Side}Shin", "femur_{side}", "tibia_{side}"),
          "{Side}Shin": ("{Side}Foot", "tibia_{side}", "talus_{side}"),
          "{Side}Foot": ("{Side}ToeBase", "talus_{side}", "toes_{side}")}
-LIKE = {"{Side}Hand": "{Side}ForeArm", "{Side}ToeBase": "{Side}Foot"}  # a bone with no SOMA joint beyond takes this one's
+# The segments calibrated on the person's standing frame: the arms, whose A-pose bind is far from the model's hanging
+# zero pose (the shoulder rhythm, the humerus' and forearm's twist). The trunk and legs keep the bind: calibrated on
+# standing too, the Kimodo walker's chest and head followed 5 to 7 degrees closer and its residual moment rose from
+# 127 to 222 N m at most (2026-10-27).
+CALIBRATED = ("{Side}Shoulder", "{Side}Arm", "{Side}ForeArm", "{Side}Hand")
+# A bone with no SOMA joint beyond takes this one's.
+LIKE = {"{Side}Hand": "{Side}ForeArm", "{Side}ToeBase": "{Side}Foot"}
 # The segments whose body's place the fit follows too (as its marker in the segment's frame at the bind): the pelvis,
 # and the feet, so a foot the clip holds on the ground stays there.
 PLACED = ("Hips", "{Side}Foot", "{Side}ToeBase")
 FIT_PLACE = 10.0  # the fit's weight of a metre of a body's place against a radian of a turn
 FIT_DAMPING = 1e-3
+FIT_STEADY = 0.05  # the fit's weight of a radian (or metre) a joint moves from the frame before
 FIT_FIRST, FIT_NEXT = 400, 40  # fit iterations at the first frame, then each next one from the last
 CUTOFF = 6.0  # Hz (Winter, Biomechanics and Motor Control of Human Movement, 4th ed., 2009: 6 Hz for gait)
 # question asked of a movement with no force plates.
@@ -273,7 +284,10 @@ def own_pose(model, data, body):
 
 def offsets(model, person, segments, bodies):
     """Each segment's fixed turn to its body ({segment: 3 x 3}) and its body's place in the segment's frame ({segment:
-    3}): at SOMA's bind the body stands as at the model's zero pose, its pelvis on the Hips,
+    3}). With the person's standing frame given (`standing`), the arms (CALIBRATED) are calibrated on it as OpenSense
+    calibrates on a standing trial: standing is the model's zero pose (arms hanging, palms to the thighs, MyoFullBody's
+    own). Else, and for every other segment and the places: at SOMA's bind the body stands as at the model's zero pose,
+    its pelvis on the Hips,
     its bone swung (least turn) onto the segment's bone, so an A-pose arm meets the model's hanging one; the trunk,
     pelvis and head unswung."""
     data = mujoco.MjData(model)
@@ -294,6 +308,13 @@ def offsets(model, person, segments, bodies):
             theirs = TO_OWN @ (data.xpos[body_index(model, far)] - data.xpos[body_index(model, near)])
             swing = least_turn(theirs, mine)
         found[segment] = bind[names.index(segment), :3, :3].T @ swing @ rest
+    standing = person.get("standing")
+    if standing is not None:  # OpenSense's calibration: the arms standing are the model's zero pose
+        standing = np.asarray(standing, dtype=float)[:, :3, :3]
+        index = {segment: number for number, segment in enumerate(segments)}
+        hips = standing[index["Hips"]] @ bind[names.index("Hips"), :3, :3].T
+        for segment in sided(CALIBRATED):
+            found[segment] = standing[index[segment]].T @ hips @ own_pose(model, data, bodies[segment])[:3, :3]
     moved = bind[names.index("Hips"), :3, 3] - own_pose(model, data, bodies["Hips"])[:3, 3]
     places = {segment: (np.linalg.inv(bind[names.index(segment)])
                         @ [*(own_pose(model, data, bodies[segment])[:3, 3] + moved), 1.0])[:3]
@@ -310,12 +331,18 @@ def least_turn(start, end):
     return Rotation.from_rotvec(axis / np.linalg.norm(axis) * np.arccos(np.clip(start @ end, -1, 1))).as_matrix()
 
 
-def fitted(model, couplings, targets, places, qpos, rounds):
+def fitted(model, couplings, targets, places, qpos, rounds, before=None):
     """The model's qpos whose bodies turn as `targets` ({body: 3 x 3, MuJoCo's frame}) and stand at `places` ({body:
-    3, MuJoCo's frame}): damped least squares on the leading dofs, `rounds` steps from `qpos`."""
+    3, MuJoCo's frame}): damped least squares on the leading dofs, `rounds` steps from `qpos`; with the frame `before`
+    given, each joint is held lightly to it (FIT_STEADY), so a direction the targets leave free (the shoulder's plane
+    of elevation with the arm hanging, MoBL-ARMS' gimbal) does not wander frame to frame."""
     data = mujoco.MjData(model)
     rotation, translation = np.zeros((3, model.nv)), np.zeros((3, model.nv))
     qpos = couplings.apply(qpos.copy())
+    joints = couplings.leads[6:]
+    addresses = model.jnt_qposadr[model.dof_jntid[joints]]
+    steady = np.zeros((len(joints), len(couplings.leads)))
+    steady[np.arange(len(joints)), 6 + np.arange(len(joints))] = FIT_STEADY
     for _ in range(rounds):
         data.qpos[:] = qpos
         mujoco.mj_kinematics(model, data)
@@ -332,6 +359,9 @@ def fitted(model, couplings, targets, places, qpos, rounds):
             errors.append(FIT_PLACE * (place - data.xpos[body]))
         mapped = couplings.map(qpos)
         jacobian = np.concatenate(rows) @ mapped
+        if before is not None:
+            jacobian = np.concatenate([jacobian, steady])
+            errors.append(FIT_STEADY * (before[addresses] - qpos[addresses]))
         step = np.linalg.solve(jacobian.T @ jacobian + FIT_DAMPING * np.eye(jacobian.shape[1]),
                                jacobian.T @ np.concatenate(errors))
         mujoco.mj_integratePos(model, qpos, mapped @ step, 1.0)
@@ -389,7 +419,8 @@ def motion(model, couplings, person, worlds, bodies, offsets_of, ground, collide
         if frame == 0:  # the root stood so the pelvis turns and stands as wanted, the rest at the zero pose
             qpos[:3] = place - wanted[bodies["Hips"]] @ rest[0]
             qpos[3:7] = Rotation.from_matrix(wanted[bodies["Hips"]] @ rest[1].T).as_quat(scalar_first=True)
-        qpos = fitted(model, couplings, wanted, places, qpos, FIT_FIRST if frame == 0 else FIT_NEXT)
+        qpos = fitted(model, couplings, wanted, places, qpos, FIT_FIRST if frame == 0 else FIT_NEXT,
+                      None if frame == 0 else qpos)
         path.append(qpos.copy())
     path = np.array(path)
     data = mujoco.MjData(model)
@@ -402,8 +433,27 @@ def motion(model, couplings, person, worlds, bodies, offsets_of, ground, collide
     return path, -over
 
 
+def filtered(model, couplings, path, rate):
+    """The path low-passed at CUTOFF before anything is differentiated (biomechanics' order: Winter 2009): every
+    leading coordinate but the root's turn through a 2nd-order Butterworth run forward and back (zero lag, 4th order),
+    the root's quaternion likewise, its sign kept continuous and its length one; the followers set again."""
+    low, high = butter(2, CUTOFF / (rate / 2))
+    if len(path) <= 3 * max(len(low), len(high)):
+        return path.copy()
+    found = path.copy()
+    turn = found[:, 3:7]
+    for frame in range(1, len(turn)):  # q and -q are one turn: keep each next to the one before
+        if turn[frame] @ turn[frame - 1] < 0:
+            turn[frame] *= -1
+    leads = [model.jnt_qposadr[model.dof_jntid[dof]] for dof in couplings.leads[6:]]
+    found[:, [0, 1, 2, *leads]] = filtfilt(low, high, found[:, [0, 1, 2, *leads]], axis=0)
+    found[:, 3:7] = filtfilt(low, high, turn, axis=0)
+    found[:, 3:7] /= np.linalg.norm(found[:, 3:7], axis=1, keepdims=True)
+    return np.array([couplings.apply(qpos) for qpos in found])
+
+
 def rates(model, path, rate):
-    """The path's velocities and accelerations (frames x nv each): central differences, low-passed at CUTOFF."""
+    """The path's velocities and accelerations (frames x nv each): central differences of the filtered path."""
     count = len(path)
     velocities = np.zeros((count, model.nv))
     for frame in range(count):
@@ -411,9 +461,6 @@ def rates(model, path, rate):
         span = (min(frame + 1, count - 1) - max(frame - 1, 0)) / rate
         if span:
             mujoco.mj_differentiatePos(model, velocities[frame], span, before, after)
-    low, high = butter(4, CUTOFF / (rate / 2))
-    if count > 3 * max(len(low), len(high)):
-        velocities = filtfilt(low, high, velocities, axis=0)
     return velocities, np.gradient(velocities, 1.0 / rate, axis=0)
 
 
@@ -635,6 +682,7 @@ def run_person(job, person, out_path):
     feet = {segment: [geom for geom in colliders if model.geom_bodyid[geom] == bodies[segment]]
             for segment in person["segments"] if segment.endswith(FEET)}
     qpath, shift = motion(model, physics.couplings, person, worlds, bodies, fixed, ground, colliders)
+    qpath = filtered(model, physics.couplings, qpath, job["rate"])
     velocities, accelerations = rates(model, qpath, job["rate"])
     names = [str(name) for name in person["rig"]["names"]]
     parents = [person["segments"].index(names[parent]) if parent >= 0 and names[parent] in person["segments"] else -1
