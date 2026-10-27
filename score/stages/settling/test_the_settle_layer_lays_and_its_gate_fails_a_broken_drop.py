@@ -2,7 +2,8 @@
 says over the seed (the assembly takes it the same way), and its drop gate fails a broken drop while one kept as laid
 or stood upright for the paint is named; only what lies on the very object resting worse is kept with it; a flush pose
 resting worse falls back to the drop's rest; one fallen into the hollow piece it lay on is laid where it lands,
-anything else past the limits kept as laid.
+anything else past the limits kept as laid; a cloud drop asks the physics trial's card alone, runs in its Python, and
+is never bought twice.
 
 Breaks that turn each check red (each applied once and seen red, reverted, 2026-10-27), in settling/__init__.py:
 - the_layer_lays_each_object_at_its_rest: write_layer's `Gf.Matrix4d(local.T.tolist())` made
@@ -16,6 +17,8 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   test (a one-hull support's faller laid where it lands).
 - a_box_fallen_into_its_crate_on_the_stage_is_laid_there: landed_in_hollows' `rest = np.asarray(...["motion"]) @
   pose["before"]` made `rest = pose["before"]` (the drop's motion not applied).
+- a_cloud_drop_runs_on_the_trials_card_in_its_python_once (tools/usd/drop.py): simulate's `machine.run(..., env=ENV)`
+  without `env=ENV` (the drop sent to the card's Blender).
 
 Run: .venv/bin/python score/stages/settling/test_the_settle_layer_lays_and_its_gate_fails_a_broken_drop.py
 """
@@ -29,12 +32,50 @@ import numpy as np
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "tools/usd"))
+sys.path.insert(0, str(REPO / "tools/cloud"))
 from pxr import Usd, UsdGeom  # noqa: E402
 from score import checks, review  # noqa: E402
 from score.stages import assembly, settling as settle  # noqa: E402
 import test_floating_sunk_and_tipping_objects_are_told_apart as resting_test  # noqa: E402
 
 PLACE = resting_test.PLACE
+
+
+def a_cloud_drop_runs_on_the_trials_card_in_its_python_once():
+    """A cloud drop asks the trial's card class alone and runs the drop script in the trial's Python; the same drop
+    again is read back from the cache, no machine asked."""
+    import blender_cloud
+    import drop
+    asked = []
+
+    class Machine:
+        def __init__(self, classes, who):
+            asked.append({"classes": tuple(classes)})
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *errors):
+            return False
+
+        def run(self, script, arguments, inputs, outputs, minutes=10, env=None):
+            asked[-1].update(script=pathlib.Path(script), env=env and pathlib.Path(env))
+            pathlib.Path(arguments[2]).write_text(json.dumps({"objects": {}, "overlaps": []}))
+
+    real = blender_cloud.Machine
+    blender_cloud.Machine = Machine
+    try:
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = pathlib.Path(temporary)
+            (folder / "stage").mkdir()
+            stage = folder / "stage" / "place.usda"
+            stage.write_text("#usda 1.0\n")
+            for _ in range(2):
+                drop.simulate(stage, {"crate_1": 0.02}, folder / "drop", cloud=True, cache=folder / "cache")
+    finally:
+        blender_cloud.Machine = real
+    wanted = [{"classes": ("gpu-24gb",), "script": drop.INSIDE, "env": drop.ENV}]
+    return [] if asked == wanted else [f"the drops asked {asked}, not {wanted} once"]
 
 
 def laid(stage, name):
@@ -188,7 +229,8 @@ def a_box_fallen_into_its_crate_on_the_stage_is_laid_there():
         return problems
 
 
-CHECKS = (the_layer_lays_each_object_at_its_rest, the_drop_gate_fails_a_broken_drop_and_names_what_was_kept,
+CHECKS = (a_cloud_drop_runs_on_the_trials_card_in_its_python_once, the_layer_lays_each_object_at_its_rest,
+          the_drop_gate_fails_a_broken_drop_and_names_what_was_kept,
           only_what_lies_on_the_object_resting_worse_is_kept_with_it,
           a_flush_pose_resting_worse_falls_back_to_the_drops_rest,
           one_fallen_into_a_hollow_piece_is_laid_where_it_lands, a_box_fallen_into_its_crate_on_the_stage_is_laid_there)

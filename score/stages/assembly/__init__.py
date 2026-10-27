@@ -93,8 +93,8 @@ READS = {"scene-record": ("scene-record", 1), "sound": ("sound-layer", 1), "surf
 # The layer stage the assembly takes for each layer kind a design shows (design_layers; the physics' settle layer).
 NEEDS = {"people": "characters-layer", "crops": "crops-layer", "effects": "effects-layer", "motion": "motion",
          "physics": "settle", "light": "light", "sound": "sound"}
-# One drop run's estimate: a quarter to three quarters of an hour on a rented processor machine (the ledger's settle
-# runs of 2026-10-10 cost EUR 0 to 0.85).
+# One drop run's estimate: up to half an hour of the physics trial's card with its start (tools/usd/drop.py; the
+# ledger's Blender settle runs of 2026-10-10 cost EUR 0 to 0.85).
 DROP_EUROS = 1.0
 SEED_NOTE = ("An old output brought in from world 1's round-three stages, never made by this stage; only its gates "
              "on this page judge it.")
@@ -251,8 +251,9 @@ def judge_resting(output, inputs, evidence):
 
 def gather_drop_run(output, inputs, folder):
     """The drop run on this very output, as settle.py --dry-run --cloud makes it but on the inventory the seed names
-    in the declared folder: every loose object dropped in headless Blender on a rented processor machine; its
+    in the declared folder: every loose object dropped in Newton on a rented card (tools/usd/drop.py); its
     settled.json in `folder`."""
+    import drop
     import settle
     from pxr import Usd
     inventory_path = declared_inventory(output, inputs["inventories"])
@@ -264,7 +265,7 @@ def gather_drop_run(output, inputs, folder):
     place = stage.GetDefaultPrim().GetName()
     loose, ignore, _, under = settle.drop_job(stage, place, json.loads(inventory_path.read_text()), upright=False,
                                               kit_path=inputs["kit"])
-    settle.simulate(stage_path, loose, folder, cloud=True, ignore=ignore, under=under)
+    drop.simulate(stage_path, loose, folder, cloud=True, ignore=ignore, under=under)
     return folder / "settled.json"
 
 

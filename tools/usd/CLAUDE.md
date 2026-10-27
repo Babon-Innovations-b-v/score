@@ -68,7 +68,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
 - `resting.py` is the scene check (floating, tipping, sunk below its contact points, one piece inside another; hung
   rows exempt by their inventory `anchor`, fixed rows not judged for tipping, two fixed rows may be joined). Never put a fault right by lowering a piece: settle it.
   Its ground is the stage's `Ground`, or the made ground's fine patch (`MADE_GROUND`, `/<place>/Outside/near`) where
-  the terrain stage's layer turns the old Ground off; the drop stands on the same (`settle_stage.py` GROUND_NAMES).
+  the terrain stage's layer turns the old Ground off; the drop stands on the same (`settle_drop.py` GROUND_NAMES).
   Before 2026-10-12 both read y = 0 there.
 - `placeholders.py` is the placeholder check: nothing visible stands in for a made piece. Every mesh a scene record's
   code builder drew says which plain thing it is (`plain`: plate, pipe, trim, shell, ground, soil, water or sky; the
@@ -177,8 +177,10 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   ranks a model from the fault corpus worst.
 - `made_only.py` is the made-only check on the stage: every drawn mesh says what made it (score:model, score:builder,
   score:kind) and every object's model loaded.
-- `settle.py` is the physics settle: loose rows dropped in headless Blender (`../blender/inside/settle_stage.py`) on
-  the stage's ground with their own triangles (cut down), `"fixed": true` rows static, and the rest pose written into the layout
+- `settle.py` is the physics settle: loose rows dropped in Newton (`drop.py` runs
+  `score/stages/settling/inside/settle_drop.py` in the physics trial's own Python, on its card class or this PC's card;
+  settle.py's own `simulate` still names the deleted Blender script, left dead until an edit there moves its rows
+  anyway) on the stage's ground with their own triangles (cut down), `"fixed": true` rows static, and the rest pose written into the layout
   (inventory spot and kit piece: `x`, `z`, the lift `y` and a `rotation` quaternion [x, y, z, w] in the piece's own
   seat frame, which replaces `facing` and `tilt`). Settling only corrects: a piece that would turn more than 15° or
   drift more than 30 cm (small debris, no side over 1.4 m: any turn, 1 m) keeps its laid pose and is marked `unrested` (the check fails it as "would not rest as laid"),
@@ -189,20 +191,15 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   of the hull's volume, kept per mesh in `store/cache/convex-parts` so a library model is worked out once, about 13 s
   of one core for an open crate; written beside the dropped stage as `convex-parts.json`; at most one mesh a core at
   once, and a mesh CoACD fails on or runs past 900 s for drops as its one hull, kept nowhere and named in the settle
-  record's `one hull`), each part a light body weighed at its own middle and glued to the piece by a fixed joint
-  pivoting there (settle_stage's `glued_parts`; weighed at the world's origin, a crate laid 36 m out was thrown
-  298 m), and only parts whose bounds meet kept apart by a joint (a joint between every pair grew with the square of
-  the parts: four 59-part bowls ran past 25 minutes; four 51-part bowls now drop in 69 s, but each creeps 13 cm and 2.4 degrees on flat ground where its one hull
-  moves 1 cm, and stiffer fixed joints, 200 iterations, made it 19 cm: open): a box laid at an open
-  crate's rim came to rest on its floor at 0.07 m, not on its hull's top at 0.62 (Blender 5.0.1, 2026-10-26).
-  `test_a_hollow_body_keeps_its_hollow.py` drops it in Blender (skipped where none is set up). Blender's own COMPOUND body
-  walks on a triangle ground (21 cm and 0.3 rad in 10 s), so it is not used. Kept out of settle.py and colliders.py:
+  record's `one hull`), each part a shape of the piece's one Newton body (Bullet needed a light body a part glued by
+  fixed joints, which crept 13 cm on flat ground; its compound body walked): a box laid at an open crate's rim comes
+  to rest on its floor, not on its hull's top. `test_a_hollow_body_keeps_its_hollow.py` drops it in Newton (skipped
+  where the trial's Python is not built). Kept out of settle.py and colliders.py:
   both sit in the code of about 90 rows (triage imports settle), so an edit there moves them all. The assembly's own
   drop (`--dry-run`) writes no parts file and drops hulls as before. Loose to loose collision stays off: not yet
-  measured on a real place's drop. `--cloud` runs it on a rented
-  machine, a small processor one only (`DROP_CLASSES`, #20; #21: no chain to bigger classes; a drop waits for a
-  machine of the run's warm pool or for stock, never a gap for no stock, owner 2026-10-23; parked for its billed hour, so the places' drops share one rental; that the solve uses one core is not
-  yet timed). `ground.py level <place>` levels a place's yard in the plan; `ground.py dent <place> <piece>` cuts a
+  measured on a real place's drop. A cloud drop (`drop.simulate(cloud=True)`) runs on the physics trial's card class
+  only (`drop.DROP_CLASSES`; #21: no chain to other classes; a drop waits for a machine of the run's warm pool or for
+  stock, never a gap for no stock, owner 2026-10-23). `ground.py level <place>` levels a place's yard in the plan; `ground.py dent <place> <piece>` cuts a
   shallow bowl under a piece (a thrown sphere, a section's impact) so it rests where it was laid. A tip over 3 degrees
   onto feet that do not lie in one plane in the model's own frame (`uneven_feet`) is never written either: it is the
   model's fault (the surface stage's paint levels a take's feet), marked `unrested` with the feet's spread.
@@ -216,12 +213,13 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   (`onto_one_support`: a crate laid across two rested with a skid 99 cm in the air). A drop that judges the laid pose (`--dry-run`, the assembly's
   resting evidence) starts as laid. `rest_poses` is the settle stage's write: the same limits, the rest as matrices;
   `score/stages/settling/held.py`'s `held_rests` snaps held ones onto their holders (a level spot within 30 cm when the straight snap leaves one
-  leaning), `fixed_let_down` lets a floating fixed one down. A cloud drop of the very same job, drop script and stage
-  is read back from a cache (`simulate(cache=...)`, `drop_key`), never bought twice.
+  leaning), `fixed_let_down` lets a floating fixed one down. A cloud drop of the very same job, drop script, trial
+  script, Python pins and stage is read back from a cache (`drop.simulate(cache=...)`, `drop.drop_key`), never bought
+  twice.
 - `test_a_creators_edit_survives_a_regenerated_base.py` checks the edit survival, the parts, the units, children and the parts lookup on places made in the
   test itself; `test_floating_sunk_and_tipping_objects_are_told_apart.py` the resting check and the planned ground; `test_a_settled_pose_is_written_back_within_its_limits.py` the settle's write-back
-  (a pose round-trips through the layout and the export) and the levelled yard, without Blender. The one check here
-  that runs Blender is `test_a_hollow_body_keeps_its_hollow.py`'s hollow crate drop, through `session.py batch`.
+  (a pose round-trips through the layout and the export) and the levelled yard, without a drop. The one check here
+  that drops is `test_a_hollow_body_keeps_its_hollow.py`'s hollow crate, in the trial's Python through `drop.py`.
 - **The scene record** (the scene-record row's output, `record/<place>.json`, read by `scene.py`; the game-transcribed
   `data/scene/<place>.json` records were retired with the old concepts on 2026-10-21) is what the game drew in its own code and no kit
   piece covers: room shells and the building round a room, stairs and stepped floors, the gameplay objects it places
