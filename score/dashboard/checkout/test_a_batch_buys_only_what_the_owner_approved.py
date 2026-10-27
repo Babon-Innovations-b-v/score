@@ -263,7 +263,8 @@ def test_a_basket_that_cannot_fit_under_the_runners_spend_is_refused_before_star
     bought(shop, "alpha-pieces")
     FakeBackend.ceiling = 115.0  # the runner still reads an older, lower line: room EUR 5 for a EUR 15 high
     found = Checkout.objects.get(pk=checked_out(client, "h")["checkout"]["id"])
-    assert found.state == "refused" and "cannot finish under the stop: high EUR 15.00, room EUR 5.00" in found.detail
+    assert found.state == "refused", found.detail
+    assert "cannot finish under the stop: the line gave EUR 15.00, the runner reads room EUR 5.00" in found.detail
     assert not launches()
     line = stop_line(shop)  # the line its yes wrote is taken back to the spend so far plus what is in flight
     assert line["euros"] == 110.0 and line["before"] == round(110.0 + 15.0 * 1.1, 2), line
@@ -552,7 +553,6 @@ def test_a_buy_approved_in_chat_is_refused_outside_what_he_approved(chat, settin
     pytest.raises(chat_yes.Refused, chat_yes.record, 33, 30, "", QUESTION)
     refused("20261025T000000Z", "no quoted Buy yes")
     refused(a_yes(high=29.99)["id"], "its high is EUR 30.00, above the EUR 29.99")
-    refused(a_yes(total=32.99)["id"], "its stop is EUR 33.00, above the batch total of EUR 32.99")
     older = {**a_yes(), "id": "20261025T000001Z", "stop_euros": 33.0}  # a try's stop, before batch totals
     older.pop("batch_total_euros")
     web.buy_yes_written(chat.store, older)
@@ -580,8 +580,9 @@ def test_a_buy_approved_in_chat_is_refused_outside_what_he_approved(chat, settin
 
 def test_a_batch_has_one_budget_across_its_tries(chat, monkeypatch, tmp_path):
     """His yes is the batch's budget (owner, 2026-10-26: "those budget asks should become per batch tho, not per
-    try"): the stop line is the batch's start plus it, a retry under the same yes that fits what is left needs no
-    new ask and keeps the budget, one that does not fit is refused; a click over it raises it."""
+    try"): the stop line is the batch's start plus it, a retry under the same yes needs no new ask and keeps the
+    budget, launched while any of it is left even when its stop needs more (it stops at the line: owner, 2026-10-27,
+    "not just stop when u got to the limit, like ur supposed to"), refused once none is left; a click raises it."""
     monkeypatch.setattr(FakeBackend, "log_folder", tmp_path)  # each run writes its result line: done
     yes = a_yes(total=100.0)
     first, said = chat_buy(yes["id"])
@@ -599,22 +600,30 @@ def test_a_batch_has_one_budget_across_its_tries(chat, monkeypatch, tmp_path):
     from score.dashboard.checkout import chat_yes
     found = chat_yes.figures(FakeBackend().spend)  # what the next question names: the batch's total, not the try's
     assert (found["batch"], found["tries"], found["retry"], found["try"]["stop"]) == (1, 2, True, 33.0)
-    assert (found["fits"], found["click"]) == (53.0, 100.0) and found["money"] == money
+    assert (found["fits"], found["click"], found["may_stop"]) == (53.0, 100.0, False) and found["money"] == money
     monkeypatch.setattr(FakeBackend, "spent", 190.0)  # 90 spent with what is in flight: 10 left, a try needs 33
+    assert chat_yes.figures(FakeBackend().spend)["may_stop"]
+    third, said = chat_buy(yes["id"])
+    assert third is not None and third.state == "launched" and "may stop at the batch limit" in said, said
+    assert stop_line(chat)["euros"] == 210.0  # the line stays the batch total: the guard stops the try there
+    monkeypatch.setattr(FakeBackend, "spent", 200.0)  # 100 spent with what is in flight: nothing left
     record, said = chat_buy(yes["id"])
-    assert "over the batch budget: EUR 90.00 spent of EUR 100.00" in said and record.state == "refused", said
-    assert flow.batch_budget([first, again, record], 200.0, 33.0, None) == (110.0, 123.0)  # a click raises it
+    assert "the batch budget is spent: EUR 100.00" in said and record.state == "refused", said
+    assert stop_line(chat)["euros"] == 210.0  # never above the total he approved
+    assert flow.batch_budget([first, again, third, record], 200.0, 33.0, None) == (110.0, 123.0)  # a click raises it
 
 
 def test_a_batch_budget_counts_from_an_older_first_try_line():
     """A batch whose first try wrote its line before budgets (Batch 1) counts from what that line was written over;
-    his new yes is the batch total, refused when the batch's spend so far plus this try's stop does not fit it. Break:
+    his new yes is the batch total, refused only when the batch's spend so far leaves nothing of it. Break:
     checkout/flow.py `batch_budget` and checkout/watched.py `batch_money` take a line's `batch_budget` as written."""
     older = Checkout(stop_line={"euros": 596.76, "spent": 300.0, "reserved": 0.0, "high": 100.0})
     this = Checkout(stop_line={})
     assert flow.batch_budget([older, this], 710.0, 250.0, {"batch_total_euros": 740.0}) == (300.0, 740.0)
-    with pytest.raises(flow.Refused, match="over the batch total he approved: EUR 410.00 spent"):
-        flow.batch_budget([older, this], 710.0, 250.0, {"batch_total_euros": 659.99})
+    # a total under the spend plus this try's stop still launches: the try stops at the line (owner, 2026-10-27)
+    assert flow.batch_budget([older, this], 710.0, 250.0, {"batch_total_euros": 659.99}) == (300.0, 659.99)
+    with pytest.raises(flow.Refused, match="the batch total he approved is spent: EUR 410.00"):
+        flow.batch_budget([older, this], 710.0, 250.0, {"batch_total_euros": 410.0})
     assert flow.batch_budget([this], 710.0, 33.0, None) == (710.0, 33.0)  # a new batch: its own stop
     # a try once counted as a batch of its own (2026-10-26, checkouts 5 and 6 from EUR 297.18): its budget is read
     # from the batch's start, so the total stays the line, EUR 665.18

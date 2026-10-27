@@ -164,22 +164,19 @@ def snapshot(items):
 
 def yes_refusals(yes, totals):
     """Why his Buy approved in a session (`yes`, checkout/chat_yes.py) does not cover a basket at `totals`, in words:
-    its high above the high he approved, its stop (the high with the guesses, plus BUFFER: what write_line adds to
-    the spend) above the batch total he approved, or a yes recorded as one try's stop before batch totals; none
-    without a yes. Whether the try fits what the batch has left is batch_budget's, where the spend is read."""
+    its high above the high he approved, or a yes recorded as one try's stop before batch totals; none without a yes.
+    A try whose stop is above the batch total is no refusal: the line is the total and the guard stops the try there
+    (owner, 2026-10-27: "not just stop when u got to the limit, like ur supposed to"); whether the batch has room
+    left is batch_budget's, where the spend is read."""
     if not yes or yes.get("retry"):  # a retry under a used yes is held to the batch's budget (batch_budget)
         return []
     if yes.get("batch_total_euros") is None:
         return [f"the yes {yes.get('id')} names a try's stop, not the batch total (owner, 2026-10-26: \"the stop "
                 "should be a total of the batch, not per try\"): ask him again with batch-money's figures"]
-    found, stop = [], round(pricing.cleared_high(totals) * BUFFER, 2)
     if round(totals["high_euros"], 2) > round(yes["high_euros"], 2):
-        found.append(f"its high is EUR {totals['high_euros']:.2f}, above the EUR {yes['high_euros']:.2f} he approved "
-                     "in chat: a higher price needs a new yes")
-    if stop > round(yes["batch_total_euros"], 2):
-        found.append(f"its stop is EUR {stop:.2f}, above the batch total of EUR {yes['batch_total_euros']:.2f} he "
-                     "approved in chat: a higher total needs a new yes")
-    return found
+        return [f"its high is EUR {totals['high_euros']:.2f}, above the EUR {yes['high_euros']:.2f} he approved in "
+                "chat: a higher price needs a new yes"]
+    return []
 
 
 def by_of(user, yes):
@@ -372,8 +369,9 @@ def batch_budget(tries, spent, need, yes):
     every try draws from it. `tries` its checkouts, this try last; `spent` the spend now with what is in flight;
     `need` this try's high plus BUFFER; `yes` his yes in chat, if any. His click raises the budget to what the batch
     spent plus `need` when that is more; his yes in chat is the batch total he approved (owner, 2026-10-26: "the stop
-    should be a total of the batch, not per try"), refused when this try does not fit it; a retry under a yes
-    already used (`retry`) asks nothing new and must fit what is left. Refused otherwise."""
+    should be a total of the batch, not per try"), and a retry under a yes already used (`retry`) asks nothing new
+    and keeps the budget: either launches while the batch has room left, a try that needs more stopping at the line
+    (owner, 2026-10-27: "not just stop when u got to the limit, like ur supposed to"); refused with none left."""
     lined = [one.stop_line for one in tries[:-1] if "euros" in one.stop_line]
     start = watched.batch_start(lined[0]) if lined and watched.batch_start(lined[0]) is not None else spent
     # the newest budget as the line holds it from this batch's start (a try once counted as its own batch's kept
@@ -383,27 +381,30 @@ def batch_budget(tries, spent, need, yes):
     if yes and yes.get("retry"):
         if before is None or not any((one.chat_yes or {}).get("id") == yes["id"] for one in tries[:-1]):
             raise Refused(f"the yes {yes['id']} set no budget of this batch: ask him again")
-        if used + need > before:
-            raise Refused(f"over the batch budget: EUR {used:.2f} spent of EUR {before:.2f}, EUR {before - used:.2f} "
-                          f"left, this try needs EUR {need:.2f}: ask him again")
+        if used >= before:
+            raise Refused(f"the batch budget is spent: EUR {used:.2f} spent with what is in flight of EUR "
+                          f"{before:.2f}: ask him again for a higher total")
         return start, before
     if yes:
         total = round(yes["batch_total_euros"], 2)
-        if used + need > total:
-            raise Refused(f"over the batch total he approved: EUR {used:.2f} spent with what is in flight, this try "
-                          f"needs EUR {need:.2f}, EUR {total - used:.2f} left of EUR {total:.2f}: ask him again")
+        if used >= total:
+            raise Refused(f"the batch total he approved is spent: EUR {used:.2f} spent with what is in flight of EUR "
+                          f"{total:.2f}: ask him again for a higher total")
         return start, total
     return start, round(max(before or 0.0, used + need), 2)
 
 
 def room_refusals(record, chosen):
-    """Why the runner's own spend reading, after the line, has no room for the basket's high, or ""."""
+    """Why the runner's own spend reading, after the line, has less room than the line gave this try (the basket's
+    high, or what the batch has left when that is less: the try then stops at the line), or ""."""
     spend = chosen.spend()
     if None in (spend.ceiling, spend.spent, spend.reserved):
         return f"the runner reads no stop line: {spend.note or 'the spend could not be read'}"
     room = round(spend.ceiling - spend.spent - spend.reserved, 2)
-    if pricing.cleared_high(record.totals) > room:
-        return f"cannot finish under the stop: high EUR {pricing.cleared_high(record.totals):.2f}, room EUR {room:.2f}"
+    line = record.stop_line
+    gave = min(pricing.cleared_high(record.totals), round(line["euros"] - line["spent"] - line["reserved"], 2))
+    if gave > room:
+        return f"cannot finish under the stop: the line gave EUR {gave:.2f}, the runner reads room EUR {room:.2f}"
     return ""
 
 
@@ -494,4 +495,16 @@ def launch(record, planned, chosen):
         return closed(ended(record, "refused", f"the runner refused: {started.result}"), chosen,
                       "the runner refused its run")
     return ended(record, "launched", f"launched one batch of {len(nodes_of(record))} paid nodes, stop line EUR "
-                                     f"{record.stop_line['euros']:.2f}")
+                                     f"{record.stop_line['euros']:.2f}{may_stop_words(record)}")
+
+
+def may_stop_words(record):
+    """That this try may stop at the batch limit, when what its line left the batch is under its high plus BUFFER;
+    "" otherwise."""
+    line = record.stop_line
+    left = round(line["euros"] - line["spent"] - line["reserved"], 2)
+    need = round(pricing.cleared_high(record.totals) * BUFFER, 2)
+    if left >= need:
+        return ""
+    return (f"; this try may stop at the batch limit before every step is made (EUR {left:.2f} left, its high plus "
+            f"10% EUR {need:.2f})")

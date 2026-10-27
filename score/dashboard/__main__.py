@@ -120,6 +120,9 @@ def batch_money():
           f"its stop (high plus 10%) EUR {now['stop']:.2f}")
     print(f"Batch {found['batch']} total: at least EUR {found['fits']:.2f} holds this try; a Buy click would set "
           f"EUR {found['click']:.2f}. Ask, then: buy-yes --batch-total <the total he approves> {now['high']:.2f} ...")
+    if found["may_stop"]:
+        print(f"Under the yes already used (buy <its id>): this try may stop at the batch limit before every step is "
+              f"made, EUR {money['left']:.2f} left of the budget against its stop EUR {now['stop']:.2f}")
     print(json.dumps(found))
 
 
