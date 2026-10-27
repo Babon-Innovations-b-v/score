@@ -86,6 +86,8 @@ unless named):
 - test_the_scalp_is_drawn_under_the_hair: under_hair's `first[moving] - HAIR_GAP` made `+`.
 - test_the_main_shapes_keep_offsets_made_of_few_directions: principal_shapes' largest-first `[::-1]` dropped.
 - test_the_longest_edge_of_each_triangle: route_stretch.longest_edges' `.max(1)` made `.min(1)`.
+- test_a_web_bridging_the_legs_fails_the_stretch_check: route_stretch.grown's `- rest` made `/ rest` (a ratio, not
+  metres), or MOST_METRES raised past the 0.21 m the pre-route astronaut's crotch web grew walking.
 - test_the_body_under_a_cut_web_is_drawn_inside_in_the_cut_garments_cloth: under_layer's `np.isfinite(near) &`
   dropped (the base drawn beyond UNDER_REACH).
 - test_cloth_next_to_a_skin_part_rides_its_weights_and_takes_no_correctives: skin_share's own-family `mine` made every
@@ -835,6 +837,18 @@ def test_the_main_shapes_keep_offsets_made_of_few_directions():
 def test_the_longest_edge_of_each_triangle():
     points = np.array([[0.0, 0, 0], [3.0, 0, 0], [0.0, 4.0, 0]])
     assert route_stretch.longest_edges(points, np.array([[0, 1, 2]])).tolist() == [5.0]
+
+
+def test_a_web_bridging_the_legs_fails_the_stretch_check():
+    # One triangle from the left thigh to the right one, 4 cm wide at rest; the legs part 0.21 m in the stride.
+    rest = np.array([[0.02, 0.7, 0.0], [-0.02, 0.7, 0.0], [0.0, 0.72, 0.0]])
+    faces = np.array([[0, 1, 2]])
+    bind = route_stretch.longest_edges(rest, faces)
+    posed = rest + np.array([[0.105, 0.0, 0.0], [-0.105, 0.0, 0.0], [0.0, 0.0, 0.0]])
+    most, triangle = route_stretch.grown(posed, bind, faces)
+    assert triangle == 0 and np.isclose(most, 0.21)
+    assert most > route_stretch.MOST_METRES
+    assert route_stretch.grown(rest, bind, faces)[0] == 0.0
 
 
 def test_the_body_under_a_cut_web_is_drawn_inside_in_the_cut_garments_cloth():
