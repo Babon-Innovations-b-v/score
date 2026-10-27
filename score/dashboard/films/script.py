@@ -46,6 +46,9 @@ CUTS = {
                     "sound": "bed", "group": INSIDE, "words": "one OpenUSD layer lit, the others ghosted"},
     "layer-split": {"label": "Layer split", "seconds": 6.0, "needs": ("place",), "transition": "cross-fade",
                     "sound": "bed", "group": INSIDE, "words": "the layer stack lifted apart"},
+    "body-peel": {"label": "Layer peel", "seconds": 5.0, "needs": ("place",), "transition": "cross-fade",
+                  "sound": "place", "group": INSIDE,
+                  "words": "the scene's people peeled: clothed, bare mesh, sim body with the floor's push"},
     "step-card": {"label": "Step card", "seconds": 5.0, "needs": ("place", "step"), "transition": "push",
                   "sound": "bed", "group": SCENE, "words": "a framework step's own pictures"},
     "before-after": {"label": "Before and after", "seconds": 5.0, "needs": ("place",), "transition": "cross-fade",
@@ -119,6 +122,8 @@ def segment_faults(script, number, segment):
     shows = segment.get("shows") or {}
     found += [f"segment {number} ({CUTS[cut]['label']}) names no {need}" for need in CUTS[cut]["needs"]
               if not shows.get(need)]
+    if cut == "body-peel" and segment.get("close") not in (None, "walker"):
+        found.append(f"segment {number}: a layer peel follows only a walker, not {segment['close']!r}")
     if cut == "step-card" and shows.get("step") and shows["step"] not in STEPS:
         found.append(f"segment {number}: no framework step {shows['step']!r}")
     found += takes.faults(number, segment) if cut == "screen-take" else []

@@ -61,6 +61,14 @@ own sound; paid and cleared by the runner like any paid row.
   matched in exposure, the whole graded as the preview is (`GRADE`), cards and takes over the script's bed. The whole film's sound is moved by one gain to `TARGET_LUFS`; its gate holds the pace
   (`PLACE_SECONDS` a place, `SHOT_SECONDS` a walk-through) and the loudness. Its needs (`needs.py`) are the gaps
   check's film gaps: a film a script shows that no locked script shows waits on his lock.
+- **A layer peel** (`peel.py`, the script's `body-peel` cut, CONTEXT.md "layer peel"; owner 2026-10-27) is drawn free on
+  this machine's card by `blender/body_peel.py` in Blender `-b` (no display needed): every person of the cast clothed
+  (its dressed body posed by the sim body's clip, its rest fitted to the clip rig's bind), as its bare SOMA mesh and as
+  its sim body (the sim body layer's boxes at the record's poses, each foot's recorded push an arrow up from the ground
+  under it, `METRES_PER_NEWTON` long), over the scene's ground (`--ground`), joined by a wipe at each third. `--close`
+  follows one walker alone, `close_walker`'s rule (the most relief in scene-clips' record). A shot never outlasts the
+  sim body record. No row makes peel frames yet, so the environment film names the cut as one it cannot cut; making it a
+  row (inside the assembled scene, on its own camera) is a change of its own.
 - **Stills come from the films.** K5, K6 and K8 take frames of the places' films (a film starts at its
   segment's `start`, else the stage's start); the demo-stills row, which rendered a view no film showed, was retired
   on 2026-10-22 (it had no definitions and so no node).

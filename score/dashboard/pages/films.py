@@ -5,6 +5,7 @@ scenes, before Buy) opens on the environment's own film (`films.default`); his L
 copy the environment-film row reads (`film-lock`, applied on the store's machine, hosted through the sync)."""
 import datetime
 import json
+import pathlib
 
 from django.conf import settings
 from django.contrib import messages
@@ -25,6 +26,7 @@ STACK_ORDER = ("ground", "base", "settle", "motion-models", "crops", "effects", 
                "edit")
 
 
+PEOPLE_ROWS = "data/people/rows.json"  # the people each scene's design shows (score/stages/people_rows.py)
 # Film names the FILM pages' own addresses take.
 RESERVED = ("new", "pictures", "all")
 LOCK = "film-lock"  # the SyncRequest kind of his Lock and Unlock (sync/applying.py)
@@ -47,8 +49,16 @@ def environment_default(source, film):
     starters = [script.read(settings.SCORE_REPO, settings.SCORE_HOME, name)[0]
                 for name in script.names(settings.SCORE_REPO, settings.SCORE_HOME)]
     facts = default.facts_of(WORLD, title_of(WORLD), (concept or {}).get("concept", {}).get("setting", {}),
-                             (plan or {}).get("plan"), within, found["shells"], default.drawn_surfaces(starters))
+                             (plan or {}).get("plan"), within, found["shells"], default.drawn_surfaces(starters),
+                             people_places())
     return facts and default.built(film, facts)
+
+
+def people_places():
+    """{scene: whether one of its people walks} of the scenes whose design shows people (the repository's people
+    rows; none where it holds no rows file)."""
+    rows = pathlib.Path(settings.SCORE_REPO) / PEOPLE_ROWS
+    return default.people_of(json.loads(rows.read_text())) if rows.exists() else {}
 
 
 def script_or_404(film):

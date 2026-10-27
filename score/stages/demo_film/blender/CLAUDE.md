@@ -10,4 +10,7 @@ next frame's for motion blur (its docstring). The shutter and the next camera ar
   and the environment film declare (`TOOLS`).
 - Blur only what moves: the camera and the stage's moving transforms, never a mesh's deformation (it doubles a skinned
   body's evaluation, which no ledger has priced).
-- Never run here: it needs `bpy`. Checked with the `bpy` module of the cloud's Blender version, never a local render.
+- `film_frames.py`: never run here: it needs `bpy`. Checked with the `bpy` module of the cloud's Blender version, never
+  a local render.
+- `body_peel.py` is the other way round: a layer peel's three passes, run on this machine by `../peel.py` (`blender
+  -b`), no paid job runs it; no demo-film row declares it.

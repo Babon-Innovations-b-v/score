@@ -21,7 +21,16 @@ the hosted process cannot import); a `time` the owner gives a zoom is kept as he
             "stops" [{place, name, body, rooms, walks [[place, name]] (the scene itself unless a shell, then every
             scene it holds, parent before child), metres (from the site before on its body), km (from the site
             before, on another body)}] (every top scene in the journey's order, the top scene first),
-            "surfaces" {body: library surface} (each body's, as earlier scripts drew it; a body with none waits)}
+            "surfaces" {body: library surface} (each body's, as earlier scripts drew it; a body with none waits),
+            "people" {place: walks} (every scene whose design shows people, data/people/rows.json, and whether one
+            of them walks)}
+
+Last comes the sim bodies part (owner, 2026-10-27: "show the layers in the demo, from full player model with clothes,
+to mesh, to sim body"; no picking: every scene the film shows whose design has people, each the same way): a layer
+peel of all its people at once and, where one walks, a close-up peel following the walker on the most uneven ground
+(the render's rule, `score/stages/demo_film/peel.close_walker`), the scenes on the body the clips' motion is true on
+first (Earth: the numbers of bodies), then the rest in the order the film shows them, each carrying the note that its
+motion was made for Earth.
 """
 import math
 
@@ -31,6 +40,11 @@ from score.dashboard.films import script
 DAYS_PER_SECOND = 30
 ANIMATION_SECONDS = 12.0
 SITE_SECONDS = 2.5  # a journey's site leg, where the next scene's concept comes into the corner
+# The body the people's clips were recorded on: their motion is true there and only there.
+CLIPS_TRUE_ON = "earth"
+# A layer peel lasts one clip as the sim body record holds it (score/stages/sim_body: 150 frames at 30 a second).
+PEEL_SECONDS = 5.0
+LOW_GRAVITY_NOTE = "Motion made for Earth gravity; movement in lower gravity is not simulated yet"
 
 
 def titled(word):
@@ -212,6 +226,57 @@ def walk(place, name, line):
             "waiting": "the finished scene and its film (the batch): until then the preview shows its name"}
 
 
+def shown_places(facts):
+    """[(place, name, body)] of every scene the film shows, in the order it first shows them (each top scene, then
+    its walks; an inside scene stands on its holder's body)."""
+    found = {}
+    for stop in facts["stops"]:
+        for place, name in ([stop["place"], stop["name"]], *stop["walks"]):
+            found.setdefault(place, (place, name, stop["body"]))
+    return list(found.values())
+
+
+def peel(place, name, body, close=False):
+    """One scene's layer peel: its people clothed, then bare meshes, then sim bodies with the floor's push (`close`:
+    following its walker on the most uneven ground); off CLIPS_TRUE_ON with the note that their motion was made for
+    Earth."""
+    shown = "the walker on the most uneven ground" if close else "clothed, bare mesh, sim body"
+    words = f"{name}: {shown}" if body == CLIPS_TRUE_ON else LOW_GRAVITY_NOTE
+    made = {**segment("body-peel", {"place": place}, PEEL_SECONDS,
+                      [caption(0.3, PEEL_SECONDS - 0.3, f"{titled(body)} · {name}", words)]),
+            "sound": "place", "waiting": "the scene's sim bodies and a row drawing its peel: until then the "
+                                         "preview shows its name"}
+    return {**made, "close": "walker"} if close else made
+
+
+def sim_bodies(shown, people):
+    """The sim bodies part: a card, then a layer peel of every shown scene whose design has people (`people`), those
+    on CLIPS_TRUE_ON first, the rest in the order shown, each with a close-up after it where one of its people
+    walks (`people`: {place: walks}); none when no scene has people."""
+    peeled = [entry for entry in shown if entry[0] in people]
+    ordered = [entry for entry in peeled if entry[2] == CLIPS_TRUE_ON] + \
+              [entry for entry in peeled if entry[2] != CLIPS_TRUE_ON]
+    if not ordered:
+        return []
+    card = segment("text", {}, 4.0, [], text="Sim bodies", line="Every person of the design, a body on Newton")
+    return [card, *(shot for entry in ordered for shot in
+                    (peel(*entry), *([peel(*entry, close=True)] if people[entry[0]] else [])))]
+
+
+def row_walks(row):
+    """Whether a people row's people walk: its words say walking and not sitting (score/stages/people_rows.doing_of's
+    rule, which the hosted process cannot import; a test holds the two equal)."""
+    words = f"{row.get('name', '')} {row.get('where', '')}".lower()
+    return "walking" in words and "sitting" not in words and "seated" not in words
+
+
+def people_of(rows):
+    """{place: whether one of its people walks} of every place whose design shows people, from
+    data/people/rows.json's content."""
+    return {place: any(row_walks(row) for row in entry["rows"].values())
+            for place, entry in sorted(rows.get("places", {}).items()) if entry.get("rows")}
+
+
 def built(film, facts):
     """The environment's default script, named `film`: its target the film's length, rounded up to 5 s."""
     surfaces, _ = surfaces_of(facts)
@@ -232,7 +297,8 @@ def built(film, facts):
                    "zoom followed by a walk through its scene and every scene it holds (the owner's script for "
                    "environment 1, filled in from this environment's scenes)",
             "segments": [title, setting_take(facts), animation, concept_take(facts), review_take(facts),
-                         plan_take(facts), zoom(facts), *walks(facts["stops"][0]), *journey(facts)]}
+                         plan_take(facts), zoom(facts), *walks(facts["stops"][0]), *journey(facts),
+                         *sim_bodies(shown_places(facts), facts["people"])]}
     return {**made, "target_seconds": 5 * math.ceil(script.total_seconds(made) / 5)}
 
 
@@ -285,11 +351,11 @@ def top_scene(sites, within):
     return top, held[top]
 
 
-def facts_of(world, title, setting, plan, within, names, surfaces):
+def facts_of(world, title, setting, plan, within, names, surfaces, people):
     """The facts `built` fills in, from the environment's setting ({bodies}), its plan ({maps [{on, sites, distances}]}),
     what each scene sits within (no part of a scene's outside, nothing removed), {place or shell: its short name} and
-    the library surfaces earlier scripts drew each body with; None when the plan places no scene or its top scene
-    holds none."""
+    the library surfaces earlier scripts drew each body with and the scenes whose design shows people; None when the
+    plan places no scene or its top scene holds none."""
     sites = {site["place"]: found["on"] for found in (plan or {}).get("maps", []) for site in found["sites"]}
     if not sites:
         return None
@@ -301,7 +367,7 @@ def facts_of(world, title, setting, plan, within, names, surfaces):
     return {"world": world, "title": title, "bodies": [body["body"] for body in bodies],
             "shining": [body["body"] for body in bodies if body.get("kelvin")],
             "body": sites[top], "top": top, "top_name": stops[0]["name"], "rooms": stops[0]["rooms"],
-            "stops": stops, "surfaces": surfaces}
+            "stops": stops, "surfaces": surfaces, "people": people}
 
 
 def drawn_surfaces(scripts):
