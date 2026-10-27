@@ -45,6 +45,8 @@ The invariants, each with the break that turns its test red (each applied once a
   with the encoder on the processor) takes this PC, a whole characters machine (17 GB of card) or a need past the
   container's memory does not. Break: `card = TOO_BIG.get(kind)` in `refusal` -> the clip run is refused; or drop the
   memory check -> the 40 GB job is taken.
+- The container's memory leaves this PC HOST_RESERVE_GB for WSL and the run's own steps beside it: a 43 GB PC gives
+  the container 27 GB, and a small PC still 8. Break: `total - HOST_RESERVE_GB` -> `total - 8` -> 35g.
 """
 import json
 import pathlib
@@ -429,3 +431,12 @@ def test_this_pc_refuses_a_job_by_its_measured_need_not_its_kind(monkeypatch, tm
     with pytest.raises(ValueError, match="40 GB of memory"):
         local.take("characters", "key", {"card_gb": 4, "memory_gb": 40})
     assert local.take("characters", "key", {"card_gb": 4, "memory_gb": 17})["here"]
+
+
+def test_this_pc_container_leaves_room_for_wsl_and_the_runs_own_steps(monkeypatch):
+    import local
+    pages = {"SC_PAGE_SIZE": 4096, "SC_PHYS_PAGES": 43 * 2**30 // 4096}
+    monkeypatch.setattr(local.os, "sysconf", pages.get)
+    assert local.memory_cap() == "27g"
+    pages["SC_PHYS_PAGES"] = 12 * 2**30 // 4096
+    assert local.memory_cap() == "8g"
