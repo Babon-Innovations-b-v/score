@@ -333,11 +333,14 @@ The trial moved from Blender's Bullet {[}34{]} to Newton on 27 October
 2026. On a toy scene at Moon gravity (two crate drops, a driven door
 with a wheel fixed to it, a pushed stool), both engines gave the same
 answers on every gate, and Newton landed the crates on their targets
-where Bullet left its contact margins of 8 mm; with Newton 1.7.0 in its
-deterministic mode, six runs gave bitwise equal bodies in every frame.
-The settle moves to Newton the same way, so one engine steps what comes
-to rest and what is tried, and one effect is stepped on Newton as a
-first case for the effects layer.
+where Bullet left its contact margins of 8 mm; Newton's deterministic
+mode, bitwise equal over six runs on that toy, cannot hold scenes with
+many loose bodies (its buffers pass the 32-bit limit), so the trial and
+the settle run without it; two runs of a 25-body toy then agree within
+5e-7 m on every body but one that falls off the floor's edge. The settle
+moves to Newton the same way, so one engine steps what comes to rest and
+what is tried, and one effect is stepped on Newton as a first case for
+the effects layer.
 
 \textbf{Light, motion, effects and sound.} The sky is worked out from
 the EC's physics, never drawn: each body at its true direction, size and
