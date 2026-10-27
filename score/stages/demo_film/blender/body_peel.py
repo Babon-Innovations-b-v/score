@@ -4,8 +4,9 @@
 
 Every person three ways on the job's camera path: `dressed` (its dressed body's glTF posed by the job's joint moves,
 its rest fitted to the clip rig's bind), `mesh` (its bare SOMA surface at the job's points, solid with its edges
-drawn), `sim` (its segment boxes at the job's matrices, each foot's push an arrow), over the job's ground. Every
-array comes from the job, already in the place and Z up; nothing is worked out here but the fit and the drawing.
+drawn), `sim` (the sim body layer's own geometry under the person's SimBody, imported with its time samples and shown
+at the record's frame, each foot's push an arrow), over the job's ground. Every array comes from the job, already in
+the place and Z up; nothing is worked out here but the fit and the drawing.
 Out: <out>/<pass>/<frame>.png.
 """
 import json
@@ -18,7 +19,7 @@ from mathutils import Matrix, Vector
 FLOOR = (0.32, 0.33, 0.35)
 CLAY = (0.72, 0.70, 0.67)
 EDGES = (0.05, 0.05, 0.06)
-BOXES = (0.95, 0.42, 0.12)
+SIM = (0.95, 0.42, 0.12)  # the sim body geometry with no colours of its own
 ARROW = (0.20, 0.85, 0.45)
 # The crowd's cheap body every dressed file carries beside the person's own (tools/characters/cast.py): never one
 # person's.
@@ -189,14 +190,26 @@ def bare(person, arrays, into):
     return mesh
 
 
-def sim(arrays, into, look):
-    """The segment boxes and a push arrow a foot: [box object a segment], [(arrow shaft, arrow head) a foot]."""
-    boxes = []
-    for _ in range(arrays["boxes"].shape[1]):
-        bpy.ops.mesh.primitive_cube_add(size=2.0)
-        box = linked(bpy.context.object, into)
-        box.data.materials.append(look["boxes"])
-        boxes.append(box)
+def sim(person, arrays, into, look):
+    """The person's sim body as its layer holds it (whatever geometry sits under its SimBody prim, guides included,
+    each transform keyed at its time samples), placed, and a push arrow a foot: [(arrow shaft, arrow head) a foot]."""
+    before = set(bpy.data.objects)
+    bpy.ops.wm.usd_import(filepath=person["sim_layer"], prim_path_mask=person["sim_root"], import_guide=True,
+                          import_render=True, import_proxy=False, set_frame_range=False, create_collection=False,
+                          read_mesh_colors=True, import_materials=True)
+    made = [obj for obj in bpy.data.objects if obj not in before]
+    if not any(obj.type in ("MESH", "CURVES", "CURVE") for obj in made):
+        raise RuntimeError(f"{person['sim_layer']}: no geometry under {person['sim_root']}")
+    holder = bpy.data.objects.new(f"{person['name']}_sim", None)
+    into.objects.link(holder)
+    holder.matrix_world = Matrix(person["placed"])
+    for obj in made:
+        linked(obj, into)
+        if obj.parent is None:
+            obj.parent = holder
+        if obj.type in ("MESH", "CURVES", "CURVE") and not obj.data.materials:
+            obj.data.materials.append(look["coloured"] if "displayColor" in getattr(obj.data, "attributes", {})
+                                      else look["sim"])
     arrows = []
     for _ in range(arrays["arrow_start"].shape[1]):
         bpy.ops.mesh.primitive_cylinder_add(radius=0.03, depth=1.0)
@@ -206,7 +219,17 @@ def sim(arrays, into, look):
         for part in (shaft, head):
             part.data.materials.append(look["arrow"])
         arrows.append((shaft, head))
-    return boxes, arrows
+    return arrows
+
+
+def coloured():
+    """A material showing a geometry's own colours (its `displayColor`, a muscle's activation say)."""
+    made = material("coloured", (1.0, 1.0, 1.0))
+    nodes = made.node_tree.nodes
+    colour = nodes.new("ShaderNodeAttribute")
+    colour.attribute_name = "displayColor"
+    made.node_tree.links.new(colour.outputs["Color"], nodes["Principled BSDF"].inputs["Base Color"])
+    return made
 
 
 def arrow_at(parts, start, vector):
@@ -230,24 +253,24 @@ def draw(job):
     renderer(job)
     camera = surroundings(job)
     groups = {name: collection(name) for name in job["passes"]}
-    # The boxes let the push arrows under them show through.
-    look = {"boxes": material("boxes", BOXES, alpha=0.55), "arrow": material("arrow", ARROW, glow=3.0)}
+    # The sim body lets the push arrows under it show through.
+    look = {"sim": material("sim", SIM, alpha=0.55), "arrow": material("arrow", ARROW, glow=3.0),
+            "coloured": coloured()}
     people = []
     for person in job["people"]:
         arrays = dict(np.load(person["arrays"]))
         armature, fit = dressed(person, groups["dressed"])
         mesh = bare(person, arrays, groups["mesh"])
-        boxes, arrows = sim(arrays, groups["sim"], look)
-        people.append((person, arrays, armature, fit, mesh, boxes, arrows))
+        arrows = sim(person, arrays, groups["sim"], look)
+        people.append((person, arrays, armature, fit, mesh, arrows))
     scene = bpy.context.scene
-    for frame in range(len(job["source"])):
+    for frame, source in enumerate(job["source"]):
         aimed(camera, job["camera"]["path"][frame])
-        for person, arrays, armature, fit, mesh, boxes, arrows in people:
+        scene.frame_set(source)  # the sim body layer's time code: the record's frame, at its rate (renderer)
+        for person, arrays, armature, fit, mesh, arrows in people:
             posed(armature, fit, person["joints"], arrays["moves"][frame])
             mesh.vertices.foreach_set("co", arrays["points"][frame].astype(np.float32).ravel())
             mesh.update()
-            for box, matrix in zip(boxes, arrays["boxes"][frame]):
-                box.matrix_world = Matrix(matrix.tolist())
             for parts, start, vector in zip(arrows, arrays["arrow_start"][frame], arrays["arrow_vector"][frame]):
                 arrow_at(parts, start, vector)
         for name in job["passes"]:

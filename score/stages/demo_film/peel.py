@@ -1,9 +1,10 @@
 """A layer peel (the film script's `body-peel` cut, owner 2026-10-27: "show the layers in the demo, from full player
 model with clothes, to mesh, to sim body"): every person of a scene's cast drawn three times on one camera, clothed
 (its dressed body posed by the sim body's clip, its rest fitted to the clip rig's bind turned about up), as its bare
-SOMA mesh (the clip rig's surface skinned by the same clip) and as its sim body (the sim body stage's segment boxes at
-their simulated poses, the floor's push an arrow under it), the three joined by a wipe rising up the picture at each
-third of the shot; or, closer, the camera following one walker (`close_walker`).
+SOMA mesh (the clip rig's surface skinned by the same clip) and as its sim body (whatever geometry the sim body layer
+holds under the person's SimBody, bones, boxes or muscles, at its own time samples; each foot's push an arrow), the
+three joined by a wipe rising up the picture at each third of the shot; or, closer, the camera following one walker
+(`close_walker`).
 
     python -m score.stages.demo_film.peel <job folder> --cast <cast.json> --sim <sim-body output> --rig <rig.npz>
         --dressed <body.glb> [--seconds 5] [--size 1280 720] [--samples 64] [--close [--clips <scene_clips.json>]]
@@ -11,11 +12,12 @@ third of the shot; or, closer, the camera following one walker (`close_walker`).
 
 Free and local: the frames are drawn by `blender/body_peel.py` in this machine's Blender (tools/blender/session.py's
 set-up, `-b` on its card), never a paid row; no row makes a peel's frames yet (the environment film names the cut as
-one no row makes). Everything is worked out here in numpy, the Blender side only lays it out and draws it.
+one no row makes). Everything but the sim body's own geometry is worked out here in numpy; the Blender side imports
+that from its layer, lays it all out and draws it.
 
 Nothing is invented: the clothed pass is the dressed body's own surface and skin on the sim body's clip, the mesh
-pass the clip rig's own points and skin weights, the sim pass the sim body's own record (its layer's boxes, its
-measures' poses and ground push, at the record's own rate). A shot longer than the record is refused, never stretched
+pass the clip rig's own points and skin weights, the sim pass the sim body's own layer at its time codes (the
+record's frames) and its measures' push on each foot. A shot longer than the record is refused, never stretched
 or looped. Each foot's push is the record's own (its `feet`: the ground's upward push on the segment and its height
 over the ground), an arrow from the ground under it `METRES_PER_NEWTON` long, so a body's arrows on the Moon are a
 sixth of its arrows on Earth.
@@ -67,36 +69,39 @@ def skinned(rig, clip):
     return np.einsum("fpab,pb->fpa", blended, points)[..., :3]
 
 
-def layer_boxes(layer, place, name):
-    """(each segment's box collider in its own frame, a 4 x 4 taking the unit cube onto it; the segments' names), in
-    the sim body layer's order, read from layers/sim_bodies.usda."""
+def sim_root(place, name):
+    """Where a person's sim body sits in the sim body layer (score/stages/sim_body: whatever geometry it holds)."""
+    return f"/{place}/Characters/{name}/SimBody"
+
+
+def foot_bottoms(layer, root, feet, times):
+    """Each foot's bottom (the middle of its drawn geometry's lowest face) at each of the layer's time codes
+    (times x feet x 3, the person's frame, Y up): whatever geometry sits under the foot's prim below `root`, read at
+    its own time samples, guides included."""
     from pxr import Usd, UsdGeom
     stage = Usd.Stage.Open(str(layer))
-    body = stage.GetPrimAtPath(f"/{place}/Characters/{name}/SimBody")
+    body = stage.GetPrimAtPath(root)
     if not body:
-        raise ValueError(f"{layer}: no sim body of {name}")
-    segments = [segment for segment in body.GetChildren() if segment.GetChild("box")]
-    found = [np.asarray(UsdGeom.Xformable(segment.GetChild("box")).GetLocalTransformation(), dtype=float).T
-             for segment in segments]
-    return np.asarray(found), [segment.GetName() for segment in segments]
-
-
-def pose_matrices(frames):
-    """Each record frame's segment poses ([x, y, z, qx, qy, qz, qw]) as frames x segments x 4 x 4."""
-    from scipy.spatial.transform import Rotation
-    poses = np.asarray([frame["poses"] for frame in frames], dtype=float)
-    found = np.tile(np.eye(4), (*poses.shape[:2], 1, 1))
-    found[..., :3, :3] = Rotation.from_quat(poses[..., 3:].reshape(-1, 4)).as_matrix().reshape(*poses.shape[:2], 3, 3)
-    found[..., :3, 3] = poses[..., :3]
+        raise ValueError(f"{layer}: no sim body at {root}")
+    named = {prim.GetName(): prim for prim in Usd.PrimRange(body)}
+    missing = [foot for foot in feet if foot not in named]
+    if missing:
+        raise ValueError(f"{layer}: no prim of {', '.join(missing)} under {root}")
+    purposes = [UsdGeom.Tokens.default_, UsdGeom.Tokens.guide, UsdGeom.Tokens.render, UsdGeom.Tokens.proxy]
+    found = np.empty((len(times), len(feet), 3))
+    for row, time in enumerate(times):
+        cache = UsdGeom.BBoxCache(Usd.TimeCode(time), purposes)
+        for column, foot in enumerate(feet):
+            box = cache.ComputeWorldBound(named[foot]).ComputeAlignedRange()
+            low, high = np.asarray(box.GetMin()), np.asarray(box.GetMax())
+            found[row, column] = [(low[0] + high[0]) / 2, low[1], (low[2] + high[2]) / 2]
     return found
 
 
-def pushes(boxes, names, frames):
+def pushes(bottoms, frames):
     """Each foot's push from the ground each record frame as an arrow (frames x feet x 6: start, vector; NaN where the
-    ground does not push it): from under the middle of the foot segment's box bottom, dropped by its recorded height
+    ground does not push it): from under the foot's bottom (`bottoms`, foot_bottoms), dropped by its recorded height
     over the ground, up METRES_PER_NEWTON a newton of the recorded push (the record's `feet`)."""
-    corners = np.array([[x, y, z, 1.0] for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)])
-    worlds = pose_matrices(frames) @ boxes
     feet = list(frames[0]["feet"])
     arrows = np.full((len(frames), len(feet), 6), np.nan)
     for index, frame in enumerate(frames):
@@ -104,8 +109,7 @@ def pushes(boxes, names, frames):
             height, push = frame["feet"][foot]
             if height is None or push <= PUSHED:
                 continue
-            points = (worlds[index, names.index(foot)] @ corners.T).T[:, :3]
-            bottom = points[np.argsort(points[:, 1])[:4]].mean(axis=0)
+            bottom = bottoms[index, number]
             arrows[index, number] = [bottom[0], bottom[1] - height, bottom[2], 0.0, push * METRES_PER_NEWTON, 0.0]
     return arrows
 
@@ -128,18 +132,18 @@ def source_frames(seconds, record_rate, record_frames):
     return found
 
 
-def person_arrays(record, rig, frames, boxes, names, shown):
+def person_arrays(record, rig, frames, bottoms, shown):
     """One person's arrays for Blender, every one in the place and Z up, at the film's frames `shown`: its bare
-    mesh's points, its segment boxes and its push arrow; and, in its own frame, each rig joint's move from its bind
-    frame (which poses its dressed body) and the bind frames' places (which the dressed body's rest is fitted to)."""
+    mesh's points and its feet's push arrows; and, in its own frame, each rig joint's move from its bind frame (which
+    poses its dressed body) and the bind frames' places (which the dressed body's rest is fitted to). The sim body
+    itself is the layer's, drawn by Blender at the same frames (its time codes)."""
     where = sim_body.own_frame(record["at"], record.get("turn", 0.0))
     mesh = skinned(rig, record["clip"]) @ where[:3, :3].T + where[:3, 3]
-    worlds = where @ pose_matrices(frames) @ boxes
-    arrows = pushes(boxes, names, frames)
+    arrows = pushes(bottoms, frames)
     starts = arrows[..., :3] @ where[:3, :3].T + where[:3, 3]
     vectors = arrows[..., 3:] @ where[:3, :3].T
     moves = clip_worlds(rig, record["clip"]) @ np.linalg.inv(np.asarray(rig["bind"], dtype=float))
-    return {"points": points_to_z(mesh[shown]), "boxes": to_z(worlds[shown]), "moves": to_z(moves[shown]),
+    return {"points": points_to_z(mesh[shown]), "moves": to_z(moves[shown]),
             "bind_heads": points_to_z(np.asarray(rig["bind"], dtype=float)[:, :3, 3]),
             "arrow_start": points_to_z(starts[shown]), "arrow_vector": points_to_z(vectors[shown]),
             "placed": to_z(where)}
@@ -211,11 +215,12 @@ def job_of(folder, cast, sim, rig_path, dressed, seconds, size, samples, close=N
             continue  # the sim body stage left it out and said why in its record, or the close-up follows another
         frames = json.loads((sim / "measures" / f"{name}.json").read_text())
         shown = source_frames(seconds, record["rate"], len(frames))
-        boxes, names = layer_boxes(sim / "layers/sim_bodies.usda", record["place"], name)
-        arrays = person_arrays(record["bodies"][name], rig, frames, boxes, names, shown)
+        layer, root = sim / sim_body.LAYER, sim_root(record["place"], name)
+        bottoms = foot_bottoms(layer, root, list(frames[0]["feet"]), range(len(frames)))
+        arrays = person_arrays(record["bodies"][name], rig, frames, bottoms, shown)
         np.savez(folder / f"{name}.npz", faces=np.asarray(rig["faces"]), **arrays)
         people.append({"name": name, "glb": str(dressed), "clip": record["bodies"][name]["clip"],
-                       "joints": [str(joint) for joint in rig["names"]],
+                       "joints": [str(joint) for joint in rig["names"]], "sim_layer": str(layer), "sim_root": root,
                        "arrays": str(folder / f"{name}.npz"), "placed": arrays["placed"].tolist(),
                        "_points": arrays["points"]})
     if not people:
