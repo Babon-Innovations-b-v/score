@@ -86,6 +86,9 @@ The break that turns each red (applied once, seen red, reverted):
   batch.WATCHDOG_GRACE_MINUTES * 60` -> `run.deadline`.
 - test_a_character_machine_whose_set_up_failed_is_deleted_not_held_to_mend: in characters.py `held`, the set-up
   failure's `raise SystemExit(...)` -> `pass`.
+- test_a_clips_only_character_run_asks_this_pcs_card_with_the_encoder_on_the_processor: in characters.py
+  `card_need`, `steps <= CLIP_STEPS` -> `True` (a body build asks 4 GB); or `encoder = ""` in `make_one` (Kimodo's
+  encoder goes onto this PC's 16 GB card); or `if machine.get("here")` -> `if True` (a rented card's run is changed).
 - test_a_served_blender_machine_runs_the_queue_on_its_card_and_is_deleted: in blender_cloud.py `serve`, `card =
   machine.get("class", "").startswith("gpu")` -> `card = False`.
 - test_a_spread_machine_is_armed_and_deleted: in spread.py `tend`, drop `batch.delete_machine(machine)` from its
@@ -905,6 +908,25 @@ def test_a_character_machine_whose_set_up_failed_is_deleted_not_held_to_mend(tmp
     except SystemExit as stopped:
         assert "nev are gaps" in str(stopped)
     assert held == [] and tended.armed_beaten_deleted(run.deadline), tended.done
+
+
+def test_a_clips_only_character_run_asks_this_pcs_card_with_the_encoder_on_the_processor(tmp_path, monkeypatch):
+    def make(name, steps):
+        (tmp_path / name / "in").mkdir(parents=True)
+        (tmp_path / name / "in" / "spec.json").write_text(json.dumps({"steps": steps}))
+        return tmp_path / name
+    clips, scene, body = make("clips", ["clips", "rig"]), make("scene", ["scene clips", "rig"]), make("b", ["build"])
+    assert characters.card_need([clips, scene]) == characters.CLIP_NEED
+    assert characters.card_need([clips, body]) is None  # a body build: the whole machine
+    sent = []
+    monkeypatch.setattr(batch, "remote", lambda folder, host, command, **_: sent.append(command))
+    monkeypatch.setattr(batch, "copy", lambda *_, **__: None)
+    monkeypatch.setattr(characters, "exit_code", lambda *_: 0)
+    monkeypatch.setattr(characters, "bring_back", lambda *_: None)
+    run = types.SimpleNamespace(deadline=time.time() + 60)
+    for here in (True, False):
+        characters.make_one(run, {"folder": tmp_path, "host": "h", "here": here}, scene, 0)
+    assert [characters.ENCODER in command for command in sent[1::2]] == [True, False]
 
 
 def test_a_served_blender_machine_runs_the_queue_on_its_card_and_is_deleted(tmp_path, monkeypatch):

@@ -59,6 +59,13 @@ POLL_SECONDS = 30
 # motion read off a video (score/stages/video_clips), and the scene-made clips (score/stages/scene_clips).
 PROGRAMS = {"prop_chain.py": "maker/prop_chain.py", "video_motion.py": "clips/video_motion.py",
             "scene_clips.py": "clips/scene_clips.py"}
+# The steps measured on a 16 GB card (this PC's RTX 5080, 2026-10-27: scene_clips.py's Kimodo and rig steps in 87 s,
+# card peak 3.66 GB, 1.7 GB Kimodo's) with Kimodo's text encoder on the processor (TEXT_ENCODER_DEVICE=cpu, ENCODER),
+# which then holds 16.7 GB of system memory. A make with any other step needs the whole machine (backends/local.py
+# TOO_BIG's characters, the encoder on the card).
+CLIP_STEPS = {"clips", "rig", "scene clips"}
+CLIP_NEED = {"card_gb": 4, "memory_gb": 17}
+ENCODER = "TEXT_ENCODER_DEVICE=cpu"
 
 
 def price(makes, account, classes, minutes=None):
@@ -111,6 +118,12 @@ def program_of(make):
     return PROGRAMS[program]
 
 
+def card_need(makes):
+    """The run's measured need (CLIP_NEED) when every make runs clip steps only, else None (its kind's)."""
+    steps = {step for make in makes for step in json.loads((make / "in" / "spec.json").read_text()).get("steps", [])}
+    return dict(CLIP_NEED) if steps and steps <= CLIP_STEPS else None
+
+
 def chain_line(name, program=PROGRAMS["prop_chain.py"]):
     """The detached command that runs one make's program and leaves its exit code beside its log."""
     place = REMOTE / name
@@ -139,7 +152,9 @@ def make_one(run, machine, make, card):
     batch.remote(folder, host, f"rm -rf {REMOTE / make.name} && mkdir -p {REMOTE / make.name}", check=True)
     batch.copy(folder, [make / "in"], f"root@{host}:{REMOTE / make.name}/")
     began = time.time()
-    batch.remote(folder, host, f"CUDA_VISIBLE_DEVICES={card or 0} {chain_line(make.name, program_of(make))}", check=True)
+    encoder = f"{ENCODER} " if machine.get("here") else ""  # this PC's 16 GB card: Kimodo's encoder on the processor
+    batch.remote(folder, host, f"{encoder}CUDA_VISIBLE_DEVICES={card or 0} {chain_line(make.name, program_of(make))}",
+                 check=True)
     code = None
     while time.time() < run.deadline and (code := exit_code(folder, host, make.name)) is None:
         time.sleep(POLL_SECONDS)
@@ -215,6 +230,7 @@ def main():
     run = pictures.Run(batch.BATCHES / (time.strftime("characters-%Y%m%d-%H%M%S") + f"-{os.getpid()}"),
                        time.time() + allowed_minutes * 60)
     run.started = time.time()
+    run.need = card_need(makes)
     run.folder.mkdir(parents=True)
     batch.say(f"run folder {run.folder} ({options.who})")
     try:
