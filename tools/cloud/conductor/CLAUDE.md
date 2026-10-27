@@ -43,7 +43,7 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   does not attach fails every writer there instead of starting an empty store on the root disk.
 - **`cloud-init.yaml` + `boot.sh`**: user score (uid 1100) with linger, the data volume formatted only when blank
   and mounted at `/home/score/.farm-factory-props` by UUID, restic, uv, scw and the Google Cloud CLI pinned by
-  version and SHA-256 (a new pin: a version at least two weeks old, its checksum from the release's own sums file),
+  version and SHA-256 (a new pin: its checksum from the release's own sums file),
   the checkout over https, `uv sync`, every unit in `units/` installed for user score; rsync, ssh and ffmpeg from apt (the runners'
   copies, the sound rows' loudness), Node.js pinned by version and SHA-256 into /usr/local (the 3D web copies' gltfpack,
   the film preview's Playwright, which takes node >=20: Ubuntu's apt node is older), score_lib's `score-lib` linked into
