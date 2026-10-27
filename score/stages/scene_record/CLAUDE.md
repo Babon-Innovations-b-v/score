@@ -13,7 +13,7 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   read; a missing design file is a named missing input, never a crash.
 - **The shell is the plan's**, built by `earth_seed/design_shell.pieces` (each level's deck, the outline's walls with
   every opening cut, the roofs, BACKING behind the plan's inside line) and stood in the place's frame as the builders'
-  `slab` and `gable` entries (`tools/usd/builders.py`, plain numbers, `plain: shell`). It is the record's for an
+  `slab`, `gable` and `dome` entries (`tools/usd/builders.py`, plain numbers, `plain: shell`). It is the record's for an
   inside place (walls or roofs drawn, no terrain spots) whose base does not lay it already (`design_shell.laid_for`: a
   room whose plan says its kit holds its walls, laid by earth-seed); an open place has none. Every stair or ramp the
   plan draws is a flight of `stairs`; the walls cut each opening a door or window row of the hand-in fills at its
