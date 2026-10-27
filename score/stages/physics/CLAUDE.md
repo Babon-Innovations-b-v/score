@@ -17,7 +17,8 @@ Newton's own contacts) in its own pinned Python (`inside/newton_env.sh`) on a re
   4.9 degrees). The script drives what the importer leaves to its caller every substep: each kinematic hand from its
   time samples, each drive's torque cap from its time-sampled maxForce. Newton has no renderer: the views stay
   Blender's (`tools/blender/inside/usd_views.py`) on the same held card. A falling body differs a little run to run
-  on the card (MuJoCo Warp's solver has no deterministic mode with sensors; the contacts are sorted).
+  on the card: Warp's deterministic mode is off (it fails over 32 dofs, about 5 free bodies, and solves wrong over
+  60 in a tree, #60; 2026-10-27), the contacts are sorted.
 - **Mass is the model's surface area times its material's sheet and density** (props are hollow shells); friction and
   restitution are per material (`data/physics/materials.json`, textbook values with their source). A model with no
   labelled parts takes its trial record's `material`. Never tune a mass or a friction to pass a gate.
