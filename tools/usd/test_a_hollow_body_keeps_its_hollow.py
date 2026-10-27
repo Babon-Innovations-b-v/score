@@ -1,11 +1,22 @@
-"""Check a moving body's convex parts (tools/usd/convex_parts.py) on shapes made here: an open crate is split round its
+"""tools/usd/convex_parts.py, a moving body's convex parts, on shapes made here: an open crate is split round its
 hollow, a box is its one hull, both are read back from the cache without CoACD, a laid crate gets its parts in its
 own frame, a mesh CoACD fails on drops as its one hull, and the drop of an open crate laid far from the origin in
-Blender 5.0.1 (tools/blender/inside/settle_stage.py, through tools/blender/session.py's batch: 17 s fixed, 71 s and
-red broken, 2026-10-26) keeps it where it is laid with a box on its floor; with no Blender 5.0.1 set up under
-PROPS_HOME or no Xvfb (bash tools/blender/setup.sh) that one check prints `skipped` and passes nothing.
+Blender 5.0.1 (tools/blender/inside/settle_stage.py, through tools/blender/session.py's batch) keeps it where it is
+laid with a box on its floor. With no Blender 5.0.1 under PROPS_HOME or no Xvfb (bash tools/blender/setup.sh), as in
+`make tests`' sandbox home, that one check prints `skipped` and passes nothing.
 
-Run: .venv/bin/python tools/usd/test_a_hollow_body_keeps_its_hollow.py   (make tests runs it with the framework's environment)
+Breaks that turn each test red (each applied once and seen red):
+- a_hollow_keeps_its_hollow_and_a_box_is_one_hull (2026-10-27): convex_parts.decomposed's `chosen = [whole.vertices]
+  if ONE_HULL[0] <= share <= ONE_HULL[1] else parts` made `chosen = [whole.vertices]`.
+- a_laid_hollow_object_gets_its_parts_in_its_own_frame (2026-10-27): convex_parts.hollow_parts's `if len(parts) > 1`
+  made `>= 1` (a box given its one hull as parts).
+- a_mesh_coacd_fails_on_drops_as_its_one_hull_and_is_tried_again (2026-10-27): convex_parts.convex_parts's `if why is
+  None:` made `if True:` (a failed mesh's hull kept, never tried again).
+- a_crate_laid_far_from_the_origin_stays_and_holds_a_box_on_its_floor (2026-10-26, with Blender 5.0.1 under a real
+  PROPS_HOME: 17 s fixed, 71 s and red broken): settle_stage.convex_pieces's parts made in world corners with no
+  `matrix_world` (each part weighed at the world's origin: the crate thrown 298 m).
+
+Run: .venv/bin/python tools/usd/test_a_hollow_body_keeps_its_hollow.py   (make tests runs it)
 """
 import json
 import math
@@ -77,8 +88,7 @@ def a_laid_hollow_object_gets_its_parts_in_its_own_frame():
 
 def a_mesh_coacd_fails_on_drops_as_its_one_hull_and_is_tried_again():
     """A mesh CoACD runs past its time for (or fails on) gets its one hull and its why, and nothing is kept, so the
-    next run tries it again; the other meshes keep their parts. Break: let the timeout raise (the whole settle row
-    failed on one slow model) or keep the one hull in the cache (never tried again)."""
+    next run tries it again; the other meshes keep their parts."""
     import subprocess
     crate, box = open_crate(), trimesh.creation.box(extents=(1.0, 1.0, 1.0))
     meshes = {"crate": (crate.vertices, crate.faces), "box": (box.vertices, box.faces)}
@@ -165,9 +175,7 @@ def blender_missing():
 
 def a_crate_laid_far_from_the_origin_stays_and_holds_a_box_on_its_floor():
     """In Blender, an open crate laid 36 m from the origin stays where it is laid, and a box laid at its rim rests on
-    its floor, both still at the end. Breaks, each seen red: weigh each part at the world's origin (convex_pieces'
-    meshes in world corners, no matrix_world: the crate thrown 298 m), or drop the crate as one hull (an empty parts
-    file: the box rests on the hull's top at 0.72)."""
+    its floor, both still at the end (its break is in the file's docstring)."""
     missing = blender_missing()
     if missing:
         print(f"skipped: {a_crate_laid_far_from_the_origin_stays_and_holds_a_box_on_its_floor.__name__}: {missing}")

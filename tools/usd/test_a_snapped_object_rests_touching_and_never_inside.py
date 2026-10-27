@@ -1,9 +1,18 @@
-"""Check the snap on places made here: a box lifted 0.3 m drops to rest on the floor within 1 cm, a box on another
-drops onto its top, a box slid toward a wall stops touching it without going in and one laid into it backs out, a free spot is never inside another
-box and stands on the floor, the same seed gives the same spot, and a snapped pose written into the layout is where
-the exported stage lays the box.
+"""tools/usd/snap.py, placement by snapping, on places made here: a box lifted 0.3 m drops to rest on the floor
+within 1 cm, a box over another drops onto its top, a box slid toward a wall stops touching it without going in and
+one laid into it backs out, a free spot is never inside another box and stands on the floor, the same seed gives the
+same spot, and a snapped pose written into the layout is where the exported stage lays the box.
 
-Run: .venv/bin/python tools/usd/test_a_snapped_object_rests_touching_and_never_inside.py   (make tests runs it with the framework's environment)
+Breaks that turn each test red (each applied once and seen red, 2026-10-27), all in snap.py:
+- a_lifted_box_drops_onto_the_floor_and_onto_a_box: obstacles_of's `found = {other: mesh ...}` made `found = {} if
+  with_ground else {...}` (a drop meets the ground alone).
+- a_box_slid_toward_a_wall_stops_touching_it: snap_to's `total + way * (run - CLEARANCE)` made `total + way * run`.
+- a_box_laid_into_a_wall_is_slid_back_out: free_run's `run = float(forward.min()) - RAY_BACK` made
+  `max(0.0, ...)` (no run backwards).
+- a_free_spot_is_free_and_stands: place_free's `np.random.default_rng(seed)` made `np.random.default_rng()`.
+- a_written_pose_is_where_the_stage_lays_it: write_pose's `piece.update(settle.settled_spot(...))` dropped.
+
+Run: .venv/bin/python tools/usd/test_a_snapped_object_rests_touching_and_never_inside.py   (make tests runs it)
 """
 import json
 import pathlib
