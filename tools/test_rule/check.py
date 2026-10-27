@@ -39,8 +39,6 @@ ALLOWLIST = (
     "score/stages/props/*",
     "score/stages/settling/*",
     "score/stages/physics/*",
-    "score/review/plan_fixes*",
-    "score/review/plan_checks*",
     "*prepare*",
 )
 

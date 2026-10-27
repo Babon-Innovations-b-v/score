@@ -12,8 +12,8 @@ Every model is a stand-in: no call is made and nothing is spent. Each test's sto
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest -q score/review/test_the_owners_word_stands.py
 
 Each test turns red under the break written for it below (each applied once and seen red, 2026-10-26): the test, then
-the file and the exact change. The sync pass's plans keep (plans_pass_test.py) and the free fixes (plan_fixes_test.py)
-keep their own files while their code is being worked on.
+the file and the exact change. The free fixes' and the sync pass's plans keep tests came in from plan_fixes_test.py
+and plans_pass_test.py on 2026-10-27, their breaks applied then.
 - test_an_output_that_did_not_pass_cannot_be_accepted:
     __init__.py: `if judgement is None or (checks.standing(judgement["verdicts"], waived) != checks.PASS and status
     is None):` made `if judgement is None:`
@@ -337,7 +337,32 @@ keep their own files while their code is being worked on.
 - test_a_scene_added_in_the_app_takes_its_doors_from_its_holders_openings_into_it:
     plan_writing.py: `to = holder if opening.get("to") == place else opening.get("to")` made `to =
     opening.get("to")`
+- test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_the_rest_saying_why:
+    plan_fixes.py: `plan["people"] = stood + found` made `plan["people"] = found + stood`
+- test_a_box_of_things_drawn_apart_is_split_round_its_spread:
+    plan_fixes.py: `for spot in spots: added_item(plan, row["id"], spot, size, shape)` made `for spot in spots[:1]:`
+- test_a_correction_is_kept_only_when_it_leaves_fewer_gaps_and_what_is_left_says_why:
+    plan_fixes.py: `if len(open_gaps(answer, inventory)) >= len(left): break` made `if False: break`
+- test_a_row_at_the_concept_s_foot_marked_beyond_is_placed_where_its_box_projects:
+    plan_fixes.py: `plan["beyond"] = [row for row in plan.get("beyond", []) if row in kept]` made `plan["beyond"] =
+    plan.get("beyond", [])`
+- test_the_narrow_walk_answers_as_the_whole_walk:
+    plans_pass.py: `if path.is_file() and not path.name.endswith(".partial")` made `if path.is_file()`
+- test_the_keep_runs_inside_one_moment:
+    plans_pass.py: `with plans.one_moment():` made `with contextlib.nullcontext():`
+- test_a_plan_fixed_before_a_fix_it_needs_is_fixed_again_in_a_process_of_its_own:
+    plans_pass.py: `return bool(lacking) and len(missing(plan_fixes.fixed(plan, inventory)[0], inventory)) < lacking`
+    made `return False`
+- test_a_fixed_plan_with_a_pile_is_parted_again_free_and_then_settled:
+    plans_pass.py (settled_again): `if more:` made `if False:`
+- test_an_accepted_plan_row_is_never_parted_and_an_unaccepted_one_is_parted_before_the_keep:
+    plans_pass.py: `return store.accepted(f"plan@{place}") is None` made `return True`
+- test_a_plan_that_places_more_is_left_to_its_own_process_not_parted_first:
+    plans_pass.py: `if not parts: return plan, calls` made `if False: return plan, calls`
+- test_a_done_place_with_no_kept_plan_gets_one:
+    plans_pass.py: `if not (plans.KEPT / f"{place}.json").is_file()` made `if True`
 """
+import contextlib
 import datetime
 import hashlib
 import io
@@ -347,6 +372,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import tempfile
 
 import pytest
 from PIL import Image
@@ -354,7 +380,7 @@ from PIL import Image
 from score import checks, contracts, graph, review, stages
 from score.adapters import compute
 from score.review import (concepts, discuss, environment_concept, environment_concept as ec, environment_plan,
-                          overhead, plan_checks, plan_drawing, plan_fixes, plan_writing, plans, reading,
+                          overhead, plan_checks, plan_drawing, plan_fixes, plan_writing, plans, plans_pass, reading,
                           reading_fixes, scene_sky, setting, web)
 from score.store import RUNNER, Store, runtime_store
 
@@ -2857,3 +2883,247 @@ def test_a_scene_added_in_the_app_takes_its_doors_from_its_holders_openings_into
         ("south", "hangar", 2.1, True), ("east", "outside", 2.4, True)], made
     own = {**skeleton, "doors": [["N", 1.0, 0.9, "DOOR"]], "leads": {"N": {"to": "sealed", "why": "filed"}}}
     assert plan_writing.held_doors(own, "airlock", "hangar", [10.0, 5.0, 3.0, 2.0], openings) is own
+
+
+# --- the free fixes of a written plan (plan_fixes.py): free first, a Correct kept only when it leaves fewer gaps -------
+
+ROWS = [  # three rows boxed once on a 1000 px concept, laid so the projection is x = 10 across, y = 10 foot
+    {"id": "desk", "count": 1, "size": [1.0, 1.0, 1.0], "boxes": [[150, 400, 250, 500]]},
+    {"id": "rack", "count": 1, "size": [1.0, 1.0, 1.0], "boxes": [[750, 400, 850, 500]]},
+    {"id": "pad", "count": 1, "size": [1.0, 1.0, 1.0], "boxes": [[450, 800, 550, 900]]},
+    {"id": "barrel", "count": 2, "size": [1.0, 1.0, 1.0], "boxes": [[150, 600, 250, 700], [750, 600, 850, 700]]},
+    {"id": "worker", "noun": "person", "count": 1, "boxes": [[480, 200, 520, 300]]},
+    {"id": "crate", "count": 1, "size": [0.6, 0.6, 0.6]}]
+
+
+def stand_in_plan():
+    items = [["DESK 1", 1.5, 4.5, 1.0, 1.0, "N", "item"], ["RACK 1", 7.5, 4.5, 1.0, 1.0, None, "item"],
+             ["PAD 1", 4.5, 8.5, 1.0, 1.0, None, "item"], ["BARREL 1", 7.5, 6.5, 1.0, 1.0, None, "item"],
+             ["WORKER 1", 4.8, 2.8, 0.4, 0.4, None, "item"], ["CRATE 1", 1.8, 4.8, 0.6, 0.6, None, "item"]]
+    return {"w": 10.0, "d": 10.0, "doors": [], "people": [[9.5, 9.5]], "items": items,
+            "rows": {item[0]: [item[0].split(" ")[0].lower()] for item in items},
+            "shapes": {"DESK 1": {"shape": "rect", "seen": ["toward"]}}}
+
+
+def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_the_rest_saying_why():
+    inventory = {"picture": [1000, 1000], "rows": ROWS}
+    plan = stand_in_plan()
+    before = [gap["kind"] for gap in plan_checks.checked(plan, inventory)]
+    assert {"placed", "people", "overlap", "arrangement"} <= set(before)
+    plan, fixes = plan_fixes.fixed(plan, inventory)
+    assert plan["people"][0] == [5.0, 3.0, 0.0, "worker"] and plan["people"][1] == [9.5, 9.5]
+    assert "WORKER 1" not in {item[0] for item in plan["items"]}  # a person is no furniture
+    barrels = sorted((item[1], item[2]) for item in plan["items"] if item[0].startswith("BARREL"))
+    assert barrels == [(1.5, 6.5), (7.5, 6.5)]  # the missing one where its box projects
+    assert {item[0]: item for item in plan["items"]}["DESK 1"][5] == "S"  # it faces the viewer in the concept
+    assert plan_checks.checked(plan, inventory) == [] and len(fixes) == 4
+
+
+def test_a_box_of_things_drawn_apart_is_split_round_its_spread():
+    inventory = {"rows": [{"id": "tree", "count": 4, "size": [1.0, 1.0, 5.0]}]}
+    plan = {"w": 12.0, "d": 12.0, "doors": [], "people": [], "items": [["TREE 1", 1.0, 1.0, 10.0, 10.0, None, "item"]],
+            "rows": {"TREE 1": ["tree"]}, "shapes": {"TREE 1": {"shape": "circle", "count": 4}}}
+    assert plan_checks.run_gaps(plan, inventory)
+    fixes = plan_fixes.split_runs(plan, inventory, None)
+    assert fixes == ["tree 1: split into its 4 things"] and len(plan["items"]) == 4
+    assert all(item[3] == 1.0 and plan["shapes"][item[0]] == {"shape": "circle"} for item in plan["items"])
+    assert not plan_checks.run_gaps(plan, inventory)
+
+
+def test_a_correction_is_kept_only_when_it_leaves_fewer_gaps_and_what_is_left_says_why(monkeypatch):
+    inventory = {"picture": [1000, 1000], "rows": [row for row in ROWS if row["id"] != "barrel"] + [
+        {"id": "stool", "count": 1, "size": [0.5, 0.5, 0.5]}]}  # no box: no free fix places it
+    answers = []
+
+    def correcting(store, place, plan, left, ask):
+        answers.append([gap["words"] for gap in left])
+        laid = plan["items"] + [["STOOL 1", 3.0, 3.0, 0.5, 0.5, None, "item"]] if len(answers) == 1 else plan["items"]
+        return {**plan, "items": laid, "rows": {**plan["rows"], "STOOL 1": ["stool"]}}, {"euros": 0.07}
+    monkeypatch.setattr(plan_fixes, "corrected", correcting)
+    plan, calls = plan_fixes.settled(None, "shed", stand_in_plan(), inventory, ask=None)
+    assert answers == [["stool: 1 in the concept, 0 on the plan"]] and calls == [{"euros": 0.07}]
+    assert plan["gaps"] == [] and "the prompt model corrected 1 gaps" in plan["fixes"]
+    monkeypatch.setattr(plan_fixes, "corrected", lambda *args: (args[2], {"euros": 0.07}))  # changes nothing
+    plan, calls = plan_fixes.settled(None, "shed", stand_in_plan(), inventory, ask=None)
+    assert len(calls) == 1 and [gap["words"] for gap in plan["gaps"]] == [
+        f"stool: 1 in the concept, 0 on the plan: {plan_fixes.WHY['placed']}"]
+
+
+def test_a_row_at_the_concept_s_foot_marked_beyond_is_placed_where_its_box_projects():
+    """2026-10-26: the airlock's sandbags at its picture's foot were marked beyond and had no plan item, and its rows
+    of several things and its rows on the floor plates fitted no projection: now they fit it, and the row is placed."""
+    cube = [1.0, 1.0, 1.0]
+    rows = [{"id": "plates", "anchor": "ground", "count": 1, "boxes": [[0, 500, 1000, 1000]]},
+            {"id": "barrel", "count": 2, "size": cube, "boxes": [[150, 400, 250, 500], [750, 400, 850, 500]]},
+            {"id": "pallet", "anchor": "on:plates", "count": 1, "size": cube, "boxes": [[450, 700, 550, 800]]},
+            {"id": "desk", "count": 1, "size": cube, "boxes": [[750, 200, 850, 300]]},
+            {"id": "sandbags", "anchor": "ground", "count": 1, "size": cube, "boxes": [[450, 900, 550, 1000]]}]
+    items = [["BARREL 1", 1.5, 4.5, 1.0, 1.0, None, "item"], ["BARREL 2", 7.5, 4.5, 1.0, 1.0, None, "item"],
+             ["PALLET 1", 4.5, 7.5, 1.0, 1.0, None, "item"], ["DESK 1", 7.5, 2.5, 1.0, 1.0, None, "item"]]
+    plan = {"w": 10.0, "d": 10.0, "doors": [], "people": [], "items": items, "structure": ["plates"],
+            "beyond": ["sandbags"], "rows": {item[0]: [item[0].split(" ")[0].lower()] for item in items}}
+    inventory = {"picture": [1000, 1000], "rows": rows}
+    assert [gap["row"] for gap in plan_checks.checked(plan, inventory, ["plates"]) if gap["kind"] == "placed"] == [
+        "sandbags"]  # the check lists it, its plan's beyond notwithstanding
+    plan, fixes = plan_fixes.fixed(plan, inventory)
+    assert plan["beyond"] == [] and fixes[0].startswith("sandbags: at the concept's foot")
+    sandbags = [item for item in plan["items"] if item[0] == "SANDBAGS 1"]
+    assert sandbags and (sandbags[0][1], sandbags[0][2]) == (4.5, 9.5)  # its box's foot projects to y = 10
+
+
+# --- the sync pass's plans keep (plans_pass.py): the narrow walk, one moment, a re-fix in its own process --------
+
+KEYS = ["outputs/a.json", "outputs/ab/c.json", "outputs/b.json", "plans/x/edits/1.json", "plans/xy/edits/2.json",
+        "blobs/abc", "top.json"]
+
+
+def test_the_narrow_walk_answers_as_the_whole_walk():
+    with tempfile.TemporaryDirectory() as folder:
+        store = runtime_store.FolderStore(folder)
+        for key in KEYS:
+            store.write_bytes(key, b"{}")
+        store.write_bytes("outputs/half.json.partial", b"")
+        whole = runtime_store.FolderStore.keys
+        for prefix in ("", "outputs/", "outputs/a", "outputs/ab/", "plans/x", "plans/x/", "plans/x/edits/1", "to",
+                       "missing/", "missing/deeper/x"):
+            assert plans_pass.narrow_keys(store, prefix) == whole(store, prefix), prefix
+
+
+def test_the_keep_runs_inside_one_moment():
+    seen = {}
+    before = (runtime_store.FolderStore.keys, plans.main, plans_pass.restored, plans_pass.to_fix, stages.places,
+              plans_pass.parted_first)
+
+    def main(argv):
+        seen["argv"], seen["moment"] = argv, plans.HELD.get() is not None
+        seen["parted before the keep"] = "parted first" in seen
+        seen["narrow"] = runtime_store.FolderStore.keys is plans_pass.narrow_keys
+        print("plans for the plan stage: 1 kept")
+        return 0
+    plans.main = main
+    plans_pass.restored = lambda store: seen.setdefault("restored", plans.HELD.get() is not None)
+    plans_pass.to_fix = lambda store, places: seen.setdefault("fix asked", places) and []
+    plans_pass.parted_first = lambda store, places: (
+        seen.setdefault("parted first", (places, plans.HELD.get() is None)) and ["airlock"])
+    stages.places = lambda world, store: ["shed"]
+    said = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(said):
+            assert plans_pass.main() == 0
+    finally:
+        (runtime_store.FolderStore.keys, plans.main, plans_pass.restored, plans_pass.to_fix, stages.places,
+         plans_pass.parted_first) = before
+    assert seen == {"argv": ["keep"], "moment": True, "narrow": True, "restored": True, "fix asked": ["shed"],
+                    "parted first": (["shed"], True), "parted before the keep": True}, seen
+    assert said.getvalue() == "plans for the plan stage: 1 kept; plans of airlock parted\n", said.getvalue()
+
+
+def test_a_plan_fixed_before_a_fix_it_needs_is_fixed_again_in_a_process_of_its_own():
+    """2026-10-26: the airlock's plan was fixed before rows at the concept's foot were brought in from beyond, so its
+    sandbags stayed unplaced; once fixed again, it is settled."""
+    cube = [1.0, 1.0, 1.0]
+    rows = [{"id": "plates", "anchor": "ground", "count": 1, "boxes": [[0, 500, 1000, 1000]]},
+            {"id": "barrel", "count": 2, "size": cube, "boxes": [[150, 400, 250, 500], [750, 400, 850, 500]]},
+            {"id": "pallet", "anchor": "on:plates", "count": 1, "size": cube, "boxes": [[450, 700, 550, 800]]},
+            {"id": "desk", "count": 1, "size": cube, "boxes": [[750, 200, 850, 300]]},
+            {"id": "sandbags", "anchor": "ground", "count": 1, "size": cube, "boxes": [[450, 900, 550, 1000]]}]
+    items = [["BARREL 1", 1.5, 4.5, 1.0, 1.0, None, "item"], ["BARREL 2", 7.5, 4.5, 1.0, 1.0, None, "item"],
+             ["PALLET 1", 4.5, 7.5, 1.0, 1.0, None, "item"], ["DESK 1", 7.5, 2.5, 1.0, 1.0, None, "item"]]
+    plan = {"w": 10.0, "d": 10.0, "doors": [], "people": [], "items": items, "structure": ["plates"], "fixes": [],
+            "beyond": ["sandbags"], "rows": {item[0]: [item[0].split(" ")[0].lower()] for item in items}}
+    inventory = {"picture": [1000, 1000], "rows": rows}
+    assert plans_pass.unsettled(plan, inventory)
+    fixed, fixes = plan_fixes.fixed(plan, inventory)
+    assert not plans_pass.unsettled({**fixed, "fixes": fixes}, inventory)
+    started = []
+    with tempfile.TemporaryDirectory() as folder:
+        store = Store.in_folder(folder)
+        plans_pass.fixing(store, ["airlock"], lambda command, **options: started.append(command))
+    assert started and started[0][-3:] == ["score.review.plans_pass", "fix", "airlock"], started
+
+
+def test_a_fixed_plan_with_a_pile_is_parted_again_free_and_then_settled():
+    """2026-10-26: the airlock's sandbags stayed in each other after the nudge; the relation solver parts them on a
+    re-fix, free (no Correct asked for overlaps alone), and the parted plan is not fixed again."""
+    items = [[f"SANDBAGS {number}", 1.2, 1.3, 0.6, 0.35, None, "item"] for number in range(1, 7)]
+    plan = {"w": 3.0, "d": 3.0, "doors": [], "people": [], "items": items, "fixes": ["earlier fix"], "gaps": [],
+            "rows": {item[0]: ["sandbags"] for item in items}}
+    inventory = {"rows": [{"id": "sandbags", "anchor": "ground", "count": 6, "size": [0.6, 0.35, 0.15]}]}
+    assert not plans_pass.placing_more(plan, inventory) and plans_pass.unsettled(plan, inventory)
+
+    def ask(body):
+        raise AssertionError("no Correct is asked for overlaps alone")
+    fixed, calls = plans_pass.settled_again(None, "airlock", plan, inventory, ask)
+    assert calls == [] and fixed["fixes"][0] == "earlier fix" and len(fixed["fixes"]) >= 6
+    assert not [gap for gap in fixed["gaps"] if gap["kind"] == "overlap"] and not plans_pass.unsettled(fixed, inventory)
+
+
+def piled():
+    """Six sandbags in one spot on a 3 m floor, fixed once: only the relation solver re-fixes it."""
+    items = [[f"SANDBAGS {number}", 1.2, 1.3, 0.6, 0.35, None, "item"] for number in range(1, 7)]
+    plan = {"w": 3.0, "d": 3.0, "doors": [], "people": [], "items": items, "fixes": ["earlier fix"], "gaps": [],
+            "rows": {item[0]: ["sandbags"] for item in items}}
+    return plan, {"rows": [{"id": "sandbags", "anchor": "ground", "count": 6, "size": [0.6, 0.35, 0.15]}]}
+
+
+def test_an_accepted_plan_row_is_never_parted_and_an_unaccepted_one_is_parted_before_the_keep():
+    """Review of 2026-10-26: plan@habitat stands accepted, so a parted writing would re-key it and every row after it;
+    the airlock's plan is still to run, so it is parted in the pass, before `plans keep` makes its plan row."""
+    plan, inventory = piled()
+    kept = []
+    before = plan_writing.written_of, plans.inventory_of, plan_writing.kept
+    with tempfile.TemporaryDirectory() as folder:
+        store = Store.in_folder(folder)
+        standing = {"plan@habitat": "the accepted output"}
+        store.accepted = standing.get
+        plan_writing.written_of = lambda store, place: {"place": place, "at": "then", "plan": plan}
+        plans.inventory_of = lambda store, place: inventory
+        plan_writing.kept = lambda store, record: kept.append(record) or record
+        try:
+            assert not plans_pass.parting(store, "habitat") and plans_pass.parting(store, "airlock")
+            assert plans_pass.to_fix(store, ["habitat", "airlock"]) == ["airlock"]
+            assert plans_pass.refixed(store, "habitat", "test", plans_pass.unasked) is None
+            assert plans_pass.parted_first(store, ["habitat", "airlock"]) == ["airlock"]
+        finally:
+            plan_writing.written_of, plans.inventory_of, plan_writing.kept = before
+    assert [record["place"] for record in kept] == ["airlock"] and kept[0]["euros"] == 0.0 and kept[0]["calls"] == []
+    assert not plans_pass.unsettled(kept[0]["plan"], inventory)
+
+
+def test_a_plan_that_places_more_is_left_to_its_own_process_not_parted_first():
+    """A re-fix that may ask Corrects (`placing_more`) is never made in the pass: `fixing` makes it under the
+    allowance; the accepted row's placing re-fix still runs there, without the solver."""
+    plan, inventory = piled()
+    plan = {key: value for key, value in plan.items() if key != "fixes"}
+    before = plan_writing.written_of, plans.inventory_of
+    with tempfile.TemporaryDirectory() as folder:
+        store = Store.in_folder(folder)
+        store.accepted = {"plan@habitat": "the accepted output"}.get
+        plan_writing.written_of = lambda store, place: {"place": place, "at": "then", "plan": plan}
+        plans.inventory_of = lambda store, place: inventory
+        try:
+            assert plans_pass.parted_first(store, ["habitat", "airlock"]) == []
+            assert plans_pass.to_fix(store, ["habitat", "airlock"]) == ["habitat", "airlock"]
+        finally:
+            plan_writing.written_of, plans.inventory_of = before
+    asked = []
+    fixed, calls = plans_pass.settled_again(None, "habitat", {**plan, "fixes": []}, inventory, asked.append,
+                                            parts=False)
+    assert fixed["items"] == plan["items"] and calls == [] and asked == []
+
+
+def test_a_done_place_with_no_kept_plan_gets_one():
+    """The wreck, 2026-10-24: an outside place in no tree whose kept plan was taken out is kept again; a place whose
+    plan is kept is not asked again."""
+    asked = {}
+    before = stages.places, plans.keep, plans.KEPT
+    with tempfile.TemporaryDirectory() as folder:
+        plans.KEPT = pathlib.Path(folder)
+        (plans.KEPT / "hangar.json").write_text("{}")
+        stages.places = lambda world, store: ["hangar", "wreck"]
+        plans.keep = lambda store, places: (asked.setdefault("places", places), places)
+        try:
+            assert plans_pass.restored("the store") == ["wreck"]
+        finally:
+            stages.places, plans.keep, plans.KEPT = before
+    assert asked == {"places": ["wreck"]}, asked
