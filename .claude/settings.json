@@ -41,7 +41,7 @@
           },
           {
             "type": "command",
-            "command": "CLAUDE_HOOK=SessionStart python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/scripts/worktree-reap.py\" 2>/dev/null || true",
+            "command": "CLAUDE_HOOK=SessionStart python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/scripts/worktree-reap.py\" 2>>\"${TMPDIR:-/tmp}/worktree-reap.err\" || true",
             "timeout": 20
           }
         ]
