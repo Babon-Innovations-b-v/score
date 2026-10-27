@@ -131,10 +131,14 @@ def painted(entry, kind, place, library):
 
 def shell_entry(name, number, piece, design, said):
     """One shell piece (design_shell.pieces) as a structure entry in the place's frame, its surface not yet given."""
-    points, floor = in_frame(design, piece["points"])
+    points, floor = in_frame(design, piece.get("points") or [piece["centre"]])
     entry = {"name": name if number == 0 else f"{name}_{number + 1}", "builder": piece["builder"], "points": points,
              "plain": "shell", "from": said}
-    if piece["builder"] == "gable":
+    if piece["builder"] == "dome":
+        del entry["points"]
+        entry.update(centre=points[0], radius=round(piece["radius"], 4), base=round(floor + piece["base"], 4),
+                     rise=round(piece["rise"], 4), layer=2)
+    elif piece["builder"] == "gable":
         entry.update(eave=round(floor + piece["eave"], 4), top=round(floor + piece["top"], 4), layer=2)
     else:
         entry.update(low=round(floor + piece["low"], 4), high=round(floor + piece["high"], 4))

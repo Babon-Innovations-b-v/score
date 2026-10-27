@@ -177,6 +177,29 @@ def test_a_room_shell_stands_round_its_plan():
     assert abs(volume(pitched["roof_1"]) - 4.3 * 3.3 * 1.0 / 2) < 1e-6, volume(pitched["roof_1"])
 
 
+def test_a_dome_roof_stands_as_a_dome():
+    """Batch 1 of 2026-10-27: the greenhouse's glass dome stood as a gable along its box's longer side, so over its
+    3 m walk two of the five astronauts its concept stands there ran into the roof and the cast left them out. A dome
+    is a sphere's cap over the circle round the grown box's middle (2.15 x 1.65 m to a corner, so 2.7102 m), rising
+    from its eave to its top, as tools/usd/builders' `dome` draws it from the scene record's entry.
+    Break: score/stages/earth_seed/design_shell.py: `domed = entry.get("kind") == "dome"` -> `domed = False`"""
+    sys.path.insert(0, str(REPO / "tools" / "usd"))
+    import builders
+    from score.stages.scene_record import writer
+    domed = dict(ROOM, roofs=[{"kind": "dome", "points": BOX, "eave": 2.5, "top": 4.0}])
+    name, (piece,), said = design_shell.roofs(domed, design_shell.outline_of(domed), 2.5)[0]
+    assert piece["builder"] == "dome" and "a dome" in said, (piece, said)
+    assert numpy.allclose(piece["centre"], [2.0, 1.5]) and abs(piece["radius"] - (2.15 ** 2 + 1.65 ** 2) ** 0.5) < 1e-9
+    roof = numpy.asarray({part: triangles for part, triangles, _ in design_shell.shell(domed)}["roof_1"]).reshape(-1, 3)
+    assert abs(roof[:, 1].max() - 4.0) < 1e-9 and abs(roof[:, 1].min() - 2.5) < 1e-9, (roof[:, 1].min(), roof[:, 1].max())
+    entry = writer.shell_entry(name, 0, piece, domed, said)
+    drawn = builders.dome(**{key: entry[key] for key in ("radius", "base", "rise", "centre")}, surface=None)["points"]
+    # the record keeps its numbers to 0.1 mm
+    seed = design_shell.placed(roof, domed)
+    apart = numpy.linalg.norm(seed[:, None] - numpy.asarray(drawn)[None], axis=2)
+    assert apart.min(axis=1).max() < 1e-3 and apart.min(axis=0).max() < 1e-3, "the record's dome is not the seed's"
+
+
 def test_a_door_or_window_row_cuts_its_opening_where_its_plan_item_stands_on_a_wall():
     """2026-10-26: Batch 1's doors and windows stood at plan items the plan's openings missed, against uncut walls. A
     row filling an opening (a door, window, gate, hatch or shutter, a panel) cuts one at its item on a wall, its own

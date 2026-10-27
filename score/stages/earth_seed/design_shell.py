@@ -15,8 +15,10 @@ raised levels (the street, the square, the base: a plan that encloses nothing), 
            height (else the height words' ceiling, else STOREY), raised to a roof's eave over it; each opening on it
            (a door, window, gate or opening: a written plan's `openings`, else a data plan's `doors`) cut from its
            sill to its head
-    roof   (a room) each written roof over its points out to the walls: a flat one a slab on its eave; one rising
-           (shed, pitched, dome, vault) a closed gable along its box's longer side; no written roof, a flat one on
+    roof   (a room) each written roof over its points out to the walls: a flat one a slab on its eave; a dome a
+           sphere's cap over the circle round its box's middle (builders' `dome`), so the people the concept stands
+           under it fit (the greenhouse's upper walk, Batch 1 of 2026-10-27); one rising otherwise (shed, pitched,
+           vault) a closed gable along its box's longer side; no written roof, a flat one on
            the walls' height
     level  (an open place: no room, and a plan that encloses nothing, `encloses`) each level standing off the ground by
            more than LEVEL_OFF: one up to STOREY high stands solid from the ground (a raised deck, a
@@ -171,6 +173,20 @@ def gable(points, eave, top):
                   [corners[0], corners[1], ridge[0]], [corners[2], corners[3], ridge[1]]]
     box = [[west, north], [east, north], [east, south], [west, south]]
     return [[one, three, two] for one, two, three in inward + cap(box, eave, True)]
+
+
+def dome(centre, radius, base, rise, rings=12, segments=48):
+    """A dome's cap as tools/usd/builders' `dome` draws it, in plan metres [x, up, y]: a sphere's cap over a circle of
+    `radius` round `centre` from `base` up `rise`."""
+    sphere = (radius ** 2 + rise ** 2) / (2 * rise)
+    lowest = np.arcsin(min(1.0, radius / sphere))
+    rows = [[[centre[0] + sphere * np.sin(polar) * np.sin(azimuth), base + sphere * np.cos(polar) - (sphere - rise),
+              centre[1] - sphere * np.sin(polar) * np.cos(azimuth)]
+             for azimuth in np.linspace(0.0, 2 * np.pi, segments + 1)]
+            for polar in lowest * (1 - np.arange(rings + 1) / rings)]
+    return [triangle for ring in range(rings) for segment in range(segments)
+            for triangle in ([rows[ring][segment], rows[ring + 1][segment], rows[ring][segment + 1]],
+                             [rows[ring][segment + 1], rows[ring + 1][segment], rows[ring + 1][segment + 1]])]
 
 
 # --- walls -------------------------------------------------------------------------------------------------------
@@ -386,13 +402,25 @@ def roofs(plan, outline, high):
         points, eave = grown(outline_of({"outline": entry["points"]})), float(entry["eave"])
         top = float(entry.get("top") or eave)
         rising = top > eave + 1e-6
-        piece = {"builder": "gable", "points": [[float(x), float(y)] for x, y in points], "eave": eave, "top": top} \
+        domed = entry.get("kind") == "dome"
+        piece = (dome_piece(points, eave, top) if domed else
+                 {"builder": "gable", "points": [[float(x), float(y)] for x, y in points], "eave": eave, "top": top}) \
             if rising else slab_piece(points, eave, eave + SLAB)
         found.append((f"roof_{number}", [piece],
                       f"the plan's {entry.get('kind', 'flat')} roof, eave {eave:g} m" +
-                      (f", top {top:g} m: a gable along its box's longer side" if rising else
+                      (f", top {top:g} m: " + ("a dome over the circle round it" if domed else
+                                               "a gable along its box's longer side") if rising else
                        f": a slab {SLAB:g} m thick on it")))
     return found
+
+
+def dome_piece(points, eave, top):
+    """A dome over an outline (plan metres), in the numbers tools/usd/builders' `dome` takes: a sphere's cap from the
+    eave up to the top over the circle round the outline's box middle that holds every point."""
+    centre = (np.min(points, axis=0) + np.max(points, axis=0)) / 2
+    radius = float(np.max(np.linalg.norm(np.asarray(points, float) - centre, axis=1)))
+    return {"builder": "dome", "centre": [float(centre[0]), float(centre[1])], "radius": radius, "base": float(eave),
+            "rise": float(top - eave)}
 
 
 def lowest_eave(plan):
@@ -429,6 +457,8 @@ def solid(piece):
     """A piece's triangles [[[x, up, y] x 3]] in plan metres."""
     if piece["builder"] == "gable":
         return gable(piece["points"], piece["eave"], piece["top"])
+    if piece["builder"] == "dome":
+        return dome(piece["centre"], piece["radius"], piece["base"], piece["rise"])
     return prism(piece["points"], piece["low"], piece["high"])
 
 
