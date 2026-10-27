@@ -440,7 +440,7 @@ def test_a_pixal_fleet_takes_a_parked_card_before_it_orders_one(calls, monkeypat
 def test_this_pcs_card_is_taken_free_one_claim_at_a_time_and_never_parked(calls, monkeypatch):
     held = []
 
-    def take(kind, public_key):
+    def take(kind, public_key, need=None):
         if kind == "judge":
             raise ValueError("a judge job needs about 30 GB of card")
         if held:

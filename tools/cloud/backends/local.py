@@ -12,8 +12,9 @@ One claim at a time over the whole PC (a file lock, `take`): the card is never s
 that finds it busy gets None and its runner waits and asks again (batch.claim_rounds polls park.adopt). Its offers are
 always `parked`, so batch.rent never orders anything: the machine is only ever taken through park.adopt
 (park.here), which asks no clearance, since it costs nothing (price 0; the ledger's rows carry the measured minutes
-at EUR 0). A kind that needs more card than this PC has (TOO_BIG) is refused at its claim with the reason, never run
-to an out-of-memory; it stays a cloud job. `delete` restarts the container, which ends whatever a job left running on
+at EUR 0). A job that needs more card or memory than this PC has is refused at its claim with the reason, never run
+to an out-of-memory; it stays a cloud job. The need is the job's own measure when its run gives one (a characters
+run of clip steps only: characters.card_need), else its kind's (TOO_BIG). `delete` restarts the container, which ends whatever a job left running on
 the card (a detached worker), and keeps its files.
 
 The interface is provider.py's; what has no meaning here (accounts, addresses, disks, the registry and the object
@@ -37,7 +38,8 @@ ZONE = "this-pc"
 IMAGE = "score-this-pc:1"
 CARD_GB = 16  # the RTX 5080 (the desktop holds part of it while Windows runs)
 CARD_CLASS = f"gpu-{CARD_GB}gb"
-# The kinds that need more card than CARD_GB, in GB (tools/cloud/capacity.py KINDS' notes): cloud-only.
+# The kinds that need more card than CARD_GB, in GB (tools/cloud/capacity.py KINDS' notes): cloud-only unless a run
+# gives its own smaller measured need (characters: 17 is Kimodo with its text encoder on the card, the whole machine).
 TOO_BIG = {"judge": 30, "pictures-20b": 58, "characters": 17, "meshparts": 24, "moss-sound": 15.6}
 # Classes this PC answers for: a single card of at most 24 GB (the jobs that ask one fit on 16 GB unless TOO_BIG says
 # otherwise) and every processor class (24 cores here; a job takes longer, never fails for it).
@@ -93,19 +95,25 @@ def month_spend(_account):
     return 0.0
 
 
-def refusal(kind):
-    """Why a job of `kind` cannot run on this PC's card, or None."""
-    needs = TOO_BIG.get(kind)
-    if needs is None:
-        return None
-    return (f"a {kind} job needs about {needs} GB of card and this PC has {CARD_GB} GB: it stays a cloud job "
-            f"(SCORE_CLOUD=local runs it nowhere)")
+def refusal(kind, need=None):
+    """Why a job of `kind` cannot run here, or None: its card GB (`need`'s "card_gb", else TOO_BIG's for the kind)
+    past CARD_GB, or its system memory GB (`need`'s "memory_gb") past the container's (memory_cap)."""
+    need = need or {}
+    card = need.get("card_gb", TOO_BIG.get(kind))
+    if card is not None and card > CARD_GB:
+        return (f"a {kind} job needs about {card} GB of card and this PC has {CARD_GB} GB: it stays a cloud job "
+                f"(SCORE_CLOUD=local runs it nowhere)")
+    memory = need.get("memory_gb")
+    if memory is not None and memory > int(memory_cap()[:-1]):
+        return (f"a {kind} job needs about {memory} GB of memory and this PC's machine has {memory_cap()}: it stays "
+                f"a cloud job (SCORE_CLOUD=local runs it nowhere)")
+    return None
 
 
-def take(kind, public_key):
+def take(kind, public_key, need=None):
     """This PC's machine for one claim, held by this process until `delete`: {id, zone, type, class, cards, price,
-    unit_minutes, host, disk_gb, here}; None while another claim holds it. ValueError for a kind TOO_BIG."""
-    refused = refusal(kind)
+    unit_minutes, host, disk_gb, here}; None while another claim holds it. ValueError for a job too big (refusal)."""
+    refused = refusal(kind, need)
     if refused:
         raise ValueError(refused)
     LOCK.parent.mkdir(parents=True, exist_ok=True)

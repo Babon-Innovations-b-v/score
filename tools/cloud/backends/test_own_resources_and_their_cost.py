@@ -41,6 +41,10 @@ The invariants, each with the break that turns its test red (each applied once a
   Break: `return not found.group(2) and int(found.group(1)) <= 24` -> `return True` in `serves` -> gpu-80gb is offered.
   Break: drop `| fcntl.LOCK_NB` handling (return the machine without the lock) in `take` -> a second claim gets it.
   Break: in `delete`, drop the `except BlockingIOError: ... return False` -> another claim's container is restarted.
+- A job is refused by its measured need, not its kind: a characters run of clip steps (4 GB of card, 17 GB of memory
+  with the encoder on the processor) takes this PC, a whole characters machine (17 GB of card) or a need past the
+  container's memory does not. Break: `card = TOO_BIG.get(kind)` in `refusal` -> the clip run is refused; or drop the
+  memory check -> the 40 GB job is taken.
 """
 import json
 import pathlib
@@ -413,3 +417,15 @@ def test_this_pc_orders_nothing_costs_nothing_and_holds_one_claim(monkeypatch, t
     assert local.delete("score-this-pc:another", "this-pc") is False and not restarted  # a watchdog's late delete
     assert local.delete(first["id"], "this-pc") is True and restarted  # its own claim ends: the container restarted
     assert local.take("pixal", "key") is not None
+
+
+def test_this_pc_refuses_a_job_by_its_measured_need_not_its_kind(monkeypatch, tmp_path):
+    import local
+    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
+    monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
+    monkeypatch.setattr(local, "memory_cap", lambda: "35g")
+    with pytest.raises(ValueError, match="17 GB of card"):
+        local.take("characters", "key")  # the whole machine: Kimodo's encoder on the card
+    with pytest.raises(ValueError, match="40 GB of memory"):
+        local.take("characters", "key", {"card_gb": 4, "memory_gb": 40})
+    assert local.take("characters", "key", {"card_gb": 4, "memory_gb": 17})["here"]

@@ -387,11 +387,12 @@ def here(run, number, kind):
     """This PC's machine (backends/local.py) for `run`, or None while another claim holds it, so the claim waits and
     asks again (batch.claim_rounds). Never rented, so no clearance is asked: it costs nothing. Its set-up stays from
     the last job but for the newest set-up mark (STALE_MARKS); a kind too big for its card is refused (compute's
-    Refused, naming the GB), never run into an out-of-memory."""
+    Refused, naming the GB), never run into an out-of-memory; by the run's own measured need (`run.need`) when it
+    has one."""
     if not getattr(run, "deadline", None):
         return None
     try:
-        found = cloud.take(kind, batch.ssh_key())
+        found = cloud.take(kind, batch.ssh_key(), getattr(run, "need", None))
     except ValueError as too_big:
         raise batch.compute.Refused(str(too_big)) from too_big
     if found is None:
