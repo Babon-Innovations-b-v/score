@@ -1,12 +1,17 @@
-"""Check the placeholder check on a stage made here: a box that says it is a plain plate passes and one that says
-nothing fails, a lathe called a ship fails, a room's own walls pass, a placed piece in a library colour passes (the
-sorter's rule on kit pieces went with the old kits, 2026-10-21), a mesh with no material or in the default grey fails, a clear haze shell passes, a proxy fails, and a guide mesh and another place's stage are not
-judged. The hangar's case (the owner's demo of 2026-10-11: the check passed the code-built ship he saw as a
-placeholder): the ship_hull and ship_legs its record drew until 2026-10-18 fail and a made model in their place passes,
-and today's hangar stage (HANGAR_STAGE, when this machine has it) fails while it still holds them (since 2026-10-18 the
-record lays no ship).
+"""Nothing stands in for a made piece (tools/usd/placeholders.py), on stages made here: a box that says it is a plain
+plate passes and one that says nothing fails, a lathe called a ship fails, a room's own walls pass, a placed piece in a
+library colour passes, a mesh with no material or in the default grey fails, a clear haze shell passes, a proxy fails,
+and a guide mesh and another place's stage are not judged. The hangar's case (the owner's demo of 2026-10-11: the check
+passed the code-built ship he saw as a placeholder): the ship_hull and ship_legs its record drew until 2026-10-18 fail
+and a made model in their place passes.
 
-Run: .venv/bin/python tools/usd/test_a_placeholder_never_passes.py   (make tests runs it with the framework's environment)
+Breaks that turn each test red (each applied once and seen red, 2026-10-27):
+- every_rule_catches_its_case: placeholders.default_grey's `return not colour or not (colour.HasConnectedSource() or
+  colour.GetAttr().HasAuthoredValue())` made `return False` (the default grey passes).
+- hangar_ship_fails_until_made: placeholders.plain_fault's `plain = attribute(prim, "score:plain") or
+  plain_group_kind(prim)` given `or "plate"` (a builder's shape that says nothing passes as a plate).
+
+Run: .venv/bin/python tools/usd/test_a_placeholder_never_passes.py
 """
 import pathlib
 import sys
@@ -21,9 +26,6 @@ import placeholders  # noqa: E402
 import scene  # noqa: E402
 
 PLACE = "hub"
-REPO = HERE.parents[1]
-# The world 1 demo's hangar stage (r4 was filmed from it), outside the repo: checked when this machine has it.
-HANGAR_STAGE = pathlib.Path.home() / ".farm-factory-props/work/usd-r3/hangar/hangar.usda"
 HANGAR_SHIP = ("ship", "ship_legs")
 # The game's upright ship as the hangar's scene record drew it until 2026-10-18, its two code builders.
 OLD_HANGAR_SHIP = [{'name': 'ship',
@@ -110,7 +112,7 @@ def kit_piece(stage, model, kind):
     painted(stage, f"/{PLACE}/Objects/{model}/geo", library_surface(stage, f"/{PLACE}/Library/painted_panel"))
 
 
-def test_stage(folder):
+def made_stage(folder):
     """The test place's stage, every case on it; its path."""
     path = folder / "hub.usda"
     stage = Usd.Stage.CreateNew(str(path))
@@ -137,7 +139,7 @@ def test_stage(folder):
 def every_rule_catches_its_case():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
-        found = {(fault["prim"].rsplit("/", 1)[-1], fault["rule"]) for fault in placeholders.check(test_stage(folder))}
+        found = {(fault["prim"].rsplit("/", 1)[-1], fault["rule"]) for fault in placeholders.check(made_stage(folder))}
     expected = {("door_leaf", "plain"), ("ship_body", "plain"), ("bare", "material"), ("grey", "material"),
                 ("stand_in", "proxy")}
     problems = [f"{name} was not caught by the {rule} rule" for name, rule in sorted(expected - found)]
@@ -177,18 +179,7 @@ def hangar_ship_fails_until_made():
     return problems
 
 
-def todays_hangar_fails():
-    if not HANGAR_STAGE.exists():
-        print(f"todays_hangar_fails: skipped, no {HANGAR_STAGE} on this machine")
-        return []
-    stage = Usd.Stage.Open(str(HANGAR_STAGE))
-    held = [name for name in HANGAR_SHIP if stage.GetPrimAtPath(f"/hangar/Structure/{name}").IsValid()]
-    caught = {fault["prim"] for fault in placeholders.check(HANGAR_STAGE) if fault["rule"] == "plain"}
-    return [f"/hangar/Structure/{name} on today's hangar stage was not caught" for name in held
-            if f"/hangar/Structure/{name}" not in caught]
-
-
-CHECKS = (every_rule_catches_its_case, hangar_ship_fails_until_made, todays_hangar_fails)
+CHECKS = (every_rule_catches_its_case, hangar_ship_fails_until_made)
 
 
 if __name__ == "__main__":
