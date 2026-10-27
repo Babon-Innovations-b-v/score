@@ -31,6 +31,7 @@ rented machine.
   record): they wait until the place's line has landed it. Run with
   `python -m score run world1 --place habitat --stage physics-trial --detach`, only when `python -m score.stages status
   habitat` shows `assembly@habitat` accepted (else `--stage` drives the place's surface line).
-- Tests: `physics_test.py` here (measures and gates on a written run), `tools/usd/physics_test.py` (the layers on a toy
-  place; `physics_test.py <folder>` keeps the toy for a Blender run of seconds:
+- Tests: `test_the_trial_comes_from_the_design_and_each_gate_fails_its_break.py` here (the trial from a design on
+  the toy place, and measures and gates on a written run), tools/usd's physics test (the layers on a toy place; run
+  with a `<folder>` it keeps the toy for a Blender run of seconds:
   `python3 tools/blender/session.py batch score/stages/physics/inside/physics_trial.py -- <folder>/toy/toy.usda out.json`).
