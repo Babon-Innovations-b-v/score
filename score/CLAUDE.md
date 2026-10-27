@@ -203,7 +203,7 @@ stage as each stage is built; nothing moves before.
   path), brightest first, and every backdrop; the data the engine runs live. `scene_sky.py` keeps each scene's sky
   inputs where its light layer reads them (`{home}/design/sky/<scene>.json`: the physics, and the site and scene time
   of the top scene it stands in), on `python -m score.review.plans keep`.
-- **`adapters/`** `models` (pinned images and models from `tools/cloud/images`; `claude_code.py`, a Gemini-shaped ask answered by a headless `claude -p` on the owner's subscription, pinned to claude-opus-5-5, cached and ledgered at EUR 0, used by no step yet: paid rows run on the conductor, which has no Claude Code), `compute` (`clearance`: the runner's
+- **`adapters/`** `models` (pinned images and models from `tools/cloud/images`; `claude_code.py`, a Gemini-shaped ask answered by a headless `claude -p` on the owner's subscription, pinned to claude-opus-5-5, cached and ledgered at EUR 0; the finish route's palette, library, list and recheck ask through it since 2026-10-27, env1 running on the owner's PC (`tools/cloud/this_pc.py`), and on a machine without Claude Code, the conductor, they stop with "runs on this PC", never asking Gemini instead), `compute` (`clearance`: the runner's
   ticket for a node whose inputs passed and stand accepted, when the month's books are known and the stop line (or a
   benchmark grant) has room for its forecast with every open reservation (no month's ceiling: owner, 2026-10-20),
   cleared under one lock so two lines never both spend the last euros; kept

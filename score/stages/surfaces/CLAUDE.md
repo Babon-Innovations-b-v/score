@@ -109,6 +109,18 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   library surface fits" names it (`gate:finish-route-recheck/library surface fits:<take>`), Gemini's token,
   roughness and metal kept as the gap's `suggested`, never applied. The list's settings never edit
   materials.json.
+- **Claude asks the palette, library, list and recheck** (coordinator for the owner, 2026-10-27, after the
+  side-by-side on #36: Claude matched or beat Gemini on each, every gate passed): the table wraps their makes
+  (`score/stages/__init__.py`, `claude_asks.asking_claude` on `claude_asks.ROWS`): the module's own make runs with its
+  `ask` sending Gemini's request as it was to
+  `score/adapters/models/claude_code.py` (`claude -p`, claude-opus-5-5, the owner's subscription, EUR 0, cached and
+  ledgered), never route_ask's Batch API. The switch sits there and in the framework's table, not in scene_palette.py,
+  scene_library.py or this folder's `__init__.py`, because body_faces.py and ground-join read those: editing them would
+  re-key rows that do not switch. Environment 1 runs on the owner's PC
+  (`tools/cloud/this_pc.py`); on a machine with no Claude Code (the conductor) the row stops with "runs on this PC",
+  never asking Gemini instead. Their `paid` and `euros` in the table still read as Gemini's until a measured run.
+  body-face stays on Gemini (no reference to judge a face by). Where the rest of this overlay says Gemini or the
+  Batch API for these four rows, read Claude.
 - **The bodies' faces are environment rows, one a body** (`body_faces.py`, `body-face-<body>`, paid, 2026-10-22: score_lib
   withdrew every old surface, so nothing made `earth_face` and the like): each body of the environment concept's
   setting that does not shine gets one Gemini 3.1 Pro ask in the Batch API, from the concept in force alone (its style
