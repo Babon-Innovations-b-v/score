@@ -18,7 +18,7 @@ import pathlib
 import subprocess
 
 from score import checks, contracts, graph
-from score.stages.earth_seed import design_shell
+from score.stages import shell_parts
 import score.stages.surfaces.palette_library as palette_library  # the module alone in the key, not the surface line
 import score.stages.surfaces.surface_data as surface_data
 from score.store import PROPS_HOME
@@ -53,9 +53,8 @@ def read(path):
 def shell_kinds(design):
     """The part kinds of the shell the scene record lays from the locked plan `design` (scene_record.writer
     `structure`), sorted: an enclosed place's deck, walls and roof where its base does not lay them
-    (design_shell.laid_for), and `stair` for the plan's flights."""
-    kinds = {design_shell.part_kind(name) for name, _, _ in design_shell.pieces(design)} \
-        if design_shell.encloses(design) and not design_shell.laid_for(design) else set()
+    (shell_parts.laid_for), and `stair` for the plan's flights."""
+    kinds = shell_parts.parts(design) if shell_parts.encloses(design) and not shell_parts.laid_for(design) else set()
     if any(len(entry.get("points") or []) >= 3 for entry in design.get("stairs") or []):
         kinds.add("stair")
     return sorted(kinds)

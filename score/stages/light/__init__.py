@@ -59,7 +59,7 @@ from PIL import Image
 from score import checks, contracts, graph
 from score.stages.light import haze, layer, measure, mix, needs, passes, sky
 from score.stages.light.passes import groups_of, neighbours, views_of
-from score.stages.scene_record import writer
+from score.stages.scene_record import concept_light
 from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -255,10 +255,10 @@ LAYERED = contracts.Contract("light-layer", 1, layer_faults, {"length": "metre",
 def layer_files(place):
     """The kit (its seat, its lenses: passes.place_files), the seed, the surface library's method (a shining body's
     disc is its glowing recipe), the library's lamp (its concept's fill), the scene's kept sky (sky.kept_input) and its
-    concept's light (writer.concept_light_input) when it has them; the record is the scene-record row's output."""
+    concept's light (scene_record.concept_light) when it has them; the record is the scene-record row's output."""
     return {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
             "library": "{data}/library/materials.json", "lamp library": "{data}/library/lamps.json",
-            **passes.place_files(place), **sky.kept_input(place), **writer.concept_light_input(place)}
+            **passes.place_files(place), **sky.kept_input(place), **concept_light.concept_light_input(place)}
 
 
 # --- light: the sweep, the strengths and the measures ------------------------------------------------------------

@@ -48,7 +48,7 @@ from score import contracts
 from score.review import overhead
 from score.stages import row_kinds
 from score.stages.earth_seed import design_shell
-from score.stages.scene_record import far
+from score.stages.scene_record import concept_light, far
 from score.stages.scene_record import plan as place_plan
 import score.stages.shapes_first.floor_fit as floor_fit
 
@@ -85,15 +85,7 @@ def files(place):
     return {"inventory": "{home}/design/inventory/{place}.json", "plans": "{home}/design/plans",
             "sky": "{home}/design/sky/{place}.json", "row kinds": "{data}/checks/row-kinds.json",
             "lamp library": "{data}/library/lamps.json", "places": "{data}/definitions/place.json",
-            "hand-in": "{home}/design/props/{place}.json", **concept_light_input(place)}
-
-
-def concept_light_input(place):
-    """{"concept light": its kept path pattern} once the place's concept's light is read (reading.concept_light,
-    kept by plans.keep), else {}: a place read before it was asked keeps its row-kind lamps alone."""
-    from score.review import plans
-    return {"concept light": "{home}/design/light/{place}.json"} if (plans.KEPT_LIGHT / f"{place}.json").is_file() \
-        else {}
+            "hand-in": "{home}/design/props/{place}.json", **concept_light.concept_light_input(place)}
 
 
 def read(path):

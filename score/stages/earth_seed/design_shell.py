@@ -52,6 +52,7 @@ import numpy as np
 
 from score.stages.scene_record import plan as place_plan
 import score.stages.surfaces.palette_library as palette_library  # the module alone in the key, not the surface line
+from score.stages.shell_parts import LEVEL_OFF, encloses, laid_for, part_kind, raised  # noqa: F401
 
 # The scene record's backing shell (scene_record.writer BACKING, DECK_BELOW; held equal by the test): the shell stands
 # this far behind the plan's inside line and the deck this far under the floor. Both take each part's surface from the
@@ -63,7 +64,6 @@ THICK = 0.3  # metres of a wall the plan gives no thickness
 STOREY = 3.0  # metres of a wall neither the plan nor its words give a height
 DOOR_HEAD = 2.1  # metres of a door's head the plan gives none
 ON_WALL = 0.3  # metres an opening may stand off its wall's line past the wall's thickness and still be cut in it
-LEVEL_OFF = 0.05  # metres a level stands off the ground before it is drawn as a level of its own
 CEILING = re.compile(r"\bceiling[^0-9;,]*?(\d+(?:\.\d+)?) ?m\b")
 DOOR_SIZE = re.compile(r"\d+(?:\.\d+)? ?x ?(\d+(?:\.\d+)?) ?m")  # a data door's words "(0.9 x 2.0 m)": its height
 ROOT = "Shell"
@@ -429,19 +429,6 @@ def lowest_eave(plan):
     return min(eaves) if eaves else None
 
 
-def laid_for(plan):
-    """Whether the earth seed lays the plan's room shell (module docstring, `room`): a `kit` shell inside, or, its
-    inside not said, one that writes walls. The scene record lays every other enclosed place's (scene_record.writer)."""
-    inside = plan.get("inside")
-    return plan.get("shell") == "kit" and (bool(inside) if inside is not None else bool(plan.get("walls")))
-
-
-def encloses(plan):
-    """Whether the plan encloses its place: walls or roofs drawn, and no ground of its own (terrain spots), as the scene
-    record reads it (scene_record.writer `inside`, held equal by the test), which then lays its shell."""
-    return bool(plan.get("walls") or plan.get("roofs")) and not (plan.get("terrain") or {}).get("spots")
-
-
 def pieces(plan):
     """[(name, pieces, what it was made from)] of the plan's room shell, each piece a builder's numbers in plan metres
     (points [[x, y]]): a `slab` (points, low, high) or a `gable` (points, eave, top), as tools/usd/builders takes them
@@ -472,9 +459,9 @@ def levels(plan):
     """[(name, triangles, from)] of an open place's raised levels (module docstring, `level`)."""
     found = []
     for number, level in enumerate(plan.get("levels") or [], 1):
-        height = float(level.get("height") or 0.0)
-        if len(level.get("points") or []) < 3 or abs(height) <= LEVEL_OFF:
+        if not raised(level):
             continue
+        height = float(level.get("height") or 0.0)
         points = outline_of({"outline": level["points"]})
         standing = 0.0 < height <= STOREY
         found.append((f"level_{number}", prism(points, 0.0 if standing else height - SLAB, height),
@@ -509,11 +496,6 @@ def arches(plan, rows):
     tied, shapes = plan.get("rows") or {}, plan.get("shapes") or {}
     return [(by_id[row_id], item, shapes.get(item[0]) or {}) for item in plan.get("items") or []
             if len(item) <= 6 or item[6] == "item" for row_id in tied.get(item[0]) or [] if row_id in by_id]
-
-
-def part_kind(name):
-    """A part's kind from its name (`wall_3`: wall)."""
-    return name.rsplit("_", 1)[0]
 
 
 # --- the scene's surfaces -----------------------------------------------------------------------------------------

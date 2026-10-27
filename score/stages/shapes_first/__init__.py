@@ -28,7 +28,6 @@ from score.stages import props, rough_model, scene_record, surfaces
 import score.stages.people.loop as people_loop
 import score.stages.props.closeup_row as closeup_row
 import score.stages.props.prop_data as prop_data
-import score.stages.earth_seed as earth_seed
 import score.stages.shapes_first.align as align
 import score.stages.shapes_first.made as made
 from score.stages.surfaces.surface_gates import guarded
@@ -52,7 +51,7 @@ TERRAIN = Adapter(ground_join.LAYER, after=(graph.Stage("ground-join", "place", 
 # The kit's layer: a scene's shell pieces and fittings, as inventory rows; nothing after the model (the old kits'
 # sections, kit-sections, and code fallbacks, earth-kit, went with the old kits on 2026-10-21; a scene's own shell is
 # its earth seed's, laid from its locked plan, earth_seed/design_shell.py).
-KIT = Adapter(earth_seed.KIT_LAYER)
+KIT = Adapter("kit")  # its own word: earth_seed's module (and the shell code behind it) keys no loop row
 # The people layer: every look a row, on the line `people`, which no place owns (align.NO_PLACE); after the model, the
 # looks handed on (score/stages/people/loop.py; each look's parts row, before its rig, and its dress row read it).
 PEOPLE = Adapter("people", after=(graph.Stage(people_loop.ROW, "place", people_loop.make, people_loop.CONTRACT,

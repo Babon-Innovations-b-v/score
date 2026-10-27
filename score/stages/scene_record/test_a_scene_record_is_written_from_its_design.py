@@ -396,8 +396,12 @@ def test_a_row_its_concept_shows_glowing_gets_a_light_in_its_colour():
         -> `"energy": round(energy * light["strength"], 4),`
     Break: score/stages/scene_record/writer.py:
         `for row in inventory["rows"] if row["id"] in shown and row.get("anchor") != "sky"}`
-        -> `for row in inventory["rows"] if row["id"] in shown}`"""
-    from score.stages.scene_record import writer
+        -> `for row in inventory["rows"] if row["id"] in shown}`
+    Break: score/stages/scene_record/concept_light.py: `PROPS_HOME / "design" / "light"` -> `PROPS_HOME / "light"`
+        (the row reads its concept light where plans.keep keeps none)"""
+    from score.review import plans
+    from score.stages.scene_record import concept_light, writer
+    assert concept_light.KEPT_LIGHT == plans.KEPT_LIGHT
     design = {**WRITTEN, "items": [["CORE", 3.0, 2.0, 1.0, 1.0, None, "item"], ["ENGINE", 1.0, 1.0, 2.0, 1.0, None,
                                                                                   "item"],
                                    ["SKY", 0.0, 0.0, 1.0, 1.0, None, "item"]],
