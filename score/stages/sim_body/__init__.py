@@ -1,50 +1,59 @@
 """The sim body stage (experimental, #65; PRD #56): row `sim-body@<place>`, every character of the place's accepted cast
-as a physical body on Newton (CONTEXT.md "sim body"), for a place whose design shows people.
+as a musculoskeletal body, MyoFullBody (MyoSuite's: its bones, joints, 416 muscles and their tendons), doing its clip
+on the scene's own ground (CONTEXT.md "sim body"), for a place whose design shows people.
 
-    make     each character of cast.json (its singles; the crowd, which is retiring, is left out by name) gets a body
-             built straight from SOMA's segments at the person's own build: people-clips-made's rig.npz moved onto its
-             look's built body (people-body-<look>'s rig.npz, an optional read: its bind, its moved mean surface, every
-             clip's joint offsets the built ones and the travel scaled by its Hips' height over the rig's, as
-             prop_build.py plays the clips; the rig's own size, named, with none taken) (the 23 kept joints: one rigid
-             segment a joint at its bind frame, a free root and ball joints, no template resizing): each segment's share
-             of the mass and its inertia from the closed surface cut into VOXEL cubes, each owned by its nearest
-             vertex's strongest skin weight, a box collider round its own volume; its mass the stated weight when the
-             cast gives one (`weight`, kg), else its height (`height`, m, else the body's own standing height) squared
-             times the reference BMI of its sex (`sex`, else the mean of both), marked estimated. It stands on the
-             scene's own ground: every solid of the stage the cast is measured on (the seed's base layer with its scene
-             record written in, on the terrain row's made ground: layer_base.built and cast/measure.solids, so steps,
-             decks and slopes are there), the triangles within REACH of its clip's path, in the frame its skeleton plays
-             in (its spot and turn, then the dressed body's Turned: own_frame), a ground only it meets; a body with none
-             is left out by name. It plays its clip (`doing`, the rig's clip_<doing>): Newton's eval_ik turns the clip's
-             segment frames into joint angles, MuJoCo position actuators drive them, the root's height is free, so its
-             weight rests on its ground by contact (inside/sim_body.py, in Newton's own Python,
-             score/stages/physics/inside/newton_env.sh, on this machine), under the gravity of the body the scene stands
-             on (physics/design.py ground). Written: sim_bodies.json (each body: its mass record, size, segments, the
-             solids it may touch, measures and the gates' numbers), measures/<name>.json (per frame: joint angles and
-             the clip's, joint torques, ground force, lowest point over the ground, each foot's height over the ground
-             and its push, root helper) and layers/sim_bodies.usda (each body under its character's prim,
-             /<place>/Characters/<name>/SimBody, in the Turned frame: a guide Xform a segment with its UsdPhysics mass
-             and its motion, its ball joints as UsdPhysics spherical joints)
-    gates    on floor     no collider corner of any body goes into its ground by more than SUNK_MOST, any frame
-             lands        past SETTLE, a foot (Foot, ToeBase) the ground pushes with at least CONTACT of the weight
-                          is within LANDED of the ground under it (its lowest corner's height over the drawn
-                          triangles), every such frame; a body no foot of which ever lands fails
-             carries      over each run (past SETTLE seconds) the ground's mean upward push is the body's weight within
-                          CARRIED (the body starts and ends at rest up and down, so Newton's second law leaves the
-                          mean push its weight, on a slope too)
-             follows      each body's joint angles follow its clip's: the mean angle between the sim's and the clip's
-                          joint rotation, over joints and frames past SETTLE, at most FOLLOWED degrees
+    make     each character of cast.json (its singles; the crowd, which is retiring, is left out by name) is the
+             clips rig (people-clips-made's rig.npz) moved onto its look's built body (people-body-<look>'s rig.npz,
+             an optional read: its bind, moved mean surface and offsets, the travel scaled by its Hips' height, as
+             prop_build.py plays the clips; the rig's own size, named, with none taken). Its body is MyoFullBody
+             (the pinned wheel MODEL, fetched once to $PROPS_HOME/models and checked by its sha256; never in this
+             repository) sized to that build: each limb by the person's joint distance over the model's, the rest by
+             its standing height (inside/myo.py), its mass the stated weight when the cast gives one (`weight`, kg),
+             else its height (`height`, m, else the body's own standing height) squared times the reference BMI of
+             its sex (`sex`, else the mean of both), marked estimated. It stands on the scene's own ground: every solid
+             of the stage the cast is measured on (the seed's base layer with its scene record written in, on the
+             terrain row's made ground: layer_base.built and cast/measure.solids, so steps, decks and slopes are
+             there), the triangles within REACH of its clip's path, in the frame its skeleton plays in (its spot and
+             turn, then the dressed body's Turned: own_frame); a body with none is left out by name. The movement is
+             its clip's (`doing`, the rig's clip_<doing>), followed exactly, root included (the owner, 2026-10-27);
+             Newton and MuJoCo give its physics (inside/sim_body.py, in Newton's own Python,
+             score/stages/physics/inside/newton_env.sh, on this machine, under the gravity of the body the scene
+             stands on, physics/design.py ground): the model's joint angles fitted to the clip's segment turns, the
+             forces that movement needs, shared between the ground's contacts and the muscles (activations and
+             forces, static optimisation), what neither can give left over as the pelvis' residual and the joints'
+             reserves, measured and never applied. Written: sim_bodies.json (each body: its mass record, size, model
+             record, the SOMA segments and the body each rides, the solids it may touch, measures and the gates'
+             numbers), measures/<name>.json (per frame: the body's SOMA segments' turns and the clip's, joint
+             moments, ground force, lowest point over the ground, each foot's height over the ground and its push, the
+             residual, the largest reserve, each muscle's activation and force, and each SOMA segment's pose: the
+             clip's own, which the skin plays) and
+             layers/sim_bodies.usda (each body under its character's prim, /<place>/Characters/<name>/SimBody, in
+             the Turned frame: an Xform a SOMA segment riding its bone, every bone's mesh under the segment it rides or
+             under Bones, and the muscles as lines along their paths, coloured by activation, every frame)
+    gates    on floor     no collider point of any body goes into its ground by more than SUNK_MOST, any frame
+             lands        a foot (Foot, ToeBase) the ground pushes with at least CONTACT of the weight is within
+                          LANDED of the ground under it (its lowest collider point's height over the drawn triangles),
+                          every such frame; a body no foot of which ever lands fails
+             carries      over each run the ground's mean upward push is the body's weight within CARRIED
+             follows      the mean angle between each SOMA segment's turn (riding its bone) and the clip's, over
+                          segments and frames, at most FOLLOWED degrees
+             residual     the pelvis' residual stays within Hicks et al. 2015's limits, the net external force taken
+                          as the body's weight: its force at most RESIDUAL_FORCE of it and its moment at most
+                          RESIDUAL_MOMENT of it times the centre of mass' height, any frame (a trip, a float or a
+                          movement no ground and muscles can make shows here)
 
-The root helper (its horizontal path and turn, never its weight) is reported: its largest and mean force.
-
-Not here: muscles (they wait on #60), clips made for the ground (a flat-ground clip meets a step with its toe), a
-walker's cast path (the clip plays its own root path from the spot), the build's feet brought in (stance.narrowed).
+Not here: muscles driving a forward simulation (the movement is given; the muscles are the forces that would make it,
+with no activation dynamics), clips made for the ground (a flat-ground clip meets a step with its toe), a walker's cast
+path (the clip plays its own root path from the spot), the build's feet brought in (stance.narrowed).
 """
+import hashlib
 import json
 import os
 import pathlib
 import shutil
 import subprocess
+import urllib.request
+import zipfile
 
 import numpy as np
 
@@ -55,21 +64,25 @@ from score.stages.cast import measure
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 INSIDE = "score/stages/sim_body/inside/sim_body.py"
+INSIDE_MODEL = "score/stages/sim_body/inside/myo.py"
 ENV_SCRIPT = "score/stages/physics/inside/newton_env.sh"
-ENV = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props")) / "envs/newton_env"
+HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
+ENV = HOME / "envs/newton_env"
+# MyoFullBody as MuscleMimic publishes it (Apache-2.0; its NOTICE: MyoSuite and myo_sim, Apache-2.0, from OpenSim's
+# Rajagopal 2016, lumbar spine and hand models, MIT, and MoBL-ARMS, whose model definition was released for
+# non-commercial use only): fetched by its pinned wheel and sha256, never kept in this repository.
+MODEL = ("https://files.pythonhosted.org/packages/23/2b/ab89ceca9f1d99b8a4d5525aa96918c91a20c094e6f8b22e4f7daa816a3a/"
+         "musclemimic_models-1.0.5-py3-none-any.whl",
+         "32b11b363d104f35e6db5331ef89be9df14e3a2189428f471cbc217377ecf436")
 CLIPS_ROW = "people-clips-made"
 LAYER = "layers/sim_bodies.usda"
 RECORD = "sim_bodies.json"
 RATE = 30.0  # the rig's clips (tools/characters/skel_usd.py RATE)
 # SOMA joints that carry no segment: the ground point under the body and the end sites.
 NOT_SEGMENTS = ("Root", "HeadEnd", "LeftToeEnd", "RightToeEnd")
-VOXEL = 0.01  # metres
 # Global age-standardised mean BMI of adults, 2016 (kg/m2): NCD-RisC, Lancet 2017;390:2627-42,
 # https://doi.org/10.1016/S0140-6736(17)32129-3. Height times this is #64's rule for a body with no stated weight.
 BMI = {"male": 24.5, "female": 24.8}
-# Joint drive per kilogram the joint carries (the segments below it): stiffness N m/rad, damping N m s/rad.
-DRIVE = (300.0, 30.0)
-SETTLE = 0.5  # seconds let pass before the gates read: the body settling onto its ground
 SUNK_MOST = 0.02  # metres
 LANDED = 0.02  # metres: a foot further off its ground than this while it carries reads as floating or sunk
 CONTACT = 0.05  # share of the weight a foot's push must reach to count as landed
@@ -81,11 +94,16 @@ TURNED = 180.0
 BODY = "people-body"  # a look's built body row: its rig.npz is the person's own build (prop_rig.py)
 CARRIED = 0.05  # share of the weight
 FOLLOWED = 5.0  # degrees
+# Hicks, Uchida, Seth, Rajagopal and Delp 2015, "Is my model good enough?", J Biomech Eng 137(2):020905, section 3.1.3:
+# residual forces at most 5% of the net external force, residual moments at most 1% of the centre of mass' height times
+# it. No external force is measured here, so the body's weight stands in for it.
+RESIDUAL_FORCE = 0.05
+RESIDUAL_MOMENT = 0.01
 
 
 def files(place):
-    """The trial's script, the Python it runs in and the environment's physics (whose gravity the scene has)."""
-    return {"sim script": "{repo}/" + INSIDE, "sim env": "{repo}/" + ENV_SCRIPT,
+    """The run's scripts, the Python they run in and the environment's physics (whose gravity the scene has)."""
+    return {"sim script": "{repo}/" + INSIDE, "sim model": "{repo}/" + INSIDE_MODEL, "sim env": "{repo}/" + ENV_SCRIPT,
             "physics": "{data}/physics/setting.json", "within": "{data}/places/within.json",
             "seed": "{seeds}/usd-r3/{place}", **layer_base.files(place)}
 
@@ -106,46 +124,6 @@ def segments_of(rig):
     carriers = [carrier(joint) for joint in range(len(names))]
     top = next(joint for joint in kept if carrier(parents[joint]) < 0)
     return kept, [top if found < 0 else found for found in carriers]
-
-
-def voxels(points, faces):
-    """The centres of the VOXEL cubes inside the closed surface."""
-    import trimesh
-    mesh = trimesh.Trimesh(points, faces, process=False)
-    if not mesh.is_watertight:
-        raise ValueError("the rig's surface is not closed: its volume cannot be cut into segments")
-    return mesh.voxelized(VOXEL).fill().points
-
-
-def body_of(rig):
-    """The sim body of a rig at unit total mass: each segment's name, parent segment, joint frame in its parent's,
-    mass share, centre of mass and inertia (its own frame) and box collider round its own volume."""
-    from scipy.spatial import cKDTree
-    names, parents, bind = [str(name) for name in rig["names"]], rig["parents"], np.asarray(rig["bind"], dtype=float)
-    kept, carriers = segments_of(rig)
-    owner = np.asarray(carriers)[np.asarray(rig["weights"]).argmax(axis=1)]
-    inside = voxels(rig["points"], rig["faces"])
-    _, nearest = cKDTree(rig["points"]).query(inside)
-    voxel_owner = owner[nearest]
-    share = 1.0 / len(inside)
-    segments = []
-    for joint in kept:
-        frame = bind[joint]
-        mine = inside[voxel_owner == joint]
-        if not len(mine):
-            raise ValueError(f"segment {names[joint]} owns no volume of the surface")
-        local = (mine - frame[:3, 3]) @ frame[:3, :3]
-        centre = local.mean(axis=0)
-        spread = local - centre
-        inertia = share * (np.eye(3) * (spread ** 2).sum() - spread.T @ spread)
-        low, high = local.min(axis=0) - VOXEL / 2, local.max(axis=0) + VOXEL / 2
-        parent = carriers[parents[joint]] if parents[joint] >= 0 else -1
-        is_top = parent < 0 or parent == joint
-        segments.append({"name": names[joint], "parent": -1 if is_top else kept.index(parent),
-                         "local": (np.eye(4) if is_top else np.linalg.inv(bind[parent]) @ frame).tolist(),
-                         "mass": share * len(mine), "com": centre.tolist(), "inertia": inertia.tolist(),
-                         "box": [((low + high) / 2).tolist(), ((high - low) / 2).tolist()]})
-    return segments, kept
 
 
 def body_row(single):
@@ -190,22 +168,6 @@ def mass_of(single, height):
     return {"kg": round(bmi * tall ** 2, 2), "source": "estimated", "height": round(tall, 4),
             "height from": "stated" if stated else "the SOMA body's own standing height",
             "sex": sex if sex in BMI else "not stated", "bmi": bmi}
-
-
-def weighed(segments, kg):
-    """The segments at a total mass of `kg` (mass and inertia scale with it)."""
-    return [dict(segment, mass=segment["mass"] * kg, inertia=(np.asarray(segment["inertia"]) * kg).tolist())
-            for segment in segments]
-
-
-def gains(segments):
-    """Each segment's joint drive (stiffness, damping): DRIVE times the mass its joint carries (itself and every
-    segment below it)."""
-    carried = [segment["mass"] for segment in segments]
-    for index in reversed(range(len(segments))):
-        if segments[index]["parent"] >= 0:
-            carried[segments[index]["parent"]] += carried[index]
-    return [[DRIVE[0] * mass, DRIVE[1] * mass] for mass in carried]
 
 
 def clip_frames(rig, clip, kept):
@@ -256,13 +218,37 @@ def ground_of(solids, worlds, frame):
 
 # --- the run -------------------------------------------------------------------------------------------------------
 
+def fetched():
+    """The model's folder: MODEL's wheel downloaded once into $PROPS_HOME/models, checked by its sha256, unpacked."""
+    url, sha = MODEL
+    folder = HOME / "models" / sha[:16]
+    if (folder / ".unpacked").exists():
+        return folder
+    folder.mkdir(parents=True, exist_ok=True)
+    wheel = folder / url.rpartition("/")[2]
+    with urllib.request.urlopen(url, timeout=120) as answer:
+        wheel.write_bytes(answer.read())
+    if hashlib.sha256(wheel.read_bytes()).hexdigest() != sha:
+        wheel.unlink()
+        raise ValueError(f"{url}: its sha256 is not the pinned {sha}")
+    with zipfile.ZipFile(wheel) as packed:
+        packed.extractall(folder)
+    (folder / ".unpacked").touch()
+    return folder
+
+
 def ran(job, out):
-    """inside/sim_body.py run on `job` in Newton's own Python on this machine (built once by the env script)."""
+    """inside/sim_body.py run on `job` in Newton's own Python on this machine (built once by the env script): its
+    record and its arrays (bones, muscle paths)."""
     subprocess.run(["bash", str(REPO / ENV_SCRIPT), str(ENV)], check=True, stdout=subprocess.DEVNULL)
     subprocess.run([str(ENV / "bin/python"), str(REPO / INSIDE), str(job), str(out)], check=True)
     found = json.loads(out.read_text())
+    arrays = dict(np.load(out.with_suffix(".npz")))
     out.unlink()
-    return found
+    out.with_suffix(".npz").unlink()
+    for written in out.parent.glob("*.xml"):
+        written.unlink()
+    return found, arrays
 
 
 def gravity_of(place, inputs):
@@ -290,39 +276,44 @@ def make(inputs, out, seed, params):
         row = body_row(single)
         if row not in builds:
             built = dict(np.load(pathlib.Path(inputs[row]) / "rig.npz")) if row in inputs else None
-            rig, size = person_rig(clips_rig, built)
-            builds[row] = (rig, size, *body_of(rig))
-        rig, size, segments, kept = builds[row]
+            builds[row] = person_rig(clips_rig, built)
+        rig, size = builds[row]
+        kept = segments_of(rig)[0]
         worlds = clip_frames(rig, single["doing"], kept)
         ground, under = ground_of(solids, worlds, own_frame(single["at"], single.get("turn", 0.0)))
         if not len(ground):
             left_out.append(f"{single['name']}: no solid of the place within {REACH} m of its clip's path to stand on")
             continue
         mass = mass_of(single, standing_height(rig))
-        mine = weighed(segments, mass["kg"])
         targets = out / "clips" / f"{single['name']}.npz"
         np.savez_compressed(targets, world=worlds, ground=ground)
-        job["people"].append({"name": single["name"], "segments": mine, "targets": str(targets), "gains": gains(mine)})
+        job["people"].append({"name": single["name"], "kg": mass["kg"], "height": standing_height(rig),
+                              "rig": {"names": [str(name) for name in rig["names"]],
+                                      "parents": np.asarray(rig["parents"]).tolist(),
+                                      "bind": np.asarray(rig["bind"]).tolist()},
+                              "segments": [str(rig["names"][joint]) for joint in kept], "targets": str(targets)})
         records[single["name"]] = {"clip": single["doing"], "at": single["at"], "turn": single.get("turn", 0.0),
                                    "mass": mass, "ground": {"solids": under, "triangles": len(ground)},
                                    "size": {"of the rig": round(size, 4),
-                                            "from": row if row in inputs else f"the rig's: no {row} taken"},
-                                   "segments": {segment["name"]: round(segment["mass"], 3) for segment in mine}}
+                                            "from": row if row in inputs else f"the rig's: no {row} taken"}}
     if cast.get("crowd"):
         left_out.append(f"{cast['crowd']['name']}: a crowd has no sim bodies (crowds are retiring, #56)")
-    run = {"engine": None, "people": {}}
+    run, arrays = {"engine": None, "people": {}}, {}
     if job["people"]:
+        job["model"] = str(fetched())
         (out / "job.json").write_text(json.dumps(job))
-        run = ran(out / "job.json", out / "run.json")
+        run, arrays = ran(out / "job.json", out / "run.json")
     (out / "measures").mkdir()
     for name, entry in run["people"].items():
         (out / "measures" / f"{name}.json").write_text(json.dumps(entry["frames"]))
-        records[name]["measures"] = measured(entry["frames"], records[name]["mass"]["kg"], gravity)
-    write_layer(out / LAYER, place, job["people"], run["people"], records)
+        records[name].update(segments=entry["rides"], model=entry["model"], muscles=len(entry["muscles"]),
+                             measures=measured(entry, gravity))
+    write_layer(out / LAYER, place, run["people"], arrays, records)
     shutil.rmtree(out / "clips")
     (out / "job.json").unlink(missing_ok=True)
     (out / RECORD).write_text(json.dumps({"place": place, "on": body, "gravity": gravity, "engine": run["engine"],
-                                          "rate": RATE, "bodies": records, "left out": left_out}, indent=1))
+                                          "rate": RATE, "model": MODEL[0].rpartition("/")[2], "bodies": records,
+                                          "left out": left_out}, indent=1))
 
 
 # --- the measures and gates ----------------------------------------------------------------------------------------
@@ -335,29 +326,40 @@ def angle_between(one, other):
 
 
 def landings(frames, weight):
-    """Each landed foot's height over its ground (metres), frame by frame past SETTLE: a foot the ground pushes up with
-    at least CONTACT of the weight."""
-    return [height for frame in frames[int(SETTLE * RATE):] for height, push in frame["feet"].values()
+    """Each landed foot's height over its ground (metres), frame by frame: a foot the ground pushes up with at least
+    CONTACT of the weight."""
+    return [height for frame in frames for height, push in frame["feet"].values()
             if push >= CONTACT * weight and height is not None]
 
 
-def measured(frames, kg, gravity):
+def measured(entry, gravity):
     """A run's gate numbers: its deepest point into its ground, each landed foot's height off it, the mean upward push
-    over its weight, the mean and worst angle off the clip (frames past SETTLE), the largest joint torque and the root
-    helper's largest and mean force."""
-    read = frames[int(SETTLE * RATE):]
-    off = np.array([angle_between(frame["angles"], frame["targets"]) for frame in read])
-    push = np.mean([frame["ground"][1] for frame in read])
-    landed = np.abs(landings(frames, kg * gravity))
-    helper = [np.linalg.norm(frame["helper"][:3]) for frame in read]
+    over its weight, the mean and worst angle off the clip, the largest joint moment and reserve, the residual's
+    largest force and moment against their limits, and the muscles' activations and forces."""
+    frames, weight = entry["frames"], entry["kg"] * gravity
+    off = np.array([angle_between(frame["angles"], frame["targets"]) for frame in frames])
+    push = np.mean([frame["ground"][1] for frame in frames])
+    landed = np.abs(landings(frames, weight))
+    force = [float(np.linalg.norm(frame["residual"][:3])) for frame in frames]
+    moment = [float(np.linalg.norm(frame["residual"][3:])) for frame in frames]
+    forces, activations = np.array([frame["forces"] for frame in frames]), np.array([frame["activations"]
+                                                                                     for frame in frames])
     return {"deepest": round(-min(0.0, min(frame["lowest"] for frame in frames if frame["lowest"] is not None)), 4),
             "landings": len(landed), "mean foot off ground m": round(float(landed.mean()), 4) if len(landed) else None,
             "worst foot off ground m": round(float(landed.max()), 4) if len(landed) else None,
-            "weight N": round(kg * gravity, 2), "mean push N": round(float(push), 2),
-            "push over weight": round(float(push / (kg * gravity)), 4),
+            "weight N": round(weight, 2), "mean push N": round(float(push), 2),
+            "push over weight": round(float(push / weight), 4),
             "mean off clip deg": round(float(off.mean()), 3), "worst off clip deg": round(float(off.max()), 3),
-            "largest torque Nm": round(float(max(np.abs(frame["torques"]).max() for frame in read)), 2),
-            "largest helper N": round(float(max(helper)), 2), "mean helper N": round(float(np.mean(helper)), 2)}
+            "largest torque Nm": round(float(max(np.abs(frame["torques"]).max() for frame in frames)), 2),
+            "largest reserve Nm": round(float(max(frame["reserve"] for frame in frames)), 2),
+            "largest residual N": round(max(force), 2), "mean residual N": round(float(np.mean(force)), 2),
+            "residual force limit N": round(RESIDUAL_FORCE * weight, 2),
+            "largest residual Nm": round(max(moment), 2), "mean residual Nm": round(float(np.mean(moment)), 2),
+            "residual moment limit Nm": round(RESIDUAL_MOMENT * entry["com height"] * weight, 2),
+            "largest muscle force N": round(float(forces.max()), 1),
+            "muscle force N, mean of each frame's largest": round(float(forces.max(axis=1).mean()), 1),
+            "largest activation": round(float(activations.max()), 4),
+            "mean activation": round(float(activations.mean()), 4)}
 
 
 def bodies_of(output):
@@ -407,6 +409,22 @@ def judge_follows(output, inputs, evidence):
                    {"bodies": len(bodies)})
 
 
+def judge_residual(output, inputs, evidence):
+    """Fail a body whose pelvis residual passes its force or moment limit in any frame."""
+    bodies = bodies_of(output)
+    faults = []
+    for name, body in bodies.items():
+        found = body["measures"]
+        if found["largest residual N"] > found["residual force limit N"]:
+            faults.append(f"{name}: a residual of {found['largest residual N']:.0f} N, over its "
+                          f"{found['residual force limit N']:.0f} N")
+        if found["largest residual Nm"] > found["residual moment limit Nm"]:
+            faults.append(f"{name}: a residual moment of {found['largest residual Nm']:.0f} N m, over its "
+                          f"{found['residual moment limit Nm']:.0f} N m")
+    return verdict("residual", faults, f"{len(bodies)} bodies, each residual within {RESIDUAL_FORCE:.0%} of its weight "
+                   f"and {RESIDUAL_MOMENT:.0%} of its weight times its centre's height", {"bodies": len(bodies)})
+
+
 def output_faults(folder):
     folder = pathlib.Path(folder)
     found = [f"no {name}" for name in (RECORD, LAYER) if not (folder / name).exists()]
@@ -415,58 +433,103 @@ def output_faults(folder):
     return found
 
 
-CONTRACT = contracts.Contract("sim-body", 1, output_faults, {"length": "metre", "up axis": "Y"})
+CONTRACT = contracts.Contract("sim-body", 2, output_faults, {"length": "metre", "up axis": "Y"})
 CHECKS = (checks.Check("on floor", judge_on_floor), checks.Check("lands", judge_lands),
           checks.Check("carries", judge_carries),
-          checks.Check("follows", judge_follows))
+          checks.Check("follows", judge_follows), checks.Check("residual", judge_residual))
 
 
 # --- the layer -----------------------------------------------------------------------------------------------------
 
-def write_layer(path, place, people, runs, records):
-    """layers/sim_bodies.usda: each body under its character's prim, a guide Xform a segment (its UsdPhysics mass,
-    centre and box, its pose every frame in the rig's frame, which the dressed body's Turned turns) and a spherical
-    joint at every ball joint."""
-    from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics
-    from scipy.spatial.transform import Rotation
+MUSCLE_WIDTH = 0.006  # metres: a muscle's drawn line
+DRAWN = 3  # decimals a drawn muscle point keeps (a millimetre): the layer is text
+RESTING, ACTIVE = (0.25, 0.35, 0.85), (0.9, 0.1, 0.1)  # a muscle's colour at activation 0 and 1
+
+
+def write_layer(path, place, runs, arrays, records):
+    """layers/sim_bodies.usda: each body under its character's prim, a guide in the Turned frame: an Xform a SOMA
+    segment (its pose every frame) holding the bones of the body it rides, every other bone under Bones (its pose
+    every frame), each bone a Mesh; and Muscles, every muscle a line along its path every frame, coloured from RESTING
+    to ACTIVE by its activation."""
+    from pxr import Gf, Sdf, Usd, UsdGeom, Vt
     path.parent.mkdir(parents=True, exist_ok=True)
     layer = Sdf.Layer.CreateNew(str(path))
     layer.timeCodesPerSecond = layer.framesPerSecond = RATE
     stage = Usd.Stage.Open(layer)
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
-    for person in people:
-        frames = runs[person["name"]]["frames"]
-        root = f"/{place}/Characters/{person['name']}/SimBody"
-        for prim in (f"/{place}", f"/{place}/Characters", f"/{place}/Characters/{person['name']}"):
+    for name, entry in runs.items():
+        frames = entry["frames"]
+        root = f"/{place}/Characters/{name}/SimBody"
+        for prim in (f"/{place}", f"/{place}/Characters", f"/{place}/Characters/{name}"):
             stage.OverridePrim(prim)
         body = UsdGeom.Xform.Define(stage, root)
         UsdGeom.Imageable(body).CreatePurposeAttr(UsdGeom.Tokens.guide)
-        UsdPhysics.ArticulationRootAPI.Apply(body.GetPrim())
-        body.GetPrim().SetCustomDataByKey("score:mass", records[person["name"]]["mass"])
-        for index, segment in enumerate(person["segments"]):
-            part = UsdGeom.Xform.Define(stage, f"{root}/{segment['name']}")
-            UsdPhysics.RigidBodyAPI.Apply(part.GetPrim())
-            mass = UsdPhysics.MassAPI.Apply(part.GetPrim())
-            mass.CreateMassAttr(segment["mass"])
-            mass.CreateCenterOfMassAttr(Gf.Vec3f(*segment["com"]))
-            mass.CreateDiagonalInertiaAttr(Gf.Vec3f(*np.linalg.eigvalsh(np.asarray(segment["inertia"]))))
-            box = UsdGeom.Cube.Define(stage, f"{root}/{segment['name']}/box")
-            box.AddTranslateOp().Set(Gf.Vec3d(*segment["box"][0]))
-            box.AddScaleOp().Set(Gf.Vec3f(*segment["box"][1]))
-            UsdPhysics.CollisionAPI.Apply(box.GetPrim())
-            moved = part.AddTransformOp()
-            for code, frame in enumerate(frames):
-                pose = np.asarray(frame["poses"][index])
-                matrix = np.eye(4)
-                matrix[:3, :3], matrix[:3, 3] = Rotation.from_quat(pose[3:]).as_matrix(), pose[:3]
-                moved.Set(Gf.Matrix4d(matrix.T.tolist()), code)
-            if segment["parent"] >= 0:
-                joint = UsdPhysics.SphericalJoint.Define(stage, f"{root}/{segment['name']}/joint")
-                local = np.asarray(segment["local"])
-                quat = Rotation.from_matrix(local[:3, :3]).as_quat()
-                joint.CreateBody0Rel().SetTargets([f"{root}/{person['segments'][segment['parent']]['name']}"])
-                joint.CreateBody1Rel().SetTargets([f"{root}/{segment['name']}"])
-                joint.CreateLocalPos0Attr(Gf.Vec3f(*local[:3, 3]))
-                joint.CreateLocalRot0Attr(Gf.Quatf(float(quat[3]), *map(float, quat[:3])))
+        body.GetPrim().SetCustomDataByKey("score:mass", records[name]["mass"])
+        segments = list(entry["rides"])
+        bones, riders = arrays[f"{name}/bones"], arrays[f"{name}/segments"]
+        held = {}
+        for index, segment in enumerate(segments):
+            part = UsdGeom.Xform.Define(stage, f"{root}/{segment}")
+            timed(part, riders[:, index])
+            held.setdefault(entry["rides"][segment], (f"{root}/{segment}", index))
+        UsdGeom.Scope.Define(stage, f"{root}/Bones")
+        for number, bone in enumerate(entry["bones"]):
+            points = arrays[f"{name}/mesh/{bone}/points"].astype(float)
+            if bone in held:  # drawn in the segment riding it, which carries it rigidly
+                where, index = held[bone]
+                carried = np.linalg.inv(pose_matrix(riders[0, index])) @ pose_matrix(bones[0, number])
+                points = points @ carried[:3, :3].T + carried[:3, 3]
+            else:
+                where = f"{root}/Bones/bone_{bone}"
+                timed(UsdGeom.Xform.Define(stage, where), bones[:, number])
+            mesh = UsdGeom.Mesh.Define(stage, f"{where}/bone_{bone}")
+            mesh.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(np.round(points, DRAWN + 1).astype(np.float32)))
+            faces = arrays[f"{name}/mesh/{bone}/faces"]
+            mesh.CreateFaceVertexCountsAttr(Vt.IntArray([3] * len(faces)))
+            mesh.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(faces.reshape(-1).astype(np.int32)))
+            mesh.CreateDisplayColorAttr([Gf.Vec3f(0.89, 0.85, 0.79)])
+        muscles = UsdGeom.BasisCurves.Define(stage, f"{root}/Muscles")
+        muscles.CreateTypeAttr(UsdGeom.Tokens.linear)
+        colours = UsdGeom.PrimvarsAPI(muscles).CreatePrimvar("displayColor", Sdf.ValueTypeNames.Color3fArray,
+                                                             UsdGeom.Tokens.uniform)
+        muscles.CreateWidthsAttr(Vt.FloatArray([MUSCLE_WIDTH]))
+        muscles.SetWidthsInterpolation(UsdGeom.Tokens.constant)
+        counts = arrays[f"{name}/counts"]
+        muscles.CreateCurveVertexCountsAttr(Vt.IntArray.FromNumpy(counts.max(axis=0).astype(np.int32)))
+        placed = muscles.CreatePointsAttr()
+        for code, (frame, points) in enumerate(zip(frames, padded(arrays[f"{name}/paths"], counts))):
+            placed.Set(Vt.Vec3fArray.FromNumpy(np.round(points, DRAWN).astype(np.float32)), code)
+            shade = np.clip(np.asarray(frame["activations"]), 0.0, 1.0)[:, None]
+            colours.Set(Vt.Vec3fArray.FromNumpy(np.round(np.asarray(RESTING) * (1 - shade) + np.asarray(ACTIVE) * shade,
+                                                         DRAWN).astype(np.float32)), code)
     layer.Save()
+
+
+def padded(paths, counts):
+    """Each frame's muscle path points (the frames' paths end to end, `counts` frames x muscles), each muscle padded
+    to its most points over the frames by repeating its last one, so the drawn lines keep one topology."""
+    most, start = counts.max(axis=0), 0
+    for row in counts:
+        pieces = []
+        for count, room in zip(row, most):
+            mine = paths[start:start + count]
+            pieces.append(np.concatenate([mine, np.repeat(mine[-1:], room - count, axis=0)]))
+            start += count
+        yield np.concatenate(pieces)
+
+
+def pose_matrix(pose):
+    """A pose [x, y, z, qx, qy, qz, qw] as a 4 x 4."""
+    from scipy.spatial.transform import Rotation
+    found = np.eye(4)
+    found[:3, :3], found[:3, 3] = Rotation.from_quat(np.asarray(pose[3:], dtype=float)).as_matrix(), pose[:3]
+    return found
+
+
+def timed(xform, poses):
+    """An Xform's transform set at every frame's pose."""
+    from pxr import Gf
+    moved = xform.AddTransformOp()
+    for code, pose in enumerate(poses):
+        moved.Set(Gf.Matrix4d(np.round(pose_matrix(pose).T, 6).tolist()), code)

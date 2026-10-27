@@ -196,9 +196,10 @@ CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cas
                    after={"plan": ("place-plan", 2), "scene-record": ("scene-record", 1), "terrain": ("grounds", 2),
                           **{name: ("people-dress", 1) for name in DRESS_ROWS}},
                    optional=DRESS_ROWS, applies=designed("people"))
-# Experimental (#65, PRD #56): each character of the place's accepted cast as a sim body on Newton, built from SOMA's
-# segments in the rig its clips play (people-clips-made), driven by its clip and standing on the scene's own ground
-# by contact: the stage the cast is measured on, its scene record on its made ground (score/stages/sim_body).
+# Experimental (#65, PRD #56): each character of the place's accepted cast as a musculoskeletal body (MyoFullBody,
+# sized to the person's build from the rig its clips play, people-clips-made) doing its clip exactly on the scene's own
+# ground (the stage the cast is measured on, its scene record on its made ground), its physics from Newton and MuJoCo:
+# ground forces, joint moments, muscle activations and forces, the residual measured (score/stages/sim_body).
 # people-cloth and the characters layer read it: its people move by it.
 BODY_ROWS = tuple(row.name for row in people.ROWS if row.name.startswith(f"{sim_body.BODY}-"))
 SIM_BODY = graph.Stage("sim-body", "place", sim_body.make, sim_body.CONTRACT, sim_body.CHECKS, files=sim_body.files,
@@ -212,7 +213,7 @@ SIM_BODY = graph.Stage("sim-body", "place", sim_body.make, sim_body.CONTRACT, si
 # so no other row's key moves.
 PEOPLE_CLOTH = graph.Stage("people-cloth", "place", people_cloth.make, people_cloth.CONTRACT, people_cloth.CHECKS,
                            files=people_cloth.files,
-                           after={"cast": ("cast", 1), people_cloth.SIM_ROW: ("sim-body", 1),
+                           after={"cast": ("cast", 1), people_cloth.SIM_ROW: ("sim-body", 2),
                                   people_cloth.CLIPS_ROW: (people_cloth.CLIPS_ROW, 1),
                                   **{name: ("people-dress", 1) for name in DRESS_ROWS},
                                   **{name: ("people-body", 1) for name in BODY_ROWS}},
@@ -234,7 +235,7 @@ SCENE_CLIPS = graph.Stage(scene_clips.ROW, "place", scene_clips.make, scene_clip
 CHARACTERS = graph.Stage("characters-layer", "place", characters_driven.make, characters_layer.CONTRACT,
                          characters_driven.CHECKS, files=characters_layer.files,
                          after={"cast": ("cast", 1), **{name: ("people-dress", 1) for name in DRESS_ROWS},
-                                "sim-body": ("sim-body", 1), "people-clips-made": ("people-clips-made", 1)},
+                                "sim-body": ("sim-body", 2), "people-clips-made": ("people-clips-made", 1)},
                          optional=(*DRESS_ROWS, "sim-body", "people-clips-made"), applies=designed("people"))
 # Experimental (PRD #6) until the owner has heard it: each place's sound layer data (its sounds, their files and levels,
 # MOSS takes for briefs no environment file answers, paid), for the place's assembly to write into its stage.
