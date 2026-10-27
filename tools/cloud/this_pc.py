@@ -6,21 +6,24 @@ the cockpit.
     python3 tools/cloud/this_pc.py env1        # pull, run world1, push: the one command
     python3 tools/cloud/this_pc.py pull | push | run [<score run arguments>]
 
-The owner's command: pull and push go over his own ssh key to user score on the conductor (its passphrase asked, as
-for `machine.py`); an agent reaches the conductor only through its door, which moves no files.
+Pull and push go through the agents' door (tools/cloud/conductor/agent_door.py, the agents' key
+~/.ssh/score_conductor_agents; owner, 2026-10-27: the door route, not his own key on the conductor, agents never get a
+shell): its `store-pull` and `store-push` verbs, a tar stream each way over ssh.
 
-- **Pull** copies what a run reads (PULLED: the store's objects, the design, the work folder, the Google answer cache,
-  score_lib's file cache) into HOME, a home of its own (default ~/.score-this-pc): never the PC's old home, and never
-  the conductor's keys, ledgers, run registry or frozen copies. The prop environment is the PC's (`env` linked), and the
+- **Pull** copies what a run reads (the door's PULLED: the store's objects, the design, the work folder, the Google
+  answer cache, score_lib's file cache) into HOME, a home of its own (default ~/.score-this-pc): never the PC's old
+  home, and never the conductor's keys, ledgers, run registry or frozen copies. It sends the door a manifest of what
+  HOME holds, so only new and changed files come down. The prop environment is the PC's (`env` linked), and the
   runner's ssh key here is one of its own, let into this PC's container only.
 - **Run** is `score run <environment> --free` under SCORE_CLOUD=local, SCORE_FREE_ONLY=1 and SCORE_INPUTS_DIRECT=1:
   every free row and every paid row whose machine work this PC's card does runs for real; a row that would buy
   anything (a Google ask its cache does not answer, a rented card a kind too big for this card needs) fails, saying
   what, and is left for the Buy.
-- **Push** adds the store's new objects and the work folder's new files to the conductor's, never replacing a file
+- **Push** adds the store's new objects and the work folder's new files (regular files; links stay here) to the
+  conductor's: `store-push --missing` names what the conductor lacks, `store-push` adds those, never replacing a file
   that is there: the store is written once by content and key, so the conductor's own outputs stand and a node made
-  on both sides keeps the conductor's record. While pushing, files land under the conductor's tmp/ first, so its
-  store never lists half a file.
+  on both sides keeps the conductor's record. Files land under the conductor's tmp/ first, so its store never lists
+  half a file.
 """
 import argparse
 import json
@@ -28,17 +31,16 @@ import os
 import pathlib
 import subprocess
 import sys
+import tarfile
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO / "tools" / "cloud" / "conductor"))
+
+from agent_door import PULLED, PUSHED, manifest, walked  # noqa: E402
+
 HOME = pathlib.Path(os.environ.get("SCORE_THIS_PC_HOME", pathlib.Path.home() / ".score-this-pc"))
 PC_ENV = pathlib.Path.home() / ".farm-factory-props" / "env"  # the prop environment bootstrap.sh builds here
-REMOTE_HOME = "/home/score/.farm-factory-props"  # the conductor's PROPS_HOME (docs/bible.md workflow/bootstrap)
 CONDUCTOR = ("score-conductor", "fr-par-2")  # its server's name and zone (tools/cloud/conductor/machine.py)
-# What a run reads from the conductor's home: rsync filter rules, in order; everything else stays there.
-PULLED = ("/store/", "/store/objects/***", "/design/***", "/work/***", "/cloud/", "/cloud/google-cache/***",
-          "/cache/", "/cache/library/***")
-# What a run here adds that the conductor needs: the store's outputs and records, and the takes they were made from.
-PUSHED = ("store/objects", "work")
 ENVIRONMENT = {"SCORE_CLOUD": "local", "SCORE_FREE_ONLY": "1", "SCORE_INPUTS_DIRECT": "1",
                "SCORE_MAX_MACHINES": "all=1"}  # one machine: this PC
 
@@ -54,24 +56,42 @@ def conductor_host():
     return servers[0]["public_ip"]["address"]
 
 
-def ssh_command(key):
-    """The owner's ssh to the conductor, for rsync's -e."""
-    return f"ssh -i {pathlib.Path(key).expanduser()} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+def door_command(host, key, verb):
+    """The ssh that asks the conductor's agents' door for `verb` (the door decides; no shell)."""
+    return ["ssh", "-i", str(pathlib.Path(key).expanduser()), "-o", "IdentitiesOnly=yes", "-o",
+            "StrictHostKeyChecking=accept-new", f"score@{host}", verb]
 
 
-def pull_command(host, key, home):
-    """The rsync that copies PULLED from the conductor's home into `home`."""
-    rules = [f"--include={rule}" for rule in PULLED]
-    return ["rsync", "-a", "--info=stats1", *rules, "--exclude=*", "-e", ssh_command(key),
-            f"score@{host}:{REMOTE_HOME}/", f"{home}/"]
+def pull(home, command):
+    """Copies PULLED down through the door's store-pull (`command`) into `home`, only what `home` lacks or holds
+    changed; (files, bytes)."""
+    process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    process.stdin.write(manifest(home, PULLED).encode())
+    process.stdin.close()
+    files, size = 0, 0
+    with tarfile.open(fileobj=process.stdout, mode="r|") as archive:
+        for member in archive:
+            archive.extract(member, home, filter="tar")
+            files, size = files + 1, size + member.size
+    if process.wait():
+        raise SystemExit(f"store-pull failed (exit {process.returncode}) after {files} files")
+    return files, size
 
 
-def push_commands(host, key, home):
-    """The rsyncs that add PUSHED from `home` to the conductor's home, never replacing a file there."""
-    temporary = f"{REMOTE_HOME}/tmp/this-pc-push"
-    return [["rsync", "-a", "--info=stats1", "--ignore-existing", f"--temp-dir={temporary}",
-             f"--rsync-path=mkdir -p {temporary} {REMOTE_HOME}/{folder} && rsync", "-e", ssh_command(key),
-             f"{home}/{folder}/", f"score@{host}:{REMOTE_HOME}/{folder}/"] for folder in PUSHED]
+def push(home, missing_command, push_command):
+    """Adds `home`'s regular files under PUSHED that the conductor lacks (the door's store-push --missing, then
+    store-push); (files, bytes)."""
+    names = [path.relative_to(home).as_posix() for path in walked(home, PUSHED) if not path.is_symlink()]
+    asked = subprocess.run(missing_command, input="".join(f"{name}\n" for name in names), capture_output=True,
+                           text=True, check=True).stdout.split()
+    process = subprocess.Popen(push_command, stdin=subprocess.PIPE)
+    with tarfile.open(fileobj=process.stdin, mode="w|", dereference=True) as archive:
+        for name in asked:
+            archive.add(home / name, arcname=name, recursive=False)
+    process.stdin.close()
+    if process.wait():
+        raise SystemExit(f"store-push failed (exit {process.returncode})")
+    return len(asked), sum((home / name).stat().st_size for name in asked)
 
 
 def prepared(home):
@@ -107,18 +127,20 @@ def main(argv=None):
     parser.add_argument("command", choices=("env1", "pull", "run", "push"))
     parser.add_argument("arguments", nargs=argparse.REMAINDER, help="run: score run's arguments (default world1)")
     parser.add_argument("--host", help="the conductor's address (default: read from Scaleway by its name)")
-    parser.add_argument("--key", default="~/.ssh/id_ed25519", help="the owner's ssh key to the conductor")
+    parser.add_argument("--key", default="~/.ssh/score_conductor_agents", help="the agents' ssh key to the door")
     options = parser.parse_args(argv)
     home = prepared(HOME)
     if options.command == "run":
         return run(home, options.arguments or ["world1"])
     host = options.host or conductor_host()
     if options.command in ("env1", "pull"):
-        subprocess.run(pull_command(host, options.key, home), check=True)
+        files, size = pull(home, door_command(host, options.key, "store-pull"))
+        print(f"pulled {files} files ({size / 1e9:.2f} GB) into {home}")
     status = run(home, ["world1"]) if options.command == "env1" else 0
     if options.command in ("env1", "push"):
-        for command in push_commands(host, options.key, home):
-            subprocess.run(command, check=True)
+        files, size = push(home, door_command(host, options.key, "store-push --missing"),
+                           door_command(host, options.key, "store-push"))
+        print(f"pushed {files} files ({size / 1e9:.2f} GB)")
     return status
 
 

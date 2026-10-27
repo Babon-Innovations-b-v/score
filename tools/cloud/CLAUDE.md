@@ -36,10 +36,10 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   again), never parked, its claim ended by a container restart that ends whatever the job left on the card, its
   set-up kept but for the newest mark. A kind too big for its 16 GB (`local.TOO_BIG`: judge, pictures-20b,
   characters, meshparts, moss-sound) is refused at its claim with the GB, and a class above one 24 GB card is never
-  offered: those stay cloud jobs. `python3 tools/cloud/this_pc.py env1` (the owner's: his ssh key to the conductor)
-  pulls what a run reads into `~/.score-this-pc`, runs `score run world1 --free` there (a free-only run on this PC's
+  offered: those stay cloud jobs. `python3 tools/cloud/this_pc.py env1` (through the agents' door's `store-pull` and `store-push`, the
+  agents' key: owner, 2026-10-27, never his own key on the conductor) pulls what a run reads into `~/.score-this-pc`, runs `score run world1 --free` there (a free-only run on this PC's
   card also makes its paid rows, with no ticket, so a Google ask its cache does not answer fails, saying so:
-  `graph.on_this_pc`) and pushes the new store objects and takes back with `--ignore-existing`. The owner's one-time
+  `graph.on_this_pc`) and pushes the new store objects and takes back, adding only: the door never replaces a file the conductor holds. The owner's one-time
   step: `sudo usermod -aG docker $USER`. The rule below that no model runs on the owner's PC holds everywhere else.
 - **The only way models are made**, one or a hundred: no model runs on the owner's PC (owner,
   2026-10-03; `../local_models.py`). `batch.py` makes models, `pictures.py` pictures, `scene.py`
