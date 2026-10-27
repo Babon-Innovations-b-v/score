@@ -14,7 +14,7 @@ Breaks that turn each test red (each applied once and seen red):
 - a_mesh_coacd_fails_on_drops_as_its_one_hull_and_is_tried_again (2026-10-27): convex_parts.convex_parts's `if why is
   None:` made `if True:` (a failed mesh's hull kept, never tried again).
 - a_crate_laid_far_from_the_origin_stays_and_holds_a_box_on_its_floor (2026-10-27, with the trial's Python under a
-  real PROPS_HOME, on this PC's card: 50 s fixed, 88 s and red broken): settle_drop's `hull(piece - middle)` made
+  real PROPS_HOME, on this PC's card: 42 s fixed, 46 s and red broken): settle_drop's `hull(piece - middle)` made
   `hull(piece)` (each part laid on the body at its place in the world, 36 m from the body's middle).
 
 Run: .venv/bin/python tools/usd/test_a_hollow_body_keeps_its_hollow.py   (make tests runs it)

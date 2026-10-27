@@ -29,7 +29,7 @@ edit there moves its ~90 rows anyway (2026-10-27); never call them.
 - **Spend.** A drop is bought only when something loose is to be stood up or unstacked or the triage finds a fault on
   it (free, first); a drop already paid for is read back from `DROPS` (the same job, drop script, trial script, Python
   pins and stage). A drop is one rented card (`drop.DROP_CLASSES`, the trial's), its Python built once on it; on this
-  PC's RTX 5080 the six-object toy drops in about 31 s, still after 11.5 s of its 30 (2026-10-27). Bullet's on a
+  PC's RTX 5080 the six-object toy drops in about 8 s, a 20-object one in about 17 s (2026-10-27). Bullet's on a
   processor machine was about 30 minutes for the hangar (EUR 0.59 on 2026-10-12); Newton's on a real place is not yet
   timed.
 - Run the proof with `python -m score run world1 --place <place> --stage settle --detach` in the background; it reads
