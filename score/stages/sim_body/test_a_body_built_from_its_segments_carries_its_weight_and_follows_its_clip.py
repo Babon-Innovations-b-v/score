@@ -7,12 +7,14 @@ those of a 0.2 x 0.5 x 0.2 m block (worked by hand); the shin hangs from the hip
 each end site go to the segment that carries them. The mass is the stated weight, else the height squared times
 the BMI of the stated sex (NCD-RisC 2016: a 1.80 m woman 80.35 kg), else the mean of both, marked estimated. A clip's
 frames chain down the tree (a root turned 90 degrees about up carries a child 1 m along x to -1 m along z). A drive's
-gain is the mass its joint carries. On runs written here (no engine): a good run passes every gate, a body under its
-floor fails `on floor`, a floor that pushes 10% under the weight fails `carries`, joints 10 degrees off the clip fail
-`follows`. The make on the toy, its engine run stood in by a written one, writes the layer with each segment's mass
-and spherical joint under the character's prim, names the clip the rig lacks and the crowd, and weighs each body by
-the scene's gravity. Newton itself is not run here (its first run compiles for minutes); the real run's numbers are
-on #65.
+gain is the mass its joint carries. On runs written here (no engine): a good run passes every gate, a body 5 cm into
+its ground fails `on floor`, a landed foot 5 cm off its ground fails `lands` and so does a body no foot of which
+lands, a ground that pushes 10% under the weight fails `carries`, joints 10 degrees off the clip fail `follows`. The
+make on the toy, over a toy seed whose ground is one raised square, its engine run stood in by a written one, hands each
+body the ground's triangles in its own frame (its spot and turn), leaves out by name a body no solid is near, writes the
+layer with each segment's mass and spherical joint under the character's prim, names the clip the rig lacks and the
+crowd, and weighs each body by the scene's gravity. Newton itself is not run here (its first run compiles for minutes);
+the real run's numbers are on #65.
 
 Breaks that turn each check red (each applied once and seen red, reverted, 2026-10-27):
 - the_volume_splits_by_skin_weight: body_of's `.argmax(axis=1)` made `.argmin(axis=1)` (a voxel owned by its weakest
@@ -23,9 +25,12 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - the_clip_chains_down_the_tree: clip_frames' `world[:, parents[joint]] @ local[:, joint]` made
   `local[:, joint] @ world[:, parents[joint]]`.
 - a_joint_drives_the_mass_it_carries: gains' `carried[segments[index]["parent"]] += carried[index]` dropped.
-- a_good_run_passes_and_each_gate_fails_its_break: judge_on_floor's `> SUNK_MOST` made `> 1.0`; judge_carries'
-  `abs(... - 1.0) > CARRIED` made `> 1.0`; judge_follows' `> FOLLOWED` made `> 90`.
-- the_make_lays_each_body_under_its_character: write_layer's `mass.CreateMassAttr(segment["mass"])` dropped.
+- a_good_run_passes_and_each_gate_fails_its_break: judge_on_floor's `> SUNK_MOST` made `> 1.0`; judge_lands'
+  `> LANDED` made `> 1.0`; landings' `push >= CONTACT * weight` made `push >= 0` (an unloaded foot read as landed);
+  judge_carries' `abs(... - 1.0) > CARRIED` made `> 1.0`; judge_follows' `> FOLLOWED` made `> 90`.
+- the_make_stands_each_body_on_its_own_ground_under_its_character: write_layer's
+  `mass.CreateMassAttr(segment["mass"])` dropped; ground_of's `np.linalg.inv(frame)` made `frame` (the ground taken
+  out of the body's frame the wrong way); make's `if not len(ground)` check dropped (a body with no ground run).
 
 Run: .venv/bin/python -m pytest score/stages/sim_body/test_a_body_built_from_its_segments_carries_its_weight_and_follows_its_clip.py
 """
@@ -34,7 +39,7 @@ import json
 import numpy as np
 import pytest
 import trimesh
-from pxr import Usd, UsdPhysics
+from pxr import Gf, Usd, UsdGeom, UsdPhysics
 
 from score import checks
 from score.stages import sim_body
@@ -104,11 +109,12 @@ def test_a_joint_drives_the_mass_it_carries():
     assert sim_body.gains(segments) == [[sim_body.DRIVE[0] * mass, sim_body.DRIVE[1] * mass] for mass in (15, 5, 1)]
 
 
-def frames(count, lowest=0.001, push=1.0, off=0.0, weight=100.0):
-    """A written run of `count` frames: two joints, the floor pushing `push` of `weight`, the sim `off` degrees about
-    x from the clip on each joint."""
+def frames(count, lowest=0.001, push=1.0, off=0.0, weight=100.0, foot=0.003, foot_push=0.5):
+    """A written run of `count` frames: two joints, the ground pushing `push` of `weight`, `foot_push` of it through
+    one foot `foot` m over it, the sim `off` degrees about x from the clip on each joint."""
     return [{"angles": [[off, 0.0, 0.0], [off, 0.0, 0.0]], "targets": [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
              "torques": [[1.0, 2.0, 3.0], [0.0, 0.0, 0.0]], "ground": [0.0, push * weight, 0.0], "lowest": lowest,
+             "feet": {"LeftFoot": [foot, foot_push * weight], "RightFoot": [0.3, 0.01 * weight]},
              "helper": [3.0, 0.0, 4.0, 0.0, 0.0, 0.0], "poses": []} for _ in range(count)]
 
 
@@ -120,27 +126,50 @@ def judged(tmp_path, run):
 
 def test_a_good_run_passes_and_each_gate_fails_its_break(tmp_path):
     good, measures = judged(tmp_path, frames(40))
-    assert good == {"on floor": checks.PASS, "carries": checks.PASS, "follows": checks.PASS}
-    assert (measures["largest torque Nm"], measures["largest helper N"]) == (3.0, 5.0)
+    assert good == {"on floor": checks.PASS, "lands": checks.PASS, "carries": checks.PASS, "follows": checks.PASS}
+    assert (measures["largest torque Nm"], measures["largest helper N"], measures["mean helper N"]) == (3.0, 5.0, 5.0)
+    assert measures["landings"] == 40 - int(sim_body.SETTLE * sim_body.RATE)  # the unloaded right foot is no landing
     assert judged(tmp_path, frames(40, lowest=-0.05))[0]["on floor"] == checks.FAIL
+    assert judged(tmp_path, frames(40, foot=0.05))[0]["lands"] == checks.FAIL
+    assert judged(tmp_path, frames(40, foot_push=0.0))[0]["lands"] == checks.FAIL
     assert judged(tmp_path, frames(40, push=0.9))[0]["carries"] == checks.FAIL
     off, measures = judged(tmp_path, frames(40, off=10.0))
     assert off["follows"] == checks.FAIL and measures["mean off clip deg"] == pytest.approx(10.0)
 
 
-def test_the_make_lays_each_body_under_its_character(tmp_path, monkeypatch):
+def toy_seed(folder):
+    """A seed whose base layer holds one solid: a 4 x 4 m square at 0.1 m from (-1, -, 0) to (3, -, 4)."""
+    (folder / "layers").mkdir(parents=True)
+    stage = Usd.Stage.CreateNew(str(folder / "layers/base.usda"))
+    UsdGeom.Xform.Define(stage, "/toy")
+    square = UsdGeom.Mesh.Define(stage, "/toy/Ground/Ground")
+    square.CreatePointsAttr([Gf.Vec3f(x, 0.1, z) for x, z in ((-1, 0), (3, 0), (3, 4), (-1, 4))])
+    square.CreateFaceVertexCountsAttr([4])
+    square.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    stage.Save()
+
+
+def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_path, monkeypatch):
     rig = toy_rig()
     (tmp_path / "clips").mkdir()
     np.savez(tmp_path / "clips/rig.npz", **rig)
+    toy_seed(tmp_path / "seed")
     (tmp_path / "cast").mkdir()
     cast = {"place": "toy", "crowd": {"name": "crowd"}, "characters": [
         {"name": "ann", "doing": "standing", "at": [1.0, 0.0, 2.0], "turn": 30.0, "weight": 50.0},
-        {"name": "bob", "doing": "flying", "at": [0.0, 0.0, 0.0]}]}
+        {"name": "bob", "doing": "flying", "at": [0.0, 0.0, 0.0]},
+        {"name": "cid", "doing": "standing", "at": [50.0, 0.0, 50.0]}]}
     (tmp_path / "cast/cast.json").write_text(json.dumps(cast))
 
     def written(job, out):
-        person = json.loads(job.read_text())["people"][0]
-        assert person["name"] == "ann"
+        people = json.loads(job.read_text())["people"]
+        assert [person["name"] for person in people] == ["ann"]
+        person = people[0]
+        ground = np.load(person["targets"])["ground"]
+        assert ground[:, :, 1] == pytest.approx(0.1)
+        # the square's corner (3, 4) is (2, 2) from ann's spot: turned back 30 degrees about up, (0.732, 2.732)
+        assert np.abs(ground.reshape(-1, 3)[:, [0, 2]] - [2 * np.cos(np.pi / 6) - 1, 1 + 2 * np.cos(np.pi / 6)]).sum(
+            axis=1).min() == pytest.approx(0.0, abs=1e-5)
         frame = frames(1, weight=50.0 * 1.62)[0]
         frame["poses"] = [[0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]]
         return {"engine": "written", "people": {"ann": {"frames": [frame] * 20}}}
@@ -149,10 +178,12 @@ def test_the_make_lays_each_body_under_its_character(tmp_path, monkeypatch):
     monkeypatch.setattr(sim_body, "gravity_of", lambda place, inputs: ("moon", 1.62))
     out = tmp_path / "out"
     out.mkdir()
-    sim_body.make({"cast": str(tmp_path / "cast"), sim_body.CLIPS_ROW: str(tmp_path / "clips")}, out, 0, {})
+    sim_body.make({"cast": str(tmp_path / "cast"), sim_body.CLIPS_ROW: str(tmp_path / "clips"),
+                   "seed": str(tmp_path / "seed")}, out, 0, {})
     record = json.loads((out / sim_body.RECORD).read_text())
     assert record["bodies"]["ann"]["measures"]["weight N"] == pytest.approx(81.0)
-    assert [line.split(":")[0] for line in record["left out"]] == ["bob", "crowd"]
+    assert record["bodies"]["ann"]["ground"] == {"solids": ["Ground/Ground"], "triangles": 2}
+    assert [line.split(":")[0] for line in record["left out"]] == ["bob", "cid", "crowd"]
     stage = Usd.Stage.Open(str(out / sim_body.LAYER))
     shin = stage.GetPrimAtPath("/toy/Characters/ann/SimBody/Shin")
     assert UsdPhysics.MassAPI(shin).GetMassAttr().Get() == pytest.approx(25.0, abs=1.0)

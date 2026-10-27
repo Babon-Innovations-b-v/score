@@ -204,10 +204,12 @@ CHARACTERS = graph.Stage("characters-layer", "place", characters_layer.make, cha
                          after={"cast": ("cast", 1), **{name: ("people-dress", 1) for name in DRESS_ROWS}},
                          optional=DRESS_ROWS, applies=designed("people"))
 # Experimental (#65, PRD #56): each character of the place's accepted cast as a sim body on Newton, built from SOMA's
-# segments in the rig its clips play (people-clips-made), driven by its clip and standing on the floor by contact
-# (score/stages/sim_body). Nothing reads it yet, so no other row's key moves.
+# segments in the rig its clips play (people-clips-made), driven by its clip and standing on the scene's own ground
+# by contact: the stage the cast is measured on, its scene record on its made ground (score/stages/sim_body).
+# people-cloth reads it.
 SIM_BODY = graph.Stage("sim-body", "place", sim_body.make, sim_body.CONTRACT, sim_body.CHECKS, files=sim_body.files,
-                       after={"cast": ("cast", 1), sim_body.CLIPS_ROW: (sim_body.CLIPS_ROW, 1)},
+                       after={"cast": ("cast", 1), sim_body.CLIPS_ROW: (sim_body.CLIPS_ROW, 1),
+                              "scene-record": ("scene-record", 1), "terrain": ("grounds", 2)},
                        applies=designed("people"))
 # Experimental (owner, 2026-10-27, "bring back"): each character's loose garment parts as cloth on Newton's VBD against
 # its sim body's moving segments (score/stages/people_cloth), its dressed and built bodies optional reads as the
