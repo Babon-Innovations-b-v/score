@@ -2,7 +2,7 @@
 
 > **Demo film: coming.** It waits on environment 1's batch; the film replaces this box once it exists.
 
-**SCORE: Synthesizing Complete, Owned, Responsive Environments for Simulation.**
+**SCORE: Synthesising Complete, Owned, Responsive Environments for Simulation.**
 
 SCORE is a framework that synthesizes 3D environments a simulator can step as written: every object its own
 body with a collider, mass and material, doors on hinges, ground under its own planet's gravity, light and sound
