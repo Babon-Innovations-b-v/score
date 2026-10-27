@@ -411,7 +411,13 @@ def start_if_stopped(server_id, zone):
     probe in fr-par-2 started on the first try by hand). A zone truly out of cards refuses with
     "out of stock", and asking again later may still get one.
     """
-    if scw("instance", "server", "get", server_id, f"zone={zone}")["state"] != "stopped":
+    try:
+        state = scw("instance", "server", "get", server_id, f"zone={zone}")["state"]
+    except subprocess.CalledProcessError as error:
+        # Unreadable after scw's own retries (a Warsaw L4, 2026-10-27): a refusal the caller waits out and then
+        # deletes as a machine that did not start, never a crashed node with the machine left behind.
+        return f"its state could not be read: {(error.stderr or '').strip()[-300:] or error}"
+    if state != "stopped":
         return None
     done = subprocess.run(["scw", "instance", "server", "start", server_id, f"zone={zone}"],
                           capture_output=True, text=True)
