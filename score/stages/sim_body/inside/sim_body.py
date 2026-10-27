@@ -14,15 +14,16 @@ person's own frame, Y up)}]}.
 The movement is the clip's (the owner, 2026-10-27: "we have kimodo for the actual movement; and myobody plus mujoco and
 newton for the physics"): the body, root included, follows it exactly, and the physics is what that movement asks.
 - Rotations to joint angles: each SOMA segment's frame becomes its MyoFullBody body's (TARGETS, with a fixed turn from
-  segment to body: `offsets`), the pelvis takes the Hips' place, and a damped least-squares fit (`fitted`) finds the
-  model's own joint angles, in its own coordinates: a joint MuJoCo couples to another (the knee's slides and turns, the
+  segment to body: `offsets`) and the legs' joint centres SOMA's (JOINTS: hips, knees, ankles, toes, placed first as
+  MuscleMimic's and KINESIS' retargeting place them), and a damped least-squares fit (`fitted`) finds the model's
+  own joint angles, in its own coordinates: a joint MuJoCo couples to another (the knee's slides and turns, the
   patella, the lumbar levels, the shoulder rhythm) follows its leader by the model's own polynomial, never fitted
   apart. Newton's eval_ik and IKSolver (#59) do not keep MuJoCo's joint couplings, so they are not used here. What
   MyoFullBody cannot do follows as near as its joints allow (LACKS).
-- The whole path is moved up or down once, so the body's lowest point stands on its ground at the first frame (SOMA's
-  joints are rig joints: its ankle is lower than the model's, #64); nothing else of the motion is changed.
 - The fitted path low-passed at CUTOFF (Winter's 6 Hz, zero lag) before it is differentiated; velocities and
   accelerations its central differences.
+- The whole path is moved up or down once, so the body's lowest point stands on its ground at the median frame
+  (`grounded`); nothing else of the motion is changed.
 - The physics, frame by frame, on the MuJoCo model Newton builds (SolverMuJoCo on MuJoCo's CPU backend; nothing is
   stepped): the generalised forces the movement needs (inverse dynamics, armature and passive forces in), the ground's
   contacts (each collider's surface points within REACH of the drawn triangles under them, the triangle's normal, moving
@@ -91,9 +92,14 @@ BONES = {"{Side}Shoulder": ("{Side}Arm", "clavicle_{side}", "humerus_{side}"),
 CALIBRATED = ("{Side}Shoulder", "{Side}Arm", "{Side}ForeArm", "{Side}Hand")
 # A bone with no SOMA joint beyond takes this one's.
 LIKE = {"{Side}Hand": "{Side}ForeArm", "{Side}ToeBase": "{Side}Foot"}
-# The segments whose body's place the fit follows too (as its marker in the segment's frame at the bind): the pelvis,
-# and the feet, so a foot the clip holds on the ground stays there.
-PLACED = ("Hips", "{Side}Foot", "{Side}ToeBase")
+# The joint centres the fit follows first, turns second, as MuscleMimic's retargeting (its GMR table,
+# smplh_to_myofullbody.json) and KINESIS' (SMPL joint places) do: each SOMA leg joint and the MyoFullBody body whose
+# origin is that joint; the legs are sized on these same pairs (myo.LIMBS), so they meet. The hips place the pelvis:
+# the model's hip joints on SOMA's (riding the Hips put them 8.7 cm behind, 2026-10-27). The elbows and wrists are
+# not placed: they would need SOMA's trunk fitted to the model's, as MuscleMimic fits SMPL's shape to it, and with
+# them the Kimodo walker's pelvis and chest leaned 34 and 23 degrees off the clip to bring them 2 cm nearer.
+JOINTS = {"{Side}Leg": "femur_{side}", "{Side}Shin": "tibia_{side}", "{Side}Foot": "talus_{side}",
+          "{Side}ToeBase": "toes_{side}"}
 FIT_PLACE = 10.0  # the fit's weight of a metre of a body's place against a radian of a turn
 FIT_DAMPING = 1e-3
 FIT_STEADY = 0.05  # the fit's weight of a radian (or metre) a joint moves from the frame before
@@ -399,38 +405,53 @@ def to_mujoco(world):
     return TO_OWN.T @ world[:3, :3], TO_OWN.T @ world[:3, 3]
 
 
-def motion(model, couplings, person, worlds, bodies, offsets_of, ground, colliders):
-    """The fitted path (frames x nq), moved once so its lowest collider point stands on its ground at the first frame,
-    and that move (m)."""
-    targets, (turns, marks) = sided(TARGETS), offsets_of
+def motion(model, couplings, person, worlds, bodies, turns):
+    """The fitted path (frames x nq): the legs' joint centres placed first, every TARGETS turn second."""
     index = {name: number for number, name in enumerate(person["segments"])}
-    qpos, path = model.qpos0.copy(), []
-    data = mujoco.MjData(model)
-    mujoco.mj_kinematics(model, data)
-    pelvis = bodies["Hips"]  # the pelvis against the root at the zero pose: its place and turn
-    turned = data.xmat[pelvis].reshape(3, 3)
-    rest = (turned.T @ (data.xpos[pelvis] - data.xpos[model.jnt_bodyid[0]]), turned)
+    joints = {body_index(model, name): segment for segment, name in sided_map(JOINTS).items()}
+    pelvis, path = bodies["Hips"], []
     for frame, world in enumerate(worlds):
-        wanted = {body: TO_OWN.T @ (world[index[segment]][:3, :3] @ turns[segment]) for segment, body in
-                  ((segment, bodies[segment]) for segment in targets)}
-        places = {bodies[segment]: TO_OWN.T @ (world[index[segment]] @ [*marks[segment], 1.0])[:3]
-                  for segment in sided(PLACED)}
-        place = places[bodies["Hips"]]
-        if frame == 0:  # the root stood so the pelvis turns and stands as wanted, the rest at the zero pose
-            qpos[:3] = place - wanted[bodies["Hips"]] @ rest[0]
-            qpos[3:7] = Rotation.from_matrix(wanted[bodies["Hips"]] @ rest[1].T).as_quat(scalar_first=True)
+        wanted = {bodies[segment]: TO_OWN.T @ (world[index[segment]][:3, :3] @ turns[segment])
+                  for segment in sided(TARGETS)}
+        places = {body: TO_OWN.T @ world[index[segment]][:3, 3] for body, segment in joints.items()}
+        if frame == 0:  # the root stood so the pelvis turns as wanted with its hip joints' middle on SOMA's
+            hips = [body for body, segment in joints.items() if segment.endswith("Leg")]
+            qpos = rooted(model, pelvis, hips, wanted[pelvis], np.mean([places[body] for body in hips], axis=0))
         qpos = fitted(model, couplings, wanted, places, qpos, FIT_FIRST if frame == 0 else FIT_NEXT,
                       None if frame == 0 else qpos)
         path.append(qpos.copy())
-    path = np.array(path)
+    return np.array(path)
+
+
+def grounded(model, path, colliders, ground, name):
+    """The path moved once up or down so its lowest collider point stands on its ground at the median frame, and that
+    move (m). A walk always has a foot on its ground, so each frame's lowest point should be on it; the median frame's
+    is (the frame 0 rule left the Kimodo walker's feet standing 2 to 3 cm over it once its legs followed the clip, and
+    MuscleMimic's lowest over all frames lifted it 2.3 cm, with frames carried by nothing, 2026-10-27)."""
+    data, lowest = mujoco.MjData(model), []
+    for qpos in path:
+        data.qpos[:] = qpos
+        mujoco.mj_kinematics(model, data)
+        lowest.append(lowest_over(model, data, colliders, ground))
+    lowest = [over for over in lowest if over is not None]
+    if not lowest:
+        raise SystemExit(f"{name}: no ground under its body in any frame")
+    over = float(np.median(lowest))
+    moved = path.copy()
+    moved[:, 2] -= over  # MuJoCo's up
+    return moved, -over
+
+
+def rooted(model, pelvis, hips, turn, middle):
+    """The zero pose (qpos) with its root moved so the pelvis turns as `turn` and its hip joints' middle (`hips`'
+    origins) stands at `middle` (MuJoCo's frame)."""
     data = mujoco.MjData(model)
-    data.qpos[:] = path[0]
     mujoco.mj_kinematics(model, data)
-    over = lowest_over(model, data, colliders, ground)
-    if over is None:
-        raise SystemExit(f"{person['name']}: no ground under its first frame's body")
-    path[:, 2] -= over  # MuJoCo's up
-    return path, -over
+    rest = data.xmat[pelvis].reshape(3, 3)
+    qpos = model.qpos0.copy()
+    qpos[:3] = middle - turn @ rest.T @ (data.xpos[hips].mean(axis=0) - data.xpos[model.jnt_bodyid[0]])
+    qpos[3:7] = Rotation.from_matrix(turn @ rest.T).as_quat(scalar_first=True)
+    return qpos
 
 
 def filtered(model, couplings, path, rate):
@@ -681,8 +702,9 @@ def run_person(job, person, out_path):
     physics = Physics(model, ground, colliders)
     feet = {segment: [geom for geom in colliders if model.geom_bodyid[geom] == bodies[segment]]
             for segment in person["segments"] if segment.endswith(FEET)}
-    qpath, shift = motion(model, physics.couplings, person, worlds, bodies, fixed, ground, colliders)
-    qpath = filtered(model, physics.couplings, qpath, job["rate"])
+    qpath = filtered(model, physics.couplings, motion(model, physics.couplings, person, worlds, bodies, fixed[0]),
+                     job["rate"])
+    qpath, shift = grounded(model, qpath, colliders, ground, person["name"])
     velocities, accelerations = rates(model, qpath, job["rate"])
     names = [str(name) for name in person["rig"]["names"]]
     parents = [person["segments"].index(names[parent]) if parent >= 0 and names[parent] in person["segments"] else -1
