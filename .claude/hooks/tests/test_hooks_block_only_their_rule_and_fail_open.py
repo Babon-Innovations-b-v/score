@@ -14,6 +14,7 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_accept_guard_lets_a_benchmark_grant_pass: add `grant_benchmark` to `_OWNER_CALL`'s names.
 - test_completion_guard_refuses_a_false_done_claim: `claimed` returns `set()` at once.
 - test_completion_guard_lets_an_honest_stop_end: drop `or _NEGATION.search(sentence)` in `claimed`.
+  Or in `_says_all_done`, return `bool(re.search(every, sentence, re.IGNORECASE))` (any "all places" counts).
 - test_completion_guard_runs_under_the_projects_python (an incident, 2026-10-18; it reads settings.json for the hook's
   command, a wording check guarding the rule that a false done is refused): the settings run it with `python3`.
 - test_issue_guard_blocks_bare_issues_and_destructive_git: `_is_destructive_git` returns False at once.
@@ -222,6 +223,8 @@ def test_completion_guard_lets_an_honest_stop_end(tmp_path, known_place):
         transcript(tmp_path / "f", f"The {PLACE} is done.", entries=[  # a place the session never worked on
             {"type": "tool_use", "name": "Edit", "input": {"file_path": "/x/data/inventory/nowhere_else.json"}}]),
         transcript(tmp_path / "g", f"The {PLACE} is done.", entries=agent_only),  # only named in a hand-off
+        transcript(tmp_path / "i", "Each place's shots wait for its complete check, and the film comes after all "
+                                   "places."),  # a done-word beside "all places", no claim (2026-10-27)
     ]
     for path in honest:
         assert run(HOOKS / "completion_guard.py", {"transcript_path": path}, env=known_place)[0] == ALLOW, path
