@@ -831,3 +831,22 @@ def test_a_close_up_follows_the_walker_on_the_most_uneven_ground():
         peel.close_walker(cast)
     with pytest.raises(ValueError, match="no walker"):
         peel.close_walker(dict(cast, characters=[cast["characters"][1]]))
+
+
+def test_a_locked_script_peels_every_place_whose_design_shows_people(tmp_path, monkeypatch):
+    """A script must show a layer peel of every place whose design shows people (the designs' own layers), else the
+    environment film is Blocked naming each, so the script cannot drift from the designs (owner, 2026-10-27); every
+    kept design is the row's input, so a design that gains people moves its key.
+    Break: score/stages/demo_film/final.py: `if place not in peeled]` -> `if False]`
+    Break: score/stages/demo_film/final.py: `if design_layers.has_layer(place, "people")]` -> `]`"""
+    from score.stages import design_layers
+    monkeypatch.setattr(design_layers, "KEPT", tmp_path)
+    for place in ("lab", "stairwell", "hangar"):
+        (tmp_path / f"{place}.json").write_text("{}")
+    monkeypatch.setattr(design_layers, "has_layer", lambda place, kind: kind == "people" and place != "hangar")
+    assert final.peopled() == ["lab", "stairwell"]
+    assert {"design lab", "design stairwell", "design hangar"} <= set(final.files())
+    peel = {"cut": "body-peel", "shows": {"place": "lab"}, "seconds": 5.0}
+    faults = final.plan_faults(dict(a_script([*WALKS, peel])), final.peopled())
+    assert "the design of stairwell shows people and no layer peel shows them" in faults
+    assert not any("design of lab" in fault for fault in faults)
