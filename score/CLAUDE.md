@@ -266,7 +266,7 @@ stage as each stage is built; nothing moves before.
   place the batch builds, so the Square's build covers it?": "yes"). `complete` is the completion gate on what
   the place holds: `tools/usd/complete.py`'s own checks (all but resting, the assembly's gate) on the place's
   neighbours output (else its assembly), reading its surfaces-check and likeness; one gate, two ways in
-  (`stages/complete/complete_test.py` holds them equal). The library check (`stages/complete/library`, its overlay) is
+  (`stages/complete/test_the_completion_gate_passes_only_a_place_that_holds_what_it_should.py` holds them equal). The library check (`stages/complete/library`, its overlay) is
   not one of its gates: a standalone check of the accepted assembly against the library, its findings the cockpit's
   problems. Nor is the visual check (`stages/complete/visual`, its overlay): it reads the films, made only once
   complete passes, and writes its findings, with their pictures, the same way. Nor is the USD check
