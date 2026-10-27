@@ -64,12 +64,13 @@ own sound; paid and cleared by the runner like any paid row.
 - **A layer peel** (`peel.py`, the script's `body-peel` cut, CONTEXT.md "layer peel"; owner 2026-10-27) is drawn free on
   this machine's card by `blender/body_peel.py` in Blender `-b` (no display needed): every person of the cast clothed
   (its dressed body posed by the sim body's clip, its rest fitted to the clip rig's bind), as its bare SOMA mesh and as
-  its sim body (the sim body layer's boxes at the record's poses, placed as the sim runs, `--build` its person's own
-  build, each foot's recorded push an arrow up from the ground under it, `METRES_PER_NEWTON` long), over the scene's
-  ground (`--ground`), joined by a wipe at each third. `--close` follows one walker alone, `close_walker`'s rule (the
-  most relief in scene-clips' record). A shot never outlasts the sim body record. No row makes peel frames yet, so the
-  environment film names the cut as one it cannot cut; making it a row (inside the assembled scene, on its own camera)
-  is a change of its own.
+  its sim body (whatever geometry the sim body layer holds under the person's SimBody, bones, boxes or muscles with
+  their own colours, imported by Blender with its time samples and shown at the record's frames, placed as the sim runs;
+  `--build` its person's own build; each foot's recorded push an arrow up from the ground under it, `METRES_PER_NEWTON`
+  long), over the scene's ground (`--ground`), joined by a wipe at each third. `--close` follows one walker alone,
+  `close_walker`'s rule (the most relief in scene-clips' record). A shot never outlasts the sim body record. No row
+  makes peel frames yet, so the environment film names the cut as one it cannot cut; making it a row (inside the
+  assembled scene, on its own camera) is a change of its own.
 - **Stills come from the films.** K5, K6 and K8 take frames of the places' films (a film starts at its
   segment's `start`, else the stage's start); the demo-stills row, which rendered a view no film showed, was retired
   on 2026-10-22 (it had no definitions and so no node).

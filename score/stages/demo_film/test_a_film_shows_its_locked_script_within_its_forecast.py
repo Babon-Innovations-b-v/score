@@ -738,7 +738,7 @@ def toy_rig():
 
 def test_a_peel_draws_the_clip_rigs_own_surface_and_the_records_own_push():
     """The bare mesh is the rig's points carried by its clip and skin weights (at the bind, the points themselves);
-    each foot's arrow stands on the ground under it (its box's bottom less its recorded height over the ground), its
+    each foot's arrow stands on the ground under it (its bottom less its recorded height over the ground), its
     length the record's push on that foot, so the same body's arrow on the Moon is a sixth of Earth's; a foot the
     ground does not push has none.
     Break: score/stages/demo_film/peel.py: `@ np.linalg.inv(np.asarray(rig["bind"], dtype=float))` -> `` (in skinned)
@@ -748,37 +748,51 @@ def test_a_peel_draws_the_clip_rigs_own_surface_and_the_records_own_push():
     rig = toy_rig()
     assert np.allclose(peel.skinned(rig, "still")[0], rig["points"])
     assert np.allclose(peel.skinned(rig, "step")[0], rig["points"] + [0.0, 0.0, 1.0])
-    box = np.diag([0.1, 0.05, 0.1, 1.0])
-    raised = [0.0, 0.35, 0.0, 0.0, 0.0, 0.0, 1.0]  # the box's bottom 0.30 up: 0.25 over a 0.05 step
-    frame = {"poses": [raised, raised], "feet": {"LeftFoot": [0.25, 750.0], "RightFoot": [0.4, 0.0]}}
-    earth = peel.pushes(np.array([box, box]), ["LeftFoot", "RightFoot"], [frame])
-    moon = peel.pushes(np.array([box, box]), ["LeftFoot", "RightFoot"],
-                       [dict(frame, feet={"LeftFoot": [0.25, 125.0], "RightFoot": [None, 0.0]})])
+    bottoms = np.array([[[0.0, 0.30, 0.0], [0.2, 0.40, 0.0]]])  # 0.25 over a 0.05 step; the other foot up
+    frame = {"feet": {"LeftFoot": [0.25, 750.0], "RightFoot": [0.4, 0.0]}}
+    earth = peel.pushes(bottoms, [frame])
+    moon = peel.pushes(bottoms, [{"feet": {"LeftFoot": [0.25, 125.0], "RightFoot": [None, 0.0]}}])
     assert np.allclose(earth[0, 0], [0.0, 0.05, 0.0, 0.0, 0.75, 0.0]) and np.isnan(earth[0, 1]).all()
     assert np.isclose(moon[0, 0, 4] * 6, earth[0, 0, 4]) and np.isnan(moon[0, 1]).all()
 
 
-def test_a_sim_body_is_drawn_upright_at_its_record_and_moves_with_it():
-    """The sim pass is the record's own poses frame by frame, placed as the sim body runs (spot, turn, Turned): at the
-    first frame the hips stand over the foot (up is Blender's +z), a frame later the body has moved, and every foot
-    the ground pushes has its arrow (owner, 2026-10-27: the drawn sim body must be the record's, never one frozen pose).
-    Break: score/stages/demo_film/peel.py: `"boxes": to_z(worlds[shown])` -> `"boxes": to_z(worlds[[0] * len(shown)])`
+def sim_layer(path):
+    """A sim body layer as score/stages/sim_body writes one: a guide SimBody whose segments are time-sampled Xforms,
+    each with geometry of its own under it (here a cube a segment), the hips 1 m over the foot, both 0.5 m on at 1."""
+    stage = Usd.Stage.CreateNew(str(path))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
+    body = UsdGeom.Xform.Define(stage, "/toy/Characters/ann/SimBody")
+    UsdGeom.Imageable(body).CreatePurposeAttr(UsdGeom.Tokens.guide)
+    for name, height in (("Hips", 1.0), ("LeftFoot", 0.05)):
+        segment = UsdGeom.Xform.Define(stage, f"/toy/Characters/ann/SimBody/{name}")
+        moved = segment.AddTranslateOp()
+        for time, forward in ((0, 0.0), (1, 0.5)):
+            moved.Set(Gf.Vec3d(0.0, height, forward), time)
+        UsdGeom.Cube.Define(stage, f"/toy/Characters/ann/SimBody/{name}/bone").CreateSizeAttr(0.1)
+    stage.GetRootLayer().Save()
+    return path
+
+
+def test_a_sim_body_is_read_upright_from_its_layers_time_samples_and_moves_with_them(tmp_path):
+    """The sim pass draws the layer's own geometry under the person's SimBody (any geometry, a guide included) at its
+    own time samples, and the feet's arrows stand under that geometry: at the first sample the hips stand over the
+    foot, a sample later both have moved, never one frozen pose (owner, 2026-10-27); every pushed foot keeps its arrow.
+    Break: score/stages/demo_film/peel.py: `cache = UsdGeom.BBoxCache(Usd.TimeCode(time), purposes)` ->
+        `cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), purposes)`
     Break: score/stages/demo_film/peel.py: `points_to_z(starts[shown])` -> `points_to_z(starts[shown, :1])`"""
     import numpy as np
     from score.stages.demo_film import peel
+    layer = sim_layer(tmp_path / "sim_bodies.usda")
+    found = peel.foot_bottoms(layer, peel.sim_root("toy", "ann"), ["Hips", "LeftFoot"], [0, 1])
+    assert found[0, 0, 1] - found[0, 1, 1] > 0.9  # upright: the hips over the foot (Y up)
+    assert np.allclose(found[1] - found[0], [[0.0, 0.0, 0.5], [0.0, 0.0, 0.5]])
+    with pytest.raises(ValueError, match="no prim of RightFoot"):
+        peel.foot_bottoms(layer, peel.sim_root("toy", "ann"), ["RightFoot"], [0])
     rig = toy_rig()
     rig["clip_walking"] = np.concatenate([rig["clip_still"], rig["clip_step"]])
-    still = [0.0, 0.0, 0.0, 1.0]
-    frames = [{"poses": [[0.0, 1.0, z, *still], [0.0, 0.05, z, *still], [0.2, 0.05, z, *still]],
-               "feet": {"LeftFoot": [0.0, 400.0], "RightFoot": [0.0, 350.0]}} for z in (0.0, 0.5)]
-    record = {"at": [2.0, 0.0, 1.0], "turn": 30.0, "clip": "walking"}
-    boxes = np.array([np.diag([0.1, 0.1, 0.1, 1.0])] * 3)
-    drawn = peel.person_arrays(record, rig, frames, boxes, ["Hips", "LeftFoot", "RightFoot"], [0, 1])
-    hips, foot = drawn["boxes"][0, 0], drawn["boxes"][0, 1]
-    up = hips[:3, 2] / np.linalg.norm(hips[:3, 2])  # its own up, Z up as everything drawn
-    assert hips[2, 3] - foot[2, 3] > 0.9 and up[2] > 0.99
-    assert np.linalg.norm(drawn["boxes"][1, 0, :3, 3] - hips[:3, 3]) > 0.4
-    assert drawn["arrow_start"].shape == (2, 2, 3) and not np.isnan(drawn["arrow_start"]).any()
+    frames = [{"feet": {"Hips": [None, 0.0], "LeftFoot": [0.0, 400.0]}}] * 2
+    drawn = peel.person_arrays({"at": [2.0, 0.0, 1.0], "turn": 30.0, "clip": "walking"}, rig, frames, found, [0, 1])
+    assert drawn["arrow_start"].shape == (2, 2, 3) and not np.isnan(drawn["arrow_start"][:, 1]).any()
 
 
 def test_a_peel_never_outlasts_its_record_and_wipes_up_at_each_third():
