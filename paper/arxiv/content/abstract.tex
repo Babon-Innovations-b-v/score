@@ -1,30 +1,26 @@
 \begin{abstract}
-Games, film, robot learning and embodied AI all depend on 3D
-environments that can be simulated, in which every object is a body of
-its own with collision, mass and joints, stands under the gravity of the
-ground beneath it, can be changed afterwards, and belongs to the person
-who made it. Current generative methods rarely deliver this: world
-models produce frames that no simulator can step, and one-shot 3D
-generators produce a single fused scene without separate bodies or clear
-rights to the result. We present SCORE, a framework that synthesises
-such environments by building them the way film studios build scenes in
-OpenUSD. Each scene sits within its parent scene, and each kind of work
-on it (layout, surfaces, physics, light, motion, effects, sound and
-people) is a layer of its own that is checked and changed independently
-of the others. The creator locks the design from the top down, first an
-environment concept that fixes its style and its physics and then a
-concept for each scene; open vision foundation models, procedural tools
-and coding agents then make every layer below, each checked by measured
-gates before the next is made. Every model in the framework allows
-commercial use of its output, so the creator remains the author, and
-every step is keyed on its inputs, so an edit reruns only the steps that
-depend on it. The result is a single OpenUSD environment whose physics a
-simulator reads as written; Newton, with MuJoCo's solver, steps it, and
-each character in it receives a sim body on Newton driven by its SOMA
-segment rotations. We describe the framework and its method, with a
-first environment as the evidence; its four demonstrations are marked as
-gaps until its batch has run. We close with the route toward simulated
-bodies that are true to the individual person and trained models that
-drive them. Code and paper are available at
-https://github.com/Babon-Innovations-b-v/score (MIT licence).
+Games, film, robotics and embodied AI all need 3D environments that can
+be simulated: every object its own body with collision, mass and joints,
+under the gravity of the ground it stands on, editable afterwards and
+owned by whoever made it. World models give frames no simulator opens,
+and one-shot 3D generators give one fused scene without separate bodies
+or clear rights. SCORE is a framework that synthesizes such
+environments. It builds them the way studios build scenes in OpenUSD: a
+scene sits within its parent scene, and each kind of work on it (layout,
+surfaces, physics, light, motion, effects, sound, people) is a layer of
+its own that is checked and changed apart from the rest. A creator locks
+the design from the top down, an environment concept with its style and
+its physics and then a concept for each scene; open vision foundation
+models, procedural tools and coding agents make every layer below, each
+checked by measured gates before the next is made, and every model
+allows commercial use of its output, so the creator stays the author.
+Every step is keyed on its inputs, so an edit runs again only the steps
+behind it. The result is one OpenUSD environment whose physics a
+simulator reads as written; Newton, with MuJoCo's solver, steps it. We
+describe the framework and its method, with a first environment as the
+evidence; its four demonstrations are marked gaps until its batch has
+run. Each character also gets a sim body on Newton, driven by its SOMA
+segment rotations. We close with the route toward bodies true to the
+person and trained models that drive them. Code and paper are available
+at https://github.com/Babon-Innovations-b-v/score (MIT license).
 \end{abstract}
