@@ -63,6 +63,17 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 click (the same checkout, stop line and refusals); again, a retry
                                                 of its batch inside the batch's budget, no new ask (owner,
                                                 2026-10-26); refused while the free-only latch is set
+    store-pull                                  a tar stream on stdout of what a run reads (PULLED: the store's
+                                                objects, the design, the work folder, the Google answer cache,
+                                                score_lib's file cache), leaving out every file whose path, size
+                                                and whole-second mtime the manifest on stdin already names
+                                                (`size<TAB>mtime<TAB>path` lines); never keys, ledgers, run records
+                                                or frozen copies (owner, 2026-10-27: the door route for this_pc.py)
+    store-push [--missing]                      --missing: of the paths on stdin, those the conductor lacks; else
+                                                a tar stream on stdin of new files under PUSHED (store/objects,
+                                                work), each only added: a file already there is kept, never
+                                                replaced; a link, an absolute path, `..` or a path leaving those
+                                                folders is refused
 
 Every command runs with each of the store's agent markers set (score/store AGENT_MARKERS), so the owner-only barrier
 (the store refusing owner areas in an agent's process) holds over ssh; `buy` lifts them in its own process only for
@@ -74,7 +85,9 @@ import os
 import pathlib
 import re
 import shlex
+import shutil
 import sys
+import tarfile
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
@@ -83,7 +96,7 @@ from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
 VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, clean-frozen, clean-cache, checkouts, gaps <node>, job-log <path>, "
-         "run-log [--lines N], fault <node>, predicted, "
+         "run-log [--lines N], fault <node>, predicted, store-pull, store-push [--missing], "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
 # applied launched nothing and nothing outside said why).
@@ -134,6 +147,10 @@ JOB_LOG_CHARACTERS = 40000
 RUN_LOG = "--run-log"  # this file's own read of the newest launch's run log (the run-log verb runs it)
 FAULT = "--fault"  # this file's own read of a fault report of the newest launch (the fault verb runs it)
 RUN_LOG_LINES, RUN_LOG_LINES_MAX = 200, 2000
+# The store's copy to and from the owner's PC (tools/cloud/this_pc.py): what a run reads, and the folders it adds to.
+STORE_PULL, STORE_MISSING, STORE_PUSH = "--store-pull", "--store-missing", "--store-push"
+PULLED = ("store/objects", "design", "work", "cloud/google-cache", "cache/library")
+PUSHED = ("store/objects", "work")
 
 
 class Refused(Exception):
@@ -244,6 +261,14 @@ def decide(words, latch):
         if latch:
             raise Refused("the owner's free-only latch is set: no Buy")
         return ["-m", "score.dashboard", "buy", args[0]], {"SCORE_FREE_ONLY": None}
+    if verb == "store-pull":
+        if args:
+            raise Refused("store-pull takes no arguments: the manifest of what you hold comes on stdin")
+        return [str(pathlib.Path(__file__).resolve()), STORE_PULL], {}
+    if verb == "store-push":
+        if args not in ([], ["--missing"]):
+            raise Refused("store-push [--missing]: the paths or the tar stream come on stdin")
+        return [str(pathlib.Path(__file__).resolve()), STORE_MISSING if args else STORE_PUSH], {}
     if verb == "stop-batch":
         if len(args) != 1 or not args[0].strip():
             raise Refused("stop-batch <reason>, one quoted reason")
@@ -374,7 +399,115 @@ def own_read(argv, props_home):
     return fault(newest_launch_log(), argv[1], props_home)
 
 
+def manifest(home, folders):
+    """`size<TAB>mtime<TAB>path` lines of every file and link under `folders` of `home` (links not followed)."""
+    lines = []
+    for path in walked(pathlib.Path(home), folders):
+        status = path.lstat()
+        lines.append(f"{status.st_size}\t{int(status.st_mtime)}\t{path.relative_to(home).as_posix()}\n")
+    return "".join(lines)
+
+
+def walked(home, folders):
+    """Every regular file and link under `folders` of `home`, links never followed."""
+    for folder in folders:
+        for parent, directories, files in os.walk(home / folder):
+            for name in sorted(directories) + sorted(files):
+                path = pathlib.Path(parent, name)
+                if path.is_symlink() or (name in files and path.is_file()):
+                    yield path
+
+
+def held(text):
+    """{path: (size, mtime)} of a manifest's lines."""
+    found = {}
+    for line in text.splitlines():
+        size, mtime, path = line.split("\t", 2)
+        found[path] = (int(size), int(mtime))
+    return found
+
+
+def store_pull(home, have, out):
+    """A tar stream into `out` of PULLED under `home`, without what `have` names at the same size and mtime (a link
+    named at all); (files sent, bytes, files the PC already held)."""
+    home, sent, size, kept = pathlib.Path(home), 0, 0, 0
+    with tarfile.open(fileobj=out, mode="w|") as archive:
+        for path in walked(home, PULLED):
+            name, status = path.relative_to(home).as_posix(), path.lstat()
+            if name in have and (path.is_symlink() or have[name] == (status.st_size, int(status.st_mtime))):
+                kept += 1
+                continue
+            archive.add(path, arcname=name, recursive=False)
+            sent, size = sent + 1, size + (0 if path.is_symlink() else status.st_size)
+    return sent, size, kept
+
+
+def push_target(home, name):
+    """Where a pushed path lands under `home`: inside PUSHED only, its folder no link out of it; Refused else."""
+    parts = pathlib.PurePosixPath(name).parts
+    root = next((folder for folder in PUSHED if parts[:len(folder.split("/"))] == tuple(folder.split("/"))), None)
+    if name.startswith("/") or ".." in parts or root is None or len(parts) <= len(root.split("/")):
+        raise Refused(f"store-push adds files under {', '.join(PUSHED)} only, not {name!r}")
+    target = pathlib.Path(home, *parts)
+    if not target.parent.resolve().is_relative_to(pathlib.Path(home, root).resolve()):
+        raise Refused(f"store-push: {name!r} leads out of {root} through a link")
+    return target
+
+
+def store_missing(home, asked):
+    """Of the paths `asked` (one a line), those the conductor's home lacks, one a line."""
+    names = [name for name in asked.splitlines() if name]
+    return "".join(f"{name}\n" for name in names if not os.path.lexists(push_target(home, name)))
+
+
+def store_push(home, stream):
+    """Adds each regular file of the tar `stream` under PUSHED, never replacing one already there: written under
+    home/tmp first, then linked in place (atomic, and refused when the path exists); (added, bytes, kept)."""
+    home, added, size, kept = pathlib.Path(home), 0, 0, 0
+    temporary = home / "tmp" / "this-pc-push"
+    temporary.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(fileobj=stream, mode="r|") as archive:
+        for member in archive:
+            if member.isdir():
+                continue
+            if not member.isfile():
+                raise Refused(f"store-push takes regular files only, not {member.name!r}")
+            target = push_target(home, member.name)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            part = temporary / f"{os.getpid()}-{added + kept}"
+            with archive.extractfile(member) as source, open(part, "wb") as written:
+                shutil.copyfileobj(source, written)
+            try:
+                os.link(part, target)
+                added, size = added + 1, size + member.size
+            except FileExistsError:
+                kept += 1
+            finally:
+                part.unlink()
+    return added, size, kept
+
+
+def store_move(flag, home):
+    """One of the store's copies (store-pull, store-push --missing, store-push) over stdin and stdout; its summary."""
+    if flag == STORE_MISSING:
+        sys.stdout.write(store_missing(home, sys.stdin.read()))
+        return "store-push --missing: listed"
+    if flag == STORE_PULL:
+        sent, size, kept = store_pull(home, held(sys.stdin.read()), sys.stdout.buffer)
+        return f"store-pull: sent {sent} files ({size / 1e9:.2f} GB), {kept} already on the PC"
+    added, size, kept = store_push(home, sys.stdin.buffer)
+    return f"store-push: added {added} files ({size / 1e9:.2f} GB), kept {kept} already there"
+
+
 def main():
+    if sys.argv[1:2] in ([STORE_PULL], [STORE_MISSING], [STORE_PUSH]):
+        from score.store import PROPS_HOME
+        try:
+            print(store_move(sys.argv[1], PROPS_HOME), file=sys.stderr)
+        except Refused as refused:
+            print(f"score-agent-door: refused: {refused}", file=sys.stderr)
+            return REFUSED_EXIT
+        return 0
     if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [FAULT]):
         from score.store import PROPS_HOME
         try:

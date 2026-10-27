@@ -26,6 +26,12 @@ Spending and moving are the owner's (machine.py, agent_door.sh, prepare.sh):
 - The door's run-log and fault read the newest launch's own run log and a node's fault report of its home only, and
   no node name or link leads out of the faults folder (2026-10-27: motion@airlock's fault report out of reach).
   Break: in `read_inside`, `and any(found.is_relative_to(folder) for folder in allowed)` -> `` (a link out read).
+- The door's store-push only adds regular files under store/objects and work: a file already there is kept, and an
+  absolute path, `..`, another folder, a link member or a link out of those folders is refused (2026-10-27: this PC's
+  run pushes back through the door).
+  Break: in `store_push`, `os.replace(part, target)` for `os.link(part, target)` -> the conductor's record replaced.
+  Break: in `push_target`, drop the `target.parent.resolve()` check -> a write through a link leaves work/.
+  Break: in `store_push`, drop the `not member.isfile()` refusal -> a link member is accepted.
   Break: in `fault`, drop the `NODE.match` refusal -> `../../logs/x` is read.
 - The env file carries no secret. Break: let SCORE_SYNC_TOKEN through `env_text`.
 - The move: this PC's store units off first (a failed disable is said), its home backed up before the conductor
@@ -266,7 +272,8 @@ def test_the_door_refuses_a_shell_a_paid_run_the_owners_commands_and_anything_un
                   "batch-money 1", "disk /", "clean-frozen --all", "clean-cache --making-only", "job-log",
                   "job-log a b", "job-log x.home/work/cloud/../../../store/k", "run-log 5", "run-log --lines",
                   "run-log --lines x", "run-log --lines 0", "fault", "fault a b", "fault ../store/k",
-                  "fault 'motion@airlock/../../x'"):
+                  "fault 'motion@airlock/../../x'", "store-pull cloud", "store-push --delete",
+                  "store-push --missing x"):
         code, why, argv, _ = door(asked)
         assert code == 126 and argv is None and "refused" in why, (asked, code, why)
     for asked in ("benchmark g1 world1 --detach", "buy 20261025T1700000000"):
@@ -320,6 +327,51 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
     code, why, argv, env = door("stop-batch 'the run holds 13 idle machines'")
     assert code == 0 and argv[0] == "-c" and argv[2:] == ["the run holds 13 idle machines"], (why, argv)
     assert all(env.get(marker) == "1" for marker in AGENT_MARKERS)
+    for asked, flag in (("store-pull", "--store-pull"), ("store-push --missing", "--store-missing"),
+                        ("store-push", "--store-push")):
+        code, why, argv, env = door(asked)
+        assert code == 0 and argv[1:] == [flag] and argv[0].endswith("agent_door.py"), (why, argv)
+
+
+def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path):
+    """2026-10-27: the owner's PC pushes a free run's outputs back through the door, never his key on the conductor."""
+    import io
+    import tarfile
+    import agent_door
+    home = tmp_path / "home"
+    (home / "store/objects/records").mkdir(parents=True)
+    (home / "store/objects/records/k1.json").write_text("the conductor's record")
+    (tmp_path / "outside").mkdir()
+    (home / "work").mkdir()
+    (home / "work/out").symlink_to(tmp_path / "outside")
+
+    def stream(*members):
+        data = io.BytesIO()
+        with tarfile.open(fileobj=data, mode="w") as archive:
+            for name, text, kind in members:
+                info = tarfile.TarInfo(name)
+                info.type, info.size = kind, len(text.encode()) if kind == tarfile.REGTYPE else 0
+                info.linkname = "/home/score/.config/scw/config.yaml" if kind != tarfile.REGTYPE else ""
+                archive.addfile(info, io.BytesIO(text.encode()) if kind == tarfile.REGTYPE else None)
+        data.seek(0)
+        return data
+
+    regular = tarfile.REGTYPE
+    added = agent_door.store_push(home, stream(("store/objects/records/k1.json", "this PC's record", regular),
+                                               ("store/objects/records/k2.json", "made on this PC", regular)))
+    assert added == (1, len("made on this PC"), 1)  # the overwrite refused, the new file added
+    assert (home / "store/objects/records/k1.json").read_text() == "the conductor's record"
+    assert (home / "store/objects/records/k2.json").read_text() == "made on this PC"
+    for name, kind in (("../escape", regular), ("/etc/x", regular), ("store/objects/../../cloud/ssh_key", regular),
+                       ("cloud/ssh_key", regular), ("design/props/hub.json", regular), ("work", regular),
+                       ("work/out/x", regular), ("work/key", tarfile.SYMTYPE), ("work/key", tarfile.LNKTYPE)):
+        with pytest.raises(agent_door.Refused):
+            agent_door.store_push(home, stream((name, "x", kind)))
+    assert not list((tmp_path / "outside").iterdir()) and not (home / "cloud").exists()
+    assert not (home / "work/key").exists() and not (tmp_path / "escape").exists()
+    assert agent_door.store_missing(home, "store/objects/records/k1.json\nwork/new.glb\n") == "work/new.glb\n"
+    with pytest.raises(agent_door.Refused):
+        agent_door.store_missing(home, "cloud/ssh_key\n")
 
 
 def test_the_doors_job_log_reads_only_a_frozen_homes_cloud_logs(tmp_path):
