@@ -20,7 +20,9 @@ deletes the machine when the tool closes the queue or after IDLE_MINUTES with no
      "args": ["/abs/stage.usda", "/abs/job.json", "/abs/out.json"],   what follows its `--`
      "inputs": ["/abs/folder", "/abs/file"],   files and folders it reads (sent as they are)
      "outputs": ["/abs/out.json", "/abs/folder"],   files and folders it writes (brought back)
-     "minutes": 5}   about how long it runs on the machine
+     "minutes": 5,   about how long it runs on the machine
+     "env": "score/stages/physics/inside/newton_env.sh"}   optional: the script is no Blender script but runs in the
+                                    Python this script beside it builds (once) at the folder it is given
 
 Every input and output lies at the same absolute path on the machine as here, so a script, its arguments and the paths
 inside its input files (a review page's shots.json names the model files) need no change to run up there. An input of
@@ -78,13 +80,23 @@ SERVE_MINUTES = 60
 IDLE_MINUTES = 10
 
 
+def script_line(job, repo, blender):
+    """The script's own command: in Blender, or in the Python its job's `env` script builds beside the repo."""
+    arguments = [str(argument) for argument in job.get("args", ())]
+    script = str(pathlib.PurePosixPath(repo) / job["script"])
+    if not job.get("env"):
+        return shlex.join([blender, "-b", "-setaudio", "None", "--python-exit-code", "1", "--python", script, "--",
+                           *arguments])
+    folder = pathlib.PurePosixPath(repo).parent / "envs" / pathlib.PurePosixPath(job["env"]).stem
+    return (f"bash {shlex.quote(str(pathlib.PurePosixPath(repo) / job['env']))} {shlex.quote(str(folder))} && "
+            + shlex.join([str(folder / "bin/python"), script, *arguments]))
+
+
 def run_line(job, card):
     """The command that runs a job's script on the machine."""
-    arguments = [str(argument) for argument in job.get("args", ())]
-    blender = ["/root/blender/blender", "-b", "-setaudio", "None", "--python-exit-code", "1", "--python",
-               str(REMOTE / "repo" / job["script"]), "--", *arguments]
     engine = "FARM_CYCLES_GPU=1" if card else "FARM_CYCLES_CPU=1"
-    return f"cd /root && env {engine} PROPS_HOME=/root/props {shlex.join(blender)}"
+    return (f"cd /root && export {engine} PROPS_HOME=/root/props && "
+            + script_line(job, REMOTE / "repo", "/root/blender/blender"))
 
 
 def shipped(jobs):
@@ -278,11 +290,14 @@ def cloud_python():
     return VENV_PYTHON if provider.on_cluster() else CLOUD_PYTHON
 
 
-def job_of(script, arguments, inputs, outputs, minutes):
+def job_of(script, arguments, inputs, outputs, minutes, env=None):
     """A job as this file takes it."""
-    return {"script": str(pathlib.Path(script).resolve().relative_to(REPO)),
-            "args": [str(argument) for argument in arguments],
-            "inputs": [str(path) for path in inputs], "outputs": [str(path) for path in outputs], "minutes": minutes}
+    found = {"script": str(pathlib.Path(script).resolve().relative_to(REPO)),
+             "args": [str(argument) for argument in arguments],
+             "inputs": [str(path) for path in inputs], "outputs": [str(path) for path in outputs], "minutes": minutes}
+    if env:
+        found["env"] = str(pathlib.Path(env).resolve().relative_to(REPO))
+    return found
 
 
 class Machine:
@@ -301,11 +316,12 @@ class Machine:
                                          "--minutes", str(self.minutes)])
         return self
 
-    def run(self, script, arguments, inputs, outputs, minutes=10):
-        """One job on the held machine; returns when its outputs are back, raises when it or the machine failed."""
+    def run(self, script, arguments, inputs, outputs, minutes=10, env=None):
+        """One job on the held machine (a Blender script, or with `env` a script in the Python that env script
+        builds); returns when its outputs are back, raises when it or the machine failed."""
         self.count += 1
         job = self.queue / f"{self.count}.json"
-        job.write_text(json.dumps(job_of(script, arguments, inputs, outputs, minutes), indent=1))
+        job.write_text(json.dumps(job_of(script, arguments, inputs, outputs, minutes, env), indent=1))
         while True:
             if job.with_suffix(".done").exists():
                 return
@@ -343,9 +359,7 @@ def cluster_job(job, classes):
     made first, Cycles on the card on card classes (with the image's kernel cache), on the cores otherwise."""
     card = any(provider.cards(name) for name in classes)
     parents = sorted({str(pathlib.Path(local).resolve().parent) for local in job.get("outputs", ())})
-    blender = ["/opt/blender/blender", "-b", "-setaudio", "None", "--python-exit-code", "1", "--python",
-               job["script"], "--", *[str(argument) for argument in job.get("args", ())]]
-    line = (f"mkdir -p {shlex.join(parents)} && " if parents else "") + shlex.join(blender)
+    line = (f"mkdir -p {shlex.join(parents)} && " if parents else "") + script_line(job, ".", "/opt/blender/blender")
     found = {"command": ["sh", "-c", line], "code": shipped([job]), "inputs": list(job.get("inputs", ())),
              "outputs": list(job.get("outputs", ())), "minutes": float(job.get("minutes", 10)),
              "env": {"FARM_CYCLES_GPU" if card else "FARM_CYCLES_CPU": "1"}}

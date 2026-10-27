@@ -7,7 +7,7 @@ adds what moves it. `stages.MOTION_LAYER` names each module's rows in the stage 
 | module | rows | what it adds | source of the movement |
 |---|---|---|---|
 | rigid | `motion` (this folder) | joints and paths: hinge (swing), rail (slide), lane (path), spin | the design's moving rows by their kind's rule (`from_design.py`, `data/checks/row-kinds.json`) |
-| physics | `settle` (`../settling`), `physics-layer`, `physics-trial` (`../physics`) | settling, falling, cloth | simulation (`tools/usd/settle.py`, Bullet) |
+| physics | `settle` (`../settling`), `physics-layer`, `physics-trial` (`../physics`) | settling, falling, cloth | simulation (settle: `tools/usd/settle.py`, Bullet; physics trial: Newton) |
 | bodies | `cast`, `characters-layer` (`../cast`), `people-body-*`, `people-dress-*`, `people-clips` (`../people_bodies`, `tools/characters`) | rigging (UniRig), body reading (SAM 3D Body), generated body motion (Kimodo) | generated motion |
 | growth | `crops-layer` (`../crops`) | growth stages and sway of plants | formula |
 

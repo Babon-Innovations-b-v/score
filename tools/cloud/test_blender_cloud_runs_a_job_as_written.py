@@ -10,6 +10,7 @@ No machine is rented: each test reads the command, job or offers the module buil
 - test_the_arguments_and_script_reach_the_machine_as_written: in `run_line`, `"FARM_CYCLES_GPU=1" if card else
   "FARM_CYCLES_CPU=1"` -> `"FARM_CYCLES_GPU=1"`; or `str(REMOTE / "repo" / job["script"])` -> `job["script"]`.
 - test_a_scripts_folder_and_the_blender_helpers_go_up: in `shipped`, `{*ALWAYS_SHIPPED, *(` -> `{*(`.
+- test_a_job_naming_an_env_runs_in_that_python_not_blender: in `script_line`, `if not job.get("env"):` -> `if True:`.
 - test_a_held_machine_runs_a_chain_in_order_and_raises_on_a_failed_job: in `Machine.run`, the `.failed` branch's
   `raise RuntimeError(...)` -> `return`; or in `Machine.__exit__`, `(self.queue / "close").write_text("")` -> `pass`.
 - test_a_cluster_job_keeps_the_paths_and_the_engine_follows_the_class: in `cluster_job`, `card = any(provider.cards(name)
@@ -54,6 +55,19 @@ def test_the_arguments_and_script_reach_the_machine_as_written(tmp_path):
 def test_a_scripts_folder_and_the_blender_helpers_go_up():
     found = blender_cloud.shipped([{"script": "tools/props/library/inside/show.py"}])
     assert found == ["tools/blender/inside", "tools/props/library/inside"]
+
+
+def test_a_job_naming_an_env_runs_in_that_python_not_blender(tmp_path):
+    job = blender_cloud.job_of(blender_cloud.REPO / "score/stages/physics/inside/physics_trial.py",
+                               [tmp_path / "toy.usda", tmp_path / "out.json"], [], [tmp_path / "out.json"], 5,
+                               env=blender_cloud.REPO / "score/stages/physics/inside/newton_env.sh")
+    line = blender_cloud.run_line(job, card=True)
+    assert "blender" not in line and "FARM_CYCLES_GPU=1" in line
+    folder = "/root/lib/envs/newton_env"
+    assert line.endswith(f"bash /root/lib/repo/score/stages/physics/inside/newton_env.sh {folder} && {folder}/bin/python "
+                         f"/root/lib/repo/score/stages/physics/inside/physics_trial.py {tmp_path}/toy.usda "
+                         f"{tmp_path}/out.json"), line
+    assert blender_cloud.shipped([job]) == ["score/stages/physics/inside", "tools/blender/inside"]
 
 
 class Answering:

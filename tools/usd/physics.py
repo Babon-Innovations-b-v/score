@@ -1,7 +1,6 @@
 """A place's physics as OpenUSD's own physics schema (UsdPhysics), and a trial that makes its objects react
 (experimental, F11: the paper's "responsive"). Any reader of UsdPhysics (PhysX, Newton, Isaac) loads the layers;
-the framework's own run is Blender's Bullet (score/stages/physics/inside/physics_trial.py), which reads them through
-pxr.
+the framework's own run is Newton's (score/stages/physics/inside/physics_trial.py), which reads them as written.
 
     .venv/bin/python tools/usd/physics.py <stage folder> <trial record> <materials>
 
@@ -205,12 +204,16 @@ def lifted(stage, drop):
 
 
 def make_body(prim):
-    """A trial body: a rigid body colliding by the export's hull, its own triangles off."""
+    """A trial body: a rigid body colliding by the export's hull, its own triangles off, the hull bound to the
+    physics material of what it draws."""
     UsdPhysics.RigidBodyAPI.Apply(prim)
-    for mesh in own_meshes(prim):
+    drawn = own_meshes(prim)
+    for mesh in drawn:
         UsdPhysics.CollisionAPI(mesh.GetPrim()).CreateCollisionEnabledAttr(False)
+    material = UsdShade.MaterialBindingAPI(drawn[0].GetPrim()).ComputeBoundMaterial("physics")[0]
     for hull in hulls(prim):
         UsdPhysics.CollisionAPI(hull).CreateCollisionEnabledAttr(True)
+        UsdShade.MaterialBindingAPI.Apply(hull).Bind(material, UsdShade.Tokens.weakerThanDescendants, "physics")
 
 
 def joint_frames(joint, one, other, point):
@@ -247,10 +250,19 @@ def write_hinge(stage, hinge, rate):
     middle = np.mean([(low + high) / 2 for low, high in pins], axis=0)
     joints = place_path(stage).AppendPath("Physics/Joints")
     joint = UsdPhysics.RevoluteJoint.Define(stage, joints.AppendChild(f"{hinge['leaf']}_hinge"))
+    # The hinge roots the leaf's articulation (its frame is static), so what the leaf carries joins it.
+    UsdPhysics.ArticulationRootAPI.Apply(joint.GetPrim())
     joint.CreateAxisAttr(UsdPhysics.Tokens.y)
     joint.CreateLowerLimitAttr(hinge["opens"][0])
     joint.CreateUpperLimitAttr(hinge["opens"][1])
+    # UsdPhysics' limits are hard; Newton's own default is a soft spring, so its joint attribute says hard (+inf).
+    joint.GetPrim().CreateAttribute("newton:limitStiffness", Sdf.ValueTypeNames.Float).Set(float("inf"))
     joint_frames(joint, frame, leaf, Gf.Vec3d(*middle))
+    # A joint's bodies do not collide (UsdPhysics' default), said outright for a static frame, which is no body: the
+    # leaf is filtered against the frame's colliders.
+    pairs = UsdPhysics.FilteredPairsAPI.Apply(leaf).CreateFilteredPairsRel()
+    for mesh in own_meshes(frame):
+        pairs.AddTarget(mesh.GetPath())
     if "drive" in hinge:
         write_drive(joint.GetPrim(), hinge["drive"], rate)
     for carried in hinge["carries"]:

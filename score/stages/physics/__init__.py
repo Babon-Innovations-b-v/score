@@ -14,8 +14,8 @@ is on), never from a record written for the scene; only a scene whose inventory 
                              target stands under a drop
                    designed  every object the trial names is an object of a row of the scene's inventory, and it
                              drops at least one
-    physics-trial  (paid) the trial run on Blender's Bullet from the stage's UsdPhysics
-                   (inside/physics_trial.py) on a rented machine; its motion written back as
+    physics-trial  (paid) the trial run in Newton (its MuJoCo solver on Newton's contacts) from the stage's
+                   UsdPhysics (inside/physics_trial.py, in its own Python: inside/newton_env.sh) on a rented card; its motion written back as
                    layers/physics_motion.usda; the record's views rendered at its moments (usd_views.py on the same
                    card); trial.json (every frame), measures.json, strip-<view>.png (the moments side by side)
        gates       reacted   each drop came to rest on its target, each hinge opened at least OPENED_LEAST, each
@@ -46,8 +46,10 @@ import physics  # noqa: E402
 from score.stages.physics import design  # noqa: E402
 
 TRIAL_SCRIPT = "score/stages/physics/inside/physics_trial.py"
+# The trial's own Python (Newton, MuJoCo, Warp, usd-core, pinned), built once on the machine before the trial runs.
+TRIAL_ENV = "score/stages/physics/inside/newton_env.sh"
 RENDER_SCRIPT = "tools/blender/inside/usd_views.py"
-# The cheapest card that fits (the budget of 2026-10-12): a few minutes of Bullet on its processor, then sixteen looks.
+# The cheapest card that fits (the budget of 2026-10-12): a few minutes of Newton on its card, then sixteen looks.
 CARDS = ("gpu-24gb",)
 WHO = "score physics trial"
 # About forty minutes of one 24 GB card with its start.
@@ -71,9 +73,10 @@ LAYER_FILES = {**row_kinds.DESIGNED, "materials": "{data}/physics/materials.json
                "within": "{data}/places/within.json"}
 
 
-# What the trial reads besides the layer's output (its record there, the places it shows under places/): the Blender
-# scripts it runs.
-TRIAL_FILES = {"renderer": "{data}/../tools/blender/inside", "trial script": "{repo}/" + TRIAL_SCRIPT}
+# What the trial reads besides the layer's output (its record there, the places it shows under places/): the
+# renderer's Blender scripts, the trial script and the Python it runs in.
+TRIAL_FILES = {"renderer": "{data}/../tools/blender/inside", "trial script": "{repo}/" + TRIAL_SCRIPT,
+               "trial env": "{repo}/" + TRIAL_ENV}
 
 
 def read_json(path):
@@ -201,7 +204,7 @@ def make_trial(inputs, out, seed, params):
     # One card held for both steps: one machine's start, not two.
     with engines.machine_runner().Machine(CARDS, WHO) as machine:
         machine.run(REPO / TRIAL_SCRIPT, [root, out / "trial.json"], list(folder.iterdir()), [out / "trial.json"],
-                    TRIAL_MINUTES)
+                    TRIAL_MINUTES, env=REPO / TRIAL_ENV)
         trial = read_json(out / "trial.json")
         physics.write_motion(folder / place, {name: body["motions"] for name, body in trial["bodies"].items()})
         middles = starts(folder, place, trial["bodies"])

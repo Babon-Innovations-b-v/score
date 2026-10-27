@@ -202,7 +202,7 @@ SOUND = graph.Stage("sound", "place", sound.make, sound.LAYER, sound.CHECKS, fil
                     euros=sound.EUROS, models=(sound.moss_takes.KIND,), after={"motion": ("motion-layer", 2)},
                     applies=designed("sound"))
 
-# Experimental (F11) until the owner reviews it: a place's physics in UsdPhysics and a trial in Bullet that shows its
+# Experimental (F11) until the owner reviews it: a place's physics in UsdPhysics and a trial in Newton that shows its
 # objects react (a place whose design shows a loose object).
 PHYSICS_LAYER = graph.Stage("physics-layer", "place", physics.make_layer, physics.LAYER, physics.LAYER_CHECKS,
                             files=physics.LAYER_FILES,
