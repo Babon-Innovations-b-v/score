@@ -1,12 +1,27 @@
-"""Check the pick lock and the render-and-compare's arithmetic: an export keeps a picked model and writes both hashes
-on its object; an export that would show another model for a picked row, or none, is refused; a written owner decision
-lets it through; the stage check finds a picked row showing another model; a row picked as several models (a piece's
-variants) keeps each and refuses one swapped; a scene record's object that stands for a row (the launch's rocket) is
-locked like a laid one, standing on another object too; a neighbour seen through a doorway is not read as
-the place's own; and a close-up's mask and the outline score
-read a plain picture right.
+"""tools/usd/picks.py's pick lock (its rule pick_lock.py, applied by export.py) never lets a picked model be swapped
+without the owner's written decision, and compare.py's arithmetic reads a plain picture right: an export keeps a
+picked model and writes both hashes on its object; an export that would show another model for a picked row, or
+none, is refused; a written owner decision lets it through; a row picked as several models (a piece's variants)
+keeps each and refuses one swapped; a scene record's object that stands for a row (the launch's rocket) is locked
+like a laid one, standing on another object too; a neighbour seen through a doorway is not read as the place's own;
+and a close-up's mask and the outline score read a plain picture right.
 
-Run: .venv/bin/python tools/usd/test_a_picked_model_is_never_swapped_silently.py   (make tests runs it with the framework's environment)
+Breaks that turn each test red (each applied once and seen red, 2026-10-27):
+- a_kept_pick_exports_with_its_hashes: export.py's `values["score:pick_sha256"] = picks.pick_sha256(row["pick"],
+  piece["model"])` made `values["score:pick_sha256"] = ""`.
+- a_replaced_pick_is_refused_without_a_decision: pick_lock.py's faults `if sha256 not in allowed:` made `if False:`;
+  and, alone, picked's `or str(row.get("pick_replaced", "")).strip()` dropped (the owner's decision refused).
+- a_row_of_several_models_keeps_each: pick_hashes' `set((pick.get("models") or {}).values())` made
+  `set(list((pick.get("models") or {}).values())[:1])`.
+- a_scene_object_is_locked_to_its_row: export.py's scene_shown `scene_shown(entry.get("children", []), world, path,
+  shown)` made `pass` (the rocket on its stand not seen).
+- a_neighbour_is_not_read_as_the_place: picks.py's stage_shown `or str(prim.GetPath()).split("/")[2:3] ==
+  ["Places"]` dropped.
+- closeup_mask_and_outline: compare.py's closeup_mask `background = np.median(border, axis=0)` made
+  `background = np.zeros(3)`.
+
+Run: .venv/bin/python tools/usd/test_a_picked_model_is_never_swapped_silently.py   (make tests runs it in a sandbox
+home)
 """
 import json
 import pathlib
