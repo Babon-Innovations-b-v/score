@@ -22,4 +22,4 @@ on each place's accepted assembly, read only, no Blender, no cloud.
 - The fixtures of real evidence (`data/checks/materials/<place>.json.gz`, the old concepts' hangar, cockpit and
   garage) were retired with those places on 2026-10-21; the test holds the measures on meshes of known shape. Measure
   a place again with `measure.gather` when a rule needs a case of real evidence.
-- Test: `materials_test.py`.
+- Test: `test_finish_borders_and_texture_detail_measure_true_on_shapes_of_known_answer.py`.
