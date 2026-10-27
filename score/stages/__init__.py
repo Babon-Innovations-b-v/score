@@ -200,15 +200,16 @@ CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cas
 # segments in the rig its clips play (people-clips-made), driven by its clip and standing on the scene's own ground
 # by contact: the stage the cast is measured on, its scene record on its made ground (score/stages/sim_body).
 # people-cloth and the characters layer read it: its people move by it.
+BODY_ROWS = tuple(row.name for row in people.ROWS if row.name.startswith(f"{sim_body.BODY}-"))
 SIM_BODY = graph.Stage("sim-body", "place", sim_body.make, sim_body.CONTRACT, sim_body.CHECKS, files=sim_body.files,
                        after={"cast": ("cast", 1), sim_body.CLIPS_ROW: (sim_body.CLIPS_ROW, 1),
-                              "scene-record": ("scene-record", 1), "terrain": ("grounds", 2)},
-                       applies=designed("people"))
+                              "scene-record": ("scene-record", 1), "terrain": ("grounds", 2),
+                              **{name: ("people-body", 1) for name in BODY_ROWS}},
+                       optional=BODY_ROWS, applies=designed("people"))
 # Experimental (owner, 2026-10-27, "bring back"): each character's loose garment parts as cloth on Newton's VBD against
 # its sim body's moving segments (score/stages/people_cloth), its dressed and built bodies optional reads as the
 # characters layer's are, its cloth values the part's library recipe's (data/physics/cloth.json). Nothing reads it yet,
 # so no other row's key moves.
-BODY_ROWS = tuple(row.name for row in people.ROWS if row.name.startswith(f"{people_cloth.BODY}-"))
 PEOPLE_CLOTH = graph.Stage("people-cloth", "place", people_cloth.make, people_cloth.CONTRACT, people_cloth.CHECKS,
                            files=people_cloth.files,
                            after={"cast": ("cast", 1), people_cloth.SIM_ROW: ("sim-body", 1),

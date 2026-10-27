@@ -21,7 +21,8 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `cast.on_levels`: `at[1] + min(heights)` read as `at[1]`  -> the levels test.
 - `layer.make`: `if row is None or row not in inputs:` read as `if row is None:`  -> the layer test (it reaches for
   a body that is not there instead of naming the gap).
-- `driven.driven_locals`: `size * local[1, 3] + lift` read as `local[1, 3]`  -> the sim body test (feet off).
+- `driven.size_over_sim`: `/ float(body["size"]["of the rig"])` dropped  -> the sim body test (the 1.1 body's sim
+  hips raised 10% again: feet off).
 - `driven.write_driven`: Hips' simulated translation not written  -> the sim body test (the clip's path kept).
 - `driven.lay_sim_body`: the Turned transform not set  -> the sim body test (the sim body mirrored off the skin).
 - `driven.judge_on_its_sim_body`: `> FEET_WITHIN` read as `> 1.0`  -> the feet-leave test.
@@ -359,14 +360,17 @@ def toy_asset(folder, rig):
 
 
 def toy_sim(folder, rig):
-    """A sim-body output for bram: its hips walked 0.3 m along x and let down 2 cm, its left leg swung 20 degrees,
-    each segment's pose a frame (measures/bram.json) and keyed on its guide prim (layers/sim_bodies.usda)."""
+    """A sim-body output for bram, built at his own size (TOY_SIZE times the rig, as sim_body.person_rig builds it):
+    its hips walked 0.3 m along x and let down 2 cm, its left leg swung 20 degrees, each segment's pose a frame
+    (measures/bram.json) and keyed on its guide prim (layers/sim_bodies.usda)."""
     from pxr import Gf, Sdf
     from scipy.spatial.transform import Rotation
     segments = ["Hips", "LeftLeg", "LeftFoot", "RightLeg", "RightFoot"]
     frames = []
     for frame in range(TOY_FRAMES):
         local = [np.array(matrix) for matrix in rig["clip_standing"][frame]]
+        for matrix in local:
+            matrix[:3, 3] *= TOY_SIZE
         local[1] = moved(0.3 * frame / TOY_FRAMES, -0.02) @ local[1]
         local[2] = local[2] @ moved(turn=20.0)
         worlds = dict(zip([path.rpartition("/")[2] for path in TOY_JOINTS], chained(local)))
@@ -374,8 +378,8 @@ def toy_sim(folder, rig):
                                  for name in segments], "worlds": worlds})
     (folder / "measures").mkdir(parents=True)
     (folder / "measures/bram.json").write_text(json.dumps([{"poses": frame["poses"]} for frame in frames]))
-    (folder / "sim_bodies.json").write_text(json.dumps({"bodies": {"bram": {"segments": {name: 1.0 for name in
-                                                                                          segments}}}}))
+    (folder / "sim_bodies.json").write_text(json.dumps({"bodies": {"bram": {
+        "segments": {name: 1.0 for name in segments}, "size": {"of the rig": TOY_SIZE}}}}))
     (folder / "layers").mkdir()
     stage = Usd.Stage.CreateNew(str(folder / "layers/sim_bodies.usda"))
     for name in segments:
@@ -424,8 +428,8 @@ def test_a_person_moves_by_its_sim_body_its_feet_on_its_sim_bodys_and_one_withou
                                                                 "`left out` says why)"}
     assert stage.GetPrimAtPath("/hub/Characters/nev").GetCustomDataByKey("score:motion").startswith("its clip")
     off = driven.feet_off(out / layer.LAYER, "hub", "bram", record["bram"]["motion"])
-    # every centimetre of it TOY_SIZE's longer legs (the sim body is the rig's size): the swung foot 0.29 m out
-    assert off == pytest.approx(0.039, abs=0.002) and off < driven.FEET_WITHIN
+    # the sim body is bram's own size (1.1 times the rig): his feet stand on its (3.9 cm off at the rig's size)
+    assert off == pytest.approx(0.0, abs=0.002)
     from pxr import UsdSkel
     played = UsdSkel.Animation(stage.GetPrimAtPath("/hub/Characters/bram/SimDriven"))
     start = record["bram"]["motion"]["start"]

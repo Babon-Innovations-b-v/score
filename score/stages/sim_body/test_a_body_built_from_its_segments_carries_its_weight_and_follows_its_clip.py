@@ -22,6 +22,8 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - the_root_and_end_sites_go_to_their_carrier: segments_of's carrier `joint = parents[joint]` made `joint = -1` (every
   end site carried by the top segment).
 - the_mass_is_stated_else_height_times_bmi: mass_of's `tall ** 2` made `tall`.
+- a_body_is_built_at_its_persons_own_size: person_rig's `local[:, hips, :3, 3] *= size` dropped; its
+  `local[:, joint, :3, 3] = built["offsets"][joint]` dropped (the clip's own offsets kept).
 - the_clip_chains_down_the_tree: clip_frames' `world[:, parents[joint]] @ local[:, joint]` made
   `local[:, joint] @ world[:, parents[joint]]`.
 - a_joint_drives_the_mass_it_carries: gains' `carried[segments[index]["parent"]] += carried[index]` dropped.
@@ -30,7 +32,8 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   judge_carries' `abs(... - 1.0) > CARRIED` made `> 1.0`; judge_follows' `> FOLLOWED` made `> 90`.
 - the_make_stands_each_body_on_its_own_ground_under_its_character: write_layer's
   `mass.CreateMassAttr(segment["mass"])` dropped; ground_of's `np.linalg.inv(frame)` made `frame` (the ground taken
-  out of the body's frame the wrong way); make's `if not len(ground)` check dropped (a body with no ground run).
+  out of the body's frame the wrong way); own_frame's `turn + TURNED` made `turn` (the ground mirrored off the
+  skin); make's `if not len(ground)` check dropped (a body with no ground run).
 
 Run: .venv/bin/python -m pytest score/stages/sim_body/test_a_body_built_from_its_segments_carries_its_weight_and_follows_its_clip.py
 """
@@ -93,6 +96,24 @@ def test_the_mass_is_stated_else_height_times_bmi():
     assert unknown["height from"] == "the SOMA body's own standing height"
 
 
+def test_a_body_is_built_at_its_persons_own_size():
+    """A built body 1.1 times the rig (its bind, offsets and surface): the person's rig takes its bind and surface,
+    every clip's offsets its own and the travel 1.1 times the clip's; its segments stand 1.1 times as far apart."""
+    rig = toy_rig()
+    rig["clip_standing"][:, 1, 1, 3] = 0.5  # the clip's Hips travel: its height over the Root
+    big = np.array(rig["bind"])
+    big[:, :3, 3] *= 1.1
+    offsets = np.array([np.linalg.inv(big[parent])[:3, :3] @ (big[joint][:3, 3] - big[parent][:3, 3])
+                        for joint, parent in enumerate(np.clip(rig["parents"], 0, None))])
+    built = {"bind": big, "offsets": offsets, "source_points": rig["points"] * 1.1}
+    person, size = sim_body.person_rig(rig, built)
+    assert size == pytest.approx(1.1) and sim_body.person_rig(rig, None)[1] == 1.0
+    world = sim_body.clip_frames(person, "standing", [1, 2])
+    assert world[0, 0, 1, 3] == pytest.approx(0.55)  # the Hips travel 1.1 times the clip's
+    assert world[0, 1, 1, 3] == pytest.approx(0.0)  # the Shin at its built offset under it
+    assert sim_body.standing_height(person) == pytest.approx(1.1)
+
+
 def test_the_clip_chains_down_the_tree():
     rig = toy_rig()
     turned = np.eye(4)
@@ -138,12 +159,12 @@ def test_a_good_run_passes_and_each_gate_fails_its_break(tmp_path):
 
 
 def toy_seed(folder):
-    """A seed whose base layer holds one solid: a 4 x 4 m square at 0.1 m from (-1, -, 0) to (3, -, 4)."""
+    """A seed whose base layer holds one solid: a 4 x 5 m square at 0.1 m from (-1, -, 0) to (3, -, 5)."""
     (folder / "layers").mkdir(parents=True)
     stage = Usd.Stage.CreateNew(str(folder / "layers/base.usda"))
     UsdGeom.Xform.Define(stage, "/toy")
     square = UsdGeom.Mesh.Define(stage, "/toy/Ground/Ground")
-    square.CreatePointsAttr([Gf.Vec3f(x, 0.1, z) for x, z in ((-1, 0), (3, 0), (3, 4), (-1, 4))])
+    square.CreatePointsAttr([Gf.Vec3f(x, 0.1, z) for x, z in ((-1, 0), (3, 0), (3, 5), (-1, 5))])
     square.CreateFaceVertexCountsAttr([4])
     square.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
     stage.Save()
@@ -167,8 +188,9 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
         person = people[0]
         ground = np.load(person["targets"])["ground"]
         assert ground[:, :, 1] == pytest.approx(0.1)
-        # the square's corner (3, 4) is (2, 2) from ann's spot: turned back 30 degrees about up, (0.732, 2.732)
-        assert np.abs(ground.reshape(-1, 3)[:, [0, 2]] - [2 * np.cos(np.pi / 6) - 1, 1 + 2 * np.cos(np.pi / 6)]).sum(
+        # the square's corner (3, 5) is (2, 3) from ann's spot: turned back her 30 degrees and the dressed body's
+        # Turned 180 about up, (-0.232, -3.598) (without the Turned: (0.232, 3.598), the ground mirrored)
+        assert np.abs(ground.reshape(-1, 3)[:, [0, 2]] - [1.5 - 2 * np.cos(np.pi / 6), -1 - 3 * np.cos(np.pi / 6)]).sum(
             axis=1).min() == pytest.approx(0.0, abs=1e-5)
         frame = frames(1, weight=50.0 * 1.62)[0]
         frame["poses"] = [[0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]]

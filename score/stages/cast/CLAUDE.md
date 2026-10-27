@@ -48,7 +48,7 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
 - **A person moves by its sim body** (`driven.py`, #65, PRD #56): where the place's `sim-body` row stands (an
   optional read of the characters layer, with `people-clips-made`'s rig), each person's skeleton plays its sim body's
   joints and root path and the sim body is laid beside it; one without keeps its clip, named. Gate `on its sim body`:
-  feet within `FEET_WITHIN`. Never tune the gate to pass: the sim body is the rig's size, not the person's, and that
-  difference is what the gate measures.
+  feet within `FEET_WITHIN`. Never tune the gate to pass: the sim body is built at the person's own size (its
+  `size`), and the skin's Hips are sized by the skin's size over it.
 - `test_people_stand_clear_or_are_named.py` stands people on a toy place of its own (a floor and a crate), runs the
   crowd rules on small crowds and plans, and makes the characters layer with no dressed body (every gap named).
