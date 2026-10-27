@@ -3,7 +3,7 @@
     defaultPrim = "fixture"
     metersPerUnit = 1
     upAxis = "Y"
-    doc = "Known good (score/stages/complete/library/library_test.py): a crate the export marked as a library model, finished in a library surface it names; a code-built wall in the place's library material; a lamp and a sound source the export marked."
+    doc = "Known good (score/stages/complete/library/test_everything_a_place_shows_traces_to_the_library_or_an_exception.py): a crate the export marked as a library model, finished in a library surface it names; a code-built wall in the place's library material; a lamp and a sound source the export marked."
 )
 
 def Xform "fixture"

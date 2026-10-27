@@ -24,4 +24,4 @@ no Blender, no cloud. `trace.py`'s docstring has the tracing rules. Bible: `arch
   [--no-pictures]`, in the background (about 20 s a place; the pxr warnings about neighbours it does not lay out go
   to stderr). It writes `WORK/checks/library/<place>/` (rows.json, findings.json, marks/) and summary.json.
 - Fixtures: `data/checks/library/bad.usda` (a picture's texture, a default grey, a model no entry holds: fails) and
-  `good.usda` (passes). Test: `library_test.py`.
+  `good.usda` (passes). Test: `test_everything_a_place_shows_traces_to_the_library_or_an_exception.py`.
