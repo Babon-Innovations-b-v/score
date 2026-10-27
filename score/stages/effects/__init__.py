@@ -79,9 +79,10 @@ RECORD = "record.json"
 
 def files(place):
     """What the stage reads: the scene's design inventory, the row-kind rules and the library of measured effects,
-    and its seed stage with its kit (the record is made and the gates judge the layer over it)."""
+    its seed stage with its kit (the record is made and the gates judge the layer over it) and its design's surface
+    data (which bakes of other places it lays, as the settle)."""
     return {**row_kinds.DESIGNED, "effect kinds": "{data}/checks/effects.json", "seed": "{seeds}/usd-r3/{place}",
-            **layer_base.files(place)}
+            "surfaces": "{home}/design/surfaces/{place}.json", **layer_base.files(place)}
 
 
 def read_json(path):

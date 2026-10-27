@@ -69,8 +69,12 @@ GROUND_FIT = graph.Stage("ground-fit", "place", ground_fit.make, ground_fit.FIT,
                          applies=ground_fit.applies)
 # Experimental (PRD #6) until the owner reviews it: each scene's effects layer made from its design (its design shows a
 # row whose kind emits, score/stages/row_kinds.py), which its assembly takes.
+# The surface line's bakes are laid as for motion: the design's emitting objects wait on them.
 EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, effects.CHECKS, files=effects.files,
-                      after={"scene-record": ("scene-record", 1)}, applies=designed("effects"))
+                      after={"scene-record": ("scene-record", 1),
+                             "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
+                      beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
+                      neighbours=assembly.claiming_places, applies=designed("effects"))
 # Experimental (PRD #6) until the owner reviews it: each scene's motion layer made from its design (its design shows a
 # row whose kind moves), over its seed with its accepted scene record written in and the surface line's bakes laid
 # (the design's objects wait on them: without, every moving row had no object, Batch 1, 2026-10-27), the seed alone
