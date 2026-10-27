@@ -100,7 +100,8 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   its surface data (`{home}/design/surfaces/<place>.json`), each only when its bytes change; the stage table reads
   them in place of `data/props` and `data/surfaces`, and the runner counts a designed node's units from its takes'
   `stages` (`gaps/price.design_takes`), so `score plan` lists and prices the same takes at the same per unit and bill
-  share (`compute.bill_share`). `prepare_test.py` holds the two equal.
+  share (`compute.bill_share`). `test_each_read_row_is_one_take_routed_by_its_part_and_priced_once_as_the_runner_prices_it.py` holds
+  the two equal.
 - Run: `.venv/bin/python -m score.stages.complete.prepare [--library DIR] [--stock] [--moved]`, writes
-  `WORK/checks/prepare/remake.json`. Test: `PROPS_HOME=$(mktemp -d) .venv/bin/python
-  score/stages/complete/prepare/prepare_test.py`.
+  `WORK/checks/prepare/remake.json`. Test: `make tests TESTS="score/stages/complete/prepare/<its test file>"`
+  (its one file, `test_each_read_row_is_one_take_routed_by_its_part_and_priced_once_as_the_runner_prices_it.py`).
