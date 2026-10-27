@@ -6,6 +6,7 @@
     python -m score.conductor logs [--lines N]   # logs.tails: run logs, fault reports, unit journals, boot logs, as text
     python -m score.conductor disk               # disk.report: free room and the biggest folders, the rest in a file
     python -m score.conductor clean-frozen       # disk.clean: remove the frozen copies no run needs, what it freed
+    python -m score.conductor clean-cache [--making-only]  # disk.clean_cache: with no run live, the cache made again free
 """
 import argparse
 import json
@@ -23,6 +24,8 @@ def main(argv=None):
     commands.add_parser("logs").add_argument("--lines", type=int, default=40, help="the last lines of each")
     commands.add_parser("disk")
     commands.add_parser("clean-frozen")
+    commands.add_parser("clean-cache").add_argument("--making-only", action="store_true",
+                                                    help="only the orphaned makes (the sync pass's sweep)")
     options = parser.parse_args(argv)
     conductor.apply_free_only()
     if options.command == "health":
@@ -39,6 +42,8 @@ def main(argv=None):
         print("\n".join([summary, *biggest]))
     elif options.command == "clean-frozen":
         clean_frozen()
+    elif options.command == "clean-cache":
+        clean_cache(options.making_only)
     elif options.command == "size":
         from score.conductor import size
         size.tick()
@@ -61,6 +66,20 @@ def clean_frozen():
     print(f"clean-frozen: removed {len(done['removed'])}, kept {len(done['kept'])}, failed {len(done['failed'])}; "
           f"freed {done['freed_gb']} GB, {disk.free_gb():.1f} GB free", flush=True)
     sys.exit(1 if done["failed"] else 0)
+
+
+def clean_cache(making_only):
+    """disk.clean_cache (making/ alone with `making_only`), its summary line last; exit 1 when refused."""
+    from score.conductor import disk
+    try:
+        done = disk.clean_cache(names=("making",) if making_only else tuple(disk.CLEARED))
+    except disk.Unprovable as why:
+        done = {"refused": str(why)}
+    if done["refused"]:
+        print(f"clean-cache: refused, nothing removed: {done['refused']}", flush=True)
+        sys.exit(1)
+    print(f"clean-cache: removed {', '.join(done['removed']) or 'nothing'}; freed {done['freed_gb']} GB, "
+          f"{disk.free_gb():.1f} GB free", flush=True)
 
 
 if __name__ == "__main__":

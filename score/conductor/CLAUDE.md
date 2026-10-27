@@ -45,6 +45,13 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   `frozen.remove` (the checkout's `git worktree remove --force`, else deleted and pruned); it refuses everything while
   a run entry does not parse or a process's command line cannot be read. Never the store or the design: a home holds
   links only once closed, and only links are unlinked.
+  `disk` also lists store/cache and work/pixal three levels down (2026-10-27: 37.5 and 20.5 GB). `clean-cache` (the
+  door's; the sync pass runs it `--making-only`) removes, only with no run live (none `needed`, no process in a frozen
+  copy or in a folder it clears, making/ untouched 15 min; else refused with why), the store cache's folders made
+  again free (`CLEARED`: making, checkouts, evidence, pages, tmp*); it keeps paid drops, convex-parts (a paid drop's
+  key hashes them), the review areas and anything unknown, and never touches store/objects or work/pixal (the paid
+  Pixal3D takes the surface line reads as declared inputs, kept nowhere else). The runner removes each make's
+  making/ folder however the make ends (`graph.gone`).
 - **Money**: the conductor bills in its own project (`SCORE_CONDUCTOR_PROJECT`, `score-conductor`); the stop line reads
   the batch project's bill alone, and `project_refusal` (in `compute.books_refusal`, `compute.require_books` and
   `guard.refusal`) refuses every clearance and rent point if the two names are ever the same.
