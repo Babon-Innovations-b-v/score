@@ -48,6 +48,8 @@ reverted):
   `QUIET_MINUTES * 6000`.
 - test_a_billed_boot_that_fails_is_a_gap_and_out_of_stock_moves_on: in `claim_from`, `if not isinstance(error,
   OutOfStock):` -> `if False:`.
+- test_a_rented_machine_whose_state_cannot_be_read_is_a_failed_boot: in `wait_for_machine`, the `except
+  subprocess.CalledProcessError` raise -> `raise`.
 - test_a_jobs_deadline_comes_from_its_measured_high_seconds: in `job_deadline_seconds`, `["high"]` -> `["median"]`.
 - test_nothing_is_rented_outside_a_cleared_run: in `rent`, drop `compute.require_cleared(f"a {machine_type} in
   {zone}")`.
@@ -535,6 +537,20 @@ def test_a_billed_boot_that_fails_is_a_gap_and_out_of_stock_moves_on(monkeypatch
     assert batch.claim(run, None, offers, 1, "parts") is None and rented == ["zone-a", "zone-b"]
 
 
+def test_a_rented_machine_whose_state_cannot_be_read_is_a_failed_boot(monkeypatch, tmp_path):
+    """wait_for_machine turns a state read that kept failing into a failed boot carrying the backend's words, so the
+    claim deletes the machine and records a gap instead of the node crashing with the machine left behind."""
+    def unreadable(server_id, zone):
+        raise subprocess.CalledProcessError(1, ["scw"], "", "server not found")
+    monkeypatch.setattr(batch.cloud, "start_if_stopped", unreadable)
+    try:
+        batch.wait_for_machine(tmp_path, "id", "pl-waw-2")
+    except TimeoutError as error:
+        assert "server not found" in str(error) and not isinstance(error, batch.OutOfStock)
+    else:
+        raise AssertionError("an unreadable machine was waited on")
+
+
 def test_a_jobs_deadline_comes_from_its_measured_high_seconds():
     measured = json.loads((REPO / "data" / "costs" / "per-unit.json").read_text())
     high = measured["stages"]["pixal"]["time"]["unit_seconds"]["high"]
@@ -916,7 +932,7 @@ def test_a_served_blender_machine_runs_the_queue_on_its_card_and_is_deleted(tmp_
     ran = []
     monkeypatch.setattr(blender_cloud, "set_up", lambda log_folder, host, jobs: ran.append(("set up", jobs)))
     monkeypatch.setattr(blender_cloud, "run_job", lambda log_folder, host, number, job, card: ran.append(
-        (number, card)) or 1.5)
+        (number, card)) or (1.5, 1))
     monkeypatch.setattr(batch, "remote", lambda *arguments, **keywords: ran.append("remote"))
     monkeypatch.setattr(batch, "copy", lambda *arguments: ran.append("copy"))
     tended = Tended(monkeypatch)
