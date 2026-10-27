@@ -1,7 +1,22 @@
-"""Check the completion gate's contents checks (contents.py) both ways, on a place made here with its own world data:
-each passes on a place that holds what it should and fails (or is unknown, which blocks) on one that does not.
+"""The completion gate's contents checks (tools/usd/contents.py) both ways, on a place made here with its own world
+data: each passes on a place that holds what it should and fails (or is unknown, which blocks) on one that does not.
 
-Run: .venv/bin/python tools/usd/test_each_contents_check_passes_what_holds_and_fails_what_lacks.py   (make tests runs it with the framework's environment)
+Breaks that turn each test red (each applied once and seen red, 2026-10-27):
+- people_both_ways: contents.body_faults' `if found.get("route") != MADE_ROUTE:` made `if False:` (SOMA's mesh in
+  drapes passes).
+- effects_and_motion_both_ways: contents.unmet's `return [need for need in needs if not any(need in name for name in
+  names)]` made `return []`.
+- crops_both_ways: contents.judge_crops' `faults = [] if share >= least else` made `if share >= 0 else`.
+- likeness_and_paint_both_ways: contents.judge_likeness' `for row in generated if row not in held]` made `if False]`.
+- light_sound_neighbours_and_game_both_ways: contents.judge_game's `if sources:` made `if False:`.
+- the_assembled_record_and_a_waiting_entry_both_ways: contents.judge_waiting's `waiting = list(...)` made
+  `waiting = []`.
+- a_far_look_near_a_view_both_ways: contents.far_only's `return f"{character}-{outfit}" not in full` made
+  `return False`.
+- the_bed_from_the_design_both_ways: contents.judge_sound's `if not stage.GetPrimAtPath(f"/{place}/Sound/Room/{name}")]`
+  made `if False]`.
+
+Run: .venv/bin/python tools/usd/test_each_contents_check_passes_what_holds_and_fails_what_lacks.py
 """
 import json
 import os

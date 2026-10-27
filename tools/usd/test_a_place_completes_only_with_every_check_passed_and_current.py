@@ -1,11 +1,40 @@
-"""Check the completion gate on places made here: a laid place with every check run and its review page built passes;
-a row with no object fails until it has a written drop reason; a stage edited after its checks makes them stale
-(unknown, which blocks); an inventory changed after the export fails the stage; a mesh nothing says the framework made
-fails the made-only check; a check that cannot run is unknown; the review page's stamp goes stale with the stage; a
-place missing what its cast says fails on its contents; and a failing reach is shown, the gate counting only that it
-was recorded.
+"""The completion gate (tools/usd/complete.py) on places made here: a laid place with every check run and its review
+page built passes, and only then; a row with no object fails until it has a written drop reason; a stage edited after
+its checks makes them stale (unknown, which blocks); an inventory changed after the export fails the stage; a mesh
+nothing says the framework made fails the made-only check; a check that cannot run is unknown; the review page's stamp
+goes stale with the stage; a place missing what its cast says fails on its contents; a failing reach is shown, the
+gate counting only that it was recorded; accepted gaps move only the faults they name.
 
-Run: .venv/bin/python tools/usd/test_a_place_completes_only_with_every_check_passed_and_current.py   (make tests runs it with the framework's environment)
+Breaks that turn each test red (each applied once and seen red, 2026-10-27):
+- loose_objects_with_no_drop_are_not_known_to_rest: complete.resting_check's `FAIL if real else UNKNOWN if undropped
+  else PASS` made `FAIL if real else PASS`.
+- a_finished_place_passes: complete.check_requirement's `if found is None: return UNKNOWN, "never run...` made
+  `return PASS, ...` (an unchecked place passes).
+- an_accepted_gap_moves_only_the_faults_it_names: complete.gap_moved's `if check not in stages.GAP_GATES["complete"]:`
+  made `if False:`.
+- the_three_statuses: complete.verdict_of's `return GAPPED` made `return FAIL`.
+- a_store_copy_takes_resting_from_its_assembly_gate: complete.assembly_resting's `list(verdict.get("findings") or ())`
+  made `[]` (the gate's faults not shown).
+- a_place_without_its_cast_fails_on_its_contents: complete.contents_check's `return result(check, verdict, stage,
+  faults, note)` made `result(check, PASS, ...)`.
+- a_failing_reach_is_shown_not_counted: complete.recorded's `return (PASS, f"recorded, {verdict}: {why}")` made
+  `(verdict, ...)`.
+- a_row_with_no_object_needs_a_drop_reason: complete.unlaid_rows' `and not str(row.get("dropped", "")).strip()` dropped.
+- a_backdrop_row_is_made_by_the_skyline_once_its_place_stands_its_object: complete.rows_faults'
+  `| contents.shown_laid(opened, place, shown or {})` dropped.
+- an_edit_after_the_checks_makes_them_stale: complete.check_requirement's `if found["fingerprint"] != current:` made
+  `if False:`.
+- a_mesh_from_nowhere_fails_made_only: made_only.py's `made_by(prim) is None]` made `made_by(prim) is None and False]`.
+- a_check_that_cannot_run_is_unknown: complete.run_check's `except` answer `result(check, UNKNOWN, ...)` made
+  `result(check, PASS, ...)`.
+- the_store_page_is_the_review_and_a_store_copy_is_judged_by_its_key: complete.review_requirement's store-page
+  `if built.get("fingerprint") != current:` made `if False:`.
+- a_designed_place_s_boxes_are_judged_on_its_hand_in: tools/props/scene/box_check.py's `if is_whole(box, size):` made
+  `if False:` (the whole-picture box on the hand-in passes).
+The ship place's beside-likeness check went (2026-10-27): no place of today's design has a beside node, so both sides
+read [] and no break could turn it red.
+
+Run: .venv/bin/python tools/usd/test_a_place_completes_only_with_every_check_passed_and_current.py
 """
 import json
 import pathlib
@@ -357,20 +386,6 @@ def a_store_copy_takes_resting_from_its_assembly_gate():
     return problems
 
 
-def a_ship_place_reads_the_runners_beside_likeness():
-    """2026-10-17: the runner's complete row reads, for a ship place, the likeness of each place whose bake lays its
-    made pieces (7caacee2); complete.py read only the place's own. Its stored outputs now name the same nodes."""
-    sys.path.insert(0, str(HERE.parents[1]))
-    from score import stages
-    runner = stages.runner()
-    problems = []
-    for place in ("cockpit", "shiplock", "engineroom", "galley"):
-        wanted = sorted(runner.besides(runner.stages["complete"], place))
-        if sorted(complete.complete_besides(place)) != wanted:
-            problems.append(f"{place}: complete.py reads {complete.complete_besides(place)} beside, the runner {wanted}")
-    return problems
-
-
 def loose_objects_with_no_drop_are_not_known_to_rest():
     """The resting check of a place whose loose objects no drop has run on is unknown, not a pass."""
     with tempfile.TemporaryDirectory() as temporary:
@@ -435,8 +450,9 @@ def a_backdrop_row_is_made_by_the_skyline_once_its_place_stands_its_object():
         return problems
 
 
-CHECKS = (loose_objects_with_no_drop_are_not_known_to_rest, a_finished_place_passes, an_accepted_gap_moves_only_the_faults_it_names, the_three_statuses,
-          a_store_copy_takes_resting_from_its_assembly_gate, a_ship_place_reads_the_runners_beside_likeness,
+CHECKS = (loose_objects_with_no_drop_are_not_known_to_rest, a_finished_place_passes,
+          an_accepted_gap_moves_only_the_faults_it_names, the_three_statuses,
+          a_store_copy_takes_resting_from_its_assembly_gate,
           a_place_without_its_cast_fails_on_its_contents, a_failing_reach_is_shown_not_counted,
           a_row_with_no_object_needs_a_drop_reason, a_backdrop_row_is_made_by_the_skyline_once_its_place_stands_its_object,
           an_edit_after_the_checks_makes_them_stale, a_mesh_from_nowhere_fails_made_only,
