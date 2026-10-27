@@ -1,9 +1,21 @@
-"""Check the physics layers on a small place made here, without Blender: each object's mass from its area, its
+"""tools/usd/physics.py's layers on a small place made here, without Blender: each object's mass from its area, its
 material and triangles, a drop lifted over its target, a blocked fall refused, the hinge at its pins' middle with its
 limits and its motor's window, the hand's path, the layers' order under the edit layer, a run's motion played back by
-time samples, and a record without the environment's gravity refused.
+time samples, and a record without the environment's gravity refused. The expected numbers are worked by hand from
+BOXES and RECORD (a 0.3 m crate's six faces: 6 x 0.3² m² of steel sheet).
 
-Run: .venv/bin/python tools/usd/test_the_physics_layers_hold_mass_drop_and_hinge.py [<folder>]   (a folder keeps the toy place, for a Blender run)
+Breaks that turn each check red (each applied once and seen red, 2026-10-27), all in physics.py:
+- masses_follow_the_area: `mass = area * spec["sheet"] * spec["density"]` made `mass = area * spec["density"]`.
+- a_drop_is_lifted_over_its_target: `landing(stage, drop) + drop["over"] - low[1]` made `landing(stage, drop) -
+  low[1]`.
+- the_hinge_stands_at_its_pins: `middle = np.mean([(low + high) / 2 for low, high in pins], axis=0)` made
+  `middle = (pins[0][0] + pins[0][1]) / 2` (the lower pin only).
+- the_motion_plays_back: write_motion's `start * Gf.Matrix4d(np.asarray(motion).T.tolist())` made untransposed.
+- a_blocked_fall_is_refused: the `found.append(f"{drop['object']}: {prim.GetName()} stands in its fall")` made `pass`.
+- a_record_without_gravity_is_refused: write_scene's `if "gravity" not in record:` made `if False:`.
+
+Run: .venv/bin/python tools/usd/test_the_physics_layers_hold_mass_drop_and_hinge.py [<folder>]   (a folder keeps the
+toy place, for a Blender run)
 """
 import json
 import math

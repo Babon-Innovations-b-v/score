@@ -1,5 +1,13 @@
-"""whole_layer.stamped: a place layer alone carries metres, Y up and its default prim, its root a def Xform, and the
-stage it is a sublayer of composes as before."""
+"""tools/usd/whole_layer.py: a stamped place layer alone carries metres, Y up and its default prim, its root a def
+Xform, and the stage it is a sublayer of composes as before.
+
+Breaks that turn each test red (each applied once and seen red, 2026-10-27):
+- test_a_stamped_layer_is_a_whole_asset_alone: whole_layer.py's `layer.defaultPrim = place` made `pass`.
+- test_the_stage_it_sits_in_composes_as_before: whole_layer.py's `spec.typeName = spec.typeName or ROOT_TYPE` made
+  `spec.typeName = "Scope"`.
+
+Run: .venv/bin/python -m pytest -q tools/usd/test_a_place_layer_is_a_whole_asset_alone.py
+"""
 import pathlib
 import sys
 

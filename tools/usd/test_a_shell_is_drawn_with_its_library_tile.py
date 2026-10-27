@@ -1,7 +1,13 @@
-"""Check the framework's own shaders (tools/usd/shaders.py) without Blender: a shell surface with a library tile is
-drawn with it, repeated along its metres; one the tiles lack keeps the library's flat surface.
+"""tools/usd/shaders.py, the framework's own shaders, without Blender: a shell surface with a library tile is drawn
+with it, repeated along its metres; one the tiles lack keeps the library's flat surface.
 
-Run: .venv/bin/python tools/usd/test_a_shell_is_drawn_with_its_library_tile.py   (make tests runs it with the framework's environment)
+Breaks that turn each check red (each applied once and seen red, 2026-10-27):
+- a_tiled_surface_is_drawn_with_its_tile_every_tile_side: shaders.py's `.Set((1.0 / metres, 1.0 / metres))` made
+  `.Set((metres, metres))` (a 2 m tile repeated every 0.5 m).
+- a_surface_the_tiles_lack_keeps_the_librarys: shaders.py's `if tiles is not None and surface in tile_record(tiles):`
+  made `if tiles is not None:`.
+
+Run: .venv/bin/python tools/usd/test_a_shell_is_drawn_with_its_library_tile.py
 """
 import json
 import pathlib
@@ -37,13 +43,18 @@ def tiles_folder(folder, surface="deck", metres=2.0):
     return tiles
 
 
-def check_the_tile_look(folder):
-    """A shell mesh whose surface has a tile is bound to /<place>/Looks/<surface>, its pictures copied into the stage's
-    textures and repeated every tile's side along the mesh's metre uvs; a surface the tiles lack keeps the library's."""
+def tiled_stage(folder):
+    """A stage with the library's deck and bare_steel surfaces, and a tiles output holding the deck's 2 m tile."""
     stage = stage_with_library()
     for name in ("deck", "bare_steel"):
         UsdShade.Material.Define(stage, f"/{PLACE}/Library/{name}")
-    tiles = tiles_folder(folder)
+    return stage, tiles_folder(folder)
+
+
+def a_tiled_surface_is_drawn_with_its_tile_every_tile_side(folder):
+    """A shell mesh whose surface has a tile is bound to /<place>/Looks/<surface>, its pictures copied into the stage's
+    textures and repeated every tile's side (2 m: a scale of 0.5 on the mesh's metre uvs)."""
+    stage, tiles = tiled_stage(folder)
     deck = scene.mesh_prim(stage, f"/{PLACE}/Structure/deck", builders.box([0.0, 0.0, 0.0], [4.0, 0.1, 4.0], "deck"))
     scene.bind_surface(stage, deck, PLACE, "deck", folder, tiles)
     bound = UsdShade.MaterialBindingAPI(deck.GetPrim()).GetDirectBinding().GetMaterialPath()
@@ -53,6 +64,10 @@ def check_the_tile_look(folder):
         assert (folder / "assets/textures" / f"tile_{PLACE}_deck_{role}.png").exists(), role
     repeat = UsdShade.Shader(stage.GetPrimAtPath(f"/{PLACE}/Looks/deck/repeat"))
     assert tuple(repeat.GetInput("scale").Get()) == (0.5, 0.5)
+
+
+def a_surface_the_tiles_lack_keeps_the_librarys(folder):
+    stage, tiles = tiled_stage(folder)
     steel = scene.mesh_prim(stage, f"/{PLACE}/Structure/steel",
                             builders.box([0.0, 0.0, 0.0], [1.0, 1.0, 1.0], "bare_steel"))
     scene.bind_surface(stage, steel, PLACE, "bare_steel", folder, tiles)
@@ -61,8 +76,9 @@ def check_the_tile_look(folder):
 
 
 def main():
-    with tempfile.TemporaryDirectory() as folder:
-        check_the_tile_look(pathlib.Path(folder))
+    for check in (a_tiled_surface_is_drawn_with_its_tile_every_tile_side, a_surface_the_tiles_lack_keeps_the_librarys):
+        with tempfile.TemporaryDirectory() as folder:
+            check(pathlib.Path(folder))
     print("test_a_shell_is_drawn_with_its_library_tile: ok")
 
 
