@@ -81,8 +81,8 @@ RUNNER_POLL_SECONDS = 2
 # that is alive says so and a quiet log means a dead run (2026-10-16: runs failed or sat idle for hours unseen).
 HEARTBEAT = 120
 # The drive starts no node while this PC's available memory, less MEMORY_FLOOR for each node started in the last
-# RAMP_SECONDS (its memory not taken yet), is under MEMORY_FLOOR; it reads again every MEMORY_POLL seconds. This PC
-# (43 GB) has run out of memory before. Measured 2026-10-22 (peak RSS of the make, imports included): plan@hub 0.21 GB,
+# RAMP_SECONDS and still running (its memory not taken yet; a node that ended holds none), is under MEMORY_FLOOR;
+# it reads again every MEMORY_POLL seconds. This PC (43 GB) has run out of memory before. Measured 2026-10-22 (peak RSS of the make, imports included): plan@hub 0.21 GB,
 # earth-seed@greenhouse 0.22 GB, the assembly, completion, earth-seed, scene-record and terrain test makes 0.22-0.28
 # GB (a node waiting on a rented machine not measured). 6 GB is far over those, for the nodes not measured yet.
 MEMORY_FLOOR = 6 * 2**30
@@ -407,8 +407,8 @@ def memory_floor():
 
 
 def memory_room(starts):
-    """True when this PC's available memory, less the floor (memory_floor) for each node started (`starts`: monotonic
-    times) in the last RAMP_SECONDS, still holds the floor for one more node."""
+    """True when this PC's available memory, less the floor (memory_floor) for each running node started (`starts`:
+    monotonic times) in the last RAMP_SECONDS, still holds the floor for one more node."""
     ramping = sum(1 for started in starts if time.monotonic() - started < RAMP_SECONDS)
     return AVAILABLE() - ramping * memory_floor() >= memory_floor()
 
@@ -1453,7 +1453,7 @@ class Runner:
         on_gaps = set()  # stopped nodes that fail only on their accepted gaps: a stage's `gapped` reads them
         beat_at = time.monotonic() + HEARTBEAT
         threads = node_threads(jobs)
-        starts, told = [], False  # starts: when each node started (memory_room); told: the memory wait was said
+        starts, told = {}, False  # starts: when each running node started (memory_room); told: the memory wait was said
         self.driving = (0, time.monotonic())
         while waiting or running:
             held = False  # a node ready to start waits for memory
@@ -1475,12 +1475,12 @@ class Runner:
                         say(f"{node}: {done[node]}")
                     elif stood.union(passes).issuperset(earlier) and len(running) + len(ready) < jobs and \
                             not self.unsettled(stage, place, line, stood, stopped):
-                        held = held or not memory_room(starts)
+                        held = held or not memory_room(starts.values())
                         if held:
                             continue
                         waiting.remove((stage, place))
                         ready.append((stage, place))
-                        starts.append(time.monotonic())
+                        starts[node_name(stage, place)] = time.monotonic()
             for stage, place in ready:
                 running.update(self.start(stage, place, threads))
             self.driving = (len(running), time.monotonic())
@@ -1502,6 +1502,7 @@ class Runner:
             for finished in FORK_WAIT(list(running), timeout=beat_in):
                 stage, place, process = running.pop(finished)
                 node = node_name(stage, place)
+                starts.pop(node, None)  # an ended node holds no memory: light rows (0.2-0.3 GB) start as fast as they end
                 done[node], stands = self.conclude(stage, place, self.outcome(finished, process))
                 if stands:
                     stood.add(node)
