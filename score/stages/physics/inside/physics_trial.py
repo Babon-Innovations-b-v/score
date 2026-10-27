@@ -186,9 +186,9 @@ class Trial:
         self.hand_starts = {path: (int(self.model.joint_q_start.numpy()[joint]),
                                    int(self.model.joint_qd_start.numpy()[joint]))
                             for path, joint in self.hand_joints.items()}
-        self.solver = newton.solvers.SolverMuJoCo(
-            self.model, use_mujoco_contacts=False, integrator="euler", deterministic=wp.DeterministicMode.RUN_TO_RUN
-        )
+        # Not Warp's deterministic mode: over 32 dofs its sparse Jacobian sizes its records past 2^31, and its sparse
+        # inertia solve is wrong over 60 dofs in a tree (#60, #55); a place has many free bodies. The contacts are sorted.
+        self.solver = newton.solvers.SolverMuJoCo(self.model, use_mujoco_contacts=False, integrator="euler")
         self.now, self.next = self.model.state(), self.model.state()
         self.control = self.model.control()
         self.pipeline = newton.CollisionPipeline(self.model, deterministic=True)
