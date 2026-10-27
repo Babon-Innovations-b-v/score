@@ -2,7 +2,7 @@
 lifted floats, one laid into the ground is sunk however its layout lifted it, a plank held up at one end tips, a hung
 object is not checked, and a box laid on a sloping planned ground stands on it.
 
-Run: .venv/bin/python tools/usd/resting_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_floating_sunk_and_tipping_objects_are_told_apart.py   (make tests runs it with the framework's environment)
 """
 import json
 import math
@@ -18,7 +18,7 @@ from pxr import Sdf, Usd, UsdGeom
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import export  # noqa: E402
-import export_test  # noqa: E402
+import test_a_creators_edit_survives_a_regenerated_base as export_test  # noqa: E402
 import ground  # noqa: E402
 import resting  # noqa: E402
 

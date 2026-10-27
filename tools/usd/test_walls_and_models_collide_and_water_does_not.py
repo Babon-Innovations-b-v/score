@@ -5,7 +5,7 @@ fixture collides by a convex hull round each of its meshes; and the free check f
 one, a model without a collider of its own (a model standing on it does not lend it one), and leaves a shown place
 to its own stage.
 
-Run: .venv/bin/python tools/usd/colliders_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_walls_and_models_collide_and_water_does_not.py   (make tests runs it with the framework's environment)
 """
 import pathlib
 import sys

@@ -94,7 +94,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   row kind: `score/stages/row_kinds.py`), crop density where its design shows crops (`score/stages/design_layers.py`),
   every generated row held to its close-up (likeness@<place>) and repainted (surfaces-check@<place>), the light and
   sound layers, the shown places, and no record citing the game. Never a list written per place: a place with no
-  design is unknown. `contents_test.py` checks each both ways.
+  design is unknown. `test_each_contents_check_passes_what_holds_and_fails_what_lacks.py` checks each both ways.
 - `triage.py` is the resting triage over `resting.py`: each object judged by its support from data (row `support`,
   `fixed`, kit shell groups and kit kinds `hangs`/`floors`, `on:` held, hanging words, wall, ceiling, floor;
   `data/checks/resting.json`), SceneEval's guards (4 contacts and the weight inside them; one contact for wall, ceiling
@@ -121,7 +121,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   record's structure and ground (`solid`: an exact box, `boundingCube`, for a mesh that is one closed box square to
   its frame, else `meshSimplification`; water never, nor a structure entry of `plain` sky: the Earth over the Moon), a made model's convex hull guide (`hull`), a world model file's
   drawn meshes each by a hull round itself (`hull_of`: no extra prim, so the readers of Fixtures' meshes are
-  unchanged). `faults` is the assembly's free `collision` gate. `colliders_test.py` checks it.
+  unchanged). `faults` is the assembly's free `collision` gate. `test_walls_and_models_collide_and_water_does_not.py` checks it.
 - `collide.py` is the collision queries (python-fcl and trimesh; one tree per model and scale): collision set,
   intersection test with an offset, distance, touches, raycast. ProcFunc's interface; its release has no such code yet.
 - `snap.py` is placement by snapping, for agents laying a place instead of hand coordinates (ProcFunc's idea, not in
@@ -130,7 +130,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   stops 2 mm short of a wall or neighbour; `free xmin,zmin,xmax,zmax --seed N` tries seeded spots, drops each, and
   keeps the first that collides with nothing (collide.py) and passes triage's floor support rule. It prints the
   proposed pose; `--write` writes it into the layout with settle.py's pose helpers (no settle limits: a snap is a new
-  laid pose, and a stale `unrested` mark goes). Export again and run the checks after. `snap_test.py` checks it.
+  laid pose, and a stale `unrested` mark goes). Export again and run the checks after. `test_a_snapped_object_rests_touching_and_never_inside.py` checks it.
 - `camera_paths.py` is a review walkthrough camera's path: RRT* at eye height (1.6 m over the first surface under each
   point: ground, Structure, Fixtures or an object such as a kit room's floor plate, never a person; a step rising or
   dropping more than a stair's 0.6 m is not taken) from a start to a goal or round a loop of waypoints, an edge valid
@@ -142,7 +142,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   eye to touch one. `clearances` measures an eye's distance from the meshes and the people; the demo's film checks
   use it on every frame. renders.py does not read it; a caller hands the views to `renders.render_stage` and
   `walk_video`. The demo's place films (`../review/demo.py`) walk every shot with its `leg` (a clear straight edge,
-  else RRT*). `camera_paths_test.py` checks a path between two rooms goes through the doorway only, a walking person
+  else RRT*). `test_a_walk_goes_through_doorways_clear_of_everything.py` checks a path between two rooms goes through the doorway only, a walking person
   and a moving thing are followed, and the clearance is measured on every side.
 - `reach.py` is the gate's reach check, the automatic playtest (owner, 2026-10-05; the interact press waits for
   interactable assets): the cast check's walker (body radius, knee, head) on a Recast-style heightfield of the stage
@@ -150,7 +150,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   scene record's views stand on; a row passes when a standing spot lies within body plus arm of one of its objects.
   Experimental: a row it cannot reach shows as a fault but does not fail the place until the owner sets the scenery
   rule and it has caught a real unreachable row that was then fixed; a row with no object is unknown. Measure a fault with it, never move a
-  piece by eye to pass it. `reach_test.py` checks a doorway, a shut pen, a stair and the gate.
+  piece by eye to pass it. `test_every_row_is_walked_to.py` checks a doorway, a shut pen, a stair and the gate.
 - **Openings in code builders.** When a builder needs a hole in a wall (a door, a window, a hatch), cut it as a cutout
   of the surface itself in its UV layout (ProcFunc's way: the hole is part of the surface, no boolean of two meshes),
   not a boolean. A note for new builders; the builders in `builders.py` are not changed by it.
@@ -195,7 +195,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   the parts: four 59-part bowls ran past 25 minutes; four 51-part bowls now drop in 69 s, but each creeps 13 cm and 2.4 degrees on flat ground where its one hull
   moves 1 cm, and stiffer fixed joints, 200 iterations, made it 19 cm: open): a box laid at an open
   crate's rim came to rest on its floor at 0.07 m, not on its hull's top at 0.62 (Blender 5.0.1, 2026-10-26).
-  `convex_parts_test.py` drops it in Blender (skipped where none is set up). Blender's own COMPOUND body
+  `test_a_hollow_body_keeps_its_hollow.py` drops it in Blender (skipped where none is set up). Blender's own COMPOUND body
   walks on a triangle ground (21 cm and 0.3 rad in 10 s), so it is not used. Kept out of settle.py and colliders.py:
   both sit in the code of about 90 rows (triage imports settle), so an edit there moves them all. The assembly's own
   drop (`--dry-run`) writes no parts file and drops hulls as before. Loose to loose collision stays off: not yet
@@ -218,10 +218,10 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   `score/stages/settling/held.py`'s `held_rests` snaps held ones onto their holders (a level spot within 30 cm when the straight snap leaves one
   leaning), `fixed_let_down` lets a floating fixed one down. A cloud drop of the very same job, drop script and stage
   is read back from a cache (`simulate(cache=...)`, `drop_key`), never bought twice.
-- `export_test.py` checks the edit survival, the parts, the units, children and the parts lookup on places made in the
-  test itself; `resting_test.py` the resting check and the planned ground; `settle_test.py` the settle's write-back
+- `test_a_creators_edit_survives_a_regenerated_base.py` checks the edit survival, the parts, the units, children and the parts lookup on places made in the
+  test itself; `test_floating_sunk_and_tipping_objects_are_told_apart.py` the resting check and the planned ground; `test_a_settled_pose_is_written_back_within_its_limits.py` the settle's write-back
   (a pose round-trips through the layout and the export) and the levelled yard, without Blender. The one check here
-  that runs Blender is `convex_parts_test.py`'s hollow crate drop, through `session.py batch`.
+  that runs Blender is `test_a_hollow_body_keeps_its_hollow.py`'s hollow crate drop, through `session.py batch`.
 - **The scene record** (the scene-record row's output, `record/<place>.json`, read by `scene.py`; the game-transcribed
   `data/scene/<place>.json` records were retired with the old concepts on 2026-10-21) is what the game drew in its own code and no kit
   piece covers: room shells and the building round a room, stairs and stepped floors, the gameplay objects it places
@@ -245,7 +245,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   (`data/...`); `export.py` resolves both (`--assets <folder>` reads a folder of one's own instead), never a file of
   the game's checkout. A name the library does not hold is a gap: the object (and what stands on it), the rock or
   the sound is left out and named once. A walkway tube's kit is laid along the
-  record's `tube_length` as the game's TubeKit lays it. `scene_test.py` checks the builders, the lights' units and
+  record's `tube_length` as the game's TubeKit lays it. `test_a_scene_record_builds_what_it_names.py` checks the builders, the lights' units and
   turns, the kit lamps, the tube's laying and every real record.
 
 - **The sound stage** (`sound.py`) is the prim writer (`audio_prim`) the assembly writes `layers/sound.usda` with
@@ -269,7 +269,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   start, length, loop, its game numbers with a `from`, and the sounds the game plays with it for `sound.py`). A thing
   the game moves but the base does not draw while it rests (the airlock's sunk inner door, a dark warning light) is
   the motion's `adds`, the layer's only defs. A game motion keeps the game's own speeds and lengths; a rest
-  the player's pace decides is the record's and says so. `motion_test.py` checks it without Blender.
+  the player's pace decides is the record's and says so. `test_a_motion_that_cannot_play_is_refused.py` checks it without Blender.
 - **Moving things** (`motion_layer.py`, experimental): what the game left standing set moving in its place from
   the motion stage's rigid record, made from the design (`--record`: a closed path, a swing on a hinge, a spin, or a
   slide), written into the

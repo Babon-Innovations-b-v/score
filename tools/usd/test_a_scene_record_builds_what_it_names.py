@@ -10,7 +10,7 @@ shader's detail baked with a decal, a water's lit columns, the night's glow, a
 column of light and a shown place's left-out piece, a lamp's shaft of light and a day sky's dome, and every real record in data/scene naming only builders,
 surfaces, plain kinds and fields that exist.
 
-Run: .venv/bin/python tools/usd/scene_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_a_scene_record_builds_what_it_names.py   (make tests runs it with the framework's environment)
 """
 import json
 import math
@@ -655,7 +655,7 @@ def main():
         check_dust(pathlib.Path(folder))
     check_records()
     check_rejected()
-    print("scene_test: ok")
+    print("test_a_scene_record_builds_what_it_names: ok")
 
 
 if __name__ == "__main__":

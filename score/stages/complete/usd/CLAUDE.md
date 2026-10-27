@@ -19,4 +19,4 @@ stored bytes (the library check's `stored.laid_out`), pxr and the validator only
   missing reference is a real one.
 - **Fix a finding in the writer that wrote it**, never in the check and never by hand in an output.
 - Run: `.venv/bin/python -m score.stages.complete.usd [--place P ...] [--out FOLDER]`, about a second a place;
-  last line its summary. Test: `usd_test.py` (its good and bad stages written in the test; a store of its own).
+  last line its summary. Test: `test_the_rule_set_passes_a_good_stage_and_finds_each_bad_one.py` (its good and bad stages written in the test; a store of its own).

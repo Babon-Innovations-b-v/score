@@ -3,7 +3,7 @@ material and triangles, a drop lifted over its target, a blocked fall refused, t
 limits and its motor's window, the hand's path, the layers' order under the edit layer, a run's motion played back by
 time samples, and a record without the environment's gravity refused.
 
-Run: .venv/bin/python tools/usd/physics_test.py [<folder>]   (a folder keeps the toy place, for a Blender run)
+Run: .venv/bin/python tools/usd/test_the_physics_layers_hold_mass_drop_and_hinge.py [<folder>]   (a folder keeps the toy place, for a Blender run)
 """
 import json
 import math
@@ -188,7 +188,7 @@ def main():
             the_motion_plays_back(folder)
     a_blocked_fall_is_refused()
     a_record_without_gravity_is_refused()
-    print("physics_test: ok")
+    print("test_the_physics_layers_hold_mass_drop_and_hinge: ok")
 
 
 if __name__ == "__main__":

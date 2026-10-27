@@ -5,7 +5,7 @@ Blender 5.0.1 (tools/blender/inside/settle_stage.py, through tools/blender/sessi
 red broken, 2026-10-26) keeps it where it is laid with a box on its floor; with no Blender 5.0.1 set up under
 PROPS_HOME or no Xvfb (bash tools/blender/setup.sh) that one check prints `skipped` and passes nothing.
 
-Run: .venv/bin/python tools/usd/convex_parts_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_a_hollow_body_keeps_its_hollow.py   (make tests runs it with the framework's environment)
 """
 import json
 import math
@@ -58,7 +58,7 @@ def a_hollow_keeps_its_hollow_and_a_box_is_one_hull():
 def a_laid_hollow_object_gets_its_parts_in_its_own_frame():
     """On an exported place, an open crate laid loose gets its convex parts, in its drawn mesh's own frame (inside
     the crate's own box, wherever it is laid); a laid box, as good as its one hull, gets none (it drops as before)."""
-    import resting_test
+    import test_floating_sunk_and_tipping_objects_are_told_apart as resting_test
     from pxr import Usd
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
@@ -125,7 +125,7 @@ def small_box():
 def dropped(folder):
     """The open crate laid FAR, a box laid at its rim and stacked on it, their parts written beside the stage, dropped:
     the drop's record, the laid stage and who got parts."""
-    import resting_test
+    import test_floating_sunk_and_tipping_objects_are_told_apart as resting_test
     import settle
     from pxr import Usd
     resting_test.made_models(folder)
@@ -142,7 +142,7 @@ def dropped(folder):
 
 def rest_of(found, stage, name):
     """An object's middle as laid and at rest (stage frame) and how far it turned (degrees)."""
-    import resting_test
+    import test_floating_sunk_and_tipping_objects_are_told_apart as resting_test
     import settle
     from pxr import Usd, UsdGeom
     laid = np.asarray(UsdGeom.Xformable(stage.GetPrimAtPath(f"/{resting_test.PLACE}/Objects/{name}"))

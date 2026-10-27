@@ -4,7 +4,7 @@ again, stands exactly where it rested; a 3 m piece that would turn 40 degrees to
 marked, while 1 m debris may turn so; a tip onto uneven feet (the water tank's legs, or a base the clusters read as one foot) is refused while a crate's is written; a kit room's piece (the game's kit) moves with its object, what lies on a settled piece moves with it, only floor pieces are dropped, not a kit's floor plate, and neither a glow nor what lies on a dropped piece (held, or a scene record's fixture) is a static of the drop.
 (The levelled yard and the dent went with the old grounds and kits, 2026-10-21.)
 
-Run: .venv/bin/python tools/usd/settle_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_a_settled_pose_is_written_back_within_its_limits.py   (make tests runs it with the framework's environment)
 """
 import json
 import pathlib
@@ -18,7 +18,7 @@ from scipy.spatial.transform import Rotation
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import resting  # noqa: E402
-import resting_test  # noqa: E402
+import test_floating_sunk_and_tipping_objects_are_told_apart as resting_test  # noqa: E402
 import settle  # noqa: E402
 
 PLACE = resting_test.PLACE
@@ -90,8 +90,8 @@ def a_tip_onto_uneven_feet_is_refused():
     """Both ways, on the greenhouse's water tank's own legs (ending 0, 2.2, 5.2 and 12.7 cm up, 2026-10-12): its
     7.5 degree tip onto three of them keeps its laid pose and is marked, while a crate on an even base tipped as much
     is written."""
-    import export_test
-    import triage_test
+    import test_a_creators_edit_survives_a_regenerated_base as export_test
+    import test_only_real_resting_faults_are_kept as triage_test
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         resting_test.made_models(folder)
@@ -127,8 +127,8 @@ def a_tip_onto_a_base_joined_as_one_foot_is_refused():
     """Both ways, as the lab's desk chairs (2026-10-15: five casters joined by a star base, one 2.4 cm up, read as one
     even foot and their 4.8 degree tip written): a block whose base slopes 5 degrees is one foot to the clusters, yet
     its tip onto that base is refused by the lean of its hull under its weight, while a crate's is written."""
-    import export_test
-    import triage_test
+    import test_a_creators_edit_survives_a_regenerated_base as export_test
+    import test_only_real_resting_faults_are_kept as triage_test
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         resting_test.made_models(folder)

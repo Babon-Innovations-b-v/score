@@ -2,7 +2,7 @@
 a looping round that ends open is refused, a light's spans join across rounds and a climb stands still until it
 lifts. (The checks of the old places' game motion records went with them, 2026-10-21.)
 
-Run: .venv/bin/python tools/usd/motion_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_a_motion_that_cannot_play_is_refused.py   (make tests runs it with the framework's environment)
 """
 import math
 import pathlib

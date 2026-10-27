@@ -6,7 +6,7 @@ place's characters, one alone and a crowd's instances, stand in the way as boxes
 where they stand at each moment; a thing the stage moves (a moving thing) stands in the way where it is at each moment, its
 particles and its people aside; and an eye's clearance is its true distance from walls and people.
 
-Run: .venv/bin/python tools/usd/camera_paths_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_a_walk_goes_through_doorways_clear_of_everything.py   (make tests runs it with the framework's environment)
 """
 import pathlib
 import sys
@@ -18,9 +18,9 @@ import trimesh
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import camera_paths  # noqa: E402
-import export_test  # noqa: E402
+import test_a_creators_edit_survives_a_regenerated_base as export_test  # noqa: E402
 import renders  # noqa: E402
-import triage_test  # noqa: E402
+import test_only_real_resting_faults_are_kept as triage_test  # noqa: E402
 
 # The rooms: 8 m across (x from -4 to 4), 6 m along (z from -3 to 3), walls 3 m high, the wall between them at x = 0
 # with a doorway 1.2 m wide (z from -0.6 to 0.6) and 2.2 m high.

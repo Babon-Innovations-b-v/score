@@ -6,7 +6,7 @@ placeholder): the ship_hull and ship_legs its record drew until 2026-10-18 fail 
 and today's hangar stage (HANGAR_STAGE, when this machine has it) fails while it still holds them (since 2026-10-18 the
 record lays no ship).
 
-Run: .venv/bin/python tools/usd/placeholders_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_a_placeholder_never_passes.py   (make tests runs it with the framework's environment)
 """
 import pathlib
 import sys

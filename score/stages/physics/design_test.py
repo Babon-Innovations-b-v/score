@@ -16,7 +16,7 @@ sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "tools/usd"))
 from pxr import Gf, Usd, UsdGeom  # noqa: E402
 
-import physics_test as toy  # noqa: E402
+import test_the_physics_layers_hold_mass_drop_and_hinge as toy  # noqa: E402
 from score import checks  # noqa: E402
 from score.stages import physics as stage_physics  # noqa: E402
 from score.stages import row_kinds  # noqa: E402

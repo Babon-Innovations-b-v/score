@@ -4,7 +4,7 @@ centimetres may bed in; two boxes deep inside each other overlap for real while 
 wall piece touching nothing hangs free; a drop that moves an object 0.5 m is SAGE-unstable; the real faults group by
 cause; the collision set finds the pairs that meet; and the occlusion boundary lies where a near object hides a far one.
 
-Run: .venv/bin/python tools/usd/triage_test.py   (make tests runs it with the framework's environment)
+Run: .venv/bin/python tools/usd/test_only_real_resting_faults_are_kept.py   (make tests runs it with the framework's environment)
 """
 import json
 import pathlib
@@ -19,8 +19,8 @@ sys.path.insert(0, str(HERE))
 import annotate  # noqa: E402
 import collide  # noqa: E402
 import export  # noqa: E402
-import export_test  # noqa: E402
-import resting_test  # noqa: E402
+import test_a_creators_edit_survives_a_regenerated_base as export_test  # noqa: E402
+import test_floating_sunk_and_tipping_objects_are_told_apart as resting_test  # noqa: E402
 import triage  # noqa: E402
 
 PLACE = resting_test.PLACE
