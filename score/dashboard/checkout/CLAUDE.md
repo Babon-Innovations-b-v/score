@@ -33,18 +33,20 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
   stop should be a total of the batch, not per try"; asked with the door's `batch-money` figures, `chat_yes.figures`)
   and the Buy screen's basket (grants/buy/<id>.json, written by score.review.web); `buy <id>` runs `flow.start` as
   his click, once (grants/buy-used/<id>.json written before it), refused on another basket, a high above his, a yes
-  naming a try's stop (`flow.yes_refusals`, again in `write_line`), the batch's spend so far plus this try's stop
-  over his total (`flow.batch_budget`), code off the pin, the latch or a live run. The checkout's `by` and `chat_yes` name the yes; the monitor and Buy page show it.
+  naming a try's stop (`flow.yes_refusals`, again in `write_line`), nothing left of his total (`flow.batch_budget`),
+  code off the pin, the latch or a live run. A try whose stop needs more than is left still launches, the line at
+  his total, and stops there (owner, 2026-10-27: "not just stop when u got to the limit, like ur supposed to"); the
+  checkout's words, the door's `batch-money` (`may_stop`) and the Buy page say it may stop before every step is made. The checkout's `by` and `chat_yes` name the yes; the monitor and Buy page show it.
   `buy <id>` again under a yes that launched a checkout is a retry of its batch (`chat-<id>-retry-N`), no new ask,
   held to the batch's budget.
 - **One budget a batch, across its tries** (root CLAUDE.md, owner 2026-10-26: "those budget asks should become per
   batch tho, not per try"). `flow.batch_budget` (in `write_line`): the batch's start is what its first try's line was
   written over (`watched.batch_start`: `batch_from`, else that line's spent plus reserved); its budget the newest
   try's line less that start (a try once counted as a batch of its own kept another start), raised by a click to what the batch spent so far plus the try's high plus BUFFER when that is more; a new
-  yes in chat sets it to the batch total he approved, refused when the batch's spend so far plus this try's high
-  plus BUFFER does not fit; the line is start plus budget, so the guard (score.adapters.compute) stops at the budget
-  less what earlier tries spent. A retry under a used yes keeps the budget and is refused when its high plus BUFFER
-  does not fit what is left. Each line records `batch_from`, `batch_budget` and `batch_used`. **One spent figure**:
+  yes in chat sets it to the batch total he approved, refused only when the batch's spend so far leaves nothing of
+  it; the line is start plus budget, so the guard (score.adapters.compute) stops at the budget less what earlier
+  tries spent. A retry under a used yes keeps the budget and launches while any of it is left, stopping at the line
+  (`room_refusals` asks the runner's reading for the room the line gave: the high, or what is left when less). Each line records `batch_from`, `batch_budget` and `batch_used`. **One spent figure**:
   `watched.batch_money` reads the batch's spend by the guard's own measure (the environment's spend since its first
   line less the batch's start, each month the higher of bill and ledger, plus model calls; in flight apart, the books'
   parts beside it) and the door's `batch-money`, the monitor and the Buy page all show it, the runs' own heartbeats

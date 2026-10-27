@@ -1,11 +1,14 @@
 """Every dashboard test runs in temp folders: PROPS_HOME and the dashboard's home are made here before Django's
 settings are read, so no test can reach the real store or write beside it."""
+import atexit
 import os
 import pathlib
+import shutil
 import sys
 import tempfile
 
 ROOT = pathlib.Path(tempfile.mkdtemp(prefix="score-dashboard-test-"))
+atexit.register(shutil.rmtree, ROOT, True)  # /tmp left clean once the session ends
 os.environ["PROPS_HOME"] = str(ROOT / "props")
 os.environ["SCORE_DASHBOARD_HOME"] = str(ROOT / "dashboard")
 os.environ["DJANGO_SETTINGS_MODULE"] = "score.dashboard.site.settings"

@@ -9,7 +9,9 @@ his Buy button makes (flow.start, every refusal of his click), once.
                                           batch_money: spent so far by the money guard's measure, in flight, its
                                           budget, left, the books' parts), runs (its runs' own heartbeats), try
                                           {likely, high, stop: high with guesses plus 10%}, fits (the smallest batch
-                                          total holding this try), click (the total his Buy click would set)}
+                                          total holding this try), click (the total his Buy click would set),
+                                          may_stop (a retry under the yes already used would stop at the batch
+                                          limit before every step is made: what is left is under this try's stop)}
     record(total, high, answer, question) his yes {id, purpose, batch_total_euros, high_euros, answer, question, at, by,
                                           basket {commit, made_at, items [{id, version}]}}, the basket the Buy screen
                                           buys now; kept once in the store, grants/buy/<id>.json (score.review.web)
@@ -18,14 +20,14 @@ his Buy button makes (flow.start, every refusal of his click), once.
                                           before the checkout, so a checkout refused after that needs a new yes),
                                           the basket differs from the one he approved, its high above his high, a
                                           yes naming a try's stop rather than a batch total (flow.yes_refusals), or
-                                          the batch's spend so far plus this try's stop over his total
-                                          (flow.batch_budget, where the line is written: the line is the batch's
-                                          start plus his total), this
+                                          nothing left of his total (flow.batch_budget, where the line is written:
+                                          the line is the batch's start plus his total, and a try that needs more
+                                          than is left stops at it, owner 2026-10-27), this
                                           machine's code off the cockpit's pin, paid work latched off, or a run
                                           active; then flow.start as his click, by "<owner>, approved in chat at
                                           <time>", the yes on the checkout (Checkout.chat_yes); again under a yes
                                           that launched one, a retry of its batch held to the batch's budget
-                                          (flow.batch_budget), no new ask
+                                          (flow.batch_budget: launched while any of it is left), no new ask
 
 Reached from the agents' door (tools/cloud/conductor/agent_door.py `buy-yes`, `buy`). Agents never invent a yes: it is
 written only from the answer the session's question tool got from him. A barrier, not a lock: every yes quotes who
@@ -120,7 +122,8 @@ def figures(reading):
             "money": money, "runs": ((run or {}).get("money") or {}).get("runs") if retry else None,
             "try": {"likely": totals["likely_euros"], "high": pricing.cleared_high(totals), "stop": need},
             "fits": need if money is None else round(money["spent"] + money["in_flight"] + need, 2),
-            "click": need if money is None else batch_run.batch_total(money, need)}
+            "click": need if money is None else batch_run.batch_total(money, need),
+            "may_stop": money is not None and money["left"] < need}
 
 
 def accepted_at(node):
