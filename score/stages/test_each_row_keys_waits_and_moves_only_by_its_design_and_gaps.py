@@ -27,6 +27,28 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
 - `held_scenes`: the batch's places not intersected  -> the scene tree test (the dome counts).
 - `places`: the `merged` scenes not taken out  -> the place test.
 - `ship_place`: always False  -> the ship place test.
+- score/stages/earth_seed/__init__.py: surface_data imported through its package (`from score.stages.surfaces import
+  surface_data`)  -> test_the_earth_rows_key_on_the_surface_data_reader_not_the_surface_line.
+- score/stages/surfaces/route_views.py: `import place_line` added  ->
+  test_the_paint_bake_and_check_code_moves_only_their_own_rows.
+- score/stages/assembly/baked.py: `import complete as stage_inputs`  ->
+  test_the_completion_gate_s_code_moves_only_complete_and_settle and
+  test_the_table_wires_the_gates_and_only_complete_hashes_the_gaps.
+- score/stages/shapes_first/__init__.py: the palette's optional Pixal3D read dropped (`optional=row.optional`)  ->
+  test_no_base_or_layer_row_must_wait_on_the_prop_route.
+- `creator_plan`: the concept declared whether it is kept or not (`if True:`)  ->
+  test_the_plan_row_keeps_the_plan_stages_code_version.
+- `plan_as_kit`: the plan not handed over as its kit (`{**arguments[position]}`)  ->
+  test_the_plan_row_maps_a_place_with_no_kit.
+- the surfaces-check row's `"stance rules"` file dropped  -> test_the_check_reads_every_input_check_step_reads.
+- `earth_seeded.declared`: the seed-read filter dropped (`return dict(found)`)  ->
+  test_the_cast_crowds_from_its_plan_never_a_hand_written_record.
+- data/checks/row-kinds.json: its "about" naming `{home}/work/old`  ->
+  test_the_environment_data_names_no_path_into_the_work_folder (a wording check guarding the rule above).
+- `MOTION_LAYER`: growth's `crops-layer` written `crops`  ->
+  test_the_motion_layer_names_only_rows_of_the_table_and_no_old_layer.
+- score/graph/_code.py `source_files`: FRAMEWORK not left out (`set()`)  -> every code-version test above, and the push
+  gate's test_a_framework_only_edit_lists_nothing.
 
 --- a scenes layers are read off its design ---
 
@@ -42,6 +64,9 @@ Breaks (each applied once, seen red, reverted), in score/stages/design_layers.py
 - `plants_of`: the beds kept among the plants (`if row["id"] not in beds` dropped)  -> the plants test.
 - `has_layer`: `if place is None or not path.is_file(): return False` read as returning True  -> the kept test.
 - `kinds_of`: `set(EVERY_SCENE)` read as `set()`  -> the kind test (a bare room has no light).
+- score/stages/__init__.py: the sound row's `designed("sound")` written `designed("sounds")`  ->
+  test_the_table_has_a_row_for_every_layer_the_gate_waits_on.
+- data/checks/row-kinds.json: "tree" dropped from the plant nouns  -> test_the_house_rules_call_trees_and_shrubs_plants.
 
 --- a rows kind comes from its own words ---
 
@@ -57,6 +82,10 @@ Breaks (each applied once, seen red, reverted), in score/stages/row_kinds.py:
 - `held_kind`: `said[-2] in rule["nouns"]` dropped  -> the lamp test ("fence post" read as a lamp).
 - `objects_of`: the NOT_OBJECTS prune dropped  -> the objects test (/toy/Effects/door_3 found).
 - `of_row`: `(_\\d+)?` read as `.*`  -> the objects test (door_frame_1 found) and the strangers test.
+- `does`: only a kind's first deed read (`["does"][:1]`)  ->
+  test_a_scenes_rows_are_picked_by_what_their_kind_does_and_a_kind_can_do_more_than_one_thing,
+  test_each_row_shows_the_layer_its_kind_does and test_the_table_has_a_row_for_every_layer_the_gate_waits_on.
+- data/checks/row-kinds.json: "tv" dropped from the screen nouns  -> test_the_house_rules_read_real_words.
 
 --- every designed person is a look of the line ---
 
@@ -76,6 +105,23 @@ Breaks (each applied once, seen red, reverted), in score/stages/people_rows.py:
   stands at (-9, 0, -4)).
 - `refreshed_place`: a kept pick taken with no `why`  -> the refresh test.
 - `crowd_look`: `needed = 0` (the crowd word alone decides)  -> the crowd look test ("crowd of aliens").
+- `mapping_rows`: `if look not in mapped or ...` read as `if look in mapped and ...` (no look mapped)  ->
+  test_every_people_row_maps_to_a_look, test_a_person_row_s_look_is_written_from_the_row_alone,
+  test_each_line_row_is_drawn_from_the_person_that_maps_it and
+  test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size.
+- `mapping_rows`: a sitting row ranked like a standing one  -> test_a_person_row_s_look_is_written_from_the_row_alone
+  (drawn from the seated copilot), and the drawn-from and line tests.
+- score/stages/complete/prepare/groups.py `stood_beyond`: `and anchors[row_id] not in found` dropped  ->
+  test_a_people_row_the_plan_shows_beyond_the_place_is_not_its_own.
+- `size_of`: `person_sized` not asked (`if origin:`)  ->
+  test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size (the crowd's extent as one person).
+- `drawn_from`: the tallest box read with `min`  -> test_each_line_row_is_drawn_from_the_person_that_maps_it.
+- `described`: the spec's description left out (`"name": clothes`)  ->
+  test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size (the line's data no longer as rows.json writes it).
+- score/stages/props/closeup_row.py `inventory_rows`: the words the clothes alone (`row.get("clothes", row["name"])`)
+  -> test_each_line_rows_close_up_words_say_who_the_look_is.
+- score/stages/people_clothes.py `worn`: the nearest fabric read with `max`  ->
+  test_a_row_wears_the_fabric_its_words_name_nearest_its_torso.
 
 --- a ground follows its words then its physics ---
 
@@ -120,6 +166,12 @@ Breaks (each applied once, seen red, reverted), in score/stages/gaps.py:
 - `moved`: the unknown branch dropped  -> the unknown test.
 - `files`: the `row is not None and ...` narrowing dropped  -> the inputs test (the paint reads the street's gaps).
 - `judge_accepted`: `written(inputs)` left out  -> the written-gap test.
+- `entries`: the row and check filter dropped (`return list(found)`)  ->
+  test_the_decision_file_is_read_by_row_and_check_and_a_pass_or_unknown_is_left_alone.
+- `judge_accepted`: a finding without its gap's name (`f"{fault}"`)  ->
+  test_complete_fails_each_accepted_gap_by_name_with_its_numbers (and the batch section's line test).
+- score/stages/__init__.py `gap_moved`: `judged.__wrapped__ = check.judge` dropped  ->
+  test_the_table_wires_the_gates_and_only_complete_hashes_the_gaps (and the batch section's two table-move tests).
 
 --- a failed paid take is a gap carried down its line ---
 
@@ -140,6 +192,10 @@ Breaks (each applied once, seen red, reverted), in score/stages/batch_gaps.py:
   not carried, so complete has nothing to list).
 - `batch_gaps.objects`: returns an empty set  -> the Pixal3D test (the table no longer moves the hatch's fault).
 - `batch_gaps.write`: writes `{"gaps": []}`  -> every test reading a written gap.
+- score/stages/surfaces/route_paint.py: `if found:` read as `if True:` (a gaps file written always)  ->
+  test_a_clean_paint_writes_no_gaps_file.
+- a fault no batch gap names, and a take lost with none: the gaps section's `moved` break (`all` read as `any`)  ->
+  test_a_fault_no_batch_gap_names_still_fails_the_gate and test_a_take_lost_with_no_batch_gap_still_stops_its_line.
 
 --- push gate names the paid rows it moves ---
 
@@ -169,6 +225,27 @@ Breaks (each applied once, seen red, reverted), in score/stages/moved.py and .gi
 - `edited_into_framework`: `after - before` read as `before - after`  -> the framework-move test.
 - .githooks/pre-push-moved: its `trap '... worktree remove ...' EXIT` line made a no-op  -> the changed-tree hook test
   (the checkout is left behind).
+- score/__main__.py `moved_check`: `> 0` read as `>= 0`  -> test_nothing_changed_lists_nothing_and_passes.
+- score/graph/_code.py `source_files`: FRAMEWORK not left out  -> test_a_framework_only_edit_lists_nothing.
+- score/graph/rebuy.py `buys`: `if remade[name]` read as `if not remade[name]`  ->
+  test_a_row_moved_through_what_it_reads_is_listed.
+- score/graph/__init__.py: `params` left out of a stale row's reasons  -> test_a_move_no_file_explains_is_refused.
+- score/__main__.py `pushed_check`: `if base is None` read as `if base is not None`  ->
+  test_when_mains_commit_cannot_be_worked_out_every_moved_row_counts_as_the_pushes.
+- `snapshot`: `shutil.rmtree(holder)` made `pass`, or its `worktree remove` made `pass`  ->
+  test_base_rebuys_is_none_for_a_new_ref_an_unknown_commit_or_a_failing_tree_and_leaves_nothing_behind and
+  test_a_hook_that_runs_out_of_time_leaves_no_process_or_checkout_behind.
+- `tree_is_at`: the `git status --porcelain` check dropped  ->
+  test_pre_push_checks_the_pushed_commit_against_mains_not_a_changed_tree.
+- the hook's `= true ] || exit 0` read as `|| true`  -> test_the_hook_is_off_until_the_owner_turns_it_on.
+- the hook's `[ "$remote_ref" = refs/heads/main ] &&` dropped  ->
+  test_the_hook_passes_deletions_tags_and_other_branches_at_once.
+- the hook's `rm -rf "$checkout"` dropped  -> test_the_hook_refuses_and_leaves_nothing_when_no_worktree_can_be_made.
+- the hook's `grep -qs -- "--pre-push"` read as `grep -qs -- ""`  ->
+  test_the_hook_skips_a_commit_made_before_score_moved.
+- the hook's `|| echo 3600` read as `|| echo 900`  -> test_the_hook_gives_the_check_an_hour_unless_told_otherwise.
+- the hook's main-checkout python (`$(git rev-parse --git-common-dir)/..`) read as `$repo`  ->
+  test_a_worktree_hook_uses_the_main_checkouts_python.
 """
 
 import contextlib
