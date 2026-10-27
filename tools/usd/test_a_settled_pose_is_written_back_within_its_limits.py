@@ -1,10 +1,42 @@
-"""Check the settle's write-back on places made here, without Blender: a pose an object came to
-rest in (tipped a little on a sloping planned ground) written into the layout as spot, lift and rotation, and exported
-again, stands exactly where it rested; a 3 m piece that would turn 40 degrees to rest keeps its laid pose and is
-marked, while 1 m debris may turn so; a tip onto uneven feet (the water tank's legs, or a base the clusters read as one foot) is refused while a crate's is written; a kit room's piece (the game's kit) moves with its object, what lies on a settled piece moves with it, only floor pieces are dropped, not a kit's floor plate, and neither a glow nor what lies on a dropped piece (held, or a scene record's fixture) is a static of the drop.
-(The levelled yard and the dent went with the old grounds and kits, 2026-10-21.)
+"""tools/usd/settle.py, the settle's write-back and drop job, on places made here without Blender: a pose an object
+came to rest in, written into the layout and exported again, stands exactly where it rested; a 3 m piece that would
+turn 40 degrees keeps its laid pose and is marked while 1 m debris may turn so; a tip onto uneven feet (a leg's end, or
+a base the clusters read as one foot) is refused while a crate's is written; a kit room's piece moves with its object;
+what lies on a settled piece moves with it; only floor pieces are dropped, and neither a glow nor what lies on a dropped
+piece is a static of the drop; a tipped piece drops from upright, a stacked one meets its one support, from over it.
 
-Run: .venv/bin/python tools/usd/test_a_settled_pose_is_written_back_within_its_limits.py   (make tests runs it with the framework's environment)
+Breaks that turn each test red (each applied once and seen red, 2026-10-27), all in settle.py:
+- a_turn_about_up_is_no_tip_and_debris_is_sized_in_its_own_frame: tips_on_uneven_feet's `return uneven and
+  tilted(found) > triage.LEAN_MOST` made `return uneven`.
+- a_cloud_drop_asks_the_small_processor_class_only: `DROP_CLASSES = ("cpu-4c-32gb",)` made `("cpu-4c-32gb",
+  "cpu-32c-128gb")`.
+- a_piece_on_a_slope_rests_flush_on_it: flush_on_slope's `motion[1, 3] -= lift` made `+= lift`.
+- a_tipped_piece_drops_from_upright_and_a_stacked_one_meets_its_holder: upright_starts's `if tipped < 0.01 or tipped >
+  TURN_MOST:` made `if tipped < 0.01:`.
+- a_box_stacked_on_a_box_on_a_slope_meets_it: stacked_under's `frame = upright_frame(corners[other])` made
+  `frame = np.eye(3)`.
+- a_stacked_box_begun_inside_its_support_starts_over_it: stack_lift's `max(0.0, top + SETTLE_DROP - lowest)` made
+  `max(0.0, SETTLE_DROP)`.
+- a_crate_laid_across_two_starts_wholly_on_the_one_it_overlaps_most: onto_one_support's `max(sorted(overlap),
+  key=overlap.get)` made `min(...)`.
+- a_settled_pose_round_trips_through_the_layout: layout_pose's `for _ in range(4):` made `range(0)` (the spot under
+  the rest on the slope not walked to).
+- a_kit_room_piece_moves_with_its_object: moved_piece's `at = motion[:3, :3] @ np.asarray(piece["at"], ...) +
+  motion[:3, 3]` made `at = np.asarray(piece["at"], ...) + motion[:3, 3]`.
+- only_floor_pieces_are_dropped: loose_objects's `if triage.support_type(...) != "floor": continue` dropped.
+- a_glowing_part_is_no_static_of_the_drop: part_objects's `== "part"` made `!= "part"`.
+- what_lies_on_a_dropped_piece_is_no_static_of_the_drop: held_on_loose's `anchor.removeprefix("on:") in dropped` made
+  `not in dropped`.
+- a_fixture_on_a_dropped_piece_is_no_static_of_the_drop: fixtures_on_loose's `if any(...)` made `if not any(...)`.
+- what_lies_on_a_settled_piece_moves_with_it: carried_with's holder filter (`correction(found)[0] <= TURN_MOST and
+  ... and not tips_on_uneven_feet(found)`) made `if True`.
+- a_big_turn_is_marked_not_made: write_layout's `(not debris and turned > TURN_MOST) or` dropped (the roll is about
+  the piece's middle, so its drift alone does not refuse it).
+- a_tip_onto_uneven_feet_is_refused: uneven_feet's `if len(found) >= 3` made `>= 5`.
+- a_tip_onto_a_base_joined_as_one_foot_is_refused: tips_on_uneven_feet's `or found.get("base lean", 0.0) >
+  triage.LEAN_MOST` dropped.
+
+Run: .venv/bin/python tools/usd/test_a_settled_pose_is_written_back_within_its_limits.py   (make tests runs it)
 """
 import json
 import pathlib
@@ -68,7 +100,8 @@ def a_big_turn_is_marked_not_made():
         before = stage_matrix(path, "crate_1")
         rolled = np.eye(4)
         rolled[:3, :3] = Rotation.from_euler("x", 40, degrees=True).as_matrix()
-        rolled[:3, 3] = before[:3, 3] - rolled[:3, :3] @ before[:3, 3]
+        middle = (before @ [0.0, 0.5, 0.0, 1.0])[:3]  # rolled about its own middle: no drift, the turn alone judged
+        rolled[:3, 3] = middle - rolled[:3, :3] @ middle
         laid_kit = json.loads((folder / "kit.json").read_text())
         problems = []
         for size, marked in ((3.0, True), (1.0, False)):  # a 3 m piece keeps its pose; 1 m debris may turn freely
@@ -421,8 +454,9 @@ def a_cloud_drop_asks_the_small_processor_class_only():
             settle.simulate(stage, {}, folder / "drop", cloud=True)
         finally:
             blender_cloud.run_elsewhere = real
-    wanted = settle.DROP_CLASSES
-    problems = [] if asked == [wanted] else [f"the drop asked {asked}, not {wanted}"]
+    processors = [name for name in scaleway.CLASSES if name.startswith("cpu-")]
+    smallest = min(processors, key=lambda name: int(name.split("-")[1].removesuffix("c")))
+    problems = [] if asked == [(smallest,)] else [f"the drop asked {asked}, not ({smallest},) alone"]
     return problems + [f"{name} is sold by no backend class" for name in settle.DROP_CLASSES
                        if name not in scaleway.CLASSES]
 

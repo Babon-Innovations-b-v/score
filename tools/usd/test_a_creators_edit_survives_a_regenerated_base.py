@@ -1,10 +1,32 @@
-"""Check the place's OpenUSD stage on a place made here of two boxes: a creator's edit in the edit layer (an object
-moved, a part given another library surface) survives a regenerated base; parts become subsets by surface; the
-stage is in metres with y up and every object has a static collider; a model baked into several maps draws each
-part on each map with that map's pictures; a kit room's pieces stand in their own frames
-as the game lays them, a glowing part named apart from its host, its parts read from its bake job.
+"""tools/usd/export.py, the place's OpenUSD stage, on a place made here of two boxes: a creator's edit in the edit
+layer (an object moved, a part given another library surface) survives a regenerated base; parts become subsets by
+surface; the stage is in metres with y up and every object has a static collider; a model baked into several maps
+draws each part on each map with that map's pictures; a kit room's pieces stand in their own frames as the game lays
+them, a glowing part named apart from its host, its parts read from its bake job.
 
-Run: .venv/bin/python tools/usd/test_a_creators_edit_survives_a_regenerated_base.py   (make tests runs it with the framework's environment)
+Breaks that turn each test red (each applied once and seen red, 2026-10-27):
+- an_edit_survives_a_regenerated_base: export.ensure_edit's `if path.exists(): return` dropped (the edit layer made
+  new on every export).
+- parts_become_subsets_by_surface: export.face_surfaces's `names[cKDTree(points).query(middles)[1]]` made
+  `names[::-1][...]` (each face the other half's surface).
+- a_split_model_draws_each_map_with_its_own_pictures: export.part_subsets's `(on_map == number)` made `(on_map == 0)`.
+- stored_takes_paint_like_their_labels: tools/props/library/stored_parts.py read's `stored["names"][stored["surface"]]`
+  made `stored["names"][::-1][stored["surface"]]`.
+- the_stage_is_in_metres_with_static_colliders: export.write_root's `SetInfo("upAxis", UsdGeom.Tokens.y)` made
+  `UsdGeom.Tokens.z`.
+- a_child_moves_with_the_object_it_stands_on: export.child_pieces's `"facing": -float(spot.get("turn", 0.0))` made
+  `float(...)`.
+- the_parts_are_found_where_the_run_recorded_them: export.run_parts's `return work / "parts", planned.get("take")` made
+  `return work / "parts", None`.
+- a_kit_room_s_pieces_stand_in_their_frames: export.kit_room_pieces's `row = f"{own}_{laid['part']}" if "part" in laid
+  else own` made `row = own`.
+- a_model_laid_later_is_found_in_a_further_folder: export.model_file's `next((path for path in found if
+  path.exists()), found[0])` made `found[0]`.
+- a_reused_row_reads_its_stored_take: export.reused_takes's `piece.get("row") in reused` made `not in reused`.
+- a_kit_s_kinds_are_its_room_s_or_its_place_s_rows: export.kind_row's `for name in prefixes` made
+  `for name in prefixes[:1]` (the place's name never taken off).
+
+Run: .venv/bin/python tools/usd/test_a_creators_edit_survives_a_regenerated_base.py   (make tests runs it)
 """
 import json
 import pathlib
