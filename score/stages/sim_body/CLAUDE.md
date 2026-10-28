@@ -89,10 +89,17 @@ own Python, its steps the modules beside it (`inside/CLAUDE.md`).
   follows the markers on SOMA's skin and nothing moves it onto the ground; the ground pushes whatever collider point
   the fit puts within `GAP` of it. Before 2026-10-28 the fit held standing feet on the ground (`stances`,
   `on_ground`, `unslipped`, `landed`) and moved the path once onto it (`grounded`); those went with the old fit.
-  Measured 2026-10-28: the two test walkers' SOMA skin stands 26 to 57 mm over their ground (its lowest point, every
-  10th frame), so the sim body following it stands 10 to 13 mm over it on the median, its feet seldom pushed, and
-  RRA's mass step then takes the body's mass by 98 to 99.9%: `carries`, `lands` and `residual` fail on them, as a
-  float must. The clip standing on its ground is the people line's (#70's comment).
+  Measured 2026-10-28: the two test walkers' SOMA skin stood 26 to 57 mm over their ground (its lowest point, every
+  10th frame), so the sim body following it stood 10 to 13 mm over it on the median, its feet seldom pushed, and
+  RRA's mass step then took the body's mass by 98 to 99.9%. The float was the clip's, not the sim body's (2026-10-29,
+  #70): people-clips-made's clips are posed on SOMA's zero-identity body (prop_skeleton.py, body.posed_by_the_model:
+  1.685 m, its leg 56 mm short) beside the template bind and surface (1.757 m) the file also holds, and `person_rig`
+  played them raw with no build. It now plays every clip as the people build does (prop_build.py fk and floor_lift):
+  the build's offsets (with none, the rig's own bind's), the standing clip's first frame lifted to put the feet where
+  the bind does. Measured on the two walkers: ankles 118 to 121 mm at their lowest before, 70 to 72 mm after
+  (Kimodo's own skeleton: 68 to 70); the skin's lowest point -20 to 9 mm. The rig file's own mix (its clips' offsets
+  are not its bind's) is prop_skeleton.py's to fix at its next paid re-make (the owner's call); never read its clips
+  raw: play them through `person_rig`.
 - **Its frame is the skin's**: the person's spot and turn, then the dressed body's Turned (`TURNED`, 180 degrees about
   up, prop_build.py's root node), so the ground it walks is the ground under the skin's feet (`own_frame`). MuJoCo's
   frame is Z up; `TO_OWN` turns everything back to the person's Y up.

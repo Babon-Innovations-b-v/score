@@ -4,8 +4,9 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
 
     make     each character of cast.json (its singles; the crowd, which is retiring, is left out by name) is the
              clips rig (people-clips-made's rig.npz) moved onto its look's built body (people-body-<look>'s rig.npz,
-             an optional read: its bind, moved mean surface and offsets, the travel scaled by its Hips' height, as
-             prop_build.py plays the clips; the rig's own size, named, with none taken). Its body is MyoFullBody
+             an optional read: its bind, moved mean surface and offsets, the travel scaled by its Hips' height, every
+             clip lifted so the standing clip's first frame puts the feet where the bind does, as prop_build.py
+             plays the clips; with none taken, the rig's own bind as the build, size 1, named). Its body is MyoFullBody
              (the pinned wheel MODEL, fetched once to $PROPS_HOME/models and checked by its sha256; never in this
              repository) sized to that build: each bone group by the person's joint distance (inside/sizing), then
              fitted to it with the clip (inside/fit: group sizes, joint centres, markers), its mass the stated
@@ -106,6 +107,7 @@ LANDED = 0.005  # metres
 CONTACT = 0.05  # share of the weight a foot's push must reach to count as landed
 REACH = 1.0  # metres round a body's clip path (its segments, across the ground) whose solids it may touch
 FEET = ("Foot", "ToeBase")
+FOOT_JOINTS = ("LeftFoot", "RightFoot")  # the joints the clips are lifted to stand on (prop_build.py FEET)
 # A dressed body's Turned, degrees about up: the people build's root node (tools/characters/maker/prop_build.py build,
 # "Person", rotation [0, 1, 0, 0]: the rig faces +z, a laid character -z). The skeleton plays the sim in that frame.
 TURNED = 180.0
@@ -160,23 +162,45 @@ def body_row(single):
     return f"{BODY}-{(single.get('look') or '').replace('/', '-')}"
 
 
+def bind_offsets(rig):
+    """Each joint's offset against its parent at the rig's own bind (the root's: its bind's place)."""
+    bind = np.asarray(rig["bind"], dtype=float)
+    return np.array([bind[joint] if parent < 0 else np.linalg.inv(bind[parent]) @ bind[joint]
+                     for joint, parent in enumerate(rig["parents"])])[:, :3, 3]
+
+
 def person_rig(rig, built):
-    """The clips rig at a person's own build, as the people build plays its clips (prop_build.py clip_world): the
-    built body's bind and surface (rig.npz's moved mean surface), every clip's joint offsets the built ones and its
-    travel (Hips) scaled by the built Hips' height over the rig's; and that size. The rig itself, size 1, for None."""
+    """The clips rig at a person's own build, as the people build plays its clips (prop_build.py clip_world and
+    floor_lift): the built body's bind and surface (rig.npz's moved mean surface), every clip's joint offsets the
+    built ones and its travel (Hips) scaled by the built Hips' height over the rig's, every clip lifted so the
+    standing clip's first frame puts the feet (FOOT_JOINTS) where the bind does; and that size. With no build, the
+    rig's own bind is the build, size 1: its clips were posed on SOMA's zero-identity body, 7 cm shorter than the
+    template its bind and surface are, and their own offsets floated its skin 26 to 57 mm over its ground (#70)."""
     if built is None:
-        return rig, 1.0
-    hips = [str(name) for name in rig["names"]].index("Hips")
+        built = {"bind": rig["bind"], "offsets": bind_offsets(rig), "source_points": rig["points"]}
+    names = [str(name) for name in rig["names"]]
+    hips = names.index("Hips")
     size = float(built["bind"][hips, 1, 3] / rig["bind"][hips, 1, 3])
     found = dict(rig, bind=np.asarray(built["bind"]), points=np.asarray(built["source_points"]))
     moved = [joint for joint, parent in enumerate(rig["parents"]) if parent >= 0 and joint != hips]
-    for key in [key for key in rig if key.startswith("clip_")]:
+    clips = [key for key in rig if key.startswith("clip_")]
+    for key in clips:
         local = np.array(rig[key], dtype=float)
         for joint in moved:
             local[:, joint, :3, 3] = built["offsets"][joint]
         local[:, hips, :3, 3] *= size
         found[key] = local
+    lift = floor_lift(found, [joint for joint, name in enumerate(names) if name in FOOT_JOINTS])
+    for key in clips:
+        found[key][:, hips, 1, 3] += lift
     return found, size
+
+
+def floor_lift(found, feet):
+    """How far the clips are raised so the standing clip's first frame puts the feet joints where the bind does
+    (prop_build.py floor_lift)."""
+    standing = clip_frames(found, "standing", feet)[0]
+    return float(np.asarray(found["bind"])[feet, 1, 3].min() - standing[:, 1, 3].min())
 
 
 def standing_height(rig):
