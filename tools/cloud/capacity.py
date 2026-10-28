@@ -171,8 +171,12 @@ def classes_for(kind):
 
 
 def runs_at_once(kind, machine_class):
-    """How many jobs of `kind` one card of `machine_class` runs at once: RUNS_PER_24GB for each 24 GB it has where
-    that was measured, else one."""
+    """How many jobs of `kind` one card of `machine_class` runs at once: the backend's own measured count (its
+    RUNS_AT_ONCE: this PC's card is smaller than the class it answers for), else RUNS_PER_24GB for each 24 GB it has
+    where that was measured, else one."""
+    measured = getattr(provider.cloud, "RUNS_AT_ONCE", {})
+    if kind in measured:
+        return measured[kind]
     if kind not in RUNS_PER_24GB:
         return 1
     return max(1, RUNS_PER_24GB[kind] * provider.card_gb(machine_class) // 24)
