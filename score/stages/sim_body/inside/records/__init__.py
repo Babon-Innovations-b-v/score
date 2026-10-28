@@ -80,7 +80,8 @@ def com_height(model, qpos, ground):
 def adjustment_record(moved_by, kept, shares, step, before, after, segments, follows):
     """How far RRA moved the body (a quality measure, sim_bodies.json `adjusted`): the pelvis (cm) and its turn and
     each segment's turn (degrees) against the fitted path, median and largest over the frames, and the largest of any
-    segment on any frame (the `follows` gate's per-frame cap), every body's mass change and the torso's centre of mass
+    segment on any frame (the `follows` gate's per-frame cap), every body's mass change (made, within MASS_MOST, and RRA's
+    recommended one each round, OpenSim's report) and the torso's centre of mass
     move (cm, its own frame), the share of the move kept under the follows cap, the least share a frame kept under the
     per-frame cap (`within_frames`), and the follows measure before and after."""
     turns = turned_off(before, after)
@@ -94,6 +95,7 @@ def adjustment_record(moved_by, kept, shares, step, before, after, segments, fol
             "segments deg": {segment: [round(float(np.median(found)), 2), round(float(found.max()), 2)]
                              for segment, found in turned.items()},
             "mass %": round(100 * float(step["mass"]), 3),
+            "mass % recommended": [round(100 * float(share), 3) for share in step["mass recommended"]],
             "torso centre of mass cm": np.round(100 * step["torso"], 2).tolist(),
             "follows deg": [round(follows[0], 3), round(follows[1], 3)]}
 

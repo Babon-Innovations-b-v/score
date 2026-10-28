@@ -15,23 +15,29 @@ from solvers import filter_matrix, within_balls
 
 # The residual reduction's rounds (RRA is run again on its own output), the weight of a move the size of its cap
 # against a residual the size of its limit (RRA's tracking), RRATool's 0.1 m limit on the torso's centre of mass, and
-# the halvings of a step that does not lower the cost.
+# the halvings of a step that does not lower the cost, and the most the body's mass may change from the mass it was
+# made with over every round together (#70, 2026-10-29: unbounded, a floating body lost 98 to 99.9% of its mass;
+# OpenSim's RRA only recommends its change and leaves the model to its user, so a change past this bound is recorded
+# as recommended, never made).
 RRA_ROUNDS = 3
 TRACK = 0.01
 COM_MOST = 0.1
 RRA_HALVINGS = 3
+MASS_MOST = 0.02
 
 
-def reweighed(physics, path, residuals, home):
+def reweighed(physics, path, residuals, home, made):
     """RRA's model step (opensim-core RRATool::adjustCOMToReduceResiduals): the whole body's mass changed by the mean
-    upward residual over gravity, spread over the bodies by their masses (their inertias with them), and the torso's
-    centre of mass moved under the mean horizontal residual moment, at most RRA's 0.1 m from where it was made (`home`)
-    over every round; returns the share the mass changed by."""
+    upward residual over gravity, spread over the bodies by their masses (their inertias with them), at most
+    MASS_MOST from its masses and inertias as made (`made`: (masses, inertias)) over every round, and the torso's
+    centre of mass moved under the mean horizontal residual moment, at most RRA's 0.1 m from where it was made
+    (`home`) over every round; returns the change from the made mass as made and as RRA recommends it (shares)."""
     model, data = physics.model, physics.data
     gravity = -model.opt.gravity[2]
-    share = -float(np.mean(residuals[:, 2])) / gravity / float(model.body_mass.sum())
-    model.body_mass[:] *= 1 + share
-    model.body_inertia[:] *= 1 + share
+    recommended = (float(model.body_mass.sum()) - float(np.mean(residuals[:, 2])) / gravity) / float(made[0].sum()) - 1
+    share = float(np.clip(recommended, -MASS_MOST, MASS_MOST))
+    model.body_mass[:] = made[0] * (1 + share)
+    model.body_inertia[:] = made[1] * (1 + share)
     torso = body_index(model, "torso")
     weight = model.body_mass[torso] * gravity
     rows, wanted = [], []
@@ -43,7 +49,7 @@ def reweighed(physics, path, residuals, home):
         wanted += [-residual[3], -residual[4]]
     shift = np.linalg.lstsq(np.array(rows), np.array(wanted), rcond=None)[0]
     model.body_ipos[torso] = home + np.clip(model.body_ipos[torso] + shift - home, -COM_MOST, COM_MOST)
-    return share
+    return share, recommended
 
 
 def reduced(physics, path, rate, limits, most, land, fitted, riders):
@@ -64,8 +70,9 @@ def reduced(physics, path, rate, limits, most, land, fitted, riders):
     scale = np.tile(np.concatenate([scale, np.full(width - 6, limits[1])]), count)
     track = np.sqrt(TRACK) / np.tile([most[0]] * 3 + [most[1]] * (width - 3), count)
     smooth = np.kron(filter_matrix(count, rate), np.eye(width))
-    total, current, mass = np.zeros(count * width), path, 1.0
+    total, current, recommended = np.zeros(count * width), path, []
     home = model.body_ipos[body_index(model, "torso")].copy()
+    made = (model.body_mass.copy(), model.body_inertia.copy())
 
     def asked(states):  # the residuals, and the trunk's moments beyond the fitted path's: a residual moved into the
         # lumbar is a reserve, counted as one (RRA's own objective weighs the joints' actuators beside the residuals)
@@ -77,7 +84,8 @@ def reduced(physics, path, rate, limits, most, land, fitted, riders):
 
     for _ in range(RRA_ROUNDS):
         states = frame_states(physics, current, rate)
-        mass *= 1 + reweighed(physics, current, residuals(physics, states), home)
+        mass, wanted = reweighed(physics, current, residuals(physics, states), home, made)
+        recommended.append(wanted)
         fitted_trunk = trunk_moments(physics, frame_states(physics, path, rate), adjusted[6:])
         states = frame_states(physics, current, rate)
         left = asked(states)
@@ -96,5 +104,5 @@ def reduced(physics, path, rate, limits, most, land, fitted, riders):
             step /= 2
         else:
             break
-    return current, total.reshape(count, width), {"mass": mass - 1.0,
+    return current, total.reshape(count, width), {"mass": mass, "mass recommended": recommended,
                                                    "torso": model.body_ipos[body_index(model, "torso")] - home}

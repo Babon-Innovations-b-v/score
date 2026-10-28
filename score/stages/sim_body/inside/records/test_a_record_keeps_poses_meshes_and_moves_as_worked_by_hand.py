@@ -58,14 +58,14 @@ def near_vertices_merge_and_flat_faces_go():
 
 def the_adjusted_record_reads_in_its_units():
     """The pelvis moved 1 and 3 cm on two frames: median 2 cm and most 3 cm; frame shares 1 and 0.5: least 0.5; a
-    mass share of 0.02: 2 %; no segment turned."""
+    mass share of 0.02: 2 %, RRA's recommended -0.5 and -0.25: -50 and -25 %; no segment turned."""
     import numpy as np
     import records
     still = np.tile(np.eye(4), (2, 1, 1, 1))
     found = records.adjustment_record(np.array([[0.01, 0.0, 0.0], [0.03, 0.0, 0.0]]), 1.0, np.array([1.0, 0.5]),
-                                      {"mass": 0.02, "torso": np.zeros(3)}, still, still, ["Hips"], [1.0, 2.0])
+                                      {"mass": 0.02, "mass recommended": [-0.5, -0.25], "torso": np.zeros(3)}, still, still, ["Hips"], [1.0, 2.0])
     wanted = {"pelvis cm": [2.0, 3.0], "least frame share": 0.5, "mass %": 2.0, "largest turn deg": 0.0,
-              "kept share": 1.0}
+              "kept share": 1.0, "mass % recommended": [-50.0, -25.0]}
     return [f"{key}: {found[key]}, not {value}" for key, value in wanted.items() if found[key] != value]
 
 
