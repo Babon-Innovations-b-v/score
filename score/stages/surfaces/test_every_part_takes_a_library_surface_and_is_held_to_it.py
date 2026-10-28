@@ -126,7 +126,11 @@ tests it turned red:
 - route_list.py: `return (level, cause) if level in levels and cause else (None, None)` -> `return (level, cause) if
   level in levels else (None, None)`  ->
   one_batch_lists_every_take_library_first_and_the_split_gives_every_face_one_finish
-- route_split.py: `if found["unassigned"] > 0:` -> `if False:`  -> an_unassigned_face_or_views_that_disagree_make_a_gap
+- route_split.py: `if found["unassigned"] > 0:` -> `if False:`  ->
+  an_unassigned_face_is_a_gap_and_views_that_disagree_are_settled_by_the_squarer_view
+- route_split.py: `own = np.where((votes.sum(1) > 0) & ~tied, votes.argmax(1), -1)` -> `own = np.where(votes.sum(1) >
+  0, votes.argmax(1), -1)`; and, apart, `votes[seen, label[seen]] += square * (` -> `votes[seen, label[seen]] += 1.0 * (`
+  -> an_unassigned_face_is_a_gap_and_views_that_disagree_are_settled_by_the_squarer_view
 - route_split.py `split_take`: the old colour check put back, a fault when a labelled region's sRGB lies over
   150 from its finish's token colour (`fault = split_fault(found) or next(...)`)  ->
   the_split_decides_by_the_labels_alone
@@ -1734,7 +1738,9 @@ def test_one_batch_lists_every_take_library_first_and_the_split_gives_every_face
         assert route_split.judge_split(rows["finish-route-split"], rows, {}).answer == "pass"
 
 
-def test_an_unassigned_face_or_views_that_disagree_make_a_gap():
+def test_an_unassigned_face_is_a_gap_and_views_that_disagree_are_settled_by_the_squarer_view():
+    """Owner, 2026-10-28: views disagreeing on 1.2 to 5.8% of eleven takes is a split decision, never a gap. A face
+    takes the finish the views that see it most squarely give; a tie takes the finish round it."""
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         blue_left_out = lambda views, take: two_finish_answer(views, lambda view, colour: 1 if colour == RED else None)
@@ -1742,11 +1748,23 @@ def test_an_unassigned_face_or_views_that_disagree_make_a_gap():
         verdict = route_split.judge_split(rows["finish-route-split"], rows, {})
         assert verdict.answer == "fail" and "unassigned" in verdict.findings[0], verdict
         assert not (rows["finish-route-split"] / TAKE).exists()
-    mesh = trimesh.creation.box((1, 1, 1))
-    tied = {"right": np.zeros(12, dtype=int), "left": np.ones(12, dtype=int)}  # two views, one vote each, apart
-    found = route_split.shares(mesh, tied, route_split.finish_parts.voted(tied, 2))
-    assert found == {"unassigned": 0.0, "disagree": 1.0, "unseen": 0.0}, found
-    assert "disagree" in route_split.split_fault(found)
+    mesh = trimesh.creation.icosphere(subdivisions=3)
+    apart = {"right": np.zeros(len(mesh.faces), dtype=int), "top": np.ones(len(mesh.faces), dtype=int)}
+    votes = route_split.squared_votes(mesh, apart, route_split.cast.BASE, 2)
+    found = route_split.shares(mesh, apart, route_split.finish_parts.voted(apart, 2))
+    assert found["disagree"] == 1.0 and route_split.split_fault(found) is None, found  # recorded, no gap
+    normals = mesh.face_normals
+    side, up = np.abs(normals[:, 0]) > 0.9, np.abs(normals[:, 1]) > 0.9
+    assert (votes[side].argmax(1) == 0).all() and (votes[up].argmax(1) == 1).all()  # the squarer view wins
+    even = np.zeros((len(mesh.faces), 2))
+    even[:, 1] = 1.0  # finish 1 round it, so a tie read by argmax alone (finish 0) shows
+    patch = np.linalg.norm(mesh.triangles_center - (0, 0, 1), axis=1) < 0.4
+    assert mesh.area_faces[patch].sum() / mesh.area > 0.02  # over a stray's size, so only the tie decides it
+    even[patch] = 0.5  # tied between the two finishes
+    finish_of = route_split.voted_finishes(mesh, even, 2)[1]
+    assert (finish_of[patch] == 1).all()  # the finish round it
+    even[patch, 0] = 0.6
+    assert (route_split.voted_finishes(mesh, even, 2)[1][patch] == 0).all()  # not tied: its own finish
 
 
 def test_the_split_decides_by_the_labels_alone():
