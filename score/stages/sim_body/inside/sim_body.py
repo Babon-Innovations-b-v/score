@@ -73,6 +73,7 @@ import sys
 import mujoco
 import newton
 import numpy as np
+from scipy.ndimage import minimum_filter1d
 from scipy.optimize import lsq_linear
 from scipy.signal import butter, filtfilt
 from scipy.spatial.transform import Rotation
@@ -139,6 +140,8 @@ TRACK = 0.01
 COM_MOST = 0.1
 RRA_STEP = 1e-5
 RRA_HALVINGS = 3
+FRAME_ROUNDS = 20  # `within_frames`' rounds of lowering the frames over their cap
+FRAME_MARGIN = 0.95  # a frame over its cap lowered this much further than its excess, so the rounds end
 FOOTED_HEIGHT = 0.1  # the weight of a metre of the pelvis' height against one of a foot's place (`footed`)
 
 
@@ -931,6 +934,38 @@ def within_follows(physics, path, adjusted, moves, land, worlds, riders, follows
     return path, 0.0
 
 
+def within_frames(physics, path, moves, land, fitted, riders, most, rate):
+    """The adjusted path held within `most` of the fitted path on every frame, all rounds together (owner, 2026-10-28:
+    each segment's turn at most 5 degrees and the pelvis at most 2 cm off the fitted motion): each frame's share of the
+    move (`moves`, frames x adjusted) lowered by how far it is over (`frame_excess`), the shares eroded and low-passed
+    over a CUTOFF period so the move stays smooth, its feet kept (`land`), until no frame is over; the path and the
+    shares."""
+    adjusted, share = adjusted_leads(physics), np.ones(len(path))
+    window = int(rate // CUTOFF) + 1
+    for _ in range(FRAME_ROUNDS):
+        found = land(moved(physics, path, share[:, None] * moves, adjusted))
+        over = frame_excess(physics.model, path, found, fitted, riders, most)
+        if over.max() <= 1.0:
+            return found, share
+        lowered = np.where(over > 1.0, share * FRAME_MARGIN / over, share)
+        share = np.clip(np.minimum(lowered, smoothed(minimum_filter1d(lowered, window), rate)), 0.0, None)
+    raise ValueError(f"the adjusted path is still {over.max():.2f} times its per-frame cap after {FRAME_ROUNDS} rounds")
+
+
+def frame_excess(model, path, found, fitted, riders, most):
+    """Each frame's largest move of `found` off the fitted `path` over its cap: its segments' turns (riding their bones,
+    against `fitted`'s poses) over `most[1]` and the pelvis' place over `most[0]`, the larger."""
+    turned = turned_off(fitted, posed_path(model, found, *riders[:3]))
+    shift = np.linalg.norm(found[:, :3] - path[:, :3], axis=1)
+    return np.maximum(turned.max(axis=1) / np.degrees(most[1]), shift / most[0])
+
+
+def turned_off(before, after):
+    """Each segment's turn between two posed paths (frames x segments x 4 x 4), degrees (frames x segments)."""
+    return np.degrees(Rotation.from_matrix((np.swapaxes(after[..., :3, :3], -1, -2) @ before[..., :3, :3])
+                                           .reshape(-1, 3, 3)).magnitude()).reshape(before.shape[:2])
+
+
 def off_clip(model, path, worlds, segments, bodies, riding, parents):
     """The `follows` gate's measure on a path: the mean angle (degrees) between each segment's turn against its parent
     (riding its bone) and the clip's, over segments and frames."""
@@ -961,19 +996,20 @@ def com_height(model, qpos, ground):
     return float(heights_over((data.subtree_com[model.jnt_bodyid[0]] @ TO_OWN.T)[None], ground)[0])
 
 
-def adjustment_record(moved_by, kept, step, before, after, segments, follows):
+def adjustment_record(moved_by, kept, shares, step, before, after, segments, follows):
     """How far RRA moved the body (a quality measure, sim_bodies.json `adjusted`): the pelvis (cm) and its turn and
-    each segment's turn (degrees) against the fitted path, median and largest over the frames, every body's mass
-    change and the torso's centre of mass move (cm, its own frame), the share of the move kept under the follows cap,
-    and the follows measure before and after."""
-    turned = {segment: np.degrees(Rotation.from_matrix(np.swapaxes(after[:, index, :3, :3], 1, 2)
-                                                       @ before[:, index, :3, :3]).magnitude())
-              for index, segment in enumerate(segments)}
+    each segment's turn (degrees) against the fitted path, median and largest over the frames, and the largest of any
+    segment on any frame (the `follows` gate's per-frame cap), every body's mass change and the torso's centre of mass
+    move (cm, its own frame), the share of the move kept under the follows cap, the least share a frame kept under the
+    per-frame cap (`within_frames`), and the follows measure before and after."""
+    turns = turned_off(before, after)
+    turned = {segment: turns[:, index] for index, segment in enumerate(segments)}
     pelvis = 100 * np.linalg.norm(moved_by, axis=1)
     return {"method": "OpenSim's residual reduction (RRA; Delp et al. 2007, opensim-core RRATool): the pelvis' and "
                       "trunk's path and the body's masses and torso centre of mass adjusted, capped by follows",
-            "rounds": RRA_ROUNDS, "kept share": kept,
+            "rounds": RRA_ROUNDS, "kept share": kept, "least frame share": round(float(shares.min()), 3),
             "pelvis cm": [round(float(np.median(pelvis)), 2), round(float(pelvis.max()), 2)],
+            "largest turn deg": round(float(turns.max()), 2),
             "segments deg": {segment: [round(float(np.median(found)), 2), round(float(found.max()), 2)]
                              for segment, found in turned.items()},
             "mass %": round(100 * float(step["mass"]), 3),
@@ -1113,10 +1149,11 @@ def run_person(job, person, out_path):
         return footed(model, physics.couplings, path, qpath, list(soles))
 
     adjusted, moves, step = reduced(physics, qpath, job["rate"], limits, most, land)
-    adjusted, kept = within_follows(physics, qpath, adjusted, moves, land, worlds, (person["segments"], bodies, riding,
-                                                                                    parents), job["adjust"]["follows deg"])
+    riders = (person["segments"], bodies, riding, parents)
+    adjusted, kept = within_follows(physics, qpath, adjusted, moves, land, worlds, riders, job["adjust"]["follows deg"])
+    adjusted, shares = within_frames(physics, qpath, kept * moves, land, fitted_poses, riders, most, job["rate"])
     adjusted_poses = posed_path(model, adjusted, person["segments"], bodies, riding)
-    adjustment = adjustment_record((adjusted[:, :3] - qpath[:, :3]) @ TO_OWN.T, kept, step, fitted_poses,
+    adjustment = adjustment_record((adjusted[:, :3] - qpath[:, :3]) @ TO_OWN.T, kept, shares, step, fitted_poses,
                                    adjusted_poses, person["segments"],
                                    [off_clip(model, walked, worlds, person["segments"], bodies, riding, parents)
                                     for walked in (qpath, adjusted)])

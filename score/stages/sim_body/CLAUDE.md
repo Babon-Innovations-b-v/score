@@ -21,9 +21,14 @@ scene's own ground. `__init__.py`'s docstring has the make and the gates; `insid
   move capped (`MOVE_MOST`, `FOLLOWED` degrees) and low-passed, taken only when the measured residual and move
   cost falls (halved up to `RRA_HALVINGS` times, else the rounds end), the feet kept where they stood by the legs (`footed`: a
   pelvis moved with its feet lifted them off the ground, 600 N of residual, 2026-10-28), and the result kept within the clip's
-  `follows` limit (`within_follows`: the whole move, else a quarter less, down to none). Nothing is applied to the
-  body. How far it moved is each body's `adjusted` record (pelvis cm, each segment's degrees, mass %, torso centre of
-  mass cm, the share kept, follows before and after). A body still over the limits after it fails `residual`: a
+  `follows` limit (`within_follows`: the whole move, else a quarter less, down to none), then held on every frame within
+  `FOLLOWED` degrees on every segment and `MOVE_MOST` at the pelvis off the fitted path, all rounds together (owner,
+  2026-10-28; `within_frames`: a frame over has its share of the move lowered, the shares eroded and low-passed; the
+  per-dof cap alone let the chest turn 19 degrees). Nothing is applied to the body. How far it moved is each body's
+  `adjusted` record (pelvis cm, each segment's degrees, the largest turn on any frame, mass %, torso centre of mass cm,
+  the share kept, the least frame share, follows before and after); `follows` fails a frame over the per-frame cap.
+  The toes' ±30 degree stop is MyoSuite's own (myo_sim `myolegs_chain.xml` mtp_angle range ±0.523599, as Rajagopal
+  2016's): never widened here. A body still over the limits after it fails `residual`: a
   dropped sample, never a forced pass.
 - **The body is MyoFullBody, never a box body or a template of our own**: MuscleMimic's wheel (`MODEL`, pinned URL and
   sha256), fetched once to `$PROPS_HOME/models/<sha>` by `fetched`, never committed. Kept under MyoHub's Apache-2.0
