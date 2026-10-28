@@ -358,15 +358,16 @@ branch names a scene or a world.
   named library gap, never repeated quietly.
   **Each person is also a sim body** (`score/stages/sim_body`, row `sim-body@<place>`, free, experimental, #65; PRD
   #56): a musculoskeletal body, MyoFullBody (MyoSuite's, as MuscleMimic's pinned wheel publishes it: its bones, 123
-  joints, 416 muscles and their tendons; fetched by sha256, never committed), sized to the person's own build per
-  segment (thigh, shin, foot, upper arm and forearm by the rig's joint distances, the rest by its standing height,
-  each muscle's length range with its path), its mass the stated weight, else height squared times the reference BMI
-  of its sex (NCD-RisC 2016: 24.5 men, 24.8 women, the mean of both unstated), marked estimated (#64). The movement is
-  the clip's (or Kimodo's) and the body follows it exactly, root included (owner, 2026-10-27): its joint angles are
-  fitted to the clip's SOMA segment turns in the model's own coordinates with MuJoCo's couplings kept (the knee, the
-  lumbar levels, the shoulder rhythm), the arms calibrated on the rig's standing clip as the model's zero pose
-  (OpenSense's way), the path moved up once so its lowest point meets the ground and low-passed at 6 Hz (zero-lag
-  Butterworth, Winter 2009) before it is differentiated. Newton builds the
+  joints, 416 muscles and their tendons; fetched by sha256, never committed), sized to the person's own build by bone
+  group (each group's stretch SOMA's joint distance, each muscle's length range with its path; masses from SOMA's
+  segment volumes), its mass the stated weight, else height squared times the reference BMI of its sex (NCD-RisC
+  2016: 24.5 men, 24.8 women, the mean of both unstated), marked estimated (#64). The movement is the clip's (or
+  Kimodo's), and SOMA is the truth (#70): one solver fits MyoFullBody to it, never the reverse, the person's
+  constants (group sizes, joint centres, markers' places) and every frame's joint angles against the bone groups'
+  turns through the static calibration table, the SOMA skin's bony landmarks and SOMA's joints, weighed as OpenSim's
+  IK weighs its goals (mink per frame with MuJoCo's couplings held and the joints in range; scipy's least squares over
+  the constants), the path low-passed at 6 Hz (zero-lag Butterworth, Winter 2009) before it is differentiated; SOMA
+  is never moved, scaled or grounded, nor is the sim body. Newton builds the
   MuJoCo model (SolverMuJoCo on MuJoCo's CPU backend, in `physics/inside/newton_env.sh`, on this machine) and its
   physics is that movement's, frame by frame: the inverse dynamics, the ground's push at every collider point within
   3 cm of the scene's own drawn ground (its triangles, under the gravity of the body the scene stands on), and one

@@ -7,9 +7,10 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
              an optional read: its bind, moved mean surface and offsets, the travel scaled by its Hips' height, as
              prop_build.py plays the clips; the rig's own size, named, with none taken). Its body is MyoFullBody
              (the pinned wheel MODEL, fetched once to $PROPS_HOME/models and checked by its sha256; never in this
-             repository) sized to that build: each limb by the person's joint distance over the model's, the rest by
-             its standing height (inside/sizing), its mass the stated weight when the cast gives one (`weight`, kg),
-             else its height (`height`, m, else the body's own standing height) squared times the reference BMI of
+             repository) sized to that build: each bone group by the person's joint distance (inside/sizing), then
+             fitted to it with the clip (inside/fit: group sizes, joint centres, markers), its mass the stated
+             weight when the cast gives one (`weight`, kg), else its height (`height`, m, else the body's own standing
+             height) squared times the reference BMI of
              its sex (`sex`, else the mean of both), marked estimated. It stands on the scene's own ground: every solid
              of the stage the cast is measured on (the seed's base layer with its scene record written in, on the
              terrain row's made ground: layer_base.built and cast/measure.solids, so steps, decks and slopes are
@@ -18,7 +19,8 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
              its clip's (`doing`, the rig's clip_<doing>), followed exactly, root included (the owner, 2026-10-27);
              Newton and MuJoCo give its physics (inside/sim_body.py, in Newton's own Python,
              score/stages/physics/inside/newton_env.sh, on this machine, under the gravity of the body the scene
-             stands on, physics/design.py ground): the model's joint angles fitted to the clip's segment turns, the
+             stands on, physics/design.py ground): the model's joint angles fitted to the clip's segment turns and its
+             skin's bony landmarks (one solver: mink per frame, scipy's least_squares over the constants), the
              forces that movement needs, shared between the ground's contacts and the muscles (activations and
              forces, static optimisation), what neither can give left over as the pelvis' residual and the joints'
              reserves, measured and never applied. Before the physics is measured, OpenSim's residual reduction (RRA)
@@ -110,7 +112,9 @@ TURNED = 180.0
 BODY = "people-body"  # a look's built body row: its rig.npz is the person's own build (prop_rig.py)
 CARRIED = 0.05  # share of the weight
 FOLLOWED = 5.0  # degrees
-STANDING = "standing"  # the rig's clip a body is calibrated on (inside/sim_body.py offsets)
+# What a body's bone groups are calibrated on (#70: the static table, inside/calibration), the same for every person.
+CALIBRATED_ON = ("the static calibration table: SOMA's template bind against MyoFullBody's default pose (its couplings "
+                 "applied), never fitted")
 # The residual's limits, the body's weight standing in for the net external force (none is measured here): the force
 # at most 2% of it (owner, 2026-10-28, from 5%: AddBiomechanics' published residual forces are "smaller than 2% of peak
 # external force", Werling et al. 2023, PLoS ONE 18:e0295152, doi:10.1371/journal.pone.0295152, taken as the
@@ -318,13 +322,10 @@ def make(inputs, out, seed, params):
                               "rig": {"names": [str(name) for name in rig["names"]],
                                       "parents": np.asarray(rig["parents"]).tolist(),
                                       "bind": np.asarray(rig["bind"]).tolist()},
-                              "segments": [str(rig["names"][joint]) for joint in kept], "targets": str(targets),
-                              "standing": clip_frames(rig, STANDING, kept)[0].tolist()
-                              if f"clip_{STANDING}" in rig else None})
+                              "segments": [str(rig["names"][joint]) for joint in kept], "targets": str(targets)})
         records[single["name"]] = {"clip": single["doing"], "at": single["at"], "turn": single.get("turn", 0.0),
                                    "mass": mass, "ground": {"solids": under, "triangles": len(ground)},
-                                   "calibrated on": f"the rig's {STANDING} clip, as the model's zero pose"
-                                   if f"clip_{STANDING}" in rig else "SOMA's bind: the rig has no standing clip",
+                                   "calibrated on": CALIBRATED_ON,
                                    "size": {"of the rig": round(size, 4),
                                             "from": row if row in inputs else f"the rig's: no {row} taken"}}
     if cast.get("crowd"):

@@ -16,7 +16,7 @@ triangles in its own frame (its spot and turn, then the dressed body's Turned), 
 near, names the clip the rig lacks and the crowd, weighs each body by the scene's gravity, and writes the layer: each
 SOMA segment an Xform at its pose every frame holding the bone it rides, another bone under Bones, and the muscles as
 lines coloured by activation; the record names the model's attribution (MyoSuite, MoBL-ARMS); each body is
-calibrated on the rig's standing clip, its first frame handed to the run, with the person's mesh for the sizing; and
+calibrated on the static table (no clip of the rig handed to the run), with the person's mesh for the sizing; and
 SOMA's joints leave the stage unchanged: every frame's `poses` in the measures are the clip's own segment frames bit
 for bit, though the written run moved them 0.6 m (#70: SOMA is the truth).
 Newton and MuJoCo are not run here (the model's run takes minutes); the real run's
@@ -39,11 +39,12 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - the_make_stands_each_body_on_its_own_ground_under_its_character: ground_of's `np.linalg.inv(frame)` made `frame`;
   own_frame's `turn + TURNED` made `turn`; make's `if not len(ground)` check dropped; write_layer's
   `points @ carried[:3, :3].T + carried[:3, 3]` made `points` (a ridden bone drawn in its body's frame, not its
-  segment's); its colour's `shade` made 0; make's `clip_frames(rig, STANDING, kept)[0]` made `rig["bind"][kept]`
-  (calibrated on the bind, not the standing clip); the record's `"attribution": ATTRIBUTION` made `""`.
+  segment's); its colour's `shade` made 0; the record's `"attribution": ATTRIBUTION` made `""`.
 - the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-10-28 (#70): make's `frame["poses"] =
   [soma_pose(world) ...]` made `pass` (the run's moved poses kept); soma_pose's `world[:3, 3]` rounded to 2 places;
   make's targets `points=rig["points"]` made `rig["bind"]` (the mesh not handed to the sizing).
+- the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-10-28 (#70's solver): make's
+  `"calibrated on": CALIBRATED_ON` made `"the rig's standing clip"`.
 
 Run: .venv/bin/python -m pytest score/stages/sim_body/test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual.py
 """
@@ -240,7 +241,7 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
         person = job["people"][0]
         assert person["segments"] == ["Hips", "Shin"] and person["kg"] == 50.0 and job["model"] == "fetched"
         assert job["adjust"]["follows deg"] == sim_body.FOLLOWED and job["residual"]["force"] == 0.02
-        assert np.asarray(person["standing"]) == pytest.approx(sim_body.clip_frames(rig, "standing", [1, 2])[0])
+        assert "standing" not in person  # the calibration is the static table (#70), no clip of the rig
         ground = np.load(person["targets"])["ground"]
         assert np.load(person["targets"])["points"] == pytest.approx(rig["points"])  # the mesh the sizing reads
         assert ground[:, :, 1] == pytest.approx(0.1)
@@ -262,7 +263,7 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
     assert ann["measures"]["weight N"] == pytest.approx(81.0) and ann["segments"] == {"Hips": "pelvis",
                                                                                       "Shin": "tibia_l"}
     assert ann["ground"] == {"solids": ["Ground/Ground"], "triangles": 2}
-    assert ann["calibrated on"].startswith("the rig's standing clip")
+    assert ann["calibrated on"] == sim_body.CALIBRATED_ON
     assert [line.split(":")[0] for line in record["left out"]] == ["bob", "cid", "crowd"]
     assert record["bodies"]["ann"]["adjusted"] == {"pelvis cm": [0.5, 1.2], "largest turn deg": 3.0, "mass %": -1.0}
     assert "Holzbaur" in record["model"]["attribution"] and "Apache-2.0" in record["model"]["attribution"]
