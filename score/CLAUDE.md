@@ -34,8 +34,13 @@ stage as each stage is built; nothing moves before.
   status [<world>]`** (`__main__.py`; `--stage` keeps only those stages and the nodes they read, place by place, an environment stage named with `--place` kept with the place nodes it reads, so `--place people --stage people-look-<look>` is the people line and that look's body in one run (with `--object <look>-s1` the line narrowed to its take: the prop route, finish route, bake and likeness select); `--object <name>` (repeat it) narrows a stage that selects (`Stage.selects`) to those objects of its place, the names in its params as `objects`, so a filtered output has its own key, and `graph.selected()` gives them to its files function, so another object's files neither key nor block it; any other stage runs whole): the runner drives every line (the environment's own nodes, then each place's) to its end with no agent
   in the loop (`Runner.drive`, `Runner.lines`), the lines side by side: each node in a forked process of its own, at
   most `--jobs` at once (default 8; the cockpit's Buy launches 16, `checkout/pricing.DEFAULT_JOBS`), so a line waiting on a cloud step holds up no other, and an environment node every line
-  reads is made once. It starts no node while this PC's available memory (`/proc/meminfo`), less `MEMORY_FLOOR`
-  (6 GB) for each node started in the last `RAMP_SECONDS` and still running (one that ended holds none), is under `MEMORY_FLOOR`; it says so once and reads again
+  reads is made once. It starts a node only while this PC's available memory (`/proc/meminfo`), less what each running
+  node is still expected to take (its stage's peak less what its process tree holds now, `/proc`; one that ended holds none) and
+  less the new node's own stage peak, stays at `MEMORY_FLOOR` (6 GB; `SCORE_MIN_FREE_GB` names another) or above. A stage's peak is
+  the most resident memory one of its nodes took (its process plus its children's, rusage, or the drive's own readings, whichever is
+  more), kept per stage in `memory/peaks.json` beside the store and only ever raised; a stage never measured is given `MEMORY_FLOOR`
+  (2026-10-28: five finish-route-views nodes grew to 4.8-6.4 GB each minutes after their start, past the old one-minute reserve,
+  and took this PC to 7 GB free). Otherwise it says so once and reads again
   every `MEMORY_POLL` seconds; each pass over the waiting nodes is one `still` pass (each key worked out once, the
   nodes it starts forked after it: Batch 1 of 2026-10-25 spent 12 min and then over an hour in one pass, its pool
   billing), and `score run`'s watchdog stops a drive whose last pass is `DRIVE_STALL_SECONDS` old (the PC has run out of memory before; local nodes measured 0.2-0.3 GB, 2026-10-22). Each node's process sets `OMP_NUM_THREADS`, `MKL_NUM_THREADS`, `OPENBLAS_NUM_THREADS` and
