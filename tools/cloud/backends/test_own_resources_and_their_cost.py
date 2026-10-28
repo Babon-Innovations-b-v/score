@@ -47,6 +47,8 @@ The invariants, each with the break that turns its test red (each applied once a
   memory check -> the 40 GB job is taken.
 - The container's memory leaves this PC HOST_RESERVE_GB for WSL and the run's own steps beside it: a 43 GB PC gives
   the container 27 GB, and a small PC still 8. Break: `total - HOST_RESERVE_GB` -> `total - 8` -> 35g.
+- A kind whose set-up has no kernels for this card is refused at its claim with why. Break: drop the `if kind in
+  NO_KERNELS:` refusal in `refusal` -> the similar job is taken.
 - The container never swaps past its memory, made new or found already made. Break: drop `"--memory-swap",
   memory_cap()` in `memory_arguments` -> the run's swap is unset; or drop the `docker("update", ...)` -> the old
   container keeps its swap.
@@ -466,3 +468,14 @@ def test_this_pc_container_never_swaps_past_its_memory(monkeypatch):
         assert len(limited) == 1 and limited[0][0] == ("update" if found else "run"), calls
         swap = limited[0].index("--memory-swap")
         assert limited[0][swap + 1] == "27g" == limited[0][limited[0].index("--memory") + 1], limited
+
+
+
+def test_this_pc_refuses_a_kind_its_card_has_no_kernels_for(monkeypatch, tmp_path):
+    import local
+    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
+    monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
+    monkeypatch.setattr(local, "memory_cap", lambda: "27g")
+    with pytest.raises(ValueError, match="no kernels for the RTX 5080"):
+        local.take("similar", "key")
+    assert local.take("blender", "key")["here"]
