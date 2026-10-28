@@ -77,9 +77,11 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   texture's regions (VIEW_DELTA_E, owner 2026-10-20, and its recolour, 2026-10-22) is gone (owner, 2026-10-25: "how is
   that possible with our finish lib and segmentation method read paper"): the texture carries the picture's baked
   light, and Batch 1 try 4 lost 134 takes to it at dE 32 to 41. Then the labels voted
-  across views (`finish_parts.voted`, the front counting double); a seen face no
-  label reaches is unassigned, faces whose views disagree (no finish over half their votes) over `DISAGREE_MOST` of
-  the area are views that disagree: either is a gap, named in "one finish a face"; the rest smoothed, strays given
+  across views (`route_split.squared_votes`: each view's vote weighed by the cosine between the face's normal and the
+  way to its eye, the front counting double); a seen face no label reaches is unassigned, a gap named in "one finish a
+  face"; faces whose views disagree (no finish over half their votes) are a split decision, never a gap (owner,
+  2026-10-28; the unmeasured 1% limit is gone, the share still recorded): each takes the finish its views weigh most,
+  a tie the finish round it (the walk); the rest smoothed, strays given
   the finish round them (`without_strays`: an island under patchy.py's `STRAY_ISLAND` of a finish that has a larger
   one, not a whole piece; voted by larger islands only) and crumbs joined (`cleaned`, `merged_islands`), each island
   a part. A face no view sees is no gap (a raw take's inner shell: 71% of astronaut-made-s1), but its walked paint

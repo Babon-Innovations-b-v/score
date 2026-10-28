@@ -1,11 +1,14 @@
 """The finish route's split row (free, on this PC's processor): each listed take's faces split by finish, the list's
 labels voted across every view. In each view a face takes the region most of its pixels show (route_views) and that
-region's label there (route_list); the views vote (finish_parts.voted, the close-up's front counting FRONT_VOTE).
+region's label there (route_list); the views vote (squared_votes: each view's vote on a face weighed by how squarely
+it sees it, the cosine between the face's normal and the way to the eye, the close-up's front counting FRONT_VOTE).
 
 Every face gets exactly one finish, or its take is a gap, named (owner, 2026-10-20): a face some view sees whose
-regions no view labelled is unassigned, and faces whose views disagree (no finish holds over half their votes) over
-DISAGREE_MOST of the area are views that disagree. A face no view can see (the inside of a raw model's shell, out of
-every camera's reach, is no gap) takes its nearest seen face's finish along the surface (finish_parts.walked); the
+regions no view labelled is unassigned, a gap. Faces whose views disagree (no finish over half their votes) are a
+split decision, never a gap (owner, 2026-10-28: the views disagreed on 1.2 to 5.8% of eleven takes, one colour region
+over several finishes, and the old 1% limit was never measured): each takes the finish its views weigh most, a tie
+the finish of the part round it (walked); their share is still recorded. A face no view can see (the inside of a raw
+model's shell, out of every camera's reach, is no gap) takes its nearest seen face's finish along the surface (finish_parts.walked); the
 finishes are then smoothed, each stray (an island under patchy.py's STRAY_ISLAND of a finish that has a larger one)
 given the finish round it (finish_parts.without_strays) and crumbs joined (finish_parts.cleaned, merged_islands), each
 island one part. A take whose paint is still patchy (patchy.score, each part its own region, as the paint measures,
@@ -41,9 +44,7 @@ import route_cast as cast  # noqa: E402
 import surface_gates as gates  # noqa: E402
 import score.stages.batch_gaps as batch_gaps  # noqa: E402
 
-# A take whose disagreeing faces hold over this share of its area is a gap. UNMEASURED: picked (2026-10-20), not
-# measured; the one-shot benchmark that would measure it (under EUR 3) is on #18. Keep it until that runs.
-DISAGREE_MOST = 0.01
+EDGE_ON = 1e-3  # the least weight of a view's vote on a face it sees (squared_votes)
 
 
 def model_of(folder):
@@ -94,19 +95,33 @@ def shares(mesh, per_map, votes):
 
 
 def split_fault(found):
-    """The gap a take's shares make (None when every face has one finish): unassigned faces, or views that
-    disagree."""
+    """The gap a take's shares make (None when every face has one finish): faces some view sees that no label
+    reaches, or no face any view sees (no finish to settle any face by)."""
+    if found["unseen"] >= 1.0:
+        return "no view sees any of its faces: no finish can be settled"
     if found["unassigned"] > 0:
         return f"faces no label reaches ({found['unassigned']:.2%} of its area): unassigned"
-    if found["disagree"] > DISAGREE_MOST:
-        return f"the views disagree on {found['disagree']:.2%} of its area (over {DISAGREE_MOST:.0%})"
     return None
 
 
+def squared_votes(mesh, per_map, angles, count):
+    """Each face's votes per finish, each view's weighed by the cosine between the face's normal and the way to that
+    view's eye (a raw take's normals may face in, so its size), the close-up's front by FRONT_VOTE too."""
+    votes = np.zeros((len(mesh.faces), count))
+    for view, label in per_map.items():
+        seen = np.flatnonzero(label >= 0)
+        # a face seen edge on still votes, if faintly: a seen face with no vote would read as unassigned
+        square = np.maximum(np.abs(mesh.face_normals[seen] @ cast.camera(angles[view])[0]), EDGE_ON)
+        votes[seen, label[seen]] += square * (finish_parts.FRONT_VOTE if view == "front" else 1.0)
+    return votes
+
+
 def voted_finishes(mesh, votes, count):
-    """(part per face, finish per face): each face's most voted finish, unseen faces walked, smoothed, strays
-    joined to the finish round them and crumbs joined."""
-    own = np.where(votes.sum(1) > 0, votes.argmax(1), -1)
+    """(part per face, finish per face): each face's most voted finish (a tie left to the walk, so it takes the
+    finish round it), unseen faces walked, smoothed, strays joined to the finish round them and crumbs joined."""
+    top = np.sort(votes, axis=1)
+    tied = (top[:, -1] > 0) & np.isclose(top[:, -1], top[:, -2]) if count > 1 else np.zeros(len(votes), dtype=bool)
+    own = np.where((votes.sum(1) > 0) & ~tied, votes.argmax(1), -1)
     smoothed = finish_parts.cleaned(mesh, finish_parts.walked(mesh, own), count)
     return finish_parts.merged_islands(mesh, finish_parts.without_strays(mesh, smoothed))
 
@@ -136,8 +151,8 @@ def split_take(folders, listed, record):
     count = len(listed["finishes"])
     labelled = per_view(folders["views"], listed["labels"], len(record["regions"]), len(mesh.faces))
     per_map = finishes_only(labelled)
-    votes = finish_parts.voted(per_map, count)
-    found = shares(mesh, labelled, votes)
+    found = shares(mesh, labelled, finish_parts.voted(per_map, count))  # the views' own disagreement, unweighed
+    votes = squared_votes(mesh, per_map, record["views"], count)
     fault = split_fault(found)
     if fault is not None:
         return {"fault": fault, **found}
