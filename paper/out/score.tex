@@ -100,39 +100,23 @@ Simulation}
 \begin{document}
 \maketitle
 \begin{abstract}
-Games, film, robotics and embodied AI all require 3D environments that
-can be physically simulated, in which every object is a separate body
-with its own collision geometry, mass and joints under the gravity of
-the ground it stands on, and which remain editable afterwards and owned
-by whoever made them. World models generate video frames that no physics
-simulator can open, and one-shot 3D generators produce a single fused
-scene without separate bodies or clear usage rights. SCORE is a
-framework that synthesises such environments. It builds them as film and
-game studios build scenes in OpenUSD, the open scene description
-standard, with each scene composed inside its parent scene and each kind
-of work on it (layout, surfaces, physics, lighting, motion, effects,
-sound and people) held in a layer of its own that is checked and changed
-independently of the others. A creator fixes the design from the top
-down, first an environment concept that sets its visual style and
-physical setting, then a concept image for each scene. Open vision
-foundation models, procedural generation tools and coding agents produce
-every layer below, each output passing measured acceptance tests, called
-gates, before the next is made, and every model licenses its output for
-commercial use, so the creator remains the author. Every step is
-identified by a hash of its inputs, so an edit reruns only the steps
-that depend on it. The result is a single OpenUSD environment whose
-physics description a simulator reads as written and which Newton steps
-with the MuJoCo solver. We describe the framework and its method, with a
-first environment as the evidence, whose four demonstrations remain open
-until its paid production run, called a batch, has completed. Each
-character also receives a simulated body in Newton, driven by the
-segment rotations of its SOMA body model. We close with the route
-towards subject-specific musculoskeletal bodies, a data loop in which
-generated movement, retained only when it is dynamically consistent,
-trains controllers that actuate a body's muscles, and layered training
-sets with physics-derived ground truth, on which estimators can learn to
-infer muscle activations, joint moments and ground reaction forces from
-monocular video. Code and paper are at
+Games, film, robotics and embodied AI all need 3D environments in which
+every object is a physical body of its own, that can still be edited
+after they are made, and that belong to whoever made them. World models
+produce video that no simulator can open, and one-shot 3D generators
+produce a single fused scene. SCORE is an open framework that
+synthesises such environments the way film and game studios build them:
+in OpenUSD, scene within scene, with layout, surfaces, physics,
+lighting, motion, effects, sound and people each held in a layer of its
+own. A creator locks the design from the top down. Open vision models,
+procedural tools and coding agents produce every layer beneath it, and
+each output must pass measured acceptance tests before the next is made.
+The result is a single OpenUSD environment whose physics a simulator
+reads as written, and every person in it also receives a musculoskeletal
+body that follows its motion in simulation. This opens a route to the
+training data that recorded measurement cannot supply at scale: movement
+in complete scenes, with physics-derived ground truth down to the forces
+of individual muscles. Code and paper:
 https://github.com/Babon-Innovations-b-v/score (MIT licence).
 \end{abstract}
 
@@ -436,86 +420,84 @@ edits.
 \section{Future work: people true to the
 person}\label{future-work-people-true-to-the-person}
 
-The minimal sim body is a starting point, and what follows describes
-goals rather than results.
+The current sim body is a starting point. This section describes goals,
+not results.
 
-\textbf{Bodies true to the person.} The sim body is to become a full
-musculoskeletal model that is specific to the individual, older people
-and people with a curved spine included, rather than a scaled generic
-template. Joint centres are to be derived from bony landmarks on the
-SOMA mesh, followed by segment masses, muscles, joint ranges of motion,
-the spine and bone geometry, with each input that SOMA does not provide
-marked as assumed and given a plausible range. A full-body
-musculoskeletal model with 416 muscles, MyoSuite's MyoFullBody {[}41{]},
+\textbf{Bodies true to the person.} The sim body is to become a
+musculoskeletal model of the individual person rather than a scaled
+generic template, including older people and people with a curved spine.
+MyoSuite's MyoFullBody {[}41{]}, a full-body model with 416 muscles
 whose arm and hand derive from the MoBL-ARMS model {[}42{]}, {[}43{]},
-already runs in Newton but still drifts 1.5 cm from plain MuJoCo after
-300 steps, so Newton is first to be validated for such bodies. The
-body's joint angles, and then its net joint moments and ground reaction
-forces, are to be validated against OpenCap's LabValidation data.
+is the starting point. Each segment of the SOMA body is fitted to the
+group of bones that spans the same part of the body, from the same joint
+to the same joint, so that the joints within a group, such as the
+vertebrae of the spine, share its rotation within their ranges of
+motion. Virtual markers on bony landmarks of the SOMA mesh add the shape
+of this person's skeleton, and segment masses are derived from the
+volumes of the SOMA body. Every input that SOMA does not provide is
+marked as assumed and given a plausible range. MyoFullBody already runs
+in Newton, but it still drifts 1.5 cm from plain MuJoCo after 300 steps,
+so Newton must first be validated for such bodies. The joint angles, and
+then the net joint moments and ground reaction forces, are to be
+validated against OpenCap's LabValidation data.
 
-\textbf{Scenes from motion.} Motion is to come from the SOMA ecosystem,
-either estimated from video with GEM-X {[}44{]} or generated from text
-and constraints with Kimodo {[}39{]}, in practically unlimited quantity.
-The terrain a motion implies becomes a SCORE scene, so the movement is
-kept in its setting without the source video or any information that
-identifies a person. The sim body then follows each movement as a
-prescribed trajectory on the scene's ground, and the simulation solves
-for the ground reaction forces from contact, the net joint moments, and
-the activations and forces of a 416-muscle model that reproduce it. Any
-force and moment that neither the ground contact nor the muscles can
-supply remains as the residual at the pelvis. It is recorded for every
-frame and never applied to the body, so it quantifies how dynamically
-consistent the movement is, and only movements with a small residual are
-kept. Biomechanics reduces and reports the same residual to assess
-recorded motion {[}45{]}, {[}46{]}, and PhysibleMDM {[}47{]} minimises
-an inverse-dynamics residual to make generated motion feasible for a
-torque-driven robot; we apply the criterion to generated motion in a
-muscle-driven body.
+\textbf{Scenes from motion.} Motion comes from the SOMA ecosystem:
+estimated from video with GEM-X {[}44{]}, or generated from text and
+constraints with Kimodo {[}39{]}, in practically unlimited quantity. The
+terrain a movement implies becomes a SCORE scene, so the movement keeps
+its setting without the source video or anything that identifies a
+person. The sim body follows each movement on the scene's own ground.
+For every frame, the simulation solves for the ground reaction forces
+from contact, the net joint moments, and the activations and forces of
+the muscles that reproduce the movement. Whatever force and moment
+neither the ground nor the muscles can supply remains at the pelvis as
+the residual. The residual is recorded and never applied to the body, so
+it measures how dynamically consistent the movement is, and only
+movements with a small residual are kept. Biomechanics uses the same
+residual to assess recorded motion {[}45{]}, {[}46{]}, and PhysibleMDM
+{[}47{]} minimises an inverse-dynamics residual to make generated motion
+feasible for a torque-driven robot. We apply the criterion to generated
+motion in a muscle-driven body.
 
-\textbf{Layered training sets.} The same simulations yield layered
-training sets. Each sample pairs a rendered image of a clothed person in
-a complete scene with physics-derived ground truth for every layer
-beneath it, namely the SOMA body and its joint angles, the ground
-reaction force under each foot from simulated contact, the muscle
-activations and forces, the residual, and the depth, segmentation and
-layout of the scene. Their main purpose is to train estimators that
-infer muscle activations, joint moments and ground reaction forces
-directly from monocular video, quickly enough for routine clinical use.
-Recorded data cannot provide this supervision at scale, because muscle
-forces cannot be measured non-invasively and force plates and
-electromyography confine measurement to a laboratory, whereas the
-simulation can generate the bodies, movements and settings an estimator
-has to cover, including those of a specific population, so that
-domain-specific estimators can be trained for it. BioHuman10M {[}48{]}
+\textbf{Layered training sets.} The same simulations yield training sets
+in layers. Each sample pairs a rendered image of a clothed person in a
+complete scene with ground truth for every layer beneath it: the SOMA
+body and its joint angles, the ground reaction force under each foot,
+the muscle activations and forces, the residual, and the depth,
+segmentation and layout of the scene. Their main use is to train
+estimators that infer muscle activations, joint moments and ground
+reaction forces directly from ordinary video, fast enough for routine
+clinical use. Recorded data cannot supply this at scale: muscle forces
+cannot be measured without invasive methods, and force plates and
+electromyography confine measurement to a laboratory. Simulation can
+generate the bodies, movements and settings an estimator must cover,
+including those of a specific patient group. BioHuman10M {[}48{]}
 already pairs video, part of it rendered, with the activations of a
 112-muscle model and with ground reaction forces predicted by a learned
-model from recorded motion. Our sets would differ in scenes generated
-for the purpose under varied lighting, terrain and clothing, in ground
-reaction forces from contact with each scene's own ground, in a
-416-muscle model and in a residual for every sample, and their value
-depends on whether estimators trained on them transfer to real
-force-plate and electromyography recordings.
+model. Our sets would add scenes generated for the purpose under varied
+lighting, terrain and clothing, ground reaction forces from contact with
+each scene's own ground, a 416-muscle model, and a residual for every
+sample. Their value depends on whether estimators trained on them
+transfer to real force-plate and electromyography recordings.
 
-\textbf{Brains.} A brain is a trained controller that actuates a sim
-body's muscles, and its role is to extend the training data beyond what
-a motion generator produces. Trained on the retained movements together
-with the muscle forces that produce them, it is placed in SCORE's
-synthesised worlds under their own gravity and terrain, where it is to
-adapt to structures no recording contains, and each run it drives adds
-movement to the training sets. Muscle-driven controllers such as KINESIS
-{[}49{]} and MuscleMimic {[}50{]} are trained on motion capture, as are
-torque-driven ones such as PHC {[}51{]}. To our knowledge, no
-muscle-driven controller has yet been trained on generated motion
-selected by its residual, and the claim holds only once such a
-controller is compared with one trained on motion capture and with one
-trained on the same generated motion unfiltered.
+\textbf{Brains.} A brain is a trained controller that drives a sim
+body's muscles. Trained on the retained movements and the muscle forces
+that produce them, it is placed in SCORE's synthesised worlds under
+their own gravity and terrain, where it must adapt to situations no
+recording contains. Every run it drives adds movement to the training
+sets, so it extends the data beyond what a motion generator produces.
+Muscle-driven controllers such as KINESIS {[}49{]} and MuscleMimic
+{[}50{]} are trained on motion capture, as are torque-driven ones such
+as PHC {[}51{]}. To our knowledge, no muscle-driven controller has yet
+been trained on generated motion selected by its residual. That claim
+holds only once such a controller is compared with one trained on motion
+capture and with one trained on the same generated motion unfiltered.
 
-\textbf{The data loop.} The amount of data the loop produces scales with
-the compute put behind it, since every scene, movement and run adds
-samples. This is why SCORE is open, so that others can apply their own
-compute to the same framework and share the resulting datasets.
-Estimators specialised for clinical use would be trained outside SCORE,
-on data that never enters it.
+\textbf{The data loop.} The amount of data scales with the compute put
+behind it, since every scene, movement and run adds samples. This is why
+SCORE is open: others can apply their own compute to the same framework
+and share the resulting datasets. Estimators specialised for clinical
+use would be trained outside SCORE, on data that never enters it.
 
 \section{Limitations and conclusion}\label{limitations-and-conclusion}
 
