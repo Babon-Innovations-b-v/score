@@ -17,10 +17,9 @@ import subprocess
 from dataclasses import dataclass
 
 from score import review
-from score.graph import Blocked, _code, code_functions, node_name
+from score.graph import Blocked, _code, asks_cached, node_name
 
 LIMIT = 5.0
-GOOGLE = _code.REPO / "tools/cloud/google_spend.py"
 # The files a Google row's request bodies are built from (wording, models, settings), besides its inputs. google_spend's
 # cache key is pinned by google_spend_test, so google_spend.py itself changes no request.
 REQUEST_BUILDERS = ("score/stages/surfaces/finish_ask.py", "tools/cloud/gemini_judge.py",
@@ -60,8 +59,9 @@ def accepted_record(runner, node):
 
 
 def asks_google(stage):
-    """True for a stage whose code asks Google (it imports google_spend)."""
-    return GOOGLE in _code.source_files(code_functions(stage))
+    """True for a stage whose code makes cached model asks (graph.asks_cached: google_spend.py is a framework file, so
+    it is in no row's source files and looking for it there found none)."""
+    return asks_cached(stage)
 
 
 def same_requests(runner, stage, node, parts):

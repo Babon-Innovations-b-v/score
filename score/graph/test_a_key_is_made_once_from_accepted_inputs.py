@@ -3092,6 +3092,17 @@ def make_with_rejects(inputs, out, seed, params):
     (out / rebuy.UNCACHED).write_text(json.dumps({"asks": 2, "euros": 0.134}))
 
 
+def test_the_re_buy_check_knows_a_row_of_cached_model_asks():
+    """Fault (2026-10-28): asks_google looked for google_spend.py among a row's source files, where a framework file
+    never is, so no row's cached Google answers were priced at EUR 0.
+    Break: score/graph/rebuy.py: '    return asks_cached(stage)' -> '    return False'"""
+    from score.stages import physics
+    from score.stages.surfaces import route_list
+    _code.search_folders.cache_clear()  # its folders on the path, as a run's table import puts them before any key
+    assert rebuy.asks_google(dataclasses.replace(PICK, make=route_list.make_list))
+    assert not rebuy.asks_google(dataclasses.replace(PICK, make=physics.make_trial))
+
+
 def test_a_google_row_asking_the_same_is_cached_unless_its_wording_changed_or_it_dropped_answers(committed,
                                                                                                 monkeypatch):
     """A render asking Google what it asked before is EUR 0 and moves nothing after it; a bake changed behind it is
