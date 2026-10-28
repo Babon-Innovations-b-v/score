@@ -31,7 +31,7 @@ CONCEPT = graph.Stage("crops-concept", "place", concept.make_concept,
 BOXES = graph.Stage("crops-boxes", "place", boxes.make_boxes, contracts.Contract("crops-boxes", 2, boxes.boxes_faults),
                     boxes.CHECKS, files=crop_data.boxes_files, paid=True, euros=boxes.EUROS, applies=crop_data.applies)
 LAYER = graph.Stage("crops-layer", "place", layer.make_layer, contracts.Contract("crops-layer", 1, layer.layer_faults),
-                    layer.CHECKS, files=crop_data.layer_files,
+                    layer.CHECKS, files=layer.layer_files,
                     after={"crops-concept": ("crops-concept", 1), "surfaces-bake": ("surfaces-bake", 1),
                            "surfaces-paint": ("surfaces-paint", 1),
                            # the rows whose batch gaps say the prop route left a kind's take out (layer.left_out)

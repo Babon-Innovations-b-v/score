@@ -209,7 +209,10 @@ def test_a_kind_the_prop_route_left_out_is_a_gap_with_its_beds_bare(tmp_path):
     Break: score/stages/crops/layer.py: `if model_of(entry) not in baked and named:` -> `if model_of(entry) not in
         baked:`
     Break: score/stages/crops/layer.py: `(kind, model_of(record["kinds"][kind]), *shared[kind]),` -> `(kind,
-        model_of(record["kinds"][kind])),`"""
+        model_of(record["kinds"][kind])),`
+    Greenhouse, 2026-10-28: the finish route's split gap named the plants' take alone, and the layer raised.
+    Break: score/stages/crops/layer.py: `names = {entry["row"], model_of(entry), takes.get(entry["row"])}` ->
+        `names = {entry["row"], model_of(entry)}`"""
     from score import stages
     from score.stages import batch_gaps
     gated = {check.name: check for row in stages.STAGES if row.name == "crops-layer" for check in row.checks}
@@ -218,10 +221,18 @@ def test_a_kind_the_prop_route_left_out_is_a_gap_with_its_beds_bare(tmp_path):
     bake.mkdir(), pixal.mkdir()
     (bake / "baked.json").write_text(json.dumps({layer.model_of(entry): {} for kind, entry in RECORD["kinds"].items()
                                                  if kind != "potato"}))
-    assert layer.left_out(RECORD, bake, []) == {}  # no gap names it: make_layer's write_assets still raises
+    (folder / "props.json").write_text(json.dumps({"objects": {"potato": {"route": "prop", "take": "potato_a1"}}}))
+    takes = layer.takes_of({"props": folder / "props.json"})
+    assert layer.left_out(RECORD, bake, [], takes) == {}  # no gap names it: make_layer's write_assets still raises
+    split = folder / "split"
+    split.mkdir()
+    batch_gaps.write(split, [batch_gaps.gap("potato_a1: not one finish a face", "finish-route-split",
+                                            "one finish a face", ("potato_a1",), ["views disagree"], "")])
+    taken = layer.left_out(RECORD, bake, batch_gaps.read([split]), takes)
+    assert taken == {"potato": ["potato_a1: not one finish a face"]}, taken  # a gap naming its take alone
     batch_gaps.write(pixal, [batch_gaps.gap("potato: Pixal3D made no model", "pixal", "takes", ("potato",),
                                             ["potato: no model"], "the job ran once")])
-    left = layer.left_out(RECORD, bake, batch_gaps.read([pixal]))
+    left = layer.left_out(RECORD, bake, batch_gaps.read([pixal]), {})
     assert left == {"potato": ["potato: Pixal3D made no model"]}, left
     inputs, beds, shared, spots = laid_on_greenhouse(folder, 1.5)
     laid = [spot for spot in spots if spot["kind"] != "potato"]
