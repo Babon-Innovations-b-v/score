@@ -30,7 +30,7 @@ The backend is chosen by SCORE_CLOUD (default `scaleway`, the backend the framew
 
 The machine itself runs `self_delete.py`, which needs the backend's own way to ask who it is and to delete itself
 (its BACKENDS table). Running a command and copying files go over ssh and rsync (batch.remote, batch.copy), the same
-on every provider. The section "Add a cloud backend" of the README says how to add one.
+on every provider. `backends/CLAUDE.md` says how to add one.
 
 A capability class names what a job needs, not a product: `gpu-<GB>gb` is one card with that much memory,
 `gpu-<GB>gb-x<N>` a machine with N of them, `cpu-<cores>c-<GB>gb` a processor machine with no card.

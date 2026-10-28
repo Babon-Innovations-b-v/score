@@ -3,8 +3,17 @@
 The cloud providers the runners rent from, one module each, behind `../provider.py`'s interface.
 `scaleway.py` is the current backend; `SCORE_CLOUD` chooses one. `local.py` is this PC's own card as one machine
 (a Docker container, never rented, EUR 0; `../CLAUDE.md` "This PC's card"): its offers are always `parked`, and its
-`take`, which only `park.here` calls, holds the PC's one claim. The README's "Add a cloud backend"
-says how to add another.
+`take`, which only `park.here` calls, holds the PC's one claim.
+
+**Adding a backend:**
+1. Write `<name>.py` with everything `../provider.py`'s docstring lists (`NAME`, `CLASSES`, `QUOTAS`, `account()`,
+   `offers()`, `price()`, `month_spend()`, `allow_key()`, `create()`, `start_if_stopped()`, `address()`, `retag()`,
+   `delete()`, `ours()`, the leftover sweeps, `secret()`, `registry()`, `object_store()`). Copy the shape of
+   `scaleway.py`. Check every resource's own account field before deleting it, never only a list filter.
+2. Give `../self_delete.py` the backend's way for a machine to learn its id and delete itself (its `BACKENDS`
+   table), using only the standard library and a key that can do nothing but that.
+3. Run with `SCORE_CLOUD=<name>`, first with `--dry-run`, then one small batch, and compare its rows in
+   `../capacity.py report` with the current backend's.
 
 - **A backend holds every provider detail:** its machine types per capability class (`CLASSES`, in the
   order to try them), zones, images, prices, stock words and its CLI or API. Nothing provider-specific

@@ -43,60 +43,34 @@ done and what is a goal.
   designs and the library's records) and `vendor/` (vendored tools, as released). The bible's
   [`architecture/components`](docs/bible.md#architecturecomponents) chapter says what is where.
 
-## Building the paper
-
-Needs `pandoc` (3.x) and a PDF engine: `xelatex` from TeX Live if installed, otherwise
-[`tectonic`](https://tectonic-typesetting.github.io/).
-
-```bash
-make paper     # paper/out/score.{tex,pdf} and paper/arxiv/ (main.tex, content/, main.bbl, main.pdf)
-make check     # the local gate: fails when the committed PDF or LaTeX is older than the draft
-```
-
-Every change to the draft is rebuilt and committed with the PDF. `bash
-.claude/scripts/bootstrap.sh` installs a pre-commit hook that refuses a commit leaving the paper
-stale. There is no CI: checks run locally.
-
 ## Running the framework
 
-Needs [`uv`](https://docs.astral.sh/uv/), and for the cloud steps a cloud backend's tools. With the current
-backend, Scaleway, that is the [`scw`](https://github.com/scaleway/scaleway-cli) CLI logged in, with the project
-named by `SCORE_SCALEWAY_PROJECT`. Secrets are read by name, never from files in the repo. Every step that loads
-a model, bakes or renders runs on a rented machine that deletes itself; this machine runs plain Python only.
-
-Local processing is also possible on a strong PC with an NVIDIA card (environment 1 runs on a 16 GB card): Docker
-with NVIDIA's container toolkit, then `python3 tools/cloud/this_pc.py run <environment>`. Each step runs in a
-container on your card, one card job at a time, at no cost; a step whose measured need is more than your card holds
-is refused and waits for the cloud.
+Needs [`uv`](https://docs.astral.sh/uv/). Secrets are read by name, never from files in the repo.
 
 ```bash
 make env                                       # the Python environment (.venv) from pyproject.toml
 make tests                                     # every framework check; TESTS="<module>/test_<invariant>.py" for some
-.venv/bin/python -m score plan <environment> --json   # what a run would make and buy, running nothing
-.venv/bin/python -m score run <environment>           # drive the environment's stages to their end
-.venv/bin/python -m score status <environment>        # every line's state
+.venv/bin/python -m score plan <environment>   # what a run would make and buy, running nothing
+.venv/bin/python -m score run <environment>    # drive the environment's stages to their end (--free: free steps only)
+.venv/bin/python -m score status <environment> # every line's state
+.venv/bin/python -m score price <environment>  # what the remaining paid steps cost
 ```
 
-Machines are rented by capability class (such as `gpu-24gb`), never by provider or machine type; how classes,
-stock, limits and container images work is in [`tools/cloud/CLAUDE.md`](tools/cloud/CLAUDE.md).
-An environment's made models and sounds are not in git: they are entries of the creator's library, score_lib,
-fetched by `tools/library/library_files.py` and checked against each entry's hash.
+Steps that load a model, bake or render run on a machine with a graphics card, in one of two places:
 
-### Add a cloud backend
+- **Your own PC**, if it has an NVIDIA card (environment 1 runs on a 16 GB card): Docker with NVIDIA's container
+  toolkit, then `python3 tools/cloud/this_pc.py run <environment>`, and `pause`, `resume` or `status` to free
+  the card for something else and pick up where it stopped. Each step runs in a container, one card job at a time,
+  at no cost; a step whose measured need is more than your card holds waits for the cloud.
+- **The cloud**, on machines rented by capability class (such as `gpu-24gb`) that delete themselves when done. The
+  current backend is Scaleway: the [`scw`](https://github.com/scaleway/scaleway-cli) CLI logged in, with the project
+  named by `SCORE_SCALEWAY_PROJECT`. Paid steps run only after the creator approves their price.
 
-1. Write `tools/cloud/backends/<name>.py` with everything `provider.py`'s docstring lists: `NAME`,
-   `CLASSES` (each capability class as your machine types, in the order to try them), `account()`,
-   `offers()`, `price()`, `month_spend()`, `allow_key()`, `create()`, `start_if_stopped()`, `address()`,
-   `delete()`, `ours()`, the leftover sweeps and `secret()`. Copy the shape of `backends/scaleway.py`.
-   Check every resource's own account field before deleting it, never only a list filter.
-2. Give `self_delete.py` the backend's way for a machine to learn its id and delete itself (its
-   `BACKENDS` table), using only the standard library and a key that can do nothing but that.
-3. Run with `SCORE_CLOUD=<name>`, first with `--dry-run`, then one small batch, and compare its rows in
-   `capacity.py report` with the current backend's.
-
-AWS is the likely next backend: EC2 instance types per class (for example `g6.xlarge` for `gpu-24gb`,
-`g6e.xlarge` for `gpu-48gb`, `p5` for `gpu-80gb`), regions as zones, Secrets Manager for `secret()`, and
-instance metadata plus a narrowly scoped role for the self-delete.
+What an environment makes is kept in score_lib, the library of every SCORE asset, fetched by
+`tools/library/library_files.py` and checked against each entry's hash. How classes, stock, limits and container
+images work is in [`tools/cloud/CLAUDE.md`](tools/cloud/CLAUDE.md); how to add a cloud backend is in
+[`tools/cloud/backends/CLAUDE.md`](tools/cloud/backends/CLAUDE.md). The paper's source and build are in
+[`paper/`](paper/CLAUDE.md).
 
 ## Licence
 
