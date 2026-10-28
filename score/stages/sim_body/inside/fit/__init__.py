@@ -36,7 +36,7 @@ HAND_TOP = "lunate"  # the hand group's frame body: the finger bones under it ha
 METHOD = ("one solver (#70): mink 1.3.0 per frame (the bone groups' turns on the static calibration table, the SOMA "
           "skin's landmarks and SOMA's joints as markers, weighed as OpenSim's IK weighs its goals; couplings held, "
           "leading joints in range) and scipy's bounded least_squares over the person's constants (group sizes, "
-          "joint centres, marker places; each stretch held to SOMA's length) with the angles of frames spread over "
+          "joint centres, marker places; the sizes solved, not held to SOMA's lengths) with the angles of frames spread over "
           "the clip, one sparse problem; then mink on every frame")
 __all__ = ["Fitting", "Frames", "NotConverged", "LM_DAMPING", "solved", "followers_free", "following", "riding", "followed", "placed", "targets", "fitting",
            "constants", "constants_record", "angles"]
@@ -78,11 +78,10 @@ def _tops(model, names):
     return found
 
 
-def fitting(path, scales, segments, held, lengths, moves=None):
+def fitting(path, scales, segments, held, moves=None):
     """The fitting model of the person's file at `path` (`Fitting`): a calibration site per `held` group, a marker
     per solver landmark at its start on its bone (sized by `scales`, moved by `moves` {landmark: 3}), a site on each
-    `placed` centre, the limbs' joint centres free to move, the fingers held, and each sizing stretch held to SOMA's
-    length (`lengths` {group: m}, `sizing.soma_lengths`)."""
+    `placed` centre, the limbs' joint centres free to move and the fingers held."""
     table, moves = groups(), moves or {}
     frames = [(group, table[group][2], turn(group)) for group in held]
     marks = [(name, MARKS[name][3], np.asarray(MARKS[name][5]) * scales[MARKS[name][3]] + moves.get(name, 0.0))
@@ -92,13 +91,9 @@ def fitting(path, scales, segments, held, lengths, moves=None):
                for body in bodies if body != frame}
     spec_model = mujoco.MjModel.from_xml_path(str(path))
     joints = _tops(spec_model, [f"{joint}_{side}" for joint in PLACED_JOINTS for side in "lr"])
-    ends = [[[(filed(body), np.asarray(local) * scales[body], weight) for body, local, weight in myo_parts(name)]
-             for name in (start, end)] for _, (start, end), _ in stretches().values()]
-    held_lengths = [(start, end, lengths[group]) for group, (start, end) in zip(stretches(), ends)]
     centres = [(soma, filed(myo_parts(myo)[0][0]), np.asarray(myo_parts(myo)[0][1]) * scales[myo_parts(myo)[0][0]])
                for soma, myo in placed(segments)]
-    return Fitting(path, frames, marks, owners, {filed(body) for body in OWN_PLACED}, joints, fingers, held_lengths,
-                   centres)
+    return Fitting(path, frames, marks, owners, {filed(body) for body in OWN_PLACED}, joints, fingers, centres)
 
 
 def spread(count, most=SAMPLE):

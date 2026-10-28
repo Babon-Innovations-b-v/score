@@ -78,7 +78,7 @@ own Python, its steps the modules beside it (`inside/CLAUDE.md`).
   calibration table, as OpenSense tracks orientations: Al Borno et al. 2022, doi:10.1186/s12984-022-01001-x), the
   SOMA mesh's bony landmarks skinned on the clip (`inside/landmarks`) and SOMA's joints on MyoFullBody's centres as
   markers, weighed as OpenSim's IK weighs its goals, within the leading joints' ranges, MuJoCo's couplings held
-  exactly, each group's stretch held to SOMA's length: mink per frame and scipy's bounded `least_squares` over the
+  exactly, each group's size solved (not held to SOMA's length since 2026-10-29): mink per frame and scipy's bounded `least_squares` over the
   constants with the angles of frames spread over the clip. **Never use the owner's own
   method** (arXiv:2607.17639, under Babon's patent application NL4001444; SCORE is public MIT): no swing-twist split
   into calibrated axes, no per-joint calibration table of axes, weights and offsets, no regression of joint angles

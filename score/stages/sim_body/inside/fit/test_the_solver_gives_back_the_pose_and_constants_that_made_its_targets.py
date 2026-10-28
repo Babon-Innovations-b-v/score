@@ -3,8 +3,7 @@ hip by a coupling, one thigh's calibration turned 30 degrees), with the person's
 group 8% longer, the left hip moved 2 cm), the solver gives back from the bone groups' turns, the markers and one
 SOMA joint on its centre (the left ankle) every frame's angles, the size factor and the hip's move; a frame asking a
 hip past its range stops it at the range's end, its coupled follower on its leader by the coupling, though the
-follower's own range is narrower; and a bone group's stretch given SOMA's length is held near it though the markers
-ask 8% more. It runs in Newton's own Python (mink pinned there; score/stages/physics/inside/newton_env.sh, built at
+follower's own range is narrower. The size is solved, not held (#70, 2026-10-29). It runs in Newton's own Python (mink pinned there; score/stages/physics/inside/newton_env.sh, built at
 $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted), 2026-10-28:
@@ -17,8 +16,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - Frames' constraints `[mink.EqualityConstraintTask(...)]` made `[]`: the follower leaves its leader.
 - _frames.weights' `np.full(marks, 1.0 / np.sqrt(max(marks, 1)))` made `np.full(marks, 0.0)`: no marker sees a
   length.
-- Problem.residuals' `found.append(LENGTH_WEIGHT * mark_cost * (lengths - soma))` made `found.append(0.0 * (lengths
-  - soma))`: the stretch takes the markers' length.
+- (2026-10-29) a row holding the left group to its start length (`(factors[0] - 1.0) * 100`, the old LENGTH_WEIGHT
+  hold) added to Problem.residuals: the factor stays near 1, not TRUE_LEFT.
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/test_the_solver_gives_back_the_pose_and_constants_that_made_its_targets.py
 """
@@ -82,7 +81,7 @@ def calibration(body):
     return Rotation.from_euler("z", 30 if body == "leg_l" else 0, degrees=True).as_matrix()
 
 
-def toy_fitting(folder, stretches=()):
+def toy_fitting(folder):
     """The toy's `Fitting`: a turn site on every body (the left thigh's calibration 30 degrees about its long axis), its
     markers, the left hip's centre free to move."""
     import numpy as np
@@ -92,7 +91,7 @@ def toy_fitting(folder, stretches=()):
     frames = [(body, body, calibration(body)) for body in OWNERS]
     marks = [(f"{body}{number}", body, np.array(point)) for body, points in MARKS.items()
              for number, point in enumerate(points)]
-    return Fitting(path, frames, marks, OWNERS, (), [("hip_l", "leg_l")], (), stretches, [("ankle_l", "shin_l", ANKLE)])
+    return Fitting(path, frames, marks, OWNERS, (), [("hip_l", "leg_l")], (), [("ankle_l", "shin_l", ANKLE)])
 
 
 def posed_targets(fitting, truth, poses):
@@ -168,23 +167,7 @@ def a_hip_past_its_range_stops_at_its_end_and_its_follower_follows():
     return problems + ([] if reached < MOST_RADIANS else [f"the right hip stopped {reached:.4f} rad short of 0.9"])
 
 
-def a_stretch_is_held_to_somas_length():
-    """The left thigh's stretch (its origin to the shin's) given SOMA's length, 0.4 m, its markers posed 8% longer:
-    the fitted stretch within 4 mm of 0.4 m (the markers alone gave 0.432)."""
-    import fit
-    import mujoco
-    with tempfile.TemporaryDirectory() as folder:
-        fitting = toy_fitting(folder, [([("leg_l", (0.0, 0.0, 0.0), 1.0)], [("shin_l", (0.0, 0.0, 0.0), 1.0)], 0.4)])
-        turns, points, _ = posed_targets(fitting, truth_of(fitting), POSES[:-1])
-        found = fit.constants(fitting, turns, points)
-        constants = fitting.neutral()
-        constants[:len(fitting.sizes)] = [found["sizes"][group] for group in fitting.sizes]
-        constants[len(fitting.sizes):len(fitting.sizes) + 3] = found["joints"]["leg_l"]
-        length = fitting.lengths(constants, mujoco.MjData(fitting.model))[0][0]
-    return [] if abs(length - 0.4) < 0.004 else [f"the held stretch is {length:.4f} m"]
-
-
-CHECKS = (the_solver_gives_back_the_angles_and_the_constants, a_stretch_is_held_to_somas_length,
+CHECKS = (the_solver_gives_back_the_angles_and_the_constants,
           a_hip_past_its_range_stops_at_its_end_and_its_follower_follows)
 
 
