@@ -279,13 +279,16 @@ def check_files(place):
 
 def paint_baked(row):
     """surfaces-bake with the paint's files beside its own (paint_files: the paint runs in its job on the rented card,
-    route_bake.py, #18) and the job's scripts (inside/, run up there, never imported; the folder's overlay left out)."""
+    route_bake.py, #18) and the job's scripts (inside/, run up there, never imported; the folder's overlay left out),
+    with the recipes the bake's Blender scripts import (bake.py's `import recipes`: run apart, no import keys it;
+    declared here, in the table, so no other row's code moves, 2026-10-28)."""
     if row.name != "surfaces-bake":
         return row
     own = row.files
     return dataclasses.replace(row, files=lambda place: {
         **paint_files(place), **own(place), **{f"paint bake {name}": "{repo}/score/stages/surfaces/inside/" + name
-                                               for name in ("paint_bake.py", "paint_take.py")}})
+                                               for name in ("paint_bake.py", "paint_take.py")},
+        "bake recipes": "{repo}/tools/props/library/recipes.py"})
 
 
 def code_marked(row):
