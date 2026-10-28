@@ -41,8 +41,8 @@ stage as each stage is built; nothing moves before.
   `/proc/<pid>/smaps_rollup` summed over the tree, its RSS only where that file cannot be read: a node forked from the drive
   and its Blender and pool children share pages, which an RSS sum counted once per process, 15.8 GB kept for
   finish-route-views nodes holding 2.5 GB, 2026-10-28), read every `MEMORY_SAMPLE` seconds by the node itself and by the drive,
-  whichever is more; the same measure is what a running node is taken to hold now. Kept per stage in `memory/peaks-pss.json`
-  beside the store and only ever raised (the RSS sums of `memory/peaks.json` are no longer read); a stage never measured is given `MEMORY_FLOOR`, and a node that made nothing (its output found made) is kept only above that, so a quick one never lowers the default (2026-10-28: such nodes kept finish-route-views low and seven real ones started on 38.9 GB, the PC at 7 GB free)
+  whichever is more; the same measure is what a running node is taken to hold now. Kept per stage in `memory/peaks-made.json`
+  beside the store and only ever raised (the RSS sums of `memory/peaks.json` and the readings of `memory/peaks-pss.json`, kept before the rule below, are no longer read); a stage never measured is given `MEMORY_FLOOR`, and a node that made nothing (its output found made) is kept only above that, so a quick one never lowers the default (2026-10-28: such nodes kept finish-route-views low and seven real ones started on 38.9 GB, the PC at 7 GB free)
   (2026-10-28: five finish-route-views nodes grew to 4.8-6.4 GB each minutes after their start, past the old one-minute reserve,
   and took this PC to 7 GB free). Otherwise it says so once and reads again
   every `MEMORY_POLL` seconds; each pass over the waiting nodes is one `still` pass (each key worked out once, the

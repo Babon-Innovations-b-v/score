@@ -105,8 +105,8 @@ HEARTBEAT = 120
 # most memory one of its nodes' process trees held, by proportional share (Pss, smaps_rollup: a node forked from the
 # drive and its Blender and pool children share pages, which an RSS sum counted once per process: 15.8 GB kept for
 # finish-route-views nodes holding 2.5 GB, 2026-10-28), read by the node itself and by the drive, whichever is more,
-# kept per stage in memory/peaks-pss.json beside the store (the RSS sums of memory/peaks.json are no longer read); a
-# stage never measured is given MEMORY_FLOOR. 2026-10-28:
+# kept per stage in memory/peaks-made.json beside the store (peaks.json and peaks-pss.json, kept before a node that
+# made nothing was left out, are no longer read); a stage never measured is given MEMORY_FLOOR. 2026-10-28:
 # five finish-route-views nodes grew to 4.8-6.4 GB each minutes after their start and took this PC to 7 GB free
 # (the rule then reserved a floor only for a node's first minute). This PC (43 GB) has run out of memory before. Measured 2026-10-22 (peak RSS of the make, imports included): plan@hub 0.21 GB,
 # earth-seed@greenhouse 0.22 GB, the assembly, completion, earth-seed, scene-record and terrain test makes 0.22-0.28
@@ -1638,7 +1638,7 @@ class Runner:
     def peaks(self):
         """{stage: the most bytes one of its nodes' process trees held (trees_held)}, as kept beside the store (none
         yet: {})."""
-        path = self.desk("memory", "peaks-pss", ".json")
+        path = self.desk("memory", "peaks-made", ".json")
         return json.loads(path.read_text()) if path.exists() else {}
 
     def keep_peak(self, stage, peak):
@@ -1646,7 +1646,7 @@ class Runner:
         peaks = self.peaks()
         if peak > peaks.get(stage, 0):
             peaks[stage] = peak
-            path = self.desk("memory", "peaks-pss", ".json")
+            path = self.desk("memory", "peaks-made", ".json")
             path.parent.mkdir(parents=True, exist_ok=True)
             spare = path.with_suffix(f".{os.getpid()}")
             spare.write_text(json.dumps(peaks, indent=1, sort_keys=True) + "\n")

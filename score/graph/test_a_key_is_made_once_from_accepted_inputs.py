@@ -1737,7 +1737,7 @@ def test_a_node_that_made_nothing_never_brings_its_stage_under_the_default(monke
     monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, int(0.1 * FLOOR)))
     monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
     runner.drive(PLACES, say=quiet, jobs=4)
-    runner.desk("memory", "peaks-pss", ".json").unlink()
+    runner.desk("memory", "peaks-made", ".json").unlink()
     found = runner.drive(PLACES, say=quiet, jobs=4)
     assert not any("made: " in did for did in found.values()), found
     assert runner.peaks() == {}, runner.peaks()
@@ -1778,16 +1778,20 @@ def test_a_nodes_tree_is_measured_by_its_share_of_each_page_and_by_rss_only_wher
 
 def test_a_nodes_own_report_is_its_trees_share_and_old_rss_peaks_are_no_longer_read(monkeypatch):
     """The drive reads every tree as holding nothing; each node's own process reads its tree as 0.2 floor: count's
-    kept peak is that 0.2 floor, the node's own report; a peaks.json left by the RSS sums (clean at 10 floors) is not
-    read, so clean's peak is the one measured now.
+    kept peak is that 0.2 floor, the node's own report; a peaks.json left by the RSS sums (clean at 10 floors) and a
+    peaks-pss.json kept before a node that made nothing was left out (count at 10 floors) are not read, so each peak is
+    the one measured now.
     Break: score/graph/__init__.py: 'sending.send((did, max(high[0], HELD([os.getpid()])[os.getpid()])))' ->
     'sending.send((did, 0))'
-    Break: score/graph/__init__.py: '        path = self.desk("memory", "peaks-pss", ".json")\n        return' ->
-    '        path = self.desk("memory", "peaks", ".json")\n        return'"""
+    Break: score/graph/__init__.py: '        path = self.desk("memory", "peaks-made", ".json")\n        return' ->
+    '        path = self.desk("memory", "peaks", ".json")\n        return'
+    Break: score/graph/__init__.py: '        path = self.desk("memory", "peaks-made", ".json")\n        return' ->
+    '        path = self.desk("memory", "peaks-pss", ".json")\n        return'"""
     runner = a_driven_runner({"hangar": "a ship", "station": "a hub"})
     old = runner.desk("memory", "peaks", ".json")
     old.parent.mkdir(parents=True, exist_ok=True)
     old.write_text(json.dumps({"clean": 10 * FLOOR}))
+    runner.desk("memory", "peaks-pss", ".json").write_text(json.dumps({"count": 10 * FLOOR}))
     faked(monkeypatch, [100 * FLOOR])
     drive_pid = os.getpid()
     monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0 if os.getpid() == drive_pid
