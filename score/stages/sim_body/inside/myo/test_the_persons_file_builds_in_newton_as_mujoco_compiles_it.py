@@ -1,5 +1,6 @@
 """myo: the person's file written from a small body laid out as MyoFullBody's wheel has it (a floor, a body with two
-joints, a muscle whose class gives its parameters, names with '-') compiles in MuJoCo and builds in Newton with the
+joints, a muscle whose class gives its parameters, names with '-'), sized to a toy SOMA (each thigh and shin a box),
+compiles in MuJoCo and builds in Newton with the
 same joints, one joint a body, no '-' in a name, no floor, the person's mass, and every muscle's gain and bias in
 Newton's model the published model's (#60's import fixes). It runs in Newton's own Python
 (score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there, as in `make
@@ -29,7 +30,34 @@ CHAIN = (("femur", "0.1 0 -0.1", "pelvis"), ("tibia", "0 0 -0.4", "femur"), ("ta
          ("toes", "0 0.1 -0.05", "talus"), ("humerus", "0.2 0 0.4", "torso"), ("ulna", "0 0 -0.3", "humerus"),
          ("lunate", "0 0 -0.25", "ulna"))
 KG = 50.0
-LENGTHS = {"thigh": 0.44, "shin": 0.44, "foot": 0.12, "upper arm": 0.33, "forearm": 0.27, "height": 1.7}
+# The toy's bone groups: each side's thigh and shin (bone_groups.GROUPS' shape); the rest take their parent's scale.
+TABLE = {f"{side}{segment}": ((f"{side}{segment}", f"{side}{end}"), (f"{start}_{letter}", f"{finish}_{letter}"),
+                              f"{body}_{letter}", (f"{body}_{letter}",))
+         for side, letter in (("Left", "l"), ("Right", "r"))
+         for segment, end, start, finish, body in (("Leg", "Shin", "hip", "knee", "femur"),
+                                                   ("Shin", "Foot", "knee", "ankle", "tibia"))}
+# The toy SOMA's joints (own frame, +x left; the right side mirrored): thigh and shin 0.44 m.
+JOINTS = {"LeftLeg": (0.1, 1.0, 0.0), "LeftShin": (0.1, 0.56, 0.0), "LeftFoot": (0.1, 0.12, 0.0),
+          "LeftArm": (0.2, 1.4, 0.0)}
+
+
+def toy_size():
+    """The toy SOMA (its joints and a 0.04 m box along each stretch) as a `sizing.Size`."""
+    import numpy as np
+    import sizing
+    places = {**JOINTS, **{"Right" + name[4:]: (-x, y, z) for name, (x, y, z) in JOINTS.items()}}
+    names = list(places)
+    bind = np.tile(np.eye(4), (len(names), 1, 1))
+    bind[:, :3, 3] = [places[name] for name in names]
+    unit = np.array([[x, y, z] for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)], dtype=float)
+    faces = np.array([[0, 1, 3], [0, 3, 2], [4, 6, 7], [4, 7, 5], [0, 4, 5], [0, 5, 1], [2, 3, 7], [2, 7, 6],
+                      [0, 2, 6], [0, 6, 4], [1, 5, 7], [1, 7, 3]])
+    points = [unit * [0.02, 0.15, 0.02] + (np.asarray(places[start]) + places[end]) / 2
+              for (start, end), _, _, _ in TABLE.values()]
+    rig = {"names": names, "bind": bind, "points": np.concatenate(points),
+           "faces": np.concatenate([faces + 8 * index for index in range(len(points))]),
+           "weights": np.zeros((8 * len(points), len(names)))}
+    return sizing.Size(rig, TABLE)
 
 
 def toy_body():
@@ -101,8 +129,7 @@ def written(folder):
     source.parent.mkdir(parents=True)
     source.write_text(toy_body())
     path = pathlib.Path(folder) / "person.xml"
-    lengths = {f"{limb} {side}": value for limb, value in LENGTHS.items() if limb != "height" for side in "lr"}
-    record = myo.person_file(folder, {**lengths, "height": LENGTHS["height"]}, KG, path)
+    record = myo.person_file(folder, toy_size(), KG, path)
     return path.read_text(), record, mujoco.MjModel.from_xml_path(str(path)), model.built(path, 9.81)
 
 

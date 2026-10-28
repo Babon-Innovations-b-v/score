@@ -1,6 +1,6 @@
 """Runs in Newton's own Python (score/stages/physics/inside/newton_env.sh: Newton with its MuJoCo solver, pinned): every
-character's sim body of one scene, each MyoFullBody sized to the person (`sizing`, `myo`), on its own copy of the scene's ground
-(#65).
+character's sim body of one scene, each MyoFullBody sized to the person's SOMA body (`sizing`, `myo`), on its own
+copy of the scene's ground (#65).
 
     <env>/bin/python score/stages/sim_body/inside/sim_body.py <job.json> <out.json>
 
@@ -10,8 +10,9 @@ m", "turn most deg", "follows deg"}: RRA's caps), "people":
 [{"name", "kg", "height" (the person's own standing height, m), "rig" ({"names", "parents", "bind"}: the person's rig),
 "segments" ([SOMA segment name], in the order of `targets`), "standing" (each segment's frame in the rig's
 standing clip's first frame, or null), "targets" (an .npz whose `world` is frames x segments x
-4 x 4: each segment's frame in the clip, and `ground` n x 3 x 3: the scene's triangles it may touch, both in the
-person's own frame, Y up)}]}.
+4 x 4: each segment's frame in the clip, `ground` n x 3 x 3: the scene's triangles it may touch, both in the
+person's own frame, Y up, and `points`, `faces`, `weights`: the person's SOMA mesh at its bind and its skin weights,
+which `sizing` sizes MyoFullBody to)}]}.
 
 The movement is the clip's (the owner, 2026-10-27: "we have kimodo for the actual movement; and myobody plus mujoco and
 newton for the physics"): the body, root included, follows it exactly, and the physics is what that movement asks.
@@ -87,7 +88,7 @@ from model import TO_OWN, body_index, built, filtered, posed_path, rates
 from muscles import Physics
 from records import adjustment_record, arrays, bones_of, com_height, entry, frames, placed
 from rra import footed, off_clip, reduced, within_follows, within_frames
-from sizing import limb_lengths
+from sizing import Size
 
 
 def arguments():
@@ -102,7 +103,8 @@ def run_person(job, person, out_path):
     targets = np.load(person["targets"])
     worlds, ground = targets["world"], targets["ground"]
     path = out_path.parent / f"{person['name']}.xml"
-    record = myo.person_file(job["model"], {**limb_lengths(person), "height": person["height"]}, person["kg"], path)
+    rig = {**person["rig"], "points": targets["points"], "faces": targets["faces"], "weights": targets["weights"]}
+    record = myo.person_file(job["model"], Size(rig), person["kg"], path)
     model = built(path, job["gravity"])
     rides = sided_map(RIDES)
     bodies = {segment: body_index(model, rides[segment]) for segment in person["segments"]}
