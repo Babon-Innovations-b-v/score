@@ -14,9 +14,10 @@ rule says (data/checks/row-kinds.json `motion`), at the speed its motion kind's 
     needs   a rule that moves only when the scene holds what it serves (a door swings only where somebody passes
             through it: a row whose kind `does` the need), else it stands with `still_without`
 
-    record(place, inventory, kinds, motion_kinds, stage)   the rigid record tools/usd/motion_layer.py writes
+    record(place, inventory, kinds, motion_kinds, stage, carried)   the rigid record tools/usd/motion_layer.py writes
+    left_gaps(record)   the batch gap of each moving row a carried batch gap left with no object
 """
-from score.stages import row_kinds
+from score.stages import batch_gaps, row_kinds
 
 # One round of the layer, seconds, and when in it a swinging thing opens and shuts again.
 ROUND = 20.0
@@ -74,14 +75,24 @@ def served(rule, inventory, kinds):
     return "needs" not in rule or bool(row_kinds.rows_that(inventory, rule["needs"], kinds))
 
 
-def record(place, inventory, kinds, motion_kinds, stage):
-    """The scene's rigid record from its design: {place, about, seconds, moves, still, missing}."""
-    moves, still, missing = [], {}, []
+def gaps_naming(row, carried):
+    """The names of the carried batch gaps (score/stages/batch_gaps.py) naming a row: by its id or its take (the
+    row's `thing`, "prop:<take>": the bake's gap names the take only)."""
+    names = {row["id"], str(row.get("thing", "")).split(":", 1)[-1]}
+    return [entry["name"] for entry in carried if names & set(entry["objects"])]
+
+
+def record(place, inventory, kinds, motion_kinds, stage, carried=()):
+    """The scene's rigid record from its design: {place, about, seconds, moves, still, missing, left_out}; a moving
+    row with no object is missing, and left out ({row: [gap names]}) where a carried batch gap names it."""
+    moves, still, missing, left_out = [], {}, [], {}
     for row in row_kinds.rows_that(inventory, "moves", kinds):
         rule = kinds[row["row_kind"]]["motion"]
         paths = row_kinds.objects_of(stage, place, row["id"])
         if not paths:
-            missing.append(f"{row['id']} moves ({rule['move']}), and no object of it stands on the stage")
+            missing.append(f"{row['id']}: moves ({rule['move']}), and no object of it stands on the stage")
+            if gaps_naming(row, carried):
+                left_out[row["id"]] = gaps_naming(row, carried)
         for path in paths:
             if rule["move"] == "still":
                 still[path] = rule["why"]
@@ -94,4 +105,13 @@ def record(place, inventory, kinds, motion_kinds, stage):
     return {"place": place,
             "about": "Made from the scene's design (score/stages/motion/from_design.py): each object of a row whose "
                      "kind moves, moved or kept standing by its kind's rule (data/checks/row-kinds.json).",
-            "seconds": ROUND, "moves": moves, "still": still, "missing": missing}
+            "seconds": ROUND, "moves": moves, "still": still, "missing": missing, "left_out": left_out}
+
+
+def left_gaps(record):
+    """The batch gap of each moving row left out: a paid step of its take failed in the batch, so nothing of it
+    moves; named by the row, so the table moves `designed`'s fault on it (stages.BATCH_GATES)."""
+    return [batch_gaps.gap(f"{row}: no object, so it does not move", "motion", "designed", (row,),
+                           [f"{row}: no object of it stands on the stage ({'; '.join(names)})"],
+                           "the prop route left its take out inside the batch, so nothing of it moves")
+            for row, names in sorted(record["left_out"].items())]

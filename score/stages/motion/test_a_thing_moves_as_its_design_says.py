@@ -150,7 +150,39 @@ def test_a_row_that_moves_with_no_object_fails_designed(tmp_path):
     out, _ = made(inputs, tmp_path)
     verdict = judge("designed", out, inputs)
     assert verdict.answer == checks.FAIL
-    assert verdict.findings == ("crane moves (swing), and no object of it stands on the stage",), verdict.findings
+    assert verdict.findings == ("crane: moves (swing), and no object of it stands on the stage",), verdict.findings
+    assert table_judge("designed", out, inputs).answer == checks.FAIL, "no batch gap names the crane, so its fault stays"
+
+
+def table_judge(name, out, inputs):
+    """A gate as the stage table runs it, batch gaps moved (stages.accepted_gaps, BATCH_GATES)."""
+    from score import stages
+    row = stages.accepted_gaps(stages.MOTION)
+    return next(check for check in row.checks if check.name == name).judge(out, inputs, None)
+
+
+def test_a_moving_row_whose_take_the_bake_left_out_carries_its_gap(tmp_path):
+    """Fault (env1 on this PC, 2026-10-28, motion@garage): the bake's job for the vehicle lift's take failed in the
+    batch, a batch gap naming the take only, and `designed` stopped the line on the lift having no object. The crane's
+    take is named by a carried bake gap: `designed` still fails it by name, the motion output carries the bake's gap
+    and its own naming the row, and the table moves the fault (stages.BATCH_GATES), so the line goes on.
+    Break: score/stages/motion/from_design.py: `names = {row["id"], str(row.get("thing", "")).split(":", 1)[-1]}`
+    -> `names = {row["id"]}`"""
+    crane = {"id": "crane", "name": "crane", "noun": "crane", "thing": "prop:toy_crane_b26f85f9"}
+    inputs = toy_inputs(tmp_path, ROWS + [crane])
+    (tmp_path / "bake").mkdir()
+    (tmp_path / "bake/batch-gaps.json").write_text(json.dumps({"gaps": [{
+        "name": "toy_crane_b26f85f9: not baked", "row": "surfaces-bake", "check": "baked",
+        "objects": ["toy_crane_b26f85f9"], "faults": ["toy_crane_b26f85f9: its bake job brought nothing back"],
+        "reason": "the take's bake job ran once in the batch and failed"}]}))
+    inputs["surfaces-bake"] = tmp_path / "bake"
+    out, record = made(inputs, tmp_path)
+    assert judge("designed", out, inputs).answer == checks.FAIL
+    assert record["left_out"] == {"crane": ["toy_crane_b26f85f9: not baked"]}, record["left_out"]
+    carried = [entry["name"] for entry in json.loads((out / "batch-gaps.json").read_text())["gaps"]]
+    assert carried == ["toy_crane_b26f85f9: not baked", "crane: no object, so it does not move"], carried
+    verdict = table_judge("designed", out, inputs)
+    assert verdict.answer == checks.PASS and "moved to complete" in verdict.reason, (verdict.reason, verdict.findings)
 
 
 def a_baked_door(bake, paint, out, models=None):
