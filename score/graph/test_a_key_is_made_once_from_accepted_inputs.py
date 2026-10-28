@@ -1803,6 +1803,117 @@ def test_a_nodes_own_report_is_its_trees_share_and_old_rss_peaks_are_no_longer_r
     assert peaks == {"clean": int(0.2 * FLOOR), "count": int(0.2 * FLOOR)}, peaks
 
 
+def make_mark(inputs, out, seed, params):
+    (out / "mark.txt").write_text("marked")
+
+
+def test_a_ready_node_too_large_for_memory_lets_the_ones_after_it_start_until_it_waited_its_turns(monkeypatch):
+    """2026-10-28: one ready node at the head that did not fit held 122 small ready nodes behind it, five of eight
+    slots empty for 29 min. big (kept peak 3 floors) comes before small (0.1 floor), neither reading anything, 2.5
+    floors available until both small nodes started (or 20 readings): the small ones start first. With MEMORY_SKIPS 0
+    the first big node passed over holds every node after it, so a big one starts first.
+    Break: score/graph/__init__.py: '                            continue\\n                        skips.pop(node, None)'
+    -> '                            break\\n                        skips.pop(node, None)' -> big starts first.
+    Break: score/graph/__init__.py: '                                line_held = skips[node] > MEMORY_SKIPS'
+    -> '                                line_held = False' -> small starts first with MEMORY_SKIPS 0."""
+    monkeypatch.delenv(graph.FLOOR_VARIABLE, raising=False)
+    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
+    monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
+    for skips, first in ((graph.MEMORY_SKIPS, "small"), (0, "big")):
+        monkeypatch.setattr(graph, "MEMORY_SKIPS", skips)
+        files = {"brief": "{data}/{place}/brief.txt"}
+        big, small = (graph.Stage(name, "place", make_mark, TEXT, PASSES, files=files) for name in ("big", "small"))
+        runner = a_runner(a_world({"hangar": "a ship", "station": "a hub"}), a_store(), (big, small))
+        runner.keep_peak("big", 3 * FLOOR)
+        runner.keep_peak("small", int(0.1 * FLOOR))
+        started, start, readings = [], runner.start, [0]
+        runner.start = lambda stage, place, threads: started.append(stage.name) or start(stage, place, threads)
+
+        def reading():
+            readings[0] += 1
+            return 2.5 * FLOOR if started.count("small") < 2 and readings[0] < 20 else 100 * FLOOR
+        monkeypatch.setattr(graph, "AVAILABLE", reading)
+        found = runner.drive(PLACES, say=quiet, jobs=4)
+        assert set(found.values()) == {ACCEPTED} and len(found) == 4, found
+        assert started[0] == first and sorted(started) == ["big", "big", "small", "small"], (skips, started)
+
+
+def test_an_ended_node_holds_no_memory_and_one_that_ran_a_container_client_keeps_the_default(tmp_path, monkeypatch):
+    """2026-10-28: a node that ended but was not yet reaped still counted its whole peak (a median of 3 s each), and
+    a Blender node measured 0.1 GB of its tree while its container held 3.7 GB. An ended process is charged nothing,
+    a live one its stage's peak; a tree whose child runs tools/cloud/blender_cloud.py ran a container client, one
+    whose child runs anything else did not; a node that ran one raises its stage's 0.1-floor peak to the default, one
+    that did not keeps it.
+    Break: score/graph/__init__.py: 'for stage, place, process in running.values() if process.is_alive()]' ->
+    'for stage, place, process in running.values()]'
+    Break: score/graph/__init__.py: '        peak = max(peak, memory_floor()) if contained else peak' ->
+    '        peak = peak'"""
+    monkeypatch.delenv(graph.FLOOR_VARIABLE, raising=False)
+    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
+    runner = a_driven_runner({"hangar": "a ship", "station": "a hub"})
+    clean, count = runner.stages["clean"], runner.stages["count"]
+    running = {"ended": (clean, "hangar", types.SimpleNamespace(pid=11, is_alive=lambda: False)),
+               "live": (count, "hangar", types.SimpleNamespace(pid=12, is_alive=lambda: True))}
+    assert runner.coming(running, {"clean": 2 * FLOOR, "count": FLOOR}, {}) == [(FLOOR, 0)]
+    monkeypatch.setattr(graph, "PROC", str(tmp_path))
+    a_process(tmp_path, 100, 1, 10)
+    a_process(tmp_path, 101, 100, 10)
+    (tmp_path / "101" / "cmdline").write_bytes(b"python3\0tools/cloud/blender_cloud.py\0--detach\0")
+    a_process(tmp_path, 200, 1, 10)
+    a_process(tmp_path, 201, 200, 10)
+    (tmp_path / "201" / "cmdline").write_bytes(b"python3\0tools/cloud/gemini_judge.py\0")
+    assert graph.ran_container_client(100) and not graph.ran_container_client(200)
+    runner.keep_peak("clean", int(0.1 * FLOOR))
+    assert runner.measured(clean, "made: pass", int(0.1 * FLOOR), False, runner.peaks()) == {"clean": int(0.1 * FLOOR)}
+    assert runner.measured(clean, "fresh", int(0.1 * FLOOR), True, runner.peaks()) == {"clean": FLOOR}
+    assert runner.peaks() == {"clean": FLOOR}
+
+
+def test_a_pass_reads_each_plan_once_and_a_waiting_nodes_reads_are_kept_until_its_place_or_what_it_reads_ends(
+        monkeypatch):
+    """2026-10-28: the waiting pass read each plan's JSON again for every node asking (about 38k loads a pass) and
+    worked out every waiting node's reads again every turn. One still pass (lines) loads each place's plan once; a
+    drive held for memory for several turns works out each clean node's reads once; a node's kept reads are dropped
+    when a node of its place or one it reads ended, all of them when an environment node ended.
+    Break: score/graph/__init__.py: '            with plans.one_moment():\\n                yield' -> '            yield'
+    Break: score/graph/__init__.py: '                    earlier = kept(known, node, "earlier", self.earlier, stage, place)'
+    -> '                    earlier = self.earlier(stage, place)'
+    Break: score/graph/__init__.py: '                 or node.partition("@")[2] in places' -> '                 or False'"""
+    from score.review import plans
+    loads = []
+    planned = dataclasses.replace(CLEAN, applies=lambda place: plans.once("toy plan", None, place,
+                                                                         lambda: loads.append(place) or True))
+    runner = a_runner(a_world({"hangar": "a ship", "station": "a hub"}), a_store(), (planned, COUNT))
+    runner.lines(PLACES)
+    assert sorted(loads) == sorted(PLACES), loads
+    monkeypatch.delenv(graph.FLOOR_VARIABLE, raising=False)
+    taken = faked(monkeypatch, [0.5 * FLOOR] * 8 + [100 * FLOOR])
+    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
+    monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
+    calls, earlier = [], graph.Runner.earlier
+    monkeypatch.setattr(graph.Runner, "earlier",
+                        lambda self, stage, place: calls.append(graph.node_name(stage, place)) or earlier(self, stage,
+                                                                                                          place))
+    runner = a_runner(a_world({"hangar": "a ship", "station": "a hub"}), a_store(), (make_marked("clean"), COUNT))
+    found = runner.drive(PLACES, say=quiet, jobs=4)
+    assert set(found) == {"clean@hangar", "clean@station", "count@hangar", "count@station"}, found
+    assert len(taken) > 8 and calls.count("clean@hangar") == calls.count("clean@station") == 1, (len(taken), calls)
+    known = {"count@hangar": {"earlier": ["clean@hangar"]}, "tally@hangar": {"earlier": []},
+             "count@station": {"earlier": ["clean@station"]}, "meet@station": {"earlier": ["clean@hangar"]},
+             "film": {"earlier": []}}
+    graph.forget(known, {"clean@hangar"})
+    assert set(known) == {"count@station"}, known
+    graph.forget(known, {"film"})
+    assert known == {}
+
+
+def make_marked(name):
+    """A stage `name` reading its place's brief, its make writing a mark (count reads it as clean's clean.txt)."""
+    def make(inputs, out, seed, params):
+        (out / "clean.txt").write_text("marked")
+    return graph.Stage(name, "place", make, TEXT, PASSES, files={"brief": "{data}/{place}/brief.txt"})
+
+
 def test_an_input_is_hashed_again_once_it_changed_and_never_kept_while_it_just_changed(tmp_path, monkeypatch):
     """A settled file's hash is kept and read once; the same size rewritten is hashed anew; a file changed within
     SETTLED_NS is never kept. Break: score/graph/__init__.py: 'found.st_size, found.st_mtime_ns, found.st_ctime_ns)'

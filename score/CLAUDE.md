@@ -44,10 +44,15 @@ stage as each stage is built; nothing moves before.
   whichever is more; the same measure is what a running node is taken to hold now. Kept per stage in `memory/peaks-made.json`
   beside the store and only ever raised (the RSS sums of `memory/peaks.json` and the readings of `memory/peaks-pss.json`, kept before the rule below, are no longer read); a stage never measured is given `MEMORY_FLOOR`, and a node that made nothing (its output found made) is kept only above that, so a quick one never lowers the default (2026-10-28: such nodes kept finish-route-views low and seven real ones started on 38.9 GB, the PC at 7 GB free)
   (2026-10-28: five finish-route-views nodes grew to 4.8-6.4 GB each minutes after their start, past the old one-minute reserve,
-  and took this PC to 7 GB free). Otherwise it says so once and reads again
-  every `MEMORY_POLL` seconds; each pass over the waiting nodes is one `still` pass (each key worked out once, the
-  nodes it starts forked after it: Batch 1 of 2026-10-25 spent 12 min and then over an hour in one pass, its pool
-  billing), and `score run`'s watchdog stops a drive whose last pass is `DRIVE_STALL_SECONDS` old (the PC has run out of memory before; local nodes measured 0.2-0.3 GB, 2026-10-22). Each node's process sets `OMP_NUM_THREADS`, `MKL_NUM_THREADS`, `OPENBLAS_NUM_THREADS` and
+  and took this PC to 7 GB free). A node whose tree ran a container client (`CONTAINER_CLIENTS`: `blender_cloud.py`) held its real
+  memory in the container, outside its tree, so its stage keeps no peak below the default. A ready node that does not fit is
+  passed over and the ones after it that fit start; one passed over on `MEMORY_SKIPS` turns holds every node after it until it
+  fits (2026-10-28: one 6 GB node at the head held 122 small ready nodes, five of eight slots empty for 29 min). Otherwise it
+  says so once and reads again every `MEMORY_POLL` seconds; each turn first reaps the nodes that ended (an ended process
+  holds nothing) and concludes them inside that turn's one `still` pass with the waiting nodes (each key, and each plan by
+  `plans.one_moment`, worked out once, the nodes it starts forked after it: Batch 1 of 2026-10-25 spent 12 min and then
+  over an hour in one pass, its pool billing); what each waiting node reads is kept across turns (`kept`, `forget`) until a
+  node of its place, one it reads or an environment node ends, and all of it again every `HEARTBEAT` seconds, and `score run`'s watchdog stops a drive whose last pass is `DRIVE_STALL_SECONDS` old (the PC has run out of memory before; local nodes measured 0.2-0.3 GB, 2026-10-22). Each node's process sets `OMP_NUM_THREADS`, `MKL_NUM_THREADS`, `OPENBLAS_NUM_THREADS` and
   `NUMBA_NUM_THREADS` to this PC's cores divided by `--jobs` (at least 1; a smaller value already set stands, an empty one counts as unset, and
   one that is not a whole number above 0 is refused before the run) before its make starts, inside its log (a failed cap
   shows in its fault report), so its children inherit them, and resizes the OpenBLAS pools the drive loaded before it forked; a

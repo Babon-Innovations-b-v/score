@@ -113,6 +113,13 @@ HEARTBEAT = 120
 # GB (a node waiting on a rented machine not measured). 6 GB is far over those, for the nodes not measured yet.
 MEMORY_FLOOR = 6 * 2**30
 MEMORY_POLL = 30
+# A ready node whose peak does not fit is passed over and the nodes after it that fit start (2026-10-28: one 6 GB node
+# at the head held 122 small ready nodes and five of eight slots empty for 29 min); one passed over on MEMORY_SKIPS
+# turns holds every node after it until it fits, so a large node is never starved by small ones.
+MEMORY_SKIPS = 10
+# A node whose process tree ran one of these clients holds its real memory in a container, outside its tree (trees_held:
+# a Blender node measured 0.1 GB while its container held 3.7 GB, 2026-10-28): its stage keeps no peak below the default.
+CONTAINER_CLIENTS = ("blender_cloud.py",)
 # A node's process reads its own tree's memory every MEMORY_SAMPLE seconds for the peak it reports (watch_memory).
 MEMORY_SAMPLE = 5
 # Where the process readings come from (the tests give a folder of their own).
@@ -512,11 +519,58 @@ HELD = trees_held  # the tests give a fake reading
 
 
 def watch_memory(high, every=None):
-    """In a node's process: keep in `high` ([bytes]) the most its process tree held (trees_held), read every
-    MEMORY_SAMPLE seconds; never returns."""
+    """In a node's process: keep in `high` ([bytes, whether a container client ran]) the most its process tree held
+    (trees_held) and whether its tree ran a container client (ran_container_client), read every MEMORY_SAMPLE seconds;
+    never returns."""
     while True:
         high[0] = max(high[0], HELD([os.getpid()])[os.getpid()])
+        high[1] = high[1] or ran_container_client(os.getpid())
         time.sleep(every or MEMORY_SAMPLE)
+
+
+def ran_container_client(root):
+    """Whether a process under `root` (PROC/<pid>/cmdline) runs one of CONTAINER_CLIENTS."""
+    children = {}
+    for pid, (parent, _) in process_table().items():
+        children.setdefault(parent, []).append(pid)
+    tree = list(children.get(root, []))
+    while tree:
+        pid = tree.pop()
+        with contextlib.suppress(OSError):
+            words = pathlib.Path(PROC, str(pid), "cmdline").read_bytes().split(b"\0")
+            if any(os.path.basename(word.decode(errors="replace")) in CONTAINER_CLIENTS for word in words):
+                return True
+        tree += children.get(pid, [])
+    return False
+
+
+def unsettled(optional, line, stood, stopped):
+    """A waiting node's `optional` reads (Runner.optional_nodes) the drive still makes (in its `line`, neither stood
+    nor stopped): the node waits on them, then reads each that stood and runs without each that stopped
+    (Runner.reads)."""
+    return [name for name in optional if name in line and name not in stood and name not in stopped]
+
+
+def kept(known, node, what, work, *args):
+    """work(*args), kept in `known` ({node: {what: answer}}) across a drive's turns until forget drops the node."""
+    answers = known.setdefault(node, {})
+    if what not in answers:
+        answers[what] = work(*args)
+    return answers[what]
+
+
+def forget(known, ended):
+    """Drop from `known` each waiting node the nodes that just ended (`ended`) may have moved: every node when an
+    environment node ended, else every environment node, every node of an ended node's place (the place's plan may be
+    what ended: a stage's `applies` reads it) and every node that reads an ended node."""
+    places = {node.partition("@")[2] for node in ended}
+    if "" in places:
+        known.clear()
+        return
+    for node in [node for node, answers in known.items() if not node.partition("@")[2]
+                 or node.partition("@")[2] in places
+                 or not ended.isdisjoint([*answers.get("earlier", ()), *answers.get("optional", ())])]:
+        del known[node]
 
 
 def node_threads(jobs):
@@ -712,10 +766,12 @@ class Runner:
         if self.remembered is not None:
             yield
             return
+        from score.review import plans  # each place's plan read once too (plans.one_moment): the pass writes nothing
         self.store.objects.keys = listed_once(self.store.objects.keys)
         self.remembered = {}
         try:
-            yield
+            with plans.one_moment():
+                yield
         finally:
             del self.store.objects.keys
             self.remembered = None
@@ -1612,13 +1668,14 @@ class Runner:
         otherwise hold the process at its exit, and the drive's join with it, after the node is done. Its runner's
         death ends it (watch_runner)."""
         threading.Thread(target=watch_runner, args=(runner_pid,), daemon=True).start()
-        high = [0]  # the most this node's process tree held, read by watch_memory
+        high = [0, False]  # the most this node's process tree held, and whether it ran a container client
         threading.Thread(target=watch_memory, args=(high,), daemon=True).start()
         try:
             did = self.drive_node(stage, place, threads)
         except BaseException as error:  # noqa: BLE001 - raised where its log could not take it (Batch 1, a full disk)
             did = f"error: {type(error).__name__}: {error}; raised outside its log:\n{traceback.format_exc()}"
-        sending.send((did, max(high[0], HELD([os.getpid()])[os.getpid()])))
+        sending.send((did, max(high[0], HELD([os.getpid()])[os.getpid()]),
+                      high[1] or ran_container_client(os.getpid())))
         sending.close()
         sys.stdout.flush()
         sys.stderr.flush()
@@ -1626,14 +1683,15 @@ class Runner:
 
     def outcome(self, receiving, process):
         """(What a node's process did, once it ended: an error when it ended without saying; the most bytes its
-        process tree held (trees_held) as it said, 0 when it did not say)."""
+        process tree held (trees_held) as it said, 0 when it did not say; whether its tree ran a container client)."""
         try:
-            did, peak = receiving.recv()
+            did, peak, contained = receiving.recv()
         except EOFError:
-            did, peak = None, 0
+            did, peak, contained = None, 0, False
         receiving.close()
         process.join()
-        return did or f"error: its process ended (exit code {process.exitcode}) without saying what it did", peak
+        return (did or f"error: its process ended (exit code {process.exitcode}) without saying what it did", peak,
+                contained)
 
     def peaks(self):
         """{stage: the most bytes one of its nodes' process trees held (trees_held)}, as kept beside the store (none
@@ -1655,10 +1713,12 @@ class Runner:
 
     def coming(self, running, peaks, seen):
         """[(each running node's stage peak, what its process tree holds now)], the most each was seen to hold kept
-        in `seen` ({node: bytes})."""
-        held = HELD([process.pid for _, _, process in running.values()])
+        in `seen` ({node: bytes}); a node whose process has ended is reaped (is_alive: waitpid, WNOHANG) and holds
+        none, though its outcome is not read yet."""
+        alive = [(stage, place, process) for stage, place, process in running.values() if process.is_alive()]
+        held = HELD([process.pid for _, _, process in alive])
         found = []
-        for stage, place, process in running.values():
+        for stage, place, process in alive:
             node = node_name(stage, place)
             seen[node] = max(seen.get(node, 0), held[process.pid])
             found.append((peaks.get(stage.name, memory_floor()), held[process.pid]))
@@ -1683,7 +1743,7 @@ class Runner:
         node is made once and each line that reads it waits on it alone. A node that does not end accepted stops its
         own line and leaves a fault report: every node that reads it, directly or through another, is not run, and a node
         on that line that reads nothing of it still runs; a node waits on its optional reads the drive makes too and
-        runs without one that stops (Runner.unsettled); {node: what it did}, in table order. `whole` False drives the places'
+        runs without one that stops (unsettled); {node: what it did}, in table order. `whole` False drives the places'
         lines alone, with only the environment nodes they read; `only` (stage names) those stages and the ones they read.
         `gauges`, given by score run alone (a stage's own drive says no beats), is called every HEARTBEAT seconds for
         the text a heartbeat line carries (the run's euros so far, its paid runs open)."""
@@ -1694,14 +1754,41 @@ class Runner:
         beat_at = time.monotonic() + HEARTBEAT
         threads = node_threads(jobs)
         peaks, seen, told = self.peaks(), {}, False  # seen: the most each running node held; told: the wait was said
+        # known: what each waiting node reads, kept across turns (forget; all of it again every HEARTBEAT seconds, so a
+        # plan edited under the run is read again); skips: the turns each ready node did not fit; finished: the result
+        # pipes of the nodes that ended, concluded at the next turn's start inside that turn's one still pass
+        known, known_at, skips, finished = {}, time.monotonic(), {}, []
         self.driving = (0, time.monotonic())
         while waiting or running:
-            held = False  # a node ready to start waits for memory
+            if time.monotonic() - known_at >= HEARTBEAT:
+                known, known_at = {}, time.monotonic()
+            # reap first: a node that ended since the wait is concluded now and holds no memory in this pass
+            others = [pipe for pipe in running if pipe not in finished]
+            finished = [*finished, *(FORK_WAIT(others, timeout=0) if others else [])]
+            held = line_held = False  # a ready node waits for memory; once one waited too long, every node after it
             ready = []  # started once the pass is over: a forked node must not inherit its remembered keys
-            coming = self.coming(running, peaks, seen)  # what the running nodes may still take (memory_room)
-            with self.still():  # each key worked out once a pass (Batch 1, 2026-10-25: a pass took 12 min and more)
+            with self.still():  # each key and plan worked out once a pass (Batch 1, 2026-10-25: a pass took 12 min)
+                ended = set()
+                for receiving in finished:
+                    stage, place, process = running.pop(receiving)
+                    node = node_name(stage, place)
+                    did, peak, contained = self.outcome(receiving, process)  # an ended node holds no memory
+                    peaks = self.measured(stage, did, max(peak, seen.pop(node, 0)), contained, peaks)
+                    done[node], stands = self.conclude(stage, place, did)
+                    if stands:
+                        stood.add(node)
+                    else:
+                        stopped[node] = node
+                        if self.standing(stage, place, gapped=True) is None:
+                            on_gaps.add(node)
+                    ended.add(node)
+                    say(f"{node}: {done[node]}")
+                finished = []
+                forget(known, ended)
+                coming = self.coming(running, peaks, seen)  # what the running nodes may still take (memory_room)
                 for stage, place in list(waiting):
-                    node, earlier = node_name(stage, place), self.earlier(stage, place)
+                    node = node_name(stage, place)
+                    earlier = kept(known, node, "earlier", self.earlier, stage, place)
                     passes = {before for before in on_gaps if before.partition("@")[0] in stage.gapped}
                     waits = [stopped[before] for before in earlier if before in stopped and before not in passes]
                     if waits:
@@ -1710,16 +1797,22 @@ class Runner:
                         done[node] = (FREE_WAITS.format(node=waits[0]) if done.get(waits[0]) == PAID_LEFT
                                       else f"not run: its line stopped at {waits[0]}")
                         say(f"{node}: {done[node]}")
-                    elif stood.union(passes).issuperset(earlier) and self.left_for_buy(stage, place):
+                    elif stood.union(passes).issuperset(earlier) and \
+                            kept(known, node, "left", self.left_for_buy, stage, place):
                         waiting.remove((stage, place))
                         stopped[node], done[node] = node, PAID_LEFT
                         say(f"{node}: {done[node]}")
                     elif stood.union(passes).issuperset(earlier) and len(running) + len(ready) < jobs and \
-                            not self.unsettled(stage, place, line, stood, stopped):
+                            not unsettled(kept(known, node, "optional", self.optional_nodes, stage, place), line,
+                                          stood, stopped):
                         expected = peaks.get(stage.name, memory_floor())
-                        held = held or not memory_room(coming, expected)
-                        if held:
+                        if line_held or not memory_room(coming, expected):
+                            held = True  # this node waits; the nodes after it that fit still start
+                            if not line_held:
+                                skips[node] = skips.get(node, 0) + 1
+                                line_held = skips[node] > MEMORY_SKIPS  # passed over too long: it goes next
                             continue
+                        skips.pop(node, None)
                         waiting.remove((stage, place))
                         ready.append((stage, place))
                         coming.append((expected, 0))
@@ -1741,26 +1834,20 @@ class Runner:
             beat_in = max(0.0, beat_at - time.monotonic()) if gauges else None  # no beats: wait for a node alone
             if held:  # read the memory again within MEMORY_POLL
                 beat_in = MEMORY_POLL if beat_in is None else min(beat_in, MEMORY_POLL)
-            for finished in FORK_WAIT(list(running), timeout=beat_in):
-                stage, place, process = running.pop(finished)
-                node = node_name(stage, place)
-                did, peak = self.outcome(finished, process)  # an ended node holds no memory: the next starts at once
-                peak = max(peak, seen.pop(node, 0))
-                # a node that made nothing (its output found made) measured none of its stage's work, so it never
-                # brings a stage under its default (2026-10-28: quick ones kept finish-route-views low, 7 real ones started)
-                if "made: " in did or peak > peaks.get(stage.name, memory_floor()):
-                    peaks = self.keep_peak(stage.name, peak)
-                done[node], stands = self.conclude(stage, place, did)
-                if stands:
-                    stood.add(node)
-                else:
-                    stopped[node] = node
-                    with self.still():
-                        if self.standing(stage, place, gapped=True) is None:
-                            on_gaps.add(node)
-                say(f"{node}: {done[node]}")
+            finished = FORK_WAIT(list(running), timeout=beat_in)  # concluded at the next turn's start
         return {node_name(stage, place): done[node_name(stage, place)] for stage, place in chosen
                 if node_name(stage, place) in done}
+
+    def measured(self, stage, did, peak, contained, peaks):
+        """The stage peaks kept once a node of `stage` ended, having done `did` with its tree holding at most `peak`
+        bytes: raised to it when the node made its output or held more than its stage's peak; a node whose tree ran a
+        container client (`contained`, CONTAINER_CLIENTS) counts as holding the default at least."""
+        peak = max(peak, memory_floor()) if contained else peak
+        # a node that made nothing (its output found made) measured none of its stage's work, so it never brings a
+        # stage under its default (2026-10-28: quick ones kept finish-route-views low, 7 real ones started)
+        if "made: " in did or peak > peaks.get(stage.name, memory_floor()):
+            return self.keep_peak(stage.name, peak)
+        return peaks
 
     def left_for_buy(self, stage, place):
         """In a free-only run, whether a paid node is left for the Buy: it does not already stand accepted (one that
@@ -1769,12 +1856,6 @@ class Runner:
             return False
         with self.still():
             return self.standing(stage, place) is not None
-
-    def unsettled(self, stage, place, line, stood, stopped):
-        """The node's optional reads the drive still makes (in its `line`, neither stood nor stopped): the node waits
-        on them, then reads each that stood and runs without each that stopped (Runner.reads)."""
-        return [name for name in self.optional_nodes(stage, place)
-                if name in line and name not in stood and name not in stopped]
 
     def lines(self, places, whole=True, only=None):
         """{line: (its state, {node: state})}, running nothing: the environment's own nodes are one line, each place's
