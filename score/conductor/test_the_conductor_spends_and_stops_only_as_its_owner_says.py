@@ -450,6 +450,8 @@ def test_the_log_tails_leave_out_every_line_naming_or_holding_a_secret(tmp_path,
 # --- the free end-to-end check -----------------------------------------------------------------------------------------
 
 def test_the_dry_check_passes_every_step_in_one_line():
+    """Red when a step fails, e.g. the memory guard letting the second node start before the first's ramp is over;
+    2026-10-28 it was red on a loaded PC because the first node ended inside the ramp and freed the second early."""
     done = subprocess.run([sys.executable, "-m", "score.conductor", "dry"], cwd=REPO, capture_output=True, text=True,
                           timeout=90)
     lines = done.stdout.strip().splitlines()
