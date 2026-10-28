@@ -1,36 +1,20 @@
 \begin{abstract}
-Games, film, robotics and embodied AI all require 3D environments that
-can be physically simulated, in which every object is a separate body
-with its own collision geometry, mass and joints under the gravity of
-the ground it stands on, and which remain editable afterwards and owned
-by whoever made them. World models generate video frames that no physics
-simulator can open, and one-shot 3D generators produce a single fused
-scene without separate bodies or clear usage rights. SCORE is a
-framework that synthesises such environments. It builds them as film and
-game studios build scenes in OpenUSD, the open scene description
-standard, with each scene composed inside its parent scene and each kind
-of work on it (layout, surfaces, physics, lighting, motion, effects,
-sound and people) held in a layer of its own that is checked and changed
-independently of the others. A creator fixes the design from the top
-down, first an environment concept that sets its visual style and
-physical setting, then a concept image for each scene. Open vision
-foundation models, procedural generation tools and coding agents produce
-every layer below, each output passing measured acceptance tests, called
-gates, before the next is made, and every model licenses its output for
-commercial use, so the creator remains the author. Every step is
-identified by a hash of its inputs, so an edit reruns only the steps
-that depend on it. The result is a single OpenUSD environment whose
-physics description a simulator reads as written and which Newton steps
-with the MuJoCo solver. We describe the framework and its method, with a
-first environment as the evidence, whose four demonstrations remain open
-until its paid production run, called a batch, has completed. Each
-character also receives a simulated body in Newton, driven by the
-segment rotations of its SOMA body model. We close with the route
-towards subject-specific musculoskeletal bodies, a data loop in which
-generated movement, retained only when it is dynamically consistent,
-trains controllers that actuate a body's muscles, and layered training
-sets with physics-derived ground truth, on which estimators can learn to
-infer muscle activations, joint moments and ground reaction forces from
-monocular video. Code and paper are at
+Games, film, robotics and embodied AI all need 3D environments in which
+every object is a physical body of its own, that can still be edited
+after they are made, and that belong to whoever made them. World models
+produce video that no simulator can open, and one-shot 3D generators
+produce a single fused scene. SCORE is an open framework that
+synthesises such environments the way film and game studios build them:
+in OpenUSD, scene within scene, with layout, surfaces, physics,
+lighting, motion, effects, sound and people each held in a layer of its
+own. A creator locks the design from the top down. Open vision models,
+procedural tools and coding agents produce every layer beneath it, and
+each output must pass measured acceptance tests before the next is made.
+The result is a single OpenUSD environment whose physics a simulator
+reads as written, and every person in it also receives a musculoskeletal
+body that follows its motion in simulation. This opens a route to the
+training data that recorded measurement cannot supply at scale: movement
+in complete scenes, with physics-derived ground truth down to the forces
+of individual muscles. Code and paper:
 https://github.com/Babon-Innovations-b-v/score (MIT licence).
 \end{abstract}
