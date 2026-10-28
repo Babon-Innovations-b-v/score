@@ -19,6 +19,8 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - library `main`: `if True:` print the whole list -> test_the_command_line_prints_one_summary_line.
 - make_chunky `default_wall`: `return WALL_VOXELS * voxel_of(size)` ->
   test_a_job_naming_no_wall_takes_two_voxels_not_under_5_mm.
+- make_chunky `full_model`: `bpy.ops.wm.ply_import` again; and, apart, `kept_triangles`: `once[:] = True` ->
+  test_a_part_reads_the_same_every_run (2026-10-28).
 - stored `pointed_at_webp`: drop `texture.pop("source", None)` -> test_stored_pictures_are_webp_and_a_room_has_a_budget.
 - bodies `kept`: drop the detail boxes' `found |= ...` -> test_a_body_keeps_only_the_take_faces_it_names.
 - bodies `console_outline`: `top = CONSOLE_TOP * tall + 0.1` -> test_every_body_stands_in_its_laid_box.
@@ -226,16 +228,21 @@ def test_the_command_line_prints_one_summary_line(tmp_path):
         library.theme_library.__defaults__ = saved
 
 
-def chunky_default_wall():
-    """make_chunky's default_wall with the constants it reads, taken from its text (make_chunky needs Blender)."""
+def chunky_functions(functions, constants=()):
+    """make_chunky's named functions with the constants they read, taken from its text (make_chunky needs Blender)."""
     tree = ast.parse((HERE / "inside/make_chunky.py").read_text())
-    names = {"WALL", "WALL_VOXELS", "VOXEL_SHARE", "VOXEL_FINEST"}
     kept = [node for node in tree.body if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
-            and node.targets[0].id in names
-            or isinstance(node, ast.FunctionDef) and node.name in ("default_wall", "voxel_of")]
+            and node.targets[0].id in constants
+            or isinstance(node, ast.FunctionDef) and node.name in functions]
     space = {}
     exec(compile(ast.Module(body=kept, type_ignores=[]), "make_chunky", "exec"), space)
-    return space["default_wall"]
+    return space
+
+
+def chunky_default_wall():
+    """make_chunky's default_wall with the constants it reads."""
+    return chunky_functions(("default_wall", "voxel_of"),
+                            {"WALL", "WALL_VOXELS", "VOXEL_SHARE", "VOXEL_FINEST"})["default_wall"]
 
 
 def test_a_job_naming_no_wall_takes_two_voxels_not_under_5_mm():
@@ -243,6 +250,16 @@ def test_a_job_naming_no_wall_takes_two_voxels_not_under_5_mm():
     assert default_wall([0.4, 0.3, 0.2]) == 0.005  # a prop: its two voxels are under 5 mm
     assert abs(default_wall([8.0, 8.0, 60.0]) - 0.4) < 1e-9  # the launch rocket: two 0.2 m voxels, not lace
 
+
+
+def test_a_part_reads_the_same_every_run():
+    # Blender's PLY importer runs Mesh.validate, which reordered a 923k-face part's faces differently each run, so
+    # two bakes of one take differed (garage_door_1, 2026-10-28); the part is read in file order instead.
+    source = (HERE / "inside/make_chunky.py").read_text()
+    assert "ply_import" not in source and ".validate(" not in source
+    kept_triangles = chunky_functions(("kept_triangles",))["kept_triangles"]
+    corners = np.array([[0, 1, 2], [2, 2, 3], [3, 4, 5], [1, 2, 0], [5, 4, 3], [6, 7, 8]])
+    assert kept_triangles(corners).tolist() == [[0, 1, 2], [3, 4, 5], [6, 7, 8]]  # file order, firsts only
 
 def test_stored_pictures_are_webp_and_a_room_has_a_budget(tmp_path):
     gltf = tmp_path / "piece_1.gltf"

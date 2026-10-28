@@ -92,8 +92,7 @@ def full_model(parts_folder, name):
     and wound outward."""
     found = []
     for path in sorted(pathlib.Path(parts_folder).glob("*.ply")):
-        bpy.ops.wm.ply_import(filepath=str(path))
-        part = bpy.context.selected_objects[0]
+        part = read_ply(path)
         part.data.materials.clear()
         part.data.materials.append(shapes.slot(path.stem))
         laid_flat(part)
@@ -108,6 +107,48 @@ def full_model(parts_folder, name):
     welded.to_mesh(whole.data)
     welded.free()
     return whole
+
+
+def kept_triangles(corners):
+    """Of a triangle list (n x 3 vertex numbers), those Blender's mesh check would keep, in file order: no corner
+    repeated, each set of three corners once (its first). Blender's PLY importer runs that check (Mesh.validate),
+    whose dropped faces it reorders differently each run, so two bakes of one take got different cut-down copies,
+    unwraps and maps (garage_door_1, 2026-10-28: mean 36 to 39 of 255 apart on base colour)."""
+    import numpy as np
+    whole = (corners[:, 0] != corners[:, 1]) & (corners[:, 1] != corners[:, 2]) & (corners[:, 0] != corners[:, 2])
+    _, first = np.unique(np.sort(corners, axis=1), axis=0, return_index=True)
+    once = np.zeros(len(corners), dtype=bool)
+    once[first] = True
+    return corners[whole & once]
+
+
+def read_ply(path):
+    """A labelled part (labels.py's binary .ply: float x, y, z; triangles) as a new object in the scene, its triangles
+    kept_triangles' in file order, so the same file gives the same mesh every run."""
+    import numpy as np
+    data = path.read_bytes()
+    end = data.index(b"end_header\n") + len(b"end_header\n")
+    header = data[:end].decode().split("\n")
+    counts = {line.split()[1]: int(line.split()[2]) for line in header if line.startswith("element ")}
+    if "property float x" not in header or "property list uchar int vertex_indices" not in header:
+        raise SystemExit(f"{path}: not a labelled part .ply (float x, y, z; uchar int faces)")
+    points = np.frombuffer(data, dtype="<f4", count=counts["vertex"] * 3, offset=end)
+    rows = np.frombuffer(data, dtype=[("count", "u1"), ("corners", "<i4", 3)], count=counts["face"],
+                         offset=end + counts["vertex"] * 12)
+    if (rows["count"] != 3).any():
+        raise SystemExit(f"{path}: a face that is not a triangle")
+    corners = kept_triangles(rows["corners"]).ravel()
+    mesh = bpy.data.meshes.new(path.stem)
+    mesh.vertices.add(counts["vertex"])
+    mesh.vertices.foreach_set("co", points)
+    mesh.loops.add(len(corners))
+    mesh.loops.foreach_set("vertex_index", corners)
+    mesh.polygons.add(len(corners) // 3)
+    mesh.polygons.foreach_set("loop_start", np.arange(0, len(corners), 3, dtype=np.int32))
+    mesh.update()
+    part = bpy.data.objects.new(path.stem, mesh)
+    bpy.context.scene.collection.objects.link(part)
+    return part
 
 
 def laid_flat(part):
