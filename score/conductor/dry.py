@@ -202,7 +202,7 @@ def step_resume(copy, record):
 
 def make_held(inputs, out, seed, params):
     (out / "times.txt").write_text(f"{time.time()}\n")
-    time.sleep(1.5)
+    time.sleep(3.0)  # past the 2 s ramp: the second node is let go by the ramp, never by this one ending
     (out / "times.txt").write_text(f"{(out / 'times.txt').read_text()}{time.time()}\n")
 
 
@@ -212,12 +212,15 @@ def judge_held(output, inputs, evidence):
 
 def step_memory(home):
     """Two nodes ready at once with room for one (6 GB available, a 4 GB floor): the second starts only once the
-    first's ramp is over, and the hold is said (the ramp and the poll shortened for the check)."""
+    first's ramp is over while the first still runs, and the hold is said (the ramp and the poll shortened for the
+    check). The gap is read at the runner's own starts, not inside the node, so a slow fork cannot move it."""
     from score.store import Store
     held = graph.Stage("held", "place", make_held, TEXT, (checks.Check("timed", judge_held),),
                        files={"brief": "{data}/{place}/brief.txt"})
     runner = graph.Runner((held,), dry_world(), Store.in_folder(home / "memory-store"), model_record=lambda kind: {})
-    kept, said = (graph.AVAILABLE, graph.RAMP_SECONDS, graph.MEMORY_POLL), []
+    kept, said, started = (graph.AVAILABLE, graph.RAMP_SECONDS, graph.MEMORY_POLL), [], []
+    start = runner.start
+    runner.start = lambda stage, place, threads: started.append(time.time()) or start(stage, place, threads)
     os.environ[graph.FLOOR_VARIABLE] = "4"
     graph.AVAILABLE, graph.RAMP_SECONDS, graph.MEMORY_POLL = lambda: 6 * 2**30, 2.0, 0.2
     try:
@@ -228,9 +231,10 @@ def step_memory(home):
     times = {place: [float(line) for line in (runner.store.checkout(runner.store.accepted(f"held@{place}"))
                                               / "times.txt").read_text().split()] for place in PLACES}
     first, second = sorted(times.values())
-    ok = (set(found.values()) == {"made: pass, accepted automatically"} and second[0] - first[0] >= 1.9
+    ok = (set(found.values()) == {"made: pass, accepted automatically"} and len(started) == 2
+          and started[1] - started[0] >= 1.9 and started[1] < first[1]
           and any(line.startswith("memory:") for line in said))
-    return ok, {"found": found, "times": times, "said": said}
+    return ok, {"found": found, "times": times, "started": started, "said": said}
 
 
 def step_health(home):
