@@ -54,9 +54,10 @@ The invariants, each with the break that turns its test red (each applied once a
   (27 GiB: three; a small PC: one), all on its one card, and every claim puts card_turn.py into the container's Blender
   startup folder. Break: drop `"blender": blender_at_once(...)` from `RUNS_AT_ONCE` -> one slot; or drop
   `card_in_turns()` in `take` -> nothing is copied.
-- card_turn.py gives the card to one card call at a time (the Cycles bake, a render) across Blender processes, and
-  leaves every other operator call free to run beside it. Break: in `turned`, call `call(...)` without `with
-  card_turn(lock_path):` -> two bakes are on the card at once.
+- card_turn.py gives the card to CARD_SLOTS (two) card calls at a time (the Cycles bake, a render) across Blender
+  processes, and leaves every other operator call free to run beside it. Break: in `turned`, call `call(...)` without
+  `with card_turn(lock_path):` -> five bakes are on the card at once; or `range(CARD_SLOTS)` -> `range(1)` in
+  `card_turn` -> one at a time.
 """
 import json
 import pathlib
@@ -526,7 +527,7 @@ class Operator:
         return {"FINISHED"}
 
 
-def test_card_turn_gives_the_card_to_one_card_call_at_a_time(tmp_path):
+def test_card_turn_gives_the_card_to_its_slots_of_card_calls_at_a_time(tmp_path):
     import card_turn
     lock = str(tmp_path / "card.lock")
     call = card_turn.turned(Operator.__call__, lock)
@@ -536,8 +537,8 @@ def test_card_turn_gives_the_card_to_one_card_call_at_a_time(tmp_path):
         thread.start()
     for thread in threads:
         thread.join()
-    assert Operator.most[0] == 1 and call.card_turn  # never two card calls at once
-    with card_turn.card_turn(lock):  # a bake holds the card: a selection still runs
+    assert Operator.most[0] == card_turn.CARD_SLOTS == 2 and call.card_turn  # its slots full, never more
+    with card_turn.card_turn(lock), card_turn.card_turn(lock):  # bakes fill the card: a selection still runs
         beside = threading.Thread(target=call, args=(Operator("object.select_all"),))
         beside.start()
         beside.join(5)
