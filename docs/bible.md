@@ -27,6 +27,11 @@ generated while it is played.
   themselves (`tools/cloud/`, Scaleway the current cloud backend). No model runs on the coordinating machine.
 - **score_lib**, the creator's library: everything a scene shows comes from it, and everything a batch accepts is
   handed to it.
+  It is meant to be shared (owner, 2026-10-28): outputs are stored by their content, so one model, surface or sound
+  is kept once however many creators use it, and a shared score_lib can be hosted cheaply for many people. Every tool in
+  the framework is picked for commercial use, so what it makes is reusable; an entry carries the attribution its maker's
+  licence asks for (as MyoFullBody's does). Reading can be public; writing goes through a check, and nothing private
+  or clinical ever enters it.
 - **Out**: each scene's OpenUSD stage and scene package, the environment film, the library entries. The game 2099 was
   the first user; its engine adapter stays in its own repository.
 
