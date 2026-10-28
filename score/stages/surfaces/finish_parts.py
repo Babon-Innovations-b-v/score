@@ -118,11 +118,31 @@ def without_strays(mesh, face_label):
         label = np.where((votes.sum(1) > 0)[island], votes.argmax(1)[island], label)
 
 
-def patchiness(mesh, face_label, part_of):
+# A small detail finish (detail_finish): its family, or these words in its finish or parts. merged_islands gathers a
+# finish with no larger island into one part, so nine steel fittings or a sheet of stickers were one part of many
+# islands and read as stray: garage storage_box 0.042 (decals, paper stickers), old_station solar_panel_mast 0.032
+# (steel fittings), lab chair 0.033 (rubber casters, paper notes), 2026-10-28.
+DETAIL_FAMILIES = ("print", "paper", "rubber")
+DETAIL_WORDS = ("decal", "sticker", "label", "note", "fitting", "rubber")
+
+
+def detail_finish(finish):
+    """True for a finish of small separate details (decals, stickers, labels, notes, fittings, rubber parts)."""
+    words = f"{finish['finish']} {finish['parts']}".lower()
+    return finish.get("family") in DETAIL_FAMILIES or any(word in words for word in DETAIL_WORDS)
+
+
+def patchiness(mesh, face_label, part_of, finishes):
     """patchy.py's numbers and pass of a split take, each part its own region as the paint judges its painted parts
-    (place_line.paint_take): a finish's edge along a part's is the paint the views show."""
+    (place_line.paint_take): a finish's edge along a part's is the paint the views show. Each island of a detail
+    finish (detail_finish) is a part of its own, as a lone fitting is, so details sharing a part are no stray;
+    blotches of any other finish still are."""
+    import numpy as np
     import patchy
-    return patchy.score(mesh, face_label, part_of, part_of)
+    details = [index for index, finish in enumerate(finishes) if detail_finish(finish)]
+    island = patchy.islands(face_label, mesh.face_adjacency)
+    own = np.where(np.isin(face_label, details), part_of.max() + 1 + island, part_of)
+    return patchy.score(mesh, face_label, own, own)
 
 
 def kept_finishes(before, after):

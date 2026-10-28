@@ -8,8 +8,8 @@ DISAGREE_MOST of the area are views that disagree. A face no view can see (the i
 every camera's reach, is no gap) takes its nearest seen face's finish along the surface (finish_parts.walked); the
 finishes are then smoothed, each stray (an island under patchy.py's STRAY_ISLAND of a finish that has a larger one)
 given the finish round it (finish_parts.without_strays) and crumbs joined (finish_parts.cleaned, merged_islands), each
-island one part. A take whose paint is still patchy (patchy.score, each part its own region, as the paint measures
-its painted take) is a gap, named, before anything is baked.
+island one part. A take whose paint is still patchy (patchy.score, each part its own region, as the paint measures,
+each island of a detail finish a part of its own: finish_parts.patchiness) is a gap, named, before anything is baked.
 
 The split decides by the labels alone (the paper, "Surfaces: the finish route": the views are split into colour
 regions only so the list can label them). No colour is judged here: a finish's surface is held against its colour
@@ -142,7 +142,7 @@ def split_take(folders, listed, record):
     if fault is not None:
         return {"fault": fault, **found}
     part_of, finish_of = voted_finishes(mesh, votes, count)
-    found["patchy"] = finish_parts.patchiness(mesh, finish_of, part_of)
+    found["patchy"] = finish_parts.patchiness(mesh, finish_of, part_of, listed["finishes"])
     if patchy_fault(found["patchy"]) is not None:
         return {"fault": patchy_fault(found["patchy"]), **found}
     split_saved(folders["out"], mesh, folders["views"], record["views"], (finish_of, part_of))
