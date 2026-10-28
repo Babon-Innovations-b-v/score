@@ -16,6 +16,9 @@ The break that turns each test red (applied once each, seen red, reverted):
   _YES_ID.match(...)` -> `False`; or drop the `_LOCK_CALL` check.
 - test_accept_guard_lets_his_decision_through_only_as_decide_with_its_yes_id: `_YES_ID` made `^$` (every id refused),
   or drop `and not _DASHBOARD.search(path)` in `_file_offence`.
+- test_accept_guard_answers_a_long_command_at_once: the env-assignment group of `_REVIEW_RUN`, `_DECIDE_RUN` and
+  `_WRITER` back to `(\S+=\S*\s+)*` (CodeQL py/redos: exponential on many `!== `; the hook hangs, the harness fails
+  it open); or to `([^\s=]+=\s+)*` (an env-prefixed accept passes).
 - test_completion_guard_refuses_a_false_done_claim: `claimed` returns `set()` at once.
 - test_completion_guard_lets_an_honest_stop_end: drop `or _NEGATION.search(sentence)` in `claimed`.
   Or in `_says_all_done`, return `bool(re.search(every, sentence, re.IGNORECASE))` (any "all places" counts).
@@ -170,6 +173,14 @@ def test_accept_guard_lets_a_benchmark_grant_pass():
     tagged = ("SCORE_BENCHMARK_GRANT=20261020T120000.000000+0000 .venv/bin/python -m score run world1 --detach "
               "--place campgrounds --stage pixal")
     assert [run(HOOKS / "accept_guard.py", bash(command))[0] for command in (grant, tagged)] == [ALLOW, ALLOW]
+
+
+def test_accept_guard_answers_a_long_command_at_once():
+    """Many `!== ` words are answered in seconds, never a hang that fails open; an env-prefixed accept stays blocked."""
+    done = subprocess.run([sys.executable, str(HOOKS / "accept_guard.py")], capture_output=True, text=True,
+                          input=json.dumps(bash("!== " * 40 + "x")), timeout=20)
+    assert done.returncode == ALLOW
+    assert run(HOOKS / "accept_guard.py", bash("A=1 B=x=y python -m score.review accept closeup@hub"))[0] == BLOCK
 
 
 YES = "20261027T170000123456Z"
