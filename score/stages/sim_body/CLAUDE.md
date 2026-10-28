@@ -17,7 +17,9 @@ own Python, its steps the modules beside it (`inside/CLAUDE.md`).
 - **Residual reduction, OpenSim's RRA** (owner, 2026-10-28; Delp et al. 2007, opensim-core RRATool, Apache-2.0; never
   AddBiomechanics: GPL with a data-sharing clause, neither used nor copied): `inside/rra` `reduced` adjusts
   the fitted path's pelvis and trunk (the root's six dofs and the lumbar leaders, `TRUNK`) and the body's masses and
-  torso centre of mass (RRATool's own formulas) so the ground explains the movement, `RRA_ROUNDS` times, the
+  torso centre of mass (RRATool's own formulas; the mass at most `MASS_MOST`, 2%, from the mass it was made
+  with over every round together, never compounding, and RRA's own recommended change recorded beside it as `mass %
+  recommended`, OpenSim's report: unbounded, a floating body lost 98 to 99.9% of its mass, 2026-10-28) so the ground explains the movement, `RRA_ROUNDS` times, the
   owner's per-frame cap inside the solve (owner, 2026-10-28: every segment's turn within `FOLLOWED` degrees and the
   pelvis within `MOVE_MOST` of the fitted path on every frame, all rounds together; `cap_rows` linearises each
   segment's turn through the legs' `footed`, `within_balls` solves the least squares over those balls by ADMM), the
