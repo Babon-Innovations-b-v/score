@@ -56,6 +56,11 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   file whose bytes the store holds as a blob (the store's sha256) and untouched for 15 min is made a hard link to that
   read-only blob, renamed over it; it removes nothing, so a take kept nowhere else stays whole. A take so linked is
   read-only: a re-finish that writes it in place is refused, never reaching the store.
+- **`library_checkout.py`** (`score-lib status | pull`, the door's, 2026-10-28): boot.sh clones score_lib once and
+  nothing pulls it, while its handover, concept and the cockpit's lock push from it. Status fetches first; no push
+  attempt is logged on score's side (each command's words go to its caller), so the newest push is the upstream
+  ref's reflog line "update by push", and a failed push shows only as commits ahead. Pull fast-forwards only and is
+  refused, listing them, on any local change or local commit.
 - **Money**: the conductor bills in its own project (`SCORE_CONDUCTOR_PROJECT`, `score-conductor`); the stop line reads
   the batch project's bill alone, and `project_refusal` (in `compute.books_refusal`, `compute.require_books` and
   `guard.refusal`) refuses every clearance and rent point if the two names are ever the same.

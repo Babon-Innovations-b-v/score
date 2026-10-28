@@ -636,3 +636,51 @@ def test_clean_frozen_removes_only_the_copies_no_run_needs_and_never_what_they_l
         for path in folder.rglob("*"):
             if path.is_dir() and not path.is_symlink():
                 path.chmod(0o755)
+
+
+def a_library_checkout(tmp_path):
+    """The conductor's clone of a bare repository standing in for score_lib's origin, one push behind it (a second
+    clone pushed past it)."""
+    origin, checkout, other = tmp_path / "origin.git", tmp_path / "score_lib", tmp_path / "other"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True)
+    for clone in (checkout, other):
+        subprocess.run(["git", "clone", "-q", str(origin), str(clone)], check=True, capture_output=True)
+        for key, value in (("user.name", "t"), ("user.email", "t@t"), ("commit.gpgsign", "false")):
+            frozen.git(clone, "config", key, value)
+    (checkout / "index.json").write_text("{}")
+    frozen.git(checkout, "add", "index.json")
+    frozen.git(checkout, "commit", "-q", "-m", "first")
+    frozen.git(checkout, "push", "-q", "-u", "origin", "HEAD:main")
+    frozen.git(other, "pull", "-q", "origin", "main")
+    (other / "entry.json").write_text("{}")
+    frozen.git(other, "add", "entry.json")
+    frozen.git(other, "commit", "-q", "-m", "pushed from elsewhere")
+    frozen.git(other, "push", "-q", "origin", "HEAD:main")
+    return checkout
+
+
+def test_score_lib_pull_only_fast_forwards_and_status_counts_after_a_fetch(tmp_path):
+    """2026-10-28: boot.sh clones score_lib once and nothing pulls it, so its pushes may fail non-fast-forward.
+    Break: score/conductor/library_checkout.py: '    if found["changes"] or found["local_commits"]:' -> '    if False:'
+    (a pull over local commits or changes goes on), or '    fetched = git(root, "fetch", "-q", "origin")' ->
+    '    fetched = git(root, "status")' (behind reads 0 against a stale origin ref)"""
+    from score.conductor import library_checkout
+    checkout = a_library_checkout(tmp_path)
+    found = library_checkout.status(checkout)
+    assert (found["upstream"], found["ahead"], found["behind"], found["fetch"]) == ("origin/main", 0, 1, ""), found
+    assert "update by push" in found["last_push"] and found["changes"] == [], found
+    (checkout / "local.json").write_text("{}")
+    frozen.git(checkout, "add", "local.json")
+    frozen.git(checkout, "commit", "-q", "-m", "a local commit")
+    held = frozen.git(checkout, "rev-parse", "HEAD")
+    found, refusal = library_checkout.pull(checkout)
+    assert "1 local commits" in refusal and found["local_commits"][0].endswith("a local commit"), (refusal, found)
+    assert frozen.git(checkout, "rev-parse", "HEAD") == held
+    frozen.git(checkout, "reset", "-q", "--hard", "HEAD~1")
+    (checkout / "index.json").write_text('{"changed": 1}')
+    assert "1 local changes" in library_checkout.pull(checkout)[1]
+    assert (checkout / "index.json").read_text() == '{"changed": 1}'
+    frozen.git(checkout, "checkout", "-q", "--", "index.json")
+    found, refusal = library_checkout.pull(checkout)
+    assert refusal == "" and found["behind"] == 1 and (checkout / "entry.json").is_file(), (refusal, found)
+    assert library_checkout.status(checkout)["behind"] == 0

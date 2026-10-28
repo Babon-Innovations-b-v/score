@@ -273,7 +273,8 @@ def test_the_door_refuses_a_shell_a_paid_run_the_owners_commands_and_anything_un
                   "cat /home/score/.config/scw/config.yaml", "health --write", "gaps", "gaps a b",
                   "gaps ../x", "gaps 'closeup@hub;id'", "predicted x", "buy", "buy a b", "buy 'y 1'",
                   "buy-yes 30 33 'yes'", "buy-yes 33 30 'yes' 'q?'", "buy-yes --stop 33 30 'yes' 'q?'",
-                  "batch-money 1", "disk /", "clean-frozen --all", "clean-cache --making-only", "relink-pixal x", "job-log",
+                  "batch-money 1", "disk /", "clean-frozen --all", "clean-cache --making-only", "relink-pixal x", "score-lib", "score-lib push",
+                  "score-lib pull --force", "job-log",
                   "job-log a b", "job-log x.home/work/cloud/../../../store/k", "run-log 5", "run-log --lines",
                   "run-log --lines x", "run-log --lines 0", "fault", "fault a b", "fault ../store/k",
                   "fault 'motion@airlock/../../x'", "store-pull cloud", "store-push --delete",
@@ -340,6 +341,9 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
     for verb in ("disk", "clean-frozen", "clean-cache", "relink-pixal"):  # 2026-10-26: the data disk full, the copies of ended runs on it
         code, why, argv, env = door(verb)
         assert code == 0 and argv == ["-m", "score.conductor", verb] and env["SCORE_FREE_ONLY"] == "1", (why, argv)
+    for action in ("status", "pull"):  # 2026-10-28: score_lib's checkout, never pulled since boot.sh cloned it
+        code, why, argv, _ = door(f"score-lib {action}")
+        assert code == 0 and argv == ["-m", "score.conductor", "score-lib", action], (why, argv)
     code, why, argv, env = door("job-log x.home/work/cloud/blender-1/job3.log")
     assert code == 0 and argv[1:] == ["--job-log", "x.home/work/cloud/blender-1/job3.log"], (why, argv)
     assert argv[0].endswith("agent_door.py") and env["SCORE_FREE_ONLY"] == "1", argv

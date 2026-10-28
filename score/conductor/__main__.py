@@ -8,6 +8,7 @@
     python -m score.conductor clean-frozen       # disk.clean: remove the frozen copies no run needs, what it freed
     python -m score.conductor clean-cache [--making-only]  # disk.clean_cache: checkouts relinked, the cache cleared
     python -m score.conductor relink-pixal       # disk.relink_pixal: work/pixal's stored files made links, one line
+    python -m score.conductor score-lib status|pull  # library_checkout: score_lib's checkout against origin, one line
 """
 import argparse
 import json
@@ -28,6 +29,7 @@ def main(argv=None):
     commands.add_parser("clean-cache").add_argument("--making-only", action="store_true",
                                                     help="only the orphaned makes (the sync pass's sweep)")
     commands.add_parser("relink-pixal")
+    commands.add_parser("score-lib").add_argument("action", choices=("status", "pull"))
     options = parser.parse_args(argv)
     conductor.apply_free_only()
     if options.command == "health":
@@ -48,6 +50,8 @@ def main(argv=None):
         clean_cache(options.making_only)
     elif options.command == "relink-pixal":
         relink_pixal()
+    elif options.command == "score-lib":
+        score_lib(options.action)
     elif options.command == "size":
         from score.conductor import size
         size.tick()
@@ -94,6 +98,39 @@ def relink_pixal():
     kept = ", ".join(f"{count} {why}" for why, count in sorted(done["kept"].items())) or "none"
     print(f"relink-pixal: relinked {done['relinked']} files, freed {done['freed_gb']} GB; kept: {kept}; "
           f"{disk.free_gb():.1f} GB free", flush=True)
+
+
+def score_lib(action):
+    """library_checkout's status or pull in one summary line, then what it lists (all of it in a file past LISTED);
+    exit 1 when there is no checkout, the fetch failed or the pull refused."""
+    from score.conductor import library_checkout
+    from score.stages.library import backend
+    root = backend.settings().get("SCORE_LIB_ROOT")
+    if not root:
+        print(f"score-lib {action}: no score_lib checkout here (SCORE_LIB_ROOT)", flush=True)
+        sys.exit(1)
+    if action == "pull":
+        found, refusal = library_checkout.pull(root)
+        moved = f"fast-forwarded {found['behind']} commits" if found["behind"] else "up to date"
+        line = (f"score-lib pull: refused, nothing moved: {refusal}" if refusal else
+                f"score-lib pull: {moved}, HEAD {library_checkout.head(root)}")
+    else:
+        found = library_checkout.status(root)
+        refusal = found["fetch"]
+        line = (f"score-lib status: HEAD {found['head']}; {found['upstream'] or 'no upstream'} ahead {found['ahead']} "
+                f"behind {found['behind']}; {len(found['changes'])} local changes; last push "
+                f"{found['last_push'] or 'none in the reflog'} (a failed push is not logged)"
+                + (f"; the fetch failed, counts as of the last fetch: {found['fetch']}" if found["fetch"] else ""))
+    listed = ([f"local change: {item}" for item in found["changes"]]
+              + [f"local commit: {item}" for item in found["local_commits"]]
+              + [f"incoming: {item}" for item in found["incoming"]])
+    print("\n".join([line, *listed[:library_checkout.LISTED]]), flush=True)
+    if len(listed) > library_checkout.LISTED:
+        detail = conductor.HOME / "score-lib.txt"
+        detail.parent.mkdir(parents=True, exist_ok=True)
+        detail.write_text("\n".join([line, *listed]) + "\n")
+        print(f"... {len(listed) - library_checkout.LISTED} more in {detail}", flush=True)
+    sys.exit(1 if refusal else 0)
 
 
 if __name__ == "__main__":
