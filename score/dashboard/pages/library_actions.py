@@ -116,6 +116,9 @@ def carried_out(action, addresses, user):
         return "refused: no library here (SCORE_LIB_ROOT is not set)"
     if actions.agent_started():
         return "refused: this process was started from an agent's shell, and an agent never locks"
+    why = refusal(action, addresses, library())  # again here: a synced request's addresses come from the hosted side
+    if why:
+        return why
     ok, words = changed(action, addresses)
     if not ok and action == "lock":
         reindexed()
