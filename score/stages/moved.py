@@ -54,6 +54,8 @@ from score.graph import _code
 from score.store import file_hash, listing_hash, text_hash
 runner = stages.runner(world=stages.WORLDS["world1"]())
 places = stages.places(runner.world)
+if not places:  # every place row would declare nothing, so none could move by a declared file (2026-10-28)
+    sys.exit(f"moved: the home {stages.PROPS_HOME} holds no place: run it with PROPS_HOME the run's home")
 repo = pathlib.Path(".").resolve()
 found = {}
 for row in stages.STAGES:
@@ -96,8 +98,11 @@ MAIN = "refs/heads/main"
 def snapshot_here(folder, script=SNAPSHOT):
     """What `script` prints last, as JSON, run by the tree at `folder` (SNAPSHOT: {row: {"paid", "code", "declared":
     {place: {repository path: its key}}}})."""
-    done = subprocess.run([sys.executable, "-c", script], cwd=folder, capture_output=True, text=True, check=True,
+    done = subprocess.run([sys.executable, "-c", script], cwd=folder, capture_output=True, text=True,
                           env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
+    if done.returncode:
+        print(done.stderr.strip(), file=sys.stderr)  # the reason, which the error alone does not show
+        raise subprocess.CalledProcessError(done.returncode, done.args, done.stdout, done.stderr)
     return json.loads(done.stdout.strip().splitlines()[-1])
 
 

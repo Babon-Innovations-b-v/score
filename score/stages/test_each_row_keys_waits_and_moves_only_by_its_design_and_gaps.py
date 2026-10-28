@@ -49,6 +49,9 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
   test_the_motion_layer_names_only_rows_of_the_table_and_no_old_layer.
 - score/graph/_code.py `source_files`: FRAMEWORK not left out (`set()`)  -> every code-version test above, and the push
   gate's test_a_framework_only_edit_lists_nothing.
+- `paint_baked`: "bake recipes" dropped  -> test_every_script_a_row_starts_by_path_is_in_its_key (surfaces-bake:
+  recipes.py, which bake.py imports in Blender); score/stages/surfaces/surface_data.py `bake_files`: "bake scripts"
+  dropped  -> the same test (make_chunky.py and the files it imports).
 
 --- a scenes layers are read off its design ---
 
@@ -248,7 +251,9 @@ Breaks (each applied once, seen red, reverted), in score/stages/moved.py and .gi
   test_a_worktree_hook_uses_the_main_checkouts_python.
 """
 
+import ast
 import contextlib
+import fnmatch
 import functools
 import importlib
 import inspect
@@ -586,6 +591,139 @@ def test_the_motion_layer_names_only_rows_of_the_table_and_no_old_layer():
     assert not empty, f"motion layer patterns that name no row of the table: {empty}"
     old = [name for name in names if name.startswith("machines")]
     assert not old, f"rows under the old machines name (the motion layer's models now): {old}"
+
+
+# Scripts a row's code starts by path that no key follows, left on purpose (2026-10-28), each {script: (the rows it is
+# left for, as fnmatch patterns, why)}. SHARED: the rented-card and Blender-session routes' scripts, reached by import
+# from many rows (assembly, crops, likeness, pixal, rough-model, the library); declared in their shared modules they
+# move every such row, cloud-only paid ones with accepted outputs among them, so each stays until the rows that start
+# it declare it. HELPERS: the rows import the naming module for its helpers alone; the rows that start it declare it.
+SHARED = "a shared route's script; declaring it moves cloud-only paid rows"
+HELPERS = "named by a module these rows import for its helpers only"
+NOT_KEYED = {
+    **dict.fromkeys(("tools/cloud/picture_worker.py", "tools/cloud/pictures.py", "tools/cloud/similar_worker.py",
+                     "tools/props/picture.py", "tools/props/card.py", "tools/props/local_models.py",
+                     "tools/props/paths.py", "tools/props/clean_finish.py", "tools/props/blender_clean_bake.py",
+                     "tools/props/glb_file.py", "tools/props/pixal.py", "tools/props/finish_elsewhere.py",
+                     "tools/props/scene/cutout.py", "tools/props/scene/cutsize.py", "tools/props/scene/depth.py",
+                     "tools/props/scene/redraw.py", "tools/props/scene/target.py",
+                     "score/stages/rough_model/_cloud.py", "score/stages/rough_model/_finish.py",
+                     "tools/blender/session.py", "tools/blender/inside/annotate_stage.py",
+                     "tools/blender/inside/usd_views.py"), (("*",), SHARED)),
+    # tools/usd/drop.py: settle and the physics rows start these and declare them
+    **dict.fromkeys(("score/stages/physics/inside/physics_trial.py",
+                     "score/stages/settling/inside/settle_drop.py"), (("*",), HELPERS)),
+    # place_route is imported for HERE and made_size; only its model gate (`check`) starts straight.py
+    "tools/props/library/straight.py": (("*",), HELPERS),
+    # the people-look rows start the shots and declare them; the dress rows import look.py
+    **dict.fromkeys(("tools/characters/maker/blender_shots.py", "tools/characters/maker/blender_review.py"),
+                    (("people-dress-*",), HELPERS)),
+    # the surface line's old bake runner, place_line's import; surfaces-bake declares it
+    "tools/cloud/library_bake.py": (("people-dress-*", "ground-join", "surfaces-check"), HELPERS),
+    # the sound takes' MOSS job on a rented card (cloud-only, paid); complete imports takes.py
+    "tools/cloud/moss_generate.py": (("sound", "complete"), SHARED),
+    # ground-join reads the bake's models (made.py), never bakes; surfaces-bake declares the bake's scripts
+    **dict.fromkeys(("tools/props/library/inside/bake.py", "tools/props/library/inside/bodies.py",
+                     "tools/props/library/inside/make_chunky.py", "tools/props/library/inside/pieces.py",
+                     "tools/props/library/inside/pieces_bodies.py", "tools/props/library/inside/runtime.py",
+                     "tools/props/library/inside/scene_setup.py", "tools/props/library/inside/shapes.py"),
+                    (("ground-join",), HELPERS)),
+}
+
+
+def left_unkeyed(row, script):
+    """True when NOT_KEYED leaves the script unkeyed for this row."""
+    rows, _ = NOT_KEYED.get(script, ((), ""))
+    return any(fnmatch.fnmatch(row, pattern) for pattern in rows)
+
+
+@functools.cache
+def parsed(path):
+    return ast.parse(path.read_text(), str(path))
+
+
+@functools.cache
+def named_scripts(path):
+    """The repository .py files a source file names by a string path (repository-relative, or beside the file): a
+    nested Blender's --python, a cloud or env job's script, a subprocess of a repo script."""
+    found = set()
+    for node in ast.walk(parsed(path)):
+        text = node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else ""
+        if text.endswith(".py") and not text.startswith("/") and not any(each.isspace() or each in "{}" for each in text):
+            found |= {candidate.resolve() for candidate in (REPO / text, path.parent / text)
+                      if candidate.is_file() and _code.in_repo(candidate)}
+    return found
+
+
+@functools.cache
+def started_imports(path):
+    """What a script run apart imports: its repository imports and the files beside it it imports by bare name (a
+    script run apart has its own folder on its path)."""
+    beside = {path.parent / (name.split(".")[0] + ".py") for name in _code.imported_names(path.read_text(), path, "")}
+    return _code.imports_of(path, pathlib.Path.is_file, pathlib.Path.read_text) | \
+        {found.resolve() for found in beside if found.is_file()}
+
+
+@functools.cache
+def repo_declarations(path):
+    """The repository paths a source file's "{repo}/..." patterns name (a declared folder holds its files)."""
+    return {(REPO / node.value[len("{repo}/"):]).resolve() for node in ast.walk(parsed(path))
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value.startswith("{repo}/")}
+
+
+def files_sources(files):
+    """The source files of a row's file map and of every function the stage table wrapped it round (closures), and
+    the patterns of any literal map among them."""
+    modules, patterns, pending = set(), [], [files]
+    while pending:
+        found = pending.pop()
+        if isinstance(found, dict):
+            patterns += list(found.values())
+        elif callable(found) and hasattr(found, "__code__"):
+            modules.add(pathlib.Path(inspect.getsourcefile(found)).resolve())
+            pending += [cell.cell_contents for cell in found.__closure__ or ()]
+    return modules, patterns
+
+
+def unkeyed_scripts(row):
+    """(script, the file naming or importing it) of every script the row's code starts by path, followed through
+    what those import, that neither its code version nor a "{repo}/" declaration of its code or of the stage table
+    (which wraps rows' files) keys. Static: a script built from parts at run time (`HERE / "gates" / "model.py"`)
+    is not seen."""
+    version = set(_code.source_files(graph.code_functions(row)))
+    own, listed = files_sources(row.files)
+    table = REPO / "score/stages/__init__.py"
+    near = own.union(*(_code.live_imports(path) for path in own - {table})) | {table}
+    declared = set().union(*map(repo_declarations, near)) | {
+        (REPO / pattern[len("{repo}/"):]).resolve() for pattern in listed
+        if isinstance(pattern, str) and pattern.startswith("{repo}/")}
+    pending, seen, unkeyed = [(path, False) for path in version], set(version), set()
+    while pending:
+        path, started = pending.pop()
+        if _code.in_framework(path, _code.FRAMEWORK):  # what runs a job, not what a job runs
+            continue
+        for script, its_start in [(found, True) for found in named_scripts(path)] + \
+                [(found, True) for found in (started_imports(path) if started else ())]:
+            if script in seen or _code.in_framework(script, _code.FRAMEWORK):
+                continue
+            seen.add(script)
+            pending.append((script, its_start))
+            if not any(script == folder or script.is_relative_to(folder) for folder in declared):
+                unkeyed.add((script.relative_to(REPO).as_posix(), path.relative_to(REPO).as_posix()))
+    return unkeyed
+
+
+def test_every_script_a_row_starts_by_path_is_in_its_key():
+    """A script a row's make starts by path (a nested Blender's --python, a blender_cloud or env job's script, a
+    Newton Python, a subprocess of a repo script) is run apart, so no import keys it: it is a declared file of the
+    row or of its code version, with every file it imports, or a change to it never makes the row again and an output
+    accepted on old code stays (make_chunky's bake scripts' recipes.py, 2026-10-28). Every one not keyed is named
+    with its row, and NOT_KEYED holds only holes still there."""
+    found = {(row.name, script, by) for row in stages.STAGES for script, by in unkeyed_scripts(row)}
+    named = [f"{row}: {script} (named by {by})" for row, script, by in sorted(found) if not left_unkeyed(row, script)]
+    assert not named, "scripts run apart that no key follows (declare them in the row's files):\n" + "\n".join(named)
+    gone = set(NOT_KEYED) - {script for _, script, _ in found}
+    assert not gone, f"NOT_KEYED entries no row has any more: {sorted(gone)}"
 
 
 # --- a scenes layers are read off its design ---
