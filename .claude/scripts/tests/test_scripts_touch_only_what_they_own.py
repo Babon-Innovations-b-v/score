@@ -1,11 +1,10 @@
 """The harness scripts change only what they own: board-status only this repo's card, setup-github only this repo's
-labels, board and config (nothing on a dry run), worktree-reap only a dead session's clean merged worktree, the
-installers only their own settings (the committed ones and the user's own put back), and sandbox-home and conftest.py
-keep every test off the real home while removing everything a test leaves.
+labels, board and config (nothing on a dry run), worktree-reap only a dead session's clean merged worktree,
+bootstrap only its own links and flags, and sandbox-home and conftest.py keep every test off the real home while
+removing everything a test leaves.
 
-Every script is driven from outside as a copy in a scratch git repo (each finds its repo from its own path); `gh`,
-`claude`, `uv` and the pinned binaries are stand-ins that log their calls, and HOME is a scratch folder, so nothing
-runs against this machine. The expected answers are the scripts' rules, written out by hand here.
+Every script is driven from outside as a copy in a scratch git repo (each finds its repo from its own path); `gh`
+and `uv` are stand-ins that log their calls, and HOME is a scratch folder, so nothing runs against this machine. The expected answers are the scripts' rules, written out by hand here.
 
 The break that turns each test red (applied once each, seen red, reverted):
 
@@ -32,8 +31,6 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_a_test_adds_its_own_work_folder_beside_the_real_ones: `MIRRORED = ()`.
 - test_every_plain_script_test_refuses_first_without_a_sandbox_home (a wording check guarding the owner's rule that
   no test touches the real home, 2026-10-18): refuse_outside_sandbox's `if refusal:` made `if False:`.
-- test_install_writes_claude_mem_settings_and_keeps_the_rest: the installer's settings merge starts from `{}`.
-- test_install_adds_the_plugin_and_puts_the_committed_settings_back: the installer's restore of settings.json removed.
 - test_bootstrap_links_memory_without_losing_any: bootstrap moves the old memory folder aside without copying it.
 - test_bootstrap_sets_the_hooks_and_builds_the_runtime_python_once: bootstrap's runtime build ignores PROPS_HOME.
 
@@ -70,7 +67,6 @@ answer = answers.get(key, {{}})
 sys.stdout.write(answer.get("stdout", ""))
 sys.exit(answer.get("exit", 0))
 """
-LOGGING_TOOL = '#!/bin/sh\necho "$(basename "$0") $*" >> "$TOOL_LOG"\n'
 
 
 def git(cwd, *args):
@@ -96,13 +92,9 @@ def module(path, name):
 
 @pytest.fixture
 def scratch_repo(tmp_path):
-    """A git repo holding a copy of the scripts, the codebase-memory pin and a project.json for acme/widget."""
+    """A git repo holding a copy of the scripts and a project.json for acme/widget."""
     repo = tmp_path / "repo"
     shutil.copytree(SCRIPTS, repo / ".claude" / "scripts", ignore=shutil.ignore_patterns("tests"))
-    pin = repo / "vendor" / "codebase-memory-mcp"
-    pin.mkdir(parents=True)
-    shutil.copy(REPO / "vendor" / "codebase-memory-mcp" / "release.env", pin)
-    (repo / "vendor" / "claude-mem").mkdir()
     (repo / ".claude" / "settings.json").write_text('{"committed": true}\n')
     (repo / ".claude" / "project.json").write_text(json.dumps({"repo": "acme/widget"}) + "\n")
     git(repo, "init", "-q", "-b", "main")
@@ -525,19 +517,13 @@ def test_every_plain_script_test_refuses_first_without_a_sandbox_home(tmp_path):
         assert done.returncode != 0 and "refused: PROPS_HOME is not set" in done.stderr, done.stderr
 
 
-# install-agent-tools.sh and bootstrap.sh, against a scratch HOME with the pinned tools already in place.
+# bootstrap.sh, against a scratch HOME.
 
 @pytest.fixture
 def machine(tmp_path, scratch_repo):
-    """A scratch HOME with the pinned tools in place, and the env to run the scripts in."""
+    """A scratch HOME and the env to run the scripts in."""
     home = tmp_path / "home"
     (home / ".claude").mkdir(parents=True)
-    write_tool(home / ".local" / "bin", "codebase-memory-mcp",
-               '#!/bin/sh\n[ "$1" = --version ] && { echo "codebase-memory-mcp 0.11.0"; exit; }\n'
-               + LOGGING_TOOL.split("\n", 1)[1])
-    write_tool(home / ".bun" / "bin", "bun", "#!/bin/sh\necho 1.4.2\n")
-    # the real `claude` writes the marketplace path into the committed settings; so does this one
-    write_tool(tmp_path / "bin", "claude", LOGGING_TOOL + 'echo scribbled > "$PWD/.claude/settings.json"\n')
     write_tool(tmp_path / "bin", "gh", '#!/bin/sh\nexit 1\n')
     # uv logs where it was asked to sync into, and leaves an interpreter there as the real one does
     write_tool(tmp_path / "bin", "uv", '#!/bin/sh\necho "uv $* env=$UV_PROJECT_ENVIRONMENT" >> "$TOOL_LOG"\n'
@@ -545,50 +531,13 @@ def machine(tmp_path, scratch_repo):
                '&& printf "#!/bin/sh\\n" > "$UV_PROJECT_ENVIRONMENT/bin/python" '
                '&& chmod +x "$UV_PROJECT_ENVIRONMENT/bin/python"\nexit 0\n')
     env = {key: value for key, value in os.environ.items()
-           if key not in ("CLAUDE_MEM_DATA_DIR", "CLAUDE_CONFIG_DIR", "CBM_BIN_DIR", "PROPS_HOME")}
+           if key not in ("CLAUDE_CONFIG_DIR", "PROPS_HOME")}
     env.update(HOME=str(home), PATH=f"{tmp_path / 'bin'}:{os.environ['PATH']}", TOOL_LOG=str(tmp_path / "tools.log"))
     return home, env
 
 
 def shell(repo, env, name):
     return subprocess.run(["bash", repo / ".claude" / "scripts" / name], env=env, capture_output=True, text=True)
-
-
-def test_install_writes_claude_mem_settings_and_keeps_the_rest(scratch_repo, machine):
-    home, env = machine
-    mem = home / ".claude-mem"
-    mem.mkdir()
-    (mem / "settings.json").write_text(json.dumps({
-        "MINE": "kept",
-        "CLAUDE_MEM_PROJECT_ENVIRONMENTS": json.dumps([{"name": "other", "patterns": ["/x/**"]},
-                                                       {"name": "score", "patterns": ["/old/**"]}])}))
-    (mem / "telemetry.json").write_text(json.dumps({"installId": "abc", "enabled": True}))
-    for _ in range(2):  # safe to re-run
-        run = shell(scratch_repo, env, "install-agent-tools.sh")
-        assert run.returncode == 0, run.stderr
-    assert json.loads((mem / "settings.json").read_text()) == {
-        "MINE": "kept",
-        "CLAUDE_MEM_PROJECT_ENVIRONMENTS": [{"name": "other", "patterns": ["/x/**"]},
-                                            {"name": "score", "patterns": [f"{scratch_repo}/**"]}],
-        "CLAUDE_MEM_TELEMETRY": "0", "CLAUDE_MEM_TELEMETRY_ERRORS": "0", "CLAUDE_MEM_CHROMA_ENABLED": "false",
-        "CLAUDE_MEM_FILE_READ_GATE_ENABLED": "false", "CLAUDE_MEM_CONTEXT_OBSERVATION_TYPES": "decision,bugfix",
-        "CLAUDE_MEM_SKIP_SUBAGENT_OBSERVATIONS": "false"}
-    telemetry = json.loads((mem / "telemetry.json").read_text())
-    assert (telemetry["installId"], telemetry["enabled"]) == ("abc", False) and "decidedAt" in telemetry
-    assert (home / ".claude" / ".ponytail-statusline-nudged").exists()
-    assert "codebase-memory-mcp: 0.11.0 already installed" in run.stdout  # the pinned binaries: nothing downloaded
-    assert "bun: 1.4.2 already installed" in run.stdout
-
-
-def test_install_adds_the_plugin_and_puts_the_committed_settings_back(scratch_repo, machine, tmp_path):
-    _, env = machine
-    run = shell(scratch_repo, env, "install-agent-tools.sh")
-    assert run.returncode == 0, run.stderr
-    assert (scratch_repo / ".claude" / "settings.json").read_text() == '{"committed": true}\n'
-    assert (tmp_path / "tools.log").read_text().splitlines() == [
-        f"claude plugin marketplace add {scratch_repo}/vendor/claude-mem --scope project",
-        "claude plugin install claude-mem@thedotmack --scope project",
-        f"codebase-memory-mcp cli --quiet index_repository --repo-path {scratch_repo}"]
 
 
 def test_bootstrap_links_memory_without_losing_any(scratch_repo, machine):
@@ -611,6 +560,7 @@ def test_bootstrap_sets_the_hooks_and_builds_the_runtime_python_once(scratch_rep
     run = shell(scratch_repo, env, "bootstrap.sh")
     assert run.returncode == 0, run.stderr
     assert git(scratch_repo, "config", "core.hooksPath") == ".githooks"
+    assert (tmp_path / "home" / ".claude" / ".ponytail-statusline-nudged").exists()
     assert "gh: installed but not logged in. Run: gh auth login" in run.stdout
     assert (runtime / "bin" / "python").exists()
     assert f"runtime python: already at {runtime}" in shell(scratch_repo, env, "bootstrap.sh").stdout

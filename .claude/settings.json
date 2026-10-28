@@ -6,8 +6,6 @@
     "PONYTAIL_QUIET_STARTUP": "1",
     "PONYTAIL_HIDE_STATUS": "1",
     "PONYTAIL_SUBAGENT_MATCHER": "^(general-purpose|fork|claude)$",
-    "CLAUDE_MEM_TELEMETRY": "0",
-    "CLAUDE_MEM_TELEMETRY_ERRORS": "0",
     "DO_NOT_TRACK": "1"
   },
   "permissions": {
@@ -15,20 +13,6 @@
       "mcp__github__*",
       "Bash(gh:*)"
     ]
-  },
-  "enabledMcpjsonServers": [
-    "codebase-memory-mcp"
-  ],
-  "extraKnownMarketplaces": {
-    "thedotmack": {
-      "source": {
-        "source": "directory",
-        "path": "./vendor/claude-mem"
-      }
-    }
-  },
-  "enabledPlugins": {
-    "claude-mem@thedotmack": false
   },
   "hooks": {
     "SessionStart": [
@@ -53,11 +37,6 @@
             "type": "command",
             "command": "node \"${CLAUDE_PROJECT_DIR:-$PWD}/vendor/ponytail/hooks/ponytail-activate.js\"",
             "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "cbm=\"$HOME/.local/bin/codebase-memory-mcp\"; \"$cbm\" daemon start >/dev/null 2>&1; \"$cbm\" hook-augment 2>/dev/null || true",
-            "timeout": 20
           }
         ]
       }
@@ -123,16 +102,6 @@
             "timeout": 5
           }
         ]
-      },
-      {
-        "matcher": "Grep|Glob|Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$HOME/.local/bin/codebase-memory-mcp\" hook-augment 2>/dev/null || true",
-            "timeout": 5
-          }
-        ]
       }
     ],
     "Stop": [
@@ -165,16 +134,6 @@
             "timeout": 5
           }
         ]
-      },
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$HOME/.local/bin/codebase-memory-mcp\" hook-augment 2>/dev/null || true",
-            "timeout": 5
-          }
-        ]
       }
     ],
     "PostToolUse": [
@@ -185,16 +144,6 @@
             "type": "command",
             "command": "python3 \"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/output_cap.py\"",
             "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$HOME/.local/bin/codebase-memory-mcp\" hook-augment 2>/dev/null || true",
-            "timeout": 5
           }
         ]
       }
