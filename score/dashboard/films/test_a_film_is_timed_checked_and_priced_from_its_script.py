@@ -7,6 +7,7 @@ environment's default built from its own scenes.
 Breaks that turn this red (each applied once and seen red, then reverted):
 - script.OVERLAPPING without "push" -> test_the_clock_overlaps_cross_fades_and_pushes_only
 - script.segment_faults: the step-card check -> `if False:` -> test_a_script_says_what_is_wrong_in_words
+- script.film_file: the name check -> `if False:` (or NAME back to `$`) -> test_a_film_file_is_never_outside_its_folder
 - render.walk_item: reuse without the film shot's length check -> test_render_items_reuse_films_...
 - render.FILM_FRAMES = 120 -> test_the_film_shot_matches_the_demo_film_rows
 - script.faults: every named place counted unknown -> test_world1_starter_is_sound_..., test_environment_1_demo_...
@@ -93,6 +94,15 @@ def test_a_script_says_what_is_wrong_in_words():
     assert "segment 4: no transition 'wipe'" in found and any("99" in fault for fault in found)
     assert "segment 4: no scene 'gamma'" in found
     assert script.faults({**film, "film": "Bad Name"}) and script.faults({"format": "other"})
+
+
+def test_a_film_file_is_never_outside_its_folder(tmp_path):
+    """Every film path is built through one name check: a path, a dot name or a trailing newline is refused."""
+    assert script.saved_path(tmp_path, "tour-1") == tmp_path / script.SAVED_FOLDER / "tour-1.json"
+    for name in ("../accepts/x", "a/b", "..", "tour\n", ""):
+        for build in (script.saved_path, script.locked_path, script.seed_path):
+            with pytest.raises(ValueError):
+                build(tmp_path, name)
 
 
 def test_render_items_reuse_films_and_price_film_frames_per_place_from_measured_runs():
