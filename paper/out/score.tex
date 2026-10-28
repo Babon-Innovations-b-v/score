@@ -100,24 +100,19 @@ Simulation}
 \begin{document}
 \maketitle
 \begin{abstract}
-Games, film, robotics and embodied AI all need 3D environments in which
-every object is a physical body of its own, that can still be edited
-after they are made, and that belong to whoever made them. World models
-produce video that no simulator can open, and one-shot 3D generators
-produce a single fused scene. SCORE is an open framework that
-synthesises such environments the way film and game studios build them:
-in OpenUSD, scene within scene, with layout, surfaces, physics,
-lighting, motion, effects, sound and people each held in a layer of its
-own. A creator locks the design from the top down. Open vision models,
-procedural tools and coding agents produce every layer beneath it, and
-each output must pass measured acceptance tests before the next is made.
-The result is a single OpenUSD environment whose physics a simulator
-reads as written, and every person in it also receives a musculoskeletal
-body that follows its motion in simulation. This opens a route to the
-training data that recorded measurement cannot supply at scale: movement
-in complete scenes, with physics-derived ground truth down to the forces
-of individual muscles. Code and paper:
-https://github.com/Babon-Innovations-b-v/score (MIT licence).
+Games, film, robotics and embodied AI need 3D environments in which
+every object is a physical body of its own, that stay editable, and that
+belong to whoever made them. World models produce video that no
+simulator can open; one-shot 3D generators produce a single fused scene.
+SCORE is an open framework that synthesises such environments the way
+studios build them in OpenUSD, scene within scene and layer by layer,
+every output passing measured tests before the next is made. Every
+person in an environment also receives a musculoskeletal body that
+follows its motion in simulation. This opens a route to training data
+that recorded measurement cannot supply at scale: movement in complete
+scenes, with physics-derived ground truth down to the forces of
+individual muscles. Code: https://github.com/Babon-Innovations-b-v/score
+(MIT).
 \end{abstract}
 
 \makeatletter\def\fps@figure{tp}\makeatother\renewcommand{\topfraction}{0.9}\renewcommand{\textfraction}{0.1}
