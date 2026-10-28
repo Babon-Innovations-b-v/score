@@ -44,6 +44,10 @@ CARD_CLASS = f"gpu-{CARD_GB}gb"
 # The kinds that need more card than CARD_GB, in GB (tools/cloud/capacity.py KINDS' notes): cloud-only unless a run
 # gives its own smaller measured need (characters: 17 is Kimodo with its text encoder on the card, the whole machine).
 TOO_BIG = {"judge": 30, "pictures-20b": 58, "characters": 17, "meshparts": 24, "moss-sound": 15.6}
+# The kinds whose set-up installs a torch with no kernels for this card (the RTX 5080, sm_120): cloud-only, with why.
+# similar: similar_setup.sh pins torch 2.5.1+cu124 (sm_50 to sm_90); on this card DINOv2 failed "no kernel image is
+# available for execution on the device" (env1, 2026-10-28: likeness@hub and @flat, "no likenesses came back").
+NO_KERNELS = {"similar": "torch 2.5.1+cu124 (similar_setup.sh) has no kernels for the RTX 5080 (sm_120)"}
 # Classes this PC answers for: a single card of at most 24 GB (the jobs that ask one fit on 16 GB unless TOO_BIG says
 # otherwise) and every processor class (24 cores here; a job takes longer, never fails for it).
 SERVES = (provider.GPU, provider.CPU)
@@ -99,9 +103,12 @@ def month_spend(_account):
 
 
 def refusal(kind, need=None):
-    """Why a job of `kind` cannot run here, or None: its card GB (`need`'s "card_gb", else TOO_BIG's for the kind)
-    past CARD_GB, or its system memory GB (`need`'s "memory_gb") past the container's (memory_cap)."""
+    """Why a job of `kind` cannot run here, or None: a kind NO_KERNELS names, its card GB (`need`'s "card_gb", else
+    TOO_BIG's for the kind) past CARD_GB, or its system memory GB (`need`'s "memory_gb") past the container's
+    (memory_cap)."""
     need = need or {}
+    if kind in NO_KERNELS:
+        return f"a {kind} job cannot run on this PC's card: {NO_KERNELS[kind]}: it stays a cloud job"
     card = need.get("card_gb", TOO_BIG.get(kind))
     if card is not None and card > CARD_GB:
         return (f"a {kind} job needs about {card} GB of card and this PC has {CARD_GB} GB: it stays a cloud job "
