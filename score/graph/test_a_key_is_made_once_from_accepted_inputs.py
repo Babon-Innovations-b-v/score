@@ -1726,6 +1726,26 @@ def test_a_node_past_its_start_still_holds_room_for_its_stages_peak_and_each_pea
     assert peaks["clean"] == int(1.5 * FLOOR) and peaks["count"] >= int(0.1 * FLOOR), peaks
 
 
+def test_a_node_that_made_nothing_never_brings_its_stage_under_the_default(monkeypatch):
+    """A second drive whose nodes find their outputs made (0.1 floor each, the peaks file gone) keeps no peak, so the
+    next node of the stage is still given the default (2026-10-28: quick finish-route-views nodes kept 0.1 GB, and
+    7 real ones started on 38.9 GB); one that made nothing but held 2 floors, over the default, is kept.
+    Break: score/graph/__init__.py: '                if "made: " in did or peak > peaks.get(stage.name, memory_floor()):'
+    -> '                if True:' -> clean's and count's 0.1 floor are kept."""
+    runner = a_driven_runner({"hangar": "a ship", "station": "a hub"})
+    faked(monkeypatch, [100 * FLOOR])
+    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, int(0.1 * FLOOR)))
+    monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
+    runner.drive(PLACES, say=quiet, jobs=4)
+    runner.desk("memory", "peaks-pss", ".json").unlink()
+    found = runner.drive(PLACES, say=quiet, jobs=4)
+    assert not any("made: " in did for did in found.values()), found
+    assert runner.peaks() == {}, runner.peaks()
+    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 2 * FLOOR))
+    runner.drive(PLACES, say=quiet, jobs=4)
+    assert runner.peaks() == {"clean": 2 * FLOOR, "count": 2 * FLOOR}, runner.peaks()
+
+
 def a_process(proc, pid, parent, resident_pages, pss_kb=None):
     """A process `pid` under `parent` in the fake `proc` folder: its stat line, and its smaps_rollup when `pss_kb`."""
     folder = proc / str(pid)
