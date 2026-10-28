@@ -1726,6 +1726,59 @@ def test_a_node_past_its_start_still_holds_room_for_its_stages_peak_and_each_pea
     assert peaks["clean"] == int(1.5 * FLOOR) and peaks["count"] >= int(0.1 * FLOOR), peaks
 
 
+def a_process(proc, pid, parent, resident_pages, pss_kb=None):
+    """A process `pid` under `parent` in the fake `proc` folder: its stat line, and its smaps_rollup when `pss_kb`."""
+    folder = proc / str(pid)
+    folder.mkdir()
+    fields = ["S", str(parent)] + ["0"] * 19 + [str(resident_pages)]  # field 22 of stat: resident pages
+    (folder / "stat").write_text(f"{pid} (make node) {' '.join(fields)}\n")
+    if pss_kb is not None:
+        (folder / "smaps_rollup").write_text(f"00400000-ffffffff ---p 00000000 00:00 0  [rollup]\nRss: "
+                                             f"{resident_pages * 4} kB\nPss: {pss_kb} kB\nShared_Clean: 0 kB\n")
+
+
+def test_a_nodes_tree_is_measured_by_its_share_of_each_page_and_by_rss_only_where_it_cannot_be_read(tmp_path,
+                                                                                                    monkeypatch):
+    """A node (pid 100, 1000 MB resident, 300 MB its share) forked two children sharing its pages (101: 1000 MB
+    resident, 200 MB its share; 102 with no readable smaps_rollup, 50 MB resident) and a grandchild (103: 100 MB, 100
+    MB): its tree holds 300 + 200 + 50 + 100 = 650 MB, never the 2150 MB the resident sum counts; a process outside
+    the tree (200) is not counted, a pid that is gone holds 0.
+    Break: score/graph/__init__.py: '                total += proportional_bytes(pid, table[pid][1])' ->
+    '                total += table[pid][1]'"""
+    page, megabyte = os.sysconf("SC_PAGE_SIZE"), 2**20
+    pages = megabyte // page
+    monkeypatch.setattr(graph, "PROC", str(tmp_path))
+    a_process(tmp_path, 100, 1, 1000 * pages, 300 * 1024)
+    a_process(tmp_path, 101, 100, 1000 * pages, 200 * 1024)
+    a_process(tmp_path, 102, 100, 50 * pages)
+    a_process(tmp_path, 103, 101, 100 * pages, 100 * 1024)
+    a_process(tmp_path, 200, 1, 9000 * pages, 9000 * 1024)
+    assert graph.trees_held([100, 999]) == {100: 650 * megabyte, 999: 0}
+
+
+def test_a_nodes_own_report_is_its_trees_share_and_old_rss_peaks_are_no_longer_read(monkeypatch):
+    """The drive reads every tree as holding nothing; each node's own process reads its tree as 0.2 floor: count's
+    kept peak is that 0.2 floor, the node's own report; a peaks.json left by the RSS sums (clean at 10 floors) is not
+    read, so clean's peak is the one measured now.
+    Break: score/graph/__init__.py: 'sending.send((did, max(high[0], HELD([os.getpid()])[os.getpid()])))' ->
+    'sending.send((did, 0))'
+    Break: score/graph/__init__.py: '        path = self.desk("memory", "peaks-pss", ".json")\n        return' ->
+    '        path = self.desk("memory", "peaks", ".json")\n        return'"""
+    runner = a_driven_runner({"hangar": "a ship", "station": "a hub"})
+    old = runner.desk("memory", "peaks", ".json")
+    old.parent.mkdir(parents=True, exist_ok=True)
+    old.write_text(json.dumps({"clean": 10 * FLOOR}))
+    faked(monkeypatch, [100 * FLOOR])
+    drive_pid = os.getpid()
+    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0 if os.getpid() == drive_pid
+                                                                  else int(0.2 * FLOOR)))
+    monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
+    found = runner.drive(PLACES, say=quiet, jobs=4)
+    assert set(found) == {"clean@hangar", "clean@station", "count@hangar", "count@station"}, found
+    peaks = runner.peaks()
+    assert peaks == {"clean": int(0.2 * FLOOR), "count": int(0.2 * FLOOR)}, peaks
+
+
 def test_an_input_is_hashed_again_once_it_changed_and_never_kept_while_it_just_changed(tmp_path, monkeypatch):
     """A settled file's hash is kept and read once; the same size rewritten is hashed anew; a file changed within
     SETTLED_NS is never kept. Break: score/graph/__init__.py: 'found.st_size, found.st_mtime_ns, found.st_ctime_ns)'
