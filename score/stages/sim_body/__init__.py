@@ -89,8 +89,13 @@ NOT_SEGMENTS = ("Root", "HeadEnd", "LeftToeEnd", "RightToeEnd")
 # Global age-standardised mean BMI of adults, 2016 (kg/m2): NCD-RisC, Lancet 2017;390:2627-42,
 # https://doi.org/10.1016/S0140-6736(17)32129-3. Height times this is #64's rule for a body with no stated weight.
 BMI = {"male": 24.5, "female": 24.8}
-SUNK_MOST = 0.02  # metres
-LANDED = 0.02  # metres: a foot further off its ground than this while it carries reads as floating or sunk
+# MyoFullBody's foot colliders meet a MuJoCo floor within their 1 mm margin, MuJoCo's default solref and solimp, as
+# MyoSuite, MuscleMimic and KINESIS leave them: 75 kg on two such capsules rests 0.1 mm into it without the margin and
+# 0.9 mm over it with it (measured, MuJoCo 3.x, 1 ms steps, 2026-10-28), so
+# a body more than a few millimetres into its ground is sunk (owner, 2026-10-28: "ground contact is real"); the ground
+# pushes a point only within the run's GAP (5 mm) over it, so a carrying foot further off is floating.
+SUNK_MOST = 0.003  # metres
+LANDED = 0.005  # metres
 CONTACT = 0.05  # share of the weight a foot's push must reach to count as landed
 REACH = 1.0  # metres round a body's clip path (its segments, across the ground) whose solids it may touch
 FEET = ("Foot", "ToeBase")
