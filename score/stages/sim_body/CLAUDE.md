@@ -43,9 +43,11 @@ own Python, its steps the modules beside it (`inside/CLAUDE.md`).
   `inside/myo` writes each person's file: #60's import fixes (names without '-', full muscle parameters, explicit
   inertials, multi-joint bodies split into 1 g wrappers, Euler), the floor gone.
 - **Each body is the person's own build**: the rig moved onto its look's built body (`people-body-<look>`'s rig.npz,
-  an optional read, `person_rig`), recorded as `size`. MyoFullBody is sized to it per segment: thigh, shin, foot, upper
-  arm and forearm by the person's joint distances, the rest by its standing height (#64: SOMA's hip and shoulder widths
-  carry no signal); each muscle's length range with its path (OpenSim's scaling), its peak force kept.
+  an optional read, `person_rig`), recorded as `size`. MyoFullBody is sized to it by bone group (#70, `inside/sizing`;
+  the stage hands the run the person's mesh and skin weights in its targets): every group, trunk and pelvis included,
+  so its stretch is SOMA's joint distance (before 2026-10-28 the limbs only, the rest by standing height: 15 of 22
+  groups within 1 cm, now all within 0.1 mm); its widths are not sized (the solver's joint centres); each muscle's
+  length range with its path (OpenSim's scaling), its peak force kept.
 - **Its muscles pull at rest**: at its standing pose (the zero pose with the knee and patella couplings applied, which
   is MyoSuite's own `stand` keyframe) MyoFullBody's muscles pull 4.2 kN passively: middle deltoid 561 N each (its path
   at the hanging arm is longer than its own length range's top), rectus abdominis 308 N, short biceps femoris 204 N,
@@ -62,8 +64,11 @@ own Python, its steps the modules beside it (`inside/CLAUDE.md`).
   foot colliders are the model's (three capsules and an ellipsoid on the calcaneus, two capsules on the toes, margin
   1 mm, MuJoCo's default solref and solimp: a loaded foot rests within about 1 mm of a MuJoCo floor).
 - **Mass by #64's rule**: the cast's stated `weight` (kg), else `height` (m, else the body's own) squared times the
-  reference BMI of `sex` (NCD-RisC 2016, the mean of both unstated), marked `estimated`, spread over the model's bodies
-  as the model's masses times their scale cubed; RRA's mass step (above) is the one change after it, recorded. Never
+  reference BMI of `sex` (NCD-RisC 2016, the mean of both unstated), marked `estimated`, spread over the bone groups by
+  SOMA's segment volumes at Dempster's densities (`inside/volumes`, the owner's #70: motion cannot tell weight), each
+  group's centre of mass and inertia's trace SOMA's; the kneecaps, the abdominal wrapper and the 1 g frames keep the
+  model's share; what SOMA does not give (muscle strength, joint ranges, density, bone shape) is marked assumed with a
+  plausible range in the model record (`assumed`). RRA's mass step (above) is the one change after it, recorded. Never
   tune a mass, a weight in the solve or a gate by hand to pass: fix the method and measure again.
 - **Rotations to angles, as OpenSense does** (owner, 2026-10-28; Al Borno et al. 2022, J NeuroEng Rehabil 19:22,
   doi:10.1186/s12984-022-01001-x; opensim-core's IMUPlacer and IMUInverseKinematicsTool, Apache-2.0): each SOMA
@@ -113,8 +118,9 @@ own Python, its steps the modules beside it (`inside/CLAUDE.md`).
   (`parse_meshes=False`: its mesh loading needs trimesh, which the env does not hold); the drawn bones come from
   MuJoCo's own compile of the file. MuJoCo's CPU backend, run on this machine (free).
 - **Its readers** (contract version 2): the characters layer (`../cast/driven.py`) plays each person's skeleton from
-  `measures/<name>.json`'s `poses`, which are the clip's own segment frames moved as RRA moved the body each rides
-  (the picture and the forces show one motion), and references `layers/sim_bodies.usda`; its gate measures the skin's feet against the layer's
+  `measures/<name>.json`'s `poses`, which are the clip's own segment frames, written by the stage itself, never
+  moved, scaled or grounded to the sim body (owner, 2026-10-28: SOMA is the truth; the stage's test checks them bit
+  for bit), and references `layers/sim_bodies.usda`; its gate measures the skin's feet against the layer's
   `SimBody/<segment>` Xforms, which ride the body's bones at the bind's correspondence (`offsets`), so it reads how far
   the musculoskeletal body's feet are from the clip's. People-cloth reads `poses` and imports `segments_of`. The film's
   layer peel (`../demo_film/peel.py`) draws whatever geometry is under each SimBody and finds each `feet` key's prim by

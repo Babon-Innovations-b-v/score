@@ -24,12 +24,13 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
              reserves, measured and never applied. Before the physics is measured, OpenSim's residual reduction (RRA)
              adjusts the pelvis' and trunk's path and the body's masses and torso centre of mass so the ground explains
              the movement, capped (MOVE_MOST, FOLLOWED) and kept within the `follows` limit; how far is recorded per
-             body (`adjusted`), and the skin plays the adjusted motion. Written: sim_bodies.json (each body: its mass record, size, model
+             body (`adjusted`); the skin plays SOMA's own clip. Written: sim_bodies.json (each body: its mass record, size, model
              record, the SOMA segments and the body each rides, the solids it may touch, measures and the gates'
              numbers), measures/<name>.json (per frame: the body's SOMA segments' turns and the clip's, joint
              moments, ground force, lowest point over the ground, each foot's height over the ground and its push, the
              residual, the largest reserve, each muscle's activation and force, and each SOMA segment's pose: the
-             clip's own moved as RRA moved the body it rides, which the skin plays) and
+             clip's own, never moved, scaled or grounded to the sim body (owner, 2026-10-28: SOMA is the truth),
+             which the skin plays) and
              layers/sim_bodies.usda (each body under its character's prim, /<place>/Characters/<name>/SimBody, in
              the Turned frame: an Xform a SOMA segment riding its bone, every bone's mesh under the segment it rides or
              under Bones, and the muscles as lines along their paths, coloured by activation, every frame)
@@ -292,7 +293,7 @@ def make(inputs, out, seed, params):
     solids = solids_of(inputs, place)
     job, records, left_out = {"rate": RATE, "gravity": gravity, "people": []}, {}, []
     (out / "clips").mkdir(parents=True)
-    builds = {}
+    builds, clips = {}, {}
     for single in cast["characters"]:
         if f"clip_{single.get('doing')}" not in clips_rig:
             left_out.append(f"{single['name']}: its clip {single.get('doing')!r} is not in the rig")
@@ -310,7 +311,9 @@ def make(inputs, out, seed, params):
             continue
         mass = mass_of(single, standing_height(rig))
         targets = out / "clips" / f"{single['name']}.npz"
-        np.savez_compressed(targets, world=worlds, ground=ground)
+        np.savez_compressed(targets, world=worlds, ground=ground, points=rig["points"], faces=rig["faces"],
+                            weights=rig["weights"])
+        clips[single["name"]] = worlds
         job["people"].append({"name": single["name"], "kg": mass["kg"], "height": standing_height(rig),
                               "rig": {"names": [str(name) for name in rig["names"]],
                                       "parents": np.asarray(rig["parents"]).tolist(),
@@ -335,6 +338,8 @@ def make(inputs, out, seed, params):
         run, arrays = ran(out / "job.json", out / "run.json")
     (out / "measures").mkdir()
     for name, entry in run["people"].items():
+        for frame, worlds in zip(entry["frames"], clips[name]):  # SOMA is the truth: its joints leave as they came
+            frame["poses"] = [soma_pose(world) for world in worlds]
         (out / "measures" / f"{name}.json").write_text(json.dumps(entry["frames"]))
         records[name].update(segments=entry["rides"], model=entry["model"], muscles=len(entry["muscles"]),
                              adjusted=entry["adjusted"], measures=measured(entry, gravity))
@@ -345,6 +350,12 @@ def make(inputs, out, seed, params):
                                           "rate": RATE, "model": {"wheel": MODEL[0].rpartition("/")[2],
                                                                   "attribution": ATTRIBUTION}, "bodies": records,
                                           "left out": left_out}, indent=1))
+
+
+def soma_pose(world):
+    """A SOMA segment's frame (4 x 4) as the skin plays it, unrounded: [x, y, z, qx, qy, qz, qw]."""
+    from scipy.spatial.transform import Rotation
+    return [*map(float, world[:3, 3]), *map(float, Rotation.from_matrix(world[:3, :3]).as_quat())]
 
 
 # --- the measures and gates ----------------------------------------------------------------------------------------

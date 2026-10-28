@@ -10,8 +10,9 @@ two test walkers, two side by side); people run one after another in one process
 
 - **`sim_body.py` is the run only** (#70: "1400 line script, yuck"): it orders the steps, each a module beside it
   with its interface (`__init__.py`), its one test file and its overlay. Python puts the script's folder first on
-  `sys.path`, so they import by bare name, leaves first: `bone_groups`, `ground`, `solvers` (pure: their tests run in
-  the score venv), then `model`, `sizing`, `myo`, `contact`, `fit`, `muscles`, `rra`, `records` (MuJoCo-side: their
+  `sys.path`, so they import by bare name, leaves first: `bone_groups`, `ground`, `solvers`, `landmarks`,
+  `calibration`, `volumes` (pure: their tests run in the score venv), then `model`, `sizing`, `myo`, `contact`, `fit`,
+  `muscles`, `rra`, `records` (MuJoCo-side: their
   tests run in Newton's own Python by subprocess, `skipped` where no env is built, as in `make tests`' sandbox home).
   A new module goes in its own folder here, imported the same way; never a name the env's site-packages already has.
 - **The whole folder is the stage's input** (`sim inside` in `files()`): any file here, a test or an overlay too,
@@ -20,3 +21,6 @@ two test walkers, two side by side); people run one after another in one process
   bytes and every array of run.npz equal before and after (#70's move, 2026-10-28). The person's file can differ by
   one mesh's `content_type` attribute between runs of the same code (MjSpec.to_xml; seen once, the compiled model
   and every output equal), so compare the outputs, not the file.
+- **SOMA is the truth** (#70): `bone_groups.GROUPS`, `calibration`, `landmarks` and `volumes` are SCORE's own tables of
+  the two models; `sizing` sizes MyoFullBody to SOMA, never the reverse, and the run writes no SOMA pose: the stage
+  writes the clip's own into `poses`.
