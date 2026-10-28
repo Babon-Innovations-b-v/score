@@ -10,7 +10,7 @@ if nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
   INDEX=https://download.pytorch.org/whl/cu128
 fi
 curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/root/uv sh >/dev/null
-/root/uv/uv venv --quiet --python 3.11 /root/venv
+/root/uv/uv venv --clear --quiet --python 3.11 /root/venv
 /root/uv/uv pip install --quiet --python /root/venv/bin/python torch==2.7.1 --index-url "$INDEX"
 /root/uv/uv pip install --quiet --python /root/venv/bin/python transformers==4.46.3 pillow numpy huggingface_hub
 /root/venv/bin/python -c "from huggingface_hub import snapshot_download; snapshot_download('${DINO_WEIGHTS:?}')"

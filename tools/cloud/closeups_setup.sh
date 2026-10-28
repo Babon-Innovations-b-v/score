@@ -11,7 +11,7 @@ set -euo pipefail
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
 curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/root/uv sh >/dev/null
 
-/root/uv/uv venv --quiet --python 3.10 /root/venv
+/root/uv/uv venv --clear --quiet --python 3.10 /root/venv
 /root/uv/uv pip install --quiet --python /root/venv/bin/python torch==2.4.1 torchvision==0.19.1 \
   --index-url https://download.pytorch.org/whl/cu124
 /root/uv/uv pip install --quiet --python /root/venv/bin/python --no-deps "gsplat==1.5.3+pt24cu124" \
@@ -29,7 +29,7 @@ image, alpha, _ = rasterization(means, torch.tensor([[1.0, 0, 0, 0]], device="cu
 print("gsplat renders", float(alpha.max()))
 PY
 
-/root/uv/uv venv --quiet --python 3.12 /root/venv2
+/root/uv/uv venv --clear --quiet --python 3.12 /root/venv2
 /root/uv/uv pip install --quiet --python /root/venv2/bin/python torch==2.9.1 torchvision transformers==5.17.0 \
   accelerate huggingface_hub hf_xet safetensors numpy pillow scipy rembg==2.0.69 onnxruntime
 /root/venv2/bin/python -c "from huggingface_hub import snapshot_download; import os; snapshot_download(os.environ.get('SAM3_WEIGHTS', 'facebook/sam3'))"

@@ -13,7 +13,7 @@ DEBIAN_FRONTEND=noninteractive apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git libgl1 libegl1 libgles2 libopengl0 libglib2.0-0 libxrender1 \
   libxi6 libxkbcommon0 libsm6 libxext6 libxfixes3 libxxf86vm1 >/dev/null
 curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/root/uv sh >/dev/null
-/root/uv/uv venv --quiet --python 3.11 /root/venv
+/root/uv/uv venv --clear --quiet --python 3.11 /root/venv
 PIP=(/root/uv/uv pip install --quiet --python /root/venv/bin/python)
 "${PIP[@]}" torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu124
 git clone -q https://github.com/VAST-AI-Research/UniRig.git /root/UniRig
