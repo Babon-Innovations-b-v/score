@@ -25,6 +25,8 @@ than the accepted output and the owner never rejected it; otherwise the new outp
 waits for the owner. When he rejects an accepted output, its node's accepted output moves back, and every later node
 whose accepted output read the rejected one is stale (`stale`, shown in status): its key now names the output
 accepted before, so its next run makes (or finds) the output that reads that one.
+A new output that fails its gates is made once more with a fresh seed when that is free here (`after_failure`); a
+second failure, or a paid remake, goes on the owner's list, priced (REMAKES).
 A paid stage runs cleared by the runner (score.adapters.compute: its inputs pass and its stop has room for its
 estimate, `Stage.euros`), inside that clearance's ticket.
 
@@ -78,6 +80,12 @@ PLACE_READS = []
 WORLD_LINE = "world"
 LOG_TAIL = 40
 NOT_RUN = " has not run on its current inputs"  # usable's cause; a fault report names what moved its key
+# A failed output's note, once per key in the store (the count that keeps a node to one free remake across runs and
+# restarts): remakes/<node>/<key>.json, `then` "remake" (its key's attempt 2 is made), "owner" (on his list, priced) or
+# "done" (attempt 2's own outcome). Each note is also a line of the runner's remake log beside the store, and an
+# "owner" one a line of the owner's list there (owner, 2026-10-28).
+REMAKES = "remakes/"
+REMAKE_LOG, OWNER_LIST = ("remakes", "notes", ".jsonl"), ("remakes", "owner-list", ".jsonl")
 # Nodes the drive runs at once: most wait on a rented machine, the rest work on this PC's cores.
 JOBS = 8
 # How often a node's process checks that its runner is still there (watch_runner).
@@ -377,6 +385,7 @@ def finish_record(node, keyed, output, stage_name, started, clock):
             "code": keyed["code"], "contract": keyed["contract"], "expects": keyed["expects"],
             "params": keyed["params"], "seed": keyed["seed"], "files": keyed["files"], "after": keyed["after"],
             "models": keyed["models"], **({"beside": keyed["beside"]} if "beside" in keyed else {}),
+            **({"remake": keyed["remake"]} if "remake" in keyed else {}),
             **_code.git_commit(),
             "machine": platform.node(), "started": started, "finished": now(),
             "minutes": round((time.monotonic() - clock) / 60, 3), "euros": 0}
@@ -804,7 +813,15 @@ class Runner:
         if beside:  # only a stage that reads beside has this part, so no other node's key moves
             parts["beside"] = {node: self.usable(before, other, wanted)
                                for node, (before, other, wanted) in beside.items()}
-        return {**parts, "key": text_hash(json.dumps(parts, sort_keys=True))}
+        key = text_hash(json.dumps(parts, sort_keys=True))
+        note = self.store.read(f"{REMAKES}{node_name(stage, place)}/{key}.json")
+        if note and note["then"] == "remake":  # only then a remake part: no other node's key moves
+            failed = ", ".join(sorted(note["failed"]))
+            parts = {**parts, "seed": node_seed(self.world.seed, f"{stage.name}#remake", parts["place"]),
+                     "remake": {"attempt": 2, "after": key, "failed": sorted(note["failed"]),
+                                "why": f"automatic free remake, attempt 2, after {failed}"}}
+            key = text_hash(json.dumps(parts, sort_keys=True))
+        return {**parts, "key": key}
 
     def besides(self, stage, place):
         """{node: (earlier stage, other place, (schema, version))} the node reads of other places (its `beside`, for
@@ -967,21 +984,90 @@ class Runner:
         try:
             keyed = self.key(stage, place)
             with self.held(node_name(stage, place), keyed["key"]):
-                return self.run_held(stage, place, keyed)
+                did = self.run_held(stage, place, keyed)
         except Blocked as block:
             return f"blocked: {block}"
+        return self.after_failure(stage, place, keyed, did)
+
+    def after_failure(self, stage, place, keyed, did):
+        """Once the node's output failed its gates (fail, the owner's waivers counted; not unknown, not only its
+        accepted gaps, not accepted): noted, then made once more with a fresh seed when that is free here (its key's
+        `remake` part, run at once), else on the owner's list, priced; attempt 2's outcome is noted too, a failure
+        on his list. What it did."""
+        failed, answer = self.failed_checks(stage, place, keyed)
+        second = "remake" in keyed
+        if not failed:
+            if second and answer == checks.PASS:
+                self.note(stage, place, keyed, {}, "done")
+            return did
+        free = (not stage.paid and not any(euros for _, euros in stage.gatherers.values())) or on_this_pc()
+        then = "remake" if free and not second else "owner"
+        if not self.note(stage, place, keyed, failed, then):
+            return did  # noted by an earlier run: its remake, or the owner's list, has it
+        if then == "owner":
+            return f"{did}; {'the second failure' if second else 'a paid remake'}: on the owner's list, priced"
+        return f"{did}; automatic free remake, attempt 2, after {', '.join(sorted(failed))}: " \
+               f"{self.run_node(stage, place)}"
+
+    def failed_checks(self, stage, place, keyed):
+        """({check: verdict} of the node's output's failed checks when its answer on its current evidence is fail,
+        the owner's waivers counted, and it neither stands accepted nor fails only on its accepted gaps, else {};
+        that answer, or None when it is not judged)."""
+        node = node_name(stage, place)
+        record = self.store.record(node, keyed["key"])
+        judgement = record and self.store.judgement(node, keyed["key"], self.evidence_state(stage, record["output"]))
+        if not judgement:
+            return {}, None
+        waived = self.store.waivers(node, keyed["key"])
+        answer = checks.standing(judgement["verdicts"], waived)
+        if answer != checks.FAIL or review.fails_only_on_gaps(judgement["verdicts"], waived) or \
+                self.store.accepted(node) == record["output"]:
+            return {}, answer
+        return {name: verdict for name, verdict in judgement["verdicts"].items()
+                if verdict["answer"] == checks.FAIL and name not in waived}, answer
+
+    def note(self, stage, place, keyed, failed, then):
+        """Note one failed output (or attempt 2's outcome) once: in the store under its key (REMAKES), then a line of
+        the remake log and, for `then` "owner", of the owner's list, priced; False when it was noted already."""
+        node = node_name(stage, place)
+        entry = {"node": node, "key": keyed["key"], "attempt": 2 if "remake" in keyed else 1, "at": now(),
+                 "output": self.store.record(node, keyed["key"])["output"], "then": then,
+                 "failed": {name: {part: verdict[part] for part in ("reason", "measures", "findings")}
+                            for name, verdict in failed.items()}}
+        if "remake" in keyed:
+            entry["first"] = keyed["remake"]["after"]
+        if then == "owner":
+            entry["euros"] = self.price(stage, place, keyed)
+            entry["why"] = "both attempts failed" if "remake" in keyed else "its remake is paid"
+        try:
+            self.store.write_once(f"{REMAKES}{node}/{keyed['key']}.json", entry)
+        except FileExistsError:
+            return False
+        for desk in (REMAKE_LOG, OWNER_LIST)[:2 if then == "owner" else 1]:
+            path = self.desk(*desk)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "a") as lines:
+                lines.write(json.dumps(entry, sort_keys=True) + "\n")
+        return True
+
+    def price(self, stage, place, keyed):
+        """The node's forecast price in euros: its own forecast of its inputs, else its row's estimate (0, free)."""
+        if stage.forecast:
+            return stage.forecast(self.input_paths(stage, place, keyed))["euros"]
+        return stage.euros or 0.0
 
     def run_held(self, stage, place, keyed):
         """`run_node` under the node's key's lock."""
         node = node_name(stage, place)
         record = self.store.record(node, keyed["key"])
-        if record is None and hasattr(stage.files, "carried"):  # its accepted output, kept when its inputs are the same
+        keeps = "remake" not in keyed  # a remake is made, never its accepted output kept
+        if keeps and record is None and hasattr(stage.files, "carried"):  # its accepted output, its inputs the same
             record = stage.files.carried(self, stage, place, keyed)
-        if record is None:  # its accepted output, kept when only bytecode moved its key (#67)
+        if keeps and record is None:  # its accepted output, kept when only bytecode moved its key (#67)
             record = self.kept_over_bytecode(stage, place, keyed)
-        if record is None:  # its accepted output, kept when every file its key reads today reads as it did then
+        if keeps and record is None:  # its accepted output, kept when every file its key reads today reads as then
             record = self.kept_by_narrowing(stage, place, keyed)
-        if record is None:  # its accepted output, kept when a stored proof says every change is a no-op for it
+        if keeps and record is None:  # its accepted output, kept when a stored proof says every change is a no-op
             record = self.kept_by_proof(stage, place, keyed)
         made = record is None
         if made:
@@ -1408,6 +1494,7 @@ class Runner:
                  f"why its line stopped: {cause}", ""]
         lines += self.moved_inputs(cause)
         lines += self.blocking_checks(stage, place)
+        lines += self.remake_lines(stage, place)
         log = self.desk("logs", node, ".log")
         tail = log.read_text(errors="replace").splitlines()[-LOG_TAIL:] if log.exists() else []
         lines += [f"log: {log} (its last {len(tail)} lines)", *(f"  | {text}" for text in tail), "",
@@ -1431,6 +1518,22 @@ class Runner:
         except Blocked as block:
             return [f"its key cannot be worked out: {block}", ""]
         return [f"what moved its key since its last record: {', '.join(self.stale_reasons(stage, place, keyed))}", ""]
+
+    def remake_lines(self, stage, place):
+        """Report lines of the node's failed attempts (its key's notes, REMAKES) and where an owner's one went."""
+        node = node_name(stage, place)
+        try:
+            keyed = self.key(stage, place)
+        except Blocked:
+            return []
+        keys = ([keyed["remake"]["after"]] if "remake" in keyed else []) + [keyed["key"]]
+        notes = [note for key in keys if (note := self.store.read(f"{REMAKES}{node}/{key}.json"))]
+        lines = [f"attempt {note['attempt']} (key {note['key'][:12]}, output {note['output'][:12]}) failed "
+                 f"{', '.join(sorted(note['failed']))}: then {note['then']}" for note in notes if note["failed"]]
+        if notes and notes[-1]["then"] == "owner":
+            lines.append(f"{notes[-1]['why']}: on the owner's list, priced EUR {notes[-1]['euros']:.2f} "
+                         f"({self.desk(*OWNER_LIST)})")
+        return lines + [""] if lines else []
 
     def blocking_checks(self, stage, place):
         """The node's newest judgement's blocking checks as report lines: answer, reason, measures, findings."""
