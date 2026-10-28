@@ -9,7 +9,7 @@ from score.dashboard.films import takes
 
 FORMAT = "score-film-script"
 VERSION = 1
-NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
+NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}\Z")  # \Z, not $: a name with a newline after it is no name
 SEED_FOLDER = "data/films"
 SAVED_FOLDER = "films"
 # The overlap of a cross-fade or a push (tools/review/demo.py FADE_SECONDS).
@@ -197,19 +197,26 @@ def blank(film, title):
                           "sound": "bed", "text": title}]}
 
 
+def film_file(folder, film, suffix=".json"):
+    """The film's file in `folder`; ValueError for anything but a film name (NAME), so no name reaches outside it."""
+    if not NAME.match(str(film)):
+        raise ValueError(f"not a film name: {film!r}")
+    return pathlib.Path(folder) / f"{film}{suffix}"
+
+
 def seed_path(repo, film):
-    return pathlib.Path(repo) / SEED_FOLDER / f"{film}.json"
+    return film_file(pathlib.Path(repo) / SEED_FOLDER, film)
 
 
 def saved_path(home, film):
-    return pathlib.Path(home) / SAVED_FOLDER / f"{film}.json"
+    return film_file(pathlib.Path(home) / SAVED_FOLDER, film)
 
 
 def preview_files(home, hosted, film):
     """(the film's rendered free preview, its record) where a cockpit holds them: its home's previews
     (films/preview/make.py), hosted the export's copy."""
     folder = pathlib.Path(home) / ("export/current/films" if hosted else "films/previews")
-    return folder / f"{film}.mp4", folder / f"{film}.json"
+    return film_file(folder, film, ".mp4"), film_file(folder, film)
 
 
 def names(repo, home):
@@ -245,7 +252,7 @@ FILM_STAGES = ("demo-film", "demo-film-extra", "environment-film")
 
 
 def locked_path(home, film):
-    return pathlib.Path(home) / LOCKED_FOLDER / f"{film}.json"
+    return film_file(pathlib.Path(home) / LOCKED_FOLDER, film)
 
 
 def locked(home, film):
