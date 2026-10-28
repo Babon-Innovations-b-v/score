@@ -1155,14 +1155,15 @@ def stop_on_term(signal_number, frame):
     sys.exit(f"stopped by signal {signal_number}")
 
 
-def run_gauges(runner, places, whole, only, started):
+def run_gauges(runner, chosen, started):
     """The run's gauges for its heartbeat lines, read from files alone (no cloud call) and scoped to this run: its
-    rows' paid runs cleared and still open (each holds a rented machine or is about to), and what the run has spent
-    since `started` (spent_by_run: its rows' and its warm pool's ledger lines and its Google calls), in all and by
-    part. The run's id is read at each beat: the gauges are made before the run takes its id (as_run; fault of
-    2026-10-25, every heartbeat of Batch 1 said its pool cost EUR 0.00)."""
+    `chosen` nodes' ((stage, place), as claim worked them out) paid runs cleared and still open (each holds a rented
+    machine or is about to), and what the run has spent since `started` (spent_by_run: its rows' and its warm pool's
+    ledger lines and its Google calls), in all and by part. The run's id is read at each beat: the gauges are made
+    before the run takes its id (as_run; fault of 2026-10-25, every heartbeat of Batch 1 said its pool cost EUR
+    0.00)."""
     from score.adapters import compute
-    nodes = {graph.node_name(*node) for node in runner.line_nodes(places, whole, only)}
+    nodes = {graph.node_name(*node) for node in chosen}
 
     def gauges():
         euros = spent_by_run(compute.ledger(), nodes, started, os.environ.get(RUN_ID))
@@ -1257,15 +1258,16 @@ def raised_status(error):
     return f"error: {type(error).__name__}: {error}"
 
 
-def run_with_exit_line(runner, places, whole, options, argv):
-    """Drive the lines as a run (as_run) registered in the run registry (driven), then print their closing states,
-    then one `exit: <status>` line, the run's last, said in every case: when it ends, raises, or is stopped by a
-    signal (stopped.stop_on_signals raises SystemExit); (the lines, the status)."""
+def run_with_exit_line(runner, places, whole, options, argv, chosen):
+    """Drive the lines as a run (as_run) registered in the run registry (driven), its gauges scoped to its `chosen`
+    nodes (claim's), then print their closing states, then one `exit: <status>` line, the run's last, said in every
+    case: when it ends, raises, or is stopped by a signal (stopped.stop_on_signals raises SystemExit); (the lines, the
+    status)."""
     status, free = "ended without a status", getattr(options, "free", False)
     try:
         started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())  # the ledger's own time format
         found = {}
-        gauges = tending(run_gauges(runner, places, whole, options.stage, started),
+        gauges = tending(run_gauges(runner, chosen, started),
                          pool_tender(runner, options.jobs, time.time()))
         as_run(runner, lambda: found.update(driven(runner, places, whole, options, argv, gauges=gauges)),
                opening=None if free else lambda: opened_pool(runner, places, whole, options))
@@ -1342,10 +1344,15 @@ def claim(runner, places, whole, options):
     """Register this run on the store (graph/runs.py), released at exit; exit REFUSED (graph/stopped.py, so a
     detached run's result line is the refusal) when a live run of another commit, or one at this commit that would
     make some of the same nodes, holds it. Before detaching it only checks: the detached run registers itself, and a
-    run that registers in between refuses it then."""
-    nodes = runner.line_nodes(places, whole, options.stage)
-    commit = run_commit(runner, nodes, options)
-    making = runs.would_make(runner, nodes)
+    run that registers in between refuses it then. The run's line nodes ((stage, place)), handed on to its gauges:
+    listed once, inside the one pass (plans.one_moment, Runner.still: it writes nothing to the store) in which
+    would_make works out their keys (the claim, the gauges and the drive each listed them, every listing outside a
+    still: 15 s of one core at every start, 2026-10-28)."""
+    from score.review import plans
+    with runner.still(), plans.one_moment():
+        nodes = runner.line_nodes(places, whole, options.stage)
+        commit = run_commit(runner, nodes, options)
+        making = runs.would_make(runner, nodes)
     if options.detach:
         refused = runs.claim_refusal(commit, making)
     else:
@@ -1354,6 +1361,7 @@ def claim(runner, places, whole, options):
     if refused:
         print(refused, file=sys.stderr, flush=True)
         sys.exit(stopped.REFUSED)
+    return nodes
 
 
 def copies_swept(say):
@@ -1446,7 +1454,7 @@ def main(argv=None):
         if waited_for_size(runner, places, whole, options, sys.argv[1:] if argv is None else argv):
             return
         checked_threads(options)
-        claim(runner, places, whole, options)
+        chosen = claim(runner, places, whole, options)
         if not options.free:  # a free-only run buys nothing: no re-buy list or reason
             checked_buys(runner, places, whole, options)
     if getattr(options, "detach", False):
@@ -1465,7 +1473,8 @@ def main(argv=None):
         for entry in runs.waiting().values():
             print(f"waiting for size {runs.describe(entry)}: {entry.get('jobs')} jobs")
         return
-    _, status = run_with_exit_line(runner, places, whole, options, sys.argv[1:] if argv is None else argv)
+    _, status = run_with_exit_line(runner, places, whole, options, sys.argv[1:] if argv is None else argv,
+                                   chosen)
     if not status.startswith("ok"):  # a free-only run's lines wait at the paid rows left: only a failure counts
         sys.exit(1)
 

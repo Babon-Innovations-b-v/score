@@ -76,7 +76,8 @@ stage as each stage is built; nothing moves before.
   nodes it would make in `$PROPS_HOME/runs/active.json` under a lock, and is refused while a live run from another
   commit holds the store (named with its commit and worktree), or one at the same commit would make some of the same
   nodes (a node standing accepted is not made, so one run per place goes side by side once the world nodes stand); an
-  entry whose pid is gone or now another process's is dropped. A worktree with tracked changes not committed is
+  entry whose pid is gone or now another process's is dropped. The claim lists the run's line nodes once, inside the one
+  still pass in which it works out which it would make, and hands that list to the heartbeat's gauges. A worktree with tracked changes not committed is
   refused when the run would buy a paid row, unless given `--uncommitted`. A detached run registers itself: refused
   there, its result line is `detached: refused: ...`. Every `run` drives from its own frozen copy of the code
   (`graph/frozen.py`, #45): a git worktree under `$PROPS_HOME/frozen` at one commit (HEAD when clean, else one commit
