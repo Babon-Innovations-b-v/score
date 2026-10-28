@@ -50,11 +50,20 @@ The invariants, each with the break that turns its test red (each applied once a
 - The container never swaps past its memory, made new or found already made. Break: drop `"--memory-swap",
   memory_cap()` in `memory_arguments` -> the run's swap is unset; or drop the `docker("update", ...)` -> the old
   container keeps its swap.
+- This PC's claim runs as many Blender jobs side by side as its container's memory holds at a take's measured peak
+  (27 GiB: three; a small PC: one), all on its one card, and every claim puts card_turn.py into the container's Blender
+  startup folder. Break: drop `"blender": blender_at_once(...)` from `RUNS_AT_ONCE` -> one slot; or drop
+  `card_in_turns()` in `take` -> nothing is copied.
+- card_turn.py gives the card to one card call at a time (the Cycles bake, a render) across Blender processes, and
+  leaves every other operator call free to run beside it. Break: in `turned`, call `call(...)` without `with
+  card_turn(lock_path):` -> two bakes are on the card at once.
 """
 import json
 import pathlib
 import subprocess
 import sys
+import threading
+import time
 import types
 import urllib.error
 
@@ -408,7 +417,8 @@ def test_this_pc_orders_nothing_costs_nothing_and_holds_one_claim(monkeypatch, t
     monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
     monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
     restarted = []
-    monkeypatch.setattr(local, "docker", lambda *arguments, **_: restarted.append(arguments))
+    monkeypatch.setattr(local, "docker",
+                        lambda *arguments, **_: arguments[0] == "restart" and restarted.append(arguments))
     offers = local.offers(["gpu-80gb", "gpu-24gb", "cpu-32c-128gb", "gpu-24gb-x2"])
     assert [offer.machine_class for offer in offers] == ["gpu-24gb", "cpu-32c-128gb"]
     assert {(offer.price, offer.stock_word) for offer in offers} == {(0.0, "parked")}  # batch.rent orders nothing
@@ -466,3 +476,69 @@ def test_this_pc_container_never_swaps_past_its_memory(monkeypatch):
         assert len(limited) == 1 and limited[0][0] == ("update" if found else "run"), calls
         swap = limited[0].index("--memory-swap")
         assert limited[0][swap + 1] == "27g" == limited[0][limited[0].index("--memory") + 1], limited
+
+
+def test_this_pc_runs_blender_jobs_side_by_side_as_its_memory_holds_with_the_card_in_turns(monkeypatch, tmp_path):
+    import importlib
+    import capacity
+    import card_turn
+    import local
+    import spread
+    assert local.blender_at_once(8) == 1
+    pages = {"SC_PAGE_SIZE": 4096, "SC_PHYS_PAGES": 43 * 2**30 // 4096}  # this PC: a 27 GiB container
+    monkeypatch.setattr(local.os, "sysconf", pages.get)
+    try:
+        importlib.reload(local)
+        monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
+        monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
+        monkeypatch.setattr(capacity.provider, "cloud", local)
+        calls = []
+        monkeypatch.setattr(local, "docker", lambda *arguments, **_: calls.append(arguments))
+        machine = local.take("blender", "key")
+        assert ("cp", str(local.CARD_TURN), f"{local.MACHINE}:{card_turn.STARTUP}/card_turn.py") in calls
+        assert spread.slots("blender", machine) == [0, 0, 0]  # three side by side, all on the one card
+        assert spread.slots("pixal", machine) == [0]
+        local.delete(machine["id"], local.ZONE)
+    finally:
+        monkeypatch.undo()
+        importlib.reload(local)
+
+
+class Operator:
+    """A bpy.ops operator as card_turn sees it: its name, and a call that counts the card calls running at once."""
+    on_card, most, guard = [0], [0], threading.Lock()
+
+    def __init__(self, name):
+        self.name = name
+
+    def idname_py(self):
+        return self.name
+
+    def __call__(self, *_arguments, **_keywords):
+        import card_turn
+        card = self.name in card_turn.CARD_OPS
+        with Operator.guard:
+            Operator.on_card[0] += card
+            Operator.most[0] = max(Operator.most[0], Operator.on_card[0])
+        time.sleep(0.05)
+        with Operator.guard:
+            Operator.on_card[0] -= card
+        return {"FINISHED"}
+
+
+def test_card_turn_gives_the_card_to_one_card_call_at_a_time(tmp_path):
+    import card_turn
+    lock = str(tmp_path / "card.lock")
+    call = card_turn.turned(Operator.__call__, lock)
+    names = ["object.bake", "render.render", "object.bake", "object.bake", "render.opengl"]
+    threads = [threading.Thread(target=call, args=(Operator(name),)) for name in names]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert Operator.most[0] == 1 and call.card_turn  # never two card calls at once
+    with card_turn.card_turn(lock):  # a bake holds the card: a selection still runs
+        beside = threading.Thread(target=call, args=(Operator("object.select_all"),))
+        beside.start()
+        beside.join(5)
+        assert not beside.is_alive()

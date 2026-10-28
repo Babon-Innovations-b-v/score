@@ -78,6 +78,10 @@ ALWAYS_SHIPPED = ("tools/blender/inside",)
 # A held machine (--serve): the chain's expected minutes for the owner's limits, and how long it waits for the next job.
 SERVE_MINUTES = 60
 IDLE_MINUTES = 10
+# One job's outputs brought back, and kept, at a time on each machine (by host): jobs side by side on one (this PC's,
+# backends/local.py RUNS_AT_ONCE) can share an output folder (a bake row's `made`), which a copy must not read while
+# another job's outputs are still arriving into it.
+BRINGING = {}
 
 
 def script_line(job, repo, blender):
@@ -185,7 +189,8 @@ def run_job(log_folder, host, number, job, card):
         with (log_folder / f"job{number}.log").open("w") as log:
             batch.remote(log_folder, host, run_line(job, card), check=True, stdout=log, stderr=subprocess.STDOUT)
     finally:
-        came = sum(bring_back(log_folder, host, local) for local in job.get("outputs", ()))
+        with BRINGING.setdefault(host, threading.Lock()):
+            came = sum(bring_back(log_folder, host, local) for local in job.get("outputs", ()))
         batch.say(f"Blender job {number} ({job['script']}): {(time.time() - began) / 60:.1f} min")
     return round(time.time() - began, 1), came
 
@@ -257,7 +262,8 @@ def one_job(machine, share, card):
     if job.get("outputs") and not came:
         raise spread.JobFailed(f"job {number} ({job['script']}, {log}): its script ended well but none of its "
                                "outputs came back")
-    kept.keep(job)
+    with BRINGING.setdefault(host, threading.Lock()):
+        kept.keep(job)
 
 
 def still_to_run(jobs):

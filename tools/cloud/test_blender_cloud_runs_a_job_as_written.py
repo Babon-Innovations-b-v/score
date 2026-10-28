@@ -24,6 +24,8 @@ No machine is rented: each test reads the command, job or offers the module buil
 - test_a_job_that_brought_none_of_its_outputs_back_failed: in `one_job`, `if
   job.get("outputs") and not came:` -> `if False:`; or in `run_job`, drop `inputs.link_named(log_folder, host,
   job.get("outputs", ()))`.
+- test_jobs_side_by_side_on_one_machine_bring_their_outputs_back_one_at_a_time: in `run_job`, drop `with
+  BRINGING.setdefault(host, threading.Lock()):` (bring the outputs back unguarded) -> three copies at once.
 """
 import os
 import pathlib
@@ -219,3 +221,33 @@ def test_a_job_that_brought_none_of_its_outputs_back_failed(tmp_path, monkeypatc
         blender_cloud.one_job({"folder": tmp_path, "host": "host"}, (3, job), None)
     assert linked == job["outputs"], linked  # its outputs reached through the links its paths are named through
     assert blender_cloud.kept.missing([job]) == [job]  # nothing kept as done
+
+
+def test_jobs_side_by_side_on_one_machine_bring_their_outputs_back_one_at_a_time(tmp_path, monkeypatch):
+    """This PC runs a bake row's takes side by side (backends/local.py RUNS_AT_ONCE), all bringing back the row's one
+    `made` folder: a copy into it while another job's copy reads it would keep a file caught mid-write."""
+    import time
+    monkeypatch.setattr(blender_cloud.batch, "say", lambda line: None)
+    monkeypatch.setattr(blender_cloud.batch, "remote", lambda *args, **keywords: None)
+    monkeypatch.setattr(blender_cloud, "send_inputs", lambda *args: None)
+    monkeypatch.setattr(blender_cloud.inputs, "link_named", lambda *args: None)
+    bringing, most, guard = [0], [0], threading.Lock()
+
+    def bring_back(log_folder, host, local):
+        with guard:
+            bringing[0] += 1
+            most[0] = max(most[0], bringing[0])
+        time.sleep(0.05)
+        with guard:
+            bringing[0] -= 1
+        return True
+    monkeypatch.setattr(blender_cloud, "bring_back", bring_back)
+    job = {"script": "score/stages/surfaces/inside/paint_bake.py", "args": [], "inputs": [],
+           "outputs": [str(tmp_path / "made")], "minutes": 1}
+    slots = [threading.Thread(target=blender_cloud.run_job, args=(tmp_path, "this-pc", number, job, True))
+             for number in range(3)]
+    for slot in slots:
+        slot.start()
+    for slot in slots:
+        slot.join()
+    assert most[0] == 1
