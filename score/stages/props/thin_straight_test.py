@@ -13,7 +13,8 @@ whose close-up failed (`and not (closeups / f"{row}.png").exists()` in its rows)
 test_a_thin_straight_row_whose_close_up_passed_is_built_in_code_and_never_goes_to_pixal3d red (the pipe is batched).
 slender's edge left out again (`<=` -> `<`) turns test_only_thin_rows_of_a_straight_kind_are_taken red (the 4 m
 stair railing 1 m tall). lifted's runs not held to the box (`return laid, thick`) turns
-test_a_path_drawn_on_a_slant_keeps_the_row_s_own_metres red (the railing 2.95 m tall).
+test_a_path_drawn_on_a_slant_keeps_the_row_s_own_metres red (the railing 2.95 m tall). likeness_row.object_record's `lit` never set (`lit = False`)
+turns test_a_code_built_light_is_not_held_to_the_lamp_its_route_leaves_to_the_light_layer red (the lamp face missed).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/thin_straight_test.py
 """
@@ -239,9 +240,10 @@ def test_the_likeness_row_holds_a_code_take_to_its_crop_and_closes_its_gap_only_
     assert not likeness_row.free_passed({"pipe": {**found["pipe"], "outline": 0.1}}, "pipe")
 
 
-def held(tmp_path, row, lines, width=9):
+def held(tmp_path, row, lines, width=9, parts=None):
     """(the likeness row's record, prepare's predicted faults) of the code build from a concept whose SAM 3 mask is
-    `lines` (each a list of (x, y) points) drawn `width` pixels wide on a 600 by 200 picture."""
+    `lines` (each a list of (x, y) points) drawn `width` pixels wide on a 600 by 200 picture; `parts` the
+    surfaces-parts record its parts check reads (none by default)."""
     import score.stages.complete.prepare.predict as predict
     import score.stages.props.likeness_row as likeness_row
     from PIL import ImageDraw
@@ -259,7 +261,7 @@ def held(tmp_path, row, lines, width=9):
     inputs = {"closeup": folder / "closeup", "pixal input it": views / "input.png",
               "code take it": views / thin_straight.MARK}
     found = likeness_row.object_record("it", {"place": "p", "objects": {"it": {"route": "prop", "take": "take"}}},
-                                       inputs, {"take": pixal / "take-final.glb"}, {"takes": {}},
+                                       inputs, {"take": pixal / "take-final.glb"}, parts or {"takes": {}},
                                        {"it": {**row, "box": box}}, set(), folder / "cuts")
     found["code"] = json.loads((views / thin_straight.MARK).read_text())
     return found, predict.build_faults(pixal / "take-final.glb", views / "input.png", "p", "it", row, folder,
@@ -373,6 +375,20 @@ def test_a_path_drawn_on_a_slant_keeps_the_row_s_own_metres(tmp_path):
     string = {"name": "string lights", "noun": "lights", "size": [8.0, 0.1, 0.1], "anchor": "wall"}
     laid = thin_straight.lifted(sag, string, 3.0)[0]
     assert np.ptp(laid[0][:, 1]) > 1.0  # a tied side is no reach: the sag stays
+
+
+def test_a_code_built_light_is_not_held_to_the_lamp_its_route_leaves_to_the_light_layer(tmp_path):
+    """A stem lamp's code build is its post, its lamp the light layer's (the square's floodlight tower, 2026-10-28,
+    failed only on "bright white glowing lamp face"): the parts check leaves its lit finishes out and still names any
+    other it misses; a pipe, whose kind does not glow, is held to every finish."""
+    parts = {"takes": {"take": {"parts": [{"words": "dark steel"}], "finishes": [
+        {"finish": "dark steel", "family": "steel"}, {"finish": "bright white glowing lamp face", "family": "glass"},
+        {"finish": "red paint band", "family": "paint"}]}}}
+    lamp = {"id": "lamp", "view": "v1", "name": "street lamp", "noun": "lamp", "size": [0.3, 0.3, 6.0]}
+    assert held(tmp_path, lamp, [[(300, 10), (300, 190)]], parts=parts)[0]["parts_missing"] == ["red paint band"]
+    pipe = {"id": "pipe", "view": "v1", "name": "wall pipe", "noun": "pipe", "size": [6.0, 0.3, 0.3]}
+    assert held(tmp_path, pipe, [[(10, 100), (590, 100)]], parts=parts)[0]["parts_missing"] == [
+        "bright white glowing lamp face", "red paint band"]
 
 
 def test_the_masks_row_cuts_only_the_kept_thin_straight_rows_by_their_own_mask(tmp_path, monkeypatch):

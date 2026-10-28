@@ -13,8 +13,9 @@ The gates, each failing an object by name:
   designed place (its hand-in an approved design's, prepare/handin.py) names no accepted models, so no calibration
   applies to it: its scores are measured and shown, never judged, and `outline` holds its likeness (#10; the accepted
   set the least was first set on went with the old disk, so a calibration for it is the owner's to name).
-- `close-up parts present`: a prop model's parts (surfaces-parts) own every finish its close-up's list names; a code
-  build is unknown (nothing measures its parts: the fittings' parts check went with the code fallback, 2026-10-22).
+- `close-up parts present`: a prop model's parts (surfaces-parts) own every finish its close-up's list names, but a
+  code-built light's lit finishes, its lamp the light layer's (`finishes_missing`); a code object's is unknown
+  (nothing measures its parts: the fittings' parts check went with the code fallback, 2026-10-22).
 - `thin and in proportion`: tools/props/gates/model.py's check (thinnest wall, spread against the row's size).
 - `lean`: tools/props/library/straight.py on a generated model of a kind that stands square, as it exists: code
   builds are not held to it. No rule names such a kind since the old kinds' details (data/library/details.json)
@@ -46,6 +47,9 @@ from score.stages.surfaces.surface_gates import guarded, unknown, verdict
 
 # DINOv2 on a processor machine for a few hundred pairs (similar.py), rounded up.
 LIKENESS_EUROS = 1.0
+# The library families a lamp's lit faces take (score/stages/surfaces/finish_parts.py SEEN_THROUGH_FAMILIES: glass,
+# screen and light, judged by their own colour), which a code-built light leaves to the light layer (finishes_missing).
+LIT_FAMILIES = ("glass", "screen", "light")
 
 
 def files(place):
@@ -82,13 +86,17 @@ def model_of(row, record, inputs, baked):
     return baked.get(record["objects"][row]["take"])
 
 
-def finishes_missing(take, parts):
-    """The finishes a take's close-up lists that no part of its model owns."""
+def finishes_missing(take, parts, lit=False):
+    """The finishes a take's close-up lists that no part of its model owns. A code-built light's (`lit`: its row's kind
+    glows, thin_straight.slender_light) finishes of a lit family (LIT_FAMILIES) are its light's: the route builds its
+    post or body and leaves its lamp to the library's lamp the light layer lays, so its build never misses them (the
+    square's floodlight tower, outline 0.748, failed only on "bright white glowing lamp face", 2026-10-28)."""
     entry = parts["takes"].get(take)
     if entry is None:
         return None
     owned = {row["words"] for row in entry["parts"]}
-    return [finish["finish"] for finish in entry["finishes"] if finish["finish"] not in owned]
+    return [finish["finish"] for finish in entry["finishes"]
+            if finish["finish"] not in owned and not (lit and finish.get("family") in LIT_FAMILIES)]
 
 
 def model_checks(path, size, kind, square):
@@ -191,7 +199,8 @@ def object_record(row, record, inputs, baked, parts, rows, square, cuts):
     found.update(model=str(model), closeup=str(closeup), **likeness.best_way(model, closeup, drawn),
                  **model_checks(model, rows[row]["size"], kind, route == "prop" and kind in square))
     # a code build's parts: None, unknown (nothing measures them since the code fallback's parts check went)
-    found["parts_missing"] = finishes_missing(record["objects"][row]["take"], parts) if route == "prop" else None
+    lit = thin_built(inputs, row) and thin_straight.slender_light(rows[row])
+    found["parts_missing"] = finishes_missing(record["objects"][row]["take"], parts, lit) if route == "prop" else None
     return found
 
 
