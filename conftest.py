@@ -21,6 +21,7 @@ import pytest
 
 
 SYSTEM_TEMP = []  # the temp folder own_temp made this run's own one in, once it has
+SYSTEM_TEMP_VARIABLE = "SCORE_SYSTEM_TEMP"  # the same, for every other load of this file in the process and its children
 
 
 def system_temp():
@@ -28,6 +29,8 @@ def system_temp():
     own_temp has pointed TMPDIR at the run's own one inside it."""
     if SYSTEM_TEMP:
         return SYSTEM_TEMP[0]
+    if os.environ.get(SYSTEM_TEMP_VARIABLE):  # another load of this file (runpy, pytest) already moved TMPDIR
+        return pathlib.Path(os.environ[SYSTEM_TEMP_VARIABLE])
     saved, tempfile.tempdir = tempfile.tempdir, None
     try:
         return pathlib.Path(tempfile.gettempdir()).resolve()
@@ -71,6 +74,7 @@ def own_temp():
     one, removed with everything in it when this process exits (never by a forked child), and with it PROPS_HOME when
     it was empty as the run started (a hand run's `mktemp -d`; make tests' sandbox removes its own); its path."""
     SYSTEM_TEMP[:] = [system_temp()]
+    os.environ[SYSTEM_TEMP_VARIABLE] = str(SYSTEM_TEMP[0])
     folder = tempfile.mkdtemp(prefix="score-test-own-")
     tempfile.tempdir = os.environ["TMPDIR"] = folder
     home = pathlib.Path(os.environ["PROPS_HOME"])
