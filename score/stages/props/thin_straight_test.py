@@ -12,7 +12,8 @@ thin_straight.upward laying a tie on the ground (`return 0`: the sag's outline 0
 whose close-up failed (`and not (closeups / f"{row}.png").exists()` in its rows) turns
 test_a_thin_straight_row_whose_close_up_passed_is_built_in_code_and_never_goes_to_pixal3d red (the pipe is batched).
 slender's edge left out again (`<=` -> `<`) turns test_only_thin_rows_of_a_straight_kind_are_taken red (the 4 m
-stair railing 1 m tall).
+stair railing 1 m tall). lifted's runs not held to the box (`return laid, thick`) turns
+test_a_path_drawn_on_a_slant_keeps_the_row_s_own_metres red (the railing 2.95 m tall).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/thin_straight_test.py
 """
@@ -283,17 +284,17 @@ def test_a_straight_thing_slanted_by_the_concept_s_view_passes_as_prepare_predic
 def test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s_path(tmp_path):
     """A bent pipe, a sagging string, a bundle of two cables and a railing's ladder (world 1's straight-masks,
     2026-10-26) each failed as one straight sweep: their build follows the mask's own path, its longest reach the
-    row's longest side (a slender box's other sides need not agree with the picture), and the likeness row's outline and
+    row's longest side, its other reach the path's own unless it overruns the row's side by more than the gate's spread (held_to_box), and the likeness row's outline and
     prepare's prediction both pass it."""
     import trimesh
     sag = [(x, 50 + 120 * (1 - ((x - 300) / 260) ** 2)) for x in range(40, 561, 10)]
     posts = [[(x, 30), (x, 170)] for x in np.linspace(40, 560, 7)]
     shapes = {"elbow": ({"name": "wall pipe", "noun": "pipe", "size": [4.0, 0.1, 0.8]},
                         [[(40, 60), (40, 170), (560, 170)]]),
-              "sag": ({"name": "lantern string", "noun": "lanterns", "size": [6.0, 0.1, 1.0]}, [sag]),
+              "sag": ({"name": "lantern string", "noun": "lanterns", "size": [6.0, 0.1, 1.4]}, [sag]),
               "bundle": ({"name": "pipe bundle", "noun": "pipes", "size": [4.0, 0.1, 0.4]},
                          [[(40, 80), (560, 80)], [(40, 120), (560, 120)]]),
-              "ladder": ({"name": "metal railing", "noun": "railing", "size": [4.2, 0.1, 1.0]},
+              "ladder": ({"name": "metal railing", "noun": "railing", "size": [4.2, 0.1, 1.2]},
                          [[(40, 30), (560, 30)], [(40, 170), (560, 170)], *posts])}
     for name, (row, lines) in shapes.items():
         found, faults = held(tmp_path, {"id": name, "view": "v1", **row}, lines)
@@ -355,6 +356,23 @@ def test_a_thin_run_is_held_to_its_path_s_own_size_never_crushed_to_its_box(tmp_
     assert model_gate.thinnest(sag_mesh, [0.1, 0.1, 8.0]) < 0.02
     assert likeness_row.model_checks(tmp_path / "sag/pixal/take-final.glb", [8.0, 0.1, 0.1], "p_sag",
                                      False)["model_check"]["thinnest"] >= 0.05
+
+
+def test_a_path_drawn_on_a_slant_keeps_the_row_s_own_metres(tmp_path):
+    """A railing 4 m long and 1 m tall drawn on a 45 degree slant (the greenhouse's, at 46 degrees, laid 9.45 m tall,
+    2026-10-28): its path build is the row's length and at most its height, its slant flattened to it; a string's tie
+    (8 by 0.1 by 0.1) keeps its sag, the path's own."""
+    import trimesh
+    arc = [(x, 190 - 180 * ((x - 40) / 260) ** 2) for x in range(40, 301, 10)]  # a curve rising to its right
+    ladder = {"id": "ladder", "view": "v1", "name": "metal railing", "noun": "railing", "size": [4.0, 0.1, 1.0]}
+    held(tmp_path, ladder, [arc])
+    made = trimesh.load(tmp_path / "ladder" / "pixal" / "take-final.glb", force="mesh")
+    assert made.extents[1] <= 1.02 and made.extents[2] <= 4.0 * 1.02, made.extents  # the grid's one cell over
+    assert np.isclose(max(made.extents), 4.0, rtol=0.05), made.extents
+    sag = [np.array([(x, 40 + 100 * (1 - ((x - 300) / 260) ** 2)) for x in range(40, 561, 10)], dtype=float)]
+    string = {"name": "string lights", "noun": "lights", "size": [8.0, 0.1, 0.1], "anchor": "wall"}
+    laid = thin_straight.lifted(sag, string, 3.0)[0]
+    assert np.ptp(laid[0][:, 1]) > 1.0  # a tied side is no reach: the sag stays
 
 
 def test_the_masks_row_cuts_only_the_kept_thin_straight_rows_by_their_own_mask(tmp_path, monkeypatch):

@@ -258,8 +258,9 @@ def lifted(runs, row, width):
     path the picture's own, laid in a wall's plane (across the picture z, up it y) or the ground's (up the picture x:
     `upward`), seen back from the close-up's look-down (the outline's view, tools/props/closeup/check.py look_down:
     its height foreshortened by its cosine, a ground run by its sine); one scale for the picture, so the run's longest
-    reach is the row's longest side and its other reach the path's own, never the box's (a thin run's box is its
-    thickness on its two short sides: a sagging string 8 by 0.01 by 0.01); the tube `width` picture pixels thick at
+    reach is the row's longest side and its other reach the path's own, never a tied box side (a thin run's box is its
+    thickness on its two short sides: a sagging string 8 by 0.01 by 0.01), and a reach far past a real side held to
+    it (`held_to_box`); the tube `width` picture pixels thick at
     that scale, at most the row's thinnest side (its thickness: a 5 m drape's box 1 m deep is no 1 m tube) and at
     least `least_tube`."""
     with prop_data.tools("props/closeup", "props", "cloud"):
@@ -279,7 +280,28 @@ def lifted(runs, row, width):
         point[:, 2] = (run[:, 0] - low[0] - span[0] / 2) * scale
         point[:, up] = -(run[:, 1] / seen - low[1] - span[1] / 2) * scale  # the picture's down is the world's up
         laid.append(point)
-    return laid, thick
+    return held_to_box(laid, row, up, thick), thick
+
+
+def held_to_box(laid, row, up, thick):
+    """The laid runs with each of their two plane axes (z, and `up`'s) held to the row's side on it when they overrun it
+    by more than the model gate's proportion error (tools/props/gates/model.py SPREAD_LIMIT), where that side is a
+    reach and not its thickness (over its thinnest side): a picture's slant is its view's, never the thing's metres
+    (the greenhouse's railing, 9.4 by 0.1 by 1 m, drawn at 46 degrees and laid 9.45 m tall, 2026-10-28), while a
+    reading's metres a little off its picture keep the picture's path (the outline falls with any squash). A tied side
+    stays the path's own (a lantern string's 8 by 0.01 by 0.01 box is its thickness, its sag is not)."""
+    with prop_data.tools("props/gates", "props/library", "props"):
+        import model as model_gate
+    wide, deep, tall = (float(value) for value in row["size"])
+    thinnest = min(wide, deep, tall)
+    flat = np.concatenate(laid)
+    for axis, side in ((2, max(wide, deep)), (up, tall if up == 1 else min(wide, deep))):
+        reach = float(np.ptp(flat[:, axis]))
+        if side > thinnest and reach + thick > side * (1 + model_gate.SPREAD_LIMIT) and reach > 0:
+            factor = max(side - thick, 0.0) / reach
+            for point in laid:
+                point[:, axis] *= factor
+    return laid
 
 
 def on_wall(row):
