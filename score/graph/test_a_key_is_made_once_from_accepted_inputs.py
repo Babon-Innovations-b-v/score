@@ -1545,33 +1545,36 @@ def faked(monkeypatch, readings):
     return taken
 
 
-def test_each_node_started_lately_holds_a_floor_and_a_machine_names_its_own(monkeypatch):
-    """2.5 floors available: room with none or one ramping, none with two, room once the older has ramped; a 4 GB
-    floor named by SCORE_MIN_FREE_GB on 5 GB: room for one, none while one ramps.
-    Break: score/graph/__init__.py: '    return AVAILABLE() - ramping * memory_floor() >= memory_floor()' -> '    return AVAILABLE() >= memory_floor()'"""
+def test_each_running_node_holds_room_for_its_peak_less_what_it_holds_and_a_machine_names_its_own(monkeypatch):
+    """2.5 floors available: room for one unmeasured node with none running, none beside one that holds nothing yet,
+    room beside one that already holds its peak (or more), none beside one at 1 of its 3-floor peak (it grows after
+    its start: finish-route-views, 2026-10-28); a 4 GB floor named by SCORE_MIN_FREE_GB on 9 GB: room for one, none
+    beside one starting.
+    Break: score/graph/__init__.py: '    coming = sum(max(0, peak - holds) for peak, holds in running)' -> '    coming = 0'"""
     faked(monkeypatch, [2.5 * FLOOR])
-    now = time.monotonic()
-    assert graph.memory_room([]) and graph.memory_room([now]) and not graph.memory_room([now, now])
-    assert graph.memory_room([now, now - graph.RAMP_SECONDS - 1])
-    faked(monkeypatch, [5 * 2**30])
+    assert graph.memory_room([], FLOOR) and not graph.memory_room([(FLOOR, 0)], FLOOR)
+    assert graph.memory_room([(FLOOR, FLOOR)], FLOOR) and graph.memory_room([(FLOOR, 2 * FLOOR)], FLOOR)
+    assert not graph.memory_room([(3 * FLOOR, FLOOR)], 0.1 * FLOOR)
+    faked(monkeypatch, [9 * 2**30])
     monkeypatch.setenv(graph.FLOOR_VARIABLE, "4")
-    assert graph.memory_floor() == 4 * 2**30 and graph.memory_room([])
-    assert not graph.memory_room([time.monotonic()])
+    assert graph.memory_floor() == 4 * 2**30 and graph.memory_room([], 4 * 2**30)
+    assert not graph.memory_room([(4 * 2**30, 0)], 4 * 2**30)
     monkeypatch.setenv(graph.FLOOR_VARIABLE, "")
-    assert graph.memory_floor() == FLOOR and not graph.memory_room([])
+    assert graph.memory_floor() == FLOOR and not graph.memory_room([], FLOOR)
 
 
 def test_the_drive_waits_while_memory_is_short_and_never_starts_more_than_its_jobs(monkeypatch):
-    """Break: score/graph/__init__.py: '                        held = held or not memory_room(starts)' -> '                        held = False'"""
+    """Break: score/graph/__init__.py: '                        held = held or not memory_room(coming, expected)' -> '                        held = False'"""
     runner = a_driven_runner({"hangar": "a ship", "station": "a hub"})
-    taken = faked(monkeypatch, [FLOOR - 1] * 3 + [100 * FLOOR])
+    taken = faked(monkeypatch, [2 * FLOOR - 1] * 3 + [100 * FLOOR])
+    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
     started, start = [], runner.start
     runner.start = lambda stage, place, threads: started.append(taken[-1]) or start(stage, place, threads)
     monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
     said = []
     found = runner.drive(PLACES, say=said.append, jobs=4)
     assert set(found) == {"clean@hangar", "clean@station", "count@hangar", "count@station"}, found
-    assert started and all(reading >= FLOOR for reading in started), started
+    assert started and all(reading >= 2 * FLOOR for reading in started), started
     assert len(taken) > 3 and [line for line in said if line.startswith("memory: ")], said
     runner = a_driven_runner({place: "a ship" for place in PLACES})
     faked(monkeypatch, [100 * FLOOR])
@@ -1594,19 +1597,37 @@ def test_the_drive_waits_while_memory_is_short_and_never_starts_more_than_its_jo
     assert most[0] == 1, most
 
 
-
-def test_a_node_that_ended_holds_no_memory_so_light_nodes_start_as_fast_as_they_end(monkeypatch):
-    """Room for one floor only, a ramp far longer than the nodes: each next node starts once the one before ended,
-    never after the ramp (env1 on the PC, 2026-10-27: light rows of seconds ran 5 a minute, 31 GB free).
-    Break: score/graph/__init__.py: drop '                starts.pop(node, None)' -> the drive waits out the ramp."""
+def test_a_node_past_its_start_still_holds_room_for_its_stages_peak_and_each_peak_is_kept(monkeypatch):
+    """clean's kept peak 1.5 floors, each running node holding 0.1 floor, 2.8 floors available: one clean node at a
+    time (a second would leave 0.9 floor), the next started once the one before ended; each stage's peak is kept
+    beside the store, a measured one never lowering it.
+    Break: score/graph/__init__.py: '            found.append((peaks.get(stage.name, memory_floor()), held[process.pid]))'
+    -> '            found.append((held[process.pid], held[process.pid]))' -> two clean nodes run at once."""
     runner = a_driven_runner({"hangar": "a ship", "station": "a hub"})
-    faked(monkeypatch, [1.5 * FLOOR])
-    monkeypatch.setattr(graph, "RAMP_SECONDS", 3)
+    runner.keep_peak("clean", int(1.5 * FLOOR))
+    faked(monkeypatch, [2.8 * FLOOR])
+    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, int(0.1 * FLOOR)))
     monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
-    begun = time.monotonic()
+    running, most, start, wait = {}, [0], runner.start, graph.FORK_WAIT
+
+    def counted_start(stage, place, threads):
+        begun = start(stage, place, threads)
+        running.update(dict.fromkeys(begun, stage.name))
+        most[0] = max(most[0], list(running.values()).count("clean"))
+        return begun
+
+    def counted_wait(connections, timeout=None):
+        finished = wait(connections, timeout=timeout)
+        for connection in finished:
+            running.pop(connection)
+        return finished
+    runner.start = counted_start
+    monkeypatch.setattr(graph, "FORK_WAIT", counted_wait)
     found = runner.drive(PLACES, say=quiet, jobs=4)
     assert set(found) == {"clean@hangar", "clean@station", "count@hangar", "count@station"}, found
-    assert time.monotonic() - begun < graph.RAMP_SECONDS, time.monotonic() - begun
+    assert most[0] == 1, most
+    peaks = runner.peaks()
+    assert peaks["clean"] == int(1.5 * FLOOR) and peaks["count"] >= int(0.1 * FLOOR), peaks
 
 
 def test_an_input_is_hashed_again_once_it_changed_and_never_kept_while_it_just_changed(tmp_path, monkeypatch):

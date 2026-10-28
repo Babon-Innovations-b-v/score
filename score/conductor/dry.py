@@ -14,7 +14,7 @@ environment added to its table):
 3. resume: `score resume` at another boot id, on the batch size's cores, starts the waiting run from its frozen copy
    (its restart the toy command, not detached), which drives both lines to done;
 4. memory guard: a drive under a faked available memory, the floor SCORE_MIN_FREE_GB, holds the second node until the
-   first's ramp is over;
+   first, still short of its stage's peak, has ended;
 5. health and logs: written and read back;
 6. shrink: the size timer, idle past its time at the batch size, asks the stand-in to shrink;
 7. kill switch: stop_all ends a live fake run, releases a fake parked machine and writes the free-only latch.
@@ -202,7 +202,7 @@ def step_resume(copy, record):
 
 def make_held(inputs, out, seed, params):
     (out / "times.txt").write_text(f"{time.time()}\n")
-    time.sleep(3.0)  # past the 2 s ramp: the second node is let go by the ramp, never by this one ending
+    time.sleep(1.0)  # the second node waits on this one's end, never on time passing
     (out / "times.txt").write_text(f"{(out / 'times.txt').read_text()}{time.time()}\n")
 
 
@@ -211,28 +211,29 @@ def judge_held(output, inputs, evidence):
 
 
 def step_memory(home):
-    """Two nodes ready at once with room for one (6 GB available, a 4 GB floor): the second starts only once the
-    first's ramp is over while the first still runs, and the hold is said (the ramp and the poll shortened for the
-    check). The gap is read at the runner's own starts, not inside the node, so a slow fork cannot move it."""
+    """Two nodes ready at once with room for one (10 GB available, a 4 GB floor and a 4 GB guess for a stage never
+    measured): the second starts only once the first ended, however long it ran, and the hold is said (the poll
+    shortened for the check). The start is read at the runner's own starts, not inside the node."""
     from score.store import Store
     held = graph.Stage("held", "place", make_held, TEXT, (checks.Check("timed", judge_held),),
                        files={"brief": "{data}/{place}/brief.txt"})
     runner = graph.Runner((held,), dry_world(), Store.in_folder(home / "memory-store"), model_record=lambda kind: {})
-    kept, said, started = (graph.AVAILABLE, graph.RAMP_SECONDS, graph.MEMORY_POLL), [], []
+    kept, floor, said, started = (graph.AVAILABLE, graph.MEMORY_POLL), os.environ.get(graph.FLOOR_VARIABLE), [], []
     start = runner.start
     runner.start = lambda stage, place, threads: started.append(time.time()) or start(stage, place, threads)
     os.environ[graph.FLOOR_VARIABLE] = "4"
-    graph.AVAILABLE, graph.RAMP_SECONDS, graph.MEMORY_POLL = lambda: 6 * 2**30, 2.0, 0.2
+    graph.AVAILABLE, graph.MEMORY_POLL = lambda: 10 * 2**30, 0.2
     try:
         found = runner.drive(list(PLACES), say=said.append, jobs=2, whole=False)
     finally:
-        graph.AVAILABLE, graph.RAMP_SECONDS, graph.MEMORY_POLL = kept
+        graph.AVAILABLE, graph.MEMORY_POLL = kept
         os.environ.pop(graph.FLOOR_VARIABLE)
+        os.environ.update({graph.FLOOR_VARIABLE: floor} if floor is not None else {})
     times = {place: [float(line) for line in (runner.store.checkout(runner.store.accepted(f"held@{place}"))
                                               / "times.txt").read_text().split()] for place in PLACES}
     first, second = sorted(times.values())
     ok = (set(found.values()) == {"made: pass, accepted automatically"} and len(started) == 2
-          and started[1] - started[0] >= 1.9 and started[1] < first[1]
+          and started[1] >= first[1]
           and any(line.startswith("memory:") for line in said))
     return ok, {"found": found, "times": times, "started": started, "said": said}
 
@@ -314,7 +315,9 @@ def inside(detail):
     reader = home / "secret-reader"
     reader.write_text(f"#!/bin/sh\necho {TOKEN}\n")
     reader.chmod(0o700)
-    os.environ.update({conductor.SIZE_URL: server.url, "SCORE_SECRET_READER": str(reader)})
+    # the toy's nodes take 0.2-0.3 GB: a 1 GB floor, so this PC's live memory holds no step up (each node's room is
+    # its stage's peak beside the floor, a stage never measured given the floor: 2026-10-28, 9.9 GB free held resume)
+    os.environ.update({conductor.SIZE_URL: server.url, "SCORE_SECRET_READER": str(reader), graph.FLOOR_VARIABLE: "1"})
     commit, _ = frozen.snapshot(REPO)
     copy = frozen.make(REPO, commit)
     env = {**os.environ, frozen.FROZEN: str(copy)}

@@ -3,8 +3,8 @@ and of the basket. Never per-piece prices alone: the pages show the basket's tot
 """
 # The runner jobs at once a batch's time is reckoned on (the launch guard's default too). 16 (owner, 2026-10-22: the
 # full world1 batch about 8 h at 8, 4 h at 16): most nodes wait on rented machines, and the local ones measured
-# 0.21-0.28 GB peak each (score.graph MEMORY_FLOOR), while the runner holds back every start while this 43 GB PC
-# has under its 6 GB floor free; 16 on 24 cores leaves each node one thread.
+# 0.21-0.28 GB peak each (score.graph MEMORY_FLOOR), while the runner starts a node only while this 43 GB PC keeps
+# its 6 GB floor free beside the nodes' stage peaks; 16 on 24 cores leaves each node one thread.
 DEFAULT_JOBS = 16
 
 

@@ -53,6 +53,7 @@ import multiprocessing.connection
 import os
 import pathlib
 import platform
+import resource
 import shutil
 import signal
 import sys
@@ -84,13 +85,16 @@ RUNNER_POLL_SECONDS = 2
 # A drive says a heartbeat line (rows done, running and queued, and the run's gauges) every HEARTBEAT seconds, so a run
 # that is alive says so and a quiet log means a dead run (2026-10-16: runs failed or sat idle for hours unseen).
 HEARTBEAT = 120
-# The drive starts no node while this PC's available memory, less MEMORY_FLOOR for each node started in the last
-# RAMP_SECONDS and still running (its memory not taken yet; a node that ended holds none), is under MEMORY_FLOOR;
-# it reads again every MEMORY_POLL seconds. This PC (43 GB) has run out of memory before. Measured 2026-10-22 (peak RSS of the make, imports included): plan@hub 0.21 GB,
+# The drive starts a node only while this PC's available memory, less what each running node is still expected to
+# take (its stage's measured peak less what its process tree holds now; a node that ended holds none) and less the
+# new node's own peak, stays at MEMORY_FLOOR or above; it reads again every MEMORY_POLL seconds. A stage's peak is the
+# most resident memory one of its nodes took (its process and children's, rusage, or the drive's own readings),
+# kept per stage in memory/peaks.json beside the store; a stage never measured is given MEMORY_FLOOR. 2026-10-28:
+# five finish-route-views nodes grew to 4.8-6.4 GB each minutes after their start and took this PC to 7 GB free
+# (the rule then reserved a floor only for a node's first minute). This PC (43 GB) has run out of memory before. Measured 2026-10-22 (peak RSS of the make, imports included): plan@hub 0.21 GB,
 # earth-seed@greenhouse 0.22 GB, the assembly, completion, earth-seed, scene-record and terrain test makes 0.22-0.28
 # GB (a node waiting on a rented machine not measured). 6 GB is far over those, for the nodes not measured yet.
 MEMORY_FLOOR = 6 * 2**30
-RAMP_SECONDS = 60
 MEMORY_POLL = 30
 # A machine whose memory wants another floor names it in GB (score/conductor: SCORE_MIN_FREE_GB on the conductor).
 FLOOR_VARIABLE = "SCORE_MIN_FREE_GB"
@@ -430,11 +434,48 @@ def memory_floor():
     return int(float(named) * 2**30) if named else MEMORY_FLOOR
 
 
-def memory_room(starts):
-    """True when this PC's available memory, less the floor (memory_floor) for each running node started (`starts`:
-    monotonic times) in the last RAMP_SECONDS, still holds the floor for one more node."""
-    ramping = sum(1 for started in starts if time.monotonic() - started < RAMP_SECONDS)
-    return AVAILABLE() - ramping * memory_floor() >= memory_floor()
+def memory_room(running, expected):
+    """True when this PC's available memory, less what each running node is still expected to take (`running`:
+    (its stage's peak, what it holds now) in bytes) and less a new node's `expected` peak, stays at the floor
+    (memory_floor) or above."""
+    coming = sum(max(0, peak - holds) for peak, holds in running)
+    return AVAILABLE() - coming - expected >= memory_floor()
+
+
+def process_table():
+    """{pid: (parent pid, resident bytes)} of every process on this PC (/proc/<pid>/stat)."""
+    page, table = os.sysconf("SC_PAGE_SIZE"), {}
+    for entry in os.scandir("/proc"):
+        if entry.name.isdigit():
+            with contextlib.suppress(OSError, ValueError, IndexError):  # a process that ended while it was read
+                fields = pathlib.Path(entry.path, "stat").read_text().rsplit(")", 1)[1].split()
+                table[int(entry.name)] = (int(fields[1]), int(fields[21]) * page)
+    return table
+
+
+def trees_held(pids):
+    """{each of `pids`: the resident bytes its process and every descendant hold now} (0 once it is gone)."""
+    table, children = process_table(), {}
+    for pid, (parent, _) in table.items():
+        children.setdefault(parent, []).append(pid)
+    held = {}
+    for root in pids:
+        tree, total = [root], 0
+        while tree:
+            pid = tree.pop()
+            total += table.get(pid, (0, 0))[1]
+            tree += children.get(pid, [])
+        held[root] = total
+    return held
+
+
+HELD = trees_held  # the tests give a fake reading
+
+
+def own_peak():
+    """The most resident memory this process and its children (each waited for) took, in bytes: both added, as a
+    child may run while its parent holds its own."""
+    return sum(resource.getrusage(who).ru_maxrss for who in (resource.RUSAGE_SELF, resource.RUSAGE_CHILDREN)) * 1024
 
 
 def node_threads(jobs):
@@ -1434,21 +1475,50 @@ class Runner:
             did = self.drive_node(stage, place, threads)
         except BaseException as error:  # noqa: BLE001 - raised where its log could not take it (Batch 1, a full disk)
             did = f"error: {type(error).__name__}: {error}; raised outside its log:\n{traceback.format_exc()}"
-        sending.send(did)
+        sending.send((did, own_peak()))
         sending.close()
         sys.stdout.flush()
         sys.stderr.flush()
         os._exit(0)
 
     def outcome(self, receiving, process):
-        """What a node's process did, once it ended; an error when it ended without saying."""
+        """(What a node's process did, once it ended: an error when it ended without saying; the peak resident bytes
+        it said it took, 0 when it did not say)."""
         try:
-            did = receiving.recv()
+            did, peak = receiving.recv()
         except EOFError:
-            did = None
+            did, peak = None, 0
         receiving.close()
         process.join()
-        return did or f"error: its process ended (exit code {process.exitcode}) without saying what it did"
+        return did or f"error: its process ended (exit code {process.exitcode}) without saying what it did", peak
+
+    def peaks(self):
+        """{stage: the most resident bytes one of its nodes took}, as kept beside the store (none yet: {})."""
+        path = self.desk("memory", "peaks", ".json")
+        return json.loads(path.read_text()) if path.exists() else {}
+
+    def keep_peak(self, stage, peak):
+        """Keep `peak` bytes as the stage's peak when it is more than the one kept; the peaks kept."""
+        peaks = self.peaks()
+        if peak > peaks.get(stage, 0):
+            peaks[stage] = peak
+            path = self.desk("memory", "peaks", ".json")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            spare = path.with_suffix(f".{os.getpid()}")
+            spare.write_text(json.dumps(peaks, indent=1, sort_keys=True) + "\n")
+            os.replace(spare, path)
+        return peaks
+
+    def coming(self, running, peaks, seen):
+        """[(each running node's stage peak, what its process tree holds now)], the most each was seen to hold kept
+        in `seen` ({node: bytes})."""
+        held = HELD([process.pid for _, _, process in running.values()])
+        found = []
+        for stage, place, process in running.values():
+            node = node_name(stage, place)
+            seen[node] = max(seen.get(node, 0), held[process.pid])
+            found.append((peaks.get(stage.name, memory_floor()), held[process.pid]))
+        return found
 
     def conclude(self, stage, place, did):
         """A finished node's fault report when it does not stand, else its old report removed; (what it did, whether
@@ -1465,7 +1535,7 @@ class Runner:
     def drive(self, places, say=print, jobs=JOBS, whole=True, only=None, gauges=None):
         """Run every line to its end with no one in the loop, the lines side by side: each node starts in a process of
         its own the moment every node it reads stands accepted, at most `jobs` at once and only while this PC has
-        memory for one more (memory_room), so a line waiting on a cloud step holds up no other line, and nodes of one line that read nothing of each other run side by side. An environment
+        memory for its stage's peak beside the running nodes' (memory_room), so a line waiting on a cloud step holds up no other line, and nodes of one line that read nothing of each other run side by side. An environment
         node is made once and each line that reads it waits on it alone. A node that does not end accepted stops its
         own line and leaves a fault report: every node that reads it, directly or through another, is not run, and a node
         on that line that reads nothing of it still runs; a node waits on its optional reads the drive makes too and
@@ -1479,11 +1549,12 @@ class Runner:
         on_gaps = set()  # stopped nodes that fail only on their accepted gaps: a stage's `gapped` reads them
         beat_at = time.monotonic() + HEARTBEAT
         threads = node_threads(jobs)
-        starts, told = {}, False  # starts: when each running node started (memory_room); told: the memory wait was said
+        peaks, seen, told = self.peaks(), {}, False  # seen: the most each running node held; told: the wait was said
         self.driving = (0, time.monotonic())
         while waiting or running:
             held = False  # a node ready to start waits for memory
             ready = []  # started once the pass is over: a forked node must not inherit its remembered keys
+            coming = self.coming(running, peaks, seen)  # what the running nodes may still take (memory_room)
             with self.still():  # each key worked out once a pass (Batch 1, 2026-10-25: a pass took 12 min and more)
                 for stage, place in list(waiting):
                     node, earlier = node_name(stage, place), self.earlier(stage, place)
@@ -1501,18 +1572,19 @@ class Runner:
                         say(f"{node}: {done[node]}")
                     elif stood.union(passes).issuperset(earlier) and len(running) + len(ready) < jobs and \
                             not self.unsettled(stage, place, line, stood, stopped):
-                        held = held or not memory_room(starts.values())
+                        expected = peaks.get(stage.name, memory_floor())
+                        held = held or not memory_room(coming, expected)
                         if held:
                             continue
                         waiting.remove((stage, place))
                         ready.append((stage, place))
-                        starts[node_name(stage, place)] = time.monotonic()
+                        coming.append((expected, 0))
             for stage, place in ready:
                 running.update(self.start(stage, place, threads))
             self.driving = (len(running), time.monotonic())
             if held and not told:
                 say(f"memory: {AVAILABLE() / 2**30:.1f} GB available, {len(running)} running; ready nodes wait for "
-                    f"{memory_floor() / 2**30:.0f} GB free per node starting")
+                    f"{memory_floor() / 2**30:.0f} GB to stay free beside the running and starting nodes' peaks")
             told = held
             if not running:
                 if not held:
@@ -1528,8 +1600,9 @@ class Runner:
             for finished in FORK_WAIT(list(running), timeout=beat_in):
                 stage, place, process = running.pop(finished)
                 node = node_name(stage, place)
-                starts.pop(node, None)  # an ended node holds no memory: light rows (0.2-0.3 GB) start as fast as they end
-                done[node], stands = self.conclude(stage, place, self.outcome(finished, process))
+                did, peak = self.outcome(finished, process)  # an ended node holds no memory: the next starts at once
+                peaks = self.keep_peak(stage.name, max(peak, seen.pop(node, 0)))
+                done[node], stands = self.conclude(stage, place, did)
                 if stands:
                     stood.add(node)
                 else:
