@@ -26,6 +26,8 @@ seen red, reverted):
   bool(wanted())` -> `return True`.
 - test_a_slot_stops_asking_at_its_deadline_and_on_a_signal: in batch.py `still_wanted`, drop `or time.time() >=
   run.deadline`.
+- test_a_wait_for_this_pcs_machine_is_not_the_works_time: in `this_pc_waited`, drop `run.deadline += waited` (the
+  share is never run); or `return waited >= THIS_PC_WAIT_SECONDS` -> `return False` (the slot gives up).
 """
 import pathlib
 import sys
@@ -199,3 +201,34 @@ def test_a_slot_stops_asking_at_its_deadline_and_on_a_signal(stock_after):
     run.deadline = time.time() + 60
     batch.STOPPING.set()
     assert batch.claim(run, "account", [offer("gpu-24gb", "zone-a")], 1, "parts") is None
+
+
+
+def test_a_wait_for_this_pcs_machine_is_not_the_works_time(fake_machines, monkeypatch):
+    """On this PC's one machine, a claim that waited out the run's deadline behind the run's own jobs asks again,
+    and the deadline moves on by the wait, so the share runs; on a rented backend nothing moves."""
+    run, done, made = fake_machines, [], batch.claim
+    run.deadline = time.time() + 0.3
+    calls = []
+
+    def claim(run, account, found, number, kind, disk_gb, wanted=None):
+        calls.append(time.time())
+        if len(calls) == 1:  # the machine busy with the run's other jobs until the deadline
+            time.sleep(max(0.0, run.deadline - time.time()) + 0.05)
+            return None
+        return made(run, account, found, number, kind, disk_gb, wanted)
+    monkeypatch.setattr(batch, "claim", claim)
+    monkeypatch.setattr(spread, "THIS_PC_WAIT_SECONDS", 0.2)
+    monkeypatch.setattr(spread.provider.cloud, "NAME", "local")
+    shares = spread.Shares(["one"], deadline=run.deadline)
+    spread.on_machines(run, None, [], 1, "blender", shares, lambda machine: None,
+                       lambda machine, share, card: done.append(share))
+    assert done == ["one"] and len(calls) == 2, (done, calls)
+    assert shares.deadline > calls[1] and run.deadline > calls[1]
+    monkeypatch.setattr(spread.provider.cloud, "NAME", "scaleway")
+    calls.clear()
+    before = run.deadline = time.time() + 0.3
+    shares = spread.Shares(["two"], deadline=run.deadline)
+    spread.on_machines(run, None, [], 1, "blender", shares, lambda machine: None,
+                       lambda machine, share, card: done.append(share))
+    assert done == ["one"] and len(calls) == 1 and run.deadline == before  # a rented backend gives up as before
