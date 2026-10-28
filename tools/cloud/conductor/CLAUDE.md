@@ -57,7 +57,7 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   stage runs that script (bus up), which enables the unit and starts it when this boot has not. A live server gets it
   by `machine.py user-data [--dry]` (sets its user-data key `cloud-init` to the rendered template; users and
   write_files do not run again) and a reboot. `boot.sh system` stops with a clear message without the system bus,
-  and names the line of any failing command. Between boots `update.py` syncs the prop environment whenever it is missing and with `.venv` on a uv.lock change. The first Buy on the conductor (2026-10-24, checkout 4)
+  and names the line of any failing command. Between boots `update.py` syncs the prop environment whenever it is missing and with `.venv` on a uv.lock change, and gives score_lib's checkout the committer `SCORE conductor <conductor@score.invalid>` in its own git config when it has no user.email (2026-10-28: boot.sh's clone had none, so every library commit failed). The first Buy on the conductor (2026-10-24, checkout 4)
   failed for want of it.
 - **Secrets**: one credential on disk, `/home/score/.config/scw/config.yaml` (mode 600). Everything else by name
   through `/usr/local/bin/score-secret-reader` (`secret_reader.sh`: the project id found by its name,
