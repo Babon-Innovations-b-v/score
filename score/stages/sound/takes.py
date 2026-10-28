@@ -96,7 +96,11 @@ def prove_tool():
 def on_card(plan):
     """The plan on one card (#21): a card of the run's warm pool, else one rented, the claim waiting for stock while
     the card's deadline is ahead (no stock never makes a gap: owner, 2026-10-23); no card had by then is Blocked, a
-    new batch asks again."""
+    new batch asks again. On this PC (SCORE_CLOUD=local, no image registry) the same jobs go through moss_sound.py's
+    machine path instead, MOSS a model at a time on its 16 GB card."""
+    if graph.on_this_pc():
+        on_this_pc(plan)
+        return
     prove = prove_tool()
     from provider import cloud  # prove.py put it on the path
     account = cloud.account()
@@ -110,6 +114,17 @@ def on_card(plan):
     failed = [job for numbers in results.get(KIND, []) for job in numbers["jobs"].values() if job.get("failed")]
     if failed:  # its takes are gaps (made says which), never asked again inside the batch
         print(f"the moss job failed on its card: {failed}", flush=True)
+
+
+def on_this_pc(plan):
+    """The plan's takes on this PC's card through tools/cloud/moss_sound.py, back where the plan's output names."""
+    folder = str(REPO / "tools/cloud")
+    if folder not in sys.path:
+        sys.path.insert(0, folder)
+    import moss_sound
+    run = plan["runs"][0]
+    jobs = json.loads(pathlib.Path(run["inputs"][0]["from"]).read_text())
+    moss_sound.on_this_pc(jobs, pathlib.Path(run["jobs"][0]["outputs"][0]["to"]), plan["minutes"])
 
 
 @contextlib.contextmanager

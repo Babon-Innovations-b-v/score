@@ -45,7 +45,8 @@ gates; `takes.py` the paid part.
 - **A sound picked already is taken as it is** (from the library, tools/library; its credit off `data/sound/licences.json`, its CLAP
   score `chosen.clap` measured when it was made); only one whose files are off its category's loudness is levelled
   here, its volume moved so it plays as loud as before. Only briefs no environment file answers are made, MOSS on one rented
-  card in the moss image (`takes.py`, through `tools/cloud/images/prove.py`), chosen by the picker's rule.
+  card in the moss image (`takes.py`, through `tools/cloud/images/prove.py`), chosen by the picker's rule; on this
+  PC (SCORE_CLOUD=local) through `tools/cloud/moss_sound.py`'s machine path on its own card, free.
 - **Takes are kept in `~/.cache/farm-factory/sound-picker/moss/stage/`** named by sound, the hash of prompt, length and
   weights, and seed, with their CLAP scores: the same brief is never paid for twice. Change a prompt to get new takes.
 - **One batch, one take a sound** (#21, #29): the library match and the loudness are decided free before it (a
