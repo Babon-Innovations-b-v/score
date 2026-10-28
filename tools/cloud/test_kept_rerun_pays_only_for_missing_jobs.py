@@ -8,6 +8,8 @@ Fake film jobs, no cloud: the answers are counted from the jobs the test lets fi
 
 - test_a_rerun_runs_only_the_jobs_the_stopped_run_lacked: in `missing`, `if not put_back(job)` -> `if True` (every
   job runs again).
+- test_jobs_sharing_a_folder_get_back_each_ones_newest_file: in `merge`, drop the `if place.is_file() and ...
+  st_mtime_ns ...: continue` (every kept copy replaces what is there) -> the barrel's half-written model comes back.
 - test_another_key_or_a_changed_job_takes_nothing: in `key_folder`, `/ "kept" / node / key` -> `/ "kept" / node` (a
   rerun at another key takes the old key's jobs).
 - test_a_copy_cut_short_before_its_done_mark_is_not_taken: in `put_back`, `if found is None or not (found[0] /
@@ -17,6 +19,7 @@ Fake film jobs, no cloud: the answers are counted from the jobs the test lets fi
 - test_at_the_runner_a_failed_paid_make_reruns_only_its_lacking_jobs_and_drops_the_kept_once_stored: in
   score/graph/__init__.py `drop_kept`, `if folder.exists():` -> `if False:` (the kept jobs outlive the stored output).
 """
+import os
 import pathlib
 import sys
 
@@ -62,6 +65,32 @@ def test_a_rerun_runs_only_the_jobs_the_stopped_run_lacked(monkeypatch, tmp_path
     assert kept.missing(rerun) == rerun[5:]
     assert (again / "frames" / "part48" / "059.png").read_text() == "frame 59"  # put back where the job writes
     assert not (again / "frames" / "part60").exists()
+
+
+def takes(folder, take):
+    """A bake row's paint and bake job of one take, its models brought back into the row's one `made` folder."""
+    return {"script": "score/stages/surfaces/inside/paint_bake.py", "args": [str(folder / f".bake-{take}.json")],
+            "inputs": [], "outputs": [str(folder / "made")], "minutes": 5}
+
+
+def test_jobs_sharing_a_folder_get_back_each_ones_newest_file(monkeypatch, tmp_path):
+    """Side by side on this PC, a bake row's takes bring back its one `made` folder: the crate's job kept the barrel's
+    model caught mid-write, the barrel's job its finished one; the rerun gets back the finished one."""
+    folder = attempt(monkeypatch, tmp_path, "first")
+    made = folder / "made"
+    barrel, crate = (takes(folder, name) for name in ("barrel", "crate"))
+    made.mkdir()
+    (made / "barrel.gltf").write_text("half")
+    (made / "crate.gltf").write_text("crate")
+    os.utime(made / "barrel.gltf", (1_000, 1_000))
+    assert kept.keep(crate)
+    (made / "barrel.gltf").write_text("barrel")
+    assert kept.keep(barrel)
+    again = attempt(monkeypatch, tmp_path, "again")
+    rerun = [takes(again, name) for name in ("barrel", "crate")]
+    assert kept.missing(rerun) == []
+    assert {path.name: path.read_text() for path in (again / "made").iterdir()} == {"barrel.gltf": "barrel",
+                                                                                   "crate.gltf": "crate"}
 
 
 def test_another_key_or_a_changed_job_takes_nothing(monkeypatch, tmp_path):

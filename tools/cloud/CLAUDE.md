@@ -33,7 +33,11 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   rented machine, so no runner changes; never rented and never billed (its offers are `parked` at EUR 0, so
   `batch.rent` orders nothing, and `park.adopt` hands it out through `park.here`, no clearance asked, its ledger rows
   EUR 0 with the measured minutes), one claim at a time over the whole PC (a file lock; a busy claim waits and asks
-  again), never parked, its claim ended by a container restart that ends whatever the job left on the card, its
+  again), inside it Blender jobs side by side as many as the container's memory holds at a take's measured peak
+  (`local.RUNS_AT_ONCE`, three in 27 GiB; env1, 2026-10-28: one take at a time left about 20 of 24 cores idle) with
+  every card call (the Cycles bake, a render) taking the card in turn (`backends/card_turn.py`, a Blender startup
+  script each claim copies into the container), their outputs brought back and kept one job at a time a machine
+  (`blender_cloud.BRINGING`), never parked, its claim ended by a container restart that ends whatever the job left on the card, its
   set-up kept but for the newest mark. A kind too big for its 16 GB (`local.TOO_BIG`: judge, pictures-20b,
   characters, meshparts, moss-sound) is refused at its claim with the GB, and a class above one 24 GB card is never
   offered: those stay cloud jobs. A run that gives its own measured need (`run.need`) is refused by that instead: a
@@ -121,7 +125,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 - **A stopped run keeps its finished jobs under its key** (`kept.py`, owner 2026-10-18): `kept.keep(job)` after a job
   ends well copies its outputs to `kept/<node>/<key>/` beside the store (the runner names the make's folder,
   SCORE_MAKING, and drops the folder once the node's output is stored), and `kept.missing(jobs)` puts every kept job
-  of the same key back in place and returns the rest, so a rerun pays only for those. `blender_cloud.py` calls both
+  of the same key back in place (each file unless the one there is newer: jobs side by side share a folder) and
+  returns the rest, so a rerun pays only for those. `blender_cloud.py` calls both
   (audit, 2026-10-22): `still_to_run` before pricing a call's jobs, `keep` after each job ends well on a machine or
   the cluster; a held machine's chain (`--serve`) keeps nothing.
 - **The cheapest card that fits** (owner, 2026-10-12): `capacity.next_offer` takes the kind's cheapest card per job

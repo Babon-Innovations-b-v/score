@@ -8,8 +8,11 @@ in the container from one job to the next; only the newest set-up mark is kept (
 through WSL's /dev/dxg and /usr/lib/wsl (on plain Linux through `--gpus all`); the container's memory is held under
 this PC's own so a job that runs out of memory fails alone and never takes WSL down.
 
-One claim at a time over the whole PC (a file lock, `take`): the card is never shared by two jobs' processes, a claim
-that finds it busy gets None and its runner waits and asks again (batch.claim_rounds polls park.adopt). Its offers are
+One claim at a time over the whole PC (a file lock, `take`): a claim that finds it busy gets None and its runner waits
+and asks again (batch.claim_rounds polls park.adopt). Inside its claim a Blender call runs RUNS_AT_ONCE's Blender
+jobs side by side on the processor (as many as the container's memory holds at a take's measured peak), and each of
+their card calls (the Cycles bake, a render) waits its turn on the card (card_turn.py, put into the container's
+Blender startup folder at every claim), so the card never works for two jobs at once. Its offers are
 always `parked`, so batch.rent never orders anything: the machine is only ever taken through park.adopt
 (park.here), which asks no clearance, since it costs nothing (price 0; the ledger's rows carry the measured minutes
 at EUR 0). A job that needs more card or memory than this PC has is refused at its claim with the reason, never run
@@ -43,9 +46,6 @@ CARD_GB = 16  # the RTX 5080 (the desktop holds part of it while Windows runs)
 CARD_CLASS = f"gpu-{CARD_GB}gb"
 # The kinds that need more card than CARD_GB, in GB (tools/cloud/capacity.py KINDS' notes): cloud-only unless a run
 # gives its own smaller measured need (characters: 17 is Kimodo with its text encoder on the card, the whole machine).
-# Jobs of a kind this card runs at once, measured here: one Pixal3D take peaked at 13.2 of the 16 GB with the desktop
-# (galley's jars and oven, 2026-10-28), so two side by side do not fit; capacity.runs_at_once reads it.
-RUNS_AT_ONCE = {"pixal": 1}
 TOO_BIG = {"judge": 30, "pictures-20b": 58, "characters": 17, "meshparts": 24, "moss-sound": 15.6}
 # Classes this PC answers for: a single card of at most 24 GB (the jobs that ask one fit on 16 GB unless TOO_BIG says
 # otherwise) and every processor class (24 cores here; a job takes longer, never fails for it).
@@ -53,6 +53,11 @@ SERVES = (provider.GPU, provider.CPU)
 CLASSES = {}  # nothing is ever ordered (offers are `parked`); the classes served are SERVES'
 QUOTAS = {CARD_CLASS: 1}  # one machine; capacity.caps needs one entry
 LOCK = HOME / "cloud" / "this-pc.lock"
+CARD_TURN = pathlib.Path(__file__).resolve().parent / "card_turn.py"
+# Blender jobs at once (RUNS_AT_ONCE): a take's paint and bake peak, measured (env1, 2026-10-28; one take,
+# garage_vehicle_lift, once held 27), and what the container holds beside the peaks (sshd, rsync, idle Blenders).
+BLENDER_PEAK_GB = 8.5
+BLENDER_MARGIN_GB = 2
 HELD = {}  # {machine id: the open lock file} for the claims this process holds
 SSHD_SECONDS = 60
 DOCKERFILE = """\
@@ -131,6 +136,7 @@ def take(kind, public_key, need=None):
         return None
     try:
         host = running(public_key)
+        card_in_turns()
     except BaseException:
         handle.close()
         raise
@@ -183,6 +189,30 @@ def memory_cap():
     beside it and WSL never add up past this PC's memory."""
     total = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") // 2**30
     return f"{max(8, total - HOST_RESERVE_GB)}g"
+
+
+def blender_at_once(memory_gb):
+    """Blender jobs the container runs at once: its memory (`memory_gb`, decimal GB) less BLENDER_MARGIN_GB, over
+    BLENDER_PEAK_GB; at least one."""
+    return max(1, int((memory_gb - BLENDER_MARGIN_GB) // BLENDER_PEAK_GB))
+
+
+# Jobs of a kind this machine runs at once (capacity.runs_at_once reads it, spread.slots runs them in one claim),
+# measured here. One Pixal3D take peaked at 13.2 of the 16 GB with the desktop (galley's jars and oven, 2026-10-28), so
+# two side by side do not fit. Blender jobs (a bake row's takes: paint, cut-down, unwrap, scene sync and glTF export on
+# the processor, the Cycles bake in 1 s bursts on the card) run as many at once as the container's memory holds at a
+# take's peak, the card one call at a time (card_turn.py; env1, 2026-10-28: one take at a time left about 20 of 24
+# cores idle and the card under 10% busy 86% of the time).
+RUNS_AT_ONCE = {"pixal": 1, "blender": blender_at_once(int(memory_cap()[:-1]) * 2**30 / 1e9)}
+
+
+def card_in_turns():
+    """card_turn.py into the container's Blender user startup folder, so every Blender there takes the card one call
+    at a time while RUNS_AT_ONCE's Blender jobs share it."""
+    import card_turn
+
+    docker("exec", MACHINE, "mkdir", "-p", card_turn.STARTUP)
+    docker("cp", str(CARD_TURN), f"{MACHINE}:{card_turn.STARTUP}/{CARD_TURN.name}")
 
 
 def answering():

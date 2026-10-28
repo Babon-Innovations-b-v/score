@@ -105,8 +105,23 @@ def put_back(job):
         return False
     place, outputs = found
     for output in outputs:
-        copy(place / "outputs" / output, making() / output)
+        merge(place / "outputs" / output, making() / output)
     return True
+
+
+def merge(source, target):
+    """A kept file, or each file of a kept folder, put at its place under `target` unless the one there is newer: jobs
+    side by side on one machine share an output folder (a bake row's `made`, blender_cloud.py on this PC), so one
+    job's kept copy can hold another's file caught mid-write, older than that job's own kept file."""
+    if source.is_dir():
+        target.mkdir(parents=True, exist_ok=True)
+    files = [source] if source.is_file() else sorted(path for path in source.rglob("*") if path.is_file())
+    for path in files:
+        place = target if path == source else target / path.relative_to(source)
+        if place.is_file() and place.stat().st_mtime_ns >= path.stat().st_mtime_ns:
+            continue
+        place.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, place)
 
 
 def missing(jobs):
