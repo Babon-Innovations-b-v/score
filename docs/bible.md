@@ -705,6 +705,11 @@ returns data to its parent.
   a group lands.
 - Work that repeats per scene (readings, plan writings, fixes, checks) runs one process per scene side by side.
 - Never wait in the foreground: anything that takes minutes runs in the background (root `CLAUDE.md`).
+- An agent ends its turn to wait only on work the harness tracks: a command it started with `run_in_background`, or
+  a Monitor it armed. Never on an outside event (a GitHub rescan, a file another process writes, a remote job): nothing
+  wakes it and it stalls silently (owner, 2026-10-28: "this is something that happens a lot with these long running
+  sessions"). The session that started an agent stops it the moment its final report arrives, and checks an agent that
+  says "waiting" has a live process behind it.
 
 **Design edits by an agent** (owner, 2026-10-21). When the owner asks for one in chat, an agent may rename, merge, add
 or remove child scenes, move and resize things on a plan, or edit an inventory row. Each is recorded as his edit with
