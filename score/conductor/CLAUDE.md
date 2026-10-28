@@ -59,7 +59,8 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
 - **`library_checkout.py`** (`score-lib status | pull`, the door's, 2026-10-28): boot.sh clones score_lib once and
   nothing pulls it, while its handover, concept and the cockpit's lock push from it. Status fetches first; no push
   attempt is logged on score's side (each command's words go to its caller), so the newest push is the upstream
-  ref's reflog line "update by push", and a failed push shows only as commits ahead. Pull fast-forwards only and is
+  ref's reflog line "update by push", and a failed push shows only as commits ahead; status also names origin's URL (no credential) and
+  whether a dry push of HEAD is accepted (the deploy key's write right, nothing written). Pull fast-forwards only and is
   refused, listing them, on any local change or local commit.
   `offload-pixal` (the door's), only with no run live (clean-cache's refusal): each take a place's surface data paints,
   whole (raw and final models), untouched 15 min and not all store links, goes into score_lib as a `take` entry

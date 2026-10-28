@@ -709,12 +709,17 @@ def test_score_lib_pull_only_fast_forwards_and_status_counts_after_a_fetch(tmp_p
     """2026-10-28: boot.sh clones score_lib once and nothing pulls it, so its pushes may fail non-fast-forward.
     Break: score/conductor/library_checkout.py: '    if found["changes"] or found["local_commits"]:' -> '    if False:'
     (a pull over local commits or changes goes on), or '    fetched = git(root, "fetch", "-q", "origin")' ->
-    '    fetched = git(root, "status")' (behind reads 0 against a stale origin ref)"""
+    '    fetched = git(root, "status")' (behind reads 0 against a stale origin ref), or in push_check
+    '    if tried.returncode == 0:' -> '    if True:' (a refused push reads accepted)"""
     from score.conductor import library_checkout
     checkout = a_library_checkout(tmp_path)
     found = library_checkout.status(checkout)
     assert (found["upstream"], found["ahead"], found["behind"], found["fetch"]) == ("origin/main", 0, 1, ""), found
     assert "update by push" in found["last_push"] and found["changes"] == [], found
+    assert found["remote"] == str(tmp_path / "origin.git") and "rejected" in found["push"], found  # behind origin
+    frozen.git(checkout, "remote", "set-url", "origin", f"https://u:secret@{tmp_path}/origin.git")
+    assert library_checkout.remote(checkout) == f"https://{tmp_path}/origin.git"
+    frozen.git(checkout, "remote", "set-url", "origin", str(tmp_path / "origin.git"))
     (checkout / "local.json").write_text("{}")
     frozen.git(checkout, "add", "local.json")
     frozen.git(checkout, "commit", "-q", "-m", "a local commit")
@@ -730,3 +735,4 @@ def test_score_lib_pull_only_fast_forwards_and_status_counts_after_a_fetch(tmp_p
     found, refusal = library_checkout.pull(checkout)
     assert refusal == "" and found["behind"] == 1 and (checkout / "entry.json").is_file(), (refusal, found)
     assert library_checkout.status(checkout)["behind"] == 0
+    assert library_checkout.status(checkout)["push"] == ""  # up to date with origin: a dry push is accepted

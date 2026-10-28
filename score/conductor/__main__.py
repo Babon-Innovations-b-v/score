@@ -123,7 +123,9 @@ def score_lib(action):
         refusal = found["fetch"]
         line = (f"score-lib status: HEAD {found['head']}; {found['upstream'] or 'no upstream'} ahead {found['ahead']} "
                 f"behind {found['behind']}; {len(found['changes'])} local changes; last push "
-                f"{found['last_push'] or 'none in the reflog'} (a failed push is not logged)"
+                f"{found['last_push'] or 'none in the reflog'} (a failed push is not logged); "
+                f"origin {found['remote']}, "
+                f"dry push {'not tried' if found['push'] is None else found['push'] or 'accepted'}"
                 + (f"; the fetch failed, counts as of the last fetch: {found['fetch']}" if found["fetch"] else ""))
     listed = ([f"local change: {item}" for item in found["changes"]]
               + [f"local commit: {item}" for item in found["local_commits"]]

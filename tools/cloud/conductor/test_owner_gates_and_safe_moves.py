@@ -74,6 +74,9 @@ The checkout moves (update.py):
   a sync pass holds back only a uv.lock move, and the line (noted for the health record) names a sync unit with no
   update before its pass; two updates take turns on the checkout's lock.
   Break: `frozen_users` returns []. Break: drop the lock in `main`. Break: `pass_updates_first` always True.
+- score_lib's checkout beside it gets the machine's committer when git knows no user.email there, even when nothing
+  moves, and an identity it has stays (2026-10-28: every library commit on the conductor failed for want of one).
+  Break: in `library_identified`, `.returncode == 0` -> `.returncode == 1` (no identity given; one there overwritten).
 """
 import base64
 import contextlib
@@ -1108,3 +1111,17 @@ def test_a_checkout_with_changes_waits_and_two_updates_take_turns(world, monkeyp
         assert second.is_alive() and not called
     second.join(5)
     assert called == [world.checkout.resolve()]
+
+
+def test_score_libs_checkout_gets_the_machines_committer_only_when_it_has_none(world, monkeypatch):
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    library = world.checkout.parent / "score_lib"
+    subprocess.run(["git", "init", "-q", str(library)], check=True)
+    line = world.move(None)
+    assert "given its committer SCORE conductor" in line, line
+    assert git(library, "config", "user.email") == "conductor@score.invalid"
+    assert git(library, "config", "user.name") == "SCORE conductor"
+    git(library, "config", "user.email", "owner@example.org")
+    assert "committer" not in world.move(None)
+    assert git(library, "config", "user.email") == "owner@example.org"

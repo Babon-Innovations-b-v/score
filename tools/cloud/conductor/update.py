@@ -29,6 +29,9 @@ never moved). Two calls at once take turns on a lock in the checkout's .git fold
 5. `git checkout --detach <commit>`, then `uv sync --frozen --group dashboard` when uv.lock or pyproject.toml changed,
    and the prop environment ($PROPS_HOME/env, boot.sh props_env) synced the same way once the move made machine.json,
    on that change or whenever it is missing (left out of every backup; nothing runs boot.sh at a reboot).
+6. Whatever moved, score_lib's checkout beside it gets a machine's git identity when git knows no user.email there
+   (2026-10-28: boot.sh's clone had none, so every take-in, handover, concept lock and cockpit lock failed its commit,
+   "unable to auto-detect email address"). Set in its own config, every process committing there has it.
 
 It prints one line: what it moved, or why it did not.
 """
@@ -51,6 +54,8 @@ PROC = pathlib.Path(os.environ.get("SCORE_PROC", "/proc"))
 HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
 SECRET = "score-cockpit-sync-token"  # score/dashboard/sync/timer.py SECRET
 PIN_PATH = "/api/sync/pin"  # score/dashboard/sync/endpoints.py pin
+# score_lib's commits from the conductor: a machine's name, never a person's or an account's (a public repository).
+LIBRARY_COMMITTER = (("user.name", "SCORE conductor"), ("user.email", "conductor@score.invalid"))
 SYNC_UNIT = (pathlib.Path(os.environ.get("XDG_CONFIG_HOME") or pathlib.Path.home() / ".config") / "systemd" / "user"
              / "score-sync.service")  # score/dashboard/sync/timer.py install, --no-pull: UPDATE before each pass
 
@@ -190,8 +195,18 @@ def update(repo, sync_url, uv=UV, opener=urllib.request.urlopen, proc=PROC, toke
            sync_unit=SYNC_UNIT):
     """Move the checkout as the module says; the one line of what happened, also noted for the health record."""
     line = moved(repo, sync_url, uv, opener, proc, token, home, sync_unit)
+    line += library_identified(repo.parent / "score_lib")
     said_noted(home, line)
     return line
+
+
+def library_identified(library):
+    """LIBRARY_COMMITTER set in the checkout `library` when git knows no user.email there; what it did, in words."""
+    if not (library / ".git").exists() or git(library, "config", "user.email", check=False).returncode == 0:
+        return ""
+    for key, value in LIBRARY_COMMITTER:
+        git(library, "config", key, value)
+    return f"; {library} given its committer {LIBRARY_COMMITTER[0][1]}"
 
 
 def moved(repo, sync_url, uv, opener, proc, token, home, sync_unit):

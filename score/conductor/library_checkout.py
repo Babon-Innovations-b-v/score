@@ -1,6 +1,7 @@
 """The conductor's score_lib checkout against its origin (the door's `score-lib status | pull`, 2026-10-28).
 
-    status(root)   # fetched first: HEAD, its upstream, ahead and behind, local changes, the newest push that landed
+    status(root)   # fetched first: HEAD, its upstream, ahead and behind, local changes, the newest push that landed,
+                   # origin's URL (no credential) and whether a dry push of HEAD is accepted
     pull(root)     # fast-forward only; refused with what is in the way (local changes, local commits)
 
 boot.sh clones score_lib once and nothing pulls it, while score's library rows (`score-lib handover`), concept locks
@@ -9,6 +10,7 @@ non-fast-forward. No push attempt is logged on score's side (each command's word
 the newest push is read from git's own reflog of the upstream ref, which a push that landed writes ("update by
 push"); a failed push leaves no trace there, its commits show as ahead.
 """
+import re
 import subprocess
 
 LISTED = 10  # items a summary shows; the rest in the detail file
@@ -44,21 +46,38 @@ def last_push(root, upstream):
     return None
 
 
+def remote(root):
+    """origin's URL, any user and password of an https URL left out."""
+    return re.sub(r"//[^/@]*@", "//", git(root, "remote", "get-url", "origin").stdout.strip())
+
+
+def push_check(root, upstream):
+    """A dry push of HEAD to the upstream's branch: "" when origin would accept it, else git's words (2026-10-28:
+    whether the deploy key may write, without writing)."""
+    tried = git(root, "push", "--dry-run", "-q", "origin", f"HEAD:{upstream.split('/', 1)[-1]}")
+    if tried.returncode == 0:
+        return ""
+    lines = [line for line in tried.stderr.splitlines() if line.strip() and not line.startswith(("hint:", "To "))]
+    return lines[0].strip() if lines else f"exit {tried.returncode}"  # the first: GitHub's own refusal, else git's
+
+
 def status(root):
     """The checkout against its origin after a fetch: {head, upstream, fetch, ahead, behind, changes, local_commits,
-    incoming, last_push}; fetch is "" when it worked, else its words (the counts then against the last fetch)."""
+    incoming, last_push, remote, push}; push is push_check's words, None with no upstream; fetch is "" when it
+    worked, else its words (the counts then against the last fetch)."""
     fetched = git(root, "fetch", "-q", "origin")
     upstream = git(root, "rev-parse", "--abbrev-ref", "@{upstream}").stdout.strip()
     found = {"head": head(root), "upstream": upstream,
              "fetch": "" if fetched.returncode == 0 else said(fetched),
              "changes": lines_of(root, "status", "--porcelain"), "local_commits": [], "incoming": [],
-             "ahead": 0, "behind": 0, "last_push": None}
+             "ahead": 0, "behind": 0, "last_push": None, "remote": remote(root), "push": None}
     if not upstream:
         return found
     found["local_commits"] = lines_of(root, "log", "--format=%h %cI %s", "@{upstream}..HEAD")
     found["incoming"] = lines_of(root, "log", "--format=%h %cI %s", "HEAD..@{upstream}")
     found["ahead"], found["behind"] = len(found["local_commits"]), len(found["incoming"])
     found["last_push"] = last_push(root, upstream)
+    found["push"] = push_check(root, upstream)
     return found
 
 
