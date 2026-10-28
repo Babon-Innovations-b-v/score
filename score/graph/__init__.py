@@ -1745,7 +1745,11 @@ class Runner:
                 stage, place, process = running.pop(finished)
                 node = node_name(stage, place)
                 did, peak = self.outcome(finished, process)  # an ended node holds no memory: the next starts at once
-                peaks = self.keep_peak(stage.name, max(peak, seen.pop(node, 0)))
+                peak = max(peak, seen.pop(node, 0))
+                # a node that made nothing (its output found made) measured none of its stage's work, so it never
+                # brings a stage under its default (2026-10-28: quick ones kept finish-route-views low, 7 real ones started)
+                if "made: " in did or peak > peaks.get(stage.name, memory_floor()):
+                    peaks = self.keep_peak(stage.name, peak)
                 done[node], stands = self.conclude(stage, place, did)
                 if stands:
                     stood.add(node)
