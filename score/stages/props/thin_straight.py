@@ -12,8 +12,8 @@ and its light the library's lamp for its mount, laid by the light layer). Its pr
 short sides) for the kinds in ROUND, a rectangle of the two short sides for the rest (posts, beams, pillars).
 That straight sweep is for a row whose SAM 3 mask is one straight run (`one_run`); any other mask (a bent pipe
 network, a sagging string, a railing's ladder of posts and rails, a bundle of parallel cables: world 1's masks,
-2026-10-26) is followed instead (`path_build`): skeletonised, traced, laid in the row's plane at its metres and swept
-as round tubes, so the outline holds the build to the thing's own path.
+2026-10-26) is followed instead (`path_build`): skeletonised, traced, laid in its picture's plane at its metres, leaned
+to face the outline's view, and swept as round tubes, so the outline holds the build to the thing's own path.
 
 Its take (`write_take`), in WORK/pixal where the batch would bring one: `<take>.glb` (raw) and the slimmed
 `<take>-<faces>.glb` and `<take>-final.glb`, all three the same model in the pose it is built in (it knows its up and
@@ -62,10 +62,6 @@ PIECE_SHARE = 0.1
 TUBE_CELLS = 6
 # Faces a path build is slimmed to at most (a 4 m railing's grid made 54,000), as Pixal3D's takes are slimmed.
 PATH_FACES = 20000
-# The anchors (score/review/reading.py) of a row lying on a level face: a path build whose box gives no plane
-# (its height tied for its thinnest side: a 10 m cable 0.1 by 0.1) is laid in the ground's plane only on one of these,
-# else in a wall's (a lantern string 8 by 0.01 by 0.01 hangs: laid on the ground, its 13% sag read 2 to 4 times deeper).
-LYING = frozenset(("floor", "ground", "ceiling", "roof"))
 # The rigid run kinds that carry fittings (`fittings`): a pipe, conduit, duct or tube is joined by an elbow at a bend
 # and a tee at a fork, and held by a clamp on a wall, as a handrail by its brackets; a cable, wire, hose or string bends
 # on its own and hangs free.
@@ -80,7 +76,7 @@ FITTING_SHARE = 1.25
 BRACKET_GAP = 1.5
 MARK = "code.json"
 # The tool files it runs, declared by the Pixal3D row (pixal_row.files): SAM 3's masks, the crop, the close-up's view
-# (a path build is seen back from its look-down) and the slender rule.
+# (a path build is leaned to face its look-down) and the slender rule.
 TOOLS = {"masks": "{repo}/tools/props/scene/box_masks.py", "masks runner": "{repo}/tools/cloud/box_masks_cloud.py",
          "close-up crop": "{repo}/tools/props/closeup/stage.py", "close-up view": "{repo}/tools/props/closeup/check.py",
          "model gate": "{repo}/tools/props/gates/model.py", "glb file": "{repo}/tools/props/glb_file.py"}
@@ -244,32 +240,17 @@ def least_tube():
     return model_gate.THINNEST_LIMIT / model_gate.SOLID_SHARE
 
 
-def upward(row):
-    """The build axis the picture's up is laid along: 1, a wall's plane, or 0, the ground's for a row whose height is
-    its one thinnest side, or tied for it on a level face (LYING: a tie alone names no plane)."""
-    wide, deep, tall = (float(value) for value in row["size"])
-    if tall > min(wide, deep):
-        return 1
-    return 0 if tall < min(wide, deep) or row.get("anchor") in LYING else 1
-
-
 def lifted(runs, row, width):
     """(the runs' points in the build's frame, metres; the tube's thickness): the picture's runs, their direction and
-    path the picture's own, laid in a wall's plane (across the picture z, up it y) or the ground's (up the picture x:
-    `upward`), seen back from the close-up's look-down (the outline's view, tools/props/closeup/check.py look_down:
-    its height foreshortened by its cosine, a ground run by its sine); one scale for the picture, so the run's longest
-    reach is the row's longest side and its other reach the path's own, never a tied box side (a thin run's box is its
-    thickness on its two short sides: a sagging string 8 by 0.01 by 0.01), and a reach far past a real side held to
-    it (`held_to_box`); the tube `width` picture pixels thick at
-    that scale, at most the row's thinnest side (its thickness: a 5 m drape's box 1 m deep is no 1 m tube) and at
-    least `least_tube`."""
-    with prop_data.tools("props/closeup", "props", "cloud"):
-        import check
+    path the picture's own, laid in the picture's plane (across the picture z, up it y; `path_build` leans it to face
+    the outline's view); one scale for the picture, so the run's longest reach is the row's longest side and its other
+    reach the path's own, never a box side: a thin run's box is its thickness on its two short sides (a sagging string
+    8 by 0.01 by 0.01), and a railing curving round a floor drawn from above shows its plan's depth as its picture's
+    height (the greenhouse's, 9.4 by 0.1 by 1 m: held to its 1 m, its curve flattened to a line and its outline fell
+    from 0.415 to 0.023, 2026-10-28); the tube `width` picture pixels thick at that scale, at most the row's thinnest
+    side (its thickness: a 5 m drape's box 1 m deep is no 1 m tube) and at least `least_tube`."""
     sides = sorted(float(value) for value in row["size"])
-    up = upward(row)
-    down = np.radians(check.look_down(row["size"]))
-    seen = np.cos(down) if up == 1 else np.sin(down)
-    flat = np.concatenate(runs) * [1.0, 1.0 / seen]
+    flat = np.concatenate(runs)
     low, span = flat.min(0), np.maximum(np.ptp(flat, axis=0), 1.0)
     scale = sides[2] / (span.max() + width)
     thick = max(min(width * scale, sides[0]), least_tube())
@@ -278,30 +259,23 @@ def lifted(runs, row, width):
     for run in runs:
         point = np.zeros((len(run), 3))
         point[:, 2] = (run[:, 0] - low[0] - span[0] / 2) * scale
-        point[:, up] = -(run[:, 1] / seen - low[1] - span[1] / 2) * scale  # the picture's down is the world's up
+        point[:, 1] = -(run[:, 1] - low[1] - span[1] / 2) * scale  # the picture's down is the world's up
         laid.append(point)
-    return held_to_box(laid, row, up, thick), thick
+    return laid, thick
 
 
-def held_to_box(laid, row, up, thick):
-    """The laid runs with each of their two plane axes (z, and `up`'s) held to the row's side on it when they overrun it
-    by more than the model gate's proportion error (tools/props/gates/model.py SPREAD_LIMIT), where that side is a
-    reach and not its thickness (over its thinnest side): a picture's slant is its view's, never the thing's metres
-    (the greenhouse's railing, 9.4 by 0.1 by 1 m, drawn at 46 degrees and laid 9.45 m tall, 2026-10-28), while a
-    reading's metres a little off its picture keep the picture's path (the outline falls with any squash). A tied side
-    stays the path's own (a lantern string's 8 by 0.01 by 0.01 box is its thickness, its sag is not)."""
-    with prop_data.tools("props/gates", "props/library", "props"):
-        import model as model_gate
-    wide, deep, tall = (float(value) for value in row["size"])
-    thinnest = min(wide, deep, tall)
-    flat = np.concatenate(laid)
-    for axis, side in ((2, max(wide, deep)), (up, tall if up == 1 else min(wide, deep))):
-        reach = float(np.ptp(flat[:, axis]))
-        if side > thinnest and reach + thick > side * (1 + model_gate.SPREAD_LIMIT) and reach > 0:
-            factor = max(side - thick, 0.0) / reach
-            for point in laid:
-                point[:, axis] *= factor
-    return laid
+def facing(row):
+    """The turn (4 by 4) leaning a build laid in the picture's plane (x its normal) back about z by the close-up's
+    look-down (the outline's view, tools/props/closeup/check.py look_down), its top away from a camera on -x, so that
+    view sees the picture's own path square on: a plane stood upright and stretched by the look-down's cosine left
+    the view's keystone in it (the old station's cables, laid so, 0.42; leaned, 0.66), and one laid on the ground
+    showed a level run squashed to the look-down's sine (0.068, 2026-10-28)."""
+    with prop_data.tools("props/closeup", "props", "cloud"):
+        import check
+    down = np.radians(check.look_down(row["size"]))
+    turn = np.eye(4)
+    turn[:2, :2] = [[np.cos(down), np.sin(down)], [-np.sin(down), np.cos(down)]]
+    return turn
 
 
 def on_wall(row):
@@ -323,7 +297,7 @@ def fittings(laid, row, thick):
     """{"elbows", "tees", "clamps"}: the short segments (point pairs) each fitting of a FITTED kind is swept along,
     FITTING_SHARE of the tube thick: an elbow's two legs, a thickness long, at each bend of a run over ELBOW_TURN; a
     tee's legs at each fork (three runs or more meeting); a clamp half a thickness long every BRACKET_GAP metres along
-    each run of a row on a wall (`on_wall`) laid in a wall's plane. None for any other kind: what the mask does not
+    each run of a row on a wall (`on_wall`). None for any other kind: what the mask does not
     show (a valve) is never added."""
     found = {"elbows": [], "tees": [], "clamps": []}
     if not kind_words(row) & FITTED:
@@ -341,7 +315,7 @@ def fittings(laid, row, thick):
     for meeting in ends.values():
         if len(meeting) >= 3:
             found["tees"] += [(end, leg(end, next_point, thick)) for end, next_point in meeting]
-    if on_wall(row) and upward(row) == 1:
+    if on_wall(row):
         for run in laid:
             lengths = np.linalg.norm(np.diff(run, axis=0), axis=1)
             along = np.concatenate([[0.0], np.cumsum(lengths)])
@@ -357,7 +331,8 @@ def path_build(row, alpha):
     """The row's model following its mask's own path (owner's ask, 2026-10-26: bent pipe networks, a sagging lantern
     string, a railing's posts and rails, a bundle of parallel cables were each built as one straight sweep and failed
     their outline): the mask skeletonised and traced into its runs (`traces`, forks kept), each run's bends kept to
-    within half its line's width, laid in the row's plane at its metres (`lifted`), and a round tube of the line's
+    within half its line's width, laid in the picture's plane at its metres (`lifted`), leaned to face the
+    outline's look-down (`facing`), and a round tube of the line's
     thickness swept along them all as one closed surface (`tubes`), so a sag stays a sag, an elbow a bend, a ladder
     its posts and rails and a band of lines its tubes; a rigid run's fittings (`fittings`: elbows, tees, wall clamps)
     made in code on the same surface, its finish the finish route's like the rest."""
@@ -365,11 +340,13 @@ def path_build(row, alpha):
     from skimage.morphology import skeletonize
     kept = pieces(alpha)
     skeleton = skeletonize(kept)
-    width = kept.sum() / skeleton.sum()
-    runs = [approximate_polygon(np.asarray(run, dtype=float), tolerance=1.0)
-            for run in traces(skeleton) if len(run) > 1]
+    traced = [np.asarray(run, dtype=float) for run in traces(skeleton) if len(run) > 1]
+    # its length, not its pixel count: a diagonal step is 1.4 pixels long, and counted as 1 it drew the tube fatter
+    width = kept.sum() / max(sum(np.linalg.norm(np.diff(run, axis=0), axis=1).sum() for run in traced), 1.0)
+    runs = [approximate_polygon(run, tolerance=1.0) for run in traced]
     laid, thick = lifted(runs, row, width)
     mesh = tubes(laid, thick, [pair for pairs in fittings(laid, row, thick).values() for pair in pairs])
+    mesh.apply_transform(facing(row))
     return mesh.apply_translation(-mesh.bounds.mean(0))
 
 
