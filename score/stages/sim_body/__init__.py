@@ -8,7 +8,7 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
              prop_build.py plays the clips; the rig's own size, named, with none taken). Its body is MyoFullBody
              (the pinned wheel MODEL, fetched once to $PROPS_HOME/models and checked by its sha256; never in this
              repository) sized to that build: each limb by the person's joint distance over the model's, the rest by
-             its standing height (inside/myo.py), its mass the stated weight when the cast gives one (`weight`, kg),
+             its standing height (inside/sizing), its mass the stated weight when the cast gives one (`weight`, kg),
              else its height (`height`, m, else the body's own standing height) squared times the reference BMI of
              its sex (`sex`, else the mean of both), marked estimated. It stands on the scene's own ground: every solid
              of the stage the cast is measured on (the seed's base layer with its scene record written in, on the
@@ -68,7 +68,7 @@ from score.stages.cast import measure
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 INSIDE = "score/stages/sim_body/inside/sim_body.py"
-INSIDE_MODEL = "score/stages/sim_body/inside/myo.py"
+INSIDE_FOLDER = "score/stages/sim_body/inside"  # the run and every module it imports from its own folder (#70)
 ENV_SCRIPT = "score/stages/physics/inside/newton_env.sh"
 HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
 ENV = HOME / "envs/newton_env"
@@ -125,8 +125,9 @@ MOVE_MOST = 0.02  # metres
 
 
 def files(place):
-    """The run's scripts, the Python they run in and the environment's physics (whose gravity the scene has)."""
-    return {"sim script": "{repo}/" + INSIDE, "sim model": "{repo}/" + INSIDE_MODEL, "sim env": "{repo}/" + ENV_SCRIPT,
+    """The run's folder (its script and every module beside it), the Python it runs in and the environment's physics
+    (whose gravity the scene has)."""
+    return {"sim inside": "{repo}/" + INSIDE_FOLDER, "sim env": "{repo}/" + ENV_SCRIPT,
             "physics": "{data}/physics/setting.json", "within": "{data}/places/within.json",
             "seed": "{seeds}/usd-r3/{place}", **layer_base.files(place)}
 
