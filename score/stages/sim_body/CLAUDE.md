@@ -6,13 +6,25 @@ scene's own ground. `__init__.py`'s docstring has the make and the gates; `insid
 `inside/myo.py` the model's sizing, both in Newton's own Python.
 
 - **The movement is the clip's, the physics the body's** (owner, 2026-10-27: "we have kimodo for the actual movement;
-  and myobody plus mujoco and newton for the physics"). The body, root included, follows the clip exactly; nothing is
-  stepped. Per frame: inverse dynamics on the MuJoCo model Newton builds, the ground's contacts, the joints' range
+  and myobody plus mujoco and newton for the physics"). The body, root included, follows the clip, moved only by RRA's
+  capped adjustment (below); nothing is stepped. Per frame: inverse dynamics on the MuJoCo model Newton builds, the ground's contacts, the joints' range
   stops and the muscles share the needed forces (one bounded least squares, least squared activation, the pelvis'
   six balance rows `BALANCE` times a joint's), and what they cannot give is the pelvis' residual and the joints'
   reserves: measured, recorded, gated (`residual`, Hicks et al. 2015), **never applied**.
   Never bring back a helper or any force that holds the body up or on its path: a trip or a float must show as a
-  residual that fails.
+  residual that fails. Limits: force 2% of the weight (owner, 2026-10-28, from 5%; Werling et al. 2023's
+  AddBiomechanics results as the benchmark only), moment 1% of it times the centre's height (Hicks 2015).
+- **Residual reduction, OpenSim's RRA** (owner, 2026-10-28; Delp et al. 2007, opensim-core RRATool, Apache-2.0; never
+  AddBiomechanics: GPL with a data-sharing clause, neither used nor copied): `inside/sim_body.py` `reduced` adjusts
+  the fitted path's pelvis and trunk (the root's six dofs and the lumbar leaders, `TRUNK`) and the body's masses and
+  torso centre of mass (RRATool's own formulas) so the ground explains the movement, `RRA_ROUNDS` times, each frame's
+  move capped (`MOVE_MOST`, `FOLLOWED` degrees) and low-passed, taken only when the measured residual and move
+  cost falls (halved up to `RRA_HALVINGS` times, else the rounds end), the feet kept where they stood by the legs (`footed`: a
+  pelvis moved with its feet lifted them off the ground, 600 N of residual, 2026-10-28), and the result kept within the clip's
+  `follows` limit (`within_follows`: the whole move, else a quarter less, down to none). Nothing is applied to the
+  body. How far it moved is each body's `adjusted` record (pelvis cm, each segment's degrees, mass %, torso centre of
+  mass cm, the share kept, follows before and after). A body still over the limits after it fails `residual`: a
+  dropped sample, never a forced pass.
 - **The body is MyoFullBody, never a box body or a template of our own**: MuscleMimic's wheel (`MODEL`, pinned URL and
   sha256), fetched once to `$PROPS_HOME/models/<sha>` by `fetched`, never committed. Kept under MyoHub's Apache-2.0
   (owner, 2026-10-27, #65). Attribution, also in every `sim_bodies.json` (`ATTRIBUTION`): MyoSuite and myo_sim
@@ -41,8 +53,8 @@ scene's own ground. `__init__.py`'s docstring has the make and the gates; `insid
   1 mm, MuJoCo's default solref and solimp: a loaded foot rests within about 1 mm of a MuJoCo floor).
 - **Mass by #64's rule**: the cast's stated `weight` (kg), else `height` (m, else the body's own) squared times the
   reference BMI of `sex` (NCD-RisC 2016, the mean of both unstated), marked `estimated`, spread over the model's bodies
-  as the model's masses times their scale cubed. Never tune a mass, a weight in the solve or a gate to pass: fix the
-  method and measure again.
+  as the model's masses times their scale cubed; RRA's mass step (above) is the one change after it, recorded. Never
+  tune a mass, a weight in the solve or a gate by hand to pass: fix the method and measure again.
 - **Rotations to angles, as OpenSense does** (owner, 2026-10-28; Al Borno et al. 2022, J NeuroEng Rehabil 19:22,
   doi:10.1186/s12984-022-01001-x; opensim-core's IMUPlacer and IMUInverseKinematicsTool, Apache-2.0): each SOMA
   segment's world turn is a virtual orientation sensor on the body it rides (`RIDES`, `TARGETS`, weight 1 each); each
@@ -89,8 +101,8 @@ scene's own ground. `__init__.py`'s docstring has the make and the gates; `insid
   (`parse_meshes=False`: its mesh loading needs trimesh, which the env does not hold); the drawn bones come from
   MuJoCo's own compile of the file. MuJoCo's CPU backend, run on this machine (free).
 - **Its readers** (contract version 2): the characters layer (`../cast/driven.py`) plays each person's skeleton from
-  `measures/<name>.json`'s `poses`, which are the clip's own segment frames (the movement is the clip's, so the skin
-  plays it), and references `layers/sim_bodies.usda`; its gate measures the skin's feet against the layer's
+  `measures/<name>.json`'s `poses`, which are the clip's own segment frames moved as RRA moved the body each rides
+  (the picture and the forces show one motion), and references `layers/sim_bodies.usda`; its gate measures the skin's feet against the layer's
   `SimBody/<segment>` Xforms, which ride the body's bones at the bind's correspondence (`offsets`), so it reads how far
   the musculoskeletal body's feet are from the clip's. People-cloth reads `poses` and imports `segments_of`. The film's
   layer peel (`../demo_film/peel.py`) draws whatever geometry is under each SimBody and finds each `feet` key's prim by

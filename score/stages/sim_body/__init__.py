@@ -21,12 +21,15 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
              stands on, physics/design.py ground): the model's joint angles fitted to the clip's segment turns, the
              forces that movement needs, shared between the ground's contacts and the muscles (activations and
              forces, static optimisation), what neither can give left over as the pelvis' residual and the joints'
-             reserves, measured and never applied. Written: sim_bodies.json (each body: its mass record, size, model
+             reserves, measured and never applied. Before the physics is measured, OpenSim's residual reduction (RRA)
+             adjusts the pelvis' and trunk's path and the body's masses and torso centre of mass so the ground explains
+             the movement, capped (MOVE_MOST, FOLLOWED) and kept within the `follows` limit; how far is recorded per
+             body (`adjusted`), and the skin plays the adjusted motion. Written: sim_bodies.json (each body: its mass record, size, model
              record, the SOMA segments and the body each rides, the solids it may touch, measures and the gates'
              numbers), measures/<name>.json (per frame: the body's SOMA segments' turns and the clip's, joint
              moments, ground force, lowest point over the ground, each foot's height over the ground and its push, the
              residual, the largest reserve, each muscle's activation and force, and each SOMA segment's pose: the
-             clip's own, which the skin plays) and
+             clip's own moved as RRA moved the body it rides, which the skin plays) and
              layers/sim_bodies.usda (each body under its character's prim, /<place>/Characters/<name>/SimBody, in
              the Turned frame: an Xform a SOMA segment riding its bone, every bone's mesh under the segment it rides or
              under Bones, and the muscles as lines along their paths, coloured by activation, every frame)
@@ -37,10 +40,10 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
              carries      over each run the ground's mean upward push is the body's weight within CARRIED
              follows      the mean angle between each SOMA segment's turn (riding its bone) and the clip's, over
                           segments and frames, at most FOLLOWED degrees
-             residual     the pelvis' residual stays within Hicks et al. 2015's limits, the net external force taken
-                          as the body's weight: its force at most RESIDUAL_FORCE of it and its moment at most
+             residual     after RRA's capped adjustment the pelvis' residual stays within its limits, the net external
+                          force taken as the body's weight: its force at most RESIDUAL_FORCE of it and its moment at most
                           RESIDUAL_MOMENT of it times the centre of mass' height, any frame (a trip, a float or a
-                          movement no ground and muscles can make shows here)
+                          movement no ground and muscles can make shows here: a dropped sample, never a forced pass)
 
 Not here: muscles driving a forward simulation (the movement is given; the muscles are the forces that would make it,
 with no activation dynamics), clips made for the ground (a flat-ground clip meets a step with its toe), a walker's cast
@@ -106,11 +109,18 @@ BODY = "people-body"  # a look's built body row: its rig.npz is the person's own
 CARRIED = 0.05  # share of the weight
 FOLLOWED = 5.0  # degrees
 STANDING = "standing"  # the rig's clip a body is calibrated on (inside/sim_body.py offsets)
-# Hicks, Uchida, Seth, Rajagopal and Delp 2015, "Is my model good enough?", J Biomech Eng 137(2):020905, section 3.1.3:
-# residual forces at most 5% of the net external force, residual moments at most 1% of the centre of mass' height times
-# it. No external force is measured here, so the body's weight stands in for it.
-RESIDUAL_FORCE = 0.05
+# The residual's limits, the body's weight standing in for the net external force (none is measured here): the force
+# at most 2% of it (owner, 2026-10-28, from 5%: AddBiomechanics' published residual forces are "smaller than 2% of peak
+# external force", Werling et al. 2023, PLoS ONE 18:e0295152, doi:10.1371/journal.pone.0295152, taken as the
+# benchmark only), the moment at most 1% of it times the centre of mass' height (Hicks, Uchida, Seth, Rajagopal and
+# Delp 2015, "Is my model good enough?", J Biomech Eng 137(2):020905, section 3.1.3).
+RESIDUAL_FORCE = 0.02
 RESIDUAL_MOMENT = 0.01
+# The residual reduction's cap (inside/sim_body.py `reduced`, OpenSim's RRA): each frame's pelvis move at most
+# MOVE_MOST and each adjusted turn (the pelvis', the lumbar leaders') at most FOLLOWED off the fitted path, and the
+# adjusted path kept within FOLLOWED of the clip on the mean (the owner, 2026-10-28: "never more"). MOVE_MOST is ours:
+# no published limit names a pelvis move.
+MOVE_MOST = 0.02  # metres
 
 
 def files(place):
@@ -317,13 +327,15 @@ def make(inputs, out, seed, params):
     run, arrays = {"engine": None, "people": {}}, {}
     if job["people"]:
         job["model"] = str(fetched())
+        job["residual"] = {"force": RESIDUAL_FORCE, "moment": RESIDUAL_MOMENT}
+        job["adjust"] = {"move most m": MOVE_MOST, "turn most deg": FOLLOWED, "follows deg": FOLLOWED}
         (out / "job.json").write_text(json.dumps(job))
         run, arrays = ran(out / "job.json", out / "run.json")
     (out / "measures").mkdir()
     for name, entry in run["people"].items():
         (out / "measures" / f"{name}.json").write_text(json.dumps(entry["frames"]))
         records[name].update(segments=entry["rides"], model=entry["model"], muscles=len(entry["muscles"]),
-                             measures=measured(entry, gravity))
+                             adjusted=entry["adjusted"], measures=measured(entry, gravity))
     write_layer(out / LAYER, place, run["people"], arrays, records)
     shutil.rmtree(out / "clips")
     (out / "job.json").unlink(missing_ok=True)
@@ -357,8 +369,9 @@ def measured(entry, gravity):
     off = np.array([angle_between(frame["angles"], frame["targets"]) for frame in frames])
     push = np.mean([frame["ground"][1] for frame in frames])
     landed = np.abs(landings(frames, weight))
-    force = [float(np.linalg.norm(frame["residual"][:3])) for frame in frames]
-    moment = [float(np.linalg.norm(frame["residual"][3:])) for frame in frames]
+    force = np.array([float(np.linalg.norm(frame["residual"][:3])) for frame in frames])
+    moment = np.array([float(np.linalg.norm(frame["residual"][3:])) for frame in frames])
+    limits = (RESIDUAL_FORCE * weight, RESIDUAL_MOMENT * entry["com height"] * weight)
     forces, activations = np.array([frame["forces"] for frame in frames]), np.array([frame["activations"]
                                                                                      for frame in frames])
     return {"deepest": round(-min(0.0, min(frame["lowest"] for frame in frames if frame["lowest"] is not None)), 4),
@@ -369,10 +382,11 @@ def measured(entry, gravity):
             "mean off clip deg": round(float(off.mean()), 3), "worst off clip deg": round(float(off.max()), 3),
             "largest torque Nm": round(float(max(np.abs(frame["torques"]).max() for frame in frames)), 2),
             "largest reserve Nm": round(float(max(frame["reserve"] for frame in frames)), 2),
-            "largest residual N": round(max(force), 2), "mean residual N": round(float(np.mean(force)), 2),
-            "residual force limit N": round(RESIDUAL_FORCE * weight, 2),
-            "largest residual Nm": round(max(moment), 2), "mean residual Nm": round(float(np.mean(moment)), 2),
-            "residual moment limit Nm": round(RESIDUAL_MOMENT * entry["com height"] * weight, 2),
+            "largest residual N": round(float(force.max()), 2), "mean residual N": round(float(force.mean()), 2),
+            "median residual N": round(float(np.median(force)), 2), "residual force limit N": round(limits[0], 2),
+            "largest residual Nm": round(float(moment.max()), 2), "mean residual Nm": round(float(moment.mean()), 2),
+            "median residual Nm": round(float(np.median(moment)), 2), "residual moment limit Nm": round(limits[1], 2),
+            "frames within residual limits": round(float(((force <= limits[0]) & (moment <= limits[1])).mean()), 3),
             "largest muscle force N": round(float(forces.max()), 1),
             "muscle force N, mean of each frame's largest": round(float(forces.max(axis=1).mean()), 1),
             "largest activation": round(float(activations.max()), 4),
