@@ -18,6 +18,7 @@ and its geometry. Motion (experimental) makes each place's motion layer from its
 moving rows. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
 """
 import dataclasses
+import fnmatch
 import functools
 import json
 import pathlib
@@ -468,6 +469,54 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
           # Experimental (#52): a body's motion read off each video the creator uploaded (score/stages/video_clips).
           *video_clips.rows())
 
+# Rows (fnmatch patterns) whose started scripts stay undeclared: declaring them would buy a row again in the cloud
+# (score moved on this PC's home, 2026-10-28). The prop route's head: rough-model (its re-make copies the take on disk,
+# free, but the runner cannot know the copy is the same), rough-align and props-inputs (free) re-made make every
+# close-up again (Nano Banana Pro, EUR 13.40 a place), then pixal (EUR 20 a place); the palette and surface-library
+# (Claude asks, free) re-asked, and surface-tiles itself, make the surface tiles again on rented cards (EUR 1 a
+# place); crops-concept and crops-boxes are paid cloud asks (EUR 0.50 each). Every other row declares what its code
+# starts by path (scripts_declared).
+STARTED_LEFT = ("rough-model", "rough-align", "props-inputs", "pixal", "finish-route-palette", "surface-library",
+                "surface-tiles", "crops-concept", "crops-boxes")
+# What tools/props/library/recipes.py imports in Blender: the vendored ProcFunc and Infinigen2 (as released).
+RECIPES = "{repo}/tools/props/library/recipes.py"
+VENDORED_RECIPES = {"recipes procfunc": "{repo}/vendor/procfunc/src", "recipes infinigen2": "{repo}/vendor/infinigen2/src"}
+
+
+@functools.cache
+def started_files(row_name):
+    """{name: pattern} of every script `row_name`'s code starts by path that no import keys (_code.started_scripts)."""
+    row = next(stage for stage in STAGES if stage.name == row_name)
+    return {f"runs {path.relative_to(REPO).as_posix()}": "{repo}/" + path.relative_to(REPO).as_posix()
+            for path in graph._code.started_scripts(graph.code_functions(row))}
+
+
+def scripts_declared(row):
+    """`row` declaring every script its code starts by path (a nested Blender's --python, a job's script, a Newton
+    Python: run apart, so no import keys them; a change to one made nothing again, 2026-10-28), and the vendored
+    libraries recipes.py imports where it reads the recipes; a STARTED_LEFT row as it was. Worked out at its first
+    files read, not on import; its code version stays its own."""
+    if any(fnmatch.fnmatch(row.name, pattern) for pattern in STARTED_LEFT):
+        return row
+    own = row.files
+
+    def found(place):
+        files = own(place) if callable(own) else own
+        held = [pattern[len("{repo}/"):].rstrip("/") for pattern in files.values()
+                if isinstance(pattern, str) and pattern.startswith("{repo}/")]
+        files = {**files, **{name: pattern for name, pattern in started_files(row.name).items()  # new names only
+                             if not any(pattern[len("{repo}/"):] == path or pattern.startswith(f"{{repo}}/{path}/")
+                                        for path in held)}}
+        reads_recipes = any(pattern in (RECIPES, "{repo}/tools/props/library") for pattern in files.values()) or \
+            "runs tools/props/library/recipes.py" in files
+        return {**files, **(VENDORED_RECIPES if reads_recipes else {})}
+    found.__dict__.update(getattr(own, "__dict__", {}))
+    found.started = lambda: started_files(row.name).values()  # what it adds to its own files (its test reads it)
+    if callable(own):
+        found.__wrapped__ = own
+    return dataclasses.replace(row, files=found)
+
+
 # The motion layer (CONTEXT.md "motion", #26): one layer for everything that moves, its modules and the rows (fnmatch
 # patterns) that make each. Every model comes from the prop pipeline; each module only adds what moves it.
 MOTION_LAYER = {"rigid": ("motion",),  # joints and paths: hinge, rail, lane, spin; the motion check
@@ -826,6 +875,8 @@ STAGES = tuple(dataclasses.replace(row, applies=placed(row.applies)) if row.name
 # not switch re-keys (body-face, which stays on Gemini, and ground-join read surfaces/__init__.py).
 STAGES = tuple(dataclasses.replace(row, make=claude_asks.asking_claude(row.make)) if row.name in claude_asks.ROWS
                else row for row in STAGES)
+# Last: every row declares the scripts its code starts by path (scripts_declared).
+STAGES = tuple(map(scripts_declared, STAGES))
 
 
 def takes_back(place):
