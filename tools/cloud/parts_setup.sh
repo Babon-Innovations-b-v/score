@@ -20,7 +20,7 @@ sed -i -e 's/^\(\s*\)snapshot_download(repo_id="briaai\/RMBG-1.4".*$/\1pass  # R
   -e 's/^\(\s*\)rmbg_net\.eval().*$/\1pass/' scripts/inference_partcrafter.py
 grep -n "RMBG\|rmbg_net" scripts/inference_partcrafter.py || true
 
-/root/uv/uv venv --quiet --python 3.11 /root/venv
+/root/uv/uv venv --clear --quiet --python 3.11 /root/venv
 /root/uv/uv pip install --quiet --python /root/venv/bin/python torch==2.5.1 torchvision==0.20.1 \
   --index-url https://download.pytorch.org/whl/cu124
 /root/uv/uv pip install --quiet --python /root/venv/bin/python torch-cluster \

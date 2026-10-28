@@ -16,7 +16,7 @@ fi
 
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
 curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/root/uv sh >/dev/null
-/root/uv/uv venv --quiet --python 3.12 /root/venv
+/root/uv/uv venv --clear --quiet --python 3.12 /root/venv
 /root/uv/uv pip install --quiet --python /root/venv/bin/python vllm huggingface_hub hf_xet pillow
 /root/venv/bin/python -c "import sys; from huggingface_hub import snapshot_download; \
 snapshot_download(sys.argv[1], local_dir='/root/model')" "$REPOSITORY"
