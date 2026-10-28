@@ -102,7 +102,7 @@ def run_line(job, card):
 def shipped(jobs):
     """The repo folders the jobs' scripts need: tools/blender/inside, each script's own folder and its env script's."""
     return sorted({*ALWAYS_SHIPPED, *(str(pathlib.PurePosixPath(job[field]).parent)
-                                      for job in jobs for field in ("script",) if job.get(field))})
+                                      for job in jobs for field in ("script", "env") if job.get(field))})
 
 
 def plan(jobs):
