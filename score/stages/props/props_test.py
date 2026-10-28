@@ -5,7 +5,9 @@ The comparison's folder is one of its own under $PROPS_HOME/store-tests (never /
 removed at the end. Run: .venv/bin/python score/stages/props/props_test.py
 
 Breaks (applied once, seen red, reverted): model_checks laying the row's size x wide, z deep (`[size[0], size[2],
-size[1]]`) turns test_the_model_check_holds_a_prop_s_proportions_whichever_way_round_the_finish_laid_its_footprint red.
+size[1]]`) turns test_the_model_check_holds_a_prop_s_proportions_whichever_way_round_the_finish_laid_its_footprint red;
+run_batch's error without its log's tail (`{tail}` dropped) turns
+test_a_failed_pixal3d_batch_stops_the_row_with_its_logs_end red.
 """
 import importlib.util
 import json
@@ -290,6 +292,27 @@ def test_a_raw_take_is_finished_on_a_rented_machine_never_here():
                 raise AssertionError("a call that brought nothing back must stop the row")
             except RuntimeError as error:  # its log's end in the error, so the fault report shows the cause
                 assert str(error).endswith("renting\nno machine could be rented"), error
+        finally:
+            pixal_row.subprocess.run = kept
+
+
+def test_a_failed_pixal3d_batch_stops_the_row_with_its_logs_end():
+    """2026-10-28: the galley's batch failed (exit 1) and the fault report said only "its log is batch.log", whose
+    making folder was already gone. The error carries the log's end, so the fault report shows the cause."""
+    import types
+    import score.stages.props.pixal_row as pixal_row
+    kept = pixal_row.subprocess.run
+    with tempfile.TemporaryDirectory() as held:
+        try:
+            pixal_row.subprocess.run = lambda command, **options: types.SimpleNamespace(
+                returncode=1, stdout="checking\n", stderr="the local backend gives no machine of: gpu-24gb\n")
+            try:
+                pixal_row.run_batch(pathlib.Path(held) / "list.txt", "galley", pathlib.Path("/galley.json"),
+                                    pathlib.Path(held))
+                raise AssertionError("a failed batch must stop the row")
+            except RuntimeError as error:
+                assert str(error).endswith("checking\nthe local backend gives no machine of: gpu-24gb"), error
+            assert "gives no machine" in (pathlib.Path(held) / "batch.log").read_text()
         finally:
             pixal_row.subprocess.run = kept
 
