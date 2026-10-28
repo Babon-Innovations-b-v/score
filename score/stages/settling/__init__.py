@@ -102,7 +102,7 @@ def make(inputs, out, seed, params):
     scratch = out / "scratch"
     try:
         root = grounded_seed(inputs, scratch)
-        seed = Usd.Stage.Open(str(pathlib.Path(inputs["seed"]) / root.name))  # the seed's poses, which nothing moves
+        seed = laid_stage(root)  # the poses as laid, which no settle layer moves
         stage = Usd.Stage.Open(str(root))
         loose, ignore, starts, under = settle.drop_job(stage, place, inventory, upright=True, kit_path=inputs["kit"])
         found = judged(root, inputs)
@@ -140,6 +140,17 @@ def make(inputs, out, seed, params):
         "place": place, "overlaps": simulated["overlaps"], "one hull": unsplit,
         "objects": {name: {"rested": pose["rested"], "said": pose["said"], "matrix": pose["after"].tolist()}
                     for name, pose in sorted(poses.items())}}, indent=1))
+
+
+def laid_stage(root):
+    """The grounded seed at `root` as laid, before any settle layer is put over it: a copy of its root layer opened
+    on its own (laid_over writes each step's layer into the root's own). Not the seed folder's root: an earth seed lays
+    no object, its scene record does (grounded_seed's take_record), and every held object's laid matrix read there was
+    an invalid prim (settle@engineroom and @greenhouse, 2026-10-28)."""
+    from pxr import Usd
+    laid = root.with_name(f"laid-{root.name}")
+    shutil.copyfile(root, laid)
+    return Usd.Stage.Open(str(laid))
 
 
 def landed_in_hollows(stage, place, poses, simulated, under, hollow):

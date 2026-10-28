@@ -17,6 +17,8 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   test (a one-hull support's faller laid where it lands).
 - a_box_fallen_into_its_crate_on_the_stage_is_laid_there: landed_in_hollows' `rest = np.asarray(...["motion"]) @
   pose["before"]` made `rest = pose["before"]` (the drop's motion not applied).
+- the_laid_stage_keeps_each_object_where_it_was_laid: laid_stage's copy dropped (`Usd.Stage.Open(str(root))`: the
+  poses read back through the settle layer laid over it).
 - a_cloud_drop_runs_on_the_trials_card_in_its_python_once (tools/usd/drop.py): simulate's `machine.run(..., env=ENV)`
   without `env=ENV` (the drop sent to the card's Blender).
 
@@ -229,7 +231,28 @@ def a_box_fallen_into_its_crate_on_the_stage_is_laid_there():
         return problems
 
 
-CHECKS = (a_cloud_drop_runs_on_the_trials_card_in_its_python_once, the_layer_lays_each_object_at_its_rest,
+
+def the_laid_stage_keeps_each_object_where_it_was_laid():
+    """The grounded seed as laid holds every object its root lays (an earth seed's are its scene record's, none its
+    seed folder's: settle@engineroom read a held one there, 2026-10-28), at its laid pose after a settle layer moved it
+    in the root."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        path = resting_test.laid_place(folder, [("crate", "box", (0, 0, 0))], [("crate", "floor")])
+        before = laid(Usd.Stage.Open(str(path)), "crate_1")
+        seed = settle.laid_stage(path)
+        moved = before.copy()
+        moved[:3, 3] += [0.1, 0.0, 0.0]
+        settle.laid_over(path, seed, PLACE, {"crate_1": {"before": before, "after": moved}}, folder / "held.usda")
+        if not np.allclose(laid(Usd.Stage.Open(str(path)), "crate_1"), moved):
+            return ["the settle layer did not move crate_1 in the root"]
+        if not np.allclose(laid(seed, "crate_1"), before):
+            return [f"crate_1 as laid reads {laid(seed, 'crate_1')}, not its laid pose"]
+        return []
+
+
+CHECKS = (the_laid_stage_keeps_each_object_where_it_was_laid, a_cloud_drop_runs_on_the_trials_card_in_its_python_once, the_layer_lays_each_object_at_its_rest,
           the_drop_gate_fails_a_broken_drop_and_names_what_was_kept,
           only_what_lies_on_the_object_resting_worse_is_kept_with_it,
           a_flush_pose_resting_worse_falls_back_to_the_drops_rest,
