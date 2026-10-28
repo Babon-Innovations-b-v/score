@@ -13,7 +13,7 @@ id names the lost thing itself, never the place reading it, so one input many pl
 """
 import pathlib
 
-from score import stages
+from score import graph, stages
 from score.stages import surfaces
 from score.stages.props import prop_data
 
@@ -109,6 +109,8 @@ def takes_lost(runner, place):
     declare only the take files that are (surface_data.take_files, so a take a batch gap left out stops no row), and
     the views row reads every take."""
     found = {}
+    for read in graph.PLACE_READS:  # a take the library holds comes back first (offload-pixal freed it)
+        read(place)
     for name, pattern in surfaces.data.take_patterns(place).items():
         path = pathlib.Path(pattern.format(**runner.world.roots))
         if not path.exists():

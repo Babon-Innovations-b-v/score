@@ -36,7 +36,8 @@ FRAMEWORK = {REPO / name for name in ("score/__main__.py", "score/graph/__init__
                                       "tools/cloud/self_delete.py", "tools/cloud/secret_store.py",
                                       "tools/cloud/detached.py", "tools/cloud/google_spend.py",
                                       "tools/cloud/google_bill.py", "tools/cloud/blender_cloud.py",
-                                      "tools/cloud/ledger.py", "tools/cloud/inputs.py")}
+                                      "tools/cloud/ledger.py", "tools/cloud/inputs.py",
+                                      "tools/library/pixal_takes.py")}
 # Where FRAMEWORK is declared, read at an older commit to rebuild the code version a record was made under.
 DECLARED_IN = "score/graph/_code.py"
 

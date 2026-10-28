@@ -6,6 +6,7 @@ about twelve runs had started that day, and the copies of the ones stopped, fail
     python -m score.conductor clean-frozen   # remove every frozen copy no run needs; what it freed, one line a copy
     python -m score.conductor clean-cache [--making-only]   # checkouts relinked; with no run live, the cache cleared
     python -m score.conductor relink-pixal   # work/pixal's files the store holds made links to its blobs, one line
+    python -m score.conductor offload-pixal  # with no run live, work/pixal's takes into the library, freed once read back
 
 launch_refusal() is `score run`'s check before it makes its copy: a run is refused while the disk has under FLOOR_GB
 free. health.read() carries FLOOR_GB and warning() (a note on the Machine card).
@@ -40,6 +41,12 @@ each regular file there whose bytes the store holds as a blob (the store's own s
 hard link to that read-only blob, renamed over it so no reader sees it missing. A file changed in the last
 YOUNG_SECONDS (a take a run may still be writing or turning) or changed while it was hashed is kept, as is every
 file the store does not hold: nothing is removed, so a take kept nowhere else stays whole.
+
+offload-pixal, only with no run live (cache_refusal), commits each whole take of work/pixal (its raw and final models,
+untouched for YOUNG_SECONDS, not every file a store link already) to the library as a `take` entry through score-lib
+take-in --save (tools/library/pixal_takes.py), and removes a take's files here only once its entry is in the library's
+pushed history and the blob store hands every file back at its size and sha256. Every reader of work/pixal puts a
+missing take back from the library first (pixal_takes.take_back, wired in score/stages/__init__.py).
 """
 import datetime
 import json
@@ -387,3 +394,115 @@ def relinked_or_why(path, blobs, now):
         return "its blob cannot be linked (writable, another disk or at the link limit)"
     spare.replace(path)
     return None
+
+
+
+# --- offload-pixal: the takes the library holds, freed here ----------------------------------------------------------
+
+def pixal_takes():
+    """tools/library/pixal_takes.py, imported off the path again (a tool folder left on it moves code versions)."""
+    import sys
+    kept = list(sys.path)
+    sys.path.insert(0, str(REPO / "tools" / "library"))
+    try:
+        import pixal_takes as module
+    finally:
+        sys.path[:] = kept
+    return module
+
+
+def offload_pixal(home=None, runs_folder=None, now=None, commit=None):
+    """With no run live (cache_refusal), every work/pixal take committed to the library (pixal_takes.taken_in) and,
+    once the library's pushed entry hands every file back at its size and hash (read_back), its files removed here:
+    a reader gets them back from the library (pixal_takes.take_back). {freed, freed_gb, refused, kept: {why: takes}}."""
+    home = pathlib.Path(home or PROPS_HOME)
+    folder, takes = home / "work" / "pixal", pixal_takes()
+    refused = cache_refusal(home, pathlib.Path(runs_folder or home / "runs"), home / "store" / "cache", [])
+    if refused:
+        return {"freed": 0, "freed_gb": 0.0, "refused": refused, "kept": {}}
+    now = time.time() if now is None else now
+    kept, ready = {}, []
+    for take in painted_takes(home):
+        why = take_kept_why(takes, take, folder, now)
+        if why:
+            kept.setdefault(why, []).append(take)
+        else:
+            ready.append(take)
+    report = takes.taken_in(ready, folder, commit or repo_commit(), home / "tmp" / "offload-pixal") if ready else {}
+    for row in report.get("refused", []):
+        kept.setdefault(f"refused by the library: {row['why']}", []).append(row["id"].split("/", 1)[-1])
+    written = {address for status in ("new", "changed draft", "new version") for address in report.get(status, [])}
+    freed, count = 0, 0
+    for take in ready:
+        why = held_whole_why(takes, take, folder, home, report, written)
+        if why:
+            kept.setdefault(why, []).append(take)
+            continue
+        freed, count = freed + removed_take(takes, take, folder), count + 1
+    return {"freed": count, "freed_gb": round(freed / 1024 ** 3, 2), "refused": None, "kept": kept}
+
+
+def painted_takes(home):
+    """Every take a place's surface data paints (its design's, else the repository's): the takes the stage table puts
+    back before a row reads them (score/stages/__init__.py takes_back), so only those may leave work/pixal."""
+    files = {}
+    for folder in (REPO / "data" / "surfaces", pathlib.Path(home) / "design" / "surfaces"):  # the design's last: it wins
+        files.update({path.stem: path for path in folder.glob("*.json")} if folder.is_dir() else {})
+    return sorted({take for path in files.values() for take in json.loads(path.read_text()).get("takes", {})})
+
+
+def take_kept_why(takes, take, folder, now):
+    """Why the take stays as it is, unoffered to the library, or None."""
+    if takes.take_id(take) is None:
+        return "its name makes no library id"
+    names = takes.take_names(take, folder)
+    if not all(f"{take}{suffix}" in names for suffix in (".glb", "-final.glb")):
+        return "not whole (no raw or final model)"
+    statuses = [(folder / name).stat() for name in names]
+    if any(now - status.st_mtime < YOUNG_SECONDS for status in statuses):
+        return "changed in the last 15 minutes"
+    if all(status.st_nlink > 1 for status in statuses):
+        return "every file a link to the store already"
+    record = takes.newest_record(take)
+    entry = takes.library_files.settings().get("SCORE_LIB_ROOT")
+    other = pathlib.Path(entry or ".") / "entries" / takes.KIND / takes.take_id(take)
+    if record is None and other.is_dir():
+        return "its library id is another take's"
+    return None
+
+
+def held_whole_why(takes, take, folder, home, report, written):
+    """Why the take may not be freed yet (its entry not pushed, or not handed back whole), or None."""
+    record = takes.newest_record(take)
+    if record is None:
+        return "not taken in"
+    if record["address"] in written and not (report.get("saved") or {}).get("pushed"):
+        return f"not pushed: {(report.get('saved') or {}).get('why', 'nothing saved')}"
+    if not takes.upstream_holds(take):
+        return "its entry is not in the library's pushed history"
+    scratch = home / "tmp" / "offload-pixal"
+    scratch.mkdir(parents=True, exist_ok=True)
+    why = takes.read_back(take, folder, scratch)
+    return f"read back: {why}" if why else None
+
+
+def removed_take(takes, take, folder):
+    """The take's files removed from `folder` (its emptied camera folders too); the bytes freed (a file another link
+    still holds frees none)."""
+    freed = 0
+    for name in takes.take_names(take, folder):
+        status = (folder / name).stat()
+        freed += status.st_size if status.st_nlink == 1 else 0
+        (folder / name).unlink()
+    for camera in takes.CAMERAS:
+        path = folder / f"{take}{camera}"
+        for inner in sorted(path.rglob("*"), reverse=True) if path.is_dir() else []:
+            inner.rmdir()
+        if path.is_dir():
+            path.rmdir()
+    return freed
+
+
+def repo_commit():
+    """The checkout's commit, the one the take-in names."""
+    return subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()

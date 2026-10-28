@@ -13,3 +13,7 @@ score_lib (#22). `library_files.py` is the way in (its docstring has the names a
   <file>`) and reads its entry records only for the sha256 it checks every file against.
 - **A file a tool makes** (route.py install, the sound tools) goes to `made_folder()`; `score-lib take-in` (the
   library's) takes it in, and the records then name its reference. Nothing here writes to the library.
+- **Pixal3D's takes live in the library too** (`pixal_takes.py`, 2026-10-28: work/pixal held the only copy): a take
+  is one `take` entry, every file under its work/pixal name (models, record, `.svviews` close-up and camera);
+  `taken_in` commits and pushes takes through `score-lib take-in --save`, `read_back` fetches them again and compares
+  size and sha256, `take_back` puts a missing take back. It is in `_code.FRAMEWORK`: it never changes a take's bytes.

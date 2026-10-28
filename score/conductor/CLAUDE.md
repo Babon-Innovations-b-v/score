@@ -61,6 +61,12 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   attempt is logged on score's side (each command's words go to its caller), so the newest push is the upstream
   ref's reflog line "update by push", and a failed push shows only as commits ahead. Pull fast-forwards only and is
   refused, listing them, on any local change or local commit.
+  `offload-pixal` (the door's), only with no run live (clean-cache's refusal): each take a place's surface data paints,
+  whole (raw and final models), untouched 15 min and not all store links, goes into score_lib as a `take` entry
+  (`tools/library/pixal_takes.py`, `score-lib take-in --save`, the library's checkout pulled forward first) and its
+  files leave work/pixal only once its entry is in the library's pushed history and the blob store hands every file
+  back at its size and sha256. The stage table puts a freed take back (`graph.PLACE_READS`, `stages.takes_back`)
+  before any row of its place works out its files, so no reader and no key changes.
 - **Money**: the conductor bills in its own project (`SCORE_CONDUCTOR_PROJECT`, `score-conductor`); the stop line reads
   the batch project's bill alone, and `project_refusal` (in `compute.books_refusal`, `compute.require_books` and
   `guard.refusal`) refuses every clearance and rent point if the two names are ever the same.

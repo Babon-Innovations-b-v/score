@@ -70,6 +70,10 @@ import score.store as score_store
 from score.store import durable, file_hash, listing_hash, text_hash, tree_files, tree_listing
 
 GRAINS = ("world", "place")
+# What a place's files need on disk before they are worked out, each a function of the place (the stage table puts
+# the Pixal3D takes the library holds back in work/pixal: tools/library/pixal_takes.py). It makes nothing new: the
+# same bytes come back, so no key moves.
+PLACE_READS = []
 WORLD_LINE = "world"
 LOG_TAIL = 40
 NOT_RUN = " has not run on its current inputs"  # usable's cause; a fault report names what moved its key
@@ -662,6 +666,8 @@ class Runner:
             return stage.files
 
         def worked_out():
+            for read in PLACE_READS:
+                read(place)
             with self.selection(stage):
                 return stage.files(place)
         return self.remember("files", node_name(stage, place), worked_out)

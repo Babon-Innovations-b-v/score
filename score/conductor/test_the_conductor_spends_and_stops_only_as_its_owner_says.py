@@ -588,6 +588,50 @@ def test_relink_pixal_links_only_old_takes_the_store_holds_and_removes_nothing(t
     assert disk.relink_pixal(home)["kept"]["already a link to its blob"] == 2
 
 
+def test_offload_pixal_frees_only_painted_takes_the_library_hands_back_whole(tmp_path, monkeypatch):
+    """2026-10-28: work/pixal held the only copy of every paid take on one disk.
+    Break: score/conductor/disk.py offload_pixal: 'why = held_whole_why(takes, take, folder, home, report, written)'
+    -> 'why = None' (a take the library hands back changed is removed), or drop 'if refused:' and its return (takes
+    freed under a live run)."""
+    real = disk.pixal_takes()
+    home = tmp_path / "home"
+    pixal = home / "work" / "pixal"
+    (home / "design" / "surfaces").mkdir(parents=True)
+    (home / "design" / "surfaces" / "p.json").write_text(json.dumps({"takes": {"a-s1": {}, "b-s1": {}, "c-s1": {}}}))
+    for take in ("a-s1", "b-s1", "c-s1", "d-s1"):
+        (pixal / f"{take}.svviews").mkdir(parents=True)
+        for name in (f"{take}.glb", f"{take}-final.glb", f"{take}.svviews/input.png"):
+            (pixal / name).write_bytes(take.encode() * 100)
+    old = time.time() - 2 * disk.YOUNG_SECONDS
+    for path in pixal.rglob("*"):
+        if not path.name.startswith("c-s1"):
+            os.utime(path, (old, old))
+    asked = []
+
+    def taken_in(takes, folder, commit, scratch):
+        asked.extend(takes)
+        return {"new": [f"take/{real.take_id(take)}@1" for take in takes], "unchanged": [], "changed draft": [],
+                "new version": [], "refused": [], "saved": {"committed": "x", "pushed": True, "why": ""}}
+    stand_in = type(real)("pixal_takes")
+    stand_in.__dict__.update({**real.__dict__, "taken_in": taken_in, "upstream_holds": lambda take: True,
+                              "newest_record": lambda take: {"address": f"take/{real.take_id(take)}@1"},
+                              "read_back": lambda take, folder, scratch:
+                              "b-s1.svviews/input.png came back with other bytes" if take == "b-s1" else None})
+    monkeypatch.setattr(disk, "pixal_takes", lambda: stand_in)
+    (home / "runs").mkdir()
+    (home / "runs" / "w.json").write_text(json.dumps({"state": runs.WAITING, "worktree": str(tmp_path / "copy")}))
+    done = disk.offload_pixal(home, commit="0" * 40)
+    assert "a registered run needs" in done["refused"] and (pixal / "a-s1.glb").exists() and not asked, done
+    (home / "runs" / "w.json").unlink()
+    done = disk.offload_pixal(home, commit="0" * 40)
+    assert asked == ["a-s1", "b-s1"] and done["freed"] == 1, done
+    kept = {why: takes for why, takes in done["kept"].items() if why != "not whole (no raw or final model)"}
+    assert kept == {"changed in the last 15 minutes": ["c-s1"],  # the repository's people takes are not here: not whole
+                    "read back: b-s1.svviews/input.png came back with other bytes": ["b-s1"]}, done
+    assert not list(pixal.glob("a-s1*")), list(pixal.iterdir())
+    assert all((pixal / name).exists() for name in ("b-s1.glb", "c-s1.glb", "d-s1.glb", "b-s1.svviews/input.png"))
+
+
 def a_copy(repo, folder, name, home):
     """A frozen copy `name` of `repo` under `folder` with its home: the design copied read-only, the rest linked."""
     path = folder / name
