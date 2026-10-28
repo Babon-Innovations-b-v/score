@@ -4,6 +4,7 @@ the store's machine (score/dashboard/sync)."""
 import datetime
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -420,6 +421,18 @@ def command_words(group, jobs):
     return shlex.join(["python", *run_command(group, jobs, None)[1:]])
 
 
+SCENE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}")
+
+
+def scene_name(payload, field):
+    """A request's place or environment name, only when it is a plain name: it becomes store keys, file names and a
+    library command's words on the store's machine. KeyError (said as refused) for anything else, "../" among them."""
+    name = str(payload[field])
+    if not SCENE_NAME.fullmatch(name):
+        raise KeyError(f"{name!r} is not a scene name")
+    return name
+
+
 # --- the concept review (CONTEXT.md "concept review"): the owner's draws and picks, on the store's machine ---------
 
 def concept_draw(user, payload):
@@ -435,7 +448,7 @@ def concept_draw(user, payload):
         asked = {"marks": payload.get("marks") or [], "context_marks": payload.get("context_marks") or [],
                  "note": str(payload.get("note") or ""),
                  "base": payload.get("base") or None, "wording": payload.get("wording") or None}
-        place, together = str(payload["place"]), payload.get("all")
+        place, together = scene_name(payload, "place"), payload.get("all")
         record = web.concept_draw(source.store, place, asked, float(payload["euros"]), by=user, first=bool(together),
                                   purpose=together and (f"concept review: Draw all, {int(together['count'])} first "
                                                         f"draws for EUR {float(together['euros']):.2f}: one of {place}"))
@@ -459,7 +472,7 @@ def concept_discuss(user, payload):
     try:
         asked = {"base": payload.get("base") or None, "question": str(payload.get("question") or ""),
                  "marks": payload.get("marks") or [], "context_marks": payload.get("context_marks") or []}
-        entry = web.concept_discuss(source.store, str(payload["place"]), asked, float(payload["euros"]), by=user)
+        entry = web.concept_discuss(source.store, scene_name(payload, "place"), asked, float(payload["euros"]), by=user)
     except (review.Refused, PermissionError, FileExistsError, KeyError, TypeError, ValueError,
             subprocess.TimeoutExpired) as refused:
         return f"refused: {refused}", None
@@ -476,7 +489,7 @@ def concept_generated(user, payload):
     from score.review import web
     source = state.source()
     try:
-        web.concept_generated(source.store, str(payload["place"]), by=user)
+        web.concept_generated(source.store, scene_name(payload, "place"), by=user)
     except (review.Refused, PermissionError, FileExistsError, KeyError) as refused:
         return f"refused: {refused}"
     source.refresh()
@@ -492,7 +505,7 @@ def concept_pick(user, payload):
     from score.review import web
     source = state.source()
     try:
-        record = web.concept_pick(source.store, str(payload["place"]), payload.get("sha") or None, by=user)
+        record = web.concept_pick(source.store, scene_name(payload, "place"), payload.get("sha") or None, by=user)
     except (review.Refused, PermissionError, FileExistsError, KeyError) as refused:
         return f"refused: {refused}"
     source.refresh()
@@ -512,7 +525,7 @@ def environment_ask(user, payload):
     source = state.source()
     try:
         asked = {"topic": str(payload["topic"]), "answer": str(payload["answer"]), "concept": payload["concept"]}
-        record = web.environment_ask(source.store, str(payload["world"]), asked, float(payload["euros"]), by=user)
+        record = web.environment_ask(source.store, scene_name(payload, "world"), asked, float(payload["euros"]), by=user)
     except (review.Refused, PermissionError, FileExistsError, KeyError, TypeError, ValueError,
             subprocess.TimeoutExpired) as refused:
         return f"refused: {refused}", None
@@ -529,7 +542,7 @@ def environment_save(user, payload):
     from score.review import web
     source = state.source()
     try:
-        record = web.environment_saved(source.store, str(payload["world"]), payload["concept"],
+        record = web.environment_saved(source.store, scene_name(payload, "world"), payload["concept"],
                                        bool(payload["locked"]), by=user)
     except (review.Refused, PermissionError, FileExistsError, KeyError) as refused:
         return f"refused: {refused}"
@@ -550,7 +563,7 @@ def environment_reference(user, payload):
     source = state.source()
     try:
         data = base64.b64decode(str(payload["data"]), validate=True)
-        record = web.environment_reference(source.store, str(payload["world"]), data, str(payload["name"]),
+        record = web.environment_reference(source.store, scene_name(payload, "world"), data, str(payload["name"]),
                                            str(payload.get("shows") or ""), payload.get("place") or None, by=user)
     except (review.Refused, PermissionError, FileExistsError, KeyError, binascii.Error) as refused:
         return f"refused: {refused}", None
@@ -579,7 +592,7 @@ def plan_said(user, call, done):
 def plan_edit(user, payload):
     """His plan as he left it on its page, kept as his own (score.review.web.plan_edit); in words."""
     from score.review import web
-    return plan_said(user, lambda store, by: web.plan_edit(store, str(payload["place"]), payload["plan"], by),
+    return plan_said(user, lambda store, by: web.plan_edit(store, scene_name(payload, "place"), payload["plan"], by),
                      lambda record: f"kept {len(record['plan']['items'])} items")
 
 
@@ -601,7 +614,7 @@ def plan_named(user, payload):
     """The inside places he named on a concept page (score.review.web.plan_named); in words."""
     from score.review import web
     names = payload.get("names") or []
-    return plan_said(user, lambda store, by: web.plan_named(store, str(payload["place"]), names, by),
+    return plan_said(user, lambda store, by: web.plan_named(store, scene_name(payload, "place"), names, by),
                      lambda record: f"{len(record['names'])} child scenes named")
 
 
@@ -609,7 +622,7 @@ def plan_write(user, payload):
     """His Make plan: the place's plan written by the prompt model (score.review.web.plan_write; his click its spend
     yes unless the standing allowance covers it); in words."""
     from score.review import web
-    return plan_said(user, lambda store, by: web.plan_write(store, str(payload["place"]), float(payload["euros"]), by),
+    return plan_said(user, lambda store, by: web.plan_write(store, scene_name(payload, "place"), float(payload["euros"]), by),
                      lambda record: f"written: {record.get('items', 0)} items, {record.get('gaps', 0)} gaps"
                      if "refused" not in record else f"refused: {record['refused']}")
 
@@ -619,7 +632,7 @@ def plan_revise(user, payload):
     from score.review import web
     asked = {"marks": payload.get("marks") or [], "context_marks": payload.get("context_marks") or [],
              "note": str(payload.get("note") or "")}
-    return plan_said(user, lambda store, by: web.plan_revise(store, str(payload["place"]), asked,
+    return plan_said(user, lambda store, by: web.plan_revise(store, scene_name(payload, "place"), asked,
                                                              float(payload["euros"]), by),
                      lambda record: f"corrected at {record['at']}")
 

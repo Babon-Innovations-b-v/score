@@ -27,6 +27,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - applying.OWNER_FIGURES: a "month" kind added -> test_the_owners_figures_and_waiver_are_applied_for_him_...
 - pages/actions.owner_figure_off_why: the agent check -> `if False:` -> test_the_owners_figures_are_refused_in_...
 - pages/actions.set_books_figure: the amount check -> `if False:` -> test_the_hosted_buttons_queue_the_owners_...
+- pages/actions.scene_name: the name check -> `if False:`; or library_actions.carried_out: the refusal dropped ->
+  test_a_synced_request_naming_a_path_or_an_entry_not_in_the_library_is_refused
 - pages/actions.record_change: no inbox write -> test_a_change_request_is_applied_into_the_inbox
 - client.sync_pass: `applied = []` -> test_a_sync_pass_pushes_the_export_and_reports_each_request
 - client.sync_pass: a `usd_sweep()` also inside the pricing lock -> test_the_usd_check_runs_outside_the_pricing_lock
@@ -391,6 +393,24 @@ def test_the_owners_figures_and_waiver_are_applied_for_him_and_refused_for_anyon
     books = json.loads(world.books.read_text())
     assert books["google_before"] == 12.5 and books["google_by"] == "joey" and books["state"] == "known"
     assert world.store.waivers("closeup@beta", key)["looks"]["by"] == "joey"
+
+
+def test_a_synced_request_naming_a_path_or_an_entry_not_in_the_library_is_refused(owner_books, settings,
+                                                                                    monkeypatch, tmp_path):
+    """A request from the hosted side is checked again on the store's machine: a place or environment name that is a
+    path never reaches a store key or a file, and a library address not in the library never reaches its command."""
+    from score.dashboard.pages import library_actions
+    for kind, payload in (("concept-pick", {"place": "../../accepts", "sha": None}),
+                          ("plan-write", {"place": "a/b", "euros": 0.0}),
+                          ("environment-save", {"world": "..", "concept": {}, "locked": False})):
+        applied = applying.apply({"kind": kind, "user": "joey", "payload": payload}, owner_books.source)
+        assert applied.state == "refused" and "is not a scene name" in applied.detail, (kind, applied.detail)
+    settings.SCORE_LIB_ROOT = tmp_path
+    monkeypatch.setattr(library_actions, "library", lambda: types.SimpleNamespace(entry=lambda address: None))
+    monkeypatch.setattr(library_actions, "run", lambda arguments: pytest.fail(f"ran {arguments}"))
+    applied = applying.apply({"kind": "library", "user": "joey", "payload": {
+        "action": "withdraw", "addresses": ["--upload-pack=touch x"]}}, owner_books.source)
+    assert applied.state == "refused" and "is not in the library" in applied.detail
 
 
 def test_the_owners_figures_are_refused_in_an_agents_process(owner_books, monkeypatch):
