@@ -61,7 +61,7 @@ import re
 import sys
 
 _PYTHON = re.compile(r"\b(python3?(\.\d+)?|uv\s+run)\b|/python\b")
-_REVIEW_RUN = re.compile(r"^\s*(\S+=\S*\s+)*(sudo\s+)?((ba)?sh\s+-\S*c\s+['\"]?|eval\s+['\"]?)?(uv\s+run\s+)?\S*python3?(\.\d+)?\s+(-\S+\s+)*"
+_REVIEW_RUN = re.compile(r"^\s*([^\s=]+=\S*\s+)*(sudo\s+)?((ba)?sh\s+-\S*c\s+['\"]?|eval\s+['\"]?)?(uv\s+run\s+)?\S*python3?(\.\d+)?\s+(-\S+\s+)*"
                          r"(-m\s+)?\S*(score[./]review(/__main__\.py)?|__main__\.py)\s+['\"]?"
                          r"(accept|reject|spend|waive|stop)\b")
 _OWNER_CALL = re.compile(r"\b(accept|reject|spend|waive|write_once|write_accept|write_reject|write_spend_yes|"
@@ -73,7 +73,7 @@ _LOCK_CALL = re.compile(r"\b(concept_pick|film_locked|as_owner_deciding|as_owner
                         r"applying\.apply)\s*\(")
 _DASHBOARD = re.compile(r"(^|/)score/dashboard/")
 # The apply command of a decision he made in chat, by the cockpit's command, this PC's or the agents' door; its id.
-_DECIDE_RUN = re.compile(r"^\s*(\S+=\S*\s+)*(sudo\s+)?((uv\s+run\s+)?\S*python3?(\.\d+)?\s+(-\S+\s+)*"
+_DECIDE_RUN = re.compile(r"^\s*([^\s=]+=\S*\s+)*(sudo\s+)?((uv\s+run\s+)?\S*python3?(\.\d+)?\s+(-\S+\s+)*"
                          r"(-m\s+score\.dashboard|\S*score/dashboard(/__main__\.py)?|\S*this_pc\.py)|ssh\s.*?score@\S+)"
                          r"\s+['\"]?decide['\"]?(?=\s|$)(\s+['\"]?(?P<id>[^\s'\"]+))?")
 _YES_ID = re.compile(r"^\d{8}T\d{6}\d*Z$")
@@ -88,7 +88,7 @@ _OWNER_NAME = re.compile(r"(^|/)(accepts|rejects|waivers|spend-yes|clearances|st
 _SEGMENTS = re.compile(r"\|\||&&|[;|\n]")
 _REDIRECT_INTO_OWNER = re.compile(r"(^|[^<>&0-9])>>?\s*['\"]?[^\s'\"]*(accepts|rejects|waivers|spend-yes|clearances|"
                                   r"stops|grants|picks|films/locked)/")
-_WRITER = re.compile(r"^\s*(\S+=\S*\s+)*(sudo\s+)?(\S*/)?(tee|cp|mv|ln|rm|touch|install|rsync|dd|chmod|chown|"
+_WRITER = re.compile(r"^\s*([^\s=]+=\S*\s+)*(sudo\s+)?(\S*/)?(tee|cp|mv|ln|rm|touch|install|rsync|dd|chmod|chown|"
                      r"truncate|python3?(\.\d+)?|uv)\b|\bsed\s+(-\S+\s+)*-i|\bfind\b.*\s-(delete|exec)\b")
 _WRITE_TARGET = re.compile(r"(?:(?:^|[^<>&0-9])>>?|\btee\s+(?:-\S+\s+)*)\s*['\"]?([^\s'\";|&<>]+)")
 _QUOTED = re.compile(r"'[^']*'|\"(?:[^\"\\]|\\.)*\"")
