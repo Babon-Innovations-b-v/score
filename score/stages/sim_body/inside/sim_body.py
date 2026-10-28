@@ -65,8 +65,7 @@ segment riding its bone turns], "targets": [...the clip's...], "torques": [N m p
 (the ground's push), "lowest": m (the lowest collider
 point's height over the ground, null off it), "feet": {segment: [its lowest collider point's height over the ground
 (null off it), the ground's upward push on it N]} (FEET), "residual": [force xyz N, moment xyz N m], "reserve": N m
-(the largest joint reserve), "activations": [0..1 per muscle], "forces": [N per muscle, tension], "poses": [[x, y, z,
-qx, qy, qz, qw] per SOMA segment: the clip's own moved as RRA moved the body it rides, which the skin plays]}],
+(the largest joint reserve), "activations": [0..1 per muscle], "forces": [N per muscle, tension]}],
 "adjusted": RRA's moves (`adjustment_record`)}}}, everything in the person's own frame (Y
 up); and beside it <out>.npz, per person: `<name>/bones` (each body's pose every frame, frames x bodies x 7),
 `<name>/segments` (each SOMA segment riding its bone every frame, frames x segments x 7: at the bind's correspondence,
@@ -161,7 +160,7 @@ def run_person(job, person, out_path):
     drawn = sorted(meshes)
     drawn_ids = [body_index(model, name) for name in drawn]
     records, bones, segments, paths, counts = frames(physics, qpath, velocities, accelerations, worlds, ground, riders,
-                                                     feet, (fitted_poses, adjusted_poses), drawn_ids)
+                                                     feet, drawn_ids)
     mine = arrays(person["name"], bones, segments, paths, counts, meshes)
     return entry(model, record, (muscles, joints, drawn), {segment: rides[segment] for segment in person["segments"]},
                  qpath[0], ground, shift, job["gravity"], adjustment, records), mine

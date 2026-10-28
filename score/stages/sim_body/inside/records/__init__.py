@@ -1,6 +1,7 @@
 """What the run writes for one person (out.json's entry and <out>.npz's arrays, the contract the stage reads): each
 frame's record (`frames`: the body's and the clip's segment turns, the joints' moments, the ground's push, the feet,
-the residual and reserve, the muscles' activations and forces, the poses the skin plays) with the arrays drawn beside
+the residual and reserve, the muscles' activations and forces; the poses the skin plays are SOMA's own, the stage's)
+with the arrays drawn beside
 (each body's and segment's pose, the muscles' paths), the bone meshes (`bones_of`), the arrays by name (`arrays`),
 the person's entry (`entry`) and RRA's `adjusted` record (`adjustment_record`)."""
 import mujoco
@@ -104,14 +105,13 @@ def adjustment_record(moved_by, kept, shares, step, before, after, segments, fol
             "follows deg": [round(follows[0], 3), round(follows[1], 3)]}
 
 
-def frames(physics, path, velocities, accelerations, worlds, ground, riders, feet, poses, drawn_ids):
+def frames(physics, path, velocities, accelerations, worlds, ground, riders, feet, drawn_ids):
     """Every frame's record and the drawn arrays beside it: its physics shared out (`Physics.shared`), its segments
-    riding their bones (`riders`: segments, bodies, riding, parents), the feet (`feet`: {segment: geoms}), the poses
-    the skin plays (`poses`: the fitted and the adjusted segments' poses, the clip's moved as RRA moved the body each
-    rides); returns the records, each drawn body's poses, each segment's, the muscles' paths and their point counts."""
+    riding their bones (`riders`: segments, bodies, riding, parents), the feet (`feet`: {segment: geoms}); returns
+    the records, each drawn body's poses, each segment's, the muscles' paths and their point counts. The poses the
+    skin plays are SOMA's own, written by the stage (#70: SOMA is the truth, never moved)."""
     model = physics.model
     segment_names, bodies, riding, parents = riders
-    fitted_poses, adjusted_poses = poses
     found, bones, segments, paths, counts = [], [], [], [], []
     for frame in range(len(path)):
         share = physics.shared(physics.needed(path[frame], velocities[frame], accelerations[frame]))
@@ -130,9 +130,7 @@ def frames(physics, path, velocities, accelerations, worlds, ground, riders, fee
                                  3).tolist(),
             "reserve": round(float(np.abs(share["reserves"]).max(initial=0.0)), 3),
             "activations": np.round(share["activations"], 4).tolist(),
-            "forces": np.round(share["forces"], 2).tolist(),
-            "poses": np.round([segment_pose(after @ np.linalg.inv(before) @ world) for after, before, world in
-                               zip(adjusted_poses[frame], fitted_poses[frame], worlds[frame])], 5).tolist()})
+            "forces": np.round(share["forces"], 2).tolist()})
         segments.append([segment_pose(world) for world in posed])
         bones.append([segment_pose(own_pose(model, data, body)) for body in drawn_ids])
         mine = [_path_of(data, tendon) for tendon in model.actuator_trnid[physics.muscles, 0]]

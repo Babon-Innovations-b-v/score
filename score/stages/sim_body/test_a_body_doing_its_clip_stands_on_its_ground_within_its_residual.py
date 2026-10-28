@@ -16,7 +16,9 @@ triangles in its own frame (its spot and turn, then the dressed body's Turned), 
 near, names the clip the rig lacks and the crowd, weighs each body by the scene's gravity, and writes the layer: each
 SOMA segment an Xform at its pose every frame holding the bone it rides, another bone under Bones, and the muscles as
 lines coloured by activation; the record names the model's attribution (MyoSuite, MoBL-ARMS); each body is
-calibrated on the rig's standing clip, its first frame handed to the run.
+calibrated on the rig's standing clip, its first frame handed to the run, with the person's mesh for the sizing; and
+SOMA's joints leave the stage unchanged: every frame's `poses` in the measures are the clip's own segment frames bit
+for bit, though the written run moved them 0.6 m (#70: SOMA is the truth).
 Newton and MuJoCo are not run here (the model's run takes minutes); the real run's
 numbers are on #65.
 
@@ -39,6 +41,9 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   `points @ carried[:3, :3].T + carried[:3, 3]` made `points` (a ridden bone drawn in its body's frame, not its
   segment's); its colour's `shade` made 0; make's `clip_frames(rig, STANDING, kept)[0]` made `rig["bind"][kept]`
   (calibrated on the bind, not the standing clip); the record's `"attribution": ATTRIBUTION` made `""`.
+- the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-10-28 (#70): make's `frame["poses"] =
+  [soma_pose(world) ...]` made `pass` (the run's moved poses kept); soma_pose's `world[:3, 3]` rounded to 2 places;
+  make's targets `points=rig["points"]` made `rig["bind"]` (the mesh not handed to the sizing).
 
 Run: .venv/bin/python -m pytest score/stages/sim_body/test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual.py
 """
@@ -185,13 +190,17 @@ def toy_seed(folder):
 
 def written_run(job):
     """A written engine run for the job's one person: Hips and Shin each riding a bone 0.1 m up its segment's own
-    frame, one muscle of two points, twenty frames."""
+    frame, one muscle of two points, twenty frames, each with poses moved 0.6 m up (as the run wrote them before #70:
+    the stage must not keep them)."""
     person = job["people"][0]
-    frame = frames(1, weight=person["kg"] * 1.62)[0]
-    frame.update(poses=[[0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]],
-                 activations=[1.0], forces=[100.0])
+    written = []
+    for _ in range(20):
+        frame = frames(1, weight=person["kg"] * 1.62)[0]
+        frame.update(poses=[[0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 1.0], [0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 1.0]],
+                     activations=[1.0], forces=[100.0])
+        written.append(frame)
     entry = {"rides": {"Hips": "pelvis", "Shin": "tibia_l"}, "model": {"kg": person["kg"]}, "muscles": ["soleus_l"],
-             "bones": ["pelvis", "tibia_l", "talus_l"], "kg": person["kg"], "com height": 0.5, "frames": [frame] * 20,
+             "bones": ["pelvis", "tibia_l", "talus_l"], "kg": person["kg"], "com height": 0.5, "frames": written,
              "adjusted": {"pelvis cm": [0.5, 1.2], "largest turn deg": 3.0, "mass %": -1.0}}
     bones = np.zeros((20, 3, 7))
     bones[:, :, 6] = 1.0
@@ -210,6 +219,8 @@ def written_run(job):
 
 def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_path, monkeypatch):
     rig = toy_rig()
+    rig["clip_standing"] = np.concatenate([rig["clip_standing"]] * 2)  # twenty frames, as the written run's
+    rig["clip_standing"][:, 1, 1, 3] = np.linspace(0.5, 0.6, 20)  # its Hips rising: a clip that moves
     bent = np.eye(4)
     bent[1:3, 1:3] = [[np.cos(0.2), -np.sin(0.2)], [np.sin(0.2), np.cos(0.2)]]
     rig["clip_standing"][:, 2] = rig["clip_standing"][:, 2] @ bent  # its standing shin bent off the bind
@@ -231,6 +242,7 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
         assert job["adjust"]["follows deg"] == sim_body.FOLLOWED and job["residual"]["force"] == 0.02
         assert np.asarray(person["standing"]) == pytest.approx(sim_body.clip_frames(rig, "standing", [1, 2])[0])
         ground = np.load(person["targets"])["ground"]
+        assert np.load(person["targets"])["points"] == pytest.approx(rig["points"])  # the mesh the sizing reads
         assert ground[:, :, 1] == pytest.approx(0.1)
         # the square's corner (3, 5) is (2, 3) from ann's spot: turned back her 30 degrees and the dressed body's
         # Turned 180 about up, (-0.232, -3.598) (without the Turned: (0.232, 3.598), the ground mirrored)
@@ -265,5 +277,13 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
     assert list(muscles.GetCurveVertexCountsAttr().Get(5)) == [2]
     assert tuple(UsdGeom.PrimvarsAPI(muscles).GetPrimvar("displayColor").Get(5)[0]) == pytest.approx(
         sim_body.ACTIVE, abs=1e-6)
-    assert json.loads((out / "measures/ann.json").read_text())[0]["poses"][0][1] == 0.6  # the clip's, as written
+    # SOMA's joints leave the stage unchanged: every frame's poses are the clip's own segment frames, bit for bit
+    from scipy.spatial.transform import Rotation
+    clip = sim_body.clip_frames(rig, "standing", [1, 2])
+    measures = json.loads((out / "measures/ann.json").read_text())
+    for frame, worlds in zip(measures, clip):
+        for pose, world in zip(frame["poses"], worlds):
+            assert pose[:3] == list(world[:3, 3]) and Rotation.from_quat(pose[3:]).as_matrix() == pytest.approx(
+                world[:3, :3], abs=1e-12)
+    assert len(measures) == len(clip) == 20
     assert sim_body.output_faults(out) == []
