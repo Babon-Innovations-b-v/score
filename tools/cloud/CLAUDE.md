@@ -48,7 +48,13 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   card also makes its paid rows, with no ticket, so a Google ask its cache does not answer fails, saying so:
   `graph.on_this_pc`) and pushes the new store objects and takes back, adding only: the door never replaces a file the conductor holds. Its `decide-yes` and `decide <yes id>`
   are the door's, against that run's home (owner, 2026-10-27), and `env1 --go <id>` tags the run with his go
-  (SCORE_OWNERS_GO: a bought batch for the in-batch accept). The owner's one-time
+  (SCORE_OWNERS_GO: a bought batch for the in-batch accept). `pause`, `resume` and `status` free the PC for the
+  owner's games (owner, 2026-10-28: "make it so that you can ez pause and resume using my system"): `pause` records
+  the live run (arguments, commit, its SCORE_ variables, the go among them) in `~/.score-this-pc/paused.json`, stops
+  it with SIGTERM to its leader, waits until its process group is gone and `docker stop`s the container (never
+  `docker pause`: the card's memory stays held); `resume` refuses while a run is live, starts the container and the
+  same run detached from `~/.score-this-pc/resume-code` at the recorded commit (log under `~/.score-this-pc/logs`);
+  `status` says running, paused or neither, the newest heartbeat's rows and what is on the card. The owner's one-time
   step: `sudo usermod -aG docker $USER`. The rule below that no model runs on the owner's PC holds everywhere else.
 - **The only way models are made**, one or a hundred: no model runs on the owner's PC (owner,
   2026-10-03; `../local_models.py`). `batch.py` makes models, `pictures.py` pictures, `scene.py`

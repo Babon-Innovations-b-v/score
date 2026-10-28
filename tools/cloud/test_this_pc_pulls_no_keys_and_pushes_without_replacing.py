@@ -13,10 +13,17 @@ Breaks (each applied once, seen red, reverted):
 - this_pc.py `deciding`: `run_environment(home)` -> `os.environ` -> the decision reaches the PC's old home.
 - this_pc.py `push`: drop the `except FileNotFoundError: continue` -> a file a live run removed after the listing
   ends the push (2026-10-28).
+- this_pc.py `pause`: drop the `while group_alive(leader)` wait -> the container stops while the run still holds it.
+- this_pc.py `RUN_OWN`: drop "SCORE_FROZEN" -> a resumed run would carry the paused run's frozen copy.
+- this_pc.py `resume`: drop its `live_run` refusal -> a second run starts beside the live one.
+- this_pc.py `resume`: drop `**record["env"]` -> the resumed run loses its go and SCORE_MIN_FREE_GB.
+- this_pc.py `newest_beat`: `found[-1]` -> `found[0]` -> status says the oldest heartbeat's rows.
 """
 import pathlib
 import subprocess
 import sys
+
+import pytest
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -115,3 +122,82 @@ def test_a_run_here_carries_the_owners_go_only_when_named_and_decisions_reach_it
     assert command[1:] == ["-m", "score.dashboard", "decide", "20261027T170000Z"]
     assert environment["PROPS_HOME"] == str(home) and environment["SCORE_OWNER"] == "joey"
     assert this_pc.OWNERS_GO not in environment
+
+
+def stand_in_run(home, tmp_path, **variables):
+    """A stand-in `score run`: a process leading its own group with a child in it, ended by SIGTERM a second after it
+    came, registered as running in `home`'s run registry; (process, its entry)."""
+    script = ("import signal, subprocess, sys, time; stopping = []; "
+              "signal.signal(signal.SIGTERM, lambda *_: stopping.append(1)); child = subprocess.Popen([sys.executable, "
+              "'-c', 'import time; time.sleep(60)']); print('ready', flush=True)\n"
+              "while not stopping: time.sleep(0.05)\n"
+              "time.sleep(1); child.terminate(); child.wait()")
+    log = tmp_path / "run.log"
+    log.write_text("heartbeat a: rows done 1, running 2, queued 3; x\nheartbeat b: rows done 4, running 5, queued 6; y\n")
+    process = subprocess.Popen([sys.executable, "-c", script, "score"], start_new_session=True, stdout=log.open("a"),
+                               env={"PATH": "/usr/bin:/bin", **variables})
+    while "ready" not in log.read_text():
+        assert process.poll() is None, log.read_text()
+        this_pc.time.sleep(0.05)
+    entry = {"id": "20261028T131330-1", "argv": ["run", "world1", "--jobs", "8", "--free"], "commit": "a" * 40,
+             "worktree": str(tmp_path / "frozen"), "pid": process.pid, "state": "running"}
+    write(home / "runs" / f"{entry['id']}.json", this_pc.json.dumps(entry))
+    write(home / "runs" / "active.json", "{}")
+    return process, entry
+
+
+def test_pause_records_the_run_stops_it_and_only_then_the_container(tmp_path, monkeypatch):
+    """Pause (owner, 2026-10-28): the live run's arguments, commit and run variables recorded, its whole group stopped
+    by one SIGTERM, and `docker stop` only once no process of it holds the card."""
+    home = tmp_path / "home"
+    process, entry = stand_in_run(home, tmp_path, SCORE_MIN_FREE_GB="8", SCORE_OWNERS_GO="go1", SCORE_CLOUD="local",
+                                  SCORE_FROZEN="/frozen/copy", PROPS_HOME="/frozen/copy.home")
+    called = []
+    monkeypatch.setattr(this_pc, "asked", lambda command, **given: called.append(
+        (command, this_pc.group_alive(process.pid))) or subprocess.CompletedProcess(command, 1, "", ""))
+    line = this_pc.pause(home)
+    assert process.wait(timeout=5) == 0 and not this_pc.group_alive(process.pid)
+    assert called[0] == (["docker", "stop", "score-this-pc"], False)  # stopped once the run's group was gone
+    record = this_pc.json.loads((home / this_pc.PAUSED).read_text())
+    assert record["argv"] == entry["argv"] and record["commit"] == "a" * 40
+    assert record["env"] == {"SCORE_MIN_FREE_GB": "8", "SCORE_OWNERS_GO": "go1", "SCORE_CLOUD": "local"}
+    assert record["log"] == str(tmp_path / "run.log") and line.startswith(f"paused run {entry['id']}")
+    assert this_pc.status_line(home).startswith(f"paused {entry['id']} since ")
+    assert "rows done 4, running 5, waiting 6" in this_pc.status_line(home)
+
+
+def test_resume_refuses_while_a_run_is_live_and_starts_the_paused_one_detached_as_it_ran(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    monkeypatch.setattr(this_pc, "PC_ENV", tmp_path / "env")
+    monkeypatch.setenv(this_pc.OWNERS_GO, "smuggled")
+    process, entry = stand_in_run(home, tmp_path)
+    try:
+        with pytest.raises(SystemExit, match="refused, run .* is live"):
+            this_pc.resume(home)
+        assert this_pc.status_line(home).startswith(f"running {entry['id']}")
+    finally:
+        process.kill()
+        process.wait()
+    record = {"id": entry["id"], "argv": entry["argv"], "commit": "b" * 40, "log": None, "paused": "now",
+              "env": {"SCORE_MIN_FREE_GB": "8", "SCORE_OWNERS_GO": "go1"}}
+    write(home / this_pc.PAUSED, this_pc.json.dumps(record))
+    called = []
+
+    def stand_in(command, **given):
+        called.append((command, given))
+        if command[3:5] == ["worktree", "add"]:
+            pathlib.Path(command[-2]).mkdir()
+        out = "detached: started pid=9 log=/home/logs/score-run.log\n" if "--detach" in command else ""
+        return subprocess.CompletedProcess(command, 0, out, "")
+    monkeypatch.setattr(this_pc, "asked", stand_in)
+    assert this_pc.resume(home) == (f"resumed run world1 --jobs 8 --free at {'b' * 12}: "
+                                    "detached: started pid=9 log=/home/logs/score-run.log")
+    assert called[0][0] == ["docker", "start", "score-this-pc"]
+    assert called[1][0][3:] == ["worktree", "add", "--detach", "--force", str(home / "resume-code"), "b" * 40]
+    command, given = called[-1]
+    assert command[1:] == ["-m", "score", *entry["argv"], "--detach"] and given["cwd"] == home / "resume-code"
+    assert {key: given["env"][key] for key in ("SCORE_MIN_FREE_GB", this_pc.OWNERS_GO, "SCORE_FREE_ONLY",
+                                               "PROPS_HOME")} == {"SCORE_MIN_FREE_GB": "8", this_pc.OWNERS_GO: "go1",
+                                                                  "SCORE_FREE_ONLY": "1", "PROPS_HOME": str(home)}
+    assert not (home / this_pc.PAUSED).exists()
+    assert this_pc.status_line(home).startswith("neither running nor paused")
