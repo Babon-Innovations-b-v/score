@@ -15,3 +15,6 @@ its own Warp. The rules are the parent overlay's.
   settles at depends on the simulation grid: 2.5 cm gave 24 degrees, 1.5 cm 27, 1 cm 30.7 to 32 on the grains; on the
   surface 33.0 for 0.12 m3 (58 s) and 32.6 for the Campgrounds rig's asked 0.2 m3 (1.6 million grains, 75 s, a 62 MB
   clip of 33 samples, 230,000 triangles at rest; measured 2026-10-27 on an RTX 5080); never coarsen it to save time.
+- The cuttings spill, never jet: the column is let out no faster than `SPILL` over the pour, widened past the bore
+  where it must be. Through the bore alone the rig's asked 0.4 m3 fell at 3.3 m/s and splashed the pile to a 19.6
+  degree flank (effects-layer@campgrounds, 2026-10-28); spilled, 33.1 for 0.4 m3 and 31.4 for 0.2 on the surface.

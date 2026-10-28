@@ -19,14 +19,22 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `effects.poured`: the body's gravity left out of the emitter  -> the third test (no Mars pull on the emitter).
 - `effects.poured`: the row's asked values left out of the pile (`**entry["asked"]["values"]` dropped)  -> the third
   test (the pile has no volume).
-- `asked.read`: a line not answered let through  -> the fourth test (no ValueError).
+- `inside/newton_pile.column`: the column as wide as the bore alone (`max(bore, ...)` read as `bore`)  -> the fourth
+  test (the Campgrounds rig's 0.4 m3 rises 3.3 m/s through its 8 cm bore: a jet that splashed its pile to 19.6
+  degrees).
+- `effects.files`: the "pile script" line left out  -> the fourth test (a change to the pile moves no key, so the
+  failed row is never made again).
+- `asked.read`: a line not answered let through  -> the fifth test (no ValueError).
 - `effects.made`: the `newton-mpm` branch made `particles`  -> the third test (the pile is baked as particles, no
   surface).
-- data/checks/effects.json: a kind's `matter` removed, or a matter's `made_by` removed  -> the fifth test.
+- data/checks/effects.json: a kind's `matter` removed, or a matter's `made_by` removed  -> the sixth test.
 """
+import importlib.util
 import json
 import math
 import pathlib
+import sys
+import types
 
 import numpy as np
 
@@ -181,6 +189,24 @@ def test_a_drilling_rig_lays_its_newton_pile_on_mars_and_is_held_to_the_slip_fac
     assert (entry["made_by"], entry["asked"]["values"]) == ("newton-mpm", {"bore": 0.1, "volume": 0.12}), entry
     _, flat = answers(drill_inputs(tmp_path / "flat", monkeypatch, 22.0), tmp_path / "flat")
     assert flat["footage"].answer == checks.FAIL, flat["footage"].reason
+
+
+def test_a_large_pile_of_cuttings_spills_off_its_collar_and_never_jets(monkeypatch):
+    for name in ("warp", "newton", "newton.solvers"):  # the script runs in Newton's Python; column() needs neither
+        monkeypatch.setitem(sys.modules, name, types.SimpleNamespace(SolverImplicitMPM=None))
+    script = REPO / "score/stages/effects/inside/newton_pile.py"
+    loader = importlib.util.spec_from_file_location("newton_pile", script)
+    newton_pile = importlib.util.module_from_spec(loader)
+    loader.loader.exec_module(newton_pile)
+    # run apart, it keys the row as a file: a change to it makes the pile again
+    assert effects.files(PLACE)["pile script"] == "{repo}/" + str(script.relative_to(REPO))
+    for volume, wide in ((0.4, True), (0.002, False)):  # the Campgrounds rig's asked 0.4 m3; a bore's own handful
+        pile = {"voxel": 0.04, "bore": 0.08, "volume": volume, "pour": 6.0, "seed": 7}
+        spots, spacing = newton_pile.column(pile)
+        across, tall = float(np.hypot(spots[:, 0], spots[:, 1]).max()), float(spots[:, 2].max())
+        assert tall / pile["pour"] <= newton_pile.SPILL * 1.05, (volume, tall)  # its slices fall at tall / pour
+        assert abs(len(spots) * spacing ** 3 / volume - 1.0) < 0.1, (volume, len(spots))
+        assert (across > 0.1) == wide, (volume, across)
 
 
 def test_a_parameter_the_scene_was_asked_and_not_answered_stops_the_row():
