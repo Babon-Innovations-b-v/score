@@ -498,7 +498,7 @@ BATCH_GATES = {"pixal": ("takes",), "finish-route-list": ("library first",),
                "surfaces-check": ("baked matches its surfaces", "triangles within budget", "stands level"),
                "finish-route-recheck": ("library surface fits",), "likeness": ALL, "complete": ALL,
                "sound": ("likeness", "events", "voices"), "crops-layer": ("on beds", "spacing"),
-               "crops-look": ("density",)}
+               "crops-look": ("density",), "motion": ("designed",)}
 
 
 def with_gap_files(files, row=None):

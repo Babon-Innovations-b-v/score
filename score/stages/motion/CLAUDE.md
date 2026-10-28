@@ -30,7 +30,10 @@ stage (`../layer_base.py`). `__init__.py`'s docstring has the make and the gates
   with `needs` moves only where the scene holds what it serves (a door swings only where somebody passes: a row that
   `walks`), else it stands with `still_without`. The record is written into the output (`moves.json`) and the gates
   read it there; `designed` fails a moving thing on no inventory row's object and a moving row with no object on
-  the stage. A per-row parameter a rule cannot choose is one recorded model call per scene inside the batch, never
+  the stage. A moving row a carried batch gap names (by its id or its take, the row's `thing`: the bake's gap
+  names the take only) is still failed by name, recorded in `left_out` and given a gap of its own in the output's
+  `batch-gaps.json` beside the carried ones, so the table moves that fault (`stages.BATCH_GATES`, motion@garage
+  2026-10-28: the lift's bake job failed in the batch); a row with no object and no gap still stops the line. A per-row parameter a rule cannot choose is one recorded model call per scene inside the batch, never
   typed by hand.
 - **The old records are retired** (`data/motion/<place>.json`, the game's timed motions, `data/motion/rigid/` and
   `data/motion/models/`, written for the old concepts; owner, 2026-10-21: all old stuff is retired). The sound row

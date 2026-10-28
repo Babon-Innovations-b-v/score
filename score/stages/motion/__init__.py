@@ -50,7 +50,7 @@ import tempfile
 import numpy as np
 
 from score import checks, contracts
-from score.stages import layer_base, row_kinds
+from score.stages import batch_gaps, layer_base, row_kinds
 from score.stages.motion import from_design, space
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -155,10 +155,12 @@ def stands(stage, entry):
 def make(inputs, out, seed, params):
     """The scene's rigid record made from its design over its stage, and its motion layer from it."""
     with built(inputs) as source:
+        carried = batch_gaps.of(inputs)
         record = fitted(from_design.record(place_of(inputs), read_json(inputs["design"]),
                                            row_kinds.table(inputs["row kinds"]), kinds_of(inputs),
-                                           layer_base.opened(source)), inputs, source)
+                                           layer_base.opened(source), carried), inputs, source)
         (out / RECORD).write_text(json.dumps(record, indent=1))
+        batch_gaps.write(out, [*carried, *from_design.left_gaps(record)])
         write_motion(dict(inputs, moves=out / RECORD), out, source)
 
 
