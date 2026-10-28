@@ -9,7 +9,7 @@
 # system: the packages; user score (uid 1100) with linger; the data volume (SCORE_DATA_DEVICE, cloud-init's
 #   /etc/score-conductor.env) formatted only when blank and mounted at /home/score/.farm-factory-props through fstab by
 #   UUID; restic, uv, the scw CLI, Node.js and the Google Cloud CLI (bq) at pinned versions, each checked against its
-#   SHA-256 as .claude/scripts/install-agent-tools.sh does (a mismatch stops the boot and installs nothing); the secret
+#   SHA-256 (a mismatch stops the boot and installs nothing); the secret
 #   reader and the agents' door in /usr/local/bin; sshd keys-only, no root, user score only.
 # user: the checkout cloned when missing (score-update.service moves it later), `uv sync`, gltfpack's pin in the npm
 #   cache (score_lib's web copies run it offline), every unit in units/

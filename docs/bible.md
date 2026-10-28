@@ -764,11 +764,9 @@ The house standard for a module, so a reader can predict the shape of code they 
 ## workflow/bootstrap
 
 1. Clone the repo and install the GitHub CLI so `gh auth status` is green (the issue and board skills need it).
-2. `bash .claude/scripts/bootstrap.sh`: links Claude's memory folder to the git-ignored `.claude/memory`, runs
-   `.claude/scripts/install-agent-tools.sh` (the pinned codebase-memory-mcp binary and Bun, each checked against its
-   SHA-256; claude-mem's settings; the repo indexed), builds `.venv` from `uv.lock` and `PROPS_HOME`'s `env/` when
-   missing, and reports anything else missing. Needs `node`, `python3`, `curl`, `uv` and the `claude` CLI. Safe to
-   re-run.
+2. `bash .claude/scripts/bootstrap.sh`: links Claude's memory folder to the git-ignored `.claude/memory`, sets the
+   repo's git hooks, builds `.venv` from `uv.lock` and `PROPS_HOME`'s `env/` when missing, marks ponytail's
+   status-line offer as seen, and reports anything else missing. Needs `node`, `python3` and `uv`. Safe to re-run.
 3. `python3 .claude/scripts/setup-github.py --board` on a fresh repo only (labels and the board are GitHub-side).
 
 **The runtime** lives under `PROPS_HOME` (default `~/.farm-factory-props`, kept so the ledger, keys and work carry

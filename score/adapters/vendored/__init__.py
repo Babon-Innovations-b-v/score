@@ -8,7 +8,7 @@
     wired       called by the framework: `callers` are the repository files that call it (each names the tool),
                 `image` the cloud image kind that carries it (tools/cloud/images, pinned by the models adapter) or
                 None when it runs in Blender or on the processor, `stages` the stage packages that reach it
-    agent tool  an agent's tool (memory, code graph, lean-code rules), wired in .claude/, never by a stage
+    agent tool  an agent's tool (lean-code rules), wired in .claude/, never by a stage
     left out    vendored but not called, `why` says why in plain words (an owner's decision, or what replaced it)
 
 The table is checked, not trusted: `faults` refuses a vendor/ folder the table lacks, a row whose folder is gone, a
@@ -64,10 +64,6 @@ TOOLS = {
         "why": "its nature patch runner was retired on 2026-10-06, when Pixal3D's nature props won the comparison; "
                "only its idea of annotations from one Blender render lives on (tools/blender/inside/"
                "annotate_stage.py, written fresh)"},
-    "claude-mem": {"use": AGENT, "image": None, "names": (), "callers": (), "stages": (),
-                   "why": "cross-session memory of agents (root CLAUDE.md, Agent tools), switched off"},
-    "codebase-memory-mcp": {"use": AGENT, "image": None, "names": (), "callers": (), "stages": (),
-                            "why": "the code graph agents search (root CLAUDE.md, Agent tools)"},
     "ponytail": {"use": AGENT, "image": None, "names": (), "callers": (), "stages": (),
                  "why": "lean-code rules injected into coding agents (root CLAUDE.md, Agent tools)"},
 }
