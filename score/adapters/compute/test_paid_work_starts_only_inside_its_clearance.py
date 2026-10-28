@@ -70,6 +70,8 @@ import tempfile
 import time
 import types
 
+import pytest
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
 from score import checks, contracts, graph, review  # noqa: E402
@@ -80,15 +82,28 @@ from score.store import AGENT_MARKERS, Store  # noqa: E402
 # the root conftest's sandbox test (its system temp folder, not this run's own temp folder inside it: own_temp)
 SANDBOX = runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))
 BOOKS = compute.ledger()
-BOOKS.open_books_for_tests(tempfile.mkdtemp())  # this month's books known: paid paths open
+BOOKS_FOLDER = tempfile.mkdtemp()
 MONTH = BOOKS.this_month()
 START = {"month": MONTH, "bill": 100.0, "ledger": 90.0, "google": 0.0}
 import capacity  # noqa: E402  (on the path compute.ledger() set)
 import google_spend  # noqa: E402  (on the path compute.ledger() set)
 
-google_spend.LEDGER = pathlib.Path(tempfile.mkdtemp()) / "google-ledger.jsonl"  # each test's Google month: empty  # each test's Google month: empty
+GOOGLE_LEDGER = pathlib.Path(tempfile.mkdtemp()) / "google-ledger.jsonl"  # each test's Google month: empty
 BILL = {"euros": 0.0}
-compute.cloud_bill = lambda: BILL["euros"]  # no cloud: the provider's bill is set by each test
+
+
+def no_cloud_and_books_open(monkeypatch):
+    """No cloud: the provider's bill is set by each test; this month's books known, so paid paths open."""
+    monkeypatch.setattr(BOOKS, "BOOKS", BOOKS.BOOKS)  # recorded: open_books_for_tests moves it
+    BOOKS.open_books_for_tests(BOOKS_FOLDER)
+    monkeypatch.setattr(google_spend, "LEDGER", GOOGLE_LEDGER)
+    monkeypatch.setattr(compute, "cloud_bill", lambda: BILL["euros"])
+
+
+@pytest.fixture(autouse=True)
+def no_cloud_and_books_open_for_each_test(monkeypatch):
+    """Patched per test under pytest, so the next test file gets the real ones back."""
+    no_cloud_and_books_open(monkeypatch)
 
 
 def make_brief(inputs, out, seed, params):
@@ -1076,6 +1091,7 @@ def test_a_grant_used_up_under_the_single_use_rule_holds_its_balance_once_restor
 
 if __name__ == "__main__":
     SANDBOX["refuse_outside_sandbox"]()
+    no_cloud_and_books_open(pytest.MonkeyPatch())  # this process only: never undone
     for name, test in list(globals().items()):
         if name.startswith("test_"):
             test()

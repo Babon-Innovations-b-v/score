@@ -40,14 +40,13 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 from score import checks, contracts, graph, review  # noqa: E402
 from score.adapters import compute  # noqa: E402
 
-compute.ledger().open_books_for_tests(tempfile.mkdtemp())  # this month's books known: paid paths open
 from score.graph import _code, chain, frozen, rebuy, runs, stopped  # noqa: E402
 from score.store import Store, partial_of, tree_hash  # noqa: E402
 
-graph.AVAILABLE = lambda: 2**50  # toy nodes take no memory; the memory tests fake their own readings
 REPO = pathlib.Path(__file__).resolve().parents[2]
 PLACES = ("hangar", "station")
 READS = ("toy-text", 1)
+BOOKS_FOLDER = tempfile.mkdtemp()
 
 
 def quiet(line):
@@ -55,9 +54,14 @@ def quiet(line):
 
 
 @pytest.fixture(autouse=True)
-def no_cloud_bill(monkeypatch):
-    """No cloud: the provider's bill is never read here; patched per test so the next test file gets the real one."""
+def no_cloud_bill_and_no_memory_taken(monkeypatch):
+    """No cloud: the provider's bill is never read here; this month's books known, so paid paths open; toy nodes
+    take no memory (the memory tests fake their own readings). Patched per test so the next test file gets the
+    real ones."""
     monkeypatch.setattr(compute, "cloud_bill", lambda: 0.0)
+    monkeypatch.setattr(compute.ledger(), "BOOKS", compute.ledger().BOOKS)  # recorded: open_books_for_tests moves it
+    compute.ledger().open_books_for_tests(BOOKS_FOLDER)
+    monkeypatch.setattr(graph, "AVAILABLE", lambda: 2**50)
 
 
 @pytest.fixture(autouse=True)

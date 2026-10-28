@@ -109,6 +109,7 @@ def test_at_the_runner_a_failed_paid_make_reruns_only_its_lacking_jobs_and_drops
     from score.adapters import compute
     from score.store import Store
     monkeypatch.setattr(compute, "cloud_bill", lambda: 0.0)  # no cloud: a fake bill
+    monkeypatch.setattr(compute.ledger(), "BOOKS", compute.ledger().BOOKS)  # recorded: open_books_for_tests moves it
     compute.ledger().open_books_for_tests(str(tmp_path / "books"))  # this month's books known: paid paths open
     for name in (kept.TICKET, kept.STORE, kept.MAKING):
         monkeypatch.delenv(name, raising=False)
