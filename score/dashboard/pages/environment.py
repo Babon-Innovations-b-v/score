@@ -12,7 +12,6 @@ Every click is the owner's request (a SyncRequest of ENVIRONMENT_KINDS, sync/app
 machine: locally here at once (an ask, a picture in a thread), hosted by its listener. Hosted, his versions and
 pictures since the export show at once (`shown`)."""
 import json
-import re
 
 from django.http import Http404, JsonResponse
 from django.shortcuts import render
@@ -100,8 +99,8 @@ def scene_times(world_state):
 
 def title_of(world):
     """'Environment 1' of `world1`."""
-    number = re.search(r"\d+$", world)
-    return f"Environment {number.group()}" if number else world
+    number = world[len(world.rstrip("0123456789")):]  # no regex: a search for \d+$ is quadratic on a long name
+    return f"Environment {number}" if number else world
 
 
 def checked_world(source, world):

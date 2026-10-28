@@ -51,7 +51,7 @@ CAUSES = ((re.compile(r"an input changed while it ran"), "an input file changed 
 CLOUD_TOOL = re.compile(r"CalledProcessError: Command .*(blender_cloud|library_bake|characters)\S*\.py.*exit status 1")
 NO_MACHINE = re.compile(r"could be rented|in stock|no machine|none rented")
 EXCEPTION = re.compile(r"^(?:error|blocked):\s*|^\w+(?:Error|Exception):\s*")
-A_PATH = re.compile(r"(?:\S*/)+([^\s/'\",\]]+)")
+A_PATH = re.compile(r"(?:[^\s/]*/)+([^\s/'\",\]]+)")  # each segment holds no "/": no backtracking blow-up
 CAUSE_LENGTH = 100
 NO_LIKENESS = "The props in {place} were never compared with their close-up pictures: it has no props list."
 
