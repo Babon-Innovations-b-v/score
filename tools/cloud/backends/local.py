@@ -152,11 +152,20 @@ def running(public_key):
         docker("build", "-t", IMAGE, "-", input=DOCKERFILE, timeout=1800)
     state = docker("inspect", "-f", "{{.State.Running}}", MACHINE, check=False)
     if state.returncode != 0:
-        docker("run", "-d", "--name", MACHINE, *card_arguments(), "--shm-size", "8g", "--memory", memory_cap(),
+        docker("run", "-d", "--name", MACHINE, *card_arguments(), "--shm-size", "8g", *memory_arguments(),
                "-e", f"AUTHORIZED_KEY={public_key}", IMAGE)
-    elif state.stdout.strip() != "true":
-        docker("start", MACHINE)
+    else:
+        docker("update", *memory_arguments(), MACHINE)  # a container made before the swap limit takes it too
+        if state.stdout.strip() != "true":
+            docker("start", MACHINE)
     return answering()
+
+
+def memory_arguments():
+    """The container's memory, and its swap held to the same, so a job past it ends alone: with --memory only,
+    Docker lets it swap as much again into this PC's swap (env1, 2026-10-28: garage_vehicle_lift's paint at 27 GB
+    filled 15 of 16 GB of WSL's swap)."""
+    return ["--memory", memory_cap(), "--memory-swap", memory_cap()]
 
 
 def card_arguments():

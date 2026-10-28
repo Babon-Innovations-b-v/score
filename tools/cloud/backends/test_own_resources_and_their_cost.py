@@ -47,6 +47,9 @@ The invariants, each with the break that turns its test red (each applied once a
   memory check -> the 40 GB job is taken.
 - The container's memory leaves this PC HOST_RESERVE_GB for WSL and the run's own steps beside it: a 43 GB PC gives
   the container 27 GB, and a small PC still 8. Break: `total - HOST_RESERVE_GB` -> `total - 8` -> 35g.
+- The container never swaps past its memory, made new or found already made. Break: drop `"--memory-swap",
+  memory_cap()` in `memory_arguments` -> the run's swap is unset; or drop the `docker("update", ...)` -> the old
+  container keeps its swap.
 """
 import json
 import pathlib
@@ -440,3 +443,26 @@ def test_this_pc_container_leaves_room_for_wsl_and_the_runs_own_steps(monkeypatc
     assert local.memory_cap() == "27g"
     pages["SC_PHYS_PAGES"] = 12 * 2**30 // 4096
     assert local.memory_cap() == "8g"
+
+
+
+def test_this_pc_container_never_swaps_past_its_memory(monkeypatch):
+    import local
+    calls = []
+
+    def docker(*arguments, check=True, **options):
+        calls.append(arguments)
+        made = any(call[0] == "run" for call in calls)
+        return types.SimpleNamespace(returncode=0 if arguments[0] != "inspect" or made or found else 1,
+                                     stdout="true")
+    monkeypatch.setattr(local, "docker", docker)
+    monkeypatch.setattr(local, "memory_cap", lambda: "27g")
+    monkeypatch.setattr(local, "answering", lambda: "172.17.0.2")
+    monkeypatch.setattr(local.shutil, "which", lambda name: "/usr/bin/docker")
+    for found in (False, True):
+        calls.clear()
+        local.running("ssh-ed25519 key")
+        limited = [call for call in calls if call[0] in ("run", "update")]
+        assert len(limited) == 1 and limited[0][0] == ("update" if found else "run"), calls
+        swap = limited[0].index("--memory-swap")
+        assert limited[0][swap + 1] == "27g" == limited[0][limited[0].index("--memory") + 1], limited
