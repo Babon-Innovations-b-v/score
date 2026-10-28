@@ -103,11 +103,13 @@ def coded(rows):
 
 
 def slender(size):
-    """The model gate's own slender rule on a size (tools/props/gates/model.py shape_class)."""
+    """The model gate's own slender rule on a size (tools/props/gates/model.py shape_class), its edge taken in: a middle
+    side of exactly SLENDER_SHARE of the longest is slender here. The share is a cut-off, not a measured break, and
+    readings round to it (the stairwell's 4 m stair railing 1 m tall read exactly 0.25, 2026-10-28)."""
     with prop_data.tools("props/gates", "props/library", "props"):
         import model as model_gate
     smallest, middle, largest = sorted(float(value) for value in size)
-    return largest > 0 and middle / largest < model_gate.SLENDER_SHARE
+    return largest > 0 and middle / largest <= model_gate.SLENDER_SHARE
 
 
 def thin_straight(row):
