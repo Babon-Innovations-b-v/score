@@ -366,6 +366,24 @@ def test_a_second_failure_or_a_paid_remake_goes_to_the_owner_priced(monkeypatch)
         assert noted(runner, "owner-list")[0]["euros"] == 0.4
 
 
+def test_a_failed_row_of_cached_model_asks_is_noted_for_a_source_fix_and_not_remade(monkeypatch):
+    """Owner, 2026-10-28: "it should only actually retry if the prompt changed". The finish route's list asks
+    through the cached Claude and Google routes, the stage table's own files do not count; a failed row of such
+    asks is noted for a fix of its source, never remade, never on the owner's list.
+    Break: score/graph/__init__.py: '        then = "fix" if not second and asks_cached(stage) else' -> '        then = "fix" if False else'"""
+    from score.stages import physics
+    from score.stages.surfaces import route_list
+    _code.search_folders.cache_clear()  # its folders on the path, as a run's table import puts them before any key
+    assert graph.asks_cached(dataclasses.replace(PICK, make=route_list.make_list))
+    assert not graph.asks_cached(dataclasses.replace(PICK, make=physics.make_trial))  # reached only via the table
+    monkeypatch.setattr(graph, "CACHED_ASKS", {pathlib.Path(__file__).resolve()})  # the toy make asks "a cache"
+    world, store = a_world({"hangar": "a ship"}), a_store()
+    runner = a_runner(world, store, (PICK,))
+    assert runner.run(["hangar"]) == {"pick@hangar": f"made: fail; {graph.SAME_ANSWER}"}
+    assert [(note["then"], list(note["failed"])) for note in noted(runner, "notes")] == [("fix", ["first-seed"])]
+    assert noted(runner, "owner-list") == [] and len(store.records("pick@hangar")) == 1
+
+
 def test_a_failed_gate_blocks_what_follows_and_a_waiver_passes_it_for_its_key_only():
     """7 words against a limit of 2 fail; the owner's waiver for that key lets it through and is shown; a new key
     (8 words) fails again.

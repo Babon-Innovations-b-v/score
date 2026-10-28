@@ -81,11 +81,18 @@ WORLD_LINE = "world"
 LOG_TAIL = 40
 NOT_RUN = " has not run on its current inputs"  # usable's cause; a fault report names what moved its key
 # A failed output's note, once per key in the store (the count that keeps a node to one free remake across runs and
-# restarts): remakes/<node>/<key>.json, `then` "remake" (its key's attempt 2 is made), "owner" (on his list, priced) or
-# "done" (attempt 2's own outcome). Each note is also a line of the runner's remake log beside the store, and an
-# "owner" one a line of the owner's list there (owner, 2026-10-28).
+# restarts): remakes/<node>/<key>.json, `then` "remake" (its key's attempt 2 is made), "owner" (on his list, priced),
+# "fix" (a row of cached model asks: same question, same answer) or "done" (attempt 2's own outcome). Each note is also
+# a line of the runner's remake log beside the store, and an "owner" one a line of the owner's list there (owner,
+# 2026-10-28).
 REMAKES = "remakes/"
 REMAKE_LOG, OWNER_LIST = ("remakes", "notes", ".jsonl"), ("remakes", "owner-list", ".jsonl")
+# The model asks answered from a cache by their request (google_spend's batch route, the claude-code adapter): a row
+# whose own files are or import one is made again only when its key moves (owner, 2026-10-28: "it should only
+# actually retry if the prompt changed").
+CACHED_ASKS = {_code.REPO / name for name in ("score/stages/surfaces/route_ask.py", "score/stages/surfaces/claude_asks.py",
+                                              "score/stages/effects/asked.py", "score/adapters/models/claude_code.py")}
+SAME_ANSWER = "same question, same answer: needs a source fix (prompt or inputs)"
 # Nodes the drive runs at once: most wait on a rented machine, the rest work on this PC's cores.
 JOBS = 8
 # How often a node's process checks that its runner is still there (watch_runner).
@@ -389,6 +396,12 @@ def finish_record(node, keyed, output, stage_name, started, clock):
             **_code.git_commit(),
             "machine": platform.node(), "started": started, "finished": now(),
             "minutes": round((time.monotonic() - clock) / 60, 3), "euros": 0}
+
+
+def asks_cached(stage):
+    """True for a row whose own files (the framework's left out) are or import a cached model ask (CACHED_ASKS)."""
+    own = [path for path in _code.start_files(code_functions(stage)) if not _code.in_framework(path, _code.FRAMEWORK)]
+    return any(path in CACHED_ASKS or CACHED_ASKS & set(_code.live_imports(path)) for path in own)
 
 
 def node_name(stage, place):
@@ -1001,9 +1014,11 @@ class Runner:
                 self.note(stage, place, keyed, {}, "done")
             return did
         free = (not stage.paid and not any(euros for _, euros in stage.gatherers.values())) or on_this_pc()
-        then = "remake" if free and not second else "owner"
+        then = "fix" if not second and asks_cached(stage) else "remake" if free and not second else "owner"
         if not self.note(stage, place, keyed, failed, then):
             return did  # noted by an earlier run: its remake, or the owner's list, has it
+        if then == "fix":
+            return f"{did}; {SAME_ANSWER}"
         if then == "owner":
             return f"{did}; {'the second failure' if second else 'a paid remake'}: on the owner's list, priced"
         return f"{did}; automatic free remake, attempt 2, after {', '.join(sorted(failed))}: " \
@@ -1036,6 +1051,8 @@ class Runner:
                             for name, verdict in failed.items()}}
         if "remake" in keyed:
             entry["first"] = keyed["remake"]["after"]
+        if then == "fix":
+            entry["why"] = SAME_ANSWER
         if then == "owner":
             entry["euros"] = self.price(stage, place, keyed)
             entry["why"] = "both attempts failed" if "remake" in keyed else "its remake is paid"
@@ -1530,6 +1547,8 @@ class Runner:
         notes = [note for key in keys if (note := self.store.read(f"{REMAKES}{node}/{key}.json"))]
         lines = [f"attempt {note['attempt']} (key {note['key'][:12]}, output {note['output'][:12]}) failed "
                  f"{', '.join(sorted(note['failed']))}: then {note['then']}" for note in notes if note["failed"]]
+        if notes and notes[-1]["then"] == "fix":
+            lines.append(SAME_ANSWER)
         if notes and notes[-1]["then"] == "owner":
             lines.append(f"{notes[-1]['why']}: on the owner's list, priced EUR {notes[-1]['euros']:.2f} "
                          f"({self.desk(*OWNER_LIST)})")
