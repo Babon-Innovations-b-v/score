@@ -14,9 +14,10 @@ model with:
 import pathlib
 
 import mujoco
+import numpy as np
 
 from myo._fixes import full_muscles, multi_joint_bodies, renamed, split
-from sizing import WRAPPER_KG, assumed, kept_bodies, path_lengths, sized, ungrouped_kg
+from sizing import WRAPPER_KG, assumed, body_scales, kept_bodies, path_lengths, sized, stretches, ungrouped_kg
 
 SOURCE = "musclemimic_models/model/body/myofullbody.xml"
 
@@ -35,16 +36,24 @@ def _fresh(source):
     return spec
 
 
-def person_file(folder, size, kg, path):
-    """One person's MyoFullBody, written at `path`, sized by `size` (a `sizing.Size` of the person's SOMA), and its
-    record: each group's scale and its length against SOMA's, the inertia scale per group, its muscles' length scale,
-    its total mass and what is assumed."""
+def person_file(folder, size, kg, path, constants=None):
+    """One person's MyoFullBody, written at `path`, sized by `size` (a `sizing.Size` of the person's SOMA) and, when
+    given, the fit's `constants` ({"sizes": {group: factor}, "joints": {body: [3] m}}: each group's scale times its
+    factor, each body moved in its parent), and (its record, each body's scale): the record holds each group's scale
+    and its length against SOMA's, the inertia scale per group, its muscles' length scale, its total mass and what is
+    assumed."""
     source = f"{folder}/{SOURCE}"
     model = _source_model(folder)
     scales = size.scales(model)
+    if constants:
+        factors = body_scales(model, {group: constants["sizes"].get(group, 1.0) for group in stretches(size.table)},
+                              size.table)
+        scales = {body: scale * factors[body] for body, scale in scales.items()}
     spec = _fresh(source)
     wrappers = multi_joint_bodies(spec)
     sized(spec, model, scales, kg, wrappers)
+    for body, move in (constants or {}).get("joints", {}).items():
+        spec.body(body).pos = np.asarray(spec.body(body).pos) + move
     grown = spec.compile()
     factors = size.weigh(spec, grown, scales, kg - wrappers * WRAPPER_KG - ungrouped_kg(grown, size.table))
     grown = spec.compile()
@@ -65,4 +74,4 @@ def person_file(folder, size, kg, path):
             "centre of mass moved cm": size.moved,
             "muscle length scale": [round(float(stretch.min()), 4), round(float(stretch.max()), 4)],
             "kg": round(float(final.body_subtreemass[0]) + wrappers * WRAPPER_KG, 3),
-            "assumed": assumed(final, scales, size.rig)}
+            "assumed": assumed(final, scales, size.rig)}, scales

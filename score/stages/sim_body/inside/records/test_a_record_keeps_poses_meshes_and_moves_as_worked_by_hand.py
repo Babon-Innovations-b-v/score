@@ -22,14 +22,22 @@ INSIDE = pathlib.Path(__file__).resolve().parents[1]
 IN_ENV = "SIM_BODY_INSIDE_TEST"
 
 
+def placed(turn, place):
+    """A turn and a place as a 4 x 4."""
+    import numpy as np
+    found = np.eye(4)
+    found[:3, :3], found[:3, 3] = turn, place
+    return found
+
+
 def a_pose_and_a_turn_read_as_worked_by_hand():
     """A 90 degree turn about z at (1, 2, 3) is [1, 2, 3, 0, 0, sin 45, cos 45]; a child turned 30 degrees about x under
     a parent turned 90 about z is [30, 0, 0] against it; the root has no turn of its own."""
     import numpy as np
     import records
     from scipy.spatial.transform import Rotation
-    parent = records.placed(Rotation.from_euler("z", 90, degrees=True).as_matrix(), [1.0, 2.0, 3.0])
-    child = parent @ records.placed(Rotation.from_euler("x", 30, degrees=True).as_matrix(), [0.0, 0.0, 0.0])
+    parent = placed(Rotation.from_euler("z", 90, degrees=True).as_matrix(), [1.0, 2.0, 3.0])
+    child = parent @ placed(Rotation.from_euler("x", 30, degrees=True).as_matrix(), [0.0, 0.0, 0.0])
     pose = records.segment_pose(parent)
     half = np.sqrt(0.5)
     problems = [] if np.allclose(pose, [1.0, 2.0, 3.0, 0.0, 0.0, half, half]) else [f"pose {pose}"]

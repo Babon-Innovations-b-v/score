@@ -33,6 +33,29 @@ def on_skin(points, faces):
     return {name: np.asarray(row[1]) @ points[faces[row[0]]] for name, row in MARKS.items()}
 
 
+def solver_marks():
+    """The landmarks the solver takes, in MARKS' order ([name])."""
+    return [name for name, row in MARKS.items() if row[8]]
+
+
+def posed(rig, segments, worlds):
+    """Each solver landmark on the clip's own skin, every frame (frames x landmarks x 3, the person's frame): its
+    face's corners skinned as SOMA skins them (linear blend: each corner the weighted sum of its joints' moves from the
+    bind, `worlds` frames x segments x 4 x 4; the rig joints not in `segments` carry no weight), then its barycentric
+    weights. `rig`: {"names", "bind", "faces", "weights"}."""
+    names = [str(joint) for joint in rig["names"]]
+    rows = [MARKS[name] for name in solver_marks()]
+    corners = np.asarray(rig["faces"])[[row[0] for row in rows]]  # landmarks x 3
+    joints = [names.index(segment) for segment in segments]
+    weights = np.asarray(rig["weights"], dtype=float)[corners][:, :, joints]  # landmarks x 3 x segments
+    bind = np.asarray(rig["bind"], dtype=float)[joints]
+    points = np.asarray(rig["points"], dtype=float)[corners]
+    moves = np.asarray(worlds, dtype=float) @ np.linalg.inv(bind)  # frames x segments x 4 x 4
+    moved = np.einsum("fsij,lcj->flcsi", moves[..., :3, :3], points) + moves[:, None, None, :, :3, 3]
+    skinned = np.einsum("lcs,flcsi->flci", weights, moved)
+    return np.einsum("lc,flci->fli", np.array([row[1] for row in rows]), skinned)
+
+
 def harrington(marks):
     """Each hip joint's centre ({"hip_l", "hip_r"}) from the ASIS and PSIS points (own frame: +x left, Y up): Harrington
     et al. 2007 (J Biomech 40:595), in the pelvis frame at the ASIS' middle (x forward, y up, z right), x = -0.24 PD

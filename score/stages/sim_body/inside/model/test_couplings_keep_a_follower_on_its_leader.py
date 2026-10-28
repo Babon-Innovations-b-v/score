@@ -1,7 +1,7 @@
 """model: on a small model Newton builds (a free root, a leading hinge and a hinge MuJoCo couples to it by a known
 polynomial), the couplings set the follower and its derivative as worked out by hand (to 1e-6: Newton keeps the
 polynomial in float32), a body is found by its own name, and the low-pass keeps a still path still, its root turn's
-sign kept continuous.
+sign kept continuous, and a path of MuJoCo's own compile is carried onto Newton's joint by joint.
 It runs in Newton's own Python (score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with
 none built there, as in `make tests`' sandbox home, it prints `skipped` and passes nothing.
 
@@ -9,6 +9,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - Couplings.apply's `sum(poly[power] * moved ** power for power in range(5))` made `poly[0]`: the follower stays at
   the polynomial's constant.
 - filtered's sign loop `if turn[frame] @ turn[frame - 1] < 0: turn[frame] *= -1` made `pass`: q and -q averaged.
+- carried's `{...: 7, ...: 4}.get(int(source.jnt_type[joint]), 1)` made `1`: the root's place is carried, its turn
+  not.
 
 Not tested: `limited` never clamps a joint today (its `model.jnt_type[joint] in (mujoco.mjtJoint.mjJNT_HINGE, ...)`
 is False for numpy's int32 against MuJoCo's enum, measured 2026-10-28 in the env: `==` is True, `in` False); the
@@ -97,7 +99,30 @@ def _joint_ids(found):
     return [next(joint for joint, name in enumerate(names) if name.endswith(wanted)) for wanted in ("lead", "follow")]
 
 
-CHECKS = (the_follower_follows_its_leader, the_low_pass_keeps_a_still_turn_still)
+def a_path_is_carried_joint_by_joint():
+    """Two frames of MuJoCo's own compile of the toy (the root at (1, 2, 3) and turned 90 degrees about x, the leader
+    at 0.3 and 0.6, the follower at -0.2) carried onto Newton's: every joint's coordinates as they were."""
+    import mujoco
+    import model
+    import numpy as np
+    with tempfile.TemporaryDirectory() as folder:
+        found = built_toy(folder)
+        own = mujoco.MjModel.from_xml_path(str(pathlib.Path(folder) / "toy.xml"))
+    path = np.array([[1.0, 2.0, 3.0, np.sqrt(0.5), np.sqrt(0.5), 0.0, 0.0, lead, -0.2] for lead in (0.3, 0.6)])
+    carried = model.carried(own, found, path)
+    names = [mujoco.mj_id2name(found, mujoco.mjtObj.mjOBJ_JOINT, joint) or "" for joint in range(found.njnt)]
+    problems = []
+    for joint in range(own.njnt):
+        name = mujoco.mj_id2name(own, mujoco.mjtObj.mjOBJ_JOINT, joint)
+        width = 7 if own.jnt_type[joint] == mujoco.mjtJoint.mjJNT_FREE else 1
+        target = next(index for index, full in enumerate(names) if full.endswith(name))
+        start, at = own.jnt_qposadr[joint], found.jnt_qposadr[target]
+        if not np.array_equal(carried[:, at:at + width], path[:, start:start + width]):
+            problems.append(f"{name} carried as {carried[:, at:at + width]}")
+    return problems
+
+
+CHECKS = (the_follower_follows_its_leader, the_low_pass_keeps_a_still_turn_still, a_path_is_carried_joint_by_joint)
 
 
 def in_newton():
