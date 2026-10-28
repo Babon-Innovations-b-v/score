@@ -97,13 +97,18 @@ def push(home, missing_command, push_command):
     asked = subprocess.run(missing_command, input="".join(f"{name}\n" for name in names), capture_output=True,
                            text=True, check=True).stdout.split()
     process = subprocess.Popen(push_command, stdin=subprocess.PIPE)
+    sent = []
     with tarfile.open(fileobj=process.stdin, mode="w|", dereference=True) as archive:
         for name in asked:
-            archive.add(home / name, arcname=name, recursive=False)
+            try:  # a live run removes its scratch files meanwhile (work/motion-scratch, 2026-10-28)
+                archive.add(home / name, arcname=name, recursive=False)
+            except FileNotFoundError:
+                continue
+            sent.append(archive.getmember(name).size)
     process.stdin.close()
     if process.wait():
         raise SystemExit(f"store-push failed (exit {process.returncode})")
-    return len(asked), sum((home / name).stat().st_size for name in asked)
+    return len(sent), sum(sent)
 
 
 def prepared(home):
