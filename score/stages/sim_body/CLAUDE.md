@@ -2,8 +2,8 @@
 
 The sim body stage (experimental, #65; PRD #56; CONTEXT.md "sim body"): row `sim-body@<place>` for a place whose
 design shows people, every character of its accepted cast as a musculoskeletal body, MyoFullBody, doing its clip on the
-scene's own ground. `__init__.py`'s docstring has the make and the gates; `inside/sim_body.py` is the run and
-`inside/myo.py` the model's sizing, both in Newton's own Python.
+scene's own ground. `__init__.py`'s docstring has the make and the gates; `inside/sim_body.py` is the run, in Newton's
+own Python, its steps the modules beside it (`inside/CLAUDE.md`).
 
 - **The movement is the clip's, the physics the body's** (owner, 2026-10-27: "we have kimodo for the actual movement;
   and myobody plus mujoco and newton for the physics"). The body, root included, follows the clip, moved only by RRA's
@@ -15,7 +15,7 @@ scene's own ground. `__init__.py`'s docstring has the make and the gates; `insid
   residual that fails. Limits: force 2% of the weight (owner, 2026-10-28, from 5%; Werling et al. 2023's
   AddBiomechanics results as the benchmark only), moment 1% of it times the centre's height (Hicks 2015).
 - **Residual reduction, OpenSim's RRA** (owner, 2026-10-28; Delp et al. 2007, opensim-core RRATool, Apache-2.0; never
-  AddBiomechanics: GPL with a data-sharing clause, neither used nor copied): `inside/sim_body.py` `reduced` adjusts
+  AddBiomechanics: GPL with a data-sharing clause, neither used nor copied): `inside/rra` `reduced` adjusts
   the fitted path's pelvis and trunk (the root's six dofs and the lumbar leaders, `TRUNK`) and the body's masses and
   torso centre of mass (RRATool's own formulas) so the ground explains the movement, `RRA_ROUNDS` times, the
   owner's per-frame cap inside the solve (owner, 2026-10-28: every segment's turn within `FOLLOWED` degrees and the
@@ -40,7 +40,7 @@ scene's own ground. `__init__.py`'s docstring has the make and the gates; `insid
   (owner, 2026-10-27, #65). Attribution, also in every `sim_bodies.json` (`ATTRIBUTION`): MyoSuite and myo_sim
   (MyoHub, Apache-2.0), with the arm and hand derived from MoBL-ARMS: Holzbaur, Murray and Delp 2005
   (doi:10.1007/s10439-005-3320-7) and Saul et al. 2015 (doi:10.1080/10255842.2014.916698).
-  `inside/myo.py` writes each person's file: #60's import fixes (names without '-', full muscle parameters, explicit
+  `inside/myo` writes each person's file: #60's import fixes (names without '-', full muscle parameters, explicit
   inertials, multi-joint bodies split into 1 g wrappers, Euler), the floor gone.
 - **Each body is the person's own build**: the rig moved onto its look's built body (`people-body-<look>`'s rig.npz,
   an optional read, `person_rig`), recorded as `size`. MyoFullBody is sized to it per segment: thigh, shin, foot, upper
