@@ -199,6 +199,16 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches():
     assert len(store.records("clean@station")) == 2  # both finish records kept
 
 
+def test_the_shared_loop_s_wiring_keys_no_row_that_reads_one_of_its_steps():
+    """scene_palette's `from score.stages.shapes_first import align` reads the loop's package, whose rows wire the
+    whole prop route: none of it is in the palette's code version (2026-10-28: a likeness_row edit moved body-face).
+    Break: score/graph/_code.py: '"score/stages/shapes_first/__init__.py",' -> ''."""
+    from score.stages.surfaces import scene_palette
+    files = {path.relative_to(_code.REPO).as_posix() for path in _code.source_files([scene_palette.files])}
+    assert "score/stages/shapes_first/align.py" in files  # what it calls stays in
+    assert not {"score/stages/shapes_first/__init__.py", "score/stages/props/likeness_row.py",
+                "score/stages/props/thin_straight.py"} & files
+
 def test_new_evidence_judges_an_output_again_without_remaking_it():
     """Break: score/graph/__init__.py: '(self.store.evidence_hash(check.name, output) or "missing") if check.evidence else "none"' -> '"none"'"""
     world, store = a_world({"hangar": "a ship in a hall"}), a_store()
