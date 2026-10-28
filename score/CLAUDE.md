@@ -106,7 +106,10 @@ stage as each stage is built; nothing moves before.
   film"): `Runner.after_failure` notes it once in the store (`remakes/<node>/<key>.json`, the count, so never twice
   across runs and restarts), which gives the node's key a `remake` part with a fresh seed, attempt 2, its record
   saying "automatic free remake, attempt 2, after <checks>". A second failure, or a paid row off this PC, stops the
-  line and goes on the owner's list, priced (its forecast, else its estimate). Each note (failed checks, reasons,
+  line and goes on the owner's list, priced (its forecast, else its estimate). A row of cached model asks
+  (`asks_cached`: its own files are or import `CACHED_ASKS`, the Google batch route or the claude-code adapter) is
+  never remade, since a fresh seed asks the same question: its note says "same question, same answer: needs a source
+  fix (prompt or inputs)", not on his list; it runs again only once its key moves (owner, 2026-10-28). Each note (failed checks, reasons,
   measures, findings, what came next, attempt 2's outcome) is a line of `remakes/notes.jsonl` beside the store, an
   owner's one also of `remakes/owner-list.jsonl`, and the fault report names both attempts; the noted checks are
   where the cause gets fixed (a builder, a route, a check judging wrongly), the remake is no fix. No gate loosens,
