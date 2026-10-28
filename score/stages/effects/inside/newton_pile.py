@@ -7,7 +7,7 @@ as a surface built from every one of its grains.
 The pile's cuttings are the bore's (`bore` radius, `volume` cubic metres loosened: the scene's own, read off its
 locked concept by the effects stage's one model call, score/stages/effects/asked.py), brought up the auger and let out
 over `pour` seconds, `slices` a second, just over the resting pile's top above the collar and falling fast enough
-to clear the slice before it (the rest wait inactive, where the solver does not see them). They fall and spread under
+to clear the slice before it, over a disc wide enough that they spill rather than jet (the rest wait inactive, where the solver does not see them). They fall and spread under
 `gravity` (metres a second squared, the body's) as a Drucker-Prager granular material of `angle` (its friction angle,
 degrees) and `density` (kg a cubic metre) on a ground of the same friction, for `seconds`, on a grid of `voxel`
 metres (its particles jittered, seeded by `seed`), sampled `samples` times a second (a whole share of `slices`). At
@@ -36,6 +36,11 @@ STEP_MOST = 1.0 / 96.0
 # A particle slower than this rests on the pile (metres a second), and a slice is let out this far over its top.
 RESTING = 0.1
 DROP = 0.1
+# The fastest the cuttings are let out (metres a second): they spill off the collar, never jet. The column's slices
+# fall at its height over the pour, so a narrow bore and a large volume made a jet that splashed the first cuttings
+# flat and the pile grew on that skirt (Campgrounds' 0.4 m3 through its 8 cm bore: 3.3 m/s, a 19.6 degree flank; let
+# out over a wider disc, 0.8 m/s gave 29.8, 0.4 gave 30.9, 0.2 gave 32.5; measured 2026-10-28 on an RTX 5080).
+SPILL = 0.2
 # The surface (Newton's implicit MPM water example's reconstruction, examples/mpm/example_mpm_water_dam_break.py): each
 # grain's kernel reaches this many spacings, scaled by KERNEL_SCALE, stretched along its neighbours (anisotropic), the
 # field blurred FIELD_SMOOTH passes of FIELD_RADIUS cells and cut at THRESHOLD, the mesh smoothed MESH_SMOOTH passes.
@@ -57,9 +62,11 @@ def cone_friction(angle):
 
 def column(pile):
     """The bore's cuttings as a standing column of particle spots on the collar (z up), jittered within their cells,
-    lowest first, and the spacing between them."""
-    voxel, radius = float(pile["voxel"]), float(pile["bore"])
-    tall = float(pile["volume"]) / (math.pi * radius * radius)
+    lowest first, and the spacing between them: as wide as the bore, or wider where that would let them out faster
+    than SPILL over the pour."""
+    voxel, volume = float(pile["voxel"]), float(pile["volume"])
+    radius = max(float(pile["bore"]), math.sqrt(volume / float(pile["pour"]) / (math.pi * SPILL)))
+    tall = volume / (math.pi * radius * radius)
     spacing = voxel / PER_CELL
     across = np.arange(-radius + spacing / 2, radius, spacing)
     grid_x, grid_y, grid_z = np.meshgrid(across, across, np.arange(spacing / 2, tall, spacing), indexing="ij")

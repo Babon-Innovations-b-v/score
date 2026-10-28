@@ -99,9 +99,11 @@ def files(place):
     """What the stage reads: the scene's design inventory and locked concept (what a row's effect asks is read off
     it), the row-kind rules and the library of measured effects,
     its seed stage with its kit (the record is made and the gates judge the layer over it), its design's surface
-    data (which bakes of other places it lays, as the settle) and the setting whose body's gravity a Newton pile falls
-    under."""
+    data (which bakes of other places it lays, as the settle), the setting whose body's gravity a Newton pile falls
+    under, and the pile's script and its Python (run apart, so no import keys them)."""
     return {**row_kinds.DESIGNED, "effect kinds": "{data}/checks/effects.json", "seed": "{seeds}/usd-r3/{place}",
+            "pile script": "{repo}/" + str(NEWTON_PILE.relative_to(REPO)),
+            "pile env": "{repo}/" + str(NEWTON_ENV.relative_to(REPO)),
             "concept": "{home}/design/concepts/{place}.png",
             "surfaces": "{home}/design/surfaces/{place}.json", "physics": "{data}/physics/setting.json",
             "bodies": "{data}/physics/bodies.json", "within": "{data}/places/within.json", **layer_base.files(place)}
