@@ -7,6 +7,7 @@
     python -m score.conductor disk               # disk.report: free room and the biggest folders, the rest in a file
     python -m score.conductor clean-frozen       # disk.clean: remove the frozen copies no run needs, what it freed
     python -m score.conductor clean-cache [--making-only]  # disk.clean_cache: checkouts relinked, the cache cleared
+    python -m score.conductor relink-pixal       # disk.relink_pixal: work/pixal's stored files made links, one line
 """
 import argparse
 import json
@@ -26,6 +27,7 @@ def main(argv=None):
     commands.add_parser("clean-frozen")
     commands.add_parser("clean-cache").add_argument("--making-only", action="store_true",
                                                     help="only the orphaned makes (the sync pass's sweep)")
+    commands.add_parser("relink-pixal")
     options = parser.parse_args(argv)
     conductor.apply_free_only()
     if options.command == "health":
@@ -44,6 +46,8 @@ def main(argv=None):
         clean_frozen()
     elif options.command == "clean-cache":
         clean_cache(options.making_only)
+    elif options.command == "relink-pixal":
+        relink_pixal()
     elif options.command == "size":
         from score.conductor import size
         size.tick()
@@ -80,6 +84,15 @@ def clean_cache(making_only):
         print(f"clean-cache: {relinked}; refused, nothing removed: {done['refused']}", flush=True)
         sys.exit(1)
     print(f"clean-cache: {relinked}; removed {', '.join(done['removed']) or 'nothing'}; freed {done['freed_gb']} GB, "
+          f"{disk.free_gb():.1f} GB free", flush=True)
+
+
+def relink_pixal():
+    """disk.relink_pixal in one summary line: files relinked, GB freed, files kept and why."""
+    from score.conductor import disk
+    done = disk.relink_pixal()
+    kept = ", ".join(f"{count} {why}" for why, count in sorted(done["kept"].items())) or "none"
+    print(f"relink-pixal: relinked {done['relinked']} files, freed {done['freed_gb']} GB; kept: {kept}; "
           f"{disk.free_gb():.1f} GB free", flush=True)
 
 
