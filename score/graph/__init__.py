@@ -55,7 +55,6 @@ import multiprocessing.connection
 import os
 import pathlib
 import platform
-import resource
 import shutil
 import signal
 import sys
@@ -103,14 +102,21 @@ HEARTBEAT = 120
 # The drive starts a node only while this PC's available memory, less what each running node is still expected to
 # take (its stage's measured peak less what its process tree holds now; a node that ended holds none) and less the
 # new node's own peak, stays at MEMORY_FLOOR or above; it reads again every MEMORY_POLL seconds. A stage's peak is the
-# most resident memory one of its nodes took (its process and children's, rusage, or the drive's own readings),
-# kept per stage in memory/peaks.json beside the store; a stage never measured is given MEMORY_FLOOR. 2026-10-28:
+# most memory one of its nodes' process trees held, by proportional share (Pss, smaps_rollup: a node forked from the
+# drive and its Blender and pool children share pages, which an RSS sum counted once per process: 15.8 GB kept for
+# finish-route-views nodes holding 2.5 GB, 2026-10-28), read by the node itself and by the drive, whichever is more,
+# kept per stage in memory/peaks-pss.json beside the store (the RSS sums of memory/peaks.json are no longer read); a
+# stage never measured is given MEMORY_FLOOR. 2026-10-28:
 # five finish-route-views nodes grew to 4.8-6.4 GB each minutes after their start and took this PC to 7 GB free
 # (the rule then reserved a floor only for a node's first minute). This PC (43 GB) has run out of memory before. Measured 2026-10-22 (peak RSS of the make, imports included): plan@hub 0.21 GB,
 # earth-seed@greenhouse 0.22 GB, the assembly, completion, earth-seed, scene-record and terrain test makes 0.22-0.28
 # GB (a node waiting on a rented machine not measured). 6 GB is far over those, for the nodes not measured yet.
 MEMORY_FLOOR = 6 * 2**30
 MEMORY_POLL = 30
+# A node's process reads its own tree's memory every MEMORY_SAMPLE seconds for the peak it reports (watch_memory).
+MEMORY_SAMPLE = 5
+# Where the process readings come from (the tests give a folder of their own).
+PROC = "/proc"
 # A machine whose memory wants another floor names it in GB (score/conductor: SCORE_MIN_FREE_GB on the conductor).
 FLOOR_VARIABLE = "SCORE_MIN_FREE_GB"
 # The thread-pool variables every node's process sets before its make starts (lowered only: a smaller value the owner
@@ -465,9 +471,9 @@ def memory_room(running, expected):
 
 
 def process_table():
-    """{pid: (parent pid, resident bytes)} of every process on this PC (/proc/<pid>/stat)."""
+    """{pid: (parent pid, resident bytes)} of every process on this PC (PROC/<pid>/stat)."""
     page, table = os.sysconf("SC_PAGE_SIZE"), {}
-    for entry in os.scandir("/proc"):
+    for entry in os.scandir(PROC):
         if entry.name.isdigit():
             with contextlib.suppress(OSError, ValueError, IndexError):  # a process that ended while it was read
                 fields = pathlib.Path(entry.path, "stat").read_text().rsplit(")", 1)[1].split()
@@ -475,8 +481,18 @@ def process_table():
     return table
 
 
+def proportional_bytes(pid, resident):
+    """The bytes process `pid` holds as its share of every page (Pss of PROC/<pid>/smaps_rollup): a page shared with
+    its parent or children counts once over them all, not once each; `resident` where that file cannot be read."""
+    with contextlib.suppress(OSError, ValueError, StopIteration):
+        with open(os.path.join(PROC, str(pid), "smaps_rollup")) as rollup:
+            return int(next(line for line in rollup if line.startswith("Pss:")).split()[1]) * 1024
+    return resident
+
+
 def trees_held(pids):
-    """{each of `pids`: the resident bytes its process and every descendant hold now} (0 once it is gone)."""
+    """{each of `pids`: the bytes its process and every descendant hold now, by proportional share
+    (proportional_bytes)} (0 once it is gone)."""
     table, children = process_table(), {}
     for pid, (parent, _) in table.items():
         children.setdefault(parent, []).append(pid)
@@ -485,7 +501,8 @@ def trees_held(pids):
         tree, total = [root], 0
         while tree:
             pid = tree.pop()
-            total += table.get(pid, (0, 0))[1]
+            if pid in table:
+                total += proportional_bytes(pid, table[pid][1])
             tree += children.get(pid, [])
         held[root] = total
     return held
@@ -494,10 +511,12 @@ def trees_held(pids):
 HELD = trees_held  # the tests give a fake reading
 
 
-def own_peak():
-    """The most resident memory this process and its children (each waited for) took, in bytes: both added, as a
-    child may run while its parent holds its own."""
-    return sum(resource.getrusage(who).ru_maxrss for who in (resource.RUSAGE_SELF, resource.RUSAGE_CHILDREN)) * 1024
+def watch_memory(high, every=None):
+    """In a node's process: keep in `high` ([bytes]) the most its process tree held (trees_held), read every
+    MEMORY_SAMPLE seconds; never returns."""
+    while True:
+        high[0] = max(high[0], HELD([os.getpid()])[os.getpid()])
+        time.sleep(every or MEMORY_SAMPLE)
 
 
 def node_threads(jobs):
@@ -1593,19 +1612,21 @@ class Runner:
         otherwise hold the process at its exit, and the drive's join with it, after the node is done. Its runner's
         death ends it (watch_runner)."""
         threading.Thread(target=watch_runner, args=(runner_pid,), daemon=True).start()
+        high = [0]  # the most this node's process tree held, read by watch_memory
+        threading.Thread(target=watch_memory, args=(high,), daemon=True).start()
         try:
             did = self.drive_node(stage, place, threads)
         except BaseException as error:  # noqa: BLE001 - raised where its log could not take it (Batch 1, a full disk)
             did = f"error: {type(error).__name__}: {error}; raised outside its log:\n{traceback.format_exc()}"
-        sending.send((did, own_peak()))
+        sending.send((did, max(high[0], HELD([os.getpid()])[os.getpid()])))
         sending.close()
         sys.stdout.flush()
         sys.stderr.flush()
         os._exit(0)
 
     def outcome(self, receiving, process):
-        """(What a node's process did, once it ended: an error when it ended without saying; the peak resident bytes
-        it said it took, 0 when it did not say)."""
+        """(What a node's process did, once it ended: an error when it ended without saying; the most bytes its
+        process tree held (trees_held) as it said, 0 when it did not say)."""
         try:
             did, peak = receiving.recv()
         except EOFError:
@@ -1615,8 +1636,9 @@ class Runner:
         return did or f"error: its process ended (exit code {process.exitcode}) without saying what it did", peak
 
     def peaks(self):
-        """{stage: the most resident bytes one of its nodes took}, as kept beside the store (none yet: {})."""
-        path = self.desk("memory", "peaks", ".json")
+        """{stage: the most bytes one of its nodes' process trees held (trees_held)}, as kept beside the store (none
+        yet: {})."""
+        path = self.desk("memory", "peaks-pss", ".json")
         return json.loads(path.read_text()) if path.exists() else {}
 
     def keep_peak(self, stage, peak):
@@ -1624,7 +1646,7 @@ class Runner:
         peaks = self.peaks()
         if peak > peaks.get(stage, 0):
             peaks[stage] = peak
-            path = self.desk("memory", "peaks", ".json")
+            path = self.desk("memory", "peaks-pss", ".json")
             path.parent.mkdir(parents=True, exist_ok=True)
             spare = path.with_suffix(f".{os.getpid()}")
             spare.write_text(json.dumps(peaks, indent=1, sort_keys=True) + "\n")

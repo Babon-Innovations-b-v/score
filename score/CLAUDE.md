@@ -37,8 +37,12 @@ stage as each stage is built; nothing moves before.
   reads is made once. It starts a node only while this PC's available memory (`/proc/meminfo`), less what each running
   node is still expected to take (its stage's peak less what its process tree holds now, `/proc`; one that ended holds none) and
   less the new node's own stage peak, stays at `MEMORY_FLOOR` (6 GB; `SCORE_MIN_FREE_GB` names another) or above. A stage's peak is
-  the most resident memory one of its nodes took (its process plus its children's, rusage, or the drive's own readings, whichever is
-  more), kept per stage in `memory/peaks.json` beside the store and only ever raised; a stage never measured is given `MEMORY_FLOOR`
+  the most memory one of its nodes' process trees held, by proportional share (each process's `Pss` of
+  `/proc/<pid>/smaps_rollup` summed over the tree, its RSS only where that file cannot be read: a node forked from the drive
+  and its Blender and pool children share pages, which an RSS sum counted once per process, 15.8 GB kept for
+  finish-route-views nodes holding 2.5 GB, 2026-10-28), read every `MEMORY_SAMPLE` seconds by the node itself and by the drive,
+  whichever is more; the same measure is what a running node is taken to hold now. Kept per stage in `memory/peaks-pss.json`
+  beside the store and only ever raised (the RSS sums of `memory/peaks.json` are no longer read); a stage never measured is given `MEMORY_FLOOR`
   (2026-10-28: five finish-route-views nodes grew to 4.8-6.4 GB each minutes after their start, past the old one-minute reserve,
   and took this PC to 7 GB free). Otherwise it says so once and reads again
   every `MEMORY_POLL` seconds; each pass over the waiting nodes is one `still` pass (each key worked out once, the
