@@ -559,6 +559,13 @@ The one boundary in use is the owner's: see `architecture/cockpit`, "Owner-only"
 
 ## architecture/failure
 
+**Using the framework improves it** (owner, 2026-10-28). Every failure a run meets is recorded with its measure and
+its cause. A failure the framework caused (a builder, a route, a check that judges wrongly, run machinery) is fixed in
+its source, with a test that turns red on it, so the next run, anyone's, does not meet it again; a failure of one
+result is remade once on a free machine (root `CLAUDE.md`), never in a loop, and a second failure goes to the owner,
+priced. Checks are never loosened to pass. So every run, and with a shared score_lib every creator's run, leaves the
+framework better than it found it.
+
 **Inside a batch.** A paid step runs once. Its failure is a batch gap (`score/stages/batch_gaps.py`): the take is
 named with its failed check, left out of the rest of its scene's line and listed by the completion gate; it is never
 retried, waited out or sent to a bigger card class, and fixing it is a new batch (ADR-0005). The one exception, the owner's
