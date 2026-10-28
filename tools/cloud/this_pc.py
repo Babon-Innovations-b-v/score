@@ -7,6 +7,7 @@ the cockpit.
     python3 tools/cloud/this_pc.py pull | push | run [<score run arguments>]
     python3 tools/cloud/this_pc.py decide-yes ... | decide <yes id>   # the owner's decisions in chat, below
     python3 tools/cloud/this_pc.py env1 --go <go id>   # a run the owner gave his go: a bought batch, below
+    python3 tools/cloud/this_pc.py pause | resume | status   # free this PC (games), pick the run up again, below
 
 Pull and push go through the agents' door (tools/cloud/conductor/agent_door.py, the agents' key
 ~/.ssh/score_conductor_agents; owner, 2026-10-27: the door route, not his own key on the conductor, agents never get a
@@ -34,14 +35,25 @@ shell): its `store-pull` and `store-push` verbs, a tar stream each way over ssh.
   bought batch, so the run doesn't stop for clicks"): `decide-yes go world1 <answer> <question>` records it in HOME's
   store, and `env1 --go <go id>` (or `run ... --go <go id>`) tags the run SCORE_OWNERS_GO, so the runner takes it as a
   bought batch for review.IN_BATCH (score.review.web.owners_go checks the go is his); without a go nothing changes.
+- **Pause, resume, status** (owner, 2026-10-28: "make it so that you can ez pause and resume using my system, as i do
+  wanne be able to play some games at some points"): `pause` records the live run (HOME's run registry: its id,
+  arguments, commit, and the SCORE_ variables it ran with, its go and SCORE_MIN_FREE_GB among them) in PAUSED, sends
+  its leader SIGTERM (the run passes the stop on and releases; finished outputs stay in the store, an interrupted
+  node runs again), waits until its process group is gone, then `docker stop`s the container (not `docker pause`:
+  the card's memory and the processor are freed). `resume` refuses while a run is live, starts the container and the
+  same run again, detached (its log under HOME/logs), from a worktree of its own at the recorded commit
+  (HOME/resume-code). `status` says running, paused or neither, the newest heartbeat's rows and what is on the card.
 """
 import argparse
 import json
 import os
 import pathlib
+import re
+import signal
 import subprocess
 import sys
 import tarfile
+import time
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tools" / "cloud" / "conductor"))
@@ -55,6 +67,11 @@ PC_ENV = pathlib.Path.home() / ".farm-factory-props" / "env"  # the prop environ
 CONDUCTOR = ("score-conductor", "fr-par-2")  # its server's name and zone (tools/cloud/conductor/machine.py)
 ENVIRONMENT = {"SCORE_CLOUD": "local", "SCORE_FREE_ONLY": "1", "SCORE_INPUTS_DIRECT": "1",
                "SCORE_MAX_MACHINES": "all=1"}  # one machine: this PC
+MACHINE = "score-this-pc"  # backends/local.py's container
+PAUSED = "paused.json"  # under HOME: the paused run, until resume starts it again
+RUN_OWN = ("SCORE_FROZEN", "SCORE_FROZEN_OWNER", "SCORE_RUN_ID")  # set by `score run` itself, never carried over
+STOP_SECONDS = 240  # a stopped run's 30 s grace, its batches' deletes and the detached wrapper's 90 s, with room
+BEAT = re.compile(r"rows done (\d+), running (\d+), queued (\d+)")  # score.graph.heartbeat_line
 
 
 def conductor_host():
@@ -161,15 +178,159 @@ def deciding(home, verb, arguments):
                           env=environment).returncode
 
 
+def asked(command, **given):
+    """One tool call (docker, nvidia-smi, git); its CompletedProcess, output as text, never raising on its exit."""
+    return subprocess.run(command, capture_output=True, text=True, check=False, **given)
+
+
+def alive(pid):
+    """True while `pid` is a live `score` process (a reused pid is another program's)."""
+    try:
+        return b"score" in pathlib.Path(f"/proc/{pid}/cmdline").read_bytes()
+    except OSError:
+        return False
+
+
+def group_alive(leader):
+    """True while any process of `leader`'s process group lives (`score run` leads one of its own); a zombie, ended
+    and not yet reaped by its parent, holds nothing."""
+    for stat in pathlib.Path("/proc").glob("[0-9]*/stat"):
+        try:
+            state, _parent, group = stat.read_text().rsplit(")", 1)[1].split()[:3]
+        except (OSError, IndexError, ValueError):
+            continue  # gone meanwhile
+        if int(group) == leader and state != "Z":
+            return True
+    return False
+
+
+def live_run(home):
+    """The registry entry of `home`'s live `score run` (state running, its leader alive), or None."""
+    for path in sorted((home / "runs").glob("*.json"), reverse=True):
+        if path.name == "active.json":
+            continue
+        entry = json.loads(path.read_text())
+        if entry.get("state") == "running" and alive(entry.get("pid", 0)):
+            return entry
+    return None
+
+
+def run_variables(pid):
+    """The SCORE_ variables process `pid` runs with, less those `score run` sets itself."""
+    pairs = (line.split("=", 1) for line in pathlib.Path(f"/proc/{pid}/environ").read_text().split("\0") if "=" in line)
+    return {key: value for key, value in pairs if key.startswith("SCORE_") and key not in RUN_OWN}
+
+
+def run_log(pid):
+    """The file `pid` writes its output to, or None (a terminal, a pipe)."""
+    target = pathlib.Path(os.path.realpath(f"/proc/{pid}/fd/1"))
+    return str(target) if target.is_file() else None
+
+
+def pause(home):
+    """Stop the live run cleanly and record it in PAUSED, then stop the container once the run's processes are gone;
+    one line."""
+    entry = live_run(home)
+    if entry is None:
+        asked(["docker", "stop", MACHINE])
+        held = " (the paused run stays recorded)" if (home / PAUSED).exists() else ""
+        return f"paused: no run was live; {MACHINE} stopped{held}"
+    leader = entry["pid"]
+    record = {"id": entry["id"], "argv": entry["argv"], "commit": entry.get("commit"),
+              "env": run_variables(leader), "log": run_log(leader), "paused": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
+    (home / PAUSED).write_text(json.dumps(record, indent=1))
+    os.kill(leader, signal.SIGTERM)
+    deadline = time.monotonic() + STOP_SECONDS
+    while group_alive(leader):
+        if time.monotonic() > deadline:
+            raise SystemExit(f"pause: run {entry['id']} (pid {leader}) still has processes after {STOP_SECONDS} s; "
+                             f"the container is left running")
+        time.sleep(0.5)
+    asked(["docker", "stop", MACHINE])
+    return f"paused run {entry['id']} ({' '.join(entry['argv'])}); {MACHINE} stopped, {card()}"
+
+
+def resume(home):
+    """Start the container and the paused run again, detached, at its recorded commit; one line."""
+    entry = live_run(home)
+    if entry is not None:
+        raise SystemExit(f"resume: refused, run {entry['id']} is live (pid {entry['pid']})")
+    if not (home / PAUSED).exists():
+        raise SystemExit("resume: nothing paused")
+    record = json.loads((home / PAUSED).read_text())
+    commit = record.get("commit") or ""
+    if not re.fullmatch(r"[0-9a-f]{40}", commit):
+        raise SystemExit(f"resume: the paused run's commit is {commit!r}, not one commit: start it again by hand")
+    asked(["docker", "start", MACHINE])
+    code = home / "resume-code"
+    if code.exists():
+        asked(["git", "-C", str(REPO), "worktree", "remove", "--force", str(code)])
+    added = asked(["git", "-C", str(REPO), "worktree", "add", "--detach", "--force", str(code), commit])
+    if added.returncode:
+        raise SystemExit(f"resume: no worktree at {commit[:12]}: {added.stderr.strip()}")
+    (code / ".venv").symlink_to((REPO / ".venv").resolve())
+    started = asked([str(REPO / ".venv/bin/python"), "-m", "score", *record["argv"], "--detach"], cwd=code,
+                    stdin=subprocess.DEVNULL, env={**run_environment(prepared(home)), **record["env"]})
+    line = re.search(r"^detached: started .*$", started.stdout, re.MULTILINE)
+    if started.returncode or not line:
+        raise SystemExit(f"resume: the run did not start (exit {started.returncode}): "
+                         f"{(started.stdout + started.stderr).strip()[-400:]}")
+    (home / PAUSED).unlink()
+    return f"resumed {' '.join(record['argv'])} at {commit[:12]}: {line.group(0)}"
+
+
+def newest_beat(log):
+    """'rows done N, running N, waiting N' from the newest heartbeat line in `log`'s last 4 MB, or None."""
+    if not log or not pathlib.Path(log).is_file():
+        return None
+    with open(log, "rb") as handle:
+        handle.seek(max(0, handle.seek(0, os.SEEK_END) - 4_000_000))
+        found = BEAT.findall(handle.read().decode(errors="replace"))
+    return "rows done {}, running {}, waiting {}".format(*found[-1]) if found else None
+
+
+def card():
+    """What is on the card: its memory used, and the container's biggest process when it runs."""
+    memory = asked(["nvidia-smi", "--query-gpu=memory.used,memory.total", "--format=csv,noheader,nounits"])
+    parts = memory.stdout.split(",")
+    used = (f"card {parts[0].strip()} of {parts[1].strip()} MiB used" if memory.returncode == 0 and len(parts) == 2
+            else "card unread")
+    top = asked(["docker", "top", MACHINE, "-eo", "pid,rss,args"])  # docker top needs the pid column
+    if top.returncode:
+        return f"{used}, {MACHINE} not running"
+    rows = [line.split(None, 2)[1:] for line in top.stdout.splitlines()[1:] if len(line.split(None, 2)) == 3]
+    biggest = max(rows, key=lambda row: int(row[0]) if row[0].isdigit() else 0, default=None)
+    return f"{used}, {MACHINE}'s top job: {biggest[1][:100] if biggest else 'none'}"
+
+
+def status_line(home):
+    """One line: running, paused or neither, the newest heartbeat's rows, what is on the card."""
+    entry = live_run(home)
+    logs = sorted((home / "logs").glob("*.log"), key=lambda path: path.stat().st_mtime)
+    if entry is not None:
+        state, log = f"running {entry['id']} ({' '.join(entry['argv'])})", run_log(entry["pid"])
+    elif (home / PAUSED).exists():
+        record = json.loads((home / PAUSED).read_text())
+        state, log = f"paused {record['id']} since {record['paused']}", record.get("log")
+    else:
+        state, log = "neither running nor paused", None
+    beat = newest_beat(log or (str(logs[-1]) if logs else None)) or "no heartbeat yet"
+    return f"{state}; {beat}; {card()}"
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("command", choices=("env1", "pull", "run", "push", "decide-yes", "decide"))
+    parser.add_argument("command", choices=("env1", "pull", "run", "push", "decide-yes", "decide",
+                                                        "pause", "resume", "status"))
     parser.add_argument("arguments", nargs=argparse.REMAINDER, help="run: score run's arguments (default world1), "
                         "--go <go id> among them; decide-yes and decide: the door's verbs' arguments")
     parser.add_argument("--host", help="the conductor's address (default: read from Scaleway by its name)")
     parser.add_argument("--key", default="~/.ssh/score_conductor_agents", help="the agents' ssh key to the door")
     options = parser.parse_args(argv)
     home = prepared(HOME)
+    if options.command in ("pause", "resume", "status"):
+        print({"pause": pause, "resume": resume, "status": status_line}[options.command](home))
+        return 0
     if options.command in ("decide-yes", "decide"):
         return deciding(home, options.command, options.arguments)
     arguments, go = go_taken(options.arguments)
