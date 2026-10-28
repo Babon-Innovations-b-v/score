@@ -39,7 +39,8 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
                           every such frame; a body no foot of which ever lands fails
              carries      over each run the ground's mean upward push is the body's weight within CARRIED
              follows      the mean angle between each SOMA segment's turn (riding its bone) and the clip's, over
-                          segments and frames, at most FOLLOWED degrees
+                          segments and frames, at most FOLLOWED degrees; and RRA's move off the fitted path, every
+                          frame, at most FOLLOWED degrees on any segment and MOVE_MOST at the pelvis
              residual     after RRA's capped adjustment the pelvis' residual stays within its limits, the net external
                           force taken as the body's weight: its force at most RESIDUAL_FORCE of it and its moment at most
                           RESIDUAL_MOMENT of it times the centre of mass' height, any frame (a trip, a float or a
@@ -116,10 +117,10 @@ STANDING = "standing"  # the rig's clip a body is calibrated on (inside/sim_body
 # Delp 2015, "Is my model good enough?", J Biomech Eng 137(2):020905, section 3.1.3).
 RESIDUAL_FORCE = 0.02
 RESIDUAL_MOMENT = 0.01
-# The residual reduction's cap (inside/sim_body.py `reduced`, OpenSim's RRA): each frame's pelvis move at most
-# MOVE_MOST and each adjusted turn (the pelvis', the lumbar leaders') at most FOLLOWED off the fitted path, and the
-# adjusted path kept within FOLLOWED of the clip on the mean (the owner, 2026-10-28: "never more"). MOVE_MOST is ours:
-# no published limit names a pelvis move.
+# The residual reduction's cap (inside/sim_body.py `reduced`, OpenSim's RRA): on every frame, all rounds together, the
+# pelvis at most MOVE_MOST and every segment's turn at most FOLLOWED off the fitted path (owner, 2026-10-28;
+# `within_frames`, gated by `follows`), and the adjusted path kept within FOLLOWED of the clip on the mean (the owner,
+# 2026-10-28: "never more"). MOVE_MOST is ours: no published limit names a pelvis move.
 MOVE_MOST = 0.02  # metres
 
 
@@ -363,7 +364,8 @@ def landings(frames, weight):
 
 def measured(entry, gravity):
     """A run's gate numbers: its deepest point into its ground, each landed foot's height off it, the mean upward push
-    over its weight, the mean and worst angle off the clip, the largest joint moment and reserve, the residual's
+    over its weight, the mean and worst angle off the clip, the largest move RRA made off the fitted path on any frame
+    (a segment's turn, the pelvis' place), the largest joint moment and reserve, the residual's
     largest force and moment against their limits, and the muscles' activations and forces."""
     frames, weight = entry["frames"], entry["kg"] * gravity
     off = np.array([angle_between(frame["angles"], frame["targets"]) for frame in frames])
@@ -380,6 +382,8 @@ def measured(entry, gravity):
             "weight N": round(weight, 2), "mean push N": round(float(push), 2),
             "push over weight": round(float(push / weight), 4),
             "mean off clip deg": round(float(off.mean()), 3), "worst off clip deg": round(float(off.max()), 3),
+            "largest adjusted turn deg": entry["adjusted"]["largest turn deg"],
+            "largest pelvis move cm": entry["adjusted"]["pelvis cm"][1],
             "largest torque Nm": round(float(max(np.abs(frame["torques"]).max() for frame in frames)), 2),
             "largest reserve Nm": round(float(max(frame["reserve"] for frame in frames)), 2),
             "largest residual N": round(float(force.max()), 2), "mean residual N": round(float(force.mean()), 2),
@@ -432,11 +436,21 @@ def judge_carries(output, inputs, evidence):
 
 
 def judge_follows(output, inputs, evidence):
-    """Fail a body whose joints are off its clip's by more than FOLLOWED degrees on the mean."""
-    bodies = bodies_of(output)
-    faults = [f"{name}: {body['measures']['mean off clip deg']:.2f} degrees off its clip on the mean"
-              for name, body in bodies.items() if body["measures"]["mean off clip deg"] > FOLLOWED]
-    return verdict("follows", faults, f"{len(bodies)} bodies, each within {FOLLOWED} degrees of its clip on the mean",
+    """Fail a body whose joints are off its clip's by more than FOLLOWED degrees on the mean, or that RRA moved off its
+    fitted path by more than FOLLOWED degrees on a segment or MOVE_MOST at the pelvis on any frame."""
+    bodies, faults = bodies_of(output), []
+    for name, body in bodies.items():
+        found = body["measures"]
+        if found["mean off clip deg"] > FOLLOWED:
+            faults.append(f"{name}: {found['mean off clip deg']:.2f} degrees off its clip on the mean")
+        if found["largest adjusted turn deg"] > FOLLOWED:
+            faults.append(f"{name}: a segment turned {found['largest adjusted turn deg']:.1f} degrees off its fitted "
+                          f"path in a frame")
+        if found["largest pelvis move cm"] > 100 * MOVE_MOST:
+            faults.append(f"{name}: the pelvis moved {found['largest pelvis move cm']:.1f} cm off its fitted path in "
+                          f"a frame")
+    return verdict("follows", faults, f"{len(bodies)} bodies, each within {FOLLOWED} degrees of its clip on the mean "
+                   f"and RRA's move within {FOLLOWED} degrees and {100 * MOVE_MOST:.0f} cm on every frame",
                    {"bodies": len(bodies)})
 
 
