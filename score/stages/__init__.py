@@ -690,7 +690,7 @@ SEED_READ = {"earth-seed": (earth_seed.EARTH_SEED.schema, earth_seed.EARTH_SEED.
 # and its design's kit); the table's test (its cast test) holds the cast to it. terrain-look, the last reader of a
 # seed alone, is retired (#27).
 EARTH_SEEDED = ("assembly", "settle", "effects-layer", "cast", "motion",
-                "light-layer", "light-passes", "light", "scene-record")
+                "light-layer", "light-passes", "light", "scene-record", "scene-clips", "sim-body")
 
 
 # The rows reading beside the places they show (their scene records) and those places' seeds with them: the light
