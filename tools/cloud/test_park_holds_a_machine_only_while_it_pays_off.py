@@ -50,7 +50,8 @@ break that turns each red (applied once, seen red, reverted):
 - test_a_taken_machine_keeps_only_its_newest_set_up_mark: `STALE_MARKS`, `tail -n +2` -> `tail -n +1`.
 - test_this_pcs_card_is_taken_free_one_claim_at_a_time_and_never_parked: in `adopt`, drop `if hasattr(cloud,
   "take"): return here(...)` -> the claim asks a clearance and finds nothing parked; or in `park`, drop `if
-  machine.get("here"): return False` -> the PC's machine is listed as parked.
+  machine.get("here"): return False` -> the PC's machine is listed as parked; or in `here`, `f"{STALE_MARKS};
+  {cleanup_of(machine)}"` -> `STALE_MARKS` (a last claim's `closed` ends the next worker at once).
 - test_a_pixal_fleet_takes_a_parked_card_before_it_orders_one: in batch.py `rent_fleet`, `machine =
   park_taken(fleet, fleet.offers, len(fleet.machines) + 1, "pixal", DISK_GB)` -> `machine = None`.
 """
@@ -454,7 +455,8 @@ def test_this_pcs_card_is_taken_free_one_claim_at_a_time_and_never_parked(calls,
     monkeypatch.setattr(batch.compute, "require_cleared", lambda what, store=None: pytest.fail("cleared " + what))
     first = run_of("here")
     taken = batch.park_taken(first, CARD_OFFERS, 1, KIND, 60)
-    assert taken["id"] == "score-this-pc:1" and taken in first.machines and calls.remote == [park.STALE_MARKS]
+    assert taken["id"] == "score-this-pc:1" and taken in first.machines
+    assert calls.remote == [f"{park.STALE_MARKS}; {CLEAN}"]  # a last claim's own files go, its set-up stays
     assert batch.park_taken(run_of("busy"), CARD_OFFERS, 1, KIND, 60) is None  # one claim at a time
     with pytest.raises(batch.compute.Refused, match="30 GB"):
         batch.park_taken(run_of("big"), CARD_OFFERS, 1, "judge", 60)
