@@ -386,7 +386,9 @@ def adopt(run, offers, number, kind, disk_gb, classes=None):
 def here(run, number, kind):
     """This PC's machine (backends/local.py) for `run`, or None while another claim holds it, so the claim waits and
     asks again (batch.claim_rounds). Never rented, so no clearance is asked: it costs nothing. Its set-up stays from
-    the last job but for the newest set-up mark (STALE_MARKS); a kind too big for its card is refused (compute's
+    the last job but for the newest set-up mark (STALE_MARKS); the files a last claim of its kind left go first
+    (`cleanup_of`: its container restart kills the job, not its files, so pixal's leftover `closed` ended the next
+    worker at once, 2026-10-28); a kind too big for its card is refused (compute's
     Refused, naming the GB), never run into an out-of-memory; by the run's own measured need (`run.need`) when it
     has one."""
     if not getattr(run, "deadline", None):
@@ -405,7 +407,8 @@ def here(run, number, kind):
     machine["watchdog"] = batch.start_watchdog(machine["id"], machine["zone"],
                                                run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60, folder)
     try:
-        batch.remote(folder, machine["host"], STALE_MARKS, check=True, capture_output=True, timeout=60)
+        batch.remote(folder, machine["host"], f"{STALE_MARKS}; {cleanup_of(machine)}", check=True,
+                     capture_output=True, timeout=60)
     except Exception:
         batch.delete_machine(machine)
         raise
