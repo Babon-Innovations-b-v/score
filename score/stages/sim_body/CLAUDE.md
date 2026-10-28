@@ -17,14 +17,19 @@ scene's own ground. `__init__.py`'s docstring has the make and the gates; `insid
 - **Residual reduction, OpenSim's RRA** (owner, 2026-10-28; Delp et al. 2007, opensim-core RRATool, Apache-2.0; never
   AddBiomechanics: GPL with a data-sharing clause, neither used nor copied): `inside/sim_body.py` `reduced` adjusts
   the fitted path's pelvis and trunk (the root's six dofs and the lumbar leaders, `TRUNK`) and the body's masses and
-  torso centre of mass (RRATool's own formulas) so the ground explains the movement, `RRA_ROUNDS` times, each frame's
-  move capped (`MOVE_MOST`, `FOLLOWED` degrees) and low-passed, taken only when the measured residual and move
-  cost falls (halved up to `RRA_HALVINGS` times, else the rounds end), the feet kept where they stood by the legs (`footed`: a
+  torso centre of mass (RRATool's own formulas) so the ground explains the movement, `RRA_ROUNDS` times, the
+  owner's per-frame cap inside the solve (owner, 2026-10-28: every segment's turn within `FOLLOWED` degrees and the
+  pelvis within `MOVE_MOST` of the fitted path on every frame, all rounds together; `cap_rows` linearises each
+  segment's turn through the legs' `footed`, `within_balls` solves the least squares over those balls by ADMM), the
+  move low-passed by construction (`filter_matrix`: a filtered move, so the filter cannot break the cap), the lumbar's
+  needed moments beyond the fitted path's counted as residual moment (`demands`: RRA weighs the joints' actuators
+  beside the residuals; without it the solve swung the trunk to cancel the pelvis' residual and left up to 340 N m on
+  the lumbar's reserves, 2026-10-28), taken only when the measured residual, lumbar and move cost falls (halved up to `RRA_HALVINGS` times, else the rounds end), the feet kept where they stood by the legs (`footed`: a
   pelvis moved with its feet lifted them off the ground, 600 N of residual, 2026-10-28), and the result kept within the clip's
-  `follows` limit (`within_follows`: the whole move, else a quarter less, down to none), then held on every frame within
-  `FOLLOWED` degrees on every segment and `MOVE_MOST` at the pelvis off the fitted path, all rounds together (owner,
-  2026-10-28; `within_frames`: a frame over has its share of the move lowered, the shares eroded and low-passed; the
-  per-dof cap alone let the chest turn 19 degrees). Nothing is applied to the body. How far it moved is each body's
+  `follows` limit (`within_follows`: the whole move, else a quarter less, down to none), then checked on every frame against the
+  cap as measured (`within_frames`: a frame the linearisation left over has its share of the move lowered, the shares
+  eroded and low-passed; the least share is recorded; scaling the whole move down after the solve, as before
+  2026-10-28, gave back about half of what it reduced). Nothing is applied to the body. How far it moved is each body's
   `adjusted` record (pelvis cm, each segment's degrees, the largest turn on any frame, mass %, torso centre of mass cm,
   the share kept, the least frame share, follows before and after); `follows` fails a frame over the per-frame cap.
   The toes' ±30 degree stop is MyoSuite's own (myo_sim `myolegs_chain.xml` mtp_angle range ±0.523599, as Rajagopal
@@ -82,7 +87,9 @@ scene's own ground. `__init__.py`'s docstring has the make and the gates; `insid
 - **Its feet stand on the ground, not in it** (owner, 2026-10-28: "ground contact is real"): a foot segment stands
   in a frame when its SOMA joint is within `LOW` of its standing height over its ground and slower than `STILL`
   (`stances`; Kovar, Schreiner and Gleicher 2002's footskate cleanup); the fit holds a standing foot body's lowest
-  collider point on the ground and keeps every foot point out of it, by the legs' joints alone (`on_ground`,
+  collider point on the ground, keeps it from sliding while it stood the frame before too (`unslipped`: it rolls, the
+  point in contact still; a height hold alone let the rig walk's toe slide 6 cm in a frame at heel-off, 1.8 m/s, so
+  the ground could only resist the slip: 416 N of residual, 2026-10-28) and keeps every foot point out of it, by the legs' joints alone (`on_ground`,
   `FIT_GROUND`; a point within `GAP` over it stays in the fit as the bound's active set, or the next step puts it
   back in), in the fit and again after the low-pass, which moves a held foot again: landed and low-passed
   `LAND_ROUNDS` times, then landed last (`landed`, each body held to its low-passed turn); the pelvis keeps its

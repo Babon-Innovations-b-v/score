@@ -73,8 +73,8 @@ import sys
 import mujoco
 import newton
 import numpy as np
+from scipy.linalg import cho_factor, cho_solve
 from scipy.ndimage import minimum_filter1d
-from scipy.optimize import lsq_linear
 from scipy.signal import butter, filtfilt
 from scipy.spatial.transform import Rotation
 
@@ -140,6 +140,11 @@ TRACK = 0.01
 COM_MOST = 0.1
 RRA_STEP = 1e-5
 RRA_HALVINGS = 3
+CAP_STEP = 1e-3  # metres or radians: `cap_rows`' difference step
+CAP_INSIDE = 0.95  # the solve's balls this far inside the cap, for its linearisation; `within_frames` checks the rest
+ADMM_ROUNDS = 3000
+ADMM_TOLERANCE = 1e-3
+ADMM_RIDGE = 1e-8  # of the mean curvature: a low-passed move leaves its high frequencies free
 FRAME_ROUNDS = 20  # `within_frames`' rounds of lowering the frames over their cap
 FRAME_MARGIN = 0.95  # a frame over its cap lowered this much further than its excess, so the rounds end
 FOOTED_HEIGHT = 0.1  # the weight of a metre of the pelvis' height against one of a foot's place (`footed`)
@@ -366,15 +371,20 @@ def offsets(model, couplings, person, segments, bodies):
     return turns, places
 
 
-def fitted(model, couplings, targets, qpos, rounds, before=None, ground=None, feet=(), planted=()):
+def fitted(model, couplings, targets, qpos, rounds, before=None, ground=None, feet=(), planted=(), stood=None):
     """The model's qpos whose bodies turn as `targets` ({body: 3 x 3, MuJoCo's frame}): OpenSense's inverse
     kinematics (Simbody's OrientationSensors goal, every sensor's error angle squared, weight 1 each), by damped least
     squares on the leading dofs, `rounds` steps from `qpos`, the joints kept in their ranges as OpenSim's assembler
     clamps them; with the frame `before` given, each joint is held lightly to it (FIT_STEADY), so a direction the
     targets leave free (the shoulder's plane of elevation with the arm hanging, MoBL-ARMS' gimbal) does not wander
     frame to frame; with `feet` given, their points held on and out of the `ground` (`on_ground`, FIT_GROUND), the
-    pelvis' place kept."""
+    pelvis' place kept; with `stood` (the frame before: its qpos and planted bodies) given too, a body planted in both
+    rolls without slipping (`unslipped`)."""
     data = mujoco.MjData(model)
+    if stood is not None:
+        before_data = mujoco.MjData(model)
+        before_data.qpos[:] = stood[0]
+        mujoco.mj_kinematics(model, before_data)
     rotation, translation = np.zeros((3, model.nv)), np.zeros((3, model.nv))
     qpos = couplings.apply(qpos.copy())
     joints = couplings.leads[6:]
@@ -395,6 +405,11 @@ def fitted(model, couplings, targets, qpos, rounds, before=None, ground=None, fe
             mujoco.mj_jac(model, data, translation, None, point, body)
             rows.append(FIT_GROUND * translation[2:3])
             errors.append([FIT_GROUND * rise])
+        for point, body, slip in (unslipped(model, data, before_data, ground, feet, planted & stood[1])
+                                  if feet and stood is not None else ()):
+            mujoco.mj_jac(model, data, translation, None, point, body)
+            rows.append(FIT_GROUND * translation[:2])
+            errors.append(-FIT_GROUND * slip)
         mapped = couplings.map(qpos)
         jacobian = np.concatenate(rows) @ mapped
         if feet:  # the pelvis' place is SOMA's root path's: the legs bring the feet to the ground
@@ -424,6 +439,24 @@ def on_ground(model, data, ground, feet, planted):
         if body in planted:
             rise[int(np.nanargmin(heights))] = -heights[int(np.nanargmin(heights))]
         found += [(points[point], body, rise[point]) for point in sorted(rise)]
+    return found
+
+
+def unslipped(model, data, before, ground, feet, planted):
+    """Each planted body's lowest collider point now and how far it moved across the ground since the frame `before`
+    ([(point, its body, its slip: MuJoCo's x and y)]): the material point in contact stands still, so a foot standing
+    on its ground rolls on it but never slides (Kovar, Schreiner and Gleicher 2002 hold a planted foot's place; a held
+    height alone let the rig walk's toe slide 6 cm in a frame at heel-off, 1.8 m/s, 2026-10-28)."""
+    found = []
+    for body in planted:
+        points = surface(model, data, feet[body])
+        heights = heights_over(points @ TO_OWN.T, ground)
+        if np.isnan(heights).all():
+            continue
+        point = points[int(np.nanargmin(heights))]
+        local = data.xmat[body].reshape(3, 3).T @ (point - data.xpos[body])
+        then = before.xpos[body] + before.xmat[body].reshape(3, 3) @ local
+        found.append((point, body, (point - then)[:2]))
     return found
 
 
@@ -496,7 +529,8 @@ def motion(model, couplings, person, worlds, bodies, fixed, ground=None, feet=No
         mujoco.mj_kinematics(model, data)
         qpos[:3] += TO_OWN.T @ (world[hips] @ [*places["Hips"], 1.0])[:3] - data.xpos[pelvis]
         if feet:
-            qpos = fitted(model, couplings, wanted, qpos, FIT_NEXT, qpos, ground, feet, planted[frame])
+            qpos = fitted(model, couplings, wanted, qpos, FIT_NEXT, qpos, ground, feet, planted[frame],
+                          (path[-1], planted[frame - 1]) if frame else None)
         path.append(qpos.copy())
     return np.array(path)
 
@@ -524,11 +558,12 @@ def landed(model, couplings, path, ground, feet, planted, sensed):
     to its turn and every joint to its angle there, the pelvis where it stands: the low-pass moves a held foot by
     millimetres to centimetres at a fast toe-off, and the ground is the last word on where a foot stands."""
     data, found = mujoco.MjData(model), []
-    for qpos, held in zip(path, planted):
+    for frame, (qpos, held) in enumerate(zip(path, planted)):
         data.qpos[:] = qpos
         mujoco.mj_kinematics(model, data)
         turns = {body: data.xmat[body].reshape(3, 3).copy() for body in sensed}
-        found.append(fitted(model, couplings, turns, qpos, FIT_NEXT, qpos, ground, feet, held))
+        found.append(fitted(model, couplings, turns, qpos, FIT_NEXT, qpos, ground, feet, held,
+                            (found[-1], planted[frame - 1]) if frame else None))
     return np.array(found)
 
 
@@ -762,12 +797,26 @@ def balance(physics, qpos, qvel, qacc, origin):
     return needed, needed - pushes @ pushed
 
 
+def demands(physics, qpos, qvel, qacc, origin, trunk):
+    """What a state asks of the body: the needed wrench about `origin` (6) and the needed moments at the `trunk`
+    leading dofs (the lumbar's, N m: what its muscles must give, or its reserves)."""
+    needed = physics.needed(qpos, qvel, qacc)
+    return np.concatenate([about(physics.model, physics.data, needed, origin),
+                           (physics.couplings.map(qpos).T @ needed)[trunk]])
+
+
+def trunk_moments(physics, states, trunk):
+    """Each frame's needed moments at the `trunk` leading dofs (frames x trunk)."""
+    return np.array([demands(physics, *state, trunk)[6:] for state in states])
+
+
 def sensitivity(physics, qpos, qvel, qacc, origin, adjusted):
-    """d(the needed wrench about `origin`) / d(each `adjusted` leading dof's place, speed and acceleration): three
-    6 x adjusted matrices, by central differences of inverse dynamics."""
+    """d(what the state asks: `demands`, the trunk the adjusted lumbar leaders) / d(each `adjusted` leading dof's
+    place, speed and acceleration): three (6 + trunk) x adjusted matrices, by central differences of inverse
+    dynamics."""
     model, couplings = physics.model, physics.couplings
     mapped = couplings.map(qpos)
-    found = [np.zeros((6, len(adjusted))) for _ in range(3)]
+    found = [np.zeros((len(adjusted), len(adjusted))) for _ in range(3)]  # 6 wrench rows and the trunk's
     for column, lead in enumerate(adjusted):
         step = mapped[:, lead] * RRA_STEP
         for sign in (1.0, -1.0):
@@ -775,8 +824,7 @@ def sensitivity(physics, qpos, qvel, qacc, origin, adjusted):
             mujoco.mj_integratePos(model, placed, sign * step, 1.0)
             for kind, state in enumerate(((couplings.apply(placed), qvel, qacc), (qpos, qvel + sign * step, qacc),
                                           (qpos, qvel, qacc + sign * step))):
-                found[kind][:, column] += sign * about(model, physics.data, physics.needed(*state), origin) / (
-                    2 * RRA_STEP)
+                found[kind][:, column] += sign * demands(physics, *state, origin, adjusted[6:]) / (2 * RRA_STEP)
     return found
 
 
@@ -863,57 +911,144 @@ def smoothed(moves, rate):
 
 
 def linearised(physics, states, adjusted, rate, scale):
-    """The residuals' change with each frame's move of the `adjusted` dofs (6 frames x frames adjusted, over `scale`):
-    each frame's sensitivity to its place, speed and acceleration, the speeds and accelerations `rates`' own
-    differences of the places."""
+    """The residuals' and the trunk's moments' change with each frame's move of the `adjusted` dofs ((6 + trunk)
+    frames x frames adjusted, over `scale`): each frame's sensitivity to its place, speed and acceleration, the speeds
+    and accelerations `rates`' own differences of the places."""
     count, width = len(states), len(adjusted)
+    rows = width
     speeds, accelerations = stencils(count, rate)
-    system = np.zeros((6 * count, count * width))
+    system = np.zeros((rows * count, count * width))
     for frame, state in enumerate(states):
         places, speed, acceleration = sensitivity(physics, *state, adjusted)
         for other in range(max(frame - 2, 0), min(frame + 3, count)):
             block = speed * speeds[frame, other] + acceleration * accelerations[frame, other]
-            system[6 * frame:6 * frame + 6, other * width:(other + 1) * width] = block + (places if other == frame
-                                                                                           else 0.0)
+            system[rows * frame:rows * (frame + 1), other * width:(other + 1) * width] = block + (
+                places if other == frame else 0.0)
     return system / scale[:, None]
 
 
-def reduced(physics, path, rate, limits, most, land):
+def filter_matrix(count, rate):
+    """`smoothed` as a matrix on a per-frame value (count x count): the low-pass is linear, so a move made as this
+    matrix times any values is low-passed by construction."""
+    return smoothed(np.eye(count), rate)
+
+
+def turns_off(model, path, fitted, riders):
+    """Each segment's turn of `path` off the fitted poses, as world rotation vectors (frames x segments x 3, rad)."""
+    posed = posed_path(model, path, *riders[:3])[..., :3, :3]
+    relative = posed @ np.swapaxes(fitted[..., :3, :3], -1, -2)
+    return Rotation.from_matrix(relative.reshape(-1, 3, 3)).as_rotvec().reshape(*relative.shape[:2], 3)
+
+
+def cap_rows(physics, path, total, land, fitted, riders, most):
+    """The per-frame cap linearised at the path moved by `total` (frames x adjusted): each frame's balls, every
+    segment's turn off the fitted poses (`most[1]`), the lumbar leaders' own turn (`most[1]`: RRA's per-coordinate
+    bound, so a trunk turned one way and a pelvis the other cannot bend the lumbar twice the cap) and the pelvis'
+    place off the fitted path (`most[0]`), as rows on that frame's move scaled to radius one (frames x balls x 3 x
+    adjusted) and their values now (frames x balls x 3); balls that are another's or never move left out (every
+    segment riding the chest turns as it does; the held feet do not). A segment's change with the move is measured
+    through `land` (the legs follow the feet), by forward differences."""
+    model, adjusted = physics.model, adjusted_leads(physics)
+    count, width = total.shape
+    now = turns_off(model, land(moved(physics, path, total, adjusted)), fitted, riders)
+    turning = np.zeros((count, now.shape[1], 3, width))
+    for column in range(width):
+        nudge = np.zeros(width)
+        nudge[column] = CAP_STEP
+        ahead = turns_off(model, land(moved(physics, path, total + nudge, adjusted)), fitted, riders)
+        turning[..., column] = (ahead - now) / (CAP_STEP * most[1])
+    kept = []
+    for ball in range(now.shape[1]):
+        mine = np.concatenate([turning[:, ball].reshape(count, -1), now[:, ball] / most[1]], axis=1)
+        if np.abs(mine).max() > CAP_STEP and not any(np.allclose(mine, other, atol=CAP_STEP) for other in kept):
+            kept.append(mine)
+    pelvis, lumbar = np.zeros((count, 1, 3, width)), np.zeros((count, 1, 3, width))
+    pelvis[:, 0, :, :3] = np.eye(3) / most[0]
+    lumbar[:, 0, :, 6:9] = np.eye(3) / most[1]
+    rows = np.concatenate([np.stack([mine[:, :3 * width].reshape(count, 3, width) for mine in kept], axis=1), pelvis,
+                           lumbar], axis=1)
+    values = np.concatenate([np.stack([mine[:, 3 * width:] for mine in kept], axis=1), total[:, None, :3] / most[0],
+                             total[:, None, 6:9] / most[1]], axis=1)
+    return rows, values
+
+
+def within_balls(system, wanted, rows, values):
+    """The y least in |system y - wanted|^2 with every ball (`rows` y + `values`, groups of three) of norm at most
+    CAP_INSIDE: a convex quadratic over a product of balls, solved by ADMM (Boyd et al. 2011, section 5), its penalty
+    balanced on the primal and dual residuals; the y and how far its furthest ball is over one."""
+    hessian, linear = system.T @ system, system.T @ wanted
+    hessian += ADMM_RIDGE * np.trace(hessian) / len(hessian) * np.eye(len(hessian))  # the filter's null directions
+    rho = float(np.trace(hessian) / max(np.trace(rows.T @ rows), 1e-12))
+    gram = rows.T @ rows
+    y = np.zeros(system.shape[1])
+    z = (rows @ y + values).reshape(-1, 3)
+    u = np.zeros_like(z)
+    factor = cho_factor(hessian + rho * gram)
+    for round_ in range(ADMM_ROUNDS):
+        target = linear + rho * rows.T @ (z - u).reshape(-1) - rho * rows.T @ values
+        y = cho_solve(factor, target)
+        reached = (rows @ y + values).reshape(-1, 3)
+        before = z
+        norms = np.linalg.norm(reached + u, axis=1, keepdims=True)
+        z = (reached + u) * np.minimum(1.0, CAP_INSIDE / np.maximum(norms, 1e-12))
+        u += reached - z
+        primal = np.linalg.norm(reached - z)
+        dual = rho * np.linalg.norm(rows.T @ (z - before).reshape(-1))
+        if primal < ADMM_TOLERANCE * np.sqrt(len(z)) and dual < ADMM_TOLERANCE * np.sqrt(len(y)):
+            break
+        if round_ % 25 == 24 and (primal > 10 * dual or dual > 10 * primal):
+            change = 2.0 if primal > dual else 0.5
+            rho, u = rho * change, u / change
+            factor = cho_factor(hessian + rho * gram)
+    return y, float(np.linalg.norm((rows @ y + values).reshape(-1, 3), axis=1).max())
+
+
+def reduced(physics, path, rate, limits, most, land, fitted, riders):
     """OpenSim's residual reduction (RRA: Delp et al. 2007, IEEE TBME 54(11):1940-50, doi:10.1109/TBME.2007.901024;
     opensim-core's RRATool, Apache-2.0) on the fitted path, in our own stack: RRA_ROUNDS times, the model step
     (`reweighed`) on the mean residual, then the pelvis' and trunk's path (`adjusted_leads`) moved so the ground
-    explains the movement: one bounded linear least squares over every frame of the residual (force over `limits[0]`,
-    moment over `limits[1]`) and the move (over its cap, TRACK its weight: RRA's tracking), each frame's change held
-    within `most` (m, rad) of the fitted path, low-passed (`smoothed`), its feet kept where they stood by the legs
-    (`land`: `footed`), and taken only when it lowers that cost as measured (halved up to RRA_HALVINGS times, else the
-    rounds end). Nothing is applied to the body: only its path and masses change. Returns the path, the move (frames x
-    adjusted) and the record."""
+    explains the movement: one least squares over every frame of the residual (force over `limits[0]`, moment over
+    `limits[1]`), the lumbar's moments beyond the fitted path's (over `limits[1]`: `demands`) and the move (over its cap, TRACK its weight: RRA's tracking), the move low-passed by construction
+    (`filter_matrix`), its feet kept where they stood by the legs (`land`: `footed`), and bounded inside the solve by
+    the owner's per-frame cap (`cap_rows`: every segment's turn within `most[1]` and the pelvis within `most[0]` of the
+    fitted path, all rounds together; `within_balls`), taken only when it lowers that cost as measured (halved up to
+    RRA_HALVINGS times, else the rounds end). Nothing is applied to the body: only its path and masses change. Returns
+    the path, the move (frames x adjusted) and the record."""
     model = physics.model
     adjusted = adjusted_leads(physics)
     count, width = len(path), len(adjusted)
-    cap = np.tile([most[0]] * 3 + [most[1]] * (width - 3), count)
-    scale = np.tile(np.concatenate([np.full(3, limits[0]), np.full(3, limits[1])]), count)
-    track = np.sqrt(TRACK) / cap
+    scale = np.concatenate([np.full(3, limits[0]), np.full(3, limits[1])])
+    scale = np.tile(np.concatenate([scale, np.full(width - 6, limits[1])]), count)
+    track = np.sqrt(TRACK) / np.tile([most[0]] * 3 + [most[1]] * (width - 3), count)
+    smooth = np.kron(filter_matrix(count, rate), np.eye(width))
     total, current, mass = np.zeros(count * width), path, 1.0
     home = model.body_ipos[body_index(model, "torso")].copy()
 
+    def asked(states):  # the residuals, and the trunk's moments beyond the fitted path's: a residual moved into the
+        # lumbar is a reserve, counted as one (RRA's own objective weighs the joints' actuators beside the residuals)
+        return np.concatenate([residuals(physics, states), trunk_moments(physics, states, adjusted[6:]) - fitted_trunk],
+                              axis=1).reshape(-1) / scale
+
     def cost(moves, states):
-        return float(np.sum((residuals(physics, states).reshape(-1) / scale) ** 2) + np.sum((track * moves) ** 2))
+        return float(np.sum(asked(states) ** 2) + np.sum((track * moves) ** 2))
 
     for _ in range(RRA_ROUNDS):
         states = frame_states(physics, current, rate)
         mass *= 1 + reweighed(physics, current, residuals(physics, states), home)
+        fitted_trunk = trunk_moments(physics, frame_states(physics, path, rate), adjusted[6:])
         states = frame_states(physics, current, rate)
-        left = residuals(physics, states).reshape(-1) / scale
-        system = linearised(physics, states, adjusted, rate, scale)
-        step = lsq_linear(np.concatenate([system, np.diag(track)]), np.concatenate([-left, -track * total]),
-                          bounds=(-cap - total, cap - total)).x
+        left = asked(states)
+        system = linearised(physics, states, adjusted, rate, scale) @ smooth
+        rows, values = cap_rows(physics, path, total.reshape(count, width), land, fitted, riders, most)
+        rows = np.einsum("fbcw,fwk->fbck", rows, smooth.reshape(count, width, -1)).reshape(-1, smooth.shape[1])
+        solved, _ = within_balls(np.concatenate([system, track[:, None] * smooth]),
+                                 np.concatenate([-left, -track * total]), rows, values.reshape(-1))
+        step = smooth @ solved
         best = cost(total, states)
         for _ in range(RRA_HALVINGS + 1):
-            trial = np.clip(smoothed((total + step).reshape(count, width), rate).reshape(-1), -cap, cap)
-            walked = land(moved(physics, path, trial.reshape(count, width), adjusted))
-            if cost(trial, frame_states(physics, walked, rate)) < best:
-                total, current = trial, walked
+            walked = land(moved(physics, path, (total + step).reshape(count, width), adjusted))
+            if cost(total + step, frame_states(physics, walked, rate)) < best:
+                total, current = total + step, walked
                 break
             step /= 2
         else:
@@ -1148,8 +1283,8 @@ def run_person(job, person, out_path):
     def land(path):
         return footed(model, physics.couplings, path, qpath, list(soles))
 
-    adjusted, moves, step = reduced(physics, qpath, job["rate"], limits, most, land)
     riders = (person["segments"], bodies, riding, parents)
+    adjusted, moves, step = reduced(physics, qpath, job["rate"], limits, most, land, fitted_poses, riders)
     adjusted, kept = within_follows(physics, qpath, adjusted, moves, land, worlds, riders, job["adjust"]["follows deg"])
     adjusted, shares = within_frames(physics, qpath, kept * moves, land, fitted_poses, riders, most, job["rate"])
     adjusted_poses = posed_path(model, adjusted, person["segments"], bodies, riding)
