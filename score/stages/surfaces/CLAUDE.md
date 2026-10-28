@@ -84,7 +84,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   one, not a whole piece; voted by larger islands only) and crumbs joined (`cleaned`, `merged_islands`), each island
   a part. A face no view sees is no gap (a raw take's inner shell: 71% of astronaut-made-s1), but its walked paint
   left jagged islands of the dark joints (stray 0.054, 2026-10-23), so a take still patchy (`patchiness`, patchy.py
-  with each part its own region, as the paint measures it) is a gap in "one finish a face" before any bake. Parts (free): each finish checked against its colour in
+  with each part its own region, as the paint measures it, and each island of a detail finish, decals, stickers, labels, notes, fittings or rubber by its family or words, a part of its own: `detail_finish`) is a gap in "one finish a face" before any bake. Parts (free): each finish checked against its colour in
   the close-up (`route_parts.close_up_colours`: the raw take cast through the close-up's own camera, Pixal3D's
   `transforms.json` beside it, a `camera <take>` input of the parts row alone; each inner pixel takes the finish of
   the face under it; a take with no own close-up or camera, or a cast under `CLOSE_UP_FIT` of the close-up's outline,

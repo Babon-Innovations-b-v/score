@@ -98,6 +98,8 @@ tests it turned red:
 - finish_parts.py: `stray = small & ~np.isclose(area, piece_area[piece[face_of]]) & np.isin(finish, finish[~small])` ->
   `stray = small & ~np.isclose(area, piece_area[piece[face_of]])`  ->
   a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named
+- finish_parts.py: `own = np.where(np.isin(face_label, details), part_of.max() + 1 + island, part_of)` -> `own =
+  part_of`  -> islands_of_a_detail_finish_sharing_a_part_are_no_stray
 - finish_parts.py: `areas[seen & (face_label == label)].sum()` -> `areas[seen].sum()`  ->
   agreement_counts_against_the_maps
 - finish_parts.py: `own = finish.get("colour") and finish["surface"] == finish.get("listed_surface", finish["surface"])`
@@ -1269,11 +1271,12 @@ def test_a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named():
     label[lone] = 2
     label[~on_sphere] = 1  # a whole piece of the shape
     assert 0 < mesh.area_faces[patch].sum() / mesh.area < patchy.STRAY_ISLAND
-    before = finish_parts.patchiness(mesh, label, label)
+    body = [{"finish": "white paint", "parts": "the body", "family": "paint"}] * 3
+    before = finish_parts.patchiness(mesh, label, label, body)
     found = finish_parts.without_strays(mesh, label)
     assert (found[patch] == 0).all() and (found[lone] == 2).all() and (found[~on_sphere] == 1).all()
     assert (found[~patch] == label[~patch]).all()
-    after = finish_parts.patchiness(mesh, found, found)
+    after = finish_parts.patchiness(mesh, found, found, body)
     assert after["stray"] < before["stray"] and after["pass"], (before, after)
     piece = (np.arange(len(mesh.faces)) >= len(sphere.faces)) & (middles[:, 0] > 3.02)  # a small piece, two finishes
     label[piece] = 0
@@ -1282,8 +1285,30 @@ def test_a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named():
     for spot in ((0, 0, -1), (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0)):  # blotches of each finish over 3%
         blotched[on_sphere & (np.linalg.norm(middles - spot, axis=1) < 0.18)] = 1
     blotched[~on_sphere] = 0
-    gated = finish_parts.patchiness(mesh, np.where(on_sphere, blotched, 0), np.zeros(len(mesh.faces), dtype=int))
+    gated = finish_parts.patchiness(mesh, np.where(on_sphere, blotched, 0), np.zeros(len(mesh.faces), dtype=int), body)
     assert not gated["pass"] and route_split.patchy_fault(gated).startswith("patchy paint: stray"), gated
+
+
+def test_islands_of_a_detail_finish_sharing_a_part_are_no_stray():
+    """old_station solar_panel_mast, 2026-10-28: its steel fittings, islands under STRAY_ISLAND each, merged_islands
+    gathered into parts of several islands, read stray 0.032. Islands of a detail finish (its family or words: decals,
+    stickers, labels, notes, fittings, rubber) are parts of their own as a lone fitting is; the same blotches of a body
+    finish still fail."""
+    mesh = trimesh.creation.icosphere(subdivisions=4)
+    middles = mesh.triangles_center
+    label = np.zeros(len(mesh.faces), dtype=int)
+    for spot in ((0, 0, 1), (0, 0, -1), (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0)):  # six islands, over 3% in all
+        label[np.linalg.norm(middles - spot, axis=1) < 0.18] = 1
+    part_of = label.copy()  # the six islands one part, as merged_islands leaves a finish with no larger island
+    shell = {"finish": "white paint", "parts": "the hull", "family": "paint"}
+    fittings = {"finish": "bare steel fittings", "parts": "clamps and collars", "family": "steel"}
+    casters = {"finish": "black", "parts": "caster wheels", "family": "rubber"}
+    assert finish_parts.detail_finish(fittings) and finish_parts.detail_finish(casters)
+    assert not finish_parts.detail_finish(shell)
+    for detail in (fittings, casters):
+        assert finish_parts.patchiness(mesh, label, part_of, [shell, detail])["pass"]
+    blotched = finish_parts.patchiness(mesh, label, part_of, [shell, shell])
+    assert not blotched["pass"] and blotched["stray"] > 0.03, blotched
 
 
 def test_agreement_counts_against_the_maps():
