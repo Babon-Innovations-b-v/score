@@ -39,6 +39,8 @@ import sys
 import tarfile
 import tempfile
 
+import pytest
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
 from score import checks, contracts, graph  # noqa: E402
@@ -63,18 +65,30 @@ def touched(name):
     return refuse
 
 
-# Every paid point fails loudly here; each node's process is forked from this one, so it carries the same.
-compute.clearance = touched("compute.clearance")
-compute.job_contract.write_job = touched("submit.write_job")
-google_spend.generate = touched("google_spend.generate")
-compute.cloud_bill = touched("the cloud bill")
 SCRATCH = pathlib.Path(tempfile.mkdtemp())
-restore.ledger.LEDGER, google_spend.LEDGER = SCRATCH / "ledger.jsonl", SCRATCH / "google-ledger.jsonl"
-restore.guard_free_only()
-# The toy nodes take no memory, and graph/memory_test.py proves the gate: read as always room, so a drive never sits
-# out MEMORY_POLL behind this PC's real memory (as graph_test, 951bbd59; owner's budget 120 s).
-graph.AVAILABLE = lambda: 2**50
-_bucket.DISK_MARGIN = 0  # the test disk's free room is not what these tests are about (one test sets it)
+
+
+def every_paid_point_fails(monkeypatch):
+    """Every paid point fails loudly here; each node's process is forked from this one, so it carries the same."""
+    monkeypatch.setattr(compute, "clearance", touched("compute.clearance"))
+    monkeypatch.setattr(compute.job_contract, "write_job", touched("submit.write_job"))
+    monkeypatch.setattr(google_spend, "generate", touched("google_spend.generate"))
+    monkeypatch.setattr(compute, "cloud_bill", touched("the cloud bill"))
+    monkeypatch.setattr(restore.ledger, "LEDGER", SCRATCH / "ledger.jsonl")
+    monkeypatch.setattr(google_spend, "LEDGER", SCRATCH / "google-ledger.jsonl")
+    monkeypatch.setattr(subprocess, "Popen", subprocess.Popen)  # recorded, so the guard's Popen is undone after
+    monkeypatch.setenv(restore.ledger.FREE_ONLY, os.environ.get(restore.ledger.FREE_ONLY, ""))  # likewise its env
+    restore.guard_free_only()
+    # The toy nodes take no memory, and graph/memory_test.py proves the gate: read as always room, so a drive never
+    # sits out MEMORY_POLL behind this PC's real memory (as graph_test, 951bbd59; owner's budget 120 s).
+    monkeypatch.setattr(graph, "AVAILABLE", lambda: 2**50)
+    monkeypatch.setattr(_bucket, "DISK_MARGIN", 0)  # the test disk's free room is not what these tests are about
+
+
+@pytest.fixture(autouse=True)
+def paid_points_fail_for_each_test(monkeypatch):
+    """Patched per test under pytest, so a later test file in the same process gets the real ones back."""
+    every_paid_point_fails(monkeypatch)
 
 
 def make_brief(inputs, out, seed, params):
@@ -499,6 +513,7 @@ def test_reattach_is_the_owners_own():
 if __name__ == "__main__":
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
+    every_paid_point_fails(pytest.MonkeyPatch())  # this process only: never undone
     for name, test in list(globals().items()):
         if name.startswith("test_"):
             test()

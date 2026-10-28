@@ -13,15 +13,29 @@ import pathlib
 import sys
 import tempfile
 
+import pytest
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
 from score import contracts, graph  # noqa: E402
 from score.adapters import compute, engines  # noqa: E402
-compute.cloud_bill = lambda: 0.0  # no cloud: the provider's bill is never read here
-compute.ledger().open_books_for_tests(tempfile.mkdtemp())  # this month's books known: paid paths open
 from score.store import Store  # noqa: E402
 
 STARTED = []
+BOOKS_FOLDER = tempfile.mkdtemp()
+
+
+def no_cloud_and_books_open(monkeypatch):
+    """No cloud: the provider's bill is never read here; this month's books known, so paid paths open."""
+    monkeypatch.setattr(compute, "cloud_bill", lambda: 0.0)
+    monkeypatch.setattr(compute.ledger(), "BOOKS", compute.ledger().BOOKS)  # recorded: open_books_for_tests moves it
+    compute.ledger().open_books_for_tests(BOOKS_FOLDER)
+
+
+@pytest.fixture(autouse=True)
+def no_cloud_and_books_open_for_each_test(monkeypatch):
+    """Patched per test under pytest, so the next test file gets the real ones back."""
+    no_cloud_and_books_open(monkeypatch)
 
 
 def make_nothing(inputs, out, seed, params):
@@ -71,6 +85,7 @@ if __name__ == "__main__":
     import pathlib
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
+    no_cloud_and_books_open(pytest.MonkeyPatch())  # this process only: never undone
     for name, test in list(globals().items()):
         if name.startswith("test_"):
             test()
