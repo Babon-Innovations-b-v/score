@@ -1,7 +1,7 @@
 """The code route for thin straight objects (owner, 2026-10-25, asked "May the framework build exactly this kind
 (straight thin things, swept along their path) in code, with a library finish?": "Yes, code-build thin straight
-things"): an object every Pro close-up failed (closeup@<place>'s batch gap) whose row is thin and straight is built
-here instead of left a gap, by the Pixal3D row (pixal_row.py), as its take's files, so the finish route paints it and
+things"): an object whose row is thin and straight is built here, its close-up passed or failed (`coded`), by the
+Pixal3D row (pixal_row.py), as its take's files, so the finish route paints it and
 the likeness row checks it like any take.
 
 Thin and straight (`thin_straight`): the row's size is slender by the model gate's own rule (tools/props/gates/model.py
@@ -92,26 +92,14 @@ def kind_words(row):
     return {word[:-1] if word.endswith("s") and word[:-1] in STRAIGHT | RAILING else word for word in words}
 
 
-def family(row):
-    """The words naming a thin straight row's kind for `kin`: its straight and railing words, else "light" for a
-    slender light."""
-    return frozenset(kind_words(row) & (STRAIGHT | RAILING)) or frozenset({"light"} if slender_light(row) else ())
-
-
-def kin(failed, rows):
-    """The ids of `rows` ({id: inventory row}: one place's prop objects) that take the code route: each thin straight
-    one with a box of `failed` (its close-up failed) and every other such row sharing a kind word (`family`) with one
-    that does, so a place never mixes code-built and Pixal3D-made runs of one kind (owner, 2026-10-26: "mixing code
-    build and prop pipeline made pipes and cables will prob look bad"). The Pixal3D row builds them; prepare's
-    prediction holds them the same way."""
-    thin = {row for row, entry in rows.items() if entry.get("box") and thin_straight(entry)}
-    coded = set(failed) & thin
-    while True:
-        words = set().union(*(family(rows[row]) for row in coded))
-        more = {row for row in thin if family(rows[row]) & words} - coded
-        if not more:
-            return coded
-        coded |= more
+def coded(rows):
+    """The ids of `rows` ({id: inventory row}: one place's prop objects) that take the code route: every thin straight
+    one with a box, its close-up passed or not. Pixal3D's take of a thin straight thing failed its outline whenever its
+    close-up passed (2026-10-28: the tube's cable bundles 0.399, the street's lantern string 0.443, the old station's
+    antenna mast 0.214), so the qualifying check, not the close-up, decides; and a place never mixes code-built and
+    Pixal3D-made runs of one kind (owner, 2026-10-26: "mixing code build and prop pipeline made pipes and cables will
+    prob look bad"). The Pixal3D row builds them; prepare's prediction holds them the same way."""
+    return {row for row, entry in rows.items() if entry.get("box") and thin_straight(entry)}
 
 
 def slender(size):

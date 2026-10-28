@@ -170,8 +170,8 @@ def far_since(row):
 def own_outcome(take, row, measures, rows=None):
     """The take's outcome as this environment measured it (module docstring), or None when it is not measured at
     today's size and request; `row` its first inventory row, `measures` its place's environment_measures, `rows` its
-    place's inventory rows by id (a thin straight row whose close-up passed takes the code route with a row of its
-    kind whose close-up failed: thin_straight.kin, as the Pixal3D row builds it)."""
+    place's inventory rows by id (a thin straight row whose close-up passed takes the code route all the same:
+    thin_straight.coded, as the Pixal3D row builds it)."""
     first = take["rows"][0]
     record = (measures or {}).get("closeups", {}).get(first)
     size = (row or {}).get("read_size") or take["size"]
@@ -193,8 +193,7 @@ def own_outcome(take, row, measures, rows=None):
         return {**outcome, "outcome": "at risk", "measured": f"its close-up passed ({node})",
                 "mode": f"its close-up was {asked}: not measured at today's request"} if record["drawn_by"] else None
     drawn = {name: rows[name] for name in measures.get("closeups", {}) if name in (rows or {})}
-    failed = {name for name, entry in measures.get("closeups", {}).items() if not entry["drawn_by"]}
-    coded = record["drawn_by"] and first in thin_straight.kin(failed, drawn)
+    coded = record["drawn_by"] and first in thin_straight.coded(drawn)
     if record["drawn_by"] and not coded:
         if {first, take["take"]} & measures["unmade"]:
             sheet = sheet_outcome(take, row, measures)
@@ -204,8 +203,8 @@ def own_outcome(take, row, measures, rows=None):
             return {**outcome, "outcome": "at risk", "mode": f"Pixal3D made no model of it (pixal@{take['place']})",
                     "measured": f"its close-up passed ({node})"}
         return {**outcome, "outcome": "pass", "pass_share": 1.0, "measured": f"its close-up passed ({node})"}
-    said = (f"its close-up passed ({node}); a row of its kind failed its own, so it is built in code with it "
-            f"(thin_straight.kin)" if coded
+    said = (f"its close-up passed ({node}); it is thin and straight, so it is built in code all the same "
+            f"(thin_straight.coded)" if coded
             else f"every one of its {len(record['takes'])} Pro takes failed the close-up ({node})")
     if first in measures["built"]:
         passed = measures["built"][first]

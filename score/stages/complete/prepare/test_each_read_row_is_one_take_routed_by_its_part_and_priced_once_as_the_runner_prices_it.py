@@ -17,7 +17,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - predict.own_outcome: the LATER_TAKES_SINCE check -> `if False:` -> test_a_take_its_environment_measured_is_...
 - predict.sheet_outcome: no row a sheet (`or True`) -> test_a_flat_sheet_pixal3d_made_no_model_of_is_predicted_...
 - predict.straight_outcome: the `asked` check -> `if False:` -> test_a_thin_straight_row_is_predicted_by_its_code_...
-- predict.own_outcome: `coded = False` (no thin_straight.kin) -> test_a_pipe_whose_close_up_passed_is_predicted_...
+- predict.own_outcome: `coded = False` (no thin_straight.coded) -> test_a_pipe_whose_close_up_passed_is_predicted_...
 - contract.faults: the picture check -> `elif False:` -> test_inputs_break_their_contract_on_an_unknown_view_...
 - machines.best_zone: `min` for `max` -> test_the_first_class_in_the_kinds_order_is_fixed_in_its_zone_with_the_best_...
 - estimate.layer_price: the likely euros without the bill share -> test_layers_run_each_take_once_a_shell_piece_...
@@ -263,9 +263,9 @@ def test_a_thin_straight_row_is_predicted_by_its_code_build_against_its_stored_m
     assert guess("strut")["outcome"] == "at risk"  # not asked: its likeness is not measured yet
 
 
-def test_a_pipe_whose_close_up_passed_is_predicted_built_in_code_with_its_place_s_failed_pipe():
-    """One route a kind in a place (thin_straight.kin): a pipe whose close-up passed is predicted by its code build
-    when another pipe of its place failed its close-up, as the Pixal3D row builds them both; a crate is not."""
+def test_a_pipe_whose_close_up_passed_is_predicted_by_its_code_build():
+    """The qualifying check decides (thin_straight.coded): a pipe whose close-up passed is predicted by its code build,
+    with or without another pipe failing its own, as the Pixal3D row builds it; a crate is not."""
     import numpy as np
     from PIL import Image
     from score.store import Store
@@ -292,10 +292,12 @@ def test_a_pipe_whose_close_up_passed_is_predicted_built_in_code_with_its_place_
         take = {"place": "lab", "rows": [name], "take": f"lab_{name}", "size": rows[name]["size"]}
         return predict.own_outcome(take, rows[name], measures, place_rows)
     found = own("pipe_2", rows)
-    assert found["outcome"] == "pass" and "thin_straight.kin" in found["measured"], found
-    assert "thin_straight.kin" not in own("pipe_2", {})["measured"]  # alone: its passed close-up's Pixal3D take
-    assert own("pipe", rows)["outcome"] == "pass" and "kin" not in own("pipe", rows)["measured"]
-    assert "kin" not in own("crate", rows)["measured"]
+    assert found["outcome"] == "pass" and "thin_straight.coded" in found["measured"], found
+    alone = own("pipe_2", {name: rows[name] for name in ("pipe_2", "crate")})
+    assert "thin_straight.coded" in alone["measured"], alone  # no failed pipe beside it: built in code all the same
+    assert "thin_straight.coded" not in own("pipe_2", {})["measured"]  # no inventory row: no route known
+    assert own("pipe", rows)["outcome"] == "pass" and "coded" not in own("pipe", rows)["measured"]
+    assert "coded" not in own("crate", rows)["measured"]
 
 
 def test_inputs_break_their_contract_on_an_unknown_view_a_missing_picture_or_no_box():

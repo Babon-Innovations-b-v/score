@@ -1,5 +1,5 @@
 """The thin straight code route (thin_straight.py): which rows it takes, the model it sweeps, the take it writes where
-the finish route and the likeness row read one, and the Pixal3D row building it for a row whose close-up failed.
+the finish route and the likeness row read one, and the Pixal3D row building every thin straight row, its close-up passed or failed.
 
 Breaks (applied once, seen red, reverted): build ignoring its mask (always the one straight sweep) turns
 test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s_path red (the elbow's outline 0.04);
@@ -8,7 +8,9 @@ export) turns it red too (the elbow turned off its mask). likeness_row.model_che
 side by side again (`if thin_straight.slender(size):` -> `if False:`) turns
 test_a_thin_run_is_held_to_its_path_s_own_size_never_crushed_to_its_box red (the sag's tube read 2 mm thick); so do
 thin_straight.upward laying a tie on the ground (`return 0`: the sag's outline 0.155) and fittings returning none
-(`if not kind_words(row) & FITTED:` -> `if True:`: the bend no thicker at its elbow).
+(`if not kind_words(row) & FITTED:` -> `if True:`: the bend no thicker at its elbow). make_pixal handing coded only rows
+whose close-up failed (`and not (closeups / f"{row}.png").exists()` in its rows) turns
+test_a_thin_straight_row_whose_close_up_passed_is_built_in_code_and_never_goes_to_pixal3d red (the pipe is batched).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/thin_straight_test.py
 """
@@ -184,35 +186,34 @@ def test_the_pixal_row_builds_a_failed_thin_row_and_drops_its_close_up_gap(tmp_p
     assert asked == [["pipe"]]
 
 
-def test_a_pipe_whose_close_up_passed_is_built_in_code_with_its_place_s_failed_pipe(tmp_path, monkeypatch):
-    """One route a kind in a place (thin_straight.kin): a pipe whose close-up failed and a pipe whose close-up passed
-    both come out of the Pixal3D row built in code, and nothing goes to the batch."""
+def test_a_thin_straight_row_whose_close_up_passed_is_built_in_code_and_never_goes_to_pixal3d(tmp_path, monkeypatch):
+    """The qualifying check decides, not the close-up (thin_straight.coded): a lone pipe whose close-up passed comes out
+    of the Pixal3D row built in code, and nothing goes to the batch; a crate whose close-up passed is not taken."""
     pixal = tmp_path / "pixal"
     pixal.mkdir()
     monkeypatch.setattr(pixal_row, "take_files",
                         lambda take: [pixal / f"{take}{suffix}" for suffix in pixal_row.SUFFIXES])
     closeup = tmp_path / "closeup"
     (closeup / "closeups").mkdir(parents=True)
-    Image.new("RGB", (8, 8)).save(closeup / "closeups" / "pipe_2.png")  # its close-up passed
+    Image.new("RGB", (8, 8)).save(closeup / "closeups" / "pipe.png")  # its close-up passed
     monkeypatch.setattr(thin_straight, "concept_masks", lambda rows, concepts, folder: {
         row: bar_mask(tmp_path / f"{row}.png", PIPE["box"]) for row in rows})
-    batch_gaps.write(closeup, [batch_gaps.gap("pipe: no close-up passed", "closeup", "close-up", ("pipe", "g_pipe"),
-                                              [], "every Pro take failed")])
-    objects = {"pipe": {"route": "prop", "take": "g_pipe"}, "pipe_2": {"route": "prop", "take": "g_pipe_2"}}
-    (tmp_path / "props.json").write_text(json.dumps({"place": "garage", "objects": objects}))
-    (tmp_path / "inventory.json").write_text(json.dumps({"rows": [PIPE, {**PIPE, "id": "pipe_2"}]}))
-    (tmp_path / "surfaces.json").write_text(json.dumps({"takes": {"g_pipe": {}, "g_pipe_2": {}}, "bake": {
-        "models": {"garage_pipe": "g_pipe", "garage_pipe_2": "g_pipe_2"},
-        "entries": {"garage_pipe": {"faces": 4000}, "garage_pipe_2": {"faces": 4000}}}}))
+    batch_gaps.write(closeup, [])
+    (tmp_path / "props.json").write_text(json.dumps({"place": "garage", "objects": {
+        "pipe": {"route": "prop", "take": "g_pipe"}}}))
+    (tmp_path / "inventory.json").write_text(json.dumps({"rows": [PIPE]}))
+    (tmp_path / "surfaces.json").write_text(json.dumps({"takes": {"g_pipe": {}}, "bake": {
+        "models": {"garage_pipe": "g_pipe"}, "entries": {"garage_pipe": {"faces": 4000}}}}))
     inputs = {"props": tmp_path / "props.json", "inventory": tmp_path / "inventory.json",
               "surfaces": tmp_path / "surfaces.json", "closeup": closeup, "view v1": concept(tmp_path / "concept.png")}
     out = tmp_path / "out"
     out.mkdir()
     pixal_row.make_pixal(inputs, out, 0, {})  # a batch would need a cloud run: none is made
     assert not (out / "list.txt").exists()
-    assert all(thin_straight.code_built(take, pixal) for take in ("g_pipe", "g_pipe_2"))
-    assert sorted(json.loads((out / "takes.json").read_text())) == ["pipe", "pipe_2"]
-    assert thin_straight.kin(set(), {"pipe": PIPE}) == set()  # no row of its kind failed: the picture route
+    assert thin_straight.code_built("g_pipe", pixal)
+    assert sorted(json.loads((out / "takes.json").read_text())) == ["pipe"]
+    crate = {"id": "crate", "name": "crate", "size": [0.5, 0.5, 0.4], "box": [0, 0, 9, 9]}
+    assert thin_straight.coded({"pipe": PIPE, "crate": crate, "boxless": {**PIPE, "box": None}}) == {"pipe"}
 
 
 def test_the_likeness_row_holds_a_code_take_to_its_crop_and_closes_its_gap_only_when_it_passes(tmp_path):
