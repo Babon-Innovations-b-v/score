@@ -17,6 +17,7 @@ processes against one shared count. The break that turns each red (applied once,
 - test_a_late_class_is_taken_only_after_the_wait: in batch.py `claim_round`, `first = [offer for offer in offers if
   offer.machine_class not in late]` -> `first = list(offers)`.
 - test_a_big_card_runs_several_jobs_of_a_measured_kind_at_once: in `runs_at_once`, `// 24` -> `// 48`.
+- test_a_backend_s_measured_count_rules_over_its_class_size: in `runs_at_once`, `if kind in measured:` -> `if False:`.
 - test_a_secret_comes_from_the_environment_before_the_backend: in secret_store.py `secret`, `if
   os.environ.get(environment_name(name)):` -> `if False:`.
 - test_a_batch_ends_in_about_its_set_up_and_one_job: in `machines_for`, `span = max(setup_minutes, unit_minutes)` ->
@@ -141,6 +142,12 @@ def test_a_big_card_runs_several_jobs_of_a_measured_kind_at_once():
     """Three Pixal3D runs for every 24 GB of card (measured on an L4: six at once ran out of memory)."""
     assert [capacity.runs_at_once("pixal", name) for name in ("gpu-24gb", "gpu-48gb", "gpu-80gb")] == [3, 6, 10]
     assert capacity.runs_at_once("parts", "gpu-80gb") == 1  # an unmeasured kind: one
+
+
+def test_a_backend_s_measured_count_rules_over_its_class_size(monkeypatch):
+    monkeypatch.setattr(capacity.provider.cloud, "RUNS_AT_ONCE", {"pixal": 1}, raising=False)
+    assert capacity.runs_at_once("pixal", "gpu-24gb") == 1  # this PC's 16 GB card answers for gpu-24gb
+    assert capacity.runs_at_once("parts", "gpu-24gb") == 1
 
 
 def test_a_secret_comes_from_the_environment_before_the_backend(monkeypatch):

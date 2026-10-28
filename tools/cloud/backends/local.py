@@ -43,6 +43,9 @@ CARD_GB = 16  # the RTX 5080 (the desktop holds part of it while Windows runs)
 CARD_CLASS = f"gpu-{CARD_GB}gb"
 # The kinds that need more card than CARD_GB, in GB (tools/cloud/capacity.py KINDS' notes): cloud-only unless a run
 # gives its own smaller measured need (characters: 17 is Kimodo with its text encoder on the card, the whole machine).
+# Jobs of a kind this card runs at once, measured here: one Pixal3D take peaked at 13.2 of the 16 GB with the desktop
+# (galley's jars and oven, 2026-10-28), so two side by side do not fit; capacity.runs_at_once reads it.
+RUNS_AT_ONCE = {"pixal": 1}
 TOO_BIG = {"judge": 30, "pictures-20b": 58, "characters": 17, "meshparts": 24, "moss-sound": 15.6}
 # Classes this PC answers for: a single card of at most 24 GB (the jobs that ask one fit on 16 GB unless TOO_BIG says
 # otherwise) and every processor class (24 cores here; a job takes longer, never fails for it).
