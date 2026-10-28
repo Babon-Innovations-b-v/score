@@ -205,7 +205,7 @@ def job_of(folder, cast, sim, rig_path, dressed, seconds, size, samples, close=N
     everyone, or, `close` naming one of them, the close-up following that person alone (no one else between it and
     the camera). `ground`: the scene's ground under them (n x 3 x 3 triangles, the place's frame, Y up; else a flat
     floor at 0). `build`: the person's built body rig (people-body's rig.npz), which the sim body was built at
-    (sim_body.person_rig); else the clips rig as it is."""
+    (sim_body.person_rig); else the clips rig on its own bind (sim_body.person_rig's no-build case)."""
     record = json.loads((sim / "sim_bodies.json").read_text())
     rig = sim_body.person_rig(dict(np.load(rig_path)), build)[0]
     people, shown = [], None
