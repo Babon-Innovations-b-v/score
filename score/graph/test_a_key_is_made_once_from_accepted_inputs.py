@@ -2290,7 +2290,8 @@ def run_printing(runner, places, whole=False, **options):
     from score import __main__ as command
     printed = io.StringIO()
     with contextlib.redirect_stdout(printed):
-        lines, status = command.run_with_exit_line(runner, places, whole, run_options(**options), ["run", "world1"])
+        lines, status = command.run_with_exit_line(runner, places, whole, run_options(**options), ["run", "world1"],
+                                                   runner.line_nodes(places, whole))
     return printed.getvalue().splitlines(), lines, status
 
 
@@ -2323,7 +2324,8 @@ def test_a_run_ends_with_one_exit_line_after_its_line_states_whatever_ends_it(mo
     runner.lines = broken
     printed = io.StringIO()
     with contextlib.redirect_stdout(printed), pytest.raises(RuntimeError):
-        command.run_with_exit_line(runner, ["hangar"], False, run_options(), ["run", "world1"])
+        command.run_with_exit_line(runner, ["hangar"], False, run_options(), ["run", "world1"],
+                                   runner.line_nodes(["hangar"], False))
     assert printed.getvalue().splitlines()[-1] == "exit: error: RuntimeError: the store is unreadable"
 
 
@@ -2335,7 +2337,9 @@ def test_a_run_stopped_by_sigterm_ends_with_its_exit_line(run_registry):
     def driving():
         sys.stdout = said.open("a", buffering=1)
         stopped.stop_on_signals(lambda number: print(f"score run: stopped by signal {number}", flush=True))
-        command.run_with_exit_line(slow_runner(5), ["hangar"], False, run_options(), ["run", "world1"])
+        runner = slow_runner(5)
+        command.run_with_exit_line(runner, ["hangar"], False, run_options(), ["run", "world1"],
+                                   runner.line_nodes(["hangar"], False))
     process = graph.FORK.Process(target=driving)
     process.start()
     time.sleep(1)
@@ -2376,7 +2380,7 @@ def test_the_run_gauges_count_only_this_runs_rows_its_pool_and_its_google_calls(
     for name in (command.RUN_ID, command.LEDGER_TAG, "PYTHONPATH"):
         monkeypatch.delenv(name, raising=False)
     try:
-        gauges = command.run_gauges(runner, ["hangar"], False, None, "2026-10-17T09:00:00Z")  # before the run's id
+        gauges = command.run_gauges(runner, runner.line_nodes(["hangar"], False), "2026-10-17T09:00:00Z")  # no id yet
         monkeypatch.setenv(command.RUN_ID, "run-g")
         command.tag_ledgers()
         assert os.environ[command.LEDGER_TAG] == "run-g" and "ledger_tag" in os.environ["PYTHONPATH"]
@@ -2811,6 +2815,39 @@ def test_two_places_at_one_commit_both_run_once_the_nodes_they_share_stand(other
     assert runs.claim("aaa111", runs.would_make(runner, airlock), other.pid, worktree="/work/one", folder=folder) is None
     assert runs.claim("aaa111", runs.would_make(runner, camp), os.getpid(), worktree="/work/two", folder=folder) is None
     runs.unclaim(os.getpid(), folder=folder)
+
+
+def test_a_run_lists_its_line_once_inside_the_still_in_which_its_claim_works_out_the_keys(monkeypatch):
+    """Fault (2026-10-28): the run's start listed its line nodes three times (claim, gauges, drive), each outside a
+    still, and the claim worked out every key in a still of its own: 35 s of one core before the first node, the other
+    cores and the card idle. The claim lists them once, inside the still its would_make works in, and the gauges take
+    that list. A toy table: terrain read by the airlock's build.
+    Break: score/__main__.py: '    with runner.still(), plans.one_moment():' -> '    with plans.one_moment():'"""
+    from score import __main__ as command
+    data, world = a_world_of(["airlock"])
+    terrain = graph.Stage("terrain", "world", made_once(data), TEXT, MET)
+    build = graph.Stage("build", "place", make_seen, TEXT, MET, after={"terrain": READS})
+    runner = a_runner(world, a_store(), (terrain, build))
+    listed, judged, asked = [], [], []
+    line_nodes, would_make = runner.line_nodes, runs.would_make
+
+    def listing(*arguments, **options):
+        listed.append(runner.remembered is not None)
+        return line_nodes(*arguments, **options)
+
+    def making(*arguments):
+        judged.append(runner.remembered is not None)
+        return would_make(*arguments)
+    monkeypatch.setattr(runner, "line_nodes", listing)
+    monkeypatch.setattr(runs, "would_make", making)
+    monkeypatch.setattr(command, "run_commit", lambda *arguments: "aaa111")
+    monkeypatch.setattr(runs, "claim_refusal", lambda commit, nodes: asked.append((commit, nodes)))
+    chosen = command.claim(runner, ["airlock"], False, argparse.Namespace(stage=None, detach=True, free=True))
+    command.run_gauges(runner, chosen, "2026-10-28T09:00:00Z")
+    assert [graph.node_name(*node) for node in chosen] == ["terrain", "build@airlock"], chosen
+    assert listed == [True] and judged == [True], (listed, judged)
+    assert asked == [("aaa111", ["terrain", "build@airlock"])], asked
+    assert runner.remembered is None  # the still is closed before the drive opens its own
 
 
 def test_a_worktree_with_tracked_changes_is_refused_only_when_it_would_buy_and_registers_as_its_own_commit():
