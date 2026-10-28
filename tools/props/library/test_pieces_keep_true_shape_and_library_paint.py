@@ -37,6 +37,8 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - labels `by_regions`: `return scores.argmax(1), ...`; and, apart, `without_crumbs`: `range(0)` ->
   test_a_noisy_vote_settles_into_whole_parts.
 - labels `paint_parts`: `if False:` for the judged pick -> test_a_part_takes_one_material_by_its_lit_colour_or_the_judge.
+- feet `linked`: `range(-2, 3)` -> `range(-1, 2)` (both loops) ->
+  test_feet_are_the_clusters_every_pair_within_reach_gives_without_listing_the_pairs (2026-10-28).
 - labels `region_materials`: `if False:` for the set-aside ->
   test_the_judge_may_not_put_a_saturated_finish_on_a_colourless_region.
 - part_judge `vote`: `if False:` for the majority -> test_repeated_asks_decide_by_majority.
@@ -845,3 +847,22 @@ def test_a_square_piece_must_come_out_straight():
     front = bowed.vertices[:, 2] < -0.27
     bowed.vertices[front, 2] -= 0.1 * np.cos(bowed.vertices[front, 1] * np.pi / 2.0)
     assert not straight.straightness(bowed)["pass"]
+
+
+
+def test_feet_are_the_clusters_every_pair_within_reach_gives_without_listing_the_pairs():
+    """feet.linked numbers clusters exactly as connected_components over every pair within reach (query_pairs) does,
+    on scattered points with near-misses at the reach itself, without building those pairs (the vehicle lift's wide
+    base: 28 GB of pairs)."""
+    from scipy import sparse
+    from scipy.sparse.csgraph import connected_components
+    from scipy.spatial import cKDTree
+    import feet
+    generator = np.random.default_rng(3)
+    for scale, count in ((1.0, 400), (0.2, 900), (5.0, 300)):
+        flat = generator.uniform(0, scale, (count, 2))
+        flat[1] = flat[0] + [0.05, 0.0]  # a pair exactly at the reach joins, as query_pairs joins it
+        pairs = cKDTree(flat).query_pairs(0.05, output_type="ndarray")
+        _, expected = connected_components(sparse.coo_matrix((np.ones(len(pairs)), (pairs[:, 0], pairs[:, 1])),
+                                                             shape=(count, count)), directed=False)
+        assert np.array_equal(feet.linked(flat, 0.05), expected), scale
