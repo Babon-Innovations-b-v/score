@@ -21,6 +21,7 @@ fi
 "$uv" venv --clear --quiet --python 3.12 "$folder"
 "$uv" pip install --quiet --python "$folder/bin/python" \
   "newton==1.7.0" "mujoco==3.15.0" "mujoco-warp==3.15.0" "warp-lang==1.18.0" "usd-core==26.8" \
-  "newton-usd-schemas==0.5.0" "numpy==2.5.3" "scipy==1.18.1" "python-fcl==0.7.0.11"
-"$folder/bin/python" -c "import fcl, newton, mujoco, pxr; print('newton', newton.__version__, 'mujoco', mujoco.__version__)"
+  "newton-usd-schemas==0.5.0" "numpy==2.5.3" "scipy==1.18.1" "python-fcl==0.7.0.11" \
+  "mink==1.3.0" "qpsolvers==4.13.0" "daqp==0.10.3" "typing_extensions==4.16.0"
+"$folder/bin/python" -c "import fcl, newton, mujoco, pxr, mink; print('newton', newton.__version__, 'mujoco', mujoco.__version__)"
 touch "$mark"
