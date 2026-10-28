@@ -716,7 +716,9 @@ returns data to its parent.
   a Monitor it armed. Never on an outside event (a GitHub rescan, a file another process writes, a remote job): nothing
   wakes it and it stalls silently (owner, 2026-10-28: "this is something that happens a lot with these long running
   sessions"). The session that started an agent stops it the moment its final report arrives, and checks an agent that
-  says "waiting" has a live process behind it.
+  says "waiting" has a live process behind it. Each time an agent ends its turn its session is notified, so an agent waits inside its turn
+  (a Monitor that blocks until its runs finish) and ends it only with its final report (owner, 2026-10-28: "thats just
+  wasting tokens").
 
 **Design edits by an agent** (owner, 2026-10-21). When the owner asks for one in chat, an agent may rename, merge, add
 or remove child scenes, move and resize things on a plan, or edit an inventory row. Each is recorded as his edit with
