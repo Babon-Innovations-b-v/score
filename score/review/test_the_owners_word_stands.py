@@ -13,7 +13,8 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest -q score/review/test_the
 
 Each test turns red under the break written for it below (each applied once and seen red, 2026-10-26): the test, then
 the file and the exact change. The free fixes' and the sync pass's plans keep tests came in from plan_fixes_test.py
-and plans_pass_test.py on 2026-10-27, their breaks applied then.
+and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wording tests read kept plans of their own
+(SQUARE_PLANS, 2026-10-28): they had read the real home's, so in a bare PROPS_HOME they failed.
 - test_an_output_that_did_not_pass_cannot_be_accepted:
     __init__.py: `if judgement is None or (checks.standing(judgement["verdicts"], waived) != checks.PASS and status
     is None):` made `if judgement is None:`
@@ -400,6 +401,31 @@ def store(tmp_path, monkeypatch):
     monkeypatch.setattr(concepts, "handed_over", lambda store, place: "library: stand-in")
     monkeypatch.setattr(scene_sky, "KEPT", tmp_path / "sky")
     return Store.in_folder(tmp_path / "store")
+
+
+SQUARE_PLANS = {  # the kept plans' parts the wording reads (inside, doors, leads), as the real home's stood 2026-10-28
+    "street": {"inside": False, "doors": [["W", 14.4, 1.0, "STREET DOOR (stairwell) 1.0 x 2.06 m", 0.14]],
+               "leads": {"W@0.14": {"to": "stairwell", "why": "the stairwell's street door"}}},
+    "flat": {"inside": True, "doors": [["W", 2.5, 1.4, "BALCONY DOOR (glass) 1.4 x 2.2 m"],
+                                       ["E", 4.4, 1.0, "FRONT DOOR to the stair landing 1.0 x 2.2 m"]],
+             "leads": {"W": {"to": "outside", "why": "the glass door onto the flat's balcony, over the square and the "
+                                                    "harbour"},
+                       "E": {"to": "stairwell", "why": "the front door onto the stairwell's top landing"}}},
+    "stairwell": {"inside": True, "doors": [["W", 4.4, 1.0, "FLAT FRONT DOOR (3rd floor) 1.0 x 2.2 m", 9.0],
+                                            ["W", 4.4, 1.0, "NEIGHBOUR'S DOOR behind its gate (1st floor) 1.0 x 2.2 m",
+                                             3.0],
+                                            ["E", 4.4, 1.0, "STREET DOOR (steel gate) 1.0 x 2.2 m", 0.0]],
+                  "leads": {"W@9": {"to": "flat"}, "W@3": {"to": "sealed"}, "E": {"to": "street"}}}}
+
+
+@pytest.fixture
+def square_plans(tmp_path, monkeypatch):
+    """The Square's places' kept plans in a home of the test's own (SQUARE_PLANS), never the real home's."""
+    plans = tmp_path / "home" / "design" / "plans"
+    plans.mkdir(parents=True)
+    for place, plan in SQUARE_PLANS.items():
+        (plans / f"{place}.json").write_text(json.dumps(plan))
+    monkeypatch.setattr(concepts, "PROPS_HOME", tmp_path / "home")
 
 
 
@@ -919,7 +945,7 @@ def test_no_measure_is_generated_but_the_creators_own_says(store):
         assert not re.search(r"\d+(\.\d+)? ?m\b", wording), (place, wording)
 
 
-def test_an_outside_place_is_drawn_from_above_and_an_inside_place_as_a_cutaway(store):
+def test_an_outside_place_is_drawn_from_above_and_an_inside_place_as_a_cutaway(store, square_plans):
     assert concepts.OUTSIDE_VIEW in concepts.generated(store, "base")
     assert concepts.OUTSIDE_VIEW in concepts.generated(store, "campgrounds")
     assert concepts.INSIDE_VIEW in concepts.generated(store, "cockpit")
@@ -978,7 +1004,7 @@ def test_an_edited_wording_is_sent_word_for_word_and_stays_the_places_own_until_
         concepts.draw(store, "campgrounds", {"wording": "x" * 9000}, "joey", caller=stand_in(asked))
 
 
-def test_a_places_wording_names_its_own_doors_and_openings_and_no_others(store):
+def test_a_places_wording_names_its_own_doors_and_openings_and_no_others(store, square_plans):
     flat = concepts.generated(store, "flat")
     # owner, 2026-10-21: doors drawn lettered with room names; where a door leads is never written on it
     assert ("Its unlabelled doors: balcony door (glass) onto the outside, over the square and the harbour; front door "
@@ -988,7 +1014,7 @@ def test_a_places_wording_names_its_own_doors_and_openings_and_no_others(store):
 
 
 def test_a_picked_place_it_opens_into_is_sent_after_the_one_above_and_its_new_pick_puts_the_draw_out_of_date(
-        store, monkeypatch):
+        store, monkeypatch, square_plans):
     square = picked_draw(store, monkeypatch, "square", (200, 10, 10))
     ready_above(monkeypatch)
     assert concepts.sent_picks(store, "flat") == {"square": square}  # the stairwell is not picked yet: not sent
