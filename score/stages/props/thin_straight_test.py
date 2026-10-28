@@ -11,6 +11,8 @@ thin_straight.upward laying a tie on the ground (`return 0`: the sag's outline 0
 (`if not kind_words(row) & FITTED:` -> `if True:`: the bend no thicker at its elbow). make_pixal handing coded only rows
 whose close-up failed (`and not (closeups / f"{row}.png").exists()` in its rows) turns
 test_a_thin_straight_row_whose_close_up_passed_is_built_in_code_and_never_goes_to_pixal3d red (the pipe is batched).
+slender's edge left out again (`<=` -> `<`) turns test_only_thin_rows_of_a_straight_kind_are_taken red (the 4 m
+stair railing 1 m tall).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/thin_straight_test.py
 """
@@ -66,6 +68,8 @@ def test_only_thin_rows_of_a_straight_kind_are_taken():
     assert not thin_straight.thin_straight({"name": "computer tower", "noun": "computer", "size": [0.2, 0.4, 0.5]})
     assert not thin_straight.thin_straight({"name": "wall poster", "size": [0.4, 0.01, 0.6]})  # post is not poster
     assert thin_straight.thin_straight({"name": "metal railings", "size": [9.435, 0.1, 1.0]})  # posts and rails
+    assert thin_straight.thin_straight({"name": "stair railing", "size": [4.0, 0.1, 1.0]})  # on the cut-off: taken
+    assert not thin_straight.thin_straight({"name": "stair railing", "size": [3.9, 0.1, 1.0]})  # past it: a panel
     assert thin_straight.profile({"name": "glass balustrade"}) == "railing"
     assert thin_straight.thin_straight({"name": "strip floor light", "noun": "light", "size": [0.8, 0.1, 0.05]})  # glows
     assert thin_straight.thin_straight({"name": "string lights", "noun": "lights", "size": [3.0, 0.05, 0.05]})
