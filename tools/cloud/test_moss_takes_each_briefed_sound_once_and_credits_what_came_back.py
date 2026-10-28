@@ -1,10 +1,13 @@
 """moss_sound.py's invariants: a page's run asks one take of each sound briefed for that page (its first prompt, seed
 1, its seconds or 8), and nothing for another page's sounds or a brief with no prompt (#29); after a run, the manifest
 credits (model, code, weights, licence) exactly the takes that came back, and the picker's scores.json holds every
-share's scores; a cluster share's jobs file, the one that goes up, holds exactly that share's jobs.
+share's scores; a cluster share's jobs file, the one that goes up, holds exactly that share's jobs; MOSS goes to the
+card a model at a time on this PC's machine only, and that measured need is one this PC's 16 GB card takes.
 
 Break that turns it red: in `write_manifest` drop `if (out / job["file"]).exists()` (takes that never came back are
-credited), or in `jobs_for` drop the `brief.get("page") == page` test (another page's sounds are paid for).
+credited), or in `jobs_for` drop the `brief.get("page") == page` test (another page's sounds are paid for), or in
+`here_only` drop `if machine.get("here")` (a rented card's takes made another way), or set THIS_PC_NEED's card_gb
+past local.CARD_GB (this PC refuses the claim, as before).
 """
 import json
 import pathlib
@@ -48,3 +51,11 @@ def test_a_cluster_shares_jobs_file_holds_its_jobs_and_takes_come_back_to_out(tm
     assert json.loads(sent.read_text()) == jobs
     assert job["inputs"][0]["path"] == job["command"][1]
     assert [output["local"] for output in job["outputs"]] == [str(tmp_path / "out")]
+
+
+def test_moss_goes_a_model_at_a_time_only_on_this_pcs_card_and_fits_its_claim_there():
+    import local
+    assert moss_sound.here_only({"here": True}) == "MOSS_ONE_AT_A_TIME=1 "
+    assert moss_sound.here_only({"host": "10.0.0.2"}) == ""
+    assert moss_sound.THIS_PC_NEED["card_gb"] < local.TOO_BIG["moss-sound"]  # under all of MOSS on the card at once
+    assert local.refusal("moss-sound", {"card_gb": moss_sound.THIS_PC_NEED["card_gb"]}) is None

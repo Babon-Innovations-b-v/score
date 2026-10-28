@@ -28,6 +28,7 @@ sys.path.insert(0, str(HERE.parent / "props"))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
+import park  # noqa: E402
 import provider  # noqa: E402
 import spread  # noqa: E402
 from provider import cloud  # noqa: E402
@@ -44,6 +45,12 @@ SETUP_MINUTES = 8
 MINUTES_A_CLIP = 0.4
 ## The most this tool spends on one run, in euros (the budget for the whole game's sound in one go, 2026-10-06).
 BUDGET_EUROS = 8.0
+# This PC's 16 GB card (SCORE_CLOUD=local, backends/local.py) runs MOSS a model at a time (moss_generate.py), never all
+# of it on the card at once (15.6 GB, local.TOO_BIG); its claim is judged by this measured need. Measured 2026-10-28 on
+# three takes (15, 15 and 3 s) under a 0.9 card cap: 9.83 GB card reserved (8.89 allocated), the container's 20 GB
+# memory reached with the weights' page cache, MOSS loaded in 14 s, 17 to 26 s a take; CLAP within 0.02 of the L4's.
+ONE_AT_A_TIME = "MOSS_ONE_AT_A_TIME=1"
+THIS_PC_NEED = {"card_gb": 10, "memory_gb": 20}
 
 
 def jobs_for(page, sounds_path=SOUNDS):
@@ -87,11 +94,19 @@ def price(jobs, account):
 def set_up(machine):
     """MOSS onto one machine."""
     log_folder, host = machine["folder"], machine["host"]
-    batch.remote(log_folder, host, f"mkdir -p {REMOTE}/out", check=True)
+    # This PC's machine keeps its files from one job to the next: last time's code and takes go first, and every
+    # set-up mark, since the set-up rebuilds /root/venv (park.ALL_MARKS).
+    batch.remote(log_folder, host, f"rm -rf {REMOTE}/out {REMOTE}/MOSS-TTS && {park.ALL_MARKS} && mkdir -p {REMOTE}/out",
+                 check=True)
     batch.copy(log_folder, [HERE / "moss_setup.sh", HERE / "moss_generate.py"], f"root@{host}:{REMOTE}/")
     with (log_folder / "setup.log").open("w") as log:
         batch.remote(log_folder, host, f"env MOSS_SHA={MOSS_SHA} MOSS_MODEL_REVISION={MOSS_MODEL_REVISION} "
                      f"bash {REMOTE}/moss_setup.sh", check=True, stdout=log, stderr=subprocess.STDOUT)
+
+
+def here_only(machine):
+    """The settings a share runs with on this PC's 16 GB card only: MOSS a model at a time (moss_generate.py)."""
+    return f"{ONE_AT_A_TIME} " if machine.get("here") else ""
 
 
 def make_share(machine, share, card, out):
@@ -104,12 +119,31 @@ def make_share(machine, share, card, out):
     try:
         with (log_folder / f"generate-{number}.log").open("w") as log:
             done = batch.remote(log_folder, host, f"cd {REMOTE} && CUDA_VISIBLE_DEVICES={card} TORCHDYNAMO_DISABLE=1 "
-                                f"PYTHONUNBUFFERED=1 /root/venv/bin/python moss_generate.py {REMOTE}/jobs-{number}.json "
+                                f"{here_only(machine)}PYTHONUNBUFFERED=1/root/venv/bin/python moss_generate.py {REMOTE}/jobs-{number}.json "
                                 f"{number}", stdout=log, stderr=subprocess.STDOUT)
     finally:
         out.mkdir(parents=True, exist_ok=True)
         batch.copy(log_folder, [f"root@{host}:{REMOTE}/out/"], f"{out}/")
     spread.raise_for(done.returncode, f"share {number} ({log_folder / f'generate-{number}.log'})")
+
+
+def on_this_pc(jobs, out, minutes):
+    """The jobs' takes on this PC's card (SCORE_CLOUD=local, which has no image registry for the moss image) through
+    the machine path, back into `out` as make_share brings them; the run's ledger line at EUR 0."""
+    import pictures
+    account = cloud.account()
+    found = batch.offers(list(capacity.classes_for("moss-sound")))
+    started = time.time()
+    run = pictures.Run(batch.BATCHES / time.strftime("moss-%Y%m%d-%H%M%S"), started + minutes * 60)
+    run.need = dict(THIS_PC_NEED)
+    run.folder.mkdir(parents=True)
+    try:
+        spread.on_machines(run, account, found, 1, "moss-sound", spread.Shares([(0, jobs)], deadline=run.deadline),
+                           set_up, lambda machine, share, card: make_share(machine, share, card, out))
+    finally:
+        for machine in run.machines:
+            batch.delete_machine(machine)
+        record(run, run.machines, started, out, [job for job in jobs if (out / job["file"]).exists()])
 
 
 def join_scores(out):

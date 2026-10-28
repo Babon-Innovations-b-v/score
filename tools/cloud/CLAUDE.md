@@ -39,7 +39,10 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   offered: those stay cloud jobs. A run that gives its own measured need (`run.need`) is refused by that instead: a
   characters run of clip steps only (people-clips-made, scene-clips; `characters.card_need`) needs 4 GB of card and
   17 GB of memory with Kimodo's text encoder on the processor (`TEXT_ENCODER_DEVICE=cpu`, set on this PC only;
-  measured 2026-10-27: 3.66 GB card peak, 16.7 GB memory, 87 s), so it runs here; a body build still needs the whole
+  measured 2026-10-27: 3.66 GB card peak, 16.7 GB memory, 87 s), so it runs here; so does a sound row's MOSS takes
+  (`moss_sound.on_this_pc`, the machine path, since this PC has no image registry; `THIS_PC_NEED`, 10 GB of card
+  and 20 GB of memory with MOSS's models on the card one at a time, `MOSS_ONE_AT_A_TIME=1` on this PC only, measured
+  2026-10-28: 9.83 GB card, 17 to 26 s a take); a body build still needs the whole
   machine. `python3 tools/cloud/this_pc.py env1` (through the agents' door's `store-pull` and `store-push`, the
   agents' key: owner, 2026-10-27, never his own key on the conductor) pulls what a run reads into `~/.score-this-pc`, runs `score run world1 --free` there (a free-only run on this PC's
   card also makes its paid rows, with no ticket, so a Google ask its cache does not answer fails, saying so:

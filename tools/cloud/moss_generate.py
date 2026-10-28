@@ -6,6 +6,10 @@ choosing a sound's take; the rest (clipping, silence, length, a loop's join) it 
 
 A job is {"file", "prompt", "seconds", "seed"}; the settings are the ones the owner heard on the trial (2026-10-06):
 100 steps, guidance 4.0, sigma shift 5.0.
+
+With MOSS_ONE_AT_A_TIME=1 (set on this PC's 16 GB card only, moss_sound.py) MOSS's own models go to the card one after
+another, each only while it works (MOSS's DiffSynth engine's vram management: the text encoder, then the DiT, then the
+DAC decoder), the others held in memory; the same weights, sums and seed, so the same take.
 """
 import json
 import os
@@ -28,12 +32,23 @@ CLAP_SKIP_SECONDS = 0.3
 STEPS = 100
 GUIDANCE = 4.0
 SIGMA_SHIFT = 5.0
+ONE_AT_A_TIME = os.environ.get("MOSS_ONE_AT_A_TIME") == "1"
+
+
+def loaded():
+    """MOSS on the card, or with ONE_AT_A_TIME held in memory and moved to the card a model at a time as it works."""
+    if not ONE_AT_A_TIME:
+        return MossSoundEffectPipeline.from_pretrained("/root/sfx/model", torch_dtype=torch.bfloat16, device="cuda")
+    pipe = MossSoundEffectPipeline.from_pretrained("/root/sfx/model", torch_dtype=torch.bfloat16, device="cpu")
+    pipe.engine.device = torch.device("cuda")  # where its sums run; load_models_to_device moves each model there
+    pipe.engine.vram_management_enabled = True
+    return pipe
 
 
 def generate(jobs):
     """Every job's take, written to OUT; the timings. A take already there (a run picked up again) is kept."""
     began = time.time()
-    pipe = MossSoundEffectPipeline.from_pretrained("/root/sfx/model", torch_dtype=torch.bfloat16, device="cuda")
+    pipe = loaded()
     timings = {"load_seconds": round(time.time() - began, 1), "sample_rate": pipe.sample_rate, "runs": {}}
     print("loaded", timings["load_seconds"], "s", flush=True)
     for job in jobs:
