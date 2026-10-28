@@ -264,9 +264,11 @@ def test_lost_inputs_are_place_gaps_and_a_designed_seed_is_none():
     assert found and gaps_faults({"findings": found}) == [] and all(gap["rule"] == "place" for gap in found)
 
 
-def test_a_take_a_pixal_row_makes_is_that_row_s_gap():
+def test_a_take_a_pixal_row_makes_is_that_row_s_gap(tmp_path, monkeypatch):
     """The cockpit's pilot seat take (its design row's, named by its locked concept) is made by pixal@cockpit, so its
-    gap is that node's, priced through it, never code work."""
+    gap is that node's, priced through it, never code work. The library holds no take here (an empty checkout), so
+    this machine's own score_lib never hands the take back into the sandbox."""
+    monkeypatch.setenv("SCORE_LIB_ROOT", str(tmp_path / "score_lib"))
     from score.stages.complete.gaps import inputs
     runner = stages.runner(store=Store.in_folder(PROPS_HOME / "store"))
     seats = [gap for gap in inputs.lost(runner, "cockpit") if gap["id"].startswith("lost:pixal:cockpit_pilot_seat_")]

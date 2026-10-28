@@ -11,7 +11,8 @@ the real home's folders and the command runs with the real home mounted read-onl
 link fails loudly instead of landing. work/ and work/carry-commits are real folders in the sandbox with their entries
 linked, so a test may add a folder of its own there. The real home's state (STATE: the cloud ledger and bills, the store and its
 locks and logs, the run registry and frozen copies) is never linked, so a test that writes those gets its own empty ones. Without bubblewrap nothing is
-linked, and a test that needs environment data fails rather than reach the real home. The exit status is the command's.
+linked, and a test that needs environment data fails rather than reach the real home. The library is none
+(SCORE_LIB_ROOT empty): no test reaches the real score_lib checkout. The exit status is the command's.
 """
 import os
 import pathlib
@@ -102,8 +103,10 @@ def run(argv, real=REAL_HOME):
     sandbox = make_sandbox(real, link=command is not None, temp=temp)
     environ = {name: value for name, value in os.environ.items() if name != "PROPS_WORK"}
     try:
-        return subprocess.run(command or argv, env={**environ, "PROPS_HOME": str(sandbox),
-                                                    "TMPDIR": str(temp)}).returncode
+        # SCORE_LIB_ROOT empty: no library, so a test never reaches the real score_lib checkout beside this one (its
+        # takes fetched into the sandbox, 2026-10-28); a test that needs a library sets up a toy one
+        return subprocess.run(command or argv, env={**environ, "PROPS_HOME": str(sandbox), "TMPDIR": str(temp),
+                                                    "SCORE_LIB_ROOT": ""}).returncode
     finally:
         remove(sandbox)
         shutil.rmtree(temp, onerror=writable_again)
