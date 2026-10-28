@@ -12,7 +12,7 @@ One claim at a time over the whole PC (a file lock, `take`): a claim that finds 
 and asks again (batch.claim_rounds polls park.adopt). Inside its claim a Blender call runs RUNS_AT_ONCE's Blender
 jobs side by side on the processor (as many as the container's memory holds at a take's measured peak), and each of
 their card calls (the Cycles bake, a render) waits its turn on the card (card_turn.py, put into the container's
-Blender startup folder at every claim), so the card never works for two jobs at once. Its offers are
+Blender startup folder at every claim), so the card never works for more than card_turn.CARD_SLOTS (two) jobs at once. Its offers are
 always `parked`, so batch.rent never orders anything: the machine is only ever taken through park.adopt
 (park.here), which asks no clearance, since it costs nothing (price 0; the ledger's rows carry the measured minutes
 at EUR 0). A job that needs more card or memory than this PC has is refused at its claim with the reason, never run
@@ -201,14 +201,14 @@ def blender_at_once(memory_gb):
 # measured here. One Pixal3D take peaked at 13.2 of the 16 GB with the desktop (galley's jars and oven, 2026-10-28), so
 # two side by side do not fit. Blender jobs (a bake row's takes: paint, cut-down, unwrap, scene sync and glTF export on
 # the processor, the Cycles bake in 1 s bursts on the card) run as many at once as the container's memory holds at a
-# take's peak, the card one call at a time (card_turn.py; env1, 2026-10-28: one take at a time left about 20 of 24
+# take's peak, the card two calls at a time (card_turn.py CARD_SLOTS; env1, 2026-10-28: one take at a time left about 20 of 24
 # cores idle and the card under 10% busy 86% of the time).
 RUNS_AT_ONCE = {"pixal": 1, "blender": blender_at_once(int(memory_cap()[:-1]) * 2**30 / 1e9)}
 
 
 def card_in_turns():
-    """card_turn.py into the container's Blender user startup folder, so every Blender there takes the card one call
-    at a time while RUNS_AT_ONCE's Blender jobs share it."""
+    """card_turn.py into the container's Blender user startup folder, so every Blender there takes the card at most
+    card_turn.CARD_SLOTS calls at a time while RUNS_AT_ONCE's Blender jobs share it."""
     import card_turn
 
     docker("exec", MACHINE, "mkdir", "-p", card_turn.STARTUP)

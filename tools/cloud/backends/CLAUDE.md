@@ -4,8 +4,8 @@ The cloud providers the runners rent from, one module each, behind `../provider.
 `scaleway.py` is the current backend; `SCORE_CLOUD` chooses one. `local.py` is this PC's own card as one machine
 (a Docker container, never rented, EUR 0; `../CLAUDE.md` "This PC's card"): its offers are always `parked`, and its
 `take`, which only `park.here` calls, holds the PC's one claim. `card_turn.py` is no backend: a Blender startup
-script `local.take` copies into the container so the Blender jobs a claim runs side by side take the card one call
-at a time.
+script `local.take` copies into the container so the Blender jobs a claim runs side by side take the card at most
+`card_turn.CARD_SLOTS` (two) calls at a time.
 
 **Adding a backend:**
 1. Write `<name>.py` with everything `../provider.py`'s docstring lists (`NAME`, `CLASSES`, `QUOTAS`, `account()`,

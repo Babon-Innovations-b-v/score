@@ -35,8 +35,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   EUR 0 with the measured minutes), one claim at a time over the whole PC (a file lock; a busy claim waits and asks
   again), inside it Blender jobs side by side as many as the container's memory holds at a take's measured peak
   (`local.RUNS_AT_ONCE`, three in 27 GiB; env1, 2026-10-28: one take at a time left about 20 of 24 cores idle) with
-  every card call (the Cycles bake, a render) taking the card in turn (`backends/card_turn.py`, a Blender startup
-  script each claim copies into the container), their outputs brought back and kept one job at a time a machine
+  every card call (the Cycles bake, a render) taking one of the card's two turns (`backends/card_turn.py`
+  `CARD_SLOTS`, a Blender startup script each claim copies into the container; a bake call is mostly processor work,
+  the card busy about 1 s of its 4 to 9, and two calls fit the card's memory), their outputs brought back and kept one job at a time a machine
   (`blender_cloud.BRINGING`), never parked, its claim ended by a container restart that ends whatever the job left on the card, its
   set-up kept but for the newest mark. A kind too big for its 16 GB (`local.TOO_BIG`: judge, pictures-20b,
   characters, meshparts, moss-sound) is refused at its claim with the GB, and a class above one 24 GB card is never
