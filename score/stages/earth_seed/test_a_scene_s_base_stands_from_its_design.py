@@ -37,17 +37,22 @@ def write(folder, name, record):
 def test_no_row_reads_an_earth_place_s_round_three_seed_or_old_kit():
     """#27: the round-three seeds were lost (2026-10-19) and the old kits retired (2026-10-21): no row of an earth place
     declares one, and every row that read one reads earth-seed instead (stages.EARTH_SEEDED, every reader).
+    Every row's declared files are read whether or not it applies here: scene-clips (people places only) declared
+    the round-three seed and was missed by a check that skipped it (env1, 2026-10-28: "its input seed is missing").
     Break: score/stages/__init__.py: `return {name: path for name, path in found.items() if read_from_seed(path, place)
-        is None}` -> `return found`"""
+        is None}` -> `return found`; or drop "scene-clips" from EARTH_SEEDED."""
     readers = set()
     for row in stages.STAGES:
         for place in PLACES:
-            if row.applies is not None and not row.applies(place):
-                continue
             found = row.files(place) if callable(row.files) else row.files
             if any(stages.read_from_seed(path, place) for path in found.values()):
                 readers.add(row.name)
     assert not readers, readers  # terrain-look, the last, retired (#27)
+    # whatever this home's designs hold: no row outside EARTH_SEEDED declares a round-three seed or an old kit
+    declaring = {row.name for row in stages.STAGES if row.name not in stages.EARTH_SEEDED for place in PLACES
+                 for path in (row.files(place) if callable(row.files) else row.files).values()
+                 if isinstance(path, str) and path.startswith((f"{{seeds}}/{stages.OLD_SEED}/", stages.KITS))}
+    assert not declaring, declaring
     reading = {row.name for row in stages.STAGES if "earth-seed" in row.after} - {stages.library.PLACE_ROW}
     assert reading == set(stages.EARTH_SEEDED), reading ^ set(stages.EARTH_SEEDED)
 
