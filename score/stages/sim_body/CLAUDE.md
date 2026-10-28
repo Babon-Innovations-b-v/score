@@ -32,42 +32,58 @@ scene's own ground. `__init__.py`'s docstring has the make and the gates; `insid
   model's, not the sizing's (the sized file gives the same forces), and neither MyoSuite, MuscleMimic nor KINESIS
   changes it (2026-10-27): changing it is changing MyoSuite's muscles, not a set-up here.
 - **Set up as its makers do, and where not** (2026-10-27, sources and numbers on #65): MuscleMimic's own fixes are
-  taken (1.0.6, below `MODEL`); its retargeting (GMR with a fitted SMPL-H shape; site welds) and KINESIS' (SMPL joint
-  positions, SLSQP for the first pose) track joint-centre places first and turns second, on a source body fitted to
-  the model; so does ours for the legs (`JOINTS`: the model's hip, knee, ankle and toe joints on SOMA's; the hips
-  stood 8.7 cm behind SOMA's when the pelvis rode the Hips). The elbows and wrists are not placed: without SOMA's
-  trunk fitted to the model's, they leaned the pelvis and chest 34 and 23 degrees off the clip. Their ground rule (the
-  lowest point over all frames) floated the walkers 2 to 4 cm in stance with frames carried by nothing, so the path
-  stands on its ground at its median frame (`grounded`). Their simulation settings (timestep, iterations,
-  friction 1, joint damping and armature) are the model's for stepping; nothing is stepped here, and the damping and
-  armature Newton builds match MuJoCo's own compile, as do every muscle's parameters and coupling.
+  taken (1.0.6, below `MODEL`). Its retargeting (GMR, site welds) and KINESIS' place joint centres on a source body
+  fitted to the model; ours did for the legs until 2026-10-28, when the owner moved the fit to OpenSense's ("the rot
+  solver is by far the cleanest and closest to exact translation"; below). Their simulation settings (timestep,
+  iterations, friction 1, joint damping and armature) are the model's for stepping; nothing is stepped here, and the
+  damping and armature Newton builds match MuJoCo's own compile, as do every muscle's parameters and coupling. Their
+  foot colliders are the model's (three capsules and an ellipsoid on the calcaneus, two capsules on the toes, margin
+  1 mm, MuJoCo's default solref and solimp: a loaded foot rests within about 1 mm of a MuJoCo floor).
 - **Mass by #64's rule**: the cast's stated `weight` (kg), else `height` (m, else the body's own) squared times the
   reference BMI of `sex` (NCD-RisC 2016, the mean of both unstated), marked `estimated`, spread over the model's bodies
   as the model's masses times their scale cubed. Never tune a mass, a weight in the solve or a gate to pass: fix the
   method and measure again.
-- **Rotations to angles**: each SOMA segment's turn becomes its body's (`RIDES`, `TARGETS`, a fixed turn from segment
-  to body with the limb's bone swung onto SOMA's A-pose: `offsets`), fitted by damped least squares in the model's own
-  leading coordinates, MuJoCo's joint couplings kept (`fitted`, `Couplings`); Newton's eval_ik and IKSolver drop the
-  couplings, so they are not used. What MyoFullBody lacks (`LACKS`: a rigid neck and thorax, one lumbar joint spread
-  over five levels, the shoulder rhythm, hinge knees and ankles) is recorded in each body's model record. The arms are
-  calibrated as OpenSense does, on the rig's `standing` clip taken as the model's zero pose (arms hanging, palms to
-  the thighs: MyoFullBody's own), since SOMA's A-pose bind is far from it (`CALIBRATED`; a rig with no standing clip
-  falls back to the bind, named in `calibrated on`); the fit holds each joint lightly to the frame before
-  (`FIT_STEADY`), or the hanging arm's plane of elevation (MoBL-ARMS' gimbal) swings frame to frame. The SOMA forearm
-  rides the ulna, so its hand's twist is the forearm's pronation. The legs' joint centres are placed first, their
-  turns second (`JOINTS`, above). The path is low-passed (zero-lag 4th-order Butterworth at 6 Hz, Winter 2009) before
-  it is differentiated, then moved up or down once so its lowest point stands on the ground at its median frame
-  (`shift`, `grounded`): a stance frame may go up to about 3 cm into it (`on floor` reads it).
+- **Rotations to angles, as OpenSense does** (owner, 2026-10-28; Al Borno et al. 2022, J NeuroEng Rehabil 19:22,
+  doi:10.1186/s12984-022-01001-x; opensim-core's IMUPlacer and IMUInverseKinematicsTool, Apache-2.0): each SOMA
+  segment's world turn is a virtual orientation sensor on the body it rides (`RIDES`, `TARGETS`, weight 1 each); each
+  sensor's offset to its body is calibrated on the rig's `standing` clip as the model's default pose (its couplings
+  applied: MyoSuite's `stand`), heading corrected on the hip joints' line (`offsets`; a rig with no standing clip
+  falls back to the bind, named in `calibrated on`), then fitted again over the whole clip (`refitted`,
+  `OFFSET_ROUNDS`: the owner's change, one least squares over every frame jointly with the fit); per frame the
+  model's joint angles minimise the sensors' squared error angles (`fitted`, Simbody's OrientationSensors goal) in its
+  own leading coordinates, MuJoCo's couplings kept (`Couplings`; Newton's eval_ik and IKSolver drop them, so they are
+  not used). The pelvis stands where SOMA's Hips carry it, its place in the Hips' frame calibrated with the model's hip
+  joints' middle on SOMA's; nothing else is placed by position. **Never use the owner's own method** (arXiv:2607.17639,
+  under Babon's patent application NL4001444; SCORE is public MIT): no swing-twist split into calibrated axes, no
+  per-joint calibration table of axes, weights and offsets, no regression of joint angles against a reference.
+  What MyoFullBody lacks (`LACKS`: a rigid neck and thorax, one lumbar joint spread over five levels, the shoulder
+  rhythm, hinge knees and ankles) is recorded in each body's model record. The fit holds each joint lightly to the
+  frame before (`FIT_STEADY`), or the hanging arm's plane of elevation (MoBL-ARMS' gimbal) swings frame to frame
+  (at 0.05 up to 10,000 deg/s2, about 130 N m of the residual). The
+  SOMA forearm rides the ulna, so its hand's twist is the forearm's pronation. The path is low-passed (zero-lag
+  4th-order Butterworth at 6 Hz, Winter 2009) before it is differentiated.
+- **Its feet stand on the ground, not in it** (owner, 2026-10-28: "ground contact is real"): a foot segment stands
+  in a frame when its SOMA joint is within `LOW` of its standing height over its ground and slower than `STILL`
+  (`stances`; Kovar, Schreiner and Gleicher 2002's footskate cleanup); the fit holds a standing foot body's lowest
+  collider point on the ground and keeps every foot point out of it, by the legs' joints alone (`on_ground`,
+  `FIT_GROUND`; a point within `GAP` over it stays in the fit as the bound's active set, or the next step puts it
+  back in), in the fit and again after the low-pass, which moves a held foot again: landed and low-passed
+  `LAND_ROUNDS` times, then landed last (`landed`, each body held to its low-passed turn); the pelvis keeps its
+  place. Then the path is moved once so its lowest point stands on the ground at its median frame (`grounded`, about
+  0 now).
 - **Its frame is the skin's**: the person's spot and turn, then the dressed body's Turned (`TURNED`, 180 degrees about
   up, prop_build.py's root node), so the ground it walks is the ground under the skin's feet (`own_frame`). MuJoCo's
   frame is Z up; `TO_OWN` turns everything back to the person's Y up.
-- **It stands on the scene's own ground**: the stage the cast is measured on (`layer_base.built` with the scene record,
-  `cast/measure.solids` on the terrain row's made ground), the solids within `REACH` of each clip's path, their drawn
-  triangles themselves: the ground may push any collider surface point within the inside's `REACH` (3 cm) of the
-  triangle under it, moving slower than `SLIDE_MOST` (1.2 m/s), along that triangle's normal within a friction 0.5
-  cone (Karatsidis et al., arXiv:1801.01668). No heightfield and no MuJoCo collision: a MuJoCo heightfield met with a
-  margin gave contacts 3 to 5 cm deep with sideways normals under a foot 4 mm over its ground (2026-10-27). A riser
-  the toe meets is not a contact: it shows as residual.
+- **It stands on the scene's own ground**: the stage the cast is measured on (`layer_base.built` with the scene
+  record, `cast/measure.solids` on the terrain row's made ground), the solids within `REACH` of each clip's path,
+  their drawn triangles themselves: the ground pushes only a collider surface point touching it, within the inside's
+  `GAP` of the triangle under it or into it (MuJoCo's own rule: contact within the geoms' margin), one moving slower
+  than `SLIDE_MOST` (1.2 m/s) inside a friction 0.5 pyramid (Karatsidis et al., arXiv:1801.01668), a faster one
+  sliding (Coulomb: the normal and 0.5 of it against its slip), along that triangle's normal; no force anywhere else.
+  No heightfield and no MuJoCo collision: a MuJoCo heightfield met with a margin gave contacts 3 to 5 cm deep with
+  sideways normals under a foot 4 mm over its ground (2026-10-27). A riser the toe meets is not a contact: it shows as
+  residual. `on floor` fails a body over `SUNK_MOST` (3 mm) into its ground, `lands` a carrying foot over `LANDED` (5
+  mm) off it.
 - **One Newton environment**: `score/stages/physics/inside/newton_env.sh` (declared as `sim env`), built once at
   `$PROPS_HOME/envs/newton_env`; never a second env or a pip install of its own. Newton is given no meshes
   (`parse_meshes=False`: its mesh loading needs trimesh, which the env does not hold); the drawn bones come from
