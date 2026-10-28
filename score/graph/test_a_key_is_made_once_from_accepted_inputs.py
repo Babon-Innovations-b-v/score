@@ -298,6 +298,74 @@ def test_a_record_naming_a_stage_the_table_lacks_is_stale_not_a_crash():
     assert lone.status(["hangar"])["count@hangar"].endswith("clean (a stage this table does not hold) moved")
 
 
+# --- a failed output is made once more when that is free (owner, 2026-10-28: "the goal was getting to the film") -----
+
+# a free node's failed output is made once more (the toy make ignores the seed, so it fails again)
+SECOND_FAILURE = ("judged again, output kept: fail; automatic free remake, attempt 2, after words: made: fail; "
+                  "the second failure: on the owner's list, priced")
+
+
+def make_seeded(inputs, out, seed, params):
+    (out / "seed.txt").write_text(str(seed))
+
+
+def judge_first_seed(output, inputs, evidence):
+    seed = int((output / "seed.txt").read_text())
+    first = seed == graph.node_seed(7, "pick", "hangar")  # the node's own seed, worked out by hand
+    return checks.Verdict("first-seed", checks.FAIL if first else checks.PASS, "the first seed" if first else "another",
+                          {"seed": seed})
+
+
+PICK = graph.Stage("pick", "place", make_seeded, TEXT, (checks.Check("first-seed", judge_first_seed),))
+
+
+def noted(runner, name):
+    path = runner.store.cache.parent / "remakes" / f"{name}.jsonl"
+    return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
+
+def test_a_failed_free_output_is_made_once_more_with_a_fresh_seed_noted_and_never_again():
+    """The first seed fails, the remake's fresh seed passes and is accepted; its record and the remake log name the
+    failed check with its measures, and a later run makes nothing more.
+    Break: score/graph/__init__.py: '        if note and note["then"] == "remake":' -> '        if False:'"""
+    world, store = a_world({"hangar": "a ship"}), a_store()
+    runner = a_runner(world, store, (PICK,))
+    found = runner.run(["hangar"])
+    assert found == {"pick@hangar": "made: fail; automatic free remake, attempt 2, after first-seed: "
+                                    "made: pass, accepted automatically"}, found
+    record = store.record("pick@hangar", runner.key(PICK, "hangar")["key"])
+    assert record["output"] == store.accepted("pick@hangar")
+    assert record["remake"]["why"] == "automatic free remake, attempt 2, after first-seed", record
+    first, second = noted(runner, "notes")
+    assert (first["attempt"], first["then"], second["attempt"], second["then"]) == (1, "remake", 2, "done")
+    assert first["failed"]["first-seed"]["measures"] == {"seed": graph.node_seed(7, "pick", "hangar")}, first
+    assert a_runner(world, store, (PICK,)).run(["hangar"]) == {"pick@hangar": "fresh"}
+    assert len(noted(runner, "notes")) == 2 and noted(runner, "owner-list") == []
+
+
+def test_a_second_failure_or_a_paid_remake_goes_to_the_owner_priced(monkeypatch):
+    """Both attempts failing stop the line once, on the owner's list at its price with both in its fault report, and
+    no later run remakes it; a paid row off this PC goes there at once, on this PC's card it is remade.
+    Break: score/graph/__init__.py: '        then = "remake" if free and not second else "owner"' -> '        then = "remake" if free else "owner"'"""
+    runner = a_driven_runner({"hangar": "a ship!"})
+    runner.drive(["hangar"], say=quiet)
+    report = report_of(runner, "clean@hangar").read_text()
+    assert "attempt 1 (key " in report and "both attempts failed: on the owner's list, priced EUR 0.00" in report
+    runner.drive(["hangar"], say=quiet)
+    listed = noted(runner, "owner-list")
+    assert [(entry["attempt"], entry["why"], entry["euros"]) for entry in listed] == [(2, "both attempts failed", 0.0)]
+    assert len(noted(runner, "notes")) == 2 and list(listed[0]["failed"]) == ["shout"], listed
+    paid = graph.Stage("clean", "place", make_clean, TEXT, (checks.Check("shout", judge_shout),),
+                       files={"brief": "{data}/{place}/brief.txt"}, paid=True, euros=0.4)
+    for here, said in ((None, "made: fail; a paid remake: on the owner's list, priced"),
+                       ("local", "made: fail; automatic free remake, attempt 2, after shout: made: fail; the second")):
+        monkeypatch.setattr(graph, "on_this_pc", lambda: here == "local")
+        runner = a_runner(a_world({"hangar": "a ship!"}), a_store(), (paid,))
+        monkeypatch.setattr(runner, "cleared", lambda node, euros, forecast=None: contextlib.nullcontext())
+        assert runner.run(["hangar"])["clean@hangar"].startswith(said)
+        assert noted(runner, "owner-list")[0]["euros"] == 0.4
+
+
 def test_a_failed_gate_blocks_what_follows_and_a_waiver_passes_it_for_its_key_only():
     """7 words against a limit of 2 fail; the owner's waiver for that key lets it through and is shown; a new key
     (8 words) fails again.
@@ -307,7 +375,7 @@ def test_a_failed_gate_blocks_what_follows_and_a_waiver_passes_it_for_its_key_on
     runner.run(["hangar"])
     output = give_evidence(store, runner, "hangar", 2)
     found = a_runner(world, store).run(["hangar"])
-    assert found == {"clean@hangar": "judged again, output kept: fail",
+    assert found == {"clean@hangar": SECOND_FAILURE,
                      "count@hangar": "blocked: clean@hangar answered fail: words: 7 words, limit 2"}, found
     key = runner.key(CLEAN, "hangar")["key"]
     store.write_waiver("clean@hangar", key, "words", {"by": "owner", "reason": "a long name", "at": graph.now()})
@@ -336,7 +404,7 @@ def test_an_optional_read_is_left_out_while_not_usable_and_taken_once_it_is():
     assert found["maybe@hangar"].startswith("made: pass"), found
     give_evidence(store, a_runner(world, store, (CLEAN, maybe)), "hangar", 2)  # 7 words: clean fails
     found = a_runner(world, store, (CLEAN, maybe)).run(["hangar"])
-    assert found == {"clean@hangar": "judged again, output kept: fail", "maybe@hangar": "fresh"}, found
+    assert found == {"clean@hangar": SECOND_FAILURE, "maybe@hangar": "fresh"}, found
     assert accepted_text(store, "maybe@hangar", "maybe.txt") == "clean not usable: left out"
     brief(world, "hangar", "a hall")
     a_runner(world, store, (CLEAN, maybe)).run(["hangar"])
@@ -1062,7 +1130,8 @@ def test_a_fault_on_an_input_moved_under_the_run_names_what_moved():
 def test_nothing_is_gathered_for_an_output_another_gate_fails():
     """Break: score/graph/__init__.py: '        return sorted(blocking) if blocking and blocking <= missing else []' -> '        return sorted(missing)'"""
     runner = a_driven_runner({"hangar": "a ship!"})
-    assert runner.drive(["hangar"], say=quiet)["clean@hangar"].startswith("made: fail; fault report")
+    assert runner.drive(["hangar"], say=quiet)["clean@hangar"].startswith(
+        "made: fail; automatic free remake, attempt 2, after shout: made: fail;")
     assert gathered(runner) == []
     assert "shout: fail: shouts" in report_of(runner, "clean@hangar").read_text()
 

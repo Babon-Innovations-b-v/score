@@ -100,7 +100,17 @@ stage as each stage is built; nothing moves before.
   them out), `Environment` (`World` its old name, kept for the images stage, whose keyed module names it, until that stage is next made),
   `Runner.run/drive/status/lines/why/ticket/stale`. `run` accepts an output by itself when every gate passed
   (waivers counted), nothing got worse than the accepted output and the owner never rejected it, and makes a paid
-  stage inside its clearance's ticket; `stale` (shown in status) names the earlier nodes whose accepted output moved
+  stage inside its clearance's ticket. A new output that fails its gates (fail, the owner's waivers counted; never
+  unknown, never only its accepted gaps) is made once more, without asking, when that is free here (a free row with
+  no paid gatherer, or any row on this PC's card, `on_this_pc()`; owner, 2026-10-28: "the goal was getting to the
+  film"): `Runner.after_failure` notes it once in the store (`remakes/<node>/<key>.json`, the count, so never twice
+  across runs and restarts), which gives the node's key a `remake` part with a fresh seed, attempt 2, its record
+  saying "automatic free remake, attempt 2, after <checks>". A second failure, or a paid row off this PC, stops the
+  line and goes on the owner's list, priced (its forecast, else its estimate). Each note (failed checks, reasons,
+  measures, findings, what came next, attempt 2's outcome) is a line of `remakes/notes.jsonl` beside the store, an
+  owner's one also of `remakes/owner-list.jsonl`, and the fault report names both attempts; the noted checks are
+  where the cause gets fixed (a builder, a route, a check judging wrongly), the remake is no fix. No gate loosens,
+  no accept the gates did not give, his rejects, waivers and accepts stay his; `stale` (shown in status) names the earlier nodes whose accepted output moved
   since. A node's key hashes its computed code version (`_code.py`: its make's and checks' files and every repository module they
   import, inside functions and through `sys.path` folders too (read from the files, in the folders the path held at the process's first code version, so a folder a make adds later moves nothing); never the framework's own runner, review, clearance,
   stage table and run machinery (code that only decides where and how a job runs: renting, the warm pool, spreading, provider and backends, ledgers, forecasts, money guards, the cockpit; files or whole folders in `_code.FRAMEWORK`, so one line's edits there re-make no other line's nodes; a maker, its scripts sent up and their images stay in), parameters, seed,
@@ -343,7 +353,8 @@ Rules:
   `python -m score status` names it): read that file, put the cause right, run the line again.
 - **Never write a reject, a waiver, a spend yes, a clearance or an accept by hand**, by any route, and never ask the
   owner to accept or to say yes to a spend: run the stages, and the runner accepts what passed and got no worse and
-  clears what may spend. The runner and every stage read the accepted output only; a new output that failed, is
+  clears what may spend. The runner and every stage read the accepted output only; a new output that failed (after its
+  one free remake, `graph/`), is
   unknown or got worse lands beside it and waits on its page for the owner.
 - **Every stage names its output's contract** (`Stage.contract`) and, in `after`, the (schema, version) it was
   written for of each stage it reads. A schema change is a new version, never an edit of the old one.
