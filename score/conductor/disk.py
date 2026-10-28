@@ -5,6 +5,7 @@ about twelve runs had started that day, and the copies of the ones stopped, fail
     python -m score.conductor disk           # one summary line, the biggest folders, the whole list in conductor/disk.json
     python -m score.conductor clean-frozen   # remove every frozen copy no run needs; what it freed, one line a copy
     python -m score.conductor clean-cache [--making-only]   # checkouts relinked; with no run live, the cache cleared
+    python -m score.conductor relink-pixal   # work/pixal's files the store holds made links to its blobs, one line
 
 launch_refusal() is `score run`'s check before it makes its copy: a run is refused while the disk has under FLOOR_GB
 free. health.read() carries FLOOR_GB and warning() (a note on the Machine card).
@@ -33,6 +34,12 @@ Before any of that, and with a run live too, it makes every checkout's copies of
 (Store.relink, 2026-10-27: checkouts grew 16 GB in an hour while a run walked its rows): the same bytes under the same
 names, so no reader can tell; a checkout is never removed while a run is live, since a node holds its input paths
 across a cloud wait with no file open, and one removed under it would fail it.
+
+relink-pixal (2026-10-28: 16 GB free of 91, work/pixal 20.5 GB) does the same for work/pixal, with a run live too:
+each regular file there whose bytes the store holds as a blob (the store's own sha256, sizes equal) is replaced by a
+hard link to that read-only blob, renamed over it so no reader sees it missing. A file changed in the last
+YOUNG_SECONDS (a take a run may still be writing or turning) or changed while it was hashed is kept, as is every
+file the store does not hold: nothing is removed, so a take kept nowhere else stays whole.
 """
 import datetime
 import json
@@ -45,7 +52,7 @@ import time
 from score import conductor
 from score.conductor import size
 from score.graph import frozen, runs
-from score.store import PROPS_HOME, Store
+from score.store import PROPS_HOME, Store, file_hash, linked_read_only, partial_of
 
 FLOOR_GB = 10  # under this many GB free no run starts, and the Machine card warns
 YOUNG_SECONDS = 15 * 60  # a copy younger than this may be one a run is still making
@@ -338,3 +345,45 @@ def relink_checkouts(home, say=print):
                   / 1024 ** 3, 2)
     say(f"relinked {len(outputs)} checkouts to the stored blobs: {freed} GB of copies freed")
     return freed
+
+
+def relink_pixal(home=None, now=None):
+    """Every work/pixal file whose bytes the store holds as a blob, untouched for YOUNG_SECONDS, made a hard link to
+    that blob; {relinked, freed_gb, kept: {why: files}}."""
+    home = pathlib.Path(home or PROPS_HOME)
+    blobs = Store.in_folder(home / "store").objects.path("blobs")
+    now = time.time() if now is None else now
+    relinked, freed, kept = 0, 0, {}
+    for path in sorted((home / "work" / "pixal").rglob("*")):
+        if path.is_dir() and not path.is_symlink():
+            continue
+        size = path.lstat().st_size
+        why = relinked_or_why(path, blobs, now)
+        if why:
+            kept[why] = kept.get(why, 0) + 1
+        else:
+            relinked, freed = relinked + 1, freed + size
+    return {"relinked": relinked, "freed_gb": round(freed / 1024 ** 3, 2), "kept": kept}
+
+
+def relinked_or_why(path, blobs, now):
+    """The work/pixal file at `path` made a hard link to the stored blob of its bytes (made beside it, renamed over
+    it: linked_read_only), None; else why it is kept as it is."""
+    if path.is_symlink() or not path.is_file() or path.name.endswith(".partial"):
+        return "not a regular file"
+    status = path.stat()
+    if now - status.st_mtime < YOUNG_SECONDS:
+        return "changed in the last 15 minutes"
+    blob = blobs / file_hash(path)
+    if not blob.is_file():
+        return "not held in the store"
+    if path.samefile(blob):
+        return "already a link to its blob"
+    after = path.stat()
+    if (after.st_mtime_ns, after.st_size) != (status.st_mtime_ns, status.st_size) or blob.stat().st_size != after.st_size:
+        return "changed while it was hashed"
+    spare = partial_of(path)
+    if not linked_read_only(blob, spare):
+        return "its blob cannot be linked (writable, another disk or at the link limit)"
+    spare.replace(path)
+    return None

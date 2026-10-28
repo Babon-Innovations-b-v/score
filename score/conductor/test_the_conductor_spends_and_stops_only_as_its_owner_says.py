@@ -555,6 +555,37 @@ def test_clean_cache_makes_checkout_copies_links_even_with_a_run_live(tmp_path):
     assert any(line.startswith("relinked 1 checkouts") for line in said), said
 
 
+def test_relink_pixal_links_only_old_takes_the_store_holds_and_removes_nothing(tmp_path):
+    """2026-10-28: 16 GB free of 91, work/pixal 20.5 GB, most of it kept nowhere else.
+    Break: score/conductor/disk.py: '    if not blob.is_file():\n        return "not held in the store"' -> '    if False:
+    \n        return "not held in the store"' (a take the store lacks is lost), or '    if now - status.st_mtime <
+    YOUNG_SECONDS:' -> '    if False:' (a take a run is writing is linked)"""
+    home = tmp_path / "home"
+    store = Store.in_folder(home / "store")
+    made = tmp_path / "made"
+    made.mkdir()
+    (made / "raw.glb").write_bytes(b"raw" * 1000)
+    (made / "new.glb").write_bytes(b"new" * 1000)
+    output = store.put_tree(made)
+    pixal = home / "work" / "pixal"
+    (pixal / "t.svviews").mkdir(parents=True)
+    for name, data in (("t.glb", b"raw" * 1000), ("young.glb", b"new" * 1000), ("t-final.glb", b"only here"),
+                       ("t.svviews/input.png", b"raw" * 1000)):
+        (pixal / name).write_bytes(data)
+    old = time.time() - 2 * disk.YOUNG_SECONDS
+    for name in ("t.glb", "t-final.glb", "t.svviews/input.png"):
+        os.utime(pixal / name, (old, old))
+    for blob in store.objects.path("blobs").iterdir():  # a linked file shows its blob's time
+        os.utime(blob, (old, old))
+    done = disk.relink_pixal(home)
+    blob = store.objects.path(f"blobs/{store.listing(output)['raw.glb']}")
+    assert done["relinked"] == 2 and (pixal / "t.glb").samefile(blob) and (pixal / "t.svviews/input.png").samefile(blob)
+    assert done["kept"] == {"not held in the store": 1, "changed in the last 15 minutes": 1}, done
+    assert (pixal / "t-final.glb").read_bytes() == b"only here" and (pixal / "young.glb").stat().st_nlink == 1
+    assert (pixal / "t.glb").read_bytes() == b"raw" * 1000 and not list(pixal.rglob("*.partial"))
+    assert disk.relink_pixal(home)["kept"]["already a link to its blob"] == 2
+
+
 def a_copy(repo, folder, name, home):
     """A frozen copy `name` of `repo` under `folder` with its home: the design copied read-only, the rest linked."""
     path = folder / name

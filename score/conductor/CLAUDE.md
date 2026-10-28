@@ -52,6 +52,10 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   key hashes them), the review areas and anything unknown, and never touches store/objects or work/pixal (the paid
   Pixal3D takes the surface line reads as declared inputs, kept nowhere else). The runner removes each make's
   making/ folder however the make ends (`graph.gone`).
+  `relink-pixal` (the door's, 2026-10-28: 16 GB free, work/pixal 20.5 GB), safe with a run live: each work/pixal
+  file whose bytes the store holds as a blob (the store's sha256) and untouched for 15 min is made a hard link to that
+  read-only blob, renamed over it; it removes nothing, so a take kept nowhere else stays whole. A take so linked is
+  read-only: a re-finish that writes it in place is refused, never reaching the store.
 - **Money**: the conductor bills in its own project (`SCORE_CONDUCTOR_PROJECT`, `score-conductor`); the stop line reads
   the batch project's bill alone, and `project_refusal` (in `compute.books_refusal`, `compute.require_books` and
   `guard.refusal`) refuses every clearance and rent point if the two names are ever the same.
