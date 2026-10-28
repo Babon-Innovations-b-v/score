@@ -24,11 +24,11 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_worktree_reap_speaks_json_as_a_hook_and_only_when_it_did_something: main prints the report also when empty.
 - test_the_guard_names_every_home_outside_a_sandbox: outside_temp's `folder == temp` test dropped.
 - test_a_pytest_run_without_a_sandbox_home_stops_before_collecting: pytest_configure's refusal skipped.
-- test_a_sandboxed_test_reads_world_data_and_writes_only_its_own_home: sandbox-home's read_only_command drops
-  `--ro-bind`.
+- test_a_sandboxed_test_writes_only_its_own_home: sandbox-home's read_only_command drops `--ro-bind`.
 - test_a_sandbox_removes_what_its_test_leaves_even_when_stopped: run's `finally` drops `shutil.rmtree(temp, ...)`.
 - test_a_test_run_by_hand_removes_its_temp_stores_and_its_empty_home: own_temp's `removed` holds only `[folder]`.
-- test_a_test_adds_its_own_work_folder_beside_the_real_ones: `MIRRORED = ()`.
+- test_a_sandbox_home_starts_empty_and_links_nothing_of_the_real_home (owner's rule: tests use small fixtures, never
+  the real store or home, 2026-10-28): make_sandbox links the real home's work/ into the sandbox.
 - test_every_plain_script_test_refuses_first_without_a_sandbox_home (a wording check guarding the owner's rule that
   no test touches the real home, 2026-10-18): refuse_outside_sandbox's `if refusal:` made `if False:`.
 - test_bootstrap_links_memory_without_losing_any: bootstrap moves the old memory folder aside without copying it.
@@ -399,12 +399,11 @@ def test_a_pytest_run_without_a_sandbox_home_stops_before_collecting():
             assert done.returncode == 4 and "refused" in said and target.stem not in said, said
 
 
-@pytest.mark.skipif(not BUBBLEWRAP, reason="no bubblewrap: nothing is linked, so nothing to write through")
-def test_a_sandboxed_test_reads_world_data_and_writes_only_its_own_home(tmp_path):
+@pytest.mark.skipif(not BUBBLEWRAP, reason="no bubblewrap: the real home cannot be mounted read-only")
+def test_a_sandboxed_test_writes_only_its_own_home(tmp_path):
     real = fake_home(tmp_path)
     said = tmp_path / "home.txt"
     writes = ("import os, pathlib, sys; home = pathlib.Path(os.environ['PROPS_HOME']);"
-              "assert (home / 'work' / 'seed.txt').read_text() == 'seed';"
               "assert not (home / 'cloud').exists();"
               "(home / 'cloud').mkdir(); (home / 'cloud' / 'ledger.jsonl').write_text('mine');"
               "(home / 'store-tests').mkdir(); (home / 'store-tests' / 'kept').write_text('x');"
@@ -412,10 +411,8 @@ def test_a_sandboxed_test_reads_world_data_and_writes_only_its_own_home(tmp_path
               "pathlib.Path(sys.argv[1]).write_text(str(home))")
     assert sandbox_home.run([sys.executable, "-c", writes, str(said)], real) == 0
     assert not pathlib.Path(said.read_text()).exists()  # the sandbox and its read-only files are gone
-    through = "import os, pathlib; (pathlib.Path(os.environ['PROPS_HOME']) / 'work' / 'seed.txt').write_text('gone')"
-    assert sandbox_home.run([sys.executable, "-c", through], real) != 0  # a write through a link fails loudly
-    remove = "import os, pathlib; (pathlib.Path(os.environ['PROPS_HOME']) / 'work' / 'seed.txt').unlink()"
-    sandbox_home.run([sys.executable, "-c", remove], real)  # removes at most the sandbox's own link
+    through = f"import pathlib; pathlib.Path({str(real / 'work' / 'seed.txt')!r}).write_text('gone')"
+    assert sandbox_home.run([sys.executable, "-c", through], real) != 0  # a write to the real home fails loudly
     assert (real / "cloud" / "ledger.jsonl").read_text() == "{}\n"
     assert (real / "work" / "seed.txt").read_text() == "seed"
 
@@ -459,29 +456,16 @@ def test_a_test_run_by_hand_removes_its_temp_stores_and_its_empty_home(tmp_path)
         shutil.rmtree(home, ignore_errors=True)
 
 
-def test_a_test_adds_its_own_work_folder_beside_the_real_ones(tmp_path):
-    """Fault (2026-10-18 review): work/ was one link, so a test making a folder in it (carry.py's commits, a ship
-    build's plan) failed on the read-only real home."""
+def test_a_sandbox_home_starts_empty_and_links_nothing_of_the_real_home(tmp_path):
+    """Fault (2026-10-28): the sandbox linked the real home's design/plans and work/, so tests leaned on real data
+    unnoticed; a test lays out its own small fixture instead."""
     real = fake_home(tmp_path)
-    (real / "work" / "carry-commits" / "old").mkdir(parents=True)
-    linked = sandbox_home.make_sandbox(real, link=True)
-    bare = sandbox_home.make_sandbox(real, link=False)  # without bubblewrap nothing is linked
-    try:
-        assert sorted(entry.name for entry in linked.iterdir()) == ["store", "work"]  # cloud/ is state: not linked
-        assert (linked / "work").is_dir() and not (linked / "work").is_symlink()
-        assert (linked / "work" / "carry-commits").is_dir() and not (linked / "work" / "carry-commits").is_symlink()
-        assert (linked / "work" / "carry-commits" / "old").is_symlink()
-        assert [entry.name for entry in bare.iterdir()] == ["store"]
-    finally:
-        sandbox_home.remove(linked)
-        sandbox_home.remove(bare)
-    assert not linked.exists() and (real / "work" / "seed.txt").read_text() == "seed"
-    if BUBBLEWRAP:
-        adds = ("import os, pathlib; work = pathlib.Path(os.environ['PROPS_HOME']) / 'work';"
-                "(work / 'mine').mkdir(); (work / 'carry-commits' / 'new').mkdir()")
-        assert sandbox_home.run([sys.executable, "-c", adds], real) == 0
-    assert sorted(entry.name for entry in (real / "work").iterdir()) == ["carry-commits", "seed.txt"]
-    assert [entry.name for entry in (real / "work" / "carry-commits").iterdir()] == ["old"]
+    said = tmp_path / "listing.txt"
+    lists = ("import os, pathlib, sys; home = pathlib.Path(os.environ['PROPS_HOME']);"
+             "pathlib.Path(sys.argv[1]).write_text(' '.join(sorted(str(path.relative_to(home)) + ('@' if path.is_symlink() else '')"
+             " for path in home.rglob('*'))))")
+    assert sandbox_home.run([sys.executable, "-c", lists, str(said)], real) == 0
+    assert said.read_text() == "store store/cache"
 
 
 # Folders whose every file is in a paid row's code key (score.stages.moved): a test edited there moves paid rows, so

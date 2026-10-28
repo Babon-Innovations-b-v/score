@@ -10,8 +10,9 @@ PYTHON := $(CURDIR)/.venv/bin/python
 # Every framework check (tools/ and score/), or only the ones named: make tests TESTS="<module>/test_<invariant>.py ...".
 # Each is a plain script, or, when it has test_ functions and no __main__ block (it wants pytest's fixtures), a pytest
 # file; a heavy one runs under a memory cap so it can never take the machine down. Each runs in a fresh sandbox home
-# (.claude/scripts/sandbox-home.py: PROPS_HOME in the temp folder, the real home read-only), so no test touches the
-# real one; conftest.py refuses a pytest run without one (a test unlinked the real cloud ledger, 2026-10-17).
+# (.claude/scripts/sandbox-home.py: an empty PROPS_HOME in the temp folder, nothing of the real home linked, the real
+# home read-only), so no test touches or leans on the real one; conftest.py refuses a pytest run without one (a test
+# unlinked the real cloud ledger, 2026-10-17).
 # First the test rule's guard (tools/test_rule/check.py: one test file a module, named test_<invariant>.py, its
 # docstring naming its break): over every module, or over the named files' modules when TESTS is given.
 SANDBOX := python3 $(CURDIR)/.claude/scripts/sandbox-home.py --
