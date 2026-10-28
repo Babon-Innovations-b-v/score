@@ -31,6 +31,7 @@ import statistics
 from score import checks
 from score.stages import batch_gaps
 import score.stages.crops.crop_data as crop_data
+from score.stages.props import prop_data
 
 LAYER = "layers/crops.usda"
 # A plant's centre this far inside its bed's edge, metres; each moved at most this share of its cell from the cell's
@@ -86,6 +87,16 @@ def bed_spots(bed, count, generator):
              low_z + (row + 0.5 + generator.uniform(-JITTER, JITTER)) * cell_z) for column, row in cells]
 
 
+def layer_files(place):
+    """crops-layer's files: crop_data.layer_files and the place's hand-in (its kinds' takes, takes_of)."""
+    return {**crop_data.layer_files(place), "props": prop_data.keyed(place)}
+
+
+def takes_of(inputs):
+    """{row: its take} of the hand-in's objects (layer_files' "props")."""
+    return {row: entry["take"] for row, entry in prop_data.record_at(inputs["props"])["objects"].items()}
+
+
 def model_of(entry):
     """The name a kind's model is baked and laid by: its inventory row's, numbered as the assembly numbers models."""
     return f"{entry['row']}_1"
@@ -108,13 +119,15 @@ def laid_spots(beds, shared, spacings, seed):
     return spots
 
 
-def left_out(record, bake, carried):
+def left_out(record, bake, carried, takes):
     """{kind: [the carried batch gaps naming it]} of the kinds whose model the bake made none of and a batch gap names
-    (by its row or its model): the prop route left the take out inside the batch."""
+    (by its row, its model or its take, `takes`: {row: take}, takes_of; the finish route's gaps name the
+    take alone): the prop route left the take out inside the batch."""
     baked = json.loads((pathlib.Path(bake) / "baked.json").read_text())
     found = {}
     for kind, entry in record["kinds"].items():
-        named = [gap["name"] for gap in carried if {entry["row"], model_of(entry)} & set(gap["objects"])]
+        names = {entry["row"], model_of(entry), takes.get(entry["row"])}
+        named = [gap["name"] for gap in carried if names & set(gap["objects"])]
         if model_of(entry) not in baked and named:
             found[kind] = named
     return found
@@ -193,7 +206,7 @@ def make_layer(inputs, out, seed, params):
     record = crop_data.read(inputs)
     measured = json.loads((pathlib.Path(inputs["crops-concept"]) / "concept.json").read_text())["kinds"]
     carried = batch_gaps.of(inputs)
-    left = left_out(record, inputs["surfaces-bake"], carried)
+    left = left_out(record, inputs["surfaces-bake"], carried, takes_of(inputs))
     laid = dict(record, kinds={kind: entry for kind, entry in record["kinds"].items() if kind not in left})
     with crop_data.tools("usd"):
         assets = write_assets(laid, pathlib.Path(inputs["surfaces-bake"]), pathlib.Path(inputs["surfaces-paint"]),
