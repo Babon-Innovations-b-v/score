@@ -647,10 +647,12 @@ def a_film(folder, tone, volume):
     return folder
 
 
-def test_a_cut_runs_at_one_loudness_and_its_gate_holds_the_pacing(tmp_path):
+def test_a_cut_runs_at_one_loudness_and_its_gate_holds_the_pacing(tmp_path, monkeypatch):
     """Two place films at very different loudness cut into one 15 s film (2 + 7 + 7 less two half-second
     transitions), each segment from its own film; the whole at TARGET_LUFS passes; a place cut at 3.5 s fails.
     Break: score/stages/demo_film/final.py: `gain = TARGET_LUFS - loudness` -> `gain = 0.0`"""
+    from score.stages import design_layers
+    monkeypatch.setattr(design_layers, "KEPT", tmp_path / "designs")  # no kept design shows people: no peel owed
     script = tmp_path / "toy.json"
     script.write_text(json.dumps(a_script(WALKS)))
     inputs = {"script toy": script, "demo-film@alpha": a_film(tmp_path / "alpha", 330, 0.05),
