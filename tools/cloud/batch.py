@@ -1374,6 +1374,13 @@ def run_on_cluster(models, options, parallel=None):
     say_what_failed(fleet, folder)
 
 
+def check_classes(classes):
+    """SystemExit for a name that is not a capability class. Which of them the backend sells is its offers' answer
+    (plan): this PC's backend lists no CLASSES, so a check against them refused every Pixal3D batch on it."""
+    for name in classes:
+        provider.cards(name)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("list", nargs="?", help="the models, one a line (not with --characters)")
@@ -1392,9 +1399,7 @@ def main():
     parser.add_argument("--no-finish", action="store_true", help="bring back raw models only")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
     options = parser.parse_args()
-    unknown = set(options.classes.split(",")) - set(cloud.CLASSES)
-    if unknown:
-        raise SystemExit(f"the {cloud.NAME} backend gives no machine of: {', '.join(sorted(unknown))}")
+    check_classes(options.classes.split(","))
 
     if bool(options.characters) == bool(options.list):
         raise SystemExit("give a list with --inventory, or --characters with no list")

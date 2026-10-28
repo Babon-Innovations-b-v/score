@@ -16,6 +16,8 @@ reverted):
   `("disk-and-address",)`.
 - test_a_list_names_each_model_once_with_its_options: in `read_list`, `if len(set(names)) != len(names):` -> `if
   False:`.
+- test_a_batch_on_this_pcs_card_passes_its_class_check_and_a_misnamed_class_is_refused: in `check_classes`, the
+  `provider.cards(name)` loop -> the old `set(classes) - set(cloud.CLASSES)` refusal (this PC's backend lists none).
 - test_the_fleet_is_sized_to_end_in_its_aim_and_a_capped_one_aims_for_what_it_can: in `cards_needed`, `working =
   minutes - SETUP_MINUTES - per_model * per_card` -> `working = minutes - SETUP_MINUTES`; or in `aimed_minutes`,
   `max(` -> `min(`.
@@ -216,6 +218,15 @@ def test_a_list_names_each_model_once_with_its_options(tmp_path):
     assert models[0].faces == 12000 and models[0].feet and not models[1].feet
     listing.write_text(f"crate {picture}\ncrate {picture}\n")
     assert "twice" in refusal_of(batch.read_list, listing)
+
+
+def test_a_batch_on_this_pcs_card_passes_its_class_check_and_a_misnamed_class_is_refused(monkeypatch):
+    """2026-10-28: every Pixal3D batch on this PC's card (SCORE_CLOUD=local, whose CLASSES is empty: its offers are
+    parked) exited 1 at once, its classes checked against the backend's CLASSES; which it sells is its offers'."""
+    import local
+    monkeypatch.setattr(batch, "cloud", local)
+    batch.check_classes(batch.capacity.classes_for("pixal"))
+    assert "not a capability class" in refusal_of(batch.check_classes, ["gpu-24gb", "gpu24"])
 
 
 def test_the_fleet_is_sized_to_end_in_its_aim_and_a_capped_one_aims_for_what_it_can():

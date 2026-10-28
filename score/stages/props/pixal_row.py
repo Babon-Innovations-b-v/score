@@ -42,7 +42,7 @@ SUFFIXES = (".glb", "-final.glb", ".svviews")
 # a processor machine (by the hour) when no card is in stock; its set-up and one finish, a minute or two.
 FINISH_CLASSES = ("gpu-24gb", "gpu-48gb", "cpu-16c-64gb", "cpu-32c-128gb")
 FINISH_MINUTES = 15
-# The lines of finish.log a failed finish call's error carries (the fault report shows the error, not the log).
+# The lines of batch.log or finish.log a failed call's error carries (the fault report shows the error, not the log).
 LOG_TAIL_LINES = 15
 
 
@@ -185,12 +185,7 @@ def make_pixal(inputs, out, seed, params):
                if (closeups / f"{row}.png").exists() and row not in built}
     listing = batch_list(objects, closeups, inputs["surfaces"], out)
     if listing:
-        done = subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/cloud/batch.py"), str(listing), "--who",
-                               f"score pixal {prop_data.record_at(inputs['props'])['place']}", "--inventory",
-                               str(inputs["inventory"]), "--no-finish"], cwd=REPO, capture_output=True, text=True)
-        (out / "batch.log").write_text(done.stdout[-20000:] + done.stderr[-20000:])
-        if done.returncode:
-            raise RuntimeError(f"the Pixal3D batch failed (exit {done.returncode}); its log is batch.log")
+        run_batch(listing, prop_data.record_at(inputs["props"])["place"], inputs["inventory"], out)
     faces = {row: faces_of(inputs["surfaces"], entry["take"]) for row, entry in objects.items()}
     unfinished = {row: entry for row, entry in sorted(objects.items())
                   if raw_made(entry["take"]) and not finished(entry["take"], faces[row])}
@@ -205,6 +200,20 @@ def make_pixal(inputs, out, seed, params):
     (out / "takes.json").write_text(json.dumps(takes, indent=1))
     batch_gaps.write(out, [*thin_straight.without_closeup_gaps(batch_gaps.of(inputs), built), *unmade_gaps(objects),
                            *finish_gaps(unfinished, faces)])
+
+
+def run_batch(listing, place, inventory, out):
+    """The listed takes made raw by one tools/cloud/batch.py call, its log in out/batch.log; a call that fails as a
+    whole raises with its log's end, so the fault report shows the cause (2026-10-28: the making folder holding
+    batch.log was gone, the galley's batch failed blind)."""
+    done = subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/cloud/batch.py"), str(listing), "--who",
+                           f"score pixal {place}", "--inventory", str(inventory), "--no-finish"], cwd=REPO,
+                          capture_output=True, text=True)
+    log = done.stdout[-20000:] + done.stderr[-20000:]
+    (out / "batch.log").write_text(log)
+    if done.returncode:
+        tail = "\n".join(log.strip().splitlines()[-LOG_TAIL_LINES:])
+        raise RuntimeError(f"the Pixal3D batch failed (exit {done.returncode}); the end of its log, batch.log:\n{tail}")
 
 
 def code_builds(failed, rows, inputs, out):
