@@ -202,8 +202,12 @@ def one_machine(run, account, found, number, kind, shares, prepare, do, disk_gb,
         return
     setup_deaths = 0
     while True:
+        began = time.time()
         machine = batch.claim(run, account, found, number, kind, disk_gb,
                               wanted=lambda: shares.queued() > 0 or shares.open)
+        if this_pc_waited(run, shares, time.time() - began) and machine is None and \
+                (shares.queued() > 0 or shares.open) and not batch.STOPPING.is_set():
+            continue
         if machine is None:
             return
         if shares.deadline and machine.get("pool"):  # the time waited on the pool is not the work's (pool.paused)
@@ -216,6 +220,24 @@ def one_machine(run, account, found, number, kind, shares, prepare, do, disk_gb,
             batch.say(f"{machine['folder'].name}: {kind}'s set-up failed; this slot takes another card")
         if not machine.get("pool") or shares.queued() <= 0:
             return
+
+
+# A claim on this PC's one machine that waited at least this long waited for the run's own jobs on it.
+THIS_PC_WAIT_SECONDS = 5
+
+
+def this_pc_waited(run, shares, waited):
+    """On this PC's machine (SCORE_CLOUD=local: one machine, one claim at a time) the time a claim waited is the
+    run's other jobs', never a shortage's and never the work's: the run's and the shares' deadlines move on by it,
+    as a warm pool's wait does (pool.paused). True when it waited THIS_PC_WAIT_SECONDS or more, so a claim that ran
+    out of deadline while waiting asks again (env1, 2026-10-28: a dozen bakes queued behind each other ran out of
+    their 4 h at the same minute, "no machine could be rented")."""
+    if provider.cloud.NAME != "local":
+        return False
+    run.deadline += waited
+    if shares.deadline:
+        shares.deadline += waited
+    return waited >= THIS_PC_WAIT_SECONDS
 
 
 def start_machine(run, account, found, number, kind, shares, prepare, do, disk_gb=batch.DISK_GB, at_once=None):
