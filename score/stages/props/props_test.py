@@ -124,11 +124,12 @@ def test_a_retake_asks_pixal3d_for_its_own_seed():
         shutil.rmtree(folder)
 
 
-def test_the_model_check_holds_a_prop_s_proportions_whichever_way_round_the_finish_laid_its_footprint(tmp_path):
+def test_the_model_check_holds_a_prop_s_proportions_whichever_way_round_the_finish_laid_its_footprint():
     """likeness_row.model_checks lays a row's wide and deep on the model's own ground sides, longer to longer (the
     finish lays a long footprint along z: glb_file.squared; the scene turns it about up to its place). A 2 by 1 by
     0.5 m crate made right passes and one made square fails its spread; a 0.6 by 0.6 by 2 m locker passes. Laid x wide,
     z deep, as before f2ccd22c, the right crate read spread 1.0 and failed."""
+    tmp_path = pathlib.Path(tempfile.mkdtemp())  # a plain script: no pytest fixture
     import trimesh
     rows = {"crate": ([2.0, 1.0, 0.5], [1.0, 0.5, 2.0], True), "square crate": ([2.0, 1.0, 0.5], [1.0, 0.5, 1.0], False),
             "locker": ([0.6, 0.6, 2.0], [0.6, 2.0, 0.6], True), "crate across": ([1.0, 2.0, 0.5], [1.0, 0.5, 2.0], True)}

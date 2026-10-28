@@ -477,7 +477,11 @@ def test_no_run_starts_under_the_disk_floor_and_the_health_warns_there(tmp_path,
     assert not any(note.startswith("disk: ") for note in health.read(properties)["notes"])
 
 
-def test_disk_names_the_biggest_folders_in_one_line_and_a_file(tmp_path):
+def test_disk_names_the_biggest_folders_in_one_line_and_a_file(tmp_path, monkeypatch):
+    # the checkout and the user's cache are measured too when on the home's disk: kept inside the toy home, so this
+    # machine's own folders never outrank the toy ones
+    monkeypatch.setattr(disk, "REPO", tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
     (tmp_path / "frozen" / "20261026-081445-1").mkdir(parents=True)
     (tmp_path / "frozen" / "20261026-081445-1" / "big").write_bytes(b"x" * 300_000)
     summary, biggest = disk.report(tmp_path, tmp_path / "conductor" / "disk.json")
