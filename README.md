@@ -64,6 +64,11 @@ backend, Scaleway, that is the [`scw`](https://github.com/scaleway/scaleway-cli)
 named by `SCORE_SCALEWAY_PROJECT`. Secrets are read by name, never from files in the repo. Every step that loads
 a model, bakes or renders runs on a rented machine that deletes itself; this machine runs plain Python only.
 
+Local processing is also possible on a strong PC with an NVIDIA card (environment 1 runs on a 16 GB card): Docker
+with NVIDIA's container toolkit, then `python3 tools/cloud/this_pc.py run <environment>`. Each step runs in a
+container on your card, one card job at a time, at no cost; a step whose measured need is more than your card holds
+is refused and waits for the cloud.
+
 ```bash
 make env                                       # the Python environment (.venv) from pyproject.toml
 make tests                                     # every framework check; TESTS="<module>/test_<invariant>.py" for some
