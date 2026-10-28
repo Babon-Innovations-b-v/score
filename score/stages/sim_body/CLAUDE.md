@@ -70,36 +70,29 @@ own Python, its steps the modules beside it (`inside/CLAUDE.md`).
   model's share; what SOMA does not give (muscle strength, joint ranges, density, bone shape) is marked assumed with a
   plausible range in the model record (`assumed`). RRA's mass step (above) is the one change after it, recorded. Never
   tune a mass, a weight in the solve or a gate by hand to pass: fix the method and measure again.
-- **Rotations to angles, as OpenSense does** (owner, 2026-10-28; Al Borno et al. 2022, J NeuroEng Rehabil 19:22,
-  doi:10.1186/s12984-022-01001-x; opensim-core's IMUPlacer and IMUInverseKinematicsTool, Apache-2.0): each SOMA
-  segment's world turn is a virtual orientation sensor on the body it rides (`RIDES`, `TARGETS`, weight 1 each); each
-  sensor's offset to its body is calibrated on the rig's `standing` clip as the model's default pose (its couplings
-  applied: MyoSuite's `stand`), heading corrected on the hip joints' line (`offsets`; a rig with no standing clip
-  falls back to the bind, named in `calibrated on`), then fitted again over the whole clip (`refitted`,
-  `OFFSET_ROUNDS`: the owner's change, one least squares over every frame jointly with the fit); per frame the
-  model's joint angles minimise the sensors' squared error angles (`fitted`, Simbody's OrientationSensors goal) in its
-  own leading coordinates, MuJoCo's couplings kept (`Couplings`; Newton's eval_ik and IKSolver drop them, so they are
-  not used). The pelvis stands where SOMA's Hips carry it, its place in the Hips' frame calibrated with the model's hip
-  joints' middle on SOMA's; nothing else is placed by position. **Never use the owner's own method** (arXiv:2607.17639,
-  under Babon's patent application NL4001444; SCORE is public MIT): no swing-twist split into calibrated axes, no
-  per-joint calibration table of axes, weights and offsets, no regression of joint angles against a reference.
-  What MyoFullBody lacks (`LACKS`: a rigid neck and thorax, one lumbar joint spread over five levels, the shoulder
-  rhythm, hinge knees and ankles) is recorded in each body's model record. The fit holds each joint lightly to the
-  frame before (`FIT_STEADY`), or the hanging arm's plane of elevation (MoBL-ARMS' gimbal) swings frame to frame
-  (at 0.05 up to 10,000 deg/s2, about 130 N m of the residual). The
-  SOMA forearm rides the ulna, so its hand's twist is the forearm's pronation. The path is low-passed (zero-lag
+- **One solver fits MyoFullBody to SOMA** (#70, owner 2026-10-28; `inside/fit`): the person's constants (each bone
+  group's size, the limbs' joint centres, each virtual marker's place on its bone) and every frame's joint angles,
+  against the bone groups' turns (the main term: each SOMA segment's world turn on its group, through the static
+  calibration table, as OpenSense tracks orientations: Al Borno et al. 2022, doi:10.1186/s12984-022-01001-x), the
+  SOMA mesh's bony landmarks skinned on the clip (`inside/landmarks`) and SOMA's joints on MyoFullBody's centres as
+  markers, weighed as OpenSim's IK weighs its goals, within the leading joints' ranges, MuJoCo's couplings held
+  exactly, each group's stretch held to SOMA's length: mink per frame and scipy's bounded `least_squares` over the
+  constants with the angles of frames spread over the clip. **Never use the owner's own
+  method** (arXiv:2607.17639, under Babon's patent application NL4001444; SCORE is public MIT): no swing-twist split
+  into calibrated axes, no per-joint calibration table of axes, weights and offsets, no regression of joint angles
+  against a reference. What MyoFullBody lacks (`LACKS`: a rigid neck and thorax, one lumbar joint spread over five
+  levels, the shoulder rhythm, hinge knees and ankles) is recorded in each body's model record; how closely it
+  follows SOMA (each joint's mm, each group's degrees, at a range limit or not, before and after RRA) is its `fit`.
+  The SOMA forearm rides the ulna, so its hand's twist is the forearm's pronation. The path is low-passed (zero-lag
   4th-order Butterworth at 6 Hz, Winter 2009) before it is differentiated.
-- **Its feet stand on the ground, not in it** (owner, 2026-10-28: "ground contact is real"): a foot segment stands
-  in a frame when its SOMA joint is within `LOW` of its standing height over its ground and slower than `STILL`
-  (`stances`; Kovar, Schreiner and Gleicher 2002's footskate cleanup); the fit holds a standing foot body's lowest
-  collider point on the ground, keeps it from sliding while it stood the frame before too (`unslipped`: it rolls, the
-  point in contact still; a height hold alone let the rig walk's toe slide 6 cm in a frame at heel-off, 1.8 m/s, so
-  the ground could only resist the slip: 416 N of residual, 2026-10-28) and keeps every foot point out of it, by the legs' joints alone (`on_ground`,
-  `FIT_GROUND`; a point within `GAP` over it stays in the fit as the bound's active set, or the next step puts it
-  back in), in the fit and again after the low-pass, which moves a held foot again: landed and low-passed
-  `LAND_ROUNDS` times, then landed last (`landed`, each body held to its low-passed turn); the pelvis keeps its
-  place. Then the path is moved once so its lowest point stands on the ground at its median frame (`grounded`, about
-  0 now).
+- **Its feet are where SOMA's are** (#70: SOMA is the truth, never moved, scaled or grounded): MyoFullBody's root
+  follows the markers on SOMA's skin and nothing moves it onto the ground; the ground pushes whatever collider point
+  the fit puts within `GAP` of it. Before 2026-10-28 the fit held standing feet on the ground (`stances`,
+  `on_ground`, `unslipped`, `landed`) and moved the path once onto it (`grounded`); those went with the old fit.
+  Measured 2026-10-28: the two test walkers' SOMA skin stands 26 to 57 mm over their ground (its lowest point, every
+  10th frame), so the sim body following it stands 10 to 13 mm over it on the median, its feet seldom pushed, and
+  RRA's mass step then takes the body's mass by 98 to 99.9%: `carries`, `lands` and `residual` fail on them, as a
+  float must. The clip standing on its ground is the people line's (#70's comment).
 - **Its frame is the skin's**: the person's spot and turn, then the dressed body's Turned (`TURNED`, 180 degrees about
   up, prop_build.py's root node), so the ground it walks is the ground under the skin's feet (`own_frame`). MuJoCo's
   frame is Z up; `TO_OWN` turns everything back to the person's Y up.
@@ -114,15 +107,17 @@ own Python, its steps the modules beside it (`inside/CLAUDE.md`).
   residual. `on floor` fails a body over `SUNK_MOST` (3 mm) into its ground, `lands` a carrying foot over `LANDED` (5
   mm) off it.
 - **One Newton environment**: `score/stages/physics/inside/newton_env.sh` (declared as `sim env`), built once at
-  `$PROPS_HOME/envs/newton_env`; never a second env or a pip install of its own. Newton is given no meshes
-  (`parse_meshes=False`: its mesh loading needs trimesh, which the env does not hold); the drawn bones come from
-  MuJoCo's own compile of the file. MuJoCo's CPU backend, run on this machine (free).
+  `$PROPS_HOME/envs/newton_env`; never a second env or a pip install of its own. mink, qpsolvers and daqp are pinned
+  there for the fit (#70); the script is declared by physics-trial, settle and effects too, so a pin moves their keys.
+  Newton is given no meshes (`parse_meshes=False`: its mesh loading needs trimesh, which the env does not hold); the
+  drawn bones come from MuJoCo's own compile of the file. MuJoCo's CPU backend, run on this machine (free).
 - **Its readers** (contract version 2): the characters layer (`../cast/driven.py`) plays each person's skeleton from
   `measures/<name>.json`'s `poses`, which are the clip's own segment frames, written by the stage itself, never
   moved, scaled or grounded to the sim body (owner, 2026-10-28: SOMA is the truth; the stage's test checks them bit
   for bit), and references `layers/sim_bodies.usda`; its gate measures the skin's feet against the layer's
-  `SimBody/<segment>` Xforms, which ride the body's bones at the bind's correspondence (`offsets`), so it reads how far
-  the musculoskeletal body's feet are from the clip's. People-cloth reads `poses` and imports `segments_of`. The film's
+  `SimBody/<segment>` Xforms, which ride the body's bones (`fit.riding`: the calibration table's turn, at the
+  group's start joint), so it reads how far the musculoskeletal body's feet are from the clip's. People-cloth reads
+  `poses` and imports `segments_of`. The film's
   layer peel (`../demo_film/peel.py`) draws whatever geometry is under each SimBody and finds each `feet` key's prim by
   name: every SOMA segment Xform holds the bone it rides (a foot holds its calcaneus), other bones sit under `Bones`,
   muscles are one BasisCurves `Muscles` (one topology, `displayColor` by activation, every frame). The layer is text

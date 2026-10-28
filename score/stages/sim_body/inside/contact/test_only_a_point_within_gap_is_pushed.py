@@ -1,13 +1,11 @@
 """contact: the ground pushes a ball only where its surface comes within GAP of the drawn ground, inside a friction
-pyramid when slow and sliding against its slip when fast; a foot stands in the clip's frames where it is low and
-still; and a path is moved once so its lowest point stands on the ground at its median frame (all worked by hand).
-It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh, built at
-$PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
+pyramid when slow and sliding against its slip when fast (worked by hand). It runs in Newton's own Python (MuJoCo
+pinned there; score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built
+there, as in `make tests`' sandbox home, it prints `skipped`.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted), 2026-10-28:
 - pushes' `<= GAP` made `<= 1.0`: a ball 6 mm over the ground is pushed.
 - pushes' `np.linalg.norm(moving) > SLIDE_MOST` made `< SLIDE_MOST`: a slow point slides and a fast one sticks.
-- stances' `low & (speed < STILL)` made `low`: a foot leaving the ground at 6 m/s still stands.
 
 Run: .venv/bin/python score/stages/sim_body/inside/contact/test_only_a_point_within_gap_is_pushed.py
 """
@@ -74,30 +72,7 @@ def a_fast_point_slides_against_its_slip():
     return [] if len(edges) == 1 and np.allclose(edges[0], [-0.5, 0.0, 1.0]) else [f"sliding edges {edges}"]
 
 
-def a_foot_stands_where_it_is_low_and_still():
-    """A foot standing 0.1 m over the ground in the calibration frame stays there for frames 0 to 4, then stands 0.5
-    m up for frames 5 to 9 (30 frames a second): it stands in frames 0 to 3 (frame 4's central difference with frame
-    5 is 6 m/s) and in none of the high ones; a path whose ball stands 1, 2 and 3 cm over the ground is moved 2 cm
-    down (its median frame's)."""
-    import contact
-    import numpy as np
-    worlds = np.tile(np.eye(4), (10, 1, 1, 1))
-    worlds[:5, 0, 1, 3], worlds[5:, 0, 1, 3] = 0.1, 0.5
-    standing = np.eye(4)[None].copy()
-    standing[0, 1, 3] = 0.1
-    found = contact.stances(standing, ["LeftFoot"], worlds, flat(), 30.0)
-    problems = [] if [frame for frame, feet in enumerate(found) if "LeftFoot" in feet] == [0, 1, 2, 3] else [
-        f"standing frames {[frame for frame, feet in enumerate(found) if feet]}"]
-    model, _ = ball_at(0.0)
-    path = np.tile(model.qpos0, (3, 1))
-    path[:, 2] = [0.06, 0.07, 0.08]
-    moved, shift = contact.grounded(model, path, [0], flat(), "ball")
-    return problems + ([] if np.isclose(shift, -0.02) and np.allclose(moved[:, 2], [0.04, 0.05, 0.06]) else
-                       [f"grounded by {shift}: {moved[:, 2]}"])
-
-
-CHECKS = (only_a_point_within_gap_is_pushed, a_fast_point_slides_against_its_slip,
-          a_foot_stands_where_it_is_low_and_still)
+CHECKS = (only_a_point_within_gap_is_pushed, a_fast_point_slides_against_its_slip)
 
 
 def in_newton():

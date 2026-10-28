@@ -2,7 +2,7 @@
 and what every later step reads off it: a body by its name (`body_index`), MuJoCo's joint couplings (`Couplings`),
 the joints kept in range (`limited`), a body's pose in the person's frame (`own_pose`, TO_OWN), the default pose
 (`default_pose`), each SOMA segment riding its bone along a path (`posed_path`), the path low-passed (`filtered`) and
-its velocities and accelerations (`rates`)."""
+its velocities and accelerations (`rates`), and a path of MuJoCo's own compile carried onto it (`carried`)."""
 import mujoco
 import newton
 import numpy as np
@@ -31,6 +31,26 @@ def body_index(model, name):
     if len(found) != 1:
         raise ValueError(f"no single body {name} in the model Newton built: {len(found)} found")
     return found[0]
+
+
+def carried(source, target, path):
+    """A path of `source`'s qpos (frames x nq) as `target`'s: each joint's coordinates by its body's and its own name
+    (Newton names a joint by its path, `..._<body>_<joint>`), the two models' joints one for one."""
+    names = _short_names(target, mujoco.mjtObj.mjOBJ_JOINT, target.njnt)
+    found = np.empty((len(path), target.nq))
+    for joint in range(source.njnt):
+        name = mujoco.mj_id2name(source, mujoco.mjtObj.mjOBJ_JOINT, joint)
+        body = mujoco.mj_id2name(source, mujoco.mjtObj.mjOBJ_BODY, source.jnt_bodyid[joint])
+        matched = [index for index, full in enumerate(names) if full == name or full.endswith(f"_{body}_{name}")]
+        if len(matched) != 1:
+            raise ValueError(f"no single joint {name} in the target model: {len(matched)} found")
+        width = {int(mujoco.mjtJoint.mjJNT_FREE): 7, int(mujoco.mjtJoint.mjJNT_BALL): 4}.get(
+            int(source.jnt_type[joint]), 1)
+        start, at = source.jnt_qposadr[joint], target.jnt_qposadr[matched[0]]
+        found[:, at:at + width] = path[:, start:start + width]
+    if source.njnt != target.njnt:
+        raise ValueError(f"{source.njnt} joints carried onto a model of {target.njnt}")
+    return found
 
 
 def built(path, gravity):

@@ -17,13 +17,6 @@ from rra import RRA_ROUNDS, turned_off
 BONE_CELL = 0.005  # metres: the drawn bones' vertices merged within this
 
 
-def placed(turn, place):
-    """A turn and a place as a 4 x 4."""
-    found = np.eye(4)
-    found[:3, :3], found[:3, 3] = turn, place
-    return found
-
-
 def segment_pose(world):
     """A 4 x 4 as [x, y, z, qx, qy, qz, qw]."""
     return [*world[:3, 3], *Rotation.from_matrix(world[:3, :3]).as_quat()]
@@ -152,14 +145,14 @@ def arrays(name, bones, segments, paths, counts, meshes):
     return found
 
 
-def entry(model, record, names, rides, qpos, ground, shift, gravity, adjustment, records):
+def entry(model, record, names, rides, qpos, ground, gravity, adjustment, records):
     """One person's out.json entry: its model record with what MyoFullBody lacks, its muscles, joints, drawn bones
-    and the body each segment rides (`names`: those four), the centre of mass' height at `qpos` over the ground, the
-    path's one move up, its mass and weight, RRA's `adjusted` record and every frame's record."""
+    and the body each segment rides (`names`: those four), the centre of mass' height at `qpos` over the ground, its
+    mass and weight, RRA's `adjusted` record and every frame's record."""
     muscles, joints, drawn = names
     weight = sum(model.body_mass) * gravity
     return {"model": {**record, "lacks": {key: value for key, value in LACKS.items()}},
             "muscles": muscles, "joints": joints, "bones": drawn, "rides": rides,
-            "com height": round(com_height(model, qpos, ground), 4), "shift": round(shift, 4),
+            "com height": round(com_height(model, qpos, ground), 4),
             "kg": round(float(sum(model.body_mass)), 3),
             "weight N": round(float(weight), 2), "adjusted": adjustment, "frames": records}

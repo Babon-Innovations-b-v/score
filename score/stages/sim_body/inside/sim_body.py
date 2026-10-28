@@ -8,35 +8,26 @@ job.json (written by score/stages/sim_body): {"rate", "gravity", "model" (the fe
 ({"force", "moment"}: the limits' shares of the weight, and of it times the centre's height), "adjust" ({"move most
 m", "turn most deg", "follows deg"}: RRA's caps), "people":
 [{"name", "kg", "height" (the person's own standing height, m), "rig" ({"names", "parents", "bind"}: the person's rig),
-"segments" ([SOMA segment name], in the order of `targets`), "standing" (each segment's frame in the rig's
-standing clip's first frame, or null), "targets" (an .npz whose `world` is frames x segments x
+"segments" ([SOMA segment name], in the order of `targets`), "targets" (an .npz whose `world` is frames x segments x
 4 x 4: each segment's frame in the clip, `ground` n x 3 x 3: the scene's triangles it may touch, both in the
 person's own frame, Y up, and `points`, `faces`, `weights`: the person's SOMA mesh at its bind and its skin weights,
-which `sizing` sizes MyoFullBody to)}]}.
+which `sizing` sizes MyoFullBody to and the fit's markers are skinned on)}]}.
 
 The movement is the clip's (the owner, 2026-10-27: "we have kimodo for the actual movement; and myobody plus mujoco and
-newton for the physics"): the body, root included, follows it exactly, and the physics is what that movement asks.
-- Rotations to joint angles as OpenSim's OpenSense does with IMUs (Al Borno, O'Day, Ibarra, Dunne, Seth, Habib, Ong,
-  Hicks, Uhlrich and Delp 2022, "OpenSense: an open-source toolbox for inertial-measurement-unit-based measurement of
-  lower extremity kinematics over long durations", J NeuroEng Rehabil 19:22, doi:10.1186/s12984-022-01001-x;
-  opensim-core's IMUPlacer and IMUInverseKinematicsTool, Apache-2.0): each SOMA segment's world turn is a virtual
-  orientation sensor on the MyoFullBody body it rides (TARGETS); each sensor's fixed offset to its body is calibrated
-  on the person's standing frame as the model's default pose, its heading corrected (`offsets`), then fitted again
-  over the whole clip (`refitted`, the owner's change: one least squares over every frame, jointly with the fit, so
-  one odd frame cannot skew them); per frame the model's own joint angles minimise the sensors' squared error angles
-  (`fitted`, Simbody's OrientationSensors goal), in its own coordinates: a joint MuJoCo couples to another (the knee's
-  slides and turns, the patella, the lumbar levels, the shoulder rhythm) follows its leader by the model's own
-  polynomial, never fitted apart. Newton's eval_ik and IKSolver (#59) do not keep MuJoCo's joint couplings, so they are
-  not used here. The pelvis stands where SOMA's root path carries it (its place in the Hips' frame calibrated with the
-  model's hip joints on SOMA's); nothing else is placed by position. A foot standing on the ground in the clip
-  (`stances`: its SOMA joint low and still, Kovar et al. 2002) has its lowest point held on the ground and no foot
-  point goes into it (`on_ground`), by the legs' joints alone. What MyoFullBody cannot do follows as near as its joints
-  allow (LACKS).
-- The fitted path low-passed at CUTOFF (Winter's 6 Hz, zero lag), its feet put back on the ground and low-passed again
-  LAND_ROUNDS times, then put back last (`landed`), before it is differentiated; velocities and accelerations its
-  central differences.
-- The whole path is moved up or down once, so the body's lowest point stands on its ground at the median frame
-  (`grounded`).
+newton for the physics"), and SOMA is the truth (#70): MyoFullBody is fitted to it, never the reverse, and nothing
+here moves, scales or grounds SOMA.
+- One solver (`fit`, #70): the person's constants (each bone group's size, the limbs' joint centres, each virtual
+  marker's place on its bone) and every frame's joint angles, against the bone groups' turns (the main term: each SOMA
+  segment's world turn on its group's site, turned by the static calibration table; OpenSense's orientation tracking,
+  Al Borno et al. 2022, doi:10.1186/s12984-022-01001-x) and the SOMA mesh's bony landmarks skinned on the clip's own
+  skin as markers, weighed as OpenSim's IK weighs its two goals: mink per frame (couplings held exactly, the leading
+  joints in their ranges) and scipy's bounded least_squares over the constants together with the angles of frames
+  spread over the clip (OpenSim's ScaleTool and MarkerPlacer, solved as one problem); then the person's file is
+  written again with the found constants and every frame fitted on
+  it. MyoFullBody's root follows the markers on SOMA's skin; nothing is grounded. How closely the path follows SOMA
+  (each joint's mm, each group's degrees, split at a range limit or not) is the model record's `fit`.
+- The fitted path carried onto Newton's model by joint name and low-passed at CUTOFF (Winter's 6 Hz, zero lag)
+  before it is differentiated; velocities and accelerations its central differences.
 - OpenSim's residual reduction (RRA: Delp et al. 2007, doi:10.1109/TBME.2007.901024; opensim-core's RRATool,
   Apache-2.0), in our own stack (`reduced`): RRA_ROUNDS times, the body's mass changed by the mean upward residual and
   the torso's centre of mass moved under the mean residual moment (RRATool::adjustCOMToReduceResiduals), then the
@@ -54,12 +45,13 @@ newton for the physics"): the body, root included, follows it exactly, and the p
   is applied to anything: they are measures of how physically possible the movement is.
 
 This file is the run only: each step is a module beside it (#70), imported from this folder as Python puts a script's
-folder first: `bone_groups` (which body each segment rides), `ground`, `solvers`, `model` (the model Newton builds,
-its couplings), `sizing` and `myo` (the person's file), `contact` (the feet on the ground), `fit` (OpenSense's fit),
-`muscles` (the static optimisation), `rra` (the residual reduction) and `records` (what is written).
+folder first: `bone_groups` (the bone groups: which body each segment rides), `ground`, `solvers`, `landmarks`,
+`calibration`, `volumes`, `model` (the model Newton builds, its couplings), `sizing` and `myo` (the person's file),
+`contact` (the feet on the ground), `fit` (the one solver), `muscles` (the static optimisation), `rra` (the residual
+reduction) and `records` (what is written).
 
 out.json: {"engine", "rate", "people": {name: {"model" (the person's model record), "muscles" ([name]), "joints" ([name]
-of each driven dof), "com height" (m, frame 0, over its ground), "shift" (m, the path's one move up), "frames":
+of each driven dof), "com height" (m, frame 0, over its ground), "frames":
 [{"angles": [[x, y, z] degrees, rotation vector, per SOMA segment but the first, against its parent, as the body's
 segment riding its bone turns], "targets": [...the clip's...], "torques": [N m per joint], "ground": [x, y, z] N
 (the ground's push), "lowest": m (the lowest collider
@@ -68,8 +60,9 @@ point's height over the ground, null off it), "feet": {segment: [its lowest coll
 (the largest joint reserve), "activations": [0..1 per muscle], "forces": [N per muscle, tension]}],
 "adjusted": RRA's moves (`adjustment_record`)}}}, everything in the person's own frame (Y
 up); and beside it <out>.npz, per person: `<name>/bones` (each body's pose every frame, frames x bodies x 7),
-`<name>/segments` (each SOMA segment riding its bone every frame, frames x segments x 7: at the bind's correspondence,
-`offsets`), `<name>/paths` (every muscle's path points, all frames end to end), `<name>/counts` (frames x muscles: each
+`<name>/segments` (each SOMA segment riding its bone every frame, frames x segments x 7: turned by the calibration
+table, at its start joint's centre, `fit.riding`), `<name>/paths` (every muscle's path points, all frames end to end),
+`<name>/counts` (frames x muscles: each
 path's point count) and `<name>/mesh/<body>/points|faces` (each bone in its body's frame)."""
 import json
 import pathlib
@@ -79,13 +72,12 @@ import mujoco
 import newton
 import numpy as np
 
+import fit
 import myo
-from bone_groups import FEET, RIDES, TARGETS, sided, sided_map
-from contact import grounded, stances
-from fit import LAND_ROUNDS, OFFSET_ROUNDS, calibration, landed, motion, offsets, refitted
-from model import TO_OWN, body_index, built, filtered, posed_path, rates
+from bone_groups import FEET, groups
+from model import TO_OWN, body_index, built, carried, filtered, posed_path, rates
 from muscles import Physics
-from records import adjustment_record, arrays, bones_of, com_height, entry, frames, placed
+from records import adjustment_record, arrays, bones_of, com_height, entry, frames
 from rra import footed, off_clip, reduced, within_follows, within_frames
 from sizing import Size
 
@@ -97,40 +89,44 @@ def arguments():
     return pathlib.Path(given[0]), pathlib.Path(given[1])
 
 
+def fitted_person(job, person, rig, worlds, path):
+    """The person's file at `path` with the fit's constants, its record (the fit and its following of SOMA in it),
+    each body's scale and the fitted path (qpos of MuJoCo's own compile of the file)."""
+    size, segments = Size(rig), person["segments"]
+    _, scales = myo.person_file(job["model"], size, person["kg"], path)
+    held = fit.followed(segments)
+    turns, points = fit.targets(rig, segments, worlds, held)
+    found = fit.constants(fit.fitting(path, scales, segments, held, size.lengths), turns, points)
+    record, scales = myo.person_file(job["model"], size, person["kg"], path, found)
+    fitting = fit.fitting(path, scales, segments, held, size.lengths, found["marks"])
+    angles = fit.angles(fitting, turns, points)
+    record["fit"] = {"method": fit.METHOD, "constants": fit.constants_record(found),
+                     "following": fit.following(fitting.model, angles, worlds, segments, scales)}
+    return record, scales, fitting.model, angles
+
+
 def run_person(job, person, out_path):
-    """One person: its model sized and built, its path fitted, its physics frame by frame."""
+    """One person: its model sized and fitted to SOMA, its path, its physics frame by frame."""
     targets = np.load(person["targets"])
     worlds, ground = targets["world"], targets["ground"]
+    segments = person["segments"]
     path = out_path.parent / f"{person['name']}.xml"
     rig = {**person["rig"], "points": targets["points"], "faces": targets["faces"], "weights": targets["weights"]}
-    record = myo.person_file(job["model"], Size(rig), person["kg"], path)
+    record, scales, own, angles = fitted_person(job, person, rig, worlds, path)
     model = built(path, job["gravity"])
-    rides = sided_map(RIDES)
-    bodies = {segment: body_index(model, rides[segment]) for segment in person["segments"]}
+    rides = {segment: groups()[segment][2] for segment in segments}
+    bodies = {segment: body_index(model, rides[segment]) for segment in segments}
     colliders = [geom for geom in range(model.ngeom) if model.geom_contype[geom] or model.geom_conaffinity[geom]]
     physics = Physics(model, ground, colliders)
-    fixed = offsets(model, physics.couplings, person, person["segments"], bodies)
     feet = {segment: [geom for geom in colliders if model.geom_bodyid[geom] == bodies[segment]]
-            for segment in person["segments"] if segment.endswith(FEET)}
-    for _ in range(OFFSET_ROUNDS):
-        fixed = refitted(model, motion(model, physics.couplings, person, worlds, bodies, fixed), worlds,
-                         person["segments"], bodies, fixed)
+            for segment in segments if segment.endswith(FEET)}
     soles = {bodies[segment]: geoms for segment, geoms in feet.items()}
-    standing = calibration(person, person["segments"])
-    planted = [{bodies[segment] for segment in stood}
-               for stood in stances(standing, person["segments"], worlds, ground, job["rate"])]
-    qpath = filtered(model, physics.couplings, motion(model, physics.couplings, person, worlds, bodies, fixed, ground,
-                                                      soles, planted), job["rate"])
-    sensors = [bodies[segment] for segment in sided(TARGETS)]
-    for landing in range(LAND_ROUNDS + 1):  # the low-pass moves a held foot again: land, filter, and land last
-        qpath = landed(model, physics.couplings, qpath, ground, soles, planted, sensors)
-        qpath = qpath if landing == LAND_ROUNDS else filtered(model, physics.couplings, qpath, job["rate"])
-    qpath, shift = grounded(model, qpath, colliders, ground, person["name"])
+    qpath = filtered(model, physics.couplings, carried(own, model, angles), job["rate"])
     names = [str(name) for name in person["rig"]["names"]]
-    parents = [person["segments"].index(names[parent]) if parent >= 0 and names[parent] in person["segments"] else -1
-               for parent in (person["rig"]["parents"][names.index(segment)] for segment in person["segments"])]
-    riding = {segment: np.linalg.inv(placed(*[part[segment] for part in fixed])) for segment in person["segments"]}
-    fitted_poses = posed_path(model, qpath, person["segments"], bodies, riding)
+    parents = [segments.index(names[parent]) if parent >= 0 and names[parent] in segments else -1
+               for parent in (person["rig"]["parents"][names.index(segment)] for segment in segments)]
+    riding = fit.riding(model, scales, segments)
+    fitted_poses = posed_path(model, qpath, segments, bodies, riding)
     weight = sum(model.body_mass) * job["gravity"]
     limits = (job["residual"]["force"] * weight, job["residual"]["moment"] * weight * com_height(model, qpath[0], ground))
     most = (job["adjust"]["move most m"], np.radians(job["adjust"]["turn most deg"]))
@@ -138,16 +134,17 @@ def run_person(job, person, out_path):
     def land(path):
         return footed(model, physics.couplings, path, qpath, list(soles))
 
-    riders = (person["segments"], bodies, riding, parents)
+    riders = (segments, bodies, riding, parents)
     adjusted, moves, step = reduced(physics, qpath, job["rate"], limits, most, land, fitted_poses, riders)
     adjusted, kept = within_follows(physics, qpath, adjusted, moves, land, worlds, riders, job["adjust"]["follows deg"])
     adjusted, shares = within_frames(physics, qpath, kept * moves, land, fitted_poses, riders, most, job["rate"])
-    adjusted_poses = posed_path(model, adjusted, person["segments"], bodies, riding)
+    adjusted_poses = posed_path(model, adjusted, segments, bodies, riding)
     adjustment = adjustment_record((adjusted[:, :3] - qpath[:, :3]) @ TO_OWN.T, kept, shares, step, fitted_poses,
-                                   adjusted_poses, person["segments"],
-                                   [off_clip(model, walked, worlds, person["segments"], bodies, riding, parents)
+                                   adjusted_poses, segments,
+                                   [off_clip(model, walked, worlds, segments, bodies, riding, parents)
                                     for walked in (qpath, adjusted)])
     qpath = adjusted
+    record["fit"]["following, the path the physics takes"] = fit.following(model, qpath, worlds, segments, scales)
     velocities, accelerations = rates(model, qpath, job["rate"])
     joints = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, model.dof_jntid[dof]) for dof in
               physics.couplings.leads[6:]]
@@ -159,11 +156,11 @@ def run_person(job, person, out_path):
     meshes = bones_of(own_model)
     drawn = sorted(meshes)
     drawn_ids = [body_index(model, name) for name in drawn]
-    records, bones, segments, paths, counts = frames(physics, qpath, velocities, accelerations, worlds, ground, riders,
-                                                     feet, drawn_ids)
-    mine = arrays(person["name"], bones, segments, paths, counts, meshes)
-    return entry(model, record, (muscles, joints, drawn), {segment: rides[segment] for segment in person["segments"]},
-                 qpath[0], ground, shift, job["gravity"], adjustment, records), mine
+    records, bones, posed, paths, counts = frames(physics, qpath, velocities, accelerations, worlds, ground, riders,
+                                                  feet, drawn_ids)
+    mine = arrays(person["name"], bones, posed, paths, counts, meshes)
+    return entry(model, record, (muscles, joints, drawn), rides, qpath[0], ground, job["gravity"], adjustment,
+                 records), mine
 
 
 def run(job_path, out_path):

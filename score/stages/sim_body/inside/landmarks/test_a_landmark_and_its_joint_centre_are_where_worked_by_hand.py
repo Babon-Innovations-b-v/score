@@ -1,4 +1,5 @@
-"""landmarks: a landmark is its face's barycentric point on a person's mesh, the joint centres it gives are the ISB
+"""landmarks: a landmark is its face's barycentric point on a person's mesh, and on the clip's skin its corners'
+skinned moves' (each corner its joints' weighted moves from the bind), the joint centres it gives are the ISB
 midpoints and Harrington's hips, a stretch's end on SOMA is its joint, the hip joints' middle or the hand's tip, and
 each left landmark's MyoFullBody point is its right one's mirrored (all worked out by hand; pure: the score venv
 runs it).
@@ -10,6 +11,10 @@ Breaks (each applied once, seen red, reverted), 2026-10-28:
 - harrington's `(("l", -1.0), ("r", 1.0))` made `(("l", 1.0), ("r", -1.0))`: the hips swap sides.
 - soma_point's `1.0 - TIP_SHARE` made `0.5`: the hand's tip is its far half's middle.
 - _table's ASIS_r bone point x `0` made `0.01`: the right ASIS is 1 cm off the left's mirror.
+- posed's `np.asarray(worlds, dtype=float) @ np.linalg.inv(bind)` made `np.asarray(worlds, dtype=float)`: a joint's
+  move is its frame, not its move from the bind.
+- posed's `np.einsum("lcs,flcsi->flci", weights, moved)` made `moved[..., 0, :]`: every corner moves with its first
+  segment only.
 
 Run: .venv/bin/python score/stages/sim_body/inside/landmarks/test_a_landmark_and_its_joint_centre_are_where_worked_by_hand.py
 """
@@ -30,6 +35,28 @@ def a_landmark_is_its_faces_barycentric_point():
     faces = np.zeros((10000, 3), dtype=int) + [0, 1, 2]
     found = landmarks.on_skin(points, faces)["ASIS_l"]
     return [] if np.allclose(found, [0.15773, 0.71708, 0.0]) else [f"ASIS_l at {found}"]
+
+
+def a_skinned_landmark_is_its_corners_blended_moves():
+    """Every face the triangle (0, 0, 0), (1, 0, 0), (0, 1, 0); corner 0 all Hips', corner 1 half Hips' half
+    LeftLeg's, corner 2 all LeftLeg's (Root weighs nothing); LeftLeg's bind stands at (0, 1, 0). In a frame where Hips
+    moves 1 along x and LeftLeg turns 90 degrees about z at its bind place, corner 0 is at (1, 0, 0), corner 1 at
+    ((2, 0, 0) + (1, 2, 0)) / 2 and corner 2 stays: ASIS_l (weights 0.1252, 0.15773, 0.71708) at (0.361795, 0.87481,
+    0)."""
+    corners = np.array([[0.0, 0, 0], [1, 0, 0], [0, 1, 0]])
+    bind = np.tile(np.eye(4), (3, 1, 1))
+    bind[2, 1, 3] = 1.0
+    rig = {"names": ["Root", "Hips", "LeftLeg"], "bind": bind, "points": corners,
+           "faces": np.zeros((10000, 3), dtype=int) + [0, 1, 2],
+           "weights": np.array([[0.0, 1.0, 0.0], [0.0, 0.5, 0.5], [0.0, 0.0, 1.0]])}
+    hips, leg = np.eye(4), np.eye(4)
+    hips[0, 3] = 1.0
+    leg[:3, :3] = [[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]
+    leg[1, 3] = 1.0
+    found = landmarks.posed(rig, ["Hips", "LeftLeg"], np.array([[hips, leg]]))
+    first = landmarks.solver_marks().index("ASIS_l")
+    wanted = [0.361795, 0.87481, 0.0]
+    return [] if np.allclose(found[0, first], wanted, atol=1e-6) else [f"ASIS_l skinned at {found[0, first]}"]
 
 
 def the_hips_are_harringtons():
@@ -85,7 +112,8 @@ def each_left_point_is_its_right_ones_mirror():
     return problems + ([] if weights == [0.5, 0.5] else [f"hipmid weights {weights}"])
 
 
-CHECKS = (a_landmark_is_its_faces_barycentric_point, the_hips_are_harringtons, a_joint_centre_is_its_landmarks_middle,
+CHECKS = (a_landmark_is_its_faces_barycentric_point, a_skinned_landmark_is_its_corners_blended_moves,
+          the_hips_are_harringtons, a_joint_centre_is_its_landmarks_middle,
           a_stretch_end_is_a_joint_the_hips_middle_or_the_hands_tip, each_left_point_is_its_right_ones_mirror)
 
 

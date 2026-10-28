@@ -2,7 +2,8 @@
 joints, a muscle whose class gives its parameters, names with '-'), sized to a toy SOMA (each thigh and shin a box),
 compiles in MuJoCo and builds in Newton with the
 same joints, one joint a body, no '-' in a name, no floor, the person's mass, and every muscle's gain and bias in
-Newton's model the published model's (#60's import fixes). It runs in Newton's own Python
+Newton's model the published model's (#60's import fixes); with the fit's constants given, a group's bodies sit
+its factor further apart and a moved body stands moved. It runs in Newton's own Python
 (score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there, as in `make
 tests`' sandbox home, it prints `skipped`.
 
@@ -13,6 +14,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - person_file's `split(full_muscles(renamed(xml), final))` made `split(renamed(xml))`: the muscle's partial
   gainprm loses its class's range and Newton refuses it ("lmin<1<lmax required in muscle").
 - person_file's `spec.delete(geom)` made `pass`: the floor stays.
+- person_file's `spec.body(body).pos = np.asarray(spec.body(body).pos) + move` made `pass`: the shin is not moved.
+- person_file's `scales = {body: scale * factors[body] ...}` dropped: the shin group keeps its length.
 
 Run: .venv/bin/python score/stages/sim_body/inside/myo/test_the_persons_file_builds_in_newton_as_mujoco_compiles_it.py
 """
@@ -119,17 +122,17 @@ def toy_body():
 
 
 
-def written(folder):
-    """The person's file written from the toy wheel in `folder`, its text, its record and its two compiles: MuJoCo's
-    and Newton's."""
+def written(folder, constants=None):
+    """The person's file written from the toy wheel in `folder` (with the fit's `constants`), its text, its record and
+    its two compiles: MuJoCo's and Newton's."""
     import mujoco
     import model
     import myo
     source = pathlib.Path(folder) / myo.SOURCE
-    source.parent.mkdir(parents=True)
+    source.parent.mkdir(parents=True, exist_ok=True)
     source.write_text(toy_body())
     path = pathlib.Path(folder) / "person.xml"
-    record = myo.person_file(folder, toy_size(), KG, path)
+    record, _ = myo.person_file(folder, toy_size(), KG, path, constants)
     return path.read_text(), record, mujoco.MjModel.from_xml_path(str(path)), model.built(path, 9.81)
 
 
@@ -149,6 +152,23 @@ def the_written_file_builds_as_it_compiles():
     return problems + ([] if abs(record["kg"] - KG) < 1e-3 else [f"record kg {record['kg']}"])
 
 
+def the_constants_size_and_move_the_file():
+    """With the left shin group's factor 1.1 and the left tibia moved 1 cm along x in its parent: the talus sits 1.1
+    times as far down the tibia, the tibia 1 cm further along x, against the file written without them."""
+    import mujoco
+    import numpy as np
+    with tempfile.TemporaryDirectory() as folder:
+        plain = written(folder)[2]
+        fitted = written(folder, {"sizes": {"LeftShin": 1.1}, "joints": {"tibia_l": [0.01, 0.0, 0.0]}})[2]
+
+    def place(model, name):
+        return model.body_pos[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, name)]
+    problems = [] if np.allclose(place(fitted, "talus_l"), 1.1 * place(plain, "talus_l")) else [
+        f"talus at {place(fitted, 'talus_l')} against {place(plain, 'talus_l')}"]
+    moved = place(fitted, "tibia_l") - place(plain, "tibia_l")
+    return problems + ([] if np.allclose(moved, [0.01, 0.0, 0.0]) else [f"the tibia moved {moved}"])
+
+
 def every_muscle_keeps_its_published_parameters_in_newton():
     """The muscle's gain and bias parameters in Newton's model are the published model's compile (to 1e-6)."""
     import mujoco
@@ -165,7 +185,8 @@ def every_muscle_keeps_its_published_parameters_in_newton():
     return problems
 
 
-CHECKS = (the_written_file_builds_as_it_compiles, every_muscle_keeps_its_published_parameters_in_newton)
+CHECKS = (the_constants_size_and_move_the_file, the_written_file_builds_as_it_compiles,
+          every_muscle_keeps_its_published_parameters_in_newton)
 
 
 def in_newton():

@@ -1,186 +1,138 @@
-"""The clip's SOMA segment turns to MyoFullBody's joint angles, as OpenSim's OpenSense does with IMUs (Al Borno et al.
-2022, doi:10.1186/s12984-022-01001-x; opensim-core's IMUPlacer and IMUInverseKinematicsTool, Apache-2.0): each
-segment a virtual orientation sensor on the body it rides, calibrated on the person's standing frame (`calibration`,
-`offsets`), fitted again over the whole clip (`refitted`); per frame the model's own leading coordinates minimise the
-sensors' squared error angles, MuJoCo's couplings kept, the pelvis placed where SOMA's Hips carry it, the standing
-feet held on the ground (`motion`); the low-passed path's feet put back on the ground (`landed`)."""
+"""MyoFullBody fitted to the clip's SOMA body (#70: SOMA is the truth), one solver: the person's constants (each bone
+group's size, the joint centres SOMA places, where each virtual marker sits on its bone) and every frame's joint
+angles, against one cost of the bone groups' turns (the main term: each SOMA segment's world turn on its group's
+calibration site, OpenSense's orientation tracking with the static table, never a fitted offset), the landmarks'
+markers (the SOMA mesh's bony landmarks on the clip's own skin) and SOMA's joints on MyoFullBody's centres (`placed`),
+weighed as OpenSim's IK weighs its goals, within the joints' ranges and with the model's couplings held.
+
+- `targets`: the clip's targets in MuJoCo's frame: each group's segment turn, each landmark skinned (`landmarks`).
+- `constants`: on SAMPLE frames spread over the clip, mink per frame at the start constants (`_frames`), then scipy's
+  bounded `least_squares` over the constants and those frames' angles together, one sparse problem (`_constants`).
+- `angles`: mink on every frame of the clip, on the person's file written with the found constants.
+- `following` and `riding` (`_follow`): the judgement (joint mm, group degrees, at a range limit or not) and where each
+  SOMA segment rides its group's frame body.
+Nothing here moves, scales or grounds SOMA: the run writes no SOMA pose, and MyoFullBody's root follows the markers on
+SOMA's skin."""
 import mujoco
 import numpy as np
-from scipy.spatial.transform import Rotation
 
-from bone_groups import HIPS, TARGETS, sided
-from contact import on_ground, unslipped
-from model import TO_OWN, body_index, default_pose, limited, own_pose
+from bone_groups import groups
+from calibration import turn
+from fit._constants import constants as fitted_constants
+from fit._follow import following, judged, riding
+from fit._frames import Frames, NotConverged
+from fit._model import Fitting, filed, own_name
+from landmarks import MARKS, myo_parts, posed, solver_marks
+from landmarks._table import CENTRES
+from model import TO_OWN
+from sizing import OWN_PLACED, stretches
 
-FIT_DAMPING = 1e-3
-# The fit's weight of a radian (or metre) a joint moves from the frame before: 0.05 left the hanging arm's plane of
-# elevation (MoBL-ARMS' gimbal) swinging up to 10,000 deg/s2, about 130 N m of the pelvis' residual (2026-10-28).
-FIT_STEADY = 0.2
-# The fit holds the lowest point of a standing foot's body on the ground and keeps every foot point out of it,
-# FIT_GROUND its weight per metre.
-FIT_GROUND = 100.0
-LAND_ROUNDS = 2  # the path landed and low-passed again before it is landed last
-OFFSET_ROUNDS = 3  # the offsets fitted again over the clip, each round with the path fitted on the last
-FIT_FIRST, FIT_NEXT = 400, 40  # fit iterations at the first frame, then each next one from the last
+SAMPLE = 30  # frames the constants are fitted on, spread over the clip (recipe 2026-10-28: the sparse problem did not
+# finish in 3 minutes at 150 frames; 30 frames hold the clip's range)
+# The joint centres the constants move (each side): the limbs' joints SOMA places.
+PLACED_JOINTS = ("hip", "knee", "ankle", "mtp", "sternoclavicular", "glenohumeral", "elbow", "wrist")
+HAND_TOP = "lunate"  # the hand group's frame body: the finger bones under it have no target and are held
 
-
-def calibration(person, segments):
-    """The frame the sensors are calibrated on (segments x 4 x 4, the person's frame): the rig's standing clip's first
-    frame, else SOMA's bind."""
-    if person.get("standing") is not None:
-        return np.asarray(person["standing"], dtype=float)
-    names = [str(name) for name in person["rig"]["names"]]
-    bind = np.asarray(person["rig"]["bind"], dtype=float)
-    return np.array([bind[names.index(segment)] for segment in segments])
-
-
-def _heading(model, data, frame, index):
-    """OpenSense's heading correction (OpenSenseUtilities::computeHeadingCorrection): the turn about up (3 x 3, the
-    person's frame) that faces the calibration frame as the model's default pose faces, read off the hip joints' line
-    (left to right) of each."""
-    theirs = frame[index["RightLeg"]][:3, 3] - frame[index["LeftLeg"]][:3, 3]
-    mine = TO_OWN @ (data.xpos[body_index(model, HIPS["RightLeg"])] - data.xpos[body_index(model, HIPS["LeftLeg"])])
-    angle = np.arctan2(theirs[0], theirs[2]) - np.arctan2(mine[0], mine[2])
-    return Rotation.from_rotvec([0.0, -angle, 0.0]).as_matrix()
+METHOD = ("one solver (#70): mink 1.3.0 per frame (the bone groups' turns on the static calibration table, the SOMA "
+          "skin's landmarks and SOMA's joints as markers, weighed as OpenSim's IK weighs its goals; couplings held, "
+          "leading joints in range) and scipy's bounded least_squares over the person's constants (group sizes, "
+          "joint centres, marker places; each stretch held to SOMA's length) with the angles of frames spread over "
+          "the clip, one sparse problem; then mink on every frame")
+__all__ = ["Fitting", "Frames", "NotConverged", "following", "riding", "followed", "placed", "targets", "fitting",
+           "constants", "constants_record", "angles"]
 
 
-def offsets(model, couplings, person, segments, bodies):
-    """OpenSense's IMUPlacer: each segment a sensor on the body it rides, calibrated once on the person's standing
-    frame (`calibration`) as the model's default pose, its heading corrected (`_heading`): each segment's fixed turn
-    to its body ({segment: 3 x 3}, R_FB of IMUPlacer.cpp, transposed) and its body's place in the segment's frame
-    ({segment: 3}), the model's hip joints' middle on SOMA's."""
-    data = default_pose(model, couplings)
-    frame = calibration(person, segments)
-    index = {segment: number for number, segment in enumerate(segments)}
-    turn = _heading(model, data, frame, index)
-    middle = (frame[index["LeftLeg"]][:3, 3] + frame[index["RightLeg"]][:3, 3]) / 2
-    frame = frame.copy()
-    for world in frame:  # the calibration frame turned about its hips' middle
-        world[:3, :3] = turn @ world[:3, :3]
-        world[:3, 3] = middle + turn @ (world[:3, 3] - middle)
-    moved = middle - TO_OWN @ np.mean([data.xpos[body_index(model, name)] for name in HIPS.values()], axis=0)
-    turns, places = {}, {}
-    for segment in segments:
-        if segment in bodies:
-            body = own_pose(model, data, bodies[segment])
-            turns[segment] = frame[index[segment]][:3, :3].T @ body[:3, :3]
-            places[segment] = (np.linalg.inv(frame[index[segment]]) @ [*(body[:3, 3] + moved), 1.0])[:3]
-    return turns, places
+def followed(segments):
+    """The bone groups whose turns are targets: every group SOMA has (OpenSense: every segment a sensor, weight 1),
+    in `groups()` order. One with no joint of its own (the thorax, neck and head, rigid on lumbar1) or whose joints
+    follow another's (the lumbar levels above L5, the shoulder girdle on the arm's elevation) is met as near as the
+    joints that lead it allow (`LACKS`); leaving them out was measured worse on the Kimodo walker (2026-10-28: joints
+    24 mm median against 17 with every group)."""
+    return [group for group in groups() if group in segments]
 
 
-def _fitted(model, couplings, targets, qpos, rounds, before=None, ground=None, feet=(), planted=(), stood=None):
-    """The model's qpos whose bodies turn as `targets` ({body: 3 x 3, MuJoCo's frame}): OpenSense's inverse
-    kinematics (Simbody's OrientationSensors goal, every sensor's error angle squared, weight 1 each), by damped least
-    squares on the leading dofs, `rounds` steps from `qpos`, the joints kept in their ranges as OpenSim's assembler
-    clamps them; with the frame `before` given, each joint is held lightly to it (FIT_STEADY), so a direction the
-    targets leave free (the shoulder's plane of elevation with the arm hanging, MoBL-ARMS' gimbal) does not wander
-    frame to frame; with `feet` given, their points held on and out of the `ground` (`on_ground`, FIT_GROUND), the
-    pelvis' place kept; with `stood` (the frame before: its qpos and planted bodies) given too, a body planted in both
-    rolls without slipping (`unslipped`)."""
-    data = mujoco.MjData(model)
-    if stood is not None:
-        before_data = mujoco.MjData(model)
-        before_data.qpos[:] = stood[0]
-        mujoco.mj_kinematics(model, before_data)
-    rotation, translation = np.zeros((3, model.nv)), np.zeros((3, model.nv))
-    qpos = couplings.apply(qpos.copy())
-    joints = couplings.leads[6:]
-    addresses = model.jnt_qposadr[model.dof_jntid[joints]]
-    steady = np.zeros((len(joints), len(couplings.leads)))
-    steady[np.arange(len(joints)), 6 + np.arange(len(joints))] = FIT_STEADY
-    for _ in range(rounds):
-        data.qpos[:] = qpos
-        mujoco.mj_kinematics(model, data)
-        mujoco.mj_comPos(model, data)
-        rows, errors = [], []
-        for body, target in targets.items():
-            mujoco.mj_jacBody(model, data, None, rotation, body)
-            rows.append(rotation.copy())
-            errors.append((Rotation.from_matrix(target) * Rotation.from_matrix(
-                data.xmat[body].reshape(3, 3)).inv()).as_rotvec())
-        for point, body, rise in (on_ground(model, data, ground, feet, planted) if feet else ()):
-            mujoco.mj_jac(model, data, translation, None, point, body)
-            rows.append(FIT_GROUND * translation[2:3])
-            errors.append([FIT_GROUND * rise])
-        for point, body, slip in (unslipped(model, data, before_data, ground, feet, planted & stood[1])
-                                  if feet and stood is not None else ()):
-            mujoco.mj_jac(model, data, translation, None, point, body)
-            rows.append(FIT_GROUND * translation[:2])
-            errors.append(-FIT_GROUND * slip)
-        mapped = couplings.map(qpos)
-        jacobian = np.concatenate(rows) @ mapped
-        if feet:  # the pelvis' place is SOMA's root path's: the legs bring the feet to the ground
-            jacobian[:, :3] = 0.0
-        if before is not None:
-            jacobian = np.concatenate([jacobian, steady])
-            errors.append(FIT_STEADY * (before[addresses] - qpos[addresses]))
-        step = np.linalg.solve(jacobian.T @ jacobian + FIT_DAMPING * np.eye(jacobian.shape[1]),
-                               jacobian.T @ np.concatenate(errors))
-        mujoco.mj_integratePos(model, qpos, mapped @ step, 1.0)
-        qpos = limited(model, qpos, couplings)
-    return qpos
+def placed(segments):
+    """[(SOMA joint, MyoFullBody centre)] of the judged joints SOMA has whose centre one body holds (all but Neck2's,
+    the middle of C7/T1 and C0/C1): SOMA's joints as virtual markers on MyoFullBody's centres."""
+    return [(soma, myo) for soma, myo in judged() if soma in segments and len(myo_parts(myo)) == 1]
 
 
-def _sensed(person, world, bodies, turns):
-    """Each sensor's body turn in a frame of the clip ({body: 3 x 3}, MuJoCo's frame): its segment's turn and offset."""
-    return {bodies[segment]: TO_OWN.T @ (world[person["segments"].index(segment)][:3, :3] @ turns[segment])
-            for segment in sided(TARGETS)}
+def targets(rig, segments, worlds, held):
+    """The clip's targets in MuJoCo's frame: (each frame's turns of the `held` groups, frames x groups x 3 x 3; each
+    frame's places, frames x (solver landmarks, then `placed` joints) x 3)."""
+    worlds = np.asarray(worlds, dtype=float)
+    turns = np.einsum("ij,fgjk->fgik", TO_OWN.T, worlds[:, [segments.index(group) for group in held], :3, :3])
+    joints = worlds[:, [segments.index(soma) for soma, _ in placed(segments)]][..., :3, 3]
+    return turns, np.concatenate([posed(rig, segments, worlds), joints], axis=1) @ TO_OWN
 
 
-def motion(model, couplings, person, worlds, bodies, fixed, ground=None, feet=None, planted=None):
-    """The fitted path (frames x nq): every TARGETS segment's turn followed (`_fitted`), then the root moved so the
-    pelvis stands where SOMA's Hips carry it (its calibrated place in the Hips' frame), nothing else placed; with
-    `feet` given, then fitted again with its feet on the ground (`on_ground`, `planted` frame by frame)."""
-    turns, places = fixed
-    hips = person["segments"].index("Hips")
-    pelvis, path = bodies["Hips"], []
-    data = default_pose(model, couplings)
-    qpos = couplings.apply(model.qpos0.copy())
-    root = model.jnt_bodyid[0]
-    for frame, world in enumerate(worlds):
-        wanted = _sensed(person, world, bodies, turns)
-        if frame == 0:  # the root turned so the pelvis turns as wanted
-            rest = data.xmat[root].reshape(3, 3).T @ data.xmat[pelvis].reshape(3, 3)
-            qpos[3:7] = Rotation.from_matrix(wanted[pelvis] @ rest.T).as_quat(scalar_first=True)
-        qpos = _fitted(model, couplings, wanted, qpos, FIT_FIRST if frame == 0 else FIT_NEXT,
-                       None if frame == 0 else qpos)
-        data.qpos[:] = qpos
-        mujoco.mj_kinematics(model, data)
-        qpos[:3] += TO_OWN.T @ (world[hips] @ [*places["Hips"], 1.0])[:3] - data.xpos[pelvis]
-        if feet:
-            qpos = _fitted(model, couplings, wanted, qpos, FIT_NEXT, qpos, ground, feet, planted[frame],
-                           (path[-1], planted[frame - 1]) if frame else None)
-        path.append(qpos.copy())
-    return np.array(path)
+def _tops(model, names):
+    """Each centre's top body (its chain's first body placed off its parent's origin: a split body's first wrapper,
+    the shoulder's phantom), by name in `model`."""
+    found = []
+    for name in names:
+        body = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, CENTRES[name][0])
+        while not np.any(model.body_pos[body]) and model.body_parentid[body] > 0:
+            body = model.body_parentid[body]
+        found.append((name, model.body(body).name))
+    return found
 
 
-def refitted(model, path, worlds, segments, bodies, fixed):
-    """The sensor offsets fitted again over the whole clip (the owner's change to OpenSense, 2026-10-28: one odd
-    calibration frame cannot skew them): each segment's turn to its body the mean (chordal least squares,
-    Rotation.mean) of its turn to its fitted body over every frame of `path`; its place kept where its body sees it."""
-    data, turns, places = mujoco.MjData(model), {}, {}
-    seen = {segment: [] for segment in bodies}
-    for qpos, world in zip(path, worlds):
-        data.qpos[:] = qpos
-        mujoco.mj_kinematics(model, data)
-        for number, segment in enumerate(segments):
-            if segment in bodies:
-                seen[segment].append(world[number][:3, :3].T @ own_pose(model, data, bodies[segment])[:3, :3])
-    for segment, found in seen.items():
-        turns[segment] = Rotation.from_matrix(np.array(found)).mean().as_matrix()
-        places[segment] = turns[segment] @ fixed[0][segment].T @ fixed[1][segment]
-    return turns, places
+def fitting(path, scales, segments, held, lengths, moves=None):
+    """The fitting model of the person's file at `path` (`Fitting`): a calibration site per `held` group, a marker
+    per solver landmark at its start on its bone (sized by `scales`, moved by `moves` {landmark: 3}), a site on each
+    `placed` centre, the limbs' joint centres free to move, the fingers held, and each sizing stretch held to SOMA's
+    length (`lengths` {group: m}, `sizing.soma_lengths`)."""
+    table, moves = groups(), moves or {}
+    frames = [(group, table[group][2], turn(group)) for group in held]
+    marks = [(name, MARKS[name][3], np.asarray(MARKS[name][5]) * scales[MARKS[name][3]] + moves.get(name, 0.0))
+             for name in solver_marks()]
+    owners = {filed(body): group for group, (_, _, bodies) in stretches().items() for body in bodies}
+    fingers = {body for _, _, frame, bodies in table.values() if frame.startswith(HAND_TOP)
+               for body in bodies if body != frame}
+    spec_model = mujoco.MjModel.from_xml_path(str(path))
+    joints = _tops(spec_model, [f"{joint}_{side}" for joint in PLACED_JOINTS for side in "lr"])
+    ends = [[[(filed(body), np.asarray(local) * scales[body], weight) for body, local, weight in myo_parts(name)]
+             for name in (start, end)] for _, (start, end), _ in stretches().values()]
+    held_lengths = [(start, end, lengths[group]) for group, (start, end) in zip(stretches(), ends)]
+    centres = [(soma, filed(myo_parts(myo)[0][0]), np.asarray(myo_parts(myo)[0][1]) * scales[myo_parts(myo)[0][0]])
+               for soma, myo in placed(segments)]
+    return Fitting(path, frames, marks, owners, {filed(body) for body in OWN_PLACED}, joints, fingers, held_lengths,
+                   centres)
 
 
-def landed(model, couplings, path, ground, feet, planted, sensed):
-    """The low-passed path with its feet put back on the ground (`on_ground`), frame by frame, every sensed body held
-    to its turn and every joint to its angle there, the pelvis where it stands: the low-pass moves a held foot by
-    millimetres to centimetres at a fast toe-off, and the ground is the last word on where a foot stands."""
-    data, found = mujoco.MjData(model), []
-    for frame, (qpos, held) in enumerate(zip(path, planted)):
-        data.qpos[:] = qpos
-        mujoco.mj_kinematics(model, data)
-        turns = {body: data.xmat[body].reshape(3, 3).copy() for body in sensed}
-        found.append(_fitted(model, couplings, turns, qpos, FIT_NEXT, qpos, ground, feet, held,
-                             (found[-1], planted[frame - 1]) if frame else None))
-    return np.array(found)
+def spread(count, most=SAMPLE):
+    """Up to `most` frame indices spread evenly over `count` frames, both ends in."""
+    return np.unique(np.linspace(0, count - 1, min(count, most)).round().astype(int))
+
+
+def constants(fit, turns, points):
+    """The person's constants on `fit` (a `Fitting`): mink's angles at the start constants on the frames `spread`
+    picks, then one sparse least squares over the constants and those frames' angles together:
+    {"sizes": {group: factor}, "joints": {top body: [3] m, its parent's frame}, "marks": {landmark: [3] m, its body's
+    frame}, "evaluations": n, "followed": [group]}."""
+    sample = spread(len(turns))
+    path = Frames(fit).fitted(turns[sample], points[sample])
+    found, _, evaluations = fitted_constants(fit, path, turns[sample], points[sample], fit.neutral())
+    sizes, joints, marks = fit.unpack(found)
+    return {"sizes": dict(zip(fit.sizes, map(float, sizes))),
+            "joints": {own_name(fit.model.body(body).name): move.tolist()
+                       for body, move in zip(fit.joint_bodies, joints)},
+            "marks": {name: move.tolist() for name, move in zip(fit.marks, marks)}, "evaluations": evaluations,
+            "followed": list(fit.groups)}
+
+
+def angles(fit, turns, points):
+    """Every frame's joint angles on `fit` (frames x nq of its model; MuJoCo's own compile)."""
+    return Frames(fit).fitted(turns, points)
+
+
+def constants_record(found):
+    """The constants as the model record keeps them: each group's size factor, each joint centre's move (mm, its
+    parent's frame), the markers' moves (mm: median and largest), the solve's evaluations and the groups followed."""
+    moves = [float(np.linalg.norm(move)) * 1000 for move in found["marks"].values()]
+    return {"size factor": {group: round(factor, 4) for group, factor in found["sizes"].items()},
+            "joint centre moved mm": {body: [round(value * 1000, 1) for value in move]
+                                      for body, move in found["joints"].items()},
+            "markers moved mm": [round(float(np.median(moves)), 1), round(max(moves), 1)] if moves else [],
+            "evaluations": found["evaluations"], "followed": found["followed"]}

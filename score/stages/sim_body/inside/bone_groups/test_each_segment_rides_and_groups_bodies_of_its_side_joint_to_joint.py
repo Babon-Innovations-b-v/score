@@ -1,12 +1,13 @@
-"""bone_groups: a `{Side}` name is written out for both sides, every segment the fit follows rides a MyoFullBody
-body of its own side, and every bone group spans the same joints as its SOMA segment: its SOMA stretch runs from the
-segment's joint to that joint's child in SOMA's tree (SOMA_PARENTS: the template rig's, written out by hand), each
+"""bone_groups: a `{Side}` name is written out for both sides, each segment rides its group's frame body, one of the
+group's own bodies on its side, and every bone group spans the same joints as its SOMA segment: its SOMA stretch runs
+from the segment's joint to that joint's child in SOMA's tree (SOMA_PARENTS: the template rig's, written out by hand),
+each
 SOMA joint is the same MyoFullBody centre in every group it ends or starts (and each centre one SOMA joint), every
 body is in one group of its own side (pure: the score venv runs it).
 
 Breaks (each applied once, seen red, reverted), 2026-10-28:
-- _written's `side=side[0].lower()` made `side=side[0]`: LeftLeg rides `femur_L`, not `femur_l`.
-- sided's `("Left", "Right")` made `("Left",)`: no right-side segment is followed.
+- _written's `side=side[0].lower()` made `side=side[0]`: LeftLeg's table writes `femur_L`, not `femur_l`.
+- sided's `("Left", "Right")` made `("Left",)`: `{Side}Arm` is LeftArm only.
 - GROUPS' Spine2 MyoFullBody start `"L3_L4"` made `"L2_L3"`: SOMA's Spine2 is two MyoFullBody centres.
 - GROUPS' `{Side}Shin` SOMA end `"{Side}Foot"` made `"{Side}ToeBase"`: the shin's stretch skips a joint.
 - GROUPS' `{Side}Foot` bodies `"talus_{side}"` made `"talus_l"`: the right foot holds a left body.
@@ -42,22 +43,6 @@ def a_side_name_is_written_for_both_sides():
     return problems + ([] if found == wanted else [f"sided_map gave {found}"])
 
 
-def every_followed_segment_rides_a_body_on_its_side():
-    """Every TARGETS segment, both sides, rides a body (RIDES), a left one a `_l` body and a right one a `_r` body;
-    the hips are the femurs the leg segments ride; the feet are followed."""
-    rides = bone_groups.sided_map(bone_groups.RIDES)
-    followed = bone_groups.sided(bone_groups.TARGETS)
-    problems = [f"{segment} rides no body" for segment in followed if segment not in rides]
-    problems += [f"{segment} rides {rides[segment]}" for segment in followed if segment in rides and (
-        (segment.startswith("Left") and not rides[segment].endswith("_l"))
-        or (segment.startswith("Right") and not rides[segment].endswith("_r")))]
-    problems += [f"{segment}'s hip is {femur}, it rides {rides.get(segment)}"
-                 for segment, femur in bone_groups.HIPS.items() if rides.get(segment) != femur]
-    if not {"LeftFoot", "RightFoot", "LeftToeBase", "RightToeBase"} <= set(followed):
-        problems.append(f"the feet are not all followed: {followed}")
-    return problems
-
-
 def every_bone_group_spans_its_segments_joints():
     """Each group's SOMA stretch: Hips from the hip joints' middle (`hipmid`) to Spine1, the hand to its mesh tip,
     every other segment from its own joint to its joint's child; each SOMA joint one MyoFullBody centre wherever it
@@ -87,8 +72,7 @@ def every_bone_group_spans_its_segments_joints():
     return problems
 
 
-CHECKS = (a_side_name_is_written_for_both_sides, every_followed_segment_rides_a_body_on_its_side,
-          every_bone_group_spans_its_segments_joints)
+CHECKS = (a_side_name_is_written_for_both_sides, every_bone_group_spans_its_segments_joints)
 
 
 if __name__ == "__main__":
