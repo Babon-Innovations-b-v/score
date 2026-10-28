@@ -10,7 +10,8 @@ No machine is rented: each test reads the command, job or offers the module buil
 - test_the_arguments_and_script_reach_the_machine_as_written: in `run_line`, `"FARM_CYCLES_GPU=1" if card else
   "FARM_CYCLES_CPU=1"` -> `"FARM_CYCLES_GPU=1"`; or `str(REMOTE / "repo" / job["script"])` -> `job["script"]`.
 - test_a_scripts_folder_and_the_blender_helpers_go_up: in `shipped`, `{*ALWAYS_SHIPPED, *(` -> `{*(`.
-- test_a_job_naming_an_env_runs_in_that_python_not_blender: in `script_line`, `if not job.get("env"):` -> `if True:`.
+- test_a_job_naming_an_env_runs_in_that_python_not_blender: in `script_line`, `if not job.get("env"):` -> `if True:`;
+  or in `shipped`, `("script", "env")` -> `("script",)`.
 - test_a_held_machine_runs_a_chain_in_order_and_raises_on_a_failed_job: in `Machine.run`, the `.failed` branch's
   `raise RuntimeError(...)` -> `return`; or in `Machine.__exit__`, `(self.queue / "close").write_text("")` -> `pass`.
 - test_a_cluster_job_keeps_the_paths_and_the_engine_follows_the_class: in `cluster_job`, `card = any(provider.cards(name)
@@ -68,6 +69,11 @@ def test_a_job_naming_an_env_runs_in_that_python_not_blender(tmp_path):
                          f"/root/lib/repo/score/stages/physics/inside/physics_trial.py {tmp_path}/toy.usda "
                          f"{tmp_path}/out.json"), line
     assert blender_cloud.shipped([job]) == ["score/stages/physics/inside", "tools/blender/inside"]
+    # a script elsewhere in that Python takes the env script's folder up too (settle@garage, 2026-10-28: exit 127)
+    drop = blender_cloud.job_of(blender_cloud.REPO / "score/stages/settling/inside/settle_drop.py", [], [], [], 5,
+                                env=blender_cloud.REPO / "score/stages/physics/inside/newton_env.sh")
+    assert blender_cloud.shipped([drop]) == ["score/stages/physics/inside", "score/stages/settling/inside",
+                                             "tools/blender/inside"]
 
 
 class Answering:
