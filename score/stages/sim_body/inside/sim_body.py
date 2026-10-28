@@ -96,9 +96,9 @@ def fitted_person(job, person, rig, worlds, path):
     _, scales = myo.person_file(job["model"], size, person["kg"], path)
     held = fit.followed(segments)
     turns, points = fit.targets(rig, segments, worlds, held)
-    found = fit.constants(fit.fitting(path, scales, segments, held, size.lengths), turns, points)
+    found = fit.constants(fit.fitting(path, scales, segments, held), turns, points)
     record, scales = myo.person_file(job["model"], size, person["kg"], path, found)
-    fitting = fit.fitting(path, scales, segments, held, size.lengths, found["marks"])
+    fitting = fit.fitting(path, scales, segments, held, found["marks"])
     angles = fit.angles(fitting, turns, points)
     record["fit"] = {"method": fit.METHOD, "constants": fit.constants_record(found),
                      "following": fit.following(fitting.model, angles, worlds, segments, scales)}

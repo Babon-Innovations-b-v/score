@@ -6,9 +6,10 @@ parent, each marker's move on its body, and each frame's leading coordinates (th
 rotation vector off mink's, each leading hinge and slide; a follower set from its leader by the model's coupling, the
 held fingers as they stand); the rows are every frame's turn errors and marker place errors, weighed as mink weighs
 them (`_frames.weights`, OpenSim's), a prior row per marker move of the same weight (a marker's move and its
-body's place trade one for one; its landmark's place on the SOMA mesh is its start) and a row per bone group holding
-its stretch to SOMA's length (LENGTH_WEIGHT). The leading joints' ranges are
-the box bounds; the followers' own are not held (`Fitting.limited_model`)."""
+body's place trade one for one; its landmark's place on the SOMA mesh is its start). The group sizes are solved, not
+held to SOMA's lengths (#70, 2026-10-29: a hold of LENGTH_WEIGHT 100 pinned them; the record's `lengths` says how far
+they move); within SIZE_MOST of the sizing's. The leading joints' ranges are the box bounds; the followers' own are
+not held (`Fitting.limited_model`)."""
 import mujoco
 import numpy as np
 from scipy.optimize import least_squares
@@ -20,11 +21,6 @@ from fit._frames import weights
 SIZE_MOST = 0.1  # a group's size factor within 1 -+ this of the sizing's (SOMA's joint distances)
 JOINT_MOST = 0.04  # metres a joint centre may move in its parent (the hips stand 33 mm a side narrower than SOMA's)
 MARK_MOST = 0.03  # metres a marker may move on its body (the landmarks' soft tissue: -8 to 44 mm)
-# A bone group's stretch at the standing pose held to SOMA's length (SOMA is the truth, its size too): a millimetre
-# off costs as 10 cm of marker error. Without it the markers shortened the legs by 2 to 3 cm a segment (their landmark
-# joint centres stand 4 to 24 mm off SOMA's joints); at 10 they still took 15 to 18 mm off the thighs and shins
-# (2026-10-28, both test walkers).
-LENGTH_WEIGHT = 100.0
 INSIDE = 1e-9  # a start this far inside its bounds (least_squares wants a start within them)
 
 
@@ -41,7 +37,7 @@ class Problem:
                         and model.jnt_dofadr[joint] not in frozen]
         self.width = (6 if self.root is not None else 0) + len(self.leading)
         self.costs = weights(fitting)
-        self.data, self.standing = mujoco.MjData(model), mujoco.MjData(model)
+        self.data = mujoco.MjData(model)
 
     def _qpos(self, frame, values):
         """A frame's qpos from its leading coordinates."""
@@ -81,7 +77,7 @@ class Problem:
 
     def residuals(self, unknowns):
         """Every frame's weighed turn errors (the geodesic angle's rotation vector, mink's) and marker errors, then the
-        markers' moves, then the stretches' lengths off SOMA's."""
+        markers' moves."""
         fitting, data, model = self.fitting, self.data, self.fitting.model
         constants = unknowns[:fitting.width()]
         fitting.apply(constants)
@@ -97,21 +93,17 @@ class Problem:
             found += [turn_cost * off.ravel(),
                       (place_costs[:, None] * (data.site_xpos[fitting.place_sites] - self.points[frame])).ravel()]
         found.append(mark_cost * fitting.unpack(constants)[2].ravel())
-        lengths, soma = fitting.lengths(constants, self.standing)
-        found.append(LENGTH_WEIGHT * mark_cost * (lengths - soma))
         return np.concatenate(found)
 
     def sparsity(self):
         """Which unknowns each row reads: a frame's turn rows its own coordinates; its place rows those and every size
-        and joint constant, a marker's its own move too; a prior row its own move; a length row every size and joint
-        constant."""
+        and joint constant, a marker's its own move too; a prior row its own move."""
         fitting = self.fitting
         sizes_joints, marks, groups = len(fitting.sizes) + 3 * len(fitting.joints), len(fitting.marks), len(
             fitting.frame_sites)
         per = 3 * (groups + len(fitting.place_sites))
         frames = len(self.path)
-        stretches = len(fitting.stretches)
-        found = lil_matrix((frames * per + 3 * marks + stretches, fitting.width() + frames * self.width), dtype=int)
+        found = lil_matrix((frames * per + 3 * marks, fitting.width() + frames * self.width), dtype=int)
         for frame in range(frames):
             rows = slice(frame * per, (frame + 1) * per)
             found[rows, fitting.width() + frame * self.width:fitting.width() + (frame + 1) * self.width] = 1
@@ -123,7 +115,6 @@ class Problem:
         for mark in range(marks):
             for axis in range(3):
                 found[frames * per + 3 * mark + axis, sizes_joints + 3 * mark + axis] = 1
-        found[frames * per + 3 * marks:, :sizes_joints] = 1
         return found
 
 

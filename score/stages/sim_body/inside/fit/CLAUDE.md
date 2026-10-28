@@ -21,8 +21,9 @@ place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the
   joint centres are 4 to 24 mm off SOMA's); with SOMA's joints as a third goal 12.7 mm while the lengths were free to
   drift, 18.7 (Kimodo walker) and 19.5 (rig walk) with every stretch held to SOMA's length. An owner's decision to
   keep or drop (#70).
-- **Each stretch is held to SOMA's length** (`_constants.LENGTH_WEIGHT`): the markers shortened the legs by 2 to 3 cm a
-  segment without it, 15 to 18 mm at a tenth of today's weight; at today's every group is within 1.1 mm of SOMA's.
+- **The group sizes are solved** (`_constants`, within `SIZE_MOST` of the sizing's): until 2026-10-29 each stretch was
+  held to SOMA's length (LENGTH_WEIGHT 100, every group within 1.1 mm); #70's review asked them solved, and the model
+  record's `lengths` says how far they move from SOMA's (numbers on #70).
 - **The calibration is the static table** (`calibration`), a site's quaternion R_cal^T on the group's frame body:
   never fitted, never per person.
 - **The followers' own ranges are not held** (`Fitting.limited_model`): 35 of MyoFullBody's 51 couplings have a

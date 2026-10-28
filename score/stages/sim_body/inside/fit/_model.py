@@ -41,12 +41,10 @@ class Fitting:
     `marks` [(name, body, local point)]: one marker site each; `owners` {source body name: size group}; `own_placed`
     the bodies placed in their parent by their own group's size; `joints` [(name, body)]: the centres the constants
     move, each the top body of its chain (its first wrapper) whose place in its parent moves; `frozen` the bodies whose
-    joints no target sees (held as they stand); `stretches` [(start parts, end parts, SOMA's length)]: each bone
-    group's stretch, its two ends as [(body, local point, weight)] (`lengths` reads them at the standing pose);
-    `centres` [(name, body, local point)]: a site on each MyoFullBody joint centre SOMA places a joint at. The place
+    joints no target sees (held as they stand); `centres` [(name, body, local point)]: a site on each MyoFullBody joint centre SOMA places a joint at. The place
     sites (`place_sites`) are the markers', then the centres'."""
 
-    def __init__(self, path, frames, marks, owners, own_placed=(), joints=(), frozen=(), stretches=(), centres=()):
+    def __init__(self, path, frames, marks, owners, own_placed=(), joints=(), frozen=(), centres=()):
         spec = mujoco.MjSpec.from_file(str(path))
         for group, body, calibration in frames:
             spec.body(body).add_site(name=f"fit:{group}", quat=Rotation.from_matrix(calibration.T).as_quat(
@@ -77,28 +75,6 @@ class Fitting:
         self.base = model.body_pos.copy(), model.site_pos.copy()
         self.leaders, self.followers = self._leading()
         self.frozen = [dof for dof in range(model.nv) if self._under(model.dof_bodyid[dof], frozen)]
-        self.stretches = [([self._part(part, group_of) for part in start], [self._part(part, group_of) for part in end],
-                           length) for start, end, length in stretches]
-
-    def _part(self, part, group_of):
-        """A stretch end's part as (body id, local point, weight, its body's size group index or -1)."""
-        body, local, weight = part
-        index = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, body)
-        group = group_of[index]
-        return index, np.asarray(local, dtype=float), weight, -1 if group is None else self.sizes.index(group)
-
-    def lengths(self, constants, data):
-        """Each stretch's length at the standing pose with `constants` laid on (`data` an MjData of the model, posed
-        here), and SOMA's (two arrays)."""
-        factors = self.unpack(constants)[0]
-        data.qpos[:] = self.standing()
-        mujoco.mj_kinematics(self.model, data)
-
-        def point(parts):
-            return sum(weight * (data.xpos[body] + data.xmat[body].reshape(3, 3) @ (
-                local * (factors[group] if group >= 0 else 1.0))) for body, local, weight, group in parts)
-        found = [np.linalg.norm(point(end) - point(start)) for start, end, _ in self.stretches]
-        return np.array(found), np.array([length for _, _, length in self.stretches])
 
     def _groups_of(self, owners):
         """Each body's size group (None for the world and a body above every group): its own, else its parent's."""
