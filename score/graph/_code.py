@@ -154,6 +154,43 @@ def source_files(functions):
     return followed(start_files(functions), FRAMEWORK, live_imports)
 
 
+@functools.cache
+def named_scripts(path):
+    """The repository .py files a source file names by a string path (repository-relative, or beside the file): a
+    nested Blender's --python, a cloud or env job's script, a subprocess of a repository script."""
+    found = set()
+    for node in ast.walk(ast.parse(path.read_text(), str(path))):
+        text = node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else ""
+        if text.endswith(".py") and not text.startswith("/") and not any(each.isspace() or each in "{}" for each in text):
+            found |= {candidate.resolve() for candidate in (REPO / text, path.parent / text)
+                      if candidate.is_file() and in_repo(candidate)}
+    return found
+
+
+@functools.cache
+def script_imports(path):
+    """What a script run apart imports: its repository imports and the files beside it it imports by bare name (a
+    script run apart has its own folder on its path)."""
+    beside = {path.parent / (name.split(".")[0] + ".py") for name in imported_names(path.read_text(), path, "")}
+    return live_imports(path) | {found.resolve() for found in beside if found.is_file()}
+
+
+def started_scripts(functions):
+    """The repository scripts the functions' code starts by path (named_scripts), followed through what those import
+    and start, that are not already in their code version: run apart, no import keys them (make_chunky.py's bake
+    scripts, 2026-10-28). Static: a script built from parts at run time is not seen; the framework's files (what runs
+    a job, not what a job runs) are neither read nor returned."""
+    version = set(source_files(functions))
+    pending, seen = [(path, False) for path in version], set(version)
+    while pending:
+        path, started = pending.pop()
+        for script in named_scripts(path) | (script_imports(path) if started else set()):
+            if script not in seen and not in_framework(script, FRAMEWORK):
+                seen.add(script)
+                pending.append((script, True))
+    return sorted(seen - version)
+
+
 def python_part():
     """The code version's first part: this Python's version."""
     return f"python {sys.version_info.major}.{sys.version_info.minor}"
