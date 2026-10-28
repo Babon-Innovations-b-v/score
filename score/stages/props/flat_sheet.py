@@ -1,5 +1,6 @@
-"""The code route for flat sheets (a poster, a rug, a sticky note, a paper, a mat): an object whose row lies flat as a
-sheet (`sheet`) and whose close-up passed, drawn from straight above (tools/props/closeup/check.py lies_flat), but
+"""The code route for flat sheets (a poster, a rug, a sticky note, a paper, a mat): an object whose row is a sheet
+(`sheet`: lying flat, its close-up drawn from straight above, tools/props/closeup/check.py lies_flat, or standing on
+its edge on a wall) and whose close-up passed, but
 whose Pixal3D take came back with no usable model (no raw model, or its finish made none: Batch of 2026-10-26,
 quarters' poster, rug and sticky note, every one "its finish made no model"), is built here by the Pixal3D row
 (pixal_row.py) as its take's files instead of left a gap, so the finish route paints it with a library surface and the
@@ -9,7 +10,10 @@ picture route failed is built.
 A sheet has no relief a picture could add: its model is its outline laid flat at its thickness. Its outline is its own
 close-up's object, cut out (`cut_out`), since that close-up looks straight down on its face; its convex hull (every
 sheet the readings name is a rectangle or a round) is stretched to the row's ground sides, the longer along z, and
-given the row's height up y: the finish's own frame (glb_file.squared), so its stand leaves it as built. Its one
+given the row's height up y: the finish's own frame (glb_file.squared), so its stand leaves it as built. A sheet
+standing on its edge (`upright`: a note or poster on a wall, its close-up drawn at the three-quarter view) is its
+hull on its face, the picture's across along z and its up along y at the row's metres, made in its own pose and never
+stood (its raw and final one model, as thin_straight's builds). Its one
 colour is the cut-out's median (the model's own texture, which the finish route measures and replaces with a library
 surface). Its take's files are thin_straight's (raw, slimmed, final, `input.png` the cut
 close-up, `code.json` naming this rule), so the finish route and the likeness row read it as a code take; the Pixal3D
@@ -30,11 +34,20 @@ RULE = "flat sheet (its Pixal3D take made no model)"
 
 
 def sheet(row):
-    """Whether the row lies flat (check.lies_flat, at the size its close-up was drawn at) as a sheet (SHEET_SHARE)."""
+    """Whether the row is a sheet, at the size its close-up was drawn at: its thinnest side under SHEET_SHARE of its
+    longest and its middle one no rod's (check.SLENDER_SHARE), lying flat (check.lies_flat) or standing on its edge (a
+    note pinned to a wall, `upright`: the habitat's paper note, 0.2 by 0.01 by 0.3, its finish made no model and no
+    route built it, 2026-10-28)."""
     with prop_data.tools("props/closeup", "props"):
         import check
-    drawn = [float(value) for value in row.get("read_size") or row["size"]]
-    return check.lies_flat(drawn) and drawn[2] < SHEET_SHARE * max(drawn)
+    smallest, middle, largest = sorted(float(value) for value in row.get("read_size") or row["size"])
+    return smallest < SHEET_SHARE * largest and middle >= check.SLENDER_SHARE * largest
+
+
+def upright(row):
+    """Whether a sheet stands on its edge: its height is not its thinnest side."""
+    wide, deep, tall = (float(value) for value in row["size"])
+    return tall > min(wide, deep)
 
 
 def built(take, pixal):
@@ -44,18 +57,24 @@ def built(take, pixal):
 
 
 def build(row, picture):
-    """The sheet's model: the convex hull of `picture`'s object (alpha), stretched to the row's ground sides (the
-    longer along z) and its height up y, centred on the origin."""
+    """The sheet's model: the convex hull of `picture`'s object (alpha), stretched to the row's sides, centred on the
+    origin: lying, its ground sides (the longer along z) and its height up y; standing (`upright`), its face in a
+    wall's plane, the picture's across along z and its up along y, its thinnest side across x."""
     import trimesh
     from scipy.spatial import ConvexHull
     inside = np.argwhere(np.asarray(picture)[..., 3] > 127)[:, ::-1].astype(float)  # (x, y) of the object's pixels
     corners = (inside[:, None, :] + np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])).reshape(-1, 2)
     outline = corners[ConvexHull(corners).vertices]
-    outline = outline[:, np.argsort(np.ptp(outline, axis=0))]  # its shorter side first: x, then z
-    outline = (outline - outline.min(0)) / np.ptp(outline, axis=0)
     wide, deep, tall = (float(value) for value in row["size"])
-    ground = outline * [min(wide, deep), max(wide, deep)]
-    points = np.vstack([np.c_[ground[:, 0], np.full(len(ground), height), ground[:, 1]] for height in (0.0, tall)])
+    if upright(row):
+        face = (outline - outline.min(0)) / np.ptp(outline, axis=0) * [1.0, -1.0] * [max(wide, deep), tall]
+        points = np.vstack([np.c_[np.full(len(face), across), face[:, 1], face[:, 0]]
+                            for across in (0.0, min(wide, deep))])
+    else:
+        outline = outline[:, np.argsort(np.ptp(outline, axis=0))]  # its shorter side first: x, then z
+        ground = (outline - outline.min(0)) / np.ptp(outline, axis=0) * [min(wide, deep), max(wide, deep)]
+        points = np.vstack([np.c_[ground[:, 0], np.full(len(ground), height), ground[:, 1]]
+                            for height in (0.0, tall)])
     mesh = trimesh.convex.convex_hull(points)
     mesh.apply_translation(-mesh.bounds.mean(0))
     return mesh
@@ -103,7 +122,8 @@ def write_take(take, row, closeup, faces, pixal, cuts):
     picture.save(views / "input.png")
     mesh.export(pixal / f"{take}.glb")
     mesh.export(pixal / f"{take}-{faces}.glb")  # the slimmed one the paint replays the finish's turn from
-    mesh.apply_transform(thin_straight.finish_turn(pixal / f"{take}.glb"))
+    if not upright(row):  # a standing sheet is made in its own pose, never stood (thin_straight's builds' way)
+        mesh.apply_transform(thin_straight.finish_turn(pixal / f"{take}.glb"))
     mesh.export(pixal / f"{take}-final.glb")
     (views / thin_straight.MARK).write_text(json.dumps({"route": "code", "rule": RULE, "size": row["size"],
                                                         "closeup": str(closeup)}, indent=1))

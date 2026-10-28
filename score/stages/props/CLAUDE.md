@@ -47,8 +47,9 @@ gate passes it), else
   only by prepare's prediction (`predict.straight_outcome`), which builds each in code and holds it free to the
   likeness rules. The table adds it in score/stages/__init__.py after the library rows: in this package's table or
   shapes_first it would re-key most rows (their code versions hash those modules).
-- **Flat sheets are built in code when their take made no model** (`flat_sheet.py`): a row lying flat (its close-up
-  drawn from straight above) under `SHEET_SHARE` of its longest side tall (a poster, rug, note, paper, mat) whose
+- **Flat sheets are built in code when their take made no model** (`flat_sheet.py`): a sheet, its thinnest side under
+  `SHEET_SHARE` of its longest (a poster, rug, note, paper, mat), lying flat (its close-up drawn from straight above)
+  or standing on its edge on a wall (`upright`: its face in the wall's plane, made in its own pose, never stood), whose
   Pixal3D take or its finish made no model is laid as its own close-up's outline (convex hull, cut out by
   `flat_sheet.cut_out`: off the border-fitted backdrop by an RGB distance, so a cream note on a grey backdrop is
   the note, not its drop shadow) at the row's size, its take's files thin_straight's with `code.json` naming the rule,

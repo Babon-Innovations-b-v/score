@@ -3,7 +3,9 @@ finish route and the likeness row read one, and the Pixal3D row building it for 
 
 Breaks (applied once, seen red, reverted): write_take cutting with thin_straight.cut_out instead of flat_sheet.cut_out
 turns test_a_light_sheet_on_a_light_backdrop_is_cut_as_itself_not_its_shadow red (its hull the shadow L's, half the
-square).
+square). sheet taking only rows lying flat again (`and check.lies_flat(...)`) turns
+test_only_rows_lying_flat_as_a_sheet_are_taken red (the wall note); build laying a standing sheet flat (`if False:`
+for `if upright(row):`) turns test_a_sheet_on_a_wall_stands_as_its_close_up_s_face_at_the_row_s_size red.
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/flat_sheet_test.py
 """
@@ -45,7 +47,9 @@ def test_only_rows_lying_flat_as_a_sheet_are_taken():
     assert flat_sheet.sheet({"size": [0.2, 0.517, 0.02]})  # a door mat
     assert not flat_sheet.sheet({"size": [0.375, 0.355, 0.03]})  # a book has relief
     assert not flat_sheet.sheet({"size": [1.434, 3.85, 0.6]})  # cabinets lying low
-    assert not flat_sheet.sheet({"size": [0.4, 0.01, 0.6]})  # a poster read standing is not laid flat
+    assert flat_sheet.sheet({"size": [0.2, 0.01, 0.3]}) and flat_sheet.upright({"size": [0.2, 0.01, 0.3]})  # a note
+    assert not flat_sheet.upright(NOTE)  # on a wall stands; one on a desk lies
+    assert not flat_sheet.sheet({"size": [0.4, 0.01, 4.0]})  # a rod, not a sheet
     assert flat_sheet.sheet({"size": [4.0, 4.0, 4.0], "read_size": [2.0, 3.0, 0.02]})  # as its close-up was drawn
 
 
@@ -71,6 +75,27 @@ def light_note(path):
     pixels[200:440:40, 140:300] = (90, 60, 50)  # lines of ink
     Image.fromarray(pixels.astype(np.uint8)).save(path)
     return path
+
+
+def test_a_sheet_on_a_wall_stands_as_its_close_up_s_face_at_the_row_s_size(tmp_path):
+    """A round note on a wall like the habitat's paper note (0.2 by 0.01 by 0.3, 2026-10-28): built standing, its face the close-up's
+    outline in a wall's plane, its final its raw model (never stood), and the likeness row's outline passes it."""
+    import trimesh
+    paper = {"id": "paper_note", "name": "paper note", "noun": "note", "size": [0.2, 0.01, 0.3], "view": "v1",
+             "box": [0, 0, 9, 9]}
+    pixels = np.full((512, 512, 3), 235, dtype=np.uint8)
+    down, across = np.mgrid[0:512, 0:512]
+    pixels[((down - 256) / 160) ** 2 + ((across - 256) / 107) ** 2 < 1] = (200, 190, 150)  # round, 0.2 by 0.3
+    Image.fromarray(pixels).save(tmp_path / "note.png")
+    pixal = tmp_path / "pixal"
+    flat_sheet.write_take("take", paper, tmp_path / "note.png", 4000, pixal, tmp_path / "cut")
+    made = trimesh.load(pixal / "take-final.glb", force="mesh")
+    assert np.allclose(made.extents, [0.01, 0.3, 0.2], atol=1e-6), made.extents
+    face = made.area_faces[np.abs(made.face_normals[:, 0]) > 0.9].sum() / 2
+    assert abs(face / (np.pi / 4 * 0.2 * 0.3) - 1) < 0.05, face  # its round face on the wall, not a slab's side
+    assert np.allclose(made.vertices, trimesh.load(pixal / "take.glb", force="mesh").vertices)
+    found = likeness.best_way(pixal / "take-final.glb", pixal / "take.svviews" / "input.png", paper["size"])
+    assert found["outline"] >= likeness.OUTLINE_LEAST, found
 
 
 def test_a_light_sheet_on_a_light_backdrop_is_cut_as_itself_not_its_shadow(tmp_path):
