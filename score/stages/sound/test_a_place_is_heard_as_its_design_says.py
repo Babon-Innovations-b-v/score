@@ -15,6 +15,7 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/sound/test_
     (reads the sounds' bytes from the library; the one test that plays them is skipped where no library is
     configured: SCORE_LIB_*, or no score_lib checkout beside score)
 """
+import contextlib
 import json
 import pathlib
 import re
@@ -364,6 +365,24 @@ def test_a_cc0_freesound_file_passes_with_its_licence_row_and_fails_without_or_u
         assert answer([dict(row, licence="CC BY 4.0")]) == checks.FAIL
 
 
+@contextlib.contextmanager
+def kept_designs(designs):
+    """Small kept designs in the sandbox home ({place: its scene inventory rows}): each a plan and a scene inventory,
+    removed after."""
+    written = []
+    for place, rows in designs.items():
+        for folder, record in (("plans", {"leads": {}, "rows": {}}), ("inventory", {"rows": rows})):
+            path = beds.DESIGN / folder / f"{place}.json"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(record))
+            written.append(path)
+    try:
+        yield
+    finally:
+        for path in written:
+            path.unlink()
+
+
 def voiced_data(folder):
     """The environment's data folder (links into data/) with its voices table naming crew_talk, still to make, as the
     people's voice: the rule with a voice named."""
@@ -400,27 +419,28 @@ def test_a_brief_several_places_play_is_one_take_on_one_card_and_counted_once():
             (back / job["file"]).write_bytes(b"RIFF")
         (back / "scores-0.json").write_text(json.dumps({job["file"]: 0.4 for job in wanted}))
 
-    try:
-        takes.TAKES, takes.on_card = kept_folder / "takes", on_card
-        data = voiced_data(kept_folder)
-        plan = sound.environment_takes(data, sound.moss_weights())
-        shared = [places for job, places in plan.values() if job["sound"] == "crew_talk"]
-        assert len(shared) == 1 and len(shared[0]) > 1, shared
-        places = beds.places()
-        assert sum(price.rule_units("sound_takes", [], data, place) for place in places) == len(plan)
-        brief = sound.brief_of("crew_talk", {"sounds": REPO / "data/sound/sounds.json"})
-        heard = {}
+    with kept_designs({"airlock": [], "cockpit": []}):  # two places data/people/rows.json stands people in
+        try:
+            takes.TAKES, takes.on_card = kept_folder / "takes", on_card
+            data = voiced_data(kept_folder)
+            plan = sound.environment_takes(data, sound.moss_weights())
+            shared = [places for job, places in plan.values() if job["sound"] == "crew_talk"]
+            assert len(shared) == 1 and len(shared[0]) > 1, shared
+            places = beds.places()
+            assert sum(price.rule_units("sound_takes", [], data, place) for place in places) == len(plan)
+            brief = sound.brief_of("crew_talk", {"sounds": REPO / "data/sound/sounds.json"})
+            heard = {}
 
-        def line_of(place):
-            heard[place] = takes.made(takes.jobs_for("crew_talk", brief, "rev"), kept_folder / f"work-{place}")
-        lines = [threading.Thread(target=line_of, args=(place,)) for place in shared[0][:2]]
-        for line in lines:
-            line.start()
-        for line in lines:
-            line.join()
-    finally:
-        takes.TAKES, takes.on_card = real_takes, real_on_card
-        shutil.rmtree(kept_folder)
+            def line_of(place):
+                heard[place] = takes.made(takes.jobs_for("crew_talk", brief, "rev"), kept_folder / f"work-{place}")
+            lines = [threading.Thread(target=line_of, args=(place,)) for place in shared[0][:2]]
+            for line in lines:
+                line.start()
+            for line in lines:
+                line.join()
+        finally:
+            takes.TAKES, takes.on_card = real_takes, real_on_card
+            shutil.rmtree(kept_folder)
     assert asked == ["crew_talk"], asked
     assert [list(scored.values()) for scored in heard.values()] == [[0.4], [0.4]], heard  # the second read it
 
@@ -698,7 +718,7 @@ def test_a_take_that_did_not_come_back_leaves_its_uses_out_with_its_gap():
     Break: score/stages/sound/__init__.py:
         `kept = [use for use in uses if use["sound"] in sounds or use["sound"] not in made_here]` -> `kept = uses`"""
     from score.stages import batch_gaps
-    with tempfile.TemporaryDirectory() as folder:
+    with tempfile.TemporaryDirectory() as folder, kept_designs({"garage": [{"id": "tracked_rover", "noun": "rover"}]}):
         inputs = inputs_for("garage", folder)
         made_here = sound.to_make(list(dict.fromkeys(use["sound"] for use in sound.uses_of("garage", inputs))), inputs)
         assert "rover_idle" in made_here, made_here

@@ -249,7 +249,28 @@ def test_every_filler_is_a_stage_of_the_table():
     assert named <= names, named - names
 
 
-def test_lost_inputs_are_place_gaps_and_a_designed_seed_is_none():
+@pytest.fixture
+def cockpit_design():
+    """A small designed cockpit in the sandbox home, its work folder gone: a locked plan (no holder, so its own
+    style), a hand-in whose one prop object, the pilot seat, is a Pixal3D take, and surface data that paints it."""
+    design = PROPS_HOME / "design"
+    written = {design / "plans" / "cockpit.json": {"title": "Cockpit"},
+               design / "props" / "cockpit.json": {
+                   "place": "cockpit", "plan": {"views": []}, "objects": {"pilot_seat": {
+                       "route": "prop", "take": "cockpit_pilot_seat_a984a44e", "layer": "objects",
+                       "rows": ["pilot_seat"]}}},
+               design / "surfaces" / "cockpit.json": {
+                   "place": "cockpit", "takes": {"cockpit_pilot_seat_a984a44e": {
+                       "places": ["cockpit"], "place": "cockpit", "kind": "prop", "object": "pilot seat"}}}}
+    for path, record in written.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(record))
+    yield
+    for path in written:
+        path.unlink()
+
+
+def test_lost_inputs_are_place_gaps_and_a_designed_seed_is_none(cockpit_design):
     """On a home whose work folder is gone: a designed place's seed is no lost input, the ship's rooms' too: its
     readers wait on earth-seed@<place> (#27; the owner, 2026-10-21); the cockpit's light reads its views from its own
     scene record and nothing asks for the retired data/scene record; what is lost is a place gap with no faults."""
@@ -264,7 +285,7 @@ def test_lost_inputs_are_place_gaps_and_a_designed_seed_is_none():
     assert found and gaps_faults({"findings": found}) == [] and all(gap["rule"] == "place" for gap in found)
 
 
-def test_a_take_a_pixal_row_makes_is_that_row_s_gap(tmp_path, monkeypatch):
+def test_a_take_a_pixal_row_makes_is_that_row_s_gap(tmp_path, monkeypatch, cockpit_design):
     """The cockpit's pilot seat take (its design row's, named by its locked concept) is made by pixal@cockpit, so its
     gap is that node's, priced through it, never code work. The library holds no take here (an empty checkout), so
     this machine's own score_lib never hands the take back into the sandbox."""
