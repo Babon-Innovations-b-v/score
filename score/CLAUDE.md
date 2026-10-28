@@ -45,7 +45,7 @@ stage as each stage is built; nothing moves before.
   beside the store and only ever raised (the RSS sums of `memory/peaks.json` and the readings of `memory/peaks-pss.json`, kept before the rule below, are no longer read); a stage never measured is given `MEMORY_FLOOR`, and a node that made nothing (its output found made) is kept only above that, so a quick one never lowers the default (2026-10-28: such nodes kept finish-route-views low and seven real ones started on 38.9 GB, the PC at 7 GB free)
   (2026-10-28: five finish-route-views nodes grew to 4.8-6.4 GB each minutes after their start, past the old one-minute reserve,
   and took this PC to 7 GB free). A node whose tree ran a container client (`CONTAINER_CLIENTS`: `blender_cloud.py`) held its real
-  memory in the container, outside its tree, so its stage keeps no peak below the default. A ready node that does not fit is
+  memory in the container, outside its tree, so its stage keeps no peak below the default; on this PC (`on_this_pc`) such a node, holding the container's one claim or waiting on it, reserves only what its tree holds and the container is counted once, its cgroup's `memory.max` less its `anon` (`container_room`; unread, each keeps its stage's peak; 2026-10-28: three surfaces-bake nodes, one claim, were given 8 GB each and held about 121 ready nodes with 32 GB available). A ready node that does not fit is
   passed over and the ones after it that fit start; one passed over on `MEMORY_SKIPS` turns holds every node after it until it
   fits (2026-10-28: one 6 GB node at the head held 122 small ready nodes, five of eight slots empty for 29 min). Otherwise it
   says so once and reads again every `MEMORY_POLL` seconds; each turn first reaps the nodes that ended (an ended process

@@ -57,6 +57,7 @@ import pathlib
 import platform
 import shutil
 import signal
+import subprocess
 import sys
 import threading
 import time
@@ -120,6 +121,13 @@ MEMORY_SKIPS = 10
 # A node whose process tree ran one of these clients holds its real memory in a container, outside its tree (trees_held:
 # a Blender node measured 0.1 GB while its container held 3.7 GB, 2026-10-28): its stage keeps no peak below the default.
 CONTAINER_CLIENTS = ("blender_cloud.py",)
+# On this PC (on_this_pc) those clients' jobs run in one container (tools/cloud/backends/local.py), its claim held by
+# one node while the others wait on its lock: the container is counted once, the room left to its cap (memory.max
+# less its anon of memory.stat, which MemAvailable already left out), and a node running a client reserves only what
+# its tree holds (container_room). 2026-10-28: three surfaces-bake nodes, one holding the claim with its container at
+# 7.2 GiB and two waiting, were each given 8 GB and held about 121 ready nodes with 32 GB available.
+CONTAINER = "score-this-pc"
+CGROUPS = ("/sys/fs/cgroup/system.slice/docker-{id}.scope", "/sys/fs/cgroup/docker/{id}")
 # A node's process reads its own tree's memory every MEMORY_SAMPLE seconds for the peak it reports (watch_memory).
 MEMORY_SAMPLE = 5
 # Where the process readings come from (the tests give a folder of their own).
@@ -528,6 +536,22 @@ def watch_memory(high, every=None):
         time.sleep(every or MEMORY_SAMPLE)
 
 
+def container_room():
+    """The bytes this PC's container may still take: its cgroup's memory.max less its anon (memory.stat); None when
+    it is not running or its cgroup cannot be read."""
+    with contextlib.suppress(OSError):  # no docker here
+        found = subprocess.run(["docker", "inspect", "-f", "{{.Id}}", CONTAINER], capture_output=True, text=True,
+                               check=False)
+        for cgroup in [pathlib.Path(form.format(id=found.stdout.strip())) for form in CGROUPS] if not found.returncode else []:
+            with contextlib.suppress(OSError, ValueError, KeyError):  # memory.max "max": no cap to count to
+                stat = dict(line.split() for line in (cgroup / "memory.stat").read_text().splitlines())
+                return max(0, int((cgroup / "memory.max").read_text()) - int(stat["anon"]))
+    return None
+
+
+ROOM = container_room  # the tests give a fake reading
+
+
 def ran_container_client(root):
     """Whether a process under `root` (PROC/<pid>/cmdline) runs one of CONTAINER_CLIENTS."""
     children = {}
@@ -542,6 +566,9 @@ def ran_container_client(root):
                 return True
         tree += children.get(pid, [])
     return False
+
+
+CONTAINED = ran_container_client  # the tests give a fake reading
 
 
 def unsettled(optional, line, stood, stopped):
@@ -1712,16 +1739,22 @@ class Runner:
         return peaks
 
     def coming(self, running, peaks, seen):
-        """[(each running node's stage peak, what its process tree holds now)], the most each was seen to hold kept
+        """[(each running node's stage peak, what its process tree holds now)] (on this PC a node running a container
+        client its tree alone, and the container once: container_room), the most each was seen to hold kept
         in `seen` ({node: bytes}); a node whose process has ended is reaped (is_alive: waitpid, WNOHANG) and holds
         none, though its outcome is not read yet."""
         alive = [(stage, place, process) for stage, place, process in running.values() if process.is_alive()]
         held = HELD([process.pid for _, _, process in alive])
+        users = {process.pid for _, _, process in alive if on_this_pc() and CONTAINED(process.pid)}
+        room = ROOM() if users else None  # unread: each user keeps its stage's peak, never less
         found = []
         for stage, place, process in alive:
             node = node_name(stage, place)
             seen[node] = max(seen.get(node, 0), held[process.pid])
-            found.append((peaks.get(stage.name, memory_floor()), held[process.pid]))
+            mine = room is not None and process.pid in users
+            found.append((held[process.pid] if mine else peaks.get(stage.name, memory_floor()), held[process.pid]))
+        if room is not None:
+            found.append((room, 0))  # the container, once, whichever of its users holds the claim
         return found
 
     def conclude(self, stage, place, did):

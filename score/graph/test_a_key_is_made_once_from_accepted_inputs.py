@@ -1726,6 +1726,34 @@ def test_a_node_past_its_start_still_holds_room_for_its_stages_peak_and_each_pea
     assert peaks["clean"] == int(1.5 * FLOOR) and peaks["count"] >= int(0.1 * FLOOR), peaks
 
 
+def test_on_this_pc_the_container_is_counted_once_and_its_waiting_clients_reserve_only_their_trees(monkeypatch):
+    """Three bake nodes running the container client (one holds the claim, two wait on it; no peak kept: the default)
+    and one count node (peak 2 floors), each tree at 0.1 floor, the container's room 1.5 floors, 5.5 floors available:
+    the bake nodes reserve nothing past their trees, the container once, so a new default node fits (5.5 - 1.9 - 1.5
+    - 1 >= 1); with the container unread, or off this PC (the container never read), each bake node keeps the default
+    and it does not.
+    Break: score/graph/__init__.py: '            mine = room is not None and process.pid in users' ->
+    '            mine = False' -> the bake nodes keep the default beside the container: no room."""
+    runner = a_driven_runner({"hangar": "a ship"})
+    bake, count = types.SimpleNamespace(name="bake", grain="place"), types.SimpleNamespace(name="count", grain="place")
+    alive = [types.SimpleNamespace(pid=pid, is_alive=lambda: True) for pid in (11, 12, 13, 14)]
+    running = {pipe: (bake if process.pid < 14 else count, "hangar", process) for pipe, process in enumerate(alive)}
+    peaks, room = {"count": 2 * FLOOR}, [int(1.5 * FLOOR)]
+    faked(monkeypatch, [5.5 * FLOOR])
+    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, int(0.1 * FLOOR)))
+    monkeypatch.setattr(graph, "CONTAINED", lambda pid: pid < 14)
+    monkeypatch.setattr(graph, "ROOM", lambda: room[0])
+    monkeypatch.setenv(*graph.THIS_PC)
+    coming = runner.coming(running, peaks, {})
+    assert sum(max(0, peak - holds) for peak, holds in coming) == 2 * FLOOR - int(0.1 * FLOOR) + int(1.5 * FLOOR)
+    assert graph.memory_room(coming, FLOOR)
+    room[0] = None
+    assert not graph.memory_room(runner.coming(running, peaks, {}), FLOOR)
+    monkeypatch.setattr(graph, "ROOM", lambda: pytest.fail("the container is read off this PC"))
+    monkeypatch.setenv(graph.THIS_PC[0], "scaleway")
+    assert not graph.memory_room(runner.coming(running, peaks, {}), FLOOR)
+
+
 def test_a_node_that_made_nothing_never_brings_its_stage_under_the_default(monkeypatch):
     """A second drive whose nodes find their outputs made (0.1 floor each, the peaks file gone) keeps no peak, so the
     next node of the stage is still given the default (2026-10-28: quick finish-route-views nodes kept 0.1 GB, and
