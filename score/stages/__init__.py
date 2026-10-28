@@ -825,6 +825,24 @@ STAGES = tuple(dataclasses.replace(row, make=claude_asks.asking_claude(row.make)
                else row for row in STAGES)
 
 
+def takes_back(place):
+    """Every Pixal3D take the place's surface data paints that offload-pixal freed, put back in work/pixal from the
+    library (tools/library/pixal_takes.py) before any row's files are read: here, in the framework's table, so no
+    reader's code version moves."""
+    import sys
+    kept = list(sys.path)
+    sys.path.insert(0, str(REPO / "tools" / "library"))
+    try:
+        import pixal_takes
+    finally:
+        sys.path[:] = kept
+    for take in surfaces.data.takes(place) if place else ():
+        pixal_takes.take_back(take, PROPS_HOME / "work" / "pixal")
+
+
+graph.PLACE_READS.append(takes_back)
+
+
 def world1():
     """Environment 1: its record, its data in the repository, its old outputs in the work folder, the prop tools' home (the
     raw models, the routes' bake jobs) and the repository (the code a stage hands to a rented machine)."""

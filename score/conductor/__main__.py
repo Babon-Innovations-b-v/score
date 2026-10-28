@@ -9,6 +9,7 @@
     python -m score.conductor clean-cache [--making-only]  # disk.clean_cache: checkouts relinked, the cache cleared
     python -m score.conductor relink-pixal       # disk.relink_pixal: work/pixal's stored files made links, one line
     python -m score.conductor score-lib status|pull  # library_checkout: score_lib's checkout against origin, one line
+    python -m score.conductor offload-pixal      # disk.offload_pixal: takes into the library, freed once read back
 """
 import argparse
 import json
@@ -30,6 +31,7 @@ def main(argv=None):
                                                     help="only the orphaned makes (the sync pass's sweep)")
     commands.add_parser("relink-pixal")
     commands.add_parser("score-lib").add_argument("action", choices=("status", "pull"))
+    commands.add_parser("offload-pixal")
     options = parser.parse_args(argv)
     conductor.apply_free_only()
     if options.command == "health":
@@ -52,6 +54,8 @@ def main(argv=None):
         relink_pixal()
     elif options.command == "score-lib":
         score_lib(options.action)
+    elif options.command == "offload-pixal":
+        offload_pixal()
     elif options.command == "size":
         from score.conductor import size
         size.tick()
@@ -131,6 +135,15 @@ def score_lib(action):
         detail.write_text("\n".join([line, *listed]) + "\n")
         print(f"... {len(listed) - library_checkout.LISTED} more in {detail}", flush=True)
     sys.exit(1 if refusal else 0)
+def offload_pixal():
+    """disk.offload_pixal in one summary line: takes freed, GB freed, takes kept and why; exit 1 when refused."""
+    from score.conductor import disk
+    done = disk.offload_pixal()
+    if done["refused"]:
+        print(f"offload-pixal: refused, nothing freed: {done['refused']}", flush=True)
+    kept = ", ".join(f"{len(takes)} {why}" for why, takes in sorted(done["kept"].items())) or "none"
+    print(f"offload-pixal: freed {done['freed']} takes, {done['freed_gb']} GB; kept: {kept}; "
+          f"{disk.free_gb():.1f} GB free", flush=True)
 
 
 if __name__ == "__main__":

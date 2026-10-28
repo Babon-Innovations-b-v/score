@@ -32,6 +32,8 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 fetch, HEAD against origin, ahead and behind, local changes, the newest
                                                 push that landed; pull fast-forwards only, refused on local changes or
                                                 commits and lists them (2026-10-28: nothing pulled it since boot.sh)
+    offload-pixal                               python -m score.conductor offload-pixal: with no run live, work/pixal's
+                                                takes committed to score_lib and freed here once read back whole
     checkouts                                  the cockpit's newest checkouts, launches and requests, read only
     stop-batch <reason>                         score.conductor.kill.agent_stop_batch: stop the batch's runs, pools
                                                 and parked machines, no latch (owner, 2026-10-25)
@@ -113,7 +115,7 @@ sys.path.insert(0, str(REPO))
 from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
-VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, clean-frozen, clean-cache, relink-pixal, score-lib status|pull, checkouts, gaps <node>, job-log <path>, "
+VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, clean-frozen, clean-cache, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, "
          "run-log [--lines N], fault <node>, predicted, store-pull, store-push [--missing], "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, decide-yes, decide <yes id>, "
          "stop-batch <reason>")
@@ -231,7 +233,7 @@ def decide(words, latch):
         if args:
             raise Refused("health takes no arguments: writing it is its timer's job")
         return ["-m", "score.conductor", "health"], {}
-    if verb in ("disk", "clean-frozen", "clean-cache", "relink-pixal"):
+    if verb in ("disk", "clean-frozen", "clean-cache", "relink-pixal", "offload-pixal"):
         if args:
             raise Refused(f"{verb} takes no arguments")
         return ["-m", "score.conductor", verb], {}
