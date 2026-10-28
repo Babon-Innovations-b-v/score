@@ -11,6 +11,8 @@ Breaks (each applied once, seen red, reverted):
 - this_pc.py `ENVIRONMENT`: drop "SCORE_FREE_ONLY": "1" -> a run here may buy (its runs are not free only).
 - this_pc.py `run_environment`: drop `found.pop(OWNERS_GO, None)` -> a go from this shell tags every run.
 - this_pc.py `deciding`: `run_environment(home)` -> `os.environ` -> the decision reaches the PC's old home.
+- this_pc.py `push`: drop the `except FileNotFoundError: continue` -> a file a live run removed after the listing
+  ends the push (2026-10-28).
 """
 import pathlib
 import subprocess
@@ -64,6 +66,21 @@ def test_a_push_adds_new_outputs_and_never_replaces_the_conductors(tmp_path):
     assert (conductor / "store/objects/records/hub/k2.json").read_text() == "made on this PC"
     assert (conductor / "work/pixal/new.glb").read_text() == "a take"
     assert not (conductor / "cloud").exists() and not list((conductor / "tmp/this-pc-push").iterdir())
+
+
+def test_a_push_skips_a_file_a_live_run_removed_after_it_was_listed(tmp_path, monkeypatch):
+    conductor, home = tmp_path / "conductor", tmp_path / "home"
+    write(home / "store/objects/records/hub/k2.json", "made on this PC")
+    write(home / "work/motion-scratch/layer/garage.usda", "scratch")
+    listed = this_pc.walked
+    def gone_after_listing(*arguments):
+        found = list(listed(*arguments))
+        (home / "work/motion-scratch/layer/garage.usda").unlink()
+        return found
+    monkeypatch.setattr(this_pc, "walked", gone_after_listing)
+    pushed = this_pc.push(home, door(conductor, "store-push --missing"), door(conductor, "store-push"))
+    assert pushed == (1, len("made on this PC"))
+    assert (conductor / "store/objects/records/hub/k2.json").read_text() == "made on this PC"
 
 
 def test_a_run_here_is_free_only_on_this_pcs_card_in_its_own_home(tmp_path, monkeypatch):
