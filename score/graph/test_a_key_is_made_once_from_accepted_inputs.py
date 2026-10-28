@@ -40,7 +40,6 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 from score import checks, contracts, graph, review  # noqa: E402
 from score.adapters import compute  # noqa: E402
 
-compute.cloud_bill = lambda: 0.0  # no cloud: the provider's bill is never read here
 compute.ledger().open_books_for_tests(tempfile.mkdtemp())  # this month's books known: paid paths open
 from score.graph import _code, chain, frozen, rebuy, runs, stopped  # noqa: E402
 from score.store import Store, partial_of, tree_hash  # noqa: E402
@@ -53,6 +52,12 @@ READS = ("toy-text", 1)
 
 def quiet(line):
     pass
+
+
+@pytest.fixture(autouse=True)
+def no_cloud_bill(monkeypatch):
+    """No cloud: the provider's bill is never read here; patched per test so the next test file gets the real one."""
+    monkeypatch.setattr(compute, "cloud_bill", lambda: 0.0)
 
 
 @pytest.fixture(autouse=True)
