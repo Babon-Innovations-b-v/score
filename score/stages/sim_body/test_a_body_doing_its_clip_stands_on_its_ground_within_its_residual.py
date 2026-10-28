@@ -9,7 +9,7 @@ degrees about up carries a child 1 m along x to -1 m along z). The model's wheel
 the pinned one. On runs written here (no engine): a good run passes every gate, a body 5 cm into its ground fails
 `on floor`, a landed foot 5 cm off its ground fails `lands` and so does a body no foot of which lands, a ground that
 pushes 10% under the weight fails `carries`, a segment 10 degrees off the clip fails `follows`, a residual force over
-5% of the weight or a moment over 1% of it times the centre's height fails `residual`. The make on the toy, over a toy
+2% of the weight or a moment over 1% of it times the centre's height fails `residual`. The make on the toy, over a toy
 seed whose ground is one raised square, its engine run stood in by a written one, hands each body the ground's
 triangles in its own frame (its spot and turn, then the dressed body's Turned), leaves out by name a body no solid is
 near, names the clip the rig lacks and the crowd, weighs each body by the scene's gravity, and writes the layer: each
@@ -29,7 +29,9 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - a_good_run_passes_and_each_gate_fails_its_break: judge_on_floor's `> SUNK_MOST` made `> 1.0`; judge_lands'
   `> LANDED` made `> 1.0`; landings' `push >= CONTACT * weight` made `push >= 0`; judge_carries'
   `abs(... - 1.0) > CARRIED` made `> 1.0`; judge_follows' `> FOLLOWED` made `> 90`; judge_residual's force check
-  dropped; its moment check dropped.
+  dropped; its moment check dropped; RESIDUAL_FORCE 0.02 made 0.05 (2026-10-28).
+- the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-10-28: make's `adjusted=entry["adjusted"]`
+  dropped (the RRA adjustment not recorded); make's job `"adjust"` dropped (the run gets no cap).
 - the_make_stands_each_body_on_its_own_ground_under_its_character: ground_of's `np.linalg.inv(frame)` made `frame`;
   own_frame's `turn + TURNED` made `turn`; make's `if not len(ground)` check dropped; write_layer's
   `points @ carried[:3, :3].T + carried[:3, 3]` made `points` (a ridden bone drawn in its body's frame, not its
@@ -127,7 +129,7 @@ def test_the_model_is_unpacked_only_as_pinned(tmp_path, monkeypatch):
     assert (folder / "musclemimic_models/model/body/myofullbody.xml").read_text() == "<mujoco/>"
 
 
-def frames(count, lowest=0.001, push=1.0, off=0.0, weight=100.0, foot=0.003, foot_push=0.5, residual=(3.0, 0.0, 4.0),
+def frames(count, lowest=0.001, push=1.0, off=0.0, weight=100.0, foot=0.003, foot_push=0.5, residual=(0.6, 0.0, 0.8),
            moment=(0.0, 0.0, 0.0)):
     """A written run of `count` frames: two segments, the ground pushing `push` of `weight`, `foot_push` of it through
     one foot `foot` m over it, the body `off` degrees about x from the clip on each segment, a residual."""
@@ -149,7 +151,8 @@ def test_a_good_run_passes_and_each_gate_fails_its_break(tmp_path):
     assert good == {"on floor": checks.PASS, "lands": checks.PASS, "carries": checks.PASS, "follows": checks.PASS,
                     "residual": checks.PASS}
     assert (measures["largest torque Nm"], measures["largest residual N"], measures["largest muscle force N"]) == (
-        3.0, 5.0, 300.0)
+        3.0, 1.0, 300.0)
+    assert measures["frames within residual limits"] == 1.0
     assert measures["landings"] == 40  # the unloaded right foot is no landing
     assert judged(tmp_path, frames(40, lowest=-0.05))[0]["on floor"] == checks.FAIL
     assert judged(tmp_path, frames(40, foot=0.05))[0]["lands"] == checks.FAIL
@@ -157,7 +160,8 @@ def test_a_good_run_passes_and_each_gate_fails_its_break(tmp_path):
     assert judged(tmp_path, frames(40, push=0.9))[0]["carries"] == checks.FAIL
     off, measures = judged(tmp_path, frames(40, off=10.0))
     assert off["follows"] == checks.FAIL and measures["mean off clip deg"] == pytest.approx(10.0)
-    assert judged(tmp_path, frames(40, residual=(0.0, 6.0, 0.0)))[0]["residual"] == checks.FAIL  # over 5 N
+    over, measures = judged(tmp_path, frames(40, residual=(0.0, 2.5, 0.0)))  # over 2% of 100 N
+    assert over["residual"] == checks.FAIL and measures["frames within residual limits"] == 0.0
     assert judged(tmp_path, frames(40, moment=(1.1, 0.0, 0.0)))[0]["residual"] == checks.FAIL  # over 1 N m
 
 
@@ -181,7 +185,8 @@ def written_run(job):
     frame.update(poses=[[0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]],
                  activations=[1.0], forces=[100.0])
     entry = {"rides": {"Hips": "pelvis", "Shin": "tibia_l"}, "model": {"kg": person["kg"]}, "muscles": ["soleus_l"],
-             "bones": ["pelvis", "tibia_l", "talus_l"], "kg": person["kg"], "com height": 0.5, "frames": [frame] * 20}
+             "bones": ["pelvis", "tibia_l", "talus_l"], "kg": person["kg"], "com height": 0.5, "frames": [frame] * 20,
+             "adjusted": {"pelvis cm": [0.5, 1.2], "mass %": -1.0}}
     bones = np.zeros((20, 3, 7))
     bones[:, :, 6] = 1.0
     bones[:, 0, 1], bones[:, 1, 1] = 0.6, 0.1  # each ridden bone 0.1 m up its segment
@@ -217,6 +222,7 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
         assert [person["name"] for person in job["people"]] == ["ann"]
         person = job["people"][0]
         assert person["segments"] == ["Hips", "Shin"] and person["kg"] == 50.0 and job["model"] == "fetched"
+        assert job["adjust"]["follows deg"] == sim_body.FOLLOWED and job["residual"]["force"] == 0.02
         assert np.asarray(person["standing"]) == pytest.approx(sim_body.clip_frames(rig, "standing", [1, 2])[0])
         ground = np.load(person["targets"])["ground"]
         assert ground[:, :, 1] == pytest.approx(0.1)
@@ -240,6 +246,7 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
     assert ann["ground"] == {"solids": ["Ground/Ground"], "triangles": 2}
     assert ann["calibrated on"].startswith("the rig's standing clip")
     assert [line.split(":")[0] for line in record["left out"]] == ["bob", "cid", "crowd"]
+    assert record["bodies"]["ann"]["adjusted"] == {"pelvis cm": [0.5, 1.2], "mass %": -1.0}
     assert "Holzbaur" in record["model"]["attribution"] and "Apache-2.0" in record["model"]["attribution"]
     stage = Usd.Stage.Open(str(out / sim_body.LAYER))
     root = "/toy/Characters/ann/SimBody"
