@@ -1,26 +1,30 @@
 """fit: on a small model posed by hand (a free pelvis, a left leg of thigh and shin, a right leg whose ankle follows its
-hip by a coupling, one thigh's calibration turned 30 degrees), with the person's constants set by hand (the left group
-8% longer, the left hip moved 2 cm), the solver gives back from the bone groups' turns, the markers and one SOMA joint
-on its centre (the left ankle) every frame's angles, the size factor and the hip's move; a frame asking a hip past its
-range stops it at the range's end, its coupled follower on its leader by the coupling, though the follower's own range
-is narrower. The size is solved, not held (#70, 2026-10-29). It runs in Newton's own Python (mink pinned there;
-score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there, as in `make
-tests`' sandbox home, it prints `skipped`.
+hip by a coupling, one thigh's calibration turned 30 degrees), with the person's constants set by hand (the left size
+group 8% longer, one pelvis marker 1 cm off its link), the staged solver gives back from the bone groups' turns and
+the markers the size factor (within the gentle pull to 1) and the marker's move (within its pull to its link), and at
+those constants every frame's angles; a frame asking a hip past its range stops it at the range's end, its coupled follower on its leader by the
+coupling, though the follower's own range is narrower; each marker weighs its trust among the markers; the overall
+size factor multiplies every group's; the constants are the body's, sampled from every one of its recordings. It runs in
+Newton's own Python (mink pinned there; score/stages/physics/inside/newton_env.sh, built at
+$PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
-Breaks (each applied once with the env linked into a sandbox home, seen red, reverted), 2026-10-28:
-- Fitting's site `Rotation.from_matrix(calibration.T)` made `Rotation.from_matrix(calibration)`: the turned
-  thigh's target is met by a wrong pose.
-- Fitting.apply's `self.model.body_pos[self.joint_bodies] += joints` dropped: the hip's move is not found.
-- Fitting's `for site in self.place_sites])` (the sites a group's size carries) made `for site in self.mark_sites])`:
-  the sizes no longer reach the centre sites (the ankle's), and the solve fails.
-- limited_model's `found.jnt_limited[self.followers] = 0` dropped: the follower's own range stops its leader short.
-- Frames' constraints `[mink.EqualityConstraintTask(...)]` made `[]`: the follower leaves its leader.
-- _frames.weights' `np.full(marks, 1.0 / np.sqrt(max(marks, 1)))` made `np.full(marks, 0.0)`: no marker sees a
-  length.
-- (2026-10-29) _frames.weights back to two place goals (`np.full(marks, 1 / sqrt(marks))` then the centres'
-  `1 / sqrt(centres)`): the toy's centre costs 1, not one over the square root of 11.
-- (2026-10-29) a row holding the left group to its start length (`(factors[0] - 1.0) * 100`, the old LENGTH_WEIGHT
-  hold) added to Problem.residuals: the factor stays near 1, not TRUE_LEFT.
+Breaks (each applied once with the env linked into a sandbox home, seen red, reverted):
+- (2026-10-28) Fitting's site `Rotation.from_matrix(calibration.T)` made `Rotation.from_matrix(calibration)`: the
+  turned thigh's target is met by a wrong pose.
+- (2026-10-28) limited_model's `found.jnt_limited[self.followers] = 0` dropped: the follower's own range stops its
+  leader short.
+- (2026-10-28) Frames' constraints `[mink.EqualityConstraintTask(...)]` made `[]`: the follower leaves its leader.
+- (2026-10-29) Fitting.factors' `sizes[0] * np.asarray(sizes, dtype=float)` made `np.asarray(sizes, dtype=float)`:
+  the overall factor reaches no group (the left 1.05, not 1.155).
+- (2026-10-29) Fitting.apply's `self.model.site_pos[self.mark_sites] += marks` dropped: the marker's move is not
+  found.
+- (2026-10-29) _frames.weights' `np.sqrt(trusts / max(trusts.sum(), 1e-12))` made `np.full(len(trusts), 1.0 /
+  np.sqrt(len(trusts)))`: the low-trust marker weighs as much as the others.
+- (2026-10-29) _constants' SIZE_PULL `0.05` made `5.0`: the factor is held near 1, not TRUE_LEFT.
+- (2026-10-29) sampled's `for turns, points in recordings` made `for turns, points in recordings[:1]`: the body's
+  second recording is left out of its constants.
+- (2026-10-29) constants' second stage (`staged(..., MARKS, ...)`) skipped (its sizes returned with no move): the
+  marker's move is not found.
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/test_the_solver_gives_back_the_pose_and_constants_that_made_its_targets.py
 """
@@ -67,15 +71,21 @@ MARKS = {"pelvis": [(0.15, 0.1, 0.0), (-0.15, 0.1, 0.0), (0.0, -0.1, 0.1)],
          "foot_r": [(0.0, 0.1, -0.02)]}
 OWNERS = {"pelvis": "trunk", "leg_l": "left", "shin_l": "left", "leg_r": "right", "foot_r": "right"}
 TRUE_LEFT = 1.08
-ANKLE = (0.0, 0.0, -0.4)  # SOMA's left ankle on the shin: a joint centre site, sized with the left group
-TRUE_HIP = (0.0, 0.02, 0.0)
+TRUE_MOVE = ("pelvis1", (0.0, 0.01, 0.0))  # a marker 1 cm off its link, on its body
+LOW_TRUST = ("pelvis2", 0.25)
 # Each frame's root place, then hip_l, knee_l, hip_r (radians); the last asks hip_l past its range's end, 1.
 POSES = [((0.0, 0.0, 1.0), 0.2, -0.4, 0.1), ((0.05, 0.0, 1.0), 0.4, -0.8, -0.3), ((0.1, 0.02, 0.98), 0.1, -1.2, 0.6),
          ((0.15, 0.03, 0.99), -0.3, -0.3, 0.9), ((0.2, 0.03, 1.0), -0.5, -0.1, 0.3),
          ((0.25, 0.03, 1.0), 1.3, -0.5, 0.2)]
 MOST_RADIANS = 1e-4
-MOST_FACTOR = 1e-4
-MOST_METRES = 1e-4
+# The pull to 1 is gentle: on the toy it keeps the factor within this of the truth (a hold of the old LENGTH_WEIGHT
+# 100 kept it at 1.0000).
+MOST_FACTOR = 3e-3
+# The marker's move is pulled to its link by one row at its own weight against the five frames' (found 2026-10-29: 7.1 mm
+# of the true 10 mm, 10.0 with the pull dropped): along the true move at least MOVE_SHARE of it and no more than all of
+# it, off that line by under MOST_METRES.
+MOVE_SHARE = 0.5
+MOST_METRES = 2e-3
 
 
 def calibration(body):
@@ -86,7 +96,7 @@ def calibration(body):
 
 def toy_fitting(folder):
     """The toy's `Fitting`: a turn site on every body (the left thigh's calibration 30 degrees about its long axis), its
-    markers, the left hip's centre free to move."""
+    markers, one of them trusted a quarter."""
     import numpy as np
     from fit import Fitting
     path = pathlib.Path(folder) / "toy.xml"
@@ -94,13 +104,13 @@ def toy_fitting(folder):
     frames = [(body, body, calibration(body)) for body in OWNERS]
     marks = [(f"{body}{number}", body, np.array(point)) for body, points in MARKS.items()
              for number, point in enumerate(points)]
-    return Fitting(path, frames, marks, OWNERS, (), [("hip_l", "leg_l")], (), [("ankle_l", "shin_l", ANKLE)])
+    trusts = [LOW_TRUST[1] if name == LOW_TRUST[0] else 1.0 for name, _, _ in marks]
+    return Fitting(path, frames, marks, OWNERS, (), (), trusts)
 
 
 def posed_targets(fitting, truth, poses):
     """Each pose's group turns (each body's turn times its calibration's transpose, R_segment = R_body R_cal^T) and
-    places (the markers', then the left ankle's: ANKLE on the shin, TRUE_LEFT longer) on the toy at the constants
-    `truth` (the model left neutral)."""
+    marker places on the toy at the constants `truth` (the model left neutral)."""
     import mujoco
     import numpy as np
     model, data = fitting.model, mujoco.MjData(fitting.model)
@@ -114,42 +124,63 @@ def posed_targets(fitting, truth, poses):
         mujoco.mj_kinematics(model, data)
         turns.append([data.xmat[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, body)].reshape(3, 3)
                       @ calibration(body).T for body in fitting.groups])
-        shin = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "shin_l")
-        ankle = data.xpos[shin] + data.xmat[shin].reshape(3, 3) @ (TRUE_LEFT * np.array(ANKLE))
-        points.append(np.concatenate([data.site_xpos[fitting.mark_sites], [ankle]]))
+        points.append(data.site_xpos[fitting.mark_sites].copy())
         angles.append(qpos[7:11])
     fitting.apply(fitting.neutral())
     return np.array(turns), np.array(points), np.array(angles)
 
 
 def truth_of(fitting):
-    """The constants set by hand: the left group TRUE_LEFT long, the left hip moved TRUE_HIP, no marker moved."""
+    """The constants set by hand: the left group TRUE_LEFT long, TRUE_MOVE's marker moved."""
     found = fitting.neutral()
     found[fitting.sizes.index("left")] = TRUE_LEFT
-    found[len(fitting.sizes):len(fitting.sizes) + 3] = TRUE_HIP
+    at = len(fitting.sizes) + 3 * fitting.marks.index(TRUE_MOVE[0])
+    found[at:at + 3] = TRUE_MOVE[1]
     return found
 
 
 def the_solver_gives_back_the_angles_and_the_constants():
-    """Every frame within reach (all but the last) within MOST_RADIANS of its angles; the size factor within
-    MOST_FACTOR of TRUE_LEFT and the hip's move within MOST_METRES of TRUE_HIP."""
+    """The left group's whole factor (the overall one's times its own) within MOST_FACTOR of TRUE_LEFT and TRUE_MOVE's
+    marker moved along its true move by MOVE_SHARE to all of it, within MOST_METRES of that line; at the true constants every frame within reach (all but the last) within
+    MOST_RADIANS of its angles."""
     import fit
     import numpy as np
     with tempfile.TemporaryDirectory() as folder:
         fitting = toy_fitting(folder)
-        turns, points, angles = posed_targets(fitting, truth_of(fitting), POSES[:-1])
-        found = fit.constants(fitting, turns, points)
+        truth = truth_of(fitting)
+        turns, points, angles = posed_targets(fitting, truth, POSES[:-1])
+        found = fit.constants(fitting, [(turns[:2], points[:2]), (turns[2:], points[2:])])
+        fitting.apply(truth)
         path = fit.angles(fitting, turns, points)
     problems = []
     off = np.abs(path[:, 7:11] - angles).max()
     if off > MOST_RADIANS:
         problems.append(f"angles off by up to {off:.6f} rad")
-    if abs(found["sizes"]["left"] - TRUE_LEFT) > MOST_FACTOR:
-        problems.append(f"the left group's factor {found['sizes']['left']:.6f}, not {TRUE_LEFT}")
-    hip = np.array(found["joints"]["leg_l"])
-    if np.abs(hip - TRUE_HIP).max() > MOST_METRES:
-        problems.append(f"the left hip moved {hip}, not {TRUE_HIP}")
+    left = found["size factors"]["overall"] * found["size factors"]["left"]
+    if abs(left - TRUE_LEFT) > MOST_FACTOR:
+        problems.append(f"the left group's factor {left:.6f}, not {TRUE_LEFT}")
+    move, true = np.array(found["marks"][TRUE_MOVE[0]]), np.array(TRUE_MOVE[1])
+    along = move @ true / (true @ true)
+    if not MOVE_SHARE <= along <= 1.0 or np.linalg.norm(move - along * true) > MOST_METRES:
+        problems.append(f"{TRUE_MOVE[0]} moved {move}, not {TRUE_MOVE[1]}")
     return problems
+
+
+def every_recording_of_the_body_is_sampled():
+    """The constants' frames from two recordings of the body (two frames and three): all five, in order, each posed
+    from its own recording's start (at the true constants within MOST_RADIANS of its angles)."""
+    import fit
+    import numpy as np
+    with tempfile.TemporaryDirectory() as folder:
+        fitting = toy_fitting(folder)
+        truth = truth_of(fitting)
+        turns, points, angles = posed_targets(fitting, truth, POSES[:-1])
+        fitting.apply(truth)
+        found, _, path = fit.sampled(fitting, [(turns[:2], points[:2]), (turns[2:], points[2:])])
+    if len(found) != len(turns) or not np.allclose(found, turns):
+        return [f"{len(found)} frames sampled of the recordings' {len(turns)}"]
+    off = np.abs(path[:, 7:11] - angles).max()
+    return [] if off <= MOST_RADIANS else [f"the sampled frames' angles off by up to {off:.6f} rad"]
 
 
 def a_hip_past_its_range_stops_at_its_end_and_its_follower_follows():
@@ -170,30 +201,35 @@ def a_hip_past_its_range_stops_at_its_end_and_its_follower_follows():
     return problems + ([] if reached < MOST_RADIANS else [f"the right hip stopped {reached:.4f} rad short of 0.9"])
 
 
-def the_joint_centres_are_the_landmarks_and_one_goal_with_them():
-    """The joint centres the targets add are the landmarks' (`centred`: the knee the epicondyles' middle, the hip
-    Harrington's from the ASIS and PSIS), never SOMA's joints; and the toy's markers and its centre are one goal, each
-    place costing one over the square root of their count (11)."""
-    import fit
+def each_marker_weighs_its_trust():
+    """The toy's ten markers, one trusted 0.25: each place cost the square root of its trust over 9.25, each of the
+    five turns one over the square root of 5."""
     import numpy as np
     from fit._frames import weights
-    from landmarks import harrington, solver_marks
-    names = solver_marks()
-    marks = np.random.default_rng(7).normal(size=(2, len(names), 3))
-    found = fit.centred(marks)
-    named = dict(zip(names, marks[1]))
-    problems = [] if np.allclose(found[1, fit.CENTRE_JOINTS.index("knee_l")],
-                                 (named["lateral_epicondyle_l"] + named["medial_epicondyle_l"]) / 2) else [
-        f"knee_l at {found[1, fit.CENTRE_JOINTS.index('knee_l')]}"]
-    if not np.allclose(found[1, fit.CENTRE_JOINTS.index("hip_r")], harrington(named)["hip_r"]):
-        problems.append("hip_r is not Harrington's")
     with tempfile.TemporaryDirectory() as folder:
-        costs = weights(toy_fitting(folder))[1]
-    return problems + ([] if np.allclose(costs, 1.0 / np.sqrt(11)) else [f"place costs {costs.tolist()}"])
+        fitting = toy_fitting(folder)
+        turn_cost, place_costs = weights(fitting)
+    wanted = np.array([np.sqrt((LOW_TRUST[1] if name == LOW_TRUST[0] else 1.0) / 9.25) for name in fitting.marks])
+    problems = [] if np.allclose(place_costs, wanted) else [f"place costs {place_costs.tolist()}"]
+    return problems + ([] if np.isclose(turn_cost, 1 / np.sqrt(5)) else [f"turn cost {turn_cost}"])
 
 
-CHECKS = (the_joint_centres_are_the_landmarks_and_one_goal_with_them, the_solver_gives_back_the_angles_and_the_constants,
-          a_hip_past_its_range_stops_at_its_end_and_its_follower_follows)
+def the_overall_factor_reaches_every_group():
+    """With the overall factor 1.1 and the left group's 1.05, each group's whole factor is the overall one's times its
+    own: the left 1.155, the trunk and the right 1.1."""
+    import numpy as np
+    with tempfile.TemporaryDirectory() as folder:
+        fitting = toy_fitting(folder)
+    sizes = np.ones(len(fitting.sizes))
+    sizes[0], sizes[fitting.sizes.index("left")] = 1.1, 1.05
+    found = dict(zip(fitting.sizes, fitting.factors(sizes)))
+    wanted = {"left": 1.155, "trunk": 1.1, "right": 1.1}
+    return [f"{group} {found[group]:.4f}, not {value}" for group, value in wanted.items()
+            if not np.isclose(found[group], value)]
+
+
+CHECKS = (each_marker_weighs_its_trust, the_overall_factor_reaches_every_group, the_solver_gives_back_the_angles_and_the_constants,
+          every_recording_of_the_body_is_sampled, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows)
 
 
 def in_newton():

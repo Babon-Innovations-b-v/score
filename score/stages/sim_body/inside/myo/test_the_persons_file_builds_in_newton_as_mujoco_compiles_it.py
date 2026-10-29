@@ -3,7 +3,7 @@ joints, a muscle whose class gives its parameters, names with '-'), sized to a t
 compiles in MuJoCo and builds in Newton with the
 same joints, one joint a body, no '-' in a name, no floor, the person's mass, and every muscle's gain and bias in
 Newton's model the published model's (#60's import fixes); with the fit's constants given, a group's bodies sit
-its factor further apart and a moved body stands moved. It runs in Newton's own Python
+its factor further apart. It runs in Newton's own Python
 (score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there, as in `make
 tests`' sandbox home, it prints `skipped`.
 
@@ -14,7 +14,6 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - person_file's `split(full_muscles(renamed(xml), final))` made `split(renamed(xml))`: the muscle's partial
   gainprm loses its class's range and Newton refuses it ("lmin<1<lmax required in muscle").
 - person_file's `spec.delete(geom)` made `pass`: the floor stays.
-- person_file's `spec.body(body).pos = np.asarray(spec.body(body).pos) + move` made `pass`: the shin is not moved.
 - person_file's `scales = {body: scale * factors[body] ...}` dropped: the shin group keeps its length.
 
 Run: .venv/bin/python score/stages/sim_body/inside/myo/test_the_persons_file_builds_in_newton_as_mujoco_compiles_it.py
@@ -44,10 +43,17 @@ JOINTS = {"LeftLeg": (0.1, 1.0, 0.0), "LeftShin": (0.1, 0.56, 0.0), "LeftFoot": 
           "LeftArm": (0.2, 1.4, 0.0)}
 
 
-def toy_size():
-    """The toy SOMA (its joints and a 0.04 m box along each stretch) as a `sizing.Size`."""
+# The toy's sizing stretch ends: a landmark at each SOMA joint (`j_<joint>`), on the model's body at that joint.
+ENDS = {f"{side}{segment}": (f"j_{side}{segment}", f"j_{side}{end}") for side in ("Left", "Right")
+        for segment, end in (("Leg", "Shin"), ("Shin", "Foot"))}
+ON_BODY = {f"j_{side}{segment}": f"{body}_{side[0].lower()}" for side in ("Left", "Right")
+           for segment, body in (("Leg", "femur"), ("Shin", "tibia"), ("Foot", "talus"))}
+
+
+def toy_rig():
+    """The toy SOMA (its joints, a 0.04 m box along each stretch and a point face a landmark at each joint), and its
+    landmark table ({name: row}, `landmarks._table.LANDMARKS`' shape)."""
     import numpy as np
-    import sizing
     places = {**JOINTS, **{"Right" + name[4:]: (-x, y, z) for name, (x, y, z) in JOINTS.items()}}
     names = list(places)
     bind = np.tile(np.eye(4), (len(names), 1, 1))
@@ -57,10 +63,16 @@ def toy_size():
                       [0, 2, 6], [0, 6, 4], [1, 5, 7], [1, 7, 3]])
     points = [unit * [0.02, 0.15, 0.02] + (np.asarray(places[start]) + places[end]) / 2
               for (start, end), _, _, _ in TABLE.values()]
-    rig = {"names": names, "bind": bind, "points": np.concatenate(points),
-           "faces": np.concatenate([faces + 8 * index for index in range(len(points))]),
-           "weights": np.zeros((8 * len(points), len(names)))}
-    return sizing.Size(rig, TABLE)
+    faces = [faces + 8 * index for index in range(len(points))]
+    table, count = {}, 8 * len(points)
+    for name, body in ON_BODY.items():
+        points.append(np.array([places[name[2:]]], dtype=float))
+        faces.append(np.array([[count, count, count]]))
+        table[name] = (len(np.concatenate(faces)) - 1, (1.0, 0.0, 0.0), "Hips", body, (0, 0, 0), (0, 0, 0), 1.0, True)
+        count += 1
+    rig = {"names": names, "bind": bind, "points": np.concatenate(points), "faces": np.concatenate(faces),
+           "weights": np.zeros((count, len(names)))}
+    return rig, table
 
 
 def toy_body():
@@ -128,11 +140,21 @@ def written(folder, constants=None):
     import mujoco
     import model
     import myo
+    import sizing
     source = pathlib.Path(folder) / myo.SOURCE
     source.parent.mkdir(parents=True, exist_ok=True)
     source.write_text(toy_body())
     path = pathlib.Path(folder) / "person.xml"
-    record, _ = myo.person_file(folder, toy_size(), KG, path, constants)
+    from landmarks._table import LANDMARKS
+    kept = dict(LANDMARKS)
+    try:
+        rig, table = toy_rig()
+        LANDMARKS.clear()
+        LANDMARKS.update(table)
+        record, _ = myo.person_file(folder, sizing.Size(rig, TABLE, ends=ENDS), KG, path, constants)
+    finally:
+        LANDMARKS.clear()
+        LANDMARKS.update(kept)
     return path.read_text(), record, mujoco.MjModel.from_xml_path(str(path)), model.built(path, 9.81)
 
 
@@ -153,20 +175,18 @@ def the_written_file_builds_as_it_compiles():
 
 
 def the_constants_size_and_move_the_file():
-    """With the left shin group's factor 1.1 and the left tibia moved 1 cm along x in its parent: the talus sits 1.1
-    times as far down the tibia, the tibia 1 cm further along x, against the file written without them."""
+    """With the left shin group's factor 1.1: the talus sits 1.1 times as far down the tibia against the file written
+    without it."""
     import mujoco
     import numpy as np
     with tempfile.TemporaryDirectory() as folder:
         plain = written(folder)[2]
-        fitted = written(folder, {"sizes": {"LeftShin": 1.1}, "joints": {"tibia_l": [0.01, 0.0, 0.0]}})[2]
+        fitted = written(folder, {"sizes": {"LeftShin": 1.1}})[2]
 
     def place(model, name):
         return model.body_pos[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, name)]
-    problems = [] if np.allclose(place(fitted, "talus_l"), 1.1 * place(plain, "talus_l")) else [
+    return [] if np.allclose(place(fitted, "talus_l"), 1.1 * place(plain, "talus_l")) else [
         f"talus at {place(fitted, 'talus_l')} against {place(plain, 'talus_l')}"]
-    moved = place(fitted, "tibia_l") - place(plain, "tibia_l")
-    return problems + ([] if np.allclose(moved, [0.01, 0.0, 0.0]) else [f"the tibia moved {moved}"])
 
 
 def every_muscle_keeps_its_published_parameters_in_newton():

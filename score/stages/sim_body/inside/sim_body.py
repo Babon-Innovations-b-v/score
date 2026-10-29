@@ -11,20 +11,22 @@ m", "turn most deg", "follows deg"}: RRA's caps), "people":
 "segments" ([SOMA segment name], in the order of `targets`), "targets" (an .npz whose `world` is frames x segments x
 4 x 4: each segment's frame in the clip, `ground` n x 3 x 3: the scene's triangles it may touch, both in the
 person's own frame, Y up, and `points`, `faces`, `weights`: the person's SOMA mesh at its bind and its skin weights,
-which `sizing` sizes MyoFullBody to and the fit's markers are skinned on)}]}.
+which `sizing` sizes MyoFullBody to and the fit's markers are skinned on), optional "recordings" ([.npz path, each with
+its `world`]: every recording of the person's SOMA body, its person constants solved from all of them together; else
+the clip's alone)}]}.
 
 The movement is the clip's (the owner, 2026-10-27: "we have kimodo for the actual movement; and myobody plus mujoco and
 newton for the physics"), and SOMA is the truth (#70): MyoFullBody is fitted to it, never the reverse, and nothing
 here moves, scales or grounds SOMA.
-- One solver (`fit`, #70): the person's constants (each bone group's size, the limbs' joint centres, each virtual
+- One solver (`fit`, #70): the person's constants (the size factors of 14 mirrored size groups, each landmark's
   marker's place on its bone) and every frame's joint angles, against the bone groups' turns (the main term: each SOMA
   segment's world turn on its group's site, turned by the static calibration table; OpenSense's orientation tracking,
-  Al Borno et al. 2022, doi:10.1186/s12984-022-01001-x) and the SOMA mesh's bony landmarks skinned on the clip's own
-  skin as markers, weighed as OpenSim's IK weighs its two goals: mink per frame (couplings held exactly, the leading
-  joints in their ranges) and scipy's bounded least_squares over the constants together with the angles of frames
-  spread over the clip (OpenSim's ScaleTool and MarkerPlacer, solved as one problem); then the person's file is
-  written again with the found constants and every frame fitted on
-  it. MyoFullBody's root follows the markers on SOMA's skin; nothing is grounded. How closely the path follows SOMA
+  Al Borno et al. 2022, doi:10.1186/s12984-022-01001-x) and SCORE's landmark set skinned on the clip's own skin as
+  markers, weighed by their trust as OpenSim's IK weighs its two goals: mink per frame (couplings held exactly, the
+  leading joints in their ranges) and scipy's bounded least_squares over the constants in stages (sizes, then the
+  markers), each together with the angles of frames spread over all the body's recordings (the person constants,
+  once per SOMA body); then the person's file is written again with the found constants and every frame's pose
+  fitted on it, the constants held. MyoFullBody's root follows the markers on SOMA's skin; nothing is grounded. How closely the path follows SOMA
   (each joint's mm, each group's degrees, split at a range limit or not) is the model record's `fit`.
 - The fitted path carried onto Newton's model by joint name and low-passed at CUTOFF (Winter's 6 Hz, zero lag)
   before it is differentiated; velocities and accelerations its central differences.
@@ -89,14 +91,22 @@ def arguments():
     return pathlib.Path(given[0]), pathlib.Path(given[1])
 
 
+def recordings(person, worlds):
+    """Every recording of the person's SOMA body (each frames x segments x 4 x 4): the job's `recordings` (npz paths,
+    each with its `world`) when given, else the clip's own `worlds` alone."""
+    return [np.load(found)["world"] for found in person["recordings"]] if person.get("recordings") else [worlds]
+
+
 def fitted_person(job, person, rig, worlds, path):
-    """The person's file at `path` with the fit's constants, its record (the fit and its following of SOMA in it),
-    each body's scale and the fitted path (qpos of MuJoCo's own compile of the file)."""
+    """The person's file at `path` with the fit's constants (the person constants, solved once from all the body's
+    `recordings`), its record (the fit and its following of SOMA in it), each body's scale and the clip's fitted path
+    (qpos of MuJoCo's own compile of the file: the pose alone per frame, the constants held)."""
     size, segments = Size(rig), person["segments"]
     _, scales = myo.person_file(job["model"], size, person["kg"], path)
     held = fit.followed(segments)
     turns, points = fit.targets(rig, segments, worlds, held)
-    found = fit.constants(fit.fitting(path, scales, held), turns, points)
+    found = fit.constants(fit.fitting(path, scales, held),
+                          [fit.targets(rig, segments, clip, held) for clip in recordings(person, worlds)])
     record, scales = myo.person_file(job["model"], size, person["kg"], path, found)
     fitting = fit.fitting(path, scales, held, found["marks"])
     angles = fit.angles(fitting, turns, points)

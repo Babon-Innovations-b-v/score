@@ -49,8 +49,9 @@ its steps the modules beside it (`inside/CLAUDE.md`).
 - **Each body is the person's own build**: the rig moved onto its look's built body (`people-body-<look>`'s rig.npz,
   an optional read, `person_rig`), recorded as `size`. MyoFullBody is sized to it by bone group (#70, `inside/sizing`;
   the stage hands the run the person's mesh and skin weights in its targets): every group, trunk and pelvis included,
-  so its stretch is SOMA's joint distance (before 2026-10-28 the limbs only, the rest by standing height: 15 of 22
-  groups within 1 cm, now all within 0.1 mm); its widths are not sized (the solver's joint centres); each muscle's
+  so its stretch is SOMA's (before 2026-10-28 the limbs only, the rest by standing height: 15 of 22 groups within
+  1 cm, then all within 0.1 mm), measured between landmarks or the joint centres they define, the same rule on both
+  models (since 2026-10-29; the hips Harrington's, SOMA's joints only the measure); its widths are not sized; each muscle's
   length range with its path (OpenSim's scaling), its peak force kept.
 - **Its muscles pull at rest**: at its standing pose (the zero pose with the knee and patella couplings applied, which
   is MyoSuite's own `stand` keyframe) MyoFullBody's muscles pull 4.2 kN passively: middle deltoid 561 N each (its path
@@ -78,11 +79,11 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   plausible range in the model record (`assumed`). RRA's mass step (above) is the one change after it, recorded. Never
   tune a mass, a weight in the solve or a gate by hand to pass: fix the method and measure again.
 - **One solver fits MyoFullBody to SOMA** (#70, owner 2026-10-28; `inside/fit`): the person's constants (each bone
-  group's size, the limbs' joint centres, each virtual marker's place on its bone) and every frame's joint angles,
+  group's size as 14 mirrored size groups, each landmark marker's place on its bone) and every frame's joint angles,
   against the bone groups' turns (the main term: each SOMA segment's world turn on its group, through the static
   calibration table, as OpenSense tracks orientations: Al Borno et al. 2022, doi:10.1186/s12984-022-01001-x), the
-  SOMA mesh's bony landmarks skinned on the clip (`inside/landmarks`) and the joint centres they give on
-  MyoFullBody's centres as markers (SOMA's own joints only the measure since 2026-10-29), weighed as OpenSim's IK weighs its goals, within the leading joints' ranges, MuJoCo's couplings held
+  SOMA mesh's bony landmarks skinned on the clip (SCORE's landmark set, `inside/landmarks`, each weighed by its
+  trust, the plantar pads held at SOMA's sole; SOMA's own joints only the measure since 2026-10-29), weighed as OpenSim's IK weighs its goals, within the leading joints' ranges, MuJoCo's couplings held
   exactly, each group's size solved (not held to SOMA's length since 2026-10-29): mink per frame and scipy's bounded `least_squares` over the
   constants with the angles of frames spread over the clip. **Never use the owner's own
   method** (arXiv:2607.17639, under Babon's patent application NL4001444; SCORE is public MIT): no swing-twist split

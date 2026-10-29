@@ -3,7 +3,7 @@
 The one solver (#70; SOMA is the truth): MyoFullBody fitted to the clip's SOMA body. `__init__.py` is the interface
 (`followed`, `placed`, `targets`, `fitting`, `constants`, `angles`, `following`, `riding`, `constants_record`,
 `METHOD`); `_model.py` the fitting model (`Fitting`: MuJoCo's own compile of the person's file, a calibration site per
-bone group, a site per landmark marker and per SOMA joint's centre, the constants laid on `body_pos`/`site_pos` in
+bone group, a site per landmark marker, the constants laid on `body_pos`/`site_pos` in
 place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the constants' sparse least squares,
 `_follow.py` the judgement and the segments' riding.
 
@@ -14,19 +14,23 @@ place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the
   OpenSim's default), `ConfigurationLimit` on the leading joints only, `DofFreezingTask` for the fingers; the
   constants by scipy's `least_squares` with bounds. No handwritten iterative solver here; never bring one back.
 - **Weights are OpenSim's IK's** (InverseKinematicsSolver, Simbody's OrientationSensors and Markers goals): each goal
-  normalised by its own count, here two goals (the turns, and the markers: the landmarks and the joint centres they
-  give); the turns are the main term. Never tune a weight to pass a gate.
+  normalised by its own count, here two goals (the turns, and the landmarks' markers, each weighed by its
+  trust); the turns are the main term. Never tune a weight to pass a gate.
 - **SOMA's joints are no target, only the measure** (#70, 2026-10-29; before, from 2026-10-28, a third goal, which
-  made the joint measure partly circular): the markers hold the joint centres the landmarks give (`centred`,
-  `CENTRE_JOINTS`: ISB midpoints and Harrington's hips, `landmarks.soma_centres`) on MyoFullBody's centres of the
-  same name, OpenSim's practice; `following` judges against SOMA's own joints: 16.1 (Kimodo walker) and 15.9 mm
+  made the joint measure partly circular): the markers are SCORE's landmark set alone (no joint centre target since
+  the upstream fit, 2026-10-29: a SOMA rule centre paired with MyoFullBody's joint pulled the ankle 16 mm up the shank;
+  the centres now act through the sizing, the same rule on both models); `following` judges against SOMA's own joints: 16.1 (Kimodo walker) and 15.9 mm
   (rig walk) on the median of the joints not at a range limit, against 9.5 and 9.7 while they were a goal, the
   shoulders (SOMA's Arm joints) the furthest, 44 to 50 mm, having no landmark centre of their own (2026-10-29).
 - **The group sizes are solved** (`_constants`, within `SIZE_MOST` of the sizing's): until 2026-10-29 each stretch was
   held to SOMA's length (LENGTH_WEIGHT 100, every group within 1.1 mm); #70's review asked them solved, and the model
   record's `lengths` says how far they move from SOMA's: with SOMA's joints a goal, up to 12 to 13 mm (the pelvis,
   shoulders, head), the joints 1 mm nearer on the median; with the landmarks alone, up to 20 to 22 mm (the shoulder
-  girdle and upper arms longer, the shins 6 to 9 mm shorter; 2026-10-29, both test walkers).
+  girdle and upper arms longer, the shins 6 to 9 mm shorter; 2026-10-29, both test walkers). Since the upstream fit
+  (2026-10-29) the constants are staged (Cotton et al. 2026, the idea only): the size factors of 14 mirrored size
+  groups (`SIZE_GROUPS`: an overall one, the trunk, and per side thigh, shin, foot, upper arm, forearm, hand), pulled
+  gently to 1 (`SIZE_PULL`), then each free marker's move off its link, pulled to it at its own weight; the plantar
+  pads (`landmarks.HELD`) never move, so a foot cannot sink through SOMA's sole.
 - **The calibration is the static table** (`calibration`), a site's quaternion R_cal^T on the group's frame body:
   never fitted, never per person.
 - **The followers' own ranges are not held** (`Fitting.limited_model`): 35 of MyoFullBody's 51 couplings have a

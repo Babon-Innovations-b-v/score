@@ -1,8 +1,9 @@
 """MyoFullBody sized to one person's SOMA body (#70: SOMA is the truth, its size included), `Size`:
 - each bone group (`bone_groups.GROUPS`, trunk and pelvis included; a group with no body of its own, Neck2, is
-  sized with the one before it on its chain: `stretches`) scaled evenly so its stretch, start joint to end joint at
-  MyoFullBody's default pose, is SOMA's at its bind (`soma_lengths`: SOMA's joints, the hand to its mesh tip); all
-  scales solved together (`Size.scales`), as a group's end may sit on another group's body;
+  sized with the one before it on its chain: `stretches`) scaled evenly so its stretch (`SIZE_ENDS`: two landmarks
+  or joint centres the landmarks define, the same rule on both models) on MyoFullBody's markers at its default pose is
+  SOMA's on its skin at its bind (`soma_lengths`, `myo_lengths`); all scales solved together (`Size.scales`), as a
+  group's end may sit on another group's body;
 - each group's mass, centre of mass and inertia's trace from SOMA's segment volumes (`volumes`: Dempster's densities),
   laid on the group's bodies (frames under FRAME_KG left out) in the model's own proportions, the centre carried
   into the group's frame by the calibration table and the inertias scaled together to the trace (`weigh`); the
@@ -11,16 +12,15 @@
 A body takes its group's scale, a body of no group its parent's; a body's place in its parent scales with its
 parent, but OWN_PLACED's with its own. Positions, geoms, sites, joint anchors, meshes and a
 slide joint's coupling and range scale with it (`sized`); each muscle's path length at the zero pose is read for
-OpenSim's muscle scaling (`path_lengths`). The landmark joint centres (`landmarks.soma_centres`) are the solver's
-starting shape, not the sizing's: they stand 4 to 24 mm off SOMA's joints, and the sim body's joints are to sit on
-SOMA's."""
+OpenSim's muscle scaling (`path_lengths`). The masses' centres stand at SOMA's own joints (`soma_point`,
+`myo_point`): where a group's mass sits is not its length."""
 import mujoco
 import numpy as np
 
 import volumes
 from bone_groups import groups
 from calibration import turn
-from landmarks import myo_parts, soma_point
+from landmarks import LANDMARKS, marker, myo_parts, needed, on_skin, point, soma_point
 from model import TO_OWN, Couplings, default_pose
 
 WRAPPER_KG = 0.001  # a split body's wrapper (MuJoCo's boundmass for MyoFullBody, which Newton does not apply)
@@ -28,6 +28,20 @@ WRAPPER_KG = 0.001  # a split body's wrapper (MuJoCo's boundmass for MyoFullBody
 # lumbar1's (inside its own bone, the source model): by lumbar1's scale a longer lumbar stretch moved T12/L1 down.
 OWN_PLACED = {"torso"}
 SCALE_RANGE = (0.5, 2.0)  # a bone group's scale's bounds
+# Each sizing stretch's ends (#70, 2026-10-29): a landmark or a joint centre the landmarks define (`landmarks.RULES`),
+# the same rule on SOMA's skin at its bind and on MyoFullBody's markers at its default pose, so a group's size is the
+# ratio of two lengths measured alike; never SOMA's skeleton joints, whose centres stand off the anatomical ones (the
+# ankle 16 mm below the malleoli's middle on both models, the measure that pulled the shins short).
+SIZE_ENDS = {"Hips": ("hipmid", "iliac_mid"), "Spine1": ("spinous_L5", "spinous_L3"),
+             "Spine2": ("spinous_L3", "spinous_T12"), "Chest": ("spinous_T12", "spinous_C7"),
+             "Neck1": ("spinous_C7", "head_mid"), "Head": ("head_mid", "head_vertex"),
+             **{f"{side}{group}": (f"{start}_{letter}", f"{end}_{letter}")
+                for side, letter in (("Left", "l"), ("Right", "r"))
+                for group, (start, end) in {"Shoulder": ("sternoclavicular", "glenohumeral"),
+                                            "Arm": ("glenohumeral", "elbow"), "ForeArm": ("elbow", "wrist"),
+                                            "Hand": ("wrist", "middle_tip"), "Leg": ("hip", "knee"),
+                                            "Shin": ("knee", "ankle"), "Foot": ("ankle", "mtp"),
+                                            "ToeBase": ("mtp", "toe_tip")}.items()}}
 # More SOMA bone lines a group's volume is given by, beyond its stretch: the hips' line for the pelvis.
 MORE_LINES = {"Hips": (("LeftLeg", "RightLeg"),)}
 # What SOMA does not give, as assumed, with a plausible range (`assumed` adds the bone shape measured on the person).
@@ -58,10 +72,12 @@ def stretches(table=None):
     return found
 
 
-def soma_lengths(rig, table=None):
-    """Each stretch's length on SOMA at its bind (metres)."""
-    return {group: float(np.linalg.norm(soma_point(end, rig) - soma_point(start, rig)))
-            for group, ((start, end), _, _) in stretches(table).items()}
+def soma_lengths(rig, table=None, ends=None):
+    """Each stretch's length on SOMA's skin at its bind (metres): its SIZE_ENDS' distance, the landmarks on the
+    person's mesh (`ends` SIZE_ENDS when not given)."""
+    marks, ends = on_skin(rig["points"], rig["faces"]), ends or SIZE_ENDS
+    return {group: float(np.linalg.norm(point(ends[group][1], marks) - point(ends[group][0], marks)))
+            for group in stretches(table)}
 
 
 def myo_point(model, data, name, scales):
@@ -73,14 +89,28 @@ def myo_point(model, data, name, scales):
     return found
 
 
-def myo_lengths(model, scales, table=None):
-    """Each stretch's length on the model at its default pose (metres)."""
-    data = default_pose(model, Couplings(model))
-    return {group: float(np.linalg.norm(myo_point(model, data, end, scales) - myo_point(model, data, start, scales)))
-            for group, (_, (start, end), _) in stretches(table).items()}
+def myo_marks(model, data, scales, names):
+    """MyoFullBody's markers of the landmarks `names` in MuJoCo's frame ({name: point}): each its bone point scaled with
+    its body and its link (`landmarks.marker`)."""
+    found = {}
+    for name in names:
+        body = LANDMARKS[name][3]
+        index = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, body)
+        found[name] = data.xpos[index] + data.xmat[index].reshape(3, 3) @ marker(name, scales[body])
+    return found
 
 
-def posed_lengths(model, scales, table=None):
+def myo_lengths(model, scales, table=None, ends=None):
+    """Each stretch's length on the model's markers at its default pose (metres): its SIZE_ENDS' distance."""
+    data, ends = default_pose(model, Couplings(model)), ends or SIZE_ENDS
+    groups_found = list(stretches(table))
+    marks = myo_marks(model, data, scales, set().union(*(needed(end) for group in groups_found
+                                                          for end in ends[group])))
+    return {group: float(np.linalg.norm(point(ends[group][1], marks) - point(ends[group][0], marks)))
+            for group in groups_found}
+
+
+def posed_lengths(model, scales, table=None, ends=None):
     """`myo_lengths` of the model as `sized` would place it (a body's place by its parent's scale, OWN_PLACED's by
     its own, joint anchors by their body's, a slide joint's coupling by its body's parent's), the model left as it
     was."""
@@ -97,7 +127,7 @@ def posed_lengths(model, scales, table=None):
         if model.eq_type[equality] == mujoco.mjtEq.mjEQ_JOINT and model.jnt_type[joint] == mujoco.mjtJoint.mjJNT_SLIDE:
             model.eq_data[equality, :5] = kept[2][equality, :5] * above[model.jnt_bodyid[joint]]
     try:
-        return myo_lengths(model, scales, table)
+        return myo_lengths(model, scales, table, ends)
     finally:
         model.body_pos[:], model.jnt_pos[:], model.eq_data[:] = kept
 
@@ -162,9 +192,10 @@ class Size:
     """One person's sizing from its SOMA rig ({"names", "bind", "points", "faces", "weights"}, its bind in its own
     frame): `scales` (each body's), `weigh` (the masses from SOMA's volumes), `record`."""
 
-    def __init__(self, rig, table=None, turns=None):
+    def __init__(self, rig, table=None, turns=None, ends=None):
         self.rig, self.table = rig, table or groups()
-        self.lengths = soma_lengths(rig, self.table)
+        self.ends = ends or SIZE_ENDS
+        self.lengths = soma_lengths(rig, self.table, self.ends)
         self.turns = turns or {group: turn(group) for group in stretches(self.table)}
         cells = volumes.filled(rig["points"], rig["faces"])
         names = list(stretches(self.table))
@@ -191,11 +222,12 @@ class Size:
         from scipy.optimize import least_squares
         groups_found = list(self.lengths)
         wanted = np.array([self.lengths[group] for group in groups_found])
-        own = myo_lengths(source, body_scales(source, dict.fromkeys(groups_found, 1.0), self.table), self.table)
+        own = myo_lengths(source, body_scales(source, dict.fromkeys(groups_found, 1.0), self.table), self.table,
+                          self.ends)
 
         def misses(logs):
             scales = body_scales(source, dict(zip(groups_found, np.exp(logs))), self.table)
-            found = posed_lengths(source, scales, self.table)
+            found = posed_lengths(source, scales, self.table, self.ends)
             return np.array([found[group] for group in groups_found]) - wanted
         start = np.log(np.clip(wanted / [own[group] for group in groups_found], *SCALE_RANGE))
         solved = least_squares(misses, start, bounds=(np.log(SCALE_RANGE[0]), np.log(SCALE_RANGE[1])), xtol=1e-10)
@@ -235,7 +267,7 @@ class Size:
 
     def record(self, model, scales):
         """The sized model's lengths against SOMA's ({group: [SOMA m, sized m]})."""
-        found = myo_lengths(model, scales, self.table)
+        found = myo_lengths(model, scales, self.table, self.ends)
         return {group: [round(self.lengths[group], 4), round(found[group], 4)] for group in self.lengths}
 
 
