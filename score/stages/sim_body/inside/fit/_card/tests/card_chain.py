@@ -2,6 +2,7 @@
 test_the_card_step_and_projection_equal_the_cpu_prototype.py)."""
 
 LINKS = 6
+OBJECTIVE_ROWS = 6
 
 
 def chain_model():
@@ -39,3 +40,18 @@ def log_rate(turn):
     across = np.array([[0.0, -turn[2], turn[1]], [turn[2], 0.0, -turn[0]], [-turn[1], turn[0], 0.0]])
     bend = 1.0 / angle ** 2 - (1.0 + np.cos(angle)) / (2.0 * angle * np.sin(angle))
     return np.eye(3) - 0.5 * across + bend * across @ across
+
+
+def objective_rows(coords):
+    """OBJECTIVE_ROWS rows' poses, offsets, unit turns, weights, places and unit wanted turns, seeded alike."""
+    import numpy as np
+    generator = np.random.default_rng(11)
+    poses = generator.uniform(-1.0, 1.0, size=(OBJECTIVE_ROWS, coords))
+    offsets = generator.normal(0.0, 0.05, size=(OBJECTIVE_ROWS, 3)).astype(np.float32)
+    turns = generator.normal(size=(OBJECTIVE_ROWS, 4)).astype(np.float32)
+    turns /= np.linalg.norm(turns, axis=1, keepdims=True)
+    weights = generator.uniform(0.5, 2.0, OBJECTIVE_ROWS).astype(np.float32)
+    places = generator.normal(0.0, 0.5, size=(OBJECTIVE_ROWS, 3)).astype(np.float32)
+    wanted = generator.normal(size=(OBJECTIVE_ROWS, 4)).astype(np.float32)
+    wanted /= np.linalg.norm(wanted, axis=1, keepdims=True)
+    return poses, offsets, turns, weights, places, wanted
