@@ -1,7 +1,8 @@
 # score/stages/sim_body/inside/myo/
 
 MyoFullBody made ready for Newton and sized to one person: `person_file` writes the person's file from the pinned
-wheel (`SOURCE`), with the fit's constants when given (each group's size factor, each joint centre's move: the run
+wheel (`SOURCE`), with the fit's constants when given (each group's size factor; the markers' moves stay
+in the fit: the run
 writes the file twice, sized, then fitted), and returns its record (scales, muscle length scale, kg) and each body's
 scale. Its sizing is `sizing`'s; #60's import
 fixes are `_fixes.py` (names without '-' or spaces, every muscle's full gain, bias and dynamics parameters, a body with

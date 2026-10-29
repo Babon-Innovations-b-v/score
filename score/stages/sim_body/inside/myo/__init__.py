@@ -14,7 +14,6 @@ model with:
 import pathlib
 
 import mujoco
-import numpy as np
 
 import resting
 from myo._fixes import full_muscles, multi_joint_bodies, renamed, split
@@ -39,10 +38,9 @@ def _fresh(source):
 
 def person_file(folder, size, kg, path, constants=None):
     """One person's MyoFullBody, written at `path`, sized by `size` (a `sizing.Size` of the person's SOMA) and, when
-    given, the fit's `constants` ({"sizes": {group: factor}, "joints": {body: [3] m}}: each group's scale times its
-    factor, each body moved in its parent), and (its record, each body's scale): the record holds each group's scale
-    and its length against SOMA's, the inertia scale per group, its muscles' length scale, its total mass and what is
-    assumed."""
+    given, the fit's `constants` ({"sizes": {group: factor}}: each group's scale times its factor), and (its record,
+    each body's scale): the record holds each group's scale and its length against SOMA's, the inertia scale per
+    group, its muscles' length scale, its total mass and what is assumed."""
     source = f"{folder}/{SOURCE}"
     model = _source_model(folder)
     scales = size.scales(model)
@@ -53,8 +51,6 @@ def person_file(folder, size, kg, path, constants=None):
     spec = _fresh(source)
     wrappers = multi_joint_bodies(spec)
     sized(spec, model, scales, kg, wrappers)
-    for body, move in (constants or {}).get("joints", {}).items():
-        spec.body(body).pos = np.asarray(spec.body(body).pos) + move
     grown = spec.compile()
     factors = size.weigh(spec, grown, scales, kg - wrappers * WRAPPER_KG - ungrouped_kg(grown, size.table))
     grown = spec.compile()

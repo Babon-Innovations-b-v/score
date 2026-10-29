@@ -1,9 +1,8 @@
 """The model the fit solves on (`Fitting`): MuJoCo's own compile of the person's file (it keeps the model's joint
 couplings, which mink holds exactly; Newton's model is given the found angles by joint name), with a site on each bone
 group's frame body turned by the calibration table (its frame is the SOMA segment's when the group lies as SOMA's
-does), a site on each marker's body where the landmark sits and one on each joint centre SOMA places a joint at, and
-the person's constants laid on it in place (`Fitting.apply`): each bone group's size factor, each placed joint's
-centre moved in its parent, each marker moved on its body. Only `body_pos` and `site_pos` change: the fit is
+does), a site on each marker's body where the landmark sits, and the person's constants laid on it in place
+(`Fitting.apply`): each size group's factor (the overall one times its own) and each marker moved on its body. Only `body_pos` and `site_pos` change: the fit is
 kinematics, so nothing else is compiled again."""
 import copy
 import re
@@ -34,36 +33,33 @@ def followers_free(model, followers):
     return found
 
 
+OVERALL = "overall"  # the size factor every body takes, beside its own group's
+
+
 class Fitting:
     """The fitting model and what the constants move. `path` the person's file; `frames` [(group, frame body, R_cal)]:
-    one orientation site each, in that order; `marks` [(name, body, local point)]: one marker site each; `owners`
-    {source body name: size group}; `own_placed` the bodies placed in their parent by their own group's size; `joints`
-    [(name, body)]: the centres the constants move, each the top body of its chain (its first wrapper) whose place in
-    its parent moves; `frozen` the bodies whose joints no target sees (held as they stand); `centres` [(name, body,
-    local point)]: a site on each MyoFullBody joint centre the landmarks give one at. The place sites (`place_sites`)
-    are the markers', then the centres'."""
+    one orientation site each, in that order; `marks` [(name, body, local point)]: one marker site each (the place
+    sites, `place_sites`); `owners` {source body name: size group}; `own_placed` the bodies placed in their parent by
+    their own group's size; `frozen` the bodies whose joints no target sees (held as they stand); `trusts` each
+    marker's trust (its weight among the markers; every one 1 when not given). The size factors (`sizes`) are OVERALL,
+    then each size group's: a body's size is OVERALL's times its group's."""
 
-    def __init__(self, path, frames, marks, owners, own_placed=(), joints=(), frozen=(), centres=()):
+    def __init__(self, path, frames, marks, owners, own_placed=(), frozen=(), trusts=None):
         spec = mujoco.MjSpec.from_file(str(path))
         for group, body, calibration in frames:
             spec.body(body).add_site(name=f"fit:{group}", quat=Rotation.from_matrix(calibration.T).as_quat(
                 scalar_first=True))
         for name, body, local in marks:
             spec.body(body).add_site(name=f"mark:{name}", pos=local)
-        for name, body, local in centres:
-            spec.body(body).add_site(name=f"centre:{name}", pos=local)
         self.model = spec.compile()
         model = self.model
         self.groups = [group for group, _, _ in frames]
         self.frame_sites = [mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, f"fit:{group}") for group in self.groups]
         self.marks = [name for name, _, _ in marks]
         self.mark_sites = [mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, f"mark:{name}") for name in self.marks]
-        self.centres = [name for name, _, _ in centres]
-        self.place_sites = self.mark_sites + [mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, f"centre:{name}")
-                                              for name in self.centres]
-        self.joints = [name for name, _ in joints]
-        self.joint_bodies = [mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, body) for _, body in joints]
-        self.sizes = sorted(set(owners.values()))
+        self.place_sites = self.mark_sites
+        self.trusts = np.ones(len(self.marks)) if trusts is None else np.asarray(trusts, dtype=float)
+        self.sizes = [OVERALL] + sorted(set(owners.values()))
         group_of = self._groups_of(owners)
         placing = [group_of[body] if own_name(model.body(body).name) in own_placed
                    else group_of[model.body_parentid[body]] for body in range(model.nbody)]
@@ -99,29 +95,32 @@ class Fitting:
         return False
 
     def width(self):
-        """How many constants: a size factor per group, three per joint centre, three per marker."""
-        return len(self.sizes) + 3 * len(self.joints) + 3 * len(self.marks)
+        """How many constants: a size factor per size group (OVERALL first), three per marker."""
+        return len(self.sizes) + 3 * len(self.marks)
 
     def unpack(self, constants):
-        """(size factors, joint moves joints x 3, marker moves markers x 3) of a constants vector."""
+        """(size factors, marker moves markers x 3) of a constants vector."""
         sizes = len(self.sizes)
-        moved = sizes + 3 * len(self.joints)
-        return (np.asarray(constants[:sizes]), np.reshape(constants[sizes:moved], (-1, 3)),
-                np.reshape(constants[moved:], (-1, 3)))
+        return np.asarray(constants[:sizes]), np.reshape(constants[sizes:], (-1, 3))
 
     def neutral(self):
-        """The constants that leave the person's file as it is: every factor 1, nothing moved."""
-        return np.concatenate([np.ones(len(self.sizes)), np.zeros(3 * (len(self.joints) + len(self.marks)))])
+        """The constants that leave the person's file as it is: every factor 1, no marker moved."""
+        return np.concatenate([np.ones(len(self.sizes)), np.zeros(3 * len(self.marks))])
+
+    def factors(self, sizes):
+        """Each size group's whole factor (OVERALL's times its own; OVERALL's alone for itself)."""
+        found = sizes[0] * np.asarray(sizes, dtype=float)
+        found[0] = sizes[0]
+        return found
 
     def apply(self, constants):
         """The constants laid on the model in place, from its base: a body's place in its parent by its parent's group
-        factor (or its own, `own_placed`), a joint centre's top body moved in its parent, a marker or centre site by
-        its body's group factor, a marker by its own move too."""
-        factors, joints, marks = self.unpack(constants)
+        factor (or its own, `own_placed`), a marker site by its body's group factor and by its own move."""
+        sizes, marks = self.unpack(constants)
+        factors = self.factors(sizes)
         body_pos, site_pos = self.base
         scale = np.where(self.placing >= 0, factors[np.maximum(self.placing, 0)], 1.0)
         self.model.body_pos[:] = body_pos * scale[:, None]
-        self.model.body_pos[self.joint_bodies] += joints
         self.model.site_pos[:] = site_pos
         carried = np.where(self.carrying >= 0, factors[np.maximum(self.carrying, 0)], 1.0)
         self.model.site_pos[self.place_sites] = site_pos[self.place_sites] * carried[:, None]

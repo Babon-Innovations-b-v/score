@@ -1,14 +1,17 @@
 # score/stages/sim_body/inside/landmarks/
 
-The SOMA mesh landmarks and the MyoFullBody points that match them (#70; pure numpy, its test runs in the score
-venv): `MARKS` (72: a SOMA face and barycentric weights, its segment, the MyoFullBody body, the bone point and the
-marker's starting point, the template's soft tissue, the confidence, whether the solver takes it), `CENTRES`
-(MyoFullBody's joint centres, body-local, source model), `on_skin` (each landmark on a person's mesh: every person's
-mesh shares the template's topology), `soma_centres` (ISB midpoints, Harrington 2007's hips), `soma_point` (a bone
-group's stretch end on SOMA) and `myo_parts`.
+SCORE's landmark set (#70, CONTEXT.md "landmark set"; pure numpy, its test runs in the score venv): `LANDMARKS`
+(102 from the landmark study of 2026-10-29, 84 the solver's: a SOMA face and barycentric weights, its segment, the
+MyoFullBody body, the bone point, the link, the trust, whether the solver takes it), `RULES` (the joint centres the
+landmarks define, the same rule on both models: ISB midpoints, Harrington 2007's hips, Rab 2002's glenohumeral),
+`CENTRES` (MyoFullBody's own joint centres, the measure's), `on_skin`, `posed`, `point`, `soma_point` (SOMA's own
+joints, for the measure and the masses), `myo_parts` and `refined` (links and trusts over many fitted bodies).
+Every point by its anatomical definition; never a licensed dataset's marker list.
 
-- `_table.py` is generated, once, from the tables study of 2026-10-28 (its scripts stay with the study, outside the
+- `_table.py` is generated, once, from the landmark study of 2026-10-29 (MC3_head_r's trust set to the left's, 0.098,
+  the worse side's as the study's mirrored rule says) (its scripts stay with the study, outside the
   repository); edit a row by hand only with the measurement that justifies it, noted here.
 - The marker starting points embed the template's soft tissue; the solver fits where each marker sits on its bone.
-- Landmark joint centres against SOMA's joints on the template: elbow 4.2 mm, wrist 4.5, knee 8.1, ankle 20.6, hip
-  23.5 mm. They are not the sizing's (the sim body's joints sit on SOMA's), only the solver's start.
+- Rule centres against SOMA's joints on the template (study, 2026-10-29): knee 2.1 mm, ankle 15.9, elbow 11.0, wrist
+  4.5, mtp 27.3, hip 21.4, glenohumeral 21.8; the rule's bias between the two models 2 to 8 mm but the hip's 31.6.
+  They are the sizing's ends, on both models alike; SOMA's joints are only the measure.

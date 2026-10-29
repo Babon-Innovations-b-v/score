@@ -2,7 +2,8 @@
 
 MyoFullBody sized to one person's SOMA body (#70: SOMA is the truth, its size included): `Size(rig)` from the person's
 rig and mesh at its bind; `Size.scales` gives each body's scale, every bone group (trunk and pelvis included) scaled
-evenly so its stretch at the default pose is SOMA's joint distance, all groups solved together by scipy's bounded
+evenly so its stretch (`SIZE_ENDS`: two landmarks or joint centres the landmarks define, the same rule on both
+models) at the default pose is SOMA's on its skin at the bind, all groups solved together by scipy's bounded
 `least_squares` on the model posed as `sized` places it (`posed_lengths`); `Size.weigh` gives each group's bodies its
 mass, centre of mass and inertia's trace from SOMA's segment volumes (`volumes`); `assumed` marks what SOMA does not
 give (muscle strength, joint ranges, segment density, bone shape) with a plausible range; `sized` scales the spec
@@ -17,6 +18,9 @@ body by body; `path_lengths` reads each muscle's path for OpenSim's muscle scali
 - A body under `FRAME_KG` is a frame, not a bone (MyoFullBody's phantoms carry 1 g and inertias of several kg m2):
   `weigh` leaves it as sized: counted in, the shoulder's and upper arm's own inertias summed 3.7 and 7.7 kg m2
   against SOMA's 0.03 and 0.05 (measured 2026-10-28).
-- Never size a group by the landmark joint centres: they stand 4 to 24 mm off SOMA's joints (`landmarks`), and the
-  sim body's joints are to sit on SOMA's. They are the solver's starting shape.
+- Size by the landmarks, never by SOMA's skeleton joints (#70, 2026-10-29): SOMA's joints stand off the anatomical
+  centres (the ankle 16 mm below the malleoli's middle on both models, the elbow 11), so a joint-to-landmark ratio
+  pulled the shins short. The hips are Harrington's from the ASIS and PSIS on both models (owner, 2026-10-29:
+  "Anatomical hip"); SOMA's hip joints, 19.4 mm wider a side, are only the measure. The masses' centres still stand
+  at SOMA's joints (`soma_point`): where a group's mass sits is not its length.
 - Its test runs in Newton's own Python (MuJoCo pinned there) by subprocess and prints `skipped` where no env is built.

@@ -1,18 +1,23 @@
 """sizing: a small body built like MyoFullBody's legs and lower trunk (a pelvis, lumbar5 and lumbar3, each side's
-femur, tibia, talus and toes), sized to a SOMA made of one thin box along each bone group's stretch, has every
-group's stretch SOMA's length, every group's mass its box's volume at Dempster's density (all brought to the person's
-mass with the bodies of no group kept), each group's centre of mass on its stretch's middle and each one-body group's
-inertia its box's (all worked out by hand from the boxes). It runs in Newton's own Python (MuJoCo pinned there;
-score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there, as in `make
-tests`' sandbox home, it prints `skipped`.
+femur, tibia, talus and toes), sized to a SOMA made of one thin box along each bone group's stretch with a landmark
+at each joint (the toe's 2 cm over its joint, its marker's link 2 cm over the toes' bone point), has every group's
+stretch between its landmarks SOMA's length (the foot 1.5 times the model's, as the link makes it), every group's
+mass its box's volume at Dempster's density (all brought to the person's mass with the bodies of no group kept), each
+group's centre of mass on its stretch's middle and each one-body group's inertia its box's (all worked out by hand
+from the boxes). It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh,
+built at $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
-Breaks (each applied once with the env linked into a sandbox home, seen red, reverted), 2026-10-28:
-- sized's `np.asarray(body.pos) * (scale if body.name in OWN_PLACED else above)` made `np.asarray(body.pos)`: no
-  group grows.
-- weigh's `shift = target - masses @ data.xipos[index] / mass` made `shift = np.zeros(3)`: the centres stay the
+Breaks (each applied once with the env linked into a sandbox home, seen red, reverted):
+- (2026-10-28) sized's `np.asarray(body.pos) * (scale if body.name in OWN_PLACED else above)` made
+  `np.asarray(body.pos)`: no group grows.
+- (2026-10-28) weigh's `shift = target - masses @ data.xipos[index] / mass` made `shift = np.zeros(3)`: the centres
+  stay the model's.
+- (2026-10-28) volumes.weighed's `density(group) * 1000.0 * volume` made `1000.0 * volume`: every density one.
+- (2026-10-28) weigh's `max((trace - spread) / max(own, 1e-12), INERTIA_FLOOR)` made `1.0`: the inertias stay the
   model's.
-- volumes.weighed's `density(group) * 1000.0 * volume` made `1000.0 * volume`: every density one.
-- weigh's `max((trace - spread) / max(own, 1e-12), INERTIA_FLOOR)` made `1.0`: the inertias stay the model's.
+- (2026-10-29) landmarks.marker's `+ np.asarray(row[5], dtype=float)` (the link) dropped: the foot sizes 1.513, not 1.5.
+- (2026-10-29) soma_lengths' `point(ends[group][1], marks) - point(ends[group][0], marks)` made the SOMA joints'
+  distance (`soma_point`): the foot sizes to 0.15 m, not its landmarks' 0.1513.
 
 Run: .venv/bin/python score/stages/sim_body/inside/sizing/test_a_sized_group_is_somas_length_and_weight.py
 """
@@ -37,7 +42,17 @@ TABLE = {"Hips": (("hipmid", "Spine1"), ("hipmid", "L5_S1"), "pelvis", ("pelvis"
 # and Shin 0.45, Foot 0.15 m.
 JOINTS = {"Hips": (0, 1.0, 0), "Spine1": (0, 1.15, 0), "Spine2": (0, 1.25, 0), "LeftLeg": (0.1, 1.0, 0),
           "LeftShin": (0.1, 0.55, 0), "LeftFoot": (0.1, 0.1, 0), "LeftToeBase": (0.1, 0.1, 0.15)}
-LENGTHS = {"Hips": 0.15, "Spine1": 0.1, "Leg": 0.45, "Shin": 0.45, "Foot": 0.15}
+LENGTHS = {"Hips": 0.15, "Spine1": 0.1, "Leg": 0.45, "Shin": 0.45, "Foot": (0.15 ** 2 + 0.02 ** 2) ** 0.5}
+TOE_LIFT = 0.02  # the toe landmark over its joint on SOMA (own y) and its link over the bone point (MuJoCo z)
+FOOT_SCALE = 1.5  # the toy's foot: sqrt(0.15^2 + 0.02^2) on SOMA over sqrt((0.1 s)^2 + 0.02^2) on the model
+# Each group's stretch ends: a landmark at each SOMA joint (`j_<joint>`, the hips' middle `j_hipmid`).
+ENDS = {"Hips": ("j_hipmid", "j_Spine1"), "Spine1": ("j_Spine1", "j_Spine2"),
+        **{f"{side}{segment}": (f"j_{side}{segment}", f"j_{side}{end}") for side in ("Left", "Right")
+           for segment, end in (("Leg", "Shin"), ("Shin", "Foot"), ("Foot", "ToeBase"))}}
+# Each landmark's MyoFullBody body and bone point (the toy's joints: MuJoCo's frame, the model's left +x).
+ON_BODY = {"j_hipmid": ("pelvis", (0, 0, -0.1)), "j_Spine1": ("lumbar5", (0, 0, 0)), "j_Spine2": ("lumbar3", (0, 0, 0)),
+           **{f"j_{side}{segment}": (f"{body}_{side[0].lower()}", (0, 0, 0)) for side in ("Left", "Right")
+              for segment, body in (("Leg", "femur"), ("Shin", "tibia"), ("Foot", "talus"), ("ToeBase", "toes"))}}
 DENSITY = {"Hips": 1.01, "Spine1": 1.01, "Leg": 1.05, "Shin": 1.09, "Foot": 1.10}  # Winter 2009 Table 4.1
 # Each group's box: 0.04 x 0.04 m across, along the middle 60% of its stretch, so its centre is the stretch's middle.
 SIDE, SHARE = 0.04, 0.6
@@ -64,7 +79,8 @@ def box(start, end):
 
 
 def toy_rig():
-    """The toy SOMA: its joints, and one box a group (the Hips' from the hip joints' middle)."""
+    """The toy SOMA: its joints, one box a group (the Hips' from the hip joints' middle) and a point face (three
+    corners on one point) a landmark, at its joint, the toes' TOE_LIFT over it; and the toy landmark table."""
     import numpy as np
     places = joints()
     names = list(places)
@@ -78,8 +94,18 @@ def toy_rig():
         faces.append(mine + 8 * len(points))
         points.append(corners)
         sizes[group] = size
+    table, count = {}, 8 * len(points)
+    for name, (body, local) in ON_BODY.items():
+        joint = name[2:]
+        at = ((np.asarray(places["LeftLeg"]) + places["RightLeg"]) / 2 if joint == "hipmid" else
+              np.asarray(places[joint], dtype=float) + ([0, TOE_LIFT, 0] if joint.endswith("ToeBase") else 0))
+        faces.append(np.array([[count, count, count]]))
+        points.append(np.array([at]))
+        link = (0, 0, TOE_LIFT) if joint.endswith("ToeBase") else (0, 0, 0)
+        table[name] = (len(np.concatenate(faces)) - 1, (1.0, 0.0, 0.0), "Hips", body, local, link, 1.0, True)
+        count += 1
     return {"names": names, "bind": bind, "points": np.concatenate(points), "faces": np.concatenate(faces),
-            "weights": np.zeros((8 * len(points), len(names)))}, sizes
+            "weights": np.zeros((count, len(names)))}, sizes, table
 
 
 def toy_body():
@@ -103,32 +129,43 @@ def toy_body():
 
 
 def sized_toy():
-    """The toy sized and weighed to the toy SOMA: (final model, its body scales, the boxes' sizes)."""
+    """The toy sized and weighed to the toy SOMA, its landmarks the toy's (laid into the landmark table for the
+    while): (final model, its body scales, the boxes' sizes)."""
     import mujoco
     import sizing
+    from landmarks._table import LANDMARKS
     from model import TO_OWN
-    rig, sizes = toy_rig()
-    size = sizing.Size(rig, TABLE, turns={group: TO_OWN for group in TABLE})
-    source = mujoco.MjModel.from_xml_string(toy_body())
-    scales = size.scales(source)
-    spec = mujoco.MjSpec.from_string(toy_body())
-    sizing.sized(spec, source, scales, KG, 0)
-    grown = spec.compile()
-    size.weigh(spec, grown, scales, KG - sizing.ungrouped_kg(grown, TABLE))
-    return spec.compile(), scales, sizes
+    rig, sizes, table = toy_rig()
+    kept = dict(LANDMARKS)
+    LANDMARKS.clear()
+    LANDMARKS.update(table)
+    try:
+        size = sizing.Size(rig, TABLE, turns={group: TO_OWN for group in TABLE}, ends=ENDS)
+        source = mujoco.MjModel.from_xml_string(toy_body())
+        scales = size.scales(source)
+        spec = mujoco.MjSpec.from_string(toy_body())
+        sizing.sized(spec, source, scales, KG, 0)
+        grown = spec.compile()
+        size.weigh(spec, grown, scales, KG - sizing.ungrouped_kg(grown, TABLE))
+        final = spec.compile()
+        lengths = sizing.myo_lengths(final, scales, TABLE, ENDS)
+    finally:
+        LANDMARKS.clear()
+        LANDMARKS.update(kept)
+    return final, scales, sizes, lengths
 
 
 def every_group_is_somas_length_mass_and_centre():
-    """Each stretch SOMA's length within 1 mm; each group's mass KG less the bodies of no group (lumbar3, the toes)
+    """Each stretch between its landmarks SOMA's length within 1 mm, the foot FOOT_SCALE times the model's within
+    0.001; each group's mass KG less the bodies of no group (lumbar3, the toes)
     shared by box volume times density within 0.1%; the whole body KG; each group's centre of mass on its stretch's
     middle within 1 mm; each group's inertia's trace its box's, m (a2 + b2 + c2) / 6, within 0.5%."""
     import mujoco
     import numpy as np
     import sizing
     from model import Couplings, default_pose
-    final, scales, sizes = sized_toy()
-    problems = []
-    found = sizing.myo_lengths(final, scales, TABLE)
+    final, scales, sizes, found = sized_toy()
+    problems = [] if abs(scales["talus_l"] - FOOT_SCALE) < 1e-3 else [f"the foot sized {scales['talus_l']:.4f}"]
     for group, length in found.items():
         if abs(length - LENGTHS[group.removeprefix("Left").removeprefix("Right")]) > 0.001:
             problems.append(f"{group} {length:.4f} m")

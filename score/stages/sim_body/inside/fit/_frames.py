@@ -1,7 +1,7 @@
 """Every frame's joint angles by mink (github.com/kevinzakka/mink, Apache-2.0, pinned 1.3.0 in newton_env.sh), MuJoCo's
 inverse kinematics: per frame one quadratic program a step, run to convergence (an offline fit, no real-time rate), the
-bone groups' turns (orientation-only `FrameTask`s on the calibration sites, the main term), the landmarks' markers and
-the joint centres they give (position-only `FrameTask`s on the marker and centre sites) weighed as OpenSim's IK weighs
+bone groups' turns (orientation-only `FrameTask`s on the calibration sites, the main term), the landmarks' markers
+(position-only `FrameTask`s on the marker sites) weighed as OpenSim's IK weighs
 its goals (each goal's squared errors over its own count: `weights`), the model's couplings held exactly
 (`EqualityConstraintTask` as a constraint, OpenSim's default), the leading joints kept in their ranges
 (`ConfigurationLimit`), the joints no target sees frozen (`DofFreezingTask`). Each frame starts from the one before."""
@@ -36,13 +36,12 @@ def solved(configuration, tasks, limits, constraints, refresh=None):
 
 
 def weights(fitting):
-    """Each turn task's cost and each place task's (markers', then the joint centres' they give): OpenSim's IK
-    normalises each goal by its own weight sum (Simbody's OrientationSensors and Markers goals, every weight 1, as
-    OpenSense's), here two goals, the turns and the markers (the joint-centre markers among them; SOMA's own joints are
-    no goal, #70 2026-10-29: they are the measure); a mink cost multiplies the error, so the cost is one over the
-    goal's count's square root."""
-    places = len(fitting.place_sites)
-    return 1.0 / np.sqrt(max(len(fitting.frame_sites), 1)), np.full(places, 1.0 / np.sqrt(max(places, 1)))
+    """Each turn task's cost and each marker's: OpenSim's IK normalises each goal by its own weight sum (Simbody's
+    OrientationSensors and Markers goals), here two goals, the turns (every weight 1, as OpenSense's) and the markers
+    (each weight its landmark's trust, `landmarks.trust`; SOMA's own joints are no goal: they are the measure); a mink
+    cost multiplies the error, so a cost is the square root of its weight over its goal's sum."""
+    trusts = np.asarray(fitting.trusts, dtype=float)
+    return 1.0 / np.sqrt(max(len(fitting.frame_sites), 1)), np.sqrt(trusts / max(trusts.sum(), 1e-12))
 
 
 class Frames:
@@ -100,8 +99,8 @@ class Frames:
         return qpos
 
     def fitted(self, turns, points, start=None):
-        """Every frame's angles (frames x nq): `turns` frames x groups x 3 x 3 and `points` frames x place sites x 3
-        (the markers', then the joint centres'), both MuJoCo's frame; each frame from the one before, the first from
+        """Every frame's angles (frames x nq): `turns` frames x groups x 3 x 3 and `points` frames x markers x 3, both
+        MuJoCo's frame; each frame from the one before, the first from
         `start` (else `start()`)."""
         qpos = self.start(turns[0], points[0]) if start is None else start
         found = []

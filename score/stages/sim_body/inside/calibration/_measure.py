@@ -15,7 +15,7 @@ import numpy as np
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from bone_groups import groups, sided_map  # noqa: E402
 from calibration import REFERENCES, aligned  # noqa: E402
-from landmarks import MARKS, myo_parts, soma_point  # noqa: E402
+from landmarks import LANDMARKS, myo_parts, soma_point  # noqa: E402
 from model import TO_OWN, Couplings, default_pose  # noqa: E402
 from myo import SOURCE  # noqa: E402
 
@@ -24,7 +24,7 @@ OWN = {"own x": np.array([1.0, 0.0, 0.0]), "own y": np.array([0.0, 1.0, 0.0])}
 
 def myo_point(model, data, name):
     """A MyoFullBody centre or landmark bone point in the person's frame at the default pose."""
-    parts = myo_parts(name) if name not in MARKS else [(MARKS[name][3], MARKS[name][4], 1.0)]
+    parts = myo_parts(name) if name not in LANDMARKS else [(LANDMARKS[name][3], LANDMARKS[name][4], 1.0)]
     found = np.zeros(3)
     for body, local, weight in parts:
         index = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, body)
