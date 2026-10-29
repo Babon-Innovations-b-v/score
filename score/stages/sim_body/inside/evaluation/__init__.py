@@ -15,6 +15,8 @@ MOST = 6
 FREE_GB = 12
 HELD_OUT_SHARE = 0.10  # the check bodies' score may be at most this much worse than the tuning bodies'
 WORKER = pathlib.Path(__file__).resolve().parent / "_case.py"
+SETS_WORKER = pathlib.Path(__file__).resolve().parent / "_card_sets.py"  # every set of a Jacobian, one card process
+SAME_SEEDS = "--same-seeds"  # _card_sets: every set seeded from the seeds root, the base point's way
 SOLVED = "measures.json"  # a clip's unrounded measures, the solver's; m.json beside it is the rounded copy people read
 SEEDS = "angles.npz"  # a clip's mink angles per frame (qpos, frames x nq): the card's seeds (fit._card._seeds)
 PLACES = 2  # decimals of the rounded copy
@@ -91,15 +93,50 @@ def measured(rows, weights, rest, cases, out, python, **options):
     `rest` ({"centres": the group ends' offsets, "rig": SOMA's template rig the calibration is read at rest from},
     out/rest.json, the worker's); raises when any body fails or any clip has no measures."""
     shutil.rmtree(out, ignore_errors=True)
-    out.mkdir(parents=True)
-    (out / "table.json").write_text(json.dumps(rows, indent=1))
-    (out / "weights.json").write_text(json.dumps(weights))
-    (out / "rest.json").write_text(json.dumps(rest, indent=1))
+    set_written(out, rows, weights, rest)
     codes = run_all(by_body(cases), out, python, **options)
-    missing = [case for case in cases if not (out / case / SOLVED).exists()]
+    return read_back(out, cases, codes)
+
+
+def set_written(folder, rows, weights, rest):
+    """folder/table.json, weights.json and rest.json: what a worker reads for one set of unknowns."""
+    folder.mkdir(parents=True)
+    (folder / "table.json").write_text(json.dumps(rows, indent=1))
+    (folder / "weights.json").write_text(json.dumps(weights))
+    (folder / "rest.json").write_text(json.dumps(rest, indent=1))
+
+
+def read_back(folder, cases, codes):
+    """{case: unrounded measures} from folder/<case>/SOLVED; raises when any exit code is not 0 or a case has none."""
+    missing = [case for case in cases if not (folder / case / SOLVED).exists()]
     if missing or any(codes.values()):
-        raise RuntimeError(f"{out.name}: failed {codes}, missing {missing}; logs in {out}")
-    return {case: json.loads((out / case / SOLVED).read_text()) for case in cases}
+        raise RuntimeError(f"{folder.name}: failed {codes}, missing {missing}; logs in {folder}")
+    return {case: json.loads((folder / case / SOLVED).read_text()) for case in cases}
+
+
+def sets_command(python, seeds_root, out, cases):
+    """The one card process of `measured_many`, capped like every Python process on this PC."""
+    return ["systemd-run", "--user", "--scope", "-p", "MemoryMax=6G", "-q", "env", "OMP_NUM_THREADS=2",
+            "OPENBLAS_NUM_THREADS=2", "MKL_NUM_THREADS=2", str(python), "-B", str(SETS_WORKER), str(seeds_root),
+            str(out), SAME_SEEDS, *[f"{case}={job}" for case, job in cases.items()]]
+
+
+def launched(command, log):
+    """Runs `command` to its end, its output into `log`; its exit code."""
+    with open(log, "w") as file:
+        return subprocess.call(command, stdout=file, stderr=subprocess.STDOUT)
+
+
+def measured_many(sets, cases, out, python, seeds_root, launch=launched):
+    """[{case: honest measures}] for every set ([(rows, weights, rest)], as `measured` takes one) in ONE card process
+    (`_card_sets.py`, card build step 6a), every set seeded from `seeds_root`'s angles. out/s00000.. hold the sets;
+    raises when the process fails or any set misses a case. `launch(command, log)` runs it (default `launched`)."""
+    shutil.rmtree(out, ignore_errors=True)
+    folders = [out / f"s{index:05d}" for index in range(len(sets))]
+    for folder, (rows, weights, rest) in zip(folders, sets):
+        set_written(folder, rows, weights, rest)
+    code = launch(sets_command(python, seeds_root, out, cases), out / "sets.log")
+    return [read_back(folder, cases, {"sets": code}) for folder in folders]
 
 
 def case_score(found):
