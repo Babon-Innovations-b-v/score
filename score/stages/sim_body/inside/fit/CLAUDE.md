@@ -45,6 +45,9 @@ place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the
   the sacrum is the root's place), the welded root, thorax and cervical spine (the bimanual attachment above takes
   them), the capitate and metacarpals (their markers' own moves take them), each humphant1's y; every other axis,
   the clavicle phantoms and scapulae too, is told (least: a scapula's y, 4e-3).
+  The other columns' span is taken by their Gram matrix (`_constants.off_span`, sparse Cholesky) when their smallest
+  singular value is over `WELL_TOLD` of their largest (then the pivoted QR keeps their whole span), else by that QR
+  (`qr_off_span`); heavy_kimodo: 0.15 s against 2.5-5.6 s, the same axes kept.
 - **The calibration is the static table** (`calibration`), a site's quaternion R_cal^T on the group's frame body:
   never fitted, never per person.
 - **The followers' own ranges are not held** (`Fitting.limited_model`): 35 of MyoFullBody's 51 couplings have a
