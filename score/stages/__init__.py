@@ -924,10 +924,30 @@ def set_aside(retake, objects, pixal):
     return {take: pixal_row.seed_of(take) + retake["attempt"] for take in retake["takes"]}
 
 
+def sheet_remakes(takes, inputs, out):
+    """Each of `takes` whose row is a sheet (flat_sheet.sheet) built in code from its own close-up (flat_sheet.write_take)
+    in place of a new-seed Pixal3D take, so the make keeps it as made (coordinator for Score, 2026-10-29: airlock's
+    pinned papers, a Pixal3D sheet with tape and curled corners, read 0.4 mm thin after its bake; its flat sheet build
+    from the same close-up 9.9 mm, outline 0.628). Its mark says why, the rule's own words being a missing model's."""
+    import score.stages.props.flat_sheet as flat_sheet
+    import score.stages.props.pixal_row as pixal_row
+    import score.stages.props.thin_straight as thin_straight
+    rows = {row["id"]: row for row in json.loads(inputs["inventory"].read_text())["rows"]}
+    closeups = inputs["closeup"] / "closeups"
+    pixal = pixal_row.take_files("-")[0].parent
+    for row, entry in sorted(prop_data.prop_objects(prop_data.record_at(inputs["props"])).items()):
+        if entry["take"] in takes and row in rows and flat_sheet.sheet(rows[row]) and (closeups / f"{row}.png").exists():
+            views = flat_sheet.write_take(entry["take"], rows[row], closeups / f"{row}.png",
+                                          pixal_row.faces_of(inputs["surfaces"], entry["take"]), pixal, out / "cut")
+            mark = views / thin_straight.MARK
+            mark.write_text(json.dumps({**json.loads(mark.read_text()),
+                                        "why": "its Pixal3D take failed and the owner's reject named it"}, indent=1))
+
+
 def retaking(make):
     """The pixal make with the takes the owner's reject named (params `retake`, graph.Stage.retakes) set aside first
-    and asked at their seed plus the attempt (pixal_row.seed_of answers so while it runs), each marked made once its
-    retake is; with no retake, the make as it is."""
+    and asked at their seed plus the attempt (pixal_row.seed_of answers so while it runs), a sheet's built in code
+    instead (sheet_remakes), each marked made once its retake is; with no retake, the make as it is."""
     @functools.wraps(make)
     def made(inputs, out, seed, params):
         if not params.get("retake"):
@@ -935,6 +955,7 @@ def retaking(make):
         import score.stages.props.pixal_row as pixal_row
         pixal = pixal_row.take_files("-")[0].parent
         seeds = set_aside(params["retake"], prop_data.prop_objects(prop_data.record_at(inputs["props"])), pixal)
+        sheet_remakes(seeds, inputs, out)
         named = pixal_row.seed_of
         pixal_row.seed_of = lambda take: seeds[take] if take in seeds else named(take)
         try:

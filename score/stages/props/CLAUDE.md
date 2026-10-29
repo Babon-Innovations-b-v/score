@@ -54,7 +54,9 @@ gate passes it), else
   `flat_sheet.cut_out`: off the border-fitted backdrop by an RGB distance, so a cream note on a grey backdrop is
   the note, not its drop shadow) at the row's size, its take's files thin_straight's with `code.json` naming the rule,
   so the finish route paints it with a library surface and `likeness` holds it to that close-up. The prop route first: only a failed take is built, and the build is
-  kept (no close-up removes it). The finish's own fault for such sheets was `glb_file.upright_turn --flat` giving a
+  kept (no close-up removes it). A sheet whose Pixal3D take failed its checks is built so too when the owner's reject
+  names it (its retake, `score/stages/__init__.py` `sheet_remakes`; coordinator for Score, 2026-10-29): Pixal3D is not
+  asked again; its mark's `why` says so. The finish's own fault for such sheets was `glb_file.upright_turn --flat` giving a
   side square to up no sign (a NaN turn); fixed 2026-10-26, so this route is the net, not the way. A sheet laid
   thinner than the model gate's 3 mm wall is held to being solid through its thickness (`gates/model.py least_wall`).
 - **A take a paid step failed is a batch gap, never a stop** (`../batch_gaps.py`, score's overlay): `closeup` names
@@ -66,7 +68,8 @@ gate passes it), else
   `pixal@<place>`'s output naming takes (`--takes`, through decide-yes and decide) keys the row anew
   (`graph.Stage.retakes`); the make, wrapped in the framework's table so the row's code does not move
   (`score/stages/__init__.py` `retaking`, `set_aside`), moves each named take's files once into
-  `work/pixal/retaken/<take>-r<attempt>/` and the batch makes it at its seed plus the attempt; `takes_back` leaves
+  `work/pixal/retaken/<take>-r<attempt>/` and the batch makes it at its seed plus the attempt, but a sheet's (`flat_sheet.sheet`) is its flat sheet build from its
+  own close-up instead (`sheet_remakes`: airlock's pinned papers, 0.4 mm after its bake, built 9.9 mm, outline 0.628); `takes_back` leaves
   such a take alone until its retake is made (the library's copy is the rejected one). Only a Pixal3D take: a code build's
   fault is its builder's to fix, and a take the finish route's regions never split (a list finish no region is
   labelled with) is the route's to fix, not a retake's.
