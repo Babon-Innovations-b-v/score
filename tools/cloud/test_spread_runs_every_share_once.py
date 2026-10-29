@@ -28,6 +28,8 @@ seen red, reverted):
   run.deadline`.
 - test_a_wait_for_this_pcs_machine_is_not_the_works_time: in `this_pc_waited`, drop `run.deadline += waited` (the
   share is never run); or `return waited >= THIS_PC_WAIT_SECONDS` -> `return False` (the slot gives up).
+- test_a_share_killed_for_memory_runs_again_once: in `work_slot`, `if shares.again(share):` -> `if False:` (the
+  killed share is a gap at once); or in `raise_for`, drop `or killed` (a step killed inside is a plain failure).
 - test_a_shared_claim_gives_way_to_one_that_waits_for_the_machine_alone: in `work_slot`, drop the
   `provider.cloud.wanted_elsewhere()` check (m1 runs all three); or in `one_machine`, drop `or
   machine.get("yielded")` (two and three stay waiting).
@@ -235,6 +237,27 @@ def test_a_wait_for_this_pcs_machine_is_not_the_works_time(fake_machines, monkey
     spread.on_machines(run, None, [], 1, "blender", shares, lambda machine: None,
                        lambda machine, share, card: done.append(share))
     assert done == ["one"] and len(calls) == 1 and run.deadline == before  # a rented backend gives up as before
+
+
+def test_a_share_killed_for_memory_runs_again_once(fake_machines):
+    """A job killed by signal 9 at the machine's memory cap (2026-10-29: four bakes side by side in a 27 GiB
+    container) is a fault of the run, not its result: its share runs again once; a second death is a gap. A step
+    killed inside the job (`killed`, from its log) counts as one, a plain failure does not."""
+    run, done, deaths = fake_machines, [], {}
+
+    def do(machine, share, card):
+        deaths[share] = deaths.get(share, 0) + 1
+        if share == "once" and deaths[share] == 1 or share == "twice":
+            spread.raise_for(1, f"job {share}", killed=True)
+        done.append(share)
+    shares = spread.Shares(["once", "twice", "fine"])
+    spread.on_machines(run, None, [], 1, "blender", shares, lambda machine: None, do)
+    assert sorted(done) == ["fine", "once"] and shares.failed == ["twice"] and deaths["twice"] == 2, (done, deaths)
+    with pytest.raises(spread.MemoryKilled):
+        spread.raise_for(spread.KILLED, "job")
+    with pytest.raises(spread.JobFailed) as plain:
+        spread.raise_for(1, "job")
+    assert not isinstance(plain.value, spread.MemoryKilled)
 
 
 def test_a_shared_claim_gives_way_to_one_that_waits_for_the_machine_alone(fake_machines, monkeypatch):
