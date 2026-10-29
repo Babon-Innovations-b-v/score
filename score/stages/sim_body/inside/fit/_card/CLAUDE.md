@@ -25,7 +25,9 @@ before that.
 - `_solve.py` (`solved`, `NotConverged`): the loop (Newton's analytic Jacobian in float32, the residuals and the stop
   rule's cost in float64 (`_forward`), the damped step, Newton's integrate, the projection; root quaternion order
   converted on the card), a row stopping when its reduced step is under 1e-6 or its cost moved under 1e-9 of itself
-  over two steps; NotConverged at 300. Measured 2026-10-29 on the proto clip (136 frames, each row seeded as mink's
+  over two steps, or (as mink's frames, `../_frames.solved`, 2026-10-29) a step moved its float64 residuals by under
+  1e-8 (arms_raise's shoulder gimbal drift; its proto-clip and toy tests unchanged, its own break test and the
+  arms_raise gate not yet run); NotConverged at 300. Measured 2026-10-29 on the proto clip (136 frames, each row seeded as mink's
   frame was), float32 residuals: angles 0.020 deg and sites 0.029 mm max, all in elv_angle_l/r (the shoulder's
   elevation plane near the hanging arm, a flat direction); mink's answer is the float64 minimum there (scipy's least
   squares at 1e-15 from both answers lands on mink's to 4e-5 deg and 0.0002 mm), so the miss is the card's. With the
