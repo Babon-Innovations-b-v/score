@@ -1,8 +1,8 @@
 # score/stages/light/
 
 The light stage (experimental, PRD #6; paper-vs-world-1 items 9 and 17) as three rows of the stage table:
-`light-layer@<place>` (free: `layers/light.usda` over the round-three seed from today's scene record, `layer.py`),
-`light-passes@<place>` (paid: the seed with that layer rendered on its own scene record's views, every own lamp in a
+`light-layer@<place>` (free: `layers/light.usda` over the place as the assembly lays it, `layer.py`),
+`light-passes@<place>` (paid: that stage with the layer rendered on its own scene record's views, every own lamp in a
 Cycles light group of its own, `inside/light_passes.py`) and `light@<place>` (free: the sweep on the passes, `mix.py`;
 the strengths written into the layer; the gates). The paid `light-haze` row (the same render with the shafts off)
 was retired on 2026-10-22: it applied nowhere, since a design lays no kit piece. A row of every designed place (the table's `designed("light")`, `stages/design_layers.py`), ship
@@ -62,8 +62,14 @@ gates.
   the motion layer keys keeps its keys): `layers/light.usda` and `assets/light/`, as `lit_tree` puts them. The
   layer's pictures live in `assets/light/`, never `assets/textures/`, where the seed's own pictures of the same names
   are.
-- **Strengths are measured on the round-three seeds' layouts** (2026-10-12, tonight's cut): the passes render the
-  seed with the layer, not the final assembly; once the assembly takes the layer the measurement moves onto it.
+- **Strengths are measured on what ships** (2026-10-29; on the round-three seeds' layouts from 2026-10-12 until then):
+  the rows light the place as the assembly lays it before its layers (`passes.source`): the seed with its scene
+  record, the surface line's bake over its models and its waiting entries, its made ground, each laid by the
+  assembly's own code (`assembly/grounded.take_bakes`, `record.take_ground`), never a copy. The rows read the bake,
+  the paint and the ground as the assembly does (`passes.LAID`) and wait on them. Before, every design object waited
+  on its bake: base drew nothing and rendered black, airlock was a bare shell its lamps needed x17 to light. A stage
+  drawing nothing outside its sky fails the layer's `drawn` gate before the paid render. A bake another place makes
+  for this one (its surface data's `elsewhere`) is not read beside yet: no place claims one today.
 - **No per-place light file** (2026-10-21: `data/light/` is gone). A lamp is its glowing inventory row's (row kind,
   or its concept showing it glow, as the reading's concept light says: `{home}/design/light/<place>.json`,
   `reading.concept_light`, in the colour and at the brightness the concept shows; on its kit glow part; its numbers

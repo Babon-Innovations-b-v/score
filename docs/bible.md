@@ -344,7 +344,10 @@ branch names a scene or a world.
   (`tools/usd/drop.py`, `score/stages/settling/inside/settle_drop.py`; Blender's Bullet script deleted, PRD #55).
 - **Light and sky** (`score/stages/light`): lamps from the inventory's glowing rows; the sky from the EC's physics
   overhead at the top scene's site and scene time (`sky.py`: each light, every other body at its true direction, size
-  and phase, each backdrop), gated on `sky bodies`. A light under the horizon lights nothing.
+  and phase, each backdrop), gated on `sky bodies`. A light under the horizon lights nothing. The lamps are measured
+  on the place as the assembly lays it before its layers: the seed with its scene record, the surface line's bakes and
+  its made ground, laid by the assembly's own code (`assembly/grounded.take_bakes`, `record.take_ground`), so the
+  light rows wait on the bake; a stage that draws nothing is refused before the paid render (`drawn`, 2026-10-29).
 - **Sound** (`score/stages/sound`): every source from the design (the bed, objects by row kind and move, people's
   voices), each made fresh from its brief as MOSS takes; a take under the CLAP floor is a batch gap.
 - **People** (`score/stages/cast`, `people_rows.py`): each people row a look of the shared people line, a crowd one far

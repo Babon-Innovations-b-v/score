@@ -31,6 +31,7 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - passes.neighbours: keep a planless shown place (the neighbours test).
 - mix.tone_curve: the one-knot curve of a black view dropped (the black view test, 2026-10-29).
 - light.drawn_count: the sky's prims counted (the drawn test, 2026-10-29).
+- passes.source: `grounded.take_bakes(...)` dropped, or `record.take_ground(...)` dropped (the laid test, 2026-10-29).
 """
 import json
 import math
@@ -391,6 +392,42 @@ def test_a_stage_drawing_nothing_but_its_sky_is_named_before_the_paid_render(tmp
     UsdGeom.Cube.Define(stage, "/tiny/Objects/hub")
     stage.Save()
     assert light.drawn_count(tmp_path / "tiny.usda", "tiny") == 1
+
+
+def test_the_stage_lit_lays_the_bakes_models_and_the_made_ground(tmp_path, monkeypatch):
+    """Fault (2026-10-29, light-passes@base and @airlock): the lit stage was the seed with its record, every design
+    object waiting on the surface line's bake and no made ground, so base drew nothing and airlock a bare shell. The
+    stage is laid by the assembly's own code: the bake's model at its waiting entry, the made ground over the base."""
+    import score.stages.assembly.baked as baked
+    tiny_seed(tmp_path / "seed")
+    (tmp_path / "record/record").mkdir(parents=True)
+    hub = {"name": "hub_1", "row": "hub", "bake": "hub_1", "kind": "object", "at": [0.0, 0.0, 0.0],
+           "rotation": [0.0, 0.0, 0.0, 1.0], "waiting": "its model comes from the bake"}
+    (tmp_path / "record/record/tiny.json").write_text(json.dumps({"place": "tiny", "objects": [hub]}))
+    (tmp_path / "kit.json").write_text(json.dumps({"pieces": []}))
+    (tmp_path / "surfaces.json").write_text("{}")
+    (tmp_path / "bake/made").mkdir(parents=True)
+    (tmp_path / "bake/baked.json").write_text(json.dumps({"hub_1": {}}))
+    (tmp_path / "bake/made/hub_1.gltf").write_text("{}")  # what the laid model's hash is stamped from
+    (tmp_path / "terrain/grounds/places").mkdir(parents=True)
+    ground = Usd.Stage.CreateNew(str(tmp_path / "terrain/grounds/places/tiny.usdc"))
+    UsdGeom.Cube.Define(ground, "/tiny/Terrain/ground")
+    ground.Save()
+
+    def made(bake, paint, out, models=None):  # the bake's asset as take_bake writes it, without its paint
+        asset = Usd.Stage.CreateNew(str(out / "assets/hub_1.usdc"))
+        asset.SetDefaultPrim(UsdGeom.Xform.Define(asset, "/hub_1").GetPrim())
+        UsdGeom.Cube.Define(asset, "/hub_1/geo")
+        asset.Save()
+    monkeypatch.setattr(baked, "take_bake", made)
+    inputs = {"seed": str(tmp_path / "seed"), "scene-record": str(tmp_path / "record"),
+              "kit": str(tmp_path / "kit.json"), "surfaces": str(tmp_path / "surfaces.json"),
+              "surfaces-bake": str(tmp_path / "bake"), "surfaces-paint": str(tmp_path / "bake"),
+              "terrain": str(tmp_path / "terrain")}
+    root = passes.source("tiny", inputs, tmp_path / "lit") / "tiny.usda"
+    stage = Usd.Stage.Open(str(root))
+    assert stage.GetPrimAtPath("/tiny/Objects/hub_1").IsValid() and stage.GetPrimAtPath("/tiny/Terrain/ground")
+    assert light.drawn_count(root, "tiny") == 2
 
 
 # --- the layer on a stage made here ---------------------------------------------------------------------------------
