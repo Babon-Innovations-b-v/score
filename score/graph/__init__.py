@@ -172,9 +172,10 @@ RETRIES, RETRY_WAIT = 4, 30
 # time: a second run waits on the first's lock, then finds its record. One held longer than LOCK_WAIT seconds blocks
 # the waiter rather than be broken, so nothing is paid twice; a holder's death lets go of its lock at once.
 LOCK_WAIT, LOCK_POLL = 6 * 3600, 2
-# The folder a node makes into, named for its make and the processes it starts, so a cloud runner can keep each
-# finished job under the node's key and a rerun pay only for the jobs it lacks (tools/cloud/kept.py, C21).
-MAKING = "SCORE_MAKING"
+# The folder a node makes into and its row's code, named for its make and the processes it starts, so a cloud runner
+# can keep each finished job by its own content and a rerun, or the row at a new key, pay only for the jobs whose own
+# inputs changed (tools/cloud/kept.py, C21; owner, 2026-10-29).
+MAKING, MAKING_CODE = "SCORE_MAKING", "SCORE_MAKING_CODE"
 # A free-only run (`score run --free`, or any run under SCORE_FREE_ONLY=1: the agents' door, before the owner's Buy)
 # runs every free node whose inputs stand and leaves each paid node that does not already stand accepted, as a line
 # waits on a block: not cleared, not an error. A node reading one waits on it (FREE_WAITS).
@@ -854,17 +855,19 @@ def gone(folder):
 
 
 @contextlib.contextmanager
-def making_in(folder):
-    """Name the folder a node makes into (MAKING) for its make and the processes it starts, while the block runs."""
-    before = os.environ.get(MAKING)
-    os.environ[MAKING] = str(folder)
+def making_in(folder, code):
+    """Name the folder a node makes into (MAKING) and its row's code (MAKING_CODE, Runner.making_code) for its make
+    and the processes it starts, while the block runs."""
+    before = {name: os.environ.get(name) for name in (MAKING, MAKING_CODE)}
+    os.environ.update({MAKING: str(folder), MAKING_CODE: code})
     try:
         yield
     finally:
-        if before is None:
-            os.environ.pop(MAKING, None)
-        else:
-            os.environ[MAKING] = before
+        for name, value in before.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
 
 
 def heartbeat_line(done, running, queued, gauges):
@@ -1206,7 +1209,7 @@ class Runner:
         out = self.store.making(keyed["key"])
         started, clock = now(), time.monotonic()
         try:
-            with cleared, making_in(out):
+            with cleared, making_in(out, self.making_code(stage, place, keyed)):
                 stage.make(inputs, out, keyed["seed"], keyed["params"])
             if self.file_keys(stage, place) != keyed["files"]:
                 raise RuntimeError(f"{node}: an input changed while it ran; nothing is stored")
@@ -1215,7 +1218,6 @@ class Runner:
             output = self.store.put_tree(out)
         finally:
             gone(out)
-        self.drop_kept(node, keyed["key"])
         return self.write_finish(node, keyed, finish_record(node, keyed, output, stage.name, started, clock))
 
     def write_finish(self, node, keyed, record):
@@ -1226,11 +1228,14 @@ class Runner:
             return self.store.record(node, keyed["key"])
         return record
 
-    def drop_kept(self, node, key):
-        """Remove the jobs kept for an earlier try of this key (tools/cloud/kept.py): its output is stored."""
-        folder = self.store.cache.parent / "kept" / node / key
-        if folder.exists():
-            shutil.rmtree(folder)
+    def making_code(self, stage, place, keyed):
+        """The row's code a kept job's content holds (tools/cloud/kept.py): its code version, contract, params, seed
+        and models and the files it declares inside the repository; not its earlier outputs or its files elsewhere,
+        which a job's own inputs are."""
+        files = {name: found for name, found in keyed["files"].items()
+                 if self.file_path(stage, name, place).resolve().is_relative_to(_code.REPO)}
+        return text_hash(json.dumps({**{part: keyed[part] for part in ("code", "contract", "params", "seed", "models")},
+                                     "files": files}, sort_keys=True))
 
     def unchanged_checkouts(self, node, inputs, keyed):
         """Raise when the make wrote into an earlier output's read-only checkout (light@camp saved over its input,
