@@ -1,0 +1,13 @@
+{
+ "gaps": [
+  {
+   "name": "coiled_hose: thinner than the model check's 3 mm wall",
+   "row": "likeness",
+   "check": "thin and in proportion",
+   "objects": ["coiled_hose"],
+   "reason": "A coiled hose's Pixal3D take keeps 5.5% of its surface under 3 mm across the whole coil, and its one free retake came out the same. No builder makes a coil in code yet (the coil builder is parked for later, #36). Asked: \"Accept airlock's coiled hose as a named gap until a coil builder exists?\" Answer: \"Yes, accept as a gap\".",
+   "decided": "owner (@JoeyKardolus), 2026-10-29 ~09:40 CET, in the score session's question tool",
+   "faults": ["coiled_hose: thinnest 0.0027 m, spread 0.029 (prop route)"]
+  }
+ ]
+}
