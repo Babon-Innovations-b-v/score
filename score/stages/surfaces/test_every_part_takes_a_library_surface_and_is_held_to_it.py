@@ -134,8 +134,8 @@ tests it turned red:
 - route_split.py `split_take`: the old colour check put back, a fault when a labelled region's sRGB lies over
   150 from its finish's token colour (`fault = split_fault(found) or next(...)`)  ->
   the_split_decides_by_the_labels_alone
-- route_parts.py: `if fit >= CLOSE_UP_FIT:` -> `if False:`  ->
-  a_finish_is_held_against_its_colour_in_the_close_up_never_the_light_baked_texture
+- route_views.py `laid_close_up`: `if fit < cast.CLOSE_UP_FIT:` -> `if True:` (no close-up ever laid)  ->
+  a_finish_only_the_close_up_shows_gets_its_region_its_faces_and_a_part (2026-10-29)
 - route_views.py: `centres = merged_centres(every, fine_centres(every, seed))` -> `centres = kmeans2(every,
   REGIONS, seed=seed, minit="++")[0]`  -> a_small_colour_far_from_the_rest_keeps_a_region_of_its_own
 - route_views.py: `every_faces[CLOSE_UP], every_colours[CLOSE_UP] = laid` -> `pass`  ->
