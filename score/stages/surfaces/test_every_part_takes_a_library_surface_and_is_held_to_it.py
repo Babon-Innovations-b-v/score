@@ -136,6 +136,12 @@ tests it turned red:
   the_split_decides_by_the_labels_alone
 - route_parts.py: `if fit >= CLOSE_UP_FIT:` -> `if False:`  ->
   a_finish_is_held_against_its_colour_in_the_close_up_never_the_light_baked_texture
+- route_views.py: `centres = merged_centres(every, fine_centres(every, seed))` -> `centres = kmeans2(every,
+  REGIONS, seed=seed, minit="++")[0]`  -> a_small_colour_far_from_the_rest_keeps_a_region_of_its_own
+- route_views.py: `every_faces[CLOSE_UP], every_colours[CLOSE_UP] = laid` -> `pass`  ->
+  a_finish_only_the_close_up_shows_gets_its_region_its_faces_and_a_part
+- route_split.py: `return close_up_only(votes, per_map)` -> `return votes`  ->
+  a_finish_only_the_close_up_shows_gets_its_region_its_faces_and_a_part
 - route_list.py: `failing.append(f"{take}: no finish list" + (f" ({asked['unanswered'][take]})"` ->
   `failing.append(f"{take}: no finish list" + ("" if True else f" ({asked['unanswered'][take]})"`  ->
   a_take_with_no_usable_answer_is_a_gap_named_by_the_list
@@ -1785,18 +1791,24 @@ LIT_RED, LIT_BLUE = (180, 40, 30), (155, 125, 222)  # the close-up's colours, ne
 SHADED_RED, SHADED_BLUE = (70, 8, 8), (60, 48, 90)  # the raw take's texture: the picture's light baked in
 
 
-def close_up_of(folder, model, side=256):
+GREEN = (40, 170, 60)  # a label only the close-up shows, on the red box's front
+
+
+def close_up_of(folder, model, side=256, label=False):
     """A close-up of the two boxes and its camera (Pixal3D's transforms.json, 3 in front, 1.2 rad across): each box
-    in its lit colour where the camera sees it, clear elsewhere."""
+    in its lit colour where the camera sees it, clear elsewhere; with `label` the red box's front GREEN."""
     camera = folder / "transforms.json"
     camera.write_text(json.dumps({"camera_angle_x": 1.2, "frames": [{"transform_matrix": [
         [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 3.0], [0, 0, 0, 1]]}]}))
     loaded = route_cast.loaded(model)
-    faces = route_parts.close_up_cast(loaded, route_parts.close_up_camera(camera), (side, side))[0]
+    faces = route_cast.close_up_cast(loaded, route_cast.close_up_camera(camera), (side, side))[0]
     left = loaded.mesh.triangles_center[:, 0] < 0
     picture = np.zeros((side, side, 4), dtype=np.uint8)
     seen = faces >= 0
     picture[seen, :3] = np.where(left[faces[seen]][:, None], LIT_RED, LIT_BLUE)
+    if label:
+        front = left & (loaded.mesh.face_normals[:, 2] > 0.9)
+        picture[seen & front[np.maximum(faces, 0)], :3] = GREEN
     picture[seen, 3] = 255
     Image.fromarray(picture).save(folder / "input.png")
     return {f"close-up {TAKE}": folder / "input.png", f"camera {TAKE}": camera}
@@ -1859,6 +1871,68 @@ def test_a_finish_is_held_against_its_colour_in_the_close_up_never_the_light_bak
             assert len(faults) == 1 and "bare_steel" in faults[0], faults
     finally:
         RED, BLUE = kept
+
+
+def test_a_small_colour_far_from_the_rest_keeps_a_region_of_its_own():
+    """greenhouse desk (2026-10-29): k-means spent its eight regions on the texture's greys, L* 21 to 62, and its red
+    label had none. A grey ramp, a ramp of rust and 40 red pixels: under every seed the red keeps a region of its
+    own, the greys and the rust share the rest."""
+    greys = np.repeat(np.linspace(50, 210, 20000)[:, None], 3, axis=1)
+    rust = np.stack([np.linspace(90, 170, 3000), np.linspace(70, 120, 3000), np.linspace(50, 80, 3000)], axis=1)
+    pixels = np.concatenate([greys, rust, np.tile([[200, 30, 30]], (40, 1))]).astype(np.uint8)
+    colours = {"front": pixels.reshape(1, -1, 3)}
+    faces = {"front": np.zeros((1, len(pixels)), dtype=int)}
+    red = route_cast.lab_of(np.array([[200, 30, 30]]))[0]
+    for seed in range(7, 12):
+        centres, per_pixel = route_views.colour_regions(colours, faces, seed)
+        assert len(centres) <= route_views.REGIONS and np.linalg.norm(centres - red, axis=1).min() < 5, (seed, centres)
+        assert len(np.unique(per_pixel["front"][0, -40:])) == 1  # one region holds the red, and only the red
+        assert not np.isin(per_pixel["front"][0, :-40], per_pixel["front"][0, -40:]).any(), seed
+
+
+def test_a_finish_only_the_close_up_shows_gets_its_region_its_faces_and_a_part():
+    """greenhouse desk (2026-10-29): the close-up shows a red DANGER label, a blue decal and teal screens that the raw
+    take's texture lacks, so no region of any view had them and no part owned them. The close-up, laid on the model
+    through its camera, is one more view of the regions: its green label (on the red box's front, in no texture) has a
+    region, the list labels it, and its faces take that finish; the finishes the views do show stay voted."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        views = folder / "views"
+        views.mkdir()
+        model = two_boxes(folder)
+        inputs = {"surfaces": place_data(folder), "finish-route-palette": paletted(folder),
+                  "surface-library": libraried(folder), f"model {TAKE}": model,
+                  **close_up_of(folder, model, label=True)}
+        route_views.make_views(inputs, views, 7, {"objects": [TAKE]})
+        record = json.loads((views / "views.json").read_text())[TAKE]
+        assert record["close_up_laid"]["laid"] and record["close_up_laid"]["fit"] >= route_cast.CLOSE_UP_FIT, record
+        assert list(GREEN) in [entry["srgb"] for entry in record["regions"]], record["regions"]
+        finish_of_srgb = {RED: 1, LIT_RED: 1, BLUE: 2, LIT_BLUE: 2, GREEN: 3}
+        shown = route_list.regions_shown(views / TAKE, route_list.labelled_views(views / TAKE, record["views"]))
+        assert route_views.CLOSE_UP in shown
+        labels = [{"view": view, "region": region + 1,
+                   "finish": finish_of_srgb[tuple(record["regions"][region]["srgb"])]}
+                  for view, regions in shown.items() for region in regions]
+        answer = {"finishes": [finish_entry("red paint"), finish_entry("blue paint", token="bay-three"),
+                               finish_entry("green label")], "labels": labels}
+        asked, original = [], route_list.ask
+        route_list.ask = lambda bodies: asked.append(bodies) or {take: json.dumps(answer) for take in bodies}
+        try:
+            out = folder / "list"
+            out.mkdir()
+            route_list.make_list({**inputs, "finish-route-views": views}, out, 7, {"objects": [TAKE]})
+        finally:
+            route_list.ask = original
+        body = asked[0][TAKE]
+        assert len(body["contents"][0]["parts"]) == 2 * len(record["views"]) + 3  # the laid close-up's regions last
+        assert "the view named close-up" in body["contents"][0]["parts"][-1]["text"]
+        rows = parted(folder, split(folder, {**inputs, "finish-route-views": views, "finish-route-list": out}))
+        finish_of = np.load(rows["finish-route-split"] / TAKE / "finish.npy")
+        mesh = route_split.model_of(views / TAKE)
+        front = (mesh.triangles_center[:, 0] < 0) & (mesh.face_normals[:, 2] > 0.9)
+        assert (finish_of[front] == 2).all() and (finish_of[~front] != 2).all(), finish_of
+        found = json.loads((rows["surfaces-parts"] / "parts.json").read_text())["takes"][TAKE]
+        assert {row["words"] for row in found["parts"]} == {"red paint", "blue paint", "green label"}, found["parts"]
 
 
 def test_a_take_with_no_usable_answer_is_a_gap_named_by_the_list():

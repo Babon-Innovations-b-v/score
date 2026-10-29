@@ -8,6 +8,7 @@ flat colour, shaded only by the angle to the view so the form reads (no light, w
 The model is welded by position (its UV seams joined, its faces kept in the file's order), centred on its box and
 scaled to a largest side of 1, Y up (glTF). The close-up's direction is the model's front, +Z (glTF's forward).
 """
+import json
 import pathlib
 import sys
 
@@ -30,6 +31,12 @@ BASE = {"front": (0.0, ELEVATION), "right": (90.0, ELEVATION), "back": (180.0, E
 CANDIDATES = {f"turn{turn:03d}_{'up' if rise > 0 else 'down' if rise < 0 else 'level'}{abs(rise):02d}":
               (float(turn), float(rise)) for turn in range(0, 360, 45) for rise in (-40, 0, 40)}
 FRONT = "front"
+# The close-up's camera is Pixal3D's (transforms.json beside its input picture: its distance and camera_angle_x),
+# looking at the model's front (+Z, route_cast's front) in the model file's own frame. Measured 2026-10-25 on six raw
+# takes of the earlier runs: the cast's outline met the close-up's own (its alpha) at IoU 0.93 to 0.975 on five and
+# 0.685 on one; under CLOSE_UP_FIT the cast is not trusted to say which finish a pixel shows.
+CLOSE_UP_FIT = 0.85
+CLOSE_UP_SIDE = 512  # the cast's pixels across at most (the close-up's own, sampled)
 MARGIN = 1.05
 SHADE_LEAST = 0.35  # the share of a face's colour it keeps seen edge-on (the pictures' shading only)
 
@@ -164,6 +171,47 @@ def face_painted(face_colours, faces):
     seen = faces >= 0
     found[seen] = face_colours[faces[seen]]
     return found
+
+
+def close_up_camera(camera_file):
+    """(distance, horizontal field of view in radians) of the close-up's camera (Pixal3D's transforms.json)."""
+    found = json.loads(pathlib.Path(camera_file).read_text())
+    distance = float(np.linalg.norm(np.array(found["frames"][0]["transform_matrix"], dtype=float)[:3, 3]))
+    return distance, float(found["camera_angle_x"])
+
+
+def close_up_cast(model, camera, size):
+    """(the face under each sampled pixel, -1 off the model; the pixels' rows; their columns) of a close-up `size`
+    (width, height) seen by `camera` (close_up_camera), `model` a route_cast.Model (its faces normalised by its
+    frame)."""
+    distance, field = camera
+    width, height = size
+    step = max(1, -(-max(width, height) // CLOSE_UP_SIDE))
+    columns, rows = np.meshgrid(np.arange(0, width, step), np.arange(0, height, step))
+    focal = width / 2 / np.tan(field / 2)
+    ways = np.stack([(columns + 0.5 - width / 2) / focal, -(rows + 0.5 - height / 2) / focal,
+                     -np.ones(columns.shape)], axis=-1).reshape(-1, 3)
+    ways /= np.linalg.norm(ways, axis=1, keepdims=True)
+    middle, side = model.frame
+    eye = (np.array([0.0, 0.0, distance]) - middle) / side
+    hit_faces, hit_rays = model.mesh.ray.intersects_id(np.repeat(eye[None], len(ways), axis=0), ways,
+                                                       multiple_hits=False)
+    faces = np.full(len(ways), -1, dtype=np.int64)
+    faces[hit_rays] = hit_faces
+    return faces.reshape(columns.shape), rows, columns
+
+
+def close_up_pixels(model, camera_file, close_up):
+    """(the face under each sampled pixel of the close-up, -1 off the model; the sampled pixels, RGBA 0-255; which of
+    them the cast and the close-up's alpha both put on the model; the cast's fit, its outline's IoU with the
+    close-up's) of the close-up's own camera (close_up_cast)."""
+    from PIL import Image
+    picture = np.asarray(Image.open(close_up).convert("RGBA"))
+    faces, rows, columns = close_up_cast(model, close_up_camera(camera_file), (picture.shape[1], picture.shape[0]))
+    sampled = picture[rows, columns]
+    shown, hit = sampled[..., 3] > 127, faces >= 0
+    fit = float((shown & hit).sum() / max((shown | hit).sum(), 1))
+    return faces, sampled, shown & hit, round(fit, 3)
 
 
 def lab_of(colours):
