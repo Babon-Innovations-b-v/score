@@ -63,7 +63,7 @@ gate passes it), else
   each object no Pro take passed, `pixal` each take its batch brought no model back for (carrying the close-up's), in
   `batch-gaps.json`; their gates still fail them by name and the table moves those faults. `likeness` reads the rows
   that write such gaps and carries them all to complete, each with its hand-in object and inventory rows; it declares
-  a take's Pixal3D input only where it is there. A batch whose command fails as a whole still stops `pixal`.
+  a take's Pixal3D input only where it is there. A batch whose command fails as a whole still stops `pixal`. A take the surface line left out (surfaces-parts or the bake: a split's patchy paint, a take not baked) is a batch gap by its reason too, named in `likeness`'s output by the table (`score/stages/__init__.py` `leaving_out`), never a "no model" (owner, 2026-10-29).
 - **One take remade, the rest kept** (owner, 2026-10-28: a failing object remade once, free): his reject of
   `pixal@<place>`'s output naming takes (`--takes`, through decide-yes and decide) keys the row anew
   (`graph.Stage.retakes`); the make, wrapped in the framework's table so the row's code does not move
