@@ -4,7 +4,7 @@ group 8% longer, one pelvis marker 1 cm off its link), the staged solver gives b
 the markers the size factor (within the gentle pull to 1) and the marker's move (within its pull to its link), and at
 those constants every frame's angles; a frame asking a hip past its range stops it at the range's end, its coupled follower on its leader by the
 coupling, though the follower's own range is narrower; each marker weighs its trust among the markers, the markers'
-goal LANDMARK_GOAL in all against the turns' 1; the overall
+goal (group ends included, one goal) MARKER_GOAL in all against the turns' 1; the overall
 size factor multiplies every group's; the constants are the body's, sampled from every one of its recordings. It runs in
 Newton's own Python (mink pinned there; score/stages/physics/inside/newton_env.sh, built at
 $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
@@ -21,10 +21,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   found.
 - (2026-10-29) _frames.weights' `np.sqrt(trusts / max(trusts.sum(), 1e-12))` made `np.full(len(trusts), 1.0 /
   np.sqrt(len(trusts)))`: the low-trust marker weighs as much as the others.
-- (2026-10-29) _frames.weights' `trusts[:fitting.goal].sum()` made `trusts.sum()`: a group end thins the landmarks'
-  weights.
-- (2026-10-29) _frames.weights' `LANDMARK_GOAL * trusts` made `trusts`: the place goal sums to 1, not LANDMARK_GOAL.
-- (2026-10-29) _constants' SIZE_PULL `0.05` made `5.0`: the factor is held near 1, not TRUE_LEFT.
+- (2026-10-29) _frames.weights' `trusts.sum()` made `trusts[:-1].sum()`: a group end weighs on top of the markers'
+  goal, not inside it.
+- (2026-10-29) _frames.weights' `MARKER_GOAL * trusts` made `2 * trusts`: the markers' goal outweighs the turns'.
 - (2026-10-29) sampled's `for turns, points in recordings` made `for turns, points in recordings[:1]`: the body's
   second recording is left out of its constants.
 - (2026-10-29) constants' second stage (`staged(..., MARKS, ...)`) skipped (its sizes returned with no move): the
@@ -74,7 +73,7 @@ MARKS = {"pelvis": [(0.15, 0.1, 0.0), (-0.15, 0.1, 0.0), (0.0, -0.1, 0.1)],
          "shin_l": [(0.04, 0.0, -0.2), (0.0, 0.04, -0.38)], "leg_r": [(-0.05, 0.0, -0.2), (0.0, 0.05, -0.35)],
          "foot_r": [(0.0, 0.1, -0.02)]}
 OWNERS = {"pelvis": "trunk", "leg_l": "left", "shin_l": "left", "leg_r": "right", "foot_r": "right"}
-TRUE_LEFT = 1.08
+TRUE_LEFT = 1.0  # level 2 solves no size: every group's length is SOMA's (sizing)
 TRUE_MOVE = ("pelvis1", (0.0, 0.01, 0.0))  # a marker 1 cm off its link, on its body
 LOW_TRUST = ("pelvis2", 0.25)
 # Each frame's root place, then hip_l, knee_l, hip_r (radians); the last asks hip_l past its range's end, 1.
@@ -209,27 +208,27 @@ def each_marker_weighs_its_trust():
     """The toy's ten markers, one trusted 0.25: each place cost the square root of its trust over 9.25, each of the
     five turns one over the square root of 5."""
     import numpy as np
-    from fit._frames import LANDMARK_GOAL, weights
+    from fit._frames import MARKER_GOAL, weights
     with tempfile.TemporaryDirectory() as folder:
         fitting = toy_fitting(folder)
         turn_cost, place_costs = weights(fitting)
-    wanted = np.array([np.sqrt(LANDMARK_GOAL * (LOW_TRUST[1] if name == LOW_TRUST[0] else 1.0) / 9.25)
+    wanted = np.array([np.sqrt(MARKER_GOAL * (LOW_TRUST[1] if name == LOW_TRUST[0] else 1.0) / 9.25)
                        for name in fitting.marks])
     problems = [] if np.allclose(place_costs, wanted) else [f"place costs {place_costs.tolist()}"]
     return problems + ([] if np.isclose(turn_cost, 1 / np.sqrt(5)) else [f"turn cost {turn_cost}"])
 
 
-def a_group_end_weighs_against_the_landmarks_sum():
-    """With the last of the ten markers a group end (the goal the first nine), every place cost is the square root of
-    its trust over the first nine's sum, 8.25: the end adds to the markers' goal, never thins the landmarks'."""
+def the_markers_goal_weighs_as_the_turns_goal():
+    """The markers' goal, every marker's (a group end's too) squared cost summed, is MARKER_GOAL, 1, the turns' goal's
+    sum: the turns stay the main term, never outweighed by the markers' count or a hand-set goal."""
     import numpy as np
-    from fit._frames import LANDMARK_GOAL, weights
+    from fit._frames import MARKER_GOAL, weights
     with tempfile.TemporaryDirectory() as folder:
         fitting = toy_fitting(folder)
-        fitting.goal = len(fitting.marks) - 1
-        _, place_costs = weights(fitting)
-    wanted = np.sqrt(LANDMARK_GOAL * fitting.trusts / fitting.trusts[:-1].sum())
-    return [] if np.allclose(place_costs, wanted) else [f"place costs {place_costs.tolist()}"]
+        turn_cost, place_costs = weights(fitting)
+    marker_sum, turn_sum = float(np.sum(place_costs ** 2)), turn_cost ** 2 * len(fitting.frame_sites)
+    good = np.isclose(marker_sum, MARKER_GOAL) and np.isclose(marker_sum, turn_sum)
+    return [] if good else [f"markers' goal {marker_sum}, turns' {turn_sum}"]
 
 
 def the_overall_factor_reaches_every_group():
@@ -246,23 +245,23 @@ def the_overall_factor_reaches_every_group():
             if not np.isclose(found[group], value)]
 
 
-def the_place_goal_sums_to_the_landmark_goal():
-    """With LANDMARK_GOAL set to 4, the ten markers' squared costs sum to 4 and the five turns' to 1: one global
+def the_place_goal_sums_to_the_marker_goal():
+    """With MARKER_GOAL set to 4, the ten markers' squared costs sum to 4 and the five turns' to 1: one global
     balance for every landmark and group."""
     import numpy as np
     from fit import _frames
-    kept = _frames.LANDMARK_GOAL
-    _frames.LANDMARK_GOAL = 4.0
+    kept = _frames.MARKER_GOAL
+    _frames.MARKER_GOAL = 4.0
     try:
         with tempfile.TemporaryDirectory() as folder:
             turn_cost, place_costs = _frames.weights(toy_fitting(folder))
     finally:
-        _frames.LANDMARK_GOAL = kept
+        _frames.MARKER_GOAL = kept
     found, turns = float(np.sum(place_costs ** 2)), 5 * turn_cost ** 2
     return [] if np.isclose(found, 4.0) and np.isclose(turns, 1.0) else [f"places {found:.4f}, turns {turns:.4f}"]
 
 
-CHECKS = (each_marker_weighs_its_trust, the_place_goal_sums_to_the_landmark_goal, a_group_end_weighs_against_the_landmarks_sum, the_overall_factor_reaches_every_group, the_solver_gives_back_the_angles_and_the_constants,
+CHECKS = (each_marker_weighs_its_trust, the_place_goal_sums_to_the_marker_goal, the_markers_goal_weighs_as_the_turns_goal, the_overall_factor_reaches_every_group, the_solver_gives_back_the_angles_and_the_constants,
           every_recording_of_the_body_is_sampled, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows)
 
 
