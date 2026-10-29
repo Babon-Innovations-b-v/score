@@ -2001,6 +2001,7 @@ class Runner:
         # pipes of the nodes that ended, concluded at the next turn's start inside that turn's one still pass
         known, known_at, finished, watch = {}, time.monotonic(), [], {}  # watch: the container's jobs (coming)
         claimers = set()
+        clients = {}  # {stage: the most an ended node's own tree held}, its stage's nodes running a container client
         self.driving = (0, time.monotonic())
         while waiting or running:
             if time.monotonic() - known_at >= HEARTBEAT:
@@ -2016,7 +2017,10 @@ class Runner:
                     stage, place, process = running.pop(receiving)
                     node = node_name(stage, place)
                     did, peak, contained = self.outcome(receiving, process)  # an ended node holds no memory
-                    peaks = self.measured(stage, did, max(peak, seen.pop(node, 0)), contained, peaks)
+                    tree = max(peak, seen.pop(node, 0))
+                    if contained and on_this_pc():
+                        clients[stage.name] = max(clients.get(stage.name, 0), tree)
+                    peaks = self.measured(stage, did, tree, contained, peaks)
                     done[node], stands = self.conclude(stage, place, did)
                     if stands:
                         stood.add(node)
@@ -2054,7 +2058,11 @@ class Runner:
                                 stage.name in claimers and any(began.name == stage.name for began, _ in ready)):
                             full = True  # a stage with a node queued on a claim starts no other: other stages first
                             continue
-                        expected = peaks.get(stage.name, memory_floor())
+                        # a container client's take is in the container's reserve already (container_growth: its
+                        # idle slots at a take peak), so only its own tree is expected; counting its stage peak too
+                        # held a third bake back beside two with a turn free and 37 GB available (2026-10-29)
+                        expected = clients[stage.name] if stage.name in clients else peaks.get(stage.name,
+                                                                                                    memory_floor())
                         if not memory_room(coming, expected):
                             held = True  # this node waits; the nodes after it that fit still start
                             continue

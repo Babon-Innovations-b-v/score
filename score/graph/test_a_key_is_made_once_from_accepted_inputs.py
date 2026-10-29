@@ -1967,6 +1967,36 @@ def test_a_ready_node_too_large_for_memory_waits_alone_and_the_ones_after_it_tha
     assert started == ["late", "late", "small", "small", "big", "big"], started
 
 
+def test_on_this_pc_a_container_clients_next_node_is_expected_at_its_own_tree_not_its_stage_peak(monkeypatch):
+    """2026-10-29: two bakes ran with a Blender turn free and 37 GB available, and no third started: a new bake row
+    was expected at its stage's 8 GB peak on top of the container's reserve, which already counts that idle turn. A
+    `client` stage whose nodes ran a container client, its kept peak 2 floors, 1.5 floors available once the first
+    node started: on this PC the second node is expected at what the first's own tree held, so it starts at once;
+    off this PC it waits for the room (here a 3 s deadline).
+    Break: score/graph/__init__.py: 'expected = clients[stage.name] if stage.name in clients else peaks.get(' ->
+    'expected = peaks.get(' (its continuation line joined) -> the second node waits for the deadline on this PC."""
+    monkeypatch.delenv(graph.FLOOR_VARIABLE, raising=False)
+    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
+    monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
+    monkeypatch.setattr(graph, "CONTAINED", lambda pid: False)  # the running ones charged their stage peak
+    monkeypatch.setattr(graph, "ran_container_client", lambda root: True)
+    client = graph.Stage("client", "place", make_late, TEXT, PASSES)
+
+    def second_start(this_pc):
+        monkeypatch.setenv(*graph.THIS_PC) if this_pc else monkeypatch.setenv(graph.THIS_PC[0], "scaleway")
+        runner = a_runner(a_world({"hangar": "a ship", "station": "a hub"}), a_store(), (client,))
+        runner.keep_peak("client", 2 * FLOOR)
+        started, start, until = [], runner.start, time.monotonic() + 3
+        runner.start = lambda stage, place, threads: started.append(time.monotonic()) or start(stage, place, threads)
+        monkeypatch.setattr(graph, "AVAILABLE", lambda: 100 * FLOOR if not started else
+                            2.5 * FLOOR if time.monotonic() < until else 100 * FLOOR)
+        found = runner.drive(("hangar", "station"), say=quiet, jobs=1)
+        assert set(found.values()) == {ACCEPTED} and len(started) == 2, found
+        return started[1] < until
+    assert second_start(this_pc=True)
+    assert not second_start(this_pc=False)
+
+
 GIGA = 10**9
 
 
