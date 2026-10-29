@@ -25,6 +25,15 @@ def filed(name):
     return name.replace("-", "_").replace(" ", "_")
 
 
+def followers_free(model, followers):
+    """A copy of `model` whose `followers` (joint ids: the joints a coupling sets) have no range of their own: a coupled
+    follower's range is narrower than its polynomial over its leader's in 35 of MyoFullBody's 51 couplings, so held,
+    it would stop its leader short; OpenSim's assembler bounds the clamped coordinates only."""
+    found = copy.deepcopy(model)
+    found.jnt_limited[list(followers)] = 0
+    return found
+
+
 class Fitting:
     """The fitting model and what the constants move.
 
@@ -148,9 +157,7 @@ class Fitting:
         polynomial over its leader's in 35 of MyoFullBody's 51 couplings (the published model's), so held, it would
         stop its leader short (recipe of 2026-10-28: 50 degrees off a reachable pose); OpenSim's assembler bounds
         the clamped coordinates only, as the run did before."""
-        found = copy.deepcopy(self.model)
-        found.jnt_limited[self.followers] = 0
-        return found
+        return followers_free(self.model, self.followers)
 
     def coupled(self, qpos):
         """`qpos` with every coupled joint set from its leader by the model's polynomial (a lock to its constant)."""

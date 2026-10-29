@@ -20,6 +20,21 @@ class NotConverged(RuntimeError):
     """A frame whose fit did not converge in MOST_STEPS."""
 
 
+def solved(configuration, tasks, limits, constraints, refresh=None):
+    """mink's steps on `configuration` (from where it stands) until a step is under STEP_DONE: its qpos; `refresh`,
+    when given, sets the targets again before each step. Not converged in MOST_STEPS raises NotConverged."""
+    for _ in range(MOST_STEPS):
+        if refresh is not None:
+            refresh()
+        velocity = mink.solve_ik(configuration, tasks, 1.0, SOLVER, damping=DAMPING, limits=limits,
+                                 constraints=constraints)
+        configuration.integrate_inplace(velocity, 1.0)
+        if np.linalg.norm(velocity) < STEP_DONE:
+            return configuration.q.copy()
+    raise NotConverged(f"a frame's fit did not converge in {MOST_STEPS} steps (its last step "
+                       f"{np.linalg.norm(velocity)})")
+
+
 def weights(fitting):
     """Each turn task's cost and each place task's (markers', then centres'): OpenSim's IK normalises each goal by its
     own weight sum (Simbody's OrientationSensors and Markers goals, every weight 1, as OpenSense's), here three goals,
@@ -63,19 +78,10 @@ class Frames:
 
     def frame(self, qpos, turns, points):
         """One frame's angles (qpos) from `qpos`, to convergence."""
-        configuration = self.configuration
-        configuration.update(qpos)
+        self.configuration.update(qpos)
         self._targets(turns, points)
-        tasks = self.turns + self.marks
-        for _ in range(MOST_STEPS):
-            self._marked(points)
-            velocity = mink.solve_ik(configuration, tasks, 1.0, SOLVER, damping=DAMPING, limits=self.limits,
-                                     constraints=self.constraints)
-            configuration.integrate_inplace(velocity, 1.0)
-            if np.linalg.norm(velocity) < STEP_DONE:
-                return configuration.q.copy()
-        raise NotConverged(f"a frame's fit did not converge in {MOST_STEPS} steps (its last step "
-                           f"{np.linalg.norm(velocity)})")
+        return solved(self.configuration, self.turns + self.marks, self.limits, self.constraints,
+                      lambda: self._marked(points))
 
     def start(self, turns, points):
         """The first frame's start: the standing pose, its root turned so the first group's site turns as its target

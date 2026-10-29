@@ -1,6 +1,7 @@
 """rra: RRA's model step changes the body's mass by the mean upward residual over its weight, at most MASS_MOST from
 the mass it was made with over every round together (the unbounded change recorded as recommended), and moves the
-torso's centre of mass under the mean residual moment, at most COM_MOST from where it was made, as worked out by hand (to
+torso's centre of mass under the mean residual moment, at most COM_MOST from where it was made; the feet stay where they
+stood when the pelvis moves (`Footing`, mink), and a frame that does not converge fails loudly; as worked out by hand (to
 1e-6: Newton keeps gravity in float32); and a segment's turn between two posed paths is measured in degrees. It runs
 in Newton's own Python (on a model Newton builds; score/stages/physics/inside/newton_env.sh, built at
 $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
@@ -12,6 +13,10 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   (2026-10-29).
 - reweighed's `model.body_mass[:] = made[0] * (1 + share)` made `model.body_mass[:] *= 1 + share`: the bound
   compounds round after round, three rounds take the body to 0.98 ** 3 (2026-10-29).
+- Footing.footed's `self.tasks + [self.height]` made `[self.height]`: the feet ride the moved pelvis, 2 cm off
+  (2026-10-29).
+- fit._frames.solved's `raise NotConverged(...)` made `return configuration.q.copy()`: a frame cut off at its
+  last step is kept silently (2026-10-29).
 - reweighed's `np.clip(model.body_ipos[torso] + shift - home, -COM_MOST, COM_MOST)` made `model.body_ipos[torso] +
   shift - home`: the torso's centre of mass moves past RRA's 0.1 m.
 
@@ -41,6 +46,89 @@ TOY = """<mujoco model="toy">
   </worldbody>
 </mujoco>
 """
+LEGS = """<mujoco model="legs">
+  <compiler angle="radian"/>
+  <worldbody>
+    <body name="pelvis" pos="0 0 0.9">
+      <freejoint name="root"/>
+      <geom type="box" size="0.1 0.15 0.05" mass="8"/>
+      <body name="thigh_l" pos="0 0.1 0">
+        <joint name="hip_l" type="hinge" axis="0 1 0" range="-1.5 1.5"/>
+        <geom type="capsule" fromto="0 0 0 0 0 -0.4" size="0.05" mass="5"/>
+        <body name="shin_l" pos="0 0 -0.4">
+          <joint name="knee_l" type="hinge" axis="0 1 0" range="0 2.5"/>
+          <geom type="capsule" fromto="0 0 0 0 0 -0.4" size="0.04" mass="3"/>
+          <body name="foot_l" pos="0 0 -0.4">
+            <joint name="ankle_l" type="hinge" axis="0 1 0" range="-1 1"/>
+            <geom type="box" pos="0.05 0 -0.03" size="0.1 0.04 0.03" mass="1"/>
+          </body>
+        </body>
+      </body>
+      <body name="thigh_r" pos="0 -0.1 0">
+        <joint name="hip_r" type="hinge" axis="0 1 0" range="-1.5 1.5"/>
+        <geom type="capsule" fromto="0 0 0 0 0 -0.4" size="0.05" mass="5"/>
+        <body name="shin_r" pos="0 0 -0.4">
+          <joint name="knee_r" type="hinge" axis="0 1 0" range="0 2.5"/>
+          <geom type="capsule" fromto="0 0 0 0 0 -0.4" size="0.04" mass="3"/>
+          <body name="foot_r" pos="0 0 -0.4">
+            <joint name="ankle_r" type="hinge" axis="0 1 0" range="-1 1"/>
+            <geom type="box" pos="0.05 0 -0.03" size="0.1 0.04 0.03" mass="1"/>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>
+"""
+
+
+def legs_footing():
+    """The legs toy, knees a little bent, its Footing on both feet, and its standing qpos."""
+    import mujoco
+    import numpy as np
+    import model
+    import rra
+    found = mujoco.MjModel.from_xml_string(LEGS)
+    standing = found.qpos0.copy()
+    for side in "lr":
+        standing[found.jnt_qposadr[found.joint(f"hip_{side}").id]] = -0.3
+        standing[found.jnt_qposadr[found.joint(f"knee_{side}").id]] = 0.6
+        standing[found.jnt_qposadr[found.joint(f"ankle_{side}").id]] = -0.3
+    feet = [model.body_index(found, f"foot_{side}") for side in "lr"]
+    return rra.Footing(found, model.Couplings(found), feet), standing
+
+
+def the_feet_stay_where_they_stood_when_the_pelvis_moves():
+    """The pelvis moved 2 cm forward and 1 cm down on two frames: the feet back within 0.01 mm and 0.001 degrees of
+    where they stood, the pelvis kept where it was moved."""
+    import numpy as np
+    footing, standing = legs_footing()
+    moved = np.tile(standing, (2, 1))
+    moved[:, 0] += 0.02
+    moved[:, 2] -= 0.01
+    found = footing.footed(moved, np.tile(standing, (2, 1)))
+    off = footing.off(found, np.tile(standing, (2, 1)))
+    problems = [] if off[:, 0].max() < 1e-5 and np.degrees(off[:, 1].max()) < 1e-3 else [f"feet off {off.tolist()}"]
+    return problems + ([] if np.allclose(found[:, :3], moved[:, :3], atol=1e-6) else
+                       [f"pelvis at {found[:, :3].tolist()}, moved to {moved[:, :3].tolist()}"])
+
+
+def a_foot_frame_that_does_not_converge_fails():
+    """With one step allowed, the same move raises NotConverged instead of keeping a frame half solved."""
+    import numpy as np
+    import fit
+    from fit import _frames
+    footing, standing = legs_footing()
+    moved = standing.copy()
+    moved[0] += 0.02
+    kept, _frames.MOST_STEPS = _frames.MOST_STEPS, 1
+    try:
+        footing.footed(moved[None], standing[None])
+    except fit.NotConverged:
+        return []
+    finally:
+        _frames.MOST_STEPS = kept
+    return ["a frame cut off after one step was kept"]
 
 
 def toy_physics():
@@ -132,7 +220,8 @@ def a_turn_between_two_paths_is_its_angle():
 
 
 CHECKS = (the_mass_follows_the_mean_upward_residual, a_floating_body_keeps_its_mass_within_the_bound,
-          the_torso_moves_under_the_mean_moment_within_its_cap,
+          the_torso_moves_under_the_mean_moment_within_its_cap, the_feet_stay_where_they_stood_when_the_pelvis_moves,
+          a_foot_frame_that_does_not_converge_fails,
           a_turn_between_two_paths_is_its_angle)
 
 
