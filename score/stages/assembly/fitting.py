@@ -46,19 +46,31 @@ def across(way, size):
     return abs(way[0]) * size[0] + abs(way[1]) * size[2]
 
 
-def on_holder(low, high, how, out, box):
-    """(scale, foot middle) of an object top, within or face on a holder box."""
+def beside(on, side):
+    """(metres kept free below, above) an object along its holder's face axis `side` (0 x, 2 z): its recess's `room`
+    on the side its `room_way` points (both sides where it points none), so its whole recess fits within the face."""
+    room, way = float(on.get("room") or 0.0), on.get("room_way") or [0.0, 0.0]
+    sign = float(np.sign(way[side // 2])) if room else 0.0
+    return (room if sign <= 0 else 0.0, room if sign >= 0 else 0.0) if room else (0.0, 0.0)
+
+
+def on_holder(low, high, how, on, box):
+    """(scale, foot middle) of an object top, within or face on a holder box (`on` its relation: a face's `out`, its
+    recess's room beside it kept within the face's span too, the door shifted inward along the face by what that
+    needs: base's garage door at its module's corner)."""
     size, (hold_low, hold_high) = high - low, box
     room = hold_high - hold_low
     foot = foot_middle(low, high)
     if how == "face":
+        out = on.get("out", (0.0, 1.0))
         axis = 0 if abs(out[0]) >= abs(out[1]) else 2
         side = 2 - axis
         scale = min(1.0, room[side] / size[side], room[1] / size[1])
         half = size * scale / 2
         target = foot.copy()
         target[axis] = (hold_high[axis] + half[axis]) if out[axis // 2] > 0 else (hold_low[axis] - half[axis])
-        target[side] = kept_within(foot[side], hold_low[side], hold_high[side], half[side])
+        below, above = beside(on, side)
+        target[side] = kept_within(foot[side], hold_low[side] + below, hold_high[side] - above, half[side])
         target[1] = float(np.clip(foot[1], hold_low[1], hold_high[1] - size[1] * scale))
         return scale, target
     scale = min(1.0, room[0] / size[0], room[2] / size[2], *([room[1] / size[1]] if how == "within" else []))
@@ -97,7 +109,7 @@ def fit(low, high, on, holders=()):
         if not holders:
             return None
         box = nearest([tuple(np.asarray(end, float) for end in found) for found in holders], low, high)
-        scale, target = on_holder(low, high, how, on.get("out", (0.0, 1.0)), box)
+        scale, target = on_holder(low, high, how, on, box)
     elif how == "wall":
         scale, target = on_wall(low, high, on)
     else:
@@ -119,17 +131,30 @@ def overhang(low, high, hold_low, hold_high, axes):
     return max([0.0, *[max(hold_low[axis] - low[axis], high[axis] - hold_high[axis]) for axis in axes]])
 
 
-def off_holder(low, high, how, out, box):
+def off_holder(low, high, how, on, box):
     """Metres a box stands off its holder box: top (its foot off the top, its footprint past it), within (past it any
-    way), face (its back off the side `out` points from, past that side's span or above its top)."""
+    way), face (its back off the side `out` points from, it and its recess's room past that side's span, or above
+    its top)."""
     hold_low, hold_high = box
     if how == "top":
         return max(abs(low[1] - hold_high[1]), overhang(low, high, hold_low, hold_high, (0, 2)))
     if how == "within":
         return overhang(low, high, hold_low, hold_high, (0, 1, 2))
+    out = on.get("out", (0.0, 1.0))
     axis = 0 if abs(out[0]) >= abs(out[1]) else 2
+    side, (below, above) = 2 - axis, beside(on, 2 - axis)
     back = abs(low[axis] - hold_high[axis]) if out[axis // 2] > 0 else abs(high[axis] - hold_low[axis])
-    return max(back, overhang(low, high, hold_low, hold_high, (2 - axis,)), max(0.0, high[1] - hold_high[1]))
+    spared_low, spared_high = hold_low.copy(), hold_high.copy()
+    spared_low[side], spared_high[side] = hold_low[side] + below, hold_high[side] - above
+    return max(back, overhang(low, high, spared_low, spared_high, (side,)), max(0.0, high[1] - hold_high[1]))
+
+
+def too_narrow(low, high, on, box):
+    """Metres a face is too narrow for an object and its recess's room beside it (0 where they fit)."""
+    out = on.get("out", (0.0, 1.0))
+    side = 2 - (0 if abs(out[0]) >= abs(out[1]) else 2)
+    below, above = beside(on, side)
+    return max(0.0, (high[side] - low[side]) + below + above - (box[1][side] - box[0][side]))
 
 
 def off_wall(low, high, on):
@@ -161,13 +186,14 @@ def off(low, high, on, holders=()):
     boxes = [tuple(np.asarray(end, float) for end in found) for found in holders]
     if not boxes:
         return None
-    return off_holder(low, high, on["how"], on.get("out", (0.0, 1.0)), nearest(boxes, low, high))
+    return off_holder(low, high, on["how"], on, nearest(boxes, low, high))
 
 
 def held_faults(record, laid):
     """[(object, what is wrong, metres or None)] of the record's design objects as the assembly laid them (`laid`,
-    made_waiting.LAID): off where their relation puts them (more than HELD_MOST), a door or window in no opening and
-    on no holder, held by nothing (`unheld`), or left at the room's middle (`unplaced`)."""
+    made_waiting.LAID): off where their relation puts them (more than HELD_MOST), a door whose holder's face is too
+    narrow for it and its recess (the shortfall), a door or window in no opening and on no holder, held by nothing
+    (`unheld`), or left at the room's middle (`unplaced`)."""
     boxes = {entry["name"]: (entry["low"], entry["high"]) for entry in [*laid.get("objects", []),
                                                                          *laid.get("holders", [])]}
     faults = []
@@ -176,7 +202,15 @@ def held_faults(record, laid):
             continue
         on = entry.get("on")
         if on:
-            distance = off(*boxes[entry["name"]], on, [boxes[name] for name in on.get("holder") or [] if name in boxes])
+            held = [boxes[name] for name in on.get("holder") or [] if name in boxes]
+            narrow = too_narrow(*(np.asarray(end, float) for end in boxes[entry["name"]]), on,
+                                nearest([tuple(np.asarray(end, float) for end in box) for box in held],
+                                        *(np.asarray(end, float) for end in boxes[entry["name"]]))) \
+                if on["how"] == "face" and on.get("room") and held else 0.0
+            if narrow > HELD_MOST:
+                faults.append((entry["name"], f"its holder's face is {narrow:.2f} m too narrow for it and its recess",
+                               round(narrow, 3)))
+            distance = off(*boxes[entry["name"]], on, held)
             if distance is None:
                 faults.append((entry["name"], f"its holder {', '.join(on.get('holder') or [])} is not laid", None))
             elif distance > HELD_MOST:

@@ -578,8 +578,12 @@ def test_base_s_garage_door_lands_on_its_module_s_front_face(tmp_path):
     """Fault (motion@base, 2026-10-29): base's garage door stood 0.17 m off its module's front and 4.7 m of its 6 m
     past the module's corner, laid at its plan item's middle; its motion check failed it. Laid by its relation (on the
     module's S face, `out` +z) at their built sizes, the 12 m module from 26.254 to 38.254 across and to 39.4 in front,
-    the 6 x 8 x 0.5 m door stands with its back on z 39.4, its middle moved in from 24.5585 to 26.254 + 3 = 29.254,
-    its foot on the floor; LAID names the fit.
+    the 6 x 8 x 0.5 m door stands with its back on z 39.4, its foot on the floor; at the module's corner it is shifted
+    in so its recess's 0.55 m of room on its hinge side (-x) fits the face too: its middle from 24.5585 to 26.254 +
+    0.55 + 3 = 29.804 (score, 2026-10-29: never swinging round the corner); LAID names the fit.
+    Break: score/stages/assembly/fitting.py: `target[side] = kept_within(foot[side], hold_low[side] + below,
+        hold_high[side] - above, half[side])` -> `target[side] = kept_within(foot[side], hold_low[side],
+        hold_high[side], half[side])`
     Break: score/stages/assembly/made_waiting.py: `laid_by_relations(stage, out, place, record, objects)` -> `pass`
     Break: score/stages/assembly/fitting.py: `target[axis] = (hold_high[axis] + half[axis]) if out[axis // 2] > 0 else
         (hold_low[axis] - half[axis])` -> `target[axis] = foot[axis]`"""
@@ -588,7 +592,8 @@ def test_base_s_garage_door_lands_on_its_module_s_front_face(tmp_path):
                 "at": [32.254, 0.0, 33.4], "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "bake"},
                {"name": "garage_door_1", "row": "garage_door", "bake": "door_1", "at": [24.5585, 0.0, 39.8395],
                 "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "bake",
-                "on": {"how": "face", "holder": ["square_module_front_right_1"], "out": [0.0, 1.0],
+                "on": {"how": "face", "holder": ["square_module_front_right_1"], "out": [0.0, 1.0], "room": 0.55,
+                       "room_way": [-1.0, 0.0],
                        "why": "against its module's side the concept shows it on"}}]
     assembly.take_record(a_record(tmp_path, {"objects": entries}), root.parent, TOY)
     a_box_asset(root.parent / "assets/module_1.usdc", (-6.0, 0.0, -6.0), (6.0, 12.0, 6.0))
@@ -598,7 +603,7 @@ def test_base_s_garage_door_lands_on_its_module_s_front_face(tmp_path):
     made_waiting.lay(root.parent, TOY, tmp_path / "bake")
     from score.stages.assembly import fitting
     low, high = fitting.world_box(opened(root), f"/{TOY}/Objects/garage_door_1")
-    assert np.allclose(low, (26.254, 0.0, 39.4), atol=1e-4) and np.allclose(high, (32.254, 8.0, 39.9), atol=1e-4), (
+    assert np.allclose(low, (26.804, 0.0, 39.4), atol=1e-4) and np.allclose(high, (32.804, 8.0, 39.9), atol=1e-4), (
         low, high)
     [fit] = json.loads((root.parent / made_waiting.LAID).read_text())["fitted"]
     assert fit["name"] == "garage_door_1" and fit["how"] == "face" and fit["scale"] == 1.0, fit
@@ -609,22 +614,29 @@ def test_base_s_garage_door_lands_on_its_module_s_front_face(tmp_path):
 def test_the_held_gate_names_each_object_not_where_what_holds_it_puts_it():
     """#72, so it never comes back silently: the `held` gate fails by name on a door laid 1 m beside its module's
     face (its measure 1.0 m), a door or window in no opening and on no holder, one held by nothing and one left at the
-    room's middle; the door laid on the face passes.
+    room's middle, and a 6 m door on a 6 m face with 0.55 m of recess room beside it (0.55 m too narrow); the door
+    laid on the face passes.
+    Break: score/stages/assembly/fitting.py: `if narrow > HELD_MOST:` -> `if False:`
     Break: score/stages/assembly/fitting.py: `elif distance > HELD_MOST:` -> `elif False:`
     Break: score/stages/assembly/fitting.py: `if entry.get("fills") and not (on and on["how"] in ("in", "face",
         "within", "top")):` -> `if False:`"""
     from score.stages.assembly import fitting
     face = {"how": "face", "holder": ["module_1"], "out": [0.0, 1.0]}
-    record = {"objects": [{"name": "door_1", "on": face}, {"name": "door_2", "on": face},
+    narrow = {"how": "face", "holder": ["shed_1"], "out": [0.0, 1.0], "room": 0.55, "room_way": [1.0, 0.0]}
+    record = {"objects": [{"name": "door_1", "on": face}, {"name": "door_2", "on": face}, {"name": "door_3", "on": narrow},
                           {"name": "window_1", "fills": True}, {"name": "lamp_1", "unheld": "its holder lays nothing"},
                           {"name": "crate_1", "unplaced": "left on the walls item"}]}
     box = {"low": [0.0, 0.0, 0.0], "high": [1.0, 2.0, 0.0]}
     laid = {"objects": [{"name": "module_1", "low": [-6.0, 0.0, -6.0], "high": [6.0, 12.0, 6.0]},
                         {"name": "door_1", "low": [-3.0, 0.0, 6.0], "high": [3.0, 8.0, 6.5]},
                         {"name": "door_2", "low": [-3.0, 0.0, 7.0], "high": [3.0, 8.0, 7.5]},
+                        {"name": "shed_1", "low": [20.0, 0.0, 0.0], "high": [26.0, 9.0, 4.0]},
+                        {"name": "door_3", "low": [20.0, 0.0, 4.0], "high": [26.0, 8.0, 4.5]},
                         *[{"name": name, **box} for name in ("window_1", "lamp_1", "crate_1")]]}
     faults = {name: (words, distance) for name, words, distance in fitting.held_faults(record, laid)}
-    assert sorted(faults) == ["crate_1", "door_2", "lamp_1", "window_1"], faults
+    assert sorted(faults) == ["crate_1", "door_2", "door_3", "lamp_1", "window_1"], faults
+    assert ("door_3", "its holder's face is 0.55 m too narrow for it and its recess", 0.55) in \
+        fitting.held_faults(record, laid), faults
     assert faults["door_2"][1] == 1.0 and faults["window_1"][0].startswith("a door or window in no opening"), faults
     assert faults["crate_1"][0].startswith("at the room middle") and faults["lamp_1"][0].startswith("held by nothing")
 

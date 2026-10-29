@@ -337,7 +337,8 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     than the kept one are left out, with why.
     Break: score/stages/scene_record/writer.py: `spot, way, base, on = related(design, relation, spot, way, base,
         size, piece)` -> `pass`
-    Break: score/stages/scene_record/writer.py: `on["holder"] = names` -> `pass`"""
+    Break: score/stages/scene_record/writer.py: `on["holder"] = names` -> `pass`
+    Break: score/stages/scene_record/writer.py: `found["room"] = float(recess["room"])` -> `pass`"""
     from score.stages.scene_record import writer
     design = {"w": 20.0, "d": 20.0, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 20.0, 20.0, None, "item"],
                                               ["MODULE 1", 8.0, 2.0, 6.0, 6.0, None, "item"],
@@ -354,13 +355,14 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
         {"item": "ON THE WALLS AND CEILING", "row": "lamp", "how": "wall", "why": "against the wall nearest",
          "wall": {"from": [0.0, 20.0], "to": [0.0, 0.0], "thick": 0.2}, "side": 1, "spot": [0.0, 10.0]},
         {"item": "GARAGE DOOR 1", "row": "garage_door", "how": "face", "holder": "MODULE 1", "face": "S",
-         "why": "against module's side"}]}
+         "why": "against module's side", "recess": {"room": 0.55, "room_way": [-1.0, 0.0]}}]}
     found = {entry["row"]: entry for entry in writer.design_objects(design, {"rows": rows, "objects": {}}, relations)}
     door, lamp, garage = found["door"], found["lamp"], found["garage_door"]
     assert door["at"] == [-5.0, 0.0, -10.0] and door["on"]["how"] == "in", door
     assert door["on"]["middle"] == [-5.0, 0.0, -10.0] and door["on"]["wide"] == 1.4 and door["on"]["tall"] == 2.2
     assert door["rotation"] == writer.yaw_turn(design, (1.0, 0.0), rows[0]["size"]), door
     assert garage["on"]["holder"] == ["module_1"] and garage["on"]["out"] == [0.0, 1.0], garage
+    assert (garage["on"]["room"], garage["on"]["room_way"]) == (0.55, [-1.0, 0.0]), garage  # kept within the face
     assert lamp["on"]["span"] == [[-9.9, 10.0], [-9.9, -10.0]] and lamp["on"]["out"] == [1.0, 0.0], lamp
     (tmp_path / "plans").mkdir()
     (tmp_path / "plans/hut.json").write_text(json.dumps(design))
