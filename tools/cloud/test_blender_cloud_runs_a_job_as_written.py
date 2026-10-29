@@ -32,13 +32,19 @@ No machine is rented: each test reads the command, job or offers the module buil
 - test_a_job_keeps_only_the_files_its_copy_back_wrote_and_names_the_jobs_beside_it: in `copy_back`, drop
   `"--out-format=%n"` (no list of what the copy wrote); or in `run_job`, `others = list(running.values())` ->
   `others = []` (no peers named).
+- test_a_job_whose_pictures_sum_past_this_pcs_machine_is_refused_by_name_before_it_starts: in `too_big_here`, `for
+  number, job, need in over if need > room]` -> `for number, job, need in over if False]` (the big job starts); or in
+  `picture_bytes`, `* int.from_bytes(head[20:24], "big") * 4` -> `* 4` (a map counts one row).
 """
+import json
 import os
 import pathlib
 import shlex
+import struct
 import subprocess
 import sys
 import threading
+import zlib
 
 import pytest
 
@@ -323,3 +329,52 @@ def test_a_job_keeps_only_the_files_its_copy_back_wrote_and_names_the_jobs_besid
     assert keeping["brought"] == {making / "made" / "crate.gltf", making / "labelled" / "crate" / "labels.json"}
     assert keeping["peers"] == dict([kept.identity(barrel, "this test's machine")[:2]])
     assert blender_cloud.ACTIVE["this-pc"] == {"the barrel's turn": barrel}  # the crate's turn is over
+
+
+def a_png(path, width, height):
+    """A PNG at `path` whose header says width x height (an empty IDAT: nothing to decode, which nothing does)."""
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
+                     + chunk(b"IDAT", b"") + chunk(b"IEND", b""))
+
+
+def test_a_job_whose_pictures_sum_past_this_pcs_machine_is_refused_by_name_before_it_starts(tmp_path, monkeypatch):
+    """Round 23: base's light passes (271 full-size maps, 27.3 GB decoded) filled this PC's container in 35 s. A
+    light job's tree holds four 16k by 8k maps (4 x 16384 x 8192 x 4 = 2.147 GB) and a 1k one (4.2 MB) in its
+    folders: predicted 2 GB + 2.152 GB = 4.15 GB, past a machine of 3 GiB (3.22 GB); a job with only the 1k map
+    (2.004 GB) fits. On this PC the call stops by the big job's name, its predicted GB and a bigger machine, before it
+    prices or claims anything (account() is never reached).
+    Each take's mark carries its prediction, and once it ends whether every output came back; its key is the hash
+    score/graph take_key works out from the take's command line."""
+    tree = tmp_path / "tree"
+    for name in ("wall.png", "floor.PNG", "roof.png", "door.png"):
+        a_png(tree / "base" / "assets" / "textures" / name, 16384, 8192)
+    a_png(tree / "garage" / "assets" / "textures" / "lamp.png", 1024, 1024)
+    (tree / "base" / "base.usda").write_text("#usda 1.0\n")
+    big = {"script": "score/stages/light/inside/light_passes.py", "args": [str(tree / "base" / "base.usda"), "/v", "/o"],
+           "inputs": [str(tree / "base"), str(tree / "garage")], "outputs": [str(tmp_path / "o")], "minutes": 4}
+    small = {**big, "inputs": [str(tree / "garage")]}
+    assert blender_cloud.predicted_bytes(big) == 2 * 10**9 + 4 * 16384 * 8192 * 4 + 1024 * 1024 * 4
+    machine = type("ThisPC", (), {"NAME": "local", "memory_cap": staticmethod(lambda: "3g"),
+                                  "account": staticmethod(lambda: pytest.fail("priced a job too big for this PC"))})
+    monkeypatch.setattr(blender_cloud, "cloud", machine)
+    monkeypatch.setattr(blender_cloud, "still_to_run", lambda jobs: jobs)
+    monkeypatch.setattr(blender_cloud, "TAKE_MARKS", tmp_path / "marks")
+    assert blender_cloud.too_big_here([small]) is None
+    paths = []
+    for number, job in enumerate([small, big]):
+        paths.append(tmp_path / f"job-{number}.json")
+        paths[-1].write_text(json.dumps(job))
+    monkeypatch.setattr(sys, "argv", ["blender_cloud.py", *map(str, paths), "--who", "a test"])
+    with pytest.raises(SystemExit) as refused:
+        blender_cloud.main()
+    said = str(refused.value)
+    assert "Blender job 1 (score/stages/light/inside/light_passes.py)" in said and "4.2 GB" in said, said
+    assert "bigger machine" in said and "job 0" not in said, said
+    blender_cloud.mark_take(small, wrote=True)
+    key = blender_cloud.take_key(small["args"])
+    assert blender_cloud.take_key(["/a", "/b"]) == "148c32fbefbb40c1"  # score/graph's test asserts the same
+    assert json.loads((tmp_path / "marks" / f"{key}.json").read_text()) == {
+        "kind": "light_passes.py", "predicted": 2 * 10**9 + 1024 * 1024 * 4, "wrote": True}

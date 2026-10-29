@@ -49,6 +49,7 @@ import contextlib
 import contextvars
 import datetime
 import fcntl
+import hashlib
 import inspect
 import json
 import math
@@ -134,14 +135,24 @@ CONTAINER_CLIENTS = ("blender_cloud.py",)
 # counted by what its running jobs may still grow to (container_reserve), never more than that room: each job (a
 # session under its sshd running a script, a Blender take one a slot) its kind's take peak less what its tree holds
 # now, and each slot seen busy in this claim but idle now a whole take peak (the next take starts in it). A kind's
-# take peak is the TAKE_RANK of its last TAKES_KEPT measured takes (the most their trees' VmHWM summed to while they
-# ran), kept per kind (the script) in memory/container-peaks.json; a kind never measured is given TAKE_PEAK, the
-# container's own per slot assumption (local.py BLENDER_PEAK_GB). 2026-10-29: the cap's whole room (16.5 GiB) was
-# reserved beside three takes holding 1.2 to 3.2 GB, 108 ready nodes waiting with 24.6 GB available. The container's
-# cgroup cap stays the hard limit for a tail take (one held 27 GB), the outside guard the backstop.
+# take peak is the TAKE_RANK of its last TAKES_KEPT measured takes that wrote their outputs (the most their trees'
+# VmHWM summed to while they ran), at least TAKE_PEAK, the container's own per slot assumption (local.py
+# BLENDER_PEAK_GB), until TAKES_TRUSTED such takes are kept, and never below the highest of the kind's takes that wrote
+# none (stopped, killed, paused or failed: they never lower it) nor what its job's inputs predict (blender_cloud.py
+# predicted_bytes, in its take's mark). Each take's highest reading is kept under its take's key (take_key) at every
+# reading, so a take stopped, killed or paused mid-take keeps it, and settles once its mark under TAKE_MARKS says
+# whether it wrote its outputs (none after SETTLE_SECONDS: it wrote none), all kept per kind (the script) in
+# memory/container-peaks.json. 2026-10-29: the cap's whole room (16.5 GiB) was reserved beside three takes holding 1.2
+# to 3.2 GB, 108 ready nodes waiting with 24.6 GB available. Round 23: base's light passes take (light_passes.py,
+# 271 full-size maps, 27.3 GB decoded) filled the card and 21 GB of memory in 35 s, its kind's peaks (0.06 to 2.05 GB)
+# all from renders of empty shells that failed early and the 21 GB take never kept, the run paused mid-take. The
+# container's cgroup cap stays the hard limit for a tail take (one held 27 GB), the outside guard the backstop.
 TAKE_PEAK = int(8.5e9)
 TAKES_KEPT = 50
 TAKE_RANK = 0.9
+TAKES_TRUSTED = 5
+TAKE_MARKS = score_store.PROPS_HOME / "cloud" / "this-pc.takes"
+SETTLE_SECONDS = 3600
 CONTAINER = "score-this-pc"
 CGROUPS = ("/sys/fs/cgroup/system.slice/docker-{id}.scope", "/sys/fs/cgroup/docker/{id}")
 # A node's process reads its own tree's memory every MEMORY_SAMPLE seconds for the peak it reports (watch_memory).
@@ -589,13 +600,46 @@ def container_room(cgroup):
     return None
 
 
-def script_of(pid):
-    """The file name of the first script process `pid` runs (a ".py" argument of PROC/<pid>/cmdline); None when it
-    runs none or is gone."""
+def take_key(arguments):
+    """A take's key: the hash of its script's arguments, the same as tools/cloud/blender_cloud.py take_key's."""
+    return hashlib.sha256("\0".join(arguments).encode()).hexdigest()[:16]
+
+
+def take_of(pid):
+    """(The file name of the first script process `pid` runs (a ".py" argument of PROC/<pid>/cmdline), its take's key
+    (take_key of the arguments after it, a leading "--" left out)); None when it runs none or is gone."""
     with contextlib.suppress(OSError):
-        arguments = pathlib.Path(PROC, str(pid), "cmdline").read_bytes().split(b"\0")
-        return next((os.path.basename(argument.decode()) for argument in arguments if argument.endswith(b".py")), None)
+        words = [word.decode(errors="replace")
+                 for word in pathlib.Path(PROC, str(pid), "cmdline").read_bytes().rstrip(b"\0").split(b"\0")]
+        at = next((number for number, word in enumerate(words) if word.endswith(".py")), None)
+        if at is None:
+            return None
+        after = words[at + 1:]
+        return os.path.basename(words[at]), take_key(after[1:] if after[:1] == ["--"] else after)
     return None
+
+
+def take_mark(key):
+    """What blender_cloud.py wrote of take `key` (TAKE_MARKS/<key>.json: {"kind", "predicted": bytes, "wrote": once
+    it ended}); {} when there is none."""
+    with contextlib.suppress(OSError, ValueError):
+        return json.loads((TAKE_MARKS / f"{key}.json").read_text())
+    return {}
+
+
+def settle_take(kept, key, now):
+    """Settle the take `key` of kept's "open" that is no longer running: its peak under its kind's "written" or
+    "unwritten" (its last TAKES_KEPT) as its mark says, or "unwritten" SETTLE_SECONDS after it was first seen gone
+    with no word (its runner was stopped or killed), its mark removed; left open, its gone time noted, until then."""
+    kind, peak, gone = kept["open"][key]
+    wrote = take_mark(key).get("wrote")
+    if wrote is None and (gone is None or now - gone < SETTLE_SECONDS):
+        kept["open"][key] = [kind, peak, gone or now]
+        return
+    side = "written" if wrote else "unwritten"
+    kept[side][kind] = [*kept[side].get(kind, []), peak][-TAKES_KEPT:]
+    del kept["open"][key]
+    (TAKE_MARKS / f"{key}.json").unlink(missing_ok=True)
 
 
 def high_water(pid):
@@ -607,10 +651,10 @@ def high_water(pid):
 
 
 def container_jobs(cgroup):
-    """{each job running in the container whose cgroup is `cgroup`: (its kind, the bytes its tree holds now
-    (proportional_bytes), the most its tree's processes held (high_water, summed))}: a job is a session under the
-    container's first process (its sshd) whose tree runs a script, its kind the first script its tree runs (script_of,
-    breadth first); {} when the cgroup's processes cannot be read."""
+    """{each job running in the container whose cgroup is `cgroup`, by its take's key: (its kind, the bytes its tree
+    holds now (proportional_bytes), the most its tree's processes held (high_water, summed))}: a job is a session under
+    the container's first process (its sshd) whose tree runs a script, its kind and key the first script its tree runs
+    (take_of, breadth first); {} when the cgroup's processes cannot be read."""
     try:
         inside = {int(pid) for pid in (cgroup / "cgroup.procs").read_text().split()}
     except (OSError, ValueError):
@@ -624,10 +668,10 @@ def container_jobs(cgroup):
             tree = [session]
             for pid in tree:  # breadth first: the list grows as it is read
                 tree.extend(children.get(pid, []))
-            kinds = [kind for kind in map(script_of, tree) if kind]
-            if kinds:
-                jobs[session] = (kinds[0], sum(proportional_bytes(pid, table[pid][1]) for pid in tree),
-                                 sum(high_water(pid) for pid in tree))
+            takes = [take for take in map(take_of, tree) if take]
+            if takes:
+                jobs[takes[0][1]] = (takes[0][0], sum(proportional_bytes(pid, table[pid][1]) for pid in tree),
+                                     sum(high_water(pid) for pid in tree))
     return jobs
 
 
@@ -642,22 +686,26 @@ def container_reading():
 CONTAINER_READ = container_reading  # the tests give a fake reading
 
 
-def take_peak(takes, kind):
-    """A kind's take peak: the TAKE_RANK (nearest rank) of its measured takes' peaks in `takes` ({kind: [bytes]}),
-    TAKE_PEAK when none was measured."""
-    measured = sorted(takes.get(kind, []))
-    return measured[max(0, math.ceil(TAKE_RANK * len(measured)) - 1)] if measured else TAKE_PEAK
+def take_peak(kept, kind, predicted=0):
+    """A kind's take peak from the measures `kept` (Runner.container_takes): the TAKE_RANK (nearest rank) of its
+    takes that wrote their outputs, at least TAKE_PEAK until TAKES_TRUSTED of them are kept, and at least each of its
+    takes that wrote none or has not settled and `predicted` (its job's prediction)."""
+    measured = sorted(kept["written"].get(kind, []))
+    ranked = measured[max(0, math.ceil(TAKE_RANK * len(measured)) - 1)] if measured else TAKE_PEAK
+    unsettled = [peak for of, peak, _ in kept["open"].values() if of == kind]
+    return max(ranked, TAKE_PEAK if len(measured) < TAKES_TRUSTED else 0, predicted,
+               *kept["unwritten"].get(kind, []), *unsettled)
 
 
-def container_reserve(room, jobs, takes, slots):
-    """The bytes the container may still grow by: each of its `jobs` ({job: (kind, holds now, high)}) its kind's take
-    peak (take_peak of `takes`) less what it holds now, never below 0, and each of the `slots` (the most jobs seen at
-    once) idle now the most of the running kinds' take peaks (TAKE_PEAK when none runs); never more than `room`, and
-    the whole `room` while no job was ever seen (slots 0)."""
-    peaks = [take_peak(takes, kind) for kind, _, _ in jobs.values()]
+def container_reserve(room, jobs, kept):
+    """The bytes the container may still grow by: each of its `jobs` ({take key: (kind, holds now, high)}) its kind's
+    take peak (take_peak of `kept`, with what its take's mark predicts) less what it holds now, never below 0, and
+    each of kept's `slots` (the most jobs seen at once) idle now the most of the running kinds' take peaks (TAKE_PEAK
+    when none runs); never more than `room`, and the whole `room` while no job was ever seen (slots 0)."""
+    peaks = [take_peak(kept, kind, take_mark(key).get("predicted", 0)) for key, (kind, _, _) in jobs.items()]
     growth = sum(max(0, peak - holds) for peak, (_, holds, _) in zip(peaks, jobs.values()))
-    idle = max(0, slots - len(jobs)) * max(peaks, default=TAKE_PEAK)
-    return min(room, growth + idle) if slots else room
+    idle = max(0, kept["slots"] - len(jobs)) * max(peaks, default=TAKE_PEAK)
+    return min(room, growth + idle) if kept["slots"] else room
 
 
 def ran_container_client(root):
@@ -1929,20 +1977,26 @@ class Runner:
         return peaks
 
     def container_takes(self):
-        """The container's measures kept beside the store: {"takes": {kind: the peaks of its last TAKES_KEPT
-        measured takes}, "slots": the most jobs seen running in it at once} (none yet: none of either)."""
+        """The container's measures kept beside the store: {"written" and "unwritten": {kind: the peaks of its last
+        TAKES_KEPT settled takes that wrote their outputs, or wrote none}, "open": {take key: [kind, the highest
+        reading, when it was first seen gone or None]} for the takes not settled, "slots": the most jobs seen running
+        in it at once} (none yet: none of each). The "takes" kept before a take's outcome was known are left out:
+        none of them is known to have written its outputs."""
         path = self.desk("memory", "container-peaks", ".json")
-        return json.loads(path.read_text()) if path.exists() else {"takes": {}, "slots": 0}
+        kept = {"written": {}, "unwritten": {}, "open": {}, "slots": 0}
+        kept.update(json.loads(path.read_text()) if path.exists() else {})
+        kept.pop("takes", None)
+        return kept
 
-    def keep_takes(self, ended, slots):
-        """Keep each ended take's peak (`ended`: [(kind, bytes)]) under its kind, its last TAKES_KEPT, and `slots`
-        jobs running at once when more than the most kept; the measures kept (container_takes)."""
+    def keep_takes(self, jobs, now):
+        """Keep each running take's highest reading (`jobs`: container_jobs) under its key, at once, and settle each
+        take gone (settle_take); the most jobs running at once; the measures kept (container_takes)."""
         kept = self.container_takes()
-        if not ended and slots <= kept["slots"]:
-            return kept
-        for kind, peak in ended:
-            kept["takes"][kind] = [*kept["takes"].get(kind, []), peak][-TAKES_KEPT:]
-        kept["slots"] = max(kept["slots"], slots)
+        for key, (kind, _, high) in jobs.items():
+            kept["open"][key] = [kind, max(high, kept["open"].get(key, [kind, 0, None])[1]), None]
+        for key in [key for key in kept["open"] if key not in jobs]:
+            settle_take(kept, key, now)
+        kept["slots"] = max(kept["slots"], len(jobs))
         path = self.desk("memory", "container-peaks", ".json")
         path.parent.mkdir(parents=True, exist_ok=True)
         spare = path.with_suffix(f".{os.getpid()}")
@@ -1950,23 +2004,17 @@ class Runner:
         os.replace(spare, path)
         return kept
 
-    def container_growth(self, reading, watch):
+    def container_growth(self, reading):
         """What the container may still grow by (container_reserve) from `reading` (its room, its jobs:
-        container_reading), the most each job's tree held kept in `watch` ({job: (kind, bytes)}); a job gone since
-        the last reading ended, its peak kept (keep_takes) with the jobs running now."""
+        container_reading), each take's highest reading kept first (keep_takes)."""
         room, jobs = reading
-        for job, (kind, _, high) in jobs.items():
-            watch[job] = (kind, max(high, watch.get(job, (kind, 0))[1]))
-        ended = [watch.pop(job) for job in [job for job in watch if job not in jobs]]
-        kept = self.keep_takes(ended, len(jobs))
-        return container_reserve(room, jobs, kept["takes"], kept["slots"])
+        return container_reserve(room, jobs, self.keep_takes(jobs, time.time()))
 
-    def coming(self, running, peaks, seen, watch=None):
+    def coming(self, running, peaks, seen):
         """[(each running node's stage peak, what its process tree holds now)] (on this PC a node running a container
-        client its tree alone, and the container once: container_growth, its jobs watched in `watch`), the most each
-        was seen to hold kept in `seen` ({node: bytes}); a node whose process has ended is reaped (is_alive: waitpid,
-        WNOHANG) and holds none, though its outcome is not read yet."""
-        watch = {} if watch is None else watch
+        client its tree alone, and the container once: container_growth), the most each was seen to hold kept in
+        `seen` ({node: bytes}); a node whose process has ended is reaped (is_alive: waitpid, WNOHANG) and holds none,
+        though its outcome is not read yet."""
         alive = [(stage, place, process) for stage, place, process in running.values() if process.is_alive()]
         held = HELD([process.pid for _, _, process in alive])
         users = {process.pid for _, _, process in alive if on_this_pc() and CONTAINED(process.pid)}
@@ -1978,10 +2026,7 @@ class Runner:
             mine = reading is not None and process.pid in users
             found.append((held[process.pid] if mine else peaks.get(stage.name, memory_floor()), held[process.pid]))
         if reading is not None:  # the container, once, whichever of its users holds the claim
-            found.append((self.container_growth(reading, watch), 0))
-        elif not users and watch:  # no client runs: the takes watched have ended
-            self.keep_takes(list(watch.values()), 0)
-            watch.clear()
+            found.append((self.container_growth(reading), 0))
         return found
 
     def conclude(self, stage, place, did):
@@ -2017,7 +2062,7 @@ class Runner:
         # known: what each waiting node reads, kept across turns (forget; all of it again every HEARTBEAT seconds, so a
         # plan edited under the run is read again); finished: the result
         # pipes of the nodes that ended, concluded at the next turn's start inside that turn's one still pass
-        known, known_at, finished, watch = {}, time.monotonic(), [], {}  # watch: the container's jobs (coming)
+        known, known_at, finished = {}, time.monotonic(), []
         claimers = set()
         # {stage: the most an ended node's own tree held}, its stage's nodes running a container client; kept across
         # runs (2026-10-29: each restart held new bake rows at their 8 GB stage peak until one bake had ended)
@@ -2052,7 +2097,7 @@ class Runner:
                     say(f"{node}: {done[node]}")
                 finished = []
                 forget(known, ended)
-                coming = self.coming(running, peaks, seen, watch)  # what the running nodes may still take (memory_room)
+                coming = self.coming(running, peaks, seen)  # what the running nodes may still take (memory_room)
                 queued = self.claim_waiting(running)  # the stages whose running nodes wait on a claim, how many
                 busy, full = len(running) - min(sum(queued.values()), WAITERS_EXCUSED), False  # full: a node waited
                 claimers.update(queued)  # stages seen waiting on a claim this run
