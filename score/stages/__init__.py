@@ -268,7 +268,8 @@ def bake_checked(row):
                                contract=contracts.Contract("surfaces-check", 1, bake_check.check_faults),
                                checks=(guarded("baked matches its surfaces", bake_check.judge_lit),
                                        guarded("triangles within budget", bake_check.judge_triangles),
-                                       guarded("stands level", bake_check.judge_stance)),
+                                       guarded("stands level", bake_check.judge_stance),
+                                       guarded("stands square", bake_check.judge_square)),
                                files=check_files)
 
 

@@ -202,6 +202,10 @@ tests it turned red:
   said) <= limit or` dropped from boxed (a box within the row's spread corrects), or `or off(own, drawn) > limit`
   dropped (the box alone corrects), or `wide > tall or` dropped (a stove top's height grown from above)  -> a_pixal3d_take_keeps_its_own_width_for_height_
   only_where_its_box_and_take_both_disagree_with_its_row
+- route_bake.py: `if kept or not tumble.tumbled(laid):` -> `if True:`, or tumble.py: `return f"its design lays it
+  lying ({said})"` -> `return None`  -> a_rolled_take_is_stood_square_and_a_lying_one_keeps_its_pose
+- bake_check.py: `and record["square"]["loose"] > tumble.LOOSE]` -> `and False]`  ->
+  the_check_fails_a_tumbled_bake_by_name_with_its_angle_and_leaves_a_lying_one_out
 - route_bake.py: `opening = min(span, float(recess["wide"]) + room * (1.0 if room_side else 2.0))` -> `opening =
   min(span, float(recess["wide"]))`  -> a_swinging_door_at_full_open_touches_nothing_in_its_recess
 - route_bake.py: `depth = min(float(recess["depth"]), 2 * half - RECESS_BACK)` -> `depth = 2 * half + RECESS_OUT` (a
@@ -232,6 +236,7 @@ tests it turned red:
 import inspect
 import io
 import json
+import math
 import os
 import pathlib
 import shutil
@@ -2563,6 +2568,71 @@ def test_the_route_is_the_default_line():
 
 
 # --- bake_job ---
+
+def a_turned_take(folder, turn, size=(2.0, 1.0, 0.6)):
+    """A labelled take of one part: a box of `size` (x, y, z) turned by `turn` (rows), as its .ply."""
+    box = trimesh.creation.box(extents=size)
+    box.vertices = box.vertices @ np.asarray(turn, float).T
+    folder.mkdir(parents=True)
+    box.export(folder / "paint.ply")
+    return folder
+
+
+def rolled(degrees):
+    """A turn about z (rows): a take rolled over sideways."""
+    angle = math.radians(degrees)
+    return [[math.cos(angle), -math.sin(angle), 0.0], [math.sin(angle), math.cos(angle), 0.0], [0.0, 0.0, 1.0]]
+
+
+def a_pose_world(folder, row):
+    """The bake's pose inputs: a hand-in of one row and the repository's stance and resting rules."""
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "handin.json").write_text(json.dumps({"rows": [row]}))
+    tmp_path = folder
+    return {"inventory here": tmp_path / "handin.json", "stance rules": REPO / "data/checks/stance.json",
+            "resting rules": REPO / "data/checks/resting.json"}
+
+
+def test_a_rolled_take_is_stood_square_and_a_lying_one_keeps_its_pose(tmp_path):
+    """#36 (2026-10-29: 154 of env1's 406 baked models stood tumbled, camp's bunk bed rolled 44 degrees): a 2 x 1 x
+    0.6 m take rolled 40 degrees over, its row 2 m wide, 1 m tall and 0.6 m deep, is stood square before it is laid:
+    within a degree of its frame, its box back on its row's proportions. A row whose design lays it lying (wreck's
+    crashed rocket section) keeps the turn it was made in, saying why; one standing square already is left as it is.
+    Break: score/stages/surfaces/route_bake.py: `if kept or not tumble.tumbled(laid):` -> `if True:`
+    Break: score/stages/surfaces/tumble.py: `return f"its design lays it lying ({said})"` -> `return None`"""
+    import tumble
+    identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+    entry = {"base": identity, "size": [2.0, 1.0, 0.6]}
+    labelled = a_turned_take(tmp_path / "rolled", rolled(40))
+    stood = route_bake.stood_square({"bed_1": entry}, labelled, "bed_take",
+                                    a_pose_world(tmp_path, {"id": "bed", "name": "bunk bed", "thing": "prop:bed_take"}))
+    turn = np.array(stood["bed_1"]["base"]).reshape(3, 3)
+    laid = route_bake.labelled_points(labelled) @ turn.T
+    assert tumble.measure(laid)[0] < 1.0 and np.allclose(np.ptp(laid, axis=0), (2.0, 1.0, 0.6), atol=0.02), laid
+    assert stood["bed_1"]["stood"]["degrees"] > 30.0, stood
+    lying = route_bake.stood_square({"rear_1": entry}, labelled, "rear_take", a_pose_world(
+        tmp_path / "wreck", {"id": "rear", "name": "crashed rocket rear section", "thing": "prop:rear_take"}))
+    assert lying["rear_1"]["base"] == identity and lying["rear_1"]["stood"]["kept"].startswith("its design lays it "
+                                                                                                  "lying (crashed)")
+    square = a_turned_take(tmp_path / "square", rolled(0))
+    assert route_bake.stood_square({"bed_1": entry}, square, "bed_take", a_pose_world(
+        tmp_path / "again", {"id": "bed", "thing": "prop:bed_take"}))["bed_1"] == entry
+
+
+def test_the_check_fails_a_tumbled_bake_by_name_with_its_angle_and_leaves_a_lying_one_out(tmp_path):
+    """#36: base's module baked 32 degrees off its frame and passed every gate. `stands square` fails a baked model
+    more than tumble.DEGREES off its frame (its frame box over tumble.LOOSE times its own) by name with its angle; a
+    row whose design keeps its pose is left out, said why.
+    Break: score/stages/surfaces/bake_check.py: `and record["square"]["loose"] > tumble.LOOSE]` -> `and False]`"""
+    (tmp_path / "checks.json").write_text(json.dumps({
+        "module_1": {"square": {"degrees": 32.06, "loose": 1.742}},
+        "bed_1": {"square": {"degrees": 0.4, "loose": 1.002}},
+        "rear_1": {"square": {"degrees": 43.4, "loose": 1.215}, "keeps_pose": "its design lays it lying (crashed)"}}))
+    found = bake_check.judge_square(tmp_path, {}, None)
+    assert found.answer == checks.FAIL and found.measures["failing"] == 1, found
+    assert found.findings == ("module_1: stands 32.1 degrees off its frame (its frame box 1.74 times its own)",
+                              "rear_1: left out, its design lays it lying (crashed)"), found.findings
+
 
 def test_a_swinging_door_at_full_open_touches_nothing_in_its_recess():
     """#72: a 6 m wide, 0.5 m thick door hinged on its left (the model's -x) swings a quarter turn into its 12 m

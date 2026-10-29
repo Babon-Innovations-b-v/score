@@ -108,7 +108,7 @@ def card_job(inputs, short, out, take, files):
     pixal = prop_env.PROPS_HOME / "work/pixal"
     models = sorted({pixal / f"{take}.glb", pixal / f"{take}-final.glb", *pixal.glob(f"{take}-[0-9]*.glb")})
     world = [path for name, path in short.items()
-             if name.startswith("inventory ") or name in ("surfaces", "resting rules", "relations")]
+             if name.startswith("inventory ") or name in ("surfaces", "resting rules", "relations", "stance rules")]
     mark = [path for path in [pixal / f"{take}.svviews" / "code.json"] if path.exists()]  # a code build's (bake_job)
     read = [listing, records, claimed, head, short["parts"] / "parts.json", short["parts"] / take, *world, *models, *mark,
             *(place_line.REPO / folder for folder in (*place_line.PAINT_REPO, *BAKE_REPO))]
@@ -218,13 +218,65 @@ def recessed(entries, relations):
     return found
 
 
+def take_row(take, model, inputs):
+    """The hand-in row the take makes (its `thing` "prop:<take>"), else the row its model is named for, else {}."""
+    rows = [row for name, path in inputs.items() if name.startswith("inventory ") and pathlib.Path(path).exists()
+            for row in json.loads(pathlib.Path(path).read_text()).get("rows", [])]
+    return next((row for row in rows if row.get("thing") == f"prop:{take}"),
+                next((row for row in rows if row.get("id") == model.removesuffix("_1")), {}))
+
+
+def pose_words(inputs):
+    """(stance.json's lying words, the resting rules' ground debris words) the bake reads a pose to keep by."""
+    lying = [word for kind in json.loads(inputs["stance rules"].read_text())["lies"] for word in kind["words"]] \
+        if "stance rules" in inputs else []
+    rules = json.loads(inputs["resting rules"].read_text()) if "resting rules" in inputs else {}
+    debris = [word for bedding in rules.get("may_bed", []) if bedding["class"] == "ground debris"
+              for word in bedding["words"]]
+    return lying, debris
+
+
+def labelled_points(labelled):
+    """The labelled take's vertices (its parts, in the finished model's glTF frame)."""
+    import numpy as np
+    import trimesh
+    return np.vstack([trimesh.load(path, force="mesh", process=False).vertices
+                      for path in sorted(pathlib.Path(labelled).glob("*.ply"))])
+
+
+def stood_square(entries, labelled, take, inputs):
+    """`entries` with each model whose take stands tumbled in its turn (tumble.tumbled, #36) turned to stand square
+    (tumble.square_turn, its box's proportions the row's), its `stood` saying so; a row whose design lays it lying or
+    leaning, or ground debris with no up, keeps its pose (tumble.keeps_pose), `stood` saying why."""
+    import numpy as np
+    import tumble
+    lying, debris = pose_words(inputs)
+    points = labelled_points(labelled)
+    found = {}
+    for model, entry in entries.items():
+        base = np.array(entry["base"], float).reshape(3, 3)
+        laid = points @ base.T
+        kept = tumble.keeps_pose(take_row(take, model, inputs), lying, debris)
+        degrees, loose = tumble.measure(laid)
+        if kept or not tumble.tumbled(laid):
+            found[model] = dict(entry, **({"stood": {"kept": kept, "degrees": degrees}} if kept else {}))
+            continue
+        turn = tumble.square_turn(laid, entry["size"]) @ base
+        after, _ = tumble.measure(points @ turn.T)
+        found[model] = dict(entry, base=[round(float(value), 6) for value in turn.reshape(-1)],
+                            stood={"degrees": degrees, "loose": loose, "after": after})
+    return found
+
+
 def bake_files(place):
-    """The bake row's files (surface_data.bake_files) and the place's relations once derived (score/review/holders):
-    the recesses its moving doors need in their holder models (recessed). Here, not in surface_data.py or bake_job.py,
+    """The bake row's files (surface_data.bake_files), the pose rules it stands takes square by (stood_square:
+    stance.json's lying classes, the resting rules' ground debris) and the place's relations once derived
+    (score/review/holders): the recesses its moving doors need in their holder models (recessed). Here, not in surface_data.py or bake_job.py,
     whose code the people line's paid rows hash too."""
     import surface_data
     found = surface_data.DESIGN.parent / "relations" / f"{place}.json"
-    return {**surface_data.bake_files(place),
+    return {**surface_data.bake_files(place), "stance rules": "{data}/checks/stance.json",
+            "resting rules": "{data}/checks/resting.json",
             **({"relations": "{home}/design/relations/" + f"{place}.json"} if found.is_file() else {})}
 
 
@@ -243,7 +295,7 @@ def bake_job_step(inputs, out):
                            name=model, parts=str(labelled), regions=[])
                for model in head.pop("models")}
     relations = json.loads(inputs["relations"].read_text()) if "relations" in inputs else None
-    entries = recessed(entries, relations)
+    entries = recessed(stood_square(entries, labelled, take, inputs), relations)
     (out / "entries").mkdir(exist_ok=True)
     (out / "entries" / f"{take}.json").write_text(json.dumps(entries, indent=1))
     chunky = [dict(entry, stands=stands(labelled)) for entry in entries.values()]

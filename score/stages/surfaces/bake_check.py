@@ -4,6 +4,7 @@ close-up (under CLOSE_UP_DELTA_E), a model's surfaces do not collapse into one l
 near-black blotch, every map there, triangles within the bake job's budget. A module of its own, so a change to the check moves the check
 row's key alone, never the paint's or the paid bake's.
 """
+import dataclasses
 import json
 import math
 import pathlib
@@ -258,6 +259,8 @@ def check_model(name, entry, labelled, made, materials, dirt=0.0, wear=0.0):
     record = {"triangles": int(len(geometry["triangles"])), "budget": int(entry["faces"]),
               "maps": roles, "surfaces": {}, "close_up": close_up_colours(labelled)}
     record["stance_lows"] = stance_lows(geometry["positions"])
+    import tumble
+    record["square"] = dict(zip(("degrees", "loose"), tumble.measure(geometry["positions"])))
     record["missing_maps"] = missing
     if "base_color" in record["missing_maps"]:
         return record
@@ -413,8 +416,41 @@ def check_step(inputs, out):
         labelled = inputs["paint"] / "labelled" / entry["parts"]
         found[model] = check_model(model, entry, labelled, inputs["bake"] / "made", materials, dirt, wear)
         found[model]["stands"] = stands(model, labelled, rows, lying)
+        found[model]["keeps_pose"] = keeps_pose_of(model, rows, inputs)
         found[model]["seen_degrees"] = degrees.get(model)
     (out / "checks.json").write_text(json.dumps(found, indent=1))
+
+
+def keeps_pose_of(model, rows, inputs):
+    """Why a baked model's row keeps the pose it was made in (tumble.keeps_pose: lying, leaning, ground debris), or
+    None."""
+    import tumble
+    lying = [word for kind in json.loads(inputs["stance rules"].read_text())["lies"] for word in kind["words"]]
+    rules = json.loads(inputs["resting rules"].read_text())
+    debris = [word for bedding in rules.get("may_bed", []) if bedding["class"] == "ground debris"
+              for word in bedding["words"]]
+    row = next((row for row in rows if row.get("id") == model.removesuffix("_1")), {"id": model})
+    return tumble.keeps_pose(row, lying, debris)
+
+
+def judge_square(output, inputs, evidence):
+    """Every baked model stands square in its frame (tumble.tumbled: its oriented box more than tumble.DEGREES off the
+    frame and its frame box tumble.LOOSE times its own: base's module rolled 32 degrees passed every other gate, #36),
+    named with its angle; a row whose design keeps its pose (lying, leaning, ground debris) is left out, said why."""
+    import tumble
+    found = json.loads((pathlib.Path(output) / "checks.json").read_text())
+    measured = {model: record for model, record in found.items() if record.get("square")}
+    kept = {model: record["keeps_pose"] for model, record in measured.items() if record.get("keeps_pose")}
+    failing = [f"{model}: stands {record['square']['degrees']:.1f} degrees off its frame (its frame box "
+               f"{record['square']['loose']:.2f} times its own)" for model, record in measured.items()
+               if model not in kept and record["square"]["degrees"] > tumble.DEGREES
+               and record["square"]["loose"] > tumble.LOOSE]
+    if not measured:
+        return gates.unknown("stands square", "no baked model was measured for its pose")
+    found = gates.verdict("stands square", failing, len(measured) - len(kept), "models standing tumbled",
+                          {"left out": len(kept)})
+    return dataclasses.replace(found, findings=found.findings + tuple(f"{model}: left out, {why}"
+                                                                       for model, why in sorted(kept.items())))
 
 
 def judge_stance(output, inputs, evidence):
