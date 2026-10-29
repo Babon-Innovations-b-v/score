@@ -29,5 +29,8 @@ held-out rule (within 10 % of the tuning bodies).
   (`tuning._differences.nudged`'s, the base point first: <sets root>/<set>/ holds its table, weights and rest) in one card
   process, `_card_batch.body_run` per set and body, each nudged set seeded from the base point's own angles. Level 2
   and the set-up still run per (set, body): G = 137 groups, so 138 sets a Jacobian; not yet batched across sets.
+  With `--same-seeds` every set starts from the seeds root: `measured_many(sets, cases, out, python, seeds_root)`
+  writes out/s00000.. and runs it once; `level1.py --card <seeds root>` evaluates on the card that way and hands
+  `tuning.whole` its `evaluate_many`. The batched columns' gate against the serial CPU columns has not run yet.
 - Judged on following SOMA, never on landmark distances; `fit._frozen` is never edited to follow the tree's calibration.
 - Test: `test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py` (a toy worker, any Python with numpy and scipy).
