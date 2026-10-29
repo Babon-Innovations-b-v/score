@@ -102,6 +102,11 @@ READ_TRIES = 5
 READ_WAIT_SECONDS = 5.0
 
 
+def image_identity():
+    """What a job here runs on, for a kept job's content (kept.py): the machine images by name."""
+    return json.dumps(IMAGES, sort_keys=True)
+
+
 def scw(*arguments):
     """Run one `scw` command and return its JSON answer, failing loudly with its error output. A read (list, get,
     access) that fails is asked again READ_TRIES times, waiting longer each time: with twenty lines renting at once

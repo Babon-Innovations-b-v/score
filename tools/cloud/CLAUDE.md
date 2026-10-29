@@ -132,13 +132,21 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   PC, `batch.py` for Pixal3D, `library_bake.py` make_chunky jobs for the bake), refused without `--yes` and outside
   a cleared run or the owner's override; one warm batch per step, not one machine per prop (the steps' images
   differ, the finish stays here), and a prop naming no `parts` for its bake stops before anything is paid.
-- **A stopped run keeps its finished jobs under its key** (`kept.py`, owner 2026-10-18): `kept.keep(job)` after a job
-  ends well copies its outputs to `kept/<node>/<key>/` beside the store (the runner names the make's folder,
-  SCORE_MAKING, and drops the folder once the node's output is stored), and `kept.missing(jobs)` puts every kept job
-  of the same key back in place (each file unless the one there is newer: jobs side by side share a folder) and
-  returns the rest, so a rerun pays only for those. `blender_cloud.py` calls both
-  (audit, 2026-10-22): `still_to_run` before pricing a call's jobs, `keep` after each job ends well on a machine or
-  the cluster; a held machine's chain (`--serve`) keeps nothing.
+- **A finished job is kept by its own content** (`kept.py`, owner 2026-10-18; 2026-10-29, after a fix to 3 objects
+  baked whole places again and the free run on this PC kept nothing): inside any make (the runner names its folder,
+  SCORE_MAKING, and its row's code, SCORE_MAKING_CODE: code version, contract, params, seed, models and its files in
+  the repository), `kept.keep` copies a job that ended well to `kept/<slot>/<content>/` beside the store, and
+  `kept.missing` puts back every job of the same content, at this key or a new one, and returns the rest, so a rerun
+  or a re-keyed row pays only for the jobs whose own inputs changed. The content is the job's JSON and its input
+  files' bytes (the making folder, the frozen copy and the home written as stand-ins), the row's code and the system
+  (`blender_cloud.system`: this PC's container image id, the cloud's images, the cluster's Blender image, and
+  library_setup.sh); the repository's Python and docs among the inputs, and the run machinery's files, are left to
+  the row's code. One content a slot (the job's script, arguments and outputs), kept past the stored output for the
+  next key. Jobs sharing a folder (a bake row's `made`) keep only the files their own copy back wrote (rsync's list)
+  and name the jobs still running beside them on that machine (`peers`), whose files that copy may carry; a job is
+  put back only while every peer is in the call at the same content. `blender_cloud.py` calls both: `still_to_run`
+  before pricing a call's jobs, `keep` after each job ends well on a machine or the cluster; a held machine's chain
+  (`--serve`) keeps nothing.
 - **The cheapest card that fits** (owner, 2026-10-12): `capacity.next_offer` takes the kind's cheapest card per job
   first (`KIND_ORDER`, measured from the ledger; an offer out of stock last, a scarce one still first): an L4 for
   Pixal3D and the mesh splitting (EUR 0.14 a job against 0.73 on an H100), an L40S for the judge (0.33 against 0.78),

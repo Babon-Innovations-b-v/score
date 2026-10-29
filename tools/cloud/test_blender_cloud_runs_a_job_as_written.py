@@ -22,12 +22,16 @@ No machine is rented: each test reads the command, job or offers the module buil
   pathlib.Path.home() / ".farm-factory-props/env/bin/python"`.
 - test_one_class_is_fixed_at_price_time_and_no_stock_keeps_the_first: in batch.py `one_class_in_stock`, `next(iter(stocked
   + sold), None)` -> `next(iter(sold), None)` (the first class asked though another is in stock).
-- test_a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks: in `one_job`, `    kept.keep(job)` -> `    pass`.
+- test_a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks: in `one_job`, `    kept.keep(job, system(), **keeping)`
+  -> `    pass`.
 - test_a_job_that_brought_none_of_its_outputs_back_failed: in `one_job`, `if
   job.get("outputs") and not came:` -> `if False:`; or in `run_job`, drop `inputs.link_named(log_folder, host,
   job.get("outputs", ()))`.
 - test_jobs_side_by_side_on_one_machine_bring_their_outputs_back_one_at_a_time: in `run_job`, drop `with
   BRINGING.setdefault(host, threading.Lock()):` (bring the outputs back unguarded) -> three copies at once.
+- test_a_job_keeps_only_the_files_its_copy_back_wrote_and_names_the_jobs_beside_it: in `copy_back`, drop
+  `"--out-format=%n"` (no list of what the copy wrote); or in `run_job`, `others = list(running.values())` ->
+  `others = []` (no peers named).
 """
 import os
 import pathlib
@@ -215,14 +219,15 @@ def test_a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks(tmp_path, monkeypa
     making.mkdir()
     jobs = [{"script": "tools/blender/inside/usd_views.py", "args": [str(number)], "inputs": [],
              "outputs": [str(making / f"shot{number}.png")], "minutes": 1} for number in range(2)]
-    monkeypatch.setenv(kept.TICKET, "turntable@hub 0123abcd")
+    monkeypatch.setenv(kept.CODE, "turntable row code")
+    monkeypatch.setattr(blender_cloud, "system", lambda: "this test's machine")
     monkeypatch.setenv(kept.STORE, str(tmp_path / "store"))
     monkeypatch.setenv(kept.MAKING, str(making))
     monkeypatch.setattr(blender_cloud.batch, "say", lambda line: None)
 
     def run_job(log_folder, host, number, job, card):
         pathlib.Path(job["outputs"][0]).write_text(f"shot {number}")
-        return 1.0, 1
+        return 1.0, 1, {"brought": None, "peers": {}}
     monkeypatch.setattr(blender_cloud, "run_job", run_job)
     blender_cloud.one_job({"folder": tmp_path, "host": "host"}, (0, jobs[0]), None)  # cut off before job 1
     (making / "shot0.png").unlink()  # the next attempt's folder starts empty
@@ -238,7 +243,8 @@ def test_a_job_that_brought_none_of_its_outputs_back_failed(tmp_path, monkeypatc
     making.mkdir()
     job = {"script": "score/stages/surfaces/inside/paint_bake.py", "args": [], "inputs": [],
            "outputs": [str(making / "labelled" / "crate"), str(making / "made")], "minutes": 1}
-    monkeypatch.setenv(kept.TICKET, "surfaces-bake@campgrounds 0123abcd")
+    monkeypatch.setenv(kept.CODE, "surfaces-bake row code")
+    monkeypatch.setattr(blender_cloud, "system", lambda: "this test's machine")
     monkeypatch.setenv(kept.STORE, str(tmp_path / "store"))
     monkeypatch.setenv(kept.MAKING, str(making))
     said, linked = [], []
@@ -247,13 +253,13 @@ def test_a_job_that_brought_none_of_its_outputs_back_failed(tmp_path, monkeypatc
     monkeypatch.setattr(blender_cloud, "send_inputs", lambda *args: None)
     monkeypatch.setattr(blender_cloud.inputs, "link_named", lambda folder, host, paths: linked.extend(paths))
 
-    def nothing_back(folder, sources, destination, *extra):
+    def nothing_back(folder, source, destination):
         raise subprocess.CalledProcessError(23, "rsync")
-    monkeypatch.setattr(blender_cloud.batch, "copy", nothing_back)
+    monkeypatch.setattr(blender_cloud, "copy_back", nothing_back)
     with pytest.raises(spread.JobFailed, match="none of its outputs came back"):
         blender_cloud.one_job({"folder": tmp_path, "host": "host"}, (3, job), None)
     assert linked == job["outputs"], linked  # its outputs reached through the links its paths are named through
-    assert blender_cloud.kept.missing([job]) == [job]  # nothing kept as done
+    assert blender_cloud.kept.missing([job], "this test's machine") == [job]  # nothing kept as done
 
 
 def test_jobs_side_by_side_on_one_machine_bring_their_outputs_back_one_at_a_time(tmp_path, monkeypatch):
@@ -273,8 +279,9 @@ def test_jobs_side_by_side_on_one_machine_bring_their_outputs_back_one_at_a_time
         time.sleep(0.05)
         with guard:
             bringing[0] -= 1
-        return True
+        return set()
     monkeypatch.setattr(blender_cloud, "bring_back", bring_back)
+    monkeypatch.setattr(blender_cloud, "system", lambda: "this test's machine")
     job = {"script": "score/stages/surfaces/inside/paint_bake.py", "args": [], "inputs": [],
            "outputs": [str(tmp_path / "made")], "minutes": 1}
     slots = [threading.Thread(target=blender_cloud.run_job, args=(tmp_path, "this-pc", number, job, True))
@@ -284,3 +291,35 @@ def test_jobs_side_by_side_on_one_machine_bring_their_outputs_back_one_at_a_time
     for slot in slots:
         slot.join()
     assert most[0] == 1
+
+
+def test_a_job_keeps_only_the_files_its_copy_back_wrote_and_names_the_jobs_beside_it(tmp_path, monkeypatch):
+    """env1 (2026-10-29): a bake row's takes share one `made` folder, so a take's kept copy of all of it held the
+    other takes' models; it keeps only what its own copy back wrote, and names the takes still running beside it,
+    whose files that copy may carry (kept.py's peers)."""
+    making = tmp_path / "making"
+    (making / "made").mkdir(parents=True)
+    monkeypatch.setenv(kept.MAKING, str(making))
+    monkeypatch.setenv(kept.CODE, "surfaces-bake row code")
+    monkeypatch.setenv(kept.STORE, str(tmp_path / "store"))
+    monkeypatch.setattr(blender_cloud, "system", lambda: "this test's machine")
+    for name in ("say", "remote"):
+        monkeypatch.setattr(blender_cloud.batch, name, lambda *args, **keywords: None)
+    monkeypatch.setattr(blender_cloud, "send_inputs", lambda *args: None)
+    monkeypatch.setattr(blender_cloud.inputs, "link_named", lambda *args: None)
+
+    def take(name):
+        return {"script": "score/stages/surfaces/inside/paint_bake.py", "args": [name], "inputs": [],
+                "outputs": [str(making / "labelled" / name), str(making / "made")], "minutes": 1}
+    crate, barrel = take("crate"), take("barrel")
+
+    def rsync(command, **keywords):
+        said = "made/\nmade/crate.gltf\n" if command[-2].endswith("/made") else "crate/\ncrate/labels.json\n"
+        return subprocess.CompletedProcess(command, 0, said if "--out-format=%n" in command else "", "")
+    monkeypatch.setattr(blender_cloud.subprocess, "run", rsync)
+    monkeypatch.setitem(blender_cloud.ACTIVE, "this-pc", {"the barrel's turn": barrel})  # running beside it
+    _, came, keeping = blender_cloud.run_job(tmp_path, "this-pc", 0, crate, True)
+    assert came == 2
+    assert keeping["brought"] == {making / "made" / "crate.gltf", making / "labelled" / "crate" / "labels.json"}
+    assert keeping["peers"] == dict([kept.identity(barrel, "this test's machine")])
+    assert blender_cloud.ACTIVE["this-pc"] == {"the barrel's turn": barrel}  # the crate's turn is over

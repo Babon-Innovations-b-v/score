@@ -90,6 +90,12 @@ def docker(*arguments, check=True, **keywords):
     return subprocess.run(["docker", *arguments], check=check, capture_output=True, text=True, **keywords)
 
 
+def image_identity():
+    """What a job here runs on, for a kept job's content (kept.py): the container image's id ('' before it is
+    built)."""
+    return f"{IMAGE} {docker('image', 'inspect', '-f', '{{.Id}}', IMAGE, check=False).stdout.strip()}"
+
+
 def serves(machine_class):
     """Whether this PC runs a job that asks `machine_class`: one card of at most 24 GB, or a processor machine."""
     found = provider.GPU.match(machine_class)

@@ -46,6 +46,7 @@ Under SCORE_CLOUD=k8s the same calls run each job as a Kubernetes Job of the ble
 """
 import argparse
 import contextlib
+import functools
 import json
 import os
 import pathlib
@@ -83,6 +84,9 @@ IDLE_MINUTES = 10
 # backends/local.py RUNS_AT_ONCE) can share an output folder (a bake row's `made`), which a copy must not read while
 # another job's outputs are still arriving into it.
 BRINGING = {}
+# The jobs started on each machine (by host) and not yet brought back: what one job's copy back may carry besides its
+# own files (kept.py's peers).
+ACTIVE = {}
 # The lines of a failed job's log and its machine's set-up log its error carries: the fault report shows the error,
 # not the log, and the job's folder can be gone by then (settle@airlock, 2026-10-29: failed blind).
 LOG_TAIL_LINES = 40
@@ -150,17 +154,25 @@ def send_inputs(log_folder, host, locals_):
               f"{time.time() - began:.0f} s")
 
 
+def copy_back(log_folder, source, destination):
+    """batch.copy's rsync from the machine, saying each file it wrote (relative to `destination`). Here, not in
+    batch.py: rows declare batch.py as a file, so an edit there moves their keys."""
+    ssh = shlex.join(["ssh", *batch.ssh_options(log_folder)])
+    return subprocess.run(["rsync", "-a", "--exclude", ".git", "--out-format=%n", "-e", ssh, source, destination],
+                          check=True, capture_output=True, text=True, errors="replace").stdout
+
+
 def bring_back(log_folder, host, local):
     """One output (file or folder) from the machine to its own place here; a missing one is said, not raised.
-    Whether it came."""
+    The files this copy wrote here (rsync's list: a job keeps only these, kept.py), or None when it did not come."""
     local = pathlib.Path(local).resolve()
     local.parent.mkdir(parents=True, exist_ok=True)
     try:
-        batch.copy(log_folder, [f"root@{host}:{local}"], f"{local.parent}/")
-        return True
+        said = copy_back(log_folder, f"root@{host}:{local}", f"{local.parent}/")
     except subprocess.CalledProcessError:
         batch.say(f"the machine wrote no {local}")
-        return False
+        return None
+    return {local.parent / name for name in said.splitlines() if name and not name.endswith("/")}
 
 
 def ship(log_folder, host, jobs):
@@ -188,22 +200,28 @@ def set_up_alone(log_folder, host, jobs):
 
 def run_job(log_folder, host, number, job, card):
     """One job: its inputs up, its output folders made (reached through the links its paths are named through, as
-    its inputs are: inputs.link_named), the script run, its outputs back (also when it fails); its seconds and how
-    many of its outputs came back."""
+    its inputs are: inputs.link_named), the script run, its outputs back (also when it fails); its seconds, how
+    many of its outputs came back and what kept.keep keeps of it ({"brought": the files its copies wrote, "peers":
+    the jobs sharing its folders still to come back from this machine, whose files those copies may carry})."""
     send_inputs(log_folder, host, job.get("inputs", ()))
     inputs.link_named(log_folder, host, job.get("outputs", ()))
     for local in job.get("outputs", ()):
         batch.remote(log_folder, host, f"mkdir -p {shlex.quote(str(pathlib.Path(local).resolve().parent))}",
                      check=True)
-    began, came = time.time(), 0
+    began, running, mine = time.time(), ACTIVE.setdefault(host, {}), object()
+    running[mine] = job
     try:
         with (log_folder / f"job{number}.log").open("w") as log:
             batch.remote(log_folder, host, run_line(job, card), check=True, stdout=log, stderr=subprocess.STDOUT)
     finally:
         with BRINGING.setdefault(host, threading.Lock()):
-            came = sum(bring_back(log_folder, host, local) for local in job.get("outputs", ()))
+            running.pop(mine)
+            others = list(running.values())
+            copies = [bring_back(log_folder, host, local) for local in job.get("outputs", ())]
         batch.say(f"Blender job {number} ({job['script']}): {(time.time() - began) / 60:.1f} min")
-    return round(time.time() - began, 1), came
+    came = sum(found is not None for found in copies)
+    return round(time.time() - began, 1), came, {"brought": set().union(*(found or () for found in copies)),
+                                                 "peers": kept.peers_of(job, others, system())}
 
 
 def log_tail(log_folder, number):
@@ -259,7 +277,7 @@ def serve(run, machine, queue, idle_minutes):
                 # Every job's folders go up again, so a script edited during a chain runs as it is now.
                 ship(log_folder, host, [job])
                 touched(machine, job)
-                seconds, _ = run_job(log_folder, host, int(waiting[0].stem), job, card)
+                seconds = run_job(log_folder, host, int(waiting[0].stem), job, card)[0]
                 machine.setdefault("unit_seconds", []).append(seconds)
                 waiting[0].with_suffix(".done").write_text(str(seconds))
             except subprocess.CalledProcessError as failed:
@@ -276,7 +294,7 @@ def one_job(machine, share, card):
     log = log_folder / f"job{number}.log"
     touched(machine, job)
     try:
-        seconds, came = run_job(log_folder, host, number, job, card is not None)
+        seconds, came, keeping = run_job(log_folder, host, number, job, card is not None)
     except subprocess.CalledProcessError as failed:
         spread.raise_for(failed.returncode, f"job {number} ({job['script']}){log_tail(log_folder, number)}")
     machine.setdefault("unit_seconds", []).append(seconds)
@@ -284,16 +302,27 @@ def one_job(machine, share, card):
         raise spread.JobFailed(f"job {number} ({job['script']}, {log}): its script ended well but none of its "
                                "outputs came back")
     with BRINGING.setdefault(host, threading.Lock()):
-        kept.keep(job)
+        kept.keep(job, system(), **keeping)
+
+
+@functools.cache
+def system():
+    """What this call's jobs run on, in each kept job's content (kept.py): the machine image (this PC's container
+    image by its id, a cloud's images by name, the cluster's Blender image by its digest) and the Blender set-up."""
+    if provider.on_cluster():
+        image = json.dumps(json.loads((HERE / "images/images.json").read_text())[KIND], sort_keys=True)
+    else:
+        image = cloud.image_identity()
+    return f"{image}\n{(HERE / 'library_setup.sh').read_text()}"
 
 
 def still_to_run(jobs):
-    """The jobs a run of this key cut off before did not finish; each it finished is put back in place (kept.py) and
-    not bought again."""
-    waiting = kept.missing(jobs)
+    """The jobs no earlier run finished with the same content; each it did is put back in place (kept.py) and not
+    bought again."""
+    waiting = kept.missing(jobs, system())
     if len(waiting) < len(jobs):
-        batch.say(f"{len(jobs) - len(waiting)} of {len(jobs)} Blender jobs finished by an earlier run of this key: put "
-                  "back, not bought again")
+        batch.say(f"{len(jobs) - len(waiting)} of {len(jobs)} Blender jobs finished earlier with the same inputs, code "
+                  "and system: put back, not bought again")
     return waiting
 
 
@@ -440,8 +469,8 @@ def main_on_cluster(options, jobs, classes):
         return
     left = run_on_cluster(jobs, classes, options.who)
     for number, job in enumerate(jobs):
-        if number not in left:
-            kept.keep(job)
+        if number not in left:  # the run brings every output back at once: a job's peers are all that share one
+            kept.keep(job, system(), peers=kept.peers_of(job, [other for other in jobs if other is not job], system()))
     if left:
         raise SystemExit(f"Blender jobs {', '.join(map(str, left))} failed on the cluster")
 
