@@ -657,6 +657,41 @@ def ran_container_client(root):
 
 CONTAINED = ran_container_client  # the tests give a fake reading
 
+# On this PC a node whose claim of the container waits for a free turn and holds none (a mark of local.take in
+# WAITING_CLAIMS, refreshed every park.PARKED_POLL_SECONDS while it asks) holds no --jobs slot while it waits, at most
+# WAITERS_EXCUSED such nodes: the container's Blender turns (local.RUNS_AT_ONCE, three) and a few more, so the queue
+# never fills with waiters (2026-10-29: all 8 job slots held by surfaces-bake rows, 3 running a take and 5 waiting for
+# one, about 60 ready rows of other stages kept out; 12.4 of 24 cores busy).
+WAITING_CLAIMS = score_store.PROPS_HOME / "cloud" / "this-pc.waiting"
+WAIT_FRESH_SECONDS = 60
+WAITERS_EXCUSED = 5
+
+
+def claim_waiters(pids):
+    """The pids among `pids` whose process tree holds a process with a fresh mark in WAITING_CLAIMS."""
+    now, marks = time.time(), set()
+    for mark in WAITING_CLAIMS.glob("*") if WAITING_CLAIMS.is_dir() else ():
+        with contextlib.suppress(OSError):
+            if mark.name.isdigit() and now - mark.stat().st_mtime < WAIT_FRESH_SECONDS:
+                marks.add(int(mark.name))
+    if not marks:
+        return set()
+    children = {}
+    for pid, (parent, _) in process_table().items():
+        children.setdefault(parent, []).append(pid)
+    found = set()
+    for root in pids:
+        tree = [root]
+        while tree and root not in found:
+            pid = tree.pop()
+            if pid in marks:
+                found.add(root)
+            tree += children.get(pid, [])
+    return found
+
+
+CLAIM_WAITERS = claim_waiters  # the tests give a fake reading
+
 
 def unsettled(optional, line, stood, stopped):
     """A waiting node's `optional` reads (Runner.optional_nodes) the drive still makes (in its `line`, neither stood
@@ -1943,6 +1978,7 @@ class Runner:
                 finished = []
                 forget(known, ended)
                 coming = self.coming(running, peaks, seen, watch)  # what the running nodes may still take (memory_room)
+                busy, full = len(running) - self.excused(running), False  # full: a ready node waited for a job slot
                 for stage, place in list(waiting):
                     node = node_name(stage, place)
                     earlier = kept(known, node, "earlier", self.earlier, stage, place)
@@ -1959,9 +1995,11 @@ class Runner:
                         waiting.remove((stage, place))
                         stopped[node], done[node] = node, PAID_LEFT
                         say(f"{node}: {done[node]}")
-                    elif stood.union(passes).issuperset(earlier) and len(running) + len(ready) < jobs and \
-                            not unsettled(kept(known, node, "optional", self.optional_nodes, stage, place), line,
-                                          stood, stopped):
+                    elif stood.union(passes).issuperset(earlier) and not unsettled(
+                            kept(known, node, "optional", self.optional_nodes, stage, place), line, stood, stopped):
+                        if busy + len(ready) >= jobs:
+                            full = True
+                            continue
                         expected = peaks.get(stage.name, memory_floor())
                         if not memory_room(coming, expected):
                             held = True  # this node waits; the nodes after it that fit still start
@@ -1985,11 +2023,19 @@ class Runner:
                 say(heartbeat_line(len(done), len(running), len(waiting), gauges))
                 beat_at = time.monotonic() + HEARTBEAT
             beat_in = max(0.0, beat_at - time.monotonic()) if gauges else None  # no beats: wait for a node alone
-            if held:  # read the memory again within MEMORY_POLL
+            if held or (full and on_this_pc()):  # read the memory, and the nodes waiting on a claim, again
                 beat_in = MEMORY_POLL if beat_in is None else min(beat_in, MEMORY_POLL)
             finished = FORK_WAIT(list(running), timeout=beat_in)  # concluded at the next turn's start
         return {node_name(stage, place): done[node_name(stage, place)] for stage, place in chosen
                 if node_name(stage, place) in done}
+
+    def excused(self, running):
+        """How many `running` nodes hold no --jobs slot: on this PC those only waiting on a claim of the container
+        (CLAIM_WAITERS), at most WAITERS_EXCUSED; none elsewhere."""
+        if not on_this_pc():
+            return 0
+        alive = [process.pid for _, _, process in running.values() if process.is_alive()]
+        return min(len(CLAIM_WAITERS(alive)), WAITERS_EXCUSED) if alive else 0
 
     def measured(self, stage, did, peak, contained, peaks):
         """The stage peaks kept once a node of `stage` ended, having done `did` with its tree holding at most `peak`
