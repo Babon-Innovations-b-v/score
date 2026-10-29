@@ -94,7 +94,10 @@ before that.
   file; `angles(turns, points, seeds)` every frame from its own seed. The toy's fixture is set up by it (equal to the
   hand setup bit for bit, 2026-10-29); joint types compared as ints (MuJoCo's enums never equal the model's ints).
   `for_fitting(fitting, path)` builds it for a `Fitting` from the person's file (constants written there), refused
-  when Newton's sites at rest miss MuJoCo's by over `MAPPED` (1e-5 m). On heavy_kimodo's gate dump (2026-10-29,
+  when Newton's sites at rest miss MuJoCo's by over `MAPPED` (1e-5 m). Its ranges are `followers_free_ranges` (the joint
+  arrays `coordinate_bounds` reads, the followers' limits off), not `Fitting.limited_model`'s deep copy of the whole
+  model: 2.5 s of tall_kimodo's 14 s card process went to copying the meshes (2026-10-29, cProfile); angles bit for
+  bit the same, the toy's setup checks the two bounds equal. On heavy_kimodo's gate dump (2026-10-29,
   build/5/clip_real.py, each frame seeded from mink's cached answer): sites 0.0073 mm apart at rest; 136 rows 1.55 s,
   3 / 32 steps; angles 0.00035 deg, sites 0.0013 mm off mink's.
 - One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the

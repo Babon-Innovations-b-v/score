@@ -2,6 +2,8 @@
 model as `../_frames.Frames` sets mink up (the turns' and the markers' sites and costs, the couplings held, the leading
 joints in their followers-free ranges, the frozen dofs), every frame one row seeded on its own (`_seeds`). The
 prototype's setup (the card build's gate.py) made production; mink in `../_frames.py` stays the reference."""
+from types import SimpleNamespace
+
 import mujoco
 import numpy as np
 import warp as wp
@@ -34,6 +36,16 @@ def coordinate_bounds(limited):
         if limited.jnt_limited[joint] and int(limited.jnt_type[joint]) in LIMITED_TYPES:
             lower[limited.jnt_qposadr[joint]], upper[limited.jnt_qposadr[joint]] = limited.jnt_range[joint]
     return lower, upper
+
+
+def followers_free_ranges(mjm, followers):
+    """What `coordinate_bounds` reads of `../_model.followers_free(mjm, followers)` (its joints' types, coordinates,
+    ranges and limited flags, the followers' off), without its deep copy of the whole model (2.5 s of a tall case's
+    card run, 2026-10-29: the meshes copied)."""
+    limited = np.array(mjm.jnt_limited, copy=True)
+    limited[list(followers)] = 0
+    return SimpleNamespace(nq=mjm.nq, njnt=mjm.njnt, jnt_limited=limited, jnt_type=mjm.jnt_type,
+                           jnt_qposadr=mjm.jnt_qposadr, jnt_range=mjm.jnt_range)
 
 
 def dof_coordinates(mjm):
@@ -154,7 +166,7 @@ def for_fitting(fitting, path):
     builder.add_mjcf(str(path), convert_mjc_equality_constraints=False, parse_meshes=False)
     turn_cost, place_costs = weights(fitting)
     clip = Clip(builder.finalize(device=DEVICE), fitting.model, fitting.frame_sites, fitting.place_sites, turn_cost,
-                place_costs, fitting.frozen, fitting.limited_model())
+                place_costs, fitting.frozen, followers_free_ranges(fitting.model, fitting.followers))
     miss = site_miss(clip)
     if miss > MAPPED:
         raise ValueError(f"{path}: Newton's sites {miss * 1000:.4f} mm off MuJoCo's at rest")
