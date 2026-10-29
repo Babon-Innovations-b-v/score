@@ -19,6 +19,8 @@ Breaks (each applied once, seen red, reverted):
   its relative step is 1.5e-8 (scipy 1.18.1), the measures' rounding reads as flat and nothing moves.
 - (2026-10-29) grouped's `if not (used & rows).any()` made `if True`: columns sharing a row stepped together.
 - (2026-10-29) signed_steps' flip dropped (always +step): a step passes the upper bound.
+- (2026-10-29) nudged's `moved = unknowns.copy()` hoisted out of its loop: each batched set carries the groups
+  before it, the one-call Jacobian differs from the serial one (card build step 6a).
 
 Run: .venv/bin/python score/stages/sim_body/inside/tuning/test_one_optimisation_moves_every_unknown_together_within_its_bounds.py
 """
@@ -108,8 +110,38 @@ def test_the_differences_step_a_fixed_amount_grouped_on_the_pattern_within_the_b
     steps = tuning._differences.signed_steps(unknowns, tuning.STEP, upper)
     assert list(steps) == [tuning.STEP, -tuning.STEP, tuning.STEP]  # 0.4 would pass the second's bound of 0.2
     residuals = rounded_linear(matrix, np.zeros(3))
-    found = tuning._differences.jacobian(residuals, unknowns, residuals(unknowns), pattern, groups, steps)
+    found = tuning._differences.jacobian(tuning._differences.serially(residuals), unknowns, residuals(unknowns),
+                                         pattern, groups, steps)
     assert np.allclose(found, matrix, atol=0.01), found
+
+
+def test_one_call_with_every_nudged_set_gives_the_serial_jacobian_and_solve():
+    target = np.linspace(-1.0, 1.0, len(ENTRIES))
+    coupling = np.eye(len(ENTRIES)) + 0.3 * np.ones((len(ENTRIES), len(ENTRIES)))
+    pattern = np.eye(len(ENTRIES), dtype=np.int8) + np.eye(len(ENTRIES), k=1, dtype=np.int8)
+    calls, banded = [], coupling * pattern  # each column moves only its own rows of the pattern
+
+    def residuals(unknowns):
+        return banded @ (np.asarray(unknowns) - target)
+    groups = tuning._differences.grouped(pattern)
+    assert max(len(group) for group in groups) > 1  # some sets move several columns: the batch must not mix them
+
+    def many(sets):
+        calls.append(len(sets))
+        return [residuals(moved) for moved in sets]
+    unknowns = np.full(len(ENTRIES), 0.3)
+    steps = tuning._differences.signed_steps(unknowns, tuning.STEP, tuning.bounds(ENTRIES)[1])
+    one = tuning._differences.jacobian(many, unknowns, residuals(unknowns), pattern, groups, steps)
+    assert calls == [len(groups)], calls  # one call holds every group's set
+    assert np.allclose(one, banded, atol=1e-9), np.abs(one - banded).max()
+    full, residuals = np.ones((len(ENTRIES), len(ENTRIES)), dtype=np.int8), rounded_linear(coupling, target)
+    with tempfile.TemporaryDirectory() as folder:
+        batched = tuning.solved(residuals, ENTRIES, full, pathlib.Path(folder) / "a.jsonl", 60,
+                                start=np.zeros(len(ENTRIES)), many=tuning._differences.serially(residuals))
+        alone = tuning.solved(residuals, ENTRIES, full, pathlib.Path(folder) / "b.jsonl", 60,
+                              start=np.zeros(len(ENTRIES)))
+    assert np.array_equal(batched.x, alone.x), (batched.x, alone.x)
+
 
 
 def test_a_start_at_zero_moves_although_the_measures_are_rounded():
