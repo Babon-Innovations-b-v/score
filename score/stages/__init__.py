@@ -877,6 +877,12 @@ STAGES = tuple(dataclasses.replace(row, make=claude_asks.asking_claude(row.make)
                else row for row in STAGES)
 # Last: every row declares the scripts its code starts by path (scripts_declared).
 STAGES = tuple(map(scripts_declared, STAGES))
+# Rows whose make only measures what other rows made, its seed unused (likeness: the prop route's models against their
+# close-ups; surfaces-check: the bakes; complete: the manifest of accepted reads; ground-fit: the stage on its
+# ground): a failed output gets no fresh-seed remake, only a note for a fix upstream (graph.SAME_INPUTS). Set here, in
+# the table's wiring, so no row's code moves.
+UNSEEDED = ("likeness", "surfaces-check", "complete", "ground-fit")
+STAGES = tuple(dataclasses.replace(row, seeded=False) if row.name in UNSEEDED else row for row in STAGES)
 
 
 def takes_back(place):
