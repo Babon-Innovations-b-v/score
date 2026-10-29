@@ -186,6 +186,8 @@ tests it turned red:
   "steps", "ramp")}`  -> the_scene_s_shell_surfaces_are_its_library_s_for_the_shell_kinds
 - route_ask.py: `compute.require_cleared(f"a Gemini batch ({caller})")` deleted  ->
   paid_asks_refuse_outside_a_cleared_run
+- route_ask.py: `if not all(google_spend.cache_path(finish_ask.LIST_MODEL, body).exists() for body in bodies.values()):`
+  -> `if True:`  -> paid_asks_refuse_outside_a_cleared_run
 - route_ask.py: `google_spend.cache_path(finish_ask.LIST_MODEL, body).unlink(missing_ok=True)` -> `pass`  ->
   an_answer_that_does_not_parse_is_a_gap_dropped_from_the_cache
 - __init__.py: `route_data.shape_files, selects=True),` -> `route_data.shape_files),`  ->
@@ -2464,13 +2466,23 @@ def test_the_scene_s_shell_surfaces_are_its_library_s_for_the_shell_kinds():
 
 
 def test_paid_asks_refuse_outside_a_cleared_run(monkeypatch):
+    """An uncached request is refused outside a cleared run; a batch the cache answers whole runs with no clearance
+    and no key (fault, 2026-10-29: body-face-earth refused in a free-only run although the cache held its answer)."""
     from score.adapters import compute
-    sent = []
+    sent, real = [], route_ask.google_batch.generate
+    monkeypatch.delenv(compute.TICKET, raising=False)
     monkeypatch.setattr(route_ask.google_batch, "generate", lambda *asked: sent.append(asked) or {})
     monkeypatch.setattr(route_ask.finish_ask, "secret_key", lambda: "key")
+    cached, uncached = {"ask": "cached"}, {"ask": "uncached"}
+    answer = {"candidates": [{"content": {"parts": [{"text": "{}"}]}, "finishReason": "STOP"}]}
+    route_ask.google_spend.keep(route_ask.google_spend.cache_path(route_ask.finish_ask.LIST_MODEL, cached), answer)
     with pytest.raises(compute.Refused):
-        route_ask.asked({TAKE: {}}, "test")
+        route_ask.asked({TAKE: cached, "other": uncached}, "test")
     assert not sent, "a Gemini batch was sent outside a cleared run"
+    monkeypatch.setattr(route_ask.google_batch, "generate",
+                        lambda model, asked, key, caller: sent.append(key) or real(model, asked, key, caller))
+    assert route_ask.asked({TAKE: cached}, "test") == {TAKE: "{}"}
+    assert sent == [None], "a batch the cache answers asked for the key"
 
 
 def test_an_answer_that_does_not_parse_is_a_gap_dropped_from_the_cache():
