@@ -97,8 +97,7 @@ class Fitting:
 
     def _inside(self, stretches):
         """The bodies on a joint inside a bone group (by id; a split body's outermost wrapper): its parent another
-        body of the same group's `stretches`, a marker riding it or a body below it, and its move one the markers
-        can tell (`_determined`)."""
+        body of the same group's `stretches`, a marker riding it or a body below it."""
         model, found = self.model, []
         carried = {model.site_bodyid[site] for site in self.place_sites}
         for body in range(1, model.nbody):
@@ -106,40 +105,7 @@ class Fitting:
             inner = own != parent and any(own in bodies and parent in bodies for bodies in stretches)
             if inner and any(self._under_body(rider, body) for rider in carried):
                 found.append(body)
-        return self._determined(found)
-
-    def _determined(self, found):
-        """The `found` bodies whose move the markers can tell from the other unknowns (#70 level 2, one rule): a body
-        carrying no marker itself is kept only when it moves a marker no kept body below it moves (else they trade:
-        a shoulder phantom between the clavicle and the scapula); and the root place absorbs the common shift of the
-        kept bodies fixed to a markerless root with no joint between, when every marker rides one of them, so the one
-        moving the most markers goes (the pelvis and sacrum on Full_Body). Bottom up: MuJoCo numbers a child after
-        its parent."""
-        model = self.model
-        riders = [model.site_bodyid[site] for site in self.place_sites]
-        moved = {body: {mark for mark, rider in enumerate(riders) if self._under_body(rider, body)} for body in found}
-        own = {body: {mark for mark, rider in enumerate(riders) if own_name(model.body(rider).name)
-                      == own_name(model.body(body).name)} for body in found}
-        kept = []
-        for body in sorted(found, reverse=True):
-            below = set().union(*(moved[other] for other in kept if self._under_body(other, body)))
-            if own[body] or moved[body] - below:
-                kept.append(body)
-        root = 1 if model.nbody > 1 and model.body_jntnum[1] and model.jnt_type[model.body_jntadr[1]] == \
-            mujoco.mjtJoint.mjJNT_FREE else None
-        fixed = [body for body in kept if root is not None and self._welded(body, root)]
-        if fixed and root not in riders and set().union(*(moved[body] for body in fixed)) == set(range(len(riders))):
-            kept.remove(max(fixed, key=lambda body: len(moved[body])))
-        return sorted(kept)
-
-    def _welded(self, body, top):
-        """Whether `body` hangs from `top` with no joint between (by id; `top` itself excluded)."""
-        model = self.model
-        while body != top:
-            if body <= 0 or model.body_jntnum[body]:
-                return False
-            body = model.body_parentid[body]
-        return True
+        return found
 
     def _under_body(self, body, top):
         """Whether `body` is `top` or below it (by id)."""
