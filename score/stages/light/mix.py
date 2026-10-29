@@ -50,6 +50,8 @@ def tone_curve(light, look):
     logs = np.log(np.maximum(light.astype(np.float64), FLOOR)).ravel()
     looks = look.astype(np.float64).ravel()
     edges = np.unique(np.quantile(logs, np.linspace(0.0, 1.0, BINS + 1)))
+    if len(edges) < 2:  # one light all over (a black view: light@base, 2026-10-29): one knot, never none
+        return edges, np.asarray([float(np.median(looks))])
     knots, values = [], []
     for low, high in zip(edges[:-1], edges[1:]):
         inside = (logs >= low) & (logs <= high)
