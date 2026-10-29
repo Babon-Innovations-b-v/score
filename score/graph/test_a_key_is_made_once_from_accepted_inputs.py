@@ -1742,14 +1742,14 @@ def test_on_this_pc_the_container_is_counted_once_and_its_waiting_clients_reserv
     faked(monkeypatch, [5.5 * FLOOR])
     monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, int(0.1 * FLOOR)))
     monkeypatch.setattr(graph, "CONTAINED", lambda pid: pid < 14)
-    monkeypatch.setattr(graph, "ROOM", lambda: room[0])
+    monkeypatch.setattr(graph, "CONTAINER_READ", lambda: room[0] and (room[0], {}))  # no job seen yet: all its room
     monkeypatch.setenv(*graph.THIS_PC)
     coming = runner.coming(running, peaks, {})
     assert sum(max(0, peak - holds) for peak, holds in coming) == 2 * FLOOR - int(0.1 * FLOOR) + int(1.5 * FLOOR)
     assert graph.memory_room(coming, FLOOR)
     room[0] = None
     assert not graph.memory_room(runner.coming(running, peaks, {}), FLOOR)
-    monkeypatch.setattr(graph, "ROOM", lambda: pytest.fail("the container is read off this PC"))
+    monkeypatch.setattr(graph, "CONTAINER_READ", lambda: pytest.fail("the container is read off this PC"))
     monkeypatch.setenv(graph.THIS_PC[0], "scaleway")
     assert not graph.memory_room(runner.coming(running, peaks, {}), FLOOR)
 
@@ -1835,35 +1835,108 @@ def make_mark(inputs, out, seed, params):
     (out / "mark.txt").write_text("marked")
 
 
-def test_a_ready_node_too_large_for_memory_lets_the_ones_after_it_start_until_it_waited_its_turns(monkeypatch):
+def make_late(inputs, out, seed, params):
+    time.sleep(0.4)  # the big nodes wait many turns meanwhile
+    (out / "mark.txt").write_text("marked")
+
+
+def test_a_ready_node_too_large_for_memory_waits_alone_and_the_ones_after_it_that_fit_start(monkeypatch):
     """2026-10-28: one ready node at the head that did not fit held 122 small ready nodes behind it, five of eight
-    slots empty for 29 min. big (kept peak 3 floors) comes before small (0.1 floor), neither reading anything, 2.5
-    floors available until both small nodes started (or 20 readings): the small ones start first. With MEMORY_SKIPS 0
-    the first big node passed over holds every node after it, so a big one starts first.
-    Break: score/graph/__init__.py: '                            continue\\n                        skips.pop(node, None)'
-    -> '                            break\\n                        skips.pop(node, None)' -> big starts first.
-    Break: score/graph/__init__.py: '                                line_held = skips[node] > MEMORY_SKIPS'
-    -> '                                line_held = False' -> small starts first with MEMORY_SKIPS 0."""
+    slots empty for 29 min; 2026-10-29: once it had waited ten turns it held every node behind it again (108 ready,
+    2 running). big (kept peak 3 floors) comes before late (0.1 floor, 0.4 s a node) and small (0.1 floor, reads
+    late), 2.5 floors available until both small nodes started (or 3 s): late starts first, small once late stands,
+    though big has waited many turns by then, and big once the room is there.
+    Break: score/graph/__init__.py: '                            continue\n                        waiting.remove'
+    -> '                            break\n                        waiting.remove' -> big starts first."""
     monkeypatch.delenv(graph.FLOOR_VARIABLE, raising=False)
     monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
     monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
-    for skips, first in ((graph.MEMORY_SKIPS, "small"), (0, "big")):
-        monkeypatch.setattr(graph, "MEMORY_SKIPS", skips)
-        files = {"brief": "{data}/{place}/brief.txt"}
-        big, small = (graph.Stage(name, "place", make_mark, TEXT, PASSES, files=files) for name in ("big", "small"))
-        runner = a_runner(a_world({"hangar": "a ship", "station": "a hub"}), a_store(), (big, small))
-        runner.keep_peak("big", 3 * FLOOR)
-        runner.keep_peak("small", int(0.1 * FLOOR))
-        started, start, readings = [], runner.start, [0]
-        runner.start = lambda stage, place, threads: started.append(stage.name) or start(stage, place, threads)
+    files = {"brief": "{data}/{place}/brief.txt"}
+    big = graph.Stage("big", "place", make_mark, TEXT, PASSES, files=files)
+    late = graph.Stage("late", "place", make_late, TEXT, PASSES, files=files)
+    small = graph.Stage("small", "place", make_mark, TEXT, PASSES, after={"late": READS})
+    runner = a_runner(a_world({"hangar": "a ship", "station": "a hub"}), a_store(), (big, late, small))
+    for stage, peak in (("big", 3 * FLOOR), ("late", int(0.1 * FLOOR)), ("small", int(0.1 * FLOOR))):
+        runner.keep_peak(stage, peak)
+    started, start, until = [], runner.start, time.monotonic() + 3
+    runner.start = lambda stage, place, threads: started.append(stage.name) or start(stage, place, threads)
+    monkeypatch.setattr(graph, "AVAILABLE", lambda: 2.5 * FLOOR if started.count("small") < 2 and
+                        time.monotonic() < until else 100 * FLOOR)
+    found = runner.drive(PLACES, say=quiet, jobs=4)
+    assert set(found.values()) == {ACCEPTED} and len(found) == 6, found
+    assert started == ["late", "late", "small", "small", "big", "big"], started
 
-        def reading():
-            readings[0] += 1
-            return 2.5 * FLOOR if started.count("small") < 2 and readings[0] < 20 else 100 * FLOOR
-        monkeypatch.setattr(graph, "AVAILABLE", reading)
-        found = runner.drive(PLACES, say=quiet, jobs=4)
-        assert set(found.values()) == {ACCEPTED} and len(found) == 4, found
-        assert started[0] == first and sorted(started) == ["big", "big", "small", "small"], (skips, started)
+
+GIGA = 10**9
+
+
+def a_container_job(proc, session, kind, resident_gb, high_gb):
+    """A job in the fake `proc` folder: its ssh session `session` under the container's sshd (pid 10), and one
+    Blender running `kind` under it, `resident_gb` resident now and `high_gb` its VmHWM."""
+    page = os.sysconf("SC_PAGE_SIZE")
+    a_process(proc, session, 10, 0)
+    (proc / str(session) / "cmdline").write_bytes(b"sshd: root@notty\0")
+    (proc / str(session) / "status").write_text("Name:\tsshd\nVmHWM:\t0 kB\n")
+    a_process(proc, session + 1, session, int(resident_gb * GIGA) // page)
+    (proc / str(session + 1) / "cmdline").write_bytes(b"/root/blender/blender\0-b\0--python\0/r/%s\0--\0x" %
+                                                      kind.encode())
+    (proc / str(session + 1) / "status").write_text(f"Name:\tblender\nVmHWM:\t{int(high_gb * GIGA) // 1024} kB\n")
+
+
+def test_the_container_reserves_what_its_running_takes_may_still_grow_to_and_each_kinds_measured_peak_is_kept(
+        tmp_path, monkeypatch):
+    """2026-10-29: while a bake held the container's claim the drive reserved the cap's whole room (16.5 GiB) beside
+    three takes holding 1.2 to 3.2 GB, and 108 ready nodes waited with 24.6 GB available. A fake container (its sshd 10
+    under 1 outside it; an idle ssh session 40 and an rsync session 50 run no script) runs paint_bake.py takes 20 (5 GB
+    now, peaked 6) and 30 (1 GB, peaked 2), its room 20 GB: no take seen yet in any claim, the whole room; seen once,
+    each never-measured take TAKE_PEAK (8.5 GB) less what it holds, 3.5 + 7.5 = 11 GB. Take 30 ends: its 2 GB peak is
+    kept, the most jobs at once 2, so take 20 (5 GB) grows none and the idle slot 2 GB. With no client running, the
+    watched take 20 is kept as ended (6 GB); the kind's peak is then 6 GB (the p90 of 2 and 6, nearest rank), so take
+    20 alone grows 1 GB and the idle slot 6: 7 GB; a reserve is never more than the room (3 GB).
+    Break: score/graph/__init__.py: '    growth = sum(max(0, peak - holds) for peak, (_, holds, _) in zip(peaks, jobs.values()))'
+    -> '    growth = room' -> the whole room again.
+    Break: score/graph/__init__.py: '            watch[job] = (kind, max(high, watch.get(job, (kind, 0))[1]))' ->
+    '            watch[job] = (kind, 0)' -> no peak kept for take 30."""
+    proc, cgroup = tmp_path / "proc", tmp_path / "cgroup"
+    proc.mkdir()
+    cgroup.mkdir()
+    monkeypatch.setattr(graph, "PROC", str(proc))
+    a_process(proc, 1, 0, 0)
+    a_process(proc, 10, 1, 1)
+    a_container_job(proc, 20, "paint_bake.py", 5, 6)
+    a_container_job(proc, 30, "paint_bake.py", 1, 2)
+    for session in (40, 50):
+        a_process(proc, session, 10, 1)
+        (proc / str(session) / "cmdline").write_bytes(b"sshd: root@notty\0")
+    a_process(proc, 51, 50, 1)
+    (proc / "51" / "cmdline").write_bytes(b"rsync\0--server\0.\0")
+    (cgroup / "cgroup.procs").write_text("10\n20\n21\n30\n31\n40\n50\n51\n")
+    (cgroup / "memory.max").write_text(f"{30 * GIGA}\n")
+    (cgroup / "memory.stat").write_text(f"anon {10 * GIGA}\nfile 0\n")
+    page = os.sysconf("SC_PAGE_SIZE")
+    jobs = graph.container_jobs(cgroup)
+    assert jobs == {20: ("paint_bake.py", 5 * GIGA // page * page, 6 * GIGA // 1024 * 1024),
+                    30: ("paint_bake.py", 1 * GIGA // page * page, 2 * GIGA // 1024 * 1024)}, jobs
+    assert graph.container_room(cgroup) == 20 * GIGA
+    assert graph.container_reserve(20 * GIGA, jobs, {}, 0) == 20 * GIGA
+    runner, watch = a_driven_runner({"hangar": "a ship"}), {}
+    near = functools.partial(pytest.approx, abs=2 * page)
+    assert runner.container_growth((20 * GIGA, jobs), watch) == near(11 * GIGA)  # 3.5 + 7.5
+    assert runner.container_takes() == {"takes": {}, "slots": 2}
+    alone = {20: jobs[20]}
+    assert runner.container_growth((20 * GIGA, alone), watch) == near(2 * GIGA)  # past its 2 GB peak; idle 2
+    assert runner.container_takes()["takes"] == {"paint_bake.py": [2 * GIGA // 1024 * 1024]}
+    bake = types.SimpleNamespace(name="bake", grain="place")
+    process = types.SimpleNamespace(pid=7, is_alive=lambda: True)
+    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
+    monkeypatch.setattr(graph, "CONTAINED", lambda pid: False)
+    monkeypatch.setenv(*graph.THIS_PC)
+    runner.coming({0: (bake, "hangar", process)}, {}, {}, watch)  # no client: take 20 ended
+    takes = runner.container_takes()["takes"]["paint_bake.py"]
+    assert takes == [2 * GIGA // 1024 * 1024, 6 * GIGA // 1024 * 1024] and not watch, takes
+    assert graph.take_peak({"paint_bake.py": takes}, "paint_bake.py") == takes[1]
+    assert runner.container_growth((20 * GIGA, alone), {}) == near(1 * GIGA + 6 * GIGA)
+    assert runner.container_growth((3 * GIGA, alone), {}) == 3 * GIGA
 
 
 def test_an_ended_node_holds_no_memory_and_one_that_ran_a_container_client_keeps_the_default(tmp_path, monkeypatch):

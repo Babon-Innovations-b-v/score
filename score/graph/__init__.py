@@ -50,6 +50,7 @@ import datetime
 import fcntl
 import inspect
 import json
+import math
 import multiprocessing
 import multiprocessing.connection
 import os
@@ -114,10 +115,10 @@ HEARTBEAT = 120
 # GB (a node waiting on a rented machine not measured). 6 GB is far over those, for the nodes not measured yet.
 MEMORY_FLOOR = 6 * 2**30
 MEMORY_POLL = 30
-# A ready node whose peak does not fit is passed over and the nodes after it that fit start (2026-10-28: one 6 GB node
-# at the head held 122 small ready nodes and five of eight slots empty for 29 min); one passed over on MEMORY_SKIPS
-# turns holds every node after it until it fits, so a large node is never starved by small ones.
-MEMORY_SKIPS = 10
+# A ready node whose peak does not fit waits and the nodes after it that fit start (2026-10-28: one 6 GB node at the
+# head held 122 small ready nodes and five of eight slots empty for 29 min; then, once it had waited ten turns, it held
+# every node after it again: 108 ready nodes, 2 running, 2026-10-29). Each pass reads the waiting nodes in order, so the
+# room a node's end leaves goes to the first one waiting before any after it.
 # A node whose process tree ran one of these clients holds its real memory in a container, outside its tree (trees_held:
 # a Blender node measured 0.1 GB while its container held 3.7 GB, 2026-10-28): its stage keeps no peak below the default.
 CONTAINER_CLIENTS = ("blender_cloud.py",)
@@ -125,7 +126,18 @@ CONTAINER_CLIENTS = ("blender_cloud.py",)
 # one node while the others wait on its lock: the container is counted once, the room left to its cap (memory.max
 # less its anon of memory.stat, which MemAvailable already left out), and a node running a client reserves only what
 # its tree holds (container_room). 2026-10-28: three surfaces-bake nodes, one holding the claim with its container at
-# 7.2 GiB and two waiting, were each given 8 GB and held about 121 ready nodes with 32 GB available.
+# 7.2 GiB and two waiting, were each given 8 GB and held about 121 ready nodes with 32 GB available. The container is
+# counted by what its running jobs may still grow to (container_reserve), never more than that room: each job (a
+# session under its sshd running a script, a Blender take one a slot) its kind's take peak less what its tree holds
+# now, and each slot seen busy in this claim but idle now a whole take peak (the next take starts in it). A kind's
+# take peak is the TAKE_RANK of its last TAKES_KEPT measured takes (the most their trees' VmHWM summed to while they
+# ran), kept per kind (the script) in memory/container-peaks.json; a kind never measured is given TAKE_PEAK, the
+# container's own per slot assumption (local.py BLENDER_PEAK_GB). 2026-10-29: the cap's whole room (16.5 GiB) was
+# reserved beside three takes holding 1.2 to 3.2 GB, 108 ready nodes waiting with 24.6 GB available. The container's
+# cgroup cap stays the hard limit for a tail take (one held 27 GB), the outside guard the backstop.
+TAKE_PEAK = int(8.5e9)
+TAKES_KEPT = 50
+TAKE_RANK = 0.9
 CONTAINER = "score-this-pc"
 CGROUPS = ("/sys/fs/cgroup/system.slice/docker-{id}.scope", "/sys/fs/cgroup/docker/{id}")
 # A node's process reads its own tree's memory every MEMORY_SAMPLE seconds for the peak it reports (watch_memory).
@@ -536,20 +548,95 @@ def watch_memory(high, every=None):
         time.sleep(every or MEMORY_SAMPLE)
 
 
-def container_room():
-    """The bytes this PC's container may still take: its cgroup's memory.max less its anon (memory.stat); None when
-    it is not running or its cgroup cannot be read."""
+def container_cgroup():
+    """This PC's container's cgroup folder (CGROUPS); None when it is not running or has none of them."""
     with contextlib.suppress(OSError):  # no docker here
         found = subprocess.run(["docker", "inspect", "-f", "{{.Id}}", CONTAINER], capture_output=True, text=True,
                                check=False)
         for cgroup in [pathlib.Path(form.format(id=found.stdout.strip())) for form in CGROUPS] if not found.returncode else []:
-            with contextlib.suppress(OSError, ValueError, KeyError):  # memory.max "max": no cap to count to
-                stat = dict(line.split() for line in (cgroup / "memory.stat").read_text().splitlines())
-                return max(0, int((cgroup / "memory.max").read_text()) - int(stat["anon"]))
+            if cgroup.is_dir():
+                return cgroup
     return None
 
 
-ROOM = container_room  # the tests give a fake reading
+def container_room(cgroup):
+    """The bytes the container whose cgroup is `cgroup` may still take: its memory.max less its anon (memory.stat);
+    None when they cannot be read."""
+    with contextlib.suppress(OSError, ValueError, KeyError):  # memory.max "max": no cap to count to
+        stat = dict(line.split() for line in (cgroup / "memory.stat").read_text().splitlines())
+        return max(0, int((cgroup / "memory.max").read_text()) - int(stat["anon"]))
+    return None
+
+
+def script_of(pid):
+    """The file name of the first script process `pid` runs (a ".py" argument of PROC/<pid>/cmdline); None when it
+    runs none or is gone."""
+    with contextlib.suppress(OSError):
+        arguments = pathlib.Path(PROC, str(pid), "cmdline").read_bytes().split(b"\0")
+        return next((os.path.basename(argument.decode()) for argument in arguments if argument.endswith(b".py")), None)
+    return None
+
+
+def high_water(pid):
+    """The most bytes process `pid` held resident in its life (VmHWM of PROC/<pid>/status); 0 when it is gone."""
+    with contextlib.suppress(OSError, ValueError, StopIteration):
+        with open(os.path.join(PROC, str(pid), "status")) as status:
+            return int(next(line for line in status if line.startswith("VmHWM:")).split()[1]) * 1024
+    return 0
+
+
+def container_jobs(cgroup):
+    """{each job running in the container whose cgroup is `cgroup`: (its kind, the bytes its tree holds now
+    (proportional_bytes), the most its tree's processes held (high_water, summed))}: a job is a session under the
+    container's first process (its sshd) whose tree runs a script, its kind the first script its tree runs (script_of,
+    breadth first); {} when the cgroup's processes cannot be read."""
+    try:
+        inside = {int(pid) for pid in (cgroup / "cgroup.procs").read_text().split()}
+    except (OSError, ValueError):
+        return {}
+    table, children = process_table(), {}
+    for pid, (parent, _) in table.items():
+        children.setdefault(parent, []).append(pid)
+    jobs = {}
+    for top in [pid for pid in sorted(inside) if pid in table and table[pid][0] not in inside]:
+        for session in children.get(top, []):
+            tree = [session]
+            for pid in tree:  # breadth first: the list grows as it is read
+                tree.extend(children.get(pid, []))
+            kinds = [kind for kind in map(script_of, tree) if kind]
+            if kinds:
+                jobs[session] = (kinds[0], sum(proportional_bytes(pid, table[pid][1]) for pid in tree),
+                                 sum(high_water(pid) for pid in tree))
+    return jobs
+
+
+def container_reading():
+    """(The room this PC's container has left (container_room), its running jobs (container_jobs)); None when it is
+    not running or its room cannot be read."""
+    cgroup = container_cgroup()
+    room = container_room(cgroup) if cgroup else None
+    return None if room is None else (room, container_jobs(cgroup))
+
+
+CONTAINER_READ = container_reading  # the tests give a fake reading
+
+
+def take_peak(takes, kind):
+    """A kind's take peak: the TAKE_RANK (nearest rank) of its measured takes' peaks in `takes` ({kind: [bytes]}),
+    TAKE_PEAK when none was measured."""
+    measured = sorted(takes.get(kind, []))
+    return measured[max(0, math.ceil(TAKE_RANK * len(measured)) - 1)] if measured else TAKE_PEAK
+
+
+def container_reserve(room, jobs, takes, slots):
+    """The bytes the container may still grow by: each of its `jobs` ({job: (kind, holds now, high)}) its kind's take
+    peak (take_peak of `takes`) less what it holds now, never below 0, and each of the `slots` (the most jobs seen at
+    once) idle now the most of the running kinds' take peaks (TAKE_PEAK when none runs); never more than `room`, and
+    the whole `room` while no job was ever seen (slots 0)."""
+    peaks = [take_peak(takes, kind) for kind, _, _ in jobs.values()]
+    growth = sum(max(0, peak - holds) for peak, (_, holds, _) in zip(peaks, jobs.values()))
+    idle = max(0, slots - len(jobs)) * max(peaks, default=TAKE_PEAK)
+    return min(room, growth + idle) if slots else room
 
 
 def ran_container_client(root):
@@ -1738,23 +1825,60 @@ class Runner:
             os.replace(spare, path)
         return peaks
 
-    def coming(self, running, peaks, seen):
+    def container_takes(self):
+        """The container's measures kept beside the store: {"takes": {kind: the peaks of its last TAKES_KEPT
+        measured takes}, "slots": the most jobs seen running in it at once} (none yet: none of either)."""
+        path = self.desk("memory", "container-peaks", ".json")
+        return json.loads(path.read_text()) if path.exists() else {"takes": {}, "slots": 0}
+
+    def keep_takes(self, ended, slots):
+        """Keep each ended take's peak (`ended`: [(kind, bytes)]) under its kind, its last TAKES_KEPT, and `slots`
+        jobs running at once when more than the most kept; the measures kept (container_takes)."""
+        kept = self.container_takes()
+        if not ended and slots <= kept["slots"]:
+            return kept
+        for kind, peak in ended:
+            kept["takes"][kind] = [*kept["takes"].get(kind, []), peak][-TAKES_KEPT:]
+        kept["slots"] = max(kept["slots"], slots)
+        path = self.desk("memory", "container-peaks", ".json")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        spare = path.with_suffix(f".{os.getpid()}")
+        spare.write_text(json.dumps(kept, indent=1, sort_keys=True) + "\n")
+        os.replace(spare, path)
+        return kept
+
+    def container_growth(self, reading, watch):
+        """What the container may still grow by (container_reserve) from `reading` (its room, its jobs:
+        container_reading), the most each job's tree held kept in `watch` ({job: (kind, bytes)}); a job gone since
+        the last reading ended, its peak kept (keep_takes) with the jobs running now."""
+        room, jobs = reading
+        for job, (kind, _, high) in jobs.items():
+            watch[job] = (kind, max(high, watch.get(job, (kind, 0))[1]))
+        ended = [watch.pop(job) for job in [job for job in watch if job not in jobs]]
+        kept = self.keep_takes(ended, len(jobs))
+        return container_reserve(room, jobs, kept["takes"], kept["slots"])
+
+    def coming(self, running, peaks, seen, watch=None):
         """[(each running node's stage peak, what its process tree holds now)] (on this PC a node running a container
-        client its tree alone, and the container once: container_room), the most each was seen to hold kept
-        in `seen` ({node: bytes}); a node whose process has ended is reaped (is_alive: waitpid, WNOHANG) and holds
-        none, though its outcome is not read yet."""
+        client its tree alone, and the container once: container_growth, its jobs watched in `watch`), the most each
+        was seen to hold kept in `seen` ({node: bytes}); a node whose process has ended is reaped (is_alive: waitpid,
+        WNOHANG) and holds none, though its outcome is not read yet."""
+        watch = {} if watch is None else watch
         alive = [(stage, place, process) for stage, place, process in running.values() if process.is_alive()]
         held = HELD([process.pid for _, _, process in alive])
         users = {process.pid for _, _, process in alive if on_this_pc() and CONTAINED(process.pid)}
-        room = ROOM() if users else None  # unread: each user keeps its stage's peak, never less
+        reading = CONTAINER_READ() if users else None  # unread: each user keeps its stage's peak, never less
         found = []
         for stage, place, process in alive:
             node = node_name(stage, place)
             seen[node] = max(seen.get(node, 0), held[process.pid])
-            mine = room is not None and process.pid in users
+            mine = reading is not None and process.pid in users
             found.append((held[process.pid] if mine else peaks.get(stage.name, memory_floor()), held[process.pid]))
-        if room is not None:
-            found.append((room, 0))  # the container, once, whichever of its users holds the claim
+        if reading is not None:  # the container, once, whichever of its users holds the claim
+            found.append((self.container_growth(reading, watch), 0))
+        elif not users and watch:  # no client runs: the takes watched have ended
+            self.keep_takes(list(watch.values()), 0)
+            watch.clear()
         return found
 
     def conclude(self, stage, place, did):
@@ -1788,9 +1912,9 @@ class Runner:
         threads = node_threads(jobs)
         peaks, seen, told = self.peaks(), {}, False  # seen: the most each running node held; told: the wait was said
         # known: what each waiting node reads, kept across turns (forget; all of it again every HEARTBEAT seconds, so a
-        # plan edited under the run is read again); skips: the turns each ready node did not fit; finished: the result
+        # plan edited under the run is read again); finished: the result
         # pipes of the nodes that ended, concluded at the next turn's start inside that turn's one still pass
-        known, known_at, skips, finished = {}, time.monotonic(), {}, []
+        known, known_at, finished, watch = {}, time.monotonic(), [], {}  # watch: the container's jobs (coming)
         self.driving = (0, time.monotonic())
         while waiting or running:
             if time.monotonic() - known_at >= HEARTBEAT:
@@ -1798,7 +1922,7 @@ class Runner:
             # reap first: a node that ended since the wait is concluded now and holds no memory in this pass
             others = [pipe for pipe in running if pipe not in finished]
             finished = [*finished, *(FORK_WAIT(others, timeout=0) if others else [])]
-            held = line_held = False  # a ready node waits for memory; once one waited too long, every node after it
+            held = False  # a ready node waits for memory; the nodes after it that fit still start
             ready = []  # started once the pass is over: a forked node must not inherit its remembered keys
             with self.still():  # each key and plan worked out once a pass (Batch 1, 2026-10-25: a pass took 12 min)
                 ended = set()
@@ -1818,7 +1942,7 @@ class Runner:
                     say(f"{node}: {done[node]}")
                 finished = []
                 forget(known, ended)
-                coming = self.coming(running, peaks, seen)  # what the running nodes may still take (memory_room)
+                coming = self.coming(running, peaks, seen, watch)  # what the running nodes may still take (memory_room)
                 for stage, place in list(waiting):
                     node = node_name(stage, place)
                     earlier = kept(known, node, "earlier", self.earlier, stage, place)
@@ -1839,13 +1963,9 @@ class Runner:
                             not unsettled(kept(known, node, "optional", self.optional_nodes, stage, place), line,
                                           stood, stopped):
                         expected = peaks.get(stage.name, memory_floor())
-                        if line_held or not memory_room(coming, expected):
+                        if not memory_room(coming, expected):
                             held = True  # this node waits; the nodes after it that fit still start
-                            if not line_held:
-                                skips[node] = skips.get(node, 0) + 1
-                                line_held = skips[node] > MEMORY_SKIPS  # passed over too long: it goes next
                             continue
-                        skips.pop(node, None)
                         waiting.remove((stage, place))
                         ready.append((stage, place))
                         coming.append((expected, 0))
