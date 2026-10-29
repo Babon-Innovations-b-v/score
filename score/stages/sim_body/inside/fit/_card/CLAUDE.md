@@ -82,10 +82,13 @@ before that.
   exact Jacobian equals scipy's 2-point to 8.0e-7 of a column (plan 1 %); level 2 with jac=exact against today's:
   constants 0.0011 mm, coordinates 3.2e-4 deg, cost 6.5e-10 relative, both 24 evaluations, status 2; 6.4 s against
   36.7 s (a Jacobian 0.20 s on the host, 1.7 s by differences). With the card's kinematics: 5.2e-6 of a column;
-  constants 0.019 mm, coordinates 5.8e-4 deg, cost 8.7e-9 relative, 6.2 s against 35.5 s; a Jacobian still 0.20 s,
-  so the time is `frame_rows`' host assembly (a dense frame block over every unknown, then csr), not the kinematics.
-  Not wired in: `_constants.staged` still differences.
+  constants 0.019 mm, coordinates 5.8e-4 deg, cost 8.7e-9 relative, 6.2 s against 35.5 s. `frame_rows` gives COO
+  triplets (the frame's own block's nonzeros, the move blocks vectorised, `moved_blocks`; a dense block over every
+  unknown then csr took the Jacobian to 0.20 s): heavy's Jacobian 0.066 s with the card's kinematics, level 2 3.0 s
+  against 32.3 s (constants 0.015 mm, coordinates 0.0020 deg, cost 6.4e-9 relative, 25 evaluations against 24). Wired as an
+  option: `../_constants.staged(jacobian=...)` (2-point differences the default and the reference; `constants` does
+  not pass it until the 10 tuning bodies' gate is equal); the toy solved both ways in the test file.
 - One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
   the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the
-  errors), the measures on a toy body (`tests/card_body.py`); it needs Newton's Python and a CUDA card, else prints `skipped`. About 15 s.
+  errors), the measures on a toy body (`tests/card_body.py`); it needs Newton's Python and a CUDA card, else prints `skipped`. About 20 s.
