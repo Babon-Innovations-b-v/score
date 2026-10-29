@@ -111,7 +111,7 @@ def fitted_person(job, person, rig, worlds, path):
     fitting = fit.fitting(path, scales, held, segments, found["marks"])
     angles = fit.angles(fitting, turns, points)
     record["fit"] = {"method": fit.METHOD, "constants": fit.constants_record(found),
-                     "following": fit.following(fitting.model, angles, worlds, segments, scales)}
+                     "following": fit.following(fitting.model, angles, worlds, segments, scales, rig)}
     return record, scales, fitting.model, angles
 
 
@@ -159,7 +159,7 @@ def run_person(job, person, out_path):
     adjustment["feet held mm, deg"] = [round(1000 * float(feet_off[:, 0].max()), 3),
                                        round(float(np.degrees(feet_off[:, 1].max())), 3)]
     qpath = adjusted
-    record["fit"]["following, the path the physics takes"] = fit.following(model, qpath, worlds, segments, scales)
+    record["fit"]["following, the path the physics takes"] = fit.following(model, qpath, worlds, segments, scales, rig)
     velocities, accelerations = rates(model, qpath, job["rate"])
     joints = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, model.dof_jntid[dof]) for dof in
               physics.couplings.leads[6:]]

@@ -5,7 +5,8 @@ The one solver (#70; SOMA is the truth): MyoFullBody fitted to the clip's SOMA b
 `METHOD`); `_model.py` the fitting model (`Fitting`: MuJoCo's own compile of the person's file, a calibration site per
 bone group, a site per landmark marker, the constants laid on `body_pos`/`site_pos` in
 place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the constants' sparse least squares,
-`_follow.py` the judgement and the segments' riding.
+`_follow.py` the judgement and the segments' riding, `_skin.py` the bones outside SOMA's posed skin by region
+(warp's winding number, every 10th frame), `_frozen.py` main's calibration table frozen (227b29b2).
 
 - **Reuse, not handwritten maths** (owner, 2026-10-28): per frame mink 1.3.0 (Apache-2.0, pinned in
   `score/stages/physics/inside/newton_env.sh` with qpsolvers 4.13.0 and daqp 0.10.3), its `FrameTask`s for the
@@ -57,6 +58,9 @@ place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the
   16 mm off SOMA's, the shoulders 44 to 50, the head 20 to 25 (rigid on the thorax); the groups' turns 5.2 to 5.9
   degrees on the median of those not at a limit, the head 23 (rigid). A frame that does not converge in `MOST_STEPS` fails
   the run (`NotConverged`), never kept silently.
+- **The record states the honest measures first** (#70's audit item 2, 2026-10-29): `following` gives the bones
+  outside SOMA's skin by region and the turns on main's frozen table before the joint mm (partly the ends' own pull)
+  and the tree's-table turns; the frozen table is never edited to follow the tree.
 - `following` and `riding` read the bone-group and landmark tables of MyoFullBody itself, so the toy test does not
   reach them; they are checked on the walkers' runs (#70's numbers).
 - Its test runs in Newton's own Python by subprocess and prints `skipped` where no env is built.

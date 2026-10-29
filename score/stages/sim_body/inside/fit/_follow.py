@@ -1,12 +1,16 @@
-"""How closely a path follows SOMA (#70's judgement, `following`): each joint SOMA places against MyoFullBody's centre
-of the same joint (mm) and each bone group's turn against its SOMA segment's through the calibration table (degrees),
-every frame, split by whether a leading joint above it stands at an end of its range then; and where each SOMA segment
+"""How closely a path follows SOMA (#70's judgement, `following`), the honest measures first: the bones outside SOMA's
+skin by region (`_skin`) and each bone group's turn against its SOMA segment's through main's frozen calibration table
+(`_frozen`, degrees), then beside them each joint SOMA places against MyoFullBody's centre of the same joint (mm, partly
+what the solver pulls on: the group ends are its targets) and the turns on the tree's own table, every frame, split by
+whether a leading joint above it stands at an end of its range then; and where each SOMA segment
 rides its group's frame body (`riding`: the calibration turn, its start joint on MyoFullBody's centre)."""
 import mujoco
 import numpy as np
 
 from bone_groups import groups
 from calibration import turn
+from fit._frozen import frozen_turn
+from fit._skin import bones_outside
 from landmarks import myo_parts
 from model import TO_OWN, Couplings, body_index, default_pose
 
@@ -68,18 +72,26 @@ def _summary(values, limited):
                     else [None, None, 0]) for label, part in parts}
 
 
-def following(model, path, worlds, segments, scales):
-    """The path's following of SOMA: {"joints mm", "turns deg"} each {"free", "at a limit"}: [median, max, count]
-    over every frame and joint (group), and per joint and per group [median, max] over the frames. `worlds` frames x
-    segments x 4 x 4 (the person's frame), `scales` each body's size by its source name."""
+def _angle(seen, wanted):
+    """The angle (degrees) between two turns."""
+    return np.degrees(np.arccos(np.clip((np.trace(seen.T @ wanted) - 1.0) / 2.0, -1.0, 1.0)))
+
+
+def following(model, path, worlds, segments, scales, rig):
+    """The path's following of SOMA: {"bones outside skin %" by region, "turns deg, main's frozen table", "joints mm",
+    "turns deg"}, the last three each {"free", "at a limit"}: [median, max, count] over every frame and joint (group),
+    and per joint and per group [median, max] over the frames. `worlds` frames x segments x 4 x 4 (the person's
+    frame), `scales` each body's size by its source name, `rig` SOMA's (names, bind, points, faces, weights)."""
     data, table = mujoco.MjData(model), groups()
     joints = [(soma, myo, _limit_joints(model, [body_index(model, part[0]) for part in myo_parts(myo)],
                                         any(np.any(part[1]) for part in myo_parts(myo))))
               for soma, myo in judged() if soma in segments]
-    frames = [(group, body_index(model, table[group][2]), turn(group)) for group in table if group in segments]
-    limits = {group: _limit_joints(model, [body], True) for group, body, _ in frames}
-    misses, turns = {soma: [] for soma, _, _ in joints}, {group: [] for group, _, _ in frames}
-    limited_joints, limited_turns = {soma: [] for soma, _, _ in joints}, {group: [] for group, _, _ in frames}
+    frames = [(group, body_index(model, table[group][2]), turn(group), frozen_turn(group))
+              for group in table if group in segments]
+    limits = {group: _limit_joints(model, [body], True) for group, body, _, _ in frames}
+    misses, turns = {soma: [] for soma, _, _ in joints}, {group: [] for group, _, _, _ in frames}
+    frozen = {group: [] for group, _, _, _ in frames}
+    limited_joints, limited_turns = {soma: [] for soma, _, _ in joints}, {group: [] for group, _, _, _ in frames}
     for qpos, world in zip(path, worlds):
         data.qpos[:] = qpos
         mujoco.mj_kinematics(model, data)
@@ -87,13 +99,17 @@ def following(model, path, worlds, segments, scales):
             placed = TO_OWN @ centre(model, data, myo, scales)
             misses[soma].append(1000 * np.linalg.norm(placed - world[segments.index(soma)][:3, 3]))
             limited_joints[soma].append(_at_limit(model, qpos, held))
-        for group, body, calibration in frames:
-            seen = TO_OWN @ data.xmat[body].reshape(3, 3) @ calibration.T
+        for group, body, calibration, main in frames:
             wanted = world[segments.index(group)][:3, :3]
-            cosine = np.clip((np.trace(seen.T @ wanted) - 1.0) / 2.0, -1.0, 1.0)
-            turns[group].append(np.degrees(np.arccos(cosine)))
+            turns[group].append(_angle(TO_OWN @ data.xmat[body].reshape(3, 3) @ calibration.T, wanted))
+            frozen[group].append(_angle(TO_OWN @ data.xmat[body].reshape(3, 3) @ main.T, wanted))
             limited_turns[group].append(_at_limit(model, qpos, limits[group]))
-    return {"joints mm": _summary(sum(misses.values(), []), sum(limited_joints.values(), [])),
+    return {"bones outside skin %": bones_outside(model, path, worlds, segments, rig),
+            "turns deg, main's frozen table": _summary(sum(frozen.values(), []), sum(limited_turns.values(), [])),
+            "per group deg, main's frozen table": {group: [round(float(np.median(found)), 2),
+                                                           round(float(np.max(found)), 2)]
+                                                   for group, found in frozen.items()},
+            "joints mm": _summary(sum(misses.values(), []), sum(limited_joints.values(), [])),
             "turns deg": _summary(sum(turns.values(), []), sum(limited_turns.values(), [])),
             "per joint mm": {soma: [round(float(np.median(found)), 1), round(float(np.max(found)), 1)]
                              for soma, found in misses.items()},
