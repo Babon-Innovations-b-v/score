@@ -1,9 +1,9 @@
 """fit/_card: on 12 rows (frames) of a small chain (20 hinge dofs, two frozen, two followers on one leader and one
 without a leader, bounds with some rows sitting on them), seeded alike, one step at a time: the card's damped
 reduced step equals the CPU prototype's (card/proto/lm.py: mink's damping 1e-3 |r|^2 + 1e-9, frozen out, followers
-through their coupling's slope, one active-set pass holding dofs at a bound that push out) to 1e-5 rad, and the
-card's projection equals the prototype's (ranges, couplings by polyval, frozen) with every follower on polyval of its
-leader to 1e-6 rad and every coordinate inside its range. Rows whose dofs are held must exist (else the hold is not
+through their coupling's slope, three active-set passes holding dofs at a bound that push out, holds kept) to
+1e-5 rad, and the card's projection equals the prototype's (ranges, couplings by polyval, frozen) with every
+follower on polyval of its leader to 1e-6 rad and every coordinate inside its range. Rows whose dofs are held must exist (else the hold is not
 tested). On a six-link hinge chain, the per-problem place and turn objectives (_objective.py) give the residuals and
 analytic Jacobian of Newton's own IKObjectivePosition and IKObjectiveRotation made with each row's offset and weight,
 to 1e-6. Runs in Newton's own Python on a CUDA card; with no Newton env or no card it prints `skipped`.
@@ -12,6 +12,7 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _step's `LM_DAMPING * squared + DAMPING` made `DAMPING`: mink's damping is lost, the step differs.
 - (2026-10-29) _reduced_jacobian's `* slopes[row, coupling]` dropped: followers ride their leader at slope 1.
 - (2026-10-29) damped_step's second `_solved(..., keep, ...)` made `first`: a dof at its bound is not held.
+- (2026-10-29) _kept's `keep[row, column]` made `1.0`: a hold from an earlier pass is let go, the step differs.
 - (2026-10-29) _projected's `power *= lead` made `power *= 1.0`: a coupling is no longer polyval of its leader.
 - (2026-10-29) _turn_jacobian's `weight[problem] * motion[3 + axis]` made `motion[3 + axis]`: the weight is lost.
 - (2026-10-29) _turn_residuals' angle `2 atan2(length, w) / length` made `2`: the turn is no longer the log map.
@@ -33,6 +34,7 @@ BOUND = 0.25  # float32-exact; dofs 0, 1, 4 and 6 range over +-BOUND
 BOUNDED = (0, 1, 4, 6)
 LINKS = 6
 OBJECTIVE_ROWS = 6
+HOLD_PASSES = 3  # as _step.HOLD_PASSES: solves after the first, holds only ever added
 
 
 def fixture():
@@ -53,7 +55,8 @@ def fixture():
 
 
 def prototype_step(jacobian, residuals, qpos, rest, lower, upper):
-    """card/proto/lm.py's step in float64 (hinge-only: coordinate = dof), with its held count."""
+    """card/proto/lm.py's step in float64 (hinge-only: coordinate = dof), its holds over HOLD_PASSES passes, with its
+    held count."""
     import numpy as np
     jac = jacobian.copy()
     for follower, leader, poly in COUPLINGS:
@@ -68,10 +71,12 @@ def prototype_step(jacobian, residuals, qpos, rest, lower, upper):
     hess[:, range(len(free)), range(len(free))] += (1e-3 * (residuals ** 2).sum(1) + 1e-9)[:, None]
     step = -np.linalg.solve(hess, grad[..., None])[..., 0]
     at = qpos[:, free]
-    held = ((at <= lower[free] + 1e-9) & (step < 0)) | ((at >= upper[free] - 1e-9) & (step > 0))
-    keep = ~held
-    hess_kept = hess * (keep[:, :, None] & keep[:, None, :]) + np.eye(len(free))[None] * held[:, :, None]
-    step = -np.linalg.solve(hess_kept, (grad * keep)[..., None])[..., 0] * keep
+    held = np.zeros_like(step, dtype=bool)
+    for _ in range(HOLD_PASSES):
+        held |= ((at <= lower[free] + 1e-9) & (step < 0)) | ((at >= upper[free] - 1e-9) & (step > 0))
+        keep = ~held
+        hess_kept = hess * (keep[:, :, None] & keep[:, None, :]) + np.eye(len(free))[None] * held[:, :, None]
+        step = -np.linalg.solve(hess_kept, (grad * keep)[..., None])[..., 0] * keep
     full = np.zeros((ROWS, DOFS))
     full[:, free] = step
     return full, np.linalg.norm(step, axis=1), int(held.any(1).sum()), free
