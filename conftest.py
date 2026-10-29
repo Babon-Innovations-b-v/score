@@ -17,8 +17,6 @@ import shutil
 import stat
 import tempfile
 
-import pytest
-
 
 SYSTEM_TEMP = []  # the temp folder own_temp made this run's own one in, once it has
 SYSTEM_TEMP_VARIABLE = "SCORE_SYSTEM_TEMP"  # the same, for every other load of this file in the process and its children
@@ -100,7 +98,9 @@ def refuse_outside_sandbox():
 
 
 def pytest_configure(config):
-    """Refuse the whole run before any test module is imported when it has no sandbox home."""
+    """Refuse the whole run before any test module is imported when it has no sandbox home. pytest is imported here,
+    not at the top: a plain-script test loads this file with runpy in Newton's own Python, which has no pytest."""
+    import pytest
     refusal = sandbox_refusal(os.environ)
     if refusal:
         pytest.exit(f"refused: {refusal}. Tests run in a sandbox home: PROPS_HOME=$(mktemp -d) (make tests gives "
