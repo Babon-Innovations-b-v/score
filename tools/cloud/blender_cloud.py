@@ -83,6 +83,9 @@ IDLE_MINUTES = 10
 # backends/local.py RUNS_AT_ONCE) can share an output folder (a bake row's `made`), which a copy must not read while
 # another job's outputs are still arriving into it.
 BRINGING = {}
+# The lines of a failed job's log and its machine's set-up log its error carries: the fault report shows the error,
+# not the log, and the job's folder can be gone by then (settle@airlock, 2026-10-29: failed blind).
+LOG_TAIL_LINES = 40
 
 
 def script_line(job, repo, blender):
@@ -203,6 +206,16 @@ def run_job(log_folder, host, number, job, card):
     return round(time.time() - began, 1), came
 
 
+def log_tail(log_folder, number):
+    """The last LOG_TAIL_LINES of job `number`'s log and of the machine's set-up log, each headed by its path."""
+    found = []
+    for log in (log_folder / "setup.log", log_folder / f"job{number}.log"):
+        if log.exists():
+            lines = log.read_text(errors="replace").strip().splitlines()[-LOG_TAIL_LINES:]
+            found.append(f"\nthe end of {log}:\n" + "\n".join(lines))
+    return "".join(found)
+
+
 def touched(machine, job):
     """Note the job's inputs and outputs on the machine, for its clean-up before it is parked."""
     machine.setdefault("paths", set()).update(str(pathlib.Path(local).resolve())
@@ -250,7 +263,7 @@ def serve(run, machine, queue, idle_minutes):
                 machine.setdefault("unit_seconds", []).append(seconds)
                 waiting[0].with_suffix(".done").write_text(str(seconds))
             except subprocess.CalledProcessError as failed:
-                waiting[0].with_suffix(".failed").write_text(f"{failed}; log: {log_folder}/job{waiting[0].stem}.log")
+                waiting[0].with_suffix(".failed").write_text(f"{failed}{log_tail(log_folder, waiting[0].stem)}")
             last = time.time()
 
 
@@ -265,7 +278,7 @@ def one_job(machine, share, card):
     try:
         seconds, came = run_job(log_folder, host, number, job, card is not None)
     except subprocess.CalledProcessError as failed:
-        spread.raise_for(failed.returncode, f"job {number} ({job['script']}, {log})")
+        spread.raise_for(failed.returncode, f"job {number} ({job['script']}){log_tail(log_folder, number)}")
     machine.setdefault("unit_seconds", []).append(seconds)
     if job.get("outputs") and not came:
         raise spread.JobFailed(f"job {number} ({job['script']}, {log}): its script ended well but none of its "
