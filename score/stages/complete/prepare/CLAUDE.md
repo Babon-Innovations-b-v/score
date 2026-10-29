@@ -15,8 +15,8 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   kept inventories, the hub's measured rates from the evidence's own sizes, `paper/evidence/compare-hub/sizes.json`). A place with none
   waits on inventory, no euros (`inventory.waiting`). A reading gives each row its size in metres (Gemini, from
   what it is and the picture, against the place's outline; SAM 3 gives only where, #10): a row's size is its reading's own
-  metres, unless his plan edit sized its item (`groups.row_size`: his edits counted, wide and deep as he laid them,
-  tall the reading's), else its plan item's (`groups.plan_sizes`) where the reading gave none; a plan's item is the
+  metres (`groups.row_size`; his edited items too: the plan is an estimate, the assembly fits each object to what it is
+  laid by, owner 2026-10-29, #72), else its plan item's (`groups.plan_sizes`) where the reading gave none; a plan's item is the
   footprint the object is laid in, so it places the object and never sizes its model (coordinator, 2026-10-25: the
   airlock's 0.1 m porch post was baked 0.48 by 1.7 m); a row the plan lays as a run or path (`groups.run_pieces`: several pieces counted or laid, a polygon round an edge; never several items each laying one of it within their lengths end to end, `groups.one_each`: the reading's metres are one of it, 2026-10-26: habitat's 2 m rugs were cut to 0.2 m strips) whose own metres are a line overrunning its item by one of its pieces (`groups.overruns`: never four doors on a door's item, 2026-10-26) measured the whole run, so it is made as one repeating piece, the run over its pieces, each side held to its item (`groups.run_piece`; 2026-10-25: the stairwell's 12 m conduit, the greenhouse's 50 m railing), and its close-up is drawn and checked at that piece (`groups.own_size`, its `read_size`); a row neither sizes has none. A row's box is SAM 3's, else Gemini's region from the same
   reading (`groups.boxed_by`, marked so in the hand-in). A model take with no box, a box that is the whole picture or
