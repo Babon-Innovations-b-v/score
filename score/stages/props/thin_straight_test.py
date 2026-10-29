@@ -24,7 +24,9 @@ test_a_code_build_carries_its_crop_where_it_lies_so_each_finish_has_faces_of_its
 face of its own on its ends). build ignoring its mask's drawn width (`if alpha is not None and alpha.any():` before
 drawn_section -> `if False:`) turns test_a_sweep_s_section_is_the_picture_s_where_its_box_s_cannot_show_it red
 (the pillar 0.22); drawn_section scaling every section to the drawn width (`drawn / found[sides].max()`) turns it
-red too (the flat run's section halved).
+red too (the flat run's section halved). code_builds keeping a build already made as it is (`thin_straight.rebuilt(...)`
+under `if False:`) turns test_the_pixal_row_builds_a_failed_thin_row_and_drops_its_close_up_gap red (the older
+builder's box kept).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/thin_straight_test.py
 """
@@ -140,7 +142,6 @@ def test_the_take_is_written_where_the_finish_route_and_the_likeness_row_read_it
     under = texture[np.clip(((1 - visual.uv[:, 1]) * tall).astype(int), 0, tall - 1),
                     np.clip((visual.uv[:, 0] * wide).astype(int), 0, wide - 1)]
     assert np.abs(np.median(under, axis=0) - [180, 30, 30]).max() <= 6, np.median(under, axis=0)  # the crop is a JPEG
-    assert thin_straight.textured_build("garage_pipe_1", pixal)
     # the paint replays the finish's turn from the slimmed file onto the final one (labels.finish_turn): none here
     with prop_data.tools("props/library", "props"):
         import labels
@@ -165,7 +166,7 @@ def test_a_code_build_carries_its_crop_where_it_lies_so_each_finish_has_faces_of
     the way its outline matches, in rings fine enough that the finish route's views (route_views, the model's own
     texture in colour regions, the regions the list labels and the split votes) see grey on its ends and red between;
     swept in one length it was 12 faces of one colour, and its caps' finish no part's (airlock's wall lamp,
-    2026-10-29). A build made before (its mark names no texture) is made again from its own crop by the Pixal3D row."""
+    2026-10-29)."""
     sys.path.append(str(REPO / "score/stages/surfaces"))
     import score.stages.surfaces as surfaces
     pixels = np.full((200, 600, 3), 140, dtype=np.uint8)
@@ -187,11 +188,6 @@ def test_a_code_build_carries_its_crop_where_it_lies_so_each_finish_has_faces_of
     ends, middle = np.abs(along[faces[seen]]) > 0.42, np.abs(along[faces[seen]]) < 0.3
     assert np.abs(np.median(colours[seen][ends], axis=0) - [90, 90, 90]).max() <= 12
     assert np.abs(np.median(colours[seen][middle], axis=0) - [180, 30, 30]).max() <= 12
-    mark = views / thin_straight.MARK
-    mark.write_text(json.dumps({key: value for key, value in json.loads(mark.read_text()).items() if key != "texture"}))
-    assert not thin_straight.textured_build("lamp_1", pixal)
-    thin_straight.rebuilt("lamp_1", lamp, 4000, pixal)
-    assert thin_straight.textured_build("lamp_1", pixal)
 
 
 def test_an_empty_mask_cuts_nothing(tmp_path):
@@ -240,8 +236,12 @@ def test_the_pixal_row_builds_a_failed_thin_row_and_drops_its_close_up_gap(tmp_p
     gaps = [entry["name"] for entry in json.loads((out / batch_gaps.FILE).read_text())["gaps"]]
     assert gaps == ["hose: no close-up passed"], gaps  # the coiled hose is no straight thing: still a gap
     assert asked == [["pipe"]]  # only the thin straight row is masked
-    pixal_row.make_pixal(inputs, out, 0, {})  # built already: kept, nothing masked again
+    import trimesh
+    built = trimesh.load(pixal / "g_pipe.glb", force="mesh").extents
+    trimesh.creation.box([1.0, 1.0, 1.0]).export(pixal / "g_pipe.glb")  # a build an older builder made
+    pixal_row.make_pixal(inputs, out, 0, {})  # built already: made again from its own crop, nothing masked again
     assert asked == [["pipe"]]
+    assert np.allclose(trimesh.load(pixal / "g_pipe.glb", force="mesh").extents, built)
 
 
 def test_a_thin_straight_row_whose_close_up_passed_is_built_in_code_and_never_goes_to_pixal3d(tmp_path, monkeypatch):

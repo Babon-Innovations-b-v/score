@@ -29,8 +29,8 @@ was made from: laid on from the way its outline matches the crop, on a sweep bui
 route's views see each colour where it lies, its list labels those regions with the close-up's finishes and its split
 gives each finish its part; the texture is measured, never shown (every finish a library surface). Made in one colour
 on 12 faces, a lamp bar's metal end caps were no part's and its likeness check's "close-up parts present" could never
-pass (2026-10-29). A build made before carries no texture (its mark names none, `textured_build`) and is made again
-from its own crop (`rebuilt`, by the Pixal3D row). A row SAM 3 finds no instance of is no build: it stays a gap. A path build of a
+pass (2026-10-29). A build already made is made again from its own crop by every run of the Pixal3D row (`rebuilt`),
+so a builder's fix reaches it (a lamp kept from before its section was the picture's read 0.408, 2026-10-29). A row SAM 3 finds no instance of is no build: it stays a gap. A path build of a
 rigid run (FITTED) carries its fittings made here on its one surface (`fittings`: an elbow at each bend, a tee at
 each fork, a clamp every BRACKET_GAP on a wall), finished by the finish route like the rest; score_lib's own pipe
 pieces, made by today's library methods, are to replace them (#55: every older piece is withdrawn since 2026-10-21).
@@ -674,11 +674,6 @@ def write_take(take, row, picture, faces, pixal, mask):
             "size": row["size"], "mask": str(mask), "texture": TEXTURE}
     (views / MARK).write_text(json.dumps(mark, indent=1))
     return views
-
-
-def textured_build(take, pixal):
-    """Whether the code build of `take` in `pixal` carries its crop as its texture (its mark names TEXTURE)."""
-    return json.loads((pixal / f"{take}.svviews" / MARK).read_text()).get("texture") == TEXTURE
 
 
 def rebuilt(take, row, faces, pixal):
