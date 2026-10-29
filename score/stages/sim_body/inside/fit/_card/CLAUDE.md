@@ -81,7 +81,10 @@ before that.
   Gate on heavy (host kinematics, 2026-10-29, build/4/gate.py): 12,333 rows x 1,483 unknowns, 283,149 nonzeros; the
   exact Jacobian equals scipy's 2-point to 8.0e-7 of a column (plan 1 %); level 2 with jac=exact against today's:
   constants 0.0011 mm, coordinates 3.2e-4 deg, cost 6.5e-10 relative, both 24 evaluations, status 2; 6.4 s against
-  36.7 s (a Jacobian 0.20 s on the host, 1.7 s by differences). Not wired in: `_constants.staged` still differences.
+  36.7 s (a Jacobian 0.20 s on the host, 1.7 s by differences). With the card's kinematics: 5.2e-6 of a column;
+  constants 0.019 mm, coordinates 5.8e-4 deg, cost 8.7e-9 relative, 6.2 s against 35.5 s; a Jacobian still 0.20 s,
+  so the time is `frame_rows`' host assembly (a dense frame block over every unknown, then csr), not the kinematics.
+  Not wired in: `_constants.staged` still differences.
 - One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
   the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the
