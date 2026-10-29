@@ -22,16 +22,16 @@ before that.
   eval_fk maths), for the residuals; `_objective.wide_residuals` gives both objectives' residuals in float64 on them.
 - `_solve.py` (`solved`, `NotConverged`): the loop (Newton's analytic Jacobian in float32, the residuals and the stop
   rule's cost in float64 (`_forward`), the damped step, Newton's integrate, the projection; root quaternion order
-  converted on the card), a row stopping when its reduced step is under 1e-6 or its cost moved under 1e-7 of itself
+  converted on the card), a row stopping when its reduced step is under 1e-6 or its cost moved under 1e-9 of itself
   over two steps; NotConverged at 300. Measured 2026-10-29 on the proto clip (136 frames, each row seeded as mink's
   frame was), float32 residuals: angles 0.020 deg and sites 0.029 mm max, all in elv_angle_l/r (the shoulder's
   elevation plane near the hanging arm, a flat direction); mink's answer is the float64 minimum there (scipy's least
   squares at 1e-15 from both answers lands on mink's to 4e-5 deg and 0.0002 mm), so the miss is the card's. With the
-  residuals in float64: angles 0.012 deg, sites 0.017 mm (2 frames over the plan's 0.01), cost ratio 2.7e-8,
-  8 / 17 steps median / max. NOT yet equal; the tolerance stays. Speed with float32 residuals (one batch, no chunking
+  residuals in float64 and the cost stop at 1e-7: angles 0.012 deg, sites 0.017 mm (2 frames over); at 1e-9 (the
+  rule): EQUAL on every frame, angles 0.0025 deg, sites 0.0042 mm, cost ratio 2.2e-8, couplings 1.3e-7 rad, ranges
+  held, 14 / 26 steps median / max (a step stop of 1e-8 never fires: 114 rows NotConverged at 300). Speed with float32 residuals (one batch, no chunking
   needed up to 12,784 rows): 1,925 rows/s at 1,088, 4,094 at 4,080, 6,889 at 12,784 (1.86 s, 2.7 GB on the card).
   Not in the test file yet; nothing replaces mink.
-- Still to come: the last 0.002 deg / 0.007 mm (the float32 Jacobian or state, or the stop rule), chunking above
-  ~30,000 rows, the clip test against mink in the test file.
+- Still to come: chunking above ~30,000 rows, the clip test against mink in the test file, the gate measure again.
 - One test file (`test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the CPU
   prototype's float64 maths; it needs Newton's Python and a CUDA card, else prints `skipped`.
