@@ -388,7 +388,13 @@ def test_the_sweep_drops_only_what_no_current_key_asks_for(monkeypatch, tmp_path
 
 def test_a_job_kept_as_copies_before_the_blobs_is_put_back_and_turned_into_blobs(monkeypatch, tmp_path):
     """env1 (2026-10-29): this PC's run kept its jobs as copies under 5a46a96e; the restart on the blob layout gets
-    them back, each turned into blobs at the same key on its first read, and the sweep never drops one before."""
+    them back, each turned into blobs at the same key on its first read, and the sweep never drops one before. The
+    store is reached through a link, as a frozen run's is (its home's store links the real one): the first restart
+    on the blob layout failed every bake there, the copies' resolved paths not under the folder as linked.
+    Break: tools/cloud/kept.py: 'stored(files_under(outputs), outputs)' ->
+    'stored(files_under(outputs), place / "outputs")' -> ValueError: not in the subpath."""
+    (tmp_path / "real-store").mkdir()
+    (tmp_path / "store").symlink_to(tmp_path / "real-store")
     folder = attempt(monkeypatch, tmp_path, "first")
     job = frames(folder, 0)
     slot, content, _ = kept.identity(job, SYSTEM)
