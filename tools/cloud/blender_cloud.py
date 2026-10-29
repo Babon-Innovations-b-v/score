@@ -47,6 +47,7 @@ Under SCORE_CLOUD=k8s the same calls run each job as a Kubernetes Job of the ble
 import argparse
 import contextlib
 import functools
+import hashlib
 import json
 import os
 import pathlib
@@ -90,6 +91,15 @@ ACTIVE = {}
 # The lines of a failed job's log and its machine's set-up log its error carries: the fault report shows the error,
 # not the log, and the job's folder can be gone by then (settle@airlock, 2026-10-29: failed blind).
 LOG_TAIL_LINES = 40
+# A job's memory, predicted from its inputs before it starts: every input picture decoded (width x height x 4 bytes,
+# from its header alone) plus PREDICTED_BASE for Blender and the scene. Round 23: base's light passes (271 full-size
+# maps, 27.3 GB decoded) needed about 29 GB and filled this PC's container in 35 s. On this PC a job predicted past
+# the container's whole memory is refused by name before anything runs (too_big_here); each take's prediction and
+# whether it wrote its outputs go in its mark under TAKE_MARKS, which the runner's memory reserve reads (score/graph
+# take_peak).
+PREDICTED_BASE = 2 * 10**9
+PICTURE_SUFFIXES = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".webp", ".tga", ".bmp")
+TAKE_MARKS = HOME / "cloud" / "this-pc.takes"
 
 
 def script_line(job, repo, blender):
@@ -294,6 +304,69 @@ def serve(run, machine, queue, idle_minutes):
             last = time.time()
 
 
+@functools.cache
+def picture_bytes(path):
+    """What the picture at `path` takes decoded: width x height x 4, read from its header alone (a PNG's IHDR, else
+    PIL's lazy open, its pixel limit off: a 16k map is no bomb here and nothing is decoded)."""
+    with open(path, "rb") as picture:
+        head = picture.read(24)
+    if head[:8] == b"\x89PNG\r\n\x1a\n" and head[12:16] == b"IHDR":
+        return int.from_bytes(head[16:20], "big") * int.from_bytes(head[20:24], "big") * 4
+    from PIL import Image
+
+    Image.MAX_IMAGE_PIXELS = None
+    with Image.open(path) as opened:
+        return opened.width * opened.height * 4
+
+
+def input_pictures(job):
+    """Every picture file (PICTURE_SUFFIXES) among a job's inputs, in its input folders too."""
+    found = []
+    for local in map(pathlib.Path, job.get("inputs", ())):
+        for path in [local] if local.is_file() else (local.rglob("*") if local.is_dir() else ()):
+            if path.suffix.lower() in PICTURE_SUFFIXES and path.is_file():
+                found.append(path)
+    return found
+
+
+def predicted_bytes(job):
+    """A job's memory, predicted from its inputs: PREDICTED_BASE plus each input picture decoded (picture_bytes)."""
+    return PREDICTED_BASE + sum(map(picture_bytes, input_pictures(job)))
+
+
+def too_big_here(jobs):
+    """On this PC (SCORE_CLOUD=local) why the jobs cannot start, naming each one predicted (predicted_bytes) past the
+    container's whole memory (local.memory_cap); None when every one fits, or off this PC."""
+    if cloud.NAME != "local":
+        return None
+    room = int(cloud.memory_cap()[:-1]) * 2**30
+    over = [(number, job, predicted_bytes(job)) for number, job in enumerate(jobs)]
+    lines = [f"Blender job {number} ({job['script']}) is predicted to need {need / 1e9:.1f} GB "
+             f"({len(input_pictures(job))} input pictures decoded, plus {PREDICTED_BASE / 1e9:.0f} GB) and this PC's "
+             f"machine has {room / 1e9:.1f} GB: not started; it needs a bigger machine, a priced ask"
+             for number, job, need in over if need > room]
+    return "\n".join(lines) or None
+
+
+def take_key(arguments):
+    """A take's key: the hash of its script's arguments, the same as score/graph take_key's (which reads them from
+    the take's command line in the container)."""
+    return hashlib.sha256("\0".join(arguments).encode()).hexdigest()[:16]
+
+
+def mark_take(job, **ended):
+    """On this PC, the job's take mark for the runner's memory reserve (TAKE_MARKS/<take_key>.json): its kind, its
+    predicted bytes and, once it ended, `ended` (wrote: whether every output came back)."""
+    if cloud.NAME != "local":
+        return
+    TAKE_MARKS.mkdir(parents=True, exist_ok=True)
+    mark = TAKE_MARKS / f"{take_key([str(argument) for argument in job.get('args', ())])}.json"
+    spare = mark.with_suffix(f".{os.getpid()}")
+    spare.write_text(json.dumps({"kind": pathlib.PurePosixPath(job["script"]).name, "predicted": predicted_bytes(job),
+                                 **ended}))
+    os.replace(spare, mark)
+
+
 def one_job(machine, share, card):
     """One of a spread run's jobs on a machine: a script that fails raises spread.JobFailed, a machine that stops
     answering a ConnectionError; a script that ended well and brought none of its outputs back failed too (it wrote
@@ -302,11 +375,14 @@ def one_job(machine, share, card):
     log_folder, host = machine["folder"], machine["host"]
     log = log_folder / f"job{number}.log"
     touched(machine, job)
+    mark_take(job)
     try:
         seconds, came, keeping = run_job(log_folder, host, number, job, card is not None)
     except subprocess.CalledProcessError as failed:
+        mark_take(job, wrote=False)
         spread.raise_for(failed.returncode, f"job {number} ({job['script']}){log_tail(log_folder, number)}",
                          killed=killed_in(log))
+    mark_take(job, wrote=came == len(job.get("outputs", ())))
     machine.setdefault("unit_seconds", []).append(seconds)
     if job.get("outputs") and not came:
         raise spread.JobFailed(f"job {number} ({job['script']}, {log}): its script ended well but none of its "
@@ -508,6 +584,9 @@ def main():
         jobs = still_to_run(jobs)
         if not jobs:
             return
+        refused = too_big_here(jobs)
+        if refused:
+            raise SystemExit(refused)
     classes = options.classes.split(",") if options.classes else DEFAULT_CLASSES
     if provider.on_cluster():
         main_on_cluster(options, jobs, classes)

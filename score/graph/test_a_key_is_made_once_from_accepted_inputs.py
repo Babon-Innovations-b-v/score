@@ -2005,14 +2005,15 @@ GIGA = 10**9
 
 def a_container_job(proc, session, kind, resident_gb, high_gb):
     """A job in the fake `proc` folder: its ssh session `session` under the container's sshd (pid 10), and one
-    Blender running `kind` under it, `resident_gb` resident now and `high_gb` its VmHWM."""
+    Blender running `kind` under it, `resident_gb` resident now and `high_gb` its VmHWM, its script's argument
+    `take-<session>` (its take key: take_key(["take-<session>"]))."""
     page = os.sysconf("SC_PAGE_SIZE")
     a_process(proc, session, 10, 0)
     (proc / str(session) / "cmdline").write_bytes(b"sshd: root@notty\0")
     (proc / str(session) / "status").write_text("Name:\tsshd\nVmHWM:\t0 kB\n")
     a_process(proc, session + 1, session, int(resident_gb * GIGA) // page)
-    (proc / str(session + 1) / "cmdline").write_bytes(b"/root/blender/blender\0-b\0--python\0/r/%s\0--\0x" %
-                                                      kind.encode())
+    (proc / str(session + 1) / "cmdline").write_bytes(b"/root/blender/blender\0-b\0--python\0/r/%s\0--\0take-%d\0" %
+                                                      (kind.encode(), session))
     (proc / str(session + 1) / "status").write_text(f"Name:\tblender\nVmHWM:\t{int(high_gb * GIGA) // 1024} kB\n")
 
 
@@ -2022,18 +2023,17 @@ def test_the_container_reserves_what_its_running_takes_may_still_grow_to_and_eac
     three takes holding 1.2 to 3.2 GB, and 108 ready nodes waited with 24.6 GB available. A fake container (its sshd 10
     under 1 outside it; an idle ssh session 40 and an rsync session 50 run no script) runs paint_bake.py takes 20 (5 GB
     now, peaked 6) and 30 (1 GB, peaked 2), its room 20 GB: no take seen yet in any claim, the whole room; seen once,
-    each never-measured take TAKE_PEAK (8.5 GB) less what it holds, 3.5 + 7.5 = 11 GB. Take 30 ends: its 2 GB peak is
-    kept, the most jobs at once 2, so take 20 (5 GB) grows none and the idle slot 2 GB. With no client running, the
-    watched take 20 is kept as ended (6 GB); the kind's peak is then 6 GB (the p90 of 2 and 6, nearest rank), so take
-    20 alone grows 1 GB and the idle slot 6: 7 GB; a reserve is never more than the room (3 GB).
+    each take TAKE_PEAK (8.5 GB, none of the kind wrote its outputs yet) less what it holds, 3.5 + 7.5 = 11 GB, and
+    each one's highest reading kept under its key at once. Take 30 ends, its mark saying it wrote its outputs: its 2 GB
+    is kept as written and its mark removed; the kind has fewer than TAKES_TRUSTED (5) written takes, so take 20 (5 GB)
+    still grows 3.5 and the idle slot 8.5: 12 GB; a reserve is never more than the room (3 GB).
     Break: score/graph/__init__.py: '    growth = sum(max(0, peak - holds) for peak, (_, holds, _) in zip(peaks, jobs.values()))'
-    -> '    growth = room' -> the whole room again.
-    Break: score/graph/__init__.py: '            watch[job] = (kind, max(high, watch.get(job, (kind, 0))[1]))' ->
-    '            watch[job] = (kind, 0)' -> no peak kept for take 30."""
+    -> '    growth = room' -> the whole room again."""
     proc, cgroup = tmp_path / "proc", tmp_path / "cgroup"
     proc.mkdir()
     cgroup.mkdir()
     monkeypatch.setattr(graph, "PROC", str(proc))
+    monkeypatch.setattr(graph, "TAKE_MARKS", tmp_path / "marks")
     a_process(proc, 1, 0, 0)
     a_process(proc, 10, 1, 1)
     a_container_job(proc, 20, "paint_bake.py", 5, 6)
@@ -2047,29 +2047,72 @@ def test_the_container_reserves_what_its_running_takes_may_still_grow_to_and_eac
     (cgroup / "memory.max").write_text(f"{30 * GIGA}\n")
     (cgroup / "memory.stat").write_text(f"anon {10 * GIGA}\nfile 0\n")
     page = os.sysconf("SC_PAGE_SIZE")
+    take_20, take_30 = graph.take_key(["take-20"]), graph.take_key(["take-30"])
     jobs = graph.container_jobs(cgroup)
-    assert jobs == {20: ("paint_bake.py", 5 * GIGA // page * page, 6 * GIGA // 1024 * 1024),
-                    30: ("paint_bake.py", 1 * GIGA // page * page, 2 * GIGA // 1024 * 1024)}, jobs
+    high_20, high_30 = 6 * GIGA // 1024 * 1024, 2 * GIGA // 1024 * 1024
+    assert jobs == {take_20: ("paint_bake.py", 5 * GIGA // page * page, high_20),
+                    take_30: ("paint_bake.py", 1 * GIGA // page * page, high_30)}, jobs
     assert graph.container_room(cgroup) == 20 * GIGA
-    assert graph.container_reserve(20 * GIGA, jobs, {}, 0) == 20 * GIGA
-    runner, watch = a_driven_runner({"hangar": "a ship"}), {}
+    empty = {"written": {}, "unwritten": {}, "open": {}, "slots": 0}
+    assert graph.container_reserve(20 * GIGA, jobs, empty) == 20 * GIGA
+    runner = a_driven_runner({"hangar": "a ship"})
     near = functools.partial(pytest.approx, abs=2 * page)
-    assert runner.container_growth((20 * GIGA, jobs), watch) == near(11 * GIGA)  # 3.5 + 7.5
-    assert runner.container_takes() == {"takes": {}, "slots": 2}
-    alone = {20: jobs[20]}
-    assert runner.container_growth((20 * GIGA, alone), watch) == near(2 * GIGA)  # past its 2 GB peak; idle 2
-    assert runner.container_takes()["takes"] == {"paint_bake.py": [2 * GIGA // 1024 * 1024]}
-    bake = types.SimpleNamespace(name="bake", grain="place")
-    process = types.SimpleNamespace(pid=7, is_alive=lambda: True)
-    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
-    monkeypatch.setattr(graph, "CONTAINED", lambda pid: False)
-    monkeypatch.setenv(*graph.THIS_PC)
-    runner.coming({0: (bake, "hangar", process)}, {}, {}, watch)  # no client: take 20 ended
-    takes = runner.container_takes()["takes"]["paint_bake.py"]
-    assert takes == [2 * GIGA // 1024 * 1024, 6 * GIGA // 1024 * 1024] and not watch, takes
-    assert graph.take_peak({"paint_bake.py": takes}, "paint_bake.py") == takes[1]
-    assert runner.container_growth((20 * GIGA, alone), {}) == near(1 * GIGA + 6 * GIGA)
-    assert runner.container_growth((3 * GIGA, alone), {}) == 3 * GIGA
+    assert runner.container_growth((20 * GIGA, jobs)) == near(11 * GIGA)  # 3.5 + 7.5
+    assert runner.container_takes() == {"written": {}, "unwritten": {}, "slots": 2, "open": {
+        take_20: ["paint_bake.py", high_20, None], take_30: ["paint_bake.py", high_30, None]}}
+    (tmp_path / "marks").mkdir()
+    (tmp_path / "marks" / f"{take_30}.json").write_text(json.dumps({"kind": "paint_bake.py", "wrote": True}))
+    alone = {take_20: jobs[take_20]}
+    assert runner.container_growth((20 * GIGA, alone)) == near(3.5 * GIGA + 8.5 * GIGA)
+    kept = runner.container_takes()
+    assert kept["written"] == {"paint_bake.py": [high_30]} and list(kept["open"]) == [take_20], kept
+    assert not (tmp_path / "marks" / f"{take_30}.json").exists()
+    assert runner.container_growth((3 * GIGA, alone)) == 3 * GIGA
+    assert graph.take_key(["/a", "/b"]) == "148c32fbefbb40c1"  # tools/cloud/blender_cloud.py's test asserts the same
+
+
+def test_a_stopped_take_keeps_its_peak_and_takes_that_wrote_nothing_never_lower_the_reserve(tmp_path, monkeypatch):
+    """Round 23: base's light passes take (light_passes.py) held 21 GB in 35 s and the run was paused mid-take, so
+    its peak was never kept; its kind's kept peaks (0.06 to 2.05 GB) all came from renders that failed early. The take
+    read at 21 GB, then gone with no word (its runner stopped): its reading is kept at once and still counts, and
+    SETTLE_SECONDS later it settles as a take that wrote nothing, its 21 GB the kind's peak. For paint_bake.py six
+    takes of 1 GB that failed (their marks: wrote false) and four of 1 GB that wrote their outputs leave its peak at
+    TAKE_PEAK (fewer than TAKES_TRUSTED written); a fifth written take of 1 GB makes it 1 GB. A running take whose
+    mark predicts 29 GB from its inputs reserves 29 GB less the 1 GB it holds.
+    Break: score/graph/__init__.py: '[kind, max(high, kept["open"].get(key, [kind, 0, None])[1]), None]' ->
+    '[kind, 0, None]' -> the stopped take's 21 GB is lost.
+    Break: score/graph/__init__.py: 'TAKE_PEAK if len(measured) < TAKES_TRUSTED else 0' -> '0' -> 1 GB from four takes.
+    Break: score/graph/__init__.py: '    side = "written" if wrote else "unwritten"' -> '    side = "written"' -> the
+    failed takes lower the reserve to 1 GB.
+    Break: score/graph/__init__.py: 'take_mark(key).get("predicted", 0)' -> '0' -> 21 GB less 1, not 29 less 1."""
+    marks = tmp_path / "marks"
+    marks.mkdir()
+    monkeypatch.setattr(graph, "TAKE_MARKS", marks)
+    runner = a_driven_runner({"hangar": "a ship"})
+    light = graph.take_key(["/base.usda", "/views.json", "/passes"])
+    runner.keep_takes({light: ("light_passes.py", 20 * GIGA, 21 * GIGA)}, 1000.0)
+    kept = runner.keep_takes({}, 1010.0)  # the run paused: the take is gone, no word of it
+    assert kept["open"] == {light: ["light_passes.py", 21 * GIGA, 1010.0]}, kept
+    assert graph.take_peak(kept, "light_passes.py") == 21 * GIGA
+    kept = runner.keep_takes({}, 1010.0 + graph.SETTLE_SECONDS)
+    assert kept["unwritten"] == {"light_passes.py": [21 * GIGA]} and not kept["open"], kept
+    assert graph.take_peak(kept, "light_passes.py") == 21 * GIGA
+
+    def ended(name, wrote):
+        key = graph.take_key([name])
+        runner.keep_takes({key: ("paint_bake.py", GIGA, GIGA)}, 2000.0)
+        (marks / f"{key}.json").write_text(json.dumps({"kind": "paint_bake.py", "wrote": wrote}))
+        return runner.keep_takes({}, 2001.0)
+    for number in range(6):
+        ended(f"failed-{number}", False)
+    for number in range(4):
+        kept = ended(f"wrote-{number}", True)
+    assert graph.take_peak(kept, "paint_bake.py") == graph.TAKE_PEAK, kept
+    assert graph.take_peak(ended("wrote-4", True), "paint_bake.py") == GIGA
+    rendering = graph.take_key(["/garage.usda"])
+    (marks / f"{rendering}.json").write_text(json.dumps({"kind": "light_passes.py", "predicted": 29 * GIGA}))
+    assert graph.container_reserve(40 * GIGA, {rendering: ("light_passes.py", GIGA, GIGA)},
+                                   runner.container_takes()) == 28 * GIGA
 
 
 def test_an_ended_node_holds_no_memory_and_one_that_ran_a_container_client_keeps_the_default(tmp_path, monkeypatch):
