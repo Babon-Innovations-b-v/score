@@ -25,5 +25,9 @@ held-out rule (within 10 % of the tuning bodies).
   All 70 tuning cases (same constants): equal to the per-case card path on all 70 (skins exact, joints within
   1.1e-3 mm), against the CPU the same 3 cases one to three hand vertex-frames off as the per-case card's (joints
   within 3.3e-3 mm); one process 102 s wall against the per-case card's 237 s and the CPU's 447 s (4 processes each).
+- `_card_sets.py <seeds root> <sets root> ...` (card build step 6a) runs every set of one level 1 Jacobian
+  (`tuning._differences.nudged`'s, the base point first: <sets root>/<set>/ holds its table, weights and rest) in one card
+  process, `_card_batch.body_run` per set and body, each nudged set seeded from the base point's own angles. Level 2
+  and the set-up still run per (set, body): G = 137 groups, so 138 sets a Jacobian; not yet batched across sets.
 - Judged on following SOMA, never on landmark distances; `fit._frozen` is never edited to follow the tree's calibration.
 - Test: `test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py` (a toy worker, any Python with numpy and scipy).
