@@ -182,7 +182,8 @@ def bake_job_step(inputs, out):
     labelled = out / "labelled" / take
     head = json.loads(inputs[HEAD].read_text())
     built = bake_job.code_built(take, inputs[place_line.HOME])
-    entries = {model: dict(bake_job.entry_of(model, data["bake"].get("entries", {}).get(model), labelled, built),
+    box = bake_job.drawn_box(take, [path for name, path in inputs.items() if name.startswith("inventory ")])
+    entries = {model: dict(bake_job.entry_of(model, data["bake"].get("entries", {}).get(model), labelled, built, box),
                            name=model, parts=str(labelled), regions=[])
                for model in head.pop("models")}
     (out / "entries").mkdir(exist_ok=True)

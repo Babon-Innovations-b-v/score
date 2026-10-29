@@ -60,9 +60,10 @@ def measured_turn(labelled, size):
     return TURNS[min(TURNS, key=misfit)]
 
 
-def entry_of(model, inline, labelled, built=False):
+def entry_of(model, inline, labelled, built=False, box=None):
     """One model's make_chunky entry: `inline` (the surface data's own), turned by measured_turn over `labelled` (its
-    labelled take) when it says no turn (module docstring); `built`: its take is a code build (code_built)."""
+    labelled take) when it says no turn (module docstring); `built`: its take is a code build (code_built); `box`: its
+    row's SAM 3 box on its concept (drawn_box), which a Pixal3D take's width against its height follows (boxed)."""
     if isinstance(inline, str):
         raise NoEntry(f"no entry for {model}: the data names a job file ({inline}); write its entry out or drop it")
     if inline is None:
@@ -72,7 +73,50 @@ def entry_of(model, inline, labelled, built=False):
     if labelled is None:
         raise NoTake(f"no entry for {model}: no labelled take to measure its turn over")
     base = measured_turn(labelled, inline["size"])
-    return dict(inline, name=model, base=base, size=laid_size(labelled, inline["size"], base, built))
+    size = inline["size"] if built else boxed(inline["size"], box, own_ratio(labelled, inline["size"], base))
+    return dict(inline, name=model, base=base, size=laid_size(labelled, size, base, built))
+
+
+def own_ratio(labelled, size, base):
+    """The labelled take's own width over its height, turned by `base` (place_route.made_size)."""
+    wide, tall, _ = place_route.made_size(labelled, size, 90 if base == TURNS[90] else 0)
+    return wide / tall
+
+
+def boxed(size, box, own):
+    """A Pixal3D take's kit size (x wide, y tall, z deep): where its row's SAM 3 `box` ([left, top, right, bottom]
+    pixels) disagrees with the row's width over height by more than the model gate's SPREAD_LIMIT and its take's `own`
+    width over height agrees with the box within it (the picture and the model both against the row), those two sides
+    at the take's own ratio, the longer of them kept; its depth, which a picture cannot show, as the row says. A size
+    whose depth is its longest, no box, or one source alone against the row, as it is (owner, 2026-10-29, "Yes, land
+    the rule": 65 of env1's baked Pixal3D models then, base's two astronauts 2.0 and 1.8 times off their rows)."""
+    if not box or not own or box[2] <= box[0] or box[3] <= box[1]:
+        return size
+    wide, tall, deep = (float(side) for side in size)
+    drawn, said, limit = (box[2] - box[0]) / (box[3] - box[1]), wide / tall, model_gate().SPREAD_LIMIT
+    if deep > max(wide, tall) or off(drawn, said) <= limit or off(own, drawn) > limit:
+        return size
+    wide, tall = (tall * own, tall) if tall >= wide else (wide, wide / own)
+    return [round(wide, 3), round(tall, 3), deep]
+
+
+def off(ratio, other):
+    """How far one ratio is from another, the larger over the smaller less one (the model gate's spread)."""
+    return max(ratio / other, other / ratio) - 1
+
+
+def drawn_box(take, inventories):
+    """The SAM 3 box of the row whose prop object is `take`, from the hand-ins (`inventories`, prepare's: its rows
+    and objects), or None."""
+    for path in inventories:
+        if not pathlib.Path(path).is_file():
+            continue
+        record = json.loads(pathlib.Path(path).read_text())
+        rows = {row["id"]: row for row in record.get("rows", [])}
+        for row, entry in record.get("objects", {}).items():
+            if entry.get("take") == take and row in rows:
+                return rows[row].get("box")
+    return None
 
 
 def code_built(take, home):
@@ -90,12 +134,17 @@ def code_mark(take, home):
 def slender(size):
     """The model gate's slender rule on a kit size (tools/props/gates/model.py shape_class: its middle side under
     SLENDER_SHARE of its longest)."""
+    smallest, middle, largest = sorted(float(side) for side in size)
+    return largest > 0 and middle / largest < model_gate().SLENDER_SHARE
+
+
+def model_gate():
+    """tools/props/gates/model.py, loaded by its path."""
     import importlib.util
     spec = importlib.util.spec_from_file_location("model_gate", place_route.HERE.parent / "gates" / "model.py")
     gate = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gate)
-    smallest, middle, largest = sorted(float(side) for side in size)
-    return largest > 0 and middle / largest < gate.SLENDER_SHARE
+    return gate
 
 
 def laid_size(labelled, size, base, built=False):

@@ -213,7 +213,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   against its row: `bake_job.measured_turn`; the people line's as written; a slender row's, or a code build's (its
   take's code.json route "code", sent with its job: `bake_job.code_built`), at its labelled take's own proportions,
   one scale, its longest side the row's, never fitted side by side to its box: `bake_job.laid_size`, 2026-10-29,
-  airlock's locker lamp built 0.046 m across its 0.1 m box, outline 0.813 built, 0.409 baked fitted), at near density (`route.NEAR`,
+  airlock's locker lamp built 0.046 m across its 0.1 m box, outline 0.813 built, 0.409 baked fitted; a Pixal3D take's
+  width for its height its own where both its row's SAM 3 box, read from the hand-in its job is sent, and its take
+  disagree with its row by more than the model gate's spread, its longer side and depth the row's: `bake_job.boxed`,
+  owner 2026-10-29, "Yes, land the rule", 65 of env1's baked Pixal3D models), at near density (`route.NEAR`,
   `route.CHUNKY_FACES`), the specs every library variant (`palette_library.specs`, at the scene palette's wear and
   dirt), so a variant added anywhere re-keys every bake. Nothing else is read for an entry: the kit rooms' and
   outside places' own entries (old kits, inventories, the kinds' details, composites) went with them on 2026-10-21. A

@@ -124,6 +124,23 @@ def model_checks(path, size, kind, square):
     return found
 
 
+def drawn_size(row, model):
+    """A Pixal3D take's row size (wide, deep, tall) as the bake lays it: its width against its height its baked
+    `model`'s own (x wide, y tall) where both its SAM 3 box and that model disagree with the row
+    (score/stages/surfaces/bake_job.py boxed, loaded by its path)."""
+    import importlib.util
+    with prop_data.tools("props/library", "props"):
+        spec = importlib.util.spec_from_file_location(
+            "bake_job", prop_data.REPO / "score/stages/surfaces/bake_job.py")
+        bake_job = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(bake_job)
+    points, _ = likeness.gltf_mesh(model)
+    extents = points.max(0) - points.min(0)
+    wide, deep, tall = row["size"]
+    wide, tall, deep = bake_job.boxed([wide, tall, deep], row.get("box"), extents[0] / max(extents[1], 1e-9))
+    return [wide, deep, tall]
+
+
 def pixal_cut(path, folder, row):
     """A prop object's close-up as its take's Pixal3D input cut it out, its object made one piece with its holes filled
     as compare.closeup_mask makes every other cut (a rack's open frame stays one silhouette: storage's cargo rack, cut
@@ -197,7 +214,8 @@ def object_record(row, record, inputs, baked, parts, rows, square, cuts):
     kind = f"{place}_{row}"
     drawn = rows[row].get("read_size") or rows[row]["size"]
     found.update(model=str(model), closeup=str(closeup), **likeness.best_way(model, closeup, drawn),
-                 **model_checks(model, rows[row]["size"], kind, route == "prop" and kind in square))
+                 **model_checks(model, rows[row]["size"] if "made" in found else drawn_size(rows[row], model), kind,
+                                route == "prop" and kind in square))
     # a code build's parts: None, unknown (nothing measures them since the code fallback's parts check went)
     lit = thin_built(inputs, row) and thin_straight.slender_light(rows[row])
     found["parts_missing"] = finishes_missing(record["objects"][row]["take"], parts, lit) if route == "prop" else None

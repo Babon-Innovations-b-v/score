@@ -198,6 +198,10 @@ tests it turned red:
   an_entry_the_data_writes_out_is_taken_as_written_and_a_model_with_none_stops_the_bake
 - bake_job.py: `return TURNS[min(TURNS, key=misfit)]` -> `return TURNS[0]`  ->
   a_design_entry_written_without_a_turn_is_turned_by_its_take_s_measured_footprint
+- bake_job.py: `size = inline["size"] if built else boxed(...)` -> `size = inline["size"]` (no correction), `off(drawn,
+  said) <= limit or` dropped from boxed (a box within the row's spread corrects), or `or off(own, drawn) > limit`
+  dropped (the box alone corrects)  -> a_pixal3d_take_keeps_its_own_width_for_height_
+  only_where_its_box_and_take_both_disagree_with_its_row
 - bake_job.py: `if built or slender(size):` -> `if slender(size):` (laid_size)  ->
   a_code_build_bakes_at_its_own_section_its_longest_side_the_row_s; -> `if False:`  -> that one and
   a_slender_design_entry_keeps_its_take_s_own_proportions_its_longest_side_the_row_s
@@ -2646,6 +2650,39 @@ def test_a_code_build_bakes_at_its_own_section_its_longest_side_the_row_s(stand_
         mark.write_text(json.dumps({"route": "code", "rule": "thin straight (owner, 2026-10-25)"}))
         _, (entry,) = place_line.bake_entries({"surfaces": surfaces}, {"lamp-t1": labelled})
         assert entry["base"] == bake_job.TURNS[0] and entry["size"] == [0.4, 0.046, 0.046], entry
+    finally:
+        shutil.rmtree(folder)
+
+
+def test_a_pixal3d_take_keeps_its_own_width_for_height_only_where_its_box_and_take_both_disagree_with_its_row(
+        stand_in_library):
+    """garage's stool: its row 0.4 by 0.4 by 0.5 m (0.8 wide for its height), its SAM 3 box 67 by 122 px (0.55), its
+    take 0.57 (a constructed case: the real take is laid on its side by its paint). Box off the row by more than the
+    model gate's spread and the take agreeing with the box within it, so the bake lays it at the take's
+    own width for its height, its height (the longer) and depth the row's (owner, 2026-10-29, "Yes, land the rule").
+    A box alone or a take alone against the row, or a size whose depth is its longest side, keeps the row."""
+    folder = a_folder()
+    try:
+        def entry_for(take_extents, box):
+            labelled = folder / "labelled" / "stool-t1"
+            if labelled.exists():
+                shutil.rmtree(labelled)
+            a_box_take(folder, "stool-t1", take_extents)
+            handin = written(folder, "handin", {"rows": [{"id": "stool", "size": [0.4, 0.4, 0.5], "box": box}],
+                                                "objects": {"stool": {"route": "prop", "take": "stool-t1"}}})
+            surfaces = written(folder, "surfaces", {"place": "garage", "library": "garage", "bake": {
+                "models": {"stool_1": "stool-t1"}, "entries": {"stool_1": {"size": [0.4, 0.5, 0.4], "faces": 5000,
+                                                                           "foot": 0.0}}}})
+            _, (entry,) = place_line.bake_entries({"surfaces": surfaces, "inventory garage": handin},
+                                                  {"stool-t1": labelled})
+            return entry["size"]
+        assert entry_for((0.498, 0.868, 0.502), [927, 603, 994, 725]) == [0.287, 0.5, 0.4]  # both: the take's
+        assert entry_for((0.4, 0.5, 0.4), [927, 603, 994, 725]) == [0.4, 0.5, 0.4]  # the box alone
+        assert entry_for((0.498, 0.868, 0.502), [0, 0, 80, 100]) == [0.4, 0.5, 0.4]  # the take alone
+        assert bake_job.boxed([0.4, 0.5, 0.4], [0, 0, 70, 100], 0.6) == [0.4, 0.5, 0.4]  # the box within the row's
+        assert bake_job.boxed([0.4, 0.5, 0.4], [0, 0, 55, 100], 0.7) == [0.4, 0.5, 0.4]  # the take within the row's
+        assert bake_job.boxed([1.0, 1.0, 4.0], [0, 0, 100, 10], 3.0) == [1.0, 1.0, 4.0]  # its depth its longest side
+        assert bake_job.boxed([4.0, 1.0, 1.0], [0, 0, 100, 50], 2.0) == [4.0, 2.0, 1.0]  # wide: its height moves
     finally:
         shutil.rmtree(folder)
 
