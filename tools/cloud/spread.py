@@ -16,7 +16,8 @@ shares left to the others or in `shares.waiting` as gaps. Under a run's card poo
 whose pool card died (stopped answering, batch.answers) goes back on the queue once (`Shares.again`) and the slot takes
 the pool's next card while shares wait; a second death makes it a gap. A share that failed on a pool card that still
 answers is a gap and the card works on; a pool card that failed in set-up is followed by one more, never a third. A machine runs capacity.runs_at_once shares on
-each card at once. Every machine is armed to delete itself if this PC goes quiet, hears this PC's heartbeat each
+each card at once; a claim on this PC's shared machine one a turn it holds, each turn let go when its slot has no
+share left (backends/local.py SHARED). Every machine is armed to delete itself if this PC goes quiet, hears this PC's heartbeat each
 minute, and is deleted when it has no more work; the run's ledger rows are the runner's (run.machines and
 run.attempts, as for one machine).
 """
@@ -111,8 +112,11 @@ class Shares:
 
 def slots(kind, machine, at_once=None):
     """The cards a machine's shares run on, one entry a share at once: runs_at_once on each card; on a processor
-    machine None, `at_once` times (one unless the runner says)."""
+    machine None, `at_once` times (one unless the runner says). A claim on a shared machine (this PC's, its
+    `turns`: backends/local.py SHARED) runs one share a turn it holds, on its first card."""
     cards = provider.cards(machine["class"])
+    if machine.get("turns"):
+        return [0 if cards else None] * machine["turns"]
     if not cards:
         return [None] * (at_once or 1)
     return [card for card in range(cards) for _ in range(capacity.runs_at_once(kind, machine["class"]))]
@@ -143,14 +147,27 @@ def work_slot(machine, shares, do, card, broken):
             batch.say(f"{machine['folder'].name} failed ({error}); its share is a gap")
 
 
+def work_turn(machine, shares, do, card, broken):
+    """work_slot, then the slot's turn on a shared machine let go (backends/local.py let_go_turn), so another claim's
+    job takes it as soon as this claim has no share left for it, not when its last share ends."""
+    try:
+        work_slot(machine, shares, do, card, broken)
+    finally:
+        if machine.get("turns"):
+            provider.cloud.let_go_turn(machine["id"])
+
+
 @contextlib.contextmanager
 def tended(run, machine):
     """A machine a runner works itself, armed to delete itself if this PC goes quiet and hearing its heartbeat while
-    the block runs (its host), deleted after whatever happens."""
+    the block runs (its host), deleted after whatever happens. Its jobs run one at a time, so a claim on a shared
+    machine keeps one of its turns and lets the others go."""
     import pictures
 
     stop = threading.Event()
     try:
+        for _ in range(machine.get("turns", 1) - 1):
+            provider.cloud.let_go_turn(machine["id"])
         host = machine["host"]
         batch.arm_self_delete(machine["folder"], host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
         threading.Thread(target=pictures.keep_beating, args=(machine["folder"], host, stop), daemon=True).start()
@@ -178,7 +195,7 @@ def tend(run, machine, kind, shares, prepare, do, at_once=None):
         cards = slots(kind, machine, at_once)
         batch.say(f"{folder.name} ({machine['type']}, {machine['zone']}) ready after "
                   f"{(time.time() - (machine.get('adopted') or machine['created'])) / 60:.1f} min, {len(cards)} at once")
-        workers = [threading.Thread(target=work_slot, args=(machine, shares, do, card, broken)) for card in cards]
+        workers = [threading.Thread(target=work_turn, args=(machine, shares, do, card, broken)) for card in cards]
         for worker in workers:
             worker.start()
         for worker in workers:

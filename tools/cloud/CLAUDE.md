@@ -33,8 +33,12 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   rented machine, so no runner changes; never rented and never billed (its offers are `parked` at EUR 0, so
   `batch.rent` orders nothing, and `park.adopt` hands it out through `park.here`, no clearance asked, its ledger rows
   EUR 0 with the measured minutes), one claim at a time over the whole PC (a file lock; a busy claim waits and asks
-  again), inside it Blender jobs side by side as many as the container's memory holds at a take's measured peak
-  (`local.RUNS_AT_ONCE`, three in 27 GiB; env1, 2026-10-28: one take at a time left about 20 of 24 cores idle) with
+  again) but Blender's (`local.SHARED`), which share it across places: Blender jobs run side by side as many as the
+  container's memory holds at a take's measured peak (`local.RUNS_AT_ONCE`, three in 27 GiB; env1, 2026-10-28: one
+  take at a time left about 20 of 24 cores idle), one a turn (a lock file each) that a Blender claim takes while
+  free and lets go as its slot runs out of work, so several places' bake rows fill the turns together (2026-10-29:
+  26 bake rows waited on one place's claim); an exclusive claim that asks keeps new Blender claims out until it has
+  its turn, set-ups run one at a time (`local.setting_up`), and only the claim leaving the container alone restarts it; with
   every card call (the Cycles bake, a render) taking one of the card's two turns (`backends/card_turn.py`
   `CARD_SLOTS`, a Blender startup script each claim copies into the container; a bake call is mostly processor work,
   the card busy about 1 s of its 4 to 9, and two calls fit the card's memory), their outputs brought back and kept one job at a time a machine
