@@ -3132,10 +3132,12 @@ TEXT = (".py", ".html", ".css", ".js", ".yml", ".example", ".env", ".md", "")
 def provider_words():
     """The stems of the cloud backends and cluster modules, and the words of the providers the models adapter's
     paid APIs name (score/adapters/models API); a test file beside them (test_<invariant>.py) names none, nor does the
-    `local` backend (this PC, never rented: no provider, and "local" is the cockpit's own mode word)."""
+    `local` backend (this PC, never rented: no provider, and "local" is the cockpit's own mode word), nor
+    `card_turn` (no backend: the Blender startup script that shares the card's turns, backends overlay; its stem
+    "card" failed every overlay that says a card)."""
     stems = {path.stem.split("_")[0] for folder in ("tools/cloud/backends", "tools/cloud/k8s/clusters")
              for path in (REPO / folder).glob("*.py") if not path.stem.startswith(("_", "test_"))
-             and path.stem != "local"}
+             and path.stem not in ("local", "card_turn")}
     models = (REPO / "score/adapters/models/__init__.py").read_text()
     for provider in re.findall(r'"provider":\s*"([^"]+)"', models):
         stems |= {word for word in re.split(r"[^a-z]+", provider.lower()) if word not in ("api",)}
