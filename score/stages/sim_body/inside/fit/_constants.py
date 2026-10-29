@@ -129,16 +129,19 @@ class Problem:
         return found
 
 
-def staged(fitting, path, turns, points, given, free=()):
+def staged(fitting, path, turns, points, given, free=(), jacobian=None):
     """The constants (the whole vector, as `Fitting.unpack` reads it) and the frames' angles (frames x nq) that best
     meet the frames' targets together, from `given` and mink's path; the model is left with the constants laid on,
-    and the solve's evaluation count."""
+    and the solve's evaluation count. `jacobian(problem, unknowns)` (the card's exact one, `_card._level2.jacobian`)
+    replaces scipy's 2-point differences in the problem's sparse pattern, the reference, when given."""
     problem = Problem(fitting, path, turns, points, given, free)
     low, high = problem.bounds()
     begin = np.clip(problem.start(), np.where(np.isfinite(low), low + INSIDE, low),
                     np.where(np.isfinite(high), high - INSIDE, high))
-    found = least_squares(problem.residuals, begin, bounds=(low, high), jac_sparsity=problem.sparsity(),
-                          x_scale="jac", method="trf", tr_solver="lsmr")
+    exact = {"jac": lambda unknowns: jacobian(problem, unknowns)} if jacobian is not None else {
+        "jac_sparsity": problem.sparsity()}
+    found = least_squares(problem.residuals, begin, bounds=(low, high), x_scale="jac", method="trf",
+                          tr_solver="lsmr", **exact)
     constants = problem.constants(found.x)
     fitting.apply(constants)
     held = len(problem.slots)

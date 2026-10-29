@@ -17,7 +17,8 @@ equals mink's answer to the moved clip to 0.01 deg and 0.01 mm (a cold seed only
 (`card_body.py`), the card's measures (_measure.py) equal evaluation._measure's to 1e-9 (joints mm, turns deg) and
 its bones-outside shares exactly (every point's count). On fit's own toy (`card_level2.py`), level 2's exact
 Jacobian (_level2.py) equals its residuals' central differences to 1e-6 of each column's largest entry from the
-host's kinematics, to 1e-5 from the card's (_level2_card.py), nothing outside `Problem.sparsity`.
+host's kinematics, to 1e-5 from the card's (_level2_card.py), nothing outside `Problem.sparsity`; level 2 solved with it (`_constants.staged(jacobian=...)`) from a path moved
+0.05 off equals the 2-point solve to 1e-3 mm and 1e-4 deg.
 
 Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _kept's release `wp.where(inside, 1.0, 0.0)` made `0.0` (holds only added): rows 0 and 1 keep dof 0
@@ -42,6 +43,8 @@ Breaks (each applied once, seen red, reverted):
   knee's move columns are off.
 - (2026-10-29) _level2_card.CardKinematics.frames' `body_pos.assign(...)` dropped: the card keeps the model's base
   inside joint places, the knee's move columns are off.
+- (2026-10-29) _constants.staged's `jacobian(problem, unknowns)` made `jacobian(problem, begin)` (the Jacobian
+  frozen at the start): the toy's constants 0.027 mm off the 2-point solve's.
 - (2026-10-29) _solve's `CYCLE_STEP = 1e-5` made `0.0`: a seeded toy row cycles at its float32 pose's floor and never
   stops (NotConverged).
 
@@ -65,6 +68,8 @@ BOUND = 0.25  # float32-exact; dofs 0, 1, 4 and 6 range over +-BOUND
 BOUNDED = (0, 1, 4, 6)
 OBJECTIVE_ROWS = 6
 LEVEL2_CARD_MOST = 1e-5  # the same from the card's float32 kinematics (_level2_card)
+LEVEL2_SOLVE_MM = 1e-3  # level 2 with jac=exact against 2-point differences on the exact toy: constants (the
+LEVEL2_SOLVE_DEG = 1e-4  # plan's 0.05 mm / 0.01 deg is the real bodies'; a frozen Jacobian is 0.027 mm off here)
 LEVEL2_MOST = 1e-6  # a column's largest miss over its largest entry (measured 1.8e-10; the plan allows 1e-2 against 2-point)
 HOLD_PASSES = 3  # as _step.HOLD_PASSES: solves after the first, a held dof whose descent points inside released
 
@@ -336,11 +341,25 @@ def the_level2_jacobian_equals_its_differences():
     return problems
 
 
+def the_level2_solve_with_the_exact_jacobian_equals_differences():
+    import tempfile
+    import card_level2
+    import numpy as np
+    with tempfile.TemporaryDirectory() as folder:
+        (moved, moved_angles, _), (exact, exact_angles, _) = card_level2.staged_both(folder)
+    off_mm, off_angles = 1000 * np.abs(exact - moved).max(), np.abs(exact_angles - moved_angles).max()
+    return ([f"level 2 with the exact Jacobian off differences' constants by {off_mm:.4f} mm"]
+            if off_mm > LEVEL2_SOLVE_MM else []) + (
+        [f"level 2 with the exact Jacobian off differences' angles by {off_angles:.2e}"]
+        if off_angles > np.radians(LEVEL2_SOLVE_DEG) else [])
+
+
 def _values(found):
     return [found[key] for key in sorted(found)] if isinstance(found, dict) else found
 
 
-CHECKS = (the_level2_jacobian_equals_its_differences, the_measures_equal_the_cpu_measure, the_step_equals_the_prototype, the_projection_equals_the_prototype,
+CHECKS = (the_level2_jacobian_equals_its_differences, the_level2_solve_with_the_exact_jacobian_equals_differences,
+          the_measures_equal_the_cpu_measure, the_step_equals_the_prototype, the_projection_equals_the_prototype,
           the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame,
           the_next_iteration_from_its_seeds_equals_mink)
 

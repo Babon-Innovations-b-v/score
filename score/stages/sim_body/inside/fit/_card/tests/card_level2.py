@@ -48,3 +48,17 @@ def differences(problem, unknowns):
         down[column] -= STEP
         columns.append((problem.residuals(up) - problem.residuals(down)) / (2 * STEP))
     return np.array(columns).T
+
+
+def staged_both(folder):
+    """The toy's constants and angles by `_constants.staged` twice from the same start, the path's places and hinges
+    moved SPREAD off the poses so the solve has a way to go: scipy's 2-point differences (the reference) and the exact
+    Jacobian (`jacobian`, host kinematics)."""
+    from fit._card import _level2
+    from fit._constants import staged
+    problem, _ = problem_and_point(folder)
+    path = problem.path.copy()
+    unturned = [index for index in range(path.shape[1]) if index not in range(3, 7)]
+    path[:, unturned] += np.random.default_rng(2).normal(0.0, SPREAD, (len(path), len(unturned)))
+    given = (problem.fitting, path, problem.turns, problem.points, problem.given, problem.free)
+    return staged(*given), staged(*given, jacobian=_level2.jacobian)
