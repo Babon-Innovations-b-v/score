@@ -59,13 +59,16 @@ MASS = 1.0
 # Each shape's skin (metres): two resting on each other stand two skins apart, so their drawn triangles do not touch
 # (with none, a box stacked on a crate read as at rest inside it).
 MARGIN = 0.004
-# Room for this many contacts a loose body (Newton reduces each pair's to a few), and the solver's rows a contact (an
-# elliptic cone: 3). Sized by Newton from the ground's triangles, the solver asked for 3.4 billion (toy, 2026-10-27).
+# Room for this many contacts a loose shape (each convex part of a body is one; Newton reduces each pair's to a few),
+# and the solver's rows a contact (an elliptic cone: 3). Sized by Newton from the ground's triangles, the solver asked
+# for 3.4 billion (toy, 2026-10-27); sized by bodies (64 a body), bodies of 50 to 157 parts overflowed it
+# (settle@garage, settle@airlock, 2026-10-29). Measured on this PC's card at 16 a shape: the garage's 13 bodies of 809
+# shapes peaked at 1,411 contacts, the airlock's 29 sandbag-heavy bodies of 2,733 at 13,474 (4.9 a shape), 13 and 20 s.
 # The cone is elliptic: on MuJoCo's default pyramid every box on the toy's 5.7 degree slope spun 7 degrees about its up
 # as it landed. The solve is not Warp's deterministic mode: over 32 dofs (6 loose bodies) MuJoCo Warp's sparse
 # Jacobian sizes its sorted records past 2^31 (19 billion for 20 bodies, the patched mujoco-warp too), a dense one
 # stops at 60 dofs, and its sparse inertia solve is wrong over 60 dofs in a tree (#60). Newton's contacts are sorted.
-CONTACTS = 64
+CONTACTS = 16
 ROWS = 3
 # Beside the stage: its hollow objects' convex parts (tools/usd/convex_parts.py's FILE).
 PARTS_FILE = "convex-parts.json"
@@ -226,7 +229,7 @@ class Drop:
                          for points, faces in self.statics.values()]
         groups = stack_groups(sorted(loose), {name: supports for name, supports in job.get("under", {}).items()
                                               if not self.inside.get(name)})
-        self.bodies, self.middles = {}, {}
+        self.bodies, self.middles, shapes = {}, {}, 0
         for number, name in enumerate(sorted(loose)):
             points, faces = self.meshes[name]
             middle = surface_middle(points, faces)
@@ -247,8 +250,9 @@ class Drop:
                 for other in static_shapes if self.inside[name] else ():
                     builder.add_shape_collision_filter_pair(shape, other)
             self.bodies[name], self.middles[name] = body, middle
+            shapes += len(pieces)
         self.model = builder.finalize(device=wp.get_preferred_device())
-        self.room = CONTACTS * len(self.bodies)
+        self.room = CONTACTS * shapes
         self.solver = newton.solvers.SolverMuJoCo(
             self.model, use_mujoco_contacts=False, integrator="euler", cone="elliptic", nconmax=self.room,
             njmax=self.room * ROWS)

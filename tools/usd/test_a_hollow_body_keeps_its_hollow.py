@@ -2,9 +2,9 @@
 hollow, a box is its one hull, both are read back from the cache without CoACD, a laid crate gets its parts in its
 own frame, a mesh CoACD fails on drops as its one hull, and the drop of an open crate laid far from the origin in
 Newton (score/stages/settling/inside/settle_drop.py, through tools/usd/drop.py in the physics trial's Python) keeps it
-where it is laid with a box on its floor. With no built trial Python under PROPS_HOME (bash
-score/stages/physics/inside/newton_env.sh $PROPS_HOME/envs/newton_env), as in `make tests`' sandbox home, that one
-check prints `skipped` and passes nothing.
+where it is laid with a box on its floor, and a body of 100 parts drops with room for their contacts. With no built
+trial Python under PROPS_HOME (bash score/stages/physics/inside/newton_env.sh $PROPS_HOME/envs/newton_env), as in
+`make tests`' sandbox home, those two drop checks print `skipped` and pass nothing.
 
 Breaks that turn each test red (each applied once and seen red):
 - a_hollow_keeps_its_hollow_and_a_box_is_one_hull (2026-10-27): convex_parts.decomposed's `chosen = [whole.vertices]
@@ -16,6 +16,9 @@ Breaks that turn each test red (each applied once and seen red):
 - a_crate_laid_far_from_the_origin_stays_and_holds_a_box_on_its_floor (2026-10-27, with the trial's Python under a
   real PROPS_HOME, on this PC's card: 42 s fixed, 46 s and red broken): settle_drop's `hull(piece - middle)` made
   `hull(piece)` (each part laid on the body at its place in the world, 36 m from the body's middle).
+- a_body_of_many_parts_drops_with_room_for_their_contacts (2026-10-29, on this PC's card, 64 s for the file fixed):
+  settle_drop's `self.room = CONTACTS * shapes` made `self.room = 64 * len(self.bodies)` (the room by bodies: "the
+  drop met 64 contacts").
 
 Run: .venv/bin/python tools/usd/test_a_hollow_body_keeps_its_hollow.py   (make tests runs it)
 """
@@ -194,9 +197,46 @@ def a_crate_laid_far_from_the_origin_stays_and_holds_a_box_on_its_floor():
         return problems + ([f"still moving at the end: {moving}"] if moving else [])
 
 
+def tiles(count=10, side=1.0, high=0.04):
+    """A slab `side` square and `high` thick standing on y = 0, and its convex parts: count x count tiles."""
+    step = side / count
+    corners = [[[x0 + dx, y, z0 + dz] for dx in (0.0, step) for y in (0.0, high) for dz in (0.0, step)]
+               for x0 in np.arange(count) * step - side / 2 for z0 in np.arange(count) * step - side / 2]
+    slab = trimesh.creation.box(extents=(side, high, side))
+    slab.apply_translation((0.0, high / 2, 0.0))
+    return slab, corners
+
+
+def a_body_of_many_parts_drops_with_room_for_their_contacts():
+    """settle@garage and settle@airlock (2026-10-29): bodies of 50 to 157 convex parts met more contacts than a room
+    sized by bodies held, and the drop failed. A slab dropped as its 100 tiles rests where it is laid."""
+    missing = newton_missing()
+    if missing:
+        print(f"skipped: {a_body_of_many_parts_drops_with_room_for_their_contacts.__name__}: {missing}")
+        return []
+    import test_floating_sunk_and_tipping_objects_are_told_apart as resting_test
+    import drop
+    from pxr import Usd
+    slab, parts = tiles()
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        resting_test.export_test.box_gltf(folder / "models", "slab", slab)
+        path = resting_test.laid_place(folder, [("slab", "slab", (0.0, 0.0, 0.0))], [("slab", "floor")])
+        (path.parent / convex_parts.FILE).write_text(json.dumps({"slab_1": parts}))
+        try:
+            found = drop.simulate(path, {"slab_1": 0.0}, folder / "drop")
+        except RuntimeError as error:
+            return [f"the drop failed: {error}"]
+        laid, rest, turned = rest_of(found, Usd.Stage.Open(str(path)), "slab_1")
+    drift = float(np.linalg.norm(rest - laid))
+    return [] if drift <= CRATE_DRIFT and turned <= CRATE_TURN else [f"the slab moved {drift:.3f} m, {turned:.1f} deg"]
+
+
 CHECKS = (a_hollow_keeps_its_hollow_and_a_box_is_one_hull, a_laid_hollow_object_gets_its_parts_in_its_own_frame,
           a_mesh_coacd_fails_on_drops_as_its_one_hull_and_is_tried_again,
-          a_crate_laid_far_from_the_origin_stays_and_holds_a_box_on_its_floor)
+          a_crate_laid_far_from_the_origin_stays_and_holds_a_box_on_its_floor,
+          a_body_of_many_parts_drops_with_room_for_their_contacts)
 
 
 if __name__ == "__main__":
