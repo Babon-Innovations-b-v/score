@@ -9,6 +9,11 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) reached's `near.add(PARENT.get(segment, segment))` dropped: a landmark misses its parent group's rows.
 - (2026-10-29) resumed's `min(lines, ...)` made `lines[0]`: a resume starts from the first evaluation, not the best.
 - (2026-10-29) weight_rewritten's `flags=re.MULTILINE` dropped: no global weight is written back.
+- (2026-10-29) ended's `middles.get(start, (start,))` made `(start,)`: a hip's centre misses the Hips group it ends.
+- (2026-10-29) offsets keyed by `paired(centre)[0]`: the right hip's centre takes the left's move (bodies are not
+  symmetric: each end its own).
+- (2026-10-29) bounds' "centre" reach dropped: a centre held within a link's 30 mm, not its 40.
+- (2026-10-29) prior's `kind in MOVES` made `kind == "link"`: no prior pulls a centre to the model's own.
 
 Run: .venv/bin/python score/stages/sim_body/inside/tuning/test_one_optimisation_moves_every_unknown_together_within_its_bounds.py
 """
@@ -27,6 +32,10 @@ TABLE = {"knee_l": {"segment": "LeftLeg", "solver": True, "trust": 0.5, "link": 
          "skip": {"segment": "Head", "solver": False, "trust": 1.0, "link": [0, 0, 0]}}
 STARTS = {name: row["link"] for name, row in TABLE.items()}
 ENTRIES = tuning.layout(TABLE, held=(), joints={"knee_l", "knee_r"})
+GROUPS = {"Hips": (("hipmid", "Spine1"), ("hipmid", "L5_S1"), "pelvis", ()),
+          "LeftLeg": (("LeftLeg", "LeftShin"), ("hip_l", "knee_l"), "femur_l", ()),
+          "RightLeg": (("RightLeg", "RightShin"), ("hip_r", "knee_r"), "femur_r", ())}
+ENDS = tuning.ended(GROUPS, {"hipmid": ("hip_l", "hip_r")})
 
 
 def test_a_joint_link_moves_only_across_its_bone():
@@ -50,6 +59,20 @@ def test_a_landmark_reaches_its_parents_and_childrens_rows():
     knee = next(index for index, (pool, kind, _, _) in enumerate(ENTRIES) if pool == "knee_l" and kind == "trust")
     assert list(pattern[:6, knee]) == [1, 0, 1, 1, 0, 1]
     assert pattern[:6, -1].all()  # a global weight reaches every row
+
+
+def test_every_group_end_is_its_own_unknown_within_its_reach_pulled_to_the_models_centre():
+    assert ENDS == {"hip_l": ["Hips", "LeftLeg"], "hip_r": ["Hips", "RightLeg"]}
+    entries = tuning.layout(TABLE, held=(), joints=set(), ends=ENDS)
+    centres = [index for index, (_, kind, _, _) in enumerate(entries) if kind == "centre"]
+    assert [entries[index][:3] for index in centres] == [(centre, "centre", axis) for centre in ENDS for axis in range(3)]
+    unknowns = np.zeros(len(entries))
+    unknowns[centres[2]] = 1  # the left hip's z
+    assert tuning.offsets(unknowns, entries) == {"hip_l": [0, 0, tuning.LINK_UNIT], "hip_r": [0, 0, 0]}
+    lower, upper = tuning.bounds(entries)
+    assert np.allclose(upper[centres], tuning.END_REACH / tuning.LINK_UNIT) and np.allclose(lower, -upper)
+    assert len(tuning.prior(unknowns, entries)) == len(centres) + sum(kind == "link" for _, kind, _, _ in entries)
+    assert tuning.LINK_UNIT / tuning.PRIOR in tuning.prior(unknowns, entries)
 
 
 def test_the_unknowns_are_solved_together_and_resumed_from_the_best():

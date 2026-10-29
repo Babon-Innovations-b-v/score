@@ -34,7 +34,8 @@ REFERENCES = {"Hips": ("own x", "own x"), "Spine1": ("own x", "own x"), "Spine2"
               "{Side}Shin": ("line medial_malleolus_{side} lateral_malleolus_{side}",) * 2,
               "{Side}Foot": ("own x", "own x"), "{Side}ToeBase": ("own x", "own x")}
 # R_cal per bone group as a quaternion (x, y, z, w), printed by `_measure.py` on 2026-10-29 (MyoFullBody of
-# MuscleMimic 1.0.6, SOMA's template rig of people-clips-make).
+# MuscleMimic 1.0.6, SOMA's template rig of people-clips-make; the shoulders again that day, their start the
+# sternoclavicular centre, no longer the landmark of that name).
 TABLE = {
     "Hips": (0.663583, 0.748103, 0.000268687, -0.000290935),
     "Spine1": (0.756786, 0.653663, 0.000257497, -0.00029812),
@@ -43,8 +44,8 @@ TABLE = {
     "Neck1": (0.770799, 0.637077, -0.000728835, -0.00110972),
     "Neck2": (0.770799, 0.637077, -0.000728836, -0.00110972),
     "Head": (0.703505, 0.710691, 0.00016192, -0.000400028),
-    "LeftShoulder": (-0.460702, -0.485753, 0.565895, 0.481207),
-    "RightShoulder": (0.485804, -0.46066, -0.481248, 0.565852),
+    "LeftShoulder": (-0.446904, -0.498353, 0.576873, 0.468122),
+    "RightShoulder": (0.498428, -0.446843, -0.46818, 0.576809),
     "LeftArm": (-0.00349838, 0.0330295, 0.698869, 0.714478),
     "RightArm": (0.0330002, 0.00346837, 0.714478, -0.698871),
     "LeftForeArm": (-0.0687568, -0.0555397, 0.679171, 0.728639),

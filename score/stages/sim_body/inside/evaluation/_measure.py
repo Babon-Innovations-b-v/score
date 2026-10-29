@@ -15,7 +15,8 @@ from landmarks import soma_point
 from model import TO_OWN
 
 
-# frozen from origin/main 5a46a96e landmarks._table.CENTRES and bone_groups: SOMA joint -> MyoFullBody centre parts
+# frozen from origin/main 5a46a96e landmarks._table.CENTRES and bone_groups: SOMA joint -> MyoFullBody centre parts;
+# level 1's worker moves each group end's by the evaluation's offset (`_case.load_centres`), as the fit's own
 CENTRES = {
     "hip_l": ("femur_l", (0, 0, 0)), "knee_l": ("tibia_l", (0, 0, 0)), "ankle_l": ("talus_l", (0, 0, 0)),
     "mtp_l": ("toes_l", (0, 0, 0)), "sternoclavicular_l": ("clavicle_l", (0, 0, 0)),

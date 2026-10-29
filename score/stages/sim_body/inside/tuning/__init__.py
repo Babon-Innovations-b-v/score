@@ -1,11 +1,12 @@
 """Level 1 of the fit (#70; CONTEXT.md "landmark set"; numpy and scipy): ONE joint optimisation of the landmark set
 over every tuning body at once, never a round of pieces judged alone. The unknowns (`layout`): each landmark's link
-on its bone (a joint-defining one only across the bone's long axis), its trust (log), and the two global weights
-(the markers' goal against the turns', a group end's weight); a left and a right landmark share their unknowns, the
-right mirrored (`paired`). The residuals (`case_residuals`) are what following SOMA means, from levels 2 and 3 run on
+on its bone (a joint-defining one only across the bone's long axis), its trust (log), each group end's centre on
+MyoFullBody (its offset in its body's frame off the model's own, each end its own: bodies are not symmetric; owner,
+2026-10-29: "isn't this exactly what the solver will find"), and the two global weights (the markers' goal against
+the turns', a group end's weight); a left and a right landmark share their unknowns, the right mirrored (`paired`). The residuals (`case_residuals`) are what following SOMA means, from levels 2 and 3 run on
 each tuning case: bones outside SOMA's skin by region, each group's rotation error on a FROZEN calibration table,
 each joint's error beside them (`JOINT_SHARE`, since SOMA's group ends are fit targets); never a landmark distance the
-solver pulls on. A prior (`prior`) pulls each link toward its anatomical start. scipy's least_squares (trf) runs it
+solver pulls on. A prior (`prior`) pulls each link toward its anatomical start and each centre toward the model's own. scipy's least_squares (trf) runs it
 with finite differences on a sparse pattern (`sparsity`: a landmark reaches its own group and the groups next to it,
 a global weight everything), every evaluation checkpointed (`checkpointed`) and the run stopped when the objective
 settles (`settled`) or a wall-clock limit passes. `rewritten` writes the result into the landmark table's source."""
@@ -21,12 +22,14 @@ MIRROR = np.array([1.0, 1.0, -1.0])  # a right landmark's body-frame vector as i
 LINK_UNIT = 0.005  # metres per unknown's unit: finite-difference steps and bounds are in these units
 LOG_UNIT = 0.25  # natural-log units per unknown's unit, for trusts and global weights
 REACH = 0.030  # metres: no link ends further than this from its anatomical start (the bound)
+END_REACH = 0.040  # metres: no group end's centre moves further than this from MyoFullBody's own (the bound)
 PRIOR = 0.010  # metres: the anatomical start's spread (the prior's residual is the offset over it)
 STEP = 0.4  # unknown's units: the finite-difference step (2 mm of link, 0.1 of log weight)
 WEIGHT_REACH = 3.0  # unknown's units of log either way a trust or global weight may move (e^0.75: about 2x)
 JOINT_SHARE = 0.5  # joint error's weight beside skin and turns: SOMA's group ends are fit targets (#70 honesty rule)
 SCALES = {"skin": 10.0, "turn": 5.0, "joint": 10.0}  # %, degrees, mm: one unit of each counts the same (the score's)
 GLOBALS = ("marker goal", "end weight")
+MOVES = ("link", "centre")  # the unknowns that are a place (metres), each with its prior row
 # SOMA's bone groups: each one's parent, and the skin region its bones are measured in
 PARENT = {"Spine1": "Hips", "Spine2": "Spine1", "Chest": "Spine2", "Neck1": "Chest", "Neck2": "Neck1",
           "Head": "Neck2", **{f"{side}{part}": f"{side}{parent}" if parent else root
@@ -56,10 +59,21 @@ def mirrored(segment):
     return [segment]
 
 
-def layout(table, held, joints):
+def ended(groups, middles):
+    """Each group end's MyoFullBody centre and the bone groups it starts ({centre: [segment]}): every group's start
+    centre (`bone_groups.groups()`), a middle of two (`landmarks.MIDDLE_CENTRES`) as its two parts."""
+    found = {}
+    for segment, (_, (start, _), _, _) in groups.items():
+        for part in middles.get(start, (start,)):
+            found.setdefault(part, set()).add(segment)
+    return {centre: sorted(segments) for centre, segments in found.items()}
+
+
+def layout(table, held, joints, ends=None):
     """The unknowns: [(pool, kind, axes or None, segments)], kind "link" (axes: the body-frame components it moves)
-    or "trust", then each global weight ("global", None, None). `table` {name: row} (the harness's rows: "segment",
-    "solver"), `held` names whose links stay, `joints` the joint-defining names."""
+    or "trust", then each group end's centre ("centre", its three body-frame axes, each end its own: bodies are not
+    symmetric), then each global weight ("global", None, None). `table` {name: row} (the harness's rows: "segment",
+    "solver"), `held` names whose links stay, `joints` the joint-defining names, `ends` `ended`'s."""
     pools = {}
     for name, row in table.items():
         if row["solver"]:
@@ -72,6 +86,7 @@ def layout(table, held, joints):
                 else [0, 1, 2]
             out.extend((pool, "link", axis, segments) for axis in axes)
         out.append((pool, "trust", None, segments))
+    out.extend((centre, "centre", axis, segments) for centre, segments in (ends or {}).items() for axis in range(3))
     return out + [(name, "global", None, None) for name in GLOBALS]
 
 
@@ -92,7 +107,7 @@ def applied(unknowns, entries, starts, table, globals_):
         elif kind == "trust":
             for name in members[pool]:
                 rows[name]["trust"] = float(table[name]["trust"] * np.exp(LOG_UNIT * value))
-        else:
+        elif kind == "global":
             weights[pool] = float(globals_[pool] * np.exp(LOG_UNIT * value))
     for pool, names in members.items():
         for name in names:
@@ -100,15 +115,28 @@ def applied(unknowns, entries, starts, table, globals_):
     return rows, weights
 
 
+def offsets(unknowns, entries):
+    """Each group end's move off MyoFullBody's own centre ({centre: [3]}, metres in its body's frame, source model)."""
+    found = {}
+    for value, (centre, kind, axis, _) in zip(unknowns, entries):
+        if kind == "centre":
+            found.setdefault(centre, [0.0, 0.0, 0.0])[axis] = LINK_UNIT * float(value)
+    return found
+
+
 def bounds(entries):
-    """least_squares' bounds (lower, upper) in the unknowns' units: links within REACH, weights within WEIGHT_REACH."""
-    reach = np.array([REACH / LINK_UNIT if kind == "link" else WEIGHT_REACH for _, kind, _, _ in entries])
+    """least_squares' bounds (lower, upper) in the unknowns' units: links within REACH, centres within END_REACH,
+    weights within WEIGHT_REACH."""
+    reach = {"link": REACH / LINK_UNIT, "centre": END_REACH / LINK_UNIT}
+    reach = np.array([reach.get(kind, WEIGHT_REACH) for _, kind, _, _ in entries])
     return -reach, reach
 
 
 def prior(unknowns, entries):
-    """The prior's residuals: each link's move from its anatomical start over PRIOR."""
-    return np.array([LINK_UNIT * value / PRIOR for value, (_, kind, _, _) in zip(unknowns, entries) if kind == "link"])
+    """The prior's residuals: each link's move from its anatomical start and each centre's from MyoFullBody's own,
+    over PRIOR."""
+    return np.array([LINK_UNIT * value / PRIOR for value, (_, kind, _, _) in zip(unknowns, entries)
+                     if kind in MOVES])
 
 
 def labels(found):
@@ -140,9 +168,9 @@ def reached(segments):
 
 def sparsity(entries, rows, cases):
     """The Jacobian's pattern (residuals x unknowns, 0/1): `rows` one case's labels, repeated for `cases` cases, then
-    the prior's rows (each link's own). A landmark reaches the rows of the groups it reaches (`reached`) and their
+    the prior's rows (each link's and centre's own). A landmark or group end reaches the rows of the groups it reaches (`reached`) and their
     regions; a global weight every row; a trust no prior row."""
-    links = [index for index, (_, kind, _, _) in enumerate(entries) if kind == "link"]
+    links = [index for index, (_, kind, _, _) in enumerate(entries) if kind in MOVES]
     pattern = np.zeros((len(rows) * cases + len(links), len(entries)), dtype=np.int8)
     for column, (_, kind, _, segments) in enumerate(entries):
         near = reached(segments) if segments else None

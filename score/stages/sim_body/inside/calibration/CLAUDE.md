@@ -10,3 +10,7 @@ each group's anatomical axes (`aligned`, `frame`, `REFERENCES`); `turn(group)` g
 - `_measure.py` measures it again in Newton's own Python and prints `TABLE`; run it after a model or template change
   and paste the rows. Measured 2026-10-28: the same as the tables study's within 0.002 (quaternion parts).
 - A right group's turn is its left one's times diag(-1, -1, 1); a middle group turns no body sideways (the test).
+- A stretch's ends are always MyoFullBody's joint centres (`myo_parts`), a reference's points the landmarks' bone
+  points: until 2026-10-29 the landmark `sternoclavicular_{side}` (7 mm off the clavicle's origin) shadowed the
+  centre of that name, turning the shoulders' rows about 2 degrees; measured again, they are main's. Level 1's
+  worker (`../evaluation/_case.py`) reads the table again at rest from each evaluation's group-end centres.

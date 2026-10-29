@@ -70,13 +70,15 @@ def run_all(bodies, out, python, worker=WORKER, most=MOST, free_gb=FREE_GB, laun
     return codes
 
 
-def measured(rows, weights, cases, out, python, **options):
-    """{case: honest measures} of levels 2 and 3 on `cases` with the landmark table `rows` and global `weights`;
-    raises when any body fails or any clip has no measures."""
+def measured(rows, weights, rest, cases, out, python, **options):
+    """{case: honest measures} of levels 2 and 3 on `cases` with the landmark table `rows`, global `weights` and
+    `rest` ({"centres": the group ends' offsets, "rig": SOMA's template rig the calibration is read at rest from},
+    out/rest.json, the worker's); raises when any body fails or any clip has no measures."""
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True)
     (out / "table.json").write_text(json.dumps(rows, indent=1))
     (out / "weights.json").write_text(json.dumps(weights))
+    (out / "rest.json").write_text(json.dumps(rest, indent=1))
     codes = run_all(by_body(cases), out, python, **options)
     missing = [case for case in cases if not (out / case / "m.json").exists()]
     if missing or any(codes.values()):

@@ -1,5 +1,7 @@
 """_case.py <table.json> <weights.json> <out root> <case>=<job.json> ...: one SOMA body's levels 2 and 3 for level 1's
-runner: the landmark set replaced in place by the table's rows and the global weights by the weights file's, the
+runner: the landmark set replaced in place by the table's rows and the global weights by the weights file's, each
+group end's centre moved by <out root>/rest.json's offsets (the fit's targets, the sizing's lengths and the measure's
+joints all read it) and the calibration table read again at rest from them (on SOMA's template rig), the
 person constants solved once from every clip of the body together (held for its later clips), then each clip's pose
 per frame, then per clip the honest measures (_measure.measures) and per landmark its leftover and its fitted move
 off its link. Writes <out root>/<case>/m.json. Newton's Python (mujoco); run by the runner, one process per body."""
@@ -11,12 +13,14 @@ import time
 import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+import calibration  # noqa: E402
 import fit  # noqa: E402
 import mujoco  # noqa: E402
 import sim_body  # noqa: E402
+from calibration import _measure as rest_measure  # noqa: E402
 from evaluation import _measure  # noqa: E402
 from fit import _frames  # noqa: E402
-from landmarks import LANDMARKS, marker  # noqa: E402
+from landmarks import CENTRES, LANDMARKS, marker  # noqa: E402
 
 FIELDS = ("face", "barycentric", "segment", "body", "bone point", "link", "trust", "solver")
 
@@ -27,6 +31,21 @@ def load_table(path):
     LANDMARKS.clear()
     LANDMARKS.update({name: tuple(tuple(row[key]) if isinstance(row[key], list) else row[key] for key in FIELDS)
                       for name, row in rows.items()})
+
+
+def load_centres(offsets):
+    """Move each group end's centre in place by its offset ({centre: [3]} m, its body's frame, source model): the
+    landmark table's (`CENTRES`, every reader's) and the measure's frozen copy alike."""
+    for table in (CENTRES, _measure.CENTRES):
+        for name, offset in offsets.items():
+            body, local = table[name]
+            table[name] = (body, tuple(float(value) for value in np.asarray(local, dtype=float) + offset))
+
+
+def recalibrated(folder, rig):
+    """The calibration table read again at rest from the current centres (MyoFullBody's default pose in `folder`
+    against SOMA's template `rig`), in place: a rest-pose table, never fitted to motion."""
+    calibration.TABLE.update({group: tuple(quaternion) for group, quaternion in rest_measure.measured(folder, rig).items()})
 
 
 def leftovers(model, angles, scales, points):
@@ -102,6 +121,9 @@ def main():
     cases = dict(given.split("=", 1) for given in sys.argv[4:])
     load_table(table)
     load_weights(weights)
+    rest = json.loads((root / "rest.json").read_text())
+    load_centres(rest["centres"])
+    recalibrated(json.loads(pathlib.Path(next(iter(cases.values()))).read_text())["model"], rest["rig"])
     held_constants()
     recordings = [json.loads(pathlib.Path(job).read_text())["people"][0]["targets"] for job in cases.values()]
     for case, job in cases.items():
