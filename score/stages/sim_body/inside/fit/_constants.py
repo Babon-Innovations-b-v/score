@@ -12,9 +12,9 @@ angles at the start constants (Cotton et al. 2026, the idea only: cold, theirs e
 The leading joints' ranges are the box bounds; the followers' own are not held (`Fitting.limited_model`)."""
 import mujoco
 import numpy as np
-from scipy.linalg import qr
+from scipy.linalg import cho_factor, cho_solve, eigvalsh, qr
 from scipy.optimize import least_squares
-from scipy.sparse import lil_matrix
+from scipy.sparse import csc_matrix, diags, lil_matrix
 from scipy.spatial.transform import Rotation
 
 from fit._frames import weights
@@ -23,6 +23,8 @@ MARK_MOST = 0.03  # metres a marker may move on its body off its landmark's link
 INSIDE = 1e-9  # a start this far inside its bounds (least_squares wants a start within them)
 TOLD = 1e-8  # an inside joint's column this far, relative, from the others' span is one the data cannot tell (tall,
 # 2026-10-29: the untold at 1e-15, the least told, a scapula's y, at 4e-3)
+WELL_TOLD = 1e-4  # the others' smallest singular value over their largest above which their span is whole (far over TOLD:
+# the Gram matrix's eigenvalues are good to ~1e-13 of the largest; heavy_kimodo 2026-10-29 at 0.07)
 
 
 class Problem:
@@ -135,22 +137,42 @@ class Problem:
 def told(problem, matrix):
     """The unknowns the data can tell (column indices of the whole unknowns, in order) from `matrix`, the problem's
     Jacobian at the start (#70 level 2, one rule): an inside joint's column (one axis of its move) whose part off the
-    span of every other column (the markers' moves, the frames' coordinates, root place included) and of the inside
-    columns kept before it (column-pivoted QR, the best told first) is under TOLD of its own length is dropped; the
-    constants' prior rows are left out, since they tell every column apart by construction."""
+    span of every other column (the markers' moves, the frames' coordinates, root place included; `off_span`) and of
+    the inside columns kept before it (column-pivoted QR, the best told first) is under TOLD of its own length is
+    dropped; the constants' prior rows are left out, since they tell every column apart by construction."""
     held, marked = len(problem.slots), 3 * len(problem.free)
-    data = np.asarray(matrix.toarray() if hasattr(matrix, "toarray") else matrix)[:matrix.shape[0] - held]
+    data = csc_matrix(matrix)[:matrix.shape[0] - held]
     inside = np.arange(marked, held)
     others = np.setdiff1d(np.arange(data.shape[1]), inside)
-    basis, upper, _ = qr(data[:, others] / np.maximum(np.linalg.norm(data[:, others], axis=0), 1e-300),
-                         mode="economic", pivoting=True)
-    diagonal = np.abs(np.diag(upper))
-    basis = basis[:, :int((diagonal > TOLD * diagonal[0]).sum())]
-    columns = data[:, inside]
+    columns = data[:, inside].toarray()
     lengths = np.maximum(np.linalg.norm(columns, axis=0), 1e-300)
-    _, upper, order = qr((columns - basis @ (basis.T @ columns)) / lengths, mode="economic", pivoting=True)
+    _, upper, order = qr(off_span(data[:, others], columns) / lengths, mode="economic", pivoting=True)
     kept = inside[order[np.abs(np.diag(upper)) >= TOLD]] if len(inside) else inside
     return np.sort(np.concatenate([others, kept]))
+
+
+def off_span(others, columns):
+    """`columns` less their part in the span of the sparse `others`' columns, each scaled to unit length, as
+    `qr_off_span` takes it: by the scaled columns' Gram matrix (sparse, Cholesky) when their smallest singular value
+    is over WELL_TOLD of their largest, since then the pivoted QR's every diagonal is over TOLD of its first (|r_11| <=
+    the largest, |r_kk| >= the smallest) and it keeps the whole span; else by that QR itself (2026-10-29: heavy_kimodo's
+    11,610 x 1,350 at a ratio of 0.07, 0.2 s against the QR's 2.5 to 5.6 s, the same 58 of 96 axes kept)."""
+    norms = np.sqrt(np.asarray(others.multiply(others).sum(axis=0))).ravel()
+    scaled = others @ diags(1 / np.maximum(norms, 1e-300))
+    gram = (scaled.T @ scaled).toarray()
+    values = eigvalsh(gram)
+    if len(values) and values[0] > (WELL_TOLD ** 2) * values[-1]:
+        return columns - scaled @ cho_solve(cho_factor(gram), scaled.T @ columns)
+    return qr_off_span(others.toarray(), columns)
+
+
+def qr_off_span(others, columns):
+    """`columns` less their part in the span of `others`' columns scaled to unit length, that span the column-pivoted
+    QR's columns whose diagonal is over TOLD of its first (the rule's reference path)."""
+    basis, upper, _ = qr(others / np.maximum(np.linalg.norm(others, axis=0), 1e-300), mode="economic", pivoting=True)
+    diagonal = np.abs(np.diag(upper))
+    basis = basis[:, :int((diagonal > TOLD * diagonal[0]).sum())] if len(diagonal) else basis[:, :0]
+    return columns - basis @ (basis.T @ columns)
 
 
 def staged(fitting, path, turns, points, given, free=(), jacobian=None):

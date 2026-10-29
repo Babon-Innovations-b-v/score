@@ -10,7 +10,8 @@ sits on its own, one rule; the constants are the body's, sampled from every one 
 segments' turns, its skin's landmarks and rig joints) leave both solves unchanged (#70: SOMA is never moved); a frame's
 fit ends on a step that moves no task's error, though the step itself is not small; level 2 solves only the inside joint
 axes its Jacobian can tell apart from the other unknowns (a pair fixed to the root: their common shift is the root's
-place; a marked body welded under a markerless hinged middle: the hinge's own axis), and every other axis it keeps. It runs in Newton's own Python (mink
+place; a marked body welded under a markerless hinged middle: the hinge's own axis), and every other axis it keeps,
+the other unknowns' span taken by their Gram matrix exactly as by the pivoted QR. It runs in Newton's own Python (mink
 pinned there; score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there,
 as in `make tests`' sandbox home, it prints `skipped`.
 
@@ -37,6 +38,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   1e-3 rad a step and raises NotConverged.
 - (2026-10-29) _constants.told's kept `np.abs(np.diag(upper)) >= TOLD` made `>= 0`: every inside axis is solved, the
   pair's common shift and the hinge's axis among them.
+- (2026-10-29) _constants.off_span's `scaled.T @ columns` made `scaled.T @ columns * 0.5`: the Gram path's projection
+  is not the QR's.
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/test_the_solver_gives_back_the_pose_and_constants_that_made_its_targets.py
 """
@@ -157,7 +160,8 @@ def only_what_the_data_tells_is_an_inside_unknown():
     from scipy.spatial.transform import Rotation
     from fit import Fitting
     from fit._card._level2 import jacobian
-    from fit._constants import Problem, told
+    from scipy.sparse import csc_matrix
+    from fit._constants import Problem, off_span, qr_off_span, told
     with tempfile.TemporaryDirectory() as folder:
         path = pathlib.Path(folder) / "traded.xml"
         path.write_text(TRADED)
@@ -173,7 +177,13 @@ def only_what_the_data_tells_is_an_inside_unknown():
         turns.append(data.site_xmat[fitting.frame_sites].reshape(-1, 3, 3))
         points.append(data.site_xpos[fitting.mark_sites].copy())
     problem = Problem(fitting, poses, np.array(turns), np.array(points), fitting.neutral())
-    kept = told(problem, jacobian(problem, problem.start()))
+    matrix = jacobian(problem, problem.start())
+    kept = told(problem, matrix)
+    data = csc_matrix(matrix)[:matrix.shape[0] - len(problem.slots)]
+    inside = np.arange(3 * len(problem.free), len(problem.slots))
+    others, columns = data[:, np.setdiff1d(np.arange(data.shape[1]), inside)], data[:, inside].toarray()
+    if np.abs(off_span(others, columns) - qr_off_span(others.toarray(), columns)).max() > 1e-12:
+        return ["the Gram matrix's projection is not the QR's"]
     untold = sorted(set(range(len(problem.slots))) - set(kept))
     names = [f"{fitting.inside_names[slot // 3]}.{'xyz'[slot % 3]}" for slot in untold]
     pair = [name for name in names if name[:3] in ("hip", "bac")]
