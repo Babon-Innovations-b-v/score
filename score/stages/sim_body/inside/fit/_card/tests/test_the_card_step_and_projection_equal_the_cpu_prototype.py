@@ -58,94 +58,15 @@ import sys
 INSIDE = pathlib.Path(__file__).resolve().parents[3]
 IN_ENV = "SIM_BODY_INSIDE_TEST"
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from card_chain import LINKS, chain_model, log_rate, residuals_and_jacobian  # noqa: E402
+from card_chain import (LINKS, OBJECTIVE_ROWS, chain_model, log_rate, objective_rows,  # noqa: E402
+                        residuals_and_jacobian)
 from card_toy import CLIP_FRAMES, TOY, mink_frames, toy_card, toy_clip, toy_errors  # noqa: E402
-ROWS, RESIDUALS, DOFS = 12, 30, 20
-FROZEN = (3, 7)
-COUPLINGS = ((5, 2, (0.01, 0.6, -0.2, 0.05, 0.01)), (9, 2, (0.0, -0.4, 0.1, 0.0, 0.02)),
-             (11, -1, (0.05, 0.0, 0.0, 0.0, 0.0)))  # follower, leader (-1: none), polyval coefficients
-BOUND = 0.25  # float32-exact; dofs 0, 1, 4 and 6 range over +-BOUND
-BOUNDED = (0, 1, 4, 6)
-OBJECTIVE_ROWS = 6
+from card_step import (BOUNDED, COUPLINGS, FROZEN, ROWS, fixture, prototype_projected,  # noqa: E402
+                       prototype_step)
 LEVEL2_CARD_MOST = 1e-5  # the same from the card's float32 kinematics (_level2_card)
 LEVEL2_SOLVE_MM = 1e-3  # level 2 with jac=exact against 2-point differences on the exact toy: constants (the
 LEVEL2_SOLVE_DEG = 1e-4  # plan's 0.05 mm / 0.01 deg is the real bodies'; a frozen Jacobian is 0.027 mm off here)
 LEVEL2_MOST = 1e-6  # a column's largest miss over its largest entry (measured 1.8e-10; the plan allows 1e-2 against 2-point)
-HOLD_PASSES = 3  # as _step.HOLD_PASSES: solves after the first, a held dof whose descent points inside released
-
-
-def fixture():
-    """The rows' Jacobians, residuals, poses (some on their bounds), rest pose and seeds, float32-exact."""
-    import numpy as np
-    generator = np.random.default_rng(7)
-    jacobian = generator.normal(size=(ROWS, RESIDUALS, DOFS)).astype(np.float32).astype(float)
-    residuals = generator.normal(scale=1.0, size=(ROWS, RESIDUALS)).astype(np.float32).astype(float)
-    qpos = generator.uniform(-0.2, 0.2, size=(ROWS, DOFS))
-    qpos[::2, BOUNDED] = BOUND
-    qpos[1::2, BOUNDED] = -BOUND
-    rest = generator.uniform(-0.05, 0.05, size=DOFS).astype(np.float32).astype(float)
-    seeds = generator.uniform(-0.2, 0.2, size=(ROWS, DOFS)).astype(np.float32).astype(float)
-    exit_rows(jacobian, residuals)
-    lower = np.full(DOFS, -1e30)
-    upper = np.full(DOFS, 1e30)
-    lower[list(BOUNDED)], upper[list(BOUNDED)] = -BOUND, BOUND
-    return jacobian, residuals, qpos.astype(np.float32).astype(float), rest, seeds, lower, upper
-
-
-def exit_rows(jacobian, residuals):
-    """Rows 0 (dofs 0 and 1 on their upper bound) and 1 (on their lower): both push out, and once dof 1 is held dof
-    0's descent points back inside, so the active set must release it (holds only added leave its step 0)."""
-    for row, sign in ((0, 1.0), (1, -1.0)):
-        jacobian[row] = 0.0
-        residuals[row] = 0.0
-        jacobian[row, 0, 0], jacobian[row, 0, 1], jacobian[row, 1, 1] = 1.0, -2.0, 1.0
-        residuals[row, 0], residuals[row, 1] = sign, -sign
-
-
-def prototype_step(jacobian, residuals, qpos, rest, lower, upper):
-    """card/proto/lm.py's step in float64 (hinge-only: coordinate = dof), its holds over HOLD_PASSES passes (a held dof
-    released when its model gradient points its descent back inside), with its held rows and released count."""
-    import numpy as np
-    jac = jacobian.copy()
-    spread = np.ones((ROWS, DOFS))
-    for follower, leader, poly in COUPLINGS:
-        if leader >= 0:
-            lead = qpos[:, leader] - rest[leader]
-            slope = sum(power * poly[power] * lead ** (power - 1) for power in range(1, 5))
-            jac[:, :, leader] += jac[:, :, follower] * slope[:, None]
-            spread[:, leader] += slope ** 2
-    free = [dof for dof in range(DOFS) if dof not in FROZEN and dof not in {c[0] for c in COUPLINGS}]
-    sub = jac[:, :, free]
-    grad = np.einsum("frd,fr->fd", sub, residuals)
-    hess = np.einsum("frd,fre->fde", sub, sub)
-    hess[:, range(len(free)), range(len(free))] += (1e-2 * (residuals ** 2).sum(1) + 1e-9)[:, None] * spread[:, free]
-    step = -np.linalg.solve(hess, grad[..., None])[..., 0]
-    at = qpos[:, free]
-    held = np.zeros_like(step, dtype=bool)
-    on_low, on_high = at <= lower[free] + 1e-9, at >= upper[free] - 1e-9
-    released = 0
-    for _ in range(HOLD_PASSES):
-        slope = np.einsum("frd,fr->fd", sub, residuals + np.einsum("frd,fd->fr", sub, step))
-        inside = held & ((on_low & (slope < 0)) | (on_high & (slope > 0)))
-        released += int(inside.sum())
-        held = (held & ~inside) | (~held & ((on_low & (step < 0)) | (on_high & (step > 0))))
-        keep = ~held
-        hess_kept = hess * (keep[:, :, None] & keep[:, None, :]) + np.eye(len(free))[None] * held[:, :, None]
-        step = -np.linalg.solve(hess_kept, (grad * keep)[..., None])[..., 0] * keep
-    full = np.zeros((ROWS, DOFS))
-    full[:, free] = step
-    return full, np.linalg.norm(step, axis=1), int(held.any(1).sum()), released, free
-
-
-def prototype_projected(qpos, rest, seeds, lower, upper):
-    """card/proto/gpu.py's `projected`: ranges, couplings by polyval, frozen from the seeds."""
-    import numpy as np
-    found = np.clip(qpos, lower, upper)
-    for follower, leader, poly in COUPLINGS:
-        lead = found[:, leader] - rest[leader] if leader >= 0 else 0.0
-        found[:, follower] = rest[follower] + sum(poly[power] * lead ** power for power in range(5))
-    found[:, list(FROZEN)] = seeds[:, list(FROZEN)]
-    return found
 
 
 def the_step_equals_the_prototype():
@@ -212,15 +133,7 @@ def the_objectives_equal_newtons_own_row_by_row():
     from newton import ik
     from fit._card import PlacePerProblem, TurnPerProblem
     model = chain_model()
-    generator = np.random.default_rng(11)
-    poses = generator.uniform(-1.0, 1.0, size=(OBJECTIVE_ROWS, model.joint_coord_count))
-    offsets = generator.normal(0.0, 0.05, size=(OBJECTIVE_ROWS, 3)).astype(np.float32)
-    turns = generator.normal(size=(OBJECTIVE_ROWS, 4)).astype(np.float32)
-    turns /= np.linalg.norm(turns, axis=1, keepdims=True)
-    weights = generator.uniform(0.5, 2.0, OBJECTIVE_ROWS).astype(np.float32)
-    places = generator.normal(0.0, 0.5, size=(OBJECTIVE_ROWS, 3)).astype(np.float32)
-    wanted = generator.normal(size=(OBJECTIVE_ROWS, 4)).astype(np.float32)
-    wanted /= np.linalg.norm(wanted, axis=1, keepdims=True)
+    poses, offsets, turns, weights, places, wanted = objective_rows(model.joint_coord_count)
     link = LINKS - 1
     card = lambda values, kind: wp.array(values, dtype=kind, device="cuda:0")
     mine = residuals_and_jacobian(model, poses, [
