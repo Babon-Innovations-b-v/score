@@ -15,8 +15,10 @@ before that.
 - `_project.py` (`Projection`, `project`): after each step, ranges clipped, followers set to polyval of their
   leader, frozen coordinates back to the row's seed, in MuJoCo's qpos layout (Newton's quaternion order converted
   by the caller).
-- Still to come (plan step 1, second half): Newton's IKSolver ANALYTIC residuals and Jacobian with per-problem
-  targets, the integrate, the float32 stop rule fixed against mink, NotConverged at 300 steps, the clip test against
+- `_objective.py` (`PlacePerProblem`): Newton's IKObjectivePosition with its offset and weight per problem (rows of
+  several bodies or level-1 sets in one batch), analytic; equal to the built-in one row by row on person.xml (8 rows,
+  residuals exact, Jacobian 7.5e-9, 2026-10-29; scratch check, not yet in the test file).
+- Still to come (plan step 1, second half): the per-problem rotation objective, the integrate, the float32 stop rule fixed against mink, NotConverged at 300 steps, the clip test against
   mink frame by frame.
 - One test file (`test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the CPU
   prototype's float64 maths; it needs Newton's Python and a CUDA card, else prints `skipped`.
