@@ -10,7 +10,7 @@ import mujoco
 import numpy as np
 
 SOLVER = "daqp"  # the QP solver every mink example uses; pinned with mink
-STEP_DONE = 1e-8  # a step this small (the tangent step's norm) ends a frame's fit
+STEP_DONE = 1e-8  # a step this small (its tangent norm, or its change to the weighted errors) ends a frame's fit
 MOST_STEPS = 300  # a frame not converged by then fails the run: never kept silently
 LM_DAMPING = 1e-3  # mink's Levenberg-Marquardt term on each task: shapes a step, never moves the optimum
 DAMPING = 1e-9
@@ -24,16 +24,27 @@ class NotConverged(RuntimeError):
     """A frame whose fit did not converge in MOST_STEPS."""
 
 
+def weighted_errors(configuration, tasks):
+    """Every task's and constraint's error times its cost, stacked: what of the objective a step can change."""
+    return np.concatenate([task.cost * task.compute_error(configuration) for task in tasks])
+
+
 def solved(configuration, tasks, limits, constraints, refresh=None):
-    """mink's steps on `configuration` (from where it stands) until a step is under STEP_DONE: its qpos; `refresh`,
-    when given, sets the targets again before each step. Not converged in MOST_STEPS raises NotConverged."""
+    """mink's steps on `configuration` (from where it stands) until a step is under STEP_DONE, its own norm or the
+    change it makes to the tasks' and constraints' weighted errors (a step along a direction no task sees, a gimbal's
+    two cancelling joints at the shoulder's zero elevation, never ends by its own norm: #70's arms_raise): its qpos;
+    `refresh`, when given, sets the targets again before each step. Not converged in MOST_STEPS raises
+    NotConverged."""
+    seen = tasks + [constraint for constraint in constraints if isinstance(constraint, mink.EqualityConstraintTask)]
     for _ in range(MOST_STEPS):
         if refresh is not None:
             refresh()
+        before = weighted_errors(configuration, seen)
         velocity = mink.solve_ik(configuration, tasks, 1.0, SOLVER, damping=DAMPING, limits=limits,
                                  constraints=constraints)
         configuration.integrate_inplace(velocity, 1.0)
-        if np.linalg.norm(velocity) < STEP_DONE:
+        moved = np.linalg.norm(weighted_errors(configuration, seen) - before)
+        if np.linalg.norm(velocity) < STEP_DONE or moved < STEP_DONE:
             return configuration.q.copy()
     raise NotConverged(f"a frame's fit did not converge in {MOST_STEPS} steps (its last step "
                        f"{np.linalg.norm(velocity)})")
