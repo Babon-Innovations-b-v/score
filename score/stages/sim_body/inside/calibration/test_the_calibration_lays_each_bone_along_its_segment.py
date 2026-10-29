@@ -9,6 +9,10 @@ Breaks (each applied once, seen red, reverted), 2026-10-28:
 - TABLE's RightLeg `(0.707106, 0.707106, ...)` made `(-0.707106, 0.707106, ...)` (the left's).
 - TABLE's Spine2 `0.00165502` made `0.1`: the lumbar turned sideways.
 
+Break (applied once, seen red, reverted), 2026-10-29:
+- REFERENCES' `{Side}Arm` made `("z of {Side}ForeArm", "axis of elbow_flex_{side}")`: a twist from a rig joint's
+  bind and a model joint's axis, not the same landmarks on both models.
+
 Run: .venv/bin/python score/stages/sim_body/inside/calibration/test_the_calibration_lays_each_bone_along_its_segment.py
 """
 import pathlib
@@ -54,7 +58,25 @@ def the_table_keeps_both_sides_and_the_middle():
     return problems
 
 
-CHECKS = (a_hanging_bone_is_laid_along_its_segment, the_table_keeps_both_sides_and_the_middle)
+def each_twist_is_read_from_the_same_landmarks_on_both_models():
+    """Every reference is the person's own axis or one landmark line, the same on SOMA and on MyoFullBody, its two
+    landmarks in the landmark set on both sides."""
+    from landmarks import LANDMARKS
+    problems = []
+    for group, (soma, myo) in calibration.REFERENCES.items():
+        if soma != myo:
+            problems.append(f"{group}: SOMA's reference {soma!r} is not MyoFullBody's {myo!r}")
+        elif soma.startswith("line "):
+            missing = [name.format(side=side) for name in soma.split()[1:] for side in "lr"
+                       if name.format(side=side) not in LANDMARKS]
+            problems += [f"{group}: {name} is no landmark" for name in missing]
+        elif soma not in ("own x", "own y"):
+            problems.append(f"{group}: {soma!r} is neither an own axis nor a landmark line")
+    return problems
+
+
+CHECKS = (a_hanging_bone_is_laid_along_its_segment, the_table_keeps_both_sides_and_the_middle,
+          each_twist_is_read_from_the_same_landmarks_on_both_models)
 
 
 if __name__ == "__main__":

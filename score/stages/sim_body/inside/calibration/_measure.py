@@ -4,8 +4,8 @@
 
 <model folder>: the fetched MyoFullBody ($PROPS_HOME/models/<sha>); <rig.npz>: people-clips-make's template rig. Each
 bone group's stretch on SOMA's bind (`landmarks.soma_point`) and on MyoFullBody at its default pose
-(`landmarks.myo_parts`), each reference axis (`REFERENCES`), then `aligned`. The MyoFullBody reference is turned to
-agree in sign with SOMA's."""
+(`landmarks.myo_parts`), each reference axis (`REFERENCES`: a landmark line on SOMA's template skin and between
+MyoFullBody's bone points), then `aligned`. The MyoFullBody reference is turned to agree in sign with SOMA's."""
 import pathlib
 import sys
 
@@ -15,7 +15,7 @@ import numpy as np
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from bone_groups import groups, sided_map  # noqa: E402
 from calibration import REFERENCES, aligned  # noqa: E402
-from landmarks import LANDMARKS, myo_parts, soma_point  # noqa: E402
+from landmarks import LANDMARKS, myo_parts, on_skin, soma_point  # noqa: E402
 from model import TO_OWN, Couplings, default_pose  # noqa: E402
 from myo import SOURCE  # noqa: E402
 
@@ -32,23 +32,21 @@ def myo_point(model, data, name):
     return TO_OWN @ found
 
 
-def soma_reference(name, segment, rig):
-    names = [str(joint) for joint in rig["names"]]
+def soma_reference(name, rig):
+    """A reference axis on SOMA's bind: an own axis, or a landmark line on the template's skin."""
     if name in OWN:
         return OWN[name]
-    if name == "radial":
-        side = segment[:-len("Hand")]
-        return rig["bind"][names.index(segment), :3, 1] * (1.0 if side == "Left" else -1.0)
-    return rig["bind"][names.index(name[len("z of "):]), :3, 2]
+    start, end = name.split()[1:]
+    skin = on_skin(rig["points"], rig["faces"])
+    return skin[end] - skin[start]
 
 
-def myo_reference(name, segment, model, data):
+def myo_reference(name, model, data):
+    """A reference axis on MyoFullBody at its default pose: an own axis, or a landmark line between bone points."""
     if name in OWN:
         return OWN[name]
-    if name == "radial":
-        letter = segment[0].lower()
-        return myo_point(model, data, f"MC2_head_{letter}") - myo_point(model, data, f"MC5_head_{letter}")
-    return TO_OWN @ data.xaxis[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name[len("axis of "):])]
+    start, end = name.split()[1:]
+    return myo_point(model, data, end) - myo_point(model, data, start)
 
 
 def measured(folder, rig_path):
@@ -61,8 +59,8 @@ def measured(folder, rig_path):
     found = {}
     for segment, ((start, end), (myo_start, myo_end), frame_body, _) in groups().items():
         soma_ref, myo_ref = references[segment]
-        soma_axis = soma_reference(soma_ref, segment, rig)
-        myo_axis = myo_reference(myo_ref, segment, model, data)
+        soma_axis = soma_reference(soma_ref, rig)
+        myo_axis = myo_reference(myo_ref, model, data)
         myo_axis = myo_axis * (1.0 if myo_axis @ soma_axis >= 0 else -1.0)
         segment_turn = rig["bind"][names.index(segment), :3, :3]
         body = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, frame_body)
