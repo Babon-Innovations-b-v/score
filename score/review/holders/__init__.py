@@ -20,7 +20,10 @@ Each plan item of a row that stands on, against or in something gets one relatio
            at the longest wall's middle
     floor / ceiling  on the place's own floor or under its roof: named, nothing to lay against
 
-A row whose holder the plan does not lay and is no wall, floor or roof, or a wall item in an open place with no wall,
+A row whose things the concept shows on several rows of its named holder's footing (hub's 38 monitors on four consoles,
+the reading naming one bank: one anchor a row) has each item held by the nearest of them on the plan (seen_holders):
+the anchors stay the reading's, so the hand-in, the close-ups and Pixal3D keep their keys. A row whose holder the plan
+does not lay and is no wall, floor or roof, or a wall item in an open place with no wall,
 is `unheld` with why. The file names the kept plan's sha it was derived from (`plan`), so the scene record lays by
 it only while the plan is the same.
 
@@ -47,6 +50,10 @@ WALL_WORDS = {"wall", "walls", "facade", "panel", "partition", "side", "bulkhead
 FLOOR_WORDS = {"floor", "deck", "plates", "plate", "grating", "plaza", "ground", "platform", "terrain", "regolith",
                "pavement", "road", "street", "yard", "quay"}
 CEILING_WORDS = {"roof", "ceiling", "dome", "canopy", "sky"}
+# Words of a row's id that say where it stands, not what it is (main_control_bank, control_console_left: both control).
+PLACE_WORDS = {"left", "right", "front", "back", "rear", "main", "top", "upper", "lower", "middle", "centre", "center",
+               "inner", "outer", "side", "big", "small", "large", "tall", "short", "long", "near", "far", "the", "of",
+               "and", "with"}
 PARTS = {"wall": "wall", "opening": "wall", "floor": "floor", "ground": "floor", "roof": "ceiling", "sky": "ceiling"}
 
 
@@ -85,11 +92,22 @@ def box_of(row):
     return next(iter(plan_checks.boxes_of(row)), None)
 
 
+def seen_pair(row, holder):
+    """(the row's box, the holder's box) the concept shows it on: the first of its boxes whose foot one of the
+    holder's holds, with that box; else each one's first."""
+    for seen in plan_checks.boxes_of(row):
+        x, y = foot(seen)
+        for under in plan_checks.boxes_of(holder):
+            if under[0] <= x <= under[2] and under[1] <= y <= under[3]:
+                return seen, under
+    return box_of(row), box_of(holder)
+
+
 def on_top(row, holder):
-    """Whether the concept shows the row on its holder's top: its box's foot over the holder's by TOP_SHARE of the
-    holder's box and its top no lower than the holder's top quarter (a window high on a module's face stays on its
-    face); with a box missing, False (against its side)."""
-    seen, under = box_of(row), box_of(holder)
+    """Whether the concept shows the row on its holder's top (seen_pair: the box of it standing on the holder): its
+    box's foot over the holder's by TOP_SHARE of the holder's box and its top no lower than the holder's top quarter
+    (a window high on a module's face stays on its face); with a box missing, False (against its side)."""
+    seen, under = seen_pair(row, holder)
     if not (seen and under):
         return False
     tall = under[3] - under[1]
@@ -105,7 +123,7 @@ def seen_side(row, holder, turn):
     """The holder's side the concept shows the row against, as a plan side: the side toward the viewer where its box
     stands within the holder's across, else the holder's left or right side as the viewer sees it; None with a box
     missing."""
-    seen, under = box_of(row), box_of(holder)
+    seen, under = seen_pair(row, holder)
     if not (seen and under):
         return None
     right, toward = plan_checks.ways(turn)
@@ -221,6 +239,36 @@ def in_opening(item, row, plan, inventory, taken):
             "why": f"in the plan's {opening['kind']} opening {number + 1}"}
 
 
+def foot(box):
+    """The middle of a concept box's foot [x, y]."""
+    return (box[0] + box[2]) / 2, box[3]
+
+
+def standing_on(box, rows):
+    """The row whose concept box holds the foot of `box`, the smallest such box's, or None."""
+    x, y = foot(box)
+    found = [((held[2] - held[0]) * (held[3] - held[1]), row) for row in rows for held in plan_checks.boxes_of(row)
+             if held[0] <= x <= held[2] and held[1] <= y <= held[3]]
+    return min(found, key=lambda pair: pair[0])[1] if found else None
+
+
+def kind_words(row):
+    """The words of a row's id and noun that say what it is, its place words (left, front, main...) left out."""
+    return words_of({"id": row["id"], "noun": row.get("noun", "")}) - PLACE_WORDS
+
+
+def seen_holders(row, holder, rows, laid):
+    """The rows the concept shows the row's things standing on (hub's 38 monitors on its control bank and consoles, the
+    reading's anchor naming one): for each of its boxes the row like its named holder (the same anchor, a word of
+    what it is shared: a console beside a control bank, never the chair before a desk; laid on the plan) whose box
+    holds its foot, the named holder first; the named holder alone where none is seen."""
+    alike = [other for other in rows.values() if other["id"] in laid and other is not row
+             and (other.get("anchor") or "floor") == (holder.get("anchor") or "floor")
+             and kind_words(other) & kind_words(holder)]
+    shown = {found["id"]: found for box in plan_checks.boxes_of(row) if (found := standing_on(box, alike))}
+    return [holder, *[found for found_id, found in shown.items() if found_id != holder["id"]]]
+
+
 def relation(item, row, rows, plan, inventory, laid, taken, turn):
     """One item's relation (module docstring) for its row, or (None, why) when nothing holds it."""
     anchor = row.get("anchor") or "floor"
@@ -228,7 +276,14 @@ def relation(item, row, rows, plan, inventory, laid, taken, turn):
     if anchor.startswith("on:") and holder is None:
         return None, f"its holder {anchor[3:]} is no row of the inventory"
     if holder is not None and holder["id"] in laid:  # an item of its own, or tied to its holder's: laid on it
-        return held(item, row, holder, laid[holder["id"]], plan_items(plan), turn), None
+        items, shown = plan_items(plan), seen_holders(row, holder, rows, laid)
+        nearest = min(((other, name) for other in shown for name in laid[other["id"]]),
+                      key=lambda pair: float(numpy.linalg.norm(middle(items[pair[1]]) - middle(item))))
+        found = held(item, row, nearest[0], [nearest[1]], items, turn)
+        if len(shown) > 1:
+            found["why"] += (f" (its things stand on {len(shown)} rows in the concept: "
+                             f"{', '.join(other['id'] for other in shown)}; the nearest on the plan)")
+        return found, None
     kind = "wall" if anchor == "wall" else "ceiling" if anchor in ("ceiling", "roof") else (
         holder_kind(holder) if holder is not None else None)
     if kind in ("floor", "ceiling"):

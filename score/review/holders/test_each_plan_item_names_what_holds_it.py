@@ -1,6 +1,7 @@
 """Each plan item of a row that stands on, against or in something names what holds it, derived free from the scene
 inventory's anchors, the concept's boxes and the plan (issue #72): base's garage door against its module's front, a
-monitor on its console's top, a door in the plan's opening and the next one, with no opening left, on its wall, a
+monitor on its console's top, monitors the reading anchors on one bank on the nearest of the consoles the concept
+shows them on, a door in the plan's opening and the next one, with no opening left, on its wall, a
 wall lamp the plan writer left on the walls item on a named wall's room side; and the file is kept beside the plan
 with the plan's sha. Plans and inventories are small ones made here.
 
@@ -56,6 +57,34 @@ def test_a_monitor_stands_on_its_console_s_top():
                    {"CONSOLE 1": ["console"], "CONSOLE 2": ["console"], "MONITOR 1": ["monitor"]})
     monitor = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["monitor"]
     assert (monitor["how"], monitor["holder"]) == ("top", "CONSOLE 1"), monitor
+
+
+def test_monitors_the_concept_shows_on_two_consoles_stand_on_the_nearest():
+    """Hub (2026-10-29): the reading anchors all 38 monitors on its 3 x 0.8 m control bank (one anchor a row), but the
+    concept shows them on the bank and on a console beside it. Each monitor stands on the nearest of the rows like
+    its named holder (the same anchor, a word of what it is shared: control) that the concept shows its things on;
+    the chair a monitor's foot also falls in, a row of another kind, holds none.
+    Break: score/review/holders/__init__.py: `and kind_words(other) & kind_words(holder)]` -> `]`
+    Break: score/review/holders/__init__.py: `items, shown = plan_items(plan), seen_holders(row, holder, rows, laid)`
+        -> `items, shown = plan_items(plan), [holder]`"""
+    rows = [{"id": "main_control_bank", "noun": "control bank", "anchor": "floor", "box": [100, 200, 400, 500]},
+            {"id": "control_console_right", "noun": "console", "anchor": "floor", "box": [600, 300, 900, 500]},
+            {"id": "chair", "noun": "chair", "anchor": "floor", "box": [650, 380, 700, 470]},
+            {"id": "monitor_screen", "noun": "monitor", "anchor": "on:main_control_bank",
+             "boxes": [[150, 150, 200, 260], [660, 300, 700, 400], [800, 240, 850, 340]]}]
+    plan = plan_of([["MAIN CONTROL BANK 1", 1.0, 1.0, 3.0, 0.8, "S", "item"],
+                    ["CONTROL CONSOLE RIGHT 1", 14.0, 1.0, 3.0, 0.8, "S", "item"],
+                    ["CHAIR 1", 15.0, 2.5, 0.6, 0.6, None, "item"],
+                    ["MONITOR SCREEN 1", 2.0, 1.2, 0.5, 0.1, None, "item"],
+                    ["MONITOR SCREEN 2", 15.0, 1.2, 0.5, 0.1, None, "item"],
+                    ["MONITOR SCREEN 3", 15.2, 2.6, 0.5, 0.1, None, "item"]],
+                   {"MAIN CONTROL BANK 1": ["main_control_bank"], "CONTROL CONSOLE RIGHT 1": ["control_console_right"],
+                    "CHAIR 1": ["chair"], "MONITOR SCREEN 1": ["monitor_screen"],
+                    "MONITOR SCREEN 2": ["monitor_screen"], "MONITOR SCREEN 3": ["monitor_screen"]})
+    found = {entry["item"]: entry["holder"] for entry in holders.relations(plan, {"rows": rows, "picture": PICTURE})[
+        "relations"] if entry["row"] == "monitor_screen"}
+    assert found == {"MONITOR SCREEN 1": "MAIN CONTROL BANK 1", "MONITOR SCREEN 2": "CONTROL CONSOLE RIGHT 1",
+                     "MONITOR SCREEN 3": "CONTROL CONSOLE RIGHT 1"}, found
 
 
 def test_a_door_goes_in_the_plan_s_opening_and_the_next_on_its_wall():
