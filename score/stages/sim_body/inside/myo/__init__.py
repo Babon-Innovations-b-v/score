@@ -37,9 +37,19 @@ def _fresh(source):
     return spec
 
 
+def inside_moved(spec, joints):
+    """Each joint inside a bone group moved in its parent by the fit's found move ({body as the person's file names
+    it: [3] m}; #70's level 2), on the sized places."""
+    for body in spec.bodies:
+        filed = body.name.replace("-", "_").replace(" ", "_")  # myo._fixes.renamed's
+        if filed in joints:
+            body.pos = body.pos + joints[filed]
+
+
 def person_file(folder, size, kg, path, constants=None):
     """One person's MyoFullBody, written at `path`, sized by `size` (a `sizing.Size` of the person's SOMA) and, when
-    given, the fit's `constants` ({"sizes": {group: factor}}: each group's scale times its factor), and (its record,
+    given, the fit's `constants` ({"sizes": {group: factor}}: each group's scale times its factor; "joints": each
+    inside joint's move, `inside_moved`), and (its record,
     each body's scale): the record holds each group's scale and its length against SOMA's, the inertia scale per
     group, its muscles' length scale, its total mass and what is assumed."""
     source = f"{folder}/{SOURCE}"
@@ -53,6 +63,8 @@ def person_file(folder, size, kg, path, constants=None):
     wrappers = multi_joint_bodies(spec)
     sized(spec, model, scales, kg, wrappers)
     hip_width(spec, size.rig)
+    if constants:
+        inside_moved(spec, constants.get("joints", {}))
     grown = spec.compile()
     factors = size.weigh(spec, grown, scales, kg - wrappers * WRAPPER_KG - ungrouped_kg(grown, size.table))
     grown = spec.compile()

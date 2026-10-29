@@ -34,6 +34,12 @@ place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the
   groups (`SIZE_GROUPS`: an overall one, the trunk, and per side thigh, shin, foot, upper arm, forearm, hand), pulled
   gently to 1 (`SIZE_PULL`), then each free marker's move off its link, pulled to it at its own weight; the plantar
   pads (`landmarks.HELD`) never move, so a foot cannot sink through SOMA's sole.
+- **The joints inside groups are person constants** (#70 level 2, 2026-10-29): every body whose parent is another
+  body of its own bone group (the lumbar levels, clavicle to scapula, the wrist bones, talus to calcaneus, the radius)
+  and that a marker rides, it or a body below it (`Fitting.inside`), moves in its parent, solved in the markers' stage
+  with the markers' moves and the sampled frames' angles, once per body, within `MARK_MOST`, pulled to its place at
+  the markers' mean weight; never per frame. The moves are written in the person's file (`myo.inside_moved`), so
+  Newton's model has them too; the record keeps each in mm (`inside joints moved mm`). No group or joint special-cased.
 - **The calibration is the static table** (`calibration`), a site's quaternion R_cal^T on the group's frame body:
   never fitted, never per person.
 - **The followers' own ranges are not held** (`Fitting.limited_model`): 35 of MyoFullBody's 51 couplings have a

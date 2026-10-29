@@ -1,7 +1,8 @@
 """fit: on a small model posed by hand (a free pelvis, a left leg of thigh and shin, a right leg whose ankle follows its
 hip by a coupling, one thigh's calibration turned 30 degrees), with the person's constants set by hand (the left size
-group 8% longer, one pelvis marker 1 cm off its link), the staged solver gives back from the bone groups' turns and
-the markers the size factor (within the gentle pull to 1) and the marker's move (within its pull to its link), and at
+group 8% longer, one pelvis marker 1 cm off its link, the knee, a joint inside the left leg's group, 1 cm off its
+place), the staged solver gives back from the bone groups' turns and the markers the size factor (within the gentle
+pull to 1), the marker's move (within its pull to its link) and the knee's (within its pull to its place), and at
 those constants every frame's angles; a frame asking a hip past its range stops it at the range's end, its coupled follower on its leader by the
 coupling, though the follower's own range is narrower; each marker weighs its trust among the markers, the markers'
 goal (group ends included, one goal) MARKER_GOAL in all against the turns' 1; the overall
@@ -26,6 +27,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-10-29) _frames.weights' `MARKER_GOAL * trusts` made `2 * trusts`: the markers' goal outweighs the turns'.
 - (2026-10-29) sampled's `for turns, points in recordings` made `for turns, points in recordings[:1]`: the body's
   second recording is left out of its constants.
+- (2026-10-29) Fitting.apply's `self.model.body_pos[self.inside] += joints` dropped: the knee's move is not
+  found.
 - (2026-10-29) constants' second stage (`staged(..., MARKS, ...)`) skipped (its sizes returned with no move): the
   marker's move is not found.
 
@@ -75,6 +78,8 @@ MARKS = {"pelvis": [(0.15, 0.1, 0.0), (-0.15, 0.1, 0.0), (0.0, -0.1, 0.1)],
 OWNERS = {"pelvis": "trunk", "leg_l": "left", "shin_l": "left", "leg_r": "right", "foot_r": "right"}
 TRUE_LEFT = 1.0  # level 2 solves no size: every group's length is SOMA's (sizing)
 TRUE_MOVE = ("pelvis1", (0.0, 0.01, 0.0))  # a marker 1 cm off its link, on its body
+TRUE_JOINT = ("shin_l", (0.0, 0.01, 0.0))  # the knee 1 cm off its place in the thigh (a joint inside a group)
+LEG_GROUPS = [{"leg_l", "shin_l"}, {"leg_r", "foot_r"}]  # the toy's two leg groups: the knee and ankle inside them
 LOW_TRUST = ("pelvis2", 0.25)
 # Each frame's root place, then hip_l, knee_l, hip_r (radians); the last asks hip_l past its range's end, 1.
 POSES = [((0.0, 0.0, 1.0), 0.2, -0.4, 0.1), ((0.05, 0.0, 1.0), 0.4, -0.8, -0.3), ((0.1, 0.02, 0.98), 0.1, -1.2, 0.6),
@@ -108,7 +113,7 @@ def toy_fitting(folder):
     marks = [(f"{body}{number}", body, np.array(point)) for body, points in MARKS.items()
              for number, point in enumerate(points)]
     trusts = [LOW_TRUST[1] if name == LOW_TRUST[0] else 1.0 for name, _, _ in marks]
-    return Fitting(path, frames, marks, OWNERS, (), (), trusts)
+    return Fitting(path, frames, marks, OWNERS, (), (), trusts, LEG_GROUPS)
 
 
 def posed_targets(fitting, truth, poses):
@@ -139,12 +144,14 @@ def truth_of(fitting):
     found[fitting.sizes.index("left")] = TRUE_LEFT
     at = len(fitting.sizes) + 3 * fitting.marks.index(TRUE_MOVE[0])
     found[at:at + 3] = TRUE_MOVE[1]
+    at = len(fitting.sizes) + 3 * (len(fitting.marks) + fitting.inside_names.index(TRUE_JOINT[0]))
+    found[at:at + 3] = TRUE_JOINT[1]
     return found
 
 
 def the_solver_gives_back_the_angles_and_the_constants():
     """The left group's whole factor (the overall one's times its own) within MOST_FACTOR of TRUE_LEFT and TRUE_MOVE's
-    marker moved along its true move by MOVE_SHARE to all of it, within MOST_METRES of that line; at the true constants every frame within reach (all but the last) within
+    marker and TRUE_JOINT's joint moved along their true moves by MOVE_SHARE to all of it, within MOST_METRES of that line; at the true constants every frame within reach (all but the last) within
     MOST_RADIANS of its angles."""
     import fit
     import numpy as np
@@ -166,6 +173,10 @@ def the_solver_gives_back_the_angles_and_the_constants():
     along = move @ true / (true @ true)
     if not MOVE_SHARE <= along <= 1.0 or np.linalg.norm(move - along * true) > MOST_METRES:
         problems.append(f"{TRUE_MOVE[0]} moved {move}, not {TRUE_MOVE[1]}")
+    move, true = np.array(found["joints"][TRUE_JOINT[0]]), np.array(TRUE_JOINT[1])
+    along = move @ true / (true @ true)
+    if not MOVE_SHARE <= along <= 1.0 or np.linalg.norm(move - along * true) > MOST_METRES:
+        problems.append(f"the knee moved {move}, not {TRUE_JOINT[1]}")
     return problems
 
 
