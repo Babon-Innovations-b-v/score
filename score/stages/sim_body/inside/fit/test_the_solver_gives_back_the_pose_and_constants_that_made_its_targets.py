@@ -8,7 +8,9 @@ its trust among the markers, the markers' goal (group ends included, one goal) M
 a group end that is the middle of two bodies' centres (the hips') sits on their common holder (the pelvis) as one body's
 sits on its own, one rule; the constants are the body's, sampled from every one of its recordings; SOMA's targets (its
 segments' turns, its skin's landmarks and rig joints) leave both solves unchanged (#70: SOMA is never moved); a frame's
-fit ends on a step that moves no task's error, though the step itself is not small. It runs in Newton's own Python (mink
+fit ends on a step that moves no task's error, though the step itself is not small; level 2 solves only the inside joint
+axes its Jacobian can tell apart from the other unknowns (a pair fixed to the root: their common shift is the root's
+place; a marked body welded under a markerless hinged middle: the hinge's own axis), and every other axis it keeps. It runs in Newton's own Python (mink
 pinned there; score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there,
 as in `make tests`' sandbox home, it prints `skipped`.
 
@@ -33,6 +35,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   rides the left thigh.
 - (2026-10-29) _frames.solved's `or moved < STEP_DONE` dropped: the hinge whose mass sits 1e-6 m off its axis drifts
   1e-3 rad a step and raises NotConverged.
+- (2026-10-29) _constants.told's kept `np.abs(np.diag(upper)) >= TOLD` made `>= 0`: every inside axis is solved, the
+  pair's common shift and the hinge's axis among them.
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/test_the_solver_gives_back_the_pose_and_constants_that_made_its_targets.py
 """
@@ -134,6 +138,47 @@ def truth_of(fitting):
     at = 3 * (len(fitting.marks) + fitting.inside_names.index(TRUE_JOINT[0]))
     found[at:at + 3] = TRUE_JOINT[1]
     return found
+
+TRADED = """<mujoco><worldbody><body name="base"><freejoint/><geom size="0.1" mass="1"/>
+  <body name="hip" pos="0 0 -0.1"><geom size="0.05" mass="1"/></body>
+  <body name="back" pos="0 0 0.1"><geom size="0.05" mass="1"/>
+    <body name="mid" pos="0 0 0.1"><joint axis="1 0 0"/><geom size="0.05" mass="1"/>
+      <body name="top" pos="0 0 0.1"><geom size="0.05" mass="1"/></body></body></body>
+</body></worldbody></mujoco>"""
+
+
+def only_what_the_data_tells_is_an_inside_unknown():
+    """On a free markerless root holding a hip and a back with no joint, the back holding a markerless middle on a
+    hinge about x with a marked top fixed on it (the markers' own moves held): of the inside joints' twelve axes the
+    Jacobian cannot tell three (the hip's and back's common shift, the root's place) and one (the middle's and top's
+    along the hinge); the other eight are solved."""
+    import mujoco
+    import numpy as np
+    from scipy.spatial.transform import Rotation
+    from fit import Fitting
+    from fit._card._level2 import jacobian
+    from fit._constants import Problem, told
+    with tempfile.TemporaryDirectory() as folder:
+        path = pathlib.Path(folder) / "traded.xml"
+        path.write_text(TRADED)
+        marks = [(f"{body}{axis}", body, np.eye(3)[axis] * 0.05) for body in ("hip", "back", "top") for axis in range(3)]
+        fitting = Fitting(path, [("base", "base", np.eye(3))], marks, (), None, [{"base", "hip", "back", "mid", "top"}])
+    poses = np.tile(fitting.model.qpos0, (4, 1))
+    poses[:, 3:7] = Rotation.from_rotvec([[0, 0, 0], [0.3, 0, 0], [0, 0.4, 0.1], [0.1, -0.2, 0.5]]).as_quat(scalar_first=True)
+    poses[:, 7] = [0.0, 0.5, -0.4, 1.0]
+    turns, points, data = [], [], mujoco.MjData(fitting.model)
+    for pose in poses:
+        data.qpos[:] = pose
+        mujoco.mj_kinematics(fitting.model, data)
+        turns.append(data.site_xmat[fitting.frame_sites].reshape(-1, 3, 3))
+        points.append(data.site_xpos[fitting.mark_sites].copy())
+    problem = Problem(fitting, poses, np.array(turns), np.array(points), fitting.neutral())
+    kept = told(problem, jacobian(problem, problem.start()))
+    untold = sorted(set(range(len(problem.slots))) - set(kept))
+    names = [f"{fitting.inside_names[slot // 3]}.{'xyz'[slot % 3]}" for slot in untold]
+    pair = [name for name in names if name[:3] in ("hip", "bac")]
+    hinge = [name for name in names if name in ("mid.x", "top.x")]
+    return [] if (len(pair), len(hinge), len(names)) == (3, 1, 4) else [f"untold {names}"]
 
 
 def the_solver_gives_back_the_angles_and_the_constants():
@@ -282,7 +327,7 @@ def a_step_no_task_sees_ends_the_fit():
     return [] if moved < 1e-6 else [f"its error moved {moved}"]
 
 
-CHECKS = (a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
+CHECKS = (only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
           the_place_goal_sums_to_the_marker_goal, the_solver_gives_back_the_angles_and_the_constants,
           every_recording_of_the_body_is_sampled, somas_targets_leave_the_solves_unchanged, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows,
           a_step_no_task_sees_ends_the_fit)
