@@ -17,7 +17,8 @@ import mujoco
 
 import resting
 from myo._fixes import full_muscles, multi_joint_bodies, renamed, split
-from sizing import WRAPPER_KG, assumed, body_scales, kept_bodies, path_lengths, sized, stretches, ungrouped_kg
+from sizing import (WRAPPER_KG, assumed, body_scales, hip_width, kept_bodies, path_lengths, sized, stretches,
+                    ungrouped_kg)
 
 SOURCE = "musclemimic_models/model/body/myofullbody.xml"
 
@@ -51,6 +52,7 @@ def person_file(folder, size, kg, path, constants=None):
     spec = _fresh(source)
     wrappers = multi_joint_bodies(spec)
     sized(spec, model, scales, kg, wrappers)
+    hip_width(spec, size.rig)
     grown = spec.compile()
     factors = size.weigh(spec, grown, scales, kg - wrappers * WRAPPER_KG - ungrouped_kg(grown, size.table))
     grown = spec.compile()
