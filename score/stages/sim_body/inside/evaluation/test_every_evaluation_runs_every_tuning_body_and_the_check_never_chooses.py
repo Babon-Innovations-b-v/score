@@ -1,6 +1,7 @@
 """Level 1's runner (#70): an evaluation runs levels 2 and 3 on every tuning body, side by side and no more than
 `most` at once, every clip of a body in one process; the check bodies never enter an evaluation, are scored every
-few iterations and at the end, and pass within 10 % of the tuning bodies. A toy worker writes each clip's measures.
+few iterations and at the end, and pass within 10 % of the tuning bodies. A toy worker writes each clip's measures;
+the solver reads them unrounded, m.json is the rounded copy people read.
 
 Breaks that turn a test red (each seen red once, 2026-10-29):
 - run_all's `len(running) < most` made `<= most`: more bodies at once than allowed.
@@ -8,6 +9,8 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
 - tuning.whole's `checks.append(("end", ...))` dropped: no held-out score at the end.
 - accepted's `1 + HELD_OUT_SHARE` made `1`: a check 5 % worse fails.
 - measured's rest.json write dropped: the worker never sees the group ends' centres (2026-10-29).
+- measured reading `m.json` for `SOLVED`: the solver is handed the rounded copy (2026-10-29).
+- rounded's list branch dropped: a summary's floats reach m.json unrounded (2026-10-29).
 
 Run: .venv/bin/python score/stages/sim_body/inside/evaluation/test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py
 """
@@ -32,8 +35,10 @@ out = pathlib.Path(sys.argv[3])
 for given in sys.argv[4:]:
     case = given.split("=")[0]
     (out / case).mkdir()
-    (out / case / "m.json").write_text(json.dumps({"per joint mm": {"knee_l": [10, 0]}, "per group deg":
-        {"LeftLeg": [5, 0]}, "bones outside all %": 10, "bones outside skin %": {"thigh": 10}, "args": sys.argv[1:]}))
+    found = {"per joint mm": {"knee_l": [10, 0]}, "per group deg": {"LeftLeg": [5, 0]}, "bones outside all %": 10,
+             "bones outside skin %": {"thigh": 10}, "joints mm": [1.0000004, 2.0, 3.0], "args": sys.argv[1:]}
+    (out / case / "measures.json").write_text(json.dumps(found))
+    (out / case / "m.json").write_text(json.dumps({**found, "joints mm": [1.0, 2.0, 3.0]}))
 """
 
 
@@ -67,6 +72,15 @@ def test_an_evaluation_runs_every_tuning_body_once_two_at_most_at_once():
         assert json.loads((out / "weights.json").read_text()) == {"marker goal": 1.0}
         assert json.loads((out / "rest.json").read_text()) == rest
         assert evaluation.side_score(found) == 1 + 1 + 1
+        assert all(value["joints mm"][0] == 1.0000004 for value in found.values())  # the solver's, unrounded
+
+
+def test_the_copy_people_read_is_rounded_and_the_solvers_is_not():
+    measures = {"joints mm": [1.234567, 2.0, 3.98765], "per joint mm": {"knee_l": [10.4444, 0.0]},
+                "bones outside all %": 4.5771234, "fit seconds": 12, "recordings": ["/a.npz"]}
+    assert evaluation.rounded(measures) == {"joints mm": [1.23, 2.0, 3.99], "per joint mm": {"knee_l": [10.44, 0.0]},
+                                            "bones outside all %": 4.58, "fit seconds": 12, "recordings": ["/a.npz"]}
+    assert measures["joints mm"][0] == 1.234567
 
 
 def test_the_check_is_scored_every_few_iterations_and_at_the_end_and_never_evaluated():

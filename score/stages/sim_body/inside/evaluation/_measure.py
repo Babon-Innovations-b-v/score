@@ -2,7 +2,8 @@
 joint centre against SOMA's joint, mm), each bone group's rotation error on the FROZEN calibration copy (fit._frozen,
 deg), the share of bone vertices outside SOMA's posed skin by region (every EVERY-th frame), and beside them tip,
 length and floor readings. Never a landmark distance the solver pulls on. The skin, the winding test, the regions and
-the frozen table are the stage's own (fit._skin, fit._frozen), so the record and level 1's score are one code.
+the frozen table are the stage's own (fit._skin, fit._frozen), so the record and level 1's score are one code. Every
+value is unrounded (the solver's); `evaluation.rounded` makes the copy people read (m.json).
 Newton's Python (mujoco, warp)."""
 import mujoco
 import numpy as np
@@ -66,8 +67,7 @@ def centre(model, data, name, scales):
 
 def summary(values):
     values = np.asarray(values, dtype=float)
-    return [round(float(np.median(values)), 2), round(float(np.percentile(values, 95)), 2),
-            round(float(values.max()), 2)]
+    return [float(np.median(values)), float(np.percentile(values, 95)), float(values.max())]
 
 
 def measures(model, angles, rig, segments, worlds, scales):
@@ -132,8 +132,8 @@ def measures(model, angles, rig, segments, worlds, scales):
                  for key, (a, b, c) in list(segs.items())})
     data.qpos[:] = angles[0]
     mujoco.mj_kinematics(model, data)
-    long = {key: round(1000 * float(np.linalg.norm(centre(model, data, b, scales) - centre(model, data, a, scales))
-                                    - np.linalg.norm(bind[names.index(c), :3, 3] - bind[names.index(key), :3, 3])), 1)
+    long = {key: 1000 * float(np.linalg.norm(centre(model, data, b, scales) - centre(model, data, a, scales))
+                              - np.linalg.norm(bind[names.index(c), :3, 3] - bind[names.index(key), :3, 3]))
             for key, (a, b, c) in segs.items()}
     free = sum(joints.values(), [])
     return {"joints mm": summary(free), "per joint mm": {key: summary(value)[:2] for key, value in joints.items()},
@@ -141,15 +141,15 @@ def measures(model, angles, rig, segments, worlds, scales):
             "per group deg": {key: summary(value)[:2] for key, value in turns.items()},
             "joint length over SOMA mm": long, "tips mm": {key: summary(value)[:2] for key, value in tips.items()},
             "hand tips mm": {key: summary(value)[:2] for key, value in hand.items()},
-            "lowest collider mm": [round(float(np.median(lowest)), 1), round(float(np.min(lowest)), 1)],
-            "skin lowest mm": [round(float(np.median(skin_lowest)), 1), round(float(np.min(skin_lowest)), 1)],
-            "collider under skin mm": round(float(np.median(np.array(skin_lowest) - np.array(lowest))), 1),
-            "bones outside skin %": {key: round(100 * float(np.mean(value)), 2) for key, value in outside.items()},
-            "outside depth p95 mm": {key: round(float(np.percentile(value, 95)), 1) if value else 0.0
+            "lowest collider mm": [float(np.median(lowest)), float(np.min(lowest))],
+            "skin lowest mm": [float(np.median(skin_lowest)), float(np.min(skin_lowest))],
+            "collider under skin mm": float(np.median(np.array(skin_lowest) - np.array(lowest))),
+            "bones outside skin %": {key: 100 * float(np.mean(value)) for key, value in outside.items()},
+            "outside depth p95 mm": {key: float(np.percentile(value, 95)) if value else 0.0
                                      for key, value in depth.items()},
-            "bones outside all %": round(100 * float(np.mean(sum(outside.values(), []))), 2),
-            "hand parts outside %": {key: round(100 * float(np.mean(value)), 2) for key, value in hand_parts.items()},
-            "bones outside no fingers %": round(100 * float(np.mean(sum(no_fingers.values(), []))), 2),
-            "bones outside by bone %": {key: round(100 * float(np.mean(value)), 2) for key, value in by_bone.items()}}
+            "bones outside all %": 100 * float(np.mean(sum(outside.values(), []))),
+            "hand parts outside %": {key: 100 * float(np.mean(value)) for key, value in hand_parts.items()},
+            "bones outside no fingers %": 100 * float(np.mean(sum(no_fingers.values(), []))),
+            "bones outside by bone %": {key: 100 * float(np.mean(value)) for key, value in by_bone.items()}}
 
 

@@ -2,9 +2,9 @@
 held-out check bodies) side by side, one process per SOMA body (`_case.py`, at most MOST at once, each under
 systemd-run MemoryMax=6G with two threads, a new one started only while FREE_GB of memory is available), and reads
 back each clip's honest measures (`_measure`: joint error, rotation error on the frozen calibration copy `fit._frozen`,
-bones outside SOMA's skin by region). `case_score` and `side_score` sum them into one number for the log; `accepted`
-is the held-out rule: the check bodies' score within 10 % of the tuning bodies'. The check bodies are scored, never
-used to choose. Standard library only here; the worker needs Newton's Python."""
+bones outside SOMA's skin by region), unrounded (`SOLVED`, the solver's; `rounded` makes m.json, the copy people
+read). `case_score` and `side_score` sum them into one number for the log; `accepted` is the held-out rule: the
+check bodies' score within 10 % of the tuning bodies'. The check bodies are scored, never used to choose. Standard library only here; the worker needs Newton's Python."""
 import json
 import pathlib
 import shutil
@@ -15,6 +15,17 @@ MOST = 6
 FREE_GB = 12
 HELD_OUT_SHARE = 0.10  # the check bodies' score may be at most this much worse than the tuning bodies'
 WORKER = pathlib.Path(__file__).resolve().parent / "_case.py"
+SOLVED = "measures.json"  # a clip's unrounded measures, the solver's; m.json beside it is the rounded copy people read
+PLACES = 2  # decimals of the rounded copy
+
+
+def rounded(value, places=PLACES):
+    """`value` (measures: dicts, lists, numbers) with every float rounded to `places`, the copy people read."""
+    if isinstance(value, dict):
+        return {key: rounded(item, places) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [rounded(item, places) for item in value]
+    return round(value, places) if isinstance(value, float) else value
 
 
 def body_of(case):
@@ -80,10 +91,10 @@ def measured(rows, weights, rest, cases, out, python, **options):
     (out / "weights.json").write_text(json.dumps(weights))
     (out / "rest.json").write_text(json.dumps(rest, indent=1))
     codes = run_all(by_body(cases), out, python, **options)
-    missing = [case for case in cases if not (out / case / "m.json").exists()]
+    missing = [case for case in cases if not (out / case / SOLVED).exists()]
     if missing or any(codes.values()):
         raise RuntimeError(f"{out.name}: failed {codes}, missing {missing}; logs in {out}")
-    return {case: json.loads((out / case / "m.json").read_text()) for case in cases}
+    return {case: json.loads((out / case / SOLVED).read_text()) for case in cases}
 
 
 def case_score(found):
