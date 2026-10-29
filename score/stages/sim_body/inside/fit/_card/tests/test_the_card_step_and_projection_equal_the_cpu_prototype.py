@@ -27,6 +27,8 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _normal_equations' `* spread` dropped (damping lambda I in the reduced dofs, not mink's S^T S): the
   step differs from the prototype's by 7.7e-5 rad; on heavy_squat cache 3 mm row 148 swung elv_angle_r 1 rad a step.
 - (2026-10-29) _reduced_jacobian's `* slopes[row, coupling]` dropped: followers ride their leader at slope 1.
+- (2026-10-29) _clip's joint types compared as mjtJoint enums with the model's ints (never equal): no range held,
+  the toy's clip 27 deg and 55 mm off mink's.
 - (2026-10-29) _step's `HOLD_PASSES = 3` made `0`: a dof at its bound is not held; the clip's rows never stop.
 - (2026-10-29) _kept's `keep[row, column]` made `1.0`: a hold from an earlier pass is let go, the step differs.
 - (2026-10-29) _turn_jacobian's `rate[axis]` made `motion[3 + axis]` (Newton's spin alone): the turn's

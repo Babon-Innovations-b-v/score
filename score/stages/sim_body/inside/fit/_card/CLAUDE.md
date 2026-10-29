@@ -88,6 +88,11 @@ before that.
   against 32.3 s (constants 0.015 mm, coordinates 0.0020 deg, cost 6.4e-9 relative, 25 evaluations against 24). Wired as an
   option: `../_constants.staged(jacobian=...)` (2-point differences the default and the reference; `constants` does
   not pass it until the 10 tuning bodies' gate is equal); the toy solved both ways in the test file.
+- `_clip.py` (`Clip`; plan step 5, first piece): the card loop's parts made from a fitted MuJoCo model as
+  `../_frames.Frames` sets mink up (the turn and marker sites with `_frames.weights`' costs, the active joint
+  couplings, the followers-free model's slide and hinge ranges, the frozen dofs) beside a Newton model of the same
+  file; `angles(turns, points, seeds)` every frame from its own seed. The toy's fixture is set up by it (equal to the
+  hand setup bit for bit, 2026-10-29); joint types compared as ints (MuJoCo's enums never equal the model's ints).
 - One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
   the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the
