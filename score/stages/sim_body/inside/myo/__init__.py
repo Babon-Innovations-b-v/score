@@ -7,7 +7,7 @@ model with:
 - each bone group sized to the person's SOMA body, its masses from SOMA's volumes (`sizing`);
 - each muscle's length range scaled by its path's length at the model's zero pose over the model's (OpenSim's
   muscle scaling: optimal fibre and tendon slack length with the path); its peak isometric force kept (#64: strength
-  does not scale here);
+  does not scale here); then its tendon slack length lengthened where it stands stretched (`resting`);
 - #60's import fixes (`_fixes`): names without '-' or spaces, every muscle's full gain, bias and dynamics parameters,
   explicit inertials, a body with several joints split into 1 g wrapper bodies (one joint each), Euler written out.
 """
@@ -16,6 +16,7 @@ import pathlib
 import mujoco
 import numpy as np
 
+import resting
 from myo._fixes import full_muscles, multi_joint_bodies, renamed, split
 from sizing import WRAPPER_KG, assumed, body_scales, kept_bodies, path_lengths, sized, stretches, ungrouped_kg
 
@@ -61,6 +62,11 @@ def person_file(folder, size, kg, path, constants=None):
     for actuator in spec.actuators:
         index = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, actuator.name)
         actuator.lengthrange = model.actuator_lengthrange[index] * stretch[index]
+    stretched = spec.compile()
+    moves = resting.slack_moves(stretched)
+    for actuator in spec.actuators:
+        index = mujoco.mj_name2id(stretched, mujoco.mjtObj.mjOBJ_ACTUATOR, actuator.name)
+        actuator.lengthrange = stretched.actuator_lengthrange[index] + moves[index]
     final = spec.compile()
     xml = spec.to_xml()
     if "integrator=" not in xml:  # MjSpec.to_xml drops Euler (MuJoCo's default) and Newton would pick implicitfast
@@ -74,4 +80,5 @@ def person_file(folder, size, kg, path, constants=None):
             "centre of mass moved cm": size.moved,
             "muscle length scale": [round(float(stretch.min()), 4), round(float(stretch.max()), 4)],
             "kg": round(float(final.body_subtreemass[0]) + wrappers * WRAPPER_KG, 3),
+            "resting": resting.record(stretched, final, moves),
             "assumed": assumed(final, scales, size.rig)}, scales
