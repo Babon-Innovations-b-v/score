@@ -1,36 +1,38 @@
 """fit: on a small model posed by hand (a free pelvis, a left leg of thigh and shin, a right leg whose ankle follows its
 hip by a coupling, one thigh's calibration turned 30 degrees), with the person's constants set by hand (one pelvis
-marker 1 cm off its link, the knee, a joint inside the left leg's group, 1 cm off its place), the solver gives back
-from the bone groups' turns and the markers the marker's move (within its pull to its link) and the knee's (within its pull to its place), and at
-those constants every frame's angles; a frame asking a hip past its range stops it at the range's end, its coupled follower on its leader by the
-coupling, though the follower's own range is narrower; each marker weighs its trust among the markers, the markers'
-goal (group ends included, one goal) MARKER_GOAL in all against the turns' 1; a group end that is the middle of two bodies' centres (the hips') sits on their
-common holder (the pelvis) as one body's sits on its own, one rule; the constants are the body's, sampled from every one of its recordings;
-SOMA's targets (its segments' turns, its skin's landmarks and rig joints) leave both solves unchanged (#70: SOMA is never moved). It runs in
-Newton's own Python (mink pinned there; score/stages/physics/inside/newton_env.sh, built at
-$PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
+marker 1 cm off its link, the knee, a joint inside the left leg's group, 1 cm off its place), the solver gives back from
+the bone groups' turns and the markers the marker's move (within its pull to its link) and the knee's (within its pull
+to its place), and at those constants every frame's angles; a frame asking a hip past its range stops it at the range's
+end, its coupled follower on its leader by the coupling, though the follower's own range is narrower; each marker weighs
+its trust among the markers, the markers' goal (group ends included, one goal) MARKER_GOAL in all against the turns' 1;
+a group end that is the middle of two bodies' centres (the hips') sits on their common holder (the pelvis) as one body's
+sits on its own, one rule; the constants are the body's, sampled from every one of its recordings; SOMA's targets (its
+segments' turns, its skin's landmarks and rig joints) leave both solves unchanged (#70: SOMA is never moved); a frame's
+fit ends on a step that moves no task's error, though the step itself is not small. It runs in Newton's own Python (mink
+pinned there; score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there,
+as in `make tests`' sandbox home, it prints `skipped`.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted):
-- (2026-10-28) Fitting's site `Rotation.from_matrix(calibration.T)` made `Rotation.from_matrix(calibration)`: the
-  turned thigh's target is met by a wrong pose.
+- (2026-10-28) Fitting's site `Rotation.from_matrix(calibration.T)` made `Rotation.from_matrix(calibration)`: the turned
+  thigh's target is met by a wrong pose.
 - (2026-10-28) limited_model's `found.jnt_limited[self.followers] = 0` dropped: the follower's own range stops its
   leader short.
 - (2026-10-28) Frames' constraints `[mink.EqualityConstraintTask(...)]` made `[]`: the follower leaves its leader.
-- (2026-10-29) Fitting.apply's `self.model.site_pos[self.mark_sites] += marks` dropped: the marker's move is not
-  found.
+- (2026-10-29) Fitting.apply's `self.model.site_pos[self.mark_sites] += marks` dropped: the marker's move is not found.
 - (2026-10-29) _frames.weights' `np.sqrt(trusts / max(trusts.sum(), 1e-12))` made `np.full(len(trusts), 1.0 /
   np.sqrt(len(trusts)))`: the low-trust marker weighs as much as the others.
-- (2026-10-29) _frames.weights' `trusts.sum()` made `trusts[:-1].sum()`: a group end weighs on top of the markers'
-  goal, not inside it.
+- (2026-10-29) _frames.weights' `trusts.sum()` made `trusts[:-1].sum()`: a group end weighs on top of the markers' goal,
+  not inside it.
 - (2026-10-29) _frames.weights' `MARKER_GOAL * trusts` made `2 * trusts`: the markers' goal outweighs the turns'.
-- (2026-10-29) sampled's `for turns, points in recordings` made `for turns, points in recordings[:1]`: the body's
-  second recording is left out of its constants.
-- (2026-10-29) Fitting.apply's `self.model.body_pos[self.inside] += joints` dropped: the knee's move is not
-  found.
-- (2026-10-29) angles' `Frames(fit).fitted(turns, points)` after `points[...] = points + 0.0`: SOMA's
-  targets are moved by the solve.
+- (2026-10-29) sampled's `for turns, points in recordings` made `for turns, points in recordings[:1]`: the body's second
+  recording is left out of its constants.
+- (2026-10-29) Fitting.apply's `self.model.body_pos[self.inside] += joints` dropped: the knee's move is not found.
+- (2026-10-29) angles' `Frames(fit).fitted(turns, points)` after `points[...] = points + 0.0`: SOMA's targets are moved
+  by the solve.
 - (2026-10-29) end_site's holder `next(body for body in _above(...) if all(...))` made `bodies[0]`: the hips' middle
   rides the left thigh.
+- (2026-10-29) _frames.solved's `or moved < STEP_DONE` dropped: the hinge whose mass sits 1e-6 m off its axis drifts
+  1e-3 rad a step and raises NotConverged.
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/test_the_solver_gives_back_the_pose_and_constants_that_made_its_targets.py
 """
@@ -46,29 +48,19 @@ TOY = """<mujoco model="toy">
   <compiler angle="radian"/>
   <worldbody>
     <body name="pelvis" pos="0 0 1">
-      <freejoint name="root"/>
-      <geom type="box" size="0.15 0.1 0.1" mass="10"/>
+      <freejoint name="root"/><geom type="box" size="0.15 0.1 0.1" mass="10"/>
       <body name="leg_l" pos="0.1 0 -0.1">
-        <joint name="hip_l" type="hinge" axis="1 0 0" range="-1 1"/>
-        <geom type="capsule" fromto="0 0 0 0 0 -0.4" size="0.05" mass="5"/>
+        <joint name="hip_l" type="hinge" axis="1 0 0" range="-1 1"/><geom type="capsule" fromto="0 0 0 0 0 -0.4" size="0.05" mass="5"/>
         <body name="shin_l" pos="0 0 -0.4">
-          <joint name="knee_l" type="hinge" axis="1 0 0" range="-2 0"/>
-          <geom type="capsule" fromto="0 0 0 0 0 -0.4" size="0.04" mass="3"/>
-        </body>
-      </body>
+          <joint name="knee_l" type="hinge" axis="1 0 0" range="-2 0"/><geom type="capsule" fromto="0 0 0 0 0 -0.4" size="0.04" mass="3"/>
+        </body></body>
       <body name="leg_r" pos="-0.1 0 -0.1">
-        <joint name="hip_r" type="hinge" axis="0 1 0" range="-1 1"/>
-        <geom type="capsule" fromto="0 0 0 0 0 -0.4" size="0.05" mass="5"/>
+        <joint name="hip_r" type="hinge" axis="0 1 0" range="-1 1"/><geom type="capsule" fromto="0 0 0 0 0 -0.4" size="0.05" mass="5"/>
         <body name="foot_r" pos="0 0 -0.4">
-          <joint name="ankle_r" type="hinge" axis="0 1 0" range="-0.4 0.4"/>
-          <geom type="box" size="0.05 0.1 0.02" mass="1"/>
-        </body>
-      </body>
-    </body>
-  </worldbody>
-  <equality>
-    <joint joint1="ankle_r" joint2="hip_r" polycoef="0 0.5 0 0 0"/>
-  </equality>
+          <joint name="ankle_r" type="hinge" axis="0 1 0" range="-0.4 0.4"/><geom type="box" size="0.05 0.1 0.02" mass="1"/>
+        </body></body>
+    </body></worldbody>
+  <equality><joint joint1="ankle_r" joint2="hip_r" polycoef="0 0.5 0 0 0"/></equality>
 </mujoco>
 """
 MARKS = {"pelvis": [(0.15, 0.1, 0.0), (-0.15, 0.1, 0.0), (0.0, -0.1, 0.1)],
@@ -160,14 +152,11 @@ def the_solver_gives_back_the_angles_and_the_constants():
     off = np.abs(path[:, 7:11] - angles).max()
     if off > MOST_RADIANS:
         problems.append(f"angles off by up to {off:.6f} rad")
-    move, true = np.array(found["marks"][TRUE_MOVE[0]]), np.array(TRUE_MOVE[1])
-    along = move @ true / (true @ true)
-    if not MOVE_SHARE <= along <= 1.0 or np.linalg.norm(move - along * true) > MOST_METRES:
-        problems.append(f"{TRUE_MOVE[0]} moved {move}, not {TRUE_MOVE[1]}")
-    move, true = np.array(found["joints"][TRUE_JOINT[0]]), np.array(TRUE_JOINT[1])
-    along = move @ true / (true @ true)
-    if not MOVE_SHARE <= along <= 1.0 or np.linalg.norm(move - along * true) > MOST_METRES:
-        problems.append(f"the knee moved {move}, not {TRUE_JOINT[1]}")
+    for kind, (name, wanted) in (("marks", TRUE_MOVE), ("joints", TRUE_JOINT)):
+        move, true = np.array(found[kind][name]), np.array(wanted)
+        along = move @ true / (true @ true)
+        if not MOVE_SHARE <= along <= 1.0 or np.linalg.norm(move - along * true) > MOST_METRES:
+            problems.append(f"{name} moved {move}, not {wanted}")
     return problems
 
 
@@ -225,9 +214,10 @@ def a_hip_past_its_range_stops_at_its_end_and_its_follower_follows():
     return problems + ([] if reached < MOST_RADIANS else [f"the right hip stopped {reached:.4f} rad short of 0.9"])
 
 
-def each_marker_weighs_its_trust():
+def each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal():
     """The toy's ten markers, one trusted 0.25: each place cost the square root of its trust over 9.25, each of the
-    five turns one over the square root of 5."""
+    five turns one over the square root of 5; the markers' goal, every marker's (a group end's too) squared cost
+    summed, is MARKER_GOAL, 1, the turns' goal's sum: the turns stay the main term."""
     import numpy as np
     from fit._frames import MARKER_GOAL, weights
     with tempfile.TemporaryDirectory() as folder:
@@ -236,20 +226,10 @@ def each_marker_weighs_its_trust():
     wanted = np.array([np.sqrt(MARKER_GOAL * (LOW_TRUST[1] if name == LOW_TRUST[0] else 1.0) / 9.25)
                        for name in fitting.marks])
     problems = [] if np.allclose(place_costs, wanted) else [f"place costs {place_costs.tolist()}"]
-    return problems + ([] if np.isclose(turn_cost, 1 / np.sqrt(5)) else [f"turn cost {turn_cost}"])
-
-
-def the_markers_goal_weighs_as_the_turns_goal():
-    """The markers' goal, every marker's (a group end's too) squared cost summed, is MARKER_GOAL, 1, the turns' goal's
-    sum: the turns stay the main term, never outweighed by the markers' count or a hand-set goal."""
-    import numpy as np
-    from fit._frames import MARKER_GOAL, weights
-    with tempfile.TemporaryDirectory() as folder:
-        fitting = toy_fitting(folder)
-        turn_cost, place_costs = weights(fitting)
+    problems += [] if np.isclose(turn_cost, 1 / np.sqrt(5)) else [f"turn cost {turn_cost}"]
     marker_sum, turn_sum = float(np.sum(place_costs ** 2)), turn_cost ** 2 * len(fitting.frame_sites)
     good = np.isclose(marker_sum, MARKER_GOAL) and np.isclose(marker_sum, turn_sum)
-    return [] if good else [f"markers' goal {marker_sum}, turns' {turn_sum}"]
+    return problems + ([] if good else [f"markers' goal {marker_sum}, turns' {turn_sum}"])
 
 
 def the_place_goal_sums_to_the_marker_goal():
@@ -282,8 +262,30 @@ def a_middle_end_sits_on_the_common_holder():
             if name != body or not np.allclose(local, place, atol=1e-9)]
 
 
-CHECKS = (a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust, the_place_goal_sums_to_the_marker_goal, the_markers_goal_weighs_as_the_turns_goal, the_solver_gives_back_the_angles_and_the_constants,
-          every_recording_of_the_body_is_sampled, somas_targets_leave_the_solves_unchanged, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows)
+def a_step_no_task_sees_ends_the_fit():
+    """A hinge whose mass sits 1e-6 m off its axis, pulled 1 m away: each step turns it 1e-3 rad and moves the mass 1e-9
+    m, a direction its task barely sees (#70's arms_raise gimbal); the fit ends, its error as it was within a step."""
+    import mink
+    import mujoco
+    import numpy as np
+    from fit import _frames
+    model = mujoco.MjModel.from_xml_string('<mujoco><worldbody><body><joint type="hinge" axis="0 0 1"/><inertial '
+                                           'pos="1e-6 0 0" mass="1" diaginertia="1 1 1"/></body></worldbody></mujoco>')
+    configuration, task = mink.Configuration(model), mink.ComTask(cost=1.0, lm_damping=_frames.LM_DAMPING)
+    task.set_target(np.array([0.0, 1.0, 0.0]))
+    before = task.compute_error(configuration)
+    try:
+        _frames.solved(configuration, [task], [], [])
+    except _frames.NotConverged as error:
+        return [str(error)]
+    moved = np.linalg.norm(task.compute_error(configuration) - before)
+    return [] if moved < 1e-6 else [f"its error moved {moved}"]
+
+
+CHECKS = (a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
+          the_place_goal_sums_to_the_marker_goal, the_solver_gives_back_the_angles_and_the_constants,
+          every_recording_of_the_body_is_sampled, somas_targets_leave_the_solves_unchanged, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows,
+          a_step_no_task_sees_ends_the_fit)
 
 
 def in_newton():
