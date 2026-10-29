@@ -50,6 +50,9 @@ LIKENESS_EUROS = 1.0
 # The library families a lamp's lit faces take (score/stages/surfaces/finish_parts.py SEEN_THROUGH_FAMILIES: glass,
 # screen and light, judged by their own colour), which a code-built light leaves to the light layer (finishes_missing).
 LIT_FAMILIES = ("glass", "screen", "light")
+# The pose rules the bake's guard list reads (score/stages/surfaces/tumble.py rules_of), so drawn_size lays a model
+# as the bake laid it.
+POSE_RULES = {"stance rules": "{data}/checks/stance.json", "resting rules": "{data}/checks/resting.json"}
 
 
 def files(place):
@@ -57,7 +60,7 @@ def files(place):
     object_record) that is there: a take the batch made no model of has none, and its gate names the object (a batch
     gap the table moves). Here, not in prop_data.py, whose edits move the paid prop rows' code versions."""
     record = prop_data.record_at(prop_data.path_of(place)) if prop_data.applies(place) else {"objects": {}}
-    return {**prop_data.likeness_files(place),
+    return {**prop_data.likeness_files(place), **POSE_RULES,
             **{f"pixal input {row}": "{home}/work/pixal/" + f"{entry['take']}.svviews/input.png"
                for row, entry in record["objects"].items() if entry["route"] == "prop"
                and (PROPS_HOME / "work/pixal" / f"{entry['take']}.svviews/input.png").exists()},
@@ -124,10 +127,12 @@ def model_checks(path, size, kind, square):
     return found
 
 
-def drawn_size(row, model):
+def drawn_size(row, model, rows, inputs):
     """A Pixal3D take's row size (wide, deep, tall) as the bake lays it: its width against its height its baked
-    `model`'s own (x wide, y tall) where both its SAM 3 box and that model disagree with the row
-    (score/stages/surfaces/bake_job.py boxed, loaded by its path)."""
+    `model`'s own (x wide, y tall) where both its SAM 3 box and that model disagree with the row, or for a person; a
+    row the guard list keeps as the row says (score/stages/surfaces/bake_job.py boxed, loaded by its path, with
+    tumble.keeps_pose over the pose rules among `inputs` and its inventory's `rows`)."""
+    import score.stages.surfaces.tumble as tumble
     import importlib.util
     with prop_data.tools("props/library", "props"):
         spec = importlib.util.spec_from_file_location(
@@ -137,7 +142,8 @@ def drawn_size(row, model):
     points, _ = likeness.gltf_mesh(model)
     extents = points.max(0) - points.min(0)
     wide, deep, tall = row["size"]
-    wide, tall, deep = bake_job.boxed([wide, tall, deep], row.get("box"), extents[0] / max(extents[1], 1e-9))
+    wide, tall, deep = bake_job.boxed([wide, tall, deep], row.get("box"), extents[0] / max(extents[1], 1e-9),
+                                      tumble.keeps_pose(row, tumble.rules_of(inputs), rows), tumble.person(row))
     return [wide, deep, tall]
 
 
@@ -214,7 +220,8 @@ def object_record(row, record, inputs, baked, parts, rows, square, cuts):
     kind = f"{place}_{row}"
     drawn = rows[row].get("read_size") or rows[row]["size"]
     found.update(model=str(model), closeup=str(closeup), **likeness.best_way(model, closeup, drawn),
-                 **model_checks(model, rows[row]["size"] if "made" in found else drawn_size(rows[row], model), kind,
+                 **model_checks(model, rows[row]["size"] if "made" in found
+                                else drawn_size(rows[row], model, list(rows.values()), inputs), kind,
                                 route == "prop" and kind in square))
     # a code build's parts: None, unknown (nothing measures them since the code fallback's parts check went)
     lit = thin_built(inputs, row) and thin_straight.slender_light(rows[row])

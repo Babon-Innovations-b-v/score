@@ -116,6 +116,16 @@ def cut(target, cutter):
     bpy.data.objects.remove(cutter, do_unlink=True)
 
 
+def join(target, other):
+    """Add `other`'s solid to `target` (an exact boolean union), then remove `other`."""
+    change = target.modifiers.new("join", "BOOLEAN")
+    change.operation = "UNION"
+    change.solver = "EXACT"
+    change.object = other
+    apply_modifiers(target)
+    bpy.data.objects.remove(other, do_unlink=True)
+
+
 def apply_modifiers(item):
     bpy.ops.object.select_all(action="DESELECT")
     item.select_set(True)

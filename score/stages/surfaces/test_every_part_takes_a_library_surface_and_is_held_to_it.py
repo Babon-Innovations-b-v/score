@@ -2634,6 +2634,83 @@ def test_the_check_fails_a_tumbled_bake_by_name_with_its_angle_and_leaves_a_lyin
                               "rear_1: left out, its design lays it lying (crashed)"), found.findings
 
 
+def test_one_guard_list_keeps_people_hanging_rows_cable_and_debris_in_their_pose_by_kind_anchor_and_words(tmp_path):
+    """#36 (2026-10-29): the bake turned garage's ceiling lamp (`on:ceiling_beam`) 50 degrees and hangar's limp floor
+    cables 31, and widened cockpit's seated pilot to his box with its chair. One guard list, read by row kind, anchor
+    and words, never by a name: a person (the people route), a hanging row (the resting rules' hanging words, or its
+    anchor the ceiling, by word or by its holder's ceiling group), a cable and ground debris (no up), a lying one; a
+    stool on the floor is not kept. The bake keeps the lamp's pose and its check leaves the same rows out.
+    Break: tumble.py `hangs`: `return f"anchored {anchor}"` -> `return None`
+    Break: tumble.py: `NO_UP = ("ground debris", "cable")` -> `NO_UP = ("ground debris",)`
+    Break: tumble.py `person`: `return row.get("route") == PEOPLE` -> `return False`
+    Break: bake_check.py `keeps_pose_of`: `or (entry.get("stood") or {}).get("kept")` dropped"""
+    import tumble
+    rules = tumble.rules_of({"stance rules": REPO / "data/checks/stance.json",
+                             "resting rules": REPO / "data/checks/resting.json"})
+    rows = [{"id": "ceiling_panels", "group": "kit: ceiling"}]
+    assert tumble.keeps_pose({"id": "pilot", "route": "people", "anchor": "on:pilot_seat"}, rules) == tumble.PERSON
+    assert tumble.keeps_pose({"id": "ceiling_lamp", "name": "ceiling lamp", "anchor": "on:ceiling_beam"},
+                             rules).startswith("it hangs (anchored on:ceiling_beam)")
+    assert tumble.keeps_pose({"id": "light_1", "name": "light", "anchor": "on:ceiling_panels"}, rules, rows)
+    assert tumble.keeps_pose({"id": "glove", "name": "hanging glove", "anchor": "on:cabinet"}, rules)
+    assert tumble.keeps_pose({"id": "floor_cables", "name": "thick red cables", "anchor": "floor"},
+                             rules) == "no up (cables): it rests as it was made"
+    assert tumble.keeps_pose({"id": "rocks", "name": "rubble pile"}, rules)
+    assert tumble.keeps_pose({"id": "rear", "name": "crashed rocket rear section"}, rules)
+    assert tumble.keeps_pose({"id": "stool", "name": "stool", "anchor": "floor", "route": "prop"}, rules) is None
+    identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+    labelled = a_turned_take(tmp_path / "lamp", rolled(40))
+    lamp = {"id": "ceiling_lamp", "name": "ceiling lamp", "anchor": "on:ceiling_beam", "thing": "prop:lamp_take"}
+    inputs = a_pose_world(tmp_path / "garage", lamp)
+    stood = route_bake.stood_square({"ceiling_lamp_1": {"base": identity, "size": [2.0, 1.0, 0.6]}}, labelled,
+                                    "lamp_take", inputs)["ceiling_lamp_1"]
+    assert stood["base"] == identity and stood["stood"]["kept"].startswith("it hangs"), stood
+    entry = {"parts": "lamp_take", "stood": stood["stood"]}
+    assert bake_check.keeps_pose_of("ceiling_lamp_1", entry, [lamp], inputs).startswith("it hangs")
+    undone = {"parts": "valves_take", "stood": {"kept": "its turn left it 12.35 degrees off its frame as baked: kept "
+                                                        "as made"}}
+    assert bake_check.keeps_pose_of("pipe_valves_1", undone, [], inputs).startswith("its turn left it 12.35")
+
+
+def test_a_take_is_measured_again_as_baked_and_turned_until_square_and_a_turn_that_cannot_square_it_is_undone():
+    """#36 (2026-10-29): habitat's stove stood 7.1 degrees on its labelled take and was not turned, then 12.6 degrees
+    baked (fitted to its size, remeshed, its feet levelled) and failed `stands square`; hangar's pipe valves were
+    turned from 32.8 to 12.4 degrees on their unsteady box and kept that turn. The bake measures each copy as it bakes
+    with the check's own measure: a stove copy 12.6 degrees off, never turned, is turned again (its copy then square)
+    and baked again; a square one is done; one the bake turned that is still more than tumble.DEGREES off after the
+    last measuring takes back the turn it was made in, saying why.
+    Break: route_bake.py `squared_again`: `elif turned:` -> `elif False:`
+    Break: route_bake.py `squared_again`: `square = not (...) and (not turned or degrees <= tumble.DEGREES)` -> `square
+        = not (degrees > tumble.DEGREES and loose > tumble.LOOSE)`
+    Break: route_bake.py `squared_again`: `elif measured < route_bake.SQUARE_ROUNDS:` -> `elif False:`"""
+    import tumble
+    identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+    box = trimesh.creation.box(extents=(0.8, 0.9, 0.6)).vertices
+    tilted = box @ np.array(rolled(12.6)).T
+    entries = {"stove_1": {"base": identity, "size": [0.8, 0.9, 0.6]},
+               "oven_1": {"base": identity, "size": [0.8, 0.9, 0.6]}}
+    found, again = route_bake.squared_again(entries, {"stove_1": tilted, "oven_1": box}, 1)
+    assert again == ["stove_1"] and found["oven_1"]["base"] == identity, (found, again)
+    turn = np.array(found["stove_1"]["base"]).reshape(3, 3)
+    assert tumble.measure(tilted @ turn.T)[0] < 1.0 and found["stove_1"]["stood"]["made"] == identity
+    assert found["stove_1"]["stood"]["baked"] == [list(tumble.measure(tilted))]
+    done, again = route_bake.squared_again(found, {"stove_1": tilted @ turn.T}, 2)
+    assert again == [] and done["stove_1"]["base"] == found["stove_1"]["base"] and "kept" not in done["stove_1"]["stood"]
+    turned = {"pipe_valves_1": {"base": [round(value, 6) for value in np.array(rolled(20)).reshape(-1)],
+                                "size": [0.8, 0.9, 0.6], "stood": {"made": identity}}}
+    # an unsteady box, as the valves': a round blob's oriented box stands over 10 degrees off, its frame box as tight
+    still = trimesh.creation.icosphere(subdivisions=3).vertices * np.array([0.5, 0.42, 0.3]) @ np.array(rolled(12.35)).T
+    degrees, loose = tumble.measure(still)
+    assert degrees > tumble.DEGREES and loose < tumble.LOOSE, (degrees, loose)
+    unsquared, again = route_bake.squared_again(turned, {"pipe_valves_1": still}, route_bake.SQUARE_ROUNDS)
+    assert again == [] and unsquared["pipe_valves_1"]["base"] == identity, unsquared
+    assert unsquared["pipe_valves_1"]["stood"]["kept"] == (f"its turn left it {degrees} degrees off its frame as "
+                                                           "baked: kept as made"), unsquared
+    loose_only = box @ np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]).T
+    assert route_bake.squared_again(turned, {"pipe_valves_1": loose_only}, route_bake.SQUARE_ROUNDS)[0][
+        "pipe_valves_1"]["base"] == turned["pipe_valves_1"]["base"]  # square as baked: its turn stays
+
+
 def test_a_swinging_door_at_full_open_touches_nothing_in_its_recess():
     """#72: a 6 m wide, 0.5 m thick door hinged on its left (the model's -x) swings a quarter turn into its 12 m
     module through its S face (z 6). At 90 degrees it lies along the hinge side, from x -3.5 to -3 and z 0 to 6: its
@@ -2649,24 +2726,48 @@ def test_a_swinging_door_at_full_open_touches_nothing_in_its_recess():
     assert (clear[[0, 1]] >= 0.05 - 1e-9).all() and (clear[[2, 3]] >= 0.0).all(), (low, high)
 
 
+def test_a_door_at_its_face_s_end_clears_the_kept_side_wall_at_full_open_as_it_clears_the_back():
+    """#36 (2026-10-29): base's garage door stands at its 12 m module's W end; kept a side wall (RECESS_BACK) inside
+    the face, its recess took the 5 cm the door's room had for clearance, and at full open the door lay flush against
+    the wall. Its room is its 0.5 m thickness, the clearance and the wall (score/review/holders RECESS_MARGIN,
+    RECESS_WALL); the assembly keeps door and room within the face (its hinge edge at -6 + 0.6), so at full open the
+    door (x -5.9 to -5.4) clears the wall (the recess from -5.95) by 5 cm, as its 6.05 m deep swing clears the back.
+    Break: score/review/holders/__init__.py: `RECESS_WALL = 0.05` -> `RECESS_WALL = 0.0`
+    Break: score/stages/surfaces/route_bake.py: `inside = span - 2 * RECESS_BACK` -> `inside = span`"""
+    from score.review import holders
+    from score.stages.assembly import fitting
+    room = 0.5 + holders.RECESS_MARGIN + holders.RECESS_WALL  # as holders.recess_of gives a swing (its own test)
+    swing = {"model": "module_1", "axis": "z", "side": 1.0, "along": -7.695, "wide": 6.0, "room": room,
+             "room_side": -1.0, "room_way": [-1.0, 0.0], "tall": 8.0, "base": 0.0, "depth": 6.05}
+    low, high = route_bake.recess_box([12.0, 12.0, 12.0], swing)
+    below, _ = fitting.beside(swing, 0)
+    hinge = -6.0 + below  # where the assembly lays the door's hinge edge (fitting.on_holder)
+    assert below == pytest.approx(room) and low[0] >= -6.0 + route_bake.RECESS_BACK - 1e-9, (below, low)
+    assert hinge - 0.5 - low[0] == pytest.approx(holders.RECESS_MARGIN), (hinge, low)  # clear of the side wall
+    assert high[0] - (hinge + 6.0) >= holders.RECESS_MARGIN - 1e-9, (hinge, high)  # and of the latch side
+
+
 def test_a_moving_door_s_holder_bakes_with_a_recess_behind_it_and_the_recess_has_a_back():
     """#72 (base's garage door swings on its 12 m module's S face): the relation's recess is cut into the holder's
     entry when the job is written. The 6 m door, its middle 7.695 m left of the module's, is kept within the face's
-    span as the assembly keeps it (x -6 to 0), 8 m tall, its swing's 6.05 m deep from 5 cm out of the face (z 6.05 to
+    span less a side wall (RECESS_BACK) at its end (x -5.95 to 0.05: flush with the span's end, base's recess cut its
+    module's W side wall away, 2026-10-29), 8 m tall, its swing's 6.05 m deep from 5 cm out of the face (z 6.05 to
     -0.05): a recess with a back, never through the module (z -6). A sliding door's recess is its thickness deep, with
     its width of room along the face; a static door's holder (no recess) bakes as it was.
     Break: score/stages/surfaces/route_bake.py: `depth = min(float(recess["depth"]), 2 * half - RECESS_BACK)` -> `depth
         = 2 * half + RECESS_OUT`
     Break: score/stages/surfaces/route_bake.py: `low[across], high[across] = middle - opening / 2, middle + opening / 2`
-        -> `low[across], high[across] = float(recess["along"]) - opening / 2, float(recess["along"]) + opening / 2`"""
+        -> `low[across], high[across] = float(recess["along"]) - opening / 2, float(recess["along"]) + opening / 2`
+    Break: score/stages/surfaces/route_bake.py: `inside = span - 2 * RECESS_BACK` -> `inside = span` (2026-10-29)"""
     entries = {"module_1": {"size": [12.0, 12.0, 12.0], "cuts": []}, "shed_1": {"size": [4.0, 3.0, 4.0], "cuts": []}}
     swing = {"model": "module_1", "axis": "z", "side": 1.0, "along": -7.695, "wide": 6.0, "room": 0.0, "tall": 8.0,
              "base": 0.0, "depth": 6.05}
     found = route_bake.recessed(entries, {"relations": [{"item": "GARAGE DOOR 1", "row": "garage_door", "recess": swing},
                                                       {"item": "SHUTTER 1", "row": "shutter"}]})
     [cut] = found["module_1"]["cuts"]
-    assert cut == {"recess": [[-6.0, 0.0, -0.05], [0.0, 8.0, 6.05]]}, cut
+    assert cut == {"recess": [[-5.95, 0.0, -0.05], [0.05, 8.0, 6.05]]}, cut
     assert cut["recess"][0][2] > -6.0 + route_bake.RECESS_BACK - 1e-9  # its back: the module stands behind it
+    assert cut["recess"][0][0] >= -6.0 + route_bake.RECESS_BACK - 1e-9  # its side: the W wall stands beside it
     assert found["shed_1"]["cuts"] == [] and entries["module_1"]["cuts"] == []
     slide = {**swing, "model": "shed_1", "axis": "x", "side": -1.0, "along": 0.0, "wide": 1.0, "room": 1.0,
              "tall": 2.0, "depth": 0.15}
@@ -2810,6 +2911,44 @@ def test_a_pixal3d_take_keeps_its_own_width_for_height_only_where_its_box_and_ta
         assert bake_job.boxed([0.4, 0.5, 0.4], [0, 0, 55, 100], 0.7) == [0.4, 0.5, 0.4]  # the take within the row's
         assert bake_job.boxed([1.0, 1.0, 4.0], [0, 0, 100, 10], 3.0) == [1.0, 1.0, 4.0]  # its depth its longest side
         assert bake_job.boxed([4.0, 1.0, 1.0], [0, 0, 100, 50], 2.0) == [4.0, 1.0, 1.0]  # wider than tall: as it is
+    finally:
+        shutil.rmtree(folder)
+
+
+def test_the_width_rule_leaves_a_kept_row_as_its_row_says_and_a_person_keeps_its_own_width_for_its_height(
+        stand_in_library):
+    """#36 (2026-10-29): cockpit's seated pilot (his row 0.5 by 0.3 by 1.8 m) was widened to his SAM 3 box, which
+    holds his chair, 1.205 m; his A-pose officer squeezed into 0.5 m, his arms out. The width rule reads the guard list
+    (tumble.keeps_pose): a person keeps his take's own width for his row's height whatever his box (a take 0.6 wide
+    for its height: 1.08 m at 1.8 m), never squeezed to the row nor stretched to the box; a hanging lamp whose box and
+    take both disagree with its row keeps its row's size, as a stool on the floor would not.
+    Break: bake_job.py `boxed`: `if person and own:` -> `if False:`
+    Break: bake_job.py `boxed`: `if kept or not box` -> `if not box`"""
+    folder = a_folder()
+    try:
+        rules = a_pose_world(folder / "rules", {})
+
+        def entry_for(row, take_extents):
+            take = f"{row['id']}-t1"
+            a_box_take(folder / row["id"], take, take_extents)
+            handin = written(folder, f"handin-{row['id']}", {"rows": [row], "objects": {row["id"]: {"route": "prop",
+                                                                                                 "take": take}}})
+            surfaces = written(folder, f"surfaces-{row['id']}", {"place": "cockpit", "library": "cockpit", "bake": {
+                "models": {f"{row['id']}_1": take}, "entries": {f"{row['id']}_1": {"size": row["kit"], "faces": 5000,
+                                                                                     "foot": 0.0}}}})
+            inputs = {"surfaces": surfaces, "inventory cockpit": handin, "stance rules": rules["stance rules"],
+                      "resting rules": rules["resting rules"]}
+            _, (entry,) = place_line.bake_entries(inputs, {take: folder / row["id"] / "labelled" / take})
+            return entry["size"]
+        pilot = {"id": "pilot", "route": "people", "anchor": "on:pilot_seat", "box": [812, 687, 946, 906],
+                 "kit": [0.5, 1.8, 0.3]}
+        assert entry_for(pilot, (0.6, 1.0, 0.3)) == [1.08, 1.8, 0.3]  # his take's own width for his height
+        assert entry_for(dict(pilot, id="officer", box=[0, 0, 10, 100]), (0.58, 1.0, 0.3)) == [1.044, 1.8, 0.3]
+        lamp = {"id": "ceiling_lamp", "name": "ceiling lamp", "anchor": "on:ceiling_beam", "route": "prop",
+                "box": [927, 603, 994, 725], "kit": [0.4, 0.5, 0.4]}
+        assert entry_for(lamp, (0.498, 0.868, 0.502)) == [0.4, 0.5, 0.4]  # kept: as its row says
+        stool = dict(lamp, id="stool", name="stool", anchor="floor")
+        assert entry_for(stool, (0.498, 0.868, 0.502)) == [0.287, 0.5, 0.4]  # not kept: the width rule's
     finally:
         shutil.rmtree(folder)
 

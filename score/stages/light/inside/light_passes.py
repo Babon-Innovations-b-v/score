@@ -5,7 +5,8 @@ one render gives the place's light lamp by lamp (Cycles light groups: each a pas
     blender -b --python light_passes.py -- <stage.usda> <views.json> <out folder>
 
 views.json is usd_views.py's ({"size", "views": [{"name", "eye", "aim", "up", "fov", "frame"}]}) with "lamps": the
-prim paths of the place's own lamps. Per view it writes <name>-look.png (the look as usd_views draws it, glow and all)
+prim paths of the place's own lamps, and "device": "CPU" where the job is predicted past its card (passes.py
+with_devices): Cycles then renders on the processor at the same samples and denoising. Per view it writes <name>-look.png (the look as usd_views draws it, glow and all)
 and <name>-passes.npz: the linear luminance (Rec. 709) of the whole picture (`combined`) and of each lamp's group
 (`lamp_<n>`, n its place in "lamps"), each averaged over 2 x 2 pixels, as float16; and passes.json, which lamp each
 group holds. Light is linear in a lamp's strength, so the picture at any strengths is `combined` plus each group
@@ -102,6 +103,8 @@ def main():
     objects = [item for item in usd_views.import_stage(stage) if not item.hide_render]
     effects = usd_views.effect_points(stage, objects)
     usd_views.renderer(scene, views["size"])
+    if views.get("device") == "CPU" and scene.render.engine == "CYCLES":  # a job past its card (passes.with_devices)
+        scene.cycles.device = "CPU"
     if effects and scene.render.engine == "CYCLES":
         scene.cycles.transparent_max_bounces = usd_views.EFFECT_BOUNCES
     if not usd_views.stage_lights(stage)[0]:  # usd_views.lit would light it with its fixed sun, a light not designed

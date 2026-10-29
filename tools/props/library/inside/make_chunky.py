@@ -297,12 +297,75 @@ def surface_under(tree, x, z, size):
     return None if hit is None else hit.z
 
 
-def opened(item, cuts, size):
+def open_face(recess, size):
+    """(axis, side) of a recess's open face: the end of its box ([low, high], kit frame) standing out past the
+    model's laid box across x or z; None when neither does."""
+    for axis in (0, 2):
+        if recess[0][axis] < -size[axis] / 2:
+            return axis, -1
+        if recess[1][axis] > size[axis] / 2:
+            return axis, 1
+    return None
+
+
+def lining(recess, size, wall, front=None):
+    """The block a recess is lined with before it is cut ([low, high] in the kit frame): the recess box grown by
+    `wall` on its back, its sides and its top, never below its foot, held within the model's laid box (x across and
+    z deep about the middle, y up from the foot), and on its open face (open_face) reaching only to `front`, where the
+    model's front stands over the opening (front_of; the laid box's side where it is None), never out in front of it.
+    A take made hollow (solid_copy thickens its shell into walls and leaves the inside empty) then keeps a back, sides
+    and a top behind the cut: base's module, a box of 0.15 m walls, was cut open into its inside, rays meeting its far
+    wall 4.4 m behind the recess's back; its S wall stands at z 5.1 under a roof reaching 6.02, so a lining out to the
+    laid box would stand a frame 0.9 m proud of it (#72, 2026-10-29)."""
+    low, high = [float(value) for value in recess[0]], [float(value) for value in recess[1]]
+    ends = ([-size[0] / 2, 0.0, -size[2] / 2], [size[0] / 2, float(size[1]), size[2] / 2])
+    face = open_face(recess, size)
+    for axis in range(3):
+        grown = (low[axis] if axis == 1 else max(ends[0][axis], low[axis] - wall),
+                 min(ends[1][axis], high[axis] + wall))
+        if face is not None and axis == face[0]:
+            reach = ends[1 if face[1] > 0 else 0][axis] if front is None else front
+            grown = (grown[0], min(ends[1][axis], reach)) if face[1] > 0 else (max(ends[0][axis], reach), grown[1])
+        low[axis], high[axis] = grown
+    return [low, high]
+
+
+def front_of(item, recess, size):
+    """Where the model's front stands over a recess's opening along its open face's axis (open_face; kit frame):
+    the outermost surface rays from outside, straight in, meet over the opening (a 5 x 5 grid of its face); None
+    where they meet nothing or the recess opens on no side."""
+    face = open_face(recess, size)
+    if face is None:
+        return None
+    axis, side = face
+    across = 2 - axis
+    tree = BVHTree.FromObject(item, bpy.context.evaluated_depsgraph_get())
+    low, high = recess
+    way = [0.0, 0.0, 0.0]
+    way[axis] = -side
+    found = []
+    for share_across in (0.1, 0.3, 0.5, 0.7, 0.9):
+        for share_up in (0.1, 0.3, 0.5, 0.7, 0.9):
+            start = [0.0, 0.0, 0.0]
+            start[axis] = side * (size[axis] / 2 + 1.0)
+            start[across] = low[across] + share_across * (high[across] - low[across])
+            start[1] = low[1] + share_up * (high[1] - low[1])
+            hit = tree.ray_cast(shapes.to_blender(start), shapes.to_blender(way), size[axis] + 2.0)[0]
+            if hit is not None:
+                found.append((hit.x, hit.z, -hit.y)[axis])
+    return max(found, key=lambda value: side * value) if found else None
+
+
+def opened(item, cuts, size, wall):
     """The piece's openings cut into it: boxes and circles in the kit frame (x across, y up) through its depth, and
-    recesses, boxes in the kit frame as given (on any face, as deep as they say: a moving door's room, with a back)."""
+    recesses, boxes in the kit frame as given (on any face, as deep as they say: a moving door's room), each lined
+    first (lining, `wall` thick, out to the model's front, front_of; a union) so it has a back, sides and a top in a
+    hollow take too."""
     deep = max(size) * 2
     for cut in cuts:
         if "recess" in cut:
+            front = front_of(item, cut["recess"], size)
+            shapes.join(item, shapes.box(*lining(cut["recess"], size, wall, front), "rubber", "lining"))
             cutter = shapes.box(*cut["recess"], "rubber", "cutter")
         elif "box" in cut:
             x0, y0, x1, y1 = cut["box"]
@@ -311,6 +374,39 @@ def opened(item, cuts, size):
             x, y, radius = cut["circle"]
             cutter = shapes.cylinder((x, y, -deep), (x, y, deep), radius, "rubber", 64, "cutter")
         shapes.cut(item, cutter)
+
+
+def laid_copy(entry, job, whole):
+    """(the cut-down copy of the full model as it bakes, its feet levelled or None): solid_copy at the piece's wall,
+    its openings (opened), its feet levelled where its paint levelled them (levelled_feet)."""
+    wall = entry.get("wall", default_wall(entry["size"]))
+    low = solid_copy(whole, entry.get("faces", job["faces"]), entry["name"], entry["size"], wall)
+    opened(low, entry.get("cuts", []), entry["size"], wall)
+    return low, levelled_feet(low, entry["size"]) if entry.get("stands") else None
+
+
+def kit_points(flat):
+    """A mesh's vertices (Blender's `co`, flat) in the kit frame as its glTF holds them (x, y up, z: Blender's x,
+    z, -y)."""
+    import numpy as np
+    points = np.asarray(flat, float).reshape(-1, 3)
+    return np.column_stack([points[:, 0], points[:, 2], -points[:, 1]])
+
+
+def write_shape(entry, job, folder):
+    """A pending model's cut-down copy as it will bake (laid_copy, before any bake), its points in the kit frame
+    (kit_points) saved as <folder>/<name>.npy for route_bake's `square-again`, which measures it as surfaces-check
+    does; a big object's code body (bodies.body_of) writes none."""
+    import numpy as np
+    whole = full_model(entry["parts"], entry["name"])
+    take = take_of(entry["parts"])
+    if bodies.body_of(take):
+        return
+    into_kit_frame(whole, bodies.laid_turn(take, entry["base"]), entry["size"])
+    low, _ = laid_copy(entry, job, whole)
+    flat = np.empty(len(low.data.vertices) * 3)
+    low.data.vertices.foreach_get("co", flat)
+    np.save(pathlib.Path(folder) / f"{entry['name']}.npy", kit_points(flat))
 
 
 def make_piece(entry, job, out):
@@ -322,10 +418,7 @@ def make_piece(entry, job, out):
     regioned(whole, entry.get("regions", []))
     if bodies.body_of(take):
         return make_bodied(entry, job, out, whole, bodies.body_of(take), began)
-    low = solid_copy(whole, entry.get("faces", job["faces"]), entry["name"], entry["size"],
-                     entry.get("wall", default_wall(entry["size"])))
-    opened(low, entry.get("cuts", []), entry["size"])
-    levelled = levelled_feet(low, entry["size"]) if entry.get("stands") else None
+    low, levelled = laid_copy(entry, job, whole)
     # Screens are seated on the solid copy, which stands about a voxel proud of the paper-thin model: seated on the
     # model they sank into it, and the model check read the overlap as a wall under 3 mm (2026-10-06).
     tree = BVHTree.FromObject(low, bpy.context.evaluated_depsgraph_get())
@@ -590,11 +683,24 @@ def system_refusal():
     return None if found == SYSTEM else f"make_chunky bakes on {SYSTEM}, this machine is {found}"
 
 
+def write_shapes(job):
+    """make_chunky.py -- <job> --shapes: each model its `square` names pending, its copy as it will bake (write_shape)
+    in the square's folder, nothing baked (route_bake.squared_again, paint_bake.py)."""
+    folder = pathlib.Path(job["square"]["folder"])
+    folder.mkdir(parents=True, exist_ok=True)
+    for entry in job["chunky"]:
+        if entry["name"] in job["square"]["pending"]:
+            scene_setup.empty_scene(256, BAKE_SAMPLES)
+            write_shape(entry, job, folder)
+
+
 def main():
     refusal = system_refusal()
     if refusal:
         raise SystemExit(refusal)
     job = json.loads(pathlib.Path(sys.argv[sys.argv.index("--") + 1]).read_text())
+    if "--shapes" in sys.argv[sys.argv.index("--"):]:
+        return write_shapes(job)
     out = pathlib.Path(job["out"])
     out.mkdir(parents=True, exist_ok=True)
     report = {}

@@ -32,6 +32,7 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - mix.tone_curve: the one-knot curve of a black view dropped (the black view test, 2026-10-29).
 - light.drawn_count: the sky's prims counted (the drawn test, 2026-10-29).
 - passes.source: `grounded.take_bakes(...)` dropped, or `record.take_ground(...)` dropped (the laid test, 2026-10-29).
+- passes.device_for: `need > card_gb * 2**30` -> `False` (the card test, 2026-10-29).
 """
 import json
 import math
@@ -345,6 +346,27 @@ def test_a_look_with_one_percent_of_blenders_missing_texture_magenta_fails(tmp_p
     Image.fromarray(clean).save(tmp_path / "passes/tiny-0/shot0-000-look.png")
     verdict = passes.judge_magenta(tmp_path, {}, {})
     assert verdict.answer == checks.FAIL and verdict.measures["magenta share"] == 0.01, verdict
+
+
+def test_a_passes_job_predicted_past_its_card_renders_on_the_processor_at_the_same_settings(tmp_path, monkeypatch):
+    # base's light passes (2026-10-29, #36) needed about 29 GB, past this PC's 16 GB card: a job blender_cloud.py
+    # predicts past the card it renders on gets the processor in its views file, one that fits keeps the card, and
+    # light_passes.py switches Cycles to the processor for it alone, its samples and denoising as set
+    assert passes.device_for(29.3e9, 16) == "CPU" and passes.device_for(2.3e9, 16) == "GPU"
+    assert passes.device_for(20e9, 24) == "GPU"  # a rented L4 holds what this PC's card does not
+    specs = []
+    for number in range(2):
+        spec = tmp_path / f"{number}.views.json"
+        spec.write_text(json.dumps({"size": [960, 540], "views": [], "lamps": []}))
+        specs.append({"script": passes.SCRIPT, "args": ["root", str(spec), "out"], "inputs": [str(spec)]})
+    said = json.dumps({"card": 16, "needs": [29.3e9, 2.3e9]})
+    monkeypatch.setattr(passes.subprocess, "run", lambda command, **_: subprocess.CompletedProcess(command, 0, said))
+    passes.with_devices(specs, tmp_path)
+    assert [json.loads(pathlib.Path(job["args"][1]).read_text())["device"] for job in specs] == ["CPU", "GPU"]
+    script = (pathlib.Path(passes.__file__).parent / "inside/light_passes.py").read_text()
+    switch = 'if views.get("device") == "CPU" and scene.render.engine == "CYCLES":'
+    assert switch in script  # after usd_views.renderer, which set the samples and denoising: the device alone moves
+    assert script.index("usd_views.renderer(scene") < script.index(switch)
 
 
 # --- the sweep on passes made here ----------------------------------------------------------------------------------

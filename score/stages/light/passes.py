@@ -216,6 +216,39 @@ def pass_jobs(root, tree, place, lamps, out, layer_folder):
     return jobs
 
 
+# A passes job blender_cloud.py predicts (its predicted_bytes: every input picture decoded, read from its header,
+# e0b87bfe) to need more than the card it renders on (this PC's, else CARDS') renders on the processor, at the same
+# settings (light_passes.py, its views file's `device`): base's passes need about 29 GB, past this PC's 16 GB card and
+# an L4's 24; greenhouse's passes rendered on the processor within the noise floor, about 15 s a view (#36,
+# 2026-10-29). The prediction runs in the prop environment, as blender_cloud.py does, so this row keys on no runner.
+PREDICT = ("import json, sys; sys.path.insert(0, sys.argv[1]); import blender_cloud, provider; "
+           "here = provider.cloud.NAME == 'local'; "
+           "print(json.dumps({'card': provider.cloud.CARD_GB if here else provider.card_gb(sys.argv[2]), "
+           "'needs': [blender_cloud.predicted_bytes(json.loads(open(path).read())) for path in sys.argv[3:]]}))")
+
+
+def device_for(need, card_gb):
+    """"CPU" for a job predicted to need more bytes than a card of `card_gb` GB holds, else "GPU"."""
+    return "CPU" if need > card_gb * 2**30 else "GPU"
+
+
+def with_devices(jobs, folder):
+    """Each job's views file given its `device` (device_for its need as blender_cloud.py predicts it, PREDICT)."""
+    paths = []
+    for number, job in enumerate(jobs):
+        path = folder / f"need-{number}.json"
+        path.write_text(json.dumps(job))
+        paths.append(str(path))
+    said = subprocess.run([str(PROPS_PYTHON), "-c", PREDICT, str(REPO / "tools/cloud"), CARDS, *paths], check=True,
+                          cwd=REPO, capture_output=True, text=True).stdout.strip().splitlines()[-1]
+    found = json.loads(said)
+    for job, need, path in zip(jobs, found["needs"], paths):
+        spec = pathlib.Path(job["args"][1])
+        spec.write_text(json.dumps(dict(json.loads(spec.read_text()), device=device_for(need, found["card"]))))
+        pathlib.Path(path).unlink()
+    return jobs
+
+
 def render(jobs, folder):
     """Run the jobs on rented cards (the runner's clearance names them), spread over as many as finish them soonest."""
     paths = []
@@ -237,7 +270,7 @@ def make_passes(inputs, out, seed, params):
     tree = out / "stages"
     tree.mkdir(parents=True)
     root = lit_tree(place, layer_folder, tree, inputs)
-    render(pass_jobs(root, tree, place, lamps, out, layer_folder), out)
+    render(with_devices(pass_jobs(root, tree, place, lamps, out, layer_folder), out), out)
     shutil.rmtree(tree)
 
 
