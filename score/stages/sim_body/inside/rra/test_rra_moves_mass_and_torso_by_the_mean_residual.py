@@ -85,7 +85,6 @@ LEGS = """<mujoco model="legs">
 def legs_footing():
     """The legs toy, knees a little bent, its Footing on both feet, and its standing qpos."""
     import mujoco
-    import numpy as np
     import model
     import rra
     found = mujoco.MjModel.from_xml_string(LEGS)
@@ -115,7 +114,6 @@ def the_feet_stay_where_they_stood_when_the_pelvis_moves():
 
 def a_foot_frame_that_does_not_converge_fails():
     """With one step allowed, the same move raises NotConverged instead of keeping a frame half solved."""
-    import numpy as np
     import fit
     from fit import _frames
     footing, standing = legs_footing()

@@ -2,8 +2,10 @@
 
 The sim body stage (experimental, #65; PRD #56; CONTEXT.md "sim body"): row `sim-body@<place>` for a place whose
 design shows people, every character of its accepted cast as a musculoskeletal body, MyoFullBody, doing its clip on the
-scene's own ground. `__init__.py`'s docstring has the make and the gates; `inside/sim_body.py` is the run, in Newton's
-own Python, its steps the modules beside it (`inside/CLAUDE.md`).
+scene's own ground. `__init__.py` is the interface, its docstring the make and the gates (split 2026-10-29, #70, by
+the module standard: `_body.py` the person's rig, clips and mass, `_ground.py` the solids and a body's own frame,
+`_gates.py` the measures and judges, `_layer.py` the layer); `inside/sim_body.py` is the run, in Newton's own Python,
+its steps the modules beside it (`inside/CLAUDE.md`).
 
 - **The movement is the clip's, the physics the body's** (owner, 2026-10-27: "we have kimodo for the actual movement;
   and myobody plus mujoco and newton for the physics"). The body, root included, follows the clip, moved only by RRA's
