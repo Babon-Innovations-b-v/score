@@ -24,10 +24,13 @@ before that.
   proto clip (136 frames, each row seeded as mink's frame was): cost ratio |x-1| 2.2e-8 max, couplings 1.4e-7 rad,
   ranges held, 12 / 25 steps median / max; NOT yet equal: angles 0.020 deg and sites 0.029 mm max (3 frames over the
   plan's 0.01), all in elv_angle_l/r (the shoulder's elevation plane near the hanging arm, a flat direction), not
-  moved by a tighter stop or float64 sums in the normal equations: a float32 floor of Newton's FK/Jacobian. Speed
+  moved by a tighter stop or float64 sums in the normal equations: a float32 floor of Newton's FK/Jacobian. mink's
+  answer is the float64 minimum there (scipy's least squares at 1e-15 from both answers, frames 0, 53, 36, lands on
+  mink's to 4e-5 deg and 0.0002 mm, 2026-10-29), so the miss is the card's, not the reference's: the fix is the
+  residuals and J^T r in float64 (own FK and Jacobian kernels), the tolerance stays. Speed
   (one batch, no chunking needed up to 12,784 rows): 1,925 rows/s at 1,088, 4,094 at 4,080, 6,889 at 12,784 (1.86 s,
   2.7 GB on the card). Not in the test file yet; nothing replaces mink.
-- Still to come: the equality decision on the flat shoulder dof, chunking above ~30,000 rows, the clip test against
+- Still to come: float64 FK, residuals and J^T r for the flat shoulder dof, chunking above ~30,000 rows, the clip test against
   mink in the test file.
 - One test file (`test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the CPU
   prototype's float64 maths; it needs Newton's Python and a CUDA card, else prints `skipped`.
