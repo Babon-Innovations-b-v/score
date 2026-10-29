@@ -129,7 +129,8 @@ def skin_shares(marks, bones):
     """{label: [share per skin frame]} of the bone vertices outside, the hand's parts as one ("hand")."""
     parts = np.array([region(bone) for bone in bones])
     labels = np.where(np.isin(parts, HAND), "hand", parts)
-    return {label: [float(shot[labels == label].mean()) for shot in marks] for label in set(labels)}
+    return {label: [float(shot[labels == label].mean()) for shot in marks]
+            for label in sorted(set(labels))}  # sorted: a set of strings orders by the process's hash seed
 
 
 def measures(model, angles, rig, segments, worlds, scales, skins=None):
