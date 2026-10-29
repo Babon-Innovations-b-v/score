@@ -41,7 +41,7 @@ def weights(fitting):
     (each weight its landmark's trust, `landmarks.trust`; SOMA's own joints are no goal: they are the measure); a mink
     cost multiplies the error, so a cost is the square root of its weight over its goal's sum."""
     trusts = np.asarray(fitting.trusts, dtype=float)
-    return 1.0 / np.sqrt(max(len(fitting.frame_sites), 1)), np.sqrt(trusts / max(trusts.sum(), 1e-12))
+    return 1.0 / np.sqrt(max(len(fitting.frame_sites), 1)), np.sqrt(trusts / max(trusts[:fitting.goal].sum(), 1e-12))
 
 
 class Frames:
