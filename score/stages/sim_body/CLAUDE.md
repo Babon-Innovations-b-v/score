@@ -78,13 +78,13 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   model's share; what SOMA does not give (muscle strength, joint ranges, density, bone shape) is marked assumed with a
   plausible range in the model record (`assumed`). RRA's mass step (above) is the one change after it, recorded. Never
   tune a mass, a weight in the solve or a gate by hand to pass: fix the method and measure again.
-- **One solver fits MyoFullBody to SOMA** (#70, owner 2026-10-28; `inside/fit`): the person's constants (each bone
-  group's size as 14 mirrored size groups, each landmark marker's place on its bone) and every frame's joint angles,
+- **One solver fits MyoFullBody to SOMA** (#70, owner 2026-10-28; `inside/fit`): the person's constants (each landmark
+  marker's place on its bone and each joint inside a bone group; the lengths SOMA's, from the sizing) and every frame's joint angles,
   against the bone groups' turns (the main term: each SOMA segment's world turn on its group, through the static
   calibration table, as OpenSense tracks orientations: Al Borno et al. 2022, doi:10.1186/s12984-022-01001-x), the
   SOMA mesh's bony landmarks skinned on the clip (SCORE's landmark set, `inside/landmarks`, each weighed by its
   trust, the plantar pads held at SOMA's sole; SOMA's own joints only the measure since 2026-10-29), weighed as OpenSim's IK weighs its goals, within the leading joints' ranges, MuJoCo's couplings held
-  exactly, each group's size solved (not held to SOMA's length since 2026-10-29): mink per frame and scipy's bounded `least_squares` over the
+  exactly: mink per frame and scipy's bounded `least_squares` over the
   constants with the angles of frames spread over the clip. **Never use the owner's own
   method** (arXiv:2607.17639, under Babon's patent application NL4001444; SCORE is public MIT): no swing-twist split
   into calibrated axes, no per-joint calibration table of axes, weights and offsets, no regression of joint angles

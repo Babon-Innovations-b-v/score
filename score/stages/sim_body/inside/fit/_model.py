@@ -2,8 +2,7 @@
 couplings, which mink holds exactly; Newton's model is given the found angles by joint name), with a site on each bone
 group's frame body turned by the calibration table (its frame is the SOMA segment's when the group lies as SOMA's
 does), a site on each marker's body where the landmark sits, and the person's constants laid on it in place
-(`Fitting.apply`): each size group's factor (the overall one times its own), each marker moved on its body and each
-joint inside a bone group moved in its parent (#70: the vertebrae, shoulder blade, wrist bones and inner foot joints
+(`Fitting.apply`): each marker moved on its body and each joint inside a bone group moved in its parent (#70: the vertebrae, shoulder blade, wrist bones and inner foot joints
 placed by the landmarks). Only `body_pos` and `site_pos` change: the fit is kinematics, so nothing else is compiled
 again."""
 import copy
@@ -57,21 +56,16 @@ def _above(model, body):
     return chain
 
 
-OVERALL = "overall"  # the size factor every body takes, beside its own group's
-
-
 class Fitting:
     """The fitting model and what the constants move. `path` the person's file; `frames` [(group, frame body, R_cal)]:
     one orientation site each, in that order; `marks` [(name, body, local point)]: one marker site each (the place
-    sites, `place_sites`); `owners` {source body name: size group}; `own_placed` the bodies placed in their parent by
-    their own group's size; `frozen` the bodies whose joints no target sees (held as they stand); `trusts` each
+    sites, `place_sites`); `frozen` the bodies whose joints no target sees (held as they stand); `trusts` each
     marker's trust (its weight among the markers; every one 1 when not given); `stretches` each bone group's bodies
     (source names, filed): a body whose parent is another body of its group sits on a joint inside that group
     (`inside`), solved where a marker rides it or a body below it; the found moves are written in the person's file
-    (`myo.person_file`). The size factors (`sizes`) are OVERALL,
-    then each size group's: a body's size is OVERALL's times its group's."""
+    (`myo.person_file`). The lengths are SOMA's, from the sizing: nothing here scales a body."""
 
-    def __init__(self, path, frames, marks, owners, own_placed=(), frozen=(), trusts=None, stretches=()):
+    def __init__(self, path, frames, marks, frozen=(), trusts=None, stretches=()):
         spec = mujoco.MjSpec.from_file(str(path))
         for group, body, calibration in frames:
             spec.body(body).add_site(name=f"fit:{group}", quat=Rotation.from_matrix(calibration.T).as_quat(
@@ -86,14 +80,6 @@ class Fitting:
         self.mark_sites = [mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, f"mark:{name}") for name in self.marks]
         self.place_sites = self.mark_sites
         self.trusts = np.ones(len(self.marks)) if trusts is None else np.asarray(trusts, dtype=float)
-        self.sizes = [OVERALL] + sorted(set(owners.values()))
-        group_of = self._groups_of(owners)
-        placing = [group_of[body] if own_name(model.body(body).name) in own_placed
-                   else group_of[model.body_parentid[body]] for body in range(model.nbody)]
-        self.placing = np.array([-1 if group is None else self.sizes.index(group) for group in placing])
-        self.carrying = np.array([-1 if group_of[model.site_bodyid[site]] is None
-                                  else self.sizes.index(group_of[model.site_bodyid[site]])
-                                  for site in self.place_sites])
         self.inside = self._inside(stretches)
         self.inside_names = [own_name(model.body(body).name) for body in self.inside]  # the file's names
         self.riding = [[mark for mark, site in enumerate(self.place_sites)
@@ -101,13 +87,6 @@ class Fitting:
         self.base = model.body_pos.copy(), model.site_pos.copy()
         self.leaders, self.followers = self._leading()
         self.frozen = [dof for dof in range(model.nv) if self._under(model.dof_bodyid[dof], frozen)]
-
-    def _groups_of(self, owners):
-        """Each body's size group (None for the world and a body above every group): its own, else its parent's."""
-        model, found = self.model, [None]
-        for body in range(1, model.nbody):
-            found.append(owners.get(own_name(model.body(body).name), found[model.body_parentid[body]]))
-        return found
 
     def _leading(self):
         """The joints no coupling sets (the free root among them) and the followers."""
@@ -146,38 +125,26 @@ class Fitting:
         return False
 
     def width(self):
-        """How many constants: a size factor per size group (OVERALL first), three per marker, three per inside joint."""
-        return len(self.sizes) + 3 * len(self.marks) + 3 * len(self.inside)
+        """How many constants: three per marker, three per inside joint."""
+        return 3 * len(self.marks) + 3 * len(self.inside)
 
     def unpack(self, constants):
-        """(size factors, marker moves markers x 3, inside joints' moves joints x 3) of a constants vector."""
-        sizes, marked = len(self.sizes), len(self.sizes) + 3 * len(self.marks)
-        return (np.asarray(constants[:sizes]), np.reshape(constants[sizes:marked], (-1, 3)),
-                np.reshape(constants[marked:], (-1, 3)))
+        """(marker moves markers x 3, inside joints' moves joints x 3) of a constants vector."""
+        marked = 3 * len(self.marks)
+        return np.reshape(constants[:marked], (-1, 3)), np.reshape(constants[marked:], (-1, 3))
 
     def neutral(self):
-        """The constants that leave the person's file as it is: every factor 1, no marker or joint moved."""
-        return np.concatenate([np.ones(len(self.sizes)), np.zeros(3 * (len(self.marks) + len(self.inside)))])
-
-    def factors(self, sizes):
-        """Each size group's whole factor (OVERALL's times its own; OVERALL's alone for itself)."""
-        found = sizes[0] * np.asarray(sizes, dtype=float)
-        found[0] = sizes[0]
-        return found
+        """The constants that leave the person's file as it is: no marker or joint moved."""
+        return np.zeros(self.width())
 
     def apply(self, constants):
-        """The constants laid on the model in place, from its base: a body's place in its parent by its parent's group
-        factor (or its own, `own_placed`) and an inside joint's by its own move, a marker site by its body's group
-        factor and by its own move."""
-        sizes, marks, joints = self.unpack(constants)
-        factors = self.factors(sizes)
+        """The constants laid on the model in place, from its base: an inside joint's place in its parent by its own
+        move, a marker site by its own move."""
+        marks, joints = self.unpack(constants)
         body_pos, site_pos = self.base
-        scale = np.where(self.placing >= 0, factors[np.maximum(self.placing, 0)], 1.0)
-        self.model.body_pos[:] = body_pos * scale[:, None]
+        self.model.body_pos[:] = body_pos
         self.model.body_pos[self.inside] += joints
         self.model.site_pos[:] = site_pos
-        carried = np.where(self.carrying >= 0, factors[np.maximum(self.carrying, 0)], 1.0)
-        self.model.site_pos[self.place_sites] = site_pos[self.place_sites] * carried[:, None]
         self.model.site_pos[self.mark_sites] += marks
 
     def limited_model(self):

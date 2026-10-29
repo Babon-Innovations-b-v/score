@@ -27,15 +27,11 @@ place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the
   and before that a SOMA rule centre as target pulled the ankle 16 mm up the shank. Since the ends are a target, the
   joint measure partly measures what the solver pulls on: judge with the bones inside SOMA's skin and the turns on a
   frozen calibration table beside it.
-- **The group sizes are solved** (`_constants`, within `SIZE_MOST` of the sizing's): until 2026-10-29 each stretch was
-  held to SOMA's length (LENGTH_WEIGHT 100, every group within 1.1 mm); #70's review asked them solved, and the model
-  record's `lengths` says how far they move from SOMA's: with SOMA's joints a goal, up to 12 to 13 mm (the pelvis,
-  shoulders, head), the joints 1 mm nearer on the median; with the landmarks alone, up to 20 to 22 mm (the shoulder
-  girdle and upper arms longer, the shins 6 to 9 mm shorter; 2026-10-29, both test walkers). Since the upstream fit
-  (2026-10-29) the constants are staged (Cotton et al. 2026, the idea only): the size factors of 14 mirrored size
-  groups (`SIZE_GROUPS`: an overall one, the trunk, and per side thigh, shin, foot, upper arm, forearm, hand), pulled
-  gently to 1 (`SIZE_PULL`), then each free marker's move off its link, pulled to it at its own weight; the plantar
-  pads (`landmarks.HELD`) never move, so a foot cannot sink through SOMA's sole.
+- **No size unknowns** (#70 level 2: lengths straight from SOMA): the lengths are the sizing's (`inside/sizing`),
+  never solved here. The size-factor stage (14 mirrored size groups pulled to 1) never ran and was deleted
+  (2026-10-29, the audit's item 9) with its record fields. The constants are each free marker's move off its link,
+  pulled to it at its own weight, and the joints inside groups (below); the plantar pads (`landmarks.HELD`) never
+  move, so a foot cannot sink through SOMA's sole.
 - **The joints inside groups are person constants** (#70 level 2, 2026-10-29): every body whose parent is another
   body of its own bone group (the lumbar levels, clavicle to scapula, the wrist bones, talus to calcaneus, the radius)
   and that a marker rides, it or a body below it (`Fitting.inside`), moves in its parent, solved in the markers' stage

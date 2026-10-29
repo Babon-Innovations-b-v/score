@@ -1,17 +1,14 @@
-"""The person's constants by scipy's `least_squares` with bounds, one stage at a time, each solved together with the
-angles of the frames given as one sparse problem (the recipe of 2026-10-28: alternating mink's angles and the
-constants converged linearly, where the joint problem reached machine precision in 17 evaluations on 30 frames).
-A stage's unknowns are its constants (`SIZES`: the size factors, the overall one and each size group's; `MARKS`: each
-free marker's move on its body and each joint inside a bone group's move in its parent, together: #70's person
-constants) and each frame's leading coordinates (the root's place and its turn as a rotation
+"""The person's constants (#70's level 2) by scipy's `least_squares` with bounds, solved together with the angles of
+the frames given as one sparse problem (the recipe of 2026-10-28: alternating mink's angles and the constants
+converged linearly, where the joint problem reached machine precision in 17 evaluations on 30 frames). The unknowns
+are the constants (each free marker's move on its body and each joint inside a bone group's move in its parent; the
+lengths are SOMA's, from the sizing, never solved here) and each frame's leading coordinates (the root's place and its turn as a rotation
 vector off mink's, each leading hinge and slide; a follower set from its leader by the model's coupling, the held
-fingers as they stand); the other stage's constants stand as given. The rows are every frame's turn errors and marker
-place errors, weighed as mink weighs them (`_frames.weights`, OpenSim's), then a prior row per unknown constant: a
-size factor pulled gently to 1 (`SIZE_PULL`, within `SIZE_MOST`; Cotton et al. 2026's staged fit pulls its group
-scales to 1 the same way, the idea taken, nothing copied), a marker's move to its landmark's link at its marker's own
+fingers as they stand); the held markers' moves stand as given. The rows are every frame's turn errors and marker
+place errors, weighed as mink weighs them (`_frames.weights`, OpenSim's), then a prior row per unknown constant: a marker's move to its landmark's link at its marker's own
 weight (a move and its body's place trade one for one), within `MARK_MOST`; an inside joint's move to its file's
-place at the markers' mean weight, within `MARK_MOST` too (as small as a landmark's correction). Staged as Cotton
-et al. 2026 stage it (warm from the stage before; cold, theirs explained the markers with a wrong pose): sizes, then the markers' moves.
+place at the markers' mean weight, within `MARK_MOST` too (as small as a landmark's correction). Warm from mink's
+angles at the start constants (Cotton et al. 2026, the idea only: cold, theirs explained the markers with a wrong pose).
 The leading joints' ranges are the box bounds; the followers' own are not held (`Fitting.limited_model`)."""
 import mujoco
 import numpy as np
@@ -21,40 +18,34 @@ from scipy.spatial.transform import Rotation
 
 from fit._frames import weights
 
-SIZES, MARKS = "sizes", "marks"
-SIZE_MOST = 0.1  # a size factor within 1 -+ this (the landmark sizing's lengths are 1)
-SIZE_PULL = 0.05  # a size factor's prior row: this times its distance from 1
 MARK_MOST = 0.03  # metres a marker may move on its body off its landmark's link
 INSIDE = 1e-9  # a start this far inside its bounds (least_squares wants a start within them)
 
 
 class Problem:
-    """One stage's problem on a `Fitting` over the frames of `path` (frames x nq, the stage before's, the charts'
-    centres) with their targets `turns` (frames x groups x 3 x 3) and `points` (frames x markers x 3); `stage` SIZES
-    or MARKS, `given` the constants vector the other stage's part is read from, `free` the markers that may move (by
-    index; MARKS only)."""
+    """The constants' problem on a `Fitting` over the frames of `path` (frames x nq, mink's, the charts' centres) with
+    their targets `turns` (frames x groups x 3 x 3) and `points` (frames x markers x 3); `given` the constants vector
+    the held markers' moves are read from, `free` the markers that may move (by index)."""
 
-    def __init__(self, fitting, path, turns, points, stage, given, free=()):
+    def __init__(self, fitting, path, turns, points, given, free=()):
         self.fitting, self.path, self.turns, self.points = fitting, np.asarray(path), turns, points
-        self.stage, self.given = stage, np.asarray(given, dtype=float)
+        self.given = np.asarray(given, dtype=float)
         model = fitting.model
         frozen = set(fitting.frozen)
         self.root = model.jnt_qposadr[0] if model.jnt_type[0] == mujoco.mjtJoint.mjJNT_FREE else None
         self.leading = [joint for joint in fitting.leaders if model.jnt_type[joint] != mujoco.mjtJoint.mjJNT_FREE
                         and model.jnt_dofadr[joint] not in frozen]
         self.width = (6 if self.root is not None else 0) + len(self.leading)
-        sizes = len(fitting.sizes)
-        marked = sizes + 3 * len(fitting.marks)
-        self.slots = (np.arange(sizes) if stage == SIZES else
-                      np.array([sizes + 3 * mark + axis for mark in free for axis in range(3)]
-                               + [marked + 3 * joint + axis for joint in range(len(fitting.inside)) for axis in range(3)],
-                               dtype=int))
+        marked = 3 * len(fitting.marks)
+        self.slots = np.array([3 * mark + axis for mark in free for axis in range(3)]
+                              + [marked + 3 * joint + axis for joint in range(len(fitting.inside)) for axis in range(3)],
+                              dtype=int)
         self.free = list(free)
         self.costs = weights(fitting)
         self.data = mujoco.MjData(model)
 
     def constants(self, unknowns):
-        """The whole constants vector: the given one with this stage's unknowns laid in."""
+        """The whole constants vector: the given one with the unknowns laid in."""
         found = self.given.copy()
         found[self.slots] = unknowns[:len(self.slots)]
         return found
@@ -74,7 +65,7 @@ class Problem:
         return self.fitting.coupled(qpos)
 
     def start(self):
-        """The unknowns' start: this stage's constants as given, then each frame's coordinates at the path's."""
+        """The unknowns' start: the constants as given, then each frame's coordinates at the path's."""
         model, found = self.fitting.model, [self.given[self.slots]]
         for qpos in self.path:
             root = [qpos[self.root:self.root + 3], np.zeros(3)] if self.root is not None else []
@@ -82,12 +73,9 @@ class Problem:
         return np.concatenate(found)
 
     def bounds(self):
-        """This stage's constants' bounds, then each frame's: the leading joints' ranges (unbounded where unlimited)."""
+        """The constants' bounds (within MARK_MOST), then each frame's: the leading joints' ranges (unbounded where unlimited)."""
         model = self.fitting.model
-        if self.stage == SIZES:
-            low, high = np.full(len(self.slots), 1.0 - SIZE_MOST), np.full(len(self.slots), 1.0 + SIZE_MOST)
-        else:
-            low, high = np.full(len(self.slots), -MARK_MOST), np.full(len(self.slots), MARK_MOST)
+        low, high = np.full(len(self.slots), -MARK_MOST), np.full(len(self.slots), MARK_MOST)
         limited = model.jnt_limited[self.leading].astype(bool)
         joint_low = np.where(limited, model.jnt_range[self.leading, 0], -np.inf)
         joint_high = np.where(limited, model.jnt_range[self.leading, 1], np.inf)
@@ -98,7 +86,7 @@ class Problem:
 
     def residuals(self, unknowns):
         """Every frame's weighed turn errors (the geodesic angle's rotation vector, mink's) and marker errors, then the
-        stage's prior rows."""
+        constants' prior rows."""
         fitting, data, model = self.fitting, self.data, self.fitting.model
         constants = self.constants(unknowns)
         fitting.apply(constants)
@@ -113,17 +101,14 @@ class Problem:
             off = Rotation.from_matrix(np.transpose(seen, (0, 2, 1)) @ self.turns[frame]).as_rotvec()
             found += [turn_cost * off.ravel(),
                       (place_costs[:, None] * (data.site_xpos[fitting.place_sites] - self.points[frame])).ravel()]
-        if self.stage == SIZES:
-            found.append(SIZE_PULL * (unknowns[:held] - 1.0))
-        else:
-            moved = 3 * len(self.free)
-            found += [(place_costs[self.free][:, None] * unknowns[:moved].reshape(-1, 3)).ravel(),
-                      float(np.mean(place_costs)) * unknowns[moved:held]]
+        moved = 3 * len(self.free)
+        found += [(place_costs[self.free][:, None] * unknowns[:moved].reshape(-1, 3)).ravel(),
+                  float(np.mean(place_costs)) * unknowns[moved:held]]
         return np.concatenate(found)
 
     def sparsity(self):
-        """Which unknowns each row reads: a frame's turn rows its own coordinates; its place rows those and every size
-        factor (SIZES), or a marker's its own move and the moves of the inside joints it rides below (MARKS);
+        """Which unknowns each row reads: a frame's turn rows its own coordinates; its place rows those, a marker's
+        its own move and the moves of the inside joints it rides below;
         a prior row its own constant."""
         fitting, held = self.fitting, len(self.slots)
         groups, marks = len(fitting.frame_sites), len(fitting.place_sites)
@@ -133,25 +118,22 @@ class Problem:
         for frame in range(frames):
             found[frame * per:(frame + 1) * per, held + frame * self.width:held + (frame + 1) * self.width] = 1
             placed = frame * per + 3 * groups
-            if self.stage == SIZES:
-                found[placed:(frame + 1) * per, :held] = 1
             for index, mark in enumerate(self.free):
                 found[placed + 3 * mark:placed + 3 * mark + 3, 3 * index:3 * index + 3] = 1
-            if self.stage == MARKS:
-                for joint, riders in enumerate(fitting.riding):
-                    column = 3 * (len(self.free) + joint)
-                    for mark in riders:
-                        found[placed + 3 * mark:placed + 3 * mark + 3, column:column + 3] = 1
+            for joint, riders in enumerate(fitting.riding):
+                column = 3 * (len(self.free) + joint)
+                for mark in riders:
+                    found[placed + 3 * mark:placed + 3 * mark + 3, column:column + 3] = 1
         for slot in range(held):
             found[frames * per + slot, slot] = 1
         return found
 
 
-def staged(fitting, path, turns, points, stage, given, free=()):
-    """One stage's constants (the whole vector, as `Fitting.unpack` reads it) and the frames' angles (frames x nq)
-    that best meet the frames' targets together, from `given` and the path of the stage before; the model is left
-    with the constants laid on, and the solve's evaluation count."""
-    problem = Problem(fitting, path, turns, points, stage, given, free)
+def staged(fitting, path, turns, points, given, free=()):
+    """The constants (the whole vector, as `Fitting.unpack` reads it) and the frames' angles (frames x nq) that best
+    meet the frames' targets together, from `given` and mink's path; the model is left with the constants laid on,
+    and the solve's evaluation count."""
+    problem = Problem(fitting, path, turns, points, given, free)
     low, high = problem.bounds()
     begin = np.clip(problem.start(), np.where(np.isfinite(low), low + INSIDE, low),
                     np.where(np.isfinite(high), high - INSIDE, high))

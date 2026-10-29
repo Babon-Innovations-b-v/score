@@ -18,13 +18,12 @@ the clip's alone)}]}.
 The movement is the clip's (the owner, 2026-10-27: "we have kimodo for the actual movement; and myobody plus mujoco and
 newton for the physics"), and SOMA is the truth (#70): MyoFullBody is fitted to it, never the reverse, and nothing
 here moves, scales or grounds SOMA.
-- One solver (`fit`, #70): the person's constants (the size factors of 14 mirrored size groups, each landmark's
-  marker's place on its bone) and every frame's joint angles, against the bone groups' turns (the main term: each SOMA
+- One solver (`fit`, #70): the person's constants (each landmark's marker's place on its
+  bone and each joint inside a bone group; the lengths are SOMA's, from the sizing) and every frame's joint angles, against the bone groups' turns (the main term: each SOMA
   segment's world turn on its group's site, turned by the static calibration table; OpenSense's orientation tracking,
   Al Borno et al. 2022, doi:10.1186/s12984-022-01001-x) and SCORE's landmark set skinned on the clip's own skin as
   markers, weighed by their trust as OpenSim's IK weighs its two goals: mink per frame (couplings held exactly, the
-  leading joints in their ranges) and scipy's bounded least_squares over the constants in stages (sizes, then the
-  markers), each together with the angles of frames spread over all the body's recordings (the person constants,
+  leading joints in their ranges) and scipy's bounded least_squares over the constants, together with the angles of frames spread over all the body's recordings (the person constants,
   once per SOMA body); then the person's file is written again with the found constants and every frame's pose
   fitted on it, the constants held. MyoFullBody's root follows the markers on SOMA's skin; nothing is grounded. How closely the path follows SOMA
   (each joint's mm, each group's degrees, split at a range limit or not) is the model record's `fit`.
