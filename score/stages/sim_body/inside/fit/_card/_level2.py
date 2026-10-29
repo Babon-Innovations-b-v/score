@@ -9,7 +9,7 @@ parent's turn; a prior row its constant's weight. The frames' kinematics come fr
 (`Kinematics`, the reference) or from the card (`_level2_card`, float32)."""
 import mujoco
 import numpy as np
-from scipy.sparse import csr_matrix
+from scipy.sparse import coo_matrix
 
 
 def skew(vector):
@@ -84,42 +84,50 @@ class Kinematics:
 
 
 def frame_rows(problem, frame, kinematics, targets, values):
-    """A frame's rows of the Jacobian (3 (groups + markers) x unknowns, dense): its coordinates' columns, the free
-    markers' and the inside joints' moves."""
-    fitting, model = problem.fitting, problem.fitting.model
+    """A frame's rows of the Jacobian as COO triplets (rows counted from the frame's first, 3 (groups + markers) of
+    them; columns of the whole unknowns; values): its coordinates' columns, the free markers' and the inside joints'
+    moves, each block only where it reads."""
+    fitting = problem.fitting
     turn_cost, place_costs = problem.costs
     held = len(problem.slots)
-    qpos = problem.qpos(frame, values)
     rotation = values[3:6] if problem.root is not None else np.zeros(3)
-    mapping = dof_map(problem, qpos, rotation)
-    groups, marks = len(fitting.frame_sites), len(fitting.place_sites)
-    found = np.zeros((3 * (groups + marks), held + len(problem.path) * problem.width))
-    own = slice(held + frame * problem.width, held + (frame + 1) * problem.width)
-    for group in range(groups):
-        seen = kinematics.site_turns[group]
-        off = _log(seen.T @ targets[frame][group])
-        found[3 * group:3 * group + 3, own] = -turn_cost * left_jacobian_inverse(off) @ seen.T @ (
-            kinematics.spins[group] @ mapping)
-    placed = 3 * groups
-    for mark in range(marks):
-        found[placed + 3 * mark:placed + 3 * mark + 3, own] = place_costs[mark] * kinematics.places[mark] @ mapping
-    for index, mark in enumerate(problem.free):
-        body = model.site_bodyid[fitting.place_sites[mark]]
-        found[placed + 3 * mark:placed + 3 * mark + 3, 3 * index:3 * index + 3] = (
-            place_costs[mark] * kinematics.body_turns[body])
-    for joint, riders in enumerate(fitting.riding):
-        column = 3 * (len(problem.free) + joint)
-        parent = model.body_parentid[fitting.inside[joint]]
-        for mark in riders:
-            found[placed + 3 * mark:placed + 3 * mark + 3, column:column + 3] = (
-                place_costs[mark] * kinematics.body_turns[parent])
-    return found
+    mapping = dof_map(problem, problem.qpos(frame, values), rotation)
+    groups = len(fitting.frame_sites)
+    seen = kinematics.site_turns
+    offs = _logs(np.transpose(seen, (0, 2, 1)) @ targets[frame])
+    turned = -turn_cost * (left_jacobian_inverses(offs) @ np.transpose(seen, (0, 2, 1))) @ (
+        kinematics.spins @ mapping)
+    placed = place_costs[:, None, None] * (kinematics.places @ mapping)
+    own = np.concatenate([turned, placed]).reshape(-1, problem.width)
+    row, column = np.nonzero(own)
+    rows, columns, entries = [row], [held + frame * problem.width + column], [own[row, column]]
+    marks, starts, bodies = moved_blocks(problem)
+    across, block = np.arange(3), (len(marks), 3, 3)
+    rows.append(np.broadcast_to(3 * (groups + marks)[:, None, None] + across[None, :, None], block).ravel())
+    columns.append(np.broadcast_to(starts[:, None, None] + across[None, None, :], block).ravel())
+    entries.append((place_costs[marks][:, None, None] * kinematics.body_turns[bodies]).ravel())
+    return np.concatenate(rows), np.concatenate(columns), np.concatenate(entries)
 
 
-def _log(turn):
-    """A rotation matrix's rotation vector (scipy's, as the residuals take it)."""
+def moved_blocks(problem):
+    """Each 3 x 3 block a constant's move puts in a frame's place rows: its marker, its first column and the body whose
+    turn it is (a free marker's own body; an inside joint's parent, on every marker it carries), as arrays."""
+    fitting, model = problem.fitting, problem.fitting.model
+    found = [(mark, 3 * index, model.site_bodyid[fitting.place_sites[mark]]) for index, mark in enumerate(problem.free)]
+    found += [(mark, 3 * (len(problem.free) + joint), model.body_parentid[fitting.inside[joint]])
+              for joint, riders in enumerate(fitting.riding) for mark in riders]
+    return tuple(np.array([block[part] for block in found], dtype=int) for part in range(3))
+
+
+def left_jacobian_inverses(rotations):
+    """`left_jacobian_inverse` of each rotation vector (n x 3 -> n x 3 x 3)."""
+    return np.array([left_jacobian_inverse(rotation) for rotation in rotations])
+
+
+def _logs(turns):
+    """Rotation matrices' rotation vectors (scipy's, as the residuals take them)."""
     from scipy.spatial.transform import Rotation
-    return Rotation.from_matrix(turn).as_rotvec()
+    return Rotation.from_matrix(turns).as_rotvec()
 
 
 def jacobian(problem, unknowns, card=None):
@@ -133,19 +141,22 @@ def jacobian(problem, unknowns, card=None):
               for frame in range(len(problem.path))]
     poses = [problem.qpos(frame, value) for frame, value in enumerate(values)]
     seen = card.frames(np.array(poses)) if card is not None else [Kinematics(fitting, pose) for pose in poses]
-    blocks = [csr_matrix(frame_rows(problem, frame, seen[frame], problem.turns, value))
-              for frame, value in enumerate(values)]
-    return _stacked(problem, blocks)
+    per = 3 * (len(fitting.frame_sites) + len(fitting.place_sites))
+    triplets = []
+    for frame, value in enumerate(values):
+        rows, columns, entries = frame_rows(problem, frame, seen[frame], problem.turns, value)
+        triplets.append((rows + frame * per, columns, entries))
+    triplets.append(_priors(problem, len(problem.path) * per))
+    rows, columns, entries = (np.concatenate(part) for part in zip(*triplets))
+    shape = (len(problem.path) * per + held, held + len(problem.path) * problem.width)
+    return coo_matrix((entries, (rows, columns)), shape=shape).tocsr()
 
 
-def _stacked(problem, blocks):
-    """The frames' rows stacked over the constants' prior rows (each its constant's weight on its own column)."""
-    from scipy.sparse import vstack
+def _priors(problem, first):
+    """The constants' prior rows as COO triplets from row `first`: each its constant's weight on its own column."""
     turn_cost, place_costs = problem.costs
     held = len(problem.slots)
     moved = 3 * len(problem.free)
     weights = np.concatenate([np.repeat(place_costs[problem.free], 3),
                               np.full(held - moved, float(np.mean(place_costs)))])
-    priors = csr_matrix((weights, (np.arange(held), np.arange(held))),
-                        shape=(held, held + len(problem.path) * problem.width))
-    return vstack(blocks + [priors], format="csr")
+    return first + np.arange(held), np.arange(held), weights
