@@ -20,7 +20,7 @@ import numpy as np
 
 from bone_groups import groups
 from calibration import turn
-from fit._constants import MARKS, SIZES, staged
+from fit._constants import MARKS, staged
 from fit._follow import following, riding
 from fit._frames import LM_DAMPING, Frames, NotConverged, solved
 from fit._model import Fitting, filed, followers_free
@@ -105,11 +105,11 @@ def sampled(fit, recordings):
 def constants(fit, recordings):
     """The person's constants on `fit` (a `Fitting`), once per body from all its `recordings` together ([(turns,
     points)]: CONTEXT.md "person constants"), staged on the frames `sampled` picks: mink's angles at the start
-    constants, then the size factors with those frames' angles, then the markers' moves (all but HELD's) with them:
+    constants (the lengths are SOMA's, from sizing: no size unknowns), then the markers' moves (all but HELD's):
     {"sizes": {bone group: factor, the overall one's times its size group's}, "size factors": {size group: factor}, "marks":
     {landmark: [3] m, its body's frame}, "evaluations": [n, n], "followed": [group]}."""
     turns, points, path = sampled(fit, recordings)
-    sized, path, sizing = staged(fit, path, turns, points, SIZES, fit.neutral())
+    sized, sizing = fit.neutral(), 0
     free = [index for index, name in enumerate(fit.marks) if name not in HELD]
     found, _, marking = staged(fit, path, turns, points, MARKS, sized, free)
     sizes, marks = fit.unpack(found)
