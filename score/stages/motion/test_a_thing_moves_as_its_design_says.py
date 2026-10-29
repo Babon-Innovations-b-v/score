@@ -1,9 +1,9 @@
 """A thing moves as its scene's design says, and the motion check holds every move to its record. Made from the design
 on a small stage made here (no record written for the scene): the door swings a right angle on the hinge at its own
 left edge and shuts again, the fan turns a whole number of times a round, the rover stands parked with its rule's
-reason, and every gate passes; with nobody in the scene the door stands shut; a moving row with no object fails
-`designed`; a door whose swing strikes is swung the other way, else stands with its strike; a hatch lying flat
-stands. The check (check.py, #23), on a cart driven round a closed path, a door swung on its hinge and a hatch slid
+reason, and every gate passes; with nobody in the scene the door stands shut; two seeds make the same moves, so
+the row is unseeded; a moving row with no object fails `designed`; a door whose swing strikes is swung the other
+way, else stands with its strike; a hatch lying flat stands. The check (check.py, #23), on a cart driven round a closed path, a door swung on its hinge and a hatch slid
 down: each passes, and one known fault each fails by name. Expected spots are worked out by hand below.
 
 Each test names the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
@@ -141,6 +141,21 @@ def test_with_nobody_in_the_scene_the_door_stands_shut(tmp_path):
     _, record = made(toy_inputs(tmp_path, [row for row in ROWS if row["id"] != "astronaut"]), tmp_path)
     assert sorted(entry["name"] for entry in record["moves"]) == ["fan_1"]
     assert record["still"][f"/{PLACE}/Objects/door_1"].startswith("nobody passes through it")
+
+
+def test_the_make_never_reads_its_seed_so_a_failure_is_noted_never_remade(tmp_path):
+    """Two seeds make the same record and layer, so the table marks the row unseeded: a failed output is noted for a
+    fix upstream, never remade with a fresh seed (motion@base, 2026-10-29: both attempts the same output).
+    Break: score/stages/__init__.py: `"light", "motion")` -> `"light")`"""
+    from score import stages
+    inputs, outs = toy_inputs(tmp_path), []
+    for seed in (0, 1778076555):
+        out = tmp_path / f"out-{seed}"
+        out.mkdir()
+        motion.make(inputs, out, seed, {})
+        outs.append([(out / name).read_bytes() for name in (motion.RECORD, "layers/motion.usda")])
+    assert outs[0] == outs[1]
+    assert not next(row for row in stages.STAGES if row.name == "motion").seeded
 
 
 def test_a_row_that_moves_with_no_object_fails_designed(tmp_path):
