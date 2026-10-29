@@ -10,7 +10,8 @@ weight, the turn's Jacobian through the log's inverse left Jacobian (mink's exac
 1e-6. Runs in Newton's own Python on a CUDA card; with no Newton env or no card it prints `skipped`. On a toy MJCF (a
 free root, three ranged hinges, a follower coupled by polyval in its own body, a frozen hinge), the card loop on a
 10-frame clip, each row seeded as mink's frame was, equals mink (../_frames.solved, targets set as _frames.Frames sets
-them) to 0.01 deg and its sites to 0.01 mm, with a frame holding h1 at its range.
+them) to 0.01 deg and its sites to 0.01 mm, with a frame holding h1 at its range; in chunks of 3 rows it equals
+itself in one batch.
 
 Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _step's `LM_DAMPING * squared + DAMPING` made `DAMPING`: mink's damping is lost, the step differs.
@@ -19,6 +20,7 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _kept's `keep[row, column]` made `1.0`: a hold from an earlier pass is let go, the step differs.
 - (2026-10-29) _turn_jacobian's `rate[axis]` made `motion[3 + axis]` (Newton's spin alone): the turn's
   Jacobian is no longer the log's exact one.
+- (2026-10-29) solved_in_chunks' `values[start:stop]` made `values[:stop - start]`: every chunk solves the first rows.
 - (2026-10-29) _projected's `power *= lead` made `power *= 1.0`: a coupling is no longer polyval of its leader.
 - (2026-10-29) _turn_jacobian's `weight[problem] * rate[axis]` made `rate[axis]`: the weight is lost.
 - (2026-10-29) _turn_residuals' angle `2 atan2(length, w) / length` made `2`: the turn is no longer the log map.
@@ -237,6 +239,7 @@ TOY = """<mujoco><compiler angle="radian"/><worldbody><body name="root"><freejoi
     <body name="d" pos="0 0 0.3"><joint name="z" axis="0 1 0"/><geom size="0.05"/><site name="p3" pos="0.1 0 0.2"/>
  </body></body></body></body><site name="p1" pos="0.05 0 0.2"/></body><site name="p0" pos="0.1 0.1 0"/></body></worldbody>
  <equality><joint joint1="f" joint2="h1" polycoef="0 0.5 0.2 0 0"/></equality></mujoco>"""
+CHUNK = 3  # solved_in_chunks' rows a chunk on the toy: three full chunks and one of one
 CLIP_FRAMES, PLACE_SITES, TURN_COST, PLACE_COST = 10, ("p0", "p1", "p2", "p3"), 0.7, 3.0
 
 
@@ -297,14 +300,14 @@ def site_places(mjm, poses):
 
 def the_clip_equals_mink_frame_by_frame():
     """The card loop on the toy's clip, each row seeded as mink's frame was, equals mink's angles to 0.01 deg and its
-    sites to 0.01 mm."""
+    sites to 0.01 mm, and solved in chunks of CHUNK rows it equals itself in one batch to 1e-6 rad."""
     import mujoco
     import newton
     import numpy as np
     import warp as wp
     from scipy.spatial.transform import Rotation
     from newton import ik
-    from fit._card import PlacePerProblem, Projection, Reduction, TurnPerProblem, solved
+    from fit._card import PlacePerProblem, Projection, Reduction, TurnPerProblem, solved, solved_in_chunks
     mjm = mujoco.MjModel.from_xml_string(TOY)
     turns, places = toy_clip(mjm)
     reference = mink_frames(mjm, turns, places)
@@ -316,16 +319,21 @@ def the_clip_equals_mink_frame_by_frame():
     model = builder.finalize(device="cuda:0")
     body = {label.split("/")[-1]: index for index, label in enumerate(model.body_label)}
     card = lambda values, kind: wp.array(np.ascontiguousarray(values, dtype=np.float32), dtype=kind, device="cuda:0")
-    every = lambda value: np.tile(value, (CLIP_FRAMES, 1))
     site = lambda name: (body[mjm.body(int(mjm.site(name).bodyid[0])).name], mjm.site(name))
-    link, turn_site = site("t")
-    objectives = [TurnPerProblem(link, card(every(turn_site.quat[[1, 2, 3, 0]]), wp.quat),
-                                 card(Rotation.from_matrix(turns).as_quat(), wp.vec4),
-                                 card(np.full(CLIP_FRAMES, TURN_COST), wp.float32))]
-    for index, name in enumerate(PLACE_SITES):
-        link, mark = site(name)
-        objectives.append(PlacePerProblem(link, card(every(mark.pos), wp.vec3), card(places[:, index], wp.vec3),
-                                          card(np.full(CLIP_FRAMES, PLACE_COST), wp.float32)))
+
+    def optimizer_for(start, stop):
+        """Newton's IKOptimizerLM for the clip's frames start:stop."""
+        rows = stop - start
+        link, turn_site = site("t")
+        objectives = [TurnPerProblem(link, card(np.tile(turn_site.quat[[1, 2, 3, 0]], (rows, 1)), wp.quat),
+                                     card(Rotation.from_matrix(turns[start:stop]).as_quat(), wp.vec4),
+                                     card(np.full(rows, TURN_COST), wp.float32))]
+        for index, name in enumerate(PLACE_SITES):
+            link, mark = site(name)
+            objectives.append(PlacePerProblem(link, card(np.tile(mark.pos, (rows, 1)), wp.vec3),
+                                              card(places[start:stop, index], wp.vec3),
+                                              card(np.full(rows, PLACE_COST), wp.float32)))
+        return ik.IKSolver(model, rows, objectives, optimizer="lm", jacobian_mode=ik.IKJacobianType.ANALYTIC)._impl
     hinge = lambda name: int(mjm.jnt_qposadr[mjm.joint(name).id])  # a hinge's coordinate; its dof is one less
     poly = np.array([[0.0, 0.5, 0.2, 0.0, 0.0]])
     free = [0, 1, 2, 3, 4, 5, 6, 7, 8]
@@ -334,14 +342,16 @@ def the_clip_equals_mink_frame_by_frame():
     big = [1e30] * 7
     projection = Projection([-b for b in big] + [-1.2] * 3 + [-1e30] * 2, big + [1.2] * 3 + [1e30] * 2,
                             [hinge("f")], [hinge("h1")], [0.0], [0.0], poly, [hinge("z")], "cuda:0")
-    optimizer = ik.IKSolver(model, CLIP_FRAMES, objectives, optimizer="lm",
-                            jacobian_mode=ik.IKJacobianType.ANALYTIC)._impl
     newton_seeds = seeds.copy()
     newton_seeds[:, 3:7] = seeds[:, [4, 5, 6, 3]]
-    found, _ = solved(optimizer, reduction, projection, card(newton_seeds, wp.float32), card(seeds, wp.float32))
+    found, _ = solved(optimizer_for(0, CLIP_FRAMES), reduction, projection, card(newton_seeds, wp.float32),
+                      card(seeds, wp.float32))
     found = found.numpy().astype(float)
+    chunked, _ = solved_in_chunks(optimizer_for, reduction, projection, newton_seeds, seeds, chunk_rows=CHUNK)
+    problems = [] if np.abs(chunked - found).max() <= 1e-6 else ["in chunks of 3 rows the clip differs from one batch"]
     miss = np.degrees(np.abs(found[:, 7:] - reference[:, 7:])).max()
-    problems = [] if miss <= 0.01 else [f"angles {miss:.4f} deg off mink's (plan: 0.01)"]
+    if miss > 0.01:
+        problems.append(f"angles {miss:.4f} deg off mink's (plan: 0.01)")
     sites = 1000.0 * np.abs(site_places(mjm, found) - site_places(mjm, reference)).max()
     if sites > 0.01:
         problems.append(f"sites {sites:.4f} mm off mink's (plan: 0.01)")
