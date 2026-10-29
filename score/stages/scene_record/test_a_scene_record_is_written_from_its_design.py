@@ -335,8 +335,8 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     the garage door against its module's S face names the module's object and points out +z; the wall lamp against
     the west wall's room face, the face 0.1 m in at x -9.9, pointing out +x. Relations derived from another plan
     than the kept one are left out, with why.
-    Break: score/stages/scene_record/writer.py: `spot, way, base, on = related(design, relation, spot, way, base)` ->
-        `pass`
+    Break: score/stages/scene_record/writer.py: `spot, way, base, on = related(design, relation, spot, way, base,
+        size, piece)` -> `pass`
     Break: score/stages/scene_record/writer.py: `on["holder"] = names` -> `pass`"""
     from score.stages.scene_record import writer
     design = {"w": 20.0, "d": 20.0, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 20.0, 20.0, None, "item"],
@@ -368,7 +368,42 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     assert writer.relations_input({"plans": tmp_path / "plans", "relations": tmp_path / "relations.json"}, "hut") == (
         None, "the relations were derived from another plan than the kept one (score/review/holders keep)")
     from score.review import holders
-    assert writer.KEPT_RELATIONS == holders.KEPT  # the row reads its relations where holders.keep keeps them
+    assert writer.design_shell.KEPT_RELATIONS == holders.KEPT  # the row reads its relations where holders.keep keeps them
+
+
+def test_a_facade_stands_past_its_edge_and_what_is_left_unplaced_is_marked():
+    """Street (2026-10-29): on a 6 x 30 m plan (place (x, z) is plan (x - 3, y - 15)) its 3 m deep facade the plan
+    writer left on the walls item stands past the W edge, its middle 1.5 m out, at place (-4.5, 0), its long side
+    along the edge; the AC unit on it names the facade's object alone of the walls item's (its holder row), not the
+    crate also left there, which stands marked unplaced; a door with no relation is marked as filling an opening; a
+    row its relations name nothing holding is marked unheld.
+    Break: score/stages/scene_record/writer.py: `return np.asarray(relation["spot"], float) + out * depth / 2,
+        np.array([out[1], -out[0]]), base, None` -> `return spot, way, base, None`
+    Break: score/stages/scene_record/writer.py: `if rows.get(name) == on.get("holder row", rows.get(name))]` -> `]`
+    Break: score/stages/scene_record/writer.py: `if item[0] == WALLS_ITEM and not placed:` -> `if False:`"""
+    from score.stages.scene_record import writer
+    design = {"w": 6.0, "d": 30.0, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 6.0, 30.0, None, "item"],
+                                             ["AC 1", 0.5, 10.0, 0.8, 0.4, None, "item"],
+                                             ["DOOR 1", 5.0, 5.0, 1.0, 0.1, None, "item"],
+                                             ["LAMP 1", 2.0, 2.0, 0.3, 0.3, None, "item"]],
+              "rows": {"ON THE WALLS AND CEILING": ["facade", "crate"], "AC 1": ["ac"], "DOOR 1": ["door"],
+                       "LAMP 1": ["lamp"]}}
+    rows = [{"id": name, "anchor": "floor", "route": "prop", "size": size, "noun": noun}
+            for name, size, noun in (("facade", [3.0, 36.0, 24.0], "facade"), ("crate", [1.0, 1.0, 1.0], "crate"),
+                                     ("ac", [0.8, 0.4, 0.6], "air conditioner"), ("door", [1.0, 0.1, 2.1], "door"),
+                                     ("lamp", [0.3, 0.3, 0.3], "lamp"))]
+    relations = {"relations": [
+        {"item": "ON THE WALLS AND CEILING", "row": "facade", "how": "edge", "edge": "W", "spot": [0.0, 15.0],
+         "why": "past the plan's W edge"},
+        {"item": "AC 1", "row": "ac", "how": "face", "holder": "ON THE WALLS AND CEILING", "holder row": "facade",
+         "face": "E", "why": "against facade's face toward the place"}],
+        "unheld": [{"item": "LAMP 1", "row": "lamp", "why": "its holder stage is neither laid nor a wall"}]}
+    found = {entry["row"]: entry for entry in writer.design_objects(design, {"rows": rows, "objects": {}}, relations)}
+    assert found["facade"]["at"] == [-4.5, 0.0, 0.0] and "unplaced" not in found["facade"], found["facade"]
+    assert found["facade"]["rotation"] == writer.yaw_turn(design, (0.0, 1.0), rows[0]["size"]), found["facade"]
+    assert found["ac"]["on"]["holder"] == ["facade_1"] and found["ac"]["on"]["out"] == [1.0, 0.0], found["ac"]
+    assert found["crate"]["unplaced"].startswith("the plan writer left it"), found["crate"]
+    assert found["door"]["fills"] is True and found["lamp"]["unheld"].startswith("its holder stage"), found
 
 
 def test_an_arched_rib_is_laid_as_the_shell_s_band_at_each_of_its_plan_items():

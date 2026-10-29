@@ -434,7 +434,12 @@ branch names a scene or a world.
   relation as its `on`, laying a door or window in its opening and a wall item on its wall; the assembly lays each by
   it at its built size, moved and shrunk to fit, never grown (`assembly/fitting.py`, in `made_waiting.lay`, so the
   settle, motion and light stages lay alike), and writes `laid.json`; the plan page draws those boxes dashed over the
-  plan and lists what was corrected. A relation the plan does not
+  plan and lists what was corrected. A door or window the plan's openings do not hold gets an opening cut for it on
+  its nearest wall (the relation's `cut`, cut by the earth seed's and the scene record's walls); a wall row the plan
+  writer left unplaced in a place with no wall stands past the plan's edge (a street's facade), a stair row at the
+  plan's stair, a thing on several holders of one kind on the nearest the concept shows it on. The assembly's free
+  `held` gate fails by name, with its distance, on any design object off where its relation puts it, a door or window
+  in no opening and on no holder, or one held by nothing or left at the room's middle. A relation the plan does not
   state, or a size or place the assembly cannot honour, is a framework fault to fix in the plan writer or the assembly,
   never a question for the owner.
 - **Neighbours** (`neighbours.py`): the scenes a scene shows, each as its own accepted assembly; one no stage makes is a

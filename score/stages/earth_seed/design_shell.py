@@ -44,6 +44,7 @@ the shell's too, laid by the scene record at each plan item tied to it as a buil
 (scene_record.writer `arch_entry`; the owner, 2026-10-26, lets the framework build structure pieces as the earth seed
 builds shells; Batch 1's retry: the tube's ribs, its box the whole picture, framed no close-up).
 """
+import hashlib
 import json
 import pathlib
 import re
@@ -53,6 +54,9 @@ import numpy as np
 from score.stages.scene_record import plan as place_plan
 import score.stages.surfaces.palette_library as palette_library  # the module alone in the key, not the surface line
 from score.stages.shell_parts import LEVEL_OFF, encloses, laid_for, part_kind, raised  # noqa: F401
+from score.store import PROPS_HOME
+
+KEPT_RELATIONS = PROPS_HOME / "design" / "relations"  # holders.KEPT, held equal by the scene record's test
 
 # The scene record's backing shell (scene_record.writer BACKING, DECK_BELOW; held equal by the test): the shell stands
 # this far behind the plan's inside line and the deck this far under the floor. Both take each part's surface from the
@@ -264,9 +268,41 @@ def row_openings(plan, rows):
     return found
 
 
-def cut_for(plan, rows):
-    """The plan with the openings its door and window rows fill (row_openings) for its walls to cut."""
-    return {**plan, "row_openings": row_openings(plan, rows)}
+def relation_cuts(relations):
+    """The openings the place's relations cut for doors and windows the plan's own openings do not hold
+    (score/review/holders `cut`), as {at, wide, sill, head}."""
+    return [{key: found["opening"][key] for key in ("at", "wide", "sill", "head")}
+            for entry in (relations or {}).get("relations", []) for found in entry.get("pieces") or [entry]
+            if (found.get("opening") or {}).get("cut")]
+
+
+def cut_for(plan, rows, relations=None):
+    """The plan with the openings its door and window rows fill (row_openings) and those its relations cut
+    (relation_cuts, each but where one stands within their half widths) for its walls to cut."""
+    own = row_openings(plan, rows)
+    for cut in relation_cuts(relations):
+        if not any(np.linalg.norm(np.subtract(cut["at"], other["at"])) < (cut["wide"] + other["wide"]) / 2
+                   for other in own):
+            own.append(cut)
+    return {**plan, "row_openings": own}
+
+
+def relations_file(place):
+    """{"relations": its kept path pattern} once the place's relations are derived (score/review/holders keep), else
+    {}: its things are laid, and its walls cut, as the plan draws them."""
+    return {"relations": "{home}/design/relations/" + f"{place}.json"} if (KEPT_RELATIONS / f"{place}.json").is_file() \
+        else {}
+
+
+def relations_read(inputs, plan_path):
+    """(the place's relations, None) while they were derived from its kept plan as it stands (their `plan` sha), else
+    (None, why they are left out): a plan kept since is laid as it is drawn until the next keep derives them again."""
+    if "relations" not in inputs:
+        return None, None
+    relations = json.loads(pathlib.Path(inputs["relations"]).read_text())
+    if relations.get("plan") != hashlib.sha256(pathlib.Path(plan_path).read_text().encode()).hexdigest():
+        return None, "the relations were derived from another plan than the kept one (score/review/holders keep)"
+    return relations, None
 
 
 def on_edge(openings, start, end, thick):

@@ -245,6 +245,22 @@ def test_a_door_or_window_row_cuts_its_opening_where_its_plan_item_stands_on_a_w
     assert abs(volume(whole["wall_1"]) - volume(cut["wall_1"])) < 1e-9  # the door's is the plan's own
 
 
+def test_the_walls_cut_an_opening_the_relations_cut_for_a_door_the_plan_s_openings_do_not_hold(tmp_path):
+    """#72 (cockpit's four rear doors, one opening on its plan): the place's relations (score/review/holders) cut an
+    opening for a door or window the plan's own openings each hold another of; the walls cut it, once where a row's
+    own stands within their half widths. A 1 x 1 m window opening cut at (4, 1.5) from 1 m up takes 1.0 x 0.2 x 1.0
+    out of the east wall. Relations derived from another plan than the kept one are left out, with why.
+    Break: score/stages/earth_seed/design_shell.py: `for cut in relation_cuts(relations):` -> `for cut in []:`"""
+    relations = {"relations": [{"item": "ON THE WALLS AND CEILING", "row": "window", "how": "in", "opening": {
+        "at": [4.0, 1.5], "wide": 1.0, "sill": 1.0, "head": 2.0, "cut": True}}]}
+    cut = {name: triangles for name, triangles, _ in design_shell.shell(design_shell.cut_for(ROOM, [], relations))}
+    whole = {name: triangles for name, triangles, _ in design_shell.shell(ROOM)}
+    assert abs(volume(whole["wall_2"]) - volume(cut["wall_2"]) - 1.0 * 0.2 * 1.0) < 1e-6
+    (tmp_path / "plan.json").write_text(json.dumps(ROOM))
+    (tmp_path / "relations.json").write_text(json.dumps({**relations, "plan": "another plan's sha"}))
+    assert design_shell.relations_read({"relations": tmp_path / "relations.json"}, tmp_path / "plan.json")[0] is None
+
+
 def test_a_room_is_a_kit_shell_inside_or_one_that_writes_walls():
     """A scene added in the app says neither inside nor out: it is a room the earth seed lays when its plan writes walls
     (the docking airlock), an open place when it writes none (the Moon base); a domed shell is the scene record's.

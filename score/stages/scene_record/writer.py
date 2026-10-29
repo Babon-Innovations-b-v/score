@@ -38,7 +38,6 @@ builds it unchanged; it lands as record/<place>.json in the output.
 Every entry's `from` names the plan element, inventory row or physics it was made from. Nothing of a game, a kit, a
 filed definition or an old record is read.
 """
-import hashlib
 import json
 import math
 import pathlib
@@ -48,15 +47,14 @@ import numpy as np
 
 from score import contracts
 from score.review import overhead
+from score.review.plan_checks import WALLS_ITEM
 from score.stages import row_kinds
 from score.stages.earth_seed import design_shell
 from score.stages.scene_record import concept_light, far
 from score.stages.scene_record import plan as place_plan
 import score.stages.shapes_first.floor_fit as floor_fit
-from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-KEPT_RELATIONS = PROPS_HOME / "design" / "relations"  # holders.KEPT, held equal by the test
 # The shell's backing: it stands this far behind the plan's inside line, its deck this far under the floor
 # (design_shell's, which lays the same shell in a kit room's base).
 BACKING = design_shell.BACKING
@@ -90,13 +88,7 @@ def files(place):
             "sky": "{home}/design/sky/{place}.json", "row kinds": "{data}/checks/row-kinds.json",
             "lamp library": "{data}/library/lamps.json", "places": "{data}/definitions/place.json",
             "hand-in": "{home}/design/props/{place}.json", **concept_light.concept_light_input(place),
-            **relations_file(place)}
-
-
-def relations_file(place):
-    """{"relations": its kept path pattern} once the place's relations are derived (score/review/holders keep), else
-    {}: its objects are laid as the plan draws them."""
-    return {"relations": "{home}/design/relations/{place}.json"} if (KEPT_RELATIONS / f"{place}.json").is_file() else {}
+            **design_shell.relations_file(place)}
 
 
 def read(path):
@@ -586,11 +578,16 @@ def wall_face(design, wall, side):
 FACE_WAYS = {"N": (0.0, -1.0), "S": (0.0, 1.0), "E": (1.0, 0.0), "W": (-1.0, 0.0)}
 
 
-def related(design, relation, spot, way, base):
-    """(spot, x way, base, the record's `on`) of an object laid by its plan item's relation (score/review/holders): in
-    its opening at the opening's middle and sill, along its wall; against a wall's face, along it, at the relation's
-    spot (the concept's, for an item the plan writer left on the walls item); on, within or against its holder as it
-    was, its holder's objects named after (holder_names). None `on` on the floor or the ceiling."""
+def related(design, relation, spot, way, base, size, piece=0):
+    """(spot, x way, base, the record's `on`) of an object, the `piece`-th of its item, laid by its plan item's relation
+    (score/review/holders; `pieces` one a piece): in its opening at the opening's middle and sill, along its wall;
+    against a wall's face, along it, at the relation's spot (the concept's, for an item the plan writer left on the
+    walls item); past the plan's edge, its face on the edge's line and its body out past it, facing in (a street's
+    facade); on, within or against its holder as it was, its holder's objects named after (holder_names); on the
+    floor at the relation's spot where it gives one (a stair at the plan's stair). None `on` on the floor, the
+    ceiling or past an edge."""
+    if "pieces" in relation:
+        relation = relation["pieces"][min(piece, len(relation["pieces"]) - 1)]
     how = relation["how"]
     if how == "in":
         opening, wall = relation["opening"], relation.get("wall")
@@ -608,25 +605,61 @@ def related(design, relation, spot, way, base):
         return (np.asarray(relation["spot"], float), along / max(float(np.linalg.norm(along)), 1e-9), base,
                 {"how": "wall", "span": ends, "out": out, "why": relation["why"]})
     if how in ("top", "within", "face"):
-        found = {"how": how, "holder item": relation["holder"], "why": relation["why"]}
+        found = {"how": how, "holder item": relation["holder"], "why": relation["why"],
+                 **({"holder row": relation["holder row"]} if relation.get("holder row") else {})}
         if how == "face":
             found["out"] = plan_way(design, FACE_WAYS[relation["face"]])
         return spot, way, base, found
+    if how == "edge":
+        out = np.asarray(FACE_WAYS[relation["edge"]])
+        depth = min(float(size[0]), float(size[1])) if isinstance(size, list) and len(size) == 3 else 0.0
+        return np.asarray(relation["spot"], float) + out * depth / 2, np.array([out[1], -out[0]]), base, None
+    if relation.get("spot"):
+        return np.asarray(relation["spot"], float), np.asarray(relation.get("way") or way, float), base, None
     return spot, way, base, None
 
 
-def holder_names(found, laid):
-    """Each object's `on` naming its holder's objects (those laid at its holder item, `laid` {item: [names]}); one whose
-    holder item laid none keeps no `on` and says so."""
+def arch_names(design, handin):
+    """{plan item: [the arch entry laid at it]} of the arched rows' bands (arch_entries' names)."""
+    found = {}
+    for number, (row, item, _) in enumerate(design_shell.arches(design, handin.get("rows", [])), 1):
+        found.setdefault(item[0], []).append(f"{row['id']}_{number}")
+    return found
+
+
+def holder_names(found, laid, arched=None):
+    """Each object's `on` naming its holder's objects (those laid at its holder item, `laid` {item: [names]}, of its
+    holder row where it names one), else the arch the record lays there (`arched`, under Structure: a tube's rib);
+    one whose holder item laid neither keeps no `on` and says so."""
+    rows = {entry["name"]: entry["row"] for entry in found}
     for entry in found:
         on = entry.get("on")
         if on and "holder item" in on:
-            names = laid.get(on["holder item"]) or []
+            names = [name for name in laid.get(on["holder item"]) or []
+                     if rows.get(name) == on.get("holder row", rows.get(name))]
+            if not names and (arched or {}).get(on["holder item"]):
+                names, on["holder scope"] = arched[on["holder item"]], "Structure"
             if names:
                 on["holder"] = names
             else:
                 entry.pop("on")
                 entry["unheld"] = f"its holder item {on['holder item']!r} lays no object"
+    return found
+
+
+PLACING = ("in", "wall", "edge", "top", "within", "face")  # relations that give an object its place
+
+
+def marks(item, row, relation, unheld):
+    """What the assembly's `held` gate reads of an object beside its `on`: `fills` for a door or window row (it
+    stands in an opening), `unheld` with why where its relations name nothing holding it, `unplaced` where the plan
+    writer left it on the walls item and no relation places it (it would stand at the room's middle)."""
+    found = {"fills": True} if design_shell.fills_opening(row) else {}
+    if unheld:
+        found["unheld"] = unheld
+    placed = relation and (relation["how"] in PLACING or relation.get("spot") or relation.get("pieces"))
+    if item[0] == WALLS_ITEM and not placed:
+        found["unplaced"] = "the plan writer left it on the walls item and no relation places it"
     return found
 
 
@@ -655,6 +688,7 @@ def design_objects(design, handin, relations=None):
             if row_id in by_id and by_id[row_id].get("route", "prop") in LAID_ROUTES and not by_id[row_id].get("far"):
                 items.setdefault(row_id, []).append((item, shapes.get(item[0]) or {}))
     found, edged, holding, laid_at = [], floor_fit.past_edge(design, handin), relations_of(relations), {}
+    unheld = {(entry["item"], entry["row"]): entry["why"] for entry in (relations or {}).get("unheld", [])}
     for row_id, laid in items.items():
         row, model = by_id[row_id], models.get(row_id)
         size = by_id.get(model.removesuffix("_1"), row).get("size") if model else row.get("size")
@@ -662,20 +696,21 @@ def design_objects(design, handin, relations=None):
         for (item, shape), pieces in zip(laid, pieces_of(row, laid)):
             base = float(shape.get("base") or 0.0)
             relation, on = holding.get((item[0], row_id)), None
-            for spot, way in spots_of(item, shape, pieces):
+            marked = marks(item, row, relation, unheld.get((item[0], row_id)))
+            for piece, (spot, way) in enumerate(spots_of(item, shape, pieces)):
                 if row_id in edged:
                     spot, way = past_edge_spot(item, design, spot, size)
                 if relation:
-                    spot, way, base, on = related(design, relation, spot, way, base)
+                    spot, way, base, on = related(design, relation, spot, way, base, size, piece)
                 number += 1
                 (point,), floor = in_frame(design, [spot], base)
                 found.append({"name": f"{row_id}_{number}", "row": row_id, "bake": model, "kind": "object",
                               "at": [point[0], floor, point[1]], "rotation": yaw_turn(design, way, size),
                               "waiting": waits(row, model, by_id),
                               "from": f"plan item {item[0]!r}, inventory row {row_id}: piece {number} of the row, "
-                                      f"{base:g} m over the floor", **({"on": dict(on)} if on else {})})
+                                      f"{base:g} m over the floor", **({"on": dict(on)} if on else {}), **marked})
                 laid_at.setdefault(item[0], []).append(found[-1]["name"])
-    return holder_names(found, laid_at)
+    return holder_names(found, laid_at, arch_names(design, handin))
 
 
 def far_objects(design, handin, inventory_path):
@@ -718,15 +753,8 @@ def ceiling(design):
 
 
 def relations_input(inputs, place):
-    """(the place's relations, None) while they were derived from its kept plan as it stands (their `plan` sha), else
-    (None, why they are left out): a plan kept since is laid as it is drawn until the next keep derives them again."""
-    if "relations" not in inputs:
-        return None, None
-    relations = read(inputs["relations"])
-    text = (pathlib.Path(inputs["plans"]) / f"{place}.json").read_text()
-    if relations.get("plan") != hashlib.sha256(text.encode()).hexdigest():
-        return None, "the relations were derived from another plan than the kept one (score/review/holders keep)"
-    return relations, None
+    """The place's relations as design_shell.relations_read gives them, against its kept plan."""
+    return design_shell.relations_read(inputs, pathlib.Path(inputs["plans"]) / f"{place}.json")
 
 
 def record_of(plan, design, inputs):
@@ -735,7 +763,7 @@ def record_of(plan, design, inputs):
     eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
     handin = read(inputs["hand-in"])
     relations, stale = relations_input(inputs, place)
-    design = design_shell.cut_for(design, handin.get("rows", []))
+    design = design_shell.cut_for(design, handin.get("rows", []), relations)
     far_laid = far_objects(design, handin, inputs.get("inventory"))
     record = {"place": place,
               "about": f"{plan['title']}, written by SCORE's scene-record stage from its design: its locked plan, "

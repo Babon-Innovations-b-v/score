@@ -13,6 +13,11 @@ ceiling) and how each is read.
 - **In no stage's code key.** Only `plans_pass` imports this package; never import it from `plans.py`,
   `plan_writing.py`, `plan_fixes.py`, `plan_checks.py` or a stage (an edit there re-keys paid rows,
   `python -m score moved`). The scene record reads the file, not this code.
+- **Every door and window in an opening, every item placed** (#72, owner 2026-10-29: "this is still not good"): a
+  door the plan's openings do not hold gets one cut for it (`cut_in`, cut by the earth seed's and the scene record's
+  walls); a wall row the plan writer left unplaced where the plan draws no wall stands past the plan's edge
+  (`at_edge`); a stair row at the plan's stair, a railing along its sides; things the concept shows on several holders
+  of one kind on the nearest (`seen_holders`). The assembly's `held` gate fails on any that comes back.
 - **The assembly lays by it** at built sizes (`score/stages/assembly/fitting.py`), and the plan page shows what it laid
   (`dashboard/state/local.laid_on_plan`). A relation it cannot state is `unheld` with why, never guessed.
 - Test: `test_each_plan_item_names_what_holds_it.py`.

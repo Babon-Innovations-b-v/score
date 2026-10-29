@@ -1,7 +1,7 @@
 """Each plan item of a row that stands on, against or in something names what holds it, derived free from the scene
 inventory's anchors, the concept's boxes and the plan (issue #72): base's garage door against its module's front, a
 monitor on its console's top, monitors the reading anchors on one bank on the nearest of the consoles the concept
-shows them on, a door in the plan's opening and the next one, with no opening left, on its wall, a
+shows them on, a door in the plan's opening and the next one, with no opening left, in an opening cut for it, a
 wall lamp the plan writer left on the walls item on a named wall's room side; and the file is kept beside the plan
 with the plan's sha. Plans and inventories are small ones made here.
 
@@ -87,11 +87,15 @@ def test_monitors_the_concept_shows_on_two_consoles_stand_on_the_nearest():
                      "MONITOR SCREEN 3": "CONTROL CONSOLE RIGHT 1"}, found
 
 
-def test_a_door_goes_in_the_plan_s_opening_and_the_next_on_its_wall():
+def test_a_door_goes_in_the_plan_s_opening_and_the_next_in_one_cut_for_it():
     """Two door rows the plan writer left on the walls item, one door opening on the north wall: the first goes in
-    it, the second, with no opening left, against the longest wall (no projection with no rows laid alike).
+    it; the second, with no opening left (cockpit's four rear doors, 2026-10-29: one opening on its plan), in an
+    opening cut for it where its spot meets the nearest wall: with no projection (no rows laid alike) its one piece
+    spread along the longest wall, at (10, 0), its own 1.0 m wide and 2.1 m tall from the floor.
     Break: score/review/holders/__init__.py: `found = in_opening(item, row, plan, inventory, taken) if
-        design_shell.fills_opening(row) else None` -> `found = None`"""
+        design_shell.fills_opening(row) else None` -> `found = None`
+    Break: score/review/holders/__init__.py: `found = [in_plan_opening(spot, row, plan, taken) or (cut_in(spot, row,
+        item, plan) if spot is not None else None)` -> `found = [in_plan_opening(spot, row, plan, taken)`"""
     rows = [{"id": "door", "noun": "door", "anchor": "wall", "size": [1.2, 0.1, 2.1]},
             {"id": "back_door", "noun": "door", "anchor": "wall", "size": [1.0, 0.1, 2.1]}]
     walls = [{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2}, {"from": [20.0, 0.0], "to": [20.0, 12.0], "thick": 0.2}]
@@ -100,7 +104,43 @@ def test_a_door_goes_in_the_plan_s_opening_and_the_next_on_its_wall():
                    openings=[{"kind": "door", "at": [5.0, 0.0], "wide": 1.4, "sill": 0.0, "head": 2.2}])
     found = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
     assert found["door"]["how"] == "in" and found["door"]["opening"]["at"] == [5.0, 0.0], found["door"]
-    assert found["back_door"]["how"] == "wall" and found["back_door"]["wall"]["to"] == [20.0, 0.0], found["back_door"]
+    assert found["back_door"]["how"] == "in" and found["back_door"]["opening"] == {
+        "at": [10.0, 0.0], "wide": 1.0, "sill": 0.0, "head": 2.1, "cut": True}, found["back_door"]
+
+
+def test_a_street_facade_stands_past_its_edge_and_its_units_on_its_face():
+    """Street (2026-10-29): its building facades, wall rows the plan writer left on the walls item, stood at the
+    street's middle, the AC units on them held by nothing (the plan draws no wall). A facade whose concept box stands
+    in the view's left half stands past the plan's left edge (the viewer looking north: W), at its middle; a unit on
+    it stands against its face toward the street, E.
+    Break: score/review/holders/__init__.py: `return {"how": "face", "holder": plan_checks.WALLS_ITEM, "holder row":
+        holder["id"],` -> `return {"how": "face", "holder": plan_checks.WALLS_ITEM, "holder row": None,`"""
+    rows = [{"id": "left_building_facade", "noun": "building facade", "part": "wall", "anchor": "ground",
+             "box": [0, 0, 300, 600]},
+            {"id": "air_conditioner_unit", "noun": "air conditioner", "anchor": "on:left_building_facade",
+             "box": [100, 200, 160, 240]}]
+    plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 6.0, 30.0, None, "item"],
+                    ["AIR CONDITIONER UNIT 1", 0.5, 10.0, 0.8, 0.4, None, "item"]],
+                   {plan_checks.WALLS_ITEM: ["left_building_facade"], "AIR CONDITIONER UNIT 1": ["air_conditioner_unit"]},
+                   structure=["left_building_facade"], w=6.0, d=30.0)
+    found = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
+    facade, unit = found["left_building_facade"], found["air_conditioner_unit"]
+    assert (facade["how"], facade["edge"], facade["spot"]) == ("edge", "W", [0.0, 15.0]), facade
+    assert (unit["how"], unit["holder row"], unit["face"]) == ("face", "left_building_facade", "E"), unit
+
+
+def test_a_stair_the_plan_writer_left_unplaced_stands_at_the_plan_s_stair():
+    """Greenhouse (2026-10-29): its two stairs rows, on its lower floor, stood at the room's middle (the walls item);
+    the plan draws its stairs. Each stands at the next stair's middle, along its way up (90 degrees: south, the
+    plan's y).
+    Break: score/review/holders/__init__.py: `if words_of(row) & STAIR_WORDS and stairs:` -> `if False:`"""
+    rows = [{"id": "lower_floor", "noun": "floor", "part": "floor", "anchor": "ground"},
+            {"id": "stairs", "noun": "stairs", "anchor": "on:lower_floor", "count": 1}]
+    plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"]],
+                   {plan_checks.WALLS_ITEM: ["lower_floor", "stairs"]}, structure=["lower_floor"],
+                   stairs=[{"kind": "stair", "points": [[2.0, 2.0], [6.0, 2.0], [6.0, 3.0], [2.0, 3.0]], "angle": 90}])
+    stairs = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["stairs"]
+    assert stairs["how"] == "floor" and stairs["spot"] == [4.0, 2.5] and stairs["way"] == [0.0, 1.0], stairs
 
 
 def test_a_wall_lamp_stands_on_its_wall_s_room_side():

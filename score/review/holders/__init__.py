@@ -13,12 +13,19 @@ Each plan item of a row that stands on, against or in something gets one relatio
            side toward it on the plan, else its facing, its holder's, or S (the garage door on its module's front)
     in     in a door or window opening of the plan (`opening`: its at, wide, sill, head, and the wall it stands on): a
            row that fills an opening (design_shell.fills_opening), anchored on a wall or on structure; each opening
-           holds one, the nearest to the item's spot, a kind like the row's first (a door in a door)
+           holds one, the nearest to the item's spot, a kind like the row's first (a door in a door); with none left,
+           one cut for it (`cut`) where its spot meets the nearest wall; each piece its own (`pieces`) for the walls
+           item, at its concept boxes' projections, else spread along the longest wall
+    edge   past the plan's edge (`edge`, `spot` the edge's middle): a wall row the plan writer left on the walls item
+           where the plan draws no wall (street's facades), on the side of the view its concept box stands; what is on
+           it stands against its face toward the place
     wall   against a wall of the plan (`wall`, its from, to, thick, and `side` +1 or -1 of the line it stands on, `spot`
            its plan spot): a row anchored `wall`, or on a structure row that is a wall; an item the plan writer did not
            place (the walls item) stands where the concept's box projects onto the plan (plan_checks.projection), else
            at the longest wall's middle
-    floor / ceiling  on the place's own floor or under its roof: named, nothing to lay against
+    floor / ceiling  on the place's own floor or under its roof, nothing to lay against; one the plan writer left on
+           the walls item at its `spot` (a stair row at the plan's stair along its way up, else where its concept box
+           projects), a thing on a staircase along the plan's stairs' sides (`pieces`)
 
 A row whose things the concept shows on several rows of its named holder's footing (hub's 38 monitors on four consoles,
 the reading naming one bank: one anchor a row) has each item held by the nearest of them on the plan (seen_holders):
@@ -32,6 +39,7 @@ it only while the plan is the same.
 """
 import hashlib
 import json
+import math
 import re
 
 import numpy
@@ -43,6 +51,8 @@ from score.store import PROPS_HOME
 KEPT_PLANS = PROPS_HOME / "design" / "plans"
 KEPT_INVENTORY = PROPS_HOME / "design" / "inventory"
 KEPT = PROPS_HOME / "design" / "relations"
+# A window's sill, metres over its floor, where an opening is cut for it and its plan item gives no base.
+WINDOW_SILL = 0.9
 # An item stands on its holder's top when its concept box's foot is over the holder's by this share of its box's height.
 TOP_SHARE = 0.25
 FACES = {"N": (0.0, -1.0), "S": (0.0, 1.0), "E": (1.0, 0.0), "W": (-1.0, 0.0)}
@@ -70,10 +80,11 @@ def words_of(row):
 
 
 def holder_kind(row):
-    """What a structure row is to what stands on it: wall, floor or ceiling, by its part, else its words; None."""
+    """What a structure row is to what stands on it: wall, floor or ceiling, by its part, else the words of its id and
+    noun (never its name: airlock's "floor AC unit" is no floor); None."""
     if row.get("part") in PARTS:
         return PARTS[row["part"]]
-    found = words_of(row)
+    found = kind_words(row)
     return next((kind for kind, words in (("wall", WALL_WORDS), ("ceiling", CEILING_WORDS), ("floor", FLOOR_WORDS))
                  if found & words), None)
 
@@ -167,8 +178,20 @@ def held(item, row, holder_row, holder_items, items, turn):
 
 
 def walls_of(plan):
-    """The plan's straight walls (an arc is left out: nothing stands against it yet)."""
-    return [wall for wall in plan.get("walls") or [] if "from" in wall and "to" in wall]
+    """The plan's walls as straight pieces: a straight wall itself, an arc (the greenhouse's round wall) its
+    plan_checks.ROUND pieces round its centre."""
+    found = []
+    for wall in plan.get("walls") or []:
+        if "from" in wall and "to" in wall:
+            found.append(wall)
+        elif "arc" in wall:
+            arc = wall["arc"]
+            turns = numpy.radians(numpy.linspace(float(arc["start"]), float(arc["end"]), plan_checks.ROUND + 1))
+            line = [[round(float(arc["centre"][0]) + float(arc["radius"]) * math.cos(turn), 4),
+                     round(float(arc["centre"][1]) + float(arc["radius"]) * math.sin(turn), 4)] for turn in turns]
+            found += [{"from": first, "to": second, "thick": float(wall.get("thick") or design_shell.THICK)}
+                      for first, second in zip(line, line[1:])]
+    return found
 
 
 def off_line(spot, wall):
@@ -180,12 +203,18 @@ def off_line(spot, wall):
     return float(numpy.linalg.norm(spot - (start + run * share))), 1 if across >= 0 else -1
 
 
+def seen_spots(row, plan, inventory):
+    """Where each of the row's concept boxes' feet projects onto the plan (plan_checks.projection); [] with none."""
+    fitted, picture = plan_checks.projection(plan, inventory), inventory.get("picture")
+    if fitted is None or not picture:
+        return []
+    return [numpy.array([(seen[0] + seen[2]) / 2 / picture[0], seen[3] / picture[1], 1.0]) @ fitted
+            for seen in plan_checks.boxes_of(row)]
+
+
 def seen_spot(row, plan, inventory):
-    """Where the row's concept box projects onto the plan (plan_checks.projection), or None."""
-    fitted, seen, picture = plan_checks.projection(plan, inventory), box_of(row), inventory.get("picture")
-    if fitted is None or not seen or not picture:
-        return None
-    return numpy.array([(seen[0] + seen[2]) / 2 / picture[0], seen[3] / picture[1], 1.0]) @ fitted
+    """Where the row's first concept box projects onto the plan, or None."""
+    return next(iter(seen_spots(row, plan, inventory)), None)
 
 
 def on_wall(item, row, plan, inventory):
@@ -220,13 +249,40 @@ def kind_word(row):
                  if word in {found.removesuffix("s") for found in words_of(row)}), "door")
 
 
-def in_opening(item, row, plan, inventory, taken):
-    """A relation in the plan's opening nearest the item's spot (the concept's for the walls item) that holds none yet,
-    of the row's kind first; None with none left."""
+def on_line(spot, wall):
+    """The point of a wall's line segment nearest a plan spot."""
+    start, end = numpy.asarray(wall["from"], float), numpy.asarray(wall["to"], float)
+    run = end - start
+    return start + run * float(numpy.clip((spot - start) @ run / max(float(run @ run), 1e-9), 0.0, 1.0))
+
+
+def wall_part(wall):
+    return {key: wall[key] for key in ("from", "to", "thick")} if wall else None
+
+
+def cut_in(spot, row, item, plan):
+    """A relation in an opening cut for the row (`cut`) where its spot meets the nearest wall: the row's width, from
+    its item's base (a window from WINDOW_SILL) to its top; None where the plan draws no wall."""
+    walls = walls_of(plan)
+    if not walls:
+        return None
+    wall = min(walls, key=lambda wall: off_line(spot, wall)[0])
+    base = float(((plan.get("shapes") or {}).get(item[0]) or {}).get("base") or 0.0)
+    sill = base or (WINDOW_SILL if kind_word(row) == "window" else 0.0)
+    size = row.get("size") or [1.0, 0.1, design_shell.DOOR_HEAD]
+    return {"how": "in", "opening": {"at": [round(float(value), 3) for value in on_line(spot, wall)],
+                                     "wide": float(size[0]), "sill": sill, "head": round(sill + float(size[2]), 3),
+                                     "cut": True},
+            "wall": wall_part(wall), "why": "in an opening cut for it where it meets the nearest wall: the plan's own "
+                                            "openings each hold another"}
+
+
+def in_plan_opening(spot, row, plan, taken):
+    """A relation in the plan's opening nearest `spot` (any, with none) that holds none yet, of the row's kind first;
+    None with none left."""
     free = [(number, opening) for number, opening in enumerate(openings_of(plan)) if number not in taken]
     if not free:
         return None
-    spot = middle(item) if item[0] != plan_checks.WALLS_ITEM else seen_spot(row, plan, inventory)
     word = kind_word(row)
     alike = [pair for pair in free if (pair[1]["kind"] == "window") == (word == "window")] or free
     number, opening = min(alike, key=lambda pair: float(numpy.linalg.norm(numpy.subtract(pair[1]["at"], spot)))
@@ -235,8 +291,36 @@ def in_opening(item, row, plan, inventory, taken):
     walls = walls_of(plan)
     wall = min(walls, key=lambda wall: off_line(numpy.asarray(opening["at"], float), wall)[0]) if walls else None
     return {"how": "in", "opening": {key: opening[key] for key in ("at", "wide", "sill", "head")},
-            "wall": {key: wall[key] for key in ("from", "to", "thick")} if wall else None,
-            "why": f"in the plan's {opening['kind']} opening {number + 1}"}
+            "wall": wall_part(wall), "why": f"in the plan's {opening['kind']} opening {number + 1}"}
+
+
+def piece_spots(item, row, plan, inventory):
+    """Where each piece of an item stands on the plan: its middle for an item the plan places; for the walls item each
+    of the row's concept boxes as it projects onto the plan, else its pieces spread along the longest wall."""
+    count = max(1, int(((plan.get("shapes") or {}).get(item[0]) or {}).get("count") or 1),
+                int(row.get("count") or 1) if item[0] == plan_checks.WALLS_ITEM else 1)
+    if item[0] != plan_checks.WALLS_ITEM:
+        return [middle(item)]
+    seen = seen_spots(row, plan, inventory)
+    if len(seen) >= count:
+        return seen[:count]
+    walls = walls_of(plan)
+    if not walls:
+        return [None] * count
+    wall = max(walls, key=lambda wall: float(numpy.linalg.norm(numpy.subtract(wall["to"], wall["from"]))))
+    start, end = numpy.asarray(wall["from"], float), numpy.asarray(wall["to"], float)
+    return [start + (end - start) * (number + 1) / (count + 1) for number in range(count)]
+
+
+def in_opening(item, row, plan, inventory, taken):
+    """A door or window in an opening: each of its pieces (piece_spots) in the plan's nearest free opening, else in
+    one cut for it on its nearest wall; one relation, or `pieces` one each; None where the plan draws no wall and no
+    opening is left."""
+    found = [in_plan_opening(spot, row, plan, taken) or (cut_in(spot, row, item, plan) if spot is not None else None)
+             for spot in piece_spots(item, row, plan, inventory)]
+    if not all(found):
+        return None
+    return found[0] if len(found) == 1 else {"how": "in", "pieces": found, "why": "each piece in its opening"}
 
 
 def foot(box):
@@ -269,25 +353,97 @@ def seen_holders(row, holder, rows, laid):
     return [holder, *[found for found_id, found in shown.items() if found_id != holder["id"]]]
 
 
-def relation(item, row, rows, plan, inventory, laid, taken, turn):
+OPPOSITE = {"N": "S", "S": "N", "E": "W", "W": "E"}
+
+
+def at_edge(row, plan, inventory, turn):
+    """A relation past the plan's edge for a wall row the plan writer left on the walls item where the plan draws no
+    wall (street's building facades on its 5.6 m strip): the edge on the side of the view its concept box stands
+    (left half: the viewer's left), at the edge's middle; None for any other row."""
+    if holder_kind(row) != "wall" or walls_of(plan) or not box_of(row) or not inventory.get("picture"):
+        return None
+    right, _ = plan_checks.ways(turn)
+    seen = box_of(row)
+    side = snapped(-right if (seen[0] + seen[2]) / 2 < inventory["picture"][0] / 2 else right)
+    wide, deep = float(plan["w"]), float(plan["d"])
+    spot = {"N": [wide / 2, 0.0], "S": [wide / 2, deep], "W": [0.0, deep / 2], "E": [wide, deep / 2]}[side]
+    return {"how": "edge", "edge": side, "spot": spot,
+            "why": f"past the plan's {side} edge, the side of the view its concept box stands: the plan draws no wall"}
+
+
+STAIR_WORDS = {"stair", "stairs", "staircase", "steps", "ramp", "ladder"}
+
+
+def floor_spot(item, row, plan, inventory, taken_stairs):
+    """Where a row on a floor stands when the plan writer left it on the walls item: a stair row at the plan's next
+    stair (its footprint's middle, along its way up), else where its concept box projects onto the plan; None."""
+    if item[0] != plan_checks.WALLS_ITEM:
+        return None
+    stairs = [number for number in range(len(plan.get("stairs") or [])) if number not in taken_stairs]
+    if words_of(row) & STAIR_WORDS and stairs:
+        taken_stairs.add(stairs[0])
+        stair = plan["stairs"][stairs[0]]
+        angle = math.radians(float(stair.get("angle") or 0.0))  # its way up: 0 east, 90 south (y runs south)
+        spot = numpy.asarray(stair["points"], float).mean(axis=0)
+        return {"spot": [round(float(value), 3) for value in spot], "way": [round(math.cos(angle), 6) + 0.0,
+                                                                            round(math.sin(angle), 6) + 0.0],
+                "why": f"at the plan's stair {stairs[0] + 1}"}
+    spot = seen_spot(row, plan, inventory)
+    if spot is None:
+        return None
+    return {"spot": [round(float(value), 3) for value in spot], "why": "where its concept box projects onto the plan"}
+
+
+def stair_sides(plan, count):
+    """[{spot, way}] of `count` pieces along the plan's stairs' sides (a railing on a staircase): each stair's two
+    sides in turn, each spot the middle of a side, each way the stair's way up (0 east, 90 south)."""
+    stairs = plan.get("stairs") or []
+    found = []
+    for number in range(count):
+        stair = stairs[(number // 2) % len(stairs)]
+        angle = math.radians(float(stair.get("angle") or 0.0))
+        way = numpy.array([math.cos(angle), math.sin(angle)])
+        across = numpy.array([-way[1], way[0]])
+        points = numpy.asarray(stair["points"], float)
+        middle_point, half = points.mean(axis=0), float(numpy.ptp(points @ across)) / 2
+        spot = middle_point + across * half * (1 if number % 2 == 0 else -1)
+        found.append({"how": "floor", "spot": [round(float(value), 3) for value in spot],
+                      "way": [round(float(value), 6) + 0.0 for value in way],
+                      "why": f"along the {'left' if number % 2 == 0 else 'right'} side of the plan's stair "
+                             f"{(number // 2) % len(stairs) + 1}"})
+    return found
+
+
+def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs):
     """One item's relation (module docstring) for its row, or (None, why) when nothing holds it."""
     anchor = row.get("anchor") or "floor"
     holder = rows.get(anchor[3:]) if anchor.startswith("on:") else None
     if anchor.startswith("on:") and holder is None:
         return None, f"its holder {anchor[3:]} is no row of the inventory"
-    if holder is not None and holder["id"] in laid:  # an item of its own, or tied to its holder's: laid on it
+    kind = "wall" if anchor == "wall" else "ceiling" if anchor in ("ceiling", "roof") else (
+        holder_kind(holder) if holder is not None else None)
+    edge = at_edge(holder, plan, inventory, turn) if holder is not None else None
+    if edge:  # on a wall row laid past the plan's edge: against its face toward the plan
+        return {"how": "face", "holder": plan_checks.WALLS_ITEM, "holder row": holder["id"],
+                "face": OPPOSITE[edge["edge"]], "why": f"against {holder['id']}'s face toward the place"}, None
+    if holder is not None and holder["id"] in laid and kind not in ("wall", "floor"):  # an item of its own, or tied to its holder's
         items, shown = plan_items(plan), seen_holders(row, holder, rows, laid)
         nearest = min(((other, name) for other in shown for name in laid[other["id"]]),
                       key=lambda pair: float(numpy.linalg.norm(middle(items[pair[1]]) - middle(item))))
-        found = held(item, row, nearest[0], [nearest[1]], items, turn)
+        found = {**held(item, row, nearest[0], [nearest[1]], items, turn), "holder row": nearest[0]["id"]}
         if len(shown) > 1:
             found["why"] += (f" (its things stand on {len(shown)} rows in the concept: "
                              f"{', '.join(other['id'] for other in shown)}; the nearest on the plan)")
         return found, None
-    kind = "wall" if anchor == "wall" else "ceiling" if anchor in ("ceiling", "roof") else (
-        holder_kind(holder) if holder is not None else None)
+    if holder is not None and holder["id"] not in laid and words_of(holder) & STAIR_WORDS and plan.get("stairs"):
+        count = max(1, int(((plan.get("shapes") or {}).get(item[0]) or {}).get("count") or 1),
+                    int(row.get("count") or 1) if item[0] == plan_checks.WALLS_ITEM else 1)
+        return {"how": "floor", "pieces": stair_sides(plan, count), "why": f"along {holder['id']}'s stairs"}, None
+    if kind is None and holder is not None and design_shell.fills_opening(row):
+        kind = "wall"  # a door or window of a structure the plan's shell lays (camp's airlock entrance): in its wall
     if kind in ("floor", "ceiling"):
-        return {"how": kind, "why": f"on the place's {kind}"}, None
+        return {"how": kind, **(floor_spot(item, row, plan, inventory, taken_stairs) or {}),
+                "why": f"on the place's {kind}"}, None
     if kind != "wall":
         return None, (f"its holder {holder['id']} is neither laid on the plan nor a wall, floor or roof"
                       if holder is not None else None)
@@ -307,14 +463,20 @@ def relations(plan, inventory, sha=None):
     structure = set(plan.get("structure") or [])
     laid = {row_id: kept for row_id, names in tied.items() if row_id not in structure
             for kept in [[name for name in names if name != plan_checks.WALLS_ITEM]] if kept}
-    found, unheld, taken = [], [], set()
+    found, unheld, taken, taken_stairs = [], [], set(), set()
     turn = plan_checks.viewed(plan, inventory)[2]  # the way the concept's viewer looks on the plan
     for name, item in items.items():
         for row_id in (plan.get("rows") or {}).get(name) or []:
             row = rows.get(row_id)
-            if row is None or (row.get("anchor") or "floor") in plan_checks.FLOOR_ANCHORS:
+            if row is None:
                 continue
-            got, why = relation(item, row, rows, plan, inventory, laid, taken, turn)
+            if (row.get("anchor") or "floor") in plan_checks.FLOOR_ANCHORS:
+                got = (at_edge(row, plan, inventory, turn) if item[0] == plan_checks.WALLS_ITEM else None) or (
+                    {"how": "floor", **spot} if (spot := floor_spot(item, row, plan, inventory, taken_stairs)) else None)
+                if got:
+                    found.append({"item": name, "row": row_id, **got})
+                continue
+            got, why = relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs)
             if got:
                 found.append({"item": name, "row": row_id, **got})
             elif why:
