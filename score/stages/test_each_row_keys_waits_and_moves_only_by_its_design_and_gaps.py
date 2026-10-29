@@ -764,6 +764,33 @@ def test_the_retaking_make_asks_a_retake_at_its_new_seed_and_marks_it_made(tmp_p
     assert asked[-1] == (1, 3)
 
 
+def test_a_take_the_surface_line_left_out_is_a_batch_gap_by_its_reason_never_a_missing_model(tmp_path):
+    """Owner, 2026-10-29: a take the surfaces-parts row leaves out never vanishes silently. The likeness make, wrapped
+    in the table (its code version as it was), names each left-out take a batch gap with its reason and the rows it
+    stands for, once, beside the gaps it carries; a take a gap already names is not named again.
+    Break: score/stages/__init__.py: '        batch_gaps.write(out, [*found, *left_out_gaps(inputs, found)])' ->
+    '        pass'"""
+    row = next(row for row in stages.STAGES if row.name == "likeness")
+    assert graph.stage_code(row) == graph.stage_code(dataclasses.replace(row, make=inspect.unwrap(row.make)))
+    bake = tmp_path / "bake"
+    bake.mkdir()
+    (bake / "painted.json").write_text(json.dumps({"takes": {}, "left_out": {
+        "crane_7": "patchy paint: stray 0.031 > 0.03", "hatch_2": "hatch_2: not baked"}}))
+    handin = tmp_path / "handin.json"
+    handin.write_text(json.dumps({"objects": {"crane": {"route": "prop", "take": "crane_7", "rows": ["crane"]},
+                                              "hatch": {"route": "prop", "take": "hatch_2"}}}))
+
+    def make(inputs, out, seed, params):
+        batch_gaps.write(out, [batch_gaps.gap("hatch_2: not baked", "surfaces-bake", "baked", ("hatch_2", "hatch"),
+                                              [], "its bake job failed")])
+    out = tmp_path / "out"
+    out.mkdir()
+    stages.leaving_out(make)({"surfaces-bake": bake, "props": handin}, out, 1, {})
+    found = {entry["name"]: entry for entry in batch_gaps.read([out])}
+    assert sorted(found) == ["crane_7: left out: patchy paint: stray 0.031 > 0.03", "hatch_2: not baked"], found
+    assert found["crane_7: left out: patchy paint: stray 0.031 > 0.03"]["objects"] == ["crane", "crane_7"]
+
+
 def test_a_rejected_sheet_is_remade_as_its_flat_sheet_build_never_a_new_seed(tmp_path):
     """A sheet's take the owner's reject names (flat_sheet.sheet: a paper pinned to a wall) is remade in code from its
     own close-up (stages.sheet_remakes) before the make runs, so Pixal3D is never asked again for it and the retake is

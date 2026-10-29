@@ -976,6 +976,49 @@ STAGES = tuple(dataclasses.replace(row, make=claude_asks.asking_claude(row.make)
 # Pixal3D's takes the owner's reject names are made again, the rest kept (retaking).
 STAGES = tuple(dataclasses.replace(row, retakes=True, make=retaking(row.make)) if row.name in RETAKES else row
                for row in STAGES)
+# The rows a take the surface line left out reaches by name (left_out_gaps; owner, 2026-10-29, through score: a take
+# the surfaces-parts row leaves out "must never vanish silently").
+LEFT_OUT = ("likeness",)
+
+
+def left_out_gaps(inputs, named):
+    """A batch gap for every take the surface line left out (the bake's painted.json `left_out`, else the parts row's
+    parts.json: a split's patchy paint, a take not baked) that no gap in `named` names yet, with the prop objects and
+    inventory rows it stands for (the hand-in, `props`): hangar's overhead crane, left out for patchy paint (stray 0.031
+    over 0.03), was failed on four checks as "no model", 2026-10-29."""
+    left = {}
+    for name, file in (("surfaces-parts", "parts.json"), ("surfaces-bake", "painted.json")):
+        path = pathlib.Path(inputs[name]) / file if name in inputs else None
+        if path is not None and path.is_file():
+            left.update(json.loads(path.read_text()).get("left_out", {}))
+    objects = prop_data.record_at(inputs["props"])["objects"] if "props" in inputs else {}
+    taken = batch_gaps.objects(named)
+    return [batch_gaps.gap(f"{take}: left out: {reason}", "surfaces-parts", "parts", stood_for(take, objects),
+                           [f"{take}: left out: {reason}"], "the surface line ran once in the batch and left it out")
+            for take, reason in sorted(left.items()) if take not in taken]
+
+
+def stood_for(take, objects):
+    """The take and every prop object (a hand-in's `objects`) and inventory row it stands for."""
+    return [take, *(item for row, entry in objects.items() if entry.get("take") == take
+                    for item in (row, *entry.get("rows", ())))]
+
+
+def leaving_out(make):
+    """A make whose output's batch gaps name every take the surface line left out (left_out_gaps), so its gates and
+    complete fail each by that name, never as a model that is not there. Wrapped here, in the table, so the row's code
+    does not move."""
+    @functools.wraps(make)
+    def made(inputs, out, seed, params):
+        make(inputs, out, seed, params)
+        path = pathlib.Path(out) / batch_gaps.FILE
+        found = json.loads(path.read_text())["gaps"] if path.is_file() else []
+        batch_gaps.write(out, [*found, *left_out_gaps(inputs, found)])
+    return made
+
+
+STAGES = tuple(dataclasses.replace(row, make=leaving_out(row.make)) if row.name in LEFT_OUT else row
+               for row in STAGES)
 # A place row that makes its takes one call a take: the function its make calls for each, and where its arguments name
 # the take's own output folder. Each call is kept by its own content (tools/cloud/kept.py `call`), so a row made again
 # at a new key makes only the takes whose own inputs changed and links the rest back byte for byte (owner, 2026-10-29:
