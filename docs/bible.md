@@ -365,11 +365,15 @@ branch names a scene or a world.
   group (each group's stretch SOMA's joint distance, each muscle's length range with its path; masses from SOMA's
   segment volumes), its mass the stated weight, else height squared times the reference BMI of its sex (NCD-RisC
   2016: 24.5 men, 24.8 women, the mean of both unstated), marked estimated (#64). The movement is the clip's (or
-  Kimodo's), and SOMA is the truth (#70): one solver fits MyoFullBody to it, never the reverse, the person's
-  constants (group sizes, joint centres, markers' places) and every frame's joint angles against the bone groups'
-  turns through the static calibration table, the SOMA skin's bony landmarks and SOMA's joints, weighed as OpenSim's
-  IK weighs its goals (mink per frame with MuJoCo's couplings held and the joints in range; scipy's least squares over
-  the constants), the path low-passed at 6 Hz (zero-lag Butterworth, Winter 2009) before it is differentiated; SOMA
+  Kimodo's), and SOMA is the truth (#70): one solver of three levels fits MyoFullBody to it, never the reverse,
+  against the bone groups' turns through the static calibration table (the main term), the SOMA skin's bony
+  landmarks and SOMA's rig joint at every group end that has one. Level 1, over many SOMA bodies, tunes the landmark
+  set's places and weights and the global weights (scipy's least squares; every round runs levels 2 and 3 on every
+  tuning body), then is checked on bodies not in the tuning (within 10 %). Level 2, per body from all its frames,
+  solves the person constants (landmark offsets and the joints inside bone groups; the lengths are SOMA's). Level 3,
+  per frame, solves the pose only (mink with MuJoCo's couplings held and the joints in range). It is judged on
+  following SOMA (joint positions, segment turns on a frozen copy of main's calibration, bones inside the skin by
+  region), never on landmark distances; the path low-passed at 6 Hz (zero-lag Butterworth, Winter 2009) before it is differentiated; SOMA
   is never moved, scaled or grounded, nor is the sim body. Newton builds the
   MuJoCo model (SolverMuJoCo on MuJoCo's CPU backend, in `physics/inside/newton_env.sh`, on this machine) and its
   physics is that movement's, frame by frame: the inverse dynamics, the ground's push at every collider point within

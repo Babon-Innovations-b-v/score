@@ -1,7 +1,8 @@
 """Bones inside SOMA's skin (#70's judgement, the audit's item 2): every EVERY-th frame, each bone mesh's vertices
 (at most VERTS a mesh) tested against SOMA's skin posed on that frame (linear blend, as SOMA skins it) by the
 generalised winding number (inside at 0.5 or more: warp's BVH winding query on the CPU, the rule main's harness
-measures with), the share outside kept per region (REGIONS, the hand's parts one region). Nothing here moves SOMA."""
+measures with), the share outside kept per region (REGIONS, the hand's parts (HAND) one region). The stage's record
+and level 1's score (evaluation._measure) both measure through this one module. Nothing here moves SOMA."""
 import mujoco
 import numpy as np
 import warp
@@ -11,11 +12,12 @@ from model import TO_OWN
 EVERY = 10  # frames between the skin measures
 VERTS = 80  # bone vertices kept per mesh
 REGIONS = {"shoulder": ("clavicle", "scapula", "humerus"), "forearm": ("ulna", "radius"),
-           "hand": ("ph_", "thumb", "mc", "lunate", "scaphoid", "pisiform", "triquetrum", "capitate", "trapezium",
-                    "trapezoid", "hamate"),
+           "fingers": ("ph_", "thumb"), "metacarpals": ("mc",),
+           "carpals": ("lunate", "scaphoid", "pisiform", "triquetrum", "capitate", "trapezium", "trapezoid", "hamate"),
            "pelvis": ("pelvis", "sacrum"), "spine": ("lumbar", "thorax", "torso", "cervical", "neck", "rib"),
            "head": ("head", "skull", "jaw", "mandible"), "thigh": ("femur", "patella"), "shin": ("tibia", "fibula"),
            "foot": ("talus", "calcn", "toes")}
+HAND = ("fingers", "metacarpals", "carpals")  # the hand's parts, scored together as "hand"
 
 warp.config.quiet = True
 
@@ -27,23 +29,28 @@ def _signs(mesh: warp.uint64, points: warp.array(dtype=warp.vec3), out: warp.arr
 
 
 def region(body):
-    """The region a body's bone belongs to, "other" when none."""
+    """The region a body's bone belongs to (the hand's parts each their own), "other" when none."""
     return next((label for label, parts in REGIONS.items() if any(part in body for part in parts)), "other")
 
 
+def scored(part):
+    """The region a part is scored in: the hand's parts as "hand"."""
+    return "hand" if part in HAND else part
+
+
 def bone_meshes(model):
-    """[(geom, vertex indices kept)] of every bone mesh, with each geom's region."""
+    """[(geom, vertex indices kept, its body's name)] of every bone mesh."""
     found = []
     for geom in range(model.ngeom):
         if model.geom_type[geom] == mujoco.mjtGeom.mjGEOM_MESH:
             count = int(model.mesh_vertnum[model.geom_dataid[geom]])
             kept = np.linspace(0, count - 1, VERTS).astype(int) if count > VERTS else np.arange(count)
-            found.append((geom, kept, region(model.body(model.geom_bodyid[geom]).name)))
+            found.append((geom, kept, model.body(model.geom_bodyid[geom]).name))
     return found
 
 
 def bone_points(model, data, meshes):
-    """The kept bone vertices in the person's frame (Y up) and each one's region."""
+    """The kept bone vertices in the person's frame (Y up) and each one's body name."""
     points, labels = [], []
     for geom, kept, label in meshes:
         start = model.mesh_vertadr[model.geom_dataid[geom]]
@@ -80,7 +87,8 @@ def bones_outside(model, path, worlds, segments, rig):
     for qpos, world in list(zip(path, worlds))[::EVERY]:
         data.qpos[:] = qpos
         mujoco.mj_kinematics(model, data)
-        points, labels = bone_points(model, data, meshes)
+        points, bones = bone_points(model, data, meshes)
+        labels = np.array([scored(region(bone)) for bone in bones])
         out = outside(points, skin(rig, segments, world), rig["faces"])
         shares.setdefault("all", []).append(float(out.mean()))
         for label in set(labels):

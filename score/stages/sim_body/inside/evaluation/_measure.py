@@ -1,14 +1,16 @@
 """The honest measures of following SOMA (#70), from one fitted clip: each SOMA joint's position error (MyoFullBody's
-joint centre against SOMA's joint, mm), each bone group's rotation error on the FROZEN calibration copy (_frozen,
+joint centre against SOMA's joint, mm), each bone group's rotation error on the FROZEN calibration copy (fit._frozen,
 deg), the share of bone vertices outside SOMA's posed skin by region (every EVERY-th frame), and beside them tip,
-length and floor readings. Never a landmark distance the solver pulls on. Newton's Python (mujoco, warp)."""
+length and floor readings. Never a landmark distance the solver pulls on. The skin, the winding test, the regions and
+the frozen table are the stage's own (fit._skin, fit._frozen), so the record and level 1's score are one code.
+Newton's Python (mujoco, warp)."""
 import mujoco
 import numpy as np
 from scipy.spatial import cKDTree
 
 from contact import surface
-from evaluation import _winding
-from evaluation._frozen import turn
+from fit._frozen import frozen_turn
+from fit._skin import EVERY, HAND, bone_meshes, bone_points, outside as outside_skin, region, skin as skinned
 from landmarks import soma_point
 from model import TO_OWN
 
@@ -47,15 +49,6 @@ for side, letter in (("Left", "l"), ("Right", "r")):
                        f"{side}ForeArm": f"ulna_{letter}", f"{side}Hand": f"lunate_{letter}",
                        f"{side}Leg": f"femur_{letter}", f"{side}Shin": f"tibia_{letter}",
                        f"{side}Foot": f"calcn_{letter}", f"{side}ToeBase": f"toes_{letter}"})
-REGIONS = {"shoulder": ("clavicle", "scapula", "humerus"), "forearm": ("ulna", "radius"),
-           "fingers": ("ph_", "thumb"), "metacarpals": ("mc",),
-           "carpals": ("lunate", "scaphoid", "pisiform", "triquetrum", "capitate", "trapezium", "trapezoid", "hamate"),
-           "pelvis": ("pelvis", "sacrum"), "spine": ("lumbar", "thorax", "torso", "cervical", "neck", "rib"),
-           "head": ("head", "skull", "jaw", "mandible"), "thigh": ("femur", "patella"), "shin": ("tibia", "fibula"),
-           "foot": ("talus", "calcn", "toes")}
-HAND = ("fingers", "metacarpals", "carpals")  # the hand's parts, scored together as "hand"
-EVERY = 10  # frames between the skin measures
-VERTS = 80  # bone vertices kept per mesh
 
 
 def body(model, name):
@@ -68,40 +61,6 @@ def centre(model, data, name, scales):
     bone, local = CENTRES[name]
     index = body(model, bone)
     return data.xpos[index] + data.xmat[index].reshape(3, 3) @ (np.asarray(local) * scales[bone])
-
-
-def skinned(rig, segments, world):
-    names = [str(joint) for joint in rig["names"]]
-    joints = [names.index(segment) for segment in segments]
-    weights = np.asarray(rig["weights"], dtype=float)[:, joints]
-    bind = np.asarray(rig["bind"], dtype=float)[joints]
-    moves = world @ np.linalg.inv(bind)
-    points = np.asarray(rig["points"], dtype=float)
-    moved = np.einsum("sij,vj->vsi", moves[:, :3, :3], points) + moves[None, :, :3, 3]
-    return np.einsum("vs,vsi->vi", weights, moved)
-
-
-def region(name):
-    for label, parts in REGIONS.items():
-        if any(part in name for part in parts):
-            return label
-    return "other"
-
-
-def bone_points(model, data):
-    """Bone mesh vertices in MuJoCo's frame, each with its body's name."""
-    found, labels = [], []
-    for geom in range(model.ngeom):
-        if model.geom_type[geom] != mujoco.mjtGeom.mjGEOM_MESH:
-            continue
-        mesh = model.geom_dataid[geom]
-        start, count = model.mesh_vertadr[mesh], model.mesh_vertnum[mesh]
-        verts = model.mesh_vert[start:start + count]
-        if count > VERTS:
-            verts = verts[np.linspace(0, count - 1, VERTS).astype(int)]
-        found.append(verts @ data.geom_xmat[geom].reshape(3, 3).T + data.geom_xpos[geom])
-        labels += [model.body(model.geom_bodyid[geom]).name] * len(verts)
-    return np.concatenate(found), np.array(labels)
 
 
 def summary(values):
@@ -120,7 +79,7 @@ def measures(model, angles, rig, segments, worlds, scales):
     hand = {side: [] for side in ("Left", "Right")}
     turns = {segment: [] for segment in segments if segment in FRAME_BODY}
     lowest, skin_lowest, outside, depth, by_bone, hand_parts, no_fingers = [], [], {}, {}, {}, {}, {}
-    faces = np.asarray(rig["faces"])
+    faces, meshes = np.asarray(rig["faces"]), bone_meshes(model)
     hand_tips = {side: soma_point(f"{side}Hand tip", rig) for side in hand}
     for frame, (qpos, world) in enumerate(zip(angles, worlds)):
         data.qpos[:] = qpos
@@ -138,7 +97,7 @@ def measures(model, angles, rig, segments, worlds, scales):
             hand[side].append(1000 * np.linalg.norm(
                 TO_OWN @ centre(model, data, f"finger_tip_{side[0].lower()}", scales) - soma))
         for segment in turns:
-            seen = TO_OWN @ data.xmat[body(model, FRAME_BODY[segment])].reshape(3, 3) @ turn(segment).T
+            seen = TO_OWN @ data.xmat[body(model, FRAME_BODY[segment])].reshape(3, 3) @ frozen_turn(segment).T
             wanted = world[segments.index(segment)][:3, :3]
             turns[segment].append(np.degrees(np.arccos(np.clip((np.trace(seen.T @ wanted) - 1) / 2, -1, 1))))
         low = float((surface(model, data, colliders) @ TO_OWN.T)[:, 1].min())
@@ -146,13 +105,12 @@ def measures(model, angles, rig, segments, worlds, scales):
         lowest.append(1000 * low)
         skin_lowest.append(1000 * float(skin[:, 1].min()))
         if frame % EVERY == 0:
-            points, bones = bone_points(model, data)
+            own, bones = bone_points(model, data, meshes)
             parts = np.array([region(bone) for bone in bones])
             labels = np.where(np.isin(parts, HAND), "hand", parts)  # the score's regions: the hand as one
             unbent = labels != "hand"
             unbent |= np.isin(parts, ("carpals", "metacarpals"))
-            own = points @ TO_OWN.T
-            out = ~_winding.inside(own, skin, faces)  # the same 0.5 winding rule, warp BVH 
+            out = outside_skin(own, skin, faces)
             tree = cKDTree(skin)
             far, _ = tree.query(own[out]) if out.any() else (np.zeros(0), None)
             for label in set(labels):
