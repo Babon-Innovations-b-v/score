@@ -1,11 +1,12 @@
 """Level 2's frames' kinematics on the card (plan step 4): every sampled frame of a body one MuJoCo Warp world, its
-kinematics and centre-of-mass frames (`mujoco_warp.kinematics`, `com_pos`), then one launch giving every place and
-turn site's Jacobian on every frame (MuJoCo Warp's own `jac_dof`, a thread a world, site and dof); the constants laid
-on the card's model's `body_pos` and `site_pos` as `Fitting.apply` lays them. `frames` hands `_level2.frame_rows`
-per frame what `_level2.Kinematics` gives on the host, in float32, held to it in the test."""
+kinematics and dof motions (`mujoco_warp.kinematics`, then `_cdof` about each root body's origin), then one launch
+giving every place and turn site's Jacobian on every frame (MuJoCo Warp's own `jac_dof`, a thread a world, site and
+dof); the constants laid on the card's model's `body_pos` and `site_pos` as `Fitting.apply` lays them. `frames` hands
+`_level2.frame_rows` per frame what `_level2.Kinematics` gives on the host, in float32, held to it in the test."""
 import mujoco_warp as mjw
 import numpy as np
 import warp as wp
+from mujoco_warp._src.smooth import _cdof
 from mujoco_warp._src.support import jac_dof
 
 
@@ -42,6 +43,17 @@ class CardKinematics:
         shape = (count, len(self.sites), 3, fitting.model.nv)
         self.places, self.spins = wp.zeros(shape, dtype=float), wp.zeros(shape, dtype=float)
 
+    @staticmethod
+    def motions(model, data):
+        """Each dof's motion (`cdof`, MuJoCo Warp's own `_cdof`) about its root body's origin, not its subtree's
+        centre of mass: `com_pos` sums the centres with float32 atomics in no fixed order, so two runs of one set
+        gave Jacobians a rounding apart and level 2's constants 1e-7 m apart (card build step 6, 2026-10-29); the
+        site Jacobian (`jac_dof`) adds back the same point, so it is the same Jacobian, now bit for bit run to run."""
+        wp.copy(data.subtree_com, data.xpos)
+        wp.launch(_cdof, dim=(data.nworld, model.njnt),
+                  inputs=[model.body_rootid, model.jnt_type, model.jnt_dofadr, model.jnt_bodyid, data.xmat,
+                          data.xanchor, data.xaxis, data.subtree_com], outputs=[data.cdof])
+
     def frames(self, qpos):
         """Each frame's kinematics at `qpos` (frames x nq) on the constants the fitting model holds now."""
         model, data, host = self.model, self.data, self.fitting.model
@@ -49,7 +61,7 @@ class CardKinematics:
         model.site_pos.assign(host.site_pos[None].astype(np.float32))
         data.qpos.assign(np.asarray(qpos, dtype=np.float32))
         mjw.kinematics(model, data)
-        mjw.com_pos(model, data)
+        self.motions(model, data)
         wp.launch(_site_jacobians, dim=(self.count, len(self.sites), host.nv),
                   inputs=[model.body_parentid, model.body_rootid, model.dof_bodyid, model.body_isdofancestor,
                           data.subtree_com, data.cdof, data.site_xpos, model.site_bodyid, self.site_ids],
