@@ -64,8 +64,17 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   coverage check before the render (`route_views.covering_views`): from `CANDIDATES` the angle that sees the most area
   no chosen view sees, again, until every face is seen, none sees more or `MOST_VIEWS`; a face no angle can see is
   counted (`unseen_faces`) and the split walks its nearest seen face's finish onto it. Each view's colour regions:
-  the model's own texture under each pixel in k-means groups (at most eight, the same in every view); the texture is
-  measured, never painted. List (paid): one Gemini 3.1 Pro answer a take, all the place's takes in one batch through
+  the model's own texture under each pixel in groups of distinct colour (at most eight, the same in every view); the
+  texture is measured, never painted. The take's own close-up, where its camera's cast fits it
+  (`route_cast.CLOSE_UP_FIT`), is laid on the model through that camera, one more view of the regions
+  (`route_views.CLOSE_UP`): the raw texture often lacks the small parts the close-up shows, so k-means over the texture
+  spent all eight groups on shading and rust and the list could label no region with the close-up's red label, decal,
+  screen glow or valve paint (greenhouse desk's eight were seven greys from L* 21 to 62 and one paper yellow,
+  2026-10-29). The groups are fitted finer (`FINE`), a group added for each colour far from all of them
+  (`ACCENT_DE`, at least `ACCENT_LEAST` pixels), and the nearest merged down to eight, so shading steps merge first and
+  a small saturated area keeps its region. In the split the laid close-up votes as the front does, and a finish only
+  it labels (no texture view shows it) takes the faces it labels (`route_split.close_up_only`); never a whole part
+  painted to pass a check. List (paid): one Gemini 3.1 Pro answer a take, all the place's takes in one batch through
   Google's Batch API at half price (`route_ask.py`, `tools/cloud/google_batch.py`), seeing the close-up, every
   view and every region view: the complete finish list, each finish matched FIRST to a library surface with settings
   (a library token, roughness, metal, its own seed: `take_seed`, the node's moved by the take's name, so each

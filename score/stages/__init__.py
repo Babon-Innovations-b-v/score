@@ -301,6 +301,15 @@ def code_marked(row):
     return dataclasses.replace(row, files=surfaces.route_parts.files)
 
 
+def close_up_laid(row):
+    """finish-route-views with each own close-up's camera as a file (route_views.files: the close-up laid on the model
+    through it, one more view of its regions). Set here, as code_marked is, so no row reading route_data moves (the
+    scene palette's, whose move re-makes the surface tiles on rented cards)."""
+    if row.name != "finish-route-views":
+        return row
+    return dataclasses.replace(row, files=surfaces.route_views.files)
+
+
 def feet_checked(row):
     """surfaces-paint with the gate "feet in one plane" beside its own (place_line.judge_feet: a take's short legs are
     stretched down before its bake, a missing leg fails by name). Set here, as bake_checked is, so the turntable's and
@@ -460,7 +469,7 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
           # The place's plan (its scene record first: the cockpit groups the plan by its first reader, the base), then
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
           SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(code_marked, map(
-              boxed_split, map(designed_rough, shapes_first.rows()))))))),
+              close_up_laid, map(boxed_split, map(designed_rough, shapes_first.rows())))))))),
           *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, CAST, SIM_BODY, CHARACTERS,
           PEOPLE_CLOTH, SCENE_CLIPS, MOTION,
           *light.ROWS, *crops.ROWS,

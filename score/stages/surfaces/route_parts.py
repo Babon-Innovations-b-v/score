@@ -7,10 +7,10 @@ free (finish_parts.checked_finishes, the same check the finish-map method ran; t
 lie within dE 32 of its colour there"): its colour is read where the close-up shows it (`close_up_colours`: the
 model cast through the close-up's own camera, each pixel taking the finish of the face under it), never the raw
 model's texture, whose colours carry the picture's baked light. A take with no own close-up or camera, or whose cast
-does not fit the close-up's outline (CLOSE_UP_FIT), is measured on its views' texture instead (`seen_colours`), named
-so in its record (`colour_from`), as a stand-in close-up is. A finish off its listed surface takes the nearest
-surface of its family that fits, or one of the scene's own shell surfaces (palette_library.shell_surfaces: the variants
-its surface library gives the shell laid from its locked plan); one no surface fits is marked off its colour with a
+does not fit the close-up's outline (route_cast.CLOSE_UP_FIT), is measured on its views' texture instead
+(`seen_colours`), named so in its record (`colour_from`), as a stand-in close-up is. A finish off its listed surface
+takes the nearest surface of its family that fits, or one of the scene's own shell surfaces
+(palette_library.shell_surfaces: the variants its surface library gives the shell laid from its locked plan); one no surface fits is marked off its colour with a
 proposed surface, and the paint's gate "colour against the close-up" fails it by name. The bake check holds each
 baked part against the same close-up colour (bake_check.close_up_faults, its `measured_lab`). Each part takes its finish's
 checked surface (finish_parts.part_rows), and the list's settings where its finish kept the surface the list named
@@ -47,12 +47,6 @@ import score.stages.props.prop_data as prop_data  # noqa: E402
 import score.stages.props.thin_straight as thin_straight  # noqa: E402
 
 METHOD = "finish-route"
-# The close-up's camera is Pixal3D's (transforms.json beside its input picture: its distance and camera_angle_x),
-# looking at the model's front (+Z, route_cast's front) in the model file's own frame. Measured 2026-10-25 on six raw
-# takes of the earlier runs: the cast's outline met the close-up's own (its alpha) at IoU 0.93 to 0.975 on five and
-# 0.685 on one; under CLOSE_UP_FIT the cast is not trusted to say which finish a pixel shows.
-CLOSE_UP_FIT = 0.85
-CLOSE_UP_SIDE = 512  # the cast's pixels across at most (the close-up's own, sampled)
 EDGE = 2  # a pixel counts when those EDGE away on every side show its finish too, so no border mixes two finishes
 
 
@@ -69,34 +63,6 @@ def seen_colours(views, finish_of, count):
     return found
 
 
-def close_up_camera(camera_file):
-    """(distance, horizontal field of view in radians) of the close-up's camera (Pixal3D's transforms.json)."""
-    found = json.loads(pathlib.Path(camera_file).read_text())
-    distance = float(np.linalg.norm(np.array(found["frames"][0]["transform_matrix"], dtype=float)[:3, 3]))
-    return distance, float(found["camera_angle_x"])
-
-
-def close_up_cast(model, camera, size):
-    """(the face under each sampled pixel, -1 off the model; the pixels' rows; their columns) of a close-up `size`
-    (width, height) seen by `camera` (close_up_camera), `model` a route_cast.Model (its faces normalised by its
-    frame)."""
-    distance, field = camera
-    width, height = size
-    step = max(1, -(-max(width, height) // CLOSE_UP_SIDE))
-    columns, rows = np.meshgrid(np.arange(0, width, step), np.arange(0, height, step))
-    focal = width / 2 / np.tan(field / 2)
-    ways = np.stack([(columns + 0.5 - width / 2) / focal, -(rows + 0.5 - height / 2) / focal,
-                     -np.ones(columns.shape)], axis=-1).reshape(-1, 3)
-    ways /= np.linalg.norm(ways, axis=1, keepdims=True)
-    middle, side = model.frame
-    eye = (np.array([0.0, 0.0, distance]) - middle) / side
-    hit_faces, hit_rays = model.mesh.ray.intersects_id(np.repeat(eye[None], len(ways), axis=0), ways,
-                                                       multiple_hits=False)
-    faces = np.full(len(ways), -1, dtype=np.int64)
-    faces[hit_rays] = hit_faces
-    return faces.reshape(columns.shape), rows, columns
-
-
 def inner(finish_map):
     """The pixels whose neighbours EDGE away on every side show the same finish (-1: none)."""
     kept = finish_map >= 0
@@ -109,19 +75,14 @@ def inner(finish_map):
 def close_up_colours(model, camera_file, close_up, finish_of, count):
     """(each finish's median CIELAB colour in the close-up where it shows it (inner pixels the cast and the close-up's
     alpha share), None where it shows none; the cast's fit: its outline's IoU with the close-up's)."""
-    from PIL import Image
-    picture = np.asarray(Image.open(close_up).convert("RGBA"))
-    faces, rows, columns = close_up_cast(model, close_up_camera(camera_file), (picture.shape[1], picture.shape[0]))
-    sampled = picture[rows, columns]
-    shown, hit = sampled[..., 3] > 127, faces >= 0
-    fit = float((shown & hit).sum() / max((shown | hit).sum(), 1))
-    finish_map = np.where(shown & hit, finish_of[np.maximum(faces, 0)], -1)
+    faces, sampled, both, fit = cast.close_up_pixels(model, camera_file, close_up)
+    finish_map = np.where(both, finish_of[np.maximum(faces, 0)], -1)
     kept = inner(finish_map)
     found = []
     for number in range(count):
         pixels = sampled[kept & (finish_map == number)][:, :3]
         found.append(np.median(cast.lab_of(pixels), axis=0) if len(pixels) else None)
-    return found, round(fit, 3)
+    return found, fit
 
 
 def finish_colours(folders, finish_of, count):
@@ -130,9 +91,9 @@ def finish_colours(folders, finish_of, count):
     if folders.get("close_up") and folders.get("camera"):
         found, fit = close_up_colours(cast.loaded(folders["model"]), folders["camera"], folders["close_up"],
                                       finish_of, count)
-        if fit >= CLOSE_UP_FIT:
+        if fit >= cast.CLOSE_UP_FIT:
             return found, f"close-up (outline fit {fit})"
-        why = f"views: the close-up's cast fits its outline at IoU {fit}, under {CLOSE_UP_FIT}"
+        why = f"views: the close-up's cast fits its outline at IoU {fit}, under {cast.CLOSE_UP_FIT}"
     else:
         why = "views: no own close-up or camera"
     return seen_colours(folders["views"], finish_of, count), why

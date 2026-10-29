@@ -2,6 +2,8 @@
 labels voted across every view. In each view a face takes the region most of its pixels show (route_views) and that
 region's label there (route_list); the views vote (squared_votes: each view's vote on a face weighed by how squarely
 it sees it, the cosine between the face's normal and the way to the eye, the close-up's front counting FRONT_VOTE).
+The close-up laid on the model (route_views.CLOSE_UP, where the views row laid it) votes as the front does, and a
+finish only it labels, one no view of the texture shows, takes the faces it labels it on (close_up_only).
 
 Every face gets exactly one finish, or its take is a gap, named (owner, 2026-10-20): a face some view sees whose
 regions no view labelled is unassigned, a gap. Faces whose views disagree (no finish over half their votes) are a
@@ -41,6 +43,7 @@ import numpy as np  # noqa: E402
 import finish_ask  # noqa: E402
 import finish_parts  # noqa: E402
 import route_cast as cast  # noqa: E402
+import route_views  # noqa: E402
 import surface_gates as gates  # noqa: E402
 import score.stages.batch_gaps as batch_gaps  # noqa: E402
 
@@ -71,11 +74,14 @@ def view_finishes(region_of, labels, region_count):
 
 
 def per_view(folder, labels, region_count, face_count):
-    """{view: finish per face} (view_finishes) of every view the take was cast from."""
-    faces = np.load(folder / "faces.npz")
+    """{view: finish per face} (view_finishes) of every view the take was cast from, and of the laid close-up
+    (close-up.npz) where the views row laid it."""
+    faces = dict(np.load(folder / "faces.npz"))
+    if (folder / "close-up.npz").exists():
+        faces[route_views.CLOSE_UP] = np.load(folder / "close-up.npz")["faces"]
     regions = np.load(folder / "regions.npz")
     return {view: view_finishes(view_regions(faces[view], regions[view], region_count, face_count),
-                                labels.get(view, {}), region_count) for view in faces.files}
+                                labels.get(view, {}), region_count) for view in faces}
 
 
 def finishes_only(per_map):
@@ -106,14 +112,34 @@ def split_fault(found):
 
 def squared_votes(mesh, per_map, angles, count):
     """Each face's votes per finish, each view's weighed by the cosine between the face's normal and the way to that
-    view's eye (a raw take's normals may face in, so its size), the close-up's front by FRONT_VOTE too."""
+    view's eye (a raw take's normals may face in, so its size), the close-up's front and the laid close-up (seen from
+    the front) by FRONT_VOTE too; a finish only the laid close-up labels takes the faces it labels (close_up_only)."""
     votes = np.zeros((len(mesh.faces), count))
     for view, label in per_map.items():
         seen = np.flatnonzero(label >= 0)
+        turn = cast.BASE[cast.FRONT] if view == route_views.CLOSE_UP else angles[view]
         # a face seen edge on still votes, if faintly: a seen face with no vote would read as unassigned
-        square = np.maximum(np.abs(mesh.face_normals[seen] @ cast.camera(angles[view])[0]), EDGE_ON)
-        votes[seen, label[seen]] += square * (finish_parts.FRONT_VOTE if view == "front" else 1.0)
-    return votes
+        square = np.maximum(np.abs(mesh.face_normals[seen] @ cast.camera(turn)[0]), EDGE_ON)
+        front = view in (cast.FRONT, route_views.CLOSE_UP)
+        votes[seen, label[seen]] += square * (finish_parts.FRONT_VOTE if front else 1.0)
+    return close_up_only(votes, per_map)
+
+
+def close_up_only(votes, per_map):
+    """`votes` with each face the laid close-up labels with a finish no view of the texture labels given that finish
+    alone. The close-up is what the model is held to (likeness's close-up parts present), and a small part it shows
+    (a red label, a blue decal, a screen's glow) the raw take's texture often lacks: greenhouse desk's views labelled
+    every face of its screens and labels steel, so counted they voted the close-up's finishes away (2026-10-29)."""
+    laid = per_map.get(route_views.CLOSE_UP)
+    if laid is None:
+        return votes
+    textured = {int(finish) for view, label in per_map.items() if view != route_views.CLOSE_UP
+                for finish in np.unique(label[label >= 0])}
+    only = np.flatnonzero((laid >= 0) & ~np.isin(laid, list(textured)))
+    found = votes.copy()
+    found[only] = 0.0
+    found[only, laid[only]] = 1.0
+    return found
 
 
 def voted_finishes(mesh, votes, count):

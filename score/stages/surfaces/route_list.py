@@ -2,7 +2,8 @@
 price, route_ask.py: asked once, an ask asked before read back free).
 
 Gemini sees the take's close-up (its own, or the stand-in, said so in the question), every view of the model's own
-texture and the same views split into the views row's colour regions, and gives in one answer the take's complete
+texture and the same views split into the views row's colour regions (and its close-up laid on the model in those
+regions, the view route_views.CLOSE_UP, where the views row laid it), and gives in one answer the take's complete
 finish list and a label for each region in each view. Each finish is matched FIRST to a surface of the library with
 its settings: the palette token of its colour (one of the scene palette's, read from its design by the palette row,
 scene_palette.py), its shine (roughness, metal), its seed (one a finish of each take, `take_seed`, so each object's wear
@@ -37,16 +38,20 @@ import finish_ask  # noqa: E402
 import palette_library  # noqa: E402
 import route_ask  # noqa: E402
 import route_data  # noqa: E402
+import route_views  # noqa: E402
 import surface_gates as gates  # noqa: E402
 import score.stages.batch_gaps as batch_gaps  # noqa: E402
 
 LIST_EUROS = 0.5  # a guess for the row's run (a place's takes at half of google_spend.ESTIMATES); never a price
 CALLER = "finish-route-list"
 SEED_SPAN = 100000  # take seeds lie within this of the node's, each take's finishes counted on from its own
+LAID = (". The last picture is the close-up's own colours laid on the model, split into the same regions (the view "
+        "named {view}): a small part the texture shows faintly or not at all, such as a label, a lamp or a screen, has "
+        "its region there")
 QUESTION = """You help paint a 3D model with surfaces from a shared library. The object: {object}.
 The first picture is {close_up}. The next {count} pictures show the model from every side ({views}) in its own
 texture, shaded only by angle. The {count} after them show the same views with the model split into colour regions,
-each region one flat colour, the same colour for the same region in every view:
+each region one flat colour, the same colour for the same region in every view{laid}:
 {regions}
 The regions showing in each view:
 {shown}
@@ -122,23 +127,26 @@ def list_schema(surfaces, tokens, views, levels):
 
 
 def list_body(pictures, entry, record, library, wear):
-    """The request: the close-up, the views, the region views, the question and its schema. `record` is the take's
-    views record; `library` its surfaces, the tokens and the wear levels; `wear` the scene's level (its scene
-    palette's)."""
+    """The request: the close-up, the views, the region views (the laid close-up's last, where the views row laid it),
+    the question and its schema. `record` is the take's views record; `library` its surfaces, the tokens and the wear
+    levels; `wear` the scene's level (its scene palette's)."""
     surfaces, tokens, levels = library
     stand_in = record.get("close_up") == route_data.STAND_IN
     views = list(record["views"])
+    laid = pictures.get("laid")
     text = QUESTION.format(object=entry["object"], close_up=(f"a {route_data.STAND_IN}" if stand_in
                                                              else "the object's close-up"),
                            count=len(views), views=", ".join(views), regions=region_lines(record["regions"]),
+                           laid=LAID.format(view=route_views.CLOSE_UP) if laid is not None else "",
                            shown=shown_lines(pictures["shown"]), surfaces=surface_lines(surfaces),
                            tokens=token_lines(tokens), wear=wear, levels=", ".join(levels))
     parts = [finish_ask.picture_part(pictures["close_up"], 1024)]
     parts += [finish_ask.picture_part(picture, 512) for picture in pictures["shaded"]]
     parts += [finish_ask.picture_part(picture, 512) for picture in pictures["regions"]]
+    parts += [finish_ask.picture_part(laid, 1024)] if laid is not None else []
     return {"contents": [{"role": "user", "parts": [*parts, {"text": text}]}],
             "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
-                                 "responseSchema": list_schema(surfaces, tokens, views, levels)}}
+                                 "responseSchema": list_schema(surfaces, tokens, list(pictures["shown"]), levels)}}
 
 
 def take_seed(seed, take):
@@ -193,12 +201,20 @@ def regions_shown(folder, views):
     return {view: sorted(int(region) for region in np.unique(regions[view]) if region >= 0) for view in views}
 
 
+def labelled_views(folder, views):
+    """The views a take's regions are labelled in: its views, and the laid close-up where the views row laid it."""
+    laid = (folder / f"regions-{route_views.CLOSE_UP}.png").exists()
+    return [*views, route_views.CLOSE_UP] if laid else list(views)
+
+
 def pictures_of(folder, views):
     from PIL import Image
+    laid = folder / f"regions-{route_views.CLOSE_UP}.png"
     return {"close_up": Image.open(folder / "close-up.png"),
             "shaded": [Image.open(folder / f"{view}.png") for view in views],
             "regions": [Image.open(folder / f"regions-{view}.png") for view in views],
-            "shown": regions_shown(folder, views)}
+            "laid": Image.open(laid) if laid.exists() else None,
+            "shown": regions_shown(folder, labelled_views(folder, views))}
 
 
 def ask(bodies):

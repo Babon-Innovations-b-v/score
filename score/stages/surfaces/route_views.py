@@ -7,16 +7,21 @@ again, until every face is seen, no candidate sees one more, or MOST_VIEWS. A fa
 is counted (`unseen_faces`, `unseen_share`); the split gives it its nearest seen face's finish.
 
 Each view: the face under each pixel and its colour from the model's own texture (route_cast). The texture is only
-measured, never painted: every finish is a library surface. Its regions: every seen pixel's CIELAB colour in k-means'
-groups (at most REGIONS, fitted on SAMPLE pixels with the node's seed; colours only split, they name nothing), the
-same groups in every view, so the list's answer labels each region of each view with a finish.
+measured, never painted: every finish is a library surface. The take's own close-up, where it has its camera and the
+cast fits its outline (route_cast.CLOSE_UP_FIT), is laid on the model through that camera (laid_close_up), one more
+view of the regions, CLOSE_UP: a small part it shows (a red label, a decal, a screen's glow) the raw texture often
+lacks. Its regions: every seen pixel's CIELAB colour, the views' and the laid close-up's, in groups of distinct colour
+(colour_regions: FINE k-means groups fitted on SAMPLE pixels with the node's seed, a group for each far colour they
+miss, the nearest merged down to REGIONS; colours only split, they name nothing), the same groups in every view, so
+the list's answer labels each region of each view with a finish.
 
 Output per take: <take>/model.npz (the welded, normalised vertices and faces every later row reads, so the face ids
 agree), <take>/faces.npz, colours.npz and regions.npz (one array a view), <take>/<view>.png (the texture, shaded by
 angle), <take>/regions-<view>.png (each region in its label colour, finish_ask.LABELS), <take>/close-up.png (the take's
-own close-up, else the stand-in: the front view unshaded, route_data.STAND_IN). views.json: per take its model, its
-views' angles, its faces and how many the paint's loading finds, the share of its area seen, its regions (CIELAB,
-sRGB, share of the seen pixels) and its close-up's source.
+own close-up, else the stand-in: the front view unshaded, route_data.STAND_IN); where the close-up is laid,
+<take>/close-up.npz (its face per pixel and colours) and regions-close-up.png, its regions in regions.npz.
+views.json: per take its model, its views' angles, its faces and how many the paint's loading finds, the share of its
+area seen, its regions (CIELAB, sRGB, share of the seen pixels), its close-up's source and whether it was laid.
 Gate "views cast": every take has its raw model, loaded with the faces the paint loads, every view sees it and the
 views together see SEEN_LEAST of the area any angle sees (both measured at MEASURE_SIDE). A take a batch gap names
 (score/stages/batch_gaps.py: its close-up or its Pixal3D job failed in the batch) is left out, and its gap carried on
@@ -51,6 +56,15 @@ MEASURE_SIDE = 1536
 # never of area no cast can reach.
 REGIONS = len(finish_ask.LABELS)  # one label colour a region in the list's pictures
 SAMPLE = 60000  # the pixels k-means is fitted on, drawn with the node's seed
+# k-means over all seen pixels spent its REGIONS groups on the texture's shading and rust: greenhouse desk's eight
+# were seven greys from L* 21 to 62 and one paper yellow, so its close-up's red DANGER label, blue decal and teal
+# screens had no region and no part (likeness@greenhouse, 2026-10-29). The pixels are first grouped finer (FINE),
+# each far colour given a group (ACCENT_DE, ACCENT_LEAST), and the nearest groups merged down to REGIONS.
+FINE = 4 * REGIONS
+ACCENT_DE = 15.0  # CIE76: a pixel this far from every fine group's centre is a colour none of them holds
+ACCENT_LEAST = 40  # the fewest pixels (every view and the close-up together) a group of its own needs
+CLOSE_UP = "close-up"  # the close-up's own pixels laid on the model through its camera, a view of the regions
+EDGE = 2  # a close-up pixel is kept only when those EDGE away on every side lie on the model in the cast and alpha
 
 
 def seen_area(mesh, found):
@@ -78,15 +92,56 @@ def covering_views(mesh):
     return angles, casts
 
 
+def fine_centres(every, seed):
+    """FINE k-means centres fitted on SAMPLE of `every` (CIELAB pixels), and a centre for each group of ACCENT_LEAST
+    or more pixels further than ACCENT_DE from all of them (accent_centres)."""
+    from scipy.cluster.vq import kmeans2
+    draw = np.random.default_rng(seed).choice(len(every), min(SAMPLE, len(every)), replace=False)
+    distinct = len(np.unique(every[draw].round(1), axis=0))  # fewer colours than FINE: one centre each
+    centres, _ = kmeans2(every[draw], min(FINE, distinct), seed=seed, minit="++")
+    return np.concatenate([centres, accent_centres(every, centres, seed)])
+
+
+def accent_centres(every, centres, seed):
+    """A centre for each group of ACCENT_LEAST or more of `every`'s pixels that lie further than ACCENT_DE from every
+    one of `centres`: a small saturated area (a red label, a screen's glow) is too few pixels of the sample to draw a
+    centre of its own."""
+    from scipy.cluster.vq import kmeans2, vq
+    far = every[vq(every, centres)[1] > ACCENT_DE]
+    if len(far) < ACCENT_LEAST:
+        return np.zeros((0, 3))
+    draw = np.random.default_rng(seed).choice(len(far), min(SAMPLE, len(far)), replace=False)
+    groups, _ = kmeans2(far[draw], min(REGIONS, len(np.unique(far[draw].round(1), axis=0))), seed=seed, minit="++")
+    counts = np.bincount(vq(far, groups)[0], minlength=len(groups))
+    return groups[counts >= ACCENT_LEAST]
+
+
+def merged_centres(every, centres):
+    """`centres` with the groups of fewer than ACCENT_LEAST of `every`'s pixels dropped (their pixels go to the
+    nearest group left), then the two nearest merged (weighed by their pixels) until REGIONS are left: shading steps
+    of one colour lie close and merge first, a colour far from the rest keeps its own region however small."""
+    from scipy.cluster.vq import vq
+    counts = np.bincount(vq(every, centres)[0], minlength=len(centres)).astype(float)
+    kept = counts >= min(ACCENT_LEAST, counts.max())
+    centres, counts = centres[kept], counts[kept]
+    while len(centres) > REGIONS:
+        apart = np.linalg.norm(centres[:, None] - centres[None], axis=-1) + np.diag(np.full(len(centres), np.inf))
+        first, second = np.unravel_index(apart.argmin(), apart.shape)
+        centres[first] = (centres[first] * counts[first] + centres[second] * counts[second]) \
+            / (counts[first] + counts[second])
+        counts[first] += counts[second]
+        centres, counts = np.delete(centres, second, axis=0), np.delete(counts, second)
+    return centres
+
+
 def colour_regions(colours, faces, seed):
     """(the regions' CIELAB centres, each view's region per pixel, -1 off the model): every seen pixel's colour in
-    k-means' groups, fitted on SAMPLE of them; groups no pixel falls in are dropped."""
-    from scipy.cluster.vq import kmeans2, vq
+    at most REGIONS groups of distinct colour (fine_centres merged, merged_centres); groups no pixel falls in are
+    dropped."""
+    from scipy.cluster.vq import vq
     seen = {view: cast.lab_of(colours[view][faces[view] >= 0]) for view in faces}
     every = np.concatenate(list(seen.values()))
-    draw = np.random.default_rng(seed).choice(len(every), min(SAMPLE, len(every)), replace=False)
-    distinct = len(np.unique(every[draw].round(1), axis=0))  # fewer colours than REGIONS: one region each
-    centres, _ = kmeans2(every[draw], min(REGIONS, distinct), seed=seed, minit="++")
+    centres = merged_centres(every, fine_centres(every, seed))
     centres = centres[np.unique(vq(every, centres)[0])]
     per_pixel = {}
     for view, lab in seen.items():
@@ -166,21 +221,71 @@ def view_record(model, faces, angles, close_up):
             "close_up": "own" if close_up is not None else route_data.STAND_IN}
 
 
-def view_take(model_file, close_up, folder, seed):
-    """One take's views and regions into `folder`; its record (view_record, its regions, the paint's face count)."""
+def kept_close_up(model, close_up, camera_file):
+    """(the face under each close-up pixel kept, -1 elsewhere; the pixels' colours, sRGB 0-255; the cast's fit) of
+    the take's own close-up through its own camera (route_cast.close_up_pixels): a pixel is kept where it and those
+    EDGE away on every side lie on the model in both the cast and the close-up's alpha, so no border pixel mixes the
+    model with the backdrop."""
+    faces, sampled, both, fit = cast.close_up_pixels(model, camera_file, close_up)
+    kept = both.copy()
+    for axis in (0, 1):
+        for shift in (EDGE, -EDGE):
+            kept &= np.roll(both, shift, axis=axis)
+    return np.where(kept, faces, -1), np.ascontiguousarray(sampled[..., :3]), fit
+
+
+def close_up_saved(folder, laid, regions):
+    """close-up.npz (the laid close-up's face per pixel and colours) and regions-close-up.png (its regions in their
+    label colours, unshaded: the close-up carries its own light)."""
+    faces, colours = laid
+    np.savez_compressed(folder / "close-up.npz", faces=faces.astype(np.int32), colours=colours)
+    palette = np.array(finish_ask.LABELS, dtype=np.uint8)
+    cast.picture(np.where((regions >= 0)[..., None], palette[np.maximum(regions, 0)], 0), faces).save(
+        folder / f"regions-{CLOSE_UP}.png")
+
+
+def laid_close_up(model, close_up, camera_file):
+    """(the laid close-up (faces, colours) or None, its record): laid when the take has its own close-up and camera
+    and the cast fits the close-up's outline at route_cast.CLOSE_UP_FIT."""
+    if close_up is None or camera_file is None:
+        return None, {"laid": False, "why": "no own close-up or camera"}
+    faces, colours, fit = kept_close_up(model, close_up, camera_file)
+    if fit < cast.CLOSE_UP_FIT:
+        return None, {"laid": False, "fit": fit, "why": f"its cast fits the close-up's outline at IoU {fit}, under "
+                                                       f"{cast.CLOSE_UP_FIT}"}
+    return (faces, colours), {"laid": True, "fit": fit}
+
+
+def view_take(model_file, close_up, camera_file, folder, seed):
+    """One take's views and regions into `folder`, the close-up laid on the model one more view of the regions
+    (laid_close_up) where it fits; its record (view_record, its regions, the paint's face count, the laid close-up)."""
     model = cast.loaded(model_file)
     angles, casts = covering_views(model.mesh)
     faces = {view: found for view, (found, _) in casts.items()}
     colours = {view: cast.texture_colours(model, found, points) for view, (found, points) in casts.items()}
-    centres, regions = colour_regions(colours, faces, seed)
+    laid, laid_record = laid_close_up(model, close_up, camera_file)
+    every_faces, every_colours = dict(faces), dict(colours)
+    if laid is not None:
+        every_faces[CLOSE_UP], every_colours[CLOSE_UP] = laid
+    centres, regions = colour_regions(every_colours, every_faces, seed)
     views_saved(folder, model, (angles, faces, colours), regions)
+    if laid is not None:
+        close_up_saved(folder, laid, regions[CLOSE_UP])
     close_up_written(folder, close_up, faces, colours)
     side = measure_side(model.mesh)
     measured = {view: cast.cast(model.mesh, turn, side)[0] for view, turn in {**cast.BASE, **cast.CANDIDATES}.items()}
     return {**view_record(model, {view: measured[view] for view in angles}, angles, close_up),
             "reachable_share": round(seen_share(model.mesh, measured.values()), 3),
             "paint_faces": paint_faces(model_file),
-            "regions": region_records(centres, colours, regions)}
+            "regions": region_records(centres, every_colours, regions), "close_up_laid": laid_record}
+
+
+def files(place):
+    """route_data.shape_files and each own close-up's camera (`camera <take>`, as route_data.parts_files names them),
+    the close-up laid on the model through it (laid_close_up). The table sets it (score/stages `close_up_laid`), so
+    no row that imports route_data moves."""
+    cameras = {name: path for name, path in route_data.parts_files(place).items() if name.startswith("camera ")}
+    return {**route_data.shape_files(place), **cameras}
 
 
 def make_views(inputs, out, seed, params):
@@ -195,7 +300,8 @@ def make_views(inputs, out, seed, params):
         if model_file is None:
             found[take] = {"model": None}
             continue
-        record = view_take(model_file, inputs.get(f"close-up {take}"), out / take, seed)
+        record = view_take(model_file, inputs.get(f"close-up {take}"), inputs.get(f"camera {take}"), out / take,
+                           seed)
         found[take] = {"model": pathlib.Path(model_file).name, **record}
     (out / "views.json").write_text(json.dumps(found, indent=1))
 
