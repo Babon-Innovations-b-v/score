@@ -205,6 +205,30 @@ def solved(residuals, entries, pattern, checkpoint, limit_seconds, every=None, s
                          callback=iterated)
 
 
+def whole(evaluate, check, entries, checkpoint, limit_seconds, start=None, every=3):
+    """Level 1 entire: `solved` over every tuning case at once, `evaluate(unknowns)` ({case: measures} of levels 2
+    and 3 on every tuning body, the evaluation runner's) giving each evaluation's residuals with the prior, and
+    `check(unknowns)` (the held-out bodies' score) logged every `every` iterations and at the end, never used to
+    choose. Returns (scipy's result, [(iteration, check score)])."""
+    start = resumed(checkpoint, len(entries)) if start is None else start
+    first = evaluate(start)
+    names = sorted(first)
+    pattern = sparsity(entries, labels(first[names[0]]), len(names))
+    kept = {start.tobytes(): first}
+    checks = []
+
+    def residuals(unknowns):
+        found = kept.pop(np.asarray(unknowns, dtype=float).tobytes(), None) or evaluate(unknowns)
+        return np.concatenate([case_residuals(found[case]) for case in names] + [prior(unknowns, entries)])
+
+    def checked(iteration, unknowns):
+        if iteration % every == 0:
+            checks.append((iteration, check(unknowns)))
+    result = solved(residuals, entries, pattern, checkpoint, limit_seconds, every=checked, start=start)
+    checks.append(("end", check(result.x)))
+    return result, checks
+
+
 def rewritten(source, rows):
     """The landmark table's source with each named row's link and trust replaced ({name: (link, trust)})."""
     for name, (link, trust) in rows.items():
