@@ -161,20 +161,20 @@ def kind_words(row_id):
 
 
 def sized_rows(store, place, record):
-    """A reading's rows as read_row gives them, each with its size (row_size: the object's own metres, unless his plan
-    edit sized its item) and its `read_size`, the object's own metres as its reading gave them (None where it gave
+    """A reading's rows as read_row gives them, each with its size (row_size: the object's own metres) and its
+    `read_size`, the object's own metres as its reading gave them (None where it gave
     none): the close-up's request and shape check hold the object to its own size (owner, 2026-10-24). A row the
     reading and the plan give no size has none (a gap: its take waits on "no size"). A shell piece whose part the
     place's plan lays itself (plan_parts), that it names its own shell (plan_structure), or that is arched structure
     at its plan items (plan_arches), has route "plan"."""
     from score.review import plans
     rows = record["inventory"]["rows"]
-    laid, made = plan_sizes(store, place, rows), plan_sizes(store, place, rows, made=True)
+    laid = plan_sizes(store, place, rows)
     shown = plans.current(store, place)
     own = plan_parts(shown and shown["plan"])
     shell = plan_structure(shown and shown["plan"], own)
     beyond = beyond_of(shown and shown["plan"], rows, record.get("size"))
-    found = [{**read_row(record, row), "size": row_size(reading_size(row), laid.get(row["id"]), made.get(row["id"]),
+    found = [{**read_row(record, row), "size": row_size(reading_size(row), laid.get(row["id"]),
                                                          run_pieces(shown and shown["plan"], row)),
               "read_size": own_size(reading_size(row), laid.get(row["id"]), run_pieces(shown and shown["plan"], row))}
              for row in rows]
@@ -242,17 +242,17 @@ def routed(row, own, beyond, shell=frozenset()):
     return row
 
 
-def row_size(own, laid, made, pieces=None):
-    """A row's size: its item's on the plan shown where his edit sized it (`laid` not the plan made without him's,
-    `made`: his edits count, owner 2026-10-21), else the object's own metres from its reading (`own`), else its item's
-    (an item he sized whose row the reading gave none). A plan's item is the footprint the object is laid in (a run
-    of things, room round it: the airlock's porch post laid 0.48 by 1.7 m, a 0.1 by 0.1 m post), so it only places
-    the object, never sizes its model (coordinator, 2026-10-25). A row the plan lays as a run (`pieces`, run_pieces)
+def row_size(own, laid, pieces=None):
+    """A row's size: the object's own metres from its reading (`own`), else its plan item's (`laid`: a row the reading
+    gave none). A plan's item is the footprint the object is laid in (a run of things, room round it: the airlock's
+    porch post laid 0.48 by 1.7 m, a 0.1 by 0.1 m post), so it only places the object, never sizes its model
+    (coordinator, 2026-10-25), his edited items too: the plan is an estimate and the assembly fits each object to what
+    it is laid by (owner, 2026-10-29; #72). An edit counted as his sizing wherever the plan shown differed from the plan
+    made since, so a whole plan re-written after it, or a footprint off by a rounding, sized 17 of hangar's 30 rows
+    (its spaceship 13.7 by 46 m against its reading's 8 by 24, its office chair 2.1 m) and 3 of habitat's (2026-10-29). A row the plan lays as a run (`pieces`, run_pieces)
     whose own metres overrun its item by a piece measured the whole run (a railing round a floor, pipes along a wall:
     overruns): it is made as one repeating piece laid along the item (run_piece), never as one object the run's
     length."""
-    if laid and laid != made:
-        return laid
     return own_size(own, laid, pieces) or laid
 
 
@@ -331,16 +331,16 @@ def reading_size(row):
     return list(size) if sides(size) else None
 
 
-def plan_sizes(store, place, rows, made=False):
+def plan_sizes(store, place, rows):
     """{row id: [wide, deep, tall] metres} of the reading's `rows` the place's current plan sizes
     (score/review/plans.current: his newest edit on the pick, else the derived plan, whose items are sized by the
-    reading's metres; `made`: the plan made without him, plans.made_plan), each from the first item tied to it: its
+    reading's metres), each from the first item tied to it: its
     wide and deep as laid (turned back for one facing east or west), its tall the reading's, else off its surest SAM
     box at the scale its wide gives the box (an item he sized whose row the reading gave no size). A row whose item
     is a size gap on its plan, or with no item of its own (on a wall, in the sky, riding on another row: `sized_rows`
     gives it its reading's), has none here."""
     from score.review import plans
-    shown = (plans.made_plan if made else plans.current)(store, place)
+    shown = plans.current(store, place)
     if shown is None:
         return {}
     plan, by_id = shown["plan"], {row["id"]: row for row in rows}

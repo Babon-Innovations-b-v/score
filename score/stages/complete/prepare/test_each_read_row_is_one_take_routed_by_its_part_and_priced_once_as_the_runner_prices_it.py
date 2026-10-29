@@ -25,7 +25,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - benchmarks.high_with_guesses: the guesses left out -> test_the_benchmarks_stay_under_their_cap_and_ask_the_...
 - benchmarks.guard: the free-only refusal raised -> test_the_benchmarks_guard_under_the_kill_latch_is_a_refusal_...
 - benchmarks.plan_gap: the missing check -> `if False:` -> test_a_benchmark_whose_inputs_do_not_stand_is_a_gap_...
-- groups.row_size: `if laid:` (the plan's item sizes the model) -> test_a_take_is_sized_by_its_reading_and_routed_...
+- groups.row_size: `if laid:` (the plan's item sizes the model), or `if laid and laid != made:` (his edited item
+  sizes it, 2026-10-29) -> test_a_take_is_sized_by_its_reading_and_routed_...
 - groups.shown_from: `source = None` -> test_a_backdrop_row_a_place_of_its_scene_makes_is_shown_from_there_...
 - groups.far_made: no seen_size for a single piece -> test_a_far_row_of_one_piece_is_as_wide_as_its_box_shows_it
 - groups.structure_of: the taller-than check dropped -> test_a_backdrop_part_of_a_structure_is_shown_by_a_...
@@ -466,13 +467,13 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
     assert by_id["wall_lamp"]["size"] == [0.3, 0.2, 0.4]  # no item of its own: its reading's metres
     assert by_id["astronaut"]["size"] is None and by_id["night_sky"]["size"] is None  # none read: a gap
     post, footprint, edited = [0.1, 0.1, 2.5], [0.484, 1.699, 2.5], [0.3, 0.3, 2.5]
-    assert groups.row_size(post, footprint, footprint) == post  # a plan's item only places the object
-    assert groups.row_size(post, edited, footprint) == edited  # his edit sized it: his edits count
-    assert groups.row_size(None, footprint, footprint) == footprint and groups.row_size(None, None, None) is None
+    assert groups.row_size(post, footprint) == post  # a plan's item only places the object
+    assert groups.row_size(post, edited) == post  # an edited item too: the assembly fits the object to it
+    assert groups.row_size(None, footprint) == footprint and groups.row_size(None, None) is None
     pipes, floor = [12.0, 0.1, 0.1], [7.421, 4.058, 0.1]  # a run's whole length, laid along the stairwell's walls
-    assert groups.row_size(pipes, floor, floor, 4) == [3.0, 0.1, 0.1]  # one of its four pieces, laid along the item
+    assert groups.row_size(pipes, floor, 4) == [3.0, 0.1, 0.1]  # one of its four pieces, laid along the item
     railing, ring = [50.0, 0.1, 1.0], [8.837, 9.435, 1.0]  # round a floor's edge: each piece held to the item laid
-    assert groups.row_size(railing, ring, ring, 5) == [9.435, 0.1, 1.0]
+    assert groups.row_size(railing, ring, 5) == [9.435, 0.1, 1.0]
     assert groups.own_size(railing, ring, 5) == [9.435, 0.1, 1.0]  # its close-up draws the piece, not the 50 m run
     assert groups.own_size(post, footprint, 3) == post and groups.own_size(None, footprint) is None
     lamp = {"id": "street_lamp", "route": "prop", "part": "object"}
@@ -486,8 +487,8 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
     assert groups.routed(far, set(), {"distant_hills"})["route"] == "ground"  # the terrain's far ground raises it
     assert groups.routed(hills, set(), set()) == hills  # not beyond: the ground row itself
     beam = [9.0, 0.3, 0.3]  # one object longer than its item: kept at its own size, so `fits the plan` still rejects it
-    assert groups.row_size(beam, [3.0, 0.3, 0.3], [3.0, 0.3, 0.3], None) == beam
-    assert groups.row_size(post, footprint, footprint, 3) == post  # a run's piece that fits its item is its own size
+    assert groups.row_size(beam, [3.0, 0.3, 0.3], None) == beam
+    assert groups.row_size(post, footprint, 3) == post  # a run's piece that fits its item is its own size
     plan = {"items": [["PIPES 1", 0, 0, 7.4, 4.0, None, "item"], ["RAIL 1", 0, 0, 9, 9, None, "item"]],
             "rows": {"PIPES 1": ["pipes"], "RAIL 1": ["rail"]}, "shapes": {"RAIL 1": {"shape": "polygon"}}}
     assert groups.run_pieces(plan, {"id": "pipes", "count": 4}) == 4 and groups.run_pieces(plan, {"id": "rail"}) == 1
@@ -495,10 +496,10 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
     rugs = {"items": [[f"RUG {n}", 0, 0, 1.433, 1.444, None, "item"] for n in (1, 2, 3)],
             "rows": {f"RUG {n}": ["rug"] for n in (1, 2, 3)}}
     rug = {"id": "rug", "count": 3, "size": [2.0, 1.5, 0.02]}  # one rug an item, a little over it: one of it, no run
-    assert groups.run_pieces(rugs, rug) is None and groups.row_size(rug["size"], *[[1.433, 1.444, 0.02]] * 2) == rug["size"]
+    assert groups.run_pieces(rugs, rug) is None and groups.row_size(rug["size"], [1.433, 1.444, 0.02]) == rug["size"]
     assert groups.run_pieces(rugs, {**rug, "size": [9.0, 0.1, 0.1]}) == 3  # longer than its items end to end: a run
     door = [1.2, 0.2, 2.1]  # four doors read, one 1.16 m item laid: the door a little wider than its footprint
-    assert groups.row_size(door, [1.159, 0.706, 2.1], [1.159, 0.706, 2.1], 4) == door
+    assert groups.row_size(door, [1.159, 0.706, 2.1], 4) == door
     assert groups.own_size(door, [1.159, 0.706, 2.1], 4) == door
     rug = [2.0, 1.5, 0.02]  # ten rugs read on a smaller item: no line along the ground, so no run
     assert groups.own_size(rug, [1.433, 0.4, 0.02], 10) == rug
