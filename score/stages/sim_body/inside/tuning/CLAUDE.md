@@ -14,5 +14,5 @@ global everything), `solved` runs scipy's least_squares (trf, 2-point, bounded) 
 - Judged only as the whole solver after level 1, against main, on the check bodies; never by the landmark distances
   the solver pulls on.
 - The bone's long axis is the body's own y (`LONG_AXIS`, OpenSim's convention for MyoFullBody's long bones).
-- The runner (levels 2 and 3 per evaluation on the tuning bodies, side by side) lives outside the repository with the
-  #70 workflow.
+- `whole` is level 1 entire: `solved` with each evaluation's residuals from the runner (`../evaluation`: levels 2 and
+  3 on every tuning body, side by side) and the held-out check scored every few iterations and at the end.
