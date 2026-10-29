@@ -125,6 +125,15 @@ def sampled(fit, recordings):
     return turns, points, path
 
 
+def card_jacobian(fit, frames):
+    """Level 2's exact Jacobian for `staged`, its frames' kinematics on the card (`_card._level2_card`, MuJoCo Warp
+    worlds = the sampled frames); scipy's 2-point differences stay `staged`'s reference (held equal on the 10 tuning
+    bodies, card build step 4)."""
+    from ._card import _level2, _level2_card
+    card = _level2_card.CardKinematics(fit, frames)
+    return lambda problem, unknowns: _level2.jacobian(problem, unknowns, card)
+
+
 def constants(fit, recordings):
     """The person's constants on `fit` (a `Fitting`), once per body from all its `recordings` together ([(turns,
     points)]: CONTEXT.md "person constants"), on the frames `sampled` picks from mink's angles at the start
@@ -135,7 +144,7 @@ def constants(fit, recordings):
     "followed": [group]}."""
     turns, points, path = sampled(fit, recordings)
     free = [index for index, name in enumerate(fit.marks) if name not in HELD and not name.startswith(END)]
-    found, _, evaluations = staged(fit, path, turns, points, fit.neutral(), free)
+    found, _, evaluations = staged(fit, path, turns, points, fit.neutral(), free, card_jacobian(fit, len(path)))
     marks, joints = fit.unpack(found)
     return {"marks": {name: move.tolist() for name, move in zip(fit.marks, marks) if not name.startswith(END)},
             "joints": {name: move.tolist() for name, move in zip(fit.inside_names, joints)},
