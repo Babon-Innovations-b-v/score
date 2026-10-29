@@ -51,6 +51,7 @@ import fcntl
 import json
 import math
 import os
+import shlex
 import statistics
 import subprocess
 import sys
@@ -75,8 +76,12 @@ CARD_LEAST_MINUTES = 1
 TAKE_MINUTES = 0.5
 # A record this long past its time lost its --expire process (the machine went by its self-delete and the sweeps).
 STALE_MINUTES = 10
-# Every set-up mark on a machine (STALE_MARKS keeps the newest of these).
-ALL_MARKS = "rm -f /root/.*-setup-*"
+# This PC's container (backends/local.py) is one machine kept for good, never handed from kind to kind as a card is:
+# each kind keeps its own /root/venv (`own_set_up`), so its set-up mark stays true and nothing there removes one. This
+# file, written at its every claim, is how a machine's shell knows it is that container.
+THIS_PC = "/root/.score-this-pc"
+# Every set-up mark on a machine (STALE_MARKS keeps the newest of these); none on this PC's container (THIS_PC).
+ALL_MARKS = f"{{ [ -e {THIS_PC} ] || rm -f /root/.*-setup-*; }}"
 # kind -> function(machine) giving the shell command that removes the run's own files from the machine. They live here,
 # not in the runners: a runner that sends a maker's scripts up is in its rows' code keys (score/graph/_code.py), so a
 # registration there moves those rows (c3b60928). blender_cloud.py, library_bake.py, characters.py, judge.py,
@@ -97,7 +102,9 @@ CLEANUPS = {
     "unirig": lambda _machine: f"rm -rf /root/rig /root/UniRig; {ALL_MARKS}",
     "parts": lambda _machine: f"rm -rf /root/parts; {ALL_MARKS}",
     "closeups": lambda _machine: f"rm -rf /root/closeups; {ALL_MARKS}",
-    "moss-sound": lambda _machine: f"rm -rf /root/sfx; {ALL_MARKS}",
+    # On this PC the model stays (its own /root/venv does too): only last time's code and takes go.
+    "moss-sound": lambda machine: ("rm -rf /root/sfx/out /root/sfx/MOSS-TTS" if machine.get("here")
+                                   else f"rm -rf /root/sfx; {ALL_MARKS}"),
     "unlit": lambda _machine: f"rm -rf /root/unlit; {ALL_MARKS}",
     # tools/cloud/images/prove.py (an image's proof, and every sound row's takes, score/stages/sound/takes.py): its
     # containers stopped, its store credentials and registry login gone; docker, the pulled images and the node
@@ -108,6 +115,10 @@ CLEANUPS = {
 # Run on a taken machine: every set-up mark but the newest goes, so a kind whose environment a later set-up of another
 # kind replaced (most share /root/venv) sets up again, while the last set-up's own mark stays good.
 STALE_MARKS = "cd /root && ls -t .*-setup-* 2>/dev/null | tail -n +2 | xargs -r rm -f"
+# A claim of this PC's container gets its kind's own /root/venv (own_set_up): the one held is moved aside under
+# KINDS/<the kind that set it up> and the claim's kind's moved back, a rename each. The first claim after this rule
+# came in (2026-10-29) finds a /root/venv of no known kind: it and every set-up mark go, once.
+KINDS = "/root/kinds"
 # A card's idle time: the median cold start of its kind's last IDLE_SAMPLE fresh cards, at most IDLE_CAP_MINUTES
 # (short: a card waits minutes, never an hour), IDLE_DEFAULT_MINUTES for a kind never measured.
 IDLE_SAMPLE = 30
@@ -385,10 +396,10 @@ def adopt(run, offers, number, kind, disk_gb, classes=None):
 
 def here(run, number, kind):
     """This PC's machine (backends/local.py) for `run`, or None while another claim holds it, so the claim waits and
-    asks again (batch.claim_rounds). Never rented, so no clearance is asked: it costs nothing. Its set-up stays from
-    the last job but for the newest set-up mark (STALE_MARKS); the files a last claim of its kind left go first
-    (`cleanup_of`: its container restart kills the job, not its files, so pixal's leftover `closed` ended the next
-    worker at once, 2026-10-28), never another's set-up under way (local.setting_up). A shared claim (local.SHARED:
+    asks again (batch.claim_rounds). Never rented, so no clearance is asked: it costs nothing. Each kind's set-up
+    stays from its last claim, its own /root/venv put back (own_set_up), so it sets up once; the files a last claim
+    of its kind left go first (`cleanup_of`: its container restart kills the job, not its files, so pixal's leftover
+    `closed` ended the next worker at once, 2026-10-28), never another's set-up under way (local.setting_up). A shared claim (local.SHARED:
     blender, whose clean-up names only the claim's own job paths, none at its start) so never removes the files of
     the claims beside it; a kind too big for its card is refused (compute's
     Refused, naming the GB), never run into an out-of-memory; by the run's own measured need (`run.need`) when it
@@ -410,7 +421,7 @@ def here(run, number, kind):
                                                run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60, folder)
     try:
         with getattr(cloud, "setting_up", contextlib.nullcontext)():  # never under another shared claim's set-up
-            batch.remote(folder, machine["host"], f"{STALE_MARKS}; {cleanup_of(machine)}", check=True,
+            batch.remote(folder, machine["host"], f"{own_set_up(kind)}; {cleanup_of(machine)}", check=True,
                          capture_output=True, timeout=60)
     except Exception:
         batch.delete_machine(machine)
@@ -419,6 +430,16 @@ def here(run, number, kind):
         run.machines.append(machine)
     batch.say(f"took this PC's card ({machine['folder'].name}) for {kind}: EUR 0")
     return machine
+
+
+def own_set_up(kind):
+    """The shell command that gives this PC's container `kind`'s own /root/venv (KINDS) and marks it THIS_PC."""
+    kind, stash = shlex.quote(kind), f"{KINDS}/\"$held\""
+    return (f"touch {THIS_PC} && mkdir -p {KINDS} && cd /root && held=$(cat {KINDS}/.venv 2>/dev/null || echo none) && "
+            "if [ \"$held\" = none ]; then rm -rf venv; rm -f .*-setup-*; fi && "
+            f"if [ \"$held\" != {kind} ]; then "
+            f"if [ -e venv ]; then rm -rf {stash} && mkdir -p {stash} && mv venv {stash}/venv; fi && "
+            f"if [ -e {KINDS}/{kind}/venv ]; then mv {KINDS}/{kind}/venv venv; fi && echo {kind} > {KINDS}/.venv; fi")
 
 
 def live_of(run):

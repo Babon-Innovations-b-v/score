@@ -16,7 +16,21 @@
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 LOGS=/root/setup-logs
-mkdir -p "$LOGS" /root/envs
+mkdir -p "$LOGS" /root/envs /root/.cache/huggingface
+cp /root/hf-token /root/.cache/huggingface/token
+
+# A machine set up before keeps it (this PC's container from one claim to the next, park.own_set_up): this file wrote
+# the mark last, named for its text and the shipped Kimodo and SAM3DBody-cpp, so a changed set-up runs again. Without
+# the mark the old copies and environment go first: a copy into one already there nests, uv refuses a venv there.
+done_mark="/root/.characters-setup-$( (cat "$0"; cd /root/score/vendor && find kimodo sam3dbody-cpp -type f -print0 \
+  | sort -z | xargs -0 sha256sum) | sha256sum | cut -c1-16)"
+if [ $# -eq 0 ]; then
+  if [ -f "$done_mark" ]; then
+    echo "set up already"
+    exit 0
+  fi
+  rm -rf /root/kimodo /root/sam3dbody-cpp /root/envs/motion
+fi
 nvidia-smi --query-gpu=name,driver_version,memory.total,compute_cap --format=csv,noheader
 ARCH="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -1 | tr -d '.')"
 
@@ -26,8 +40,6 @@ apt-get install -y -qq build-essential cmake git wget unzip xz-utils libjpeg-dev
   libxkbcommon0 libx11-6 libglib2.0-0 >/dev/null
 curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/root/uv sh >/dev/null
 UV=/root/uv/uv
-mkdir -p /root/.cache/huggingface
-cp /root/hf-token /root/.cache/huggingface/token
 
 motion() {
   cp -r /root/score/vendor/kimodo /root/kimodo
@@ -79,4 +91,5 @@ for entry in "${pids[@]}"; do
   fi
 done
 [ "$failed" -eq 0 ] || exit 1
+[ $# -gt 0 ] || touch "$done_mark"
 echo "characters setup done"
