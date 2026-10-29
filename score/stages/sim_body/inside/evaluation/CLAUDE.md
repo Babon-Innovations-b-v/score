@@ -6,7 +6,7 @@ threads, only while `FREE_GB` is available), and reads back each clip's honest m
 rotation error on `fit._frozen`, the frozen copy of main's calibration, bones outside SOMA's skin by region through
 `fit._skin`: the stage's record and level 1's score share that one code), each clip's written twice: `measures.json`
 unrounded, the one the solver reads (rounded measures read as flat to its differences), and `m.json`, the copy people
-read (`rounded`). Each evaluation's group-end centres go to the
+read (`rounded`), and `angles.npz` beside them, mink's angles per frame, the card's seeds (`fit/_card`, plan step 2). A case's body is its name less its motion (`body_of`; `arms_raise` and `sit_stand` hold an underscore, `TWO_WORD_MOTIONS`). Each evaluation's group-end centres go to the
 worker in `rest.json` with SOMA's template rig: `_case` moves `landmarks.CENTRES` and the measure's copy by them (the
 fit's end targets, the sizing's lengths and the joint measure read them) and reads the calibration table again at rest
 from them (`calibration._measure`), never from motion; the run dir holds that rig as `rig.npz`. `tuning.whole` calls it each evaluation; `level1.py <run dir> --python <Newton's Python>` is the thin

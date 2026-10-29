@@ -4,7 +4,8 @@ group end's centre moved by <out root>/rest.json's offsets (the fit's targets, t
 joints all read it) and the calibration table read again at rest from them (on SOMA's template rig), the
 person constants solved once from every clip of the body together (held for its later clips), then each clip's pose
 per frame, then per clip the honest measures (_measure.measures) and per landmark its leftover and its fitted move
-off its link. Writes <out root>/<case>/measures.json (unrounded, the solver's) and m.json (its rounded copy, people's).
+off its link. Writes <out root>/<case>/measures.json (unrounded, the solver's), m.json (its rounded copy, people's) and angles.npz
+(mink's angles per frame, the card's seeds).
 Newton's Python (mujoco); run by the runner, one process per body."""
 import json
 import pathlib
@@ -102,6 +103,7 @@ def fitted_case(job_path, out, recordings):
     began = time.time()
     record, scales, model, angles = sim_body.fitted_person(job, person, rig, worlds, out / f"{person['name']}.xml")
     seconds = time.time() - began
+    np.savez(out / evaluation.SEEDS, qpos=angles)
     found = _measure.measures(model, angles, rig, person["segments"], worlds, scales)
     _, points = fit.targets(rig, person["segments"], worlds, fit.followed(person["segments"]))
     found["landmarks"] = leftovers(model, angles, scales, points)

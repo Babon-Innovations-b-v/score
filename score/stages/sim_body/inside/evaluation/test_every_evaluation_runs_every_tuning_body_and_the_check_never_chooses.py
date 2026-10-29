@@ -6,6 +6,7 @@ the solver reads them unrounded, m.json is the rounded copy people read.
 Breaks that turn a test red (each seen red once, 2026-10-29):
 - run_all's `len(running) < most` made `<= most`: more bodies at once than allowed.
 - by_body's `.setdefault(body_of(case), {})[case]` keyed by case: a body's clips split over processes.
+- body_of's TWO_WORD_MOTIONS made `()`: mean_sit_stand reads as body mean_sit, its clips split from mean's and off the split.
 - tuning.whole's `checks.append(("end", ...))` dropped: no held-out score at the end.
 - accepted's `1 + HELD_OUT_SHARE` made `1`: a check 5 % worse fails.
 - measured's rest.json write dropped: the worker never sees the group ends' centres (2026-10-29).
@@ -110,6 +111,8 @@ def test_the_held_out_bodies_pass_within_ten_percent():
     assert evaluation.accepted(1.05, 1.0)
     assert not evaluation.accepted(1.11, 1.0)
     assert evaluation.body_of("short_heavy_kimodo") == "short_heavy"
+    assert evaluation.body_of("short_heavy_sit_stand") == "short_heavy"
+    assert evaluation.body_of("mean_arms_raise") == "mean"
 
 
 if __name__ == "__main__":

@@ -16,7 +16,9 @@ FREE_GB = 12
 HELD_OUT_SHARE = 0.10  # the check bodies' score may be at most this much worse than the tuning bodies'
 WORKER = pathlib.Path(__file__).resolve().parent / "_case.py"
 SOLVED = "measures.json"  # a clip's unrounded measures, the solver's; m.json beside it is the rounded copy people read
+SEEDS = "angles.npz"  # a clip's mink angles per frame (qpos, frames x nq): the card's seeds (fit._card._seeds)
 PLACES = 2  # decimals of the rounded copy
+TWO_WORD_MOTIONS = ("arms_raise", "sit_stand")  # motions whose name holds an underscore
 
 
 def rounded(value, places=PLACES):
@@ -29,7 +31,10 @@ def rounded(value, places=PLACES):
 
 
 def body_of(case):
-    """A case's SOMA body: its name less the clip after the last underscore (tall_heavy_kimodo -> tall_heavy)."""
+    """A case's SOMA body: its name less its motion (tall_heavy_kimodo -> tall_heavy, mean_sit_stand -> mean)."""
+    for motion in TWO_WORD_MOTIONS:
+        if case.endswith("_" + motion):
+            return case[:-len(motion) - 1]
     return case.rsplit("_", 1)[0]
 
 
