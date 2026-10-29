@@ -9,7 +9,9 @@ within `END_REACH`; the two global weights, the markers' goal and a group end's 
 theirs, mirrored, `paired`), `offsets` the centres' moves, `applied` turns them into a landmark table and weights, `case_residuals` is one tuning case's
 follow measures (bones outside SOMA's skin by region, turns on the FROZEN calibration table, joints at `JOINT_SHARE`),
 `prior` pulls links to their anatomical starts and centres to the model's own, `sparsity` the Jacobian's pattern (own, parent and child groups; a
-global everything), `solved` runs scipy's least_squares (trf, 2-point, bounded) with every evaluation checkpointed
+global everything), `solved` runs scipy's least_squares (trf, bounded), its Jacobian by `_differences`: ABSOLUTE
+steps of `STEP` (2 mm of a link or centre, 0.1 of a log weight) over the pattern's column groups, never scipy's
+`diff_step`, which is relative to |x| and at the start (every unknown 0) stepped 1.5e-8 so nothing moved (2026-10-29), with every evaluation checkpointed
 (`checkpointed`, `resumed` from the best) and stops when `settled` (under 0.5 % over 3 iterations) or at its limit.
 `rewritten` writes a result into `landmarks/_table.py`, `weight_rewritten` its global weights into their modules (MARKER_GOAL in `fit/_frames.py`, END_WEIGHT in `fit/__init__.py`).
 

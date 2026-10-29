@@ -4,7 +4,8 @@ group end's centre moved by <out root>/rest.json's offsets (the fit's targets, t
 joints all read it) and the calibration table read again at rest from them (on SOMA's template rig), the
 person constants solved once from every clip of the body together (held for its later clips), then each clip's pose
 per frame, then per clip the honest measures (_measure.measures) and per landmark its leftover and its fitted move
-off its link. Writes <out root>/<case>/m.json. Newton's Python (mujoco); run by the runner, one process per body."""
+off its link. Writes <out root>/<case>/measures.json (unrounded, the solver's) and m.json (its rounded copy, people's).
+Newton's Python (mujoco); run by the runner, one process per body."""
 import json
 import pathlib
 import sys
@@ -18,6 +19,7 @@ import fit  # noqa: E402
 import mujoco  # noqa: E402
 import sim_body  # noqa: E402
 from calibration import _measure as rest_measure  # noqa: E402
+import evaluation  # noqa: E402
 from evaluation import _measure  # noqa: E402
 from fit import _frames  # noqa: E402
 from landmarks import CENTRES, LANDMARKS, marker  # noqa: E402
@@ -88,7 +90,8 @@ def held_constants():
 
 
 def fitted_case(job_path, out, recordings):
-    """One clip of the body: levels 2 (held) and 3, its follow measures and landmark leftovers into out/m.json."""
+    """One clip of the body: levels 2 (held) and 3, its follow measures and landmark leftovers into out/measures.json
+    (unrounded, the solver's) and out/m.json (rounded, the copy people read)."""
     out.mkdir(parents=True, exist_ok=True)
     job = json.loads(job_path.read_text())
     person = job["people"][0]
@@ -105,7 +108,8 @@ def fitted_case(job_path, out, recordings):
     found["fit seconds"] = round(seconds, 1)
     found["recordings"] = recordings
     found["constants"] = record["fit"]["constants"]
-    (out / "m.json").write_text(json.dumps(found, indent=1))
+    (out / evaluation.SOLVED).write_text(json.dumps(found, indent=1))
+    (out / "m.json").write_text(json.dumps(evaluation.rounded(found), indent=1))
     print("done", out, found["joints mm"], found["turns deg"], found["bones outside all %"], seconds, flush=True)
 
 

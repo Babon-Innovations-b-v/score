@@ -7,8 +7,9 @@ the turns', a group end's weight); a left and a right landmark share their unkno
 each tuning case: bones outside SOMA's skin by region, each group's rotation error on a FROZEN calibration table,
 each joint's error beside them (`JOINT_SHARE`, since SOMA's group ends are fit targets); never a landmark distance the
 solver pulls on. A prior (`prior`) pulls each link toward its anatomical start and each centre toward the model's own. scipy's least_squares (trf) runs it
-with finite differences on a sparse pattern (`sparsity`: a landmark reaches its own group and the groups next to it,
-a global weight everything), every evaluation checkpointed (`checkpointed`) and the run stopped when the objective
+with finite differences of ABSOLUTE steps (`_differences`, STEP of each unknown's units) over a sparse pattern's column
+groups (`sparsity`: a landmark reaches its own group and the groups next to it, a global weight everything), every
+evaluation checkpointed (`checkpointed`) and the run stopped when the objective
 settles (`settled`) or a wall-clock limit passes. `rewritten` writes the result into the landmark table's source."""
 import json
 import re
@@ -17,6 +18,8 @@ import time
 import numpy as np
 from scipy.optimize import least_squares
 
+from tuning._differences import grouped, jacobian, signed_steps
+
 LONG_AXIS = 1  # MyoFullBody's bodies run along their own y (OpenSim's convention): the axis a joint link keeps
 MIRROR = np.array([1.0, 1.0, -1.0])  # a right landmark's body-frame vector as its left one's
 LINK_UNIT = 0.005  # metres per unknown's unit: finite-difference steps and bounds are in these units
@@ -24,7 +27,7 @@ LOG_UNIT = 0.25  # natural-log units per unknown's unit, for trusts and global w
 REACH = 0.030  # metres: no link ends further than this from its anatomical start (the bound)
 END_REACH = 0.040  # metres: no group end's centre moves further than this from MyoFullBody's own (the bound)
 PRIOR = 0.010  # metres: the anatomical start's spread (the prior's residual is the offset over it)
-STEP = 0.4  # unknown's units: the finite-difference step (2 mm of link, 0.1 of log weight)
+STEP = 0.4  # unknown's units: the ABSOLUTE finite-difference step (2 mm of link or centre, 0.1 of log weight)
 WEIGHT_REACH = 3.0  # unknown's units of log either way a trust or global weight may move (e^0.75: about 2x)
 JOINT_SHARE = 0.5  # joint error's weight beside skin and turns: SOMA's group ends are fit targets (#70 honesty rule)
 SCALES = {"skin": 10.0, "turn": 5.0, "joint": 10.0}  # %, degrees, mm: one unit of each counts the same (the score's)
@@ -208,16 +211,26 @@ def resumed(path, size):
 
 def solved(residuals, entries, pattern, checkpoint, limit_seconds, every=None, start=None):
     """The one optimisation: least_squares over `residuals(unknowns)` (the cases' residuals then the prior's) from
-    `start` (default: the checkpoint's best), every evaluation checkpointed; stopped when the objective settles or
-    `limit_seconds` pass; `every` (iteration, unknowns) is called after each iteration (the check bodies' score, logged,
-    never used to choose). Returns scipy's result."""
-    began, costs = time.time(), []
+    `start` (default: the checkpoint's best), its Jacobian by absolute steps of STEP over `pattern`'s column groups
+    (`_differences`), every evaluation checkpointed; stopped when the objective settles or `limit_seconds` pass;
+    `every` (iteration, unknowns) is called after each iteration (the check bodies' score, logged, never used to
+    choose). Returns scipy's result."""
+    began, costs, last = time.time(), [], {}
     start = resumed(checkpoint, len(entries)) if start is None else start
+    lower, upper = bounds(entries)
+    groups = grouped(pattern)
 
     def evaluated(unknowns):
         found = residuals(unknowns)
         checkpointed(checkpoint, unknowns, 0.5 * float(found @ found), "evaluation")
+        last.clear()
+        last[np.asarray(unknowns, dtype=float).tobytes()] = found
         return found
+
+    def differenced(unknowns):
+        found = last.get(np.asarray(unknowns, dtype=float).tobytes())
+        found = evaluated(unknowns) if found is None else found
+        return jacobian(evaluated, unknowns, found, pattern, groups, signed_steps(unknowns, STEP, upper))
 
     def iterated(intermediate_result):
         costs.append(float(intermediate_result.cost))
@@ -227,10 +240,8 @@ def solved(residuals, entries, pattern, checkpoint, limit_seconds, every=None, s
         if settled(costs) or time.time() - began > limit_seconds:
             raise StopIteration
 
-    lower, upper = bounds(entries)
-    return least_squares(evaluated, np.clip(start, lower, upper), jac="2-point", bounds=(lower, upper), method="trf",
-                         jac_sparsity=pattern, diff_step=STEP, x_scale=1.0,
-                         callback=iterated)
+    return least_squares(evaluated, np.clip(start, lower, upper), jac=differenced, bounds=(lower, upper),
+                         method="trf", x_scale=1.0, callback=iterated)
 
 
 def whole(evaluate, check, entries, checkpoint, limit_seconds, start=None, every=3):

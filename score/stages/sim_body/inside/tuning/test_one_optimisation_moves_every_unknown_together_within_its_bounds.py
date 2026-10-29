@@ -1,7 +1,8 @@
 """tuning: level 1 is one least_squares over every unknown at once: a toy whose residuals need two landmarks' links
 and a global weight moved together is solved jointly to its minimum, within the bounds, a joint link never along its
 bone, mirrored pairs sharing unknowns, the pattern reaching only a landmark's own and neighbouring groups, every
-evaluation checkpointed and resumed from the best (pure: the score venv runs it, well under 2 minutes).
+evaluation checkpointed and resumed from the best, its Jacobian by ABSOLUTE steps from every unknown at 0 (pure: the
+score venv runs it, well under 2 minutes).
 
 Breaks (each applied once, seen red, reverted):
 - (2026-10-29) layout's `if axis != LONG_AXIS` dropped: a joint-defining link slides along its bone.
@@ -14,6 +15,10 @@ Breaks (each applied once, seen red, reverted):
   symmetric: each end its own).
 - (2026-10-29) bounds' "centre" reach dropped: a centre held within a link's 30 mm, not its 40.
 - (2026-10-29) prior's `kind in MOVES` made `kind == "link"`: no prior pulls a centre to the model's own.
+- (2026-10-29) solved's `jac=differenced` made scipy's `jac="2-point", jac_sparsity=pattern, diff_step=STEP`: at 0
+  its relative step is 1.5e-8 (scipy 1.18.1), the measures' rounding reads as flat and nothing moves.
+- (2026-10-29) grouped's `if not (used & rows).any()` made `if True`: columns sharing a row stepped together.
+- (2026-10-29) signed_steps' flip dropped (always +step): a step passes the upper bound.
 
 Run: .venv/bin/python score/stages/sim_body/inside/tuning/test_one_optimisation_moves_every_unknown_together_within_its_bounds.py
 """
@@ -87,6 +92,34 @@ def test_the_unknowns_are_solved_together_and_resumed_from_the_best():
         assert np.allclose(tuning.resumed(checkpoint, len(ENTRIES)), result.x, atol=1e-3)
         lower, upper = tuning.bounds(ENTRIES)
         assert (result.x >= lower).all() and (result.x <= upper).all()
+
+
+def rounded_linear(matrix, target):
+    """A toy evaluation whose measures come back rounded to 0.001, as a fit's do: flat below that."""
+    return lambda unknowns: np.round(matrix @ (np.asarray(unknowns) - target), 3)
+
+
+def test_the_differences_step_a_fixed_amount_grouped_on_the_pattern_within_the_bounds():
+    pattern = np.array([[1, 0, 1], [0, 1, 1], [0, 0, 1]], dtype=np.int8)
+    matrix = np.array([[2.0, 0.0, 0.5], [0.0, -1.0, 0.25], [0.0, 0.0, 3.0]])
+    groups = tuning._differences.grouped(pattern)
+    assert groups == [[0, 1], [2]]  # 0 and 1 share no row: one evaluation steps both
+    unknowns, upper = np.zeros(3), np.array([5.0, 0.2, 5.0])
+    steps = tuning._differences.signed_steps(unknowns, tuning.STEP, upper)
+    assert list(steps) == [tuning.STEP, -tuning.STEP, tuning.STEP]  # 0.4 would pass the second's bound of 0.2
+    residuals = rounded_linear(matrix, np.zeros(3))
+    found = tuning._differences.jacobian(residuals, unknowns, residuals(unknowns), pattern, groups, steps)
+    assert np.allclose(found, matrix, atol=0.01), found
+
+
+def test_a_start_at_zero_moves_although_the_measures_are_rounded():
+    target = np.linspace(-1.0, 1.0, len(ENTRIES))
+    coupling = np.eye(len(ENTRIES)) + 0.3 * np.ones((len(ENTRIES), len(ENTRIES)))
+    pattern = np.ones((len(ENTRIES), len(ENTRIES)), dtype=np.int8)
+    with tempfile.TemporaryDirectory() as folder:
+        result = tuning.solved(rounded_linear(coupling, target), ENTRIES, pattern,
+                               pathlib.Path(folder) / "checkpoint.jsonl", 60, start=np.zeros(len(ENTRIES)))
+    assert np.allclose(result.x, target, atol=0.01), result.x
 
 
 def test_a_global_weight_is_written_back_into_its_module():

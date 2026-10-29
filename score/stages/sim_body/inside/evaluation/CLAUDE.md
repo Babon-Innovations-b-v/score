@@ -4,7 +4,9 @@ Level 1's runner (#70): `__init__.py` runs levels 2 and 3 on every body of a sid
 side by side, one `_case.py` process per SOMA body in Newton's Python (at most `MOST`, systemd-run MemoryMax=6G, two
 threads, only while `FREE_GB` is available), and reads back each clip's honest measures (`_measure`: joint error,
 rotation error on `fit._frozen`, the frozen copy of main's calibration, bones outside SOMA's skin by region through
-`fit._skin`: the stage's record and level 1's score share that one code). Each evaluation's group-end centres go to the
+`fit._skin`: the stage's record and level 1's score share that one code), each clip's written twice: `measures.json`
+unrounded, the one the solver reads (rounded measures read as flat to its differences), and `m.json`, the copy people
+read (`rounded`). Each evaluation's group-end centres go to the
 worker in `rest.json` with SOMA's template rig: `_case` moves `landmarks.CENTRES` and the measure's copy by them (the
 fit's end targets, the sizing's lengths and the joint measure read them) and reads the calibration table again at rest
 from them (`calibration._measure`), never from motion; the run dir holds that rig as `rig.npz`. `tuning.whole` calls it each evaluation; `level1.py <run dir> --python <Newton's Python>` is the thin
