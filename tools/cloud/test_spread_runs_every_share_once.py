@@ -28,6 +28,9 @@ seen red, reverted):
   run.deadline`.
 - test_a_wait_for_this_pcs_machine_is_not_the_works_time: in `this_pc_waited`, drop `run.deadline += waited` (the
   share is never run); or `return waited >= THIS_PC_WAIT_SECONDS` -> `return False` (the slot gives up).
+- test_a_shared_claim_gives_way_to_one_that_waits_for_the_machine_alone: in `work_slot`, drop the
+  `provider.cloud.wanted_elsewhere()` check (m1 runs all three); or in `one_machine`, drop `or
+  machine.get("yielded")` (two and three stay waiting).
 """
 import pathlib
 import sys
@@ -232,3 +235,20 @@ def test_a_wait_for_this_pcs_machine_is_not_the_works_time(fake_machines, monkey
     spread.on_machines(run, None, [], 1, "blender", shares, lambda machine: None,
                        lambda machine, share, card: done.append(share))
     assert done == ["one"] and len(calls) == 1 and run.deadline == before  # a rented backend gives up as before
+
+
+def test_a_shared_claim_gives_way_to_one_that_waits_for_the_machine_alone(fake_machines, monkeypatch):
+    """On this PC's shared machine a claim whose slot finds another process waiting for the machine alone takes no
+    next share: it lets the machine go, asks again and runs the rest on its next claim, each share once."""
+    run, done, made = fake_machines, [], batch.claim
+
+    def claim(run, account, found, number, kind, disk_gb, wanted=None):
+        return {**made(run, account, found, number, kind, disk_gb, wanted), "turns": 1, "id": "this-pc"}
+    wanted = iter([False, True])
+    monkeypatch.setattr(batch, "claim", claim)
+    monkeypatch.setattr(spread.provider.cloud, "wanted_elsewhere", lambda: next(wanted, False), raising=False)
+    monkeypatch.setattr(spread.provider.cloud, "let_go_turn", lambda machine_id: None, raising=False)
+    shares = spread.Shares(["one", "two", "three"])
+    spread.on_machines(run, None, [], 1, "blender", shares, lambda machine: None,
+                       lambda machine, share, card: done.append((machine["folder"].name, share)))
+    assert done == [("m1", "one"), ("m2", "two"), ("m2", "three")], done
