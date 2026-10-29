@@ -14,6 +14,8 @@ No machine is rented: each test reads the command, job or offers the module buil
   or in `shipped`, `("script", "env")` -> `("script",)`.
 - test_a_held_machine_runs_a_chain_in_order_and_raises_on_a_failed_job: in `Machine.run`, the `.failed` branch's
   `raise RuntimeError(...)` -> `return`; or in `Machine.__exit__`, `(self.queue / "close").write_text("")` -> `pass`.
+- test_a_failed_held_job_raises_with_the_end_of_its_logs: in `serve`, `{log_tail(log_folder, waiting[0].stem)}` ->
+  `; log: {log_folder}/job{waiting[0].stem}.log`; or in `log_tail`, `[-LOG_TAIL_LINES:]` -> `[-LOG_TAIL_LINES - 1:]`.
 - test_a_cluster_job_keeps_the_paths_and_the_engine_follows_the_class: in `cluster_job`, `card = any(provider.cards(name)
   for name in classes)` -> `card = True`.
 - test_the_runner_python_follows_props_home: `CLOUD_PYTHON = HOME / "env/bin/python"` -> `CLOUD_PYTHON =
@@ -124,6 +126,37 @@ def test_a_held_machine_runs_a_chain_in_order_and_raises_on_a_failed_job(tmp_pat
         assert "failed" in str(error)
     failed.__exit__(None, None, None)
     assert (failed.queue / "close").exists()
+
+
+def test_a_failed_held_job_raises_with_the_end_of_its_logs(tmp_path, monkeypatch):
+    """settle@airlock (2026-10-29): the drop failed on this PC's container and the fault report named only its job
+    log, whose folder was gone by then. The error carries the end of the job's log and the set-up log."""
+    import contextlib
+    import types
+    queue, logs = tmp_path / "queue", tmp_path / "logs"
+    queue.mkdir()
+    logs.mkdir()
+    (logs / "setup.log").write_text("blender ready\n")
+    (queue / "1.json").write_text('{"script": "score/stages/settling/inside/settle_drop.py"}')
+    (queue / "close").write_text("")
+
+    def failing(log_folder, host, number, job, card):
+        (log_folder / f"job{number}.log").write_text("".join(f"line {index}\n" for index in range(60))
+                                                     + "RuntimeError: the drop met 832 contacts\n")
+        raise subprocess.CalledProcessError(1, "ssh")
+    monkeypatch.setattr(blender_cloud.spread, "tended", lambda run, machine: contextlib.nullcontext("host"))
+    monkeypatch.setattr(blender_cloud, "set_up", lambda *args: None)
+    monkeypatch.setattr(blender_cloud, "ship", lambda *args: None)
+    monkeypatch.setattr(blender_cloud, "run_job", failing)
+    blender_cloud.serve(types.SimpleNamespace(deadline=float("inf")), {"folder": logs}, queue, 1)
+    failed = held(tmp_path / "held", "failed", monkeypatch)
+    (tmp_path / "held/1.failed").write_text((queue / "1.failed").read_text())
+    with pytest.raises(RuntimeError) as error:
+        failed.run(blender_cloud.REPO / "tools/blender/inside/usd_views.py", [], [], [])
+    failed.__exit__(None, None, None)
+    said = str(error.value)
+    assert "blender ready" in said and said.endswith("RuntimeError: the drop met 832 contacts"), said
+    assert "line 21" in said and "line 20\n" not in said  # the job log's last 40 lines, no more
 
 
 def test_a_cluster_job_keeps_the_paths_and_the_engine_follows_the_class():
