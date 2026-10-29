@@ -5,7 +5,8 @@ from the bone groups' turns and the markers the marker's move (within its pull t
 those constants every frame's angles; a frame asking a hip past its range stops it at the range's end, its coupled follower on its leader by the
 coupling, though the follower's own range is narrower; each marker weighs its trust among the markers, the markers'
 goal (group ends included, one goal) MARKER_GOAL in all against the turns' 1; a group end that is the middle of two bodies' centres (the hips') sits on their
-common holder (the pelvis) as one body's sits on its own, one rule; the constants are the body's, sampled from every one of its recordings. It runs in
+common holder (the pelvis) as one body's sits on its own, one rule; the constants are the body's, sampled from every one of its recordings;
+SOMA's targets (its segments' turns, its skin's landmarks and rig joints) leave both solves unchanged (#70: SOMA is never moved). It runs in
 Newton's own Python (mink pinned there; score/stages/physics/inside/newton_env.sh, built at
 $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
@@ -26,6 +27,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   second recording is left out of its constants.
 - (2026-10-29) Fitting.apply's `self.model.body_pos[self.inside] += joints` dropped: the knee's move is not
   found.
+- (2026-10-29) angles' `Frames(fit).fitted(turns, points)` after `points[...] = points + 0.0`: SOMA's
+  targets are moved by the solve.
 - (2026-10-29) end_site's holder `next(body for body in _above(...) if all(...))` made `bodies[0]`: the hips' middle
   rides the left thigh.
 
@@ -185,6 +188,25 @@ def every_recording_of_the_body_is_sampled():
     return [] if off <= MOST_RADIANS else [f"the sampled frames' angles off by up to {off:.6f} rad"]
 
 
+def somas_targets_leave_the_solves_unchanged():
+    """The targets (SOMA's turns and points) read-only through the constants' and the angles' solves: no write to them
+    (numpy refuses one) and the same values after."""
+    import fit
+    import numpy as np
+    with tempfile.TemporaryDirectory() as folder:
+        fitting = toy_fitting(folder)
+        turns, points, _ = posed_targets(fitting, truth_of(fitting), POSES[:-1])
+        kept = turns.copy(), points.copy()
+        for target in (turns, points):
+            target.setflags(write=False)
+        try:
+            fit.constants(fitting, [(turns[:2], points[:2]), (turns[2:], points[2:])])
+            fit.angles(fitting, turns, points)
+        except ValueError as refused:
+            return [f"a solve wrote to SOMA's targets: {refused}"]
+    return [] if np.array_equal(turns, kept[0]) and np.array_equal(points, kept[1]) else ["SOMA's targets changed"]
+
+
 def a_hip_past_its_range_stops_at_its_end_and_its_follower_follows():
     """The last frame's left hip at its range's end (1 rad) within MOST_RADIANS; on every frame the right ankle 0.5
     times the right hip within MOST_RADIANS (its own range, 0.4, narrower than 0.5 times the hip's 0.9)."""
@@ -261,7 +283,7 @@ def a_middle_end_sits_on_the_common_holder():
 
 
 CHECKS = (a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust, the_place_goal_sums_to_the_marker_goal, the_markers_goal_weighs_as_the_turns_goal, the_solver_gives_back_the_angles_and_the_constants,
-          every_recording_of_the_body_is_sampled, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows)
+          every_recording_of_the_body_is_sampled, somas_targets_leave_the_solves_unchanged, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows)
 
 
 def in_newton():
