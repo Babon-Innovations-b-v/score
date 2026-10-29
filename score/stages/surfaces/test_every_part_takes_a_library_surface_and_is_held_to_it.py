@@ -198,8 +198,9 @@ tests it turned red:
   an_entry_the_data_writes_out_is_taken_as_written_and_a_model_with_none_stops_the_bake
 - bake_job.py: `return TURNS[min(TURNS, key=misfit)]` -> `return TURNS[0]`  ->
   a_design_entry_written_without_a_turn_is_turned_by_its_take_s_measured_footprint
-- bake_job.py: `return place_route.made_size(labelled, size, 90 if base == TURNS[90] else 0) if slender(size) else size`
-  -> `return size`  -> a_slender_design_entry_keeps_its_take_s_own_proportions_its_longest_side_the_row_s
+- bake_job.py: `if built or slender(size):` -> `if slender(size):` (laid_size)  ->
+  a_code_build_bakes_at_its_own_section_its_longest_side_the_row_s; -> `if False:`  -> that one and
+  a_slender_design_entry_keeps_its_take_s_own_proportions_its_longest_side_the_row_s
 - surface_data.py: `"bake scripts": "{repo}/tools/props/library/inside", "library": "{data}/library"}` -> `"bake
   scripts": "{repo}/tools/props/library/inside", "library": "{data}/library", "details": "{data}/library/details.json"}`
   -> every_place_s_bake_is_written_from_git_or_blocks_on_a_named_entry
@@ -2622,6 +2623,29 @@ def test_a_slender_design_entry_keeps_its_take_s_own_proportions_its_longest_sid
             "models": {"string_1": "string-t1"}, "entries": {"string_1": design}}})
         _, (entry,) = place_line.bake_entries({"surfaces": surfaces}, {"string-t1": labelled})
         assert entry["base"] == bake_job.TURNS[90] and entry["size"] == [8.0, 1.0, 0.05], entry
+    finally:
+        shutil.rmtree(folder)
+
+
+def test_a_code_build_bakes_at_its_own_section_its_longest_side_the_row_s(stand_in_library, monkeypatch):
+    """A code build (its take's code.json route "code") whose section is its picture's, not its box's: airlock's locker
+    lamp built 0.046 m across for a 0.4 by 0.1 by 0.1 row (no slender row: its middle side a quarter of its longest).
+    The bake lays it as one scale, its longest side the row's, never fitted side by side to the box (outline 0.813
+    built, 0.409 baked so, 2026-10-29); a Pixal3D take of the same row is still fitted to its box."""
+    folder = a_folder()
+    try:
+        monkeypatch.setattr(place_line.prop_env, "PROPS_HOME", folder)
+        labelled = a_box_take(folder, "lamp-t1", (0.4, 0.046, 0.046))
+        design = {"size": [0.4, 0.1, 0.1], "faces": 5000, "foot": 0.0}
+        surfaces = written(folder, "surfaces", {"place": "airlock", "library": "airlock", "bake": {
+            "models": {"lamp_1": "lamp-t1"}, "entries": {"lamp_1": design}}})
+        _, (entry,) = place_line.bake_entries({"surfaces": surfaces}, {"lamp-t1": labelled})
+        assert entry["size"] == [0.4, 0.1, 0.1], entry  # a Pixal3D take: its row's box
+        mark = bake_job.code_mark("lamp-t1", folder)
+        mark.parent.mkdir(parents=True)
+        mark.write_text(json.dumps({"route": "code", "rule": "thin straight (owner, 2026-10-25)"}))
+        _, (entry,) = place_line.bake_entries({"surfaces": surfaces}, {"lamp-t1": labelled})
+        assert entry["base"] == bake_job.TURNS[0] and entry["size"] == [0.4, 0.046, 0.046], entry
     finally:
         shutil.rmtree(folder)
 

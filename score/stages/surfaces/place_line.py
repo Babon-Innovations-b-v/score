@@ -623,7 +623,8 @@ def bake_entries(inputs, labelled):
     job = bake_job.job_head(library.wear_of(data["library"]), bake_job.specs_of(data["library"]))
     written = data["bake"].get("entries", {})
     # regions: an old job's boxes that forced a variant over the paint (the water tank's top as glass): the method paints
-    chunky = [dict(bake_job.entry_of(name, written.get(name), labelled[take]),
+    chunky = [dict(bake_job.entry_of(name, written.get(name), labelled[take],
+                                     bake_job.code_built(take, prop_env.PROPS_HOME)),
                    name=name, parts=str(labelled[take]), regions=[])
               for name, take in data["bake"]["models"].items() if take in labelled]
     return job, chunky

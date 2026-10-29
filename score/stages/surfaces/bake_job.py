@@ -14,7 +14,9 @@ the composites) went with the old kits and inventories (owner, 2026-10-21: every
 
 Kept small and apart from place_line.py on purpose: the paid bake row's code version hashes it.
 """
+import json
 import math
+import pathlib
 
 import library
 import place_route
@@ -58,9 +60,9 @@ def measured_turn(labelled, size):
     return TURNS[min(TURNS, key=misfit)]
 
 
-def entry_of(model, inline, labelled):
+def entry_of(model, inline, labelled, built=False):
     """One model's make_chunky entry: `inline` (the surface data's own), turned by measured_turn over `labelled` (its
-    labelled take) when it says no turn (module docstring)."""
+    labelled take) when it says no turn (module docstring); `built`: its take is a code build (code_built)."""
     if isinstance(inline, str):
         raise NoEntry(f"no entry for {model}: the data names a job file ({inline}); write its entry out or drop it")
     if inline is None:
@@ -70,7 +72,19 @@ def entry_of(model, inline, labelled):
     if labelled is None:
         raise NoTake(f"no entry for {model}: no labelled take to measure its turn over")
     base = measured_turn(labelled, inline["size"])
-    return dict(inline, name=model, base=base, size=laid_size(labelled, inline["size"], base))
+    return dict(inline, name=model, base=base, size=laid_size(labelled, inline["size"], base, built))
+
+
+def code_built(take, home):
+    """Whether `take` in the props `home`'s work/pixal is a code build: its mark (thin_straight's and flat_sheet's
+    code.json) names route "code"."""
+    mark = code_mark(take, home)
+    return mark.exists() and json.loads(mark.read_text()).get("route") == "code"
+
+
+def code_mark(take, home):
+    """The code build mark of `take` under the props `home` (there or not)."""
+    return pathlib.Path(home) / "work" / "pixal" / f"{take}.svviews" / "code.json"
 
 
 def slender(size):
@@ -84,12 +98,16 @@ def slender(size):
     return largest > 0 and middle / largest < gate.SLENDER_SHARE
 
 
-def laid_size(labelled, size, base):
-    """A design entry's size in the kit frame: its row's, or for a slender row its labelled take's own proportions
-    turned by `base`, scaled as one so its longest side is the row's (place_route.made_size): a thin run's box is its
-    thickness on its two short sides, so fitting a sagging string side by side to its 8 by 0.01 by 0.01 crushed its
-    sag flat (2026-10-26)."""
-    return place_route.made_size(labelled, size, 90 if base == TURNS[90] else 0) if slender(size) else size
+def laid_size(labelled, size, base, built=False):
+    """A design entry's size in the kit frame: its row's, or for a slender row or a code build (`built`) its labelled
+    take's own proportions turned by `base`, scaled as one so its longest side is the row's (place_route.made_size): a
+    thin run's box is its thickness on its two short sides, so fitting a sagging string side by side to its 8 by 0.01
+    by 0.01 crushed its sag flat (2026-10-26); a code build's section is its picture's where its box's cannot show it,
+    so fitting airlock's locker lamp, built 0.046 m across, to its 0.4 by 0.1 by 0.1 row undid it (outline 0.813 built,
+    0.409 baked, 2026-10-29)."""
+    if built or slender(size):
+        return place_route.made_size(labelled, size, 90 if base == TURNS[90] else 0)
+    return size
 
 
 def refusal(model, inline):

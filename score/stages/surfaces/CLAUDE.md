@@ -210,7 +210,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   stops the bake before anything is rented. The job is written from git inside the bake (`bake_job.py`, 2026-10-19:
   the job files lived in the work folder and went with the old disk): each model's entry is the one its data writes
   out (a design's, prepare's hand-in, written without a turn, turned 0 or 90 degrees by its labelled take's footprint
-  against its row: `bake_job.measured_turn`; the people line's as written), at near density (`route.NEAR`,
+  against its row: `bake_job.measured_turn`; the people line's as written; a slender row's, or a code build's (its
+  take's code.json route "code", sent with its job: `bake_job.code_built`), at its labelled take's own proportions,
+  one scale, its longest side the row's, never fitted side by side to its box: `bake_job.laid_size`, 2026-10-29,
+  airlock's locker lamp built 0.046 m across its 0.1 m box, outline 0.813 built, 0.409 baked fitted), at near density (`route.NEAR`,
   `route.CHUNKY_FACES`), the specs every library variant (`palette_library.specs`, at the scene palette's wear and
   dirt), so a variant added anywhere re-keys every bake. Nothing else is read for an entry: the kit rooms' and
   outside places' own entries (old kits, inventories, the kinds' details, composites) went with them on 2026-10-21. A

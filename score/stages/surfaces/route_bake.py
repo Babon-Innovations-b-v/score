@@ -109,7 +109,8 @@ def card_job(inputs, short, out, take, files):
     models = sorted({pixal / f"{take}.glb", pixal / f"{take}-final.glb", *pixal.glob(f"{take}-[0-9]*.glb")})
     world = [path for name, path in short.items()
              if name.startswith("inventory ") or name in ("surfaces", "resting rules")]
-    read = [listing, records, claimed, head, short["parts"] / "parts.json", short["parts"] / take, *world, *models,
+    mark = [path for path in [pixal / f"{take}.svviews" / "code.json"] if path.exists()]  # a code build's (bake_job)
+    read = [listing, records, claimed, head, short["parts"] / "parts.json", short["parts"] / take, *world, *models, *mark,
             *(place_line.REPO / folder for folder in (*place_line.PAINT_REPO, *BAKE_REPO))]
     job = out / f".bake-{take}-job.json"
     job.write_text(json.dumps({"script": SCRIPT, "args": [str(listing)], "inputs": [str(path) for path in read],
@@ -180,8 +181,9 @@ def bake_job_step(inputs, out):
     take = inputs[place_line.TAKE].name
     labelled = out / "labelled" / take
     head = json.loads(inputs[HEAD].read_text())
-    entries = {model: dict(bake_job.entry_of(model, data["bake"].get("entries", {}).get(model), labelled), name=model,
-                           parts=str(labelled), regions=[])
+    built = bake_job.code_built(take, inputs[place_line.HOME])
+    entries = {model: dict(bake_job.entry_of(model, data["bake"].get("entries", {}).get(model), labelled, built),
+                           name=model, parts=str(labelled), regions=[])
                for model in head.pop("models")}
     (out / "entries").mkdir(exist_ok=True)
     (out / "entries" / f"{take}.json").write_text(json.dumps(entries, indent=1))
