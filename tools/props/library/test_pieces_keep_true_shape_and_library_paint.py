@@ -62,6 +62,8 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - split_spread `same_regions`: drop `len(painted) == len(shares)` ->
   test_the_spread_matches_regions_and_counts_only_counted_finishes.
 - straight `side_fit`: `tilt = 0.0` -> test_a_square_piece_must_come_out_straight.
+- labels `finish_turn`: `return best[0]` (no `@ raw_facing(take)`) ->
+  test_the_finish_turn_lays_a_raw_still_facing_plus_z_as_its_final_stands (2026-10-29).
 
 The Blender build (test_every_body_builds_with_walls_the_model_check_passes) runs only where Blender and Xvfb are; on
 a box without them it skips, and its break (a body wall 2 mm thick) is unproven there.
@@ -532,6 +534,35 @@ def test_a_report_no_current_job_names_is_not_read(tmp_path):
     assert package.made_reports(tmp_path) == {"ring_3": {"bounds": [[-1.3], [1.3]]}}
     (tmp_path / "job-kit-shell_1.json").unlink()
     assert set(package.made_reports(tmp_path)) == {"ring_3"}, "with no jobs, every report is read"
+
+
+def test_the_finish_turn_lays_a_raw_still_facing_plus_z_as_its_final_stands(tmp_path, monkeypatch):
+    """A raw model image-to-3dlab left facing +Z (its stamp) is turned back half round by the finish on its own
+    machine; only the slimmed and final files come back. The finish's turn, replayed here, lays the raw as it lies
+    here on its final model: a tilted stool laid on its side otherwise (garage's, 2026-10-29)."""
+    monkeypatch.setattr(labels, "PIXAL", tmp_path)
+    import glb_file
+    tilt = trimesh.transformations.rotation_matrix(math.radians(27), [1, 0, 0])[:3, :3]
+    upright = trimesh.creation.box([0.5, 0.87, 0.3])
+    upright.vertices = upright.vertices + [0.1, 0.0, 0.0]  # off its middle, so a half turn shows
+    raw = upright.copy()
+    raw.vertices = (raw.vertices @ tilt.T) @ labels.HALF_TURN.T  # as image-to-3dlab left it: tilted, facing +Z
+    raw.export(tmp_path / "stool_1.glb")
+    document, views = glb_file.read(tmp_path / "stool_1.glb")
+    document["asset"]["extras"] = {labels.FACING_KEY: "+Z"}
+    glb_file.write(document, views, tmp_path / "stool_1.glb")
+    slimmed = raw.copy()
+    slimmed.vertices = slimmed.vertices @ labels.HALF_TURN.T  # turned back before the finish slimmed it
+    slimmed.export(tmp_path / "stool_1-5000.glb")
+    document, views = glb_file.read(tmp_path / "stool_1-5000.glb")
+    turn = glb_file.upright_turn(glb_file.positions(document, views))
+    glb_file.turned(document, views, turn)
+    whole = glb_file.level_turn(*glb_file.faces(document, views)) @ turn
+    final = slimmed.copy()
+    final.vertices = final.vertices @ whole.T
+    final.export(tmp_path / "stool_1-final.glb")
+    laid = np.asarray(raw.vertices) @ labels.finish_turn("stool_1").T
+    assert np.allclose([laid.min(0), laid.max(0)], final.bounds, atol=1e-3), (laid.min(0), laid.max(0), final.bounds)
 
 
 def test_place_route_reads_a_turn_as_its_yaw_and_splits_a_long_take(tmp_path):

@@ -57,6 +57,10 @@ import surface_check  # noqa: E402
 from paths import REPO, WORK  # noqa: E402
 
 PIXAL = WORK / "pixal"
+# image-to-3dlab's stamp on a raw model it turned half round to face +Z (image_to_3dlab.glb_turn FACING_KEY); pixal.py's
+# finish turns it back (HALF_TURN) on the machine it runs on, and only its slimmed and final files come back here.
+FACING_KEY = "image_to_3dlab_facing"
+HALF_TURN = np.diag([-1.0, 1.0, -1.0])
 DETAILS = REPO / "data/library/details.json"
 DEPTH_SLACK = 0.01
 SAMPLED = 20000
@@ -551,13 +555,16 @@ def finish_turn(take):
     finished model's own positions, in the raw model's frame), replayed exactly: of the take's finished files and the
     finish's options, the one whose turned box matches the final model's; no turn when a finished file is the final
     model itself (a code build, made in its own pose and never stood). A fit by registration instead turned the comms
-    desk's parts 6 cm off and, on a near-symmetric piece, landed end for end at random (2026-10-07)."""
+    desk's parts 6 cm off and, on a near-symmetric piece, landed end for end at random (2026-10-07). Given in the raw
+    model's frame as it lies here: a raw still stamped as facing +Z is turned back half round first (raw_facing), as
+    the finish did before it slimmed it (garage's stool, tilted 27 degrees, was laid on its side at 0.45 its size,
+    2026-10-29)."""
     final = trimesh.load(PIXAL / f"{take}-final.glb", force="mesh")
     stood = glb_file.positions(*glb_file.read(PIXAL / f"{take}-final.glb"))
     best = None
     for path in sorted(PIXAL.glob(f"{take}-[0-9]*.glb")):
         if np.array_equal(glb_file.positions(*glb_file.read(path)), stood):
-            return np.eye(3)  # never stood: a code build is made in its own pose (score/stages/props/thin_straight.py)
+            return raw_facing(take)  # never stood: a code build is made in its own pose (thin_straight.py)
         for long, feet, flat in ((False, False, False), (True, False, False), (False, True, False), (True, True, False),
                                  (False, False, True)):
             document, views = glb_file.read(path)
@@ -572,7 +579,14 @@ def finish_turn(take):
     if best is None or best[1] > FINISH_MISS:
         raise SystemExit(f"{take}: no finish turn matches its final model "
                          f"({'no finished file' if best is None else f'missed by {best[1]:.4f} m'})")
-    return best[0]
+    return best[0] @ raw_facing(take)
+
+
+def raw_facing(take):
+    """The turn that lays the take's raw model as it lies here in the frame the finish slimmed it in: HALF_TURN for a
+    raw still stamped as facing +Z (FACING_KEY), else none."""
+    document, _ = glb_file.read(PIXAL / f"{take}.glb")
+    return HALF_TURN if FACING_KEY in (document.get("asset", {}).get("extras") or {}) else np.eye(3)
 
 
 def onto_finished(points, target, turn):
