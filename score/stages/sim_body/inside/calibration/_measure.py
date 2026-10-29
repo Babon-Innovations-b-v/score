@@ -22,14 +22,18 @@ from myo import SOURCE  # noqa: E402
 OWN = {"own x": np.array([1.0, 0.0, 0.0]), "own y": np.array([0.0, 1.0, 0.0])}
 
 
-def myo_point(model, data, name):
-    """A MyoFullBody centre or landmark bone point in the person's frame at the default pose."""
-    parts = myo_parts(name) if name not in LANDMARKS else [(LANDMARKS[name][3], LANDMARKS[name][4], 1.0)]
+def myo_point(model, data, parts):
+    """Weighted MyoFullBody body points (`myo_parts`' form) in the person's frame at the default pose."""
     found = np.zeros(3)
     for body, local, weight in parts:
         index = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, body)
         found += weight * (data.xpos[index] + data.xmat[index].reshape(3, 3) @ np.asarray(local))
     return TO_OWN @ found
+
+
+def bone_point(landmark):
+    """A landmark's bone point in `myo_parts`' form (its MyoFullBody body, the body-local point, weight 1)."""
+    return [(LANDMARKS[landmark][3], LANDMARKS[landmark][4], 1.0)]
 
 
 def soma_reference(name, rig):
@@ -46,7 +50,7 @@ def myo_reference(name, model, data):
     if name in OWN:
         return OWN[name]
     start, end = name.split()[1:]
-    return myo_point(model, data, end) - myo_point(model, data, start)
+    return myo_point(model, data, bone_point(end)) - myo_point(model, data, bone_point(start))
 
 
 def measured(folder, rig_path):
@@ -67,7 +71,7 @@ def measured(folder, rig_path):
         body_turn = TO_OWN @ data.xmat[body].reshape(3, 3)
         found[segment] = aligned(
             (segment_turn, soma_point(end, rig) - soma_point(start, rig), soma_axis),
-            (body_turn, myo_point(model, data, myo_end) - myo_point(model, data, myo_start), myo_axis))
+            (body_turn, myo_point(model, data, myo_parts(myo_end)) - myo_point(model, data, myo_parts(myo_start)), myo_axis))
     from scipy.spatial.transform import Rotation
     return {segment: Rotation.from_matrix(turn).as_quat() for segment, turn in found.items()}
 

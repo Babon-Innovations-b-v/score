@@ -7,6 +7,7 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
 - by_body's `.setdefault(body_of(case), {})[case]` keyed by case: a body's clips split over processes.
 - tuning.whole's `checks.append(("end", ...))` dropped: no held-out score at the end.
 - accepted's `1 + HELD_OUT_SHARE` made `1`: a check 5 % worse fails.
+- measured's rest.json write dropped: the worker never sees the group ends' centres (2026-10-29).
 
 Run: .venv/bin/python score/stages/sim_body/inside/evaluation/test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py
 """
@@ -56,13 +57,15 @@ def test_an_evaluation_runs_every_tuning_body_once_two_at_most_at_once():
         out, seen, peaks = pathlib.Path(folder) / "e1", {}, []
         seen["out"] = out
         tuning_cases = evaluation.picked(CASES, SPLIT, "tuning")
-        found = evaluation.measured({"row": {}}, {"marker goal": 1.0}, tuning_cases, out, sys.executable, most=2,
-                                    free_gb=0, launch=toy_launch(pathlib.Path(folder), seen, peaks))
+        rest = {"centres": {"knee_l": [0.001, 0.0, 0.0]}, "rig": "/rigs/template.npz"}
+        found = evaluation.measured({"row": {}}, {"marker goal": 1.0}, rest, tuning_cases, out, sys.executable,
+                                    most=2, free_gb=0, launch=toy_launch(pathlib.Path(folder), seen, peaks))
         assert sorted(found) == sorted(tuning_cases)
         assert sorted(body for body, _ in seen["bodies"]) == ["short", "slim", "tall"]
         assert all(cases == [f"{body}_kimodo", f"{body}_rigwalk"] for body, cases in seen["bodies"])
         assert max(peaks) <= 2
         assert json.loads((out / "weights.json").read_text()) == {"marker goal": 1.0}
+        assert json.loads((out / "rest.json").read_text()) == rest
         assert evaluation.side_score(found) == 1 + 1 + 1
 
 

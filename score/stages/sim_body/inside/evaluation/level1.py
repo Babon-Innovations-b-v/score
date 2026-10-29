@@ -1,8 +1,9 @@
 """level1.py <run dir> --python <Newton's Python> [--hours H]: starts level 1 (#70, `tuning.whole`) on the run dir's
 bodies. The run dir holds cases.json ({case: job.json}), split.json ({"tuning": [bodies], "check": [bodies]}) and
-table.json (the starting landmark rows, each link its anatomical start); it gets evals/ (the latest evaluations),
+table.json (the starting landmark rows, each link its anatomical start) and rig.npz (SOMA's template rig, the
+calibration table's rest); it gets evals/ (the latest evaluations),
 checkpoint.jsonl (every evaluation and iteration; a restart resumes from its best), check.jsonl (the held-out score
-every few iterations and at the end), result_table.json, result_weights.json and held_out.json (the check bodies'
+every few iterations and at the end), result_table.json, result_weights.json, result_centres.json (each group end's offset) and held_out.json (the check bodies'
 score against the tuning bodies', accepted within 10 %). Any Python with numpy and scipy; the workers run in Newton's."""
 import argparse
 import json
@@ -14,6 +15,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import evaluation  # noqa: E402
 import landmarks  # noqa: E402
 import tuning  # noqa: E402
+from bone_groups import groups  # noqa: E402
 
 GLOBALS = {"marker goal": 1.0, "end weight": 1.0}
 
@@ -29,13 +31,15 @@ def main():
     split = json.loads((run / "split.json").read_text())
     table = json.loads((run / "table.json").read_text())
     starts = {name: row["link"] for name, row in table.items()}
-    entries = tuning.layout(table, held=landmarks.HELD, joints=set())
+    entries = tuning.layout(table, held=landmarks.HELD, joints=set(),
+                            ends=tuning.ended(groups(), landmarks.MIDDLE_CENTRES))
     count = [0]
 
     def side(unknowns, name, label):
         rows, weights = tuning.applied(unknowns, entries, starts, table, GLOBALS)
-        found = evaluation.measured(rows, weights, evaluation.picked(cases, split, name), run / "evals" / label,
-                                    given.python)
+        rest = {"centres": tuning.offsets(unknowns, entries), "rig": str(run / "rig.npz")}
+        found = evaluation.measured(rows, weights, rest, evaluation.picked(cases, split, name),
+                                    run / "evals" / label, given.python)
         return found
 
     def evaluate(unknowns):
@@ -54,6 +58,7 @@ def main():
     rows, weights = tuning.applied(result.x, entries, starts, table, GLOBALS)
     (run / "result_table.json").write_text(json.dumps(rows, indent=1))
     (run / "result_weights.json").write_text(json.dumps(weights))
+    (run / "result_centres.json").write_text(json.dumps(tuning.offsets(result.x, entries), indent=1))
     tuned = evaluation.side_score(side(result.x, "tuning", "final"))
     held = {"tuning score": tuned, "check score": checks[-1][1], "checks": checks,
             "accepted": evaluation.accepted(checks[-1][1], tuned)}
