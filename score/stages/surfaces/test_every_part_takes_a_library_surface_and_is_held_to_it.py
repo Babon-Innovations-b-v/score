@@ -200,7 +200,7 @@ tests it turned red:
   a_design_entry_written_without_a_turn_is_turned_by_its_take_s_measured_footprint
 - bake_job.py: `size = inline["size"] if built else boxed(...)` -> `size = inline["size"]` (no correction), `off(drawn,
   said) <= limit or` dropped from boxed (a box within the row's spread corrects), or `or off(own, drawn) > limit`
-  dropped (the box alone corrects)  -> a_pixal3d_take_keeps_its_own_width_for_height_
+  dropped (the box alone corrects), or `wide > tall or` dropped (a stove top's height grown from above)  -> a_pixal3d_take_keeps_its_own_width_for_height_
   only_where_its_box_and_take_both_disagree_with_its_row
 - bake_job.py: `if built or slender(size):` -> `if slender(size):` (laid_size)  ->
   a_code_build_bakes_at_its_own_section_its_longest_side_the_row_s; -> `if False:`  -> that one and
@@ -2682,7 +2682,7 @@ def test_a_pixal3d_take_keeps_its_own_width_for_height_only_where_its_box_and_ta
         assert bake_job.boxed([0.4, 0.5, 0.4], [0, 0, 70, 100], 0.6) == [0.4, 0.5, 0.4]  # the box within the row's
         assert bake_job.boxed([0.4, 0.5, 0.4], [0, 0, 55, 100], 0.7) == [0.4, 0.5, 0.4]  # the take within the row's
         assert bake_job.boxed([1.0, 1.0, 4.0], [0, 0, 100, 10], 3.0) == [1.0, 1.0, 4.0]  # its depth its longest side
-        assert bake_job.boxed([4.0, 1.0, 1.0], [0, 0, 100, 50], 2.0) == [4.0, 2.0, 1.0]  # wide: its height moves
+        assert bake_job.boxed([4.0, 1.0, 1.0], [0, 0, 100, 50], 2.0) == [4.0, 1.0, 1.0]  # wider than tall: as it is
     finally:
         shutil.rmtree(folder)
 
