@@ -96,7 +96,8 @@ own Python, its steps the modules beside it (`inside/CLAUDE.md`).
   RRA's mass step then took the body's mass by 98 to 99.9%. The float was the clip's, not the sim body's (2026-10-29,
   #70): people-clips-made's clips are posed on SOMA's zero-identity body (prop_skeleton.py, body.posed_by_the_model:
   1.685 m, its leg 56 mm short) beside the template bind and surface (1.757 m) the file also holds, and `person_rig`
-  played them raw with no build. It now plays every clip as the people build does (prop_build.py fk and floor_lift):
+  played them raw with no build. It now plays every clip as the people build does (`tools/characters/played`, the people route's one definition
+  of prop_build.py's fk, clip_world and floor_lift):
   the build's offsets (with none, the rig's own bind's), the standing clip's first frame lifted to put the feet where
   the bind does. Measured on the two walkers: ankles 118 to 121 mm at their lowest before, 70 to 72 mm after
   (Kimodo's own skeleton: 68 to 70); the skin's lowest point -20 to 9 mm. The rig file's own mix (its clips' offsets
