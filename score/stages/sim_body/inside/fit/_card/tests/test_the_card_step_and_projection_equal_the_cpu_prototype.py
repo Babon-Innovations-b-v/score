@@ -13,7 +13,9 @@ free root, three ranged hinges, a follower coupled by polyval in its own body, a
 10-frame clip, each row seeded as mink's frame was, equals mink (../_frames.solved, targets set as _frames.Frames sets
 them) to 0.01 deg and its sites to 0.01 mm, with a frame holding h1 at its range; in chunks of 3 rows it equals
 itself in one batch. Seeded from that clip's answers (its angles.npz, `_seeds`) with the places 3 mm on, the card
-equals mink's answer to the moved clip to 0.01 deg and 0.01 mm (a cold seed only reported).
+equals mink's answer to the moved clip to 0.01 deg and 0.01 mm (a cold seed only reported). On a toy body
+(`card_body.py`), the card's measures (_measure.py) equal evaluation._measure's to 1e-9 (joints mm, turns deg) and
+its bones-outside shares exactly (every point's count).
 
 Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _kept's release `wp.where(inside, 1.0, 0.0)` made `0.0` (holds only added): rows 0 and 1 keep dof 0
@@ -27,6 +29,8 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _turn_jacobian's `rate[axis]` made `motion[3 + axis]` (Newton's spin alone): the turn's
   Jacobian is no longer the log's exact one.
 - (2026-10-29) solved_in_chunks' `values[start:stop]` made `values[:stop - start]`: every chunk solves the first rows.
+- (2026-10-29) _measure.joint_table's `* scales[bone]` dropped: the joints miss by the unscaled offset.
+- (2026-10-29) _measure.skin_shares' "hand" merge dropped: the hand's parts are scored apart, the keys differ.
 - (2026-10-29) _projected's `power *= lead` made `power *= 1.0`: a coupling is no longer polyval of its leader.
 - (2026-10-29) _turn_jacobian's `weight[problem] * rate[axis]` made `rate[axis]`: the weight is lost.
 - (2026-10-29) _turn_residuals' angle `2 atan2(length, w) / length` made `2`: the turn is no longer the log map.
@@ -288,7 +292,24 @@ def the_next_iteration_from_its_seeds_equals_mink():
     return problems
 
 
-CHECKS = (the_step_equals_the_prototype, the_projection_equals_the_prototype,
+def the_measures_equal_the_cpu_measure():
+    import card_body
+    import numpy as np
+    from evaluation import _measure as cpu
+    from fit._card import _measure as card
+    clip = card_body.clip()
+    slow, fast = cpu.measures(*clip), card.measures(*clip)
+    keyed = [f"{key}: keys {sorted(fast[key])} against {sorted(slow[key])}" for key in fast
+             if isinstance(fast[key], dict) and sorted(fast[key]) != sorted(slow[key])]
+    return keyed or [f"{key}: {fast[key]} against {slow[key]}" for key in fast
+                     if not np.allclose(np.ravel(_values(fast[key])), np.ravel(_values(slow[key])), rtol=0, atol=1e-9)]
+
+
+def _values(found):
+    return [found[key] for key in sorted(found)] if isinstance(found, dict) else found
+
+
+CHECKS = (the_measures_equal_the_cpu_measure, the_step_equals_the_prototype, the_projection_equals_the_prototype,
           the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame,
           the_next_iteration_from_its_seeds_equals_mink)
 

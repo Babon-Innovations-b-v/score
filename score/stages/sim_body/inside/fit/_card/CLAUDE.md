@@ -60,7 +60,15 @@ before that.
   with the places as they were and moved 0.5 or 3 mm (angles 0.0018 deg, sites 0.0036 mm, cost ratio 2.1e-8 at most,
   steps median / max 3 / 12 to 9 / 24). Speed shares the card with env1: 4,080 rows took 1.5 to 1.7 s with the card
   idle and 3.7 s with env1 holding it at 99%; quote rows/s only with nvidia-smi's utilisation beside it.
+- `_measure.py` (`measures`, `Skins`, `Posed`; plan step 3): the measures level 1 scores on ("joints mm", "per joint
+  mm", "turns deg", "per group deg", "bones outside skin %", "bones outside all %"), keyed as `evaluation._measure`;
+  its other readings stay on the CPU. The skin posed every EVERY-th frame once per case (`Skins`, a Warp mesh each);
+  the poses by MuJoCo's own float64 kinematics on the host (MuJoCo Warp's float32 moved Neck2's turn 0.001 deg and
+  flipped a hand vertex across the skin, 2026-10-29); joint and turn errors float64 Warp kernels (the turn by
+  arccos of the trace as the CPU: atan2 differed 0.001 deg on targets not quite orthonormal); the winding test on the
+  card. Gate 2026-10-29 (heavy_kimodo, heavy_rigwalk from the seed cache): every measure equal to 4e-13, the skin
+  shares exact, no rounded value differs; 0.05 / 0.09 s against the CPU's 2.8 / 2.5 s, the skins cached apart.
 - One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
   the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the
-  errors); it needs Newton's Python and a CUDA card, else prints `skipped`. About 15 s.
+  errors), the measures on a toy body (`tests/card_body.py`); it needs Newton's Python and a CUDA card, else prints `skipped`. About 15 s.
