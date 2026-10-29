@@ -60,8 +60,8 @@ class Skins:
 
 
 class Posed:
-    """Every frame's body and geom poses by MuJoCo's own float64 kinematics on the host (the CPU measure's; MuJoCo
-    Warp's float32 moved a deep group's turn 0.001 deg and a bone vertex across the skin, 2026-10-29), the body poses
+    """Every frame's body and geom poses by MuJoCo's own float64 kinematics on the host (the CPU measure's; with MuJoCo
+    Warp's float32 poses one bone vertex fell across the skin on heavy_kimodo, 2026-10-29), the body poses
     on the card in float64, and the kept bone vertices of the skin frames as `fit._skin.bone_points` places them."""
 
     def __init__(self, model, angles, frames):

@@ -63,8 +63,8 @@ before that.
 - `_measure.py` (`measures`, `Skins`, `Posed`; plan step 3): the measures level 1 scores on ("joints mm", "per joint
   mm", "turns deg", "per group deg", "bones outside skin %", "bones outside all %"), keyed as `evaluation._measure`;
   its other readings stay on the CPU. The skin posed every EVERY-th frame once per case (`Skins`, a Warp mesh each);
-  the poses by MuJoCo's own float64 kinematics on the host (MuJoCo Warp's float32 moved Neck2's turn 0.001 deg and
-  flipped a hand vertex across the skin, 2026-10-29); joint and turn errors float64 Warp kernels (the turn by
+  the poses by MuJoCo's own float64 kinematics on the host (with MuJoCo Warp's float32 poses one hand vertex fell
+  across the skin on heavy_kimodo, 2026-10-29); joint and turn errors float64 Warp kernels (the turn by
   arccos of the trace as the CPU: atan2 differed 0.001 deg on targets not quite orthonormal); the winding test on the
   card. Gate 2026-10-29 (heavy_kimodo, heavy_rigwalk from the seed cache): every measure equal to 4e-13, the skin
   shares exact, no rounded value differs; 0.05 / 0.09 s against the CPU's 2.8 / 2.5 s, the skins cached apart.
