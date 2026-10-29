@@ -49,7 +49,11 @@ before that.
   places moved 0.5 or 3 mm, one row cycled for good (2,000 steps): the float32 pose's floor, not the step (the float64
   step equals the card's; its model gain 3.7e-12, the pose's rounding moves the cost 9e-9 either way). `_solve`'s cycle
   stop (cost back within 1e-2 of the change between, two steps apart, by a step under 1e-5) ends it; a monotone fall
-  never fires it. The seed check is in the test file (3 mm on: equals mink).
+  never fires it. The seed check is in the test file (3 mm on: equals mink). On the proto clip (2026-10-29), each row
+  seeded from mink's own answer for its frame (the cache) and mink re-solved from the same seed: EQUAL on every frame
+  with the places as they were and moved 0.5 or 3 mm (angles 0.0018 deg, sites 0.0036 mm, cost ratio 2.1e-8 at most,
+  steps median / max 3 / 12 to 9 / 24). Speed shares the card with env1: 4,080 rows took 1.5 to 1.7 s with the card
+  idle and 3.7 s with env1 holding it at 99%; quote rows/s only with nvidia-smi's utilisation beside it.
 - One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
   the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the
