@@ -196,21 +196,24 @@ def moving_rule(row, inventory, kinds):
 
 
 def piece_middles(item, row, plan):
-    """The plan middle of each piece the scene record lays at an item (writer.spots_of, writer.pieces_of: street's
-    three restaurant doors on one item)."""
+    """[(plan middle, the plan way its model's long side is laid along)] of each piece the scene record lays at an
+    item (writer.spots_of, writer.pieces_of: street's three restaurant doors on one item)."""
     from score.stages.scene_record import writer
     shapes, tied = plan.get("shapes") or {}, plan.get("rows") or {}
     items = [(other, shapes.get(other[0]) or {}) for other in plan.get("items") or []
              if row["id"] in (tied.get(other[0]) or [])]
     counts = dict(zip((other[0] for other, _ in items), writer.pieces_of(row, items))) if items else {}
-    return [spot for spot, _ in writer.spots_of(item, shapes.get(item[0]) or {}, counts.get(item[0], 1))]
+    return writer.spots_of(item, shapes.get(item[0]) or {}, counts.get(item[0], 1))
 
 
 def recess_of(item, row, holder, holder_row, face, plan, inventory, kinds):
     """The recess a moving door needs in its holder model behind it, in the model's own frame: the model `axis` (x or
     z) and `side` its face is on, the door's middle `along` the face from the model's middle (`pieces`: one each where
-    the item lays several), its `wide` (with its slide `room`), `tall`, `base` over the model's foot, and `depth` by
-    its motion rule; None for a door that never moves (it sits flush) or has no size."""
+    the item lays several), its `wide`, `tall`, `base` over the model's foot, and by its motion rule its `depth` and
+    the `room` beside it along the face on its `room_side` (+1 or -1 along the model's axis, 0 both: its hinge side
+    not read; `room_sides` one a piece): a swing's as deep as it sweeps, widened on its hinge side by its own
+    thickness so it lies clear of the side wall at full open; a slide's its own thickness deep, with its width and
+    thickness of room on the side it slides to; None for a door that never moves (it sits flush) or has no size."""
     rule, size = moving_rule(row, inventory, kinds), row.get("size")
     if rule is None or not (isinstance(size, list) and len(size) == 3):
         return None
@@ -224,12 +227,26 @@ def recess_of(item, row, holder, holder_row, face, plan, inventory, kinds):
     base = float((shapes.get(item[0]) or {}).get("base") or 0.0) - holder_base
     depth = (wide * abs(math.sin(math.radians(float(rule.get("angle") or 90.0)))) if rule["move"] == "swing"
              else deep) + RECESS_MARGIN
-    alongs = [round(float((spot - holder_middle) @ (model_z if on_x else model_x)), 3)
-              for spot in piece_middles(item, row, plan)]
+    along_way = model_z if on_x else model_x
+    placed = piece_middles(item, row, plan)
+    alongs = [round(float((spot - holder_middle) @ along_way), 3) for spot, _ in placed]
+    toward = (rule.get("hinge") if rule["move"] == "swing" else rule.get("slide") or [1.0, 0.0, 0.0]) or [None]
+    sides = [room_side(toward[0], model_axes(way, row)[0], along_way) for _, way in placed]
+    room = (deep + RECESS_MARGIN) if rule["move"] == "swing" else (wide + deep + RECESS_MARGIN)
     return {"model": f"{holder_row['id']}_1", "axis": "x" if on_x else "z", "side": side, "along": alongs[0],
-            **({"pieces": alongs} if len(alongs) > 1 else {}),
-            "wide": wide, "room": wide if rule["move"] == "slide" else 0.0, "tall": tall, "base": round(base, 3),
+            **({"pieces": alongs, "room_sides": sides} if len(alongs) > 1 else {}),
+            "wide": wide, "room": round(room, 3), "room_side": sides[0], "tall": tall, "base": round(base, 3),
             "depth": round(depth, 3), "why": f"a {rule['move']} door's room in {holder_row['id']}'s {face} face"}
+
+
+def room_side(toward, door_x, along_way):
+    """Which end along the holder's face (+1 or -1 along its axis) a door's room is on: its hinge side, or the side it
+    slides to, `toward` on its own x (-1 its left), turned as the door is laid; 0 (room both sides) where its rule
+    names none or its own x does not run along the face."""
+    lined = float(numpy.asarray(door_x, float) @ numpy.asarray(along_way, float))
+    if toward is None or abs(lined) < 0.9 or not float(toward):
+        return 0.0
+    return float(numpy.sign(float(toward) * lined))
 
 
 def held(item, row, holder_row, holder_items, items, turn):

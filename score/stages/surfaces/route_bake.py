@@ -179,15 +179,17 @@ RECESS_OUT, RECESS_BACK = 0.05, 0.05
 
 def recess_box(size, recess):
     """A recess's box [low, high] in its model's kit frame (x across, y up from its foot, z deep, its middle at the
-    origin across and deep) at the model's built `size`: on the face its `axis` and `side` name, its middle `along` the
-    face kept within the face's span (shrunk to the span where wider) as the assembly keeps a door within its
+    origin across and deep) at the model's built `size`: on the face its `axis` and `side` name, the door's `wide`
+    with its `room` beside it on its `room_side` (a swing's hinge side, a slide's way; both sides at 0), its middle
+    `along` the face kept within the face's span (shrunk to the span where wider) as the assembly keeps a door within its
     holder's (fitting.on_holder), from its `base` to its top within the model's height, `depth` deep into the model but
     never past RECESS_BACK of its far side."""
     wide, tall, deep = (float(side) for side in size)
     axis, across = (0, 2) if recess["axis"] == "x" else (2, 0)
     half, span = (wide if axis == 0 else deep) / 2, (deep if axis == 0 else wide)
-    opening = min(span, float(recess["wide"]) + float(recess.get("room") or 0.0))
-    middle = float(recess["along"]) + float(recess.get("room") or 0.0) / 2
+    room, room_side = float(recess.get("room") or 0.0), float(recess.get("room_side", 1.0))
+    opening = min(span, float(recess["wide"]) + room * (1.0 if room_side else 2.0))  # its room beside it, or both
+    middle = float(recess["along"]) + room_side * room / 2
     middle = min(max(middle, -span / 2 + opening / 2), span / 2 - opening / 2)
     depth = min(float(recess["depth"]), 2 * half - RECESS_BACK)
     side = float(recess["side"])
@@ -209,8 +211,10 @@ def recessed(entries, relations):
             recess = piece.get("recess") or relation.get("recess")
             if recess and recess["model"] in found:
                 found[recess["model"]]["cuts"] += [{"recess": recess_box(found[recess["model"]]["size"],
-                                                                         dict(recess, along=along))}
-                                                   for along in recess.get("pieces") or [recess["along"]]]
+                                                                         dict(recess, along=along, room_side=side))}
+                                                   for along, side in zip(recess.get("pieces") or [recess["along"]],
+                                                                          recess.get("room_sides")
+                                                                          or [recess.get("room_side", 1.0)])]
     return found
 
 
