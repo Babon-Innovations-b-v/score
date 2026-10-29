@@ -1898,6 +1898,24 @@ class Runner:
         path = self.desk("memory", "peaks-made", ".json")
         return json.loads(path.read_text()) if path.exists() else {}
 
+    def client_trees(self):
+        """{stage: the most an ended node's own tree held, its nodes running a container client on this PC}, as kept
+        beside the store (none yet: {}), so a run's first such nodes are expected at their trees too."""
+        path = self.desk("memory", "client-trees", ".json")
+        return json.loads(path.read_text()) if path.exists() else {}
+
+    def keep_client_tree(self, stage, held):
+        """Keep `held` bytes as the stage's client tree when it is more than the one kept; the trees kept."""
+        trees = self.client_trees()
+        if stage not in trees or held > trees[stage]:
+            trees[stage] = held
+            path = self.desk("memory", "client-trees", ".json")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            spare = path.with_suffix(f".{os.getpid()}")
+            spare.write_text(json.dumps(trees, indent=1, sort_keys=True) + "\n")
+            os.replace(spare, path)
+        return trees
+
     def keep_peak(self, stage, peak):
         """Keep `peak` bytes as the stage's peak when it is more than the one kept; the peaks kept."""
         peaks = self.peaks()
@@ -2001,7 +2019,9 @@ class Runner:
         # pipes of the nodes that ended, concluded at the next turn's start inside that turn's one still pass
         known, known_at, finished, watch = {}, time.monotonic(), [], {}  # watch: the container's jobs (coming)
         claimers = set()
-        clients = {}  # {stage: the most an ended node's own tree held}, its stage's nodes running a container client
+        # {stage: the most an ended node's own tree held}, its stage's nodes running a container client; kept across
+        # runs (2026-10-29: each restart held new bake rows at their 8 GB stage peak until one bake had ended)
+        clients = self.client_trees() if on_this_pc() else {}
         self.driving = (0, time.monotonic())
         while waiting or running:
             if time.monotonic() - known_at >= HEARTBEAT:
@@ -2019,7 +2039,7 @@ class Runner:
                     did, peak, contained = self.outcome(receiving, process)  # an ended node holds no memory
                     tree = max(peak, seen.pop(node, 0))
                     if contained and on_this_pc():
-                        clients[stage.name] = max(clients.get(stage.name, 0), tree)
+                        clients = self.keep_client_tree(stage.name, tree)
                     peaks = self.measured(stage, did, tree, contained, peaks)
                     done[node], stands = self.conclude(stage, place, did)
                     if stands:

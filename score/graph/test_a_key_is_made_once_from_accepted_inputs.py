@@ -1974,7 +1974,9 @@ def test_on_this_pc_a_container_clients_next_node_is_expected_at_its_own_tree_no
     node started: on this PC the second node is expected at what the first's own tree held, so it starts at once;
     off this PC it waits for the room (here a 3 s deadline).
     Break: score/graph/__init__.py: 'expected = clients[stage.name] if stage.name in clients else peaks.get(' ->
-    'expected = peaks.get(' (its continuation line joined) -> the second node waits for the deadline on this PC."""
+    'expected = peaks.get(' (its continuation line joined) -> the second node waits for the deadline on this PC.
+    Break: score/graph/__init__.py: 'clients = self.keep_client_tree(stage.name, tree)' ->
+    'clients[stage.name] = tree' -> nothing kept for the next run."""
     monkeypatch.delenv(graph.FLOOR_VARIABLE, raising=False)
     monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
     monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
@@ -1992,9 +1994,10 @@ def test_on_this_pc_a_container_clients_next_node_is_expected_at_its_own_tree_no
                             2.5 * FLOOR if time.monotonic() < until else 100 * FLOOR)
         found = runner.drive(("hangar", "station"), say=quiet, jobs=1)
         assert set(found.values()) == {ACCEPTED} and len(started) == 2, found
-        return started[1] < until
-    assert second_start(this_pc=True)
-    assert not second_start(this_pc=False)
+        return started[1] < until, runner
+    soon, runner = second_start(this_pc=True)
+    assert soon and "client" in runner.client_trees()  # kept beside the store: a restart's first node fits at once
+    assert not second_start(this_pc=False)[0]
 
 
 GIGA = 10**9
