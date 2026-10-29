@@ -181,16 +181,19 @@ def recess_box(size, recess):
     """A recess's box [low, high] in its model's kit frame (x across, y up from its foot, z deep, its middle at the
     origin across and deep) at the model's built `size`: on the face its `axis` and `side` name, the door's `wide`
     with its `room` beside it on its `room_side` (a swing's hinge side, a slide's way; both sides at 0), its middle
-    `along` the face kept within the face's span (shrunk to the span where wider) as the assembly keeps a door within its
-    holder's (fitting.on_holder), from its `base` to its top within the model's height, `depth` deep into the model but
-    never past RECESS_BACK of its far side."""
+    `along` the face kept within the face's span less RECESS_BACK at each end (shrunk to that where wider), so a side
+    wall stands beside it, as the assembly keeps a door within its holder's (fitting.on_holder), from its `base` to its
+    top within the model's height, `depth` deep into the model but never past RECESS_BACK of its far side. Kept flush
+    with the span's end, base's garage door recess (its `along` -7.695 past the module's half width 5.371) cut its
+    module's W side wall away too (#72, 2026-10-29)."""
     wide, tall, deep = (float(side) for side in size)
     axis, across = (0, 2) if recess["axis"] == "x" else (2, 0)
     half, span = (wide if axis == 0 else deep) / 2, (deep if axis == 0 else wide)
     room, room_side = float(recess.get("room") or 0.0), float(recess.get("room_side", 1.0))
-    opening = min(span, float(recess["wide"]) + room * (1.0 if room_side else 2.0))  # its room beside it, or both
+    inside = span - 2 * RECESS_BACK  # the span less a side wall at each end
+    opening = min(inside, float(recess["wide"]) + room * (1.0 if room_side else 2.0))  # its room beside it, or both
     middle = float(recess["along"]) + room_side * room / 2
-    middle = min(max(middle, -span / 2 + opening / 2), span / 2 - opening / 2)
+    middle = min(max(middle, -inside / 2 + opening / 2), inside / 2 - opening / 2)
     depth = min(float(recess["depth"]), 2 * half - RECESS_BACK)
     side = float(recess["side"])
     low, high = [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]
@@ -218,22 +221,10 @@ def recessed(entries, relations):
     return found
 
 
-def take_row(take, model, inputs):
-    """The hand-in row the take makes (its `thing` "prop:<take>"), else the row its model is named for, else {}."""
-    rows = [row for name, path in inputs.items() if name.startswith("inventory ") and pathlib.Path(path).exists()
+def take_rows(inputs):
+    """Every row of the hand-ins among the inputs."""
+    return [row for name, path in inputs.items() if name.startswith("inventory ") and pathlib.Path(path).exists()
             for row in json.loads(pathlib.Path(path).read_text()).get("rows", [])]
-    return next((row for row in rows if row.get("thing") == f"prop:{take}"),
-                next((row for row in rows if row.get("id") == model.removesuffix("_1")), {}))
-
-
-def pose_words(inputs):
-    """(stance.json's lying words, the resting rules' ground debris words) the bake reads a pose to keep by."""
-    lying = [word for kind in json.loads(inputs["stance rules"].read_text())["lies"] for word in kind["words"]] \
-        if "stance rules" in inputs else []
-    rules = json.loads(inputs["resting rules"].read_text()) if "resting rules" in inputs else {}
-    debris = [word for bedding in rules.get("may_bed", []) if bedding["class"] == "ground debris"
-              for word in bedding["words"]]
-    return lying, debris
 
 
 def labelled_points(labelled):
@@ -246,17 +237,18 @@ def labelled_points(labelled):
 
 def stood_square(entries, labelled, take, inputs):
     """`entries` with each model whose take stands tumbled in its turn (tumble.tumbled, #36) turned to stand square
-    (tumble.square_turn, its box's proportions the row's), its `stood` saying so; a row whose design lays it lying or
-    leaning, or ground debris with no up, keeps its pose (tumble.keeps_pose), `stood` saying why."""
+    (tumble.square_turn, its box's proportions the row's), its `stood` saying so with the turn it was made in
+    (`made`); a row the guard list keeps (tumble.keeps_pose: a person, lying, leaning, hanging, no up) keeps its pose,
+    `stood` saying why. The bake measures each again as baked (squared_again)."""
     import numpy as np
     import tumble
-    lying, debris = pose_words(inputs)
+    rules, rows = tumble.rules_of(inputs), take_rows(inputs)
     points = labelled_points(labelled)
     found = {}
     for model, entry in entries.items():
         base = np.array(entry["base"], float).reshape(3, 3)
         laid = points @ base.T
-        kept = tumble.keeps_pose(take_row(take, model, inputs), lying, debris)
+        kept = tumble.keeps_pose(tumble.take_row(take, model, rows), rules, rows)
         degrees, loose = tumble.measure(laid)
         if kept or not tumble.tumbled(laid):
             found[model] = dict(entry, **({"stood": {"kept": kept, "degrees": degrees}} if kept else {}))
@@ -264,8 +256,71 @@ def stood_square(entries, labelled, take, inputs):
         turn = tumble.square_turn(laid, entry["size"]) @ base
         after, _ = tumble.measure(points @ turn.T)
         found[model] = dict(entry, base=[round(float(value), 6) for value in turn.reshape(-1)],
-                            stood={"degrees": degrees, "loose": loose, "after": after})
+                            stood={"degrees": degrees, "loose": loose, "after": after, "made": entry["base"]})
     return found
+
+
+# How many times the bake measures a take's cut-down copy as it bakes (fitted to its size, remeshed, its feet
+# levelled: make_chunky --shapes) with surfaces-check's own measure (tumble.measure on the made mesh), turning it again
+# while it still stands off square: habitat's stove stood 7.1 degrees on its labelled take, 10.7 fitted to its size
+# and 12.6 baked; stairwell's extinguisher 25.5 degrees but loose 1.17 on its take, 1.28 baked (#36, 2026-10-29). A
+# turned take still more than tumble.DEGREES off after the last takes back the turn it was made in, `stood` saying
+# why, so a turn never leaves it worse (hangar's pipe valves, turned from 32.8 to 12.4 degrees on their unsteady
+# box, went from likeness 0.461 to 0.363).
+SQUARE_ROUNDS = 3
+
+
+def squared_again(entries, shapes, measured):
+    """(`entries` after a measuring of their cut-down copies as baked, the models to bake and measure again):
+    `shapes` {model: its copy's points in the kit frame (x across, y up)} of the models measured, `measured` how many
+    times they have been. A copy standing square (not tumble.tumbled, and within tumble.DEGREES where the bake turned
+    it) is done; one off square is turned again by its copy (tumble.square_turn, before its turn) until SQUARE_ROUNDS,
+    after which a turned one still more than tumble.DEGREES off takes back the turn it was made in (`made`), `stood`
+    saying why, and a never turned one stays as it was made. Each measure is kept in `stood`'s `baked`."""
+    import numpy as np
+    import tumble
+    found, again = dict(entries), []
+    for model, points in shapes.items():
+        entry = found[model]
+        stood = dict(entry.get("stood") or {})
+        made = stood.get("made", entry["base"])
+        degrees, loose = tumble.measure(points)
+        stood["baked"] = [*stood.get("baked", []), [degrees, loose]]
+        turned = entry["base"] != made
+        square = not (degrees > tumble.DEGREES and loose > tumble.LOOSE) and (not turned or degrees <= tumble.DEGREES)
+        if square:
+            found[model] = dict(entry, stood=stood)
+        elif measured < SQUARE_ROUNDS:
+            turn = tumble.square_turn(points, entry["size"]) @ np.array(entry["base"], float).reshape(3, 3)
+            found[model] = dict(entry, base=[round(float(value), 6) for value in turn.reshape(-1)],
+                                stood=dict(stood, made=made))
+            again.append(model)
+        elif turned:
+            found[model] = dict(entry, base=made, stood=dict(
+                stood, kept=f"its turn left it {degrees} degrees off its frame as baked: kept as made"))
+        else:
+            found[model] = dict(entry, stood=stood)
+    return found, again
+
+
+def square_again_step(inputs, out):
+    """On the rented card, after make_chunky --shapes wrote the pending models' cut-down copies (the `square` of the
+    take's make_chunky job): squared_again over them, its entries and its job written again with the models still to
+    measure."""
+    import numpy as np
+    take = inputs[place_line.TAKE].name
+    job = json.loads(inputs[CHUNKY].read_text())
+    square = job["square"]
+    folder = pathlib.Path(square["folder"])
+    shapes = {model: np.load(folder / f"{model}.npy") for model in square["pending"]
+              if (folder / f"{model}.npy").exists()}
+    written = out / "entries" / f"{take}.json"
+    entries, again = squared_again(json.loads(written.read_text()), shapes, square["round"] + 1)
+    written.write_text(json.dumps(entries, indent=1))
+    job["chunky"] = [dict(entry, base=entries[entry["name"]]["base"], stood=entries[entry["name"]].get("stood"))
+                     for entry in job["chunky"]]
+    job["square"] = dict(square, round=square["round"] + 1, pending=again)
+    inputs[CHUNKY].write_text(json.dumps(job, indent=1))
 
 
 def bake_files(place):
@@ -290,17 +345,20 @@ def bake_job_step(inputs, out):
     labelled = out / "labelled" / take
     head = json.loads(inputs[HEAD].read_text())
     built = bake_job.code_built(take, inputs[place_line.HOME])
-    box = bake_job.drawn_box(take, [path for name, path in inputs.items() if name.startswith("inventory ")])
-    entries = {model: dict(bake_job.entry_of(model, data["bake"].get("entries", {}).get(model), labelled, built, box),
-                           name=model, parts=str(labelled), regions=[])
+    guard = bake_job.drawn_guard(take, [path for name, path in inputs.items() if name.startswith("inventory ")],
+                                 inputs)
+    entries = {model: dict(bake_job.entry_of(model, data["bake"].get("entries", {}).get(model), labelled, built,
+                                             *guard), name=model, parts=str(labelled), regions=[])
                for model in head.pop("models")}
     relations = json.loads(inputs["relations"].read_text()) if "relations" in inputs else None
     entries = recessed(stood_square(entries, labelled, take, inputs), relations)
     (out / "entries").mkdir(exist_ok=True)
     (out / "entries" / f"{take}.json").write_text(json.dumps(entries, indent=1))
     chunky = [dict(entry, stands=stands(labelled)) for entry in entries.values()]
-    inputs[CHUNKY].write_text(json.dumps(dict(head, chunky=chunky, out=str(out / "made"), report=f"report-{take}.json"),
-                                         indent=1))
+    square = {"round": 0, "folder": str(out / "shapes" / take),
+              "pending": [model for model, entry in entries.items() if not (entry.get("stood") or {}).get("kept")]}
+    inputs[CHUNKY].write_text(json.dumps(dict(head, chunky=chunky, out=str(out / "made"), report=f"report-{take}.json",
+                                              square=square), indent=1))
 
 
 def bake_faults(folder):
@@ -320,7 +378,7 @@ def judge_baked(output, inputs, evidence):
     return gates.verdict("baked", failing, len(takes) + len(claimed), "models not baked here or by their claim")
 
 
-STEPS = {"bake-job": bake_job_step}
+STEPS = {"bake-job": bake_job_step, "square-again": square_again_step}
 
 if __name__ == "__main__":
     prop_env.main(STEPS)

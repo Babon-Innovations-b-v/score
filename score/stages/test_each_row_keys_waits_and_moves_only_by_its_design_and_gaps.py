@@ -181,6 +181,9 @@ Breaks (each applied once, seen red, reverted), in score/stages/gaps.py:
   test_complete_fails_each_accepted_gap_by_name_with_its_numbers (and the batch section's line test).
 - score/stages/__init__.py `gap_moved`: `judged.__wrapped__ = check.judge` dropped  ->
   test_the_table_wires_the_gates_and_only_complete_hashes_the_gaps (and the batch section's two table-move tests).
+- data/checks/gaps/garage.json: its pipe entry deleted; or this file's `dropped`: `if entry.get("passed")` dropped  ->
+  test_an_owner_s_gap_is_never_dropped_unless_it_is_retired_on_a_passing_output (2026-10-29: 37aa882c dropped the
+  owner's pipe gap by itself).
 
 --- a failed paid take is a gap carried down its line ---
 
@@ -1443,6 +1446,50 @@ def test_a_named_unknown_moves_and_another_unknown_stays():
         == checks.PASS
     other = checks.Verdict("likeness", checks.UNKNOWN, "2 generated rows and no accepted likeness@launch")
     assert gaps.moved(other, found) == other
+
+
+def dropped(before, after):
+    """The owner's gaps in `before` ({place: its gaps file's record}) that `after` no longer lists, in its `gaps` or
+    as `retired` with the output its item passed on (`passed`): a deleted file or an emptied entry counts."""
+    found = []
+    for place, record in before.items():
+        kept = after.get(place) or {}
+        listed = {entry.get("name") for entry in kept.get("gaps", [])}
+        retired = {entry.get("name") for entry in kept.get("retired", []) if entry.get("passed")}
+        found += [f"{place}: {entry['name']}" for entry in record.get("gaps", [])
+                  if entry["name"] not in listed | retired]
+    return found
+
+
+def git_gaps(commit):
+    """data/checks/gaps as `commit` holds it ({place: record})."""
+    listing = subprocess.run(["git", "ls-tree", "--name-only", commit, "data/checks/gaps/"], cwd=REPO, check=True,
+                             capture_output=True, text=True).stdout.split()
+    return {pathlib.Path(name).stem: json.loads(subprocess.run(["git", "show", f"{commit}:{name}"], cwd=REPO,
+                                                               check=True, capture_output=True, text=True).stdout)
+            for name in listing if name.endswith(".json")}
+
+
+def test_an_owner_s_gap_is_never_dropped_unless_it_is_retired_on_a_passing_output():
+    """#36 (2026-10-29): 37aa882c deleted data/checks/gaps/garage.json, the owner's "Accept as a gap" for the pipe,
+    expecting its width rule to pass it; the re-bake measured outline 0.246 and the record was restored as he decided
+    it. An owner's gap stays until its item passes its gate on a made output: it leaves `gaps` only as `retired`, its
+    `passed` naming that output. Here against the fixtures, then against the tree's own records since the commit it
+    branched from main (a change that drops one fails before it is pushed).
+    Break: data/checks/gaps/garage.json: its pipe entry deleted (or the file)  -> this test
+    Break: `dropped`: `if entry.get("passed")` dropped  -> this test (a retirement naming no output)"""
+    pipe = {"name": "pipe: its path build cannot match", "row": "likeness", "check": "outline"}
+    before = {"garage": {"gaps": [pipe]}}
+    assert dropped(before, before) == []
+    assert dropped(before, {}) == ["garage: pipe: its path build cannot match"]  # the file deleted
+    assert dropped(before, {"garage": {"gaps": []}}) == ["garage: pipe: its path build cannot match"]  # emptied
+    assert dropped(before, {"garage": {"gaps": [], "retired": [dict(pipe, passed="")]}}) == [
+        "garage: pipe: its path build cannot match"]  # retired on no output
+    assert dropped(before, {"garage": {"gaps": [], "retired": [dict(pipe, passed="likeness@garage 1a2b3c")]}}) == []
+    base = subprocess.run(["git", "merge-base", "HEAD", "origin/main"], cwd=REPO, capture_output=True, text=True)
+    commit = base.stdout.strip() if base.returncode == 0 else "HEAD"
+    tree = {path.stem: json.loads(path.read_text()) for path in sorted((REPO / "data/checks/gaps").glob("*.json"))}
+    assert dropped(git_gaps(commit), tree) == [], f"owner's gaps dropped since {commit[:12]}"
 
 
 def test_a_gap_is_an_input_of_complete_and_of_the_row_it_names_alone():

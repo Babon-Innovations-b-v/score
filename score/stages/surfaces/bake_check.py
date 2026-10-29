@@ -416,27 +416,25 @@ def check_step(inputs, out):
         labelled = inputs["paint"] / "labelled" / entry["parts"]
         found[model] = check_model(model, entry, labelled, inputs["bake"] / "made", materials, dirt, wear)
         found[model]["stands"] = stands(model, labelled, rows, lying)
-        found[model]["keeps_pose"] = keeps_pose_of(model, rows, inputs)
+        found[model]["keeps_pose"] = keeps_pose_of(model, entry, rows, inputs)
         found[model]["seen_degrees"] = degrees.get(model)
     (out / "checks.json").write_text(json.dumps(found, indent=1))
 
 
-def keeps_pose_of(model, rows, inputs):
-    """Why a baked model's row keeps the pose it was made in (tumble.keeps_pose: lying, leaning, ground debris), or
-    None."""
+def keeps_pose_of(model, entry, rows, inputs):
+    """Why a baked model keeps the pose it was made in, or None: the guard list on its row (tumble.keeps_pose over
+    tumble.take_row, as the bake reads it: a person, lying, leaning, hanging, no up), else what its bake recorded
+    (`stood`'s `kept`: a turn that could not stand it square as baked, undone, route_bake.squared_again)."""
     import tumble
-    lying = [word for kind in json.loads(inputs["stance rules"].read_text())["lies"] for word in kind["words"]]
-    rules = json.loads(inputs["resting rules"].read_text())
-    debris = [word for bedding in rules.get("may_bed", []) if bedding["class"] == "ground debris"
-              for word in bedding["words"]]
-    row = next((row for row in rows if row.get("id") == model.removesuffix("_1")), {"id": model})
-    return tumble.keeps_pose(row, lying, debris)
+    row = tumble.take_row(entry.get("parts", ""), model, rows) or {"id": model}
+    return tumble.keeps_pose(row, tumble.rules_of(inputs), rows) or (entry.get("stood") or {}).get("kept")
 
 
 def judge_square(output, inputs, evidence):
     """Every baked model stands square in its frame (tumble.tumbled: its oriented box more than tumble.DEGREES off the
     frame and its frame box tumble.LOOSE times its own: base's module rolled 32 degrees passed every other gate, #36),
-    named with its angle; a row whose design keeps its pose (lying, leaning, ground debris) is left out, said why."""
+    named with its angle; a model that keeps its pose (keeps_pose_of: the bake's guard list, or a turn its bake
+    undid) is left out, said why."""
     import tumble
     found = json.loads((pathlib.Path(output) / "checks.json").read_text())
     measured = {model: record for model, record in found.items() if record.get("square")}

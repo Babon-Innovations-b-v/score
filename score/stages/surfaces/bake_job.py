@@ -60,10 +60,11 @@ def measured_turn(labelled, size):
     return TURNS[min(TURNS, key=misfit)]
 
 
-def entry_of(model, inline, labelled, built=False, box=None):
+def entry_of(model, inline, labelled, built=False, box=None, kept=None, person=False):
     """One model's make_chunky entry: `inline` (the surface data's own), turned by measured_turn over `labelled` (its
     labelled take) when it says no turn (module docstring); `built`: its take is a code build (code_built); `box`: its
-    row's SAM 3 box on its concept (drawn_box), which a Pixal3D take's width against its height follows (boxed)."""
+    row's SAM 3 box on its concept (drawn_row), which a Pixal3D take's width against its height follows (boxed);
+    `kept`, `person`: the guard list's word on its row (tumble.keeps_pose, tumble.person), which boxed follows."""
     if isinstance(inline, str):
         raise NoEntry(f"no entry for {model}: the data names a job file ({inline}); write its entry out or drop it")
     if inline is None:
@@ -73,7 +74,8 @@ def entry_of(model, inline, labelled, built=False, box=None):
     if labelled is None:
         raise NoTake(f"no entry for {model}: no labelled take to measure its turn over")
     base = measured_turn(labelled, inline["size"])
-    size = inline["size"] if built else boxed(inline["size"], box, own_ratio(labelled, inline["size"], base))
+    size = inline["size"] if built else boxed(inline["size"], box, own_ratio(labelled, inline["size"], base), kept,
+                                              person)
     return dict(inline, name=model, base=base, size=laid_size(labelled, size, base, built))
 
 
@@ -83,7 +85,7 @@ def own_ratio(labelled, size, base):
     return wide / tall
 
 
-def boxed(size, box, own):
+def boxed(size, box, own, kept=None, person=False):
     """A Pixal3D take's kit size (x wide, y tall, z deep): where its row's SAM 3 `box` ([left, top, right, bottom]
     pixels) disagrees with the row's width over height by more than the model gate's SPREAD_LIMIT and its take's `own`
     width over height agrees with the box within it (the picture and the model both against the row), its width at
@@ -92,10 +94,16 @@ def boxed(size, box, own):
     "Yes, land the rule"). Of the 61 rows it changed with the height moving too, 22 were wrong against their pictures,
     each a height grown from a top seen from above (galley's stove top 0.05 to 0.32 m, the hangar's crane 2 to 6 m,
     old_station's modules taller than round); with only the width moving, 34 change, 5 of them wrong (3 doors widened
-    by their frames, base's square module, camp's computer tower), 2026-10-29."""
-    if not box or not own or box[2] <= box[0] or box[3] <= box[1]:
-        return size
+    by their frames, base's square module, camp's computer tower), 2026-10-29. A row the guard list keeps (`kept`,
+    tumble.keeps_pose: hanging, lying, leaning, cable, ground debris) is left out, as it is; a person (`person`) keeps
+    its take's own width for the row's height, never squeezed to the row's width nor stretched to its box (a seated
+    pilot's box holds his chair: widened 0.5 to 1.205 m, his 6 degree lean read 14; an A-pose officer, his arms out,
+    squeezed into 0.5 m, 2026-10-29)."""
     wide, tall, deep = (float(side) for side in size)
+    if person and own:
+        return [round(tall * own, 3), tall, deep]
+    if kept or not box or not own or box[2] <= box[0] or box[3] <= box[1]:
+        return size
     drawn, said, limit = (box[2] - box[0]) / (box[3] - box[1]), wide / tall, model_gate().SPREAD_LIMIT
     if deep > max(wide, tall) or wide > tall or off(drawn, said) <= limit or off(own, drawn) > limit:
         return size
@@ -107,9 +115,9 @@ def off(ratio, other):
     return max(ratio / other, other / ratio) - 1
 
 
-def drawn_box(take, inventories):
-    """The SAM 3 box of the row whose prop object is `take`, from the hand-ins (`inventories`, prepare's: its rows
-    and objects), or None."""
+def drawn_row(take, inventories):
+    """(the row whose prop object is `take`, its hand-in's rows) from the hand-ins (`inventories`, prepare's: its rows
+    and objects; the row holds its SAM 3 `box`), or (None, [])."""
     for path in inventories:
         if not pathlib.Path(path).is_file():
             continue
@@ -117,8 +125,18 @@ def drawn_box(take, inventories):
         rows = {row["id"]: row for row in record.get("rows", [])}
         for row, entry in record.get("objects", {}).items():
             if entry.get("take") == take and row in rows:
-                return rows[row].get("box")
-    return None
+                return rows[row], list(rows.values())
+    return None, []
+
+
+def drawn_guard(take, inventories, inputs):
+    """(its row's SAM 3 box, the guard list's word on its row, whether it is a person) for the take's row in the
+    hand-ins (drawn_row; tumble.keeps_pose and tumble.person over the pose rules among `inputs`): what boxed reads."""
+    import tumble
+    row, rows = drawn_row(take, inventories)
+    if row is None:
+        return None, None, False
+    return row.get("box"), tumble.keeps_pose(row, tumble.rules_of(inputs), rows), tumble.person(row)
 
 
 def code_built(take, home):

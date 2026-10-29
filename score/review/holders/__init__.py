@@ -164,8 +164,13 @@ def inside(item, holder_item):
 
 # A moving door's recess in its holder model, by its motion rule (data/checks/row-kinds.json `motion`): as deep as a
 # swing sweeps (its width times the sine of its angle), or its own thickness where it slides (with its width of room
-# along the face) or rolls, plus RECESS_MARGIN; a door whose rule moves it nowhere sits flush, no recess.
+# along the face) or rolls, plus RECESS_MARGIN; a door whose rule moves it nowhere sits flush, no recess. Its room
+# beside it along the face holds a side wall too (RECESS_WALL, the bake's score/stages/surfaces/route_bake.py
+# RECESS_BACK: a recess kept that far inside each end of the face), so the assembly keeps the door that much further
+# in and the door clears the kept wall by RECESS_MARGIN at full open (base's garage door, #36, 2026-10-29: its room
+# its thickness plus RECESS_MARGIN alone, the wall took the clearance and it lay flush against it).
 RECESS_MARGIN = 0.05
+RECESS_WALL = 0.05
 
 
 def item_way(holder_item):
@@ -213,7 +218,7 @@ def recess_of(item, row, holder, holder_row, face, plan, inventory, kinds):
     the `room` beside it along the face on its `room_side` (+1 or -1 along the model's axis, 0 both: its hinge side
     not read; `room_sides` one a piece), and that side as a plan way (`room_way`, `room_ways`: the assembly keeps the
     door so its room fits within the face's span too, fitting.on_holder): a swing's as deep as it sweeps, widened on its hinge side by its own
-    thickness so it lies clear of the side wall at full open; a slide's its own thickness deep, with its width and
+    thickness, RECESS_MARGIN and the side wall the bake keeps (RECESS_WALL) so it lies clear of that wall at full open; a slide's its own thickness deep, with its width and
     thickness of room on the side it slides to; None for a door that never moves (it sits flush) or has no size."""
     rule, size = moving_rule(row, inventory, kinds), row.get("size")
     if rule is None or not (isinstance(size, list) and len(size) == 3):
@@ -233,7 +238,7 @@ def recess_of(item, row, holder, holder_row, face, plan, inventory, kinds):
     alongs = [round(float((spot - holder_middle) @ along_way), 3) for spot, _ in placed]
     toward = (rule.get("hinge") if rule["move"] == "swing" else rule.get("slide") or [1.0, 0.0, 0.0]) or [None]
     sides = [room_side(toward[0], model_axes(way, row)[0], along_way) for _, way in placed]
-    room = (deep + RECESS_MARGIN) if rule["move"] == "swing" else (wide + deep + RECESS_MARGIN)
+    room = (deep if rule["move"] == "swing" else wide + deep) + RECESS_MARGIN + RECESS_WALL
     ways = [[round(float(value), 6) + 0.0 for value in along_way * piece_side] for piece_side in sides]
     return {"model": f"{holder_row['id']}_1", "axis": "x" if on_x else "z", "side": side, "along": alongs[0],
             **({"pieces": alongs, "room_sides": sides, "room_ways": ways} if len(alongs) > 1 else {}),

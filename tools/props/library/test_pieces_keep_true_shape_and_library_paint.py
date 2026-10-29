@@ -22,6 +22,11 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - make_chunky `full_model`: `bpy.ops.wm.ply_import` again; and, apart, `kept_triangles`: `once[:] = True` ->
   test_a_part_reads_the_same_every_run (2026-10-28).
 - make_chunky `system_refusal`: `return None` -> test_a_bake_refuses_a_machine_of_another_system (2026-10-29).
+- make_chunky `lining`: `reach = ... if front is None else front` -> `reach = ends[...][axis]` (front unread); and,
+  apart, `max(ends[0][axis], low[axis] - wall)` -> `low[axis]` -> test_a_recess_is_lined_behind_the_model_s_front_and_
+  never_stands_proud_of_it (2026-10-29).
+- make_chunky `kit_points`: `-points[:, 1]` -> `points[:, 1]` -> test_a_shape_s_points_are_read_as_its_gltf_holds_them
+  (2026-10-29).
 - stored `pointed_at_webp`: drop `texture.pop("source", None)` -> test_stored_pictures_are_webp_and_a_room_has_a_budget.
 - bodies `kept`: drop the detail boxes' `found |= ...` -> test_a_body_keeps_only_the_take_faces_it_names.
 - bodies `console_outline`: `top = CONSOLE_TOP * tall + 0.1` -> test_every_body_stands_in_its_laid_box.
@@ -270,6 +275,31 @@ def test_a_bake_refuses_a_machine_of_another_system(monkeypatch):
     monkeypatch.setattr(os, "confstr", lambda name: "glibc 2.39")
     assert "5.1.0" in space["system_refusal"]()
 
+
+
+def test_a_recess_is_lined_behind_the_model_s_front_and_never_stands_proud_of_it():
+    # base's module (#72, 2026-10-29) is a hollow box of walls: its recess cut opened into its inside, rays meeting
+    # its far wall 4.4 m behind the recess's back. The recess (x -5.321 to 1.229, y 0 to 6, z -0.05 to 6.07 in a
+    # 10.742 by 6 by 12.04 m model) is lined first, a wall (0.08 m) on its back, its sides and its top, never below
+    # its foot nor past the model's laid box, and out on its open face only to where the model's front stands (its S
+    # wall at z 5.1 under a roof reaching 6.02), else to the laid box's side.
+    space = chunky_functions(("lining", "open_face"))
+    recess = [[-5.321, 0.0, -0.05], [1.229, 6.0, 6.07]]
+    size = [10.742, 6.0, 12.04]
+    assert space["open_face"](recess, size) == (2, 1)
+    low, high = space["lining"](recess, size, 0.08, 5.1)
+    assert np.allclose(low, [-5.371, 0.0, -0.13]) and np.allclose(high, [1.309, 6.0, 5.1]), (low, high)
+    low, high = space["lining"](recess, size, 0.08)
+    assert np.allclose(high, [1.309, 6.0, 6.02]), high  # no front found: the laid box's side
+    low, high = space["lining"]([[-1.0, 1.0, -4.05], [1.0, 2.0, 0.5]], [4.0, 4.0, 8.0], 0.1, -3.9)
+    assert np.allclose(low, [-1.1, 1.0, -3.9]) and np.allclose(high, [1.1, 2.1, 0.6]), (low, high)  # the -z face
+
+
+def test_a_shape_s_points_are_read_as_its_gltf_holds_them():
+    # the bake measures a copy as surfaces-check measures the made glTF (route_bake.squared_again): Blender's x, z
+    # and -y, the kit frame (y up)
+    kit_points = chunky_functions(("kit_points",))["kit_points"]
+    assert kit_points([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).tolist() == [[1.0, 3.0, -2.0], [4.0, 6.0, -5.0]]
 
 
 def test_a_part_reads_the_same_every_run():

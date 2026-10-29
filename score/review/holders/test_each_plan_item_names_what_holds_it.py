@@ -50,11 +50,12 @@ def test_a_moving_door_s_recess_holds_its_motion_and_a_static_one_sits_flush():
     flush): base's garage door swings (its kind's rule, served: an astronaut passes), so its module gets a recess
     behind it on its S face, the model's +z (laid along E: its +x east), as deep as its 6 m swing sweeps plus
     RECESS_MARGIN, its middle 7.65 m left of the module's, widened on its hinge side (its own left, laid along E:
-    the module's -x) by its 0.5 m thickness plus RECESS_MARGIN so it lies clear of the side wall at full open; a
+    the module's -x) by its 0.5 m thickness plus RECESS_MARGIN and the side wall the bake keeps (RECESS_WALL), so it
+    lies RECESS_MARGIN clear of that wall at full open (2026-10-29: without the wall it lay flush against it); a
     sliding door's recess is its own 0.5 m thickness deep with its width and thickness of room on the side it slides
     to (+x); a shutter (no motion rule) has none.
-    Break: score/review/holders/__init__.py: `room = (deep + RECESS_MARGIN) if rule["move"] == "swing"` -> `room =
-        0.0 if rule["move"] == "swing"`
+    Break: score/review/holders/__init__.py: `room = (deep if rule["move"] == "swing" else wide + deep) + RECESS_MARGIN
+        + RECESS_WALL` -> `... + RECESS_MARGIN` (the wall left out)
     Break: score/review/holders/__init__.py: `depth = (wide * abs(math.sin(math.radians(float(rule.get("angle") or
         90.0)))) if rule["move"] == "swing"` -> `depth = (deep if rule["move"] == "swing"`
     Break: score/review/holders/__init__.py: `recess = recess_of(item, row, (middle(holder_item), item_way(holder_item),
@@ -75,12 +76,13 @@ def test_a_moving_door_s_recess_holds_its_motion_and_a_static_one_sits_flush():
     recess = found["garage_door"]["recess"]
     assert (recess["model"], recess["axis"], recess["side"]) == ("module_1", "z", 1.0), recess
     assert recess["depth"] == 6.0 + holders.RECESS_MARGIN and recess["along"] == -7.65, recess
-    assert (recess["room"], recess["room_side"]) == (0.5 + holders.RECESS_MARGIN, -1.0), recess
+    room = round(0.5 + holders.RECESS_MARGIN + holders.RECESS_WALL, 3)
+    assert (recess["room"], recess["room_side"]) == (room, -1.0), recess
     assert found["shutter"]["how"] == "face" and "recess" not in found["shutter"], found["shutter"]
     kinds = holders.row_kinds.table()
     sliding = {**kinds, "door": {**kinds["door"], "motion": {**kinds["door"]["motion"], "move": "slide"}}}
     recess = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}, kinds=sliding))["garage_door"]["recess"]
-    assert recess["depth"] == 0.5 + holders.RECESS_MARGIN and recess["room"] == 6.55 and recess["room_side"] == 1.0
+    assert recess["depth"] == 0.5 + holders.RECESS_MARGIN and recess["room"] == 6.6 and recess["room_side"] == 1.0
 
 
 def test_a_monitor_stands_on_its_console_s_top():

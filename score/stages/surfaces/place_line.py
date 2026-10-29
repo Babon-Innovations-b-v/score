@@ -626,7 +626,7 @@ def bake_entries(inputs, labelled):
     inventories = [path for key, path in inputs.items() if key.startswith("inventory ") and path]
     chunky = [dict(bake_job.entry_of(name, written.get(name), labelled[take],
                                      bake_job.code_built(take, prop_env.PROPS_HOME),
-                                     bake_job.drawn_box(take, inventories)),
+                                     *bake_job.drawn_guard(take, inventories, inputs)),
                    name=name, parts=str(labelled[take]), regions=[])
               for name, take in data["bake"]["models"].items() if take in labelled]
     return job, chunky

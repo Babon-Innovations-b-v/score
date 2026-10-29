@@ -4,19 +4,27 @@ the prop environment: the bake stands a take square before it is laid (route_bak
 `stands square` fails one that still is not (bake_check.judge_square). Its own module, so the two rows that read it
 hash only this.
 
-    measure(points)                (degrees off, looseness): its oriented box's axes against the frame's
-    keeps_pose(row, lying, debris) why a row keeps the pose it was made in, or None
-    square_turn(points, size)      the turn standing a tumbled take square, its box's proportions the row's
+    measure(points)                 (degrees off, looseness): its oriented box's axes against the frame's
+    rules_of(inputs)                the pose rules a row's kept pose is read by (stance.json, resting.json)
+    keeps_pose(row, rules, rows)    why a row keeps the pose it was made in, or None: the one guard list
+    square_turn(points, size)       the turn standing a tumbled take square, its box's proportions the row's
 
 A take is tumbled when its oriented box (of its convex hull) is turned more than DEGREES off the frame (the axis
 nearest up off up, or its long plan axis off the frame's, mod 90, for one not round in plan) and its frame-aligned
 box is more than LOOSE times its own: a round or irregular thing whose box turns freely is never called tumbled.
-A row whose design lays it lying or leaning keeps its pose: stance.json's lying classes (torn wreckage, a thing on
-its side), its `leans`, and the resting rules' ground debris (rocks, boulders, rubble, a pile: a natural shape with
-no up, which rests as it was made).
+The one guard list (keeps_pose), read by the bake's stand-square (route_bake.stood_square), its SAM-box width rule
+(bake_job.boxed, likeness_row.drawn_size) and surfaces-check's `stands square`, decided by row kind, anchor and words,
+never by an object's name: a person (a row of the people route: its pose and its width are its take's own; cockpit
+pilot_1, seated, its picture box holding the chair, was widened 0.5 to 1.205 m, 2026-10-29), a row whose design lays
+it leaning (`leans`) or lying (stance.json's lying classes: torn wreckage, a thing on its side), a hanging row (the
+resting rules' hanging words in its id or name, or its anchor the ceiling: garage's ceiling lamp, `on:ceiling_beam`,
+was turned 50 degrees) and a row with no up (the resting rules' ground debris and cable: rocks, rubble, a pile, a limp
+cable, which rest as they were made; hangar's floor cables were turned 31 degrees).
 """
 import itertools
+import json
 import math
+import pathlib
 import re
 
 import numpy as np
@@ -24,6 +32,10 @@ import numpy as np
 DEGREES = 10.0
 LOOSE = 1.25
 ROUND_PLAN = 0.92  # a plan this near square (its oriented box's two plan sides) is round: its yaw is not read
+NO_UP = ("ground debris", "cable")  # the resting rules' classes with no up: rubble and limp cable rest as made
+PEOPLE = "people"  # the route of a designed person's row
+PERSON = "a person: its pose and its width for its height are its take's own"
+CEILING, CEILING_GROUP = "ceiling", "kit: ceiling"  # an anchor at the ceiling: the word, or a holder of that group
 
 
 def oriented(points):
@@ -58,19 +70,61 @@ def words_of(row):
     return set(re.findall(r"[a-z]+", f"{row.get('id', '')} {row.get('name', '')}".replace("_", " ").lower()))
 
 
-def keeps_pose(row, lying, debris):
-    """Why the row keeps the pose it was made in (its design lays it lying or leaning, or it is ground debris with no
-    up), or None. `lying`: stance.json's lying classes' words (phrases too); `debris`: the resting rules' ground debris
-    words."""
+def rules_of(inputs):
+    """{"lying": stance.json's lying words (phrases too), "hanging": the resting rules' hanging words, "no_up": the
+    resting rules' words of a class with no up (NO_UP)}, from a row's inputs "stance rules" and "resting rules"
+    (paths), each empty where its file is not an input."""
+    stance = json.loads(pathlib.Path(inputs["stance rules"]).read_text()) if "stance rules" in inputs else {}
+    resting = json.loads(pathlib.Path(inputs["resting rules"]).read_text()) if "resting rules" in inputs else {}
+    return {"lying": [word for kind in stance.get("lies", []) for word in kind["words"]],
+            "hanging": list(resting.get("hanging", [])),
+            "no_up": [word for bedding in resting.get("may_bed", []) if bedding["class"] in NO_UP
+                      for word in bedding["words"]]}
+
+
+def take_row(take, model, rows):
+    """The hand-in row the take makes (its `thing` "prop:<take>"), else the row its model is named for, else {}: the
+    row the guard list reads for a baked model, in the bake and in its check alike."""
+    return next((row for row in rows if row.get("thing") == f"prop:{take}"),
+                next((row for row in rows if row.get("id") == model.removesuffix("_1")), {}))
+
+
+def person(row):
+    """Whether a row is a person: its route the people line's."""
+    return row.get("route") == PEOPLE
+
+
+def hangs(row, hanging, rows=()):
+    """What a row hangs by, or None: the resting rules' `hanging` words in its id or name, or its anchor at the
+    ceiling (CEILING a word of it, or the row it is `on:` of group CEILING_GROUP among `rows`)."""
+    said = sorted(words_of(row) & set(hanging))
+    if said:
+        return ", ".join(said)
+    anchor = str(row.get("anchor", ""))
+    holder = {found.get("id"): found for found in rows}.get(anchor.removeprefix("on:"), {})
+    if CEILING in re.findall(r"[a-z]+", anchor.replace("_", " ").lower()) or holder.get("group") == CEILING_GROUP:
+        return f"anchored {anchor}"
+    return None
+
+
+def keeps_pose(row, rules, rows=()):
+    """Why the row keeps the pose it was made in, or None (the module docstring's guard list): a person, its design
+    laying it leaning or lying, hanging, or with no up. `rules`: rules_of's; `rows`: its inventory's, naming what an
+    `on:` anchor holds it to."""
     text = f"{row.get('id', '')} {row.get('name', '')}".replace("_", " ").lower()
+    if person(row):
+        return PERSON
     if row.get("leans"):
         return "its design lays it leaning"
-    said = next((word for word in lying if (" " in word and word in text) or word in words_of(row)), None)
+    said = next((word for word in rules["lying"] if (" " in word and word in text) or word in words_of(row)), None)
     if said:
         return f"its design lays it lying ({said})"
-    natural = sorted(words_of(row) & set(debris))
+    hung = hangs(row, rules["hanging"], rows)
+    if hung:
+        return f"it hangs ({hung}): it hangs as it was made"
+    natural = sorted(words_of(row) & set(rules["no_up"]))
     if natural:
-        return f"ground debris with no up ({', '.join(natural)}): it rests as it was made"
+        return f"no up ({', '.join(natural)}): it rests as it was made"
     return None
 
 
