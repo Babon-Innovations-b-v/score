@@ -63,10 +63,15 @@ def group_ends(segments):
     group's start (every joint between two groups starts one; a chain's tip is no joint) whose rig joints `segments`
     hold, one rule for every end: a middle of two (the hips', the neck's) is an end like any other (`soma_joints`,
     `myo_parts`). A group rigid on the one before it (MyoFullBody's neck and head, `LACKS`) has no joint at its start,
-    yet SOMA's rig joint is there: its end sits on it as every other's does (#70: no joint special-cased)."""
-    return [(soma[0], myo[0]) for soma, myo, _, _ in groups().values()
+    yet SOMA's rig joint is there: its end sits on it as every other's does (#70: no joint special-cased). An end
+    whose SOMA side is only other ends' own joints (the hips' middle: the two hip ends) is left out, so no rig joint
+    is counted twice."""
+    ends = [(soma[0], myo[0]) for soma, myo, _, _ in groups().values()
             if all(joint in segments for joint in soma_joints(soma[0]))
             and (myo[0] in CENTRES or myo[0] in MIDDLE_CENTRES)]
+    own = {soma_end for soma_end, _ in ends}
+    return [(soma_end, centre) for soma_end, centre in ends
+            if soma_joints(soma_end) == (soma_end,) or not set(soma_joints(soma_end)) <= own]
 
 
 def targets(rig, segments, worlds, held):

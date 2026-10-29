@@ -19,7 +19,7 @@ place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the
   trust); the turns are the main term. Never tune a weight to pass a gate.
 - **SOMA's group ends are a target** (#70, the owner's plan, 2026-10-29): every bone group's start that is a SOMA
   rig joint (`group_ends`: hips, knees, ankles, toes' bases, sternoclavicular, shoulders, elbows, wrists, the lumbar,
-  thoracic and skull joints, the hips' and neck's middles too: one rule for every end, a middle of two bodies' centres
+  thoracic and skull joints, the neck's middle too (the hips' middle left out: its two hip ends already hold both its rig joints, never counted twice): one rule for every end, a middle of two bodies' centres
   put on their nearest common holder at rest by `end_site`, the pelvis and the thorax, SOMA's side the mean of its two
   rig joints, `landmarks.soma_joints`) is a marker at MyoFullBody's centre there, never moved, weighed END_WEIGHT times the landmarks' mean trust, the same for
   every end, in the markers' goal beside the landmarks (whose weights keep their own sum, `Fitting.goal`); joints inside
