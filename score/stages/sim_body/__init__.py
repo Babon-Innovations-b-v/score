@@ -10,7 +10,7 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
              plays the clips; with none taken, the rig's own bind as the build, size 1, named). Its body is MyoFullBody
              (the pinned wheel MODEL, fetched once to $PROPS_HOME/models and checked by its sha256; never in this
              repository) sized to that build: each bone group by its landmarks' distance (inside/sizing), then
-             fitted to it with the clip (inside/fit: size factors, markers), its mass the stated
+             fitted to it with the clip (inside/fit: markers, joints inside groups), its mass the stated
              weight when the cast gives one (`weight`, kg), else its height (`height`, m, else the body's own standing
              height) squared times the reference BMI of
              its sex (`sex`, else the mean of both), marked estimated. It stands on the scene's own ground: every solid

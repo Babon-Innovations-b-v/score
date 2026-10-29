@@ -17,7 +17,7 @@ import mujoco
 
 import resting
 from myo._fixes import full_muscles, multi_joint_bodies, renamed, split
-from sizing import (WRAPPER_KG, assumed, body_scales, hip_width, kept_bodies, path_lengths, sized, stretches,
+from sizing import (WRAPPER_KG, assumed, hip_width, kept_bodies, path_lengths, sized,
                     ungrouped_kg)
 
 SOURCE = "musclemimic_models/model/body/myofullbody.xml"
@@ -48,17 +48,13 @@ def inside_moved(spec, joints):
 
 def person_file(folder, size, kg, path, constants=None):
     """One person's MyoFullBody, written at `path`, sized by `size` (a `sizing.Size` of the person's SOMA) and, when
-    given, the fit's `constants` ({"sizes": {group: factor}}: each group's scale times its factor; "joints": each
-    inside joint's move, `inside_moved`), and (its record,
+    given, the fit's `constants` ({"joints": each inside joint's move, `inside_moved`}; the lengths are the sizing's,
+    the fit scales nothing), and (its record,
     each body's scale): the record holds each group's scale and its length against SOMA's, the inertia scale per
     group, its muscles' length scale, its total mass and what is assumed."""
     source = f"{folder}/{SOURCE}"
     model = _source_model(folder)
     scales = size.scales(model)
-    if constants:
-        factors = body_scales(model, {group: constants["sizes"].get(group, 1.0) for group in stretches(size.table)},
-                              size.table)
-        scales = {body: scale * factors[body] for body, scale in scales.items()}
     spec = _fresh(source)
     wrappers = multi_joint_bodies(spec)
     sized(spec, model, scales, kg, wrappers)

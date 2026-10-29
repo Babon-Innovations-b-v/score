@@ -1,6 +1,5 @@
 """SCORE's landmark set (#70; CONTEXT.md "landmark set"), generated from the landmark study of 2026-10-29 (its
-scripts kept with the study, outside the repository) and refined over the varied SOMA bodies and the two test
-walkers (`landmarks.refined`). Each row: the SOMA mesh face and its barycentric weights (every person's mesh
+scripts kept with the study, outside the repository); its links and trusts are level 1's to write (`tuning.rewritten`). Each row: the SOMA mesh face and its barycentric weights (every person's mesh
 shares the template's topology), the SOMA segment, the MyoFullBody body and the bone point on it (body-local
 metres, source model: a sized body scales it), the link (where the skin's landmark stands off the bone point, in
 the body's frame, metres, not scaled), the trust (0 to 1: the solver's weight) and whether the solver takes it.

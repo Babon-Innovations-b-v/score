@@ -2,10 +2,11 @@
 
 SCORE's landmark set (#70, CONTEXT.md "landmark set"; pure numpy, its test runs in the score venv): `LANDMARKS`
 (102 from the landmark study of 2026-10-29, 84 the solver's: a SOMA face and barycentric weights, its segment, the
-MyoFullBody body, the bone point, the link, the trust, whether the solver takes it), `RULES` (the joint centres the
-landmarks define, the same rule on both models: ISB midpoints, Harrington 2007's hips, Rab 2002's glenohumeral),
-`CENTRES` (MyoFullBody's own joint centres, the measure's), `on_skin`, `posed`, `point`, `soma_point` (SOMA's own
-joints, for the measure and the masses), `myo_parts` and `refined` (links and trusts over many fitted bodies).
+MyoFullBody body, the bone point, the link, the trust, whether the solver takes it),
+`CENTRES` (MyoFullBody's own joint centres, the group ends' and the measure's), `on_skin`, `posed`, `soma_point` and
+`soma_joints` (SOMA's own joints, the group ends, the measure and the masses) and `myo_parts`. The links and trusts are
+level 1's (`tuning`); the old joint-centre rules (Harrington's hips, Rab's shoulders) and the per-landmark
+refinement were deleted 2026-10-29 (no caller; the group ends are SOMA's rig joints).
 Every point by its anatomical definition; never a licensed dataset's marker list.
 
 - `_table.py` is generated, once, from the landmark study of 2026-10-29 (MC3_head_r's trust set to the left's, 0.098,

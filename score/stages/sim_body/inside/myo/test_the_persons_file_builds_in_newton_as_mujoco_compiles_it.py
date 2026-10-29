@@ -2,8 +2,8 @@
 joints, a muscle whose class gives its parameters, names with '-'), sized to a toy SOMA (each thigh and shin a box),
 compiles in MuJoCo and builds in Newton with the
 same joints, one joint a body, no '-' in a name, no floor, the person's mass, and every muscle's gain and bias in
-Newton's model the published model's (#60's import fixes); with the fit's constants given, a group's bodies sit
-its factor further apart. It runs in Newton's own Python
+Newton's model the published model's (#60's import fixes); with the fit's constants given, an inside joint's
+body sits moved by its found move. It runs in Newton's own Python
 (score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there, as in `make
 tests`' sandbox home, it prints `skipped`.
 
@@ -14,7 +14,7 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - person_file's `split(full_muscles(renamed(xml), final))` made `split(renamed(xml))`: the muscle's partial
   gainprm loses its class's range and Newton refuses it ("lmin<1<lmax required in muscle").
 - person_file's `spec.delete(geom)` made `pass`: the floor stays.
-- person_file's `scales = {body: scale * factors[body] ...}` dropped: the shin group keeps its length.
+- (2026-10-29) inside_moved's `body.pos = body.pos + joints[filed]` made `pass`: the talus stays where it was.
 
 Run: .venv/bin/python score/stages/sim_body/inside/myo/test_the_persons_file_builds_in_newton_as_mujoco_compiles_it.py
 """
@@ -174,18 +174,18 @@ def the_written_file_builds_as_it_compiles():
     return problems + ([] if abs(record["kg"] - KG) < 1e-3 else [f"record kg {record['kg']}"])
 
 
-def the_constants_size_and_move_the_file():
-    """With the left shin group's factor 1.1: the talus sits 1.1 times as far down the tibia against the file written
+def the_constants_move_the_file():
+    """With the left talus's inside move 1 cm along z: the talus sits that far off its place in the file written
     without it."""
     import mujoco
     import numpy as np
     with tempfile.TemporaryDirectory() as folder:
         plain = written(folder)[2]
-        fitted = written(folder, {"sizes": {"LeftShin": 1.1}})[2]
+        fitted = written(folder, {"joints": {"talus_l": [0.0, 0.0, 0.01]}})[2]
 
     def place(model, name):
         return model.body_pos[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, name)]
-    return [] if np.allclose(place(fitted, "talus_l"), 1.1 * place(plain, "talus_l")) else [
+    return [] if np.allclose(place(fitted, "talus_l"), place(plain, "talus_l") + [0.0, 0.0, 0.01]) else [
         f"talus at {place(fitted, 'talus_l')} against {place(plain, 'talus_l')}"]
 
 
@@ -205,7 +205,7 @@ def every_muscle_keeps_its_published_parameters_in_newton():
     return problems
 
 
-CHECKS = (the_constants_size_and_move_the_file, the_written_file_builds_as_it_compiles,
+CHECKS = (the_constants_move_the_file, the_written_file_builds_as_it_compiles,
           every_muscle_keeps_its_published_parameters_in_newton)
 
 
