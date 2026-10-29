@@ -4,13 +4,17 @@ reduced step equals the CPU prototype's (card/proto/lm.py: mink's damping 1e-3 |
 through their coupling's slope, one active-set pass holding dofs at a bound that push out) to 1e-5 rad, and the
 card's projection equals the prototype's (ranges, couplings by polyval, frozen) with every follower on polyval of its
 leader to 1e-6 rad and every coordinate inside its range. Rows whose dofs are held must exist (else the hold is not
-tested). Runs in Newton's own Python on a CUDA card; with no Newton env or no card it prints `skipped`.
+tested). On a six-link hinge chain, the per-problem place and turn objectives (_objective.py) give the residuals and
+analytic Jacobian of Newton's own IKObjectivePosition and IKObjectiveRotation made with each row's offset and weight,
+to 1e-6. Runs in Newton's own Python on a CUDA card; with no Newton env or no card it prints `skipped`.
 
 Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _step's `LM_DAMPING * squared + DAMPING` made `DAMPING`: mink's damping is lost, the step differs.
 - (2026-10-29) _reduced_jacobian's `* slopes[row, coupling]` dropped: followers ride their leader at slope 1.
 - (2026-10-29) damped_step's second `_solved(..., keep, ...)` made `first`: a dof at its bound is not held.
 - (2026-10-29) _projected's `power *= lead` made `power *= 1.0`: a coupling is no longer polyval of its leader.
+- (2026-10-29) _turn_jacobian's `weight[problem] * motion[3 + axis]` made `motion[3 + axis]`: the weight is lost.
+- (2026-10-29) _turn_residuals' angle `2 atan2(length, w) / length` made `2`: the turn is no longer the log map.
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/_card/test_the_card_step_and_projection_equal_the_cpu_prototype.py
 """
@@ -27,6 +31,8 @@ COUPLINGS = ((5, 2, (0.01, 0.6, -0.2, 0.05, 0.01)), (9, 2, (0.0, -0.4, 0.1, 0.0,
              (11, -1, (0.05, 0.0, 0.0, 0.0, 0.0)))  # follower, leader (-1: none), polyval coefficients
 BOUND = 0.25  # float32-exact; dofs 0, 1, 4 and 6 range over +-BOUND
 BOUNDED = (0, 1, 4, 6)
+LINKS = 6
+OBJECTIVE_ROWS = 6
 
 
 def fixture():
@@ -136,7 +142,71 @@ def the_projection_equals_the_prototype():
     return problems
 
 
-CHECKS = (the_step_equals_the_prototype, the_projection_equals_the_prototype)
+def chain_model():
+    """A six-link hinge chain (axes x, y, z in turn, 0.3 m apart) on the card."""
+    import newton
+    import warp as wp
+    builder = newton.ModelBuilder()
+    parent, joints = -1, []
+    for link in range(LINKS):
+        body = builder.add_link(xform=wp.transform((0.0, 0.0, 0.3 * link), wp.quat_identity()))
+        builder.add_shape_sphere(body, radius=0.05)
+        axis = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))[link % 3]
+        joints.append(builder.add_joint_revolute(parent, body, axis=axis, parent_xform=wp.transform(
+            (0.0, 0.0, 0.3 if parent >= 0 else 0.0), wp.quat_identity())))
+        parent = body
+    builder.add_articulation(joints)
+    return builder.finalize(device="cuda:0")
+
+
+def residuals_and_jacobian(model, poses, objectives):
+    """Newton's IK residuals and analytic Jacobian at poses [rows, coords] for one objective list."""
+    import warp as wp
+    from newton import ik
+    solver = ik.IKSolver(model, poses.shape[0], objectives, optimizer="lm",
+                         jacobian_mode=ik.IKJacobianType.ANALYTIC)._impl
+    context = solver._ctx_solver(wp.array(poses.astype("float32"), dtype=wp.float32, device="cuda:0"))
+    solver._residuals_analytic(context)
+    return context.residuals.numpy().copy(), solver._jacobian_at(context).numpy().copy()
+
+
+def the_objectives_equal_newtons_own_row_by_row():
+    """Per-problem place and turn equal Newton's built-in objective made with that row's offset and weight."""
+    import numpy as np
+    import warp as wp
+    from newton import ik
+    from fit._card import PlacePerProblem, TurnPerProblem
+    model = chain_model()
+    generator = np.random.default_rng(11)
+    poses = generator.uniform(-1.0, 1.0, size=(OBJECTIVE_ROWS, model.joint_coord_count))
+    offsets = generator.normal(0.0, 0.05, size=(OBJECTIVE_ROWS, 3)).astype(np.float32)
+    turns = generator.normal(size=(OBJECTIVE_ROWS, 4)).astype(np.float32)
+    turns /= np.linalg.norm(turns, axis=1, keepdims=True)
+    weights = generator.uniform(0.5, 2.0, OBJECTIVE_ROWS).astype(np.float32)
+    places = generator.normal(0.0, 0.5, size=(OBJECTIVE_ROWS, 3)).astype(np.float32)
+    wanted = generator.normal(size=(OBJECTIVE_ROWS, 4)).astype(np.float32)
+    wanted /= np.linalg.norm(wanted, axis=1, keepdims=True)
+    link = LINKS - 1
+    card = lambda values, kind: wp.array(values, dtype=kind, device="cuda:0")
+    mine = residuals_and_jacobian(model, poses, [
+        PlacePerProblem(link, card(offsets, wp.vec3), card(places, wp.vec3), card(weights, wp.float32)),
+        TurnPerProblem(link, card(turns, wp.quat), card(wanted, wp.vec4), card(weights, wp.float32))])
+    problems = []
+    for row in range(OBJECTIVE_ROWS):
+        theirs = residuals_and_jacobian(model, poses, [
+            ik.IKObjectivePosition(link, wp.vec3(*offsets[row]), card(places, wp.vec3), weight=float(weights[row])),
+            ik.IKObjectiveRotation(link, wp.quat(*turns[row]), card(wanted, wp.vec4), weight=float(weights[row]))])
+        for name, found, reference in (("residuals", mine[0][row], theirs[0][row]),
+                                       ("Jacobian", mine[1][row], theirs[1][row])):
+            if np.abs(found - reference).max() > 1e-6:
+                problems.append(f"row {row}: {name} differ from Newton's by {np.abs(found - reference).max():.2e}")
+    if np.abs(mine[0][:, 3:]).max() < 1e-3:
+        problems.append("the turn residuals are all near zero: the fixture does not test the turn")
+    return problems
+
+
+CHECKS = (the_step_equals_the_prototype, the_projection_equals_the_prototype,
+          the_objectives_equal_newtons_own_row_by_row)
 
 
 def in_newton():

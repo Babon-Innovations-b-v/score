@@ -1,5 +1,6 @@
-"""A site's place on the card with its own offset and weight per problem (rows from several bodies or level-1 sets in
-one batch): Newton's IKObjectivePosition with the offset and weight read per problem instead of one for all."""
+"""A site's place and a link frame's turn on the card with their own offset and weight per problem (rows from several
+bodies or level-1 sets in one batch): Newton's IKObjectivePosition and IKObjectiveRotation with the offset and weight
+read per problem instead of one for all."""
 import warp as wp
 from newton import ik
 
@@ -49,3 +50,57 @@ class PlacePerProblem(ik.IKObjectivePosition):
         wp.launch(_place_jacobian, dim=[body_q.shape[0], model.joint_dof_count],
                   inputs=[self.link_index, self.offsets, self.weights, self.affects_dof, body_q, joint_S_s,
                           start_idx], outputs=[jacobian], device=self.device)
+
+
+@wp.kernel(enable_backward=False)
+def _turn_residuals(body_q: wp.array2d[wp.transform], target: wp.array[wp.vec4], link_index: int,
+                    offset: wp.array[wp.quat], weight: wp.array[wp.float32], start_idx: int,
+                    problem_of: wp.array[wp.int32], residuals: wp.array2d[wp.float32]):
+    row = wp.tid()
+    problem = problem_of[row]
+    transform = body_q[row, link_index]
+    actual = wp.quat(transform[3], transform[4], transform[5], transform[6]) * offset[problem]
+    wanted = wp.quat(target[problem][0], target[problem][1], target[problem][2], target[problem][3])
+    error = actual * wp.quat_inverse(wanted)
+    if wp.dot(actual, wanted) < 0.0:
+        error = -error
+    length = wp.sqrt(error[0] * error[0] + error[1] * error[1] + error[2] * error[2])
+    turn = wp.vec3(2.0 * error[0], 2.0 * error[1], 2.0 * error[2])
+    if length > 1e-8:
+        turn = wp.vec3(error[0], error[1], error[2]) * (2.0 * wp.atan2(length, error[3]) / length)
+    for axis in range(3):
+        residuals[row, start_idx + axis] = weight[problem] * turn[axis]
+
+
+@wp.kernel(enable_backward=False)
+def _turn_jacobian(weight: wp.array[wp.float32], affects_dof: wp.array[wp.uint8],
+                   joint_s: wp.array2d[wp.spatial_vector], start_idx: int, jacobian: wp.array3d[wp.float32]):
+    problem, dof = wp.tid()
+    if affects_dof[dof] == 0:
+        return
+    motion = joint_s[problem, dof]
+    for axis in range(3):
+        jacobian[problem, start_idx + axis, dof] = weight[problem] * motion[3 + axis]
+
+
+class TurnPerProblem(ik.IKObjectiveRotation):
+    """A link frame's turn: target [problems] vec4 (x, y, z, w), offset [problems] quat in the link's frame,
+    weight [problems] float32; Newton's IKObjectiveRotation (canonicalised error) per problem, analytic only."""
+
+    def __init__(self, link_index, offsets, targets, weights):
+        super().__init__(link_index, wp.quat_identity(), targets, canonicalize_quat_err=True, weight=1.0)
+        self.offsets = offsets
+        self.weights = weights
+
+    def supports_analytic(self):
+        return True
+
+    def compute_residuals(self, body_q, joint_q, model, residuals, start_idx, problem_idx):
+        wp.launch(_turn_residuals, dim=body_q.shape[0],
+                  inputs=[body_q, self.target_rotations, self.link_index, self.offsets, self.weights, start_idx,
+                          problem_idx], outputs=[residuals], device=self.device)
+
+    def compute_jacobian_analytic(self, body_q, joint_q, model, jacobian, joint_S_s, start_idx):
+        wp.launch(_turn_jacobian, dim=[body_q.shape[0], model.joint_dof_count],
+                  inputs=[self.weights, self.affects_dof, joint_S_s, start_idx], outputs=[jacobian],
+                  device=self.device)
