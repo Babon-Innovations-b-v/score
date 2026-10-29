@@ -39,11 +39,21 @@ class JobFailed(Exception):
     """A share's own command failed on a machine that still works."""
 
 
-def raise_for(returncode, what):
-    """Raise for a share's command that did not succeed: ConnectionError when ssh lost the machine, JobFailed when
-    the command itself failed."""
+class MemoryKilled(JobFailed):
+    """A share's command killed by signal 9 (the machine's memory cap): a fault of the run, not of the share's result,
+    so its share goes back on the queue once (work_slot)."""
+
+
+KILLED = 128 + 9  # a shell's exit for a command killed by signal 9
+
+
+def raise_for(returncode, what, killed=False):
+    """Raise for a share's command that did not succeed: ConnectionError when ssh lost the machine, MemoryKilled when
+    it (or, `killed`, a step inside it) was killed by signal 9, JobFailed when the command itself failed."""
     if returncode == SSH_LOST:
         raise ConnectionError(f"the machine stopped answering during {what}")
+    if returncode and (returncode == KILLED or killed):
+        raise MemoryKilled(f"{what} was killed by signal 9 (exit {returncode})")
     if returncode:
         raise JobFailed(f"{what} exited with {returncode}")
 
@@ -136,6 +146,12 @@ def work_slot(machine, shares, do, card, broken):
         try:
             do(machine, share, card)
             shares.finished(share)
+        except MemoryKilled as error:  # killed at the memory cap: run again once, a second death is a gap
+            if shares.again(share):
+                batch.say(f"{machine['folder'].name}: a job was killed for memory ({error}); it goes back on the queue")
+                continue
+            batch.say(f"{machine['folder'].name}: a job was killed for memory again ({error}); its share is a gap")
+            shares.failed_job(share)
         except JobFailed as error:
             batch.say(f"{machine['folder'].name}: a job failed ({error})")
             shares.failed_job(share)

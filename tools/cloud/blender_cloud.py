@@ -234,6 +234,15 @@ def log_tail(log_folder, number):
     return "".join(found)
 
 
+def killed_in(log):
+    """Whether a job's log ends with a step it ran killed by signal 9 (subprocess's 'died with <Signals.SIGKILL: 9>'):
+    paint_bake.py runs make_chunky in a Blender of its own, so the job's own exit is a plain failure."""
+    return log.exists() and "Signals.SIGKILL" in log.read_text(errors="replace")[-LOG_TAIL_CHARS:]
+
+
+LOG_TAIL_CHARS = 4000
+
+
 def touched(machine, job):
     """Note the job's inputs and outputs on the machine, for its clean-up before it is parked."""
     machine.setdefault("paths", set()).update(str(pathlib.Path(local).resolve())
@@ -296,7 +305,8 @@ def one_job(machine, share, card):
     try:
         seconds, came, keeping = run_job(log_folder, host, number, job, card is not None)
     except subprocess.CalledProcessError as failed:
-        spread.raise_for(failed.returncode, f"job {number} ({job['script']}){log_tail(log_folder, number)}")
+        spread.raise_for(failed.returncode, f"job {number} ({job['script']}){log_tail(log_folder, number)}",
+                         killed=killed_in(log))
     machine.setdefault("unit_seconds", []).append(seconds)
     if job.get("outputs") and not came:
         raise spread.JobFailed(f"job {number} ({job['script']}, {log}): its script ended well but none of its "
