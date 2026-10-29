@@ -15,7 +15,9 @@ them) to 0.01 deg and its sites to 0.01 mm, with a frame holding h1 at its range
 itself in one batch. Seeded from that clip's answers (its angles.npz, `_seeds`) with the places 3 mm on, the card
 equals mink's answer to the moved clip to 0.01 deg and 0.01 mm (a cold seed only reported). On a toy body
 (`card_body.py`), the card's measures (_measure.py) equal evaluation._measure's to 1e-9 (joints mm, turns deg) and
-its bones-outside shares exactly (every point's count).
+its bones-outside shares exactly (every point's count). On fit's own toy (`card_level2.py`), level 2's exact
+Jacobian (_level2.py) equals its residuals' central differences to 1e-6 of each column's largest entry, nothing
+outside `Problem.sparsity`.
 
 Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _kept's release `wp.where(inside, 1.0, 0.0)` made `0.0` (holds only added): rows 0 and 1 keep dof 0
@@ -34,6 +36,10 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _projected's `power *= lead` made `power *= 1.0`: a coupling is no longer polyval of its leader.
 - (2026-10-29) _turn_jacobian's `weight[problem] * rate[axis]` made `rate[axis]`: the weight is lost.
 - (2026-10-29) _turn_residuals' angle `2 atan2(length, w) / length` made `2`: the turn is no longer the log map.
+- (2026-10-29) _level2.dof_map's root `right_jacobian(rotation)` made `np.eye(3)`: the root's rotation-vector
+  columns are off their differences.
+- (2026-10-29) _level2.frame_rows' inside joint `body_turns[parent]` made `body_turns[fitting.inside[joint]]`: the
+  knee's move columns are off.
 - (2026-10-29) _solve's `CYCLE_STEP = 1e-5` made `0.0`: a seeded toy row cycles at its float32 pose's floor and never
   stops (NotConverged).
 
@@ -56,6 +62,7 @@ COUPLINGS = ((5, 2, (0.01, 0.6, -0.2, 0.05, 0.01)), (9, 2, (0.0, -0.4, 0.1, 0.0,
 BOUND = 0.25  # float32-exact; dofs 0, 1, 4 and 6 range over +-BOUND
 BOUNDED = (0, 1, 4, 6)
 OBJECTIVE_ROWS = 6
+LEVEL2_MOST = 1e-6  # a column's largest miss over its largest entry (measured 1.8e-10; the plan allows 1e-2 against 2-point)
 HOLD_PASSES = 3  # as _step.HOLD_PASSES: solves after the first, a held dof whose descent points inside released
 
 
@@ -305,11 +312,27 @@ def the_measures_equal_the_cpu_measure():
                      if not np.allclose(np.ravel(_values(fast[key])), np.ravel(_values(slow[key])), rtol=0, atol=1e-9)]
 
 
+def the_level2_jacobian_equals_its_differences():
+    import tempfile
+    import card_level2
+    import numpy as np
+    from fit._card import _level2
+    with tempfile.TemporaryDirectory() as folder:
+        problem, unknowns = card_level2.problem_and_point(folder)
+        exact = _level2.jacobian(problem, unknowns).toarray()
+        moved = card_level2.differences(problem, unknowns)
+        outside = ~problem.sparsity().toarray().astype(bool)
+    worst = max(np.abs(exact[:, column] - moved[:, column]).max() / max(np.abs(moved[:, column]).max(), 1e-12)
+                for column in range(unknowns.size))
+    return ([f"exact Jacobian off its differences by {worst:.2e} of a column"] if worst > LEVEL2_MOST else []) + (
+        ["exact Jacobian outside the sparse pattern"] if np.abs(exact[outside]).max() > 0 else [])
+
+
 def _values(found):
     return [found[key] for key in sorted(found)] if isinstance(found, dict) else found
 
 
-CHECKS = (the_measures_equal_the_cpu_measure, the_step_equals_the_prototype, the_projection_equals_the_prototype,
+CHECKS = (the_level2_jacobian_equals_its_differences, the_measures_equal_the_cpu_measure, the_step_equals_the_prototype, the_projection_equals_the_prototype,
           the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame,
           the_next_iteration_from_its_seeds_equals_mink)
 
