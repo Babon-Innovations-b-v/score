@@ -125,3 +125,37 @@ class Clip:
         seeds = np.asarray(seeds, dtype=float)
         return solved_in_chunks(self.optimizer_for(np.asarray(turns), np.asarray(points)), self.reduction,
                                 self.projection, newton_order(seeds), seeds)
+
+
+MAPPED = 1e-5  # m, the plan's site tolerance: Newton's float32 sites at rest off MuJoCo's (heavy: 0.0073 mm)
+
+
+def site_miss(clip):
+    """The largest distance (m) between Newton's and MuJoCo's place of the clip's sites at the model's qpos0."""
+    import newton
+    data = mujoco.MjData(clip.mjm)
+    mujoco.mj_kinematics(clip.mjm, data)
+    state = clip.model.state()
+    clip.model.joint_q.assign(newton_order(clip.mjm.qpos0[None])[0].astype(np.float32))
+    newton.eval_fk(clip.model, clip.model.joint_q, clip.model.joint_qd, state)
+    body_q = state.body_q.numpy().astype(float)
+    sites = clip.frame_sites + clip.place_sites
+    placed = [Rotation.from_quat(body_q[clip.link(site), 3:7]).apply(clip.mjm.site_pos[site]) + body_q[clip.link(site), :3]
+              for site in sites]
+    return float(np.max(np.linalg.norm(np.array(placed) - data.site_xpos[sites], axis=1)))
+
+
+def for_fitting(fitting, path):
+    """The `Clip` of a `..._model.Fitting` compiled from the person's file at `path` (its constants written there):
+    Newton's model of the same file, refused when its site places miss MuJoCo's by over MAPPED."""
+    import newton
+    from .._frames import weights
+    builder = newton.ModelBuilder(up_axis=newton.Axis.Z)
+    builder.add_mjcf(str(path), convert_mjc_equality_constraints=False, parse_meshes=False)
+    turn_cost, place_costs = weights(fitting)
+    clip = Clip(builder.finalize(device=DEVICE), fitting.model, fitting.frame_sites, fitting.place_sites, turn_cost,
+                place_costs, fitting.frozen, fitting.limited_model())
+    miss = site_miss(clip)
+    if miss > MAPPED:
+        raise ValueError(f"{path}: Newton's sites {miss * 1000:.4f} mm off MuJoCo's at rest")
+    return clip

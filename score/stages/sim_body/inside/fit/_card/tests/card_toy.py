@@ -75,13 +75,15 @@ def toy_card(mjm, turns, places):
     """The card loop's parts for the toy's clip, set up by `_clip.Clip` from the toy's own model as `_frames.Frames`
     sets mink up: (optimizer_for(start, stop), reduction, projection)."""
     import newton
-    from fit._card._clip import Clip
+    from fit._card._clip import MAPPED, Clip, site_miss
     path = pathlib.Path(os.environ["PROPS_HOME"]) / "toy.xml"
     path.write_text(TOY)
     builder = newton.ModelBuilder(up_axis=newton.Axis.Z)
     builder.add_mjcf(str(path), convert_mjc_equality_constraints=False, parse_meshes=False)
     clip = Clip(builder.finalize(device="cuda:0"), mjm, [mjm.site("t").id], [mjm.site(name).id for name in PLACE_SITES],
                 TURN_COST, [PLACE_COST] * len(PLACE_SITES), [int(mjm.jnt_dofadr[mjm.joint("z").id])], mjm)
+    if site_miss(clip) > MAPPED:
+        raise ValueError(f"the toy's Newton sites {site_miss(clip)} m off MuJoCo's")
     return clip.optimizer_for(turns[:, None], places), clip.reduction, clip.projection
 
 

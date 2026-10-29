@@ -93,6 +93,10 @@ before that.
   couplings, the followers-free model's slide and hinge ranges, the frozen dofs) beside a Newton model of the same
   file; `angles(turns, points, seeds)` every frame from its own seed. The toy's fixture is set up by it (equal to the
   hand setup bit for bit, 2026-10-29); joint types compared as ints (MuJoCo's enums never equal the model's ints).
+  `for_fitting(fitting, path)` builds it for a `Fitting` from the person's file (constants written there), refused
+  when Newton's sites at rest miss MuJoCo's by over `MAPPED` (1e-5 m). On heavy_kimodo's gate dump (2026-10-29,
+  build/5/clip_real.py, each frame seeded from mink's cached answer): sites 0.0073 mm apart at rest; 136 rows 1.55 s,
+  3 / 32 steps; angles 0.00035 deg, sites 0.0013 mm off mink's.
 - One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
   the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the
