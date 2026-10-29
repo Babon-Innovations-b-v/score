@@ -28,22 +28,24 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _solve's `CYCLE_STEP = 1e-5` made `0.0`: a seeded toy row cycles at its float32 pose's floor and never
   stops (NotConverged).
 
-Run: .venv/bin/python score/stages/sim_body/inside/fit/_card/test_the_card_step_and_projection_equal_the_cpu_prototype.py
+Run: .venv/bin/python score/stages/sim_body/inside/fit/_card/tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py
 """
 import os
 import pathlib
 import subprocess
 import sys
 
-INSIDE = pathlib.Path(__file__).resolve().parents[2]
+INSIDE = pathlib.Path(__file__).resolve().parents[3]
 IN_ENV = "SIM_BODY_INSIDE_TEST"
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from card_chain import LINKS, chain_model, log_rate, residuals_and_jacobian  # noqa: E402
+from card_toy import CLIP_FRAMES, TOY, mink_frames, toy_card, toy_clip, toy_errors  # noqa: E402
 ROWS, RESIDUALS, DOFS = 12, 30, 20
 FROZEN = (3, 7)
 COUPLINGS = ((5, 2, (0.01, 0.6, -0.2, 0.05, 0.01)), (9, 2, (0.0, -0.4, 0.1, 0.0, 0.02)),
              (11, -1, (0.05, 0.0, 0.0, 0.0, 0.0)))  # follower, leader (-1: none), polyval coefficients
 BOUND = 0.25  # float32-exact; dofs 0, 1, 4 and 6 range over +-BOUND
 BOUNDED = (0, 1, 4, 6)
-LINKS = 6
 OBJECTIVE_ROWS = 6
 HOLD_PASSES = 3  # as _step.HOLD_PASSES: solves after the first, holds only ever added
 
@@ -158,43 +160,6 @@ def the_projection_equals_the_prototype():
     return problems
 
 
-def chain_model():
-    """A six-link hinge chain (axes x, y, z in turn, 0.3 m apart) on the card."""
-    import newton
-    import warp as wp
-    builder = newton.ModelBuilder()
-    parent, joints = -1, []
-    for link in range(LINKS):
-        body = builder.add_link(xform=wp.transform((0.0, 0.0, 0.3 * link), wp.quat_identity()))
-        builder.add_shape_sphere(body, radius=0.05)
-        axis = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))[link % 3]
-        joints.append(builder.add_joint_revolute(parent, body, axis=axis, parent_xform=wp.transform(
-            (0.0, 0.0, 0.3 if parent >= 0 else 0.0), wp.quat_identity())))
-        parent = body
-    builder.add_articulation(joints)
-    return builder.finalize(device="cuda:0")
-
-
-def residuals_and_jacobian(model, poses, objectives):
-    """Newton's IK residuals and analytic Jacobian at poses [rows, coords] for one objective list."""
-    import warp as wp
-    from newton import ik
-    solver = ik.IKSolver(model, poses.shape[0], objectives, optimizer="lm",
-                         jacobian_mode=ik.IKJacobianType.ANALYTIC)._impl
-    context = solver._ctx_solver(wp.array(poses.astype("float32"), dtype=wp.float32, device="cuda:0"))
-    solver._residuals_analytic(context)
-    return context.residuals.numpy().copy(), solver._jacobian_at(context).numpy().copy()
-
-
-def log_rate(turn):
-    """SO(3)'s inverse left Jacobian at a log turn: the exact turn Jacobian is it times Newton's spin rows."""
-    import numpy as np
-    angle = np.linalg.norm(turn)
-    across = np.array([[0.0, -turn[2], turn[1]], [turn[2], 0.0, -turn[0]], [-turn[1], turn[0], 0.0]])
-    bend = 1.0 / angle ** 2 - (1.0 + np.cos(angle)) / (2.0 * angle * np.sin(angle))
-    return np.eye(3) - 0.5 * across + bend * across @ across
-
-
 def the_objectives_equal_newtons_own_row_by_row():
     """Per-problem place and turn equal Newton's built-in objective made with that row's offset and weight, the turn's
     Jacobian Newton's spin rows through the log's inverse left Jacobian (mink's exact one)."""
@@ -233,120 +198,7 @@ def the_objectives_equal_newtons_own_row_by_row():
     return problems
 
 
-TOY = """<mujoco><compiler angle="radian"/><worldbody><body name="root"><freejoint/><geom size="0.05"/>
- <body name="a" pos="0 0 0.3"><joint name="h0" axis="1 0 0" range="-1.2 1.2"/><geom size="0.05"/>
-  <body name="b" pos="0 0 0.3"><joint name="h1" axis="0 1 0" range="-1.2 1.2"/><geom size="0.05"/>
-   <body name="c" pos="0 0 0.3"><joint name="h2" axis="0 0 1" range="-1.2 1.2"/><geom size="0.05"/>
-   <body name="cf"><joint name="f" axis="1 0 0"/><geom size="0.02"/>
-    <site name="t" pos="0.05 0 0.2" quat="0.9 0.1 0.3 0.2"/><site name="p2" pos="0 0.1 0.25"/>
-    <body name="d" pos="0 0 0.3"><joint name="z" axis="0 1 0"/><geom size="0.05"/><site name="p3" pos="0.1 0 0.2"/>
- </body></body></body></body><site name="p1" pos="0.05 0 0.2"/></body><site name="p0" pos="0.1 0.1 0"/></body></worldbody>
- <equality><joint joint1="f" joint2="h1" polycoef="0 0.5 0.2 0 0"/></equality></mujoco>"""
 CHUNK = 3  # solved_in_chunks' rows a chunk on the toy: three full chunks and one of one
-CLIP_FRAMES, PLACE_SITES, TURN_COST, PLACE_COST = 10, ("p0", "p1", "p2", "p3"), 0.7, 3.0
-
-
-def toy_clip(mjm):
-    """The toy's targets: a path of poses (one hinge driven past its range) through its sites, the places 2 mm off."""
-    import mujoco
-    import numpy as np
-    data, generator = mujoco.MjData(mjm), np.random.default_rng(5)
-    turns, places, path = [], [], np.linspace(0.0, 1.0, CLIP_FRAMES)
-    for moment in path:
-        data.qpos[:] = mjm.qpos0
-        data.qpos[:3] = (0.1 * moment, 0.0, 0.05 * moment)
-        data.qpos[7:10] = (0.8 * np.sin(2.0 * moment), 1.5 * moment, -0.6 * moment)
-        data.qpos[10] = 0.5 * data.qpos[8] + 0.2 * data.qpos[8] ** 2
-        mujoco.mj_kinematics(mjm, data)
-        turns.append(data.site("t").xmat.reshape(3, 3).copy())
-        places.append([data.site(name).xpos + generator.normal(0.0, 0.002, 3) for name in PLACE_SITES])
-    return np.array(turns), np.array(places)
-
-
-def mink_frames(mjm, turns, places):
-    """mink (../_frames.solved) frame by frame, each frame from the one before, its targets set as _frames.Frames sets
-    them (a place's target turned as its site turns now, so the error is the plain place error; limits at gain 1):
-    the reference angles."""
-    import mink
-    import numpy as np
-    from fit import _frames
-    configuration = mink.Configuration(mjm)
-    turn = mink.FrameTask("t", "site", position_cost=0.0, orientation_cost=TURN_COST, lm_damping=_frames.LM_DAMPING)
-    marks = [mink.FrameTask(name, "site", position_cost=PLACE_COST, orientation_cost=0.0,
-                            lm_damping=_frames.LM_DAMPING) for name in PLACE_SITES]
-    frozen = mink.DofFreezingTask(mjm, dof_indices=[int(mjm.jnt_dofadr[mjm.joint("z").id])])
-    constraints = [mink.EqualityConstraintTask(mjm, cost=1.0, gain=1.0), frozen]
-    def marked(frame):
-        for mark, place in zip(marks, places[frame], strict=True):
-            now = configuration.get_transform_frame_to_world(mark.frame_name, "site").rotation()
-            mark.set_target(mink.SE3.from_rotation_and_translation(now, place))
-    found = []
-    for frame in range(len(turns)):
-        turn.set_target(mink.SE3.from_rotation(mink.SO3.from_matrix(turns[frame])))
-        marked(frame)
-        found.append(_frames.solved(configuration, [turn, *marks], [mink.ConfigurationLimit(mjm, gain=1.0)],
-                                    constraints, lambda: marked(frame)))
-    return np.array(found)
-
-
-def site_places(mjm, poses):
-    """Every site's world place [poses, sites, 3] by MuJoCo's own kinematics."""
-    import mujoco
-    import numpy as np
-    data, found = mujoco.MjData(mjm), []
-    for pose in poses:
-        data.qpos[:] = pose
-        mujoco.mj_kinematics(mjm, data)
-        found.append(data.site_xpos.copy())
-    return np.array(found)
-
-
-def toy_card(mjm, turns, places):
-    """The card loop's parts for the toy's clip: (optimizer_for(start, stop), reduction, projection)."""
-    import newton
-    import numpy as np
-    import warp as wp
-    from scipy.spatial.transform import Rotation
-    from newton import ik
-    from fit._card import PlacePerProblem, Projection, Reduction, TurnPerProblem
-    path = pathlib.Path(os.environ["PROPS_HOME"]) / "toy.xml"
-    path.write_text(TOY)
-    builder = newton.ModelBuilder(up_axis=newton.Axis.Z)
-    builder.add_mjcf(str(path), convert_mjc_equality_constraints=False, parse_meshes=False)
-    model = builder.finalize(device="cuda:0")
-    body = {label.split("/")[-1]: index for index, label in enumerate(model.body_label)}
-    card = lambda values, kind: wp.array(np.ascontiguousarray(values, dtype=np.float32), dtype=kind, device="cuda:0")
-    site = lambda name: (body[mjm.body(int(mjm.site(name).bodyid[0])).name], mjm.site(name))
-
-    def optimizer_for(start, stop):
-        """Newton's IKOptimizerLM for the clip's frames start:stop."""
-        rows = stop - start
-        link, turn_site = site("t")
-        objectives = [TurnPerProblem(link, card(np.tile(turn_site.quat[[1, 2, 3, 0]], (rows, 1)), wp.quat),
-                                     card(Rotation.from_matrix(turns[start:stop]).as_quat(), wp.vec4),
-                                     card(np.full(rows, TURN_COST), wp.float32))]
-        for index, name in enumerate(PLACE_SITES):
-            link, mark = site(name)
-            objectives.append(PlacePerProblem(link, card(np.tile(mark.pos, (rows, 1)), wp.vec3),
-                                              card(places[start:stop, index], wp.vec3),
-                                              card(np.full(rows, PLACE_COST), wp.float32)))
-        return ik.IKSolver(model, rows, objectives, optimizer="lm", jacobian_mode=ik.IKJacobianType.ANALYTIC)._impl
-    hinge = lambda name: int(mjm.jnt_qposadr[mjm.joint(name).id])  # a hinge's coordinate; its dof is one less
-    poly = np.array([[0.0, 0.5, 0.2, 0.0, 0.0]])
-    free = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-    reduction = Reduction(free, [0] * 6 + [7, 8, 9], [-1e30] * 6 + [-1.2] * 3, [1e30] * 6 + [1.2] * 3,
-                          [hinge("f") - 1], [hinge("h1") - 1], [hinge("h1")], [0.0], poly, "cuda:0")
-    big = [1e30] * 7
-    projection = Projection([-b for b in big] + [-1.2] * 3 + [-1e30] * 2, big + [1.2] * 3 + [1e30] * 2,
-                            [hinge("f")], [hinge("h1")], [0.0], [0.0], poly, [hinge("z")], "cuda:0")
-    return optimizer_for, reduction, projection
-
-
-def toy_errors(mjm, found, reference):
-    """(largest angle miss in degrees, largest site miss in mm) of `found` against `reference` on the toy."""
-    import numpy as np
-    angles = np.degrees(np.abs(found[:, 7:] - reference[:, 7:])).max()
-    return angles, 1000.0 * np.abs(site_places(mjm, found) - site_places(mjm, reference)).max()
 
 
 def the_clip_equals_mink_frame_by_frame():
@@ -434,7 +286,7 @@ if __name__ == "__main__":
     if os.environ.get(IN_ENV):
         sys.exit(in_newton())
     import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[6] / "conftest.py"))["refuse_outside_sandbox"]()
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[7] / "conftest.py"))["refuse_outside_sandbox"]()
     env = pathlib.Path(os.environ["PROPS_HOME"]) / "envs/newton_env"
     if not list(env.glob(".built-*")):
         print(f"skipped: no Newton env built at {env} (score/stages/physics/inside/newton_env.sh)")

@@ -50,6 +50,7 @@ before that.
   step equals the card's; its model gain 3.7e-12, the pose's rounding moves the cost 9e-9 either way). `_solve`'s cycle
   stop (cost back within 1e-2 of the change between, two steps apart, by a step under 1e-5) ends it; a monotone fall
   never fires it. The seed check is in the test file (3 mm on: equals mink).
-- Still to come: the test file split under 300 lines (now about 400).
-- One test file (`test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the CPU
-  prototype's float64 maths; it needs Newton's Python and a CUDA card, else prints `skipped`.
+- One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the
+  CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
+  the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the
+  errors); it needs Newton's Python and a CUDA card, else prints `skipped`. About 15 s.
