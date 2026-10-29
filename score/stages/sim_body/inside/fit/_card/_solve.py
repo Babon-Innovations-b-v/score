@@ -1,9 +1,10 @@
 """Level 3's loop on the card (plan step 1): mink's steps for every row at once until each row stops.
 
-Per step: Newton's analytic residuals and Jacobian (IKOptimizerLM's own buffers, its own solve never launched), the
-damped reduced step (`_step`), Newton's integrate, the exact projection (`_project`). A row stops by a float32 rule
-fixed against mink's 1e-8 (which never fires in float32): its reduced step under STEP_DONE, or its cost moved less
-than COST_DONE of itself over two steps; a stopped row's step is zero from then on. A row still going at MOST_STEPS
+Per step: Newton's analytic Jacobian (IKOptimizerLM's own buffers, its own solve never launched), the residuals in
+float64 from float64 link frames (`_forward`), the damped reduced step (`_step`), Newton's integrate, the exact
+projection (`_project`). A row stops by a rule fixed against mink on the proto clip (mink's own 1e-8 on the step
+never fires with a float32 Jacobian): its reduced step under STEP_DONE, or its float64 cost moved less than COST_DONE
+of itself over two steps (1e-7 left the shoulder's flat elevation plane 0.012 deg off mink, 1e-9 0.0025); a stopped row's step is zero from then on. A row still going at MOST_STEPS
 raises NotConverged, as mink's frames do (`../_frames.py`)."""
 import warp as wp
 
@@ -14,7 +15,7 @@ from ._step import damped_step
 
 MOST_STEPS = 300
 STEP_DONE = 1e-6
-COST_DONE = 1e-7
+COST_DONE = 1e-9
 ROOT_TURN = 3  # the free root's quaternion starts at coordinate 3 in both layouts
 
 
