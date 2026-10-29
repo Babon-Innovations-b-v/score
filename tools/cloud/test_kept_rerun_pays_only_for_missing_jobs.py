@@ -38,6 +38,9 @@ turns each red (applied once, seen red, reverted):
   crate's views made again).
 - test_the_sweep_drops_only_what_no_current_key_asks_for: in `sweep`, `if asked(entry):` -> `if True:` (nothing
   dropped); or `- held - output_blobs()` -> `- held` (a blob a stored output holds is freed).
+- test_a_job_kept_as_copies_before_the_blobs_is_put_back_and_turned_into_blobs: in `mark_of`, `if named is None or
+  not` -> `if True or not` (a copy left unread: the frame is made again); or in `sweep`, drop the `if "files" not in
+  entry: continue` (the copy dropped before it is turned).
 """
 import json
 import os
@@ -381,3 +384,20 @@ def test_the_sweep_drops_only_what_no_current_key_asks_for(monkeypatch, tmp_path
     assert not stale_blob.exists() and len(list(blobs.iterdir())) == 2  # the asked job's frame and the shared one
     again = attempt(monkeypatch, tmp_path, "again")
     assert kept.missing([frames(again, 0), frames(again, 12)], SYSTEM) == [frames(again, 0)]
+
+
+def test_a_job_kept_as_copies_before_the_blobs_is_put_back_and_turned_into_blobs(monkeypatch, tmp_path):
+    """env1 (2026-10-29): this PC's run kept its jobs as copies under 5a46a96e; the restart on the blob layout gets
+    them back, each turned into blobs at the same key on its first read, and the sweep never drops one before."""
+    folder = attempt(monkeypatch, tmp_path, "first")
+    job = frames(folder, 0)
+    slot, content, _ = kept.identity(job, SYSTEM)
+    copies = tmp_path / "store" / "kept" / slot / content
+    (copies / "outputs" / "frames" / "part0").mkdir(parents=True)
+    (copies / "outputs" / "frames" / "part0" / "000.png").write_text("frame 0")
+    (copies / kept.DONE).write_text(json.dumps({"job": job, "peers": {}}, sort_keys=True))  # 5a46a96e's mark
+    assert kept.sweep(lambda entry: False, say=lambda line: None)["dropped"] == 0 and (copies / "outputs").is_dir()
+    again = attempt(monkeypatch, tmp_path, "again")
+    assert kept.missing([frames(again, 0)], SYSTEM) == []
+    assert (again / "frames" / "part0" / "000.png").read_text() == "frame 0"
+    assert not (copies / "outputs").exists() and "files" in json.loads((copies / kept.DONE).read_text())

@@ -54,6 +54,10 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
   beside a script dropped  -> the same test (make_chunky.py's bake.py, pieces.py ...); `STARTED_LEFT` with a row that
   starts nothing  -> the same test; `reads_recipes` always False  ->
   test_a_row_reading_the_recipes_declares_the_vendored_libraries_they_import.
+- score/stages/surfaces/route_views.py `view_take`: a read of a file no argument names added (`(REPO /
+  "data/library/materials.json").read_text()`)  -> test_each_per_take_function_opens_only_its_arguments_its_code_and_python
+  (kept.call would hand back a take made from that file's old bytes); the same in route_split.py `split_take` or
+  route_parts.py `parts_take`  -> the same test.
 
 --- a scenes layers are read off its design ---
 
@@ -2160,3 +2164,73 @@ def test_a_worktree_hook_uses_the_main_checkouts_python():
     code, _, record = hook(tree, [f"refs/heads/main {tip} refs/heads/main {moved.ZERO}"])
     assert code == 0 and record["cwd"] == str(tree) and record["python"] == str(repo / ".venv/bin/python")
     shutil.rmtree(tree)
+
+
+# --- a per-take function the table keeps reads only what its key holds -------------------------------------------------
+
+OPENED = []  # the paths opened while a traced per-take call runs (TRACING): sys.audit's hook cannot be taken off
+TRACING = []
+PYTHON_HOMES = tuple(pathlib.Path(folder).resolve() for folder in {sys.prefix, sys.base_prefix, sys.exec_prefix})
+SYSTEM_FOLDERS = tuple(pathlib.Path(folder) for folder in ("/proc", "/sys", "/dev"))
+
+
+def opened_hook(event, arguments):
+    if event == "open" and TRACING and isinstance(arguments[0], (str, bytes, os.PathLike)):
+        OPENED.append(os.fsdecode(arguments[0]))
+
+
+def argument_paths(value):
+    """Every file or folder a per-take call's arguments name."""
+    if isinstance(value, dict):
+        return [path for item in value.values() for path in argument_paths(item)]
+    if isinstance(value, (list, tuple)):
+        return [path for item in value for path in argument_paths(item)]
+    if isinstance(value, pathlib.PurePath) or isinstance(value, str) and value.startswith("/"):
+        return [pathlib.Path(value).resolve()]
+    return []
+
+
+def outside_its_key(path, named):
+    """Whether a file a per-take call opened is none of: a file or folder its arguments name, the repository's Python
+    (the row's code), or Python's own installation and the system's own files."""
+    path = pathlib.Path(path).resolve()
+    return not (any(path == folder or path.is_relative_to(folder) for folder in (*named, *PYTHON_HOMES,
+                                                                                  *SYSTEM_FOLDERS))
+                or path.is_relative_to(REPO) and (path.suffix in (".py", ".pyc") or "__pycache__" in path.parts))
+
+
+def test_each_per_take_function_opens_only_its_arguments_its_code_and_python(tmp_path, monkeypatch):
+    """kept.call hands a take back whenever its function, its arguments and the files they name, the row's code and
+    this Python are the same (the table's PER_TAKE, owner, 2026-10-29), so each function it keeps must read nothing
+    else: run on the surface line's own fixtures (views, list, split and parts of its two boxes), every file each
+    per-take call opens is one its arguments name, the repository's Python or Python's own."""
+    fixtures_path = REPO / "score/stages/surfaces/test_every_part_takes_a_library_surface_and_is_held_to_it.py"
+    spec = importlib.util.spec_from_file_location("surface_line_fixtures", fixtures_path)
+    fixtures = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fixtures)
+    if not getattr(sys, "per_take_hook", False):
+        sys.addaudithook(opened_hook)
+        sys.per_take_hook = True
+    rows = {row.name: row for row in stages.STAGES}
+    called, opened = [], {}
+    for name, (function_name, _) in stages.PER_TAKE.items():
+        namespace = inspect.unwrap(rows[name].make).__globals__
+        function = namespace[function_name]
+
+        def traced(*arguments, function=function, function_name=function_name):
+            called.append(function_name)
+            OPENED.clear()
+            TRACING.append(function_name)
+            try:
+                return function(*arguments)
+            finally:
+                TRACING.clear()
+                found = list(OPENED)
+                opened[function_name] = opened.get(function_name, 0) + len(found)
+                strays = [path for path in found if outside_its_key(path, argument_paths(list(arguments)))]
+                assert not strays, f"{function_name} opened files its key does not hold: {strays}"
+        monkeypatch.setitem(namespace, function_name, traced)
+    rows_made, _ = fixtures.listed(tmp_path, lambda views, take: fixtures.two_finish_answer(views))
+    fixtures.parted(tmp_path, fixtures.split(tmp_path, rows_made))
+    assert set(called) == {"view_take", "split_take", "parts_take"}, called
+    assert all(opened.values()), opened  # each read its inputs through the traced opens
