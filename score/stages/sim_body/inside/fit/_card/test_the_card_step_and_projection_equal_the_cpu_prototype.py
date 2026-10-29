@@ -11,7 +11,8 @@ weight, the turn's Jacobian through the log's inverse left Jacobian (mink's exac
 free root, three ranged hinges, a follower coupled by polyval in its own body, a frozen hinge), the card loop on a
 10-frame clip, each row seeded as mink's frame was, equals mink (../_frames.solved, targets set as _frames.Frames sets
 them) to 0.01 deg and its sites to 0.01 mm, with a frame holding h1 at its range; in chunks of 3 rows it equals
-itself in one batch.
+itself in one batch. Seeded from that clip's answers (its angles.npz, `_seeds`) with the places 3 mm on, the card
+equals mink's answer to the moved clip to 0.01 deg and 0.01 mm (a cold seed only reported).
 
 Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _step's `LM_DAMPING * squared + DAMPING` made `DAMPING`: mink's damping is lost, the step differs.
@@ -24,6 +25,8 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _projected's `power *= lead` made `power *= 1.0`: a coupling is no longer polyval of its leader.
 - (2026-10-29) _turn_jacobian's `weight[problem] * rate[axis]` made `rate[axis]`: the weight is lost.
 - (2026-10-29) _turn_residuals' angle `2 atan2(length, w) / length` made `2`: the turn is no longer the log map.
+- (2026-10-29) _solve's `CYCLE_STEP = 1e-5` made `0.0`: a seeded toy row cycles at its float32 pose's floor and never
+  stops (NotConverged).
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/_card/test_the_card_step_and_projection_equal_the_cpu_prototype.py
 """
@@ -377,8 +380,40 @@ def the_clip_equals_mink_frame_by_frame():
     return problems
 
 
+def the_next_iteration_from_its_seeds_equals_mink():
+    """Level 1's next iteration (the places 3 mm on, the turn cost 1.5 times) seeded from the last iteration's
+    angles of each frame (read back from its angles.npz, `_seeds.first`, then `_seeds.kept`) equals mink's
+    frame-by-frame answer to it to 0.01 deg and 0.01 mm; a cold seed (the rest pose every frame) is only reported."""
+    import mujoco
+    import numpy as np
+    from fit._card import solved_in_chunks
+    from fit._card import _seeds
+    mjm = mujoco.MjModel.from_xml_string(TOY)
+    turns, places = toy_clip(mjm)
+    folder = pathlib.Path(os.environ["PROPS_HOME"]) / "seeds"
+    (folder / "toy").mkdir(parents=True, exist_ok=True)
+    np.savez(folder / "toy" / _seeds.SEEDS, qpos=mink_frames(mjm, turns, places))
+    seeds = {"toy": _seeds.first(folder, "toy")}
+    moved = places + np.array([0.003, -0.002, 0.001])
+    reference = mink_frames(mjm, turns, moved)
+    optimizer_for, reduction, projection = toy_card(mjm, turns, moved)
+    found, _ = solved_in_chunks(optimizer_for, reduction, projection, _seeds.newton_order(seeds["toy"]),
+                                seeds["toy"])
+    seeds = _seeds.kept(seeds, "toy", found)
+    miss, sites = toy_errors(mjm, seeds["toy"], reference)
+    problems = [f"from its seeds: angles {miss:.4f} deg off mink's (plan: 0.01)"] if miss > 0.01 else []
+    if sites > 0.01:
+        problems.append(f"from its seeds: sites {sites:.4f} mm off mink's (plan: 0.01)")
+    cold = np.tile(mjm.qpos0, (CLIP_FRAMES, 1))
+    cold_found, _ = solved_in_chunks(optimizer_for, reduction, projection, _seeds.newton_order(cold), cold)
+    print("cold seed (reported, not used): angles %.4f deg, sites %.4f mm off mink's" % toy_errors(
+        mjm, cold_found, reference))
+    return problems
+
+
 CHECKS = (the_step_equals_the_prototype, the_projection_equals_the_prototype,
-          the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame)
+          the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame,
+          the_next_iteration_from_its_seeds_equals_mink)
 
 
 def in_newton():

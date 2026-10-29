@@ -4,7 +4,11 @@ Per step: Newton's analytic Jacobian (IKOptimizerLM's own buffers, its own solve
 float64 from float64 link frames (`_forward`), the damped reduced step (`_step`), Newton's integrate, the exact
 projection (`_project`). A row stops by a rule fixed against mink on the proto clip (mink's own 1e-8 on the step
 never fires with a float32 Jacobian): its reduced step under STEP_DONE, or its float64 cost moved less than COST_DONE
-of itself over two steps (1e-7 left the shoulder's flat elevation plane 0.012 deg off mink, 1e-9 0.0025); a stopped row's step is zero from then on. A row still going at MOST_STEPS
+of itself over two steps (1e-7 left the shoulder's flat elevation plane 0.012 deg off mink, 1e-9 0.0025), or it
+cycles at its float32 pose's floor: its cost back within CYCLE_RETURN of the change between, two steps apart, by a
+step under CYCLE_STEP (a toy row seeded 0.5 mm off: the float64 step equals the card's, its model gain 3.7e-12 while
+the float32 pose's rounding moves the cost 9e-9 either way, so it went A, B, A for good). A monotone fall never
+returns, so the cycle rule cannot stop one early. A stopped row's step is zero from then on. A row still going at MOST_STEPS
 raises NotConverged, as mink's frames do (`../_frames.py`)."""
 import warp as wp
 
@@ -17,6 +21,8 @@ MOST_STEPS = 300
 CHUNK_ROWS = 8000  # the plan's: about 2.9 GB on the card a chunk of MyoFullBody rows, under the 8 GB cap beside env1
 STEP_DONE = 1e-6
 COST_DONE = 1e-9
+CYCLE_STEP = 1e-5  # a row back at its cost of two steps before, by steps this short, is at its float32 pose's floor
+CYCLE_RETURN = 1e-2  # ... back within this share of the cost change between the two
 ROOT_TURN = 3  # the free root's quaternion starts at coordinate 3 in both layouts
 
 
@@ -63,7 +69,9 @@ def _stopped(residuals: wp.array2d[wp.float64], norms: wp.array[wp.float32], his
     history[row, 0] = cost
     steps[row] = step + 1
     settled = step >= 2 and wp.abs(history[row, 2] - cost) <= wp.float64(COST_DONE) * cost
-    if norms[row] < STEP_DONE or settled:
+    returned = wp.abs(history[row, 2] - cost) <= wp.float64(CYCLE_RETURN) * wp.abs(history[row, 1] - cost)
+    cycling = step >= 2 and norms[row] < CYCLE_STEP and returned
+    if norms[row] < STEP_DONE or settled or cycling:
         active[row] = 0
 
 
