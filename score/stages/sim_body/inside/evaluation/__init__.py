@@ -1,7 +1,7 @@
 """Level 1's runner (#70): each evaluation runs levels 2 and 3 on every body of a side (the tuning bodies, or the
 held-out check bodies) side by side, one process per SOMA body (`_case.py`, at most MOST at once, each under
 systemd-run MemoryMax=6G with two threads, a new one started only while FREE_GB of memory is available), and reads
-back each clip's honest measures (`_measure`: joint error, rotation error on the frozen calibration copy `_frozen`,
+back each clip's honest measures (`_measure`: joint error, rotation error on the frozen calibration copy `fit._frozen`,
 bones outside SOMA's skin by region). `case_score` and `side_score` sum them into one number for the log; `accepted`
 is the held-out rule: the check bodies' score within 10 % of the tuning bodies'. The check bodies are scored, never
 used to choose. Standard library only here; the worker needs Newton's Python."""
