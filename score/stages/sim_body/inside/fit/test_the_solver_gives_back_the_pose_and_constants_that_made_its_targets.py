@@ -3,7 +3,8 @@ hip by a coupling, one thigh's calibration turned 30 degrees), with the person's
 group 8% longer, one pelvis marker 1 cm off its link), the staged solver gives back from the bone groups' turns and
 the markers the size factor (within the gentle pull to 1) and the marker's move (within its pull to its link), and at
 those constants every frame's angles; a frame asking a hip past its range stops it at the range's end, its coupled follower on its leader by the
-coupling, though the follower's own range is narrower; each marker weighs its trust among the markers; the overall
+coupling, though the follower's own range is narrower; each marker weighs its trust among the markers, the markers'
+goal LANDMARK_GOAL in all against the turns' 1; the overall
 size factor multiplies every group's; the constants are the body's, sampled from every one of its recordings. It runs in
 Newton's own Python (mink pinned there; score/stages/physics/inside/newton_env.sh, built at
 $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
@@ -22,6 +23,7 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   np.sqrt(len(trusts)))`: the low-trust marker weighs as much as the others.
 - (2026-10-29) _frames.weights' `trusts[:fitting.goal].sum()` made `trusts.sum()`: a group end thins the landmarks'
   weights.
+- (2026-10-29) _frames.weights' `LANDMARK_GOAL * trusts` made `trusts`: the place goal sums to 1, not LANDMARK_GOAL.
 - (2026-10-29) _constants' SIZE_PULL `0.05` made `5.0`: the factor is held near 1, not TRUE_LEFT.
 - (2026-10-29) sampled's `for turns, points in recordings` made `for turns, points in recordings[:1]`: the body's
   second recording is left out of its constants.
@@ -207,11 +209,12 @@ def each_marker_weighs_its_trust():
     """The toy's ten markers, one trusted 0.25: each place cost the square root of its trust over 9.25, each of the
     five turns one over the square root of 5."""
     import numpy as np
-    from fit._frames import weights
+    from fit._frames import LANDMARK_GOAL, weights
     with tempfile.TemporaryDirectory() as folder:
         fitting = toy_fitting(folder)
         turn_cost, place_costs = weights(fitting)
-    wanted = np.array([np.sqrt((LOW_TRUST[1] if name == LOW_TRUST[0] else 1.0) / 9.25) for name in fitting.marks])
+    wanted = np.array([np.sqrt(LANDMARK_GOAL * (LOW_TRUST[1] if name == LOW_TRUST[0] else 1.0) / 9.25)
+                       for name in fitting.marks])
     problems = [] if np.allclose(place_costs, wanted) else [f"place costs {place_costs.tolist()}"]
     return problems + ([] if np.isclose(turn_cost, 1 / np.sqrt(5)) else [f"turn cost {turn_cost}"])
 
@@ -220,12 +223,12 @@ def a_group_end_weighs_against_the_landmarks_sum():
     """With the last of the ten markers a group end (the goal the first nine), every place cost is the square root of
     its trust over the first nine's sum, 8.25: the end adds to the markers' goal, never thins the landmarks'."""
     import numpy as np
-    from fit._frames import weights
+    from fit._frames import LANDMARK_GOAL, weights
     with tempfile.TemporaryDirectory() as folder:
         fitting = toy_fitting(folder)
         fitting.goal = len(fitting.marks) - 1
         _, place_costs = weights(fitting)
-    wanted = np.sqrt(fitting.trusts / fitting.trusts[:-1].sum())
+    wanted = np.sqrt(LANDMARK_GOAL * fitting.trusts / fitting.trusts[:-1].sum())
     return [] if np.allclose(place_costs, wanted) else [f"place costs {place_costs.tolist()}"]
 
 
@@ -243,7 +246,23 @@ def the_overall_factor_reaches_every_group():
             if not np.isclose(found[group], value)]
 
 
-CHECKS = (each_marker_weighs_its_trust, a_group_end_weighs_against_the_landmarks_sum, the_overall_factor_reaches_every_group, the_solver_gives_back_the_angles_and_the_constants,
+def the_place_goal_sums_to_the_landmark_goal():
+    """With LANDMARK_GOAL set to 4, the ten markers' squared costs sum to 4 and the five turns' to 1: one global
+    balance for every landmark and group."""
+    import numpy as np
+    from fit import _frames
+    kept = _frames.LANDMARK_GOAL
+    _frames.LANDMARK_GOAL = 4.0
+    try:
+        with tempfile.TemporaryDirectory() as folder:
+            turn_cost, place_costs = _frames.weights(toy_fitting(folder))
+    finally:
+        _frames.LANDMARK_GOAL = kept
+    found, turns = float(np.sum(place_costs ** 2)), 5 * turn_cost ** 2
+    return [] if np.isclose(found, 4.0) and np.isclose(turns, 1.0) else [f"places {found:.4f}, turns {turns:.4f}"]
+
+
+CHECKS = (each_marker_weighs_its_trust, the_place_goal_sums_to_the_landmark_goal, a_group_end_weighs_against_the_landmarks_sum, the_overall_factor_reaches_every_group, the_solver_gives_back_the_angles_and_the_constants,
           every_recording_of_the_body_is_sampled, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows)
 
 

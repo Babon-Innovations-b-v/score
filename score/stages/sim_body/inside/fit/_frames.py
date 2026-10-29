@@ -14,6 +14,9 @@ STEP_DONE = 1e-8  # a step this small (the tangent step's norm) ends a frame's f
 MOST_STEPS = 300  # a frame not converged by then fails the run: never kept silently
 LM_DAMPING = 1e-3  # mink's Levenberg-Marquardt term on each task: shapes a step, never moves the optimum
 DAMPING = 1e-9
+# level 1's global balance (#70): the place goal's (the landmarks' and the group ends') total weight against the turns'
+# goal's 1, one value for every landmark and group, chosen on the tuning bodies by the harness's score
+LANDMARK_GOAL = 10.0
 
 
 class NotConverged(RuntimeError):
@@ -39,9 +42,11 @@ def weights(fitting):
     """Each turn task's cost and each marker's: OpenSim's IK normalises each goal by its own weight sum (Simbody's
     OrientationSensors and Markers goals), here two goals, the turns (every weight 1, as OpenSense's) and the markers
     (each weight its landmark's trust, `landmarks.trust`; SOMA's own joints are no goal: they are the measure); a mink
-    cost multiplies the error, so a cost is the square root of its weight over its goal's sum."""
+    cost multiplies the error, so a cost is the square root of its weight over its goal's sum; the place goal's sum is
+    LANDMARK_GOAL, the turns' 1."""
     trusts = np.asarray(fitting.trusts, dtype=float)
-    return 1.0 / np.sqrt(max(len(fitting.frame_sites), 1)), np.sqrt(trusts / max(trusts[:fitting.goal].sum(), 1e-12))
+    places = np.sqrt(LANDMARK_GOAL * trusts / max(trusts[:fitting.goal].sum(), 1e-12))
+    return 1.0 / np.sqrt(max(len(fitting.frame_sites), 1)), places
 
 
 class Frames:
