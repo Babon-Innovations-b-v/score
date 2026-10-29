@@ -6,7 +6,7 @@ The one solver (#70; SOMA is the truth): MyoFullBody fitted to the clip's SOMA b
 bone group, a site per landmark marker, the constants laid on `body_pos`/`site_pos` in
 place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the constants' sparse least squares,
 `_follow.py` the judgement and the segments' riding, `_skin.py` the bones outside SOMA's posed skin by region
-(warp's winding number, every 10th frame), `_frozen.py` main's calibration table frozen (227b29b2), `_card/` level 3's step and projection on the card (plan step 1, being proved equal to mink; mink stays the reference).
+(warp's winding number, every 10th frame), `_frozen.py` main's calibration table frozen (227b29b2), `_card/` level 3's step and projection on the card (plan step 1, being proved equal to mink; mink stays the reference); level 2's exact Jacobian too, which `constants` hands `staged` (`card_jacobian`; scipy's 2-point differences stay `staged`'s default and the reference).
 
 - **Reuse, not handwritten maths** (owner, 2026-10-28): per frame mink 1.3.0 (Apache-2.0, pinned in
   `score/stages/physics/inside/newton_env.sh` with qpsolvers 4.13.0 and daqp 0.10.3), its `FrameTask`s for the
