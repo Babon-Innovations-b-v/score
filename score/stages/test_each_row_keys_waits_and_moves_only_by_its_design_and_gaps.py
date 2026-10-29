@@ -403,7 +403,9 @@ def test_the_light_layer_reads_and_waits_on_every_body_face_row():
 def test_no_base_or_layer_row_must_wait_on_the_prop_route():
     """Buy of 2026-10-24: one crashed close-up stopped the square's earth seed, scene record, light and tiles, since
     the scene palette, which the surface library and so the base read, waited on Pixal3D. Through every read that is
-    not optional, neither the earth seed nor the scene record reaches the prop route's rows."""
+    not optional, neither the earth seed nor the scene record reaches the prop route's rows. The light rows do, on
+    purpose since 2026-10-29: they light the place as the assembly lays it, its bakes in (light/passes.LAID), so they
+    wait on the bake as the assembly does."""
     table = {stage.name: stage for stage in stages.STAGES}
     prop_route = {"closeup", "pixal"}
 
@@ -413,7 +415,7 @@ def test_no_base_or_layer_row_must_wait_on_the_prop_route():
                 seen.add(before)
                 reached(before, seen)
         return seen
-    for start in ("earth-seed", "scene-record", "light-layer"):
+    for start in ("earth-seed", "scene-record"):
         assert not reached(start, set()) & prop_route, (start, reached(start, set()) & prop_route)
     assert "pixal" in table["finish-route-palette"].optional
 
