@@ -1,7 +1,7 @@
 """The feet kept where they stood by the legs (`Footing`): a move of the pelvis or trunk leaves the feet, and so the
 ground's contacts, as they were. mink per frame, set up as the fit's (`fit.solved`, its solver, step and steps): each
 foot body's place and turn a `FrameTask`, the pelvis' height held to its own by FOOTED_HEIGHT (a `FrameTask` on the
-root's body, its height alone: mink's `PostureTask` leaves a free joint out), every leading dof but the legs' and the
+root's body, only its height free: mink's `PostureTask` leaves a free joint out), every leading dof but the legs' and the
 root's height frozen (`DofFreezingTask`), the couplings held exactly (`EqualityConstraintTask` as a constraint) and the
 leading joints in their ranges (`ConfigurationLimit`); a frame that does not converge fails the run
 (`fit.NotConverged`), never kept silently. Before #70's one-solver rule (2026-10-29) this was a handwritten damped least
@@ -32,7 +32,9 @@ class Footing:
         self.tasks = [mink.FrameTask(model.body(body).name, "body", position_cost=1.0, orientation_cost=1.0,
                                      lm_damping=fit.LM_DAMPING) for body in self.feet]
         self.root = int(model.jnt_bodyid[0])
-        self.height = mink.FrameTask(model.body(self.root).name, "body", position_cost=[0.0, 0.0, FOOTED_HEIGHT],
+        # mink's error is in the body's own frame; with the root's place frozen but its height, its whole place error
+        # is the height's, whatever the pelvis' tilt
+        self.height = mink.FrameTask(model.body(self.root).name, "body", position_cost=FOOTED_HEIGHT,
                                      orientation_cost=0.0, lm_damping=fit.LM_DAMPING)
         followers = [joint for joint, _, _ in couplings.followers]
         self.limits = [mink.ConfigurationLimit(fit.followers_free(model, followers), gain=1.0)]
@@ -76,4 +78,3 @@ class Footing:
         self.data.qpos[:] = qpos
         mujoco.mj_kinematics(self.model, self.data)
         return [(self.data.xpos[body].copy(), self.data.xmat[body].reshape(3, 3).copy()) for body in self.feet]
-
