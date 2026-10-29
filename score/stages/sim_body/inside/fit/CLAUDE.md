@@ -53,7 +53,10 @@ place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the
 - What stays (measured 2026-10-29 on both test walkers, median over the frames, SOMA's joints no goal): the joints
   16 mm off SOMA's, the shoulders 44 to 50, the head 20 to 25 (rigid on the thorax); the groups' turns 5.2 to 5.9
   degrees on the median of those not at a limit, the head 23 (rigid). A frame that does not converge in `MOST_STEPS` fails
-  the run (`NotConverged`), never kept silently.
+  the run (`NotConverged`), never kept silently. A frame's fit ends on a step under `STEP_DONE`, its own norm or its change to the
+  tasks' and couplings' weighted errors (2026-10-29: at zero shoulder elevation elv_angle and its follower cancel, a
+  direction no task sees; mink drifted along it 1e-4 rad a step for ever on every body's arms_raise; with the rule
+  mean, heavy and short converge on all 7 clips, the other clips' angles moved at most 7e-6 rad).
 - **The record states the honest measures first** (#70's audit item 2, 2026-10-29): `following` gives the bones
   outside SOMA's skin by region and the turns on main's frozen table before the joint mm (partly the ends' own pull)
   and the tree's-table turns; the frozen table is never edited to follow the tree.
