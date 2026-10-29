@@ -43,6 +43,11 @@ before that.
   (angles 0.0017 deg, sites 0.0042 mm, cost ratio 2.0e-8, couplings 1.3e-7 rad, ranges held, 13 / 38 steps median /
   max); 136 rows 2.38 s (57 rows/s, the first launch's compile in it), 1,088 0.89 s (1,223/s, 244 MiB), 4,080 1.60 s
   (2,558/s, 916 MiB), 12,784 3.81 s (3,359/s, 2,740 MiB on the card). Nothing replaces mink yet.
+- `_seeds.py` (`first`, `kept`, `newton_order`; plan step 2): iteration 0 starts each frame from mink's own angles
+  for it (angles.npz, written by `evaluation._case` beside a clip's measures), later iterations from each frame's own
+  last accepted solve; a cold seed (rest pose) is never used. Open (2026-10-29): seeded from the last iteration's
+  angles with the toy's places moved 0.5 or 3 mm, one row never stops (2,000 steps; 0 and 1 mm stop and equal mink
+  to 0.0007 deg): the loop cycles, a fix in `_solve`/`_step` before the seed check goes in the test file.
 - Still to come: the test file split under 300 lines (now about 400).
 - One test file (`test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the CPU
   prototype's float64 maths; it needs Newton's Python and a CUDA card, else prints `skipped`.
