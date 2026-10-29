@@ -1,9 +1,9 @@
-"""rra: RRA's model step changes the body's mass by the mean upward residual over its weight, at most MASS_MOST from
-the mass it was made with over every round together (the unbounded change recorded as recommended), and moves the
-torso's centre of mass under the mean residual moment, at most COM_MOST from where it was made; the feet stay where they
-stood when the pelvis moves (`Footing`, mink), and a frame that does not converge fails loudly; as worked out by hand (to
-1e-6: Newton keeps gravity in float32); and a segment's turn between two posed paths is measured in degrees. It runs
-in Newton's own Python (on a model Newton builds; score/stages/physics/inside/newton_env.sh, built at
+"""rra: RRA's model step changes the body's mass by the mean upward residual over its weight, at most MASS_MOST from the
+mass it was made with over every round together (the unbounded change recorded as recommended), and moves the torso's
+centre of mass under the mean residual moment, at most COM_MOST from where it was made; the feet stay where they stood
+when the pelvis moves (`Footing`, mink), and a frame that does not converge fails loudly; as worked out by hand (to
+1e-6: Newton keeps gravity in float32); and a segment's turn between two posed paths is measured in degrees. It runs in
+Newton's own Python (on a model Newton builds; score/stages/physics/inside/newton_env.sh, built at
 $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted), 2026-10-28:

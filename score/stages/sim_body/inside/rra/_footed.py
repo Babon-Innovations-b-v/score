@@ -1,10 +1,11 @@
 """The feet kept where they stood by the legs (`Footing`): a move of the pelvis or trunk leaves the feet, and so the
 ground's contacts, as they were. mink per frame, set up as the fit's (`fit.solved`, its solver, step and steps): each
 foot body's place and turn a `FrameTask`, the pelvis' height held to its own by FOOTED_HEIGHT (a `FrameTask` on the
-root's body, its height alone: mink's `PostureTask` leaves a free joint out), every leading dof but the legs' and the root's height frozen (`DofFreezingTask`), the
-couplings held exactly (`EqualityConstraintTask` as a constraint) and the leading joints in their ranges
-(`ConfigurationLimit`); a frame that does not converge fails the run (`fit.NotConverged`), never kept silently. Before
-#70's one-solver rule (2026-10-29) this was a handwritten damped least squares, 40 fixed steps, ranges by clipping."""
+root's body, its height alone: mink's `PostureTask` leaves a free joint out), every leading dof but the legs' and the
+root's height frozen (`DofFreezingTask`), the couplings held exactly (`EqualityConstraintTask` as a constraint) and the
+leading joints in their ranges (`ConfigurationLimit`); a frame that does not converge fails the run
+(`fit.NotConverged`), never kept silently. Before #70's one-solver rule (2026-10-29) this was a handwritten damped least
+squares, 40 fixed steps, ranges by clipping."""
 import mink
 import mujoco
 import numpy as np
@@ -33,8 +34,8 @@ class Footing:
         self.root = int(model.jnt_bodyid[0])
         self.height = mink.FrameTask(model.body(self.root).name, "body", position_cost=[0.0, 0.0, FOOTED_HEIGHT],
                                      orientation_cost=0.0, lm_damping=fit.LM_DAMPING)
-        self.limits = [mink.ConfigurationLimit(fit.followers_free(model, [joint for joint, _, _ in couplings.followers]),
-                                               gain=1.0)]
+        followers = [joint for joint, _, _ in couplings.followers]
+        self.limits = [mink.ConfigurationLimit(fit.followers_free(model, followers), gain=1.0)]
         self.constraints = [mink.EqualityConstraintTask(model, cost=1.0, gain=1.0)] if model.neq else []
         self.constraints.append(mink.DofFreezingTask(model, dof_indices=[int(dof) for dof in couplings.leads
                                                                          if int(dof) not in legs]))
