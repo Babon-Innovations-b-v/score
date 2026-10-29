@@ -18,7 +18,16 @@ before that.
 - `_objective.py` (`PlacePerProblem`, `TurnPerProblem`): Newton's IKObjectivePosition and IKObjectiveRotation
   (canonicalised error, its analytic omega Jacobian) with offset and weight per problem (rows of several bodies or
   level-1 sets in one batch), analytic; equal to the built-in ones row by row (test file, six-link chain, 1e-6).
-- Still to come (plan step 1, second half): the integrate, the float32 stop rule fixed against mink, NotConverged at 300 steps, the clip test against
-  mink frame by frame.
+- `_solve.py` (`solved`, `NotConverged`): the loop (Newton's analytic residuals and Jacobian, the damped step, Newton's
+  integrate, the projection; root quaternion order converted on the card), a row stopping when its reduced step is
+  under 1e-6 or its cost moved under 1e-7 of itself over two steps; NotConverged at 300. Measured 2026-10-29 on the
+  proto clip (136 frames, each row seeded as mink's frame was): cost ratio |x-1| 2.2e-8 max, couplings 1.4e-7 rad,
+  ranges held, 12 / 25 steps median / max; NOT yet equal: angles 0.020 deg and sites 0.029 mm max (3 frames over the
+  plan's 0.01), all in elv_angle_l/r (the shoulder's elevation plane near the hanging arm, a flat direction), not
+  moved by a tighter stop or float64 sums in the normal equations: a float32 floor of Newton's FK/Jacobian. Speed
+  (one batch, no chunking needed up to 12,784 rows): 1,925 rows/s at 1,088, 4,094 at 4,080, 6,889 at 12,784 (1.86 s,
+  2.7 GB on the card). Not in the test file yet; nothing replaces mink.
+- Still to come: the equality decision on the flat shoulder dof, chunking above ~30,000 rows, the clip test against
+  mink in the test file.
 - One test file (`test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the CPU
   prototype's float64 maths; it needs Newton's Python and a CUDA card, else prints `skipped`.
