@@ -44,6 +44,7 @@ Runs side by side on one store make a node's key one at a time (`held`, a file l
 second run waits, then finds the first's record and makes nothing. A record or judgement another run stored first is
 taken as made.
 """
+import collections
 import contextlib
 import contextvars
 import datetime
@@ -1950,6 +1951,7 @@ class Runner:
         # plan edited under the run is read again); finished: the result
         # pipes of the nodes that ended, concluded at the next turn's start inside that turn's one still pass
         known, known_at, finished, watch = {}, time.monotonic(), [], {}  # watch: the container's jobs (coming)
+        claimers = set()
         self.driving = (0, time.monotonic())
         while waiting or running:
             if time.monotonic() - known_at >= HEARTBEAT:
@@ -1978,7 +1980,9 @@ class Runner:
                 finished = []
                 forget(known, ended)
                 coming = self.coming(running, peaks, seen, watch)  # what the running nodes may still take (memory_room)
-                busy, full = len(running) - self.excused(running), False  # full: a ready node waited for a job slot
+                queued = self.claim_waiting(running)  # the stages whose running nodes wait on a claim, how many
+                busy, full = len(running) - min(sum(queued.values()), WAITERS_EXCUSED), False  # full: a node waited
+                claimers.update(queued)  # stages seen waiting on a claim this run
                 for stage, place in list(waiting):
                     node = node_name(stage, place)
                     earlier = kept(known, node, "earlier", self.earlier, stage, place)
@@ -1997,8 +2001,9 @@ class Runner:
                         say(f"{node}: {done[node]}")
                     elif stood.union(passes).issuperset(earlier) and not unsettled(
                             kept(known, node, "optional", self.optional_nodes, stage, place), line, stood, stopped):
-                        if busy + len(ready) >= jobs:
-                            full = True
+                        if busy + len(ready) >= jobs or queued[stage.name] or (
+                                stage.name in claimers and any(began.name == stage.name for began, _ in ready)):
+                            full = True  # a stage with a node queued on a claim starts no other: other stages first
                             continue
                         expected = peaks.get(stage.name, memory_floor())
                         if not memory_room(coming, expected):
@@ -2029,13 +2034,15 @@ class Runner:
         return {node_name(stage, place): done[node_name(stage, place)] for stage, place in chosen
                 if node_name(stage, place) in done}
 
-    def excused(self, running):
-        """How many `running` nodes hold no --jobs slot: on this PC those only waiting on a claim of the container
-        (CLAIM_WAITERS), at most WAITERS_EXCUSED; none elsewhere."""
+    def claim_waiting(self, running):
+        """{stage name: how many of its `running` nodes only wait on a claim of the container (CLAIM_WAITERS)}, on this
+        PC; none elsewhere. The drive excuses at most WAITERS_EXCUSED of them a --jobs slot and starts no other node of
+        such a stage until its waiter got a turn, one a pass while it has none, so one queued waiter takes each turn
+        that frees and the slots go to other stages' ready nodes."""
         if not on_this_pc():
-            return 0
-        alive = [process.pid for _, _, process in running.values() if process.is_alive()]
-        return min(len(CLAIM_WAITERS(alive)), WAITERS_EXCUSED) if alive else 0
+            return collections.Counter()
+        alive = {process.pid: stage.name for stage, _, process in running.values() if process.is_alive()}
+        return collections.Counter(alive[pid] for pid in CLAIM_WAITERS(list(alive))) if alive else collections.Counter()
 
     def measured(self, stage, did, peak, contained, peaks):
         """The stage peaks kept once a node of `stage` ended, having done `did` with its tree holding at most `peak`
