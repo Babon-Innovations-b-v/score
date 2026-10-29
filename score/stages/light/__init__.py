@@ -2,9 +2,9 @@
 place's light layer, its lamps' strengths measured from one render of every lamp on its own, and the sky its record
 holds, as three rows of the stage table.
 
-    light-layer   (free) layers/light.usda over the place's round-three seed, from today's scene record with
-                  tools/usd/scene.py's own writers (layer.py): each lamp where the record puts it, the floodlights'
-                  shafts; its sky from the environment concept's physics overhead at its site at its scene time
+    light-layer   (free) layers/light.usda over the place as the assembly lays it (passes.source: its record, bakes,
+                  ground), with tools/usd/scene.py's own writers (layer.py): each lamp where the record puts it,
+                  the floodlights' shafts; its sky from the environment concept's physics overhead at its site at its scene time
                   (sky.py: each light, shining body's disc, other body drawn with its face as its body-face-<body>
                   row made it, and backdrop, the old sky turned off), the day dome its air scatters; lamps.json
     light-passes  (paid) the seed with that layer rendered on the views of the place's own scene record (the
@@ -283,7 +283,7 @@ def layer_files(place):
     """The kit (its seat, its lenses: passes.place_files), the seed, the surface library's method (a shining body's
     disc is its glowing recipe), the library's lamp (its concept's fill), the scene's kept sky (sky.kept_input) and its
     concept's light (scene_record.concept_light) when it has them; the record is the scene-record row's output."""
-    return {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
+    return {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json", **passes.SURFACES,
             "library": "{data}/library/materials.json", "lamp library": "{data}/library/lamps.json",
             **passes.place_files(place), **sky.kept_input(place), **concept_light.concept_light_input(place)}
 
@@ -882,7 +882,7 @@ def light_faults(folder):
 def light_files(place):
     """What the sweep and the measures read besides the scene records: the kits, the seed and the places it shows
     (the stage checks, their floodlight heads), the concepts; the views come with the layer."""
-    found = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
+    found = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json", **passes.SURFACES,
              **passes.place_files(place), "inventory": stage_inputs.inventory_pattern(place),
              # which lamps light a shaft (haze.shafted_kinds): the glowing rows each place's plan aims
              "row kinds": "{data}/checks/row-kinds.json", "lamp library": "{data}/library/lamps.json",
@@ -915,11 +915,11 @@ LAYER_STAGE = graph.Stage("light-layer", "place", make_layer, LAYERED,
                           (checks.Check("lamps placed", judge_placed), checks.Check("lit", judge_lit),
                            checks.Check("drawn", judge_drawn),
                            checks.Check("sky elements", judge_layer_sky), checks.Check("sky bodies", judge_sky_bodies)),
-                          files=layer_files, after=RECORD, applies=applies)
+                          files=layer_files, after={**RECORD, **passes.LAID}, applies=applies)
 PASSES_STAGE = graph.Stage("light-passes", "place", passes.make_passes, passes.PASSES,
                            (checks.Check("rendered", passes.judge_rendered),
                             checks.Check("no missing pictures", passes.judge_magenta)), files=passes.passes_files,
-                           after={"light-layer": ("light-layer", 1), **RECORD}, paid=True, euros=passes.EUROS,
+                           after={"light-layer": ("light-layer", 1), **RECORD, **passes.LAID}, paid=True, euros=passes.EUROS,
                            beside=RECORD, neighbours=neighbours, applies=applies)
 LIGHT_STAGE = graph.Stage("light", "place", make_light, LIT,
                           (checks.Check("brightness", judge_brightness), checks.Check("lamps", judge_lamps),
@@ -927,6 +927,6 @@ LIGHT_STAGE = graph.Stage("light", "place", make_light, LIT,
                            checks.Check("bodies", judge_bodies), checks.Check("sky", judge_sky),
                            checks.Check("exposure", judge_exposure), checks.Check("stage_no_worse", judge_stage)),
                           files=light_files, after={"light-layer": ("light-layer", 1),
-                                                    "light-passes": ("light-passes", 1), **RECORD},
+                                                    "light-passes": ("light-passes", 1), **RECORD, **passes.LAID},
                           beside=RECORD, neighbours=neighbours, applies=applies)
 ROWS = (LAYER_STAGE, PASSES_STAGE, LIGHT_STAGE)

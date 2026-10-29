@@ -31,6 +31,10 @@ MINUTES_A_VIEW = 5
 CHECK_SIZE = [960, 540]
 VIEWS = "views.json"  # in the light layer's output: the views the place's light is rendered and judged on
 RECORD = "scene-record"  # the row writing a place's scene record: the node's own place's an after, a shown one's beside
+# What the assembly lays over the record (source), read as it reads them: the surface line's bake and paint, the made
+# ground; and the place's design surface data, which bakes of other places it lays (grounded.take_bakes).
+LAID = {"terrain": ("grounds", 2), "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)}
+SURFACES = {"surfaces": "{home}/design/surfaces/{place}.json"}
 # Four to eight views of one stage on one or two rented cards, each set up once (the camp's first: EUR 0.18).
 EUROS = 2.0
 
@@ -76,9 +80,8 @@ def shown_in(inputs):
 
 def take(layer_folder, folder, place):
     """A light layer (layers/light.usda and assets/light/ of `layer_folder`) put into a place's stage folder, held by
-    its root just over the base, under the motion, effects and edit layers: how an assembly takes it. The root is
-    written anew (never through a hard link to a seed's). Returns the root."""
-    from pxr import Sdf
+    its root over the made ground and the base, under the motion, effects and edit layers (record.ORDER): how an
+    assembly takes it. The root is written anew (never through a hard link to a seed's). Returns the root."""
     root = folder / f"{place}.usda"
     text = root.read_text()
     root.unlink()
@@ -89,12 +92,8 @@ def take(layer_folder, folder, place):
         if (layer_folder / layer.ASSETS).exists():
             shutil.copytree(layer_folder / layer.ASSETS, folder / layer.ASSETS, copy_function=shutil.copyfile,
                             dirs_exist_ok=True)
-    held = Sdf.Layer.FindOrOpen(str(root))
-    paths = list(held.subLayerPaths)
-    if f"./{layer.LAYER}" not in paths:
-        paths.insert(paths.index("./layers/base.usda"), f"./{layer.LAYER}")
-        held.subLayerPaths = paths
-        held.Save()
+    import score.stages.assembly.record as record  # this form: the code version hashes record.py alone
+    record.hold(root, f"./{layer.LAYER}")  # in the assembly's ORDER: over the made ground, under the motion
     return root
 
 
@@ -118,19 +117,29 @@ def record_of(place, inputs):
 
 def source(place, inputs, folder):
     """The place's stage as the assembly lays it before its layers: the seed (hard links, but for its root, its base
-    and its pictures, which the record's writer rewrites, written anew) with the accepted scene record written over
-    the seed's record prims (assembly/record.take_record), or the seed alone for a place with no scene-record row."""
+    and its pictures, which the record's writer rewrites, written anew; its assets all written anew where a bake is
+    laid over them) with the accepted scene record written over the seed's record prims (assembly/record.take_record),
+    the surface line's bakes over its models and its waiting entries (assembly/grounded.take_bakes) and its made
+    ground (record.take_ground): the assembly's own code, so the lamps are measured on what ships (2026-10-29:
+    light-passes@base drew nothing, every object waiting on its bake). The seed alone for a place with no
+    scene-record row."""
+    import score.stages.assembly.grounded as grounded  # this form: the code version hashes grounded.py's imports
+    import score.stages.assembly.record as record
     seed = pathlib.Path(inputs["seed"])
     subprocess.run(["cp", "-al", str(seed), str(folder)], check=True)
     for part in (f"{place}.usda", "layers/base.usda"):
         (folder / part).unlink()
         shutil.copyfile(seed / part, folder / part)
-    if (seed / "assets/textures").exists():
-        shutil.rmtree(folder / "assets/textures")
-        shutil.copytree(seed / "assets/textures", folder / "assets/textures", copy_function=shutil.copyfile)
+    fresh = "assets" if "surfaces-bake" in inputs else "assets/textures"  # a write through a link changes the seed
+    if (seed / fresh).exists():
+        shutil.rmtree(folder / fresh)
+        shutil.copytree(seed / fresh, folder / fresh, copy_function=shutil.copyfile)
+    (folder / "assets").mkdir(exist_ok=True)  # the bakes are written there; a seed laying no kit piece has none
     if "scene-record" in inputs:
-        import score.stages.assembly.record as record  # this form: the code version hashes record.py alone
         record.take_record(inputs, folder, place)
+        grounded.take_bakes(inputs, folder, place)
+    if "terrain" in inputs:
+        record.take_ground(inputs["terrain"], place, folder / f"{place}.usda")
     return folder
 
 
@@ -301,7 +310,7 @@ def passes_files(place):
     """What the render reads besides the layer (which holds its views) and the scene records: the seed, the places it
     shows (neighbours) with the files their light layers are written from (theirs alone, never a whole folder:
     another place's kit edited moves no render here), the scripts."""
-    found = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
+    found = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json", **SURFACES,
              "renderer": "{repo}/tools/blender/inside/usd_views.py", "passes script": "{repo}/" + SCRIPT}
     for name in neighbours(place):
         found[f"neighbour {name}"] = f"{{seeds}}/usd-r3/{name}"
