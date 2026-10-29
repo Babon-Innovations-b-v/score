@@ -19,10 +19,14 @@ place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the
 - **SOMA's joints are no target, only the measure** (#70, 2026-10-29; before, from 2026-10-28, a third goal, which
   made the joint measure partly circular): the markers hold the joint centres the landmarks give (`centred`,
   `CENTRE_JOINTS`: ISB midpoints and Harrington's hips, `landmarks.soma_centres`) on MyoFullBody's centres of the
-  same name, OpenSim's practice; `following` judges against SOMA's own joints. Numbers on #70.
+  same name, OpenSim's practice; `following` judges against SOMA's own joints: 16.1 (Kimodo walker) and 15.9 mm
+  (rig walk) on the median of the joints not at a range limit, against 9.5 and 9.7 while they were a goal, the
+  shoulders (SOMA's Arm joints) the furthest, 44 to 50 mm, having no landmark centre of their own (2026-10-29).
 - **The group sizes are solved** (`_constants`, within `SIZE_MOST` of the sizing's): until 2026-10-29 each stretch was
   held to SOMA's length (LENGTH_WEIGHT 100, every group within 1.1 mm); #70's review asked them solved, and the model
-  record's `lengths` says how far they move from SOMA's (numbers on #70).
+  record's `lengths` says how far they move from SOMA's: with SOMA's joints a goal, up to 12 to 13 mm (the pelvis,
+  shoulders, head), the joints 1 mm nearer on the median; with the landmarks alone, up to 20 to 22 mm (the shoulder
+  girdle and upper arms longer, the shins 6 to 9 mm shorter; 2026-10-29, both test walkers).
 - **The calibration is the static table** (`calibration`), a site's quaternion R_cal^T on the group's frame body:
   never fitted, never per person.
 - **The followers' own ranges are not held** (`Fitting.limited_model`): 35 of MyoFullBody's 51 couplings have a
@@ -35,9 +39,9 @@ place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the
 - **The constants are one sparse problem** with the angles of `SAMPLE` frames (`_constants.Problem`): alternating
   mink and the constants gave the same answer on the walker (joints 16.9 against 16.7 mm median) but converged
   linearly and did not give back the toy's constants (test); the sparse solve takes about a minute on 30 frames.
-- What stays (measured 2026-10-28 on both test walkers, median over the frames): the ankles 37 mm off SOMA's, the
-  arms' joints 15 to 24 mm, the head 28 to 30 mm (rigid on the thorax); the groups' turns 5 to 6 degrees on the
-  median, the feet and toes 8 to 9 (hinges), the head 23 (rigid). A frame that does not converge in `MOST_STEPS` fails
+- What stays (measured 2026-10-29 on both test walkers, median over the frames, SOMA's joints no goal): the joints
+  16 mm off SOMA's, the shoulders 44 to 50, the head 20 to 25 (rigid on the thorax); the groups' turns 5.2 to 5.9
+  degrees on the median of those not at a limit, the head 23 (rigid). A frame that does not converge in `MOST_STEPS` fails
   the run (`NotConverged`), never kept silently.
 - `following` and `riding` read the bone-group and landmark tables of MyoFullBody itself, so the toy test does not
   reach them; they are checked on the walkers' runs (#70's numbers).
