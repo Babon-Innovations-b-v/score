@@ -202,6 +202,9 @@ tests it turned red:
   said) <= limit or` dropped from boxed (a box within the row's spread corrects), or `or off(own, drawn) > limit`
   dropped (the box alone corrects), or `wide > tall or` dropped (a stove top's height grown from above)  -> a_pixal3d_take_keeps_its_own_width_for_height_
   only_where_its_box_and_take_both_disagree_with_its_row
+- route_bake.py: `depth = min(float(recess["depth"]), 2 * half - RECESS_BACK)` -> `depth = 2 * half + RECESS_OUT` (a
+  tunnel), or `low[across], high[across] = middle - opening / 2, middle + opening / 2` -> the door's own `along`
+  unkept  -> a_moving_door_s_holder_bakes_with_a_recess_behind_it_and_the_recess_has_a_back
 - bake_job.py: `if built or slender(size):` -> `if slender(size):` (laid_size)  ->
   a_code_build_bakes_at_its_own_section_its_longest_side_the_row_s; -> `if False:`  -> that one and
   a_slender_design_entry_keeps_its_take_s_own_proportions_its_longest_side_the_row_s
@@ -2546,6 +2549,31 @@ def test_the_route_is_the_default_line():
 
 
 # --- bake_job ---
+
+def test_a_moving_door_s_holder_bakes_with_a_recess_behind_it_and_the_recess_has_a_back():
+    """#72 (base's garage door swings on its 12 m module's S face): the relation's recess is cut into the holder's
+    entry when the job is written. The 6 m door, its middle 7.695 m left of the module's, is kept within the face's
+    span as the assembly keeps it (x -6 to 0), 8 m tall, its swing's 6.05 m deep from 5 cm out of the face (z 6.05 to
+    -0.05): a recess with a back, never through the module (z -6). A sliding door's recess is its thickness deep, with
+    its width of room along the face; a static door's holder (no recess) bakes as it was.
+    Break: score/stages/surfaces/route_bake.py: `depth = min(float(recess["depth"]), 2 * half - RECESS_BACK)` -> `depth
+        = 2 * half + RECESS_OUT`
+    Break: score/stages/surfaces/route_bake.py: `low[across], high[across] = middle - opening / 2, middle + opening / 2`
+        -> `low[across], high[across] = float(recess["along"]) - opening / 2, float(recess["along"]) + opening / 2`"""
+    entries = {"module_1": {"size": [12.0, 12.0, 12.0], "cuts": []}, "shed_1": {"size": [4.0, 3.0, 4.0], "cuts": []}}
+    swing = {"model": "module_1", "axis": "z", "side": 1.0, "along": -7.695, "wide": 6.0, "room": 0.0, "tall": 8.0,
+             "base": 0.0, "depth": 6.05}
+    found = route_bake.recessed(entries, {"relations": [{"item": "GARAGE DOOR 1", "row": "garage_door", "recess": swing},
+                                                      {"item": "SHUTTER 1", "row": "shutter"}]})
+    [cut] = found["module_1"]["cuts"]
+    assert cut == {"recess": [[-6.0, 0.0, -0.05], [0.0, 8.0, 6.05]]}, cut
+    assert cut["recess"][0][2] > -6.0 + route_bake.RECESS_BACK - 1e-9  # its back: the module stands behind it
+    assert found["shed_1"]["cuts"] == [] and entries["module_1"]["cuts"] == []
+    slide = {**swing, "model": "shed_1", "axis": "x", "side": -1.0, "along": 0.0, "wide": 1.0, "room": 1.0,
+             "tall": 2.0, "depth": 0.15}
+    [cut] = route_bake.recessed(entries, {"relations": [{"recess": slide}]})["shed_1"]["cuts"]
+    assert cut == {"recess": [[-2.05, 0.0, -0.5], [-1.85, 2.0, 1.5]]}, cut
+
 
 # The people line's bake takes its specs and wear from the repository's library by place; every old material was
 # retired (2026-10-21), so these entry checks give it a stand-in library's (no surface: the entries are the subject).

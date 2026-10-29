@@ -45,6 +45,39 @@ def test_base_s_garage_door_stands_against_its_module_s_front():
     assert (door["how"], door["holder"], door["face"]) == ("face", "MODULE 1", "S"), door
 
 
+def test_a_moving_door_s_recess_holds_its_motion_and_a_static_one_sits_flush():
+    """#72 (score, 2026-10-29: a door that opens needs a true opening in its holder model, one that never moves sits
+    flush): base's garage door swings (its kind's rule, served: an astronaut passes), so its module gets a recess
+    behind it on its S face, the model's +z (laid along E: its +x east), as deep as its 6 m swing sweeps plus
+    RECESS_MARGIN, its middle 7.65 m left of the module's; a sliding door's recess is its own 0.5 m thickness deep
+    with its 6 m width of room along the face; a shutter (no motion rule) has none.
+    Break: score/review/holders/__init__.py: `depth = (wide * abs(math.sin(math.radians(float(rule.get("angle") or
+        90.0)))) if rule["move"] == "swing"` -> `depth = (deep if rule["move"] == "swing"`
+    Break: score/review/holders/__init__.py: `recess = recess_of(item, row, (middle(holder_item), item_way(holder_item),
+        holder_base), nearest[0],` -> `recess = None and recess_of(item, row, (middle(holder_item),
+        item_way(holder_item), holder_base), nearest[0],`"""
+    rows = [{"id": "module", "noun": "building", "anchor": "ground", "size": [12.0, 12.0, 12.0],
+             "box": [500, 100, 900, 560]},
+            {"id": "garage_door", "noun": "door", "anchor": "on:module", "size": [6.0, 0.5, 8.0],
+             "box": [560, 300, 760, 540]},
+            {"id": "shutter", "noun": "shutter", "anchor": "on:module", "size": [2.0, 0.1, 2.0],
+             "box": [800, 400, 880, 540]},
+            {"id": "astronaut", "noun": "astronaut", "anchor": "floor"}]
+    plan = plan_of([["MODULE 1", 8.0, 1.0, 11.9, 17.2, None, "item"],
+                    ["GARAGE DOOR 1", 4.1, 13.9, 4.4, 4.4, None, "item"],
+                    ["SHUTTER 1", 20.0, 5.0, 0.1, 2.0, None, "item"]],
+                   {"MODULE 1": ["module"], "GARAGE DOOR 1": ["garage_door"], "SHUTTER 1": ["shutter"]})
+    found = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
+    recess = found["garage_door"]["recess"]
+    assert (recess["model"], recess["axis"], recess["side"]) == ("module_1", "z", 1.0), recess
+    assert recess["depth"] == 6.0 + holders.RECESS_MARGIN and recess["along"] == -7.65 and recess["room"] == 0.0
+    assert found["shutter"]["how"] == "face" and "recess" not in found["shutter"], found["shutter"]
+    kinds = holders.row_kinds.table()
+    sliding = {**kinds, "door": {**kinds["door"], "motion": {**kinds["door"]["motion"], "move": "slide"}}}
+    recess = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}, kinds=sliding))["garage_door"]["recess"]
+    assert recess["depth"] == 0.5 + holders.RECESS_MARGIN and recess["room"] == 6.0, recess
+
+
 def test_a_monitor_stands_on_its_console_s_top():
     """The concept shows the monitor's foot over the console's by more than a quarter of the console's box, its top
     above the console's top quarter: on the console's top, its nearest item named.

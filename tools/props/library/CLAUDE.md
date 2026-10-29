@@ -83,7 +83,8 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
 - **Generated pieces** (`data/library/details.json`: each kind's `turn`, `screens`, `cuts`, `decals` and whether it is
   `square`): `inside/make_chunky.py` turns a labelled Pixal3D model into the kit frame at its laid size, closes a copy
   into a solid (thickened 5 mm inward, rebuilt on a voxel grid: a raw Pixal3D model is a shell under 1 mm thick, which
-  the model check fails), cuts it to 20k triangles, cuts its openings, lays its decals on clear flat spots
+  the model check fails), cuts it to 20k triangles, cuts its openings (a doorway, porthole or window through its
+  depth, or a `recess`: a kit-frame box on any face, a moving door's room in its holder with a back, #72), lays its decals on clear flat spots
   (`clear_spot`) and bakes the library from the full model onto it (its shape relief kept in the normal map). The
   picture's colours never reach it (method B; round four's picture layer gave every piece its own rust and stains,
   "inconsistent with the rest of the room", and is gone). It reads the labelled parts itself (`read_ply`), never with

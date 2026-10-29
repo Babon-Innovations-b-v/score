@@ -17,7 +17,9 @@ ceiling) and how each is read.
   door the plan's openings do not hold gets one cut for it (`cut_in`, cut by the earth seed's and the scene record's
   walls); a wall row the plan writer left unplaced where the plan draws no wall stands past the plan's edge
   (`at_edge`); a stair row at the plan's stair, a railing along its sides; things the concept shows on several holders
-  of one kind on the nearest (`seen_holders`). The assembly's `held` gate fails on any that comes back.
+  of one kind on the nearest (`seen_holders`). The assembly's `held` gate fails on any that comes back. A door that
+  moves on a built model's face (its kind's motion rule, served) names the `recess` its holder model's bake cuts
+  behind it (`recess_of`: as deep as its swing sweeps, or its thickness with slide room); a static one sits flush.
 - **The assembly lays by it** at built sizes (`score/stages/assembly/fitting.py`), and the plan page shows what it laid
   (`dashboard/state/local.laid_on_plan`). A relation it cannot state is `unheld` with why, never guessed.
 - Test: `test_each_plan_item_names_what_holds_it.py`.

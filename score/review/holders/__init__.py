@@ -8,7 +8,8 @@ Each plan item of a row that stands on, against or in something gets one relatio
     top    on its holder item's top: the row's anchor `on:<row>`, and in the concept its box's foot stands over its
            holder's by more than TOP_SHARE of the holder's box (a monitor on its console, a lamp on its desk)
     within inside its holder item, where the plan lays its middle (plants in their greenhouse, a door in its frame)
-    face   against its holder item's side, `face` N, E, S or W: the side the concept shows it against (toward the
+    face   (a moving door's `recess`, its room in its holder model behind it: recess_of)
+           against its holder item's side, `face` N, E, S or W: the side the concept shows it against (toward the
            viewer where its box stands within its holder's across, else the holder's left or right as seen), else the
            side toward it on the plan, else its facing, its holder's, or S (the garage door on its module's front)
     in     in a door or window opening of the plan (`opening`: its at, wide, sill, head, and the wall it stands on): a
@@ -45,6 +46,7 @@ import re
 import numpy
 
 from score.review import plan_checks
+from score.stages import row_kinds
 from score.stages.earth_seed import design_shell
 from score.store import PROPS_HOME
 
@@ -158,6 +160,76 @@ def inside(item, holder_item):
     """Whether the item's plan middle lies within its holder item's box."""
     spot, corner = middle(item), numpy.array([float(holder_item[1]), float(holder_item[2])])
     return bool((spot >= corner).all() and (spot <= corner + [float(holder_item[3]), float(holder_item[4])]).all())
+
+
+# A moving door's recess in its holder model, by its motion rule (data/checks/row-kinds.json `motion`): as deep as a
+# swing sweeps (its width times the sine of its angle), or its own thickness where it slides (with its width of room
+# along the face) or rolls, plus RECESS_MARGIN; a door whose rule moves it nowhere sits flush, no recess.
+RECESS_MARGIN = 0.05
+
+
+def item_way(holder_item):
+    """The plan way the scene record lays a holder item's model along (writer.FACING_WAY of its facing)."""
+    from score.stages.scene_record.writer import FACING_WAY
+    return numpy.asarray(FACING_WAY.get(holder_item[5], FACING_WAY[None]), float)
+
+
+def model_axes(way, holder_row):
+    """(plan way of the holder model's +x, of its +z) as the scene record lays it along `way` (writer.yaw_turn: its
+    long side along the way, its z there where its row is deeper than wide)."""
+    way = numpy.asarray(way, float)
+    size = holder_row.get("size") or [1.0, 1.0, 1.0]
+    if float(size[1]) > float(size[0]):
+        return numpy.array([way[1], -way[0]]), way
+    return way, numpy.array([-way[1], way[0]])
+
+
+def moving_rule(row, inventory, kinds):
+    """The row's motion rule where it moves in its scene (its kind's rule served: a door where somebody passes), else
+    None."""
+    from score.stages.motion import from_design
+    kind = row_kinds.kind_of(row, kinds)
+    rule = (kinds.get(kind) or {}).get("motion") if kind else None
+    if not rule or rule.get("move") not in ("swing", "slide", "roll") or not from_design.served(rule, inventory, kinds):
+        return None
+    return rule
+
+
+def piece_middles(item, row, plan):
+    """The plan middle of each piece the scene record lays at an item (writer.spots_of, writer.pieces_of: street's
+    three restaurant doors on one item)."""
+    from score.stages.scene_record import writer
+    shapes, tied = plan.get("shapes") or {}, plan.get("rows") or {}
+    items = [(other, shapes.get(other[0]) or {}) for other in plan.get("items") or []
+             if row["id"] in (tied.get(other[0]) or [])]
+    counts = dict(zip((other[0] for other, _ in items), writer.pieces_of(row, items))) if items else {}
+    return [spot for spot, _ in writer.spots_of(item, shapes.get(item[0]) or {}, counts.get(item[0], 1))]
+
+
+def recess_of(item, row, holder, holder_row, face, plan, inventory, kinds):
+    """The recess a moving door needs in its holder model behind it, in the model's own frame: the model `axis` (x or
+    z) and `side` its face is on, the door's middle `along` the face from the model's middle (`pieces`: one each where
+    the item lays several), its `wide` (with its slide `room`), `tall`, `base` over the model's foot, and `depth` by
+    its motion rule; None for a door that never moves (it sits flush) or has no size."""
+    rule, size = moving_rule(row, inventory, kinds), row.get("size")
+    if rule is None or not (isinstance(size, list) and len(size) == 3):
+        return None
+    wide, deep, tall = (float(side) for side in size)
+    holder_middle, holder_way, holder_base = holder
+    model_x, model_z = model_axes(holder_way, holder_row)
+    out = numpy.asarray(FACES[face], float)
+    on_x = abs(float(out @ model_x)) >= abs(float(out @ model_z))
+    side = float(numpy.sign(out @ (model_x if on_x else model_z)))
+    shapes = plan.get("shapes") or {}
+    base = float((shapes.get(item[0]) or {}).get("base") or 0.0) - holder_base
+    depth = (wide * abs(math.sin(math.radians(float(rule.get("angle") or 90.0)))) if rule["move"] == "swing"
+             else deep) + RECESS_MARGIN
+    alongs = [round(float((spot - holder_middle) @ (model_z if on_x else model_x)), 3)
+              for spot in piece_middles(item, row, plan)]
+    return {"model": f"{holder_row['id']}_1", "axis": "x" if on_x else "z", "side": side, "along": alongs[0],
+            **({"pieces": alongs} if len(alongs) > 1 else {}),
+            "wide": wide, "room": wide if rule["move"] == "slide" else 0.0, "tall": tall, "base": round(base, 3),
+            "depth": round(depth, 3), "why": f"a {rule['move']} door's room in {holder_row['id']}'s {face} face"}
 
 
 def held(item, row, holder_row, holder_items, items, turn):
@@ -371,6 +443,15 @@ def at_edge(row, plan, inventory, turn):
             "why": f"past the plan's {side} edge, the side of the view its concept box stands: the plan draws no wall"}
 
 
+def edge_holder(edge, row):
+    """(plan middle, plan way, base) of a wall row laid past the plan's edge as the scene record lays it
+    (writer.related `edge`: its face on the edge's line, its body out past it, its long side along the edge)."""
+    out = numpy.asarray(FACES[edge["edge"]], float)
+    size = row.get("size") or [0.0, 0.0, 0.0]
+    depth = min(float(size[0]), float(size[1])) if len(size) == 3 else 0.0
+    return numpy.asarray(edge["spot"], float) + out * depth / 2, numpy.array([out[1], -out[0]]), 0.0
+
+
 STAIR_WORDS = {"stair", "stairs", "staircase", "steps", "ramp", "ladder"}
 
 
@@ -414,7 +495,7 @@ def stair_sides(plan, count):
     return found
 
 
-def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs):
+def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, kinds):
     """One item's relation (module docstring) for its row, or (None, why) when nothing holds it."""
     anchor = row.get("anchor") or "floor"
     holder = rows.get(anchor[3:]) if anchor.startswith("on:") else None
@@ -424,13 +505,21 @@ def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs):
         holder_kind(holder) if holder is not None else None)
     edge = at_edge(holder, plan, inventory, turn) if holder is not None else None
     if edge:  # on a wall row laid past the plan's edge: against its face toward the plan
-        return {"how": "face", "holder": plan_checks.WALLS_ITEM, "holder row": holder["id"],
-                "face": OPPOSITE[edge["edge"]], "why": f"against {holder['id']}'s face toward the place"}, None
+        found = {"how": "face", "holder": plan_checks.WALLS_ITEM, "holder row": holder["id"],
+                 "face": OPPOSITE[edge["edge"]], "why": f"against {holder['id']}'s face toward the place"}
+        recess = recess_of(item, row, edge_holder(edge, holder), holder, found["face"], plan, inventory, kinds)
+        return ({**found, "recess": recess} if recess else found), None
     if holder is not None and holder["id"] in laid and kind not in ("wall", "floor"):  # an item of its own, or tied to its holder's
         items, shown = plan_items(plan), seen_holders(row, holder, rows, laid)
         nearest = min(((other, name) for other in shown for name in laid[other["id"]]),
                       key=lambda pair: float(numpy.linalg.norm(middle(items[pair[1]]) - middle(item))))
         found = {**held(item, row, nearest[0], [nearest[1]], items, turn), "holder row": nearest[0]["id"]}
+        holder_item = items[nearest[1]]
+        holder_base = float(((plan.get("shapes") or {}).get(holder_item[0]) or {}).get("base") or 0.0)
+        recess = recess_of(item, row, (middle(holder_item), item_way(holder_item), holder_base), nearest[0],
+                           found["face"], plan, inventory, kinds) if found["how"] == "face" else None
+        if recess:
+            found["recess"] = recess
         if len(shown) > 1:
             found["why"] += (f" (its things stand on {len(shown)} rows in the concept: "
                              f"{', '.join(other['id'] for other in shown)}; the nearest on the plan)")
@@ -456,8 +545,10 @@ def plan_items(plan):
     return items_of(plan)[0]
 
 
-def relations(plan, inventory, sha=None):
-    """The place's relations (module docstring): one a plan item's row that stands on, against or in something."""
+def relations(plan, inventory, sha=None, kinds=None):
+    """The place's relations (module docstring): one a plan item's row that stands on, against or in something;
+    `kinds` the row-kind rules (score/stages/row_kinds.py's table by default)."""
+    kinds = row_kinds.table() if kinds is None else kinds
     rows = {row["id"]: row for row in inventory.get("rows", [])}
     items, tied = items_of(plan)
     structure = set(plan.get("structure") or [])
@@ -476,7 +567,7 @@ def relations(plan, inventory, sha=None):
                 if got:
                     found.append({"item": name, "row": row_id, **got})
                 continue
-            got, why = relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs)
+            got, why = relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, kinds)
             if got:
                 found.append({"item": name, "row": row_id, **got})
             elif why:
