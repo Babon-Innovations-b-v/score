@@ -86,18 +86,20 @@ def own_ratio(labelled, size, base):
 def boxed(size, box, own):
     """A Pixal3D take's kit size (x wide, y tall, z deep): where its row's SAM 3 `box` ([left, top, right, bottom]
     pixels) disagrees with the row's width over height by more than the model gate's SPREAD_LIMIT and its take's `own`
-    width over height agrees with the box within it (the picture and the model both against the row), those two sides
-    at the take's own ratio, the longer of them kept; its depth, which a picture cannot show, as the row says. A size
-    whose depth is its longest, no box, or one source alone against the row, as it is (owner, 2026-10-29, "Yes, land
-    the rule": 65 of env1's baked Pixal3D models then, base's two astronauts 2.0 and 1.8 times off their rows)."""
+    width over height agrees with the box within it (the picture and the model both against the row), its width at
+    the take's own ratio to its height; its height and depth, which a picture seen from above cannot show, as the row
+    says. A size wider than tall or deepest, no box, or one source alone against the row, as it is (owner, 2026-10-29,
+    "Yes, land the rule"). Of the 61 rows it changed with the height moving too, 22 were wrong against their pictures,
+    each a height grown from a top seen from above (galley's stove top 0.05 to 0.32 m, the hangar's crane 2 to 6 m,
+    old_station's modules taller than round); with only the width moving, 34 change, 5 of them wrong (3 doors widened
+    by their frames, base's square module, camp's computer tower), 2026-10-29."""
     if not box or not own or box[2] <= box[0] or box[3] <= box[1]:
         return size
     wide, tall, deep = (float(side) for side in size)
     drawn, said, limit = (box[2] - box[0]) / (box[3] - box[1]), wide / tall, model_gate().SPREAD_LIMIT
-    if deep > max(wide, tall) or off(drawn, said) <= limit or off(own, drawn) > limit:
+    if deep > max(wide, tall) or wide > tall or off(drawn, said) <= limit or off(own, drawn) > limit:
         return size
-    wide, tall = (tall * own, tall) if tall >= wide else (wide, wide / own)
-    return [round(wide, 3), round(tall, 3), deep]
+    return [round(tall * own, 3), tall, deep]
 
 
 def off(ratio, other):
