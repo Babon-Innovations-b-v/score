@@ -16,12 +16,15 @@ place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the
 - **Weights are OpenSim's IK's** (InverseKinematicsSolver, Simbody's OrientationSensors and Markers goals): each goal
   normalised by its own count, here two goals (the turns, and the landmarks' markers, each weighed by its
   trust); the turns are the main term. Never tune a weight to pass a gate.
-- **SOMA's joints are no target, only the measure** (#70, 2026-10-29; before, from 2026-10-28, a third goal, which
-  made the joint measure partly circular): the markers are SCORE's landmark set alone (no joint centre target since
-  the upstream fit, 2026-10-29: a SOMA rule centre paired with MyoFullBody's joint pulled the ankle 16 mm up the shank;
-  the centres now act through the sizing, the same rule on both models); `following` judges against SOMA's own joints: 16.1 (Kimodo walker) and 15.9 mm
-  (rig walk) on the median of the joints not at a range limit, against 9.5 and 9.7 while they were a goal, the
-  shoulders (SOMA's Arm joints) the furthest, 44 to 50 mm, having no landmark centre of their own (2026-10-29).
+- **SOMA's group ends are a target** (#70, the owner's plan, 2026-10-29): every bone group's start that is a SOMA
+  rig joint (`group_ends`: hips, knees, ankles, toes' bases, sternoclavicular, shoulders, elbows, wrists, the lumbar,
+  thoracic and skull joints; the hips' and neck's middles left out, one site cannot hold a middle of two bodies) is a
+  marker at MyoFullBody's centre there, never moved, weighed END_WEIGHT times the landmarks' mean trust, the same for
+  every end, in the markers' goal beside the landmarks (whose weights keep their own sum, `Fitting.goal`); joints inside
+  a group come from the landmarks and couplings. Before (2026-10-29 upstream fit) SOMA's joints were only the measure,
+  and before that a SOMA rule centre as target pulled the ankle 16 mm up the shank. Since the ends are a target, the
+  joint measure partly measures what the solver pulls on: judge with the bones inside SOMA's skin and the turns on a
+  frozen calibration table beside it.
 - **The group sizes are solved** (`_constants`, within `SIZE_MOST` of the sizing's): until 2026-10-29 each stretch was
   held to SOMA's length (LENGTH_WEIGHT 100, every group within 1.1 mm); #70's review asked them solved, and the model
   record's `lengths` says how far they move from SOMA's: with SOMA's joints a goal, up to 12 to 13 mm (the pelvis,

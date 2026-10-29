@@ -41,10 +41,11 @@ class Fitting:
     one orientation site each, in that order; `marks` [(name, body, local point)]: one marker site each (the place
     sites, `place_sites`); `owners` {source body name: size group}; `own_placed` the bodies placed in their parent by
     their own group's size; `frozen` the bodies whose joints no target sees (held as they stand); `trusts` each
-    marker's trust (its weight among the markers; every one 1 when not given). The size factors (`sizes`) are OVERALL,
+    marker's trust (its weight among the markers; every one 1 when not given); `goal` how many of the first marks
+    make the goal's sum (all when not given; the group ends after them weigh against the landmarks' sum). The size factors (`sizes`) are OVERALL,
     then each size group's: a body's size is OVERALL's times its group's."""
 
-    def __init__(self, path, frames, marks, owners, own_placed=(), frozen=(), trusts=None):
+    def __init__(self, path, frames, marks, owners, own_placed=(), frozen=(), trusts=None, goal=None):
         spec = mujoco.MjSpec.from_file(str(path))
         for group, body, calibration in frames:
             spec.body(body).add_site(name=f"fit:{group}", quat=Rotation.from_matrix(calibration.T).as_quat(
@@ -59,6 +60,7 @@ class Fitting:
         self.mark_sites = [mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, f"mark:{name}") for name in self.marks]
         self.place_sites = self.mark_sites
         self.trusts = np.ones(len(self.marks)) if trusts is None else np.asarray(trusts, dtype=float)
+        self.goal = len(self.marks) if goal is None else goal
         self.sizes = [OVERALL] + sorted(set(owners.values()))
         group_of = self._groups_of(owners)
         placing = [group_of[body] if own_name(model.body(body).name) in own_placed

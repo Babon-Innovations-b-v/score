@@ -20,6 +20,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   found.
 - (2026-10-29) _frames.weights' `np.sqrt(trusts / max(trusts.sum(), 1e-12))` made `np.full(len(trusts), 1.0 /
   np.sqrt(len(trusts)))`: the low-trust marker weighs as much as the others.
+- (2026-10-29) _frames.weights' `trusts[:fitting.goal].sum()` made `trusts.sum()`: a group end thins the landmarks'
+  weights.
 - (2026-10-29) _constants' SIZE_PULL `0.05` made `5.0`: the factor is held near 1, not TRUE_LEFT.
 - (2026-10-29) sampled's `for turns, points in recordings` made `for turns, points in recordings[:1]`: the body's
   second recording is left out of its constants.
@@ -214,6 +216,19 @@ def each_marker_weighs_its_trust():
     return problems + ([] if np.isclose(turn_cost, 1 / np.sqrt(5)) else [f"turn cost {turn_cost}"])
 
 
+def a_group_end_weighs_against_the_landmarks_sum():
+    """With the last of the ten markers a group end (the goal the first nine), every place cost is the square root of
+    its trust over the first nine's sum, 8.25: the end adds to the markers' goal, never thins the landmarks'."""
+    import numpy as np
+    from fit._frames import weights
+    with tempfile.TemporaryDirectory() as folder:
+        fitting = toy_fitting(folder)
+        fitting.goal = len(fitting.marks) - 1
+        _, place_costs = weights(fitting)
+    wanted = np.sqrt(fitting.trusts / fitting.trusts[:-1].sum())
+    return [] if np.allclose(place_costs, wanted) else [f"place costs {place_costs.tolist()}"]
+
+
 def the_overall_factor_reaches_every_group():
     """With the overall factor 1.1 and the left group's 1.05, each group's whole factor is the overall one's times its
     own: the left 1.155, the trunk and the right 1.1."""
@@ -228,7 +243,7 @@ def the_overall_factor_reaches_every_group():
             if not np.isclose(found[group], value)]
 
 
-CHECKS = (each_marker_weighs_its_trust, the_overall_factor_reaches_every_group, the_solver_gives_back_the_angles_and_the_constants,
+CHECKS = (each_marker_weighs_its_trust, a_group_end_weighs_against_the_landmarks_sum, the_overall_factor_reaches_every_group, the_solver_gives_back_the_angles_and_the_constants,
           every_recording_of_the_body_is_sampled, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows)
 
 
