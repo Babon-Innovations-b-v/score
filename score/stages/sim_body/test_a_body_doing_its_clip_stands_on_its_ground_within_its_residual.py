@@ -7,7 +7,7 @@ the BMI of the stated sex (NCD-RisC 2016: a 1.80 m woman 80.35 kg), else the mea
 body 1.1 times the rig plays its clips 1.1 times as far. A clip whose offsets are shorter than its rig's bind (as
 people-clips-made's are: posed on SOMA's zero-identity body, 7 cm shorter than the template its bind is, #70) is played
 on the bind's own bones and lifted so its standing frame's feet are where the bind's are, every clip by the same lift,
-as the people build plays it (prop_build.py's fk and floor_lift): its feet stand on its ground. A clip's frames chain
+as the people build plays it (`tools.characters.played`, prop_build.py's arithmetic): its feet stand on its ground. A clip's frames chain
 down the tree (a root turned 90 degrees about up carries a child 1 m along x to -1 m along z). The model's wheel is
 unpacked only when its sha256 is the pinned one. On runs written here (no engine): a good run passes every gate, a body
 5 cm into its ground fails `on floor`, a landed foot 5 cm off its ground fails `lands` and so does a body no foot of
@@ -27,12 +27,13 @@ takes minutes); the real run's numbers are on #65.
 Breaks that turn each check red (each applied once and seen red, reverted, 2026-10-27):
 - the_root_and_end_sites_go_to_their_carrier: segments_of's carrier `joint = parents[joint]` made `joint = -1`.
 - the_mass_is_stated_else_height_times_bmi: mass_of's `tall ** 2` made `tall`.
-- a_body_is_built_at_its_persons_own_size: person_rig's `local[:, hips, :3, 3] *= size` dropped.
+- a_body_is_built_at_its_persons_own_size: person_rig's `size` handed to played as 1.0 (2026-10-29; before, its
+  `local[:, hips, :3, 3] *= size` dropped).
 - a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground, 2026-10-29 (#70's float): person_rig's no-build case
   made `return rig, 1.0` (the clip's own offsets, 5 cm short, played raw: the standing foot 2 cm over its ground); its
-  `+= lift` made `pass` (the foot 3 cm under its ground).
-- the_clip_chains_down_the_tree: clip_frames' `world[:, parents[joint]] @ local[:, joint]` made
-  `local[:, joint] @ world[:, parents[joint]]`.
+  lift handed to played as 0.0 (the foot 3 cm under its ground; 2026-10-29, the lift now `played.floor_lift`).
+- the_clip_chains_down_the_tree: played.chained's `world[:, parents[joint]] @ local[:, joint]` made
+  `local[:, joint] @ world[:, parents[joint]]` (2026-10-29: clip_frames chains through it).
 - the_model_is_unpacked_only_as_pinned: fetched's sha256 check dropped.
 - a_good_run_passes_and_each_gate_fails_its_break: judge_on_floor's `> SUNK_MOST` made `> 1.0`; judge_lands'
   `> LANDED` made `> 1.0`; landings' `push >= CONTACT * weight` made `push >= 0`; judge_carries'

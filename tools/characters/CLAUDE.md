@@ -6,7 +6,9 @@ OpenUSD stage as skinned characters (UsdSkel) playing their clips. Bible chapter
 - `maker/` makes the bodies (the prop route and the people route on its built body, run by the people's body rows,
   `score/stages/people_bodies`); `animals/` makes the animals (by hand, or by the animal rows,
   `score/stages/animals`); `clips/` reads a body's motion off a video (the video clip rows,
-  `score/stages/video_clips`) and makes the scene-made clips on the machine (`score/stages/scene_clips`); `people/` holds the body model's and the clips' pieces and the join measures they use. Each has its own overlay.
+  `score/stages/video_clips`) and makes the scene-made clips on the machine (`score/stages/scene_clips`); `people/` holds the body model's and the clips' pieces and the join measures they use; `played/` is how a clip is
+  played on a person's build (the sim body's, and prop_build.py's arithmetic until its next paid re-make). Each has
+  its own overlay.
 - `skel_usd.py` turns a built body into a UsdSkel asset; `cast.py` holds a cast's rules and the prims the cast stage's
   characters layer (`score/stages/cast/layer.py`) lays from a place's cast record (written from its design by
   `score/stages/people_rows.py`). Their docstrings have the layout of each.
