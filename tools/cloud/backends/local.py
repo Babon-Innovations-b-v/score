@@ -4,7 +4,8 @@ rest of env1 on this gpu aswell", then "yes"): its card, never rented, never bil
 The machine is one Docker container on this PC (MACHINE), made from IMAGE (Ubuntu 24.04 with NVIDIA's CUDA base, as
 the rented card machines run, plus sshd): the runners reach it as root over ssh and rsync with the runner's key, at
 the same absolute paths, exactly as a rented machine, so no runner changes. Its set-up (Blender, a kind's venv) stays
-in the container from one job to the next; only the newest set-up mark is kept (park.STALE_MARKS). The card comes in
+in the container from one job to the next, each kind's own (park.own_set_up: its own /root/venv, its marks never
+removed there), so a kind sets up once. The card comes in
 through WSL's /dev/dxg and /usr/lib/wsl (on plain Linux through `--gpus all`); the container's memory is held under
 this PC's own so a job that runs out of memory fails alone and never takes WSL down.
 

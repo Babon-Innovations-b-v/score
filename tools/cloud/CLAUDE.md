@@ -43,7 +43,10 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `CARD_SLOTS`, a Blender startup script each claim copies into the container; a bake call is mostly processor work,
   the card busy about 1 s of its 4 to 9, and two calls fit the card's memory), their outputs brought back and kept one job at a time a machine
   (`blender_cloud.BRINGING`), never parked, its claim ended by a container restart that ends whatever the job left on the card, its
-  set-up kept but for the newest mark. A kind too big for its 16 GB (`local.TOO_BIG`: judge, pictures-20b,
+  set-up kept, each kind's own (`park.own_set_up`, 2026-10-29: a characters set-up ran from scratch while every
+  Blender bake waited): at its claim a kind gets its own `/root/venv` back (the one held moved under `/root/kinds/`),
+  and no set-up mark is removed there (`park.THIS_PC` makes `park.ALL_MARKS` a no-op), so a kind sets up once; apt's
+  system packages stay. A kind too big for its 16 GB (`local.TOO_BIG`: judge, pictures-20b,
   characters, meshparts, moss-sound) is refused at its claim with the GB, and a class above one 24 GB card is never
   offered: those stay cloud jobs. A run that gives its own measured need (`run.need`) is refused by that instead: a
   characters run of clip steps only (people-clips-made, scene-clips; `characters.card_need`) needs 4 GB of card and
@@ -172,7 +175,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   with a clean-up in `park.CLEANUPS` and a set-up script that skips a machine it already set up (a mark named for the
   script's text, written last). Pixal3D's and meshparts' clean-ups live in park.py (batch.py imports park; meshparts.py
   is a declared input of the segvigen rows). A taken machine keeps only its newest set-up mark (`park.STALE_MARKS`):
-  most kinds share `/root/venv`, so an older kind's mark no longer says what is installed.
+  most kinds share `/root/venv`, so an older kind's mark no longer says what is installed (rented machines only;
+  this PC's container keeps each kind's own, above).
 - **A run's machines end with the run** (2026-10-17, after orphaned machines and boxes billed by the started hour):
   `score run` names itself SCORE_RUN_ID and leads a process group of its own (taking the terminal along and giving it
   back at its end); stopped by a signal it passes the stop on once (`stopped.PASS_ON` to its nodes, each sending
