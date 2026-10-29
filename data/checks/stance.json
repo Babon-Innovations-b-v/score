@@ -1,12 +1,14 @@
 {
- "about": "What the surface check's 'stands level' leaves out (bake_check.stands): a model whose inventory row's words name a class that lies rather than stands. Torn wreckage lies where it fell; a model laid on its side lies.",
+ "about": "What the surface check's 'stands level' leaves out (bake_check.stands): a model whose inventory row's words name a class that lies rather than stands. Torn, crashed or crumpled wreckage lies where it fell (the bake keeps its pose, route_bake.stood_square); a model laid on its side lies.",
  "lies": [
   {
    "class": "lying wreckage",
    "words": [
     "torn",
     "on its side",
-    "wreckage"
+    "wreckage",
+    "crashed",
+    "crumpled"
    ]
   }
  ]

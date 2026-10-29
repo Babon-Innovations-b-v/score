@@ -441,7 +441,9 @@ branch names a scene or a world.
   motion rule) on a built model's face gets a recess cut into that model's bake behind it, as deep as its motion
   needs, widened beside it so it opens clear, and with a back; the assembly lays the door so its whole recess fits
   within the face's span, shifted inward from a corner (`held` names a face too narrow, with the shortfall); one
-  that never moves sits flush. The assembly's free
+  that never moves sits flush. Every take is stood square in its model frame before it is baked (the bake's
+  `stood_square`; a lying, leaning or debris row keeps its pose), and surfaces-check's `stands square` fails one that
+  is not, by name with its angle. The assembly's free
   `held` gate fails by name, with its distance, on any design object off where its relation puts it, a door or window
   in no opening and on no holder, or one held by nothing or left at the room's middle. A relation the plan does not
   state, or a size or place the assembly cannot honour, is a framework fault to fix in the plan writer or the assembly,

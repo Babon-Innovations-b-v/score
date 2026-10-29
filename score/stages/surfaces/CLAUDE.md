@@ -219,7 +219,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   height and depth the row's: `bake_job.boxed`, owner 2026-10-29, "Yes, land the rule"; a height moved too grew 22
   low things' tops seen from above against their pictures, 2026-10-29), at near density (`route.NEAR`,
   `route.CHUNKY_FACES`), the specs every library variant (`palette_library.specs`, at the scene palette's wear and
-  dirt), so a variant added anywhere re-keys every bake. A holder model a moving door stands on gets that door's
+  dirt), so a variant added anywhere re-keys every bake. A take standing tumbled in its turn is stood square first (`route_bake.stood_square`, `tumble.py`, #36: 154 of env1's 406 baked models stood tumbled, base's module 32 degrees): its oriented box set on the frame the way that keeps its row's proportions; a row whose design lays it lying or leaning (stance.json, `leans`) or ground debris keeps its pose; surfaces-check's `stands square` fails one still tumbled by name with its angle (likeness's outline cannot see pose). A holder model a moving door stands on gets that door's
   recess (`route_bake.recessed`, #72; in route_bake.py, which the bake alone hashes): the place's relations file (score/review/holders `recess`, a bake input once
   derived, sent with each job) cut into its entry when the job is written, never into `design/surfaces/` (Pixal3D
   keys that file): a box on the face the relation names, kept within the face's span as the assembly keeps the door,
