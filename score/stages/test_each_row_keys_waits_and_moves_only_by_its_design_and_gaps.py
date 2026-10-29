@@ -748,11 +748,49 @@ def test_the_retaking_make_asks_a_retake_at_its_new_seed_and_marks_it_made(tmp_p
     handin = tmp_path / "handin.json"
     handin.write_text(json.dumps({"objects": {"crate": {"route": "prop", "take": "crate_7"},
                                               "seat": {"route": "prop", "take": "seat-s3"}}}))
-    stages.retaking(make)({"props": handin}, tmp_path, 1, {"retake": {"takes": ["crate_7"], "attempt": 1, "after": "k"}})
+    inventory = tmp_path / "inventory.json"
+    inventory.write_text(json.dumps({"rows": [{"id": "crate", "size": [0.5, 0.5, 0.5]}]}))
+    inputs = {"props": handin, "inventory": inventory, "closeup": tmp_path / "closeup"}
+    stages.retaking(make)(inputs, tmp_path, 1, {"retake": {"takes": ["crate_7"], "attempt": 1, "after": "k"}})
     assert asked == [(2, 3)] and pixal_row.seed_of("crate_7") == 1
     assert (pixal / stages.RETAKEN / "crate_7-r1" / stages.RETAKE_MADE).exists()
-    stages.retaking(make)({"props": handin}, tmp_path, 1, {})
+    stages.retaking(make)(inputs, tmp_path, 1, {})
     assert asked[-1] == (1, 3)
+
+
+def test_a_rejected_sheet_is_remade_as_its_flat_sheet_build_never_a_new_seed(tmp_path):
+    """A sheet's take the owner's reject names (flat_sheet.sheet: a paper pinned to a wall) is remade in code from its
+    own close-up (stages.sheet_remakes) before the make runs, so Pixal3D is never asked again for it and the retake is
+    marked made; its mark says why.
+    Break: score/stages/__init__.py: '        sheet_remakes(seeds, inputs, out)' -> '        pass'"""
+    import score.stages.props.flat_sheet as flat_sheet
+    import score.stages.props.thin_straight as thin_straight
+    from PIL import Image
+    pixal = pixal_row.take_files("-")[0].parent
+    pixal.mkdir(parents=True, exist_ok=True)
+    for suffix in ("-final.glb", "-4000.glb", ".glb"):
+        pixal.joinpath(f"note_3{suffix}").write_text("old")
+    pixal.joinpath("note_3.svviews").mkdir(exist_ok=True)
+    handin = tmp_path / "handin.json"
+    handin.write_text(json.dumps({"objects": {"note": {"route": "prop", "take": "note_3"}}}))
+    inventory = tmp_path / "inventory.json"
+    inventory.write_text(json.dumps({"rows": [{"id": "note", "size": [0.2, 0.01, 0.3]}]}))
+    surfaces = tmp_path / "surfaces.json"
+    surfaces.write_text(json.dumps({"bake": {"models": {"note_1": "note_3"}, "entries": {"note_1": {"faces": 4000}}}}))
+    (tmp_path / "closeup/closeups").mkdir(parents=True)
+    picture = Image.new("RGB", (100, 140), (120, 120, 120))
+    picture.paste((240, 235, 220), (20, 20, 80, 120))
+    picture.save(tmp_path / "closeup/closeups/note.png")
+    asked = []
+
+    def make(inputs, out, seed, params):
+        asked.append(flat_sheet.built("note_3", pixal))
+    inputs = {"props": handin, "inventory": inventory, "closeup": tmp_path / "closeup", "surfaces": surfaces}
+    stages.retaking(make)(inputs, tmp_path, 1, {"retake": {"takes": ["note_3"], "attempt": 1, "after": "k"}})
+    assert asked == [True]
+    assert pixal_row.finished("note_3", 4000)
+    assert (pixal / stages.RETAKEN / "note_3-r1" / stages.RETAKE_MADE).exists()
+    assert "reject" in json.loads((pixal / "note_3.svviews" / thin_straight.MARK).read_text())["why"]
 
 
 # --- a scenes layers are read off its design ---
