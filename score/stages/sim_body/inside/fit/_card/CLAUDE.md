@@ -75,7 +75,10 @@ before that.
   R_site^T times the site's turn Jacobian, a marker's move its body's turn, an inside joint's move its parent's turn
   on every site it carries, the priors diagonal. The frames' kinematics are MuJoCo's float64 on the host for now
   (`Kinematics`, the reference) or the card's (`_level2_card.CardKinematics`: every sampled frame a MuJoCo Warp
-  world, `kinematics` and `com_pos`, then one launch of MuJoCo Warp's own `jac_dof` per world, site and dof; the
+  world, `kinematics`, then MuJoCo Warp's own `_cdof` about each root body's origin (not `com_pos`: its float32 atomic
+  sums over sibling bodies ran in no fixed order, so two runs of one set ended 1.2e-4 mm apart in joints, 2026-10-29;
+  `jac_dof` adds the same point back, the same Jacobian), then one launch of MuJoCo Warp's own `jac_dof` per world,
+  site and dof; the
   constants assigned to its `body_pos`/`site_pos` each call, float32, equal to the host's to 3.3e-7). On fit's toy
   (test, `tests/card_level2.py`) the host's equals central differences to 1.8e-10 of a column, the card's to 1e-5.
   Gate on heavy (host kinematics, 2026-10-29, build/4/gate.py): 12,333 rows x 1,483 unknowns, 283,149 nonzeros; the
