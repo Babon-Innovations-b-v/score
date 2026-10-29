@@ -1,0 +1,13 @@
+{
+ "gaps": [
+  {
+   "name": "antenna_array: squashed to its planned 1 x 1 x 4 m box",
+   "row": "likeness",
+   "check": "outline",
+   "objects": ["antenna_array"],
+   "reason": "Its Pixal3D take matches its close-up (0.46 x 0.88 x 0.41, outline 0.691 in its own proportions), but its row is planned 1 x 1 x 4 m and the bake fits a Pixal3D model to its row's box, so it bakes at half its width (outline 0.408). No general rule fixes it: keeping every model's own proportions would remake 341 of 407 models and make flat things absurdly thick, and correcting sizes from the concept's SAM 3 boxes resized 241 of 376 rows, the three-quarter view mixing depth into width and height (#36). The owner kept the row's size. Asked: \"Fix this one row's size to about 2 x 2 x 4 m?\" Answer: \"Accept as a gap\".",
+   "decided": "owner (@JoeyKardolus), 2026-10-29, in chat through the score session",
+   "faults": ["antenna_array: outline 0.408 under 0.5 (prop route)"]
+  }
+ ]
+}
