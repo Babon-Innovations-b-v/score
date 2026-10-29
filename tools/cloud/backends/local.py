@@ -8,21 +8,29 @@ in the container from one job to the next; only the newest set-up mark is kept (
 through WSL's /dev/dxg and /usr/lib/wsl (on plain Linux through `--gpus all`); the container's memory is held under
 this PC's own so a job that runs out of memory fails alone and never takes WSL down.
 
-One claim at a time over the whole PC (a file lock, `take`): a claim that finds it busy gets None and its runner waits
-and asks again (batch.claim_rounds polls park.adopt). Inside its claim a Blender call runs RUNS_AT_ONCE's Blender
-jobs side by side on the processor (as many as the container's memory holds at a take's measured peak), and each of
-their card calls (the Cycles bake, a render) waits its turn on the card (card_turn.py, put into the container's
-Blender startup folder at every claim), so the card never works for more than card_turn.CARD_SLOTS (two) jobs at once. Its offers are
+One claim at a time over the whole PC (a file lock, `take`), but for the SHARED kinds: a claim that finds it busy gets
+None and its runner waits and asks again (batch.claim_rounds polls park.adopt). A SHARED kind's jobs (Blender: every
+input and output at its own absolute path, nothing of one claim's in another's way) share the machine across claims:
+such a claim holds the lock shared and takes every free one of RUNS_AT_ONCE's turns (a lock file each, one Blender
+job a turn), each turn let go as its slot runs out of work (spread.tend), so the container runs RUNS_AT_ONCE's Blender
+jobs at once (as many as its memory holds at a take's measured peak) over all the places' bake rows, never one row at
+a time (env1, 2026-10-28: 26 bake rows waited on the claim of one place). An exclusive claim waiting (its want under
+WANTING) keeps new shared claims out until it has its turn, so a stream of bakes never starves it; the container's
+set-up and each claim's own (`setting_up`) run one at a time. Each of the jobs' card calls (the Cycles bake, a render)
+waits its turn on the card (card_turn.py, put into the container's Blender startup folder at every claim), so the
+card never works for more than card_turn.CARD_SLOTS (two) jobs at once. Its offers are
 always `parked`, so batch.rent never orders anything: the machine is only ever taken through park.adopt
 (park.here), which asks no clearance, since it costs nothing (price 0; the ledger's rows carry the measured minutes
 at EUR 0). A job that needs more card or memory than this PC has is refused at its claim with the reason, never run
 to an out-of-memory; it stays a cloud job. The need is the job's own measure when its run gives one (a characters
 run of clip steps only: characters.card_need), else its kind's (TOO_BIG). `delete` restarts the container, which ends whatever a job left running on
-the card (a detached worker), and keeps its files.
+the card (a detached worker), and keeps its files: only when no other claim holds it, so the last shared claim to
+leave restarts it and none restarts it under another claim's jobs.
 
 The interface is provider.py's; what has no meaning here (accounts, addresses, disks, the registry and the object
 store) says so or gives nothing.
 """
+import contextlib
 import fcntl
 import json
 import os
@@ -59,6 +67,11 @@ CARD_TURN = pathlib.Path(__file__).resolve().parent / "card_turn.py"
 BLENDER_PEAK_GB = 8.5
 BLENDER_MARGIN_GB = 2
 HELD = {}  # {machine id: the open lock file} for the claims this process holds
+TURNS = {}  # {machine id: [its open turn files]} for the shared claims this process holds
+# Kinds whose claims share the machine (the docstring): each of their jobs' files is at its own absolute path.
+SHARED = frozenset({"blender"})
+# An exclusive claim's want holds this long after its last ask (it asks every park.PARKED_POLL_SECONDS).
+WANT_SECONDS = 120
 SSHD_SECONDS = 60
 DOCKERFILE = """\
 FROM nvidia/cuda:12.8.1-base-ubuntu24.04@sha256:133c78a0575303be34164d0b90137a042172bdf60696af01a3c424ab402d86e2
@@ -127,27 +140,111 @@ def take(kind, public_key, need=None):
     refused = refusal(kind, need)
     if refused:
         raise ValueError(refused)
-    LOCK.parent.mkdir(parents=True, exist_ok=True)
-    handle = LOCK.open("a+")
-    try:
-        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        handle.close()
+    handle, turns = claimed(kind)
+    if handle is None:
         return None
     try:
-        host = running(public_key)
-        card_in_turns()
+        with setting_up():
+            host = running(public_key)
+            card_in_turns()
     except BaseException:
-        handle.close()
+        for held in (*turns, handle):
+            held.close()
         raise
     machine_id = f"{MACHINE}:{uuid.uuid4().hex[:12]}"
     HELD[machine_id] = handle
-    handle.seek(0)
-    handle.truncate()
-    handle.write(f"{machine_id} pid {os.getpid()} {kind}\n")
-    handle.flush()
-    return {"id": machine_id, "zone": ZONE, "type": MACHINE, "class": CARD_CLASS, "cards": 1, "price": 0.0,
-            "unit_minutes": 1, "host": host, "disk_gb": shutil.disk_usage(HOME).free // 10**9, "here": True}
+    for held in turns or [handle]:  # who holds it: the lock file of an exclusive claim, each turn of a shared one
+        held.seek(0)
+        held.truncate()
+        held.write(f"{machine_id} pid {os.getpid()} {kind}\n")
+        held.flush()
+    found = {"id": machine_id, "zone": ZONE, "type": MACHINE, "class": CARD_CLASS, "cards": 1, "price": 0.0,
+             "unit_minutes": 1, "host": host, "disk_gb": shutil.disk_usage(HOME).free // 10**9, "here": True}
+    if turns:
+        TURNS[machine_id] = turns
+        found["turns"] = len(turns)
+    return found
+
+
+def claimed(kind):
+    """The lock for a claim of `kind` and its turns: held exclusive for most kinds (the want written while it waits),
+    shared for a SHARED kind with every free one of its RUNS_AT_ONCE turns; (None, []) while the machine is busy for
+    it (held exclusive, an exclusive claim waiting, or every turn taken)."""
+    LOCK.parent.mkdir(parents=True, exist_ok=True)
+    shared = kind in SHARED
+    handle = LOCK.open("a+")
+    try:
+        fcntl.flock(handle, (fcntl.LOCK_SH if shared else fcntl.LOCK_EX) | fcntl.LOCK_NB)
+    except BlockingIOError:
+        handle.close()
+        if not shared:
+            want()
+        return None, []
+    if not shared:
+        (wanting() / str(os.getpid())).unlink(missing_ok=True)
+        return handle, []
+    turns = [] if wanted_elsewhere() else free_turns(RUNS_AT_ONCE.get(kind, 1))
+    if not turns:
+        handle.close()
+        return None, []
+    return handle, turns
+
+
+def wanting():
+    """The folder of the exclusive claims' wants, a file named by each waiting process's pid, beside LOCK."""
+    return LOCK.with_name(f"{LOCK.stem}.wanting")
+
+
+def want():
+    """This process's want of an exclusive claim, written (or refreshed) at each ask that found the machine busy."""
+    wanting().mkdir(parents=True, exist_ok=True)
+    (wanting() / str(os.getpid())).touch()
+
+
+def wanted_elsewhere(now=None):
+    """Whether another live process asked for an exclusive claim within WANT_SECONDS; the wants of processes gone
+    are removed."""
+    now = now or time.time()
+    found = False
+    for path in sorted(wanting().glob("*")) if wanting().exists() else ():
+        try:
+            fresh = now - path.stat().st_mtime < WANT_SECONDS
+            os.kill(int(path.name), 0)
+        except (FileNotFoundError, ProcessLookupError, ValueError):
+            path.unlink(missing_ok=True)
+            continue
+        found = found or (fresh and path.name != str(os.getpid()))
+    return found
+
+
+def free_turns(count):
+    """Every free one of `count` turn files beside LOCK, each held exclusive (its open file)."""
+    turns = []
+    for number in range(count):
+        turn = LOCK.with_name(f"{LOCK.stem}.turn{number}").open("a+")
+        try:
+            fcntl.flock(turn, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            turns.append(turn)
+        except BlockingIOError:
+            turn.close()
+    return turns
+
+
+def let_go_turn(machine_id):
+    """One of a shared claim's turns let go (a slot of its ran out of work), for another claim's job to take."""
+    turns = TURNS.get(machine_id) or []
+    if turns:
+        turns.pop().close()
+
+
+@contextlib.contextmanager
+def setting_up():
+    """The block run alone among the claims setting this machine up (the container's start, card_turn.py's copy, a
+    claim's own set-up: two library_setup.sh on one Blender folder would remove each other's)."""
+    LOCK.parent.mkdir(parents=True, exist_ok=True)
+    with LOCK.with_name(f"{LOCK.stem}.setup").open("a+") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        yield
 
 
 def running(public_key):
@@ -212,7 +309,9 @@ def card_in_turns():
     import card_turn
 
     docker("exec", MACHINE, "mkdir", "-p", card_turn.STARTUP)
-    docker("cp", str(CARD_TURN), f"{MACHINE}:{card_turn.STARTUP}/{CARD_TURN.name}")
+    # Copied beside and moved in, so a Blender of another claim starting meanwhile never reads half of it.
+    docker("cp", str(CARD_TURN), f"{MACHINE}:{card_turn.STARTUP}/.{CARD_TURN.name}.new")
+    docker("exec", MACHINE, "mv", f"{card_turn.STARTUP}/.{CARD_TURN.name}.new", f"{card_turn.STARTUP}/{CARD_TURN.name}")
 
 
 def answering():
@@ -236,11 +335,20 @@ def address(_machine_id, _zone):
 
 
 def delete(machine_id, _zone):
-    """End a claim: the container restarted (whatever its job left running on the card ends; its files stay) and the
-    lock let go. A claim another process still holds (a watchdog of a claim that already ended) is left alone; True
-    when this call ended it."""
+    """End a claim: its turns and lock let go, and the container restarted (whatever its job left running on the card
+    ends; its files stay) when no other claim holds it, so a shared claim leaving never restarts it under another's
+    jobs. A claim another process still holds (a watchdog of a claim that already ended) is left alone; True when this
+    call ended it."""
+    for turn in TURNS.pop(machine_id, []):
+        turn.close()
     handle = HELD.pop(machine_id, None)
-    if handle is None:
+    if handle is not None:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)  # held alone: no other claim's jobs run there
+        except BlockingIOError:
+            handle.close()
+            return True
+    else:
         if not LOCK.exists():
             return False
         handle = LOCK.open("a+")

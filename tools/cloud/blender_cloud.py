@@ -45,6 +45,7 @@ Under SCORE_CLOUD=k8s the same calls run each job as a Kubernetes Job of the ble
 (tools/cloud/k8s/cluster_jobs.py), inputs and outputs at the same paths; the machines stay the default.
 """
 import argparse
+import contextlib
 import json
 import os
 import pathlib
@@ -168,6 +169,13 @@ def ship(log_folder, host, jobs):
 
 
 def set_up(log_folder, host, jobs):
+    """The jobs' repo folders and Blender onto the machine; on this PC's machine, shared across claims, one claim's
+    set-up at a time (backends/local.py setting_up), so no library_setup.sh replaces a Blender another one runs."""
+    with getattr(cloud, "setting_up", contextlib.nullcontext)():
+        set_up_alone(log_folder, host, jobs)
+
+
+def set_up_alone(log_folder, host, jobs):
     ship(log_folder, host, jobs)
     batch.copy(log_folder, [HERE / "library_setup.sh"], f"root@{host}:{REMOTE}/")
     with (log_folder / "setup.log").open("w") as log:

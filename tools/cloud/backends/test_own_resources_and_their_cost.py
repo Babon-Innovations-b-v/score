@@ -39,8 +39,16 @@ The invariants, each with the break that turns its test red (each applied once a
   a class beyond its one 16 GB card is refused at once, a kind too big for the card is refused at its claim, one claim
   holds it at a time, and a delete from another process leaves a claim still held alone.
   Break: `return not found.group(2) and int(found.group(1)) <= 24` -> `return True` in `serves` -> gpu-80gb is offered.
-  Break: drop `| fcntl.LOCK_NB` handling (return the machine without the lock) in `take` -> a second claim gets it.
+  Break: drop `| fcntl.LOCK_NB` handling (return the machine without the lock) in `claimed` -> a second claim gets it.
   Break: in `delete`, drop the `except BlockingIOError: ... return False` -> another claim's container is restarted.
+- Blender claims (SHARED) share the machine's RUNS_AT_ONCE turns across places: a claim takes the free turns, lets
+  each go as its slot runs out of work, and a second place's claim takes them while the first still runs; an
+  exclusive claim is kept out meanwhile and, once it asks, keeps new Blender claims out; the container is restarted
+  only by the claim leaving it alone. Break: `fcntl.LOCK_SH if shared` -> `fcntl.LOCK_EX` in `claimed` -> the second
+  place waits for the first; or drop the `fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)` check in `delete`'s
+  held branch -> the first leaving restarts the container under the second's jobs; or `[] if wanted_elsewhere()`
+  dropped in `claimed` -> a waiting exclusive claim is starved; or drop `provider.cloud.let_go_turn` in
+  `spread.work_turn` -> a slot out of work keeps its turn.
 - A job is refused by its measured need, not its kind: a characters run of clip steps (4 GB of card, 17 GB of memory
   with the encoder on the processor) takes this PC, a whole characters machine (17 GB of card) or a need past the
   container's memory does not. Break: `card = TOO_BIG.get(kind)` in `refusal` -> the clip run is refused; or drop the
@@ -427,12 +435,45 @@ def test_this_pc_orders_nothing_costs_nothing_and_holds_one_claim(monkeypatch, t
         local.offers(["gpu-48gb", "gpu-80gb"])
     with pytest.raises(ValueError, match="30 GB"):
         local.take("judge", "key")
-    first = local.take("blender", "key")
+    first = local.take("pixal", "key")
     assert first["here"] and first["price"] == 0.0 and first["host"] == "172.17.0.2"
-    assert local.take("blender", "key") is None  # one claim at a time
+    assert local.take("pixal", "key") is None and local.take("blender", "key") is None  # one claim at a time
     assert local.delete("score-this-pc:another", "this-pc") is False and not restarted  # a watchdog's late delete
     assert local.delete(first["id"], "this-pc") is True and restarted  # its own claim ends: the container restarted
-    assert local.take("pixal", "key") is not None
+    local.delete(local.take("pixal", "key")["id"], "this-pc")
+
+
+def test_this_pc_shares_its_blender_turns_across_places_and_restarts_only_when_left_alone(monkeypatch, tmp_path):
+    import os
+    import capacity
+    import local
+    import spread
+    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
+    monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
+    monkeypatch.setattr(local, "RUNS_AT_ONCE", {"pixal": 1, "blender": 3})
+    monkeypatch.setattr(capacity.provider, "cloud", local)
+    restarted = []
+    monkeypatch.setattr(local, "docker",
+                        lambda *arguments, **_: arguments[0] == "restart" and restarted.append(arguments))
+    first = local.take("blender", "key")  # one place's bake row: every free turn
+    assert first["turns"] == 3 and spread.slots("blender", first) == [0, 0, 0]
+    assert local.take("blender", "key") is None  # every turn busy
+    ended = threading.Event()
+    spread.work_turn(first, spread.Shares([]), lambda *_: None, 0, ended)  # two of its slots ran out of work
+    spread.work_turn(first, spread.Shares([]), lambda *_: None, 0, ended)
+    second = local.take("blender", "key")  # another place's bake row, while the first still runs a job
+    assert second is not None and second["turns"] == 2 and spread.slots("blender", second) == [0, 0]
+    assert local.take("pixal", "key") is None  # exclusive: waits for both
+    want = local.wanting() / str(os.getpid())
+    assert want.exists()
+    want.rename(local.wanting() / str(os.getppid()))  # that want stands for another live process
+    local.let_go_turn(second["id"])
+    assert local.take("blender", "key") is None  # a turn is free, but the exclusive claim asked first
+    assert local.delete(first["id"], local.ZONE) is True and not restarted  # the second's jobs still run
+    assert local.delete(second["id"], local.ZONE) is True and restarted  # the last to leave restarts it
+    alone = local.take("pixal", "key")
+    assert alone is not None
+    local.delete(alone["id"], local.ZONE)
 
 
 def test_this_pc_refuses_a_job_by_its_measured_need_not_its_kind(monkeypatch, tmp_path):
@@ -496,10 +537,14 @@ def test_this_pc_runs_blender_jobs_side_by_side_as_its_memory_holds_with_the_car
         calls = []
         monkeypatch.setattr(local, "docker", lambda *arguments, **_: calls.append(arguments))
         machine = local.take("blender", "key")
-        assert ("cp", str(local.CARD_TURN), f"{local.MACHINE}:{card_turn.STARTUP}/card_turn.py") in calls
+        assert ("cp", str(local.CARD_TURN), f"{local.MACHINE}:{card_turn.STARTUP}/.card_turn.py.new") in calls
+        assert ("exec", local.MACHINE, "mv", f"{card_turn.STARTUP}/.card_turn.py.new",
+                f"{card_turn.STARTUP}/card_turn.py") in calls
         assert spread.slots("blender", machine) == [0, 0, 0]  # three side by side, all on the one card
-        assert spread.slots("pixal", machine) == [0]
         local.delete(machine["id"], local.ZONE)
+        alone = local.take("pixal", "key")
+        assert spread.slots("pixal", alone) == [0]
+        local.delete(alone["id"], local.ZONE)
     finally:
         monkeypatch.undo()
         importlib.reload(local)
