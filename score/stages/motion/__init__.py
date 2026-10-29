@@ -156,9 +156,10 @@ def make(inputs, out, seed, params):
     """The scene's rigid record made from its design over its stage, and its motion layer from it."""
     with built(inputs) as source:
         carried = batch_gaps.of(inputs)
+        planned = from_design.plan_gaps(read_json(inputs["plan"])) if "plan" in inputs else []
         record = fitted(from_design.record(place_of(inputs), read_json(inputs["design"]),
                                            row_kinds.table(inputs["row kinds"]), kinds_of(inputs),
-                                           layer_base.opened(source), carried), inputs, source)
+                                           layer_base.opened(source), [*carried, *planned]), inputs, source)
         (out / RECORD).write_text(json.dumps(record, indent=1))
         batch_gaps.write(out, [*carried, *from_design.left_gaps(record)])
         write_motion(dict(inputs, moves=out / RECORD), out, source)
