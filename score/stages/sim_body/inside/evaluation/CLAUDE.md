@@ -16,5 +16,11 @@ held-out rule (within 10 % of the tuning bodies).
 - `_card_case.py <seeds root> ...` is `_case.py` with level 3 on the card (`fit._card._clip`, each frame seeded from the
   seeds root's angles.npz) and the card's measures (`fit._card._measure`); `_case.py` stays the reference and the runner's
   worker until the card's measures equal the CPU's to their rounding on the tuning cases (card build step 5).
+- `_card_batch.py` (card build step 5b) is `_card_case.py` for every body of an evaluation in one process: per body
+  the state `_case.prepared` lays put back from a copy saved before the first body (`Saved`), never added on top; the
+  sizing, person file, level 2 and `Fitting` once per body (`sim_body.person_set_up`; a body's clips share one rig,
+  refused otherwise) and every clip's frames in one card batch; `fit.following` not run (nothing here reads it);
+  each clip written by `_case.written`. Gate 2026-10-29 (tall and slim, 14 cases, the per-case card run's constants):
+  equal to the per-case card path, skins exact, joints within 5.5e-4 mm; one process 29 s wall, imports included.
 - Judged on following SOMA, never on landmark distances; `fit._frozen` is never edited to follow the tree's calibration.
 - Test: `test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py` (a toy worker, any Python with numpy and scipy).

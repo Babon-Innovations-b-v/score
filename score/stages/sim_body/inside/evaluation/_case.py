@@ -90,30 +90,41 @@ def held_constants():
     fit.constants = once
 
 
-def fitted_case(job_path, out, recordings, measures=_measure.measures):
-    """One clip of the body: levels 2 (held) and 3, its follow measures (`measures`: the CPU's, or the card's same
-    keys) and landmark leftovers into out/measures.json (unrounded, the solver's) and out/m.json (rounded, the copy
-    people read)."""
-    out.mkdir(parents=True, exist_ok=True)
+def case_of(job_path, recordings):
+    """One clip's job, its person (given the body's `recordings`), the person's rig with its SOMA mesh and skin weights,
+    and the clip's segment frames."""
     job = json.loads(job_path.read_text())
     person = job["people"][0]
     person["recordings"] = recordings
     targets = np.load(person["targets"])
-    worlds = targets["world"]
     rig = {**person["rig"], "points": targets["points"], "faces": targets["faces"], "weights": targets["weights"]}
-    began = time.time()
-    record, scales, model, angles = sim_body.fitted_person(job, person, rig, worlds, out / f"{person['name']}.xml")
-    seconds = time.time() - began
+    return job, person, rig, targets["world"]
+
+
+def written(out, person, rig, worlds, fitted, measures):
+    """One clip's fitted result (`fitted`: its record, scales, model, angles and fit seconds) with its follow measures
+    (`measures`: the CPU's, or the card's same keys) and landmark leftovers into out/measures.json (unrounded, the
+    solver's), out/m.json (rounded, the copy people read) and its angles into out/angles.npz."""
+    record, scales, model, angles, seconds = fitted
     np.savez(out / evaluation.SEEDS, qpos=angles)
     found = measures(model, angles, rig, person["segments"], worlds, scales)
     _, points = fit.targets(rig, person["segments"], worlds, fit.followed(person["segments"]))
     found["landmarks"] = leftovers(model, angles, scales, points)
     found["fit seconds"] = round(seconds, 1)
-    found["recordings"] = recordings
+    found["recordings"] = person["recordings"]
     found["constants"] = record["fit"]["constants"]
     (out / evaluation.SOLVED).write_text(json.dumps(found, indent=1))
     (out / "m.json").write_text(json.dumps(evaluation.rounded(found), indent=1))
     print("done", out, found["joints mm"], found["turns deg"], found["bones outside all %"], seconds, flush=True)
+
+
+def fitted_case(job_path, out, recordings, measures=_measure.measures):
+    """One clip of the body: levels 2 (held) and 3, then `written` with `measures`."""
+    out.mkdir(parents=True, exist_ok=True)
+    job, person, rig, worlds = case_of(job_path, recordings)
+    began = time.time()
+    record, scales, model, angles = sim_body.fitted_person(job, person, rig, worlds, out / f"{person['name']}.xml")
+    written(out, person, rig, worlds, (record, scales, model, angles, time.time() - began), measures)
 
 
 def load_weights(path):
