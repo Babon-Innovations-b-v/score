@@ -16,8 +16,8 @@ itself in one batch. Seeded from that clip's answers (its angles.npz, `_seeds`) 
 equals mink's answer to the moved clip to 0.01 deg and 0.01 mm (a cold seed only reported). On a toy body
 (`card_body.py`), the card's measures (_measure.py) equal evaluation._measure's to 1e-9 (joints mm, turns deg) and
 its bones-outside shares exactly (every point's count). On fit's own toy (`card_level2.py`), level 2's exact
-Jacobian (_level2.py) equals its residuals' central differences to 1e-6 of each column's largest entry, nothing
-outside `Problem.sparsity`.
+Jacobian (_level2.py) equals its residuals' central differences to 1e-6 of each column's largest entry from the
+host's kinematics, to 1e-5 from the card's (_level2_card.py), nothing outside `Problem.sparsity`.
 
 Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _kept's release `wp.where(inside, 1.0, 0.0)` made `0.0` (holds only added): rows 0 and 1 keep dof 0
@@ -40,6 +40,8 @@ Breaks (each applied once, seen red, reverted):
   columns are off their differences.
 - (2026-10-29) _level2.frame_rows' inside joint `body_turns[parent]` made `body_turns[fitting.inside[joint]]`: the
   knee's move columns are off.
+- (2026-10-29) _level2_card.CardKinematics.frames' `body_pos.assign(...)` dropped: the card keeps the model's base
+  inside joint places, the knee's move columns are off.
 - (2026-10-29) _solve's `CYCLE_STEP = 1e-5` made `0.0`: a seeded toy row cycles at its float32 pose's floor and never
   stops (NotConverged).
 
@@ -62,6 +64,7 @@ COUPLINGS = ((5, 2, (0.01, 0.6, -0.2, 0.05, 0.01)), (9, 2, (0.0, -0.4, 0.1, 0.0,
 BOUND = 0.25  # float32-exact; dofs 0, 1, 4 and 6 range over +-BOUND
 BOUNDED = (0, 1, 4, 6)
 OBJECTIVE_ROWS = 6
+LEVEL2_CARD_MOST = 1e-5  # the same from the card's float32 kinematics (_level2_card)
 LEVEL2_MOST = 1e-6  # a column's largest miss over its largest entry (measured 1.8e-10; the plan allows 1e-2 against 2-point)
 HOLD_PASSES = 3  # as _step.HOLD_PASSES: solves after the first, a held dof whose descent points inside released
 
@@ -316,16 +319,21 @@ def the_level2_jacobian_equals_its_differences():
     import tempfile
     import card_level2
     import numpy as np
-    from fit._card import _level2
+    from fit._card import _level2, _level2_card
     with tempfile.TemporaryDirectory() as folder:
         problem, unknowns = card_level2.problem_and_point(folder)
-        exact = _level2.jacobian(problem, unknowns).toarray()
+        card = _level2_card.CardKinematics(problem.fitting, len(problem.path))  # made at the start constants
         moved = card_level2.differences(problem, unknowns)
         outside = ~problem.sparsity().toarray().astype(bool)
-    worst = max(np.abs(exact[:, column] - moved[:, column]).max() / max(np.abs(moved[:, column]).max(), 1e-12)
-                for column in range(unknowns.size))
-    return ([f"exact Jacobian off its differences by {worst:.2e} of a column"] if worst > LEVEL2_MOST else []) + (
-        ["exact Jacobian outside the sparse pattern"] if np.abs(exact[outside]).max() > 0 else [])
+        found = {"card": (_level2.jacobian(problem, unknowns, card).toarray(), LEVEL2_CARD_MOST),
+                 "host": (_level2.jacobian(problem, unknowns).toarray(), LEVEL2_MOST)}
+    problems = []
+    for source, (exact, most) in found.items():
+        worst = max(np.abs(exact[:, column] - moved[:, column]).max() / max(np.abs(moved[:, column]).max(), 1e-12)
+                    for column in range(unknowns.size))
+        problems += ([f"{source} Jacobian off its differences by {worst:.2e} of a column"] if worst > most else []) + (
+            [f"{source} Jacobian outside the sparse pattern"] if np.abs(exact[outside]).max() > 0 else [])
+    return problems
 
 
 def _values(found):

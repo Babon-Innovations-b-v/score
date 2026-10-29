@@ -5,8 +5,8 @@ its rotation vector off mink's turn through SO(3)'s right Jacobian, MuJoCo's fre
 leading joint its own dof and each follower's by its polynomial's slope); a place row is its site's place Jacobian
 through that, a turn row (the log of R_site^T R_target) its site's turn Jacobian through -J_l^-1(log) R_site^T; a
 marker's move reaches its site through its body's turn, an inside joint's move every site it carries through its
-parent's turn; a prior row its constant's weight. The frames' kinematics (`Kinematics`) come from MuJoCo in float64
-here, the reference the card's must equal."""
+parent's turn; a prior row its constant's weight. The frames' kinematics come from MuJoCo in float64 on the host
+(`Kinematics`, the reference) or from the card (`_level2_card`, float32)."""
 import mujoco
 import numpy as np
 from scipy.sparse import csr_matrix
@@ -122,17 +122,19 @@ def _log(turn):
     return Rotation.from_matrix(turn).as_rotvec()
 
 
-def jacobian(problem, unknowns):
+def jacobian(problem, unknowns, card=None):
     """The whole Jacobian of `problem.residuals` at `unknowns` (sparse, rows and columns as the residuals and
-    `problem.sparsity`), the constants laid on the model as the residuals lay them."""
+    `problem.sparsity`), the constants laid on the model as the residuals lay them; the frames' kinematics MuJoCo's on
+    the host, or `card`'s (a `_level2_card.CardKinematics` of the problem's frames) when given."""
     fitting = problem.fitting
     fitting.apply(problem.constants(unknowns))
     held = len(problem.slots)
-    blocks = []
-    for frame in range(len(problem.path)):
-        values = unknowns[held + frame * problem.width:held + (frame + 1) * problem.width]
-        kinematics = Kinematics(fitting, problem.qpos(frame, values))
-        blocks.append(csr_matrix(frame_rows(problem, frame, kinematics, problem.turns, values)))
+    values = [unknowns[held + frame * problem.width:held + (frame + 1) * problem.width]
+              for frame in range(len(problem.path))]
+    poses = [problem.qpos(frame, value) for frame, value in enumerate(values)]
+    seen = card.frames(np.array(poses)) if card is not None else [Kinematics(fitting, pose) for pose in poses]
+    blocks = [csr_matrix(frame_rows(problem, frame, seen[frame], problem.turns, value))
+              for frame, value in enumerate(values)]
     return _stacked(problem, blocks)
 
 
