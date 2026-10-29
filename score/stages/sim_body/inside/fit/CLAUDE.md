@@ -37,7 +37,12 @@ place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the
   and that a marker rides, it or a body below it (`Fitting.inside`), moves in its parent, solved in the markers' stage
   with the markers' moves and the sampled frames' angles, once per body, within `MARK_MOST`, pulled to its place at
   the markers' mean weight; never per frame. The moves are written in the person's file (`myo.inside_moved`), so
-  Newton's model has them too; the record keeps each in mm (`inside joints moved mm`). No group or joint special-cased.
+  Newton's model has them too; the record keeps each in mm (`inside joints moved mm`). No group or joint special-cased. Only a move the markers can tell is an unknown (`Fitting._determined`, 2026-10-29: level 2's optimum was flat,
+  starts 0.5 mm apart ending 0.7 mm apart at equal cost): a body carrying no marker is kept only when it moves a marker
+  no kept body below it moves, and the root place takes the common shift of the kept bodies fixed to a markerless root
+  with no joint between when every marker rides one of them (the one moving the most markers goes). On MyoFullBody 32
+  became 20: the clavicle and humerus phantoms, capitate, thorax, root and bimanual attachment (markerless) and the
+  sacrum (with the pelvis on Full_Body) drop; the lumbar levels stay.
 - **The calibration is the static table** (`calibration`), a site's quaternion R_cal^T on the group's frame body:
   never fitted, never per person.
 - **The followers' own ranges are not held** (`Fitting.limited_model`): 35 of MyoFullBody's 51 couplings have a

@@ -8,7 +8,9 @@ its trust among the markers, the markers' goal (group ends included, one goal) M
 a group end that is the middle of two bodies' centres (the hips') sits on their common holder (the pelvis) as one body's
 sits on its own, one rule; the constants are the body's, sampled from every one of its recordings; SOMA's targets (its
 segments' turns, its skin's landmarks and rig joints) leave both solves unchanged (#70: SOMA is never moved); a frame's
-fit ends on a step that moves no task's error, though the step itself is not small. It runs in Newton's own Python (mink
+fit ends on a step that moves no task's error, though the step itself is not small; a joint inside a group is an unknown only
+where the markers can tell it (a markerless middle body traded with the one below it, and the common shift of a pair
+fixed to a markerless root, are not). It runs in Newton's own Python (mink
 pinned there; score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there,
 as in `make tests`' sandbox home, it prints `skipped`.
 
@@ -33,6 +35,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   rides the left thigh.
 - (2026-10-29) _frames.solved's `or moved < STEP_DONE` dropped: the hinge whose mass sits 1e-6 m off its axis drifts
   1e-3 rad a step and raises NotConverged.
+- (2026-10-29) Fitting._inside's `return self._determined(found)` made `return found`: the markerless middle body
+  and both bodies fixed to the root are unknowns.
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/test_the_solver_gives_back_the_pose_and_constants_that_made_its_targets.py
 """
@@ -134,6 +138,27 @@ def truth_of(fitting):
     at = 3 * (len(fitting.marks) + fitting.inside_names.index(TRUE_JOINT[0]))
     found[at:at + 3] = TRUE_JOINT[1]
     return found
+
+TRADED = """<mujoco><worldbody><body name="base"><freejoint/><geom size="0.1" mass="1"/>
+  <body name="hip" pos="0 0 -0.1"><geom size="0.05" mass="1"/></body>
+  <body name="back" pos="0 0 0.1"><geom size="0.05" mass="1"/>
+    <body name="mid" pos="0 0 0.1"><joint type="ball"/><geom size="0.05" mass="1"/>
+      <body name="top" pos="0 0 0.1"><joint axis="1 0 0"/><geom size="0.05" mass="1"/></body></body></body>
+</body></worldbody></mujoco>"""
+
+
+def only_what_the_markers_tell_is_an_inside_unknown():
+    """On a markerless root holding a hip and a back with no joint, the back holding a markerless middle under a
+    marked top: the middle trades with the top and the root place takes the hip's and back's common shift (the back,
+    moving the most markers, goes): the hip and the top are the unknowns."""
+    import numpy as np
+    from fit import Fitting
+    with tempfile.TemporaryDirectory() as folder:
+        path = pathlib.Path(folder) / "traded.xml"
+        path.write_text(TRADED)
+        marks = [(f"{body}{axis}", body, np.eye(3)[axis] * 0.05) for body in ("hip", "back", "top") for axis in range(2)]
+        found = Fitting(path, [], marks, (), None, [{"base", "hip", "back", "mid", "top"}]).inside_names
+    return [] if found == ["hip", "top"] else [f"the inside unknowns are {found}"]
 
 
 def the_solver_gives_back_the_angles_and_the_constants():
@@ -282,7 +307,7 @@ def a_step_no_task_sees_ends_the_fit():
     return [] if moved < 1e-6 else [f"its error moved {moved}"]
 
 
-CHECKS = (a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
+CHECKS = (only_what_the_markers_tell_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
           the_place_goal_sums_to_the_marker_goal, the_solver_gives_back_the_angles_and_the_constants,
           every_recording_of_the_body_is_sampled, somas_targets_leave_the_solves_unchanged, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows,
           a_step_no_task_sees_ends_the_fit)
