@@ -243,7 +243,8 @@ def mark_of(slot, content, named=None):
         return entry
     if named is None or not (place / "outputs").is_dir():
         return None
-    entry = {**entry, **named, "files": stored(files_under(place / "outputs"), place / "outputs")}
+    outputs = (place / "outputs").resolve()  # as files_under gives them: a frozen run reaches the store by a link
+    entry = {**entry, **named, "files": stored(files_under(outputs), outputs)}
     written_mark(slot, content, entry)
     shutil.rmtree(place / "outputs")
     return entry
