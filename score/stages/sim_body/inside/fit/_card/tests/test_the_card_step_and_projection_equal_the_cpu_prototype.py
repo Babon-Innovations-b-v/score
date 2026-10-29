@@ -1,6 +1,7 @@
 """fit/_card: on 12 rows (frames) of a small chain (20 hinge dofs, two frozen, two followers on one leader and one
 without a leader, bounds with some rows sitting on them), seeded alike, one step at a time: the card's damped reduced
-step equals the CPU prototype's (card/proto/lm.py: mink's damping 1e-3 |r|^2 + 1e-9, frozen out, followers through
+step equals the CPU prototype's (card/proto/lm.py: mink's damping 1e-3 |r|^2 + 1e-9 on every full dof, so S^T S in
+the reduced dofs (a leader's damping times 1 plus its followers' slopes squared), frozen out, followers through
 their coupling's slope, three active-set passes holding dofs at a bound that push out, a held one released when its descent points back inside) to 1e-5 rad, and
 the card's projection equals the prototype's (ranges, couplings by polyval, frozen) with every follower on polyval of
 its leader to 1e-6 rad and every coordinate inside its range. Rows whose dofs are held must exist (else the hold is
@@ -18,6 +19,8 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _kept's release `wp.where(inside, 1.0, 0.0)` made `0.0` (holds only added): rows 0 and 1 keep dof 0
   held on its bound though its descent points inside, the step 1 rad off.
 - (2026-10-29) _step's `LM_DAMPING * squared + DAMPING` made `DAMPING`: mink's damping is lost, the step differs.
+- (2026-10-29) _normal_equations' `* spread` dropped (damping lambda I in the reduced dofs, not mink's S^T S): the
+  step differs from the prototype's by 7.7e-5 rad; on heavy_squat cache 3 mm row 148 swung elv_angle_r 1 rad a step.
 - (2026-10-29) _reduced_jacobian's `* slopes[row, coupling]` dropped: followers ride their leader at slope 1.
 - (2026-10-29) _step's `HOLD_PASSES = 3` made `0`: a dof at its bound is not held; the clip's rows never stop.
 - (2026-10-29) _kept's `keep[row, column]` made `1.0`: a hold from an earlier pass is let go, the step differs.
@@ -85,16 +88,18 @@ def prototype_step(jacobian, residuals, qpos, rest, lower, upper):
     released when its model gradient points its descent back inside), with its held rows and released count."""
     import numpy as np
     jac = jacobian.copy()
+    spread = np.ones((ROWS, DOFS))
     for follower, leader, poly in COUPLINGS:
         if leader >= 0:
             lead = qpos[:, leader] - rest[leader]
             slope = sum(power * poly[power] * lead ** (power - 1) for power in range(1, 5))
             jac[:, :, leader] += jac[:, :, follower] * slope[:, None]
+            spread[:, leader] += slope ** 2
     free = [dof for dof in range(DOFS) if dof not in FROZEN and dof not in {c[0] for c in COUPLINGS}]
     sub = jac[:, :, free]
     grad = np.einsum("frd,fr->fd", sub, residuals)
     hess = np.einsum("frd,fre->fde", sub, sub)
-    hess[:, range(len(free)), range(len(free))] += (1e-3 * (residuals ** 2).sum(1) + 1e-9)[:, None]
+    hess[:, range(len(free)), range(len(free))] += (1e-3 * (residuals ** 2).sum(1) + 1e-9)[:, None] * spread[:, free]
     step = -np.linalg.solve(hess, grad[..., None])[..., 0]
     at = qpos[:, free]
     held = np.zeros_like(step, dtype=bool)

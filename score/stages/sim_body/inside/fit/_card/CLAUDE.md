@@ -6,7 +6,9 @@ path in `../_frames.py` stays the reference and the one that runs until the card
 tolerances (cost ratio |x-1| <= 1e-5, angles <= 0.01 deg, sites <= 0.01 mm, every frame); nothing here replaces it
 before that.
 
-- `_step.py` (`Reduction`, `damped_step`): mink's damped Gauss-Newton step (1e-3 |r|^2 + 1e-9 on the diagonal) in the
+- `_step.py` (`Reduction`, `damped_step`): mink's damped Gauss-Newton step (1e-3 |r|^2 + 1e-9 on every full dof's
+  diagonal, so S^T S in the reduced dofs: a leader's damping times 1 plus its followers' slopes squared; damped once,
+  heavy_squat's row 148 swung elv_angle_r and its slope -1 follower 1 rad a step, never stopping, 2026-10-29) in the
   reduced dofs (frozen out, each follower's Jacobian column onto its leader's through polyval's slope, three
   active-set passes after the first solve holding dofs at a bound that push out (one pass let a toy row with two
   dofs on their bounds push a third out and back every step), a held one released when its model gradient

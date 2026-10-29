@@ -2,7 +2,7 @@
 
 Reduced dofs: frozen dofs out, each coupled follower's column added onto its leader's through the coupling's
 slope (polyval's derivative at the leader), dofs at a bound whose step pushes out held, and released once their descent points back inside.
-Damping is mink's: LM_DAMPING times the squared error plus DAMPING on the diagonal. The solve is Warp's tile
+Damping is mink's: LM_DAMPING times the squared error plus DAMPING on every full dof's diagonal (S^T S reduced). The solve is Warp's tile
 Cholesky (Newton's own IKOptimizerLM pattern) at the reduced size, 37 on MyoFullBody (128 dofs, 40 frozen,
 51 followers), inside sm_120's shared memory for any size up to 79."""
 import functools
@@ -45,18 +45,26 @@ def _reduced_jacobian(jacobian: wp.array3d[wp.float32], free_dof: wp.array[wp.in
 
 @wp.kernel(enable_backward=False)
 def _normal_equations(reduced: wp.array3d[wp.float32], residuals: wp.array2d[wp.float32],
-                      keep: wp.array2d[wp.float32], hessian: wp.array3d[wp.float32],
+                      keep: wp.array2d[wp.float32], slopes: wp.array2d[wp.float32],
+                      leader_reduced: wp.array[wp.int32], hessian: wp.array3d[wp.float32],
                       gradient: wp.array2d[wp.float32]):
-    """Damped J_red^T J_red and -J_red^T r, a held dof's row and column replaced by the identity's."""
+    """Damped J_red^T J_red and -J_red^T r, a held dof's row and column replaced by the identity's. The damping is
+    mink's on every dof of the full step, S^T S in the reduced dofs: a leader's own plus its followers' slopes squared
+    (elv_angle with its follower at slope -1 damped twice; damped once, heavy_squat's row 148 swung 1 rad a step)."""
     row, first, second = wp.tid()
     squared = float(0.0)
+    spread = float(1.0)
+    if first == second:
+        for coupling in range(leader_reduced.shape[0]):
+            if leader_reduced[coupling] == first:
+                spread += slopes[row, coupling] * slopes[row, coupling]
     product = float(0.0)
     for residual in range(reduced.shape[1]):
         product += reduced[row, residual, first] * reduced[row, residual, second]
         squared += residuals[row, residual] * residuals[row, residual]
     value = product * keep[row, first] * keep[row, second]
     if first == second:
-        value += keep[row, first] * (LM_DAMPING * squared + DAMPING) + (1.0 - keep[row, first])
+        value += keep[row, first] * (LM_DAMPING * squared + DAMPING) * spread + (1.0 - keep[row, first])
     hessian[row, first, second] = value
     if second == 0:
         pulled = float(0.0)
@@ -149,13 +157,13 @@ class Reduction:
         self.poly = wp.array(poly, dtype=wp.float32, device=device)
 
 
-def _solved(reduction, reduced, residuals, keep, device):
+def _solved(reduction, reduced, residuals, keep, slopes, device):
     """One damped reduced solve for every row under its keep mask."""
     rows, size = keep.shape
     hessian = wp.empty((rows, size, size), dtype=wp.float32, device=device)
     gradient = wp.empty((rows, size), dtype=wp.float32, device=device)
     step = wp.empty((rows, size), dtype=wp.float32, device=device)
-    wp.launch(_normal_equations, dim=(rows, size, size), inputs=[reduced, residuals, keep],
+    wp.launch(_normal_equations, dim=(rows, size, size), inputs=[reduced, residuals, keep, slopes, reduction.leader_reduced],
               outputs=[hessian, gradient], device=device)
     wp.launch_tiled(_cholesky_kernel(reduction.size), dim=[rows], inputs=[hessian, gradient], outputs=[step],
                     block_dim=TILE_THREADS, device=device)
@@ -179,14 +187,14 @@ def damped_step(reduction, jacobian, residuals, qpos, active):
                                                             reduction.leader_reduced, slopes],
               outputs=[reduced], device=device)
     keep = wp.ones((rows, reduction.size), dtype=wp.float32, device=device)
-    step = _solved(reduction, reduced, residuals, keep, device)
+    step = _solved(reduction, reduced, residuals, keep, slopes, device)
     predicted = wp.empty((rows, count), dtype=wp.float32, device=device)
     for _ in range(HOLD_PASSES):
         wp.launch(_predicted, dim=predicted.shape, inputs=[reduced, step, residuals], outputs=[predicted],
                   device=device)
         wp.launch(_kept, dim=keep.shape, inputs=[step, qpos, reduction.free_coord, reduction.lower, reduction.upper,
                                                  reduced, predicted], outputs=[keep], device=device)
-        step = _solved(reduction, reduced, residuals, keep, device)
+        step = _solved(reduction, reduced, residuals, keep, slopes, device)
     full = wp.zeros((rows, dofs), dtype=wp.float32, device=device)
     wp.launch(_scattered, dim=step.shape, inputs=[step, reduction.free_dof, active], outputs=[full], device=device)
     norms = wp.empty(rows, dtype=wp.float32, device=device)
