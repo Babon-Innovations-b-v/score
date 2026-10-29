@@ -24,8 +24,13 @@ on its concept (`concept_masks`: box_masks.py's instance that best matches the r
 row built at once), which the finish route reads as the take's close-up and the likeness row holds the model to, and
 `code.json` naming the build. The cut is by the thing's shape, never its box: the close-up mask's border colour
 (`cut_out`) on a busy concept crop kept wall and neighbours: 3 of world 1's 26 builds passed their outline on it
-(2026-10-25). The model's one colour is the cut-out's median (the model's own texture, which the finish route measures
-and replaces with a library surface). A row SAM 3 finds no instance of is no build: it stays a gap. A path build of a
+(2026-10-25). The model carries its cut-out as its own texture (`textured`), as a Pixal3D take carries the picture it
+was made from: laid on from the way its outline matches the crop, on a sweep built in SWEEP_RINGS rings, so the finish
+route's views see each colour where it lies, its list labels those regions with the close-up's finishes and its split
+gives each finish its part; the texture is measured, never shown (every finish a library surface). Made in one colour
+on 12 faces, a lamp bar's metal end caps were no part's and its likeness check's "close-up parts present" could never
+pass (2026-10-29). A build made before carries no texture (its mark names none, `textured_build`) and is made again
+from its own crop (`rebuilt`, by the Pixal3D row). A row SAM 3 finds no instance of is no build: it stays a gap. A path build of a
 rigid run (FITTED) carries its fittings made here on its one surface (`fittings`: an elbow at each bend, a tee at
 each fork, a clamp every BRACKET_GAP on a wall), finished by the finish route like the rest; score_lib's own pipe
 pieces, made by today's library methods, are to replace them (#55: every older piece is withdrawn since 2026-10-21).
@@ -74,7 +79,21 @@ FITTING_SHARE = 1.25
 # Metres between a wall run's clamps: a usual support spacing for a small pipe or a handrail's brackets (no library
 # row gives one), the first half a gap in.
 BRACKET_GAP = 1.5
+# Rings a straight sweep is built in along its length (`prism`): its faces must be small enough for the finish route's
+# split to give a finish its own part (a lamp bar's end caps, a pipe's valve paint, a tube's glazing band). Swept in one
+# length, a bar was 12 faces and its finish route split it into one part (2026-10-29: airlock's wall lamp, its close-up's
+# grey metal trim owned by no part); 128 rings are about 6 mm on its 0.8 m and 8,256 faces on any sweep.
+SWEEP_RINGS = 128
+# The crop's turns in the picture's plane (in degrees, every TEXTURE_TURN) the texture's projection tries (`laid_on`).
+TEXTURE_TURN = 5
+# The 26 ways a code build is seen from when its crop is laid on it as its texture (`laid_on`): a cube's faces, edges
+# and corners, so an opposite way sees the crop mirrored.
+TEXTURE_WAYS = tuple(np.array(way, dtype=float) / np.linalg.norm(way) for way in
+                     ((x, y, z) for x in (0, -1, 1) for y in (0, 1, -1) for z in (1, -1, 0)) if any(way))
 MARK = "code.json"
+# The texture a build carries, named in its mark (`write_take`): a build whose mark names none is made again from its
+# own crop (pixal_row.code_builds), so the builds made in one colour before 2026-10-29 carry their crop too.
+TEXTURE = "its concept crop, laid on from the way its outline matches"
 # The tool files it runs, declared by the Pixal3D row (pixal_row.files): SAM 3's masks, the crop, the close-up's view
 # (a path build is leaned to face its look-down) and the slender rule.
 TOOLS = {"masks": "{repo}/tools/props/scene/box_masks.py", "masks runner": "{repo}/tools/cloud/box_masks_cloud.py",
@@ -143,14 +162,40 @@ def build(row, alpha=None):
     if tall >= max(wide, deep) and not stands(row, alpha):  # the reading's box stood a run its picture shows lying
         extents = np.array([min(wide, deep), max(wide, deep), tall])
     along = int(np.argmax(extents))
-    if profile(row) == "round":
-        mesh = trimesh.creation.cylinder(radius=0.5, height=1.0, sections=SEGMENTS)  # along z, centred
-        mesh.apply_transform(trimesh.geometry.align_vectors([0, 0, 1], np.eye(3)[along]))
-    else:
-        mesh = trimesh.creation.box(extents=[1.0, 1.0, 1.0])
+    mesh = prism(section(profile(row)), SWEEP_RINGS)  # along z, centred
+    mesh.apply_transform(trimesh.geometry.align_vectors([0, 0, 1], np.eye(3)[along]))
     mesh.apply_scale(extents / mesh.extents)
     mesh.apply_translation(-mesh.bounds.mean(0))
     return mesh
+
+
+def section(shape):
+    """A sweep's cross-section, SEGMENTS points anticlockwise one unit across: a circle for "round", else a square
+    with SEGMENTS / 4 points along each side (so a finish across a post's face has faces of its own too)."""
+    if shape == "round":
+        turns = np.linspace(0.0, 2 * np.pi, SEGMENTS, endpoint=False)
+        return 0.5 * np.c_[np.cos(turns), np.sin(turns)]
+    steps = np.linspace(-0.5, 0.5, SEGMENTS // 4, endpoint=False)
+    return np.vstack([np.c_[steps, np.full_like(steps, -0.5)], np.c_[np.full_like(steps, 0.5), steps],
+                      np.c_[-steps, np.full_like(steps, 0.5)], np.c_[np.full_like(steps, -0.5), -steps]])
+
+
+def prism(outline, rings):
+    """One closed surface swept along z from -0.5 to 0.5: the `outline` (anticlockwise points in x and y) at `rings` + 1
+    stations, side faces between each two and a fan over each end."""
+    import trimesh
+    count = len(outline)
+    stations = np.linspace(-0.5, 0.5, rings + 1)
+    points = np.vstack([np.c_[outline, np.full(count, station)] for station in stations] + [[0, 0, -0.5], [0, 0, 0.5]])
+    ring, turn = np.meshgrid(np.arange(rings), np.arange(count), indexing="ij")
+    here, on = ring * count + turn, ring * count + (turn + 1) % count
+    sides = np.vstack([np.c_[here.ravel(), on.ravel(), (on + count).ravel()],
+                       np.c_[here.ravel(), (on + count).ravel(), (here + count).ravel()]])
+    low, high = len(points) - 2, len(points) - 1
+    top = rings * count
+    ends = np.vstack([np.c_[np.full(count, low), (np.arange(count) + 1) % count, np.arange(count)],
+                      np.c_[np.full(count, high), top + np.arange(count), top + (np.arange(count) + 1) % count]])
+    return trimesh.Trimesh(points, np.vstack([sides, ends]), process=True)
 
 
 def slant(alpha):
@@ -490,23 +535,129 @@ def colour(picture):
     return np.median(pixels[pixels[..., 3] > 127][:, :3], axis=0)
 
 
+def boxed_grid(points):
+    """(centre, scale) setting 2D `points` in a compare.SQUARE grid as compare.boxed sets a mask: their box's middle
+    at the grid's, their box's longer side across it."""
+    with prop_data.tools("usd", "props"):
+        import compare
+    low, high = points.min(0), points.max(0)
+    return (low + high) / 2, (compare.SQUARE - 1) / max(float((high - low).max()), 1e-9)
+
+
+def seen_flat(points, way):
+    """The points as seen from `way` (orthographic): (across to the right, down), the picture's axes."""
+    up = np.array([0.0, 1.0, 0.0]) if abs(way[1]) < 0.99 else np.array([0.0, 0.0, -1.0])
+    right = np.cross(up, way)
+    right /= np.linalg.norm(right)
+    return np.c_[points @ right, -(points @ np.cross(way, right))]
+
+
+def drawn(flat, triangles, centre, scale):
+    """The triangles of `flat` points drawn filled in the compare.SQUARE grid at (centre, scale)."""
+    from PIL import ImageDraw
+    with prop_data.tools("usd", "props"):
+        import compare
+    grid = (flat - centre) * scale + compare.SQUARE / 2
+    picture = Image.new("L", (compare.SQUARE, compare.SQUARE), 0)
+    draw = ImageDraw.Draw(picture)
+    for corner in grid[triangles]:
+        draw.polygon([tuple(point) for point in corner], fill=255)
+    return np.asarray(picture) > 127
+
+
+def binned(points, centre, scale):
+    """The points (pixel centres) set in the compare.SQUARE grid at (centre, scale), as a mask."""
+    with prop_data.tools("usd", "props"):
+        import compare
+    cells = np.clip(((points - centre) * scale + compare.SQUARE / 2).astype(int), 0, compare.SQUARE - 1)
+    found = np.zeros((compare.SQUARE, compare.SQUARE), dtype=bool)
+    found[cells[:, 1], cells[:, 0]] = True
+    return found
+
+
+def turned(points, degrees):
+    """2D points turned anticlockwise on the picture (its y down) by `degrees` round the origin."""
+    angle = np.radians(degrees)
+    return points @ np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+
+
+def laid_on(mesh, alpha):
+    """(way, turn) laying the crop on the build: of TEXTURE_WAYS and the crop's turns every TEXTURE_TURN degrees, the
+    pair whose build outline and turned mask (`alpha`) overlap most (compare.outline, the likeness gate's measure),
+    the first on a tie."""
+    with prop_data.tools("usd", "props"):
+        import compare
+    inside = np.argwhere(alpha)[:, ::-1] + 0.5 - np.array(alpha.shape[::-1]) / 2  # (x, y) from the picture's middle
+    masks = {turn: binned(turned(inside, turn), *boxed_grid(turned(inside, turn)))
+             for turn in range(0, 360, TEXTURE_TURN)}
+    best, found = -1.0, None
+    for way in TEXTURE_WAYS:
+        flat = seen_flat(mesh.vertices, way)
+        outline = drawn(flat, mesh.faces, *boxed_grid(flat))
+        for turn, mask in masks.items():
+            overlap = compare.outline(outline, mask)
+            if overlap > best:
+                best, found = overlap, (way, turn)
+    return found
+
+
+def crop_texture(picture):
+    """The crop's colours as a texture: its object's pixels, and every other pixel its nearest object pixel's colour
+    (so no backdrop or neighbour of the concept reaches a face the projection lays at the outline's edge)."""
+    from scipy import ndimage
+    pixels = np.asarray(picture.convert("RGBA"))
+    _, (down, across) = ndimage.distance_transform_edt(pixels[..., 3] <= 127, return_indices=True)
+    return Image.fromarray(pixels[down, across, :3])
+
+
+def textured(mesh, picture):
+    """The build with its crop (`picture`, its object its alpha) laid on as its own texture, as a Pixal3D take carries
+    the picture it was made from: each point's UV the crop's pixel under it seen from the way its outline matches the
+    crop (`laid_on`), its box set on the crop's box, so the finish route's views (route_views: the model's own texture
+    in k-means regions) see the crop's colours where they lie on the thing, and its list and split give each finish
+    its part. The texture is only measured, never shown: every finish is a library surface."""
+    import trimesh
+    alpha = np.asarray(picture.convert("RGBA"))[..., 3] > 127
+    way, turn = laid_on(mesh, alpha)
+    middle = np.array(alpha.shape[::-1]) / 2
+    inside = turned(np.argwhere(alpha)[:, ::-1] + 0.5 - middle, turn)
+    flat = seen_flat(mesh.vertices, way)
+    (here, scale), (there, crop_scale) = boxed_grid(flat), boxed_grid(inside)
+    pixel = turned((flat - here) * scale / crop_scale + there, -turn) + middle
+    wide, tall = alpha.shape[::-1]
+    uv = np.c_[np.clip(pixel[:, 0] / wide, 0.0, 1.0 - 1e-6), np.clip(1.0 - pixel[:, 1] / tall, 1e-6, 1.0)]
+    material = trimesh.visual.material.PBRMaterial(baseColorTexture=crop_texture(picture),
+                                                   baseColorFactor=[1.0, 1.0, 1.0, 1.0])
+    mesh.visual = trimesh.visual.TextureVisuals(uv=uv, material=material)
+    return mesh
+
+
 def write_take(take, row, picture, faces, pixal, mask):
     """The take's files (module docstring) in `pixal` from `picture`, its concept crop cut out by its SAM 3 `mask`."""
-    import trimesh
-    factor = [*(colour(picture) / 255.0), 1.0]
     views = pixal / f"{take}.svviews"
     views.mkdir(parents=True, exist_ok=True)
     picture.save(views / "input.png")
     alpha = np.asarray(picture.convert("RGBA"))[..., 3] > 127
-    mesh = build(row, alpha)
-    mesh.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(baseColorFactor=factor))
+    mesh = textured(build(row, alpha), picture)
     for name in (f"{take}.glb", f"{take}-{faces}.glb", f"{take}-final.glb"):  # raw, slimmed, final: never stood
         mesh.export(pixal / name)
     path = alpha.any() and not one_run(alpha)
     mark = {"route": "code", "rule": "thin straight (owner, 2026-10-25)", "profile": "path" if path else profile(row),
-            "size": row["size"], "mask": str(mask)}
+            "size": row["size"], "mask": str(mask), "texture": TEXTURE}
     (views / MARK).write_text(json.dumps(mark, indent=1))
     return views
+
+
+def textured_build(take, pixal):
+    """Whether the code build of `take` in `pixal` carries its crop as its texture (its mark names TEXTURE)."""
+    return json.loads((pixal / f"{take}.svviews" / MARK).read_text()).get("texture") == TEXTURE
+
+
+def rebuilt(take, row, faces, pixal):
+    """The code build of `take` made again (write_take) from its own crop and mask as its mark names them."""
+    views = pixal / f"{take}.svviews"
+    mask = json.loads((views / MARK).read_text())["mask"]
+    return write_take(take, row, Image.open(views / "input.png").convert("RGBA"), faces, pixal, mask)
 
 
 def code_built(take, pixal):

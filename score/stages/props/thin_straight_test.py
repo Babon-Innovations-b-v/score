@@ -18,6 +18,10 @@ test_a_path_is_built_in_its_picture_s_plane_facing_the_outline_s_view red (the c
 0.5, the diagonal's tube 40% fat); facing never leaning (`down = 0.0`) turns
 test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s_path red. likeness_row.object_record's `lit` never set (`lit = False`)
 turns test_a_code_built_light_is_not_held_to_the_lamp_its_route_leaves_to_the_light_layer red (the lamp face missed).
+write_take leaving its crop off the build (`mesh = textured(build(row, alpha), picture)` -> `mesh = build(row, alpha)`)
+or a sweep built in one length again (SWEEP_RINGS = 1) turns
+test_a_code_build_carries_its_crop_where_it_lies_so_each_finish_has_faces_of_its_own red (one region, or no
+face of its own on its ends).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/thin_straight_test.py
 """
@@ -91,7 +95,10 @@ def test_the_profile_is_swept_along_the_longest_side_at_the_row_s_size():
     assert len(pipe.vertices) > 8  # round, not a box
     post = thin_straight.build(POST)  # size is wide, deep, tall: the post stands 2.5 m up y
     assert np.allclose(post.extents, [0.1, 2.5, 0.1]) and thin_straight.profile(POST) == "rect"
-    assert len(post.vertices) == 8
+    side = post.vertices[np.abs(np.abs(post.vertices[:, 1]) - 1.25) > 1e-9]  # its sides, not its end fans
+    assert post.is_watertight and np.allclose(np.abs(side[:, [0, 2]]).max(1), 0.05)  # square, not round
+    # built in rings along its length, so a finish along it has faces of its own (the lamp bar's end caps)
+    assert len(np.unique(post.vertices[:, 1].round(6))) == thin_straight.SWEEP_RINGS + 1
 
 
 def test_a_railing_is_posts_at_most_a_post_gap_apart_under_a_top_and_a_mid_rail(tmp_path):
@@ -121,11 +128,16 @@ def test_the_take_is_written_where_the_finish_route_and_the_likeness_row_read_it
                  "garage_pipe_1.svviews/input.png"):
         assert (pixal / name).exists(), name
     assert thin_straight.code_built("garage_pipe_1", pixal)
-    # its one colour is the bar's, which the finish route measures as the model's own texture (route_cast)
+    # it carries its crop as its own texture, which the finish route measures (route_cast): the bar's red
     import trimesh
     loaded = trimesh.load(pixal / "garage_pipe_1.glb", force="scene")
-    factor = next(iter(loaded.geometry.values())).visual.material.baseColorFactor
-    assert np.abs(factor[:3].astype(int) - [180, 30, 30]).max() <= 6, factor  # the crop is a JPEG
+    visual = next(iter(loaded.geometry.values())).visual
+    texture = np.asarray(visual.material.baseColorTexture.convert("RGB"))
+    tall, wide = texture.shape[:2]
+    under = texture[np.clip(((1 - visual.uv[:, 1]) * tall).astype(int), 0, tall - 1),
+                    np.clip((visual.uv[:, 0] * wide).astype(int), 0, wide - 1)]
+    assert np.abs(np.median(under, axis=0) - [180, 30, 30]).max() <= 6, np.median(under, axis=0)  # the crop is a JPEG
+    assert thin_straight.textured_build("garage_pipe_1", pixal)
     # the paint replays the finish's turn from the slimmed file onto the final one (labels.finish_turn): none here
     with prop_data.tools("props/library", "props"):
         import labels
@@ -143,6 +155,40 @@ def test_the_take_is_written_where_the_finish_route_and_the_likeness_row_read_it
     thin_straight.unbuild("post_1", pixal)
     thin_straight.unbuild("garage_pipe_1", pixal)
     assert not list(pixal.iterdir())
+
+
+def test_a_code_build_carries_its_crop_where_it_lies_so_each_finish_has_faces_of_its_own(tmp_path):
+    """A lamp bar whose crop shows grey end caps on a red tube: its build carries the crop as its texture, laid on from
+    the way its outline matches, in rings fine enough that the finish route's views (route_views, the model's own
+    texture in colour regions, the regions the list labels and the split votes) see grey on its ends and red between;
+    swept in one length it was 12 faces of one colour, and its caps' finish no part's (airlock's wall lamp,
+    2026-10-29). A build made before (its mark names no texture) is made again from its own crop by the Pixal3D row."""
+    sys.path.append(str(REPO / "score/stages/surfaces"))
+    import score.stages.surfaces as surfaces
+    pixels = np.full((200, 600, 3), 140, dtype=np.uint8)
+    pixels[90:110, 40:560] = (180, 30, 30)
+    pixels[90:110, 40:100] = pixels[90:110, 500:560] = (90, 90, 90)
+    Image.fromarray(pixels).save(tmp_path / "concept.png")
+    lamp = {"id": "lamp", "name": "wall lamp", "noun": "lamp", "size": [0.8, 0.05, 0.05], "view": "v1",
+            "box": [40, 90, 560, 110]}
+    picture = thin_straight.cut_by_mask(tmp_path / "concept.png", lamp["box"],
+                                        bar_mask(tmp_path / "lamp.png", lamp["box"]))
+    pixal = tmp_path / "pixal"
+    views = thin_straight.write_take("lamp_1", lamp, picture, 4000, pixal, tmp_path / "lamp.png")
+    record = surfaces.route_views.view_take(pixal / "lamp_1.glb", views / "input.png", None, tmp_path / "views", 1)
+    assert len(record["regions"]) >= 2, record["regions"]
+    model = np.load(tmp_path / "views/model.npz")
+    along = model["vertices"][model["faces"]].mean(1)[:, 2]  # the bar lies along z, a largest side of 1
+    faces, colours = np.load(tmp_path / "views/faces.npz")["right"], np.load(tmp_path / "views/colours.npz")["right"]
+    seen = faces >= 0
+    ends, middle = np.abs(along[faces[seen]]) > 0.42, np.abs(along[faces[seen]]) < 0.3
+    assert np.abs(np.median(colours[seen][ends], axis=0) - [90, 90, 90]).max() <= 12
+    assert np.abs(np.median(colours[seen][middle], axis=0) - [180, 30, 30]).max() <= 12
+    mark = views / thin_straight.MARK
+    mark.write_text(json.dumps({key: value for key, value in json.loads(mark.read_text()).items() if key != "texture"}))
+    assert not thin_straight.textured_build("lamp_1", pixal)
+    thin_straight.rebuilt("lamp_1", lamp, 4000, pixal)
+    assert thin_straight.textured_build("lamp_1", pixal)
 
 
 def test_an_empty_mask_cuts_nothing(tmp_path):

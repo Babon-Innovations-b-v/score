@@ -149,7 +149,8 @@ tests it turned red:
   "parts.npy", part_of[:1].astype(np.int32))`  ->
   the_parts_row_writes_the_methods_interface_each_finish_checked_against_its_colour
 - route_parts.py: `and not lamps.on_stem({"size": built.get("size")})` -> `and True`  ->
-  a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour
+  a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour; so does `zip(checked, lit if any(lit) else
+  [True] * len(checked))` -> `zip(checked, [True] * len(checked))` (the light bar's metal end caps glowing)
 - route_bake.py: `surface=route_settings.settings_name(record["surface"], record["settings"])` ->
   `surface=record["surface"]`  ->
   the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
@@ -1978,6 +1979,11 @@ def test_a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour():
     assert lit["surface"] == "cold" and lit["fits"] and lit["by"] == "its light, built in code", lit
     (unlit,) = route_parts.lit_finishes([finish], {"steel": every["steel"]})
     assert unlit["fits"] is False and "no glowing surface" in unlit["new_surface"]["why"], unlit
+    # a light bar listed as its glass tube and its metal end caps (its build carries its crop, so each has its part):
+    # the tube glows, the caps keep their own surface (airlock's wall lamp, 2026-10-29: its caps baked glowing)
+    tube, caps = dict(finish, family="glass"), dict(finish, finish="metal end caps", family="steel")
+    (glows, kept) = route_parts.lit_finishes([tube, caps], every)
+    assert glows["surface"] == "cold" and kept == caps, (glows, kept)
 
 
 def baked(folder, rows):

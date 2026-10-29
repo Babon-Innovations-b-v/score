@@ -219,11 +219,15 @@ def run_batch(listing, place, inventory, out):
 def code_builds(failed, rows, inputs, out):
     """{row: entry} of the objects (`failed`: thin_straight.coded's, its close-up failed or not) that the thin straight
     route built (thin_straight.py), each from its concept crop cut out by its SAM 3 mask (one rented card for every
-    row not built yet); one already built is kept."""
+    row not built yet); one already built is kept, made again from its own crop (its input.png, no mask asked) when it
+    carries no texture yet (thin_straight.textured_build)."""
     pixal = take_files("-")[0].parent
     thin = {row: entry for row, entry in sorted(failed.items())
             if row in rows and rows[row].get("box") and thin_straight.thin_straight(rows[row])}
     kept = {row: entry for row, entry in thin.items() if thin_straight.code_built(entry["take"], pixal)}
+    for row, entry in kept.items():
+        if not thin_straight.textured_build(entry["take"], pixal):
+            thin_straight.rebuilt(entry["take"], rows[row], faces_of(inputs["surfaces"], entry["take"]), pixal)
     concepts = {row: inputs[f"view {rows[row]['view']}"] for row in thin if row not in kept}
     masks = thin_straight.concept_masks({row: rows[row] for row in concepts}, concepts, out / "masks") if concepts else {}
     built = dict(kept)

@@ -16,8 +16,8 @@ baked part against the same close-up colour (bake_check.close_up_faults, its `me
 checked surface (finish_parts.part_rows), and the list's settings where its finish kept the surface the list named
 (route_settings.applied: the bake paints and bakes the surface with them). A light built in code (`lit_take`: a
 light bar, strip or string the thin straight route built, score/stages/props/thin_straight.py) is its light: every
-finish takes the scene library's glowing surface (the library's `glowing` recipe) nearest the colour its concept crop
-shows (`lit_finishes`; owner, 2026-10-25: "the engines themself should be a source of light and there are lights in
+lit finish (`lit_finishes`) takes the scene library's glowing surface (the library's `glowing` recipe) nearest the
+colour its concept crop shows (`lit_finishes`; owner, 2026-10-25: "the engines themself should be a source of light and there are lights in
 the concept"); with none in the scene library it is marked off its colour, and the paint's gate names it.
 
 Output: parts.json (per take its method, parts (each with its finish's `settings` or None), finishes with the list's
@@ -128,11 +128,19 @@ def lit_take(entry, mark):
 
 
 def lit_finishes(checked, every):
-    """A code-built light's checked finishes, each given the glowing surface of `every` (one made with the library's
-    `glowing` recipe) nearest its measured colour, else the first; each marked off its colour when `every` has none."""
+    """A code-built light's checked finishes, each lit one given the glowing surface of `every` (one made with the
+    library's `glowing` recipe) nearest its measured colour, else the first; each marked off its colour when `every`
+    has none. Its lit finishes are those of a lit family (finish_parts.SEEN_THROUGH_FAMILIES, the list's family: the
+    likeness row leaves the same ones to the light layer), and every finish when none is: a light bar's metal end caps
+    keep their own surface once its build carries its crop and the split gives them their part (2026-10-29: airlock's
+    wall lamp, its caps baked glowing), and a light listed as one body is its light."""
     glowing = sorted(name for name, spec in every.items() if spec.get("recipe") == "glowing" and "colour" in spec)
+    lit = [finish.get("family") in finish_parts.SEEN_THROUGH_FAMILIES for finish in checked]
     found = []
-    for finish in checked:
+    for finish, glows in zip(checked, lit if any(lit) else [True] * len(checked)):
+        if not glows:
+            found.append(finish)
+            continue
         if not glowing:
             found.append(dict(finish, by="off its colour", fits=False, new_surface={
                 "name": f"{finish['finish']} (glowing)", "description": f"{finish['finish']}, a light built in code",
