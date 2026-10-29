@@ -22,5 +22,8 @@ held-out rule (within 10 % of the tuning bodies).
   refused otherwise) and every clip's frames in one card batch; `fit.following` not run (nothing here reads it);
   each clip written by `_case.written`. Gate 2026-10-29 (tall and slim, 14 cases, the per-case card run's constants):
   equal to the per-case card path, skins exact, joints within 5.5e-4 mm; one process 29 s wall, imports included.
+  All 70 tuning cases (same constants): equal to the per-case card path on all 70 (skins exact, joints within
+  1.1e-3 mm), against the CPU the same 3 cases one to three hand vertex-frames off as the per-case card's (joints
+  within 3.3e-3 mm); one process 102 s wall against the per-case card's 237 s and the CPU's 447 s (4 processes each).
 - Judged on following SOMA, never on landmark distances; `fit._frozen` is never edited to follow the tree's calibration.
 - Test: `test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py` (a toy worker, any Python with numpy and scipy).
