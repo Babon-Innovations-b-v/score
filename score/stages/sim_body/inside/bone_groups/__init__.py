@@ -6,6 +6,9 @@ LACKS = {"Spine1, Spine2": "one lumbar joint spread over its five levels by the 
          "Neck1, Neck2, Head": "MyoFullBody's head and neck are rigid on its thorax",
          "{Side}Shoulder": "the clavicle and scapula follow the arm's elevation (the model's shoulder rhythm)",
          "{Side}Shin, {Side}Foot, {Side}ToeBase": "the knee, ankle, subtalar and toe joints are hinges"}
+# The groups with no joint to the group before them (MyoFullBody's neck and head rigid on its thorax, LACKS): their
+# starts are no joint of the model, so as a group end target they could only turn the torso (#70 audit 6c).
+RIGID = ("Neck1", "Neck2", "Head")
 # The lumbar leaders the residual reduction moves with the pelvis (the owner's: "adjust the pelvis and trunk path
 # slightly"), by the ends of their joint names.
 TRUNK = ("flex_extension", "lat_bending", "axial_rotation")
@@ -29,7 +32,7 @@ GROUPS = {
               ("torso", "bimanual_attachment", "root", "thorax", "cervical_spine", "head_attach")),
     "Neck1": (("Neck1", "Neck2"), ("C7_T1", "mid_cervical"), "neck", ("neck",)),
     "Neck2": (("Neck2", "Head"), ("mid_cervical", "C0_C1"), "neck", ()),
-    "Head": (("Head", "HeadEnd"), ("C0_C1", "head_vertex"), "head", ("head",)),
+    "Head": (("Head", "HeadEnd"), ("C0_C1", "head_crown"), "head", ("head",)),
     "{Side}Shoulder": (("{Side}Shoulder", "{Side}Arm"), ("sternoclavicular_{side}", "glenohumeral_{side}"),
                        "scapula_{side}", ("clavicle_{side}", "clavphant_{side}", "scapula_{side}")),
     "{Side}Arm": (("{Side}Arm", "{Side}ForeArm"), ("glenohumeral_{side}", "elbow_{side}"), "humerus_{side}",

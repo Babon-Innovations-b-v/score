@@ -19,7 +19,7 @@ SOMA's skin."""
 import mujoco
 import numpy as np
 
-from bone_groups import groups
+from bone_groups import RIGID, groups
 from calibration import turn
 from fit._constants import MARKS, staged
 from fit._follow import following, riding
@@ -71,9 +71,9 @@ def group_ends(segments):
     """The bone groups' ends that are a SOMA rig joint, in `groups()` order ([(SOMA end, MyoFullBody centre)]): each
     group's start (every joint between two groups starts one; a chain's tip is no joint) whose rig joints `segments`
     hold, one rule for every end: a middle of two (the hips', the neck's) is an end like any other (`soma_joints`,
-    `myo_parts`)."""
-    return [(soma[0], myo[0]) for soma, myo, _, _ in groups().values()
-            if all(joint in segments for joint in soma_joints(soma[0]))
+    `myo_parts`). A group rigid on the one before it (`RIGID`) has no joint at its start, so no end there."""
+    return [(soma[0], myo[0]) for group, (soma, myo, _, _) in groups().items()
+            if group not in RIGID and all(joint in segments for joint in soma_joints(soma[0]))
             and (myo[0] in CENTRES or myo[0] in MIDDLE_CENTRES)]
 
 
