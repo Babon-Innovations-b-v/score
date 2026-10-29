@@ -29,6 +29,8 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - light.judge_exposure: pass with no concept (the exposure test).
 - passes.judge_magenta: the magenta share always 0 (the magenta test).
 - passes.neighbours: keep a planless shown place (the neighbours test).
+- mix.tone_curve: the one-knot curve of a black view dropped (the black view test, 2026-10-29).
+- light.drawn_count: the sky's prims counted (the drawn test, 2026-10-29).
 """
 import json
 import math
@@ -367,6 +369,28 @@ def test_the_sweep_finds_the_lamps_scale_turns_a_blown_lamp_down_and_names_an_un
     assert mix.lamp_faults(mix.lamp_measures(glaring, {}, "lamp_0"), ["v"]) == "blown"
     scale, measures = mix.turned_down(glaring, {}, "lamp_0")
     assert scale < 1.0 and mix.lamp_faults(measures, ["v"]) is None, (scale, measures)
+
+
+def test_a_black_view_is_measured_black_not_a_crash():
+    """Fault (2026-10-29, light@base): every view's light all zero gave the tone curve no knots and the sweep crashed in
+    np.interp, where the brightness gate should fail it by name."""
+    black = {"combined": np.zeros((20, 30)), "lamp_0": np.zeros((20, 30))}
+    views = {"v": (black, mix.tone_curve(black["combined"], np.full((20, 30), 0.0003)))}
+    assert mix.place_brightness(views, {}) == pytest.approx(0.0003)
+    assert not mix.within(views, {"lamp_0": mix.sweep(views, ["lamp_0"], 0.3)}, 0.3)
+
+
+def test_a_stage_drawing_nothing_but_its_sky_is_named_before_the_paid_render(tmp_path):
+    """Fault (2026-10-29, light-passes@base): every object of the record waited on its model and no ground was laid,
+    so the stage drew nothing and rendered black under its sun; the light layer's `drawn` gate counts what it lights."""
+    stage = Usd.Stage.CreateNew(str(tmp_path / "tiny.usda"))
+    UsdGeom.Xform.Define(stage, "/tiny")
+    UsdGeom.Sphere.Define(stage, "/tiny/Sky/Bodies/earth")
+    stage.Save()
+    assert light.drawn_count(tmp_path / "tiny.usda", "tiny") == 0
+    UsdGeom.Cube.Define(stage, "/tiny/Objects/hub")
+    stage.Save()
+    assert light.drawn_count(tmp_path / "tiny.usda", "tiny") == 1
 
 
 # --- the layer on a stage made here ---------------------------------------------------------------------------------

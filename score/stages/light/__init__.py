@@ -19,6 +19,8 @@ holds, as three rows of the stage table.
     gates (light-layer)  lamps placed  every lamp of the record stands in the layer
                          lit           a lamp of its own, or (an open place) a sky light over the horizon
                                        (unlit_why): an unlit place is a gap before the paid render
+                         drawn         the stage it lights draws something outside its sky (an empty one renders
+                                       black under any light)
                          sky elements  as below, before anything is rendered
                          sky bodies    the sky's bodies, lights and backdrops where overhead.py has them at the
                                        scene's site at its scene time (sky.faults on the layer's geometry)
@@ -213,6 +215,31 @@ def judge_lit(output, inputs, evidence):
         (f"; {night}" if night else "")
     measures = {"lamps": len(found["lamps"]) - suns - fills, "sky_lights": suns, "fill": fills}
     return verdict("lit", why is None, why or said, measures, findings=[why] if why else ([night] if night else ()))
+
+
+def drawn_count(root, place):
+    """The drawn prims (meshes and other gprims) of the stage at `root` outside its sky: what the views can see lit."""
+    from pxr import Usd, UsdGeom
+    sky_root = f"/{place}/Sky"
+    opened = Usd.Stage.Open(str(root))  # held: a prim of a stage nobody holds is gone
+    return sum(1 for prim in opened.Traverse()
+               if prim.IsA(UsdGeom.Gprim) and not str(prim.GetPath()).startswith(sky_root))
+
+
+def judge_drawn(output, inputs, evidence):
+    """The stage the layer lights (passes.source) draws something outside its sky, before light-passes is bought: an
+    empty one renders black under any light (2026-10-29: light-passes@base, every object of its record waiting on its
+    model, no ground)."""
+    import tempfile
+    place = json.loads((output / "lamps.json").read_text())["place"]
+    with tempfile.TemporaryDirectory() as folder:
+        stage = passes.source(place, inputs, pathlib.Path(folder) / "source")
+        drawn = drawn_count(stage / f"{place}.usda", place)
+    waiting = sum(1 for entries in passes.record_of(place, inputs).values() if isinstance(entries, list)
+                  for entry in entries if isinstance(entry, dict) and entry.get("waiting"))
+    why = f"the stage draws nothing to light ({waiting} record entries waiting on their models)"
+    return verdict("drawn", drawn > 0, why if not drawn else f"{drawn} drawn prims to light, {waiting} waiting",
+                   {"drawn": drawn, "waiting": waiting}, findings=[why] if not drawn else ())
 
 
 def missing_elements(found):
@@ -886,6 +913,7 @@ LIT = contracts.Contract("light", 1, light_faults, {"length": "metre", "up axis"
 RECORD = {passes.RECORD: ("scene-record", 1)}  # the place's own as an after, each shown place's beside
 LAYER_STAGE = graph.Stage("light-layer", "place", make_layer, LAYERED,
                           (checks.Check("lamps placed", judge_placed), checks.Check("lit", judge_lit),
+                           checks.Check("drawn", judge_drawn),
                            checks.Check("sky elements", judge_layer_sky), checks.Check("sky bodies", judge_sky_bodies)),
                           files=layer_files, after=RECORD, applies=applies)
 PASSES_STAGE = graph.Stage("light-passes", "place", passes.make_passes, passes.PASSES,
