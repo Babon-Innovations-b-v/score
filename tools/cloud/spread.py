@@ -123,8 +123,13 @@ def slots(kind, machine, at_once=None):
 
 
 def work_slot(machine, shares, do, card, broken):
-    """Take and work shares on one slot of a machine until none is left or the machine is broken."""
+    """Take and work shares on one slot of a machine until none is left or the machine is broken; on a shared
+    machine (its `turns`) until another process waits for it alone, its shares then kept for the claim's next turn
+    (env1, 2026-10-29: straight-masks@lab waited 20 min while base's bake kept taking all three turns)."""
     while not broken.is_set():
+        if machine.get("turns") and provider.cloud.wanted_elsewhere():
+            machine["yielded"] = True
+            return
         share = shares.take()
         if share is None:
             return
@@ -235,7 +240,7 @@ def one_machine(run, account, found, number, kind, shares, prepare, do, disk_gb,
                 batch.say(f"{machine['folder'].name}: {kind}'s set-up failed on two cards; this slot takes no other")
                 return
             batch.say(f"{machine['folder'].name}: {kind}'s set-up failed; this slot takes another card")
-        if not machine.get("pool") or shares.queued() <= 0:
+        if not (machine.get("pool") or machine.get("yielded")) or shares.queued() <= 0:
             return
 
 

@@ -38,7 +38,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   take at a time left about 20 of 24 cores idle), one a turn (a lock file each) that a Blender claim takes while
   free and lets go as its slot runs out of work, so several places' bake rows fill the turns together (2026-10-29:
   26 bake rows waited on one place's claim); an exclusive claim that asks keeps new Blender claims out until it has
-  its turn, set-ups run one at a time (`local.setting_up`), and only the claim leaving the container alone restarts it; with
+  its turn, and a running Blender claim's slots take no next job meanwhile: it lets the machine go and asks again for
+  the rest (`spread.work_slot`; 2026-10-29: straight-masks@lab waited 20 min while base's bake kept all three turns),
+  set-ups run one at a time (`local.setting_up`), and only the claim leaving the container alone restarts it; with
   every card call (the Cycles bake, a render) taking one of the card's two turns (`backends/card_turn.py`
   `CARD_SLOTS`, a Blender startup script each claim copies into the container; a bake call is mostly processor work,
   the card busy about 1 s of its 4 to 9, and two calls fit the card's memory), their outputs brought back and kept one job at a time a machine
