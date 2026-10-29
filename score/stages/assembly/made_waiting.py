@@ -7,11 +7,16 @@ there re-keys their paid rows.
           assembly's asset of that model (take_bake writes it), turned by the entry's rotation, its middle over the
           entry's spot and its lowest point on it; the entry leaves the root's score:waiting. A design's object
           (the scene record's: its `bake` the model, its `row` its inventory row) is laid so at
-          /<place>/Objects/<name>, where the settle, physics and motion find a laid object
+          /<place>/Objects/<name>, where the settle, physics and motion find a laid object; then each object
+          with an `on` (what holds it: in its opening, against a wall, on, within or against a holder) is laid by it
+          at its built size (fitting.py), and LAID written: every design object's box as laid and what was fitted
 """
 import json
 
+from score.stages.assembly import fitting
 from score.stages.assembly.record import BASE_LAYER, RECORD, WAITING
+
+LAID = "laid.json"  # {objects: [{name, row, low, high}], fitted: fitting.fitted's}: what the plan page shows laid
 
 
 def asset_bounds(path):
@@ -38,9 +43,20 @@ def placement(entry, low, high):
     return turn * Gf.Matrix4d().SetTranslate(move)
 
 
+def laid_by_relations(stage, out, place, record, objects):
+    """The laid design objects (`objects`, their names) fitted by their relations (fitting.fitted), and LAID written:
+    each one's box as laid after, and the fits."""
+    fits = fitting.fitted(stage, place, record.get("objects") or [], set(objects))
+    rows = {entry["name"]: entry["row"] for entry in record.get("objects") or []}
+    boxes = [(name, fitting.world_box(stage, f"/{place}/Objects/{name}")) for name in objects]
+    (out / LAID).write_text(json.dumps({"objects": [
+        {"name": name, "row": rows[name], "low": [round(float(value), 4) for value in low],
+         "high": [round(float(value), 4) for value in high]} for name, (low, high) in boxes], "fitted": fits}, indent=1))
+
+
 def lay(out, place, bake):
     """Every waiting entry of the record whose row the bake made, laid in the base layer and taken off the root's
-    score:waiting; the rows laid."""
+    score:waiting, its design objects then laid by their relations (laid_by_relations); the rows laid."""
     from pxr import Sdf, Usd, UsdGeom
     baked = json.loads((bake / "baked.json").read_text())
     record = json.loads((out / RECORD).read_text())
@@ -48,7 +64,7 @@ def lay(out, place, bake):
     stage = Usd.Stage.Open(layer)
     root = stage.GetPrimAtPath(f"/{place}")
     waiting = list(root.GetAttribute(WAITING).Get() or []) if root.HasAttribute(WAITING) else []
-    laid = []
+    laid, objects = [], []
     for part, entries in record.items():
         for entry in entries if isinstance(entries, list) else []:
             if not isinstance(entry, dict):
@@ -69,6 +85,9 @@ def lay(out, place, bake):
                 xform.GetPrim().CreateAttribute(name, Sdf.ValueTypeNames.String).Set(value)
             waiting.remove(f"{part} {entry.get('name', '?')}: {entry['waiting']}")
             laid.append(model)
+            if "bake" in entry:
+                objects.append(entry["name"])
+    laid_by_relations(stage, out, place, record, objects)
     if laid and waiting:
         root.GetAttribute(WAITING).Set(waiting)
     elif laid:

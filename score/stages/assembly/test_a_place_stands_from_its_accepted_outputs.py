@@ -1,7 +1,9 @@
 """A place's assembly stands from its accepted outputs, never from the seed's own parts: each layer stage's output in
 its place in the root's order, the accepted record over the seed's record prims, the bakes over the seed's models
 (carrying their hash and the owner's pick), the sound stage's layer, the neighbours it shows read from their own
-assemblies, and each child scene at its hold on the plan; its gates (layers, collision, resting, neighbours, child
+assemblies, each child scene at its hold on the plan, and each design object laid by what holds it at its built size
+(base's garage door on its module's front, a door in its opening, a monitor on its console, a lamp on its wall); its
+gates (layers, collision, resting, neighbours, child
 scenes) fail or wait on what is missing. Every expected point and name is worked out by hand from the toy places
 below. No spend, no machine: toy stages made here, a drop run in which nothing moved.
 
@@ -564,6 +566,80 @@ def test_a_design_object_is_laid_under_objects_with_its_take_model_and_its_own_r
     assert prim.GetAttribute("score:model").Get() == "bench_1" and not stage.GetPrimAtPath(f"/{TOY}/Fixtures")
     assert list(stage.GetPrimAtPath(f"/{TOY}").GetAttribute(assembly.WAITING).Get()) == [
         "objects rail_1: its model comes from the bake"]
+
+
+def a_box_asset(path, low, high):
+    """A one-mesh asset, a box from `low` to `high` (its 8 corners as one face's points: only its bounds are read)."""
+    corners = [(x, y, z) for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])]
+    an_asset(path, corners, [8], list(range(8)))
+
+
+def test_base_s_garage_door_lands_on_its_module_s_front_face(tmp_path):
+    """Fault (motion@base, 2026-10-29): base's garage door stood 0.17 m off its module's front and 4.7 m of its 6 m
+    past the module's corner, laid at its plan item's middle; its motion check failed it. Laid by its relation (on the
+    module's S face, `out` +z) at their built sizes, the 12 m module from 26.254 to 38.254 across and to 39.4 in front,
+    the 6 x 8 x 0.5 m door stands with its back on z 39.4, its middle moved in from 24.5585 to 26.254 + 3 = 29.254,
+    its foot on the floor; LAID names the fit.
+    Break: score/stages/assembly/made_waiting.py: `laid_by_relations(stage, out, place, record, objects)` -> `pass`
+    Break: score/stages/assembly/fitting.py: `target[axis] = (hold_high[axis] + half[axis]) if out[axis // 2] > 0 else
+        (hold_low[axis] - half[axis])` -> `target[axis] = foot[axis]`"""
+    root = a_toy(tmp_path / "out")
+    entries = [{"name": "square_module_front_right_1", "row": "square_module_front_right", "bake": "module_1",
+                "at": [32.254, 0.0, 33.4], "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "bake"},
+               {"name": "garage_door_1", "row": "garage_door", "bake": "door_1", "at": [24.5585, 0.0, 39.8395],
+                "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "bake",
+                "on": {"how": "face", "holder": ["square_module_front_right_1"], "out": [0.0, 1.0],
+                       "why": "against its module's side the concept shows it on"}}]
+    assembly.take_record(a_record(tmp_path, {"objects": entries}), root.parent, TOY)
+    a_box_asset(root.parent / "assets/module_1.usdc", (-6.0, 0.0, -6.0), (6.0, 12.0, 6.0))
+    a_box_asset(root.parent / "assets/door_1.usdc", (-3.0, 0.0, -0.25), (3.0, 8.0, 0.25))
+    (tmp_path / "bake").mkdir()
+    (tmp_path / "bake/baked.json").write_text(json.dumps({"module_1": {}, "door_1": {}}))
+    made_waiting.lay(root.parent, TOY, tmp_path / "bake")
+    from score.stages.assembly import fitting
+    low, high = fitting.world_box(opened(root), f"/{TOY}/Objects/garage_door_1")
+    assert np.allclose(low, (26.254, 0.0, 39.4), atol=1e-4) and np.allclose(high, (32.254, 8.0, 39.9), atol=1e-4), (
+        low, high)
+    [fit] = json.loads((root.parent / made_waiting.LAID).read_text())["fitted"]
+    assert fit["name"] == "garage_door_1" and fit["how"] == "face" and fit["scale"] == 1.0, fit
+
+
+def test_a_door_goes_in_its_opening_narrowed_to_fit():
+    """A 1.4 x 0.1 x 2.4 m door laid off its wall goes in its 1.2 m wide, 2.1 m tall opening: shrunk to 1.2 / 1.4,
+    its foot's middle on the opening's middle at its sill.
+    Break: score/stages/assembly/fitting.py: `scale = min(1.0, float(on["wide"]) / max(across(on["along"], size),
+        1e-9), float(on["tall"]) / size[1])` -> `scale = 1.0`"""
+    from score.stages.assembly import fitting
+    opening = {"how": "in", "middle": [5.0, 0.0, 0.0], "along": [1.0, 0.0], "wide": 1.2, "tall": 2.1}
+    scale, target, words = fitting.fit((0.3, 0.0, 2.95), (1.7, 2.4, 3.05), opening)
+    assert abs(scale - 1.2 / 1.4) < 1e-9 and np.allclose(target, (5.0, 0.0, 0.0)), (scale, target)
+    assert "shrunk to 86%" in words, words
+
+
+def test_a_monitor_goes_on_its_console_s_top_within_its_span():
+    """A 0.5 x 0.4 x 0.1 m monitor laid 2 m off its 3 x 1 x 0.8 m console (x 0 to 3, top at 1 m) stands on its top,
+    moved in to x 3 - 0.25 = 2.75, z kept at 0.4, its foot at 1 m; a console narrower than it shrinks it to fit.
+    Break: score/stages/assembly/fitting.py: `target[1] = hold_high[1] if how == "top" else` -> `target[1] = foot[1]
+        if how == "top" else`"""
+    from score.stages.assembly import fitting
+    console = (np.array([0.0, 0.0, 0.0]), np.array([3.0, 1.0, 0.8]))
+    on = {"how": "top", "holder": ["console_1"]}
+    scale, target, _ = fitting.fit((4.5, 0.0, 0.35), (5.0, 0.4, 0.45), on, [console])
+    assert scale == 1.0 and np.allclose(target, (2.75, 1.0, 0.4)), target
+    narrow = (np.array([0.0, 0.0, 0.0]), np.array([0.4, 1.0, 0.8]))
+    scale, target, _ = fitting.fit((4.5, 0.0, 0.35), (5.0, 0.4, 0.45), on, [narrow])
+    assert abs(scale - 0.8) < 1e-9 and np.allclose(target, (0.2, 1.0, 0.4)), (scale, target)
+
+
+def test_a_wall_item_stands_on_its_named_face():
+    """A 1 x 0.6 x 0.2 m wall lamp laid at the room's middle (the walls item) stands with its back on its wall's face
+    (z 0.1 to 6.1 at x 2, the room to +x), 0.1 m out from it, slid along to the face's nearest point.
+    Break: score/stages/assembly/fitting.py: `spot = start + run * along + out * across(out, size) * scale / 2` ->
+        `spot = start + run * along`"""
+    from score.stages.assembly import fitting
+    on = {"how": "wall", "span": [[2.0, 0.1], [2.0, 6.1]], "out": [1.0, 0.0]}
+    scale, target, _ = fitting.fit((4.4, 0.0, 2.9), (4.6, 0.6, 3.9), on)
+    assert scale == 1.0 and np.allclose(target, (2.1, 0.0, 3.4)), target
 
 
 def test_a_kit_piece_moved_since_the_seed_stands_at_its_kit_spot(tmp_path, monkeypatch):

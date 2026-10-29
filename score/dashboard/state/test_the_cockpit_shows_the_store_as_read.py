@@ -27,6 +27,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - api/deps.py: the Origin check dropped -> test_writes_need_the_csrf_header_and_an_origin
 - api/routes.file: `state.source().file(sha)` -> `... or ("x.png", store_root / "objects/blobs" / sha)` (any stored
   sha served) -> test_files_are_served_only_when_listed
+- local.laid_on_plan: `corner, east, south = frame_of(plan)` -> `corner, east, south = np.zeros(3), np.array([1.0,
+  0.0, 0.0]), np.array([0.0, 0.0, 1.0])` (the place's frame shown as the plan's) ->
+  test_the_plan_shows_what_the_assembly_laid_in_plan_metres
 """
 import datetime
 import hashlib
@@ -268,3 +271,23 @@ def test_a_hosted_picture_not_yet_up_is_a_stand_in_never_a_broken_image(world):
         assert answer.status_code == 200 and answer.headers["content-type"].startswith("image/svg+xml")
         assert answer.headers["cache-control"] == "no-store"  # fetched again once the picture is up
     assert owner.get("/files/not-a-sha").status_code == 404
+
+
+def test_the_plan_shows_what_the_assembly_laid_in_plan_metres(tmp_path):
+    """Issue #72: the plan page shows each thing the accepted assembly laid (its LAID file) on the plan, in the plan's
+    metres: a 20 x 12 m plan with no frame stands its middle on the place's origin, so place (x, z) is plan (x + 10,
+    z + 6); the garage door laid from x 2 to 8, z 3.4 to 3.9 stands on the plan at (12, 9.4) to (18, 9.9), named with
+    how it was fitted; one laid as the plan draws it says nothing."""
+    from score.dashboard.state.local import LocalSource
+    laid = {"objects": [{"name": "garage_door_1", "row": "garage_door", "low": [2.0, 0.0, 3.4], "high": [8.0, 8.0, 3.9]},
+                        {"name": "crate_1", "row": "crate", "low": [-1.0, 0.0, -1.0], "high": [0.0, 1.0, 0.0]}],
+            "fitted": [{"name": "garage_door_1", "words": "laid face: moved 1.70 m"}]}
+    (tmp_path / "laid").write_text(json.dumps(laid))
+    source = types.SimpleNamespace(listing=lambda output: {"laid.json": "laid"} if output else {},
+                                   accepted_output=lambda node: "out" if node == "assembly@hut" else None,
+                                   blob_path=lambda sha: tmp_path / sha)
+    found = LocalSource.laid_on_plan(source, "hut", {"w": 20.0, "d": 12.0})
+    assert found == [{"name": "garage_door_1", "row": "garage_door", "box": [12.0, 9.4, 18.0, 9.9],
+                      "fitted": "laid face: moved 1.70 m"},
+                     {"name": "crate_1", "row": "crate", "box": [9.0, 5.0, 10.0, 6.0], "fitted": None}], found
+    assert LocalSource.laid_on_plan(source, "shed", {"w": 20.0, "d": 12.0}) == []

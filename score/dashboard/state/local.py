@@ -11,6 +11,8 @@ import json
 import pathlib
 import re
 import subprocess
+
+import numpy as np
 from collections import Counter
 
 from score import review, stages
@@ -717,11 +719,30 @@ class LocalSource:
             shown = plans.current(self.store, node)
             if shown is None:
                 continue
-            found[node] = PlanReview(**shown, drawing=self.plan_drawing_ref(node))
+            found[node] = PlanReview(**shown, drawing=self.plan_drawing_ref(node), laid=self.laid_on_plan(node, shown["plan"]))
         nodes = self.design_nodes()
         return {"plan_reviews": found, "plan_named": named, "plan_revise_euros": plans.revise_euros(),
                 "plan_write_euros": plan_writing.price(self.store), "plan_automatic": plan_writing.AUTOMATIC,
                 "plan_spend": plan_writing.spent(self.store, nodes)}
+
+    def laid_on_plan(self, node, plan):
+        """What the place's accepted assembly laid (its LAID file, assembly/made_waiting.py), each object's box in the
+        plan's metres (the plan's frame, scene_record/plan.frame_of) and how its relation fitted it; [] with none."""
+        from score.stages.scene_record.plan import frame_of
+        sha = self.listing(self.accepted_output(f"assembly@{node}")).get("laid.json")
+        if not sha or "w" not in plan or "d" not in plan:
+            return []
+        laid = json.loads(self.blob_path(sha).read_text())
+        fitted = {fit["name"]: fit["words"] for fit in laid.get("fitted", [])}
+        corner, east, south = frame_of(plan)
+
+        def on_plan(low, high):
+            spots = [[(point - corner) @ east, (point - corner) @ south] for point in
+                     (np.array([x, 0.0, z]) for x in (low[0], high[0]) for z in (low[2], high[2]))]
+            return [round(float(min(spot[axis] for spot in spots)), 3) for axis in (0, 1)] + \
+                [round(float(max(spot[axis] for spot in spots)), 3) for axis in (0, 1)]
+        return [{"name": entry["name"], "row": entry["row"], "box": on_plan(entry["low"], entry["high"]),
+                 "fitted": fitted.get(entry["name"])} for entry in laid.get("objects", [])]
 
     def plan_drawing_ref(self, node):
         """The FileRef of the top-down drawing `node`'s written plan was measured from (score/review/plan_drawing.py),

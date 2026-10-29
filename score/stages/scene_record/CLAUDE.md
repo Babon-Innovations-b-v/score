@@ -32,6 +32,12 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   and the assembly lays it under /<place>/Objects once baked (`assembly/made_waiting.py`); a row with no take or no
   size stays named on the root's score:waiting. People are the cast's; a row the plan's shell lays itself (route
   `plan`) is named on a shell piece of its part (`row`).
+- **Each object carries what holds it** (#72, `on`): the place's relations (`{home}/design/relations/<place>.json`,
+  score/review/holders, read only while their `plan` sha is the kept plan's, else `relations_left_out` says why). A
+  door or window in its opening stands at the opening's middle on its sill, along its wall (`in`: middle, along, wide,
+  tall); a wall item at its relation's spot along its wall (`wall`: the face's ends and the way out into the room); one
+  on, within or against a holder names the holder's objects (`holder`, and `out` for a face). The assembly lays each by
+  it at its built size (`assembly/fitting.py`); an item whose holder item lays no object keeps no `on` (`unheld`).
 - **Far objects** (`far.py`; the owner, 2026-10-26: the skyline is the environment's own scenes where its plan puts
   them, and ordinary objects for anything that is no scene): each prop row of the hand-in marked `far` (prepare's
   groups.far_made) stands where its concept box is seen, along its bearing off the plan fixes' projection (up the

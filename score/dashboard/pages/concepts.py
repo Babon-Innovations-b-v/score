@@ -240,6 +240,8 @@ def plan_part(world, place):
             for hold in (review["plan"].get("holds") or [] if review else [])}
     return {"review": review, "plan_json": json.dumps(review["plan"]).replace("</", "<\\/") if review else "null",
             "plan_names": json.dumps(held).replace("</", "<\\/"),
+            "plan_laid": json.dumps(review.get("laid") or [] if review else []).replace("</", "<\\/"),
+            "plan_fitted": [entry for entry in (review.get("laid") or [] if review else []) if entry.get("fitted")],
             "plan_picture": plans.picture_of(world, place), "plan_euros": world.plan_revise_euros,
             "write_euros": world.plan_write_euros, "automatic": world.plan_automatic,
             "plan_pending": pending and pending.created.isoformat(), "plan_refused": plans.refused_of(place, review and review["at"])}

@@ -333,7 +333,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   standing spots (a person spot, a people row's, drawn as a small person mark, never a box); the inside places by name only (rename, remove, add place); the drop rule (owner 2026-10-21,
   CONTEXT.md "shared room", "thing in a room"): a box dropped fully inside a room is a thing in it (`things` on its
   hold, listed under it), a room dropped on or resized over another is one shared room (`name` on the kept hold),
-  anywhere else a box is a child scene, each with an undo; its gaps said plainly where they are,
+  anywhere else a box is a child scene, each with an undo; what the accepted assembly laid drawn dashed over the plan
+  at its built size (`PlanReview.laid`, `state/local.laid_on_plan` from the assembly's `laid.json`, #72), each thing
+  its relation moved or shrank listed under "laid by the assembly" with how; its gaps said plainly where they are,
   a click lighting each on the drawing (no counts line, owner 2026-10-21); marks on the plan or
   the concept with a note each. While its plan is the rough one (`how` derived) Make plan (`plan-write`,
   `WorldState.plan_write_euros`) writes it (score/review/plan_writing.py: on its own after a reading under the

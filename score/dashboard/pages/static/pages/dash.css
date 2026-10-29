@@ -730,6 +730,8 @@ a:hover > .ep-name { fill: var(--accent); }
 .plan-stair-cut { stroke: var(--ink); stroke-width: 2; }
 .plan-item-cut rect { fill: color-mix(in srgb, var(--accent) 14%, transparent); stroke: var(--accent); stroke-width: 1.2; }
 .plan-gaps li { cursor: pointer; }
+.plan-laid rect { fill: none; stroke: var(--soft); stroke-width: 1; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; }
+.plan-laid.fitted rect { stroke: var(--done); stroke-width: 1.6; }
 .plan-places { list-style: none; margin: 4px 0 6px; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 6px; }
 .plan-places li { display: flex; gap: 2px; align-items: center; max-width: 100%; }
 .design-rail .plan-places input { width: auto; field-sizing: content; min-width: 6ch; max-width: 100%; padding: 2px 6px; }

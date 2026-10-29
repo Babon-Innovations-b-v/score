@@ -427,7 +427,14 @@ branch names a scene or a world.
   to be aligned to each other"). The plan states the relations the assembly needs (what sits on or in what, against
   which face, which door belongs to which frame) with sizes as estimates; the assembly lays each item by those
   relations with the built sizes (a door in its frame, a lamp on its desk, a model in its own proportions where its take
-  and picture agree), and the plan shows what the assembly laid, so the two never differ. A relation the plan does not
+  and picture agree), and the plan shows what the assembly laid, so the two never differ. How (#72): the relations are
+  derived free from the inventory's anchors, the concept's boxes and the kept plan (`score/review/holders`: top,
+  within, a holder's face, a plan opening, a wall's face, floor or ceiling) into `{home}/design/relations/<place>.json`,
+  never into `design/plans/` (it keys the close-ups and the surface library); the scene record carries each object's
+  relation as its `on`, laying a door or window in its opening and a wall item on its wall; the assembly lays each by
+  it at its built size, moved and shrunk to fit, never grown (`assembly/fitting.py`, in `made_waiting.lay`, so the
+  settle, motion and light stages lay alike), and writes `laid.json`; the plan page draws those boxes dashed over the
+  plan and lists what was corrected. A relation the plan does not
   state, or a size or place the assembly cannot honour, is a framework fault to fix in the plan writer or the assembly,
   never a question for the owner.
 - **Neighbours** (`neighbours.py`): the scenes a scene shows, each as its own accepted assembly; one no stage makes is a

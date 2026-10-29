@@ -262,6 +262,9 @@ class PlanReview(BaseModel):
     at: str | None = None
     by: str | None = None
     drawing: FileRef | None = None  # the top-down drawing its written plan was measured from (review/plan_drawing.py)
+    # what the place's accepted assembly laid, on the plan: [{name, row, box [x0, y0, x1, y1] in plan metres, fitted:
+    # how its relation moved or shrank it, None where it sits as the plan draws it}] (assembly/made_waiting.LAID)
+    laid: list[dict] = []
 
 
 class ConceptWording(BaseModel):

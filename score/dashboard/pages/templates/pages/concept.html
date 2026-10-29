@@ -44,7 +44,7 @@
     <div class="concept-stage plan-stage zoom-view" data-pan="held" title="top down, north up, metres; {% if can %}drag a thing to move it, its corner to resize it, a door along its wall; drag on the floor to mark an area; {% endif %}wheel to zoom (Ctrl+wheel outside the enlarged view), Space+drag or the middle button to pan"><span class="draw-busy" id="plan-busy" hidden><i class="spinner" aria-hidden="true"></i> <b data-v>working</b></span><div class="plan-canvas zoom-content" id="plan-canvas"><svg id="plan-drawing" xmlns="http://www.w3.org/2000/svg"></svg><div class="concept-marks plan-marks" id="plan-marks"></div></div></div>
     <div class="concept-stage section-stage zoom-view" data-pan="free" title="section A-A, heights true to scale; wheel to zoom (Ctrl+wheel outside the enlarged view), drag to pan"><div class="zoom-content"><svg id="plan-section" class="plan-section" xmlns="http://www.w3.org/2000/svg" aria-label="section A-A"></svg></div></div>
   </div>
-  <script id="plan-data" type="application/json">{{ plan_json|safe }}</script><script id="plan-names" type="application/json">{{ plan_names|safe }}</script>
+  <script id="plan-data" type="application/json">{{ plan_json|safe }}</script><script id="plan-names" type="application/json">{{ plan_names|safe }}</script><script id="plan-laid" type="application/json">{{ plan_laid|safe }}</script>
   {% else %}
   <p class="dpanel-body soft small" title="a plan is drawn once the inventory is read from the locked concept" data-v>{% if inventory and inventory.older %}inventory from an older concept{% else %}after the inventory{% endif %}</p>
   {% endif %}
@@ -84,6 +84,8 @@
     {% if review.plan.gaps %}<div class="plan-gaps"><span class="num-label" title="what is wrong on this plan; click one to see it on the drawing" data-v>{{ review.plan.gaps|length }} to fix</span>
       <ul class="concept-gaps">{% for gap in review.plan.gaps %}<li data-gap data-item="{{ gap.item|default_if_none:'' }}" data-with="{{ gap.with|default_if_none:'' }}"{% if gap.at %} data-at="[{{ gap.at.0 }}, {{ gap.at.1 }}]"{% endif %} title="click to see it on the plan">{% include "pages/c/dot.html" with tone="gap-missing" tip=None %} <span data-v>{{ gap.words }}</span></li>{% endfor %}</ul></div>{% endif %}
     {% if can %}
+    {% if review.laid %}<div class="plan-gaps plan-laid-list"><span class="num-label" title="what the accepted assembly laid, dashed on the plan: each thing at its built size, laid by what holds it (its relation); the ones its relation moved or shrank are listed" data-v>laid by the assembly: {{ review.laid|length }}, {{ plan_fitted|length }} corrected</span>
+      <ul class="concept-gaps">{% for entry in plan_fitted %}<li data-gap data-item="{{ entry.name }}" data-at="[{{ entry.box.0 }}, {{ entry.box.1 }}]" title="click to see it on the plan"><span data-v>{{ entry.name }}: {{ entry.fitted }}</span></li>{% endfor %}</ul></div>{% endif %}
     <ol class="concept-notes" id="plan-notes"></ol>
     <textarea id="plan-note" rows="2" placeholder="plan note" aria-label="plan note" title="what to change in the whole plan"></textarea>
     <div class="concept-actions">
