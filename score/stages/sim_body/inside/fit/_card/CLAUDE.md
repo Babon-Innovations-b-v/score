@@ -68,6 +68,15 @@ before that.
   arccos of the trace as the CPU: atan2 differed 0.001 deg on targets not quite orthonormal); the winding test on the
   card. Gate 2026-10-29 (heavy_kimodo, heavy_rigwalk from the seed cache): every measure equal to 4e-13, the skin
   shares exact, no rounded value differs; 0.05 / 0.09 s against the CPU's 2.8 / 2.5 s, the skins cached apart.
+- `_level2.py` (`jacobian`; plan step 4, first piece): level 2's exact Jacobian of `../_constants.Problem.residuals`
+  in its own sparse pattern, for `least_squares(jac=...)`: per frame the unknowns reach the dofs by `dof_map` (root
+  place one for one, its rotation vector by SO(3)'s right Jacobian, MuJoCo's free joint turning in its body frame, a
+  leader its dof, a follower by polyval's slope), place rows the site's place Jacobian, turn rows -J_l^-1(log)
+  R_site^T times the site's turn Jacobian, a marker's move its body's turn, an inside joint's move its parent's turn
+  on every site it carries, the priors diagonal. The frames' kinematics are MuJoCo's float64 on the host for now
+  (`Kinematics`), the reference the card's must equal; on fit's toy it equals central differences to 1.8e-10 of a
+  column (test, `tests/card_level2.py`). Not yet: the card's site Jacobians, the real-body FD and constants gate, the
+  10-body batch.
 - One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
   the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the
