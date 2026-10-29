@@ -1,6 +1,6 @@
 """fit/_card: on 12 rows (frames) of a small chain (20 hinge dofs, two frozen, two followers on one leader and one
 without a leader, bounds with some rows sitting on them), seeded alike, one step at a time: the card's damped reduced
-step equals the CPU prototype's (card/proto/lm.py: mink's damping 1e-3 |r|^2 + 1e-9 on every full dof, so S^T S in
+step equals the CPU prototype's (card/proto/lm.py: mink's damping 1e-2 |r|^2 + 1e-9 on every full dof, so S^T S in
 the reduced dofs (a leader's damping times 1 plus its followers' slopes squared), frozen out, followers through
 their coupling's slope, three active-set passes holding dofs at a bound that push out, a held one released when its descent points back inside) to 1e-5 rad, and
 the card's projection equals the prototype's (ranges, couplings by polyval, frozen) with every follower on polyval of
@@ -99,7 +99,7 @@ def prototype_step(jacobian, residuals, qpos, rest, lower, upper):
     sub = jac[:, :, free]
     grad = np.einsum("frd,fr->fd", sub, residuals)
     hess = np.einsum("frd,fre->fde", sub, sub)
-    hess[:, range(len(free)), range(len(free))] += (1e-3 * (residuals ** 2).sum(1) + 1e-9)[:, None] * spread[:, free]
+    hess[:, range(len(free)), range(len(free))] += (1e-2 * (residuals ** 2).sum(1) + 1e-9)[:, None] * spread[:, free]
     step = -np.linalg.solve(hess, grad[..., None])[..., 0]
     at = qpos[:, free]
     held = np.zeros_like(step, dtype=bool)

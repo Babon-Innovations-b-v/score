@@ -9,7 +9,7 @@ import functools
 
 import warp as wp
 
-LM_DAMPING = 1e-3
+LM_DAMPING = 1e-2
 DAMPING = 1e-9
 BOUND_SLACK = 1e-9
 HOLD_PASSES = 3  # solves after the first, each holding the dofs the last one pushed out and releasing a held one

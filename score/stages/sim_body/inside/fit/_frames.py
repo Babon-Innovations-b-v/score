@@ -12,7 +12,7 @@ import numpy as np
 SOLVER = "daqp"  # the QP solver every mink example uses; pinned with mink
 STEP_DONE = 1e-8  # a step this small (its tangent norm, or its change to the weighted errors) ends a frame's fit
 MOST_STEPS = 300  # a frame not converged by then fails the run: never kept silently
-LM_DAMPING = 1e-3  # mink's Levenberg-Marquardt term on each task: shapes a step, never moves the optimum
+LM_DAMPING = 1e-2  # mink's Levenberg-Marquardt term on each task: shapes a step, never moves the optimum
 DAMPING = 1e-9
 # level 1's global balance (#70): the markers' goal's (the landmarks' and the group ends' together) total weight against
 # the turns' goal's 1. OpenSim's IK weighs its goals equally, so 1: the turns stay the main term (#70) unless level 1's
