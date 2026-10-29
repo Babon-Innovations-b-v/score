@@ -211,7 +211,8 @@ def recess_of(item, row, holder, holder_row, face, plan, inventory, kinds):
     z) and `side` its face is on, the door's middle `along` the face from the model's middle (`pieces`: one each where
     the item lays several), its `wide`, `tall`, `base` over the model's foot, and by its motion rule its `depth` and
     the `room` beside it along the face on its `room_side` (+1 or -1 along the model's axis, 0 both: its hinge side
-    not read; `room_sides` one a piece): a swing's as deep as it sweeps, widened on its hinge side by its own
+    not read; `room_sides` one a piece), and that side as a plan way (`room_way`, `room_ways`: the assembly keeps the
+    door so its room fits within the face's span too, fitting.on_holder): a swing's as deep as it sweeps, widened on its hinge side by its own
     thickness so it lies clear of the side wall at full open; a slide's its own thickness deep, with its width and
     thickness of room on the side it slides to; None for a door that never moves (it sits flush) or has no size."""
     rule, size = moving_rule(row, inventory, kinds), row.get("size")
@@ -233,9 +234,11 @@ def recess_of(item, row, holder, holder_row, face, plan, inventory, kinds):
     toward = (rule.get("hinge") if rule["move"] == "swing" else rule.get("slide") or [1.0, 0.0, 0.0]) or [None]
     sides = [room_side(toward[0], model_axes(way, row)[0], along_way) for _, way in placed]
     room = (deep + RECESS_MARGIN) if rule["move"] == "swing" else (wide + deep + RECESS_MARGIN)
+    ways = [[round(float(value), 6) + 0.0 for value in along_way * piece_side] for piece_side in sides]
     return {"model": f"{holder_row['id']}_1", "axis": "x" if on_x else "z", "side": side, "along": alongs[0],
-            **({"pieces": alongs, "room_sides": sides} if len(alongs) > 1 else {}),
-            "wide": wide, "room": round(room, 3), "room_side": sides[0], "tall": tall, "base": round(base, 3),
+            **({"pieces": alongs, "room_sides": sides, "room_ways": ways} if len(alongs) > 1 else {}),
+            "wide": wide, "room": round(room, 3), "room_side": sides[0], "room_way": ways[0], "tall": tall,
+            "base": round(base, 3),
             "depth": round(depth, 3), "why": f"a {rule['move']} door's room in {holder_row['id']}'s {face} face"}
 
 

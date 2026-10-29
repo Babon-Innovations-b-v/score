@@ -609,6 +609,12 @@ def related(design, relation, spot, way, base, size, piece=0):
                  **({"holder row": relation["holder row"]} if relation.get("holder row") else {})}
         if how == "face":
             found["out"] = plan_way(design, FACE_WAYS[relation["face"]])
+            recess = relation.get("recess")
+            if recess:  # its recess's room beside it, which the assembly keeps within the face too
+                room_way = (recess.get("room_ways") or [recess.get("room_way") or [0.0, 0.0]])[
+                    min(piece, len(recess.get("room_ways") or [0]) - 1)]
+                found["room"] = float(recess["room"])
+                found["room_way"] = plan_way(design, room_way) if any(room_way) else [0.0, 0.0]
         return spot, way, base, found
     if how == "edge":
         out = np.asarray(FACE_WAYS[relation["edge"]])
