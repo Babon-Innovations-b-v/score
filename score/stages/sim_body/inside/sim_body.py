@@ -32,8 +32,8 @@ here moves, scales or grounds SOMA.
   Apache-2.0), in our own stack (`reduced`): RRA_ROUNDS times, the body's mass changed by the mean upward residual and
   the torso's centre of mass moved under the mean residual moment (RRATool::adjustCOMToReduceResiduals), then the
   pelvis' and trunk's path moved so the ground's pushes explain the movement, each frame's move capped, the feet kept
-  where they stood by the legs (`Footing`: mink, as the fit); the result kept within the clip's `follows` limit (`within_follows`). Nothing is applied to the body; how far
-  it moved is the body's `adjusted` record.
+  where they stood by the legs (`Footing`: mink, as the fit); the result kept within the clip's `follows` limit
+  (`within_follows`). Nothing is applied to the body; how far it moved is the body's `adjusted` record.
 - The physics, frame by frame, on the MuJoCo model Newton builds (SolverMuJoCo on MuJoCo's CPU backend; nothing is
   stepped): the generalised forces the movement needs (inverse dynamics, armature and passive forces in), the ground's
   contacts (each collider's surface point within GAP of the drawn triangle under it or into it, along the triangle's
@@ -96,9 +96,9 @@ def fitted_person(job, person, rig, worlds, path):
     _, scales = myo.person_file(job["model"], size, person["kg"], path)
     held = fit.followed(segments)
     turns, points = fit.targets(rig, segments, worlds, held)
-    found = fit.constants(fit.fitting(path, scales, segments, held), turns, points)
+    found = fit.constants(fit.fitting(path, scales, held), turns, points)
     record, scales = myo.person_file(job["model"], size, person["kg"], path, found)
-    fitting = fit.fitting(path, scales, segments, held, found["marks"])
+    fitting = fit.fitting(path, scales, held, found["marks"])
     angles = fit.angles(fitting, turns, points)
     record["fit"] = {"method": fit.METHOD, "constants": fit.constants_record(found),
                      "following": fit.following(fitting.model, angles, worlds, segments, scales)}

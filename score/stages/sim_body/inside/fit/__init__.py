@@ -1,9 +1,10 @@
 """MyoFullBody fitted to the clip's SOMA body (#70: SOMA is the truth), one solver: the person's constants (each bone
-group's size, the joint centres SOMA places, where each virtual marker sits on its bone) and every frame's joint
-angles, against one cost of the bone groups' turns (the main term: each SOMA segment's world turn on its group's
-calibration site, OpenSense's orientation tracking with the static table, never a fitted offset), the landmarks'
-markers (the SOMA mesh's bony landmarks on the clip's own skin) and SOMA's joints on MyoFullBody's centres (`placed`),
-weighed as OpenSim's IK weighs its goals, within the joints' ranges and with the model's couplings held.
+group's size, the joint centres SOMA places, where each virtual marker sits on its bone) and every frame's joint angles,
+against one cost of the bone groups' turns (the main term: each SOMA segment's world turn on its group's calibration
+site, OpenSense's orientation tracking with the static table, never a fitted offset), the landmarks' markers (the SOMA
+mesh's bony landmarks on the clip's own skin, and the joint centres they give on MyoFullBody's centres: `centred`),
+weighed as OpenSim's IK weighs its goals; SOMA's own joints are only the measure (`following`), within the joints'
+ranges and with the model's couplings held.
 
 - `targets`: the clip's targets in MuJoCo's frame: each group's segment turn, each landmark skinned (`landmarks`).
 - `constants`: on SAMPLE frames spread over the clip, mink per frame at the start constants (`_frames`), then scipy's
@@ -19,10 +20,10 @@ import numpy as np
 from bone_groups import groups
 from calibration import turn
 from fit._constants import constants as fitted_constants
-from fit._follow import following, judged, riding
+from fit._follow import following, riding
 from fit._frames import LM_DAMPING, Frames, NotConverged, solved
 from fit._model import Fitting, filed, followers_free, own_name
-from landmarks import MARKS, myo_parts, posed, solver_marks
+from landmarks import MARKS, posed, soma_centres, solver_marks
 from landmarks._table import CENTRES
 from model import TO_OWN
 from sizing import OWN_PLACED, stretches
@@ -31,15 +32,18 @@ SAMPLE = 30  # frames the constants are fitted on, spread over the clip (recipe 
 # finish in 3 minutes at 150 frames; 30 frames hold the clip's range)
 # The joint centres the constants move (each side): the limbs' joints SOMA places.
 PLACED_JOINTS = ("hip", "knee", "ankle", "mtp", "sternoclavicular", "glenohumeral", "elbow", "wrist")
+# The joint centres the landmarks give (`landmarks.soma_centres`), each a virtual marker on MyoFullBody's centre of the
+# same name, among the markers (OpenSim's practice: joint-centre markers from anatomical landmarks).
+CENTRE_JOINTS = tuple(f"{joint}_{side}" for joint in ("hip", "knee", "ankle", "elbow", "wrist") for side in "lr")
 HAND_TOP = "lunate"  # the hand group's frame body: the finger bones under it have no target and are held
 
 METHOD = ("one solver (#70): mink 1.3.0 per frame (the bone groups' turns on the static calibration table, the SOMA "
-          "skin's landmarks and SOMA's joints as markers, weighed as OpenSim's IK weighs its goals; couplings held, "
-          "leading joints in range) and scipy's bounded least_squares over the person's constants (group sizes, "
-          "joint centres, marker places; the sizes solved, not held to SOMA's lengths) with the angles of frames spread over "
-          "the clip, one sparse problem; then mink on every frame")
-__all__ = ["Fitting", "Frames", "NotConverged", "LM_DAMPING", "solved", "followers_free", "following", "riding", "followed", "placed", "targets", "fitting",
-           "constants", "constants_record", "angles"]
+          "skin's landmarks and the joint centres they give as markers, weighed as OpenSim's IK weighs its goals; "
+          "couplings held, leading joints in range) and scipy's bounded least_squares over the person's constants "
+          "(group sizes, joint centres, marker places; the sizes solved, not held to SOMA's lengths) with the angles "
+          "of frames spread over the clip, one sparse problem; then mink on every frame")
+__all__ = ["Fitting", "Frames", "NotConverged", "LM_DAMPING", "solved", "followers_free", "following", "riding",
+           "followed", "centred", "targets", "fitting", "constants", "constants_record", "angles"]
 
 
 def followed(segments):
@@ -51,19 +55,21 @@ def followed(segments):
     return [group for group in groups() if group in segments]
 
 
-def placed(segments):
-    """[(SOMA joint, MyoFullBody centre)] of the judged joints SOMA has whose centre one body holds (all but Neck2's,
-    the middle of C7/T1 and C0/C1): SOMA's joints as virtual markers on MyoFullBody's centres."""
-    return [(soma, myo) for soma, myo in judged() if soma in segments and len(myo_parts(myo)) == 1]
+def centred(marks):
+    """The joint centres the landmarks give on the clip's skin, every frame (frames x CENTRE_JOINTS x 3): ISB midpoints
+    and Harrington's hips (`landmarks.soma_centres`) of the solver landmarks `marks` (frames x landmarks x 3)."""
+    names = solver_marks()
+    return np.array([[soma_centres(dict(zip(names, frame)))[name] for name in CENTRE_JOINTS] for frame in marks])
 
 
 def targets(rig, segments, worlds, held):
     """The clip's targets in MuJoCo's frame: (each frame's turns of the `held` groups, frames x groups x 3 x 3; each
-    frame's places, frames x (solver landmarks, then `placed` joints) x 3)."""
+    frame's places, frames x (solver landmarks, then the joint centres they give, `centred`) x 3). SOMA's own joints
+    are no target: they are the fit's measure (`following`)."""
     worlds = np.asarray(worlds, dtype=float)
     turns = np.einsum("ij,fgjk->fgik", TO_OWN.T, worlds[:, [segments.index(group) for group in held], :3, :3])
-    joints = worlds[:, [segments.index(soma) for soma, _ in placed(segments)]][..., :3, 3]
-    return turns, np.concatenate([posed(rig, segments, worlds), joints], axis=1) @ TO_OWN
+    marks = posed(rig, segments, worlds)
+    return turns, np.concatenate([marks, centred(marks)], axis=1) @ TO_OWN
 
 
 def _tops(model, names):
@@ -78,10 +84,10 @@ def _tops(model, names):
     return found
 
 
-def fitting(path, scales, segments, held, moves=None):
+def fitting(path, scales, held, moves=None):
     """The fitting model of the person's file at `path` (`Fitting`): a calibration site per `held` group, a marker
     per solver landmark at its start on its bone (sized by `scales`, moved by `moves` {landmark: 3}), a site on each
-    `placed` centre, the limbs' joint centres free to move and the fingers held."""
+    `CENTRE_JOINTS` centre, the limbs' joint centres free to move and the fingers held."""
     table, moves = groups(), moves or {}
     frames = [(group, table[group][2], turn(group)) for group in held]
     marks = [(name, MARKS[name][3], np.asarray(MARKS[name][5]) * scales[MARKS[name][3]] + moves.get(name, 0.0))
@@ -91,8 +97,8 @@ def fitting(path, scales, segments, held, moves=None):
                for body in bodies if body != frame}
     spec_model = mujoco.MjModel.from_xml_path(str(path))
     joints = _tops(spec_model, [f"{joint}_{side}" for joint in PLACED_JOINTS for side in "lr"])
-    centres = [(soma, filed(myo_parts(myo)[0][0]), np.asarray(myo_parts(myo)[0][1]) * scales[myo_parts(myo)[0][0]])
-               for soma, myo in placed(segments)]
+    centres = [(name, filed(CENTRES[name][0]), np.asarray(CENTRES[name][1]) * scales[CENTRES[name][0]])
+               for name in CENTRE_JOINTS]
     return Fitting(path, frames, marks, owners, {filed(body) for body in OWN_PLACED}, joints, fingers, centres)
 
 

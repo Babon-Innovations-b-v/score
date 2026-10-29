@@ -35,14 +35,13 @@ def followers_free(model, followers):
 
 
 class Fitting:
-    """The fitting model and what the constants move.
-
-    `path` the person's file; `frames` [(group, frame body, R_cal)]: one orientation site each, in that order;
-    `marks` [(name, body, local point)]: one marker site each; `owners` {source body name: size group}; `own_placed`
-    the bodies placed in their parent by their own group's size; `joints` [(name, body)]: the centres the constants
-    move, each the top body of its chain (its first wrapper) whose place in its parent moves; `frozen` the bodies whose
-    joints no target sees (held as they stand); `centres` [(name, body, local point)]: a site on each MyoFullBody joint centre SOMA places a joint at. The place
-    sites (`place_sites`) are the markers', then the centres'."""
+    """The fitting model and what the constants move. `path` the person's file; `frames` [(group, frame body, R_cal)]:
+    one orientation site each, in that order; `marks` [(name, body, local point)]: one marker site each; `owners`
+    {source body name: size group}; `own_placed` the bodies placed in their parent by their own group's size; `joints`
+    [(name, body)]: the centres the constants move, each the top body of its chain (its first wrapper) whose place in
+    its parent moves; `frozen` the bodies whose joints no target sees (held as they stand); `centres` [(name, body,
+    local point)]: a site on each MyoFullBody joint centre the landmarks give one at. The place sites (`place_sites`)
+    are the markers', then the centres'."""
 
     def __init__(self, path, frames, marks, owners, own_placed=(), joints=(), frozen=(), centres=()):
         spec = mujoco.MjSpec.from_file(str(path))

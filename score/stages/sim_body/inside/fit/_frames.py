@@ -1,8 +1,8 @@
 """Every frame's joint angles by mink (github.com/kevinzakka/mink, Apache-2.0, pinned 1.3.0 in newton_env.sh), MuJoCo's
-inverse kinematics: per frame one quadratic program a step, run to convergence (an offline fit, no real-time rate),
-the bone groups' turns (orientation-only `FrameTask`s on the calibration sites, the main term), the landmarks'
-markers and SOMA's joints (position-only `FrameTask`s on the marker and centre sites) weighed as OpenSim's IK
-weighs its goals (each goal's squared errors over its own count: `weights`), the model's couplings held exactly
+inverse kinematics: per frame one quadratic program a step, run to convergence (an offline fit, no real-time rate), the
+bone groups' turns (orientation-only `FrameTask`s on the calibration sites, the main term), the landmarks' markers and
+the joint centres they give (position-only `FrameTask`s on the marker and centre sites) weighed as OpenSim's IK weighs
+its goals (each goal's squared errors over its own count: `weights`), the model's couplings held exactly
 (`EqualityConstraintTask` as a constraint, OpenSim's default), the leading joints kept in their ranges
 (`ConfigurationLimit`), the joints no target sees frozen (`DofFreezingTask`). Each frame starts from the one before."""
 import mink
@@ -36,13 +36,13 @@ def solved(configuration, tasks, limits, constraints, refresh=None):
 
 
 def weights(fitting):
-    """Each turn task's cost and each place task's (markers', then centres'): OpenSim's IK normalises each goal by its
-    own weight sum (Simbody's OrientationSensors and Markers goals, every weight 1, as OpenSense's), here three goals,
-    the turns, the markers and SOMA's joints on MyoFullBody's centres; a mink cost multiplies the error, so the cost is
-    one over the goal's count's square root."""
-    marks, centres = len(fitting.mark_sites), len(fitting.centres)
-    return 1.0 / np.sqrt(max(len(fitting.frame_sites), 1)), np.concatenate(
-        [np.full(marks, 1.0 / np.sqrt(max(marks, 1))), np.full(centres, 1.0 / np.sqrt(max(centres, 1)))])
+    """Each turn task's cost and each place task's (markers', then the joint centres' they give): OpenSim's IK
+    normalises each goal by its own weight sum (Simbody's OrientationSensors and Markers goals, every weight 1, as
+    OpenSense's), here two goals, the turns and the markers (the joint-centre markers among them; SOMA's own joints are
+    no goal, #70 2026-10-29: they are the measure); a mink cost multiplies the error, so the cost is one over the
+    goal's count's square root."""
+    places = len(fitting.place_sites)
+    return 1.0 / np.sqrt(max(len(fitting.frame_sites), 1)), np.full(places, 1.0 / np.sqrt(max(places, 1)))
 
 
 class Frames:
@@ -101,7 +101,7 @@ class Frames:
 
     def fitted(self, turns, points, start=None):
         """Every frame's angles (frames x nq): `turns` frames x groups x 3 x 3 and `points` frames x place sites x 3
-        (the markers', then SOMA's joints), both MuJoCo's frame; each frame from the one before, the first from
+        (the markers', then the joint centres'), both MuJoCo's frame; each frame from the one before, the first from
         `start` (else `start()`)."""
         qpos = self.start(turns[0], points[0]) if start is None else start
         found = []

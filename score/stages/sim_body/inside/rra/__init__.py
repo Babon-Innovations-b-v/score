@@ -58,12 +58,13 @@ def reduced(physics, path, rate, limits, most, land, fitted, riders):
     opensim-core's RRATool, Apache-2.0) on the fitted path, in our own stack: RRA_ROUNDS times, the model step
     (`reweighed`) on the mean residual, then the pelvis' and trunk's path (`adjusted_leads`) moved so the ground
     explains the movement: one least squares over every frame of the residual (force over `limits[0]`, moment over
-    `limits[1]`), the lumbar's moments beyond the fitted path's (over `limits[1]`: `demands`) and the move (over its cap, TRACK its weight: RRA's tracking), the move low-passed by construction
-    (`filter_matrix`), its feet kept where they stood by the legs (`land`: `Footing.footed`), and bounded inside the solve by
-    the owner's per-frame cap (`cap_rows`: every segment's turn within `most[1]` and the pelvis within `most[0]` of the
-    fitted path, all rounds together; `within_balls`), taken only when it lowers that cost as measured (halved up to
-    RRA_HALVINGS times, else the rounds end). Nothing is applied to the body: only its path and masses change. Returns
-    the path, the move (frames x adjusted) and the record."""
+    `limits[1]`), the lumbar's moments beyond the fitted path's (over `limits[1]`: `demands`) and the move (over its
+    cap, TRACK its weight: RRA's tracking), the move low-passed by construction (`filter_matrix`), its feet kept where
+    they stood by the legs (`land`: `Footing.footed`), and bounded inside the solve by the owner's per-frame cap
+    (`cap_rows`: every segment's turn within `most[1]` and the pelvis within `most[0]` of the fitted path, all rounds
+    together; `within_balls`), taken only when it lowers that cost as measured (halved up to RRA_HALVINGS times, else
+    the rounds end). Nothing is applied to the body: only its path and masses change. Returns the path, the move (frames
+    x adjusted) and the record."""
     model = physics.model
     adjusted = adjusted_leads(physics)
     count, width = len(path), len(adjusted)

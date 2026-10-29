@@ -1,10 +1,11 @@
 """fit: on a small model posed by hand (a free pelvis, a left leg of thigh and shin, a right leg whose ankle follows its
-hip by a coupling, one thigh's calibration turned 30 degrees), with the person's constants set by hand (the left
-group 8% longer, the left hip moved 2 cm), the solver gives back from the bone groups' turns, the markers and one
-SOMA joint on its centre (the left ankle) every frame's angles, the size factor and the hip's move; a frame asking a
-hip past its range stops it at the range's end, its coupled follower on its leader by the coupling, though the
-follower's own range is narrower. The size is solved, not held (#70, 2026-10-29). It runs in Newton's own Python (mink pinned there; score/stages/physics/inside/newton_env.sh, built at
-$PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
+hip by a coupling, one thigh's calibration turned 30 degrees), with the person's constants set by hand (the left group
+8% longer, the left hip moved 2 cm), the solver gives back from the bone groups' turns, the markers and one SOMA joint
+on its centre (the left ankle) every frame's angles, the size factor and the hip's move; a frame asking a hip past its
+range stops it at the range's end, its coupled follower on its leader by the coupling, though the follower's own range
+is narrower. The size is solved, not held (#70, 2026-10-29). It runs in Newton's own Python (mink pinned there;
+score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there, as in `make
+tests`' sandbox home, it prints `skipped`.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted), 2026-10-28:
 - Fitting's site `Rotation.from_matrix(calibration.T)` made `Rotation.from_matrix(calibration)`: the turned
@@ -16,6 +17,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - Frames' constraints `[mink.EqualityConstraintTask(...)]` made `[]`: the follower leaves its leader.
 - _frames.weights' `np.full(marks, 1.0 / np.sqrt(max(marks, 1)))` made `np.full(marks, 0.0)`: no marker sees a
   length.
+- (2026-10-29) _frames.weights back to two place goals (`np.full(marks, 1 / sqrt(marks))` then the centres'
+  `1 / sqrt(centres)`): the toy's centre costs 1, not one over the square root of 11.
 - (2026-10-29) a row holding the left group to its start length (`(factors[0] - 1.0) * 100`, the old LENGTH_WEIGHT
   hold) added to Problem.residuals: the factor stays near 1, not TRUE_LEFT.
 
@@ -167,7 +170,29 @@ def a_hip_past_its_range_stops_at_its_end_and_its_follower_follows():
     return problems + ([] if reached < MOST_RADIANS else [f"the right hip stopped {reached:.4f} rad short of 0.9"])
 
 
-CHECKS = (the_solver_gives_back_the_angles_and_the_constants,
+def the_joint_centres_are_the_landmarks_and_one_goal_with_them():
+    """The joint centres the targets add are the landmarks' (`centred`: the knee the epicondyles' middle, the hip
+    Harrington's from the ASIS and PSIS), never SOMA's joints; and the toy's markers and its centre are one goal, each
+    place costing one over the square root of their count (11)."""
+    import fit
+    import numpy as np
+    from fit._frames import weights
+    from landmarks import harrington, solver_marks
+    names = solver_marks()
+    marks = np.random.default_rng(7).normal(size=(2, len(names), 3))
+    found = fit.centred(marks)
+    named = dict(zip(names, marks[1]))
+    problems = [] if np.allclose(found[1, fit.CENTRE_JOINTS.index("knee_l")],
+                                 (named["lateral_epicondyle_l"] + named["medial_epicondyle_l"]) / 2) else [
+        f"knee_l at {found[1, fit.CENTRE_JOINTS.index('knee_l')]}"]
+    if not np.allclose(found[1, fit.CENTRE_JOINTS.index("hip_r")], harrington(named)["hip_r"]):
+        problems.append("hip_r is not Harrington's")
+    with tempfile.TemporaryDirectory() as folder:
+        costs = weights(toy_fitting(folder))[1]
+    return problems + ([] if np.allclose(costs, 1.0 / np.sqrt(11)) else [f"place costs {costs.tolist()}"])
+
+
+CHECKS = (the_joint_centres_are_the_landmarks_and_one_goal_with_them, the_solver_gives_back_the_angles_and_the_constants,
           a_hip_past_its_range_stops_at_its_end_and_its_follower_follows)
 
 

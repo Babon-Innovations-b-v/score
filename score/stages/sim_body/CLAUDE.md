@@ -76,8 +76,8 @@ own Python, its steps the modules beside it (`inside/CLAUDE.md`).
   group's size, the limbs' joint centres, each virtual marker's place on its bone) and every frame's joint angles,
   against the bone groups' turns (the main term: each SOMA segment's world turn on its group, through the static
   calibration table, as OpenSense tracks orientations: Al Borno et al. 2022, doi:10.1186/s12984-022-01001-x), the
-  SOMA mesh's bony landmarks skinned on the clip (`inside/landmarks`) and SOMA's joints on MyoFullBody's centres as
-  markers, weighed as OpenSim's IK weighs its goals, within the leading joints' ranges, MuJoCo's couplings held
+  SOMA mesh's bony landmarks skinned on the clip (`inside/landmarks`) and the joint centres they give on
+  MyoFullBody's centres as markers (SOMA's own joints only the measure since 2026-10-29), weighed as OpenSim's IK weighs its goals, within the leading joints' ranges, MuJoCo's couplings held
   exactly, each group's size solved (not held to SOMA's length since 2026-10-29): mink per frame and scipy's bounded `least_squares` over the
   constants with the angles of frames spread over the clip. **Never use the owner's own
   method** (arXiv:2607.17639, under Babon's patent application NL4001444; SCORE is public MIT): no swing-twist split

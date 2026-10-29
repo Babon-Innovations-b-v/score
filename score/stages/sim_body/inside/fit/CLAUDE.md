@@ -14,13 +14,12 @@ place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the
   OpenSim's default), `ConfigurationLimit` on the leading joints only, `DofFreezingTask` for the fingers; the
   constants by scipy's `least_squares` with bounds. No handwritten iterative solver here; never bring one back.
 - **Weights are OpenSim's IK's** (InverseKinematicsSolver, Simbody's OrientationSensors and Markers goals): each goal
-  normalised by its own count, here three goals (the turns, the landmarks, SOMA's joints), so 1 degree of turn costs
-  as much as 1.75 cm of marker error; the turns are the main term. Never tune a weight to pass a gate.
-- **SOMA's joints are a goal of their own** (`placed`, 2026-10-28; #70 named two place goals, the landmarks only):
-  #70 judges the fit on SOMA's joints, and with the landmarks alone they stood 17 mm off on the median (the landmark
-  joint centres are 4 to 24 mm off SOMA's); with SOMA's joints as a third goal 12.7 mm while the lengths were free to
-  drift, 18.7 (Kimodo walker) and 19.5 (rig walk) with every stretch held to SOMA's length. An owner's decision to
-  keep or drop (#70).
+  normalised by its own count, here two goals (the turns, and the markers: the landmarks and the joint centres they
+  give); the turns are the main term. Never tune a weight to pass a gate.
+- **SOMA's joints are no target, only the measure** (#70, 2026-10-29; before, from 2026-10-28, a third goal, which
+  made the joint measure partly circular): the markers hold the joint centres the landmarks give (`centred`,
+  `CENTRE_JOINTS`: ISB midpoints and Harrington's hips, `landmarks.soma_centres`) on MyoFullBody's centres of the
+  same name, OpenSim's practice; `following` judges against SOMA's own joints. Numbers on #70.
 - **The group sizes are solved** (`_constants`, within `SIZE_MOST` of the sizing's): until 2026-10-29 each stretch was
   held to SOMA's length (LENGTH_WEIGHT 100, every group within 1.1 mm); #70's review asked them solved, and the model
   record's `lengths` says how far they move from SOMA's (numbers on #70).
