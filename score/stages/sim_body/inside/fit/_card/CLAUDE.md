@@ -18,19 +18,20 @@ before that.
 - `_objective.py` (`PlacePerProblem`, `TurnPerProblem`): Newton's IKObjectivePosition and IKObjectiveRotation
   (canonicalised error, its analytic omega Jacobian) with offset and weight per problem (rows of several bodies or
   level-1 sets in one batch), analytic; equal to the built-in ones row by row (test file, six-link chain, 1e-6).
-- `_solve.py` (`solved`, `NotConverged`): the loop (Newton's analytic residuals and Jacobian, the damped step, Newton's
-  integrate, the projection; root quaternion order converted on the card), a row stopping when its reduced step is
-  under 1e-6 or its cost moved under 1e-7 of itself over two steps; NotConverged at 300. Measured 2026-10-29 on the
-  proto clip (136 frames, each row seeded as mink's frame was): cost ratio |x-1| 2.2e-8 max, couplings 1.4e-7 rad,
-  ranges held, 12 / 25 steps median / max; NOT yet equal: angles 0.020 deg and sites 0.029 mm max (3 frames over the
-  plan's 0.01), all in elv_angle_l/r (the shoulder's elevation plane near the hanging arm, a flat direction), not
-  moved by a tighter stop or float64 sums in the normal equations: a float32 floor of Newton's FK/Jacobian. mink's
-  answer is the float64 minimum there (scipy's least squares at 1e-15 from both answers, frames 0, 53, 36, lands on
-  mink's to 4e-5 deg and 0.0002 mm, 2026-10-29), so the miss is the card's, not the reference's: the fix is the
-  residuals and J^T r in float64 (own FK and Jacobian kernels), the tolerance stays. Speed
-  (one batch, no chunking needed up to 12,784 rows): 1,925 rows/s at 1,088, 4,094 at 4,080, 6,889 at 12,784 (1.86 s,
-  2.7 GB on the card). Not in the test file yet; nothing replaces mink.
-- Still to come: float64 FK, residuals and J^T r for the flat shoulder dof, chunking above ~30,000 rows, the clip test against
-  mink in the test file.
+- `_forward.py` (`Forward`, `frames`): every row's link frames in float64 (free, revolute, prismatic, fixed; Newton's
+  eval_fk maths), for the residuals; `_objective.wide_residuals` gives both objectives' residuals in float64 on them.
+- `_solve.py` (`solved`, `NotConverged`): the loop (Newton's analytic Jacobian in float32, the residuals and the stop
+  rule's cost in float64 (`_forward`), the damped step, Newton's integrate, the projection; root quaternion order
+  converted on the card), a row stopping when its reduced step is under 1e-6 or its cost moved under 1e-7 of itself
+  over two steps; NotConverged at 300. Measured 2026-10-29 on the proto clip (136 frames, each row seeded as mink's
+  frame was), float32 residuals: angles 0.020 deg and sites 0.029 mm max, all in elv_angle_l/r (the shoulder's
+  elevation plane near the hanging arm, a flat direction); mink's answer is the float64 minimum there (scipy's least
+  squares at 1e-15 from both answers lands on mink's to 4e-5 deg and 0.0002 mm), so the miss is the card's. With the
+  residuals in float64: angles 0.012 deg, sites 0.017 mm (2 frames over the plan's 0.01), cost ratio 2.7e-8,
+  8 / 17 steps median / max. NOT yet equal; the tolerance stays. Speed with float32 residuals (one batch, no chunking
+  needed up to 12,784 rows): 1,925 rows/s at 1,088, 4,094 at 4,080, 6,889 at 12,784 (1.86 s, 2.7 GB on the card).
+  Not in the test file yet; nothing replaces mink.
+- Still to come: the last 0.002 deg / 0.007 mm (the float32 Jacobian or state, or the stop rule), chunking above
+  ~30,000 rows, the clip test against mink in the test file.
 - One test file (`test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the CPU
   prototype's float64 maths; it needs Newton's Python and a CUDA card, else prints `skipped`.
