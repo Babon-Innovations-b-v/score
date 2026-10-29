@@ -114,7 +114,8 @@ def seed_files(place):
     terrain row's), the library and sounds, the place definitions, the export, and the place's surface data where it
     has one (surface_data.pattern: its design's, which its finish route paints)."""
     found = {"inventories": "{data}/inventory", "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
-             "places": "{data}/definitions/place.json", "export": "{repo}/tools/usd/export.py", **design_files(place)}
+             "places": "{data}/definitions/place.json", "export": "{repo}/tools/usd/export.py", **design_files(place),
+             **design_shell.relations_file(place)}
     if surface_data.path(place).exists():
         found["surfaces"] = surface_data.pattern(place)
     return found
@@ -166,8 +167,9 @@ def make_seed(inputs, out, seed, params):
     export.export(place, [], out / place, kit_path=kit_path, inventory_path=pathlib.Path(inputs["design inventory"]),
                   gaps=gaps)
     rows = read(inputs["design inventory"]).get("rows", [])  # its door and window rows cut their openings
-    shell = design_shell.lay(out / place / "layers/base.usda", place, design_shell.cut_for(plan, rows), export,
-                             library_path(inputs))
+    relations, _ = design_shell.relations_read(inputs, plan_path)  # the openings cut for doors the plan's do not hold
+    shell = design_shell.lay(out / place / "layers/base.usda", place, design_shell.cut_for(plan, rows, relations),
+                             export, library_path(inputs))
     kit_path.write_text(json.dumps({**kit, "shell": shell}, indent=1))
     (out / GAPS).write_text(json.dumps({"models": [], "picks": [gap for gap in gaps if "row" in gap]}, indent=1))
 

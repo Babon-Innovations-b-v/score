@@ -602,6 +602,31 @@ def test_base_s_garage_door_lands_on_its_module_s_front_face(tmp_path):
         low, high)
     [fit] = json.loads((root.parent / made_waiting.LAID).read_text())["fitted"]
     assert fit["name"] == "garage_door_1" and fit["how"] == "face" and fit["scale"] == 1.0, fit
+    held = assembly.judge_held(root.parent, {}, None)
+    assert held.answer == checks.PASS and held.measures == {"not held": 0, "worst off": 0.0}, held
+
+
+def test_the_held_gate_names_each_object_not_where_what_holds_it_puts_it():
+    """#72, so it never comes back silently: the `held` gate fails by name on a door laid 1 m beside its module's
+    face (its measure 1.0 m), a door or window in no opening and on no holder, one held by nothing and one left at the
+    room's middle; the door laid on the face passes.
+    Break: score/stages/assembly/fitting.py: `elif distance > HELD_MOST:` -> `elif False:`
+    Break: score/stages/assembly/fitting.py: `if entry.get("fills") and not (on and on["how"] in ("in", "face",
+        "within", "top")):` -> `if False:`"""
+    from score.stages.assembly import fitting
+    face = {"how": "face", "holder": ["module_1"], "out": [0.0, 1.0]}
+    record = {"objects": [{"name": "door_1", "on": face}, {"name": "door_2", "on": face},
+                          {"name": "window_1", "fills": True}, {"name": "lamp_1", "unheld": "its holder lays nothing"},
+                          {"name": "crate_1", "unplaced": "left on the walls item"}]}
+    box = {"low": [0.0, 0.0, 0.0], "high": [1.0, 2.0, 0.0]}
+    laid = {"objects": [{"name": "module_1", "low": [-6.0, 0.0, -6.0], "high": [6.0, 12.0, 6.0]},
+                        {"name": "door_1", "low": [-3.0, 0.0, 6.0], "high": [3.0, 8.0, 6.5]},
+                        {"name": "door_2", "low": [-3.0, 0.0, 7.0], "high": [3.0, 8.0, 7.5]},
+                        *[{"name": name, **box} for name in ("window_1", "lamp_1", "crate_1")]]}
+    faults = {name: (words, distance) for name, words, distance in fitting.held_faults(record, laid)}
+    assert sorted(faults) == ["crate_1", "door_2", "lamp_1", "window_1"], faults
+    assert faults["door_2"][1] == 1.0 and faults["window_1"][0].startswith("a door or window in no opening"), faults
+    assert faults["crate_1"][0].startswith("at the room middle") and faults["lamp_1"][0].startswith("held by nothing")
 
 
 def test_a_door_goes_in_its_opening_narrowed_to_fit():

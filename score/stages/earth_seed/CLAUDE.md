@@ -22,8 +22,9 @@ the gates.
   (`arched`, `arches`: a rib, arch or hoop, thin across; owner, 2026-10-26: the framework may build structure pieces
   as the earth seed builds shells). Each wall cuts the plan's openings and those its door and window rows fill at
   their plan items (`cut_for`, `row_openings`: the earth seed's from the design inventory, the scene record's from
-  the hand-in; the library holds no door or window, so their models come by the prop route). No special case by
-  place name.
+  the hand-in; the library holds no door or window, so their models come by the prop route), and those the place's
+  relations cut for a door or window the plan's openings do not hold (`relation_cuts`, score/review/holders; read by
+  `relations_read` only while derived from the kept plan as it stands, #72). No special case by place name.
 - **Which parts a shell lays is named without building it** (`score/stages/shell_parts.py`: `laid_for`, `encloses`,
   `parts`, held equal to the pieces by the test). A row that only asks which parts there are (the scene library's
   `shell_kinds`, the surface tiles) reads that, never `design_shell`, so a change to how a part is built keys only

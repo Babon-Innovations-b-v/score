@@ -16,7 +16,9 @@ import json
 from score.stages.assembly import fitting
 from score.stages.assembly.record import BASE_LAYER, RECORD, WAITING
 
-LAID = "laid.json"  # {objects: [{name, row, low, high}], fitted: fitting.fitted's}: what the plan page shows laid
+# {objects: [{name, row, low, high}], holders: [{name, low, high}] (holders laid as structure: a tube's ribs),
+# fitted: fitting.fitted's}: what the plan page shows laid and the `held` gate measures
+LAID = "laid.json"
 
 
 def asset_bounds(path):
@@ -49,9 +51,17 @@ def laid_by_relations(stage, out, place, record, objects):
     fits = fitting.fitted(stage, place, record.get("objects") or [], set(objects))
     rows = {entry["name"]: entry["row"] for entry in record.get("objects") or []}
     boxes = [(name, fitting.world_box(stage, f"/{place}/Objects/{name}")) for name in objects]
-    (out / LAID).write_text(json.dumps({"objects": [
-        {"name": name, "row": rows[name], "low": [round(float(value), 4) for value in low],
-         "high": [round(float(value), 4) for value in high]} for name, (low, high) in boxes], "fitted": fits}, indent=1))
+    held = sorted({(on.get("holder scope"), name) for entry in record.get("objects") or [] if (on := entry.get("on"))
+                   and on.get("holder scope") for name in on.get("holder") or []
+                   if stage.GetPrimAtPath(f"/{place}/{on['holder scope']}/{name}")})
+
+    def listed(name, low, high, **more):
+        return {"name": name, **more, "low": [round(float(value), 4) for value in low],
+                "high": [round(float(value), 4) for value in high]}
+    (out / LAID).write_text(json.dumps({
+        "objects": [listed(name, *box, row=rows[name]) for name, box in boxes],
+        "holders": [listed(name, *fitting.world_box(stage, f"/{place}/{scope}/{name}")) for scope, name in held],
+        "fitted": fits}, indent=1))
 
 
 def lay(out, place, bake):

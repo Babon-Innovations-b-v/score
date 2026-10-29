@@ -16,6 +16,8 @@ settle stages hash it.
 
     fit(low, high, on, holders)   (scale, the new middle of its foot, words) of one object, or None when it sits
     fitted(stage, place, entries, laid)   each laid entry's fit applied on the stage; the fits [{name, ...}]
+    off(low, high, on, holders)   metres an object as laid stands off where its relation puts it
+    held_faults(record, laid)     [(object, what is wrong, metres or None)]: the assembly's `held` gate
 """
 import numpy as np
 
@@ -108,6 +110,87 @@ def fit(low, high, on, holders=()):
     return scale, target, words
 
 
+# An object stands where its relation puts it within this, metres (the gate's tolerance: a fitted one is within mm).
+HELD_MOST = 0.05
+
+
+def overhang(low, high, hold_low, hold_high, axes):
+    """How far a box reaches past another along `axes`, metres (0 inside it)."""
+    return max([0.0, *[max(hold_low[axis] - low[axis], high[axis] - hold_high[axis]) for axis in axes]])
+
+
+def off_holder(low, high, how, out, box):
+    """Metres a box stands off its holder box: top (its foot off the top, its footprint past it), within (past it any
+    way), face (its back off the side `out` points from, past that side's span or above its top)."""
+    hold_low, hold_high = box
+    if how == "top":
+        return max(abs(low[1] - hold_high[1]), overhang(low, high, hold_low, hold_high, (0, 2)))
+    if how == "within":
+        return overhang(low, high, hold_low, hold_high, (0, 1, 2))
+    axis = 0 if abs(out[0]) >= abs(out[1]) else 2
+    back = abs(low[axis] - hold_high[axis]) if out[axis // 2] > 0 else abs(high[axis] - hold_low[axis])
+    return max(back, overhang(low, high, hold_low, hold_high, (2 - axis,)), max(0.0, high[1] - hold_high[1]))
+
+
+def off_wall(low, high, on):
+    """Metres a box stands off a wall's face: its back off the face's line, or past the face's ends."""
+    size, middle = high - low, (low + high) / 2
+    start, end = (np.array(point, float) for point in on["span"])
+    length = float(np.linalg.norm(end - start))
+    run, out = (end - start) / max(length, 1e-9), np.asarray(on["out"], float)
+    back = abs(float((middle[[0, 2]] - start) @ out) - across(out, size) / 2)
+    along, reach = float((middle[[0, 2]] - start) @ run), across(run, size) / 2
+    return max(back, max(0.0, reach - along), max(0.0, along + reach - length))
+
+
+def off_opening(low, high, on):
+    """Metres a box stands off its opening: its foot's middle off the opening's, or wider or taller than it."""
+    size, foot = high - low, foot_middle(low, high)
+    return max(float(np.linalg.norm(foot - np.asarray(on["middle"], float))),
+               across(on["along"], size) - float(on["wide"]), size[1] - float(on["tall"]))
+
+
+def off(low, high, on, holders=()):
+    """Metres an object's box (low, high) stands off where its relation `on` puts it; None when its holder lays no
+    box to measure against."""
+    low, high = np.asarray(low, float), np.asarray(high, float)
+    if on["how"] == "wall":
+        return off_wall(low, high, on)
+    if on["how"] == "in":
+        return off_opening(low, high, on)
+    boxes = [tuple(np.asarray(end, float) for end in found) for found in holders]
+    if not boxes:
+        return None
+    return off_holder(low, high, on["how"], on.get("out", (0.0, 1.0)), nearest(boxes, low, high))
+
+
+def held_faults(record, laid):
+    """[(object, what is wrong, metres or None)] of the record's design objects as the assembly laid them (`laid`,
+    made_waiting.LAID): off where their relation puts them (more than HELD_MOST), a door or window in no opening and
+    on no holder, held by nothing (`unheld`), or left at the room's middle (`unplaced`)."""
+    boxes = {entry["name"]: (entry["low"], entry["high"]) for entry in [*laid.get("objects", []),
+                                                                         *laid.get("holders", [])]}
+    faults = []
+    for entry in record.get("objects") or []:
+        if entry["name"] not in boxes:
+            continue
+        on = entry.get("on")
+        if on:
+            distance = off(*boxes[entry["name"]], on, [boxes[name] for name in on.get("holder") or [] if name in boxes])
+            if distance is None:
+                faults.append((entry["name"], f"its holder {', '.join(on.get('holder') or [])} is not laid", None))
+            elif distance > HELD_MOST:
+                faults.append((entry["name"], f"{distance:.2f} m off where it is laid {on['how']} ({on.get('why', '')})",
+                               round(distance, 3)))
+        if entry.get("fills") and not (on and on["how"] in ("in", "face", "within", "top")):
+            faults.append((entry["name"], "a door or window in no opening and on no holder", None))
+        for mark in ("unheld", "unplaced"):
+            if entry.get(mark):
+                faults.append((entry["name"], f"{'held by nothing' if mark == 'unheld' else 'at the room middle'}: "
+                                              f"{entry[mark]}", None))
+    return faults
+
+
 def world_box(stage, path):
     from pxr import Usd, UsdGeom
     box = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render]) \
@@ -140,9 +223,9 @@ def fitted(stage, place, entries, laid):
             if holder in by_name:
                 one(holder, (*seen, name))
         done.add(name)
-        path = f"/{place}/Objects/{name}"
-        holders = [world_box(stage, f"/{place}/Objects/{holder}") for holder in entry["on"].get("holder") or []
-                   if stage.GetPrimAtPath(f"/{place}/Objects/{holder}")]
+        path, scope = f"/{place}/Objects/{name}", entry["on"].get("holder scope", "Objects")
+        holders = [world_box(stage, f"/{place}/{scope}/{holder}") for holder in entry["on"].get("holder") or []
+                   if stage.GetPrimAtPath(f"/{place}/{scope}/{holder}")]
         low, high = world_box(stage, path)
         found = fit(low, high, entry["on"], holders)
         if found is None:
