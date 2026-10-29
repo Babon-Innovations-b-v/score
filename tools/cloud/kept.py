@@ -164,7 +164,14 @@ def identity(job, system):
     slot = digest(written(json.dumps({field: job.get(field) for field in ("script", "args", "outputs", "env")},
                                      sort_keys=True), folders))
     inputs = input_files(job, folders)
-    return slot, digest(json.dumps([written(json.dumps(job, sort_keys=True), folders), code, system, inputs])), inputs
+    return slot, digest(json.dumps([written(json.dumps(job, sort_keys=True), folders), code_hash(code), system,
+                                    inputs])), inputs
+
+
+def code_hash(code):
+    """The row's code as a kept content holds it: its hash, without the node it names first (the sweep's), as kept
+    before the node was named (5a46a96e), so those entries keep their keys."""
+    return code.rsplit(" ", 1)[-1]
 
 
 def peers_of(job, others, system):
@@ -226,12 +233,20 @@ def keep(job, system, brought=None, peers=None):
     return True
 
 
-def mark_of(slot, content):
-    """The entry kept at a slot and content, or None (also for one kept as copies before its files went to the blobs,
-    2026-10-29: it names no blobs, and the sweep drops it)."""
-    mark = kept_root() / slot / content / DONE
-    entry = json.loads(mark.read_text()) if mark.exists() else None
-    return entry if entry and "files" in entry else None
+def mark_of(slot, content, named=None):
+    """The entry kept at a slot and content, or None. One kept as copies (5a46a96e, before its files went to the
+    blobs) is turned first when `named` gives its code, system and inputs: its copies into the blobs and its mark
+    rewritten at the same key, then the copies removed."""
+    place = kept_root() / slot / content
+    entry = json.loads((place / DONE).read_text()) if (place / DONE).exists() else None
+    if entry is None or "files" in entry:
+        return entry
+    if named is None or not (place / "outputs").is_dir():
+        return None
+    entry = {**entry, **named, "files": stored(files_under(place / "outputs"), place / "outputs")}
+    written_mark(slot, content, entry)
+    shutil.rmtree(place / "outputs")
+    return entry
 
 
 def placed(entries):
@@ -260,7 +275,8 @@ def missing(jobs, system):
     present = {found[0]: found[1] for found in named if found}
     waiting, back = [], []
     for job, found in zip(jobs, named):
-        entry = mark_of(*found[:2]) if found else None
+        entry = mark_of(*found[:2], {"code": os.environ[CODE], "system": digest(system), "inputs": found[2]}) \
+            if found else None
         if entry is None or any(present.get(slot) != content for slot, content in entry["peers"].items()):
             waiting.append(job)
             continue
@@ -303,7 +319,7 @@ def call(function, arguments, output):
     named = f"{function.__module__}.{function.__qualname__}"
     described = arguments_of(list(arguments), folders, inputs)
     try:
-        content = digest(json.dumps([named, code, python_system(), described, inputs], sort_keys=True))
+        content = digest(json.dumps([named, code_hash(code), python_system(), described, inputs], sort_keys=True))
     except TypeError:  # an argument JSON cannot hold: its content cannot be told
         return function(*arguments)
     slot = digest(json.dumps([named, written(str(output), folders)]))
@@ -339,16 +355,17 @@ def sweep(asked, say=print):
     it no stored output and no entry still kept holds; {"dropped", "freed_gb"}. Run with no run live (disk.py)."""
     dropped, held, freed = [], set(), 0
     for folder, entry in entries():
-        if "files" in entry and asked(entry):
+        if "files" not in entry:  # kept as copies (5a46a96e): never dropped before mark_of turns it
+            continue
+        if asked(entry):
             held |= {sha for sha, _ in entry["files"].values()}
             continue
         dropped.append(entry)
-        freed += sum(path.stat().st_size for path in files_under(folder))  # one kept as copies: its own bytes
         shutil.rmtree(folder)
         if not any(folder.parent.iterdir()):
             folder.parent.rmdir()
         say(f"dropped kept {folder.parent.name}/{folder.name}: no current key asks for it")
-    gone = {sha for entry in dropped for sha, _ in entry.get("files", {}).values()} - held - output_blobs()
+    gone = {sha for entry in dropped for sha, _ in entry["files"].values()} - held - output_blobs()
     for sha in sorted(gone):
         blob = store().objects.path(f"blobs/{sha}")
         if blob.exists():
