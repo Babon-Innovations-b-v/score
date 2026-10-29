@@ -10,7 +10,8 @@ less 6 GB, a step's own scope inherits it, and off a conductor nothing changes. 
 reads and its log tails carry no secret. The free end-to-end check (`dry`) passes every step in one line. No run
 starts under the data disk's floor, the health warns there, and clean-frozen removes only the frozen copies no run
 needs and no process works in, never what their homes link to, and nothing while it cannot tell; clean-cache
-makes the checkouts' copies links to the stored blobs even with a run live.
+makes the checkouts' copies links to the stored blobs even with a run live; clean-kept drops only the kept jobs no
+current key asks for.
 
 Break that turns it red: in size.decide grow while a run is live (drop the claims/running wait); in kill.stop_everything
 release the parked machines before closing the pools; or in logs drop the secret-shape test (an AIza key reaches the
@@ -740,3 +741,56 @@ def test_score_lib_pull_only_fast_forwards_and_status_counts_after_a_fetch(tmp_p
     assert refusal == "" and found["behind"] == 1 and (checkout / "entry.json").is_file(), (refusal, found)
     assert library_checkout.status(checkout)["behind"] == 0
     assert library_checkout.status(checkout)["push"] == ""  # up to date with origin: a dry push is accepted
+
+
+def take_views(source, folder):
+    """A per-take call (the finish route's views, made one take a call): the take's views from its model."""
+    folder.mkdir(parents=True)
+    (folder / "views.npz").write_text(f"views of {pathlib.Path(source).read_text()}")
+    return {"views": 3}
+
+
+def test_clean_kept_drops_only_the_kept_no_current_key_asks_for(tmp_path, monkeypatch):
+    """2026-10-29: kept jobs outlive their outputs, so they are swept once no current key could ask for them: never
+    one still asked for, never by age.
+    Break: score/conductor/disk.py asked_by: 'return code == entry["code"] and entry["system"]' -> 'return False and
+    entry["system"]' (the crate's views, still asked for, are swept); or drop 'and \\\n            all(input_stands('
+    (the lamp's views, made from its old model, stay)."""
+    from score import checks, contracts, graph, stages
+    kept = stages.kept_module()
+    home, models = tmp_path / "home", tmp_path / "pixal"
+    (home / "runs").mkdir(parents=True)
+    models.mkdir()
+    for take in ("crate", "lamp"):
+        (models / f"{take}.glb").write_text(f"{take} model")
+    for name in (kept.MAKING, kept.CODE):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("PROPS_HOME", str(home))
+    monkeypatch.setenv(kept.STORE, str(home / "store"))
+
+    def make_views(inputs, out, seed, params):
+        (out / "views.json").write_text(json.dumps({take: take_views(inputs[f"model {take}"], out / take)
+                                                    for take in ("crate", "lamp")}))
+
+    def row(params):
+        return graph.Stage("toy-views", "place", stages.per_take_kept(make_views, "take_views", lambda found: found[1]),
+                           contracts.Contract("toy-views", 1, lambda folder: []),
+                           (checks.Check("views", lambda output, inputs, evidence: checks.Verdict(
+                               "views", checks.PASS, "made")),),
+                           files={f"model {take}": str(models / f"{take}.glb") for take in ("crate", "lamp")},
+                           params=params)
+
+    def runner(params):
+        return graph.Runner([row(params)], graph.Environment("toy", 1, {}), Store.in_folder(str(home / "store")))
+
+    made = runner({})
+    made.run_node(made.stages["toy-views"], "airlock")
+    old = time.time() - 2 * disk.YOUNG_SECONDS
+    os.utime(home / "store" / "cache" / "making", (old, old))  # no make in progress
+    systems, said = {kept.digest(kept.python_system())}, []
+    assert disk.clean_kept(home, runner=runner({}), systems=systems, say=said.append)["dropped"] == 0
+    (models / "lamp.glb").write_text("lamp model, fixed")
+    assert disk.clean_kept(home, runner=runner({}), systems=systems, say=said.append)["dropped"] == 1
+    assert [entry["record"] for _, entry in kept.entries()] == [{"views": 3}]  # the crate's, still asked for
+    done = disk.clean_kept(home, runner=runner({"views": "finer"}), systems=systems, say=said.append)
+    assert done["dropped"] == 1 and done["refused"] is None and not list(kept.entries())  # the row's code moved

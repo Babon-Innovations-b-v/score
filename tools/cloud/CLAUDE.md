@@ -135,9 +135,14 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 - **A finished job is kept by its own content** (`kept.py`, owner 2026-10-18; 2026-10-29, after a fix to 3 objects
   baked whole places again and the free run on this PC kept nothing): inside any make (the runner names its folder,
   SCORE_MAKING, and its row's code, SCORE_MAKING_CODE: code version, contract, params, seed, models and its files in
-  the repository), `kept.keep` copies a job that ended well to `kept/<slot>/<content>/` beside the store, and
-  `kept.missing` puts back every job of the same content, at this key or a new one, and returns the rest, so a rerun
-  or a re-keyed row pays only for the jobs whose own inputs changed. The content is the job's JSON and its input
+  the repository: the node, then their hash), `kept.keep` keeps a job that ended well at `kept/<slot>/<content>/done`
+  beside the store, its files in the store's own blobs (each content once, read-only), and `kept.missing` links back
+  every job of the same content, at this key or a new one, and returns the rest, so a rerun or a re-keyed row pays
+  only for the jobs whose own inputs changed. A place row that makes its takes one call a take (finish-route-views,
+  finish-route-split, surfaces-parts: the stage table's `PER_TAKE`, wired by `per_take_kept` so no row moves) has
+  each call kept the same way (`kept.call`: the function, its arguments with the files they name, the row's code and
+  this Python with its packages). `clean-kept` (score/conductor/disk.py, the sync pass) drops what no current key
+  asks for, never by age. The content is the job's JSON and its input
   files' bytes (the making folder, the frozen copy and the home written as stand-ins), the row's code and the system
   (`blender_cloud.system`: this PC's container image id, the cloud's images, the cluster's Blender image, and
   library_setup.sh); the repository's Python and docs among the inputs, and the run machinery's files, are left to

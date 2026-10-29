@@ -4,6 +4,8 @@ all again; 2026-10-29: a fix to 3 objects baked whole places again, and a free r
 
     waiting = kept.missing(jobs, system)            # each job kept at its content put back in place; the jobs to run
     kept.keep(job, system, brought, peers)          # after a job ended well: the files it brought back, kept
+    record = kept.call(function, arguments, output) # a row's per-take call (score/stages PER_TAKE): put back or made
+    kept.sweep(asked, say)                          # every kept entry `asked` says no current key asks for, dropped
 
 A job is a cloud runner's job ({"script", "args", "inputs", "outputs", ...}, blender_cloud.py's), run inside a node's
 make: the runner names the make's folder (SCORE_MAKING) and the row's code (SCORE_MAKING_CODE, graph's making_code:
@@ -14,9 +16,10 @@ frozen copy and home); the row's code; and `system`, what it runs on (blender_cl
 Blender set-up). The repository's Python files and docs among its inputs, and the run machinery's files (_code.py's
 FRAMEWORK), are left to the row's code: the graph's own rule of what code a row is, so an edit no row reads moves no
 job. A job is the same job at the next key by its slot (its script, arguments, outputs and env, folders written as
-above); each slot keeps one content, a newer keep replacing it. Kept at `kept/<slot>/<content>/` beside the store
-(SCORE_SPEND_STORE, else PROPS_HOME's store); it counts as kept only once its `done` mark is written, after every
-file, so a copy cut short is never taken. Outside a make, or for a job with an output outside the making folder,
+above); each slot keeps one content, a newer keep replacing it. Kept at `kept/<slot>/<content>/done` beside the store
+(SCORE_SPEND_STORE, else PROPS_HOME's store), its files in the store's own blobs (score/store: each content once,
+read-only, linked back in place): the mark names each file's blob and the time it was written, and is written after
+every blob, so a copy cut short is never taken. Outside a make, or for a job with an output outside the making folder,
 nothing is kept and every job runs.
 
 Jobs sharing an output folder (a bake row's `made`) each keep only the files their own bring-back wrote (`brought`,
@@ -24,21 +27,35 @@ rsync's list); one bring-back can carry another job's files from the same machin
 ({slot: content} of the jobs sharing a folder still to come back from that machine then), and a kept job is put back
 only while every peer is in the call at that content: never another job's file made from other inputs.
 
+A row's per-take call (`call`: a place row's function that makes one take into its own folder from its arguments, named
+in the stage table's PER_TAKE) is kept the same way: its content is the function, its arguments (each file or folder
+they name by its bytes), the row's code and this Python with its packages; its output folder and its record come back.
+
+`sweep` drops each kept entry its `asked` says no current key could ask for (score/conductor/disk.py clean-kept: its
+node gone, its row's code, system or inputs no longer the current ones), and each blob of it no output and no other
+entry holds. Never by age.
+
 Imported only from the renting code (outside every stage's code key), so a change here moves no row.
 """
 import functools
 import hashlib
+import importlib.metadata
 import importlib.util
 import json
 import os
 import pathlib
 import shutil
+import sys
+
+REPO = pathlib.Path(__file__).resolve().parents[2]
+if str(REPO) not in sys.path:
+    sys.path.append(str(REPO))
+from score.store import Store, file_hash as blob_hash  # noqa: E402  (the store's blobs; it imports no stage)
 
 STORE = "SCORE_SPEND_STORE"
 MAKING = "SCORE_MAKING"
 CODE = "SCORE_MAKING_CODE"
 DONE = "done"
-REPO = pathlib.Path(__file__).resolve().parents[2]
 LEFT_TO_CODE = (".py", ".pyc", ".md")
 HASHES = {}  # (path, its stat, the stand-ins): the sha256 of its bytes with the stand-ins written in
 
@@ -138,15 +155,16 @@ def relative_outputs(job, folder):
 
 
 def identity(job, system):
-    """(the job's slot, its content), or None outside a make or for a job with an output outside the making folder."""
+    """(the job's slot, its content, its input files), or None outside a make or for a job with an output outside the
+    making folder."""
     folder, code = making(), os.environ.get(CODE)
     if folder is None or code is None or relative_outputs(job, folder) is None:
         return None
     folders = stand_ins()
     slot = digest(written(json.dumps({field: job.get(field) for field in ("script", "args", "outputs", "env")},
                                      sort_keys=True), folders))
-    return slot, digest(json.dumps([written(json.dumps(job, sort_keys=True), folders), code, system,
-                                    input_files(job, folders)]))
+    inputs = input_files(job, folders)
+    return slot, digest(json.dumps([written(json.dumps(job, sort_keys=True), folders), code, system, inputs])), inputs
 
 
 def peers_of(job, others, system):
@@ -162,15 +180,36 @@ def peers_of(job, others, system):
     return found
 
 
-def copy(source, target):
-    """A file copied to `target`, its folders made."""
-    target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source, target)
+def store():
+    """The store the kept entries lie beside, whose blobs hold their files."""
+    return Store.in_folder(kept_root().parent)
+
+
+def stored(files, folder):
+    """{path in the making folder: [its blob, the time it was written]} of each file, its bytes put in the store's
+    blobs (once, read-only)."""
+    found, blobs = {}, store()
+    for path in files:
+        sha = blob_hash(path)
+        blobs.put_blob(path, sha)
+        found[str(path.relative_to(folder))] = [sha, path.stat().st_mtime_ns]
+    return found
+
+
+def written_mark(slot, content, entry):
+    """The entry's `done` mark written at its slot and content after its blobs, any other content of the slot
+    removed."""
+    place = kept_root() / slot / content
+    place.mkdir(parents=True, exist_ok=True)
+    (place / DONE).write_text(json.dumps(entry, sort_keys=True))
+    for other in (kept_root() / slot).iterdir():
+        if other != place:
+            shutil.rmtree(other)
 
 
 def keep(job, system, brought=None, peers=None):
-    """Keep a job that ended well at its content, only the files of its outputs in `brought` (every one when None),
-    its `done` mark last, any other content of its slot removed; True when kept."""
+    """Keep a job that ended well at its content, only the files of its outputs in `brought` (every one when None);
+    True when kept."""
     named = identity(job, system)
     if named is None:
         return False
@@ -178,43 +217,141 @@ def keep(job, system, brought=None, peers=None):
     outputs = relative_outputs(job, folder)
     if not all((folder / output).exists() for output in outputs):
         return False
-    slot, content = named
-    place = kept_root() / slot / content
-    if place.exists():
-        shutil.rmtree(place)
     files = [path for output in outputs for path in files_under(folder / output)]
-    for path in files if brought is None else [path for path in files if path in brought]:
-        copy(path, place / "outputs" / path.relative_to(folder))
-    (place / DONE).write_text(json.dumps({"job": job, "peers": peers or {}}, sort_keys=True))
-    for other in (kept_root() / slot).iterdir():
-        if other != place:
-            shutil.rmtree(other)
+    slot, content, inputs = named
+    written_mark(slot, content, {"job": job, "peers": peers or {}, "code": os.environ[CODE],
+                                 "system": digest(system), "inputs": inputs,
+                                 "files": stored(files if brought is None else [path for path in files
+                                                                                if path in brought], folder)})
     return True
 
 
-def merge(source, target):
-    """Each file of a kept folder put at its place under `target` unless the one there is newer: jobs side by side on
-    one machine share an output folder (a bake row's `made`, blender_cloud.py on this PC), so one job's kept copy can
-    hold another's file caught mid-write, older than that job's own kept file."""
-    for path in sorted(found for found in source.rglob("*") if found.is_file()):
-        place = target / path.relative_to(source)
-        if place.is_file() and place.stat().st_mtime_ns >= path.stat().st_mtime_ns:
-            continue
-        copy(path, place)
+def mark_of(slot, content):
+    """The entry kept at a slot and content, or None (also for one kept as copies before its files went to the blobs,
+    2026-10-29: it names no blobs, and the sweep drops it)."""
+    mark = kept_root() / slot / content / DONE
+    entry = json.loads(mark.read_text()) if mark.exists() else None
+    return entry if entry and "files" in entry else None
+
+
+def placed(entries):
+    """Each file of the entries linked in place in the making folder from its blob, the one written last where two
+    entries hold the same file (jobs side by side on one machine share an output folder, a bake row's `made`: one
+    job's copy can hold another's file caught mid-write), unless the file there is newer."""
+    newest = {}
+    for entry in entries:
+        for name, (sha, written_at) in entry["files"].items():
+            if name not in newest or written_at > newest[name][1]:
+                newest[name] = (sha, written_at)
+    blobs, folder = store(), making()
+    for name, (sha, written_at) in sorted(newest.items()):
+        place = folder / name
+        if place.is_file():
+            if place.stat().st_mtime_ns >= written_at:
+                continue
+            place.unlink()
+        blobs.place_blob(sha, place)
 
 
 def missing(jobs, system):
     """Every job kept at its content, whose peers are all in the call at theirs, put back in place in this attempt's
     making folder; the jobs still to run, in their order."""
     named = [identity(job, system) for job in jobs]
-    present = dict(found for found in named if found)
-    waiting = []
+    present = {found[0]: found[1] for found in named if found}
+    waiting, back = [], []
     for job, found in zip(jobs, named):
-        mark = kept_root() / found[0] / found[1] / DONE if found else None
-        if mark is None or not mark.exists() or any(present.get(slot) != content for slot, content in
-                                                    json.loads(mark.read_text())["peers"].items()):
+        entry = mark_of(*found[:2]) if found else None
+        if entry is None or any(present.get(slot) != content for slot, content in entry["peers"].items()):
             waiting.append(job)
             continue
-        if (mark.parent / "outputs").is_dir():
-            merge(mark.parent / "outputs", making())
+        back.append(entry)
+    placed(back)
     return waiting
+
+
+@functools.cache
+def python_system():
+    """What a per-take call runs on: this Python and every package it holds, with their versions."""
+    packages = sorted(f"{found.metadata['Name']}=={found.version}" for found in importlib.metadata.distributions())
+    return " ".join([sys.version, *packages])
+
+
+def arguments_of(value, folders, inputs):
+    """A call's arguments as JSON, each file or folder they name (a Path, or a text naming one) written as its
+    stand-in path, its files and their hashes added to `inputs`."""
+    if isinstance(value, dict):
+        return {str(name): arguments_of(item, folders, inputs) for name, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [arguments_of(item, folders, inputs) for item in value]
+    if isinstance(value, pathlib.PurePath) or isinstance(value, str) and value.startswith("/") and \
+            os.path.exists(value):
+        inputs += [[written(str(path), folders), file_hash(path, folders)] for path in files_under(value)
+                   if not left_to_code(path)]
+        return {"path": written(str(value), folders)}
+    return value
+
+
+def call(function, arguments, output):
+    """A row's per-take call: `function(*arguments)`, which makes one take into the folder `output` and gives its
+    record. Kept at its content (the function, its arguments with the files they name, the row's code, this Python):
+    the same call again, at any key, gets its folder linked back in place and its record without running. Outside a
+    make, for an output outside the making folder or a record JSON cannot hold, it runs and nothing is kept."""
+    folder, code, output = making(), os.environ.get(CODE), pathlib.Path(output).resolve()
+    if folder is None or code is None or not output.is_relative_to(folder):
+        return function(*arguments)
+    folders, inputs = stand_ins(), []
+    named = f"{function.__module__}.{function.__qualname__}"
+    described = arguments_of(list(arguments), folders, inputs)
+    try:
+        content = digest(json.dumps([named, code, python_system(), described, inputs], sort_keys=True))
+    except TypeError:  # an argument JSON cannot hold: its content cannot be told
+        return function(*arguments)
+    slot = digest(json.dumps([named, written(str(output), folders)]))
+    entry = mark_of(slot, content)
+    if entry is not None:
+        placed([entry])
+        return entry["record"]
+    record = function(*arguments)
+    try:
+        text = json.dumps(record)
+    except TypeError:
+        return record
+    written_mark(slot, content, {"record": json.loads(text), "peers": {}, "code": code,
+                                 "system": digest(python_system()), "inputs": inputs,
+                                 "files": stored(files_under(output), folder)})
+    return record
+
+
+def entries():
+    """(folder, entry) of every kept entry whose mark is written."""
+    for mark in sorted(kept_root().glob(f"*/*/{DONE}")):
+        yield mark.parent, json.loads(mark.read_text())
+
+
+def output_blobs():
+    """Every blob a stored output holds."""
+    return {sha for listing in (store().objects.path("outputs")).glob("*.json")
+            for sha in json.loads(listing.read_text()).values()}
+
+
+def sweep(asked, say=print):
+    """Drop every kept entry `asked` (its entry: True while a current key could ask for it) refuses, and each blob of
+    it no stored output and no entry still kept holds; {"dropped", "freed_gb"}. Run with no run live (disk.py)."""
+    dropped, held, freed = [], set(), 0
+    for folder, entry in entries():
+        if "files" in entry and asked(entry):
+            held |= {sha for sha, _ in entry["files"].values()}
+            continue
+        dropped.append(entry)
+        freed += sum(path.stat().st_size for path in files_under(folder))  # one kept as copies: its own bytes
+        shutil.rmtree(folder)
+        if not any(folder.parent.iterdir()):
+            folder.parent.rmdir()
+        say(f"dropped kept {folder.parent.name}/{folder.name}: no current key asks for it")
+    gone = {sha for entry in dropped for sha, _ in entry.get("files", {}).values()} - held - output_blobs()
+    for sha in sorted(gone):
+        blob = store().objects.path(f"blobs/{sha}")
+        if blob.exists():
+            freed += blob.stat().st_size
+            blob.unlink()
+    return {"dropped": len(dropped), "freed_gb": round(freed / 1e9, 3)}

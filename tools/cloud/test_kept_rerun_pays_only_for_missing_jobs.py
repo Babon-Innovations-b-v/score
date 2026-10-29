@@ -1,34 +1,45 @@
-"""Invariant of kept.py: each job that ended well inside a make is kept by its own content (its JSON and input files
-with the attempt's own folders written as stand-ins, the row's code, the system), and a later attempt, at the same
-key or a new one, gets back exactly the jobs of the same content and runs only the rest; nothing kept is ever taken
-for a changed input, script, row code or system, from a copy cut short, for an output outside the making folder, or
-with another job's file made from other inputs (owner, 2026-10-18: a stopped film render threw its finished frames
-away and the rerun bought them all again; 2026-10-29: a fix to 3 objects baked whole places again).
+"""Invariant of kept.py: each job that ended well inside a make, and each per-take call of a row the stage table names
+(PER_TAKE), is kept by its own content (its JSON or arguments and the files they name with the attempt's own folders
+written as stand-ins, the row's code, the system), its files once in the store's blobs; a later attempt, at the same
+key or a new one, gets back exactly the jobs and takes of the same content, linked in read-only, and makes only the
+rest; nothing kept is ever taken for a changed input, script, row code or system, from a copy cut short, for an output
+outside the making folder, or with another job's file made from other inputs; and the sweep drops only what its
+`asked` refuses (owner, 2026-10-18: a stopped film render threw its finished frames away and the rerun bought them all
+again; 2026-10-29: a fix to 3 objects baked whole places again).
 
-Fake film and bake jobs, no cloud: the answers are counted from the jobs the test lets finish. The break that turns
-each red (applied once, seen red, reverted):
+Fake film, bake and views jobs, no cloud: the answers are counted from the jobs the test lets finish. The break that
+turns each red (applied once, seen red, reverted):
 
-- test_a_rerun_runs_only_the_jobs_the_stopped_run_lacked: in `missing`, `if mark is None or not mark.exists() or
-  any(` -> `if True or any(` (every job runs again).
-- test_jobs_sharing_a_folder_get_back_each_ones_newest_file: in `merge`, drop the `if place.is_file() and ...
-  st_mtime_ns ...: continue` (every kept copy replaces what is there) -> the barrel's half-written model comes back.
+- test_a_rerun_runs_only_the_jobs_the_stopped_run_lacked: in `missing`, `if entry is None or any(` -> `if True or
+  any(` (every job runs again).
+- test_jobs_sharing_a_folder_get_back_each_ones_newest_file: in `placed`, `if name not in newest or written_at >
+  newest[name][1]:` -> `if True:` (the last entry read wins) -> the barrel's half-written model comes back.
 - test_a_new_key_bakes_again_only_the_take_whose_inputs_changed: in `identity`, `folders = stand_ins()` ->
-  `folders = ()` (the attempt's own folders in the content: every take is baked again); or in `keep`, the loop
-  `for other in (kept_root() / slot).iterdir()` removing nothing (`if False:`) -> the old crate stays beside the new.
-- test_a_changed_input_script_code_or_system_runs_again: in `identity`, drop `input_files(job, folders)` from the
-  content (a changed model is taken as kept); or drop `code`, or `system`, from it.
+  `folders = ()` (the attempt's own folders in the content: every take is baked again); or in `written_mark`,
+  `if other != place:` -> `if False:` (the old crate stays beside the new).
+- test_a_changed_input_script_code_or_system_runs_again: in `identity`, drop `inputs`, `code` or `system` from the
+  content's list (a changed model, row code or system is taken as kept).
 - test_the_rows_python_is_left_to_its_code_and_its_data_is_not: in `left_to_code`, `return path.suffix in
   LEFT_TO_CODE or ...` -> `return False` (a Python edit no row reads bakes again); or -> `return True` (a changed
   data table is taken as kept).
-- test_a_job_whose_copy_carried_a_changed_peer_runs_again: in `missing`, drop the `any(present.get(slot) != content
-  ...)` test -> the crate is put back with the barrel's old model.
-- test_a_copy_cut_short_before_its_done_mark_is_not_taken: in `missing`, `if mark is None or not mark.exists()` ->
-  `if mark is None` (a half-copied job is taken).
+- test_a_job_whose_copy_carried_a_changed_peer_runs_again: in `missing`, `any(present.get(slot) != content` ->
+  `any(False and present.get(slot) != content` -> the crate is put back with the barrel's old model.
+- test_a_copy_cut_short_before_its_done_mark_is_not_taken: in `mark_of`, `if mark.exists() else None` -> `if
+  mark.parent.exists() else None` (an entry without its mark is read).
 - test_outside_a_make_or_the_making_folder_nothing_is_kept: in `relative_outputs`, `return None` -> `continue` (a
   job writing outside the making folder is kept with no outputs); or in `identity`, `code is None or ` dropped.
 - test_at_the_runner_a_failed_make_reruns_only_its_lacking_jobs_and_keeps_them_for_the_next_key: in
   score/graph/__init__.py `making_in`, `MAKING_CODE: code` dropped from the update (no job is kept under a runner).
+- test_identical_kept_files_are_one_blob_linked_back_read_only: in `stored`, `sha = blob_hash(path)` -> `sha =
+  hashlib.sha256(str(path).encode()).hexdigest()` (each file stored again under its path); or in `placed`,
+  `blobs.place_blob(sha, place)` -> a copy of the blob (no link).
+- test_an_unchanged_take_of_a_rekeyed_row_is_linked_back_not_made_again: in `call`, `if entry is not None:` -> `if
+  False:`; or in score/stages/__init__.py `per_take_kept`, the `namespace[name] = lambda ...` line -> `pass` (the
+  crate's views made again).
+- test_the_sweep_drops_only_what_no_current_key_asks_for: in `sweep`, `if asked(entry):` -> `if True:` (nothing
+  dropped); or `- held - output_blobs()` -> `- held` (a blob a stored output holds is freed).
 """
+import json
 import os
 import pathlib
 import sys
@@ -39,6 +50,7 @@ import kept  # noqa: E402
 
 FIRSTS = range(0, 96, 12)  # eight jobs of twelve frames
 SYSTEM = "score-this-pc:1 sha256:0123"
+MADE = []  # the takes views_of made, in order
 
 
 def attempt(monkeypatch, root, name, code="row code 1", home=None):
@@ -278,3 +290,94 @@ def test_at_the_runner_a_failed_make_reruns_only_its_lacking_jobs_and_keeps_them
     assert sorted(rendered[5:], key=int) == ["60", "72", "84"]
     assert "frames/part84/095.png" in store.listing(store.accepted("film@airlock"))
     assert len(list((store.cache.parent / "kept").rglob(kept.DONE))) == 8
+
+
+def test_identical_kept_files_are_one_blob_linked_back_read_only(monkeypatch, tmp_path):
+    """Kept files live in the store's own blobs (coordinator, 2026-10-29: copies would hold every take of every place
+    twice): two jobs bringing back the same bytes keep one blob, and a put-back file is that blob linked in,
+    read-only."""
+    folder = attempt(monkeypatch, tmp_path, "first")
+    for job in [frames(folder, first) for first in (0, 12)]:
+        out = pathlib.Path(job["outputs"][0])
+        out.mkdir(parents=True)
+        (out / "black.png").write_text("the same black frame")
+        assert kept.keep(job, SYSTEM)
+    assert len(list((tmp_path / "store" / "objects" / "blobs").iterdir())) == 1
+    again = attempt(monkeypatch, tmp_path, "again")
+    assert kept.missing([frames(again, first) for first in (0, 12)], SYSTEM) == []
+    back = again / "frames" / "part12" / "black.png"
+    [blob] = (tmp_path / "store" / "objects" / "blobs").iterdir()
+    assert back.read_text() == "the same black frame" and back.stat().st_ino == blob.stat().st_ino
+    assert not back.stat().st_mode & 0o222
+
+
+def views_of(source, folder):
+    """A per-take call as the finish route's views make one: the take's views written into its own folder from its
+    model, its record given."""
+    MADE.append(pathlib.Path(source).name)
+    folder.mkdir(parents=True)
+    (folder / "views.npz").write_text(f"views of {pathlib.Path(source).read_text()}")
+    return {"model": pathlib.Path(source).name, "views": 3}
+
+
+def test_an_unchanged_take_of_a_rekeyed_row_is_linked_back_not_made_again(monkeypatch, tmp_path):
+    """env1 (2026-10-29): finish-route-views remade 537 takes whose views came out byte for byte the same. A row
+    whose takes are made one call a take (the table's PER_TAKE, wired by score/stages per_take_kept) makes again, at
+    its next key, only the take whose model changed."""
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
+    from score import checks, contracts, graph, stages
+    from score.store import Store
+    home = tmp_path / "home"
+    models = models_of(tmp_path, {"crate": "crate model", "lamp": "lamp model"})
+    for name in (kept.MAKING, kept.CODE):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("PROPS_HOME", str(home))
+    monkeypatch.setenv(kept.STORE, str(home / "store"))
+    MADE.clear()
+
+    def make_views(inputs, out, seed, params):
+        found = {take: views_of(inputs[f"model {take}"], out / take) for take in ("crate", "lamp")}
+        (out / "views.json").write_text(json.dumps(found))
+
+    def judge_views(output, inputs, evidence):
+        return checks.Verdict("views", checks.PASS, "every take has its views")
+
+    row = graph.Stage("toy-views", "place", stages.per_take_kept(make_views, "views_of", lambda arguments: arguments[1]),
+                      contracts.Contract("toy-views", 1, lambda folder: []), (checks.Check("views", judge_views),),
+                      files={f"model {take}": str(models / f"{take}.glb") for take in ("crate", "lamp")})
+    made = []
+    for _ in range(2):
+        runner = graph.Runner([row], graph.Environment("toy", 1, {}), Store.in_folder(str(home / "store")))
+        runner.run_node(row, "airlock")
+        made.append(runner.store.record("toy-views@airlock", runner.key(row, "airlock")["key"]))
+        (models / "lamp.glb").write_text("lamp model, fixed")
+    first, second = made
+    assert first["key"] != second["key"]
+    assert MADE == ["crate.glb", "lamp.glb", "lamp.glb"]  # the crate's views linked back, not made again
+    assert runner.store.listing(second["output"])["crate/views.npz"] == \
+        runner.store.listing(first["output"])["crate/views.npz"]
+    assert runner.store.read_file(second["output"], "views.json")["crate"] == {"model": "crate.glb",
+                                                                                  "views": 3}
+
+
+def test_the_sweep_drops_only_what_no_current_key_asks_for(monkeypatch, tmp_path):
+    """kept.sweep drops an entry its `asked` refuses and frees a blob only it held; an entry still asked for, and a
+    blob a stored output also holds, stay."""
+    folder = attempt(monkeypatch, tmp_path, "first")
+    stale, asked_for = frames(folder, 0), frames(folder, 12)
+    for job, text in ((stale, "only the stale job"), (asked_for, "the asked job")):
+        out = pathlib.Path(job["outputs"][0])
+        out.mkdir(parents=True)
+        (out / "frame.png").write_text(text)
+        if job is stale:
+            (out / "shared.png").write_text("a frame a stored output holds")
+        assert kept.keep(job, SYSTEM)
+    kept.store().put_tree(pathlib.Path(stale["outputs"][0]) / "shared.png")  # a stored output holding one of them
+    blobs = tmp_path / "store" / "objects" / "blobs"
+    stale_blob = blobs / kept.blob_hash(pathlib.Path(stale["outputs"][0]) / "frame.png")
+    stale_slot = kept.identity(stale, SYSTEM)[0]
+    done = kept.sweep(lambda entry: entry["job"] != stale, say=lambda line: None)
+    assert done["dropped"] == 1 and not (tmp_path / "store" / "kept" / stale_slot).exists()
+    assert not stale_blob.exists() and len(list(blobs.iterdir())) == 2  # the asked job's frame and the shared one
+    again = attempt(monkeypatch, tmp_path, "again")
+    assert kept.missing([frames(again, 0), frames(again, 12)], SYSTEM) == [frames(again, 0)]
