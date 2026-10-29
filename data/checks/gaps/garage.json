@@ -1,0 +1,13 @@
+{
+ "gaps": [
+  {
+   "name": "pipe: its path build cannot match a pipe drawn foreshortened",
+   "row": "likeness",
+   "check": "outline",
+   "objects": ["pipe"],
+   "reason": "A path build that follows its concept correctly: the concept draws the pipe as one slanted line hidden in three places, about 18 to 1, while its row is 10 x 0.1 m (100 to 1), likely a pipe receding along the wall, so the outline against a face-on cut cannot match (0.228 built, 0.211 baked). A straight sweep scores 0.797 only by making it 0.4 m thick, and treating runs hidden in pieces as straight broke three other builds (#36). The owner kept the row. Asked: \"Garage's pipe: accept as a gap or change its planned size?\" Answer: \"Accept as a gap\".",
+   "decided": "owner (@JoeyKardolus), 2026-10-29, in chat through the score session",
+   "faults": ["pipe: outline 0.211 under 0.5 (prop route)"]
+  }
+ ]
+}
