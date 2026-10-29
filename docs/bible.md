@@ -423,10 +423,12 @@ branch names a scene or a world.
   ground has a collider, every model its own; a body in the sky none).
   **The plan is an estimate; the assembly makes things fit** (owner, 2026-10-29: "the plan is mostly just an estimate
   and to make sure everything fits together at the end, so it really depends on how assembly works, as a door needs to
-  fit into a door frame exactly"). A row's planned size and place are a starting estimate, not the truth: an item that
-  belongs on or in another (a door in its frame or on its module's face, a lamp on its desk) is laid against its holder
-  and sized to fit it by the assembly, and a model keeps its own proportions where its take and picture agree. A
-  planned size or place that disagrees with its holder or its picture is a framework fault to fix in the assembly,
+  fit into a door frame exactly"), and **the two are aligned to each other** (owner, same day: "plan and assembly need
+  to be aligned to each other"). The plan states the relations the assembly needs (what sits on or in what, against
+  which face, which door belongs to which frame) with sizes as estimates; the assembly lays each item by those
+  relations with the built sizes (a door in its frame, a lamp on its desk, a model in its own proportions where its take
+  and picture agree), and the plan shows what the assembly laid, so the two never differ. A relation the plan does not
+  state, or a size or place the assembly cannot honour, is a framework fault to fix in the plan writer or the assembly,
   never a question for the owner.
 - **Neighbours** (`neighbours.py`): the scenes a scene shows, each as its own accepted assembly; one no stage makes is a
   gap. A row the plan shows beyond the scene (`beyond`) is the backdrop's: when a scene of its scene tree (its parent
