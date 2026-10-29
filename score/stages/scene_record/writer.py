@@ -24,7 +24,8 @@ builds it unchanged; it lands as record/<place>.json in the output.
                  counts several or a run the plan draws once), `<row>_<n>`, on its spot at its shape's base, turned
                  along its item, waiting on the bake's model of its row's take (`bake`, `<first row>_1`), which the
                  assembly lays (assembly/made_waiting.py); a row the plan's shell lays itself (route `plan`) is named
-                 on a shell piece of its part instead
+                 on a shell piece of its part instead; each carries what holds it (`on`, from the place's relations,
+                 score/review/holders: its opening, its wall, its holder's objects), which the assembly lays it by
     environment  inside or not, and the sky at the place's site at its scene time from the physics (overhead.py: each
                  light over the horizon, every other body, every backdrop), which the light layer draws
                  (score/stages/light/sky.py); the record draws no sky and holds no air the design does not give
@@ -37,6 +38,7 @@ builds it unchanged; it lands as record/<place>.json in the output.
 Every entry's `from` names the plan element, inventory row or physics it was made from. Nothing of a game, a kit, a
 filed definition or an old record is read.
 """
+import hashlib
 import json
 import math
 import pathlib
@@ -51,8 +53,10 @@ from score.stages.earth_seed import design_shell
 from score.stages.scene_record import concept_light, far
 from score.stages.scene_record import plan as place_plan
 import score.stages.shapes_first.floor_fit as floor_fit
+from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
+KEPT_RELATIONS = PROPS_HOME / "design" / "relations"  # holders.KEPT, held equal by the test
 # The shell's backing: it stands this far behind the plan's inside line, its deck this far under the floor
 # (design_shell's, which lays the same shell in a kit room's base).
 BACKING = design_shell.BACKING
@@ -80,12 +84,19 @@ FACING_WAY = {None: (1.0, 0.0), "N": (1.0, 0.0), "S": (-1.0, 0.0), "E": (0.0, 1.
 def files(place):
     """The design files the writer reads: the place's kept plan and every other (its holder's `holds`, its siblings'
     frames), its scene inventory, its concept's light once read, its sky inputs (scene_sky.keep's), the row-kind
-    rules, the library's lamp, the environment's eye height (place.json `shared`) and the batch's hand-in (prepare's
-    handin.py: each row's route and the take that makes its model)."""
+    rules, the library's lamp, the environment's eye height (place.json `shared`), the batch's hand-in (prepare's
+    handin.py: each row's route and the take that makes its model) and its relations once derived (relations_file)."""
     return {"inventory": "{home}/design/inventory/{place}.json", "plans": "{home}/design/plans",
             "sky": "{home}/design/sky/{place}.json", "row kinds": "{data}/checks/row-kinds.json",
             "lamp library": "{data}/library/lamps.json", "places": "{data}/definitions/place.json",
-            "hand-in": "{home}/design/props/{place}.json", **concept_light.concept_light_input(place)}
+            "hand-in": "{home}/design/props/{place}.json", **concept_light.concept_light_input(place),
+            **relations_file(place)}
+
+
+def relations_file(place):
+    """{"relations": its kept path pattern} once the place's relations are derived (score/review/holders keep), else
+    {}: its objects are laid as the plan draws them."""
+    return {"relations": "{home}/design/relations/{place}.json"} if (KEPT_RELATIONS / f"{place}.json").is_file() else {}
 
 
 def read(path):
@@ -553,14 +564,87 @@ def waits(row, model, by_id):
     return f"its model {model} comes from the surface line's bake"
 
 
-def design_objects(design, handin):
+def plan_way(design, way):
+    """A plan way [x, y] as a unit place way [x, z]."""
+    _, east, south = place_plan.frame_of(design)
+    seen = east * float(way[0]) + south * float(way[1])
+    seen = seen / max(float(np.linalg.norm(seen)), 1e-9)
+    return [round(float(seen[0]), 6), round(float(seen[2]), 6)]
+
+
+def wall_face(design, wall, side):
+    """A plan wall's face on its `side` (+1: its line's left as one walks it on the plan, x east, y south) in the
+    place's frame: its two ends [[x, z], [x, z]] on the floor and the way out of it into the side's room."""
+    start, end = np.asarray(wall["from"], float), np.asarray(wall["to"], float)
+    run = (end - start) / max(float(np.linalg.norm(end - start)), 1e-9)
+    out = np.array([-run[1], run[0]]) * side
+    reach = out * float(wall.get("thick") or 0.0) / 2
+    ends, _ = in_frame(design, [start + reach, end + reach])
+    return ends, plan_way(design, out)
+
+
+FACE_WAYS = {"N": (0.0, -1.0), "S": (0.0, 1.0), "E": (1.0, 0.0), "W": (-1.0, 0.0)}
+
+
+def related(design, relation, spot, way, base):
+    """(spot, x way, base, the record's `on`) of an object laid by its plan item's relation (score/review/holders): in
+    its opening at the opening's middle and sill, along its wall; against a wall's face, along it, at the relation's
+    spot (the concept's, for an item the plan writer left on the walls item); on, within or against its holder as it
+    was, its holder's objects named after (holder_names). None `on` on the floor or the ceiling."""
+    how = relation["how"]
+    if how == "in":
+        opening, wall = relation["opening"], relation.get("wall")
+        along = np.subtract(wall["to"], wall["from"]) if wall else np.asarray(way, float)
+        (middle,), floor = in_frame(design, [opening["at"]], float(opening["sill"]))
+        return (np.asarray(opening["at"], float), along / max(float(np.linalg.norm(along)), 1e-9),
+                float(opening["sill"]),
+                {"how": "in", "middle": [middle[0], floor, middle[1]], "along": plan_way(design, along),
+                 "wide": float(opening["wide"]), "tall": round(float(opening["head"]) - float(opening["sill"]), 4),
+                 "why": relation["why"]})
+    if how == "wall":
+        wall = relation["wall"]
+        ends, out = wall_face(design, wall, relation["side"])
+        along = np.subtract(wall["to"], wall["from"])
+        return (np.asarray(relation["spot"], float), along / max(float(np.linalg.norm(along)), 1e-9), base,
+                {"how": "wall", "span": ends, "out": out, "why": relation["why"]})
+    if how in ("top", "within", "face"):
+        found = {"how": how, "holder item": relation["holder"], "why": relation["why"]}
+        if how == "face":
+            found["out"] = plan_way(design, FACE_WAYS[relation["face"]])
+        return spot, way, base, found
+    return spot, way, base, None
+
+
+def holder_names(found, laid):
+    """Each object's `on` naming its holder's objects (those laid at its holder item, `laid` {item: [names]}); one whose
+    holder item laid none keeps no `on` and says so."""
+    for entry in found:
+        on = entry.get("on")
+        if on and "holder item" in on:
+            names = laid.get(on["holder item"]) or []
+            if names:
+                on["holder"] = names
+            else:
+                entry.pop("on")
+                entry["unheld"] = f"its holder item {on['holder item']!r} lays no object"
+    return found
+
+
+def relations_of(relations):
+    """{(plan item, row): relation} of the place's relations file (score/review/holders), {} with none."""
+    return {(entry["item"], entry["row"]): entry for entry in (relations or {}).get("relations", [])}
+
+
+def design_objects(design, handin, relations=None):
     """Every object of the design: one at each plan item (more where the item counts several, or a run the plan
     draws once) for each prop or shell row the item names, `<row>_<n>` the n-th of its row, standing on its plan spot
     as high as its shape's base, turned along its item, waiting on the bake's model of its row (made_waiting lays it
     once baked; one the bake never makes stays named on the stage's root). A row marked `far` is laid far off by
     far_objects alone, never at an item its plan laid it at too (the street's distant floodlights, laid at its end). A
     row on the ground the plan lays only against its edge (floor_fit.past_edge) stands past it (past_edge_spot), never
-    centred on its edge strip over the floor (2026-10-26: the square's 30 m buildings on 2 to 7 m strips)."""
+    centred on its edge strip over the floor (2026-10-26: the square's 30 m buildings on 2 to 7 m strips). An item's
+    relation (`relations`, score/review/holders: in an opening, against a wall, on, within or against a holder) is
+    carried as the object's `on`, which the assembly lays it by at its built size (assembly/made_waiting.fitted)."""
     by_id = {row["id"]: row for row in handin.get("rows", [])}
     models, shapes, tied = models_of(handin), design.get("shapes") or {}, design.get("rows") or {}
     items = {}
@@ -570,24 +654,28 @@ def design_objects(design, handin):
         for row_id in tied.get(item[0]) or []:
             if row_id in by_id and by_id[row_id].get("route", "prop") in LAID_ROUTES and not by_id[row_id].get("far"):
                 items.setdefault(row_id, []).append((item, shapes.get(item[0]) or {}))
-    found, edged = [], floor_fit.past_edge(design, handin)
+    found, edged, holding, laid_at = [], floor_fit.past_edge(design, handin), relations_of(relations), {}
     for row_id, laid in items.items():
         row, model = by_id[row_id], models.get(row_id)
         size = by_id.get(model.removesuffix("_1"), row).get("size") if model else row.get("size")
         number = 0
         for (item, shape), pieces in zip(laid, pieces_of(row, laid)):
             base = float(shape.get("base") or 0.0)
+            relation, on = holding.get((item[0], row_id)), None
             for spot, way in spots_of(item, shape, pieces):
                 if row_id in edged:
                     spot, way = past_edge_spot(item, design, spot, size)
+                if relation:
+                    spot, way, base, on = related(design, relation, spot, way, base)
                 number += 1
                 (point,), floor = in_frame(design, [spot], base)
                 found.append({"name": f"{row_id}_{number}", "row": row_id, "bake": model, "kind": "object",
                               "at": [point[0], floor, point[1]], "rotation": yaw_turn(design, way, size),
                               "waiting": waits(row, model, by_id),
                               "from": f"plan item {item[0]!r}, inventory row {row_id}: piece {number} of the row, "
-                                      f"{base:g} m over the floor"})
-    return found
+                                      f"{base:g} m over the floor", **({"on": dict(on)} if on else {})})
+                laid_at.setdefault(item[0], []).append(found[-1]["name"])
+    return holder_names(found, laid_at)
 
 
 def far_objects(design, handin, inventory_path):
@@ -629,11 +717,24 @@ def ceiling(design):
     return max(heights) if heights and max(heights) > 0 else None
 
 
+def relations_input(inputs, place):
+    """(the place's relations, None) while they were derived from its kept plan as it stands (their `plan` sha), else
+    (None, why they are left out): a plan kept since is laid as it is drawn until the next keep derives them again."""
+    if "relations" not in inputs:
+        return None, None
+    relations = read(inputs["relations"])
+    text = (pathlib.Path(inputs["plans"]) / f"{place}.json").read_text()
+    if relations.get("plan") != hashlib.sha256(text.encode()).hexdigest():
+        return None, "the relations were derived from another plan than the kept one (score/review/holders keep)"
+    return relations, None
+
+
 def record_of(plan, design, inputs):
     """The place's scene record from its design (module docstring)."""
     place = plan["place"]
     eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
     handin = read(inputs["hand-in"])
+    relations, stale = relations_input(inputs, place)
     design = design_shell.cut_for(design, handin.get("rows", []))
     far_laid = far_objects(design, handin, inputs.get("inventory"))
     record = {"place": place,
@@ -643,7 +744,7 @@ def record_of(plan, design, inputs):
               "floor": plan["floor"], "inside": inside(design),
               "structure": structure(plan, design, library_of(inputs), plan_rows(handin)) +
               arch_entries(design, plan["place"], library_of(inputs), handin),
-              "objects": design_objects(design, handin) + far_laid[0],
+              "objects": design_objects(design, handin, relations) + far_laid[0],
               "lights": lights(design, inputs), "environment": environment(design, read(inputs["sky"])),
               "doorways": plan.get("doorways", []), "places": places_of(place, plan, design, inputs["plans"], handin)}
     record["views"], left_out = views_inside(views(plan if record["inside"] else dict(plan, doorways=[]), eye),
@@ -652,6 +753,8 @@ def record_of(plan, design, inputs):
         record["views_left_out"] = left_out
     if far_laid[1]:
         record["far_unplaced"] = far_laid[1]
+    if stale:
+        record["relations_left_out"] = stale
     high = ceiling(design)
     if record["inside"] and high is not None:
         record["ceiling"] = round(float(place_plan.frame_of(design)[0][1]) + high, 4)

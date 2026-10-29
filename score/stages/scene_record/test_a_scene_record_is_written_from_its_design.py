@@ -3,7 +3,7 @@ plan maps, and an item with no rows, a door that says nowhere it leads and a sea
 fail `mapped`; a written plan with no corner takes its outline; the record holds the shell cut round its door, its
 stair, a light over its lamp, the sky from the physics, the places its doors lead to and its backdrop rows are shown
 from, every object at its plan item waiting on its model, a row the plan lays only against its edge past it, a far
-row far off, an arched rib as a band, a light where a tower or a glowing row stands, and each part the scene
+row far off, each object carrying what holds it (its opening, its wall, its holder), an arched rib as a band, a light where a tower or a glowing row stands, and each part the scene
 library's surface; its gates fail a filled door, a moved lamp and a door to no place. Every spot is worked out by hand from the plans below.
 
 Each test names the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
@@ -326,6 +326,49 @@ def test_a_row_the_plan_lays_only_against_its_edge_stands_past_it_facing_in():
     assert found["front"]["at"] == [0.0, 0.0, 20.0], found["front"]
     assert found["front"]["rotation"] == writer.yaw_turn(design, writer.FACING_WAY["N"], rows[1]["size"])
     assert found["kiosk"]["at"] == [0.0, 0.0, 0.0], found["kiosk"]
+
+
+def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
+    """Issue #72: the record carries each object's relation (score/review/holders) for the assembly to lay it by. On a
+    20 by 20 m plan (place (x, z) is plan (x - 10, y - 10)): the door the plan writer left on the walls item stands in
+    its opening at plan (5, 0), place (-5, -10), turned along its wall, `in` with its 1.4 m width and 2.2 m height;
+    the garage door against its module's S face names the module's object and points out +z; the wall lamp against
+    the west wall's room face, the face 0.1 m in at x -9.9, pointing out +x. Relations derived from another plan
+    than the kept one are left out, with why.
+    Break: score/stages/scene_record/writer.py: `spot, way, base, on = related(design, relation, spot, way, base)` ->
+        `pass`
+    Break: score/stages/scene_record/writer.py: `on["holder"] = names` -> `pass`"""
+    from score.stages.scene_record import writer
+    design = {"w": 20.0, "d": 20.0, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 20.0, 20.0, None, "item"],
+                                              ["MODULE 1", 8.0, 2.0, 6.0, 6.0, None, "item"],
+                                              ["GARAGE DOOR 1", 4.0, 9.0, 3.0, 3.0, None, "item"]],
+              "rows": {"ON THE WALLS AND CEILING": ["door", "lamp"], "MODULE 1": ["module"],
+                       "GARAGE DOOR 1": ["garage_door"]}}
+    rows = [{"id": name, "anchor": "floor", "route": "prop", "size": size}
+            for name, size in (("door", [1.2, 0.1, 2.1]), ("lamp", [0.3, 0.2, 0.3]), ("module", [6.0, 6.0, 6.0]),
+                               ("garage_door", [3.0, 0.2, 3.0]))]
+    relations = {"relations": [
+        {"item": "ON THE WALLS AND CEILING", "row": "door", "how": "in", "why": "in the plan's door opening 1",
+         "opening": {"at": [5.0, 0.0], "wide": 1.4, "sill": 0.0, "head": 2.2},
+         "wall": {"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2}},
+        {"item": "ON THE WALLS AND CEILING", "row": "lamp", "how": "wall", "why": "against the wall nearest",
+         "wall": {"from": [0.0, 20.0], "to": [0.0, 0.0], "thick": 0.2}, "side": 1, "spot": [0.0, 10.0]},
+        {"item": "GARAGE DOOR 1", "row": "garage_door", "how": "face", "holder": "MODULE 1", "face": "S",
+         "why": "against module's side"}]}
+    found = {entry["row"]: entry for entry in writer.design_objects(design, {"rows": rows, "objects": {}}, relations)}
+    door, lamp, garage = found["door"], found["lamp"], found["garage_door"]
+    assert door["at"] == [-5.0, 0.0, -10.0] and door["on"]["how"] == "in", door
+    assert door["on"]["middle"] == [-5.0, 0.0, -10.0] and door["on"]["wide"] == 1.4 and door["on"]["tall"] == 2.2
+    assert door["rotation"] == writer.yaw_turn(design, (1.0, 0.0), rows[0]["size"]), door
+    assert garage["on"]["holder"] == ["module_1"] and garage["on"]["out"] == [0.0, 1.0], garage
+    assert lamp["on"]["span"] == [[-9.9, 10.0], [-9.9, -10.0]] and lamp["on"]["out"] == [1.0, 0.0], lamp
+    (tmp_path / "plans").mkdir()
+    (tmp_path / "plans/hut.json").write_text(json.dumps(design))
+    (tmp_path / "relations.json").write_text(json.dumps({**relations, "plan": "another plan's sha"}))
+    assert writer.relations_input({"plans": tmp_path / "plans", "relations": tmp_path / "relations.json"}, "hut") == (
+        None, "the relations were derived from another plan than the kept one (score/review/holders keep)")
+    from score.review import holders
+    assert writer.KEPT_RELATIONS == holders.KEPT  # the row reads its relations where holders.keep keeps them
 
 
 def test_an_arched_rib_is_laid_as_the_shell_s_band_at_each_of_its_plan_items():

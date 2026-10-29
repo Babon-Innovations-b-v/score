@@ -433,6 +433,15 @@ window.planSheet = (page, plan, names, svg, cut = null) => {
       }
       tip(group, `${roof.kind} roof overhead, ${level(roof.eave)}${roof.top !== roof.eave ? ` to ${level(roof.top)}` : ""}`);
     }
+    // what the accepted assembly laid (#72): each thing's built box, dashed, a corrected one marked
+    const laid_data = panel && document.getElementById("plan-laid");
+    for (const entry of laid_data ? JSON.parse(laid_data.textContent) : []) {
+      const [x0, y0, x1, y1] = entry.box;
+      const group = shape("g", { class: `plan-laid${entry.fitted ? " fitted" : ""}` });
+      shape("rect", { x: x0, y: y0, width: Math.max(x1 - x0, 0.01), height: Math.max(y1 - y0, 0.01) }, group);
+      tip(group, `${entry.name.replace(/_/g, " ")}: laid by the assembly at its built size, ${round(x1 - x0)} x ` +
+          `${round(y1 - y0)} m${entry.fitted ? `; ${entry.fitted}` : ", as the plan draws it"}`);
+    }
     const marks = (plan.levels || []).length ? plan.levels : [{ height: 0, points: [[text * 2, text * 2]] }];
     for (const area of marks) level_mark(area.height, middle(area.points), "");
     plan.people.forEach(spot);

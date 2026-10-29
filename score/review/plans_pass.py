@@ -34,7 +34,7 @@ import os
 import subprocess
 import sys
 
-from score.review import concepts, plan_fixes, plan_writing, plans, relation_solver
+from score.review import concepts, holders, plan_fixes, plan_writing, plans, relation_solver
 from score.store import Store, locked, runtime_store
 
 
@@ -177,7 +177,8 @@ def fix_main(places):
 def main():
     """The plans only the relation solver re-fixes parted first (`parted_first`, outside the moment: it writes), then
     plans.main(["keep"]) with narrow_keys inside one moment, after `restored`, then the other `unsettled` plans
-    started being fixed; its exit code, keep's line with what was parted and what is being fixed."""
+    started being fixed, then each kept plan's relations derived again where they changed (holders.keep: what the
+    scene record lays each object by); its exit code, keep's line with what was parted, fixed and derived."""
     from score import stages
     from score.adapters.compute import STORE
     install()
@@ -189,7 +190,9 @@ def main():
         with contextlib.redirect_stdout(said):
             code = plans.main(["keep"])
         refix = to_fix(store, stages.places(stages.world1(), store)) if plan_writing.AUTOMATIC else []
-    line = said.getvalue().strip() + (f"; plans of {', '.join(parted)} parted" if parted else "")
+    related = holders.keep(sorted(path.stem for path in plans.KEPT.glob("*.json")))
+    line = said.getvalue().strip() + (f"; plans of {', '.join(parted)} parted" if parted else "") + (
+        f"; relations of {len(related)} derived again" if related else "")
     print(line + (f"; plans of {', '.join(refix)} being fixed: {fixing(store, refix)}" if refix else ""))
     return code
 
