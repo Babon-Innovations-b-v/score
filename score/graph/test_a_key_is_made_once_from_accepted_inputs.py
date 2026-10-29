@@ -1840,6 +1840,53 @@ def make_late(inputs, out, seed, params):
     (out / "mark.txt").write_text("marked")
 
 
+def test_on_this_pc_a_node_only_waiting_on_a_container_claim_holds_no_job_slot_up_to_the_excused_few(
+        monkeypatch, tmp_path):
+    """2026-10-29: all 8 job slots held by surfaces-bake rows, 3 running a take and 5 waiting for one, about 60 ready
+    rows of other stages kept out. Three slow nodes at --jobs 1, every running one waiting on a claim: on this PC two
+    run at once (one slot, one waiter excused at WAITERS_EXCUSED 1), never three; off this PC one. A fresh mark of a
+    process in a node's tree makes it a waiter, a stale one does not.
+    Break: score/graph/__init__.py: '                busy, full = len(running) - self.excused(running), False' ->
+    '                busy, full = len(running), False' -> one at a time on this PC."""
+    briefs = {"hangar": "a ship", "station": "a hub", "dock": "a pier"}
+    late = graph.Stage("late", "place", make_late, TEXT, PASSES)
+    faked(monkeypatch, [100 * FLOOR])
+    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
+    monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
+    monkeypatch.setattr(graph, "WAITERS_EXCUSED", 1)
+    monkeypatch.setattr(graph, "CLAIM_WAITERS", set)  # every running node waits on its claim
+    wait = graph.FORK_WAIT
+
+    def most_at_once(runner):
+        running, most, start = [], [0], runner.start
+
+        def counted_start(stage, place, threads):
+            begun = start(stage, place, threads)
+            running.extend(begun)
+            most[0] = max(most[0], len(running))
+            return begun
+
+        def counted_wait(connections, timeout=None):
+            finished = wait(connections, timeout=timeout)
+            for connection in finished:
+                running.remove(connection)
+            return finished
+        runner.start = counted_start
+        monkeypatch.setattr(graph, "FORK_WAIT", counted_wait)
+        found = runner.drive(tuple(briefs), say=quiet, jobs=1)
+        assert set(found) == {f"late@{place}" for place in briefs}, found
+        return most[0]
+    monkeypatch.setenv(*graph.THIS_PC)
+    assert most_at_once(a_runner(a_world(briefs), a_store(), (late,))) == 2
+    monkeypatch.setenv(graph.THIS_PC[0], "scaleway")
+    assert most_at_once(a_runner(a_world(briefs), a_store(), (late,))) == 1
+    monkeypatch.setattr(graph, "WAITING_CLAIMS", tmp_path)
+    (tmp_path / str(os.getpid())).touch()
+    assert graph.claim_waiters([os.getppid()]) == {os.getppid()}
+    os.utime(tmp_path / str(os.getpid()), (0, time.time() - graph.WAIT_FRESH_SECONDS - 1))
+    assert graph.claim_waiters([os.getppid()]) == set()
+
+
 def test_a_ready_node_too_large_for_memory_waits_alone_and_the_ones_after_it_that_fit_start(monkeypatch):
     """2026-10-28: one ready node at the head that did not fit held 122 small ready nodes behind it, five of eight
     slots empty for 29 min; 2026-10-29: once it had waited ten turns it held every node behind it again (108 ready,

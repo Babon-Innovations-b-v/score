@@ -141,6 +141,7 @@ def take(kind, public_key, need=None):
     if refused:
         raise ValueError(refused)
     handle, turns = claimed(kind)
+    mark_waiting(handle is None)
     if handle is None:
         return None
     try:
@@ -188,6 +189,24 @@ def claimed(kind):
         handle.close()
         return None, []
     return handle, turns
+
+
+def waiting_claims():
+    """The folder of the claims that wait for the machine and hold none of it, a file named by each such process's
+    pid, refreshed at each ask; the runner's drive counts the nodes holding one apart from --jobs
+    (score/graph CLAIM_WAITERS), so a Blender row waiting for a turn holds no job slot from other rows."""
+    return LOCK.with_name(f"{LOCK.stem}.waiting")
+
+
+def mark_waiting(waits):
+    """This process's mark in waiting_claims: touched while its claim `waits` and it holds no claim (HELD), else
+    removed."""
+    mark = waiting_claims() / str(os.getpid())
+    if waits and not HELD:
+        mark.parent.mkdir(parents=True, exist_ok=True)
+        mark.touch()
+    else:
+        mark.unlink(missing_ok=True)
 
 
 def wanting():

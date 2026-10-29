@@ -476,6 +476,27 @@ def test_this_pc_shares_its_blender_turns_across_places_and_restarts_only_when_l
     local.delete(alone["id"], local.ZONE)
 
 
+def test_this_pc_marks_a_claim_that_waits_holding_none_and_drops_the_mark_once_it_holds_one(monkeypatch, tmp_path):
+    """The runner's drive counts a node apart from --jobs while it holds such a mark (score/graph CLAIM_WAITERS).
+    Break: tools/cloud/backends/local.py: '    mark_waiting(handle is None)' -> '    mark_waiting(False)'"""
+    import fcntl
+    import os
+    import local
+    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
+    monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
+    monkeypatch.setattr(local, "RUNS_AT_ONCE", {"pixal": 1, "blender": 3})
+    monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)
+    mark = local.waiting_claims() / str(os.getpid())
+    holder = local.LOCK.open("a+")
+    fcntl.flock(holder, fcntl.LOCK_EX)  # another claim holds the machine
+    assert local.take("blender", "key") is None and mark.exists()
+    holder.close()
+    held = local.take("blender", "key")
+    assert held is not None and not mark.exists()
+    assert local.take("blender", "key") is None and not mark.exists()  # it waits for more, but holds a claim
+    local.delete(held["id"], local.ZONE)
+
+
 def test_this_pc_refuses_a_job_by_its_measured_need_not_its_kind(monkeypatch, tmp_path):
     import local
     monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
