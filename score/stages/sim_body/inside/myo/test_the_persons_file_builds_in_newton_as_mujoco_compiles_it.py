@@ -43,9 +43,7 @@ JOINTS = {"LeftLeg": (0.1, 1.0, 0.0), "LeftShin": (0.1, 0.56, 0.0), "LeftFoot": 
           "LeftArm": (0.2, 1.4, 0.0)}
 
 
-# The toy's sizing stretch ends: a landmark at each SOMA joint (`j_<joint>`), on the model's body at that joint.
-ENDS = {f"{side}{segment}": (f"j_{side}{segment}", f"j_{side}{end}") for side in ("Left", "Right")
-        for segment, end in (("Leg", "Shin"), ("Shin", "Foot"))}
+# A landmark at each SOMA joint (`j_<joint>`), on the model's body at that joint.
 ON_BODY = {f"j_{side}{segment}": f"{body}_{side[0].lower()}" for side in ("Left", "Right")
            for segment, body in (("Leg", "femur"), ("Shin", "tibia"), ("Foot", "talus"))}
 
@@ -151,7 +149,7 @@ def written(folder, constants=None):
         rig, table = toy_rig()
         LANDMARKS.clear()
         LANDMARKS.update(table)
-        record, _ = myo.person_file(folder, sizing.Size(rig, TABLE, ends=ENDS), KG, path, constants)
+        record, _ = myo.person_file(folder, sizing.Size(rig, TABLE), KG, path, constants)
     finally:
         LANDMARKS.clear()
         LANDMARKS.update(kept)
