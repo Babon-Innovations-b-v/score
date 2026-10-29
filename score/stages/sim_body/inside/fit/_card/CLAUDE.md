@@ -28,8 +28,8 @@ before that.
   eval_fk maths), for the residuals; `_objective.wide_residuals` gives both objectives' residuals in float64 on them.
 - `_solve.py` (`solved`, `NotConverged`): the loop (Newton's analytic Jacobian in float32, the residuals and the stop
   rule's cost in float64 (`_forward`), the damped step, Newton's integrate, the projection; root quaternion order
-  converted on the card), a row stopping when its reduced step is under 1e-6 or its cost moved under 1e-9 of itself
-  over two steps, or (as mink's frames, `../_frames.solved`, 2026-10-29) a step moved its float64 residuals by under
+  converted on the card), a row stopping when its reduced step is under 1e-6 or its cost moved under 1e-10 of itself
+  over two steps (1e-9 until 8258bcab: mean_squat's chain stopped 0.047 deg short in elv_angle_r's flat valley), or (as mink's frames, `../_frames.solved`, 2026-10-29) a step moved its float64 residuals by under
   1e-8 (arms_raise's shoulder gimbal drift; its proto-clip and toy tests unchanged, its own break test and the
   arms_raise gate not yet run); NotConverged at 300. Measured 2026-10-29 on the proto clip (136 frames, each row seeded as mink's
   frame was), float32 residuals: angles 0.020 deg and sites 0.029 mm max, all in elv_angle_l/r (the shoulder's
@@ -54,7 +54,7 @@ before that.
   last accepted solve; a cold seed (rest pose) is never used. Seeded from the last iteration's angles with the toy's
   places moved 0.5 or 3 mm, one row cycled for good (2,000 steps): the float32 pose's floor, not the step (the float64
   step equals the card's; its model gain 3.7e-12, the pose's rounding moves the cost 9e-9 either way). `_solve`'s cycle
-  stop (cost back within 1e-2 of the change between, two steps apart, by a step under 1e-5) ends it; a monotone fall
+  stop (cost back within 1e-2 of the change between, two steps apart, by a step under 1e-4 since 8258bcab, mean_squat's 2-cycle at mink's angle stepping 3e-5) ends it; a monotone fall
   never fires it. The seed check is in the test file (3 mm on: equals mink). On the proto clip (2026-10-29), each row
   seeded from mink's own answer for its frame (the cache) and mink re-solved from the same seed: EQUAL on every frame
   with the places as they were and moved 0.5 or 3 mm (angles 0.0018 deg, sites 0.0036 mm, cost ratio 2.1e-8 at most,
