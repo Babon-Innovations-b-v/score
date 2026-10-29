@@ -421,6 +421,13 @@ branch names a scene or a world.
 - **The assembly** (`score/stages/assembly`): one stage per scene from every layer's accepted output (`assembly.READS`),
   gated on `layers`, placeholders, resting and `collision` (`tools/usd/colliders.py`: every wall, floor, stair and
   ground has a collider, every model its own; a body in the sky none).
+  **The plan is an estimate; the assembly makes things fit** (owner, 2026-10-29: "the plan is mostly just an estimate
+  and to make sure everything fits together at the end, so it really depends on how assembly works, as a door needs to
+  fit into a door frame exactly"). A row's planned size and place are a starting estimate, not the truth: an item that
+  belongs on or in another (a door in its frame or on its module's face, a lamp on its desk) is laid against its holder
+  and sized to fit it by the assembly, and a model keeps its own proportions where its take and picture agree. A
+  planned size or place that disagrees with its holder or its picture is a framework fault to fix in the assembly,
+  never a question for the owner.
 - **Neighbours** (`neighbours.py`): the scenes a scene shows, each as its own accepted assembly; one no stage makes is a
   gap. A row the plan shows beyond the scene (`beyond`) is the backdrop's: when a scene of its scene tree (its parent
   scene, or a child scene beside it) makes that object, it is shown from there (prepare's `groups.shown_from`), that
