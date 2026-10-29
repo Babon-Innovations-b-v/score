@@ -72,44 +72,17 @@ def site_places(mjm, poses):
 
 
 def toy_card(mjm, turns, places):
-    """The card loop's parts for the toy's clip: (optimizer_for(start, stop), reduction, projection)."""
+    """The card loop's parts for the toy's clip, set up by `_clip.Clip` from the toy's own model as `_frames.Frames`
+    sets mink up: (optimizer_for(start, stop), reduction, projection)."""
     import newton
-    import numpy as np
-    import warp as wp
-    from scipy.spatial.transform import Rotation
-    from newton import ik
-    from fit._card import PlacePerProblem, Projection, Reduction, TurnPerProblem
+    from fit._card._clip import Clip
     path = pathlib.Path(os.environ["PROPS_HOME"]) / "toy.xml"
     path.write_text(TOY)
     builder = newton.ModelBuilder(up_axis=newton.Axis.Z)
     builder.add_mjcf(str(path), convert_mjc_equality_constraints=False, parse_meshes=False)
-    model = builder.finalize(device="cuda:0")
-    body = {label.split("/")[-1]: index for index, label in enumerate(model.body_label)}
-    card = lambda values, kind: wp.array(np.ascontiguousarray(values, dtype=np.float32), dtype=kind, device="cuda:0")
-    site = lambda name: (body[mjm.body(int(mjm.site(name).bodyid[0])).name], mjm.site(name))
-
-    def optimizer_for(start, stop):
-        """Newton's IKOptimizerLM for the clip's frames start:stop."""
-        rows = stop - start
-        link, turn_site = site("t")
-        objectives = [TurnPerProblem(link, card(np.tile(turn_site.quat[[1, 2, 3, 0]], (rows, 1)), wp.quat),
-                                     card(Rotation.from_matrix(turns[start:stop]).as_quat(), wp.vec4),
-                                     card(np.full(rows, TURN_COST), wp.float32))]
-        for index, name in enumerate(PLACE_SITES):
-            link, mark = site(name)
-            objectives.append(PlacePerProblem(link, card(np.tile(mark.pos, (rows, 1)), wp.vec3),
-                                              card(places[start:stop, index], wp.vec3),
-                                              card(np.full(rows, PLACE_COST), wp.float32)))
-        return ik.IKSolver(model, rows, objectives, optimizer="lm", jacobian_mode=ik.IKJacobianType.ANALYTIC)._impl
-    hinge = lambda name: int(mjm.jnt_qposadr[mjm.joint(name).id])  # a hinge's coordinate; its dof is one less
-    poly = np.array([[0.0, 0.5, 0.2, 0.0, 0.0]])
-    free = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-    reduction = Reduction(free, [0] * 6 + [7, 8, 9], [-1e30] * 6 + [-1.2] * 3, [1e30] * 6 + [1.2] * 3,
-                          [hinge("f") - 1], [hinge("h1") - 1], [hinge("h1")], [0.0], poly, "cuda:0")
-    big = [1e30] * 7
-    projection = Projection([-b for b in big] + [-1.2] * 3 + [-1e30] * 2, big + [1.2] * 3 + [1e30] * 2,
-                            [hinge("f")], [hinge("h1")], [0.0], [0.0], poly, [hinge("z")], "cuda:0")
-    return optimizer_for, reduction, projection
+    clip = Clip(builder.finalize(device="cuda:0"), mjm, [mjm.site("t").id], [mjm.site(name).id for name in PLACE_SITES],
+                TURN_COST, [PLACE_COST] * len(PLACE_SITES), [int(mjm.jnt_dofadr[mjm.joint("z").id])], mjm)
+    return clip.optimizer_for(turns[:, None], places), clip.reduction, clip.projection
 
 
 def toy_errors(mjm, found, reference):
