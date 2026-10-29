@@ -21,7 +21,10 @@ turns test_a_code_built_light_is_not_held_to_the_lamp_its_route_leaves_to_the_li
 write_take leaving its crop off the build (`mesh = textured(build(row, alpha), picture)` -> `mesh = build(row, alpha)`)
 or a sweep built in one length again (SWEEP_RINGS = 1) turns
 test_a_code_build_carries_its_crop_where_it_lies_so_each_finish_has_faces_of_its_own red (one region, or no
-face of its own on its ends).
+face of its own on its ends). build ignoring its mask's drawn width (`if alpha is not None and alpha.any():` before
+drawn_section -> `if False:`) turns test_a_sweep_s_section_is_the_picture_s_where_its_box_s_cannot_show_it red
+(the pillar 0.22); drawn_section scaling every section to the drawn width (`drawn / found[sides].max()`) turns it
+red too (the flat run's section halved).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/thin_straight_test.py
 """
@@ -42,8 +45,8 @@ import score.stages.props.prop_data as prop_data  # noqa: E402
 import score.stages.props.thin_straight as thin_straight  # noqa: E402
 
 PIPE = {"id": "pipe", "name": "wall pipe", "noun": "pipe", "size": [4.0, 0.1, 0.1], "view": "v1",
-        "box": [40, 90, 560, 110]}
-POST = {"id": "porch_post", "name": "wooden post", "size": [0.1, 0.1, 2.5], "view": "v1", "box": [290, 0, 310, 200]}
+        "box": [40, 93, 560, 106]}
+POST = {"id": "porch_post", "name": "wooden post", "size": [0.1, 0.1, 2.5], "view": "v1", "box": [295, 0, 305, 200]}
 
 
 def concept(path, colour=(180, 30, 30)):
@@ -114,7 +117,7 @@ def test_a_railing_is_posts_at_most_a_post_gap_apart_under_a_top_and_a_mid_rail(
     assert sorted(round(rail.bounds[1][1], 3) for rail in rails) == [0.025, 0.5]  # the mid rail, the top rail
     pixal = tmp_path / "pixal"
     pixal.mkdir()
-    picture = Image.new("RGBA", (40, 10), (90, 90, 90, 255))
+    picture = Image.new("RGBA", (94, 10), (90, 90, 90, 255))
     assert thin_straight.write_take("railing_1", row, picture, 4000, pixal, tmp_path / "railing.png")
     import trimesh
     assert np.allclose(trimesh.load(pixal / "railing_1-final.glb", force="mesh").extents, [0.1, 1.0, 9.435], atol=0.01)
@@ -328,8 +331,24 @@ def test_a_straight_thing_slanted_by_the_concept_s_view_passes_as_prepare_predic
         assert found["outline"] >= likeness.OUTLINE_LEAST and found["code"]["profile"] != "path", (row["id"], found)
         assert not any(fault.startswith("outline") for fault in faults), faults
     import trimesh
-    assert np.allclose(trimesh.load(tmp_path / "lying/pixal/take-final.glb", force="mesh").extents, [0.1, 0.1, 3.0],
-                       atol=0.01)
+    extents = trimesh.load(tmp_path / "lying/pixal/take-final.glb", force="mesh").extents
+    assert abs(extents[2] - 3.0) < 0.01 and abs(extents[0] - extents[1]) < 0.01 and extents[1] < 0.15, extents
+
+
+def test_a_sweep_s_section_is_the_picture_s_where_its_box_s_cannot_show_it(tmp_path):
+    """A box section shows from its thinnest side to its diagonal: a mask drawn thinner or thicker than that is built
+    at its drawn width (storage's 0.6 m square pillar drawn 0.25 m, 0.399; the docking airlock's 0.1 m ceiling rail
+    drawn 0.28 m, 0.324; 2026-10-29), and a drawn width inside it keeps the box's section (hangar's flat wall run of
+    pipes, 4.9 by 0.4 m, drawn 1.5 m, passed at 0.697 as it was)."""
+    pillar = {"id": "pillar", "name": "support pillar", "noun": "pillar", "size": [0.6, 0.6, 3.0], "view": "v1"}
+    rail = {"id": "rail", "name": "ceiling rail", "noun": "rail", "size": [3.0, 0.1, 0.1], "view": "v1"}
+    for row, line, width in ((pillar, [(300, 190), (300, 10)], 9), (rail, [(60, 100), (540, 100)], 40)):
+        found, faults = held(tmp_path, row, [line], width)
+        assert found["outline"] >= likeness.OUTLINE_LEAST, (row["id"], found["outline"])
+        assert not any(fault.startswith("outline") for fault in faults), faults
+    alpha = np.zeros((40, 400), dtype=bool)
+    alpha[10:30, :] = True  # drawn 0.5 m on its 10 m: inside 0.1 to 1.0
+    assert np.allclose(thin_straight.drawn_section(np.array([1.0, 0.1, 10.0]), 2, alpha), [1.0, 0.1, 10.0])
 
 
 def test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s_path(tmp_path):

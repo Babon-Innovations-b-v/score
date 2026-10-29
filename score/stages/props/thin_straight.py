@@ -58,6 +58,9 @@ RAILING = frozenset(("railing", "balustrade", "guardrail", "banister"))
 # length has ceil(length / POST_GAP) bays.
 POST_GAP = 1.5
 SEGMENTS = 32
+# A straight sweep's section at most this share of its length (`drawn_section`): the model gate's slender share
+# (tools/props/gates/model.py SLENDER_SHARE), so a mask drawn fatter than a thin thing never builds a chunky one.
+SECTION_SHARE = 0.25
 # A mask is one straight run (one_run) while it lies across its long axis within twice its line's width plus this share
 # of its length: a lantern string sagging 13% of its span is not; a pipe drawn 2% off true is.
 RUN_BEND = 0.05
@@ -162,11 +165,29 @@ def build(row, alpha=None):
     if tall >= max(wide, deep) and not stands(row, alpha):  # the reading's box stood a run its picture shows lying
         extents = np.array([min(wide, deep), max(wide, deep), tall])
     along = int(np.argmax(extents))
+    if alpha is not None and alpha.any():
+        extents = drawn_section(extents, along, alpha)
     mesh = prism(section(profile(row)), SWEEP_RINGS)  # along z, centred
     mesh.apply_transform(trimesh.geometry.align_vectors([0, 0, 1], np.eye(3)[along]))
     mesh.apply_scale(extents / mesh.extents)
     mesh.apply_translation(-mesh.bounds.mean(0))
     return mesh
+
+
+def drawn_section(extents, along, alpha):
+    """The sweep's `extents` with a section the picture can show: the line's drawn width (`reaches`) at the scale its
+    length is the row's (at least `least_tube`, at most SECTION_SHARE of its length), as path_build's tube is. A box
+    section shows from its thinnest side (edge on) to its diagonal; a drawn width inside that keeps the box's, one
+    outside scales both short sides, their shape kept, to the nearer end. The reading's section met the picture's
+    width on 33 of world 1's 57 builds; the rest were built 2 to 8 times too thin or too thick and failed their outline
+    (2026-10-29: walkway's 12 m ceiling duct 0.3 by 0.5 m drawn 1.7 m, 0.253; storage's 3 m pillar 0.6 m square drawn
+    0.25 m, 0.399), while a flat wall run of pipes 4.9 m by 0.4 m showing 1.5 m was right as it was."""
+    length, _, width = reaches(pieces(alpha))
+    sides = [axis for axis in range(3) if axis != along]
+    found = np.array(extents, dtype=float)
+    drawn = np.clip(width / length * found[along], least_tube(), SECTION_SHARE * found[along])
+    found[sides] *= drawn / np.clip(drawn, found[sides].min(), np.hypot(*found[sides]))
+    return found
 
 
 def section(shape):
@@ -233,12 +254,19 @@ def one_run(alpha):
     kept = pieces(alpha)
     if ndimage.label(kept, structure=np.ones((3, 3)))[1] != 1:
         return False
+    length, across, width = reaches(kept)
+    return across <= 2 * width + RUN_BEND * length
+
+
+def reaches(kept):
+    """(length, across, width) of a mask in pixels: its reach along its long axis (second moments) and across it, and
+    its line's drawn width (its area over that length)."""
     down, across = np.nonzero(kept)
     points = np.c_[across, down].astype(float)
     points -= points.mean(0)
     axes = np.linalg.svd(points, full_matrices=False)[2]
     length = np.ptp(points @ axes[0]) + 1
-    return np.ptp(points @ axes[1]) + 1 <= 2 * len(points) / length + RUN_BEND * length
+    return length, np.ptp(points @ axes[1]) + 1, len(points) / length
 
 
 def traces(skeleton):
