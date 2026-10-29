@@ -7,6 +7,8 @@ than COST_DONE of itself over two steps; a stopped row's step is zero from then 
 raises NotConverged, as mink's frames do (`../_frames.py`)."""
 import warp as wp
 
+from ._forward import Forward, frames
+from ._objective import wide_residuals
 from ._project import project
 from ._step import damped_step
 
@@ -45,22 +47,35 @@ def _to_newton(qpos: wp.array2d[wp.float32], joint_q: wp.array2d[wp.float32]):
 
 
 @wp.kernel(enable_backward=False)
-def _stopped(residuals: wp.array2d[wp.float32], norms: wp.array[wp.float32], history: wp.array2d[wp.float32],
+def _stopped(residuals: wp.array2d[wp.float64], norms: wp.array[wp.float32], history: wp.array2d[wp.float64],
              step: int, active: wp.array[wp.int32], steps: wp.array[wp.int32]):
     """The stop rule for one step: history holds each row's cost at the last three poses."""
     row = wp.tid()
     if active[row] == 0:
         return
-    cost = float(0.0)
+    cost = wp.float64(0.0)
     for residual in range(residuals.shape[1]):
         cost += residuals[row, residual] * residuals[row, residual]
     history[row, 2] = history[row, 1]
     history[row, 1] = history[row, 0]
     history[row, 0] = cost
     steps[row] = step + 1
-    settled = step >= 2 and wp.abs(history[row, 2] - cost) <= COST_DONE * cost
+    settled = step >= 2 and wp.abs(history[row, 2] - cost) <= wp.float64(COST_DONE) * cost
     if norms[row] < STEP_DONE or settled:
         active[row] = 0
+
+
+@wp.kernel(enable_backward=False)
+def _narrowed(wide: wp.array2d[wp.float64], narrow: wp.array2d[wp.float32]):
+    row, residual = wp.tid()
+    narrow[row, residual] = wp.float32(wide[row, residual])
+
+
+def _wide_residuals(optimizer, forward, joint_q, body_q, wide):
+    """Every objective's residuals in float64 from joint_q's float64 link frames."""
+    frames(forward, joint_q, body_q)
+    for objective, start in zip(optimizer.objectives, optimizer.residual_offsets, strict=True):
+        wide_residuals(objective, body_q, start, optimizer.problem_idx, wide)
 
 
 def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STEPS):
@@ -73,20 +88,26 @@ def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STE
     following = wp.empty_like(current)
     velocity = wp.zeros((rows, optimizer.model.joint_dof_count), dtype=wp.float32, device=device)
     qpos = wp.empty_like(current)
-    history = wp.zeros((rows, 3), dtype=wp.float32, device=device)
+    history = wp.zeros((rows, 3), dtype=wp.float64, device=device)
+    forward = Forward(optimizer.model)
+    body_q = wp.empty((rows, forward.bodies), dtype=wp.transformd, device=device)
+    wide = wp.zeros((rows, optimizer.n_residuals), dtype=wp.float64, device=device)
+    narrow = wp.empty((rows, optimizer.n_residuals), dtype=wp.float32, device=device)
     active = wp.ones(rows, dtype=wp.int32, device=device)
     steps = wp.zeros(rows, dtype=wp.int32, device=device)
     for step in range(most_steps):
         context = optimizer._ctx_solver(current)
         optimizer._residuals_analytic(context)
         jacobian = optimizer._jacobian_at(context)
+        _wide_residuals(optimizer, forward, current, body_q, wide)
+        wp.launch(_narrowed, dim=wide.shape, inputs=[wide], outputs=[narrow], device=device)
         wp.launch(_to_mujoco, dim=(rows, coords), inputs=[current], outputs=[qpos], device=device)
-        full, norms = damped_step(reduction, jacobian, context.residuals, qpos, active)
+        full, norms = damped_step(reduction, jacobian, narrow, qpos, active)
         optimizer._integrate_dq(current, dq_in=full, joint_q_out=following, joint_qd_out=velocity)
         wp.launch(_to_mujoco, dim=(rows, coords), inputs=[following], outputs=[qpos], device=device)
         project(projection, qpos, seeds)
         wp.launch(_to_newton, dim=(rows, coords), inputs=[qpos], outputs=[current], device=device)
-        wp.launch(_stopped, dim=rows, inputs=[context.residuals, norms, history, step, active, steps], device=device)
+        wp.launch(_stopped, dim=rows, inputs=[wide, norms, history, step, active, steps], device=device)
         if step % 10 == 9 and not active.numpy().any():
             break
     if active.numpy().any():

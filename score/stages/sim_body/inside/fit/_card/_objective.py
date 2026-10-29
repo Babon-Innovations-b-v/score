@@ -104,3 +104,58 @@ class TurnPerProblem(ik.IKObjectiveRotation):
         wp.launch(_turn_jacobian, dim=[body_q.shape[0], model.joint_dof_count],
                   inputs=[self.weights, self.affects_dof, joint_S_s, start_idx], outputs=[jacobian],
                   device=self.device)
+
+
+@wp.func
+def _wide(value: wp.vec3):
+    return wp.vec3d(wp.float64(value[0]), wp.float64(value[1]), wp.float64(value[2]))
+
+
+@wp.func
+def _wide_turn(value: wp.vec4):
+    return wp.quatd(wp.float64(value[0]), wp.float64(value[1]), wp.float64(value[2]), wp.float64(value[3]))
+
+
+@wp.kernel(enable_backward=False)
+def _place_residuals_wide(body_q: wp.array2d[wp.transformd], target: wp.array[wp.vec3], link_index: int,
+                          offset: wp.array[wp.vec3], weight: wp.array[wp.float32], start_idx: int,
+                          problem_of: wp.array[wp.int32], residuals: wp.array2d[wp.float64]):
+    row = wp.tid()
+    problem = problem_of[row]
+    error = _wide(target[problem]) - wp.transform_point(body_q[row, link_index], _wide(offset[problem]))
+    for axis in range(3):
+        residuals[row, start_idx + axis] = wp.float64(weight[problem]) * error[axis]
+
+
+@wp.kernel(enable_backward=False)
+def _turn_residuals_wide(body_q: wp.array2d[wp.transformd], target: wp.array[wp.vec4], link_index: int,
+                         offset: wp.array[wp.quat], weight: wp.array[wp.float32], start_idx: int,
+                         problem_of: wp.array[wp.int32], residuals: wp.array2d[wp.float64]):
+    row = wp.tid()
+    problem = problem_of[row]
+    turn_of = offset[problem]
+    actual = wp.transform_get_rotation(body_q[row, link_index]) * _wide_turn(
+        wp.vec4(turn_of[0], turn_of[1], turn_of[2], turn_of[3]))
+    wanted = _wide_turn(target[problem])
+    error = actual * wp.quat_inverse(wanted)
+    if wp.dot(actual, wanted) < wp.float64(0.0):
+        error = -error
+    length = wp.sqrt(error[0] * error[0] + error[1] * error[1] + error[2] * error[2])
+    turn = wp.vec3d(wp.float64(2.0) * error[0], wp.float64(2.0) * error[1], wp.float64(2.0) * error[2])
+    if length > wp.float64(1e-12):
+        turn = wp.vec3d(error[0], error[1], error[2]) * (wp.float64(2.0) * wp.atan2(length, error[3]) / length)
+    for axis in range(3):
+        residuals[row, start_idx + axis] = wp.float64(weight[problem]) * turn[axis]
+
+
+def wide_residuals(objective, body_q, start_idx, problem_of, residuals):
+    """One objective's residuals in float64 into residuals [rows, count] from body_q [rows, bodies] transformd."""
+    if isinstance(objective, PlacePerProblem):
+        kernel, target = _place_residuals_wide, objective.target_positions
+    elif isinstance(objective, TurnPerProblem):
+        kernel, target = _turn_residuals_wide, objective.target_rotations
+    else:
+        raise TypeError(f"{type(objective).__name__} has no float64 residuals")
+    wp.launch(kernel, dim=body_q.shape[0], inputs=[body_q, target, objective.link_index, objective.offsets,
+                                                   objective.weights, start_idx, problem_of],
+              outputs=[residuals], device=body_q.device)
