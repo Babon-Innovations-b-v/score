@@ -1,7 +1,7 @@
 """The damped Gauss-Newton step mink takes, per row on the card in the reduced dofs (plan step 1).
 
 Reduced dofs: frozen dofs out, each coupled follower's column added onto its leader's through the coupling's
-slope (polyval's derivative at the leader), dofs at a bound whose step pushes out held for one more solve.
+slope (polyval's derivative at the leader), dofs at a bound whose step pushes out held, and released once their descent points back inside.
 Damping is mink's: LM_DAMPING times the squared error plus DAMPING on the diagonal. The solve is Warp's tile
 Cholesky (Newton's own IKOptimizerLM pattern) at the reduced size, 37 on MyoFullBody (128 dofs, 40 frozen,
 51 followers), inside sm_120's shared memory for any size up to 79."""
@@ -12,7 +12,8 @@ import warp as wp
 LM_DAMPING = 1e-3
 DAMPING = 1e-9
 BOUND_SLACK = 1e-9
-HOLD_PASSES = 3  # solves after the first, each holding the dofs the last one pushed out (holds only ever added)
+HOLD_PASSES = 3  # solves after the first, each holding the dofs the last one pushed out and releasing a held one
+# whose own descent points back inside its range (the active set's exit: heavy_kimodo's knee held on 0, mink 4e-4 in)
 TILE_THREADS = 32
 
 
@@ -79,14 +80,36 @@ def _cholesky_kernel(size: int):
 
 
 @wp.kernel(enable_backward=False)
+def _predicted(reduced: wp.array3d[wp.float32], step: wp.array2d[wp.float32], residuals: wp.array2d[wp.float32],
+               predicted: wp.array2d[wp.float32]):
+    """The linear model's residuals after the step, r + J_red s."""
+    row, residual = wp.tid()
+    value = residuals[row, residual]
+    for column in range(step.shape[1]):
+        value += reduced[row, residual, column] * step[row, column]
+    predicted[row, residual] = value
+
+
+@wp.kernel(enable_backward=False)
 def _kept(step: wp.array2d[wp.float32], qpos: wp.array2d[wp.float32], free_coord: wp.array[wp.int32],
-          lower: wp.array[wp.float32], upper: wp.array[wp.float32], keep: wp.array2d[wp.float32]):
-    """A free dof at its bound whose step pushes out is held (keep 0); one held stays held."""
+          lower: wp.array[wp.float32], upper: wp.array[wp.float32], reduced: wp.array3d[wp.float32],
+          predicted: wp.array2d[wp.float32], keep: wp.array2d[wp.float32]):
+    """A free dof at its bound whose step pushes out is held (keep 0); a held one whose model gradient there,
+    J_red^T (r + J_red s), points its descent back inside is released (keep 1)."""
     row, column = wp.tid()
     at = qpos[row, free_coord[column]]
-    out_low = at <= lower[column] + BOUND_SLACK and step[row, column] < 0.0
-    out_high = at >= upper[column] - BOUND_SLACK and step[row, column] > 0.0
-    keep[row, column] = wp.where(out_low or out_high, 0.0, keep[row, column])
+    on_low = at <= lower[column] + BOUND_SLACK
+    on_high = at >= upper[column] - BOUND_SLACK
+    if keep[row, column] == 0.0:
+        slope = float(0.0)
+        for residual in range(reduced.shape[1]):
+            slope += reduced[row, residual, column] * predicted[row, residual]
+        inside = (on_low and slope < 0.0) or (on_high and slope > 0.0)
+        keep[row, column] = wp.where(inside, 1.0, 0.0)
+        return
+    out_low = on_low and step[row, column] < 0.0
+    out_high = on_high and step[row, column] > 0.0
+    keep[row, column] = wp.where(out_low or out_high, 0.0, 1.0)
 
 
 @wp.kernel(enable_backward=False)
@@ -144,8 +167,8 @@ def damped_step(reduction, jacobian, residuals, qpos, active):
 
     jacobian [rows, residuals, dofs] and residuals [rows, residuals] at qpos [rows, coords] (MuJoCo's layout);
     active [rows] int32, a stopped row's step zero. Active-set passes: solve, hold the dofs at a bound the step pushes
-    out, solve again, HOLD_PASSES times (one pass left a toy row with two dofs at their bounds pushing a third out
-    and back by projection every step, never stopping)."""
+    out, solve again, HOLD_PASSES times, a held dof whose descent points back inside released (one pass left a toy row
+    with two dofs at their bounds pushing a third out and back by projection every step, never stopping)."""
     device = jacobian.device
     rows, count, dofs = jacobian.shape
     slopes = wp.empty((rows, reduction.poly.shape[0]), dtype=wp.float32, device=device)
@@ -157,9 +180,12 @@ def damped_step(reduction, jacobian, residuals, qpos, active):
               outputs=[reduced], device=device)
     keep = wp.ones((rows, reduction.size), dtype=wp.float32, device=device)
     step = _solved(reduction, reduced, residuals, keep, device)
+    predicted = wp.empty((rows, count), dtype=wp.float32, device=device)
     for _ in range(HOLD_PASSES):
-        wp.launch(_kept, dim=keep.shape, inputs=[step, qpos, reduction.free_coord, reduction.lower, reduction.upper],
-                  outputs=[keep], device=device)
+        wp.launch(_predicted, dim=predicted.shape, inputs=[reduced, step, residuals], outputs=[predicted],
+                  device=device)
+        wp.launch(_kept, dim=keep.shape, inputs=[step, qpos, reduction.free_coord, reduction.lower, reduction.upper,
+                                                 reduced, predicted], outputs=[keep], device=device)
         step = _solved(reduction, reduced, residuals, keep, device)
     full = wp.zeros((rows, dofs), dtype=wp.float32, device=device)
     wp.launch(_scattered, dim=step.shape, inputs=[step, reduction.free_dof, active], outputs=[full], device=device)
