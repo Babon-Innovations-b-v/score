@@ -65,7 +65,10 @@ LOCK = HOME / "cloud" / "this-pc.lock"
 CARD_TURN = pathlib.Path(__file__).resolve().parent / "card_turn.py"
 # Blender jobs at once (RUNS_AT_ONCE): a take's paint and bake peak, measured (env1, 2026-10-28; one take,
 # garage_vehicle_lift, once held 27), and what the container holds beside the peaks (sshd, rsync, idle Blenders).
-BLENDER_PEAK_GB = 8.5
+# The p90 of the last 50 paint and bake takes (memory/container-peaks.json, 2026-10-29: 6.62 GB, the highest 9.2),
+# so four run in the 27 GiB container where three left about 2.9 of 24 cores busy; a tail take past the cap fails
+# alone in the container, never WSL.
+BLENDER_PEAK_GB = 6.7
 BLENDER_MARGIN_GB = 2
 HELD = {}  # {machine id: the open lock file} for the claims this process holds
 TURNS = {}  # {machine id: [its open turn files]} for the shared claims this process holds

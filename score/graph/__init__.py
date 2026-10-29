@@ -680,7 +680,7 @@ CONTAINED = ran_container_client  # the tests give a fake reading
 
 # On this PC a node whose claim of the container waits for a free turn and holds none (a mark of local.take in
 # WAITING_CLAIMS, refreshed every park.PARKED_POLL_SECONDS while it asks) holds no --jobs slot while it waits, at most
-# WAITERS_EXCUSED such nodes: the container's Blender turns (local.RUNS_AT_ONCE, three) and a few more, so the queue
+# WAITERS_EXCUSED such nodes: the container's Blender turns (local.RUNS_AT_ONCE, four) and a few more, so the queue
 # never fills with waiters (2026-10-29: all 8 job slots held by surfaces-bake rows, 3 running a take and 5 waiting for
 # one, about 60 ready rows of other stages kept out; 12.4 of 24 cores busy).
 WAITING_CLAIMS = score_store.PROPS_HOME / "cloud" / "this-pc.waiting"
