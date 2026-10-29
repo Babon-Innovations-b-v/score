@@ -1208,8 +1208,11 @@ def test_a_proof_carries_only_when_it_names_every_changed_file_for_these_code_ve
 
 def test_a_proof_speaks_from_the_code_rows_had_at_its_commit():
     """codes_at works the rows' code out at a commit: 46d5873 changed place_line.py alone, so the paint's code moved
-    from its parent and the maps' did not (a record carries only when made from the code at the proof's commit)."""
-    before, after = carry.codes_at("46d5873^"), carry.codes_at("46d5873")
+    from its parent and the maps' did not (a record carries only when made from the code at the proof's commit). The
+    two checkouts are worked out side by side: each imports its whole stage table, about 27 s apiece."""
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(2) as pool:
+        before, after = pool.map(carry.codes_at, ("46d5873^", "46d5873"))
     assert before["surfaces-paint"] != after["surfaces-paint"]
     assert before["surfaces-maps"] == after["surfaces-maps"]
 
@@ -1593,15 +1596,24 @@ def libraried(folder):
     return found
 
 
+VIEWS_MADE = {}  # {(takes, the model's bytes): a views output made once}: the make casts 120 views, about 2.5 s
+
+
 def cast_views(folder, takes=(TAKE,)):
     """The views row's make on the two boxes (each take named the same model), the object filter keeping `takes`;
-    the inputs carry the scene palette."""
+    the inputs carry the scene palette. Made once a module for the same takes and model (VIEWS_MADE), copied after."""
     views = folder / "views"
-    views.mkdir()
     model = two_boxes(folder)
     inputs = {"surfaces": place_data(folder), "finish-route-palette": paletted(folder),
               "surface-library": libraried(folder), **{f"model {take}": model for take in takes}}
-    route_views.make_views(inputs, views, 7, {"objects": list(takes)})
+    made = VIEWS_MADE.get((takes, model.read_bytes()))
+    if made is None:
+        views.mkdir()
+        route_views.make_views(inputs, views, 7, {"objects": list(takes)})
+        made = VIEWS_MADE[takes, model.read_bytes()] = pathlib.Path(tempfile.mkdtemp()) / "views"
+        shutil.copytree(views, made)
+    else:
+        shutil.copytree(made, views)
     return inputs, views
 
 
