@@ -90,9 +90,10 @@ def held_constants():
     fit.constants = once
 
 
-def fitted_case(job_path, out, recordings):
-    """One clip of the body: levels 2 (held) and 3, its follow measures and landmark leftovers into out/measures.json
-    (unrounded, the solver's) and out/m.json (rounded, the copy people read)."""
+def fitted_case(job_path, out, recordings, measures=_measure.measures):
+    """One clip of the body: levels 2 (held) and 3, its follow measures (`measures`: the CPU's, or the card's same
+    keys) and landmark leftovers into out/measures.json (unrounded, the solver's) and out/m.json (rounded, the copy
+    people read)."""
     out.mkdir(parents=True, exist_ok=True)
     job = json.loads(job_path.read_text())
     person = job["people"][0]
@@ -104,7 +105,7 @@ def fitted_case(job_path, out, recordings):
     record, scales, model, angles = sim_body.fitted_person(job, person, rig, worlds, out / f"{person['name']}.xml")
     seconds = time.time() - began
     np.savez(out / evaluation.SEEDS, qpos=angles)
-    found = _measure.measures(model, angles, rig, person["segments"], worlds, scales)
+    found = measures(model, angles, rig, person["segments"], worlds, scales)
     _, points = fit.targets(rig, person["segments"], worlds, fit.followed(person["segments"]))
     found["landmarks"] = leftovers(model, angles, scales, points)
     found["fit seconds"] = round(seconds, 1)
@@ -122,16 +123,22 @@ def load_weights(path):
     fit.END_WEIGHT = float(weights["end weight"])
 
 
-def main():
-    table, weights, root = sys.argv[1], sys.argv[2], pathlib.Path(sys.argv[3])
-    cases = dict(given.split("=", 1) for given in sys.argv[4:])
+def prepared(table, weights, root, cases):
+    """The evaluation's point laid in place (the table's rows, the weights, root/rest.json's centres, the calibration
+    read again, level 2 held once per body); gives back the body's recordings (every case's targets)."""
     load_table(table)
     load_weights(weights)
     rest = json.loads((root / "rest.json").read_text())
     load_centres(rest["centres"])
     recalibrated(json.loads(pathlib.Path(next(iter(cases.values()))).read_text())["model"], rest["rig"])
     held_constants()
-    recordings = [json.loads(pathlib.Path(job).read_text())["people"][0]["targets"] for job in cases.values()]
+    return [json.loads(pathlib.Path(job).read_text())["people"][0]["targets"] for job in cases.values()]
+
+
+def main():
+    table, weights, root = sys.argv[1], sys.argv[2], pathlib.Path(sys.argv[3])
+    cases = dict(given.split("=", 1) for given in sys.argv[4:])
+    recordings = prepared(table, weights, root, cases)
     for case, job in cases.items():
         fitted_case(pathlib.Path(job), root / case, recordings)
 

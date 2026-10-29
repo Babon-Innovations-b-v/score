@@ -13,5 +13,8 @@ from them (`calibration._measure`), never from motion; the run dir holds that ri
 command. The check bodies are scored every few iterations and at the end, never used to choose; `accepted` is the
 held-out rule (within 10 % of the tuning bodies).
 
+- `_card_case.py <seeds root> ...` is `_case.py` with level 3 on the card (`fit._card._clip`, each frame seeded from the
+  seeds root's angles.npz) and the card's measures (`fit._card._measure`); `_case.py` stays the reference and the runner's
+  worker until the card's measures equal the CPU's to their rounding on the tuning cases (card build step 5).
 - Judged on following SOMA, never on landmark distances; `fit._frozen` is never edited to follow the tree's calibration.
 - Test: `test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py` (a toy worker, any Python with numpy and scipy).
