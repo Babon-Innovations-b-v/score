@@ -232,7 +232,10 @@ def judge_drawn(output, inputs, evidence):
     model, no ground)."""
     import tempfile
     place = json.loads((output / "lamps.json").read_text())["place"]
-    with tempfile.TemporaryDirectory() as folder:
+    # on the store's disk: the source hard-links the seed, which fails across into /tmp (light-layer@airlock,
+    # 2026-10-29), as settling's scratch does
+    (PROPS_HOME / "store/cache").mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=PROPS_HOME / "store/cache") as folder:
         stage = passes.source(place, inputs, pathlib.Path(folder) / "source")
         drawn = drawn_count(stage / f"{place}.usda", place)
     waiting = sum(1 for entries in passes.record_of(place, inputs).values() if isinstance(entries, list)
