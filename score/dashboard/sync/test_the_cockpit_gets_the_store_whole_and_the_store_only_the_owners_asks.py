@@ -1239,6 +1239,22 @@ def test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_mar
                   output="0" * 64)  # no such output
 
 
+def test_a_reject_made_in_chat_carries_the_takes_he_named_to_remake_into_his_reject(world):
+    """Owner, 2026-10-28 (a failing object remade once, free): a reject's takes reach his reject record through the
+    cockpit's own request, so a row that retakes remakes those alone (graph.Stage.retakes); only a reject names takes.
+    Break: score/dashboard/sync/chat_decisions.py: '            **({"takes": given["takes"]} if given.get("takes") else {})}}' -> '            }}'"""
+    from score.dashboard.sync import chat_decisions
+    output = world.outputs["closeup@alpha waiting"]
+    applying.apply({"kind": "decision", "user": "joey", "payload": {
+        "node": "closeup@alpha", "output": output, "decision": "accept", "worse_reason": "fine"}}, world.source)
+    yes = chat_decisions.record("reject", "closeup@alpha", "Yes, remake free", QUESTION, output=output,
+                                reason="stool: outline 0.392 under 0.5", takes=["stool_1"])
+    assert chat_decisions.apply(yes["id"]).state == "done"
+    assert world.store.rejects("closeup@alpha")[-1]["takes"] == ["stool_1"]
+    pytest.raises(chat_decisions.Refused, chat_decisions.record, "accept", "closeup@alpha", "Yes", QUESTION,
+                  output=output, takes=["stool_1"])
+
+
 def test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question(world, settings):
     """Another accept since the question, or the film's script edited since, refuses it like a changed basket refuses
     a Buy, nothing marked used; a go is carried by its run and never applied here."""

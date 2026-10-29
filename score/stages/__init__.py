@@ -20,6 +20,7 @@ moving rows. Each stage joins the table when it is built in its step (docs/bible
 import dataclasses
 import fnmatch
 import functools
+import glob
 import json
 import pathlib
 
@@ -870,11 +871,81 @@ def placed(applies):
 
 STAGES = tuple(dataclasses.replace(row, applies=placed(row.applies)) if row.name in PLACE_ONLY else row
                for row in STAGES)
+# Pixal3D's takes the owner's reject names are made again, the rest kept (owner, 2026-10-28: a failing object remade
+# once, free; graph.Stage.retakes): wired here, in the framework's table, so no row's code moves.
+RETAKES = ("pixal",)
+RETAKEN = "retaken"  # under work/pixal: each named take's files as they were, `<take>-r<attempt>/` (set_aside)
+RETAKE_MADE = "made"  # in such a folder once its retake is made: from then the library's copy is no longer the rejected one
+
+
+def retake_asides(take, pixal):
+    """The folders a take's files were set aside in, one an attempt (set_aside)."""
+    return [aside for aside in sorted((pixal / RETAKEN).glob(f"{glob.escape(take)}-r*"))
+            if aside.is_dir() and aside.name[len(take) + 2:].isdigit()]
+
+
+def retake_pending(take, pixal):
+    """True while a take is set aside and its retake is not made yet: the library's copy of it is the rejected one, so
+    takes_back leaves it out (it would put the rejected files back under the batch)."""
+    return any(not (aside / RETAKE_MADE).exists() for aside in retake_asides(take, pixal))
+
+
+def set_aside(retake, objects, pixal):
+    """{take: seed} of the takes the owner's reject named (params `retake`), each one of the hand-in's prop `objects`
+    that is not a thin straight code build (its fault is its builder's to fix; another take raises): its files moved
+    once into <pixal>/retaken/<take>-r<attempt>/ (through a .partial folder, so a cut move goes on where it stopped),
+    after which the take's files are its retake, asked at its seed plus the attempt."""
+    import score.stages.props.flat_sheet as flat_sheet
+    import score.stages.props.pixal_row as pixal_row
+    import score.stages.props.thin_straight as thin_straight
+    ours = {entry["take"] for entry in objects.values()
+            if not (thin_straight.code_built(entry["take"], pixal) and not flat_sheet.built(entry["take"], pixal))}
+    unknown = sorted(set(retake["takes"]) - ours)
+    if unknown:
+        raise ValueError(f"retake of {', '.join(unknown)}: no Pixal3D take of this place (a code build's fix is its "
+                         "builder's)")
+    for take in retake["takes"]:
+        aside = pixal / RETAKEN / f"{take}-r{retake['attempt']}"
+        if not aside.exists():
+            staging = aside.with_name(f"{aside.name}.partial")
+            staging.mkdir(parents=True, exist_ok=True)
+            for path in pixal.glob(f"{glob.escape(take)}[.-]*"):
+                path.rename(staging / path.name)
+            staging.rename(aside)
+    return {take: pixal_row.seed_of(take) + retake["attempt"] for take in retake["takes"]}
+
+
+def retaking(make):
+    """The pixal make with the takes the owner's reject named (params `retake`, graph.Stage.retakes) set aside first
+    and asked at their seed plus the attempt (pixal_row.seed_of answers so while it runs), each marked made once its
+    retake is; with no retake, the make as it is."""
+    @functools.wraps(make)
+    def made(inputs, out, seed, params):
+        if not params.get("retake"):
+            return make(inputs, out, seed, params)
+        import score.stages.props.pixal_row as pixal_row
+        pixal = pixal_row.take_files("-")[0].parent
+        seeds = set_aside(params["retake"], prop_data.prop_objects(prop_data.record_at(inputs["props"])), pixal)
+        named = pixal_row.seed_of
+        pixal_row.seed_of = lambda take: seeds[take] if take in seeds else named(take)
+        try:
+            make(inputs, out, seed, params)
+        finally:
+            pixal_row.seed_of = named
+        for take in seeds:
+            if pixal_row.made(take):
+                (pixal / RETAKEN / f"{take}-r{params['retake']['attempt']}" / RETAKE_MADE).touch()
+    return made
+
+
 # The finish route's palette, library, list and recheck asked of Claude on this PC (surfaces/claude_asks.py; coordinator
 # for the owner, 2026-10-27, after the side-by-side on #36): wired here, in the framework's table, so no row that does
 # not switch re-keys (body-face, which stays on Gemini, and ground-join read surfaces/__init__.py).
 STAGES = tuple(dataclasses.replace(row, make=claude_asks.asking_claude(row.make)) if row.name in claude_asks.ROWS
                else row for row in STAGES)
+# Pixal3D's takes the owner's reject names are made again, the rest kept (retaking).
+STAGES = tuple(dataclasses.replace(row, retakes=True, make=retaking(row.make)) if row.name in RETAKES else row
+               for row in STAGES)
 # Last: every row declares the scripts its code starts by path (scripts_declared).
 STAGES = tuple(map(scripts_declared, STAGES))
 # Rows whose make only measures what other rows made, its seed unused (likeness: the prop route's models against their
@@ -888,7 +959,7 @@ STAGES = tuple(dataclasses.replace(row, seeded=False) if row.name in UNSEEDED el
 def takes_back(place):
     """Every Pixal3D take the place's surface data paints that offload-pixal freed, put back in work/pixal from the
     library (tools/library/pixal_takes.py) before any row's files are read: here, in the framework's table, so no
-    reader's code version moves."""
+    reader's code version moves. A take set aside for its retake is left out until its retake is made (retake_pending)."""
     import sys
     kept = list(sys.path)
     sys.path.insert(0, str(REPO / "tools" / "library"))
@@ -897,7 +968,8 @@ def takes_back(place):
     finally:
         sys.path[:] = kept
     for take in surfaces.data.takes(place) if place else ():
-        pixal_takes.take_back(take, PROPS_HOME / "work" / "pixal")
+        if not retake_pending(take, PROPS_HOME / "work" / "pixal"):
+            pixal_takes.take_back(take, PROPS_HOME / "work" / "pixal")
 
 
 graph.PLACE_READS.append(takes_back)

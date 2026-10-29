@@ -6,7 +6,8 @@ click makes on the store's machine (applying.apply, so every check of his click 
     record(decision, target, answer, question, store, **given)
                         his yes {id, purpose "decide", decision, target, given, answer, question, at, by}, kept once in
                         the store (grants/decide/<id>.json, score.review.web): `target` what it applies to as it stands
-                        at the question (state_of), `given` his words for it: reason, worse_reason, check
+                        at the question (state_of), `given` his words for it: reason, worse_reason, check, and a
+                        reject's takes (the takes of that output to remake, the rest kept: graph.Stage.retakes)
     apply(yes id, store)
                         his decision under that yes, once: refused when there is no quoted yes, it was used already
                         (grants/decide-used/<id>.json, written before it is applied, so a refused one needs a new
@@ -97,6 +98,8 @@ def record(decision, target, answer, question, store=None, **given):
         raise Refused(f"a decision is one of {', '.join(DECISIONS)}, not {decision!r}")
     if decision in ("reject", "waive") and not str(given.get("reason") or "").strip():
         raise Refused(f"a {decision} says why, in his words: --reason")
+    if given.get("takes") and decision != "reject":
+        raise Refused("only a reject names takes to remake (--takes)")
     store = store or state.source().store
     given = {name: value for name, value in given.items() if value}
     moment = datetime.datetime.now(datetime.timezone.utc)
@@ -112,7 +115,8 @@ def request_of(yes):
     if yes["decision"] in ("accept", "reject"):
         return {"kind": "decision", "user": user, "payload": {
             "node": target["node"], "output": target["output"], "decision": yes["decision"],
-            "reason": given.get("reason", ""), "worse_reason": given.get("worse_reason", "")}}
+            "reason": given.get("reason", ""), "worse_reason": given.get("worse_reason", ""),
+            **({"takes": given["takes"]} if given.get("takes") else {})}}
     if yes["decision"] == "waive":
         return {"kind": "waiver", "user": user, "payload": {
             "node": target["node"], "output": target["output"], "check": target["check"],

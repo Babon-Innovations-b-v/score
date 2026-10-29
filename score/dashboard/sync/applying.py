@@ -71,7 +71,7 @@ def apply_decision(item):
         return Applied("refused", f"{item['user']} is not this store's owner")
     place, stage = place_and_stage(payload["node"])
     said = actions.decide(item["user"], place, stage, payload["output"], payload["decision"],
-                          payload.get("reason", ""), payload.get("worse_reason") or "")
+                          payload.get("reason", ""), payload.get("worse_reason") or "", payload.get("takes", ()))
     return Applied("done" if said.startswith(("accepted", "rejected")) else "refused", said)
 
 

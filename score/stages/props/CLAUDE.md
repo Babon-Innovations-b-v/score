@@ -62,6 +62,14 @@ gate passes it), else
   `batch-gaps.json`; their gates still fail them by name and the table moves those faults. `likeness` reads the rows
   that write such gaps and carries them all to complete, each with its hand-in object and inventory rows; it declares
   a take's Pixal3D input only where it is there. A batch whose command fails as a whole still stops `pixal`.
+- **One take remade, the rest kept** (owner, 2026-10-28: a failing object remade once, free): his reject of
+  `pixal@<place>`'s output naming takes (`--takes`, through decide-yes and decide) keys the row anew
+  (`graph.Stage.retakes`); the make, wrapped in the framework's table so the row's code does not move
+  (`score/stages/__init__.py` `retaking`, `set_aside`), moves each named take's files once into
+  `work/pixal/retaken/<take>-r<attempt>/` and the batch makes it at its seed plus the attempt; `takes_back` leaves
+  such a take alone until its retake is made (the library's copy is the rejected one). Only a Pixal3D take: a code build's
+  fault is its builder's to fix, and a take the finish route's regions never split (a list finish no region is
+  labelled with) is the route's to fix, not a retake's.
 - **The comparison** (`compare.py`) runs one place prop-first and code-first, each in its own data copy and store
   under `$PROPS_HOME/compare/<place>/`, and writes the table and review page there. Run it with `--detach`; it spends,
   every ledger line tagged `compare-<place>-<order>` (`ledger_tag/`).

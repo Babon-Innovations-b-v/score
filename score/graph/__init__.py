@@ -294,6 +294,9 @@ class Stage:
     from. Never in a key.
     seeded: False for a row whose make never uses its seed (it measures what other rows made): a failed output of it
     is noted for a fix upstream, never remade with a fresh seed (SAME_INPUTS). Never in a key.
+    retakes: its make remakes the takes the owner's reject of its output names (review.reject `takes`): while its
+    key's record holds an output so rejected, the key's params gain `retake` {takes, attempt, after} (Runner.retaken),
+    so the make gets a key of its own and remakes those takes alone, keeping the rest. Never in a key itself.
     """
     name: str
     grain: str
@@ -318,6 +321,7 @@ class Stage:
     selects: bool = False
     euros_from: str = field(default=None, init=False, compare=False)
     seeded: bool = True
+    retakes: bool = False
 
     def __post_init__(self):
         if self.euros is not None:
@@ -1067,6 +1071,8 @@ class Runner:
             parts["beside"] = {node: self.usable(before, other, wanted)
                                for node, (before, other, wanted) in beside.items()}
         key = text_hash(json.dumps(parts, sort_keys=True))
+        if stage.retakes:  # only such a row's key may gain a retake part, and only once he rejected takes of it
+            parts, key = self.retake_parts(node_name(stage, place), parts, key)
         note = self.store.read(f"{REMAKES}{node_name(stage, place)}/{key}.json")
         if note and note["then"] == "remake":  # only then a remake part: no other node's key moves
             failed = ", ".join(sorted(note["failed"]))
@@ -1075,6 +1081,27 @@ class Runner:
                                 "why": f"automatic free remake, attempt 2, after {failed}"}}
             key = text_hash(json.dumps(parts, sort_keys=True))
         return {**parts, "key": key}
+
+    def retake_parts(self, node, parts, key):
+        """(parts, key) with a `retake` param for each output of the node the owner rejected naming takes (retaken),
+        one attempt on the last: the key whose record's output is so rejected moves on to one that remakes them."""
+        attempt = 0
+        record = self.store.record(node, key)
+        while record and self.retaken(node, record["output"]):
+            attempt += 1
+            retake = {"takes": self.retaken(node, record["output"]), "attempt": attempt, "after": key}
+            parts = {**parts, "params": {**parts["params"], "retake": retake}}
+            key = text_hash(json.dumps(parts, sort_keys=True))
+            record = self.store.record(node, key)
+        return parts, key
+
+    def retaken(self, node, output):
+        """The sorted takes the owner's newest reject of `output` names to remake, while it stands; [] otherwise."""
+        if not self.store.rejected(node, output):
+            return []
+        newest = max((reject for reject in self.store.rejects(node) if reject["output"] == output),
+                     key=lambda reject: reject["at"])
+        return sorted(newest.get("takes", ()))
 
     def besides(self, stage, place):
         """{node: (earlier stage, other place, (schema, version))} the node reads of other places (its `beside`, for

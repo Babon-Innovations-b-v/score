@@ -188,14 +188,16 @@ def within_owners_accept(store, node, output):
         return None
 
 
-def reject(store, node, output, by, reason):
+def reject(store, node, output, by, reason, takes=()):
     """The owner's reject of a node's accepted output, with his reason: the accepted output moves back to the one
-    accepted before it, and every later node that read it goes stale. The reject, as written."""
+    accepted before it, and every later node that read it goes stale. `takes`: the takes of it to remake, the rest
+    kept, for a row that retakes (graph.Stage.retakes). The reject, as written."""
     if store.accepted(node) != output:
         raise Refused(f"{output[:12]} is not {node}'s accepted output; only the accepted output can be rejected")
     if not reason.strip():
         raise Refused("a reject needs a reason")
-    written = {"node": node, "output": output, "by": by, "at": now(), "reason": reason}
+    written = {"node": node, "output": output, "by": by, "at": now(), "reason": reason,
+               **({"takes": sorted(takes)} if takes else {})}
     store.write_reject(node, written)
     return written
 
