@@ -118,7 +118,10 @@ stage as each stage is built; nothing moves before.
   line and goes on the owner's list, priced (its forecast, else its estimate). A row of cached model asks
   (`asks_cached`: its own files are or import `CACHED_ASKS`, the Google batch route or the claude-code adapter) is
   never remade, since a fresh seed asks the same question: its note says "same question, same answer: needs a source
-  fix (prompt or inputs)", not on his list; it runs again only once its key moves (owner, 2026-10-28). Each note (failed checks, reasons,
+  fix (prompt or inputs)", not on his list; it runs again only once its key moves (owner, 2026-10-28). So is a row
+  that only checks what other rows made (`Stage.seeded` False, set by `UNSEEDED` in `score/stages/__init__.py`:
+  likeness, surfaces-check, complete, ground-fit): its note says "a check of inputs: same inputs, same answer; needs a
+  source fix upstream: <findings>" (likeness@airlock, 2026-10-29, was remade and listed twice for nothing). Each note (failed checks, reasons,
   measures, findings, what came next, attempt 2's outcome) is a line of `remakes/notes.jsonl` beside the store, an
   owner's one also of `remakes/owner-list.jsonl`, and the fault report names both attempts; the noted checks are
   where the cause gets fixed (a builder, a route, a check judging wrongly), the remake is no fix. No gate loosens,

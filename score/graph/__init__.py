@@ -84,7 +84,7 @@ LOG_TAIL = 40
 NOT_RUN = " has not run on its current inputs"  # usable's cause; a fault report names what moved its key
 # A failed output's note, once per key in the store (the count that keeps a node to one free remake across runs and
 # restarts): remakes/<node>/<key>.json, `then` "remake" (its key's attempt 2 is made), "owner" (on his list, priced),
-# "fix" (a row of cached model asks: same question, same answer) or "done" (attempt 2's own outcome). Each note is also
+# "fix" (a row of cached model asks or a check of inputs: same question, same answer) or "done" (attempt 2's own outcome). Each note is also
 # a line of the runner's remake log beside the store, and an "owner" one a line of the owner's list there (owner,
 # 2026-10-28).
 REMAKES = "remakes/"
@@ -95,6 +95,9 @@ REMAKE_LOG, OWNER_LIST = ("remakes", "notes", ".jsonl"), ("remakes", "owner-list
 CACHED_ASKS = {_code.REPO / name for name in ("score/stages/surfaces/route_ask.py", "score/stages/surfaces/claude_asks.py",
                                               "score/stages/effects/asked.py", "score/adapters/models/claude_code.py")}
 SAME_ANSWER = "same question, same answer: needs a source fix (prompt or inputs)"
+# A row whose make only measures what other rows made (Stage.seeded False) is noted alike: a fresh seed changes nothing
+# it makes (likeness@airlock, 2026-10-29: remade, failed the same way, listed for the owner as a second failure).
+SAME_INPUTS = "a check of inputs: same inputs, same answer; needs a source fix upstream"
 # Nodes the drive runs at once: most wait on a rented machine, the rest work on this PC's cores.
 JOBS = 8
 # How often a node's process checks that its runner is still there (watch_runner).
@@ -289,6 +292,8 @@ class Stage:
     euros_from: where the row naming its estimate is written, `<file>:<line>` (set when the row is built: the line
     that builds it, through a helper of the same file that passes its `euros` on), so a guess says where it comes
     from. Never in a key.
+    seeded: False for a row whose make never uses its seed (it measures what other rows made): a failed output of it
+    is noted for a fix upstream, never remade with a fresh seed (SAME_INPUTS). Never in a key.
     """
     name: str
     grain: str
@@ -312,6 +317,7 @@ class Stage:
     downward: bool = False
     selects: bool = False
     euros_from: str = field(default=None, init=False, compare=False)
+    seeded: bool = True
 
     def __post_init__(self):
         if self.euros is not None:
@@ -436,6 +442,15 @@ def asks_cached(stage):
     """True for a row whose own files (the framework's left out) are or import a cached model ask (CACHED_ASKS)."""
     own = [path for path in _code.start_files(code_functions(stage)) if not _code.in_framework(path, _code.FRAMEWORK)]
     return any(path in CACHED_ASKS or CACHED_ASKS & set(_code.live_imports(path)) for path in own)
+
+
+def fix_why(stage, failed):
+    """Why a failed output is noted for a source fix: its cached asks answer alike (SAME_ANSWER), or, for a row that
+    checks its inputs, SAME_INPUTS with its failed checks' findings (the failing objects), else their names."""
+    if stage.seeded:
+        return SAME_ANSWER
+    faults = [str(finding) for verdict in failed.values() for finding in verdict["findings"]] or sorted(failed)
+    return f"{SAME_INPUTS}: {'; '.join(faults)}"
 
 
 def node_name(stage, place):
@@ -1239,11 +1254,11 @@ class Runner:
                 self.note(stage, place, keyed, {}, "done")
             return did
         free = (not stage.paid and not any(euros for _, euros in stage.gatherers.values())) or on_this_pc()
-        then = "fix" if not second and asks_cached(stage) else "remake" if free and not second else "owner"
+        then = "fix" if not second and (not stage.seeded or asks_cached(stage)) else "remake" if free and not second else "owner"
         if not self.note(stage, place, keyed, failed, then):
             return did  # noted by an earlier run: its remake, or the owner's list, has it
         if then == "fix":
-            return f"{did}; {SAME_ANSWER}"
+            return f"{did}; {fix_why(stage, failed)}"
         if then == "owner":
             return f"{did}; {'the second failure' if second else 'a paid remake'}: on the owner's list, priced"
         return f"{did}; automatic free remake, attempt 2, after {', '.join(sorted(failed))}: " \
@@ -1277,7 +1292,7 @@ class Runner:
         if "remake" in keyed:
             entry["first"] = keyed["remake"]["after"]
         if then == "fix":
-            entry["why"] = SAME_ANSWER
+            entry["why"] = fix_why(stage, entry["failed"])
         if then == "owner":
             entry["euros"] = self.price(stage, place, keyed)
             entry["why"] = "both attempts failed" if "remake" in keyed else "its remake is paid"
@@ -1773,7 +1788,7 @@ class Runner:
         lines = [f"attempt {note['attempt']} (key {note['key'][:12]}, output {note['output'][:12]}) failed "
                  f"{', '.join(sorted(note['failed']))}: then {note['then']}" for note in notes if note["failed"]]
         if notes and notes[-1]["then"] == "fix":
-            lines.append(SAME_ANSWER)
+            lines.append(notes[-1]["why"])
         if notes and notes[-1]["then"] == "owner":
             lines.append(f"{notes[-1]['why']}: on the owner's list, priced EUR {notes[-1]['euros']:.2f} "
                          f"({self.desk(*OWNER_LIST)})")
