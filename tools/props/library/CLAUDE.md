@@ -88,7 +88,10 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   picture's colours never reach it (method B; round four's picture layer gave every piece its own rust and stains,
   "inconsistent with the rest of the room", and is gone). It reads the labelled parts itself (`read_ply`), never with
   Blender's PLY importer or `Mesh.validate`, which reorder a big part's faces differently each run: two bakes of one
-  take came out 36 to 39 of 255 apart on base colour (2026-10-28). `straight.py` fails a `square` kind that comes out tilted or
+  take came out 36 to 39 of 255 apart on base colour (2026-10-28). It bakes only on the system it names
+  (`SYSTEM`: Blender 5.0.1 and glibc 2.39, this PC's container and the rented Ubuntu 24.04 machines), so its key
+  names the system and any other machine refuses: on glibc 2.43 the solid copy came out a few vertices apart and every
+  picture followed (2026-10-29, #36). A comparison bake runs in the container's image, never on this PC directly. `straight.py` fails a `square` kind that comes out tilted or
   warped (round four's locker leant 13 degrees).
 - **Print is decals placed by rule** (round six): labels, sheets, notes and stickers are printed plates (print
   family) placed on purpose, a few a piece, never over a vent, a handle or a tool: `pieces.prints_off` probes the

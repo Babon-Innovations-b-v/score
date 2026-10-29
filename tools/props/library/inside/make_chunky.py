@@ -23,6 +23,7 @@ density: several maps, bake.Atlas `split`), and report.json.
 """
 import json
 import math
+import os
 import pathlib
 import sys
 import time
@@ -43,6 +44,10 @@ import scene_setup  # noqa: E402
 import shapes  # noqa: E402
 
 BAKE_SAMPLES = 16
+# The system a bake is made on, so this file (a declared input of every bake row) keys it, and a machine on another
+# refuses: on glibc 2.43 the solid copy came out a few vertices apart from the container's 2.39 (6955 against 6956)
+# and every picture followed (2026-10-29, #36). This PC's container and the rented machines are Ubuntu 24.04.
+SYSTEM = {"blender": "5.0.1", "libc": "glibc 2.39"}
 # How far the bake looks from the cut-down copy for the full model's surface, in the copy's voxels (bake_reach). The
 # copy lies within a wall and a voxel or two of the full model: measured from its points (the materials fix,
 # 2026-10-18) the farthest lay 2.4 to 2.7 voxels off on the cargo rack, the main console, the galley counter and the
@@ -575,7 +580,16 @@ def bounds(item):
             [round(max(point[axis] for point in points), 5) for axis in range(3)]]
 
 
+def system_refusal():
+    """Why this machine may not bake (another Blender or C library than SYSTEM), else None."""
+    found = {"blender": bpy.app.version_string, "libc": os.confstr("CS_GNU_LIBC_VERSION")}
+    return None if found == SYSTEM else f"make_chunky bakes on {SYSTEM}, this machine is {found}"
+
+
 def main():
+    refusal = system_refusal()
+    if refusal:
+        raise SystemExit(refusal)
     job = json.loads(pathlib.Path(sys.argv[sys.argv.index("--") + 1]).read_text())
     out = pathlib.Path(job["out"])
     out.mkdir(parents=True, exist_ok=True)

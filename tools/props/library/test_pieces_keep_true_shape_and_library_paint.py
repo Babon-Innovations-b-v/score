@@ -21,6 +21,7 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   test_a_job_naming_no_wall_takes_two_voxels_not_under_5_mm.
 - make_chunky `full_model`: `bpy.ops.wm.ply_import` again; and, apart, `kept_triangles`: `once[:] = True` ->
   test_a_part_reads_the_same_every_run (2026-10-28).
+- make_chunky `system_refusal`: `return None` -> test_a_bake_refuses_a_machine_of_another_system (2026-10-29).
 - stored `pointed_at_webp`: drop `texture.pop("source", None)` -> test_stored_pictures_are_webp_and_a_room_has_a_budget.
 - bodies `kept`: drop the detail boxes' `found |= ...` -> test_a_body_keeps_only_the_take_faces_it_names.
 - bodies `console_outline`: `top = CONSOLE_TOP * tall + 0.1` -> test_every_body_stands_in_its_laid_box.
@@ -73,11 +74,13 @@ import contextlib
 import io
 import json
 import math
+import os
 import pathlib
 import re
 import shutil
 import subprocess
 import sys
+import types
 
 import numpy as np
 import pytest
@@ -249,6 +252,21 @@ def test_a_job_naming_no_wall_takes_two_voxels_not_under_5_mm():
     default_wall = chunky_default_wall()
     assert default_wall([0.4, 0.3, 0.2]) == 0.005  # a prop: its two voxels are under 5 mm
     assert abs(default_wall([8.0, 8.0, 60.0]) - 0.4) < 1e-9  # the launch rocket: two 0.2 m voxels, not lace
+
+
+def test_a_bake_refuses_a_machine_of_another_system(monkeypatch):
+    # glibc 2.43 laid the solid copy a few vertices apart from the container's 2.39 and every picture followed
+    # (2026-10-29, #36): a bake runs only on the system its file names, so the file's key names the system
+    space = chunky_functions(("system_refusal",), {"SYSTEM"})
+    blender = types.SimpleNamespace(app=types.SimpleNamespace(version_string="5.0.1"))
+    space.update(bpy=blender, os=os)
+    monkeypatch.setattr(os, "confstr", lambda name: "glibc 2.39")
+    assert space["system_refusal"]() is None
+    monkeypatch.setattr(os, "confstr", lambda name: "glibc 2.43")
+    assert "glibc 2.43" in space["system_refusal"]()
+    blender.app.version_string = "5.1.0"
+    monkeypatch.setattr(os, "confstr", lambda name: "glibc 2.39")
+    assert "5.1.0" in space["system_refusal"]()
 
 
 
