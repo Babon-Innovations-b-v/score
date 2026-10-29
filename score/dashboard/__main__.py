@@ -88,6 +88,7 @@ def parse(argv):
     decide_yes.add_argument("target", help="the node, place, film or environment it applies to")
     for name in ("output", "check", "sha", "reason", "worse-reason"):
         decide_yes.add_argument(f"--{name}", default="")
+    decide_yes.add_argument("--takes", default="", help="a reject's takes to remake, comma-separated")
     for name in ("answer", "question"):
         decide_yes.add_argument(name)
     commands.add_parser("decide", help="his decision under a yes from decide-yes, once "
@@ -101,7 +102,8 @@ def decide_yes(options):
     try:
         yes = chat_decisions.record(options.decision, options.target, options.answer, options.question,
                                     output=options.output, check=options.check, sha=options.sha,
-                                    reason=options.reason, worse_reason=options.worse_reason)
+                                    reason=options.reason, worse_reason=options.worse_reason,
+                                    takes=sorted(filter(None, options.takes.split(","))))
     except chat_decisions.Refused as refused:
         sys.exit(f"decide-yes: refused: {refused}")
     print(f"decide-yes {yes['id']}: {yes['decision']} {json.dumps(yes['target'])}")

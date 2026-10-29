@@ -255,6 +255,7 @@ Breaks (each applied once, seen red, reverted), in score/stages/moved.py and .gi
 
 import ast
 import contextlib
+import dataclasses
 import fnmatch
 import functools
 import importlib
@@ -698,6 +699,60 @@ def test_a_row_reading_the_recipes_declares_the_vendored_libraries_they_import()
     dress rows: tools/props/library) declares both, so re-vendoring makes its bakes again."""
     dress = next(row for row in stages.STAGES if row.name.startswith("people-dress-"))
     assert set(stages.VENDORED_RECIPES.values()) <= set(dress.files(None).values())
+
+
+def test_a_take_the_owner_rejected_is_set_aside_once_and_retaken_without_moving_the_pixal_row(tmp_path):
+    """Owner, 2026-10-28 (a failing object remade once, free): the table wires pixal to retake with its code version
+    as it was; a take his reject names has its files moved aside once (the other takes and a take its name starts
+    kept), is asked at its seed plus the attempt, and stays out of takes_back until its retake is made; a code build's
+    take is refused.
+    Break: score/stages/__init__.py: '        if not aside.exists():' -> '        if True:'"""
+    row = next(row for row in stages.STAGES if row.name == "pixal")
+    assert row.retakes and graph.stage_code(row) == graph.stage_code(dataclasses.replace(row,
+                                                                                          make=inspect.unwrap(row.make)))
+    for name in ("stool_1.glb", "stool_1-final.glb", "stool_1-5000.glb", "stool_1.json", "stool_10.glb", "seat_1.glb"):
+        (tmp_path / name).write_text("old")
+    (tmp_path / "stool_1.svviews").mkdir()
+    (tmp_path / "pipe_1.svviews").mkdir()
+    (tmp_path / "pipe_1.svviews" / "code.json").write_text("{}")
+    objects = {"stool": {"take": "stool_1"}, "seat": {"take": "seat_1"}, "pipe": {"take": "pipe_1"}}
+    retake = {"takes": ["stool_1"], "attempt": 1, "after": "k"}
+    assert stages.set_aside(retake, objects, tmp_path) == {"stool_1": 2}
+    aside = tmp_path / stages.RETAKEN / "stool_1-r1"
+    assert sorted(path.name for path in aside.iterdir()) == [
+        "stool_1-5000.glb", "stool_1-final.glb", "stool_1.glb", "stool_1.json", "stool_1.svviews"]
+    assert sorted(path.name for path in tmp_path.glob("*.glb")) == ["seat_1.glb", "stool_10.glb"]
+    assert stages.retake_pending("stool_1", tmp_path) and not stages.retake_pending("stool_10", tmp_path)
+    (tmp_path / "stool_1.glb").write_text("new")
+    stages.set_aside(retake, objects, tmp_path)
+    assert (tmp_path / "stool_1.glb").read_text() == "new" and (aside / "stool_1.glb").read_text() == "old"
+    (aside / stages.RETAKE_MADE).touch()
+    assert not stages.retake_pending("stool_1", tmp_path)
+    with pytest.raises(ValueError, match="pipe_1"):
+        stages.set_aside({**retake, "takes": ["pipe_1"]}, objects, tmp_path)
+
+
+def test_the_retaking_make_asks_a_retake_at_its_new_seed_and_marks_it_made(tmp_path):
+    """The pixal make under a retake (stages.retaking) asks Pixal3D's seed of a named take as set_aside gave it and of
+    any other take as its name gives it, its own seed_of put back after; a retake made is marked so; with no retake the
+    make runs as it is.
+    Break: score/stages/__init__.py: '        pixal_row.seed_of = lambda take: seeds[take] if take in seeds else named(take)' -> '        pass'"""
+    pixal = pixal_row.take_files("-")[0].parent
+    pixal.mkdir(parents=True, exist_ok=True)
+    asked = []
+
+    def make(inputs, out, seed, params):
+        asked.append((pixal_row.seed_of("crate_7"), pixal_row.seed_of("seat-s3")))
+        for suffix in pixal_row.SUFFIXES:
+            pixal.joinpath(f"crate_7{suffix}").write_text("new")
+    handin = tmp_path / "handin.json"
+    handin.write_text(json.dumps({"objects": {"crate": {"route": "prop", "take": "crate_7"},
+                                              "seat": {"route": "prop", "take": "seat-s3"}}}))
+    stages.retaking(make)({"props": handin}, tmp_path, 1, {"retake": {"takes": ["crate_7"], "attempt": 1, "after": "k"}})
+    assert asked == [(2, 3)] and pixal_row.seed_of("crate_7") == 1
+    assert (pixal / stages.RETAKEN / "crate_7-r1" / stages.RETAKE_MADE).exists()
+    stages.retaking(make)({"props": handin}, tmp_path, 1, {})
+    assert asked[-1] == (1, 3)
 
 
 # --- a scenes layers are read off its design ---

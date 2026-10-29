@@ -296,12 +296,14 @@ def record_change(user, place, stage, output, words):
     return change
 
 
-def decide(user, place, stage, output, decision, reason, worse_reason):
-    """The owner's accept or reject, in words: local through score.review.web.decide, hosted queued."""
+def decide(user, place, stage, output, decision, reason, worse_reason, takes=()):
+    """The owner's accept or reject, in words: local through score.review.web.decide, hosted queued; `takes` a
+    reject's takes to remake (review.reject)."""
     node = node_of(place, stage)
     if hosted():
         SyncRequest.objects.create(kind="decision", user=user, payload={
-            "node": node, "output": output, "decision": decision, "reason": reason, "worse_reason": worse_reason})
+            "node": node, "output": output, "decision": decision, "reason": reason, "worse_reason": worse_reason,
+            **({"takes": list(takes)} if takes else {})})
         return f"queued: the store's machine applies the {decision} on its next sync"
     why = decisions_off_why()
     if why:
@@ -310,7 +312,8 @@ def decide(user, place, stage, output, decision, reason, worse_reason):
     from score.review import web
     source = state.source()
     try:
-        web.decide(source.store, node, output, decision, by=user, reason=reason, worse_reason=worse_reason or None)
+        web.decide(source.store, node, output, decision, by=user, reason=reason, worse_reason=worse_reason or None,
+                   takes=takes)
     except (review.Refused, PermissionError, FileExistsError) as refused:
         return f"refused: {refused}"
     source.refresh()

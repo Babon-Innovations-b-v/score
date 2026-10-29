@@ -269,6 +269,34 @@ def test_the_runner_accepts_by_itself_only_what_passed_and_got_no_worse():
     assert found["clean@hangar"] == "fresh" and found["count@hangar"].startswith("blocked: clean@hangar's output")
 
 
+def make_takes(inputs, out, seed, params):
+    (out / "takes.txt").write_text(json.dumps(params.get("retake")))
+
+
+def test_a_reject_naming_takes_gives_a_row_that_retakes_a_key_that_remakes_them():
+    """Owner, 2026-10-28 (a failing object remade once, free): his reject of an output naming takes (review.reject
+    `takes`) keys a row that retakes anew, its params' retake those takes, attempt 1, after the key he rejected, and
+    the new output is made and accepted; a later reject naming no takes keys nothing new, and a row that does not
+    retake keys as before.
+    Break: score/graph/__init__.py: '        if stage.retakes:  # only' -> '        if False:  # only'"""
+    takes = graph.Stage("takes", "place", make_takes, TEXT, PASSES, retakes=True)
+    world, store = a_world({"hangar": "a ship"}), a_store()
+    runner = a_runner(world, store, (takes,))
+    assert runner.run(["hangar"])["takes@hangar"].endswith("accepted automatically")
+    first = runner.key(takes, "hangar")["key"]
+    review.reject(store, "takes@hangar", store.accepted("takes@hangar"), "owner", "a block", takes=("seat-s1",))
+    runner = a_runner(world, store, (takes,))
+    keyed = runner.key(takes, "hangar")
+    assert keyed["params"]["retake"] == {"takes": ["seat-s1"], "attempt": 1, "after": first}, keyed["params"]
+    assert runner.run(["hangar"])["takes@hangar"].endswith("accepted automatically")
+    retaken = store.accepted("takes@hangar")
+    assert json.loads((store.checkout(retaken) / "takes.txt").read_text())["takes"] == ["seat-s1"]
+    review.reject(store, "takes@hangar", retaken, "owner", "no")
+    assert a_runner(world, store, (takes,)).key(takes, "hangar")["key"] == keyed["key"]
+    plain = dataclasses.replace(takes, retakes=False)
+    assert a_runner(world, store, (plain,)).key(plain, "hangar")["key"] == first
+
+
 def test_a_bought_batch_accepts_a_passing_worse_output_and_writes_the_drop_down_for_review():
     """Owner, 2026-10-27: inside a bought batch a result that passes every check is accepted though a measure is worse,
     the drop written down for him to review after the batch, never a wait. The brief of 6 words that waits outside a

@@ -124,7 +124,12 @@ stage as each stage is built; nothing moves before.
   source fix upstream: <findings>" (likeness@airlock, 2026-10-29, was remade and listed twice for nothing). Each note (failed checks, reasons,
   measures, findings, what came next, attempt 2's outcome) is a line of `remakes/notes.jsonl` beside the store, an
   owner's one also of `remakes/owner-list.jsonl`, and the fault report names both attempts; the noted checks are
-  where the cause gets fixed (a builder, a route, a check judging wrongly), the remake is no fix. No gate loosens,
+  where the cause gets fixed (a builder, a route, a check judging wrongly), the remake is no fix. One object's take
+  is remade by his reject naming it (`decide-yes reject <node> --output <o> --takes <take,...>`, then `decide`;
+  review.reject `takes`): a row that retakes (`Stage.retakes`: pixal) is keyed anew with a `retake` param {takes,
+  attempt, after} while its key's output stands so rejected, and its make remakes those takes alone, the rest kept
+  (pixal, wired in the table's `retaking`: the take's files set aside under `work/pixal/retaken/`, made again at its
+  seed plus the attempt). No gate loosens,
   no accept the gates did not give, his rejects, waivers and accepts stay his; `stale` (shown in status) names the earlier nodes whose accepted output moved
   since. A node's key hashes its computed code version (`_code.py`: its make's and checks' files and every repository module they
   import, inside functions and through `sys.path` folders too (read from the files, in the folders the path held at the process's first code version, so a folder a make adds later moves nothing); never the framework's own runner, review, clearance,
