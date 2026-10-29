@@ -2,7 +2,8 @@
 on a small stage made here (no record written for the scene): the door swings a right angle on the hinge at its own
 left edge and shuts again, the fan turns a whole number of times a round, the rover stands parked with its rule's
 reason, and every gate passes; with nobody in the scene the door stands shut; two seeds make the same moves, so
-the row is unseeded; a moving row with no object fails `designed`; a door whose swing strikes is swung the other
+the row is unseeded; a moving row with no object fails `designed`, left out by name where a batch gap or the accepted plan's
+gap names it; a door whose swing strikes is swung the other
 way, else stands with its strike; a hatch lying flat stands. The check (check.py, #23), on a cart driven round a closed path, a door swung on its hinge and a hatch slid
 down: each passes, and one known fault each fails by name. Expected spots are worked out by hand below.
 
@@ -196,6 +197,30 @@ def test_a_moving_row_whose_take_the_bake_left_out_carries_its_gap(tmp_path):
     assert record["left_out"] == {"crane": ["toy_crane_b26f85f9: not baked"]}, record["left_out"]
     carried = [entry["name"] for entry in json.loads((out / "batch-gaps.json").read_text())["gaps"]]
     assert carried == ["toy_crane_b26f85f9: not baked", "crane: no object, so it does not move"], carried
+    verdict = table_judge("designed", out, inputs)
+    assert verdict.answer == checks.PASS and "moved to complete" in verdict.reason, (verdict.reason, verdict.findings)
+
+
+def test_a_moving_row_the_accepted_plan_places_none_of_is_left_out_by_its_plan_gap(tmp_path):
+    """Fault (motion@hangar, 2026-10-29): the floor hatch's row was read with no box, the accepted plan placed none of
+    it ("floor hatch: 1 in the concept, 0 on the plan"), and `designed` stopped the line on it having no object. The
+    crane's row is named by the plan's `placed` gap: `designed` still fails it by name, the record leaves it out by
+    that gap, which names where its source fix waits (#36), and the table moves the fault, so the line goes on; the
+    plan's other gaps leave nothing out.
+    Break: score/stages/motion/__init__.py: `planned = from_design.plan_gaps(read_json(inputs["plan"])) if "plan" in
+    inputs else []` -> `planned = []`"""
+    inputs = toy_inputs(tmp_path, ROWS + [{"id": "crane", "name": "crane", "noun": "crane"}])
+    inputs["plan"] = tmp_path / "plan.json"
+    inputs["plan"].write_text(json.dumps({"gaps": [
+        {"kind": "placed", "item": "crane", "row": "crane", "words": "crane: 1 in the concept, 0 on the plan"},
+        {"kind": "outside", "item": "FAN 1", "row": "fan", "words": "fan 1 sticks out of the place"}]}))
+    out, record = made(inputs, tmp_path)
+    assert judge("designed", out, inputs).answer == checks.FAIL
+    assert record["left_out"] == {"crane": ['crane: the accepted plan\'s gap "crane: 1 in the concept, 0 on the plan" '
+                                            f"(its source fix: {from_design.PLAN_FIX})"]}, record["left_out"]
+    assert "issues/36#issuecomment-" in from_design.PLAN_FIX
+    carried = [entry["name"] for entry in json.loads((out / "batch-gaps.json").read_text())["gaps"]]
+    assert carried == ["crane: no object, so it does not move"], carried
     verdict = table_judge("designed", out, inputs)
     assert verdict.answer == checks.PASS and "moved to complete" in verdict.reason, (verdict.reason, verdict.findings)
 

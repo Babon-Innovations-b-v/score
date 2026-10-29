@@ -78,11 +78,28 @@ EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, eff
                              "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                       beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                       neighbours=assembly.claiming_places, applies=designed("effects"))
+def designed_motion(files):
+    """motion's files with a designed place's hand-in (`props`: the takes the surface line left out name its rows,
+    leaving_out) and its accepted plan where it stands (`plan`: a moving row it places none of is left out by its
+    named gap, motion/from_design.plan_gaps): hangar's overhead crane and floor hatch, 2026-10-29. Wrapped here, in
+    the table, so a place without either keeps its files."""
+    @functools.wraps(files)
+    def declared(place):
+        found = files(place)
+        if prop_data.designed(place):
+            found = {**found, "props": prop_data.keyed(place)}
+        if plan_written(place):
+            found = {**found, "plan": "{home}/design/plans/" + f"{place}.json"}
+        return found
+    return declared
+
+
 # Experimental (PRD #6) until the owner reviews it: each scene's motion layer made from its design (its design shows a
 # row whose kind moves), over its seed with its accepted scene record written in and the surface line's bakes laid
 # (the design's objects wait on them: without, every moving row had no object, Batch 1, 2026-10-27), the seed alone
 # where the place has no scene-record row; the final assembly takes it.
-MOTION = graph.Stage("motion", "place", motion.make, motion.LAYER, motion.CHECKS, files=motion.files,
+MOTION = graph.Stage("motion", "place", motion.make, motion.LAYER, motion.CHECKS,
+                     files=designed_motion(motion.files),
                      after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 2),
                             "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                      beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
@@ -979,7 +996,7 @@ STAGES = tuple(dataclasses.replace(row, retakes=True, make=retaking(row.make)) i
                for row in STAGES)
 # The rows a take the surface line left out reaches by name (left_out_gaps; owner, 2026-10-29, through score: a take
 # the surfaces-parts row leaves out "must never vanish silently").
-LEFT_OUT = ("likeness",)
+LEFT_OUT = ("likeness", "motion")
 
 
 def left_out_gaps(inputs, named):

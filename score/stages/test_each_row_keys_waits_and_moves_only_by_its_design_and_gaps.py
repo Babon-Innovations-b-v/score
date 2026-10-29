@@ -791,6 +791,28 @@ def test_a_take_the_surface_line_left_out_is_a_batch_gap_by_its_reason_never_a_m
     assert found["crane_7: left out: patchy paint: stray 0.031 > 0.03"]["objects"] == ["crane", "crane_7"]
 
 
+def test_motion_names_the_takes_the_surface_line_left_out_from_its_designed_place_s_hand_in(monkeypatch):
+    """motion@hangar, 2026-10-29: the overhead crane's take was left out for patchy paint, a gap carried only to the
+    likeness, and `designed` stopped the line on the crane having no object. The motion make is wrapped by
+    leaving_out (its code version as it was) and reads a designed place's hand-in and its accepted plan where it
+    stands; a place without either keeps its files.
+    Break: score/stages/__init__.py: 'LEFT_OUT = ("likeness", "motion")' -> 'LEFT_OUT = ("likeness",)'
+    Break: score/stages/__init__.py: '            found = {**found, "props": prop_data.keyed(place)}' -> '            pass'"""
+    row = next(row for row in stages.STAGES if row.name == "motion")
+    assert graph.stage_code(row) == graph.stage_code(dataclasses.replace(row, make=inspect.unwrap(row.make)))
+    chain, make = [], row.make
+    while make is not None:
+        chain.append(make.__code__)
+        make = getattr(make, "__wrapped__", None)
+    assert stages.leaving_out(len).__code__ in chain, chain
+    bare = row.files("toy")
+    monkeypatch.setattr(stages.prop_data, "designed", lambda place: True)
+    monkeypatch.setattr(stages, "plan_written", lambda place: True)
+    found = row.files("toy")
+    assert found["props"] == stages.prop_data.keyed("toy") and found["plan"] == "{home}/design/plans/toy.json", found
+    assert "props" not in bare and "plan" not in bare, bare
+
+
 def test_a_rejected_sheet_is_remade_as_its_flat_sheet_build_never_a_new_seed(tmp_path):
     """A sheet's take the owner's reject names (flat_sheet.sheet: a paper pinned to a wall) is remade in code from its
     own close-up (stages.sheet_remakes) before the make runs, so Pixal3D is never asked again for it and the retake is

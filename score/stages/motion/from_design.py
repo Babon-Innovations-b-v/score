@@ -15,7 +15,8 @@ rule says (data/checks/row-kinds.json `motion`), at the speed its motion kind's 
             through it: a row whose kind `does` the need), else it stands with `still_without`
 
     record(place, inventory, kinds, motion_kinds, stage, carried)   the rigid record tools/usd/motion_layer.py writes
-    left_gaps(record)   the batch gap of each moving row a carried batch gap left with no object
+    plan_gaps(plan)     the accepted plan's `placed` gaps as gaps a moving row with no object is left out by
+    left_gaps(record)   the batch gap of each moving row a carried batch gap or a plan gap left with no object
 """
 from score.stages import batch_gaps, row_kinds
 
@@ -23,6 +24,8 @@ from score.stages import batch_gaps, row_kinds
 ROUND = 20.0
 OPENS, SHUTS = 2.0, 10.0
 MOTION_KINDS = "data/checks/motion.json"
+# Where the source fix of a row the accepted plan places too few of waits (hangar's floor hatch, 2026-10-29).
+PLAN_FIX = "parked on #36, https://github.com/Babon-Innovations-b-v/score/issues/36#issuecomment-6507732319"
 LYING = ("it lies lower than it is wide both ways (its own box), so it would turn about a level line or travel on "
          "rails, never about the upright line a swing turns on: it stands as the plan lays it")
 
@@ -108,10 +111,21 @@ def record(place, inventory, kinds, motion_kinds, stage, carried=()):
             "seconds": ROUND, "moves": moves, "still": still, "missing": missing, "left_out": left_out}
 
 
+def plan_gaps(plan):
+    """The accepted plan's `placed` gaps (a row it places another number of times than the concept shows) as the
+    carried gaps `record` reads: a moving row with no object that one names is left out by it, by name, never failed
+    as a model that is not there (hangar's floor hatch: "1 in the concept, 0 on the plan", its row read with no box,
+    2026-10-29). The gap names where its source fix waits, never the answer."""
+    return [{"name": f"{gap['row']}: the accepted plan's gap \"{gap['words']}\" (its source fix: {PLAN_FIX})",
+             "objects": [gap["row"]]} for gap in plan.get("gaps", []) if gap.get("kind") == "placed" and gap.get("row")]
+
+
 def left_gaps(record):
-    """The batch gap of each moving row left out: a paid step of its take failed in the batch, so nothing of it
-    moves; named by the row, so the table moves `designed`'s fault on it (stages.BATCH_GATES)."""
+    """The batch gap of each moving row left out: a paid step of its take failed in the batch, or the accepted plan
+    places none of it (plan_gaps), so nothing of it moves; named by the row, so the table moves `designed`'s fault on
+    it (stages.BATCH_GATES)."""
     return [batch_gaps.gap(f"{row}: no object, so it does not move", "motion", "designed", (row,),
                            [f"{row}: no object of it stands on the stage ({'; '.join(names)})"],
-                           "the prop route left its take out inside the batch, so nothing of it moves")
+                           "a gap its fault names left it with no object (its take left out inside the batch, or "
+                           "none of it on the accepted plan), so nothing of it moves")
             for row, names in sorted(record["left_out"].items())]
