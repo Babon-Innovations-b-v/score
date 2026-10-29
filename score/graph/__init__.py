@@ -1229,13 +1229,15 @@ class Runner:
         return record
 
     def making_code(self, stage, place, keyed):
-        """The row's code a kept job's content holds (tools/cloud/kept.py): its code version, contract, params, seed
-        and models and the files it declares inside the repository; not its earlier outputs or its files elsewhere,
-        which a job's own inputs are."""
+        """The row's code a kept job's content holds (tools/cloud/kept.py): the node, then the hash of its code
+        version, contract, params, seed and models and the files it declares inside the repository; not its earlier
+        outputs or its files elsewhere, which a job's own inputs are. The node lets the sweep ask it again
+        (score/conductor/disk.py clean-kept)."""
         files = {name: found for name, found in keyed["files"].items()
                  if self.file_path(stage, name, place).resolve().is_relative_to(_code.REPO)}
-        return text_hash(json.dumps({**{part: keyed[part] for part in ("code", "contract", "params", "seed", "models")},
-                                     "files": files}, sort_keys=True))
+        return node_name(stage, place) + " " + text_hash(json.dumps(
+            {**{part: keyed[part] for part in ("code", "contract", "params", "seed", "models")}, "files": files},
+            sort_keys=True))
 
     def unchanged_checkouts(self, node, inputs, keyed):
         """Raise when the make wrote into an earlier output's read-only checkout (light@camp saved over its input,

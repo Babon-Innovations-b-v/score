@@ -321,5 +321,5 @@ def test_a_job_keeps_only_the_files_its_copy_back_wrote_and_names_the_jobs_besid
     _, came, keeping = blender_cloud.run_job(tmp_path, "this-pc", 0, crate, True)
     assert came == 2
     assert keeping["brought"] == {making / "made" / "crate.gltf", making / "labelled" / "crate" / "labels.json"}
-    assert keeping["peers"] == dict([kept.identity(barrel, "this test's machine")])
+    assert keeping["peers"] == dict([kept.identity(barrel, "this test's machine")[:2]])
     assert blender_cloud.ACTIVE["this-pc"] == {"the barrel's turn": barrel}  # the crate's turn is over

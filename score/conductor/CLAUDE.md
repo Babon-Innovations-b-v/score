@@ -56,6 +56,13 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   file whose bytes the store holds as a blob (the store's sha256) and untouched for 15 min is made a hard link to that
   read-only blob, renamed over it; it removes nothing, so a take kept nowhere else stays whole. A take so linked is
   read-only: a re-finish that writes it in place is refused, never reaching the store.
+  `clean-kept` (2026-10-29; the sync pass runs it), only with no run live (clean-cache's refusal): each kept job and
+  per-take call (`tools/cloud/kept.py`, kept past its output so a re-keyed row makes only what changed) that no
+  current key could ask for is dropped: its node gone from the table, its row code (`Runner.making_code`) moved, its
+  system not this Python's or `blender_cloud.system`'s (worked out in a process of its own, so tools/cloud never
+  joins the import path), or an input no longer current (a checkout of an output its node no longer reads, a file with
+  other bytes). A node whose key is Blocked keeps its entries. Its blobs go only when no stored output and no other
+  entry holds them. Never by age.
 - **`library_checkout.py`** (`score-lib status | pull`, the door's, 2026-10-28): boot.sh clones score_lib once and
   nothing pulls it, while its handover, concept and the cockpit's lock push from it. Status fetches first; no push
   attempt is logged on score's side (each command's words go to its caller), so the newest push is the upstream

@@ -976,6 +976,47 @@ STAGES = tuple(dataclasses.replace(row, make=claude_asks.asking_claude(row.make)
 # Pixal3D's takes the owner's reject names are made again, the rest kept (retaking).
 STAGES = tuple(dataclasses.replace(row, retakes=True, make=retaking(row.make)) if row.name in RETAKES else row
                for row in STAGES)
+# A place row that makes its takes one call a take: the function its make calls for each, and where its arguments name
+# the take's own output folder. Each call is kept by its own content (tools/cloud/kept.py `call`), so a row made again
+# at a new key makes only the takes whose own inputs changed and links the rest back byte for byte (owner, 2026-10-29:
+# env1's views, split and parts remade unchanged takes at every re-key). Set here, in the table's wiring, so no
+# row's code moves. Each function reads only its arguments and the row's code.
+PER_TAKE = {"finish-route-views": ("view_take", lambda arguments: arguments[3]),
+            "finish-route-split": ("split_take", lambda arguments: arguments[0]["out"]),
+            "surfaces-parts": ("parts_take", lambda arguments: arguments[0]["out"])}
+
+
+def kept_module():
+    """tools/cloud/kept.py, loaded by its path: its folder put on the import path would give a same-named module to
+    every row worked out after it, and move their code versions (_code.search_folders)."""
+    import importlib.util
+    import sys
+    if "kept" not in sys.modules:
+        spec = importlib.util.spec_from_file_location("kept", REPO / "tools/cloud/kept.py")
+        sys.modules["kept"] = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(sys.modules["kept"])
+    return sys.modules["kept"]
+
+
+def per_take_kept(make, name, output):
+    """The make with its per-take function `name` answered through kept.call while it runs, `output` giving each
+    call's take folder from its arguments."""
+    import inspect
+    namespace = inspect.unwrap(make).__globals__
+
+    @functools.wraps(make)
+    def made(inputs, out, seed, params):
+        function, kept = namespace[name], kept_module()
+        namespace[name] = lambda *arguments: kept.call(function, arguments, output(arguments))
+        try:
+            return make(inputs, out, seed, params)
+        finally:
+            namespace[name] = function
+    return made
+
+
+STAGES = tuple(dataclasses.replace(row, make=per_take_kept(row.make, *PER_TAKE[row.name])) if row.name in PER_TAKE
+               else row for row in STAGES)
 # Last: every row declares the scripts its code starts by path (scripts_declared).
 STAGES = tuple(map(scripts_declared, STAGES))
 # Rows whose make only measures what other rows made, its seed unused (likeness: the prop route's models against their

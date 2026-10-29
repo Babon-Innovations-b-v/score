@@ -7,6 +7,7 @@
     python -m score.conductor disk               # disk.report: free room and the biggest folders, the rest in a file
     python -m score.conductor clean-frozen       # disk.clean: remove the frozen copies no run needs, what it freed
     python -m score.conductor clean-cache [--making-only]  # disk.clean_cache: checkouts relinked, the cache cleared
+    python -m score.conductor clean-kept         # disk.clean_kept: kept jobs no current key asks for, no run live
     python -m score.conductor relink-pixal       # disk.relink_pixal: work/pixal's stored files made links, one line
     python -m score.conductor score-lib status|pull  # library_checkout: score_lib's checkout against origin, one line
     python -m score.conductor offload-pixal      # disk.offload_pixal: takes into the library, freed once read back
@@ -29,6 +30,7 @@ def main(argv=None):
     commands.add_parser("clean-frozen")
     commands.add_parser("clean-cache").add_argument("--making-only", action="store_true",
                                                     help="only the orphaned makes (the sync pass's sweep)")
+    commands.add_parser("clean-kept")
     commands.add_parser("relink-pixal")
     commands.add_parser("score-lib").add_argument("action", choices=("status", "pull"))
     commands.add_parser("offload-pixal")
@@ -50,6 +52,8 @@ def main(argv=None):
         clean_frozen()
     elif options.command == "clean-cache":
         clean_cache(options.making_only)
+    elif options.command == "clean-kept":
+        clean_kept()
     elif options.command == "relink-pixal":
         relink_pixal()
     elif options.command == "score-lib":
@@ -93,6 +97,20 @@ def clean_cache(making_only):
         sys.exit(1)
     print(f"clean-cache: {relinked}; removed {', '.join(done['removed']) or 'nothing'}; freed {done['freed_gb']} GB, "
           f"{disk.free_gb():.1f} GB free", flush=True)
+
+
+def clean_kept():
+    """disk.clean_kept in one summary line; exit 1 when refused."""
+    from score.conductor import disk
+    try:
+        done = disk.clean_kept()
+    except disk.Unprovable as why:
+        done = {"refused": str(why)}
+    if done["refused"]:
+        print(f"clean-kept: refused, nothing dropped: {done['refused']}", flush=True)
+        sys.exit(1)
+    print(f"clean-kept: dropped {done['dropped']} kept entries no current key asks for; freed {done['freed_gb']} GB",
+          flush=True)
 
 
 def relink_pixal():

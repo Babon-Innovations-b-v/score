@@ -5,6 +5,7 @@ about twelve runs had started that day, and the copies of the ones stopped, fail
     python -m score.conductor disk           # one summary line, the biggest folders, the whole list in conductor/disk.json
     python -m score.conductor clean-frozen   # remove every frozen copy no run needs; what it freed, one line a copy
     python -m score.conductor clean-cache [--making-only]   # checkouts relinked; with no run live, the cache cleared
+    python -m score.conductor clean-kept     # with no run live, the kept jobs no current key asks for, one line
     python -m score.conductor relink-pixal   # work/pixal's files the store holds made links to its blobs, one line
     python -m score.conductor offload-pixal  # with no run live, work/pixal's takes into the library, freed once read back
 
@@ -36,6 +37,14 @@ Before any of that, and with a run live too, it makes every checkout's copies of
 names, so no reader can tell; a checkout is never removed while a run is live, since a node holds its input paths
 across a cloud wait with no file open, and one removed under it would fail it.
 
+clean-kept (2026-10-29), only with no run live (cache_refusal), drops each kept job and per-take call
+(tools/cloud/kept.py: they outlive the outputs they were made for, so a re-keyed row makes only what changed) that no
+current key could ask for: its node gone from the table, or that node's row code (Runner.making_code) moved, its
+system (this Python's, blender_cloud.system) not a current one, or one of its inputs no longer current (a checkout of
+an output its node no longer reads, a file with other bytes). A node whose key cannot be worked out now keeps its
+entries. A dropped entry's blobs go only when no stored output and no other entry holds them. Never by age. The sync
+pass runs it.
+
 relink-pixal (2026-10-28: 16 GB free of 91, work/pixal 20.5 GB) does the same for work/pixal, with a run live too:
 each regular file there whose bytes the store holds as a blob (the store's own sha256, sizes equal) is replaced by a
 hard link to that read-only blob, renamed over it so no reader sees it missing. A file changed in the last
@@ -54,6 +63,7 @@ import os
 import pathlib
 import shutil
 import subprocess
+import sys
 import time
 
 from score import conductor
@@ -506,3 +516,66 @@ def removed_take(takes, take, folder):
 def repo_commit():
     """The checkout's commit, the one the take-in names."""
     return subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+
+
+# --- clean-kept: the kept jobs no current key asks for ----------------------------------------------------------------
+
+CHECKOUTS = "/store/cache/checkouts/"
+
+
+def blender_system():
+    """blender_cloud.system() worked out in a process of its own: tools/cloud on this process's import path would give
+    a same-named module to the rows whose keys the sweep works out (graph/_code.py search_folders)."""
+    done = subprocess.run([sys.executable, "-c", "import sys; sys.path.insert(0, 'tools/cloud'); import blender_cloud; "
+                           "print(blender_cloud.system(), end='')"], cwd=REPO, capture_output=True, text=True,
+                          check=True)
+    return done.stdout
+
+
+def input_stands(path, sha, held, home, kept):
+    """Whether a kept entry's input (its stand-in path and hash) is still the current one: a checkout of an output its
+    node reads now, or a file there with the same bytes; one made inside the attempt's folder is the row's code's."""
+    if path.startswith("{making}") or sha == "missing":
+        return True
+    real = path.replace("{home}", str(home)).replace("{repo}", str(REPO))
+    if CHECKOUTS in real:
+        return real.split(CHECKOUTS, 1)[1].split("/", 1)[0] in held
+    found = pathlib.Path(real)
+    return found.is_file() and kept.file_hash(found, kept.stand_ins()) == sha
+
+
+def asked_by(runner, systems, home, kept):
+    """entry -> whether a current key could still ask for it: its node in the table, that node's row code now its
+    own, its system a current one and each of its inputs current (input_stands). A node whose key cannot be worked out
+    now (Blocked) keeps its entries: it may ask once it stands."""
+    from score import graph
+
+    def asked(entry):
+        node = entry["code"].split(" ", 1)[0]
+        name, _, place = node.partition("@")
+        stage = runner.stages.get(name)
+        if stage is None:
+            return False
+        try:
+            keyed = runner.key(stage, place or None)
+            code = runner.making_code(stage, place or None, keyed)
+        except graph.Blocked:
+            return True
+        held = {*keyed["after"].values(), *keyed.get("beside", {}).values()}
+        return code == entry["code"] and entry["system"] in systems and \
+            all(input_stands(path, sha, held, home, kept) for path, sha in entry["inputs"])
+    return asked
+
+
+def clean_kept(home=None, runs_folder=None, runner=None, systems=None, say=print):
+    """With no run live (cache_refusal), every kept job and per-take call no current key asks for dropped (kept.sweep,
+    asked_by), with the blobs only it held; {dropped, refused, freed_gb}. Never by age."""
+    home = pathlib.Path(home or PROPS_HOME)
+    refused = cache_refusal(home, pathlib.Path(runs_folder or home / "runs"), home / "store" / "cache", [])
+    if refused:
+        return {"dropped": 0, "refused": refused, "freed_gb": 0.0}
+    from score import stages
+    kept = stages.kept_module()
+    runner = runner or stages.runner(Store.in_folder(home / "store"))
+    systems = systems or {kept.digest(kept.python_system()), kept.digest(blender_system())}
+    return {**kept.sweep(asked_by(runner, systems, home, kept), say), "refused": None}
