@@ -87,7 +87,8 @@ def fitting(path, scales, held, segments, moves=None):
     """The fitting model of the person's file at `path` (`Fitting`): a calibration site per `held` group, a marker
     per solver landmark (`landmarks.marker` on its body sized by `scales`, moved by `moves` {landmark: 3}) weighed by
     its trust, then one at each of `segments`' `group_ends` (MyoFullBody's centre, sized, never moved) weighed
-    END_WEIGHT times the landmarks' mean trust, the size groups' owners and the fingers held."""
+    END_WEIGHT times the landmarks' mean trust, the size groups' owners, the fingers held and each group's bodies (its
+    joints inside, `Fitting.inside`)."""
     table, moves = groups(), moves or {}
     frames = [(group, table[group][2], turn(group)) for group in held]
     names = solver_marks()
@@ -99,8 +100,9 @@ def fitting(path, scales, held, segments, moves=None):
     owners = {filed(body): SIZE_GROUPS[group] for group, (_, _, bodies) in stretches().items() for body in bodies}
     fingers = {body for _, _, frame, bodies in table.values() if frame.startswith(HAND_TOP)
                for body in bodies if body != frame}
+    inside = [{filed(body) for body in bodies} for _, _, _, bodies in table.values()]
     return Fitting(path, frames, marks + ends, owners, {filed(body) for body in OWN_PLACED}, fingers,
-                   trusts + [END_WEIGHT * float(np.mean(trusts))] * len(ends))
+                   trusts + [END_WEIGHT * float(np.mean(trusts))] * len(ends), inside)
 
 
 def spread(count, most=SAMPLE):
@@ -124,18 +126,21 @@ def sampled(fit, recordings):
 def constants(fit, recordings):
     """The person's constants on `fit` (a `Fitting`), once per body from all its `recordings` together ([(turns,
     points)]: CONTEXT.md "person constants"), staged on the frames `sampled` picks: mink's angles at the start
-    constants (the lengths are SOMA's, from sizing: no size unknowns), then the markers' moves (all but HELD's):
+    constants (the lengths are SOMA's, from sizing: no size unknowns), then the markers' moves (all but HELD's) and
+    the joints inside the groups (#70's level 2: the vertebrae, shoulder blade, wrist bones and inner foot joints,
+    each body's move in its parent, `Fitting.inside`), together:
     {"sizes": {bone group: factor, the overall one's times its size group's}, "size factors": {size group: factor}, "marks":
-    {landmark: [3] m, its body's frame}, "evaluations": [n, n], "followed": [group]}."""
+    {landmark: [3] m, its body's frame}, "joints": {body: [3] m, its parent's frame}, "evaluations": [n, n], "followed": [group]}."""
     turns, points, path = sampled(fit, recordings)
     sized, sizing = fit.neutral(), 0
     free = [index for index, name in enumerate(fit.marks) if name not in HELD and not name.startswith(END)]
     found, _, marking = staged(fit, path, turns, points, MARKS, sized, free)
-    sizes, marks = fit.unpack(found)
+    sizes, marks, joints = fit.unpack(found)
     factors = dict(zip(fit.sizes, map(float, fit.factors(sizes))))
     return {"sizes": {group: factors[size] for group, size in SIZE_GROUPS.items() if size in factors},
             "size factors": {size: float(value) for size, value in zip(fit.sizes, sizes)},
             "marks": {name: move.tolist() for name, move in zip(fit.marks, marks) if not name.startswith(END)},
+            "joints": {name: move.tolist() for name, move in zip(fit.inside_names, joints)},
             "evaluations": [sizing, marking],
             "followed": list(fit.groups)}
 
@@ -148,8 +153,9 @@ def angles(fit, turns, points):
 
 def constants_record(found):
     """The constants as the model record keeps them: each size group's factor (the overall one's alone, the others
-    before it is applied), the markers' moves (mm: median and largest), each stage's evaluations and the groups followed."""
+    before it is applied), the markers' moves (mm: median and largest), each inside joint's move (mm), each stage's evaluations and the groups followed."""
     moves = [float(np.linalg.norm(move)) * 1000 for move in found["marks"].values()]
-    return {"size factor": {size: round(factor, 4) for size, factor in found["size factors"].items()},
+    joints = {name: round(float(np.linalg.norm(move)) * 1000, 1) for name, move in found.get("joints", {}).items()}
+    return {"inside joints moved mm": joints, "size factor": {size: round(factor, 4) for size, factor in found["size factors"].items()},
             "markers moved mm": [round(float(np.median(moves)), 1), round(max(moves), 1)] if moves else [],
             "evaluations": found["evaluations"], "followed": found["followed"]}

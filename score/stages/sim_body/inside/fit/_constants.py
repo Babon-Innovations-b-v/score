@@ -2,14 +2,16 @@
 angles of the frames given as one sparse problem (the recipe of 2026-10-28: alternating mink's angles and the
 constants converged linearly, where the joint problem reached machine precision in 17 evaluations on 30 frames).
 A stage's unknowns are its constants (`SIZES`: the size factors, the overall one and each size group's; `MARKS`: each
-free marker's move on its body) and each frame's leading coordinates (the root's place and its turn as a rotation
+free marker's move on its body and each joint inside a bone group's move in its parent, together: #70's person
+constants) and each frame's leading coordinates (the root's place and its turn as a rotation
 vector off mink's, each leading hinge and slide; a follower set from its leader by the model's coupling, the held
 fingers as they stand); the other stage's constants stand as given. The rows are every frame's turn errors and marker
 place errors, weighed as mink weighs them (`_frames.weights`, OpenSim's), then a prior row per unknown constant: a
 size factor pulled gently to 1 (`SIZE_PULL`, within `SIZE_MOST`; Cotton et al. 2026's staged fit pulls its group
 scales to 1 the same way, the idea taken, nothing copied), a marker's move to its landmark's link at its marker's own
-weight (a move and its body's place trade one for one), within `MARK_MOST`. Staged as Cotton et al. 2026 stage it
-(warm from the stage before; cold, theirs explained the markers with a wrong pose): sizes, then the markers' moves.
+weight (a move and its body's place trade one for one), within `MARK_MOST`; an inside joint's move to its file's
+place at the markers' mean weight, within `MARK_MOST` too (as small as a landmark's correction). Staged as Cotton
+et al. 2026 stage it (warm from the stage before; cold, theirs explained the markers with a wrong pose): sizes, then the markers' moves.
 The leading joints' ranges are the box bounds; the followers' own are not held (`Fitting.limited_model`)."""
 import mujoco
 import numpy as np
@@ -42,8 +44,11 @@ class Problem:
                         and model.jnt_dofadr[joint] not in frozen]
         self.width = (6 if self.root is not None else 0) + len(self.leading)
         sizes = len(fitting.sizes)
+        marked = sizes + 3 * len(fitting.marks)
         self.slots = (np.arange(sizes) if stage == SIZES else
-                      np.array([sizes + 3 * mark + axis for mark in free for axis in range(3)], dtype=int))
+                      np.array([sizes + 3 * mark + axis for mark in free for axis in range(3)]
+                               + [marked + 3 * joint + axis for joint in range(len(fitting.inside)) for axis in range(3)],
+                               dtype=int))
         self.free = list(free)
         self.costs = weights(fitting)
         self.data = mujoco.MjData(model)
@@ -111,12 +116,15 @@ class Problem:
         if self.stage == SIZES:
             found.append(SIZE_PULL * (unknowns[:held] - 1.0))
         else:
-            found.append((place_costs[self.free][:, None] * unknowns[:held].reshape(-1, 3)).ravel())
+            moved = 3 * len(self.free)
+            found += [(place_costs[self.free][:, None] * unknowns[:moved].reshape(-1, 3)).ravel(),
+                      float(np.mean(place_costs)) * unknowns[moved:held]]
         return np.concatenate(found)
 
     def sparsity(self):
         """Which unknowns each row reads: a frame's turn rows its own coordinates; its place rows those and every size
-        factor (SIZES), or a marker's its own move (MARKS); a prior row its own constant."""
+        factor (SIZES), or a marker's its own move and the moves of the inside joints it rides below (MARKS);
+        a prior row its own constant."""
         fitting, held = self.fitting, len(self.slots)
         groups, marks = len(fitting.frame_sites), len(fitting.place_sites)
         per = 3 * (groups + marks)
@@ -129,6 +137,11 @@ class Problem:
                 found[placed:(frame + 1) * per, :held] = 1
             for index, mark in enumerate(self.free):
                 found[placed + 3 * mark:placed + 3 * mark + 3, 3 * index:3 * index + 3] = 1
+            if self.stage == MARKS:
+                for joint, riders in enumerate(fitting.riding):
+                    column = 3 * (len(self.free) + joint)
+                    for mark in riders:
+                        found[placed + 3 * mark:placed + 3 * mark + 3, column:column + 3] = 1
         for slot in range(held):
             found[frames * per + slot, slot] = 1
         return found
