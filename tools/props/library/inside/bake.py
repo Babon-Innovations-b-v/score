@@ -521,8 +521,12 @@ class Atlas:
         in blue."""
         for number, pictures in enumerate(self.sets):
             side = pictures["roughness"].size[0]
-            rough = np.array(pictures["roughness"].pixels[:], dtype=np.float32).reshape(side, side, 4)
-            shine = np.array(pictures["metallic"].pixels[:], dtype=np.float32).reshape(side, side, 4)
+            rough = np.empty(side * side * 4, dtype=np.float32)
+            pictures["roughness"].pixels.foreach_get(rough)
+            rough = rough.reshape(side, side, 4)
+            shine = np.empty(side * side * 4, dtype=np.float32)
+            pictures["metallic"].pixels.foreach_get(shine)
+            shine = shine.reshape(side, side, 4)
             both = np.ones((side, side, 4), dtype=np.float32)
             both[..., 1] = rough[..., 0]
             both[..., 2] = shine[..., 0]
