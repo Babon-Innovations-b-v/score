@@ -2,7 +2,8 @@
 over rows (frames, later bodies' level-1 sets). The CPU mink path in `_frames.py` stays the reference."""
 from ._objective import PlacePerProblem, TurnPerProblem
 from ._project import Projection, project
-from ._solve import NotConverged, solved
+from ._solve import NotConverged, solved, solved_in_chunks
 from ._step import Reduction, damped_step
 
-__all__ = ["PlacePerProblem", "TurnPerProblem", "Projection", "Reduction", "damped_step", "project", "NotConverged", "solved"]
+__all__ = ["PlacePerProblem", "TurnPerProblem", "Projection", "Reduction", "damped_step", "project", "NotConverged", "solved",
+           "solved_in_chunks"]

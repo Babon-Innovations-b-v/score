@@ -33,12 +33,16 @@ before that.
   rule): EQUAL on every frame, angles 0.0025 deg, sites 0.0042 mm, cost ratio 2.2e-8, couplings 1.3e-7 rad, ranges
   held, 14 / 26 steps median / max (a step stop of 1e-8 never fires: 114 rows NotConverged at 300). Speed with float32 residuals (one batch, no chunking
   needed up to 12,784 rows): 1,925 rows/s at 1,088, 4,094 at 4,080, 6,889 at 12,784 (1.86 s, 2.7 GB on the card).
-  Not in the test file yet; nothing replaces mink.
 - The clip test (2026-10-29, in the test file): a toy MJCF (free root, three ranged hinges, a polyval follower in its
   own body since Newton merges two hinges in one body into a D6, a frozen hinge), 10 frames, mink set up as
   `_frames.Frames` (a place target turned as its site now; a target turned identity adds SE(3)'s V^-1 term and moved
   mink 0.8 deg off the plain place minimum): card equals mink to 0.0012 deg, costs equal to 5 digits, 5 to 28 steps.
-- Still to come: chunking above ~30,000 rows (plan: 8,000-row chunks, one IKSolver each), the gate measure again
-  with the exact turn Jacobian and three hold passes, the test file split under 300 lines.
+- `solved_in_chunks`: `solved` over CHUNK_ROWS (8,000, the plan's) rows at a time, the caller's `optimizer_for(start,
+  stop)` one IKSolver a chunk (its buffers are per row); equal to one batch on the toy (test).
+- Gate measure (2026-10-29, exact turn Jacobian, three hold passes, one batch, proto clip tiled): EQUAL on every frame
+  (angles 0.0017 deg, sites 0.0042 mm, cost ratio 2.0e-8, couplings 1.3e-7 rad, ranges held, 13 / 38 steps median /
+  max); 136 rows 2.38 s (57 rows/s, the first launch's compile in it), 1,088 0.89 s (1,223/s, 244 MiB), 4,080 1.60 s
+  (2,558/s, 916 MiB), 12,784 3.81 s (3,359/s, 2,740 MiB on the card). Nothing replaces mink yet.
+- Still to come: the test file split under 300 lines (now about 400).
 - One test file (`test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the CPU
   prototype's float64 maths; it needs Newton's Python and a CUDA card, else prints `skipped`.

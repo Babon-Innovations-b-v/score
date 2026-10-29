@@ -14,6 +14,7 @@ from ._project import project
 from ._step import damped_step
 
 MOST_STEPS = 300
+CHUNK_ROWS = 8000  # the plan's: about 2.9 GB on the card a chunk of MyoFullBody rows, under the 8 GB cap beside env1
 STEP_DONE = 1e-6
 COST_DONE = 1e-9
 ROOT_TURN = 3  # the free root's quaternion starts at coordinate 3 in both layouts
@@ -115,3 +116,21 @@ def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STE
         raise NotConverged(f"{int(active.numpy().sum())} rows did not stop in {most_steps} steps")
     wp.launch(_to_mujoco, dim=(rows, coords), inputs=[current], outputs=[qpos], device=device)
     return qpos, steps
+
+
+def solved_in_chunks(optimizer_for, reduction, projection, joint_q, seeds, chunk_rows=CHUNK_ROWS):
+    """`solved` over joint_q's rows CHUNK_ROWS at a time: (qpos [rows, coords] in MuJoCo's layout, steps [rows]) as
+    host arrays. optimizer_for(start, stop) gives the IKOptimizerLM for rows start:stop (one IKSolver a chunk: its
+    buffers are per row); joint_q and seeds are host arrays [rows, coords]."""
+    import numpy as np
+    found, steps = [], []
+    for start in range(0, joint_q.shape[0], chunk_rows):
+        stop = min(start + chunk_rows, joint_q.shape[0])
+        optimizer = optimizer_for(start, stop)
+        device = optimizer.model.device
+        chunk = lambda values: wp.array(np.ascontiguousarray(values[start:stop], dtype=np.float32), dtype=wp.float32,
+                                        device=device)
+        qpos, made = solved(optimizer, reduction, projection, chunk(joint_q), chunk(seeds))
+        found.append(qpos.numpy())
+        steps.append(made.numpy())
+    return np.concatenate(found), np.concatenate(steps)
