@@ -20,8 +20,8 @@ from bone_groups import groups
 from calibration import turn
 from fit._constants import constants as fitted_constants
 from fit._follow import following, judged, riding
-from fit._frames import Frames, NotConverged
-from fit._model import Fitting, filed, own_name
+from fit._frames import LM_DAMPING, Frames, NotConverged, solved
+from fit._model import Fitting, filed, followers_free, own_name
 from landmarks import MARKS, myo_parts, posed, solver_marks
 from landmarks._table import CENTRES
 from model import TO_OWN
@@ -38,7 +38,7 @@ METHOD = ("one solver (#70): mink 1.3.0 per frame (the bone groups' turns on the
           "leading joints in range) and scipy's bounded least_squares over the person's constants (group sizes, "
           "joint centres, marker places; each stretch held to SOMA's length) with the angles of frames spread over "
           "the clip, one sparse problem; then mink on every frame")
-__all__ = ["Fitting", "Frames", "NotConverged", "following", "riding", "followed", "placed", "targets", "fitting",
+__all__ = ["Fitting", "Frames", "NotConverged", "LM_DAMPING", "solved", "followers_free", "following", "riding", "followed", "placed", "targets", "fitting",
            "constants", "constants_record", "angles"]
 
 

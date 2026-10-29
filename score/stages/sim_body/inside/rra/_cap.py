@@ -1,65 +1,17 @@
-"""RRA's caps (owner, 2026-10-28): the feet kept where they stood by the legs (`footed`), each frame's cap linearised
+"""RRA's caps (owner, 2026-10-28): each frame's cap linearised
 as balls (`cap_rows`), the adjusted path held within the clip's `follows` limit (`within_follows`) and within the
 per-frame cap as measured (`within_frames`), and the measures they read (`turned_off`, `off_clip`)."""
-import mujoco
 import numpy as np
 from scipy.ndimage import minimum_filter1d
 from scipy.spatial.transform import Rotation
 
-from model import limited, posed_path
+from model import posed_path
 from rra._linear import adjusted_leads, moved
 from solvers import CUTOFF, smoothed
 
 CAP_STEP = 1e-3  # metres or radians: `cap_rows`' difference step
 FRAME_ROUNDS = 20  # `within_frames`' rounds of lowering the frames over their cap
 FRAME_MARGIN = 0.95  # a frame over its cap lowered this much further than its excess, so the rounds end
-FOOTED_HEIGHT = 0.1  # the weight of a metre of the pelvis' height against one of a foot's place (`footed`)
-# `footed`'s damped least squares: its damping and steps a frame (the old fit's FIT_DAMPING and FIT_NEXT, kept when
-# the fit moved to mink, #70: RRA as it was)
-FOOTED_DAMPING, FOOTED_STEPS = 1e-3, 40
-
-
-def footed(model, couplings, path, before, feet):
-    """`path` with each foot body (`feet`) put back where it stands in `before`, place and turn, frame by frame, by the
-    legs' joints (damped least squares, FOOTED_STEPS steps): a move of the pelvis or trunk leaves the feet, and so the
-    ground's contacts, as they were. The pelvis' height is in the solve, held to its own by FOOTED_HEIGHT: a pelvis
-    raised past what a straight leg reaches comes down, or its feet would leave the ground (1 cm up lifted them 9 mm,
-    600 N of residual, 2026-10-28)."""
-    data, found = mujoco.MjData(model), []
-    ancestors = set()
-    for body in feet:
-        while body > 0:
-            ancestors.add(body)
-            body = model.body_parentid[body]
-    legs = [2] + [column for column, dof in enumerate(couplings.leads)
-                  if column >= 6 and model.dof_bodyid[dof] in ancestors]
-    height = np.zeros(len(legs))
-    height[0] = FOOTED_HEIGHT
-    places, turns = np.zeros((3, model.nv)), np.zeros((3, model.nv))
-    for qpos, still in zip(path, before):
-        data.qpos[:] = still
-        mujoco.mj_kinematics(model, data)
-        wanted = {body: (data.xpos[body].copy(), data.xmat[body].reshape(3, 3).copy()) for body in feet}
-        qpos, asked = qpos.copy(), qpos[2]
-        for _ in range(FOOTED_STEPS):
-            data.qpos[:] = qpos
-            mujoco.mj_kinematics(model, data)
-            mujoco.mj_comPos(model, data)
-            rows, errors = [], []
-            for body, (place, turn) in wanted.items():
-                mujoco.mj_jacBody(model, data, places, turns, body)
-                rows += [places.copy(), turns.copy()]
-                errors += [place - data.xpos[body], (Rotation.from_matrix(turn) * Rotation.from_matrix(
-                    data.xmat[body].reshape(3, 3)).inv()).as_rotvec()]
-            mapped = couplings.map(qpos)[:, legs]
-            jacobian = np.concatenate([np.concatenate(rows) @ mapped, height[None]])
-            errors.append([FOOTED_HEIGHT * (asked - qpos[2])])
-            step = np.linalg.solve(jacobian.T @ jacobian + FOOTED_DAMPING * np.eye(len(legs)),
-                                   jacobian.T @ np.concatenate(errors))
-            mujoco.mj_integratePos(model, qpos, mapped @ step, 1.0)
-            qpos = limited(model, qpos, couplings)
-        found.append(qpos)
-    return np.array(found)
 
 
 def turns_off(model, path, fitted, riders):

@@ -22,12 +22,12 @@ own Python, its steps the modules beside it (`inside/CLAUDE.md`).
   recommended`, OpenSim's report: unbounded, a floating body lost 98 to 99.9% of its mass, 2026-10-28) so the ground explains the movement, `RRA_ROUNDS` times, the
   owner's per-frame cap inside the solve (owner, 2026-10-28: every segment's turn within `FOLLOWED` degrees and the
   pelvis within `MOVE_MOST` of the fitted path on every frame, all rounds together; `cap_rows` linearises each
-  segment's turn through the legs' `footed`, `within_balls` solves the least squares over those balls by ADMM), the
+  segment's turn through the legs' `Footing`, `within_balls` solves the least squares over those balls by ADMM), the
   move low-passed by construction (`filter_matrix`: a filtered move, so the filter cannot break the cap), the lumbar's
   needed moments beyond the fitted path's counted as residual moment (`demands`: RRA weighs the joints' actuators
   beside the residuals; without it the solve swung the trunk to cancel the pelvis' residual and left up to 340 N m on
-  the lumbar's reserves, 2026-10-28), taken only when the measured residual, lumbar and move cost falls (halved up to `RRA_HALVINGS` times, else the rounds end), the feet kept where they stood by the legs (`footed`: a
-  pelvis moved with its feet lifted them off the ground, 600 N of residual, 2026-10-28), and the result kept within the clip's
+  the lumbar's reserves, 2026-10-28), taken only when the measured residual, lumbar and move cost falls (halved up to `RRA_HALVINGS` times, else the rounds end), the feet kept where they stood by the legs (`Footing`, mink as the fit, its largest
+  miss recorded as `feet held mm, deg`: a pelvis moved with its feet lifted them off the ground, 600 N of residual, 2026-10-28), and the result kept within the clip's
   `follows` limit (`within_follows`: the whole move, else a quarter less, down to none), then checked on every frame against the
   cap as measured (`within_frames`: a frame the linearisation left over has its share of the move lowered, the shares
   eroded and low-passed; the least share is recorded; scaling the whole move down after the solve, as before

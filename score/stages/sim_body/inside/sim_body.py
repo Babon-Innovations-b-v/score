@@ -32,7 +32,7 @@ here moves, scales or grounds SOMA.
   Apache-2.0), in our own stack (`reduced`): RRA_ROUNDS times, the body's mass changed by the mean upward residual and
   the torso's centre of mass moved under the mean residual moment (RRATool::adjustCOMToReduceResiduals), then the
   pelvis' and trunk's path moved so the ground's pushes explain the movement, each frame's move capped, the feet kept
-  where they stood by the legs (`footed`); the result kept within the clip's `follows` limit (`within_follows`). Nothing is applied to the body; how far
+  where they stood by the legs (`Footing`: mink, as the fit); the result kept within the clip's `follows` limit (`within_follows`). Nothing is applied to the body; how far
   it moved is the body's `adjusted` record.
 - The physics, frame by frame, on the MuJoCo model Newton builds (SolverMuJoCo on MuJoCo's CPU backend; nothing is
   stepped): the generalised forces the movement needs (inverse dynamics, armature and passive forces in), the ground's
@@ -78,7 +78,7 @@ from bone_groups import FEET, groups
 from model import TO_OWN, body_index, built, carried, filtered, posed_path, rates
 from muscles import Physics
 from records import adjustment_record, arrays, bones_of, com_height, entry, frames
-from rra import footed, off_clip, reduced, within_follows, within_frames
+from rra import Footing, off_clip, reduced, within_follows, within_frames
 from sizing import Size
 
 
@@ -131,8 +131,10 @@ def run_person(job, person, out_path):
     limits = (job["residual"]["force"] * weight, job["residual"]["moment"] * weight * com_height(model, qpath[0], ground))
     most = (job["adjust"]["move most m"], np.radians(job["adjust"]["turn most deg"]))
 
+    footing = Footing(model, physics.couplings, list(soles))
+
     def land(path):
-        return footed(model, physics.couplings, path, qpath, list(soles))
+        return footing.footed(path, qpath)
 
     riders = (segments, bodies, riding, parents)
     adjusted, moves, step = reduced(physics, qpath, job["rate"], limits, most, land, fitted_poses, riders)
@@ -143,6 +145,9 @@ def run_person(job, person, out_path):
                                    adjusted_poses, segments,
                                    [off_clip(model, walked, worlds, segments, bodies, riding, parents)
                                     for walked in (qpath, adjusted)])
+    feet_off = footing.off(adjusted, qpath)
+    adjustment["feet held mm, deg"] = [round(1000 * float(feet_off[:, 0].max()), 3),
+                                       round(float(np.degrees(feet_off[:, 1].max())), 3)]
     qpath = adjusted
     record["fit"]["following, the path the physics takes"] = fit.following(model, qpath, worlds, segments, scales)
     velocities, accelerations = rates(model, qpath, job["rate"])
