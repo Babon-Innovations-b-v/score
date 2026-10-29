@@ -1840,46 +1840,51 @@ def make_late(inputs, out, seed, params):
     (out / "mark.txt").write_text("marked")
 
 
-def test_on_this_pc_a_node_only_waiting_on_a_container_claim_holds_no_job_slot_up_to_the_excused_few(
+def test_on_this_pc_a_node_waiting_on_a_container_claim_holds_no_job_slot_and_its_stage_starts_no_other(
         monkeypatch, tmp_path):
     """2026-10-29: all 8 job slots held by surfaces-bake rows, 3 running a take and 5 waiting for one, about 60 ready
-    rows of other stages kept out. Three slow nodes at --jobs 1, every running one waiting on a claim: on this PC two
-    run at once (one slot, one waiter excused at WAITERS_EXCUSED 1), never three; off this PC one. A fresh mark of a
-    process in a node's tree makes it a waiter, a stale one does not.
-    Break: score/graph/__init__.py: '                busy, full = len(running) - self.excused(running), False' ->
-    '                busy, full = len(running), False' -> one at a time on this PC."""
+    rows of other stages kept out; then the slots the waiters freed went to yet more waiting bake rows. Three slow
+    `late` nodes, every running one waiting on a claim, and three slow `other` nodes that claim nothing, at --jobs 1:
+    on this PC a waiting late node holds no slot, so an other node runs beside it (two at once), and while it waits no
+    second late node starts (one at once); off this PC one node at a time. A fresh mark of a process in a node's tree
+    makes it a waiter, a stale one does not.
+    Break: score/graph/__init__.py: 'if busy + len(ready) >= jobs or queued[stage.name] or (' ->
+    'if busy + len(ready) >= jobs or (' -> two late nodes at once on this PC."""
     briefs = {"hangar": "a ship", "station": "a hub", "dock": "a pier"}
     late = graph.Stage("late", "place", make_late, TEXT, PASSES)
+    other = graph.Stage("other", "place", make_late, TEXT, PASSES)
     faked(monkeypatch, [100 * FLOOR])
     monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
     monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
-    monkeypatch.setattr(graph, "WAITERS_EXCUSED", 1)
-    monkeypatch.setattr(graph, "CLAIM_WAITERS", set)  # every running node waits on its claim
+    stage_of = {}  # pid: the stage its node runs
+    monkeypatch.setattr(graph, "CLAIM_WAITERS", lambda pids: {pid for pid in pids if stage_of[pid] == "late"})
     wait = graph.FORK_WAIT
 
     def most_at_once(runner):
-        running, most, start = [], [0], runner.start
+        running, most, start = {}, [0, 0], runner.start
 
         def counted_start(stage, place, threads):
             begun = start(stage, place, threads)
-            running.extend(begun)
+            for pipe, (_, _, process) in begun.items():
+                stage_of[process.pid], running[pipe] = stage.name, stage.name
             most[0] = max(most[0], len(running))
+            most[1] = max(most[1], list(running.values()).count("late"))
             return begun
 
         def counted_wait(connections, timeout=None):
             finished = wait(connections, timeout=timeout)
             for connection in finished:
-                running.remove(connection)
+                running.pop(connection)
             return finished
         runner.start = counted_start
         monkeypatch.setattr(graph, "FORK_WAIT", counted_wait)
         found = runner.drive(tuple(briefs), say=quiet, jobs=1)
-        assert set(found) == {f"late@{place}" for place in briefs}, found
-        return most[0]
+        assert set(found) == {f"{name}@{place}" for place in briefs for name in ("late", "other")}, found
+        return tuple(most)
     monkeypatch.setenv(*graph.THIS_PC)
-    assert most_at_once(a_runner(a_world(briefs), a_store(), (late,))) == 2
+    assert most_at_once(a_runner(a_world(briefs), a_store(), (late, other))) == (2, 1)
     monkeypatch.setenv(graph.THIS_PC[0], "scaleway")
-    assert most_at_once(a_runner(a_world(briefs), a_store(), (late,))) == 1
+    assert most_at_once(a_runner(a_world(briefs), a_store(), (late, other))) == (1, 1)
     monkeypatch.setattr(graph, "WAITING_CLAIMS", tmp_path)
     (tmp_path / str(os.getpid())).touch()
     assert graph.claim_waiters([os.getppid()]) == {os.getppid()}
