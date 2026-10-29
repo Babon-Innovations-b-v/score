@@ -223,7 +223,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   recess (`route_bake.recessed`, #72; in route_bake.py, which the bake alone hashes): the place's relations file (score/review/holders `recess`, a bake input once
   derived, sent with each job) cut into its entry when the job is written, never into `design/surfaces/` (Pixal3D
   keys that file): a box on the face the relation names, kept within the face's span as the assembly keeps the door,
-  as deep as the door's motion needs (its swing's sweep, or its thickness and slide room) and never through the
+  as deep as the door's motion needs (its swing's sweep, or its thickness and slide room) and widened beside it (a swing's hinge side by its thickness, so it lies clear of the side wall at full open; a slide's way by its width and thickness) and never through the
   model (`RECESS_BACK`: a recess with a back). Nothing else is read for an entry: the kit rooms' and
   outside places' own entries (old kits, inventories, the kinds' details, composites) went with them on 2026-10-21. A
   model its data writes no entry for (`bake_job.refusal`, entry_of's own checks run without the take) is declared as

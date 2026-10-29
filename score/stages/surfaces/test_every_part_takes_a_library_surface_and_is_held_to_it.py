@@ -202,6 +202,8 @@ tests it turned red:
   said) <= limit or` dropped from boxed (a box within the row's spread corrects), or `or off(own, drawn) > limit`
   dropped (the box alone corrects), or `wide > tall or` dropped (a stove top's height grown from above)  -> a_pixal3d_take_keeps_its_own_width_for_height_
   only_where_its_box_and_take_both_disagree_with_its_row
+- route_bake.py: `opening = min(span, float(recess["wide"]) + room * (1.0 if room_side else 2.0))` -> `opening =
+  min(span, float(recess["wide"]))`  -> a_swinging_door_at_full_open_touches_nothing_in_its_recess
 - route_bake.py: `depth = min(float(recess["depth"]), 2 * half - RECESS_BACK)` -> `depth = 2 * half + RECESS_OUT` (a
   tunnel), or `low[across], high[across] = middle - opening / 2, middle + opening / 2` -> the door's own `along`
   unkept  -> a_moving_door_s_holder_bakes_with_a_recess_behind_it_and_the_recess_has_a_back
@@ -2549,6 +2551,21 @@ def test_the_route_is_the_default_line():
 
 
 # --- bake_job ---
+
+def test_a_swinging_door_at_full_open_touches_nothing_in_its_recess():
+    """#72: a 6 m wide, 0.5 m thick door hinged on its left (the model's -x) swings a quarter turn into its 12 m
+    module through its S face (z 6). At 90 degrees it lies along the hinge side, from x -3.5 to -3 and z 0 to 6: its
+    recess, widened on that side by its thickness plus 5 cm (x -3.55 to 3), and its swing's 6.05 m deep, holds it with
+    5 cm clear of the side wall and of the back.
+    Break: score/stages/surfaces/route_bake.py: `opening = min(span, float(recess["wide"]) + room * (1.0 if room_side
+        else 2.0))` -> `opening = min(span, float(recess["wide"]))`"""
+    swing = {"model": "module_1", "axis": "z", "side": 1.0, "along": 0.0, "wide": 6.0, "room": 0.55,
+             "room_side": -1.0, "tall": 8.0, "base": 0.0, "depth": 6.05}
+    low, high = (np.array(corner) for corner in route_bake.recess_box([12.0, 12.0, 12.0], swing))
+    door_low, door_high = np.array([-3.5, 0.0, 0.0]), np.array([-3.0, 8.0, 6.0])  # at 90 degrees
+    clear = np.concatenate([door_low - low, high - door_high])[[0, 2, 3, 5]]  # its sides and its back
+    assert (clear[[0, 1]] >= 0.05 - 1e-9).all() and (clear[[2, 3]] >= 0.0).all(), (low, high)
+
 
 def test_a_moving_door_s_holder_bakes_with_a_recess_behind_it_and_the_recess_has_a_back():
     """#72 (base's garage door swings on its 12 m module's S face): the relation's recess is cut into the holder's
