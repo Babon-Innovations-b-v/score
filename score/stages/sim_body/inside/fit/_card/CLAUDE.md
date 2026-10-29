@@ -7,8 +7,9 @@ tolerances (cost ratio |x-1| <= 1e-5, angles <= 0.01 deg, sites <= 0.01 mm, ever
 before that.
 
 - `_step.py` (`Reduction`, `damped_step`): mink's damped Gauss-Newton step (1e-3 |r|^2 + 1e-9 on the diagonal) in the
-  reduced dofs (frozen out, each follower's Jacobian column onto its leader's through polyval's slope, one
-  active-set pass holding dofs at a bound that push out), solved by Warp's tile Cholesky, Newton's own
+  reduced dofs (frozen out, each follower's Jacobian column onto its leader's through polyval's slope, three
+  active-set passes after the first solve holding dofs at a bound that push out, holds only added: one pass let a
+  toy row with two dofs on their bounds push a third out and back every step), solved by Warp's tile Cholesky, Newton's own
   IKOptimizerLM pattern. Reduced size on MyoFullBody measured 37 (128 dofs, 40 frozen, 51 followers, no follower
   leads another, 2026-10-29), inside sm_120's shared memory (fits up to 79); the 37 kernel equals float64 to 1.6e-7
   rad on 497-residual rows, 0.43 ms a step at 136 rows, 10.4 ms at 4,000.

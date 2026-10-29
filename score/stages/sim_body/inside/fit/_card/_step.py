@@ -12,6 +12,7 @@ import warp as wp
 LM_DAMPING = 1e-3
 DAMPING = 1e-9
 BOUND_SLACK = 1e-9
+HOLD_PASSES = 3  # solves after the first, each holding the dofs the last one pushed out (holds only ever added)
 TILE_THREADS = 32
 
 
@@ -80,12 +81,12 @@ def _cholesky_kernel(size: int):
 @wp.kernel(enable_backward=False)
 def _kept(step: wp.array2d[wp.float32], qpos: wp.array2d[wp.float32], free_coord: wp.array[wp.int32],
           lower: wp.array[wp.float32], upper: wp.array[wp.float32], keep: wp.array2d[wp.float32]):
-    """A free dof at its bound whose step pushes out is held (keep 0)."""
+    """A free dof at its bound whose step pushes out is held (keep 0); one held stays held."""
     row, column = wp.tid()
     at = qpos[row, free_coord[column]]
     out_low = at <= lower[column] + BOUND_SLACK and step[row, column] < 0.0
     out_high = at >= upper[column] - BOUND_SLACK and step[row, column] > 0.0
-    keep[row, column] = wp.where(out_low or out_high, 0.0, 1.0)
+    keep[row, column] = wp.where(out_low or out_high, 0.0, keep[row, column])
 
 
 @wp.kernel(enable_backward=False)
@@ -142,8 +143,9 @@ def damped_step(reduction, jacobian, residuals, qpos, active):
     """mink's damped step for every row: (full step [rows, dofs], reduced step length [rows]).
 
     jacobian [rows, residuals, dofs] and residuals [rows, residuals] at qpos [rows, coords] (MuJoCo's layout);
-    active [rows] int32, a stopped row's step zero. One active-set pass as mink's: solve, hold the dofs at a bound
-    that the step pushes out, solve again."""
+    active [rows] int32, a stopped row's step zero. Active-set passes: solve, hold the dofs at a bound the step pushes
+    out, solve again, HOLD_PASSES times (one pass left a toy row with two dofs at their bounds pushing a third out
+    and back by projection every step, never stopping)."""
     device = jacobian.device
     rows, count, dofs = jacobian.shape
     slopes = wp.empty((rows, reduction.poly.shape[0]), dtype=wp.float32, device=device)
@@ -154,10 +156,11 @@ def damped_step(reduction, jacobian, residuals, qpos, active):
                                                             reduction.leader_reduced, slopes],
               outputs=[reduced], device=device)
     keep = wp.ones((rows, reduction.size), dtype=wp.float32, device=device)
-    first = _solved(reduction, reduced, residuals, keep, device)
-    wp.launch(_kept, dim=keep.shape, inputs=[first, qpos, reduction.free_coord, reduction.lower, reduction.upper],
-              outputs=[keep], device=device)
     step = _solved(reduction, reduced, residuals, keep, device)
+    for _ in range(HOLD_PASSES):
+        wp.launch(_kept, dim=keep.shape, inputs=[step, qpos, reduction.free_coord, reduction.lower, reduction.upper],
+                  outputs=[keep], device=device)
+        step = _solved(reduction, reduced, residuals, keep, device)
     full = wp.zeros((rows, dofs), dtype=wp.float32, device=device)
     wp.launch(_scattered, dim=step.shape, inputs=[step, reduction.free_dof, active], outputs=[full], device=device)
     norms = wp.empty(rows, dtype=wp.float32, device=device)
