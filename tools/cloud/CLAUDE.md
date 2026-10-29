@@ -34,7 +34,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `batch.rent` orders nothing, and `park.adopt` hands it out through `park.here`, no clearance asked, its ledger rows
   EUR 0 with the measured minutes), one claim at a time over the whole PC (a file lock; a busy claim waits and asks
   again) but Blender's (`local.SHARED`), which share it across places: Blender jobs run side by side as many as the
-  container's memory holds at a take's measured peak (`local.RUNS_AT_ONCE`, three in 27 GiB; env1, 2026-10-28: one
+  container's memory holds at a take's measured peak (`local.RUNS_AT_ONCE`, four in 27 GiB at the takes' p90, 2026-10-29; env1, 2026-10-28: one
   take at a time left about 20 of 24 cores idle), one a turn (a lock file each) that a Blender claim takes while
   free and lets go as its slot runs out of work, so several places' bake rows fill the turns together (2026-10-29:
   26 bake rows waited on one place's claim); an exclusive claim that asks keeps new Blender claims out until it has

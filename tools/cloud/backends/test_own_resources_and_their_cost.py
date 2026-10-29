@@ -561,7 +561,7 @@ def test_this_pc_runs_blender_jobs_side_by_side_as_its_memory_holds_with_the_car
         assert ("cp", str(local.CARD_TURN), f"{local.MACHINE}:{card_turn.STARTUP}/.card_turn.py.new") in calls
         assert ("exec", local.MACHINE, "mv", f"{card_turn.STARTUP}/.card_turn.py.new",
                 f"{card_turn.STARTUP}/card_turn.py") in calls
-        assert spread.slots("blender", machine) == [0, 0, 0]  # three side by side, all on the one card
+        assert spread.slots("blender", machine) == [0, 0, 0, 0]  # four side by side, all on the one card
         local.delete(machine["id"], local.ZONE)
         alone = local.take("pixal", "key")
         assert spread.slots("pixal", alone) == [0]
