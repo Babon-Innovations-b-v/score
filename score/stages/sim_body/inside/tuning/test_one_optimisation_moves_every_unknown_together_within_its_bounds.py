@@ -8,6 +8,7 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) applied's `* paired(name)[1]` dropped: a right landmark's move is not mirrored.
 - (2026-10-29) reached's `near.add(PARENT.get(segment, segment))` dropped: a landmark misses its parent group's rows.
 - (2026-10-29) resumed's `min(lines, ...)` made `lines[0]`: a resume starts from the first evaluation, not the best.
+- (2026-10-29) weight_rewritten's `flags=re.MULTILINE` dropped: no global weight is written back.
 
 Run: .venv/bin/python score/stages/sim_body/inside/tuning/test_one_optimisation_moves_every_unknown_together_within_its_bounds.py
 """
@@ -63,6 +64,12 @@ def test_the_unknowns_are_solved_together_and_resumed_from_the_best():
         assert np.allclose(tuning.resumed(checkpoint, len(ENTRIES)), result.x, atol=1e-3)
         lower, upper = tuning.bounds(ENTRIES)
         assert (result.x >= lower).all() and (result.x <= upper).all()
+
+
+def test_a_global_weight_is_written_back_into_its_module():
+    source = "MARKER_GOAL = 1.0\nOTHER_GOAL = 1.0\n"
+    found = tuning.weight_rewritten(source, "MARKER_GOAL", 2.5)
+    assert found == "MARKER_GOAL = 2.5\nOTHER_GOAL = 1.0\n", found
 
 
 def test_the_run_settles_when_the_objective_stops_moving():

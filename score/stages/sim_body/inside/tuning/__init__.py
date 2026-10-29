@@ -214,3 +214,12 @@ def rewritten(source, rows):
         if count != 1:
             raise ValueError(f"{name}: {count} rows matched in the table's source")
     return source
+
+
+def weight_rewritten(source, name, value):
+    """A module's source with its global weight `name = <number>` set to `value` (level 1's MARKER_GOAL in
+    fit/_frames.py, END_WEIGHT in fit/__init__.py)."""
+    found, count = re.subn(r"^%s = [0-9.eE+-]+$" % re.escape(name), f"{name} = {value:g}", source, flags=re.MULTILINE)
+    if count != 1:
+        raise ValueError(f"{name}: {count} lines matched in the source")
+    return found

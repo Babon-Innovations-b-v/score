@@ -9,7 +9,7 @@ follow measures (bones outside SOMA's skin by region, turns on the FROZEN calibr
 `prior` pulls links to their anatomical starts, `sparsity` the Jacobian's pattern (own, parent and child groups; a
 global everything), `solved` runs scipy's least_squares (trf, 2-point, bounded) with every evaluation checkpointed
 (`checkpointed`, `resumed` from the best) and stops when `settled` (under 0.5 % over 3 iterations) or at its limit.
-`rewritten` writes a result into `landmarks/_table.py`.
+`rewritten` writes a result into `landmarks/_table.py`, `weight_rewritten` its global weights into their modules (MARKER_GOAL in `fit/_frames.py`, END_WEIGHT in `fit/__init__.py`).
 
 - Judged only as the whole solver after level 1, against main, on the check bodies; never by the landmark distances
   the solver pulls on.
