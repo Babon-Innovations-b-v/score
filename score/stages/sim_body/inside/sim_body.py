@@ -96,21 +96,40 @@ def recordings(person, worlds):
     return [np.load(found)["world"] for found in person["recordings"]] if person.get("recordings") else [worlds]
 
 
-def fitted_person(job, person, rig, worlds, path):
-    """The person's file at `path` with the fit's constants (the person constants, solved once from all the body's
-    `recordings`), its record (the fit and its following of SOMA in it), each body's scale and the clip's fitted path
-    (qpos of MuJoCo's own compile of the file: the pose alone per frame, the constants held)."""
-    size, segments = Size(rig), person["segments"]
+def person_set_up(job, person, rig, worlds, path, size):
+    """The person's file at `path` (MyoFullBody sized by `size`, `sizing.Size` of the person's rig) with the fit's
+    constants (the person constants, solved once from all the body's `recordings`), its record (the fit's method and
+    constants in it), each body's scale and the `Fitting` its clips' angles are solved on."""
+    segments = person["segments"]
     _, scales = myo.person_file(job["model"], size, person["kg"], path)
     held = fit.followed(segments)
-    turns, points = fit.targets(rig, segments, worlds, held)
     found = fit.constants(fit.fitting(path, scales, held, segments),
                           [fit.targets(rig, segments, clip, held) for clip in recordings(person, worlds)])
     record, scales = myo.person_file(job["model"], size, person["kg"], path, found)
     fitting = fit.fitting(path, scales, held, segments, found["marks"])
-    angles = fit.angles(fitting, turns, points)
-    record["fit"] = {"method": fit.METHOD, "constants": fit.constants_record(found),
-                     "following": fit.following(fitting.model, angles, worlds, segments, scales, rig)}
+    record["fit"] = {"method": fit.METHOD, "constants": fit.constants_record(found)}
+    return record, scales, fitting
+
+
+def clip_angles(fitting, rig, segments, worlds):
+    """The clip's fitted path on `fitting` (qpos of MuJoCo's own compile of the file: the pose alone per frame, the
+    constants held), by `fit.angles`."""
+    turns, points = fit.targets(rig, segments, worlds, fit.followed(segments))
+    return fit.angles(fitting, turns, points)
+
+
+def followed_record(record, fitting, angles, worlds, segments, scales, rig):
+    """`record`'s fit given its following of SOMA (`fit.following` of the clip's fitted path)."""
+    record["fit"]["following"] = fit.following(fitting.model, angles, worlds, segments, scales, rig)
+    return record
+
+
+def fitted_person(job, person, rig, worlds, path):
+    """The person's file at `path` with the fit's constants, its record (the fit and its following of SOMA in it),
+    each body's scale, the fitted model and the clip's fitted path: set up, angles, record."""
+    record, scales, fitting = person_set_up(job, person, rig, worlds, path, Size(rig))
+    angles = clip_angles(fitting, rig, person["segments"], worlds)
+    record = followed_record(record, fitting, angles, worlds, person["segments"], scales, rig)
     return record, scales, fitting.model, angles
 
 
