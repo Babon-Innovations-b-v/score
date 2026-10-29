@@ -108,7 +108,7 @@ def card_job(inputs, short, out, take, files):
     pixal = prop_env.PROPS_HOME / "work/pixal"
     models = sorted({pixal / f"{take}.glb", pixal / f"{take}-final.glb", *pixal.glob(f"{take}-[0-9]*.glb")})
     world = [path for name, path in short.items()
-             if name.startswith("inventory ") or name in ("surfaces", "resting rules")]
+             if name.startswith("inventory ") or name in ("surfaces", "resting rules", "relations")]
     mark = [path for path in [pixal / f"{take}.svviews" / "code.json"] if path.exists()]  # a code build's (bake_job)
     read = [listing, records, claimed, head, short["parts"] / "parts.json", short["parts"] / take, *world, *models, *mark,
             *(place_line.REPO / folder for folder in (*place_line.PAINT_REPO, *BAKE_REPO))]
@@ -172,6 +172,58 @@ def stands(labelled):
     return labels.exists() and "skipped" not in json.loads(labels.read_text()).get("feet", {"skipped": "no report"})
 
 
+# A recess stays this far out past its face (so the cut opens it cleanly) and leaves at least this much of its
+# model behind it: a recess with a back, never a tunnel through.
+RECESS_OUT, RECESS_BACK = 0.05, 0.05
+
+
+def recess_box(size, recess):
+    """A recess's box [low, high] in its model's kit frame (x across, y up from its foot, z deep, its middle at the
+    origin across and deep) at the model's built `size`: on the face its `axis` and `side` name, its middle `along` the
+    face kept within the face's span (shrunk to the span where wider) as the assembly keeps a door within its
+    holder's (fitting.on_holder), from its `base` to its top within the model's height, `depth` deep into the model but
+    never past RECESS_BACK of its far side."""
+    wide, tall, deep = (float(side) for side in size)
+    axis, across = (0, 2) if recess["axis"] == "x" else (2, 0)
+    half, span = (wide if axis == 0 else deep) / 2, (deep if axis == 0 else wide)
+    opening = min(span, float(recess["wide"]) + float(recess.get("room") or 0.0))
+    middle = float(recess["along"]) + float(recess.get("room") or 0.0) / 2
+    middle = min(max(middle, -span / 2 + opening / 2), span / 2 - opening / 2)
+    depth = min(float(recess["depth"]), 2 * half - RECESS_BACK)
+    side = float(recess["side"])
+    low, high = [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]
+    low[across], high[across] = middle - opening / 2, middle + opening / 2
+    low[1] = min(max(float(recess["base"]), 0.0), tall)
+    high[1] = min(tall, low[1] + float(recess["tall"]))
+    face, inner = side * half + side * RECESS_OUT, side * half - side * depth
+    low[axis], high[axis] = min(face, inner), max(face, inner)
+    return [[round(value, 4) for value in low], [round(value, 4) for value in high]]
+
+
+def recessed(entries, relations):
+    """`entries` with each recess the place's relations name (score/review/holders `recess`: a moving door's room in
+    its holder model) as a cut of its holder's entry ({"recess": [low, high]}, make_chunky.opened), at its built size."""
+    found = {model: dict(entry, cuts=list(entry.get("cuts") or [])) for model, entry in entries.items()}
+    for relation in (relations or {}).get("relations", []):
+        for piece in relation.get("pieces") or [relation]:
+            recess = piece.get("recess") or relation.get("recess")
+            if recess and recess["model"] in found:
+                found[recess["model"]]["cuts"] += [{"recess": recess_box(found[recess["model"]]["size"],
+                                                                         dict(recess, along=along))}
+                                                   for along in recess.get("pieces") or [recess["along"]]]
+    return found
+
+
+def bake_files(place):
+    """The bake row's files (surface_data.bake_files) and the place's relations once derived (score/review/holders):
+    the recesses its moving doors need in their holder models (recessed). Here, not in surface_data.py or bake_job.py,
+    whose code the people line's paid rows hash too."""
+    import surface_data
+    found = surface_data.DESIGN.parent / "relations" / f"{place}.json"
+    return {**surface_data.bake_files(place),
+            **({"relations": "{home}/design/relations/" + f"{place}.json"} if found.is_file() else {})}
+
+
 def bake_job_step(inputs, out):
     """On the rented card, after the paint (inside/paint_bake.py hands it here): the take's models' make_chunky
     entries over its labelled take (bake_job.entry_of), kept in entries/<take>.json, and its make_chunky job (the head
@@ -186,6 +238,8 @@ def bake_job_step(inputs, out):
     entries = {model: dict(bake_job.entry_of(model, data["bake"].get("entries", {}).get(model), labelled, built, box),
                            name=model, parts=str(labelled), regions=[])
                for model in head.pop("models")}
+    relations = json.loads(inputs["relations"].read_text()) if "relations" in inputs else None
+    entries = recessed(entries, relations)
     (out / "entries").mkdir(exist_ok=True)
     (out / "entries" / f"{take}.json").write_text(json.dumps(entries, indent=1))
     chunky = [dict(entry, stands=stands(labelled)) for entry in entries.values()]

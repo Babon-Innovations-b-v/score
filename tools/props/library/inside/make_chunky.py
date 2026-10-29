@@ -4,7 +4,8 @@
 The job: {"out", "density", "wear", "dirt", "seed", "faces": the cut-down copy's triangles, "specs",
 "chunky": [{"name", "parts": folder of <library variant>.ply (labels.py), "base": the kind's turn (nine numbers),
 "size": its laid size, "screens": [{"at", "size", "variant"}], "cuts": [{"box": [x0, y0, x1, y1]} or
-{"circle": [x, y, radius]}], "density": optional,
+{"circle": [x, y, radius]} through its depth, or {"recess": [low, high]}: a box in the kit frame, a moving door's room
+in its holder with a back], "density": optional,
 "foot": how high its foot stands over its floor (the kick wear), "decals": [{"at", "size", "variant", "turn"}],
 "per_face": optional, every face packed as its own island (bake.packed_per_face: foliage),
 "stands": whether its paint levelled its feet (library_bake.py reads it from the labels; then levelled_feet),
@@ -297,10 +298,13 @@ def surface_under(tree, x, z, size):
 
 
 def opened(item, cuts, size):
-    """The piece's openings cut through it: boxes and circles in the kit frame (x across, y up), through its depth."""
+    """The piece's openings cut into it: boxes and circles in the kit frame (x across, y up) through its depth, and
+    recesses, boxes in the kit frame as given (on any face, as deep as they say: a moving door's room, with a back)."""
     deep = max(size) * 2
     for cut in cuts:
-        if "box" in cut:
+        if "recess" in cut:
+            cutter = shapes.box(*cut["recess"], "rubber", "cutter")
+        elif "box" in cut:
             x0, y0, x1, y1 = cut["box"]
             cutter = shapes.box((x0, y0, -deep), (x1, y1, deep), "rubber", "cutter")
         else:
