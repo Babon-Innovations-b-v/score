@@ -58,7 +58,10 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   so static optimisation holds the lumbar extensors near full activation standing. The raw qpos0 breaks the couplings
   (the patella 1 cm off) and reads 5.3 kN with rectus femoris 555 N; never measure there. It is the published
   model's, not the sizing's (the sized file gives the same forces), and neither MyoSuite, MuscleMimic nor KINESIS
-  changes it (2026-10-27): changing it is changing MyoSuite's muscles, not a set-up here.
+  changes it (2026-10-27). Since 2026-10-29 (#70, the owner's option 3, compared overnight against keeping it and
+  against a Thelen 2003 passive curve) `inside/resting` lengthens the tendon slack length of every muscle standing past
+  1.1 of its optimal fibre length (74 muscles): 850 N at `stand`, psoas 140 N each the largest; the two walkers'
+  muscles saturated on over half the frames 53 and 9 became 4 and 4, joint error and residual unchanged.
 - **Set up as its makers do, and where not** (2026-10-27, sources and numbers on #65): MuscleMimic's own fixes are
   taken (1.0.6, below `MODEL`). Its retargeting (GMR, site welds) and KINESIS' place joint centres on a source body
   fitted to the model; ours did for the legs until 2026-10-28, when the owner moved the fit to OpenSense's ("the rot
