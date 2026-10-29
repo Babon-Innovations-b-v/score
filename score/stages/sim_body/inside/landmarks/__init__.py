@@ -42,6 +42,8 @@ HELD = tuple(f"{name}_{side}" for name in ("heel_plantar", "MT_plantar") for sid
 TRUST_SPREAD = 0.005  # metres: s0, a landmark whose leftovers spread this far has half the trust of an exact one
 # MyoFullBody centres that are the middle of two others (the measure's).
 MIDDLE_CENTRES = {"hipmid": ("hip_l", "hip_r"), "mid_cervical": ("C7_T1", "C0_C1")}
+# SOMA's group ends that are the middle of two rig joints.
+SOMA_MIDDLES = {"hipmid": ("LeftLeg", "RightLeg")}
 
 
 def solver_marks():
@@ -133,20 +135,23 @@ def needed(name):
     return set().union(*(needed(part) for part in RULES[name][1]))
 
 
+def soma_joints(name):
+    """The SOMA rig joints whose mean is a group end's place (a rig joint's own, a middle's two)."""
+    return SOMA_MIDDLES.get(name, (name,))
+
+
 def soma_point(name, rig):
     """A bone group's end at SOMA's own joints (own frame, its bind; the measure's and the masses'): a rig joint,
     `hipmid` the hip joints' middle, `<Side>Hand tip` the mean of the TIP_SHARE of the hand's own vertices (skin weight
     over a half) furthest from its joint. `rig`: {"names", "bind" (joints x 4 x 4), "points", "weights"}."""
     names = [str(joint) for joint in rig["names"]]
     bind = np.asarray(rig["bind"], dtype=float)
-    if name == "hipmid":
-        return (bind[names.index("LeftLeg"), :3, 3] + bind[names.index("RightLeg"), :3, 3]) / 2
     if name.endswith(" tip"):
         hand = names.index(name[:-len(" tip")])
         own = np.asarray(rig["points"], dtype=float)[np.asarray(rig["weights"])[:, hand] > 0.5]
         away = np.linalg.norm(own - bind[hand, :3, 3], axis=1)
         return own[away >= np.quantile(away, 1.0 - TIP_SHARE)].mean(axis=0)
-    return bind[names.index(name), :3, 3]
+    return bind[[names.index(joint) for joint in soma_joints(name)], :3, 3].mean(axis=0)
 
 
 def myo_parts(name):

@@ -16,6 +16,7 @@ group's start, `group_ends`), weighed as OpenSim's IK weighs its goals; SOMA's j
   SOMA segment rides its group's frame body.
 Nothing here moves, scales or grounds SOMA: the run writes no SOMA pose, and MyoFullBody's root follows the markers on
 SOMA's skin."""
+import mujoco
 import numpy as np
 
 from bone_groups import groups
@@ -23,8 +24,8 @@ from calibration import turn
 from fit._constants import MARKS, staged
 from fit._follow import following, riding
 from fit._frames import LM_DAMPING, Frames, NotConverged, solved
-from fit._model import Fitting, filed, followers_free
-from landmarks import HELD, LANDMARKS, MIDDLE_CENTRES, marker, posed, solver_marks, trust
+from fit._model import Fitting, end_site, filed, followers_free
+from landmarks import HELD, LANDMARKS, MIDDLE_CENTRES, marker, myo_parts, posed, soma_joints, solver_marks, trust
 from landmarks._table import CENTRES
 from model import TO_OWN
 from sizing import OWN_PLACED, stretches
@@ -53,7 +54,7 @@ METHOD = ("one solver (#70): mink 1.3.0 per frame (the bone groups' turns on the
           "stages (the size factors of 14 mirrored size groups pulled gently to 1, then the markers' moves off their "
           "links), each with the angles of frames spread over all the body's recordings, once per body; then mink on "
           "every frame, the pose alone")
-__all__ = ["Fitting", "Frames", "NotConverged", "LM_DAMPING", "solved", "followers_free", "following", "riding",
+__all__ = ["Fitting", "end_site", "Frames", "NotConverged", "LM_DAMPING", "solved", "followers_free", "following", "riding",
            "followed", "group_ends", "targets", "fitting", "sampled", "constants", "constants_record", "angles", "SIZE_GROUPS"]
 
 
@@ -67,26 +68,29 @@ def followed(segments):
 
 
 def group_ends(segments):
-    """The bone groups' ends that are a SOMA rig joint, in `groups()` order ([(SOMA joint, MyoFullBody centre)]):
-    each group's start (every joint between two groups starts one; a chain's tip is no joint), a centre that is the
-    middle of two bodies' (one site cannot hold it: the hips' middle, the neck's) left out."""
+    """The bone groups' ends that are a SOMA rig joint, in `groups()` order ([(SOMA end, MyoFullBody centre)]): each
+    group's start (every joint between two groups starts one; a chain's tip is no joint) whose rig joints `segments`
+    hold, one rule for every end: a middle of two (the hips', the neck's) is an end like any other (`soma_joints`,
+    `myo_parts`)."""
     return [(soma[0], myo[0]) for soma, myo, _, _ in groups().values()
-            if soma[0] in segments and myo[0] in CENTRES and myo[0] not in MIDDLE_CENTRES]
+            if all(joint in segments for joint in soma_joints(soma[0]))
+            and (myo[0] in CENTRES or myo[0] in MIDDLE_CENTRES)]
 
 
 def targets(rig, segments, worlds, held):
     """The clip's targets in MuJoCo's frame: (each frame's turns of the `held` groups, frames x groups x 3 x 3; each
-    frame's solver landmarks on the clip's skin, then SOMA's rig joint at each `group_ends`, frames x points x 3)."""
+    frame's solver landmarks on the clip's skin, then SOMA's rig joint (a middle's two's mean) at each `group_ends`, frames x points x 3)."""
     worlds = np.asarray(worlds, dtype=float)
     turns = np.einsum("ij,fgjk->fgik", TO_OWN.T, worlds[:, [segments.index(group) for group in held], :3, :3])
-    joints = worlds[:, [segments.index(soma_end) for soma_end, _ in group_ends(segments)]][..., :3, 3]
+    joints = np.stack([worlds[:, [segments.index(joint) for joint in soma_joints(soma_end)]][..., :3, 3].mean(axis=1)
+                       for soma_end, _ in group_ends(segments)], axis=1)
     return turns, np.concatenate([posed(rig, segments, worlds), joints], axis=1) @ TO_OWN
 
 
 def fitting(path, scales, held, segments, moves=None):
     """The fitting model of the person's file at `path` (`Fitting`): a calibration site per `held` group, a marker
     per solver landmark (`landmarks.marker` on its body sized by `scales`, moved by `moves` {landmark: 3}) weighed by
-    its trust, then one at each of `segments`' `group_ends` (MyoFullBody's centre, sized, never moved) weighed
+    its trust, then one at each of `segments`' `group_ends` (MyoFullBody's centre, sized, never moved; `end_site`) weighed
     END_WEIGHT times the landmarks' mean trust, the size groups' owners, the fingers held and each group's bodies (its
     joints inside, `Fitting.inside`)."""
     table, moves = groups(), moves or {}
@@ -94,8 +98,10 @@ def fitting(path, scales, held, segments, moves=None):
     names = solver_marks()
     marks = [(name, filed(LANDMARKS[name][3]), marker(name, scales[LANDMARKS[name][3]]) + moves.get(name, 0.0))
              for name in names]
-    ends = [(f"{END}{centre}", filed(CENTRES[centre][0]), np.asarray(CENTRES[centre][1], dtype=float)
-             * scales[CENTRES[centre][0]]) for _, centre in group_ends(segments)]
+    model = mujoco.MjModel.from_xml_path(str(path))
+    ends = [(f"{END}{centre}", *end_site(model, [(filed(body), np.asarray(local, dtype=float) * scales[body], weight)
+                                                  for body, local, weight in myo_parts(centre)]))
+            for _, centre in group_ends(segments)]
     trusts = [trust(name) for name in names]
     owners = {filed(body): SIZE_GROUPS[group] for group, (_, _, bodies) in stretches().items() for body in bodies}
     fingers = {body for _, _, frame, bodies in table.values() if frame.startswith(HAND_TOP)

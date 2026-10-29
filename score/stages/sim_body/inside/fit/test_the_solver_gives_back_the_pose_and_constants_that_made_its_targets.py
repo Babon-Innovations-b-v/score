@@ -6,7 +6,8 @@ pull to 1), the marker's move (within its pull to its link) and the knee's (with
 those constants every frame's angles; a frame asking a hip past its range stops it at the range's end, its coupled follower on its leader by the
 coupling, though the follower's own range is narrower; each marker weighs its trust among the markers, the markers'
 goal (group ends included, one goal) MARKER_GOAL in all against the turns' 1; the overall
-size factor multiplies every group's; the constants are the body's, sampled from every one of its recordings. It runs in
+size factor multiplies every group's; a group end that is the middle of two bodies' centres (the hips') sits on their
+common holder (the pelvis) as one body's sits on its own, one rule; the constants are the body's, sampled from every one of its recordings. It runs in
 Newton's own Python (mink pinned there; score/stages/physics/inside/newton_env.sh, built at
 $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
@@ -29,6 +30,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   second recording is left out of its constants.
 - (2026-10-29) Fitting.apply's `self.model.body_pos[self.inside] += joints` dropped: the knee's move is not
   found.
+- (2026-10-29) end_site's holder `next(body for body in _above(...) if all(...))` made `bodies[0]`: the hips' middle
+  rides the left thigh.
 - (2026-10-29) constants' second stage (`staged(..., MARKS, ...)`) skipped (its sizes returned with no move): the
   marker's move is not found.
 
@@ -272,7 +275,21 @@ def the_place_goal_sums_to_the_marker_goal():
     return [] if np.isclose(found, 4.0) and np.isclose(turns, 1.0) else [f"places {found:.4f}, turns {turns:.4f}"]
 
 
-CHECKS = (each_marker_weighs_its_trust, the_place_goal_sums_to_the_marker_goal, the_markers_goal_weighs_as_the_turns_goal, the_overall_factor_reaches_every_group, the_solver_gives_back_the_angles_and_the_constants,
+def a_middle_end_sits_on_the_common_holder():
+    """The toy's hips' middle (each thigh's origin, half each) lands on the pelvis between them; one body's point stays
+    on that body as it is."""
+    import mujoco
+    import numpy as np
+    from fit import end_site
+    model = mujoco.MjModel.from_xml_string(TOY)
+    found = [end_site(model, [("leg_l", np.zeros(3), 0.5), ("leg_r", np.zeros(3), 0.5)]),
+             end_site(model, [("shin_l", np.array([0.0, 0.01, 0.0]), 1.0)])]
+    wanted = [("pelvis", (0.0, 0.0, -0.1)), ("shin_l", (0.0, 0.01, 0.0))]
+    return [f"{name} at {np.round(local, 4)}, not {body} {place}" for (name, local), (body, place) in zip(found, wanted)
+            if name != body or not np.allclose(local, place, atol=1e-9)]
+
+
+CHECKS = (a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust, the_place_goal_sums_to_the_marker_goal, the_markers_goal_weighs_as_the_turns_goal, the_overall_factor_reaches_every_group, the_solver_gives_back_the_angles_and_the_constants,
           every_recording_of_the_body_is_sampled, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows)
 
 
