@@ -37,7 +37,14 @@ place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the
   and that a marker rides, it or a body below it (`Fitting.inside`), moves in its parent, solved in the markers' stage
   with the markers' moves and the sampled frames' angles, once per body, within `MARK_MOST`, pulled to its place at
   the markers' mean weight; never per frame. The moves are written in the person's file (`myo.inside_moved`), so
-  Newton's model has them too; the record keeps each in mm (`inside joints moved mm`). No group or joint special-cased.
+  Newton's model has them too; the record keeps each in mm (`inside joints moved mm`). No group or joint special-cased. Only the axes the data can tell are solved (`_constants.told`, 2026-10-29: level 2's optimum was
+  flat, card and 2-point ending 1.1-1.55 mm apart): an inside joint axis whose column of level 2's exact Jacobian at
+  the start (the host's double kinematics, never the card's floats) lies within `TOLD` of the span of every other
+  column (the markers' moves, the frames' coordinates, root place included) and of the inside axes kept before it
+  (column-pivoted QR) stays at its file's place. On the tall walker 38 of 96 axes: the pelvis (its common shift with
+  the sacrum is the root's place), the welded root, thorax and cervical spine (the bimanual attachment above takes
+  them), the capitate and metacarpals (their markers' own moves take them), each humphant1's y; every other axis,
+  the clavicle phantoms and scapulae too, is told (least: a scapula's y, 4e-3).
 - **The calibration is the static table** (`calibration`), a site's quaternion R_cal^T on the group's frame body:
   never fitted, never per person.
 - **The followers' own ranges are not held** (`Fitting.limited_model`): 35 of MyoFullBody's 51 couplings have a

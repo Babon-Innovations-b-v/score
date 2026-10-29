@@ -12,6 +12,7 @@ angles at the start constants (Cotton et al. 2026, the idea only: cold, theirs e
 The leading joints' ranges are the box bounds; the followers' own are not held (`Fitting.limited_model`)."""
 import mujoco
 import numpy as np
+from scipy.linalg import qr
 from scipy.optimize import least_squares
 from scipy.sparse import lil_matrix
 from scipy.spatial.transform import Rotation
@@ -20,6 +21,8 @@ from fit._frames import weights
 
 MARK_MOST = 0.03  # metres a marker may move on its body off its landmark's link
 INSIDE = 1e-9  # a start this far inside its bounds (least_squares wants a start within them)
+TOLD = 1e-8  # an inside joint's column this far, relative, from the others' span is one the data cannot tell (tall,
+# 2026-10-29: the untold at 1e-15, the least told, a scapula's y, at 4e-3)
 
 
 class Problem:
@@ -129,19 +132,52 @@ class Problem:
         return found
 
 
+def told(problem, matrix):
+    """The unknowns the data can tell (column indices of the whole unknowns, in order) from `matrix`, the problem's
+    Jacobian at the start (#70 level 2, one rule): an inside joint's column (one axis of its move) whose part off the
+    span of every other column (the markers' moves, the frames' coordinates, root place included) and of the inside
+    columns kept before it (column-pivoted QR, the best told first) is under TOLD of its own length is dropped; the
+    constants' prior rows are left out, since they tell every column apart by construction."""
+    held, marked = len(problem.slots), 3 * len(problem.free)
+    data = np.asarray(matrix.toarray() if hasattr(matrix, "toarray") else matrix)[:matrix.shape[0] - held]
+    inside = np.arange(marked, held)
+    others = np.setdiff1d(np.arange(data.shape[1]), inside)
+    basis, upper, _ = qr(data[:, others] / np.maximum(np.linalg.norm(data[:, others], axis=0), 1e-300),
+                         mode="economic", pivoting=True)
+    diagonal = np.abs(np.diag(upper))
+    basis = basis[:, :int((diagonal > TOLD * diagonal[0]).sum())]
+    columns = data[:, inside]
+    lengths = np.maximum(np.linalg.norm(columns, axis=0), 1e-300)
+    _, upper, order = qr((columns - basis @ (basis.T @ columns)) / lengths, mode="economic", pivoting=True)
+    kept = inside[order[np.abs(np.diag(upper)) >= TOLD]] if len(inside) else inside
+    return np.sort(np.concatenate([others, kept]))
+
+
 def staged(fitting, path, turns, points, given, free=(), jacobian=None):
     """The constants (the whole vector, as `Fitting.unpack` reads it) and the frames' angles (frames x nq) that best
     meet the frames' targets together, from `given` and mink's path; the model is left with the constants laid on,
-    and the solve's evaluation count. `jacobian(problem, unknowns)` (the card's exact one, `_card._level2.jacobian`)
-    replaces scipy's 2-point differences in the problem's sparse pattern, the reference, when given."""
+    and the solve's evaluation count. Only the unknowns the data can tell are solved (`told`, from the exact Jacobian
+    at the start on the host; an untold inside joint axis stays at its file's place). `jacobian(problem, unknowns)` (the card's
+    exact one, `_card._level2.jacobian`) replaces scipy's 2-point differences in the problem's sparse pattern, the
+    reference, when given."""
+    from fit._card._level2 import jacobian as exact_jacobian
     problem = Problem(fitting, path, turns, points, given, free)
     low, high = problem.bounds()
     begin = np.clip(problem.start(), np.where(np.isfinite(low), low + INSIDE, low),
                     np.where(np.isfinite(high), high - INSIDE, high))
-    exact = {"jac": lambda unknowns: jacobian(problem, unknowns)} if jacobian is not None else {
-        "jac_sparsity": problem.sparsity()}
-    found = least_squares(problem.residuals, begin, bounds=(low, high), x_scale="jac", method="trf",
-                          tr_solver="lsmr", **exact)
+    keep = told(problem, exact_jacobian(problem, begin))  # MuJoCo's double kinematics: the card's floats blur TOLD
+
+    def whole(unknowns):
+        """The whole unknowns: `begin` with the told ones laid in."""
+        found = begin.copy()
+        found[keep] = unknowns
+        return found
+
+    exact = {"jac": lambda unknowns: jacobian(problem, whole(unknowns))[:, keep]} if jacobian is not None else {
+        "jac_sparsity": problem.sparsity().tocsc()[:, keep]}
+    found = least_squares(lambda unknowns: problem.residuals(whole(unknowns)), begin[keep],
+                          bounds=(low[keep], high[keep]), x_scale="jac", method="trf", tr_solver="lsmr", **exact)
+    found.x = whole(found.x)
     constants = problem.constants(found.x)
     fitting.apply(constants)
     held = len(problem.slots)
