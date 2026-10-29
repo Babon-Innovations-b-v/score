@@ -12,6 +12,8 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
 - measured's rest.json write dropped: the worker never sees the group ends' centres (2026-10-29).
 - measured reading `m.json` for `SOLVED`: the solver is handed the rounded copy (2026-10-29).
 - rounded's list branch dropped: a summary's floats reach m.json unrounded (2026-10-29).
+- measured_many's folders zipped reversed: a set is handed another set's measures (2026-10-29).
+- sets_command's SAME_SEEDS dropped: the nudged sets start from the base set's angles, not the seeds root's.
 
 Run: .venv/bin/python score/stages/sim_body/inside/evaluation/test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py
 """
@@ -74,6 +76,28 @@ def test_an_evaluation_runs_every_tuning_body_once_two_at_most_at_once():
         assert json.loads((out / "rest.json").read_text()) == rest
         assert evaluation.side_score(found) == 1 + 1 + 1
         assert all(value["joints mm"][0] == 1.0000004 for value in found.values())  # the solver's, unrounded
+
+
+def toy_sets_launch(calls):
+    def launch(command, log):
+        calls.append(command)
+        root, cases = pathlib.Path(command[command.index(str(evaluation.SETS_WORKER)) + 2]), command[-2:]
+        for folder in sorted(root.glob("s*")):
+            for case in (given.split("=")[0] for given in cases):
+                (folder / case).mkdir()
+                (folder / case / "measures.json").write_text((folder / "table.json").read_text())
+        return 0
+    return launch
+
+
+def test_every_set_of_a_jacobian_runs_in_one_card_process_and_gets_its_own_measures():
+    with tempfile.TemporaryDirectory() as folder:
+        calls, cases = [], evaluation.picked(CASES, {"tuning": ["tall"]}, "tuning")
+        sets = [({"set": index}, {"marker goal": 1.0}, {"centres": {}}) for index in range(3)]
+        found = evaluation.measured_many(sets, cases, pathlib.Path(folder) / "jacobian", sys.executable,
+                                         "/seeds", launch=toy_sets_launch(calls))
+        assert len(calls) == 1 and evaluation.SAME_SEEDS in calls[0] and "/seeds" in calls[0]
+        assert [found_set["tall_kimodo"] for found_set in found] == [{"set": index} for index in range(3)]
 
 
 def test_the_copy_people_read_is_rounded_and_the_solvers_is_not():
