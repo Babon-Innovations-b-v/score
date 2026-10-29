@@ -298,20 +298,14 @@ def site_places(mjm, poses):
     return np.array(found)
 
 
-def the_clip_equals_mink_frame_by_frame():
-    """The card loop on the toy's clip, each row seeded as mink's frame was, equals mink's angles to 0.01 deg and its
-    sites to 0.01 mm, and solved in chunks of CHUNK rows it equals itself in one batch to 1e-6 rad."""
-    import mujoco
+def toy_card(mjm, turns, places):
+    """The card loop's parts for the toy's clip: (optimizer_for(start, stop), reduction, projection)."""
     import newton
     import numpy as np
     import warp as wp
     from scipy.spatial.transform import Rotation
     from newton import ik
-    from fit._card import PlacePerProblem, Projection, Reduction, TurnPerProblem, solved, solved_in_chunks
-    mjm = mujoco.MjModel.from_xml_string(TOY)
-    turns, places = toy_clip(mjm)
-    reference = mink_frames(mjm, turns, places)
-    seeds = np.vstack([mjm.qpos0[None], reference[:-1]])
+    from fit._card import PlacePerProblem, Projection, Reduction, TurnPerProblem
     path = pathlib.Path(os.environ["PROPS_HOME"]) / "toy.xml"
     path.write_text(TOY)
     builder = newton.ModelBuilder(up_axis=newton.Axis.Z)
@@ -342,17 +336,40 @@ def the_clip_equals_mink_frame_by_frame():
     big = [1e30] * 7
     projection = Projection([-b for b in big] + [-1.2] * 3 + [-1e30] * 2, big + [1.2] * 3 + [1e30] * 2,
                             [hinge("f")], [hinge("h1")], [0.0], [0.0], poly, [hinge("z")], "cuda:0")
-    newton_seeds = seeds.copy()
-    newton_seeds[:, 3:7] = seeds[:, [4, 5, 6, 3]]
+    return optimizer_for, reduction, projection
+
+
+def toy_errors(mjm, found, reference):
+    """(largest angle miss in degrees, largest site miss in mm) of `found` against `reference` on the toy."""
+    import numpy as np
+    angles = np.degrees(np.abs(found[:, 7:] - reference[:, 7:])).max()
+    return angles, 1000.0 * np.abs(site_places(mjm, found) - site_places(mjm, reference)).max()
+
+
+def the_clip_equals_mink_frame_by_frame():
+    """The card loop on the toy's clip, each row seeded as mink's frame was, equals mink's angles to 0.01 deg and its
+    sites to 0.01 mm, and solved in chunks of CHUNK rows it equals itself in one batch to 1e-6 rad."""
+    import mujoco
+    import numpy as np
+    import warp as wp
+    from fit._card import solved, solved_in_chunks
+    from fit._card._seeds import newton_order
+    mjm = mujoco.MjModel.from_xml_string(TOY)
+    turns, places = toy_clip(mjm)
+    reference = mink_frames(mjm, turns, places)
+    seeds = np.vstack([mjm.qpos0[None], reference[:-1]])
+    optimizer_for, reduction, projection = toy_card(mjm, turns, places)
+    card = lambda values, kind: wp.array(np.ascontiguousarray(values, dtype=np.float32), dtype=kind, device="cuda:0")
+    hinge = lambda name: int(mjm.jnt_qposadr[mjm.joint(name).id])
+    newton_seeds = newton_order(seeds)
     found, _ = solved(optimizer_for(0, CLIP_FRAMES), reduction, projection, card(newton_seeds, wp.float32),
                       card(seeds, wp.float32))
     found = found.numpy().astype(float)
     chunked, _ = solved_in_chunks(optimizer_for, reduction, projection, newton_seeds, seeds, chunk_rows=CHUNK)
     problems = [] if np.abs(chunked - found).max() <= 1e-6 else ["in chunks of 3 rows the clip differs from one batch"]
-    miss = np.degrees(np.abs(found[:, 7:] - reference[:, 7:])).max()
+    miss, sites = toy_errors(mjm, found, reference)
     if miss > 0.01:
         problems.append(f"angles {miss:.4f} deg off mink's (plan: 0.01)")
-    sites = 1000.0 * np.abs(site_places(mjm, found) - site_places(mjm, reference)).max()
     if sites > 0.01:
         problems.append(f"sites {sites:.4f} mm off mink's (plan: 0.01)")
     if not (reference[:, hinge("h1")] >= 1.2 - 1e-6).any():
