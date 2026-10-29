@@ -17,7 +17,8 @@ before that.
   leader, frozen coordinates back to the row's seed, in MuJoCo's qpos layout (Newton's quaternion order converted
   by the caller).
 - `_objective.py` (`PlacePerProblem`, `TurnPerProblem`): Newton's IKObjectivePosition and IKObjectiveRotation
-  (canonicalised error, its analytic omega Jacobian) with offset and weight per problem (rows of several bodies or
+  (canonicalised error; the turn's Jacobian the log's exact one, mink's: SO(3)'s inverse left Jacobian times
+  Newton's spin rows, which alone are off by the log's bend 0.1 rad from the target) with offset and weight per problem (rows of several bodies or
   level-1 sets in one batch), analytic; equal to the built-in ones row by row (test file, six-link chain, 1e-6).
 - `_forward.py` (`Forward`, `frames`): every row's link frames in float64 (free, revolute, prismatic, fixed; Newton's
   eval_fk maths), for the residuals; `_objective.wide_residuals` gives both objectives' residuals in float64 on them.
@@ -33,6 +34,11 @@ before that.
   held, 14 / 26 steps median / max (a step stop of 1e-8 never fires: 114 rows NotConverged at 300). Speed with float32 residuals (one batch, no chunking
   needed up to 12,784 rows): 1,925 rows/s at 1,088, 4,094 at 4,080, 6,889 at 12,784 (1.86 s, 2.7 GB on the card).
   Not in the test file yet; nothing replaces mink.
-- Still to come: chunking above ~30,000 rows, the clip test against mink in the test file, the gate measure again.
+- The clip test (2026-10-29, in the test file): a toy MJCF (free root, three ranged hinges, a polyval follower in its
+  own body since Newton merges two hinges in one body into a D6, a frozen hinge), 10 frames, mink set up as
+  `_frames.Frames` (a place target turned as its site now; a target turned identity adds SE(3)'s V^-1 term and moved
+  mink 0.8 deg off the plain place minimum): card equals mink to 0.0012 deg, costs equal to 5 digits, 5 to 28 steps.
+- Still to come: chunking above ~30,000 rows (plan: 8,000-row chunks, one IKSolver each), the gate measure again
+  with the exact turn Jacobian and three hold passes, the test file split under 300 lines.
 - One test file (`test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the CPU
   prototype's float64 maths; it needs Newton's Python and a CUDA card, else prints `skipped`.
