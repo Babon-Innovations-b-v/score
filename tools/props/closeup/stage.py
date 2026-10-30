@@ -295,14 +295,11 @@ def draw_with_pro(rows, out, failed, take=PRO_TAKES[0]):
     """One Nano Banana Pro close-up into out/<take>/ for each failed row not drawn yet (pro_ask; its wording chosen
     first where the row has none), all of them as one Batch API job (pro.draw). Each is asked once a take: one with no
     picture is a gap."""
-    from secret_store import secret
-
     (out / take).mkdir(parents=True, exist_ok=True)
     todo = [row for row in rows if row["id"] in failed and not (out / take / f"{row['id']}.png").exists()]
     if not todo:
         return
-    pro.draw(secret(pro.KEY_SECRET), {out / take / f"{row['id']}.png": pro_ask(row, out, take)
-                                      for row in with_pro_wordings(todo)})
+    pro.draw({out / take / f"{row['id']}.png": pro_ask(row, out, take) for row in with_pro_wordings(todo)})
 
 
 def cached(row, out, take):

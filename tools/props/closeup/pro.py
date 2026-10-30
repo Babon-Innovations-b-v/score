@@ -2,7 +2,8 @@
 check fails: the same wording and references as the open model's, drawn at 2K, every call of a step as one Batch API
 job at half price (owner, 2026-10-24). It is a paid, closed service, so the stage calls it only for failures. Its key
 is the secret `gemini-api-key`, read by name (../cloud/secret_store.py), never written down.
-Nothing is drawn outside a cleared run or the owner's override (score.adapters.compute, `require_cleared`).
+Nothing is drawn outside a cleared run or the owner's override (score.adapters.compute, `require_cleared`); a step
+the cache answers whole is read back free, with no ticket and no key (batch 2, 2026-10-30).
 """
 import base64
 import io
@@ -48,7 +49,7 @@ def pictures_in(answer):
             for piece in candidate.get("content", {}).get("parts", []) if "inlineData" in piece]
 
 
-def draw(key, asks):
+def draw(asks):
     """Every close-up of `asks` ({path: (wording, crop, concept or None, seed or None)}) drawn as one Batch API job at
     half price (../cloud/google_batch.py, caller "pro", the same model, request and settings as one call at a time),
     each saved at its path; {path: True when a picture came back, False for a gap}. A gap is a request the batch gave no answer
@@ -56,10 +57,17 @@ def draw(key, asks):
     error; it may be billed) or an answer with no picture, dropped from the cache so a new batch may ask again. Each
     is asked once (a batch, CONTEXT.md, owner 2026-10-20): a gap is not asked again here, it goes to the basket and a
     new batch. A request asked before (same wording, crop, concept and seed) is read back from google_spend's cache, free,
-    so a re-keyed node re-draws nothing. A set-up fault at the send reaches the caller (google_batch). Refused outside
-    a cleared run (compute.require_cleared)."""
-    compute.require_cleared("a Nano Banana Pro close-up")
+    so a re-keyed node re-draws nothing, and a step the cache answers whole asks for no ticket and reads no key (a
+    free-only run reads its cached close-ups back; batch 2, 2026-10-30). A set-up fault at the send reaches the caller
+    (google_batch). A step any request of which the cache misses is refused outside a cleared run
+    (compute.require_cleared), before its key is read."""
     bodies = {str(path): request_body(*ask) for path, ask in asks.items()}
+    key = None
+    if not all(google_spend.cache_path(MODEL, body).exists() for body in bodies.values()):
+        from secret_store import secret
+
+        compute.require_cleared("a Nano Banana Pro close-up")
+        key = secret(KEY_SECRET)
     answers = google_batch.generate(MODEL, bodies, key, caller="pro")
     return {path: saved(answers[str(path)], bodies[str(path)], path) for path in asks}
 
@@ -71,14 +79,17 @@ def cached(ask):
 
 
 def saved(answer, body, path):
-    """One batch answer's picture saved at `path`; False for a gap (Unanswered, or no picture in it)."""
+    """One batch answer's picture saved at `path`; False for a gap (Unanswered, no picture in it, or an answer the
+    model did not finish: google_spend.unfinished, no whole answer, which google_spend.keep never caches, so a picture
+    used is always one its request reads back; batch 2, 2026-10-30)."""
     if isinstance(answer, google_batch.Unanswered):
         print(f"Nano Banana Pro gave no answer for {path.name} ({answer}); a gap", flush=True)
         return False
-    found = pictures_in(answer)
-    if not found:
+    found, cut = pictures_in(answer), google_spend.unfinished(answer)
+    if not found or cut:
         google_spend.cache_path(MODEL, body).unlink(missing_ok=True)
-        print(f"Nano Banana Pro answered {path.name} with no picture; a gap", flush=True)
+        print(f"Nano Banana Pro answered {path.name} with {f'an unfinished answer ({cut})' if found else 'no picture'}; "
+              "a gap", flush=True)
         return False
     Image.open(io.BytesIO(base64.b64decode(found[-1]))).convert("RGB").save(path)
     return True

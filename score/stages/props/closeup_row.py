@@ -16,12 +16,15 @@ kept and only the rows none passed are drawn again (coordinator, 2026-10-25). A 
 set on the stage's grey. Its gate, `close-up`, is the shape check's measured half (check.measured_faults: plain
 border, one object filling the frame, the proportions of the object's own size, stage.object_size), free and
 re-measured on the stored pictures, so Pixal3D is never
-paid for a close-up that fails it. An object every Pro take failed keeps none: its prop route failed there, a batch
-gap (batch-gaps.json, score/stages/batch_gaps.py) the rows after it leave out. The judge's half (a model on rented
-cards) is not run here.
+paid for a close-up that fails it. An object every Pro take failed keeps none (in a free-only run, every cached take: its
+next, a paid retry on the priced list, is named in the run's log only, its gap worded as a paid run's): its prop route
+failed there, a batch gap (batch-gaps.json, score/stages/batch_gaps.py) the rows after it leave out. The judge's half
+(a model on rented cards) is not run here.
 """
 import dataclasses
+import io
 import json
+import os
 import shutil
 
 from PIL import Image
@@ -142,25 +145,93 @@ def measured(path, row):
     return check.measured_faults(check.measure(path, stage.object_size(row)))
 
 
-def draw_missing(rows, out):
+def same_row(row, then):
+    """Whether a row is the one props-inputs handed before (`then`), all but its concept's path (a make's frozen home)
+    and the wording chosen on it here."""
+    def plain(entry):
+        return {key: value for key, value in entry.items() if key not in ("concept", "pro_wording")}
+    return then is not None and plain(row) == plain(then)
+
+
+def reused_pictures(rows, out, store=None):
+    """Each row's take whose request google_spend's cache misses but the accepted closeup@<scene> output answered: its
+    row the same as props-inputs handed it then (same_row) and the request rebuilt from that output's crop the same
+    body, digest for digest, as today's. Its picture goes into out/<take>/ as the cache would give it, free: the answer
+    this request got, kept in the store (batch 2, 2026-10-30: four accepted pictures whose answers were never cached)."""
+    from score.store import Store
+
+    stage, _ = closeup_tools()
+    store = store or Store.default()
+    for scene in sorted({row["scene"] for row in rows}):
+        accept = store.current_accept(f"closeup@{scene}")
+        record = accept and store.record(f"closeup@{scene}", accept["key"])
+        if not record or "props-inputs" not in record.get("after", {}):
+            continue
+        then = {row["id"]: row for row in store.read_file(record["after"]["props-inputs"], "rows.json")["rows"]}
+        listing = store.listing(accept["output"])
+        kept = store.read_file(accept["output"], "closeups.json")["objects"]
+        for row in rows:
+            if row["scene"] == scene and same_row(row, then.get(row["id"])):
+                reuse_row(row, out, kept.get(row["id"], {}).get("takes", {}), listing, store, stage)
+
+
+def reuse_row(row, out, takes, listing, store, stage):
+    """reused_pictures for one row: each take of the accepted output's whose rebuilt request is today's."""
+    crop = listing.get(f"crops/{row['id']}.jpg")
+    for take in takes:
+        picture = listing.get(f"{take}/{row['id']}.png")
+        if not crop or not picture or stage.cached(row, out, take):
+            continue
+        text, today_crop, concept, seed = stage.pro_ask(row, out, take)
+        then_crop = Image.open(io.BytesIO(store.objects.read_bytes(f"blobs/{crop}")))
+        today, then = (stage.pro.google_spend.cache_path(stage.pro.MODEL, stage.pro.request_body(text, image, concept,
+                                                                                               seed))
+                       for image in (today_crop, then_crop))
+        if today == then:
+            (out / take).mkdir(parents=True, exist_ok=True)
+            (out / take / f"{row['id']}.png").write_bytes(store.objects.read_bytes(f"blobs/{picture}"))
+
+
+def draw_missing(rows, out, store=None):
     """Pro's close-ups of the rows with none: first every take on the ladder whose request google_spend's cache holds
     (free: a picture drawn before, kept or rejected, judged again by today's check), then up to len(PRO_TAKES) new
     takes for each row no picture passed yet, each row at its next take (stage.take_at: a gap's step bought again
-    draws new takes, never only its rejected ones read back; one Pro gave no picture is a gap, not asked again);
-    {id: take record}, its takes in ladder order."""
+    draws new takes, never only its rejected ones read back; one Pro gave no picture is a gap, not asked again; in a
+    run that may spend nothing, runs_free_only, no new take: its row is a gap, make_closeups); a take the cache misses
+    that the accepted output answered for the same request is read back from there (reused_pictures); {id: take
+    record}, its takes in ladder order."""
     stage, _ = closeup_tools()
     stage.make_crops(rows, out)
     stage.with_pro_wordings(rows)
     found = {}
     with prop_data.tools("props/closeup", "props", "cloud"):  # Pro's key is read through secret_store
+        reused_pictures(rows, out, store)
         index = 0
-        while wanted := {row["id"] for row in rows if stage.cached(row, out, stage.take_at(index))}:
+        while wanted := {row["id"] for row in rows if stage.cached(row, out, stage.take_at(index))
+                         or (out / stage.take_at(index) / f"{row['id']}.png").exists()}:
             judged_take(rows, out, stage.take_at(index), wanted, found)
             index += 1
-        for _ in stage.PRO_TAKES:
+        for _ in [] if runs_free_only() else stage.PRO_TAKES:
             for take, wanted in next_takes(rows, found, stage).items():
                 judged_take(rows, out, take, wanted, found)
     return {row: dict(sorted(tried.items(), key=lambda item: stage.take_index(item[0]))) for row, tried in found.items()}
+
+
+def runs_free_only():
+    """Whether this process may spend nothing (tools/cloud/ledger.py FREE_ONLY, this PC's free-only run)."""
+    with prop_data.tools("cloud"):
+        import ledger
+    return os.environ.get(ledger.FREE_ONLY) == "1"
+
+
+def say_unpaid(rows, takes, stage):
+    """In a free-only run, each row no cached take passed named in the run's log as a paid retry on the priced list,
+    with its next take; the log only, so the output (its gaps worded as a paid run's) stays the same in every mode
+    and nothing after it re-keys (batch 2, 2026-10-30)."""
+    for take, wanted in sorted(next_takes(rows, takes, stage).items()):
+        for row in sorted(wanted):
+            print(f"{row}: no cached Pro take passed and this run spends nothing: paid retry on the priced list, its "
+                  f"next take {take} (USD {DOLLARS_A_PICTURE})", flush=True)
 
 
 def next_takes(rows, found, stage):
@@ -199,7 +270,10 @@ def make_closeups(inputs, out, seed, params):
     (out / "closeups").mkdir(parents=True)
     unreadable = {row["id"]: taken_or_why(row, out) for row in rows if row["drawn"]}
     unreadable = {row: why for row, why in unreadable.items() if why}
-    takes = draw_missing([row for row in rows if not row["drawn"]], out)
+    undrawn = [row for row in rows if not row["drawn"]]
+    takes = draw_missing(undrawn, out)
+    if runs_free_only():
+        say_unpaid(undrawn, takes, closeup_tools()[0])
     record = {}
     for row in rows:
         tried = takes.get(row["id"], {})

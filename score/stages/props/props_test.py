@@ -14,10 +14,18 @@ way's score only) turns test_routes_send_a_failed_prop_object_to_code_and_a_fail
 write_textured_pair's BACK pair drawn from the best way again (`entry["way"] + 0`) turns
 test_a_designed_place_s_pair_is_the_model_in_its_finishes_from_its_way_and_the_way_facing_it red; whole_best_way held
 at the stated look-down alone (`downs = [stated]`) turns test_a_flat_row_s_model_is_held_at_the_look_down_its_close_up_shows
-red.
+red;
+draw_missing's new takes asked in a free-only run too (`[] if runs_free_only() else` dropped), or a gap worded by the
+run's mode, turns
+test_a_rejected_close_up_is_retried_strictly_at_its_own_size_and_a_kept_picture_is_never_drawn_again red;
+reuse_row's `if today == then` made `if True`, or draw_missing's `reused_pictures(...)` dropped, turns
+test_a_take_the_cache_misses_is_read_back_from_the_accepted_output_only_for_the_same_request red.
 """
+import contextlib
 import importlib.util
+import io
 import json
+import os
 import pathlib
 import shutil
 import sys
@@ -519,6 +527,57 @@ def test_a_persons_close_up_is_held_to_its_arms_apart_not_a_box():
     shutil.rmtree(folder)
 
 
+def test_a_take_the_cache_misses_is_read_back_from_the_accepted_output_only_for_the_same_request():
+    """Batch 2, 2026-10-30: four accepted close-ups (the square's right building, ...) were answers Google's cache
+    never kept, so a re-keyed close-up row asked for them again, or in a free-only run made them gaps. A take the
+    accepted closeup@ output holds for the same request (the same row, its crop giving the same body digest) is read
+    back from there, free; a request that differs (another crop) is never answered by it."""
+    from PIL import Image
+    import score.stages.props.closeup_row as closeup_row
+    from score.store import Store
+    stage, _ = closeup_row.closeup_tools()
+    spend = stage.pro.google_spend
+    folder = pathlib.Path(tempfile.mkdtemp())
+    store = Store.in_folder(folder / "store")
+    Image.new("RGB", (800, 600), (120, 120, 120)).save(folder / "concept.png")
+    rows = [{"id": "lamp", "scene": "s", "words": "lamp", "size": [0.5, 0.5, 1.0], "read_size": None,
+             "layer": "objects", "concept": str(folder / "concept.png"), "box": [100, 100, 600, 500], "drawn": None}]
+    (folder / "inputs").mkdir()
+    (folder / "inputs/rows.json").write_text(json.dumps({"rows": rows}))
+
+    def accepted(name, crop_colour=None):
+        then = folder / name
+        stage.make_crops([dict(rows[0])], then)
+        if crop_colour:  # another crop: another request
+            Image.new("RGB", (64, 64), crop_colour).save(then / "crops/lamp.jpg")
+        (then / "pro").mkdir()
+        Image.new("RGB", (64, 64), (205, 205, 205)).save(then / "pro/lamp.png")
+        (then / "closeups.json").write_text(json.dumps({"objects": {"lamp": {"takes": {"pro": []}}}}))
+        output = store.put_tree(then)
+        store.write_record("closeup@s", name, {"after": {"props-inputs": store.put_tree(folder / "inputs")}})
+        store.write_accept("closeup@s", {"node": "closeup@s", "output": output, "key": name,
+                                         "at": f"2026-10-30T0{len(store.accepts('closeup@s'))}:00:00+00:00"})
+        return (then / "pro/lamp.png").read_bytes()
+
+    def never(asks):
+        raise AssertionError(f"asked {sorted(map(str, asks))}")
+    kept = stage.pro.draw, spend.CACHE
+    stage.pro.draw, spend.CACHE = never, folder / "cache"
+    os.environ["SCORE_FREE_ONLY"] = "1"
+    try:
+        picture = accepted("same")
+        found = closeup_row.draw_missing([dict(row) for row in rows], folder / "now", store)
+        assert list(found["lamp"]) == ["pro"], found
+        assert (folder / "now/pro/lamp.png").read_bytes() == picture
+        accepted("other crop", crop_colour=(0, 0, 0))
+        assert closeup_row.draw_missing([dict(row) for row in rows], folder / "later", store) == {}
+        assert not (folder / "later/pro/lamp.png").exists()
+    finally:
+        os.environ.pop("SCORE_FREE_ONLY", None)
+        stage.pro.draw, spend.CACHE = kept
+    shutil.rmtree(folder)
+
+
 def test_a_rejected_close_up_is_retried_strictly_at_its_own_size_and_a_kept_picture_is_never_drawn_again():
     """Owner, 2026-10-24: the check holds a close-up to the object's own size from its reading (the plan's footprint
     failed 23 of the Buy's 80 gaps alone); owner, 2026-10-25: a picture it rejects gets up to three retries, worded
@@ -548,7 +607,7 @@ def test_a_rejected_close_up_is_retried_strictly_at_its_own_size_and_a_kept_pict
         drawn.save(path)
     sent = []
 
-    def draw(key, asks):
+    def draw(asks):
         for path, ask in asks.items():
             kept_answer = spend.cache_path(stage.pro.MODEL, stage.pro.request_body(*ask))
             if not kept_answer.exists():  # a cached request is read back free (google_batch.generate)
@@ -590,7 +649,23 @@ def test_a_rejected_close_up_is_retried_strictly_at_its_own_size_and_a_kept_pict
         assert (folder / "again/closeups/lamp.png").read_bytes() == (folder / "out/closeups/lamp.png").read_bytes()
         assert closeup_row.measured(folder / "out/closeups/crate.png", {"size": [4.0, 0.5, 0.5]})  # the footprint fails
         assert closeup_row.judge_closeups(folder / "out", {}, {}).answer == "pass"
+        assert gaps["gaps"][0]["reason"] == "every Pro take failed the shape check's measured half"
+        # a free-only run (this PC, batch 2, 2026-10-30): every cached take read back, no new one asked; the row no
+        # cached take passed is a gap worded as the paid run's, the same output byte for byte, and its next take is
+        # named in the log only, a paid retry on the priced list
+        sent.clear()
+        os.environ["SCORE_FREE_ONLY"] = "1"
+        (folder / "free").mkdir()
+        log = io.StringIO()
+        with contextlib.redirect_stdout(log):
+            closeup_row.make_closeups({"props-inputs": folder / "inputs"}, folder / "free", 7, {})
+        assert sent == [], sent
+        for name in ("closeups.json", "batch-gaps.json"):
+            assert (folder / "free" / name).read_bytes() == (folder / "again" / name).read_bytes(), name
+        assert "tools: no cached Pro take passed and this run spends nothing: paid retry on the priced list, its next " \
+               "take retry-8" in log.getvalue(), log.getvalue()
     finally:
+        os.environ.pop("SCORE_FREE_ONLY", None)
         stage.pro.draw, spend.CACHE = kept[:2]
         if kept[2] is None:
             del sys.modules["secret_store"]
