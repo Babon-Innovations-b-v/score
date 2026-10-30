@@ -1,0 +1,13 @@
+{
+ "gaps": [
+  {
+   "name": "floor_hatch: no object, the floor left closed",
+   "row": "complete",
+   "check": "rows",
+   "objects": ["floor_hatch"],
+   "reason": "Hangar's floor_hatch row (an opening, its route plan) was read with no size and no box, and the accepted plan, the owner's own edit, places none of it (\"floor hatch: 1 in the concept, 0 on the plan\"), so no stage lays an object of it and the floor is left closed, no hole cut for it. Its model goes on the priced retake list (#36). The owner's words: \"Hangar's floor hatch: a named gap for now, with the floor left closed. The model for it goes on the priced retake list.\"",
+   "decided": "owner (@JoeyKardolus), 2026-10-30, in chat, relayed by the score session",
+   "faults": ["{\"row\": \"floor_hatch\", \"why\": \"no object of this row on the stage (code) and no written drop reason (`dropped`)\"}"]
+  }
+ ]
+}
