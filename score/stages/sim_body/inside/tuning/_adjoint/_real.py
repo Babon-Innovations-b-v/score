@@ -29,6 +29,33 @@ def set_up(table, weights, root, cases, saved):
     return _clip.for_fitting(fitting, path), fitting, targets, path
 
 
+def soma_of(table, weights, root, cases, saved):
+    """SOMA's side of the measures for the body `set_up` laid: (MyoFullBody's scales, SOMA's segments, every clip's
+    worlds (frames, segments, 4, 4) clip after clip in `targets`' order); run after `set_up`, so the sizing is cached."""
+    saved.restore()
+    clips, rig, path, _ = _card_batch.laid_clips(root, cases, _case.prepared(table, weights, root, cases))
+    job, person, _, _ = next(iter(clips.values()))
+    _, scales = _card_batch.cached_sized(job, person, rig, path)
+    return scales, person["segments"], np.concatenate([np.asarray(clip[3]) for clip in clips.values()])
+
+
+def joint_parts(clip, scales, segments, worlds):
+    """`TapedMeasures`' joints on `per_frame_model`: {segment: (parts per frame [[(link, local point scaled, share)]],
+    SOMA's joint per frame (frames, 3) in SOMA's frame)}, each joint's centre as `evaluation._measure.centre` reads it
+    (CENTRES' bone and local point times its scale, a MIDDLE one the mean of its parts), link shifted copy by copy."""
+    from evaluation import _measure as cpu
+    bodies = clip.model.body_count
+    joints = {}
+    for segment in [segment for segment in cpu.JOINTS if segment in segments]:
+        names = cpu.MIDDLE.get(cpu.JOINTS[segment], (cpu.JOINTS[segment],))
+        parts = [(clip.body[cpu.CENTRES[name][0].replace("-", "_").replace(" ", "_")],
+                  np.asarray(cpu.CENTRES[name][1], dtype=float) * scales[cpu.CENTRES[name][0]], 1 / len(names))
+                 for name in names]
+        joints[segment] = ([[(link + frame * bodies, local, share) for link, local, share in parts]
+                            for frame in range(len(worlds))], worlds[:, segments.index(segment), :3, 3])
+    return joints
+
+
 def solved_rows(clip, targets, seeds):
     """Every clip's level 3 rows (frames x nq, Newton's order, clip after clip in `targets`' order) and steps from
     one `Sets([clip]).angles` batch; `seeds` {case: qpos [frames, nq], MuJoCo's layout}."""
