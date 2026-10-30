@@ -15,6 +15,7 @@ import resting  # noqa: E402
 import settle  # noqa: E402
 import snap  # noqa: E402
 import triage  # noqa: E402
+from score.review.holders import holder_kind  # noqa: E402
 
 DRIFT_MOST = settle.DRIFT_MOST
 # How far a held object may be raised onto what holds it (metres): out of a little bedding, no more. snap.py's rays
@@ -29,15 +30,20 @@ NEAR_FACES = 20000
 
 def held_objects(stage, place, inventory, kit_path=None):
     """The stage's top-level objects held on another (the triage's support `held`: row anchor `on:<row>`; the kit
-    given its kinds' groups), lowest first, so one held on a held one comes after its holder."""
+    given its kinds' groups), lowest first, so one held on a held one comes after its holder. One held on a wall or a
+    ceiling row (holders.holder_kind) is mounted, not held up from under, and left out: its laid pose stands
+    (airlock's ceiling lamps on its roof dome, snapped toward a floor 280 cm down, 2026-10-30)."""
     data, groups = triage.rules(), triage.kit_groups(kit_path)
     rows = {row["id"]: row for row in inventory["rows"]}
+    mounted = {row["id"] for row in inventory["rows"] if (row.get("anchor") or "").startswith("on:")
+               and holder_kind(rows.get(row["anchor"].removeprefix("on:"), {"id": ""})) in ("wall", "ceiling")}
     cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
     found = []
     for path, prim in resting.objects_of(stage, place).items():
         name = path.removeprefix(f"/{place}/Objects/")
-        if "/" not in name and triage.support_type(rows.get(prim.GetAttribute("score:row").Get(), {}), prim, data,
-                                                     groups) == "held":
+        row = prim.GetAttribute("score:row").Get()
+        if "/" not in name and row not in mounted and triage.support_type(rows.get(row, {}), prim, data,
+                                                                           groups) == "held":
             found.append((cache.ComputeWorldBound(prim).ComputeAlignedRange().GetMin()[1], name))
     return [name for _, name in sorted(found)]
 
