@@ -73,8 +73,9 @@ def level2_body(problem_at, jacobian, solved, kept, outer, sited=None):
 def sited_products(problem, placed, jacobian, pinned, sited, inner, outer, weights):
     """`weights`^T dg/dtheta of level 2's pinned gradient off a `sited_problem_at` Problem, dg/dtheta = dg/dmoved @
     columns: the costs' part 2 J^T dr/dc (each row linear in its cost, dr/dc central differences of the rows alone)
-    through `goal_weights`' derivative, the sites' part central differences over the site rows `columns` moves."""
-    columns, step = sited
+    through `goal_weights`' derivative, the sites' part central differences over the site rows `columns` moves; with
+    `sited` (columns, step, arrow) a free mark's untold-free site row off H instead (`_free_site_columns`)."""
+    columns, step = sited[:2]
     held = len(problem.slots)
     moved = placed.trusted + columns @ np.asarray(outer, dtype=float)
     sites = 3 * len(problem.fitting.mark_sites)
@@ -88,7 +89,11 @@ def sited_products(problem, placed, jacobian, pinned, sited, inner, outer, weigh
         return found
 
     by_moved = np.zeros((weights.shape[1], columns.shape[0]))
+    off_h = _free_site_columns(problem, pinned, sited[2], weights) if len(sited) > 2 else {}
     for row in np.nonzero(np.abs(columns[:sites]).max(axis=1) > 0)[0]:
+        if row in off_h:
+            by_moved[:, row] = off_h[row]
+            continue
         up, down = moved.copy(), moved.copy()
         up[row] += step
         down[row] -= step
@@ -97,6 +102,23 @@ def sited_products(problem, placed, jacobian, pinned, sited, inner, outer, weigh
     by_moved[:, sites:] = weights.T @ _cost_gradients(problem, jacobian, pinned, unknowns) @ _dense(
         _cost_slopes(moved[sites:], placed.ends, step))
     return by_moved @ columns
+
+
+def _free_site_columns(problem, pinned, arrow, weights):
+    """{site row: `weights`^T dg/dsite} for each free mark's site coordinate whose constant is not held: the place rows
+    read site + move alike, the prior row (its cost times the move) the move alone, so dg/dsite = H[:, constant] less
+    the prior's cost squared on its own diagonal (H `level2_arrow`'s blocks, held rows already zero)."""
+    blocks, couplings, corner = arrow
+    frames, width = len(problem.path), problem.width
+    poses, place = frames * width, problem.costs[1]
+    found = {}
+    for constant, slot in enumerate(problem.slots[:3 * len(problem.free)]):
+        if pinned.held[poses + constant]:
+            continue
+        column = np.concatenate([couplings[:, :, constant].ravel(), corner[:, constant]])
+        column[poses + constant] -= place[slot // 3] ** 2
+        found[int(slot)] = weights.T @ column
+    return found
 
 
 def _cost_gradients(problem, jacobian, pinned, unknowns):

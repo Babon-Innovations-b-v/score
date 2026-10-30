@@ -330,3 +330,21 @@ class CostedSites:
 def costed_jacobian(problem, unknowns):
     """The costed toy's rows' Jacobian by central differences."""
     return _adjoint.by_columns(problem.residuals, unknowns, 1e-6)
+
+
+class FreeSites(CostedSites):
+    """`CostedSites` with its constants a free mark's move (mark 0's x and y, as `fit/_constants.Problem` lays a free
+    marker): its site plus the move in the place rows, the prior row its own cost times the move."""
+    slots, free = np.array([0, 1]), [0]
+
+    def residuals(self, unknowns):
+        sites, place = self.fitting.base[1][self.fitting.mark_sites].copy(), self.costs[1]
+        sites[0, :2] += unknowns[:2]
+        rows = []
+        for frame in range(3):
+            turn, shift = unknowns[2 + 2 * frame], unknowns[3 + 2 * frame]
+            moved = sites * np.cos(turn) + shift + turn ** 2 * sites
+            rows.append((place[:, None] * (moved - 0.1 * (frame + 1))).ravel())
+            rows.append([self.costs[0] * (turn - 0.3)])
+        rows.append(place[0] * unknowns[:2])
+        return np.concatenate(rows)

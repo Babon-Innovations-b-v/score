@@ -20,7 +20,7 @@ In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
 without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pulled` skipping the normalisation's
 projection (`along` the raw turn gradient) turns the root chart test red; `RootTurns.pulled_rows` cutting each copy's fourth turn coordinate in place of pulling the row
 through the chart turns it red; `Pinned.rows` keeping a held column turns the pinned test red; `Pinned.gradient` giving a held entry zero in place of its spring (a
-singular frame block) turns the pinned test red. In `_level2.py`, `level2_body`'s gradient left in the Problem's order (no `to_body`) turns the constants-first level 2 test red; `pinned_mask` holding no bound-held entry turns it red; `level2_body` rebuilding the Problem on every gradient call (no `problem_of` cache) turns it red; `level2_arrow`'s couplings as J_q^T J_c alone (the second-order part of its pose steps dropped) turns the level 2 arrow test red. `_level2._cost_gradients` without its factor 2 (J^T dr/dc alone) turns the level 2 products test red (0.24). In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red; `picked_columns` laying a site's rows at its row among the known names in place of its place in `names` turns it red, and laying a trust at its row among the known names (with ends) turns it red; an end moved by its first part only (a middle end's second dropped) turns it red. In `_real.py`, `solved_rows`
+singular frame block) turns the pinned test red. In `_level2.py`, `level2_body`'s gradient left in the Problem's order (no `to_body`) turns the constants-first level 2 test red; `pinned_mask` holding no bound-held entry turns it red; `level2_body` rebuilding the Problem on every gradient call (no `problem_of` cache) turns it red; `level2_arrow`'s couplings as J_q^T J_c alone (the second-order part of its pose steps dropped) turns the level 2 arrow test red. `_level2._cost_gradients` without its factor 2 (J^T dr/dc alone) turns the level 2 products test red (0.24). `_level2._free_site_columns` without the prior's cost squared on its diagonal turns the free-site products test red (0.11). In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red; `picked_columns` laying a site's rows at its row among the known names in place of its place in `names` turns it red, and laying a trust at its row among the known names (with ends) turns it red; an end moved by its first part only (a middle end's second dropped) turns it red. In `_real.py`, `solved_rows`
 giving MuJoCo's order (no `newton_order`) turns the real body test red; `frame_couplings` zeroing
 the projection's polynomials turns its per-frame model check red; `bound_held` holding nothing (bound-held coordinates left in the pose) turns its refused check red (4.12e-3); `joint_parts`
 dropping the centres' scales turns its joints check red; `turn_groups` without the frozen table turns its turns check red; `skin_parts` without the geom's turn turns its skins check red (0.19 m). The case rows' derivative left over the full pose (no `RootTurns.pulled_rows`) turns its pulled check red. `trusted_outer` laying the landmarks' trusts out of their sites' order turns its trusted check red. `ends_of` without the holder's turn (R_body alone) turns its ends check red.
@@ -272,6 +272,23 @@ def test_level_2_products_off_sited_costs_equal_the_differenced_mixed_term():
     at = _level2.sited_problem_at(toys.CostedSites(), columns, trusted, 1)
     solved = np.array([0.2, -0.1, 0.3, 0.1, -0.2, 0.4, 0.5, -0.3])
     body = _level2.level2_body(at, toys.costed_jacobian, solved, np.arange(8), np.zeros(3), sited=(columns, 1e-5))
+    weights = generator.normal(size=(8, 2))
+    wanted = weights.T @ _adjoint.mixed(body.gradient, body.inner, np.zeros(3), 1e-5)
+    found = body.products(body.inner, np.zeros(3), weights)
+    assert np.abs(found - wanted).max() < 1e-4 * np.abs(wanted).max()
+
+
+def test_level_2_free_site_products_off_h_equal_the_differenced_mixed_term():
+    from score.stages.sim_body.inside.tuning._adjoint import _level2
+    generator = np.random.default_rng(4)
+    columns = generator.normal(size=(13, 3))
+    trusted = np.concatenate([np.zeros(9), [0.8, 1.3, 0.5, 2.0]])
+    problem = toys.FreeSites()
+    at = _level2.sited_problem_at(problem, columns, trusted, 1)
+    solved = np.array([0.2, -0.1, 0.3, 0.1, -0.2, 0.4, 0.5, -0.3])
+    arrow = _level2.level2_arrow(at(np.zeros(3)), toys.costed_jacobian, solved, np.arange(8), [], 1e-5)
+    body = _level2.level2_body(at, toys.costed_jacobian, solved, np.arange(8), np.zeros(3),
+                               sited=(columns, 1e-5, arrow))
     weights = generator.normal(size=(8, 2))
     wanted = weights.T @ _adjoint.mixed(body.gradient, body.inner, np.zeros(3), 1e-5)
     found = body.products(body.inner, np.zeros(3), weights)
