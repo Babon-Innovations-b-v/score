@@ -80,3 +80,28 @@ def the_rowwise_optimizer_equals_each_set_alone():
             if not np.array_equal(batched, alone):
                 problems.append(f"set {index} {name}: off by {np.abs(batched - alone).max():.3g}")
     return problems
+
+
+def the_float64_frames_equal_each_set_alone():
+    """_forward's float64 frames over rows = set x frame against Forward on each set's own model, bit for bit;
+    problems as text."""
+    import numpy as np
+    import warp as wp
+    from card_chain import chain_model
+    from fit._card._forward import Forward, frames
+    model = chain_model()
+    places = set_places(model)
+    poses = np.random.default_rng(17).uniform(-1.0, 1.0, size=(SETS * FRAMES, model.joint_coord_count))
+    joint_q = wp.array(poses.astype(np.float32), dtype=wp.float32, device="cuda:0")
+    body_q = wp.zeros((SETS * FRAMES, model.body_count), dtype=wp.transformd, device="cuda:0")
+    frames(Forward(model, places, np.repeat(np.arange(SETS), FRAMES)), joint_q, body_q)
+    batched = body_q.numpy()
+    problems = []
+    for index in range(SETS):
+        model.joint_X_p.assign(places[index])
+        rows = slice(index * FRAMES, (index + 1) * FRAMES)
+        alone = wp.zeros((FRAMES, model.body_count), dtype=wp.transformd, device="cuda:0")
+        frames(Forward(model), wp.array(poses[rows].astype(np.float32), dtype=wp.float32, device="cuda:0"), alone)
+        if not np.array_equal(batched[rows], alone.numpy()):
+            problems.append(f"set {index}: off by {np.abs(batched[rows] - alone.numpy()).max():.3g}")
+    return problems

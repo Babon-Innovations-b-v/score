@@ -42,6 +42,8 @@ Breaks (each applied once, seen red, reverted):
   frame, equals Newton's eval_fk_batched on each set alone bit for bit).
 - (2026-10-30) _per_row.rowwise's `optimizer._compute_motion_subspace = motion_subspace` dropped: the Jacobian
   reads the model's one joint places, sets 1 and 2's columns off theirs alone by 0.025-0.035 (card_rows).
+- (2026-10-30) _forward._frames' `joint_x_p[row_set[row], joint]` made `joint_x_p[0, joint]`: the float64 frames take
+  the first set's places, sets 1 and 2 off theirs alone by 0.056-0.074 m (card_rows).
 - (2026-10-30) _measure.skin_depths' `depths[:, ...]` made `depths[:1, ...]`: the card's depths read the first skin
   frame only, off the CPU's.
 - (2026-10-29) _projected's `power *= lead` made `power *= 1.0`: a coupling is no longer polyval of its leader.
@@ -71,7 +73,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from card_chain import (LINKS, OBJECTIVE_ROWS, chain_model, log_rate, objective_rows,  # noqa: E402
                         residuals_and_jacobian)
 from card_toy import CLIP_FRAMES, TOY, mink_frames, toy_card, toy_clip, toy_errors  # noqa: E402
-from card_rows import the_rows_equal_each_set_alone, the_rowwise_optimizer_equals_each_set_alone  # noqa: E402,E501
+from card_rows import (the_float64_frames_equal_each_set_alone, the_rows_equal_each_set_alone,  # noqa: E402
+                       the_rowwise_optimizer_equals_each_set_alone)
 from card_step import (BOUNDED, COUPLINGS, FROZEN, ROWS, fixture, prototype_projected,  # noqa: E402
                        prototype_step)
 LEVEL2_CARD_MOST = 1e-5  # the same from the card's float32 kinematics (_level2_card)
@@ -285,6 +288,7 @@ def _values(found):
 
 
 CHECKS = (the_rows_equal_each_set_alone, the_rowwise_optimizer_equals_each_set_alone,
+          the_float64_frames_equal_each_set_alone,
           the_level2_jacobian_equals_its_differences, the_level2_solve_with_the_exact_jacobian_equals_differences,
           the_measures_equal_the_cpu_measure, the_step_equals_the_prototype, the_projection_equals_the_prototype,
           the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame,
