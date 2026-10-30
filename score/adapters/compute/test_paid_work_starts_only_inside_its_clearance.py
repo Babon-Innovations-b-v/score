@@ -17,6 +17,9 @@ Each test's break (applied once, seen red, reverted), in score/adapters/compute/
 - timed by the card rule: unit_minutes caps cards at 1 for a machine stage.
 - settle not timed below: unit_minutes' high job seconds read the likely ones.
 - pixal finish: then_minutes' `if "unit_seconds" not in then:` becomes `if True:`.
+- retake priced for its takes: planned_forecast's `if takes:` becomes `if False:` (every take its accepted output
+  made drawn instead).
+- retake's Buy price: score/__main__.py selected_price passes None for the retake's units.
 - row says where: score/graph/__init__.py keeps no earlier row's line (`kept = False`).
 - count rules: counted_units' rule "one" counts 2.
 - count of zero: counted drops the COUNTED_ZERO case.
@@ -350,6 +353,52 @@ def test_a_node_not_made_yet_is_priced_per_unit_times_its_forecast_units_else_it
         assert compute.run_forecast("render@lab", 9.0, outputs)["euros"] == 9.0  # nothing counted: the estimate
     finally:
         BOOKS.entries, compute.PER_UNIT = saved, kept
+
+
+def make_takes(inputs, out, seed, params):
+    (out / "takes.json").write_text(json.dumps({"a-s1": 1, "b-s1": 2, "c-s1": (inputs["brief"] / "brief.txt").read_text()}))
+
+
+def test_a_retake_is_cleared_and_priced_for_its_own_takes_not_every_take_of_its_place():
+    """Fault (#36, 2026-10-30): a retake (graph.Stage.retakes) remakes only the takes the owner's reject names, yet its
+    clearance drew per unit times every take the output accepted before the rejected one made (pixal@cockpit: 11
+    takes, EUR 2.58, for one at EUR 0.23), and the Buy's price the same. A make that is no retake keeps that price."""
+    saved, kept = BOOKS.entries, compute.PER_UNIT
+    folder = pathlib.Path(tempfile.mkdtemp())
+    compute.PER_UNIT = folder / "per-unit.json"
+    compute.PER_UNIT.write_text(json.dumps({"stages": {"render": {
+        "stage": "render", "unit": "model", "count": {"json_keys": "takes.json"}, "also": [], "likely_euros": 0.2,
+        "high_euros": 0.5, "runs": 40, "sources": {}, "forecast": {"rule": "one", "source": "a toy's"}}}}))
+    made = graph.Stage("render", "place", make_takes, TEXT, (checks.Check("said", lambda *_: checks.Verdict(
+        "said", checks.PASS, "made")),), after={"brief": ("toy-text", 1)}, retakes=True)
+    runner = a_runner("a hall")
+    for text in ("a hall", "a wide hall"):  # two accepted makes: the reject puts the earlier one back
+        (runner.world.roots["data"] / "hangar.txt").write_text(text)
+        runner = graph.Runner([BRIEF, made], runner.world, runner.store)
+        runner.run_node(BRIEF, "hangar")
+        runner.run_node(made, "hangar")
+    paid = dataclasses.replace(made, paid=True)
+    share = compute.BILL_SHARE
+    from score.__main__ import selected_price
+    from score.stages.complete.gaps import price
+    planned, buy = price.planned_units, types.SimpleNamespace(node="render@hangar", euros=9.0)
+    try:
+        BOOKS.entries = lambda: []
+        whole = graph.Runner([BRIEF, paid], runner.world, runner.store)
+        assert compute.retake_takes(whole, "render@hangar") is None
+        assert compute.planned_forecast(whole, "render@hangar", 9.0)["euros"] == round(1.5 * share, 4)
+        price.planned_units = lambda *_: 3  # the Buy's plan counts the place's every take
+        assert selected_price(whole, buy)["high_euros"] == round(1.5 * share, 4)
+        price.planned_units = planned
+        review.reject(runner.store, "render@hangar", runner.store.accepted("render@hangar"), "owner", "a block",
+                      takes=("b-s1",))
+        retake = graph.Runner([BRIEF, paid], runner.world, runner.store)
+        assert compute.retake_takes(retake, "render@hangar") == ["b-s1"]
+        assert compute.planned_forecast(retake, "render@hangar", 9.0)["euros"] == round(0.5 * share, 4)
+        price.planned_units = lambda *_: 3
+        assert selected_price(retake, buy)["high_euros"] == round(0.5 * share, 4)
+    finally:
+        BOOKS.entries, compute.PER_UNIT, price.planned_units = saved, kept, planned
 
 
 def test_a_per_unit_price_is_timed_on_its_stages_measured_time_by_the_runners_card_rule():

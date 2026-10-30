@@ -265,6 +265,13 @@ def run_forecast(node, euros, store=None, units=None):
     unit = unit_price(node, store)
     if unit and unit["units"]:  # an accepted make that counted none (pixal@people, 2026-10-22) is no forecast
         return {"euros": unit["high_euros"], "minutes": None, "high_minutes": None, "measured": unit["runs"]}
+    return planned_run(node, euros, units)
+
+
+def planned_run(node, euros, units):
+    """run_forecast's last steps: its stage's measured per-unit high times the `units` its forecast rule counted
+    (forecast_price) with their unit minutes, else the stage's own estimate `euros` with no minutes; Refused with
+    none."""
     planned = forecast_price(node, units)
     if planned:
         timed = unit_minutes(node.partition("@")[0], units)
@@ -732,9 +739,28 @@ def clearance(runner, node, euros, own=None):
             "store": str(runner.store.cache.parent)}
 
 
+def retake_takes(runner, node):
+    """The takes a node's make remakes alone, the rest kept (its key's `retake` param: the owner's reject named them,
+    graph.Stage.retakes), or None for a whole make or a node the runner cannot key yet."""
+    stage, _, place = node.partition("@")
+    row = runner.stages.get(stage)
+    if row is None or not row.retakes:
+        return None
+    try:
+        keyed = runner.key(row, place or None)
+    except graph.Blocked:
+        return None
+    return (keyed["params"].get("retake") or {}).get("takes") or None
+
+
 def planned_forecast(runner, node, euros):
-    """run_forecast of the node at the units the run's plan prices it by (price.planned_units)."""
+    """run_forecast of the node at the units the run's plan prices it by (price.planned_units); a retake's at its own
+    takes alone (planned_run: neither its stage's whole runs nor every take its accepted output made say what it
+    makes; #36, 2026-10-30: one take at the cockpit was drawn as its 11)."""
     from score.stages.complete.gaps import price
+    takes = retake_takes(runner, node)
+    if takes:
+        return planned_run(node, euros, len(takes))
     with runner.selection(runner.stages[node.partition("@")[0]]):  # a selecting stage's units: its objects only
         units = price.planned_units(node, runner.world.roots.get("data"), runner.store)
     return run_forecast(node, euros, runner.store, units)
