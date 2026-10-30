@@ -93,12 +93,18 @@ def place_of(inputs):
 
 # --- the stage dropped -------------------------------------------------------------------------------------------
 
+def with_anchors(inventory):
+    """The inventory with a row's `anchor` read as no anchor where the reading wrote none (`null`): settle.py's
+    held_on_loose reads it as text (settle@habitat, 2026-10-30), and settle.py sits in about 230 paid rows' code."""
+    return {**inventory, "rows": [{**row, "anchor": row.get("anchor") or ""} for row in inventory["rows"]]}
+
+
 def make(inputs, out, seed, params):
     """Drop the place's loose objects on its made ground and lay where each comes to rest. The grounded seed is put
     together in the output's own folder and taken out again once the drop is read."""
     from pxr import Usd
     place = place_of(inputs)
-    inventory = read_json(inputs["inventory"])
+    inventory = with_anchors(read_json(inputs["inventory"]))
     scratch = out / "scratch"
     try:
         root = grounded_seed(inputs, scratch)
