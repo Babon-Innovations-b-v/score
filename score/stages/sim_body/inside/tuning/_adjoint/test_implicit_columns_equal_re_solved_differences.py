@@ -17,7 +17,7 @@ unknowns' trust (`TapedSites._evaluate` not assigning `self.weights` when `trust
 skipping `self.centres.zero_()` (joint centres adding onto the last evaluation's) turns the taped measures test red.
 Building the bone points without `requires_grad` (`_Skins.points`: no skin depth row reaches the pose) turns it red.
 Cutting each seeded row from the first frame's block in place of its own (`_rows` with start 0) turns it red; `case_rows` laying a
-skin point's block at frame 0 (`rms_row` ignoring `point_frames`) turns it red. `_real.level2_solved` returning its start path in place of the solved angles (what `constants_on` drops) turns the real level 2 test red. `fit/_constants.staged` without its `polished` step turns the real constant motion test red (its free gradient over 1e-9). `_real.level2_constants` laying every copy's free marks on the first copy's sites (the copy shift times 0) turns the real constants test red. `_bodies.level3_body`'s gradient without `pinned.gradient` (held rows not springs) turns it red. `TapedMeasures._constant_blocks` reading every frame's rows off the first copy's inside joints turns the taped measures test red (R_c 148 against 101).
+skin point's block at frame 0 (`rms_row` ignoring `point_frames`) turns it red. `_real.level2_solved` returning its start path in place of the solved angles (what `constants_on` drops) turns the real level 2 test red. `fit/_constants.staged` without its `polished` step turns the real constant motion test red (its free gradient over 1e-9). `_real.level2_constants` laying every copy's free marks on the first copy's sites (the copy shift times 0) turns the real constants test red. `_bodies.level3_body`'s gradient without `pinned.gradient` (held rows not springs) turns it red; its `placed` ignoring theta turns it red too (theta gap 1). `TapedMeasures._constant_blocks` reading every frame's rows off the first copy's inside joints turns the taped measures test red (R_c 148 against 101).
 In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
 without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pulled` skipping the normalisation's
 projection (`along` the raw turn gradient) turns the root chart test red; `RootTurns.pulled_rows` cutting each copy's fourth turn coordinate in place of pulling the row
@@ -292,12 +292,14 @@ def test_level_2_constants_on_the_real_tape_equal_differences_of_its_cost(tmp_pa
     """`SCORE_ADJOINT_REAL` as above: `_real.taped_sites(constants=_real.level2_constants(...))` at the solved rows,
     moves 0: its constants' gradient on its largest entries equals central differences of the cost, its pose part the
     constant-free gradient; level 3's g_q,c (`_bodies.level3_body`, `mixed` over the moves) equals the constants'
-    gradient differenced over the pose (H's symmetry), its held rows zero."""
+    gradient differenced over the pose (H's symmetry), its held rows zero, and its g_q,theta over a free mark's own
+    site offset that mark's g_q,c column."""
     given, cases = runs.real_inputs()
     found = runs.last_json(runs.newton_ran("_check_constants.py", given["seeds"], given["set"], tmp_path, *cases))
     assert found["pose most"] < 1e-6 * max(found["pose largest"], 1.0), found
     assert found["gap over largest"]["0.0001"] < CONSTANTS_SHARE, found
     assert found["cross symmetry"] < CONSTANTS_SHARE and found["cross held most"] == 0.0, found
+    assert found["theta marks"] > 0 and found["theta gap"] < CONSTANTS_SHARE, found
 
 
 def test_level_2_constants_rows_on_the_real_body_equal_differences_of_its_case_rows(tmp_path):
