@@ -9,6 +9,7 @@ own tone curve, fitted on the render's look against its light.
                                            flat, kept across its edges
     sweep(views, swept, target) -> scale   the scale of the swept lamps that brings the place's brightness nearest
                                            its concept's
+    pinned(scale)                          whether a sweep stopped at an end of its range
     lamp_faults(views, scales, seen)       each lamp unlit (on screen, lighting nothing) or blown out (where it is the
                                            light, its look at white)
 
@@ -117,14 +118,23 @@ def within(views, scales, target):
     return abs(np.log(max(place_brightness(views, scales), FLOOR) / target)) <= np.log(BRIGHT_WITHIN)
 
 
-def lamp_measures(views, scales, group):
-    """One lamp's share of each view's light and, where it gives at least DOMINANT of it, its white share."""
+def pinned(scale):
+    """Whether a sweep's scale stands at either end of SCALES: the lamps went as far as the sweep goes and may not
+    have reached (2026-10-30: airlock's lamps at the floor, its brightness x1.44 its concept's, carried by the sun and
+    the fill the sweep never turned)."""
+    return scale in (float(SCALES[0]), float(SCALES[-1]))
+
+
+def lamp_measures(views, scales, groups):
+    """One lamp's share of each view's light and, where it gives at least DOMINANT of it, its white share. A lamp is
+    its `groups` together: the record's lights at one spot are one lamp (each alone gives half where they are the
+    light, never DOMINANT, so none of them could read blown out)."""
     found = {}
     for name, (passes, curve) in views.items():
-        if group not in passes:
+        if not all(group in passes for group in groups):
             continue
         light = mixed(passes, scales)
-        own = scales.get(group, 1.0) * passes[group].astype(np.float64)
+        own = sum(scales.get(group, 1.0) * passes[group].astype(np.float64) for group in groups)
         share = float(own.sum() / max(light.sum(), FLOOR))
         dominated = own >= DOMINANT * np.maximum(light, FLOOR)
         lit = dominated & (light > FLOOR)
@@ -137,15 +147,16 @@ def blown(measures):
     return any(entry["dominates"] >= DOMINATES_LEAST and entry["white"] > BLOWN_MOST for entry in measures.values())
 
 
-def turned_down(views, scales, group):
-    """The lamp's scale halved until it is not blown out (at most HALVINGS times): (scale, measures)."""
-    measures = lamp_measures(views, scales, group)
+def turned_down(views, scales, groups):
+    """The lamp's scale (each of its `groups`, set in `scales`) halved until it is not blown out (at most HALVINGS
+    times): (scale, measures)."""
+    measures = lamp_measures(views, scales, groups)
     for _ in range(HALVINGS):
         if not blown(measures):
             break
-        scales[group] = scales.get(group, 1.0) / 2.0
-        measures = lamp_measures(views, scales, group)
-    return scales.get(group, 1.0), measures
+        scales.update({group: scales.get(group, 1.0) / 2.0 for group in groups})
+        measures = lamp_measures(views, scales, groups)
+    return scales.get(groups[0], 1.0), measures
 
 
 def lamp_faults(measures, on_screen):

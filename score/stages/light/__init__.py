@@ -130,22 +130,22 @@ def make_layer(inputs, out, seed, params):
                         else None, sky.faces_of(inputs), sky.read(inputs["library"]))
     record = passes.record_of(place, inputs)
     inside = bool((record.get("environment") or {}).get("inside"))
-    if not found["lamps"] or not inside:
-        found["lamps"] += sun_lamps(place, out, stage)
+    found["lamps"] += sun_lamps(place, out, stage)
     light = sky.read(inputs["concept light"]) if "concept light" in inputs else None
     if fill_wanted(light, found["lamps"], inside):
-        found["lamps"].append(layer.write_fill(out, stage, place, light["scene"]["unseen_colour"], inside,
-                                               record.get("ceiling"), inputs["lamp library"]))
+        found["lamps"].append(layer.write_fill(out, stage, place, light["scene"]["unseen_colour"], inside, record,
+                                               inputs["lamp library"]))
     shutil.rmtree(out / "source")
     layer.lamps_file(found, out)
     (out / passes.VIEWS).write_text(json.dumps(passes.record_views(record), indent=1))
 
 
 def sun_lamps(place, out, stage):
-    """The suns of a place lit by no lamp or under the open sky (its record's environment not `inside`), each in a
-    light group of its own, swept after the lamps when they cannot bring the place to its concept's brightness (the
-    captain, 2026-10-12: the old station stood at 0.38 of C4's with nothing to sweep, the wreck reached C4's only with
-    its one small lamp at 500 times its strength)."""
+    """The suns of every place, each in a light group of its own, swept after the lamps when they cannot bring the
+    place to its concept's brightness (the captain, 2026-10-12: the old station stood at 0.38 of C4's with nothing to
+    sweep, the wreck reached C4's only with its one small lamp at 500 times its strength). An inside place's too: its
+    sun shines in through its openings, and in no group it was light the sweep could not turn down (2026-10-30: tube
+    at x2.24 of its concept with every lamp at the sweep's floor; hub blown in every view)."""
     from pxr import Sdf, Usd, UsdLux
     composed = Sdf.Layer.CreateAnonymous(".usda")
     composed.subLayerPaths.append(str(out / layer.LAYER))
@@ -346,9 +346,36 @@ def on_screen(spot, size, views):
     return found
 
 
-def strengths(place, passes_folder, lamps, layer_folder):
+def outside_shell(spot, record):
+    """Whether a lamp's spot stands outside an inside place's shell: past its record's floor box or over its ceiling,
+    where no view inside sees it (2026-10-30: airlock's roof beacon on its dome read unlit). One under the floor stays
+    judged: a lamp sunk in its deck lights nothing and is a fault."""
+    if not record.get("inside") or record.get("ceiling") is None:
+        return False
+    (low_x, low_z), (high_x, high_z) = record["floor"]
+    return not (low_x <= spot[0] <= high_x and low_z <= spot[2] <= high_z and spot[1] <= record["ceiling"])
+
+
+def one_spot(groups, by_path):
+    """The groups of the lamps that are one lamp: those within layer.SAME_SPOT of each other, [[group, ...]] in
+    group order (2026-10-30: engineroom's two wall panels, each drawn on its plan as the room's whole outline, put
+    their lamps on the room's middle)."""
+    found = []
+    for group, path in sorted(groups.items()):
+        spot = np.asarray(by_path[path]["spot"], dtype=float)
+        joined = next((unit for unit in found if np.linalg.norm(
+            np.asarray(by_path[groups[unit[0]]]["spot"], dtype=float) - spot) <= layer.SAME_SPOT), None)
+        if joined is None:
+            found.append([group])
+        else:
+            joined.append(group)
+    return found
+
+
+def strengths(place, passes_folder, lamps, layer_folder, record):
     """The sweep on the place's views (its passes, rendered on its light layer's views): (scales {group: scale},
-    measures). Only a lamp those passes hold a group of is swept."""
+    measures). Only a lamp those passes hold a group of is swept. The suns are swept after the lamps where the lamps
+    cannot bring the place within its concept's brightness or their sweep stops at an end of its range."""
     by_path = {lamp["path"]: lamp for lamp in lamps}
     groups = {group: path for group, path in groups_of(passes_folder).items() if path in by_path}
     views = {view: (held, curve) for view, (held, curve, _) in view_passes(passes_folder, place).items()}
@@ -361,30 +388,34 @@ def strengths(place, passes_folder, lamps, layer_folder):
     scales = {group: (scale if group in swept else 1.0) for group in groups}
     suns = [group for group, path in groups.items() if by_path[path].get("sun") and group in held]
     sun_scale = 1.0
-    if suns and not mix.within(views, scales, target):  # the lamps cannot: the sky's light can
+    if suns and (mix.pinned(scale) or not mix.within(views, scales, target)):  # the lamps cannot: the sky's light can
         sun_scale = mix.sweep(views, suns, target, scales)
         scales.update(dict.fromkeys(suns, sun_scale))
     lamp_found = {}
-    for group, path in sorted(groups.items()):
-        if by_path[path].get("sun"):  # a sun is not turned down for its own glare: its light is the whole sky's
-            lamp_found[path] = {"group": group, "scale": scales[group], "views": {}, "sun": True, "on_screen": []}
-            continue
-        scales[group], measures = mix.turned_down(views, scales, group)
-        lamp_found[path] = {"group": group, "scale": scales[group], "views": measures,
-                            "sun": bool(by_path[path].get("sun")),
-                            "on_screen": on_screen(by_path[path]["spot"], size, shown_views)
-                            if by_path[path]["spot"] else []}
-    for entry in lamp_found.values():
-        entry["fault"] = mix.lamp_faults(lamp_measures_again(views, scales, entry["group"]), entry["on_screen"])
+    sky_lit = [group for group, path in groups.items() if by_path[path].get("sun")]
+    for group in sky_lit:  # a sun is not turned down for its own glare: its light is the whole sky's
+        lamp_found[groups[group]] = {"group": group, "scale": scales[group], "views": {}, "sun": True, "on_screen": []}
+    units = one_spot({group: path for group, path in groups.items() if group not in sky_lit}, by_path)
+    for unit in units:
+        measures = mix.turned_down(views, scales, unit)[1]
+        spot = by_path[groups[unit[0]]]["spot"]
+        seen = on_screen(spot, size, shown_views) if spot and not outside_shell(spot, record) else []
+        for group in unit:
+            lamp_found[groups[group]] = {"group": group, "scale": scales[group], "views": measures, "sun": False,
+                                         "on_screen": seen}
+            if group != unit[0]:
+                lamp_found[groups[group]]["one_with"] = groups[unit[0]]
+    for unit in units:  # at the final scales: another lamp turned down after it moves its share
+        entry = lamp_found[groups[unit[0]]]
+        entry["fault"] = mix.lamp_faults(mix.lamp_measures(views, scales, unit), entry["on_screen"])
+        for group in unit[1:]:
+            lamp_found[groups[group]]["fault"] = entry["fault"]
+    for group in sky_lit:
+        lamp_found[groups[group]]["fault"] = mix.lamp_faults(mix.lamp_measures(views, scales, [group]), [])
     return scales, {"concept": round(target, 4), "swept_scale": scale, "swept": len(swept), "sun_scale": sun_scale,
                     "before": {name: round(value, 4) for name, value in mix.brightness(views, {}).items()},
                     "after": {name: round(value, 4) for name, value in mix.brightness(views, scales).items()},
-                    "lamps": lamp_found}
-
-
-def lamp_measures_again(views, scales, group):
-    """A lamp's measures at the final scales (another lamp turned down after it moves its share)."""
-    return mix.lamp_measures(views, scales, group)
+                    "lamps": dict(sorted(lamp_found.items(), key=lambda item: item[1]["group"]))}
 
 
 def look_at(held, curve, look, scales):
@@ -455,13 +486,13 @@ def make_light(inputs, out, seed, params):
     passes_folder = pathlib.Path(inputs["light-passes"])
     layer_copied(layer_folder, out)
     found = json.loads((layer_folder / "lamps.json").read_text())
-    scales, swept = strengths(place, passes_folder, found["lamps"], layer_folder)
+    record = passes.record_of(place, inputs)
+    scales, swept = strengths(place, passes_folder, found["lamps"], layer_folder, record)
     own = {lamp["path"] for lamp in found["lamps"]}
     by_group = {group: path for group, path in groups_of(passes_folder).items() if path in own}
     intensity = {lamp["path"]: lamp["intensity"] for lamp in found["lamps"]}
     shafted = [group for group, path in by_group.items()
                if next(lamp for lamp in found["lamps"] if lamp["path"] == path)["shaft"]]
-    record = passes.record_of(place, inputs)
     swept["floodlights"] = floodlight_sweep(place, passes_folder, scales, shafted, out, inputs)
     for lamp in found["lamps"]:
         group = next((name for name, path in by_group.items() if path == lamp["path"]), None)
@@ -741,7 +772,7 @@ def judge_brightness(output, inputs, evidence):
 def judge_lamps(output, inputs, evidence):
     """No lamp on screen lights nothing, none is blown out at the measured strengths (mix.py's rules)."""
     lamps = {path: entry for path, entry in measures_of(output)["brightness"]["lamps"].items()
-             if not entry.get("sun")}  # a sun the sweep scales (a place with no lamp) is no lamp to judge
+             if not entry.get("sun") and not entry.get("one_with")}  # a sun is no lamp; lamps at one spot are one
     faults = [f"{path}: {entry['fault']}" for path, entry in lamps.items() if entry["fault"] in ("unlit", "blown")]
     unseen = [path for path, entry in lamps.items() if entry["fault"] == "unseen"]
     if lamps and len(unseen) == len(lamps):
