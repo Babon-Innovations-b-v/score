@@ -128,5 +128,11 @@ measures = {"joints": len(joints), "most": float(np.max(np.abs(mine - wanted))),
             "turn largest": float(turned.max()), "regions": len(skins),
             "skin points": int(skin_mine.size), "skin most": float(np.max(np.abs(skin_mine - skin_wanted))),
             "skin largest": float(skin_wanted.max()), "seconds": time.time() - began}
+began = time.time()
+from tuning._adjoint import case_rows  # noqa: E402
+values, derivative = case_rows(*taped_joints.measured(turns.full(turns.reduced()), offsets), frames=len(rows))
+charted = pinned.rows(turns.pulled_rows(turns.reduced(), derivative))
+pulled = {"full": list(derivative.shape), "charted": list(charted.shape), "finite": bool(np.isfinite(charted).all()),
+          "held columns most": float(np.max(np.abs(charted[:, held]))), "seconds": time.time() - began}
 print(json.dumps({"cases": found, "rows": int(rows.shape[0]), "seconds": seconds, "fk": fk, "taped": taped,
-                  "measures": measures}))
+                  "measures": measures, "pulled": pulled}))
