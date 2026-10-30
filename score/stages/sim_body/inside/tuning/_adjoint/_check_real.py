@@ -106,10 +106,31 @@ def card_joints(clip, joints, scales, rows):
     return np.array(found).T
 
 
+def moved_ends(path, scales, segments, step=1e-4):
+    """`_real.ends_of`'s turns against `end_site` re-run with each part's source local point moved by `step` along
+    each axis: (the largest |difference|, the largest turn entry)."""
+    import mujoco
+    from fit import group_ends
+    from fit._model import end_site, filed
+    from landmarks import MIDDLE_CENTRES, myo_parts
+    model, most, largest = mujoco.MjModel.from_xml_path(str(path)), 0.0, 0.0
+    for (_, centre), (own, turns) in zip(group_ends(segments), _real.ends_of(path, scales, segments)):
+        parts = myo_parts(centre)
+        for index, part in enumerate(MIDDLE_CENTRES.get(centre, (centre,))):
+            for axis in range(3):
+                moved = [(filed(body), (np.asarray(local, dtype=float) + step * (spot == index) * np.eye(3)[axis])
+                          * scales[body], weight) for spot, (body, local, weight) in enumerate(parts)]
+                column = (end_site(model, moved)[1] - own) / step
+                most = max(most, float(np.abs(column - turns[part][:, axis]).max()))
+                largest = max(largest, float(np.abs(turns[part]).max()))
+    return most, largest
+
+
 began = time.time()
 from _measures import TapedMeasures  # noqa: E402
 scales, segments, worlds, rig = _real.soma_of(str(out / "table.json"), str(out / "weights.json"), out, cases,
                                          _card_batch.Saved())
+ends_most, ends_largest = moved_ends(path, scales, segments)
 joints = _real.joint_parts(clip, scales, segments, worlds)
 groups = _real.turn_groups(clip, segments, worlds)
 skins = _real.skin_parts(clip, rig, segments, worlds)
@@ -133,7 +154,8 @@ measures = {"joints": len(joints), "most": float(np.max(np.abs(mine - wanted))),
             "groups": len(groups), "turn most": float(np.max(np.abs(degrees - turned))),
             "turn largest": float(turned.max()), "regions": len(skins),
             "skin points": int(skin_mine.size), "skin most": float(np.max(np.abs(skin_mine - skin_wanted))),
-            "skin largest": float(skin_wanted.max()), "seconds": time.time() - began}
+            "skin largest": float(skin_wanted.max()), "ends most": ends_most,
+            "ends largest": ends_largest, "seconds": time.time() - began}
 began = time.time()
 from tuning._adjoint import case_rows  # noqa: E402
 values, derivative = case_rows(*taped_joints.measured(turns.full(turns.reduced()), offsets), frames=len(rows))
