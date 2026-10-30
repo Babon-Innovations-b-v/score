@@ -73,7 +73,11 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   ends at its ConfigurationLimit bounds (cost 0.307) while the card's solve ends at 0.0094 inside every range; that
   frame held two right-arm constants on their 0.03 m bound (level 2 cost 0.900 against 0.602 with card frames). So
   level 2's sampled frames are posed on the card, across sets (`_card/_sampled.path_across`, wiring into `sampled`
-  under way); the bar is no worse than the CPU per body, better where mink is stuck.
+  under way); the bar is no worse than the CPU per body, better where mink is stuck. Why (measured 2026-10-30): not
+  an early stop. From frame 15's seed mink's first full step is 2.0 rad (tangent norm) and lands in a second basin;
+  its next 66 steps shrink geometrically, the cost flat at 0.30691 to 1e-15, and `moved < STEP_DONE` fires at a true
+  local minimum. Seeded at the card's frame 16, mink stays there (cost 0.00929). So a toy for the card's edge needs a
+  first step that overshoots into another basin, not a hinge driven past its range (that one mink slides along).
 - **The record states the honest measures first** (#70's audit item 2, 2026-10-29): `following` gives the bones
   outside SOMA's skin by region and the turns on main's frozen table before the joint mm (partly the ends' own pull)
   and the tree's-table turns; the frozen table is never edited to follow the tree.
