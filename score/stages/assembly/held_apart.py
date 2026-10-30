@@ -5,7 +5,7 @@ overlap. Kept apart from fitting.py and the assembly's package, which makers' co
 `held` check reads this file, so it moves the assembly's key alone.
 
     overlapping(record, laid)   [(object, what is wrong, metres)]: each overlapping pair, named by its first object
-    judge_held(output, ...)     the assembly's `held` verdict with those faults added
+    judge_held(output, ...)     the assembly's `held` verdict with those faults added, and fitting.short_doors named
 """
 import itertools
 import json
@@ -54,14 +54,17 @@ def overlapping(record, laid):
 
 
 def judge_held(output, inputs, evidence):
-    """assembly.judge_held's verdict, failing too on each overlapping pair (`overlapping`), its count a measure."""
+    """assembly.judge_held's verdict, failing too on each overlapping pair (`overlapping`), its count a measure; each
+    door short of its opening's height (fitting.short_doors) named among its findings, never deciding it."""
     verdict = assembly.judge_held(output, inputs, evidence)
     laid_path, record_path = pathlib.Path(output) / made_waiting.LAID, pathlib.Path(output) / assembly.RECORD
     if not laid_path.exists() or not record_path.exists():
         return verdict
-    faults = overlapping(json.loads(record_path.read_text()), json.loads(laid_path.read_text()))
+    record, laid = json.loads(record_path.read_text()), json.loads(laid_path.read_text())
+    faults = overlapping(record, laid)
     measures = {**verdict.measures, "overlapping": len(faults)}
     better = {**verdict.better, "overlapping": "lower"}
     reason = f"{verdict.reason}; {len(faults)} pairs overlap on their holder's face" if faults else verdict.reason
     return checks.Verdict("held", checks.FAIL if faults else verdict.answer, reason, measures, better,
-                          (*verdict.findings, *(f"{name}: {words}" for name, words, _ in faults)))
+                          (*verdict.findings, *(f"{name}: {words}" for name, words, _ in faults),
+                           *(f"{name}: {words}" for name, words, _ in fitting.short_doors(record, laid))))

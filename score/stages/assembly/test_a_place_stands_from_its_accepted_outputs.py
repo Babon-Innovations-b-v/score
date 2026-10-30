@@ -582,11 +582,9 @@ def test_base_s_garage_door_lands_on_its_module_s_front_face(tmp_path):
     in so its recess's 0.55 m of room on its hinge side (-x) fits the face too: its middle from 24.5585 to 26.254 +
     0.55 + 3 = 29.804 (score, 2026-10-29: never swinging round the corner); LAID names the fit.
     Break: score/stages/assembly/fitting.py: `target[side] = kept_within(foot[side], hold_low[side] + below,
-        hold_high[side] - above, half[side])` -> `target[side] = kept_within(foot[side], hold_low[side],
-        hold_high[side], half[side])`
-    Break: score/stages/assembly/made_waiting.py: `laid_by_relations(stage, out, place, record, objects)` -> `pass`
-    Break: score/stages/assembly/fitting.py: `target[axis] = (hold_high[axis] + half[axis]) if out[axis // 2] > 0 else
-        (hold_low[axis] - half[axis])` -> `target[axis] = foot[axis]`"""
+        hold_high[side] - above,` -> `target[side] = kept_within(foot[side], hold_low[side], hold_high[side],`
+    Break: score/stages/assembly/made_waiting.py: `laid_by_relations(stage, out, place, record, objects, baked)` -> `pass`
+    Break: score/stages/assembly/fitting.py: `target[axis] = face + sign * half[axis]` -> `target[axis] = foot[axis]`"""
     root = a_toy(tmp_path / "out")
     entries = [{"name": "square_module_front_right_1", "row": "square_module_front_right", "bake": "module_1",
                 "at": [32.254, 0.0, 33.4], "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "bake"},
@@ -609,6 +607,88 @@ def test_base_s_garage_door_lands_on_its_module_s_front_face(tmp_path):
     assert fit["name"] == "garage_door_1" and fit["how"] == "face" and fit["scale"] == 1.0, fit
     held = assembly.judge_held(root.parent, {}, None)
     assert held.answer == checks.PASS and held.measures == {"not held": 0, "worst off": 0.0}, held
+
+
+def test_base_s_built_garage_door_goes_in_its_recess_on_the_face_round_it(tmp_path):
+    """#36, motion@base: the module's box reaches z 39.43 only by a 0.39 m lip above the doorway, its face round the
+    recess at 39.039, so the door laid on the box's side hung in the air; and the bake cut the recess from the row's
+    6 m (6.6 with its room), while the built door, 8.30 m, covered solid wall past it. Here the module's face stands at
+    z 39.0 below 8 m and its lip at 39.4 above, the bake's recess runs x 27.254 to 33.854 (its own -5 to 1.6), 8 m tall,
+    and the 8 x 8 x 0.5 m door with 0.6 m of room on its hinge side (-x) is shrunk to 6 / 8 = 0.75 to fit the recess
+    less its room, laid beside that room (x 27.854 to 33.854) from the recess's foot, its back on z 39.0; LAID names
+    the face it was laid on, and the held gate measures it there.
+    Break: score/stages/assembly/fitting.py: `face = front_face(surface, axis, sign, side, span, (target[1], target[1]
+        + size[1] * scale))` -> `face = None`
+    Break: score/stages/assembly/fitting.py: `if cut is not None:` -> `if False:`
+    Break: score/stages/assembly/made_waiting.py: `{model: entry.get("cuts") for model, entry in (baked or
+        {}).items()}` -> `{}`
+    Break: score/stages/assembly/fitting.py: `on = dict(on, **{"face at": faced[entry["name"]]}) if entry["name"] in
+        faced else on` -> `on = on`"""
+    root = a_toy(tmp_path / "out")
+    entries = [{"name": "square_module_front_right_1", "row": "square_module_front_right", "bake": "module_1",
+                "at": [32.254, 0.0, 33.4], "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "bake"},
+               {"name": "garage_door_1", "row": "garage_door", "bake": "door_1", "at": [24.5585, 0.0, 39.8395],
+                "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "bake",
+                "on": {"how": "face", "holder": ["square_module_front_right_1"], "out": [0.0, 1.0], "room": 0.6,
+                       "room_way": [-1.0, 0.0], "why": "against its module's side the concept shows it on"}}]
+    assembly.take_record(a_record(tmp_path, {"objects": entries}), root.parent, TOY)
+    body = [(x, y, z) for x in (-6.0, 6.0) for y in (0.0, 8.0) for z in (-6.0, 5.6)]
+    rim = [(x, y, z) for x in (-5.0, 1.6) for y in (0.0, 8.0) for z in (5.6, -0.05)]  # the recess's rim and back
+    lip = [(x, y, z) for x in (-6.0, 6.0) for y in (8.0, 12.0) for z in (-6.0, 6.0)]
+    points = body + rim + lip
+    an_asset(root.parent / "assets/module_1.usdc", points, [len(points)], list(range(len(points))))
+    a_box_asset(root.parent / "assets/door_1.usdc", (-4.0, 0.0, -0.25), (4.0, 8.0, 0.25))
+    (tmp_path / "bake").mkdir()
+    (tmp_path / "bake/baked.json").write_text(json.dumps(
+        {"module_1": {"cuts": [{"recess": [[-5.0, 0.0, -0.05], [1.6, 8.0, 6.05]]}]}, "door_1": {"cuts": []}}))
+    made_waiting.lay(root.parent, TOY, tmp_path / "bake")
+    from score.stages.assembly import fitting
+    low, high = fitting.world_box(opened(root), f"/{TOY}/Objects/garage_door_1")
+    assert np.allclose(low, (27.854, 0.0, 39.0), atol=1e-4) and np.allclose(high, (33.854, 6.0, 39.375), atol=1e-4), (
+        low, high)
+    [fit] = json.loads((root.parent / made_waiting.LAID).read_text())["fitted"]
+    assert fit["scale"] == 0.75 and fit["face"] == 39.0, fit
+    held = assembly.judge_held(root.parent, {}, None)
+    assert held.answer == checks.PASS and held.measures == {"not held": 0, "worst off": 0.0}, held
+
+
+def test_a_door_stands_on_its_built_wall_s_face_and_one_short_of_its_opening_is_named(tmp_path):
+    """#36: hangar's and garage's shell walls stand 0.15 m behind the plan's line, so a door laid on the line hung 0.04
+    to 0.15 m in front of its wall and left its jamb and sill as it swung (motion@garage grounded). A 2.4 x 2.4 x 0.2 m
+    door in its 2.4 m wide, 2.66 m tall opening at z 0.15, the built wall's sill and lintel from z -0.276 to 0 (its
+    jamb beside the opening never counts), stands with its middle on the wall's room face, z 0; the held gate measures
+    it there, passes it there and fails one left on the plan's line 0.15 m off. Each is named 0.26 m short of its
+    opening's height (hangar's doorway, a wall panel shrunk to 0.72 m tall) among the gate's findings, which never fail
+    it: only a take made again, a paid one, mends it (coordinator, 2026-10-30).
+    Break: score/stages/assembly/fitting.py: `spot[axis] = face` -> `pass`
+    Break: score/stages/assembly/fitting.py: `if short > HELD_MOST:` -> `if False:`
+    Break: score/stages/assembly/held_apart.py: `*(f"{name}: {words}" for name, words, _ in
+        fitting.short_doors(record, laid))))` -> `))`
+    Break: score/stages/assembly/fitting.py: `held = [boxes[name] for name in on.get("holder") or [] if name in
+        boxes] if on["how"] != "in" else walls` -> `... else []`"""
+    from score import stages
+    from score.stages.assembly import fitting
+    walls = [{"name": "wall_1", "low": [-5.0, -0.2, -0.276], "high": [-1.2, 4.6, 0.0]},
+             {"name": "wall_1_2", "low": [-1.2, -0.2, -0.276], "high": [1.2, 0.0, 0.0]},
+             {"name": "wall_1_3", "low": [-1.2, 2.66, -0.276], "high": [1.2, 4.6, 0.0]}]
+    on = {"how": "in", "middle": [0.0, 0.0, 0.15], "along": [1.0, 0.0], "wide": 2.4, "tall": 2.66, "why": "opening 1"}
+    scale, target, _, _ = fitting.fit((-1.2, 0.0, 0.05), (1.2, 2.4, 0.25), on,
+                                      [(wall["low"], wall["high"]) for wall in walls])
+    assert scale == 1.0 and np.allclose(target, (0.0, 0.0, 0.0)), (scale, target)
+    record = {"objects": [{"name": "door_1", "on": on, "fills": True}, {"name": "door_2", "on": on, "fills": True}]}
+    laid = {"walls": walls, "objects": [{"name": "door_1", "low": [-1.2, 0.0, -0.1], "high": [1.2, 2.4, 0.1]},
+                                        {"name": "door_2", "low": [-1.2, 0.0, 0.05], "high": [1.2, 2.4, 0.25]}]}
+    assert fitting.held_faults(record, laid) == [("door_2", "0.15 m off where it is laid in (opening 1)", 0.15)], \
+        fitting.held_faults(record, laid)
+    short = "too small for its opening: 0.26 m short of its 2.66 m height"
+    assert fitting.short_doors(record, laid) == [("door_1", short, 0.26), ("door_2", short, 0.26)]
+    one = {"objects": record["objects"][:1]}
+    (tmp_path / made_waiting.LAID).write_text(json.dumps({**laid, "objects": laid["objects"][:1]}))
+    (tmp_path / assembly.RECORD).parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / assembly.RECORD).write_text(json.dumps(one))
+    [held] = [check.judge for check in stages.ASSEMBLY.checks if check.name == "held"]
+    verdict = held(tmp_path, {}, None)
+    assert verdict.answer == checks.PASS and f"door_1: {short}" in verdict.findings, verdict
 
 
 def test_the_held_gate_names_each_object_not_where_what_holds_it_puts_it():
@@ -678,7 +758,7 @@ def test_a_door_goes_in_its_opening_narrowed_to_fit():
         1e-9), float(on["tall"]) / size[1])` -> `scale = 1.0`"""
     from score.stages.assembly import fitting
     opening = {"how": "in", "middle": [5.0, 0.0, 0.0], "along": [1.0, 0.0], "wide": 1.2, "tall": 2.1}
-    scale, target, words = fitting.fit((0.3, 0.0, 2.95), (1.7, 2.4, 3.05), opening)
+    scale, target, words, _ = fitting.fit((0.3, 0.0, 2.95), (1.7, 2.4, 3.05), opening)
     assert abs(scale - 1.2 / 1.4) < 1e-9 and np.allclose(target, (5.0, 0.0, 0.0)), (scale, target)
     assert "shrunk to 86%" in words, words
 
@@ -691,10 +771,10 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     from score.stages.assembly import fitting
     console = (np.array([0.0, 0.0, 0.0]), np.array([3.0, 1.0, 0.8]))
     on = {"how": "top", "holder": ["console_1"]}
-    scale, target, _ = fitting.fit((4.5, 0.0, 0.35), (5.0, 0.4, 0.45), on, [console])
+    scale, target, _, _ = fitting.fit((4.5, 0.0, 0.35), (5.0, 0.4, 0.45), on, [console])
     assert scale == 1.0 and np.allclose(target, (2.75, 1.0, 0.4)), target
     narrow = (np.array([0.0, 0.0, 0.0]), np.array([0.4, 1.0, 0.8]))
-    scale, target, _ = fitting.fit((4.5, 0.0, 0.35), (5.0, 0.4, 0.45), on, [narrow])
+    scale, target, _, _ = fitting.fit((4.5, 0.0, 0.35), (5.0, 0.4, 0.45), on, [narrow])
     assert abs(scale - 0.8) < 1e-9 and np.allclose(target, (0.2, 1.0, 0.4)), (scale, target)
 
 
@@ -705,7 +785,7 @@ def test_a_wall_item_stands_on_its_named_face():
         `spot = start + run * along`"""
     from score.stages.assembly import fitting
     on = {"how": "wall", "span": [[2.0, 0.1], [2.0, 6.1]], "out": [1.0, 0.0]}
-    scale, target, _ = fitting.fit((4.4, 0.0, 2.9), (4.6, 0.6, 3.9), on)
+    scale, target, _, _ = fitting.fit((4.4, 0.0, 2.9), (4.6, 0.6, 3.9), on)
     assert scale == 1.0 and np.allclose(target, (2.1, 0.0, 3.4)), target
 
 

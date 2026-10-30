@@ -16,8 +16,9 @@ import json
 from score.stages.assembly import fitting
 from score.stages.assembly.record import BASE_LAYER, RECORD, WAITING
 
-# {objects: [{name, row, low, high}], holders: [{name, low, high}] (holders laid as structure: a tube's ribs),
-# fitted: fitting.fitted's}: what the plan page shows laid and the `held` gate measures
+# {objects: [{name, row, low, high}], holders: [{name, low, high}] (holders laid as structure: a tube's ribs), walls:
+# [{name, low, high}] (the built structure an opening's door is sunk into), fitted: fitting.fitted's}: what the plan
+# page shows laid and the `held` gate measures
 LAID = "laid.json"
 
 
@@ -45,10 +46,12 @@ def placement(entry, low, high):
     return turn * Gf.Matrix4d().SetTranslate(move)
 
 
-def laid_by_relations(stage, out, place, record, objects):
-    """The laid design objects (`objects`, their names) fitted by their relations (fitting.fitted), and LAID written:
-    each one's box as laid after, and the fits."""
-    fits = fitting.fitted(stage, place, record.get("objects") or [], set(objects))
+def laid_by_relations(stage, out, place, record, objects, baked=None):
+    """The laid design objects (`objects`, their names) fitted by their relations (fitting.fitted, a door in the recess
+    its holder's bake cut: `baked`, baked.json), and LAID written: each one's box as laid after, the built walls, and
+    the fits."""
+    fits = fitting.fitted(stage, place, record.get("objects") or [], set(objects),
+                          {model: entry.get("cuts") for model, entry in (baked or {}).items()})
     rows = {entry["name"]: entry["row"] for entry in record.get("objects") or []}
     boxes = [(name, fitting.world_box(stage, f"/{place}/Objects/{name}")) for name in objects]
     held = sorted({(on.get("holder scope"), name) for entry in record.get("objects") or [] if (on := entry.get("on"))
@@ -61,6 +64,7 @@ def laid_by_relations(stage, out, place, record, objects):
     (out / LAID).write_text(json.dumps({
         "objects": [listed(name, *box, row=rows[name]) for name, box in boxes],
         "holders": [listed(name, *fitting.world_box(stage, f"/{place}/{scope}/{name}")) for scope, name in held],
+        "walls": [listed(name, *box) for name, box in fitting.walls(stage, place)],
         "fitted": fits}, indent=1))
 
 
@@ -97,7 +101,7 @@ def lay(out, place, bake):
             laid.append(model)
             if "bake" in entry:
                 objects.append(entry["name"])
-    laid_by_relations(stage, out, place, record, objects)
+    laid_by_relations(stage, out, place, record, objects, baked)
     if laid and waiting:
         root.GetAttribute(WAITING).Set(waiting)
     elif laid:
