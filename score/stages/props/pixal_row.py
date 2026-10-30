@@ -238,7 +238,7 @@ def code_builds(failed, rows, inputs, out):
                                                             mask):
             built[row] = thin[row]
     for row, entry in kept.items():
-        if row not in built:
+        if row not in built:  # its files stay as they are when its crop is no thin thing now (write_take: None)
             thin_straight.rebuilt(entry["take"], rows[row], faces_of(inputs["surfaces"], entry["take"]), pixal)
             built[row] = entry
     return dict(sorted(built.items()))

@@ -17,6 +17,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - predict.own_outcome: the LATER_TAKES_SINCE check -> `if False:` -> test_a_take_its_environment_measured_is_...
 - predict.sheet_outcome: no row a sheet (`or True`) -> test_a_flat_sheet_pixal3d_made_no_model_of_is_predicted_...
 - predict.straight_outcome: the `asked` check -> `if False:` -> test_a_thin_straight_row_is_predicted_by_its_code_...
+- predict.straight_outcome: no `views is None` gap (thin_straight.drawn_thin -> `return True`) -> test_a_thin_straight_row_...
 - predict.own_outcome: `coded = False` (no thin_straight.coded) -> test_a_pipe_whose_close_up_passed_is_predicted_...
 - contract.faults: the picture check -> `elif False:` -> test_inputs_break_their_contract_on_an_unknown_view_...
 - machines.best_zone: `min` for `max` -> test_the_first_class_in_the_kinds_order_is_fixed_in_its_zone_with_the_best_...
@@ -240,7 +241,7 @@ def test_a_thin_straight_row_is_predicted_by_its_code_build_against_its_stored_m
     pixels[20:280, 140:160] = (90, 90, 90, 255)  # a post upright in its crop, cut out by its mask
     Image.fromarray(pixels).save(folder / "cuts" / "post.png")
     pixels[:] = 0
-    pixels[100:200, 100:200] = (90, 90, 90, 255)  # the mask found a box, no rod: its straight build's outline fails
+    pixels[100:200, 100:200] = (90, 90, 90, 255)  # the mask found a box, no rod: no thin thing, no build
     Image.fromarray(pixels).save(folder / "cuts" / "rod.png")
     pixels[:] = 0
     pixels[140:160, 20:280] = (90, 90, 90, 255)  # a lying beam where the reading's box stands it upright
@@ -258,7 +259,7 @@ def test_a_thin_straight_row_is_predicted_by_its_code_build_against_its_stored_m
         return predict.own_outcome(take, row, measures["lab"]) or predict.predicted(size, rates, row, take,
                                                                                     measures["lab"])
     assert guess("post")["outcome"] == "pass", guess("post")
-    assert guess("rod")["outcome"] == "predicted gap" and "outline" in guess("rod")["mode"], guess("rod")
+    assert guess("rod")["outcome"] == "predicted gap" and "no thin thing" in guess("rod")["mode"], guess("rod")
     assert guess("pipe")["outcome"] == "predicted gap" and "SAM 3" in guess("pipe")["mode"]
     assert guess("beam")["outcome"] == "pass", guess("beam")  # built lying: the direction is the picture's
     assert guess("strut")["outcome"] == "at risk"  # not asked: its likeness is not measured yet
