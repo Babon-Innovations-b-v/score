@@ -28,7 +28,9 @@ edit there moves its ~90 rows anyway (2026-10-27); never call them.
   than without it (`resting`). What is left is named on the page; the assembly's resting gate is the final judge.
   Two loose objects inside each other are judged at the poses the layer lays (the drop's loose-to-loose collision is
   off): a pair already crossing as laid is kept as laid, "laid inside" the other, as one laid inside a static is;
-  only a pair the layer brings to cross is a broken drop (settle@airlock's sandbags, 2026-10-30).
+  only a pair the layer brings to cross is a broken drop (settle@airlock's sandbags, 2026-10-30). One stacked on a
+  loose support the layer leaves unrested is left as laid with it (`kept_with_their_supports`): its rest was found
+  on the support where the drop left it (settle@airlock's sandbags_18, 52 cm down a ramp kept as laid, 2026-10-30).
 - **Held on a wall or ceiling row is mounted** (`holders.holder_kind`): never snapped down; its laid pose stands.
 - **Spend.** A drop is bought only when something loose is to be stood up or unstacked or the triage finds a fault on
   it (free, first); a drop already paid for is read back from `DROPS` (the same job, drop script, trial script, Python

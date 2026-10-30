@@ -22,6 +22,9 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - a_row_the_reading_gave_no_anchor_reads_as_none: with_anchors' `row.get("anchor") or ""` made `row.get("anchor")`
   (held_on_loose meets None).
 - a_pair_crossing_as_laid_is_kept_not_broken: laid_inside_each_other returning `poses` unchanged (2026-10-30).
+- one_stacked_on_a_support_left_as_laid_is_left_as_laid: kept_with_their_supports' `changed = True` after a keep
+  made `pass` (one pass: the bag on the kept sandbag keeps its rest), and its `not poses[support]["rested"]` made
+  `False` (nothing kept) (2026-10-30).
 - a_pair_crossing_only_after_the_drop_still_breaks: crossing's `motions.get(name, np.eye(4))` made `np.eye(4)` (the
   pair judged as laid, not as the layer lays it).
 - a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down (held.py): held_objects without its `row not in mounted`
@@ -314,6 +317,33 @@ def a_pair_crossing_as_laid_is_kept_not_broken():
         return problems
 
 
+def one_stacked_on_a_support_left_as_laid_is_left_as_laid():
+    """A sandbag stacked on a ramp the layer keeps as laid (laid inside the deck), and a bag stacked on that sandbag,
+    which the drop rested on the ramp where it sank: both kept as laid, said stacked on what is left as laid; one on a
+    support that rests is kept at its rest (settle@airlock's ramp_1 and sandbags_18, 2026-10-30)."""
+    moved = np.eye(4)
+    moved[1, 3] = -0.3
+    poses = {"ramp_1": {"before": np.eye(4), "after": np.eye(4), "rested": False,
+                        "said": "laid inside /airlock/Structure/deck_2; left as laid"},
+             "sandbags_18": {"before": np.eye(4), "after": moved, "rested": True, "said": "drifts 52 cm"},
+             "bag_1": {"before": np.eye(4), "after": moved, "rested": True, "said": "drifts 30 cm"},
+             "crate_1": {"before": np.eye(4), "after": moved, "rested": True, "said": "drifts 30 cm"},
+             "box_1": {"before": np.eye(4), "after": moved, "rested": True, "said": "drifts 30 cm"}}
+    under = {"bag_1": ["sandbags_18"], "sandbags_18": ["ramp_1"], "box_1": ["crate_1"]}  # the top of the stack first
+    kept = settle.kept_with_their_supports(poses, under)
+    problems = []
+    for name, support in (("sandbags_18", "ramp_1"), ("bag_1", "sandbags_18")):
+        pose = kept[name]
+        if pose["rested"] or not np.allclose(pose["after"], pose["before"]) or \
+                not pose["said"].startswith(f"stacked on {support}"):
+            problems.append(f"{name} on {support} not kept as laid: {pose['rested']}, {pose['said']}")
+    if not kept["box_1"]["rested"] or not np.allclose(kept["box_1"]["after"], moved):
+        problems.append(f"box_1 on a crate at rest was kept as laid: {kept['box_1']['said']}")
+    if kept["ramp_1"]["said"] != poses["ramp_1"]["said"]:
+        problems.append(f"ramp_1 lost its own word: {kept['ramp_1']['said']}")
+    return problems
+
+
 def a_pair_crossing_only_after_the_drop_still_breaks():
     """Two crates laid 3 m apart that the layer lays 50 cm into each other: not crossing as laid, crossing as the
     layer lays them, and the gate fails it."""
@@ -354,7 +384,8 @@ def a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down():
         return [] if found == ["cup_1"] else [f"held to snap down: {found}, not the cup alone"]
 
 
-CHECKS = (a_pair_crossing_as_laid_is_kept_not_broken, a_pair_crossing_only_after_the_drop_still_breaks,
+CHECKS = (a_pair_crossing_as_laid_is_kept_not_broken, one_stacked_on_a_support_left_as_laid_is_left_as_laid,
+          a_pair_crossing_only_after_the_drop_still_breaks,
           a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down, a_row_the_reading_gave_no_anchor_reads_as_none, the_laid_stage_keeps_each_object_where_it_was_laid,a_cloud_drop_runs_on_the_trials_card_in_its_python_once, the_layer_lays_each_object_at_its_rest,
           the_drop_gate_fails_a_broken_drop_and_names_what_was_kept,
           only_what_lies_on_the_object_resting_worse_is_kept_with_it,

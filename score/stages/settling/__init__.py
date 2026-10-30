@@ -129,6 +129,7 @@ def make(inputs, out, seed, params):
         meshes = snap.read_place(root) if simulated["overlaps"] else None  # as laid: no layer is over the root yet
         as_laid = crossing(meshes, simulated["overlaps"], {})
         poses = laid_inside_each_other(poses, as_laid)
+        poses = kept_with_their_supports(poses, under)
         laid_over(root, seed, place, poses, scratch / "dropped.usda")
         poses = merged(poses, fixed_phase(root, found, place), seed, place)  # before the held: they lie on these
         poses = merged(poses, held_phase(root, scratch / "fixed.usda", inputs, inventory, poses, seed), seed, place)
@@ -229,6 +230,28 @@ def laid_inside_each_other(poses, pairs):
                    if name in others and (pose["rested"] or not np.allclose(pose["after"], pose["before"]))
                    else pose)
             for name, pose in poses.items()}
+
+
+def kept_with_their_supports(poses, under):
+    """The poses with each object stacked on a loose support (`under`, settle.stacked_under) kept as laid where the
+    layer leaves that support unrested (as laid, or stood up for the paint): the stacked one's rest was found on the
+    support where the drop left it, so over the support as the layer lays it, it crosses it (settle@airlock's
+    sandbags_18 rested 52 cm down ramp_1, which the drop let sink 7 cm into the deck and the layer keeps as laid inside
+    it, 2026-10-30). Down a stack: what is kept keeps what is stacked on it. One already left as laid keeps its word."""
+    import numpy as np
+    poses = dict(poses)
+    changed = True
+    while changed:
+        changed = False
+        for name, supports in under.items():
+            pose = poses.get(name)
+            kept = [support for support in supports if support in poses and not poses[support]["rested"]]
+            if pose is None or not kept or not (pose["rested"] or not np.allclose(pose["after"], pose["before"])):
+                continue
+            poses[name] = {**pose, "after": pose["before"], "rested": False,
+                           "said": f"stacked on {', '.join(kept)}, which is left as laid; left as laid"}
+            changed = True
+    return poses
 
 
 def motions(poses):
