@@ -29,9 +29,11 @@ No machine is rented: each test reads the command, job or offers the module buil
   job.get("outputs", ()))`.
 - test_jobs_side_by_side_on_one_machine_bring_their_outputs_back_one_at_a_time: in `run_job`, drop `with
   BRINGING.setdefault(host, threading.Lock()):` (bring the outputs back unguarded) -> three copies at once.
-- test_a_job_keeps_only_the_files_its_copy_back_wrote_and_names_the_jobs_beside_it: in `copy_back`, drop
-  `"--out-format=%n"` (no list of what the copy wrote); or in `run_job`, `others = list(running.values())` ->
-  `others = []` (no peers named).
+- test_a_job_keeps_only_the_files_its_copy_back_wrote: in `copy_back`, drop `"--out-format=%n"` (no list of what
+  the copy wrote).
+- test_jobs_writing_into_one_output_are_refused_by_name_before_any_runs: in `shared_outputs`, `if
+  one.is_relative_to(two) or two.is_relative_to(one)]` -> `if one == two]` (a take's folder inside the row's `made`
+  starts); or in `main`, drop the `if shared_outputs(jobs):` refusal.
 - test_a_job_whose_pictures_sum_past_this_pcs_machine_is_refused_by_name_before_it_starts: in `too_big_here`, `for
   number, job, need in over if need > room]` -> `for number, job, need in over if False]` (the big job starts); or in
   `picture_bytes`, `* int.from_bytes(head[20:24], "big") * 4` -> `* 4` (a map counts one row); or
@@ -236,7 +238,7 @@ def test_a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks(tmp_path, monkeypa
 
     def run_job(log_folder, host, number, job, card):
         pathlib.Path(job["outputs"][0]).write_text(f"shot {number}")
-        return 1.0, 1, {"brought": None, "peers": {}}
+        return 1.0, 1, {"brought": None}
     monkeypatch.setattr(blender_cloud, "run_job", run_job)
     blender_cloud.one_job({"folder": tmp_path, "host": "host"}, (0, jobs[0]), None)  # cut off before job 1
     (making / "shot0.png").unlink()  # the next attempt's folder starts empty
@@ -302,10 +304,9 @@ def test_jobs_side_by_side_on_one_machine_bring_their_outputs_back_one_at_a_time
     assert most[0] == 1
 
 
-def test_a_job_keeps_only_the_files_its_copy_back_wrote_and_names_the_jobs_beside_it(tmp_path, monkeypatch):
-    """env1 (2026-10-29): a bake row's takes share one `made` folder, so a take's kept copy of all of it held the
-    other takes' models; it keeps only what its own copy back wrote, and names the takes still running beside it,
-    whose files that copy may carry (kept.py's peers)."""
+def test_a_job_keeps_only_the_files_its_copy_back_wrote(tmp_path, monkeypatch):
+    """env1 (2026-10-29): a take's kept copy of a whole output folder held what else lay there; it keeps only what its
+    own copy back wrote."""
     making = tmp_path / "making"
     (making / "made").mkdir(parents=True)
     monkeypatch.setenv(kept.MAKING, str(making))
@@ -320,18 +321,39 @@ def test_a_job_keeps_only_the_files_its_copy_back_wrote_and_names_the_jobs_besid
     def take(name):
         return {"script": "score/stages/surfaces/inside/paint_bake.py", "args": [name], "inputs": [],
                 "outputs": [str(making / "labelled" / name), str(making / "made")], "minutes": 1}
-    crate, barrel = take("crate"), take("barrel")
+    crate = take("crate")
 
     def rsync(command, **keywords):
         said = "made/\nmade/crate.gltf\n" if command[-2].endswith("/made") else "crate/\ncrate/labels.json\n"
         return subprocess.CompletedProcess(command, 0, said if "--out-format=%n" in command else "", "")
     monkeypatch.setattr(blender_cloud.subprocess, "run", rsync)
-    monkeypatch.setitem(blender_cloud.ACTIVE, "this-pc", {"the barrel's turn": barrel})  # running beside it
     _, came, keeping = blender_cloud.run_job(tmp_path, "this-pc", 0, crate, True)
     assert came == 2
-    assert keeping["brought"] == {making / "made" / "crate.gltf", making / "labelled" / "crate" / "labels.json"}
-    assert keeping["peers"] == dict([kept.identity(barrel, "this test's machine")[:2]])
-    assert blender_cloud.ACTIVE["this-pc"] == {"the barrel's turn": barrel}  # the crate's turn is over
+    assert keeping == {"brought": {making / "made" / "crate.gltf", making / "labelled" / "crate" / "labels.json"}}
+
+
+def test_jobs_writing_into_one_output_are_refused_by_name_before_any_runs(tmp_path, monkeypatch):
+    """#36 (2026-10-30): a bake row's takes all brought back into its one `made` folder, so each kept take named the
+    others beside it as peers and was baked again whenever one of them was. Jobs writing into one output (the same
+    folder, or one inside another) are refused by name before anything is put back or rented; jobs each bringing
+    back into their own start."""
+    def take(name, made):
+        return {"script": "score/stages/surfaces/inside/paint_bake.py", "args": [name], "inputs": [],
+                "outputs": [str(tmp_path / "labelled" / name), str(made)], "minutes": 1}
+    shared = [take("crate", tmp_path / "made"), take("barrel", tmp_path / "made" / "barrel")]
+    said = blender_cloud.shared_outputs(shared)
+    assert said == f"Blender jobs 0 and 1 both write into {tmp_path / 'made'}: each job brings back into an " \
+                   "output of its own", said
+    own = [take(name, tmp_path / f".bake-{name}-made") for name in ("crate", "barrel")]
+    assert blender_cloud.shared_outputs(own) is None
+    paths = []
+    for number, job in enumerate(shared):
+        paths.append(tmp_path / f"job{number}.json")
+        paths[-1].write_text(json.dumps(job))
+    monkeypatch.setattr(sys, "argv", ["blender_cloud.py", *map(str, paths), "--who", "test"])
+    monkeypatch.setattr(blender_cloud, "still_to_run", lambda jobs: pytest.fail("kept jobs put back"))
+    with pytest.raises(SystemExit, match="both write into"):
+        blender_cloud.main()
 
 
 def a_png(path, width, height):
@@ -360,7 +382,7 @@ def test_a_job_whose_pictures_sum_past_this_pcs_machine_is_refused_by_name_befor
     (tree / "base" / "base.usda").write_text("#usda 1.0\n")
     big = {"script": "score/stages/light/inside/light_passes.py", "args": [str(tree / "base" / "base.usda"), "/v", "/o"],
            "inputs": [str(tree / "base"), str(tree / "garage")], "outputs": [str(tmp_path / "o")], "minutes": 4}
-    small = {**big, "inputs": [str(tree / "garage")]}
+    small = {**big, "inputs": [str(tree / "garage")], "outputs": [str(tmp_path / "o2")]}
     assert blender_cloud.predicted_bytes(big) == 2 * 10**9 + 4 * 16384 * 8192 * 4 + 1024 * 1024 * 4
     machine = type("ThisPC", (), {"NAME": "local", "memory_cap": staticmethod(lambda: "1g"),
                                   "alone_cap": staticmethod(lambda: "3g"),

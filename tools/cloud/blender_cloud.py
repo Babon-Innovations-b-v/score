@@ -48,6 +48,7 @@ import argparse
 import contextlib
 import functools
 import hashlib
+import itertools
 import json
 import os
 import pathlib
@@ -82,12 +83,8 @@ ALWAYS_SHIPPED = ("tools/blender/inside",)
 SERVE_MINUTES = 60
 IDLE_MINUTES = 10
 # One job's outputs brought back, and kept, at a time on each machine (by host): jobs side by side on one (this PC's,
-# backends/local.py RUNS_AT_ONCE) can share an output folder (a bake row's `made`), which a copy must not read while
-# another job's outputs are still arriving into it.
+# backends/local.py RUNS_AT_ONCE) are copied back one after another.
 BRINGING = {}
-# The jobs started on each machine (by host) and not yet brought back: what one job's copy back may carry besides its
-# own files (kept.py's peers).
-ACTIVE = {}
 # The lines of a failed job's log and its machine's set-up log its error carries: the fault report shows the error,
 # not the log, and the job's folder can be gone by then (settle@airlock, 2026-10-29: failed blind).
 LOG_TAIL_LINES = 40
@@ -212,27 +209,22 @@ def set_up_alone(log_folder, host, jobs):
 def run_job(log_folder, host, number, job, card):
     """One job: its inputs up, its output folders made (reached through the links its paths are named through, as
     its inputs are: inputs.link_named), the script run, its outputs back (also when it fails); its seconds, how
-    many of its outputs came back and what kept.keep keeps of it ({"brought": the files its copies wrote, "peers":
-    the jobs sharing its folders still to come back from this machine, whose files those copies may carry})."""
+    many of its outputs came back and what kept.keep keeps of it ({"brought": the files its copies wrote})."""
     send_inputs(log_folder, host, job.get("inputs", ()))
     inputs.link_named(log_folder, host, job.get("outputs", ()))
     for local in job.get("outputs", ()):
         batch.remote(log_folder, host, f"mkdir -p {shlex.quote(str(pathlib.Path(local).resolve().parent))}",
                      check=True)
-    began, running, mine = time.time(), ACTIVE.setdefault(host, {}), object()
-    running[mine] = job
+    began = time.time()
     try:
         with (log_folder / f"job{number}.log").open("w") as log:
             batch.remote(log_folder, host, run_line(job, card), check=True, stdout=log, stderr=subprocess.STDOUT)
     finally:
         with BRINGING.setdefault(host, threading.Lock()):
-            running.pop(mine)
-            others = list(running.values())
             copies = [bring_back(log_folder, host, local) for local in job.get("outputs", ())]
         batch.say(f"Blender job {number} ({job['script']}): {(time.time() - began) / 60:.1f} min")
     came = sum(found is not None for found in copies)
-    return round(time.time() - began, 1), came, {"brought": set().union(*(found or () for found in copies)),
-                                                 "peers": kept.peers_of(job, others, system())}
+    return round(time.time() - began, 1), came, {"brought": set().union(*(found or () for found in copies))}
 
 
 def log_tail(log_folder, number):
@@ -341,6 +333,19 @@ def input_pictures(job):
 def predicted_bytes(job):
     """A job's memory, predicted from its inputs: PREDICTED_BASE plus each input picture decoded (picture_bytes)."""
     return PREDICTED_BASE + sum(map(picture_bytes, input_pictures(job)))
+
+
+def shared_outputs(jobs):
+    """Why the jobs cannot start when two of them write into one output (the same path, or one inside the other),
+    naming each pair; None when every job brings back into its own. A shared folder comes back with either job's
+    copy, so neither could be kept by its own inputs (kept.py; a bake row's one `made` folder baked a kept take
+    again beside every retaken one, #36 2026-10-30)."""
+    outputs = [[pathlib.Path(output).resolve() for output in job.get("outputs", ())] for job in jobs]
+    lines = [f"Blender jobs {first} and {second} both write into {one if two.is_relative_to(one) else two}: "
+             "each job brings back into an output of its own"
+             for first, second in itertools.combinations(range(len(jobs)), 2)
+             for one in outputs[first] for two in outputs[second] if one.is_relative_to(two) or two.is_relative_to(one)]
+    return "\n".join(lines) or None
 
 
 def too_big_here(jobs):
@@ -572,8 +577,8 @@ def main_on_cluster(options, jobs, classes):
         return
     left = run_on_cluster(jobs, classes, options.who)
     for number, job in enumerate(jobs):
-        if number not in left:  # the run brings every output back at once: a job's peers are all that share one
-            kept.keep(job, system(), peers=kept.peers_of(job, [other for other in jobs if other is not job], system()))
+        if number not in left:
+            kept.keep(job, system())
     if left:
         raise SystemExit(f"Blender jobs {', '.join(map(str, left))} failed on the cluster")
 
@@ -598,6 +603,8 @@ def main():
     if options.detach:
         detached.relaunch(sys.argv, "blender-cloud", [output for job in jobs for output in job.get("outputs", [])])
     if options.jobs:
+        if shared_outputs(jobs):
+            raise SystemExit(shared_outputs(jobs))
         jobs = still_to_run(jobs)
         if not jobs:
             return

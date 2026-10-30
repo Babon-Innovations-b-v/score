@@ -155,6 +155,15 @@ tests it turned red:
 - route_bake.py: `surface=route_settings.settings_name(record["surface"], record["settings"])` ->
   `surface=record["surface"]`  ->
   the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
+- route_bake.py: made_of's `return out / f".bake-{take}-made"` -> `return out / "made"`; or in make_bake,
+  `gathered(made_of(out, take), out / "made")` -> `pass`  -> a_take_s_bake_job_moves_only_with_its_own_take,
+  the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
+- route_bake.py: in stood_square `if turned < made:` -> `if False:`, or `if CLOSEUP in inputs:` -> `if False:`; or
+  in card_job drop `**{CLOSEUP: str(path) for path in closeup}`  -> a_pixal_take_is_turned_only_when_its_turn_outlines_
+  its_close_up_at_least_as_well
+- take_outline.py: `* 1.05` -> `* 1.2` in `silhouette`; or `ndimage.binary_fill_holes(labels == largest)` -> `labels
+  == largest` in `cut`; or in `look_down`, `closeup_check().look_down(size)` -> `15.0`  ->
+  the_bake_s_outline_is_the_likeness_gate_s
 - route_bake.py: own_parts' `return folder` -> `return short["parts"]`; or `dict(job_head(data, short, {take:
   records[take]}),` -> `dict(job_head(data, short, records),`; or card_job's `for name, path in world.items()}` ->
   `for name, path in short.items()}`  -> a_take_s_bake_job_moves_only_with_its_own_take
@@ -241,6 +250,7 @@ tests it turned red:
 """
 import inspect
 import io
+import itertools
 import json
 import math
 import os
@@ -2076,7 +2086,8 @@ def test_a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour():
 
 def baked(folder, rows):
     """The bake made through the rows, the cloud call faked: each take's job writes back its labelled take, its
-    models' entries and a baked model. The bake's inputs, its output and the calls made (with the jobs' files)."""
+    models' entries and a baked model into its own made folder. The bake's inputs, its output and the calls made
+    (with the jobs' files)."""
     data = json.loads(rows["surfaces"].read_text())
     rows["surfaces"].write_text(json.dumps(dict(data, library="cockpit", bake={"models": {"two_boxes": TAKE}})))
     inputs = {"surfaces": rows["surfaces"], "surfaces-parts": rows["surfaces-parts"],
@@ -2098,8 +2109,8 @@ def baked(folder, rows):
             (out / "entries").mkdir(exist_ok=True)
             (out / "entries" / f"{take}.json").write_text(json.dumps({"two_boxes": {"parts": str(labelled),
                                                                                    "faces": 100}}))
-            (out / "made").mkdir(exist_ok=True)
-            (out / "made" / "two_boxes.gltf").write_text("{}")
+            pathlib.Path(job["outputs"][1]).mkdir(parents=True, exist_ok=True)
+            (pathlib.Path(job["outputs"][1]) / "two_boxes.gltf").write_text("{}")
         return subprocess.CompletedProcess(command, 0, "", "")
     original = route_bake.subprocess.run
     route_bake.subprocess.run = run
@@ -2127,7 +2138,8 @@ def test_the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_sett
         assert len(calls) == 1 and pathlib.Path(calls[0]["command"][1]).name == "blender_cloud.py", calls
         assert calls[0]["command"][-1] == route_bake.place_line.CLASSES  # the bake's cards, one call
         (job,) = calls[0]["jobs"]
-        assert job["script"] == route_bake.SCRIPT and str(out / "made") in job["outputs"], job
+        assert job["script"] == route_bake.SCRIPT and str(route_bake.made_of(out, TAKE)) in job["outputs"], job
+        assert (out / "made" / "two_boxes.gltf").read_text() == "{}"  # gathered where its readers find it
         records = calls[0]["files"][f".bake-{TAKE}-records.json"]
         head = calls[0]["files"][f".bake-{TAKE}-head.json"]
         assert head["models"] == ["two_boxes"], head
@@ -2168,7 +2180,9 @@ def test_a_take_s_bake_job_moves_only_with_its_own_take(monkeypatch):
     """A take's bake job carries its own parts and its own specs alone, so its content (the kept job it finds,
     tools/cloud/kept.py) moves when its own take changes and never when another take of the place does (#36,
     2026-10-30: each job carried the place's whole parts.json, the parts output's folder and every take's specs, so
-    one retaken take baked every take of its place again)."""
+    one retaken take baked every take of its place again). Each brings its models back into a folder of its own, so
+    no kept take is baked again for another one beside it on its machine (#36, 2026-10-30: every take brought back
+    the row's one `made` folder and named the others as its peers)."""
     kept = stages.kept_module()
     monkeypatch.setattr(route_bake, "BAKE_REPO", ())  # the repository's folders: the same for every take
     monkeypatch.setattr(route_bake.place_line, "PAINT_REPO", ())
@@ -2191,6 +2205,7 @@ def test_a_take_s_bake_job_moves_only_with_its_own_take(monkeypatch):
                     job = json.loads(path.read_text())
                     found[json.loads(pathlib.Path(job["args"][0]).read_text())[route_bake.place_line.TAKE]] = \
                         kept.identity(job, "system")[1]
+                    brought.append([pathlib.Path(output) for output in job["outputs"]])
                 return subprocess.CompletedProcess(command, 1, "", "faked")
             out.mkdir()
             monkeypatch.setenv(kept.MAKING, str(out))
@@ -2201,11 +2216,14 @@ def test_a_take_s_bake_job_moves_only_with_its_own_take(monkeypatch):
             with pytest.raises(RuntimeError, match="paint and bake failed"):  # nothing came back: no take baked
                 route_bake.make_bake(inputs, out, 7, {})
             return found
+        brought = []
         before = contents(two_take_parts(rows, folder / "parts-before", 0.6), folder / "bake-before")
         after = contents(two_take_parts(rows, folder / "parts-after", 0.2), folder / "bake-after")
     assert sorted(before) == sorted(after) == sorted([TAKE, OTHER]), (before, after)
     assert before[TAKE] == after[TAKE], "an unchanged take's bake job moved with another take's parts"
     assert before[OTHER] != after[OTHER], "a changed take's bake job did not move"
+    assert not [(one, two) for first, second in itertools.combinations(brought, 2) for one in first for two in second
+                if one.is_relative_to(two) or two.is_relative_to(one)], brought  # each job's outputs its own
 
 
 def test_the_check_holds_each_surface_against_the_spec_the_bake_baked():
@@ -2800,6 +2818,79 @@ def test_one_guard_list_keeps_people_hanging_rows_cable_and_debris_in_their_pose
     undone = {"parts": "valves_take", "stood": {"kept": "its turn left it 12.35 degrees off its frame as baked: kept "
                                                         "as made"}}
     assert bake_check.keeps_pose_of("pipe_valves_1", undone, [], inputs).startswith("its turn left it 12.35")
+
+
+def a_closeup(path, mask):
+    """A Pixal3D input: `mask` as its alpha over grey, at `path`."""
+    alpha = np.where(mask, 255, 0).astype(np.uint8)
+    Image.fromarray(np.dstack([np.full(mask.shape + (3,), 128, np.uint8), alpha])).save(path)
+    return path
+
+
+def test_the_bake_s_outline_is_the_likeness_gate_s(tmp_path):
+    """The bake scores a take's outline on the card, where likeness.py cannot load (tools/usd/compare.py pulls in pxr):
+    take_outline's best outline is likeness_row.whole_best_way's over pixal_cut's cut, for a row seen at its look-down
+    and one lying flat seen from above, and its cut fills the cut-out's holes and drops its specks as pixal_cut does."""
+    from score.stages.props import likeness, likeness_row
+    import take_outline
+    mesh = trimesh.creation.box(extents=(1.0, 0.4, 0.6))
+    mesh.vertices = mesh.vertices @ np.asarray(rolled(25), float).T
+    mesh.export(tmp_path / "take.glb")
+    points, triangles = likeness.gltf_mesh(tmp_path / "take.glb")
+    mask = np.zeros((300, 300), bool)
+    mask[60:240, 40:200] = True
+    mask[120:150, 90:120] = False  # a hole the cut fills
+    mask[10:14, 280:284] = True  # a speck the cut drops
+    closeup = a_closeup(tmp_path / "input.png", mask)
+    for size in ([1.0, 0.6, 0.4], [2.0, 2.0, 0.1]):
+        gate = likeness_row.whole_best_way(tmp_path / "take.glb",
+                                           likeness_row.pixal_cut(closeup, tmp_path / "cuts", "take"), size)
+        assert take_outline.look_down(size) == gate["look_down"]
+        assert take_outline.best(points, triangles, take_outline.cut(closeup), take_outline.look_down(size)) == \
+            gate["outline"], (size, gate)
+
+
+def test_a_pixal_take_is_turned_only_when_its_turn_outlines_its_close_up_at_least_as_well(tmp_path):
+    """#36 (2026-10-30): lab's desk_divider, a Pixal3D take, outlined its close-up 0.467 as made and 0.296 after the
+    stand-square turned it 20 degrees. A tumbled Pixal3D take (its close-up in its job) whose made pose outlines its
+    close-up better keeps it, `stood` saying why with both outlines; one whose turned pose outlines it at least as well
+    is turned; the close-up reaches the job's listing."""
+    import take_outline
+    identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+    entry = {"base": identity, "size": [2.0, 1.0, 0.6]}
+    labelled = a_turned_take(tmp_path / "rolled", rolled(40))
+    points, triangles = route_bake.labelled_mesh(labelled)
+    world = a_pose_world(tmp_path, {"id": "bed", "name": "bunk bed", "thing": "prop:bed_take"})
+    square = route_bake.stood_square({"bed_1": entry}, labelled, "bed_take", world)["bed_1"]  # with no close-up
+    turn = np.array(square["base"]).reshape(3, 3)
+    for pose, name in ((np.eye(3), "made"), (turn, "turned")):
+        mask = take_outline.silhouette(route_bake.fitted(points @ pose.T, entry["size"]), triangles, 0, 15.0)
+        closeup = a_closeup(tmp_path / f"{name}.png", mask)
+        stood = route_bake.stood_square({"bed_1": entry}, labelled, "bed_take",
+                                        {**world, route_bake.CLOSEUP: closeup})["bed_1"]
+        outline = stood["stood"]["outline"]
+        if name == "made":
+            assert stood["base"] == identity and outline["made"] > outline["turned"], stood
+            assert stood["stood"]["kept"] == (f"turned square its outline against its close-up was "
+                                              f"{outline['turned']}, under its made pose's {outline['made']}: kept "
+                                              "as made"), stood
+        else:
+            assert stood["base"] == square["base"] and "kept" not in stood["stood"], stood
+            assert outline["turned"] >= outline["made"], stood
+    short = {"parts": tmp_path, "inventory here": world["inventory here"]}
+    files = [tmp_path / name for name in ("records.json", "claimed.json", "head.json")]
+    files[2].write_text(json.dumps({"models": ["bed_1"]}))
+    pixal = tmp_path / "home/work/pixal"
+    (pixal / "bed_take.svviews").mkdir(parents=True)
+    a_closeup(pixal / "bed_take.svviews/input.png", np.ones((4, 4), bool))
+    original = route_bake.prop_env.PROPS_HOME
+    route_bake.prop_env.PROPS_HOME = tmp_path / "home"
+    try:
+        job = json.loads(route_bake.card_job(short, tmp_path, "bed_take", (*files, tmp_path)).read_text())
+    finally:
+        route_bake.prop_env.PROPS_HOME = original
+    listing = json.loads(pathlib.Path(job["args"][0]).read_text())
+    assert listing[route_bake.CLOSEUP] == str(pixal / "bed_take.svviews/input.png") in job["inputs"], listing
 
 
 def test_a_take_is_measured_again_as_baked_and_turned_until_square_and_a_turn_that_cannot_square_it_is_undone():
