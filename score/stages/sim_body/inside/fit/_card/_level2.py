@@ -41,9 +41,9 @@ def couplings(model):
             for eq in range(model.neq) if model.eq_type[eq] == mujoco.mjtEq.mjEQ_JOINT and model.eq_obj2id[eq] >= 0]
 
 
-def dof_map(problem, qpos, rotation):
+def dof_map(problem, qpos, rotation, coupled):
     """How a frame's leading coordinates move the dofs (nv x width): the root's place one for one, its rotation vector
-    by J_r, a leader its own dof, a follower by d polyval / d leader at the frame's `qpos`."""
+    by J_r, a leader its own dof, a follower by d polyval / d leader at the frame's `qpos` (`coupled`: `couplings`)."""
     model = problem.fitting.model
     found = np.zeros((model.nv, problem.width))
     start = 0
@@ -55,7 +55,7 @@ def dof_map(problem, qpos, rotation):
     column = {int(joint): start + index for index, joint in enumerate(problem.leading)}
     for joint, at in column.items():
         found[model.jnt_dofadr[joint], at] = 1.0
-    for follower, leader, coefficients in couplings(model):
+    for follower, leader, coefficients in coupled:
         if leader in column:
             moved = qpos[model.jnt_qposadr[leader]] - model.qpos0[model.jnt_qposadr[leader]]
             slope = sum(power * coefficients[power] * moved ** (power - 1) for power in range(1, 5))
@@ -83,15 +83,17 @@ class Kinematics:
             mujoco.mj_jacSite(model, data, None, self.spins[index], site)
 
 
-def frame_rows(problem, frame, kinematics, targets, values):
+def frame_rows(problem, frame, kinematics, targets, values, shared):
     """A frame's rows of the Jacobian as COO triplets (rows counted from the frame's first, 3 (groups + markers) of
     them; columns of the whole unknowns; values): its coordinates' columns, the free markers' and the inside joints'
-    moves, each block only where it reads."""
+    moves, each block only where it reads. `shared`: the model's `couplings` and the problem's `moved_blocks`, the
+    same in every frame."""
     fitting = problem.fitting
     turn_cost, place_costs = problem.costs
     held = len(problem.slots)
     rotation = values[3:6] if problem.root is not None else np.zeros(3)
-    mapping = dof_map(problem, problem.qpos(frame, values), rotation)
+    coupled, (marks, starts, bodies) = shared
+    mapping = dof_map(problem, problem.qpos(frame, values), rotation, coupled)
     groups = len(fitting.frame_sites)
     seen = kinematics.site_turns
     offs = _logs(np.transpose(seen, (0, 2, 1)) @ targets[frame])
@@ -101,7 +103,6 @@ def frame_rows(problem, frame, kinematics, targets, values):
     own = np.concatenate([turned, placed]).reshape(-1, problem.width)
     row, column = np.nonzero(own)
     rows, columns, entries = [row], [held + frame * problem.width + column], [own[row, column]]
-    marks, starts, bodies = moved_blocks(problem)
     across, block = np.arange(3), (len(marks), 3, 3)
     rows.append(np.broadcast_to(3 * (groups + marks)[:, None, None] + across[None, :, None], block).ravel())
     columns.append(np.broadcast_to(starts[:, None, None] + across[None, None, :], block).ravel())
@@ -142,9 +143,9 @@ def jacobian(problem, unknowns, card=None):
     poses = [problem.qpos(frame, value) for frame, value in enumerate(values)]
     seen = card.frames(np.array(poses)) if card is not None else [Kinematics(fitting, pose) for pose in poses]
     per = 3 * (len(fitting.frame_sites) + len(fitting.place_sites))
-    triplets = []
+    triplets, shared = [], (couplings(fitting.model), moved_blocks(problem))
     for frame, value in enumerate(values):
-        rows, columns, entries = frame_rows(problem, frame, seen[frame], problem.turns, value)
+        rows, columns, entries = frame_rows(problem, frame, seen[frame], problem.turns, value, shared)
         triplets.append((rows + frame * per, columns, entries))
     triplets.append(_priors(problem, len(problem.path) * per))
     rows, columns, entries = (np.concatenate(part) for part in zip(*triplets))
