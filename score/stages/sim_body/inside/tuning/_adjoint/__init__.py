@@ -126,13 +126,27 @@ def chained_jacobian(level2, level3, outer, steps, tolerance):
     frames' poses then c, stationary in its own gradient, gives dc/dtheta; `level3` a Body over the poses only, its
     `residuals` and `gradient` taking the outer point (theta, then c), gives R's derivative over (theta, c) with its
     poses re-solved; chained, R_theta + R_c dc/dtheta + R_q dq/dtheta."""
-    poses = level2.frames * level2.pose_size
-    moved = implicit_jacobian(lambda inner, _: inner[poses:], level2.gradient, level2.inner, outer, level2.frames,
-                              level2.pose_size, steps, tolerance)
-    joined = np.concatenate([np.asarray(outer, dtype=float), level2.inner[poses:]])
+    joined = np.concatenate([np.asarray(outer, dtype=float), level2.inner[level2.frames * level2.pose_size:]])
     both = implicit_jacobian(level3.residuals, level3.gradient, level3.inner, joined, level3.frames, level3.pose_size,
                              steps, tolerance)
-    return both[:, :len(outer)] + both[:, len(outer):] @ moved
+    return both[:, :len(outer)] + both[:, len(outer):] @ constant_motion(level2, outer, steps, tolerance)
+
+
+def constant_motion(level2, outer, steps, tolerance):
+    """dc/dtheta from level 2's own stationarity: its residuals are the constants themselves (rows [0 | I] exactly,
+    no residual call), so it is minus the constants' share of H^-1 dg/dtheta."""
+    moved = inner_motion(level2.gradient, level2.inner, outer, level2.frames, level2.pose_size, steps, tolerance)
+    return -moved[level2.frames * level2.pose_size:]
+
+
+def chained_rows(level2, level3, rows, outer, steps, tolerance):
+    """`chained_jacobian` with level 3's derivative given, not differenced: `rows` (R_q (rows, poses), R_theta (rows,
+    outer), R_c (rows, constants)) taped at level 3's optimum, so the real body costs no residual calls."""
+    by_poses, by_outer, by_constants = rows
+    joined = np.concatenate([np.asarray(outer, dtype=float), level2.inner[level2.frames * level2.pose_size:]])
+    both = rowed_jacobian((by_poses, np.hstack([by_outer, by_constants])), level3.gradient, level3.inner, joined,
+                          level3.frames, level3.pose_size, steps, tolerance)
+    return both[:, :len(outer)] + both[:, len(outer):] @ constant_motion(level2, outer, steps, tolerance)
 
 
 def refused(bodies, outer, tolerance):

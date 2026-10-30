@@ -7,7 +7,7 @@ Breaks (each applied once, seen red, reverted), in `tuning/_adjoint/__init__.py`
 turns the outer rows test red; `case_rows` weighing joints 1.0 in place of
 JOINT_SHARE turns the case rows test red; dropping the mixed term
 (`moved` set to zeros) turns the columns test red; `schur_solve` skipping the couplings' reduction (`reduced = corner`)
-turns the Schur and columns tests red; removing the `Unconverged` check turns the refusal test red; `rowed_jacobian` dropping the given R_z term (`by_outer` alone) turns the given rows test red; `chained_jacobian` dropping level 2's term (R_c dc/dtheta) turns the level 2 chain test red; `stacked_jacobian` skipping `refused`
+turns the Schur and columns tests red; removing the `Unconverged` check turns the refusal test red; `rowed_jacobian` dropping the given R_z term (`by_outer` alone) turns the given rows test red; `chained_jacobian` dropping level 2's term (R_c dc/dtheta) turns the level 2 chain test red; `chained_rows` dropping it the same way turns the given level 3 rows test red; `stacked_jacobian` skipping `refused`
 (no check before use) turns the stacked refusal test red; dropping the prior's block turns the stacked test red;
 in `_taped.py`, dropping `tape.zero()` (a second gradient adds onto the first's) turns the taped gradient test red; skipping
 the turn rows' launch turns it red; dropping the followers' launch (couplings) turns it red; reading level 2's
@@ -434,7 +434,22 @@ def _chain_re_solved(outer, untold):
     return _seen_residuals(found.x, joined)
 
 
-def test_level_2_constants_outer_to_level_3_chain_to_re_solved_differences():
+def _seen_rows(inner, joined):
+    """Level 3's residual rows by hand: over the poses, over theta, over the constants."""
+    poses = inner.reshape(SEEN, POSE)
+    by_poses = np.zeros((2 * SEEN + 1, SEEN * POSE))
+    by_joined = np.zeros((2 * SEEN + 1, joined.size))
+    for frame in range(SEEN):
+        by_poses[frame, frame * POSE:frame * POSE + 2] = 1.0
+        by_poses[SEEN + frame, frame * POSE] = joined[3]
+        by_joined[frame, 2] = -1.0
+        by_joined[SEEN + frame, 3] = poses[frame, 0]
+    by_joined[-1, 1], by_joined[-1, 4] = joined[4], joined[1]
+    return by_poses, by_joined[:, :3], by_joined[:, 3:]
+
+
+def _chain_bodies():
+    """The chain toy's level 2 (untold constant pinned) and level 3 Bodies at their optima, and the untold value."""
     from score.stages.sim_body.inside.tuning._adjoint import _bodies
     untold = _solved(OUTER)[-1]
     level2_inner = _level2_told(OUTER, untold)
@@ -447,7 +462,21 @@ def test_level_2_constants_outer_to_level_3_chain_to_re_solved_differences():
     level3_inner = scipy.optimize.minimize(_seen_cost, np.full(SEEN * POSE, 0.2), args=(joined,), jac=_seen_gradient,
                                            method="BFGS", options={"gtol": 1e-13, "maxiter": 10000}).x
     level3 = _adjoint.Body("level 3", _seen_residuals, _seen_gradient, level3_inner, SEEN, POSE)
+    return level2, level3, untold
+
+
+def test_level_2_constants_outer_to_level_3_chain_to_re_solved_differences():
+    level2, level3, untold = _chain_bodies()
     chained = _adjoint.chained_jacobian(level2, level3, OUTER, (1e-5, 1e-5), 1e-8)
     re_solved = _adjoint.by_columns(lambda point: _chain_re_solved(point, untold), OUTER, 1e-4)
     assert np.abs(re_solved).max() > 0.1
+    assert np.abs(chained - re_solved).max() < 1e-4 * np.abs(re_solved).max()
+
+
+def test_given_level_3_rows_chain_to_re_solved_differences():
+    level2, level3, untold = _chain_bodies()
+    joined = np.concatenate([OUTER, level2.inner[FRAMES * POSE:]])
+    rows = _seen_rows(level3.inner, joined)
+    chained = _adjoint.chained_rows(level2, level3, rows, OUTER, (1e-5, 1e-5), 1e-8)
+    re_solved = _adjoint.by_columns(lambda point: _chain_re_solved(point, untold), OUTER, 1e-4)
     assert np.abs(chained - re_solved).max() < 1e-4 * np.abs(re_solved).max()
