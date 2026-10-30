@@ -41,10 +41,20 @@ def level2_body(problem_at, jacobian, solved, kept, outer):
     held = len(problem.slots)
     inner = to_body(solved, held)
     pinned = Pinned(inner, pinned_mask(problem, solved, kept))
+    last = {np.asarray(outer, dtype=float).tobytes(): problem}
+
+    def problem_of(at):
+        """The Problem at level 1's point `at`, rebuilt only when `at` moved since the last call (H's columns step the
+        inner unknowns at one outer point; a real `problem_at` re-reads the body, 0.3 s a call)."""
+        key = np.asarray(at, dtype=float).tobytes()
+        if key not in last:
+            last.clear()
+            last[key] = problem_at(at)
+        return last[key]
 
     def gradient(point, at):
         """J^T r at the Body-order point, the pinned entries' springs in place of theirs."""
-        moved = problem_at(at)
+        moved = problem_of(at)
         unknowns = to_problem(pinned.whole(point), held)
         found = jacobian(moved, unknowns).T @ moved.residuals(unknowns)
         return pinned.gradient(point, to_body(np.asarray(found).ravel(), held))

@@ -22,7 +22,7 @@ In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
 without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pulled` skipping the normalisation's
 projection (`along` the raw turn gradient) turns the root chart test red; `RootTurns.pulled_rows` cutting each copy's fourth turn coordinate in place of pulling the row
 through the chart turns it red; `Pinned.rows` keeping a held column turns the pinned test red; `Pinned.gradient` giving a held entry zero in place of its spring (a
-singular frame block) turns the pinned test red. In `_level2.py`, `level2_body`'s gradient left in the Problem's order (no `to_body`) turns the constants-first level 2 test red; `pinned_mask` holding no bound-held entry turns it red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red. In `_real.py`, `solved_rows`
+singular frame block) turns the pinned test red. In `_level2.py`, `level2_body`'s gradient left in the Problem's order (no `to_body`) turns the constants-first level 2 test red; `pinned_mask` holding no bound-held entry turns it red; `level2_body` rebuilding the Problem on every gradient call (no `problem_of` cache) turns it red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red. In `_real.py`, `solved_rows`
 giving MuJoCo's order (no `newton_order`) turns the real body test red; `frame_couplings` zeroing
 the projection's polynomials turns its per-frame model check red; `bound_held` holding nothing (bound-held coordinates left in the pose) turns its refused check red (4.12e-3); `joint_parts`
 dropping the centres' scales turns its joints check red; `turn_groups` without the frozen table turns its turns check red; `skin_parts` without the geom's turn turns its skins check red (0.19 m). The case rows' derivative left over the full pose (no `RootTurns.pulled_rows`) turns its pulled check red.
@@ -536,10 +536,12 @@ def test_level_2_body_off_a_constants_first_problem_moves_its_constants_as_re_so
     outer = np.array([0.4, -0.3])
     solved, kept = _constants_first_solved(outer)
     assert abs(solved[3] - _ConstantsFirst.LOW) < 1e-9
-    body = _level2.level2_body(_ConstantsFirst, lambda problem, unknowns: problem.jacobian(unknowns), solved, kept,
-                               outer)
+    built = []
+    body = _level2.level2_body(lambda point: built.append(1) or _ConstantsFirst(point),
+                               lambda problem, unknowns: problem.jacobian(unknowns), solved, kept, outer)
     assert np.array_equal(_level2.to_problem(body.inner, 2), solved)
     moved = _adjoint.constant_motion(body, outer, (1e-5, 1e-5), 1e-8)
+    assert len(built) == 1 + 2 * outer.size
     re_solved = _adjoint.by_columns(lambda point: _constants_first_solved(point)[0][:2], outer, 1e-4)
     assert np.abs(re_solved).max() > 0.1
     assert np.abs(moved - re_solved).max() < 1e-4 * np.abs(re_solved).max()
