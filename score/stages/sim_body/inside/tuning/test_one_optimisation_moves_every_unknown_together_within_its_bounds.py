@@ -27,6 +27,8 @@ Breaks (each applied once, seen red, reverted):
   its kind's noise floor, so the kinds are not weighed alike.
 - (2026-10-30) case_residuals' share's `"joint": JOINT_SHARE` made `1.0`: the joints, SOMA's own fit targets, count
   as much as skin and turns.
+- (2026-10-30) case_residuals reading the median ("per group deg"/"per joint mm" [0]) in place of the root mean
+  square: level 1 tunes the median, whose middle frames swap under a step, not a smooth summary.
 
 Run: .venv/bin/python score/stages/sim_body/inside/tuning/test_one_optimisation_moves_every_unknown_together_within_its_bounds.py
 """
@@ -194,12 +196,23 @@ def test_the_run_settles_when_the_objective_stops_moving():
 def test_one_scale_of_every_measure_is_one_unit_of_its_kind_and_joints_count_their_share():
     found = {"bones outside depth mm": {"arm": tuning.SCALES["skin"], "leg": tuning.SCALES["skin"]},
              "per group deg": {name: [tuning.SCALES["turn"]] for name in ("Hips", "LeftLeg", "RightLeg")},
-             "per joint mm": {name: [tuning.SCALES["joint"]] for name in ("knee_l", "knee_r")}}
+             "per joint mm": {name: [tuning.SCALES["joint"]] for name in ("knee_l", "knee_r")},
+             "per group rms deg": {name: tuning.SCALES["turn"] for name in ("Hips", "LeftLeg", "RightLeg")},
+             "per joint rms mm": {name: tuning.SCALES["joint"] for name in ("knee_l", "knee_r")}}
     residuals = tuning.case_residuals(found)
     kinds = [kind for kind, _ in tuning.labels(found)]
     norms = {kind: sum(value ** 2 for value, named in zip(residuals, kinds) if named == kind) for kind in set(kinds)}
     assert np.allclose([norms["skin"], norms["turn"], norms["joint"]], [1.0, 1.0, tuning.JOINT_SHARE])
     assert tuning.JOINT_SHARE < 1.0
+
+
+def test_joints_and_turns_are_tuned_on_their_root_mean_square_never_the_reported_median():
+    found = {"bones outside depth mm": {"arm": 0.0},
+             "per group deg": {"Hips": [9.0, 20.0]}, "per group rms deg": {"Hips": 4.0},
+             "per joint mm": {"knee_l": [7.0, 30.0]}, "per joint rms mm": {"knee_l": 3.0}}
+    _, turn, joint = tuning.case_residuals(found)
+    assert np.isclose(turn, 4.0 / tuning.SCALES["turn"])
+    assert np.isclose(joint, np.sqrt(tuning.JOINT_SHARE) * 3.0 / tuning.SCALES["joint"])
 
 
 if __name__ == "__main__":

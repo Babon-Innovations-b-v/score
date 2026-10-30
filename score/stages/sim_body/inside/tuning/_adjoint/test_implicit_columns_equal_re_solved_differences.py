@@ -5,7 +5,8 @@ equal differences of the measures they stand for.
 
 Breaks (each applied once, seen red, reverted), in `tuning/_adjoint/__init__.py`: `rms_row` dropping its 1 / count
 turns the outer rows test red; `case_rows` weighing joints 1.0 in place of
-JOINT_SHARE turns the case rows test red; dropping the mixed term
+JOINT_SHARE turns the case rows test red; `case_rows` reducing joints and turns by `median_row` in place of
+`rms_row` (the median put back, 2026-10-30) turns the case rows test red; dropping the mixed term
 (`moved` set to zeros) turns the columns test red; `schur_solve` skipping the couplings' reduction (`reduced = corner`)
 turns the Schur and columns tests red; removing the `Unconverged` check turns the refusal test red; `rowed_jacobian` dropping the given R_z term (`by_outer` alone) turns the given rows test red; `chained_jacobian` dropping level 2's term (R_c dc/dtheta) turns the level 2 chain test red; `chained_rows` dropping it the same way turns the given level 3 rows test red, and `adjoint_rows` its level 2 solve (`lowered` zeros) too; `stacked_jacobian` skipping `refused`
 (no check before use) turns the stacked refusal test red; dropping the prior's block turns the stacked test red; in `_taped.py`, dropping `tape.zero()` (a second gradient adds onto the first's) turns the taped gradient test red; skipping

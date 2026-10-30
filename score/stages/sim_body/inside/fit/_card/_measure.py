@@ -171,6 +171,8 @@ def measures(model, angles, rig, segments, worlds, scales, skins=None):
             "per joint mm": {key: cpu.summary(value)[:2] for key, value in joints.items()},
             "turns deg": cpu.summary(np.concatenate(list(turns.values()))),
             "per group deg": {key: cpu.summary(value)[:2] for key, value in turns.items()},
+            "per joint rms mm": {key: cpu.root_mean_square(value) for key, value in joints.items()},
+            "per group rms deg": {key: cpu.root_mean_square(value) for key, value in turns.items()},
             "bones outside skin %": {key: 100 * float(np.mean(value)) for key, value in outside.items()},
             "bones outside depth mm": skin_depths(depths, data.bones),
             "bones outside all %": 100 * float(np.mean(sum(outside.values(), [])))}

@@ -130,11 +130,12 @@ def test_the_check_is_scored_every_few_iterations_and_at_the_end_and_never_evalu
     entries = [("a", "global", None, None), ("b", "global", None, None)]
     evaluated, checked = [], []
     found = {"tall_kimodo": {"per joint mm": {"knee_l": [10, 0]}, "per group deg": {"LeftLeg": [5, 0]},
+                             "per joint rms mm": {"knee_l": 10}, "per group rms deg": {"LeftLeg": 5},
                              "bones outside depth mm": {"thigh": 10}}}
 
     def evaluate(unknowns):
         evaluated.append(np.array(unknowns))
-        moved = {**found["tall_kimodo"], "per group deg": {"LeftLeg": [5 + 4 * (unknowns[0] - 1) ** 2, 0]},
+        moved = {**found["tall_kimodo"], "per group rms deg": {"LeftLeg": 5 + 4 * (unknowns[0] - 1) ** 2},
                  "bones outside depth mm": {"thigh": 10 + 4 * (unknowns[1] + 1) ** 2}}
         return {"tall_kimodo": moved}
 

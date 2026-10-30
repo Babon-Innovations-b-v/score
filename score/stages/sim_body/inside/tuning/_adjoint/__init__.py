@@ -249,16 +249,16 @@ def case_rows(joints, turns, skins, frames=None):
     """One case's level 1 rows and their derivative rows over the inner unknowns, in `tuning.case_residuals`' order
     and scale, from taped per-frame measures: `joints` {SOMA joint: (model minus SOMA joint per frame (frames, 3) m,
     its rows (frames, 3, unknowns))}, `turns` {group: (turn error per frame deg, its rows (frames, unknowns))},
-    `skins` {region: (depths outside per point m, their rows (points, unknowns))}. A joint's and a turn's row is its
-    frames' median (`median_row`), a skin's the root mean square (`rms_row`), mm for metres as the measures give.
+    `skins` {region: (depths outside per point m, their rows (points, unknowns))}. Every row is the root mean square
+    (`rms_row`): a joint's and a turn's over its frames, a skin's over its points, mm for metres as the measures give.
     With `frames` (a pose of that many frame blocks) every row is its own frame's block (`TapedMeasures.measured`):
     joints' and turns' frame is their leading index, a skin is (depths, rows (points, block), each point's frame)."""
     whole = spread if frames is not None else np.asarray
     reduced = {"skin": {key: rms_row(1000 * np.asarray(part[0]), 1000 * np.asarray(part[1]),
                                      *((part[2], frames) if frames is not None else ()))
                         for key, part in skins.items()},
-               "turn": {key: median_row(errors, whole(rows)) for key, (errors, rows) in turns.items()},
-               "joint": {key: median_row(*distance_rows(1000 * np.asarray(differences), 1000 * whole(rows)))
+               "turn": {key: rms_row(errors, whole(rows)) for key, (errors, rows) in turns.items()},
+               "joint": {key: rms_row(*distance_rows(1000 * np.asarray(differences), 1000 * whole(rows)))
                          for key, (differences, rows) in joints.items()}}
     share = {"skin": 1.0, "turn": 1.0, "joint": JOINT_SHARE}
     scaled = [(np.sqrt(share[kind] / len(reduced[kind])) / SCALES[kind], reduced[kind][key])

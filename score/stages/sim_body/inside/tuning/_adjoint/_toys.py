@@ -111,11 +111,18 @@ def measured(unknowns):
             "skins": {"pelvis": 0.002 * lean[:, 1], "thigh": 0.001 * (lean[:, 0] + 2)}}
 
 
+def rms(values):
+    """Per-frame values' root mean square, as `evaluation._measure.root_mean_square`."""
+    return float(np.sqrt(np.mean(np.square(values))))
+
+
 def found(unknowns):
     taken = measured(unknowns)
     return {"per joint mm": {key: [np.median(1000 * np.linalg.norm(value, axis=1))]
                              for key, value in taken["joints"].items()},
             "per group deg": {key: [np.median(value)] for key, value in taken["turns"].items()},
+            "per joint rms mm": {key: rms(1000 * np.linalg.norm(value, axis=1)) for key, value in taken["joints"].items()},
+            "per group rms deg": {key: rms(value) for key, value in taken["turns"].items()},
             "bones outside depth mm": {key: 1000 * np.sqrt(np.mean(np.square(value)))
                                        for key, value in taken["skins"].items()}}
 
@@ -124,6 +131,8 @@ def case_found(joints, turns, skins):
     """`case_residuals`' measures of per-frame joint differences (m), turn degrees and bone points' depths outside (m)."""
     return {"per joint mm": {key: [np.median(1000 * np.linalg.norm(value, axis=1))] for key, value in joints.items()},
             "per group deg": {key: [np.median(value)] for key, value in turns.items()},
+            "per joint rms mm": {key: rms(1000 * np.linalg.norm(value, axis=1)) for key, value in joints.items()},
+            "per group rms deg": {key: rms(value) for key, value in turns.items()},
             "bones outside depth mm": {key: 1000 * np.sqrt(np.mean(np.square(value))) for key, value in skins.items()}}
 
 
