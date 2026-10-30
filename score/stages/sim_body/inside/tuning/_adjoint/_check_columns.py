@@ -135,9 +135,9 @@ pose = np.asarray(pose_of(_real.frame_couplings(clip, rows), rows), dtype=np.flo
 inner = np.concatenate([pose, np.zeros(sites.constants.size)])
 turns = RootTurns(pose, len(_real.frame_couplings(clip, rows)[0]) // len(rows))
 pinned = Pinned(turns.reduced(), _real.bound_held(clip, _real.frame_couplings(clip, rows), rows))
-by_poses = timed("taping R_q", lambda: pinned.rows(turns.pulled_rows(turns.reduced(), case_rows(
-    *measures.measured(inner, trusted), frames=len(rows))[1])))
-by_constants = timed("taping R_c", lambda: case_rows(*measures.constant_measured(inner, trusted))[1])
+pose_parts, constant_parts = timed("taping R_q and R_c", lambda: measures.joined_measured(inner, trusted))
+by_poses = pinned.rows(turns.pulled_rows(turns.reduced(), case_rows(*pose_parts, frames=len(rows))[1]))
+by_constants = case_rows(*constant_parts)[1]
 sited, rebuilt, level2, kept = timed("level 2 build", lambda: level2_at_base())
 solved = level2.inner[level2.frames * level2.pose_size:]
 print(json.dumps({"sited vs rebuilt": timed("sited check", lambda: sited_gaps(
