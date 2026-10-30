@@ -7,9 +7,10 @@ shrunk where it does not fit (never grown past its own model), so it sits
     within  inside its holder's box (plants in their greenhouse, a door in its frame)
     face    with its back on its holder's side `out` points from, within that side's span and height (a garage door on
             its module's front): on the holder's frontmost surface across its own span and height (front_face), and a
-            door the bake cut a recess for in that recess, shrunk to fit it beside its room (on_face)
+            door the bake cut a recess for in that recess, shrunk to fit it beside its room (on_face), out of the room
+            each swinging leaf turns through and of its passage (swing_box, passage_box) like a wall's
     wall    with its back on a wall's face (`span`, `out` into the room), within the face's length, out of the room
-            each leaf in an opening turns through (swing_box, on_wall)
+            each swinging leaf turns through and of its doorway's passage (swing_box, passage_box, on_wall)
     in      in its opening: its middle on the opening's middle at its sill, as wide and tall as the opening at most,
             its middle on the face of its built wall it swings to (its own -z way), else on the wall's room face
             where that wall stands behind the plan's line (opening_spot: hangar's and garage's shell walls stand
@@ -93,7 +94,7 @@ def recess_of(recesses, axis, sign, foot, box):
     return min(found, key=lambda cut: float(np.linalg.norm(((cut[0] + cut[1]) / 2 - foot)[[0, 2]])), default=None)
 
 
-def on_face(low, high, on, box, surface=None, recesses=()):
+def on_face(low, high, on, box, surface=None, recesses=(), clear=()):
     """(scale, foot middle, (the plane its back is on, whether it hangs in a recess)) of an object against its holder
     box's side `out` points from: its back on the holder's frontmost surface across its span and height (front_face;
     else the box's side), its recess's room beside it kept within the face's span too, the door shifted inward along
@@ -102,13 +103,16 @@ def on_face(low, high, on, box, surface=None, recesses=()):
     it as a door in its opening does (opening_spot): its hinge edge, on its room's side, at the recess's jamb, its
     middle on the face the recess opens in, from the recess's foot; swung on the line through its edge's middle
     (motion's hinge) it turns about the jamb's corner and keeps touching it (#36, motion@base: hung 0.6 m off the
-    jamb, its back on the face, the shrunk door touched nothing once it swung)."""
+    jamb, its back on the face, the shrunk door touched nothing once it swung). Only one whose relation names a recess
+    (its `room`, score/review/holders) hangs in one; any other keeps out of the room in `clear` (swing_box,
+    passage_box) as a wall's does (face_stretch: street's drying racks hung in its doors' recesses, under their swing,
+    so neither door swung, #36 2026-10-30)."""
     size, (hold_low, hold_high) = high - low, box
     room, foot = hold_high - hold_low, foot_middle(low, high)
     axis, side, sign = face_axes(on)
     below, above = beside(on, side)
     scale = min(1.0, room[side] / size[side], room[1] / size[1])
-    target, cut = foot.copy(), recess_of(recesses, axis, sign, foot, box)
+    target, cut = foot.copy(), recess_of(recesses, axis, sign, foot, box) if "room" in on else None
     if cut is not None:
         scale = min(scale, (cut[1][side] - cut[0][side] - below - above) / size[side],
                     (cut[1][1] - cut[0][1]) / size[1])
@@ -117,15 +121,32 @@ def on_face(low, high, on, box, surface=None, recesses=()):
             else (cut[0][side] + cut[1][side]) / 2
         target[1] = float(cut[0][1])
     else:
-        target[side] = kept_within(foot[side], hold_low[side] + below, hold_high[side] - above,
-                                   size[side] * scale / 2)
         target[1] = float(np.clip(foot[1], hold_low[1], hold_high[1] - size[1] * scale))
+        begin, end = face_stretch(foot, size, on, box, (target[1], target[1] + size[1] * scale), clear)
+        if end - begin < hold_high[side] - above - hold_low[side] - below - 1e-9:  # a stretch short of the whole face
+            scale = min(scale, (end - begin) / size[side])
+        target[side] = kept_within(foot[side], begin, end, size[side] * scale / 2)
     half = size * scale / 2
     span = (target[side] - half[side] - below - FACE_REACH, target[side] + half[side] + above + FACE_REACH)
     face = front_face(surface, axis, sign, side, span, (target[1], target[1] + size[1] * scale))
     face = (hold_high[axis] if sign > 0 else hold_low[axis]) if face is None else face
     target[axis] = face if cut is not None else face + sign * half[axis]
     return scale, target, (float(target[axis] - sign * half[axis]), cut is not None)
+
+
+def face_stretch(foot, size, on, box, band, clear=()):
+    """(from, to) along the face of a holder box `out` points from, less its recess's room beside the object, that an
+    object of `size` at `foot` stands in out of the swing and passage boxes `clear` within its depth of the face and
+    its height `band` (stretches, stretch_for): the whole face where none does."""
+    (hold_low, hold_high), (axis, side, sign) = box, face_axes(on)
+    below, above = beside(on, side)
+    start, run, out = np.zeros(2), np.zeros(2), np.zeros(2)
+    start[side // 2], start[axis // 2] = hold_low[side] + below, hold_high[axis] if sign > 0 else hold_low[axis]
+    run[side // 2], out[axis // 2] = 1.0, sign
+    length = float(hold_high[side] - above - start[side // 2])
+    begin, end = stretch_for(stretches(start, run, out, length, size[axis], band, clear),
+                             float(foot[side] - start[side // 2]), size[side])
+    return start[side // 2] + begin, start[side // 2] + end
 
 
 def on_holder(low, high, how, on, box):
@@ -213,7 +234,33 @@ def wall_face(on, walls, axis, opens=None):
     return min(faces, key=lambda face: abs(face - middle[axis]), default=None)
 
 
-def opening_spot(on, walls=(), wide=None, left=None, opens=None):
+def slanted(on):
+    """Whether an opening runs along neither axis (its built walls' boxes say nothing of their faces)."""
+    return max(abs(float(way)) for way in on["along"]) < 0.99
+
+
+def slanted_face(on, points, opens):
+    """The foot middle of a door in an opening along neither axis on the face of its built wall it swings to: the
+    farthest the way `opens` points (across the opening) of the built walls' mesh points (`points`, world [n, 3])
+    within WALL_REACH of its span, two WALL_REACH of its middle and WALL_REACH of its sill and head (its jambs'
+    corners); None where none stands so. Cockpit's rear doors stood on the plan's line of their slanted wall, 0.37 m
+    in front of the built wall's room face, and swung their kind's way into its jamb (#36, 2026-10-30)."""
+    middle = np.asarray(on["middle"], float)
+    run = np.asarray(on["along"], float) / max(float(np.linalg.norm(on["along"])), 1e-9)
+    way = np.asarray(opens, float) - run * float(np.asarray(opens, float) @ run)
+    way = way / max(float(np.linalg.norm(way)), 1e-9)
+    flat = points[:, [0, 2]] - middle[[0, 2]]
+    along_off, across_off = flat @ run, flat @ way
+    near = (np.abs(along_off) <= float(on["wide"]) / 2 + WALL_REACH) & (np.abs(across_off) <= 2 * WALL_REACH) \
+        & (points[:, 1] >= middle[1] - WALL_REACH) & (points[:, 1] <= middle[1] + float(on["tall"]) + WALL_REACH)
+    if not near.any():
+        return None
+    spot = middle.copy()
+    spot[[0, 2]] += way * float(across_off[near].max())
+    return spot
+
+
+def opening_spot(on, walls=(), wide=None, left=None, opens=None, points=None):
     """The foot middle of an object in its opening: the opening's middle, moved across it onto the face of its built
     wall it swings to (`opens`, its own -z way on the floor [x, z]: the door kind's swing turns its left edge that
     way; else the room face, wall_face), so a door stands half in the opening between its jambs, half out, its foot
@@ -223,13 +270,16 @@ def opening_spot(on, walls=(), wide=None, left=None, opens=None):
     their own jambs 0.05 to 0.08 m: #36, 2026-10-30). One narrower than its opening (`wide` across it) stands against
     the jamb its own left edge faces (`left`, its own -x way on the floor [x, z]), where a door hangs (the door
     kind's hinge, data/checks/row-kinds.json: its own left edge): garage's 2.01 m round door, centred in its 2.41 m
-    opening, swung on a hinge 0.2 m off its jamb and touched nothing."""
+    opening, swung on a hinge 0.2 m off its jamb and touched nothing. In a slanted wall a door swinging `opens` stands
+    on the face its walls' mesh `points` give (slanted_face)."""
     spot = np.asarray(on["middle"], float).copy()
     axis = 0 if abs(on["along"][1]) >= abs(on["along"][0]) else 2
     side = float(opens[axis // 2]) if opens is not None else 0.0
     face = wall_face(on, walls, axis, float(np.sign(side)) if abs(side) >= 0.9 else None)
     if face is not None:
         spot[axis] = face
+    elif slanted(on) and opens is not None and points is not None and len(points):
+        spot = next((found for found in [slanted_face(on, points, opens)] if found is not None), spot)
     run = np.asarray(on["along"], float) / max(float(np.linalg.norm(on["along"])), 1e-9)
     lined = float(np.asarray(left, float) @ run) if left is not None else 0.0
     if wide is not None and abs(lined) >= 0.9 and float(on["wide"]) - wide > HELD_MOST:
@@ -237,19 +287,21 @@ def opening_spot(on, walls=(), wide=None, left=None, opens=None):
     return spot
 
 
-def in_opening(low, high, on, walls=(), left=None, opens=None):
+def in_opening(low, high, on, walls=(), left=None, opens=None, points=None):
     """(scale, foot middle) of an object in its opening, no wider or taller than it, on the face of its built wall it
     swings to and against the jamb its own left edge faces (opening_spot)."""
     size = high - low
     scale = min(1.0, float(on["wide"]) / max(across(on["along"], size), 1e-9), float(on["tall"]) / size[1])
-    return scale, opening_spot(on, walls, across(on["along"], size * scale), left, opens)
+    return scale, opening_spot(on, walls, across(on["along"], size * scale), left, opens, points)
 
 
 def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=None, clear=()):
     """(scale, the new middle of its foot, words, its face (on_face's) or None) of an object laid by its relation `on`
     (module docstring), from its box (low, high) and its holders' boxes (an opening's: the built walls), a face's holder's
-    `surface` points and the `recesses` the bake cut in it (on_face), an opening's object's own left way (`left`,
-    and the way it swings to (`opens`, opening_spot), the swing boxes a wall's object keeps out of (`clear`, on_wall); None when it already sits (or
+    `surface` points (an opening's: its built walls' mesh points, slanted_face) and the `recesses` the bake cut in it
+    (on_face), an opening's object's own left way (`left`,
+    and the way it swings to (`opens`, opening_spot), the swing and passage boxes a wall's or face's object keeps out
+    of (`clear`, on_wall, face_stretch); None when it already sits (or
     holds to nothing laid)."""
     low, high = np.asarray(low, float), np.asarray(high, float)
     how, face = on["how"], None
@@ -259,13 +311,13 @@ def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=N
             return None
         box = nearest(boxes, low, high)
         if how == "face":
-            scale, target, face = on_face(low, high, on, box, surface, recesses)
+            scale, target, face = on_face(low, high, on, box, surface, recesses, clear)
         else:
             scale, target = on_holder(low, high, how, on, box)
     elif how == "wall":
         scale, target = on_wall(low, high, on, clear)
     else:
-        scale, target = in_opening(low, high, on, boxes, left, opens)
+        scale, target = in_opening(low, high, on, boxes, left, opens, surface)
     moved = float(np.linalg.norm(target - foot_middle(low, high)))
     if moved < MOVE_LEAST and 1.0 - scale < SHRINK_LEAST:
         return None
@@ -323,12 +375,19 @@ def off_wall(low, high, on):
 def off_opening(low, high, on, walls=()):
     """Metres a box stands off its opening: its foot's middle off where it fills it (opening_spot: on either face of
     its built wall, or its room face, centred or, narrower than it, against either jamb: the box says nothing of its
-    own frame), or wider or taller than it."""
+    own frame; in a slanted wall anywhere across it within two WALL_REACH: its boxes say nothing of its faces,
+    slanted_face), or wider or taller than it."""
     size, foot = high - low, foot_middle(low, high)
     wide, across_it = across(on["along"], size), (abs(float(on["along"][1])), abs(float(on["along"][0])))
     spots = [opening_spot(on, walls, wide, way, opens) for way in (None, on["along"], np.negative(on["along"]))
              for opens in (None, across_it, np.negative(across_it))]
-    return max(min(float(np.linalg.norm(foot - spot)) for spot in spots),
+    run = np.asarray(on["along"], float) / max(float(np.linalg.norm(on["along"])), 1e-9)
+    normal = np.array([run[1], 0.0, -run[0]]) if slanted(on) else np.zeros(3)
+
+    def apart(spot):
+        off = foot - spot
+        return float(np.linalg.norm(off - normal * np.clip(off @ normal, -2 * WALL_REACH, 2 * WALL_REACH)))
+    return max(min(apart(spot) for spot in spots),
                across(on["along"], size) - float(on["wide"]), size[1] - float(on["tall"]))
 
 
@@ -419,6 +478,22 @@ def walls(stage, place):
             for child in root.GetChildren()]
 
 
+def wall_points(stage, place):
+    """World mesh points [n, 3] of the place's built walls (walls), a slanted wall's faces (slanted_face): never a
+    deck or slab under two WALL_REACH tall (camp's dome door, in an opening by no built wall, was hung on its deck's
+    corner)."""
+    return np.concatenate([np.zeros((0, 3))] + [surface_points(stage, f"/{place}/{scope}/{name}")
+                                                for scope in ("Structure", "Shell")
+                                                for name, (low, high) in walls_in(stage, place, scope)
+                                                if high[1] - low[1] >= 2 * WALL_REACH])
+
+
+def walls_in(stage, place, scope):
+    """[(name, (low, high))] of the children of one of the place's built scopes."""
+    root = stage.GetPrimAtPath(f"/{place}/{scope}")
+    return [(child.GetName(), world_box(stage, child.GetPath())) for child in root.GetChildren()] if root else []
+
+
 def world_box(stage, path):
     from pxr import Usd, UsdGeom
     box = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render]) \
@@ -481,6 +556,31 @@ def swing_box(stage, path):
     return low, high
 
 
+# A doorway's passage, metres: a person's height (score/review/concepts.PERSON) and a step deep on either side of its
+# wall, room nothing laid along a wall or face may stand in (#36, garage 2026-10-30: pipes laid along its walls
+# inside ran across both doorways, which swung clear out of the room, so nobody could walk through).
+PASSAGE_TALL = 1.8
+STEP = 0.75
+
+
+def passage_box(low, high, on, walls=()):
+    """The world box (low, high) of the passage through a leaf laid (low, high) by its relation `on`: an opening's
+    width (the leaf's own on a face), a person's height from its foot, and a step deep either side of its built wall's
+    faces (wall_face) and of the leaf."""
+    low, high = np.array(low, float), np.array(high, float)
+    faces = []
+    if on["how"] == "in":
+        axis = 0 if abs(on["along"][1]) >= abs(on["along"][0]) else 2
+        middle, half = float(on["middle"][2 - axis]), float(on["wide"]) / 2
+        low[2 - axis], high[2 - axis] = min(low[2 - axis], middle - half), max(high[2 - axis], middle + half)
+        faces = [face for way in (-1.0, 1.0) if (face := wall_face(on, walls, axis, way)) is not None]
+    else:
+        axis = face_axes(on)[0]
+    low[axis], high[axis] = min([low[axis], *faces]) - STEP, max([high[axis], *faces]) + STEP
+    high[1] = low[1] + PASSAGE_TALL
+    return low, high
+
+
 def moved_by(prim, foot, scale, target):
     """The prim's transform op set so its world box's foot middle `foot` moves to `target`, shrunk by `scale` about it."""
     from pxr import Gf, Usd, UsdGeom
@@ -504,8 +604,8 @@ def swings(row):
 def fitted(stage, place, entries, laid, cuts=None):
     """Each laid entry with an `on` (its name in `laid`) fitted on the stage, a holder before what it holds: a face
     one against its nearest holder's surface and in the recess the bake cut there (`cuts`, {model: baked.json's cuts}),
-    an opening's against the built walls, each swinging one in an opening (swings) on the face it swings to and before
-    any on a wall, which keeps out of its swing; the fits [{name, how, holder, moved, scale, low, high, words, face}]
+    an opening's against the built walls, each swinging one in an opening or on a face (swings) on the face it swings
+    to and before any on a wall or face, which keeps out of its swing and its passage; the fits [{name, how, holder, moved, scale, low, high, words, face}]
     (its box as laid after), the stage left unsaved."""
     by_name = {entry["name"]: entry for entry in entries if entry.get("on") and entry["name"] in laid}
     bakes = {entry["name"]: entry.get("bake") for entry in entries}
@@ -530,7 +630,10 @@ def fitted(stage, place, entries, laid, cuts=None):
             holder = next(holder for holder, found in held if found is box)
             surface = surface_points(stage, f"/{place}/{scope}/{holder}")
             recesses = recess_boxes(stage, f"/{place}/{scope}/{holder}", (cuts or {}).get(bakes.get(holder)))
-        clear = [swing_box(stage, f"/{place}/Objects/{leaf}") for leaf in done & leaves] if how == "wall" else ()
+        if how == "in" and name in leaves and slanted(entry["on"]):
+            surface = wall_points(stage, place)
+        clear = [box for leaf in sorted(done & leaves) for box in rooms(leaf)] \
+            if how in ("wall", "face") and name not in leaves else ()
         found = fit(low, high, entry["on"], built if how == "in" else [box for _, box in held], surface, recesses,
                     own_way(stage, path, 0), own_way(stage, path, 2) if name in leaves else None, clear)
         if found is None:
@@ -548,7 +651,12 @@ def fitted(stage, place, entries, laid, cuts=None):
                      **({"face": round(face[0], 4), **({"hung": True} if face[1] else {})} if face is not None
                         else {})})
 
-    leaves = {name for name, entry in by_name.items() if entry["on"]["how"] == "in" and swings(entry["row"])}
+    def rooms(leaf):
+        """The swing box and the passage box of a leaf as laid."""
+        path = f"/{place}/Objects/{leaf}"
+        return swing_box(stage, path), passage_box(*world_box(stage, path), by_name[leaf]["on"], built)
+
+    leaves = {name for name, entry in by_name.items() if entry["on"]["how"] in ("in", "face") and swings(entry["row"])}
     for name in sorted(by_name, key=lambda name: name not in leaves):  # the leaves first: a wall's things keep clear of them
         one(name)
     return fits

@@ -261,6 +261,26 @@ def test_the_walls_cut_an_opening_the_relations_cut_for_a_door_the_plan_s_openin
     assert design_shell.relations_read({"relations": tmp_path / "relations.json"}, tmp_path / "plan.json")[0] is None
 
 
+def test_a_relation_s_cut_replaces_a_row_s_opening_no_wall_cuts():
+    """#36, cockpit 2026-10-30: its rear door's row opening stood at its plan item's middle, 0.75 m off its slanted
+    wall's line, so no wall cut it, and the relation's opening on the wall's line was left out as standing within
+    their half widths: the wall stood uncut and the door swung into it. A window row's item 0.6 m inside the east wall
+    (past its 0.2 m and ON_WALL) gives way to the relation's cut at (4, 1.5), which takes its 1.0 x 0.2 x 1.0 m out of
+    the wall; an item on the wall keeps its own opening and the relation's cuts none more.
+    Break: score/stages/earth_seed/design_shell.py: `if not kept:` -> `if not near:`"""
+    rows = [{"id": "window", "name": "porthole window", "noun": "window", "size": [1.0, 0.1, 1.0]}]
+    cut = {"at": [4.0, 1.5], "wide": 1.0, "sill": 1.0, "head": 2.0}
+    relations = {"relations": [{"item": "ON THE WALLS AND CEILING", "row": "window", "how": "in",
+                                "opening": {**cut, "cut": True}}]}
+    whole = {name: triangles for name, triangles, _ in design_shell.shell(ROOM)}
+    for x, found in ((3.35, [cut]), (3.95, [{"at": [4.0, 1.5], "wide": 1.0, "sill": 1.0, "head": 2.0, "row": "window"}])):
+        plan = dict(ROOM, items=[["WINDOW 1", x, 1.0, 0.1, 1.0, None, "item"]], rows={"WINDOW 1": ["window"]},
+                    shapes={"WINDOW 1": {"base": 1.0, "tall": 1.0}})
+        assert design_shell.cut_for(plan, rows, relations)["row_openings"] == found, x
+        laid = {name: triangles for name, triangles, _ in design_shell.shell(design_shell.cut_for(plan, rows, relations))}
+        assert abs(volume(whole["wall_2"]) - volume(laid["wall_2"]) - 1.0 * 0.2 * 1.0) < 1e-6, x
+
+
 def test_a_room_is_a_kit_shell_inside_or_one_that_writes_walls():
     """A scene added in the app says neither inside nor out: it is a room the earth seed lays when its plan writes walls
     (the docking airlock), an open place when it writes none (the Moon base); a domed shell is the scene record's.

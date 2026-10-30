@@ -278,13 +278,24 @@ def relation_cuts(relations):
 
 def cut_for(plan, rows, relations=None):
     """The plan with the openings its door and window rows fill (row_openings) and those its relations cut
-    (relation_cuts, each but where one stands within their half widths) for its walls to cut."""
+    (relation_cuts, each but where one a wall cuts stands within their half widths, which it replaces where none of
+    its outline's walls cuts it: cockpit's rear door, its item's middle 0.75 m off its slanted wall's line, left the
+    wall uncut and its door swung into it, #36 2026-10-30) for its walls to cut."""
     own = row_openings(plan, rows)
     for cut in relation_cuts(relations):
-        if not any(np.linalg.norm(np.subtract(cut["at"], other["at"])) < (cut["wide"] + other["wide"]) / 2
-                   for other in own):
-            own.append(cut)
+        near = [other for other in own
+                if np.linalg.norm(np.subtract(cut["at"], other["at"])) < (cut["wide"] + other["wide"]) / 2]
+        kept = [other for other in near if on_a_wall(plan, other)]
+        if not kept:
+            own = [other for other in own if all(other is not found for found in near)] + [cut]
     return {**plan, "row_openings": own}
+
+
+def on_a_wall(plan, opening):
+    """Whether an edge of the plan's outline cuts the opening (on_edge, at its written wall's thickness)."""
+    outline = outline_of(plan)
+    return any(on_edge([opening], start, end, float(written_wall(plan, start, end).get("thick") or THICK))
+               for start, end in zip(outline, outline[1:] + outline[:1]))
 
 
 def relations_file(place):
