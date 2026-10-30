@@ -47,6 +47,9 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-30) _solve.solved's `Forward(optimizer.model, set_places, row_set)` made `Forward(optimizer.model)`: the
   float64 residuals read the base set's places, sets 1 and 2 off theirs alone by 4-9 deg and 4-19 mm (card_across:
   the toy's clip as 3 sets solved in one batch equals each set alone to 0.01 deg and 0.01 mm).
+- (2026-10-30) _sets.Sets.optimizer_for's offsets of each set made the base set's (`base.mjm.site_pos`): sets 1
+  and 2 solve with set 0's marker offsets, off their Clip alone (card_sets; also: sets whose frozen dofs differ are
+  refused, `_sets.refusal` returning None lets them through).
 - (2026-10-30) _measure.skin_depths' `depths[:, ...]` made `depths[:1, ...]`: the card's depths read the first skin
   frame only, off the CPU's.
 - (2026-10-29) _projected's `power *= lead` made `power *= 1.0`: a coupling is no longer polyval of its leader.
@@ -77,6 +80,7 @@ from card_chain import (LINKS, OBJECTIVE_ROWS, chain_model, log_rate, objective_
                         residuals_and_jacobian)
 from card_toy import CLIP_FRAMES, TOY, mink_frames, toy_card, toy_clip, toy_errors  # noqa: E402
 from card_across import the_sets_solved_together_equal_each_set_alone  # noqa: E402
+from card_sets import the_sets_batch_equals_each_clip_alone  # noqa: E402
 from card_rows import (the_float64_frames_equal_each_set_alone, the_rows_equal_each_set_alone,  # noqa: E402
                        the_rowwise_optimizer_equals_each_set_alone)
 from card_step import (BOUNDED, COUPLINGS, FROZEN, ROWS, fixture, prototype_projected,  # noqa: E402
@@ -293,6 +297,7 @@ def _values(found):
 
 CHECKS = (the_rows_equal_each_set_alone, the_rowwise_optimizer_equals_each_set_alone,
           the_float64_frames_equal_each_set_alone, the_sets_solved_together_equal_each_set_alone,
+          the_sets_batch_equals_each_clip_alone,
           the_level2_jacobian_equals_its_differences, the_level2_solve_with_the_exact_jacobian_equals_differences,
           the_measures_equal_the_cpu_measure, the_step_equals_the_prototype, the_projection_equals_the_prototype,
           the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame,
