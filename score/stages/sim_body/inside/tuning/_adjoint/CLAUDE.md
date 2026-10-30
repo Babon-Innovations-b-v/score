@@ -48,8 +48,10 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   unknowns onto one frame's `TapedSites(trusted=True, ends=...)` outer unknowns (`tuning.applied`'s links and
   e^(LOG_UNIT*u) trusts and globals, each group end's centre move turned into its end site's link frame) and
   `site_derivative` is its derivative, the chain rule from taped rows to level 1's; checked against `applied`,
-  `offsets` and central differences on a toy table. A batched body's copies (sites copy by copy, ends inside each
-  copy) are not yet laid by it: `_weighed` takes the ends as the LAST k sites.
+  `offsets` and central differences on a toy table. A batched body's copies are `TapedSites(copies=)` (2026-10-30): the sites
+  copy by copy, `outer` one frame's (its offsets, then its trusts) laid on every copy, each copy's last `ends` sites its
+  ends and its weights its own frame's (`np.tile`); on two copies of the toy chain its rows equal each copy's single-frame
+  rows and its gradient central differences (all gaps under 7.5e-5 of the largest entry).
 - Built and checked on a toy only (2026-10-30, five tests, 1.2 s); `../__init__.solved(exact=)` takes `stacked_jacobian` (its test, 2026-10-30). Not yet wired: the card gradient (Newton eval_fk on
   a wp.Tape for level 3, level 2's constants) as each `Body`'s callables, `solved`'s Jacobian switch to it, the gate on heavy_kimodo, tall_kimodo and
   a third tuning body against `_differences`, and the 70-case timing.

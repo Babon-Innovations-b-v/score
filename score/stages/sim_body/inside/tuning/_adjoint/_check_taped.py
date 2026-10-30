@@ -112,4 +112,18 @@ assert np.abs(ended_rows - trusted.residuals(pose, np.concatenate([outer, by_han
     "end weight and marker goal not read from the outer unknowns"
 goal_doubled = ended.residuals(pose, np.concatenate([outer, landmarks, [end_weight, 2 * goal]]))
 assert np.abs(goal_doubled[:9] - np.sqrt(2) * ended_rows[:9]).max() < 1e-5, "marker goal not scaling every site"
+frame_targets = [[0.1, 0.2, 0.5], [0.3, -0.2, 1.0], [0.0, 0.1, 0.8]]
+copied = _taped.TapedSites(batch_model, [1, 3, 3, 5, 7, 7], [9.0] * 6, frame_targets * 2, trusted=True, ends=1, copies=2)
+copied_outer = np.concatenate([outer, landmarks, [end_weight, goal]])
+copied_inner = np.concatenate([pose, second_pose])
+by_copy = np.concatenate([ended.residuals(pose, copied_outer)[:9], ended.residuals(second_pose, copied_outer)[:9]])
+assert np.abs(copied.residuals(copied_inner, copied_outer) - by_copy).max() < 1e-5, "a copy's ends not its own last sites"
+copied.gradient(copied_inner, copied_outer)
+copied_taped = copied.gradient(copied_inner, copied_outer)
+def copied_cost(moved):
+    found = copied.residuals(moved, copied_outer)
+    return 0.5 * float(found @ found)
+copied_differences = np.array([(copied_cost(copied_inner + step * np.eye(8)[axis])
+                                - copied_cost(copied_inner - step * np.eye(8)[axis])) / (2 * step) for axis in range(8)])
+gaps.append(np.abs(copied_taped - copied_differences).max() / np.abs(copied_differences).max())
 print("GAP", max(gaps))
