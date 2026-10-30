@@ -44,5 +44,8 @@ held-out rule (within 10 % of the tuning bodies).
   Never warm-start a nudged set from the base point's answer (tried 2026-10-30, level 2's least_squares x0: the
   columns 1.3 to 9.7 % apart, step cosine -0.91): a solve stops anywhere inside its tolerance, and a 0.4 step's
   difference is that small, so every set starts where the base point started.
+  `_card_sets.py ... --warm <tolerance>` (2026-10-30, off by default) is the second try: level 2 per body warm from
+  the base point's "solved" (`evaluation.warmed`, a differently laid-out answer refused) and every set, the base point
+  too, at that one tight ftol/xtol/gtol; not measured yet against the 6a gate, so stay cold until it passes there.
 - Judged on following SOMA, never on landmark distances; `fit._frozen` is never edited to follow the tree's calibration.
 - Test: `test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py` (a toy worker, any Python with numpy and scipy).
