@@ -13,6 +13,7 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
 - measured reading `m.json` for `SOLVED`: the solver is handed the rounded copy (2026-10-29).
 - rounded's list branch dropped: a summary's floats reach m.json unrounded (2026-10-29).
 - measured_many's folders zipped reversed: a set is handed another set's measures (2026-10-29).
+- measured_many's every chunk written from the first sets: a later chunk's sets get the first chunk's measures (2026-10-30).
 - sets_command's SAME_SEEDS dropped: the nudged sets start from the base set's angles, not the seeds root's.
 - tuning.case_residuals' skin read from "bones outside skin %": level 1 solves on the share, a step, not the
   depth outside (2026-10-30).
@@ -102,6 +103,16 @@ def test_every_set_of_a_jacobian_runs_in_one_card_process_and_gets_its_own_measu
                                          "/seeds", launch=toy_sets_launch(calls))
         assert len(calls) == 1 and evaluation.SAME_SEEDS in calls[0] and "/seeds" in calls[0]
         assert [found_set["tall_kimodo"] for found_set in found] == [{"set": index} for index in range(3)]
+
+
+def test_a_jacobian_over_the_chunk_runs_in_chunks_each_set_keeping_its_own_measures():
+    with tempfile.TemporaryDirectory() as folder:
+        calls, cases = [], evaluation.picked(CASES, {"tuning": ["tall"]}, "tuning")
+        sets = [({"set": index}, {"marker goal": 1.0}, {"centres": {}}) for index in range(5)]
+        found = evaluation.measured_many(sets, cases, pathlib.Path(folder) / "jacobian", sys.executable,
+                                         "/seeds", launch=toy_sets_launch(calls), chunk=2)
+        assert len(calls) == 3
+        assert [found_set["tall_kimodo"] for found_set in found] == [{"set": index} for index in range(5)]
 
 
 def test_the_copy_people_read_is_rounded_and_the_solvers_is_not():

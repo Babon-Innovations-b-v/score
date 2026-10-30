@@ -16,6 +16,7 @@ FREE_GB = 12
 HELD_OUT_SHARE = 0.10  # the check bodies' score may be at most this much worse than the tuning bodies'
 WORKER = pathlib.Path(__file__).resolve().parent / "_case.py"
 SETS_WORKER = pathlib.Path(__file__).resolve().parent / "_card_sets.py"  # every set of a Jacobian, one card process
+CHUNK = 32  # sets per card process, so its card memory stays bounded (the 32-set memory is being measured: night/across c38)
 SAME_SEEDS = "--same-seeds"  # _card_sets: every set seeded from the seeds root, the base point's way
 SOLVED = "measures.json"  # a clip's unrounded measures, the solver's; m.json beside it is the rounded copy people read
 SEEDS = "angles.npz"  # a clip's mink angles per frame (qpos, frames x nq): the card's seeds (fit._card._seeds)
@@ -127,16 +128,22 @@ def launched(command, log):
         return subprocess.call(command, stdout=file, stderr=subprocess.STDOUT)
 
 
-def measured_many(sets, cases, out, python, seeds_root, launch=launched):
-    """[{case: honest measures}] for every set ([(rows, weights, rest)], as `measured` takes one) in ONE card process
-    (`_card_sets.py`, card build step 6a), every set seeded from `seeds_root`'s angles. out/s00000.. hold the sets;
-    raises when the process fails or any set misses a case. `launch(command, log)` runs it (default `launched`)."""
+def measured_many(sets, cases, out, python, seeds_root, launch=launched, chunk=None):
+    """[{case: honest measures}] for every set ([(rows, weights, rest)], as `measured` takes one) in card processes
+    of at most `chunk` sets each (default CHUNK, so one process's card memory stays bounded; `_card_sets.py`, card
+    build step 6a), one after another, every set seeded from `seeds_root`'s angles. out/p000/s00000.. hold the
+    sets; raises when a process fails or any set misses a case. `launch(command, log)` runs one (default `launched`)."""
     shutil.rmtree(out, ignore_errors=True)
-    folders = [out / f"s{index:05d}" for index in range(len(sets))]
-    for folder, (rows, weights, rest) in zip(folders, sets):
-        set_written(folder, rows, weights, rest)
-    code = launch(sets_command(python, seeds_root, out, cases), out / "sets.log")
-    return [read_back(folder, cases, {"sets": code}) for folder in folders]
+    chunk = chunk or CHUNK
+    found = []
+    for start in range(0, len(sets), chunk):
+        part = out / f"p{start // chunk:03d}"
+        folders = [part / f"s{index:05d}" for index in range(start, min(start + chunk, len(sets)))]
+        for folder, (rows, weights, rest) in zip(folders, sets[start:start + chunk], strict=True):
+            set_written(folder, rows, weights, rest)
+        code = launch(sets_command(python, seeds_root, part, cases), part / "sets.log")
+        found += [read_back(folder, cases, {"sets": code}) for folder in folders]
+    return found
 
 
 def case_score(found):
