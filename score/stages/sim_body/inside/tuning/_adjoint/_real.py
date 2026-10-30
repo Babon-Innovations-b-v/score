@@ -140,11 +140,12 @@ def level2_constants(fitting, model, frames):
     return free[None] + copies * len(fitting.place_sites), joints[None] + copies * per_copy
 
 
-def taped_sites(clip, model, rows, targets, constants=None):
+def taped_sites(clip, model, rows, targets, constants=None, fitting=None):
     """`TapedSites` on `per_frame_model`'s `model` holding level 3's whole cost as the card's `Clip.optimizer_for`
     lays it: each frame's marker sites (link, site_pos, its place cost, its target point) and turn rows (link,
     site_quat x y z w, the turn cost, its target turn), copy by copy, with `frame_couplings` at the solved `rows`;
-    `constants` (`level2_constants`) puts level 2's moves after the pose."""
+    `constants` (`level2_constants`) puts level 2's moves after the pose; `fitting` (the clip's `Fitting`) tapes its
+    weights too (`trusted_outer`), the outer the offsets then the trusts and globals."""
     from scipy.spatial.transform import Rotation
     from _taped import TapedSites
     turns = np.concatenate([turned for turned, _ in targets.values()])
@@ -158,10 +159,27 @@ def taped_sites(clip, model, rows, targets, constants=None):
                   + np.repeat(np.arange(frames) * bodies, len(clip.frame_sites)))
     turn_offsets = np.tile([clip.mjm.site_quat[site][[1, 2, 3, 0]] for site in clip.frame_sites], (frames, 1))
     wanted = Rotation.from_matrix(turns.reshape(-1, 3, 3)).as_quat()
+    ends, tail = (None, []) if fitting is None else trusted_outer(fitting)  # 0 ends still weighs by the goal
     sites = TapedSites(model, links, weights, points.reshape(-1, 3),
                        turns=(turn_links, np.full(len(turn_links), clip.turn_cost), wanted, turn_offsets),
-                       couplings=frame_couplings(clip, rows), constants=constants, copies=frames)
-    return sites, offsets
+                       couplings=frame_couplings(clip, rows), constants=constants, trusted=fitting is not None,
+                       ends=ends, copies=frames)
+    return sites, np.concatenate([offsets, tail])
+
+
+def trusted_outer(fitting):
+    """`TapedSites(trusted=True, ends=...)`'s ends count and the outer unknowns after the offsets at `fitting`: its
+    group ends (`fit.END` marks, last in its place sites), the landmarks' trusts, then `_outer.TAPED_GLOBALS` (the
+    ends' trust over the landmarks' mean, `fit.END_WEIGHT` when built by `fit.fitting`, and the markers' goal)."""
+    from fit import END
+    ended = [name.startswith(END) for name in fitting.marks]
+    ends = int(sum(ended))
+    if any(ended[:len(ended) - ends]):
+        raise ValueError(f"the group ends are not the last of {fitting.marks}")
+    trusts = np.asarray(fitting.trusts, dtype=float)
+    landmarks = trusts[:len(trusts) - ends]
+    end_weight = float(trusts[-1] / landmarks.mean()) if ends else 0.0
+    return ends, np.concatenate([landmarks, [end_weight, fitting.marker_goal]])
 
 
 HELD = 1e-5  # rad or m: a coordinate this close to its bound is held there by the card's active set

@@ -25,7 +25,7 @@ through the chart turns it red; `Pinned.rows` keeping a held column turns the pi
 singular frame block) turns the pinned test red. In `_level2.py`, `level2_body`'s gradient left in the Problem's order (no `to_body`) turns the constants-first level 2 test red; `pinned_mask` holding no bound-held entry turns it red; `level2_body` rebuilding the Problem on every gradient call (no `problem_of` cache) turns it red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red; `picked_columns` laying a site's rows at its row among the known names in place of its place in `names` turns it red. In `_real.py`, `solved_rows`
 giving MuJoCo's order (no `newton_order`) turns the real body test red; `frame_couplings` zeroing
 the projection's polynomials turns its per-frame model check red; `bound_held` holding nothing (bound-held coordinates left in the pose) turns its refused check red (4.12e-3); `joint_parts`
-dropping the centres' scales turns its joints check red; `turn_groups` without the frozen table turns its turns check red; `skin_parts` without the geom's turn turns its skins check red (0.19 m). The case rows' derivative left over the full pose (no `RootTurns.pulled_rows`) turns its pulled check red.
+dropping the centres' scales turns its joints check red; `turn_groups` without the frozen table turns its turns check red; `skin_parts` without the geom's turn turns its skins check red (0.19 m). The case rows' derivative left over the full pose (no `RootTurns.pulled_rows`) turns its pulled check red. `trusted_outer` laying the landmarks' trusts out of their sites' order turns its trusted check red.
 
 The taped test runs `_taped` (Newton eval_fk on a wp.Tape) in Newton's own Python on the card, a four-link chain with
 three weighted sites and two link-frame turn rows, once on every coordinate and once with the last a follower of the
@@ -194,6 +194,7 @@ def test_one_real_body_builds_and_its_rows_equal_the_card_solve(tmp_path):
     assert all(case["most"] < 1e-4 for case in found["cases"].values()), found
     assert found["fk"]["most"] < 1e-4, found
     assert found["taped"]["refused"] == {} and found["taped"]["frames"] == found["rows"], found
+    assert found["taped"]["trusted"]["most"] < 1e-5 * found["taped"]["trusted"]["largest"], found  # weights taped
     assert found["measures"]["most"] < 1e-4 and found["measures"]["turn most"] < 1e-2, found
     assert found["measures"]["skin most"] < 1e-4, found
     pulled = found["pulled"]

@@ -4,7 +4,8 @@ table.json, weights.json and rest.json (copied into <out root>, where the person
 the card solve's own (<reference root>/<case>/angles.npz, Newton's order); prints JSON per case (frames, nq, the
 largest |difference|), the per-frame model's check (`_real.per_frame_model` at the rows' pose through
 `frame_couplings` and `RootTurns`' full(reduced()), its body_q against the clip's own model's at each row: the
-largest |difference|), the joints' check (`TapedMeasures` on `_real.joint_parts` against
+largest |difference|), the trusted sites' rows (`taped_sites(fitting=)`, its weights taped) against the fixed weights'
+at the solve ("trusted"), the joints' check (`TapedMeasures` on `_real.joint_parts` against
 `evaluation._measure.centre` in MuJoCo: the largest |difference| of the misses; the turn groups'
 degrees on `_real.turn_groups` against `fit/_card/_measure.turn_errors`: "turn most"; the bone points' depths outside
 the skin on `_real.skin_parts` against `fit/_card/_measure.outside_marks`: "skin most", m) and the seconds; saves rows.npz (rows, steps, per case) into <out root>."""
@@ -84,6 +85,11 @@ body = Body("heavy_kimodo", lambda inner, outer: sites.residuals(turns.full(pinn
 most = float(np.max(np.abs(body.gradient(body.inner, offsets))))
 taped = {"most": most, "refused": refused([body], offsets, TOLERANCE), "held": int(held.sum()), "frames": body.frames,
          "pose size": body.pose_size, "inner": int(body.inner.size), "seconds": time.time() - began}
+trusted_sites, trusted = _real.taped_sites(clip, copied, rows, targets, fitting=fitting)
+at_solve = turns.full(turns.reduced())
+plain_rows = sites.residuals(at_solve, offsets)
+taped["trusted"] = {"outer": int(trusted.size), "ends": int(trusted_sites.ends), "largest": float(
+    np.abs(plain_rows).max()), "most": float(np.abs(trusted_sites.residuals(at_solve, trusted) - plain_rows).max())}
 
 
 def card_joints(clip, joints, scales, rows):
