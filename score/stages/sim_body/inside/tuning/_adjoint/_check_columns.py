@@ -1,10 +1,11 @@
 """`adjoint_rows` with EVERY level 1 column on one real body, timed, run in Newton's own Python (`python
 _check_columns.py <this folder> <seeds root> <set folder> <out root> <npz> <case>=<job.json> ...`): at the base set,
 level 3 on `taped_sites(fitting=, constants=)` with placed(theta) = trusted_outer + `picked_columns(ends=ends_of(...))`
-@ theta over every entry of `tuning.layout`, level 2 on `_real.problem_at` over every entry; the steps of
-`adjoint_rows` run one by one so each is timed: factor (`arrow_hessian` on both levels), solves (`schur_solve`) and
-taping (R_q, R_c rows; `products` and level 2's transposed mixed term). Prints one JSON line a step as it ends, then
-the result: the rows x columns block's shape, its largest entry and the seconds; the block is saved to <npz>."""
+@ theta over every entry of `tuning.layout(ends=)` (as `evaluation/level1.py`: 263 on depth1, 63 of them centres),
+level 2 on `_real.problem_at` over every entry; the steps of `adjoint_rows` run one by one so each is timed: factor
+(`arrow_hessian` on both levels), solves (`schur_solve`) and taping (R_q, R_c rows; `products` and level 2's
+transposed mixed term). Prints one JSON line a step as it ends, then the result: the rows x columns block's shape, its
+largest entry and the seconds; the block is saved to <npz>."""
 import json
 import pathlib
 import shutil
@@ -17,6 +18,7 @@ sys.path.insert(0, sys.argv[1])
 import _real  # noqa: E402
 import landmarks  # noqa: E402
 import tuning  # noqa: E402
+from bone_groups import groups  # noqa: E402
 from _bodies import Pinned, RootTurns, level3_body, pose_of  # noqa: E402
 from _measures import TapedMeasures  # noqa: E402
 from evaluation import _card_batch  # noqa: E402
@@ -34,7 +36,8 @@ out.mkdir(parents=True, exist_ok=True)
 for name in ("table.json", "weights.json", "rest.json"):
     shutil.copyfile(folder / name, out / name)
 table, weights = (json.loads((out / name).read_text()) for name in ("table.json", "weights.json"))
-entries = tuning.layout(table, held=landmarks.HELD, joints=set())
+entries = tuning.layout(table, held=landmarks.HELD, joints=set(),
+                        ends=tuning.ended(groups(), landmarks.MIDDLE_CENTRES))
 starts = {name: row["link"] for name, row in table.items()}
 saved, seconds, began = _card_batch.Saved(), {}, time.time()
 
