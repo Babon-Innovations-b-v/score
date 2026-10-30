@@ -262,6 +262,11 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
 - test_a_concepts_light_is_asked_once_of_its_reading_and_refused_off_its_schema:
     reading.py: `wrong += ["scene"] if scene["unseen"] and not COLOUR.fullmatch(str(scene["unseen_colour"])) else
     []` made `wrong += []`
+- test_a_lit_place_is_asked_its_light_again_only_when_named_again_the_newest_answer_read:
+    reading.py: `if again else unlit(store, places)` made `if False else unlit(store, places)`
+- test_the_lights_words_are_a_file_the_ask_reads_that_no_paid_rows_code_holds:
+    reading.py: `{"text": LIGHT_ASKED.read_text().format(` made `{"text": WORDS.format(`, the file's words put back
+    in reading.py as `WORDS` (the words in code again)
 - test_only_a_row_both_readers_put_inside_another_rows_thing_is_a_part_of_it:
     reading_fixes.py: `INSIDE = 0.9` made `INSIDE = 0.5`
 - test_a_reading_holding_a_part_is_fixed_once_free_its_children_moved:
@@ -2190,6 +2195,47 @@ def test_a_concepts_light_is_asked_once_of_its_reading_and_refused_off_its_schem
     assert reading.spent(store, ["wreck"]) == round(0.15 + 0.03, 4)
     schema = reading.light_schema(ids)["properties"]
     assert schema["rows"]["items"]["properties"]["id"]["enum"] == ids
+
+
+def test_a_lit_place_is_asked_its_light_again_only_when_named_again_the_newest_answer_read(store, tmp_path):
+    """reading.lit again=True (--light-again, after LIGHT_ASKED's words changed): a place already lit is asked once
+    more and its newest answer is its concept's light; without it a lit place is never asked again, so no standing
+    light is re-asked by an edit of the words."""
+    picked_place(store, tmp_path)
+    [record] = reading.read(store, ["wreck"], "joey", ask=stand_in_rows, boxes=stand_in_boxes)
+    ids = [row["id"] for row in record["inventory"]["rows"]]
+    dark = {"glows": False, "glowing": "", "colour": "", "brightness": 0}
+
+    def answering(unseen):
+        scene = {"daylight": False, "unseen": unseen, "unseen_colour": "#8899aa" if unseen else ""}
+        text = json.dumps({"rows": [{"id": item, **dark} for item in ids], "scene": scene})
+        return lambda store, place, folder: (reading.light_of(text, ids), 0.03, 5.0)
+    reading.lit(store, ["wreck"], "joey", ask=answering(False))
+    assert reading.lit(store, ["wreck"], "joey", ask=None) == []
+    [again] = reading.lit(store, ["wreck", "lab"], "joey", ask=answering(True), again=True)  # lab: no reading
+    assert again["reading"] == record["at"] and reading.concept_light(store, "wreck")["scene"]["unseen"]
+
+
+def test_the_lights_words_are_a_file_the_ask_reads_that_no_paid_rows_code_holds(store, tmp_path, monkeypatch):
+    """The light's words (LIGHT_ASKED) are data/reading/light.txt, read at each ask: the request carries the file's
+    text, and the words are in no file of reading's code version (graph._code), so an edit of them moves none of the
+    paid rows reading.py keys (score.stages.moved)."""
+    from score.graph import _code
+    glows_line = (concepts.DATA / "reading/light.txt").read_text().splitlines()[2]  # its own words, no other ask's
+    held = _code.source_files([reading.asked_light, reading.lit])
+    assert _code.REPO / "score/review/reading.py" in held
+    assert not any(glows_line in path.read_text() for path in held)
+    picked_place(store, tmp_path)
+    reading.read(store, ["wreck"], "joey", ask=stand_in_rows, boxes=stand_in_boxes)
+    words = tmp_path / "light.txt"
+    words.write_text("Say how the place is lit, a lamp out of view at night too.\n{rows}")
+    monkeypatch.setattr(reading, "LIGHT_ASKED", words)
+    bodies = []
+    monkeypatch.setattr(reading, "asked", lambda body: (bodies.append(body), ({}, 1.0))[1])
+    monkeypatch.setattr(reading, "answer_text", lambda response: "{}")
+    monkeypatch.setattr(reading, "call_euros", lambda response: 0.03)
+    reading.asked_light(store, "wreck", tmp_path)
+    assert bodies[0]["contents"][0]["parts"][0]["text"].startswith("Say how the place is lit, a lamp out of view")
 
 
 # --- reading fixes: a part of another row's thing merged into it, free ------------------------------------------------
