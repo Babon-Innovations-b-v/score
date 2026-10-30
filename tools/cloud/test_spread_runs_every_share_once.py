@@ -30,6 +30,8 @@ seen red, reverted):
   share is never run); or `return waited >= THIS_PC_WAIT_SECONDS` -> `return False` (the slot gives up).
 - test_a_share_killed_for_memory_runs_again_once: in `work_slot`, `if shares.again(share):` -> `if False:` (the
   killed share is a gap at once); or in `raise_for`, drop `or killed` (a step killed inside is a plain failure).
+- test_a_share_whose_card_would_not_open_runs_again_once: in `work_slot`, `except (MemoryKilled, CardLost)` ->
+  `except MemoryKilled`; or in `raise_for`, `if returncode and card_lost:` -> `if False:`.
 - test_a_shared_claim_gives_way_to_one_that_waits_for_the_machine_alone: in `work_slot`, drop the
   `provider.cloud.wanted_elsewhere()` check (m1 runs all three); or in `one_machine`, drop `or
   machine.get("yielded")` (two and three stay waiting).
@@ -258,6 +260,21 @@ def test_a_share_killed_for_memory_runs_again_once(fake_machines):
     with pytest.raises(spread.JobFailed) as plain:
         spread.raise_for(1, "job")
     assert not isinstance(plain.value, spread.MemoryKilled)
+
+
+def test_a_share_whose_card_would_not_open_runs_again_once(fake_machines):
+    """A job whose card would not open (2026-10-30: settle@airlock's "CUDA error 999" beside a full card, the card
+    fine again a minute later) is the machine's fault: its share runs again once; a second time is a gap."""
+    run, done, tries = fake_machines, [], {}
+
+    def do(machine, share, card):
+        tries[share] = tries.get(share, 0) + 1
+        if share == "once" and tries[share] == 1 or share == "twice":
+            spread.raise_for(1, f"job {share}", card_lost=True)
+        done.append(share)
+    shares = spread.Shares(["once", "twice", "fine"])
+    spread.on_machines(run, None, [], 1, "blender", shares, lambda machine: None, do)
+    assert sorted(done) == ["fine", "once"] and shares.failed == ["twice"] and tries["twice"] == 2, (done, tries)
 
 
 def test_a_shared_claim_gives_way_to_one_that_waits_for_the_machine_alone(fake_machines, monkeypatch):
