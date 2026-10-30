@@ -979,38 +979,7 @@
     0.0,
     0.0
    ],
-   "rows": {
-    "person": {
-     "name": "person in spacesuit",
-     "noun": "person",
-     "count": 3,
-     "size": [
-      0.5,
-      0.5,
-      1.8
-     ],
-     "where": "at desks and bottom right",
-     "share": 0.2155,
-     "looks": [
-      "person_spacesuit-made",
-      "person_spacesuit-made",
-      "person_spacesuit-made"
-     ],
-     "dress": {
-      "words": "person in spacesuit",
-      "named": [],
-      "torso_lab": [
-       39.6,
-       3.1,
-       4.3
-      ],
-      "figures": 3,
-      "surface": null,
-      "de": null,
-      "why": "the words name no library fabric of the people place: the look's own paint"
-     }
-    }
-   }
+   "rows": {}
   },
   "old_station": {
    "concept": "1003bf34858d5a995323ab433bcecbaa35ef7ee9ce45dff91e8fe7f7f4077ef2",
@@ -1207,8 +1176,8 @@
      "noun": "people",
      "count": 1,
      "size": [
-      0.5,
-      0.3,
+      14.842,
+      14.842,
       1.8
      ],
      "where": "everywhere",
@@ -1257,64 +1226,7 @@
     0.0,
     -3.971
    ],
-   "rows": {
-    "person_man": {
-     "name": "man walking up stairs",
-     "noun": "man",
-     "count": 1,
-     "size": [
-      0.5,
-      0.3,
-      1.8
-     ],
-     "where": "middle flight of stairs",
-     "share": 0.1328,
-     "looks": [
-      "man_stair-made"
-     ],
-     "dress": {
-      "words": "man walking up stairs",
-      "named": [],
-      "torso_lab": [
-       28.6,
-       2.4,
-       4.3
-      ],
-      "figures": 1,
-      "surface": null,
-      "de": null,
-      "why": "the words name no library fabric of the people place: the look's own paint"
-     }
-    },
-    "person_woman": {
-     "name": "woman walking down stairs",
-     "noun": "woman",
-     "count": 1,
-     "size": [
-      0.5,
-      0.3,
-      1.7
-     ],
-     "where": "bottom flight of stairs",
-     "share": 0.1211,
-     "looks": [
-      "woman_stair-made"
-     ],
-     "dress": {
-      "words": "woman walking down stairs",
-      "named": [],
-      "torso_lab": [
-       32.8,
-       15.5,
-       2.7
-      ],
-      "figures": 1,
-      "surface": null,
-      "de": null,
-      "why": "the words name no library fabric of the people place: the look's own paint"
-     }
-    }
-   }
+   "rows": {}
   },
   "storage": {
    "concept": "d36b2c57cac96ed1f57c42e22a86ad6499ce19052e98c92cf622f67745d593ae",
