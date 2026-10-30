@@ -155,3 +155,18 @@ def side_score(found):
 def accepted(check, tuning):
     """The held-out rule: the check bodies' score within HELD_OUT_SHARE of the tuning bodies'."""
     return check <= (1 + HELD_OUT_SHARE) * tuning
+
+
+def warmed(solve, kept, body, tolerance):
+    """`solve` (fit.constants) at `tolerance`: the body's first call cold, its "solved" kept in `kept[body]`; every
+    later call warm from it. A later answer laid out differently from the kept one is refused."""
+    def constants(fitting, recordings):
+        if body not in kept:
+            found = solve(fitting, recordings, tolerance=tolerance)
+            kept[body] = found["solved"]
+            return found
+        found = solve(fitting, recordings, warm=kept[body], tolerance=tolerance)
+        if [part.shape for part in found["solved"]] != [part.shape for part in kept[body]]:
+            raise ValueError(f"{body}: level 2's unknowns laid out unlike the base point's, warm start refused")
+        return found
+    return constants

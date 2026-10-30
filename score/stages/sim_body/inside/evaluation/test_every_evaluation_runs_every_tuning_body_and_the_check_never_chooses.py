@@ -16,6 +16,8 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
 - sets_command's SAME_SEEDS dropped: the nudged sets start from the base set's angles, not the seeds root's.
 - tuning.case_residuals' skin read from "bones outside skin %": level 1 solves on the share, a step, not the
   depth outside (2026-10-30).
+- warmed's `warm=kept[body]` made `warm=None`: a nudged set's level 2 starts cold, not from the base point (2026-10-30).
+- warmed's layout check dropped: a nudged set laid out unlike the base point is warm-started anyway (2026-10-30).
 
 Run: .venv/bin/python score/stages/sim_body/inside/evaluation/test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py
 """
@@ -139,6 +141,27 @@ def test_the_held_out_bodies_pass_within_ten_percent():
     assert evaluation.body_of("short_heavy_kimodo") == "short_heavy"
     assert evaluation.body_of("short_heavy_sit_stand") == "short_heavy"
     assert evaluation.body_of("mean_arms_raise") == "mean"
+
+
+def toy_solve(calls, width):
+    """A fit.constants stand-in recording each call's warm and tolerance; its "solved" `width` constants wide."""
+    def solve(fitting, recordings, warm=None, tolerance=None):
+        calls.append((warm, tolerance))
+        return {"solved": (np.zeros(width), np.zeros((2, 3)))}
+    return solve
+
+
+def test_a_nudged_sets_level_2_starts_from_the_base_points_answer_for_its_body():
+    calls, kept = [], {}
+    base = evaluation.warmed(toy_solve(calls, 4), kept, "tall", 1e-10)(None, [])
+    evaluation.warmed(toy_solve(calls, 4), kept, "tall", 1e-10)(None, [])
+    evaluation.warmed(toy_solve(calls, 4), kept, "heavy", 1e-10)(None, [])
+    assert calls[0] == (None, 1e-10) and calls[1][0] is base["solved"] and calls[2] == (None, 1e-10)
+    try:
+        evaluation.warmed(toy_solve(calls, 5), kept, "tall", 1e-10)(None, [])
+    except ValueError:
+        return
+    raise AssertionError("a set laid out unlike the base point was warm-started")
 
 
 if __name__ == "__main__":
