@@ -84,6 +84,10 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   8.9 s a set against 17.8 s a nudged set alone; gate6a on heavy_kimodo + tall_kimodo, step cosine at least 0.99975
   on all 6 columns, relative under 1 % but ASIS_l trust 2.26 %, whose card-against-CPU gap (6.3e-5 a step) is the size
   of the start set's own gap (7.7e-5): float noise on a column that barely moves tall_kimodo, not a wiring error.
+  The gate's rule (coordinator, 2026-10-30): a column passes at a relative gap of at most 2 %, or, above that,
+  when its absolute gap is no larger than the start set's own card-against-CPU gap; on that rule all 6 pass.
+  Not yet a pass: on heavy_arms_raise card frames lower level 2's cost but read worse on joints mm max (64.5
+  against 59.6) and shin bones outside (2.1 % against 0.65 %); card frames are not wired into level 1 until why is known.
 - **The record states the honest measures first** (#70's audit item 2, 2026-10-29): `following` gives the bones
   outside SOMA's skin by region and the turns on main's frozen table before the joint mm (partly the ends' own pull)
   and the tree's-table turns; the frozen table is never edited to follow the tree.
