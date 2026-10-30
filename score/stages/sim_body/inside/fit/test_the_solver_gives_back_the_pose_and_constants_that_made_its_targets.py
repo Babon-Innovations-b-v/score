@@ -56,6 +56,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   inside the skin counts 0.8 m deep.
 - (2026-10-30) _constants.staged's ftol/xtol/gtol made scipy's defaults (1e-8): level 2 stops on the cost's change at
   4.79e-5 of its start's gradient (settled 1.26e-5).
+- (2026-10-30) _constants.steadied's `< np.abs(gradient).max()` made `> np.abs(gradient).max()`: the step that lowers
+  the free gradient is refused and the one turned back taken (mean_kimodo's polish stood at 1.59e-10 with no
+  gradient test).
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/test_the_solver_gives_back_the_pose_and_constants_that_made_its_targets.py
 """
@@ -406,10 +409,35 @@ def level_2_ends_settled():
     return [] if gradient < SETTLED_GRADIENT else [f"level 2 stopped at a free gradient of {gradient:.2e}"]
 
 
+def a_step_the_cost_cannot_see_is_judged_by_its_gradient():
+    """`steadied` takes level 2's Gauss-Newton step from the toy's start, where it lowers the free gradient, and refuses
+    the step turned back, which raises it."""
+    import numpy as np
+    from fit._card._level2 import jacobian
+    from fit._constants import Problem, off_bounds, steadied, told
+    from landmarks import HELD
+    import fit
+    with tempfile.TemporaryDirectory() as folder:
+        fitting = toy_fitting(folder)
+        turns, points, _ = posed_targets(fitting, truth_of(fitting), POSES)
+        turns, points, path = fit.sampled(fitting, [(turns, points)])
+        free = [index for index, name in enumerate(fitting.marks) if name not in HELD and not name.startswith(fit.END)]
+        problem = Problem(fitting, path, turns, points, fitting.neutral(), free)
+        unknowns = problem.start()
+        kept = off_bounds(unknowns, told(problem, jacobian(problem, unknowns)), problem.bounds())
+        matrix = jacobian(problem, unknowns)[:, kept].tocsc()
+        gradient = matrix.T @ problem.residuals(unknowns)
+        step = np.linalg.solve((matrix.T @ matrix).toarray(), -gradient)
+        taken = steadied(problem, unknowns, kept, step, problem.bounds(), gradient)
+        refused = steadied(problem, unknowns, kept, -step, problem.bounds(), gradient)
+    return ([] if taken is not unknowns else ["the step that lowers the gradient is refused"]) + (
+        [] if refused is unknowns else ["the step that raises the gradient is taken"])
+
+
 CHECKS = (a_bone_point_outside_the_skin_lies_as_deep_as_its_distance, only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
           the_place_goal_sums_to_the_marker_goal, the_solver_gives_back_the_angles_and_the_constants,
           every_recording_of_the_body_is_sampled, somas_targets_leave_the_solves_unchanged, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows,
-          a_step_no_task_sees_ends_the_fit, level_2_ends_settled)
+          a_step_no_task_sees_ends_the_fit, level_2_ends_settled, a_step_the_cost_cannot_see_is_judged_by_its_gradient)
 
 
 def in_newton():

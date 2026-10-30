@@ -235,7 +235,9 @@ def polished(problem, unknowns, keep, bounds):
         gradient = matrix.T @ residuals
         if not len(free) or np.abs(gradient).max() < POLISHED:
             return found
-        found = descended(problem, found, free, spsolve((matrix.T @ matrix).tocsc(), -gradient), (low, high))
+        step = spsolve((matrix.T @ matrix).tocsc(), -gradient)
+        moved = descended(problem, found, free, step, (low, high))
+        found = moved if moved is not found else steadied(problem, found, free, step, (low, high), gradient)
     raise ArithmeticError(f"level 2's polish left a free gradient of {np.abs(gradient).max():.2e} after {POLISH_ROUNDS} rounds")
 
 
@@ -250,3 +252,16 @@ def descended(problem, unknowns, free, step, bounds):
         if float(np.sum(problem.residuals(moved) ** 2)) <= cost:
             return moved
     return unknowns
+
+
+def steadied(problem, unknowns, free, step, bounds, gradient):
+    """`unknowns` with the whole `step` laid on its `free` entries (clipped into the bounds) when there its free
+    gradient is smaller than `gradient`, else `unknowns`: the polish's test once the cost cannot tell the step's fall
+    (mean_kimodo, 2026-10-30: at a free gradient of 1.59e-10 the Gauss-Newton step's predicted fall was 4.4e-17 on a
+    cost of 0.867, under the residuals' own float64 noise, so every halving was refused and the polish stood still)."""
+    from fit._card._level2 import jacobian as exact_jacobian
+    low, high = bounds
+    moved = unknowns.copy()
+    moved[free] = np.clip(unknowns[free] + step, low[free], high[free])
+    reached = exact_jacobian(problem, moved)[:, free].T @ problem.residuals(moved)
+    return moved if np.abs(reached).max() < np.abs(gradient).max() else unknowns

@@ -55,7 +55,10 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
 - **Level 2 ends settled to float64** (#70, 2026-10-30): after scipy's `least_squares` (trf/lsmr, which stalled
   2.5 to 3 mm short of settled on heavy_kimodo) `_constants.polished` takes Gauss-Newton steps (the host-exact
   Jacobian, a sparse direct solve, halved until the cost falls) on the told unknowns more than `BOUND_HELD` inside
-  their bounds until their gradient is under `POLISHED` (1e-10), else raises. `Problem.path` is float64: the card's
+  their bounds until their gradient is under `POLISHED` (1e-10), else raises. When no halving lowers the cost, the
+  whole step is judged by the free gradient instead (`steadied`: taken when it lowers it): on mean_kimodo the step's
+  predicted fall at 1.59e-10 was 4.4e-17 on a cost of 0.867, under the residuals' own float64 noise (reading the fall
+  off the residuals' differences instead of two summed costs did not help), so the cost test refused every halving. `Problem.path` is float64: the card's
   float32 angles rounded every qpos the residuals read (a 1e-6 step on root z moved it 9.5e-7), so the polish
   stalled at 6.5e-8 and the "exact Jacobian is off" reading was the residuals'. Toy: 2.0e-7 without the polish,
   under 1e-10 with it, 0.028 s; heavy_kimodo's polish 2.4 s. `least_squares` runs at scipy's own tolerances: the
