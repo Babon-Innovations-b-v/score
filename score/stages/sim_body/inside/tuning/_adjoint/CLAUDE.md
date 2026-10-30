@@ -11,6 +11,6 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
 - `Body` is one tuning body's inner problem at its optimum; `stacked_jacobian` is level 1's whole Jacobian in
   `tuning`'s row order (every body's rows, then the prior's), every body checked first (`refused`) and each one stopped
   unconverged named in one `Unconverged`, never used.
-- Built and checked on a toy only (2026-10-30, five tests, 1.2 s). Not yet wired: the card gradient (Newton eval_fk on
+- Built and checked on a toy only (2026-10-30, five tests, 1.2 s); `../__init__.solved(exact=)` takes `stacked_jacobian` (its test, 2026-10-30). Not yet wired: the card gradient (Newton eval_fk on
   a wp.Tape for level 3, level 2's constants) as each `Body`'s callables, `solved`'s Jacobian switch to it, the gate on heavy_kimodo, tall_kimodo and
   a third tuning body against `_differences`, and the 70-case timing.

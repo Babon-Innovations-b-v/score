@@ -21,6 +21,8 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) signed_steps' flip dropped (always +step): a step passes the upper bound.
 - (2026-10-29) nudged's `moved = unknowns.copy()` hoisted out of its loop: each batched set carries the groups
   before it, the one-call Jacobian differs from the serial one (card build step 6a).
+- (2026-10-30) solved's `if exact: return exact(unknowns)` dropped: the adjoint's Jacobian is ignored and the
+  differences still run (card build step 6b).
 
 Run: .venv/bin/python score/stages/sim_body/inside/tuning/test_one_optimisation_moves_every_unknown_together_within_its_bounds.py
 """
@@ -94,6 +96,26 @@ def test_the_unknowns_are_solved_together_and_resumed_from_the_best():
         assert np.allclose(tuning.resumed(checkpoint, len(ENTRIES)), result.x, atol=1e-3)
         lower, upper = tuning.bounds(ENTRIES)
         assert (result.x >= lower).all() and (result.x <= upper).all()
+
+
+def test_an_exact_jacobian_replaces_the_differences():
+    target = np.linspace(-1.0, 1.0, len(ENTRIES))
+    coupling = np.eye(len(ENTRIES)) + 0.3 * np.ones((len(ENTRIES), len(ENTRIES)))
+    pattern = np.ones((len(ENTRIES), len(ENTRIES)), dtype=np.int8)
+    called = []
+
+    def never(sets):
+        raise AssertionError("the differences ran beside an exact Jacobian")
+
+    def exact(unknowns):
+        called.append(1)
+        return coupling
+
+    with tempfile.TemporaryDirectory() as folder:
+        result = tuning.solved(lambda unknowns: coupling @ (unknowns - target), ENTRIES, pattern,
+                               pathlib.Path(folder) / "checkpoint.jsonl", 60, start=np.zeros(len(ENTRIES)),
+                               many=never, exact=exact)
+    assert called and np.allclose(result.x, target, atol=1e-6)
 
 
 def rounded_linear(matrix, target):
