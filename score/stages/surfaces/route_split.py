@@ -11,9 +11,9 @@ split decision, never a gap (owner, 2026-10-28: the views disagreed on 1.2 to 5.
 over several finishes, and the old 1% limit was never measured): each takes the finish its views weigh most, a tie
 the finish of the part round it (walked); their share is still recorded. A face no view can see (the inside of a raw
 model's shell, out of every camera's reach, is no gap) takes its nearest seen face's finish along the surface (finish_parts.walked); the
-finishes are then smoothed, each stray (an island under patchy.py's STRAY_ISLAND of a finish that has a larger one)
-given the finish round it (finish_parts.without_strays) and crumbs joined (finish_parts.cleaned, merged_islands), each
-island one part. A take whose paint is still patchy (patchy.score, each part its own region, as the paint measures,
+finishes are then smoothed, each stray (an island under patchy.py's STRAY_ISLAND of a finish that has a larger one, or
+of one whose islands cover that much only together) given the finish round it (finish_parts.without_strays) and
+crumbs joined (finish_parts.cleaned, merged_islands), each island one part. A take whose paint is still patchy (patchy.score, each part its own region, as the paint measures,
 each island of a detail finish a part of its own: finish_parts.patchiness) is a gap, named, before anything is baked.
 
 The split decides by the labels alone (the paper, "Surfaces: the finish route": the views are split into colour
