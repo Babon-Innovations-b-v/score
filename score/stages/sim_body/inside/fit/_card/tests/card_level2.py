@@ -100,3 +100,33 @@ def the_level2_solve_with_the_exact_jacobian_equals_differences():
             if off_mm > LEVEL2_SOLVE_MM else []) + (
         [f"level 2 with the exact Jacobian off differences' angles by {off_angles:.2e}"]
         if off_angles > np.radians(LEVEL2_SOLVE_DEG) else [])
+
+
+ACROSS_SETS = 3  # level 2 across sets: the toy's frames under this many sets' constants, one card model
+ACROSS_SPREAD = 0.02  # each set's constants moved this far off the toy's (metres)
+
+
+def the_frames_per_world_equal_each_set_alone():
+    """Every frame of every set laid on one card model (each world its set's body_pos and site_pos) equals the same
+    frames on a card model of that set alone, bit for bit."""
+    import tempfile
+    from fit._card import _level2_card
+    with tempfile.TemporaryDirectory() as folder:
+        problem, _ = problem_and_point(folder)
+        model, frames = problem.fitting.model, len(problem.path)
+        moved = np.random.default_rng(3)
+        sets = [(model.body_pos + moved.normal(0.0, ACROSS_SPREAD, model.body_pos.shape) * (index > 0),
+                 model.site_pos + moved.normal(0.0, ACROSS_SPREAD, model.site_pos.shape) * (index > 0))
+                for index in range(ACROSS_SETS)]
+        together = _level2_card.CardKinematics(problem.fitting, ACROSS_SETS * frames).frames(
+            np.tile(problem.path, (ACROSS_SETS, 1)), np.repeat([body for body, _ in sets], frames, axis=0),
+            np.repeat([site for _, site in sets], frames, axis=0))
+        alone = _level2_card.CardKinematics(problem.fitting, frames)
+        problems = []
+        for index, (body, site) in enumerate(sets):
+            for frame, own in enumerate(alone.frames(problem.path, body[None], site[None])):
+                mine = together[index * frames + frame]
+                worst = max(np.abs(getattr(mine, name) - getattr(own, name)).max()
+                            for name in ("site_turns", "body_turns", "places", "spins"))
+                problems += [f"set {index} frame {frame} off its set alone by {worst:.2e}"] if worst > 0 else []
+        return problems

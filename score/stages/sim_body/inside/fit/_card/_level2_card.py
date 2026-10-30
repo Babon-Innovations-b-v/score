@@ -54,11 +54,23 @@ class CardKinematics:
                   inputs=[model.body_rootid, model.jnt_type, model.jnt_dofadr, model.jnt_bodyid, data.xmat,
                           data.xanchor, data.xaxis, data.subtree_com], outputs=[data.cdof])
 
-    def frames(self, qpos):
-        """Each frame's kinematics at `qpos` (frames x nq) on the constants the fitting model holds now."""
+    def lay(self, body_pos=None, site_pos=None):
+        """Lay the constants on the card's model: the fitting model's own for every world, or each world its own row
+        of `body_pos` (worlds x nbody x 3) and `site_pos` (worlds x nsite x 3), level 2 across sets (MuJoCo Warp
+        reads both at `world % rows`, `smooth.py`), one card model for every set's frames."""
+        host = self.fitting.model
+        for name, given, own in (("body_pos", body_pos, host.body_pos), ("site_pos", site_pos, host.site_pos)):
+            rows = (own[None] if given is None else np.asarray(given)).astype(np.float32)
+            if getattr(self.model, name).shape[0] == len(rows):
+                getattr(self.model, name).assign(rows)
+            else:
+                setattr(self.model, name, wp.array(rows, dtype=wp.vec3))
+
+    def frames(self, qpos, body_pos=None, site_pos=None):
+        """Each frame's kinematics at `qpos` (frames x nq) on the constants the fitting model holds now, or each
+        world on its own row of `body_pos` and `site_pos` (`lay`)."""
         model, data, host = self.model, self.data, self.fitting.model
-        model.body_pos.assign(host.body_pos[None].astype(np.float32))
-        model.site_pos.assign(host.site_pos[None].astype(np.float32))
+        self.lay(body_pos, site_pos)
         data.qpos.assign(np.asarray(qpos, dtype=np.float32))
         mjw.kinematics(model, data)
         self.motions(model, data)
