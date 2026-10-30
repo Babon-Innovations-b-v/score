@@ -279,3 +279,20 @@ def held_dropped_jacobian(inner, held):
     return _adjoint.implicit_jacobian(lambda point, outer: residuals(put(point), outer),
                                       lambda point, outer: gradient(put(point), outer)[~held], inner[~held], OUTER,
                                       1, FRAMES * POSE - int(held.sum()), (1e-5, 1e-5), 1e-8)
+
+
+def site_outer(unknowns, entries):
+    """What `_outer.site_unknowns` should give on the toy table: the landmarks' links (`tuning.applied`), the group
+    end's site (its start plus TURN times its centre's move, `tuning.offsets`), the trusts, end weight, marker goal."""
+    from score.stages.sim_body.inside import tuning
+    rows, weights = tuning.applied(unknowns, entries, STARTS, TABLE, GLOBALS)
+    centre = tuning.offsets(unknowns, entries)["LeftUpLeg"]
+    return np.concatenate([np.ravel([rows[name]["link"] for name in LANDMARKS]), ENDS[0][1] + TURN @ centre,
+                           [rows[name]["trust"] for name in LANDMARKS], [weights["end weight"], weights["marker goal"]]])
+
+
+def site_outer_differences(unknowns, entries):
+    """Central differences of `_outer.site_unknowns` on the toy table at `unknowns`."""
+    from score.stages.sim_body.inside.tuning._adjoint import _outer
+    return _adjoint.by_columns(lambda point: _outer.site_unknowns(point, entries, LANDMARKS, ENDS, STARTS, TABLE,
+                                                                  GLOBALS), unknowns, 1e-6)
