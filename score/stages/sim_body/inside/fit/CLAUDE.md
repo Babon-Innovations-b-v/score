@@ -86,8 +86,11 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   of the start set's own gap (7.7e-5): float noise on a column that barely moves tall_kimodo, not a wiring error.
   The gate's rule (coordinator, 2026-10-30): a column passes at a relative gap of at most 2 %, or, above that,
   when its absolute gap is no larger than the start set's own card-against-CPU gap; on that rule all 6 pass.
-  Not yet a pass: on heavy_arms_raise card frames lower level 2's cost but read worse on joints mm max (64.5
-  against 59.6) and shin bones outside (2.1 % against 0.65 %); card frames are not wired into level 1 until why is known.
+  Card frames against mink frames on heavy_arms_raise (2026-10-30): the earlier gap (joints mm max 64.5 against
+  59.6, shin bones outside 2.1 % against 0.65 %) came from fitting level 2 on that one recording against the body's
+  seven, not from the card. Like with like (seven recordings, set s00000) card frames read joints mm max 59.4 against
+  59.6, bones outside 13.9 % against 14.7 %, foot 17.6 against 19.2 %, hand 49.4 against 54.2 %; worse by a hair on
+  shin (0.82 against 0.65 %, depth 0.19 against 0.17 mm) and thigh (18.0 against 17.7 %).
 - **The record states the honest measures first** (#70's audit item 2, 2026-10-29): `following` gives the bones
   outside SOMA's skin by region and the turns on main's frozen table before the joint mm (partly the ends' own pull)
   and the tree's-table turns; the frozen table is never edited to follow the tree.
