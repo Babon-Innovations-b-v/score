@@ -8,6 +8,9 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
 - H is read block-arrow: one pose coordinate of every frame stepped together, then each constant alone
   (2 x (pose size + constants) gradients, not 2 x inner size); solved by the Schur step over the constants.
 - An inner fit whose gradient exceeds the tolerance raises `Unconverged`: the caller reports that body, never uses it.
-- Built and checked on a toy only (2026-10-30, three tests, 1.3 s). Not yet wired: the card gradient (Newton eval_fk on
-  a wp.Tape for level 3, level 2's constants), `tuning`'s Jacobian interface, the gate on heavy_kimodo, tall_kimodo and
+- `Body` is one tuning body's inner problem at its optimum; `stacked_jacobian` is level 1's whole Jacobian in
+  `tuning`'s row order (every body's rows, then the prior's), every body checked first (`refused`) and each one stopped
+  unconverged named in one `Unconverged`, never used.
+- Built and checked on a toy only (2026-10-30, five tests, 1.2 s). Not yet wired: the card gradient (Newton eval_fk on
+  a wp.Tape for level 3, level 2's constants) as each `Body`'s callables, `solved`'s Jacobian switch to it, the gate on heavy_kimodo, tall_kimodo and
   a third tuning body against `_differences`, and the 70-case timing.
