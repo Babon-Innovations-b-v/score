@@ -38,7 +38,7 @@ import score.stages.cast.driven as characters_driven
 import score.stages.cast.layer as characters_layer
 import score.stages.demo_film.final as demo_film_final
 from score.stages.surfaces.surface_gates import guarded
-from score.stages.assembly import neighbours
+from score.stages.assembly import held_apart, neighbours
 from score.stages.assembly import scene_tree
 import score.stages.props.masks_row as masks_row
 import score.stages.props.prop_data as prop_data
@@ -114,7 +114,10 @@ SETTLE = graph.Stage("settle", "place", settling.make, settling.SETTLE_LAYER, se
                      applies=designed("physics"))
 # The place's final assembly: its seed with every accepted layer it reads in place of the seed's part (assembly.READS,
 # joined in `layered` for each layer stage the table holds), its layers gate unknown while one it needs is missing.
-ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE, assembly.CHECKS,
+# Its held gate takes held_apart's face rule here, in the table, so no maker hashing the assembly's package moves.
+ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE,
+                       tuple(dataclasses.replace(check, judge=held_apart.judge_held) if check.name == "held" else check
+                             for check in assembly.CHECKS),
                        files=assembly.files, gatherers=assembly.GATHERERS,
                        after={"terrain": ("grounds", 2),
                               "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},

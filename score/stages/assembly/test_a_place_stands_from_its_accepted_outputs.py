@@ -641,6 +641,36 @@ def test_the_held_gate_names_each_object_not_where_what_holds_it_puts_it():
     assert faults["crate_1"][0].startswith("at the room middle") and faults["lamp_1"][0].startswith("held by nothing")
 
 
+def test_the_held_gate_names_two_objects_overlapping_on_one_face(tmp_path):
+    """#36, street's three restaurant doors: two 1 m doors laid on one facade's +z face 0.58 m apart overlap by
+    0.42 m and fail by name; a third 0.58 m further on overlaps only the second; a sign above the doors (no height
+    shared) and a door on the facade's -z face at the same spot pass, as do doors held side by side.
+    Break: score/stages/assembly/held_apart.py: `if along > fitting.HELD_MOST and tall > fitting.HELD_MOST:` -> `if False:`
+    Break: score/stages/__init__.py: `judge=held_apart.judge_held` -> `judge=check.judge`"""
+    from score import stages
+    from score.stages.assembly import held_apart
+    front, back = ({"how": "face", "holder": ["facade_1"], "out": [0.0, way]} for way in (1.0, -1.0))
+    names = ("door_1", "door_2", "door_3", "sign_1", "door_4")
+    record = {"objects": [{"name": name, "on": back if name == "door_4" else front} for name in names]}
+    door = lambda along, z: {"low": [along - 0.5, 0.0, z], "high": [along + 0.5, 2.1, z + 0.1]}  # noqa: E731
+    laid = {"holders": [{"name": "facade_1", "low": [0.0, 0.0, -1.0], "high": [10.0, 9.0, 0.0]}],
+            "objects": [{"name": "door_1", **door(2.609, 0.0)}, {"name": "door_2", **door(3.189, 0.0)},
+                        {"name": "door_3", **door(3.769, 0.0)}, {"name": "door_4", **door(2.609, -1.1)},
+                        {"name": "sign_1", "low": [2.0, 2.5, 0.0], "high": [4.0, 3.0, 0.1]}]}
+    assert held_apart.overlapping(record, laid) == [
+        ("door_1", "overlaps door_2 by 0.42 m along their holder's face", 0.42),
+        ("door_2", "overlaps door_3 by 0.42 m along their holder's face", 0.42)], held_apart.overlapping(record, laid)
+    (tmp_path / made_waiting.LAID).write_text(json.dumps(laid))
+    (tmp_path / assembly.RECORD).parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / assembly.RECORD).write_text(json.dumps(record))
+    [held] = [check.judge for check in stages.ASSEMBLY.checks if check.name == "held"]
+    verdict = held(tmp_path, {}, None)
+    assert verdict.answer == checks.FAIL and verdict.measures["overlapping"] == 2, verdict
+    assert "door_1: overlaps door_2 by 0.42 m along their holder's face" in verdict.findings, verdict
+    apart = {**laid, "objects": [{"name": "door_1", **door(2.0, 0.0)}, {"name": "door_2", **door(3.2, 0.0)}]}
+    assert held_apart.overlapping(record, apart) == []
+
+
 def test_a_door_goes_in_its_opening_narrowed_to_fit():
     """A 1.4 x 0.1 x 2.4 m door laid off its wall goes in its 1.2 m wide, 2.1 m tall opening: shrunk to 1.2 / 1.4,
     its foot's middle on the opening's middle at its sill.
