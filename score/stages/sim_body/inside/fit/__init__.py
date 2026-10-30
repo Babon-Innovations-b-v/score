@@ -134,24 +134,22 @@ def card_jacobian(fit, frames):
     return lambda problem, unknowns: _level2.jacobian(problem, unknowns, card)
 
 
-def constants(fit, recordings, warm=None, tolerance=None):
+def constants(fit, recordings):
     """The person's constants on `fit` (a `Fitting`), once per body from all its `recordings` together ([(turns,
     points)]: CONTEXT.md "person constants"), on the frames `sampled` picks from mink's angles at the start
     constants (the lengths are SOMA's, from sizing: no size unknowns): the markers' moves (all but HELD's) and the
     joints inside the groups (#70's level 2: the vertebrae, shoulder blade, wrist bones and inner foot joints, each
     body's move in its parent, `Fitting.inside`), together:
     {"marks": {landmark: [3] m, its body's frame}, "joints": {body: [3] m, its parent's frame}, "evaluations": n,
-    "followed": [group], "solved": (constants vector, sampled frames' angles)}; `warm` another set's "solved" as the
-    solve's start, `tolerance` least_squares' (`staged`)."""
+    "followed": [group]}."""
     turns, points, path = sampled(fit, recordings)
     free = [index for index, name in enumerate(fit.marks) if name not in HELD and not name.startswith(END)]
-    found, solved, evaluations = staged(fit, path, turns, points, fit.neutral(), free, card_jacobian(fit, len(path)),
-                                        warm, tolerance)
+    found, _, evaluations = staged(fit, path, turns, points, fit.neutral(), free, card_jacobian(fit, len(path)))
     marks, joints = fit.unpack(found)
     return {"marks": {name: move.tolist() for name, move in zip(fit.marks, marks) if not name.startswith(END)},
             "joints": {name: move.tolist() for name, move in zip(fit.inside_names, joints)},
             "evaluations": evaluations,
-            "followed": list(fit.groups), "solved": (found, solved)}
+            "followed": list(fit.groups)}
 
 
 def angles(fit, turns, points):

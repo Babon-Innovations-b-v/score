@@ -4,7 +4,7 @@ The one solver (#70; SOMA is the truth): MyoFullBody fitted to the clip's SOMA b
 (`followed`, `placed`, `targets`, `fitting`, `constants`, `angles`, `following`, `riding`, `constants_record`,
 `METHOD`); `_model.py` the fitting model (`Fitting`: MuJoCo's own compile of the person's file, a calibration site per
 bone group, a site per landmark marker, the constants laid on `body_pos`/`site_pos` in
-place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the constants' sparse least squares (`_flat.py` its optional pull along the directions the data barely tells, `staged(flat=)`, off until measured to make level 2 unique),
+place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the constants' sparse least squares,
 `_follow.py` the judgement and the segments' riding, `_skin.py` the bones outside SOMA's posed skin by region
 (warp's winding number, every 10th frame; `marks_kernel` beside it each point's depth outside, its distance to the
 skin's closest point, 0 inside, `depth_mm` a region's root mean square: level 1's smooth skin residual, the share

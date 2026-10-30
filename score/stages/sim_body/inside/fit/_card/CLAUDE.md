@@ -139,13 +139,8 @@ before that.
   errors), the measures on a toy body (`tests/card_body.py`, its check there too), level 2's two checks in `tests/card_level2.py`; it needs Newton's Python and a CUDA card, else prints `skipped`. About 20 s.
 - `_level2_card.CardKinematics.lay` / `frames(qpos, body_pos, site_pos)` (2026-10-30): each world its own row of
   constants (worlds x n x 3), so one card model holds every set's sampled frames (level 2 across sets' first
-  piece); on the toy, 3 sets equal each set alone bit for bit (test). `_lockstep.py` (`Lockstep`, `run`, 2026-10-30): every
-  set of one body runs its own `staged` (own `Fitting`, same cold start and tolerances) in its own thread, and each
-  round of exact Jacobians is ONE `frames` call over every running set's worlds (sets x frames); a finished set drops
-  out. On the toy, 3 sets equal each alone bit for bit, same evaluations (test; red when a set gets set 0's worlds).
-  The Jacobian assembly is still per set. Not wired into `evaluation._card_sets` / `_card_batch.body_run`: measured
-  2026-10-30 on tall's first case (one cold level 2 with the exact card Jacobian, 21 evaluations), the whole solve is
-  2.42 s, of which the card `frames` calls 0.40 s, the host assembly (`frame_rows` + coo) 1.04 s, the residuals 0.34 s
-  and scipy's own steps ~0.64 s. Batching `frames` across sets saves at most that 17 % of level 2, and level 2 is about
-  a fifth of a (set, body) today, so the lockstep is not the Jacobian's 5x: level 3 across sets (`_sets.Sets`) is the
-  share to batch first, then the host assembly if level 2 still matters.
+  piece); on the toy, 3 sets equal each set alone bit for bit (test). Not used: a lockstep driver (one card `frames`
+  call a round for every running set, 3acb8b02) was built and deleted 2026-10-30: on tall's first case the card
+  `frames` calls are 0.40 s of a 2.42 s level 2 solve (host assembly 1.04 s, residuals 0.34 s, scipy ~0.64 s), so
+  batching them across sets saves at most 17 % of level 2. Level 3 across sets (`_sets.Sets`) measured no gain either
+  (heavy, 7 clips x 4 sets: 68.1 s alone, 72.3 s together), so its driver went too.

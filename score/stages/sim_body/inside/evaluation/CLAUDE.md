@@ -44,20 +44,8 @@ held-out rule (within 10 % of the tuning bodies).
   Never warm-start a nudged set from the base point's answer (tried 2026-10-30, level 2's least_squares x0: the
   columns 1.3 to 9.7 % apart, step cosine -0.91): a solve stops anywhere inside its tolerance, and a 0.4 step's
   difference is that small, so every set starts where the base point started.
-  `_card_sets.py ... --warm <tolerance>` (2026-10-30, off by default) is the second try: level 2 per body warm from
-  the base point's "solved" (`evaluation.warmed`, a differently laid-out answer refused) and every set, the base point
-  too, at that one tight ftol/xtol/gtol. Measured on the 6a gate's 7 sets (heavy and tall kimodo, 2026-10-30, against
-  the serial CPU columns; cold: 0.04 to 0.61 %, cosine 0.99998, 28 to 38 evaluations): at 1e-8 (scipy's default)
-  the columns 1.5 to 29 % apart, cosine 0.958, 17 to 24 evaluations; at 1e-10 the base point 532 / 584 evaluations
-  and every nudged set 176 to 263, about 7 times the cold default's, and still 1.4 to 15 % apart, cosine 0.989
-  (the CPU columns are at the default tolerance): warm fails the gate and is dearer than cold.
-  Stay cold: warm-starting level 2 is no speed lever.
-- `_card_sets.py ... --across <N>` (`_card_across.py`, 2026-10-30, off by default; cold only): the nudged sets of a
-  body N at a time, each laid and set up as `body_run` (level 2 cold, its own `Fitting` and `Clip`), then every set's
-  frames in ONE `fit._card._sets.Sets` batch, then each set written with its own laid state put back (a `Saved` taken
-  after its laying). Gate (heavy_kimodo, one 136-frame clip, 3 nudged sets, --same-seeds): angles within 5.5e-5 deg and
-  joints 5.4e-5 mm of the per-set path, every other measure equal; wall 57.4 s against 56.7 s: on one short clip level
-  3 is too small a share to show. Not yet timed on a body's 7 clips (~1,000 rows a set), where four.pstats put level 3
-  at about a third of a (set, body); no test of its own yet (needs the card; the module's toy test still passes).
+  Warm level 2 (a `--warm <tolerance>` option, deleted 2026-10-30) was measured on the 6a gate's 7 sets against the
+  serial CPU columns (cold: 0.04 to 0.61 %, cosine 0.99998): at 1e-8 the columns 1.5 to 29 % apart, at 1e-10 still
+  1.4 to 15 % apart with about 7 times the cold evaluations. Stay cold: warm-starting level 2 is no speed lever.
 - Judged on following SOMA, never on landmark distances; `fit._frozen` is never edited to follow the tree's calibration.
 - Test: `test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py` (a toy worker, any Python with numpy and scipy).
