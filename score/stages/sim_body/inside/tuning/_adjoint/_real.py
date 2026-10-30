@@ -56,6 +56,21 @@ def joint_parts(clip, scales, segments, worlds):
     return joints
 
 
+
+def turn_groups(clip, segments, worlds):
+    """`TapedMeasures`' turns on `per_frame_model`: {segment: (FRAME_BODY's link per frame, identity offset, SOMA's
+    turn per frame x y z w)}, the frozen table folded into SOMA's side (TO_OWN.T @ the world's turn @ frozen_turn), so
+    each degree is `fit/_card/_measure.turn_errors`' angle between the link's turn and that one."""
+    from scipy.spatial.transform import Rotation
+    from evaluation import _measure as cpu
+    from fit._frozen import frozen_turn
+    from model import TO_OWN
+    frames = np.arange(len(worlds)) * clip.model.body_count
+    return {segment: (frames + clip.body[cpu.FRAME_BODY[segment]], np.array([0, 0, 0, 1.0]),
+                      Rotation.from_matrix(TO_OWN.T @ worlds[:, segments.index(segment), :3, :3]
+                                           @ frozen_turn(segment)).as_quat())
+            for segment in segments if segment in cpu.FRAME_BODY}
+
 def solved_rows(clip, targets, seeds):
     """Every clip's level 3 rows (frames x nq, Newton's order, clip after clip in `targets`' order) and steps from
     one `Sets([clip]).angles` batch; `seeds` {case: qpos [frames, nq], MuJoCo's layout}."""

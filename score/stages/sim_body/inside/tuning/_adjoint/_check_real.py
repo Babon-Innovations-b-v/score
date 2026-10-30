@@ -5,7 +5,8 @@ the card solve's own (<reference root>/<case>/angles.npz, Newton's order); print
 largest |difference|), the per-frame model's check (`_real.per_frame_model` at the rows' pose through
 `frame_couplings` and `RootTurns`' full(reduced()), its body_q against the clip's own model's at each row: the
 largest |difference|), the joints' check (`TapedMeasures` on `_real.joint_parts` against
-`evaluation._measure.centre` in MuJoCo: the largest |difference| of the misses) and the seconds; saves rows.npz (rows, steps, per case) into <out root>."""
+`evaluation._measure.centre` in MuJoCo: the largest |difference| of the misses; the turn groups'
+degrees on `_real.turn_groups` against `fit/_card/_measure.turn_errors`: "turn most") and the seconds; saves rows.npz (rows, steps, per case) into <out root>."""
 import json
 import pathlib
 import shutil
@@ -108,13 +109,18 @@ from _measures import TapedMeasures  # noqa: E402
 scales, segments, worlds = _real.soma_of(str(out / "table.json"), str(out / "weights.json"), out, cases,
                                          _card_batch.Saved())
 joints = _real.joint_parts(clip, scales, segments, worlds)
-unturned = {"none": (np.arange(len(rows)) * clip.model.body_count, np.array([0, 0, 0, 1.0]),
-                     np.tile([0, 0, 0, 1.0], (len(rows), 1)))}
-taped_joints = TapedMeasures(sites, joints, __import__("model").TO_OWN, unturned)
+groups = _real.turn_groups(clip, segments, worlds)
+taped_joints = TapedMeasures(sites, joints, __import__("model").TO_OWN, groups)
 taped_joints._evaluate(turns.full(turns.reduced()), offsets)
 mine = np.linalg.norm(taped_joints.differences.numpy().reshape(len(joints), len(rows), 3), axis=2)
 wanted = card_joints(clip, joints, scales, rows)
+from fit._card import _measure as card  # noqa: E402
+degrees = taped_joints.degrees.numpy().reshape(len(groups), len(rows))
+card_degrees = card.turn_errors(clip.mjm, card.Posed(clip.mjm, np.concatenate(
+    [rows[:, :3], rows[:, [6, 3, 4, 5]], rows[:, 7:]], axis=1), {0}), worlds, segments)
+turned = np.array([card_degrees[name] for name in sorted(groups)])
 measures = {"joints": len(joints), "most": float(np.max(np.abs(mine - wanted))), "largest": float(wanted.max()),
-            "seconds": time.time() - began}
+            "groups": len(groups), "turn most": float(np.max(np.abs(degrees - turned))),
+            "turn largest": float(turned.max()), "seconds": time.time() - began}
 print(json.dumps({"cases": found, "rows": int(rows.shape[0]), "seconds": seconds, "fk": fk, "taped": taped,
                   "measures": measures}))
