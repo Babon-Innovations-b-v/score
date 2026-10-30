@@ -4,7 +4,8 @@ unconverged inner fit is refused.
 
 Breaks (each applied once, seen red, reverted), in `tuning/_adjoint/__init__.py`: dropping the mixed term
 (`moved` set to zeros) turns the columns test red; `schur_solve` skipping the couplings' reduction (`reduced = corner`)
-turns the Schur and columns tests red; removing the `Unconverged` check turns the refusal test red."""
+turns the Schur and columns tests red; removing the `Unconverged` check turns the refusal test red; `stacked_jacobian` skipping `refused`
+(no check before use) turns the stacked refusal test red; dropping the prior's block turns the stacked test red."""
 import numpy as np
 import pytest
 import scipy.optimize
@@ -72,3 +73,25 @@ def test_an_unconverged_inner_fit_is_refused():
     with pytest.raises(_adjoint.Unconverged):
         _adjoint.implicit_jacobian(_residuals, _gradient, np.full(FRAMES * POSE + CONSTANTS, 0.2), OUTER, FRAMES,
                                    POSE, (1e-5, 1e-5), 1e-8)
+
+
+def _body(name, inner):
+    return _adjoint.Body(name, _residuals, _gradient, inner, FRAMES, POSE)
+
+
+def _prior(outer):
+    return outer ** 2
+
+
+def test_stacked_jacobian_is_each_body_then_the_prior():
+    inner = _solved(OUTER)
+    stacked = _adjoint.stacked_jacobian([_body("one", inner), _body("two", inner)], OUTER, _prior, (1e-5, 1e-5), 1e-8)
+    one = _adjoint.implicit_jacobian(_residuals, _gradient, inner, OUTER, FRAMES, POSE, (1e-5, 1e-5), 1e-8)
+    assert np.allclose(stacked, np.concatenate([one, one, np.diag(2 * OUTER)]), atol=1e-8)
+
+
+def test_the_stacked_jacobian_names_every_unconverged_body():
+    stopped = np.full(FRAMES * POSE + CONSTANTS, 0.2)
+    with pytest.raises(_adjoint.Unconverged, match="two .*three"):
+        _adjoint.stacked_jacobian([_body("one", _solved(OUTER)), _body("two", stopped), _body("three", stopped)],
+                                  OUTER, _prior, (1e-5, 1e-5), 1e-8)

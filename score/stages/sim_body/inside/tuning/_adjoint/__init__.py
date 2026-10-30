@@ -93,3 +93,31 @@ def implicit_jacobian(residuals, gradient, inner, outer, frames, pose_size, step
     by_inner = by_columns(lambda point: residuals(point, outer), inner, inner_step)
     by_outer = by_columns(lambda point: residuals(inner, point), outer, outer_step)
     return by_outer - by_inner @ moved
+
+
+class Body:
+    """One tuning body's inner problem at its optimum: `residuals(inner, outer)` its rows, `gradient(inner, outer)`
+    level 2 and 3's gradient, `inner` the solved poses then constants, `frames` and `pose_size` its shape."""
+
+    def __init__(self, name, residuals, gradient, inner, frames, pose_size):
+        self.name, self.residuals, self.gradient = name, residuals, gradient
+        self.inner, self.frames, self.pose_size = np.asarray(inner, dtype=float), frames, pose_size
+
+
+def refused(bodies, outer, tolerance):
+    """{name: inner gradient's largest entry} of every body whose inner fit stopped over `tolerance`."""
+    norms = {body.name: gradient_norm(body.gradient, body.inner, outer) for body in bodies}
+    return {name: norm for name, norm in norms.items() if norm > tolerance}
+
+
+def stacked_jacobian(bodies, outer, prior, steps, tolerance):
+    """Level 1's whole Jacobian (rows x outer unknowns) in `tuning`'s row order, every body's rows then `prior`'s
+    (`prior(outer)`, its columns by central differences): each body's block by `implicit_jacobian`. Every body is
+    checked before any is used, and `Unconverged` names each one stopped over `tolerance`."""
+    stopped = refused(bodies, outer, tolerance)
+    if stopped:
+        raise Unconverged("inner fits stopped unconverged: "
+                          + ", ".join(f"{name} {norm:.3g}" for name, norm in stopped.items()))
+    blocks = [implicit_jacobian(body.residuals, body.gradient, body.inner, outer, body.frames, body.pose_size, steps,
+                                tolerance) for body in bodies]
+    return np.concatenate(blocks + [by_columns(prior, outer, steps[1])])
