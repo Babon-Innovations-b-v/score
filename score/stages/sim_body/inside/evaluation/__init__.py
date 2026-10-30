@@ -16,7 +16,7 @@ FREE_GB = 12
 HELD_OUT_SHARE = 0.10  # the check bodies' score may be at most this much worse than the tuning bodies'
 WORKER = pathlib.Path(__file__).resolve().parent / "_case.py"
 SETS_WORKER = pathlib.Path(__file__).resolve().parent / "_card_sets.py"  # every set of a Jacobian, one card process
-CHUNK = 12  # sets per card process: 32 tall sets peaked ~5.2-5.5 GB own (phase A ~2.6, +~2.7 per 32 in the constants phase; night/across c38), 12 keeps ~3.7 under 4
+CHUNK = 12  # sets per chunk of the one card process: 32 tall sets peaked ~5.2-5.5 GB own (phase A ~2.6, +~2.7 per 32 in the constants phase; night/across c38), 12 keeps ~3.7 under 4
 SAME_SEEDS = "--same-seeds"  # _card_sets: every set seeded from the seeds root, the base point's way
 SOLVED = "measures.json"  # a clip's unrounded measures, the solver's; m.json beside it is the rounded copy people read
 SEEDS = "angles.npz"  # a clip's mink angles per frame (qpos, frames x nq): the card's seeds (fit._card._seeds)
@@ -129,21 +129,18 @@ def launched(command, log):
 
 
 def measured_many(sets, cases, out, python, seeds_root, launch=launched, chunk=None):
-    """[{case: honest measures}] for every set ([(rows, weights, rest)], as `measured` takes one) in card processes
-    of at most `chunk` sets each (default CHUNK, so one process's card memory stays bounded; `_card_sets.py`, card
-    build step 6a), one after another, every set seeded from `seeds_root`'s angles. out/p000/s00000.. hold the
-    sets; raises when a process fails or any set misses a case. `launch(command, log)` runs one (default `launched`)."""
+    """[{case: honest measures}] for every set ([(rows, weights, rest)], as `measured` takes one) in ONE card process
+    (`_card_sets.py`, card build step 6a) that keeps each body's start-up and runs the sets in chunks of at most
+    `chunk` (default CHUNK, so its card memory stays bounded), one chunk after another, every set seeded from
+    `seeds_root`'s angles. out/p000/s00000.. hold the sets; raises when the process fails or any set misses a case.
+    `launch(command, log)` runs it (default `launched`)."""
     shutil.rmtree(out, ignore_errors=True)
     chunk = chunk or CHUNK
-    found = []
-    for start in range(0, len(sets), chunk):
-        part = out / f"p{start // chunk:03d}"
-        folders = [part / f"s{index:05d}" for index in range(start, min(start + chunk, len(sets)))]
-        for folder, (rows, weights, rest) in zip(folders, sets[start:start + chunk], strict=True):
-            set_written(folder, rows, weights, rest)
-        code = launch(sets_command(python, seeds_root, part, cases), part / "sets.log")
-        found += [read_back(folder, cases, {"sets": code}) for folder in folders]
-    return found
+    folders = [out / f"p{index // chunk:03d}" / f"s{index:05d}" for index in range(len(sets))]
+    for folder, (rows, weights, rest) in zip(folders, sets, strict=True):
+        set_written(folder, rows, weights, rest)
+    code = launch(sets_command(python, seeds_root, out, cases), out / "sets.log")
+    return [read_back(folder, cases, {"sets": code}) for folder in folders]
 
 
 def case_score(found):

@@ -14,6 +14,7 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
 - rounded's list branch dropped: a summary's floats reach m.json unrounded (2026-10-29).
 - measured_many's folders zipped reversed: a set is handed another set's measures (2026-10-29).
 - measured_many's every chunk written from the first sets: a later chunk's sets get the first chunk's measures (2026-10-30).
+- measured_many launching one process a chunk again: each body's start-up is repeated every chunk (2026-10-30).
 - sets_command's SAME_SEEDS dropped: the nudged sets start from the base set's angles, not the seeds root's.
 - tuning.case_residuals' skin read from "bones outside skin %": level 1 solves on the share, a step, not the
   depth outside (2026-10-30).
@@ -87,7 +88,7 @@ def toy_sets_launch(calls):
     def launch(command, log):
         calls.append(command)
         root, cases = pathlib.Path(command[command.index(str(evaluation.SETS_WORKER)) + 2]), command[-2:]
-        for folder in sorted(root.glob("s*")):
+        for folder in sorted(root.glob("p*/s*")):
             for case in (given.split("=")[0] for given in cases):
                 (folder / case).mkdir()
                 (folder / case / "measures.json").write_text((folder / "table.json").read_text())
@@ -105,13 +106,15 @@ def test_every_set_of_a_jacobian_runs_in_one_card_process_and_gets_its_own_measu
         assert [found_set["tall_kimodo"] for found_set in found] == [{"set": index} for index in range(3)]
 
 
-def test_a_jacobian_over_the_chunk_runs_in_chunks_each_set_keeping_its_own_measures():
+def test_a_jacobian_over_the_chunk_runs_its_chunks_in_one_process_each_set_keeping_its_own_measures():
     with tempfile.TemporaryDirectory() as folder:
         calls, cases = [], evaluation.picked(CASES, {"tuning": ["tall"]}, "tuning")
         sets = [({"set": index}, {"marker goal": 1.0}, {"centres": {}}) for index in range(5)]
         found = evaluation.measured_many(sets, cases, pathlib.Path(folder) / "jacobian", sys.executable,
                                          "/seeds", launch=toy_sets_launch(calls), chunk=2)
-        assert len(calls) == 3
+        assert len(calls) == 1
+        assert sorted(path.parent.name for path in (pathlib.Path(folder) / "jacobian").glob("p*/s*")) == \
+            ["p000", "p000", "p001", "p001", "p002"]
         assert [found_set["tall_kimodo"] for found_set in found] == [{"set": index} for index in range(5)]
 
 
