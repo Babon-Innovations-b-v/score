@@ -4,7 +4,9 @@
 solved rows with the moves 0; prints JSON: the pose part of its gradient against the constant-free one (the largest
 |difference| and the largest entry), and its constants' gradient on its `PICKED` largest entries against central
 differences of the cost (0.5 |residuals|^2, float64 off the taped rows) at each of `STEPS` (m), the largest gap over
-the largest entry; and the seconds."""
+the largest entry; level 3 as `_bodies.level3_body` (outer the moves): g_q,c by `mixed` over the `PICKED` constants
+against the constants' gradient differenced over the `PICKED` largest free pose entries of those columns (H's
+symmetry), the largest gap over the largest entry; and the seconds."""
 import json
 import pathlib
 import shutil
@@ -15,12 +17,13 @@ import numpy as np
 
 sys.path.insert(0, sys.argv[1])
 import _real  # noqa: E402
-from _bodies import pose_of  # noqa: E402
+from _bodies import Pinned, RootTurns, level3_body, pose_of  # noqa: E402
 from evaluation import _card_batch  # noqa: E402
 from fit._card import _seeds  # noqa: E402
 
 PICKED = 8
 STEPS = (1e-3, 1e-4)
+MIXED_STEP = 1e-4  # m on a constant, rad or m on a pose entry
 
 seeds_root, folder, out = (pathlib.Path(arg) for arg in sys.argv[2:5])
 cases = dict(given.split("=", 1) for given in sys.argv[5:])
@@ -56,7 +59,39 @@ for step in STEPS:
         nudge[entry] = step
         differenced.append((cost(nudge) - cost(-nudge)) / (2 * step))
     gaps[str(step)] = float(np.max(np.abs(np.array(differenced) - moves[picked])) / np.max(np.abs(moves)))
-print(json.dumps({"pose most": float(np.max(np.abs(found[:len(pose)] - without))),
+
+couplings = _real.frame_couplings(clip, rows)
+turns = RootTurns(pose, len(couplings[0]) // len(rows))
+pinned = Pinned(turns.reduced(), _real.bound_held(clip, couplings, rows))
+level3 = level3_body("heavy_kimodo", sites, turns, pinned, offsets, len(rows))
+from tuning._adjoint import mixed  # noqa: E402
+
+
+def _laid(few):
+    """All of level 2's moves, zero but the picked constants at `few`."""
+    moves = np.zeros(sites.constants.size)
+    moves[picked] = few
+    return moves
+
+
+def constants_gradient(inner):
+    """The constants' gradient at the chart point `inner`, the moves 0."""
+    return sites.gradient(np.concatenate([turns.full(pinned.whole(inner)), np.zeros(sites.constants.size)]),
+                          offsets)[len(pose):][picked]
+
+
+cross = mixed(lambda inner, few: level3.gradient(inner, _laid(few)), level3.inner, np.zeros(PICKED), MIXED_STEP)
+entries = np.argsort(-np.max(np.abs(np.where(pinned.held[:, None], 0.0, cross)), axis=1))[:PICKED]
+transposed = []
+for entry in entries:
+    up, down = level3.inner.copy(), level3.inner.copy()
+    up[entry] += MIXED_STEP
+    down[entry] -= MIXED_STEP
+    transposed.append((constants_gradient(up) - constants_gradient(down)) / (2 * MIXED_STEP))
+symmetry = float(np.max(np.abs(np.array(transposed) - cross[entries])) / np.max(np.abs(cross[entries])))
+print(json.dumps({"cross shape": list(cross.shape), "cross largest": float(np.max(np.abs(cross[entries]))),
+                  "cross symmetry": symmetry, "cross held most": float(np.max(np.abs(cross[pinned.held]))),
+                  "pose most": float(np.max(np.abs(found[:len(pose)] - without))),
                   "pose largest": float(np.max(np.abs(without))), "constants": int(sites.constants.size),
                   "free marks": int(constants[0].shape[1]), "inside joints": int(constants[1].shape[1]),
                   "constants largest": float(np.max(np.abs(moves))), "picked": picked.tolist(),
