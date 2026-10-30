@@ -1,8 +1,10 @@
 """The implicit Jacobian equals central differences of re-solved inner fits on a toy two-level problem (frames' poses
 and shared constants, residuals nonzero at the optimum so Gauss-Newton differs from the full Hessian), and an
-unconverged inner fit is refused.
+unconverged inner fit is refused, and level 1's outer rows (a per-frame distance's median and a root mean square)
+equal differences of the measures they stand for.
 
-Breaks (each applied once, seen red, reverted), in `tuning/_adjoint/__init__.py`: dropping the mixed term
+Breaks (each applied once, seen red, reverted), in `tuning/_adjoint/__init__.py`: `rms_row` dropping its 1 / count
+turns the outer rows test red; dropping the mixed term
 (`moved` set to zeros) turns the columns test red; `schur_solve` skipping the couplings' reduction (`reduced = corner`)
 turns the Schur and columns tests red; removing the `Unconverged` check turns the refusal test red; `stacked_jacobian` skipping `refused`
 (no check before use) turns the stacked refusal test red; dropping the prior's block turns the stacked test red;
@@ -239,6 +241,28 @@ def _newton_python():
     found = pathlib.Path(os.environ.get("PROPS_HOME", "/nonexistent")) / "envs/newton_env/bin/python"
     return found if found.exists() else None
 
+
+def _differences(unknowns):
+    times = np.linspace(0.0, 1.0, 5)[:, None]
+    return np.concatenate([np.sin(unknowns[0] + 3 * times), unknowns[1] * times + 0.2, np.cos(unknowns[2] * (1 + times))],
+                          axis=1)
+
+
+def _outer_values(unknowns):
+    lengths, _ = _adjoint.distance_rows(_differences(unknowns), np.zeros((5, 3, 3)))
+    return np.array([np.median(lengths), np.sqrt(np.mean(np.square(lengths)))])
+
+
+def test_the_outer_rows_equal_differences_of_the_median_and_the_root_mean_square():
+    unknowns = np.array([0.3, 0.7, 1.1])
+    rows = _adjoint.by_columns(lambda point: _differences(point).ravel(), unknowns, 1e-6).reshape(5, 3, 3)
+    lengths, length_rows = _adjoint.distance_rows(_differences(unknowns), rows)
+    median, median_row = _adjoint.median_row(lengths, length_rows)
+    root, root_row = _adjoint.rms_row(lengths, length_rows)
+    expected = _adjoint.by_columns(_outer_values, unknowns, 1e-6)
+    assert np.allclose([median, root], _outer_values(unknowns))
+    assert np.allclose(np.stack([median_row, root_row]), expected, atol=1e-6)
+    assert np.allclose(_adjoint.median_row(lengths[:4], length_rows[:4])[0], np.median(lengths[:4]))
 
 def test_the_taped_gradient_equals_central_differences_of_the_cost():
     python = _newton_python()
