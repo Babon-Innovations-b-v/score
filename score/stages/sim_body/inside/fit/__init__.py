@@ -169,6 +169,17 @@ def constants(fit, recordings):
     return constants_on(fit, turns, points, path)
 
 
+def constants_across(fits, recordings):
+    """`constants` of every set of one body (`fits` one `Fitting` a set, `recordings` that set's [(turns, points)],
+    the same recordings' lengths in every set), every set's sampled frames posed in one card launch a frame
+    (`card_paths`), then each set's constants solved on its own."""
+    sampled_sets = [sampled_targets(given) for given in recordings]
+    paths = card_paths(fits, [turns for turns, _, _ in sampled_sets], [points for _, points, _ in sampled_sets],
+                       sampled_sets[0][2])
+    return [constants_on(fit, turns, points, path)
+            for fit, (turns, points, _), path in zip(fits, sampled_sets, paths)]
+
+
 def constants_on(fit, turns, points, path):
     """`constants`' solve on sampled targets already posed (`path` their angles at the start constants)."""
     free = [index for index, name in enumerate(fit.marks) if name not in HELD and not name.startswith(END)]
