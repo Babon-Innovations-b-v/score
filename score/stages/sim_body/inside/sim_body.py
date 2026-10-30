@@ -104,14 +104,16 @@ def person_set_up(job, person, rig, worlds, path, size):
     return constants_set_up(job, person, rig, worlds, path, size, scales)
 
 
-def constants_set_up(job, person, rig, worlds, path, size, scales, made=None):
+def constants_set_up(job, person, rig, worlds, path, size, scales, made=None, found=None):
     """`person_set_up` from the sized file without constants already at `path` (its scales `scales`): the constants
     solved on it, the file written again with them, its record, each body's scale and the `Fitting`. `made`: the
-    recordings' `fit.targets` in order, when the caller made them already."""
+    recordings' `fit.targets` in order, when the caller made them already; `found`: the constants, when the caller
+    solved them already (`fit.constants_across`, every set of a body at once)."""
     segments = person["segments"]
     held = fit.followed(segments)
-    made = made or [fit.targets(rig, segments, clip, held) for clip in recordings(person, worlds)]
-    found = fit.constants(fit.fitting(path, scales, held, segments), made)
+    if found is None:
+        made = made or [fit.targets(rig, segments, clip, held) for clip in recordings(person, worlds)]
+        found = fit.constants(fit.fitting(path, scales, held, segments), made)
     record, scales = myo.person_file(job["model"], size, person["kg"], path, found)
     fitting = fit.fitting(path, scales, held, segments, found["marks"])
     record["fit"] = {"method": fit.METHOD, "constants": fit.constants_record(found)}
