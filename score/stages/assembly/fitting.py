@@ -21,7 +21,9 @@ shrunk where it does not fit (never grown past its own model), so it sits
             there to the deck's top over its length, its high end's foot on the deck's near side (ramp_rest)
 
 and a thing nothing holds (no `on`) that starts inside a deck or wall (statics) is moved the least way out of it
-(moved_out: airlock's sandbags in its porch deck, its porch post in its wall). Boxes are the place's axis-aligned ones (Y up), so a face is the box side nearest `out`; the plan's sizes are
+(moved_out: airlock's sandbags in its porch deck, its porch post in its wall), and one whose built surface passes up
+through a roof's built surface (by the roof's mesh, never its box: a dome's box holds the room under it) is moved down
+under it (moved_down, through_roofs). Boxes are the place's axis-aligned ones (Y up), so a face is the box side nearest `out`; the plan's sizes are
 estimates, the built ones are laid (the module's 12 m, not the plan's 17.2). Kept apart from record.py: the light and
 settle stages hash it.
 
@@ -30,8 +32,9 @@ settle stages hash it.
     fitted(stage, place, entries, laid, cuts)   each laid entry's fit applied on the stage; the fits [{name, ...}]
     off(low, high, on, holders)   metres an object as laid stands off where its relation puts it
     held_faults(record, laid)     [(object, what is wrong, metres or None)]: the assembly's `held` gate, one left
-                                  inside a deck or wall its relation does not lay it in (an opening's door, a
-                                  passage against its wall: passes) too
+                                  inside a deck or wall, or up through a roof (laid's `roofs`), its relation does not
+                                  lay it in (an opening's door, a passage against its wall: passes) too
+    through_roofs(stage, place, names)   [{name, roof, metres}] of the objects passing up through a roof's surface
     short_doors(record, laid)     [(object, what is wrong, metres)]: doors short of their openings, named, not failed
 """
 import math
@@ -452,8 +455,10 @@ def short_of(low, high, on):
 
 
 # What a laid object never starts inside unless its relation lays it there (a door in its opening): the shell's decks,
-# raised levels and walls (scene_record/writer.shell's names), never a roof (a dome's box holds the room under it).
+# raised levels and walls (scene_record/writer.shell's names), never a roof by its box (a dome's box holds the room
+# under it): a roof by its mesh (ROOF, through_roofs).
 STATICS = ("deck", "level", "wall")
+ROOF = "roof"
 # A wall's box is the wall only where it runs along x or z: no thicker than this across, metres (a slanted wall's box
 # holds the room beside it: habitat's, hub's and workshop's walls, 2 to 390 m across).
 WALL_THICKEST = 1.0
@@ -553,6 +558,9 @@ def held_faults(record, laid):
     named_walls = [(wall["name"], (np.asarray(wall["low"], float), np.asarray(wall["high"], float)))
                    for wall in laid.get("walls", [])]
     walls = [box for _, box in named_walls]
+    roofed = {}
+    for found in laid.get("roofs", []):
+        roofed.setdefault(found["name"], []).append(found)
     faults = []
     for entry in record.get("objects") or []:
         if entry["name"] not in boxes:
@@ -582,6 +590,9 @@ def held_faults(record, laid):
             faults += [(entry["name"], f"laid {depth:.2f} m inside {static}, nothing holding it there", depth)
                        for static, depth in inside_of(low, high, named_walls)
                        if not (passes(entry) and static.split("_")[0] == "wall")]
+        if not held_in(on) and not climbs(entry):
+            faults += [(entry["name"], f"laid {found['metres']:.2f} m up through {found['roof']}, nothing holding it "
+                                       "there", found["metres"]) for found in roofed.get(entry["name"], [])]
         if entry.get("fills") and not (on and on["how"] in ("in", "face", "within", "top")):
             faults.append((entry["name"], "a door or window in no opening and on no holder", None))
         for mark in ("unheld", "unplaced"):
@@ -927,8 +938,8 @@ def fitted(stage, place, entries, laid, cuts=None):
     leaves = {name for name, entry in by_name.items() if entry["on"]["how"] in ("in", "face") and swings(entry["row"])}
     for name in sorted(by_name, key=lambda name: name not in leaves):  # the leaves first: a wall's things keep clear of them
         one(name)
-    return fits + moved_out(stage, place, [entry for entry in entries if entry["name"] in laid and not entry.get("on")
-                                           and not climbs(entry)])
+    loose = [entry for entry in entries if entry["name"] in laid and not entry.get("on") and not climbs(entry)]
+    return fits + moved_out(stage, place, loose) + moved_down(stage, place, loose)
 
 
 def moved_out(stage, place, entries):
@@ -956,5 +967,115 @@ def moved_out(stage, place, entries):
         after = world_box(stage, path)
         fits.append({"name": entry["name"], "row": entry["row"], "how": "out", "holder": left,
                      "moved": round(moved, 3), "scale": 1.0, "low": [round(float(value), 4) for value in after[0]],
+                     "high": [round(float(value), 4) for value in after[1]], "words": words})
+    return fits
+
+
+def roofs(stage, place):
+    """[(name, triangles [n, 3, 3] in the world)] of the place's built roofs (its Structure prims named ROOF...): each
+    drawn mesh's faces, fanned into triangles."""
+    from pxr import Usd, UsdGeom
+    root = stage.GetPrimAtPath(f"/{place}/Structure")
+    found = []
+    for child in root.GetChildren() if root else []:
+        if child.GetName().startswith(ROOF):
+            found.append((child.GetName(), np.concatenate([np.zeros((0, 3, 3))] + [
+                mesh_triangles(prim) for prim in Usd.PrimRange(child) if prim.IsA(UsdGeom.Mesh)
+                and UsdGeom.Imageable(prim).ComputePurpose() != UsdGeom.Tokens.guide])))
+    return found
+
+
+def mesh_triangles(prim):
+    """[n, 3, 3] world triangles of a mesh prim's faces, each fanned from its first corner."""
+    from pxr import Usd, UsdGeom
+    mesh = UsdGeom.Mesh(prim)
+    matrix = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+    points = np.asarray(mesh.GetPointsAttr().Get() or [], float).reshape(-1, 3) @ matrix[:3, :3] + matrix[3, :3]
+    indices, start, fans = np.asarray(mesh.GetFaceVertexIndicesAttr().Get() or [], int), 0, []
+    for count in mesh.GetFaceVertexCountsAttr().Get() or []:
+        fans += [(indices[start], indices[start + corner], indices[start + corner + 1]) for corner in range(1, count - 1)]
+        start += count
+    return points[np.asarray(fans, int).reshape(-1, 3)]
+
+
+def roof_under(points, triangles):
+    """[n] the height of the lowest of a roof's faces over (or under) each point's place on the floor (x, z), NaN where
+    none is; a standing face (a dome's rim, a gable's end) lies over no place."""
+    corner, first, second = triangles[:, 0], triangles[:, 1] - triangles[:, 0], triangles[:, 2] - triangles[:, 0]
+    to = points[:, None, :] - corner[None, :, :]
+    both = first[:, 0] * second[:, 2] - first[:, 2] * second[:, 0]
+    level = np.abs(both) > 1e-12
+    both = np.where(level, both, 1.0)
+    along = (to[..., 0] * second[None, :, 2] - to[..., 2] * second[None, :, 0]) / both
+    across = (first[None, :, 0] * to[..., 2] - first[None, :, 2] * to[..., 0]) / both
+    over = level & (along >= 0) & (across >= 0) & (along + across <= 1)
+    height = np.where(over, corner[None, :, 1] + along * first[None, :, 1] + across * second[None, :, 1], np.inf)
+    lowest = height.min(axis=1)
+    return np.where(np.isfinite(lowest), lowest, np.nan)
+
+
+def through_roof(points, triangles):
+    """Metres a built surface's points reach up over a roof's lowest face over them where some of them stand under
+    it: the roof's surface passes through the thing (a thing under a dome reaches none; one wholly on it is not through
+    it); 0.0 otherwise. Read at the points' convex hull's corners: a roof's height over the floor is concave (a dome, a
+    gable, a flat slab), so the most a point reaches over it is at one of them."""
+    if len(points) < 2 or not len(triangles):
+        return 0.0
+    from scipy.spatial import ConvexHull
+    from scipy.spatial import QhullError
+    try:
+        points = points[ConvexHull(points, qhull_options="QJ").vertices]
+    except (QhullError, ValueError):
+        pass
+    low, high = points.min(axis=0), points.max(axis=0)
+    near = triangles[(triangles[:, :, [0, 2]].max(axis=1) >= low[[0, 2]]).all(axis=1)
+                     & (triangles[:, :, [0, 2]].min(axis=1) <= high[[0, 2]]).all(axis=1)]
+    if not len(near):
+        return 0.0
+    reach = points[:, 1] - roof_under(points, near)
+    reach = reach[np.isfinite(reach)]
+    # shortcut: read at hull corners only, so a thing reaching out past a roof's edge is read at its corners under it;
+    # read every point should one through a roof go unnamed.
+    return round(float(reach.max()), 3) if len(reach) and reach.min() < 0 < reach.max() else 0.0
+
+
+def through_roofs(stage, place, names, built=None):
+    """[{name, roof, metres}] of the laid objects (`names`) whose built surface passes up through a built roof's
+    surface (`built`, roofs: the place's) by more than HELD_MOST (through_roof), one for each roof it passes through."""
+    built = roofs(stage, place) if built is None else built
+    found = []
+    for name in names if built else []:
+        points = surface_points(stage, f"/{place}/Objects/{name}")
+        for roof, triangles in built:
+            metres = through_roof(points, triangles)
+            if metres > HELD_MOST:
+                found.append({"name": name, "roof": roof, "metres": metres})
+    return found
+
+
+def moved_down(stage, place, entries):
+    """Each entry laid with nothing holding it (no `on`) whose built surface passes up through a roof's (through_roofs:
+    by its mesh, never its box) moved straight down under it, where that is OUT_MOST at most and sinks it into no deck,
+    level or wall it was not in (greenhouse's cabinet and tanks on its upper floor under its low roof would have gone
+    0.8 to 0.96 m into that floor); one further through or with no room under it is left as laid, for the held gate
+    to name; the fits [{name, how, ...}]."""
+    built, fits, under = roofs(stage, place), [], statics(walls(stage, place))
+    for entry in entries if built else []:
+        path = f"/{place}/Objects/{entry['name']}"
+        through = through_roofs(stage, place, [entry["name"]], built)
+        drop = max([found["metres"] for found in through], default=0.0)
+        low, high = world_box(stage, path)
+        lowered = (low - [0.0, drop, 0.0], high - [0.0, drop, 0.0])
+        if not through or drop > OUT_MOST or {name for name, _ in inside_of(*lowered, under)} - {
+                name for name, _ in inside_of(low, high, under)}:
+            continue
+        moved_by(stage.GetPrimAtPath(path), foot_middle(low, high), 1.0, foot_middle(low, high) - [0.0, drop, 0.0])
+        left = [found["roof"] for found in through]
+        words = f"moved {drop:.2f} m down out of {', '.join(left)}: laid up through it, nothing holding it there"
+        from pxr import Sdf
+        stage.GetPrimAtPath(path).CreateAttribute("score:fitted", Sdf.ValueTypeNames.String).Set(words)
+        after = world_box(stage, path)
+        fits.append({"name": entry["name"], "row": entry["row"], "how": "down", "holder": left, "moved": drop,
+                     "scale": 1.0, "low": [round(float(value), 4) for value in after[0]],
                      "high": [round(float(value), 4) for value in after[1]], "words": words})
     return fits

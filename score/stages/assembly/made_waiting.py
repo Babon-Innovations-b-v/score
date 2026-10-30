@@ -52,8 +52,8 @@ def placement(entry, low, high):
 
 def laid_by_relations(stage, out, place, record, objects, baked=None):
     """The laid design objects (`objects`, their names) fitted by their relations (fitting.fitted, a door in the recess
-    its holder's bake cut: `baked`, baked.json), and LAID written: each one's box as laid after, the built walls, and
-    the fits."""
+    its holder's bake cut: `baked`, baked.json), and LAID written: each one's box as laid after, the built walls, the
+    objects passing up through a roof (fitting.through_roofs), and the fits."""
     fits = fitting.fitted(stage, place, record.get("objects") or [], set(objects),
                           {model: entry.get("cuts") for model, entry in (baked or {}).items()})
     rows = {entry["name"]: entry["row"] for entry in record.get("objects") or []}
@@ -69,6 +69,7 @@ def laid_by_relations(stage, out, place, record, objects, baked=None):
         "objects": [listed(name, *box, row=rows[name]) for name, box in boxes],
         "holders": [listed(name, *fitting.world_box(stage, f"/{place}/{scope}/{name}")) for scope, name in held],
         "walls": [listed(name, *box) for name, box in fitting.walls(stage, place)],
+        "roofs": fitting.through_roofs(stage, place, objects),
         "fitted": fits}, indent=1))
 
 
