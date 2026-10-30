@@ -367,7 +367,7 @@ def row_verdicts(rows, targets, grid, floor_cells, spots):
         if not boxes:
             verdicts.append({"row": row, "result": UNKNOWN, "why": "no object of this row on the stage"})
             continue
-        stands = entry.get("anchor", "floor") == "floor" or str(entry.get("anchor")).startswith("on:")
+        stands = (entry.get("anchor") or "floor") == "floor" or entry["anchor"].startswith("on:")
         hits = sum(bool((gaps(box, spots[near_box(grid, floor_cells, box)], stands) <= REACH).any())
                    for box in boxes)
         if hits:

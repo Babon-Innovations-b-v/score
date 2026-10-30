@@ -226,6 +226,20 @@ def straight_cut(path, folder, row, size):
     return cut
 
 
+def whole_best_way(model, closeup, size):
+    """likeness.best_way with both outlines whole, holes filled, as pixal_cut fills the close-up's: an open frame's
+    model is otherwise held by its bars to its close-up's filled outline (engineroom's railing 0.339, filled 0.864).
+    Here, not in likeness.best_way: likeness.py is in the code of the paid body rows (#36 outline study)."""
+    from scipy import ndimage
+    points, triangles = likeness.gltf_mesh(model)
+    target = ndimage.binary_fill_holes(likeness.closeup_object(closeup))
+    ring, down = likeness.candidate(), likeness.look_down(size)
+    ways = [round(ring.outline(ndimage.binary_fill_holes(likeness.silhouette(points, triangles, step, down)), target), 4)
+            for step in range(ring.YAWS)]
+    best = int(np.argmax(ways))
+    return {"way": best, "look_down": down, "outline": ways[best], "ways": ways}
+
+
 def thin_built(inputs, row):
     """Whether the object's take is the thin straight route's code build (its code.json not a flat sheet's)."""
     mark = inputs.get(f"code take {row}")
@@ -252,7 +266,7 @@ def object_record(row, record, inputs, baked, parts, rows, square, cuts):
         closeup = straight_cut(cut, cuts, row, rows[row]["size"]) if thin_built(inputs, row) else pixal_cut(cut, cuts, row)
     kind = f"{place}_{row}"
     drawn = rows[row].get("read_size") or rows[row]["size"]
-    found.update(model=str(model), closeup=str(closeup), **likeness.best_way(model, closeup, drawn),
+    found.update(model=str(model), closeup=str(closeup), **whole_best_way(model, closeup, drawn),
                  **model_checks(model, rows[row]["size"] if "made" in found
                                 else drawn_size(rows[row], model, list(rows.values()), inputs), kind,
                                 route == "prop" and kind in square))

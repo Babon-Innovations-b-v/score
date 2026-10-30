@@ -89,7 +89,7 @@ def missing(stage, place, written):
 
 def parent_of(row):
     """The row a row stands on (`on:<row>`), or None."""
-    anchor = str(row.get("anchor", ""))
+    anchor = str(row.get("anchor") or "")
     return anchor.split(":", 1)[1] if anchor.startswith("on:") else None
 
 

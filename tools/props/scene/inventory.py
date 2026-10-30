@@ -108,7 +108,7 @@ def row_problems(scene, row, views, ids):
         found.append(f"{name}: its box is not four numbers on its view")
     if row["kind"] not in ROW_KINDS:
         found.append(f"{name}: its kind '{row['kind']}' is not one of {', '.join(ROW_KINDS)}")
-    anchor = row["anchor"]
+    anchor = row["anchor"] or ""
     if anchor not in ANCHORS and not (anchor.startswith("on:") and anchor[3:] in ids):
         found.append(f"{name}: its anchor '{anchor}' is not floor, wall, ceiling, roof or on:<a row's id>")
     if not (isinstance(row["size"], list) and len(row["size"]) == 3 and all(side > 0 for side in row["size"])):
