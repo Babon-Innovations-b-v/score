@@ -83,17 +83,18 @@ class Kinematics:
             mujoco.mj_jacSite(model, data, None, self.spins[index], site)
 
 
-def frame_rows(problem, frame, kinematics, targets, values, shared):
+def frame_rows(problem, frame, kinematics, targets, values, pose, shared):
     """A frame's rows of the Jacobian as COO triplets (rows counted from the frame's first, 3 (groups + markers) of
     them; columns of the whole unknowns; values): its coordinates' columns, the free markers' and the inside joints'
-    moves, each block only where it reads. `shared`: the model's `couplings` and the problem's `moved_blocks`, the
-    same in every frame."""
+    moves, each block only where it reads. `pose`: the frame's qpos at `values` (`problem.qpos`, made once by the
+    caller for the kinematics too). `shared`: the model's `couplings` and the problem's `moved_blocks`, the same in
+    every frame."""
     fitting = problem.fitting
     turn_cost, place_costs = problem.costs
     held = len(problem.slots)
     rotation = values[3:6] if problem.root is not None else np.zeros(3)
     coupled, (marks, starts, bodies) = shared
-    mapping = dof_map(problem, problem.qpos(frame, values), rotation, coupled)
+    mapping = dof_map(problem, pose, rotation, coupled)
     groups = len(fitting.frame_sites)
     seen = kinematics.site_turns
     offs = _logs(np.transpose(seen, (0, 2, 1)) @ targets[frame])
@@ -145,7 +146,7 @@ def jacobian(problem, unknowns, card=None):
     per = 3 * (len(fitting.frame_sites) + len(fitting.place_sites))
     triplets, shared = [], (couplings(fitting.model), moved_blocks(problem))
     for frame, value in enumerate(values):
-        rows, columns, entries = frame_rows(problem, frame, seen[frame], problem.turns, value, shared)
+        rows, columns, entries = frame_rows(problem, frame, seen[frame], problem.turns, value, poses[frame], shared)
         triplets.append((rows + frame * per, columns, entries))
     triplets.append(_priors(problem, len(problem.path) * per))
     rows, columns, entries = (np.concatenate(part) for part in zip(*triplets))
