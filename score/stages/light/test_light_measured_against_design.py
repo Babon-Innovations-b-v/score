@@ -24,6 +24,7 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - mix.sweep: return 1.0 always (the sweep test).
 - mix.lamp_faults: never "blown" (the sweep test).
 - layer.strengths: write the strength unscaled (the layer test).
+- layer.place_middle: the stage's bound for an inside place too (the ceiling lamp test, 2026-10-30).
 - light.unlit_why: an inside place lit by a sun alone counted lit (the unlit test).
 - light.fill_wanted: ignore `unseen` (the fill test); no fill beside a sun, the old rule (the fill test, 2026-10-30).
 - light.body_faults: drop the "not lit from its sun" fault (the discs test).
@@ -723,6 +724,32 @@ def test_a_record_lamp_near_a_seed_lamp_moves_it_one_far_is_added_and_the_streng
     layer.strengths(out / layer.LAYER, "tiny", {"/tiny/Lights/light_1": (10.0, 0.5)})
     held = Usd.Stage.Open(str(out / layer.LAYER))
     assert held.GetPrimAtPath("/tiny/Lights/light_1").GetAttribute("inputs:intensity").Get() == 5.0
+
+
+def box_mesh(stage, path, low, high):
+    """A closed box mesh from `low` to `high`."""
+    corners = [(x, y, z) for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])]
+    mesh = UsdGeom.Mesh.Define(stage, path)
+    mesh.CreatePointsAttr([Gf.Vec3f(*corner) for corner in corners])
+    mesh.CreateFaceVertexCountsAttr([4] * 6)
+    mesh.CreateFaceVertexIndicesAttr([0, 1, 3, 2, 4, 6, 7, 5, 0, 4, 5, 1, 2, 3, 7, 6, 0, 2, 6, 4, 1, 5, 7, 3])
+
+
+def test_a_ceiling_lamp_freed_from_its_fixture_moves_into_its_room_never_toward_a_duct_over_the_ceiling(tmp_path):
+    """Walkway, round 33 (2026-10-30): its ceiling ducts reached 6.1 m over a 2.6 m ceiling, the stage bound's middle
+    stood over the ceiling, and its enclosed ceiling lamps moved up into it and read unlit."""
+    seed, out = tmp_path / "seed", tmp_path / "out"
+    tiny_seed(seed)
+    base = Usd.Stage.Open(str(seed / "layers/base.usda"))
+    UsdGeom.Xformable(base.GetPrimAtPath("/tiny/Lights/light_1")).GetOrderedXformOps()[0].Set(Gf.Vec3d(0.0, 2.4, 0.0))
+    box_mesh(base, "/tiny/Objects/fixture", (-0.1, 2.3, -0.1), (0.1, 2.5, 0.1))
+    box_mesh(base, "/tiny/Objects/duct", (-6.0, 2.4, 3.0), (6.0, 9.0, 4.0))
+    base.Save()
+    record = {"lights": [], "inside": True, "floor": [[-1.0, -1.0], [1.0, 1.0]], "ceiling": 2.6}
+    found = layer.write("tiny", record, seed, out)
+    assert found["fixtures"]["/tiny/Lights/light_1"]["rule"] == "moved out of its fixture", found["fixtures"]
+    freed = next(lamp for lamp in found["lamps"] if lamp["path"] == "/tiny/Lights/light_1")
+    assert freed["spot"][1] < 2.3, freed
 
 
 def test_no_camera_glow_is_written_from_a_record_that_holds_none(tmp_path):
