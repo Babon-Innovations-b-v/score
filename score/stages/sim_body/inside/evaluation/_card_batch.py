@@ -61,10 +61,15 @@ def shared_rig(clips):
     return rig
 
 
-def batched_angles(clip, clips, seeds):
-    """{case: angles} for every clip of a body in one `Clip.angles` call, rows clip after clip."""
-    targets = {case: fit.targets(rig, person["segments"], worlds, fit.followed(person["segments"]))
-               for case, (_, person, rig, worlds) in clips.items()}
+def clip_targets(clips):
+    """{case: `fit.targets`} of every clip of a body, made once for its level 3 batch and its writing."""
+    return {case: fit.targets(rig, person["segments"], worlds, fit.followed(person["segments"]))
+            for case, (_, person, rig, worlds) in clips.items()}
+
+
+def batched_angles(clip, clips, seeds, targets):
+    """{case: angles} for every clip of a body in one `Clip.angles` call, rows clip after clip (`targets`:
+    `clip_targets`)."""
     for case, (turns, _) in targets.items():
         if len(seeds[case]) != len(turns):
             raise ValueError(f"{case}: {len(seeds[case])} seeds for {len(turns)} frames")
@@ -110,8 +115,9 @@ def body_run(seeds_root, table, weights, root, cases, saved, constants=None):
     path = root / first / f"{person['name']}.xml"
     path.parent.mkdir(parents=True, exist_ok=True)
     record, scales, fitting = cached_set_up(job, person, rig, worlds, path)
+    targets = clip_targets(clips)
     angles = batched_angles(_clip.for_fitting(fitting, path), clips,
-                            {case: _seeds.first(seeds_root, case) for case in clips})
+                            {case: _seeds.first(seeds_root, case) for case in clips}, targets)
     seconds, frames = time.time() - began, sum(len(found) for found in angles.values())
     for case, (_, person, rig, worlds) in clips.items():
         out = root / case
@@ -120,7 +126,7 @@ def body_run(seeds_root, table, weights, root, cases, saved, constants=None):
             shutil.copyfile(path, out / f"{person['name']}.xml")
         _case.written(out, person, rig, worlds,
                       (record, scales, fitting.model, angles[case], seconds * len(angles[case]) / frames),
-                      card_measure.measures)
+                      card_measure.measures, targets[case][1])
 
 
 def main():
