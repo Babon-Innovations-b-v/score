@@ -42,6 +42,8 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   2026-10-30).
 - light.strengths: `mix.pinned(scale) or` dropped; light.outside_shell: always False; light.one_spot: every lamp its
   own (the sun-swept test, 2026-10-30).
+- mix.fill_sweep: return 1.0 always, the greatest factor for the least, or the place left unjudged; light.strengths:
+  the fill's factor not applied (the shadow test, 2026-10-30).
 - light.look_at: the look's 8-bit levels scaled for the float colour through the table; mix.displayed: the nearest
   knot (`order=0`); mix.gain: the ratio unsmoothed; passes.passes_faults: no view transform left unsaid (the float look
   test, 2026-10-30).
@@ -495,6 +497,48 @@ def test_the_sun_is_swept_when_the_lamps_stop_at_their_floor_and_lamps_at_one_sp
     assert found["lamps"]["/p/Lights/beacon"]["fault"] == "unseen", found["lamps"]
     assert light.outside_shell([0.0, 3.2, 0.0], record) and not light.outside_shell([0.0, 3.2, 0.0], {"inside": False})
     assert not light.outside_shell([2.9, -0.05, -2.9], record)  # sunk in its deck: still judged
+
+
+def test_a_view_in_the_suns_shadow_is_lit_by_the_fill_alone_raised_the_least_that_brings_it(tmp_path, monkeypatch):
+    """Fault of 2026-10-30 (#36): at hangar the sun carried 84-94% of every view and was swept with the fill, so
+    spot-2, the floor in the parked ship's shadow, stayed at 0.120 against the concept's 0.304 (outside x2.5) with the
+    place at x1.00. After the lamps and the suns the fill alone is swept: the least raise that brings every view within
+    VIEW_WITHIN with the place kept within BRIGHT_WITHIN."""
+    ramp = np.tile(np.linspace(0.2, 1.8, 30), (20, 1))  # a light that varies, so each view's tone curve has a slope
+    held_views = {"lit": {"lamp_0": 1e-4 * ramp, "lamp_1": 0.2 * ramp, "lamp_2": 0.02 * ramp},
+                  "shade": {"lamp_0": 1e-4 * ramp, "lamp_1": 0.01 * ramp, "lamp_2": 0.02 * ramp}}
+    job = tmp_path / "passes/passes/p-0"
+    job.mkdir(parents=True)
+    (job / "passes.json").write_text(json.dumps({"groups": {"lamp_0": "/p/Lights/light_1", "lamp_1": "/p/Lights/sky_sun",
+                                                            "lamp_2": "/p/Lights/concept_fill"}}))
+    for view, held in held_views.items():
+        held["combined"] = sum(held.values())
+        np.savez(job / f"{view}-passes.npz", **{name: values.astype(np.float16) for name, values in held.items()})
+        look = np.repeat(np.repeat(np.round(toned_look(held["combined"]) * 255) / 255, 2, axis=0), 2, axis=1)
+        Image.fromarray((np.repeat(look[..., None], 3, axis=2) * 255).astype(np.uint8)).save(job / f"{view}-look.png")
+    (tmp_path / "layer").mkdir()
+    (tmp_path / "layer" / passes.VIEWS).write_text(json.dumps({"size": [60, 40], "views": [
+        {"name": view, "eye": [0.0, 1.6, 5.0], "aim": [0.0, 1.6, 0.0], "up": [0.0, 1.0, 0.0], "fov": 70.0}
+        for view in held_views]}))
+    lamps = [{"path": "/p/Lights/light_1", "spot": [0.0, 2.0, 0.0], "shaft": False},
+             {"path": "/p/Lights/sky_sun", "spot": None, "shaft": False, "sun": True},
+             {"path": "/p/Lights/concept_fill", "spot": [0.0, 2.5, 0.0], "shaft": False, "sun": True, "fill": True}]
+    target = float(toned_look(np.full((20, 30), 0.2)).mean())
+    monkeypatch.setattr(light, "concept_brightness", lambda place: target)
+    scales, found = light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", {"inside": False})
+    views = {view: (held, curve) for view, (held, curve, _) in light.view_passes(tmp_path / "passes", "p").items()}
+    lower = float(mix.SCALES[list(mix.SCALES).index(found["fill_factor"]) - 1])
+    assert found["fill_factor"] > 1.0 and scales["lamp_2"] == found["sun_scale"] * found["fill_factor"], found
+    assert mix.views_within(views, scales, target) and mix.within(views, scales, target), found["after"]
+    assert not mix.views_within(views, dict(scales, lamp_2=found["sun_scale"] * lower), target)  # the least raise
+    assert not mix.views_within(views, dict(scales, lamp_2=found["sun_scale"]), target)  # the suns' sweep alone: off
+    assert mix.fill_sweep(views, "lamp_2", target, scales) == 1.0  # every view within: left as it is
+    crowded = {}  # the shade lit only where the fill would carry the middle view, and the place, past x1.5
+    for name, sun, fill in (("lit", 0.3, 0.0), ("middle", 0.12, 0.06), ("shade", 0.0, 0.02)):
+        held = {"lamp_1": sun * ramp, "lamp_2": fill * ramp, "combined": (sun + fill) * ramp}
+        crowded[name] = (held, mix.tone_curve(held["combined"], toned_look(held["combined"])))
+    assert mix.within(crowded, {}, 0.12) and not mix.views_within(crowded, {}, 0.12)
+    assert mix.views_within(crowded, {"lamp_2": 4.0}, 0.12) and mix.fill_sweep(crowded, "lamp_2", 0.12, {}) == 1.0
 
 
 def test_a_black_view_is_measured_black_not_a_crash():
