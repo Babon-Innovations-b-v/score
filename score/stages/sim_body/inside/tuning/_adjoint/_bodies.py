@@ -39,3 +39,54 @@ def copied_couplings(follower_coord, leader_coord, follower_rest, leader_rest, p
 def pose_of(couplings, solved_rows):
     """The free pose (every copy's free coordinates in turn) of `solved_rows` under `copied_couplings`' map."""
     return np.asarray(solved_rows, dtype=float).reshape(-1)[couplings[0]]
+
+
+TURN = slice(3, 7)  # a copy's root turn (Newton's x, y, z, w) inside its free coordinates
+
+
+def tangent_basis(quat):
+    """Three orthonormal columns (4, 3) spanning the directions perpendicular to the unit quaternion `quat`."""
+    unit = np.asarray(quat, dtype=float) / np.linalg.norm(quat)
+    spans, _, _ = np.linalg.svd(np.eye(4) - np.outer(unit, unit))
+    return spans[:, :3]
+
+
+class RootTurns:
+    """The inner pose with each copy's root turn as 3 tangent dofs instead of its 4 coordinates, so the inner Hessian
+    has no direction along the quaternion's norm: a copy's turn is (q0 + E w) / |q0 + E w|, q0 the solved turn, E its
+    `tangent_basis`, w = 0 at the solved pose. `per_copy` is one copy's free-coordinate count (`copied_couplings`)."""
+
+    def __init__(self, pose, per_copy):
+        self.full_pose = np.asarray(pose, dtype=float).copy()
+        self.per_copy = int(per_copy)
+        self.copies = self.full_pose.size // self.per_copy
+        turns = self.full_pose.reshape(self.copies, self.per_copy)[:, TURN]
+        self.anchors = turns / np.linalg.norm(turns, axis=1, keepdims=True)
+        self.bases = np.stack([tangent_basis(turn) for turn in self.anchors])
+
+    def reduced(self):
+        """The solved pose in the chart: each copy's free coordinates with its turn's 4 replaced by w = 0's 3."""
+        rows = self.full_pose.reshape(self.copies, self.per_copy)
+        return np.concatenate([rows[:, :TURN.start], np.zeros((self.copies, 3)), rows[:, TURN.stop:]], axis=1).ravel()
+
+    def _split(self, reduced):
+        rows = np.asarray(reduced, dtype=float).reshape(self.copies, self.per_copy - 1)
+        return rows[:, :TURN.start], rows[:, TURN.start:TURN.start + 3], rows[:, TURN.start + 3:]
+
+    def full(self, reduced):
+        """The pose `TapedSites` takes (every copy's 4 turn coordinates, unit) at a chart point."""
+        head, tangents, tail = self._split(reduced)
+        raw = self.anchors + np.einsum("cij,cj->ci", self.bases, tangents)
+        return np.concatenate([head, raw / np.linalg.norm(raw, axis=1, keepdims=True), tail], axis=1).ravel()
+
+    def pulled(self, reduced, gradient):
+        """The chart's gradient at `reduced` from the full pose's `gradient` there (the chain rule through the
+        normalised turn: (I - n n^T) / |raw| E per copy)."""
+        head, tangents, tail = self._split(reduced)
+        rows = np.asarray(gradient, dtype=float).reshape(self.copies, self.per_copy)
+        raw = self.anchors + np.einsum("cij,cj->ci", self.bases, tangents)
+        length = np.linalg.norm(raw, axis=1, keepdims=True)
+        unit = raw / length
+        along = rows[:, TURN] - unit * np.sum(unit * rows[:, TURN], axis=1, keepdims=True)
+        turned = np.einsum("cij,ci->cj", self.bases, along / length)
+        return np.concatenate([rows[:, :TURN.start], turned, rows[:, TURN.stop:]], axis=1).ravel()
