@@ -265,6 +265,45 @@ def test_a_street_facade_stands_past_its_edge_and_its_units_on_its_face():
     assert (unit["how"], unit["holder row"], unit["face"]) == ("face", "left_building_facade", "E"), unit
 
 
+def test_things_on_one_face_that_meet_at_their_built_widths_are_spread_along_it():
+    """Street (#36): its 3 m window, stairwell entrance and roller shutters were laid at their built widths on 1.74 m
+    plan items and overlapped on their facade's face. On a 30 m facade a 3 m window drawn at y 10 and a 3 m shutter
+    drawn 1.74 m after it meet at their widths: the window keeps its spot, the shutter is spread on past it, 0.2 m
+    (OPENING_ROOM) between them, to y 13.2; an air conditioner above both (3.0 m up, both 3.0 m tall at most) meets
+    neither and keeps its spot. On a 6 m facade the two cannot stand so: both keep their spots, the face named
+    crowded.
+    Break: score/review/holders/__init__.py: `crowded = spread(found) + face_spread(found, items, rows, plan, inventory,
+        kinds)` -> `crowded = spread(found)`
+    Break: score/review/holders/__init__.py: `return first["band"][0] < second["band"][1] - 1e-9 and second["band"][0]
+        < first["band"][1] - 1e-9` -> `return True`
+    Break: score/review/holders/__init__.py: `return lefts if clear and lefts[0] >= -half + OPENING_ROOM - 1e-9 else
+        None` -> `return lefts`"""
+    def facade_plan(long):
+        rows = [{"id": "left_building_facade", "noun": "building facade", "part": "wall", "anchor": "ground",
+                 "size": [3.0, long, 20.0], "box": [0, 0, 300, 600]},
+                {"id": "window", "noun": "window", "anchor": "on:left_building_facade", "size": [3.0, 0.1, 2.5]},
+                {"id": "shutter", "noun": "shutter", "anchor": "on:left_building_facade", "size": [3.0, 0.1, 3.0]},
+                {"id": "air_conditioner_unit", "noun": "air conditioner", "anchor": "on:left_building_facade",
+                 "size": [0.8, 0.4, 0.6]}]
+        plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 6.0, long, None, "item"],
+                        ["WINDOW 1", 0.5, long / 2 - 5.87, 0.5, 1.74, "E", "item"],
+                        ["SHUTTER 1", 0.5, long / 2 - 4.13, 0.5, 1.74, "E", "item"],
+                        ["AIR CONDITIONER UNIT 1", 0.5, long / 2 - 5.3, 0.4, 0.6, "E", "item"]],
+                       {plan_checks.WALLS_ITEM: ["left_building_facade"], "WINDOW 1": ["window"],
+                        "SHUTTER 1": ["shutter"], "AIR CONDITIONER UNIT 1": ["air_conditioner_unit"]},
+                       structure=["left_building_facade"], w=6.0, d=long)
+        plan["shapes"] = {"AIR CONDITIONER UNIT 1": {"base": 3.0}}
+        return holders.relations(plan, {"rows": rows, "picture": PICTURE})
+    found = facade_plan(30.0)
+    spread = by_row(found)
+    assert "spots" not in spread["window"] and "spots" not in spread["air_conditioner_unit"], spread
+    assert spread["shutter"]["spots"] == [[0.75, 13.2]], spread["shutter"]
+    assert "crowded" not in found and all("_holder" not in entry for entry in found["relations"]), found
+    found = facade_plan(6.0)
+    assert all("spots" not in entry for entry in found["relations"]), found["relations"]
+    assert [(entry["face"], entry["rows"]) for entry in found["crowded"]] == [("E", ["air_conditioner_unit", "shutter", "window"])], found
+
+
 def test_a_stair_the_plan_writer_left_unplaced_stands_at_the_plan_s_stair():
     """Greenhouse (2026-10-29): its two stairs rows, on its lower floor, stood at the room's middle (the walls item);
     the plan draws its stairs. Each stands at the next stair's middle, along its way up (90 degrees: south, the
