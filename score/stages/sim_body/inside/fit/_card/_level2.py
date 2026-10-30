@@ -148,8 +148,9 @@ def jacobian(problem, unknowns, card=None):
         rows, columns, entries = frame_rows(problem, frame, seen[frame], problem.turns, value, shared)
         triplets.append((rows + frame * per, columns, entries))
     triplets.append(_priors(problem, len(problem.path) * per))
+    triplets.append(_pulls(problem, len(problem.path) * per + held))
     rows, columns, entries = (np.concatenate(part) for part in zip(*triplets))
-    shape = (len(problem.path) * per + held, held + len(problem.path) * problem.width)
+    shape = (len(problem.path) * per + held + len(problem.pull), held + len(problem.path) * problem.width)
     return coo_matrix((entries, (rows, columns)), shape=shape).tocsr()
 
 
@@ -161,3 +162,9 @@ def _priors(problem, first):
     weights = np.concatenate([np.repeat(place_costs[problem.free], 3),
                               np.full(held - moved, float(np.mean(place_costs)))])
     return first + np.arange(held), np.arange(held), weights
+
+
+def _pulls(problem, first):
+    """`problem.pull`'s rows (`_flat.lift`) as COO triplets from row `first`, each on the constants' columns."""
+    rows, columns = np.nonzero(np.ones_like(problem.pull))
+    return first + rows, columns, problem.pull[rows, columns]

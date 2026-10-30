@@ -48,6 +48,7 @@ class Problem:
         self.free = list(free)
         self.costs = weights(fitting)
         self.data = mujoco.MjData(model)
+        self.pull, self.anchor = np.zeros((0, len(self.slots))), self.given[self.slots]  # `_flat.lift`'s rows, none by default
 
     def constants(self, unknowns):
         """The whole constants vector: the given one with the unknowns laid in."""
@@ -108,7 +109,7 @@ class Problem:
                       (place_costs[:, None] * (data.site_xpos[fitting.place_sites] - self.points[frame])).ravel()]
         moved = 3 * len(self.free)
         found += [(place_costs[self.free][:, None] * unknowns[:moved].reshape(-1, 3)).ravel(),
-                  float(np.mean(place_costs)) * unknowns[moved:held]]
+                  float(np.mean(place_costs)) * unknowns[moved:held], self.pull @ (unknowns[:held] - self.anchor)]
         return np.concatenate(found)
 
     def sparsity(self):
@@ -131,6 +132,8 @@ class Problem:
                     found[placed + 3 * mark:placed + 3 * mark + 3, column:column + 3] = 1
         for slot in range(held):
             found[frames * per + slot, slot] = 1
+        found.resize((found.shape[0] + len(self.pull), found.shape[1]))
+        found[frames * per + held:, :held] = 1
         return found
 
 
@@ -175,7 +178,7 @@ def qr_off_span(others, columns):
     return columns - basis @ (basis.T @ columns)
 
 
-def staged(fitting, path, turns, points, given, free=(), jacobian=None, warm=None, tolerance=None):
+def staged(fitting, path, turns, points, given, free=(), jacobian=None, warm=None, tolerance=None, flat=None):
     """The constants (the whole vector, as `Fitting.unpack` reads it) and the frames' angles (frames x nq) that best
     meet the frames' targets together, from `given` and mink's path; the model is left with the constants laid on,
     and the solve's evaluation count. Only the unknowns the data can tell are solved (`told`, from the exact Jacobian
@@ -183,13 +186,18 @@ def staged(fitting, path, turns, points, given, free=(), jacobian=None, warm=Non
     exact one, `_card._level2.jacobian`) replaces scipy's 2-point differences in the problem's sparse pattern, the
     reference, when given. `warm` (a constants vector, frames x nq angles: another set's solved answer on these frames)
     is only the solve's start, never `given` (an untold unknown keeps `given`'s place); `tolerance` sets least_squares'
-    ftol, xtol and gtol together (scipy's defaults when None)."""
+    ftol, xtol and gtol together (scipy's defaults when None); `flat` (a ratio) lifts the constants' barely told
+    directions to that ratio of the best told's data curvature (`_flat.lift`, off when None)."""
     from fit._card._level2 import jacobian as exact_jacobian
     problem = Problem(fitting, path, turns, points, given, free)
     low, high = problem.bounds()
     begin = np.clip(problem.start(), np.where(np.isfinite(low), low + INSIDE, low),
                     np.where(np.isfinite(high), high - INSIDE, high))
-    keep = told(problem, exact_jacobian(problem, begin))  # MuJoCo's double kinematics: the card's floats blur TOLD
+    at_start = exact_jacobian(problem, begin)  # MuJoCo's double kinematics: the card's floats blur TOLD
+    keep = told(problem, at_start)
+    if flat is not None:
+        from fit._flat import lift
+        problem.pull = lift(problem, at_start, keep, flat)
 
     def whole(unknowns):
         """The whole unknowns: `begin` with the told ones laid in."""
