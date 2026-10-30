@@ -250,7 +250,15 @@ def killed_in(log):
     return log.exists() and "Signals.SIGKILL" in log.read_text(errors="replace")[-LOG_TAIL_CHARS:]
 
 
+def card_lost_in(log):
+    """Whether a job's log ends with its card refusing to open (Warp's 'Failed to acquire primary context', the
+    driver's CUDA error 999): the machine's fault, run again once."""
+    tail = log.read_text(errors="replace")[-LOG_TAIL_CHARS:] if log.exists() else ""
+    return any(sign in tail for sign in CARD_LOST_SIGNS)
+
+
 LOG_TAIL_CHARS = 4000
+CARD_LOST_SIGNS = ("Failed to acquire primary context", "CUDA error 999")
 
 
 def touched(machine, job):
@@ -381,7 +389,7 @@ def one_job(machine, share, card):
     except subprocess.CalledProcessError as failed:
         mark_take(job, wrote=False)
         spread.raise_for(failed.returncode, f"job {number} ({job['script']}){log_tail(log_folder, number)}",
-                         killed=killed_in(log))
+                         killed=killed_in(log), card_lost=card_lost_in(log))
     mark_take(job, wrote=came == len(job.get("outputs", ())))
     machine.setdefault("unit_seconds", []).append(seconds)
     if job.get("outputs") and not came:

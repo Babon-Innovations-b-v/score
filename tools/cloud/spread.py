@@ -44,16 +44,25 @@ class MemoryKilled(JobFailed):
     so its share goes back on the queue once (work_slot)."""
 
 
+class CardLost(JobFailed):
+    """A share's command whose card would not open (the driver's context lost: env1's settle@airlock, 2026-10-30,
+    "CUDA error 999" beside a full card, the card fine again a minute later): a fault of the machine, not of the
+    share's result, so its share goes back on the queue once (work_slot)."""
+
+
 KILLED = 128 + 9  # a shell's exit for a command killed by signal 9
 
 
-def raise_for(returncode, what, killed=False):
+def raise_for(returncode, what, killed=False, card_lost=False):
     """Raise for a share's command that did not succeed: ConnectionError when ssh lost the machine, MemoryKilled when
-    it (or, `killed`, a step inside it) was killed by signal 9, JobFailed when the command itself failed."""
+    it (or, `killed`, a step inside it) was killed by signal 9, CardLost when its card would not open (`card_lost`),
+    JobFailed when the command itself failed."""
     if returncode == SSH_LOST:
         raise ConnectionError(f"the machine stopped answering during {what}")
     if returncode and (returncode == KILLED or killed):
         raise MemoryKilled(f"{what} was killed by signal 9 (exit {returncode})")
+    if returncode and card_lost:
+        raise CardLost(f"{what}: its card would not open (exit {returncode})")
     if returncode:
         raise JobFailed(f"{what} exited with {returncode}")
 
@@ -146,11 +155,11 @@ def work_slot(machine, shares, do, card, broken):
         try:
             do(machine, share, card)
             shares.finished(share)
-        except MemoryKilled as error:  # killed at the memory cap: run again once, a second death is a gap
+        except (MemoryKilled, CardLost) as error:  # the machine's fault, not the share's: run again once, then a gap
             if shares.again(share):
-                batch.say(f"{machine['folder'].name}: a job was killed for memory ({error}); it goes back on the queue")
+                batch.say(f"{machine['folder'].name}: a job was cut off ({error}); it goes back on the queue")
                 continue
-            batch.say(f"{machine['folder'].name}: a job was killed for memory again ({error}); its share is a gap")
+            batch.say(f"{machine['folder'].name}: a job was cut off again ({error}); its share is a gap")
             shares.failed_job(share)
         except JobFailed as error:
             batch.say(f"{machine['folder'].name}: a job failed ({error})")
