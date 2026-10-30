@@ -912,11 +912,13 @@ def counting_store(store):
 def selected_price(runner, buy):
     """buy_price under the run's object filter where the buy's stage selects (Runner.selection), as its clearance
     prices it."""
+    from score.adapters import compute
+    takes = compute.retake_takes(runner, buy.node)  # a retake is priced for its own takes (compute.planned_forecast)
     with runner.selection(runner.stages[buy.node.partition("@")[0]]):
-        return buy_price(buy, counting_store(runner.store), runner.world.roots["data"])
+        return buy_price(buy, counting_store(runner.store), runner.world.roots["data"], len(takes) if takes else None)
 
 
-def buy_price(buy, store, data):
+def buy_price(buy, store, data, units=None):
     """One buy's price on the runner's own numbers (compute.run_price: its stage's measured per unit times the units
     its forecast rule counts under `data` (gaps price.planned_units, as prepare and the gaps' price count them), else
     its stage's measured runs, the numbers its clearance reserves, else its measured units on `store`, else not
@@ -927,7 +929,8 @@ def buy_price(buy, store, data):
     if buy.euros == 0:
         return {"likely_euros": 0.0, "high_euros": 0.0, "likely_minutes": 0.0, "high_minutes": 0.0, "cards": None,
                 "runs": 0, "basis": "cached"}
-    return compute.run_price(buy.node, buy.euros, store, units=price.planned_units(buy.node, data, store))
+    return compute.run_price(buy.node, buy.euros, store,
+                             units=price.planned_units(buy.node, data, store) if units is None else units)
 
 
 def plan_price(prices, jobs):
