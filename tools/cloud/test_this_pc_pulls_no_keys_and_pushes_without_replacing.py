@@ -18,6 +18,15 @@ Breaks (each applied once, seen red, reverted):
 - this_pc.py `resume`: drop its `live_run` refusal -> a second run starts beside the live one.
 - this_pc.py `resume`: drop `**record["env"]` -> the resumed run loses its go and SCORE_MIN_FREE_GB.
 - this_pc.py `newest_beat`: `found[-1]` -> `found[0]` -> status says the oldest heartbeat's rows.
+- this_pc.py `DESIGN_STEPS`: drop "score.stages.complete.prepare" -> `score run` reads the stale hand-in, its
+  spaceship at the plan's 13.7 x 46 m footprint (2026-10-30: a hand-in fix never landed on this PC).
+- this_pc.py `design_current`: drop the `while live_run(home)` wait -> prepare runs while the plan row run the keep
+  started holds the store.
+- this_pc.py `design_current`: drop the `if done.returncode` refusal -> a run starts on a hand-in its step failed
+  to write.
+- this_pc.py `run`: drop the `entry is None` test -> the steps rewrite the design a live run reads.
+- this_pc.py `resume`: drop `design_current(home, code, environment)` -> a resumed run reads the design as paused.
+- this_pc.py `pull`: drop the `OWN_DESIGN` skip -> the conductor's hand-in comes back over the one written here.
 """
 import pathlib
 import subprocess
@@ -44,20 +53,94 @@ def write(path, text):
 
 def test_a_pull_brings_what_a_run_reads_and_no_key_or_ledger_and_again_only_what_changed(tmp_path):
     conductor, home = tmp_path / "conductor", tmp_path / "home"
-    for name in ("store/objects/blobs/aa", "design/props/hub.json", "work/pixal/take.glb", "cloud/google-cache/q.json",
+    for name in ("store/objects/blobs/aa", "design/plans/hub.json", "work/pixal/take.glb", "cloud/google-cache/q.json",
                  "cache/library/swatch.png", "cloud/ssh_key", "cloud/self_delete_key.json", "cloud/ledger.jsonl",
                  "runs/active.json", "store/cache/checkouts/x", "frozen/copy/file", "dashboard/db.sqlite3"):
         write(conductor / name, name)
     home.mkdir()
     assert this_pc.pull(home, door(conductor, "store-pull")) == (5, sum(
-        len(name) for name in ("store/objects/blobs/aa", "design/props/hub.json", "work/pixal/take.glb",
+        len(name) for name in ("store/objects/blobs/aa", "design/plans/hub.json", "work/pixal/take.glb",
                                "cloud/google-cache/q.json", "cache/library/swatch.png")))
     pulled = sorted(str(path.relative_to(home)) for path in home.rglob("*") if path.is_file())
-    assert pulled == ["cache/library/swatch.png", "cloud/google-cache/q.json", "design/props/hub.json",
+    assert pulled == ["cache/library/swatch.png", "cloud/google-cache/q.json", "design/plans/hub.json",
                       "store/objects/blobs/aa", "work/pixal/take.glb"]
-    write(conductor / "design/props/hub.json", "the hub, changed")
+    write(conductor / "design/plans/hub.json", "the hub, changed")
     assert this_pc.pull(home, door(conductor, "store-pull")) == (1, len("the hub, changed"))
-    assert (home / "design/props/hub.json").read_text() == "the hub, changed"
+    assert (home / "design/plans/hub.json").read_text() == "the hub, changed"
+
+
+def test_a_pull_never_brings_a_hand_in_over_the_one_written_here(tmp_path):
+    """The conductor's hand-in differs from this PC's in mtime, so the door sends it; pull leaves it out (2026-10-30)."""
+    conductor, home = tmp_path / "conductor", tmp_path / "home"
+    write(conductor / "design/props/hangar.json", "the conductor's, plan-footprint sizes")
+    write(conductor / "design/surfaces/hangar.json", "the conductor's surface data")
+    write(home / "design/props/hangar.json", "written here by prepare, read sizes")
+    assert this_pc.pull(home, door(conductor, "store-pull")) == (0, 0)
+    assert (home / "design/props/hangar.json").read_text() == "written here by prepare, read sizes"
+    assert not (home / "design/surfaces/hangar.json").exists()
+
+
+def stale_hand_in(home):
+    """A home whose hangar hand-in carries the spaceship's plan footprint, not the size prepare writes now."""
+    write(home / "design/props/hangar.json", this_pc.json.dumps({"rows": [{"id": "spaceship", "size": [13.688, 45.965,
+                                                                                                        4.0]}]}))
+
+
+def test_a_run_here_rewrites_a_stale_hand_in_before_score_run_starts(tmp_path, monkeypatch):
+    """The sync pass's plans keep, then prepare, run against this home, free only, from the run's code; a plan row run
+    the keep starts is waited out; only then `score run`, which reads the rewritten hand-in. Prepare stands in here
+    (its rewrite of a hand-in is prepare's own test's): it writes the size it would write now."""
+    monkeypatch.setattr(this_pc, "PC_ENV", tmp_path / "env")
+    home = tmp_path / "home"
+    (tmp_path / "env").mkdir()
+    stale_hand_in(this_pc.prepared(home))  # its key made before subprocess.run stands in
+    events, plan_run = [], []
+
+    def step(command, **given):
+        module = command[2]
+        events.append((module, given["cwd"], given["env"]["PROPS_HOME"], given["env"]["SCORE_FREE_ONLY"]))
+        if module == "score.review.plans_pass":
+            plan_run.append({"id": "plan-run", "pid": 1})  # keep started a changed place's plan row, detached
+        if module == "score.stages.complete.prepare":
+            assert not plan_run, "prepare ran while the plan row run held the store"
+            write(home / "design/props/hangar.json", this_pc.json.dumps({"rows": [{"id": "spaceship",
+                                                                                   "size": [8.0, 24.0, 4.0]}]}))
+        return subprocess.CompletedProcess(command, 0, f"{module} done\n", "")
+
+    def waited(seconds):
+        events.append(("waited", seconds))
+        plan_run.clear()
+    monkeypatch.setattr(this_pc, "asked", step)
+    monkeypatch.setattr(this_pc, "live_run", lambda found: plan_run[0] if plan_run else None)
+    monkeypatch.setattr(this_pc.time, "sleep", waited)
+
+    def score_run(command, **given):
+        size = this_pc.json.loads((home / "design/props/hangar.json").read_text())["rows"][0]["size"]
+        events.append(("score run", size))
+        return subprocess.CompletedProcess(command, 0)
+    monkeypatch.setattr(this_pc.subprocess, "run", score_run)
+    assert this_pc.run(home, ["world1"]) == 0
+    assert events == [("score.review.plans_pass", this_pc.REPO, str(home), "1"), ("waited", 5),
+                      ("score.stages.complete.prepare", this_pc.REPO, str(home), "1"), ("score run", [8.0, 24.0, 4.0])]
+
+
+def test_a_run_here_leaves_the_design_of_a_live_run_and_stops_on_a_failed_step(tmp_path, monkeypatch):
+    monkeypatch.setattr(this_pc, "PC_ENV", tmp_path / "env")
+    home = tmp_path / "home"
+    (tmp_path / "env").mkdir()
+    stale_hand_in(this_pc.prepared(home))  # its key made before subprocess.run stands in
+    asked = []
+    monkeypatch.setattr(this_pc, "asked", lambda command, **given: asked.append(command) or
+                        subprocess.CompletedProcess(command, 1, "", "Traceback\nKeyError: 'hangar'\n"))
+    started = []
+    monkeypatch.setattr(this_pc.subprocess, "run", lambda command, **given: started.append(command) or
+                        subprocess.CompletedProcess(command, 0))
+    monkeypatch.setattr(this_pc, "live_run", lambda found: {"id": "live-run"})
+    assert this_pc.run(home, ["world1", "--place", "hub"]) == 0 and not asked and len(started) == 1
+    monkeypatch.setattr(this_pc, "live_run", lambda found: None)
+    with pytest.raises(SystemExit, match="score.review.plans_pass failed .exit 1.: KeyError: 'hangar'"):
+        this_pc.run(home, ["world1"])
+    assert len(started) == 1  # no score run after a failed step
 
 
 def test_a_push_adds_new_outputs_and_never_replaces_the_conductors(tmp_path):
@@ -194,6 +277,9 @@ def test_resume_refuses_while_a_run_is_live_and_starts_the_paused_one_detached_a
                                     "detached: started pid=9 log=/home/logs/score-run.log")
     assert called[0][0] == ["docker", "start", "score-this-pc"]
     assert called[1][0][3:] == ["worktree", "add", "--detach", "--force", str(home / "resume-code"), "b" * 40]
+    # the design brought up to date by the paused run's own code, in its home, before it starts again
+    assert [(command[1:], given["cwd"], given["env"]["PROPS_HOME"]) for command, given in called[2:-1]] == [
+        (["-m", module], home / "resume-code", str(home)) for module in this_pc.DESIGN_STEPS]
     command, given = called[-1]
     assert command[1:] == ["-m", "score", *entry["argv"], "--detach"] and given["cwd"] == home / "resume-code"
     assert {key: given["env"][key] for key in ("SCORE_MIN_FREE_GB", this_pc.OWNERS_GO, "SCORE_FREE_ONLY",

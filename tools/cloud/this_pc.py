@@ -22,6 +22,14 @@ shell): its `store-pull` and `store-push` verbs, a tar stream each way over ssh.
   every free row and every paid row whose machine work this PC's card does runs for real; a row that would buy
   anything (a Google ask its cache does not answer, a rented card a kind too big for this card needs) fails, saying
   what, and is left for the Buy.
+- **The design brought up to date first** (2026-10-30: the hangar's hand-in still carried plan-footprint sizes for 19
+  of its 30 rows, a fix to them reaching a hand-in only when prepare writes it, and prepare ran only in the conductor's
+  sync pass): before `run` and `resume` start `score run`, the sync pass's own free steps run here against HOME, free
+  only, from the run's code (DESIGN_STEPS: score/dashboard/sync/client.py plans_kept, then remake_prepared): the kept
+  plans (a plan row run they start for a changed place is waited out: it holds the store), then prepare's hand-ins. A
+  step that fails stops the run. With a run live in HOME they are left as they are (that run reads them). Pull never
+  brings the hand-ins down (OWN_DESIGN): it copies every file whose size or mtime differs from HOME's, so the
+  conductor's, older or made by other code, would come back over the one written here, under a live run too.
 - **Push** adds the store's new objects and the work folder's new files (regular files; links stay here) to the
   conductor's: `store-push --missing` names what the conductor lacks, `store-push` adds those, never replacing a file
   that is there: the store is written once by content and key, so the conductor's own outputs stand and a node made
@@ -72,6 +80,10 @@ PAUSED = "paused.json"  # under HOME: the paused run, until resume starts it aga
 RUN_OWN = ("SCORE_FROZEN", "SCORE_FROZEN_OWNER", "SCORE_RUN_ID")  # set by `score run` itself, never carried over
 STOP_SECONDS = 240  # a stopped run's 30 s grace, its batches' deletes and the detached wrapper's 90 s, with room
 BEAT = re.compile(r"rows done (\d+), running (\d+), queued (\d+)")  # score.graph.heartbeat_line
+# The sync pass's free steps that bring the design up to date (score/dashboard/sync/client.py plans_kept, then
+# remake_prepared): the plans the plan stage reads, then the hand-ins prepare writes from them.
+DESIGN_STEPS = ("score.review.plans_pass", "score.stages.complete.prepare")
+OWN_DESIGN = ("design/props/", "design/surfaces/")  # prepare's hand-ins (prop_data.DESIGN, surface_data.DESIGN)
 
 
 def conductor_host():
@@ -93,13 +105,15 @@ def door_command(host, key, verb):
 
 def pull(home, command):
     """Copies PULLED down through the door's store-pull (`command`) into `home`, only what `home` lacks or holds
-    changed; (files, bytes)."""
+    changed, never the hand-ins written here (OWN_DESIGN); (files, bytes)."""
     process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     process.stdin.write(manifest(home, PULLED).encode())
     process.stdin.close()
     files, size = 0, 0
     with tarfile.open(fileobj=process.stdout, mode="r|") as archive:
         for member in archive:
+            if member.name.startswith(OWN_DESIGN):
+                continue
             archive.extract(member, home, filter="tar")
             files, size = files + 1, size + member.size
     if process.wait():
@@ -161,12 +175,34 @@ def go_taken(arguments):
     return [*arguments[:at], *arguments[at + 2:]], arguments[at + 1]
 
 
+def design_current(home, code, environment):
+    """The design brought up to date before a run reads it, as the conductor's sync pass does: DESIGN_STEPS run from
+    `code` under `environment` (HOME's, free only), a plan row run the kept plans start waited out; their first
+    lines. A step that fails stops the run: a stale hand-in builds the wrong sizes."""
+    said = []
+    for module in DESIGN_STEPS:
+        done = asked([str(REPO / ".venv/bin/python"), "-m", module], cwd=code, env=environment,
+                     stdin=subprocess.DEVNULL)
+        if done.returncode:
+            raise SystemExit(f"{module} failed (exit {done.returncode}): "
+                             f"{(done.stderr.strip().splitlines() or ['no output'])[-1]}")
+        said.append((done.stdout.strip().splitlines() or [f"{module} wrote nothing"])[0])
+        while live_run(home):  # plans keep starts a changed place's plan row as a detached run, holding the store
+            time.sleep(5)
+    return "; ".join(said)
+
+
 def run(home, arguments, go=None):
-    """`score run` here on this PC's card, tagged with the owner's go when one is named; its exit status."""
+    """`score run` here on this PC's card, tagged with the owner's go when one is named, its design brought up to
+    date first unless a run is live in `home`; its exit status."""
+    environment = run_environment(prepared(home), go)
+    entry = live_run(home)
+    print(design_current(home, REPO, environment) if entry is None else
+          f"the design left as it is: run {entry['id']} is live and reads it", flush=True)
     command = [str(REPO / ".venv/bin/python"), "-m", "score", "run", *arguments]
     if "--free" not in command:
         command.append("--free")
-    return subprocess.run(command, cwd=REPO, env=run_environment(prepared(home), go)).returncode
+    return subprocess.run(command, cwd=REPO, env=environment).returncode
 
 
 def deciding(home, verb, arguments):
@@ -251,7 +287,8 @@ def pause(home):
 
 
 def resume(home):
-    """Start the container and the paused run again, detached, at its recorded commit; one line."""
+    """Start the container and the paused run again, detached, at its recorded commit, its design brought up to date
+    by that commit's code first; one line."""
     entry = live_run(home)
     if entry is not None:
         raise SystemExit(f"resume: refused, run {entry['id']} is live (pid {entry['pid']})")
@@ -269,8 +306,10 @@ def resume(home):
     if added.returncode:
         raise SystemExit(f"resume: no worktree at {commit[:12]}: {added.stderr.strip()}")
     (code / ".venv").symlink_to((REPO / ".venv").resolve())
+    environment = {**run_environment(prepared(home)), **record["env"]}
+    design_current(home, code, environment)
     started = asked([str(REPO / ".venv/bin/python"), "-m", "score", *record["argv"], "--detach"], cwd=code,
-                    stdin=subprocess.DEVNULL, env={**run_environment(prepared(home)), **record["env"]})
+                    stdin=subprocess.DEVNULL, env=environment)
     line = re.search(r"^detached: started .*$", started.stdout, re.MULTILINE)
     if started.returncode or not line:
         raise SystemExit(f"resume: the run did not start (exit {started.returncode}): "
