@@ -125,3 +125,20 @@ class Pinned:
         kept = np.array(rows, dtype=float)
         kept[:, self.held] = 0.0
         return kept
+
+
+def level3_body(name, sites, turns, pinned, offsets, frames):
+    """Level 3 as a `Body` over the poses only (`turns`' chart, `pinned`'s held entries kept), its outer point level
+    2's moves c (`sites` built with `constants=`, the site offsets fixed at `offsets`), so `mixed` over it gives
+    g_q,c; the residuals and gradient read the pose at `turns.full(pinned.whole(inner))`."""
+    from tuning._adjoint import Body
+
+    def joined(inner, moves):
+        return np.concatenate([turns.full(pinned.whole(inner)), np.asarray(moves, dtype=float)])
+
+    def gradient(inner, moves):
+        found = sites.gradient(joined(inner, moves), offsets)
+        return pinned.gradient(inner, turns.pulled(pinned.whole(inner), found[:turns.full_pose.size]))
+
+    return Body(name, lambda inner, moves: sites.residuals(joined(inner, moves), offsets), gradient,
+                turns.reduced(), frames, turns.per_copy - 1)
