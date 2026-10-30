@@ -61,3 +61,26 @@ def frame_couplings(clip, rows):
     return copied_couplings(projection.follower_coord.numpy(), projection.leader_coord.numpy(),
                             projection.follower_rest.numpy(), projection.leader_rest.numpy(),
                             projection.poly.numpy()[0], projection.frozen_coord.numpy(), rows)
+
+
+def taped_sites(clip, model, rows, targets):
+    """`TapedSites` on `per_frame_model`'s `model` holding level 3's whole cost as the card's `Clip.optimizer_for`
+    lays it: each frame's marker sites (link, site_pos, its place cost, its target point) and turn rows (link,
+    site_quat x y z w, the turn cost, its target turn), copy by copy, with `frame_couplings` at the solved `rows`."""
+    from scipy.spatial.transform import Rotation
+    from _taped import TapedSites
+    turns = np.concatenate([turned for turned, _ in targets.values()])
+    points = np.concatenate([placed for _, placed in targets.values()])
+    frames, bodies = len(rows), clip.model.body_count
+    shift = np.repeat(np.arange(frames) * bodies, len(clip.place_sites))
+    links = np.tile([clip.link(site) for site in clip.place_sites], frames) + shift
+    weights = np.tile(clip.place_costs, frames)
+    offsets = np.array([clip.mjm.site_pos[site] for site in clip.place_sites]).ravel()
+    turn_links = (np.tile([clip.link(site) for site in clip.frame_sites], frames)
+                  + np.repeat(np.arange(frames) * bodies, len(clip.frame_sites)))
+    turn_offsets = np.tile([clip.mjm.site_quat[site][[1, 2, 3, 0]] for site in clip.frame_sites], (frames, 1))
+    wanted = Rotation.from_matrix(turns.reshape(-1, 3, 3)).as_quat()
+    sites = TapedSites(model, links, weights, points.reshape(-1, 3),
+                       turns=(turn_links, np.full(len(turn_links), clip.turn_cost), wanted, turn_offsets),
+                       couplings=frame_couplings(clip, rows), copies=frames)
+    return sites, offsets
