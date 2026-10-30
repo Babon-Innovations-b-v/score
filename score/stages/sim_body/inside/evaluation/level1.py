@@ -3,7 +3,7 @@ bodies. The run dir holds cases.json ({case: job.json}), split.json ({"tuning": 
 table.json (the starting landmark rows, each link its anatomical start) and rig.npz (SOMA's template rig, the
 calibration table's rest); it gets evals/ (the latest evaluations),
 checkpoint.jsonl (every evaluation and iteration; a restart resumes from its best), check.jsonl (the held-out score
-every few iterations and at the end), steps.jsonl (each check against the one before: per-case paired changes of
+every --every iterations, 3 unless given, and at the end), steps.jsonl (each check against the one before: per-case paired changes of
 the honest measures, tuning and check bodies apart, verdicts past floor.json when the run dir has it, `tuning._paired`), result_table.json, result_weights.json, result_centres.json (each group end's offset) and held_out.json (the check bodies'
 score against the tuning bodies', accepted within 10 %). With --card every evaluation runs on the card
 (`evaluation.measured_many`, seeded from the seeds root's angles), a Jacobian's nudged sets in one process. Any Python with numpy and scipy; the workers run in Newton's."""
@@ -29,6 +29,7 @@ def main():
     parser.add_argument("--python", required=True)
     parser.add_argument("--hours", type=float, default=8.0)
     parser.add_argument("--card", type=pathlib.Path, help="seeds root: evaluate on the card, sets batched")
+    parser.add_argument("--every", type=int, default=3, help="score the check bodies every this many iterations")
     given = parser.parse_args()
     run = given.run.resolve()
     cases = json.loads((run / "cases.json").read_text())
@@ -79,7 +80,7 @@ def main():
             file.write(json.dumps({"evaluation": count[0], "check score": score}) + "\n")
         return score
     result, checks = tuning.whole(evaluate, check, entries, run / "checkpoint.jsonl", given.hours * 3600,
-                                  evaluate_many=evaluate_many if given.card else None)
+                                  every=given.every, evaluate_many=evaluate_many if given.card else None)
     rows, weights = tuning.applied(result.x, entries, starts, table, GLOBALS)
     (run / "result_table.json").write_text(json.dumps(rows, indent=1))
     (run / "result_weights.json").write_text(json.dumps(weights))
