@@ -26,7 +26,9 @@ held-out rule (within 10 % of the tuning bodies).
   each clip written by `_case.written`, its targets the ones its batch was solved on (`clip_targets`, once per body
   run: `fit.targets` skinning the landmarks was made three times per clip, 2026-10-30; level 2's recordings, the
   body's clips in order, take them too, `recorded_targets`, checked array by array; two heavy sets' 14 cases bit
-  for bit, angles too). Gate 2026-10-29 (tall and slim, 14 cases, the per-case card run's constants):
+  for bit, angles too). Across sets too since 2026-10-30 (`TARGETS`, keyed by `targets_key`: the clip's rig, segments, worlds,
+  held groups and the solver landmarks' faces and weights, so a landmark set makes them anew; read-only arrays,
+  a write in place raises; profile: targets 4.3 s of 4 heavy sets' 68 s). Gate 2026-10-29 (tall and slim, 14 cases, the per-case card run's constants):
   equal to the per-case card path, skins exact, joints within 5.5e-4 mm; one process 29 s wall, imports included.
   All 70 tuning cases (same constants): equal to the per-case card path on all 70 (skins exact, joints within
   1.1e-3 mm), against the CPU the same 3 cases one to three hand vertex-frames off as the per-case card's (joints
