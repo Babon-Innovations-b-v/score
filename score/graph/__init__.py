@@ -129,8 +129,11 @@ MEMORY_POLL = 30
 CONTAINER_CLIENTS = ("blender_cloud.py",)
 # On this PC (on_this_pc) those clients' jobs run in one container (tools/cloud/backends/local.py), its claim held by
 # one node while the others wait on its lock: the container is counted once, the room left to its cap (memory.max
-# less its anon of memory.stat, which MemAvailable already left out), and a node running a client reserves only what
-# its tree holds (container_room). 2026-10-28: three surfaces-bake nodes, one holding the claim with its container at
+# less its anon of memory.stat, which MemAvailable already left out), and a node running a client reserves its own
+# tree's kept peak (client_peak) less what its tree holds now, from its start to its end (container_room). Round 26,
+# 2026-10-30: settle@greenhouse and settle@garage each grew to 12-13 GB in their own trees side by side (the stage's
+# own work beside its container jobs), a running client node then reserving only what its tree held: this PC fell to
+# 6-7 GB available. 2026-10-28: three surfaces-bake nodes, one holding the claim with its container at
 # 7.2 GiB and two waiting, were each given 8 GB and held about 121 ready nodes with 32 GB available. The container is
 # counted by what its running jobs may still grow to (container_reserve), never more than that room: each job (a
 # session under its sshd running a script, a Blender take one a slot) its kind's take peak less what its tree holds
@@ -706,6 +709,13 @@ def container_reserve(room, jobs, kept):
     growth = sum(max(0, peak - holds) for peak, (_, holds, _) in zip(peaks, jobs.values()))
     idle = max(0, kept["slots"] - len(jobs)) * max(peaks, default=TAKE_PEAK)
     return min(room, growth + idle) if kept["slots"] else room
+
+
+def client_peak(stage, peaks, clients):
+    """The bytes a node of `stage` (a name) is expected to peak at in its own process tree: its stage's kept client
+    tree (`clients`: client_trees) when its nodes ran a container client on this PC, else its stage peak (`peaks`),
+    else the floor (memory_floor)."""
+    return clients[stage] if stage in clients else peaks.get(stage, memory_floor())
 
 
 def ran_container_client(root):
@@ -2010,9 +2020,10 @@ class Runner:
         room, jobs = reading
         return container_reserve(room, jobs, self.keep_takes(jobs, time.time()))
 
-    def coming(self, running, peaks, seen):
+    def coming(self, running, peaks, seen, clients):
         """[(each running node's stage peak, what its process tree holds now)] (on this PC a node running a container
-        client its tree alone, and the container once: container_growth), the most each was seen to hold kept in
+        client its own tree's kept peak, client_peak of `clients`, and the container once: container_growth), the
+        most each was seen to hold kept in
         `seen` ({node: bytes}); a node whose process has ended is reaped (is_alive: waitpid, WNOHANG) and holds none,
         though its outcome is not read yet."""
         alive = [(stage, place, process) for stage, place, process in running.values() if process.is_alive()]
@@ -2024,7 +2035,8 @@ class Runner:
             node = node_name(stage, place)
             seen[node] = max(seen.get(node, 0), held[process.pid])
             mine = reading is not None and process.pid in users
-            found.append((held[process.pid] if mine else peaks.get(stage.name, memory_floor()), held[process.pid]))
+            found.append((client_peak(stage.name, peaks, clients) if mine else peaks.get(stage.name, memory_floor()),
+                          held[process.pid]))
         if reading is not None:  # the container, once, whichever of its users holds the claim
             found.append((self.container_growth(reading), 0))
         return found
@@ -2097,7 +2109,7 @@ class Runner:
                     say(f"{node}: {done[node]}")
                 finished = []
                 forget(known, ended)
-                coming = self.coming(running, peaks, seen)  # what the running nodes may still take (memory_room)
+                coming = self.coming(running, peaks, seen, clients)  # what the running nodes may still take
                 queued = self.claim_waiting(running)  # the stages whose running nodes wait on a claim, how many
                 busy, full = len(running) - min(sum(queued.values()), WAITERS_EXCUSED), False  # full: a node waited
                 claimers.update(queued)  # stages seen waiting on a claim this run
@@ -2126,8 +2138,7 @@ class Runner:
                         # a container client's take is in the container's reserve already (container_growth: its
                         # idle slots at a take peak), so only its own tree is expected; counting its stage peak too
                         # held a third bake back beside two with a turn free and 37 GB available (2026-10-29)
-                        expected = clients[stage.name] if stage.name in clients else peaks.get(stage.name,
-                                                                                                    memory_floor())
+                        expected = client_peak(stage.name, peaks, clients)
                         if not memory_room(coming, expected):
                             held = True  # this node waits; the nodes after it that fit still start
                             continue

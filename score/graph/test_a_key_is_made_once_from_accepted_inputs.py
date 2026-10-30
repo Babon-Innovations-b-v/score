@@ -1775,12 +1775,12 @@ def test_a_node_past_its_start_still_holds_room_for_its_stages_peak_and_each_pea
 
 
 def test_on_this_pc_the_container_is_counted_once_and_its_waiting_clients_reserve_only_their_trees(monkeypatch):
-    """Three bake nodes running the container client (one holds the claim, two wait on it; no peak kept: the default)
-    and one count node (peak 2 floors), each tree at 0.1 floor, the container's room 1.5 floors, 5.5 floors available:
-    the bake nodes reserve nothing past their trees, the container once, so a new default node fits (5.5 - 1.9 - 1.5
-    - 1 >= 1); with the container unread, or off this PC (the container never read), each bake node keeps the default
-    and it does not.
-    Break: score/graph/__init__.py: '            mine = room is not None and process.pid in users' ->
+    """Three bake nodes running the container client (one holds the claim, two wait on it; their own trees kept at 0.1
+    floor, no stage peak kept: the default) and one count node (peak 2 floors), each tree at 0.1 floor, the container's
+    room 1.5 floors, 5.5 floors available: the bake nodes reserve nothing past their kept trees, the container once, so
+    a new default node fits (5.5 - 1.9 - 1.5 - 1 >= 1); with the container unread, or off this PC (the container never
+    read), each bake node keeps the default and it does not.
+    Break: score/graph/__init__.py: '            mine = reading is not None and process.pid in users' ->
     '            mine = False' -> the bake nodes keep the default beside the container: no room."""
     runner = a_driven_runner({"hangar": "a ship"})
     bake, count = types.SimpleNamespace(name="bake", grain="place"), types.SimpleNamespace(name="count", grain="place")
@@ -1792,14 +1792,40 @@ def test_on_this_pc_the_container_is_counted_once_and_its_waiting_clients_reserv
     monkeypatch.setattr(graph, "CONTAINED", lambda pid: pid < 14)
     monkeypatch.setattr(graph, "CONTAINER_READ", lambda: room[0] and (room[0], {}))  # no job seen yet: all its room
     monkeypatch.setenv(*graph.THIS_PC)
-    coming = runner.coming(running, peaks, {})
+    clients = {"bake": int(0.1 * FLOOR)}
+    coming = runner.coming(running, peaks, {}, clients)
     assert sum(max(0, peak - holds) for peak, holds in coming) == 2 * FLOOR - int(0.1 * FLOOR) + int(1.5 * FLOOR)
     assert graph.memory_room(coming, FLOOR)
     room[0] = None
-    assert not graph.memory_room(runner.coming(running, peaks, {}), FLOOR)
+    assert not graph.memory_room(runner.coming(running, peaks, {}, clients), FLOOR)
     monkeypatch.setattr(graph, "CONTAINER_READ", lambda: pytest.fail("the container is read off this PC"))
     monkeypatch.setenv(graph.THIS_PC[0], "scaleway")
-    assert not graph.memory_room(runner.coming(running, peaks, {}), FLOOR)
+    assert not graph.memory_room(runner.coming(running, peaks, {}, clients), FLOOR)
+
+
+def test_on_this_pc_a_running_container_client_keeps_its_own_trees_kept_peak_until_it_ends(monkeypatch):
+    """Round 26, 2026-10-30: settle@greenhouse and settle@garage each grew to 12-13 GB in their own trees side by side
+    beside the container; a running client node reserved only what its tree held. A `settle` stage whose nodes'
+    trees peaked at 12 GB, 30 GB available, the 6 GiB floor, the container with no room left: one node starts (30 -
+    12 >= 6.4), a second beside the first (its tree holding nothing yet, just after its start) does not (30 - 12 - 12 < 6.4);
+    a stage whose own tree was never measured reserves the floor while it runs.
+    Break: score/graph/__init__.py: 'client_peak(stage.name, peaks, clients) if mine else' ->
+    'held[process.pid] if mine else' -> the second node starts beside the first."""
+    monkeypatch.delenv(graph.FLOOR_VARIABLE, raising=False)
+    monkeypatch.setenv(*graph.THIS_PC)
+    runner = a_driven_runner({"hangar": "a ship"})
+    settle = types.SimpleNamespace(name="settle", grain="place")
+    running = {0: (settle, "hangar", types.SimpleNamespace(pid=11, is_alive=lambda: True))}
+    faked(monkeypatch, [30 * GIGA])
+    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
+    monkeypatch.setattr(graph, "CONTAINED", lambda pid: True)
+    monkeypatch.setattr(graph, "CONTAINER_READ", lambda: (0, {}))
+    peaks, clients = {"settle": 8 * 2**30}, {"settle": 12 * GIGA}
+    expected = graph.client_peak("settle", peaks, clients)
+    assert expected == 12 * GIGA and graph.memory_room([], expected)
+    coming = runner.coming(running, peaks, {}, clients)
+    assert coming == [(12 * GIGA, 0), (0, 0)] and not graph.memory_room(coming, expected)
+    assert runner.coming(running, {}, {}, {}) == [(FLOOR, 0), (0, 0)]
 
 
 def test_a_node_that_made_nothing_never_brings_its_stage_under_the_default(monkeypatch):
@@ -1973,8 +1999,8 @@ def test_on_this_pc_a_container_clients_next_node_is_expected_at_its_own_tree_no
     `client` stage whose nodes ran a container client, its kept peak 2 floors, 1.5 floors available once the first
     node started: on this PC the second node is expected at what the first's own tree held, so it starts at once;
     off this PC it waits for the room (here a 3 s deadline).
-    Break: score/graph/__init__.py: 'expected = clients[stage.name] if stage.name in clients else peaks.get(' ->
-    'expected = peaks.get(' (its continuation line joined) -> the second node waits for the deadline on this PC.
+    Break: score/graph/__init__.py: '    return clients[stage] if stage in clients else peaks.get(' ->
+    '    return peaks.get(' -> the second node waits for the deadline on this PC.
     Break: score/graph/__init__.py: 'clients = self.keep_client_tree(stage.name, tree)' ->
     'clients[stage.name] = tree' -> nothing kept for the next run."""
     monkeypatch.delenv(graph.FLOOR_VARIABLE, raising=False)
@@ -2131,7 +2157,7 @@ def test_an_ended_node_holds_no_memory_and_one_that_ran_a_container_client_keeps
     clean, count = runner.stages["clean"], runner.stages["count"]
     running = {"ended": (clean, "hangar", types.SimpleNamespace(pid=11, is_alive=lambda: False)),
                "live": (count, "hangar", types.SimpleNamespace(pid=12, is_alive=lambda: True))}
-    assert runner.coming(running, {"clean": 2 * FLOOR, "count": FLOOR}, {}) == [(FLOOR, 0)]
+    assert runner.coming(running, {"clean": 2 * FLOOR, "count": FLOOR}, {}, {}) == [(FLOOR, 0)]
     monkeypatch.setattr(graph, "PROC", str(tmp_path))
     a_process(tmp_path, 100, 1, 10)
     a_process(tmp_path, 101, 100, 10)
