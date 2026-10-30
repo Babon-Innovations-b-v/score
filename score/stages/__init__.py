@@ -601,10 +601,20 @@ def gap_moved(row, check):
     batch = batch_moves(row, check.name)
 
     def judged(output, inputs, evidence):
-        carried = batch_gaps.of(inputs, output) if batch else []
+        carried = tied(batch_gaps.of(inputs, output), inputs) if batch else []
         return gaps.moved(check.judge(output, inputs, evidence), gaps.entries(inputs, row, check.name) + carried)
     judged.__wrapped__ = check.judge
     return checks.Check(check.name, judged, check.evidence)
+
+
+def tied(found, inputs):
+    """The batch gaps, each with every prop object and inventory row its takes stand for in the place's hand-in
+    (`props`, stood_for), as motion reads it: a gap a paid step named by its take alone moves its rows' faults by name
+    (likeness@camp, 2026-10-30: the split's patchy-paint gaps named camp_kitchen_counter_5393e7f9, not the
+    kitchen_counter row the likeness faulted, and the first read of a gap's name is the one kept)."""
+    objects = prop_data.record_at(inputs["props"]).get("objects", {}) if "props" in inputs else {}
+    return [{**entry, "objects": sorted({item for take in entry["objects"] for item in stood_for(take, objects)})}
+            for entry in found]
 
 
 def batch_moves(row, check):
