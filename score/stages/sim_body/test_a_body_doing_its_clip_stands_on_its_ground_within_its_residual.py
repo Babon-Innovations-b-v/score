@@ -23,7 +23,7 @@ calibrated on the static table (no clip of the rig handed to the run), with the 
 joints leave the stage unchanged: every frame's `poses` in the measures are the clip's own segment frames bit for bit,
 though the written run moved them 0.6 m (#70: SOMA is the truth). A cast of a crowd and no singles is a valid input: no run, no
 body, the record's `no bodies` naming why, every gate passing; a cast whose one single's clip the rig lacks still fails
-the output's contract (#70, square, 2026-10-30). Newton and MuJoCo are not run here (the model's run
+the output's contract, and so does an empty cast (no singles and no crowd), by name (#70, square, 2026-10-30). Newton and MuJoCo are not run here (the model's run
 takes minutes); the real run's numbers are on #65.
 
 Breaks that turn each check red (each applied once and seen red, reverted, 2026-10-27):
@@ -55,6 +55,8 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   `"calibrated on": CALIBRATED_ON` made `"the rig's standing clip"`.
 - a_cast_of_no_singles_passes_with_its_reason_and_a_missing_clip_fails, 2026-10-30 (#70): output_faults'
   `"no bodies" not in` check dropped (the crowd-only cast failed again); no_singles' `cast["characters"]` made `True`.
+- a_cast_of_no_singles_passes_with_its_reason_and_a_missing_clip_fails, 2026-10-30 (#70): no_singles'
+  `or not cast.get("crowd")` dropped (the empty cast passed with the crowd's reason).
 
 Run: .venv/bin/python -m pytest score/stages/sim_body/test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual.py
 """
@@ -345,3 +347,6 @@ def test_a_cast_of_no_singles_passes_with_its_reason_and_a_missing_clip_fails(tm
     out = made_on(tmp_path / "lacking", monkeypatch, lacking)
     assert "no bodies" not in json.loads((out / sim_body.RECORD).read_text())
     assert sim_body.output_faults(out) == ["no sim body: the cast names no character whose clip the rig holds"]
+    out = made_on(tmp_path / "empty", monkeypatch, {"characters": []})
+    assert "no bodies" not in json.loads((out / sim_body.RECORD).read_text())
+    assert sim_body.output_faults(out) == [sim_body.EMPTY_CAST] == ["empty cast: no single characters and no crowd"]
