@@ -233,6 +233,8 @@ tests it turned red:
   a_palette_answer_off_its_own_palette_is_asked_once_more_told_why
 - place_line.py: `return turn.T` -> `return None` in `recovered_turn`  ->
   the_paint_reads_the_finish_s_turn_off_the_final_model_whatever_code_stood_it
+- place_line.py: `turn @ labels.raw_facing(take)` -> `turn` in `finished_frame`  ->
+  the_paint_lays_a_raw_still_facing_plus_z_on_its_final_by_the_recovered_turn
 """
 import inspect
 import io
@@ -3169,3 +3171,30 @@ def test_the_paint_reads_the_finish_s_turn_off_the_final_model_whatever_code_sto
         stood.vertices = stood.vertices + [0.0, 0.0, 0.05]  # moved off its finished file: no exact turn
         stood.export(tmp_path / "crate_1-final.glb")
         assert place_line.recovered_turn(tmp_path, "crate_1") is None
+
+
+def test_the_paint_lays_a_raw_still_facing_plus_z_on_its_final_by_the_recovered_turn(tmp_path, monkeypatch):
+    """A raw image-to-3dlab left facing +Z (its stamp), whose finish turn is recovered off its final model, is turned
+    back half round before that turn, as the finish turned it before slimming: laid on its final, not tipped over
+    (galley's sink and workshop's desk lay on their backs, 2026-10-30)."""
+    import trimesh
+    with prop_data.tools("props"):
+        import glb_file
+        import labels
+        monkeypatch.setattr(labels, "PIXAL", tmp_path)
+        tilt = trimesh.transformations.rotation_matrix(math.radians(30), [1, 0, 0])[:3, :3]
+        raw = trimesh.creation.box([0.5, 0.87, 0.3])
+        raw.vertices = (raw.vertices + [0.1, 0.0, 0.0]) @ tilt.T @ labels.HALF_TURN.T  # off its middle: a half turn shows
+        raw.export(tmp_path / "stool_1.glb")
+        document, views = glb_file.read(tmp_path / "stool_1.glb")
+        document["asset"]["extras"] = {labels.FACING_KEY: "+Z"}
+        glb_file.write(document, views, tmp_path / "stool_1.glb")
+        slimmed = raw.copy()
+        slimmed.vertices = slimmed.vertices @ labels.HALF_TURN.T
+        slimmed.export(tmp_path / "stool_1-5000.glb")
+        final = slimmed.copy()
+        final.vertices = slimmed.vertices @ tilt  # stood: its tilt taken off
+        final.export(tmp_path / "stool_1-final.glb")
+        matrix, _, bounds = place_line.finished_frame(raw, "stool_1")
+    laid = trimesh.transform_points(raw.vertices, matrix)
+    assert np.allclose([laid.min(0), laid.max(0)], bounds, atol=0.01), (laid.min(0), laid.max(0), bounds)
