@@ -193,7 +193,7 @@ solved = level2.inner[level2.frames * level2.pose_size:]
 print(json.dumps({"sited vs rebuilt": timed("sited check", lambda: sited_gaps(
     sited, rebuilt, sited(np.zeros(len(entries))).start(), (0, len(entries) // 2, len(entries) - 1)))}), flush=True)
 level3 = level3_body("level3", sites, turns, pinned, lambda theta: trusted + columns @ theta, len(entries),
-                     len(rows), columns=columns)
+                     len(rows), columns=columns, step=STEPS[1])  # float32 products: 1e-4 left 2-3 %, 1e-3 0.4-0.6 %
 joined = np.concatenate([np.zeros(len(entries)), np.zeros(solved.size)])
 lifted, _ = factored_solve(level3, differenced_arrow(level3, joined, STEPS[0]), np.asarray(by_poses, dtype=float).T)
 direct = timed("direct rows", lambda: direct_rows(measures, pose_parts, len(rows)))
