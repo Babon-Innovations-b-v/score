@@ -15,6 +15,7 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   g2_(z,theta); each H read once (`adjoint_solve`) for every right-hand side. `transposed_mixed` takes w^T dg/dtheta
   from a Body's optional `products(inner, outer, weights)` (meant: two taped outer gradients a row, d/dtheta of g . w
   by symmetry), else `mixed` once. On the toy it equals `chained_rows` and the re-solves; level 3's `products` is built (toy only), level 2 still falls back to `mixed`.
+- `_check_columns.py` (2026-10-30, not yet run by the test): `adjoint_rows`' steps one by one over EVERY entry of `tuning.layout(joints=set())` (200 on heavy_kimodo's depth1 set) on `taped_sites(fitting=, constants=)` and `picked_columns(ends=ends_of(...))`, timed, the block saved to an npz. heavy_kimodo: (54, 200) finite, 527 s: taping R_q 55, R_c 111, level 2 build 20, level 3 factor 0.25, products 0.57, level 2 factor 64, level 2 mixed 221 (526 `problem_at` rebuilds, 0.4 s each), solves under 0.1 s. Not yet checked against `_check_chained`'s link column.
 - An inner fit whose gradient exceeds the tolerance raises `Unconverged`: the caller reports that body, never uses it.
 - `Body` is one tuning body's inner problem at its optimum; `stacked_jacobian` is level 1's whole Jacobian in
   `tuning`'s row order (every body's rows, then the prior's), every body checked first (`refused`) and each one stopped
