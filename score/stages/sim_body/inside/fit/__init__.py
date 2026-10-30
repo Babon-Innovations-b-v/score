@@ -126,13 +126,20 @@ def sampled(fit, recordings):
 
 
 def card_path(fit, turns, points, lengths):
-    """The sampled frames' angles on the card, one set (`_card._sampled.path_across`), each recording (`lengths`
-    frames each, end to end) started from `Frames.start`."""
+    """The sampled frames' angles on the card for one set (`card_paths` of that set alone)."""
+    return card_paths([fit], [turns], [points], lengths)[0]
+
+
+def card_paths(fits, turns, points, lengths):
+    """Every set's sampled frames' angles on the card, one launch a frame for all sets (`_card._sampled.path_across`):
+    `fits` one `Fitting` a set of one body, `turns`, `points` that set's sampled targets, each recording (`lengths`
+    frames each, end to end, the same in every set) started from its set's own `Frames.start`."""
     from ._card import _clip, _sampled, _sets
-    frames = Frames(fit)
-    sets = _sets.Sets([_clip.for_fitting(fit, fit.path)])
-    return _sampled.path_across(sets, [turns], [points], _sampled.recording_firsts(lengths),
-                                lambda _, index: frames.start(turns[index], points[index]))[0]
+    starts = [Frames(fit) for fit in fits]
+    sets = _sets.Sets([_clip.for_fitting(fit, fit.path) for fit in fits])
+    return _sampled.path_across(sets, turns, points, _sampled.recording_firsts(lengths),
+                                lambda number, index: starts[number].start(turns[number][index],
+                                                                           points[number][index]))
 
 
 def card_jacobian(fit, frames):

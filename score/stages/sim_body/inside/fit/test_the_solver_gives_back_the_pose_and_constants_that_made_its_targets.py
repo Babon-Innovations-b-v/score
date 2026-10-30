@@ -25,6 +25,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   leader short.
 - (2026-10-30) _card._clip.for_fitting's `moved_inside(builder, fitting)` dropped: Newton poses the knee where the
   file has it, not where the fit moved it, and the card's sampled frames are refused, sites 10.0000 mm off MuJoCo's.
+- (2026-10-30) card_paths' `for fit in fits` made `for fit in fits[:1] * len(fits)`: every set posed on set 0's
+  model, the second set 0.003047 rad off its card_path alone.
 - (2026-10-28) Frames' constraints `[mink.EqualityConstraintTask(...)]` made `[]`: the follower leaves its leader.
 - (2026-10-29) Fitting.apply's `self.model.site_pos[self.mark_sites] += marks` dropped: the marker's move is not found.
 - (2026-10-29) _frames.weights' `np.sqrt(trusts / max(trusts.sum(), 1e-12))` made `np.full(len(trusts), 1.0 /
@@ -233,6 +235,13 @@ def every_recording_of_the_body_is_sampled():
         turns, points, angles = posed_targets(fitting, truth, POSES[:-1])
         fitting.apply(truth)
         found, _, path = fit.sampled(fitting, [(turns[:2], points[:2]), (turns[2:], points[2:])])
+        with tempfile.TemporaryDirectory() as other_folder:
+            neutral = toy_fitting(other_folder)
+            both = fit.card_paths([fitting, neutral], [turns] * 2, [points] * 2, [2, len(turns) - 2])
+            alone = fit.card_path(neutral, turns, points, [2, len(turns) - 2])
+    miss = max(np.abs(both[0] - path).max(), np.abs(both[1] - alone).max())
+    if miss > 1e-5:
+        return [f"card_paths across two sets {miss:.6f} rad off each set alone"]
     if len(found) != len(turns) or not np.allclose(found, turns):
         return [f"{len(found)} frames sampled of the recordings' {len(turns)}"]
     off = np.abs(path[:, 7:11] - angles).max()
