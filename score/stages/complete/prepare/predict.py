@@ -264,6 +264,9 @@ def straight_outcome(take, row, measures):
         store.place_blob(sha, folder / "cut.png")
         views = thin_straight.write_take(name, sized, Image.open(folder / "cut.png"), "built", folder / "pixal",
                                          folder / "cut.png")
+        if views is None:
+            return {"outcome": "predicted gap", "pass_share": 0.0,
+                    "mode": "its SAM 3 mask is no thin thing (thin_straight.drawn_thin): no code build"}
         faults = build_faults(folder / "pixal" / f"{name}-final.glb", views / "input.png", take["place"], name, sized,
                               folder, straight=True)
     return judged_build(faults, "thin straight code build (thin_straight.py)")

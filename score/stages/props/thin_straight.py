@@ -9,13 +9,14 @@ shape_class: its middle side under SLENDER_SHARE of its longest), and its name o
 (STRAIGHT) or a railing (RAILING: its posts and rails built, `railing`), or its row kind glows (`slender_light`: a
 lamp on its own stem, its post built here and its head the library's lamp at the head mount; a light bar, a strip light or a string of lights along its cable, its body built here
 and its light the library's lamp for its mount, laid by the light layer). Every such row is built along its SAM 3
-mask's centreline (`path_build`): skeletonised, its spurs pruned, traced, laid in its picture's plane at its metres,
-leaned to face the outline's view, and swept as a tube its band's drawn width across that plane and at most the row's
-thinnest side deep, so the outline holds the build to the thing's own path, straight or not (a bent pipe network, a
-sagging string, a railing's ladder of posts and rails, a bundle of parallel cables: world 1's masks, 2026-10-26).
-A straight sweep of the box for a mask that looked one straight run hid a wide band's bends (walkway's wall pipes
-0.438, along its centreline 0.681) and took its section from the wrong side of its box (stairwell's conduit 0.346,
-0.612): along the centreline the 11 of round 25's 56 code builds that failed their outline came to 2 (#36, 2026-10-30).
+mask's centreline (`path_build`): skeletonised, a ball at each skeleton point as wide as the mask is there, the union
+of them laid in its picture's plane at its metres, at most the row's thinnest side deep, and leaned to face the
+outline's view, so the outline holds the build to the thing's own path and width, straight or not (a bent pipe
+network, a sagging string, a railing's ladder of posts and rails, a bundle of parallel cables: world 1's masks,
+2026-10-26; a post's flared foot, a lamp post's head). A straight sweep of the box for a mask that looked one
+straight run hid a wide band's bends (walkway's wall pipes 0.438) and took its section from the wrong side of its box
+(stairwell's conduit 0.346): of round 25's 57 code builds 11 failed their outline swept so, none along the
+centreline (#36, 2026-10-30).
 A row with no mask is swept straight along its longest side at its box's section (round for the kinds in ROUND, a
 rectangle for the rest).
 
@@ -62,16 +63,12 @@ RAILING = frozenset(("railing", "balustrade", "guardrail", "banister"))
 # length has ceil(length / POST_GAP) bays.
 POST_GAP = 1.5
 SEGMENTS = 32
-# A skeleton's run with a free end shorter than this many band widths is a spur of a fat mask's outline, not a run of
-# the thing (`spurless`); pruned SPUR_ROUNDS times, the band's width measured again each time.
-SPUR_WIDTHS = 1.5
-SPUR_ROUNDS = 3
-# A band at most this share of its length across (`lifted`): the model gate's slender share (tools/props/gates/model.py
+# A band at most this share of its length across (`balls`): the model gate's slender share (tools/props/gates/model.py
 # SLENDER_SHARE), so a mask drawn fatter than a thin thing never builds a chunky one.
 SECTION_SHARE = 0.25
 # A mask's piece under this share of its largest piece's area is a speck SAM 3 left, not a run of the thing (pieces).
 PIECE_SHARE = 0.1
-# Grid cells across a path build's tube (tubes): enough for a round section, few enough faces for the model gate.
+# Grid cells across a path build's tube (swelled): enough for a round section, few enough faces for the model gate.
 TUBE_CELLS = 6
 # Faces a path build is slimmed to at most (a 4 m railing's grid made 54,000), as Pixal3D's takes are slimmed.
 PATH_FACES = 20000
@@ -257,33 +254,6 @@ def least_tube():
     return model_gate.THINNEST_LIMIT / model_gate.SOLID_SHARE
 
 
-def lifted(runs, row, width):
-    """(the runs' points in the build's frame, metres; the tube's thickness): the picture's runs, their direction and
-    path the picture's own, laid in the picture's plane (across the picture z, up it y; `path_build` leans it to face
-    the outline's view); one scale for the picture, so the run's longest reach is the row's longest side and its other
-    reach the path's own, never a box side: a thin run's box is its thickness on its two short sides (a sagging string
-    8 by 0.01 by 0.01), and a railing curving round a floor drawn from above shows its plan's depth as its picture's
-    height (the greenhouse's, 9.4 by 0.1 by 1 m: held to its 1 m, its curve flattened to a line and its outline fell
-    from 0.415 to 0.023, 2026-10-28); the tube `width` picture pixels thick at that scale, its band's drawn width
-    across the picture (a wide band of pipes is that wide where the picture shows it: capped at the row's thinnest
-    side, the walkway's wall pipes read 0.155), at least `least_tube` and at most SECTION_SHARE of its length (a
-    mask SAM 3 drew as a blob is no thin thing, and no chunky build is made of it); `path_build` holds its depth to
-    the row."""
-    sides = sorted(float(value) for value in row["size"])
-    flat = np.concatenate(runs)
-    low, span = flat.min(0), np.maximum(np.ptp(flat, axis=0), 1.0)
-    scale = sides[2] / (span.max() + width)
-    thick = float(np.clip(width * scale, least_tube(), SECTION_SHARE * sides[2]))
-    scale = (sides[2] - thick) / span.max()
-    laid = []
-    for run in runs:
-        point = np.zeros((len(run), 3))
-        point[:, 2] = (run[:, 0] - low[0] - span[0] / 2) * scale
-        point[:, 1] = -(run[:, 1] - low[1] - span[1] / 2) * scale  # the picture's down is the world's up
-        laid.append(point)
-    return laid, thick
-
-
 def facing(row):
     """The turn (4 by 4) leaning a build laid in the picture's plane (x its normal) back about z by the close-up's
     look-down (the outline's view, tools/props/closeup/check.py look_down), its top away from a camera on -x, so that
@@ -350,89 +320,108 @@ def fittings(laid, row, thick):
 def path_build(row, alpha):
     """The row's model along its mask's centreline (owner's ask, 2026-10-26: bent pipe networks, a sagging lantern
     string, a railing's posts and rails, a bundle of parallel cables were each built as one straight sweep and failed
-    their outline): the mask skeletonised and traced into its runs (`traces`, forks kept), a fat band's spurs pruned
-    (`spurless`), each run's bends kept to within a quarter of the band's width, laid in the picture's plane at its
-    metres (`lifted`), and a round tube of the band's drawn width swept along them all as one closed surface (`tubes`),
-    so a sag stays a sag, an elbow a bend, a ladder its posts and rails and a band of lines its band; held at most the
-    row's thinnest side deep through the picture's plane (its thickness: a 5 m drape's box 1 m deep is no 1 m tube,
-    a flat wall run of pipes no round one), never under `least_tube`, and leaned to face the outline's look-down
-    (`facing`); a rigid run's fittings (`fittings`: elbows, tees, wall clamps) made in code on the same surface, its
-    finish the finish route's like the rest."""
-    from skimage.measure import approximate_polygon
+    their outline): a ball at each point of the mask's skeleton as wide as the mask is there (`balls`: its distance to
+    the mask's edge), the union of them one closed surface (`swelled`), so a sag stays a sag, an elbow a bend, a ladder
+    its posts and rails, a band its band, a post its flared foot and a lamp post its head (a tube of one width along
+    the centreline lost the airlock porch post's foot, 0.75 to 0.46, and the street lamp post's head, 0.61 to 0.494;
+    #36, 2026-10-30), laid in the picture's plane at one scale, the mask's longest reach the row's longest side and its
+    other reach the path's own, never a box side (a thin run's box is its thickness on its two short sides: a sagging
+    string 8 by 0.01 by 0.01; a railing curving round a floor drawn from above shows its plan's depth as its picture's
+    height: the greenhouse's held to its 1 m read 0.023, 2026-10-28); held at most the row's thinnest side deep
+    through the picture's plane (a 5 m drape's box 1 m deep is no 1 m tube, a flat wall run of pipes no round one),
+    never under `least_tube`, and leaned to face the outline's look-down (`facing`); a rigid run's fittings
+    (`fittings`: elbows, tees, wall clamps on its traced runs) made in code on the same surface, its finish the finish
+    route's like the rest."""
     from skimage.morphology import skeletonize
     kept = pieces(alpha)
-    traced, width = spurless([np.asarray(run, dtype=float) for run in traces(skeletonize(kept)) if len(run) > 1],
-                             int(kept.sum()))
-    runs = [approximate_polygon(run, tolerance=width / 4) for run in traced]
-    laid, thick = lifted(runs, row, width)
-    mesh = tubes(laid, thick, [pair for pairs in fittings(laid, row, thick).values() for pair in pairs])
-    deep = max(min(float(value) for value in row["size"]), least_tube())
+    skeleton = skeletonize(kept)
+    sides = sorted(float(value) for value in row["size"])
+    down, across = np.nonzero(kept)
+    low = np.array([across.min(), down.min()], dtype=float)
+    reach = float(max(np.ptp(across), np.ptp(down)) + 1)
+    scale = sides[2] / reach  # metres a pixel
+    off, ball = balls(kept, skeleton, scale, reach)
+    width = float(np.median(2 * ball[skeleton]))
+    laid = laid_runs(skeleton, low, scale, width)
+    fitted = [pair for pairs in fittings(laid, row, width * scale).values() for pair in pairs]
+    mesh = swelled(off, ball, [[(point[2] / scale + low[0], -point[1] / scale + low[1]) for point in pair]
+                               for pair in fitted], width, scale)
+    deep = max(sides[0], least_tube())
     mesh.apply_transform(np.diag([min(1.0, deep / max(float(np.ptp(mesh.vertices[:, 0])), 1e-9)), 1.0, 1.0, 1.0]))
     mesh.apply_transform(facing(row))
     return mesh.apply_translation(-mesh.bounds.mean(0))
 
 
-def run_length(run):
-    """A traced run's length in pixels along its points (a diagonal step 1.4)."""
-    return float(np.linalg.norm(np.diff(run, axis=0), axis=1).sum())
+def drawn_thin(alpha):
+    """Whether a mask draws a thin thing: its drawn width (twice its median distance to its edge along its skeleton)
+    at most SECTION_SHARE of its reach. A blob SAM 3 found in a thin row's box (one lantern of a string's eight, a
+    crate behind a pipe) is no thin thing: built along its centreline it made a disc whose outline, judged without
+    scale, passed (#36, 2026-10-30), so it is no build; of round 25's 57 builds the widest drew 0.233, but the
+    square's lantern string cut from one lantern's box (0.459)."""
+    from skimage.morphology import skeletonize
+    from scipy import ndimage
+    kept = pieces(alpha)
+    down, across = np.nonzero(kept)
+    reach = max(np.ptp(across), np.ptp(down)) + 1
+    edge = ndimage.distance_transform_edt(np.pad(kept, 1))[1:-1, 1:-1]
+    return 2 * float(np.median(edge[skeletonize(kept)])) <= SECTION_SHARE * reach
 
 
-def spurless(traced, area):
-    """(the skeleton's runs `traced` but its spurs, the band's drawn width in pixels): a run with a free end (one no
-    other run's end meets) shorter than SPUR_WIDTHS band widths is the skeleton's spur off a fat mask's outline, not a
-    run of the thing, so it is dropped, SPUR_ROUNDS times, the width (the mask's `area` over the runs' length; a
-    diagonal step 1.4 pixels long, counted as 1 it drew the tube fatter) measured again each time; every run is kept
-    when each one would go."""
-    width = area / max(sum(map(run_length, traced)), 1.0)
-    for _ in range(SPUR_ROUNDS):
-        ends = [tuple(end) for run in traced for end in (run[0], run[-1])]
-        kept = [run for run in traced if run_length(run) >= SPUR_WIDTHS * width
-                or min(ends.count(tuple(run[0])), ends.count(tuple(run[-1]))) > 1]
-        traced = kept or traced
-        width = area / max(sum(map(run_length, traced)), 1.0)
-    return traced, width
+def balls(kept, skeleton, scale, reach):
+    """(each pixel's distance to the skeleton, the radius of the skeleton's ball nearest it), in pixels: a skeleton
+    pixel's ball is its distance to the mask's edge, at least half `least_tube` (the gate's thinnest, at `scale`
+    metres a pixel) and at most half SECTION_SHARE of the mask's `reach` (a mask SAM 3 drew as a blob is no thin
+    thing, and no chunky build is made of it)."""
+    from scipy import ndimage
+    edge = ndimage.distance_transform_edt(np.pad(kept, 1))[1:-1, 1:-1]  # the picture's border is an edge too
+    radius = np.clip(edge, least_tube() / 2 / scale, SECTION_SHARE * reach / 2)
+    off, (near_down, near_across) = ndimage.distance_transform_edt(~skeleton, return_indices=True)
+    return off, radius[near_down, near_across]
 
 
-def tubes(laid, thick, fitted=()):
-    """One closed surface round the runs `laid` (points in the build's frame, all in one axis plane), `thick` across,
-    and round the `fitted` segments (point pairs in that plane), FITTING_SHARE of it across: the plane's distance to
-    the nearest run and to the nearest fitting, drawn on a grid TUBE_CELLS cells across the tube, made round through
-    the third axis and cut at each one's radius (marching cubes), so joints, forks and fittings are one surface with no
-    shell inside another (the model gate's wall rays read overlapping tubes 0.3 mm thick)."""
+def laid_runs(skeleton, low, scale, width):
+    """The skeleton's runs (`traces`, forks kept, each kept to within a quarter of the band's `width` of its pixels)
+    in the build's frame: across the picture z, up it y (the picture's down is the world's up), metres from the mask's
+    corner `low`."""
+    from skimage.measure import approximate_polygon
+    runs = [approximate_polygon(np.asarray(run, dtype=float), tolerance=width / 4) for run in traces(skeleton)
+            if len(run) > 1]
+    return [np.c_[np.zeros(len(run)), -(run[:, 1] - low[1]) * scale, (run[:, 0] - low[0]) * scale] for run in runs]
+
+
+def swelled(off, ball, fitted, width, scale):
+    """One closed surface round the skeleton's balls (`balls`' `off` and `ball`, pixels) and round the `fitted`
+    segments (pairs of picture points), FITTING_SHARE of the band's `width` across: on a grid TUBE_CELLS cells across
+    the band, each cell's distance through the third axis to its nearest ball's centre less its radius, cut at nought
+    (marching cubes), so joints, forks, a flared foot and the fittings are one surface with no shell inside another
+    (the model gate's wall rays read overlapping tubes 0.3 mm thick); in the build's frame (x the picture's normal),
+    `scale` metres a pixel, slimmed to PATH_FACES."""
     import trimesh
+    from PIL import ImageDraw
     from scipy import ndimage
     from skimage.measure import marching_cubes
-    flat = np.concatenate(laid)
-    plane = [axis for axis in range(3) if np.ptp(flat[:, axis]) > 0 or axis == 2][:2]
-    if len(plane) < 2:
-        plane = [1, 2]
-    across = 3 - sum(plane)
-    cell, radius = thick / TUBE_CELLS, thick / 2
-    outer = radius * FITTING_SHARE if fitted else radius
-    low = flat[:, plane].min(0) - outer - 2 * cell
-    shape = np.ceil((np.ptp(flat[:, plane], axis=0) + 2 * outer + 4 * cell) / cell).astype(int) + 1
-    steps = int(np.ceil(outer / cell)) + 2
-    depth = np.arange(-steps, steps + 1) * cell
-
-    def round_of(lines, reach_radius):
-        """The signed distance to tubes `reach_radius` round `lines` (each a list of points) on the grid."""
-        from PIL import ImageDraw
-        centre = Image.new("1", (int(shape[0]), int(shape[1])), 1)
-        draw = ImageDraw.Draw(centre)
-        for points in lines:
-            draw.line([tuple(point) for point in (np.asarray(points)[:, plane] - low) / cell], fill=0)
-        reach = ndimage.distance_transform_edt(np.asarray(centre).T) * cell  # [first plane axis, second]
-        return np.sqrt(reach[:, :, None] ** 2 + depth[None, None, :] ** 2) - reach_radius
-
-    field = round_of(laid, radius)
+    cell = max(width / TUBE_CELLS, 1.0)
+    pad = int(np.ceil(max(float(ball.max()), width * FITTING_SHARE / 2) / cell)) + 2
+    tall, wide = off.shape
+    downs = np.arange(-pad, int(np.ceil(tall / cell)) + pad) * cell
+    acrosses = np.arange(-pad, int(np.ceil(wide / cell)) + pad) * cell
+    depth = np.arange(-pad, pad + 1) * cell
+    inside = (downs[:, None] >= 0) & (downs[:, None] < tall) & (acrosses[None, :] >= 0) & (acrosses[None, :] < wide)
+    picks = np.clip(downs.astype(int), 0, tall - 1)[:, None], np.clip(acrosses.astype(int), 0, wide - 1)[None, :]
+    near = np.where(inside, off[picks], np.inf)
+    field = np.sqrt(near[:, :, None] ** 2 + depth[None, None, :] ** 2) - np.where(inside, ball[picks], 0.0)[:, :, None]
     if fitted:
-        field = np.minimum(field, round_of(fitted, outer))
+        centre = Image.new("1", (len(acrosses), len(downs)), 1)
+        draw = ImageDraw.Draw(centre)
+        for pair in fitted:
+            draw.line([(point[0] / cell + pad, point[1] / cell + pad) for point in pair], fill=0)
+        reach = ndimage.distance_transform_edt(np.asarray(centre)) * cell
+        field = np.minimum(field, np.sqrt(reach[:, :, None] ** 2 + depth[None, None, :] ** 2)
+                           - width * FITTING_SHARE / 2)
     vertices, faces = marching_cubes(field, 0.0, spacing=(cell, cell, cell), allow_degenerate=False)[:2]
-    points = np.zeros_like(vertices)
-    points[:, plane[0]], points[:, plane[1]] = vertices[:, 0] + low[0], vertices[:, 1] + low[1]
-    points[:, across] = vertices[:, 2] + depth[0]
+    points = np.c_[vertices[:, 2] + depth[0], -(vertices[:, 0] + downs[0]), vertices[:, 1] + acrosses[0]] * scale
     mesh = trimesh.Trimesh(points, faces, process=True)
-    if np.linalg.det(np.eye(3)[[plane[0], plane[1], across]]) < 0:
+    if mesh.volume < 0:
         mesh.invert()
     return mesh.simplify_quadric_decimation(face_count=PATH_FACES) if len(mesh.faces) > PATH_FACES else mesh
 
@@ -645,11 +634,13 @@ def textured(mesh, picture):
 
 def write_take(take, row, picture, faces, pixal, mask, box=None):
     """The take's files (module docstring) in `pixal` from `picture`, its concept crop of `box` (its row's `cut_box`
-    by default) cut out by its SAM 3 `mask`."""
+    by default) cut out by its SAM 3 `mask`; None, nothing written, when the mask is no thin thing (`drawn_thin`)."""
+    alpha = np.asarray(picture.convert("RGBA"))[..., 3] > 127
+    if alpha.any() and not drawn_thin(alpha):
+        return None
     views = pixal / f"{take}.svviews"
     views.mkdir(parents=True, exist_ok=True)
     picture.save(views / "input.png")
-    alpha = np.asarray(picture.convert("RGBA"))[..., 3] > 127
     mesh = textured(build(row, alpha), picture)
     for name in (f"{take}.glb", f"{take}-{faces}.glb", f"{take}-final.glb"):  # raw, slimmed, final: never stood
         mesh.export(pixal / name)
