@@ -574,7 +574,7 @@ def test_a_row_ground_join_joined_is_the_ground_s_and_is_not_laid_again_as_an_ob
     (its join.json pieces) is laid by the ground alone: no object, and no longer named waiting.
     Break: score/stages/assembly/made_waiting.py: `if entry.get("waiting") and entry.get("row") in joined:` ->
         `if False:`
-    Break: score/stages/assembly/__init__.py: `return frozenset(json.loads(...)["pieces"])` -> `return frozenset()`"""
+    Break: score/stages/assembly/made_waiting.py: `return frozenset(json.loads(...)["pieces"])` -> `return frozenset()`"""
     root = a_toy(tmp_path / "out")
     entries = [{"name": f"{row_id}_1", "row": row_id, "bake": f"{row_id}_1", "at": [1.0, 0.0, 1.0],
                 "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "its model comes from the bake"}
@@ -586,12 +586,35 @@ def test_a_row_ground_join_joined_is_the_ground_s_and_is_not_laid_again_as_an_ob
     (tmp_path / "bake/baked.json").write_text(json.dumps({"rock_1": {}, "bench_1": {}}))
     (tmp_path / "join").mkdir()
     (tmp_path / "join/join.json").write_text(json.dumps({"place": TOY, "pieces": {"rock": {}}, "code ground": {}}))
-    joined = assembly.joined_rows({"ground-join": tmp_path / "join"})
-    assert joined == {"rock"} and assembly.joined_rows({}) == frozenset()
+    joined = made_waiting.joined_rows({"ground-join": tmp_path / "join"})
+    assert joined == {"rock"} and made_waiting.joined_rows({}) == frozenset()
     assert made_waiting.lay(root.parent, TOY, tmp_path / "bake", joined) == ["bench_1"]
     stage = opened(root)
     assert not stage.GetPrimAtPath(f"/{TOY}/Objects/rock_1") and stage.GetPrimAtPath(f"/{TOY}/Objects/bench_1")
     assert not stage.GetPrimAtPath(f"/{TOY}").HasAttribute(assembly.WAITING)
+
+
+def test_the_settle_s_seed_leaves_out_a_row_ground_join_joined(tmp_path, monkeypatch):
+    """The settle drops the place as the assembly lays it (grounded.take_bakes): a row ground-join joined is no object
+    there either, so no drop moves it and no settle over names a prim the assembly no longer lays (camp's rocks, loose
+    on the ground, 2026-10-30). The bakes' own export is stubbed: only what is laid is read.
+    Break: score/stages/assembly/grounded.py: `made_waiting.lay(folder, place, bake, made_waiting.joined_rows(inputs))`
+        -> `made_waiting.lay(folder, place, bake)`"""
+    from score.stages.assembly import grounded
+    root = a_toy(tmp_path / "out")
+    entry = {"name": "rock_1", "row": "rock", "bake": "rock_1", "at": [1.0, 0.0, 1.0],
+             "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "its model comes from the bake"}
+    assembly.take_record(a_record(tmp_path, {"objects": [entry]}), root.parent, TOY)
+    a_box_asset(root.parent / "assets/rock_1.usdc", (-1.0, 0.0, -1.0), (1.0, 1.0, 1.0))
+    (tmp_path / "bake").mkdir()
+    (tmp_path / "bake/baked.json").write_text(json.dumps({"rock_1": {}}))
+    (tmp_path / "join").mkdir()
+    (tmp_path / "join/join.json").write_text(json.dumps({"place": TOY, "pieces": {"rock": {}}, "code ground": {}}))
+    monkeypatch.setattr(baked, "take_bake", lambda *args, **kwargs: None)
+    monkeypatch.setattr(baked, "claimed_bakes", lambda *args: [])
+    grounded.take_bakes({"surfaces-bake": tmp_path / "bake", "surfaces-paint": tmp_path / "paint",
+                         "ground-join": tmp_path / "join"}, root.parent, TOY)
+    assert not opened(root).GetPrimAtPath(f"/{TOY}/Objects/rock_1")
 
 
 def a_box_asset(path, low, high):

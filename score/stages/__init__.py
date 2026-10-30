@@ -868,9 +868,11 @@ def earth_seeded(row):
 
 
 def joined_ground(row):
-    """The assembly taking the ground-join's layer of the place's ground in place of the terrain row's, where the place
-    has the row: the terrain adapter's after-step in the shared loop (shapes_first.TERRAIN), only where the place handed
-    the loop terrain rows (Runner.reads leaves it out elsewhere, so no other place's key moves)."""
+    """The assembly (and the settle, which drops the place as the assembly lays it) taking the ground-join's layer of
+    the place's ground in place of the terrain row's, and leaving out the rows it joined (made_waiting.joined_rows:
+    the ground lays them, 2026-10-30), where the place has the row: the terrain adapter's after-step in the shared
+    loop (shapes_first.TERRAIN), only where the place handed the loop terrain rows (Runner.reads leaves it out
+    elsewhere, so no other place's key moves)."""
     make = row.make
 
     def made(inputs, out, seed, params):
@@ -880,8 +882,8 @@ def joined_ground(row):
                                make=functools.wraps(make)(made))
 
 
-STAGES = (*(earth_seeded(joined_ground(row) if row.name == "assembly" else row) if row.name in EARTH_SEEDED else row
-            for row in STAGES), EARTH_SEED)
+STAGES = (*(earth_seeded(joined_ground(row) if row.name in ("assembly", "settle") else row)
+             if row.name in EARTH_SEEDED else row for row in STAGES), EARTH_SEED)
 # Each body's face (score/stages/surfaces/body_faces.py): an environment row a body of the environment concept's
 # setting, paid, which the light layer reads and waits on: its sky-elements gate fails a ball drawn without its face,
 # so an optional read only left the face rows out of every place's line and failed the layer (light-layer@hub,

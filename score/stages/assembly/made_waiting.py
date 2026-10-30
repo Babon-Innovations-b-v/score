@@ -15,6 +15,7 @@ there re-keys their paid rows.
           else (2026-10-30: camp's rocks stood twice, as an object and as ground)
 """
 import json
+import pathlib
 
 from score.stages.assembly import fitting
 from score.stages.assembly.record import BASE_LAYER, RECORD, WAITING
@@ -69,6 +70,14 @@ def laid_by_relations(stage, out, place, record, objects, baked=None):
         "holders": [listed(name, *fitting.world_box(stage, f"/{place}/{scope}/{name}")) for scope, name in held],
         "walls": [listed(name, *box) for name, box in fitting.walls(stage, place)],
         "fitted": fits}, indent=1))
+
+
+def joined_rows(inputs):
+    """The rows ground-join joined into the place's ground (its join.json pieces), which the ground lays."""
+    if "ground-join" not in inputs:
+        return frozenset()
+    # join.json is score/stages/terrain/join.py's JOIN, named here so join.py stays out of the assembly's and the settle's keys
+    return frozenset(json.loads((pathlib.Path(inputs["ground-join"]) / "join.json").read_text())["pieces"])
 
 
 def lay(out, place, bake, joined=frozenset()):

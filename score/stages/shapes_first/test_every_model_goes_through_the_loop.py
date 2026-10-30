@@ -298,13 +298,16 @@ def test_the_table_runs_the_loop_in_its_order():
 
 
 def test_the_terrain_adapter_only_joins_its_rows_into_the_ground_after_the_model():
-    """ground-join is the terrain layer's one after-step, reads the loop's ends, the assembly reads it, and it runs
-    nowhere a place handed no terrain rows (the wreck).
+    """ground-join is the terrain layer's one after-step, reads the loop's ends, the assembly and the settle read it
+    (2026-10-30: the settle dropped camp's joined rocks the assembly no longer lays), and it runs nowhere a place
+    handed no terrain rows (the wreck).
     Break: score/stages/shapes_first/__init__.py: `return handed(place, layer) and (applies is None or applies(place))`
-        -> `return applies is None or applies(place)`"""
+        -> `return applies is None or applies(place)`
+    Break: score/stages/__init__.py: `row.name in ("assembly", "settle")` -> `row.name == "assembly"`"""
     table = {stage.name: stage for stage in stages.STAGES}
     assert [stage.name for stage in stages.STAGES].count("ground-join") == 1
     assert made.ENDS.keys() <= table["ground-join"].after.keys() and "ground-join" in table["assembly"].after
+    assert "ground-join" in table["settle"].after
     assert [step.name for step in shapes_first.TERRAIN.after] == ["ground-join"]
     assert not table["ground-join"].applies("wreck")  # no terrain rows handed in until its rough model is registered
 
