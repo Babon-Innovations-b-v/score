@@ -128,28 +128,30 @@ MEMORY_POLL = 30
 # a Blender node measured 0.1 GB while its container held 3.7 GB, 2026-10-28): its stage keeps no peak below the default.
 CONTAINER_CLIENTS = ("blender_cloud.py",)
 # On this PC (on_this_pc) those clients' jobs run in one container (tools/cloud/backends/local.py), its claim held by
-# one node while the others wait on its lock: the container is counted once, the room left to its cap (memory.max
-# less its anon of memory.stat, which MemAvailable already left out), and a node running a client reserves its own
-# tree's kept peak (client_peak) less what its tree holds now, from its start to its end (container_room). Round 26,
+# one node while the others wait on its lock: the container is counted once, the room left to its cap (memory.max less
+# its anon of memory.stat, which MemAvailable already left out), and a node running a client reserves its own tree's
+# kept peak (client_peak) less what its tree holds now, from its start to its end (container_room). Round 26,
 # 2026-10-30: settle@greenhouse and settle@garage each grew to 12-13 GB in their own trees side by side (the stage's
 # own work beside its container jobs), a running client node then reserving only what its tree held: this PC fell to
-# 6-7 GB available. 2026-10-28: three surfaces-bake nodes, one holding the claim with its container at
-# 7.2 GiB and two waiting, were each given 8 GB and held about 121 ready nodes with 32 GB available. The container is
-# counted by what its running jobs may still grow to (container_reserve), never more than that room: each job (a
-# session under its sshd running a script, a Blender take one a slot) its kind's take peak less what its tree holds
-# now, and each slot seen busy in this claim but idle now a whole take peak (the next take starts in it). A kind's
-# take peak is the TAKE_RANK of its last TAKES_KEPT measured takes that wrote their outputs (the most their trees'
-# VmHWM summed to while they ran), at least TAKE_PEAK, the container's own per slot assumption (local.py
-# BLENDER_PEAK_GB), until TAKES_TRUSTED such takes are kept, and never below the highest of the kind's takes that wrote
-# none (stopped, killed, paused or failed: they never lower it) nor what its job's inputs predict (blender_cloud.py
-# predicted_bytes, in its take's mark). Each take's highest reading is kept under its take's key (take_key) at every
-# reading, so a take stopped, killed or paused mid-take keeps it, and settles once its mark under TAKE_MARKS says
-# whether it wrote its outputs (none after SETTLE_SECONDS: it wrote none), all kept per kind (the script) in
-# memory/container-peaks.json. 2026-10-29: the cap's whole room (16.5 GiB) was reserved beside three takes holding 1.2
-# to 3.2 GB, 108 ready nodes waiting with 24.6 GB available. Round 23: base's light passes take (light_passes.py,
-# 271 full-size maps, 27.3 GB decoded) filled the card and 21 GB of memory in 35 s, its kind's peaks (0.06 to 2.05 GB)
-# all from renders of empty shells that failed early and the 21 GB take never kept, the run paused mid-take. The
-# container's cgroup cap stays the hard limit for a tail take (one held 27 GB), the outside guard the backstop.
+# 6-7 GB available. That peak is kept at every reading while the node runs (its tree's share or its processes' VmHWM
+# summed, whichever is more: trees_high), so a node stopped, paused or killed mid-run still leaves it. 2026-10-28:
+# three surfaces-bake nodes, one holding the claim with its container at 7.2 GiB and two waiting, were each given 8 GB
+# and held about 121 ready nodes with 32 GB available. The container is counted by what its running jobs may still
+# grow to (container_reserve), never more than that room: each job (a session under its sshd running a script, a
+# Blender take one a slot) its kind's take peak less what its tree holds now, and each slot seen busy in this claim
+# but idle now a whole take peak (the next take starts in it). A kind's take peak is the TAKE_RANK of its last
+# TAKES_KEPT measured takes that wrote their outputs (the most their trees' VmHWM summed to while they ran), at least
+# TAKE_PEAK, the container's own per slot assumption (local.py BLENDER_PEAK_GB), until TAKES_TRUSTED such takes are
+# kept, and never below the highest of the kind's takes that wrote none (stopped, killed, paused or failed: they never
+# lower it) nor what its job's inputs predict (blender_cloud.py predicted_bytes, in its take's mark). Each take's
+# highest reading is kept under its take's key (take_key) at every reading, so a take stopped, killed or paused
+# mid-take keeps it, and settles once its mark under TAKE_MARKS says whether it wrote its outputs (none after
+# SETTLE_SECONDS: it wrote none), all kept per kind (the script) in memory/container-peaks.json. 2026-10-29: the cap's
+# whole room (16.5 GiB) was reserved beside three takes holding 1.2 to 3.2 GB, 108 ready nodes waiting with 24.6 GB
+# available. Round 23: base's light passes take (light_passes.py, 271 full-size maps, 27.3 GB decoded) filled the card
+# and 21 GB of memory in 35 s, its kind's peaks (0.06 to 2.05 GB) all from renders of empty shells that failed early
+# and the 21 GB take never kept, the run paused mid-take. The container's cgroup cap stays the hard limit for a tail
+# take (one held 27 GB), the outside guard the backstop.
 TAKE_PEAK = int(8.5e9)
 TAKES_KEPT = 50
 TAKE_RANK = 0.9
@@ -571,6 +573,26 @@ def trees_held(pids):
 
 
 HELD = trees_held  # the tests give a fake reading
+
+
+def trees_high(pids):
+    """{each of `pids`: the most its process and every descendant held resident in their lives, summed (high_water)}
+    (0 once it is gone): a spike between two readings of trees_held is still counted."""
+    table, children = process_table(), {}
+    for pid, (parent, _) in table.items():
+        children.setdefault(parent, []).append(pid)
+    high = {}
+    for root in pids:
+        tree, total = [root], 0
+        while tree:
+            pid = tree.pop()
+            total += high_water(pid) if pid in table else 0
+            tree += children.get(pid, [])
+        high[root] = total
+    return high
+
+
+HIGH = trees_high  # the tests give a fake reading
 
 
 def watch_memory(high, every=None):
@@ -1957,7 +1979,7 @@ class Runner:
         return json.loads(path.read_text()) if path.exists() else {}
 
     def client_trees(self):
-        """{stage: the most an ended node's own tree held, its nodes running a container client on this PC}, as kept
+        """{stage: the most one of its nodes' own trees held, its nodes running a container client on this PC}, as kept
         beside the store (none yet: {}), so a run's first such nodes are expected at their trees too."""
         path = self.desk("memory", "client-trees", ".json")
         return json.loads(path.read_text()) if path.exists() else {}
@@ -2023,17 +2045,23 @@ class Runner:
     def coming(self, running, peaks, seen, clients):
         """[(each running node's stage peak, what its process tree holds now)] (on this PC a node running a container
         client its own tree's kept peak, client_peak of `clients`, and the container once: container_growth), the
-        most each was seen to hold kept in
-        `seen` ({node: bytes}); a node whose process has ended is reaped (is_alive: waitpid, WNOHANG) and holds none,
-        though its outcome is not read yet."""
+        most each was seen to hold kept in `seen` ({node: bytes}) and, for a container client's node on this PC, at
+        once in `clients` and beside the store when it is past its stage's client_peak (keep_client_tree: the larger
+        of that and its tree's VmHWM sum, trees_high), so a node stopped, paused or killed before it ends still leaves
+        its peak; a node whose process
+        has ended is reaped (is_alive: waitpid, WNOHANG) and holds none, though its outcome is not read yet."""
         alive = [(stage, place, process) for stage, place, process in running.values() if process.is_alive()]
         held = HELD([process.pid for _, _, process in alive])
         users = {process.pid for _, _, process in alive if on_this_pc() and CONTAINED(process.pid)}
         reading = CONTAINER_READ() if users else None  # unread: each user keeps its stage's peak, never less
+        highs = HIGH(list(users)) if users else {}
         found = []
         for stage, place, process in alive:
             node = node_name(stage, place)
             seen[node] = max(seen.get(node, 0), held[process.pid])
+            high = max(seen[node], highs.get(process.pid, 0))
+            if process.pid in users and high > client_peak(stage.name, peaks, clients):  # a lower bound, until it ends
+                clients.update(self.keep_client_tree(stage.name, high))
             mine = reading is not None and process.pid in users
             found.append((client_peak(stage.name, peaks, clients) if mine else peaks.get(stage.name, memory_floor()),
                           held[process.pid]))
