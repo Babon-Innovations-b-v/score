@@ -20,8 +20,6 @@ from scipy.spatial.transform import Rotation
 
 from fit._frames import weights
 
-SETTLED_FTOL = 1e-12  # scipy's 1e-8 stopped level 2 on the cost's change before it settled (1.33 mm off, #70)
-SETTLED_GTOL = 1e-10
 POLISHED = 1e-10  # the free gradient a Gauss-Newton polish takes level 2's end to (scipy's trf/lsmr stalls 2.5-3 mm short, #70)
 POLISH_ROUNDS = 30
 BOUND_HELD = 1e-5  # an unknown this near its bound is held there by the polish
@@ -204,9 +202,9 @@ def staged(fitting, path, turns, points, given, free=(), jacobian=None):
 
     exact = {"jac": lambda unknowns: jacobian(problem, whole(unknowns))[:, keep]} if jacobian is not None else {
         "jac_sparsity": problem.sparsity().tocsc()[:, keep]}
+    # scipy's own tolerances: the polish settles (at ftol 1e-12 trf took ~400 s a real body and still stalled, #70)
     found = least_squares(lambda unknowns: problem.residuals(whole(unknowns)), begin[keep],
-                          bounds=(low[keep], high[keep]), x_scale="jac", method="trf", tr_solver="lsmr",
-                          ftol=SETTLED_FTOL, xtol=SETTLED_FTOL, gtol=SETTLED_GTOL, **exact)
+                          bounds=(low[keep], high[keep]), x_scale="jac", method="trf", tr_solver="lsmr", **exact)
     found.x = polished(problem, whole(found.x), keep, (low, high))
     constants = problem.constants(found.x)
     fitting.apply(constants)

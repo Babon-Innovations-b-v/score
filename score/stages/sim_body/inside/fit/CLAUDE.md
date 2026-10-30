@@ -58,7 +58,9 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   their bounds until their gradient is under `POLISHED` (1e-10), else raises. `Problem.path` is float64: the card's
   float32 angles rounded every qpos the residuals read (a 1e-6 step on root z moved it 9.5e-7), so the polish
   stalled at 6.5e-8 and the "exact Jacobian is off" reading was the residuals'. Toy: 2.0e-7 without the polish,
-  under 1e-10 with it, 0.028 s; per real body not yet timed.
+  under 1e-10 with it, 0.028 s; heavy_kimodo's polish 2.4 s. `least_squares` runs at scipy's own tolerances: the
+  polish does the settling (at ftol=xtol 1e-12, gtol 1e-10 the whole real solve took 405 s; toy without the polish
+  at the loose tolerances 9.8e-7; heavy_kimodo at them: 22 s, polish 5.0 s, free gradient 9.7e-11).
 - **The calibration is the static table** (`calibration`), a site's quaternion R_cal^T on the group's frame body:
   never fitted, never per person.
 - **The followers' own ranges are not held** (`Fitting.limited_model`): 35 of MyoFullBody's 51 couplings have a
