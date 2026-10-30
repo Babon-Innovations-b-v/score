@@ -11,8 +11,8 @@ The gates, each failing an object by name:
 - `likeness`: DINOv2 on the best way's silhouette, at the least likeness likeness-calibration@<place> set on the
   place's accepted models; its evidence, the pairs' scores, is gathered on a rented machine (similar.py, paid). A
   designed place (its hand-in an approved design's, prepare/handin.py) names no accepted models, so no calibration
-  applies to it: its scores are measured and shown, never judged, and `outline` holds its likeness (#10; the accepted
-  set the least was first set on went with the old disk, so a calibration for it is the owner's to name).
+  applies to it: it is judged on the model in its finishes against the close-up in its colours (write_textured_pair)
+  at DESIGNED_LEAST, so an object passes only when both `outline` and this pass (owner, 2026-10-30).
 - `close-up parts present`: a prop model's parts (surfaces-parts) own every finish its close-up's list names, but a
   code-built light's lit finishes, its lamp the light layer's (`finishes_missing`); a code object's is unknown
   (nothing measures its parts: the fittings' parts check went with the code fallback, 2026-10-22).
@@ -35,7 +35,6 @@ import pathlib
 import numpy as np
 from PIL import Image
 
-from score import checks
 import score.stages.batch_gaps as batch_gaps
 import score.stages.props.calibration_row as calibration_row
 import score.stages.props.flat_sheet as flat_sheet
@@ -55,6 +54,18 @@ SHEET_WORDS = ("paper", "note", "card", "poster", "label")
 # The pose rules the bake's guard list reads (score/stages/surfaces/tumble.py rules_of), so drawn_size lays a model
 # as the bake laid it.
 POSE_RULES = {"stance rules": "{data}/checks/stance.json", "resting rules": "{data}/checks/resting.json"}
+# A designed place's DINOv2 judge (owner, 2026-10-30: likeness needs both the outline and textured DINOv2): the model
+# in its baked finishes against the close-up in its colours (textured study, #36: among outline-passing pairs AUC 0.92
+# against the silhouettes' 0.84), scored from the outline's best way and from the way facing it (BACK; an outline is
+# its back's mirror, so it cannot tell a slab's face from its back: walkway's keypad read 0.07 from its blank back,
+# 0.48 from its keys), the higher kept. Its least is the house rule's (calibration_row.py's MARGIN under the least of
+# the alike controls), measured on this cast (#36, 2026-10-30): of the DINOv2 study's 13 hand-checked controls the
+# textured view shows 3 not alike (galley's sink and workshop's desk_front_right lie tipped on their backs, storage's
+# cable_bundle is a straight rod for a curved bundle); the other 10 least walkway's handrail_left_1, 0.191. On the
+# study's 280 right and 331 wrong outline-passing pairs it passes 267 and 114 (the outline alone 280 and 331).
+DESIGNED_LEAST = 0.14
+TEXTURED_SIDE = 256
+BACK = "@back"
 
 
 def files(place):
@@ -225,6 +236,63 @@ def whole_best_way(model, closeup, size):
     return {"way": best, "look_down": down, "outline": ways[best], "ways": ways}
 
 
+def textured_view(path, way, down):
+    """(sRGB picture on white, mask) of a model with its own finishes (route_cast's texture colours and angle shade,
+    on the processor, no Blender), seen from `way` of YAWS at `down` degrees as likeness.silhouette frames it: its
+    right is set by its yaw, so straight above is defined."""
+    import math
+    import score.stages.surfaces.route_cast as cast
+    model = cast.loaded(path)
+    yaw, pitch = math.radians(360.0 * way / likeness.candidate().YAWS), math.radians(down)
+    eye = np.array([math.sin(yaw) * math.cos(pitch), math.sin(pitch), math.cos(yaw) * math.cos(pitch)])
+    right = np.array([math.cos(yaw), 0.0, -math.sin(yaw)])
+    up = np.cross(eye, right)
+    reach = float(np.linalg.norm(model.mesh.vertices, axis=1).max()) * cast.MARGIN
+    steps = (np.arange(likeness.SIDE) + 0.5) / likeness.SIDE * 2 - 1
+    across, down_steps = np.meshgrid(steps, -steps)
+    origins = (eye * reach * 2) + across[..., None] * right * reach + down_steps[..., None] * up * reach
+    hit, rays, points = model.mesh.ray.intersects_id(origins.reshape(-1, 3), np.tile(-eye, (steps.size ** 2, 1)),
+                                                     multiple_hits=False, return_locations=True)
+    faces = np.full(steps.size ** 2, -1)
+    met = np.full((steps.size ** 2, 3), np.nan)
+    faces[rays], met[rays] = hit, points
+    faces, met = faces.reshape(steps.size, steps.size), met.reshape(steps.size, steps.size, 3)
+    seen = faces >= 0
+    shade = np.zeros(faces.shape)
+    shade[seen] = cast.SHADE_LEAST + (1 - cast.SHADE_LEAST) * np.abs(model.mesh.face_normals[faces[seen]] @ eye)
+    colours = cast.texture_colours(model, faces, met) * shade[..., None]
+    return np.where(seen[..., None], np.clip(colours, 0, 255), 255).astype(np.uint8), seen
+
+
+def boxed_colour(picture, mask):
+    """A picture's object (inside `mask`) cut to its box, on white in a TEXTURED_SIDE square, proportions kept."""
+    rows, columns = np.where(mask)
+    top, bottom, left, right = rows.min(), rows.max() + 1, columns.min(), columns.max() + 1
+    cut = np.where(mask[..., None], picture, 255)[top:bottom, left:right].astype(np.uint8)
+    scale = TEXTURED_SIDE / max(bottom - top, right - left)
+    size = (max(1, round((right - left) * scale)), max(1, round((bottom - top) * scale)))
+    square = Image.new("RGB", (TEXTURED_SIDE, TEXTURED_SIDE), (255, 255, 255))
+    square.paste(Image.fromarray(cut).resize(size, Image.LANCZOS),
+                 ((TEXTURED_SIDE - size[0]) // 2, (TEXTURED_SIDE - size[1]) // 2))
+    return square
+
+
+def write_textured_pair(entry, folder, row):
+    """A designed place's DINOv2 pairs (DESIGNED_LEAST): the model in its finishes from the outline's best way and
+    from the way facing it (BACK), each against the close-up's object in its colours, all boxed on white."""
+    folder.mkdir(parents=True, exist_ok=True)
+    drawn = folder / f"{row}-closeup.png"
+    closeup = np.asarray(Image.open(entry["closeup"]).convert("RGB"))
+    boxed_colour(closeup, likeness.closeup_object(entry["closeup"])).save(drawn)
+    pairs = {}
+    for name, way in ((row, entry["way"]), (row + BACK, (entry["way"] + likeness.candidate().YAWS // 2)
+                                            % likeness.candidate().YAWS)):
+        made = folder / f"{name}-model.png"
+        boxed_colour(*textured_view(entry["model"], way, entry["look_down"])).save(made)
+        pairs[name] = [str(made), str(drawn)]
+    return pairs
+
+
 def thin_built(inputs, row):
     """Whether the object's take is the thin straight route's code build (its code.json not a flat sheet's)."""
     mark = inputs.get(f"code take {row}")
@@ -271,9 +339,15 @@ def make_likeness(inputs, out, seed, params):
     parts = json.loads((inputs["surfaces-parts"] / "parts.json").read_text()) if prop else {"takes": {}}
     found = {row: object_record(row, record, inputs, baked, parts, rows, square, out / "cut")
              for row in sorted(prop_data.kept(record["objects"], params))}
-    pairs = {row: likeness.write_pair(entry["model"], entry["closeup"], entry["way"], out / "pairs", row,
-                                      entry["look_down"])
-             for row, entry in found.items() if "way" in entry}
+    pairs = {}
+    for row, entry in found.items():
+        if "way" not in entry:
+            continue
+        if record.get("approved"):  # a designed place: judged textured at DESIGNED_LEAST
+            pairs.update(write_textured_pair(entry, out / "pairs", row))
+        else:  # a calibrated place: its least was set on silhouettes (calibration_row.py)
+            pairs[row] = likeness.write_pair(entry["model"], entry["closeup"], entry["way"], out / "pairs", row,
+                                             entry["look_down"])
     (out / "likeness.json").write_text(json.dumps({"objects": found}, indent=1))
     (out / "pairs.json").write_text(json.dumps(pairs, indent=1))
     built = [row for row in found if f"code take {row}" in inputs and free_passed(found, row)]
@@ -366,13 +440,13 @@ def judge_likeness(output, inputs, evidence):
     """Each best way's DINOv2 likeness ({row: score}, the gathered evidence) at least the calibration's least."""
     least = calibration_row.least(inputs.get("likeness-calibration"))
     if least is None and designed(inputs):
-        return measured_only(json.loads(pathlib.Path(evidence).read_text()))
+        least = DESIGNED_LEAST
     if least is None:
         return unknown("likeness", "DINOv2's least likeness is not set: no accepted calibration of the place's "
                                    "accepted models (likeness-calibration)")
     found = objects(output)
     return judged("likeness", found,
-                  object_faults(found, scored(json.loads(pathlib.Path(evidence).read_text()), least)))
+                  object_faults(found, scored(facing(json.loads(pathlib.Path(evidence).read_text())), least)))
 
 
 def designed(inputs):
@@ -381,15 +455,14 @@ def designed(inputs):
     return "props" in inputs and bool(prop_data.record_at(inputs["props"]).get("approved"))
 
 
-def measured_only(scores):
-    """A designed place's likeness verdict: DINOv2's scores ({row: likeness}) measured and shown, not judged (module
-    docstring)."""
-    least = min(scores.values()) if scores else -1.0
-    return checks.Verdict("likeness", checks.PASS,
-                          f"measured, not judged: a designed place has no calibration of accepted models; DINOv2 "
-                          f"scored {len(scores)} objects (least {least:.3f}), outline holds its likeness",
-                          {"scored": len(scores), "least scored": round(least, 4)}, {},
-                          tuple(f"{row}: likeness {score:.3f}" for row, score in sorted(scores.items())[:40]))
+def facing(scores):
+    """{row: likeness} from DINOv2's pair scores: a textured pair's best way or the way facing it (BACK), the
+    higher."""
+    found = {}
+    for name, score in scores.items():
+        row = name.removesuffix(BACK)
+        found[row] = max(score, found.get(row, score))
+    return found
 
 
 def stored_pairs(output):
@@ -414,7 +487,8 @@ def routes(output, scores=None, least=None):
     `least` included). A prop object that passed every check stays prop; one that failed any goes to code; a code
     object that failed needs a new builder; one a check could not tell for is unknown."""
     found = objects(output)
-    per_check = [object_faults(found, faults_of) for faults_of in (*FREE.values(), scored(scores or {}, least))]
+    per_check = [object_faults(found, faults_of)
+                 for faults_of in (*FREE.values(), scored(facing(scores or {}), least))]
     found_routes = {}
     for row, entry in found.items():
         told = [faults[row] for faults in per_check]

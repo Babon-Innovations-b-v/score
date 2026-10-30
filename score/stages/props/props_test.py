@@ -9,7 +9,10 @@ size[1]]`) turns test_the_model_check_holds_a_prop_s_proportions_whichever_way_r
 likeness_row.SHEET_WORDS emptied, or `through` replaced by model.py's normal read (`model_gate.thinnest(mesh, laid)`),
 turns test_a_solid_sheet_s_wall_is_read_through_its_face_and_a_hollow_or_one_sided_sheet_still_fails red;
 run_batch's error without its log's tail (`{tail}` dropped) turns
-test_a_failed_pixal3d_batch_stops_the_row_with_its_logs_end red.
+test_a_failed_pixal3d_batch_stops_the_row_with_its_logs_end red; judge_likeness without `facing` (each row its best
+way's score only) turns test_routes_send_a_failed_prop_object_to_code_and_a_failed_code_build_to_a_builder red;
+write_textured_pair's BACK pair drawn from the best way again (`entry["way"] + 0`) turns
+test_a_designed_place_s_pair_is_the_model_in_its_finishes_from_its_way_and_the_way_facing_it red.
 """
 import importlib.util
 import json
@@ -439,6 +442,36 @@ def test_an_open_frame_s_model_is_held_whole_to_its_filled_close_up():
     shutil.rmtree(tmp_path)
 
 
+def test_a_designed_place_s_pair_is_the_model_in_its_finishes_from_its_way_and_the_way_facing_it():
+    """A keypad's slab has the same outline from its blank back as from its keys, so the outline may pick its back:
+    the textured pair is drawn from that way and the one facing it (walkway's keypad, 0.07 from its back, 0.48 from
+    its keys), each against the close-up in its colours."""
+    import trimesh
+    from PIL import Image
+    tmp_path = pathlib.Path(tempfile.mkdtemp())
+    body = trimesh.creation.box([0.6, 1.0, 0.2])
+    face = trimesh.creation.box([0.5, 0.9, 0.02]).apply_translation([0, 0, 0.11])
+    for part, colour in ((body, [128, 128, 128, 255]), (face, [220, 30, 30, 255])):
+        part.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(
+            baseColorFactor=colour))
+    model = tmp_path / "keypad.glb"
+    trimesh.Scene([body, face]).export(model)
+    pixels = np.zeros((100, 100, 4), dtype=np.uint8)
+    pixels[20:80, 30:70] = (220, 30, 30, 255)  # the close-up: the keys' face
+    Image.fromarray(pixels).save(tmp_path / "cut.png")
+    entry = {"model": str(model), "closeup": str(tmp_path / "cut.png"), "way": 4, "look_down": 15.0}
+    pairs = likeness_row.write_textured_pair(entry, tmp_path / "pairs", "keypad")
+    assert sorted(pairs) == ["keypad", "keypad@back"], pairs
+
+    def red(path):
+        found = np.asarray(Image.open(path).convert("RGB")).astype(int)
+        return float(((found[..., 0] > 150) & (found[..., 1] < 80)).mean())
+    seen = [red(pair[0]) for pair in pairs.values()]
+    assert seen[0] < 0.01 < 0.3 < seen[1], seen
+    assert red(pairs["keypad"][1]) > 0.5  # the close-up in its colours, boxed
+    shutil.rmtree(tmp_path)
+
+
 def test_a_persons_close_up_is_held_to_its_arms_apart_not_a_box():
     """A row the people layer handed (a crowd, no size): its close-up is judged by its framing and arms clear of the
     body (the close-up check's person_faults), never 'no measured size'; an object row with no size still is named."""
@@ -572,9 +605,13 @@ def test_routes_send_a_failed_prop_object_to_code_and_a_failed_code_build_to_a_b
         assert likeness_row.judge_likeness(output, {}, None).answer == "unknown"  # no calibration, no least
         handed = root / "designed.json"
         handed.write_text(json.dumps({"approved": {"by": "the creator's pick"}, "objects": {}}))
-        (root / "scores.json").write_text(json.dumps({"good": 0.91, "thin": 0.42}))
-        shown = likeness_row.judge_likeness(output, {"props": handed}, root / "scores.json")
-        assert shown.answer == "pass" and "not judged" in shown.reason and shown.measures["scored"] == 2, shown
+        # a designed place is judged textured at DESIGNED_LEAST, each object by its best way or the way facing it
+        low = likeness_row.DESIGNED_LEAST - 0.05
+        (root / "scores.json").write_text(json.dumps({"good": 0.91, "thin": low, "thin@back": 0.5, "built": low,
+                                                      "built@back": low}))
+        judged = likeness_row.judge_likeness(output, {"props": handed}, root / "scores.json")
+        assert judged.answer == "fail" and any(line.startswith("built: likeness") for line in judged.findings), judged
+        assert not any(line.startswith(("good:", "thin:")) for line in judged.findings), judged
         scored = likeness_row.routes(output, {"good": 0.9, "built": 0.4}, 0.5)
         assert scored["good"] == "prop" and scored["built"] == "builder", scored
     finally:
