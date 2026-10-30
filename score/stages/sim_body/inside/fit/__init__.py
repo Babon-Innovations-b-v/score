@@ -21,6 +21,7 @@ import numpy as np
 
 from bone_groups import groups
 from calibration import turn
+from fit import _frames
 from fit._constants import staged
 from fit._follow import following, riding
 from fit._frames import LM_DAMPING, Frames, NotConverged, solved
@@ -89,7 +90,7 @@ def fitting(path, scales, held, segments, moves=None):
     per solver landmark (`landmarks.marker` on its body sized by `scales`, moved by `moves` {landmark: 3}) weighed by
     its trust, then one at each of `segments`' `group_ends` (MyoFullBody's centre, sized, never moved; `end_site`) weighed
     END_WEIGHT times the landmarks' mean trust, the fingers held and each group's bodies (its
-    joints inside, `Fitting.inside`)."""
+    joints inside, `Fitting.inside`), its markers' goal `_frames.MARKER_GOAL` as it stands now (each set's own)."""
     table, moves = groups(), moves or {}
     frames = [(group, table[group][2], turn(group)) for group in held]
     names = solver_marks()
@@ -104,7 +105,7 @@ def fitting(path, scales, held, segments, moves=None):
                for body in bodies if body != frame}
     inside = [{filed(body) for body in bodies} for _, _, _, bodies in table.values()]
     return Fitting(path, frames, marks + ends, fingers, trusts + [END_WEIGHT * float(np.mean(trusts))] * len(ends),
-                   inside)
+                   inside, _frames.MARKER_GOAL)
 
 
 def spread(count, most=SAMPLE):

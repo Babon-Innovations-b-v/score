@@ -36,7 +36,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   np.sqrt(len(trusts)))`: the low-trust marker weighs as much as the others.
 - (2026-10-29) _frames.weights' `trusts.sum()` made `trusts[:-1].sum()`: a group end weighs on top of the markers' goal,
   not inside it.
-- (2026-10-29) _frames.weights' `MARKER_GOAL * trusts` made `2 * trusts`: the markers' goal outweighs the turns'.
+- (2026-10-29) _frames.weights' `fitting.marker_goal * trusts` made `2 * trusts`: the markers' goal outweighs the turns'.
+- (2026-10-30) _frames.weights' `fitting.marker_goal` made the module's `MARKER_GOAL`: a set solved across others weighs
+  its markers by the last set's goal (the_place_goal_sums_to_the_marker_goal red).
 - (2026-10-29) sampled's `for turns, points in recordings` made `for turns, points in recordings[:1]`: the body's second
   recording is left out of its constants.
 - (2026-10-29) Fitting.apply's `self.model.body_pos[self.inside] += joints` dropped: the knee's move is not found.
@@ -240,6 +242,7 @@ def every_recording_of_the_body_is_sampled():
         found, _, path = fit.sampled(fitting, [(turns[:2], points[:2]), (turns[2:], points[2:])])
         with tempfile.TemporaryDirectory() as other_folder:
             neutral = toy_fitting(other_folder)
+            neutral.marker_goal = 2.0  # another set's level 1 marker goal
             both = fit.card_paths([fitting, neutral], [turns] * 2, [points] * 2, [2, len(turns) - 2])
             alone = fit.card_path(neutral, turns, points, [2, len(turns) - 2])
             recordings = [(turns[:2], points[:2]), (turns[2:], points[2:])]
@@ -314,17 +317,14 @@ def each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal():
 
 
 def the_place_goal_sums_to_the_marker_goal():
-    """With MARKER_GOAL set to 4, the ten markers' squared costs sum to 4 and the five turns' to 1: one global
-    balance for every landmark and group."""
+    """With the fitting's own marker goal set to 4 (the module's MARKER_GOAL left at 1), the ten markers' squared costs
+    sum to 4 and the five turns' to 1: one balance for every landmark and group, each set's own."""
     import numpy as np
     from fit import _frames
-    kept = _frames.MARKER_GOAL
-    _frames.MARKER_GOAL = 4.0
-    try:
-        with tempfile.TemporaryDirectory() as folder:
-            turn_cost, place_costs = _frames.weights(toy_fitting(folder))
-    finally:
-        _frames.MARKER_GOAL = kept
+    with tempfile.TemporaryDirectory() as folder:
+        fitting = toy_fitting(folder)
+        fitting.marker_goal = 4.0
+        turn_cost, place_costs = _frames.weights(fitting)
     found, turns = float(np.sum(place_costs ** 2)), 5 * turn_cost ** 2
     return [] if np.isclose(found, 4.0) and np.isclose(turns, 1.0) else [f"places {found:.4f}, turns {turns:.4f}"]
 
