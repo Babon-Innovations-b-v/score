@@ -69,6 +69,11 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   tasks' and couplings' weighted errors (2026-10-29: at zero shoulder elevation elv_angle and its follower cancel, a
   direction no task sees; mink drifted along it 1e-4 rad a step for ever on every body's arms_raise; with the rule
   mean, heavy and short converge on all 7 clips, the other clips' angles moved at most 7e-6 rad).
+- **Mink stops on its joint bounds where the card does not** (#70, 2026-10-30): on heavy_short_legged frame 16 mink
+  ends at its ConfigurationLimit bounds (cost 0.307) while the card's solve ends at 0.0094 inside every range; that
+  frame held two right-arm constants on their 0.03 m bound (level 2 cost 0.900 against 0.602 with card frames). So
+  level 2's sampled frames are posed on the card, across sets (`_card/_sampled.path_across`, wiring into `sampled`
+  under way); the bar is no worse than the CPU per body, better where mink is stuck.
 - **The record states the honest measures first** (#70's audit item 2, 2026-10-29): `following` gives the bones
   outside SOMA's skin by region and the turns on main's frozen table before the joint mm (partly the ends' own pull)
   and the tree's-table turns; the frozen table is never edited to follow the tree.
