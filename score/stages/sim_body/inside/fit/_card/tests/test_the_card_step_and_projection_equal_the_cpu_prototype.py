@@ -37,6 +37,9 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) solved_in_chunks' `values[start:stop]` made `values[:stop - start]`: every chunk solves the first rows.
 - (2026-10-29) _measure.joint_table's `* scales[bone]` dropped: the joints miss by the unscaled offset.
 - (2026-10-29) _measure.skin_shares' "hand" merge dropped: the hand's parts are scored apart, the keys differ.
+- (2026-10-30) _per_row._per_row_fk's `set_places[row_set[problem_idx]]` made `set_places[0]`: every row takes
+  the first set's joint places, sets 1 and 2 off theirs alone by 0.05-0.08 m (card_rows: per-row FK, rows = set x
+  frame, equals Newton's eval_fk_batched on each set alone bit for bit).
 - (2026-10-30) _measure.skin_depths' `depths[:, ...]` made `depths[:1, ...]`: the card's depths read the first skin
   frame only, off the CPU's.
 - (2026-10-29) _projected's `power *= lead` made `power *= 1.0`: a coupling is no longer polyval of its leader.
@@ -66,6 +69,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from card_chain import (LINKS, OBJECTIVE_ROWS, chain_model, log_rate, objective_rows,  # noqa: E402
                         residuals_and_jacobian)
 from card_toy import CLIP_FRAMES, TOY, mink_frames, toy_card, toy_clip, toy_errors  # noqa: E402
+from card_rows import the_rows_equal_each_set_alone  # noqa: E402
 from card_step import (BOUNDED, COUPLINGS, FROZEN, ROWS, fixture, prototype_projected,  # noqa: E402
                        prototype_step)
 LEVEL2_CARD_MOST = 1e-5  # the same from the card's float32 kinematics (_level2_card)
@@ -278,7 +282,7 @@ def _values(found):
     return [found[key] for key in sorted(found)] if isinstance(found, dict) else found
 
 
-CHECKS = (the_level2_jacobian_equals_its_differences, the_level2_solve_with_the_exact_jacobian_equals_differences,
+CHECKS = (the_rows_equal_each_set_alone, the_level2_jacobian_equals_its_differences, the_level2_solve_with_the_exact_jacobian_equals_differences,
           the_measures_equal_the_cpu_measure, the_step_equals_the_prototype, the_projection_equals_the_prototype,
           the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame,
           the_next_iteration_from_its_seeds_equals_mink)

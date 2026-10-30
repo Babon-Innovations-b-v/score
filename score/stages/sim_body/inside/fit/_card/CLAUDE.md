@@ -106,6 +106,13 @@ before that.
   bit the same, the toy's setup checks the two bounds equal. On heavy_kimodo's gate dump (2026-10-29,
   build/5/clip_real.py, each frame seeded from mink's cached answer): sites 0.0073 mm apart at rest; 136 rows 1.55 s,
   3 / 32 steps; angles 0.00035 deg, sites 0.0013 mm off mink's.
+- `_per_row.py` (`per_row_fk`; level 3 across sets, first piece): Newton's batched FK with each row's joint places
+  (`joint_X_p`) read from a [sets, joints] array by the row's set, so one batch can hold every set's frames (rows = set
+  x frame) though each set's inside-joint moves change its body places (Newton's IK has no worlds: one model, so the
+  places go per row). Newton's own `eval_single_articulation_fk`, so equal to `eval_fk_batched` on each set alone bit
+  for bit (2026-10-30, the chain, 3 sets x 4 frames). Still to come: the analytic FK and motion subspace per row in
+  an IKOptimizerLM subclass, `_forward` per row, a refusal when sets' frozen, limited or reduction differ, and
+  `Clip` building set x frame rows.
 - One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
   the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the
