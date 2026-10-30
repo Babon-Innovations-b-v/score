@@ -90,7 +90,10 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   59.6, shin bones outside 2.1 % against 0.65 %) came from fitting level 2 on that one recording against the body's
   seven, not from the card. Like with like (seven recordings, set s00000) card frames read joints mm max 59.4 against
   59.6, bones outside 13.9 % against 14.7 %, foot 17.6 against 19.2 %, hand 49.4 against 54.2 %; worse by a hair on
-  shin (0.82 against 0.65 %, depth 0.19 against 0.17 mm) and thigh (18.0 against 17.7 %).
+  shin (0.82 against 0.65 %, depth 0.19 against 0.17 mm) and thigh (18.0 against 17.7 %). That hair is the solvers'
+  tolerance, not a fault: level 3's leg and spine angles differ at most 0.0005 rad, the root at most 0.9 mm, the leg
+  constants are equal, so bone points within 0.2 mm of the skin flip side; only the shoulder chain moves (at most
+  0.022 rad, its constants traded within their box), which is where the hand and forearm gain.
   On the body's seven clips (heavy, 4 real sets, measured 2026-10-30 with the card and CPU shared): across sets 70.8 s
   against 112.1 s one after another, measures within 0.0033; about 5.7 s against 22 s a nudged set after the first.
 - **The record states the honest measures first** (#70's audit item 2, 2026-10-29): `following` gives the bones
