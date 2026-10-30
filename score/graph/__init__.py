@@ -1347,9 +1347,11 @@ class Runner:
     def run_node(self, stage, place):
         """Make the node if its key has no record, judge it if its evidence state has no judgement, accept it when it
         passed and got no worse; what it did. It holds the node's key's lock throughout, so of two runs wanting one
-        key the second waits and finds the first's record."""
+        key the second waits and finds the first's record. Its key is worked out in a fresh `still` pass (a key's reads
+        cost 6-15 min outside one, 2026-10-30), closed before the make writes; a remake's re-key gets a pass of its own."""
         try:
-            keyed = self.key(stage, place)
+            with self.still():
+                keyed = self.key(stage, place)
             with self.held(node_name(stage, place), keyed["key"]):
                 did = self.run_held(stage, place, keyed)
         except Blocked as block:
