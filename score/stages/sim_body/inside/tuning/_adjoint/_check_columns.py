@@ -24,12 +24,12 @@ from fit import sampled_targets  # noqa: E402
 from fit._card._level2 import jacobian  # noqa: E402
 from fit._constants import INSIDE, Problem, told  # noqa: E402
 from tuning._adjoint import arrow_hessian, case_rows, schur_solve, transposed_mixed  # noqa: E402
-from tuning._adjoint._level2 import goal_weights, level2_body, sited_problem_at  # noqa: E402
+from tuning._adjoint._level2 import goal_weights, level2_arrow, level2_body, sited_problem_at  # noqa: E402
 from tuning._adjoint._outer import picked_columns  # noqa: E402
 
 STEPS = (1e-4, 1e-3)  # as `_check_motion.py`
 seeds_root, folder, out, saved_to = (pathlib.Path(arg) for arg in sys.argv[2:6])
-cases = dict(given.split("=", 1) for given in sys.argv[6:])
+cases = dict(given.split("=", 1) for given in sys.argv[6:] if not given.startswith("--"))
 out.mkdir(parents=True, exist_ok=True)
 for name in ("table.json", "weights.json", "rest.json"):
     shutil.copyfile(folder / name, out / name)
@@ -71,7 +71,7 @@ def level2_at_base():
     print(json.dumps({"base costs gap": float(np.abs(base_costs - problem.costs[1]).max())}), flush=True)
     rebuilt = _real.problem_at(applied, out, cases, saved, angles, constants)
     sited = sited_problem_at(problem, columns, trusted, ends)
-    return sited, rebuilt, level2_body(sited, jacobian, problem.start(), kept, np.zeros(len(entries)))
+    return sited, rebuilt, level2_body(sited, jacobian, problem.start(), kept, np.zeros(len(entries))), kept
 
 
 def sited_gaps(sited, rebuilt, unknowns, picks):
@@ -100,11 +100,21 @@ def timed(name, work):
     return result
 
 
-def factored_solve(body, outer, right, step):
-    """H^-T `right` at `body`'s optimum, the factor and the solve timed apart."""
-    blocks, couplings, corner = timed(f"factor {body.name}", lambda: arrow_hessian(
-        body.gradient, body.inner, outer, body.frames, body.pose_size, step))
+def factored_solve(body, factor, right):
+    """H^-T `right` at `body`'s optimum off `factor()` (its arrow blocks), the factor and the solve timed apart."""
+    blocks, couplings, corner = timed(f"factor {body.name}", factor)
     return timed(f"solve {body.name}", lambda: schur_solve(blocks.transpose(0, 2, 1), couplings, corner, right))
+
+
+def differenced_arrow(body, outer, step):
+    """`arrow_hessian` of `body`'s gradient at its optimum."""
+    return lambda: arrow_hessian(body.gradient, body.inner, outer, body.frames, body.pose_size, step)
+
+
+def level2_factor(problem, solved, kept, step):
+    """`level2_arrow` of level 2's Problem at its solve, the inside joints' slots differenced."""
+    return lambda: level2_arrow(problem, jacobian, solved, kept, np.arange(3 * len(problem.free), len(problem.slots)),
+                                step)
 
 
 clip, fitting, targets, path = _real.set_up(str(out / "table.json"), str(out / "weights.json"), out, cases, saved)
@@ -125,19 +135,25 @@ pinned = Pinned(turns.reduced(), _real.bound_held(clip, _real.frame_couplings(cl
 by_poses = timed("taping R_q", lambda: pinned.rows(turns.pulled_rows(turns.reduced(), case_rows(
     *measures.measured(inner, trusted), frames=len(rows))[1])))
 by_constants = timed("taping R_c", lambda: case_rows(*measures.constant_measured(inner, trusted))[1])
-sited, rebuilt, level2 = timed("level 2 build", lambda: level2_at_base())
+sited, rebuilt, level2, kept = timed("level 2 build", lambda: level2_at_base())
 solved = level2.inner[level2.frames * level2.pose_size:]
 print(json.dumps({"sited vs rebuilt": timed("sited check", lambda: sited_gaps(
     sited, rebuilt, sited(np.zeros(len(entries))).start(), (0, len(entries) // 2, len(entries) - 1)))}), flush=True)
 level3 = level3_body("level3", sites, turns, pinned, lambda theta: trusted + columns @ theta, len(entries),
                      len(rows), columns=columns)
 joined = np.concatenate([np.zeros(len(entries)), np.zeros(solved.size)])
-lifted = factored_solve(level3, joined, np.asarray(by_poses, dtype=float).T, STEPS[0])
+lifted = factored_solve(level3, differenced_arrow(level3, joined, STEPS[0]), np.asarray(by_poses, dtype=float).T)
 both = np.hstack([np.zeros((len(by_poses), len(entries))), by_constants]) - timed(
     "taping level 3 products", lambda: transposed_mixed(level3, lifted, joined, STEPS[1]))
 right = np.zeros((len(level2.inner), len(both)))
 right[level2.frames * level2.pose_size:] = both[:, len(entries):].T
-lowered = factored_solve(level2, np.zeros(len(entries)), right, STEPS[0])
+base = sited(np.zeros(len(entries)))
+lowered = factored_solve(level2, level2_factor(base, base.start(), kept, STEPS[0]), right)
+if "--against-differences" in sys.argv:
+    wanted = timed("factor level 2 differenced", differenced_arrow(level2, np.zeros(len(entries)), STEPS[0]))
+    found = level2_factor(base, base.start(), kept, STEPS[0])()
+    print(json.dumps({"arrow gaps": [float(np.abs(got - want).max() / np.abs(want).max())
+                                     for got, want in zip(found, wanted)]}), flush=True)
 block = both[:, :len(entries)] - timed("taping level 2 mixed", lambda: transposed_mixed(
     level2, lowered, np.zeros(len(entries)), STEPS[1]))
 np.savez(saved_to, block=block, entries=np.array([json.dumps(list(map(str, entry))) for entry in entries]))
