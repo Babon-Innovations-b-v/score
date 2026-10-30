@@ -43,6 +43,7 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   pair's common shift and the hinge's axis among them.
 - (2026-10-29) _constants.off_span's `scaled.T @ columns` made `scaled.T @ columns * 0.5`: the Gram path's projection
   is not the QR's.
+- (2026-10-30) staged's `start[keep]` made `begin[keep]`: a warm start from the answer takes as many evaluations as cold.
 - (2026-10-30) _skin.marks_kernel's depth `warp.where(found.sign >= 0.0, ..., 0.0)` made the distance alone: a point
   inside the skin counts 0.8 m deep.
 
@@ -220,6 +221,24 @@ def the_solver_gives_back_the_angles_and_the_constants():
     return problems
 
 
+def a_warm_start_from_the_answer_lands_on_it_in_fewer_evaluations():
+    """Level 2 started from its own cold answer ("solved", as a nudged set starts from the base set's) at a tight
+    tolerance lands within 1e-6 m of the cold answer's moves in fewer evaluations."""
+    import fit
+    import numpy as np
+    with tempfile.TemporaryDirectory() as folder:
+        fitting = toy_fitting(folder)
+        turns, points, _ = posed_targets(fitting, truth_of(fitting), POSES[:-1])
+        recordings = [(turns[:2], points[:2]), (turns[2:], points[2:])]
+        cold = fit.constants(fitting, recordings, tolerance=1e-12)
+        warm = fit.constants(fitting, recordings, warm=cold["solved"], tolerance=1e-12)
+    off = max(np.abs(np.array(warm[kind][name]) - np.array(cold[kind][name])).max()
+              for kind in ("marks", "joints") for name in cold[kind])
+    problems = [] if off <= 1e-6 else [f"warm off cold by {off:.2e} m"]
+    return problems + ([] if warm["evaluations"] < cold["evaluations"] else
+                       [f"warm took {warm['evaluations']} evaluations, cold {cold['evaluations']}"])
+
+
 def every_recording_of_the_body_is_sampled():
     """The constants' frames from two recordings of the body (two frames and three): all five, in order, each posed
     from its own recording's start (at the true constants within MOST_RADIANS of its angles)."""
@@ -358,7 +377,7 @@ def a_bone_point_outside_the_skin_lies_as_deep_as_its_distance():
     return problems + ([] if abs(rms - 1000 * np.sqrt(1.0)) < 1e-3 else [f"root mean square {rms} mm"])
 
 
-CHECKS = (a_bone_point_outside_the_skin_lies_as_deep_as_its_distance, only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
+CHECKS = (a_warm_start_from_the_answer_lands_on_it_in_fewer_evaluations, a_bone_point_outside_the_skin_lies_as_deep_as_its_distance, only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
           the_place_goal_sums_to_the_marker_goal, the_solver_gives_back_the_angles_and_the_constants,
           every_recording_of_the_body_is_sampled, somas_targets_leave_the_solves_unchanged, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows,
           a_step_no_task_sees_ends_the_fit)
