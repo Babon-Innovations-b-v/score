@@ -32,7 +32,7 @@ edit there moves its ~90 rows anyway (2026-10-27); never call them.
   loose support the layer leaves unrested is left as laid with it (`kept_with_their_supports`): its rest was found
   on the support where the drop left it (settle@airlock's sandbags_18, 52 cm down a ramp kept as laid, 2026-10-30).
 - **Held on a wall or ceiling row is mounted** (`holders.holder_kind`): never snapped down; its laid pose stands. A
-  structure row (a door's window) on a mounted row, never through a shell row, is mounted with it (`held.mounted`).
+  structure row (a door's window) on a mounted row, never through a shell row, is mounted with it (`assembly/mounted.py`).
 - **Spend.** A drop is bought only when something loose is to be stood up or unstacked or the triage finds a fault on
   it (free, first); a drop already paid for is read back from `DROPS` (the same job, drop script, trial script, Python
   pins and stage). A drop is one rented card (`drop.DROP_CLASSES`, the trial's), its Python built once on it; on this

@@ -240,11 +240,11 @@ def hung_within(record):
 
 
 def resting_rows(inventory, record=None):
-    """The `inventory` ({"rows": [...]}) with each row on a wall or ceiling row (settling.held.mounted) given that
+    """The `inventory` ({"rows": [...]}) with each row on a wall or ceiling row (assembly/mounted.py) given that
     `support`, and each the scene `record` hangs within its holder (hung_within) `hanging`, unless it names its own:
     the triage judges it by touching (a hanging one touching nothing still fails, hanging free)."""
-    from score.stages.settling import held  # here: settling reads this stage's table
-    given = {**hung_within(record or {}), **held.mounted({row["id"]: row for row in inventory["rows"]})}
+    from score.stages.assembly.mounted import mounted  # not settling's held.py: its snap.py would key this row
+    given = {**hung_within(record or {}), **mounted({row["id"]: row for row in inventory["rows"]})}
     return {**inventory, "rows": [{**row, "support": given[row["id"]]}
                                   if row["id"] in given and not row.get("support") else row
                                   for row in inventory["rows"]]}
@@ -253,7 +253,7 @@ def resting_rows(inventory, record=None):
 def judge_resting(output, inputs, evidence):
     """Fail on every real resting fault the drop run and the triage leave, judged on the world files the stage
     declares (rules, kit, inventory) and never on the repository's own; a row on a wall or ceiling row is judged
-    mounted there (settling.held.mounted, given to the triage as the row's `support`), as settle leaves it, never as
+    mounted there (assembly/mounted.py, given to the triage as the row's `support`), as settle leaves it, never as
     standing on it (round 32's docking airlock: its wall pipes and ceiling rails failed as leaning, tipping floor
     pieces), and a row the scene record hangs within its holder as hanging (hung_within). The triage itself is left as it is: tools/usd is on every row's path, so its code is every row's."""
     inventory = declared_inventory(output, inputs["inventories"])
