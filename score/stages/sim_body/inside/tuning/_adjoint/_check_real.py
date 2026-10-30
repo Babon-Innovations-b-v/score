@@ -19,7 +19,7 @@ import numpy as np
 
 sys.path.insert(0, sys.argv[1])
 import _real  # noqa: E402
-from _bodies import RootTurns, pose_of  # noqa: E402
+from _bodies import Pinned, RootTurns, pose_of  # noqa: E402
 from _taped import _Couplings  # noqa: E402
 from tuning._adjoint import Body, refused  # noqa: E402
 from evaluation import _card_batch  # noqa: E402
@@ -76,19 +76,14 @@ turns = RootTurns(pose_of(couplings, rows), len(couplings[0]) // len(rows))
 held = _real.bound_held(clip, couplings, rows)
 
 
-def whole_of(inner):
-    """The reduced pose with the bound-held entries back at their solved values."""
-    whole = turns.reduced().copy()
-    whole[~held] = inner
-    return whole
-
-
-body = Body("heavy_kimodo", lambda inner, outer: sites.residuals(turns.full(whole_of(inner)), outer),
-            lambda inner, outer: turns.pulled(whole_of(inner),
-                                              sites.gradient(turns.full(whole_of(inner)), outer))[~held],
-            turns.reduced()[~held], 1, int((~held).sum()))
+pinned = Pinned(turns.reduced(), held)
+body = Body("heavy_kimodo", lambda inner, outer: sites.residuals(turns.full(pinned.whole(inner)), outer),
+            lambda inner, outer: pinned.gradient(inner, turns.pulled(pinned.whole(inner), sites.gradient(
+                turns.full(pinned.whole(inner)), outer))),
+            turns.reduced(), len(rows), turns.per_copy - 1)
 most = float(np.max(np.abs(body.gradient(body.inner, offsets))))
-taped = {"most": most, "refused": refused([body], offsets, TOLERANCE), "held": int(held.sum()), "seconds": time.time() - began}
+taped = {"most": most, "refused": refused([body], offsets, TOLERANCE), "held": int(held.sum()), "frames": body.frames,
+         "pose size": body.pose_size, "inner": int(body.inner.size), "seconds": time.time() - began}
 
 
 def card_joints(clip, joints, scales, rows):
