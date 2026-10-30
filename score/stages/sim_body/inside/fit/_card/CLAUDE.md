@@ -94,7 +94,7 @@ before that.
   triplets (the frame's own block's nonzeros, the move blocks vectorised, `moved_blocks` and the model's `couplings` made once per Jacobian, not
   per frame, 809dd8a2; each frame's qpos too, given by `jacobian`, which made it already for the kinematics: 1.67 s of
   frame_rows' 5.6 s on heavy x 4 sets under cProfile went to making it twice, 2026-10-30; the toy's follower is
-  linear in its leader, so the test file cannot see a wrong frame's pose there; a dense block over every
+  linear in its leader, so the test file cannot see a wrong frame's pose there; each frame's turn rows' -J_l^-1(log) R_site^T made for every frame and group in one pass, `turn_bends`, scipy's log and `left_jacobian_inverses` batched, 2026-10-30: under cProfile 0.98 s and 0.90 s per-frame loops on heavy x 4 sets; equal per row to 2e-15, test; a dense block over every
   unknown then csr took the Jacobian to 0.20 s): heavy's Jacobian 0.066 s with the card's kinematics, level 2 3.0 s
   against 32.3 s (constants 0.015 mm, coordinates 0.0020 deg, cost 6.4e-9 relative, 25 evaluations against 24). Wired as an
   option: `../_constants.staged(jacobian=...)` (2-point differences the default and the reference; `constants` does

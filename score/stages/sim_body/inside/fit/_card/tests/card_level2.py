@@ -130,3 +130,14 @@ def the_frames_per_world_equal_each_set_alone():
                             for name in ("site_turns", "body_turns", "places", "spins"))
                 problems += [f"set {index} frame {frame} off its set alone by {worst:.2e}"] if worst > 0 else []
         return problems
+
+
+def the_batched_inverses_equal_each_row():
+    """`_level2.left_jacobian_inverses`, one array pass over every frame and group, equals `left_jacobian_inverse`
+    row by row to the float64 floor (2e-15), a near-zero rotation (its small-angle branch) among the rows."""
+    from fit._card import _level2
+    rotations = np.vstack([np.random.default_rng(5).normal(0.0, 1.0, (40, 3)), [[1e-9, 0.0, -2e-9], [0.0, 0.0, 0.0]]])
+    batched = _level2.left_jacobian_inverses(rotations)
+    worst = max(np.abs(batched[index] - _level2.left_jacobian_inverse(rotation)).max()
+                for index, rotation in enumerate(rotations))
+    return [f"batched inverse left Jacobians off each row's by {worst:.2e}"] if worst > 2e-15 else []
