@@ -1,11 +1,12 @@
 """Level 2's constant motion on one real body against settled re-solves, run in Newton's own Python (`python
-_check_motion.py <this folder> <set folder> <out root> <step> <case>=<job.json> ...`): the set's table.json,
-weights.json and rest.json copied into <out root>; level 1's point bound to `tuning.layout`'s "marker goal" (every
-other entry held at its start) through `tuning.applied`; level 2 solved by `_real.level2_solved` (staged with its
+_check_motion.py <this folder> <set folder> <out root> <step> [--entry=<index>] <case>=<job.json> ...`): the set's
+table.json, weights.json and rest.json copied into <out root>; level 1's point bound to `tuning.layout`'s "marker goal",
+or its entry <index> (every other entry held at its start) through `tuning.applied`; level 2 solved by `_real.level2_solved` (staged with its
 float64 polish); dc/dtheta by `constant_motion` on `_level2.level2_body` at that solve (`kept` told at its start)
 against central differences of level 2 re-solved at marker goal +-<step>, on the told, unpinned slots off their
 MARK_MOST bounds; prints JSON: those slots, the free gradient at the base, the largest |difference|, the re-solved
-column's largest entry, the slots over 2 % of it, and the seconds."""
+column's largest entry, the slots over 2 % of it, the told slots at a bound or pinned (their largest re-solved and implicit move, and the
+slots 0-2, the first free mark's x, y, z), the entry and the seconds."""
 import json
 import pathlib
 import shutil
@@ -28,14 +29,15 @@ import landmarks  # noqa: E402
 BOUND_ROOM = 5e-4  # a slot within this of MARK_MOST counts as at its bound (its re-solve may sit on it)
 folder, out = (pathlib.Path(arg) for arg in sys.argv[2:4])
 step = float(sys.argv[4])
-cases = dict(given.split("=", 1) for given in sys.argv[5:])
+picks = [int(given.split("=", 1)[1]) for given in sys.argv[5:] if given.startswith("--entry=")]
+cases = dict(given.split("=", 1) for given in sys.argv[5:] if not given.startswith("--entry="))
 out.mkdir(parents=True, exist_ok=True)
 for name in ("table.json", "weights.json", "rest.json"):
     shutil.copyfile(folder / name, out / name)
 table, weights = (json.loads((out / name).read_text()) for name in ("table.json", "weights.json"))
 starts = {name: row["link"] for name, row in table.items()}
 entries = tuning.layout(table, held=landmarks.HELD, joints=set())
-chosen = [next(index for index, entry in enumerate(entries) if entry[:2] == ("marker goal", "global"))]
+chosen = picks or [next(index for index, entry in enumerate(entries) if entry[:2] == ("marker goal", "global"))]
 
 
 def applied(outer):
@@ -80,5 +82,11 @@ ends = [solved_at(base + sign * step)[2][1][first.slots] for sign in (1, -1)]
 re_solved = (ends[0] - ends[1]) / (2 * step)
 difference = np.abs(implicit[off] - re_solved[off])
 top = float(np.abs(re_solved[off]).max())
+bound = np.setdiff1d(told_slots, off)
 print(json.dumps({"off": int(off.size), "free gradient": free_gradient, "most difference": float(difference.max()),
-                  "top": top, "over 2 %": int((difference > 0.02 * top).sum()), "seconds": time.time() - began}))
+                  "top": top, "over 2 %": int((difference > 0.02 * top).sum()), "bound": int(bound.size),
+                  "bound re-solved": float(np.abs(re_solved[bound]).max(initial=0.0)),
+                  "bound implicit": float(np.abs(implicit[bound]).max(initial=0.0)),
+                  "first mark re-solved": re_solved[:3].tolist(), "first mark implicit": implicit[:3].tolist(),
+                  "first mark settled": settled[:3].tolist(), "entry": str(entries[chosen[0]][:3]),
+                  "seconds": time.time() - began}))
