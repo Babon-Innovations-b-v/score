@@ -53,6 +53,9 @@ Breaks (each applied once, seen red, reverted):
   refused, `_sets.refusal` returning None lets them through).
 - (2026-10-30) _step._slopes' and _project._projected's `own = row_set[row]` made `own = 0`: every row reads set 0's
   coupling polys, so sets 1 and 2 (their follower's slope 0.05 and 0.10 on) end 4.2 and 10.2 deg off (card_sets).
+- (2026-10-30) evaluation/_card_across.solved_together's `Sets([one.clip ...])` made `Sets([sets[0].clip ...])`: every
+  set solves with set 0's clip, sets 1 and 2 end 3.4-16.8 deg and 7.7-31.5 mm off their Clip alone (card_sets: the
+  toy's 3 sets, each split into two cases, every case equal its own Clip alone).
 - (2026-10-30) _measure.skin_depths' `depths[:, ...]` made `depths[:1, ...]`: the card's depths read the first skin
   frame only, off the CPU's.
 - (2026-10-29) _projected's `power *= lead` made `power *= 1.0`: a coupling is no longer polyval of its leader.
@@ -92,7 +95,7 @@ from card_level2 import (the_frames_per_world_equal_each_set_alone,  # noqa: E40
                          the_level2_jacobian_equals_its_differences,
                          the_level2_solve_with_the_exact_jacobian_equals_differences)
 from card_across import the_sets_solved_together_equal_each_set_alone  # noqa: E402
-from card_sets import the_sets_batch_equals_each_clip_alone  # noqa: E402
+from card_sets import the_across_split_equals_each_clip_alone, the_sets_batch_equals_each_clip_alone  # noqa: E402
 from card_lockstep import the_sets_in_lockstep_equal_each_set_alone  # noqa: E402
 from card_rows import (the_float64_frames_equal_each_set_alone, the_rows_equal_each_set_alone,  # noqa: E402
                        the_rowwise_optimizer_equals_each_set_alone)
@@ -253,7 +256,7 @@ def the_next_iteration_from_its_seeds_equals_mink():
 
 CHECKS = (the_rows_equal_each_set_alone, the_rowwise_optimizer_equals_each_set_alone,
           the_float64_frames_equal_each_set_alone, the_sets_solved_together_equal_each_set_alone,
-          the_sets_batch_equals_each_clip_alone,
+          the_sets_batch_equals_each_clip_alone, the_across_split_equals_each_clip_alone,
           the_sets_in_lockstep_equal_each_set_alone,
           the_frames_per_world_equal_each_set_alone,
           the_level2_jacobian_equals_its_differences, the_level2_solve_with_the_exact_jacobian_equals_differences,

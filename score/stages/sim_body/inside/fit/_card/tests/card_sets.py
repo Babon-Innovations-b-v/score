@@ -1,7 +1,8 @@
 """`_sets.Sets` on the toy: three sets, each its own `_clip.Clip` (inside joints moved, marker offsets 1 mm apart,
 place weights apart, targets 1 mm apart, the follower's polynomial apart: the break reading set 0's poly for every
 row turns it red), solved as one batch equal each set's `Clip.angles` alone to 0.01 deg and
-0.01 mm; sets whose frozen dofs differ are refused (test fixture,
+0.01 mm; sets whose frozen dofs differ are refused; `evaluation._card_across.solved_together` splits each set's batch answer back into its own
+cases equal to each case's Clip alone (the break giving every set set 0's clip turns it red) (test fixture,
 test_the_card_step_and_projection_equal_the_cpu_prototype.py)."""
 SETS = 3
 SHIFT = 0.001  # m, each set's marker targets and offsets moved on from the last set's
@@ -53,4 +54,31 @@ def the_sets_batch_equals_each_clip_alone():
         problems.append("Sets: sets with other frozen dofs were not refused")
     except ValueError:
         pass
+    return problems
+
+
+def the_across_split_equals_each_clip_alone():
+    """`evaluation._card_across.solved_together` on the toy's SETS sets, each set's frames as two cases: each set's
+    every case equals its own `Clip.angles` on those frames; problems as text."""
+    import mujoco
+    import numpy as np
+    from card_toy import TOY, mink_frames, toy_clip
+    from evaluation import _card_across
+    mjm = mujoco.MjModel.from_xml_string(TOY)
+    turns, places = toy_clip(mjm)
+    seeds = mink_frames(mjm, turns, places)
+    half = len(seeds) // 2
+    parts = {"first": slice(0, half), "second": slice(half, None)}
+    sets = [_card_across.Prepared(None, dict.fromkeys(parts), {case: (turns[part, None], places[part] + index * SHIFT)
+                                                               for case, part in parts.items()},
+                                  None, None, clip, {case: seeds[part] for case, part in parts.items()}, None, 0.0)
+            for index, clip in enumerate(toy_sets())]
+    problems = []
+    for index, (one, answer) in enumerate(zip(sets, _card_across.solved_together(sets))):
+        for case, part in parts.items():
+            alone, _ = one.clip.angles(turns[part, None], places[part] + index * SHIFT, seeds[part])
+            miss = np.degrees(np.abs(answer[case][:, 7:] - alone[:, 7:])).max()
+            root = 1000.0 * np.abs(answer[case][:, :3] - alone[:, :3]).max()
+            if miss > 0.01 or root > 0.01:
+                problems.append(f"across: set {index} {case} {miss:.4f} deg, root {root:.4f} mm off its Clip alone")
     return problems
