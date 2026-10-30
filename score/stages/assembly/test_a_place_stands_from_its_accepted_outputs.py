@@ -613,17 +613,23 @@ def test_base_s_built_garage_door_goes_in_its_recess_on_the_face_round_it(tmp_pa
     """#36, motion@base: the module's box reaches z 39.43 only by a 0.39 m lip above the doorway, its face round the
     recess at 39.039, so the door laid on the box's side hung in the air; and the bake cut the recess from the row's
     6 m (6.6 with its room), while the built door, 8.30 m, covered solid wall past it. Here the module's face stands at
-    z 39.0 below 8 m and its lip at 39.4 above, the bake's recess runs x 27.254 to 33.854 (its own -5 to 1.6), 8 m tall,
-    and the 8 x 8 x 0.5 m door with 0.6 m of room on its hinge side (-x) is shrunk to 6 / 8 = 0.75 to fit the recess
-    less its room, laid beside that room (x 27.854 to 33.854) from the recess's foot, its back on z 39.0; LAID names
-    the face it was laid on, and the held gate measures it there.
+    z 39.0 below 8 m and its lip at 39.4 above, the bake's recess runs x 26.304 to 32.904 (its own -5.95 to 0.65) at
+    the module's corner, 8 m tall, and the 8 x 8 x 0.5 m door with 0.6 m of room on its hinge side (-x) is shrunk to
+    6 / 8 = 0.75 to fit the recess less its room. It hangs in the recess as a door in its opening does (motion@base,
+    round 32: hung 0.6 m off the jamb, its back on the face, the shrunk door touched nothing once it swung): its hinge
+    edge at the recess's -x jamb (x 26.304 to 32.304, no room left beside it on the face, none needed), its middle on
+    the face, z 39.0 (38.8125 to 39.1875), from the recess's foot; LAID names the plane its back is on and that it
+    hangs in its recess, and the held gate measures it there.
     Break: score/stages/assembly/fitting.py: `face = front_face(surface, axis, sign, side, span, (target[1], target[1]
         + size[1] * scale))` -> `face = None`
     Break: score/stages/assembly/fitting.py: `if cut is not None:` -> `if False:`
     Break: score/stages/assembly/made_waiting.py: `{model: entry.get("cuts") for model, entry in (baked or
         {}).items()}` -> `{}`
-    Break: score/stages/assembly/fitting.py: `on = dict(on, **{"face at": faced[entry["name"]]}) if entry["name"] in
-        faced else on` -> `on = on`"""
+    Break: score/stages/assembly/fitting.py: `target[side] = cut[0][side] + half_wide if below > above else` ->
+        `target[side] = (cut[0][side] + below + cut[1][side] - above) / 2 if True else`
+    Break: score/stages/assembly/fitting.py: `target[axis] = face if cut is not None else face + sign * half[axis]` ->
+        `target[axis] = face + sign * half[axis]`
+    Break: score/stages/assembly/fitting.py: `**({"room": 0.0} if fitted_on.get("hung") else {})` -> `**{}`"""
     root = a_toy(tmp_path / "out")
     entries = [{"name": "square_module_front_right_1", "row": "square_module_front_right", "bake": "module_1",
                 "at": [32.254, 0.0, 33.4], "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "bake"},
@@ -633,21 +639,21 @@ def test_base_s_built_garage_door_goes_in_its_recess_on_the_face_round_it(tmp_pa
                        "room_way": [-1.0, 0.0], "why": "against its module's side the concept shows it on"}}]
     assembly.take_record(a_record(tmp_path, {"objects": entries}), root.parent, TOY)
     body = [(x, y, z) for x in (-6.0, 6.0) for y in (0.0, 8.0) for z in (-6.0, 5.6)]
-    rim = [(x, y, z) for x in (-5.0, 1.6) for y in (0.0, 8.0) for z in (5.6, -0.05)]  # the recess's rim and back
+    rim = [(x, y, z) for x in (-5.95, 0.65) for y in (0.0, 8.0) for z in (5.6, -0.05)]  # the recess's rim and back
     lip = [(x, y, z) for x in (-6.0, 6.0) for y in (8.0, 12.0) for z in (-6.0, 6.0)]
     points = body + rim + lip
     an_asset(root.parent / "assets/module_1.usdc", points, [len(points)], list(range(len(points))))
     a_box_asset(root.parent / "assets/door_1.usdc", (-4.0, 0.0, -0.25), (4.0, 8.0, 0.25))
     (tmp_path / "bake").mkdir()
     (tmp_path / "bake/baked.json").write_text(json.dumps(
-        {"module_1": {"cuts": [{"recess": [[-5.0, 0.0, -0.05], [1.6, 8.0, 6.05]]}]}, "door_1": {"cuts": []}}))
+        {"module_1": {"cuts": [{"recess": [[-5.95, 0.0, -0.05], [0.65, 8.0, 6.05]]}]}, "door_1": {"cuts": []}}))
     made_waiting.lay(root.parent, TOY, tmp_path / "bake")
     from score.stages.assembly import fitting
     low, high = fitting.world_box(opened(root), f"/{TOY}/Objects/garage_door_1")
-    assert np.allclose(low, (27.854, 0.0, 39.0), atol=1e-4) and np.allclose(high, (33.854, 6.0, 39.375), atol=1e-4), (
-        low, high)
+    assert np.allclose(low, (26.304, 0.0, 38.8125), atol=1e-4) and np.allclose(high, (32.304, 6.0, 39.1875),
+                                                                                atol=1e-4), (low, high)
     [fit] = json.loads((root.parent / made_waiting.LAID).read_text())["fitted"]
-    assert fit["scale"] == 0.75 and fit["face"] == 39.0, fit
+    assert fit["scale"] == 0.75 and fit["face"] == 38.8125 and fit["hung"], fit
     held = assembly.judge_held(root.parent, {}, None)
     assert held.answer == checks.PASS and held.measures == {"not held": 0, "worst off": 0.0}, held
 
@@ -657,10 +663,16 @@ def test_a_door_stands_on_its_built_wall_s_face_and_one_short_of_its_opening_is_
     to 0.15 m in front of its wall and left its jamb and sill as it swung (motion@garage grounded). A 2.4 x 2.4 x 0.2 m
     door in its 2.4 m wide, 2.66 m tall opening at z 0.15, the built wall's sill and lintel from z -0.276 to 0 (its
     jamb beside the opening never counts), stands with its middle on the wall's room face, z 0; the held gate measures
-    it there, passes it there and fails one left on the plan's line 0.15 m off. Each is named 0.26 m short of its
-    opening's height (hangar's doorway, a wall panel shrunk to 0.72 m tall) among the gate's findings, which never fail
-    it: only a take made again, a paid one, mends it (coordinator, 2026-10-30).
+    it there, passes it there and fails one left on the plan's line 0.15 m off. A 2 m door, narrower than its opening,
+    stands against the jamb its own left edge faces, its hinge on its jamb (motion@garage: the 2.01 m round door,
+    centred in its 2.41 m opening, swung on a hinge 0.2 m off its jamb), and passes there. Each is named 0.26 m short
+    of its opening's height (hangar's doorway, a wall panel shrunk to 0.72 m tall) among the gate's findings, which
+    never fail it: only a take made again, a paid one, mends it (coordinator, 2026-10-30).
     Break: score/stages/assembly/fitting.py: `spot[axis] = face` -> `pass`
+    Break: score/stages/assembly/fitting.py: `if wide is not None and abs(lined) >= 0.9` -> `if False and abs(lined)
+        >= 0.9`
+    Break: score/stages/assembly/fitting.py: `for way in (None, on["along"], np.negative(on["along"]))]` -> `for way in
+        (None,)]`
     Break: score/stages/assembly/fitting.py: `if short > HELD_MOST:` -> `if False:`
     Break: score/stages/assembly/held_apart.py: `*(f"{name}: {words}" for name, words, _ in
         fitting.short_doors(record, laid))))` -> `))`
@@ -675,6 +687,12 @@ def test_a_door_stands_on_its_built_wall_s_face_and_one_short_of_its_opening_is_
     scale, target, _, _ = fitting.fit((-1.2, 0.0, 0.05), (1.2, 2.4, 0.25), on,
                                       [(wall["low"], wall["high"]) for wall in walls])
     assert scale == 1.0 and np.allclose(target, (0.0, 0.0, 0.0)), (scale, target)
+    _, target, _, _ = fitting.fit((-1.0, 0.0, 0.05), (1.0, 2.4, 0.25), on,
+                                  [(wall["low"], wall["high"]) for wall in walls], left=(-1.0, 0.0))
+    assert np.allclose(target, (-0.2, 0.0, 0.0)), target  # its own left edge, its hinge, on the -x jamb
+    narrow = {"objects": [{"name": "door_3", "on": on, "fills": True}]}
+    assert fitting.held_faults(narrow, {"walls": walls, "objects": [
+        {"name": "door_3", "low": [-1.2, 0.0, -0.1], "high": [0.8, 2.4, 0.1]}]}) == []
     record = {"objects": [{"name": "door_1", "on": on, "fills": True}, {"name": "door_2", "on": on, "fills": True}]}
     laid = {"walls": walls, "objects": [{"name": "door_1", "low": [-1.2, 0.0, -0.1], "high": [1.2, 2.4, 0.1]},
                                         {"name": "door_2", "low": [-1.2, 0.0, 0.05], "high": [1.2, 2.4, 0.25]}]}
