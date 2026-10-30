@@ -23,6 +23,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   thigh's target is met by a wrong pose.
 - (2026-10-28) limited_model's `found.jnt_limited[self.followers] = 0` dropped: the follower's own range stops its
   leader short.
+- (2026-10-30) _card._clip.for_fitting's `moved_inside(builder, fitting)` dropped: Newton poses the knee where the
+  file has it, not where the fit moved it, and the card's sampled frames are refused, sites 10.0000 mm off MuJoCo's.
 - (2026-10-28) Frames' constraints `[mink.EqualityConstraintTask(...)]` made `[]`: the follower leaves its leader.
 - (2026-10-29) Fitting.apply's `self.model.site_pos[self.mark_sites] += marks` dropped: the marker's move is not found.
 - (2026-10-29) _frames.weights' `np.sqrt(trusts / max(trusts.sum(), 1e-12))` made `np.full(len(trusts), 1.0 /

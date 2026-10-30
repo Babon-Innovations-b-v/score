@@ -66,6 +66,7 @@ class Fitting:
     (`myo.person_file`). The lengths are SOMA's, from the sizing: nothing here scales a body."""
 
     def __init__(self, path, frames, marks, frozen=(), trusts=None, stretches=()):
+        self.path = path
         spec = mujoco.MjSpec.from_file(str(path))
         for group, body, calibration in frames:
             spec.body(body).add_site(name=f"fit:{group}", quat=Rotation.from_matrix(calibration.T).as_quat(
