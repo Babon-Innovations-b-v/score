@@ -112,7 +112,7 @@ def offline(monkeypatch):
     monkeypatch.setattr(client, "library_demos", lambda: "library demos: test")
     monkeypatch.setattr(client, "film_previews", lambda: "film previews: test")
     monkeypatch.setattr(client, "usd_sweep", lambda: "usd check: test")
-    monkeypatch.setattr(client, "copies_swept", lambda: "clean-frozen: test")
+    monkeypatch.setattr(client, "copies_swept", lambda: "sweep: test")
 
 
 def fed(monkeypatch):
@@ -570,7 +570,7 @@ def test_a_pass_syncs_nothing_from_a_checkout_not_clean_and_pushed_or_when_the_p
     offline(monkeypatch)
     monkeypatch.setattr(client, "tree_refusal", lambda repo: "commit 0123abcd is not on origin's main: push it first")
     said = client.sync_pass(hosted, world.source, FakeBackend())
-    assert said == "REFUSED: nothing synced: commit 0123abcd is not on origin's main: push it first"
+    assert said == "REFUSED: nothing synced: commit 0123abcd is not on origin's main: push it first; sweep: test"
     monkeypatch.setattr(client, "tree_refusal", lambda repo: None)
     monkeypatch.setattr(client, "runner_price", lambda repo, environment: (None, "the runner's price failed: exit 1"))
     said = client.sync_pass(hosted, world.source, FakeBackend())

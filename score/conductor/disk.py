@@ -8,6 +8,8 @@ about twelve runs had started that day, and the copies of the ones stopped, fail
     python -m score.conductor clean-kept     # with no run live, the kept jobs no current key asks for, one line
     python -m score.conductor relink-pixal   # work/pixal's files the store holds made links to its blobs, one line
     python -m score.conductor offload-pixal  # with no run live, work/pixal's takes into the library, freed once read back
+    python -m score.conductor store-gc [--dry]  # with no run live, the store's blobs nothing names removed
+    python -m score.conductor sweep [--force]   # the routine (every sync pass); every step under WARN_GB on a conductor
 
 launch_refusal() is `score run`'s check before it makes its copy: a run is refused while the disk has under FLOOR_GB
 free. health.read() carries FLOOR_GB and warning() (a note on the Machine card).
@@ -56,11 +58,33 @@ untouched for YOUNG_SECONDS, not every file a store link already) to the library
 take-in --save (tools/library/pixal_takes.py), and removes a take's files here only once its entry is in the library's
 pushed history and the blob store hands every file back at its size and sha256. Every reader of work/pixal puts a
 missing take back from the library first (pixal_takes.take_back, wired in score/stages/__init__.py).
+
+`disk` accounts for the whole data disk too (2026-10-30: 0.01 GB free of 91, about 25 GB not in PROPS_HOME's
+folders): from its mount point three levels down when the home is not its top, the files deleted but still held open
+by a process (/proc/<pid>/fd), the blocks kept for root and what du cannot read or see.
+
+store-gc (2026-10-30), only with no run live (cache_refusal), removes each blob that nothing names: no file or link
+under the home (records, listings, accepts, concepts, kept jobs, the design, the cockpit's links; the prop
+environment, git and venv folders and the checkouts, links to blobs read through their listings, left out) or in the
+checkout's data/, and no text-like blob so named (a listing kept as a blob), followed to its end; a blob linked
+elsewhere too (frees nothing) or written in the last day is kept. collectable_why is the one guard every removal
+passes. It refuses, removing nothing, when a file cannot be read.
+
+sweep (2026-10-30, the owner: "this should be routine") is the sync pass's first step: every pass the routine
+(clean-frozen, clean-cache's making/, clean-kept); on a conductor under WARN_GB, before the floor, every step in
+order: clean-cache whole, relink-pixal, run logs past LOG_DAYS and tmp/ past SCRATCH_DAYS, store-gc, offload-pixal
+last (its read-back needs the room the others freed). Each step's line says what it freed; one refused or failed is
+said and the next runs. Still under FLOOR_GB, it names what fills the disk and prices the bigger data volume
+(Scaleway's catalog, machine.py's read): conductor/sweep.json, which the Machine card's note reads; only then is the
+owner asked. Never the store's named blobs, the paid caches (cloud/google-cache, drops), the design or a take kept
+nowhere else.
 """
 import datetime
 import json
+import math
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -84,7 +108,7 @@ CLEARED = {"making": "makes in progress, orphaned once no run lives (a make remo
 KEPT = {"drops": "paid drops read back so a drop is never bought twice",
         "convex-parts": "CoACD's parts are seeded, but a paid drop's key hashes them: a recompute not byte-equal buys "
                         "the drop again"}
-REPO = pathlib.Path(__file__).resolve().parents[2]  # the checkout, measured when on the home's disk
+REPO = pathlib.Path(__file__).resolve().parents[2]  # the checkout: its data named blobs, the tools it runs
 
 
 class Unprovable(Exception):
@@ -99,11 +123,20 @@ def free_gb(path=None):
     return shutil.disk_usage(path).free / 1024 ** 3
 
 
-def warning(free, floor=None):
-    """The Machine card's note while the data disk has under `floor` (FLOOR_GB) GB free, else None."""
+def warning(free, floor=None, swept=None):
+    """The Machine card's note while the data disk has under `floor` (FLOOR_GB) GB free, else None: what the last
+    sweep (conductor/sweep.json) freed and, when it could not reach the floor, what fills the disk and the bigger
+    data volume it needs, priced: only then is it the owner's."""
     floor = FLOOR_GB if floor is None else floor
-    return None if free >= floor else (f"disk: {free:.1f} GB free, under the {floor} GB floor: no run starts; "
-                                       "free room with the door's clean-frozen")
+    if free >= floor:
+        return None
+    path = pathlib.Path(swept or conductor.HOME / "sweep.json")
+    last = json.loads(path.read_text()) if path.is_file() else None
+    said = f"disk: {free:.1f} GB free, under the {floor} GB floor: no run starts; "
+    if not last or last.get("free_after_gb", 0) >= floor:
+        return said + "the routine sweep (every sync pass; the door's sweep) frees room"
+    return said + (f"the sweep at {last['at']} freed {last['freed_gb']} GB and could not reach it; it is filled by "
+                   f"{last['fills']}; it needs a bigger data volume: {last['bigger']}")
 
 
 def launch_refusal(path=None, floor=None):
@@ -112,52 +145,118 @@ def launch_refusal(path=None, floor=None):
     free = free_gb(path)
     return None if free >= floor else (f"refused: {free:.1f} GB free on the data disk ({path or PROPS_HOME}), under "
                                        f"the {floor} GB floor a run needs; free room first (the door's disk and "
-                                       "clean-frozen)")
+                                       "sweep)")
 
 
 # --- disk: what fills it ---------------------------------------------------------------------------------------------
 
-def du(root, depth):
-    """[(bytes, path)] of `root` and its folders down to `depth`, on its own filesystem (`du -x`), links not followed."""
+def du(root, depth, unread=None):
+    """[(bytes, path)] of `root` and its folders down to `depth`, on its own filesystem (`du -x`), links not followed;
+    each folder du could not read appended to `unread` when given."""
     done = subprocess.run(["du", "-x", "-B1", f"--max-depth={depth}", str(root)], capture_output=True, text=True)
     found = []
     for line in done.stdout.splitlines():
         count, _, path = line.partition("\t")
         found.append((int(count), path))
+    if unread is not None:
+        unread += [line for line in done.stderr.splitlines() if line.strip()]
     return found
+
+
+def mount_of(path):
+    """The mount point of the filesystem holding `path`: the data disk's top folder (PROPS_HOME on the conductor)."""
+    path = pathlib.Path(path).resolve()
+    while path != path.parent and path.parent.stat().st_dev == path.stat().st_dev:
+        path = path.parent
+    return path
 
 
 def roots(home=None):
     """{root: depth} measured: the home two levels down (frozen/<copy>, store/objects, store/cache, ...), DEEP three
-    levels down, and the checkout and the user's cache (the backup's restic cache) when they are on the home's disk."""
+    levels down, and the whole disk from its mount point three levels down when the home is not its top (it then
+    holds the checkout and the user's cache when they are on it)."""
     home = pathlib.Path(home or PROPS_HOME)
-    device = home.stat().st_dev
-    extra = [REPO, pathlib.Path.home() / ".cache"]
+    mount = mount_of(home)
     return {home: 2, **{home / deep: 3 for deep in DEEP if (home / deep).is_dir()},
-            **{root: 1 for root in extra if root.is_dir() and root.stat().st_dev == device
-               and not root.is_relative_to(home)}}
+            **({mount: 3} if mount != home.resolve() else {})}
+
+
+def deleted_open(device):
+    """{process: bytes} of the files on `device` that are deleted but still held open (their room comes back only when
+    the process closes them or ends); another user's processes cannot be read and are left out."""
+    held, seen = {}, set()
+    for handle in pathlib.Path("/proc").glob("[0-9]*/fd/*"):
+        try:
+            if not os.readlink(handle).endswith(" (deleted)"):
+                continue
+            status = handle.stat()
+            name = (handle.parent.parent / "comm").read_text().strip()
+        except OSError:
+            continue  # closed meanwhile, or not ours to read
+        if status.st_dev != device or status.st_nlink or (status.st_ino in seen):
+            continue
+        seen.add(status.st_ino)
+        process = f"{name} (pid {handle.parent.parent.name})"
+        held[process] = held.get(process, 0) + status.st_blocks * 512
+    return held
+
+
+def accounted(home, sizes, unread):
+    """The whole data disk accounted for: {mount, used_gb, folders_gb (what du sees from the mount point),
+    outside_gb (of that, outside the home), deleted_open {process: gb}, reserved_gb (kept for root), unseen_gb (what
+    du could not read or see: unreadable folders, the filesystem's own), unread (du's errors)}."""
+    home = pathlib.Path(home)
+    mount = mount_of(home)
+    status = os.statvfs(mount)
+    used = (status.f_blocks - status.f_bfree) * status.f_frsize
+    seen = max((count for count, path in sizes if pathlib.Path(path) == mount), default=0)
+    inside = max((count for count, path in sizes if pathlib.Path(path) == home), default=0)
+    held = deleted_open(home.stat().st_dev)
+    gb = 1024 ** 3
+    return {"mount": str(mount), "used_gb": round(used / gb, 2), "folders_gb": round(seen / gb, 2),
+            "outside_gb": round((seen - inside) / gb, 2) if mount != home.resolve() else 0.0,
+            "deleted_open": {process: round(count / gb, 3) for process, count in
+                             sorted(held.items(), key=lambda pair: -pair[1])},
+            "reserved_gb": round((status.f_bfree - status.f_bavail) * status.f_frsize / gb, 2),
+            "unseen_gb": round(max(used - seen - sum(held.values()), 0) / gb, 2), "unread": unread}
 
 
 def report(home=None, out=None):
-    """Measure the disk (roots), write every folder's size to `out` (conductor/disk.json), biggest first; (summary
-    line, the SHOWN biggest lines)."""
+    """Measure the disk (roots) and account for all of it (accounted), write every folder's size and the account to
+    `out` (conductor/disk.json), biggest first; (summary line, the SHOWN biggest lines)."""
     home = pathlib.Path(home or PROPS_HOME)
-    sizes = sorted({pair for root, depth in roots(home).items() for pair in du(root, depth)}, reverse=True)
+    unread, largest = [], {}
+    for root, depth in roots(home).items():
+        for count, path in du(root, depth, unread):
+            largest[path] = max(count, largest.get(path, 0))  # hard links count where du met them first
+    sizes = sorted(((count, path) for path, count in largest.items()), reverse=True)
+    whole = accounted(home, sizes, unread)
     usage = shutil.disk_usage(home)
     out = pathlib.Path(out or conductor.HOME / "disk.json")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
                                "free_gb": round(usage.free / 1024 ** 3, 2), "total_gb": round(usage.total / 1024 ** 3, 2),
-                               "folders": [{"path": path, "gb": round(count / 1024 ** 3, 3)}
-                                           for count, path in sizes]}, indent=1))
+                               "whole": whole, "folders": [{"path": path, "gb": round(count / 1024 ** 3, 3)}
+                                                           for count, path in sizes]}, indent=1))
     copies = [count for count, path in sizes if pathlib.Path(path).parent == home / "frozen"]
+    held = sum(whole["deleted_open"].values())
     summary = (f"disk: {usage.free / 1024 ** 3:.1f} GB free of {usage.total / 1024 ** 3:.0f} GB; "
-               f"{len(copies)} frozen copies and homes hold {sum(copies) / 1024 ** 3:.1f} GB; every folder in {out}")
-    inside = [(count, path) for count, path in sizes if any(
+               f"{len(copies)} frozen copies and homes hold {sum(copies) / 1024 ** 3:.1f} GB; the whole disk at "
+               f"{whole['mount']}: {whole['used_gb']} GB used, {whole['folders_gb']} GB in folders "
+               f"({whole['outside_gb']} GB outside {home}), {held:.2f} GB in deleted files still open, "
+               f"{whole['reserved_gb']} GB kept for root, {whole['unseen_gb']} GB du cannot see "
+               f"({len(unread)} folders unreadable); every folder in {out}")
+    within = [(count, path) for count, path in sizes if any(
         pathlib.Path(path).is_relative_to(home / deep) and pathlib.Path(path) != home / deep for deep in DEEP)]
+    outside = [(count, path) for count, path in sizes if not pathlib.Path(path).is_relative_to(home)
+               and not home.is_relative_to(path)]
     return summary, [f"{count / 1024 ** 3:8.2f} GB  {path}" for count, path in sizes[:SHOWN]] + \
         [f"inside {' and '.join(DEEP)}, three levels down:"] + \
-        [f"{count / 1024 ** 3:8.2f} GB  {path}" for count, path in inside[:SHOWN]]
+        [f"{count / 1024 ** 3:8.2f} GB  {path}" for count, path in within[:SHOWN]] + \
+        [f"outside {home} on the same disk, three levels down from {whole['mount']}:"] + \
+        [f"{count / 1024 ** 3:8.2f} GB  {path}" for count, path in outside[:SHOWN]] + \
+        [f"{gb:8.2f} GB  deleted, still open in {process}" for process, gb in
+         list(whole["deleted_open"].items())[:SHOWN]] + [f"unreadable: {line}" for line in unread[:5]]
 
 
 # --- clean-frozen: the copies no run needs ---------------------------------------------------------------------------
@@ -579,3 +678,206 @@ def clean_kept(home=None, runs_folder=None, runner=None, systems=None, say=print
     runner = runner or stages.runner(Store.in_folder(home / "store"))
     systems = systems or {kept.digest(kept.python_system()), kept.digest(blender_system())}
     return {**kept.sweep(asked_by(runner, systems, home, kept), say), "refused": None}
+
+
+# --- store-gc: the blobs nothing names -------------------------------------------------------------------------------
+
+SHA = re.compile(rb"[0-9a-f]{64}")
+SCAN_SKIPPED = {".git", ".venv", "node_modules", "__pycache__"}
+CHUNK = 8 * 1024 ** 2
+GC_YOUNG_SECONDS = 24 * 3600  # a blob this new may be one a write in progress (a put_tree, a concept) names next
+
+
+def shas_in(path):
+    """Every 64-hex word in the file at `path` (read in chunks, a word across two chunks too)."""
+    found, tail = set(), b""
+    with open(path, "rb") as source:
+        while chunk := source.read(CHUNK):
+            found |= {word.decode() for word in SHA.findall(tail + chunk)}
+            tail = chunk[-63:]
+    return found
+
+
+def text_like(path):
+    """Whether the file's first 8 KB hold no NUL byte: a listing, a record, a page, never a model or a picture."""
+    with open(path, "rb") as source:
+        return b"\0" not in source.read(8192)
+
+
+def named_outside(home, repo, blobs):
+    """Every 64-hex word any file or link under `home` and the checkout's data names, the blobs themselves, the prop
+    environment, checkouts (links to blobs, read through their listings) and git and venv folders left out."""
+    found, skipped = set(), {blobs.resolve(), (home / "env").resolve(), (home / "store/cache/checkouts").resolve()}
+    for root in (home, repo / "data"):
+        for folder, folders, files in os.walk(root):
+            folders[:] = [name for name in folders if name not in SCAN_SKIPPED
+                          and (pathlib.Path(folder) / name).resolve() not in skipped]
+            for name in files + [name for name in folders if (pathlib.Path(folder) / name).is_symlink()]:
+                path = pathlib.Path(folder) / name
+                try:
+                    if path.is_symlink():
+                        found |= {word.decode() for word in SHA.findall(os.fsencode(os.readlink(path)))}
+                    elif path.is_file():  # never a socket or a pipe: reading one would wait
+                        found |= shas_in(path)
+                except OSError as error:
+                    raise Unprovable(f"{path} cannot be read ({error}): it may name a blob") from None
+    return found
+
+
+def referenced(home, repo=None):
+    """Every blob a file, a link or a referenced text-like blob names (a listing kept as a blob), followed until no new
+    one: the blobs store-gc must keep."""
+    home, repo = pathlib.Path(home), pathlib.Path(repo or REPO)
+    blobs = home / "store" / "objects" / "blobs"
+    held = named_outside(home, repo, blobs)
+    todo = held
+    while todo:
+        named = set()
+        for sha in todo:
+            path = blobs / sha
+            if path.is_file() and text_like(path):
+                named |= shas_in(path)
+        todo, held = named - held, held | named
+    return held
+
+
+def collectable_why(blob, held, now):
+    """Why the blob at `blob` stays, or None when store-gc may remove it. The one guard every removal passes."""
+    if not SHA.fullmatch(blob.name.encode()):
+        return "not a blob's name"
+    if blob.name in held:
+        return "named by a file, a link or a listing"
+    status = blob.stat()
+    if status.st_nlink > 1:
+        return "linked elsewhere too (a checkout, work/pixal): removing it frees nothing"
+    if now - status.st_mtime < GC_YOUNG_SECONDS:
+        return "written in the last day"
+    return None
+
+
+def store_gc(home=None, runs_folder=None, dry=False, now=None, repo=None, say=print):
+    """With no run live (cache_refusal), every blob no file, link or listing names (referenced) removed, or with `dry`
+    only counted; {removed, freed_gb, kept: {why: count}, refused, dry}. Unprovable when a file cannot be read."""
+    home = pathlib.Path(home or PROPS_HOME)
+    refused = cache_refusal(home, pathlib.Path(runs_folder or home / "runs"), home / "store" / "cache", [])
+    if refused:
+        return {"removed": 0, "freed_gb": 0.0, "kept": {}, "refused": refused, "dry": dry}
+    blobs, now = home / "store" / "objects" / "blobs", time.time() if now is None else now
+    held, removed, freed, kept = referenced(home, repo), 0, 0, {}
+    for blob in sorted(blobs.iterdir()) if blobs.is_dir() else []:
+        why = collectable_why(blob, held, now)
+        if why:
+            kept[why] = kept.get(why, 0) + 1
+            continue
+        size = blob.stat().st_size
+        if not dry:
+            blob.unlink()
+        removed, freed = removed + 1, freed + size
+    say(f"store-gc: {'would remove' if dry else 'removed'} {removed} blobs nothing names, {freed / 1024 ** 3:.2f} GB")
+    return {"removed": removed, "freed_gb": round(freed / 1024 ** 3, 2), "kept": kept, "refused": None, "dry": dry}
+
+
+# --- sweep: the routine that keeps the disk above its floor ----------------------------------------------------------
+
+WARN_GB = 20  # under this the sweep goes past its routine steps, before the floor is reached
+LOG_DAYS = 30  # run logs older than this go
+SCRATCH_DAYS = 1  # the home's tmp/ entries untouched this long go, with no run live
+STEP_GB = 50  # a bigger data volume is asked in these steps
+
+
+def old_logs(home, runs_folder, now=None):
+    """The run logs untouched LOG_DAYS removed, and, with no run live, the home's tmp/ entries untouched SCRATCH_DAYS;
+    {removed, refused}."""
+    home, now = pathlib.Path(home), time.time() if now is None else now
+    removed = 0
+    for path in sorted((home / "logs").rglob("*")) if (home / "logs").is_dir() else []:
+        if path.is_file() and now - path.lstat().st_mtime > LOG_DAYS * 86400:
+            path.unlink()
+            removed += 1
+    refused = cache_refusal(home, pathlib.Path(runs_folder), home / "store" / "cache", [])
+    for path in sorted((home / "tmp").iterdir()) if not refused and (home / "tmp").is_dir() else []:
+        if (newest(path) if path.is_dir() else now - path.lstat().st_mtime) > SCRATCH_DAYS * 86400:
+            remove_tree(path) if path.is_dir() and not path.is_symlink() else path.unlink()
+            removed += 1
+    return {"removed": removed, "refused": refused and f"tmp/ kept: {refused}"}
+
+
+def steps(home, runs_folder, say, escalated):
+    """[(name, call)] of the sweep's steps in order: the routine (copies, makes left behind, kept jobs no key asks
+    for), then under WARN_GB everything else made again for free or held elsewhere, offload last (its read-back needs
+    room the others freed)."""
+    routine = [("clean-frozen", lambda: clean(home, runs_folder, say)),
+               ("clean-cache", lambda: clean_cache(home, runs_folder, tuple(CLEARED) if escalated else ("making",),
+                                                   say)),
+               ("clean-kept", lambda: clean_kept(home, runs_folder, say=say))]
+    return routine + ([("relink-pixal", lambda: relink_pixal(home)),
+                       ("old-logs", lambda: old_logs(home, runs_folder)),
+                       ("store-gc", lambda: store_gc(home, runs_folder, say=say)),
+                       ("offload-pixal", lambda: offload_pixal(home, runs_folder))] if escalated else [])
+
+
+def summed(result):
+    """A step's result in words: each figure, each list by its count, each tally of whys whole."""
+    return ", ".join(f"{name} {len(value) if isinstance(value, list) else value}" for name, value in result.items()
+                     if name != "refused") or "done"
+
+
+def bigger(more_gb, zone):
+    """`more_gb` more on the data volume, priced from Scaleway's catalog (machine.py's own read, free, in a process of
+    its own: tools/cloud never joins this one's import path); its words."""
+    code = ("import sys; sys.path.insert(0, 'tools/cloud/conductor'); import machine; "
+            f"print(machine.unit_price(machine.catalog('block_storage', 'zone={zone}'), "
+            f"'/storage/block/volume-low-latency-5k/{zone}') * machine.HOURS_A_MONTH, end='')")
+    done = subprocess.run([sys.executable, "-c", code], cwd=REPO, capture_output=True, text=True)
+    if done.returncode != 0:
+        return f"{more_gb} GB more (price unread: {(done.stderr.strip().splitlines() or ['no output'])[-1]})"
+    return f"{more_gb} GB more, EUR {float(done.stdout) * more_gb:.2f} a month at Scaleway's catalog price"
+
+
+def fills(home, out):
+    """What fills the disk, in words: the home's biggest folders, the deleted files still open and what du cannot see
+    (report's account, written to `out`)."""
+    report(home, out)
+    measured = json.loads(pathlib.Path(out).read_text())
+    whole, home = measured["whole"], pathlib.Path(home)
+    top = [row for row in measured["folders"] if pathlib.Path(row["path"]).parent == home][:5]
+    held, holders = sum(whole["deleted_open"].values()), ", ".join(list(whole["deleted_open"])[:3])
+    return ", ".join([f"{row['path']} {row['gb']:.1f} GB" for row in top] +
+                     [f"{held:.1f} GB deleted but still open ({holders})"] * (held > 0.5) +
+                     [f"{whole['unseen_gb']} GB du cannot see"] * (whole["unseen_gb"] > 0.5))
+
+
+def sweep(home=None, runs_folder=None, force=False, say=print):
+    """The routine steps every time; under WARN_GB on a conductor (or `force`) every step (steps), each said with
+    what it freed; still under FLOOR_GB, what fills the disk and the bigger volume it needs, priced. Written to
+    conductor/sweep.json, which the Machine card's note reads (warning); the record."""
+    home = pathlib.Path(home or PROPS_HOME)
+    runs_folder = pathlib.Path(runs_folder or home / "runs")
+    record = json.loads((home / "machine.json").read_text()) if (home / "machine.json").is_file() else None
+    start = free_gb(home)
+    escalated = force or (record is not None and start < WARN_GB)
+    done = []
+    for name, call in steps(home, runs_folder, say, escalated):
+        before = free_gb(home)
+        try:
+            result = call()
+            words = result.get("refused") or summed(result)
+        except Unprovable as why:
+            result, words = {}, f"refused: {why}"
+        except Exception as error:  # one step's fault must not keep the next from freeing room; said, never hidden
+            result, words = {}, f"failed: {type(error).__name__}: {error}"
+        freed = round(free_gb(home) - before, 2)
+        done.append({"step": name, "freed_gb": freed, "said": words})
+        say(f"sweep {name}: freed {freed} GB; {words}")
+    after = free_gb(home)
+    swept = {"at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+             "free_before_gb": round(start, 2), "free_after_gb": round(after, 2), "escalated": escalated,
+             "freed_gb": round(after - start, 2), "steps": done, "fills": None, "bigger": None}
+    if escalated and after < FLOOR_GB:
+        more = STEP_GB * math.ceil((WARN_GB - after) / STEP_GB)
+        swept["fills"] = fills(home, home / "conductor" / "disk.json")
+        swept["bigger"] = bigger(more, (record or {}).get("zone", "fr-par-2"))
+    out = home / "conductor" / "sweep.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(swept, indent=1))
+    return swept

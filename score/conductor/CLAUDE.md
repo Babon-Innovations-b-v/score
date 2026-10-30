@@ -75,6 +75,16 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   files leave work/pixal only once its entry is in the library's pushed history and the blob store hands every file
   back at its size and sha256. The stage table puts a freed take back (`graph.PLACE_READS`, `stages.takes_back`)
   before any row of its place works out its files, so no reader and no key changes.
+  `disk` also accounts for the whole data disk (2026-10-30: 0.01 GB free of 91, about 25 GB in no folder under
+  PROPS_HOME): folders from its mount point when the home is not its top, deleted files still held open (by process),
+  blocks kept for root, what du cannot read or see. `store-gc [--dry]` (the door's), only with no run live: each blob no
+  file, link or (followed) listing blob names is removed, `collectable_why` the one guard; a blob linked elsewhere or
+  under a day old stays; refused when a file cannot be read. `sweep` (the door's; the sync pass's first step, so a
+  refused pass still sweeps; owner 2026-10-30: "this should be routine"): every pass clean-frozen, clean-cache
+  making/, clean-kept; on a conductor under `WARN_GB` (20) every step, clean-cache whole, relink-pixal, logs past 30
+  days and tmp/ past a day, store-gc, offload-pixal, a line each with what it freed; still under the floor it names what
+  fills the disk and prices the bigger volume (`conductor/sweep.json`, read by the Machine card's note): only then the
+  owner. Never named blobs, paid caches (cloud/google-cache, drops), the design or a take kept nowhere else.
 - **Money**: the conductor bills in its own project (`SCORE_CONDUCTOR_PROJECT`, `score-conductor`); the stop line reads
   the batch project's bill alone, and `project_refusal` (in `compute.books_refusal`, `compute.require_books` and
   `guard.refusal`) refuses every clearance and rent point if the two names are ever the same.

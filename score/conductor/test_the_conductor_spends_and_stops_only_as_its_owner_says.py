@@ -11,7 +11,8 @@ reads and its log tails carry no secret. The free end-to-end check (`dry`) passe
 starts under the data disk's floor, the health warns there, and clean-frozen removes only the frozen copies no run
 needs and no process works in, never what their homes link to, and nothing while it cannot tell; clean-cache
 makes the checkouts' copies links to the stored blobs even with a run live; clean-kept drops only the kept jobs no
-current key asks for.
+current key asks for; `disk` accounts for the whole data disk, store-gc removes only the blobs nothing names and only
+with no run live, and the sweep frees room itself, asking the owner only for a bigger disk, priced.
 
 Break that turns it red: in size.decide grow while a run is live (drop the claims/running wait); in kill.stop_everything
 release the parked machines before closing the pools; or in logs drop the secret-shape test (an AIza key reaches the
@@ -36,7 +37,7 @@ from score.adapters import compute  # noqa: E402
 from score.adapters.compute import guard  # noqa: E402
 from score.conductor import disk, health, kill, logs, size, slices  # noqa: E402
 from score.graph import frozen, runs  # noqa: E402
-from score.store import Store  # noqa: E402
+from score.store import Store, file_hash  # noqa: E402
 
 RECORD = {"name": "conductor", "idle_type": "POP2-HM-2C-16G", "batch_type": "POP2-HM-16C-128G", "idle_cores": 2,
           "batch_cores": 16, "project": "score-conductor"}
@@ -479,23 +480,145 @@ def test_no_run_starts_under_the_disk_floor_and_the_health_warns_there(tmp_path,
 
 
 def test_disk_names_the_biggest_folders_in_one_line_and_a_file(tmp_path, monkeypatch):
-    # the checkout and the user's cache are measured too when on the home's disk: kept inside the toy home, so this
-    # machine's own folders never outrank the toy ones
-    monkeypatch.setattr(disk, "REPO", tmp_path)
-    monkeypatch.setenv("HOME", str(tmp_path))
-    (tmp_path / "frozen" / "20261026-081445-1").mkdir(parents=True)
-    (tmp_path / "frozen" / "20261026-081445-1" / "big").write_bytes(b"x" * 300_000)
-    summary, biggest = disk.report(tmp_path, tmp_path / "conductor" / "disk.json")
-    assert summary.startswith("disk: ") and "1 frozen copies" in summary and str(tmp_path / "conductor") in summary
-    written = json.loads((tmp_path / "conductor" / "disk.json").read_text())
-    copy = str(tmp_path / "frozen" / "20261026-081445-1")
+    home = tmp_path / "home"
+    monkeypatch.setattr(disk, "mount_of", lambda path: home)  # the home the disk's top, as on the conductor
+    (home / "frozen" / "20261026-081445-1").mkdir(parents=True)
+    (home / "frozen" / "20261026-081445-1" / "big").write_bytes(b"x" * 300_000)
+    summary, biggest = disk.report(home, home / "conductor" / "disk.json")
+    assert summary.startswith("disk: ") and "1 frozen copies" in summary and str(home / "conductor") in summary
+    written = json.loads((home / "conductor" / "disk.json").read_text())
+    copy = str(home / "frozen" / "20261026-081445-1")
     assert written["folders"] and any(line.endswith(f"  {copy}") for line in biggest)
-    deep = tmp_path / "store" / "cache" / "checkouts" / "abc" / "inner"
+    deep = home / "store" / "cache" / "checkouts" / "abc" / "inner"
     deep.mkdir(parents=True)
     (deep / "big").write_bytes(b"x" * 300_000)
-    _, biggest = disk.report(tmp_path, tmp_path / "conductor" / "disk.json")
+    _, biggest = disk.report(home, home / "conductor" / "disk.json")
     assert any(line.endswith(f"  {deep}") for line in biggest[biggest.index(next(
         line for line in biggest if line.startswith("inside "))):]), biggest  # three levels inside store/cache
+
+
+def test_disk_accounts_for_the_whole_data_disk(tmp_path, monkeypatch):
+    """2026-10-30: 0.01 GB free of 91, about 25 GB of it not under PROPS_HOME's folders and out of the door's sight.
+    Break: score/conductor/disk.py deleted_open: 'if not os.readlink(handle).endswith(" (deleted)"):' -> 'if True:'
+    (a deleted file still open is never counted), or roots: '**({mount: 3} if mount != home.resolve() else {})}' ->
+    '}' (the folders outside the home are never measured)."""
+    home = tmp_path / "home"
+    monkeypatch.setattr(disk, "mount_of", lambda path: tmp_path)  # the disk's top above the home
+    (home / "store").mkdir(parents=True)
+    (tmp_path / "var" / "cache" / "apt").mkdir(parents=True)
+    (tmp_path / "var" / "cache" / "apt" / "big").write_bytes(b"x" * 12_000_000)
+    (tmp_path / "closed").mkdir()
+    (tmp_path / "closed" / "inner").mkdir()
+    (tmp_path / "closed").chmod(0)
+    held = open(home / "gone.log", "wb")
+    try:
+        held.write(b"x" * 2_000_000)
+        held.flush()
+        (home / "gone.log").unlink()
+        summary, lines = disk.report(home, home / "conductor" / "disk.json")
+    finally:
+        held.close()
+        (tmp_path / "closed").chmod(0o755)
+    whole = json.loads((home / "conductor" / "disk.json").read_text())["whole"]
+    assert whole["mount"] == str(tmp_path) and whole["outside_gb"] > 0 and "GB outside" in summary, summary
+    outside = lines[lines.index(next(line for line in lines if line.startswith("outside "))):]
+    assert any(line.endswith(f"  {tmp_path / 'var' / 'cache' / 'apt'}") for line in outside), outside
+    assert any(process.endswith(f"(pid {os.getpid()})") for process in whole["deleted_open"]), whole
+    assert any("deleted, still open in" in line for line in lines)
+    if os.getuid() != 0:  # root reads every folder
+        assert whole["unread"] and any(line.startswith("unreadable: ") for line in lines), whole
+
+
+def gc_home(tmp_path):
+    """A home whose store holds blobs an output, a record, a link, a listing blob and nothing name."""
+    home = tmp_path / "home"
+    store = Store.in_folder(home / "store")
+    made = tmp_path / "made"
+    made.mkdir()
+    (made / "listed.bin").write_bytes(b"listed")
+    store.put_tree(made)
+    blobs = store.objects.path("blobs")
+    named = {}
+    for name in ("record", "linked", "inner", "orphan", "young", "pixal"):
+        path = tmp_path / f"{name}.bin"
+        path.write_bytes(name.encode() * 100)
+        named[name] = file_hash(path)
+        store.put_blob(path, named[name])
+    index = tmp_path / "index.json"  # a listing kept as a blob, named by a record: what it names stays too
+    index.write_text(json.dumps({"inner": named["inner"]}))
+    named["index"] = file_hash(index)
+    store.put_blob(index, named["index"])
+    (home / "store" / "objects" / "concepts").mkdir(parents=True)
+    (home / "store" / "objects" / "concepts" / "c.json").write_text(json.dumps(
+        {"pick": named["record"], "index": named["index"]}))
+    (home / "dashboard").mkdir()
+    (home / "dashboard" / "view.glb").symlink_to(blobs / named["linked"])
+    (home / "work" / "pixal").mkdir(parents=True)
+    os.link(blobs / named["pixal"], home / "work" / "pixal" / "t.glb")
+    (home / "runs").mkdir()
+    old = time.time() - 2 * disk.GC_YOUNG_SECONDS
+    for blob in blobs.iterdir():
+        if blob.name != named["young"]:
+            os.utime(blob, (old, old))
+    return home, blobs, named
+
+
+def test_store_gc_removes_only_blobs_nothing_names_and_only_with_no_run_live(tmp_path):
+    """2026-10-30: store/objects 54.7 GB on a full disk, and nothing collected what no output, record or kept job names.
+    Break: score/conductor/disk.py collectable_why: 'if blob.name in held:' -> 'if False:' (a blob a record names is
+    removed), or store_gc: drop 'if refused:' and its return (blobs removed under a live run)."""
+    home, blobs, named = gc_home(tmp_path)
+    (home / "runs" / "w.json").write_text(json.dumps({"state": runs.WAITING, "worktree": str(tmp_path / "copy")}))
+    assert "a registered run needs" in disk.store_gc(home, repo=tmp_path, say=lambda line: None)["refused"]
+    (home / "runs" / "w.json").unlink()
+    before = sorted(path.name for path in blobs.iterdir())
+    dry = disk.store_gc(home, dry=True, repo=tmp_path, say=lambda line: None)
+    assert dry["removed"] == 1 and sorted(path.name for path in blobs.iterdir()) == before, dry  # dry: nothing goes
+    done = disk.store_gc(home, repo=tmp_path, say=lambda line: None)
+    left = {path.name for path in blobs.iterdir()}
+    assert done["removed"] == 1 and named["orphan"] not in left, done
+    assert {named[name] for name in ("record", "linked", "inner", "index", "young", "pixal")} <= left, done
+    assert done["kept"]["written in the last day"] == 1 and "linked elsewhere too" in " ".join(done["kept"]), done
+    assert Store.in_folder(home / "store").checkout(next(iter(
+        path.stem for path in (home / "store" / "objects" / "outputs").glob("*.json"))))  # the output reads whole
+
+
+def test_sweep_frees_room_itself_and_asks_only_for_a_bigger_disk_priced(tmp_path, monkeypatch):
+    """2026-10-30, the owner on the conductor's full disk needing him: "this should be routine".
+    Break: score/conductor/disk.py sweep: 'escalated = force or (record is not None and start < WARN_GB)' ->
+    'escalated = force' (under the warning line the sweep runs its routine only), or warning: drop
+    '{last['bigger']}' (the owner is never told the price)."""
+    home, blobs, named = gc_home(tmp_path)
+    monkeypatch.setattr(disk, "REPO", tmp_path)
+    monkeypatch.setattr(disk, "mount_of", lambda path: home)
+    monkeypatch.setattr(disk, "clean_kept", lambda home, runs_folder, say: {"dropped": 0, "refused": None})
+    monkeypatch.setattr(disk, "offload_pixal", lambda home, runs_folder: {"freed": 0, "refused": None, "kept": {}})
+    monkeypatch.setattr(disk, "bigger", lambda more, zone: f"{more} GB more, EUR 4.00 a month in {zone}")
+    (home / "logs").mkdir()
+    for name, days in (("old.log", disk.LOG_DAYS + 1), ("new.log", 1)):
+        (home / "logs" / name).write_text(name)
+        os.utime(home / "logs" / name, (time.time() - days * 86400,) * 2)
+    free = {"gb": 50.0}
+    monkeypatch.setattr(disk, "free_gb", lambda path=None: free["gb"])
+    said = []
+    done = disk.sweep(home, say=said.append)  # no machine.json: off a conductor, the routine only
+    assert not done["escalated"] and [step["step"] for step in done["steps"]] == [
+        "clean-frozen", "clean-cache", "clean-kept"], done
+    (home / "machine.json").write_text(json.dumps({"zone": "fr-par-2"}))
+    free["gb"] = 5.0
+    done = disk.sweep(home, say=said.append)
+    assert done["escalated"] and [step["step"] for step in done["steps"]][3:] == [
+        "relink-pixal", "old-logs", "store-gc", "offload-pixal"], done
+    assert not (home / "logs" / "old.log").exists() and (home / "logs" / "new.log").exists()
+    assert named["orphan"] not in {path.name for path in blobs.iterdir()} and named["record"] in {
+        path.name for path in blobs.iterdir()}
+    assert done["bigger"] == "50 GB more, EUR 4.00 a month in fr-par-2" and done["fills"], done
+    assert sum(line.startswith("sweep ") for line in said) == 3 + 7, said  # a line a step, each with what it freed
+    note = disk.warning(5.0, swept=home / "conductor" / "sweep.json")
+    assert "could not reach it" in note and "50 GB more, EUR 4.00 a month" in note, note
+    free["gb"] = 12.0  # it reached the floor: nothing is asked
+    assert disk.sweep(home, say=said.append)["bigger"] is None
+    assert "routine sweep" in disk.warning(5.0, swept=home / "conductor" / "sweep.json")
 
 
 def a_cache(home):
