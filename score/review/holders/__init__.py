@@ -7,7 +7,8 @@ Each plan item of a row that stands on, against or in something gets one relatio
 
     top    on its holder item's top: the row's anchor `on:<row>`, and in the concept its box's foot stands over its
            holder's by more than TOP_SHARE of the holder's box (a monitor on its console, a lamp on its desk)
-    within inside its holder item, where the plan lays its middle (plants in their greenhouse, a door in its frame)
+    within inside its holder item, where the plan lays its middle (plants in their greenhouse, a door in its frame);
+           `hangs` where it hangs in it (hangs: a spacesuit in its locker)
     face   (a moving door's `recess`, its room in its holder model behind it: recess_of; `spots` each piece's plan
            middle where a moving door's item lays several, at least its width, room and OPENING_ROOM apart: face_spots,
            or where things on one face that meet at their built sizes are spread along it: face_spread, a face too
@@ -298,6 +299,17 @@ def fits_over(row, holder_row, room):
     in their 2 m locker's top half, read as on its top and stood through the 2.5 m ceiling (round 32)."""
     heights = [float((found.get("size") or [0.0, 0.0, 0.0])[2]) for found in (row, holder_row)]
     return room is None or sum(heights) <= room
+
+
+def hangs(item, holder_item, plan):
+    """Whether an item laid within its holder hangs in it (`hangs` on its relation: the assembly hangs it on the
+    holder's back and judges it by touching): by the plan's shapes, its foot over the holder's and under its top,
+    at least half the holder's height, its top in the holder's top quarter (TOP_SHARE): the docking airlock's 1.8 m
+    spacesuits at 0.1 m in their 2 m lockers; never a tray on a rack's shelf, a keyboard on a desk, a valve on a pipe."""
+    shapes = plan.get("shapes") or {}
+    base, tall, under, high = (float((shapes.get(name) or {}).get(key) or 0.0)
+                               for name in (item[0], holder_item[0]) for key in ("base", "tall"))
+    return under < base < under + high and tall >= high / 2 and base + tall >= under + high * (1 - TOP_SHARE)
 
 
 def room_height(plan):
@@ -851,6 +863,8 @@ def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, 
         found = {**held(item, row, nearest[0], [nearest[1]], items, turn, room_height(plan)),
                  "holder row": nearest[0]["id"]}
         holder_item = items[nearest[1]]
+        if found["how"] == "within" and hangs(item, holder_item, plan):
+            found["hangs"] = True
         holder_base = float(((plan.get("shapes") or {}).get(holder_item[0]) or {}).get("base") or 0.0)
         recess = recess_of(item, row, (middle(holder_item), item_way(holder_item), holder_base), nearest[0],
                            found["face"], plan, inventory, kinds) if found["how"] == "face" else None

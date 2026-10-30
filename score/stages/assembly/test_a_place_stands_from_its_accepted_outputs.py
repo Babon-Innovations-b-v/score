@@ -30,7 +30,7 @@ sys.path.insert(0, str(REPO / "tools/usd"))
 
 from score import checks  # noqa: E402
 from score.stages import assembly  # noqa: E402
-from score.stages.assembly import baked, made_waiting, neighbours, record, scene_tree, sounds  # noqa: E402
+from score.stages.assembly import baked, fitting, made_waiting, neighbours, record, scene_tree, sounds  # noqa: E402
 
 TOY = "toy"
 PLACE = "wreck"  # a place the environment knows (export lays its ground); its layout and inventory here are the test's
@@ -255,24 +255,52 @@ def test_a_row_on_a_wall_or_ceiling_row_is_judged_mounted_there():
 def test_a_row_the_record_hangs_within_its_holder_is_judged_hanging():
     """Round 32's docking airlock: its spacesuits, laid within their lockers at the plan's 0.1 m base, were judged as
     standing on the lockers' insides and leaned 12 degrees. A row whose every object the scene record lays within its
-    holder off the holder's foot is given `hanging` (judged by touching: one touching nothing still hangs free); one
-    within at its holder's foot, one of a row with another object laid otherwise, or a row naming its own support,
-    keeps what the triage gives it.
-    Break: score/stages/assembly/__init__.py: `float(entry["at"][1]) > float(holder["at"][1])` -> `True`
+    holder hanging (its relation's `hangs`, fitting.hangs_in) is given `hanging` (judged by touching: one touching
+    nothing still hangs free); one within not hanging, one filling its holder (a door's window), one of a row with
+    another object laid otherwise, or a row naming its own support, keeps what the triage gives it.
+    Break: score/stages/assembly/fitting.py: `and bool(on.get("hangs"))` -> `` (every one within hung)
     Break: score/stages/assembly/__init__.py: `if all(hung)}` -> `if any(hung)}`"""
     inventory = {"rows": [{"id": "locker", "part": "object"}, {"id": "suit", "anchor": "on:locker"},
                           {"id": "crate", "anchor": "on:locker"}, {"id": "box", "anchor": "on:locker"},
+                          {"id": "window", "anchor": "on:locker"},
                           {"id": "fixed_suit", "anchor": "on:locker", "support": "fixed"}]}
 
-    def laid(name, row, height, how=None):
-        return {"name": name, "row": row, "at": [0.0, height, 0.0],
-                **({"on": {"how": how, "holder": ["locker_1"]}} if how else {})}
-    record = {"objects": [laid("locker_1", "locker", 0.0), laid("suit_1", "suit", 0.1, "within"),
-                          laid("suit_2", "suit", 0.1, "within"), laid("crate_1", "crate", 0.0, "within"),
-                          laid("box_1", "box", 0.1, "within"), laid("box_2", "box", 0.1, "face"),
-                          laid("fixed_suit_1", "fixed_suit", 0.1, "within")]}
+    def laid(name, row, how=None, hung=False, **more):
+        on = {"how": how, "holder": ["locker_1"], **({"hangs": True} if hung else {})}
+        return {"name": name, "row": row, "at": [0.0, 0.1, 0.0], **({"on": on} if how else {}), **more}
+    record = {"objects": [laid("locker_1", "locker"), laid("suit_1", "suit", "within", True),
+                          laid("suit_2", "suit", "within", True), laid("crate_1", "crate", "within"),
+                          laid("box_1", "box", "within", True), laid("box_2", "box", "face"),
+                          laid("window_1", "window", "within", True, fills=True),
+                          laid("fixed_suit_1", "fixed_suit", "within", True)]}
     found = {row["id"]: row.get("support") for row in assembly.resting_rows(inventory, record)["rows"]}
-    assert found == {"locker": None, "suit": "hanging", "crate": None, "box": None, "fixed_suit": "fixed"}, found
+    assert found == {"locker": None, "suit": "hanging", "crate": None, "box": None, "window": None,
+                     "fixed_suit": "fixed"}, found
+
+
+def test_a_hanging_one_is_hung_on_its_holder_s_inside_back_face():
+    """Round 32's docking airlock: spacesuit_left_1, laid within its locker at the plan's base, hung 4.1 cm off the
+    locker's back and touched nothing (hangs free). A hanging one moves along its holder's back way until its built
+    surface meets the holder's inside back face, its height and its place across kept (hung_back): the back is
+    opposite the side the holder's surface leaves open across it (an open-fronted locker, +x), else opposite the side
+    toward the room's middle (a closed one).
+    Break: score/stages/assembly/fitting.py: back_way's `return axis, -sign` -> `return axis, sign`
+    Break: score/stages/assembly/fitting.py: back_way's `if not np.any(across & (sign * (points[:, axis] -
+        middle[axis]) > 0)):` -> `if False:` (an open front read as closed, the room's middle behind the back)"""
+    steps = np.linspace(0.0, 2.0, 41)
+    across = np.linspace(0.0, 0.8, 17)
+    back = np.array([[0.0, up, side] for up in steps for side in across])
+    sides = np.array([[deep, up, side] for deep in np.linspace(0.0, 1.0, 21) for up in steps for side in (0.0, 0.8)])
+    front = np.array([[1.0, up, side] for up in steps for side in across])
+    suit = np.array([[deep, up, side] for deep in (0.2, 0.6) for up in np.linspace(0.1, 1.9, 37)
+                     for side in np.linspace(0.2, 0.6, 9)])
+    low, high = suit.min(axis=0), suit.max(axis=0)
+    opened = fitting.hung_back(suit, np.concatenate([back, sides]), low, high, room_middle=[-5.0, 0.4])
+    assert opened[:2] == (0, -1.0) and abs(opened[2] - 0.2) < 1e-9, opened
+    closed = np.concatenate([back, sides, front])
+    assert fitting.hung_back(suit, closed, low, high, room_middle=[5.0, 0.4])[:2] == (0, -1.0)
+    toward_back = fitting.hung_back(suit, closed, low, high, room_middle=[-5.0, 0.4])
+    assert toward_back[:2] == (0, 1.0) and abs(toward_back[2] - 0.4) < 1e-9, toward_back
 
 
 def test_the_declared_inventory_folder_is_the_one_earth_seed_lays_from(tmp_path):

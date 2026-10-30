@@ -144,6 +144,27 @@ def test_a_spacesuit_too_tall_for_its_locker_s_top_stands_within_it():
     assert high["how"] == "top", high
 
 
+def test_a_spacesuit_within_its_locker_hangs_and_a_tray_on_a_shelf_does_not():
+    """Round 32's docking airlock: its 1.8 m spacesuits at 0.1 m within their 2 m lockers hang (the assembly hangs
+    them on the locker's back and judges them by touching). Within a holder, a thing hangs when its foot is over the
+    holder's and under its top, it is at least half the holder's height and its top is in the holder's top quarter;
+    a tray on a rack's shelf, a sticky note high in a locker, a 1.3 m thing low in a 2.5 m frame, a keyboard on its
+    desk's top do not (none of them over all 26 env1 plans either).
+    Break: score/review/holders/__init__.py: `and tall >= high / 2 and` -> `and` (the sticky note hangs)
+    Break: score/review/holders/__init__.py: `and base + tall >= under + high * (1 - TOP_SHARE)` -> `` (the low
+        thing in its frame hangs)"""
+    shapes = {"LOCKER 1": {"base": 0.0, "tall": 2.0}, "SUIT 1": {"base": 0.1, "tall": 1.8},
+              "RACK 1": {"base": 0.1, "tall": 2.2}, "TRAY 1": {"base": 1.0, "tall": 0.1},
+              "NOTE 1": {"base": 1.5, "tall": 0.001}, "FRAME 1": {"base": 0.0, "tall": 2.5},
+              "CHASSIS 1": {"base": 0.2, "tall": 1.3}, "DESK 1": {"base": 0.0, "tall": 0.8},
+              "KEYBOARD 1": {"base": 0.8, "tall": 0.05}}
+    plan = plan_of([], {}, shapes=shapes)
+    found = {thing: holders.hangs([thing], [holder], plan) for thing, holder in (
+        ("SUIT 1", "LOCKER 1"), ("TRAY 1", "RACK 1"), ("NOTE 1", "LOCKER 1"), ("CHASSIS 1", "FRAME 1"),
+        ("KEYBOARD 1", "DESK 1"))}
+    assert found == {"SUIT 1": True, "TRAY 1": False, "NOTE 1": False, "CHASSIS 1": False, "KEYBOARD 1": False}, found
+
+
 def test_a_spot_in_another_holder_like_its_anchor_s_is_held_by_that_one():
     """Round 32's docking airlock: both spacesuits name the left locker, but the plan lays the second in the right
     locker's box, where it hung against the left locker's face 3 m away. The object its plan spot falls in holds it,
