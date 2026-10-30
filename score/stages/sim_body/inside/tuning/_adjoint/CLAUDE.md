@@ -60,8 +60,13 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   gives back the solved rows and keeps a coupling under a moved pose. The free root's turn (2026-10-30): `RootTurns(pose,
   per_copy)` charts each copy's 4 turn coordinates as 3 tangent dofs ((q0 + E w) / |q0 + E w|, E `tangent_basis`,
   w = 0 at the solved pose), so H has no direction along the quaternion's norm; `full` gives `TapedSites`' pose,
-  `pulled` the chart's gradient from the full one; checked on two toy copies against central differences. Open: the builder (Newton model,
-  levels 2 and 3 on the card, end sites' link frames), `refused` on it, and the heavy_kimodo test.
+  `pulled` the chart's gradient from the full one; checked on two toy copies against central differences.
+- `_real.py` (Newton's Python only, 2026-10-30): one real tuning body's `Clip` set up as `evaluation/_card_batch`
+  does (`set_up`: `_case.prepared`, the sizing, level 2, `_clip.for_fitting`) and its clips' rows solved in one
+  `Sets([clip]).angles` batch, Newton's order (`solved_rows`). heavy_kimodo at depth1's base set (`_check_real.py`, its
+  test run only when `SCORE_ADJOINT_REAL` names the inputs): 136 frames x 129 coordinates, the largest gap to the card
+  solve's own angles 1.46e-5, 19.4 s. Open: the per-frame model (copies, couplings, RootTurns), the end sites' link
+  frames, `Body` and `refused` on it.
 - Built and checked on a toy only (2026-10-30, five tests, 1.2 s); `../__init__.solved(exact=)` takes `stacked_jacobian` (its test, 2026-10-30). Not yet wired: the card gradient (Newton eval_fk on
   a wp.Tape for level 3, level 2's constants) as each `Body`'s callables, `solved`'s Jacobian switch to it, the gate on heavy_kimodo, tall_kimodo and
   a third tuning body against `_differences`, and the 70-case timing.

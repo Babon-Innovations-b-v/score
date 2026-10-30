@@ -18,7 +18,8 @@ skipping `self.centres.zero_()` (joint centres adding onto the last evaluation's
 Building the bone points without `requires_grad` (`_Skins.points`: no skin depth row reaches the pose) turns it red.
 In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
 without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pulled` skipping the normalisation's
-projection (`along` the raw turn gradient) turns the root chart test red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red.
+projection (`along` the raw turn gradient) turns the root chart test red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red. In `_real.py`, `solved_rows`
+giving MuJoCo's order (no `newton_order`) turns the real body test red.
 
 The taped test runs `_taped` (Newton eval_fk on a wp.Tape) in Newton's own Python on the card, a four-link chain with
 three weighted sites and two link-frame turn rows, once on every coordinate and once with the last a follower of the
@@ -301,3 +302,19 @@ def test_the_taped_measures_rows_equal_differences_of_the_case_residuals():
     expected = np.stack([(scored[2 * column] - scored[2 * column + 1]) / (2 * found["step"])
                          for column in range(len(scored) // 2)], axis=1)
     assert np.abs(jacobian - expected).max() < 1e-2 * np.abs(expected).max()
+
+
+def test_one_real_body_builds_and_its_rows_equal_the_card_solve(tmp_path):
+    """`SCORE_ADJOINT_REAL` names a JSON file {seeds, set, reference, cases: {case: job}} (absolute paths): one tuning
+    body's set and its card solve's angles. Skipped without it or without Newton's Python (the real store's inputs)."""
+    python, named = _newton_python(), os.environ.get("SCORE_ADJOINT_REAL")
+    if python is None or not named:
+        pytest.skip("no Newton Python or no SCORE_ADJOINT_REAL")
+    given = json.loads(pathlib.Path(named).read_text())
+    ran = subprocess.run([str(python), "-B", str(pathlib.Path(__file__).parent / "_check_real.py"),
+                          str(pathlib.Path(__file__).parent), given["seeds"], given["set"], str(tmp_path), given["reference"],
+                          *(f"{case}={job}" for case, job in given["cases"].items())],
+                         capture_output=True, text=True, timeout=115)
+    assert ran.returncode == 0, ran.stderr[-2000:]
+    found = json.loads(ran.stdout.strip().splitlines()[-1])
+    assert all(case["most"] < 1e-4 for case in found["cases"].values()), found
