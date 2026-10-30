@@ -36,7 +36,9 @@ builds it unchanged; it lands as record/<place>.json in the output.
     views        one from inside each doorway looking across, one from each of the plan's person spots (an inside
                  place's only where the eye stands inside its outline: the others in `views_left_out`, with why); an
                  open place's spot at its floor stands on the terrain row's made ground under it (`terrain`, the one
-                 thing made that the record reads: wreck's eyes stood under its ground, 2026-10-30)
+                 thing made that the record reads: wreck's eyes stood under its ground, 2026-10-30); an eye at the
+                 floor where a person would stand in a wall, a floor thing or another person moved to the nearest
+                 free floor, its aim by the same offset (review/standing.py, `clear_of`)
     doorways     the plan's doorways in the place's frame (the plan row's), which ground-fit judges
     places       each other place its holder's plan holds that a door or opening of this place leads to, stood where
                  the holder's plan holds it (`holds`), turned as its own plan's frame is
@@ -52,7 +54,7 @@ import sys
 import numpy as np
 
 from score import contracts
-from score.review import holders, overhead
+from score.review import holders, overhead, plan_checks, standing
 from score.review.plan_checks import WALLS_ITEM
 from score.stages import row_kinds
 from score.stages.earth_seed import design_shell
@@ -379,16 +381,20 @@ def item_middle(plan, name):
     return np.array([(low_x + high_x) / 2, (low_z + high_z) / 2])
 
 
-def views(plan, eye_height, ground=None):
+def views(plan, eye_height, ground=None, clear=None):
     """One view inside each doorway looking across the inside's middle (the doorway's mirror through it), one from
     each standing spot to the middle at its own level or to the plan item it looks at on the floor; each eye at
     standing height over its level (the plan row's plan.json: its `doorways` and `standing`), a spot at the floor
-    over the made ground under it where `ground` (ground_under) has one there."""
+    over the made ground under it where `ground` (ground_under) has one there. An eye at the floor where a person
+    would stand in a wall, a thing or another person moves by `clear`'s offset (`clear_of`), its aim with it."""
     found, middle = [], middle_of(plan)
     for door in plan.get("doorways", []):
         at = np.asarray(door["middle"], dtype=float)
         eye = at + np.asarray(door["inward"], dtype=float) * VIEW_IN
         aim = 2 * middle - at[[0, 2]]
+        offset = clear(eye[[0, 2]]) if clear and at[1] <= plan["floor_height"] else None
+        if offset is not None:
+            eye, aim = eye + [offset[0], 0.0, offset[1]], aim + offset
         found.append({"name": f"from-{door['name']}", "eye": [round(eye[0], 3), round(at[1] + eye_height, 3),
                                                              round(eye[2], 3)],
                       "aim": [round(aim[0], 3), round(at[1] + AIM_HEIGHT, 3), round(aim[1], 3)], "fov": far.VIEW_FOV,
@@ -396,9 +402,13 @@ def views(plan, eye_height, ground=None):
     for number, spot in enumerate(plan["standing"], 1):
         aim = item_middle(plan, spot["looks_at"]) if spot["looks_at"] else middle
         aim_level = plan["floor_height"] if spot["looks_at"] else spot["level"]
-        stands = spot_ground(spot, plan["floor_height"], ground)
+        offset = clear(np.asarray(spot["at"], dtype=float)) if clear and spot["level"] <= plan["floor_height"] \
+            else None
+        at = np.asarray(spot["at"], dtype=float) + (offset if offset is not None else 0.0)
+        aim = np.asarray(aim, dtype=float) + (offset if offset is not None else 0.0)
+        stands = spot_ground({**spot, "at": at.tolist()}, plan["floor_height"], ground)
         found.append({"name": f"spot-{number}",
-                      "eye": [round(spot["at"][0], 3), round(stands + eye_height, 3), round(spot["at"][1], 3)],
+                      "eye": [round(at[0], 3), round(stands + eye_height, 3), round(at[1], 3)],
                       "aim": [round(aim[0], 3), round(aim_level + AIM_HEIGHT, 3), round(aim[1], 3)],
                       "fov": far.VIEW_FOV, "from": f"plan standing spot {number}, looking to " +
                                               (f"plan item {spot['looks_at']!r}" if spot["looks_at"] else "the middle")})
@@ -413,6 +423,28 @@ def upright(view, floor):
         return view
     (low_x, low_z), (high_x, high_z) = floor
     return dict(view, up=[1.0, 0.0, 0.0] if high_x - low_x >= high_z - low_z else [0.0, 0.0, 1.0])
+
+
+def clear_of(design, inventory):
+    """(x, z) -> the offset [dx, dz] in the place's frame that takes an eye there to the nearest floor inside the
+    design's outline where a person stands in no wall, floor thing or person spot but the one it stands on
+    (review.standing; wreck's spot-5, 2026-10-30), or None where it stands in none (or no floor is free)."""
+    grid = plan_checks.Grid(design)
+    outline = grid.covered(plan_checks.outline_of(design))
+    walls_things = standing.blocked(design, inventory, grid, None)
+    people = list(zip(design.get("people", []), standing.footprints(design, inventory)))
+    size = standing.footprints({"people": [[0.0, 0.0]]}, inventory)[0]
+    corner, east, south = place_plan.frame_of(design)
+
+    def offset(point):
+        across = np.asarray(point, dtype=float) - corner[[0, 2]]
+        spot = [float(across @ east[[0, 2]]), float(across @ south[[0, 2]])]
+        others = [(other, other_size) for other, other_size in people if math.dist(other[:2], spot) > 0.01]
+        if not standing.stands_in(spot, size, walls_things, grid, others):
+            return None
+        free = standing.nearest_free(spot, size, walls_things, grid, outline, others)
+        return None if free is None else (east[[0, 2]] * (free[0] - spot[0]) + south[[0, 2]] * (free[1] - spot[1]))
+    return offset
 
 
 def spot_ground(spot, floor_height, ground):
@@ -917,8 +949,10 @@ def record_of(plan, design, inputs):
               "lights": lights(design, inputs, relations), "environment": environment(design, read(inputs["sky"])),
               "doorways": plan.get("doorways", []), "places": places_of(place, plan, design, inputs["plans"], handin)}
     ground = None if record["inside"] else ground_under(inputs, place)
-    record["views"], left_out = views_inside(views(plan if record["inside"] else dict(plan, doorways=[]), eye, ground),
-                                             design, record["inside"])
+    inventory = pathlib.Path(inputs.get("inventory") or "")
+    clear = clear_of(design, read(inventory) if inventory.is_file() else {})
+    record["views"], left_out = views_inside(views(plan if record["inside"] else dict(plan, doorways=[]), eye, ground,
+                                                   clear), design, record["inside"])
     if left_out:
         record["views_left_out"] = left_out
     if far_laid[1]:

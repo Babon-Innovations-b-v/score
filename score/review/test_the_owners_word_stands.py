@@ -365,6 +365,15 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     plans_pass.py: `return store.accepted(f"plan@{place}") is None` made `return True`
 - test_a_plan_that_places_more_is_left_to_its_own_process_not_parted_first:
     plans_pass.py: `if not parts: return plan, calls` made `if False: return plan, calls`
+- test_a_correct_s_copy_of_a_person_is_dropped_and_only_a_person_standing_in_something_moves (each seen red,
+  2026-10-30): plans_pass.py `unnumbered`: `elif row and placed[row["id"]] < int(row.get("count", 1) or 1):` made
+    `elif row:` (a copy by row kept); `elif row or any(standing.in_each_other(...) ...):` made `elif row:` (the
+    copies by position kept); `spots.append([*spot[:3], row["id"]])` made `spots.append(spot)` (no row given back);
+    standing.py `in_each_other`: `< (size[0] + other_size[0]) / 2` made
+    `< (size[0] + other_size[0]) / 2 + 0.2` (the near spot moved); standing.py `stands_in`:
+    `bool((walls_things & under(grid, spot, size)).any()) or` dropped (the spot in the wall kept); plans_pass.py
+    (parted_first) `parting(store, place) or spaced_people(writing["plan"], inventory)[1]` made
+    `parting(store, place)`; (unsettled) `or bool(spaced_people(plan, inventory)[1])` dropped
 - test_a_done_place_with_no_kept_plan_gets_one:
     plans_pass.py: `if not (plans.KEPT / f"{place}.json").is_file()` made `if True`
 """
@@ -373,6 +382,7 @@ import datetime
 import hashlib
 import io
 import json
+import math
 import os
 import pathlib
 import re
@@ -3199,6 +3209,48 @@ def test_a_plan_that_places_more_is_left_to_its_own_process_not_parted_first():
     fixed, calls = plans_pass.settled_again(None, "habitat", {**plan, "fixes": []}, inventory, asked.append,
                                             parts=False)
     assert fixed["items"] == plan["items"] and calls == [] and asked == []
+
+
+def test_a_correct_s_copy_of_a_person_is_dropped_and_only_a_person_standing_in_something_moves():
+    """Airlock, 2026-10-30: each Correct's answer echoed the stood astronaut's spot back (its row a number), so three
+    person spots stood within 7 cm: the copies are dropped, one astronaut left. A numbered spot whose row is short of
+    its count gets its row back and stands a person of it; one more of that row, now full, is a copy by row and goes
+    (hangar's eight workers, camp's six astronauts). A spot whose own footprint overlaps a
+    wall, a floor thing or another person moves to the nearest floor where it overlaps none; one near but clear stays
+    where it was placed. Free, in the pass before the keep, its plan row accepted or not."""
+    walls = [{"from": [0.0, 0.0], "to": [6.0, 0.0], "thick": 0.2}, {"from": [6.0, 0.0], "to": [6.0, 6.0], "thick": 0.2},
+             {"from": [6.0, 6.0], "to": [0.0, 6.0], "thick": 0.2}, {"from": [0.0, 6.0], "to": [0.0, 0.0], "thick": 0.2}]
+    plan = {"w": 6.0, "d": 6.0, "doors": [], "walls": walls, "fixes": ["earlier fix"], "gaps": [],
+            "items": [["CRATE 1", 4.0, 1.0, 1.0, 1.0, None, "item"]], "rows": {"CRATE 1": ["crate"]},
+            "people": [[3.0, 3.0, 0.0, "astronaut"], [3.04, 3.03, 0.0, 1], [3.02, 3.06, 0.0, 1], [0.2, 3.0],
+                       [4.5, 1.5], [0.45, 4.5], [3.65, 3.0], [3.3, 3.1], [1.5, 4.5, 0.0, 2], [5.0, 5.0, 0.0, 2]]}
+    inventory = {"rows": [{"id": "astronaut", "noun": "astronaut", "count": 1, "size": [0.6, 0.6, 1.4]},
+                          {"id": "pilot_2", "noun": "person", "count": 1, "size": [0.6, 0.6, 1.8]},
+                          {"id": "crate", "count": 1, "size": [1.0, 1.0, 1.0]}]}
+    assert not plans_pass.placing_more(plan, inventory) and plans_pass.unsettled(plan, inventory, parts=False)
+    fixed, calls = plans_pass.settled_again(None, "airlock", plan, inventory, plans_pass.unasked, parts=False)
+    spots = fixed["people"]
+    assert calls == [] and len(spots) == 7 and [spot for spot in spots if len(spot) >= 4] == [
+        plan["people"][0], [1.5, 4.5, 0.0, "pilot_2"]], spots
+    assert spots[3:5] == [[0.45, 4.5], [3.65, 3.0]], spots  # near a wall, near the astronaut: clear, kept
+    wall_one, crate_one, person_one = spots[1], spots[2], spots[5]
+    assert 0.1 + 0.3 - 0.05 <= wall_one[0] < 0.2 + 0.3 and abs(wall_one[1] - 3.0) < 0.05, wall_one
+    assert not (3.75 < crate_one[0] < 5.25 and 0.75 < crate_one[1] < 2.25) and math.dist(crate_one, [4.5, 1.5]) < 0.9
+    assert all(abs(person_one[0] - other[0]) >= 0.6 - 0.05 or abs(person_one[1] - other[1]) >= 0.6 - 0.05
+               for other in spots[:5]), spots
+    assert not plans_pass.unsettled(fixed, inventory, parts=False) and len(fixed["fixes"]) == 8, fixed["fixes"]
+    kept, before = [], (plan_writing.written_of, plans.inventory_of, plan_writing.kept)
+    with tempfile.TemporaryDirectory() as folder:
+        store = Store.in_folder(folder)
+        store.accepted = {"plan@airlock": "the accepted output"}.get
+        plan_writing.written_of = lambda store, place: {"place": place, "at": "then", "plan": plan}
+        plans.inventory_of = lambda store, place: inventory
+        plan_writing.kept = lambda store, record: kept.append(record) or record
+        try:
+            assert plans_pass.parted_first(store, ["airlock"]) == ["airlock"]
+        finally:
+            plan_writing.written_of, plans.inventory_of, plan_writing.kept = before
+    assert kept[0]["plan"]["people"] == spots and kept[0]["euros"] == 0.0 and kept[0]["calls"] == []
 
 
 def test_a_done_place_with_no_kept_plan_gets_one():
