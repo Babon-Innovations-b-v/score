@@ -16,6 +16,7 @@ in a batched body (`_Constants.gradient` taking `[0]` in place of `.sum(axis=0)`
 unknowns' trust (`TapedSites._evaluate` not assigning `self.weights` when `trusted`) turns it red. Assigning the trusts themselves when `ends` is given (`_weighed` returning `tail`) turns it red. In `_measures.py`,
 skipping `self.centres.zero_()` (joint centres adding onto the last evaluation's) turns the taped measures test red.
 Building the bone points without `requires_grad` (`_Skins.points`: no skin depth row reaches the pose) turns it red.
+In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red.
 
 The taped test runs `_taped` (Newton eval_fk on a wp.Tape) in Newton's own Python on the card, a four-link chain with
 three weighted sites and two link-frame turn rows, once on every coordinate and once with the last a follower of the
@@ -154,6 +155,34 @@ def test_the_outer_rows_equal_differences_of_the_median_and_the_root_mean_square
     assert np.allclose([median, root], _outer_values(unknowns))
     assert np.allclose(np.stack([median_row, root_row]), expected, atol=1e-6)
     assert np.allclose(_adjoint.median_row(lengths[:4], length_rows[:4])[0], np.median(lengths[:4]))
+
+
+_TABLE = {"knee_l": {"segment": "LeftLeg", "solver": True, "trust": 2.0, "link": [0.1, 0.2, 0.3]},
+          "knee_r": {"segment": "RightLeg", "solver": True, "trust": 2.0, "link": [0.1, 0.2, -0.3]},
+          "hip": {"segment": "Hips", "solver": False, "trust": 1.0, "link": [0.0, 0.1, 0.0]}}
+_STARTS = {name: row["link"] for name, row in _TABLE.items()}
+_GLOBALS = {"marker goal": 3.0, "end weight": 0.5}
+_TURN = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
+_ENDS = [("LeftUpLeg", np.array([0.0, -0.4, 0.0]), _TURN)]
+_LANDMARKS = ["knee_l", "knee_r", "hip"]
+
+
+def test_level_1_unknowns_map_onto_the_taped_outer_unknowns_with_their_derivative():
+    from score.stages.sim_body.inside import tuning
+    from score.stages.sim_body.inside.tuning._adjoint import _outer
+    entries = tuning.layout(_TABLE, set(), {"knee_l"}, {"LeftUpLeg": ["LeftUpLeg"]})
+    unknowns = np.linspace(-0.6, 0.9, len(entries))
+    mapped = _outer.site_unknowns(unknowns, entries, _LANDMARKS, _ENDS, _STARTS, _TABLE, _GLOBALS)
+    rows, weights = tuning.applied(unknowns, entries, _STARTS, _TABLE, _GLOBALS)
+    centre = tuning.offsets(unknowns, entries)["LeftUpLeg"]
+    assert np.allclose(mapped[:9], np.ravel([rows[name]["link"] for name in _LANDMARKS]))
+    assert np.allclose(mapped[9:12], _ENDS[0][1] + _TURN @ centre)
+    assert np.allclose(mapped[12:], [rows[name]["trust"] for name in _LANDMARKS]
+                       + [weights["end weight"], weights["marker goal"]])
+    expected = _adjoint.by_columns(
+        lambda point: _outer.site_unknowns(point, entries, _LANDMARKS, _ENDS, _STARTS, _TABLE, _GLOBALS), unknowns, 1e-6)
+    derivative = _outer.site_derivative(unknowns, entries, _LANDMARKS, _ENDS, _TABLE, _GLOBALS)
+    assert np.allclose(derivative, expected, atol=1e-6)
 
 def test_the_taped_gradient_equals_central_differences_of_the_cost():
     python = _newton_python()
