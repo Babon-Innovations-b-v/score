@@ -79,7 +79,7 @@ def differences(unknowns):
 
 def outer_values(unknowns):
     lengths, _ = _adjoint.distance_rows(differences(unknowns), np.zeros((5, 3, 3)))
-    return np.array([np.median(lengths), np.sqrt(np.mean(np.square(lengths)))])
+    return np.array([np.sqrt(np.mean(np.square(lengths)))])
 
 
 TABLE = {"knee_l": {"segment": "LeftLeg", "solver": True, "trust": 2.0, "link": [0.1, 0.2, 0.3]},
