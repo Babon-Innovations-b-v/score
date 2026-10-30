@@ -705,14 +705,19 @@ def kind_words(row):
     return words_of({"id": row["id"], "noun": row.get("noun", "")}) - PLACE_WORDS
 
 
+def alike_holders(row, holder, rows, laid):
+    """The rows like the row's named holder: the same anchor, a word of what it is shared (a console beside a control
+    bank, never the chair before a desk), laid on the plan."""
+    return [other for other in rows.values() if other["id"] in laid and other is not row
+            and (other.get("anchor") or "floor") == (holder.get("anchor") or "floor")
+            and kind_words(other) & kind_words(holder)]
+
+
 def seen_holders(row, holder, rows, laid):
     """The rows the concept shows the row's things standing on (hub's 38 monitors on its control bank and consoles, the
-    reading's anchor naming one): for each of its boxes the row like its named holder (the same anchor, a word of
-    what it is shared: a console beside a control bank, never the chair before a desk; laid on the plan) whose box
+    reading's anchor naming one): for each of its boxes the row like its named holder (alike_holders) whose box
     holds its foot, the named holder first; the named holder alone where none is seen."""
-    alike = [other for other in rows.values() if other["id"] in laid and other is not row
-             and (other.get("anchor") or "floor") == (holder.get("anchor") or "floor")
-             and kind_words(other) & kind_words(holder)]
+    alike = alike_holders(row, holder, rows, laid)
     shown = {found["id"]: found for box in plan_checks.boxes_of(row) if (found := standing_on(box, alike))}
     return [holder, *[found for found_id, found in shown.items() if found_id != holder["id"]]]
 
@@ -838,8 +843,11 @@ def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, 
                 LINE: line}, None
     if holder is not None and holder["id"] in laid and kind not in ("wall", "floor"):  # an item of its own, or tied to its holder's
         items, shown = plan_items(plan), seen_holders(row, holder, rows, laid)
-        nearest = min(((other, name) for other in shown for name in laid[other["id"]]),
-                      key=lambda pair: float(numpy.linalg.norm(middle(items[pair[1]]) - middle(item))))
+        pairs = [(other, name) for other in shown for name in laid[other["id"]]]
+        if not any(inside(item, items[name]) for _, name in pairs):  # its spot in another like it: that one holds it
+            pairs = [(other, name) for other in alike_holders(row, holder, rows, laid) for name in laid[other["id"]]
+                     if inside(item, items[name])] or pairs
+        nearest = min(pairs, key=lambda pair: float(numpy.linalg.norm(middle(items[pair[1]]) - middle(item))))
         found = {**held(item, row, nearest[0], [nearest[1]], items, turn, room_height(plan)),
                  "holder row": nearest[0]["id"]}
         holder_item = items[nearest[1]]

@@ -144,6 +144,27 @@ def test_a_spacesuit_too_tall_for_its_locker_s_top_stands_within_it():
     assert high["how"] == "top", high
 
 
+def test_a_spot_in_another_holder_like_its_anchor_s_is_held_by_that_one():
+    """Round 32's docking airlock: both spacesuits name the left locker, but the plan lays the second in the right
+    locker's box, where it hung against the left locker's face 3 m away. The object its plan spot falls in holds it,
+    where its anchor's does not and one like it (same anchor, a word shared) does; a spot in neither keeps its anchor.
+    Break: score/review/holders/__init__.py: `if not any(inside(item, items[name]) for _, name in pairs):` ->
+        `if False:`"""
+    rows = [{"id": "locker_left", "noun": "locker", "anchor": "floor", "size": [0.8, 0.6, 2.0]},
+            {"id": "locker_right", "noun": "locker", "anchor": "floor", "size": [0.8, 0.6, 2.0]},
+            {"id": "suit", "noun": "spacesuit", "anchor": "on:locker_left", "size": [0.6, 0.4, 1.8]}]
+    plan = plan_of([["LOCKER LEFT 1", 2.0, 2.0, 0.8, 0.6, "S", "item"],
+                    ["LOCKER RIGHT 1", 10.0, 2.0, 0.8, 0.6, "S", "item"],
+                    ["SUIT 1", 2.1, 2.1, 0.6, 0.4, "S", "item"], ["SUIT 2", 10.1, 2.1, 0.6, 0.4, "S", "item"],
+                    ["SUIT 3", 6.0, 6.0, 0.6, 0.4, "S", "item"]],
+                   {"LOCKER LEFT 1": ["locker_left"], "LOCKER RIGHT 1": ["locker_right"], "SUIT 1": ["suit"],
+                    "SUIT 2": ["suit"], "SUIT 3": ["suit"]})
+    found = {entry["item"]: (entry["how"], entry["holder"]) for entry in holders.relations(
+        plan, {"rows": rows, "picture": PICTURE})["relations"] if entry["row"] == "suit"}
+    assert found["SUIT 1"] == ("within", "LOCKER LEFT 1") and found["SUIT 2"] == ("within", "LOCKER RIGHT 1"), found
+    assert found["SUIT 3"][1] == "LOCKER LEFT 1", found
+
+
 def test_monitors_the_concept_shows_on_two_consoles_stand_on_the_nearest():
     """Hub (2026-10-29): the reading anchors all 38 monitors on its 3 x 0.8 m control bank (one anchor a row), but the
     concept shows them on the bank and on a console beside it. Each monitor stands on the nearest of the rows like
