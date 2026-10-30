@@ -794,6 +794,32 @@ def test_a_take_the_surface_line_left_out_is_a_batch_gap_by_its_reason_never_a_m
     assert found["crane_7: left out: patchy paint: stray 0.031 > 0.03"]["objects"] == ["crane", "crane_7"]
 
 
+def test_a_gap_naming_a_take_alone_moves_its_rows_likeness_faults_by_the_hand_in(tmp_path):
+    """likeness@camp, 2026-10-30: the split's patchy-paint gap named camp_kitchen_counter_5393e7f9 alone, and the
+    likeness gates failed the kitchen_counter row as "no model" though the gap was carried. The table ties each carried
+    gap's take to the rows the place's hand-in (`props`) says it stands for, so the row's fault moves by name; a fault
+    no gap's take stands for still fails.
+    Break: score/stages/__init__.py: 'carried = tied(batch_gaps.of(inputs, output), inputs) if batch else []' ->
+    'carried = batch_gaps.of(inputs, output) if batch else []'"""
+    lean = next(check for row in stages.STAGES if row.name == "likeness" for check in row.checks
+                if check.name == "lean")
+    split = tmp_path / "split"
+    split.mkdir()
+    batch_gaps.write(split, [batch_gaps.gap("counter_7: not one finish a face", "finish-route-split",
+                                            "one finish a face", ("counter_7",), [], "patchy paint")])
+    handin = tmp_path / "handin.json"
+    handin.write_text(json.dumps({"objects": {"counter": {"route": "prop", "take": "counter_7", "rows": ["counter"]},
+                                              "crate": {"route": "prop", "take": "crate_2"}}}))
+    out = tmp_path / "out"
+    out.mkdir()
+    missing = {"missing": "no model", "route": "prop"}
+    (out / "likeness.json").write_text(json.dumps({"objects": {"counter": missing}}))
+    inputs = {"finish-route-split": split, "props": handin}
+    assert lean.judge(out, inputs, None).answer == checks.PASS
+    (out / "likeness.json").write_text(json.dumps({"objects": {"counter": missing, "crate": missing}}))
+    assert lean.judge(out, inputs, None).answer == checks.FAIL
+
+
 def test_motion_names_the_takes_the_surface_line_left_out_from_its_designed_place_s_hand_in(monkeypatch):
     """motion@hangar, 2026-10-29: the overhead crane's take was left out for patchy paint, a gap carried only to the
     likeness, and `designed` stopped the line on the crane having no object. The motion make is wrapped by
