@@ -26,6 +26,10 @@ edit there moves its ~90 rows anyway (2026-10-27); never call them.
   the triage's fault, the model's to fix.
 - **The gates block only what this stage breaks**: a broken drop (`rested`) or an object resting worse with the layer
   than without it (`resting`). What is left is named on the page; the assembly's resting gate is the final judge.
+  Two loose objects inside each other are judged at the poses the layer lays (the drop's loose-to-loose collision is
+  off): a pair already crossing as laid is kept as laid, "laid inside" the other, as one laid inside a static is;
+  only a pair the layer brings to cross is a broken drop (settle@airlock's sandbags, 2026-10-30).
+- **Held on a wall or ceiling row is mounted** (`holders.holder_kind`): never snapped down; its laid pose stands.
 - **Spend.** A drop is bought only when something loose is to be stood up or unstacked or the triage finds a fault on
   it (free, first); a drop already paid for is read back from `DROPS` (the same job, drop script, trial script, Python
   pins and stage). A drop is one rented card (`drop.DROP_CLASSES`, the trial's), its Python built once on it; on this

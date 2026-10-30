@@ -21,6 +21,11 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   poses read back through the settle layer laid over it).
 - a_row_the_reading_gave_no_anchor_reads_as_none: with_anchors' `row.get("anchor") or ""` made `row.get("anchor")`
   (held_on_loose meets None).
+- a_pair_crossing_as_laid_is_kept_not_broken: laid_inside_each_other returning `poses` unchanged (2026-10-30).
+- a_pair_crossing_only_after_the_drop_still_breaks: crossing's `motions.get(name, np.eye(4))` made `np.eye(4)` (the
+  pair judged as laid, not as the layer lays it).
+- a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down (held.py): held_objects without its `row not in mounted`
+  test.
 - a_cloud_drop_runs_on_the_trials_card_in_its_python_once (tools/usd/drop.py): simulate's `machine.run(..., env=ENV)`
   without `env=ENV` (the drop sent to the card's Blender).
 
@@ -274,7 +279,83 @@ def a_row_the_reading_gave_no_anchor_reads_as_none():
         return [] if held == ["tray_1"] else [f"the drop leaves out {held}, not the tray alone"]
 
 
-CHECKS = (a_row_the_reading_gave_no_anchor_reads_as_none, the_laid_stage_keeps_each_object_where_it_was_laid,a_cloud_drop_runs_on_the_trials_card_in_its_python_once, the_layer_lays_each_object_at_its_rest,
+def two_boxes(folder, apart):
+    """A place of two 1 m crates `apart` metres across, and its meshes as laid (snap.read_place)."""
+    import snap
+    resting_test.made_models(folder)
+    path = resting_test.laid_place(folder, [("crate", "box", (0, 0, 0)), ("crate", "box", (apart, 0, 0))],
+                                   [("crate", "floor")])
+    return path, snap.read_place(path)
+
+
+def a_pair_crossing_as_laid_is_kept_not_broken():
+    """Two crates the plan laid 50 cm into each other (airlock's sandbags, 2026-10-30), which the drop also leaves
+    crossing: both are kept as laid, said laid inside the other, and the layer's poses cross nothing new."""
+    with tempfile.TemporaryDirectory() as temporary:
+        path, meshes = two_boxes(pathlib.Path(temporary), 0.5)
+        stage = Usd.Stage.Open(str(path))
+        pairs = [["crate_1", "crate_2"]]
+        moved = laid(stage, "crate_1").copy()
+        moved[0, 3] += 0.02
+        poses = {"crate_1": {"before": laid(stage, "crate_1"), "after": moved, "rested": True, "said": "drifts 2 cm"},
+                 "crate_2": {"before": laid(stage, "crate_2"), "after": laid(stage, "crate_2"), "rested": True,
+                             "said": "drifts 0 cm"}}
+        as_laid = settle.crossing(meshes, pairs, {})
+        kept = settle.laid_inside_each_other(poses, as_laid)
+        left = settle.crossing(meshes, [pair for pair in pairs if pair not in as_laid], settle.motions(kept))
+        problems = []
+        if as_laid != pairs or left:
+            problems.append(f"crossing as laid {as_laid}, left to break {left}")
+        for name, other in (("crate_1", "crate_2"), ("crate_2", "crate_1")):
+            pose = kept[name]
+            if pose["rested"] or pose["after"] is not pose["before"] or not pose["said"].startswith(
+                    f"laid inside {other}"):
+                problems.append(f"{name} not kept as laid inside {other}: {pose['rested']}, {pose['said']}")
+        return problems
+
+
+def a_pair_crossing_only_after_the_drop_still_breaks():
+    """Two crates laid 3 m apart that the layer lays 50 cm into each other: not crossing as laid, crossing as the
+    layer lays them, and the gate fails it."""
+    with tempfile.TemporaryDirectory() as temporary:
+        path, meshes = two_boxes(pathlib.Path(temporary), 3.0)
+        pairs = [["crate_1", "crate_2"]]
+        motion = np.eye(4)
+        motion[0, 3] = -2.5
+        problems = []
+        if settle.crossing(meshes, pairs, {}):
+            problems.append("two crates 3 m apart cross as laid")
+        found = settle.crossing(meshes, pairs, {"crate_2": motion})
+        if found != pairs:
+            problems.append(f"the crates the layer lays into each other cross {found}")
+        output = pathlib.Path(temporary)
+        objects = {name: {"rested": True, "said": "drifts"} for name in ("crate_1", "crate_2")}
+        (output / settle.RECORD).write_text(json.dumps({"place": PLACE, "overlaps": found, "objects": objects}))
+        verdict = settle.judge_rested(output, {}, None)
+        if verdict.answer != checks.FAIL or verdict.measures["broken"] != 1:
+            problems.append(f"the gate let the crossing pass: {verdict}")
+        return problems
+
+
+def a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down():
+    """A lamp on the roof row and a sign on a wall row are mounted, not held from under (airlock's ceiling lamps, 280
+    cm over the floor, 2026-10-30): never snapped; a cup on its desk still is."""
+    from score.stages.settling import held
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        path = resting_test.laid_place(
+            folder, [("roof", "box", (0, 3, 0)), ("left_wall", "box", (3, 1, 0)), ("desk", "box", (6, 0, 0)),
+                     ("lamp", "box", (0, 2, 0)), ("sign", "box", (3, 1, 1.5)), ("cup", "box", (6, 1, 0))],
+            [("roof", "ceiling"), ("left_wall", "floor"), ("desk", "floor"), ("lamp", "on:roof"),
+             ("sign", "on:left_wall"), ("cup", "on:desk")])
+        inventory = json.loads((folder / "inventory.json").read_text())
+        found = held.held_objects(Usd.Stage.Open(str(path)), PLACE, inventory, folder / "kit.json")
+        return [] if found == ["cup_1"] else [f"held to snap down: {found}, not the cup alone"]
+
+
+CHECKS = (a_pair_crossing_as_laid_is_kept_not_broken, a_pair_crossing_only_after_the_drop_still_breaks,
+          a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down, a_row_the_reading_gave_no_anchor_reads_as_none, the_laid_stage_keeps_each_object_where_it_was_laid,a_cloud_drop_runs_on_the_trials_card_in_its_python_once, the_layer_lays_each_object_at_its_rest,
           the_drop_gate_fails_a_broken_drop_and_names_what_was_kept,
           only_what_lies_on_the_object_resting_worse_is_kept_with_it,
           a_flush_pose_resting_worse_falls_back_to_the_drops_rest,

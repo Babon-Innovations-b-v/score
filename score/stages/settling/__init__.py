@@ -16,7 +16,8 @@ ground, laid as an OpenUSD settle layer that the assembly stage puts into the pl
              record (drop/settle-job.json, drop/settled.json). A drop is bought only when something loose is to be
              stood up or unstacked or the triage finds a fault on it (free, first); a drop already paid for (the same
              job, drop script and stage) is read back from DROPS, not bought again.
-    gates    rested    the drop did not break: nothing still moving at its end, no two at rest inside each other; one
+    gates    rested    the drop did not break: nothing still moving at its end, no two inside each other as the layer
+                       lays them that were not as laid (a pair crossing as laid is kept as laid, "laid inside"); one
                        kept as laid (it would turn or drift past the settle's limits: its layout's or its model's fault)
                        or stood upright on uneven feet for the paint is named, not failed
              resting   the settle layer makes nothing rest worse: no object the resting triage finds a real fault on
@@ -44,6 +45,7 @@ sys.path.insert(0, str(REPO / "tools/usd"))
 import convex_parts  # noqa: E402
 import drop  # noqa: E402
 import settle  # noqa: E402
+import snap  # noqa: E402
 import triage  # noqa: E402
 import whole_layer  # noqa: E402
 from score.stages.settling import held as snapped  # noqa: E402
@@ -124,6 +126,9 @@ def make(inputs, out, seed, params):
         poses = settle.rest_poses(stage, place, inventory, simulated, starts,
                                   room="room" in read_json(inputs["kit"]))
         poses = landed_in_hollows(stage, place, poses, simulated, under, hollow)
+        meshes = snap.read_place(root) if simulated["overlaps"] else None  # as laid: no layer is over the root yet
+        as_laid = crossing(meshes, simulated["overlaps"], {})
+        poses = laid_inside_each_other(poses, as_laid)
         laid_over(root, seed, place, poses, scratch / "dropped.usda")
         poses = merged(poses, fixed_phase(root, found, place), seed, place)  # before the held: they lie on these
         poses = merged(poses, held_phase(root, scratch / "fixed.usda", inputs, inventory, poses, seed), seed, place)
@@ -139,11 +144,12 @@ def make(inputs, out, seed, params):
         poses = kept_where_worse(poses, worse | supports_of(rested_stage, place, worse), inventory,
                                  lambda name: supports_of(rested_stage, place, {name}))
         write_layer(seed, place, moved(poses), out / LAYER)
+        overlaps = crossing(meshes, [pair for pair in simulated["overlaps"] if pair not in as_laid], motions(poses))
         del stage, seed
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     (out / RECORD).write_text(json.dumps({
-        "place": place, "overlaps": simulated["overlaps"], "one hull": unsplit,
+        "place": place, "overlaps": overlaps, "one hull": unsplit,
         "objects": {name: {"rested": pose["rested"], "said": pose["said"], "matrix": pose["after"].tolist()}
                     for name, pose in sorted(poses.items())}}, indent=1))
 
@@ -193,6 +199,42 @@ def laid_where_it_lands(pose, rest, middle, supports, hollow, support_pose, corn
     return {**pose, "after": rest, "rested": True,
             "said": f"fell into {supports[0]}, a hollow piece, and rests inside it: laid where it lands "
                     f"({pose['said'].removeprefix(PAST_LIMITS).strip()})"}
+
+
+def crossing(laid, pairs, motions):
+    """The pairs of objects (names) whose drawn triangles cross, each moved from as laid by its motion ({name: 4 x 4
+    in the stage's frame}, none: as laid), on the meshes of snap.read_place(`laid`). The drop's own overlaps are
+    its poses', which the layer never writes for one it keeps as laid."""
+    import collide
+    import numpy as np
+    scene = collide.Scene()
+    for name in {name for pair in pairs for name in pair}:
+        scene.add(name, name, laid["objects"][name].vertices, laid["objects"][name].faces,
+                  motions.get(name, np.eye(4)))
+    return [pair for pair in pairs if scene.intersection_test(*pair)]
+
+
+def laid_inside_each_other(poses, pairs):
+    """The poses with both objects of each pair that already crosses as laid (`pairs`: the drop's loose-to-loose
+    collision is off, so the plan's crossing sandbags stay crossed) kept as laid, said "laid inside <other>", as one
+    laid inside a static is (settle.rest_poses): the layout's fault, which the assembly's resting gate judges, not a
+    broken drop (settle@airlock, 2026-10-30). One already left as laid keeps its own word."""
+    import numpy as np
+    others = {}
+    for first, second in pairs:
+        others.setdefault(first, []).append(second)
+        others.setdefault(second, []).append(first)
+    return {name: ({**pose, "after": pose["before"], "rested": False,
+                    "said": f"laid inside {', '.join(sorted(others[name]))}; left as laid"}
+                   if name in others and (pose["rested"] or not np.allclose(pose["after"], pose["before"]))
+                   else pose)
+            for name, pose in poses.items()}
+
+
+def motions(poses):
+    """{name: how the layer moves it from as laid} of each pose."""
+    import numpy as np
+    return {name: pose["after"] @ np.linalg.inv(pose["before"]) for name, pose in poses.items()}
 
 
 def judged(root, inputs):
