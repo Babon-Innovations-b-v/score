@@ -437,6 +437,30 @@ def test_a_facade_stands_past_its_edge_and_what_is_left_unplaced_is_marked():
     assert found["door"]["fills"] is True and found["lamp"]["unheld"].startswith("its holder stage"), found
 
 
+def test_each_door_on_a_face_stands_at_the_spot_its_relation_gives():
+    """Street (#36): its three restaurant doors on one 1.74 m item were laid evenly along it, 0.58 m apart, their
+    recesses in one another. Where the relation gives each piece its `spots` (score/review/holders face_spots), each
+    door stands at its own: on a 6 x 30 m plan (place (x, z) is plan (x - 3, y - 15)) at place z -1.4, 0, 1.4.
+    Break: score/stages/scene_record/writer.py: `spot = np.asarray(relation["spots"][min(piece,
+        len(relation["spots"]) - 1)], float)` -> `pass`"""
+    from score.stages.scene_record import writer
+    design = {"w": 6.0, "d": 30.0, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 6.0, 30.0, None, "item"],
+                                             ["DOOR 1", 1.8, 14.13, 0.5, 1.74, "E", "item"]],
+              "rows": {"ON THE WALLS AND CEILING": ["facade"], "DOOR 1": ["door"]}}
+    rows = [{"id": "facade", "anchor": "floor", "route": "prop", "size": [3.0, 36.0, 24.0], "noun": "facade"},
+            {"id": "door", "anchor": "on:facade", "route": "prop", "size": [1.0, 0.1, 2.1], "noun": "door",
+             "count": 3}]
+    relations = {"relations": [
+        {"item": "ON THE WALLS AND CEILING", "row": "facade", "how": "edge", "edge": "W", "spot": [0.0, 15.0],
+         "why": "past the plan's W edge"},
+        {"item": "DOOR 1", "row": "door", "how": "face", "holder": "ON THE WALLS AND CEILING", "holder row": "facade",
+         "face": "E", "why": "against facade's face toward the place",
+         "spots": [[2.05, 13.6], [2.05, 15.0], [2.05, 16.4]]}]}
+    doors = [entry for entry in writer.design_objects(design, {"rows": rows, "objects": {}}, relations)
+             if entry["row"] == "door"]
+    assert [round(door["at"][2], 3) for door in doors] == [-1.4, 0.0, 1.4], doors
+
+
 def test_an_arched_rib_is_laid_as_the_shell_s_band_at_each_of_its_plan_items():
     """Batch 1's retry: the tube's ribs, their box the whole picture, framed no close-up. The shell lays an arched
     structure row (design_shell.arched) as an `arch` at each plan item tied to it, at the row's size, named its row,

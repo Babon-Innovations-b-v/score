@@ -621,8 +621,9 @@ def related(design, relation, spot, way, base, size, piece=0):
     (score/review/holders; `pieces` one a piece): in its opening at the opening's middle and sill, along its wall;
     against a wall's face, along it, at the relation's spot (the concept's, for an item the plan writer left on the
     walls item); past the plan's edge, its face on the edge's line and its body out past it, facing in (a street's
-    facade); on, within or against its holder as it was, its holder's objects named after (holder_names); on the
-    floor at the relation's spot where it gives one (a stair at the plan's stair). None `on` on the floor, the
+    facade); on, within or against its holder as it was (at its piece's spot where the relation gives `spots`: street's
+    three restaurant doors spread their width and room apart), its holder's objects named after (holder_names); on
+    the floor at the relation's spot where it gives one (a stair at the plan's stair). None `on` on the floor, the
     ceiling or past an edge."""
     if "pieces" in relation:
         relation = relation["pieces"][min(piece, len(relation["pieces"]) - 1)]
@@ -645,6 +646,8 @@ def related(design, relation, spot, way, base, size, piece=0):
     if how in ("top", "within", "face"):
         found = {"how": how, "holder item": relation["holder"], "why": relation["why"],
                  **({"holder row": relation["holder row"]} if relation.get("holder row") else {})}
+        if relation.get("spots"):
+            spot = np.asarray(relation["spots"][min(piece, len(relation["spots"]) - 1)], float)
         if how == "face":
             found["out"] = plan_way(design, FACE_WAYS[relation["face"]])
             recess = relation.get("recess")
