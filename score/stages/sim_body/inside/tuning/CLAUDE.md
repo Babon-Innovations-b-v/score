@@ -14,6 +14,7 @@ global everything), `solved` runs scipy's least_squares (trf, bounded), its Jaco
 steps of `STEP` (2 mm of a link or centre, 0.1 of a log weight) over the pattern's column groups, never scipy's
 `diff_step`, which is relative to |x| and at the start (every unknown 0) stepped 1.5e-8 so nothing moved (2026-10-29), every group's nudged set handed over in ONE call (`_differences.nudged`, `jacobian(many, ...)`; `solved(many=)`, `whole(evaluate_many=)`, card build step 6a: one card batch for them all; 1 + G = 138 sets, G = 137 column groups on the real table's 263 unknowns and 54 rows a case, measured 2026-10-29), with every evaluation checkpointed
 (`checkpointed`, `resumed` from the best) and stops when `settled` (under 0.5 % over 3 iterations) or at its limit. `solved(exact=)` takes a Jacobian in place of the differences (`_adjoint.stacked_jacobian`, card build step 6b; test: given one, the differences never run, 2026-10-30); the differences stay the default and its check, and `whole` does not pass it until the adjoint gate on heavy_kimodo, tall_kimodo and a third tuning body passes.
+`_paired` reports each step as per-case paired changes on the fixed case set against the noise floor (same point scored twice).
 `rewritten` writes a result into `landmarks/_table.py`, `weight_rewritten` its global weights into their modules (MARKER_GOAL in `fit/_frames.py`, END_WEIGHT in `fit/__init__.py`).
 
 - Judged only as the whole solver after level 1, against main, on the check bodies; never by the landmark distances
