@@ -2,7 +2,8 @@
 body of an evaluation in one process (card build step 5b; the profile: imports, Warp's loads and the sizing, not level
 3, were each case's time). Per body: the module state `_case.prepared` lays (the landmark set, the centres, the
 calibration table, the weights, level 2 held) put back from the copy saved before the first body, never added on top,
-then laid again for that body; the person's sizing (`sizing.Size`), file, level 2 and `Fitting` made once (a body's
+then laid again for that body; the person's sizing (`sizing.Size`) and file without constants made once per body and
+calibration table across sets (`cached_set_up`), its level 2 and `Fitting` once per set (a body's
 clips share one rig, refused otherwise) and every clip's frames solved in one card batch (`fit._card._clip`, each frame
 seeded from <seeds root>/<case>/angles.npz), then per clip `_case.written` with the card's measures. `fit.following`
 is not run: nothing an evaluation writes reads it. A clip's "fit seconds" is its share of its body's set-up and batch
@@ -20,6 +21,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import calibration  # noqa: E402
 import evaluation  # noqa: E402
 import fit  # noqa: E402
+import myo  # noqa: E402
 import sim_body  # noqa: E402
 from evaluation import _case, _measure  # noqa: E402
 from fit import _frames  # noqa: E402
@@ -73,6 +75,29 @@ def batched_angles(clip, clips, seeds):
     return {case: found[end - len(seeds[case]):end].astype(float) for case, end in zip(clips, ends)}
 
 
+SIZED = {}  # {(person, kg, model, calibration table): (Size, the sized file's text, its scales)}, one per body
+
+
+def sized_key(job, person):
+    """What a body's sizing and its file without constants depend on: the person, its mass, the model and the
+    calibration table (read again from the centres, so a centre set sizes anew; links, trusts and weights do not)."""
+    return person["name"], person["kg"], job["model"], tuple(sorted((group, tuple(np.asarray(quaternion).tolist()))
+                                                                   for group, quaternion in calibration.TABLE.items()))
+
+
+def cached_set_up(job, person, rig, worlds, path):
+    """`sim_body.person_set_up` with the body's `Size` and first file (no constants) made once per `sized_key` and
+    written again at `path` for every later set."""
+    key = sized_key(job, person)
+    if key not in SIZED:
+        size = Size(rig)
+        _, scales = myo.person_file(job["model"], size, person["kg"], path)
+        SIZED[key] = size, path.read_text(), scales
+    size, text, scales = SIZED[key]
+    path.write_text(text)
+    return sim_body.constants_set_up(job, person, rig, worlds, path, size, scales)
+
+
 def body_run(seeds_root, table, weights, root, cases, saved, constants=None):
     """One body's clips (`cases` {case: job path}) on the card: state restored, laid, set up once, solved in one batch,
     each clip written by `_case.written`."""
@@ -84,7 +109,7 @@ def body_run(seeds_root, table, weights, root, cases, saved, constants=None):
     first, (job, person, _, worlds) = next(iter(clips.items()))
     path = root / first / f"{person['name']}.xml"
     path.parent.mkdir(parents=True, exist_ok=True)
-    record, scales, fitting = sim_body.person_set_up(job, person, rig, worlds, path, Size(rig))
+    record, scales, fitting = cached_set_up(job, person, rig, worlds, path)
     angles = batched_angles(_clip.for_fitting(fitting, path), clips,
                             {case: _seeds.first(seeds_root, case) for case in clips})
     seconds, frames = time.time() - began, sum(len(found) for found in angles.values())
