@@ -2056,7 +2056,10 @@ class Runner:
         # 12 GB is its own work outside its drop, which a kept drop skips (round 28, 2026-10-30: never read as one)
         users = {process.pid for stage, _, process in alive
                  if on_this_pc() and (stage.name in clients or CONTAINED(process.pid))}
-        reading = CONTAINER_READ() if users else None  # unread: each user keeps its stage's peak, never less
+        # the container only beside a client running now: a user by its kept tree alone holds no job in it (round 29,
+        # 2026-10-30: a settle node with no job reserved the container's whole room, 1 node ran with 29 GB available)
+        calling = {pid for pid in users if CONTAINED(pid)}
+        reading = CONTAINER_READ() if calling else None  # unread: each caller keeps its stage's peak, never less
         highs = HIGH(list(users)) if users else {}
         found = []
         for stage, place, process in alive:
@@ -2065,7 +2068,7 @@ class Runner:
             high = max(seen[node], highs.get(process.pid, 0))
             if process.pid in users and high > client_peak(stage.name, peaks, clients):  # a lower bound, until it ends
                 clients.update(self.keep_client_tree(stage.name, high))
-            mine = reading is not None and process.pid in users
+            mine = process.pid in users and (reading is not None or process.pid not in calling)
             found.append((client_peak(stage.name, peaks, clients) if mine else peaks.get(stage.name, memory_floor()),
                           held[process.pid]))
         if reading is not None:  # the container, once, whichever of its users holds the claim
