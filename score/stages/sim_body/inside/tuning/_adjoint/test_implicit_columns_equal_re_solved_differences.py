@@ -7,10 +7,11 @@ Breaks (each applied once, seen red, reverted), in `tuning/_adjoint/__init__.py`
 turns the Schur and columns tests red; removing the `Unconverged` check turns the refusal test red; `stacked_jacobian` skipping `refused`
 (no check before use) turns the stacked refusal test red; dropping the prior's block turns the stacked test red;
 in `_taped.py`, dropping `tape.zero()` (a second gradient adds onto the first's) turns the taped gradient test red; skipping
-the turn rows' launch turns it red.
+the turn rows' launch turns it red; dropping the followers' launch (couplings) turns it red.
 
 The taped test runs `_taped` (Newton eval_fk on a wp.Tape) in Newton's own Python on the card, a four-link chain with
-three weighted sites and two link-frame turn rows: its pose gradient, asked twice, equals central differences of its cost to 1e-3 of the largest entry. With no
+three weighted sites and two link-frame turn rows, once on every coordinate and once with the last a follower of the
+second (a polynomial coupling, the pose the three free coordinates): its pose gradient, asked twice, equals central differences of its cost to 1e-3 of the largest entry. With no
 Newton Python (`SCORE_NEWTON_PYTHON`, else $PROPS_HOME/envs/newton_env) it is skipped."""
 import os
 import pathlib
@@ -136,7 +137,23 @@ step = 1e-3
 differences = np.array([(cost(pose + step * np.eye(4)[axis]) - cost(pose - step * np.eye(4)[axis])) / (2 * step)
                         for axis in range(4)])
 assert np.abs(sites.residuals(pose, outer)[9:]).min() > 1e-3, "turn rows missing from the cost"
-print("GAP", np.abs(taped - differences).max() / np.abs(differences).max())
+coupled = _taped.TapedSites(model, [1, 3, 3], [1.0, 2.0, 0.5],
+                            [[0.1, 0.2, 0.5], [0.3, -0.2, 1.0], [0.0, 0.1, 0.8]], turns,
+                            ([0, 1, 2], [3], [1], [0.1], [0.05], [[0.0, 0.8, -0.6, 0.3, 0.0]], [0.0, 0.0, 0.0, 0.1]))
+free = np.array([0.2, 0.4, -0.3])
+coupled.gradient(free, outer)
+coupled_taped = coupled.gradient(free, outer)
+def coupled_cost(moved):
+    found = coupled.residuals(moved, outer)
+    return 0.5 * float(found @ found)
+coupled_differences = np.array([(coupled_cost(free + step * np.eye(3)[axis])
+                                 - coupled_cost(free - step * np.eye(3)[axis])) / (2 * step) for axis in range(3)])
+lead = free[1] - 0.05
+expanded = np.append(free, 0.1 + 0.8 * lead - 0.6 * lead ** 2 + 0.3 * lead ** 3)
+assert np.abs(coupled.residuals(free, outer) - sites.residuals(expanded, outer)).max() < 1e-5, "follower not coupled"
+gaps = [np.abs(taped - differences).max() / np.abs(differences).max(),
+        np.abs(coupled_taped - coupled_differences).max() / np.abs(coupled_differences).max()]
+print("GAP", max(gaps))
 """
 
 
