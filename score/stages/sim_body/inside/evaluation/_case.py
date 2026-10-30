@@ -101,14 +101,16 @@ def case_of(job_path, recordings):
     return job, person, rig, targets["world"]
 
 
-def written(out, person, rig, worlds, fitted, measures):
+def written(out, person, rig, worlds, fitted, measures, points=None):
     """One clip's fitted result (`fitted`: its record, scales, model, angles and fit seconds) with its follow measures
     (`measures`: the CPU's, or the card's same keys) and landmark leftovers into out/measures.json (unrounded, the
-    solver's), out/m.json (rounded, the copy people read) and its angles into out/angles.npz."""
+    solver's), out/m.json (rounded, the copy people read) and its angles into out/angles.npz. `points`: the clip's
+    `fit.targets` points when its caller made them already."""
     record, scales, model, angles, seconds = fitted
     np.savez(out / evaluation.SEEDS, qpos=angles)
     found = measures(model, angles, rig, person["segments"], worlds, scales)
-    _, points = fit.targets(rig, person["segments"], worlds, fit.followed(person["segments"]))
+    if points is None:
+        _, points = fit.targets(rig, person["segments"], worlds, fit.followed(person["segments"]))
     found["landmarks"] = leftovers(model, angles, scales, points)
     found["fit seconds"] = round(seconds, 1)
     found["recordings"] = person["recordings"]

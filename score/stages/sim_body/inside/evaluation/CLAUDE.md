@@ -23,7 +23,9 @@ held-out rule (within 10 % of the tuning bodies).
   links, trusts and weights leave them alone, a centre set reads the table anew), then level 2 and `Fitting` once
   per (set, body) (`sim_body.constants_set_up`; a body's clips share one rig,
   refused otherwise) and every clip's frames in one card batch; `fit.following` not run (nothing here reads it);
-  each clip written by `_case.written`. Gate 2026-10-29 (tall and slim, 14 cases, the per-case card run's constants):
+  each clip written by `_case.written`, its targets the ones its batch was solved on (`clip_targets`, once per body
+  run: `fit.targets` skinning the landmarks was made a third time per clip in `written`, 2026-10-30; two heavy sets'
+  14 cases bit for bit, angles too). Gate 2026-10-29 (tall and slim, 14 cases, the per-case card run's constants):
   equal to the per-case card path, skins exact, joints within 5.5e-4 mm; one process 29 s wall, imports included.
   All 70 tuning cases (same constants): equal to the per-case card path on all 70 (skins exact, joints within
   1.1e-3 mm), against the CPU the same 3 cases one to three hand vertex-frames off as the per-case card's (joints
