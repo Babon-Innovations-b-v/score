@@ -2,7 +2,8 @@
 as a musculoskeletal body, MyoFullBody (MyoSuite's: its bones, joints, 416 muscles and their tendons), doing its clip
 on the scene's own ground (CONTEXT.md "sim body"), for a place whose design shows people.
 
-    make     each character of cast.json (its singles; the crowd, which is retiring, is left out by name) is the
+    make     each character of cast.json (its singles; the crowd, which is retiring, is left out by name; a cast of no
+             singles is a valid input, its record's `no bodies` saying why, every gate passing on none) is the
              clips rig (people-clips-made's rig.npz) moved onto its look's built body (people-body-<look>'s rig.npz,
              an optional read: its bind, moved mean surface and offsets, the travel scaled by its Hips' height, every
              clip lifted so the standing clip's first frame puts the feet where the bind does, as prop_build.py
@@ -69,8 +70,8 @@ from score import checks, contracts
 from score.stages import layer_base
 from score.stages.sim_body._body import (BODY, RATE, body_row, clip_frames, mass_of, person_rig,  # noqa: F401
                                          segments_of, standing_height)
-from score.stages.sim_body._gates import (FOLLOWED, LAYER, MOVE_MOST, RECORD, RESIDUAL_FORCE, RESIDUAL_MOMENT,
-                                          judge_carries, judge_follows, judge_lands, judge_on_floor, judge_residual,
+from score.stages.sim_body._gates import (FOLLOWED, LAYER, MOVE_MOST, NO_SINGLES, RECORD, RESIDUAL_FORCE,
+                                          RESIDUAL_MOMENT, judge_carries, judge_follows, judge_lands, judge_on_floor, judge_residual,
                                           measured, output_faults)
 from score.stages.sim_body._ground import REACH, ground_of, own_frame, solids_of
 from score.stages.sim_body._layer import ACTIVE, write_layer  # noqa: F401
@@ -212,7 +213,12 @@ def make(inputs, out, seed, params):
     (out / RECORD).write_text(json.dumps({"place": place, "on": body, "gravity": gravity, "engine": run["engine"],
                                           "rate": RATE, "model": {"wheel": MODEL[0].rpartition("/")[2],
                                                                   "attribution": ATTRIBUTION}, "bodies": records,
-                                          "left out": left_out}, indent=1))
+                                          "left out": left_out, **no_singles(cast)}, indent=1))
+
+
+def no_singles(cast):
+    """Why a cast with no single characters has no bodies: a valid input, not a fault (#70)."""
+    return {} if cast["characters"] else {"no bodies": NO_SINGLES}
 
 
 def soma_pose(world):

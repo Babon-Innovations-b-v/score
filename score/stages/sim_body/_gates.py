@@ -30,6 +30,8 @@ RESIDUAL_MOMENT = 0.01
 # `within_frames`, gated by `follows`), and the adjusted path kept within FOLLOWED of the clip on the mean (the owner,
 # 2026-10-28: "never more"). MOVE_MOST is ours: no published limit names a pelvis move.
 MOVE_MOST = 0.02  # metres
+# A cast of a crowd only has nothing to simulate: its record says so and every gate passes on no bodies (#70).
+NO_SINGLES = "no single characters in the cast; crowds are left out by design"
 
 
 def angle_between(one, other):
@@ -157,6 +159,6 @@ def judge_residual(output, inputs, evidence):
 def output_faults(folder):
     folder = pathlib.Path(folder)
     found = [f"no {name}" for name in (RECORD, LAYER) if not (folder / name).exists()]
-    if not found and not bodies_of(folder):
+    if not found and not bodies_of(folder) and "no bodies" not in json.loads((folder / RECORD).read_text()):
         found.append("no sim body: the cast names no character whose clip the rig holds")
     return found

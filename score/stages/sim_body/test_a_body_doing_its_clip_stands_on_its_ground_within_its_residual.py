@@ -21,7 +21,9 @@ layer: each SOMA segment an Xform at its pose every frame holding the bone it ri
 muscles as lines coloured by activation; the record names the model's attribution (MyoSuite, MoBL-ARMS); each body is
 calibrated on the static table (no clip of the rig handed to the run), with the person's mesh for the sizing; and SOMA's
 joints leave the stage unchanged: every frame's `poses` in the measures are the clip's own segment frames bit for bit,
-though the written run moved them 0.6 m (#70: SOMA is the truth). Newton and MuJoCo are not run here (the model's run
+though the written run moved them 0.6 m (#70: SOMA is the truth). A cast of a crowd and no singles is a valid input: no run, no
+body, the record's `no bodies` naming why, every gate passing; a cast whose one single's clip the rig lacks still fails
+the output's contract (#70, square, 2026-10-30). Newton and MuJoCo are not run here (the model's run
 takes minutes); the real run's numbers are on #65.
 
 Breaks that turn each check red (each applied once and seen red, reverted, 2026-10-27):
@@ -51,6 +53,8 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   make's targets `points=rig["points"]` made `rig["bind"]` (the mesh not handed to the sizing).
 - the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-10-28 (#70's solver): make's
   `"calibrated on": CALIBRATED_ON` made `"the rig's standing clip"`.
+- a_cast_of_no_singles_passes_with_its_reason_and_a_missing_clip_fails, 2026-10-30 (#70): output_faults'
+  `"no bodies" not in` check dropped (the crowd-only cast failed again); no_singles' `cast["characters"]` made `True`.
 
 Run: .venv/bin/python -m pytest score/stages/sim_body/test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual.py
 """
@@ -313,3 +317,31 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
                 world[:3, :3], abs=1e-12)
     assert len(measures) == len(clip) == 20
     assert sim_body.output_faults(out) == []
+
+
+def made_on(tmp_path, monkeypatch, cast):
+    """The make on the toy rig and seed for a cast, no engine run allowed; its output folder."""
+    tmp_path.mkdir()
+    np.savez(tmp_path / "rig.npz", **toy_rig())
+    toy_seed(tmp_path / "seed")
+    (tmp_path / "cast").mkdir()
+    (tmp_path / "cast/cast.json").write_text(json.dumps({"place": "toy", **cast}))
+    monkeypatch.setattr(sim_body, "ran", lambda job, out: pytest.fail("no body to run"))
+    monkeypatch.setattr(sim_body, "gravity_of", lambda place, inputs: ("moon", 1.62))
+    out = tmp_path / "out"
+    out.mkdir()
+    sim_body.make({"cast": str(tmp_path / "cast"), sim_body.CLIPS_ROW: str(tmp_path),
+                   "seed": str(tmp_path / "seed")}, out, 0, {})
+    return out
+
+
+def test_a_cast_of_no_singles_passes_with_its_reason_and_a_missing_clip_fails(tmp_path, monkeypatch):
+    out = made_on(tmp_path / "crowd", monkeypatch, {"crowd": {"name": "crowd"}, "characters": []})
+    record = json.loads((out / sim_body.RECORD).read_text())
+    assert record["bodies"] == {} and record["no bodies"] == sim_body.NO_SINGLES
+    assert sim_body.output_faults(out) == []
+    assert all(check.judge(out, {}, {}).answer == checks.PASS for check in sim_body.CHECKS)
+    lacking = {"characters": [{"name": "bob", "doing": "flying", "at": [0, 0, 0]}]}
+    out = made_on(tmp_path / "lacking", monkeypatch, lacking)
+    assert "no bodies" not in json.loads((out / sim_body.RECORD).read_text())
+    assert sim_body.output_faults(out) == ["no sim body: the cast names no character whose clip the rig holds"]
