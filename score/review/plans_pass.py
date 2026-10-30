@@ -17,7 +17,11 @@ fixes left in each other the relation solver parts (`relation_solver.parted`, Is
 numpy: the airlock's sandbags, 7 pairs in each other after the nudge, none after it, 2026-10-26), is fixed again in
 a process of its own (`fixing`, `python -m score.review.plans_pass fix <place> ...`: `settled_again`,
 plan_fixes.settled's free fixes and at most its automatic Corrects under the plan-writing allowance when the free
-fixes place more, then the solver, free; kept as a new writing). Each re-fix leaves fewer missing or fewer in each other, so a plan is fixed
+fixes place more, then the solver, free; kept as a new writing). No person stands in anything there either
+(`spaced_people`: a Correct's echo of a stood person spot dropped, the airlock's three spots within 7 cm, 2026-10-30;
+a spot whose footprint overlaps a wall, a floor thing or another person moved to the nearest floor where it does not),
+free and whether or not its plan row stands accepted: a person in a wall is a placement fault the assembly must
+honour, not an overlap to leave. Each re-fix leaves fewer missing or fewer in each other, so a plan is fixed
 again only while that improves it. The solver parts only a place whose plan row (plan@<place>) stands unaccepted
 (`parting`: a parted writing would re-key an accepted row and every row after it, review of 2026-10-26), and a plan
 it alone re-fixes (free) is parted before the keep in the pass itself (`parted_first`), so its plan row is made
@@ -28,13 +32,15 @@ Before it, every place of the environment (stages.places: each scene whose desig
 (`restored`): `keep` walks only the kept plans and the scene tree, so a scene outside the tree whose kept plan was once
 taken out (the wreck, 2026-10-24) never had it back, and prepare took its hand-in and surface data out every pass.
 """
+import collections
 import contextlib
 import io
+import math
 import os
 import subprocess
 import sys
 
-from score.review import concepts, holders, plan_fixes, plan_writing, plans, relation_solver
+from score.review import concepts, holders, plan_checks, plan_fixes, plan_writing, plans, relation_solver, standing
 from score.store import Store, locked, runtime_store
 
 
@@ -79,24 +85,99 @@ def parting(store, place):
     return store.accepted(f"plan@{place}") is None
 
 
+def numbered(spot):
+    """A person spot's row number when its row is a number (the corrected schema's NUMBER items cannot carry the
+    row's id: airlock's [6.951, 6.058, 0.0, 1] for its "astronaut", camp's 2 for its "astronaut_2"), else None."""
+    if len(spot) >= 4 and isinstance(spot[3], (int, float)) and not isinstance(spot[3], bool):
+        return int(spot[3])
+    return None
+
+
+def row_of(number, rows):
+    """The people row (of `rows`) a row number names: the one whose id ends in _<number>, else the only one."""
+    found = [row for row in rows if row["id"].rsplit("_", 1)[-1] == str(number)]
+    return found[0] if found else (rows[0] if len(rows) == 1 else None)
+
+
+def unnumbered(plan, inventory):
+    """(the plan's person spots with each numbered one given its row back, a Correct's copies dropped, the fixes
+    said): a numbered spot whose row already stands its full count of spots is a copy (hangar's eight workers and
+    camp's six astronauts, 2026-10-30, each placed again by the Correct beside the free fixes' own), and so is one
+    that names no row within a stood spot's footprint (airlock's); one whose row is short of its count stands a
+    person of it."""
+    rows = plan_checks.person_rows(inventory)
+    stood = [(spot, size) for spot, size in zip(plan.get("people", []), standing.footprints(plan, inventory))
+             if len(spot) >= 4 and isinstance(spot[3], str)]
+    placed = collections.Counter(spot[3] for spot, _ in stood)
+    spots, fixes = [], []
+    for spot in plan.get("people", []):
+        number = numbered(spot)
+        row = row_of(number, rows) if number is not None else None
+        if number is None:
+            spots.append(spot)
+        elif row and placed[row["id"]] < int(row.get("count", 1) or 1):
+            placed[row["id"]] += 1
+            spots.append([*spot[:3], row["id"]])
+            fixes.append(f"{plan_checks.said_name(row['id'])}: its person spot {spot[:2]} given its row back")
+        elif row or any(standing.in_each_other(spot, size, one, size) for one, size in stood):
+            copied = row["id"] if row else next(one[3] for one, size in stood
+                                                if standing.in_each_other(spot, size, one, size))
+            fixes.append(f"{plan_checks.said_name(copied)}: a Correct's copy of its person spot dropped ({spot[:2]})")
+        else:
+            spots.append(spot)
+    return spots, fixes
+
+
+def spaced_people(plan, inventory):
+    """(the plan with no person standing in a wall, a thing or another person, the fixes said): a Correct's echo of a
+    stood spot dropped and each other numbered spot given its row back (`unnumbered`), then in order each spot whose footprint overlaps a
+    wall, a floor thing or a spot kept before it moved to the nearest floor inside the outline where it overlaps none;
+    every other spot kept as placed. Spots of rows beyond or afar stand out there on purpose; a spot with no such
+    floor is left."""
+    spots, fixes = unnumbered(plan, inventory)
+    plan = {**plan, "people": spots}
+    if not spots:
+        return plan, fixes
+    grid = plan_checks.Grid(plan)
+    outline = grid.covered(plan_checks.outline_of(plan))
+    rows = {row["id"]: row for row in inventory.get("rows", [])}
+    left_out = plan_checks.beyond(plan, inventory) | plan_checks.afar(inventory)
+    sizes, walls_things, kept = standing.footprints(plan, inventory), {}, []
+    for spot, size in zip(spots, sizes):
+        row = spot[3] if len(spot) >= 4 and isinstance(spot[3], str) and spot[3] in rows else None
+        sits_on = plan_checks.anchor_of(rows[row]) if row else None
+        if sits_on not in walls_things:
+            walls_things[sits_on] = standing.blocked(plan, inventory, grid, sits_on)
+        others = list(zip(kept, sizes))
+        free = None if row in left_out or not standing.stands_in(spot, size, walls_things[sits_on], grid, others) \
+            else standing.nearest_free(spot, size, walls_things[sits_on], grid, outline, others)
+        kept.append(spot if free is None else [*free, *spot[2:]])
+        if free is not None:
+            fixes.append(f"{plan_checks.said_name(row or 'a standing spot')}: moved "
+                         f"{math.dist(spot[:2], free):.2f} m out of what it stood in")
+    return {**plan, "people": kept}, fixes
+
+
 def unsettled(plan, inventory, parts=True):
-    """Whether a written plan wants fixing again: `placing_more`, or (when it `parts`) the relation solver parts
-    things the fixes left in each other (relation_solver.parted)."""
-    return placing_more(plan, inventory) or (parts and bool(relation_solver.parted(plan, inventory)[1]))
+    """Whether a written plan wants fixing again: `placing_more`, a Correct's copy of a person spot or one standing in
+    something (`spaced_people`), or (when it `parts`) the relation solver parts things the fixes left in each other
+    (relation_solver.parted)."""
+    return (placing_more(plan, inventory) or bool(spaced_people(plan, inventory)[1])
+            or (parts and bool(relation_solver.parted(plan, inventory)[1])))
 
 
 def settled_again(store, place, plan, inventory, ask, parts=True):
     """(the plan fixed again, the Correct calls made): plan_fixes.settled when it is `placing_more`, else as written
     (no Correct asked again for overlaps alone); then, when it `parts`, the things still in each other parted by the
-    relation solver, its fixes added and its gaps checked again, each left saying why."""
+    relation solver, and no person left standing in anything (`spaced_people`), their fixes added and its gaps
+    checked again, each left saying why."""
     calls = []
     if placing_more(plan, inventory):
         plan, calls = plan_fixes.settled(store, place, plan, inventory, ask)
-    if not parts:
-        return plan, calls
-    answer, more = relation_solver.parted(plan, inventory)
-    if more:
-        plan = {**answer, "fixes": [*plan.get("fixes", []), *more]}
+    answer, more = relation_solver.parted(plan, inventory) if parts else (plan, [])
+    answer, spaced = spaced_people(answer, inventory)
+    if more or spaced:
+        plan = {**answer, "fixes": [*plan.get("fixes", []), *more, *spaced]}
         plan["gaps"] = plan_fixes.why_left(plan_fixes.open_gaps(plan, inventory))
     return plan, calls
 
@@ -117,13 +198,16 @@ def unasked(body):
 
 
 def parted_first(store, places):
-    """The places of `places` whose writing only the relation solver re-fixes (`parting`, `unsettled`, not
-    `placing_more`: free), fixed again here and now, so the keep after it makes their plan rows from the parted
-    writing in the same pass (a re-fix in a process of its own reached them a pass later); the places fixed."""
+    """The places of `places` whose writing only the relation solver (`parting`) or `spaced_people` re-fixes
+    (`unsettled`, not `placing_more`: free), fixed again here and now, so the keep after it makes their plan rows from
+    the re-fixed writing in the same pass (a re-fix in a process of its own reached them a pass later); the places
+    fixed."""
     found = []
     for place in places:
         writing = plan_writing.written_of(store, place)
-        if not writing or not parting(store, place) or placing_more(writing["plan"], plans.inventory_of(store, place)):
+        inventory = plans.inventory_of(store, place) if writing else None
+        if not writing or placing_more(writing["plan"], inventory) or not (
+                parting(store, place) or spaced_people(writing["plan"], inventory)[1]):
             continue
         if refixed(store, place, "the relation solver", unasked, free=True):
             found.append(place)

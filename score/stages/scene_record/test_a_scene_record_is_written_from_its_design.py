@@ -229,6 +229,35 @@ def test_an_open_place_s_view_eye_stands_a_person_s_height_over_its_made_ground(
     assert [view["eye"][1] for view in writer.views(yard, 1.6)] == [1.6, 2.6]
 
 
+def test_a_view_eye_where_a_person_would_stand_in_a_thing_moves_out_with_its_look_kept():
+    """Wreck's spot-5, 2026-10-30: a view's eye stands where a person would. On a 10 m plan (frame: its middle at the
+    origin) a doorway's eye 1 m in lands in a 2 m crate, and a person spot stands against it: each eye moves to the
+    nearest floor where a 0.5 m person stands in nothing, its aim moved by the same offset; a spot clear of the crate
+    stays where it is, and its own person spot never counts against it.
+    Break: score/stages/scene_record/writer.py: `if not standing.stands_in(spot, size, walls_things, grid, others):`
+        -> `if True:`; and `eye, aim = eye + [offset[0], 0.0, offset[1]], aim + offset` -> `eye = eye + [offset[0],
+        0.0, offset[1]]`"""
+    from score.stages.scene_record import writer
+    design = {"w": 10.0, "d": 10.0, "items": [["CRATE 1", 4.0, 1.5, 2.0, 2.0, None, "item"]],
+              "rows": {"CRATE 1": ["crate"]}, "people": [[5.0, 3.6], [8.0, 8.0]]}
+    inventory = {"rows": [{"id": "crate", "anchor": "floor", "size": [2.0, 2.0, 1.0], "count": 1}]}
+    record = {"floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [],
+              "doorways": [{"name": "door-1", "middle": [0.0, 0.0, -4.5], "inward": [0.0, 0.0, 1.0], "wide": 1.0,
+                            "to": "yard"}],
+              "standing": [{"at": [0.0, -1.4], "level": 0.0, "looks_at": None},
+                           {"at": [3.0, 3.0], "level": 0.0, "looks_at": None}]}
+    found = writer.views(record, 1.6, clear=writer.clear_of(design, inventory))
+    door, against, clear = found
+    assert door["eye"][2] <= -3.5 - 0.25 + 0.05 or door["eye"][2] >= -1.5 + 0.25 - 0.05 or abs(door["eye"][0]) >= 1.2
+    offset = np.subtract(door["eye"], [0.0, 1.6, -3.5])
+    assert math.hypot(offset[0], offset[2]) < 1.5 and door["aim"] == [round(offset[0], 3), 1.0,
+                                                                       round(4.5 + offset[2], 3)], door
+    assert against["eye"][2] >= -1.5 + 0.25 - 0.05 and abs(against["eye"][0]) < 0.05, against
+    assert against["aim"] == [against["eye"][0], 1.0, round(against["eye"][2] + 1.4, 3)], against
+    assert clear["eye"] == [3.0, 1.6, 3.0] and clear["aim"] == [0.0, 1.0, 0.0]
+    assert [view["eye"] for view in writer.views(record, 1.6)][1:] == [[0.0, 1.6, -1.4], [3.0, 1.6, 3.0]]
+
+
 def test_a_place_a_backdrop_row_is_shown_from_stands_in_the_record_where_its_holder_holds_it():
     """The stairwell's palm seen through its window is the square's (prepare's groups.shown_from: `shown`): the record
     stands the holder at its own plan's middle, a place it holds beside where it holds it, each once.
