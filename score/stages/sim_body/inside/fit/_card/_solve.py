@@ -21,7 +21,7 @@ import warp as wp
 from ._forward import Forward, frames
 from ._objective import wide_residuals
 from ._per_row import rowwise
-from ._project import project
+from ._project import project, rows_of
 from ._step import damped_step
 
 MOST_STEPS = 300
@@ -106,8 +106,13 @@ def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STE
     """Every row's pose fitted from joint_q [rows, coords] (Newton's layout): (qpos [rows, coords] in MuJoCo's
     layout, steps [rows]). optimizer is the batch's IKOptimizerLM (Newton's IKSolver(...)._impl), seeds [rows,
     coords] MuJoCo's layout (the frozen coordinates' values). set_places [sets, joints, 7] and row_set [rows] (host
-    arrays) give each row its set's joint places (rows = set x frame); neither, the model's own."""
+    arrays) give each row its set's joint places, row_set its set's coupling polys too (the reduction's and the
+    projection's [sets, couplings, 5]; rows = set x frame); neither, the model's own."""
     device = joint_q.device
+    sets_of = None if row_set is None else rows_of(row_set, joint_q.shape[0], device)
+    for part in (reduction, projection):
+        if row_set is not None and 1 < part.poly.shape[0] <= int(np.max(row_set)):
+            raise ValueError(f"row_set reaches set {int(np.max(row_set))}, the coupling polys hold {part.poly.shape[0]}")
     if set_places is not None:
         rowwise(optimizer, wp.array(np.asarray(set_places, dtype=np.float32), dtype=wp.transform, device=device),
                 wp.array(np.asarray(row_set, dtype=np.int32), dtype=wp.int32, device=device))
@@ -131,10 +136,10 @@ def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STE
         _wide_residuals(optimizer, forward, current, body_q, wide)
         wp.launch(_narrowed, dim=wide.shape, inputs=[wide], outputs=[narrow], device=device)
         wp.launch(_to_mujoco, dim=(rows, coords), inputs=[current], outputs=[qpos], device=device)
-        full, norms = damped_step(reduction, jacobian, narrow, qpos, active)
+        full, norms = damped_step(reduction, jacobian, narrow, qpos, active, sets_of)
         optimizer._integrate_dq(current, dq_in=full, joint_q_out=following, joint_qd_out=velocity)
         wp.launch(_to_mujoco, dim=(rows, coords), inputs=[following], outputs=[qpos], device=device)
-        project(projection, qpos, seeds)
+        project(projection, qpos, seeds, sets_of)
         wp.launch(_to_newton, dim=(rows, coords), inputs=[qpos], outputs=[current], device=device)
         wp.launch(_stopped, dim=rows, inputs=[wide, before, norms, history, step, active, steps], device=device)
         if step % 10 == 9 and not active.numpy().any():

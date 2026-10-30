@@ -1,7 +1,9 @@
 """Level 3 across sets: one body's sets (each its own `_clip.Clip`, its constants moving the inside joints, its own
 marker offsets and weights) solved as one card batch, rows = set x frame, each row reading its own set's joint
-places (`_solve.solved_in_chunks` with set_places and row_set). Refused when the sets' frozen, limited or reduction
-settings differ, or their sites or bodies do: those are shared by every row of the batch."""
+places (`_solve.solved_in_chunks` with set_places and row_set) and its own set's coupling polys. Refused when the
+sets' frozen, limited or reduction settings differ, or their sites or bodies do: those are shared by every row."""
+import copy
+
 import numpy as np
 import warp as wp
 from scipy.spatial.transform import Rotation
@@ -18,9 +20,12 @@ def settings_of(part):
             if not callable(value)}
 
 
+PER_SET = ("poly",)  # fields each row reads by its set, so sets may differ there
+
+
 def differing(first, other):
-    """The names of the fields where two `settings_of` dicts differ."""
-    return sorted(name for name in first.keys() | other.keys()
+    """The names of the fields where two `settings_of` dicts differ, the PER_SET fields left out."""
+    return sorted(name for name in (first.keys() | other.keys()) - set(PER_SET)
                   if name not in first or name not in other or not np.array_equal(first[name], other[name]))
 
 
@@ -43,6 +48,14 @@ def stacked(per_set, frames):
     return np.concatenate([np.repeat(np.asarray(value)[None], count, axis=0) for value, count in zip(per_set, frames)])
 
 
+def with_set_polys(base, parts):
+    """A copy of `base` (a Reduction or Projection) whose poly is every part's stacked, [sets, couplings, 5]."""
+    joined = copy.copy(base)
+    joined.poly = wp.array(np.concatenate([part.poly.numpy() for part in parts]), dtype=wp.float32,
+                           device=base.poly.device)
+    return joined
+
+
 class Sets:
     """Several sets of one body as one batch: `clips` one `_clip.Clip` per set, set 0 the base."""
 
@@ -52,6 +65,8 @@ class Sets:
             raise ValueError(why)
         self.clips, self.base = list(clips), clips[0]
         self.set_places = np.stack([clip.model.joint_X_p.numpy() for clip in self.clips]).astype(np.float32)
+        self.reduction = with_set_polys(self.base.reduction, [clip.reduction for clip in self.clips])
+        self.projection = with_set_polys(self.base.projection, [clip.projection for clip in self.clips])
 
     def optimizer_for(self, turns, points, frames):
         """optimizer_for(start, stop) on the base set's model, every row its own set's offsets and weights."""
@@ -83,7 +98,7 @@ class Sets:
         joined = np.concatenate([np.asarray(value, dtype=float) for value in seeds])
         row_set = np.repeat(np.arange(len(self.clips)), frames)
         qpos, steps = solved_in_chunks(self.optimizer_for(np.concatenate(turns), np.concatenate(points), frames),
-                                       self.base.reduction, self.base.projection, newton_order(joined), joined,
+                                       self.reduction, self.projection, newton_order(joined), joined,
                                        set_places=self.set_places, row_set=row_set)
         bounds = np.cumsum([0] + frames)
         return [(qpos[start:stop], steps[start:stop]) for start, stop in zip(bounds[:-1], bounds[1:])]

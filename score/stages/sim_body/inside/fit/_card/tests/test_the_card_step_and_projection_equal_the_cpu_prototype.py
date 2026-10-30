@@ -50,6 +50,8 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-30) _sets.Sets.optimizer_for's offsets of each set made the base set's (`base.mjm.site_pos`): sets 1
   and 2 solve with set 0's marker offsets, off their Clip alone (card_sets; also: sets whose frozen dofs differ are
   refused, `_sets.refusal` returning None lets them through).
+- (2026-10-30) _step._slopes' and _project._projected's `own = row_set[row]` made `own = 0`: every row reads set 0's
+  coupling polys, so sets 1 and 2 (their follower's slope 0.05 and 0.10 on) end 4.2 and 10.2 deg off (card_sets).
 - (2026-10-30) _measure.skin_depths' `depths[:, ...]` made `depths[:1, ...]`: the card's depths read the first skin
   frame only, off the CPU's.
 - (2026-10-29) _projected's `power *= lead` made `power *= 1.0`: a coupling is no longer polyval of its leader.
