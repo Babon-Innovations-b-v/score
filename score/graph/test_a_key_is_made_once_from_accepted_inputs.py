@@ -1949,6 +1949,35 @@ def make_late(inputs, out, seed, params):
     (out / "mark.txt").write_text("marked")
 
 
+def make_big(inputs, out, seed, params):
+    held = bytearray(BIG)  # zero-filled: every page touched, so its VmHWM counts it
+    time.sleep(0.6)  # the drive reads it meanwhile, its next node waiting on the --jobs slot
+    (out / "mark.txt").write_text(f"marked {len(held)}")
+
+
+BIG = 300 * 2**20
+
+
+def test_on_this_pc_a_client_stages_node_is_read_while_it_runs_even_with_no_client_running_now(monkeypatch):
+    """Round 28, 2026-10-30: settle nodes held 12 and 8 GB in their own trees for minutes, client-trees.json kept 3.6
+    GB: the drive took a node for a container client only while a blender_cloud.py ran under it, and settle's 12 GB
+    is its own work outside its drop (a kept drop runs none). A `client` stage whose nodes once ran a client (1 MB
+    kept), two nodes at --jobs 1 on this PC, each node's real process holding 300 MB for 0.6 s and running no client:
+    the drive's readings of the node's real tree raise the kept peak past 300 MB.
+    Break: score/graph/__init__.py: 'if on_this_pc() and (stage.name in clients or CONTAINED(process.pid))}' ->
+    'if on_this_pc() and CONTAINED(process.pid)}' -> 1 MB kept."""
+    monkeypatch.setenv(*graph.THIS_PC)
+    monkeypatch.setattr(graph, "MEMORY_POLL", 0.05)
+    monkeypatch.setattr(graph, "CONTAINER_READ", lambda: None)  # the container unread: this PC's own is never touched
+    monkeypatch.setattr(graph, "AVAILABLE", lambda: 100 * FLOOR)
+    client = graph.Stage("client", "place", make_big, TEXT, PASSES)
+    runner = a_runner(a_world({"hangar": "a ship", "station": "a hub"}), a_store(), (client,))
+    runner.keep_client_tree("client", 2**20)
+    found = runner.drive(("hangar", "station"), say=quiet, jobs=1)
+    assert set(found.values()) == {ACCEPTED}, found
+    assert runner.client_trees()["client"] > BIG, runner.client_trees()
+
+
 def test_on_this_pc_a_node_waiting_on_a_container_claim_holds_no_job_slot_and_its_stage_starts_no_other(
         monkeypatch, tmp_path):
     """2026-10-29: all 8 job slots held by surfaces-bake rows, 3 running a take and 5 waiting for one, about 60 ready
