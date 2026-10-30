@@ -177,6 +177,23 @@ def sited_problem_at(problem, columns, trusted, ends):
     return at
 
 
+def turned_frame_sites(fitting, moves, work):
+    """`work()` with each group's calibration site in `moves` ({group: body-side rad}) turned as the recalibrated
+    TABLE turns it: the site holds R_cal^T (wxyz), so R_cal -> R_cal exp([w]x) makes it exp(-[w]x) R_cal^T (level 2's
+    turn rows read it; `sited_problem_at` moves no site turn); the quats are put back after."""
+    from scipy.spatial.transform import Rotation
+    quats = fitting.model.site_quat
+    kept = quats.copy()
+    for group, turn in moves.items():
+        site = fitting.frame_sites[fitting.groups.index(group)]
+        quats[site] = (Rotation.from_rotvec(-np.asarray(turn)) * Rotation.from_quat(
+            kept[site], scalar_first=True)).as_quat(scalar_first=True)
+    try:
+        return work()
+    finally:
+        quats[:] = kept
+
+
 def goal_weights(tail, ends):
     """Each marker's place cost from the landmarks' trusts, end weight and marker goal (`fit._frames.weights` with the
     group ends' trust end weight times the landmarks' mean, as `fit.fitting` lays it)."""
