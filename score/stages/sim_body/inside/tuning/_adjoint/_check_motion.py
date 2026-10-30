@@ -66,8 +66,9 @@ low, high = first.bounds()
 begin = np.clip(first.start(), np.where(np.isfinite(low), low + INSIDE, low),
                 np.where(np.isfinite(high), high - INSIDE, high))
 kept = told(first, jacobian(first, begin))
-at = _real.problem_at(applied, out, cases, saved, angles, constants)
-problem = at(base)
+problem = Problem(fitting, angles, turns, points, constants, _real.level2_free(fitting))  # the base solve's, not read again
+rebuilt = _real.problem_at(applied, out, cases, saved, angles, constants)
+at = lambda outer: problem if np.array_equal(outer, base) else rebuilt(outer)
 settled = problem.start()
 free = off_bounds(settled, kept, (low, high))
 free_gradient = float(np.abs(jacobian(problem, settled)[:, free].T @ problem.residuals(settled)).max())
