@@ -29,7 +29,7 @@ The taped test runs `_taped` (Newton eval_fk on a wp.Tape) in Newton's own Pytho
 coordinates), and once with level 2's constants (two free sites' moves and the third joint's place move after the pose), and once batched (two frames as two copies of the chain in one model, one launch, level 2's constants shared by both), and once with each site's trust an outer unknown, and once
 with the last site a group end and the end weight and markers' goal outer unknowns, and once batched with a group end in each copy (`copies=2`, one frame's outer unknowns laid on both: its rows equal each copy's own frame's): its gradient, asked twice, equals central differences of its cost to 1e-3
 of the largest entry; so does its outer gradient (`outer_gradient`: offsets summed over the copies, the trusts, end weight and goal through `_weighed`; red 0.14 with its sum's term dropped) on the group-end and batched ones. So does level 3's `products` (w^T dg/dtheta, two outer gradients a column) against w^T `mixed` on the group-end chain (red 0.61 with its |w| scale back dropped). With no Newton Python (`SCORE_NEWTON_PYTHON`, else $PROPS_HOME/envs/newton_env) it is skipped; its run is `_check_taped.py`. The taped measures test runs (`_check_measures.py`) `_measures` on three copies of the chain (frames): two joints (one a MIDDLE of two parts), two turn
-groups and two skin regions' bone points against a posed box skin per frame (some outside, some inside), fed through `case_rows`, equal central differences of `case_residuals` to 1 % of the largest entry; so do its rows over level 2's moves (R_c: a free mark's columns zero, an inside joint's)."""
+groups and two skin regions' bone points against a posed box skin per frame (some outside, some inside), fed through `case_rows`, equal central differences of `case_residuals` to 1 % of the largest entry; so do its rows over level 2's moves (R_c: a free mark's columns zero, an inside joint's); `joined_measured` gives both row sets exactly as the two calls, off one set of passes (red when its split reads the constants' columns as the pose's)."""
 import json
 
 import numpy as np
@@ -179,6 +179,7 @@ def test_the_taped_measures_rows_equal_differences_of_the_case_residuals():
     constant_jacobian = _adjoint.case_rows(*toys.taped_parts(found, "constant_taped"))[1]  # R_c: a free mark, a joint
     expected = toys.nudged_differences(found["constant_nudged"], found["step"])
     assert np.all(constant_jacobian[:, :3] == 0) and np.abs(constant_jacobian - expected).max() < 1e-2 * np.abs(expected).max()
+    assert found["joined same"] and found["joined passes"] == found["separate passes"], found  # R_q and R_c, one taping
 
 
 def test_one_real_body_builds_and_its_rows_equal_the_card_solve(tmp_path):

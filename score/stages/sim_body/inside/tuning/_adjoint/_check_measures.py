@@ -49,5 +49,10 @@ for column in range(len(moves)):
         moved = moves.copy(); moved[column] += sign * step
         constant_nudged.append({kind: {key: value[0] for key, value in part.items()} for kind, part in plain(constant_measures.measured(np.concatenate([pose, moved]), np.zeros(9))).items()})
 constant_taped = plain(constant_measures.constant_measured(np.concatenate([pose, moves]), np.zeros(9)))
+separate_poses = plain(constant_measures.measured(np.concatenate([pose, moves]), np.zeros(9)))
+separate_passes = constant_measures.passes
+joined_poses, joined_constants = (plain(part) for part in constant_measures.joined_measured(np.concatenate([pose, moves]), np.zeros(9)))
+joined_same = joined_poses == separate_poses and joined_constants == constant_taped
 print("JSON" + json.dumps({"taped": taped, "nudged": nudged, "step": step, "passes": passes,
-                           "constant_taped": constant_taped, "constant_nudged": constant_nudged}))
+                           "constant_taped": constant_taped, "constant_nudged": constant_nudged,
+                           "joined same": joined_same, "joined passes": constant_measures.passes, "separate passes": separate_passes}))

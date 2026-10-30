@@ -194,6 +194,13 @@ class TapedMeasures:
         whole rows for `case_rows` without `frames` (its derivative is R_c)."""
         return self._measured(inner, outer, self._constant_blocks)
 
+    def joined_measured(self, inner, outer):
+        """(`measured`, `constant_measured`) off one tape and one set of backward passes: each pass reads both the
+        pose's and level 2's moves' gradient, so R_q and R_c cost one taping, not two."""
+        width = self._pose_grad().shape[0] // self.frames
+        both = self._measured(inner, outer, lambda: np.hstack([self._pose_blocks(), self._constant_blocks()]))
+        return _split(both, slice(None, width)), _split(both, slice(width, None))
+
     def _measured(self, inner, outer, blocks):
         """Every measure at (`inner`, `outer`) with its rows over what `blocks` reads, off one recorded tape."""
         tape = wp.Tape()
@@ -214,3 +221,11 @@ class TapedMeasures:
                 {name: (depths[bounds[index]:bounds[index + 1]], skin_rows[bounds[index]:bounds[index + 1]],
                         self.skins.frame_of[bounds[index]:bounds[index + 1]])
                  for index, name in enumerate(self.skins.names)})
+
+
+def _split(found, columns):
+    """`_measured`'s (joints, turns, skins) with each row cut to `columns` (the values and frames kept)."""
+    joints, turns, skins = found
+    return ({name: (values, rows[..., columns]) for name, (values, rows) in joints.items()},
+            {name: (values, rows[..., columns]) for name, (values, rows) in turns.items()},
+            {name: (values, rows[..., columns], frames) for name, (values, rows, frames) in skins.items()})
