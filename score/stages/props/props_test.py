@@ -12,7 +12,9 @@ run_batch's error without its log's tail (`{tail}` dropped) turns
 test_a_failed_pixal3d_batch_stops_the_row_with_its_logs_end red; judge_likeness without `facing` (each row its best
 way's score only) turns test_routes_send_a_failed_prop_object_to_code_and_a_failed_code_build_to_a_builder red;
 write_textured_pair's BACK pair drawn from the best way again (`entry["way"] + 0`) turns
-test_a_designed_place_s_pair_is_the_model_in_its_finishes_from_its_way_and_the_way_facing_it red.
+test_a_designed_place_s_pair_is_the_model_in_its_finishes_from_its_way_and_the_way_facing_it red; whole_best_way held
+at the stated look-down alone (`downs = [stated]`) turns test_a_flat_row_s_model_is_held_at_the_look_down_its_close_up_shows
+red.
 """
 import importlib.util
 import json
@@ -439,6 +441,28 @@ def test_an_open_frame_s_model_is_held_whole_to_its_filled_close_up():
     size = [1.0, 1.0, 0.02]  # lies flat: drawn and checked from straight above
     assert likeness.best_way(model, tmp_path / "cut.png", size)["outline"] < likeness.OUTLINE_LEAST
     assert likeness_row.whole_best_way(model, tmp_path / "cut.png", size)["outline"] > 0.9
+    shutil.rmtree(tmp_path)
+
+
+def test_a_flat_row_s_model_is_held_at_the_look_down_its_close_up_shows():
+    """A flat ring's close-up drawn from three quarters (an ellipse) though its row is drawn from above: the model is
+    held at the look-down the close-up shows as well as from above (wreck's metal ring, 0.128 from above), and a
+    close-up drawn from above keeps it at straight above."""
+    import trimesh
+    from PIL import Image
+    tmp_path = pathlib.Path(tempfile.mkdtemp())
+    ring = trimesh.creation.annulus(0.45, 0.5, 0.05).apply_transform(trimesh.transformations.rotation_matrix(
+        np.pi / 2, [1, 0, 0]))
+    model = tmp_path / "ring.glb"
+    ring.export(model)
+    size = [1.0, 1.0, 0.05]  # lies flat: stated straight above
+    for name, down in (("three-quarter", 30.0), ("above", 90.0)):
+        pixels = np.zeros((likeness.SIDE, likeness.SIDE, 4), dtype=np.uint8)
+        pixels[likeness.silhouette(*likeness.gltf_mesh(model), 1, down)] = 255
+        Image.fromarray(pixels).save(tmp_path / f"{name}.png")
+    seen = likeness_row.whole_best_way(model, tmp_path / "three-quarter.png", size)
+    assert seen["outline"] > 0.9 and 25 < seen["look_down"] < 35, seen
+    assert likeness_row.whole_best_way(model, tmp_path / "above.png", size)["look_down"] == 90.0
     shutil.rmtree(tmp_path)
 
 
