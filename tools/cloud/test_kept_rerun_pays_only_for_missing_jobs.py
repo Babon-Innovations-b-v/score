@@ -2,18 +2,16 @@
 (PER_TAKE), is kept by its own content (its JSON or arguments and the files they name with the attempt's own folders
 written as stand-ins, the row's code, the system), its files once in the store's blobs; a later attempt, at the same
 key or a new one, gets back exactly the jobs and takes of the same content, linked in read-only, and makes only the
-rest; nothing kept is ever taken for a changed input, script, row code or system, from a copy cut short, for an output
-outside the making folder, or with another job's file made from other inputs; and the sweep drops only what its
+rest; nothing kept is ever taken for a changed input, script, row code or system, from a copy cut short, or for an
+output outside the making folder; and the sweep drops only what its
 `asked` refuses (owner, 2026-10-18: a stopped film render threw its finished frames away and the rerun bought them all
 again; 2026-10-29: a fix to 3 objects baked whole places again).
 
 Fake film, bake and views jobs, no cloud: the answers are counted from the jobs the test lets finish. The break that
 turns each red (applied once, seen red, reverted):
 
-- test_a_rerun_runs_only_the_jobs_the_stopped_run_lacked: in `missing`, `if entry is None or any(` -> `if True or
-  any(` (every job runs again).
-- test_jobs_sharing_a_folder_get_back_each_ones_newest_file: in `placed`, `if name not in newest or written_at >
-  newest[name][1]:` -> `if True:` (the last entry read wins) -> the barrel's half-written model comes back.
+- test_a_rerun_runs_only_the_jobs_the_stopped_run_lacked: in `missing`, `if entry is None:` -> `if True:` (every
+  job runs again).
 - test_a_new_key_bakes_again_only_the_take_whose_inputs_changed: in `identity`, `folders = stand_ins()` ->
   `folders = ()` (the attempt's own folders in the content: every take is baked again); or in `written_mark`,
   `if other != place:` -> `if False:` (the old crate stays beside the new).
@@ -22,8 +20,6 @@ turns each red (applied once, seen red, reverted):
 - test_the_rows_python_is_left_to_its_code_and_its_data_is_not: in `left_to_code`, `return path.suffix in
   LEFT_TO_CODE or ...` -> `return False` (a Python edit no row reads bakes again); or -> `return True` (a changed
   data table is taken as kept).
-- test_a_job_whose_copy_carried_a_changed_peer_runs_again: in `missing`, `any(present.get(slot) != content` ->
-  `any(False and present.get(slot) != content` -> the crate is put back with the barrel's old model.
 - test_a_copy_cut_short_before_its_done_mark_is_not_taken: in `mark_of`, `if mark.exists() else None` -> `if
   mark.parent.exists() else None` (an entry without its mark is read).
 - test_outside_a_make_or_the_making_folder_nothing_is_kept: in `relative_outputs`, `return None` -> `continue` (a
@@ -97,22 +93,25 @@ def test_a_rerun_runs_only_the_jobs_the_stopped_run_lacked(monkeypatch, tmp_path
 
 def bake(folder, take, models):
     """A bake row's paint and bake job of one take: its listing (naming the making folder and the home, as
-    route_bake.card_job's does) and its model as inputs, its models brought back into the row's one `made`."""
+    route_bake.card_job's does) and its model as inputs, its models brought back into its own folder
+    (route_bake.made_of)."""
     listing = folder / f".bake-{take}.json"
     listing.write_text(f'{{"take": "{take}", "out": "{folder}", "home": "{os.environ["PROPS_HOME"]}"}}')
     return {"script": "score/stages/surfaces/inside/paint_bake.py", "args": [str(listing)],
             "inputs": [str(listing), str(models / f"{take}.glb")],
-            "outputs": [str(folder / "labelled" / take), str(folder / "made")], "minutes": 5}
+            "outputs": [str(folder / "labelled" / take), str(folder / f".bake-{take}-made")], "minutes": 5}
 
 
 def baked(job, made_by):
-    """What the machine brings back for a bake job: its labelled take and its model in `made`; the files written."""
-    folder, take = pathlib.Path(job["outputs"][1]).parent, pathlib.Path(job["outputs"][0]).name
-    (folder / "labelled" / take).mkdir(parents=True, exist_ok=True)
-    (folder / "made").mkdir(exist_ok=True)
-    (folder / "labelled" / take / "labels.json").write_text(f"{take} by {made_by}")
-    (folder / "made" / f"{take}.gltf").write_text(f"{take} by {made_by}")
-    return {(folder / "labelled" / take / "labels.json").resolve(), (folder / "made" / f"{take}.gltf").resolve()}
+    """What the machine brings back for a bake job: its labelled take and its model in its own folder; the files
+    written."""
+    labelled, made = (pathlib.Path(output) for output in job["outputs"])
+    take = labelled.name
+    labelled.mkdir(parents=True, exist_ok=True)
+    made.mkdir(exist_ok=True)
+    (labelled / "labels.json").write_text(f"{take} by {made_by}")
+    (made / f"{take}.gltf").write_text(f"{take} by {made_by}")
+    return {(labelled / "labels.json").resolve(), (made / f"{take}.gltf").resolve()}
 
 
 def models_of(root, takes):
@@ -122,26 +121,6 @@ def models_of(root, takes):
     for take, text in takes.items():
         (models / f"{take}.glb").write_text(text)
     return models
-
-
-def test_jobs_sharing_a_folder_get_back_each_ones_newest_file(monkeypatch, tmp_path):
-    """Side by side on this PC, a bake row's takes bring back its one `made` folder: the crate's job kept the barrel's
-    model caught mid-write, the barrel's job its finished one; the rerun gets back the finished one."""
-    models = models_of(tmp_path, {"barrel": "barrel model", "crate": "crate model"})
-    folder = attempt(monkeypatch, tmp_path, "first")
-    barrel, crate = (bake(folder, name, models) for name in ("barrel", "crate"))
-    made = folder / "made"
-    baked(crate, "the first run")
-    (made / "barrel.gltf").write_text("half")
-    os.utime(made / "barrel.gltf", (1_000, 1_000))
-    assert kept.keep(crate, SYSTEM, peers={kept.identity(barrel, SYSTEM)[0]: kept.identity(barrel, SYSTEM)[1]})
-    baked(barrel, "the first run")
-    assert kept.keep(barrel, SYSTEM)
-    again = attempt(monkeypatch, tmp_path, "again")
-    rerun = [bake(again, name, models) for name in ("barrel", "crate")]
-    assert kept.missing(rerun, SYSTEM) == []
-    assert {path.name: path.read_text() for path in (again / "made").iterdir()} == {
-        "barrel.gltf": "barrel by the first run", "crate.gltf": "crate by the first run"}
 
 
 def test_a_new_key_bakes_again_only_the_take_whose_inputs_changed(monkeypatch, tmp_path):
@@ -158,7 +137,7 @@ def test_a_new_key_bakes_again_only_the_take_whose_inputs_changed(monkeypatch, t
     again = attempt(monkeypatch, tmp_path, "key2-b", home=tmp_path / "run2.home")
     rerun = [bake(again, take, models) for take in takes]
     assert kept.missing(rerun, SYSTEM) == [rerun[1]]  # only the crate is baked again
-    assert {path.name: path.read_text() for path in (again / "made").iterdir()} == {
+    assert {path.name: path.read_text() for path in again.glob(".bake-*-made/*")} == {
         "barrel.gltf": "barrel by the first run", "lamp.gltf": "lamp by the first run"}
     assert (again / "labelled" / "lamp" / "labels.json").read_bytes() == \
         (folder / "labelled" / "lamp" / "labels.json").read_bytes()
@@ -210,21 +189,6 @@ def test_the_rows_python_is_left_to_its_code_and_its_data_is_not(monkeypatch, tm
     assert kept.missing([rerun], SYSTEM) == []
     (repo / "score" / "table.json").write_text("[2]")
     assert kept.missing([rerun], SYSTEM) == [rerun]
-
-
-def test_a_job_whose_copy_carried_a_changed_peer_runs_again(monkeypatch, tmp_path):
-    """The crate's copy back carried the barrel's model (the barrel still running beside it, its peer); once the
-    barrel's model changes, the crate is baked again too, never put back with the barrel's old model."""
-    models = models_of(tmp_path, {"barrel": "barrel model", "crate": "crate model"})
-    folder = attempt(monkeypatch, tmp_path, "first")
-    barrel, crate = (bake(folder, name, models) for name in ("barrel", "crate"))
-    carried = baked(crate, "the first run") | baked(barrel, "the first run")
-    assert kept.keep(crate, SYSTEM, brought=carried, peers=kept.peers_of(crate, [barrel], SYSTEM))
-    (models / "barrel.glb").write_text("barrel model, fixed")
-    again = attempt(monkeypatch, tmp_path, "again")
-    rerun = [bake(again, name, models) for name in ("barrel", "crate")]
-    assert kept.missing(rerun, SYSTEM) == rerun
-    assert not (again / "made").exists()
 
 
 def test_a_copy_cut_short_before_its_done_mark_is_not_taken(monkeypatch, tmp_path):

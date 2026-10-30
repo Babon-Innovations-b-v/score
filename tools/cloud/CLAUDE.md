@@ -152,9 +152,11 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   (`blender_cloud.system`: this PC's container image id, the cloud's images, the cluster's Blender image, and
   library_setup.sh); the repository's Python and docs among the inputs, and the run machinery's files, are left to
   the row's code. One content a slot (the job's script, arguments and outputs), kept past the stored output for the
-  next key. Jobs sharing a folder (a bake row's `made`) keep only the files their own copy back wrote (rsync's list)
-  and name the jobs still running beside them on that machine (`peers`), whose files that copy may carry; a job is
-  put back only while every peer is in the call at the same content. `blender_cloud.py` calls both: `still_to_run`
+  next key. A job keeps only the files its own copy back wrote (rsync's list), and no two jobs of a call write into
+  one output (`blender_cloud.shared_outputs` refuses them by name before anything is put back or rented): a shared
+  folder came back with either job's copy, so each bake take named the others beside it as peers and was baked
+  again whenever one was (#36, 2026-10-30); each bake take brings back into its own (`route_bake.made_of`), gathered
+  into `made/` after the jobs. `blender_cloud.py` calls both: `still_to_run`
   before pricing a call's jobs, `keep` after each job ends well on a machine or the cluster; a held machine's chain
   (`--serve`) keeps nothing.
 - **The cheapest card that fits** (owner, 2026-10-12): `capacity.next_offer` takes the kind's cheapest card per job

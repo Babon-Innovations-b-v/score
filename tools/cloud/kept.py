@@ -3,7 +3,7 @@ own inputs changed (owner, 2026-10-18: a stopped film render threw away its fini
 all again; 2026-10-29: a fix to 3 objects baked whole places again, and a free run on this PC kept nothing at all).
 
     waiting = kept.missing(jobs, system)            # each job kept at its content put back in place; the jobs to run
-    kept.keep(job, system, brought, peers)          # after a job ended well: the files it brought back, kept
+    kept.keep(job, system, brought)                 # after a job ended well: the files it brought back, kept
     record = kept.call(function, arguments, output) # a row's per-take call (score/stages PER_TAKE): put back or made
     kept.sweep(asked, say)                          # every kept entry `asked` says no current key asks for, dropped
 
@@ -22,10 +22,11 @@ read-only, linked back in place): the mark names each file's blob and the time i
 every blob, so a copy cut short is never taken. Outside a make, or for a job with an output outside the making folder,
 nothing is kept and every job runs.
 
-Jobs sharing an output folder (a bake row's `made`) each keep only the files their own bring-back wrote (`brought`,
-rsync's list); one bring-back can carry another job's files from the same machine, so each keep names its `peers`
-({slot: content} of the jobs sharing a folder still to come back from that machine then), and a kept job is put back
-only while every peer is in the call at that content: never another job's file made from other inputs.
+A job keeps only the files its own bring-back wrote (`brought`, rsync's list). Jobs never share an output folder
+(blender_cloud.shared_outputs refuses them): a shared folder comes back with either job's copy, so a kept job had to
+name the jobs beside it and was run again whenever one of them was (a bake row's one `made` folder baked a kept take
+again beside each retaken take of its machine, #36 2026-10-30); each bake take brings back into its own
+(route_bake.made_of).
 
 A row's per-take call (`call`: a place row's function that makes one take into its own folder from its arguments, named
 in the stage table's PER_TAKE) is kept the same way: its content is the function, its arguments (each file or folder
@@ -174,19 +175,6 @@ def code_hash(code):
     return code.rsplit(" ", 1)[-1]
 
 
-def peers_of(job, others, system):
-    """{slot: content} of the jobs of `others` with an output in, or holding, one of the job's own."""
-    mine = [pathlib.Path(output).resolve() for output in job.get("outputs", ())]
-    found = {}
-    for other in others:
-        theirs = [pathlib.Path(output).resolve() for output in other.get("outputs", ())]
-        if any(one == two or one.is_relative_to(two) or two.is_relative_to(one) for one in mine for two in theirs):
-            named = identity(other, system)
-            if named:
-                found[named[0]] = named[1]
-    return found
-
-
 def store():
     """The store the kept entries lie beside, whose blobs hold their files."""
     return Store.in_folder(kept_root().parent)
@@ -214,7 +202,7 @@ def written_mark(slot, content, entry):
             shutil.rmtree(other)
 
 
-def keep(job, system, brought=None, peers=None):
+def keep(job, system, brought=None):
     """Keep a job that ended well at its content, only the files of its outputs in `brought` (every one when None);
     True when kept."""
     named = identity(job, system)
@@ -226,7 +214,7 @@ def keep(job, system, brought=None, peers=None):
         return False
     files = [path for output in outputs for path in files_under(folder / output)]
     slot, content, inputs = named
-    written_mark(slot, content, {"job": job, "peers": peers or {}, "code": os.environ[CODE],
+    written_mark(slot, content, {"job": job, "code": os.environ[CODE],
                                  "system": digest(system), "inputs": inputs,
                                  "files": stored(files if brought is None else [path for path in files
                                                                                 if path in brought], folder)})
@@ -252,8 +240,7 @@ def mark_of(slot, content, named=None):
 
 def placed(entries):
     """Each file of the entries linked in place in the making folder from its blob, the one written last where two
-    entries hold the same file (jobs side by side on one machine share an output folder, a bake row's `made`: one
-    job's copy can hold another's file caught mid-write), unless the file there is newer."""
+    entries hold the same file, unless the file there is newer."""
     newest = {}
     for entry in entries:
         for name, (sha, written_at) in entry["files"].items():
@@ -270,15 +257,14 @@ def placed(entries):
 
 
 def missing(jobs, system):
-    """Every job kept at its content, whose peers are all in the call at theirs, put back in place in this attempt's
-    making folder; the jobs still to run, in their order."""
-    named = [identity(job, system) for job in jobs]
-    present = {found[0]: found[1] for found in named if found}
+    """Every job kept at its content put back in place in this attempt's making folder; the jobs still to run, in
+    their order."""
     waiting, back = [], []
-    for job, found in zip(jobs, named):
+    for job in jobs:
+        found = identity(job, system)
         entry = mark_of(*found[:2], {"code": os.environ[CODE], "system": digest(system), "inputs": found[2]}) \
             if found else None
-        if entry is None or any(present.get(slot) != content for slot, content in entry["peers"].items()):
+        if entry is None:
             waiting.append(job)
             continue
         back.append(entry)
@@ -333,7 +319,7 @@ def call(function, arguments, output):
         text = json.dumps(record)
     except TypeError:
         return record
-    written_mark(slot, content, {"record": json.loads(text), "peers": {}, "code": code,
+    written_mark(slot, content, {"record": json.loads(text), "code": code,
                                  "system": digest(python_system()), "inputs": inputs,
                                  "files": stored(files_under(output), folder)})
     return record

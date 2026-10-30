@@ -40,6 +40,7 @@ SCRIPT = "score/stages/surfaces/inside/paint_bake.py"
 # model's bake (library_bake.MINUTES_EACH["chunky"], measured on an L4) for each model of the take.
 PAINT_MINUTES, MODEL_MINUTES = place_line.PAINT_MINUTES, 1.5
 HEAD, CHUNKY = "bake head", "bake chunky job"  # the listing's: the job's head with the take's models; its job
+CLOSEUP = "bake close-up"  # the listing's: a Pixal3D take's close-up as Pixal3D cut it out (stood_square)
 # What of the repository the job reads besides the paint's: the bake's library code (tools/library: route.py's
 # library_files), ProcFunc and infinigen2 (library_bake.SHIPPED).
 BAKE_REPO = ("tools/library", "vendor/procfunc/src", "vendor/infinigen2")
@@ -109,6 +110,22 @@ def job_files(short, out, records, heads, method):
     return found
 
 
+def made_of(out, take):
+    """The folder a take's job bakes its models into and brings back, its own: a folder two jobs share comes back with
+    either's copy, so a kept take was baked again beside any retaken take of its machine (#36, 2026-10-30).
+    make_bake gathers each into made/ after the jobs (gathered)."""
+    return out / f".bake-{take}-made"
+
+
+def gathered(folder, made):
+    """Every file a take's job baked into its own folder moved into the row's made/, where its readers find it."""
+    made.mkdir(exist_ok=True)
+    for path in sorted(folder.rglob("*")) if folder.is_dir() else ():
+        if path.is_file():
+            (made / path.relative_to(folder)).parent.mkdir(parents=True, exist_ok=True)
+            path.replace(made / path.relative_to(folder))
+
+
 def card_job(short, out, take, files):
     """One take's cloud job file: its listing (what its paint and bake read of the make's inputs: the place's world
     files and the take's own parts; the take, its part records, claimed rows and job head) and every file it reads at
@@ -117,19 +134,21 @@ def card_job(short, out, take, files):
     records, claimed, head, parts = files
     world = {name: path for name, path in short.items()
              if name.startswith("inventory ") or name in ("surfaces", "resting rules", "relations", "stance rules")}
+    pixal = prop_env.PROPS_HOME / "work/pixal"
+    closeup = [path for path in [pixal / f"{take}.svviews" / "input.png"] if path.exists()]
     listing.write_text(json.dumps({**{name: str(path) for name, path in world.items()}, "surfaces-parts": str(parts),
                                    place_line.TAKE: take,
                                    place_line.RECORDS: str(records), place_line.CLAIMED: str(claimed),
                                    place_line.HOME: str(prop_env.PROPS_HOME), place_line.CODE: str(place_line.REPO),
-                                   HEAD: str(head), CHUNKY: str(out / f".bake-{take}-chunky.json")}))
-    pixal = prop_env.PROPS_HOME / "work/pixal"
+                                   HEAD: str(head), CHUNKY: str(out / f".bake-{take}-chunky.json"),
+                                   **{CLOSEUP: str(path) for path in closeup}}))
     models = sorted({pixal / f"{take}.glb", pixal / f"{take}-final.glb", *pixal.glob(f"{take}-[0-9]*.glb")})
     mark = [path for path in [pixal / f"{take}.svviews" / "code.json"] if path.exists()]  # a code build's (bake_job)
-    read = [listing, records, claimed, head, parts, *world.values(), *models, *mark,
+    read = [listing, records, claimed, head, parts, *world.values(), *models, *mark, *closeup,
             *(place_line.REPO / folder for folder in (*place_line.PAINT_REPO, *BAKE_REPO))]
     job = out / f".bake-{take}-job.json"
     job.write_text(json.dumps({"script": SCRIPT, "args": [str(listing)], "inputs": [str(path) for path in read],
-                               "outputs": [str(out / "labelled" / take), str(out / "made"),
+                               "outputs": [str(out / "labelled" / take), str(made_of(out, take)),
                                            str(out / "entries" / f"{take}.json")],
                                "minutes": PAINT_MINUTES + MODEL_MINUTES * len(json.loads(head.read_text())["models"])},
                               indent=1))
@@ -163,6 +182,8 @@ def make_bake(inputs, out, seed, params):
                      or not (out / "entries" / f"{take}.json").exists())
     if done.returncode and len(unbaked) == len(heads):
         raise RuntimeError(f"blender_cloud.py paint and bake failed: {done.stderr[-3000:]}")
+    for take in heads:
+        gathered(made_of(out, take), out / "made")
     for path in out.glob(".bake-*"):
         shutil.rmtree(path) if path.is_dir() else path.unlink()
     import score.stages.batch_gaps as batch_gaps  # here: the bake job runs this module in the prop environment
@@ -243,36 +264,70 @@ def take_rows(inputs):
             for row in json.loads(pathlib.Path(path).read_text()).get("rows", [])]
 
 
-def labelled_points(labelled):
-    """The labelled take's vertices (its parts, in the finished model's glTF frame)."""
+def labelled_mesh(labelled):
+    """(vertices, triangles) of the labelled take's parts, in the finished model's glTF frame."""
     import numpy as np
     import trimesh
-    return np.vstack([trimesh.load(path, force="mesh", process=False).vertices
-                      for path in sorted(pathlib.Path(labelled).glob("*.ply"))])
+    meshes = [trimesh.load(path, force="mesh", process=False) for path in sorted(pathlib.Path(labelled).glob("*.ply"))]
+    starts = np.cumsum([0, *(len(mesh.vertices) for mesh in meshes)])
+    return (np.vstack([mesh.vertices for mesh in meshes]),
+            np.vstack([mesh.faces + start for mesh, start in zip(meshes, starts)]))
+
+
+def labelled_points(labelled):
+    """The labelled take's vertices (its parts, in the finished model's glTF frame)."""
+    return labelled_mesh(labelled)[0]
+
+
+def fitted(points, size):
+    """Points fitted to the model's built `size` along each axis, about their box's middle, as make_chunky fits it."""
+    low, high = points.min(axis=0), points.max(axis=0)
+    return (points - (low + high) / 2) / (high - low).clip(1e-9) * [float(side) for side in size]
+
+
+def outlines(points, triangles, poses, size, closeup, row):
+    """Each pose's (3 by 3, kit frame) best outline against the close-up (take_outline.best) of the take fitted to
+    its `size`, at the look-down its row's close-up was drawn at (its `read_size` or `size`)."""
+    import take_outline
+    target = take_outline.cut(closeup)
+    down = take_outline.look_down((row or {}).get("read_size") or (row or {}).get("size"))
+    return [take_outline.best(fitted(points @ pose.T, size), triangles, target, down) for pose in poses]
 
 
 def stood_square(entries, labelled, take, inputs, built=False):
     """`entries` with each model whose take stands tumbled in its turn (tumble.tumbled, #36) turned to stand square
     (tumble.square_turn, its box's proportions the row's), its `stood` saying so with the turn it was made in
     (`made`); a row the guard list keeps (tumble.keeps_pose: a person, a code build (`built`), lying, leaning,
-    hanging, no up) keeps its pose, `stood` saying why. The bake measures each again as baked (squared_again)."""
+    hanging, no up) keeps its pose, `stood` saying why. A Pixal3D take (its close-up among the inputs, CLOSEUP) is
+    turned only when its turned pose's outline against its close-up is at least its made pose's (outlines), else kept
+    as made, `stood` saying why with both (#36, 2026-10-30: lab's desk_divider outlined 0.467 as made, 0.296 turned).
+    The bake measures each again as baked (squared_again)."""
     import numpy as np
     import tumble
     rules, rows = tumble.rules_of(inputs), take_rows(inputs)
-    points = labelled_points(labelled)
+    points, triangles = labelled_mesh(labelled)
     found = {}
     for model, entry in entries.items():
         base = np.array(entry["base"], float).reshape(3, 3)
         laid = points @ base.T
-        kept = tumble.keeps_pose(tumble.take_row(take, model, rows), rules, rows, built)
+        row = tumble.take_row(take, model, rows)
+        kept = tumble.keeps_pose(row, rules, rows, built)
         degrees, loose = tumble.measure(laid)
         if kept or not tumble.tumbled(laid):
             found[model] = dict(entry, **({"stood": {"kept": kept, "degrees": degrees}} if kept else {}))
             continue
         turn = tumble.square_turn(laid, entry["size"]) @ base
         after, _ = tumble.measure(points @ turn.T)
-        found[model] = dict(entry, base=[round(float(value), 6) for value in turn.reshape(-1)],
-                            stood={"degrees": degrees, "loose": loose, "after": after, "made": entry["base"]})
+        stood = {"degrees": degrees, "loose": loose, "after": after, "made": entry["base"]}
+        if CLOSEUP in inputs:
+            made, turned = outlines(points, triangles, (base, turn), entry["size"], inputs[CLOSEUP], row)
+            stood["outline"] = {"made": made, "turned": turned}
+            if turned < made:
+                found[model] = dict(entry, stood=dict(stood, kept=f"turned square its outline against its close-up "
+                                                                   f"was {turned}, under its made pose's {made}: kept "
+                                                                   "as made"))
+                continue
+        found[model] = dict(entry, base=[round(float(value), 6) for value in turn.reshape(-1)], stood=stood)
     return found
 
 
@@ -347,6 +402,7 @@ def bake_files(place):
     import surface_data
     found = surface_data.DESIGN.parent / "relations" / f"{place}.json"
     return {**surface_data.bake_files(place), "stance rules": "{data}/checks/stance.json",
+            "close-up view": "{repo}/tools/props/closeup/check.py",  # take_outline's look-down, loaded by its path
             "resting rules": "{data}/checks/resting.json",
             **({"relations": "{home}/design/relations/" + f"{place}.json"} if found.is_file() else {})}
 
@@ -373,8 +429,8 @@ def bake_job_step(inputs, out):
     chunky = [dict(entry, stands=stands(labelled)) for entry in entries.values()]
     square = {"round": 0, "folder": str(out / "shapes" / take),
               "pending": [model for model, entry in entries.items() if not (entry.get("stood") or {}).get("kept")]}
-    inputs[CHUNKY].write_text(json.dumps(dict(head, chunky=chunky, out=str(out / "made"), report=f"report-{take}.json",
-                                              square=square), indent=1))
+    inputs[CHUNKY].write_text(json.dumps(dict(head, chunky=chunky, out=str(made_of(out, take)),
+                                              report=f"report-{take}.json", square=square), indent=1))
 
 
 def bake_faults(folder):
