@@ -6,6 +6,8 @@ removed at the end. Run: .venv/bin/python score/stages/props/props_test.py
 
 Breaks (applied once, seen red, reverted): model_checks laying the row's size x wide, z deep (`[size[0], size[2],
 size[1]]`) turns test_the_model_check_holds_a_prop_s_proportions_whichever_way_round_the_finish_laid_its_footprint red;
+likeness_row.SHEET_WORDS emptied, or `through` replaced by model.py's normal read (`model_gate.thinnest(mesh, laid)`),
+turns test_a_solid_sheet_s_wall_is_read_through_its_face_and_a_hollow_or_one_sided_sheet_still_fails red;
 run_batch's error without its log's tail (`{tail}` dropped) turns
 test_a_failed_pixal3d_batch_stops_the_row_with_its_logs_end red.
 """
@@ -138,6 +140,28 @@ def test_the_model_check_holds_a_prop_s_proportions_whichever_way_round_the_fini
         trimesh.creation.box(extents=extents).export(path)
         found = likeness_row.model_checks(path, size, f"p_{name}", False)["model_check"]
         assert found["pass"] is passes, (name, found)
+
+
+def test_a_solid_sheet_s_wall_is_read_through_its_face_and_a_hollow_or_one_sided_sheet_still_fails():
+    """A sheet (likeness_row.sheet) is read straight through its face, its rim band skipped: a solid 1 mm paper whose
+    rim is rounded (as the finish's remesh rounds it) passes, its wall 1 mm, though its normals read 0.6 mm (#36:
+    quarters' paper 0.6 mm, habitat's paper note 1.4 mm, each a solid sheet). A hollow 1 cm shell laid as that paper
+    and a one-sided plane still fail."""
+    tmp_path = pathlib.Path(tempfile.mkdtemp())  # a plain script: no pytest fixture
+    import trimesh
+    corners = [(x, z) for x in (-0.14, 0.14) for z in (-0.09, 0.09)]
+    rounded = trimesh.util.concatenate([trimesh.creation.icosphere(3, 0.01).apply_translation([x, 0, z])
+                                        for x, z in corners]).convex_hull
+    inner = trimesh.creation.box([0.29, 0.008, 0.19])
+    inner.invert()
+    hollow = trimesh.util.concatenate([trimesh.creation.box([0.3, 0.01, 0.2]), inner])
+    plane = trimesh.Trimesh([[0, 0, 0], [0.3, 0, 0], [0.3, 0, 0.2], [0, 0, 0.2]], [[0, 2, 1], [0, 3, 2]])
+    for name, mesh, passes in (("rounded", rounded, True), ("hollow", hollow, False), ("plane", plane, False)):
+        path = tmp_path / f"{name}.glb"
+        mesh.export(path)
+        found = likeness_row.model_checks(path, [0.3, 0.2, 0.001], "p_paper", False)["model_check"]
+        assert found.get("sheet") and found["pass"] is passes, (name, found)
+    shutil.rmtree(tmp_path)
 
 
 def test_the_likeness_pairs_are_read_from_the_stored_output():
