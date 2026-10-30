@@ -267,3 +267,15 @@ def constants_first_solved(outer, untold=0.1):
                                          jac=lambda values: problem.jacobian(whole(values))[:, kept],
                                          bounds=(low[kept], high[kept]), xtol=1e-15, ftol=1e-15, gtol=1e-15)
     return whole(found.x), kept
+
+
+def held_dropped_jacobian(inner, held):
+    """The toy's implicit Jacobian with the `held` entries of `inner` dropped from the pose (one frame of the rest)."""
+    def put(point):
+        whole = inner.copy()
+        whole[~held] = point
+        return whole
+
+    return _adjoint.implicit_jacobian(lambda point, outer: residuals(put(point), outer),
+                                      lambda point, outer: gradient(put(point), outer)[~held], inner[~held], OUTER,
+                                      1, FRAMES * POSE - int(held.sum()), (1e-5, 1e-5), 1e-8)
