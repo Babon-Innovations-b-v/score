@@ -139,6 +139,9 @@ before that.
   errors), the measures on a toy body (`tests/card_body.py`, its check there too), level 2's two checks in `tests/card_level2.py`; it needs Newton's Python and a CUDA card, else prints `skipped`. About 20 s.
 - `_level2_card.CardKinematics.lay` / `frames(qpos, body_pos, site_pos)` (2026-10-30): each world its own row of
   constants (worlds x n x 3), so one card model holds every set's sampled frames (level 2 across sets' first
-  piece); on the toy, 3 sets equal each set alone bit for bit (test). Not yet used: the sets' level 2 solves still
-  each run their own scipy least_squares; the lockstep driver (one card call a round for every set still running)
-  is the next piece.
+  piece); on the toy, 3 sets equal each set alone bit for bit (test). `_lockstep.py` (`Lockstep`, `run`, 2026-10-30): every
+  set of one body runs its own `staged` (own `Fitting`, same cold start and tolerances) in its own thread, and each
+  round of exact Jacobians is ONE `frames` call over every running set's worlds (sets x frames); a finished set drops
+  out. On the toy, 3 sets equal each alone bit for bit, same evaluations (test; red when a set gets set 0's worlds).
+  The Jacobian assembly is still per set. Not yet wired into `evaluation._card_sets` / `_card_batch.body_run`, not
+  yet timed on a real body.
