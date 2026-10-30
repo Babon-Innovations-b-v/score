@@ -504,16 +504,13 @@ USD_LIMIT = 900  # seconds: about a second a place measured; a stage of millions
 
 
 def copies_swept():
-    """Every frozen copy no run needs removed (`python -m score.conductor clean-frozen`, score/conductor/disk.py;
-    2026-10-26: the conductor's disk filled with the copies of ended runs); its summary line. One it cannot tell
-    about, or a failure, is said in the pass's words, and the pass goes on. Then, with no run live, the makes left in
-    the store cache's making/ (`clean-cache --making-only`: a make killed before it could remove its own), and the
-    kept jobs no current key asks for (`clean-kept`)."""
-    said = []
-    for command in (["clean-frozen"], ["clean-cache", "--making-only"], ["clean-kept"]):
-        done = step_run([sys.executable, "-m", "score.conductor", *command])
-        said += (done.stdout.strip().splitlines() or [f"{command[0]} wrote nothing, exit {done.returncode}"])[-1:]
-    return "; ".join(said)
+    """The data disk's sweep (`python -m score.conductor sweep`, score/conductor/disk.py): every pass the frozen copies
+    no run needs (2026-10-26: the conductor's disk filled with the copies of ended runs), the makes left in the store
+    cache's making/ and the kept jobs no current key asks for; on a conductor under the warning line every step
+    (2026-10-30, the owner: "this should be routine"); its summary line. A failure is said in the pass's words, and the
+    pass goes on. Run first in the pass: a pass refused later must not leave the disk full."""
+    done = step_run([sys.executable, "-m", "score.conductor", "sweep"])
+    return (done.stdout.strip().splitlines() or [f"sweep wrote nothing, exit {done.returncode}"])[-1]
 
 
 def usd_sweep(limit=USD_LIMIT):
@@ -714,11 +711,12 @@ def sync_pass(remote, source, chosen=None):
     designs reach the cockpit while agents push (owner 2026-10-21, "my concepts still not back"): prepare's and the
     price's records name the commit they were made on, so the cockpit shows those figures stale and Buy waits."""
     free_only_followed()
+    copies = copies_swept()
     chosen = chosen or guard.backend()
     with pricing_now():  # the listener judges a Buy by its basket's commit alone meanwhile (buy_waits)
         refused = tree_refusal(settings.SCORE_REPO)
         if refused:
-            return refused_words(refused)
+            return refused_words(f"{refused}; {copies}")
         started = head(settings.SCORE_REPO)
         swept = library_sweep()
         readings = readings_fixed(source.store_root)  # before the parts, light and plans: each reads its rows
@@ -730,15 +728,14 @@ def sync_pass(remote, source, chosen=None):
         demos = library_demos()
         priced, failed = runner_price(settings.SCORE_REPO, source.world.name)
         if failed:
-            return refused_words(f"{failed}; {swept}; {readings}; {parts}; {lights}; {gaps}; {planned}; {prepared}; "
-                                 f"{benched}; {pictured}; {demos}")
+            return refused_words(f"{failed}; {copies}; {swept}; {readings}; {parts}; {lights}; {gaps}; {planned}; "
+                                 f"{prepared}; {benched}; {pictured}; {demos}")
         basket = basket_made(chosen)  # after prepare (its benchmarks) and the price, before the export carries it
         now = head(settings.SCORE_REPO)
         pushed = pushed_words(remote, source, chosen) + ("" if now == started else (
             f" (the checkout moved from {str(started)[:8]} to {str(now)[:8]} during the pass: its remake and price "
             "show as stale, Buy waits for the next pass)"))
     tidy = checkouts_tidied(chosen)
-    copies = copies_swept()
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
     usd = usd_sweep()  # outside the pricing lock: nothing priced reads it; its findings export with the next pass

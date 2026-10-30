@@ -11,6 +11,8 @@
     python -m score.conductor relink-pixal       # disk.relink_pixal: work/pixal's stored files made links, one line
     python -m score.conductor score-lib status|pull  # library_checkout: score_lib's checkout against origin, one line
     python -m score.conductor offload-pixal      # disk.offload_pixal: takes into the library, freed once read back
+    python -m score.conductor store-gc [--dry]   # disk.store_gc: with no run live, the blobs nothing names removed
+    python -m score.conductor sweep [--force]    # disk.sweep: the routine steps, every step under the warning line
 """
 import argparse
 import json
@@ -34,6 +36,9 @@ def main(argv=None):
     commands.add_parser("relink-pixal")
     commands.add_parser("score-lib").add_argument("action", choices=("status", "pull"))
     commands.add_parser("offload-pixal")
+    commands.add_parser("store-gc").add_argument("--dry", action="store_true", help="count only, remove nothing")
+    commands.add_parser("sweep").add_argument("--force", action="store_true",
+                                              help="every step, even above the warning line")
     options = parser.parse_args(argv)
     conductor.apply_free_only()
     if options.command == "health":
@@ -60,6 +65,10 @@ def main(argv=None):
         score_lib(options.action)
     elif options.command == "offload-pixal":
         offload_pixal()
+    elif options.command == "store-gc":
+        store_gc(options.dry)
+    elif options.command == "sweep":
+        sweep(options.force)
     elif options.command == "size":
         from score.conductor import size
         size.tick()
@@ -164,6 +173,34 @@ def offload_pixal():
     kept = ", ".join(f"{len(takes)} {why}" for why, takes in sorted(done["kept"].items())) or "none"
     print(f"offload-pixal: freed {done['freed']} takes, {done['freed_gb']} GB; kept: {kept}; "
           f"{disk.free_gb():.1f} GB free", flush=True)
+
+
+def store_gc(dry):
+    """disk.store_gc in one summary line: blobs removed (or counted with `dry`), GB, blobs kept and why; exit 1 when
+    refused."""
+    from score.conductor import disk
+    try:
+        done = disk.store_gc(dry=dry, say=lambda line: None)
+    except disk.Unprovable as why:
+        done = {"refused": str(why)}
+    if done["refused"]:
+        print(f"store-gc: refused, nothing removed: {done['refused']}", flush=True)
+        sys.exit(1)
+    kept = ", ".join(f"{count} {why}" for why, count in sorted(done["kept"].items())) or "none"
+    print(f"store-gc: {'would remove' if dry else 'removed'} {done['removed']} blobs nothing names, "
+          f"{done['freed_gb']} GB; kept: {kept}; {disk.free_gb():.1f} GB free", flush=True)
+
+
+def sweep(force):
+    """disk.sweep: a line a step, its summary line last (what it freed, and the bigger volume when it could not reach
+    the floor); exit 1 when it is still under the floor."""
+    from score.conductor import disk
+    done = disk.sweep(force=force, say=lambda line: print(line, flush=True))
+    short = f"; still under the {disk.FLOOR_GB} GB floor: filled by {done['fills']}; needs {done['bigger']}" \
+        if done["bigger"] else ""
+    print(f"sweep: {'every step' if done['escalated'] else 'routine'}; freed {done['freed_gb']} GB, "
+          f"{done['free_after_gb']} GB free{short}", flush=True)
+    sys.exit(1 if done["bigger"] else 0)
 
 
 if __name__ == "__main__":
