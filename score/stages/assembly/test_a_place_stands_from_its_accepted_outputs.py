@@ -252,6 +252,29 @@ def test_a_row_on_a_wall_or_ceiling_row_is_judged_mounted_there():
                      "suit": None}, found
 
 
+def test_a_row_the_record_hangs_within_its_holder_is_judged_hanging():
+    """Round 32's docking airlock: its spacesuits, laid within their lockers at the plan's 0.1 m base, were judged as
+    standing on the lockers' insides and leaned 12 degrees. A row whose every object the scene record lays within its
+    holder off the holder's foot is given `hanging` (judged by touching: one touching nothing still hangs free); one
+    within at its holder's foot, one of a row with another object laid otherwise, or a row naming its own support,
+    keeps what the triage gives it.
+    Break: score/stages/assembly/__init__.py: `float(entry["at"][1]) > float(holder["at"][1])` -> `True`
+    Break: score/stages/assembly/__init__.py: `if all(hung)}` -> `if any(hung)}`"""
+    inventory = {"rows": [{"id": "locker", "part": "object"}, {"id": "suit", "anchor": "on:locker"},
+                          {"id": "crate", "anchor": "on:locker"}, {"id": "box", "anchor": "on:locker"},
+                          {"id": "fixed_suit", "anchor": "on:locker", "support": "fixed"}]}
+
+    def laid(name, row, height, how=None):
+        return {"name": name, "row": row, "at": [0.0, height, 0.0],
+                **({"on": {"how": how, "holder": ["locker_1"]}} if how else {})}
+    record = {"objects": [laid("locker_1", "locker", 0.0), laid("suit_1", "suit", 0.1, "within"),
+                          laid("suit_2", "suit", 0.1, "within"), laid("crate_1", "crate", 0.0, "within"),
+                          laid("box_1", "box", 0.1, "within"), laid("box_2", "box", 0.1, "face"),
+                          laid("fixed_suit_1", "fixed_suit", 0.1, "within")]}
+    found = {row["id"]: row.get("support") for row in assembly.resting_rows(inventory, record)["rows"]}
+    assert found == {"locker": None, "suit": "hanging", "crate": None, "box": None, "fixed_suit": "fixed"}, found
+
+
 def test_the_declared_inventory_folder_is_the_one_earth_seed_lays_from(tmp_path):
     """Fault (Buy of 2026-10-24): the assembly declared {data}/inventory while every designed seed is laid from
     {home}/design/inventory and records that full path, so no resting gate was judged and every drop run raised after
