@@ -41,7 +41,7 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   site weighs sqrt(goal * trust / sum), an end's trust end weight times the landmarks' mean (`fit.fitting`); checked on
   the toy against hand-computed weights and a doubled goal (2026-10-30). The outer rows are still the sites', not
   `tuning.case_residuals` (gap 2); its reducers are in `__init__` (2026-10-30): `distance_rows` (per-frame |d| and
-  d|d|), `median_row` (the middle frame as a fixed mask, the two middles' mean when even, as np.median), `rms_row`
+  d|d|), `rms_row`
   (mean(v dv) / rms, the skin's `depth_mm`), checked against differences on a toy. `case_rows` (2026-10-30) assembles one case's rows (every row a root mean square since B4g, 2026-10-30: joints and turns over their frames, as `case_residuals` reads m.json's "per joint rms mm" / "per group rms deg"; the median's middle frames swapped under a step in 23 of 36 measured cases, so level 1 tunes the RMS and m.json still reports the median; `median_row` is now used by no row)
   and derivative rows in `tuning.case_residuals`' order and scale (JOINT_SHARE, SCALES, sqrt(share / count), mm) from
   per-frame joint differences, turn errors and skin depths with their rows; equals central differences of

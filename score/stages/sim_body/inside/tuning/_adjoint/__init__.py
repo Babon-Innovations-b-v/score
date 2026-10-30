@@ -201,15 +201,6 @@ def stacked_jacobian(bodies, outer, prior, steps, tolerance):
     return np.concatenate(blocks + [by_columns(prior, outer, steps[1])])
 
 
-def median_row(values, rows):
-    """A median's value and derivative row from per-frame `values` and their derivative `rows` (frames, unknowns): the
-    middle frame picked as a fixed mask (the mean of the two middles when the count is even, as np.median), piecewise
-    exact where no two frames swap order."""
-    order = np.argsort(values, kind="stable")
-    middles = order[[(len(order) - 1) // 2, len(order) // 2]]
-    return float(np.mean(np.asarray(values)[middles])), np.mean(np.asarray(rows)[middles], axis=0)
-
-
 def rms_row(values, rows, point_frames=None, frames=None):
     """A root mean square's value and derivative row from per-point `values` and their derivative `rows` (points,
     unknowns): d sqrt(mean v^2) = mean(v dv) / rms, a zero row where every value is zero. With `point_frames` and
