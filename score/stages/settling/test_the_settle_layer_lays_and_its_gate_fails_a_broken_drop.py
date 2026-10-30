@@ -19,6 +19,8 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   pose["before"]` made `rest = pose["before"]` (the drop's motion not applied).
 - the_laid_stage_keeps_each_object_where_it_was_laid: laid_stage's copy dropped (`Usd.Stage.Open(str(root))`: the
   poses read back through the settle layer laid over it).
+- a_row_the_reading_gave_no_anchor_reads_as_none: with_anchors' `row.get("anchor") or ""` made `row.get("anchor")`
+  (held_on_loose meets None).
 - a_cloud_drop_runs_on_the_trials_card_in_its_python_once (tools/usd/drop.py): simulate's `machine.run(..., env=ENV)`
   without `env=ENV` (the drop sent to the card's Blender).
 
@@ -252,7 +254,27 @@ def the_laid_stage_keeps_each_object_where_it_was_laid():
         return []
 
 
-CHECKS = (the_laid_stage_keeps_each_object_where_it_was_laid, a_cloud_drop_runs_on_the_trials_card_in_its_python_once, the_layer_lays_each_object_at_its_rest,
+def a_row_the_reading_gave_no_anchor_reads_as_none():
+    """A row whose reading wrote `"anchor": null` (settle@habitat, 2026-10-30) reads as no anchor, so the drop's
+    held-on-loose step still finds the tray on its dropped shelf; a written anchor is kept."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        path = resting_test.laid_place(folder, [("shelf", "box", (0, 0, 0)), ("tray", "box", (0, 1, 0)),
+                                                ("lamp", "box", (3, 1, 0))],
+                                       [("shelf", "floor"), ("tray", "on:shelf"), ("lamp", "wall")])
+        inventory = json.loads((folder / "inventory.json").read_text())
+        for row in inventory["rows"]:
+            if row["id"] == "lamp":
+                row["anchor"] = None
+        inventory = settle.with_anchors(inventory)
+        stage = Usd.Stage.Open(str(path))
+        import settle as method  # tools/usd/settle.py, the drop job's method
+        held = method.held_on_loose(stage, PLACE, inventory, method.loose_objects(stage, PLACE, inventory))
+        return [] if held == ["tray_1"] else [f"the drop leaves out {held}, not the tray alone"]
+
+
+CHECKS = (a_row_the_reading_gave_no_anchor_reads_as_none, the_laid_stage_keeps_each_object_where_it_was_laid,a_cloud_drop_runs_on_the_trials_card_in_its_python_once, the_layer_lays_each_object_at_its_rest,
           the_drop_gate_fails_a_broken_drop_and_names_what_was_kept,
           only_what_lies_on_the_object_resting_worse_is_kept_with_it,
           a_flush_pose_resting_worse_falls_back_to_the_drops_rest,
