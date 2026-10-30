@@ -318,6 +318,30 @@ def test_a_stair_the_plan_writer_left_unplaced_stands_at_the_plan_s_stair():
     assert stairs["how"] == "floor" and stairs["spot"] == [4.0, 2.5] and stairs["way"] == [0.0, 1.0], stairs
 
 
+def test_a_ramp_runs_up_to_the_nearest_raised_level_s_edge():
+    """Airlock (settle@airlock, 2026-10-30): its ramp's plan item ended 0.42 m short of its porch deck (0.2 m up), its
+    long side along the deck's edge, so the record laid it beside the deck, its end in the deck's slab. A ramp row on
+    the ground climbs to the nearest raised level: its 2 m long side run straight up to that level's nearest edge
+    (x 9.889, the way up east, into the level), its high end on the edge, its middle 1 m short of it at the item's y;
+    a bench beside the same deck, no ramp, gets no relation, and with no raised level the ramp gets none either.
+    Break: score/review/holders/__init__.py: `way = way if way @ (inner - start) > 0 else -way` -> `... < 0 ...`
+    Break: score/review/holders/__init__.py: `None) or up_to_level(item, row, plan)` -> `None)`"""
+    rows = [{"id": "ramp", "noun": "ramp", "anchor": "ground", "size": [1.2, 2.0, 0.2]},
+            {"id": "bench", "noun": "bench", "anchor": "ground", "size": [1.2, 0.4, 0.4]}]
+    items = [["RAMP 1", 8.267, 10.904, 1.2, 2.0, None, "item"], ["BENCH 1", 8.0, 9.0, 1.2, 0.4, None, "item"]]
+    tied = {"RAMP 1": ["ramp"], "BENCH 1": ["bench"]}
+    levels = [{"name": "the floor", "height": 0.0, "points": [[0.0, 0.0], [12.0, 0.0], [12.0, 12.0], [0.0, 12.0]]},
+              {"name": "the porch deck", "height": 0.2,
+               "points": [[9.889, 8.625], [15.298, 8.625], [15.298, 14.74], [9.889, 14.74]]}]
+    found = by_row(holders.relations(plan_of(items, tied, levels=levels), {"rows": rows, "picture": PICTURE}))
+    assert sorted(found) == ["ramp"], found
+    ramp = found["ramp"]
+    assert ramp["how"] == "ramp" and ramp["way"] == [1.0, 0.0] and ramp["height"] == 0.2, ramp
+    assert ramp["spot"] == [8.889, 11.904] and ramp["edge"] == [[9.889, 14.74], [9.889, 8.625]], ramp
+    flat = holders.relations(plan_of(items, tied, levels=levels[:1]), {"rows": rows, "picture": PICTURE})
+    assert flat["relations"] == [], flat
+
+
 def test_a_wall_lamp_stands_on_its_wall_s_room_side():
     """A lamp on the left wall (a structure row, part wall) the plan writer left on the walls item stands against the
     longest wall's middle, on the side of its line toward the plan's middle: walking it from (0, 0) to (0, 12) (y

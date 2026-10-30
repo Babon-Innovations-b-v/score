@@ -827,6 +827,94 @@ def test_the_held_gate_names_two_objects_overlapping_on_one_face(tmp_path):
     assert held_apart.overlapping(record, apart) == []
 
 
+def a_built_box(stage, path, low, high):
+    """An Xform at `path` (one transform op) holding a box mesh from `low` to `high`."""
+    from pxr import Gf, UsdGeom
+    UsdGeom.Xform.Define(stage, path).AddTransformOp().Set(Gf.Matrix4d(1.0))
+    mesh = UsdGeom.Mesh.Define(stage, f"{path}/geo")
+    mesh.CreatePointsAttr([(x, y, z) for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])])
+    mesh.CreateExtentAttr([low, high])
+
+
+def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
+    """settle@airlock (2026-10-30): its ramp lay beside its porch deck, its end 0.14 m in the deck's slab, two sandbags
+    in the slab and its porch post 0.14 m in wall_3, laid at the plan's estimates; the drop sank and tilted them. The
+    assembly lays a ramp up its way onto its deck (the built static past its level's edge whose top is nearest the
+    level's): its 2 m plank pitched asin(0.158 / 2) = 4.53 degrees from the ground to the deck's 0.158 m top, its high
+    end's foot on the deck's near side at x 3.19. A thing nothing holds that starts inside a deck or wall is moved the
+    least way out: a sandbag 0.158 m into the deck's top up onto it, the post 0.141 m into the wall back to its face
+    at z 6.699, a locker reaching up into a loft deck out past its side (never down under the floor), a 4.2 m cable
+    bundle across a 0.14 m wall 0.34 m past the wall's near side (tube's, 2026-10-30), never more than 1 m (a ship
+    2.5 m from clear of a wall is left as laid, and named); a lamp in the
+    roof's box, a crate in a slanted wall's 5 m box and a stair reaching into its loft deck are left (a roof's and a
+    slanted wall's box hold the room, a stair climbs into its level). The held gate
+    fails one left inside a deck by name and its depth, never a door the record lays in its opening.
+    Break: score/stages/assembly/fitting.py: `return pivot, np.cross(way, [0.0, 1.0, 0.0]),` -> `return pivot,
+        np.cross([0.0, 1.0, 0.0], way),`
+    Break: score/stages/assembly/fitting.py: `return fits + moved_out(stage, place, [entry` -> `return fits + ([entry`
+    Break: score/stages/assembly/fitting.py: `and not climbs(entry)])` (moved_out's) -> `])`
+    Break: score/stages/assembly/fitting.py: `moves = np.where(ahead <= back, ahead, -back)` -> `moves = ahead`
+    Break: score/stages/assembly/fitting.py: `return [(name, box) for name, box in built if name.split("_")[0] in
+        STATICS]` -> `return built`
+    Break: score/stages/assembly/fitting.py: `if not held_in(on) and not climbs(entry):` -> `if True:`
+    Break: score/stages/assembly/fitting.py: `back[1] = np.inf` -> `pass`
+    Break: score/stages/assembly/fitting.py: `if not left or moved > OUT_MOST:` -> `if not left:`
+    Break: score/stages/assembly/fitting.py: `<= WALL_THICKEST)]` -> `<= 99.0)]`
+    Break: score/stages/assembly/fitting.py: `if depths(low, high, box).min() > HELD_MOST]` -> `if False]`"""
+    import math
+    from pxr import Usd
+    from score.stages.assembly import fitting
+    stage = Usd.Stage.CreateInMemory()
+    for name, low, high in (("deck_2", (3.19, -0.042, 2.0), (8.9, 0.158, 8.0)),
+                            ("wall_3", (0.0, -0.242, 6.699), (7.0, 3.0, 6.999)),
+                            ("roof_1", (-9.0, 2.8, -9.0), (9.0, 3.4, 9.0)),
+                            ("deck_3", (10.0, 2.758, 10.0), (16.0, 2.958, 16.0)),
+                            ("wall_9", (20.0, 0.0, 20.0), (25.0, 3.0, 25.0)),
+                            ("wall_5", (30.0, -0.242, 30.0), (30.14, 3.0, 33.0))):
+        a_built_box(stage, f"/{TOY}/Structure/{name}", low, high)
+    for name, low, high in (("ramp_1", (1.31, 0.0, 4.75), (3.31, 0.209, 5.95)),
+                            ("sandbags_1", (2.9, 0.0, 4.0), (3.5, 0.2, 4.4)),
+                            ("porch_post_1", (0.34, 0.0, 6.36), (1.04, 2.5, 6.84)),
+                            ("lamp_1", (0.0, 2.75, 0.0), (0.5, 2.9, 0.5)),
+                            ("stairs_1", (11.0, 0.0, 8.0), (12.0, 2.997, 10.5)),
+                            ("locker_1", (15.5, 0.0, 12.0), (16.3, 2.9, 12.6)),
+                            ("crate_2", (22.0, 0.0, 22.0), (22.5, 0.5, 22.5)),
+                            ("cable_bundles_1", (29.8, 0.0, 31.0), (34.0, 2.0, 31.5)),
+                            ("spaceship_1", (27.0, 0.0, 30.5), (33.0, 2.0, 32.5))):
+        a_built_box(stage, f"/{TOY}/Objects/{name}", low, high)
+    ramp = {"how": "ramp", "edge": [[3.34, 8.19], [3.34, 2.08]], "up": [1.0, 0.0], "top": 0.2, "why": "up to the deck"}
+    entries = [{"name": "ramp_1", "row": "ramp", "on": ramp},
+               *[{"name": name, "row": name[:-2]} for name in ("sandbags_1", "porch_post_1", "lamp_1", "stairs_1",
+                                                                "locker_1", "crate_2", "cable_bundles_1", "spaceship_1")]]
+    fits = {fit["name"]: fit for fit in fitting.fitted(stage, TOY, entries, {entry["name"] for entry in entries})}
+    assert sorted(fits) == ["cable_bundles_1", "locker_1", "porch_post_1", "ramp_1", "sandbags_1"], fits
+    boxes = {name: fitting.world_box(stage, f"/{TOY}/Objects/{name}") for name in fits}
+    low, high = boxes["ramp_1"]
+    pitch = math.asin(0.158 / 2.0)
+    assert abs(fits["ramp_1"]["pitch"] - round(math.degrees(pitch), 2)) < 1e-9, fits["ramp_1"]
+    assert np.allclose([high[0], low[1], high[1]], [3.19, 0.0, 0.158 + 0.209 * math.cos(pitch)], atol=1e-4), boxes
+    assert abs(boxes["sandbags_1"][0][1] - 0.158) < 1e-6 and abs(boxes["porch_post_1"][1][2] - 6.699) < 1e-6, boxes
+    assert np.allclose(boxes["locker_1"][0], (16.0, 0.0, 12.0)), boxes  # out across, never sunk under the floor
+    assert abs(boxes["cable_bundles_1"][0][0] - 30.14) < 1e-6, boxes  # clear past the thin wall's near side
+    boxes.update({name: fitting.world_box(stage, f"/{TOY}/Objects/{name}") for name in ("stairs_1", "crate_2")})
+    ship = fitting.world_box(stage, f"/{TOY}/Objects/spaceship_1")
+    assert np.allclose(ship[0], (27.0, 0.0, 30.5)), ship  # 2.5 m from clear of the wall: left as laid, named
+    walls = [{"name": name, "low": list(found[0]), "high": list(found[1])}
+             for name, found in fitting.walls(stage, TOY)]
+    laid = {"walls": walls, "objects": [{"name": name, "low": list(box[0]), "high": list(box[1])}
+                                        for name, box in boxes.items()]}
+    assert fitting.held_faults({"objects": entries}, laid) == [], fitting.held_faults({"objects": entries}, laid)
+    laid["objects"].append({"name": "spaceship_1", "low": list(ship[0]), "high": list(ship[1])})
+    assert fitting.held_faults({"objects": entries}, laid) == [
+        ("spaceship_1", "laid 0.14 m inside wall_5, nothing holding it there", 0.14)], laid
+    door = {"how": "in", "middle": [0.5, 0.0, 6.849], "along": [1.0, 0.0], "wide": 1.0, "tall": 2.0, "why": "opening"}
+    record = {"objects": [{"name": "crate_1"}, {"name": "door_1", "on": door, "fills": True}]}
+    laid = {"walls": walls, "objects": [{"name": "crate_1", "low": [4.0, 0.0, 3.0], "high": [4.5, 0.4, 3.5]},
+                                        {"name": "door_1", "low": [0.0, 0.0, 6.799], "high": [1.0, 2.0, 6.899]}]}
+    assert fitting.held_faults(record, laid) == [
+        ("crate_1", "laid 0.16 m inside deck_2, nothing holding it there", 0.158)], fitting.held_faults(record, laid)
+
+
 def test_a_door_goes_in_its_opening_narrowed_to_fit():
     """A 1.4 x 0.1 x 2.4 m door laid off its wall goes in its 1.2 m wide, 2.1 m tall opening: shrunk to 1.2 / 1.4,
     its foot's middle on the opening's middle at its sill.

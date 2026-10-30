@@ -44,7 +44,8 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   it at its built size (`assembly/fitting.py`); an item whose holder item lays no object keeps no `on` (`unheld`),
   and a holder the record lays as structure (a tube's arched rib) is named there (`holder scope`). A wall row past
   the plan's edge stands with its face on the edge's line, its body out past it, facing in (`edge`: a street's
-  facade); a stair row at the plan's stair, a railing along its sides. Each object is marked for the assembly's
+  facade); a stair row at the plan's stair, a railing along its sides; a ramp up its way to its raised level's edge
+  (`ramp`: the edge, the way up and the level's top, which the assembly pitches it onto). Each object is marked for the assembly's
   `held` gate: `fills` (a door or window), `unheld` (its relations name nothing holding it), `unplaced` (left on the
   walls item, nothing places it: it would stand at the room's middle).
 - **Far objects** (`far.py`; the owner, 2026-10-26: the skyline is the environment's own scenes where its plan puts

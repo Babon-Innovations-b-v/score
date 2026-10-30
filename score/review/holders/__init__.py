@@ -28,6 +28,9 @@ Each plan item of a row that stands on, against or in something gets one relatio
            its plan spot): a row anchored `wall`, or on a structure row that is a wall; an item the plan writer did not
            place (the walls item) stands where the concept's box projects onto the plan (plan_checks.projection), else
            at the longest wall's middle
+    ramp   a ramp row on the floor where the plan draws a raised level (airlock's porch deck): up to the nearest such
+           level's nearest edge (`edge`, its two plan points, and `height`), its long side run straight up to it
+           (`way`), its high end on the edge's line and its middle at `spot` (up_to_level)
     floor / ceiling  on the place's own floor or under its roof, nothing to lay against; one the plan writer left on
            the walls item at its `spot` (a stair row at the plan's stair along its way up, else where its concept box
            projects), a thing on a staircase along the plan's stairs' sides (`pieces`)
@@ -734,6 +737,39 @@ def floor_spot(item, row, plan, inventory, taken_stairs):
     return {"spot": [round(float(value), 3) for value in spot], "why": "where its concept box projects onto the plan"}
 
 
+RAMP_WORDS = {"ramp", "ramps"}
+
+
+def up_to_level(item, row, plan):
+    """A ramp row's relation to the raised level it climbs to (a plan level over the floor, the nearest to its item:
+    airlock's porch deck): its long side (the row's size, else its item's) run straight up to that level's nearest
+    edge, its high end on the edge's line, its spot its middle; None for any other row, or with no raised level."""
+    if not kind_words(row) & RAMP_WORDS or item[0] == plan_checks.WALLS_ITEM:
+        return None
+    here = middle(item)
+    edges = [(off_line(here, {"from": start, "to": end})[0], level, numpy.asarray(start, float),
+              numpy.asarray(end, float), numpy.asarray(level["points"], float).mean(axis=0))
+             for level in plan.get("levels") or [] if float(level.get("height") or 0.0) > 0.0
+             and len(level.get("points") or []) >= 3
+             for start, end in zip(level["points"], [*level["points"][1:], level["points"][0]])]
+    if not edges:
+        return None
+    _, level, start, end, inner = min(edges, key=lambda edge: edge[0])
+    size = row.get("size") if isinstance(row.get("size"), list) and len(row["size"]) == 3 else item[3:5]
+    length, wide = max(float(size[0]), float(size[1])), min(float(size[0]), float(size[1]))
+    run = (end - start) / max(float(numpy.linalg.norm(end - start)), 1e-9)
+    way = numpy.array([-run[1], run[0]])
+    way = way if way @ (inner - start) > 0 else -way  # into the level
+    reach = float(numpy.linalg.norm(end - start))
+    share = float(numpy.clip((here - start) @ run, min(wide / 2, reach / 2), max(reach - wide / 2, reach / 2)))
+    spot = start + run * share - way * length / 2
+    height = float(level["height"])
+    return {"how": "ramp", "spot": [round(float(value), 3) for value in spot],
+            "way": [round(float(value), 6) + 0.0 for value in way],
+            "edge": [[round(float(value), 3) for value in point] for point in (start, end)], "height": height,
+            "why": f"up to the plan's level {level.get('name', '')!r} at {height:g} m, its high end on its edge"}
+
+
 def stair_sides(plan, count):
     """[{spot, way}] of `count` pieces along the plan's stairs' sides (a railing on a staircase): each stair's two
     sides in turn, each spot the middle of a side, each way the stair's way up (0 east, 90 south)."""
@@ -827,7 +863,8 @@ def relations(plan, inventory, sha=None, kinds=None):
                 continue
             if (row.get("anchor") or "floor") in plan_checks.FLOOR_ANCHORS:
                 got = (at_edge(row, plan, inventory, turn) if item[0] == plan_checks.WALLS_ITEM else None) or (
-                    {"how": "floor", **spot} if (spot := floor_spot(item, row, plan, inventory, taken_stairs)) else None)
+                    {"how": "floor", **spot} if (spot := floor_spot(item, row, plan, inventory, taken_stairs)) else
+                    None) or up_to_level(item, row, plan)
                 if got:
                     found.append({"item": name, "row": row_id, **got})
                 continue

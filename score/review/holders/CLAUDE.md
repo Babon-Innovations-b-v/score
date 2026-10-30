@@ -18,7 +18,8 @@ ceiling) and how each is read.
   walls, kept inside its wall's ends); a window takes only a window opening, a door only a door's (camp's dome window
   stood in its door's swing, #36); each piece the scene record lays at an item its own opening (cockpit's four rear
   doors, #36); a wall row the plan writer left unplaced where the plan draws no wall stands past the plan's edge
-  (`at_edge`); a stair row at the plan's stair, a railing along its sides; things the concept shows on several holders
+  (`at_edge`); a stair row at the plan's stair, a railing along its sides; a ramp on the floor up to the nearest raised level's
+  edge (`up_to_level`: airlock's ramp to its porch deck); things the concept shows on several holders
   of one kind on the nearest (`seen_holders`). The assembly's `held` gate fails on any that comes back. A door that
   moves on a built model's face (its kind's motion rule, served) names the `recess` its holder model's bake cuts
   behind it (`recess_of`: as deep as its swing sweeps and widened on its hinge side by its thickness, or its thickness deep with its width and thickness of slide room); several on one item each get a spot their width, room and OPENING_ROOM apart (`spots`, `face_spots`: street's three restaurant doors, #36), the scene record laying each there; a static one sits flush. Different things on one face that meet at their built sizes, along it and in height, are spread along it in the order the plan draws them, OPENING_ROOM apart and inside its ends (`face_spread`, each moved one given `spots`, a moving door its recess there: street's window, stairwell entrance and shutters, #36); a face too short for them is named `crowded`, its things kept as drawn.
