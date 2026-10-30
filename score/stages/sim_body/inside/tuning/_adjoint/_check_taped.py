@@ -126,4 +126,17 @@ def copied_cost(moved):
 copied_differences = np.array([(copied_cost(copied_inner + step * np.eye(8)[axis])
                                 - copied_cost(copied_inner - step * np.eye(8)[axis])) / (2 * step) for axis in range(8)])
 gaps.append(np.abs(copied_taped - copied_differences).max() / np.abs(copied_differences).max())
+def outer_gap(taped_sites, inner, at):
+    """The outer gradient's largest gap to central differences of the cost over every outer unknown."""
+    def outer_cost(moved):
+        found = taped_sites.residuals(inner, moved)
+        return 0.5 * float(found @ found)
+    eye = np.eye(len(at))
+    differences = np.array([(outer_cost(at + step * eye[axis]) - outer_cost(at - step * eye[axis])) / (2 * step)
+                            for axis in range(len(at))])
+    taped_sites.outer_gradient(inner, at)
+    return np.abs(taped_sites.outer_gradient(inner, at) - differences).max() / np.abs(differences).max()
+gaps.append(outer_gap(ended, pose, np.concatenate([outer, landmarks, [end_weight, goal]])))
+gaps.append(outer_gap(copied, copied_inner, copied_outer))
+print("OUTER", gaps[-2:])
 print("GAP", max(gaps))

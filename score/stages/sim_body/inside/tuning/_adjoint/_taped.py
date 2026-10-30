@@ -170,7 +170,8 @@ its trusts), laid on every copy, so each copy's last `ends` sites are its ends a
         self.state = model.state(requires_grad=True)
         device = model.device
         self.links = wp.array(np.asarray(links, dtype=np.int32), dtype=wp.int32, device=device)
-        self.weights = wp.array(np.asarray(weights, dtype=np.float32), dtype=wp.float32, device=device)
+        self.weights = wp.array(np.asarray(weights, dtype=np.float32), dtype=wp.float32, device=device,
+                                requires_grad=True)
         self.targets = wp.array(np.asarray(targets, dtype=np.float32), dtype=wp.vec3, device=device)
         self.offsets = wp.zeros(len(links), dtype=wp.vec3, device=device, requires_grad=True)
         self.residual_rows = wp.zeros(len(links), dtype=wp.vec3, device=device, requires_grad=True)
@@ -229,6 +230,38 @@ its trusts), laid on every copy, so each copy's last `ends` sites are its ends a
         found = pose.grad.numpy().astype(np.float64)
         if self.constants is not None:
             found = np.concatenate([found, self.constants.gradient(self.offsets, self.model.joint_X_p)])
+        tape.zero()
+        return found
+
+    def _weighed_back(self, tail, weight_grad):
+        """d cost / d tail from d cost / d each site's weight (one copy's): `_weighed`'s Jacobian transposed."""
+        tail = np.asarray(tail, dtype=np.float64)
+        if self.ends is None:
+            return weight_grad
+        trusts, end_weight, goal = tail[:-2], tail[-2], tail[-1]
+        count = len(trusts)
+        mean = trusts.mean()
+        every = np.concatenate([trusts, np.full(self.ends, end_weight * mean)])
+        total = every.sum()
+        shares = 0.5 * weight_grad * np.sqrt(goal * every / total)
+        ends_share = shares[count:].sum()
+        total_back = -shares.sum() / total
+        found = shares[:count] / trusts + ends_share / (mean * count) + total_back * (1 + self.ends * end_weight / count)
+        return np.concatenate([found, [ends_share / end_weight + total_back * self.ends * mean,
+                                       shares.sum() / goal]])
+
+    def outer_gradient(self, inner, outer):
+        """d cost / d outer at (`inner`, `outer`) by the tape's backward pass: each site offset's grad summed over the
+        copies, then (`trusted`) the weights' grads through `_weighed`."""
+        tape = wp.Tape()
+        with tape:
+            self._evaluate(inner, outer)
+        tape.backward(self.cost)
+        sites = self.links.shape[0] // self.copies
+        found = self.offsets.grad.numpy().astype(np.float64).reshape(self.copies, sites * 3).sum(axis=0)
+        if self.trusted:
+            weight_grad = self.weights.grad.numpy().astype(np.float64).reshape(self.copies, sites).sum(axis=0)
+            found = np.concatenate([found, self._weighed_back(np.asarray(outer)[3 * sites:], weight_grad)])
         tape.zero()
         return found
 
