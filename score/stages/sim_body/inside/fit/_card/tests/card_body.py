@@ -89,5 +89,24 @@ def the_measures_equal_the_cpu_measure():
                                         atol=DEPTH_MM if key == "bones outside depth mm" else 1e-9)]
 
 
+def the_skins_posed_once_follow_each_clip():
+    """Clip 3 measured twice, then clip 5 (the same rig and segments, other worlds): each equals the CPU measure of
+    its own clip, the skin points posed once per clip (`_measure.POSED`) and read again by the second."""
+    from fit._card import _measure as card
+    twice = the_measures_equal_the_cpu_measure() + the_measures_equal_the_cpu_measure()
+    return twice + [f"seed 5: {line}" for line in _measured_against_cpu(clip(seed=5))] + ([] if len(card.POSED) == 2 else
+                                                                   [f"{len(card.POSED)} posed clips, not 2"])
+
+
+def _measured_against_cpu(played):
+    import numpy as np
+    from evaluation import _measure as cpu
+    from fit._card import _measure as card
+    slow, fast = cpu.measures(*played), card.measures(*played)
+    return [f"{key}: {fast[key]} against {slow[key]}" for key in fast
+            if not np.allclose(np.ravel(_values(fast[key])), np.ravel(_values(slow[key])), rtol=0,
+                               atol=DEPTH_MM if key == "bones outside depth mm" else 1e-9)]
+
+
 def _values(found):
     return [found[key] for key in sorted(found)] if isinstance(found, dict) else found

@@ -6,6 +6,8 @@ stay on the CPU. The frames' poses by MuJoCo's float64 kinematics (`Posed`), the
 kernel each in float64, the winding test Warp's mesh query on the card over every EVERY-th frame against the skin posed once per case
 (`Skins`: identical each evaluation); medians on the host from the per-frame arrays, as the CPU's `summary`.
 Newton's Python (mujoco, warp) and a CUDA card."""
+import hashlib
+
 import mujoco
 import numpy as np
 import warp
@@ -38,15 +40,35 @@ def _turn_errors(xmat: warp.array2d(dtype=warp.mat33d), bodies: warp.array(dtype
     out[frame, group] = warp.degrees(warp.acos(cosine))
 
 
+POSED = {}  # {`posed_key`: float32 skin points per skin frame}, a clip's own, shared by every nudged set
+
+
+def posed_key(rig, segments, worlds):
+    """What `skinned` reads: the rig's arrays, the segments and the clip's worlds (a set changes none of them)."""
+    digest = hashlib.sha256(np.ascontiguousarray(worlds, dtype=float).tobytes())
+    for key in ("names", "weights", "bind", "points"):
+        digest.update(key.encode() + np.ascontiguousarray(np.asarray(rig[key])).tobytes())
+    return digest.hexdigest(), tuple(segments)
+
+
+def posed_skins(rig, segments, worlds, frames):
+    """SOMA's skin points (float32) on each of `frames`, posed once per `posed_key` and read-only after."""
+    key = posed_key(rig, segments, worlds)
+    if key not in POSED:
+        POSED[key] = [skinned(rig, segments, worlds[frame]).astype(np.float32) for frame in frames]
+        for points in POSED[key]:
+            points.flags.writeable = False  # shared by later sets: a write in place would reach them
+    return POSED[key]
+
+
 class Skins:
-    """SOMA's skin posed on every EVERY-th frame of one case, each a Warp mesh on the card (posed once per case)."""
+    """SOMA's skin posed on every EVERY-th frame of one case, each a Warp mesh on the card (posed once per clip)."""
 
     def __init__(self, rig, segments, worlds):
         self.frames = np.arange(0, len(worlds), EVERY)
         faces = warp.array(np.asarray(rig["faces"], dtype=np.int32).ravel(), dtype=int, device=DEVICE)
-        self.meshes = [warp.Mesh(points=warp.array(skinned(rig, segments, worlds[frame]).astype(np.float32),
-                                                   dtype=warp.vec3, device=DEVICE), indices=faces)
-                       for frame in self.frames]
+        self.meshes = [warp.Mesh(points=warp.array(points, dtype=warp.vec3, device=DEVICE), indices=faces)
+                       for points in posed_skins(rig, segments, worlds, self.frames)]
         self.ids = warp.array(np.array([mesh.id for mesh in self.meshes], dtype=np.uint64), dtype=warp.uint64,
                               device=DEVICE)
 
