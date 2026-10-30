@@ -3005,8 +3005,10 @@ WEAR = (0.4, 0.3)
 
 @pytest.fixture
 def stand_in_library(monkeypatch):
+    import labels
     monkeypatch.setattr(bake_job, "specs_of", lambda library_name: {})
     monkeypatch.setattr(library, "wear_of", lambda place_id, *_: WEAR)
+    monkeypatch.setattr(labels, "finish_turn", lambda take: np.eye(3))  # no finish stood these takes
 
 
 def a_folder():
@@ -3172,6 +3174,50 @@ def test_the_width_rule_leaves_a_kept_row_as_its_row_says_and_a_person_keeps_its
         assert entry_for(lamp, (0.498, 0.868, 0.502)) == [0.4, 0.5, 0.4]  # kept: as its row says
         stool = dict(lamp, id="stool", name="stool", anchor="floor")
         assert entry_for(stool, (0.498, 0.868, 0.502)) == [0.287, 0.5, 0.4]  # not kept: the width rule's
+    finally:
+        shutil.rmtree(folder)
+
+
+def test_a_person_stands_in_his_raw_take_s_pose_at_his_own_width_and_a_people_line_look_is_one_by_its_take(
+        stand_in_library, monkeypatch):
+    """#36 (2026-10-31): likeness@people failed 3 of its 9 looks (pilot 0.465) and passed the rest by a hair, each
+    raw Pixal3D take 0.89 against its close-up: the finish's stand had turned each A-pose body a quarter round and a
+    few degrees leaned, and the bake, not knowing the people line's looks for people (their rows carry no route, their
+    hand-in no objects), squeezed his arms into the row's 0.5 m. A take whose surface data names it a person
+    (`kind`, as people_rows.py writes each look's) is one: the bake turns him back by the finish's own turn
+    (labels.finish_turn) into his raw take's pose, keeps his own width for his row's height there, and never stands
+    him square.
+    Break: bake_job.py `entry_of`: `base = person_turn(labelled) if person else measured_turn(...)` ->
+        `base = measured_turn(...)`
+    Break: bake_job.py `drawn_guard`: `if tumble.person(row or {}) or person_take(take, inputs):` ->
+        `if tumble.person(row or {}):`
+    Break: route_bake.py `stood_square`: `kept = tumble.PERSON if person else ...` -> `kept = ...`"""
+    import labels
+    import tumble
+    quarter, lean = np.array([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0]]), np.array(rolled(8))
+    stood = lean @ quarter  # the finish's turn: the raw take into the final frame
+    monkeypatch.setattr(labels, "finish_turn", lambda take: stood if take == "pilot-made-s1" else np.eye(3))
+    folder = a_folder()
+    try:
+        labelled = folder / "labelled" / "pilot-made-s1"
+        a_turned_take(labelled, stood, size=(0.6, 1.0, 0.3))  # an A-pose body 0.6 wide for his height, as stood
+        surfaces = written(folder, "surfaces", {"place": "people", "library": "people", "takes": {
+            "pilot-made-s1": {"place": "people", "kind": "person"}}, "bake": {
+            "models": {"pilot-made": "pilot-made-s1"}, "entries": {"pilot-made": {"size": [0.5, 1.8, 0.3],
+                                                                                  "faces": 5000, "foot": 0.0}}}})
+        line = written(folder, "inventory", {"place": "people", "rows": [{"id": "pilot-made", "prop": "pilot-made",
+                                                                          "box": [0, 0, 40, 100]}]})
+        rules = a_pose_world(folder / "rules", {})
+        inputs = {"surfaces": surfaces, "inventory people": line, "stance rules": rules["stance rules"],
+                  "resting rules": rules["resting rules"]}
+        _, (entry,) = place_line.bake_entries(inputs, {"pilot-made-s1": labelled})
+        base = np.array(entry["base"]).reshape(3, 3)
+        assert np.allclose(base, stood.T, atol=1e-6), base  # back in his raw take's pose
+        laid = route_bake.labelled_points(labelled) @ base.T
+        assert np.allclose(np.ptp(laid, axis=0), (0.6, 1.0, 0.3), atol=1e-6), laid
+        assert entry["size"] == [1.08, 1.8, 0.3], entry  # his own width for his height, never the row's 0.5 m
+        kept = route_bake.stood_square({"pilot-made": entry}, labelled, "pilot-made-s1", inputs, person=True)
+        assert kept["pilot-made"]["base"] == entry["base"] and kept["pilot-made"]["stood"]["kept"] == tumble.PERSON
     finally:
         shutil.rmtree(folder)
 
