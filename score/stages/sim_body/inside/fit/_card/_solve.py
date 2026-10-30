@@ -15,10 +15,12 @@ returns, so the cycle rule cannot stop one early. It also stops, as mink's frame
 moved its float64 residuals (the weighted errors) by under MOVED_DONE: a drift no objective sees, elv_angle and its
 follower cancelling at zero shoulder elevation (#70's arms_raise). A stopped row's step is zero from then on. A row still going at MOST_STEPS
 raises NotConverged, as mink's frames do (`../_frames.py`)."""
+import numpy as np
 import warp as wp
 
 from ._forward import Forward, frames
 from ._objective import wide_residuals
+from ._per_row import rowwise
 from ._project import project
 from ._step import damped_step
 
@@ -100,18 +102,22 @@ def _wide_residuals(optimizer, forward, joint_q, body_q, wide):
         wide_residuals(objective, body_q, start, optimizer.problem_idx, wide)
 
 
-def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STEPS):
+def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STEPS, set_places=None, row_set=None):
     """Every row's pose fitted from joint_q [rows, coords] (Newton's layout): (qpos [rows, coords] in MuJoCo's
     layout, steps [rows]). optimizer is the batch's IKOptimizerLM (Newton's IKSolver(...)._impl), seeds [rows,
-    coords] MuJoCo's layout (the frozen coordinates' values)."""
+    coords] MuJoCo's layout (the frozen coordinates' values). set_places [sets, joints, 7] and row_set [rows] (host
+    arrays) give each row its set's joint places (rows = set x frame); neither, the model's own."""
     device = joint_q.device
+    if set_places is not None:
+        rowwise(optimizer, wp.array(np.asarray(set_places, dtype=np.float32), dtype=wp.transform, device=device),
+                wp.array(np.asarray(row_set, dtype=np.int32), dtype=wp.int32, device=device))
     rows, coords = joint_q.shape
     current = wp.clone(joint_q)
     following = wp.empty_like(current)
     velocity = wp.zeros((rows, optimizer.model.joint_dof_count), dtype=wp.float32, device=device)
     qpos = wp.empty_like(current)
     history = wp.zeros((rows, 3), dtype=wp.float64, device=device)
-    forward = Forward(optimizer.model)
+    forward = Forward(optimizer.model, set_places, row_set)
     body_q = wp.empty((rows, forward.bodies), dtype=wp.transformd, device=device)
     wide = wp.zeros((rows, optimizer.n_residuals), dtype=wp.float64, device=device)
     before = wp.zeros_like(wide)
@@ -139,11 +145,11 @@ def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STE
     return qpos, steps
 
 
-def solved_in_chunks(optimizer_for, reduction, projection, joint_q, seeds, chunk_rows=CHUNK_ROWS):
+def solved_in_chunks(optimizer_for, reduction, projection, joint_q, seeds, chunk_rows=CHUNK_ROWS, set_places=None,
+                     row_set=None):
     """`solved` over joint_q's rows CHUNK_ROWS at a time: (qpos [rows, coords] in MuJoCo's layout, steps [rows]) as
     host arrays. optimizer_for(start, stop) gives the IKOptimizerLM for rows start:stop (one IKSolver a chunk: its
-    buffers are per row); joint_q and seeds are host arrays [rows, coords]."""
-    import numpy as np
+    buffers are per row); joint_q and seeds are host arrays [rows, coords]; set_places and row_set as `solved`'s."""
     found, steps = [], []
     for start in range(0, joint_q.shape[0], chunk_rows):
         stop = min(start + chunk_rows, joint_q.shape[0])
@@ -151,7 +157,8 @@ def solved_in_chunks(optimizer_for, reduction, projection, joint_q, seeds, chunk
         device = optimizer.model.device
         chunk = lambda values: wp.array(np.ascontiguousarray(values[start:stop], dtype=np.float32), dtype=wp.float32,
                                         device=device)
-        qpos, made = solved(optimizer, reduction, projection, chunk(joint_q), chunk(seeds))
+        qpos, made = solved(optimizer, reduction, projection, chunk(joint_q), chunk(seeds), set_places=set_places,
+                            row_set=None if row_set is None else np.asarray(row_set)[start:stop])
         found.append(qpos.numpy())
         steps.append(made.numpy())
     return np.concatenate(found), np.concatenate(steps)
