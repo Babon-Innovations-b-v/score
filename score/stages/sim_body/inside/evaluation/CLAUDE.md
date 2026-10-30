@@ -12,7 +12,8 @@ worker in `rest.json` with SOMA's template rig: `_case` moves `landmarks.CENTRES
 fit's end targets, the sizing's lengths and the joint measure read them) and reads the calibration table again at rest
 from them (`calibration._measure`), never from motion; the run dir holds that rig as `rig.npz`. `tuning.whole` calls it each evaluation; `level1.py <run dir> --python <Newton's Python>` is the thin
 command. The check bodies are scored every few iterations and at the end, never used to choose; `accepted` is the
-held-out rule (within 10 % of the tuning bodies).
+held-out rule (within 10 % of the tuning bodies). Each check after the first also goes to steps.jsonl as `tuning._paired.stepped` against the check before (per-case
+paired changes, tuning and check bodies apart, verdicts once the run dir has floor.json).
 
 - `_card_case.py <seeds root> ...` is `_case.py` with level 3 on the card (`fit._card._clip`, each frame seeded from the
   seeds root's angles.npz) and the card's measures (`fit._card._measure`); `_case.py` stays the reference and the runner's
