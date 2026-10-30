@@ -117,12 +117,42 @@ class _Couplings:
                           self.poly], outputs=[joint_q], device=joint_q.device)
 
 
+class _Constants:
+    """Level 2's constants for one body: each free site's move off its landmark (`free_sites`, into the sites) and each
+    inside joint's move of its place in its parent (`inside_joints`, into joint_X_p), 3 values each, free sites first.
+    Laid onto the offsets and joint_X_p before the tape's forward pass; their gradient read off those arrays' grads."""
+
+    def __init__(self, model, free_sites, inside_joints):
+        self.free_sites = np.asarray(free_sites, dtype=int)
+        self.inside_joints = np.asarray(inside_joints, dtype=int)
+        self.size = 3 * (len(self.free_sites) + len(self.inside_joints))
+        self.base_places = model.joint_X_p.numpy().copy()
+
+    def lay(self, moves, offsets, joint_x_p):
+        """`offsets` (sites, 3) with the free sites' moves added, and joint_X_p with the inside joints' moves."""
+        moves = np.asarray(moves, dtype=np.float32).reshape(-1, 3)
+        moved = offsets.copy()
+        moved[self.free_sites] += moves[:len(self.free_sites)]
+        places = self.base_places.copy()
+        places[self.inside_joints, :3] += moves[len(self.free_sites):]
+        joint_x_p.assign(places)
+        return moved
+
+    def gradient(self, offsets, joint_x_p):
+        """d cost / d moves from the tape's grads on the offsets and joint_X_p, flat in the moves' order."""
+        sites = offsets.grad.numpy()[self.free_sites]
+        joints = joint_x_p.grad.numpy()[self.inside_joints, :3]
+        return np.concatenate([sites, joints]).astype(np.float64).ravel()
+
+
 class TapedSites:
     """Sites on `model`'s links (`links` index, `weights`, world `targets` (sites, 3)), and optional `turns`
     (links, weights, targets, offsets: `_TurnRows`) and `couplings` (`_Couplings`' arguments after the device, the pose
-    then the free coordinates); `model` built with requires_grad, its joint_q the pose when no couplings are given."""
+    then the free coordinates) and `constants` (`_Constants`' arguments after the model: level 2's free sites and inside
+joints, the inner unknowns after the pose); `model` built with requires_grad, its joint_q the pose when no couplings
+are given."""
 
-    def __init__(self, model, links, weights, targets, turns=None, couplings=None):
+    def __init__(self, model, links, weights, targets, turns=None, couplings=None, constants=None):
         self.model = model
         self.state = model.state(requires_grad=True)
         device = model.device
@@ -134,14 +164,26 @@ class TapedSites:
         self.cost = wp.zeros(1, dtype=wp.float32, device=device, requires_grad=True)
         self.turns = _TurnRows(device, *turns) if turns is not None else None
         self.couplings = _Couplings(device, *couplings) if couplings is not None else None
+        self.constants = _Constants(model, *constants) if constants is not None else None
+
+    def _split(self, inner):
+        """The pose and level 2's moves from `inner` (the moves empty when no constants are given)."""
+        inner = np.asarray(inner, dtype=np.float64)
+        size = self.constants.size if self.constants is not None else 0
+        return inner[:len(inner) - size], inner[len(inner) - size:]
 
     def _evaluate(self, inner, outer):
-        """Forward kinematics at pose `inner`, then the sites' residuals and cost with offsets `outer` (flat)."""
+        """Forward kinematics at `inner` (the pose, then level 2's moves), then the sites' residuals and cost with
+        offsets `outer` (flat)."""
+        pose, moves = self._split(inner)
         if self.couplings is None:
-            self.model.joint_q.assign(np.asarray(inner, dtype=np.float32))
+            self.model.joint_q.assign(pose.astype(np.float32))
         else:
-            self.couplings.write(inner, self.model.joint_q)
-        self.offsets.assign(np.asarray(outer, dtype=np.float32).reshape(-1, 3))
+            self.couplings.write(pose, self.model.joint_q)
+        offsets = np.asarray(outer, dtype=np.float32).reshape(-1, 3)
+        if self.constants is not None:
+            offsets = self.constants.lay(moves, offsets, self.model.joint_X_p)
+        self.offsets.assign(offsets)
         self.cost.zero_()
         newton.eval_fk(self.model, self.model.joint_q, self.model.joint_qd, self.state)
         wp.launch(_site_cost, dim=self.links.shape[0],
@@ -151,13 +193,15 @@ class TapedSites:
             self.turns.launch(self.state.body_q, self.cost)
 
     def gradient(self, inner, outer):
-        """d cost / d pose at (`inner`, `outer`), by the tape's backward pass."""
+        """d cost / d inner at (`inner`, `outer`) by the tape's backward pass: the pose's, then level 2's moves'."""
         tape = wp.Tape()
         with tape:
             self._evaluate(inner, outer)
         tape.backward(self.cost)
         pose = self.model.joint_q if self.couplings is None else self.couplings.pose
         found = pose.grad.numpy().astype(np.float64)
+        if self.constants is not None:
+            found = np.concatenate([found, self.constants.gradient(self.offsets, self.model.joint_X_p)])
         tape.zero()
         return found
 
