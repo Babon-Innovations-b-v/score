@@ -32,7 +32,7 @@ measures = _measures.TapedMeasures(sites, joints, to_own, turns, skins)
 pose = np.array([0.2, 0.4, -0.3, 0.6, 0.1, -0.5, 0.3, 0.2, -0.2, 0.3, 0.5, -0.4])
 outer = np.zeros(3)
 def plain(found):
-    return {kind: {key: [value[0].tolist(), value[1].tolist()] for key, value in part.items()} for kind, part in zip(("joints", "turns", "skins"), found)}
+    return {kind: {key: [piece.tolist() for piece in value] for key, value in part.items()} for kind, part in zip(("joints", "turns", "skins"), found)}
 step, nudged = 1e-3, []
 for column in range(len(pose)):
     for sign in (1, -1):

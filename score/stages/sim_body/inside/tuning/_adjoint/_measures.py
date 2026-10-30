@@ -145,14 +145,14 @@ class TapedMeasures:
         return self.sites.model.joint_q if self.sites.couplings is None else self.sites.couplings.pose
 
     def _rows(self, tape, output, entry_frames):
-        """d output[entry] / d pose for every entry, `entry_frames` each entry's frame. A frame's entries move only its
-        own copy's pose block, so one backward pass seeds one entry of every frame at once (its k-th) and each row keeps
-        its own frame's block: as many passes as a frame's most entries, never one per entry."""
+        """d output[entry] / d pose for every entry as its own frame's pose block only (entries, block), `entry_frames`
+        each entry's frame. A frame's entries move only its own copy's pose block, so one backward pass seeds one entry
+        of every frame at once (its k-th): as many passes as a frame's most entries, never one per entry."""
         size = self._pose_grad().shape[0]
         if size % self.frames:
             raise ValueError(f"pose of {size} does not split into {self.frames} equal frame blocks")
         block = size // self.frames
-        rows = np.zeros((len(entry_frames), size))
+        rows = np.zeros((len(entry_frames), block))
         slots = [np.flatnonzero(entry_frames == frame) for frame in range(self.frames)]
         for slot in range(max((len(entries) for entries in slots), default=0)):
             seeded = np.array([entries[slot] for entries in slots if slot < len(entries)], dtype=np.int64)
@@ -164,13 +164,14 @@ class TapedMeasures:
             self.passes += 1
             for entry in seeded:
                 start = entry_frames[entry] * block
-                rows[entry, start:start + block] = found[start:start + block]
+                rows[entry] = found[start:start + block]
         return rows
 
     def measured(self, inner, outer):
-        """`case_rows`' joints {name: (differences (frames, 3) m, rows (frames, 3, pose))} and turns {group: (degrees
-        (frames,), rows (frames, pose))} at (`inner`, `outer`), off one recorded tape (`passes` counts its backward
-        passes)."""
+        """`case_rows`' joints {name: (differences (frames, 3) m, rows (frames, 3, block))}, turns {group: (degrees
+        (frames,), rows (frames, block))} and skins {region: (depths m, rows (points, block), each point's frame)} at
+        (`inner`, `outer`), each row its own frame's pose block (`case_rows(..., frames=)`), off one recorded tape
+        (`passes` counts its backward passes)."""
         tape = wp.Tape()
         with tape:
             self._evaluate(inner, outer)
@@ -186,5 +187,6 @@ class TapedMeasures:
         bounds = np.cumsum([0] + self.skins.counts)
         return ({name: (differences[index], joint_rows[index]) for index, name in enumerate(self.joint_names)},
                 {name: (degrees[index], turn_rows[index]) for index, name in enumerate(self.turn_names)},
-                {name: (depths[bounds[index]:bounds[index + 1]], skin_rows[bounds[index]:bounds[index + 1]])
+                {name: (depths[bounds[index]:bounds[index + 1]], skin_rows[bounds[index]:bounds[index + 1]],
+                        self.skins.frame_of[bounds[index]:bounds[index + 1]])
                  for index, name in enumerate(self.skins.names)})

@@ -16,7 +16,8 @@ in a batched body (`_Constants.gradient` taking `[0]` in place of `.sum(axis=0)`
 unknowns' trust (`TapedSites._evaluate` not assigning `self.weights` when `trusted`) turns it red. Assigning the trusts themselves when `ends` is given (`_weighed` returning `tail`) turns it red. Laying a batched body's weights site by site in place of copy by copy (`np.repeat` for `np.tile` in `_evaluate`) turns it red. In `_measures.py`,
 skipping `self.centres.zero_()` (joint centres adding onto the last evaluation's) turns the taped measures test red.
 Building the bone points without `requires_grad` (`_Skins.points`: no skin depth row reaches the pose) turns it red.
-Keeping a batched pass's whole gradient on each seeded row (`_rows` not cutting it to the entry's own frame block) turns it red.
+Cutting each seeded row from the first frame's block in place of its own (`_rows` with start 0) turns it red; `case_rows` laying a
+skin point's block at frame 0 (`rms_row` ignoring `point_frames`) turns it red.
 In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
 without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pulled` skipping the normalisation's
 projection (`along` the raw turn gradient) turns the root chart test red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red. In `_real.py`, `solved_rows`
@@ -295,9 +296,10 @@ def test_the_taped_measures_rows_equal_differences_of_the_case_residuals():
     found = json.loads(ran.stdout.rsplit("JSON", 1)[1])
     taped = {kind: {key: tuple(np.array(part) for part in value) for key, value in found["taped"][kind].items()}
              for kind in ("joints", "turns", "skins")}
-    assert all(np.abs(depths).max() > 1e-3 for depths, _ in taped["skins"].values()), "no bone point outside the skin"
+    assert all(np.abs(depths).max() > 1e-3 for depths, *_ in taped["skins"].values()), "no bone point outside the skin"
     assert found["passes"] == 2 * 3 + 2 + 3, found["passes"]  # a frame's most entries per output: joints, turns, skins
-    values, jacobian = _adjoint.case_rows(taped["joints"], taped["turns"], taped["skins"])
+    assert all(rows.shape[-1] == 4 for kind in ("joints", "turns") for _, rows in taped[kind].values())  # frame blocks
+    values, jacobian = _adjoint.case_rows(taped["joints"], taped["turns"], taped["skins"], frames=3)
     at = {kind: {key: value[0] for key, value in taped[kind].items()} for kind in taped}
     assert np.allclose(values, case_residuals(_case_found(at["joints"], at["turns"], at["skins"])), atol=1e-4)
     scored = [case_residuals(_case_found(*({key: np.array(value) for key, value in nudge[kind].items()}

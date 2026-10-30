@@ -134,14 +134,31 @@ def median_row(values, rows):
     return float(np.mean(np.asarray(values)[middles])), np.mean(np.asarray(rows)[middles], axis=0)
 
 
-def rms_row(values, rows):
+def rms_row(values, rows, point_frames=None, frames=None):
     """A root mean square's value and derivative row from per-point `values` and their derivative `rows` (points,
-    unknowns): d sqrt(mean v^2) = mean(v dv) / rms, a zero row where every value is zero."""
-    values = np.asarray(values, dtype=float)
+    unknowns): d sqrt(mean v^2) = mean(v dv) / rms, a zero row where every value is zero. With `point_frames` and
+    `frames`, each row is its point's frame block of a pose of `frames` blocks, and the derivative row the whole pose's."""
+    values, rows = np.asarray(values, dtype=float), np.asarray(rows, dtype=float)
+    width = rows.shape[1] if frames is None else frames * rows.shape[1]
     root = float(np.sqrt(np.mean(np.square(values))))
     if root == 0.0:
-        return 0.0, np.zeros(np.shape(rows)[1])
-    return root, (values @ np.asarray(rows)) / (len(values) * root)
+        return 0.0, np.zeros(width)
+    if frames is None:
+        return root, (values @ rows) / (len(values) * root)
+    summed = np.zeros((frames, rows.shape[1]))
+    np.add.at(summed, np.asarray(point_frames), values[:, None] * rows)
+    return root, summed.ravel() / (len(values) * root)
+
+
+def spread(rows):
+    """Per-frame rows (frames, ..., block), frame f's its pose block, laid into the whole pose (frames, ..., frames *
+    block): zero outside each frame's own block."""
+    rows = np.asarray(rows, dtype=float)
+    frames, block = rows.shape[0], rows.shape[-1]
+    dense = np.zeros(rows.shape[:-1] + (frames * block,))
+    for frame in range(frames):
+        dense[frame, ..., frame * block:(frame + 1) * block] = rows[frame]
+    return dense
 
 
 def distance_rows(differences, rows):
@@ -152,16 +169,20 @@ def distance_rows(differences, rows):
     return lengths, np.einsum("fk,fkn->fn", differences / lengths[:, None], np.asarray(rows))
 
 
-def case_rows(joints, turns, skins):
+def case_rows(joints, turns, skins, frames=None):
     """One case's level 1 rows and their derivative rows over the inner unknowns, in `tuning.case_residuals`' order
     and scale, from taped per-frame measures: `joints` {SOMA joint: (model minus SOMA joint per frame (frames, 3) m,
     its rows (frames, 3, unknowns))}, `turns` {group: (turn error per frame deg, its rows (frames, unknowns))},
     `skins` {region: (depths outside per point m, their rows (points, unknowns))}. A joint's and a turn's row is its
-    frames' median (`median_row`), a skin's the root mean square (`rms_row`), mm for metres as the measures give."""
-    reduced = {"skin": {key: rms_row(1000 * np.asarray(depths), 1000 * np.asarray(rows))
-                        for key, (depths, rows) in skins.items()},
-               "turn": {key: median_row(errors, rows) for key, (errors, rows) in turns.items()},
-               "joint": {key: median_row(*distance_rows(1000 * np.asarray(differences), 1000 * np.asarray(rows)))
+    frames' median (`median_row`), a skin's the root mean square (`rms_row`), mm for metres as the measures give.
+    With `frames` (a pose of that many frame blocks) every row is its own frame's block (`TapedMeasures.measured`):
+    joints' and turns' frame is their leading index, a skin is (depths, rows (points, block), each point's frame)."""
+    whole = spread if frames is not None else np.asarray
+    reduced = {"skin": {key: rms_row(1000 * np.asarray(part[0]), 1000 * np.asarray(part[1]),
+                                     *((part[2], frames) if frames is not None else ()))
+                        for key, part in skins.items()},
+               "turn": {key: median_row(errors, whole(rows)) for key, (errors, rows) in turns.items()},
+               "joint": {key: median_row(*distance_rows(1000 * np.asarray(differences), 1000 * whole(rows)))
                          for key, (differences, rows) in joints.items()}}
     share = {"skin": 1.0, "turn": 1.0, "joint": JOINT_SHARE}
     scaled = [(np.sqrt(share[kind] / len(reduced[kind])) / SCALES[kind], reduced[kind][key])
