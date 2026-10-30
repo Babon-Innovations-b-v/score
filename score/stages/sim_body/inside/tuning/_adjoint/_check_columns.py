@@ -106,6 +106,19 @@ def sited_gaps(sited, rebuilt, unknowns, picks):
     return gaps
 
 
+def direct_rows(measures, pose_parts, frames):
+    """R_theta: the case rows' derivative over level 1's entries at the base pose, its joints' direct partial alone
+    (a centre entry moves the measure's joint centre, `_real.centre_columns`); the turns' and skins' read no entry."""
+    joints, turns, skins = pose_parts
+    moved = np.einsum("pij,pje->pie", measures.part_turns(), _real.centre_columns(segments, frames, entries, scales))
+    slotted = np.zeros((len(measures.joint_names) * frames, 3, len(entries)))
+    np.add.at(slotted, measures.part_slot.numpy(), moved)
+    by_joint = slotted.reshape(len(measures.joint_names), frames, 3, len(entries))
+    return case_rows({name: (joints[name][0], by_joint[index]) for index, name in enumerate(measures.joint_names)},
+                     {name: (values, np.zeros((frames, len(entries)))) for name, (values, _) in turns.items()},
+                     {name: (values, np.zeros((len(values), len(entries)))) for name, (values, _, _) in skins.items()})[1]
+
+
 def timed(name, work):
     """`work()`'s result, its seconds kept under `name` and printed as one JSON line."""
     start = time.time()
@@ -160,7 +173,8 @@ level3 = level3_body("level3", sites, turns, pinned, lambda theta: trusted + col
                      len(rows), columns=columns)
 joined = np.concatenate([np.zeros(len(entries)), np.zeros(solved.size)])
 lifted, _ = factored_solve(level3, differenced_arrow(level3, joined, STEPS[0]), np.asarray(by_poses, dtype=float).T)
-both = np.hstack([np.zeros((len(by_poses), len(entries))), by_constants]) - timed(
+direct = timed("direct rows", lambda: direct_rows(measures, pose_parts, len(rows)))
+both = np.hstack([direct, by_constants]) - timed(
     "taping level 3 products", lambda: transposed_mixed(level3, lifted, joined, STEPS[1]))
 right = np.zeros((len(level2.inner), len(both)))
 right[level2.frames * level2.pose_size:] = both[:, len(entries):].T
@@ -174,6 +188,6 @@ if "--against-differences" in sys.argv:
                                      for got, want in zip(found, wanted)]}), flush=True)
 block = both[:, :len(entries)] - timed("taping level 2 mixed", lambda: transposed_mixed(
     level2, lowered, np.zeros(len(entries)), STEPS[1]))
-np.savez(saved_to, block=block, entries=np.array([json.dumps(list(map(str, entry))) for entry in entries]))
+np.savez(saved_to, block=block, direct=direct, entries=np.array([json.dumps(list(map(str, entry))) for entry in entries]))
 print(json.dumps({"shape": list(block.shape), "largest": float(np.abs(block).max()),
                   "finite": bool(np.isfinite(block).all()), "seconds": seconds, "total": time.time() - began}))

@@ -57,6 +57,22 @@ def joint_parts(clip, scales, segments, worlds):
     return joints
 
 
+def centre_columns(segments, frames, entries, scales):
+    """d (each `joint_parts` part's local point) / d level 1's entries (parts, 3, entries), parts in `TapedMeasures`'
+    order (sorted segments, frames, parts): a "centre" entry moves its CENTRES point by LINK_UNIT along its axis in
+    the source model, scaled by its bone's scale as `joint_parts` scales it (the measure's direct partial)."""
+    from evaluation import _measure as cpu
+    from tuning import LINK_UNIT
+    names = [name for segment in sorted(segment for segment in cpu.JOINTS if segment in segments) for _ in range(frames)
+             for name in cpu.MIDDLE.get(cpu.JOINTS[segment], (cpu.JOINTS[segment],))]
+    found = np.zeros((len(names), 3, len(entries)))
+    for column, (pool, kind, axis, _) in enumerate(entries):
+        for part in [part for part, name in enumerate(names) if kind == "centre" and name == pool]:
+            scale = np.broadcast_to(np.asarray(scales[cpu.CENTRES[pool][0]], dtype=float), 3)
+            found[part, axis, column] = LINK_UNIT * scale[axis]
+    return found
+
+
 def skin_parts(clip, rig, segments, worlds):
     """`TapedMeasures`' skins on `per_frame_model`: {scored region: (bone points per skin frame [[(link, local point in
     the link frame)]], SOMA's posed skin per skin frame [(verts, faces)])}, as `fit/_card/_measure` measures them (every
