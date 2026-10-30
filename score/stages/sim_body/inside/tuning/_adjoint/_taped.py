@@ -157,10 +157,14 @@ are given. `trusted`: the outer unknowns hold each site's trust (its weight) aft
 weights, replacing `weights` at every evaluation. `ends` (with `trusted`): the last `ends` sites are the group ends
 (their offsets the group-end centres' moves) and the outer unknowns after the offsets are the landmarks' trusts, then
 "end weight", then "marker goal": each site weighs sqrt(goal * trust / sum of trusts), an end's trust "end weight"
-times the landmarks' mean (`fit.fitting` and `fit/_card/_objective`'s markers' goal)."""
+times the landmarks' mean (`fit.fitting` and `fit/_card/_objective`'s markers' goal). `copies` (a body batched per
+frame): the sites are that many copies of one frame's, copy by copy, and `outer` is one copy's (its sites' offsets, then
+its trusts), laid on every copy, so each copy's last `ends` sites are its ends and its weights are its own frame's."""
 
-    def __init__(self, model, links, weights, targets, turns=None, couplings=None, constants=None, trusted=False, ends=None):
+    def __init__(self, model, links, weights, targets, turns=None, couplings=None, constants=None, trusted=False, ends=None,
+                 copies=1):
         self.model = model
+        self.copies = copies
         self.trusted = trusted
         self.ends = ends
         self.state = model.state(requires_grad=True)
@@ -199,11 +203,11 @@ times the landmarks' mean (`fit.fitting` and `fit/_card/_objective`'s markers' g
         else:
             self.couplings.write(pose, self.model.joint_q)
         outer = np.asarray(outer, dtype=np.float32)
+        sites = self.links.shape[0] // self.copies
         if self.trusted:
-            sites = self.links.shape[0]
-            self.weights.assign(self._weighed(outer[3 * sites:]))
+            self.weights.assign(np.tile(self._weighed(outer[3 * sites:]), self.copies))
             outer = outer[:3 * sites]
-        offsets = outer.reshape(-1, 3)
+        offsets = np.tile(outer.reshape(-1, 3), (self.copies, 1))
         if self.constants is not None:
             offsets = self.constants.lay(moves, offsets, self.model.joint_X_p)
         self.offsets.assign(offsets)

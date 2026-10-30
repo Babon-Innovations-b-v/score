@@ -13,7 +13,7 @@ in `_taped.py`, dropping `tape.zero()` (a second gradient adds onto the first's)
 the turn rows' launch turns it red; dropping the followers' launch (couplings) turns it red; reading level 2's
 inside-joint gradient as zeros (`_Constants.gradient`) turns it red; reading only the first frame's copy of a constant
 in a batched body (`_Constants.gradient` taking `[0]` in place of `.sum(axis=0)`) turns it red. Ignoring the outer
-unknowns' trust (`TapedSites._evaluate` not assigning `self.weights` when `trusted`) turns it red. Assigning the trusts themselves when `ends` is given (`_weighed` returning `tail`) turns it red. In `_measures.py`,
+unknowns' trust (`TapedSites._evaluate` not assigning `self.weights` when `trusted`) turns it red. Assigning the trusts themselves when `ends` is given (`_weighed` returning `tail`) turns it red. Laying a batched body's weights site by site in place of copy by copy (`np.repeat` for `np.tile` in `_evaluate`) turns it red. In `_measures.py`,
 skipping `self.centres.zero_()` (joint centres adding onto the last evaluation's) turns the taped measures test red.
 Building the bone points without `requires_grad` (`_Skins.points`: no skin depth row reaches the pose) turns it red.
 In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red.
@@ -23,7 +23,8 @@ three weighted sites and two link-frame turn rows, once on every coordinate and 
 second (a polynomial coupling, the pose the three free coordinates), and once with level 2's constants (two free
 sites' moves and the third joint's place move after the pose), and once batched (two frames as two copies of the chain
 in one model, one launch, level 2's constants shared by both), and once with each site's trust an outer unknown, and once with the last site a group end and the
-end weight and markers' goal outer unknowns: its gradient, asked twice, equals central differences of its cost to 1e-3 of the largest entry. With no
+end weight and markers' goal outer unknowns, and once batched with a group end in each copy (`copies=2`, one frame's
+outer unknowns laid on both: its rows equal each copy's own frame's): its gradient, asked twice, equals central differences of its cost to 1e-3 of the largest entry. With no
 Newton Python (`SCORE_NEWTON_PYTHON`, else $PROPS_HOME/envs/newton_env) it is skipped; its run is `_check_taped.py`. The taped measures test runs (`_check_measures.py`)
 `_measures` on three copies of the chain (frames): two joints (one a MIDDLE of two parts), two turn groups and two skin
 regions' bone points against a posed box skin per frame (some outside, some inside), fed through `case_rows`, equal central differences of `case_residuals` to 1 % of the largest entry."""
