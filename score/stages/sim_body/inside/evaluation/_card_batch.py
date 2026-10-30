@@ -67,6 +67,16 @@ def clip_targets(clips):
             for case, (_, person, rig, worlds) in clips.items()}
 
 
+def recorded_targets(clips, targets):
+    """The body's recordings' targets for level 2 from `targets` (`clip_targets`): its recordings are its clips' own
+    worlds in order (`_case.prepared`), refused otherwise."""
+    _, person, _, _ = next(iter(clips.values()))
+    for (case, (_, _, _, worlds)), recording in zip(clips.items(), sim_body.recordings(person, None), strict=True):
+        if not np.array_equal(worlds, recording):
+            raise ValueError(f"{case}: its worlds are not the body's recording in its place")
+    return list(targets.values())
+
+
 def batched_angles(clip, clips, seeds, targets):
     """{case: angles} for every clip of a body in one `Clip.angles` call, rows clip after clip (`targets`:
     `clip_targets`)."""
@@ -90,9 +100,10 @@ def sized_key(job, person):
                                                                    for group, quaternion in calibration.TABLE.items()))
 
 
-def cached_set_up(job, person, rig, worlds, path):
+def cached_set_up(job, person, rig, worlds, path, made):
     """`sim_body.person_set_up` with the body's `Size` and first file (no constants) made once per `sized_key` and
-    written again at `path` for every later set."""
+    written again at `path` for every later set; `made` the recordings' targets (`clip_targets`, the recordings being
+    the body's clips in order)."""
     key = sized_key(job, person)
     if key not in SIZED:
         size = Size(rig)
@@ -100,7 +111,7 @@ def cached_set_up(job, person, rig, worlds, path):
         SIZED[key] = size, path.read_text(), scales
     size, text, scales = SIZED[key]
     path.write_text(text)
-    return sim_body.constants_set_up(job, person, rig, worlds, path, size, scales)
+    return sim_body.constants_set_up(job, person, rig, worlds, path, size, scales, made)
 
 
 def body_run(seeds_root, table, weights, root, cases, saved, constants=None):
@@ -114,8 +125,8 @@ def body_run(seeds_root, table, weights, root, cases, saved, constants=None):
     first, (job, person, _, worlds) = next(iter(clips.items()))
     path = root / first / f"{person['name']}.xml"
     path.parent.mkdir(parents=True, exist_ok=True)
-    record, scales, fitting = cached_set_up(job, person, rig, worlds, path)
     targets = clip_targets(clips)
+    record, scales, fitting = cached_set_up(job, person, rig, worlds, path, recorded_targets(clips, targets))
     angles = batched_angles(_clip.for_fitting(fitting, path), clips,
                             {case: _seeds.first(seeds_root, case) for case in clips}, targets)
     seconds, frames = time.time() - began, sum(len(found) for found in angles.values())
