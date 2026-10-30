@@ -666,17 +666,19 @@ def concept_skies(place):
             "pictures": len(skies)}
 
 
-def sky_measures(place, out):
-    """An outdoor place's sky in every view (the top of the picture near its commonest colour there), against its
-    concept pictures' (concept_skies)."""
+def sky_measures(place, out, passes_folder):
+    """An outdoor place's sky in every view, read where the render met no surface (its passes' `sky`), against its
+    concept pictures' (concept_skies). Never the top rows' commonest colour on a look: old_station's lit ground read
+    as its sky, 99.7 levels off its black one (2026-10-30). A view whose passes hold no mask (rendered before
+    2026-10-30) has no sky measured and says so (`masked` false)."""
     concept = concept_skies(place)
     found = []
     for view, path in sorted(rendered(out, place).items()):
-        rgb = measure.picture(path)
-        sky = measure.sky_of(rgb, measure.sky_pixels(rgb))
+        mask = sky_of(passes_folder, place, view)
+        sky = None if mask is None else measure.sky_of(measure.picture(path), mask)
         if sky is not None and concept is not None:
             sky["gap_to_concept"] = measure.colour_gap(sky["mean_rgb"], concept["mean_rgb"])
-        found.append({"view": view, "after": sky})
+        found.append({"view": view, "after": sky, "masked": mask is not None})
     return {"concept": concept, "views": found}
 
 
@@ -692,7 +694,7 @@ def fault_measures(place, out, passes_folder, inputs):
     if balls:
         found["bodies"] = body_measures(place, out, passes_folder, balls, sun_way(out))
     if needs.outdoor(record, None):
-        found["sky"] = sky_measures(place, out)
+        found["sky"] = sky_measures(place, out, passes_folder)
     found["exposure"] = exposure_measures(place, out, passes_folder)
     return found
 
@@ -909,6 +911,9 @@ def judge_sky(output, inputs, evidence):
     if concept is None:
         return checks.Verdict("sky", checks.UNKNOWN, "no concept picture of the place shows its sky")
     views = [view for view in found["sky"]["views"] if view["after"] and "gap_to_concept" in view["after"]]
+    if not views and not any(view.get("masked") for view in found["sky"]["views"]):
+        return checks.Verdict("sky", checks.UNKNOWN, "the passes hold no sky mask (rendered before 2026-10-30): "
+                                                      "render light-passes again to judge the sky")
     if not views:
         return checks.Verdict("sky", checks.UNKNOWN, "no sky measured in any view")
     gap = {"after": float(np.median([view["after"]["gap_to_concept"] for view in views]))}

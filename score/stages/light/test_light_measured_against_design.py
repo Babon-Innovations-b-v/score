@@ -31,6 +31,8 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - light.extremes: `sky` ignored (the Moon look fails), or `luminance[sky]` for `luminance[~sky]` (the dark and blown
   looks pass) (the exposure sky test, 2026-10-30).
 - light_passes.sky_mask: `== 0` -> `!= 0` (the sky mask test, 2026-10-30).
+- light.sky_measures: the look's sky read by measure.sky_pixels, not its passes' mask (the look's sky test,
+  2026-10-30).
 - passes.judge_magenta: the share read times 0 (the magenta view test, 2026-10-30).
 - light_passes.missing_share: the glossy colour pass left out (the missing picture test, 2026-10-30).
 - passes.neighbours: keep a planless shown place (the neighbours test).
@@ -325,6 +327,28 @@ def test_a_sky_s_colour_blue_to_red_and_rise_are_read_on_the_pixels_the_flat_sky
     near_black = np.full((SIZE, SIZE, 3), [1.33, 1.4, 1.3])
     assert measure.sky_of(black, measure.sky_pixels(black))["blue_to_red"] == 1.0  # no hue, never "red"
     assert abs(measure.sky_of(near_black, measure.sky_pixels(near_black))["blue_to_red"] - 1.0) < 0.05
+
+
+def test_a_look_s_sky_is_read_where_the_render_met_no_surface_never_its_top_rows_commonest_colour(tmp_path,
+                                                                                                    monkeypatch):
+    # old_station's lit ground filled its views' top rows and read as its sky, 99.7 levels off its black one
+    # (2026-10-30); passes saved before the mask leave the sky unjudged, named
+    concept = tmp_path / "concept.png"
+    Image.fromarray(np.where(np.arange(100)[:, None, None] < 50, 0, 128).repeat(100, 1).repeat(3, 2)
+                    .astype(np.uint8)).save(concept)
+    monkeypatch.setattr(light, "concept_pictures", lambda place: [concept])
+    (tmp_path / "looks/yard").mkdir(parents=True)
+    (tmp_path / "passes/yard-0").mkdir(parents=True)
+    sky = np.zeros((100, 100), bool)
+    sky[:20] = True
+    look = np.where(sky, 0, 200)
+    Image.fromarray(np.repeat(look[..., None], 3, axis=2).astype(np.uint8)).save(tmp_path / "looks/yard/v-look.png")
+    for held, answer in (({"sky": sky}, checks.PASS), ({}, checks.UNKNOWN)):
+        np.savez(tmp_path / "passes/yard-0/v-passes.npz", combined=np.ones((50, 50)), **held)
+        (tmp_path / "measures.json").write_text(json.dumps({"sky": light.sky_measures("yard", tmp_path, tmp_path)}))
+        verdict = light.judge_sky(tmp_path, {}, {})
+        assert verdict.answer == answer, verdict.reason
+    assert "no sky mask" in verdict.reason
 
 
 def test_haze_over_the_lower_part_reads_as_a_veil_and_glow_in_the_sky_does_not():

@@ -121,7 +121,8 @@ def body(rgb, x, y, radius, toward, usable):
 
 
 def sky_pixels(before):
-    """The sky's pixels: the picture's top SKY_ROWS within SKY_NEAR levels of the commonest colour there."""
+    """A concept picture's sky pixels: its top SKY_ROWS within SKY_NEAR levels of the commonest colour there (a look's
+    sky is its passes' mask, where the render met no surface: lit ground read as old_station's sky, 2026-10-30)."""
     top = before[: int(before.shape[0] * SKY_ROWS)]
     codes = (top.astype(np.int64) // 4) @ np.array([4096, 64, 1])
     common = np.bincount(codes.ravel()).argmax()
