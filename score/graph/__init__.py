@@ -134,7 +134,9 @@ CONTAINER_CLIENTS = ("blender_cloud.py",)
 # 2026-10-30: settle@greenhouse and settle@garage each grew to 12-13 GB in their own trees side by side (the stage's
 # own work beside its container jobs), a running client node then reserving only what its tree held: this PC fell to
 # 6-7 GB available. That peak is kept at every reading while the node runs (its tree's share or its processes' VmHWM
-# summed, whichever is more: trees_high), so a node stopped, paused or killed mid-run still leaves it. 2026-10-28:
+# summed, whichever is more: trees_high), so a node stopped, paused or killed mid-run still leaves it; until a node of
+# the stage ended having made its output (client_grown), its nodes reserve at least the stage peak, the floor or more
+# (client_reserve: settle's 2.87 GB kept from a small early node under-reserved a first pass). 2026-10-28:
 # three surfaces-bake nodes, one holding the claim with its container at 7.2 GiB and two waiting, were each given 8 GB
 # and held about 121 ready nodes with 32 GB available. The container is counted by what its running jobs may still
 # grow to (container_reserve), never more than that room: each job (a session under its sshd running a script, a
@@ -738,6 +740,15 @@ def client_peak(stage, peaks, clients):
     tree (`clients`: client_trees) when its nodes ran a container client on this PC, else its stage peak (`peaks`),
     else the floor (memory_floor)."""
     return clients[stage] if stage in clients else peaks.get(stage, memory_floor())
+
+
+def client_reserve(stage, peaks, clients, grown):
+    """What a node of `stage` reserves for its own tree: its client_peak, and at least its stage peak (a container
+    stage's is the floor or more: measured) until a node of the stage reached its real size (`grown`: client_grown,
+    a node that ended having made its output). Round 26, 2026-10-30: settle's kept tree was 2.87 GB from a small early
+    node, its real nodes reaching 12 to 13.8 GB, and two settles ready in a first drive pass both started."""
+    found = client_peak(stage, peaks, clients)
+    return found if stage in grown else max(found, peaks.get(stage, memory_floor()))
 
 
 def ran_container_client(root):
@@ -1998,6 +2009,22 @@ class Runner:
             os.replace(spare, path)
         return trees
 
+    def client_grown(self):
+        """{the container-client stages one of whose nodes ended having made its output on this PC}, as kept beside
+        the store (none yet: none): their kept trees are real sizes (client_reserve)."""
+        path = self.desk("memory", "client-grown", ".json")
+        return set(json.loads(path.read_text())) if path.exists() else set()
+
+    def keep_grown(self, stage):
+        """Keep `stage` among the grown client stages (client_grown); the stages kept."""
+        grown = self.client_grown() | {stage}
+        path = self.desk("memory", "client-grown", ".json")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        spare = path.with_suffix(f".{os.getpid()}")
+        spare.write_text(json.dumps(sorted(grown), indent=1) + "\n")
+        os.replace(spare, path)
+        return grown
+
     def keep_peak(self, stage, peak):
         """Keep `peak` bytes as the stage's peak when it is more than the one kept; the peaks kept."""
         peaks = self.peaks()
@@ -2044,9 +2071,10 @@ class Runner:
         room, jobs = reading
         return container_reserve(room, jobs, self.keep_takes(jobs, time.time()))
 
-    def coming(self, running, peaks, seen, clients):
+    def coming(self, running, peaks, seen, clients, grown=frozenset()):
         """[(each running node's stage peak, what its process tree holds now)] (on this PC a node running a container
-        client its own tree's kept peak, client_peak of `clients`, and the container once: container_growth), the
+        client its own tree's kept peak, client_reserve of `clients` and `grown`, and the container once:
+        container_growth), the
         most each was seen to hold kept in `seen` ({node: bytes}) and, for a container client's node on this PC, at
         once in `clients` and beside the store when it is past its stage's client_peak (keep_client_tree: the larger
         of that and its tree's VmHWM sum, trees_high), so a node stopped, paused or killed before it ends still leaves
@@ -2071,8 +2099,8 @@ class Runner:
             if process.pid in users and high > client_peak(stage.name, peaks, clients):  # a lower bound, until it ends
                 clients.update(self.keep_client_tree(stage.name, high))
             mine = process.pid in users and (reading is not None or process.pid not in calling)
-            found.append((client_peak(stage.name, peaks, clients) if mine else peaks.get(stage.name, memory_floor()),
-                          held[process.pid]))
+            found.append((client_reserve(stage.name, peaks, clients, grown) if mine
+                          else peaks.get(stage.name, memory_floor()), held[process.pid]))
         if reading is not None:  # the container, once, whichever of its users holds the claim
             found.append((self.container_growth(reading), 0))
         return found
@@ -2115,6 +2143,7 @@ class Runner:
         # {stage: the most an ended node's own tree held}, its stage's nodes running a container client; kept across
         # runs (2026-10-29: each restart held new bake rows at their 8 GB stage peak until one bake had ended)
         clients = self.client_trees() if on_this_pc() else {}
+        grown = self.client_grown() if on_this_pc() else set()  # its stages' trees real sizes: client_reserve
         self.driving = (0, time.monotonic())
         while waiting or running:
             if time.monotonic() - known_at >= HEARTBEAT:
@@ -2133,6 +2162,8 @@ class Runner:
                     tree = max(peak, seen.pop(node, 0))
                     if contained and on_this_pc():
                         clients = self.keep_client_tree(stage.name, tree)
+                        if "made: " in did:
+                            grown = self.keep_grown(stage.name)
                     peaks = self.measured(stage, did, tree, contained, peaks)
                     done[node], stands = self.conclude(stage, place, did)
                     if stands:
@@ -2145,7 +2176,7 @@ class Runner:
                     say(f"{node}: {done[node]}")
                 finished = []
                 forget(known, ended)
-                coming = self.coming(running, peaks, seen, clients)  # what the running nodes may still take
+                coming = self.coming(running, peaks, seen, clients, grown)  # what the running nodes may still take
                 queued = self.claim_waiting(running)  # the stages whose running nodes wait on a claim, how many
                 busy, full = len(running) - min(sum(queued.values()), WAITERS_EXCUSED), False  # full: a node waited
                 claimers.update(queued)  # stages seen waiting on a claim this run
@@ -2174,7 +2205,7 @@ class Runner:
                         # a container client's take is in the container's reserve already (container_growth: its
                         # idle slots at a take peak), so only its own tree is expected; counting its stage peak too
                         # held a third bake back beside two with a turn free and 37 GB available (2026-10-29)
-                        expected = client_peak(stage.name, peaks, clients)
+                        expected = client_reserve(stage.name, peaks, clients, grown)
                         if not memory_room(coming, expected):
                             held = True  # this node waits; the nodes after it that fit still start
                             continue

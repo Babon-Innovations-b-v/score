@@ -418,6 +418,27 @@ def test_a_prop_close_up_is_pixal3d_s_cut_one_piece_and_filled():
     shutil.rmtree(folder)
 
 
+def test_an_open_frame_s_model_is_held_whole_to_its_filled_close_up():
+    """A railing's model is open bars while its close-up's cut is filled (pixal_cut): the outline fills both, so the
+    frame matches its own filled outline (engineroom's railing scored 0.339 open, 0.864 filled)."""
+    import trimesh
+    from PIL import Image
+    tmp_path = pathlib.Path(tempfile.mkdtemp())  # a plain script: no pytest fixture
+    bars = [trimesh.creation.box([1.0, 0.02, 0.1]).apply_translation([0, 0, 0.45]),
+            trimesh.creation.box([1.0, 0.02, 0.1]).apply_translation([0, 0, -0.45]),
+            trimesh.creation.box([0.1, 0.02, 1.0]).apply_translation([0.45, 0, 0]),
+            trimesh.creation.box([0.1, 0.02, 1.0]).apply_translation([-0.45, 0, 0])]
+    model = tmp_path / "frame.glb"
+    trimesh.util.concatenate(bars).export(model)
+    pixels = np.zeros((120, 120, 4), dtype=np.uint8)
+    pixels[10:110, 10:110] = 255  # the close-up's frame, cut filled
+    Image.fromarray(pixels).save(tmp_path / "cut.png")
+    size = [1.0, 1.0, 0.02]  # lies flat: drawn and checked from straight above
+    assert likeness.best_way(model, tmp_path / "cut.png", size)["outline"] < likeness.OUTLINE_LEAST
+    assert likeness_row.whole_best_way(model, tmp_path / "cut.png", size)["outline"] > 0.9
+    shutil.rmtree(tmp_path)
+
+
 def test_a_persons_close_up_is_held_to_its_arms_apart_not_a_box():
     """A row the people layer handed (a crowd, no size): its close-up is judged by its framing and arms clear of the
     body (the close-up check's person_faults), never 'no measured size'; an object row with no size still is named."""

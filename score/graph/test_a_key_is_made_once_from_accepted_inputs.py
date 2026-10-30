@@ -1818,15 +1818,33 @@ def test_on_this_pc_the_container_is_counted_once_and_its_waiting_clients_reserv
     monkeypatch.setattr(graph, "CONTAINER_READ", lambda: room[0] and (room[0], {}))  # no job seen yet: all its room
     monkeypatch.setattr(graph, "HIGH", lambda pids: dict.fromkeys(pids, 0))
     monkeypatch.setenv(*graph.THIS_PC)
-    clients = {"bake": int(0.1 * FLOOR)}
-    coming = runner.coming(running, peaks, {}, clients)
+    clients, grown = {"bake": int(0.1 * FLOOR)}, {"bake"}  # a bake that made its output kept its tree
+    coming = runner.coming(running, peaks, {}, clients, grown)
     assert sum(max(0, peak - holds) for peak, holds in coming) == 2 * FLOOR - int(0.1 * FLOOR) + int(1.5 * FLOOR)
     assert graph.memory_room(coming, FLOOR)
     room[0] = None
-    assert not graph.memory_room(runner.coming(running, peaks, {}, clients), FLOOR)
+    assert not graph.memory_room(runner.coming(running, peaks, {}, clients, grown), FLOOR)
     monkeypatch.setattr(graph, "CONTAINER_READ", lambda: pytest.fail("the container is read off this PC"))
     monkeypatch.setenv(graph.THIS_PC[0], "scaleway")
-    assert not graph.memory_room(runner.coming(running, peaks, {}, clients), FLOOR)
+    assert not graph.memory_room(runner.coming(running, peaks, {}, clients, grown), FLOOR)
+
+
+def test_on_this_pc_a_client_stage_reserves_its_stage_peak_until_a_node_of_it_reached_its_real_size(monkeypatch):
+    """Round 26, 2026-10-30: settle's kept tree was 2.87 GB from a small early node, its real nodes reaching 12 to
+    13.8 GB, and two settles ready in a first drive pass both started. Its stage peak the 8 GiB floor a container stage
+    keeps: until a settle node ended having made its output it reserves 8 GiB, so with 20 GiB available and the 6 GiB
+    floor a second does not start beside the first (20 - 8 - 8 < 6); once one grew, its kept 2.87 GB.
+    Break: score/graph/__init__.py: 'return found if stage in grown else max(found, peaks.get(stage, memory_floor()))'
+    -> 'return found' -> the second settle starts at 2.87 GB."""
+    monkeypatch.delenv(graph.FLOOR_VARIABLE, raising=False)
+    peaks, clients = {"settle": 8 * 2**30}, {"settle": int(2.87 * GIGA)}
+    expected = graph.client_reserve("settle", peaks, clients, set())
+    assert expected == 8 * 2**30, expected
+    faked(monkeypatch, [20 * 2**30])
+    assert not graph.memory_room([(expected, 0)], expected)
+    assert graph.client_reserve("settle", peaks, clients, {"settle"}) == int(2.87 * GIGA)
+    runner = a_driven_runner({"hangar": "a ship"})
+    assert runner.client_grown() == set() and runner.keep_grown("settle") == runner.client_grown() == {"settle"}
 
 
 def test_on_this_pc_a_running_container_client_keeps_its_own_trees_kept_peak_until_it_ends(monkeypatch):
@@ -2117,6 +2135,7 @@ def test_on_this_pc_a_container_clients_next_node_is_expected_at_its_own_tree_no
         return started[1] < until, runner
     soon, runner = second_start(this_pc=True)
     assert soon and "client" in runner.client_trees()  # kept beside the store: a restart's first node fits at once
+    assert runner.client_grown() == {"client"}  # its nodes made their outputs: their trees are real sizes
     assert not second_start(this_pc=False)[0]
 
 

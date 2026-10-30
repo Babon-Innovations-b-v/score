@@ -81,7 +81,7 @@ def missing_gaps(stage, place, written, kit):
         row = box["row"]
         node, work = fill.missing_row(row, place)
         values = {"score:gap": MISSING, "score:gap:row": row["id"], "score:gap:placed": box["placed"],
-                  "score:kind": row.get("kind", ""), "score:anchor": str(row.get("anchor", "")),
+                  "score:kind": row.get("kind", ""), "score:anchor": str(row.get("anchor") or ""),
                   **({"score:gap:node": node} if node else {"score:gap:work": work})}
         layer.write_box(stage, box, values)
         sentence = f"{row.get('name') or row['id']}: nothing made for it yet ({row.get('made') or row.get('kind')})"
