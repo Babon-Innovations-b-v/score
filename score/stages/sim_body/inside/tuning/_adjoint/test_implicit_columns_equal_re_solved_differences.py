@@ -268,7 +268,7 @@ def test_level_2_on_one_real_body_is_stationary_at_its_solve(tmp_path):
 def test_level_2_constant_motion_on_one_real_body_equals_settled_re_solves(tmp_path):
     """`SCORE_ADJOINT_REAL` as above: `constant_motion` on level 2 at its float64-settled solve against central
     differences of level 2 re-solved at marker goal +-0.1, on the told, unpinned slots off their bounds (heavy_kimodo,
-    2026-10-30: 157 s, over the 2 minute budget; run only when `SCORE_ADJOINT_REAL` is set, never by `make tests`)."""
+    2026-10-30: 99 s, the base Problem built off the base solve; run only when `SCORE_ADJOINT_REAL` is set)."""
     given, cases = runs.real_inputs()
     found = runs.last_json(runs.newton_ran("_check_motion.py", given["set"], tmp_path, "0.1", *cases, timeout=300))
     assert found["off"] > 0 and found["free gradient"] < 1e-9, found
