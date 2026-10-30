@@ -32,6 +32,8 @@ RESIDUAL_MOMENT = 0.01
 MOVE_MOST = 0.02  # metres
 # A cast of a crowd only has nothing to simulate: its record says so and every gate passes on no bodies (#70).
 NO_SINGLES = "no single characters in the cast; crowds are left out by design"
+# A cast of neither singles nor a crowd is an upstream fault, never a pass (#70: lab's and stairwell's people lost).
+EMPTY_CAST = "empty cast: no single characters and no crowd"
 
 
 def angle_between(one, other):
@@ -159,6 +161,12 @@ def judge_residual(output, inputs, evidence):
 def output_faults(folder):
     folder = pathlib.Path(folder)
     found = [f"no {name}" for name in (RECORD, LAYER) if not (folder / name).exists()]
-    if not found and not bodies_of(folder) and "no bodies" not in json.loads((folder / RECORD).read_text()):
-        found.append("no sim body: the cast names no character whose clip the rig holds")
+    if found or bodies_of(folder):
+        return found
+    record = json.loads((folder / RECORD).read_text())
+    if "no bodies" in record:
+        return found
+    # every single and the crowd lands in `left out` when it has no body, so an empty one is an empty cast
+    found.append("no sim body: the cast names no character whose clip the rig holds" if record["left out"]
+                 else EMPTY_CAST)
     return found
