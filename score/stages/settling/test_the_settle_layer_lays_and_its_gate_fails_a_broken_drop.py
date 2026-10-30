@@ -22,9 +22,9 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - a_row_the_reading_gave_no_anchor_reads_as_none: with_anchors' `row.get("anchor") or ""` made `row.get("anchor")`
   (held_on_loose meets None).
 - a_pair_crossing_as_laid_is_kept_not_broken: laid_inside_each_other returning `poses` unchanged (2026-10-30).
-- a_row_on_a_wall_or_ceiling_row_is_mounted_there: held.mounted's `if kind in ("wall", "ceiling"):` made
+- a_row_on_a_wall_or_ceiling_row_is_mounted_there: assembly/mounted.py's `if kind in ("wall", "ceiling"):` made
   `if kind in ("wall",):` (the ceiling rails left out, 2026-10-30).
-- a_structure_row_on_a_mounted_row_is_mounted_with_it: held.mounted's `while more := {...}` loop made `while False:`
+- a_structure_row_on_a_mounted_row_is_mounted_with_it: assembly/mounted.py's `while more := {...}` loop made `while False:`
   (the door's window left held on its door, judged standing, 2026-10-30), and its `if holder_kind(rows[row_id]) is
   None` test dropped (a railing on a floor laid on a hull mounted through the floor).
 - one_stacked_on_a_support_left_as_laid_is_left_as_laid: kept_with_their_supports' `changed = True` after a keep

@@ -237,7 +237,7 @@ def test_the_resting_gate_judges_the_world_files_the_stage_declares(tmp_path):
 def test_a_row_on_a_wall_or_ceiling_row_is_judged_mounted_there():
     """Round 32's docking airlock (2026-10-30): its wall pipes on its left wall and ceiling rails on its ceiling panels
     were judged as standing on them, leaning and tipping. The triage is given each such row's support as its holder's
-    kind (settling.held.mounted), so it judges them by touching; a row on a floor or an object, or naming its own
+    kind (assembly/mounted.py), so it judges them by touching; a row on a floor or an object, or naming its own
     support, keeps what the triage gives it.
     Break: score/stages/assembly/__init__.py: `if row["id"] in on_walls and not row.get("support")` -> `if False`"""
     inventory = {"rows": [{"id": "left_wall", "part": "wall"}, {"id": "ceiling_panels", "part": "roof"},
