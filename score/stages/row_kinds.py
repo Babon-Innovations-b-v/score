@@ -36,7 +36,11 @@ def words(text):
 
 def kind_of(row, kinds):
     """The first kind whose nouns hold the row's reading noun whole; for a row read with no noun, its name's last
-    word (its id's when it has no name); else the kind it is held by (held_kind); None when no kind does."""
+    word (its id's when it has no name); else the kind it is held by (held_kind); None when no kind does, and for a
+    row the reading made an opening (its part: a hole in a wall or floor, never the door filling it,
+    score/review/reading.py), which has no object to move, emit or act (workshop's "doorway" read as a door)."""
+    if row.get("part") == "opening":
+        return None
     wanted = words(row.get("noun")) or words(row.get("name") or row.get("id")).rsplit(" ", 1)[-1]
     return next((kind for kind, rule in kinds.items() if wanted and wanted in rule["nouns"]), None) or \
         held_kind(row, kinds)
