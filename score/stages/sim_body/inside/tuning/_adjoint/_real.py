@@ -84,3 +84,23 @@ def taped_sites(clip, model, rows, targets):
                        turns=(turn_links, np.full(len(turn_links), clip.turn_cost), wanted, turn_offsets),
                        couplings=frame_couplings(clip, rows), copies=frames)
     return sites, offsets
+
+
+HELD = 1e-5  # rad or m: a coordinate this close to its bound is held there by the card's active set
+
+
+def bound_held(clip, couplings, rows):
+    """A mask over `RootTurns`' reduced pose (frames x (per copy - 1)): True where the solved row holds that
+    coordinate at its limited range's bound (`clip.reduction`), so the inner optimum fixes it there and the pose
+    drops it; the root's turn chart (3 tangent entries) is never held."""
+    frames, size = rows.shape
+    free = np.asarray(couplings[0][:len(couplings[0]) // frames]) % size
+    reduced = np.concatenate([free[:3], [-1, -1, -1], free[7:]])
+    lower, upper = np.full(size, -np.inf), np.full(size, np.inf)
+    coordinates = clip.reduction.free_coord.numpy()
+    lower[coordinates], upper[coordinates] = clip.reduction.lower.numpy(), clip.reduction.upper.numpy()
+    held = np.zeros((frames, len(reduced)), dtype=bool)
+    chosen = reduced >= 0
+    values = rows[:, reduced[chosen]]
+    held[:, chosen] = (values <= lower[reduced[chosen]] + HELD) | (values >= upper[reduced[chosen]] - HELD)
+    return held.ravel()

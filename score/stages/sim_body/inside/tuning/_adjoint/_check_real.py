@@ -65,14 +65,25 @@ began = time.time()
 copied = _real.per_frame_model(fitting, path, len(rows))
 gap = np.abs(copied_body_q(copied, _real.frame_couplings(clip, rows), rows) - own_body_q(clip.model, rows))
 fk = {"most": float(gap.max()), "bodies": int(gap.shape[1]), "seconds": time.time() - began}
-TOLERANCE = float(__import__('os').environ.get('SCORE_ADJOINT_TOLERANCE', '0'))
+TOLERANCE = float(__import__('os').environ.get('SCORE_ADJOINT_TOLERANCE', '1e-5'))  # float32's floor: interior 1.35e-6
 began = time.time()
 sites, offsets = _real.taped_sites(clip, copied, rows, targets)
 couplings = _real.frame_couplings(clip, rows)
 turns = RootTurns(pose_of(couplings, rows), len(couplings[0]) // len(rows))
-body = Body("heavy_kimodo", lambda inner, outer: sites.residuals(turns.full(inner), outer),
-            lambda inner, outer: turns.pulled(inner, sites.gradient(turns.full(inner), outer)),
-            turns.reduced(), len(rows), turns.per_copy - 1)
+held = _real.bound_held(clip, couplings, rows)
+
+
+def whole_of(inner):
+    """The reduced pose with the bound-held entries back at their solved values."""
+    whole = turns.reduced().copy()
+    whole[~held] = inner
+    return whole
+
+
+body = Body("heavy_kimodo", lambda inner, outer: sites.residuals(turns.full(whole_of(inner)), outer),
+            lambda inner, outer: turns.pulled(whole_of(inner),
+                                              sites.gradient(turns.full(whole_of(inner)), outer))[~held],
+            turns.reduced()[~held], 1, int((~held).sum()))
 most = float(np.max(np.abs(body.gradient(body.inner, offsets))))
-taped = {"most": most, "refused": refused([body], offsets, TOLERANCE), "seconds": time.time() - began}
+taped = {"most": most, "refused": refused([body], offsets, TOLERANCE), "held": int(held.sum()), "seconds": time.time() - began}
 print(json.dumps({"cases": found, "rows": int(rows.shape[0]), "seconds": seconds, "fk": fk, "taped": taped}))
