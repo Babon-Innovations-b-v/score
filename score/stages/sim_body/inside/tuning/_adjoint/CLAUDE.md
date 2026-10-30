@@ -7,6 +7,9 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   (the card study measured Gauss-Newton alone 22.4 % off, the full one 0.19 % from a re-solve).
 - H is read block-arrow: one pose coordinate of every frame stepped together, then each constant alone
   (2 x (pose size + constants) gradients, not 2 x inner size); solved by the Schur step over the constants.
+- `rowed_jacobian` (2026-10-30) is `implicit_jacobian` with R_z and R_theta given (taped rows) in place of central
+  differences of the residuals, the shared H^-1 dg/dtheta in `inner_motion`; on the toy, hand-written rows equal
+  differences of the re-solved fit. `chained_jacobian` still differences its residuals (not yet switched to rows).
 - An inner fit whose gradient exceeds the tolerance raises `Unconverged`: the caller reports that body, never uses it.
 - `Body` is one tuning body's inner problem at its optimum; `stacked_jacobian` is level 1's whole Jacobian in
   `tuning`'s row order (every body's rows, then the prior's), every body checked first (`refused`) and each one stopped
