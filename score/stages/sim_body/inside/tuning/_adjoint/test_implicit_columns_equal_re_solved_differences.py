@@ -22,7 +22,7 @@ In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
 without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pulled` skipping the normalisation's
 projection (`along` the raw turn gradient) turns the root chart test red; `RootTurns.pulled_rows` cutting each copy's fourth turn coordinate in place of pulling the row
 through the chart turns it red; `Pinned.rows` keeping a held column turns the pinned test red; `Pinned.gradient` giving a held entry zero in place of its spring (a
-singular frame block) turns the pinned test red. In `_level2.py`, `level2_body`'s gradient left in the Problem's order (no `to_body`) turns the constants-first level 2 test red; `pinned_mask` holding no bound-held entry turns it red; `level2_body` rebuilding the Problem on every gradient call (no `problem_of` cache) turns it red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red. In `_real.py`, `solved_rows`
+singular frame block) turns the pinned test red. In `_level2.py`, `level2_body`'s gradient left in the Problem's order (no `to_body`) turns the constants-first level 2 test red; `pinned_mask` holding no bound-held entry turns it red; `level2_body` rebuilding the Problem on every gradient call (no `problem_of` cache) turns it red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red; `picked_columns` laying a site's rows at its row among the known names in place of its place in `names` turns it red. In `_real.py`, `solved_rows`
 giving MuJoCo's order (no `newton_order`) turns the real body test red; `frame_couplings` zeroing
 the projection's polynomials turns its per-frame model check red; `bound_held` holding nothing (bound-held coordinates left in the pose) turns its refused check red (4.12e-3); `joint_parts`
 dropping the centres' scales turns its joints check red; `turn_groups` without the frozen table turns its turns check red; `skin_parts` without the geom's turn turns its skins check red (0.19 m). The case rows' derivative left over the full pose (no `RootTurns.pulled_rows`) turns its pulled check red.
@@ -111,6 +111,9 @@ def test_level_1_unknowns_map_onto_the_taped_outer_unknowns_with_their_derivativ
                                             toys.GLOBALS), toys.site_outer(unknowns, entries))
     derivative = _outer.site_derivative(unknowns, entries, toys.LANDMARKS, toys.ENDS, toys.TABLE, toys.GLOBALS)
     assert np.allclose(derivative, toys.site_outer_differences(unknowns, entries), atol=1e-6)
+    links = [column for column, entry in enumerate(entries) if entry[1] == "link"]  # picked: names' order, unknown 0
+    assert np.allclose(_outer.picked_columns(["x", "hip", "knee_l"], links, entries, toys.TABLE, toys.GLOBALS),
+                       np.vstack([np.zeros((3, len(links))), derivative[6:9, links], derivative[0:3, links]]))
 
 
 def test_a_body_copied_per_frame_keeps_the_card_projection_couplings():

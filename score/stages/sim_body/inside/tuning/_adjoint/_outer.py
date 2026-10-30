@@ -47,3 +47,20 @@ def site_derivative(unknowns, entries, landmarks, ends, table, globals_):
             row = 3 * sites + len(landmarks) + TAPED_GLOBALS.index(pool)
             found[row, column] = LOG_UNIT * globals_[pool] * np.exp(LOG_UNIT * value)
     return found
+
+
+def picked_columns(names, picked, entries, table, globals_):
+    """`site_derivative`'s columns `picked` at level 1's start over one frame's site offsets laid in `names`' order
+    (3 x len(names), len(picked)): a site's offset rows the landmark's, zero for a name not in `table`. Only link
+    entries move a level 3 site offset there (the trusts, ends and globals are not taped by `_real.taped_sites`), so
+    any other picked kind is refused, named."""
+    others = [entries[column] for column in picked if entries[column][1] != "link"]
+    if others:
+        raise ValueError(f"picked entries that move no level 3 site offset: {others}")
+    known = [name for name in names if name in table]
+    found = site_derivative(np.zeros(len(entries)), entries, known, [], table, globals_)[:3 * len(known), list(picked)]
+    laid = np.zeros((3 * len(names), len(picked)))
+    for row, name in enumerate(known):
+        place = names.index(name)
+        laid[3 * place:3 * place + 3] = found[3 * row:3 * row + 3]
+    return laid
