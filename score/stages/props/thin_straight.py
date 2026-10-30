@@ -8,12 +8,16 @@ Thin and straight (`thin_straight`): the row's size is slender by the model gate
 shape_class: its middle side under SLENDER_SHARE of its longest), and its name or noun names a straight kind
 (STRAIGHT) or a railing (RAILING: its posts and rails built, `railing`), or its row kind glows (`slender_light`: a
 lamp on its own stem, its post built here and its head the library's lamp at the head mount; a light bar, a strip light or a string of lights along its cable, its body built here
-and its light the library's lamp for its mount, laid by the light layer). Its profile is swept along its longest side, the row's straight length: round (an ellipse filling the two
-short sides) for the kinds in ROUND, a rectangle of the two short sides for the rest (posts, beams, pillars).
-That straight sweep is for a row whose SAM 3 mask is one straight run (`one_run`); any other mask (a bent pipe
-network, a sagging string, a railing's ladder of posts and rails, a bundle of parallel cables: world 1's masks,
-2026-10-26) is followed instead (`path_build`): skeletonised, traced, laid in its picture's plane at its metres, leaned
-to face the outline's view, and swept as round tubes, so the outline holds the build to the thing's own path.
+and its light the library's lamp for its mount, laid by the light layer). Every such row is built along its SAM 3
+mask's centreline (`path_build`): skeletonised, its spurs pruned, traced, laid in its picture's plane at its metres,
+leaned to face the outline's view, and swept as a tube its band's drawn width across that plane and at most the row's
+thinnest side deep, so the outline holds the build to the thing's own path, straight or not (a bent pipe network, a
+sagging string, a railing's ladder of posts and rails, a bundle of parallel cables: world 1's masks, 2026-10-26).
+A straight sweep of the box for a mask that looked one straight run hid a wide band's bends (walkway's wall pipes
+0.438, along its centreline 0.681) and took its section from the wrong side of its box (stairwell's conduit 0.346,
+0.612): along the centreline the 11 of round 25's 56 code builds that failed their outline came to 2 (#36, 2026-10-30).
+A row with no mask is swept straight along its longest side at its box's section (round for the kinds in ROUND, a
+rectangle for the rest).
 
 Its take (`write_take`), in WORK/pixal where the batch would bring one: `<take>.glb` (raw) and the slimmed
 `<take>-<faces>.glb` and `<take>-final.glb`, all three the same model in the pose it is built in (it knows its up and
@@ -58,12 +62,13 @@ RAILING = frozenset(("railing", "balustrade", "guardrail", "banister"))
 # length has ceil(length / POST_GAP) bays.
 POST_GAP = 1.5
 SEGMENTS = 32
-# A straight sweep's section at most this share of its length (`drawn_section`): the model gate's slender share
-# (tools/props/gates/model.py SLENDER_SHARE), so a mask drawn fatter than a thin thing never builds a chunky one.
+# A skeleton's run with a free end shorter than this many band widths is a spur of a fat mask's outline, not a run of
+# the thing (`spurless`); pruned SPUR_ROUNDS times, the band's width measured again each time.
+SPUR_WIDTHS = 1.5
+SPUR_ROUNDS = 3
+# A band at most this share of its length across (`lifted`): the model gate's slender share (tools/props/gates/model.py
+# SLENDER_SHARE), so a mask drawn fatter than a thin thing never builds a chunky one.
 SECTION_SHARE = 0.25
-# A mask is one straight run (one_run) while it lies across its long axis within twice its line's width plus this share
-# of its length: a lantern string sagging 13% of its span is not; a pipe drawn 2% off true is.
-RUN_BEND = 0.05
 # A mask's piece under this share of its largest piece's area is a speck SAM 3 left, not a run of the thing (pieces).
 PIECE_SHARE = 0.1
 # Grid cells across a path build's tube (tubes): enough for a round section, few enough faces for the model gate.
@@ -154,40 +159,19 @@ def profile(row):
 
 def build(row, alpha=None):
     """The row's model at its size, in a final take's frame (y up, the longer ground side along
-    z: glb_file.squared; the inventory's size is wide, deep, tall), centred on the origin: its profile swept straight
-    along its longest side, upright only when it `stands` (its mask, `alpha`, its cut's, says so too), or, when its
-    mask is not one straight run, its mask's own path (`path_build`)."""
+    z: glb_file.squared; the inventory's size is wide, deep, tall), centred on the origin: along its mask's (`alpha`,
+    its cut's) centreline (`path_build`), or, with no mask, its profile swept straight along its longest side."""
     import trimesh
-    if alpha is not None and alpha.any() and not one_run(alpha):
+    if alpha is not None and alpha.any():
         return path_build(row, alpha)
     wide, deep, tall = (float(value) for value in row["size"])
     extents = np.array([min(wide, deep), tall, max(wide, deep)])
-    if tall >= max(wide, deep) and not stands(row, alpha):  # the reading's box stood a run its picture shows lying
-        extents = np.array([min(wide, deep), max(wide, deep), tall])
     along = int(np.argmax(extents))
-    if alpha is not None and alpha.any():
-        extents = drawn_section(extents, along, alpha)
     mesh = prism(section(profile(row)), SWEEP_RINGS)  # along z, centred
     mesh.apply_transform(trimesh.geometry.align_vectors([0, 0, 1], np.eye(3)[along]))
     mesh.apply_scale(extents / mesh.extents)
     mesh.apply_translation(-mesh.bounds.mean(0))
     return mesh
-
-
-def drawn_section(extents, along, alpha):
-    """The sweep's `extents` with a section the picture can show: the line's drawn width (`reaches`) at the scale its
-    length is the row's (at least `least_tube`, at most SECTION_SHARE of its length), as path_build's tube is. A box
-    section shows from its thinnest side (edge on) to its diagonal; a drawn width inside that keeps the box's, one
-    outside scales both short sides, their shape kept, to the nearer end. The reading's section met the picture's
-    width on 33 of world 1's 57 builds; the rest were built 2 to 8 times too thin or too thick and failed their outline
-    (2026-10-29: walkway's 12 m ceiling duct 0.3 by 0.5 m drawn 1.7 m, 0.253; storage's 3 m pillar 0.6 m square drawn
-    0.25 m, 0.399), while a flat wall run of pipes 4.9 m by 0.4 m showing 1.5 m was right as it was."""
-    length, _, width = reaches(pieces(alpha))
-    sides = [axis for axis in range(3) if axis != along]
-    found = np.array(extents, dtype=float)
-    drawn = np.clip(width / length * found[along], least_tube(), SECTION_SHARE * found[along])
-    found[sides] *= drawn / np.clip(drawn, found[sides].min(), np.hypot(*found[sides]))
-    return found
 
 
 def section(shape):
@@ -219,23 +203,6 @@ def prism(outline, rings):
     return trimesh.Trimesh(points, np.vstack([sides, ends]), process=True)
 
 
-def slant(alpha):
-    """The degrees a mask's long axis (second moments) rises from level in the picture, -90 to 90."""
-    down, across = np.nonzero(alpha)
-    down, across = down - down.mean(), across - across.mean()
-    return float(0.5 * np.degrees(np.arctan2(2 * (across * down).mean(), (across ** 2).mean() - (down ** 2).mean())))
-
-
-def stands(row, alpha):
-    """Whether a straight run stands upright: its box's longest side is its height and its mask (when there is one)
-    rises within 45 degrees of upright. The direction is the picture's, the metres the box's: a reading's box stood
-    pipes its picture shows lying (the greenhouse's and the quarters' pipes, outlines 0.02 and 0.03 on 2026-10-26),
-    and a view tilts an upright thing, never lays it down; a level thing may show at any slant (one running away from
-    the camera stands steep), so a level box stays level."""
-    upright = float(row["size"][2]) >= max(float(value) for value in row["size"])
-    return upright and (alpha is None or not alpha.any() or abs(slant(alpha)) >= 45.0)
-
-
 def pieces(alpha):
     """The mask but its specks: its pieces at least PIECE_SHARE of its largest's area."""
     from scipy import ndimage
@@ -244,29 +211,6 @@ def pieces(alpha):
         return alpha
     areas = ndimage.sum(alpha, labels, range(1, count + 1))
     return np.isin(labels, 1 + np.flatnonzero(areas >= PIECE_SHARE * areas.max()))
-
-
-def one_run(alpha):
-    """Whether a mask is one straight run: one piece lying across its long axis within twice its line's width (its
-    area over its length) plus RUN_BEND of its length. A sag, an elbow, a ladder of posts and rails or a band of
-    parallel lines is not: path_build follows it."""
-    from scipy import ndimage
-    kept = pieces(alpha)
-    if ndimage.label(kept, structure=np.ones((3, 3)))[1] != 1:
-        return False
-    length, across, width = reaches(kept)
-    return across <= 2 * width + RUN_BEND * length
-
-
-def reaches(kept):
-    """(length, across, width) of a mask in pixels: its reach along its long axis (second moments) and across it, and
-    its line's drawn width (its area over that length)."""
-    down, across = np.nonzero(kept)
-    points = np.c_[across, down].astype(float)
-    points -= points.mean(0)
-    axes = np.linalg.svd(points, full_matrices=False)[2]
-    length = np.ptp(points @ axes[0]) + 1
-    return length, np.ptp(points @ axes[1]) + 1, len(points) / length
 
 
 def traces(skeleton):
@@ -320,13 +264,16 @@ def lifted(runs, row, width):
     reach the path's own, never a box side: a thin run's box is its thickness on its two short sides (a sagging string
     8 by 0.01 by 0.01), and a railing curving round a floor drawn from above shows its plan's depth as its picture's
     height (the greenhouse's, 9.4 by 0.1 by 1 m: held to its 1 m, its curve flattened to a line and its outline fell
-    from 0.415 to 0.023, 2026-10-28); the tube `width` picture pixels thick at that scale, at most the row's thinnest
-    side (its thickness: a 5 m drape's box 1 m deep is no 1 m tube) and at least `least_tube`."""
+    from 0.415 to 0.023, 2026-10-28); the tube `width` picture pixels thick at that scale, its band's drawn width
+    across the picture (a wide band of pipes is that wide where the picture shows it: capped at the row's thinnest
+    side, the walkway's wall pipes read 0.155), at least `least_tube` and at most SECTION_SHARE of its length (a
+    mask SAM 3 drew as a blob is no thin thing, and no chunky build is made of it); `path_build` holds its depth to
+    the row."""
     sides = sorted(float(value) for value in row["size"])
     flat = np.concatenate(runs)
     low, span = flat.min(0), np.maximum(np.ptp(flat, axis=0), 1.0)
     scale = sides[2] / (span.max() + width)
-    thick = max(min(width * scale, sides[0]), least_tube())
+    thick = float(np.clip(width * scale, least_tube(), SECTION_SHARE * sides[2]))
     scale = (sides[2] - thick) / span.max()
     laid = []
     for run in runs:
@@ -401,26 +348,49 @@ def fittings(laid, row, thick):
 
 
 def path_build(row, alpha):
-    """The row's model following its mask's own path (owner's ask, 2026-10-26: bent pipe networks, a sagging lantern
+    """The row's model along its mask's centreline (owner's ask, 2026-10-26: bent pipe networks, a sagging lantern
     string, a railing's posts and rails, a bundle of parallel cables were each built as one straight sweep and failed
-    their outline): the mask skeletonised and traced into its runs (`traces`, forks kept), each run's bends kept to
-    within half its line's width, laid in the picture's plane at its metres (`lifted`), leaned to face the
-    outline's look-down (`facing`), and a round tube of the line's
-    thickness swept along them all as one closed surface (`tubes`), so a sag stays a sag, an elbow a bend, a ladder
-    its posts and rails and a band of lines its tubes; a rigid run's fittings (`fittings`: elbows, tees, wall clamps)
-    made in code on the same surface, its finish the finish route's like the rest."""
+    their outline): the mask skeletonised and traced into its runs (`traces`, forks kept), a fat band's spurs pruned
+    (`spurless`), each run's bends kept to within a quarter of the band's width, laid in the picture's plane at its
+    metres (`lifted`), and a round tube of the band's drawn width swept along them all as one closed surface (`tubes`),
+    so a sag stays a sag, an elbow a bend, a ladder its posts and rails and a band of lines its band; held at most the
+    row's thinnest side deep through the picture's plane (its thickness: a 5 m drape's box 1 m deep is no 1 m tube,
+    a flat wall run of pipes no round one), never under `least_tube`, and leaned to face the outline's look-down
+    (`facing`); a rigid run's fittings (`fittings`: elbows, tees, wall clamps) made in code on the same surface, its
+    finish the finish route's like the rest."""
     from skimage.measure import approximate_polygon
     from skimage.morphology import skeletonize
     kept = pieces(alpha)
-    skeleton = skeletonize(kept)
-    traced = [np.asarray(run, dtype=float) for run in traces(skeleton) if len(run) > 1]
-    # its length, not its pixel count: a diagonal step is 1.4 pixels long, and counted as 1 it drew the tube fatter
-    width = kept.sum() / max(sum(np.linalg.norm(np.diff(run, axis=0), axis=1).sum() for run in traced), 1.0)
-    runs = [approximate_polygon(run, tolerance=1.0) for run in traced]
+    traced, width = spurless([np.asarray(run, dtype=float) for run in traces(skeletonize(kept)) if len(run) > 1],
+                             int(kept.sum()))
+    runs = [approximate_polygon(run, tolerance=width / 4) for run in traced]
     laid, thick = lifted(runs, row, width)
     mesh = tubes(laid, thick, [pair for pairs in fittings(laid, row, thick).values() for pair in pairs])
+    deep = max(min(float(value) for value in row["size"]), least_tube())
+    mesh.apply_transform(np.diag([min(1.0, deep / max(float(np.ptp(mesh.vertices[:, 0])), 1e-9)), 1.0, 1.0, 1.0]))
     mesh.apply_transform(facing(row))
     return mesh.apply_translation(-mesh.bounds.mean(0))
+
+
+def run_length(run):
+    """A traced run's length in pixels along its points (a diagonal step 1.4)."""
+    return float(np.linalg.norm(np.diff(run, axis=0), axis=1).sum())
+
+
+def spurless(traced, area):
+    """(the skeleton's runs `traced` but its spurs, the band's drawn width in pixels): a run with a free end (one no
+    other run's end meets) shorter than SPUR_WIDTHS band widths is the skeleton's spur off a fat mask's outline, not a
+    run of the thing, so it is dropped, SPUR_ROUNDS times, the width (the mask's `area` over the runs' length; a
+    diagonal step 1.4 pixels long, counted as 1 it drew the tube fatter) measured again each time; every run is kept
+    when each one would go."""
+    width = area / max(sum(map(run_length, traced)), 1.0)
+    for _ in range(SPUR_ROUNDS):
+        ends = [tuple(end) for run in traced for end in (run[0], run[-1])]
+        kept = [run for run in traced if run_length(run) >= SPUR_WIDTHS * width
+                or min(ends.count(tuple(run[0])), ends.count(tuple(run[-1]))) > 1]
+        traced = kept or traced
+        width = area / max(sum(map(run_length, traced)), 1.0)
+    return traced, width
 
 
 def tubes(laid, thick, fitted=()):
@@ -493,12 +463,25 @@ def finish_turn(raw):
     return whole
 
 
+def cut_box(row):
+    """The concept box a row's build is masked and cropped in: a counted row's (`count` over 1) the union of its
+    instances' `boxes`, the run they lie along (the square's 7.5 m lantern string, count 8: its `box` one lantern,
+    the build swept a 7.5 m bar from that lantern's crop, outline 0.481, #36 2026-10-30); else its `box`."""
+    boxes = [box for box in row.get("boxes") or [] if box]
+    if int(row.get("count") or 1) <= 1 or len(boxes) < 2:
+        return row.get("box")
+    lefts, tops, rights, bottoms = zip(*boxes)
+    return [min(lefts), min(tops), max(rights), max(bottoms)]
+
+
 def mask_jobs(rows, concepts):
-    """box_masks.py's jobs asking each row's own mask: one a concept, each row by its name and noun in its box."""
+    """box_masks.py's jobs asking each row's own mask: one a concept, each row by its name and noun in its cut box
+    (`cut_box`)."""
     jobs = {}
     for name, row in sorted(rows.items()):
         words = list(dict.fromkeys(word for word in (row["name"], row.get("noun")) if word))
-        jobs.setdefault(str(concepts[name]), []).append({"key": name, "nouns": words, "box": row["box"], "mask": True})
+        jobs.setdefault(str(concepts[name]), []).append({"key": name, "nouns": words, "box": cut_box(row),
+                                                         "mask": True})
     return [{"picture": picture, "rows": asked} for picture, asked in jobs.items()]
 
 
@@ -660,8 +643,9 @@ def textured(mesh, picture):
     return mesh
 
 
-def write_take(take, row, picture, faces, pixal, mask):
-    """The take's files (module docstring) in `pixal` from `picture`, its concept crop cut out by its SAM 3 `mask`."""
+def write_take(take, row, picture, faces, pixal, mask, box=None):
+    """The take's files (module docstring) in `pixal` from `picture`, its concept crop of `box` (its row's `cut_box`
+    by default) cut out by its SAM 3 `mask`."""
     views = pixal / f"{take}.svviews"
     views.mkdir(parents=True, exist_ok=True)
     picture.save(views / "input.png")
@@ -669,18 +653,25 @@ def write_take(take, row, picture, faces, pixal, mask):
     mesh = textured(build(row, alpha), picture)
     for name in (f"{take}.glb", f"{take}-{faces}.glb", f"{take}-final.glb"):  # raw, slimmed, final: never stood
         mesh.export(pixal / name)
-    path = alpha.any() and not one_run(alpha)
-    mark = {"route": "code", "rule": "thin straight (owner, 2026-10-25)", "profile": "path" if path else profile(row),
-            "size": row["size"], "mask": str(mask), "texture": TEXTURE}
+    mark = {"route": "code", "rule": "thin straight (owner, 2026-10-25)", "profile": "path" if alpha.any() else
+            profile(row), "size": row["size"], "mask": str(mask), "box": cut_box(row) if box is None else box,
+            "texture": TEXTURE}
     (views / MARK).write_text(json.dumps(mark, indent=1))
     return views
 
 
 def rebuilt(take, row, faces, pixal):
-    """The code build of `take` made again (write_take) from its own crop and mask as its mark names them."""
+    """The code build of `take` made again (write_take) from its own crop, mask and box as its mark names them."""
     views = pixal / f"{take}.svviews"
-    mask = json.loads((views / MARK).read_text())["mask"]
-    return write_take(take, row, Image.open(views / "input.png").convert("RGBA"), faces, pixal, mask)
+    mark = json.loads((views / MARK).read_text())
+    return write_take(take, row, Image.open(views / "input.png").convert("RGBA"), faces, pixal, mark["mask"],
+                      mark.get("box", row.get("box")))
+
+
+def cut_as_built(take, row, pixal):
+    """Whether the code build of `take` was cut from its row's `cut_box`: its mark's box, or, in a mark from before
+    the box was named, its row's own `box` (a counted row's build cut from one instance is masked and cut again)."""
+    return json.loads((pixal / f"{take}.svviews" / MARK).read_text()).get("box", row.get("box")) == cut_box(row)
 
 
 def code_built(take, pixal):

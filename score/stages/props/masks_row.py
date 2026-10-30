@@ -42,7 +42,7 @@ def make_masks(inputs, out, seed, params):
     (out / "cuts").mkdir()
     cut = []
     for row, mask in sorted(masks.items()):
-        picture = thin_straight.cut_by_mask(concepts[row], thin[row]["box"], mask)
+        picture = thin_straight.cut_by_mask(concepts[row], thin_straight.cut_box(thin[row]), mask)
         if picture is not None:
             picture.save(out / "cuts" / f"{row}.png")
             cut.append(row)

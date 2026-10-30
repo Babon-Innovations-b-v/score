@@ -197,33 +197,18 @@ def pixal_cut(path, folder, row):
     return out
 
 
-def straight_cut(path, folder, row, size):
-    """A thin straight code build's concept crop as pixal_cut cuts it, turned in the picture's plane so its long axis
-    stands upright when the build stands (thin_straight.stands: the row's longest side is its height and its mask
-    rises within 45 degrees of upright), else lies level: as the build's best way round shows it. The crop is the
-    concept's view, not a close-up drawn at the ring's look-down, so a straight thing stands in it at the concept
-    camera's slant, and a thin line's outline falls with any slant (a 3 m pipe matched upright at 0.80, at 10 degrees
-    0.12, at 30 degrees 0.02; the conductor's prediction of 2026-10-26 scored 13 of 15 thin straight builds 0.02 to
-    0.21). Turned once by its own mask's long axis (second moments), never searched per model, so the outline then
-    holds it to its straightness and proportions.
-    A mask that is not one straight run (thin_straight.one_run) had its path build follow it in the picture's frame:
-    its cut is its mask as it is (thin_straight.pieces: specks dropped, no hole filled, so a ladder stays posts and
-    rails and a bundle its lines), unturned: the build keeps the pose it was made in (thin_straight.write_take)."""
+def straight_cut(path, folder, row):
+    """A thin straight code build's concept crop cut by its mask as it is (thin_straight.pieces: specks dropped, no
+    hole filled, so a ladder stays posts and rails and a bundle its lines), unturned: the build follows its mask's
+    centreline in the picture's frame and keeps the pose it was made in (thin_straight.write_take). A crop turned
+    upright or level by its mask's long axis held a straight sweep of the box to it (2026-10-26); along its
+    centreline, the build is the picture's own slant (#36, 2026-10-30)."""
     picture = np.asarray(Image.open(path).convert("RGBA"))
-    alpha = picture[..., 3] > 127
     folder.mkdir(parents=True, exist_ok=True)
-    if alpha.any() and not thin_straight.one_run(alpha):
-        kept = np.where(thin_straight.pieces(alpha), 255, 0).astype(np.uint8)
-        out = folder / f"{row}.png"
-        Image.fromarray(np.dstack([picture[..., :3], kept])).save(out)
-        return out
-    cut = pixal_cut(path, folder, row)
-    picture = Image.open(cut)
-    turn = thin_straight.slant(np.asarray(picture)[..., 3] > 127)
-    if thin_straight.stands({"size": size}, alpha):
-        turn -= np.copysign(90.0, turn)
-    picture.rotate(turn, resample=Image.NEAREST, expand=True).save(cut)
-    return cut
+    kept = np.where(thin_straight.pieces(picture[..., 3] > 127), 255, 0).astype(np.uint8)
+    out = folder / f"{row}.png"
+    Image.fromarray(np.dstack([picture[..., :3], kept])).save(out)
+    return out
 
 
 def whole_best_way(model, closeup, size):
@@ -263,7 +248,7 @@ def object_record(row, record, inputs, baked, parts, rows, square, cuts):
     if cut is None or not pathlib.Path(cut).exists():
         closeup = thin_straight.cut_out(closeup, cuts)
     else:
-        closeup = straight_cut(cut, cuts, row, rows[row]["size"]) if thin_built(inputs, row) else pixal_cut(cut, cuts, row)
+        closeup = straight_cut(cut, cuts, row) if thin_built(inputs, row) else pixal_cut(cut, cuts, row)
     kind = f"{place}_{row}"
     drawn = rows[row].get("read_size") or rows[row]["size"]
     found.update(model=str(model), closeup=str(closeup), **whole_best_way(model, closeup, drawn),

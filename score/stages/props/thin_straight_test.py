@@ -7,26 +7,32 @@ write_take standing its final again (`mesh.apply_transform(finish_turn(pixal / f
 export) turns it red too (the elbow turned off its mask). likeness_row.model_checks fitting a slender model to its box
 side by side again (`if thin_straight.slender(size):` -> `if False:`) turns
 test_a_thin_run_is_held_to_its_path_s_own_size_never_crushed_to_its_box red (the sag's tube read 2 mm thick); so does
-fittings returning none (`if not kind_words(row) & FITTED:` -> `if True:`: the bend no thicker at its elbow). make_pixal
+fittings returning none (`if not kind_words(row) & FITTED:` -> `if True:`: no elbow on the bend). make_pixal
 handing coded only rows whose close-up failed (`and not (closeups / f"{row}.png").exists()` in its rows) turns
 test_a_thin_straight_row_whose_close_up_passed_is_built_in_code_and_never_goes_to_pixal3d red (the pipe is batched).
 slender's edge left out again (`<=` -> `<`) turns test_only_thin_rows_of_a_straight_kind_are_taken red (the 4 m
 stair railing 1 m tall). lifted laying a ground-anchored run on the ground (`point[:, 0 if row.get('anchor') ==
 'ground' else 1] = ...`), or holding its picture's height to the row's (each run's y scaled to `size[2]` over its
-reach), or path_build's tube width by the skeleton's pixel count again (`kept.sum() / skeleton.sum()`), each turns
+reach), or the band's width by the skeleton's pixel count again (run_length returning `float(len(run))`), each turns
 test_a_path_is_built_in_its_picture_s_plane_facing_the_outline_s_view red (the cables' or the railing's outline under
 0.5, the diagonal's tube 40% fat); facing never leaning (`down = 0.0`) turns
 test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s_path red. likeness_row.object_record's `lit` never set (`lit = False`)
 turns test_a_code_built_light_is_not_held_to_the_lamp_its_route_leaves_to_the_light_layer red (the lamp face missed).
 write_take leaving its crop off the build (`mesh = textured(build(row, alpha), picture)` -> `mesh = build(row, alpha)`)
-or a sweep built in one length again (SWEEP_RINGS = 1) turns
-test_a_code_build_carries_its_crop_where_it_lies_so_each_finish_has_faces_of_its_own red (one region, or no
-face of its own on its ends). build ignoring its mask's drawn width (`if alpha is not None and alpha.any():` before
-drawn_section -> `if False:`) turns test_a_sweep_s_section_is_the_picture_s_where_its_box_s_cannot_show_it red
-(the pillar 0.22); drawn_section scaling every section to the drawn width (`drawn / found[sides].max()`) turns it
-red too (the flat run's section halved). code_builds keeping a build already made as it is (`thin_straight.rebuilt(...)`
-under `if False:`) turns test_the_pixal_row_builds_a_failed_thin_row_and_drops_its_close_up_gap red (the older
-builder's box kept).
+turns test_a_code_build_carries_its_crop_where_it_lies_so_each_finish_has_faces_of_its_own red (one region).
+build sweeping a masked row straight again (`if alpha is not None and alpha.any():` before path_build -> `if False:`)
+turns test_a_band_is_its_drawn_width_across_its_picture_and_at_most_its_row_s_thinnest_side_deep and
+test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s_path red; so do, for the band test,
+path_build not holding its depth to the row (the depth factor -> `1.0`: the conduit 0.27 m deep on its 0.1 m), lifted
+capping the tube at the thinnest side again (`max(min(width * scale, sides[0]), least_tube())`: the conduit's band
+0.1 m, not its drawn 0.27), spurless dropping every short run (the fork test's `ends.count` clause cut: the link
+between two forks lost) or none (`traced = kept or traced` removed). likeness_row.straight_cut turning its cut
+(np.rot90 of the cut) turns test_a_straight_thing_slanted_by_the_concept_s_view_passes_as_prepare_predicts red.
+cut_box giving the row's box always (`if True:`) turns test_the_mask_jobs_ask_each_row_s_own_mask_by_its_words_in_its_box
+and test_the_pixal_row_builds_a_failed_thin_row_and_drops_its_close_up_gap red (one lantern's box); code_builds never
+masking a kept build again (`if row not in kept}`) turns the latter red too (the counted pipe kept one instance's
+crop). code_builds keeping a build already made as it is (`thin_straight.rebuilt(...)` under `if False:`) turns
+test_the_pixal_row_builds_a_failed_thin_row_and_drops_its_close_up_gap red (the older builder's box kept).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/thin_straight_test.py
 """
@@ -122,7 +128,7 @@ def test_a_railing_is_posts_at_most_a_post_gap_apart_under_a_top_and_a_mid_rail(
     picture = Image.new("RGBA", (94, 10), (90, 90, 90, 255))
     assert thin_straight.write_take("railing_1", row, picture, 4000, pixal, tmp_path / "railing.png")
     import trimesh
-    assert np.allclose(trimesh.load(pixal / "railing_1-final.glb", force="mesh").extents, [0.1, 1.0, 9.435], atol=0.01)
+    assert np.isclose(trimesh.load(pixal / "railing_1-final.glb", force="mesh").extents.max(), 9.435, rtol=0.02)
 
 
 def test_the_take_is_written_where_the_finish_route_and_the_likeness_row_read_it(tmp_path, monkeypatch):
@@ -147,14 +153,18 @@ def test_the_take_is_written_where_the_finish_route_and_the_likeness_row_read_it
         import labels
     monkeypatch.setattr(labels, "PIXAL", pixal)
     assert np.array_equal(labels.finish_turn("garage_pipe_1"), np.eye(3))  # made in its own pose, never stood
-    assert np.allclose(trimesh.load(pixal / "garage_pipe_1-final.glb", force="mesh").extents, [0.1, 0.1, 4.0], atol=0.01)
+    final = trimesh.load(pixal / "garage_pipe_1-final.glb", force="mesh")
+    plane = final.apply_transform(np.linalg.inv(thin_straight.facing(PIPE))).extents  # along its mask's centreline
+    assert np.isclose(plane[2], 4.0, rtol=0.02) and plane[0] <= 0.1 * 1.05 and plane[1] < 0.2, plane
     # the likeness row holds it to the crop cut by its mask: the bar's own outline matches it, not the crate's
     outline = likeness.best_way(pixal / "garage_pipe_1-final.glb", pixal / "garage_pipe_1.svviews/input.png",
                                 PIPE["size"])["outline"]
     assert outline >= likeness.OUTLINE_LEAST, outline
     # a square post comes out of the finish's stand square, as built (glb_file.squared turned one set square 45 degrees)
     assert thin_straight.write_take("post_1", POST, cut(tmp_path, POST), 4000, pixal, tmp_path / "porch_post.png")
-    assert np.allclose(trimesh.load(pixal / "post_1-final.glb", force="mesh").extents, [0.1, 2.5, 0.1], atol=0.01)
+    post = trimesh.load(pixal / "post_1-final.glb", force="mesh")
+    post = post.apply_transform(np.linalg.inv(thin_straight.facing(POST))).extents
+    assert np.argmax(post) == 1 and np.isclose(post[1], 2.5, rtol=0.02), post  # it stands, as its picture shows
     labels.finish_turn("post_1")
     thin_straight.unbuild("post_1", pixal)
     thin_straight.unbuild("garage_pipe_1", pixal)
@@ -200,6 +210,10 @@ def test_the_mask_jobs_ask_each_row_s_own_mask_by_its_words_in_its_box():
     assert jobs == [{"picture": "a.png", "rows": [
         {"key": "pipe", "nouns": ["wall pipe", "pipe"], "box": PIPE["box"], "mask": True},
         {"key": "porch_post", "nouns": ["wooden post"], "box": POST["box"], "mask": True}]}]
+    string = {"id": "string", "name": "lantern string", "noun": "lanterns", "size": [7.5, 0.5, 0.5], "count": 3,
+              "box": [10, 10, 20, 20], "boxes": [[10, 10, 20, 20], [100, 5, 110, 15], None, [200, 12, 210, 30]]}
+    assert thin_straight.mask_jobs({"string": string}, {"string": "a.png"})[0]["rows"][0]["box"] == [10, 5, 210, 30]
+    assert thin_straight.cut_box({**string, "count": 1}) == string["box"]  # one thing: its own box
 
 
 def test_the_pixal_row_builds_a_failed_thin_row_and_drops_its_close_up_gap(tmp_path, monkeypatch):
@@ -242,6 +256,16 @@ def test_the_pixal_row_builds_a_failed_thin_row_and_drops_its_close_up_gap(tmp_p
     pixal_row.make_pixal(inputs, out, 0, {})  # built already: made again from its own crop, nothing masked again
     assert asked == [["pipe"]]
     assert np.allclose(trimesh.load(pixal / "g_pipe.glb", force="mesh").extents, built)
+    # a counted row built from one instance's box (the square's lantern string) is masked and cut again in their union
+    rows = json.loads((tmp_path / "inventory.json").read_text())["rows"]
+    counted = {**PIPE, "count": 2, "boxes": [PIPE["box"], [300, 60, 320, 140]]}
+    (tmp_path / "inventory.json").write_text(json.dumps({"rows": [counted, rows[1]]}))
+    pixal_row.make_pixal(inputs, out, 0, {})
+    assert asked == [["pipe"], ["pipe"]]
+    mark = json.loads((pixal / "g_pipe.svviews" / thin_straight.MARK).read_text())
+    assert mark["box"] == thin_straight.cut_box(counted) == [40, 60, 560, 140], mark
+    pixal_row.make_pixal(inputs, out, 0, {})  # cut in its union now: made again from its own crop
+    assert asked == [["pipe"], ["pipe"]]
 
 
 def test_a_thin_straight_row_whose_close_up_passed_is_built_in_code_and_never_goes_to_pixal3d(tmp_path, monkeypatch):
@@ -321,34 +345,46 @@ def held(tmp_path, row, lines, width=9, parts=None):
 
 
 def test_a_straight_thing_slanted_by_the_concept_s_view_passes_as_prepare_predicts(tmp_path):
-    """The concept draws a straight thing at its camera's slant: the likeness row turns its cut upright or level
-    (likeness_row.straight_cut) before the outline, and prepare's prediction holds the build the same way; it is
-    still the one straight sweep, not a path build. A box the reading stood upright over a pipe its picture shows
-    lying is built lying: the direction is the picture's, the metres the box's."""
+    """The concept draws a straight thing at its camera's slant: it is built along its mask's centreline at that
+    slant, the likeness row holds it to its mask as it is (likeness_row.straight_cut), and prepare's prediction holds
+    the build the same way. A box the reading stood upright over a pipe its picture shows lying is built lying: the
+    direction is the picture's, the metres the box's."""
     lying = {"id": "lying", "name": "wall pipe", "noun": "pipe", "size": [0.1, 0.1, 3.0], "view": "v1"}
     for row, line in ((POST, [(250, 190), (350, 10)]), (PIPE, [(60, 160), (540, 40)]), (lying, [(60, 120), (540, 90)])):
         found, faults = held(tmp_path, row, [line])
-        assert found["outline"] >= likeness.OUTLINE_LEAST and found["code"]["profile"] != "path", (row["id"], found)
+        assert found["outline"] >= likeness.OUTLINE_LEAST and found["code"]["profile"] == "path", (row["id"], found)
         assert not any(fault.startswith("outline") for fault in faults), faults
     import trimesh
     extents = trimesh.load(tmp_path / "lying/pixal/take-final.glb", force="mesh").extents
-    assert abs(extents[2] - 3.0) < 0.01 and abs(extents[0] - extents[1]) < 0.01 and extents[1] < 0.15, extents
+    assert np.argmax(extents) == 2 and np.isclose(extents[2], 3.0, rtol=0.02), extents
 
 
-def test_a_sweep_s_section_is_the_picture_s_where_its_box_s_cannot_show_it(tmp_path):
-    """A box section shows from its thinnest side to its diagonal: a mask drawn thinner or thicker than that is built
-    at its drawn width (storage's 0.6 m square pillar drawn 0.25 m, 0.399; the docking airlock's 0.1 m ceiling rail
-    drawn 0.28 m, 0.324; 2026-10-29), and a drawn width inside it keeps the box's section (hangar's flat wall run of
-    pipes, 4.9 by 0.4 m, drawn 1.5 m, passed at 0.697 as it was)."""
+def test_a_band_is_its_drawn_width_across_its_picture_and_at_most_its_row_s_thinnest_side_deep(tmp_path):
+    """A box section the picture cannot show is never built: a mask drawn thinner or thicker than the box's short
+    sides is built at its drawn width across the picture (storage's 0.6 m square pillar drawn 0.25 m, 0.399; the
+    docking airlock's 0.1 m ceiling rail drawn 0.28 m, 0.324; 2026-10-29), and a flat ribbon box is no flat ribbon
+    where its picture draws a pipe (the stairwell's conduit, 3.0 by 0.1 m drawn 0.28 m, read 0.346 swept as its box,
+    #36 2026-10-30): its band the drawn width, its depth at most the row's thinnest side."""
+    import trimesh
     pillar = {"id": "pillar", "name": "support pillar", "noun": "pillar", "size": [0.6, 0.6, 3.0], "view": "v1"}
     rail = {"id": "rail", "name": "ceiling rail", "noun": "rail", "size": [3.0, 0.1, 0.1], "view": "v1"}
-    for row, line, width in ((pillar, [(300, 190), (300, 10)], 9), (rail, [(60, 100), (540, 100)], 40)):
+    conduit = {"id": "conduit", "name": "conduit pipes", "noun": "conduit", "size": [12.0, 3.0, 0.1], "view": "v1"}
+    for row, line, width in ((pillar, [(300, 190), (300, 10)], 9), (rail, [(60, 100), (540, 100)], 40),
+                             (conduit, [(20, 100), (580, 100)], 13)):
         found, faults = held(tmp_path, row, [line], width)
         assert found["outline"] >= likeness.OUTLINE_LEAST, (row["id"], found["outline"])
         assert not any(fault.startswith("outline") for fault in faults), faults
-    alpha = np.zeros((40, 400), dtype=bool)
-    alpha[10:30, :] = True  # drawn 0.5 m on its 10 m: inside 0.1 to 1.0
-    assert np.allclose(thin_straight.drawn_section(np.array([1.0, 0.1, 10.0]), 2, alpha), [1.0, 0.1, 10.0])
+    made = trimesh.load(tmp_path / "conduit/pixal/take-final.glb", force="mesh")
+    plane = made.apply_transform(np.linalg.inv(thin_straight.facing(conduit))).extents
+    assert np.isclose(plane[2], 12.0, rtol=0.02) and plane[0] <= 0.1 * 1.05, plane  # its length, its depth
+    assert np.isclose(plane[1], 12.0 * 13 / 573, rtol=0.2), plane  # 13 of its 573 pixels across: 0.27 m, not 3 m
+    # a fat band's skeleton grows spurs off its outline: one with a free end under 1.5 widths goes, a short link
+    # between two forks stays, and the width is measured again over what is left
+    halves = [np.array([[0.0, 0.0], [50.0, 0.0]]), np.array([[50.0, 0.0], [56.0, 0.0]]),
+              np.array([[56.0, 0.0], [106.0, 0.0]])]
+    spurs = [np.array([[50.0, 0.0], [50.0, 4.0]]), np.array([[56.0, 0.0], [56.0, -4.0]])]
+    kept, width = thin_straight.spurless([*halves, *spurs], 6 * 114)
+    assert len(kept) == 3 and np.isclose(width, 6 * 114 / 106), (len(kept), width)
 
 
 def test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s_path(tmp_path):
@@ -380,8 +416,8 @@ def test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s
 def test_a_thin_run_is_held_to_its_path_s_own_size_never_crushed_to_its_box(tmp_path):
     """A thin run's box is its thickness on its two short sides (world 1's lantern string 8 by 0.01 by 0.01, cables 10
     by 0.1 by 0.1, 2026-10-26), while its path is wider: the build keeps its path's reach (its longest the row's), its
-    tube the line's drawn width at most the row's thinnest side (never under thin_straight.least_tube), a tie laid in
-    the picture's plane;
+    depth through the picture's plane at most the row's thinnest side (never under thin_straight.least_tube), a tie
+    laid in the picture's plane;
     the model check lays it as one scale, so its tube is measured whole; a wall pipe's L bend carries an elbow and
     clamps, a bundle of cables none."""
     import trimesh
@@ -401,13 +437,16 @@ def test_a_thin_run_is_held_to_its_path_s_own_size_never_crushed_to_its_box(tmp_
         across = sorted(made.apply_transform(np.linalg.inv(thin_straight.facing(row))).extents)  # in its plane
         assert np.isclose(across[2], row["size"][0], rtol=0.02), (name, made.extents)
         assert across[1] > 5 * tube, (name, made.extents)  # its path's reach, not its box's thickness
-        assert np.isclose(across[0], tube * (thin_straight.FITTING_SHARE if name == "bend" else 1.0), rtol=0.1), \
-            (name, made.extents)
+        assert np.isclose(across[0], tube, rtol=0.1), (name, made.extents)
         assert found["model_check"]["thinnest"] >= 0.5 * tube, (name, found["model_check"])
     assert np.argmax(trimesh.load(tmp_path / "sag/pixal/take-final.glb", force="mesh").extents) == 2
     assert np.ptp(trimesh.load(tmp_path / "sag/pixal/take-final.glb", force="mesh").vertices[:, 1]) > 1.0  # it hangs
     wire = {"name": "wire", "noun": "wire", "size": [3.0, 0.001, 0.001]}
-    assert thin_straight.lifted([np.array([[0.0, 0.0], [100.0, 20.0]])], wire, 3.0)[1] == thin_straight.least_tube()
+    assert thin_straight.lifted([np.array([[0.0, 0.0], [100.0, 0.5]])], wire, 0.001)[1] == thin_straight.least_tube()
+    wire_mask = np.zeros((40, 400), dtype=bool)
+    wire_mask[18:22, :] = True
+    deep = thin_straight.path_build(wire, wire_mask).apply_transform(np.linalg.inv(thin_straight.facing(wire)))
+    assert np.isclose(deep.extents[0], thin_straight.least_tube(), rtol=0.05), deep.extents  # 1 mm: held to the gate's
     bend = {"view": "v1", **shapes["bend"][0]}
     laid, thick = thin_straight.lifted([np.array([[40.0, 40.0], [40.0, 170.0], [560.0, 170.0]])], bend, 9.0)
     fitted = thin_straight.fittings(laid, bend, thick)
