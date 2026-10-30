@@ -127,10 +127,24 @@ def frame_couplings(clip, rows):
                             projection.poly.numpy()[0], projection.frozen_coord.numpy(), rows)
 
 
-def taped_sites(clip, model, rows, targets):
+def level2_constants(fitting, model, frames):
+    """`TapedSites`' `constants=` on `per_frame_model`'s `model` of `frames` copies: level 2's free markers
+    (`level2_free`, `fitting.place_sites`' order, which is its marks') and inside joints (as `_clip.inside_joints`, on the first copy), each
+    as rows (frames, count) of every copy's own, in `fit/_constants.Problem`'s slots' order (free marks, then joints)."""
+    free = np.asarray(level2_free(fitting), dtype=int)
+    per_copy = model.joint_count // frames
+    labels = [label.split("/")[-1] for label in model.body_label]
+    into = {labels[child]: joint for joint, child in enumerate(model.joint_child.numpy()[:per_copy])}
+    joints = np.array([into[fitting.model.body(int(body)).name] for body in fitting.inside], dtype=int)
+    copies = np.arange(frames)[:, None]
+    return free[None] + copies * len(fitting.place_sites), joints[None] + copies * per_copy
+
+
+def taped_sites(clip, model, rows, targets, constants=None):
     """`TapedSites` on `per_frame_model`'s `model` holding level 3's whole cost as the card's `Clip.optimizer_for`
     lays it: each frame's marker sites (link, site_pos, its place cost, its target point) and turn rows (link,
-    site_quat x y z w, the turn cost, its target turn), copy by copy, with `frame_couplings` at the solved `rows`."""
+    site_quat x y z w, the turn cost, its target turn), copy by copy, with `frame_couplings` at the solved `rows`;
+    `constants` (`level2_constants`) puts level 2's moves after the pose."""
     from scipy.spatial.transform import Rotation
     from _taped import TapedSites
     turns = np.concatenate([turned for turned, _ in targets.values()])
@@ -146,7 +160,7 @@ def taped_sites(clip, model, rows, targets):
     wanted = Rotation.from_matrix(turns.reshape(-1, 3, 3)).as_quat()
     sites = TapedSites(model, links, weights, points.reshape(-1, 3),
                        turns=(turn_links, np.full(len(turn_links), clip.turn_cost), wanted, turn_offsets),
-                       couplings=frame_couplings(clip, rows), copies=frames)
+                       couplings=frame_couplings(clip, rows), constants=constants, copies=frames)
     return sites, offsets
 
 
