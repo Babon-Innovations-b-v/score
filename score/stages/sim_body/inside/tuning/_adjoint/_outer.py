@@ -12,13 +12,14 @@ TAPED_GLOBALS = ("end weight", "marker goal")  # `TapedSites._weighed`'s order a
 
 def site_unknowns(unknowns, entries, landmarks, ends, starts, table, globals_):
     """The taped outer unknowns at `unknowns`: every site's offset (landmarks in `landmarks`' order, then the ends),
-    the landmarks' trusts, then TAPED_GLOBALS. `ends` [(centre, own, turn)]: each end site's centre name, MyoFullBody's
-    own centre in the end site's link frame (3,) and the rotation (3, 3) from the centre's body frame into it."""
+    the landmarks' trusts, then TAPED_GLOBALS. `ends` [(own, {part: turn})]: each end site's MyoFullBody own centre in
+    its link frame (3,) and, for each centre part that moves it (a middle end two), the rotation (3, 3) from the part's
+    body frame into the end's link frame times the part's share (its weight times its body's scale)."""
     rows, weights = applied(unknowns, entries, starts, table, globals_)
     moves = offsets(unknowns, entries)
     places = [rows[name]["link"] for name in landmarks]
-    places += [np.asarray(own) + np.asarray(turn) @ np.asarray(moves.get(centre, np.zeros(3)))
-               for centre, own, turn in ends]
+    places += [np.asarray(own) + sum(np.asarray(turn) @ np.asarray(moves.get(part, np.zeros(3)))
+                                     for part, turn in parts.items()) for own, parts in ends]
     trusts = [rows[name]["trust"] for name in landmarks]
     return np.concatenate([np.ravel(places), trusts, [weights[name] for name in TAPED_GLOBALS]])
 
@@ -39,10 +40,10 @@ def site_derivative(unknowns, entries, landmarks, ends, table, globals_):
             for row, name in where.get((pool, "site"), []):
                 found[3 * sites + row, column] = LOG_UNIT * table[name]["trust"] * np.exp(LOG_UNIT * value)
         elif kind == "centre":
-            for end, (centre, _, turn) in enumerate(ends):
-                if centre == pool:
+            for end, (_, parts) in enumerate(ends):
+                if pool in parts:
                     found[3 * (len(landmarks) + end):3 * (len(landmarks) + end) + 3, column] = \
-                        LINK_UNIT * np.asarray(turn)[:, axis]
+                        LINK_UNIT * np.asarray(parts[pool])[:, axis]
         elif kind == "global":
             row = 3 * sites + len(landmarks) + TAPED_GLOBALS.index(pool)
             found[row, column] = LOG_UNIT * globals_[pool] * np.exp(LOG_UNIT * value)
@@ -52,7 +53,7 @@ def site_derivative(unknowns, entries, landmarks, ends, table, globals_):
 def picked_columns(names, picked, entries, table, globals_, ends=None):
     """`site_derivative`'s columns `picked` at level 1's start over one frame's taped outer unknowns laid in `names`'
     order, zero for a name not in `table`. With `ends` None, the site offsets alone (3 x len(names), len(picked)), only
-    link entries allowed (other picked kinds refused, named). With `ends` [(centre, own, turn)], the last len(ends)
+    link entries allowed (other picked kinds refused, named). With `ends` [(own, {part: turn})], the last len(ends)
     `names` are the group ends and the layout is `TapedSites(trusted=True, ends=len(ends))`'s: every site's offset,
     the non-end sites' trusts, then TAPED_GLOBALS."""
     trusted_layout = ends is not None
