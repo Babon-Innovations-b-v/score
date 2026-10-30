@@ -280,8 +280,18 @@ def stage_point(values):
     return Y_UP_TO_Z_UP @ Vector(values)
 
 
+def upright(view):
+    """Refuses, by name, a view looking along its own up: its camera would have no sideways."""
+    look = [aim - eye for aim, eye in zip(view["aim"], view["eye"])]
+    up = view["up"]
+    sideways = (look[1] * up[2] - look[2] * up[1], look[2] * up[0] - look[0] * up[2], look[0] * up[1] - look[1] * up[0])
+    if math.hypot(*sideways) < 1e-6 * math.hypot(*look) * math.hypot(*up):
+        raise ValueError(f"view {view['name']!r} looks along its own up {list(up)}: it has no sideways")
+
+
 def camera(scene, view):
     """A camera at the view's eye looking at its aim, its up the view's up, its angle across the picture."""
+    upright(view)
     data = bpy.data.cameras.new(view["name"])
     data.sensor_fit = "HORIZONTAL"
     data.angle = math.radians(view["fov"])

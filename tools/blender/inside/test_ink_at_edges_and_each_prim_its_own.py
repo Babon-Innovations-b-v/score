@@ -13,6 +13,8 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_ink_falls_only_on_a_nearer_things_edge: ink_lines drops its fade, `* (1.0 - smoothstep(INK_FADE...))`.
 - test_each_laid_object_gets_one_id_and_its_meshes_carry_it: owner returns `item` at once.
 - test_each_effect_finds_its_own_places_cloud: effect_cloud's `most and kept[id(cloud)] == most` made `True`.
+- test_a_view_looking_along_its_own_up_is_refused_by_name: upright returns at once (round 33's spot-1 at shiplock
+  looked straight down, up (0, 1, 0): its camera had no sideways, 2026-10-30).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest tools/blender/inside/test_ink_at_edges_and_each_prim_its_own.py
 """
@@ -134,3 +136,10 @@ def test_each_effect_finds_its_own_places_cloud():
     assert usd_views.effect_cloud(Prim("/camp/Effects/dust/dust_points"), lone).name == "dust_points"
     with pytest.raises(RuntimeError):  # two clouds of the name, neither on the path: no guess
         usd_views.effect_cloud(Prim("/camp/Effects/dust/dust_points"), blender_tree("/a/dust_points", "/b/dust_points"))
+
+
+def test_a_view_looking_along_its_own_up_is_refused_by_name():
+    usd_views.upright({"name": "level", "eye": [0, 1.6, 0], "aim": [3, 1.0, 0], "up": [0, 1, 0]})
+    usd_views.upright({"name": "down", "eye": [0, 4, 0], "aim": [0, 1, 0], "up": [1, 0, 0]})
+    with pytest.raises(ValueError, match="'spot-1' looks along its own up"):
+        usd_views.upright({"name": "spot-1", "eye": [0, 4, 0], "aim": [0, 1, 0], "up": [0, 1, 0]})
