@@ -1023,7 +1023,8 @@ def test_a_tall_cabinet_s_base_step_is_levelled_against_its_footprint():
     up from its top" (a description's word is no class: the guard list reads a row's id and name), stands it on the
     floor, while a stick mounted on a console, a cairn of stones, floor cables and a code build do not.
     Break: place_line.py `and not tumble.keeps_pose(row, ...)` dropped from stands
-    Break: place_line.py feet_rows `if HOME in inputs and bake_job.code_built(...)` -> `if False`"""
+    Break: place_line.py feet_rows `if HOME in inputs and bake_job.code_built(...)` -> `if False`
+    Break: place_line.py stands `(row.get("anchor") or "") in` -> `row.get("anchor", "") in`"""
 
     def cabinet(rise):
         body = trimesh.creation.box(bounds=((-0.3, 0.04, -0.25), (0.3, 1.5, 0.25)))  # its floor 4 cm up, level
@@ -1071,6 +1072,7 @@ def test_a_tall_cabinet_s_base_step_is_levelled_against_its_footprint():
     (folder / "inventory.json").write_text(json.dumps({"rows": [
         *rows, {"id": "cables", "anchor": "floor", "thing": "prop:old_station_cables", "name": "floor cables"}]}))
     assert not place_line.stands_on_feet({"kind": "old_station_cables"}, folder / "inventory.json", rules)
+    assert place_line.stands({"id": "crate", "anchor": None}, rules)  # a null anchor stands on the floor, as none
     mark = folder / "home/work/pixal/cabinet_take.svviews/code.json"
     mark.parent.mkdir(parents=True)
     mark.write_text(json.dumps({"route": "code"}))
