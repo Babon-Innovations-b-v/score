@@ -30,7 +30,10 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   its own site), and the outer unknowns after the offsets are the landmarks' trusts, "end weight", "marker goal": each
   site weighs sqrt(goal * trust / sum), an end's trust end weight times the landmarks' mean (`fit.fitting`); checked on
   the toy against hand-computed weights and a doubled goal (2026-10-30). The outer rows are still the sites', not
-  `tuning.case_residuals` (gap 2).
+  `tuning.case_residuals` (gap 2); its reducers are in `__init__` (2026-10-30): `distance_rows` (per-frame |d| and
+  d|d|), `median_row` (the middle frame as a fixed mask, the two middles' mean when even, as np.median), `rms_row`
+  (mean(v dv) / rms, the skin's `depth_mm`), checked against differences on a toy. Still to tape: the per-frame joint
+  differences, turn errors and skin depths as rows of the inner pose.
 - Built and checked on a toy only (2026-10-30, five tests, 1.2 s); `../__init__.solved(exact=)` takes `stacked_jacobian` (its test, 2026-10-30). Not yet wired: the card gradient (Newton eval_fk on
   a wp.Tape for level 3, level 2's constants) as each `Body`'s callables, `solved`'s Jacobian switch to it, the gate on heavy_kimodo, tall_kimodo and
   a third tuning body against `_differences`, and the 70-case timing.

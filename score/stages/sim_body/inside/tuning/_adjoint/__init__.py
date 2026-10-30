@@ -121,3 +121,30 @@ def stacked_jacobian(bodies, outer, prior, steps, tolerance):
     blocks = [implicit_jacobian(body.residuals, body.gradient, body.inner, outer, body.frames, body.pose_size, steps,
                                 tolerance) for body in bodies]
     return np.concatenate(blocks + [by_columns(prior, outer, steps[1])])
+
+
+def median_row(values, rows):
+    """A median's value and derivative row from per-frame `values` and their derivative `rows` (frames, unknowns): the
+    middle frame picked as a fixed mask (the mean of the two middles when the count is even, as np.median), piecewise
+    exact where no two frames swap order."""
+    order = np.argsort(values, kind="stable")
+    middles = order[[(len(order) - 1) // 2, len(order) // 2]]
+    return float(np.mean(np.asarray(values)[middles])), np.mean(np.asarray(rows)[middles], axis=0)
+
+
+def rms_row(values, rows):
+    """A root mean square's value and derivative row from per-point `values` and their derivative `rows` (points,
+    unknowns): d sqrt(mean v^2) = mean(v dv) / rms, a zero row where every value is zero."""
+    values = np.asarray(values, dtype=float)
+    root = float(np.sqrt(np.mean(np.square(values))))
+    if root == 0.0:
+        return 0.0, np.zeros(np.shape(rows)[1])
+    return root, (values @ np.asarray(rows)) / (len(values) * root)
+
+
+def distance_rows(differences, rows):
+    """Per-frame distances |d| and their derivative rows from per-frame differences (frames, 3) and their derivatives
+    (frames, 3, unknowns): d|d| = (d / |d|) . dd."""
+    differences = np.asarray(differences, dtype=float)
+    lengths = np.linalg.norm(differences, axis=1)
+    return lengths, np.einsum("fk,fkn->fn", differences / lengths[:, None], np.asarray(rows))
