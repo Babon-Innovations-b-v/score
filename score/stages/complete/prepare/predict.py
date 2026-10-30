@@ -288,12 +288,12 @@ def sheet_faults(store, closeup_output, place, name, row):
 def build_faults(model, picture, place, name, row, folder, straight=False):
     """The faults of a code build `model` held to `picture` (its take's input.png) as the likeness row holds a code
     take (likeness_row.object_record): `outline` at likeness.OUTLINE_LEAST on that picture as Pixal3D's cut makes it
-    (a thin straight build's, `straight`, turned upright or level: likeness_row.straight_cut), and `thin and in
+    (a thin straight build's, `straight`, its mask as it is: likeness_row.straight_cut), and `thin and in
     proportion`; `close-up parts present` needs the finish route's parts, so the likeness row judges it. CPU only: no
     renderer, no model, nothing rented."""
     import score.stages.props.likeness as likeness
     import score.stages.props.likeness_row as likeness_row
-    cut = (likeness_row.straight_cut(picture, folder / "pixal-cut", name, row["size"]) if straight
+    cut = (likeness_row.straight_cut(picture, folder / "pixal-cut", name) if straight
            else likeness_row.pixal_cut(picture, folder / "pixal-cut", name))
     found = {**likeness.best_way(model, cut, row.get("read_size") or row["size"]),
              **likeness_row.model_checks(model, row["size"], f"{place}_{name}", False)}

@@ -219,24 +219,28 @@ def run_batch(listing, place, inventory, out):
 def code_builds(failed, rows, inputs, out):
     """{row: entry} of the objects (`failed`: thin_straight.coded's, its close-up failed or not) that the thin straight
     route built (thin_straight.py), each from its concept crop cut out by its SAM 3 mask (one rented card for every
-    row not built yet); one already built is made again from its own crop (its input.png, no mask asked), so it is
-    always its builder's as it is now (thin_straight.rebuilt: airlock's locker lamp, kept from before the drawn section,
-    outline 0.408; rebuilt, 0.813, 2026-10-29)."""
+    row not built yet, and every one built from another box than its cut box, thin_straight.cut_as_built); one already
+    built is made again from its own crop (its input.png, no mask asked), so it is always its builder's as it is now
+    (thin_straight.rebuilt: airlock's locker lamp, kept from before the drawn section, outline 0.408; rebuilt, 0.813,
+    2026-10-29), and so is one whose new mask cuts nothing."""
     pixal = take_files("-")[0].parent
     thin = {row: entry for row, entry in sorted(failed.items())
             if row in rows and rows[row].get("box") and thin_straight.thin_straight(rows[row])}
     kept = {row: entry for row, entry in thin.items() if thin_straight.code_built(entry["take"], pixal)}
-    for row, entry in kept.items():
-        thin_straight.rebuilt(entry["take"], rows[row], faces_of(inputs["surfaces"], entry["take"]), pixal)
-    concepts = {row: inputs[f"view {rows[row]['view']}"] for row in thin if row not in kept}
+    concepts = {row: inputs[f"view {rows[row]['view']}"] for row, entry in thin.items()
+                if row not in kept or not thin_straight.cut_as_built(entry["take"], rows[row], pixal)}
     masks = thin_straight.concept_masks({row: rows[row] for row in concepts}, concepts, out / "masks") if concepts else {}
-    built = dict(kept)
+    built = {}
     for row, mask in masks.items():
-        picture = thin_straight.cut_by_mask(concepts[row], rows[row]["box"], mask)
+        picture = thin_straight.cut_by_mask(concepts[row], thin_straight.cut_box(rows[row]), mask)
         if picture is not None and thin_straight.write_take(thin[row]["take"], rows[row], picture,
                                                             faces_of(inputs["surfaces"], thin[row]["take"]), pixal,
                                                             mask):
             built[row] = thin[row]
+    for row, entry in kept.items():
+        if row not in built:
+            thin_straight.rebuilt(entry["take"], rows[row], faces_of(inputs["surfaces"], entry["take"]), pixal)
+            built[row] = entry
     return dict(sorted(built.items()))
 
 
