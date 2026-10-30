@@ -162,7 +162,8 @@ tests it turned red:
   in card_job drop `**{CLOSEUP: str(path) for path in closeup}`  -> a_pixal_take_is_turned_only_when_its_turn_outlines_
   its_close_up_at_least_as_well
 - take_outline.py: `* 1.05` -> `* 1.2` in `silhouette`; or `ndimage.binary_fill_holes(labels == largest)` -> `labels
-  == largest` in `cut`; or in `look_down`, `closeup_check().look_down(size)` -> `15.0`  ->
+  == largest` in `cut`; or in `look_down`, `closeup_check().look_down(size)` -> `15.0`; or in `look_downs`,
+  `[stated, shown_look_down(target, size)] if` -> `[stated] if`  ->
   the_bake_s_outline_is_the_likeness_gate_s
 - route_bake.py: own_parts' `return folder` -> `return short["parts"]`; or `dict(job_head(data, short, {take:
   records[take]}),` -> `dict(job_head(data, short, records),`; or card_job's `for name, path in world.items()}` ->
@@ -2845,8 +2846,9 @@ def test_the_bake_s_outline_is_the_likeness_gate_s(tmp_path):
     for size in ([1.0, 0.6, 0.4], [2.0, 2.0, 0.1]):
         gate = likeness_row.whole_best_way(tmp_path / "take.glb",
                                            likeness_row.pixal_cut(closeup, tmp_path / "cuts", "take"), size)
-        assert take_outline.look_down(size) == gate["look_down"]
-        assert take_outline.best(points, triangles, take_outline.cut(closeup), take_outline.look_down(size)) == \
+        downs = take_outline.look_downs(size, take_outline.cut(closeup))
+        assert gate["look_down"] in downs, (size, gate, downs)
+        assert max(take_outline.best(points, triangles, take_outline.cut(closeup), down) for down in downs) == \
             gate["outline"], (size, gate)
 
 
