@@ -15,7 +15,6 @@ import resting  # noqa: E402
 import settle  # noqa: E402
 import snap  # noqa: E402
 import triage  # noqa: E402
-from score.review.holders import holder_kind  # noqa: E402
 
 DRIFT_MOST = settle.DRIFT_MOST
 # How far a held object may be raised onto what holds it (metres): out of a little bedding, no more. snap.py's rays
@@ -33,9 +32,10 @@ def held_objects(stage, place, inventory, kit_path=None):
     given its kinds' groups), lowest first, so one held on a held one comes after its holder. One held on a wall or a
     ceiling row (holders.holder_kind) is mounted, not held up from under, and left out: its laid pose stands
     (airlock's ceiling lamps on its roof dome, snapped toward a floor 280 cm down, 2026-10-30)."""
+    from score.review.holders import holder_kind  # here: holders imports the stage table, which imports this module
     data, groups = triage.rules(), triage.kit_groups(kit_path)
     rows = {row["id"]: row for row in inventory["rows"]}
-    mounted = {row["id"] for row in inventory["rows"] if (row.get("anchor") or "").startswith("on:")
+    mounted ={row["id"] for row in inventory["rows"] if (row.get("anchor") or "").startswith("on:")
                and holder_kind(rows.get(row["anchor"].removeprefix("on:"), {"id": ""})) in ("wall", "ceiling")}
     cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
     found = []
