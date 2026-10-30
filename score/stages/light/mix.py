@@ -12,8 +12,9 @@ own tone curve, fitted on the render's look against its light.
                                            view-transform.npz), 0 to 1
     sweep(views, swept, target) -> scale   the scale of the swept lamps that brings the place's brightness nearest
                                            its concept's
-    fill_sweep(views, fill, target, scales) the concept fill's scale over its held one that brings every view
-                                           within VIEW_WITHIN with the place kept within BRIGHT_WITHIN
+    fill_sweep(views, fill, target, scales, the concept fill's least scale (from the floor of SCALES up) at which
+               exposed)                    every view is within VIEW_WITHIN, the place within BRIGHT_WITHIN and
+                                           `exposed` holds (no view more black or blown than its concept)
     pinned(scale)                          whether a sweep stopped at an end of its range
     lamp_faults(views, scales, seen)       each lamp unlit (on screen, lighting nothing) or blown out (where it is the
                                            light, its look at white)
@@ -23,10 +24,14 @@ The rules were set on 2026-10-12, before any light pass was rendered:
   concept pictures' (data/inventory's plan views). BRIGHT_WITHIN: the place within 1.5 times either way of its
   concept, every view within VIEW_WITHIN (2.5 times).
 - The sweep's order (light.strengths): one scale for every lamp without a shaft; the suns (the concept's fill with
-  them) where the lamps cannot; the fill alone where a view is still outside VIEW_WITHIN (fill_sweep); then each
-  blown lamp turned down; the floodlights last, by their heads. The fill's own sweep was added on 2026-10-30, after
-  the rules: at hangar the sun carried 84-94% of every view and spot-2, the floor in the parked ship's shadow, read
-  0.120 against its concept's 0.304; the fill, the concept's light from no source in view, is what lights a shadow.
+  them) where the lamps cannot; the fill alone, raised from the floor of SCALES only as far as the views need: the
+  least scale at which every view is within VIEW_WITHIN, the place within BRIGHT_WITHIN and no view's surfaces more
+  black or blown than its concept's (the exposure gate's rule), the suns' scale kept where none is (fill_sweep); then
+  each blown lamp turned down; the floodlights last, by their heads. The fill's own sweep was added on 2026-10-30,
+  after the rules: at hangar the sun carried 84-94% of every view and spot-2, the floor in the parked ship's shadow,
+  read 0.120 against its concept's 0.304; the fill, the concept's light from no source in view, is what lights a
+  shadow. Its floor and the exposure in its need the same day: base's sun, its only light, swept to 1/32 for the
+  bright views, left its shaded walls 53% black in a brightness within x2.5; a fill the views do not need adds none.
 - A lamp is unlit when it stands in some view's picture and its light reaches under UNLIT_SHARE of every view's
   light; one in no view's picture lighting nothing is unseen and said, not judged. UNLIT_SHARE was 0.0005 until the
   first fan-out (2026-10-12): the stairwell's landing light, behind its landing's ceiling from shot1 (standing in the
@@ -158,16 +163,14 @@ def views_within(views, scales, target):
                for value in brightness(views, scales).values())
 
 
-def fill_sweep(views, fill, target, scales):
-    """The factor (from SCALES) on the fill's scale in `scales` nearest 1 at which every view is within VIEW_WITHIN
-    and the place within BRIGHT_WITHIN; 1.0 when every view is already within, or no factor brings them."""
-    if views_within(views, scales, target):
-        return 1.0
-    for factor in sorted(SCALES, key=lambda factor: (abs(np.log(factor)), factor)):
-        tried = dict(scales, **{fill: scales.get(fill, 1.0) * float(factor)})
-        if views_within(views, tried, target) and within(views, tried, target):
-            return float(factor)
-    return 1.0
+def fill_sweep(views, fill, target, scales, exposed=lambda scales: True):
+    """The least of SCALES for the fill at which every view is within VIEW_WITHIN, the place within BRIGHT_WITHIN and
+    `exposed(scales)` holds; the fill's scale in `scales` (the suns') where none is."""
+    for scale in SCALES:
+        tried = dict(scales, **{fill: float(scale)})
+        if views_within(views, tried, target) and within(views, tried, target) and exposed(tried):
+            return float(scale)
+    return scales.get(fill, 1.0)
 
 
 def pinned(scale):

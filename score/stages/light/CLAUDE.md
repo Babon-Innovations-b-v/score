@@ -33,8 +33,9 @@ gates.
   a lamp's strength, so the look at any strengths is mixed from the passes through the view's own tone curve (fitted on
   the render's look against its light). The sweep's scale brings the place's brightness to its concept's; a blown-out
   lamp is turned down; a floodlight with a shaft keeps the strength its shaft sweep set (2026-10-11). One order (mix.py's
-  docstring): the lamps, the suns with the fill where the lamps cannot, the fill alone where a view is still outside
-  x2.5 (2026-10-30: hangar's floor in the ship's shadow), each blown lamp turned down, the floodlights last.
+  docstring): the lamps, the suns with the fill where the lamps cannot, the fill alone raised from the sweep's floor
+  only as far as the views need (every view within x2.5, none more black or blown than its concept; 2026-10-30:
+  hangar's floor in the ship's shadow, base's shaded walls), each blown lamp turned down, the floodlights last.
 - **The views come from the place's own scene record, never a copy** (#27, 2026-10-20: the demo's copies under
   `work/demo` were lost with the old disk and left eight ship places with no views): the light layer writes
   `views.json` from the record it reads (its accepted scene-record output where it has one), and the passes and the
@@ -81,9 +82,9 @@ gates.
   or its concept showing it glow, as the reading's concept light says: `{home}/design/light/<place>.json`,
   `reading.concept_light`, in the colour and at the brightness the concept shows; on its kit glow part; its numbers
   the library's lamp, a row the plan `aims` its aimed spot), the pad floodlights' shaft too. Where the concept shows
-  light falling from no source in view (its `unseen`) and no sky light reaches the place (none over the horizon, or
-  inside its shell), the layer adds the library's fill (`layer.write_fill`, lamps.json `fill`) in the concept's
-  colour, inside over the middle of its record's floor box under its ceiling (never the stage's bound, which holds the
+  light falling from no source in view (its `unseen`), beside a sun over the horizon too (2026-10-30: base's sun, its
+  only light, left its shaded walls 53% black), the layer adds the library's fill (`layer.write_fill`, lamps.json
+  `fill`) in the concept's colour, inside over the middle of its record's floor box under its ceiling (never the stage's bound, which holds the
   sky), swept after the lamps as a sun is (owner, 2026-10-25: "the frame work should solve this, look at the
   concept"); `lit` names a concept showing daylight with no sun up at the scene time (the environment plan's);
   the camera's glow is written only from a record environment that holds one (the scene record, from

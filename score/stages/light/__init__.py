@@ -136,7 +136,7 @@ def make_layer(inputs, out, seed, params):
     inside = bool((record.get("environment") or {}).get("inside"))
     found["lamps"] += sun_lamps(place, out, stage)
     light = sky.read(inputs["concept light"]) if "concept light" in inputs else None
-    if fill_wanted(light, found["lamps"], inside):
+    if fill_wanted(light):
         found["lamps"].append(layer.write_fill(out, stage, place, light["scene"]["unseen_colour"], inside, record,
                                                inputs["lamp library"]))
     shutil.rmtree(out / "source")
@@ -161,13 +161,13 @@ def sun_lamps(place, out, stage):
             for prim in (lights.GetChildren() if lights else []) if prim.IsA(UsdLux.DistantLight)]
 
 
-def fill_wanted(light, lamps, inside):
+def fill_wanted(light):
     """Whether the place takes its concept's fill (layer.write_fill): its concept (`light`, its reading's concept
-    light) shows light falling on it from no source in view, and no sky light reaches it (none over the horizon at its
-    scene time, or an inside place, whose sky lights stand outside its shell)."""
-    if not light or not light["scene"]["unseen"]:
-        return False
-    return inside or not any(lamp.get("sun") for lamp in lamps)
+    light) shows light falling on it from no source in view (its `unseen`: daylight whose sun the picture does not show
+    is such light). Beside a sun over the horizon too (2026-10-30, light@base: its sun at 33 degrees, its only light,
+    swept to 1/32 for the bright views, left its shaded walls 53% black where the concept's shade is filled); the fill
+    sweep keeps it at its floor where the views do not need it (mix.fill_sweep)."""
+    return bool(light) and bool(light["scene"]["unseen"])
 
 
 def layer_faults(folder):
@@ -380,10 +380,12 @@ def strengths(place, passes_folder, lamps, layer_folder, record):
     """The sweep on the place's views (its passes, rendered on its light layer's views): (scales {group: scale},
     measures). Only a lamp those passes hold a group of is swept, in mix.py's order: the lamps; the suns (the fill
     with them) where the lamps cannot bring the place within its concept's brightness or their sweep stops at an end
-    of its range; the fill alone where a view is still outside (mix.fill_sweep); each blown lamp turned down."""
+    of its range; the fill alone, the least that brings every view within and none more black or blown than its
+    concept (mix.fill_sweep, exposed_within); each blown lamp turned down."""
     by_path = {lamp["path"]: lamp for lamp in lamps}
     groups = {group: path for group, path in groups_of(passes_folder).items() if path in by_path}
-    views = {view: (held, curve) for view, (held, curve, _) in view_passes(passes_folder, place).items()}
+    rendered_views = view_passes(passes_folder, place)
+    views = {view: (held, curve) for view, (held, curve, _) in rendered_views.items()}
     size, shown_views = views_of(layer_folder)
     target = concept_brightness(place)
     held = {group for passes_held, _ in views.values() for group in passes_held}
@@ -397,9 +399,10 @@ def strengths(place, passes_folder, lamps, layer_folder, record):
         sun_scale = mix.sweep(views, suns, target, scales)
         scales.update(dict.fromkeys(suns, sun_scale))
     fill = next((group for group in suns if by_path[groups[group]].get("fill")), None)
-    fill_factor = mix.fill_sweep(views, fill, target, scales) if fill else 1.0
     if fill:
-        scales[fill] *= fill_factor
+        concept = concept_extremes(place)
+        looks = {view: (held, look) for view, (held, _, look) in rendered_views.items()}
+        scales[fill] = mix.fill_sweep(views, fill, target, scales, lambda tried: exposed_within(looks, concept, tried))
     lamp_found = {}
     sky_lit = [group for group, path in groups.items() if by_path[path].get("sun")]
     for group in sky_lit:  # a sun is not turned down for its own glare: its light is the whole sky's
@@ -422,7 +425,7 @@ def strengths(place, passes_folder, lamps, layer_folder, record):
     for group in sky_lit:
         lamp_found[groups[group]]["fault"] = mix.lamp_faults(mix.lamp_measures(views, scales, [group]), [])
     return scales, {"concept": round(target, 4), "swept_scale": scale, "swept": len(swept), "sun_scale": sun_scale,
-                    "fill_factor": fill_factor,
+                    "fill_scale": scales[fill] if fill else None,
                     "before": {name: round(value, 4) for name, value in mix.brightness(views, {}).items()},
                     "after": {name: round(value, 4) for name, value in mix.brightness(views, scales).items()},
                     "lamps": dict(sorted(lamp_found.items(), key=lambda item: item[1]["group"]))}
@@ -701,6 +704,28 @@ def extremes(luminance, sky=None):
     return {"black": round(float((surface < BLACK).mean()), 4), "blown": round(float((surface > BLOWN).mean()), 4)}
 
 
+def concept_extremes(place):
+    """The mean black and blown shares (extremes) of the place's concept pictures, None with none."""
+    concepts = [extremes(picture_luminance(path)) for path in concept_pictures(place)]
+    return {key: round(float(np.mean([found[key] for found in concepts])), 4) for key in ("black", "blown")} \
+        if concepts else None
+
+
+def exposed_within(looks, concept, scales):
+    """judge_exposure's rule on each view's look at the scales as the light row makes it (look_at; `looks` {view:
+    (passes, rendered look path)}), its sky left out: no view's surfaces more black or blown than `concept` by
+    BLACK_OVER or BLOWN_OVER; true with no concept. Never the tone curve's estimate: it read airlock's from-door-2 13%
+    black where its look is 0.01% (2026-10-30)."""
+    if not concept:
+        return True
+    for held, look in looks.values():
+        shown = np.asarray(look_at(held, look, scales), dtype=np.float64) / 255.0
+        found = extremes(shown @ np.array([0.2126, 0.7152, 0.0722]), held.get("sky"))
+        if found["black"] > concept["black"] + BLACK_OVER or found["blown"] > concept["blown"] + BLOWN_OVER:
+            return False
+    return True
+
+
 def sky_of(passes_folder, place, view):
     """A view's sky as its passes hold it (inside/light_passes.py `sky`), None from passes rendered before it."""
     found = sorted(passes_folder.glob(f"passes/{place}-*/{view}-passes.npz"))
@@ -715,11 +740,9 @@ def picture_luminance(path):
 def exposure_measures(place, out, passes_folder):
     """Each view's black and blown shares of its surfaces at the measured strengths (its sky is the sky check's: the
     Moon's black sky through garage's doors read 9.4% black, 2026-10-30), and its concept pictures' mean."""
-    concepts = [extremes(picture_luminance(path)) for path in concept_pictures(place)]
-    concept = {key: round(float(np.mean([found[key] for found in concepts])), 4) for key in ("black", "blown")} \
-        if concepts else None
-    return {"concept": concept, "views": {view: extremes(picture_luminance(path), sky_of(passes_folder, place, view))
-                                          for view, path in sorted(rendered(out, place).items())}}
+    return {"concept": concept_extremes(place),
+            "views": {view: extremes(picture_luminance(path), sky_of(passes_folder, place, view))
+                      for view, path in sorted(rendered(out, place).items())}}
 
 
 def sky_elements(place, out, record):

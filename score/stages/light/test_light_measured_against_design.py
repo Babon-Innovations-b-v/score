@@ -11,7 +11,7 @@ stages made here, each answer worked out by hand:
 - the sweep (mix.py) finds the scale that brings a look to a target (a lamp at twice its strength), turns a blown lamp
   down and names an unlit one;
 - the layer (layer.py) moves a seed lamp to a record lamp near it, adds one far from any, writes strengths, adds the
-  concept's fill only where no sky light reaches, and writes no glow nobody asked for;
+  concept's fill wherever the concept shows unseen light, and writes no glow nobody asked for;
 - the rows read the design only (the owner's rule of 2026-10-21: a wording check of the declared files guards it), and
   past faults stay fixed: the strengths saved over the read-only input (2026-10-12, light@camp), a shown place's
   pictures moved away (2026-10-18), score/stages put on sys.path (Buy of 2026-10-24), Blender's magenta, read on the
@@ -25,7 +25,7 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - mix.lamp_faults: never "blown" (the sweep test).
 - layer.strengths: write the strength unscaled (the layer test).
 - light.unlit_why: an inside place lit by a sun alone counted lit (the unlit test).
-- light.fill_wanted: ignore `unseen` (the fill test).
+- light.fill_wanted: ignore `unseen` (the fill test); no fill beside a sun, the old rule (the fill test, 2026-10-30).
 - light.body_faults: drop the "not lit from its sun" fault (the discs test).
 - light.judge_exposure: pass with no concept (the exposure test).
 - light.extremes: `sky` ignored (the Moon look fails), or `luminance[sky]` for `luminance[~sky]` (the dark and blown
@@ -43,7 +43,9 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - light.strengths: `mix.pinned(scale) or` dropped; light.outside_shell: always False; light.one_spot: every lamp its
   own (the sun-swept test, 2026-10-30).
 - mix.fill_sweep: return 1.0 always, the greatest factor for the least, or the place left unjudged; light.strengths:
-  the fill's factor not applied (the shadow test, 2026-10-30).
+  the fill's sweep not applied (the shadow test, 2026-10-30).
+- mix.fill_sweep: from the top of SCALES down, or `exposed` left out; light.exposed_within: never more black (the
+  floor test, 2026-10-30).
 - light.look_at: the look's 8-bit levels scaled for the float colour through the table; mix.displayed: the nearest
   knot (`order=0`); mix.gain: the ratio unsmoothed; passes.passes_faults: no view transform left unsaid (the float look
   test, 2026-10-30).
@@ -525,20 +527,58 @@ def test_a_view_in_the_suns_shadow_is_lit_by_the_fill_alone_raised_the_least_tha
              {"path": "/p/Lights/concept_fill", "spot": [0.0, 2.5, 0.0], "shaft": False, "sun": True, "fill": True}]
     target = float(toned_look(np.full((20, 30), 0.2)).mean())
     monkeypatch.setattr(light, "concept_brightness", lambda place: target)
+    monkeypatch.setattr(light, "concept_extremes", lambda place: None)
     scales, found = light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", {"inside": False})
     views = {view: (held, curve) for view, (held, curve, _) in light.view_passes(tmp_path / "passes", "p").items()}
-    lower = float(mix.SCALES[list(mix.SCALES).index(found["fill_factor"]) - 1])
-    assert found["fill_factor"] > 1.0 and scales["lamp_2"] == found["sun_scale"] * found["fill_factor"], found
+    lower = float(mix.SCALES[list(mix.SCALES).index(found["fill_scale"]) - 1])
+    assert found["fill_scale"] > found["sun_scale"] and scales["lamp_2"] == found["fill_scale"], found
     assert mix.views_within(views, scales, target) and mix.within(views, scales, target), found["after"]
-    assert not mix.views_within(views, dict(scales, lamp_2=found["sun_scale"] * lower), target)  # the least raise
+    assert not mix.views_within(views, dict(scales, lamp_2=lower), target)  # the least raise
     assert not mix.views_within(views, dict(scales, lamp_2=found["sun_scale"]), target)  # the suns' sweep alone: off
-    assert mix.fill_sweep(views, "lamp_2", target, scales) == 1.0  # every view within: left as it is
+    assert mix.fill_sweep(views, "lamp_2", target, scales) == scales["lamp_2"]  # swept again: the same
     crowded = {}  # the shade lit only where the fill would carry the middle view, and the place, past x1.5
     for name, sun, fill in (("lit", 0.3, 0.0), ("middle", 0.12, 0.06), ("shade", 0.0, 0.02)):
         held = {"lamp_1": sun * ramp, "lamp_2": fill * ramp, "combined": (sun + fill) * ramp}
         crowded[name] = (held, mix.tone_curve(held["combined"], toned_look(held["combined"])))
     assert mix.within(crowded, {}, 0.12) and not mix.views_within(crowded, {}, 0.12)
     assert mix.views_within(crowded, {"lamp_2": 4.0}, 0.12) and mix.fill_sweep(crowded, "lamp_2", 0.12, {}) == 1.0
+
+
+def test_a_fill_the_views_do_not_need_stays_at_the_floor_and_rises_only_as_far_as_their_black_needs(tmp_path):
+    """Fault of 2026-10-30 (#36, light@base): the sun, its only light, swept to 1/32 for the bright views, left the
+    shaded walls 53% black with every view within x2.5. The fill, wherever the concept shows unseen light, is raised
+    from the floor of SCALES only as far as the views need, the exposure gate's rule in that need measured on the looks
+    as the light row makes them (light.exposed_within, look_at); a fill no view needs adds no light: it stays at the
+    floor."""
+    low, high = -24.0, 4.0
+    axis = 2.0 ** np.linspace(low, high, 57)
+    knots = np.stack(np.meshgrid(axis, axis, axis, indexing="ij"), axis=-1)
+    transform = {"table": (knots / (knots + 0.05)) ** 0.6, "low": low, "high": high}  # a tone curve known by hand
+    job = tmp_path / "p-0"
+    job.mkdir()
+    np.savez(job / passes.VIEW_TRANSFORM, **transform)
+    ramp = np.tile(np.linspace(0.2, 1.8, 60), (40, 1))
+    shadow = (np.arange(60) < 24)[None, :]  # the left 40% of the shade view: the sun's shadow
+    views, looks = {}, {}
+    for name, sun in (("lit", 0.2 * ramp), ("shade", np.where(shadow, 0.0, 0.2 * ramp))):
+        fill = 1e-4 * ramp
+        colour = np.repeat((sun + fill)[..., None], 3, axis=2)  # a grey place: its colour is its light
+        look = job / f"{name}-look.png"
+        Image.fromarray(np.round(mix.displayed(transform, colour) * 255).astype(np.uint8)).save(look)
+        held = {"lamp_1": light.halved(sun), "lamp_2": light.halved(fill), "combined": light.halved(sun + fill),
+                "colour": colour, "sky": np.zeros(sun.shape, dtype=bool)}  # colour and sky at full size, as saved
+        views[name] = (held, mix.tone_curve(held["combined"], light.luminance_of(look)))
+        looks[name] = (held, look)
+    target, concept, floor = mix.place_brightness(views, {}), {"black": 0.0, "blown": 0.0}, float(mix.SCALES[0])
+    assert mix.views_within(views, {"lamp_2": floor}, target)  # within x2.5 with no fill: brightness needs none
+    assert not light.exposed_within(looks, concept, {"lamp_2": floor})  # but the shadow is black
+    assert mix.fill_sweep(views, "lamp_2", target, {"lamp_2": 1.0}) == floor  # no other need: kept at the floor
+    raised = mix.fill_sweep(views, "lamp_2", target, {"lamp_2": 1.0},
+                            lambda tried: light.exposed_within(looks, concept, tried))
+    lower = float(mix.SCALES[list(mix.SCALES).index(raised) - 1])
+    assert raised > floor and light.exposed_within(looks, concept, {"lamp_2": raised})
+    assert not light.exposed_within(looks, concept, {"lamp_2": lower})  # the least raise
+    assert light.exposed_within(looks, None, {"lamp_2": floor})  # no concept picture: no exposure need
 
 
 def test_a_black_view_is_measured_black_not_a_crash():
@@ -686,15 +726,14 @@ def test_a_place_lit_by_nothing_in_its_design_is_named_before_the_paid_render():
 
 
 @pytest.mark.parametrize("inside, kind", ((False, UsdLux.DistantLight), (True, UsdLux.SphereLight)))
-def test_the_concepts_fill_comes_only_where_no_sky_light_reaches(tmp_path, inside, kind):
-    """A concept showing light from no source in view takes its fill where no sky light reaches the place (none over
-    the horizon, or inside its shell), never where the concept shows none or a sun lights it in the open; the fill is
-    a soft overhead distant light in the open, a sphere light under the ceiling over the middle inside."""
+def test_the_concepts_fill_comes_wherever_the_concept_shows_unseen_light(tmp_path, inside, kind):
+    """A concept showing light from no source in view takes its fill, in the open beside a sun over the horizon too
+    (2026-10-30, light@base: its sun, its only light, swept to 1/32 left its shaded walls 53% black where the
+    concept's shade is filled), never where the concept shows none or is not read; the fill is a soft overhead distant
+    light in the open, a sphere light under the ceiling over the middle inside."""
     seen = {"rows": {}, "scene": {"daylight": True, "unseen": True, "unseen_colour": "#ffddbb"}}
-    sun = {"path": "/p/Lights/sky_sun", "sun": True}
-    assert light.fill_wanted(seen, [], inside=False) and light.fill_wanted(seen, [sun], inside=True)
-    assert not light.fill_wanted(seen, [sun], inside=False) and not light.fill_wanted(None, [], inside=True)
-    assert not light.fill_wanted({**seen, "scene": {**seen["scene"], "unseen": False}}, [], inside=True)
+    assert light.fill_wanted(seen) and not light.fill_wanted(None)
+    assert not light.fill_wanted({**seen, "scene": {**seen["scene"], "unseen": False}})
     seed, out = tmp_path / "seed", tmp_path / "out"
     tiny_seed(seed)
     base = Usd.Stage.Open(str(seed / "layers/base.usda"))
