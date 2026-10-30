@@ -72,9 +72,21 @@ def level2_at_base():
     ends = sites.ends or 0
     base_costs = goal_weights(trusted[3 * len(names):], ends)
     print(json.dumps({"base costs gap": float(np.abs(base_costs - problem.costs[1]).max())}), flush=True)
+    print(json.dumps(moved_site_rows(columns, len(names), problem.free)), flush=True)
     rebuilt = _real.problem_at(applied, out, cases, saved, angles, constants)
     sited = sited_problem_at(problem, columns, trusted, ends)
     return sited, rebuilt, level2_body(sited, jacobian, problem.start(), kept, np.zeros(len(entries))), kept
+
+
+def moved_site_rows(columns, marks, free):
+    """How many of level 3's outer rows level 1 moves (a non-zero row of `columns`): the site coordinates of the free
+    marks, of the fixed marks, and the trusts and globals after them (level 2's mixed term's differencing calls)."""
+    moved = np.abs(columns).max(axis=1) > 0
+    on_free = np.zeros(3 * marks, dtype=bool)
+    on_free[(3 * np.asarray(free, dtype=int)[:, None] + np.arange(3)).ravel()] = True
+    sited = moved[:3 * marks]
+    return {"moved site rows free": int((sited & on_free).sum()), "moved site rows fixed": int((sited & ~on_free).sum()),
+            "moved tail rows": int(moved[3 * marks:].sum()), "entries": int(columns.shape[1])}
 
 
 def sited_gaps(sited, rebuilt, unknowns, picks):
