@@ -13,7 +13,9 @@ level and its cause both given or neither. The surfaces offered are the whole li
 with the kind's own (palette_library.take_surfaces). A new surface is proposed only when no surface fits with any
 settings (`fits` false). Each region showing in a view is labelled with the finish its part has there; the split votes
 the labels across views. Each finish also keeps its token's colour and its surface's family, which the split's colour
-check reads before anything is baked.
+check reads before anything is baked. A take whose answer lists a finish it labels no region with is asked once more,
+its answer and that finish told (followed_up), in one more batch of those takes alone: every other take's ask and
+answer stay as they were.
 
 Output: <take>.json per take (its finishes, each with surface, settings, fits, new_surface, wear_level, wear_cause,
 colour, family; its labels, {view: {region: finish}}, 0-based), questions.json (the finishes with their own wear and
@@ -23,6 +25,7 @@ library's ranges, and one that does not fit proposes a surface; a take with no u
 such take is a batch gap (batch-gaps.json, score/stages/batch_gaps.py, with the ones carried from the views): the gate
 still fails it, the table moves the fault to complete, and the split leaves the take out.
 """
+import copy
 import json
 import pathlib
 import sys
@@ -70,6 +73,10 @@ path, worn edges or the ground round a door: then set "wear" to that level and s
 leave both out.
 Then label every region showing in every view with the finish (its number in your list, from 1) that the region's
 part has in that view: one label for each view and region listed above."""
+# The follow-up of an answer that lists a finish it labels no region with (followed_up).
+FOLLOW_UP = ("Your answer was:\n{answer}\nIt lists finish {finishes} but labels no region with it in any view. Look "
+             "again, view by view, for the regions its parts show in, and answer the whole question again, in full: "
+             "keep every finish of your list, and label each region with the finish its part has in that view.")
 
 
 def palette_tokens(palette):
@@ -229,9 +236,53 @@ def listed(answer, library, seed, shown):
     return finishes, labels_of(parsed, shown, len(finishes))
 
 
+def unlabelled(finishes, labels):
+    """The finishes (0-based) no region of any view is labelled with."""
+    used = {finish for regions in labels.values() for finish in regions.values()}
+    return [number for number in range(len(finishes)) if number not in used]
+
+
+def follow_up(body, answer, finishes, missing):
+    """`body` with its answer and the finishes it labels no region with after its question, in its one user turn."""
+    told = copy.deepcopy(body)
+    names = "; ".join(f"{number + 1} ({finishes[number]['finish']})" for number in missing)
+    told["contents"][0]["parts"].append({"text": FOLLOW_UP.format(answer=answer, finishes=names)})
+    return told
+
+
+def followed_up(answers, bodies, reading):
+    """{take: its follow-up's answer} of each take whose answer lists a finish it labels no region with in any view
+    (unlabelled), asked once more in one batch (follow_up), its answer kept where it lists at least as many finishes
+    and leaves fewer unlabelled: habitat's dining table listed its cloth runner and hangar's rack its hose, the
+    split gave neither a face (#36, 2026-10-30). `reading(take, answer)` is the take's (finishes, labels)."""
+    asking, first = {}, {}
+    for take, answer in answers.items():
+        finishes, labels = usable(reading, take, answer)
+        missing = unlabelled(finishes, labels)
+        if missing:
+            asking[take], first[take] = follow_up(bodies[take], answer, finishes, missing), (len(finishes), len(missing))
+    kept = {}
+    for take, answer in (ask(asking) if asking else {}).items():
+        finishes, labels = usable(reading, take, answer)
+        if finishes and len(finishes) >= first[take][0] and len(unlabelled(finishes, labels)) < first[take][1]:
+            kept[take] = answer
+    return kept
+
+
+def usable(reading, take, answer):
+    """`reading`'s (finishes, labels) of a take's answer, or ([], {}) for no usable answer."""
+    if isinstance(answer, Exception):
+        return [], {}
+    try:
+        return reading(take, answer)
+    except route_ask.UNANSWERED:
+        return [], {}
+
+
 def make_list(inputs, out, seed, params):
     """Every cast take's finish list and labels from one batch, and the finishes with their own wear. Each take is
-    asked once; one with no usable answer gets no list, so judge_list names it a gap."""
+    asked once, and once more where its answer lists a finish it labels no region with (followed_up); one with no
+    usable answer gets no list, so judge_list names it a gap."""
     views = pathlib.Path(inputs["finish-route-views"])
     _, takes = route_data.takes_written(out, inputs, params)
     cast_takes = {take: record for take, record in json.loads((views / "views.json").read_text()).items()
@@ -244,6 +295,8 @@ def make_list(inputs, out, seed, params):
     bodies = {take: list_body(pictures[take], takes[take], record, (surfaces[take], tokens, levels), wear)
               for take, record in cast_takes.items()}
     answers = ask(bodies) if bodies else {}
+    answers.update(followed_up(answers, bodies, lambda take, answer: listed(
+        answer, (surfaces[take], tokens, levels), take_seed(seed, take), pictures[take]["shown"])))
     own, unanswered = [], {}
     for take in cast_takes:
         answer = answers.get(take, finish_ask.NoAnswer("the batch gave no answer"))

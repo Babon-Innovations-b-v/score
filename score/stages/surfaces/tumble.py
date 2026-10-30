@@ -6,7 +6,7 @@ hash only this.
 
     measure(points)                 (degrees off, looseness): its oriented box's axes against the frame's
     rules_of(inputs)                the pose rules a row's kept pose is read by (stance.json, resting.json)
-    keeps_pose(row, rules, rows)    why a row keeps the pose it was made in, or None: the one guard list
+    keeps_pose(row, rules, rows, built)  why a row keeps the pose it was made in, or None: the one guard list
     square_turn(points, size)       the turn standing a tumbled take square, its box's proportions the row's
 
 A take is tumbled when its oriented box (of its convex hull) is turned more than DEGREES off the frame (the axis
@@ -19,7 +19,10 @@ pilot_1, seated, its picture box holding the chair, was widened 0.5 to 1.205 m, 
 it leaning (`leans`) or lying (stance.json's lying classes: torn wreckage, a thing on its side), a hanging row (the
 resting rules' hanging words in its id or name, or its anchor the ceiling: garage's ceiling lamp, `on:ceiling_beam`,
 was turned 50 degrees) and a row with no up (the resting rules' ground debris and cable: rocks, rubble, a pile, a limp
-cable, which rest as they were made; hangar's floor cables were turned 31 degrees).
+cable, which rest as they were made; hangar's floor cables were turned 31 degrees), and a code build (its take's
+code.json route "code", bake_job.code_built: the thin straight route makes it in its own pose and leans it by the
+close-up's look-down, thin_straight.facing; the bake turned quarters' string lights 34 degrees off that lean, outline
+0.544 to 0.101, #36 2026-10-30).
 """
 import itertools
 import json
@@ -35,6 +38,7 @@ ROUND_PLAN = 0.92  # a plan this near square (its oriented box's two plan sides)
 NO_UP = ("ground debris", "cable")  # the resting rules' classes with no up: rubble and limp cable rest as made
 PEOPLE = "people"  # the route of a designed person's row
 PERSON = "a person: its pose and its width for its height are its take's own"
+CODE_BUILD = "a code build: it stands as its code made it"
 CEILING, CEILING_GROUP = "ceiling", "kit: ceiling"  # an anchor at the ceiling: the word, or a holder of that group
 
 
@@ -107,13 +111,15 @@ def hangs(row, hanging, rows=()):
     return None
 
 
-def keeps_pose(row, rules, rows=()):
-    """Why the row keeps the pose it was made in, or None (the module docstring's guard list): a person, its design
-    laying it leaning or lying, hanging, or with no up. `rules`: rules_of's; `rows`: its inventory's, naming what an
-    `on:` anchor holds it to."""
+def keeps_pose(row, rules, rows=(), built=False):
+    """Why the row keeps the pose it was made in, or None (the module docstring's guard list): a person, its take a
+    code build (`built`), its design laying it leaning or lying, hanging, or with no up. `rules`: rules_of's; `rows`:
+    its inventory's, naming what an `on:` anchor holds it to."""
     text = f"{row.get('id', '')} {row.get('name', '')}".replace("_", " ").lower()
     if person(row):
         return PERSON
+    if built:
+        return CODE_BUILD
     if row.get("leans"):
         return "its design lays it leaning"
     said = next((word for word in rules["lying"] if (" " in word and word in text) or word in words_of(row)), None)

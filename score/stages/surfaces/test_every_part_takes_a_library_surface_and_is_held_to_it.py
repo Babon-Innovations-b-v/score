@@ -93,8 +93,9 @@ tests it turned red:
   a_loose_bit_joins_the_nearest_larger_island_of_its_own_finish
 - finish_parts.py: `part_of[lost] = island[lost[0]]` -> `part_of[lost] = island[lost]`  ->
   a_finish_of_crumbs_only_keeps_them_as_one_part_however_small
-- finish_parts.py: `return kept_finishes(face_label, labels.without_crumbs(mesh, smoothed))` -> `return
-  labels.without_crumbs(mesh, smoothed)`  -> cleaning_never_removes_a_finish_whole
+- finish_parts.py: `return kept_finishes(face_label, labels.without_crumbs(mesh, smoothed), mesh.area_faces)` ->
+  `return labels.without_crumbs(mesh, smoothed)`, or kept_finishes `lost = np.union1d(..., shrunk)` -> `lost =
+  np.setdiff1d(np.unique(before), np.unique(after))`  -> cleaning_never_removes_a_finish_whole
 - finish_parts.py: `stray = small & ~np.isclose(area, piece_area[piece[face_of]]) & np.isin(finish, finish[~small])` ->
   `stray = small & ~np.isclose(area, piece_area[piece[face_of]])`  ->
   a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named
@@ -1018,8 +1019,11 @@ def test_a_base_sloping_as_one_plane_through_its_middle_is_brought_down_level():
 def test_a_tall_cabinet_s_base_step_is_levelled_against_its_footprint():
     """Both ways (the garage's control cabinet, 2026-10-15: 1.5 m tall on a plinth rim whose underside rises across
     its footprint under its floor's level cells, resting 2.1 degrees over; the quadrants and the cells' plane passed it): the
-    face it rests on comes down level; a cabinet on a level rim is left as made. And its row, "cables running up from
-    its top", stands it on the floor, while a stick mounted on a console and a cairn of stones do not."""
+    face it rests on comes down level; a cabinet on a level rim is left as made. And its row, described "cables running
+    up from its top" (a description's word is no class: the guard list reads a row's id and name), stands it on the
+    floor, while a stick mounted on a console, a cairn of stones, floor cables and a code build do not.
+    Break: place_line.py `and not tumble.keeps_pose(row, ...)` dropped from stands
+    Break: place_line.py feet_rows `if HOME in inputs and bake_job.code_built(...)` -> `if False`"""
 
     def cabinet(rise):
         body = trimesh.creation.box(bounds=((-0.3, 0.04, -0.25), (0.3, 1.5, 0.25)))  # its floor 4 cm up, level
@@ -1050,7 +1054,7 @@ def test_a_tall_cabinet_s_base_step_is_levelled_against_its_footprint():
     rules = REPO / "data/checks/resting.json"
     folder = pathlib.Path(tempfile.mkdtemp())
     rows = [{"id": "control_cabinet", "anchor": "floor", "thing": "prop:garage_control_cabinet",
-             "name": "a standing steel control cabinet, cables running up from its top"},
+             "name": "control cabinet", "description": "a standing steel control cabinet, cables running up from its top"},
             {"id": "control_stick", "anchor": "on:main_console", "thing": "prop:cockpit_control_stick",
              "name": "flight stick set in the console"},
             {"id": "cairn", "anchor": "floor", "thing": "prop:campgrounds_cairn",
@@ -1062,6 +1066,19 @@ def test_a_tall_cabinet_s_base_step_is_levelled_against_its_footprint():
     for lying in ("cockpit_control_stick", "campgrounds_cairn"):  # mounted on another object; a pile of stones
         assert not place_line.stands_on_feet({"kind": lying}, folder / "inventory.json", rules), lying
     assert not place_line.stands_on_feet({"kind": "wreck_small_panel"}, folder / "inventory.json", rules)
+    # #36, 2026-10-30: old_station's limp floor cables, levelled, fell from outline 0.637 to 0.207; a code build
+    # stands as its code made it, whatever its rows say
+    (folder / "inventory.json").write_text(json.dumps({"rows": [
+        *rows, {"id": "cables", "anchor": "floor", "thing": "prop:old_station_cables", "name": "floor cables"}]}))
+    assert not place_line.stands_on_feet({"kind": "old_station_cables"}, folder / "inventory.json", rules)
+    mark = folder / "home/work/pixal/cabinet_take.svviews/code.json"
+    mark.parent.mkdir(parents=True)
+    mark.write_text(json.dumps({"route": "code"}))
+    entry = {"place": "garage", "kind": "garage_control_cabinet"}
+    inputs = {"inventory garage": folder / "inventory.json", "resting rules": rules}
+    assert place_line.feet_rows(entry, inputs, "cabinet_take")[0]
+    assert place_line.feet_rows(entry, {**inputs, place_line.HOME: folder / "home"}, "cabinet_take") == (
+        [], {"skipped": "a code build: it stands as its code made it"})
     shutil.rmtree(folder)
 
 
@@ -1279,8 +1296,11 @@ def test_cleaning_never_removes_a_finish_whole():
     label[dots] = 1
     without = finish_parts.cleaned(mesh, label, 2)
     assert (without[dots] == 1).all() and (without[label == 0] == 0).mean() > 0.99
-    kept = finish_parts.kept_finishes(np.array([0, 1, 2, 2]), np.array([0, 0, 0, 2]))
-    assert kept.tolist() == [0, 1, 0, 2]  # a finish left with any face stays as the cleaning left it
+    kept = finish_parts.kept_finishes(np.array([0, 1, 2, 2]), np.array([0, 0, 0, 2]), np.ones(4))
+    assert kept.tolist() == [0, 1, 0, 2]  # a finish left with an island of its size stays as the cleaning left it
+    # engineroom desk's paper label (#36): left only a face of no area, it gets its faces back
+    kept = finish_parts.kept_finishes(np.array([0, 1, 1, 0]), np.array([0, 0, 1, 0]), np.array([1.0, 1.0, 0.0, 1.0]))
+    assert kept.tolist() == [0, 1, 1, 0]
 
 
 def test_a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named():
@@ -1801,6 +1821,38 @@ def test_an_unassigned_face_is_a_gap_and_views_that_disagree_are_settled_by_the_
     assert (finish_of[patch] == 1).all()  # the finish round it
     even[patch, 0] = 0.6
     assert (route_split.voted_finishes(mesh, even, 2)[1][patch] == 0).all()  # not tied: its own finish
+
+
+def test_a_finish_the_list_labels_no_region_with_is_asked_after_once(tmp_path):
+    """#36, 2026-10-30: habitat's dining table listed its cloth runner and labelled no region with it, so the split
+    gave it no face. Such a take is asked once more, its answer and the finish told; the answer kept where it labels
+    the finish, the first where it still does not. A take whose every finish labels a region is asked once.
+    Break: route_list.py `answers.update(followed_up(answers, bodies, ...))` dropped
+    Break: route_list.py followed_up `< first[take][1]:` -> `<= first[take][1]:`"""
+    def made(folder, again):
+        folder.mkdir()
+        inputs, views = cast_views(folder)
+        first = two_finish_answer(views, lambda view, colour: 1)  # the blue region labelled red: blue labels none
+        asked, original = [], route_list.ask
+        route_list.ask = lambda bodies: asked.append(bodies) or {
+            take: json.dumps(two_finish_answer(views, again) if len(asked) > 1 else first) for take in bodies}
+        try:
+            (folder / "list").mkdir()
+            route_list.make_list({**inputs, "finish-route-views": views}, folder / "list", 7, {"objects": [TAKE]})
+        finally:
+            route_list.ask = original
+        labels = json.loads((folder / "list" / f"{TAKE}.json").read_text())["labels"]
+        return asked, {finish for regions in labels.values() for finish in regions.values()}
+
+    asked, used = made(tmp_path / "labels", lambda view, colour: 1 if colour == RED else 2)
+    assert len(asked) == 2 and "finish 2 (blue paint) but labels no region" in asked[1][TAKE]["contents"][0][
+        "parts"][-1]["text"], asked
+    assert used == {0, 1}, used
+    asked, used = made(tmp_path / "still", lambda view, colour: 2)  # now red labels none: no fewer, the first stands
+    assert len(asked) == 2 and used == {0}, used
+    (tmp_path / "every").mkdir()
+    _, asked = listed(tmp_path / "every", lambda views, take: two_finish_answer(views))
+    assert len(asked) == 1, asked
 
 
 def test_the_split_decides_by_the_labels_alone():
@@ -2598,8 +2650,12 @@ def test_a_rolled_take_is_stood_square_and_a_lying_one_keeps_its_pose(tmp_path):
     0.6 m take rolled 40 degrees over, its row 2 m wide, 1 m tall and 0.6 m deep, is stood square before it is laid:
     within a degree of its frame, its box back on its row's proportions. A row whose design lays it lying (wreck's
     crashed rocket section) keeps the turn it was made in, saying why; one standing square already is left as it is.
+    A code build keeps the pose its code made (#36, 2026-10-30: quarters' string lights, leaned by its close-up's
+    look-down, were turned 34 degrees off it, outline 0.544 to 0.101).
     Break: score/stages/surfaces/route_bake.py: `if kept or not tumble.tumbled(laid):` -> `if True:`
-    Break: score/stages/surfaces/tumble.py: `return f"its design lays it lying ({said})"` -> `return None`"""
+    Break: score/stages/surfaces/tumble.py: `return f"its design lays it lying ({said})"` -> `return None`
+    Break: score/stages/surfaces/tumble.py: `if built:` -> `if False:`, or route_bake.py `rules, rows, built)` ->
+        `rules, rows)`"""
     import tumble
     identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
     entry = {"base": identity, "size": [2.0, 1.0, 0.6]}
@@ -2617,6 +2673,9 @@ def test_a_rolled_take_is_stood_square_and_a_lying_one_keeps_its_pose(tmp_path):
     square = a_turned_take(tmp_path / "square", rolled(0))
     assert route_bake.stood_square({"bed_1": entry}, square, "bed_take", a_pose_world(
         tmp_path / "again", {"id": "bed", "thing": "prop:bed_take"}))["bed_1"] == entry
+    built = route_bake.stood_square({"lights_1": entry}, labelled, "lights_take", a_pose_world(
+        tmp_path / "code", {"id": "string_lights", "thing": "prop:lights_take"}), built=True)
+    assert built["lights_1"]["base"] == identity and built["lights_1"]["stood"]["kept"] == tumble.CODE_BUILD, built
 
 
 def test_the_check_fails_a_tumbled_bake_by_name_with_its_angle_and_leaves_a_lying_one_out(tmp_path):
