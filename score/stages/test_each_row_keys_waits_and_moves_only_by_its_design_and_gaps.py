@@ -29,6 +29,8 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
 - `ship_place`: always False  -> the ship place test.
 - score/stages/earth_seed/__init__.py: surface_data imported through its package (`from score.stages.surfaces import
   surface_data`)  -> test_the_earth_rows_key_on_the_surface_data_reader_not_the_surface_line.
+- score/stages/library/checks.py: stage_file imported through the assembly (`from score.stages.assembly import
+  stage_file`)  -> test_the_surface_library_rows_key_on_the_root_stage_reader_not_the_assembly.
 - score/stages/surfaces/route_views.py: `import place_line` added  ->
   test_the_paint_bake_and_check_code_moves_only_their_own_rows.
 - score/stages/assembly/baked.py: `import complete as stage_inputs`  ->
@@ -348,6 +350,19 @@ def test_the_earth_rows_key_on_the_surface_data_reader_not_the_surface_line():
         for unrelated in ("score/stages/surfaces/__init__.py", "score/stages/surfaces/place_line.py"):
             assert code_after_editing(table[name], unrelated) == before, (name, unrelated)
         assert code_after_editing(table[name], "score/stages/surfaces/surface_data.py") != before, name
+
+
+def test_the_surface_library_rows_key_on_the_root_stage_reader_not_the_assembly():
+    """surface-library's traced check finds an assembled place's root stage through root_stage.py alone: an edit to
+    the assembly's fitting leaves every place's key, an edit to its own check moves it (its import through the
+    assembly package re-keyed all 27 rows on each fitting.py edit, 2026-10-30)."""
+    rows = [stage for stage in stages.STAGES if stage.name.startswith("surface-library")]
+    assert rows
+    for row in rows:
+        before = code_after_editing(row, "nothing")
+        for unrelated in ("score/stages/assembly/fitting.py", "score/stages/assembly/__init__.py"):
+            assert code_after_editing(row, unrelated) == before, (row.name, unrelated)
+        assert code_after_editing(row, "score/stages/library/checks.py") != before, row.name
 
 
 def test_the_paint_bake_and_check_code_moves_only_their_own_rows():
