@@ -143,5 +143,9 @@ before that.
   set of one body runs its own `staged` (own `Fitting`, same cold start and tolerances) in its own thread, and each
   round of exact Jacobians is ONE `frames` call over every running set's worlds (sets x frames); a finished set drops
   out. On the toy, 3 sets equal each alone bit for bit, same evaluations (test; red when a set gets set 0's worlds).
-  The Jacobian assembly is still per set. Not yet wired into `evaluation._card_sets` / `_card_batch.body_run`, not
-  yet timed on a real body.
+  The Jacobian assembly is still per set. Not wired into `evaluation._card_sets` / `_card_batch.body_run`: measured
+  2026-10-30 on tall's first case (one cold level 2 with the exact card Jacobian, 21 evaluations), the whole solve is
+  2.42 s, of which the card `frames` calls 0.40 s, the host assembly (`frame_rows` + coo) 1.04 s, the residuals 0.34 s
+  and scipy's own steps ~0.64 s. Batching `frames` across sets saves at most that 17 % of level 2, and level 2 is about
+  a fifth of a (set, body) today, so the lockstep is not the Jacobian's 5x: level 3 across sets (`_sets.Sets`) is the
+  share to batch first, then the host assembly if level 2 still matters.
