@@ -133,4 +133,4 @@ before that.
 - One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
   the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the
-  errors), the measures on a toy body (`tests/card_body.py`); it needs Newton's Python and a CUDA card, else prints `skipped`. About 20 s.
+  errors), the measures on a toy body (`tests/card_body.py`, its check there too), level 2's two checks in `tests/card_level2.py`; it needs Newton's Python and a CUDA card, else prints `skipped`. About 20 s.

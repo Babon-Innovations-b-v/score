@@ -71,3 +71,23 @@ def clip(seed=3):
             worlds[frame, index, :3, 3] = own[RIDES[segment]] + generator.normal(scale=0.01, size=3)
     scales = {name: np.full(3, 1.1) for name in BODIES}
     return toy, angles, rig(own), list(SEGMENTS), worlds, scales
+
+
+DEPTH_MM = 1e-4  # the depths' float32 closest points, card against CPU (measured 4.6e-6 mm on the toy, 2026-10-30)
+
+
+def the_measures_equal_the_cpu_measure():
+    import numpy as np
+    from evaluation import _measure as cpu
+    from fit._card import _measure as card
+    played = clip()
+    slow, fast = cpu.measures(*played), card.measures(*played)
+    keyed = [f"{key}: keys {sorted(fast[key])} against {sorted(slow[key])}" for key in fast
+             if isinstance(fast[key], dict) and sorted(fast[key]) != sorted(slow[key])]
+    return keyed or [f"{key}: {fast[key]} against {slow[key]}" for key in fast
+                     if not np.allclose(np.ravel(_values(fast[key])), np.ravel(_values(slow[key])), rtol=0,
+                                        atol=DEPTH_MM if key == "bones outside depth mm" else 1e-9)]
+
+
+def _values(found):
+    return [found[key] for key in sorted(found)] if isinstance(found, dict) else found
