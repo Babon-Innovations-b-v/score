@@ -60,13 +60,15 @@ class Fitting:
     """The fitting model and what the constants move. `path` the person's file; `frames` [(group, frame body, R_cal)]:
     one orientation site each, in that order; `marks` [(name, body, local point)]: one marker site each (the place
     sites, `place_sites`); `frozen` the bodies whose joints no target sees (held as they stand); `trusts` each
-    marker's trust (its weight among the markers; every one 1 when not given); `stretches` each bone group's bodies
+    marker's trust (its weight among the markers; every one 1 when not given); `marker_goal` the markers' goal's sum
+    against the turns' 1 (`_frames.weights`; a level 1 unknown, so each set's own); `stretches` each bone group's bodies
     (source names, filed): a body whose parent is another body of its group sits on a joint inside that group
     (`inside`), solved where a marker rides it or a body below it; the found moves are written in the person's file
     (`myo.person_file`). The lengths are SOMA's, from the sizing: nothing here scales a body."""
 
-    def __init__(self, path, frames, marks, frozen=(), trusts=None, stretches=()):
+    def __init__(self, path, frames, marks, frozen=(), trusts=None, stretches=(), marker_goal=1.0):
         self.path = path
+        self.marker_goal = float(marker_goal)
         spec = mujoco.MjSpec.from_file(str(path))
         for group, body, calibration in frames:
             spec.body(body).add_site(name=f"fit:{group}", quat=Rotation.from_matrix(calibration.T).as_quat(

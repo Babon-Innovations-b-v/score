@@ -55,9 +55,9 @@ def weights(fitting):
     OrientationSensors and Markers goals), here two goals, the turns (every weight 1, as OpenSense's) and the markers
     (each weight its landmark's trust, `landmarks.trust`; SOMA's own joints are no goal: they are the measure); a mink
     cost multiplies the error, so a cost is the square root of its weight over its goal's sum; the markers' goal (the
-    landmarks and the group ends, one goal) sums to MARKER_GOAL, the turns' to 1."""
+    landmarks and the group ends, one goal) sums to the fitting's own `marker_goal`, the turns' to 1."""
     trusts = np.asarray(fitting.trusts, dtype=float)
-    places = np.sqrt(MARKER_GOAL * trusts / max(trusts.sum(), 1e-12))
+    places = np.sqrt(fitting.marker_goal * trusts / max(trusts.sum(), 1e-12))
     return 1.0 / np.sqrt(max(len(fitting.frame_sites), 1)), places
 
 

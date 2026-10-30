@@ -18,7 +18,9 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   constants by scipy's `least_squares` with bounds. No handwritten iterative solver here; never bring one back.
 - **Weights are OpenSim's IK's** (InverseKinematicsSolver, Simbody's OrientationSensors and Markers goals): each goal
   normalised by its own count, here two goals (the turns, and the landmarks' markers, each weighed by its
-  trust); the turns are the main term. Never tune a weight to pass a gate.
+  trust); the turns are the main term. Never tune a weight to pass a gate. The markers' goal's sum is each
+  `Fitting`'s own `marker_goal` (taken from `_frames.MARKER_GOAL` when `fitting` builds it): it is a level 1 unknown,
+  so sets solved across one another each keep their own, never the module's last value.
 - **SOMA's group ends are a target** (#70, the owner's plan, 2026-10-29): every bone group's start that is a SOMA
   rig joint (`group_ends`: hips, knees, ankles, toes' bases, sternoclavicular, shoulders, elbows, wrists, the lumbar,
   thoracic and skull joints, the neck's middle too (the hips' middle left out: its two hip ends already hold both its rig joints, never counted twice): one rule for every end, a middle of two bodies' centres
