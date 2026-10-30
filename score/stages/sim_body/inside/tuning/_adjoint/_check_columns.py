@@ -27,7 +27,8 @@ from fit import sampled_targets  # noqa: E402
 from fit._card._level2 import jacobian  # noqa: E402
 from fit._constants import INSIDE, Problem, told  # noqa: E402
 from tuning._adjoint import arrow_hessian, case_rows, schur_solve, transposed_mixed  # noqa: E402
-from tuning._adjoint._level2 import goal_weights, level2_arrow, level2_body, sited_problem_at  # noqa: E402
+from tuning._adjoint._level2 import (goal_weights, level2_arrow, level2_body, sited_problem_at,  # noqa: E402
+                                     turned_frame_sites)
 from tuning._adjoint._outer import picked_columns  # noqa: E402
 
 STEPS = (1e-4, 1e-3)  # as `_check_motion.py`
@@ -126,19 +127,18 @@ def group_turned_gradient(level3, sites, groups_of_rows, outer, moves):
     return turned_offsets(sites, rows, lambda: level3.gradient(level3.inner, outer))
 
 
-def table_mixed(level3, sites, groups_of_rows, lifted, outer, dtable, step):
-    """lifted^T g_q,centre along the recalibrated TABLE (`dtable`, b4/table/dtable_vec's 'body' rad/m, times
-    LINK_UNIT): per centre column that turns a calibration site, level 3's gradient central-differenced by `step`
-    units of the site_quat move; (rows, entries), zero elsewhere."""
-    found = np.zeros((lifted.shape[1], len(entries)))
+def table_mixed(turned_gradient, weights, dtable, step):
+    """weights^T g_z,centre along the recalibrated TABLE (`dtable`, b4/table/dtable_vec's 'body' rad/m, times
+    LINK_UNIT): per centre column that turns a calibration site, the level's gradient (`turned_gradient(moves)`, moves
+    {group: body-side rad}) central-differenced by `step` units of the site turn; (rows, entries), zero elsewhere."""
+    found = np.zeros((weights.shape[1], len(entries)))
     for column, (pool, kind, axis, _) in enumerate(entries):
         moved = dtable["columns"].get(f"{pool} {'xyz'[axis]}", {}) if kind == "centre" else {}
         moves = {group: tuning.LINK_UNIT * step * np.asarray(sides["body"]) for group, sides in moved.items()}
         if moves:
-            ahead = group_turned_gradient(level3, sites, groups_of_rows, outer, moves)
-            behind = group_turned_gradient(level3, sites, groups_of_rows, outer,
-                                           {group: -turn for group, turn in moves.items()})
-            found[:, column] = lifted.T @ ((ahead - behind) / (2 * step))
+            ahead = turned_gradient(moves)
+            behind = turned_gradient({group: -turn for group, turn in moves.items()})
+            found[:, column] = weights.T @ ((ahead - behind) / (2 * step))
     return found
 
 
@@ -202,7 +202,8 @@ both = np.hstack([direct, by_constants]) - timed(
 if any(given.startswith("--dtable=") for given in sys.argv):
     dtable = json.loads(pathlib.Path(next(given for given in sys.argv if given.startswith("--dtable="))[9:]).read_text())
     groups_of_rows = [clip.mjm.site(int(site)).name.removeprefix("fit:") for site in clip.frame_sites] * len(rows)
-    tabled = timed("level 3 table mixed", lambda: table_mixed(level3, sites, groups_of_rows, lifted, joined, dtable, 0.1))
+    tabled = timed("level 3 table mixed", lambda: table_mixed(
+        lambda moves: group_turned_gradient(level3, sites, groups_of_rows, joined, moves), lifted, dtable, 0.1))
     np.save(saved_to.with_suffix(".table.npy"), tabled)
     both[:, :len(entries)] -= tabled
 right = np.zeros((len(level2.inner), len(both)))
@@ -217,6 +218,11 @@ if "--against-differences" in sys.argv:
                                      for got, want in zip(found, wanted)]}), flush=True)
 block = both[:, :len(entries)] - timed("taping level 2 mixed", lambda: transposed_mixed(
     level2, lowered, np.zeros(len(entries)), STEPS[1]))
+if any(given.startswith("--dtable=") for given in sys.argv):
+    tabled2 = timed("level 2 table mixed", lambda: table_mixed(lambda moves: turned_frame_sites(
+        base.fitting, moves, lambda: level2.gradient(level2.inner, np.zeros(len(entries)))), lowered, dtable, 0.1))
+    np.save(saved_to.with_suffix(".table2.npy"), tabled2)
+    block -= tabled2
 np.savez(saved_to, block=block, direct=direct, entries=np.array([json.dumps(list(map(str, entry))) for entry in entries]))
 print(json.dumps({"shape": list(block.shape), "largest": float(np.abs(block).max()),
                   "finite": bool(np.isfinite(block).all()), "seconds": seconds, "total": time.time() - began}))

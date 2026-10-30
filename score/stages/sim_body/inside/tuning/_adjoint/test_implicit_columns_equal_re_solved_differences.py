@@ -20,7 +20,7 @@ In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
 without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pulled` skipping the normalisation's
 projection (`along` the raw turn gradient) turns the root chart test red; `RootTurns.pulled_rows` cutting each copy's fourth turn coordinate in place of pulling the row
 through the chart turns it red; `Pinned.rows` keeping a held column turns the pinned test red; `Pinned.gradient` giving a held entry zero in place of its spring (a
-singular frame block) turns the pinned test red. In `_level2.py`, `level2_body`'s gradient left in the Problem's order (no `to_body`) turns the constants-first level 2 test red; `pinned_mask` holding no bound-held entry turns it red; `level2_body` rebuilding the Problem on every gradient call (no `problem_of` cache) turns it red; `level2_arrow`'s couplings as J_q^T J_c alone (the second-order part of its pose steps dropped) turns the level 2 arrow test red. `_level2._cost_gradients` without its factor 2 (J^T dr/dc alone) turns the level 2 products test red (0.24). `_level2._free_site_columns` without the prior's cost squared on its diagonal turns the free-site products test red (0.11). In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red; `picked_columns` laying a site's rows at its row among the known names in place of its place in `names` turns it red, and laying a trust at its row among the known names (with ends) turns it red; an end moved by its first part only (a middle end's second dropped) turns it red. In `_real.py`, `solved_rows`
+singular frame block) turns the pinned test red. In `_level2.py`, `level2_body`'s gradient left in the Problem's order (no `to_body`) turns the constants-first level 2 test red; `pinned_mask` holding no bound-held entry turns it red; `level2_body` rebuilding the Problem on every gradient call (no `problem_of` cache) turns it red; `level2_arrow`'s couplings as J_q^T J_c alone (the second-order part of its pose steps dropped) turns the level 2 arrow test red. `_level2._cost_gradients` without its factor 2 (J^T dr/dc alone) turns the level 2 products test red (0.24). `_level2._free_site_columns` without the prior's cost squared on its diagonal turns the free-site products test red (0.11). `_level2.turned_frame_sites` turning on the site's link side (R_cal^T exp(-[w]x)) turns the calibration sites test red (0.016). `_level2.turned_frame_sites` turning on the site's link side (R_cal^T exp(-[w]x)) turns the calibration sites test red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red; `picked_columns` laying a site's rows at its row among the known names in place of its place in `names` turns it red, and laying a trust at its row among the known names (with ends) turns it red; an end moved by its first part only (a middle end's second dropped) turns it red. In `_real.py`, `solved_rows`
 giving MuJoCo's order (no `newton_order`) turns the real body test red; `frame_couplings` zeroing
 the projection's polynomials turns its per-frame model check red; `bound_held` holding nothing (bound-held coordinates left in the pose) turns its refused check red (4.12e-3); `joint_parts`
 dropping the centres' scales turns its joints check red; `turn_groups` without the frozen table turns its turns check red; `skin_parts` without the geom's turn turns its skins check red (0.19 m). The case rows' derivative left over the full pose (no `RootTurns.pulled_rows`) turns its pulled check red. `trusted_outer` laying the landmarks' trusts out of their sites' order turns its trusted check red. `ends_of` without the holder's turn (R_body alone) turns its ends check red.
@@ -293,6 +293,25 @@ def test_level_2_free_site_products_off_h_equal_the_differenced_mixed_term():
     wanted = weights.T @ _adjoint.mixed(body.gradient, body.inner, np.zeros(3), 1e-5)
     found = body.products(body.inner, np.zeros(3), weights)
     assert np.abs(found - wanted).max() < 1e-4 * np.abs(wanted).max()
+
+
+def test_level_2_calibration_sites_turn_as_the_recalibrated_table_and_are_put_back():
+    from types import SimpleNamespace
+
+    from scipy.spatial.transform import Rotation
+
+    from score.stages.sim_body.inside.tuning._adjoint import _level2
+    calibration = Rotation.from_rotvec([0.3, -0.5, 0.2])
+    kept = np.array([[1.0, 0, 0, 0], calibration.inv().as_quat(scalar_first=True), [1.0, 0, 0, 0]])
+    fitting = SimpleNamespace(model=SimpleNamespace(site_quat=kept.copy()), groups=["Hips", "Spine"],
+                              frame_sites=[2, 1])
+    turn = np.array([0.04, -0.02, 0.03])
+    seen = _level2.turned_frame_sites(fitting, {"Spine": turn}, lambda: fitting.model.site_quat.copy())
+    site = Rotation.from_quat(seen[1], scalar_first=True)
+    wanted = (calibration * Rotation.from_rotvec(turn)).as_matrix()
+    assert np.abs(site.inv().as_matrix() - wanted).max() < 1e-12
+    assert np.array_equal(seen[[0, 2]], kept[[0, 2]])
+    assert np.array_equal(fitting.model.site_quat, kept)
 
 
 def test_level_2_on_one_real_body_is_stationary_at_its_solve(tmp_path):
