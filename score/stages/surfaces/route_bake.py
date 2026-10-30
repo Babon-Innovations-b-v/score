@@ -21,6 +21,7 @@ by its place.
 """
 import json
 import pathlib
+import shutil
 import subprocess
 import sys
 
@@ -84,33 +85,47 @@ def job_head(data, short, records):
     return head
 
 
-def job_files(short, out, records, heads):
-    """Each take's part records, claimed rows and job head (`heads`: {take: the head with its models}) written beside
-    the output: {take: (records, claimed, head)}."""
+def own_parts(short, out, take, method):
+    """The take's own parts as its job reads them, beside the output: a parts folder holding its parts.json record and
+    its parts files alone, so its job (its content, the kept job it finds: tools/cloud/kept.py) moves with its own
+    take, never with another take of the place or the parts output's new folder (#36, 2026-10-30: one retaken take
+    baked every take of its place again)."""
+    folder = out / f".bake-{take}-parts"
+    shutil.copytree(short["parts"] / take, folder / take)
+    (folder / "parts.json").write_text(json.dumps({"takes": {take: method["takes"][take]}}))
+    return folder
+
+
+def job_files(short, out, records, heads, method):
+    """Each take's part records, claimed rows, job head (`heads`: {take: the head with its models}) and own parts
+    (own_parts) written beside the output: {take: (records, claimed, head, parts)}."""
     found = {}
     for take, head in heads.items():
-        found[take] = tuple(out / f".bake-{take}-{what}.json" for what in ("records", "claimed", "head"))
+        found[take] = (*(out / f".bake-{take}-{what}.json" for what in ("records", "claimed", "head")),
+                       own_parts(short, out, take, method))
         found[take][0].write_text(json.dumps(records[take]))
         found[take][1].write_text(json.dumps({take: place_line.claimed_rows(take, short)}))
         found[take][2].write_text(json.dumps(head))
     return found
 
 
-def card_job(inputs, short, out, take, files):
-    """One take's cloud job file: its listing (the make's inputs, the take, its part records, claimed rows and job
-    head) and every file it reads at its own path; its labelled take, its baked models and their entries come back."""
+def card_job(short, out, take, files):
+    """One take's cloud job file: its listing (what its paint and bake read of the make's inputs: the place's world
+    files and the take's own parts; the take, its part records, claimed rows and job head) and every file it reads at
+    its own path; its labelled take, its baked models and their entries come back."""
     listing = out / f".bake-{take}.json"
-    records, claimed, head = files
-    listing.write_text(json.dumps({**{name: str(path) for name, path in inputs.items()}, place_line.TAKE: take,
+    records, claimed, head, parts = files
+    world = {name: path for name, path in short.items()
+             if name.startswith("inventory ") or name in ("surfaces", "resting rules", "relations", "stance rules")}
+    listing.write_text(json.dumps({**{name: str(path) for name, path in world.items()}, "surfaces-parts": str(parts),
+                                   place_line.TAKE: take,
                                    place_line.RECORDS: str(records), place_line.CLAIMED: str(claimed),
                                    place_line.HOME: str(prop_env.PROPS_HOME), place_line.CODE: str(place_line.REPO),
                                    HEAD: str(head), CHUNKY: str(out / f".bake-{take}-chunky.json")}))
     pixal = prop_env.PROPS_HOME / "work/pixal"
     models = sorted({pixal / f"{take}.glb", pixal / f"{take}-final.glb", *pixal.glob(f"{take}-[0-9]*.glb")})
-    world = [path for name, path in short.items()
-             if name.startswith("inventory ") or name in ("surfaces", "resting rules", "relations", "stance rules")]
     mark = [path for path in [pixal / f"{take}.svviews" / "code.json"] if path.exists()]  # a code build's (bake_job)
-    read = [listing, records, claimed, head, short["parts"] / "parts.json", short["parts"] / take, *world, *models, *mark,
+    read = [listing, records, claimed, head, parts, *world.values(), *models, *mark,
             *(place_line.REPO / folder for folder in (*place_line.PAINT_REPO, *BAKE_REPO))]
     job = out / f".bake-{take}-job.json"
     job.write_text(json.dumps({"script": SCRIPT, "args": [str(listing)], "inputs": [str(path) for path in read],
@@ -133,12 +148,13 @@ def make_bake(inputs, out, seed, params):
     records = {take: named_records(place_line.method_surfaces(take, data["takes"][take]["place"], record["parts"],
                                                               registry))
                for take, record in method["takes"].items()}
-    head = job_head(data, short, records)
+    head = job_head(data, short, records)  # every take's specs: specs.json's
     models = {model: take for model, take in data["bake"]["models"].items() if take in method["takes"]}
-    heads = {take: dict(head, models=sorted(model for model, its in models.items() if its == take))
+    heads = {take: dict(job_head(data, short, {take: records[take]}),  # a job's head: its own take's specs alone
+                        models=sorted(model for model, its in models.items() if its == take))
              for take in sorted(set(models.values()))}
-    files = job_files(short, out, records, heads)
-    jobs = [card_job(inputs, short, out, take, files[take]) for take in heads]
+    files = job_files(short, out, records, heads, method)
+    jobs = [card_job(short, out, take, files[take]) for take in heads]
     done = subprocess.run([str(prop_env.PROPS_PYTHON), str(place_line.REPO / "tools/cloud/blender_cloud.py"), *map(str, jobs),
                            "--who", f"surfaces-bake-{data['place']}", "--classes", place_line.CLASSES],
                           cwd=place_line.REPO, capture_output=True, text=True)
@@ -148,7 +164,7 @@ def make_bake(inputs, out, seed, params):
     if done.returncode and len(unbaked) == len(heads):
         raise RuntimeError(f"blender_cloud.py paint and bake failed: {done.stderr[-3000:]}")
     for path in out.glob(".bake-*"):
-        path.unlink()
+        shutil.rmtree(path) if path.is_dir() else path.unlink()
     import score.stages.batch_gaps as batch_gaps  # here: the bake job runs this module in the prop environment
     batch_gaps.write(out, [batch_gaps.gap(f"{take}: not baked", "surfaces-bake", "baked", (take,),
                                           [f"{take}: its paint and bake job brought nothing back (bake.log)"],
