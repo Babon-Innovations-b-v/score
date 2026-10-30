@@ -17,7 +17,8 @@ unknowns' trust (`TapedSites._evaluate` not assigning `self.weights` when `trust
 skipping `self.centres.zero_()` (joint centres adding onto the last evaluation's) turns the taped measures test red.
 Building the bone points without `requires_grad` (`_Skins.points`: no skin depth row reaches the pose) turns it red.
 In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
-without `copy * len(free)`) turns the copied couplings test red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red.
+without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pulled` skipping the normalisation's
+projection (`along` the raw turn gradient) turns the root chart test red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red.
 
 The taped test runs `_taped` (Newton eval_fk on a wp.Tape) in Newton's own Python on the card, a four-link chain with
 three weighted sites and two link-frame turn rows, once on every coordinate and once with the last a follower of the
@@ -211,6 +212,21 @@ def test_a_body_copied_per_frame_keeps_the_card_projection_couplings():
     assert np.allclose(expanded[:, 10], -0.3 + np.polyval(poly[1][::-1], expanded[:, 8] - 0.1))
     with pytest.raises(ValueError):
         _bodies.copied_couplings([9, 10], [7, 9], [0.4, -0.3], [0.2, 0.1], poly, [], rows)
+
+
+def test_the_root_turn_charted_as_three_tangent_dofs_pulls_back_the_gradient():
+    from score.stages.sim_body.inside.tuning._adjoint import _bodies
+    rows = np.random.default_rng(5).normal(size=(2, 9))
+    rows[:, 3:7] /= np.linalg.norm(rows[:, 3:7], axis=1, keepdims=True)
+    chart = _bodies.RootTurns(rows.ravel(), 9)
+    point = chart.reduced()
+    assert point.size == 2 * 8 and np.allclose(chart.full(point), rows.ravel())
+    cost = lambda pose: np.sum(np.sin(pose) * np.arange(1, pose.size + 1))
+    moved = point + np.random.default_rng(6).normal(scale=0.1, size=point.size)
+    pulled = chart.pulled(moved, np.cos(chart.full(moved)) * np.arange(1, 19))
+    differences = [(cost(chart.full(moved + step)) - cost(chart.full(moved - step))) / 2e-6
+                   for step in np.eye(point.size) * 1e-6]
+    assert np.allclose(pulled, differences, atol=1e-6)
 
 
 def test_the_taped_gradient_equals_central_differences_of_the_cost():

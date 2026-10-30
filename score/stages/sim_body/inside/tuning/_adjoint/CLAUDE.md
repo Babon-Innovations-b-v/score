@@ -57,8 +57,10 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   holding one copy per frame (joint_q copy by copy, the pose every copy's free coordinates: not followers, not
   frozen); a follower of a frozen leader stays at its solved value, a follower led by a follower and a coupled or
   frozen root coordinate are refused; `pose_of` the solved rows' pose. Checked on a toy of two copies: the map
-  gives back the solved rows and keeps a coupling under a moved pose. Open: the free root's turn (4 quaternion
-  coordinates) is in the pose as Newton holds it, so H has a direction along its norm; the builder (Newton model,
+  gives back the solved rows and keeps a coupling under a moved pose. The free root's turn (2026-10-30): `RootTurns(pose,
+  per_copy)` charts each copy's 4 turn coordinates as 3 tangent dofs ((q0 + E w) / |q0 + E w|, E `tangent_basis`,
+  w = 0 at the solved pose), so H has no direction along the quaternion's norm; `full` gives `TapedSites`' pose,
+  `pulled` the chart's gradient from the full one; checked on two toy copies against central differences. Open: the builder (Newton model,
   levels 2 and 3 on the card, end sites' link frames), `refused` on it, and the heavy_kimodo test.
 - Built and checked on a toy only (2026-10-30, five tests, 1.2 s); `../__init__.solved(exact=)` takes `stacked_jacobian` (its test, 2026-10-30). Not yet wired: the card gradient (Newton eval_fk on
   a wp.Tape for level 3, level 2's constants) as each `Body`'s callables, `solved`'s Jacobian switch to it, the gate on heavy_kimodo, tall_kimodo and
