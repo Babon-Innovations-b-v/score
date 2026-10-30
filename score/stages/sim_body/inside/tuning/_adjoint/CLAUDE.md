@@ -35,8 +35,12 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   (mean(v dv) / rms, the skin's `depth_mm`), checked against differences on a toy. `case_rows` (2026-10-30) assembles one case's rows
   and derivative rows in `tuning.case_residuals`' order and scale (JOINT_SHARE, SCALES, sqrt(share / count), mm) from
   per-frame joint differences, turn errors and skin depths with their rows; equals central differences of
-  `case_residuals` on a toy case. Still to tape: those per-frame measures off Newton eval_fk (model joint centres,
-  link-frame turns on the frozen table, skin depths) as rows of the inner pose.
+  `case_residuals` on a toy case. `_measures.py` (`TapedMeasures`, Newton's Python only, 2026-10-30) tapes the
+  per-frame joint differences (TO_OWN @ the joint centre, a MIDDLE one the mean of its parts, minus SOMA's joint) and
+  each group's turn degrees (`_turn_error`'s length, the frozen offset in the link frame) off a `TapedSites`' eval_fk,
+  one backward pass per entry, as rows of the pose; on three copies of the toy chain, fed through `case_rows`, they
+  equal central differences of `case_residuals` to 1 % of the largest entry. Still to tape: skin depths (fit/_skin), and
+  rows over level 2's constants (only the pose's today).
 - Built and checked on a toy only (2026-10-30, five tests, 1.2 s); `../__init__.solved(exact=)` takes `stacked_jacobian` (its test, 2026-10-30). Not yet wired: the card gradient (Newton eval_fk on
   a wp.Tape for level 3, level 2's constants) as each `Body`'s callables, `solved`'s Jacobian switch to it, the gate on heavy_kimodo, tall_kimodo and
   a third tuning body against `_differences`, and the 70-case timing.
