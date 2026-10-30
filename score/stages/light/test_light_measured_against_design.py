@@ -42,6 +42,9 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   2026-10-30).
 - light.strengths: `mix.pinned(scale) or` dropped; light.outside_shell: always False; light.one_spot: every lamp its
   own (the sun-swept test, 2026-10-30).
+- light.look_at: the look's 8-bit levels scaled for the float colour through the table; mix.displayed: the nearest
+  knot (`order=0`); mix.gain: the ratio unsmoothed; passes.passes_faults: no view transform left unsaid (the float look
+  test, 2026-10-30).
 """
 import json
 import math
@@ -58,6 +61,7 @@ from PIL import Image
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdShade
 
 from score import checks
+from score.checks import grain
 from score.review import overhead, setting
 from score.stages import light
 from score.stages.light import haze, layer, measure, mix, needs, passes, sky
@@ -500,6 +504,36 @@ def test_a_black_view_is_measured_black_not_a_crash():
     views = {"v": (black, mix.tone_curve(black["combined"], np.full((20, 30), 0.0003)))}
     assert mix.place_brightness(views, {}) == pytest.approx(0.0003)
     assert not mix.within(views, {"lamp_0": mix.sweep(views, ["lamp_0"], 0.3)}, 0.3)
+
+
+def test_a_dark_view_swept_32_times_up_is_its_float_light_through_the_view_transform_not_its_8_bit_look_scaled(
+        tmp_path):
+    """Fault (2026-10-30, #36): the mixed look was the render's 8-bit look times the sweep's ratio, so a dark render
+    swept 32 times up made every level step of Blender's dither a speck (engineroom 72-114 specks per mille, greenhouse
+    45-134). The look is the render's float colour times its mixed light, put through the view transform's table once,
+    at the end: at scale 1 within a level of the render's own look, at 32 times near the light rendered so, clean."""
+    low, high = -16.0, 4.0
+    axis = 2.0 ** np.linspace(low, high, 65)
+    knots = np.stack(np.meshgrid(axis, axis, axis, indexing="ij"), axis=-1)
+    transform = {"table": (knots / (knots + 0.05)) ** 0.6, "low": low, "high": high}  # a tone curve known by hand
+    job = tmp_path / "passes/p-0"
+    job.mkdir(parents=True)
+    assert passes.passes_faults(tmp_path) == ["no passes rendered", "no look rendered", "no view transform"]
+    np.savez(job / passes.VIEW_TRANSFORM, **transform)
+    colour = 2.0 ** np.linspace(-14.0, -9.0, 160)[None, :, None] * np.ones((120, 1, 1)) * np.array([1.0, 0.8, 0.6])
+    shown = mix.displayed(transform, colour)
+    assert np.abs(shown - (colour / (colour + 0.05)) ** 0.6).max() < 0.001  # between knots, trilinear in log light
+    rng = np.random.default_rng(3)
+    look = job / "v-look.png"  # Blender's look: 8 bits, dithered
+    dithered = np.round(shown * 255 + rng.uniform(-1.0, 1.0, shown.shape))
+    Image.fromarray(dithered.clip(0, 255).astype(np.uint8)).save(look)
+    combined = light.halved(colour @ np.array([0.2126, 0.7152, 0.0722]))
+    held = {"combined": combined, "lamp_0": combined * (1.0 + rng.normal(0.0, 0.05, combined.shape)), "colour": colour}
+    assert np.abs(np.asarray(light.look_at(held, look, {}), float) - np.asarray(Image.open(look), float)).max() <= 1
+    light.look_at(held, look, {"lamp_0": 32.0}).save(tmp_path / "up.png")
+    up = np.asarray(Image.open(tmp_path / "up.png"), float)
+    assert np.abs(up - mix.displayed(transform, 32.0 * colour) * 255).max() < 6  # as if rendered 32 times as bright
+    assert grain.specks(tmp_path / "up.png") < grain.GRAINY_PER_MILLE
 
 
 def test_a_stage_drawing_nothing_but_its_sky_is_named_before_the_paid_render(tmp_path):
