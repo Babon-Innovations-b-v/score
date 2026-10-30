@@ -53,6 +53,14 @@ The invariants, each with the break that turns its test red (each applied once a
   with the encoder on the processor) takes this PC, a whole characters machine (17 GB of card) or a need past the
   container's memory does not. Break: `card = TOO_BIG.get(kind)` in `refusal` -> the clip run is refused; or drop the
   memory check -> the 40 GB job is taken.
+- A Blender job predicted past the container's memory (round 31: base's light passes, 29.8 GB beside a 27 GiB cap)
+  runs alone: its claim waits for every shared claim and keeps new ones out, waits while the room it needs is not
+  free (alone_room), then runs one job at a time in the container raised to alone_cap, set back at its delete; a
+  need past alone_cap is refused. Break: `shared = kind in SHARED and not alone` -> `kind in SHARED` in `claimed` ->
+  it shares three turns; or drop `if alone and memory > alone_room():` ... `return None` in `take` -> it starts
+  without the room; or drop the alone `docker("update", ...)` in `take` -> the container stays 27g; or drop the
+  `docker("update", *memory_arguments(), ...)` in `delete` -> it stays 35g; or drop `found["turns"] = 1` -> three
+  jobs of 30 GB at once.
 - The container's memory leaves this PC HOST_RESERVE_GB for WSL and the run's own steps beside it: a 43 GB PC gives
   the container 27 GB, and a small PC still 8. Break: `total - HOST_RESERVE_GB` -> `total - 8` -> 35g.
 - The container never swaps past its memory, made new or found already made. Break: drop `"--memory-swap",
@@ -502,11 +510,50 @@ def test_this_pc_refuses_a_job_by_its_measured_need_not_its_kind(monkeypatch, tm
     monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
     monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
     monkeypatch.setattr(local, "memory_cap", lambda: "35g")
+    monkeypatch.setattr(local, "alone_cap", lambda: "35g")
     with pytest.raises(ValueError, match="17 GB of card"):
         local.take("characters", "key")  # the whole machine: Kimodo's encoder on the card
-    with pytest.raises(ValueError, match="40 GB of memory"):
+    with pytest.raises(ValueError, match="40.0 GB of memory"):
         local.take("characters", "key", {"card_gb": 4, "memory_gb": 40})
     assert local.take("characters", "key", {"card_gb": 4, "memory_gb": 17})["here"]
+
+
+def test_this_pc_runs_a_job_past_its_container_alone_in_the_container_raised_for_it(monkeypatch, tmp_path):
+    import os
+    import capacity
+    import local
+    import spread
+    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
+    monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
+    monkeypatch.setattr(local, "RUNS_AT_ONCE", {"pixal": 1, "blender": 3})
+    monkeypatch.setattr(local, "memory_cap", lambda: "27g")
+    monkeypatch.setattr(local, "alone_cap", lambda: "35g")
+    monkeypatch.setattr(capacity.provider, "cloud", local)
+    room = [20 * 2**30]
+    monkeypatch.setattr(local, "alone_room", lambda: room[0])
+    calls = []
+    monkeypatch.setattr(local, "docker", lambda *arguments, **_: calls.append(arguments))
+    updates = lambda: [call[call.index("--memory") + 1] for call in calls if call[0] == "update"]  # noqa: E731
+    base = {"memory_gb": 29.8e9 / 2**30}
+    shared = local.take("blender", "key")
+    assert shared["turns"] == 3
+    assert local.take("blender", "key", base) is None  # it waits for the shared claim to leave
+    local.delete(shared["id"], local.ZONE)
+    assert local.take("blender", "key", base) is None and "35g" not in updates()  # 20 GiB free: it waits
+    (local.wanting() / str(os.getpid())).rename(local.wanting() / str(os.getppid()))  # as another live process's
+    assert local.take("blender", "key") is None  # its want keeps new Blender claims out meanwhile
+    room[0] = 33 * 2**30
+    alone = local.take("blender", "key", base)
+    assert alone["turns"] == 1 and spread.slots("blender", alone) == [0] and updates()[-1] == "35g"
+    assert local.take("blender", "key") is None
+    local.delete(alone["id"], local.ZONE)
+    assert updates()[-1] == "27g"  # back to the shared cap once it leaves
+    with pytest.raises(ValueError, match="with the job alone"):
+        local.take("blender", "key", {"memory_gb": 40})
+    (local.wanting() / str(os.getppid())).unlink()  # that want is gone
+    small = local.take("blender", "key", {"memory_gb": 6})
+    assert small["turns"] == 3
+    local.delete(small["id"], local.ZONE)
 
 
 def test_this_pc_container_leaves_room_for_wsl_and_the_runs_own_steps(monkeypatch):

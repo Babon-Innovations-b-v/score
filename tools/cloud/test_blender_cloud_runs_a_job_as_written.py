@@ -34,7 +34,10 @@ No machine is rented: each test reads the command, job or offers the module buil
   `others = []` (no peers named).
 - test_a_job_whose_pictures_sum_past_this_pcs_machine_is_refused_by_name_before_it_starts: in `too_big_here`, `for
   number, job, need in over if need > room]` -> `for number, job, need in over if False]` (the big job starts); or in
-  `picture_bytes`, `* int.from_bytes(head[20:24], "big") * 4` -> `* 4` (a map counts one row).
+  `picture_bytes`, `* int.from_bytes(head[20:24], "big") * 4` -> `* 4` (a map counts one row); or
+  `cloud.alone_cap()` -> `cloud.memory_cap()` in `too_big_here` (job 0, past the shared container but within its
+  room alone, is refused too); or `max(map(predicted_bytes, jobs))` -> `min(...)` in `alone_need` (the claim asks
+  the small job's room).
 """
 import json
 import os
@@ -343,9 +346,11 @@ def a_png(path, width, height):
 def test_a_job_whose_pictures_sum_past_this_pcs_machine_is_refused_by_name_before_it_starts(tmp_path, monkeypatch):
     """Round 23: base's light passes (271 full-size maps, 27.3 GB decoded) filled this PC's container in 35 s. A
     light job's tree holds four 16k by 8k maps (4 x 16384 x 8192 x 4 = 2.147 GB) and a 1k one (4.2 MB) in its
-    folders: predicted 2 GB + 2.152 GB = 4.15 GB, past a machine of 3 GiB (3.22 GB); a job with only the 1k map
-    (2.004 GB) fits. On this PC the call stops by the big job's name, its predicted GB and a bigger machine, before it
-    prices or claims anything (account() is never reached).
+    folders: predicted 2 GB + 2.152 GB = 4.15 GB, past a machine of 3 GiB (3.22 GB) with the job alone; a job with
+    only the 1k map (2.004 GB) fits, past the shared container's 1 GiB but within its room alone (round 31: base's
+    light passes, 29.8 GB, were refused by the shared 27 GiB, a job alone having 35). On this PC the call stops by
+    the big job's name, its predicted GB and a bigger machine, before it prices or claims anything (account() is
+    never reached); the claim's need is the most one of its jobs is predicted to take, in GiB.
     Each take's mark carries its prediction, and once it ends whether every output came back; its key is the hash
     score/graph take_key works out from the take's command line."""
     tree = tmp_path / "tree"
@@ -357,12 +362,14 @@ def test_a_job_whose_pictures_sum_past_this_pcs_machine_is_refused_by_name_befor
            "inputs": [str(tree / "base"), str(tree / "garage")], "outputs": [str(tmp_path / "o")], "minutes": 4}
     small = {**big, "inputs": [str(tree / "garage")]}
     assert blender_cloud.predicted_bytes(big) == 2 * 10**9 + 4 * 16384 * 8192 * 4 + 1024 * 1024 * 4
-    machine = type("ThisPC", (), {"NAME": "local", "memory_cap": staticmethod(lambda: "3g"),
+    machine = type("ThisPC", (), {"NAME": "local", "memory_cap": staticmethod(lambda: "1g"),
+                                  "alone_cap": staticmethod(lambda: "3g"),
                                   "account": staticmethod(lambda: pytest.fail("priced a job too big for this PC"))})
     monkeypatch.setattr(blender_cloud, "cloud", machine)
     monkeypatch.setattr(blender_cloud, "still_to_run", lambda jobs: jobs)
     monkeypatch.setattr(blender_cloud, "TAKE_MARKS", tmp_path / "marks")
     assert blender_cloud.too_big_here([small]) is None
+    assert blender_cloud.alone_need([small, big]) == {"memory_gb": blender_cloud.predicted_bytes(big) / 2**30}
     paths = []
     for number, job in enumerate([small, big]):
         paths.append(tmp_path / f"job-{number}.json")

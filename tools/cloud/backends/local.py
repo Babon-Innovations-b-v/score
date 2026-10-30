@@ -51,6 +51,12 @@ IMAGE = "score-this-pc:1"
 # Memory the container never gets: 8 GB WSL keeps free, 8 GB for the run's processor steps beside the container
 # (score run --jobs; owner, 2026-10-27: a WSL out of memory is the worst outcome, the sum stays under RAM less 8 GB).
 HOST_RESERVE_GB = 16
+# A job predicted past the container's memory (memory_cap) runs alone, its claim exclusive (alone): the container is
+# raised to this PC's memory less HOST_FLOOR_GB (WSL's own) and less what its RAM drives hold (alone_cap), and only
+# while that room is free now (alone_room); the run's steps beside it stay with the runner's reserve (score/graph
+# memory_room, which counts the container's raised room). 2026-10-30: base's light passes, predicted 29.8 GB, were
+# refused by the 27 GiB cap on a 43 GiB PC.
+HOST_FLOOR_GB = 8
 CARD_GB = 16  # the RTX 5080 (the desktop holds part of it while Windows runs)
 CARD_CLASS = f"gpu-{CARD_GB}gb"
 # The kinds that need more card than CARD_GB, in GB (tools/cloud/capacity.py KINDS' notes): cloud-only unless a run
@@ -131,32 +137,42 @@ def month_spend(_account):
 
 def refusal(kind, need=None):
     """Why a job of `kind` cannot run here, or None: its card GB (`need`'s "card_gb", else TOO_BIG's for the kind)
-    past CARD_GB, or its system memory GB (`need`'s "memory_gb") past the container's (memory_cap)."""
+    past CARD_GB, or its system memory GB (`need`'s "memory_gb") past the container's with the job alone (alone_cap)."""
     need = need or {}
     card = need.get("card_gb", TOO_BIG.get(kind))
     if card is not None and card > CARD_GB:
         return (f"a {kind} job needs about {card} GB of card and this PC has {CARD_GB} GB: it stays a cloud job "
                 f"(SCORE_CLOUD=local runs it nowhere)")
     memory = need.get("memory_gb")
-    if memory is not None and memory > int(memory_cap()[:-1]):
-        return (f"a {kind} job needs about {memory} GB of memory and this PC's machine has {memory_cap()}: it stays "
-                f"a cloud job (SCORE_CLOUD=local runs it nowhere)")
+    if memory is not None and memory > int(alone_cap()[:-1]):
+        return (f"a {kind} job needs about {memory:.1f} GB of memory and this PC's machine has {alone_cap()} with "
+                f"the job alone: it stays a cloud job (SCORE_CLOUD=local runs it nowhere)")
     return None
 
 
 def take(kind, public_key, need=None):
     """This PC's machine for one claim, held by this process until `delete`: {id, zone, type, class, cards, price,
-    unit_minutes, host, disk_gb, here}; None while another claim holds it. ValueError for a job too big (refusal)."""
+    unit_minutes, host, disk_gb, here}; None while another claim holds it, or while the room a job alone needs is
+    not free (alone_room). ValueError for a job too big (refusal)."""
     refused = refusal(kind, need)
     if refused:
         raise ValueError(refused)
-    handle, turns = claimed(kind)
+    memory = (need or {}).get("memory_gb", 0) * 2**30
+    alone = memory > int(memory_cap()[:-1]) * 2**30
+    handle, turns = claimed(kind, alone)
     mark_waiting(handle is None)
     if handle is None:
         return None
     try:
         with setting_up():
             host = running(public_key)
+            if alone and memory > alone_room():
+                handle.close()
+                want()  # Blender claims stay out while it waits for the room
+                mark_waiting(True)
+                return None
+            if alone:
+                docker("update", "--memory", alone_cap(), "--memory-swap", alone_cap(), MACHINE)
             card_in_turns()
     except BaseException:
         for held in (*turns, handle):
@@ -174,15 +190,17 @@ def take(kind, public_key, need=None):
     if turns:
         TURNS[machine_id] = turns
         found["turns"] = len(turns)
+    elif alone:
+        found["turns"] = 1  # one job at a time: the container's whole room is its
     return found
 
 
-def claimed(kind):
-    """The lock for a claim of `kind` and its turns: held exclusive for most kinds (the want written while it waits),
-    shared for a SHARED kind with every free one of its RUNS_AT_ONCE turns; (None, []) while the machine is busy for
-    it (held exclusive, an exclusive claim waiting, or every turn taken)."""
+def claimed(kind, alone=False):
+    """The lock for a claim of `kind` and its turns: held exclusive for most kinds and a job `alone` (the want written
+    while it waits), shared for a SHARED kind with every free one of its RUNS_AT_ONCE turns; (None, []) while the
+    machine is busy for it (held exclusive, an exclusive claim waiting, or every turn taken)."""
     LOCK.parent.mkdir(parents=True, exist_ok=True)
-    shared = kind in SHARED
+    shared = kind in SHARED and not alone
     handle = LOCK.open("a+")
     try:
         fcntl.flock(handle, (fcntl.LOCK_SH if shared else fcntl.LOCK_EX) | fcntl.LOCK_NB)
@@ -317,6 +335,27 @@ def memory_cap():
     return f"{max(8, total - HOST_RESERVE_GB)}g"
 
 
+def meminfo(name):
+    """The bytes of /proc/meminfo's `name` line."""
+    line = next(line for line in pathlib.Path("/proc/meminfo").read_text().splitlines() if line.startswith(f"{name}:"))
+    return int(line.split()[1]) * 1024
+
+
+def alone_cap():
+    """The container's memory while a job runs in it alone (HOST_FLOOR_GB): this PC's less HOST_FLOOR_GB and less
+    what its RAM drives hold (Shmem: /tmp and the other tmpfs), never below memory_cap."""
+    room = (meminfo("MemTotal") - meminfo("Shmem")) // 2**30 - HOST_FLOOR_GB
+    return f"{max(int(memory_cap()[:-1]), room)}g"
+
+
+def alone_room():
+    """The bytes a job alone may grow to now: what the container holds (the anon of its memory.stat, which
+    MemAvailable leaves out) and this PC's available memory less HOST_FLOOR_GB, never past alone_cap."""
+    stat = docker("exec", MACHINE, "cat", "/sys/fs/cgroup/memory.stat").stdout.split()
+    held = int(stat[stat.index("anon") + 1])
+    return min(held + meminfo("MemAvailable") - HOST_FLOOR_GB * 2**30, int(alone_cap()[:-1]) * 2**30)
+
+
 def blender_at_once(memory_gb):
     """Blender jobs the container runs at once: its memory (`memory_gb`, decimal GB) less BLENDER_MARGIN_GB, over
     BLENDER_PEAK_GB; at least one."""
@@ -388,6 +427,7 @@ def delete(machine_id, _zone):
             return False
     try:
         docker("restart", "-t", "5", MACHINE, check=False)
+        docker("update", *memory_arguments(), MACHINE, check=False)  # back from a job alone's room (alone_cap)
     finally:
         handle.close()
     return True

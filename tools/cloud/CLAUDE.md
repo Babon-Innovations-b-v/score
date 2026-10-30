@@ -57,7 +57,10 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   (`moss_sound.on_this_pc`, the machine path, since this PC has no image registry; `THIS_PC_NEED`, 10 GB of card
   and 20 GB of memory with MOSS's models on the card one at a time, `MOSS_ONE_AT_A_TIME=1` on this PC only, measured
   2026-10-28: 9.83 GB card, 17 to 26 s a take); a body build still needs the whole
-  machine. `python3 tools/cloud/this_pc.py env1` (through the agents' door's `store-pull` and `store-push`, the
+  machine. A Blender run's need is its biggest job's prediction (`blender_cloud.alone_need`): past the container's
+  memory, its claim runs alone, exclusive, one job at a time, once that room is free (`local.alone_room`), in the
+  container raised to this PC's memory less 8 GB and its RAM drives (`local.alone_cap`), set back at its delete
+  (round 31: base's light passes, 29.8 GB beside the shared 27 GiB). `python3 tools/cloud/this_pc.py env1` (through the agents' door's `store-pull` and `store-push`, the
   agents' key: owner, 2026-10-27, never his own key on the conductor) pulls what a run reads into `~/.score-this-pc`, runs `score run world1 --free` there (a free-only run on this PC's
   card also makes its paid rows, with no ticket, so a Google ask its cache does not answer fails, saying so:
   `graph.on_this_pc`) and pushes the new store objects and takes back, adding only: the door never replaces a file the conductor holds. Its `decide-yes` and `decide <yes id>`

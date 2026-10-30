@@ -94,7 +94,8 @@ LOG_TAIL_LINES = 40
 # A job's memory, predicted from its inputs before it starts: every input picture decoded (width x height x 4 bytes,
 # from its header alone) plus PREDICTED_BASE for Blender and the scene. Round 23: base's light passes (271 full-size
 # maps, 27.3 GB decoded) needed about 29 GB and filled this PC's container in 35 s. On this PC a job predicted past
-# the container's whole memory is refused by name before anything runs (too_big_here); each take's prediction and
+# the container's memory runs alone in it, the container raised for it (alone_need, local.py alone_cap); one past
+# even that is refused by name before anything runs (too_big_here); each take's prediction and
 # whether it wrote its outputs go in its mark under TAKE_MARKS, which the runner's memory reserve reads (score/graph
 # take_peak).
 PREDICTED_BASE = 2 * 10**9
@@ -344,16 +345,24 @@ def predicted_bytes(job):
 
 def too_big_here(jobs):
     """On this PC (SCORE_CLOUD=local) why the jobs cannot start, naming each one predicted (predicted_bytes) past the
-    container's whole memory (local.memory_cap); None when every one fits, or off this PC."""
+    container's memory with the job alone (local.alone_cap); None when every one fits, or off this PC."""
     if cloud.NAME != "local":
         return None
-    room = int(cloud.memory_cap()[:-1]) * 2**30
+    room = int(cloud.alone_cap()[:-1]) * 2**30
     over = [(number, job, predicted_bytes(job)) for number, job in enumerate(jobs)]
     lines = [f"Blender job {number} ({job['script']}) is predicted to need {need / 1e9:.1f} GB "
              f"({len(input_pictures(job))} input pictures decoded, plus {PREDICTED_BASE / 1e9:.0f} GB) and this PC's "
-             f"machine has {room / 1e9:.1f} GB: not started; it needs a bigger machine, a priced ask"
+             f"machine has {room / 1e9:.1f} GB with the job alone: not started; it needs a bigger machine, a priced ask"
              for number, job, need in over if need > room]
     return "\n".join(lines) or None
+
+
+def alone_need(jobs):
+    """On this PC the jobs' claim need (local.take's `need`): the most memory one of them is predicted to take
+    (predicted_bytes, in GiB), which past the container's memory makes the claim one alone; None off this PC."""
+    if cloud.NAME != "local" or not jobs:
+        return None
+    return {"memory_gb": max(map(predicted_bytes, jobs)) / 2**30}
 
 
 def take_key(arguments):
@@ -611,6 +620,7 @@ def main():
     run_folder = batch.BATCHES / (time.strftime("blender-%Y%m%d-%H%M%S") + f"-{os.getpid()}")
     run_folder.mkdir(parents=True)
     run = pictures.Run(run_folder, started + allowed_minutes * 60)
+    run.need = alone_need(jobs)
     left = []
     try:
         if options.serve:
