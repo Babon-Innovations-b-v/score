@@ -634,14 +634,29 @@ def along(path, share):
     return path[-1], legs[last] / lengths[last]
 
 
-def spots_of(item, shape, pieces):
-    """[(plan point, x way)] of an item's pieces: one over its box's middle turned by its facing; several evenly along
-    its path (item_path), each its long side along it."""
+def spots_of(item, shape, pieces, row):
+    """[(plan point, x way)] of an item's pieces: one over its box's middle turned by its facing (`item_way`); several
+    evenly along its path (item_path), each its long side along it."""
     x, y, wide, deep = (float(value) for value in item[1:5])
     if pieces == 1:
-        return [(np.array([x + wide / 2, y + deep / 2]), np.asarray(FACING_WAY.get(item[5], FACING_WAY[None])))]
+        return [(np.array([x + wide / 2, y + deep / 2]), item_way(item, row))]
     path = item_path(item, shape)
     return [along(path, (number + 0.5) / pieces) for number in range(pieces)]
+
+
+def item_way(item, row):
+    """The plan way one piece at an item lays its long side along (yaw_turn): its facing's (FACING_WAY), turned a
+    quarter onto its box's long side where its row and its box are both long on the ground (thin_straight.slender on
+    their ground sides) and the facing lays the row across the box: the walkway's two 12 m ceiling ducts, each on a
+    0.14 by 12 m box along the hall facing S, were laid across the hall (#36, 2026-10-31)."""
+    import score.stages.props.thin_straight as thin_straight
+    way = np.asarray(FACING_WAY.get(item[5], FACING_WAY[None]), float)
+    wide, deep = float(item[3]), float(item[4])
+    size = row["size"] if sized(row) else None
+    if (size and thin_straight.slender((float(size[0]), float(size[1]), 0.0))
+            and thin_straight.slender((wide, deep, 0.0)) and (abs(way[0]) > abs(way[1])) != (wide > deep)):
+        return np.array([-way[1], way[0]])
+    return way
 
 
 def yaw_turn(design, way, size):
@@ -869,7 +884,7 @@ def design_objects(design, handin, relations=None):
             base = float(shape.get("base") or 0.0)
             relation, on = holding.get((item[0], row_id)), None
             marked = marks(item, row, relation, unheld.get((item[0], row_id)))
-            for piece, (spot, way) in enumerate(spots_of(item, shape, pieces)):
+            for piece, (spot, way) in enumerate(spots_of(item, shape, pieces, row)):
                 if row_id in edged:
                     spot, way = past_edge_spot(item, design, spot, size)
                 height = base or deck_height(design, spot)

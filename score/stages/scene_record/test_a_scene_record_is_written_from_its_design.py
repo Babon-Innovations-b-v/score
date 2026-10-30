@@ -382,6 +382,27 @@ def test_a_row_the_plan_lays_only_against_its_edge_stands_past_it_facing_in():
     assert found["kiosk"]["at"] == [0.0, 0.0, 0.0], found["kiosk"]
 
 
+def test_a_run_lies_along_its_item_s_long_side_whatever_its_facing():
+    """#36, 2026-10-31: the walkway's two 12 m ceiling ducts (0.5 by 12 m), each on a 0.14 by 12 m item along the hall
+    facing S, were turned by their facing across the hall. A row long on the ground at an item long the other way to
+    its facing lies along the item (its facing's way turned a quarter, writer.item_way); a chair, not long, keeps its
+    facing on its box a little deeper than wide.
+    Break: score/stages/scene_record/writer.py: `return np.array([-way[1], way[0]])` -> `return way`"""
+    from score.stages.scene_record import writer
+    design = {"w": 2.0, "d": 12.0, "items": [["DUCT 1", 0.5, 0.0, 0.14, 12.0, "S", "item"],
+                                             ["CHAIR 1", 1.2, 5.0, 0.5, 0.6, "S", "item"]],
+              "rows": {"DUCT 1": ["duct"], "CHAIR 1": ["chair"]}}
+    rows = [{"id": "duct", "route": "prop", "size": [0.5, 12.0, 0.3]},
+            {"id": "chair", "route": "prop", "size": [0.5, 0.55, 0.9]}]
+    found = {entry["row"]: entry for entry in writer.design_objects(design, {"rows": rows, "objects": {}})}
+
+    def same(one, two):  # one turn: a quaternion and its negative
+        return bool(np.isclose(abs(np.dot(one, two)), 1.0))
+    assert same(found["duct"]["rotation"], writer.yaw_turn(design, (0.0, -1.0), rows[0]["size"])), found["duct"]
+    assert not same(found["duct"]["rotation"], writer.yaw_turn(design, writer.FACING_WAY["S"], rows[0]["size"]))
+    assert same(found["chair"]["rotation"], writer.yaw_turn(design, writer.FACING_WAY["S"], rows[1]["size"]))
+
+
 def test_an_opening_row_names_its_own_cut_and_a_thing_on_a_low_deck_stands_on_it():
     """2026-10-30: the shell named each opening row on the first free wall piece (the workshop's doorway on wall_2,
     hangar's floor hatch on wall 1's lintel), and laid airlock's sandbags at 0 inside its 0.2 m porch deck. An opening

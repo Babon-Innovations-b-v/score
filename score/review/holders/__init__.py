@@ -185,10 +185,10 @@ RECESS_MARGIN = 0.05
 RECESS_WALL = 0.05
 
 
-def item_way(holder_item):
-    """The plan way the scene record lays a holder item's model along (writer.FACING_WAY of its facing)."""
-    from score.stages.scene_record.writer import FACING_WAY
-    return numpy.asarray(FACING_WAY.get(holder_item[5], FACING_WAY[None]), float)
+def item_way(holder_item, holder_row):
+    """The plan way the scene record lays a holder item's model along (writer.item_way)."""
+    from score.stages.scene_record import writer
+    return writer.item_way(holder_item, holder_row)
 
 
 def model_axes(way, holder_row):
@@ -220,7 +220,7 @@ def piece_middles(item, row, plan):
     items = [(other, shapes.get(other[0]) or {}) for other in plan.get("items") or []
              if row["id"] in (tied.get(other[0]) or [])]
     counts = dict(zip((other[0] for other, _ in items), writer.pieces_of(row, items))) if items else {}
-    return writer.spots_of(item, shapes.get(item[0]) or {}, counts.get(item[0], 1))
+    return writer.spots_of(item, shapes.get(item[0]) or {}, counts.get(item[0], 1), row)
 
 
 def face_spots(item, row, plan, room):
@@ -953,8 +953,8 @@ def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, 
         if found["how"] == "within" and hangs(item, holder_item, plan):
             found["hangs"] = True
         holder_base = float(((plan.get("shapes") or {}).get(holder_item[0]) or {}).get("base") or 0.0)
-        recess = recess_of(item, row, (middle(holder_item), item_way(holder_item), holder_base), nearest[0],
-                           found["face"], plan, inventory, kinds) if found["how"] == "face" else None
+        recess = recess_of(item, row, (middle(holder_item), item_way(holder_item, nearest[0]), holder_base),
+                           nearest[0], found["face"], plan, inventory, kinds) if found["how"] == "face" else None
         if recess:
             found["recess"] = recess
         if found["how"] == "face":

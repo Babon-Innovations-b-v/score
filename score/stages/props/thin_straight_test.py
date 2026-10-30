@@ -35,6 +35,14 @@ and test_the_pixal_row_builds_a_failed_thin_row_and_drops_its_close_up_gap red (
 masking a kept build again (`if row not in kept}`) turns the latter red too (the counted pipe kept one instance's
 crop). code_builds keeping a build already made as it is (`thin_straight.rebuilt(...)` under `if False:`) turns
 test_the_pixal_row_builds_a_failed_thin_row_and_drops_its_close_up_gap red (the older builder's box kept).
+held_across holding nothing (`hold[across, across] = min(...)` -> `hold[across, across] = 1.0`) turns
+test_a_band_is_its_drawn_width_across_its_picture_and_at_most_its_row_s_thinnest_side_deep red (the conduit 0.3 m
+across on its 0.1 m); view not undoing it (`@ np.linalg.inv(held_across(row, alpha))` dropped) turns that test,
+test_a_thin_run_is_held_to_its_path_s_own_size_never_crushed_to_its_box and
+test_a_path_is_built_in_its_picture_s_plane_facing_the_outline_s_view red (the rail's outline 0.445); write_take laying
+its crop on the held build (`seen = mesh.copy()`) turns
+test_a_code_build_carries_its_crop_where_it_lies_so_each_finish_has_faces_of_its_own red (the thin bar's crop 0.021 of
+its 0.095 across).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/thin_straight_test.py
 """
@@ -200,6 +208,13 @@ def test_a_code_build_carries_its_crop_where_it_lies_so_each_finish_has_faces_of
     ends, middle = np.abs(along[faces[seen]]) > 0.42, np.abs(along[faces[seen]]) < 0.3
     assert np.abs(np.median(colours[seen][ends], axis=0) - [90, 90, 90]).max() <= 12
     assert np.abs(np.median(colours[seen][middle], axis=0) - [180, 30, 30]).max() <= 12
+    # a run drawn wider than its row's section (thin_straight.held_across) takes its crop across it as drawn
+    import trimesh
+    thin_straight.write_take("thin_1", {**lamp, "size": [0.8, 0.005, 0.005]}, picture, 4000, pixal,
+                             tmp_path / "lamp.png")
+    drawn = np.flatnonzero((np.asarray(picture)[..., 3] > 127).any(1))
+    uv = trimesh.load(pixal / "thin_1.glb", force="mesh").visual.uv
+    assert np.isclose(np.ptp(uv[:, 1]), np.ptp(drawn) / picture.height, rtol=0.25), (np.ptp(uv, axis=0), drawn)
 
 
 def test_an_empty_mask_cuts_nothing(tmp_path):
@@ -369,10 +384,13 @@ def test_a_straight_thing_slanted_by_the_concept_s_view_passes_as_prepare_predic
 
 def test_a_band_is_its_drawn_width_across_its_picture_and_at_most_its_row_s_thinnest_side_deep(tmp_path):
     """A box section the picture cannot show is never built: a mask drawn thinner or thicker than the box's short
-    sides is built at its drawn width across the picture (storage's 0.6 m square pillar drawn 0.25 m, 0.399; the
-    docking airlock's 0.1 m ceiling rail drawn 0.28 m, 0.324; 2026-10-29), and a flat ribbon box is no flat ribbon
-    where its picture draws a pipe (the stairwell's conduit, 3.0 by 0.1 m drawn 0.28 m, read 0.346 swept as its box,
-    #36 2026-10-30): its band the drawn width, its depth at most the row's thinnest side."""
+    sides is held to its crop as drawn (storage's 0.6 m square pillar drawn 0.25 m, 0.399; the docking airlock's
+    0.1 m ceiling rail drawn 0.28 m, 0.324; 2026-10-29), and a flat ribbon box is no flat ribbon where its picture
+    draws a pipe (the stairwell's conduit, 3.0 by 0.1 m drawn 0.28 m, read 0.346 swept as its box, #36 2026-10-30):
+    its depth at most the row's thinnest side, and a slender run drawn wider than that at its length's scale held
+    across to it (thin_straight.held_across: a run going away from the camera is foreshortened along its length, not
+    across; the walkway's 12 m wall pipes on 0.1 m were built 2.9 m tall, #36 2026-10-31), its outline seen as drawn
+    (thin_straight.view)."""
     import trimesh
     pillar = {"id": "pillar", "name": "support pillar", "noun": "pillar", "size": [0.6, 0.6, 3.0], "view": "v1"}
     rail = {"id": "rail", "name": "ceiling rail", "noun": "rail", "size": [3.0, 0.1, 0.1], "view": "v1"}
@@ -385,7 +403,10 @@ def test_a_band_is_its_drawn_width_across_its_picture_and_at_most_its_row_s_thin
     made = trimesh.load(tmp_path / "conduit/pixal/take-final.glb", force="mesh")
     plane = made.extents
     assert np.isclose(plane[2], 12.0, rtol=0.02) and plane[0] <= 0.1 * 1.05, plane  # its length, its depth
-    assert np.isclose(plane[1], 12.0 * 13 / 573, rtol=0.2), plane  # 13 of its 573 pixels across: 0.27 m, not 3 m
+    assert np.isclose(plane[1], 0.1, rtol=0.1), plane  # 13 of its 573 pixels across, 0.27 m at its length's scale
+    cut = np.asarray(Image.open(tmp_path / "conduit/pixal/take.svviews/input.png").convert("RGBA"))[..., 3] > 127
+    drawn = made.vertices @ np.linalg.inv(thin_straight.held_across(conduit, cut))[:3, :3].T  # as view sees it
+    assert np.isclose(np.ptp(drawn[:, 1]), 12.0 * 13 / 573, rtol=0.2), np.ptp(drawn, axis=0)
     # a post's flared foot keeps its own width: the build is as wide as its mask at each point of its centreline (a
     # tube of one width lost the airlock porch post's foot, 0.75 to 0.46, #36 2026-10-30)
     post = {"name": "wooden post", "noun": "post", "size": [0.5, 0.5, 2.5]}
@@ -507,7 +528,7 @@ def test_a_path_is_built_in_its_picture_s_plane_facing_the_outline_s_view(tmp_pa
         made = trimesh.load(tmp_path / name / "pixal" / "take-final.glb", force="mesh")
         plane = made.extents
         assert np.isclose(plane[2], row["size"][0], rtol=0.02), (name, plane)
-        assert plane[1] > 1.5 and plane[0] <= 0.1 * 1.05, (name, plane)  # its path's reach, never its row's 1 m
+        assert plane[1] > 1.1 and plane[0] <= 0.1 * 1.05, (name, plane)  # its path's reach, never its row's 1 m
     diagonal = {"name": "wire", "noun": "wire", "size": [6.0, 0.5, 0.5]}
     down, across = np.mgrid[0:400, 0:400]
     mask = np.abs(down - across) <= 10  # 21 pixels along a row, 14.8 square to its way
