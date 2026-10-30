@@ -164,9 +164,19 @@ def split_runs(plan, inventory, project):
     return fixes
 
 
+def piled(plan, row_id, box, tall):
+    """The base a new thing of `row_id` with footprint `box` [x, y, w, d] stands at: on the highest thing of its row
+    whose footprint it crosses (a pile: airlock's sandbags crossed by 5 to 25 cm, 2026-10-30), else 0. `tall` is the
+    row's, for a thing whose shape gives none."""
+    return max([float((shape or {}).get("base") or 0.0) + float((shape or {}).get("tall") or tall)
+                for item, row, shape in plan_checks.placed_items(plan) if row == row_id and overlapping(box, item[1:5])],
+               default=0.0)
+
+
 def placed_missing(plan, inventory, project):
     """Each row on the floor placed fewer times than the concept counts given its missing things where its boxes
-    project, those nearest a thing already laid taken as that one's; the fixes said."""
+    project, those nearest a thing already laid taken as that one's; a thing whose footprint crosses one of its row's
+    piled on it (piled), never standing in it; the fixes said."""
     if project is None:
         return []
     fixes, short = [], {gap["row"] for gap in plan_checks.count_gaps(plan, inventory, set(plan.get("structure", [])))}
@@ -184,7 +194,13 @@ def placed_missing(plan, inventory, project):
         missing = max(0, int(row.get("count", 1) or 1) - placed)
         like = laid[0][1] if laid else None
         size = [float(row["size"][0]), float(row["size"][1])]
-        added = [added_item(plan, row["id"], spot, size, like) for spot in spots[:missing]]
+        added = []
+        for spot in spots[:missing]:
+            base = piled(plan, row["id"], [spot[0] - size[0] / 2, spot[1] - size[1] / 2, *size],
+                         float(row["size"][2]) if len(row["size"]) > 2 else 0.0)
+            added.append(added_item(plan, row["id"], spot, size, like))
+            if base:
+                plan["shapes"][added[-1]]["base"] = round(base, 3)
         if added:
             fixes.append(f"{plan_checks.said_name(row['id'])}: {len(added)} more placed where the concept shows them")
     return fixes

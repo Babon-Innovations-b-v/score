@@ -31,7 +31,9 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   runs furthest along; 2026-10-26: the square's 30 m buildings on 2 to 7 m strips). Each waits on its take's bake model (`bake`, `<first row>_1`)
   and the assembly lays it under /<place>/Objects once baked (`assembly/made_waiting.py`); a row with no take or no
   size stays named on the root's score:waiting. People are the cast's; a row the plan's shell lays itself (route
-  `plan`) is named on a shell piece of its part (`row`).
+  `plan`) is named on a shell piece of its part (`row`), an opening row on the lintel over the cut its plan item makes
+  (none where no wall is cut at it). A thing at the floor whose spot lies on a deck lying on the floor (a level at most
+  a slab and its gap high, so nothing stands under it: airlock's porch deck) stands on that deck's height.
 - **Each object carries what holds it** (#72, `on`): the place's relations (`{home}/design/relations/<place>.json`,
   score/review/holders, read only while their `plan` sha is the kept plan's, else `relations_left_out` says why). A
   door or window in its opening stands at the opening's middle on its sill, along its wall (`in`: middle, along, wide,
