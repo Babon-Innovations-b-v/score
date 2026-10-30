@@ -119,8 +119,13 @@ before that.
   `_solve.solved` / `solved_in_chunks(..., set_places=, row_set=)` (host arrays; chunks slice row_set) wire both: the
   toy's clip as 3 sets (inside joints moved ~2 mm, targets 1 mm apart) in one batch equals each set alone within
   0.01 deg / 0.01 mm (`tests/card_across.py`, 2026-10-30; at ~1 cm moves from mink's base seeds 3 rows did not
-  converge in 300 steps, not looked into). Still to come: a refusal when sets' frozen, limited or reduction differ,
-  `Clip` building set x frame rows from several sets, and the 4-set timing against the per-set path.
+  converge in 300 steps, not looked into). `_sets.Sets(clips)` (one `Clip` per set, set 0 the base) builds the set x
+  frame rows from several sets, each row its own set's marker offsets, weights and targets on set 0's model, the
+  places per row; refused when a set's reduction or projection (frozen, limited, couplings) or its sites or bodies
+  differ from set 0's. `Sets.angles(turns, points, seeds)` (one array per set) equals each set's `Clip.angles` alone
+  within 0.01 deg / 0.01 mm on the toy (`tests/card_sets.py`: 3 sets, inside joints, offsets, weights and targets
+  apart, 2026-10-30). Toy timing, 4 sets x 10 frames warm: one batch 186 ms against 384 ms alone (2.07x, equal
+  exactly). Still to come: the body run calling `Sets`, and the 4-set timing on a real body's short clip.
 - One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
   the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the
