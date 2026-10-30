@@ -328,6 +328,35 @@ def test_a_row_the_plan_lays_only_against_its_edge_stands_past_it_facing_in():
     assert found["kiosk"]["at"] == [0.0, 0.0, 0.0], found["kiosk"]
 
 
+def test_an_opening_row_names_its_own_cut_and_a_thing_on_a_low_deck_stands_on_it():
+    """2026-10-30: the shell named each opening row on the first free wall piece (the workshop's doorway on wall_2,
+    hangar's floor hatch on wall 1's lintel), and laid airlock's sandbags at 0 inside its 0.2 m porch deck. An opening
+    row is named on the lintel over the cut its plan item makes (the shed's door at plan (4, 0) cuts wall 1 into its
+    foot wall_1, the foot under the door wall_1_2, the lintel wall_1_3 and the rest wall_1_4), and one with no item is
+    named on no piece; a crate at the floor on a 0.2 m deck stands on it at 0.2 m, a box at the floor under a 2.5 m
+    loft stays at 0 (things may stand under it).
+    Break: score/stages/scene_record/writer.py: `return f"wall_{index + 1}" if over[-1] == 0` ->
+        `return f"wall_{index + 1}" if over[0] == 0`, and the next `over[-1] + 1` -> `over[0] + 1`
+    Break: score/stages/scene_record/writer.py: `height = base or deck_height(design, spot)` -> `height = base`
+    Break: score/stages/scene_record/writer.py: `0.0 < float(level.get("height") or 0.0) <= design_shell.SLAB +
+        DECK_BELOW and` -> `0.0 < float(level.get("height") or 0.0) and`"""
+    from score.stages.scene_record import writer
+    design = {**WRITTEN, "items": [*WRITTEN["items"], ["DOORWAY 1", 3.4, 0.0, 1.2, 0.2, None, "item"],
+                                   ["CRATE 1", 6.0, 4.0, 1.0, 1.0, None, "item"],
+                                   ["BOX 1", 1.0, 4.0, 1.0, 1.0, None, "item"]],
+              "rows": {**WRITTEN["rows"], "DOORWAY 1": ["doorway"], "CRATE 1": ["crate"], "BOX 1": ["box"]},
+              "levels": [*WRITTEN["levels"],
+                         {"name": "porch deck", "height": 0.2, "points": [[5.0, 3.0], [8.0, 3.0], [8.0, 6.0], [5.0, 6.0]]},
+                         {"name": "loft", "height": 2.5, "points": [[0.0, 3.0], [4.0, 3.0], [4.0, 6.0], [0.0, 6.0]]}]}
+    named = {entry["name"]: entry.get("row") for entry in
+             writer.shell(design, "shed", None, {"wall": ["wall_panels"], "opening": ["doorway", "hatch"]})}
+    assert named["wall_1_3"] == "doorway" and named["wall_1"] == "wall_panels", named
+    assert "hatch" not in named.values() and list(named.values()).count("doorway") == 1, named
+    rows = [{"id": name, "route": "prop", "size": [1.0, 1.0, 0.5]} for name in ("crate", "box")]
+    found = {entry["row"]: entry for entry in writer.design_objects(design, {"rows": rows, "objects": {}})}
+    assert found["crate"]["at"] == [2.5, 0.2, 1.5] and found["box"]["at"] == [-2.5, 0.0, 1.5], found
+
+
 def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     """Issue #72: the record carries each object's relation (score/review/holders) for the assembly to lay it by. On a
     20 by 20 m plan (place (x, z) is plan (x - 10, y - 10)): the door the plan writer left on the walls item stands in

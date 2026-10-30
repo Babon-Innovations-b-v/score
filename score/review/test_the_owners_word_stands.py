@@ -2945,6 +2945,23 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     assert plan_checks.checked(plan, inventory) == [] and len(fixes) == 4
 
 
+def test_a_missing_thing_crossing_one_of_its_row_is_piled_on_it():
+    """2026-10-30: placed_missing laid each missing copy at full size with no neighbour check, so airlock's sandbags
+    stood in each other by 5 to 25 cm. A sack laid at plan (3.3, 2.3) and two missing ones projecting to (3.5, 2.3)
+    and (6.3, 2.3): the first crosses it and is piled on it (base its 0.2 m tall), the second stands on the floor.
+    Break: score/review/plan_fixes.py: `            if base:` -> `            if False:`"""
+    sack = {"id": "sack", "count": 3, "size": [0.6, 0.4, 0.2],
+            "boxes": [[300, 200, 360, 230], [320, 200, 380, 230], [600, 200, 660, 230]]}
+    inventory = {"picture": [1000, 1000], "rows": [*ROWS, sack]}
+    plan = stand_in_plan()
+    plan["items"].append(["SACK 1", 3.0, 2.1, 0.6, 0.4, None, "item"])
+    plan["rows"]["SACK 1"] = ["sack"]
+    plan_fixes.placed_missing(plan, inventory, plan_fixes.projector(plan, inventory))
+    sacks = {item[0]: [item[1], item[2], plan["shapes"][item[0]].get("base")] for item in plan["items"]
+             if item[0].startswith("SACK") and item[0] != "SACK 1"}
+    assert sacks == {"SACK 2": [3.2, 2.1, 0.2], "SACK 3": [6.0, 2.1, None]}, sacks
+
+
 def test_a_box_of_things_drawn_apart_is_split_round_its_spread():
     inventory = {"rows": [{"id": "tree", "count": 4, "size": [1.0, 1.0, 5.0]}]}
     plan = {"w": 12.0, "d": 12.0, "doors": [], "people": [], "items": [["TREE 1", 1.0, 1.0, 10.0, 10.0, None, "item"]],

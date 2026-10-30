@@ -24,7 +24,8 @@ builds it unchanged; it lands as record/<place>.json in the output.
                  counts several or a run the plan draws once), `<row>_<n>`, on its spot at its shape's base, turned
                  along its item, waiting on the bake's model of its row's take (`bake`, `<first row>_1`), which the
                  assembly lays (assembly/made_waiting.py); a row the plan's shell lays itself (route `plan`) is named
-                 on a shell piece of its part instead; each carries what holds it (`on`, from the place's relations,
+                 on a shell piece of its part instead (an opening on the lintel over its item's cut); one at the
+                 floor on a deck lying on the floor (airlock's porch deck) stands on it; each carries what holds it (`on`, from the place's relations,
                  score/review/holders: its opening, its wall, its holder's objects), which the assembly lays it by
     environment  inside or not, and the sky at the place's site at its scene time from the physics (overhead.py: each
                  light over the horizon, every other body, every backdrop), which the light layer draws
@@ -72,9 +73,8 @@ NOT_PLACES = ("outside", "sealed")
 # The routes whose rows' models the record lays at their plan items (prepare's groups.ROUTES): people are the cast's.
 LAID_ROUTES = ("prop", "shell")
 # The part of the place each piece of the shell is (design_shell.part_kind), as a reading's row says its part: a row
-# the plan lays itself (route `plan`) is named on a piece of its part, an opening on a wall it is cut in.
+# the plan lays itself (route `plan`) is named on a piece of its part, an opening on the piece over its cut (shell).
 SHELL_PARTS = {"deck": "floor", "wall": "wall", "roof": "roof"}
-PART_PIECE = {"opening": "wall"}
 # An item's way (x across) in plan metres by its facing (None as north): turned east or west it lies across.
 FACING_WAY = {None: (1.0, 0.0), "N": (1.0, 0.0), "S": (-1.0, 0.0), "E": (0.0, 1.0), "W": (0.0, -1.0)}
 
@@ -142,14 +142,53 @@ def shell_entry(name, number, piece, design, said):
     return entry
 
 
+def cut_piece(design, middle):
+    """The name of the shell piece over the cut an opening at plan point `middle` makes in its wall (its lintel, else
+    the wall's foot under it: design_shell.walls' pieces, in its spans' order), else None: no wall is cut there."""
+    outline, openings, eave = design_shell.outline_of(design), design_shell.openings_of(design), \
+        design_shell.lowest_eave(design)
+    for index, start in enumerate(outline):
+        end = outline[(index + 1) % len(outline)]
+        length = math.dist(start, end)
+        entry = design_shell.written_wall(design, start, end)
+        thick = float(entry.get("thick") or design_shell.THICK)
+        at = design_shell.on_edge([{"at": middle, "wide": 0.0, "sill": 0.0, "head": 0.0}], start, end, thick) \
+            if length >= 1e-6 else []
+        if not at:
+            continue
+        cuts = design_shell.on_edge(openings, start, end, thick)
+        spans = design_shell.spans(length, cuts, -DECK_BELOW - design_shell.SLAB,
+                                   design_shell.wall_height(design, entry, eave))
+        over = [number for number, (begin, finish, *_) in enumerate(spans)
+                if (begin, finish) in {cut[:2] for cut in cuts} and begin <= at[0][0] <= finish]
+        if over:
+            return f"wall_{index + 1}" if over[-1] == 0 else f"wall_{index + 1}_{over[-1] + 1}"
+    return None
+
+
+def opening_pieces(design, row_id):
+    """The shell pieces over the cuts the row's plan items make (cut_piece), in item order."""
+    tied = design.get("rows") or {}
+    found = [cut_piece(design, [float(item[1]) + float(item[3]) / 2, float(item[2]) + float(item[4]) / 2])
+             for item in design.get("items") or [] if row_id in (tied.get(item[0]) or [])]
+    return [name for name in found if name]
+
+
 def shell(design, place, library, rows=None):
     """The room shell's entries (design_shell.pieces) stood in the place's frame, each painted from the scene's
-    library by its part's kind; each of the shell's own rows (`rows`: {part: [row id]}) named on the first piece of
-    its part no other row names (`row`, its score:row)."""
+    library by its part's kind; each of the shell's own rows (`rows`: {part: [row id]}) named (`row`, its score:row)
+    on the first piece of its part no other row names, an opening's on the piece over the cut its plan item makes
+    (opening_pieces; none where no wall is cut at it: hangar's floor hatch named no lintel, 2026-10-30)."""
     found = [painted(shell_entry(name, number, piece, design, said), design_shell.part_kind(name), place, library)
              for name, parts, said in design_shell.pieces(design) for number, piece in enumerate(parts)]
-    free = {part: list(ids) for part, ids in (rows or {}).items()}
+    by_name = {entry["name"]: entry for entry in found}
+    for row_id in (rows or {}).get("opening", []):
+        for name in opening_pieces(design, row_id):
+            by_name[name].setdefault("row", row_id)
+    free = {part: list(ids) for part, ids in (rows or {}).items() if part != "opening"}
     for entry in found:
+        if "row" in entry:
+            continue
         ids = free.get(SHELL_PARTS.get(entry["name"].split("_")[0]))
         if ids:
             entry["row"] = ids.pop(0)
@@ -459,8 +498,7 @@ def plan_rows(handin):
     found = {}
     for row in handin.get("rows", []):
         if row.get("route") == "plan":
-            part = PART_PIECE.get(row.get("part"), row.get("part"))
-            found.setdefault(part, []).append(row["id"])
+            found.setdefault(row.get("part"), []).append(row["id"])
     return found
 
 
@@ -674,6 +712,17 @@ def relations_of(relations):
     return {(entry["item"], entry["row"]): entry for entry in (relations or {}).get("relations", [])}
 
 
+def deck_height(design, spot):
+    """The height of the highest deck lying on the floor (a plan level whose slab reaches down to it: nothing stands
+    under it) whose outline holds a plan spot, else 0: a thing at the floor there stands on that deck (airlock's porch
+    deck at 0.2 m, its sandbags laid inside its slab, 2026-10-30); a higher level may have things under it, so a thing
+    at the floor under it stays there."""
+    return max([0.0] + [float(level["height"]) for level in design.get("levels") or []
+                        if len(level.get("points") or []) >= 3 and
+                        0.0 < float(level.get("height") or 0.0) <= design_shell.SLAB + DECK_BELOW and
+                        design_shell.inside(spot, level["points"])])
+
+
 def design_objects(design, handin, relations=None):
     """Every object of the design: one at each plan item (more where the item counts several, or a run the plan
     draws once) for each prop or shell row the item names, `<row>_<n>` the n-th of its row, standing on its plan spot
@@ -706,15 +755,16 @@ def design_objects(design, handin, relations=None):
             for piece, (spot, way) in enumerate(spots_of(item, shape, pieces)):
                 if row_id in edged:
                     spot, way = past_edge_spot(item, design, spot, size)
+                height = base or deck_height(design, spot)
                 if relation:
-                    spot, way, base, on = related(design, relation, spot, way, base, size, piece)
+                    spot, way, height, on = related(design, relation, spot, way, height, size, piece)
                 number += 1
-                (point,), floor = in_frame(design, [spot], base)
+                (point,), floor = in_frame(design, [spot], height)
                 found.append({"name": f"{row_id}_{number}", "row": row_id, "bake": model, "kind": "object",
                               "at": [point[0], floor, point[1]], "rotation": yaw_turn(design, way, size),
                               "waiting": waits(row, model, by_id),
                               "from": f"plan item {item[0]!r}, inventory row {row_id}: piece {number} of the row, "
-                                      f"{base:g} m over the floor", **({"on": dict(on)} if on else {}), **marked})
+                                      f"{height:g} m over the floor", **({"on": dict(on)} if on else {}), **marked})
                 laid_at.setdefault(item[0], []).append(found[-1]["name"])
     return holder_names(found, laid_at, arch_names(design, handin))
 
