@@ -135,6 +135,10 @@ before that.
   max, 1.5e-5 relative, 2026-10-30), so equal-poly sets alone would refuse it; on the toy with each set's follower
   slope 0.05 apart, equal to each Clip alone, reading set 0's for every row 4.2 / 10.2 deg off. Toy timing, 4 sets x 10 frames warm: one batch 186 ms against 384 ms alone (2.07x, equal
   exactly). Still to come: the body run calling `Sets`, and the 4-set timing on a real body's short clip.
+- Newton's `add_mjcf` merges a MuJoCo body's several joints into one D6 joint into that body, placed at its first
+  joint (checked 2026-10-30: hinge, hinge, slide on one body gave one joint `a1_a2_a3`), so `_clip.moved_inside`'s map
+  of child body to joint has one entry a body and moving it moves the whole body (`tests/card_inside.py`; keyed by
+  the joint's own label instead, KeyError). Myo joints on one body at different places are not checked here.
 - One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
   the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the

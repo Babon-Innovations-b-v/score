@@ -21,7 +21,8 @@ Jacobian (_level2.py) equals its residuals' central differences to 1e-6 of each 
 host's kinematics, to 1e-5 from the card's (_level2_card.py), nothing outside `Problem.sparsity`; level 2 solved with it (`_constants.staged(jacobian=...)`) from a path moved
 0.05 off equals the 2-point solve to 1e-3 mm and 1e-4 deg. Its frames under 3 sets' constants on one card
 model (each world its set's body_pos and site_pos, level 2 across sets) equal each set alone bit for bit. Level 2's
-inverse left Jacobians batched over every frame and group equal the per-row ones to 2e-15.
+inverse left Jacobians batched over every frame and group equal the per-row ones to 2e-15. A body carrying several
+MuJoCo joints is one Newton joint, and `_clip.moved_inside` moves that one by the body's move (`card_inside.py`).
 
 Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _kept's release `wp.where(inside, 1.0, 0.0)` made `0.0` (holds only added): rows 0 and 1 keep dof 0
@@ -79,6 +80,8 @@ Breaks (each applied once, seen red, reverted):
   from the first's last frame, its start never asked (card_sets).
 - (2026-10-30) _sampled.path_across reading set 0's points for every set: sets 1 and 2 18.96 and 76.37 deg off
   their clips chained alone (card_sets).
+- (2026-10-30) _clip.moved_inside's map keyed by the joint's own name (`joint_label`, Newton's "a1_a2_a3") instead of
+  its child body's: a body carrying several MuJoCo joints (one D6 in Newton) is not found, KeyError (card_inside).
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/_card/tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py
 """
@@ -98,6 +101,7 @@ from card_level2 import (the_batched_inverses_equal_each_row, the_frames_per_wor
                          the_level2_jacobian_equals_its_differences,
                          the_level2_solve_with_the_exact_jacobian_equals_differences)
 from card_across import the_sets_solved_together_equal_each_set_alone  # noqa: E402
+from card_inside import the_body_with_several_joints_moves_as_one  # noqa: E402
 from card_sets import the_sampled_path_across_sets_equals_each_set_chained, the_sets_batch_equals_each_clip_alone  # noqa: E402
 from card_rows import (the_float64_frames_equal_each_set_alone, the_rows_equal_each_set_alone,  # noqa: E402
                        the_rowwise_optimizer_equals_each_set_alone)
@@ -263,7 +267,7 @@ CHECKS = (the_rows_equal_each_set_alone, the_rowwise_optimizer_equals_each_set_a
           the_level2_jacobian_equals_its_differences, the_level2_solve_with_the_exact_jacobian_equals_differences,
           the_measures_equal_the_cpu_measure, the_skins_posed_once_follow_each_clip, the_step_equals_the_prototype, the_projection_equals_the_prototype,
           the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame,
-          the_next_iteration_from_its_seeds_equals_mink)
+          the_next_iteration_from_its_seeds_equals_mink, the_body_with_several_joints_moves_as_one)
 
 
 def in_newton():
