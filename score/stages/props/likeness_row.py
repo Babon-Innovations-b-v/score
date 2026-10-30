@@ -65,6 +65,7 @@ POSE_RULES = {"stance rules": "{data}/checks/stance.json", "resting rules": "{da
 # study's 280 right and 331 wrong outline-passing pairs it passes 267 and 114 (the outline alone 280 and 331).
 DESIGNED_LEAST = 0.14
 TEXTURED_SIDE = 256
+PEOPLE_LAYER = "people"  # a person's object in the prop data (the people line's looks, a design's people)
 BACK = "@back"
 
 
@@ -171,11 +172,12 @@ def through(mesh, laid, samples):
     return float(np.percentile(walls, 5)) if walls else 0.0
 
 
-def drawn_size(row, model, rows, inputs):
+def drawn_size(row, model, rows, inputs, person=False):
     """A Pixal3D take's row size (wide, deep, tall) as the bake lays it: its width against its height its baked
-    `model`'s own (x wide, y tall) where both its SAM 3 box and that model disagree with the row, or for a person; a
-    row the guard list keeps as the row says (score/stages/surfaces/bake_job.py boxed, loaded by its path, with
-    tumble.keeps_pose over the pose rules among `inputs` and its inventory's `rows`)."""
+    `model`'s own (x wide, y tall) where both its SAM 3 box and that model disagree with the row, or for a person (its
+    row's route, or `person`: an object of the people layer, as the bake reads the people line's looks by their take,
+    bake_job.person_take); a row the guard list keeps as the row says (score/stages/surfaces/bake_job.py boxed, loaded
+    by its path, with tumble.keeps_pose over the pose rules among `inputs` and its inventory's `rows`)."""
     import score.stages.surfaces.tumble as tumble
     import importlib.util
     with prop_data.tools("props/library", "props"):
@@ -187,7 +189,8 @@ def drawn_size(row, model, rows, inputs):
     extents = points.max(0) - points.min(0)
     wide, deep, tall = row["size"]
     wide, tall, deep = bake_job.boxed([wide, tall, deep], row.get("box"), extents[0] / max(extents[1], 1e-9),
-                                      tumble.keeps_pose(row, tumble.rules_of(inputs), rows), tumble.person(row))
+                                      tumble.keeps_pose(row, tumble.rules_of(inputs), rows),
+                                      person or tumble.person(row))
     return [wide, deep, tall]
 
 
@@ -345,7 +348,8 @@ def object_record(row, record, inputs, baked, parts, rows, square, cuts):
             if thin_built(inputs, row) else None)
     found.update(model=str(model), closeup=str(closeup), **whole_best_way(model, closeup, drawn, turn),
                  **model_checks(model, rows[row]["size"] if "made" in found
-                                else drawn_size(rows[row], model, list(rows.values()), inputs), kind,
+                                else drawn_size(rows[row], model, list(rows.values()), inputs,
+                                                record["objects"][row].get("layer") == PEOPLE_LAYER), kind,
                                 route == "prop" and kind in square))
     # a code build's parts: None, unknown (nothing measures them since the code fallback's parts check went)
     lit = thin_built(inputs, row) and thin_straight.slender_light(rows[row])

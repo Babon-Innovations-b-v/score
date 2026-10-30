@@ -296,11 +296,12 @@ def outlines(points, triangles, poses, size, closeup, row):
             for pose in poses]
 
 
-def stood_square(entries, labelled, take, inputs, built=False):
+def stood_square(entries, labelled, take, inputs, built=False, person=False):
     """`entries` with each model whose take stands tumbled in its turn (tumble.tumbled, #36) turned to stand square
     (tumble.square_turn, its box's proportions the row's), its `stood` saying so with the turn it was made in
     (`made`); a row the guard list keeps (tumble.keeps_pose: a person, a code build (`built`), lying, leaning,
-    hanging, no up) keeps its pose, `stood` saying why. A Pixal3D take (its close-up among the inputs, CLOSEUP) is
+    hanging, no up) or a `person` take (bake_job.person_take: the people line's looks, whose rows carry no route)
+    keeps its pose, `stood` saying why. A Pixal3D take (its close-up among the inputs, CLOSEUP) is
     turned only when its turned pose's outline against its close-up is at least its made pose's (outlines), else kept
     as made, `stood` saying why with both (#36, 2026-10-30: lab's desk_divider outlined 0.467 as made, 0.296 turned).
     The bake measures each again as baked (squared_again)."""
@@ -313,7 +314,7 @@ def stood_square(entries, labelled, take, inputs, built=False):
         base = np.array(entry["base"], float).reshape(3, 3)
         laid = points @ base.T
         row = tumble.take_row(take, model, rows)
-        kept = tumble.keeps_pose(row, rules, rows, built)
+        kept = tumble.PERSON if person else tumble.keeps_pose(row, rules, rows, built)
         degrees, loose = tumble.measure(laid)
         if kept or not tumble.tumbled(laid):
             found[model] = dict(entry, **({"stood": {"kept": kept, "degrees": degrees}} if kept else {}))
@@ -425,7 +426,7 @@ def bake_job_step(inputs, out):
                                              *guard), name=model, parts=str(labelled), regions=[])
                for model in head.pop("models")}
     relations = json.loads(inputs["relations"].read_text()) if "relations" in inputs else None
-    entries = recessed(stood_square(entries, labelled, take, inputs, built), relations)
+    entries = recessed(stood_square(entries, labelled, take, inputs, built, guard[2]), relations)
     (out / "entries").mkdir(exist_ok=True)
     (out / "entries" / f"{take}.json").write_text(json.dumps(entries, indent=1))
     chunky = [dict(entry, stands=stands(labelled)) for entry in entries.values()]

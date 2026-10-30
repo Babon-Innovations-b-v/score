@@ -25,6 +25,7 @@ import route
 
 # A design's take turned about up into the kit frame (measured_turn): 0 or 90 degrees, x toward -z.
 TURNS = {0: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], 90: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0]}
+PERSON_KIND = "person"  # a person's take in its surface data (the people line's looks)
 
 
 class NoEntry(RuntimeError):
@@ -73,16 +74,28 @@ def entry_of(model, inline, labelled, built=False, box=None, kept=None, person=F
         return dict(inline, name=model)
     if labelled is None:
         raise NoTake(f"no entry for {model}: no labelled take to measure its turn over")
-    base = measured_turn(labelled, inline["size"])
-    size = inline["size"] if built else boxed(inline["size"], box, own_ratio(labelled, inline["size"], base), kept,
-                                              person)
+    base = person_turn(labelled) if person else measured_turn(labelled, inline["size"])
+    size = inline["size"] if built else boxed(inline["size"], box, own_ratio(labelled, base), kept, person)
     return dict(inline, name=model, base=base, size=laid_size(labelled, size, base, built))
 
 
-def own_ratio(labelled, size, base):
-    """The labelled take's own width over its height, turned by `base` (place_route.made_size)."""
-    wide, tall, _ = place_route.made_size(labelled, size, 90 if base == TURNS[90] else 0)
-    return wide / tall
+def own_ratio(labelled, base):
+    """The labelled take's own width over its height, its points turned by `base` (rows)."""
+    import numpy as np
+    import trimesh
+    points = np.vstack([trimesh.load(path, force="mesh", process=False).vertices
+                        for path in sorted(labelled.glob("*.ply"))]) @ np.reshape(base, (3, 3)).T
+    wide, tall, _ = np.ptp(points, axis=0)
+    return float(wide / tall)
+
+
+def person_turn(labelled):
+    """A person's turn into the kit frame (rows): the finish's stand undone (labels.finish_turn of the take its
+    labelled folder is named for), so he stands in his raw take's own pose, its front the close-up's. The stand set an
+    A-pose body upright by its box, a few degrees leaned and a quarter turned off his front: the people line's pilot,
+    so baked, outline 0.465 against his close-up; laid in his raw pose 0.917 (#36, 2026-10-31)."""
+    import labels
+    return [round(float(value), 6) for value in labels.finish_turn(labelled.name).T.reshape(-1)]
 
 
 def boxed(size, box, own, kept=None, person=False):
@@ -134,9 +147,20 @@ def drawn_guard(take, inventories, inputs):
     hand-ins (drawn_row; tumble.keeps_pose and tumble.person over the pose rules among `inputs`): what boxed reads."""
     import tumble
     row, rows = drawn_row(take, inventories)
+    if tumble.person(row or {}) or person_take(take, inputs):
+        return (row or {}).get("box"), tumble.PERSON, True
     if row is None:
         return None, None, False
-    return row.get("box"), tumble.keeps_pose(row, tumble.rules_of(inputs), rows), tumble.person(row)
+    return row.get("box"), tumble.keeps_pose(row, tumble.rules_of(inputs), rows), False
+
+
+def person_take(take, inputs):
+    """Whether the surface data among `inputs` makes `take` a person (its `kind`, as the people line writes each
+    look's take: score/stages/people_rows.py), whose rows carry no route and no hand-in objects (drawn_row finds none:
+    the people line's looks were squeezed to their rows' 0.5 m, their arms out, #36 2026-10-31)."""
+    surfaces = inputs.get("surfaces")
+    return bool(surfaces) and json.loads(pathlib.Path(surfaces).read_text()).get("takes", {}).get(
+        take, {}).get("kind") == PERSON_KIND
 
 
 def code_built(take, home):

@@ -578,6 +578,35 @@ def test_a_take_the_cache_misses_is_read_back_from_the_accepted_output_only_for_
     shutil.rmtree(folder)
 
 
+def test_a_people_look_is_held_at_its_own_width_for_its_height_as_the_bake_lays_it():
+    """#36 (2026-10-31): the bake lays a person at his take's own width for his row's height (bake_job.boxed), the
+    people line's looks known by their take (bake_job.person_take), their rows carrying no route. likeness@people's
+    model check lays an object of the people layer so too: an A-pose body 1.08 m wide at 1.8 m, his row 0.5 m wide,
+    passes, never squeezed into 0.5 m by axis (its spread then fails).
+    Break: likeness_row.py `object_record`: `record["objects"][row].get("layer") == PEOPLE_LAYER), kind,` ->
+        `False), kind,`
+    Break: likeness_row.py `drawn_size`: `person or tumble.person(row))` -> `tumble.person(row))`"""
+    import trimesh
+    from PIL import Image
+    tmp_path = pathlib.Path(tempfile.mkdtemp())  # a plain script: no pytest fixture
+    trimesh.creation.box(extents=[1.08, 1.8, 0.3]).export(tmp_path / "pilot.glb")
+    pixels = np.zeros((200, 200, 4), dtype=np.uint8)
+    pixels[10:190, 46:154] = 255  # the close-up's figure, 0.6 as wide as tall
+    (tmp_path / "closeups").mkdir()
+    Image.fromarray(pixels).save(tmp_path / "closeups" / "pilot-made.png")
+    Image.fromarray(pixels).save(tmp_path / "input.png")
+    record = {"place": "people", "objects": {"pilot-made": {"route": "prop", "take": "pilot-made-s1",
+                                                            "layer": likeness_row.PEOPLE_LAYER}}}
+    rows = {"pilot-made": {"id": "pilot-made", "prop": "pilot-made", "size": [0.5, 0.3, 1.8], "box": [0, 0, 40, 100]}}
+    rules = {name: pathlib.Path(pattern.format(data=REPO / "data"))
+             for name, pattern in likeness_row.POSE_RULES.items()}
+    inputs = {"closeup": tmp_path, "pixal input pilot-made": tmp_path / "input.png", **rules}
+    found = likeness_row.object_record("pilot-made", record, inputs, {"pilot-made-s1": tmp_path / "pilot.glb"},
+                                       {"takes": {}}, rows, set(), tmp_path / "cut")
+    assert found["model_check"]["pass"], found["model_check"]
+    shutil.rmtree(tmp_path)
+
+
 def test_a_rejected_close_up_is_retried_strictly_at_its_own_size_and_a_kept_picture_is_never_drawn_again():
     """Owner, 2026-10-24: the check holds a close-up to the object's own size from its reading (the plan's footprint
     failed 23 of the Buy's 80 gaps alone); owner, 2026-10-25: a picture it rejects gets up to three retries, worded
