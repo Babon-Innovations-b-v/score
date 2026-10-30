@@ -1,8 +1,8 @@
 """Runs inside Blender on a rented card (tools/cloud/blender_cloud.py, the finish route's bake,
 ../route_bake.py): one take painted and baked in one job, so nothing heavy runs on the owner's PC (#18, 2026-10-20).
 
-    blender -b --python paint_bake.py -- <listing>    (route_bake.card_job's: the bake's inputs, the take, its part
-                                                       records, claimed rows and job head)
+    blender -b --python paint_bake.py -- <listing>    (route_bake.card_job's: what it reads of the bake's inputs, the
+                                                       take, its part records, claimed rows and job head)
 
 First the paint, as paint_take.py runs it (place_line.py's `paint-take` in Blender's own Python with the pinned
 packages, its peak memory said); then route_bake.py's `bake-job` there too (the take's models' make_chunky entries

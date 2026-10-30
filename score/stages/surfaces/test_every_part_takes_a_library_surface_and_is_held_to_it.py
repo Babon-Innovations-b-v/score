@@ -155,6 +155,9 @@ tests it turned red:
 - route_bake.py: `surface=route_settings.settings_name(record["surface"], record["settings"])` ->
   `surface=record["surface"]`  ->
   the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
+- route_bake.py: own_parts' `return folder` -> `return short["parts"]`; or `dict(job_head(data, short, {take:
+  records[take]}),` -> `dict(job_head(data, short, records),`; or card_job's `for name, path in world.items()}` ->
+  `for name, path in short.items()}`  -> a_take_s_bake_job_moves_only_with_its_own_take
 - route_check.py: `library.by_library = lambda name: {**palette_library.specs(palette), **baked}` -> `library.by_library
   = lambda name: {**palette_library.specs(palette)}`  -> the_check_holds_each_surface_against_the_spec_the_bake_baked
 - route_recheck.py: `**({"colour": tokens[settings["token"]]} if settings.get("token") in tokens else {}),` deleted  ->
@@ -2147,6 +2150,62 @@ def test_the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_sett
         route_paint.make_paint({"surfaces-bake": out}, paint, 7, {})
         assert (paint / "painted.json").read_text() == (out / "painted.json").read_text()
         assert (paint / "labelled" / TAKE / "labels.json").exists()
+
+
+def two_take_parts(rows, folder, rough):
+    """A parts output at `folder` of TAKE as made and OTHER a copy of it with its first part's listed roughness at
+    `rough`."""
+    shutil.copytree(rows["surfaces-parts"], folder)
+    shutil.copytree(folder / TAKE, folder / OTHER)
+    method = json.loads((folder / "parts.json").read_text())
+    other = json.loads(json.dumps(method["takes"][TAKE]))
+    other["parts"][0]["settings"]["roughness"] = rough
+    (folder / "parts.json").write_text(json.dumps(dict(method, takes={**method["takes"], OTHER: other})))
+    return folder
+
+
+def test_a_take_s_bake_job_moves_only_with_its_own_take(monkeypatch):
+    """A take's bake job carries its own parts and its own specs alone, so its content (the kept job it finds,
+    tools/cloud/kept.py) moves when its own take changes and never when another take of the place does (#36,
+    2026-10-30: each job carried the place's whole parts.json, the parts output's folder and every take's specs, so
+    one retaken take baked every take of its place again)."""
+    kept = stages.kept_module()
+    monkeypatch.setattr(route_bake, "BAKE_REPO", ())  # the repository's folders: the same for every take
+    monkeypatch.setattr(route_bake.place_line, "PAINT_REPO", ())
+    monkeypatch.setenv(kept.CODE, "surfaces-bake@cockpit row-code")
+    finish_parts = route_parts.finish_parts
+    monkeypatch.setattr(finish_parts, "COLOUR_DELTA_E", 1000.0)  # every finish keeps its listed surface and settings
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        rows = parted(folder, split(folder, listed(folder, lambda views, take: two_finish_answer(views))[0]))
+        data = json.loads(rows["surfaces"].read_text())
+        rows["surfaces"].write_text(json.dumps(dict(data, library="cockpit",
+                                                    bake={"models": {"two_boxes": TAKE, "other_box": OTHER}})))
+
+        def contents(parts, out):
+            """{take: its job's kept content} of the bake made from `parts` into `out`, the cloud call faked."""
+            found = {}
+
+            def run(command, **_):
+                for path in (pathlib.Path(path) for path in command if str(path).endswith("-job.json")):
+                    job = json.loads(path.read_text())
+                    found[json.loads(pathlib.Path(job["args"][0]).read_text())[route_bake.place_line.TAKE]] = \
+                        kept.identity(job, "system")[1]
+                return subprocess.CompletedProcess(command, 1, "", "faked")
+            out.mkdir()
+            monkeypatch.setenv(kept.MAKING, str(out))
+            monkeypatch.setattr(route_bake.subprocess, "run", run)
+            inputs = {"surfaces": rows["surfaces"], "surfaces-parts": parts,
+                      "finish-route-palette": rows["finish-route-palette"], "surface-library": rows["surface-library"],
+                      "resting rules": REPO / "data/checks/resting.json"}
+            with pytest.raises(RuntimeError, match="paint and bake failed"):  # nothing came back: no take baked
+                route_bake.make_bake(inputs, out, 7, {})
+            return found
+        before = contents(two_take_parts(rows, folder / "parts-before", 0.6), folder / "bake-before")
+        after = contents(two_take_parts(rows, folder / "parts-after", 0.2), folder / "bake-after")
+    assert sorted(before) == sorted(after) == sorted([TAKE, OTHER]), (before, after)
+    assert before[TAKE] == after[TAKE], "an unchanged take's bake job moved with another take's parts"
+    assert before[OTHER] != after[OTHER], "a changed take's bake job did not move"
 
 
 def test_the_check_holds_each_surface_against_the_spec_the_bake_baked():

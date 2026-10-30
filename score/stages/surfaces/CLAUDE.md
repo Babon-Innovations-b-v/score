@@ -104,7 +104,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   finish's surface (`part_rows`), with the list's settings where its finish kept the listed surface
   (`route_settings.applied`); a light built in code (a light bar, strip or string from `props/thin_straight.py`, its mark a `code <take>` input of the parts row alone) is its light: every finish of a lit family (glass, screen, light: `finish_parts.SEEN_THROUGH_FAMILIES`), or every finish when none is, takes the scene library's glowing surface nearest its concept crop's colour, the rest (a light bar's metal end caps, given their own part since its build carries its crop, 2026-10-29) keeping their own (`route_parts.lit_finishes`, its files `route_parts.files` set by the table, `stages.code_marked`), else is off its colour by name; the takes the split made gaps are `left_out`. Bake (paid, `route_bake.py`; #18,
   2026-10-20: nothing heavy on this PC, whose prop environment is capped at 14 GB and crane-r1's paint peaked at 34.8
-  GB): one job a take on the bake's warm card through `blender_cloud.py` (`inside/paint_bake.py`): the take painted
+  GB): one job a take on the bake's warm card through `blender_cloud.py` (`inside/paint_bake.py`), carrying its own
+  take's parts (`own_parts`, a copy beside the output) and specs alone and only the world files it reads, so its kept
+  job (`tools/cloud/kept.py`) moves only with its own take (#36, 2026-10-30): the take painted
   by `place_line.paint_take` (as the rented paint), its models' make_chunky entries over the labelled take
   (`bake_job_step`), then make_chunky; priced at the bake's warm figure. Here first, free: the proposals into the
   registry, and the specs (a part with settings paints and bakes as `route_settings.settings_name`: its variant's
