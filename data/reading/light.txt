@@ -9,7 +9,9 @@ as JSON below. Say how the place is lit in the picture. Answer one JSON object:
   glow)}}, ...] a glow for every row, each id once,
  "scene": {{"daylight": true when daylight (a sun, a bright sky) lights the place, else false;
   "unseen": true when light falls on the place from a source the picture does not show: a sun or a sky lighting it
-  from out of view (daylight whose sun the picture does not show is such light), lamps out of view; else false;
+  from out of view (daylight whose sun the picture does not show is such light), lamps out of view, and at night
+  or indoors any light on walls, facades, floors or things that no glowing thing in the picture gives (facades or
+  walls lit evenly with no lamp in view are such light); else false;
   "unseen_colour": the colour of that light as "#rrggbb" ("" when there is none)}}}}
 No text besides the JSON.
 
