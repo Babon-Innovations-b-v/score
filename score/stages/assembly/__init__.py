@@ -228,13 +228,28 @@ def declared_inventory(output, inventories):
     return pathlib.Path(inventories) / pathlib.Path(named).name if named else None
 
 
-def resting_rows(inventory):
+def hung_within(record):
+    """{row id: "hanging"} of the scene `record`'s rows whose every object is laid within its holder (`on` how
+    `within`) off its holder's foot (its `at` over its holder's): it hangs in it (the docking airlock's spacesuits in
+    their lockers, the plan's 0.1 m base), not standing on the holder's inside (round 32's fit: leaned 12 degrees)."""
+    objects = {entry["name"]: entry for entry in record.get("objects") or []}
+    rows = {}
+    for entry in objects.values():
+        on = entry.get("on") or {}
+        holder = objects.get(next(iter(on.get("holder") or []), ""))
+        rows.setdefault(entry["row"], []).append(
+            on.get("how") == "within" and holder is not None and float(entry["at"][1]) > float(holder["at"][1]))
+    return {row_id: "hanging" for row_id, hung in rows.items() if all(hung)}
+
+
+def resting_rows(inventory, record=None):
     """The `inventory` ({"rows": [...]}) with each row on a wall or ceiling row (settling.held.mounted) given that
-    `support`, unless it names its own: the triage judges it as a wall or ceiling piece, by touching."""
+    `support`, and each the scene `record` hangs within its holder (hung_within) `hanging`, unless it names its own:
+    the triage judges it by touching (a hanging one touching nothing still fails, hanging free)."""
     from score.stages.settling import held  # here: settling reads this stage's table
-    on_walls = held.mounted({row["id"]: row for row in inventory["rows"]})
-    return {**inventory, "rows": [{**row, "support": on_walls[row["id"]]}
-                                  if row["id"] in on_walls and not row.get("support") else row
+    given = {**hung_within(record or {}), **held.mounted({row["id"]: row for row in inventory["rows"]})}
+    return {**inventory, "rows": [{**row, "support": given[row["id"]]}
+                                  if row["id"] in given and not row.get("support") else row
                                   for row in inventory["rows"]]}
 
 
@@ -243,7 +258,7 @@ def judge_resting(output, inputs, evidence):
     declares (rules, kit, inventory) and never on the repository's own; a row on a wall or ceiling row is judged
     mounted there (settling.held.mounted, given to the triage as the row's `support`), as settle leaves it, never as
     standing on it (round 32's docking airlock: its wall pipes and ceiling rails failed as leaning, tipping floor
-    pieces). The triage itself is left as it is: tools/usd is on every row's path, so its code is every row's."""
+    pieces), and a row the scene record hangs within its holder as hanging (hung_within). The triage itself is left as it is: tools/usd is on every row's path, so its code is every row's."""
     inventory = declared_inventory(output, inputs["inventories"])
     if inventory is None or not inventory.exists():
         return checks.Verdict("resting", checks.UNKNOWN, "the seed names no inventory in the world's inventory "
@@ -251,7 +266,9 @@ def judge_resting(output, inputs, evidence):
     import tempfile
     with tempfile.TemporaryDirectory() as folder:  # triage's own support rule reads a row's `support` first
         given = pathlib.Path(folder) / inventory.name
-        given.write_text(json.dumps(resting_rows(json.loads(inventory.read_text()))))
+        record = pathlib.Path(output) / RECORD
+        given.write_text(json.dumps(resting_rows(json.loads(inventory.read_text()),
+                                                 json.loads(record.read_text()) if record.exists() else None)))
         found = triage.triage(stage_file(output), json.loads(pathlib.Path(evidence).read_text()),
                               rules_file=inputs["resting rules"], kit_file=inputs["kit"], inventory_file=given)
     real = [fault for fault in found["faults"] if fault["real"]]
