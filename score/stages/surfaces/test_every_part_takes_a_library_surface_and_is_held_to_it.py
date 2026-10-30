@@ -2659,7 +2659,8 @@ def test_a_rolled_take_is_stood_square_and_a_lying_one_keeps_its_pose(tmp_path):
     Break: score/stages/surfaces/route_bake.py: `if kept or not tumble.tumbled(laid):` -> `if True:`
     Break: score/stages/surfaces/tumble.py: `return f"its design lays it lying ({said})"` -> `return None`
     Break: score/stages/surfaces/tumble.py: `if built:` -> `if False:`, or route_bake.py `rules, rows, built)` ->
-        `rules, rows)`"""
+        `rules, rows)`
+    Break: score/stages/surfaces/tumble.py `square_turn`: `if order[1] == up)` -> `if True)`"""
     import tumble
     identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
     entry = {"base": identity, "size": [2.0, 1.0, 0.6]}
@@ -2680,6 +2681,13 @@ def test_a_rolled_take_is_stood_square_and_a_lying_one_keeps_its_pose(tmp_path):
     built = route_bake.stood_square({"lights_1": entry}, labelled, "lights_take", a_pose_world(
         tmp_path / "code", {"id": "string_lights", "thing": "prop:lights_take"}), built=True)
     assert built["lights_1"]["base"] == identity and built["lights_1"]["stood"]["kept"] == tumble.CODE_BUILD, built
+    # a row drawn flatter than its take (an L desk 0.7 x 0.42 x 0.6 tilted 30 degrees, its row 1.5 x 1.0 x 0.8): its
+    # tilt taken off on the up it stands on, never laid on its back by the row's proportions
+    desk = a_turned_take(tmp_path / "desk", rolled(30), size=(0.7, 0.42, 0.6))
+    stood = route_bake.stood_square({"desk_1": {"base": identity, "size": [1.5, 1.0, 0.8]}}, desk, "desk_take",
+                                    a_pose_world(tmp_path / "desk_row", {"id": "desk", "thing": "prop:desk_take"}))
+    laid = route_bake.labelled_points(desk) @ np.array(stood["desk_1"]["base"]).reshape(3, 3).T
+    assert np.allclose(np.ptp(laid, axis=0), (0.7, 0.42, 0.6), atol=0.02), np.ptp(laid, axis=0)
 
 
 def test_the_check_fails_a_tumbled_bake_by_name_with_its_angle_and_leaves_a_lying_one_out(tmp_path):
