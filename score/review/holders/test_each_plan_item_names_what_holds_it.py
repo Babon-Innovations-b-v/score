@@ -359,6 +359,25 @@ def test_a_wall_lamp_stands_on_its_wall_s_room_side():
     assert lamp["spot"] == [0.0, 6.0], lamp
 
 
+def test_a_thing_drawn_past_its_wall_stands_in_the_room_and_a_tunnel_outside():
+    """Hangar (held@hangar, 2026-10-30): two of its back-wall pipes were drawn 1.6 and 2.3 m past the wall the outline
+    closes the room with, so they stood against its outer face, outside the hangar, 0.48 m in the built wall. A thing
+    against a wall drawn past the outline stands on the room's side; a tunnel the concept shows meeting the wall from
+    outside (garage's glass tunnel) keeps its side. Walking the back wall from (20, 12) to (0, 12), the room (north,
+    -y) is its side +1.
+    Break: score/review/holders/__init__.py: `or (placed and past_outline(spot, row, plan))` -> ``
+    Break: score/review/holders/__init__.py: `and not kind_words(row) & PASSAGE_WORDS and not` -> `and not`"""
+    rows = [{"id": "large_pipes", "noun": "pipes", "anchor": "wall", "size": [0.4, 8.0, 0.4]},
+            {"id": "glass_tunnel", "noun": "tunnel", "anchor": "wall", "size": [2.5, 4.0, 2.5]}]
+    items = [["LARGE PIPES 1", 10.0, 12.0, 1.0, 3.1, None, "item"], ["GLASS TUNNEL 1", 3.0, 12.3, 1.7, 4.2, "S", "item"]]
+    plan = plan_of(items, {"LARGE PIPES 1": ["large_pipes"], "GLASS TUNNEL 1": ["glass_tunnel"]},
+                   outline=[[0.0, 0.0], [20.0, 0.0], [20.0, 12.0], [0.0, 12.0]],
+                   walls=[{"from": [20.0, 12.0], "to": [0.0, 12.0], "thick": 0.6}])
+    found = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
+    assert found["large_pipes"]["how"] == "wall" and found["large_pipes"]["side"] == 1, found
+    assert found["glass_tunnel"]["how"] == "wall" and found["glass_tunnel"]["side"] == -1, found
+
+
 def test_the_relations_are_kept_beside_the_plan_with_its_sha(tmp_path, monkeypatch):
     """keep writes each place's relations under the relations folder, naming the kept plan's sha, and writes nothing
     again while plan and inventory stand.

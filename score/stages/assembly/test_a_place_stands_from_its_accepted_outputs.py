@@ -915,6 +915,26 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
         ("crate_1", "laid 0.16 m inside deck_2, nothing holding it there", 0.158)], fitting.held_faults(record, laid)
 
 
+def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
+    """held@garage, @habitat, @workshop (2026-10-30): a glass tunnel or corridor tube the concept shows meeting its
+    module's wall from outside, laid against that wall, reached 0.09 to 0.30 m into the built wall; it joins the place
+    through it, as a door stands in its opening, so the held gate excuses its wall, never a deck. A pipe laid against
+    the same wall that reaches into it is still named.
+    Break: score/stages/assembly/fitting.py: `if not (passes(entry) and static.split("_")[0] == "wall")]` -> `]`
+    Break: score/stages/assembly/fitting.py: `set(str(entry.get("row") or "").split("_")) & set(PASSING))` ->
+        `set(str(entry.get("row") or "").split("_")) & set(CLIMBING))`"""
+    from score.stages.assembly import fitting
+    against = {"how": "wall", "span": [[0.0, 6.4685], [7.0, 6.4685]], "out": [0.0, 1.0], "why": "against the wall"}
+    record = {"objects": [{"name": "glass_tunnel_1", "row": "glass_tunnel", "on": against},
+                          {"name": "pipe_1", "row": "pipe", "on": against}]}
+    laid = {"walls": [{"name": "wall_3", "low": [0.0, -0.242, 6.4805], "high": [7.0, 4.6, 6.7565]},
+                      {"name": "deck_1", "low": [0.0, -0.242, 0.0], "high": [7.0, -0.042, 6.4]}],
+            "objects": [{"name": "glass_tunnel_1", "low": [1.0, 0.0, 6.4685], "high": [5.0, 2.5, 9.0]},
+                        {"name": "pipe_1", "low": [5.5, 0.0, 6.4685], "high": [6.0, 2.5, 6.9685]}]}
+    assert fitting.held_faults(record, laid) == [
+        ("pipe_1", "laid 0.28 m inside wall_3, nothing holding it there", 0.276)], fitting.held_faults(record, laid)
+
+
 def test_a_door_goes_in_its_opening_narrowed_to_fit():
     """A 1.4 x 0.1 x 2.4 m door laid off its wall goes in its 1.2 m wide, 2.1 m tall opening: shrunk to 1.2 / 1.4,
     its foot's middle on the opening's middle at its sill.

@@ -27,7 +27,8 @@ Each plan item of a row that stands on, against or in something gets one relatio
     wall   against a wall of the plan (`wall`, its from, to, thick, and `side` +1 or -1 of the line it stands on, `spot`
            its plan spot): a row anchored `wall`, or on a structure row that is a wall; an item the plan writer did not
            place (the walls item) stands where the concept's box projects onto the plan (plan_checks.projection), else
-           at the longest wall's middle
+           at the longest wall's middle; a placed item stands on the room's side, drawn past the outline or not, but a
+           passage (a tunnel, a tube) meets its wall from outside (past_outline)
     ramp   a ramp row on the floor where the plan draws a raised level (airlock's porch deck): up to the nearest such
            level's nearest edge (`edge`, its two plan points, and `height`), its long side run straight up to it
            (`way`), its high end on the edge's line and its middle at `spot` (up_to_level)
@@ -348,6 +349,18 @@ def seen_spot(row, plan, inventory):
     return next(iter(seen_spots(row, plan, inventory)), None)
 
 
+# A row that meets its place's wall from outside (the walkway tubes the concepts show joining a module).
+PASSAGE_WORDS = {"tunnel", "tunnels", "tube", "tubes", "corridor", "corridors"}
+
+
+def past_outline(spot, row, plan):
+    """Whether a plan spot lies past the plan's outline for a row that stands in the room, any row but a passage
+    (PASSAGE_WORDS): hangar's back-wall pipes, drawn 1.6 and 2.3 m past their wall, stood outside the hangar."""
+    outline = plan.get("outline") or []
+    return len(outline) >= 3 and not kind_words(row) & PASSAGE_WORDS and not bool(
+        plan_checks.inside(numpy.asarray([spot], float), outline)[0])
+
+
 def on_wall(item, row, plan, inventory):
     """A relation against the nearest wall to the item's spot (the concept's for the walls item), or None."""
     walls = walls_of(plan)
@@ -362,7 +375,7 @@ def on_wall(item, row, plan, inventory):
         why = "its plan spot" if placed else "where its concept box projects onto the plan"
     wall = min(walls, key=lambda wall: off_line(spot, wall)[0])
     side = off_line(spot, wall)[1]
-    if off_line(spot, wall)[0] < 1e-6:  # on the line: the side toward the plan's middle
+    if off_line(spot, wall)[0] < 1e-6 or (placed and past_outline(spot, row, plan)):  # the side toward the plan's middle
         side = off_line(numpy.array([float(plan["w"]) / 2, float(plan["d"]) / 2]), wall)[1]
     return {"how": "wall", "wall": {key: wall[key] for key in ("from", "to", "thick")}, "side": side,
             "spot": [round(float(value), 3) for value in spot], "why": f"against the wall nearest {why}"}
