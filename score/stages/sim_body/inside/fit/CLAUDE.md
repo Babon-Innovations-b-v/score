@@ -58,7 +58,7 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   their bounds until their gradient is under `POLISHED` (1e-10), else raises. When no halving lowers the cost, the
   whole step is judged by the free gradient instead (`steadied`: taken when it lowers it): on mean_kimodo the step's
   predicted fall at 1.59e-10 was 4.4e-17 on a cost of 0.867, under the residuals' own float64 noise (reading the fall
-  off the residuals' differences instead of two summed costs did not help), so the cost test refused every halving. `Problem.path` is float64: the card's
+  off the residuals' differences instead of two summed costs did not help), so the cost test refused every halving. A halving is taken only on a strict fall (2026-10-30): with `<=` heavy_kimodo's polish took halvings 1e-13 long at an equal cost round after round and stood at 1.48e-10 for its last 10 of 30 rounds, `steadied` never asked; strict, b4/steps' run (13 sets, three bodies) ended with no polish refused, the 36 it logged under 1e-10 in 14 to 23 rounds. `Problem.path` is float64: the card's
   float32 angles rounded every qpos the residuals read (a 1e-6 step on root z moved it 9.5e-7), so the polish
   stalled at 6.5e-8 and the "exact Jacobian is off" reading was the residuals'. Toy: 2.0e-7 without the polish,
   under 1e-10 with it, 0.028 s; heavy_kimodo's polish 2.4 s. `least_squares` runs at scipy's own tolerances: the

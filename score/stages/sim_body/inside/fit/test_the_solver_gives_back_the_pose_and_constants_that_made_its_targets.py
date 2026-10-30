@@ -59,6 +59,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-10-30) _constants.steadied's `< np.abs(gradient).max()` made `> np.abs(gradient).max()`: the step that lowers
   the free gradient is refused and the one turned back taken (mean_kimodo's polish stood at 1.59e-10 with no
   gradient test).
+- (2026-10-30) _constants.descended's `< cost` made `<= cost`: a step the cost cannot see is taken by `descended`
+  and never judged by `steadied` (heavy_kimodo's polish stood at 1.48e-10 for its last 10 rounds, halvings 1e-13 long).
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/test_the_solver_gives_back_the_pose_and_constants_that_made_its_targets.py
 """
@@ -411,10 +413,10 @@ def level_2_ends_settled():
 
 def a_step_the_cost_cannot_see_is_judged_by_its_gradient():
     """`steadied` takes level 2's Gauss-Newton step from the toy's start, where it lowers the free gradient, and refuses
-    the step turned back, which raises it."""
+    the step turned back, which raises it; `descended` leaves a step the cost cannot see (a zero step) to it."""
     import numpy as np
     from fit._card._level2 import jacobian
-    from fit._constants import Problem, off_bounds, steadied, told
+    from fit._constants import Problem, descended, off_bounds, steadied, told
     from landmarks import HELD
     import fit
     with tempfile.TemporaryDirectory() as folder:
@@ -430,8 +432,10 @@ def a_step_the_cost_cannot_see_is_judged_by_its_gradient():
         step = np.linalg.solve((matrix.T @ matrix).toarray(), -gradient)
         taken = steadied(problem, unknowns, kept, step, problem.bounds(), gradient)
         refused = steadied(problem, unknowns, kept, -step, problem.bounds(), gradient)
+        unseen = descended(problem, unknowns, kept, 0 * step, problem.bounds())
     return ([] if taken is not unknowns else ["the step that lowers the gradient is refused"]) + (
-        [] if refused is unknowns else ["the step that raises the gradient is taken"])
+        [] if refused is unknowns else ["the step that raises the gradient is taken"]) + (
+        [] if unseen is unknowns else ["a step the cost cannot see is taken by descended"])
 
 
 CHECKS = (a_bone_point_outside_the_skin_lies_as_deep_as_its_distance, only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
