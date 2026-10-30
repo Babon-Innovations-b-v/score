@@ -18,7 +18,7 @@ import time
 import numpy as np
 from scipy.optimize import least_squares
 
-from tuning._differences import grouped, jacobian, serially, signed_steps
+from tuning._differences import chosen_groups, hybrid, jacobian, serially, signed_steps
 
 LONG_AXIS = 1  # MyoFullBody's bodies run along their own y (OpenSim's convention): the axis a joint link keeps
 MIRROR = np.array([1.0, 1.0, -1.0])  # a right landmark's body-frame vector as its left one's
@@ -212,18 +212,22 @@ def resumed(path, size):
     return np.asarray(min(lines, key=lambda line: line["cost"])["unknowns"]) if lines else np.zeros(size)
 
 
-def solved(residuals, entries, pattern, checkpoint, limit_seconds, every=None, start=None, many=None, exact=None):
+def solved(residuals, entries, pattern, checkpoint, limit_seconds, every=None, start=None, many=None, exact=None,
+           by_differences=()):
     """The one optimisation: least_squares over `residuals(unknowns)` (the cases' residuals then the prior's) from
     `start` (default: the checkpoint's best), its Jacobian by absolute steps of STEP over `pattern`'s column groups
     (`_differences`; every nudged set in one call of `many(sets)` when given, else one `residuals` each), every
     evaluation checkpointed; stopped when the objective settles or `limit_seconds` pass;
     `every` (iteration, unknowns) is called after each iteration (the check bodies' score, logged, never used to
     choose). `exact(unknowns)`, when given, is the Jacobian instead (`_adjoint.stacked_jacobian` over the bodies
-    solved at `unknowns`); the differences stay the default and its check. Returns scipy's result."""
+    solved at `unknowns`); the differences stay the default and its check. With `exact`, the `by_differences`
+    columns (level 1's centres, decided 2026-10-30) are differenced and the rest exact (`hybrid`). Returns scipy's
+    result."""
     began, costs, last = time.time(), [], {}
     start = resumed(checkpoint, len(entries)) if start is None else start
     lower, upper = bounds(entries)
-    groups = grouped(pattern)
+    chosen = list(by_differences) if exact else list(range(pattern.shape[1]))
+    groups = chosen_groups(pattern, chosen)
 
     def evaluated(unknowns):
         found = residuals(unknowns)
@@ -239,12 +243,13 @@ def solved(residuals, entries, pattern, checkpoint, limit_seconds, every=None, s
         return founds
 
     def differenced(unknowns):
-        if exact:
+        if exact and not chosen:
             return exact(unknowns)
         found = last.get(np.asarray(unknowns, dtype=float).tobytes())
         found = evaluated(unknowns) if found is None else found
-        return jacobian(batched if many else serially(evaluated), unknowns, found, pattern, groups,
-                        signed_steps(unknowns, STEP, upper))
+        columns = jacobian(batched if many else serially(evaluated), unknowns, found, pattern, groups,
+                           signed_steps(unknowns, STEP, upper))
+        return hybrid(exact(unknowns), columns, chosen) if exact else columns
 
     def iterated(intermediate_result):
         costs.append(float(intermediate_result.cost))

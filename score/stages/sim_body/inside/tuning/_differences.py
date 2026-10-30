@@ -24,6 +24,18 @@ def grouped(pattern):
     return groups
 
 
+def chosen_groups(pattern, chosen):
+    """`grouped` over the `chosen` columns only (indices into the whole pattern), the rest never stepped."""
+    return [[chosen[column] for column in group] for group in grouped(pattern[:, chosen])]
+
+
+def hybrid(exact, differenced, chosen):
+    """The exact Jacobian with its `chosen` columns taken from the `differenced` one."""
+    merged = np.array(exact, dtype=float)
+    merged[:, chosen] = differenced[:, chosen]
+    return merged
+
+
 def signed_steps(unknowns, step, upper):
     """Each unknown's step: +`step`, or -`step` where `unknowns` + `step` would pass its upper bound."""
     unknowns = np.asarray(unknowns, dtype=float)
