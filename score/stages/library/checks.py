@@ -144,7 +144,7 @@ def judge_traced(output, inputs, evidence):
     root = backend.settings().get("SCORE_LIB_ROOT")
     if not root:
         return checks.Verdict("traced", checks.UNKNOWN, "no library folder to trace to (SCORE_LIB_ROOT)")
-    from score.stages.assembly import stage_file
+    from score.stages.root_stage import stage_file
     from score.stages.library import traced
     assembled = pathlib.Path(inputs.get("neighbours") or inputs["assembly"])
     try:

@@ -51,6 +51,7 @@ import sys
 
 from score import checks
 from score.stages import design_layers
+from score.stages.root_stage import stage_file  # noqa: F401  (its callers read it here)
 from score.stages.assembly import made_waiting, sounds
 from score.stages.assembly.baked import (  # noqa: F401  (the table and the tests read them here)
     BOX_TOLERANCE, claimed_bakes, claiming_places, lay_fixtures_baked, renamed_model, stamp_baked_hash, take_bake)
@@ -194,14 +195,6 @@ def motion_over_light(root):
     held.insert(held.index(f"./{LAYERS['light'][1]}"), f"./{MOTION_KEYS}")
     stage_root.subLayerPaths = held
     stage_root.Save()
-
-
-def stage_file(output):
-    """The output's root OpenUSD file."""
-    found = list(output.glob("*.usda"))
-    if len(found) != 1:
-        raise FileNotFoundError(f"{output} holds {len(found)} root stages, not one")
-    return found[0]
 
 
 def judge_placeholders(output, inputs, evidence):
