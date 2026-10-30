@@ -62,3 +62,41 @@ def staged_both(folder):
     path[:, unturned] += np.random.default_rng(2).normal(0.0, SPREAD, (len(path), len(unturned)))
     given = (problem.fitting, path, problem.turns, problem.points, problem.given, problem.free)
     return staged(*given), staged(*given, jacobian=_level2.jacobian)
+
+
+LEVEL2_CARD_MOST = 1e-5  # the same from the card's float32 kinematics (_level2_card)
+LEVEL2_SOLVE_MM = 1e-3  # level 2 with jac=exact against 2-point differences on the exact toy: constants (the
+LEVEL2_SOLVE_DEG = 1e-4  # plan's 0.05 mm / 0.01 deg is the real bodies'; a frozen Jacobian is 0.027 mm off here)
+LEVEL2_MOST = 1e-6  # a column's largest miss over its largest entry (measured 1.8e-10; the plan allows 1e-2 against 2-point)
+
+
+def the_level2_jacobian_equals_its_differences():
+    import tempfile
+    import numpy as np
+    from fit._card import _level2, _level2_card
+    with tempfile.TemporaryDirectory() as folder:
+        problem, unknowns = problem_and_point(folder)
+        card = _level2_card.CardKinematics(problem.fitting, len(problem.path))  # made at the start constants
+        moved = differences(problem, unknowns)
+        outside = ~problem.sparsity().toarray().astype(bool)
+        found = {"card": (_level2.jacobian(problem, unknowns, card).toarray(), LEVEL2_CARD_MOST),
+                 "host": (_level2.jacobian(problem, unknowns).toarray(), LEVEL2_MOST)}
+    problems = []
+    for source, (exact, most) in found.items():
+        worst = max(np.abs(exact[:, column] - moved[:, column]).max() / max(np.abs(moved[:, column]).max(), 1e-12)
+                    for column in range(unknowns.size))
+        problems += ([f"{source} Jacobian off its differences by {worst:.2e} of a column"] if worst > most else []) + (
+            [f"{source} Jacobian outside the sparse pattern"] if np.abs(exact[outside]).max() > 0 else [])
+    return problems
+
+
+def the_level2_solve_with_the_exact_jacobian_equals_differences():
+    import tempfile
+    import numpy as np
+    with tempfile.TemporaryDirectory() as folder:
+        (moved, moved_angles, _), (exact, exact_angles, _) = staged_both(folder)
+    off_mm, off_angles = 1000 * np.abs(exact - moved).max(), np.abs(exact_angles - moved_angles).max()
+    return ([f"level 2 with the exact Jacobian off differences' constants by {off_mm:.4f} mm"]
+            if off_mm > LEVEL2_SOLVE_MM else []) + (
+        [f"level 2 with the exact Jacobian off differences' angles by {off_angles:.2e}"]
+        if off_angles > np.radians(LEVEL2_SOLVE_DEG) else [])

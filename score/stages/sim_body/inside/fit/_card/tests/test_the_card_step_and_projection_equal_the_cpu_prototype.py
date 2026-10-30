@@ -81,17 +81,15 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from card_chain import (LINKS, OBJECTIVE_ROWS, chain_model, log_rate, objective_rows,  # noqa: E402
                         residuals_and_jacobian)
 from card_toy import CLIP_FRAMES, TOY, mink_frames, toy_card, toy_clip, toy_errors  # noqa: E402
+from card_body import the_measures_equal_the_cpu_measure  # noqa: E402
+from card_level2 import (the_level2_jacobian_equals_its_differences,  # noqa: E402
+                         the_level2_solve_with_the_exact_jacobian_equals_differences)
 from card_across import the_sets_solved_together_equal_each_set_alone  # noqa: E402
 from card_sets import the_sets_batch_equals_each_clip_alone  # noqa: E402
 from card_rows import (the_float64_frames_equal_each_set_alone, the_rows_equal_each_set_alone,  # noqa: E402
                        the_rowwise_optimizer_equals_each_set_alone)
 from card_step import (BOUNDED, COUPLINGS, FROZEN, ROWS, fixture, prototype_projected,  # noqa: E402
                        prototype_step)
-LEVEL2_CARD_MOST = 1e-5  # the same from the card's float32 kinematics (_level2_card)
-LEVEL2_SOLVE_MM = 1e-3  # level 2 with jac=exact against 2-point differences on the exact toy: constants (the
-LEVEL2_SOLVE_DEG = 1e-4  # plan's 0.05 mm / 0.01 deg is the real bodies'; a frozen Jacobian is 0.027 mm off here)
-DEPTH_MM = 1e-4  # the depths' float32 closest points, card against CPU (measured 4.6e-6 mm on the toy, 2026-10-30)
-LEVEL2_MOST = 1e-6  # a column's largest miss over its largest entry (measured 1.8e-10; the plan allows 1e-2 against 2-point)
 
 
 def the_step_equals_the_prototype():
@@ -243,58 +241,6 @@ def the_next_iteration_from_its_seeds_equals_mink():
     print("cold seed (reported, not used): angles %.4f deg, sites %.4f mm off mink's" % toy_errors(
         mjm, cold_found, reference))
     return problems
-
-
-def the_measures_equal_the_cpu_measure():
-    import card_body
-    import numpy as np
-    from evaluation import _measure as cpu
-    from fit._card import _measure as card
-    clip = card_body.clip()
-    slow, fast = cpu.measures(*clip), card.measures(*clip)
-    keyed = [f"{key}: keys {sorted(fast[key])} against {sorted(slow[key])}" for key in fast
-             if isinstance(fast[key], dict) and sorted(fast[key]) != sorted(slow[key])]
-    return keyed or [f"{key}: {fast[key]} against {slow[key]}" for key in fast
-                     if not np.allclose(np.ravel(_values(fast[key])), np.ravel(_values(slow[key])), rtol=0,
-                                        atol=DEPTH_MM if key == "bones outside depth mm" else 1e-9)]
-
-
-def the_level2_jacobian_equals_its_differences():
-    import tempfile
-    import card_level2
-    import numpy as np
-    from fit._card import _level2, _level2_card
-    with tempfile.TemporaryDirectory() as folder:
-        problem, unknowns = card_level2.problem_and_point(folder)
-        card = _level2_card.CardKinematics(problem.fitting, len(problem.path))  # made at the start constants
-        moved = card_level2.differences(problem, unknowns)
-        outside = ~problem.sparsity().toarray().astype(bool)
-        found = {"card": (_level2.jacobian(problem, unknowns, card).toarray(), LEVEL2_CARD_MOST),
-                 "host": (_level2.jacobian(problem, unknowns).toarray(), LEVEL2_MOST)}
-    problems = []
-    for source, (exact, most) in found.items():
-        worst = max(np.abs(exact[:, column] - moved[:, column]).max() / max(np.abs(moved[:, column]).max(), 1e-12)
-                    for column in range(unknowns.size))
-        problems += ([f"{source} Jacobian off its differences by {worst:.2e} of a column"] if worst > most else []) + (
-            [f"{source} Jacobian outside the sparse pattern"] if np.abs(exact[outside]).max() > 0 else [])
-    return problems
-
-
-def the_level2_solve_with_the_exact_jacobian_equals_differences():
-    import tempfile
-    import card_level2
-    import numpy as np
-    with tempfile.TemporaryDirectory() as folder:
-        (moved, moved_angles, _), (exact, exact_angles, _) = card_level2.staged_both(folder)
-    off_mm, off_angles = 1000 * np.abs(exact - moved).max(), np.abs(exact_angles - moved_angles).max()
-    return ([f"level 2 with the exact Jacobian off differences' constants by {off_mm:.4f} mm"]
-            if off_mm > LEVEL2_SOLVE_MM else []) + (
-        [f"level 2 with the exact Jacobian off differences' angles by {off_angles:.2e}"]
-        if off_angles > np.radians(LEVEL2_SOLVE_DEG) else [])
-
-
-def _values(found):
-    return [found[key] for key in sorted(found)] if isinstance(found, dict) else found
 
 
 CHECKS = (the_rows_equal_each_set_alone, the_rowwise_optimizer_equals_each_set_alone,
