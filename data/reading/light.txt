@@ -1,0 +1,16 @@
+You are given a concept painting of one place of a game environment and the rows already read from it,
+as JSON below. Say how the place is lit in the picture. Answer one JSON object:
+{{"rows": [{{"id": the row's id, "glows": true when the picture shows this thing giving off light of its own (a lamp,
+  a light strip or panel, a screen, a glowing core, engine or machine part, a fire, a lit window at night, a sign),
+  else false;
+  "glowing": which part of it glows, in a few words ("" when it does not glow);
+  "colour": the colour of its light as "#rrggbb" ("" when it does not glow);
+  "brightness": how bright its light is against the brightest light in the picture, 0 to 1 (0 when it does not
+  glow)}}, ...] a glow for every row, each id once,
+ "scene": {{"daylight": true when daylight (a sun, a bright sky) lights the place, else false;
+  "unseen": true when light falls on the place from a source the picture does not show: a sun or a sky lighting it
+  from out of view (daylight whose sun the picture does not show is such light), lamps out of view; else false;
+  "unseen_colour": the colour of that light as "#rrggbb" ("" when there is none)}}}}
+No text besides the JSON.
+
+{rows}

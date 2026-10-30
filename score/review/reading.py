@@ -48,16 +48,16 @@ Each row says what part of the place it is (`part`, PARTS), which prepare routes
 A reading answered under an older PARTS (`parts_version`, PARTS_VERSION) has its parts asked again the same way, and
 the newest record of today's version is read over its rows.
 
-Its concept's light (LIGHT_ASKED: which rows glow in the picture, their colour and brightness, and the light falling
-from no source in view) is one Gemini call of its own a reading (`lit`), kept apart (`concept_light`) and kept for
-the stages by plans.keep as `{home}/design/light/<place>.json`: the scene record lights each glowing row from it, the
-light layer its fill:
+Its concept's light (LIGHT_ASKED, data/reading/light.txt: which rows glow in the picture, their colour and
+brightness, and the light falling from no source in view) is one Gemini call of its own a reading (`lit`; asked again
+with --light-again, the newest record read), kept apart (`concept_light`) and kept for the stages by plans.keep as
+`{home}/design/light/<place>.json`: the scene record lights each glowing row from it, the light layer its fill:
 
     inventory-light/<place>/<time>.json     {place, reading, at, by, light {rows {row id: {glows, glowing, colour,
                                              brightness}}, scene {daylight, unseen, unseen_colour}} or refused,
                                              euros {total}, seconds, clearance}
 
-    python -m score.review.reading <place> [<place> ...] [--by <name>] [--again]
+    python -m score.review.reading <place> [<place> ...] [--by <name>] [--again] [--light-again]
 """
 import argparse
 import concurrent.futures
@@ -187,22 +187,9 @@ No text besides the JSON.
 # there are lights in the concept prob"): which rows give light in the picture, in what colour and how bright, and the
 # light falling on the place from what the picture does not show; the scene record lights each glowing row from it
 # (score/stages/scene_record/writer.py) and the light layer its fill (score/stages/light), for any environment.
-LIGHT_ASKED = """You are given a concept painting of one place of a game environment and the rows already read from it,
-as JSON below. Say how the place is lit in the picture. Answer one JSON object:
-{{"rows": [{{"id": the row's id, "glows": true when the picture shows this thing giving off light of its own (a lamp,
-  a light strip or panel, a screen, a glowing core, engine or machine part, a fire, a lit window at night, a sign),
-  else false;
-  "glowing": which part of it glows, in a few words ("" when it does not glow);
-  "colour": the colour of its light as "#rrggbb" ("" when it does not glow);
-  "brightness": how bright its light is against the brightest light in the picture, 0 to 1 (0 when it does not
-  glow)}}, ...] a glow for every row, each id once,
- "scene": {{"daylight": true when daylight (a sun, a bright sky) lights the place, else false;
-  "unseen": true when light falls on the place from a source the picture does not show: a sun or a sky lighting it
-  from out of view (daylight whose sun the picture does not show is such light), lamps out of view; else false;
-  "unseen_colour": the colour of that light as "#rrggbb" ("" when there is none)}}}}
-No text besides the JSON.
-
-{rows}"""
+# Its words are a file of their own, read at each ask: reading.py is in the code version of about 74 paid rows
+# (score.stages.moved), and no row declares the file, so an edit of the words moves none of them (2026-10-30).
+LIGHT_ASKED = concepts.DATA / "reading/light.txt"
 COLOUR = re.compile(r"#[0-9a-fA-F]{6}")
 WITHIN = ("The second picture is the picked concept of {holder}, the place this one sits within: it shows where this "
           "place stands; read only the first picture's place.")
@@ -478,7 +465,7 @@ def asked_light(store, place, folder):
     ids = [row["id"] for row in rows]
     concept = picture_path(store, found["concept"], folder)
     response, seconds = asked({"contents": [{"role": "user", "parts": [
-        {"text": LIGHT_ASKED.format(rows=json.dumps(rows, indent=1))},
+        {"text": LIGHT_ASKED.read_text().format(rows=json.dumps(rows, indent=1))},
         pro.part(Image.open(concept), max(Image.open(concept).size))]}],
         "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
                              "responseSchema": light_schema(ids)}})
@@ -497,10 +484,12 @@ def parted(store, places, by, clear=None, ask=asked_parts):
     return asked_after(store, unparted(store, places), PARTS_AREA, "parts", ask, by, clear)
 
 
-def lit(store, places, by, clear=None, ask=asked_light):
-    """Ask the concept's light of every place of `places` whose current reading has none (`unlit`), one call a place
-    (`asked_after`). The kept records with light."""
-    return asked_after(store, unlit(store, places), LIGHT_AREA, "light", ask, by, clear)
+def lit(store, places, by, clear=None, ask=asked_light, again=False):
+    """Ask the concept's light of every place of `places` whose current reading has none (`unlit`), or, `again`, of
+    every one with a current reading (LIGHT_ASKED's words changed for it); one call a place (`asked_after`), the
+    newest record read (`concept_light`). The kept records with light."""
+    asking = [place for place in places if reading_of(store, place)] if again else unlit(store, places)
+    return asked_after(store, asking, LIGHT_AREA, "light", ask, by, clear)
 
 
 def asked_after(store, places, area, field, ask, by, clear=None):
@@ -932,12 +921,13 @@ def main(argv):
     parser.add_argument("places", nargs="+")
     parser.add_argument("--by", default="the owner's standing allowance")
     parser.add_argument("--again", action="store_true", help="read again a place already read by today's method")
+    parser.add_argument("--light-again", action="store_true", help="ask again the light of a place already lit")
     options = parser.parse_args(argv)
     store = Store.in_folder(os.environ["SCORE_SPEND_STORE"]) if os.environ.get("SCORE_SPEND_STORE") else Store.default()
     try:
         found = read(store, options.places, options.by, again=options.again)
         given = parted(store, options.places, options.by)
-        lights = lit(store, options.places, options.by)
+        lights = lit(store, options.places, options.by, again=options.light_again)
     except (concepts.Refused, NotCleared) as refused:
         print(f"refused: {refused}", file=sys.stderr)
         return 1
