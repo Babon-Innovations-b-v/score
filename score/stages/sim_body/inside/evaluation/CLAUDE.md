@@ -49,7 +49,8 @@ held-out rule (within 10 % of the tuning bodies).
   too, at that one tight ftol/xtol/gtol. Measured on the 6a gate's 7 sets (heavy and tall kimodo, 2026-10-30, against
   the serial CPU columns; cold: 0.04 to 0.61 %, cosine 0.99998, 28 to 38 evaluations): at 1e-8 (scipy's default)
   the columns 1.5 to 29 % apart, cosine 0.958, 17 to 24 evaluations; at 1e-10 the base point 532 / 584 evaluations
-  and every nudged set 176 to 263, about 7 times the cold default's, so warm is dearer than cold however it gates.
+  and every nudged set 176 to 263, about 7 times the cold default's, and still 1.4 to 15 % apart, cosine 0.989
+  (the CPU columns are at the default tolerance): warm fails the gate and is dearer than cold.
   Stay cold: warm-starting level 2 is no speed lever.
 - Judged on following SOMA, never on landmark distances; `fit._frozen` is never edited to follow the tree's calibration.
 - Test: `test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py` (a toy worker, any Python with numpy and scipy).
