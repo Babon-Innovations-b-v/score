@@ -32,7 +32,9 @@ gates.
 - **Strengths are measured, never the game's numbers.** One render gives every lamp's light alone; light is linear in
   a lamp's strength, so the look at any strengths is mixed from the passes through the view's own tone curve (fitted on
   the render's look against its light). The sweep's scale brings the place's brightness to its concept's; a blown-out
-  lamp is turned down; a floodlight with a shaft keeps the strength its shaft sweep set (2026-10-11).
+  lamp is turned down; a floodlight with a shaft keeps the strength its shaft sweep set (2026-10-11). One order (mix.py's
+  docstring): the lamps, the suns with the fill where the lamps cannot, the fill alone where a view is still outside
+  x2.5 (2026-10-30: hangar's floor in the ship's shadow), each blown lamp turned down, the floodlights last.
 - **The views come from the place's own scene record, never a copy** (#27, 2026-10-20: the demo's copies under
   `work/demo` were lost with the old disk and left eight ship places with no views): the light layer writes
   `views.json` from the record it reads (its accepted scene-record output where it has one), and the passes and the

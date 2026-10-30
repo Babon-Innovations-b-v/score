@@ -13,9 +13,10 @@ holds, as three rows of the stage table.
                   look, its float colour and the luminance of the whole picture and of each lamp alone; the view
                   transform as a table
     light         (free) the sweep on the passes (mix.py): one scale for every lamp without a shaft (a floodlight's is
-                  its shaft sweep's, 2026-10-11) bringing the place's brightness nearest its concept's, each blown-out
-                  lamp turned down; those strengths written into the layer; the look at them mixed from the passes
-                  at full precision, through the view transform (looks/), and every fault measured on it
+                  its shaft sweep's, 2026-10-11) bringing the place's brightness nearest its concept's, the suns and
+                  the fill alone after where it cannot, each blown-out lamp turned down; those strengths written into
+                  the layer; the look at them mixed from the passes at full precision, through the view transform
+                  (looks/), and every fault measured on it
 
     gates (light-layer)  lamps placed  every lamp of the record stands in the layer
                          lit           a lamp of its own, or (an open place) a sky light over the horizon
@@ -377,8 +378,9 @@ def one_spot(groups, by_path):
 
 def strengths(place, passes_folder, lamps, layer_folder, record):
     """The sweep on the place's views (its passes, rendered on its light layer's views): (scales {group: scale},
-    measures). Only a lamp those passes hold a group of is swept. The suns are swept after the lamps where the lamps
-    cannot bring the place within its concept's brightness or their sweep stops at an end of its range."""
+    measures). Only a lamp those passes hold a group of is swept, in mix.py's order: the lamps; the suns (the fill
+    with them) where the lamps cannot bring the place within its concept's brightness or their sweep stops at an end
+    of its range; the fill alone where a view is still outside (mix.fill_sweep); each blown lamp turned down."""
     by_path = {lamp["path"]: lamp for lamp in lamps}
     groups = {group: path for group, path in groups_of(passes_folder).items() if path in by_path}
     views = {view: (held, curve) for view, (held, curve, _) in view_passes(passes_folder, place).items()}
@@ -394,6 +396,10 @@ def strengths(place, passes_folder, lamps, layer_folder, record):
     if suns and (mix.pinned(scale) or not mix.within(views, scales, target)):  # the lamps cannot: the sky's light can
         sun_scale = mix.sweep(views, suns, target, scales)
         scales.update(dict.fromkeys(suns, sun_scale))
+    fill = next((group for group in suns if by_path[groups[group]].get("fill")), None)
+    fill_factor = mix.fill_sweep(views, fill, target, scales) if fill else 1.0
+    if fill:
+        scales[fill] *= fill_factor
     lamp_found = {}
     sky_lit = [group for group, path in groups.items() if by_path[path].get("sun")]
     for group in sky_lit:  # a sun is not turned down for its own glare: its light is the whole sky's
@@ -416,6 +422,7 @@ def strengths(place, passes_folder, lamps, layer_folder, record):
     for group in sky_lit:
         lamp_found[groups[group]]["fault"] = mix.lamp_faults(mix.lamp_measures(views, scales, [group]), [])
     return scales, {"concept": round(target, 4), "swept_scale": scale, "swept": len(swept), "sun_scale": sun_scale,
+                    "fill_factor": fill_factor,
                     "before": {name: round(value, 4) for name, value in mix.brightness(views, {}).items()},
                     "after": {name: round(value, 4) for name, value in mix.brightness(views, scales).items()},
                     "lamps": dict(sorted(lamp_found.items(), key=lambda item: item[1]["group"]))}
