@@ -69,6 +69,7 @@ class _Skins:
         rows = [(name, frame, link, local) for name in self.names for frame in range(frames)
                 for link, local in skins[name][0][frame]]
         self.counts = [sum(1 for row in rows if row[0] == name) for name in self.names]
+        self.frame_of = np.array([row[1] for row in rows], dtype=np.int64)
         self.link = wp.array([row[2] for row in rows], dtype=wp.int32, device=device)
         self.local = wp.array(np.array([row[3] for row in rows], dtype=np.float32).reshape(-1, 3), dtype=wp.vec3,
                               device=device)
@@ -139,31 +140,49 @@ class TapedMeasures:
                   device=device)
         self.skins.evaluate(body_q, self.to_own, device)
 
-    def _row(self, inner, outer, output, entry):
-        """d output[entry] / d inner (the pose's part) by one backward pass seeded on that entry alone."""
-        tape = wp.Tape()
-        with tape:
-            self._evaluate(inner, outer)
-        seed = np.zeros(output.numpy().shape, dtype=np.float32)
-        seed.reshape(-1)[entry] = 1.0
-        tape.backward(grads={output: wp.array(seed, dtype=output.dtype, device=output.device)})
-        pose = self.sites.model.joint_q if self.sites.couplings is None else self.sites.couplings.pose
-        found = pose.grad.numpy().astype(np.float64)
-        tape.zero()
-        return found
+    def _pose_grad(self):
+        """The pose's gradient array (the free coordinates' under couplings, else joint_q)."""
+        return self.sites.model.joint_q if self.sites.couplings is None else self.sites.couplings.pose
+
+    def _rows(self, tape, output, entry_frames):
+        """d output[entry] / d pose for every entry, `entry_frames` each entry's frame. A frame's entries move only its
+        own copy's pose block, so one backward pass seeds one entry of every frame at once (its k-th) and each row keeps
+        its own frame's block: as many passes as a frame's most entries, never one per entry."""
+        size = self._pose_grad().shape[0]
+        if size % self.frames:
+            raise ValueError(f"pose of {size} does not split into {self.frames} equal frame blocks")
+        block = size // self.frames
+        rows = np.zeros((len(entry_frames), size))
+        slots = [np.flatnonzero(entry_frames == frame) for frame in range(self.frames)]
+        for slot in range(max((len(entries) for entries in slots), default=0)):
+            seeded = np.array([entries[slot] for entries in slots if slot < len(entries)], dtype=np.int64)
+            seed = np.zeros(output.numpy().shape, dtype=np.float32)
+            seed.reshape(-1)[seeded] = 1.0
+            tape.backward(grads={output: wp.array(seed, dtype=output.dtype, device=output.device)})
+            found = self._pose_grad().grad.numpy().astype(np.float64)
+            tape.zero()
+            self.passes += 1
+            for entry in seeded:
+                start = entry_frames[entry] * block
+                rows[entry, start:start + block] = found[start:start + block]
+        return rows
 
     def measured(self, inner, outer):
         """`case_rows`' joints {name: (differences (frames, 3) m, rows (frames, 3, pose))} and turns {group: (degrees
-        (frames,), rows (frames, pose))} at (`inner`, `outer`)."""
-        self._evaluate(inner, outer)
+        (frames,), rows (frames, pose))} at (`inner`, `outer`), off one recorded tape (`passes` counts its backward
+        passes)."""
+        tape = wp.Tape()
+        with tape:
+            self._evaluate(inner, outer)
+        self.passes = 0
         differences = self.differences.numpy().astype(np.float64).reshape(len(self.joint_names), self.frames, 3)
         degrees = self.degrees.numpy().astype(np.float64).reshape(len(self.turn_names), self.frames)
-        joint_rows = np.array([self._row(inner, outer, self.differences, entry) for entry in range(differences.size)])
-        turn_rows = np.array([self._row(inner, outer, self.degrees, entry) for entry in range(degrees.size)])
-        joint_rows = joint_rows.reshape(len(self.joint_names), self.frames, 3, -1)
-        turn_rows = turn_rows.reshape(len(self.turn_names), self.frames, -1)
+        joint_frames = np.repeat(np.tile(np.arange(self.frames), len(self.joint_names)), 3)
+        joint_rows = self._rows(tape, self.differences, joint_frames).reshape(len(self.joint_names), self.frames, 3, -1)
+        turn_frames = np.tile(np.arange(self.frames), len(self.turn_names))
+        turn_rows = self._rows(tape, self.degrees, turn_frames).reshape(len(self.turn_names), self.frames, -1)
         depths = self.skins.depths.numpy().astype(np.float64)
-        skin_rows = np.array([self._row(inner, outer, self.skins.depths, entry) for entry in range(depths.size)])
+        skin_rows = self._rows(tape, self.skins.depths, self.skins.frame_of) if depths.size else np.zeros((0, 0))
         bounds = np.cumsum([0] + self.skins.counts)
         return ({name: (differences[index], joint_rows[index]) for index, name in enumerate(self.joint_names)},
                 {name: (degrees[index], turn_rows[index]) for index, name in enumerate(self.turn_names)},
