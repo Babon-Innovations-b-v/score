@@ -52,6 +52,14 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   copy by copy, `outer` one frame's (its offsets, then its trusts) laid on every copy, each copy's last `ends` sites its
   ends and its weights its own frame's (`np.tile`); on two copies of the toy chain its rows equal each copy's single-frame
   rows and its gradient central differences (all gaps under 7.5e-5 of the largest entry).
+- `_bodies.py` (numpy, 2026-10-30): the real body's pieces for `TapedSites`. `copied_couplings` turns the card's
+  projection fields (followers, leaders, rests, polys, frozen, MuJoCo coordinates) into `couplings=` for a model
+  holding one copy per frame (joint_q copy by copy, the pose every copy's free coordinates: not followers, not
+  frozen); a follower of a frozen leader stays at its solved value, a follower led by a follower and a coupled or
+  frozen root coordinate are refused; `pose_of` the solved rows' pose. Checked on a toy of two copies: the map
+  gives back the solved rows and keeps a coupling under a moved pose. Open: the free root's turn (4 quaternion
+  coordinates) is in the pose as Newton holds it, so H has a direction along its norm; the builder (Newton model,
+  levels 2 and 3 on the card, end sites' link frames), `refused` on it, and the heavy_kimodo test.
 - Built and checked on a toy only (2026-10-30, five tests, 1.2 s); `../__init__.solved(exact=)` takes `stacked_jacobian` (its test, 2026-10-30). Not yet wired: the card gradient (Newton eval_fk on
   a wp.Tape for level 3, level 2's constants) as each `Body`'s callables, `solved`'s Jacobian switch to it, the gate on heavy_kimodo, tall_kimodo and
   a third tuning body against `_differences`, and the 70-case timing.

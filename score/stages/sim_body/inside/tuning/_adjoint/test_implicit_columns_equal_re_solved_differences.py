@@ -16,7 +16,8 @@ in a batched body (`_Constants.gradient` taking `[0]` in place of `.sum(axis=0)`
 unknowns' trust (`TapedSites._evaluate` not assigning `self.weights` when `trusted`) turns it red. Assigning the trusts themselves when `ends` is given (`_weighed` returning `tail`) turns it red. Laying a batched body's weights site by site in place of copy by copy (`np.repeat` for `np.tile` in `_evaluate`) turns it red. In `_measures.py`,
 skipping `self.centres.zero_()` (joint centres adding onto the last evaluation's) turns the taped measures test red.
 Building the bone points without `requires_grad` (`_Skins.points`: no skin depth row reaches the pose) turns it red.
-In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red.
+In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
+without `copy * len(free)`) turns the copied couplings test red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red.
 
 The taped test runs `_taped` (Newton eval_fk on a wp.Tape) in Newton's own Python on the card, a four-link chain with
 three weighted sites and two link-frame turn rows, once on every coordinate and once with the last a follower of the
@@ -184,6 +185,33 @@ def test_level_1_unknowns_map_onto_the_taped_outer_unknowns_with_their_derivativ
         lambda point: _outer.site_unknowns(point, entries, _LANDMARKS, _ENDS, _STARTS, _TABLE, _GLOBALS), unknowns, 1e-6)
     derivative = _outer.site_derivative(unknowns, entries, _LANDMARKS, _ENDS, _TABLE, _GLOBALS)
     assert np.allclose(derivative, expected, atol=1e-6)
+
+def _followed(couplings, pose):
+    """joint_q from a free pose as `_taped._Couplings.write` lays it (base, free coordinates, followers)."""
+    free, followers, leaders, follower_rest, leader_rest, poly, base = couplings
+    found = base.copy()
+    found[free] = pose
+    for follower, leader, rest, lead_rest, terms in zip(followers, leaders, follower_rest, leader_rest, poly):
+        found[follower] = rest + np.polyval(terms[::-1], pose[leader] - lead_rest if leader >= 0 else 0.0)
+    return found
+
+
+def test_a_body_copied_per_frame_keeps_the_card_projection_couplings():
+    from score.stages.sim_body.inside.tuning._adjoint import _bodies
+    poly = np.array([[0.1, 0.5, 0.2, 0.0, 0.0], [0.0, -1.0, 0.0, 0.0, 0.0]])
+    rows = np.random.default_rng(3).normal(size=(2, 11))
+    rows[:, 9] = 0.4 + np.polyval(poly[0][::-1], rows[:, 7] - 0.2)  # led by a frozen coordinate: stays as solved
+    rows[:, 10] = -0.3 + np.polyval(poly[1][::-1], rows[:, 8] - 0.1)
+    couplings = _bodies.copied_couplings([9, 10], [7, 8], [0.4, -0.3], [0.2, 0.1], poly, [7], rows)
+    pose = _bodies.pose_of(couplings, rows)
+    assert len(pose) == 2 * 8
+    assert np.allclose(_followed(couplings, pose), rows.reshape(-1))
+    moved = pose + 0.05
+    expanded = _followed(couplings, moved).reshape(2, 11)
+    assert np.allclose(expanded[:, 10], -0.3 + np.polyval(poly[1][::-1], expanded[:, 8] - 0.1))
+    with pytest.raises(ValueError):
+        _bodies.copied_couplings([9, 10], [7, 9], [0.4, -0.3], [0.2, 0.1], poly, [], rows)
+
 
 def test_the_taped_gradient_equals_central_differences_of_the_cost():
     python = _newton_python()
