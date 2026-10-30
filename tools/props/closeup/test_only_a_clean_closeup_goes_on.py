@@ -49,6 +49,9 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-26):
   `return False` made `return True`; and, apart, pro.draw sending one batch a request (`google_batch.generate(MODEL,
   {path: body}, ...)` per path).
 - test_pro_draws_nothing_outside_a_cleared_run: pro.draw's `compute.require_cleared(...)` dropped.
+- test_a_step_the_cache_answers_whole_asks_for_no_ticket_and_reads_no_key: pro.draw's `if not all(...cache_path...
+  .exists() ...)` made `if True` (the ticket asked before the cache, as before batch 2).
+- test_an_unfinished_answer_is_a_gap_though_it_holds_a_picture: pro.saved's `if not found or cut` made `if not found`.
 - test_a_steps_cost_is_kept_for_a_run_that_is_run_again: kept_entry's `path.write_text(...)` dropped.
 """
 import base64
@@ -382,6 +385,7 @@ def faked_batch(tmp_path, monkeypatch):
         return {"name": name, "done": True, "metadata": {"state": "JOB_STATE_SUCCEEDED"},
                 "response": {"inlinedResponses": {"inlinedResponses": inlined}}}
     monkeypatch.setattr(stage.pro.compute, "require_cleared", lambda what: None)
+    monkeypatch.setenv("SCORE_SECRET_GEMINI_API_KEY", "key")
     monkeypatch.setattr(spend, "LEDGER", tmp_path / "ledger.jsonl")
     monkeypatch.setattr(spend, "CACHE", tmp_path / "cache")
     monkeypatch.setattr(batch, "send", send)
@@ -395,7 +399,7 @@ def test_pro_draws_a_step_as_one_batch_job_cached_and_a_pictureless_answer_is_a_
     ledger and cached; an answer with no picture, or one the batch did not give, is a gap; one asked before is free."""
     spend = stage.pro.google_spend
     asks = {tmp_path / f"{name}.png": (f"words {name}", Image.new("RGB", (8, 8)), None) for name in "abc"}
-    drawn_now = stage.pro.draw("key", asks)
+    drawn_now = stage.pro.draw(asks)
     assert drawn_now == {tmp_path / "a.png": True, tmp_path / "b.png": False, tmp_path / "c.png": False}, drawn_now
     assert len(faked_batch) == 1 and (tmp_path / "a.png").exists() and not (tmp_path / "b.png").exists()
     requests = faked_batch[0]["batch"]["input_config"]["requests"]["requests"]
@@ -408,9 +412,9 @@ def test_pro_draws_a_step_as_one_batch_job_cached_and_a_pictureless_answer_is_a_
     assert finished[0]["dollars"] == round(full * 0.5, 6), finished
     assert [line["state"] for line in lines].count("failed") == 1  # c: unanswered, maybe billed
     (tmp_path / "a.png").unlink()
-    assert stage.pro.draw("key", {tmp_path / "a.png": asks[tmp_path / "a.png"]}) == {tmp_path / "a.png": True}
+    assert stage.pro.draw({tmp_path / "a.png": asks[tmp_path / "a.png"]}) == {tmp_path / "a.png": True}
     assert len(faked_batch) == 1  # asked before: read back from the cache, free
-    stage.pro.draw("key", {tmp_path / "b.png": asks[tmp_path / "b.png"]})
+    stage.pro.draw({tmp_path / "b.png": asks[tmp_path / "b.png"]})
     assert len(faked_batch) == 2  # no picture came back: dropped from the cache, a new batch may ask again
 
 
@@ -419,10 +423,44 @@ def test_pro_draws_nothing_outside_a_cleared_run(tmp_path, monkeypatch):
     outside the runner's gate and the owner's yes."""
     sent = []
     monkeypatch.delenv(stage.pro.compute.TICKET, raising=False)
+    monkeypatch.setattr(stage.pro.google_spend, "CACHE", tmp_path / "cache")
+    monkeypatch.setenv("SCORE_SECRET_GEMINI_API_KEY", "key")  # never the real one
     monkeypatch.setattr(stage.pro.google_batch, "send", lambda *arguments, **options: sent.append(arguments))
     with pytest.raises(stage.pro.compute.Refused, match="nothing rents outside a cleared run"):
-        stage.pro.draw("key", {tmp_path / "a.png": ("words", Image.new("RGB", (8, 8)), None)})
+        stage.pro.draw({tmp_path / "a.png": ("words", Image.new("RGB", (8, 8)), None)})
     assert sent == []
+
+
+def test_an_unfinished_answer_is_a_gap_though_it_holds_a_picture(tmp_path, monkeypatch):
+    """Batch 2, 2026-10-30: four accepted close-ups were pictures from answers google_spend.keep never cached (an
+    answer the model did not finish is no whole answer, 2ad3914b), so a request later read back nothing. A picture
+    used is one its request reads back: an unfinished answer is a gap, as one with no picture is."""
+    monkeypatch.setattr(stage.pro.google_spend, "CACHE", tmp_path / "cache")
+    cut = a_picture_answer()
+    cut["candidates"][0]["finishReason"] = "MAX_TOKENS"
+    assert stage.pro.saved(cut, {"body": 1}, tmp_path / "cut.png") is False
+    assert not (tmp_path / "cut.png").exists()
+    assert stage.pro.saved(a_picture_answer(), {"body": 1}, tmp_path / "whole.png") is True
+
+
+def test_a_step_the_cache_answers_whole_asks_for_no_ticket_and_reads_no_key(tmp_path, monkeypatch):
+    """Batch 2, 2026-10-30: pro.draw asked for a spend ticket before it looked in the cache, so a free-only run on
+    this PC refused even a close-up drawn before ("nothing rents outside a cleared run"). A step the cache answers
+    whole is read back free, with no ticket and no key; one request missed and the step is refused again."""
+    spend = stage.pro.google_spend
+    monkeypatch.delenv(stage.pro.compute.TICKET, raising=False)
+    monkeypatch.setenv("SCORE_FREE_ONLY", "1")
+    monkeypatch.setattr(spend, "CACHE", tmp_path / "cache")
+    monkeypatch.setitem(sys.modules, "secret_store", type(sys)("secret_store"))
+    sys.modules["secret_store"].secret = lambda name: pytest.fail(f"{name} read for a cached step")
+    monkeypatch.setattr(stage.pro.google_batch, "send", lambda *arguments, **options: pytest.fail("sent"))
+    ask = ("words", Image.new("RGB", (8, 8)), None)
+    spend.CACHE.mkdir()
+    spend.cache_path(stage.pro.MODEL, stage.pro.request_body(*ask)).write_text(json.dumps(a_picture_answer()))
+    assert stage.pro.draw({tmp_path / "a.png": ask}) == {tmp_path / "a.png": True}
+    assert (tmp_path / "a.png").exists()
+    with pytest.raises(stage.pro.compute.Refused, match="nothing rents outside a cleared run"):
+        stage.pro.draw({tmp_path / "b.png": ask, tmp_path / "c.png": ("other words", *ask[1:])})
 
 
 def test_a_steps_cost_is_kept_for_a_run_that_is_run_again(tmp_path):

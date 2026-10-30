@@ -16,7 +16,10 @@ for the creator.
 - **Pro draws through the Batch API at half price** (owner, 2026-10-24): `pro.draw` sends a step's close-ups as one
   job (`../cloud/google_batch.py`), the same request as one call would send; only `stage.py` calls it, and only for
   rows the check failed.
-  `pro.draw` refuses outside a cleared run (`score.adapters.compute.require_cleared`), as every paid call does.
+  `pro.draw` refuses a request the cache misses outside a cleared run (`score.adapters.compute.require_cleared`), as
+  every paid call does; a step the cache answers whole needs no ticket and no key. A free-only run asks no new take:
+  a row no cached take passed is a batch gap worded as a paid run writes it (the output the same in every mode), its
+  next take named in the run's log as a paid retry on the priced list (`closeup_row.say_unpaid`).
 - **The object's own size, the check's own view, strict retries** (owner, 2026-10-24, from the Buy's 80 gaps;
   2026-10-25, "fix all"): a close-up is asked for and checked at `stage.object_size` (the row's `read_size`, its
   inventory reading's metres, else its `size`; a plan's item is the footprint it is laid in, never the object's size);
@@ -24,6 +27,10 @@ for the creator.
   picture the check rejects gets up to three retries in the same step (`PRO_TAKES`): `RETRY` added to its wording,
   then `FIRMER` too on a seed of its own (its number, `pro_ask`), so each take is a new request, every one priced and on the
   ledger like the first, at the same settings. Never loosen the check to pass more.
+- **A picture used is one its request reads back** (batch 2, 2026-10-30): an answer the model did not finish is a
+  gap in `pro.saved`, as one with no picture is (google_spend never caches it). Four accepted pictures came from
+  answers the cache never kept; a take the cache misses that the accepted `closeup@` output holds for the same request
+  (same row, the same body digest from its crop) is read back from the store (`closeup_row.reused_pictures`).
 - **A picture is keyed by its request, the check judges it apart** (coordinator, 2026-10-25): every Pro picture stays
   in google_spend's cache, a rejected one too; the close-up row first reads back every take the cache holds (free)
   and judges it with today's check, and draws only for the rows none passed. A check change re-judges kept pictures
