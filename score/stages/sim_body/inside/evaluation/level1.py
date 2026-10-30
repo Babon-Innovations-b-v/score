@@ -3,7 +3,8 @@ bodies. The run dir holds cases.json ({case: job.json}), split.json ({"tuning": 
 table.json (the starting landmark rows, each link its anatomical start) and rig.npz (SOMA's template rig, the
 calibration table's rest); it gets evals/ (the latest evaluations),
 checkpoint.jsonl (every evaluation and iteration; a restart resumes from its best), check.jsonl (the held-out score
-every few iterations and at the end), result_table.json, result_weights.json, result_centres.json (each group end's offset) and held_out.json (the check bodies'
+every few iterations and at the end), steps.jsonl (each check against the one before: per-case paired changes of
+the honest measures, tuning and check bodies apart, verdicts past floor.json when the run dir has it, `tuning._paired`), result_table.json, result_weights.json, result_centres.json (each group end's offset) and held_out.json (the check bodies'
 score against the tuning bodies', accepted within 10 %). With --card every evaluation runs on the card
 (`evaluation.measured_many`, seeded from the seeds root's angles), a Jacobian's nudged sets in one process. Any Python with numpy and scipy; the workers run in Newton's."""
 import argparse
@@ -16,6 +17,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import evaluation  # noqa: E402
 import landmarks  # noqa: E402
 import tuning  # noqa: E402
+from tuning import _paired  # noqa: E402
 from bone_groups import groups  # noqa: E402
 
 GLOBALS = {"marker goal": 1.0, "end weight": 1.0}
@@ -36,6 +38,9 @@ def main():
     entries = tuning.layout(table, held=landmarks.HELD, joints=set(),
                             ends=tuning.ended(groups(), landmarks.MIDDLE_CENTRES))
     count = [0]
+    latest = {}
+    sides = {case: name for name in ("tuning", "check") for case in evaluation.picked(cases, split, name)}
+    noise = json.loads((run / "floor.json").read_text()) if (run / "floor.json").exists() else None
 
     def worker_set(unknowns):
         rows, weights = tuning.applied(unknowns, entries, starts, table, GLOBALS)
@@ -57,11 +62,19 @@ def main():
         count[0] += 1
         found = side(unknowns, "tuning", f"e{count[0]:05d}")
         shutil.rmtree(run / "evals" / f"e{count[0] - 2:05d}", ignore_errors=True)
+        latest["tuning"] = found
         print(f"eval {count[0]}: tuning score {evaluation.side_score(found):.4f}", flush=True)
         return found
 
     def check(unknowns):
-        score = evaluation.side_score(side(unknowns, "check", "check"))
+        found = side(unknowns, "check", "check")
+        score = evaluation.side_score(found)
+        now = {case: _paired.flattened(value) for case, value in {**latest["tuning"], **found}.items()}
+        if "check" in latest:
+            with open(run / "steps.jsonl", "a") as file:
+                file.write(json.dumps({"evaluation": count[0], **_paired.stepped(latest["check"], now, sides, noise)})
+                           + "\n")
+        latest["check"] = now
         with open(run / "check.jsonl", "a") as file:
             file.write(json.dumps({"evaluation": count[0], "check score": score}) + "\n")
         return score
