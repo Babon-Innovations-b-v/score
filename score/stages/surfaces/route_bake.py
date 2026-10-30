@@ -235,11 +235,11 @@ def labelled_points(labelled):
                       for path in sorted(pathlib.Path(labelled).glob("*.ply"))])
 
 
-def stood_square(entries, labelled, take, inputs):
+def stood_square(entries, labelled, take, inputs, built=False):
     """`entries` with each model whose take stands tumbled in its turn (tumble.tumbled, #36) turned to stand square
     (tumble.square_turn, its box's proportions the row's), its `stood` saying so with the turn it was made in
-    (`made`); a row the guard list keeps (tumble.keeps_pose: a person, lying, leaning, hanging, no up) keeps its pose,
-    `stood` saying why. The bake measures each again as baked (squared_again)."""
+    (`made`); a row the guard list keeps (tumble.keeps_pose: a person, a code build (`built`), lying, leaning,
+    hanging, no up) keeps its pose, `stood` saying why. The bake measures each again as baked (squared_again)."""
     import numpy as np
     import tumble
     rules, rows = tumble.rules_of(inputs), take_rows(inputs)
@@ -248,7 +248,7 @@ def stood_square(entries, labelled, take, inputs):
     for model, entry in entries.items():
         base = np.array(entry["base"], float).reshape(3, 3)
         laid = points @ base.T
-        kept = tumble.keeps_pose(tumble.take_row(take, model, rows), rules, rows)
+        kept = tumble.keeps_pose(tumble.take_row(take, model, rows), rules, rows, built)
         degrees, loose = tumble.measure(laid)
         if kept or not tumble.tumbled(laid):
             found[model] = dict(entry, **({"stood": {"kept": kept, "degrees": degrees}} if kept else {}))
@@ -351,7 +351,7 @@ def bake_job_step(inputs, out):
                                              *guard), name=model, parts=str(labelled), regions=[])
                for model in head.pop("models")}
     relations = json.loads(inputs["relations"].read_text()) if "relations" in inputs else None
-    entries = recessed(stood_square(entries, labelled, take, inputs), relations)
+    entries = recessed(stood_square(entries, labelled, take, inputs, built), relations)
     (out / "entries").mkdir(exist_ok=True)
     (out / "entries" / f"{take}.json").write_text(json.dumps(entries, indent=1))
     chunky = [dict(entry, stands=stands(labelled)) for entry in entries.values()]

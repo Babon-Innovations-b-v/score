@@ -69,8 +69,8 @@ def walked(mesh, face_label):
 
 def cleaned(mesh, face_label, count):
     """The labels smoothed over the surface (labels.smoothed_parts, hardly across a crease) and every island under
-    ISLAND_LEAST of the area that borders others joined to the label it borders most; a finish this would remove
-    entirely keeps its faces (kept_finishes)."""
+    ISLAND_LEAST of the area that borders others joined to the label it borders most; a finish this would remove,
+    or leave under ISLAND_LEAST of the area, keeps its faces (kept_finishes)."""
     import numpy as np
     import labels
     votes = np.zeros((len(face_label), count))
@@ -79,7 +79,7 @@ def cleaned(mesh, face_label, count):
     saved = labels.PART_CRUMB
     labels.PART_CRUMB = ISLAND_LEAST
     try:
-        return kept_finishes(face_label, labels.without_crumbs(mesh, smoothed))
+        return kept_finishes(face_label, labels.without_crumbs(mesh, smoothed), mesh.area_faces)
     finally:
         labels.PART_CRUMB = saved
 
@@ -145,13 +145,18 @@ def patchiness(mesh, face_label, part_of, finishes):
     return patchy.score(mesh, face_label, own, own)
 
 
-def kept_finishes(before, after):
-    """`after` with each finish it lost entirely given back its faces of `before`. Smoothing and crumbs see no
-    finish: a finish of many small islands (the cargo rack's white label plates, 0.9% of its area in 483 islands; the
-    outer hatch's black stripes and glass) went into its neighbours whole, so no part owned it and merged_islands,
-    whose own rule gathers such a finish into one part, never saw it (ship rooms, 2026-10-15)."""
+def kept_finishes(before, after, areas):
+    """`after` with each finish it lost given back its faces of `before`: one it lost entirely, or one left under
+    ISLAND_LEAST of the area (`areas`, each face's) and under what it had. Smoothing and crumbs see no finish: a
+    finish of many small islands (the cargo rack's white label plates, 0.9% of its area in 483 islands; the outer
+    hatch's black stripes and glass) went into its neighbours whole, so no part owned it and merged_islands, whose own
+    rule gathers such a finish into one part, never saw it (ship rooms, 2026-10-15); crumbs keep only loose bits, so
+    the engine room desk's paper label kept 2 faces of no area of its 0.16% and no part owned it (#36, 2026-10-30)."""
     import numpy as np
-    lost = np.setdiff1d(np.unique(before), np.unique(after))
+    count = int(max(before.max(), after.max())) + 1
+    had, left = (np.bincount(label, weights=areas, minlength=count) for label in (before, after))
+    shrunk = np.flatnonzero((had > 0) & (left < ISLAND_LEAST * areas.sum()) & (left < had))
+    lost = np.union1d(np.setdiff1d(np.unique(before), np.unique(after)), shrunk)
     return np.where(np.isin(before, lost), before, after)
 
 

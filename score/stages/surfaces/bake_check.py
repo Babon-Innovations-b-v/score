@@ -424,7 +424,8 @@ def check_step(inputs, out):
 def keeps_pose_of(model, entry, rows, inputs):
     """Why a baked model keeps the pose it was made in, or None: the guard list on its row (tumble.keeps_pose over
     tumble.take_row, as the bake reads it: a person, lying, leaning, hanging, no up), else what its bake recorded
-    (`stood`'s `kept`: a turn that could not stand it square as baked, undone, route_bake.squared_again)."""
+    (`stood`'s `kept`: a code build, which the bake alone knows by its take's code.json, route_bake.stood_square; or a
+    turn that could not stand it square as baked, undone, route_bake.squared_again)."""
     import tumble
     row = tumble.take_row(entry.get("parts", ""), model, rows) or {"id": model}
     return tumble.keeps_pose(row, tumble.rules_of(inputs), rows) or (entry.get("stood") or {}).get("kept")

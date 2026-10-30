@@ -198,8 +198,9 @@ def stands_on_feet(entry, inventory, rules_file, take=None):
     rules' hanging words in its id or name), not laid tilted on purpose (`leans`), and not a pile of ground debris
     (the rules' ground debris words: a cairn of stones). Every other row's take is left as made: the cockpit's flight
     stick set in its console and the campgrounds' cairn read as standing and failed "feet in one plane" on their
-    resting faces, the wreck's debris before them (2026-10-15). A word of a description is not a cable's or a cloth's
-    class: the garage's control cabinet, "cables running up from its top", stands and is levelled. The inventory is
+    resting faces, the wreck's debris before them (2026-10-15); nor a row the bake's guard list keeps (stands). A word
+    of a description is not a cable's or a cloth's class: the garage's control cabinet, described "cables running up
+    from its top", stands and is levelled. The inventory is
     the place's scene inventory: a designed place's hand-in, whose rows name their take (`prop:<take>`), else its
     old inventory, whose rows name the kind (`prop:<kind>`)."""
     return bool(standing_rows(entry, inventory, rules_file, take))
@@ -216,14 +217,13 @@ def standing_rows(entry, inventory, rules_file, take=None):
 
 def stands(row, rules_file, rows=()):
     """Whether a row stands on the floor or ground on feet the paint may level (stands_on_feet's terms); `rows`, its
-    inventory's, name what an `on:` anchor stands on."""
-    rules = json.loads(pathlib.Path(rules_file).read_text())
-    lying = set(rules["hanging"]) | {word for bedding in rules["may_bed"] if bedding["class"] == "ground debris"
-                                     for word in bedding["words"]}
-    return (not row.get("fixed") and not row.get("leans") and row.get("support") in (None, "floor")
-            and row.get("route") != "shell"
+    inventory's, name what an `on:` anchor stands on. A row the bake's guard list keeps in its pose (tumble.keeps_pose
+    over the resting rules: leaning, hanging, a person, no up) is left as made: old_station's limp cables, levelled,
+    went from outline 0.637 to 0.207 (#36, 2026-10-30)."""
+    import tumble
+    return (not row.get("fixed") and row.get("support") in (None, "floor") and row.get("route") != "shell"
             and (row.get("anchor", "") in ("floor", "ground", "") or on_floor(row, rows))
-            and not row_words(row) & lying)
+            and not tumble.keeps_pose(row, tumble.rules_of({"resting rules": rules_file}), rows))
 
 
 def on_floor(row, rows, seen=frozenset()):
@@ -276,12 +276,6 @@ def claimed_rows(take, inputs):
         found += [found_row for found_row in rows
                   if found_row["id"] == row and stands(found_row, inputs["resting rules"], rows)]
     return found
-
-
-def row_words(row):
-    """A row's id and name as a set of lower-case words (as tools/usd/triage.py words_of reads them)."""
-    text = f"{row.get('id', '')} {row.get('name', '')}".lower().replace("_", " ")
-    return set("".join(letter if letter.isalnum() else " " for letter in text).split())
 
 
 def levelled_feet(vertices, faces, tall=None):
@@ -462,6 +456,19 @@ def resting_base(points, faces, band, tolerance, most):
     return points, record
 
 
+def feet_rows(entry, inputs, take):
+    """(the rows the paint levels the take's feet by, the feet record it keeps when there are none): its place's rows
+    standing it (standing_rows) and the other places' that stand it by their claim (CLAIMED); none for a code build
+    (its take's code.json route "code", bake_job.code_built), which stands as its code made it (tumble.keeps_pose)."""
+    import bake_job
+    import tumble
+    if HOME in inputs and bake_job.code_built(take, inputs[HOME]):
+        return [], {"skipped": tumble.CODE_BUILD}
+    standing = standing_rows(entry, inputs.get(f"inventory {entry['place']}"), inputs["resting rules"], take)
+    standing += json.loads(inputs[CLAIMED].read_text()).get(take, []) if CLAIMED in inputs else []
+    return standing, {"skipped": "no floor or held row of its place lays its kind"}
+
+
 def paint_take(inputs, out, take, record, records):
     """One take painted from its part records (method_surfaces): each part's surface, the labelled folder and
     faces.npz, its report. The surfaces are the records' own (the scene palette offered them), named in the order the
@@ -492,9 +499,7 @@ def paint_take(inputs, out, take, record, records):
     face_labels = np.array([order.index(name) if name in order else -1 for name in names])[painted]
     moved = mesh.copy()
     moved.apply_transform(matrix)
-    levelled = {"skipped": "no floor or held row of its place lays its kind"}
-    standing = standing_rows(entry, inputs.get(f"inventory {entry['place']}"), inputs["resting rules"], take)
-    standing += json.loads(inputs[CLAIMED].read_text()).get(take, []) if CLAIMED in inputs else []
+    standing, levelled = feet_rows(entry, inputs, take)
     if standing:
         tall = max((row["size"][2] for row in standing if len(row.get("size") or ()) == 3), default=None)
         moved.vertices, levelled = levelled_feet(moved.vertices, moved.faces, tall)
