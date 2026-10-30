@@ -157,10 +157,11 @@ def profile(row):
 def build(row, alpha=None):
     """The row's model at its size, in a final take's frame (y up, the longer ground side along
     z: glb_file.squared; the inventory's size is wide, deep, tall), centred on the origin: along its mask's (`alpha`,
-    its cut's) centreline (`path_build`), or, with no mask, its profile swept straight along its longest side."""
+    its cut's) centreline (`path_build`), then turned in the picture's plane so its long axis follows its row
+    (`slanted` undone), or, with no mask, its profile swept straight along its longest side."""
     import trimesh
     if alpha is not None and alpha.any():
-        return path_build(row, alpha)
+        return path_build(row, alpha, axis_turn(row, alpha)).apply_transform(np.linalg.inv(slanted(row, alpha)))
     wide, deep, tall = (float(value) for value in row["size"])
     extents = np.array([min(wide, deep), tall, max(wide, deep)])
     along = int(np.argmax(extents))
@@ -254,10 +255,47 @@ def least_tube():
     return model_gate.THINNEST_LIMIT / model_gate.SOLID_SHARE
 
 
+def slant(alpha):
+    """The degrees a mask's long axis (second moments) rises from level in the picture, -90 to 90."""
+    down, across = np.nonzero(alpha)
+    down, across = down - down.mean(), across - across.mean()
+    return float(0.5 * np.degrees(np.arctan2(2 * (across * down).mean(), (across ** 2).mean() - (down ** 2).mean())))
+
+
+def axis_turn(row, alpha):
+    """The degrees (anticlockwise in the picture, as PIL turns) that lay a mask's long axis along its row: upright when
+    the row stands (its height its longest side) and its mask rises within 45 degrees of upright, else level. The
+    direction is the row's, the picture's slant its view's: a ceiling rail running away from the camera is drawn
+    steep, and built in the picture's slant it was laid 38 to 60 degrees off level and the docking airlock's
+    resting failed on 22 objects (round 32, 2026-10-30); a level box stays level, and a reading's box stood over a
+    run its mask shows lying is laid lying (the greenhouse's and the quarters' pipes, 2026-10-26)."""
+    turn = slant(pieces(alpha))
+    upright = float(row["size"][2]) >= max(float(value) for value in row["size"])
+    return turn - np.copysign(90.0, turn) if upright and abs(turn) >= 45.0 else turn
+
+
+def slanted(row, alpha):
+    """The turn (4 by 4, about the picture's normal x) from a build laid along its row to its picture's slant: its
+    mask `alpha`'s axis_turn in the build's frame (across the picture z, up it y)."""
+    angle = np.radians(axis_turn(row, alpha))
+    turn = np.eye(4)
+    turn[1:3, 1:3] = [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]
+    return turn
+
+
+def view(row, alpha):
+    """The turn (4 by 4) the likeness row sees a code build by: back into its picture's slant (`slanted`) and
+    leaned to face the look-down (`facing`), so its outline is held to its crop as the picture draws it while the
+    model keeps its row's pose."""
+    return facing(row) @ slanted(row, alpha)
+
+
 def facing(row):
     """The turn (4 by 4) leaning a build laid in the picture's plane (x its normal) back about z by the close-up's
     look-down (the outline's view, tools/props/closeup/check.py look_down), its top away from a camera on -x, so that
-    view sees the picture's own path square on: a plane stood upright and stretched by the look-down's cosine left
+    view sees the picture's own path square on; the likeness row's view of a code build only (`view`), never the
+    model's own pose, which is its row's (a post leaned 15 degrees stands on no feet): a plane stood
+    upright and stretched by the look-down's cosine left
     the view's keystone in it (the old station's cables, laid so, 0.42; leaned, 0.66), and one laid on the ground
     showed a level run squashed to the look-down's sine (0.068, 2026-10-28)."""
     with prop_data.tools("props/closeup", "props", "cloud"):
@@ -317,19 +355,21 @@ def fittings(laid, row, thick):
     return found
 
 
-def path_build(row, alpha):
+def path_build(row, alpha, turn=0.0):
     """The row's model along its mask's centreline (owner's ask, 2026-10-26: bent pipe networks, a sagging lantern
     string, a railing's posts and rails, a bundle of parallel cables were each built as one straight sweep and failed
     their outline): a ball at each point of the mask's skeleton as wide as the mask is there (`balls`: its distance to
     the mask's edge), the union of them one closed surface (`swelled`), so a sag stays a sag, an elbow a bend, a ladder
     its posts and rails, a band its band, a post its flared foot and a lamp post its head (a tube of one width along
     the centreline lost the airlock porch post's foot, 0.75 to 0.46, and the street lamp post's head, 0.61 to 0.494;
-    #36, 2026-10-30), laid in the picture's plane at one scale, the mask's longest reach the row's longest side and its
+    #36, 2026-10-30), laid in the picture's plane at one scale, the mask's longest reach (as it lies turned `turn`
+    degrees along its row, `axis_turn`) the row's longest side and its
     other reach the path's own, never a box side (a thin run's box is its thickness on its two short sides: a sagging
     string 8 by 0.01 by 0.01; a railing curving round a floor drawn from above shows its plan's depth as its picture's
     height: the greenhouse's held to its 1 m read 0.023, 2026-10-28); held at most the row's thinnest side deep
     through the picture's plane (a 5 m drape's box 1 m deep is no 1 m tube, a flat wall run of pipes no round one),
-    never under `least_tube`, and leaned to face the outline's look-down (`facing`); a rigid run's fittings
+    never under `least_tube`, in its row's pose (the likeness row sees it in its picture's, `view`); a rigid run's
+    fittings
     (`fittings`: elbows, tees, wall clamps on its traced runs) made in code on the same surface, its finish the finish
     route's like the rest."""
     from skimage.morphology import skeletonize
@@ -338,7 +378,9 @@ def path_build(row, alpha):
     sides = sorted(float(value) for value in row["size"])
     down, across = np.nonzero(kept)
     low = np.array([across.min(), down.min()], dtype=float)
-    reach = float(max(np.ptp(across), np.ptp(down)) + 1)
+    angle = np.radians(turn)  # the build turned along its row (build: inverse `slanted`), in pixels
+    reach = float(max(np.ptp(np.sin(angle) * down + np.cos(angle) * across),
+                      np.ptp(np.sin(angle) * across - np.cos(angle) * down)) + 1)
     scale = sides[2] / reach  # metres a pixel
     off, ball = balls(kept, skeleton, scale, reach)
     width = float(np.median(2 * ball[skeleton]))
@@ -348,7 +390,6 @@ def path_build(row, alpha):
                                for pair in fitted], width, scale)
     deep = max(sides[0], least_tube())
     mesh.apply_transform(np.diag([min(1.0, deep / max(float(np.ptp(mesh.vertices[:, 0])), 1e-9)), 1.0, 1.0, 1.0]))
-    mesh.apply_transform(facing(row))
     return mesh.apply_translation(-mesh.bounds.mean(0))
 
 
