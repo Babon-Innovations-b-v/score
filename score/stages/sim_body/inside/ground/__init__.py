@@ -1,9 +1,12 @@
 """The scene's ground as the sim body stands on it (pure numpy, the person's own frame, Y up): each point's ground (the
-lowest drawn triangle under it with HEADROOM free over it), its height over it, and each triangle's upward normal."""
+highest drawn triangle under it, at most REACH_UP over it, with HEADROOM free over it), its height over it, and each triangle's upward normal."""
 import numpy as np
 
 # Free height over a surface for a body to stand on it (metres): under less (a table top, a shelf) it is a block.
 HEADROOM = 1.0
+# How far over a point its ground may lie (metres): the cast's KNEE (score/stages/cast/measure.py; the test checks
+# they agree), so a body the cast stands on a deck stands on the deck, not on the floor under it.
+REACH_UP = 0.3
 
 
 def _crossings(points, ground):
@@ -33,18 +36,18 @@ def _crossings(points, ground):
 
 
 def standing(points, ground):
-    """Each point's ground: the lowest crossing with HEADROOM free over it, its height and its triangle (nan and -1
-    where none is)."""
+    """Each point's ground: the highest crossing at most REACH_UP over it with HEADROOM free over it, its height and
+    its triangle (nan and -1 where none is)."""
     which, heights, triangles = _crossings(points, ground)
     order = np.lexsort((heights, which))
     which, heights, triangles = which[order], heights[order], triangles[order]
     above = np.append(heights[1:], np.inf)
     above[np.append(which[1:] != which[:-1], True)] = np.inf  # the top crossing of each point has nothing over it
-    free = above - heights >= HEADROOM
+    free = (above - heights >= HEADROOM) & (heights <= points[which, 1] + REACH_UP)
     found, under = np.full(len(points), np.nan), np.full(len(points), -1)
     which, heights, triangles = which[free], heights[free], triangles[free]
-    first = np.unique(which, return_index=True)[1]  # the lowest standing crossing of each point
-    found[which[first]], under[which[first]] = heights[first], triangles[first]
+    top = which != np.append(which[1:], -1)  # the highest standing crossing of each point
+    found[which[top]], under[which[top]] = heights[top], triangles[top]
     return found, under
 
 
