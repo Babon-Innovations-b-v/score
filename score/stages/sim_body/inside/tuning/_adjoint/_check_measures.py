@@ -38,4 +38,5 @@ for column in range(len(pose)):
     for sign in (1, -1):
         moved = pose.copy(); moved[column] += sign * step
         nudged.append({kind: {key: value[0] for key, value in part.items()} for kind, part in plain(measures.measured(moved, outer)).items()})
-print("JSON" + json.dumps({"taped": plain(measures.measured(pose, outer)), "nudged": nudged, "step": step}))
+taped = plain(measures.measured(pose, outer))
+print("JSON" + json.dumps({"taped": taped, "nudged": nudged, "step": step, "passes": measures.passes}))
