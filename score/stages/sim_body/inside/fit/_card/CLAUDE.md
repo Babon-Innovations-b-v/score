@@ -81,7 +81,10 @@ before that.
   sums over sibling bodies ran in no fixed order, so two runs of one set ended 1.2e-4 mm apart in joints, 2026-10-29;
   `jac_dof` adds the same point back, the same Jacobian), then one launch of MuJoCo Warp's own `jac_dof` per world,
   site and dof; the
-  constants assigned to its `body_pos`/`site_pos` each call, float32, equal to the host's to 3.3e-7). On fit's toy
+  constants assigned to its `body_pos`/`site_pos` each call, float32, equal to the host's to 3.3e-7; MuJoCo Warp
+  reads both per world, `body_pos[worldid % body_pos.shape[0]]` in `smooth.py`'s kinematics and site kernels, so
+  level 2 across sets needs no per-world models: one model whose `body_pos`/`site_pos` hold a row per set x frame
+  world, checked in the installed mujoco_warp 2026-10-30, not yet built). On fit's toy
   (test, `tests/card_level2.py`) the host's equals central differences to 1.8e-10 of a column, the card's to 1e-5.
   Gate on heavy (host kinematics, 2026-10-29, build/4/gate.py): 12,333 rows x 1,483 unknowns, 283,149 nonzeros; the
   exact Jacobian equals scipy's 2-point to 8.0e-7 of a column (plan 1 %); level 2 with jac=exact against today's:
