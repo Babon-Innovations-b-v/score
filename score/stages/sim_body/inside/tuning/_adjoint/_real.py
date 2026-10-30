@@ -31,12 +31,13 @@ def set_up(table, weights, root, cases, saved):
 
 def soma_of(table, weights, root, cases, saved):
     """SOMA's side of the measures for the body `set_up` laid: (MyoFullBody's scales, SOMA's segments, every clip's
-    worlds (frames, segments, 4, 4) clip after clip in `targets`' order); run after `set_up`, so the sizing is cached."""
+    worlds (frames, segments, 4, 4) clip after clip in `targets`' order, SOMA's rig); run after `set_up`, so the sizing
+    is cached."""
     saved.restore()
     clips, rig, path, _ = _card_batch.laid_clips(root, cases, _case.prepared(table, weights, root, cases))
     job, person, _, _ = next(iter(clips.values()))
     _, scales = _card_batch.cached_sized(job, person, rig, path)
-    return scales, person["segments"], np.concatenate([np.asarray(clip[3]) for clip in clips.values()])
+    return scales, person["segments"], np.concatenate([np.asarray(clip[3]) for clip in clips.values()]), rig
 
 
 def joint_parts(clip, scales, segments, worlds):
@@ -55,6 +56,27 @@ def joint_parts(clip, scales, segments, worlds):
                             for frame in range(len(worlds))], worlds[:, segments.index(segment), :3, 3])
     return joints
 
+
+def skin_parts(clip, rig, segments, worlds):
+    """`TapedMeasures`' skins on `per_frame_model`: {scored region: (bone points per skin frame [[(link, local point in
+    the link frame)]], SOMA's posed skin per skin frame [(verts, faces)])}, as `fit/_card/_measure` measures them (every
+    EVERY-th frame of `worlds` taken as one clip, `fit/_skin.bone_meshes`' kept vertices, the hand's parts as "hand",
+    `posed_skins`' points), each kept vertex moved off its geom into its body's frame, the link shifted copy by copy."""
+    from scipy.spatial.transform import Rotation
+    from fit._card._measure import posed_skins, scored_labels
+    from fit._skin import EVERY, bone_meshes
+    mjm, bodies, frames = clip.mjm, clip.model.body_count, np.arange(0, len(worlds), EVERY)
+    links, locals_, bones = [], [], []
+    for geom, kept, label in bone_meshes(mjm):
+        start = mjm.mesh_vertadr[mjm.geom_dataid[geom]]
+        turn = Rotation.from_quat(mjm.geom_quat[geom], scalar_first=True).as_matrix()
+        locals_.append(mjm.mesh_vert[start + kept] @ turn.T + mjm.geom_pos[geom])
+        links += [clip.body[label]] * len(kept)
+        bones += [label] * len(kept)
+    links, locals_, labels = np.array(links), np.concatenate(locals_), scored_labels(bones)
+    skins = [(verts, rig["faces"]) for verts in posed_skins(rig, segments, worlds, frames)]
+    return {name: ([[(link + frame * bodies, local) for link, local in zip(links[labels == name], locals_[labels == name])]
+                    for frame in frames], skins) for name in sorted(set(labels))}
 
 
 def turn_groups(clip, segments, worlds):

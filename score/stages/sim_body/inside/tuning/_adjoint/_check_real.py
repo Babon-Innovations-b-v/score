@@ -6,7 +6,8 @@ largest |difference|), the per-frame model's check (`_real.per_frame_model` at t
 `frame_couplings` and `RootTurns`' full(reduced()), its body_q against the clip's own model's at each row: the
 largest |difference|), the joints' check (`TapedMeasures` on `_real.joint_parts` against
 `evaluation._measure.centre` in MuJoCo: the largest |difference| of the misses; the turn groups'
-degrees on `_real.turn_groups` against `fit/_card/_measure.turn_errors`: "turn most") and the seconds; saves rows.npz (rows, steps, per case) into <out root>."""
+degrees on `_real.turn_groups` against `fit/_card/_measure.turn_errors`: "turn most"; the bone points' depths outside
+the skin on `_real.skin_parts` against `fit/_card/_measure.outside_marks`: "skin most", m) and the seconds; saves rows.npz (rows, steps, per case) into <out root>."""
 import json
 import pathlib
 import shutil
@@ -106,11 +107,12 @@ def card_joints(clip, joints, scales, rows):
 
 began = time.time()
 from _measures import TapedMeasures  # noqa: E402
-scales, segments, worlds = _real.soma_of(str(out / "table.json"), str(out / "weights.json"), out, cases,
+scales, segments, worlds, rig = _real.soma_of(str(out / "table.json"), str(out / "weights.json"), out, cases,
                                          _card_batch.Saved())
 joints = _real.joint_parts(clip, scales, segments, worlds)
 groups = _real.turn_groups(clip, segments, worlds)
-taped_joints = TapedMeasures(sites, joints, __import__("model").TO_OWN, groups)
+skins = _real.skin_parts(clip, rig, segments, worlds)
+taped_joints = TapedMeasures(sites, joints, __import__("model").TO_OWN, groups, skins)
 taped_joints._evaluate(turns.full(turns.reduced()), offsets)
 mine = np.linalg.norm(taped_joints.differences.numpy().reshape(len(joints), len(rows), 3), axis=2)
 wanted = card_joints(clip, joints, scales, rows)
@@ -119,8 +121,17 @@ degrees = taped_joints.degrees.numpy().reshape(len(groups), len(rows))
 card_degrees = card.turn_errors(clip.mjm, card.Posed(clip.mjm, np.concatenate(
     [rows[:, :3], rows[:, [6, 3, 4, 5]], rows[:, 7:]], axis=1), {0}), worlds, segments)
 turned = np.array([card_degrees[name] for name in sorted(groups)])
+card_skins = card.Skins(rig, segments, worlds)
+card_data = card.Posed(clip.mjm, np.concatenate([rows[:, :3], rows[:, [6, 3, 4, 5]], rows[:, 7:]], axis=1),
+                       set(card_skins.frames.tolist()))
+card_depths = card.outside_marks(card_data, card_skins)[1]
+labels = card.scored_labels(card_data.bones)
+skin_wanted = np.concatenate([card_depths[:, labels == name].ravel() for name in sorted(skins)])
+skin_mine = taped_joints.skins.depths.numpy().astype(float)
 measures = {"joints": len(joints), "most": float(np.max(np.abs(mine - wanted))), "largest": float(wanted.max()),
             "groups": len(groups), "turn most": float(np.max(np.abs(degrees - turned))),
-            "turn largest": float(turned.max()), "seconds": time.time() - began}
+            "turn largest": float(turned.max()), "regions": len(skins),
+            "skin points": int(skin_mine.size), "skin most": float(np.max(np.abs(skin_mine - skin_wanted))),
+            "skin largest": float(skin_wanted.max()), "seconds": time.time() - began}
 print(json.dumps({"cases": found, "rows": int(rows.shape[0]), "seconds": seconds, "fk": fk, "taped": taped,
                   "measures": measures}))

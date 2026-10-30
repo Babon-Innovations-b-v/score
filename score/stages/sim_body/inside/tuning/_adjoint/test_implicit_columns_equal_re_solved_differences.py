@@ -21,7 +21,7 @@ without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pull
 projection (`along` the raw turn gradient) turns the root chart test red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red. In `_real.py`, `solved_rows`
 giving MuJoCo's order (no `newton_order`) turns the real body test red; `frame_couplings` zeroing
 the projection's polynomials turns its per-frame model check red; `bound_held` holding nothing (bound-held coordinates left in the pose) turns its refused check red (4.12e-3); `joint_parts`
-dropping the centres' scales turns its joints check red; `turn_groups` without the frozen table turns its turns check red.
+dropping the centres' scales turns its joints check red; `turn_groups` without the frozen table turns its turns check red; `skin_parts` without the geom's turn turns its skins check red (0.19 m).
 
 The taped test runs `_taped` (Newton eval_fk on a wp.Tape) in Newton's own Python on the card, a four-link chain with
 three weighted sites and two link-frame turn rows, once on every coordinate and once with the last a follower of the
@@ -323,3 +323,4 @@ def test_one_real_body_builds_and_its_rows_equal_the_card_solve(tmp_path):
     assert found["fk"]["most"] < 1e-4, found
     assert found["taped"]["refused"] == {}, found
     assert found["measures"]["most"] < 1e-4 and found["measures"]["turn most"] < 1e-2, found
+    assert found["measures"]["skin most"] < 1e-4, found
