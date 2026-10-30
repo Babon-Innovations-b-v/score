@@ -5,8 +5,8 @@ The gradient is J^T r of the Problem's rows (`jacobian`, the card's exact `_card
 untold entries and the bound-held ones pinned by `_bodies.Pinned`. Numpy only: the Problem and its Jacobian are given."""
 import numpy as np
 
-from score.stages.sim_body.inside.tuning._adjoint import Body
-from score.stages.sim_body.inside.tuning._adjoint._bodies import Pinned
+from . import Body
+from ._bodies import Pinned
 
 HELD = 1e-5  # an unknown this far from a finite bound is held there by the solve's active set
 

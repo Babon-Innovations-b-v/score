@@ -176,6 +176,17 @@ def level2_free(fitting):
     return [index for index, name in enumerate(fitting.marks) if name not in MARK_HELD and not name.startswith(END)]
 
 
+def level2_solved(fitting, turns, points, lengths):
+    """Level 2's solve on one body's sampled targets as `fit.constants_on` runs it (`card_path`'s start angles,
+    `card_jacobian`, `level2_free`), keeping what `constants_on` drops: (start path, constants vector, solved angles)."""
+    from fit import card_jacobian, card_path
+    from fit._constants import staged
+    path = card_path(fitting, turns, points, lengths)
+    constants, angles, _ = staged(fitting, path, turns, points, fitting.neutral(), level2_free(fitting),
+                                  card_jacobian(fitting, len(path)))
+    return path, constants, angles
+
+
 def problem_at(applied, folder, cases, saved, path, given):
     """Level 2's `problem_at` for `_level2.level2_body` on one real body: `applied(outer)` the set's (table rows,
     weights) at level 1's point (`tuning.applied` bound to its entries, starts, table and globals), written into

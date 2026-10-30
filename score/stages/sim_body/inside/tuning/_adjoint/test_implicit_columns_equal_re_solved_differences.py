@@ -17,7 +17,7 @@ unknowns' trust (`TapedSites._evaluate` not assigning `self.weights` when `trust
 skipping `self.centres.zero_()` (joint centres adding onto the last evaluation's) turns the taped measures test red.
 Building the bone points without `requires_grad` (`_Skins.points`: no skin depth row reaches the pose) turns it red.
 Cutting each seeded row from the first frame's block in place of its own (`_rows` with start 0) turns it red; `case_rows` laying a
-skin point's block at frame 0 (`rms_row` ignoring `point_frames`) turns it red.
+skin point's block at frame 0 (`rms_row` ignoring `point_frames`) turns it red. `_real.level2_solved` returning its start path in place of the solved angles (what `constants_on` drops) turns the real level 2 test red.
 In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
 without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pulled` skipping the normalisation's
 projection (`along` the raw turn gradient) turns the root chart test red; `RootTurns.pulled_rows` cutting each copy's fourth turn coordinate in place of pulling the row
@@ -543,3 +543,22 @@ def test_level_2_body_off_a_constants_first_problem_moves_its_constants_as_re_so
     re_solved = _adjoint.by_columns(lambda point: _constants_first_solved(point)[0][:2], outer, 1e-4)
     assert np.abs(re_solved).max() > 0.1
     assert np.abs(moved - re_solved).max() < 1e-4 * np.abs(re_solved).max()
+
+
+LEVEL2_STATIONARY = 1e-2  # level 2's pinned gradient at its solve over the one at its start (heavy_kimodo, 2026-10-30: 1.6e-3)
+
+
+def test_level_2_on_one_real_body_is_stationary_at_its_solve(tmp_path):
+    """`SCORE_ADJOINT_REAL` as above: level 2 solved on its sampled frames (`_real.level2_solved`, the angles kept),
+    `_level2.level2_body` on `_real.problem_at` at the solve, its pinned gradient far under the one at the start."""
+    python, named = _newton_python(), os.environ.get("SCORE_ADJOINT_REAL")
+    if python is None or not named:
+        pytest.skip("no Newton Python or no SCORE_ADJOINT_REAL")
+    given = json.loads(pathlib.Path(named).read_text())
+    ran = subprocess.run([str(python), "-B", str(pathlib.Path(__file__).parent / "_check_level2.py"),
+                          str(pathlib.Path(__file__).parent), given["set"], str(tmp_path),
+                          *(f"{case}={job}" for case, job in given["cases"].items())],
+                         capture_output=True, text=True, timeout=115)
+    assert ran.returncode == 0, ran.stderr[-2000:]
+    found = json.loads(ran.stdout.strip().splitlines()[-1])
+    assert found["solved most"] < LEVEL2_STATIONARY * found["start most"], found
