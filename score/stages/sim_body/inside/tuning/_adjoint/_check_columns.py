@@ -5,7 +5,7 @@ level 3 on `taped_sites(fitting=, constants=)` with placed(theta) = trusted_oute
 level 2 on `_real.problem_at` over every entry; the steps of `adjoint_rows` run one by one so each is timed: factor
 (`arrow_hessian` on both levels), solves (`schur_solve`) and taping (R_q, R_c rows; `products` and level 2's
 transposed mixed term). Prints one JSON line a step as it ends, then the result: the rows x columns block's shape, its
-largest entry and the seconds; the block is saved to <npz>."""
+largest entry and the seconds; the block, R_theta (direct) and the level-3 term alone (level3; block - level3 is level 2's) are saved to <npz>."""
 import json
 import pathlib
 import shutil
@@ -223,6 +223,6 @@ if any(given.startswith("--dtable=") for given in sys.argv):
         base.fitting, moves, lambda: level2.gradient(level2.inner, np.zeros(len(entries)))), lowered, dtable, 0.1))
     np.save(saved_to.with_suffix(".table2.npy"), tabled2)
     block -= tabled2
-np.savez(saved_to, block=block, direct=direct, entries=np.array([json.dumps(list(map(str, entry))) for entry in entries]))
+np.savez(saved_to, block=block, direct=direct, level3=both[:, :len(entries)], entries=np.array([json.dumps(list(map(str, entry))) for entry in entries]))
 print(json.dumps({"shape": list(block.shape), "largest": float(np.abs(block).max()),
                   "finite": bool(np.isfinite(block).all()), "seconds": seconds, "total": time.time() - began}))
