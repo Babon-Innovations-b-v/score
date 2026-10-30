@@ -114,8 +114,9 @@ before that.
   IKOptimizerLM instance's `_fk_two_pass` and `_compute_motion_subspace` with the same per-row read (Newton's own
   kernels, the place read by the row's set; an instance override, not a subclass, since Newton specialises the class
   per size): its analytic residuals and Jacobian equal each set's own model bit for bit (2026-10-30, the chain, a
-  position objective). Still to come: `_forward` per row, a refusal when sets' frozen, limited or reduction differ, and
-  `Clip` building set x frame rows.
+  position objective). `_forward.Forward(model, set_places, row_set)` does the same in float64 (rows read their set's
+  places; several sets with no row_set refused): equal to Forward on each set alone bit for bit (2026-10-30). Still
+  to come: a refusal when sets' frozen, limited or reduction differ, and `Clip` building set x frame rows.
 - One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
   the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the
