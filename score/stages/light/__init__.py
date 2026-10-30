@@ -37,7 +37,8 @@ holds, as three rows of the stage table.
                                    big is the layer's sky bodies
                    sky             an outdoor place's sky within SKY_GAP_MOST levels of its concept's sky colour,
                                    its blue to red within BLUE_TO_RED_WITHIN
-                   exposure        no view more black or blown out than its concept (BLACK_OVER, BLOWN_OVER)
+                   exposure        no view's surfaces more black or blown out than its concept (BLACK_OVER, BLOWN_OVER);
+                                   its sky, where the render met no surface, left to the sky check
                    stage_no_worse  the seed with the layer has no more placeholder or made-only faults than without
 
 The owner's plan for light is baked per-lamp layers mixed live (memory, project-sound-and-light-layers). This stage is
@@ -101,8 +102,9 @@ SKY_GAP_MOST = 20.0
 BLUE_TO_RED_WITHIN = 0.15
 # Black and blown out (#27, the owner's gate "every place lit with no black or blown areas", set 2026-10-20 before any
 # look it judges was rendered): a pixel under BLACK or over BLOWN in luminance, 0 to 1; a view fails when its share of
-# them passes its concept pictures' mean share by more than BLACK_OVER or BLOWN_OVER (a black sky over the Moon is
-# the concept's own).
+# them among its surface pixels passes its concept pictures' mean share by more than BLACK_OVER or BLOWN_OVER. Its sky,
+# where the render met no surface (light_passes `sky`), is the sky check's: the concepts are cutaways with no sky, and
+# the Moon's black sky through garage's doors read 9.4% black (2026-10-30, #36).
 BLACK = 4.0 / 255.0
 BLOWN = 251.0 / 255.0
 BLACK_OVER = 0.05
@@ -679,13 +681,21 @@ def fault_measures(place, out, passes_folder, inputs):
         found["bodies"] = body_measures(place, out, passes_folder, balls, sun_way(out))
     if needs.outdoor(record, None):
         found["sky"] = sky_measures(place, out)
-    found["exposure"] = exposure_measures(place, out)
+    found["exposure"] = exposure_measures(place, out, passes_folder)
     return found
 
 
-def extremes(luminance):
-    """The shares of a picture's pixels black (under BLACK) and blown out (over BLOWN)."""
-    return {"black": round(float((luminance < BLACK).mean()), 4), "blown": round(float((luminance > BLOWN).mean()), 4)}
+def extremes(luminance, sky=None):
+    """The shares of a picture's surface pixels (all but `sky`, where the render met none) black (under BLACK) and
+    blown out (over BLOWN); the whole picture where no surface is known."""
+    surface = luminance[~sky] if sky is not None and (~sky).any() else luminance
+    return {"black": round(float((surface < BLACK).mean()), 4), "blown": round(float((surface > BLOWN).mean()), 4)}
+
+
+def sky_of(passes_folder, place, view):
+    """A view's sky as its passes hold it (inside/light_passes.py `sky`), None from passes rendered before it."""
+    found = sorted(passes_folder.glob(f"passes/{place}-*/{view}-passes.npz"))
+    return np.load(found[0]).get("sky") if found else None
 
 
 def picture_luminance(path):
@@ -693,12 +703,13 @@ def picture_luminance(path):
     return rgb @ np.array([0.2126, 0.7152, 0.0722])
 
 
-def exposure_measures(place, out):
-    """Each view's black and blown shares at the measured strengths, and its concept pictures' mean."""
+def exposure_measures(place, out, passes_folder):
+    """Each view's black and blown shares of its surfaces at the measured strengths (its sky is the sky check's: the
+    Moon's black sky through garage's doors read 9.4% black, 2026-10-30), and its concept pictures' mean."""
     concepts = [extremes(picture_luminance(path)) for path in concept_pictures(place)]
     concept = {key: round(float(np.mean([found[key] for found in concepts])), 4) for key in ("black", "blown")} \
         if concepts else None
-    return {"concept": concept, "views": {view: extremes(picture_luminance(path))
+    return {"concept": concept, "views": {view: extremes(picture_luminance(path), sky_of(passes_folder, place, view))
                                           for view, path in sorted(rendered(out, place).items())}}
 
 
