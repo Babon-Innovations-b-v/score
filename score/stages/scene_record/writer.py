@@ -73,6 +73,10 @@ RAMP_STEP = 0.05
 # A view stands this far inside its doorway (every view sees far.VIEW_FOV wide).
 VIEW_IN = 1.0
 AIM_HEIGHT = 1.0
+# A view looking within this many degrees of straight up or down has no up of the world's (its picture's sideways
+# is their cross product: round 33's spot-1 at shiplock looked straight down and every measure was NaN), so it is
+# given the floor's long axis as its up (`upright`).
+STEEP = 10.0
 # What a door may lead to that is no place.
 NOT_PLACES = ("outside", "sealed")
 # The routes whose rows' models the record lays at their plan items (prepare's groups.ROUTES): people are the cast's.
@@ -398,7 +402,17 @@ def views(plan, eye_height, ground=None):
                       "aim": [round(aim[0], 3), round(aim_level + AIM_HEIGHT, 3), round(aim[1], 3)],
                       "fov": far.VIEW_FOV, "from": f"plan standing spot {number}, looking to " +
                                               (f"plan item {spot['looks_at']!r}" if spot["looks_at"] else "the middle")})
-    return found
+    return [upright(view, plan["floor"]) for view in found]
+
+
+def upright(view, floor):
+    """The view, with an `up` along the floor's long axis (x when the floor is as wide as it is deep) when it looks
+    within STEEP of straight up or down; else as it is, its up the world's."""
+    look = np.subtract(view["aim"], view["eye"], dtype=float)
+    if abs(look[1]) < np.linalg.norm(look) * math.cos(math.radians(STEEP)):
+        return view
+    (low_x, low_z), (high_x, high_z) = floor
+    return dict(view, up=[1.0, 0.0, 0.0] if high_x - low_x >= high_z - low_z else [0.0, 0.0, 1.0])
 
 
 def spot_ground(spot, floor_height, ground):

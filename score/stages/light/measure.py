@@ -38,6 +38,8 @@ def where(view, size, point):
     eye, aim, up = (np.asarray(view[key], dtype=np.float64) for key in ("eye", "aim", "up"))
     forward = (aim - eye) / np.linalg.norm(aim - eye)
     right = np.cross(forward, up)
+    if np.linalg.norm(right) < 1e-6 * np.linalg.norm(up):
+        raise ValueError(f"view {view.get('name')!r} looks along its own up {up.tolist()}: it has no sideways")
     right /= np.linalg.norm(right)
     upward = np.cross(right, forward)
     offset = np.asarray(point, dtype=np.float64) - eye
