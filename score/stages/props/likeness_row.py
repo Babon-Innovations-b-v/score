@@ -222,18 +222,36 @@ def straight_cut(path, folder, row):
     return out
 
 
+def shown_look_down(target, size):
+    """The look-down a close-up of a row of `size` shows, read off its object `target`'s height:width on the close-up
+    check's own view (tools/props/closeup/check.py expected_proportion, turned TURN_DEGREES), to the half degree."""
+    with prop_data.tools("props/closeup", "props"):
+        import check
+    rows, columns = np.where(target)
+    seen = (rows.max() - rows.min() + 1) / (columns.max() - columns.min() + 1)
+    downs = np.arange(0.0, check.TOP_DOWN_DEGREES + 0.5, 0.5)
+    return float(downs[np.argmin([abs(np.log(check.expected_proportion(size, down) / seen)) for down in downs])])
+
+
 def whole_best_way(model, closeup, size):
     """likeness.best_way with both outlines whole, holes filled, as pixal_cut fills the close-up's: an open frame's
     model is otherwise held by its bars to its close-up's filled outline (engineroom's railing 0.339, filled 0.864).
+    A row that lies flat is held at the better of its stated look-down (straight above) and the one its close-up shows
+    (shown_look_down): the picture model draws some from three quarters anyway (wreck's open metal ring, a circle from
+    above against its close-up's ellipse, 0.128), and that angle is read off the close-up, never searched per model.
     Here, not in likeness.best_way: likeness.py is in the code of the paid body rows (#36 outline study)."""
     from scipy import ndimage
+    with prop_data.tools("props/closeup", "props"):
+        import check
     points, triangles = likeness.gltf_mesh(model)
     target = ndimage.binary_fill_holes(likeness.closeup_object(closeup))
-    ring, down = likeness.candidate(), likeness.look_down(size)
-    ways = [round(ring.outline(ndimage.binary_fill_holes(likeness.silhouette(points, triangles, step, down)), target), 4)
-            for step in range(ring.YAWS)]
-    best = int(np.argmax(ways))
-    return {"way": best, "look_down": down, "outline": ways[best], "ways": ways}
+    ring, stated = likeness.candidate(), likeness.look_down(size)
+    downs = [stated, shown_look_down(target, size)] if size and check.lies_flat(size) else [stated]
+    ways = {down: [round(ring.outline(ndimage.binary_fill_holes(likeness.silhouette(points, triangles, step, down)),
+                                      target), 4) for step in range(ring.YAWS)] for down in downs}
+    down = max(downs, key=lambda angle: max(ways[angle]))
+    best = int(np.argmax(ways[down]))
+    return {"way": best, "look_down": down, "outline": ways[down][best], "ways": ways[down]}
 
 
 def textured_view(path, way, down):
