@@ -44,3 +44,39 @@ def the_rows_equal_each_set_alone():
         if not np.array_equal(batched[rows], alone_q.numpy()):
             problems.append(f"set {index}: off by {np.abs(batched[rows] - alone_q.numpy()).max():.3g}")
     return problems
+
+
+def the_rowwise_optimizer_equals_each_set_alone():
+    """Newton's analytic residuals and Jacobian with _per_row.rowwise over rows = set x frame against each set's own
+    model, bit for bit; problems as text."""
+    import numpy as np
+    import warp as wp
+    from newton import ik
+    from card_chain import LINKS, chain_model, residuals_and_jacobian
+    from fit._card._per_row import rowwise
+    model = chain_model()
+    places = set_places(model)
+    generator = np.random.default_rng(13)
+    poses = generator.uniform(-1.0, 1.0, size=(SETS * FRAMES, model.joint_coord_count))
+    targets = generator.normal(0.0, 0.5, size=(SETS * FRAMES, 3)).astype(np.float32)
+
+    def objectives(rows):
+        return [ik.IKObjectivePosition(LINKS - 1, wp.vec3(0.0, 0.0, 0.1),
+                                       wp.array(targets[rows], dtype=wp.vec3, device="cuda:0"))]
+    solver = ik.IKSolver(model, SETS * FRAMES, objectives(slice(None)), optimizer="lm",
+                         jacobian_mode=ik.IKJacobianType.ANALYTIC)._impl
+    rowwise(solver, wp.array(places, dtype=wp.transform, device="cuda:0"),
+            wp.array(np.repeat(np.arange(SETS, dtype=np.int32), FRAMES), dtype=wp.int32, device="cuda:0"))
+    context = solver._ctx_solver(wp.array(poses.astype("float32"), dtype=wp.float32, device="cuda:0"))
+    solver._residuals_analytic(context)
+    residuals, jacobian = context.residuals.numpy().copy(), solver._jacobian_at(context).numpy().copy()
+    problems = []
+    for index in range(SETS):
+        model.joint_X_p.assign(places[index])
+        rows = slice(index * FRAMES, (index + 1) * FRAMES)
+        alone_residuals, alone_jacobian = residuals_and_jacobian(model, poses[rows], objectives(rows))
+        for name, batched, alone in (("residuals", residuals[rows], alone_residuals),
+                                     ("jacobian", jacobian[rows], alone_jacobian)):
+            if not np.array_equal(batched, alone):
+                problems.append(f"set {index} {name}: off by {np.abs(batched - alone).max():.3g}")
+    return problems
