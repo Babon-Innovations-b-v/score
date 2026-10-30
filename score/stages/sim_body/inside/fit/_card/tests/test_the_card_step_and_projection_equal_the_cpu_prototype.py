@@ -75,6 +75,10 @@ Breaks (each applied once, seen red, reverted):
   and depths off the CPU's (79.46 against 79.91 % outside), one posed clip, not 2.
 - (2026-10-29) _solve's `CYCLE_STEP = 1e-5` made `0.0`: a seeded toy row cycles at its float32 pose's floor and never
   stops (NotConverged).
+- (2026-10-30) _sampled.path_across' restart `index in firsts` made `index == 0`: a second recording chained on
+  from the first's last frame, its start never asked (card_sets).
+- (2026-10-30) _sampled.path_across reading set 0's points for every set: sets 1 and 2 18.96 and 76.37 deg off
+  their clips chained alone (card_sets).
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/_card/tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py
 """
@@ -94,7 +98,7 @@ from card_level2 import (the_batched_inverses_equal_each_row, the_frames_per_wor
                          the_level2_jacobian_equals_its_differences,
                          the_level2_solve_with_the_exact_jacobian_equals_differences)
 from card_across import the_sets_solved_together_equal_each_set_alone  # noqa: E402
-from card_sets import the_sets_batch_equals_each_clip_alone  # noqa: E402
+from card_sets import the_sampled_path_across_sets_equals_each_set_chained, the_sets_batch_equals_each_clip_alone  # noqa: E402
 from card_rows import (the_float64_frames_equal_each_set_alone, the_rows_equal_each_set_alone,  # noqa: E402
                        the_rowwise_optimizer_equals_each_set_alone)
 from card_step import (BOUNDED, COUPLINGS, FROZEN, ROWS, fixture, prototype_projected,  # noqa: E402
@@ -254,7 +258,7 @@ def the_next_iteration_from_its_seeds_equals_mink():
 
 CHECKS = (the_rows_equal_each_set_alone, the_rowwise_optimizer_equals_each_set_alone,
           the_float64_frames_equal_each_set_alone, the_sets_solved_together_equal_each_set_alone,
-          the_sets_batch_equals_each_clip_alone,
+          the_sets_batch_equals_each_clip_alone, the_sampled_path_across_sets_equals_each_set_chained,
           the_frames_per_world_equal_each_set_alone, the_batched_inverses_equal_each_row,
           the_level2_jacobian_equals_its_differences, the_level2_solve_with_the_exact_jacobian_equals_differences,
           the_measures_equal_the_cpu_measure, the_skins_posed_once_follow_each_clip, the_step_equals_the_prototype, the_projection_equals_the_prototype,
