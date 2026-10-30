@@ -28,7 +28,8 @@ settle stages hash it.
     fitted(stage, place, entries, laid, cuts)   each laid entry's fit applied on the stage; the fits [{name, ...}]
     off(low, high, on, holders)   metres an object as laid stands off where its relation puts it
     held_faults(record, laid)     [(object, what is wrong, metres or None)]: the assembly's `held` gate, one left
-                                  inside a deck or wall its relation does not lay it in (an opening's door) too
+                                  inside a deck or wall its relation does not lay it in (an opening's door, a
+                                  passage against its wall: passes) too
     short_doors(record, laid)     [(object, what is wrong, metres)]: doors short of their openings, named, not failed
 """
 import math
@@ -458,6 +459,8 @@ WALL_THICKEST = 1.0
 OUT_MOST = 1.0
 # The rows that climb into the level they reach (a stair at the plan's stair, a ladder): never moved out of its deck.
 CLIMBING = ("stair", "stairs", "staircase", "steps", "ladder")
+# The rows that join their place through the wall they are laid against (review/holders PASSAGE_WORDS).
+PASSING = ("tunnel", "tunnels", "tube", "tubes", "corridor", "corridors")
 
 
 def statics(built):
@@ -470,6 +473,14 @@ def statics(built):
 def climbs(entry):
     """Whether an entry's row climbs into the level it reaches (CLIMBING: a stair, a ladder)."""
     return bool(set(str(entry.get("row") or "").split("_")) & set(CLIMBING))
+
+
+def passes(entry):
+    """Whether an entry is a passage laid against its wall (PASSING: a tunnel, a tube), which meets its place from
+    outside through that wall (garage's glass tunnel, habitat's corridor tube at its tube door, workshop's tunnels):
+    in it by its relation, as a door is in its opening."""
+    return bool(entry.get("on")) and entry["on"]["how"] == "wall" and bool(
+        set(str(entry.get("row") or "").split("_")) & set(PASSING))
 
 
 def depths(low, high, box):
@@ -567,7 +578,8 @@ def held_faults(record, laid):
         if not held_in(on) and not climbs(entry):
             low, high = (np.asarray(end, float) for end in boxes[entry["name"]])
             faults += [(entry["name"], f"laid {depth:.2f} m inside {static}, nothing holding it there", depth)
-                       for static, depth in inside_of(low, high, named_walls)]
+                       for static, depth in inside_of(low, high, named_walls)
+                       if not (passes(entry) and static.split("_")[0] == "wall")]
         if entry.get("fills") and not (on and on["how"] in ("in", "face", "within", "top")):
             faults.append((entry["name"], "a door or window in no opening and on no holder", None))
         for mark in ("unheld", "unplaced"):
