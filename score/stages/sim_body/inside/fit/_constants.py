@@ -19,6 +19,8 @@ from scipy.spatial.transform import Rotation
 
 from fit._frames import weights
 
+SETTLED_FTOL = 1e-12  # scipy's 1e-8 stopped level 2 on the cost's change before it settled (1.33 mm off, #70)
+SETTLED_GTOL = 1e-10
 MARK_MOST = 0.03  # metres a marker may move on its body off its landmark's link
 INSIDE = 1e-9  # a start this far inside its bounds (least_squares wants a start within them)
 TOLD = 1e-8  # an inside joint's column this far, relative, from the others' span is one the data cannot tell (tall,
@@ -198,7 +200,8 @@ def staged(fitting, path, turns, points, given, free=(), jacobian=None):
     exact = {"jac": lambda unknowns: jacobian(problem, whole(unknowns))[:, keep]} if jacobian is not None else {
         "jac_sparsity": problem.sparsity().tocsc()[:, keep]}
     found = least_squares(lambda unknowns: problem.residuals(whole(unknowns)), begin[keep],
-                          bounds=(low[keep], high[keep]), x_scale="jac", method="trf", tr_solver="lsmr", **exact)
+                          bounds=(low[keep], high[keep]), x_scale="jac", method="trf", tr_solver="lsmr",
+                          ftol=SETTLED_FTOL, xtol=SETTLED_FTOL, gtol=SETTLED_GTOL, **exact)
     found.x = whole(found.x)
     constants = problem.constants(found.x)
     fitting.apply(constants)
