@@ -158,50 +158,85 @@
    "concept": "5393e7f9f2a2cf323b56d2ca574b840a9266f97f58b7af27e509c3584f937422",
    "spots": [
     [
-     3.316,
+     -1.075,
      0.0,
-     -7.231
+     0.395
     ],
     [
-     1.907,
+     -2.539,
      0.0,
-     -4.981
+     1.651
     ],
     [
-     3.435,
+     -2.959,
      0.0,
-     -3.916
+     2.308
     ],
     [
-     9.227,
+     3.548,
      0.0,
-     -14.015
+     -3.347
     ],
     [
-     12.58,
+     2.965,
      0.0,
-     -12.264
+     -2.246
     ],
     [
-     12.055,
+     2.114,
      0.0,
-     -10.893
+     -1.471
     ],
     [
-     0.615,
+     -0.228,
      0.0,
-     -4.068
+     -1.334
     ],
     [
-     9.752,
+     -0.957,
      0.0,
-     -13.016
+     -0.331
+    ],
+    [
+     -0.094,
+     0.0,
+     -0.228
+    ],
+    [
+     2.886,
+     0.0,
+     -4.642
+    ],
+    [
+     4.769,
+     0.0,
+     -4.617
+    ],
+    [
+     4.508,
+     0.0,
+     -4.062
+    ],
+    [
+     -1.96,
+     0.0,
+     -3.919
+    ],
+    [
+     -1.96,
+     0.0,
+     0.0
+    ],
+    [
+     5.487,
+     0.0,
+     -5.683
     ]
    ],
    "middle": [
-    4.798,
     0.0,
-    -8.202
+    0.0,
+    0.0
    ],
    "rows": {
     "astronaut_1": {
@@ -944,7 +979,38 @@
     0.0,
     0.0
    ],
-   "rows": {}
+   "rows": {
+    "person": {
+     "name": "person in spacesuit",
+     "noun": "person",
+     "count": 3,
+     "size": [
+      0.5,
+      0.5,
+      1.8
+     ],
+     "where": "at desks and bottom right",
+     "share": 0.2155,
+     "looks": [
+      "person_spacesuit-made",
+      "person_spacesuit-made",
+      "person_spacesuit-made"
+     ],
+     "dress": {
+      "words": "person in spacesuit",
+      "named": [],
+      "torso_lab": [
+       39.6,
+       3.1,
+       4.3
+      ],
+      "figures": 3,
+      "surface": null,
+      "de": null,
+      "why": "the words name no library fabric of the people place: the look's own paint"
+     }
+    }
+   }
   },
   "old_station": {
    "concept": "1003bf34858d5a995323ab433bcecbaa35ef7ee9ce45dff91e8fe7f7f4077ef2",
@@ -1141,8 +1207,8 @@
      "noun": "people",
      "count": 1,
      "size": [
-      14.842,
-      14.842,
+      0.5,
+      0.3,
       1.8
      ],
      "where": "everywhere",
@@ -1191,7 +1257,64 @@
     0.0,
     -3.971
    ],
-   "rows": {}
+   "rows": {
+    "person_man": {
+     "name": "man walking up stairs",
+     "noun": "man",
+     "count": 1,
+     "size": [
+      0.5,
+      0.3,
+      1.8
+     ],
+     "where": "middle flight of stairs",
+     "share": 0.1328,
+     "looks": [
+      "man_stair-made"
+     ],
+     "dress": {
+      "words": "man walking up stairs",
+      "named": [],
+      "torso_lab": [
+       28.6,
+       2.4,
+       4.3
+      ],
+      "figures": 1,
+      "surface": null,
+      "de": null,
+      "why": "the words name no library fabric of the people place: the look's own paint"
+     }
+    },
+    "person_woman": {
+     "name": "woman walking down stairs",
+     "noun": "woman",
+     "count": 1,
+     "size": [
+      0.5,
+      0.3,
+      1.7
+     ],
+     "where": "bottom flight of stairs",
+     "share": 0.1211,
+     "looks": [
+      "woman_stair-made"
+     ],
+     "dress": {
+      "words": "woman walking down stairs",
+      "named": [],
+      "torso_lab": [
+       32.8,
+       15.5,
+       2.7
+      ],
+      "figures": 1,
+      "surface": null,
+      "de": null,
+      "why": "the words name no library fabric of the people place: the look's own paint"
+     }
+    }
+   }
   },
   "storage": {
    "concept": "d36b2c57cac96ed1f57c42e22a86ad6499ce19052e98c92cf622f67745d593ae",
@@ -1223,39 +1346,44 @@
    "concept": "474a6c69493d0b519dd1997fbb30c28028a6988667f49abdae4c66e7d1cdc44c",
    "spots": [
     [
-     10.49,
+     10.348,
      0.0,
-     1.693
+     5.8
     ],
     [
-     10.989,
+     8.221,
      0.0,
-     4.592
+     4.662
     ],
     [
-     8.0,
+     9.535,
      0.0,
-     3.3
+     2.686
     ],
     [
-     8.5,
+     8.84,
      0.0,
-     0.3
+     3.714
     ],
     [
-     10.0,
+     9.146,
      0.0,
-     -1.7
+     3.284
     ],
     [
-     10.5,
+     10.595,
      0.0,
-     6.3
+     5.173
     ],
     [
-     11.0,
+     10.447,
      0.0,
-     5.3
+     7.117
+    ],
+    [
+     8.507,
+     0.0,
+     3.266
     ],
     [
      10.19,
