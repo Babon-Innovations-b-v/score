@@ -2,7 +2,9 @@
 (at most VERTS a mesh) tested against SOMA's skin posed on that frame (linear blend, as SOMA skins it) by the
 generalised winding number (inside at 0.5 or more: warp's BVH winding query on the CPU, the rule main's harness
 measures with), the share outside kept per region (REGIONS, the hand's parts (HAND) one region). The stage's record
-and level 1's score (evaluation._measure) both measure through this one module. Nothing here moves SOMA."""
+and level 1's score (evaluation._measure) both measure through this one module. Level 1's least squares reads the
+depth outside instead (`marks_kernel`: each point's distance to the skin's closest point when outside, 0 inside), smooth
+where the share is a step (#70, 2026-10-30): the share stays the judged measure. Nothing here moves SOMA."""
 import mujoco
 import numpy as np
 import warp
@@ -23,9 +25,15 @@ warp.config.quiet = True
 
 
 @warp.kernel
-def _signs(mesh: warp.uint64, points: warp.array(dtype=warp.vec3), out: warp.array(dtype=float)):
-    index = warp.tid()
-    out[index] = warp.mesh_query_point_sign_winding_number(mesh, points[index], 1.0e6, 2.0, 0.5).sign
+def marks_kernel(meshes: warp.array(dtype=warp.uint64), points: warp.array2d(dtype=warp.vec3),
+           signs: warp.array2d(dtype=float), depths: warp.array2d(dtype=float)):
+    """Per (skin frame, point): the winding sign (outside at 0 or more) and the depth outside (m, 0 inside); the card's
+    measure launches this same kernel."""
+    shot, point = warp.tid()
+    found = warp.mesh_query_point_sign_winding_number(meshes[shot], points[shot, point], 1.0e6, 2.0, 0.5)
+    closest = warp.mesh_eval_position(meshes[shot], found.face, found.u, found.v)
+    signs[shot, point] = found.sign
+    depths[shot, point] = warp.where(found.sign >= 0.0, warp.length(points[shot, point] - closest), 0.0)
 
 
 def region(body):
@@ -71,14 +79,26 @@ def skin(rig, segments, world):
     return np.einsum("vs,vsi->vi", weights, moved)
 
 
-def outside(points, verts, faces):
-    """Whether each point lies outside the closed mesh (verts, faces) by the winding number."""
+def marks(points, verts, faces):
+    """(whether each point lies outside the closed mesh (verts, faces) by the winding number, its depth outside in m)."""
     mesh = warp.Mesh(points=warp.array(np.asarray(verts, dtype=np.float32), dtype=warp.vec3, device="cpu"),
                      indices=warp.array(np.asarray(faces, dtype=np.int32).ravel(), dtype=int, device="cpu"))
-    out = warp.zeros(len(points), dtype=float, device="cpu")
-    warp.launch(_signs, dim=len(points), device="cpu",
-                inputs=[mesh.id, warp.array(np.asarray(points, dtype=np.float32), dtype=warp.vec3, device="cpu"), out])
-    return out.numpy() >= 0
+    signs, depths = (warp.zeros((1, len(points)), dtype=float, device="cpu") for _ in range(2))
+    warp.launch(marks_kernel, dim=signs.shape, device="cpu",
+                inputs=[warp.array([mesh.id], dtype=warp.uint64, device="cpu"),
+                        warp.array(np.asarray(points, dtype=np.float32)[None], dtype=warp.vec3, device="cpu"),
+                        signs, depths])
+    return signs.numpy()[0] >= 0, depths.numpy()[0].astype(float)
+
+
+def depth_mm(depths):
+    """Level 1's skin residual of one region: the root mean square of its points' depths outside (m given, mm out)."""
+    return 1000 * float(np.sqrt(np.mean(np.square(depths))))
+
+
+def outside(points, verts, faces):
+    """Whether each point lies outside the closed mesh (verts, faces) by the winding number."""
+    return marks(points, verts, faces)[0]
 
 
 def bones_outside(model, path, worlds, segments, rig):
