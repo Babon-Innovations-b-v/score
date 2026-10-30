@@ -35,6 +35,10 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - light.drawn_count: the sky's prims counted (the drawn test, 2026-10-29).
 - passes.source: `grounded.take_bakes(...)` dropped, or `record.take_ground(...)` dropped (the laid test, 2026-10-29).
 - passes.device_for: `need > card_gb * 2**30` -> `False` (the card test, 2026-10-29).
+- layer.write_fill: the fill's height from anywhere but the record's ceiling, e.g. the stage's bound (the fill test,
+  2026-10-30).
+- light.strengths: `mix.pinned(scale) or` dropped; light.outside_shell: always False; light.one_spot: every lamp its
+  own (the sun-swept test, 2026-10-30).
 """
 import json
 import math
@@ -414,13 +418,51 @@ def test_the_sweep_finds_the_lamps_scale_turns_a_blown_lamp_down_and_names_an_un
     target = float(toned_look(rest + 2.0 * lamp).mean())
     assert abs(np.log2(mix.sweep(views, ["lamp_0"], target) / 2.0)) <= 0.25  # the curve past what was rendered
     assert mix.sweep(views, [], target) == 1.0
-    assert mix.lamp_faults(mix.lamp_measures(views, {}, "lamp_1"), ["v"]) == "unlit"
-    assert mix.lamp_faults(mix.lamp_measures(views, {}, "lamp_1"), []) == "unseen"
+    assert mix.lamp_faults(mix.lamp_measures(views, {}, ["lamp_1"]), ["v"]) == "unlit"
+    assert mix.lamp_faults(mix.lamp_measures(views, {}, ["lamp_1"]), []) == "unseen"
     bright = {"combined": rest + 50.0 * lamp, "lamp_0": 50.0 * lamp}
     glaring = {"v": (bright, mix.tone_curve(bright["combined"], np.minimum(bright["combined"], 1.0)))}
-    assert mix.lamp_faults(mix.lamp_measures(glaring, {}, "lamp_0"), ["v"]) == "blown"
-    scale, measures = mix.turned_down(glaring, {}, "lamp_0")
+    assert mix.lamp_faults(mix.lamp_measures(glaring, {}, ["lamp_0"]), ["v"]) == "blown"
+    scale, measures = mix.turned_down(glaring, {}, ["lamp_0"])
     assert scale < 1.0 and mix.lamp_faults(measures, ["v"]) is None, (scale, measures)
+
+
+def test_the_sun_is_swept_when_the_lamps_stop_at_their_floor_and_lamps_at_one_spot_or_outside_are_judged_so(
+        tmp_path, monkeypatch):
+    """Faults of 2026-10-30 (#36): airlock's lamps stopped at the sweep's floor while the sun (and fill) carried it
+    x1.44 over its concept, never swept since x1.44 is within; engineroom's two wall-panel lamps on one spot each gave
+    half the light where they were it, so neither could read blown out; airlock's roof beacon over its dome read
+    unlit from inside."""
+    ramp = np.tile(np.linspace(0.0, 4.0, 40)[:, None], (1, 60))
+    glare = np.where(np.arange(60) < 1, 2000.0 * ramp, 0.0)  # a small glare: the place within x1.5 at the floor
+    held = {"lamp_0": glare, "lamp_1": glare, "lamp_2": np.zeros((40, 60)),
+            "lamp_3": np.tile(np.linspace(0.05, 0.55, 60), (40, 1))}
+    held["combined"] = sum(held.values())
+    job = tmp_path / "passes/passes/p-0"
+    job.mkdir(parents=True)
+    (job / "passes.json").write_text(json.dumps({"groups": {"lamp_0": "/p/Lights/light_1", "lamp_1": "/p/Lights/light_2",
+                                                            "lamp_2": "/p/Lights/beacon", "lamp_3": "/p/Lights/sky_sun"}}))
+    np.savez(job / "v-passes.npz", **{name: values.astype(np.float16) for name, values in held.items()})
+    look = np.repeat(np.repeat(np.round(toned_look(held["combined"]) * 255) / 255, 2, axis=0), 2, axis=1)
+    Image.fromarray((np.repeat(look[..., None], 3, axis=2) * 255).astype(np.uint8)).save(job / "v-look.png")
+    (tmp_path / "layer").mkdir()
+    (tmp_path / "layer" / passes.VIEWS).write_text(json.dumps({"size": [120, 80], "views": [
+        {"name": "v", "eye": [0.0, 1.6, 5.0], "aim": [0.0, 1.6, 0.0], "up": [0.0, 1.0, 0.0], "fov": 70.0}]}))
+    lamps = [{"path": "/p/Lights/light_1", "spot": [1.0, 2.0, 0.0], "shaft": False},
+             {"path": "/p/Lights/light_2", "spot": [1.0, 2.0, 0.0], "shaft": False},
+             {"path": "/p/Lights/beacon", "spot": [0.0, 3.2, 0.0], "shaft": False},
+             {"path": "/p/Lights/sky_sun", "spot": None, "shaft": False, "sun": True}]
+    record = {"inside": True, "floor": [[-3.0, -3.0], [3.0, 3.0]], "ceiling": 3.0}
+    monkeypatch.setattr(light, "concept_brightness", lambda place: float(toned_look(np.full((40, 60), 0.2)).mean()))
+    assert mix.pinned(float(mix.SCALES[0])) and mix.pinned(float(mix.SCALES[-1])) and not mix.pinned(1.0)
+    scales, found = light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", record)
+    assert found["swept_scale"] == mix.SCALES[0] and found["sun_scale"] < 1.0, found
+    one, other = found["lamps"]["/p/Lights/light_1"], found["lamps"]["/p/Lights/light_2"]
+    assert other["one_with"] == "/p/Lights/light_1" and scales["lamp_0"] == scales["lamp_1"] < found["swept_scale"]
+    assert one["fault"] == other["fault"] == "blown"  # still glaring after its halvings: one lamp, read blown
+    assert found["lamps"]["/p/Lights/beacon"]["fault"] == "unseen", found["lamps"]
+    assert light.outside_shell([0.0, 3.2, 0.0], record) and not light.outside_shell([0.0, 3.2, 0.0], {"inside": False})
+    assert not light.outside_shell([2.9, -0.05, -2.9], record)  # sunk in its deck: still judged
 
 
 def test_a_black_view_is_measured_black_not_a_crash():
@@ -551,13 +593,16 @@ def test_the_concepts_fill_comes_only_where_no_sky_light_reaches(tmp_path, insid
     tiny_seed(seed)
     base = Usd.Stage.Open(str(seed / "layers/base.usda"))
     UsdGeom.Cube.Define(base, "/tiny/Room").CreateSizeAttr(6.0)  # a room 6 m across round the middle
+    UsdGeom.Sphere.Define(base, "/tiny/Sky/Moon").AddTranslateOp().Set(Gf.Vec3d(0.0, -5000.0, 0.0))  # km off
     base.Save()
     layer.write("tiny", {"lights": []}, seed, out)
-    found = layer.write_fill(out, seed, "tiny", "#ffddbb", inside, 3.0, REPO / "data/library/lamps.json")
+    record = {"floor": [[-3.0, -3.0], [5.0, 3.0]], "ceiling": 3.0}
+    found = layer.write_fill(out, seed, "tiny", "#ffddbb", inside, record, REPO / "data/library/lamps.json")
     opened = Usd.Stage.Open(str(out / layer.LAYER))  # held while its prim is read
     held = opened.GetPrimAtPath(found["path"])
     assert held.IsA(kind) and found["fill"] and found["sun"], found
-    assert (found["spot"] is None) != inside and (not inside or found["spot"][1] < 3.0), found
+    assert (found["spot"] is None) != inside and (not inside or found["spot"] == [1.0, 2.7, 0.0]), found
+    assert not inside or held.GetAttribute("score:game:range").Get() == 4.0, found  # half the floor's width
 
 
 def test_the_strengths_are_written_into_a_copy_and_the_read_only_input_stays(tmp_path):

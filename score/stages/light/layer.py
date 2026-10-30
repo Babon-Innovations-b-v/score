@@ -296,11 +296,13 @@ def write(place, record, seed_folder, out, kept=None, faces=None, library=None):
 FILL = "concept_fill"
 
 
-def write_fill(out, seed_folder, place, colour, inside, ceiling, library):
+def write_fill(out, seed_folder, place, colour, inside, record, library):
     """The concept's fill (the library's `fill`, data/library/lamps.json) in the layer: the light its concept shows
     falling on the place from no source in view, in `colour`; under the open sky a soft distant light from overhead,
-    inside a shell a sphere light over the place's middle at the library's share of its `ceiling` (its record's, else
-    the place's top), reaching half its width. Its lamps.json entry, swept as a sun is (after the lamps)."""
+    inside a shell a sphere light over the middle of its `record`'s floor box at the library's share of its ceiling
+    (the record's frame stands on its floor), reaching half the floor's width. Never from the stage's bound: it holds
+    the sky, kilometres off (2026-10-30: airlock's fill stood 116 m under its floor, reaching 6457 m). Its lamps.json
+    entry, swept as a sun is (after the lamps)."""
     from pxr import Sdf, Usd, UsdGeom
     lamp = json.loads(pathlib.Path(library).read_text())["fill"]
     layer = Sdf.Layer.FindOrOpen(str(pathlib.Path(out) / LAYER))
@@ -311,13 +313,12 @@ def write_fill(out, seed_folder, place, colour, inside, ceiling, library):
     stage.SetEditTarget(Usd.EditTarget(layer))
     path = f"/{place}/Lights/{FILL}"
     if inside:
-        box = UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"]).ComputeWorldBound(
-            stage.GetPrimAtPath(f"/{place}")).ComputeAlignedRange()
-        low, high = np.array(box.GetMin()), np.array(box.GetMax())
-        top = ceiling if ceiling is not None else high[1]
-        spot = [(low[0] + high[0]) / 2, low[1] + (top - low[1]) * lamp["inside"]["high"], (low[2] + high[2]) / 2]
+        if record.get("ceiling") is None:
+            raise ValueError(f"{place}: an inside place's record holds no ceiling to hang its concept's fill under")
+        (low_x, low_z), (high_x, high_z) = record["floor"]
+        spot = [(low_x + high_x) / 2, float(record["ceiling"]) * lamp["inside"]["high"], (low_z + high_z) / 2]
         entry = {"type": "omni", "at": spot, "energy": lamp["energy"], "colour": colour,
-                 "range": float(max(high[0] - low[0], high[2] - low[2])) / 2,
+                 "range": float(max(high_x - low_x, high_z - low_z)) / 2,
                  "attenuation": lamp["inside"]["attenuation"], "radius": lamp["inside"]["radius"]}
     else:
         spot, entry = None, {"type": "sun", "energy": lamp["energy"], "colour": colour, "size": lamp["open"]["size"],

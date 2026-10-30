@@ -54,8 +54,10 @@ gates.
   (`score/checks/grain.py`, `stages.GRAIN_PICTURES`) fails a grainy look by name.
 - **Lamps are measured where they shine** (2026-10-13): a lamp inside its fixture moves out of it when the fixture's
   solid parts stop 90% of its rays, or stands just outside its lens otherwise (`layer.lamps_through_fixtures`, each
-  lamp's rule in lamps.json); under the open sky the suns are swept after the lamps when the lamps cannot reach the
-  concept.
+  lamp's rule in lamps.json); the suns, an inside place's too (its sun shines in through its openings), each in a
+  light group, are swept after the lamps when the lamps cannot reach the concept or their sweep stops at an end of its
+  range (2026-10-30). Lamps at one spot are one lamp; one outside an inside place's shell (past its record's floor
+  box or over its ceiling) stands in no view and is not judged unlit.
 - **The layer holds live lights.** The owner's plan is baked per-lamp layers mixed live; the passes are that idea on
   the views only, nothing is baked into the surfaces yet. Say so wherever the layer is shown.
 - **The assembly takes the layer just over the seed's base** (under the motion, effects and edit layers, so a light
@@ -76,7 +78,8 @@ gates.
   the library's lamp, a row the plan `aims` its aimed spot), the pad floodlights' shaft too. Where the concept shows
   light falling from no source in view (its `unseen`) and no sky light reaches the place (none over the horizon, or
   inside its shell), the layer adds the library's fill (`layer.write_fill`, lamps.json `fill`) in the concept's
-  colour, swept after the lamps as a sun is (owner, 2026-10-25: "the frame work should solve this, look at the
+  colour, inside over the middle of its record's floor box under its ceiling (never the stage's bound, which holds the
+  sky), swept after the lamps as a sun is (owner, 2026-10-25: "the frame work should solve this, look at the
   concept"); `lit` names a concept showing daylight with no sun up at the scene time (the environment plan's);
   the camera's glow is written only from a record environment that holds one (the scene record, from
   the design alone, holds none: the old sky record was retired, 2026-10-21); the kit pieces stand where the earth
