@@ -9,6 +9,7 @@ seeded from <seeds root>/<case>/angles.npz), then per clip `_case.written` with 
 is not run: nothing an evaluation writes reads it. A clip's "fit seconds" is its share of its body's set-up and batch
 by frames. Writes what `_case` writes. Newton's Python (newton, warp, mujoco_warp) and a CUDA card."""
 import copy
+import hashlib
 import json
 import pathlib
 import shutil
@@ -26,7 +27,7 @@ import sim_body  # noqa: E402
 from evaluation import _case, _measure  # noqa: E402
 from fit import _frames  # noqa: E402
 from fit._card import _clip, _measure as card_measure, _seeds  # noqa: E402
-from landmarks import CENTRES, LANDMARKS  # noqa: E402
+from landmarks import CENTRES, LANDMARKS, solver_marks  # noqa: E402
 from sizing import Size  # noqa: E402
 
 LAID = (LANDMARKS, CENTRES, _measure.CENTRES, calibration.TABLE)  # the dicts `_case.prepared` changes in place
@@ -61,10 +62,31 @@ def shared_rig(clips):
     return rig
 
 
+TARGETS = {}  # {`targets_key`: `fit.targets`}, one per clip and landmark set, shared by every nudged set
+
+
+def targets_key(rig, segments, worlds):
+    """What a clip's `fit.targets` reads: its rig, segments and worlds, the held groups (`fit.followed`) and the
+    solver landmarks' faces and barycentric weights in order (a set that changes those makes them anew)."""
+    digest = hashlib.sha256(np.ascontiguousarray(worlds, dtype=float).tobytes())
+    for key in sorted(rig):
+        digest.update(key.encode() + np.ascontiguousarray(np.asarray(rig[key])).tobytes())
+    rows = [(name, LANDMARKS[name][0], tuple(LANDMARKS[name][1])) for name in solver_marks()]
+    return digest.hexdigest(), tuple(segments), tuple(fit.followed(segments)), repr(rows)
+
+
 def clip_targets(clips):
-    """{case: `fit.targets`} of every clip of a body, made once for its level 3 batch and its writing."""
-    return {case: fit.targets(rig, person["segments"], worlds, fit.followed(person["segments"]))
-            for case, (_, person, rig, worlds) in clips.items()}
+    """{case: `fit.targets`} of every clip of a body, made once per `targets_key` for every set's level 3 batch and
+    writing."""
+    found = {}
+    for case, (_, person, rig, worlds) in clips.items():
+        key = targets_key(rig, person["segments"], worlds)
+        if key not in TARGETS:
+            TARGETS[key] = fit.targets(rig, person["segments"], worlds, fit.followed(person["segments"]))
+            for made in TARGETS[key]:
+                made.flags.writeable = False  # shared by later sets: a write in place would reach them
+        found[case] = TARGETS[key]
+    return found
 
 
 def recorded_targets(clips, targets):

@@ -16,6 +16,8 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
 - sets_command's SAME_SEEDS dropped: the nudged sets start from the base set's angles, not the seeds root's.
 - tuning.case_residuals' skin read from "bones outside skin %": level 1 solves on the share, a step, not the
   depth outside (2026-10-30).
+- _card_batch.targets_key's landmark rows dropped: a set that moves a landmark's face weights reuses the targets
+  of the set before it (2026-10-30).
 
 Run: .venv/bin/python score/stages/sim_body/inside/evaluation/test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py
 """
@@ -139,6 +141,27 @@ def test_the_held_out_bodies_pass_within_ten_percent():
     assert evaluation.body_of("short_heavy_kimodo") == "short_heavy"
     assert evaluation.body_of("short_heavy_sit_stand") == "short_heavy"
     assert evaluation.body_of("mean_arms_raise") == "mean"
+
+
+def test_a_clips_targets_are_made_once_per_landmark_set_and_never_written_in_place():
+    from evaluation import _card_batch
+    from landmarks import LANDMARKS, solver_marks
+    calls, kept = [], _card_batch.fit.targets
+    _card_batch.fit.targets = lambda *given: calls.append(given) or (np.zeros((2, 1, 3, 3)), np.zeros((2, 4, 3)))
+    rig = {"names": np.array(["root"]), "bind": np.eye(4)[None]}
+    clips = {"tall_kimodo": (None, {"segments": ["pelvis"]}, rig, np.zeros((2, 1, 4, 4)))}
+    name, row = solver_marks()[0], LANDMARKS[solver_marks()[0]]
+    try:
+        _card_batch.TARGETS.clear()
+        first = _card_batch.clip_targets(clips)
+        again = _card_batch.clip_targets(clips)
+        LANDMARKS[name] = (row[0], tuple(np.asarray(row[1]) + 1e-3), *row[2:])
+        moved = _card_batch.clip_targets(clips)
+    finally:
+        LANDMARKS[name], _card_batch.fit.targets = row, kept
+        _card_batch.TARGETS.clear()
+    assert len(calls) == 2 and again["tall_kimodo"] is first["tall_kimodo"] and moved["tall_kimodo"] is not first["tall_kimodo"]
+    assert not first["tall_kimodo"][1].flags.writeable
 
 
 if __name__ == "__main__":
