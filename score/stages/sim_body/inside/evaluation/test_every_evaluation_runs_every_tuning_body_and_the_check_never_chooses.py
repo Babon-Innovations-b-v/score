@@ -20,6 +20,8 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
   depth outside (2026-10-30).
 - _card_batch.targets_key's landmark rows dropped: a set that moves a landmark's face weights reuses the targets
   of the set before it (2026-10-30).
+- blocked's `{case: {case: job}}` made `{case: {case: first job}}` (every case's process handed one job), or exact_stacked stacking the blocks in their given order
+  and not sorted as tuning.whole's rows are: a case's exact rows land on another case's residuals (2026-10-30).
 
 Run: .venv/bin/python score/stages/sim_body/inside/evaluation/test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py
 """
@@ -177,6 +179,27 @@ def test_a_clips_targets_are_made_once_per_landmark_set_and_never_written_in_pla
         _card_batch.TARGETS.clear()
     assert len(calls) == 2 and again["tall_kimodo"] is first["tall_kimodo"] and moved["tall_kimodo"] is not first["tall_kimodo"]
     assert not first["tall_kimodo"][1].flags.writeable
+
+
+
+def test_the_exact_jacobian_stacks_each_cases_own_block_in_whole_order_then_the_priors_columns():
+    from evaluation import level1
+    entries = [("ASIS_l", "link", 0, ("pelvis",)), ("ASIS_l", "trust", None, ("pelvis",)),
+               ("Hips", "centre", 1, ("pelvis",))]
+    cases = {"tall_kimodo": "/jobs/tall/kimodo.json", "heavy_kimodo": "/jobs/heavy/kimodo.json"}
+    with tempfile.TemporaryDirectory() as root:
+        out = pathlib.Path(root) / "exact"
+
+        def launch(case, one):
+            np.savez(out / f"{case}.npz", block=np.full((2, len(entries)), float(len(one[case]))))
+            return subprocess.Popen(["true"])
+        blocks = evaluation.blocked({}, {}, {}, cases, out, "python", "/seeds", launch=launch, free_gb=0)
+        jacobian = level1.exact_stacked(blocks, np.zeros(len(entries)), entries)
+    by_case = [len(cases[case]) for case in sorted(cases)]
+    assert jacobian.shape == (4 + 2, len(entries))
+    assert (jacobian[:2] == by_case[0]).all() and (jacobian[2:4] == by_case[1]).all()
+    assert np.allclose(jacobian[4:], [[tuning.LINK_UNIT / tuning.PRIOR, 0, 0], [0, 0, tuning.LINK_UNIT / tuning.PRIOR]])
+    assert level1.centre_columns(entries) == [2]
 
 
 if __name__ == "__main__":
