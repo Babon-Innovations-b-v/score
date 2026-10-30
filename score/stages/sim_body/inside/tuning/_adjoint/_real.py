@@ -182,6 +182,30 @@ def trusted_outer(fitting):
     return ends, np.concatenate([landmarks, [end_weight, fitting.marker_goal]])
 
 
+
+def ends_of(path, scales, segments):
+    """`_outer`'s `ends` for the person's file at `path` sized by `scales`: [(own, {part: turn})] in `fit.fitting`'s
+    end order (`group_ends(segments)`), own the end site's local point (`fit._model.end_site`, as the fitting lays
+    it) and, for each centre part (a middle end's two), d(own) / d(the part's move in its source local point):
+    its weight times (R_holder^T R_body) times its body's scale, at the model's rest pose (mj_kinematics)."""
+    import mujoco
+    from fit import group_ends
+    from fit._model import end_site, filed
+    from landmarks import MIDDLE_CENTRES, myo_parts
+    model = mujoco.MjModel.from_xml_path(str(path))
+    data = mujoco.MjData(model)
+    mujoco.mj_kinematics(model, data)
+    found = []
+    for _, centre in group_ends(segments):
+        parts = myo_parts(centre)
+        holder, own = end_site(model, [(filed(body), np.asarray(local, dtype=float) * scales[body], weight)
+                                       for body, local, weight in parts])
+        holding = data.xmat[model.body(holder).id].reshape(3, 3)
+        found.append((own, {part: weight * (holding.T @ data.xmat[model.body(filed(body)).id].reshape(3, 3))
+                                * np.asarray(scales[body], dtype=float)
+                                for part, (body, _, weight) in zip(MIDDLE_CENTRES.get(centre, (centre,)), parts)}))
+    return found
+
 HELD = 1e-5  # rad or m: a coordinate this close to its bound is held there by the card's active set
 
 
