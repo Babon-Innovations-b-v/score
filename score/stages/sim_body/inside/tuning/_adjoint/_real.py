@@ -168,3 +168,32 @@ def bound_held(clip, couplings, rows):
     values = rows[:, reduced[chosen]]
     held[:, chosen] = (values <= lower[reduced[chosen]] + HELD) | (values >= upper[reduced[chosen]] - HELD)
     return held.ravel()
+
+
+def level2_free(fitting):
+    """The markers level 2 may move (by index), as `fit.constants_on` picks them: not HELD's, not a group end."""
+    from fit import END, HELD as MARK_HELD
+    return [index for index, name in enumerate(fitting.marks) if name not in MARK_HELD and not name.startswith(END)]
+
+
+def problem_at(applied, folder, cases, saved, path, given):
+    """Level 2's `problem_at` for `_level2.level2_body` on one real body: `applied(outer)` the set's (table rows,
+    weights) at level 1's point (`tuning.applied` bound to its entries, starts, table and globals), written into
+    `folder` (holding rest.json) as `evaluation.set_written` writes them; the body's `Fitting` and sampled targets read
+    again there (`_card_batch.body_unfitted`, `fit.sampled_targets`: the same frames at every point), and the
+    `fit/_constants.Problem` over them about level 2's solved sampled angles `path` and constants vector `given`
+    (both fixed, so `start()` is the optimum at the base point)."""
+    import json
+    from fit import sampled_targets
+    from fit._constants import Problem
+
+    def at(outer):
+        """The Problem at `outer`."""
+        rows, weights = applied(outer)
+        (folder / "table.json").write_text(json.dumps(rows, indent=1))
+        (folder / "weights.json").write_text(json.dumps(weights))
+        fitting, recordings = _card_batch.body_unfitted(str(folder / "table.json"), str(folder / "weights.json"),
+                                                        folder, cases, saved)
+        turns, points, _ = sampled_targets(recordings)
+        return Problem(fitting, path, turns, points, given, level2_free(fitting))
+    return at
