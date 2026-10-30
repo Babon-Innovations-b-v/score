@@ -148,6 +148,42 @@ def test_a_door_goes_in_the_plan_s_opening_and_the_next_in_one_cut_for_it():
         "at": [10.0, 0.0], "wide": 1.0, "sill": 0.0, "head": 2.1, "cut": True}, found["back_door"]
 
 
+def test_openings_are_cut_at_their_built_widths_spread_apart_on_their_wall():
+    """#36: stairwell's plan drew its 1 m doors and gate in 0.39 m openings, and the assembly shrank them to 0.39 m;
+    habitat's 1 m door and 1.5 m window, drawn 0.42 m apart, would meet cut at their widths. On a 20 m wall a 1 m door
+    in a 0.39 m opening at x 19.8 is cut at its own 1 m, a 2 m window in a 0.2 m opening at x 18.7 at its 2 m; meeting,
+    they are spread apart in their order along the wall, 0.2 m between them and 0.2 m plus the wall's 0.2 m inside its
+    end: the door at 20 - 0.4 - 0.5 = 19.1, the window 0.2 m before it at 17.4. A 4 m wall cannot hold two 2 m doors
+    so: both stay as the plan draws them, the wall named crowded.
+    Break: score/review/holders/__init__.py: `if wide <= float(opening["wide"]):` -> `if True:`
+    Break: score/review/holders/__init__.py: `crowded = spread(found)` -> `crowded = []`
+    Break: score/review/holders/__init__.py: `return lefts if lefts and lefts[0] >= room - 1e-9 else None` ->
+        `return lefts`"""
+    rows = [{"id": "door", "noun": "door", "anchor": "wall", "size": [1.0, 0.1, 2.1]},
+            {"id": "window", "noun": "window", "anchor": "wall", "size": [2.0, 0.1, 1.0]}]
+    walls = [{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2}]
+    plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"]],
+                   {plan_checks.WALLS_ITEM: ["door", "window"]}, walls=walls,
+                   openings=[{"kind": "door", "at": [19.8, 0.0], "wide": 0.39, "sill": 0.0, "head": 2.2},
+                             {"kind": "window", "at": [18.7, 0.0], "wide": 0.2, "sill": 1.0, "head": 2.0}])
+    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
+    assert by_row(found)["door"]["opening"] == {"at": [19.1, 0.0], "wide": 1.0, "sill": 0.0, "head": 2.2,
+                                                "cut": True}, by_row(found)["door"]
+    assert by_row(found)["window"]["opening"] == {"at": [17.4, 0.0], "wide": 2.0, "sill": 1.0, "head": 2.0,
+                                                  "cut": True}, by_row(found)["window"]
+    assert "crowded" not in found
+    rows = [{"id": "door", "noun": "door", "anchor": "wall", "size": [2.0, 0.1, 2.1]},
+            {"id": "back_door", "noun": "door", "anchor": "wall", "size": [2.0, 0.1, 2.1]}]
+    plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 4.0, 12.0, None, "item"]],
+                   {plan_checks.WALLS_ITEM: ["door", "back_door"]}, walls=[{"from": [0.0, 0.0], "to": [4.0, 0.0],
+                                                                           "thick": 0.2}],
+                   openings=[{"kind": "door", "at": [1.5, 0.0], "wide": 0.3, "sill": 0.0, "head": 2.2},
+                             {"kind": "door", "at": [2.5, 0.0], "wide": 0.3, "sill": 0.0, "head": 2.2}])
+    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
+    assert sorted(entry["opening"]["wide"] for entry in found["relations"]) == [0.3, 0.3], found["relations"]
+    assert [sorted(entry["rows"]) for entry in found["crowded"]] == [["back_door", "door"]], found.get("crowded")
+
+
 def test_a_street_facade_stands_past_its_edge_and_its_units_on_its_face():
     """Street (2026-10-29): its building facades, wall rows the plan writer left on the walls item, stood at the
     street's middle, the AC units on them held by nothing (the plan draws no wall). A facade whose concept box stands

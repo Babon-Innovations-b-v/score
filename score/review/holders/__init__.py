@@ -217,7 +217,7 @@ def recess_of(item, row, holder, holder_row, face, plan, inventory, kinds):
     the item lays several), its `wide`, `tall`, `base` over the model's foot, and by its motion rule its `depth` and
     the `room` beside it along the face on its `room_side` (+1 or -1 along the model's axis, 0 both: its hinge side
     not read; `room_sides` one a piece), and that side as a plan way (`room_way`, `room_ways`: the assembly keeps the
-    door so its room fits within the face's span too, fitting.on_holder): a swing's as deep as it sweeps, widened on its hinge side by its own
+    door so its room fits within the face's span too, fitting.on_face): a swing's as deep as it sweeps, widened on its hinge side by its own
     thickness, RECESS_MARGIN and the side wall the bake keeps (RECESS_WALL) so it lies clear of that wall at full open; a slide's its own thickness deep, with its width and
     thickness of room on the side it slides to; None for a door that never moves (it sits flush) or has no size."""
     rule, size = moving_rule(row, inventory, kinds), row.get("size")
@@ -374,9 +374,91 @@ def cut_in(spot, row, item, plan):
                                             "openings each hold another"}
 
 
+def widened(opening, row, wall):
+    """A plan opening at least as wide as the row that fills it (the plan's sizes are estimates, the built one is
+    laid): one narrower is cut again (`cut`) at the row's width, its middle slid along its wall the least that keeps
+    it within the wall's ends, the plan's own spot and width kept as `drawn` for spread (stairwell's plan drew its 1 m
+    apartment doors and gate in 0.39 m openings, so the assembly shrank them to 0.39 m, #36)."""
+    found = {key: opening[key] for key in ("at", "wide", "sill", "head")}
+    wide = float((row.get("size") or [0.0])[0])
+    if wide <= float(opening["wide"]):
+        return found
+    at = numpy.asarray(opening["at"], float)
+    if wall:
+        start, end = numpy.asarray(wall["from"], float), numpy.asarray(wall["to"], float)
+        length = float(numpy.linalg.norm(end - start))
+        run = (end - start) / max(length, 1e-9)
+        at = start + run * (min(max(float((at - start) @ run), wide / 2), length - wide / 2) if length >= wide
+                            else length / 2)
+    return {**found, "at": [round(float(value), 3) for value in at], "wide": wide, "cut": True,
+            "drawn": {"at": found["at"], "wide": found["wide"]}}
+
+
+# Openings one wall holds, spread apart where they meet at their built widths, stand at least this far apart, and
+# this far plus the wall's thickness inside its ends (clear of the corner's other wall), metres.
+OPENING_ROOM = 0.2
+
+
+def wall_openings(found):
+    """{wall's (from, to): (the wall, [(row, its opening)])} of the relations' openings (each piece's too)."""
+    walls = {}
+    for entry in found:
+        for piece in entry.get("pieces") or [entry]:
+            if piece.get("how") == "in" and piece.get("wall"):
+                key = (tuple(piece["wall"]["from"]), tuple(piece["wall"]["to"]))
+                walls.setdefault(key, (piece["wall"], []))[1].append((entry["row"], piece["opening"]))
+    return walls
+
+
+def spread_lefts(alongs, wides, length, room):
+    """The left ends along a wall `length` long of openings at `alongs` (middles, in order) `wides` wide: each kept
+    at its own spot or pushed on past the one before by OPENING_ROOM, then pulled back from the wall's far end by as
+    much, all `room` inside its ends; None where the wall cannot hold them so."""
+    lefts = []
+    for number, (along, wide) in enumerate(zip(alongs, wides)):
+        lefts.append(max(along - wide / 2, lefts[-1] + wides[number - 1] + OPENING_ROOM if lefts else room))
+    limit = length - room
+    for number in reversed(range(len(lefts))):
+        lefts[number] = min(lefts[number], limit - wides[number])
+        limit = lefts[number] - OPENING_ROOM
+    return lefts if lefts and lefts[0] >= room - 1e-9 else None
+
+
+def spread(found):
+    """Each wall's openings that meet one another cut at their built widths spread apart along it in their order
+    along it (spread_lefts), each moved one cut again (`cut`); a wall that cannot hold them all at their built widths
+    keeps those the plan drew narrower as it drew them, named in the [{wall, rows, why}] returned (habitat's door and
+    window, 1 m and 1.5 m, drawn 0.42 m apart, #36)."""
+    crowded = []
+    for wall, openings in wall_openings(found).values():
+        start, end = numpy.asarray(wall["from"], float), numpy.asarray(wall["to"], float)
+        length = float(numpy.linalg.norm(end - start))
+        run = (end - start) / max(length, 1e-9)
+        openings = sorted(openings, key=lambda pair: float((numpy.asarray(pair[1]["at"], float) - start) @ run))
+        alongs = [float((numpy.asarray(opening["at"], float) - start) @ run) for _, opening in openings]
+        wides = [float(opening["wide"]) for _, opening in openings]
+        if all(after - before >= (wide + next_wide) / 2 - 1e-9 for before, after, wide, next_wide
+               in zip(alongs, alongs[1:], wides, wides[1:])):
+            continue
+        lefts = spread_lefts(alongs, wides, length, OPENING_ROOM + float(wall.get("thick") or 0.0))
+        if lefts is None:
+            for _, opening in openings:
+                if "drawn" in opening:
+                    opening.update(opening.pop("drawn"))
+                    opening.pop("cut")
+            crowded.append({"wall": wall, "rows": [row for row, _ in openings],
+                            "why": f"the wall's {length:.2f} m cannot hold its openings at their built widths "
+                                   f"({sum(wides):.2f} m) with {OPENING_ROOM:g} m between them and at its ends"})
+            continue
+        for (_, opening), along, left, wide in zip(openings, alongs, lefts, wides):
+            if abs(left + wide / 2 - along) > 1e-6:
+                opening.update(at=[round(float(value), 3) for value in start + run * (left + wide / 2)], cut=True)
+    return crowded
+
+
 def in_plan_opening(spot, row, plan, taken):
-    """A relation in the plan's opening nearest `spot` (any, with none) that holds none yet, of the row's kind first;
-    None with none left."""
+    """A relation in the plan's opening nearest `spot` (any, with none) that holds none yet, of the row's kind first,
+    widened to the row (widened); None with none left."""
     free = [(number, opening) for number, opening in enumerate(openings_of(plan)) if number not in taken]
     if not free:
         return None
@@ -387,8 +469,8 @@ def in_plan_opening(spot, row, plan, taken):
     taken.add(number)
     walls = walls_of(plan)
     wall = min(walls, key=lambda wall: off_line(numpy.asarray(opening["at"], float), wall)[0]) if walls else None
-    return {"how": "in", "opening": {key: opening[key] for key in ("at", "wide", "sill", "head")},
-            "wall": wall_part(wall), "why": f"in the plan's {opening['kind']} opening {number + 1}"}
+    return {"how": "in", "opening": widened(opening, row, wall), "wall": wall_part(wall),
+            "why": f"in the plan's {opening['kind']} opening {number + 1}"}
 
 
 def piece_spots(item, row, plan, inventory):
@@ -597,10 +679,14 @@ def relations(plan, inventory, sha=None, kinds=None):
                 found.append({"item": name, "row": row_id, **got})
             elif why:
                 unheld.append({"item": name, "row": row_id, "why": why})
+    crowded = spread(found)
+    for _, openings in wall_openings(found).values():
+        for _, opening in openings:
+            opening.pop("drawn", None)
     return {"place": plan.get("place") or inventory.get("place"), "plan": sha,
             "about": "What holds each plan item, derived from the scene inventory's anchors, the concept's boxes and "
                      "the kept plan (score/review/holders); the scene record lays each object by it.",
-            "relations": found, "unheld": unheld}
+            "relations": found, "unheld": unheld, **({"crowded": crowded} if crowded else {})}
 
 
 def keep(places):
