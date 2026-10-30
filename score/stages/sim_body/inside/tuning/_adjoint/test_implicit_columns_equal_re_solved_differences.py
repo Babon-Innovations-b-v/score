@@ -22,21 +22,16 @@ In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
 without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pulled` skipping the normalisation's
 projection (`along` the raw turn gradient) turns the root chart test red; `RootTurns.pulled_rows` cutting each copy's fourth turn coordinate in place of pulling the row
 through the chart turns it red; `Pinned.rows` keeping a held column turns the pinned test red; `Pinned.gradient` giving a held entry zero in place of its spring (a
-singular frame block) turns the pinned test red. In `_level2.py`, `level2_body`'s gradient left in the Problem's order (no `to_body`) turns the constants-first level 2 test red; `pinned_mask` holding no bound-held entry turns it red; `level2_body` rebuilding the Problem on every gradient call (no `problem_of` cache) turns it red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red; `picked_columns` laying a site's rows at its row among the known names in place of its place in `names` turns it red, and laying a trust at its row among the known names (with ends) turns it red. In `_real.py`, `solved_rows`
+singular frame block) turns the pinned test red. In `_level2.py`, `level2_body`'s gradient left in the Problem's order (no `to_body`) turns the constants-first level 2 test red; `pinned_mask` holding no bound-held entry turns it red; `level2_body` rebuilding the Problem on every gradient call (no `problem_of` cache) turns it red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red; `picked_columns` laying a site's rows at its row among the known names in place of its place in `names` turns it red, and laying a trust at its row among the known names (with ends) turns it red; an end moved by its first part only (a middle end's second dropped) turns it red. In `_real.py`, `solved_rows`
 giving MuJoCo's order (no `newton_order`) turns the real body test red; `frame_couplings` zeroing
 the projection's polynomials turns its per-frame model check red; `bound_held` holding nothing (bound-held coordinates left in the pose) turns its refused check red (4.12e-3); `joint_parts`
 dropping the centres' scales turns its joints check red; `turn_groups` without the frozen table turns its turns check red; `skin_parts` without the geom's turn turns its skins check red (0.19 m). The case rows' derivative left over the full pose (no `RootTurns.pulled_rows`) turns its pulled check red. `trusted_outer` laying the landmarks' trusts out of their sites' order turns its trusted check red.
 
-The taped test runs `_taped` (Newton eval_fk on a wp.Tape) in Newton's own Python on the card, a four-link chain with
-three weighted sites and two link-frame turn rows, once on every coordinate and once with the last a follower of the
-second (a polynomial coupling, the pose the three free coordinates), and once with level 2's constants (two free
-sites' moves and the third joint's place move after the pose), and once batched (two frames as two copies of the chain
-in one model, one launch, level 2's constants shared by both), and once with each site's trust an outer unknown, and once with the last site a group end and the
-end weight and markers' goal outer unknowns, and once batched with a group end in each copy (`copies=2`, one frame's
-outer unknowns laid on both: its rows equal each copy's own frame's): its gradient, asked twice, equals central differences of its cost to 1e-3 of the largest entry. With no
-Newton Python (`SCORE_NEWTON_PYTHON`, else $PROPS_HOME/envs/newton_env) it is skipped; its run is `_check_taped.py`. The taped measures test runs (`_check_measures.py`)
-`_measures` on three copies of the chain (frames): two joints (one a MIDDLE of two parts), two turn groups and two skin
-regions' bone points against a posed box skin per frame (some outside, some inside), fed through `case_rows`, equal central differences of `case_residuals` to 1 % of the largest entry; so do its rows over level 2's moves (R_c: a free mark's columns zero, an inside joint's)."""
+The taped test runs `_taped` (Newton eval_fk on a wp.Tape) in Newton's own Python on the card, a four-link chain with three weighted sites and two link-frame turn rows, once on every coordinate and once with the last a follower of the second (a polynomial coupling, the pose the three free
+coordinates), and once with level 2's constants (two free sites' moves and the third joint's place move after the pose), and once batched (two frames as two copies of the chain in one model, one launch, level 2's constants shared by both), and once with each site's trust an outer unknown, and once
+with the last site a group end and the end weight and markers' goal outer unknowns, and once batched with a group end in each copy (`copies=2`, one frame's outer unknowns laid on both: its rows equal each copy's own frame's): its gradient, asked twice, equals central differences of its cost to 1e-3
+of the largest entry. With no Newton Python (`SCORE_NEWTON_PYTHON`, else $PROPS_HOME/envs/newton_env) it is skipped; its run is `_check_taped.py`. The taped measures test runs (`_check_measures.py`) `_measures` on three copies of the chain (frames): two joints (one a MIDDLE of two parts), two turn
+groups and two skin regions' bone points against a posed box skin per frame (some outside, some inside), fed through `case_rows`, equal central differences of `case_residuals` to 1 % of the largest entry; so do its rows over level 2's moves (R_c: a free mark's columns zero, an inside joint's)."""
 import json
 
 import numpy as np
@@ -105,17 +100,17 @@ def test_the_outer_rows_equal_differences_of_the_median_and_the_root_mean_square
 def test_level_1_unknowns_map_onto_the_taped_outer_unknowns_with_their_derivative():
     from score.stages.sim_body.inside import tuning
     from score.stages.sim_body.inside.tuning._adjoint import _outer
-    entries = tuning.layout(toys.TABLE, set(), {"knee_l"}, {"LeftUpLeg": ["LeftUpLeg"]})
+    entries = tuning.layout(toys.TABLE, set(), {"knee_l"}, {"LeftUpLeg": ["LeftUpLeg"], "Neck": ["Neck"]})
     unknowns = np.linspace(-0.6, 0.9, len(entries))
     assert np.allclose(_outer.site_unknowns(unknowns, entries, toys.LANDMARKS, toys.ENDS, toys.STARTS, toys.TABLE,
                                             toys.GLOBALS), toys.site_outer(unknowns, entries))
     derivative = _outer.site_derivative(unknowns, entries, toys.LANDMARKS, toys.ENDS, toys.TABLE, toys.GLOBALS)
     assert np.allclose(derivative, toys.site_outer_differences(unknowns, entries), atol=1e-6)
     start = _outer.site_derivative(np.zeros(len(entries)), entries, ["hip", "knee_l"], toys.ENDS, toys.TABLE,
-                                   toys.GLOBALS)  # picked: names' order, the end last, an unknown name zero
-    assert np.allclose(_outer.picked_columns(["x", "hip", "knee_l", "end"], range(len(entries)), entries, toys.TABLE,
-                                             toys.GLOBALS, ends=toys.ENDS),
-                       np.vstack([np.zeros((3, len(entries))), start[:9], np.zeros((1, len(entries))), start[9:]]))
+                                   toys.GLOBALS)  # picked: names' order, the ends last, an unknown name zero
+    assert np.allclose(_outer.picked_columns(["x", "hip", "knee_l", "end", "mid"], range(len(entries)), entries,
+                                             toys.TABLE, toys.GLOBALS, ends=toys.ENDS),
+                       np.vstack([np.zeros((3, len(entries))), start[:12], np.zeros((1, len(entries))), start[12:]]))
 
 
 def test_a_body_copied_per_frame_keeps_the_card_projection_couplings():

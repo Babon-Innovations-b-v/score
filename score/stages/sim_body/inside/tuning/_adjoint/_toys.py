@@ -88,7 +88,8 @@ TABLE = {"knee_l": {"segment": "LeftLeg", "solver": True, "trust": 2.0, "link": 
 STARTS = {name: row["link"] for name, row in TABLE.items()}
 GLOBALS = {"marker goal": 3.0, "end weight": 0.5}
 TURN = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
-ENDS = [("LeftUpLeg", np.array([0.0, -0.4, 0.0]), TURN)]
+ENDS = [(np.array([0.0, -0.4, 0.0]), {"LeftUpLeg": TURN}),  # a middle end: two parts, LeftUpLeg shared
+        (np.array([0.1, 0.0, 0.2]), {"LeftUpLeg": 0.5 * TURN.T, "Neck": 0.5 * np.eye(3)})]
 LANDMARKS = ["knee_l", "knee_r", "hip"]
 
 
@@ -283,11 +284,12 @@ def held_dropped_jacobian(inner, held):
 
 def site_outer(unknowns, entries):
     """What `_outer.site_unknowns` should give on the toy table: the landmarks' links (`tuning.applied`), the group
-    end's site (its start plus TURN times its centre's move, `tuning.offsets`), the trusts, end weight, marker goal."""
+    ends' sites (each its start plus each part's turn times its move, `tuning.offsets`), trusts, end weight, goal."""
     from score.stages.sim_body.inside import tuning
     rows, weights = tuning.applied(unknowns, entries, STARTS, TABLE, GLOBALS)
-    centre = tuning.offsets(unknowns, entries)["LeftUpLeg"]
-    return np.concatenate([np.ravel([rows[name]["link"] for name in LANDMARKS]), ENDS[0][1] + TURN @ centre,
+    moves = tuning.offsets(unknowns, entries)
+    ends = [ENDS[0][0] + TURN @ moves["LeftUpLeg"], ENDS[1][0] + 0.5 * (TURN.T @ moves["LeftUpLeg"] + moves["Neck"])]
+    return np.concatenate([np.ravel([rows[name]["link"] for name in LANDMARKS]), np.ravel(ends),
                            [rows[name]["trust"] for name in LANDMARKS], [weights["end weight"], weights["marker goal"]]])
 
 
