@@ -658,7 +658,8 @@ def related(design, relation, spot, way, base, size, piece=0):
     walls item); past the plan's edge, its face on the edge's line and its body out past it, facing in (a street's
     facade); on, within or against its holder as it was (at its piece's spot where the relation gives `spots`: street's
     three restaurant doors spread their width and room apart), its holder's objects named after (holder_names); on
-    the floor at the relation's spot where it gives one (a stair at the plan's stair). None `on` on the floor, the
+    the floor at the relation's spot where it gives one (a stair at the plan's stair); a ramp at its spot, run up its
+    way, its `on` the level's edge, the way up and the level's top in the place's frame. None `on` on the floor, the
     ceiling or past an edge."""
     if "pieces" in relation:
         relation = relation["pieces"][min(piece, len(relation["pieces"]) - 1)]
@@ -692,6 +693,11 @@ def related(design, relation, spot, way, base, size, piece=0):
                 found["room"] = float(recess["room"])
                 found["room_way"] = plan_way(design, room_way) if any(room_way) else [0.0, 0.0]
         return spot, way, base, found
+    if how == "ramp":
+        ends, floor = in_frame(design, relation["edge"], float(relation["height"]))
+        return (np.asarray(relation["spot"], float), np.asarray(relation["way"], float), base,
+                {"how": "ramp", "edge": ends, "up": plan_way(design, relation["way"]), "top": floor,
+                 "why": relation["why"]})
     if how == "edge":
         out = np.asarray(FACE_WAYS[relation["edge"]])
         depth = min(float(size[0]), float(size[1])) if isinstance(size, list) and len(size) == 3 else 0.0
@@ -729,7 +735,7 @@ def holder_names(found, laid, arched=None):
     return found
 
 
-PLACING = ("in", "wall", "edge", "top", "within", "face")  # relations that give an object its place
+PLACING = ("in", "wall", "edge", "top", "within", "face", "ramp")  # relations that give an object its place
 
 
 def marks(item, row, relation, unheld):

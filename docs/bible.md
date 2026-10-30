@@ -437,7 +437,9 @@ branch names a scene or a world.
   plan and lists what was corrected. A door or window the plan's openings do not hold gets an opening cut for it on
   its nearest wall (the relation's `cut`, cut by the earth seed's and the scene record's walls); a wall row the plan
   writer left unplaced in a place with no wall stands past the plan's edge (a street's facade), a stair row at the
-  plan's stair, a thing on several holders of one kind on the nearest the concept shows it on. A door that moves (its
+  plan's stair, a ramp up its way onto the nearest raised level's deck (pitched from the ground to the deck's top), a
+  thing on several holders of one kind on the nearest the concept shows it on; a thing nothing holds that starts
+  inside a deck or wall is moved the least way out, and `held` fails one left inside a deck or wall it is not laid in. A door that moves (its
   motion rule) on a built model's face gets a recess cut into that model's bake behind it, as deep as its motion
   needs, widened beside it so it opens clear, and with a back; the assembly lays the door so its whole recess fits
   within the face's span, shifted inward from a corner (`held` names a face too narrow, with the shortfall); one

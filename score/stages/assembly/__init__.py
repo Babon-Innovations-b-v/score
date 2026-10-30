@@ -33,7 +33,8 @@ assembled once its layers have landed. No spend: nothing is rendered or settled 
                            own; free. Static colliders only: mass and interaction are the named gap
              held          every design object stands where what holds it puts it (fitting.held_faults, #72): within
                            HELD_MOST of its holder's top or face, its wall's face or its opening; a door or window in
-                           an opening or on its holder; none held by nothing or left at the room's middle; free
+                           an opening or on its holder; none held by nothing or left at the room's middle; none
+                           left inside a deck or wall it is not laid in (fitting.moved_out moves one out); free
              resting       tools/usd/triage.py on a drop run made on this very output (settle.py --dry-run's
                            settled.json, stored as the check's evidence); with none it answers unknown and blocks,
                            and the runner's drive gathers it (gather_drop_run: one drop run on a rented processor

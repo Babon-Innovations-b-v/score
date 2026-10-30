@@ -486,6 +486,26 @@ def test_each_door_on_a_face_stands_at_the_spot_its_relation_gives():
     assert [round(door["at"][2], 3) for door in doors] == [-1.4, 0.0, 1.4], doors
 
 
+def test_a_ramp_stands_up_its_way_to_its_level_s_edge():
+    """Airlock (settle@airlock, 2026-10-30): its ramp stood at its plan item, along its porch deck's edge, its end in
+    the deck. With its relation (score/review/holders up_to_level), on a 20 by 20 m plan (place (x, z) is plan
+    (x - 10, y - 10)) it stands at the relation's spot, plan (8.9, 12), place (-1.1, 2), its long side turned up the
+    way east, and its `on` gives the assembly the level's edge at place x -0.1, the way up +x and the level's 0.2 m
+    top.
+    Break: score/stages/scene_record/writer.py: `return (np.asarray(relation["spot"], float),
+        np.asarray(relation["way"], float), base,` -> `return (spot, way, base,`"""
+    from score.stages.scene_record import writer
+    design = {"w": 20.0, "d": 20.0, "items": [["RAMP 1", 8.0, 9.0, 1.2, 2.0, None, "item"]],
+              "rows": {"RAMP 1": ["ramp"]}}
+    rows = [{"id": "ramp", "anchor": "ground", "route": "shell", "size": [1.2, 2.0, 0.2], "noun": "ramp"}]
+    relations = {"relations": [{"item": "RAMP 1", "row": "ramp", "how": "ramp", "spot": [8.9, 12.0], "way": [1.0, 0.0],
+                                "edge": [[9.9, 14.0], [9.9, 8.0]], "height": 0.2, "why": "up to the porch deck"}]}
+    [ramp] = writer.design_objects(design, {"rows": rows, "objects": {}}, relations)
+    assert ramp["at"] == [-1.1, 0.0, 2.0] and ramp["rotation"] == writer.yaw_turn(design, (1.0, 0.0), rows[0]["size"])
+    assert ramp["on"] == {"how": "ramp", "edge": [[-0.1, 4.0], [-0.1, -2.0]], "up": [1.0, 0.0], "top": 0.2,
+                          "why": "up to the porch deck"}, ramp
+
+
 def test_an_arched_rib_is_laid_as_the_shell_s_band_at_each_of_its_plan_items():
     """Batch 1's retry: the tube's ribs, their box the whole picture, framed no close-up. The shell lays an arched
     structure row (design_shell.arched) as an `arch` at each plan item tied to it, at the row's size, named its row,

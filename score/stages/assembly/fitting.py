@@ -15,8 +15,11 @@ shrunk where it does not fit (never grown past its own model), so it sits
             its middle on the face of its built wall it swings to (its own -z way), else on the wall's room face
             where that wall stands behind the plan's line (opening_spot: hangar's and garage's shell walls stand
             0.15 m behind it), so its swing keeps touching its jamb and clear of it
+    ramp    up its way onto its level's built deck: its foot on the ground it stands on, pitched by the slope from
+            there to the deck's top over its length, its high end's foot on the deck's near side (ramp_rest)
 
-Boxes are the place's axis-aligned ones (Y up), so a face is the box side nearest `out`; the plan's sizes are
+and a thing nothing holds (no `on`) that starts inside a deck or wall (statics) is moved the least way out of it
+(moved_out: airlock's sandbags in its porch deck, its porch post in its wall). Boxes are the place's axis-aligned ones (Y up), so a face is the box side nearest `out`; the plan's sizes are
 estimates, the built ones are laid (the module's 12 m, not the plan's 17.2). Kept apart from record.py: the light and
 settle stages hash it.
 
@@ -24,9 +27,12 @@ settle stages hash it.
                                   its face or None) of one object, or None when it sits
     fitted(stage, place, entries, laid, cuts)   each laid entry's fit applied on the stage; the fits [{name, ...}]
     off(low, high, on, holders)   metres an object as laid stands off where its relation puts it
-    held_faults(record, laid)     [(object, what is wrong, metres or None)]: the assembly's `held` gate
+    held_faults(record, laid)     [(object, what is wrong, metres or None)]: the assembly's `held` gate, one left
+                                  inside a deck or wall its relation does not lay it in (an opening's door) too
     short_doors(record, laid)     [(object, what is wrong, metres)]: doors short of their openings, named, not failed
 """
+import math
+
 import numpy as np
 
 # A fit that moves an object less than this, metres, and shrinks it by less than SHRINK_LEAST is no fit: it sits.
@@ -340,6 +346,39 @@ def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=N
 
 # An object stands where its relation puts it within this, metres (the gate's tolerance: a fitted one is within mm).
 HELD_MOST = 0.05
+# A ramp's deck is looked for this far past its level's edge, metres (the built deck reaches past the plan's line).
+RAMP_PROBE = 0.05
+
+
+def ramp_deck(on, built):
+    """The built box (low, high) a ramp climbs to: of the built statics holding a spot RAMP_PROBE past the middle of
+    its level's `edge` along its way `up`, the one whose top is nearest the level's `top`; None with none there."""
+    up = np.asarray(on["up"], float)
+    probe = np.asarray(on["edge"], float).mean(axis=0) + up * RAMP_PROBE
+    decks = [box for box in built if box[0][0] <= probe[0] <= box[1][0] and box[0][2] <= probe[1] <= box[1][2]]
+    return min(decks, key=lambda box: abs(float(box[1][1]) - float(on["top"]))) if decks else None
+
+
+def side_along(box, up, side=min):
+    """Where a box's side facing back down a level way `up` [x, z] lies along it (`side` max: its side facing up it)."""
+    return side(float(np.array([x, z]) @ up) for x in (box[0][0], box[1][0]) for z in (box[0][2], box[1][2]))
+
+
+def ramp_rest(low, high, on, built):
+    """(pivot, axis, degrees, target) of a ramp laid by its relation `on` (module docstring) from its box (low, high),
+    its long side laid up the way `up`: pitched about its low end's foot (`pivot`, about the level `axis` across that
+    way, then moved to `target`) by the slope from the ground it stands on to its deck's top over its length, so its
+    high end's foot rests on that deck's near side at its top; None with no deck built there (ramp_deck)."""
+    deck = ramp_deck(on, built)
+    if deck is None:
+        return None
+    up = np.asarray(on["up"], float)
+    length = across(up, high - low)
+    angle = math.asin(float(np.clip((float(deck[1][1]) - float(low[1])) / max(length, 1e-9), 0.0, 1.0)))
+    way = np.array([up[0], 0.0, up[1]])
+    pivot = foot_middle(low, high) - way * length / 2
+    reach = side_along(deck, up) - length * math.cos(angle) - float(pivot[[0, 2]] @ up)
+    return pivot, np.cross(way, [0.0, 1.0, 0.0]), math.degrees(angle), pivot + way * reach
 
 
 def overhang(low, high, hold_low, hold_high, axes):
@@ -409,15 +448,81 @@ def short_of(low, high, on):
     return max(0.0, float(on["tall"]) - float(high[1] - low[1])) if on["how"] == "in" else 0.0
 
 
+# What a laid object never starts inside unless its relation lays it there (a door in its opening): the shell's decks,
+# raised levels and walls (scene_record/writer.shell's names), never a roof (a dome's box holds the room under it).
+STATICS = ("deck", "level", "wall")
+# A wall's box is the wall only where it runs along x or z: no thicker than this across, metres (a slanted wall's box
+# holds the room beside it: habitat's, hub's and workshop's walls, 2 to 390 m across).
+WALL_THICKEST = 1.0
+# The furthest a thing nothing holds is moved out of the structure it starts inside, metres.
+OUT_MOST = 1.0
+# The rows that climb into the level they reach (a stair at the plan's stair, a ladder): never moved out of its deck.
+CLIMBING = ("stair", "stairs", "staircase", "steps", "ladder")
+
+
+def statics(built):
+    """[(name, (low, high))] of the built structure [(name, (low, high))] that is a deck, a level or a wall running
+    along x or z (WALL_THICKEST)."""
+    return [(name, box) for name, box in built if name.split("_")[0] in STATICS
+            and (name.split("_")[0] != "wall" or min(box[1][0] - box[0][0], box[1][2] - box[0][2]) <= WALL_THICKEST)]
+
+
+def climbs(entry):
+    """Whether an entry's row climbs into the level it reaches (CLIMBING: a stair, a ladder)."""
+    return bool(set(str(entry.get("row") or "").split("_")) & set(CLIMBING))
+
+
+def depths(low, high, box):
+    """[x, y, z] metres a box (low, high) reaches into another on each axis (one at most 0: they are apart)."""
+    return np.minimum(np.asarray(high, float), box[1]) - np.maximum(np.asarray(low, float), box[0])
+
+
+def held_in(on):
+    """Whether an object's relation lays it into the built structure: in its opening, or held by a structure piece
+    (a tube's rib)."""
+    return bool(on) and (on["how"] == "in" or on.get("holder scope") == "Structure")
+
+
+def inside_of(low, high, built):
+    """[(name, metres)] of the statics of the built structure a box reaches into by more than HELD_MOST every way."""
+    return [(name, round(float(depths(low, high, box).min()), 3)) for name, box in statics(built)
+            if depths(low, high, box).min() > HELD_MOST]
+
+
+def out_of(low, high, box):
+    """The least move [x, y, z] that takes a box (low, high) clear of a static's box: on each axis the shorter way past
+    either of the static's sides (a cable bundle 4.3 m wide across a 0.14 m wall goes 0.33 m, past the wall's near
+    side), the least of those; never down (it would sink under the floor)."""
+    ahead = np.asarray(box[1], float) - np.asarray(low, float)
+    back = np.asarray(high, float) - np.asarray(box[0], float)
+    back[1] = np.inf
+    moves = np.where(ahead <= back, ahead, -back)
+    axis = int(np.argmin(np.abs(moves)))
+    move = np.zeros(3)
+    move[axis] = moves[axis]
+    return move
+
+
+def off_ramp(low, high, on, built):
+    """Metres a ramp's high end stands off its deck's near side along its way up; None with no deck built there."""
+    deck = ramp_deck(on, built)
+    if deck is None:
+        return None
+    up = np.asarray(on["up"], float)
+    return abs(side_along((low, high), up, max) - side_along(deck, up))
+
+
 def off(low, high, on, holders=()):
-    """Metres an object's box (low, high) stands off where its relation `on` puts it (an opening's: by the built
-    walls, `holders`); None when its holder lays no box to measure against."""
+    """Metres an object's box (low, high) stands off where its relation `on` puts it (an opening's and a ramp's: by
+    the built walls, `holders`); None when its holder lays no box to measure against."""
     low, high = np.asarray(low, float), np.asarray(high, float)
     if on["how"] == "wall":
         return off_wall(low, high, on)
     boxes = [tuple(np.asarray(end, float) for end in found) for found in holders]
     if on["how"] == "in":
         return off_opening(low, high, on, boxes)
+    if on["how"] == "ramp":
+        return off_ramp(low, high, on, boxes)
     if not boxes:
         return None
     return off_holder(low, high, on["how"], on, nearest(boxes, low, high))
@@ -432,7 +537,9 @@ def held_faults(record, laid):
     boxes = {entry["name"]: (entry["low"], entry["high"]) for entry in [*laid.get("objects", []),
                                                                          *laid.get("holders", [])]}
     faced = {fit["name"]: fit for fit in laid.get("fitted", []) if fit.get("face") is not None}
-    walls = [(wall["low"], wall["high"]) for wall in laid.get("walls", [])]
+    named_walls = [(wall["name"], (np.asarray(wall["low"], float), np.asarray(wall["high"], float)))
+                   for wall in laid.get("walls", [])]
+    walls = [box for _, box in named_walls]
     faults = []
     for entry in record.get("objects") or []:
         if entry["name"] not in boxes:
@@ -443,7 +550,8 @@ def held_faults(record, laid):
             if fitted_on:  # laid on that face; one hung in its recess keeps no room beside it on the face
                 on = dict(on, **{"face at": fitted_on["face"]}, **({"room": 0.0} if fitted_on.get("hung") else {}))
             low, high = (np.asarray(end, float) for end in boxes[entry["name"]])
-            held = [boxes[name] for name in on.get("holder") or [] if name in boxes] if on["how"] != "in" else walls
+            held = walls if on["how"] in ("in", "ramp") else [boxes[name] for name in on.get("holder") or []
+                                                              if name in boxes]
             narrow = too_narrow(low, high, on, nearest([tuple(np.asarray(end, float) for end in box) for box in held],
                                                        low, high)) \
                 if on["how"] == "face" and on.get("room") and held else 0.0
@@ -456,6 +564,10 @@ def held_faults(record, laid):
             elif distance > HELD_MOST:
                 faults.append((entry["name"], f"{distance:.2f} m off where it is laid {on['how']} ({on.get('why', '')})",
                                round(distance, 3)))
+        if not held_in(on) and not climbs(entry):
+            low, high = (np.asarray(end, float) for end in boxes[entry["name"]])
+            faults += [(entry["name"], f"laid {depth:.2f} m inside {static}, nothing holding it there", depth)
+                       for static, depth in inside_of(low, high, named_walls)]
         if entry.get("fills") and not (on and on["how"] in ("in", "face", "within", "top")):
             faults.append((entry["name"], "a door or window in no opening and on no holder", None))
         for mark in ("unheld", "unplaced"):
@@ -616,14 +728,11 @@ def passage_box(low, high, on, walls=()):
     high[1] = low[1] + PASSAGE_TALL
     return low, high
 
-
-def moved_by(prim, foot, scale, target):
-    """The prim's transform op set so its world box's foot middle `foot` moves to `target`, shrunk by `scale` about it."""
+def changed_by(prim, change):
+    """The prim's transform op set so its world transform is followed by `change` (a world matrix)."""
     from pxr import Gf, Usd, UsdGeom
     parent = UsdGeom.Xformable(prim.GetParent()).ComputeLocalToWorldTransform(Usd.TimeCode.Default()) \
         if prim.GetParent().IsA(UsdGeom.Xformable) else Gf.Matrix4d(1.0)
-    change = Gf.Matrix4d().SetTranslate(Gf.Vec3d(*(-foot))) * Gf.Matrix4d().SetScale(float(scale)) \
-        * Gf.Matrix4d().SetTranslate(Gf.Vec3d(*target))
     op = UsdGeom.Xformable(prim).GetOrderedXformOps()[0]
     op.Set(op.Get() * parent * change * parent.GetInverse())
 
@@ -635,6 +744,41 @@ def swings(row):
     nouns = {noun for kind in row_kinds.table().values() if (kind.get("motion") or {}).get("move") == "swing"
              for noun in kind["nouns"]}
     return bool(set(row_kinds.words(row).split()) & nouns)
+
+
+def moved_by(prim, foot, scale, target):
+    """The prim's transform op set so its world box's foot middle `foot` moves to `target`, shrunk by `scale` about it."""
+    from pxr import Gf
+    changed_by(prim, Gf.Matrix4d().SetTranslate(Gf.Vec3d(*(-foot))) * Gf.Matrix4d().SetScale(float(scale))
+               * Gf.Matrix4d().SetTranslate(Gf.Vec3d(*target)))
+
+
+def pitched_by(prim, pivot, axis, degrees, target):
+    """The prim's transform op set so it turns `degrees` about the world `axis` through `pivot`, which moves to
+    `target`."""
+    from pxr import Gf
+    changed_by(prim, Gf.Matrix4d().SetTranslate(Gf.Vec3d(*(-pivot)))
+               * Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(*axis), float(degrees)))
+               * Gf.Matrix4d().SetTranslate(Gf.Vec3d(*target)))
+
+
+def ramped(stage, path, entry, low, high, built):
+    """[its fit] of a ramp laid up to its deck on the stage (ramp_rest), [] with no deck built there or none to do."""
+    rest = ramp_rest(low, high, entry["on"], built)
+    if rest is None:
+        return []
+    pivot, axis, degrees, target = rest
+    moved = float(np.linalg.norm(target - pivot))
+    if moved < MOVE_LEAST and degrees < 0.1:
+        return []
+    pitched_by(stage.GetPrimAtPath(path), pivot, axis, degrees, target)
+    words = f"laid ramp ({entry['on'].get('why', '')}): moved {moved:.2f} m, pitched {degrees:.1f} degrees"
+    from pxr import Sdf
+    stage.GetPrimAtPath(path).CreateAttribute("score:fitted", Sdf.ValueTypeNames.String).Set(words)
+    after = world_box(stage, path)
+    return [{"name": entry["name"], "row": entry["row"], "how": "ramp", "holder": None, "moved": round(moved, 3),
+             "scale": 1.0, "pitch": round(degrees, 2), "low": [round(float(value), 4) for value in after[0]],
+             "high": [round(float(value), 4) for value in after[1]], "words": words}]
 
 
 def fitted(stage, place, entries, laid, cuts=None):
@@ -660,6 +804,9 @@ def fitted(stage, place, entries, laid, cuts=None):
         held = [(holder, world_box(stage, f"/{place}/{scope}/{holder}")) for holder in entry["on"].get("holder") or []
                 if stage.GetPrimAtPath(f"/{place}/{scope}/{holder}")]
         low, high = world_box(stage, path)
+        if how == "ramp":
+            fits.extend(ramped(stage, path, entry, low, high, built))
+            return
         surface, recesses = None, ()
         if how == "face" and held:
             box = nearest([box for _, box in held], low, high)
@@ -695,4 +842,34 @@ def fitted(stage, place, entries, laid, cuts=None):
     leaves = {name for name, entry in by_name.items() if entry["on"]["how"] in ("in", "face") and swings(entry["row"])}
     for name in sorted(by_name, key=lambda name: name not in leaves):  # the leaves first: a wall's things keep clear of them
         one(name)
+    return fits + moved_out(stage, place, [entry for entry in entries if entry["name"] in laid and not entry.get("on")
+                                           and not climbs(entry)])
+
+
+def moved_out(stage, place, entries):
+    """Each entry laid with nothing holding it (no `on`: a thing on the floor) that starts inside a static of the
+    built structure (statics: airlock's sandbags in its porch deck, its porch post in its wall, laid at the plan's
+    estimate) moved the least way out of each in turn (out_of), on the stage, where that is OUT_MOST at most (a
+    thing further in crosses the structure: hangar's 46 m ship in its 32 m room, left as laid for the held gate to
+    name); the fits [{name, how, ...}]. A climbing row (climbs: a stair into its level) is left to its stair."""
+    built, fits = statics(walls(stage, place)), []
+    for entry in entries:
+        path = f"/{place}/Objects/{entry['name']}"
+        low, high = world_box(stage, path)
+        shift, left = np.zeros(3), []
+        for static, box in built:
+            if depths(low + shift, high + shift, box).min() > HELD_MOST:
+                shift += out_of(low + shift, high + shift, box)
+                left.append(static)
+        moved = float(np.linalg.norm(shift))
+        if not left or moved > OUT_MOST:
+            continue
+        moved_by(stage.GetPrimAtPath(path), foot_middle(low, high), 1.0, foot_middle(low, high) + shift)
+        words = f"moved {moved:.2f} m out of {', '.join(left)}: laid inside it, nothing holding it there"
+        from pxr import Sdf
+        stage.GetPrimAtPath(path).CreateAttribute("score:fitted", Sdf.ValueTypeNames.String).Set(words)
+        after = world_box(stage, path)
+        fits.append({"name": entry["name"], "row": entry["row"], "how": "out", "holder": left,
+                     "moved": round(moved, 3), "scale": 1.0, "low": [round(float(value), 4) for value in after[0]],
+                     "high": [round(float(value), 4) for value in after[1]], "words": words})
     return fits
