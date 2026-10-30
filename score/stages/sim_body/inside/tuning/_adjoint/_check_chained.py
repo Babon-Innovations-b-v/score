@@ -3,7 +3,7 @@ _check_chained.py <this folder> <seeds root> <set folder> <out root> <step> <cas
 one link entry of `tuning.layout` (the first that moves a placed solver landmark's site), every other entry at its
 start, through `tuning.applied`; at the base point level 3 set up and solved by `_real` (as `_check_rows.py`), R_q
 and R_c taped by `TapedMeasures` at the solved rows, level 3 as `_bodies.level3_body` with `placed(theta)` the site
-offsets plus `_outer.site_derivative`'s link column (theta in metres of link units) and its c read as the moves off
+offsets plus `_outer.picked_columns`' link column (theta in metres of link units) and its c read as the moves off
 level 2's solved constants, level 2 as `_level2.level2_body` (as `_check_motion.py`); against central differences of
 `case_rows` at +-<step>, each side `_real.set_up` (both levels re-solved) plus `solved_rows`, its per-frame measures
 put through `case_rows` at the base medians' frames (the median's derivative wherever it is smooth). Prints JSON: the
@@ -27,10 +27,9 @@ from fit import sampled_targets  # noqa: E402
 from fit._card import _seeds  # noqa: E402
 from fit._card._level2 import jacobian  # noqa: E402
 from fit._constants import INSIDE, Problem, told  # noqa: E402
-from tuning import paired  # noqa: E402
 from tuning._adjoint import Body, case_rows, chained_rows  # noqa: E402
 from tuning._adjoint._level2 import level2_body  # noqa: E402
-from tuning._adjoint._outer import site_derivative  # noqa: E402
+from tuning._adjoint._outer import picked_columns  # noqa: E402
 
 STEPS, TOLERANCE = (1e-4, 1e-3), 1e-3  # as `_check_motion.py`
 seeds_root, folder, out = (pathlib.Path(arg) for arg in sys.argv[2:5])
@@ -83,20 +82,14 @@ def raw_measures(measures, pose, offsets):
 
 
 def link_column(clip):
-    """The first link entry moving a placed solver landmark, and d(site offsets)/d(it) in `clip.place_sites`' order."""
+    """The first link entry moving a placed solver landmark, and its `_outer.picked_columns` column."""
     names = [clip.mjm.site(int(site)).name.removeprefix("mark:") for site in clip.place_sites]  # fit/_model.py
-    known = [name for name in names if name in table]
-    for chosen, (pool, kind, _, _) in enumerate(entries):
-        if kind != "link" or not any(table[name]["solver"] and paired(name)[0] == pool for name in known):
-            continue
-        found = site_derivative(np.zeros(len(entries)), entries, known, [], table, weights)[:3 * len(known), chosen]
-        laid = np.zeros(3 * len(names))
-        for row, name in enumerate(known):
-            place = names.index(name)
-            laid[3 * place:3 * place + 3] = found[3 * row:3 * row + 3]
-        if np.any(laid):
-            return chosen, laid
-    raise ValueError(f"no link entry moves a placed solver landmark ({len(known)} of {len(names)} placed known)")
+    for chosen, (_, kind, _, _) in enumerate(entries):
+        if kind == "link":
+            laid = picked_columns(names, [chosen], entries, table, weights)[:, 0]
+            if np.any(laid):
+                return chosen, laid
+    raise ValueError(f"no link entry moves any of the {len(names)} placed sites")
 
 
 def shifted(level3, solved):
