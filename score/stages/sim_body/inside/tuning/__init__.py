@@ -263,12 +263,14 @@ def solved(residuals, entries, pattern, checkpoint, limit_seconds, every=None, s
                          method="trf", x_scale=1.0, callback=iterated)
 
 
-def whole(evaluate, check, entries, checkpoint, limit_seconds, start=None, every=3, evaluate_many=None):
+def whole(evaluate, check, entries, checkpoint, limit_seconds, start=None, every=3, evaluate_many=None,
+          exact=None, by_differences=()):
     """Level 1 entire: `solved` over every tuning case at once, `evaluate(unknowns)` ({case: measures} of levels 2
     and 3 on every tuning body, the evaluation runner's) giving each evaluation's residuals with the prior
     (`evaluate_many(sets)`, when given, every nudged set of a Jacobian at once: [{case: measures}]), and
     `check(unknowns)` (the held-out bodies' score) logged every `every` iterations and at the end, never used to
-    choose. Returns (scipy's result, [(iteration, check score)])."""
+    choose; `exact` and `by_differences` go to `solved` (level 1's hybrid Jacobian). Returns (scipy's result,
+    [(iteration, check score)])."""
     start = resumed(checkpoint, len(entries)) if start is None else start
     first = evaluate(start)
     names = sorted(first)
@@ -289,7 +291,7 @@ def whole(evaluate, check, entries, checkpoint, limit_seconds, start=None, every
         if iteration % every == 0:
             checks.append((iteration, check(unknowns)))
     result = solved(residuals, entries, pattern, checkpoint, limit_seconds, every=checked, start=start,
-                    many=many if evaluate_many else None)
+                    many=many if evaluate_many else None, exact=exact, by_differences=by_differences)
     checks.append(("end", check(result.x)))
     return result, checks
 

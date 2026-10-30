@@ -1,4 +1,4 @@
-"""level1.py <run dir> --python <Newton's Python> [--hours H] [--card <seeds root>]: starts level 1 (#70, `tuning.whole`) on the run dir's
+"""level1.py <run dir> --python <Newton's Python> [--hours H] [--card <seeds root> [--exact]]: starts level 1 (#70, `tuning.whole`) on the run dir's
 bodies. The run dir holds cases.json ({case: job.json}), split.json ({"tuning": [bodies], "check": [bodies]}) and
 table.json (the starting landmark rows, each link its anatomical start) and rig.npz (SOMA's template rig, the
 calibration table's rest); it gets evals/ (the latest evaluations),
@@ -6,7 +6,8 @@ checkpoint.jsonl (every evaluation and iteration; a restart resumes from its bes
 every --every iterations, 3 unless given, and at the end), steps.jsonl (each check against the one before: per-case paired changes of
 the honest measures, tuning and check bodies apart, verdicts past floor.json when the run dir has it, `tuning._paired`), result_table.json, result_weights.json, result_centres.json (each group end's offset) and held_out.json (the check bodies'
 score against the tuning bodies', accepted within 10 %). With --card every evaluation runs on the card
-(`evaluation.measured_many`, seeded from the seeds root's angles), a Jacobian's nudged sets in one process. Any Python with numpy and scipy; the workers run in Newton's."""
+(`evaluation.measured_many`, seeded from the seeds root's angles), a Jacobian's nudged sets in one process; with --exact too the Jacobian is the hybrid (`exact_stacked`: each tuning case's
+exact block, `evaluation.blocked`, beside the centres' differences, `centre_columns`). Any Python with numpy and scipy; the workers run in Newton's."""
 import argparse
 import json
 import pathlib
@@ -16,11 +17,26 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import evaluation  # noqa: E402
 import landmarks  # noqa: E402
+import numpy as np  # noqa: E402
 import tuning  # noqa: E402
 from tuning import _paired  # noqa: E402
+from tuning._adjoint import by_columns  # noqa: E402
 from bone_groups import groups  # noqa: E402
 
 GLOBALS = {"marker goal": 1.0, "end weight": 1.0}
+PRIOR_STEP = 1.0  # the prior is linear in every unknown, so any step gives its exact columns
+
+
+def exact_stacked(blocks, unknowns, entries):
+    """Level 1's exact Jacobian in `tuning.whole`'s row order: each case's block ({case: npz path}, `evaluation.blocked`)
+    in sorted case order, then the prior's columns."""
+    rows = [np.load(blocks[case])["block"] for case in sorted(blocks)]
+    return np.concatenate(rows + [by_columns(lambda moved: tuning.prior(moved, entries), unknowns, PRIOR_STEP)])
+
+
+def centre_columns(entries):
+    """The unknowns level 1 differences beside the exact Jacobian: every group end's centre (decided 2026-10-30)."""
+    return [index for index, (_, kind, _, _) in enumerate(entries) if kind == "centre"]
 
 
 def main():
@@ -29,8 +45,12 @@ def main():
     parser.add_argument("--python", required=True)
     parser.add_argument("--hours", type=float, default=8.0)
     parser.add_argument("--card", type=pathlib.Path, help="seeds root: evaluate on the card, sets batched")
+    parser.add_argument("--exact", action="store_true",
+                        help="with --card: the hybrid Jacobian, exact blocks a case and the centres differenced")
     parser.add_argument("--every", type=int, default=3, help="score the check bodies every this many iterations")
     given = parser.parse_args()
+    if given.exact and not given.card:
+        parser.error("--exact needs --card (the blocks are seeded from its angles)")
     run = given.run.resolve()
     cases = json.loads((run / "cases.json").read_text())
     split = json.loads((run / "split.json").read_text())
@@ -67,6 +87,11 @@ def main():
         print(f"eval {count[0]}: tuning score {evaluation.side_score(found):.4f}", flush=True)
         return found
 
+    def exact(unknowns):
+        blocks = evaluation.blocked(*worker_set(unknowns), evaluation.picked(cases, split, "tuning"),
+                                    run / "evals" / "exact", given.python, given.card)
+        return exact_stacked(blocks, unknowns, entries)
+
     def check(unknowns):
         found = side(unknowns, "check", "check")
         score = evaluation.side_score(found)
@@ -80,7 +105,8 @@ def main():
             file.write(json.dumps({"evaluation": count[0], "check score": score}) + "\n")
         return score
     result, checks = tuning.whole(evaluate, check, entries, run / "checkpoint.jsonl", given.hours * 3600,
-                                  every=given.every, evaluate_many=evaluate_many if given.card else None)
+                                  every=given.every, evaluate_many=evaluate_many if given.card else None,
+                                  exact=exact if given.exact else None, by_differences=centre_columns(entries))
     rows, weights = tuning.applied(result.x, entries, starts, table, GLOBALS)
     (run / "result_table.json").write_text(json.dumps(rows, indent=1))
     (run / "result_weights.json").write_text(json.dumps(weights))

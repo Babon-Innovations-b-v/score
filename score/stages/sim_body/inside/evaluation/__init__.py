@@ -17,6 +17,7 @@ HELD_OUT_SHARE = 0.10  # the check bodies' score may be at most this much worse 
 WORKER = pathlib.Path(__file__).resolve().parent / "_case.py"
 SETS_WORKER = pathlib.Path(__file__).resolve().parent / "_card_sets.py"  # every set of a Jacobian, one card process
 CHUNK = 12  # sets per chunk of the one card process: 32 tall sets peaked ~5.2-5.5 GB own (phase A ~2.6, +~2.7 per 32 in the constants phase; night/across c38), 12 keeps ~3.7 under 4
+BLOCKS_WORKER = pathlib.Path(__file__).resolve().parents[1] / "tuning" / "_adjoint" / "_check_columns.py"  # one case's exact block
 SAME_SEEDS = "--same-seeds"  # _card_sets: every set seeded from the seeds root, the base point's way
 SOLVED = "measures.json"  # a clip's unrounded measures, the solver's; m.json beside it is the rounded copy people read
 SEEDS = "angles.npz"  # a clip's mink angles per frame (qpos, frames x nq): the card's seeds (fit._card._seeds)
@@ -113,6 +114,34 @@ def read_back(folder, cases, codes):
     if missing or any(codes.values()):
         raise RuntimeError(f"{folder.name}: failed {codes}, missing {missing}; logs in {folder}")
     return {case: json.loads((folder / case / SOLVED).read_text()) for case in cases}
+
+
+def block_command(python, seeds_root, folder, case, job):
+    """One case's exact level 1 block (`tuning/_adjoint/_check_columns.py` at the set `folder`, saved to
+    folder/<case>.npz), capped like every Python process on this PC."""
+    return ["systemd-run", "--user", "--scope", "-p", "MemoryMax=6G", "-q", "env", "OMP_NUM_THREADS=2",
+            "OPENBLAS_NUM_THREADS=2", "MKL_NUM_THREADS=2", str(python), "-B", str(BLOCKS_WORKER),
+            str(BLOCKS_WORKER.parent), str(seeds_root), str(folder), str(folder / case), str(folder / f"{case}.npz"),
+            f"{case}={job}"]
+
+
+def blocked(rows, weights, rest, cases, out, python, seeds_root, launch=None, **options):
+    """{case: out/<case>.npz}, each case's exact block (rows x every unknown of `tuning.layout(ends=)`) at one set,
+    one process a case side by side as `run_all` runs bodies; raises when any fails or misses its block.
+    `launch(case, {case: job})` starts one (default: `block_command` under out/<case>.log)."""
+    shutil.rmtree(out, ignore_errors=True)
+    set_written(out, rows, weights, rest)
+
+    def started(case, one):
+        log = open(out / f"{case}.log", "w")
+        return subprocess.Popen(block_command(python, seeds_root, out, case, one[case]), stdout=log,
+                                stderr=subprocess.STDOUT)
+    codes = run_all({case: {case: job} for case, job in cases.items()}, out, python, launch=launch or started,
+                    **options)
+    missing = [case for case in cases if not (out / f"{case}.npz").exists()]
+    if missing or any(codes.values()):
+        raise RuntimeError(f"{out.name}: blocks failed {codes}, missing {missing}; logs in {out}")
+    return {case: out / f"{case}.npz" for case in cases}
 
 
 def sets_command(python, seeds_root, out, cases):

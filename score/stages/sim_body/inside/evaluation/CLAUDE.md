@@ -50,5 +50,10 @@ paired changes, tuning and check bodies apart, verdicts once the run dir has flo
   Warm level 2 (a `--warm <tolerance>` option, deleted 2026-10-30) was measured on the 6a gate's 7 sets against the
   serial CPU columns (cold: 0.04 to 0.61 %, cosine 0.99998): at 1e-8 the columns 1.5 to 29 % apart, at 1e-10 still
   1.4 to 15 % apart with about 7 times the cold evaluations. Stay cold: warm-starting level 2 is no speed lever.
+- `blocked(rows, weights, rest, cases, out, python, seeds_root)` (2026-10-30) runs `tuning/_adjoint/_check_columns.py`
+  once per case side by side (`run_all`'s caps), each case's exact block (rows x every unknown) to out/<case>.npz;
+  `level1.py --card <seeds root> --exact` hands `tuning.whole` the hybrid (`exact_stacked`: the blocks in sorted case
+  order, then the prior's columns; `centre_columns` differenced). About 3 min a case serially; the 70-case timing is
+  not measured yet.
 - Judged on following SOMA, never on landmark distances; `fit._frozen` is never edited to follow the tree's calibration.
 - Test: `test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py` (a toy worker, any Python with numpy and scipy).
