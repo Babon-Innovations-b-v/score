@@ -15,6 +15,9 @@ the other unknowns' span taken by their Gram matrix exactly as by the pivoted QR
 pinned there; score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there,
 as in `make tests`' sandbox home, it prints `skipped`.
 
+Level 1's skin residual (fit._skin.marks, depth_mm) is a bone point's distance to the skin's closest point when
+outside, 0 inside, by the winding test; the region's root mean square.
+
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted):
 - (2026-10-28) Fitting's site `Rotation.from_matrix(calibration.T)` made `Rotation.from_matrix(calibration)`: the turned
   thigh's target is met by a wrong pose.
@@ -40,6 +43,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   pair's common shift and the hinge's axis among them.
 - (2026-10-29) _constants.off_span's `scaled.T @ columns` made `scaled.T @ columns * 0.5`: the Gram path's projection
   is not the QR's.
+- (2026-10-30) _skin.marks_kernel's depth `warp.where(found.sign >= 0.0, ..., 0.0)` made the distance alone: a point
+  inside the skin counts 0.8 m deep.
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/test_the_solver_gives_back_the_pose_and_constants_that_made_its_targets.py
 """
@@ -337,7 +342,23 @@ def a_step_no_task_sees_ends_the_fit():
     return [] if moved < 1e-6 else [f"its error moved {moved}"]
 
 
-CHECKS = (only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
+def a_bone_point_outside_the_skin_lies_as_deep_as_its_distance():
+    """Level 1's smooth skin residual: on a 2 m cube, a point inside is 0 deep and not outside, one 1 m off a face 1 m
+    deep, one off an edge its distance (sqrt 2) deep; the region's residual their root mean square in mm."""
+    import numpy as np
+    from fit import _skin
+    corners = np.array([[x, y, z] for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)], dtype=float)
+    faces = [[0, 1, 3], [0, 3, 2], [4, 6, 7], [4, 7, 5], [0, 4, 5], [0, 5, 1], [2, 3, 7], [2, 7, 6], [0, 2, 6],
+             [0, 6, 4], [1, 5, 7], [1, 7, 3]]
+    out, depths = _skin.marks(np.array([[0.2, 0.1, 0.0], [2.0, 0.3, 0.0], [2.0, 2.0, 0.5]]), corners, faces)
+    expected = np.array([0.0, 1.0, np.sqrt(2.0)])
+    problems = [] if list(out) == [False, True, True] else [f"outside {list(out)}"]
+    problems += [] if np.allclose(depths, expected, atol=1e-6) else [f"depths {depths} against {expected}"]
+    rms = _skin.depth_mm(depths)
+    return problems + ([] if abs(rms - 1000 * np.sqrt(1.0)) < 1e-3 else [f"root mean square {rms} mm"])
+
+
+CHECKS = (a_bone_point_outside_the_skin_lies_as_deep_as_its_distance, only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
           the_place_goal_sums_to_the_marker_goal, the_solver_gives_back_the_angles_and_the_constants,
           every_recording_of_the_body_is_sampled, somas_targets_leave_the_solves_unchanged, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows,
           a_step_no_task_sees_ends_the_fit)

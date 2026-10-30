@@ -14,6 +14,8 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
 - rounded's list branch dropped: a summary's floats reach m.json unrounded (2026-10-29).
 - measured_many's folders zipped reversed: a set is handed another set's measures (2026-10-29).
 - sets_command's SAME_SEEDS dropped: the nudged sets start from the base set's angles, not the seeds root's.
+- tuning.case_residuals' skin read from "bones outside skin %": level 1 solves on the share, a step, not the
+  depth outside (2026-10-30).
 
 Run: .venv/bin/python score/stages/sim_body/inside/evaluation/test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py
 """
@@ -112,12 +114,12 @@ def test_the_check_is_scored_every_few_iterations_and_at_the_end_and_never_evalu
     entries = [("a", "global", None, None), ("b", "global", None, None)]
     evaluated, checked = [], []
     found = {"tall_kimodo": {"per joint mm": {"knee_l": [10, 0]}, "per group deg": {"LeftLeg": [5, 0]},
-                             "bones outside skin %": {"thigh": 10}}}
+                             "bones outside depth mm": {"thigh": 10}}}
 
     def evaluate(unknowns):
         evaluated.append(np.array(unknowns))
         moved = {**found["tall_kimodo"], "per group deg": {"LeftLeg": [5 + 4 * (unknowns[0] - 1) ** 2, 0]},
-                 "bones outside skin %": {"thigh": 10 + 4 * (unknowns[1] + 1) ** 2}}
+                 "bones outside depth mm": {"thigh": 10 + 4 * (unknowns[1] + 1) ** 2}}
         return {"tall_kimodo": moved}
 
     def check(unknowns):

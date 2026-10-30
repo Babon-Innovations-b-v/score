@@ -1,6 +1,7 @@
 """The honest measures of following SOMA (#70), from one fitted clip: each SOMA joint's position error (MyoFullBody's
 joint centre against SOMA's joint, mm), each bone group's rotation error on the FROZEN calibration copy (fit._frozen,
-deg), the share of bone vertices outside SOMA's posed skin by region (every EVERY-th frame), and beside them tip,
+deg), the share of bone vertices outside SOMA's posed skin by region (every EVERY-th frame) and its smooth twin, the
+depth outside (`fit._skin.depth_mm`, level 1's least-squares residual only), and beside them tip,
 length and floor readings. Never a landmark distance the solver pulls on. The skin, the winding test, the regions and
 the frozen table are the stage's own (fit._skin, fit._frozen), so the record and level 1's score are one code. Every
 value is unrounded (the solver's); `evaluation.rounded` makes the copy people read (m.json).
@@ -11,7 +12,7 @@ from scipy.spatial import cKDTree
 
 from contact import surface
 from fit._frozen import frozen_turn
-from fit._skin import EVERY, HAND, bone_meshes, bone_points, outside as outside_skin, region, skin as skinned
+from fit._skin import EVERY, HAND, bone_meshes, bone_points, depth_mm, marks, region, skin as skinned
 from landmarks import soma_point
 from model import TO_OWN
 
@@ -79,7 +80,7 @@ def measures(model, angles, rig, segments, worlds, scales):
     tips = {tip: [] for tip in TIPS}
     hand = {side: [] for side in ("Left", "Right")}
     turns = {segment: [] for segment in segments if segment in FRAME_BODY}
-    lowest, skin_lowest, outside, depth, by_bone, hand_parts, no_fingers = [], [], {}, {}, {}, {}, {}
+    lowest, skin_lowest, outside, depth, deep, by_bone, hand_parts, no_fingers = [], [], {}, {}, {}, {}, {}, {}
     faces, meshes = np.asarray(rig["faces"]), bone_meshes(model)
     hand_tips = {side: soma_point(f"{side}Hand tip", rig) for side in hand}
     for frame, (qpos, world) in enumerate(zip(angles, worlds)):
@@ -111,12 +112,13 @@ def measures(model, angles, rig, segments, worlds, scales):
             labels = np.where(np.isin(parts, HAND), "hand", parts)  # the score's regions: the hand as one
             unbent = labels != "hand"
             unbent |= np.isin(parts, ("carpals", "metacarpals"))
-            out = outside_skin(own, skin, faces)
+            out, depths = marks(own, skin, faces)
             tree = cKDTree(skin)
             far, _ = tree.query(own[out]) if out.any() else (np.zeros(0), None)
             for label in set(labels):
                 mine = labels == label
                 outside.setdefault(label, []).append(float(out[mine].mean()))
+                deep.setdefault(label, []).extend(depths[mine].tolist())
                 depth.setdefault(label, []).extend((1000 * far[labels[out] == label]).tolist())
             for part in HAND:
                 hand_parts.setdefault(part, []).append(float(out[parts == part].mean()))
@@ -145,6 +147,7 @@ def measures(model, angles, rig, segments, worlds, scales):
             "skin lowest mm": [float(np.median(skin_lowest)), float(np.min(skin_lowest))],
             "collider under skin mm": float(np.median(np.array(skin_lowest) - np.array(lowest))),
             "bones outside skin %": {key: 100 * float(np.mean(value)) for key, value in outside.items()},
+            "bones outside depth mm": {key: depth_mm(value) for key, value in deep.items()},
             "outside depth p95 mm": {key: float(np.percentile(value, 95)) if value else 0.0
                                      for key, value in depth.items()},
             "bones outside all %": 100 * float(np.mean(sum(outside.values(), []))),

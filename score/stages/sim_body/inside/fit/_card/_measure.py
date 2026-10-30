@@ -1,7 +1,7 @@
 """The honest measures level 1 scores on, on the card (#70, the card build plan's step 3): each SOMA joint's position
 error (mm), each bone group's rotation error on the frozen table (deg) and the share of bone vertices outside SOMA's
 posed skin by region, as `evaluation._measure.measures` gives them ("joints mm", "per joint mm", "turns deg",
-"per group deg", "bones outside skin %", "bones outside all %"); its other readings (tips, lengths, floor, depths)
+"per group deg", "bones outside skin %", "bones outside depth mm", "bones outside all %"); its other readings (tips, lengths, floor, depths)
 stay on the CPU. The frames' poses by MuJoCo's float64 kinematics (`Posed`), the joint and turn errors one Warp
 kernel each in float64, the winding test Warp's mesh query on the card over every EVERY-th frame against the skin posed once per case
 (`Skins`: identical each evaluation); medians on the host from the per-frame arrays, as the CPU's `summary`.
@@ -12,7 +12,7 @@ import warp
 
 from evaluation import _measure as cpu
 from fit._frozen import frozen_turn
-from fit._skin import EVERY, HAND, bone_meshes, bone_points, region, skin as skinned
+from fit._skin import EVERY, HAND, marks_kernel, bone_meshes, bone_points, depth_mm, region, skin as skinned
 from model import TO_OWN
 
 DEVICE = "cuda:0"
@@ -36,14 +36,6 @@ def _turn_errors(xmat: warp.array2d(dtype=warp.mat33d), bodies: warp.array(dtype
     rel = warp.transpose(xmat[frame, bodies[group]]) @ wanted[frame, group]
     cosine = warp.clamp(warp.float64(0.5) * (warp.trace(rel) - warp.float64(1.0)), warp.float64(-1.0), warp.float64(1.0))
     out[frame, group] = warp.degrees(warp.acos(cosine))
-
-
-@warp.kernel
-def _outside(meshes: warp.array(dtype=warp.uint64), points: warp.array2d(dtype=warp.vec3),
-             out: warp.array2d(dtype=float)):
-    shot, point = warp.tid()
-    out[shot, point] = warp.mesh_query_point_sign_winding_number(meshes[shot], points[shot, point], 1.0e6, 2.0,
-                                                                 0.5).sign
 
 
 class Skins:
@@ -119,18 +111,30 @@ def turn_errors(model, data, worlds, segments):
 
 
 def outside_marks(data, skins):
-    """[skin frames x points] whether each kept bone vertex is outside the skin posed on that frame."""
-    out = warp.zeros(data.points.shape, dtype=float, device=DEVICE)
-    warp.launch(_outside, dim=out.shape, device=DEVICE, inputs=[skins.ids, data.points, out])
-    return out.numpy() >= 0
+    """([skin frames x points] whether each kept bone vertex is outside the skin posed on that frame, its depth
+    outside in m), by `fit._skin`'s own kernel."""
+    signs, depths = (warp.zeros(data.points.shape, dtype=float, device=DEVICE) for _ in range(2))
+    warp.launch(marks_kernel, dim=signs.shape, device=DEVICE, inputs=[skins.ids, data.points, signs, depths])
+    return signs.numpy() >= 0, depths.numpy().astype(float)
+
+
+def scored_labels(bones):
+    """Each kept bone vertex's scored region, the hand's parts as one ("hand")."""
+    parts = np.array([region(bone) for bone in bones])
+    return np.where(np.isin(parts, HAND), "hand", parts)
 
 
 def skin_shares(marks, bones):
     """{label: [share per skin frame]} of the bone vertices outside, the hand's parts as one ("hand")."""
-    parts = np.array([region(bone) for bone in bones])
-    labels = np.where(np.isin(parts, HAND), "hand", parts)
+    labels = scored_labels(bones)
     return {label: [float(shot[labels == label].mean()) for shot in marks]
             for label in sorted(set(labels))}  # sorted: a set of strings orders by the process's hash seed
+
+
+def skin_depths(depths, bones):
+    """{label: mm} level 1's skin residual per region (`fit._skin.depth_mm` over every skin frame's points)."""
+    labels = scored_labels(bones)
+    return {label: depth_mm(depths[:, labels == label]) for label in sorted(set(labels))}
 
 
 def measures(model, angles, rig, segments, worlds, scales, skins=None):
@@ -139,11 +143,13 @@ def measures(model, angles, rig, segments, worlds, scales, skins=None):
     data = Posed(model, angles, set(skins.frames.tolist()))
     joints = joint_errors(model, data, worlds, segments, scales)
     turns = turn_errors(model, data, worlds, segments)
-    outside = skin_shares(outside_marks(data, skins), data.bones)
+    marks, depths = outside_marks(data, skins)
+    outside = skin_shares(marks, data.bones)
     return {"joints mm": cpu.summary(np.concatenate(list(joints.values()))),
             "per joint mm": {key: cpu.summary(value)[:2] for key, value in joints.items()},
             "turns deg": cpu.summary(np.concatenate(list(turns.values()))),
             "per group deg": {key: cpu.summary(value)[:2] for key, value in turns.items()},
             "bones outside skin %": {key: 100 * float(np.mean(value)) for key, value in outside.items()},
+            "bones outside depth mm": skin_depths(depths, data.bones),
             "bones outside all %": 100 * float(np.mean(sum(outside.values(), [])))}
 

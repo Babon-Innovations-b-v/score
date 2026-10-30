@@ -4,7 +4,8 @@ Level 1's runner (#70): `__init__.py` runs levels 2 and 3 on every body of a sid
 side by side, one `_case.py` process per SOMA body in Newton's Python (at most `MOST`, systemd-run MemoryMax=6G, two
 threads, only while `FREE_GB` is available), and reads back each clip's honest measures (`_measure`: joint error,
 rotation error on `fit._frozen`, the frozen copy of main's calibration, bones outside SOMA's skin by region through
-`fit._skin`: the stage's record and level 1's score share that one code), each clip's written twice: `measures.json`
+`fit._skin` and, for level 1's least squares only, their depth outside (`bones outside depth mm`, smooth where the
+share is a step; #70, 2026-10-30): the stage's record and level 1's score share that one code), each clip's written twice: `measures.json`
 unrounded, the one the solver reads (rounded measures read as flat to its differences), and `m.json`, the copy people
 read (`rounded`), and `angles.npz` beside them, mink's angles per frame, the card's seeds (`fit/_card`, plan step 2). A case's body is its name less its motion (`body_of`; `arms_raise` and `sit_stand` hold an underscore, `TWO_WORD_MOTIONS`). Each evaluation's group-end centres go to the
 worker in `rest.json` with SOMA's template rig: `_case` moves `landmarks.CENTRES` and the measure's copy by them (the
@@ -31,6 +32,9 @@ held-out rule (within 10 % of the tuning bodies).
   and the set-up still run per (set, body): G = 137 groups, so 138 sets a Jacobian; not yet batched across sets.
   With `--same-seeds` every set starts from the seeds root: `measured_many(sets, cases, out, python, seeds_root)`
   writes out/s00000.. and runs it once; `level1.py --card <seeds root>` evaluates on the card that way and hands
-  `tuning.whole` its `evaluate_many`. The batched columns' gate against the serial CPU columns has not run yet.
+  `tuning.whole` its `evaluate_many`. The batched columns' gate against the serial CPU columns (2026-10-30, heavy and tall_kimodo, 6 columns: a link, a
+  trust, both hips' centres, both globals): with the skin rows as the share outside the columns were 1.4 to 21 % apart
+  (noise: the share is a step), with them as the depth outside 0.04 to 0.61 %; the Gauss-Newton steps' cosine 0.99995
+  (pass 0.99). The old 1e-4 bar cannot hold: the card's level 3 stops at its float32 floor.
 - Judged on following SOMA, never on landmark distances; `fit._frozen` is never edited to follow the tree's calibration.
 - Test: `test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py` (a toy worker, any Python with numpy and scipy).

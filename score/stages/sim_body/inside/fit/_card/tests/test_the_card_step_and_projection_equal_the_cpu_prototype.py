@@ -15,7 +15,8 @@ them) to 0.01 deg and its sites to 0.01 mm, with a frame holding h1 at its range
 itself in one batch. Seeded from that clip's answers (its angles.npz, `_seeds`) with the places 3 mm on, the card
 equals mink's answer to the moved clip to 0.01 deg and 0.01 mm (a cold seed only reported). On a toy body
 (`card_body.py`), the card's measures (_measure.py) equal evaluation._measure's to 1e-9 (joints mm, turns deg) and
-its bones-outside shares exactly (every point's count). On fit's own toy (`card_level2.py`), level 2's exact
+its bones-outside shares exactly (every point's count), their depths outside (level 1's skin residual, the same
+kernel on both devices) to DEPTH_MM. On fit's own toy (`card_level2.py`), level 2's exact
 Jacobian (_level2.py) equals its residuals' central differences to 1e-6 of each column's largest entry from the
 host's kinematics, to 1e-5 from the card's (_level2_card.py), nothing outside `Problem.sparsity`; level 2 solved with it (`_constants.staged(jacobian=...)`) from a path moved
 0.05 off equals the 2-point solve to 1e-3 mm and 1e-4 deg.
@@ -36,6 +37,8 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) solved_in_chunks' `values[start:stop]` made `values[:stop - start]`: every chunk solves the first rows.
 - (2026-10-29) _measure.joint_table's `* scales[bone]` dropped: the joints miss by the unscaled offset.
 - (2026-10-29) _measure.skin_shares' "hand" merge dropped: the hand's parts are scored apart, the keys differ.
+- (2026-10-30) _measure.skin_depths' `depths[:, ...]` made `depths[:1, ...]`: the card's depths read the first skin
+  frame only, off the CPU's.
 - (2026-10-29) _projected's `power *= lead` made `power *= 1.0`: a coupling is no longer polyval of its leader.
 - (2026-10-29) _turn_jacobian's `weight[problem] * rate[axis]` made `rate[axis]`: the weight is lost.
 - (2026-10-29) _turn_residuals' angle `2 atan2(length, w) / length` made `2`: the turn is no longer the log map.
@@ -68,6 +71,7 @@ from card_step import (BOUNDED, COUPLINGS, FROZEN, ROWS, fixture, prototype_proj
 LEVEL2_CARD_MOST = 1e-5  # the same from the card's float32 kinematics (_level2_card)
 LEVEL2_SOLVE_MM = 1e-3  # level 2 with jac=exact against 2-point differences on the exact toy: constants (the
 LEVEL2_SOLVE_DEG = 1e-4  # plan's 0.05 mm / 0.01 deg is the real bodies'; a frozen Jacobian is 0.027 mm off here)
+DEPTH_MM = 1e-4  # the depths' float32 closest points, card against CPU (measured 4.6e-6 mm on the toy, 2026-10-30)
 LEVEL2_MOST = 1e-6  # a column's largest miss over its largest entry (measured 1.8e-10; the plan allows 1e-2 against 2-point)
 
 
@@ -232,7 +236,8 @@ def the_measures_equal_the_cpu_measure():
     keyed = [f"{key}: keys {sorted(fast[key])} against {sorted(slow[key])}" for key in fast
              if isinstance(fast[key], dict) and sorted(fast[key]) != sorted(slow[key])]
     return keyed or [f"{key}: {fast[key]} against {slow[key]}" for key in fast
-                     if not np.allclose(np.ravel(_values(fast[key])), np.ravel(_values(slow[key])), rtol=0, atol=1e-9)]
+                     if not np.allclose(np.ravel(_values(fast[key])), np.ravel(_values(slow[key])), rtol=0,
+                                        atol=DEPTH_MM if key == "bones outside depth mm" else 1e-9)]
 
 
 def the_level2_jacobian_equals_its_differences():

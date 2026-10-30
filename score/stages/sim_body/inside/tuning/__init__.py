@@ -30,7 +30,8 @@ PRIOR = 0.010  # metres: the anatomical start's spread (the prior's residual is 
 STEP = 0.4  # unknown's units: the ABSOLUTE finite-difference step (2 mm of link or centre, 0.1 of log weight)
 WEIGHT_REACH = 3.0  # unknown's units of log either way a trust or global weight may move (e^0.75: about 2x)
 JOINT_SHARE = 0.5  # joint error's weight beside skin and turns: SOMA's group ends are fit targets (#70 honesty rule)
-SCALES = {"skin": 10.0, "turn": 5.0, "joint": 10.0}  # %, degrees, mm: one unit of each counts the same (the score's)
+SCALES = {"skin": 2.4, "turn": 5.0, "joint": 10.0}  # mm deep, degrees, mm: one unit of each counts the same; the skin's
+# 2.4 mm gives its rows the norm 10 % of the share outside gave them at the start (heavy and tall_kimodo, 2026-10-30)
 GLOBALS = ("marker goal", "end weight")
 MOVES = ("link", "centre")  # the unknowns that are a place (metres), each with its prior row
 # SOMA's bone groups: each one's parent, and the skin region its bones are measured in
@@ -144,16 +145,17 @@ def prior(unknowns, entries):
 
 def labels(found):
     """One case's residual labels ([(kind, key)]) in a fixed order, from its measures (the harness's m.json)."""
-    return ([("skin", key) for key in sorted(found["bones outside skin %"])]
+    return ([("skin", key) for key in sorted(found["bones outside depth mm"])]
             + [("turn", key) for key in sorted(found["per group deg"])]
             + [("joint", key) for key in sorted(found["per joint mm"])])
 
 
 def case_residuals(found):
-    """One case's residuals: each region's bones outside the skin (%), each group's median turn error (deg, frozen
+    """One case's residuals: each region's bones' depth outside the skin (mm, root mean square: smooth where the share
+    outside, the judged measure, is a step; #70, 2026-10-30), each group's median turn error (deg, frozen
     table), each joint's median error (mm, times JOINT_SHARE), each over its SCALES unit and the square root of its
     kind's count, so each kind is its mean."""
-    values = {"skin": found["bones outside skin %"], "turn": {key: value[0] for key, value in found["per group deg"].items()},
+    values = {"skin": found["bones outside depth mm"], "turn": {key: value[0] for key, value in found["per group deg"].items()},
               "joint": {key: value[0] for key, value in found["per joint mm"].items()}}
     share = {"skin": 1.0, "turn": 1.0, "joint": JOINT_SHARE}
     return np.array([np.sqrt(share[kind] / len(values[kind])) * values[kind][key] / SCALES[kind]

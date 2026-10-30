@@ -61,7 +61,9 @@ before that.
   steps median / max 3 / 12 to 9 / 24). Speed shares the card with env1: 4,080 rows took 1.5 to 1.7 s with the card
   idle and 3.7 s with env1 holding it at 99%; quote rows/s only with nvidia-smi's utilisation beside it.
 - `_measure.py` (`measures`, `Skins`, `Posed`; plan step 3): the measures level 1 scores on ("joints mm", "per joint
-  mm", "turns deg", "per group deg", "bones outside skin %", "bones outside all %"), keyed as `evaluation._measure`;
+  mm", "turns deg", "per group deg", "bones outside skin %", "bones outside depth mm", "bones outside all %"), keyed as
+  `evaluation._measure`; the winding sign and the depth outside by `fit._skin.marks_kernel`, the CPU's own kernel (the
+  depths within 4.6e-6 mm of the CPU's on the toy, float32 closest points, 2026-10-30);
   its other readings stay on the CPU. The skin posed every EVERY-th frame once per case (`Skins`, a Warp mesh each);
   the poses by MuJoCo's own float64 kinematics on the host (with MuJoCo Warp's float32 poses one hand vertex fell
   across the skin on heavy_kimodo, 2026-10-29); joint and turn errors float64 Warp kernels (the turn by
