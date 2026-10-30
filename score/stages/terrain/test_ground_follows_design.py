@@ -21,6 +21,9 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - terrain.write_layer: `layer.Save()` unstamped (StageMetadataChecker, DefaultPrimChecker).
 - outside.write: an inactive over of /<place>/Ground again (DanglingOverPrimChecker: no base drawn from a design has
   it, 9c7466b1).
+- join.made_pieces: `elif made_one:` -> `elif False:` (a made row the record lays nowhere not named); join.laid_middles
+  reading `entry["at"][1]` for along; join.AFTER without scene-record (2026-10-30: ground-join read `at` off
+  inventory rows, which never had it).
 """
 import json
 import math
@@ -32,7 +35,7 @@ import trimesh
 REPO = pathlib.Path(__file__).resolve().parents[3]
 
 from score.stages import terrain
-from score.stages.terrain import design, fit, gates, outside, sight
+from score.stages.terrain import design, fit, gates, join, outside, sight
 
 SPOTS = [[10.0, 10.0, 0.0], [30.0, 10.0, 2.0], [20.0, 30.0, -1.0], [20.0, 20.0, 1.0]]
 SITE = {"title": "SITE", "w": 40.0, "d": 40.0, "terrain": {"spots": SPOTS}, "structure": ["regolith"],
@@ -244,3 +247,19 @@ def test_a_body_of_water_lies_at_its_level_over_the_ground_lowered_under_it(tmp_
     assert list(region([[20.0, -30.0], [20.0, 10.0], [20.0, -90.0], [60.0, -30.0]])) == [True, False, False,
                                                                                        False]
 
+
+
+def test_ground_join_lays_each_made_piece_where_the_scene_record_lays_its_row(tmp_path, monkeypatch):
+    """A made terrain row stands at its scene record object's (x, z), its first piece's; one the record lays nowhere
+    is left to the code ground with why, never a KeyError (inventory rows carry no `at`)."""
+    model = tmp_path / "rock.gltf"
+    model.write_text("{}")
+    made_rows = {row: {"route": "prop", "model": str(model), "finishes": []} for row in ("rock_1", "crater")}
+    monkeypatch.setattr(join.made, "made", lambda inputs, layer: made_rows)
+    record = {"objects": [{"name": "rock_1_1", "row": "rock_1", "at": [-8.4, 0.0, 6.1]},
+                          {"name": "rock_1_2", "row": "rock_1", "at": [3.0, 0.0, 3.0]}, {"name": "lamp", "at": [0, 0, 0]}]}
+    inventory = {"rows": [{"id": "rock_1", "size": [0.3, 0.2, 0.1]}, {"id": "crater", "size": [4.0, 4.0, 1.0]}]}
+    left, pieces = join.made_pieces({}, inventory, join.laid_middles(record))
+    assert [(row["id"], middle) for row, _, _, middle in pieces] == [("rock_1", (-8.4, 6.1))]
+    assert list(left) == ["crater"] and "nowhere" in left["crater"]
+    assert join.AFTER["scene-record"] == ("scene-record", 1)

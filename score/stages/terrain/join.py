@@ -9,7 +9,8 @@ with the loop's own why.
              ground, named):
              cut       the code ground's faces wholly within CUT_SHARE of the piece's half size round its middle taken
                        out, so the ring left under its rim overlaps it and no gap opens at the seam
-             seat      the piece (its baked mesh, in metres, foot on its origin) stood at its row's middle, let down
+             seat      the piece (its baked mesh, in metres, foot on its origin) stood at its row's middle (where the
+                       scene record lays the row's first piece; a row it lays nowhere is left, named), let down
                        until its rim (its points past RIM_SHARE of its half size) lies nowhere over the code ground
              finish    the finish route's own, as the object layer's (export.write_asset): each face its library
                        surface from the paint's labelled parts (export.face_surfaces), a subset each bound to a
@@ -58,6 +59,15 @@ LAYER = "terrain"  # the hand-in layer of the rows this after-step joins (shapes
 def files(place):
     """The place's scene inventory, the design's (its detail area rows)."""
     return {"inventory": "{home}/design/inventory/" + f"{place}.json"}
+
+
+def laid_middles(record):
+    """{inventory row: (across, along) of its first piece the scene record lays}: where the plan lays each row."""
+    middles = {}
+    for entry in record["objects"]:
+        if "row" in entry:
+            middles.setdefault(entry["row"], (entry["at"][0], entry["at"][2]))
+    return middles
 
 
 def place_layer(terrain, place, out):
@@ -170,14 +180,17 @@ def left_why(result):
     return f"the bake wrote no model file for it ({result['model']})"
 
 
-def made_pieces(inputs, inventory):
-    """({row: why it is left to the code ground}, [(inventory row, its baked model, its finishes)]) of the terrain rows
-    the place handed the loop (made.made)."""
+def made_pieces(inputs, inventory, laid):
+    """({row: why it is left to the code ground}, [(inventory row, its baked model, its finishes, its middle)]) of the
+    terrain rows the place handed the loop (made.made), each laid where the scene record lays it (`laid`)."""
     rows = {row["id"]: row for row in inventory["rows"]}
     left, pieces = {}, []
     for row_id, result in made.made(inputs, LAYER).items():
-        if result.get("route") == "prop" and pathlib.Path(result["model"]).exists():
-            pieces.append((rows[row_id], result["model"], result["finishes"]))
+        made_one = result.get("route") == "prop" and pathlib.Path(result["model"]).exists()
+        if made_one and row_id in laid:
+            pieces.append((rows[row_id], result["model"], result["finishes"], laid[row_id]))
+        elif made_one:
+            left[row_id] = "the plan lays it nowhere: no object of its row in the scene record"
         else:
             left[row_id] = left_why(result)
     return left, pieces
@@ -189,14 +202,15 @@ def make(inputs, out, seed, params):
     place = pathlib.Path(inputs["inventory"]).stem  # the file's own name (its `place` is the library's: the camp's)
     layer = place_layer(inputs["terrain"], place, out)
     stage = Usd.Stage.Open(str(layer))
-    left, pieces = made_pieces(inputs, inventory)
+    record = json.loads((pathlib.Path(inputs["scene-record"]) / "record" / f"{place}.json").read_text())
+    left, pieces = made_pieces(inputs, inventory, laid_middles(record))
     rays = gates.caster(sight.gathered(stage))
     found = {}
-    for row, model, finishes in pieces:
+    for row, model, finishes, laid in pieces:
         geometry, surfaces, maps = piece_geometry(model, pathlib.Path(inputs["surfaces-bake"]),
                                                   pathlib.Path(inputs["surfaces-paint"]))
         half = np.array([row["size"][0], row["size"][1]]) / 2  # the row's across and along
-        middle = np.array([row["at"][0]["x"], row["at"][0]["z"]])
+        middle = np.array(laid)
         points, lift = seated(np.asarray(geometry["positions"], dtype=float), middle, half, rays)
         cut = sum(cut_mesh(mesh, middle, half) for mesh in ground_meshes(stage, place))
         write_piece(stage, row["id"], f"/{place}/Outside/Detail/{row['id']}", {**geometry, "positions": points},
@@ -245,4 +259,5 @@ def judge_seam(output, inputs, evidence):
 
 CONTRACT = contracts.Contract("ground-join", 1, join_faults, {"length": "metre", "up axis": "Y"})
 CHECKS = (checks.Check("seam", judge_seam),)
-AFTER = {"terrain": ("grounds", 2), **made.ENDS, "surfaces-paint": ("surfaces-paint", 1)}
+AFTER = {"terrain": ("grounds", 2), **made.ENDS, "surfaces-paint": ("surfaces-paint", 1),
+         "scene-record": ("scene-record", 1)}
