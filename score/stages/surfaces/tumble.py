@@ -135,13 +135,17 @@ def keeps_pose(row, rules, rows=(), built=False):
 
 
 def square_turn(points, size):
-    """The turn (rows, the frame's) that stands points square: of every way to set their oriented box's axes on the
-    frame's (each axis on each, the up one pointing up), the one whose box best keeps the row's `size` proportions
-    (x wide, y tall, z deep: |log| misfits, as bake_job.measured_turn weighs a footprint), the least turn on a tie."""
+    """The turn (rows, the frame's) that stands points square: their oriented box's axis nearest up set up (the take
+    stands as the finish stood it, only its tilt taken off), and of the two ways to set the other two on the frame's
+    plan axes, the one whose box best keeps the row's `size` proportions (x wide, y tall, z deep: |log| misfits, as
+    bake_job.measured_turn weighs a footprint), the least turn on a tie. The row's proportions never choose its up:
+    a row drawn flatter than its take laid it on its back (workshop's desk_front_right, its row 1.5 x 1.0 x 0.8 for an
+    L desk 0.71 x 0.42 x 0.61, #36 2026-10-30)."""
     axes, extents, _ = oriented(points)
     wide, tall, deep = (max(float(side), 1e-6) for side in size)
+    up = int(np.argmax(np.abs(axes[1, :])))
     best = None
-    for order in itertools.permutations(range(3)):
+    for order in (order for order in itertools.permutations(range(3)) if order[1] == up):
         rows = []
         for frame_axis, box_axis in enumerate(order):
             way = axes[:, box_axis]
