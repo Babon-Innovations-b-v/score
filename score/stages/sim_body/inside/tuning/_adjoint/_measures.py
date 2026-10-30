@@ -58,9 +58,11 @@ def _skin_depths(points: wp.array[wp.vec3], closest: wp.array[wp.vec3], outside:
 
 
 class _Skins:
-    """Every region's bone points on every frame against that frame's posed SOMA skin."""
+    """Every region's bone points on every skin frame against that frame's posed SOMA skin; each point's frame
+    (`frame_of`) is its link's copy (`per_copy` bodies a copy), not its skin frame's index: the skins are on every
+    EVERY-th frame only."""
 
-    def __init__(self, skins, device):
+    def __init__(self, skins, device, per_copy):
         self.names = sorted(skins)
         frames = len(next(iter(skins.values()))[0]) if skins else 0
         self.meshes = [wp.Mesh(points=wp.array(np.asarray(verts, dtype=np.float32), dtype=wp.vec3, device=device),
@@ -69,7 +71,7 @@ class _Skins:
         rows = [(name, frame, link, local) for name in self.names for frame in range(frames)
                 for link, local in skins[name][0][frame]]
         self.counts = [sum(1 for row in rows if row[0] == name) for name in self.names]
-        self.frame_of = np.array([row[1] for row in rows], dtype=np.int64)
+        self.frame_of = np.array([row[2] // per_copy for row in rows], dtype=np.int64)
         self.link = wp.array([row[2] for row in rows], dtype=wp.int32, device=device)
         self.local = wp.array(np.array([row[3] for row in rows], dtype=np.float32).reshape(-1, 3), dtype=wp.vec3,
                               device=device)
@@ -123,7 +125,7 @@ class TapedMeasures:
         wanted = np.concatenate([np.asarray(turns[name][2]) for name in self.turn_names]).astype(np.float32)
         self.turn_targets = wp.array(wanted, dtype=wp.vec4, device=device)
         self.degrees = wp.zeros(len(wanted), dtype=wp.float32, device=device, requires_grad=True)
-        self.skins = _Skins(skins or {}, device)
+        self.skins = _Skins(skins or {}, device, sites.model.body_count // self.frames)
 
     def _evaluate(self, inner, outer):
         """Forward kinematics at `inner`, then every joint difference and turn degree."""
