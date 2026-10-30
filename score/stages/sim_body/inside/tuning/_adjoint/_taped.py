@@ -120,28 +120,31 @@ class _Couplings:
 class _Constants:
     """Level 2's constants for one body: each free site's move off its landmark (`free_sites`, into the sites) and each
     inside joint's move of its place in its parent (`inside_joints`, into joint_X_p), 3 values each, free sites first.
-    Laid onto the offsets and joint_X_p before the tape's forward pass; their gradient read off those arrays' grads."""
+    Laid onto the offsets and joint_X_p before the tape's forward pass; their gradient read off those arrays' grads.
+    A body batched per frame (every frame a copy of it in one model) gives each as rows (frames, count): every copy
+    takes the same moves, and their gradients sum."""
 
     def __init__(self, model, free_sites, inside_joints):
-        self.free_sites = np.asarray(free_sites, dtype=int)
-        self.inside_joints = np.asarray(inside_joints, dtype=int)
-        self.size = 3 * (len(self.free_sites) + len(self.inside_joints))
+        self.free_sites = np.atleast_2d(np.asarray(free_sites, dtype=int))
+        self.inside_joints = np.atleast_2d(np.asarray(inside_joints, dtype=int))
+        self.free_count = self.free_sites.shape[1]
+        self.size = 3 * (self.free_count + self.inside_joints.shape[1])
         self.base_places = model.joint_X_p.numpy().copy()
 
     def lay(self, moves, offsets, joint_x_p):
         """`offsets` (sites, 3) with the free sites' moves added, and joint_X_p with the inside joints' moves."""
         moves = np.asarray(moves, dtype=np.float32).reshape(-1, 3)
         moved = offsets.copy()
-        moved[self.free_sites] += moves[:len(self.free_sites)]
+        moved[self.free_sites] += moves[:self.free_count]
         places = self.base_places.copy()
-        places[self.inside_joints, :3] += moves[len(self.free_sites):]
+        places[self.inside_joints, :3] += moves[self.free_count:]
         joint_x_p.assign(places)
         return moved
 
     def gradient(self, offsets, joint_x_p):
         """d cost / d moves from the tape's grads on the offsets and joint_X_p, flat in the moves' order."""
-        sites = offsets.grad.numpy()[self.free_sites]
-        joints = joint_x_p.grad.numpy()[self.inside_joints, :3]
+        sites = offsets.grad.numpy()[self.free_sites].sum(axis=0)
+        joints = joint_x_p.grad.numpy()[self.inside_joints, :3].sum(axis=0)
         return np.concatenate([sites, joints]).astype(np.float64).ravel()
 
 

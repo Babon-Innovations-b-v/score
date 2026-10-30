@@ -8,12 +8,14 @@ turns the Schur and columns tests red; removing the `Unconverged` check turns th
 (no check before use) turns the stacked refusal test red; dropping the prior's block turns the stacked test red;
 in `_taped.py`, dropping `tape.zero()` (a second gradient adds onto the first's) turns the taped gradient test red; skipping
 the turn rows' launch turns it red; dropping the followers' launch (couplings) turns it red; reading level 2's
-inside-joint gradient as zeros (`_Constants.gradient`) turns it red.
+inside-joint gradient as zeros (`_Constants.gradient`) turns it red; reading only the first frame's copy of a constant
+in a batched body (`_Constants.gradient` taking `[0]` in place of `.sum(axis=0)`) turns it red.
 
 The taped test runs `_taped` (Newton eval_fk on a wp.Tape) in Newton's own Python on the card, a four-link chain with
 three weighted sites and two link-frame turn rows, once on every coordinate and once with the last a follower of the
 second (a polynomial coupling, the pose the three free coordinates), and once with level 2's constants (two free
-sites' moves and the third joint's place move after the pose): its gradient, asked twice, equals central differences of its cost to 1e-3 of the largest entry. With no
+sites' moves and the third joint's place move after the pose), and once batched (two frames as two copies of the chain
+in one model, one launch, level 2's constants shared by both): its gradient, asked twice, equals central differences of its cost to 1e-3 of the largest entry. With no
 Newton Python (`SCORE_NEWTON_PYTHON`, else $PROPS_HOME/envs/newton_env) it is skipped."""
 import os
 import pathlib
@@ -169,6 +171,34 @@ assert np.abs(constant_differences[-3:]).max() > 1e-3, "inside joint's move not 
 gaps = [np.abs(taped - differences).max() / np.abs(differences).max(),
         np.abs(coupled_taped - coupled_differences).max() / np.abs(coupled_differences).max(),
         np.abs(constant_taped - constant_differences).max() / np.abs(constant_differences).max()]
+batch_builder = newton.ModelBuilder()
+for copy in range(2):
+    parent = -1
+    for index in range(4):
+        body = batch_builder.add_link(mass=1.0)
+        place = wp.transform(wp.vec3(0.0, 0.0, 0.3 if index else 0.0), wp.quat_identity())
+        axis = (1.0, 0.0, 0.0) if index % 2 == 0 else (0.0, 1.0, 0.0)
+        batch_builder.add_joint_revolute(parent, body, parent_xform=place, axis=axis)
+        parent = body
+    batch_builder.add_articulation(list(range(4 * copy, 4 * copy + 4)))
+batch_model = batch_builder.finalize(device="cuda:0", requires_grad=True)
+batch_targets = [[0.1, 0.2, 0.5], [0.3, -0.2, 1.0], [0.0, 0.1, 0.8], [0.2, 0.1, 0.4], [0.1, -0.1, 0.9], [-0.1, 0.2, 0.7]]
+batched = _taped.TapedSites(batch_model, [1, 3, 3, 5, 7, 7], [1.0, 2.0, 0.5, 1.0, 2.0, 0.5], batch_targets, None, None,
+                            ([[0, 2], [3, 5]], [[2], [6]]))
+second_pose = np.array([-0.1, 0.3, 0.2, -0.4])
+batch_inner = np.concatenate([pose, second_pose, moved_inner[4:]])
+batch_outer = np.concatenate([outer, outer])
+batched.gradient(batch_inner, batch_outer)
+batch_taped = batched.gradient(batch_inner, batch_outer)
+def batch_cost(moved):
+    found = batched.residuals(moved, batch_outer)
+    return 0.5 * float(found @ found)
+batch_width = len(batch_inner)
+batch_differences = np.array([(batch_cost(batch_inner + step * np.eye(batch_width)[axis])
+                               - batch_cost(batch_inner - step * np.eye(batch_width)[axis])) / (2 * step)
+                              for axis in range(batch_width)])
+assert np.abs(batch_differences[8:11]).max() > 1e-3, "a free site's move not in the batched cost"
+gaps.append(np.abs(batch_taped - batch_differences).max() / np.abs(batch_differences).max())
 print("GAP", max(gaps))
 """
 

@@ -20,7 +20,10 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   are on the tape, checked the same way and against the uncoupled cost at the hand-expanded pose (2026-10-30). Level 2's
   constants (`constants=`: free sites' moves off their landmarks, inside joints' place moves in joint_X_p) are inner
   unknowns after the pose, their gradient off the offsets' and joint_X_p's tape grads, checked the same way on the toy
-  (2026-10-30). Not yet: rows batched per body (every frame of a body in one launch).
+  (2026-10-30). A body batched per frame is one model holding a copy of the body per frame (one eval_fk and one
+  launch for every frame): the pose is every copy's in turn, the sites every copy's, and level 2's constants given as
+  rows (frames, count) of each copy's free sites and inside joints, every copy taking the same moves, their gradients
+  summed; checked on two copies of the toy chain the same way (2026-10-30).
 - Built and checked on a toy only (2026-10-30, five tests, 1.2 s); `../__init__.solved(exact=)` takes `stacked_jacobian` (its test, 2026-10-30). Not yet wired: the card gradient (Newton eval_fk on
   a wp.Tape for level 3, level 2's constants) as each `Body`'s callables, `solved`'s Jacobian switch to it, the gate on heavy_kimodo, tall_kimodo and
   a third tuning body against `_differences`, and the 70-case timing.
