@@ -127,18 +127,21 @@ class Pinned:
         return kept
 
 
-def level3_body(name, sites, turns, pinned, offsets, frames):
-    """Level 3 as a `Body` over the poses only (`turns`' chart, `pinned`'s held entries kept), its outer point level
-    2's moves c (`sites` built with `constants=`, the site offsets fixed at `offsets`), so `mixed` over it gives
-    g_q,c; the residuals and gradient read the pose at `turns.full(pinned.whole(inner))`."""
+def level3_body(name, sites, turns, pinned, placed, size, frames):
+    """Level 3 as a `Body` over the poses only (`turns`' chart, `pinned`'s held entries kept), its outer point
+    (theta, c): theta level 1's `size` unknowns, `placed(theta)` the taped outer (`sites`' offsets), c level 2's moves
+    (`sites` built with `constants=`), so `mixed` over it gives g_q,theta then g_q,c; the residuals and gradient read
+    the pose at `turns.full(pinned.whole(inner))`."""
     from tuning._adjoint import Body
 
-    def joined(inner, moves):
-        return np.concatenate([turns.full(pinned.whole(inner)), np.asarray(moves, dtype=float)])
+    def joined(inner, outer):
+        return np.concatenate([turns.full(pinned.whole(inner)), np.asarray(outer, dtype=float)[size:]])
 
-    def gradient(inner, moves):
-        found = sites.gradient(joined(inner, moves), offsets)
+    def gradient(inner, outer):
+        found = sites.gradient(joined(inner, outer), placed(np.asarray(outer, dtype=float)[:size]))
         return pinned.gradient(inner, turns.pulled(pinned.whole(inner), found[:turns.full_pose.size]))
 
-    return Body(name, lambda inner, moves: sites.residuals(joined(inner, moves), offsets), gradient,
-                turns.reduced(), frames, turns.per_copy - 1)
+    def residuals(inner, outer):
+        return sites.residuals(joined(inner, outer), placed(np.asarray(outer, dtype=float)[:size]))
+
+    return Body(name, residuals, gradient, turns.reduced(), frames, turns.per_copy - 1)
