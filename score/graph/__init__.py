@@ -2052,7 +2052,10 @@ class Runner:
         has ended is reaped (is_alive: waitpid, WNOHANG) and holds none, though its outcome is not read yet."""
         alive = [(stage, place, process) for stage, place, process in running.values() if process.is_alive()]
         held = HELD([process.pid for _, _, process in alive])
-        users = {process.pid for _, _, process in alive if on_this_pc() and CONTAINED(process.pid)}
+        # a stage whose nodes ran a container client (`clients`) stays one between and without its jobs: settle's
+        # 12 GB is its own work outside its drop, which a kept drop skips (round 28, 2026-10-30: never read as one)
+        users = {process.pid for stage, _, process in alive
+                 if on_this_pc() and (stage.name in clients or CONTAINED(process.pid))}
         reading = CONTAINER_READ() if users else None  # unread: each user keeps its stage's peak, never less
         highs = HIGH(list(users)) if users else {}
         found = []
