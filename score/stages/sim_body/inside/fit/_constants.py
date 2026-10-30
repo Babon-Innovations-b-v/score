@@ -175,13 +175,15 @@ def qr_off_span(others, columns):
     return columns - basis @ (basis.T @ columns)
 
 
-def staged(fitting, path, turns, points, given, free=(), jacobian=None):
+def staged(fitting, path, turns, points, given, free=(), jacobian=None, warm=None, tolerance=None):
     """The constants (the whole vector, as `Fitting.unpack` reads it) and the frames' angles (frames x nq) that best
     meet the frames' targets together, from `given` and mink's path; the model is left with the constants laid on,
     and the solve's evaluation count. Only the unknowns the data can tell are solved (`told`, from the exact Jacobian
     at the start on the host; an untold inside joint axis stays at its file's place). `jacobian(problem, unknowns)` (the card's
     exact one, `_card._level2.jacobian`) replaces scipy's 2-point differences in the problem's sparse pattern, the
-    reference, when given."""
+    reference, when given. `warm` (a constants vector, frames x nq angles: another set's solved answer on these frames)
+    is only the solve's start, never `given` (an untold unknown keeps `given`'s place); `tolerance` sets least_squares'
+    ftol, xtol and gtol together (scipy's defaults when None)."""
     from fit._card._level2 import jacobian as exact_jacobian
     problem = Problem(fitting, path, turns, points, given, free)
     low, high = problem.bounds()
@@ -195,10 +197,12 @@ def staged(fitting, path, turns, points, given, free=(), jacobian=None):
         found[keep] = unknowns
         return found
 
+    start = begin if warm is None else warm_start(fitting, turns, points, free, warm, low, high)
+    stops = {"ftol": tolerance, "xtol": tolerance, "gtol": tolerance} if tolerance is not None else {}
     exact = {"jac": lambda unknowns: jacobian(problem, whole(unknowns))[:, keep]} if jacobian is not None else {
         "jac_sparsity": problem.sparsity().tocsc()[:, keep]}
-    found = least_squares(lambda unknowns: problem.residuals(whole(unknowns)), begin[keep],
-                          bounds=(low[keep], high[keep]), x_scale="jac", method="trf", tr_solver="lsmr", **exact)
+    found = least_squares(lambda unknowns: problem.residuals(whole(unknowns)), start[keep],
+                          bounds=(low[keep], high[keep]), x_scale="jac", method="trf", tr_solver="lsmr", **exact, **stops)
     found.x = whole(found.x)
     constants = problem.constants(found.x)
     fitting.apply(constants)
@@ -206,3 +210,11 @@ def staged(fitting, path, turns, points, given, free=(), jacobian=None):
     angles = np.array([problem.qpos(frame, found.x[held + frame * problem.width:held + (frame + 1) * problem.width])
                        for frame in range(len(path))])
     return constants, angles, int(found.nfev)
+
+
+def warm_start(fitting, turns, points, free, warm, low, high):
+    """The unknowns' start from `warm` (constants vector, frames x nq angles), as `Problem.start` reads them, within
+    the bounds `low`, `high`."""
+    constants, angles = warm
+    begin = Problem(fitting, angles, turns, points, constants, free).start()
+    return np.clip(begin, np.where(np.isfinite(low), low + INSIDE, low), np.where(np.isfinite(high), high - INSIDE, high))
