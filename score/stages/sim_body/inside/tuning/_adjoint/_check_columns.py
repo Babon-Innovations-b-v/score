@@ -187,7 +187,7 @@ turns = RootTurns(pose, len(_real.frame_couplings(clip, rows)[0]) // len(rows))
 pinned = Pinned(turns.reduced(), _real.bound_held(clip, _real.frame_couplings(clip, rows), rows))
 pose_parts, constant_parts = timed("taping R_q and R_c", lambda: measures.joined_measured(inner, trusted))
 by_poses = pinned.rows(turns.pulled_rows(turns.reduced(), case_rows(*pose_parts, frames=len(rows))[1]))
-by_constants = case_rows(*constant_parts)[1]
+values, by_constants = case_rows(*constant_parts)
 sited, rebuilt, level2, kept = timed("level 2 build", lambda: level2_at_base())
 solved = level2.inner[level2.frames * level2.pose_size:]
 print(json.dumps({"sited vs rebuilt": timed("sited check", lambda: sited_gaps(
@@ -223,6 +223,6 @@ if any(given.startswith("--dtable=") for given in sys.argv):
         base.fitting, moves, lambda: level2.gradient(level2.inner, np.zeros(len(entries)))), lowered, dtable, 0.1))
     np.save(saved_to.with_suffix(".table2.npy"), tabled2)
     block -= tabled2
-np.savez(saved_to, block=block, direct=direct, level3=both[:, :len(entries)], entries=np.array([json.dumps(list(map(str, entry))) for entry in entries]))
+np.savez(saved_to, block=block, rows=values, direct=direct, level3=both[:, :len(entries)], entries=np.array([json.dumps(list(map(str, entry))) for entry in entries]))
 print(json.dumps({"shape": list(block.shape), "largest": float(np.abs(block).max()),
                   "finite": bool(np.isfinite(block).all()), "seconds": seconds, "total": time.time() - began}))

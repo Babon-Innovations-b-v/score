@@ -94,3 +94,9 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   centres included). After 11e0ef1c: heavy and mean pass; tall FAILS: own cosine 0.996 (so the bar stays 0.99),
   hybrid vs fd eighth 0.9886 (vs fd quarter 0.9981); c0 judged vs the eighth (step error 3.3e-5 vs quarter 4.1e-5,
   |c0| 5.9e-4) 9.3 % against a 7.7 % floor. Two steps cannot settle a column this small: it needs a third step.
+- Gate with a larger step pair (B4j, 2026-10-31, scratch b4w/gate.py): tall re-fit at +-STEP and +-STEP/2 (25 card
+  sets, 7 min); each column judged against the lowest-error of the four centrals (d = STEP/8 .. STEP; noise
+  sigma/(sqrt2 d), truncation a d^2 from the two largest), floor the gap to the next-best; step cosine hybrid vs the
+  best-reference fd step, bar min(0.99, best vs next-best). GATE PASS on all three: tall c0 3.0 % vs c.2 under its
+  5.4 % floor, c3 1.7 % vs c.2, cosine 0.99991 (own 0.99922); heavy 0.99597, mean 0.99667. `_check_columns` saves
+  the base rows (`rows`, case_rows' values) beside the block, for the rows-vs-`tuning.case_residuals` check.
