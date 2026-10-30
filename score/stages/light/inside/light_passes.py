@@ -10,7 +10,9 @@ with_devices): Cycles then renders on the processor at the same samples and deno
 and <name>-passes.npz: the linear luminance (Rec. 709) of the whole picture (`combined`) and of each lamp's group
 (`lamp_<n>`, n its place in "lamps"), each averaged over 2 x 2 pixels, as float16; and passes.json, which lamp each
 group holds. Light is linear in a lamp's strength, so the picture at any strengths is `combined` plus each group
-times its scale less one: the light stage's sweep needs no other render.
+times its scale less one: the light stage's sweep needs no other render. The npz also holds `missing`: the share of
+the view's pixels whose surface colour (Cycles' diffuse or glossy colour pass) is Blender's missing-picture magenta
+(1, 0, 1), which passes.judge_magenta reads.
 """
 import json
 import pathlib
@@ -25,6 +27,12 @@ import usd_views  # noqa: E402
 
 LUMINANCE = (0.2126, 0.7152, 0.0722)
 GROUP = re.compile(r"Combined_(lamp_\d+)\.([RGB])$")
+# A missing picture's (1, 0, 1) reaches the colour passes scaled, never tinted (a tiny stage in Blender 5.0.1,
+# 2026-10-30): a plain finish's diffuse colour (0.956, 0, 0.956), its specular layer taking the rest; a metal's diffuse
+# colour black and its glossy colour (1, 0, 1); half metal (0.48, 0, 0.48) and (0.52, 0.02, 0.52). Within MISSING_NEAR
+# of red in green and in red less blue, red at least MISSING_LEAST: a grey or a lit grey never comes near it.
+MISSING_NEAR = 0.05
+MISSING_LEAST = 0.3
 
 
 def lamp_order(stage):
@@ -92,7 +100,22 @@ def passes_of(exr):
         if match:
             weight = LUMINANCE["RGB".index(match.group(2))]
             found[match.group(1)] = found.get(match.group(1), 0.0) + weight * values
-    return {name: halved(values).astype(numpy.float16) for name, values in found.items()}
+    held = {name: halved(values).astype(numpy.float16) for name, values in found.items()}
+    return dict(held, missing=missing_share(channels))
+
+
+def magenta_colour(channels, colour_pass):
+    """Where a colour pass is Blender's missing-picture (1, 0, 1) scaled: red and blue equal and lit, no green."""
+    import numpy
+    red, green, blue = [next(values for name, values in channels.items() if name.endswith(f"{colour_pass}.{axis}"))
+                        for axis in "RGB"]
+    return (red > MISSING_LEAST) & (green < MISSING_NEAR * red) & (numpy.abs(red - blue) < MISSING_NEAR * red)
+
+
+def missing_share(channels):
+    """The share of the picture's pixels whose surface colour (Cycles' diffuse or glossy colour pass) is magenta."""
+    import numpy
+    return numpy.float32((magenta_colour(channels, "Diffuse Color") | magenta_colour(channels, "Glossy Color")).mean())
 
 
 def main():
@@ -120,6 +143,8 @@ def main():
     if environment is not None and environment.get("glow"):
         usd_views.glow_pass(scene, environment["glow"], environment["exposure"])
     groups = light_groups(scene, stage, views["lamps"])
+    # The surface colour, so a missing picture is told from a surface a magenta lamp lights (passes.judge_magenta).
+    scene.view_layers[0].use_pass_diffuse_color = scene.view_layers[0].use_pass_glossy_color = True
     (out / "passes.json").write_text(json.dumps({"groups": groups, "size": views["size"]}, indent=1))
     for view in views["views"]:
         scene.frame_set(int(view.get("frame", scene.frame_current)))

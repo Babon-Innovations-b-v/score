@@ -14,7 +14,8 @@ stages made here, each answer worked out by hand:
   concept's fill only where no sky light reaches, and writes no glow nobody asked for;
 - the rows read the design only (the owner's rule of 2026-10-21: a wording check of the declared files guards it), and
   past faults stay fixed: the strengths saved over the read-only input (2026-10-12, light@camp), a shown place's
-  pictures moved away (2026-10-18), score/stages put on sys.path (Buy of 2026-10-24), Blender's magenta.
+  pictures moved away (2026-10-18), score/stages put on sys.path (Buy of 2026-10-24), Blender's magenta, read on the
+  surface colour, never a lamp's (2026-10-30).
 
 Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - sky.py: the light's direction negated in `write_light` (the house sun test).
@@ -27,7 +28,8 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - light.fill_wanted: ignore `unseen` (the fill test).
 - light.body_faults: drop the "not lit from its sun" fault (the discs test).
 - light.judge_exposure: pass with no concept (the exposure test).
-- passes.judge_magenta: the magenta share always 0 (the magenta test).
+- passes.judge_magenta: the share read times 0 (the magenta view test, 2026-10-30).
+- light_passes.missing_share: the glossy colour pass left out (the missing picture test, 2026-10-30).
 - passes.neighbours: keep a planless shown place (the neighbours test).
 - mix.tone_curve: the one-knot curve of a black view dropped (the black view test, 2026-10-29).
 - light.drawn_count: the sky's prims counted (the drawn test, 2026-10-29).
@@ -337,15 +339,42 @@ def test_a_view_far_blacker_or_more_blown_than_its_concept_fails_and_with_no_con
         assert light.judge_exposure(tmp_path, {}, {}).answer == answer, (concept, views)
 
 
-def test_a_look_with_one_percent_of_blenders_missing_texture_magenta_fails(tmp_path):
+def inside_functions(*names):
+    """Functions and constants of inside/light_passes.py (a Blender script, run only inside Blender) to call here."""
+    import ast
+    source = (pathlib.Path(passes.__file__).parent / "inside/light_passes.py").read_text()
+    kept = [node for node in ast.parse(source).body if isinstance(node, ast.Assign) and node.targets[0].id.isupper()
+            and isinstance(node.value, ast.Constant) or getattr(node, "name", None) in names]
+    found = {}
+    exec(compile(ast.Module(kept, []), "light_passes.py", "exec"), found)
+    return found
+
+
+def test_a_missing_picture_counts_on_plain_and_metal_finishes_and_a_grey_under_a_magenta_lamp_does_not():
+    # the surface colours a missing picture gave in Blender 5.0.1 on a tiny stage (2026-10-30): a plain finish's
+    # diffuse colour, a metal's glossy colour, a half metal's both; a grey lit magenta keeps its grey surface colour
+    share = inside_functions("magenta_colour", "missing_share")["missing_share"]
+    plain, metal, half, grey = (0.956, 0.0, 0.956), (1.0, 0.0, 1.0), (0.48, 0.0, 0.48), (0.765, 0.765, 0.765)
+    diffuse = np.array([[plain, (0.0, 0.0, 0.0), half, grey]])
+    glossy = np.array([[(0.044,) * 3, metal, (0.52, 0.02, 0.52), (0.044,) * 3]])
+    channels = {f"ViewLayer.{kind}.{axis}": values[..., index] for kind, values in
+                (("Diffuse Color", diffuse), ("Glossy Color", glossy)) for index, axis in enumerate("RGB")}
+    assert share(channels) == 0.75
+
+
+def test_a_view_with_one_percent_of_blenders_missing_picture_magenta_fails_and_a_magenta_lamp_does_not(tmp_path):
+    # greenhouse's grow light (#ff55ff) lit 62.7% of a look in the old hue band (2026-10-30): the look is not read
     (tmp_path / "passes/tiny-0").mkdir(parents=True)
-    clean = np.full((100, 100, 3), (120, 110, 100), np.uint8)
-    Image.fromarray(clean).save(tmp_path / "passes/tiny-0/shot0-000-look.png")
+    Image.fromarray(np.full((10, 10, 3), (255, 85, 255), np.uint8)).save(tmp_path / "passes/tiny-0/shot0-look.png")
+    np.savez(tmp_path / "passes/tiny-0/shot0-passes.npz", combined=np.ones((5, 5)), missing=np.float32(0.0))
     assert passes.judge_magenta(tmp_path, {}, {}).answer == checks.PASS
-    clean[:10, :10] = (193, 79, 136)  # the tube's hub through its hatch, 2026-10-16
-    Image.fromarray(clean).save(tmp_path / "passes/tiny-0/shot0-000-look.png")
+    np.savez(tmp_path / "passes/tiny-0/shot0-passes.npz", combined=np.ones((5, 5)), missing=np.float32(0.01))
     verdict = passes.judge_magenta(tmp_path, {}, {})
     assert verdict.answer == checks.FAIL and verdict.measures["magenta share"] == 0.01, verdict
+    np.savez(tmp_path / "passes/tiny-0/shot0-passes.npz", combined=np.ones((5, 5)))  # rendered before the share
+    assert passes.judge_magenta(tmp_path, {}, {}).answer == checks.UNKNOWN
+    script = (pathlib.Path(passes.__file__).parent / "inside/light_passes.py").read_text()
+    assert "use_pass_diffuse_color = scene.view_layers[0].use_pass_glossy_color = True" in script
 
 
 def test_a_passes_job_predicted_past_its_card_renders_on_the_processor_at_the_same_settings(tmp_path, monkeypatch):
