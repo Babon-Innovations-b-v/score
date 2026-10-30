@@ -5,7 +5,7 @@
     plan-matched  the record is its plan's: where the record lays the room shell, every wall of the plan's outline
                   stands in it and every opening on a wall is cut through it (no wall piece fills the opening's middle
                   between its sill and its head); every stair the plan draws is laid; every plan item of a glowing row
-                  has its light over its footprint
+                  has its light over its footprint (one outlining the whole room on its wall's face)
     openings      every doorway leads somewhere: each door, gate or open doorway of the plan leads to a place of the
                   design, outside, sealed, onto a row of its own inventory (a ground it opens onto), or (none named)
                   into what holds it; a door to a place its holder's plan holds beside it has that place stood in the
@@ -121,7 +121,13 @@ def lamp_faults(record, design):
         box, _ = writer.in_frame(design, [[x, y], [x + wide, y + deep]])
         low, high = np.min(box, axis=0) - TOLERANCE, np.max(box, axis=0) + TOLERANCE
         spot = np.array([light["at"][0], light["at"][2]])
-        if not ((low <= spot).all() and (spot <= high).all()):
+        if light.get("against"):  # held on its wall (writer.wall_lamp_spot): off that wall's face by LAMP_OUT
+            start, end = (np.asarray(point, float) for point in light["against"])
+            run = end - start
+            nearest = start + run * float(np.clip((spot - start) @ run / max(float(run @ run), 1e-9), 0.0, 1.0))
+            if float(np.linalg.norm(spot - nearest)) > writer.LAMP_OUT + TOLERANCE:
+                found.append(f"the light of plan item {name!r} stands off its wall")
+        elif not ((low <= spot).all() and (spot <= high).all()):
             found.append(f"the light of plan item {name!r} stands off its footprint")
     return found
 

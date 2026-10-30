@@ -28,8 +28,11 @@ Each plan item of a row that stands on, against or in something gets one relatio
     wall   against a wall of the plan (`wall`, its from, to, thick, and `side` +1 or -1 of the line it stands on, `spot`
            its plan spot): a row anchored `wall`, or on a structure row that is a wall; an item the plan writer did not
            place (the walls item) stands where the concept's box projects onto the plan (plan_checks.projection), else
-           at the longest wall's middle; a placed item stands on the room's side, drawn past the outline or not, but a
-           passage (a tunnel, a tube) meets its wall from outside (past_outline)
+           at the longest wall's middle; an item outlining the whole room (outlines_room: its middle says nothing)
+           on the wall its holder's id names as the viewer sees it (left_wall), else, the concept not placing it, the
+           middle of the nearest wall no other such item holds; such items sharing a spot on one wall spread along it;
+           a placed item stands on the room's side, drawn past the outline or not, but a passage (a tunnel, a tube)
+           meets its wall from outside (past_outline)
     ramp   a ramp row on the floor where the plan draws a raised level (airlock's porch deck): up to the nearest such
            level's nearest edge (`edge`, its two plan points, and `height`), its long side run straight up to it
            (`way`), its high end on the edge's line and its middle at `spot` (up_to_level)
@@ -408,6 +411,90 @@ def on_wall(item, row, plan, inventory):
         side = off_line(numpy.array([float(plan["w"]) / 2, float(plan["d"]) / 2]), wall)[1]
     return {"how": "wall", "wall": {key: wall[key] for key in ("from", "to", "thick")}, "side": side,
             "spot": [round(float(value), 3) for value in spot], "why": f"against the wall nearest {why}"}
+
+
+# A plan item outlines the whole room when its box reaches this share of the plan's width and depth both: its middle
+# says nothing of which wall it is on (engineroom's two wall panels, each drawn as the 8.49 x 10.36 m room, #36).
+ROOM_SHARE = 0.75
+# Whole-room items closer than this along one wall, metres, share one spot: they are spread evenly along it.
+WALL_APART = 0.5
+# The plan way each side word of a wall row's id names, as the concept's viewer sees it: (right, toward) of ways().
+SIDE_WAYS = {"left": (-1, 0), "right": (1, 0), "back": (0, -1), "rear": (0, -1), "far": (0, -1), "front": (0, 1),
+             "near": (0, 1)}
+
+
+def outlines_room(item, plan):
+    """Whether a plan item is the walls item or a box reaching ROOM_SHARE of the plan's width and depth."""
+    return item[0] == plan_checks.WALLS_ITEM or (float(item[3]) >= ROOM_SHARE * float(plan["w"]) and
+                                                  float(item[4]) >= ROOM_SHARE * float(plan["d"]))
+
+
+def wall_key(wall):
+    return tuple(wall["from"]), tuple(wall["to"])
+
+
+def named_wall(holder, plan, turn):
+    """The plan wall a wall row's id names by its side as the viewer sees it (left_wall: the one furthest to the
+    viewer's left), or None where it names no side."""
+    side = next((SIDE_WAYS[word] for word in sorted(words_of(holder)) if word in SIDE_WAYS), None)
+    walls = walls_of(plan)
+    if side is None or not walls:
+        return None
+    right, toward = plan_checks.ways(turn)
+    way, centre = right * side[0] + toward * side[1], numpy.array([float(plan["w"]) / 2, float(plan["d"]) / 2])
+    return max(walls, key=lambda wall: float((numpy.add(wall["from"], wall["to"]) / 2 - centre) @ way))
+
+
+def along_spot(entry, wall, centre):
+    """A wall relation set on `wall`: its spot the nearest point of the wall's line, on the side toward `centre`."""
+    spot = on_line(numpy.asarray(entry["spot"], float), wall)
+    entry.update(wall=wall_part(wall), side=off_line(centre, wall)[1], spot=[round(float(value), 3) for value in spot])
+
+
+def room_walls(found, items, rows, plan, turn, inventory):
+    """Each wall relation of an item outlining the whole room (outlines_room) on a wall of its own: the wall its
+    holder's id names (named_wall), at its spot's nearest point on it; else, where the concept does not place it
+    (seen_spot, for the walls item), the middle of the wall nearest its spot no such relation before it holds. Those
+    left within WALL_APART of one another on one wall spread evenly along it (spread_room)."""
+    walls, held = walls_of(plan), []
+    centre = numpy.array([float(plan["w"]) / 2, float(plan["d"]) / 2])
+    for entry in found:
+        if entry.get("how") != "wall" or not outlines_room(items[entry["item"]], plan):
+            continue
+        row = rows[entry["row"]]
+        anchor = row.get("anchor") or ""
+        holder = rows.get(anchor[3:]) if anchor.startswith("on:") else None
+        wall = named_wall(holder, plan, turn) if holder is not None else None
+        if wall is not None:
+            along_spot(entry, wall, centre)
+            entry["why"] = f"against the wall {holder['id']} names, as the concept's viewer sees it"
+        elif entry["item"] != plan_checks.WALLS_ITEM or seen_spot(row, plan, inventory) is None:
+            taken = {wall_key(other["wall"]) for other in held}
+            free = [wall for wall in walls if wall_key(wall) not in taken] or walls
+            wall = min(free, key=lambda wall: off_line(numpy.asarray(entry["spot"], float), wall)[0])
+            entry["spot"] = numpy.add(wall["from"], wall["to"]) / 2
+            along_spot(entry, wall, centre)
+            entry["why"] = "against the middle of the free wall nearest its spot: its plan item outlines the whole room"
+        held.append(entry)
+    spread_room(held, centre)
+
+
+def spread_room(held, centre):
+    """Whole-room wall relations on one wall within WALL_APART of one another along it, set evenly along it."""
+    by_wall = {}
+    for entry in held:
+        by_wall.setdefault(wall_key(entry["wall"]), []).append(entry)
+    for entries in by_wall.values():
+        start, end = numpy.asarray(entries[0]["wall"]["from"], float), numpy.asarray(entries[0]["wall"]["to"], float)
+        run = (end - start) / max(float(numpy.linalg.norm(end - start)), 1e-9)
+        entries.sort(key=lambda entry: float((numpy.asarray(entry["spot"], float) - start) @ run))
+        alongs = [float((numpy.asarray(entry["spot"], float) - start) @ run) for entry in entries]
+        if all(after - before >= WALL_APART for before, after in zip(alongs, alongs[1:])):
+            continue
+        for number, entry in enumerate(entries):
+            entry["spot"] = start + (end - start) * (number + 1) / (len(entries) + 1)
+            along_spot(entry, entry["wall"], centre)
+            entry["why"] += f"; spread along its wall with the {len(entries) - 1} other(s) at its spot"
 
 
 def openings_of(plan):
@@ -926,6 +1013,7 @@ def relations(plan, inventory, sha=None, kinds=None):
                 found.append({"item": name, "row": row_id, **got})
             elif why:
                 unheld.append({"item": name, "row": row_id, "why": why})
+    room_walls(found, items, rows, plan, turn, inventory)
     crowded = spread(found) + face_spread(found, items, rows, plan, inventory, kinds)
     for entry in found:
         entry.pop(LINE, None)

@@ -57,7 +57,9 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
 - **Lamps from the row kinds and the concept**: a light at each plan item of a glowing row (its row kind, or its
   concept showing it glow: `{home}/design/light/<place>.json`, the reading's concept light, its colour and brightness
   there; a row of the sky is the physics', no lamp), over its middle, as high on it as the library's lamp for the
-  row's mount says, numbered by that lamp. No lamp list per place.
+  row's mount says, numbered by that lamp; an item outlining the whole room (holders.outlines_room: engineroom's
+  wall panels) held on a wall stands its lamp on that wall's face at its relation's spot, `against` naming the face
+  for the gate. No lamp list per place.
 - **The sky is the physics'**: the record's environment says inside or not and what overhead.py sees at the site at
   the scene time (lights over the horizon, bodies, backdrops); the light layer draws it (`score/stages/light/sky.py`).
   The record holds no air, haze or glow the design does not give.
