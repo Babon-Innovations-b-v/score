@@ -31,8 +31,10 @@ gate passes it), else
   round-six generated models with a 0.05 margin (`likeness.py measure`). DINOv2's least is set the same way by the
   paid row `likeness-calibration@<place>` (`calibration_row.py`, about EUR 0.43) on the accepted models the prop data
   names (`accepted`); without it the `likeness` check answers unknown and blocks. A designed place's hand-in names
-  none, so it has no calibration row: its DINOv2 scores are measured and shown, never judged (`measured_only`), and
-  `outline` holds its likeness (#10). Change a threshold only by measuring the accepted set again.
+  none, so it has no calibration row: it needs both `outline` and textured DINOv2 (owner, 2026-10-30): the model in
+  its baked finishes, cast on the processor from the outline's best way and the way facing it (an outline cannot tell
+  a slab's face from its back), against the close-up in its colours, the higher at `DESIGNED_LEAST`
+  (`write_textured_pair`, `facing`). Change a threshold only by measuring the accepted set again.
 - **Thin straight things are built in code** (`thin_straight.py`; owner, 2026-10-25: "Yes, code-build thin straight
   things"): `pixal` sweeps a row slender by `gates/model.py`'s rule and named for a straight kind (a railing its posts at
   most `POST_GAP` apart under a top and a mid rail) or of a kind that glows (a stem lamp's post, a light
