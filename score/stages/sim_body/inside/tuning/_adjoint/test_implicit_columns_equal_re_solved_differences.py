@@ -17,7 +17,7 @@ unknowns' trust (`TapedSites._evaluate` not assigning `self.weights` when `trust
 skipping `self.centres.zero_()` (joint centres adding onto the last evaluation's) turns the taped measures test red.
 Building the bone points without `requires_grad` (`_Skins.points`: no skin depth row reaches the pose) turns it red.
 Cutting each seeded row from the first frame's block in place of its own (`_rows` with start 0) turns it red; `case_rows` laying a
-skin point's block at frame 0 (`rms_row` ignoring `point_frames`) turns it red. `_real.level2_solved` returning its start path in place of the solved angles (what `constants_on` drops) turns the real level 2 test red. `fit/_constants.staged` without its `polished` step turns the real constant motion test red (its free gradient over 1e-9). `_real.level2_constants` laying every copy's free marks on the first copy's sites (the copy shift times 0) turns the real constants test red. `_bodies.level3_body`'s gradient without `pinned.gradient` (held rows not springs) turns it red; its `placed` ignoring theta turns it red too (theta gap 1). `TapedMeasures._constant_blocks` reading every frame's rows off the first copy's inside joints turns the taped measures test red (R_c 148 against 101).
+skin point's block at frame 0 (`rms_row` ignoring `point_frames`) turns it red. `_real.level2_solved` returning its start path in place of the solved angles (what `constants_on` drops) turns the real level 2 test red. `fit/_constants.staged` without its `polished` step turns the real constant motion test red (its free gradient over 1e-9). `_real.level2_constants` laying every copy's free marks on the first copy's sites (the copy shift times 0) turns the real constants test red. `_bodies.level3_body`'s gradient without `pinned.gradient` (held rows not springs) turns it red; its `placed` ignoring theta turns it red too (theta gap 1). `TapedMeasures._constant_blocks` reading every frame's rows off the first copy's inside joints turns the taped measures test red (R_c 148 against 101). `_check_chained.py` with R_c dropped (`by_constants` zeroed) turns the real chained rows test red (1.01).
 In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
 without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pulled` skipping the normalisation's
 projection (`along` the raw turn gradient) turns the root chart test red; `RootTurns.pulled_rows` cutting each copy's fourth turn coordinate in place of pulling the row
@@ -107,17 +107,10 @@ def test_level_1_unknowns_map_onto_the_taped_outer_unknowns_with_their_derivativ
     from score.stages.sim_body.inside.tuning._adjoint import _outer
     entries = tuning.layout(toys.TABLE, set(), {"knee_l"}, {"LeftUpLeg": ["LeftUpLeg"]})
     unknowns = np.linspace(-0.6, 0.9, len(entries))
-    mapped = _outer.site_unknowns(unknowns, entries, toys.LANDMARKS, toys.ENDS, toys.STARTS, toys.TABLE, toys.GLOBALS)
-    rows, weights = tuning.applied(unknowns, entries, toys.STARTS, toys.TABLE, toys.GLOBALS)
-    centre = tuning.offsets(unknowns, entries)["LeftUpLeg"]
-    assert np.allclose(mapped[:9], np.ravel([rows[name]["link"] for name in toys.LANDMARKS]))
-    assert np.allclose(mapped[9:12], toys.ENDS[0][1] + toys.TURN @ centre)
-    assert np.allclose(mapped[12:], [rows[name]["trust"] for name in toys.LANDMARKS]
-                       + [weights["end weight"], weights["marker goal"]])
-    expected = _adjoint.by_columns(
-        lambda point: _outer.site_unknowns(point, entries, toys.LANDMARKS, toys.ENDS, toys.STARTS, toys.TABLE, toys.GLOBALS), unknowns, 1e-6)
+    assert np.allclose(_outer.site_unknowns(unknowns, entries, toys.LANDMARKS, toys.ENDS, toys.STARTS, toys.TABLE,
+                                            toys.GLOBALS), toys.site_outer(unknowns, entries))
     derivative = _outer.site_derivative(unknowns, entries, toys.LANDMARKS, toys.ENDS, toys.TABLE, toys.GLOBALS)
-    assert np.allclose(derivative, expected, atol=1e-6)
+    assert np.allclose(derivative, toys.site_outer_differences(unknowns, entries), atol=1e-6)
 
 
 def test_a_body_copied_per_frame_keeps_the_card_projection_couplings():
@@ -266,9 +259,8 @@ def test_level_2_on_one_real_body_is_stationary_at_its_solve(tmp_path):
 
 
 def test_level_2_constant_motion_on_one_real_body_equals_settled_re_solves(tmp_path):
-    """`SCORE_ADJOINT_REAL` as above: `constant_motion` on level 2 at its float64-settled solve against central
-    differences of level 2 re-solved at marker goal +-0.1, on the told, unpinned slots off their bounds (heavy_kimodo,
-    2026-10-30: 99 s, the base Problem built off the base solve; run only when `SCORE_ADJOINT_REAL` is set)."""
+    """`SCORE_ADJOINT_REAL` as above: `constant_motion` on level 2 at its float64-settled solve against differences of
+    level 2 re-solved at marker goal +-0.1, told, unpinned slots off their bounds (heavy_kimodo, 2026-10-30: 99 s)."""
     given, cases = runs.real_inputs()
     found = runs.last_json(runs.newton_ran("_check_motion.py", given["set"], tmp_path, "0.1", *cases, timeout=300))
     assert found["off"] > 0 and found["free gradient"] < 1e-9, found
@@ -297,3 +289,11 @@ def test_level_2_constants_rows_on_the_real_body_equal_differences_of_its_case_r
     given, cases = runs.real_inputs()
     found = runs.last_json(runs.newton_ran("_check_rows.py", given["seeds"], given["set"], tmp_path, *cases))
     assert found["finite"] and found["masked gap over largest"] < CONSTANTS_SHARE, found
+
+
+def test_chained_rows_on_the_real_body_equal_both_levels_re_solved(tmp_path):
+    """`SCORE_ADJOINT_REAL` as above: `chained_rows` on one link column against `case_rows` of both levels re-solved at
+    +-0.1, the medians' frames fixed (heavy_kimodo ASIS_l, 2026-10-30: 0.48 % of the largest, 366 s)."""
+    given, cases = runs.real_inputs()
+    found = runs.last_json(runs.newton_ran("_check_chained.py", given["seeds"], given["set"], tmp_path, "0.1", *cases, timeout=600))
+    assert found["gap over largest"] < MOTION_SHARE, found
