@@ -352,10 +352,32 @@ def noted(runner, name):
     return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
 
 
+def test_a_node_works_out_its_key_in_a_still_of_its_own_the_drive_s_key_and_makes_outside_it(monkeypatch):
+    """2026-10-30: a node's process worked out its key outside a still, every read listed again: 6-15 min before a
+    make of seconds (sim-body, characters-layer). run_node works it out in a still of its own, the key the drive's
+    still gives, closed before the make writes, so what the make stores is read fresh (a free remake's re-key, below).
+    Break: score/graph/__init__.py: '            with self.still():\n                keyed = self.key(stage, place)'
+    -> '            if True:\n                keyed = self.key(stage, place)'"""
+    marked = make_marked("clean")
+    runner = a_runner(a_world({"hangar": "a ship"}), a_store(), (marked, COUNT))
+    keyed, made, worked_out, make = [], [], graph.Runner.worked_out_key, graph.Runner.make
+    monkeypatch.setattr(graph.Runner, "worked_out_key", lambda self, stage, place: keyed.append(
+        self.remembered is not None) or worked_out(self, stage, place))
+    monkeypatch.setattr(graph.Runner, "make", lambda self, stage, place, key: made.append(
+        self.remembered is None) or make(self, stage, place, key))
+    assert set(runner.run(["hangar"]).values()) == {ACCEPTED}
+    assert keyed and all(keyed) and made == [True, True], (keyed, made)
+    with runner.still():  # as the drive works them out
+        driven = {stage.name: runner.key(stage, "hangar")["key"] for stage in (marked, COUNT)}
+    assert all(runner.store.record(f"{name}@hangar", key) for name, key in driven.items()), driven
+
+
 def test_a_failed_free_output_is_made_once_more_with_a_fresh_seed_noted_and_never_again():
     """The first seed fails, the remake's fresh seed passes and is accepted; its record and the remake log name the
     failed check with its measures, and a later run makes nothing more.
-    Break: score/graph/__init__.py: '        if note and note["then"] == "remake":' -> '        if False:'"""
+    Break: score/graph/__init__.py: '        if note and note["then"] == "remake":' -> '        if False:'
+    Break: score/graph/__init__.py: run_node's body under one 'with self.still():', its key's own pass dropped: the
+    re-key reads the first key, kept in the pass, and the remake stores nothing new."""
     world, store = a_world({"hangar": "a ship"}), a_store()
     runner = a_runner(world, store, (PICK,))
     found = runner.run(["hangar"])
@@ -419,10 +441,13 @@ def judge_parts(output, inputs, evidence):
 def test_a_failed_check_of_inputs_is_noted_for_a_fix_upstream_naming_its_objects_and_not_remade():
     """Likeness@airlock, 2026-10-29: a row whose make never uses its seed (it measures what other rows made) was
     remade with a fresh seed, failed the same way and went to the owner's list. Such a row is noted once for a fix
-    upstream, its failing objects named, never remade, never on the owner's list; the table marks its check rows.
-    Break: score/graph/__init__.py: '        then = "fix" if not second and (not stage.seeded or asks_cached(stage)) else' -> '        then = "fix" if not second and asks_cached(stage) else'"""
+    upstream, its failing objects named, never remade, never on the owner's list; the table marks its check rows and
+    sim-body (no random start, 2026-10-30).
+    Break: score/graph/__init__.py: '        then = "fix" if not second and (not stage.seeded or asks_cached(stage)) else' -> '        then = "fix" if not second and asks_cached(stage) else'
+    Break: score/stages/__init__.py: '"light", "motion", "sim-body")' -> '"light", "motion")'"""
     from score import stages
     assert {row.name for row in stages.STAGES if not row.seeded} == set(stages.UNSEEDED)
+    assert not next(row for row in stages.STAGES if row.name == "sim-body").seeded  # its remakes were byte-identical
     check = graph.Stage("pick", "place", make_seeded, TEXT, (checks.Check("parts", judge_parts),), seeded=False)
     world, store = a_world({"hangar": "a ship"}), a_store()
     runner = a_runner(world, store, (check,))
