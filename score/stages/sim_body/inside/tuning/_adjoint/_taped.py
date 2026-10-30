@@ -272,3 +272,18 @@ its trusts), laid on every copy, so each copy's last `ends` sites are its ends a
         if self.turns is not None:
             rows.append(self.turns.residual_rows.numpy())
         return np.concatenate(rows).astype(np.float64).ravel()
+
+
+def turned_offsets(sites, moves, work):
+    """`work()` with each turn row's offset in `moves` ({row: body-side rad}) turned: the site holds R_cal^T, so
+    R_cal -> R_cal exp([w]x) makes it exp(-[w]x) R_cal^T; the offsets are put back after."""
+    from scipy.spatial.transform import Rotation
+    kept = sites.turns.offsets
+    offsets = kept.numpy().astype(np.float64)
+    for row, turn in moves.items():
+        offsets[row] = (Rotation.from_rotvec(-np.asarray(turn)) * Rotation.from_quat(offsets[row])).as_quat()
+    sites.turns.offsets = wp.array(offsets.astype(np.float32), dtype=wp.quat, device=kept.device)
+    try:
+        return work()
+    finally:
+        sites.turns.offsets = kept

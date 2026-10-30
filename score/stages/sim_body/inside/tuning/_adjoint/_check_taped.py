@@ -58,6 +58,19 @@ assert np.abs(constant_differences[-3:]).max() > 1e-3, "inside joint's move not 
 gaps = [np.abs(taped - differences).max() / np.abs(differences).max(),
         np.abs(coupled_taped - coupled_differences).max() / np.abs(coupled_differences).max(),
         np.abs(constant_taped - constant_differences).max() / np.abs(constant_differences).max()]
+from scipy.spatial.transform import Rotation  # noqa: E402
+turn = np.array([0.04, -0.02, 0.03])
+turned_by_hand = [list(offset) for offset in turns[3]]
+turned_by_hand[1] = list((Rotation.from_rotvec(-turn) * Rotation.from_quat(turns[3][1])).as_quat())
+rebuilt = _taped.TapedSites(model, [1, 3, 3], [1.0, 2.0, 0.5], [[0.1, 0.2, 0.5], [0.3, -0.2, 1.0], [0.0, 0.1, 0.8]],
+                            (*turns[:3], turned_by_hand))
+unturned = sites.gradient(pose, outer)
+turned = _taped.turned_offsets(sites, {1: turn}, lambda: sites.gradient(pose, outer))
+expected = rebuilt.gradient(pose, outer)
+assert np.abs(turned - unturned).max() > 1e-4, "the turned offset does not reach the gradient"
+gaps.append(np.abs(turned - expected).max() / np.abs(expected).max())
+gaps.append(np.abs(sites.gradient(pose, outer) - unturned).max() / np.abs(unturned).max())
+print("TURNED", gaps[-2], "PUT BACK", gaps[-1])
 batch_builder = newton.ModelBuilder()
 for copy in range(2):
     parent = -1
