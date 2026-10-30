@@ -1791,6 +1791,7 @@ def test_on_this_pc_the_container_is_counted_once_and_its_waiting_clients_reserv
     monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, int(0.1 * FLOOR)))
     monkeypatch.setattr(graph, "CONTAINED", lambda pid: pid < 14)
     monkeypatch.setattr(graph, "CONTAINER_READ", lambda: room[0] and (room[0], {}))  # no job seen yet: all its room
+    monkeypatch.setattr(graph, "HIGH", lambda pids: dict.fromkeys(pids, 0))
     monkeypatch.setenv(*graph.THIS_PC)
     clients = {"bake": int(0.1 * FLOOR)}
     coming = runner.coming(running, peaks, {}, clients)
@@ -1818,6 +1819,7 @@ def test_on_this_pc_a_running_container_client_keeps_its_own_trees_kept_peak_unt
     running = {0: (settle, "hangar", types.SimpleNamespace(pid=11, is_alive=lambda: True))}
     faked(monkeypatch, [30 * GIGA])
     monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
+    monkeypatch.setattr(graph, "HIGH", lambda pids: dict.fromkeys(pids, 0))
     monkeypatch.setattr(graph, "CONTAINED", lambda pid: True)
     monkeypatch.setattr(graph, "CONTAINER_READ", lambda: (0, {}))
     peaks, clients = {"settle": 8 * 2**30}, {"settle": 12 * GIGA}
@@ -1826,6 +1828,39 @@ def test_on_this_pc_a_running_container_client_keeps_its_own_trees_kept_peak_unt
     coming = runner.coming(running, peaks, {}, clients)
     assert coming == [(12 * GIGA, 0), (0, 0)] and not graph.memory_room(coming, expected)
     assert runner.coming(running, {}, {}, {}) == [(FLOOR, 0), (0, 0)]
+
+
+def test_on_this_pc_a_container_clients_tree_peak_is_kept_while_it_runs_so_a_stopped_one_leaves_it(tmp_path,
+                                                                                                  monkeypatch):
+    """The coordinator, 2026-10-30: the round 26 settle nodes never ended with an outcome read, so their 12-13 GB was
+    never kept. A running settle node holding 1 GB by its share now, its processes' VmHWM summing to 13 GB: the
+    reading keeps 13 GB beside the store at once, a later lower reading never lowers it, and with the node stopped
+    (no outcome ever read) a later settle node is reserved at 13 GB; trees_high sums its processes' VmHWM (2 + 3 GB).
+    Break: score/graph/__init__.py: '                clients.update(self.keep_client_tree(stage.name, high))' ->
+    '                pass' -> nothing kept until the node ends.
+    Break: score/graph/__init__.py: 'max(seen[node], highs.get(process.pid, 0))' -> 'seen[node]' -> nothing kept (1 GB
+    is under the floor)."""
+    monkeypatch.setenv(*graph.THIS_PC)
+    runner = a_driven_runner({"hangar": "a ship"})
+    settle = types.SimpleNamespace(name="settle", grain="place")
+    running = {0: (settle, "hangar", types.SimpleNamespace(pid=11, is_alive=lambda: True))}
+    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, GIGA))
+    high = [13 * GIGA]
+    monkeypatch.setattr(graph, "HIGH", lambda pids: dict.fromkeys(pids, high[0]))
+    monkeypatch.setattr(graph, "CONTAINED", lambda pid: True)
+    monkeypatch.setattr(graph, "CONTAINER_READ", lambda: (0, {}))
+    clients = {}
+    assert runner.coming(running, {}, {}, clients)[0] == (13 * GIGA, GIGA)
+    high[0] = 2 * GIGA
+    runner.coming(running, {}, {}, clients)
+    assert clients == runner.client_trees() == {"settle": 13 * GIGA}
+    assert graph.client_peak("settle", runner.peaks(), runner.client_trees()) == 13 * GIGA
+    monkeypatch.setattr(graph, "PROC", str(tmp_path))
+    a_process(tmp_path, 100, 1, 10)
+    a_process(tmp_path, 101, 100, 10)
+    for pid, kilobytes in ((100, 2 * GIGA // 1024), (101, 3 * GIGA // 1024)):
+        (tmp_path / str(pid) / "status").write_text(f"Name:\tnode\nVmHWM:\t{kilobytes} kB\n")
+    assert graph.trees_high([100]) == {100: 2 * GIGA // 1024 * 1024 + 3 * GIGA // 1024 * 1024}
 
 
 def test_a_node_that_made_nothing_never_brings_its_stage_under_the_default(monkeypatch):
