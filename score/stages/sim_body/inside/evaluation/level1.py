@@ -41,7 +41,7 @@ def main():
     count = [0]
     latest = {}
     sides = {case: name for name in ("tuning", "check") for case in evaluation.picked(cases, split, name)}
-    noise = json.loads((run / "floor.json").read_text()) if (run / "floor.json").exists() else None
+    noise = json.loads((run / "floor.json").read_text())["floor"] if (run / "floor.json").exists() else None
 
     def worker_set(unknowns):
         rows, weights = tuning.applied(unknowns, entries, starts, table, GLOBALS)
