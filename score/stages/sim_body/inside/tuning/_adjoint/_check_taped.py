@@ -1,6 +1,6 @@
 """The taped gradient test's run in Newton's own Python (`python _check_taped.py <this folder>`): prints GAP, the
 largest gap to central differences."""
-import sys, numpy as np, warp as wp, newton
+import pathlib, sys, numpy as np, warp as wp, newton
 sys.path.insert(0, sys.argv[1])
 import _taped
 builder = newton.ModelBuilder()
@@ -139,4 +139,26 @@ def outer_gap(taped_sites, inner, at):
 gaps.append(outer_gap(ended, pose, np.concatenate([outer, landmarks, [end_weight, goal]])))
 gaps.append(outer_gap(copied, copied_inner, copied_outer))
 print("OUTER", gaps[-2:])
+sys.path.insert(0, str(pathlib.Path(sys.argv[1]).parent.parent))
+from _bodies import Pinned, level3_body  # noqa: E402
+from tuning._adjoint import mixed  # noqa: E402
+class Unturned:
+    """`RootTurns`' chart as the identity, for a chain with no free root."""
+    def __init__(self, pose):
+        self.full_pose, self.per_copy = np.asarray(pose, dtype=float), len(pose) + 1
+    def reduced(self):
+        return self.full_pose.copy()
+    def full(self, reduced):
+        return np.asarray(reduced, dtype=float)
+    def pulled(self, reduced, gradient):
+        return np.asarray(gradient, dtype=float)
+picks = np.random.default_rng(3).normal(size=(13, 2)) * 0.05
+picked_at = np.concatenate([outer, landmarks, [end_weight, goal]])
+chain = level3_body("chain", ended, Unturned(pose), Pinned(pose, np.zeros(4, dtype=bool)),
+                    lambda theta: picked_at + picks @ theta, 2, 1, columns=picks, step=step)
+lifted = np.random.default_rng(4).normal(size=(4, 3))
+by_mixed = lifted.T @ mixed(chain.gradient, pose, np.zeros(2), step)
+products = chain.products(pose, np.zeros(2), lifted)
+print("PRODUCTS", np.abs(products - by_mixed).max() / np.abs(by_mixed).max())
+gaps.append(np.abs(products - by_mixed).max() / np.abs(by_mixed).max())
 print("GAP", max(gaps))

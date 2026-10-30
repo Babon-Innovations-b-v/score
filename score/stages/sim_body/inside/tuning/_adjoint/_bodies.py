@@ -127,11 +127,13 @@ class Pinned:
         return kept
 
 
-def level3_body(name, sites, turns, pinned, placed, size, frames):
+def level3_body(name, sites, turns, pinned, placed, size, frames, columns=None, step=1e-4):
     """Level 3 as a `Body` over the poses only (`turns`' chart, `pinned`'s held entries kept), its outer point
     (theta, c): theta level 1's `size` unknowns, `placed(theta)` the taped outer (`sites`' offsets), c level 2's moves
     (`sites` built with `constants=`), so `mixed` over it gives g_q,theta then g_q,c; the residuals and gradient read
-    the pose at `turns.full(pinned.whole(inner))`."""
+    the pose at `turns.full(pinned.whole(inner))`. With `columns` (placed's linear columns, taped outer x `size`) the
+    Body has `products`: w^T dg/d(theta, c) for each weight column w, d/dq of d cost / d(theta, c) along w (H's
+    symmetry), two taped outer gradients a column at the pose moved by `step` along w (normed), never one per theta."""
     from tuning._adjoint import Body
 
     def joined(inner, outer):
@@ -144,4 +146,26 @@ def level3_body(name, sites, turns, pinned, placed, size, frames):
     def residuals(inner, outer):
         return sites.residuals(joined(inner, outer), placed(np.asarray(outer, dtype=float)[:size]))
 
-    return Body(name, residuals, gradient, turns.reduced(), frames, turns.per_copy - 1)
+    body = Body(name, residuals, gradient, turns.reduced(), frames, turns.per_copy - 1)
+    if columns is not None:
+        def outer_gradient(inner, outer):
+            point, theta = joined(inner, outer), placed(np.asarray(outer, dtype=float)[:size])
+            moves = sites.gradient(point, theta)[turns.full_pose.size:] if sites.constants is not None else []
+            return np.concatenate([np.asarray(columns).T @ sites.outer_gradient(point, theta), moves])
+
+        body.products = lambda inner, outer, weights: directional_rows(outer_gradient, inner, outer, weights, step)
+    return body
+
+
+def directional_rows(outer_gradient, inner, outer, weights, step):
+    """One row a column w of `weights`: the derivative of `outer_gradient(inner, outer)` along w, by central differences
+    at `inner` +- (step / |w|) w, scaled back by |w| (a zero column a zero row)."""
+    rows = []
+    for weight in np.asarray(weights, dtype=float).T:
+        size = float(np.linalg.norm(weight))
+        if size == 0.0:
+            rows.append(np.zeros(len(outer)))
+            continue
+        moved = (step / size) * weight
+        rows.append(size * (outer_gradient(inner + moved, outer) - outer_gradient(inner - moved, outer)) / (2 * step))
+    return np.stack(rows)
