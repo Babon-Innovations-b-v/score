@@ -100,7 +100,7 @@ POSES = [((0.0, 0.0, 1.0), 0.2, -0.4, 0.1), ((0.05, 0.0, 1.0), 0.4, -0.8, -0.3),
          ((0.15, 0.03, 0.99), -0.3, -0.3, 0.9), ((0.2, 0.03, 1.0), -0.5, -0.1, 0.3),
          ((0.25, 0.03, 1.0), 1.3, -0.5, 0.2)]
 MOST_RADIANS = 1e-4
-SETTLED_GRADIENT = 2.5e-5  # all six poses, 2 mm noise (2026-10-30): settled 1.26e-5, scipy's default tolerances 4.79e-5
+SETTLED_GRADIENT = 1e-10  # the free gradient level 2 ends at, absolute (2026-10-30: scipy's trf/lsmr alone left 2.5e-7)
 # The marker's move is pulled to its link by one row at its own weight against the five frames' (found 2026-10-29: 7.1 mm
 # of the true 10 mm, 10.0 with the pull dropped): along the true move at least MOVE_SHARE of it and no more than all of
 # it, off that line by under MOST_METRES.
@@ -384,11 +384,12 @@ def a_bone_point_outside_the_skin_lies_as_deep_as_its_distance():
 
 def level_2_ends_settled():
     """On noisy markers (the toy's, 2 mm noise, seeded) level 2's solve ends where the cost's gradient on its free
-    told unknowns is under SETTLED_GRADIENT of its start's, not on a cost change that stops it before it settles."""
+    told unknowns off their bounds is under SETTLED_GRADIENT, float64's floor: not stalled short of it by scipy's
+    trf/lsmr step or by float32 coordinates in the residuals."""
     import fit
     import numpy as np
     from fit._card._level2 import jacobian
-    from fit._constants import INSIDE, Problem, staged, told
+    from fit._constants import Problem, off_bounds, staged, told
     from landmarks import HELD
     with tempfile.TemporaryDirectory() as folder:
         fitting = toy_fitting(folder)
@@ -398,17 +399,11 @@ def level_2_ends_settled():
         free = [index for index, name in enumerate(fitting.marks) if name not in HELD and not name.startswith(fit.END)]
         constants, angles, _ = staged(fitting, path, turns, points, fitting.neutral(), free, jacobian)
         fitting.apply(fitting.neutral())
-        gradients = []
-        for given, poses in ((fitting.neutral(), path), (constants, angles)):
-            problem = Problem(fitting, poses, turns, points, given, free)
-            unknowns = problem.start()
-            low, high = problem.bounds()
-            kept = told(problem, jacobian(problem, unknowns))
-            inside = [index for index in kept if low[index] + INSIDE < unknowns[index] < high[index] - INSIDE]
-            gradient = jacobian(problem, unknowns).T @ problem.residuals(unknowns)
-            gradients.append(float(np.abs(gradient[inside]).max()))
-    ratio = gradients[1] / gradients[0]
-    return [] if ratio < SETTLED_GRADIENT else [f"level 2 stopped at {ratio:.2e} of its start's gradient"]
+        problem = Problem(fitting, angles, turns, points, constants, free)
+        unknowns = problem.start()
+        inside = off_bounds(unknowns, told(problem, jacobian(problem, unknowns)), problem.bounds())
+        gradient = float(np.abs((jacobian(problem, unknowns).T @ problem.residuals(unknowns))[inside]).max())
+    return [] if gradient < SETTLED_GRADIENT else [f"level 2 stopped at a free gradient of {gradient:.2e}"]
 
 
 CHECKS = (a_bone_point_outside_the_skin_lies_as_deep_as_its_distance, only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
