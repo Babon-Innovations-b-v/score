@@ -5,7 +5,16 @@ unconverged inner fit is refused.
 Breaks (each applied once, seen red, reverted), in `tuning/_adjoint/__init__.py`: dropping the mixed term
 (`moved` set to zeros) turns the columns test red; `schur_solve` skipping the couplings' reduction (`reduced = corner`)
 turns the Schur and columns tests red; removing the `Unconverged` check turns the refusal test red; `stacked_jacobian` skipping `refused`
-(no check before use) turns the stacked refusal test red; dropping the prior's block turns the stacked test red."""
+(no check before use) turns the stacked refusal test red; dropping the prior's block turns the stacked test red;
+in `_taped.py`, dropping `tape.zero()` (a second gradient adds onto the first's) turns the taped gradient test red.
+
+The taped test runs `_taped` (Newton eval_fk on a wp.Tape) in Newton's own Python on the card, a four-link chain with
+three weighted sites: its pose gradient, asked twice, equals central differences of its cost to 1e-3 of the largest entry. With no
+Newton Python (`SCORE_NEWTON_PYTHON`, else $PROPS_HOME/envs/newton_env) it is skipped."""
+import os
+import pathlib
+import subprocess
+
 import numpy as np
 import pytest
 import scipy.optimize
@@ -95,3 +104,52 @@ def test_the_stacked_jacobian_names_every_unconverged_body():
     with pytest.raises(_adjoint.Unconverged, match="two .*three"):
         _adjoint.stacked_jacobian([_body("one", _solved(OUTER)), _body("two", stopped), _body("three", stopped)],
                                   OUTER, _prior, (1e-5, 1e-5), 1e-8)
+
+
+_TAPED_CHECK = """
+import sys, numpy as np, warp as wp, newton
+sys.path.insert(0, sys.argv[1])
+import _taped
+builder = newton.ModelBuilder()
+parent = -1
+for index in range(4):
+    body = builder.add_link(mass=1.0)
+    place = wp.transform(wp.vec3(0.0, 0.0, 0.3 if index else 0.0), wp.quat_identity())
+    axis = (1.0, 0.0, 0.0) if index % 2 == 0 else (0.0, 1.0, 0.0)
+    builder.add_joint_revolute(parent, body, parent_xform=place, axis=axis)
+    parent = body
+builder.add_articulation(list(range(4)))
+model = builder.finalize(device="cuda:0", requires_grad=True)
+sites = _taped.TapedSites(model, [1, 3, 3], [1.0, 2.0, 0.5], [[0.1, 0.2, 0.5], [0.3, -0.2, 1.0], [0.0, 0.1, 0.8]])
+pose = np.array([0.2, 0.4, -0.3, 0.6])
+outer = np.array([0.05, 0.0, 0.1, 0.02, 0.03, 0.1, -0.04, 0.0, 0.05])
+sites.gradient(pose, outer)
+taped = sites.gradient(pose, outer)
+def cost(moved):
+    found = sites.residuals(moved, outer)
+    return 0.5 * float(found @ found)
+step = 1e-3
+differences = np.array([(cost(pose + step * np.eye(4)[axis]) - cost(pose - step * np.eye(4)[axis])) / (2 * step)
+                        for axis in range(4)])
+print("GAP", np.abs(taped - differences).max() / np.abs(differences).max())
+"""
+
+
+def _newton_python():
+    """Newton's own Python: `SCORE_NEWTON_PYTHON`, else $PROPS_HOME/envs/newton_env's; None when neither exists."""
+    named = os.environ.get("SCORE_NEWTON_PYTHON")
+    if named:
+        return pathlib.Path(named)
+    found = pathlib.Path(os.environ.get("PROPS_HOME", "/nonexistent")) / "envs/newton_env/bin/python"
+    return found if found.exists() else None
+
+
+def test_the_taped_gradient_equals_central_differences_of_the_cost():
+    python = _newton_python()
+    if python is None:
+        pytest.skip("no Newton Python (SCORE_NEWTON_PYTHON or $PROPS_HOME/envs/newton_env)")
+    ran = subprocess.run([str(python), "-B", "-c", _TAPED_CHECK, str(pathlib.Path(__file__).parent)],
+                         capture_output=True, text=True, timeout=110)
+    assert ran.returncode == 0, ran.stderr[-2000:]
+    gap = float(ran.stdout.rsplit("GAP", 1)[1])
+    assert gap < 1e-3
