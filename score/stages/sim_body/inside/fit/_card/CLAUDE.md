@@ -110,8 +110,11 @@ before that.
   (`joint_X_p`) read from a [sets, joints] array by the row's set, so one batch can hold every set's frames (rows = set
   x frame) though each set's inside-joint moves change its body places (Newton's IK has no worlds: one model, so the
   places go per row). Newton's own `eval_single_articulation_fk`, so equal to `eval_fk_batched` on each set alone bit
-  for bit (2026-10-30, the chain, 3 sets x 4 frames). Still to come: the analytic FK and motion subspace per row in
-  an IKOptimizerLM subclass, `_forward` per row, a refusal when sets' frozen, limited or reduction differ, and
+  for bit (2026-10-30, the chain, 3 sets x 4 frames). `rowwise(optimizer, set_places, row_set)` overrides an
+  IKOptimizerLM instance's `_fk_two_pass` and `_compute_motion_subspace` with the same per-row read (Newton's own
+  kernels, the place read by the row's set; an instance override, not a subclass, since Newton specialises the class
+  per size): its analytic residuals and Jacobian equal each set's own model bit for bit (2026-10-30, the chain, a
+  position objective). Still to come: `_forward` per row, a refusal when sets' frozen, limited or reduction differ, and
   `Clip` building set x frame rows.
 - One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
