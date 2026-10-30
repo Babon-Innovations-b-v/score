@@ -251,6 +251,8 @@ class Drop:
                     builder.add_shape_collision_filter_pair(shape, other)
             self.bodies[name], self.middles[name] = body, middle
             shapes += len(pieces)
+        if not self.bodies:  # nothing loose: MuJoCo refuses a model with no joint (assembly@docking_airlock, 2026-10-30)
+            return
         self.model = builder.finalize(device=wp.get_preferred_device())
         self.room = CONTACTS * shapes
         self.solver = newton.solvers.SolverMuJoCo(
