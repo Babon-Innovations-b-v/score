@@ -106,6 +106,20 @@ class Body:
         self.inner, self.frames, self.pose_size = np.asarray(inner, dtype=float), frames, pose_size
 
 
+def chained_jacobian(level2, level3, outer, steps, tolerance):
+    """dR/dtheta when level 2's constants c are outer to level 3 (case (a), #70): `level2` a Body over its sampled
+    frames' poses then c, stationary in its own gradient, gives dc/dtheta; `level3` a Body over the poses only, its
+    `residuals` and `gradient` taking the outer point (theta, then c), gives R's derivative over (theta, c) with its
+    poses re-solved; chained, R_theta + R_c dc/dtheta + R_q dq/dtheta."""
+    poses = level2.frames * level2.pose_size
+    moved = implicit_jacobian(lambda inner, _: inner[poses:], level2.gradient, level2.inner, outer, level2.frames,
+                              level2.pose_size, steps, tolerance)
+    joined = np.concatenate([np.asarray(outer, dtype=float), level2.inner[poses:]])
+    both = implicit_jacobian(level3.residuals, level3.gradient, level3.inner, joined, level3.frames, level3.pose_size,
+                             steps, tolerance)
+    return both[:, :len(outer)] + both[:, len(outer):] @ moved
+
+
 def refused(bodies, outer, tolerance):
     """{name: inner gradient's largest entry} of every body whose inner fit stopped over `tolerance`."""
     norms = {body.name: gradient_norm(body.gradient, body.inner, outer) for body in bodies}

@@ -7,7 +7,7 @@ Breaks (each applied once, seen red, reverted), in `tuning/_adjoint/__init__.py`
 turns the outer rows test red; `case_rows` weighing joints 1.0 in place of
 JOINT_SHARE turns the case rows test red; dropping the mixed term
 (`moved` set to zeros) turns the columns test red; `schur_solve` skipping the couplings' reduction (`reduced = corner`)
-turns the Schur and columns tests red; removing the `Unconverged` check turns the refusal test red; `stacked_jacobian` skipping `refused`
+turns the Schur and columns tests red; removing the `Unconverged` check turns the refusal test red; `chained_jacobian` dropping level 2's term (R_c dc/dtheta) turns the level 2 chain test red; `stacked_jacobian` skipping `refused`
 (no check before use) turns the stacked refusal test red; dropping the prior's block turns the stacked test red;
 in `_taped.py`, dropping `tape.zero()` (a second gradient adds onto the first's) turns the taped gradient test red; skipping
 the turn rows' launch turns it red; dropping the followers' launch (couplings) turns it red; reading level 2's
@@ -362,3 +362,71 @@ def test_a_pinned_held_entry_keeps_the_frame_blocks_and_equals_the_pose_with_it_
     assert np.allclose(kept, dropped, rtol=1e-6, atol=1e-9)
     rows = np.ones((2, inner.size))
     assert not pinned.rows(rows)[:, held].any() and (pinned.rows(rows)[:, ~held] == 1.0).all()
+
+
+SEEN, TOLD = 3, np.array([True, False])
+SEEN_TIMES = np.linspace(0.2, 0.8, SEEN)
+
+
+def _seen_parts(poses, outer):
+    first, second, constants = poses[:, 0], poses[:, 1], outer[3:]
+    sine = np.sin(first) + constants[0] - outer[0] * (1 + SEEN_TIMES)
+    product = first * second + constants[1] - outer[1]
+    return first, second, sine, product
+
+
+def _seen_gradient(inner, outer):
+    first, second, sine, product = _seen_parts(inner.reshape(SEEN, POSE), outer)
+    along_first = sine * np.cos(first) + product * second + (first - 0.5)
+    return np.stack([along_first, product * first + (second - outer[2])], axis=1).ravel()
+
+
+def _seen_cost(inner, outer):
+    first, second, sine, product = _seen_parts(inner.reshape(SEEN, POSE), outer)
+    return 0.5 * (np.sum(sine ** 2) + np.sum(product ** 2) + np.sum((second - outer[2]) ** 2)
+                  + np.sum((first - 0.5) ** 2))
+
+
+def _seen_residuals(inner, outer):
+    poses = inner.reshape(SEEN, POSE)
+    return np.concatenate([poses[:, 0] + poses[:, 1] - outer[2], poses[:, 0] * outer[3], [outer[4] * outer[1]]])
+
+
+def _level2_told(outer, untold):
+    """Level 2 re-solved with the untold constant held at `untold`: its poses and constants."""
+    count = FRAMES * POSE + int(TOLD.sum())
+
+    def whole(point):
+        return np.concatenate([point, [untold]])
+
+    found = scipy.optimize.minimize(lambda point: _cost(whole(point), outer), np.full(count, 0.2),
+                                    jac=lambda point: _gradient(whole(point), outer)[:count], method="BFGS",
+                                    options={"gtol": 1e-13, "maxiter": 10000})
+    return whole(found.x)
+
+
+def _chain_re_solved(outer, untold):
+    constants = _level2_told(outer, untold)[FRAMES * POSE:]
+    joined = np.concatenate([outer, constants])
+    found = scipy.optimize.minimize(_seen_cost, np.full(SEEN * POSE, 0.2), args=(joined,), jac=_seen_gradient,
+                                    method="BFGS", options={"gtol": 1e-13, "maxiter": 10000})
+    return _seen_residuals(found.x, joined)
+
+
+def test_level_2_constants_outer_to_level_3_chain_to_re_solved_differences():
+    from score.stages.sim_body.inside.tuning._adjoint import _bodies
+    untold = _solved(OUTER)[-1]
+    level2_inner = _level2_told(OUTER, untold)
+    held = np.zeros(level2_inner.size, dtype=bool)
+    held[FRAMES * POSE:] = ~TOLD
+    pinned = _bodies.Pinned(level2_inner, held)
+    level2 = _adjoint.Body("level 2", None, lambda point, outer: pinned.gradient(
+        point, _gradient(pinned.whole(point), outer)), level2_inner, FRAMES, POSE)
+    joined = np.concatenate([OUTER, level2_inner[FRAMES * POSE:]])
+    level3_inner = scipy.optimize.minimize(_seen_cost, np.full(SEEN * POSE, 0.2), args=(joined,), jac=_seen_gradient,
+                                           method="BFGS", options={"gtol": 1e-13, "maxiter": 10000}).x
+    level3 = _adjoint.Body("level 3", _seen_residuals, _seen_gradient, level3_inner, SEEN, POSE)
+    chained = _adjoint.chained_jacobian(level2, level3, OUTER, (1e-5, 1e-5), 1e-8)
+    re_solved = _adjoint.by_columns(lambda point: _chain_re_solved(point, untold), OUTER, 1e-4)
+    assert np.abs(re_solved).max() > 0.1
+    assert np.abs(chained - re_solved).max() < 1e-4 * np.abs(re_solved).max()
