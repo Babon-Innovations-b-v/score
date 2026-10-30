@@ -27,22 +27,35 @@ SPOT_STEP = 0.05
 NEAR_FACES = 20000
 
 
+def mounted(rows):
+    """{row id: "wall" or "ceiling"} of the `rows` ({id: row}) anchored on a wall or ceiling row (`on:<row>`,
+    holders.holder_kind): mounted there, not held up from under (the docking airlock's wall pipes and ceiling rails,
+    judged as standing on their wall, leaned and tipped, round 32, 2026-10-30). Here, not in holders: holders is in
+    the code of the scene record and every row after it."""
+    from score.review.holders import holder_kind  # here: holders imports the stage table, which imports this module
+    found = {}
+    for row_id, row in rows.items():
+        anchor = str(row.get("anchor") or "")
+        kind = holder_kind(rows.get(anchor.removeprefix("on:"), {"id": ""})) if anchor.startswith("on:") else None
+        if kind in ("wall", "ceiling"):
+            found[row_id] = kind
+    return found
+
+
 def held_objects(stage, place, inventory, kit_path=None):
     """The stage's top-level objects held on another (the triage's support `held`: row anchor `on:<row>`; the kit
     given its kinds' groups), lowest first, so one held on a held one comes after its holder. One held on a wall or a
-    ceiling row (holders.holder_kind) is mounted, not held up from under, and left out: its laid pose stands
+    ceiling row (`mounted`) is mounted, not held up from under, and left out: its laid pose stands
     (airlock's ceiling lamps on its roof dome, snapped toward a floor 280 cm down, 2026-10-30)."""
-    from score.review.holders import holder_kind  # here: holders imports the stage table, which imports this module
     data, groups = triage.rules(), triage.kit_groups(kit_path)
     rows = {row["id"]: row for row in inventory["rows"]}
-    mounted ={row["id"] for row in inventory["rows"] if (row.get("anchor") or "").startswith("on:")
-               and holder_kind(rows.get(row["anchor"].removeprefix("on:"), {"id": ""})) in ("wall", "ceiling")}
+    on_walls = mounted(rows)
     cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
     found = []
     for path, prim in resting.objects_of(stage, place).items():
         name = path.removeprefix(f"/{place}/Objects/")
         row = prim.GetAttribute("score:row").Get()
-        if "/" not in name and row not in mounted and triage.support_type(rows.get(row, {}), prim, data,
+        if "/" not in name and row not in on_walls and triage.support_type(rows.get(row, {}), prim, data,
                                                                            groups) == "held":
             found.append((cache.ComputeWorldBound(prim).ComputeAlignedRange().GetMin()[1], name))
     return [name for _, name in sorted(found)]

@@ -22,6 +22,8 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - a_row_the_reading_gave_no_anchor_reads_as_none: with_anchors' `row.get("anchor") or ""` made `row.get("anchor")`
   (held_on_loose meets None).
 - a_pair_crossing_as_laid_is_kept_not_broken: laid_inside_each_other returning `poses` unchanged (2026-10-30).
+- a_row_on_a_wall_or_ceiling_row_is_mounted_there: held.mounted's `if kind in ("wall", "ceiling"):` made
+  `if kind in ("wall",):` (the ceiling rails left out, 2026-10-30).
 - one_stacked_on_a_support_left_as_laid_is_left_as_laid: kept_with_their_supports' `changed = True` after a keep
   made `pass` (one pass: the bag on the kept sandbag keeps its rest), and its `not poses[support]["rested"]` made
   `False` (nothing kept) (2026-10-30).
@@ -29,7 +31,7 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   pair judged as laid, not as the layer lays it).
 - the_row_kinds_the_fitting_reads_are_among_its_files: files' `"row kinds"` entry dropped (a change to which rows
   swing would not re-key the settle row, whose grounded seed the assembly's fitting lays by it, 2026-10-30).
-- a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down (held.py): held_objects without its `row not in mounted`
+- a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down (held.py): held_objects without its `row not in on_walls`
   test.
 - a_cloud_drop_runs_on_the_trials_card_in_its_python_once (tools/usd/drop.py): simulate's `machine.run(..., env=ENV)`
   without `env=ENV` (the drop sent to the card's Blender).
@@ -393,7 +395,22 @@ def the_row_kinds_the_fitting_reads_are_among_its_files():
     return [] if found == str(row_kinds.TABLE) else [f"row kinds declared as {found!r}, not {row_kinds.TABLE}"]
 
 
-CHECKS = (the_row_kinds_the_fitting_reads_are_among_its_files, a_pair_crossing_as_laid_is_kept_not_broken, one_stacked_on_a_support_left_as_laid_is_left_as_laid,
+def a_row_on_a_wall_or_ceiling_row_is_mounted_there():
+    """Round 32's docking airlock: wall pipes on its left wall and ceiling rails on its ceiling panels were judged by
+    the resting check as standing on them, leaning and tipping; held.mounted names a row on a wall or ceiling row (the
+    assembly's resting check and the snap both read it), never one on a floor or an object."""
+    from score.stages.settling import held
+    rows = {"left_wall": {"id": "left_wall", "part": "wall"}, "ceiling_panels": {"id": "ceiling_panels", "part": "roof"},
+            "floor_plates": {"id": "floor_plates", "part": "floor"}, "locker": {"id": "locker", "part": "object"},
+            "wall_pipes": {"id": "wall_pipes", "anchor": "on:left_wall"},
+            "ceiling_rails": {"id": "ceiling_rails", "anchor": "on:ceiling_panels"},
+            "crate": {"id": "crate", "anchor": "on:floor_plates"}, "suit": {"id": "suit", "anchor": "on:locker"}}
+    found = held.mounted(rows)
+    return [] if found == {"wall_pipes": "wall", "ceiling_rails": "ceiling"} else [f"mounted: {found}"]
+
+
+CHECKS = (the_row_kinds_the_fitting_reads_are_among_its_files, a_pair_crossing_as_laid_is_kept_not_broken,
+          a_row_on_a_wall_or_ceiling_row_is_mounted_there, one_stacked_on_a_support_left_as_laid_is_left_as_laid,
           a_pair_crossing_only_after_the_drop_still_breaks,
           a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down, a_row_the_reading_gave_no_anchor_reads_as_none, the_laid_stage_keeps_each_object_where_it_was_laid,a_cloud_drop_runs_on_the_trials_card_in_its_python_once, the_layer_lays_each_object_at_its_rest,
           the_drop_gate_fails_a_broken_drop_and_names_what_was_kept,

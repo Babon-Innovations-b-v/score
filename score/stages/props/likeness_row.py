@@ -233,17 +233,21 @@ def shown_look_down(target, size):
     return float(downs[np.argmin([abs(np.log(check.expected_proportion(size, down) / seen)) for down in downs])])
 
 
-def whole_best_way(model, closeup, size):
+def whole_best_way(model, closeup, size, turn=None):
     """likeness.best_way with both outlines whole, holes filled, as pixal_cut fills the close-up's: an open frame's
     model is otherwise held by its bars to its close-up's filled outline (engineroom's railing 0.339, filled 0.864).
     A row that lies flat is held at the better of its stated look-down (straight above) and the one its close-up shows
     (shown_look_down): the picture model draws some from three quarters anyway (wreck's open metal ring, a circle from
     above against its close-up's ellipse, 0.128), and that angle is read off the close-up, never searched per model.
-    Here, not in likeness.best_way: likeness.py is in the code of the paid body rows (#36 outline study)."""
+    Here, not in likeness.best_way: likeness.py is in the code of the paid body rows (#36 outline study). A code
+    build is seen by `turn` (4 by 4, thin_straight.view: in its picture's slant, leaned to its look-down), its own
+    pose its row's (round 32's docking airlock: built in the picture's slant, its rails were laid leaning)."""
     from scipy import ndimage
     with prop_data.tools("props/closeup", "props"):
         import check
     points, triangles = likeness.gltf_mesh(model)
+    if turn is not None:
+        points = points @ np.asarray(turn)[:3, :3].T
     target = ndimage.binary_fill_holes(likeness.closeup_object(closeup))
     ring, stated = likeness.candidate(), likeness.look_down(size)
     downs = [stated, shown_look_down(target, size)] if size and check.lies_flat(size) else [stated]
@@ -337,7 +341,9 @@ def object_record(row, record, inputs, baked, parts, rows, square, cuts):
         closeup = straight_cut(cut, cuts, row) if thin_built(inputs, row) else pixal_cut(cut, cuts, row)
     kind = f"{place}_{row}"
     drawn = rows[row].get("read_size") or rows[row]["size"]
-    found.update(model=str(model), closeup=str(closeup), **whole_best_way(model, closeup, drawn),
+    turn = (thin_straight.view(rows[row], np.asarray(Image.open(closeup).convert("RGBA"))[..., 3] > 127)
+            if thin_built(inputs, row) else None)
+    found.update(model=str(model), closeup=str(closeup), **whole_best_way(model, closeup, drawn, turn),
                  **model_checks(model, rows[row]["size"] if "made" in found
                                 else drawn_size(rows[row], model, list(rows.values()), inputs), kind,
                                 route == "prop" and kind in square))

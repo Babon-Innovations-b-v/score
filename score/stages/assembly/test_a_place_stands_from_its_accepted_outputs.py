@@ -234,6 +234,24 @@ def test_the_resting_gate_judges_the_world_files_the_stage_declares(tmp_path):
     assert resting(output, kit_floor).answer == checks.UNKNOWN
 
 
+def test_a_row_on_a_wall_or_ceiling_row_is_judged_mounted_there():
+    """Round 32's docking airlock (2026-10-30): its wall pipes on its left wall and ceiling rails on its ceiling panels
+    were judged as standing on them, leaning and tipping. The triage is given each such row's support as its holder's
+    kind (settling.held.mounted), so it judges them by touching; a row on a floor or an object, or naming its own
+    support, keeps what the triage gives it.
+    Break: score/stages/assembly/__init__.py: `if row["id"] in on_walls and not row.get("support")` -> `if False`"""
+    inventory = {"rows": [{"id": "left_wall", "part": "wall"}, {"id": "ceiling_panels", "part": "roof"},
+                          {"id": "floor_plates", "part": "floor"}, {"id": "locker", "part": "object"},
+                          {"id": "wall_pipes", "anchor": "on:left_wall"},
+                          {"id": "ceiling_rails", "anchor": "on:ceiling_panels"},
+                          {"id": "fixed_pipe", "anchor": "on:left_wall", "support": "fixed"},
+                          {"id": "crate", "anchor": "on:floor_plates"}, {"id": "suit", "anchor": "on:locker"}]}
+    found = {row["id"]: row.get("support") for row in assembly.resting_rows(inventory)["rows"]}
+    assert found == {"left_wall": None, "ceiling_panels": None, "floor_plates": None, "locker": None,
+                     "wall_pipes": "wall", "ceiling_rails": "ceiling", "fixed_pipe": "fixed", "crate": None,
+                     "suit": None}, found
+
+
 def test_the_declared_inventory_folder_is_the_one_earth_seed_lays_from(tmp_path):
     """Fault (Buy of 2026-10-24): the assembly declared {data}/inventory while every designed seed is laid from
     {home}/design/inventory and records that full path, so no resting gate was judged and every drop run raised after
