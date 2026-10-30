@@ -89,6 +89,8 @@ Breaks (each applied once, seen red, reverted), in score/stages/row_kinds.py:
 - `kind_of`: the noun ignored (`words(row.get("noun")) or` dropped)  -> the noun test ("door panel" read as a door).
 - `kind_of`: `wanted in rule["nouns"]` read as any noun inside the words  -> the noun test ("floor plate").
 - `held_kind`: `said[-2] in rule["nouns"]` dropped  -> the lamp test ("fence post" read as a lamp).
+- `kind_of`: `if row.get("part") == "opening":` read as `if False:`  -> the opening test (workshop's doorway, a hole
+  read with the noun "door", swings and its scene needs motion).
 - `objects_of`: the NOT_OBJECTS prune dropped  -> the objects test (/toy/Effects/door_3 found).
 - `of_row`: `(_\\d+)?` read as `.*`  -> the objects test (door_frame_1 found) and the strangers test.
 - `does`: only a kind's first deed read (`["does"][:1]`)  ->
@@ -979,6 +981,17 @@ def test_the_noun_decides_before_the_name():
     # a noun of two words is matched whole: a "floor plate" is no plate, though "plate" is a loose noun
     assert row_kinds.kind_of({"id": "floor_plate", "name": "floor plate", "noun": "floor plate"},
                              {"loose": {"nouns": ["plate"], "does": ["loose"]}}) is None
+
+
+def test_a_row_read_as_an_opening_is_a_hole_and_does_nothing_of_its_noun():
+    # workshop's "doorway" (2026-10-30): read as an opening with the noun "door", a hole in its wall with no object,
+    # so it neither moves nor gives its scene motion; hangar's doorway, a door read as structure, still swings
+    hole = {"id": "doorway", "name": "doorway", "noun": "door", "part": "opening"}
+    door = {"id": "doorway", "name": "closed metal door", "noun": "door", "part": "structure"}
+    assert row_kinds.kind_of(hole, RULES) is None and row_kinds.kind_of(door, RULES) == "door"
+    assert row_kinds.rows_that({"rows": [hole]}, "moves", RULES) == []
+    assert design_layers.kinds_of({"rows": [hole]}, RULES) == {"light", "sound"}
+    assert design_layers.kinds_of({"rows": [door]}, RULES) == {"motion", "light", "sound"}
 
 
 def test_a_lamp_read_as_what_holds_it_is_still_a_lamp():
