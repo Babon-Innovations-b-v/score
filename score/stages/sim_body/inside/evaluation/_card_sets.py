@@ -1,4 +1,4 @@
-"""_card_sets.py <seeds root> <sets root> [--same-seeds] <case>=<job.json> ...: every set of unknowns of one level 1
+"""_card_sets.py <seeds root> <sets root> [--across <sets>] [--same-seeds] <case>=<job.json> ...: every set of unknowns of one level 1
 Jacobian (card build step 6a, the owner's batch: `tuning._differences.nudged`'s sets with the base point first) in ONE card process.
 <sets root>/<set>/ holds the set's table.json, weights.json and rest.json (what `evaluation.measured` writes for one
 evaluation), the sets in name order, the first the base point. Per set and body: `_card_batch.body_run`, the module
@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import evaluation  # noqa: E402
-from evaluation import _card_batch  # noqa: E402
+from evaluation import _card_across, _card_batch  # noqa: E402
 
 
 
@@ -27,6 +27,7 @@ def sets_of(root):
 
 
 WARM = "--warm"
+ACROSS = "--across"  # <sets> nudged sets a body at a time in one level 3 batch (`_card_across`), not yet gated
 
 
 def set_run(seeds_root, folder, cases, saved, warm=None):
@@ -50,12 +51,32 @@ def options(argv):
     return pathlib.Path(seeds_root), pathlib.Path(root), same, tolerance, dict(given.split("=", 1) for given in rest)
 
 
+def across_run(seeds_root, folders, cases, saved, group):
+    """The nudged sets' every body, `group` sets at a time in one level 3 batch (`_card_across.body_run`)."""
+    for body_cases in evaluation.by_body(cases).values():
+        for start in range(0, len(folders), group):
+            _card_across.body_run(seeds_root, folders[start:start + group], body_cases, saved)
+
+
+def across_of(argv):
+    """`--across <sets>` taken off the front of `argv`: (group or None, the rest)."""
+    if argv[2:3] == [ACROSS]:
+        return int(argv[3]), argv[:2] + argv[4:]
+    return None, argv
+
+
 def main():
-    seeds_root, root, same, tolerance, cases = options(sys.argv[1:])
+    group, argv = across_of(sys.argv[1:])
+    seeds_root, root, same, tolerance, cases = options(argv)
+    if group and tolerance is not None:
+        raise ValueError("--across runs level 2 cold only")
     saved = _card_batch.Saved()
     warm = ({}, tolerance) if tolerance is not None else None
     base, *nudged = sets_of(root)
     set_run(seeds_root, base, cases, saved, warm)
+    if group:
+        across_run(seeds_root if same else base, nudged, cases, saved, group)
+        return
     for folder in nudged:
         set_run(seeds_root if same else base, folder, cases, saved, warm)
 
