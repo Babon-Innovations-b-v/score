@@ -7,11 +7,9 @@ Breaks (each applied once, seen red, reverted), in `tuning/_adjoint/__init__.py`
 turns the outer rows test red; `case_rows` weighing joints 1.0 in place of
 JOINT_SHARE turns the case rows test red; dropping the mixed term
 (`moved` set to zeros) turns the columns test red; `schur_solve` skipping the couplings' reduction (`reduced = corner`)
-turns the Schur and columns tests red; removing the `Unconverged` check turns the refusal test red; `rowed_jacobian` dropping the given R_z term (`by_outer` alone) turns the given rows test red; `chained_jacobian` dropping level 2's term (R_c dc/dtheta) turns the level 2 chain test red; `chained_rows` dropping it the same way turns the given level 3 rows test red; `stacked_jacobian` skipping `refused`
-(no check before use) turns the stacked refusal test red; dropping the prior's block turns the stacked test red;
-in `_taped.py`, dropping `tape.zero()` (a second gradient adds onto the first's) turns the taped gradient test red; skipping
-the turn rows' launch turns it red; dropping the followers' launch (couplings) turns it red; reading level 2's
-inside-joint gradient as zeros (`_Constants.gradient`) turns it red; reading only the first frame's copy of a constant
+turns the Schur and columns tests red; removing the `Unconverged` check turns the refusal test red; `rowed_jacobian` dropping the given R_z term (`by_outer` alone) turns the given rows test red; `chained_jacobian` dropping level 2's term (R_c dc/dtheta) turns the level 2 chain test red; `chained_rows` dropping it the same way turns the given level 3 rows test red, and `adjoint_rows` its level 2 solve (`lowered` zeros) too; `stacked_jacobian` skipping `refused`
+(no check before use) turns the stacked refusal test red; dropping the prior's block turns the stacked test red; in `_taped.py`, dropping `tape.zero()` (a second gradient adds onto the first's) turns the taped gradient test red; skipping
+the turn rows' launch turns it red; dropping the followers' launch (couplings) turns it red; reading level 2's inside-joint gradient as zeros (`_Constants.gradient`) turns it red; reading only the first frame's copy of a constant
 in a batched body (`_Constants.gradient` taking `[0]` in place of `.sum(axis=0)`) turns it red. Ignoring the outer
 unknowns' trust (`TapedSites._evaluate` not assigning `self.weights` when `trusted`) turns it red. Assigning the trusts themselves when `ends` is given (`_weighed` returning `tail`) turns it red. Laying a batched body's weights site by site in place of copy by copy (`np.repeat` for `np.tile` in `_evaluate`) turns it red. In `_measures.py`,
 skipping `self.centres.zero_()` (joint centres adding onto the last evaluation's) turns the taped measures test red.
@@ -226,9 +224,10 @@ def test_given_level_3_rows_chain_to_re_solved_differences():
     level2, level3, untold = toys.chain_bodies()
     joined = np.concatenate([OUTER, level2.inner[FRAMES * POSE:]])
     rows = toys.seen_rows(level3.inner, joined)
-    chained = _adjoint.chained_rows(level2, level3, rows, OUTER, (1e-5, 1e-5), 1e-8)
     re_solved = _adjoint.by_columns(lambda point: toys.chain_re_solved(point, untold), OUTER, 1e-4)
-    assert np.abs(chained - re_solved).max() < 1e-4 * np.abs(re_solved).max()
+    for chain in (_adjoint.chained_rows, _adjoint.adjoint_rows):
+        chained = chain(level2, level3, rows, OUTER, (1e-5, 1e-5), 1e-8)
+        assert np.abs(chained - re_solved).max() < 1e-4 * np.abs(re_solved).max()
 
 
 def test_level_2_body_off_a_constants_first_problem_moves_its_constants_as_re_solved():

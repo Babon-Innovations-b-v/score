@@ -149,6 +149,39 @@ def chained_rows(level2, level3, rows, outer, steps, tolerance):
     return both[:, :len(outer)] + both[:, len(outer):] @ constant_motion(level2, outer, steps, tolerance)
 
 
+def transposed_mixed(body, weights, outer, step):
+    """`weights`^T dg/dtheta (columns of `weights`, outer size): by `body.products(inner, outer, weights)` when the body
+    has it (two taped outer gradients a column, d/dtheta of g . w by symmetry), else `mixed`'s columns once."""
+    products = getattr(body, "products", None)
+    if products is not None:
+        return products(body.inner, outer, weights)
+    return weights.T @ mixed(body.gradient, body.inner, outer, step)
+
+
+def adjoint_solve(body, outer, right, steps, tolerance):
+    """H^-T `right` at `body`'s optimum (`Unconverged` over `tolerance`): H's blocks read once, every column of
+    `right` solved against them."""
+    norm = gradient_norm(body.gradient, body.inner, outer)
+    if norm > tolerance:
+        raise Unconverged(f"inner gradient {norm:.3g} over tolerance {tolerance:.3g}")
+    blocks, couplings, corner = arrow_hessian(body.gradient, body.inner, outer, body.frames, body.pose_size, steps[0])
+    return schur_solve(blocks.transpose(0, 2, 1), couplings, corner, right)
+
+
+def adjoint_rows(level2, level3, rows, outer, steps, tolerance):
+    """`chained_rows` in reverse: one solve per row, not per outer unknown. lambda = H3^-T R_q^T gives the rows over
+    (theta, c), D = (R_theta | R_c) - lambda^T g3_(q,theta c); mu = H2^-T [0; D_c^T] gives D_theta - mu^T g2_(z,theta),
+    so each factor serves every row and every column of theta at once."""
+    by_poses, by_outer, by_constants = rows
+    joined = np.concatenate([np.asarray(outer, dtype=float), level2.inner[level2.frames * level2.pose_size:]])
+    lifted = adjoint_solve(level3, joined, np.asarray(by_poses, dtype=float).T, steps, tolerance)
+    both = np.hstack([by_outer, by_constants]) - transposed_mixed(level3, lifted, joined, steps[1])
+    right = np.zeros((len(level2.inner), len(both)))
+    right[level2.frames * level2.pose_size:] = both[:, len(outer):].T
+    lowered = adjoint_solve(level2, outer, right, steps, tolerance)
+    return both[:, :len(outer)] - transposed_mixed(level2, lowered, outer, steps[1])
+
+
 def refused(bodies, outer, tolerance):
     """{name: inner gradient's largest entry} of every body whose inner fit stopped over `tolerance`."""
     norms = {body.name: gradient_norm(body.gradient, body.inner, outer) for body in bodies}

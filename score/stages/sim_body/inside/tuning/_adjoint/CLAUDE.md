@@ -10,6 +10,11 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
 - `rowed_jacobian` (2026-10-30) is `implicit_jacobian` with R_z and R_theta given (taped rows) in place of central
   differences of the residuals, the shared H^-1 dg/dtheta in `inner_motion`; on the toy, hand-written rows equal
   differences of the re-solved fit. `chained_jacobian` still differences its residuals (not yet switched to rows).
+- `adjoint_rows` (2026-10-30, speed): `chained_rows` in reverse mode, one solve per outer ROW not per column:
+  lambda = H3^-T R_q^T, D = (R_theta | R_c) - lambda^T g3_(q,theta c), mu = H2^-T [0; D_c^T], rows D_theta - mu^T
+  g2_(z,theta); each H read once (`adjoint_solve`) for every right-hand side. `transposed_mixed` takes w^T dg/dtheta
+  from a Body's optional `products(inner, outer, weights)` (meant: two taped outer gradients a row, d/dtheta of g . w
+  by symmetry), else `mixed` once. On the toy it equals `chained_rows` and the re-solves; no real body has `products` yet.
 - An inner fit whose gradient exceeds the tolerance raises `Unconverged`: the caller reports that body, never uses it.
 - `Body` is one tuning body's inner problem at its optimum; `stacked_jacobian` is level 1's whole Jacobian in
   `tuning`'s row order (every body's rows, then the prior's), every body checked first (`refused`) and each one stopped
