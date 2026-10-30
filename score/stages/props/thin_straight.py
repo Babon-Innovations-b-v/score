@@ -158,10 +158,12 @@ def build(row, alpha=None):
     """The row's model at its size, in a final take's frame (y up, the longer ground side along
     z: glb_file.squared; the inventory's size is wide, deep, tall), centred on the origin: along its mask's (`alpha`,
     its cut's) centreline (`path_build`), then turned in the picture's plane so its long axis follows its row
-    (`slanted` undone), or, with no mask, its profile swept straight along its longest side."""
+    (`slanted` undone) and held across it to its row's section (`held_across`), or, with no mask, its profile swept
+    straight along its longest side."""
     import trimesh
     if alpha is not None and alpha.any():
-        return path_build(row, alpha, axis_turn(row, alpha)).apply_transform(np.linalg.inv(slanted(row, alpha)))
+        return path_build(row, alpha, axis_turn(row, alpha)).apply_transform(
+            held_across(row, alpha) @ np.linalg.inv(slanted(row, alpha)))
     wide, deep, tall = (float(value) for value in row["size"])
     extents = np.array([min(wide, deep), tall, max(wide, deep)])
     along = int(np.argmax(extents))
@@ -283,11 +285,33 @@ def slanted(row, alpha):
     return turn
 
 
+def held_across(row, alpha):
+    """The scale (4 by 4) holding a slender row's build, laid along its row (`slanted` undone), to its row's section
+    across its run: its reach across the run (y, or z where axis_turn stands it) times the row's thinnest side over
+    its tube's drawn width at the picture's scale along it (`path_build`: twice its balls' median radius), at most
+    one. A picture's scale is its length's, and a run going away from the camera is foreshortened along its length
+    but not across it: the walkway's 12 m wall pipes, on a 0.1 m section, were built 2.9 m tall, its ceiling duct
+    (0.3 m) 3.4 m (#36, 2026-10-31). Its bends and sag across keep their share of its tube. A row that is not
+    slender keeps its picture's metres (the bake fits it to its row side by side)."""
+    from skimage.morphology import skeletonize
+    hold = np.eye(4)
+    if alpha is None or not alpha.any() or not slender(row["size"]):
+        return hold
+    kept = pieces(alpha)
+    skeleton = skeletonize(kept)
+    turn = axis_turn(row, alpha)
+    scale, reach = picture_scale(row, kept, turn)
+    tube = float(np.median(2 * balls(kept, skeleton, scale, reach)[1][skeleton])) * scale
+    across = 2 if turn != slant(kept) else 1  # stood upright by axis_turn's quarter turn: across is z
+    hold[across, across] = min(1.0, min(float(value) for value in row["size"]) / max(tube, 1e-9))
+    return hold
+
+
 def view(row, alpha):
-    """The turn (4 by 4) the likeness row sees a code build by: back into its picture's slant (`slanted`) and
-    leaned to face the look-down (`facing`), so its outline is held to its crop as the picture draws it while the
-    model keeps its row's pose."""
-    return facing(row) @ slanted(row, alpha)
+    """The turn (4 by 4) the likeness row sees a code build by: across its run as the picture draws it
+    (`held_across` undone), back into its picture's slant (`slanted`) and leaned to face the look-down (`facing`), so
+    its outline is held to its crop as the picture draws it while the model keeps its row's pose and section."""
+    return facing(row) @ slanted(row, alpha) @ np.linalg.inv(held_across(row, alpha))
 
 
 def facing(row):
@@ -378,10 +402,7 @@ def path_build(row, alpha, turn=0.0):
     sides = sorted(float(value) for value in row["size"])
     down, across = np.nonzero(kept)
     low = np.array([across.min(), down.min()], dtype=float)
-    angle = np.radians(turn)  # the build turned along its row (build: inverse `slanted`), in pixels
-    reach = float(max(np.ptp(np.sin(angle) * down + np.cos(angle) * across),
-                      np.ptp(np.sin(angle) * across - np.cos(angle) * down)) + 1)
-    scale = sides[2] / reach  # metres a pixel
+    scale, reach = picture_scale(row, kept, turn)
     off, ball = balls(kept, skeleton, scale, reach)
     width = float(np.median(2 * ball[skeleton]))
     laid = laid_runs(skeleton, low, scale, width)
@@ -391,6 +412,16 @@ def path_build(row, alpha, turn=0.0):
     deep = max(sides[0], least_tube())
     mesh.apply_transform(np.diag([min(1.0, deep / max(float(np.ptp(mesh.vertices[:, 0])), 1e-9)), 1.0, 1.0, 1.0]))
     return mesh.apply_translation(-mesh.bounds.mean(0))
+
+
+def picture_scale(row, kept, turn):
+    """(metres a pixel, the mask `kept`'s longest reach in pixels as it lies turned `turn` degrees along its row): that
+    reach the row's longest side."""
+    down, across = np.nonzero(kept)
+    angle = np.radians(turn)  # the build turned along its row (build: inverse `slanted`), in pixels
+    reach = float(max(np.ptp(np.sin(angle) * down + np.cos(angle) * across),
+                      np.ptp(np.sin(angle) * across - np.cos(angle) * down)) + 1)
+    return max(float(value) for value in row["size"]) / reach, reach
 
 
 def drawn_thin(alpha):
@@ -682,7 +713,9 @@ def write_take(take, row, picture, faces, pixal, mask, box=None):
     views = pixal / f"{take}.svviews"
     views.mkdir(parents=True, exist_ok=True)
     picture.save(views / "input.png")
-    mesh = textured(build(row, alpha), picture)
+    mesh = build(row, alpha)
+    seen = mesh.copy().apply_transform(np.linalg.inv(held_across(row, alpha)))  # the crop lies on it as drawn
+    mesh.visual = textured(seen, picture).visual
     for name in (f"{take}.glb", f"{take}-{faces}.glb", f"{take}-final.glb"):  # raw, slimmed, final: never stood
         mesh.export(pixal / name)
     mark = {"route": "code", "rule": "thin straight (owner, 2026-10-25)", "profile": "path" if alpha.any() else

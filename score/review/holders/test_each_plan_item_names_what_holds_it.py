@@ -58,9 +58,9 @@ def test_a_moving_door_s_recess_holds_its_motion_and_a_static_one_sits_flush():
         + RECESS_WALL` -> `... + RECESS_MARGIN` (the wall left out)
     Break: score/review/holders/__init__.py: `depth = (wide * abs(math.sin(math.radians(float(rule.get("angle") or
         90.0)))) if rule["move"] == "swing"` -> `depth = (deep if rule["move"] == "swing"`
-    Break: score/review/holders/__init__.py: `recess = recess_of(item, row, (middle(holder_item), item_way(holder_item),
-        holder_base), nearest[0],` -> `recess = None and recess_of(item, row, (middle(holder_item),
-        item_way(holder_item), holder_base), nearest[0],`"""
+    Break: score/review/holders/__init__.py: `recess = recess_of(item, row, (middle(holder_item), item_way(holder_item,
+        nearest[0]), holder_base),` -> `recess = None and recess_of(item, row, (middle(holder_item),
+        item_way(holder_item, nearest[0]), holder_base),`"""
     rows = [{"id": "module", "noun": "building", "anchor": "ground", "size": [12.0, 12.0, 12.0],
              "box": [500, 100, 900, 560]},
             {"id": "garage_door", "noun": "door", "anchor": "on:module", "size": [6.0, 0.5, 8.0],
