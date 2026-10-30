@@ -24,7 +24,7 @@ from fit import sampled_targets  # noqa: E402
 from fit._card._level2 import jacobian  # noqa: E402
 from fit._constants import INSIDE, Problem, told  # noqa: E402
 from tuning._adjoint import arrow_hessian, case_rows, schur_solve, transposed_mixed  # noqa: E402
-from tuning._adjoint._level2 import level2_body  # noqa: E402
+from tuning._adjoint._level2 import goal_weights, level2_body, sited_problem_at  # noqa: E402
 from tuning._adjoint._outer import picked_columns  # noqa: E402
 
 STEPS = (1e-4, 1e-3)  # as `_check_motion.py`
@@ -64,9 +64,31 @@ def level2_at_base():
                     np.where(np.isfinite(high), high - INSIDE, high))
     kept = told(first, jacobian(first, begin))
     problem = Problem(fitting, angles, turns, points, constants, _real.level2_free(fitting))
+    if problem.fitting.marks != names:
+        raise ValueError("level 2's marks are not level 3's place sites in order")
+    ends = sites.ends or 0
+    base_costs = goal_weights(trusted[3 * len(names):], ends)
+    print(json.dumps({"base costs gap": float(np.abs(base_costs - problem.costs[1]).max())}), flush=True)
     rebuilt = _real.problem_at(applied, out, cases, saved, angles, constants)
-    at = lambda outer: problem if not np.any(outer) else rebuilt(outer)  # noqa: E731
-    return level2_body(at, jacobian, problem.start(), kept, np.zeros(len(entries)))
+    sited = sited_problem_at(problem, columns, trusted, ends)
+    return sited, rebuilt, level2_body(sited, jacobian, problem.start(), kept, np.zeros(len(entries)))
+
+
+def sited_gaps(sited, rebuilt, unknowns, picks):
+    """The largest gap, over `picks`' entries moved by STEPS[1] alone, between level 2's J^T r change off the Problem
+    moved in place (`sited`) and off rebuilt Problems (`rebuilt`), over the rebuilt change's largest entry."""
+    def change(problem_at, pick):
+        """J^T r at `unknowns` with entry `pick` moved, less at the base point."""
+        moved = np.zeros(len(entries))
+        moved[pick] = STEPS[1]
+        found = [np.asarray(jacobian(problem, unknowns).T @ problem.residuals(unknowns)).ravel()
+                 for problem in map(problem_at, (moved, 0 * moved))]  # each read before the next move (one Problem)
+        return found[0] - found[1]
+    gaps = {}
+    for pick in picks:
+        again = change(rebuilt, pick)
+        gaps[str(entries[pick])] = float(np.abs(change(sited, pick) - again).max() / max(np.abs(again).max(), 1e-30))
+    return gaps
 
 
 def timed(name, work):
@@ -103,11 +125,10 @@ pinned = Pinned(turns.reduced(), _real.bound_held(clip, _real.frame_couplings(cl
 by_poses = timed("taping R_q", lambda: pinned.rows(turns.pulled_rows(turns.reduced(), case_rows(
     *measures.measured(inner, trusted), frames=len(rows))[1])))
 by_constants = timed("taping R_c", lambda: case_rows(*measures.constant_measured(inner, trusted))[1])
-level2 = timed("level 2 build", lambda: level2_at_base())
+sited, rebuilt, level2 = timed("level 2 build", lambda: level2_at_base())
 solved = level2.inner[level2.frames * level2.pose_size:]
-moved = np.zeros(len(entries))
-moved[0] = STEPS[1]
-timed("one level 2 rebuild and gradient", lambda: level2.gradient(level2.inner, moved))
+print(json.dumps({"sited vs rebuilt": timed("sited check", lambda: sited_gaps(
+    sited, rebuilt, sited(np.zeros(len(entries))).start(), (0, len(entries) // 2, len(entries) - 1)))}), flush=True)
 level3 = level3_body("level3", sites, turns, pinned, lambda theta: trusted + columns @ theta, len(entries),
                      len(rows), columns=columns)
 joined = np.concatenate([np.zeros(len(entries)), np.zeros(solved.size)])

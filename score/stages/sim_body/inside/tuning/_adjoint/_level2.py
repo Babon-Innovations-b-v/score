@@ -61,3 +61,32 @@ def level2_body(problem_at, jacobian, solved, kept, outer):
 
     frames = len(problem.path)
     return Body("level 2", None, gradient, inner, frames, problem.width)
+
+
+def sited_problem_at(problem, columns, trusted, ends):
+    """A `problem_at` moving one built Problem in place, no rebuild (B3g): level 1's point `outer` reaches level 2
+    only through the Fitting's marker sites and the markers' goal weights (its calibration is theta-free, measured
+    2026-10-30), laid by `columns` (`_outer.picked_columns`, theta -> level 3's outer: each site's offset, the
+    landmarks' trusts, then end weight and marker goal) about `trusted` (that outer at the base), the last `ends`
+    sites the group ends weighed as `TapedSites._weighed` weighs them."""
+    fitting = problem.fitting
+    body_pos, start = fitting.base
+    sites = len(fitting.mark_sites)
+
+    def at(outer):
+        """The Problem with its sites and costs at `outer`."""
+        moved = np.asarray(trusted, dtype=float) + columns @ np.asarray(outer, dtype=float)
+        site_pos = start.copy()
+        site_pos[fitting.mark_sites] += (moved - trusted)[:3 * sites].reshape(-1, 3)
+        fitting.base = body_pos, site_pos
+        problem.costs = problem.costs[0], goal_weights(moved[3 * sites:], ends)
+        return problem
+    return at
+
+
+def goal_weights(tail, ends):
+    """Each marker's place cost from the landmarks' trusts, end weight and marker goal (`fit._frames.weights` with the
+    group ends' trust end weight times the landmarks' mean, as `fit.fitting` lays it)."""
+    trusts, end_weight, goal = tail[:-2], tail[-2], tail[-1]
+    every = np.concatenate([trusts, np.full(ends, end_weight * trusts.mean())])
+    return np.sqrt(goal * every / max(every.sum(), 1e-12))
