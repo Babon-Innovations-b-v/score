@@ -196,9 +196,12 @@ def beyond_of(plan, rows, picture):
     close-ups of from a speck), and every row it anchors in the sky (reading.ANCHORS: a planet, a moon, a backdrop;
     plan_checks.whole leaves it out of the place: the square's launching rocket over the sea, which its plan left off
     `beyond`, so its close-up took the room and Pro drew the whole square on three of four takes, 2026-10-26), less
-    each standing on a row laid here (stood_beyond) or at the picture's foot (at_foot)."""
+    each standing on a row laid here (stood_beyond), at the picture's foot (at_foot) or stood here at a plan person
+    spot (its `people` [x, y, facing, row]: the lab's three people at their desks, listed beyond too, 2026-10-30)."""
     sky = {row["id"] for row in rows if row.get("anchor") == "sky"}
-    return stood_beyond(rows, set((plan or {}).get("beyond") or []) | afar({"rows": rows}) | sky) - at_foot(rows, picture)
+    stood = {spot[3] for spot in (plan or {}).get("people") or [] if len(spot) >= 4}
+    return stood_beyond(rows, set((plan or {}).get("beyond") or []) | afar({"rows": rows}) | sky) - at_foot(
+        rows, picture) - stood
 
 
 def stood_beyond(rows, beyond):
