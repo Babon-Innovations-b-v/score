@@ -4,7 +4,9 @@ score/review/holders) says what holds it, and once its baked model and its holde
 shrunk where it does not fit (never grown past its own model), so it sits
 
     top     on its holder's top, within its footprint (a monitor on its console, a lamp on its desk)
-    within  inside its holder's box (plants in their greenhouse, a door in its frame)
+    within  inside its holder's box (plants in their greenhouse, a door in its frame); one that hangs in it (its
+            relation's `hangs`: a spacesuit in its locker) moved back onto the holder's built inside back face,
+            touching it (on_back)
     face    with its back on its holder's side `out` points from, within that side's span and height (a garage door on
             its module's front): on the holder's frontmost surface across its own span and height (front_face), and a
             door the bake cut a recess for in that recess, shrunk to fit it beside its room (on_face), out of the room
@@ -793,6 +795,75 @@ def ramped(stage, path, entry, low, high, built):
              "high": [round(float(value), 4) for value in after[1]], "words": words}]
 
 
+def hangs_in(entry):
+    """Whether a scene record entry hangs within its holder: laid `within` it with the relation's `hangs`
+    (score/review/holders.hangs: the docking airlock's spacesuits in their lockers): the assembly hangs it on the
+    holder's back (on_back) and its resting check judges it by touching (assembly.hung_within). One that fills its
+    holder (a door's window, `fills`) is part of it, never hung."""
+    on = entry.get("on") or {}
+    return on.get("how") == "within" and bool(on.get("hangs")) and not entry.get("fills")
+
+
+# The grid a hung object's back and its holder's inside face are met on, metres (hung_back): each cell across and up.
+HANG_CELL = 0.05
+
+
+def back_way(points, low, high, room_middle):
+    """(axis 0 x or 2 z, +1 or -1) of a holder's back from an object inside it: opposite the side its surface
+    `points` (world [n, 3]) leave open across the object's span and height beyond the object's middle (its open
+    front), else opposite the side toward `room_middle` [x, z]."""
+    middle = (low + high) / 2
+    band = (points[:, 1] >= low[1]) & (points[:, 1] <= high[1])
+    for axis, other in ((0, 2), (2, 0)):
+        across = band & (points[:, other] >= low[other]) & (points[:, other] <= high[other])
+        for sign in (1.0, -1.0):
+            if not np.any(across & (sign * (points[:, axis] - middle[axis]) > 0)):
+                return axis, -sign
+    toward = np.asarray(room_middle, float) - middle[[0, 2]]
+    axis = 0 if abs(toward[0]) >= abs(toward[1]) else 2
+    return axis, -float(np.sign(toward[0 if axis == 0 else 1]) or 1.0)
+
+
+def hung_back(own, holder, low, high, room_middle):
+    """How far (metres, along the holder's back way: (axis, sign, shift)) an object inside its holder moves until its
+    built surface `own` (world points [n, 3]) first meets the holder's inside back face (`holder`'s points behind its
+    middle), cell by cell (HANG_CELL across and up); None when no cell holds both."""
+    axis, sign = back_way(holder, low, high, room_middle)
+    other = 2 if axis == 0 else 0
+    middle = (low[axis] + high[axis]) / 2
+    behind = holder[sign * (holder[:, axis] - middle) > 0]
+    behind = behind[(behind[:, 1] >= low[1]) & (behind[:, 1] <= high[1])
+                    & (behind[:, other] >= low[other]) & (behind[:, other] <= high[other])]
+    walls, backs = {}, {}
+    for cells, depth, found, pick in ((walls, sign * behind[:, axis], behind, min),
+                                      (backs, sign * own[:, axis], own, max)):
+        for key, value in zip(map(tuple, np.floor(found[:, [other, 1]] / HANG_CELL).astype(int)), depth):
+            cells[key] = pick(cells.get(key, value), value)
+    gaps = [walls[key] - backs[key] for key in walls.keys() & backs.keys()]
+    return (axis, sign, float(min(gaps))) if gaps else None
+
+
+def on_back(stage, found, low, high, path, held, scope, built):
+    """A fit (fit's, or None where it sat) of an object that hangs within its holder moved along the holder's back way
+    until it meets the holder's built inside back face (hung_back, on the nearest of `held` [(name, box)] under the
+    prim path `scope`), its height and its place across kept; the room's middle from the `built` structure boxes."""
+    foot = foot_middle(low, high)
+    scale, target, words, face = found if found is not None else (1.0, foot.copy(), "laid within", None)
+    target = np.array(target, float)
+    box = nearest([box for _, box in held], low, high)
+    holder = next(name for name, found_box in held if found_box is box)
+    shown = [corner for pair in built for corner in pair] or list(box)
+    room_middle = ((np.min(shown, axis=0) + np.max(shown, axis=0)) / 2)[[0, 2]]
+    own = (surface_points(stage, path) - foot) * scale + target
+    hung = hung_back(own, surface_points(stage, f"{scope}{holder}"), (low - foot) * scale + target,
+                     (high - foot) * scale + target, room_middle)
+    if hung is None:
+        return found
+    axis, sign, shift = hung
+    target[axis] += sign * shift
+    return scale, target, f"{words}, hung {shift * 100:+.1f} cm onto {holder}'s back", face
+
+
 def fitted(stage, place, entries, laid, cuts=None):
     """Each laid entry with an `on` (its name in `laid`) fitted on the stage, a holder before what it holds: a face
     one against its nearest holder's surface and in the recess the bake cut there (`cuts`, {model: baked.json's cuts}),
@@ -831,6 +902,8 @@ def fitted(stage, place, entries, laid, cuts=None):
             if how in ("wall", "face") and name not in leaves else ()
         found = fit(low, high, entry["on"], built if how == "in" else [box for _, box in held], surface, recesses,
                     own_way(stage, path, 0), own_way(stage, path, 2) if name in leaves else None, clear)
+        if held and hangs_in(entry):
+            found = on_back(stage, found, low, high, path, held, f"/{place}/{scope}/", built)
         if found is None:
             return
         scale, target, words, face = found

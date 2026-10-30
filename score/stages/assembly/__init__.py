@@ -229,16 +229,13 @@ def declared_inventory(output, inventories):
 
 
 def hung_within(record):
-    """{row id: "hanging"} of the scene `record`'s rows whose every object is laid within its holder (`on` how
-    `within`) off its holder's foot (its `at` over its holder's): it hangs in it (the docking airlock's spacesuits in
-    their lockers, the plan's 0.1 m base), not standing on the holder's inside (round 32's fit: leaned 12 degrees)."""
-    objects = {entry["name"]: entry for entry in record.get("objects") or []}
+    """{row id: "hanging"} of the scene `record`'s rows whose every object hangs within its holder (fitting.hangs_in:
+    the relation's `hangs`, as the assembly hangs it on the holder's back): not standing on the holder's inside (the
+    docking airlock's spacesuits in their lockers, round 32's fit: leaned 12 degrees)."""
+    from score.stages.assembly import fitting
     rows = {}
-    for entry in objects.values():
-        on = entry.get("on") or {}
-        holder = objects.get(next(iter(on.get("holder") or []), ""))
-        rows.setdefault(entry["row"], []).append(
-            on.get("how") == "within" and holder is not None and float(entry["at"][1]) > float(holder["at"][1]))
+    for entry in record.get("objects") or []:
+        rows.setdefault(entry["row"], []).append(fitting.hangs_in(entry))
     return {row_id: "hanging" for row_id, hung in rows.items() if all(hung)}
 
 
