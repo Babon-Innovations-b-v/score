@@ -9,8 +9,10 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   rows, person spots, holds), the plan row's plan.json (the same plan in the place's frame, its `doorways` and
   `standing`), its scene inventory (row kinds: which rows glow), the library's lamp (`data/library/lamps.json`) and
   its sky inputs (`{home}/design/sky/<place>.json`, scene_sky.keep's: the environment concept's physics, its site and
-  scene time). No kit, game file, filed definition (`sky.json`, `base.json`: retired), old record or made ground is
-  read; a missing design file is a named missing input, never a crash.
+  scene time). No kit, game file, filed definition (`sky.json`, `base.json`: retired) or old record is read; a missing
+  design file is a named missing input, never a crash. The one made thing read is the terrain row's ground (made from
+  the design alone), so an open place's view eye stands a person's height over the ground under it (2026-10-30:
+  wreck's spot-3 and spot-6 eyes stood under its ground, their views black).
 - **The shell is the plan's**, built by `earth_seed/design_shell.pieces` (each level's deck, the outline's walls with
   every opening cut, the roofs, BACKING behind the plan's inside line) and stood in the place's frame as the builders'
   `slab`, `gable` and `dome` entries (`tools/usd/builders.py`, plain numbers, `plain: shell`). It is the record's for an
