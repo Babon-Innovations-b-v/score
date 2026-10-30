@@ -33,6 +33,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - groups.structure_of: the taller-than check dropped -> test_a_backdrop_part_of_a_structure_is_shown_by_a_...
 - groups.beyond_of: the reading's afar rows dropped -> test_a_row_the_reading_names_far_off_is_beyond_and_shown_...
 - groups.beyond_of: `- at_foot(...)` dropped -> test_a_row_at_the_picture_s_foot_is_never_beyond
+- groups.beyond_of: `- stood` dropped -> test_a_row_the_plan_stands_at_a_person_spot_is_never_beyond
 - groups.plan_parts: no "opening" for a written opening -> test_a_row_is_routed_by_its_part_and_the_plan_lays_only_...
 - groups.route_of: an unread part routed "prop" -> test_a_row_whose_part_is_not_read_is_an_input_gap_until_its_...
 - groups.boxed_by: the Gemini region check -> `if False:` -> test_a_row_sam_3_missed_is_framed_by_gemini_and_one_...
@@ -628,6 +629,14 @@ def test_a_row_at_the_picture_s_foot_is_never_beyond():
     plan = {"beyond": ["sandbags", "rocket"]}  # the airlock's plan listed both beyond
     assert groups.beyond_of(plan, [sandbags, far], [2752, 1536]) == {"rocket"}  # one box at the foot: here
     assert groups.beyond_of(plan, [sandbags, far], None) == {"sandbags", "rocket"}  # no picture size: as the plan says
+
+
+def test_a_row_the_plan_stands_at_a_person_spot_is_never_beyond():
+    """2026-10-30: the lab's plan stood its three people at their desks and listed them beyond too, so they went to
+    the skyline and the cast was empty: a row at a plan person spot ([x, y, facing, row]) is the place's own."""
+    rows = [{"id": "person", "box": [900, 400, 1100, 900]}, {"id": "rocket", "box": [10, 20, 40, 300]}]
+    plan = {"beyond": ["person", "rocket"], "people": [[1.0, 2.0, None, "person"], [3.0, 2.0], [4.0, 1.0, 90, "person"]]}
+    assert groups.beyond_of(plan, rows, [2752, 1536]) == {"rocket"}
 
 
 def test_a_row_is_routed_by_its_part_and_the_plan_lays_only_the_shell_it_draws():
