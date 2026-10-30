@@ -64,7 +64,7 @@ before that.
   mm", "turns deg", "per group deg", "bones outside skin %", "bones outside depth mm", "bones outside all %"), keyed as
   `evaluation._measure`; the winding sign and the depth outside by `fit._skin.marks_kernel`, the CPU's own kernel (the
   depths within 4.6e-6 mm of the CPU's on the toy, float32 closest points, 2026-10-30);
-  its other readings stay on the CPU. The skin posed every EVERY-th frame once per case (`Skins`, a Warp mesh each);
+  its other readings stay on the CPU. The skin posed every EVERY-th frame once per clip across every nudged set (`posed_skins`, keyed by `posed_key`: the rig, segments and worlds a set never changes; float32 points kept read-only on the host, `Skins` a Warp mesh each per case; 5.8 s of acr7's 4-set profile, 2026-10-30);
   the poses by MuJoCo's own float64 kinematics on the host (with MuJoCo Warp's float32 poses one hand vertex fell
   across the skin on heavy_kimodo, 2026-10-29); joint and turn errors float64 Warp kernels (the turn by
   arccos of the trace as the CPU: atan2 differed 0.001 deg on targets not quite orthonormal); the winding test on the

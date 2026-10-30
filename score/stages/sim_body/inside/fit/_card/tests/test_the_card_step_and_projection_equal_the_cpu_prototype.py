@@ -16,7 +16,7 @@ itself in one batch. Seeded from that clip's answers (its angles.npz, `_seeds`) 
 equals mink's answer to the moved clip to 0.01 deg and 0.01 mm (a cold seed only reported). On a toy body
 (`card_body.py`), the card's measures (_measure.py) equal evaluation._measure's to 1e-9 (joints mm, turns deg) and
 its bones-outside shares exactly (every point's count), their depths outside (level 1's skin residual, the same
-kernel on both devices) to DEPTH_MM. On fit's own toy (`card_level2.py`), level 2's exact
+kernel on both devices) to DEPTH_MM. A second clip after the skin was posed once (`_measure.POSED`, shared across sets) equals the CPU's on its own. On fit's own toy (`card_level2.py`), level 2's exact
 Jacobian (_level2.py) equals its residuals' central differences to 1e-6 of each column's largest entry from the
 host's kinematics, to 1e-5 from the card's (_level2_card.py), nothing outside `Problem.sparsity`; level 2 solved with it (`_constants.staged(jacobian=...)`) from a path moved
 0.05 off equals the 2-point solve to 1e-3 mm and 1e-4 deg. Its frames under 3 sets' constants on one card
@@ -71,6 +71,8 @@ Breaks (each applied once, seen red, reverted):
   its own (card_level2).
 - (2026-10-29) _constants.staged's `jacobian(problem, unknowns)` made `jacobian(problem, begin)` (the Jacobian
   frozen at the start): the toy's constants 0.027 mm off the 2-point solve's.
+- (2026-10-30) _measure.posed_key without the worlds: seed 5's clip measured against seed 3's skin, its shares
+  and depths off the CPU's (79.46 against 79.91 % outside), one posed clip, not 2.
 - (2026-10-29) _solve's `CYCLE_STEP = 1e-5` made `0.0`: a seeded toy row cycles at its float32 pose's floor and never
   stops (NotConverged).
 
@@ -87,7 +89,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from card_chain import (LINKS, OBJECTIVE_ROWS, chain_model, log_rate, objective_rows,  # noqa: E402
                         residuals_and_jacobian)
 from card_toy import CLIP_FRAMES, TOY, mink_frames, toy_card, toy_clip, toy_errors  # noqa: E402
-from card_body import the_measures_equal_the_cpu_measure  # noqa: E402
+from card_body import the_measures_equal_the_cpu_measure, the_skins_posed_once_follow_each_clip  # noqa: E402
 from card_level2 import (the_batched_inverses_equal_each_row, the_frames_per_world_equal_each_set_alone,  # noqa: E402
                          the_level2_jacobian_equals_its_differences,
                          the_level2_solve_with_the_exact_jacobian_equals_differences)
@@ -255,7 +257,7 @@ CHECKS = (the_rows_equal_each_set_alone, the_rowwise_optimizer_equals_each_set_a
           the_sets_batch_equals_each_clip_alone,
           the_frames_per_world_equal_each_set_alone, the_batched_inverses_equal_each_row,
           the_level2_jacobian_equals_its_differences, the_level2_solve_with_the_exact_jacobian_equals_differences,
-          the_measures_equal_the_cpu_measure, the_step_equals_the_prototype, the_projection_equals_the_prototype,
+          the_measures_equal_the_cpu_measure, the_skins_posed_once_follow_each_clip, the_step_equals_the_prototype, the_projection_equals_the_prototype,
           the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame,
           the_next_iteration_from_its_seeds_equals_mink)
 
