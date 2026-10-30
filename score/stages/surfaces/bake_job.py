@@ -18,6 +18,8 @@ import json
 import math
 import pathlib
 
+import numpy as np
+
 import library
 import place_route
 import route
@@ -50,20 +52,50 @@ def job_head(wear_dirt, specs):
             "faces": route.CHUNKY_FACES, "specs": specs}
 
 
-def measured_turn(labelled, size):
+def measured_turn(labelled, size, own=False):
     """The turn (rows of the rotation, glTF frame to the kit's) of a take whose entry its design writes without one:
     of 0 and 90 degrees about up, the one whose labelled model's footprint fits `size`'s (x wide, z deep) proportions
     best, |log(wide ratio) - log(deep ratio)| (shapes_first/align.py's rule); 0 on a tie. A box alone cannot tell 180
-    from 0: the take is made from its front close-up, so 0 keeps the front the close-up drew."""
+    from 0: the take is made from its front close-up, so 0 keeps the front the close-up drew. A take laid at its own
+    proportions (`own`: laid_size's slender row or code build) that stands on its longest side while its row lies
+    (`lies`) is laid by its row instead (tumble.square_turn: its oriented box's sides on the row's): a row's long side
+    runs along the wall or floor it is on, never up, unless the row stands (hangar's wall pipes, 0.4 by 32 by 0.4 m
+    run along their wall, built up their receding picture 22.7 m tall, stood from 10 to 32.7 m in a 15 m hangar; #36,
+    2026-10-31)."""
+    if own and lies(place_route.made_size(labelled, size, 0), size):
+        import tumble
+        return [round(float(value), 6) for value in tumble.square_turn(take_points(labelled), size).reshape(-1)]
+
     def misfit(yaw):
         wide, _, deep = place_route.made_size(labelled, size, yaw)
         return abs(math.log(size[0] / wide) - math.log(size[2] / deep))
     return TURNS[min(TURNS, key=misfit)]
 
 
+def lies(own, size):
+    """Whether a take standing on its longest side (`own`: its kit size unturned, x wide, y tall, z deep) is for a row
+    (`size`, kit) whose longest side is level: its row lies."""
+    return own[1] >= max(own[0], own[2]) and size[1] < max(size[0], size[2])
+
+
+def take_points(labelled):
+    """The labelled take's vertices (its parts, in the finished model's glTF frame)."""
+    import trimesh
+    return np.vstack([trimesh.load(path, force="mesh", process=False).vertices
+                      for path in sorted(pathlib.Path(labelled).glob("*.ply"))])
+
+
+def turned_size(labelled, size, base):
+    """The labelled take's size in the kit frame laid by `base` (nine numbers, rows), scaled as one so its longest side
+    is `size`'s (place_route.made_size, whose quarter turns about up it gives exactly)."""
+    found = np.ptp(take_points(labelled) @ np.array(base, float).reshape(3, 3).T, axis=0)
+    scale = max(size) / max(found)
+    return [round(float(side * scale), 3) for side in found]
+
+
 def entry_of(model, inline, labelled, built=False, box=None, kept=None, person=False):
     """One model's make_chunky entry: `inline` (the surface data's own), turned by measured_turn over `labelled` (its
-    labelled take) when it says no turn (module docstring); `built`: its take is a code build (code_built); `box`: its
+    labelled take) when it says no turn (module docstring), a person's by person_turn (his raw take's pose); `built`: its take is a code build (code_built); `box`: its
     row's SAM 3 box on its concept (drawn_row), which a Pixal3D take's width against its height follows (boxed);
     `kept`, `person`: the guard list's word on its row (tumble.keeps_pose, tumble.person), which boxed follows."""
     if isinstance(inline, str):
@@ -74,19 +106,17 @@ def entry_of(model, inline, labelled, built=False, box=None, kept=None, person=F
         return dict(inline, name=model)
     if labelled is None:
         raise NoTake(f"no entry for {model}: no labelled take to measure its turn over")
-    base = person_turn(labelled) if person else measured_turn(labelled, inline["size"])
-    size = inline["size"] if built else boxed(inline["size"], box, own_ratio(labelled, base), kept, person)
+    base = person_turn(labelled) if person else \
+        measured_turn(labelled, inline["size"], built or slender(inline["size"]))
+    size = inline["size"] if built else boxed(inline["size"], box, own_ratio(labelled, inline["size"], base), kept,
+                                              person)
     return dict(inline, name=model, base=base, size=laid_size(labelled, size, base, built))
 
 
-def own_ratio(labelled, base):
-    """The labelled take's own width over its height, its points turned by `base` (rows)."""
-    import numpy as np
-    import trimesh
-    points = np.vstack([trimesh.load(path, force="mesh", process=False).vertices
-                        for path in sorted(labelled.glob("*.ply"))]) @ np.reshape(base, (3, 3)).T
-    wide, tall, _ = np.ptp(points, axis=0)
-    return float(wide / tall)
+def own_ratio(labelled, size, base):
+    """The labelled take's own width over its height, turned by `base` (place_route.made_size)."""
+    wide, tall, _ = turned_size(labelled, size, base)
+    return wide / tall
 
 
 def person_turn(labelled):
@@ -199,7 +229,7 @@ def laid_size(labelled, size, base, built=False):
     so fitting airlock's locker lamp, built 0.046 m across, to its 0.4 by 0.1 by 0.1 row undid it (outline 0.813 built,
     0.409 baked, 2026-10-29)."""
     if built or slender(size):
-        return place_route.made_size(labelled, size, 90 if base == TURNS[90] else 0)
+        return turned_size(labelled, size, base)
     return size
 
 

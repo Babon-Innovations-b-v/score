@@ -215,7 +215,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   against its row: `bake_job.measured_turn`; the people line's as written; a slender row's, or a code build's (its
   take's code.json route "code", sent with its job: `bake_job.code_built`), at its labelled take's own proportions,
   one scale, its longest side the row's, never fitted side by side to its box: `bake_job.laid_size`, 2026-10-29,
-  airlock's locker lamp built 0.046 m across its 0.1 m box, outline 0.813 built, 0.409 baked fitted; a Pixal3D take's
+  airlock's locker lamp built 0.046 m across its 0.1 m box, outline 0.813 built, 0.409 baked fitted; such a take
+  standing on its longest side while its row lies is turned by its row (`tumble.square_turn`), its long side along
+  the wall or floor it runs on, never up (hangar's wall pipes stood 22.7 m in a 15 m hangar, #36, 2026-10-31); a Pixal3D take's
   width for its height its own where both its row's SAM 3 box, read from the hand-in its job is sent, and its take
   disagree with its row by more than the model gate's spread, only its width moving (a row no wider than tall), its
   height and depth the row's: `bake_job.boxed`, owner 2026-10-29, "Yes, land the rule"; a height moved too grew 22
