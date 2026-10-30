@@ -90,3 +90,26 @@ class RootTurns:
         along = rows[:, TURN] - unit * np.sum(unit * rows[:, TURN], axis=1, keepdims=True)
         turned = np.einsum("cij,ci->cj", self.bases, along / length)
         return np.concatenate([rows[:, :TURN.start], turned, rows[:, TURN.stop:]], axis=1).ravel()
+
+
+class Pinned:
+    """The inner unknowns with the bound-held entries kept in place, so every frame's block keeps one size: a held
+    entry is read at its solved value whatever the inner point says (`whole`), and its gradient is the unit spring
+    inner - solved (`gradient`), zero at the optimum with a unit row in H and no outer mix, so its derivative is zero
+    and the free entries' is the one of the pose with it dropped. `held` a mask over `solved` (the inner point)."""
+
+    def __init__(self, solved, held):
+        self.solved = np.asarray(solved, dtype=float).copy()
+        self.held = np.asarray(held, dtype=bool)
+
+    def whole(self, inner):
+        """`inner` with every held entry back at its solved value."""
+        whole = np.array(inner, dtype=float)
+        whole[self.held] = self.solved[self.held]
+        return whole
+
+    def gradient(self, inner, found):
+        """`found` (the gradient at `whole(inner)`) with each held entry replaced by its spring inner - solved."""
+        pinned = np.array(found, dtype=float)
+        pinned[self.held] = np.asarray(inner, dtype=float)[self.held] - self.solved[self.held]
+        return pinned

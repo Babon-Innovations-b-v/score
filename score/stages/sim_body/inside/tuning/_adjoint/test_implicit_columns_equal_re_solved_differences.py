@@ -20,7 +20,8 @@ Cutting each seeded row from the first frame's block in place of its own (`_rows
 skin point's block at frame 0 (`rms_row` ignoring `point_frames`) turns it red.
 In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
 without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pulled` skipping the normalisation's
-projection (`along` the raw turn gradient) turns the root chart test red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red. In `_real.py`, `solved_rows`
+projection (`along` the raw turn gradient) turns the root chart test red; `Pinned.gradient` giving a held entry zero in place of its spring (a
+singular frame block) turns the pinned test red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red. In `_real.py`, `solved_rows`
 giving MuJoCo's order (no `newton_order`) turns the real body test red; `frame_couplings` zeroing
 the projection's polynomials turns its per-frame model check red; `bound_held` holding nothing (bound-held coordinates left in the pose) turns its refused check red (4.12e-3); `joint_parts`
 dropping the centres' scales turns its joints check red; `turn_groups` without the frozen table turns its turns check red; `skin_parts` without the geom's turn turns its skins check red (0.19 m).
@@ -325,6 +326,28 @@ def test_one_real_body_builds_and_its_rows_equal_the_card_solve(tmp_path):
     found = json.loads(ran.stdout.strip().splitlines()[-1])
     assert all(case["most"] < 1e-4 for case in found["cases"].values()), found
     assert found["fk"]["most"] < 1e-4, found
-    assert found["taped"]["refused"] == {}, found
+    assert found["taped"]["refused"] == {} and found["taped"]["frames"] == found["rows"], found
     assert found["measures"]["most"] < 1e-4 and found["measures"]["turn most"] < 1e-2, found
     assert found["measures"]["skin most"] < 1e-4, found
+
+
+def test_a_pinned_held_entry_keeps_the_frame_blocks_and_equals_the_pose_with_it_dropped():
+    from score.stages.sim_body.inside.tuning._adjoint import _bodies
+    inner = _solved(OUTER)
+    held = np.zeros(inner.size, dtype=bool)
+    held[[1, 4]] = True
+    pinned = _bodies.Pinned(inner, held)
+    gradient = lambda point, outer: pinned.gradient(point, _gradient(pinned.whole(point), outer))
+    residuals = lambda point, outer: _residuals(pinned.whole(point), outer)
+    kept = _adjoint.implicit_jacobian(residuals, gradient, inner, OUTER, FRAMES, POSE, (1e-5, 1e-5), 1e-8)
+    free = FRAMES * POSE - int(held.sum())
+
+    def put(point):
+        whole = inner.copy()
+        whole[~held] = point
+        return whole
+
+    dropped = _adjoint.implicit_jacobian(lambda point, outer: _residuals(put(point), outer),
+                                         lambda point, outer: _gradient(put(point), outer)[~held], inner[~held], OUTER,
+                                         1, free, (1e-5, 1e-5), 1e-8)
+    assert np.allclose(kept, dropped, rtol=1e-6, atol=1e-9)
