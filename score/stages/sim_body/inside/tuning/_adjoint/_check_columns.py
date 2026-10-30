@@ -21,6 +21,7 @@ import tuning  # noqa: E402
 from bone_groups import groups  # noqa: E402
 from _bodies import Pinned, RootTurns, level3_body, pose_of  # noqa: E402
 from _measures import TapedMeasures  # noqa: E402
+from _taped import turned_offsets  # noqa: E402
 from evaluation import _card_batch  # noqa: E402
 from fit import sampled_targets  # noqa: E402
 from fit._card._level2 import jacobian  # noqa: E402
@@ -119,6 +120,28 @@ def direct_rows(measures, pose_parts, frames):
                      {name: (values, np.zeros((len(values), len(entries)))) for name, (values, _, _) in skins.items()})[1]
 
 
+def group_turned_gradient(level3, sites, groups_of_rows, outer, moves):
+    """Level 3's gradient at its optimum with every turn row of a group in `moves` ({group: body-side rad}) turned."""
+    rows = {row: moves[group] for row, group in enumerate(groups_of_rows) if group in moves}
+    return turned_offsets(sites, rows, lambda: level3.gradient(level3.inner, outer))
+
+
+def table_mixed(level3, sites, groups_of_rows, lifted, outer, dtable, step):
+    """lifted^T g_q,centre along the recalibrated TABLE (`dtable`, b4/table/dtable_vec's 'body' rad/m, times
+    LINK_UNIT): per centre column that turns a calibration site, level 3's gradient central-differenced by `step`
+    units of the site_quat move; (rows, entries), zero elsewhere."""
+    found = np.zeros((lifted.shape[1], len(entries)))
+    for column, (pool, kind, axis, _) in enumerate(entries):
+        moved = dtable["columns"].get(f"{pool} {'xyz'[axis]}", {}) if kind == "centre" else {}
+        moves = {group: tuning.LINK_UNIT * step * np.asarray(sides["body"]) for group, sides in moved.items()}
+        if moves:
+            ahead = group_turned_gradient(level3, sites, groups_of_rows, outer, moves)
+            behind = group_turned_gradient(level3, sites, groups_of_rows, outer,
+                                           {group: -turn for group, turn in moves.items()})
+            found[:, column] = lifted.T @ ((ahead - behind) / (2 * step))
+    return found
+
+
 def timed(name, work):
     """`work()`'s result, its seconds kept under `name` and printed as one JSON line."""
     start = time.time()
@@ -176,6 +199,12 @@ lifted, _ = factored_solve(level3, differenced_arrow(level3, joined, STEPS[0]), 
 direct = timed("direct rows", lambda: direct_rows(measures, pose_parts, len(rows)))
 both = np.hstack([direct, by_constants]) - timed(
     "taping level 3 products", lambda: transposed_mixed(level3, lifted, joined, STEPS[1]))
+if any(given.startswith("--dtable=") for given in sys.argv):
+    dtable = json.loads(pathlib.Path(next(given for given in sys.argv if given.startswith("--dtable="))[9:]).read_text())
+    groups_of_rows = [clip.mjm.site(int(site)).name.removeprefix("fit:") for site in clip.frame_sites] * len(rows)
+    tabled = timed("level 3 table mixed", lambda: table_mixed(level3, sites, groups_of_rows, lifted, joined, dtable, 0.1))
+    np.save(saved_to.with_suffix(".table.npy"), tabled)
+    both[:, :len(entries)] -= tabled
 right = np.zeros((len(level2.inner), len(both)))
 right[level2.frames * level2.pose_size:] = both[:, len(entries):].T
 base = sited(np.zeros(len(entries)))
