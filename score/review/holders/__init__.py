@@ -9,7 +9,9 @@ Each plan item of a row that stands on, against or in something gets one relatio
            holder's by more than TOP_SHARE of the holder's box (a monitor on its console, a lamp on its desk)
     within inside its holder item, where the plan lays its middle (plants in their greenhouse, a door in its frame)
     face   (a moving door's `recess`, its room in its holder model behind it: recess_of; `spots` each piece's plan
-           middle where a moving door's item lays several, at least its width, room and OPENING_ROOM apart: face_spots)
+           middle where a moving door's item lays several, at least its width, room and OPENING_ROOM apart: face_spots,
+           or where things on one face that meet at their built sizes are spread along it: face_spread, a face too
+           short for them `crowded`)
            against its holder item's side, `face` N, E, S or W: the side the concept shows it against (toward the
            viewer where its box stands within its holder's across, else the holder's left or right as seen), else the
            side toward it on the plan, else its facing, its holder's, or S (the garage door on its module's front)
@@ -239,7 +241,7 @@ def spots_entry(item, row, plan, recess):
     return {"spots": [[round(float(value), 3) for value in spot] for spot, _ in placed]} if len(placed) > 1 else {}
 
 
-def recess_of(item, row, holder, holder_row, face, plan, inventory, kinds):
+def recess_of(item, row, holder, holder_row, face, plan, inventory, kinds, placed=None):
     """The recess a moving door needs in its holder model behind it, in the model's own frame: the model `axis` (x or
     z) and `side` its face is on, the door's middle `along` the face from the model's middle (`pieces`: one each where
     the item lays several), its `wide`, `tall`, `base` over the model's foot, and by its motion rule its `depth` and
@@ -247,7 +249,8 @@ def recess_of(item, row, holder, holder_row, face, plan, inventory, kinds):
     not read; `room_sides` one a piece), and that side as a plan way (`room_way`, `room_ways`: the assembly keeps the
     door so its room fits within the face's span too, fitting.on_face): a swing's as deep as it sweeps, widened on its hinge side by its own
     thickness, RECESS_MARGIN and the side wall the bake keeps (RECESS_WALL) so it lies clear of that wall at full open; a slide's its own thickness deep, with its width and
-    thickness of room on the side it slides to; None for a door that never moves (it sits flush) or has no size."""
+    thickness of room on the side it slides to; None for a door that never moves (it sits flush) or has no size.
+    `placed`: its pieces' [(plan middle, way)] where they are spread along their face (face_spread), else face_spots'."""
     rule, size = moving_rule(row, inventory, kinds), row.get("size")
     if rule is None or not (isinstance(size, list) and len(size) == 3):
         return None
@@ -263,7 +266,7 @@ def recess_of(item, row, holder, holder_row, face, plan, inventory, kinds):
              else deep) + RECESS_MARGIN
     along_way = model_z if on_x else model_x
     room = (deep if rule["move"] == "swing" else wide + deep) + RECESS_MARGIN + RECESS_WALL
-    placed = face_spots(item, row, plan, room)
+    placed = face_spots(item, row, plan, room) if placed is None else placed
     alongs = [round(float((spot - holder_middle) @ along_way), 3) for spot, _ in placed]
     toward = (rule.get("hinge") if rule["move"] == "swing" else rule.get("slide") or [1.0, 0.0, 0.0]) or [None]
     sides = [room_side(toward[0], model_axes(way, row)[0], along_way) for _, way in placed]
@@ -496,6 +499,114 @@ def spread(found):
     return crowded
 
 
+# A face relation's holder as the scene record lays it, (plan middle, way, base): kept on the relation while the
+# relations are derived, for face_spread, never written.
+LINE = "_holder"
+
+
+def reach(row, way, run):
+    """Metres a row's model stands along the plan way `run`, laid along `way` as the scene record lays it
+    (model_axes)."""
+    size = row.get("size") or [0.0, 0.0, 0.0]
+    model_x, model_z = model_axes(way, row)
+    return abs(float(model_x @ run)) * float(size[0]) + abs(float(model_z @ run)) * float(size[1])
+
+
+def face_pieces(entry, item, row, plan, run):
+    """[{entry, number, at, way, along, before, after, band}] each piece of a face relation stands at against its face (its
+    `spots`, else piece_middles), `along` its middle's metres along `run` from the holder's middle, `before` and
+    `after` its reach on either side, a moving door's recess room on its room side (both sides where it names none),
+    `band` its foot and top."""
+    recess, size = entry.get("recess"), row.get("size") or [0.0, 0.0, 0.0]
+    placed = piece_middles(item, row, plan)
+    if entry.get("spots"):
+        placed = [(numpy.asarray(spot, float), way) for spot, (_, way) in zip(entry["spots"], placed)]
+    base = float(((plan.get("shapes") or {}).get(item[0]) or {}).get("base") or 0.0)
+    holder_middle = numpy.asarray(entry[LINE][0], float)
+    found = []
+    for number, (spot, way) in enumerate(placed):
+        half = reach(row, way, run) / 2
+        room_way = (recess.get("room_ways") or [recess.get("room_way")])[number] if recess else None
+        side = float(numpy.asarray(room_way, float) @ run) if room_way and any(room_way) else 0.0
+        room = float(recess["room"]) if recess else 0.0
+        found.append({"entry": entry, "number": number, "at": numpy.asarray(spot, float), "way": way,
+                      "along": float((numpy.asarray(spot, float) - holder_middle) @ run),
+                      "before": half + (room if side <= 0 else 0.0), "after": half + (room if side >= 0 else 0.0),
+                      "band": (base, base + float(size[2]))})
+    return found
+
+
+def meet(first, second):
+    """Whether two pieces' heights overlap."""
+    return first["band"][0] < second["band"][1] - 1e-9 and second["band"][0] < first["band"][1] - 1e-9
+
+
+def spread_face(pieces, half):
+    """The left ends along a face `half` long either side of its middle of `pieces` (in order along it): each kept at
+    its own spot or pushed on past every earlier one its height meets by OPENING_ROOM, then pulled back from the
+    face's far end and every later one by as much, all OPENING_ROOM inside its ends; None where the face cannot hold
+    them so."""
+    lefts = []
+    for number, piece in enumerate(pieces):
+        least = [lefts[other] + pieces[other]["before"] + pieces[other]["after"] + OPENING_ROOM
+                 for other in range(number) if meet(pieces[other], piece)]
+        lefts.append(max([piece["along"] - piece["before"], -half + OPENING_ROOM, *least]))
+    for number in reversed(range(len(pieces))):
+        most = [lefts[other] - OPENING_ROOM for other in range(number + 1, len(pieces)) if meet(pieces[other],
+                                                                                              pieces[number])]
+        wide = pieces[number]["before"] + pieces[number]["after"]
+        lefts[number] = min([lefts[number], half - OPENING_ROOM - wide, *(limit - wide for limit in most)])
+    clear = all(lefts[later] >= lefts[number] + pieces[number]["before"] + pieces[number]["after"] + OPENING_ROOM
+                - 1e-9 for number in range(len(pieces)) for later in range(number + 1, len(pieces))
+                if meet(pieces[number], pieces[later]))
+    return lefts if clear and lefts[0] >= -half + OPENING_ROOM - 1e-9 else None
+
+
+def face_spread(found, items, rows, plan, inventory, kinds):
+    """The pieces against each holder's face that would overlap at their built sizes (along it and in height) spread
+    along it in the order the plan draws them (spread_face), each relation of a piece moved given its pieces' `spots`
+    and a moving door its recess at them; a face too short for them all keeps them as drawn, named in the
+    [{holder, holder row, face, rows, why}] returned (street's 3 m window, stairwell entrance and roller shutters laid
+    at their built widths on 1.74 m items, its sign over three air conditioners, #36)."""
+    faces, crowded = {}, []
+    for entry in found:
+        if entry["how"] == "face" and LINE in entry:
+            faces.setdefault((entry["holder"], entry["holder row"], entry["face"]), []).append(entry)
+    for (holder, holder_row, face), entries in faces.items():
+        out = numpy.asarray(FACES[face], float)
+        run = numpy.array([-out[1], out[0]])
+        line = entries[0][LINE]
+        half = reach(rows[holder_row], line[1], run) / 2
+        each = sorted((sorted(face_pieces(entry, items[entry["item"]], rows[entry["row"]], plan, run),
+                              key=lambda piece: piece["along"]) for entry in entries),
+                      key=lambda own: sum(piece["along"] for piece in own) / max(len(own), 1))
+        pieces = [piece for own in each for piece in own]  # an item's pieces together, items in their plan order
+        if all(later["along"] - later["before"] >= piece["along"] + piece["after"] - 1e-9 or not meet(piece, later)
+               for number, piece in enumerate(pieces) for later in pieces[number + 1:]):
+            continue
+        lefts = spread_face(pieces, half)
+        if lefts is None:
+            crowded.append({"holder": holder, "holder row": holder_row, "face": face,
+                            "rows": sorted({piece["entry"]["row"] for piece in pieces}),
+                            "why": f"the face's {2 * half:.2f} m cannot hold its things at their built widths with "
+                                   f"{OPENING_ROOM:g} m between those that meet in height and at its ends"})
+            continue
+        for piece, left in zip(pieces, lefts):
+            piece["at"] = piece["at"] + run * (left + piece["before"] - piece["along"])
+            piece["moved"] = abs(left + piece["before"] - piece["along"]) > 1e-6
+        for entry in entries:
+            own = sorted((piece for piece in pieces if piece["entry"] is entry), key=lambda piece: piece["number"])
+            if not any(piece.get("moved") for piece in own):
+                continue
+            entry["spots"] = [[round(float(value), 3) for value in piece["at"]] for piece in own]
+            if entry.get("recess"):
+                entry["recess"] = recess_of(items[entry["item"]], rows[entry["row"]], entry[LINE], rows[holder_row],
+                                            face, plan, inventory, kinds,
+                                            [(numpy.asarray(spot, float), piece["way"])
+                                             for spot, piece in zip(entry["spots"], own)])
+    return crowded
+
+
 def in_plan_opening(spot, row, plan, taken):
     """A relation in the plan's opening nearest `spot` (any, with none) that holds none yet, of the row's kind (a
     window a window's, a door a door's: camp's dome window took the dome door's opening, standing in its swing, #36),
@@ -655,8 +766,10 @@ def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, 
     if edge:  # on a wall row laid past the plan's edge: against its face toward the plan
         found = {"how": "face", "holder": plan_checks.WALLS_ITEM, "holder row": holder["id"],
                  "face": OPPOSITE[edge["edge"]], "why": f"against {holder['id']}'s face toward the place"}
-        recess = recess_of(item, row, edge_holder(edge, holder), holder, found["face"], plan, inventory, kinds)
-        return {**found, **({"recess": recess} if recess else {}), **spots_entry(item, row, plan, recess)}, None
+        line = edge_holder(edge, holder)
+        recess = recess_of(item, row, line, holder, found["face"], plan, inventory, kinds)
+        return {**found, **({"recess": recess} if recess else {}), **spots_entry(item, row, plan, recess),
+                LINE: line}, None
     if holder is not None and holder["id"] in laid and kind not in ("wall", "floor"):  # an item of its own, or tied to its holder's
         items, shown = plan_items(plan), seen_holders(row, holder, rows, laid)
         nearest = min(((other, name) for other in shown for name in laid[other["id"]]),
@@ -670,6 +783,7 @@ def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, 
             found["recess"] = recess
         if found["how"] == "face":
             found.update(spots_entry(item, row, plan, recess))
+            found[LINE] = (middle(holder_item), item_way(holder_item), holder_base)
         if len(shown) > 1:
             found["why"] += (f" (its things stand on {len(shown)} rows in the concept: "
                              f"{', '.join(other['id'] for other in shown)}; the nearest on the plan)")
@@ -722,7 +836,9 @@ def relations(plan, inventory, sha=None, kinds=None):
                 found.append({"item": name, "row": row_id, **got})
             elif why:
                 unheld.append({"item": name, "row": row_id, "why": why})
-    crowded = spread(found)
+    crowded = spread(found) + face_spread(found, items, rows, plan, inventory, kinds)
+    for entry in found:
+        entry.pop(LINE, None)
     for _, openings in wall_openings(found).values():
         for _, opening in openings:
             opening.pop("drawn", None)
