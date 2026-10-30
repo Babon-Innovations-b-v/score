@@ -830,6 +830,76 @@ def test_a_door_goes_in_its_opening_narrowed_to_fit():
     assert "shrunk to 86%" in words, words
 
 
+def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_its_swing():
+    """#36, garage 2026-10-30: hung on its wall's room face, each door swung out, its kind's way, into its own jamb
+    0.05 to 0.08 m, and 10 m pipes laid along the walls stood across both doorways; neither door swung. A 2 m door in
+    the 2.4 m opening of a wall from z -0.276 to 0 (the room to +z) whose own -z way (its kind's swing) points out of
+    the room hangs on the wall's outer face, z -0.276, its hinge at that face's jamb corner; one swinging into the room
+    on the room face, z 0, never on the floor deck's side under it; the held gate passes it on either face. A
+    1 x 2 x 0.1 m door in its 1.2 m opening, in a shell wall from z -0.1 to 0.1 (quarters' walls are its Shell), turned so its own left edge faces +x and its own -z the room, stands on the wall's room
+    face, x -0.4 to 0.6, z 0.05 to 0.15; its swing takes z 0.1 to 1.1 over that span. A 3.2 m pipe laid on the wall
+    across the doorway goes to the longest stretch beside it, shrunk to 2.6 m, x -3 to -0.4, though it comes first in
+    the record; a lamp on the wall above the door stays; a pipe beside a door swinging out of the room stays. Only a
+    door, hatch or gate swings so (its row kind's motion): a window stands in its opening and claims no swing (tube's
+    wall panel, moved 5.4 m clear of a window, 2026-10-30).
+    Break: score/stages/assembly/fitting.py: `return bool(set(row_kinds.words(row).split()) & nouns)` -> `return
+        True`
+    Break: score/stages/assembly/fitting.py: `faces = [float(high[axis] if opens > 0 else low[axis]) for low, high in
+        reach` -> `faces = [float(low[axis] if opens > 0 else high[axis]) for low, high in reach`
+    Break: score/stages/assembly/fitting.py: `and high[axis] - low[axis] <= 2 * WALL_REACH]` -> `]`
+    Break: score/stages/assembly/fitting.py: `for scope in ("Structure", "Shell")]` -> `for scope in ("Structure",)]`
+    Break: score/stages/assembly/fitting.py: `own_way(stage, path, 0), own_way(stage, path, 2) if name in leaves else
+        None, clear)` -> `own_way(stage, path, 0), None, clear)`
+    Break: score/stages/assembly/fitting.py: `for opens in (None, across_it, np.negative(across_it))]` -> `for opens
+        in (None,)]`
+    Break: score/stages/assembly/fitting.py: `if off.max() > 0.0 and off.min() < deep and low[1] < band[1] and
+        high[1] > band[0]:` -> `if off.max() > 0.0 and off.min() < deep:`
+    Break: score/stages/assembly/fitting.py: `(middle, middle + wide) if way[axis // 2] > 0 else (middle - wide,
+        middle)` -> `(middle - wide, middle) if way[axis // 2] > 0 else (middle, middle + wide)`
+    Break: score/stages/assembly/fitting.py: `for name in sorted(by_name, key=lambda name: name not in leaves):` ->
+        `for name in by_name:`"""
+    from pxr import Gf, Usd, UsdGeom
+    from score.stages.assembly import fitting
+    walls = [{"name": "wall_1", "low": [-5.0, -0.2, -0.276], "high": [-1.2, 4.6, 0.0]},
+             {"name": "wall_1_2", "low": [-1.2, -0.2, -0.276], "high": [1.2, 0.0, 0.0]},
+             {"name": "deck_1", "low": [-5.0, -0.2, -0.2], "high": [5.0, 0.0, 5.0]}]  # no wall: across the room
+    opening = {"how": "in", "middle": [0.0, 0.0, 0.15], "along": [1.0, 0.0], "wide": 2.4, "tall": 2.66}
+    boxes = [(wall["low"], wall["high"]) for wall in walls]
+    for opens, face in (((0.0, -1.0), -0.276), ((0.0, 1.0), 0.0)):
+        _, target, _, _ = fitting.fit((-1.0, 0.0, 0.05), (1.0, 2.4, 0.25), opening, boxes, left=(-1.0, 0.0),
+                                      opens=opens)
+        assert np.allclose(target, (-0.2, 0.0, face)), (opens, target)
+        record = {"objects": [{"name": "door_1", "on": opening, "fills": True}]}
+        assert fitting.held_faults(record, {"walls": walls, "objects": [
+            {"name": "door_1", "low": [-1.2, 0.0, face - 0.1], "high": [0.8, 2.4, face + 0.1]}]}) == [], face
+    stage = Usd.Stage.CreateInMemory()
+    for name, size, turn, at in (("Objects/pipe_1", (3.2, 1.0, 0.32), 0.0, (0.0, 0.5, 2.0)),
+                                 ("Objects/lamp_1", (0.4, 0.3, 0.1), 0.0, (0.0, 2.45, 0.15)),
+                                 ("Objects/door_1", (1.0, 2.0, 0.1), 180.0, (0.0, 1.0, 3.0)),
+                                 ("Shell/wall_2", (1.2, 0.1, 0.2), 0.0, (0.0, -0.05, 0.0))):
+        xform = UsdGeom.Xform.Define(stage, f"/{TOY}/{name}")
+        cube = UsdGeom.Cube.Define(stage, f"/{TOY}/{name}/geo")
+        cube.AddScaleOp().Set(Gf.Vec3f(*(side / 2 for side in size)))
+        xform.AddTransformOp().Set(Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 1, 0), turn))
+                                   * Gf.Matrix4d().SetTranslate(Gf.Vec3d(*at)))
+    wall = {"how": "wall", "span": [[-3.0, 0.1], [3.0, 0.1]], "out": [0.0, 1.0]}
+    entries = [{"name": "pipe_1", "row": "pipe", "on": wall}, {"name": "lamp_1", "row": "lamp", "on": wall},
+               {"name": "door_1", "row": "door", "on": {"how": "in", "middle": [0.0, 0.0, 0.0], "along": [1.0, 0.0],
+                                                          "wide": 1.2, "tall": 2.2}}]
+    fits = {fit["name"]: fit for fit in fitting.fitted(stage, TOY, entries, {"pipe_1", "lamp_1", "door_1"})}
+    assert sorted(fits) == ["door_1", "pipe_1"], fits
+    assert np.allclose(fits["door_1"]["low"], (-0.4, 0.0, 0.05)) and np.allclose(fits["door_1"]["high"],
+                                                                                  (0.6, 2.0, 0.15)), fits
+    swing = fitting.swing_box(stage, f"/{TOY}/Objects/door_1")
+    assert np.allclose(swing[0], (-0.4, 0.0, 0.1)) and np.allclose(swing[1], (0.6, 2.0, 1.1)), swing
+    assert fits["pipe_1"]["scale"] == 0.8125 and np.allclose(fits["pipe_1"]["low"], (-3.0, 0.0, 0.1)) \
+        and np.allclose(fits["pipe_1"]["high"], (-0.4, 0.8125, 0.36)), fits
+    assert fitting.swings("round_door_left") and fitting.swings("metal_gate_open") and not fitting.swings("windows")
+    out = (np.array([-0.4, 0.0, -0.9]), np.array([0.6, 2.0, 0.1]))
+    scale, target = fitting.on_wall(np.array([-1.6, 0.0, 1.0]), np.array([1.6, 1.0, 1.32]), wall, [out])
+    assert scale == 1.0 and np.allclose(target, (0.0, 0.0, 0.26)), (scale, target)
+
+
 def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     """A 0.5 x 0.4 x 0.1 m monitor laid 2 m off its 3 x 1 x 0.8 m console (x 0 to 3, top at 1 m) stands on its top,
     moved in to x 3 - 0.25 = 2.75, z kept at 0.4, its foot at 1 m; a console narrower than it shrinks it to fit.
