@@ -54,3 +54,47 @@ def the_sets_batch_equals_each_clip_alone():
     except ValueError:
         pass
     return problems
+
+
+def chained_alone(clip, turns, targets, firsts, start):
+    """One clip's frames posed one launch a frame, each from its previous frame's answer, `start` at `firsts`."""
+    import numpy as np
+    found, seed = [], None
+    for index in range(len(turns)):
+        seed = np.array([start]) if index in firsts else seed
+        seed, _ = clip.angles(turns[index:index + 1, None], targets[index:index + 1], seed)
+        found.append(seed[0])
+    return np.array(found)
+
+
+def the_sampled_path_across_sets_equals_each_set_chained():
+    """`_sampled.path_across` over SETS sets (one launch a frame, a recording restarting at frame 5 from a cold
+    start) against each clip chained alone, every set's start asked at each first; the targets apart per marker so a
+    set reading set 0's points turns it red; problems as text."""
+    import mujoco
+    import numpy as np
+    from card_toy import TOY, mink_frames, toy_clip
+    from fit._card._sampled import path_across
+    from fit._card._sets import Sets
+    mjm = mujoco.MjModel.from_xml_string(TOY)
+    turns, places = toy_clip(mjm)
+    start = mink_frames(mjm, turns, places)[0]
+    clips, firsts, asked = toy_sets(), {0, 5}, []
+    targets = [places + index * apart_per_marker(places.shape[-2]) for index in range(SETS)]
+    together = path_across(Sets(clips), [turns[:, None]] * SETS, targets, firsts,
+                           lambda number, index: asked.append((number, index)) or start)
+    problems = []
+    if sorted(asked) != sorted((number, first) for number in range(SETS) for first in firsts):
+        problems.append(f"path_across: starts asked at {sorted(asked)}, not every set at each recording's first")
+    for index, clip in enumerate(clips):
+        alone = chained_alone(clip, turns, targets[index], firsts, start)
+        miss = np.degrees(np.abs(together[index][:, 7:] - alone[:, 7:])).max()
+        if miss > 0.01:
+            problems.append(f"path_across: set {index} {miss:.4f} deg off its clip chained alone")
+    return problems
+
+
+def apart_per_marker(markers):
+    """Each set's targets moved on from the last set's, 10 mm more on each next marker, so sets' answers differ."""
+    import numpy as np
+    return 0.01 * np.arange(markers)[:, None] * np.array([1.0, -0.5, 0.25])
