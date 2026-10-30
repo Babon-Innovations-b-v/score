@@ -298,3 +298,13 @@ def test_level_2_constants_on_the_real_tape_equal_differences_of_its_cost(tmp_pa
     assert found["pose most"] < 1e-6 * max(found["pose largest"], 1.0), found
     assert found["gap over largest"]["0.0001"] < CONSTANTS_SHARE, found
     assert found["cross symmetry"] < CONSTANTS_SHARE and found["cross held most"] == 0.0, found
+
+
+def test_level_2_constants_rows_on_the_real_body_equal_differences_of_its_case_rows(tmp_path):
+    """`SCORE_ADJOINT_REAL` as above: R_c (`TapedMeasures.constant_measured` through `case_rows`) on its largest
+    columns equals `case_rows` of the per-frame measures' central differences over level 2's moves, the medians'
+    frames fixed (a move of every frame swaps the median's frame; that gap is reported, not judged). Red when a skin
+    point's rows are read off its skin frame's index in place of its link's copy (2026-10-30: 1.57 of the largest)."""
+    given, cases = runs.real_inputs()
+    found = runs.last_json(runs.newton_ran("_check_rows.py", given["seeds"], given["set"], tmp_path, *cases))
+    assert found["finite"] and found["masked gap over largest"] < CONSTANTS_SHARE, found
