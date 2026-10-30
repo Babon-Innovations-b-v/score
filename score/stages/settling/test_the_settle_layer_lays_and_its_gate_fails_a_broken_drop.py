@@ -24,6 +24,9 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - a_pair_crossing_as_laid_is_kept_not_broken: laid_inside_each_other returning `poses` unchanged (2026-10-30).
 - a_row_on_a_wall_or_ceiling_row_is_mounted_there: held.mounted's `if kind in ("wall", "ceiling"):` made
   `if kind in ("wall",):` (the ceiling rails left out, 2026-10-30).
+- a_structure_row_on_a_mounted_row_is_mounted_with_it: held.mounted's `while more := {...}` loop made `while False:`
+  (the door's window left held on its door, judged standing, 2026-10-30), and its `if holder_kind(rows[row_id]) is
+  None` test dropped (a railing on a floor laid on a hull mounted through the floor).
 - one_stacked_on_a_support_left_as_laid_is_left_as_laid: kept_with_their_supports' `changed = True` after a keep
   made `pass` (one pass: the bag on the kept sandbag keeps its rest), and its `not poses[support]["rested"]` made
   `False` (nothing kept) (2026-10-30).
@@ -409,8 +412,30 @@ def a_row_on_a_wall_or_ceiling_row_is_mounted_there():
     return [] if found == {"wall_pipes": "wall", "ceiling_rails": "ceiling"} else [f"mounted: {found}"]
 
 
+def a_structure_row_on_a_mounted_row_is_mounted_with_it():
+    """Round 32's docking airlock: its door window, a structure row within its door on the back wall, was judged as
+    standing on the door's frame and leaned 38 degrees. A structure row on a mounted row is built into it, mounted with
+    it as its holder's kind (through a mounted chain, either order); a thing on a mounted row (a cup on a wall shelf)
+    still stands on it, and a structure row on a shell row never is (the engine room's railing on its floor grating,
+    the grating laid on its hull)."""
+    from score.stages.settling import held
+    rows = {"back_wall": {"id": "back_wall", "part": "wall"}, "door": {"id": "door", "anchor": "on:back_wall"},
+            "window": {"id": "window", "part": "structure", "anchor": "on:door"},
+            "frame": {"id": "frame", "part": "structure", "anchor": "on:window"},
+            "shelf": {"id": "shelf", "part": "object", "anchor": "on:back_wall"},
+            "cup": {"id": "cup", "part": "object", "anchor": "on:shelf"},
+            "locker": {"id": "locker", "part": "object"},
+            "vent": {"id": "vent", "part": "structure", "anchor": "on:locker"},
+            "grating": {"id": "grating", "part": "floor", "anchor": "on:back_wall"},
+            "railing": {"id": "railing", "part": "structure", "anchor": "on:grating"}}
+    found = held.mounted(rows)
+    wanted = {"door": "wall", "window": "wall", "frame": "wall", "shelf": "wall", "grating": "wall"}
+    return [] if found == wanted else [f"mounted: {found}"]
+
+
 CHECKS = (the_row_kinds_the_fitting_reads_are_among_its_files, a_pair_crossing_as_laid_is_kept_not_broken,
-          a_row_on_a_wall_or_ceiling_row_is_mounted_there, one_stacked_on_a_support_left_as_laid_is_left_as_laid,
+          a_row_on_a_wall_or_ceiling_row_is_mounted_there,
+          a_structure_row_on_a_mounted_row_is_mounted_with_it, one_stacked_on_a_support_left_as_laid_is_left_as_laid,
           a_pair_crossing_only_after_the_drop_still_breaks,
           a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down, a_row_the_reading_gave_no_anchor_reads_as_none, the_laid_stage_keeps_each_object_where_it_was_laid,a_cloud_drop_runs_on_the_trials_card_in_its_python_once, the_layer_lays_each_object_at_its_rest,
           the_drop_gate_fails_a_broken_drop_and_names_what_was_kept,
