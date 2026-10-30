@@ -17,7 +17,7 @@ unknowns' trust (`TapedSites._evaluate` not assigning `self.weights` when `trust
 skipping `self.centres.zero_()` (joint centres adding onto the last evaluation's) turns the taped measures test red.
 Building the bone points without `requires_grad` (`_Skins.points`: no skin depth row reaches the pose) turns it red.
 Cutting each seeded row from the first frame's block in place of its own (`_rows` with start 0) turns it red; `case_rows` laying a
-skin point's block at frame 0 (`rms_row` ignoring `point_frames`) turns it red. `_real.level2_solved` returning its start path in place of the solved angles (what `constants_on` drops) turns the real level 2 test red. `fit/_constants.staged` without its `polished` step turns the real constant motion test red (its free gradient over 1e-9). `_real.level2_constants` laying every copy's free marks on the first copy's sites (the copy shift times 0) turns the real constants test red. `_bodies.level3_body`'s gradient without `pinned.gradient` (held rows not springs) turns it red.
+skin point's block at frame 0 (`rms_row` ignoring `point_frames`) turns it red. `_real.level2_solved` returning its start path in place of the solved angles (what `constants_on` drops) turns the real level 2 test red. `fit/_constants.staged` without its `polished` step turns the real constant motion test red (its free gradient over 1e-9). `_real.level2_constants` laying every copy's free marks on the first copy's sites (the copy shift times 0) turns the real constants test red. `_bodies.level3_body`'s gradient without `pinned.gradient` (held rows not springs) turns it red. `TapedMeasures._constant_blocks` reading every frame's rows off the first copy's inside joints turns the taped measures test red (R_c 148 against 101).
 In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
 without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pulled` skipping the normalisation's
 projection (`along` the raw turn gradient) turns the root chart test red; `RootTurns.pulled_rows` cutting each copy's fourth turn coordinate in place of pulling the row
@@ -36,14 +36,14 @@ end weight and markers' goal outer unknowns, and once batched with a group end i
 outer unknowns laid on both: its rows equal each copy's own frame's): its gradient, asked twice, equals central differences of its cost to 1e-3 of the largest entry. With no
 Newton Python (`SCORE_NEWTON_PYTHON`, else $PROPS_HOME/envs/newton_env) it is skipped; its run is `_check_taped.py`. The taped measures test runs (`_check_measures.py`)
 `_measures` on three copies of the chain (frames): two joints (one a MIDDLE of two parts), two turn groups and two skin
-regions' bone points against a posed box skin per frame (some outside, some inside), fed through `case_rows`, equal central differences of `case_residuals` to 1 % of the largest entry."""
+regions' bone points against a posed box skin per frame (some outside, some inside), fed through `case_rows`, equal central differences of `case_residuals` to 1 % of the largest entry; so do its rows over level 2's moves (R_c: a free mark's columns zero, an inside joint's)."""
 import json
 
 import numpy as np
 import pytest
 
 from score.stages.sim_body.inside.tuning import _adjoint
-from score.stages.sim_body.inside.tuning._adjoint import _toys as toys
+from score.stages.sim_body.inside.tuning._adjoint import _runs as runs, _toys as toys
 from score.stages.sim_body.inside.tuning._adjoint._toys import CONSTANTS, FRAMES, OUTER, POSE
 
 
@@ -158,7 +158,7 @@ def test_the_root_turn_charted_as_three_tangent_dofs_pulls_back_the_gradient():
 
 
 def test_the_taped_gradient_equals_central_differences_of_the_cost():
-    gap = float(toys.newton_ran("_check_taped.py").rsplit("GAP", 1)[1])
+    gap = float(runs.newton_ran("_check_taped.py").rsplit("GAP", 1)[1])
     assert gap < 1e-3
 
 
@@ -178,27 +178,25 @@ def test_the_taped_case_rows_equal_differences_of_the_case_residuals():
 
 def test_the_taped_measures_rows_equal_differences_of_the_case_residuals():
     from score.stages.sim_body.inside.tuning import case_residuals
-    found = json.loads(toys.newton_ran("_check_measures.py").rsplit("JSON", 1)[1])
-    taped = {kind: {key: tuple(np.array(part) for part in value) for key, value in found["taped"][kind].items()}
-             for kind in ("joints", "turns", "skins")}
+    found = json.loads(runs.newton_ran("_check_measures.py").rsplit("JSON", 1)[1])
+    taped = dict(zip(("joints", "turns", "skins"), toys.taped_parts(found, "taped")))
     assert all(np.abs(depths).max() > 1e-3 for depths, *_ in taped["skins"].values()), "no bone point outside the skin"
     assert found["passes"] == 2 * 3 + 2 + 3, found["passes"]  # a frame's most entries per output: joints, turns, skins
     assert all(rows.shape[-1] == 4 for kind in ("joints", "turns") for _, rows in taped[kind].values())  # frame blocks
     values, jacobian = _adjoint.case_rows(taped["joints"], taped["turns"], taped["skins"], frames=3)
     at = {kind: {key: value[0] for key, value in taped[kind].items()} for kind in taped}
     assert np.allclose(values, case_residuals(toys.case_found(at["joints"], at["turns"], at["skins"])), atol=1e-4)
-    scored = [case_residuals(toys.case_found(*({key: np.array(value) for key, value in nudge[kind].items()}
-                                           for kind in ("joints", "turns", "skins"))))
-              for nudge in found["nudged"]]
-    expected = np.stack([(scored[2 * column] - scored[2 * column + 1]) / (2 * found["step"])
-                         for column in range(len(scored) // 2)], axis=1)
+    expected = toys.nudged_differences(found["nudged"], found["step"])
     assert np.abs(jacobian - expected).max() < 1e-2 * np.abs(expected).max()
+    constant_jacobian = _adjoint.case_rows(*toys.taped_parts(found, "constant_taped"))[1]  # R_c: a free mark, a joint
+    expected = toys.nudged_differences(found["constant_nudged"], found["step"])
+    assert np.all(constant_jacobian[:, :3] == 0) and np.abs(constant_jacobian - expected).max() < 1e-2 * np.abs(expected).max()
 
 
 def test_one_real_body_builds_and_its_rows_equal_the_card_solve(tmp_path):
-    """`toys.real_inputs`: one tuning body's set and its card solve's angles (the real store's inputs)."""
-    given, cases = toys.real_inputs()
-    found = toys.last_json(toys.newton_ran("_check_real.py", given["seeds"], given["set"], tmp_path, given["reference"],
+    """`runs.real_inputs`: one tuning body's set and its card solve's angles (the real store's inputs)."""
+    given, cases = runs.real_inputs()
+    found = runs.last_json(runs.newton_ran("_check_real.py", given["seeds"], given["set"], tmp_path, given["reference"],
                                            *cases, timeout=115))
     assert all(case["most"] < 1e-4 for case in found["cases"].values()), found
     assert found["fk"]["most"] < 1e-4, found
@@ -268,30 +266,26 @@ def test_level_2_body_off_a_constants_first_problem_moves_its_constants_as_re_so
 
 
 LEVEL2_STATIONARY = 1e-2  # level 2's pinned gradient at its solve over the one at its start (heavy_kimodo, 2026-10-30: 1.6e-3)
+MOTION_SHARE = 0.02  # a slot's implicit dc/dtheta off its settled re-solves, over the column's largest entry
+CONSTANTS_SHARE = 1e-2  # the taped constants' gradient off central differences of the cost, over its largest entry
 
 
 def test_level_2_on_one_real_body_is_stationary_at_its_solve(tmp_path):
     """`SCORE_ADJOINT_REAL` as above: level 2 solved on its sampled frames (`_real.level2_solved`, the angles kept),
     `_level2.level2_body` on `_real.problem_at` at the solve, its pinned gradient far under the one at the start."""
-    given, cases = toys.real_inputs()
-    found = toys.last_json(toys.newton_ran("_check_level2.py", given["set"], tmp_path, *cases, timeout=115))
+    given, cases = runs.real_inputs()
+    found = runs.last_json(runs.newton_ran("_check_level2.py", given["set"], tmp_path, *cases, timeout=115))
     assert found["solved most"] < LEVEL2_STATIONARY * found["start most"], found
-
-
-MOTION_SHARE = 0.02  # a slot's implicit dc/dtheta off its settled re-solves, over the column's largest entry
 
 
 def test_level_2_constant_motion_on_one_real_body_equals_settled_re_solves(tmp_path):
     """`SCORE_ADJOINT_REAL` as above: `constant_motion` on level 2 at its float64-settled solve against central
     differences of level 2 re-solved at marker goal +-0.1, on the told, unpinned slots off their bounds (heavy_kimodo,
     2026-10-30: 157 s, over the 2 minute budget; run only when `SCORE_ADJOINT_REAL` is set, never by `make tests`)."""
-    given, cases = toys.real_inputs()
-    found = toys.last_json(toys.newton_ran("_check_motion.py", given["set"], tmp_path, "0.1", *cases, timeout=300))
+    given, cases = runs.real_inputs()
+    found = runs.last_json(runs.newton_ran("_check_motion.py", given["set"], tmp_path, "0.1", *cases, timeout=300))
     assert found["off"] > 0 and found["free gradient"] < 1e-9, found
     assert found["most difference"] < MOTION_SHARE * found["top"], found
-
-
-CONSTANTS_SHARE = 1e-2  # the taped constants' gradient off central differences of the cost, over its largest entry
 
 
 def test_level_2_constants_on_the_real_tape_equal_differences_of_its_cost(tmp_path):
@@ -299,8 +293,8 @@ def test_level_2_constants_on_the_real_tape_equal_differences_of_its_cost(tmp_pa
     moves 0: its constants' gradient on its largest entries equals central differences of the cost, its pose part the
     constant-free gradient; level 3's g_q,c (`_bodies.level3_body`, `mixed` over the moves) equals the constants'
     gradient differenced over the pose (H's symmetry), its held rows zero."""
-    given, cases = toys.real_inputs()
-    found = toys.last_json(toys.newton_ran("_check_constants.py", given["seeds"], given["set"], tmp_path, *cases))
+    given, cases = runs.real_inputs()
+    found = runs.last_json(runs.newton_ran("_check_constants.py", given["seeds"], given["set"], tmp_path, *cases))
     assert found["pose most"] < 1e-6 * max(found["pose largest"], 1.0), found
     assert found["gap over largest"]["0.0001"] < CONSTANTS_SHARE, found
     assert found["cross symmetry"] < CONSTANTS_SHARE and found["cross held most"] == 0.0, found

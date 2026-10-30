@@ -1,19 +1,13 @@
 """The toy problems the adjoint's test drives (two-level poses and constants, level 2's constants-first Problem, a
-toy case's measures, a toy landmark table) and the run of a Newton check script by path; test support only, never
-imported by the adjoint's modules."""
-import json
-import os
-import pathlib
-import subprocess
+toy case's measures and their central differences, a toy landmark table); test support only, never imported by the
+adjoint's modules."""
 
 import numpy as np
-import pytest
 import scipy.optimize
 
 from score.stages.sim_body.inside.tuning import _adjoint
 
 
-HERE = pathlib.Path(__file__).parent
 FRAMES, POSE, CONSTANTS, SPREAD = 4, 2, 2, 0.3
 TIMES = np.linspace(0.0, 1.0, FRAMES)
 
@@ -77,42 +71,6 @@ def prior(outer):
     return outer ** 2
 
 
-def newton_python():
-    """Newton's own Python: `SCORE_NEWTON_PYTHON`, else $PROPS_HOME/envs/newton_env's; None when neither exists."""
-    named = os.environ.get("SCORE_NEWTON_PYTHON")
-    if named:
-        return pathlib.Path(named)
-    found = pathlib.Path(os.environ.get("PROPS_HOME", "/nonexistent")) / "envs/newton_env/bin/python"
-    return found if found.exists() else None
-
-
-def newton_ran(script, *arguments, timeout=110):
-    """`script` (a check beside this file) run in Newton's Python with this folder first, its stdout; skipped
-    without Newton's Python."""
-    python = newton_python()
-    if python is None:
-        pytest.skip("no Newton Python (SCORE_NEWTON_PYTHON or $PROPS_HOME/envs/newton_env)")
-    ran = subprocess.run([str(python), "-B", str(HERE / script), str(HERE), *map(str, arguments)],
-                         capture_output=True, text=True, timeout=timeout)
-    assert ran.returncode == 0, ran.stderr[-2000:]
-    return ran.stdout
-
-
-def real_inputs():
-    """`SCORE_ADJOINT_REAL`'s JSON {seeds, set, reference, cases: {case: job}} (absolute paths): one tuning body's
-    set and its card solve; skipped without it or without Newton's Python (the real store's inputs)."""
-    named = os.environ.get("SCORE_ADJOINT_REAL")
-    if newton_python() is None or not named:
-        pytest.skip("no Newton Python or no SCORE_ADJOINT_REAL")
-    given = json.loads(pathlib.Path(named).read_text())
-    return given, [f"{case}={job}" for case, job in given["cases"].items()]
-
-
-def last_json(stdout):
-    """A check script's last line, its JSON result."""
-    return json.loads(stdout.strip().splitlines()[-1])
-
-
 def differences(unknowns):
     times = np.linspace(0.0, 1.0, 5)[:, None]
     return np.concatenate([np.sin(unknowns[0] + 3 * times), unknowns[1] * times + 0.2, np.cos(unknowns[2] * (1 + times))],
@@ -166,6 +124,20 @@ def case_found(joints, turns, skins):
     return {"per joint mm": {key: [np.median(1000 * np.linalg.norm(value, axis=1))] for key, value in joints.items()},
             "per group deg": {key: [np.median(value)] for key, value in turns.items()},
             "bones outside depth mm": {key: 1000 * np.sqrt(np.mean(np.square(value))) for key, value in skins.items()}}
+
+
+def taped_parts(found, key):
+    """A measures check's JSON `found[key]` as `case_rows`' joints, turns and skins (each value's parts as arrays)."""
+    return [{name: tuple(np.array(part) for part in value) for name, value in found[key][kind].items()}
+            for kind in ("joints", "turns", "skins")]
+
+
+def nudged_differences(nudged, step):
+    """Central differences of `case_residuals` over a measures check's nudged measures (each column +step, then -step)."""
+    from score.stages.sim_body.inside.tuning import case_residuals
+    scored = [case_residuals(case_found(*({key: np.array(value) for key, value in nudge[kind].items()}
+                                          for kind in ("joints", "turns", "skins")))) for nudge in nudged]
+    return np.stack([(scored[2 * column] - scored[2 * column + 1]) / (2 * step) for column in range(len(scored) // 2)], axis=1)
 
 
 SEEN, TOLD = 3, np.array([True, False])

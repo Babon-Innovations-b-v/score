@@ -39,4 +39,15 @@ for column in range(len(pose)):
         moved = pose.copy(); moved[column] += sign * step
         nudged.append({kind: {key: value[0] for key, value in part.items()} for kind, part in plain(measures.measured(moved, outer)).items()})
 taped = plain(measures.measured(pose, outer))
-print("JSON" + json.dumps({"taped": taped, "nudged": nudged, "step": step, "passes": measures.passes}))
+passes = measures.passes
+held = _taped.TapedSites(model, [1, 5, 9], [1.0] * 3, [[0.0, 0.0, 0.5]] * 3, constants=([[0], [1], [2]], [[2], [6], [10]]))
+constant_measures = _measures.TapedMeasures(held, joints, to_own, turns, skins)
+moves = np.array([0.01, -0.02, 0.03, 0.02, 0.01, -0.03])
+constant_nudged = []
+for column in range(len(moves)):
+    for sign in (1, -1):
+        moved = moves.copy(); moved[column] += sign * step
+        constant_nudged.append({kind: {key: value[0] for key, value in part.items()} for kind, part in plain(constant_measures.measured(np.concatenate([pose, moved]), np.zeros(9))).items()})
+constant_taped = plain(constant_measures.constant_measured(np.concatenate([pose, moves]), np.zeros(9)))
+print("JSON" + json.dumps({"taped": taped, "nudged": nudged, "step": step, "passes": passes,
+                           "constant_taped": constant_taped, "constant_nudged": constant_nudged}))
