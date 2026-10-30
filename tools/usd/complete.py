@@ -332,6 +332,21 @@ def contents_check(check, place, stage, outputs=None):
     return result(check, verdict, stage, faults, note)
 
 
+SHARED = {}  # {(stage path, its fingerprint): the StageCache holding its composed stage}, the last stage judged only
+
+
+def shared(stage):
+    """A context in which every Usd.Stage.Open gives the one composed stage of the stage as it is now (its
+    fingerprint): the checks only read the stage, so a judgement opens and composes it once for all of them, not once
+    a check."""
+    from pxr import Usd
+    key = (str(pathlib.Path(stage).resolve()), fingerprint(stage))
+    if key not in SHARED:
+        SHARED.clear()
+        SHARED[key] = Usd.StageCache()
+    return Usd.StageCacheContext(SHARED[key])
+
+
 RUNNERS = {"rows": rows_check, "made_only": made_only_check, "placeholders": placeholders_check,
            "resting": resting_check, "picks": picks_check, "boxes": boxes_check, "reach": reach_check}
 
@@ -342,9 +357,10 @@ def run_check(check, place, stage, outputs=None):
     if not pathlib.Path(stage).exists():
         return result(check, UNKNOWN, stage, note=f"no stage at {stage}")
     try:
-        if check in contents.JUDGES:
-            return contents_check(check, place, stage, outputs)
-        return RUNNERS[check](place, stage)
+        with shared(stage):
+            if check in contents.JUDGES:
+                return contents_check(check, place, stage, outputs)
+            return RUNNERS[check](place, stage)
     except Exception as error:  # the check could not judge: its result is unknown, and unknown blocks
         return result(check, UNKNOWN, stage, note=f"{type(error).__name__}: {error}")
 
@@ -537,6 +553,7 @@ def run_checks(place, stage, only=CHECKS):
         outcome = run_check(check, place, stage)
         save(outcome, stage)
         found.append(outcome)
+    SHARED.clear()
     return found
 
 

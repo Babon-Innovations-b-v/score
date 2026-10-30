@@ -82,6 +82,8 @@ def gate_check(name):
         read = {**{read: inputs.get(read) for read in contents.OUTPUTS},
                 **{node: path for node, path in inputs.items() if node.startswith(contents.LIKENESS_BESIDE)}}
         found = complete.run_check(name, stage.stem, stage, read)
+        if name == GATE[-1]:  # the judgement's last check: its composed stage is let go
+            complete.SHARED.clear()
         answer, why = found["result"], found["note"] or found["result"]
         if name in complete.EXPERIMENTAL:
             answer, why = complete.recorded(answer, why)
