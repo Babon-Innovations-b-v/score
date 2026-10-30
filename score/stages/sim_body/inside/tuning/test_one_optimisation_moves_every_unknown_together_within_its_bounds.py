@@ -29,6 +29,8 @@ Breaks (each applied once, seen red, reverted):
   as much as skin and turns.
 - (2026-10-30) case_residuals reading the median ("per group deg"/"per joint mm" [0]) in place of the root mean
   square: level 1 tunes the median, whose middle frames swap under a step, not a smooth summary.
+- (2026-10-30) _differences.hybrid's `merged[:, chosen] = differenced[:, chosen]` dropped: the hybrid keeps the
+  exact Jacobian's chosen (centre) columns in place of their differences.
 
 Run: .venv/bin/python score/stages/sim_body/inside/tuning/test_one_optimisation_moves_every_unknown_together_within_its_bounds.py
 """
@@ -122,6 +124,30 @@ def test_an_exact_jacobian_replaces_the_differences():
                                pathlib.Path(folder) / "checkpoint.jsonl", 60, start=np.zeros(len(ENTRIES)),
                                many=never, exact=exact)
     assert called and np.allclose(result.x, target, atol=1e-6)
+
+
+def test_the_hybrid_differences_only_its_chosen_columns_and_keeps_the_rest_exact():
+    target = np.linspace(-1.0, 1.0, len(ENTRIES))
+    coupling = np.eye(len(ENTRIES)) + 0.3 * np.ones((len(ENTRIES), len(ENTRIES)))
+    wrong = coupling.copy()
+    wrong[:, 1] = 0.0
+    pattern = np.ones((len(ENTRIES), len(ENTRIES)), dtype=np.int8)
+    stepped = []
+
+    def residuals(unknowns):
+        return coupling @ (np.asarray(unknowns) - target)
+
+    def many(sets):
+        stepped.extend(sets)
+        return [residuals(moved) for moved in sets]
+
+    with tempfile.TemporaryDirectory() as folder:
+        result = tuning.solved(residuals, ENTRIES, pattern, pathlib.Path(folder) / "checkpoint.jsonl", 60,
+                               start=np.zeros(len(ENTRIES)), many=many, exact=lambda unknowns: wrong,
+                               by_differences=[1])
+    assert np.allclose(result.jac[:, 1], coupling[:, 1], atol=1e-6)
+    assert np.allclose(np.delete(result.jac, 1, axis=1), np.delete(wrong, 1, axis=1))
+    assert stepped and np.allclose(result.x, target, atol=1e-6)
 
 
 def rounded_linear(matrix, target):
