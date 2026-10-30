@@ -28,6 +28,9 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - light.fill_wanted: ignore `unseen` (the fill test).
 - light.body_faults: drop the "not lit from its sun" fault (the discs test).
 - light.judge_exposure: pass with no concept (the exposure test).
+- light.extremes: `sky` ignored (the Moon look fails), or `luminance[sky]` for `luminance[~sky]` (the dark and blown
+  looks pass) (the exposure sky test, 2026-10-30).
+- light_passes.sky_mask: `== 0` -> `!= 0` (the sky mask test, 2026-10-30).
 - passes.judge_magenta: the share read times 0 (the magenta view test, 2026-10-30).
 - light_passes.missing_share: the glossy colour pass left out (the missing picture test, 2026-10-30).
 - passes.neighbours: keep a planless shown place (the neighbours test).
@@ -343,6 +346,25 @@ def test_a_view_far_blacker_or_more_blown_than_its_concept_fails_and_with_no_con
         assert light.judge_exposure(tmp_path, {}, {}).answer == answer, (concept, views)
 
 
+def test_exposure_judges_the_places_surfaces_and_leaves_its_sky_to_the_sky_check(tmp_path, monkeypatch):
+    # garage's 9.4% black was the Moon's black sky through its doors, its concept a cutaway with no sky (2026-10-30)
+    concept = tmp_path / "concept.png"
+    Image.fromarray(np.full((20, 20, 3), 128, np.uint8)).save(concept)
+    monkeypatch.setattr(light, "concept_pictures", lambda place: [concept])
+    (tmp_path / "looks/hall").mkdir(parents=True)
+    (tmp_path / "passes/hall-0").mkdir(parents=True)
+    top = np.zeros((20, 20), bool)
+    top[:8] = True
+    for name, look, sky, answer in (("dark", np.full((20, 20), 2), np.zeros((20, 20), bool), checks.FAIL),
+                                    ("blown", np.full((20, 20), 255), np.zeros((20, 20), bool), checks.FAIL),
+                                    ("moon", np.where(top, 0, 128), top, checks.PASS)):
+        Image.fromarray(np.repeat(look[..., None], 3, axis=2).astype(np.uint8)).save(tmp_path / "looks/hall/v-look.png")
+        np.savez(tmp_path / "passes/hall-0/v-passes.npz", combined=np.ones((10, 10)), sky=sky)
+        (tmp_path / "measures.json").write_text(json.dumps({"exposure": light.exposure_measures("hall", tmp_path,
+                                                                                                tmp_path)}))
+        assert light.judge_exposure(tmp_path, {}, {}).answer == answer, name
+
+
 def inside_functions(*names):
     """Functions and constants of inside/light_passes.py (a Blender script, run only inside Blender) to call here."""
     import ast
@@ -364,6 +386,12 @@ def test_a_missing_picture_counts_on_plain_and_metal_finishes_and_a_grey_under_a
     channels = {f"ViewLayer.{kind}.{axis}": values[..., index] for kind, values in
                 (("Diffuse Color", diffuse), ("Glossy Color", glossy)) for index, axis in enumerate("RGB")}
     assert share(channels) == 0.75
+
+
+def test_the_sky_mask_is_where_the_object_index_pass_met_no_object_but_the_day_dome():
+    index = np.array([[0.0, 1.0], [1.0, 0.0]])
+    assert inside_functions("sky_mask")["sky_mask"]({"ViewLayer.IndexOB.X": index}).tolist() == [[True, False],
+                                                                                                  [False, True]]
 
 
 def test_a_view_with_one_percent_of_blenders_missing_picture_magenta_fails_and_a_magenta_lamp_does_not(tmp_path):

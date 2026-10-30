@@ -13,6 +13,8 @@ Each test turns red under the break written beside it (each applied once and see
 - waivers: in checks.standing ignore `waived`.
 - grain: raise grain.GRAINY_PER_MILLE to 50 (the 2 % sparkle, about 20 per mille, then passes), or drop the
   `if flat.sum() < LEAST_FLAT: return None` in grain.specks.
+- grain lines: in grain.isolated return `speck` unlined, or call a line nine long (`np.ones((9, 1), bool)`) (the
+  fine lines test, 2026-10-30).
 - guided smoothing (score/stages/light/mix, kept here: its only check, until the light stage's own file takes it):
   make mix.smoothed return its input.
 """
@@ -113,6 +115,22 @@ def test_a_clean_render_passes_and_a_sparkling_one_fails_by_name(tmp_path):
     assert failed.answer == checks.FAIL and failed.measures["grainy"] == 1
     assert len(failed.findings) == 1 and failed.findings[0].startswith("grainy picture camp.png:")
     assert "unmeasured" in failed.reason
+
+
+def test_a_pattern_of_fine_lines_is_no_grain_and_a_mix_is_judged_by_its_isolated_specks(tmp_path):
+    """2026-10-30: habitat's from-door-3 read 5.7 per mille, 93-96% of it vertical streaks of a curtain's fine pleats.
+    Lines one pixel wide, eight long, every fifth column, are no specks; the 2 % sparkle over them still fails, and
+    counts as on the bare wall."""
+    pleats = np.asarray(wall().convert("L"), dtype=np.float64)
+    for column in range(2, 200, 5):
+        pleats[(np.arange(200) // 8 + column) % 3 == 0, column] += 20.0
+    pleated = saved(tmp_path, "pleats.png", Image.fromarray(pleats.astype(np.uint8)).convert("RGB"))
+    sparkle = np.asarray(wall(0.02).convert("L")) == 255
+    mixed = saved(tmp_path, "mixed.png", Image.fromarray(np.where(sparkle, 255, pleats).astype(np.uint8)))
+    assert grain.specks(pleated) < 0.5
+    assert grain.verdict("grain", [pleated], tmp_path).answer == checks.PASS
+    assert abs(grain.specks(mixed) - grain.specks(saved(tmp_path, "camp.png", wall(0.02)))) < 3.0
+    assert grain.verdict("grain", [mixed], tmp_path).answer == checks.FAIL
 
 
 def test_a_picture_with_no_flat_area_or_no_picture_is_unknown(tmp_path):

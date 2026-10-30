@@ -12,7 +12,9 @@ and <name>-passes.npz: the linear luminance (Rec. 709) of the whole picture (`co
 group holds. Light is linear in a lamp's strength, so the picture at any strengths is `combined` plus each group
 times its scale less one: the light stage's sweep needs no other render. The npz also holds `missing`: the share of
 the view's pixels whose surface colour (Cycles' diffuse or glossy colour pass) is Blender's missing-picture magenta
-(1, 0, 1), which passes.judge_magenta reads.
+(1, 0, 1), which passes.judge_magenta reads; and `sky`: at full size, where the eye's ray met no surface but the sky's
+own (the world's background or the day dome, Cycles' object index pass), which light's exposure leaves to the sky
+check.
 """
 import json
 import pathlib
@@ -101,7 +103,19 @@ def passes_of(exr):
             weight = LUMINANCE["RGB".index(match.group(2))]
             found[match.group(1)] = found.get(match.group(1), 0.0) + weight * values
     held = {name: halved(values).astype(numpy.float16) for name, values in found.items()}
-    return dict(held, missing=missing_share(channels))
+    return dict(held, missing=missing_share(channels), sky=sky_mask(channels))
+
+
+def sky_mask(channels):
+    """Where the object index pass is 0: no object met (sky_apart), or only the day dome."""
+    return next(values for name, values in channels.items() if name.endswith("IndexOB.X")) == 0
+
+
+def sky_apart(scene):
+    """Every object in the object index pass as 1 but the day dome (usd_views.sky_domes' score:sky_strength), so the
+    pass's 0 is the sky."""
+    for item in scene.objects:
+        item.pass_index = 0 if item.type == "MESH" and usd_views.score_value(item, "sky_strength") is not None else 1
 
 
 def magenta_colour(channels, colour_pass):
@@ -145,11 +159,13 @@ def main():
     groups = light_groups(scene, stage, views["lamps"])
     # The surface colour, so a missing picture is told from a surface a magenta lamp lights (passes.judge_magenta).
     scene.view_layers[0].use_pass_diffuse_color = scene.view_layers[0].use_pass_glossy_color = True
+    scene.view_layers[0].use_pass_object_index = True  # the sky apart (sky_mask)
     (out / "passes.json").write_text(json.dumps({"groups": groups, "size": views["size"]}, indent=1))
     for view in views["views"]:
         scene.frame_set(int(view.get("frame", scene.frame_current)))
         usd_views.draw_effects(effects, scene.frame_current)
         usd_views.camera(scene, view)
+        sky_apart(scene)
         usd_views.widen_beams(beams, scene.camera.matrix_world.translation)
         exr = render_both(scene, view, out)
         numpy.savez_compressed(out / f"{view['name']}-passes.npz", **passes_of(exr))
