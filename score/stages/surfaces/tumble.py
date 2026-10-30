@@ -104,7 +104,7 @@ def hangs(row, hanging, rows=()):
     said = sorted(words_of(row) & set(hanging))
     if said:
         return ", ".join(said)
-    anchor = str(row.get("anchor", ""))
+    anchor = str(row.get("anchor") or "")
     holder = {found.get("id"): found for found in rows}.get(anchor.removeprefix("on:"), {})
     if CEILING in re.findall(r"[a-z]+", anchor.replace("_", " ").lower()) or holder.get("group") == CEILING_GROUP:
         return f"anchored {anchor}"

@@ -222,7 +222,7 @@ def stands(row, rules_file, rows=()):
     went from outline 0.637 to 0.207 (#36, 2026-10-30)."""
     import tumble
     return (not row.get("fixed") and row.get("support") in (None, "floor") and row.get("route") != "shell"
-            and (row.get("anchor", "") in ("floor", "ground", "") or on_floor(row, rows))
+            and ((row.get("anchor") or "") in ("floor", "ground", "") or on_floor(row, rows))
             and not tumble.keeps_pose(row, tumble.rules_of({"resting rules": rules_file}), rows))
 
 
@@ -230,7 +230,7 @@ def on_floor(row, rows, seen=frozenset()):
     """Whether a row's `on:` anchor is a floor its scene reads as a row (is_floor). A designed scene reads its floor
     as a row (the airlock's floor plates, the street's surface), so what stands on it stands on the floor; a table, a
     shelf, a wall or a building holds what is on it, which is left as made."""
-    anchor = str(row.get("anchor", ""))
+    anchor = str(row.get("anchor") or "")
     holder = {found.get("id"): found for found in rows}.get(anchor.removeprefix("on:"))
     if not anchor.startswith("on:") or holder is None or holder.get("id") in seen:
         return False
