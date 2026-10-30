@@ -116,9 +116,11 @@ def timed(name, work):
 
 
 def factored_solve(body, factor, right):
-    """H^-T `right` at `body`'s optimum off `factor()` (its arrow blocks), the factor and the solve timed apart."""
+    """(H^-T `right` at `body`'s optimum, H's arrow) off `factor()` (its arrow blocks), the factor and the solve timed
+    apart."""
     blocks, couplings, corner = timed(f"factor {body.name}", factor)
-    return timed(f"solve {body.name}", lambda: schur_solve(blocks.transpose(0, 2, 1), couplings, corner, right))
+    return timed(f"solve {body.name}", lambda: schur_solve(blocks.transpose(0, 2, 1), couplings, corner, right)), (
+        blocks, couplings, corner)
 
 
 def differenced_arrow(body, outer, step):
@@ -157,13 +159,14 @@ print(json.dumps({"sited vs rebuilt": timed("sited check", lambda: sited_gaps(
 level3 = level3_body("level3", sites, turns, pinned, lambda theta: trusted + columns @ theta, len(entries),
                      len(rows), columns=columns)
 joined = np.concatenate([np.zeros(len(entries)), np.zeros(solved.size)])
-lifted = factored_solve(level3, differenced_arrow(level3, joined, STEPS[0]), np.asarray(by_poses, dtype=float).T)
+lifted, _ = factored_solve(level3, differenced_arrow(level3, joined, STEPS[0]), np.asarray(by_poses, dtype=float).T)
 both = np.hstack([np.zeros((len(by_poses), len(entries))), by_constants]) - timed(
     "taping level 3 products", lambda: transposed_mixed(level3, lifted, joined, STEPS[1]))
 right = np.zeros((len(level2.inner), len(both)))
 right[level2.frames * level2.pose_size:] = both[:, len(entries):].T
 base = sited(np.zeros(len(entries)))
-lowered = factored_solve(level2, level2_factor(base, base.start(), kept, STEPS[0]), right)
+lowered, arrow = factored_solve(level2, level2_factor(base, base.start(), kept, STEPS[0]), right)
+level2 = level2_body(sited, jacobian, base.start(), kept, np.zeros(len(entries)), sited=(columns, STEPS[1], arrow))
 if "--against-differences" in sys.argv:
     wanted = timed("factor level 2 differenced", differenced_arrow(level2, np.zeros(len(entries)), STEPS[0]))
     found = level2_factor(base, base.start(), kept, STEPS[0])()
