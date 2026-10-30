@@ -9,6 +9,8 @@ import functools
 
 import warp as wp
 
+from ._project import per_set, poly_rows
+
 LM_DAMPING = 1e-2
 DAMPING = 1e-9
 BOUND_SLACK = 1e-9
@@ -19,15 +21,17 @@ TILE_THREADS = 32
 
 @wp.kernel(enable_backward=False)
 def _slopes(qpos: wp.array2d[wp.float32], leader_coord: wp.array[wp.int32], leader_rest: wp.array[wp.float32],
-            poly: wp.array2d[wp.float32], slopes: wp.array2d[wp.float32]):
-    """Each coupling's d follower / d leader at the row's pose (zero for a coupling without a leader)."""
+            poly: wp.array3d[wp.float32], row_set: wp.array[wp.int32], slopes: wp.array2d[wp.float32]):
+    """Each coupling's d follower / d leader at the row's pose, by its set's polynomial (zero without a leader)."""
     row, coupling = wp.tid()
+    own = row_set[row]
     if leader_coord[coupling] < 0:
         slopes[row, coupling] = 0.0
         return
     lead = qpos[row, leader_coord[coupling]] - leader_rest[coupling]
-    slopes[row, coupling] = (poly[coupling, 1] + 2.0 * poly[coupling, 2] * lead
-                             + 3.0 * poly[coupling, 3] * lead * lead + 4.0 * poly[coupling, 4] * lead * lead * lead)
+    slopes[row, coupling] = (poly[own, coupling, 1] + 2.0 * poly[own, coupling, 2] * lead
+                             + 3.0 * poly[own, coupling, 3] * lead * lead
+                             + 4.0 * poly[own, coupling, 4] * lead * lead * lead)
 
 
 @wp.kernel(enable_backward=False)
@@ -154,7 +158,7 @@ class Reduction:
                                        device=device)
         self.leader_coord = wp.array(leader_coord, dtype=wp.int32, device=device)
         self.leader_rest = wp.array(leader_rest, dtype=wp.float32, device=device)
-        self.poly = wp.array(poly, dtype=wp.float32, device=device)
+        self.poly = per_set(poly, device)
 
 
 def _solved(reduction, reduced, residuals, keep, slopes, device):
@@ -170,18 +174,20 @@ def _solved(reduction, reduced, residuals, keep, slopes, device):
     return step
 
 
-def damped_step(reduction, jacobian, residuals, qpos, active):
+def damped_step(reduction, jacobian, residuals, qpos, active, row_set=None):
     """mink's damped step for every row: (full step [rows, dofs], reduced step length [rows]).
 
     jacobian [rows, residuals, dofs] and residuals [rows, residuals] at qpos [rows, coords] (MuJoCo's layout);
-    active [rows] int32, a stopped row's step zero. Active-set passes: solve, hold the dofs at a bound the step pushes
+    active [rows] int32, a stopped row's step zero; row_set [rows] each row's set of the couplings' polys (set 0
+    when None). Active-set passes: solve, hold the dofs at a bound the step pushes
     out, solve again, HOLD_PASSES times, a held dof whose descent points back inside released (one pass left a toy row
     with two dofs at their bounds pushing a third out and back by projection every step, never stopping)."""
     device = jacobian.device
     rows, count, dofs = jacobian.shape
-    slopes = wp.empty((rows, reduction.poly.shape[0]), dtype=wp.float32, device=device)
+    slopes = wp.empty((rows, reduction.poly.shape[1]), dtype=wp.float32, device=device)
     wp.launch(_slopes, dim=slopes.shape, inputs=[qpos, reduction.leader_coord, reduction.leader_rest,
-                                                 reduction.poly], outputs=[slopes], device=device)
+                                                 reduction.poly, poly_rows(reduction.poly, row_set, rows, device)],
+              outputs=[slopes], device=device)
     reduced = wp.empty((rows, count, reduction.size), dtype=wp.float32, device=device)
     wp.launch(_reduced_jacobian, dim=reduced.shape, inputs=[jacobian, reduction.free_dof, reduction.follower_dof,
                                                             reduction.leader_reduced, slopes],

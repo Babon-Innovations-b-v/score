@@ -124,7 +124,11 @@ before that.
   places per row; refused when a set's reduction or projection (frozen, limited, couplings) or its sites or bodies
   differ from set 0's. `Sets.angles(turns, points, seeds)` (one array per set) equals each set's `Clip.angles` alone
   within 0.01 deg / 0.01 mm on the toy (`tests/card_sets.py`: 3 sets, inside joints, offsets, weights and targets
-  apart, 2026-10-30). Toy timing, 4 sets x 10 frames warm: one batch 186 ms against 384 ms alone (2.07x, equal
+  apart, 2026-10-30). The couplings' polys go per set too (`Reduction.poly` / `Projection.poly` [sets, couplings, 5],
+  read by the row's set in `_step._slopes` and `_project._projected`; one set [1, ...] is shared by every row;
+  `Sets` stacks each set's and `refusal` leaves `poly` out): a real body's nudged set's file rounds its polys (7e-7
+  max, 1.5e-5 relative, 2026-10-30), so equal-poly sets alone would refuse it; on the toy with each set's follower
+  slope 0.05 apart, equal to each Clip alone, reading set 0's for every row 4.2 / 10.2 deg off. Toy timing, 4 sets x 10 frames warm: one batch 186 ms against 384 ms alone (2.07x, equal
   exactly). Still to come: the body run calling `Sets`, and the 4-set timing on a real body's short clip.
 - One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
