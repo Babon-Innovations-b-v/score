@@ -83,10 +83,11 @@ class Kinematics:
             mujoco.mj_jacSite(model, data, None, self.spins[index], site)
 
 
-def frame_rows(problem, frame, kinematics, targets, values, pose, shared):
+def frame_rows(problem, frame, kinematics, bends, values, pose, shared):
     """A frame's rows of the Jacobian as COO triplets (rows counted from the frame's first, 3 (groups + markers) of
     them; columns of the whole unknowns; values): its coordinates' columns, the free markers' and the inside joints'
-    moves, each block only where it reads. `pose`: the frame's qpos at `values` (`problem.qpos`, made once by the
+    moves, each block only where it reads. `bends`: the frame's -J_l^-1(log) R_site^T per group (`turn_bends`, made
+    for every frame at once). `pose`: the frame's qpos at `values` (`problem.qpos`, made once by the
     caller for the kinematics too). `shared`: the model's `couplings` and the problem's `moved_blocks`, the same in
     every frame."""
     fitting = problem.fitting
@@ -96,10 +97,7 @@ def frame_rows(problem, frame, kinematics, targets, values, pose, shared):
     coupled, (marks, starts, bodies) = shared
     mapping = dof_map(problem, pose, rotation, coupled)
     groups = len(fitting.frame_sites)
-    seen = kinematics.site_turns
-    offs = _logs(np.transpose(seen, (0, 2, 1)) @ targets[frame])
-    turned = -turn_cost * (left_jacobian_inverses(offs) @ np.transpose(seen, (0, 2, 1))) @ (
-        kinematics.spins @ mapping)
+    turned = -turn_cost * bends @ (kinematics.spins @ mapping)
     placed = place_costs[:, None, None] * (kinematics.places @ mapping)
     own = np.concatenate([turned, placed]).reshape(-1, problem.width)
     row, column = np.nonzero(own)
@@ -122,8 +120,25 @@ def moved_blocks(problem):
 
 
 def left_jacobian_inverses(rotations):
-    """`left_jacobian_inverse` of each rotation vector (n x 3 -> n x 3 x 3)."""
-    return np.array([left_jacobian_inverse(rotation) for rotation in rotations])
+    """`left_jacobian_inverse` of each rotation vector (n x 3 -> n x 3 x 3), every row in one array pass."""
+    rotations = np.asarray(rotations, dtype=float)
+    angles = np.linalg.norm(rotations, axis=1)
+    cross = np.zeros((len(rotations), 3, 3))
+    cross[:, 0, 1], cross[:, 0, 2], cross[:, 1, 2] = -rotations[:, 2], rotations[:, 1], -rotations[:, 0]
+    cross[:, 1, 0], cross[:, 2, 0], cross[:, 2, 1] = rotations[:, 2], -rotations[:, 1], rotations[:, 0]
+    bent = angles >= 1e-8
+    safe = np.where(bent, angles, 1.0)
+    factor = np.where(bent, 1 / safe ** 2 - (1 + np.cos(safe)) / (2 * safe * np.sin(safe)), 0.0)
+    return np.eye(3) - 0.5 * cross + factor[:, None, None] * cross @ cross
+
+
+def turn_bends(kinematics, targets):
+    """Every frame's -J_l^-1(log(R_site^T R_target)) R_site^T per group (frames x groups x 3 x 3; the turn cost left
+    to `frame_rows`), the logs and inverses made over every frame and group in one pass."""
+    seen = np.transpose(np.array([frame.site_turns for frame in kinematics]), (0, 1, 3, 2))
+    shape = seen.shape
+    offs = _logs((seen @ np.asarray(targets)[:shape[0]]).reshape(-1, 3, 3))
+    return left_jacobian_inverses(offs).reshape(shape) @ seen
 
 
 def _logs(turns):
@@ -145,8 +160,9 @@ def jacobian(problem, unknowns, card=None):
     seen = card.frames(np.array(poses)) if card is not None else [Kinematics(fitting, pose) for pose in poses]
     per = 3 * (len(fitting.frame_sites) + len(fitting.place_sites))
     triplets, shared = [], (couplings(fitting.model), moved_blocks(problem))
+    bends = turn_bends(seen, problem.turns)
     for frame, value in enumerate(values):
-        rows, columns, entries = frame_rows(problem, frame, seen[frame], problem.turns, value, poses[frame], shared)
+        rows, columns, entries = frame_rows(problem, frame, seen[frame], bends[frame], value, poses[frame], shared)
         triplets.append((rows + frame * per, columns, entries))
     triplets.append(_priors(problem, len(problem.path) * per))
     rows, columns, entries = (np.concatenate(part) for part in zip(*triplets))
