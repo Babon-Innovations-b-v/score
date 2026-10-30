@@ -959,7 +959,7 @@ def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, 
             found["recess"] = recess
         if found["how"] == "face":
             found.update(spots_entry(item, row, plan, recess))
-            found[LINE] = (middle(holder_item), item_way(holder_item), holder_base)
+            found[LINE] = (middle(holder_item), item_way(holder_item, nearest[0]), holder_base)
         if len(shown) > 1:
             found["why"] += (f" (its things stand on {len(shown)} rows in the concept: "
                              f"{', '.join(other['id'] for other in shown)}; the nearest on the plan)")
