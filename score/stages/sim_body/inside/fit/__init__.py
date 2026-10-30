@@ -115,14 +115,24 @@ def spread(count, most=SAMPLE):
 def sampled(fit, recordings):
     """The frames the constants are fitted on, from every recording of the body ([(turns, points)], each as `targets`
     gives them): SAMPLE spread over them by length, at least two a recording, each recording's posed by mink from its
-    own start. Returns (turns, points, path), the recordings' frames end to end."""
+    own start, on the card (`_card._sampled`: mink stops on its joint bounds where the card does not). Returns
+    (turns, points, path), the recordings' frames end to end."""
     total = sum(len(turns) for turns, _ in recordings)
     picked = [(turns, points, spread(len(turns), max(2, round(SAMPLE * len(turns) / total))))
               for turns, points in recordings]
     turns = np.concatenate([turns[sample] for turns, _, sample in picked])
     points = np.concatenate([points[sample] for _, points, sample in picked])
-    path = np.concatenate([Frames(fit).fitted(turns[sample], points[sample]) for turns, points, sample in picked])
-    return turns, points, path
+    return turns, points, card_path(fit, turns, points, [len(sample) for _, _, sample in picked])
+
+
+def card_path(fit, turns, points, lengths):
+    """The sampled frames' angles on the card, one set (`_card._sampled.path_across`), each recording (`lengths`
+    frames each, end to end) started from `Frames.start`."""
+    from ._card import _clip, _sampled, _sets
+    frames = Frames(fit)
+    sets = _sets.Sets([_clip.for_fitting(fit, fit.path)])
+    return _sampled.path_across(sets, [turns], [points], _sampled.recording_firsts(lengths),
+                                lambda _, index: frames.start(turns[index], points[index]))[0]
 
 
 def card_jacobian(fit, frames):

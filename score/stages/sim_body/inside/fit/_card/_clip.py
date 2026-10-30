@@ -157,13 +157,26 @@ def site_miss(clip):
     return float(np.max(np.linalg.norm(np.array(placed) - data.site_xpos[sites], axis=1)))
 
 
+def moved_inside(builder, fitting):
+    """Newton's joints into `fitting`'s inside bodies moved in their parents by the fit's current joint moves
+    (`Fitting.apply` writes them to MuJoCo's body_pos only, so the file at its path has them not)."""
+    joints = {builder.body_label[child].split("/")[-1]: joint for joint, child in enumerate(builder.joint_child)}
+    moves = fitting.model.body_pos[fitting.inside] - fitting.base[0][fitting.inside]
+    for body, move in zip(fitting.inside, moves):
+        joint = joints[fitting.model.body(int(body)).name]
+        place = builder.joint_X_p[joint]
+        builder.joint_X_p[joint] = wp.transform(wp.vec3(*(np.asarray(wp.transform_get_translation(place)) + move)),
+                                                wp.transform_get_rotation(place))
+
+
 def for_fitting(fitting, path):
-    """The `Clip` of a `..._model.Fitting` compiled from the person's file at `path` (its constants written there):
+    """The `Clip` of a `..._model.Fitting` compiled from the person's file at `path` with its current inside joint moves:
     Newton's model of the same file, refused when its site places miss MuJoCo's by over MAPPED."""
     import newton
     from .._frames import weights
     builder = newton.ModelBuilder(up_axis=newton.Axis.Z)
     builder.add_mjcf(str(path), convert_mjc_equality_constraints=False, parse_meshes=False)
+    moved_inside(builder, fitting)
     turn_cost, place_costs = weights(fitting)
     clip = Clip(builder.finalize(device=DEVICE), fitting.model, fitting.frame_sites, fitting.place_sites, turn_cost,
                 place_costs, fitting.frozen, followers_free_ranges(fitting.model, fitting.followers))
