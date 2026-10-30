@@ -34,9 +34,10 @@ def pinned_mask(problem, unknowns, kept):
     return to_body(pinned, len(problem.slots))
 
 
-def level2_body(problem_at, jacobian, solved, kept, outer):
+def level2_body(problem_at, jacobian, solved, kept, outer, sited=None):
     """Level 2 as a `Body` at its optimum `solved` (Problem order): `problem_at(outer)` the Problem at level 1's
-    point, `jacobian(problem, unknowns)` its rows' Jacobian, `kept` the told unknowns (Problem order)."""
+    point, `jacobian(problem, unknowns)` its rows' Jacobian, `kept` the told unknowns (Problem order); with `sited`
+    ((columns, step), `problem_at` a `sited_problem_at`) the Body gets `sited_products` as its `products`."""
     problem = problem_at(outer)
     held = len(problem.slots)
     inner = to_body(solved, held)
@@ -60,7 +61,72 @@ def level2_body(problem_at, jacobian, solved, kept, outer):
         return pinned.gradient(point, to_body(np.asarray(found).ravel(), held))
 
     frames = len(problem.path)
-    return Body("level 2", None, gradient, inner, frames, problem.width)
+    body = Body("level 2", None, gradient, inner, frames, problem.width)
+    if sited is not None:
+        def products(point, at, weights):
+            """`weights`^T dg/dtheta at `at` (`sited_products`), the cache moved to `at` first."""
+            return sited_products(problem_of(at), problem_at.placed, jacobian, pinned, sited, point, at, weights)
+        body.products = products
+    return body
+
+
+def sited_products(problem, placed, jacobian, pinned, sited, inner, outer, weights):
+    """`weights`^T dg/dtheta of level 2's pinned gradient off a `sited_problem_at` Problem, dg/dtheta = dg/dmoved @
+    columns: the costs' part 2 J^T dr/dc (each row linear in its cost, dr/dc central differences of the rows alone)
+    through `goal_weights`' derivative, the sites' part central differences over the site rows `columns` moves."""
+    columns, step = sited
+    held = len(problem.slots)
+    moved = placed.trusted + columns @ np.asarray(outer, dtype=float)
+    sites = 3 * len(problem.fitting.mark_sites)
+    unknowns = to_problem(pinned.whole(inner), held)
+
+    def gradient_at(point):
+        """The pinned gradient's outer-moving part (held entries zero) with the sites and costs at `point`."""
+        placed(point)
+        found = to_body(_gradient(problem, jacobian, unknowns), held)
+        found[pinned.held] = 0.0
+        return found
+
+    by_moved = np.zeros((weights.shape[1], columns.shape[0]))
+    for row in np.nonzero(np.abs(columns[:sites]).max(axis=1) > 0)[0]:
+        up, down = moved.copy(), moved.copy()
+        up[row] += step
+        down[row] -= step
+        by_moved[:, row] = weights.T @ ((gradient_at(up) - gradient_at(down)) / (2 * step))
+    placed(moved)
+    by_moved[:, sites:] = weights.T @ _cost_gradients(problem, jacobian, pinned, unknowns) @ _dense(
+        _cost_slopes(moved[sites:], placed.ends, step))
+    return by_moved @ columns
+
+
+def _cost_gradients(problem, jacobian, pinned, unknowns):
+    """dg/dc (Body order, held rows zero): 2 J^T dr/dc_m, every row linear in a cost (dr/dc_m exact by differences)."""
+    held, (turn, costs) = len(problem.slots), problem.costs
+    rows = _dense(jacobian(problem, unknowns))
+    slopes = []
+    for mark in range(costs.size):
+        changed = []
+        for sign in (1.0, -1.0):
+            moved = np.array(costs, dtype=float)
+            moved[mark] += sign
+            problem.costs = turn, moved
+            changed.append(np.asarray(problem.residuals(unknowns), dtype=float))
+        slopes.append(to_body(2 * rows.T @ ((changed[0] - changed[1]) / 2), held))
+    problem.costs = turn, costs
+    found = np.stack(slopes, axis=1)
+    found[pinned.held] = 0.0
+    return found
+
+
+def _cost_slopes(tail, ends, step):
+    """`goal_weights`' derivative (costs, tail) at `tail` by central differences."""
+    columns = []
+    for unknown in range(tail.size):
+        up, down = tail.copy(), tail.copy()
+        up[unknown] += step
+        down[unknown] -= step
+        columns.append((goal_weights(up, ends) - goal_weights(down, ends)) / (2 * step))
+    return np.stack(columns, axis=1)
 
 
 def sited_problem_at(problem, columns, trusted, ends):
@@ -73,14 +139,19 @@ def sited_problem_at(problem, columns, trusted, ends):
     body_pos, start = fitting.base
     sites = len(fitting.mark_sites)
 
-    def at(outer):
-        """The Problem with its sites and costs at `outer`."""
-        moved = np.asarray(trusted, dtype=float) + columns @ np.asarray(outer, dtype=float)
+    def placed(moved):
+        """The Problem with its sites and costs at level 3's outer `moved`."""
         site_pos = start.copy()
         site_pos[fitting.mark_sites] += (moved - trusted)[:3 * sites].reshape(-1, 3)
         fitting.base = body_pos, site_pos
         problem.costs = problem.costs[0], goal_weights(moved[3 * sites:], ends)
         return problem
+
+    def at(outer):
+        """The Problem with its sites and costs at level 1's `outer`."""
+        return placed(np.asarray(trusted, dtype=float) + columns @ np.asarray(outer, dtype=float))
+    placed.trusted, placed.ends = np.asarray(trusted, dtype=float), ends
+    at.placed = placed
     return at
 
 

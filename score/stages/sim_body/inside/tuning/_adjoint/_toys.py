@@ -298,3 +298,35 @@ def site_outer_differences(unknowns, entries):
     from score.stages.sim_body.inside.tuning._adjoint import _outer
     return _adjoint.by_columns(lambda point: _outer.site_unknowns(point, entries, LANDMARKS, ENDS, STARTS, TABLE,
                                                                   GLOBALS), unknowns, 1e-6)
+
+
+class CostedSites:
+    """A toy `fit/_constants.Problem` with place costs and marker sites (`sited_problem_at`'s needs): constants first
+    (two, held at none), three frames' two coordinates; each frame's mark rows its cost times a site moved by the pose
+    (nonlinear in both) less a point, each constant's prior row the costs' mean times it, a theta-free turn row."""
+    slots, path, width, SITES = np.arange(2), np.zeros(3), 2, 3
+
+    def __init__(self):
+        self.fitting = type("Fitting", (), {})()
+        self.fitting.mark_sites = np.array([1, 2, 3])
+        self.fitting.base = None, np.array([[9.0, 9, 9], [0.2, -0.1, 0.3], [0.4, 0.1, -0.2], [-0.3, 0.5, 0.1]])
+        self.costs = 0.7, np.array([0.9, 1.2, 0.6])
+
+    def bounds(self):
+        return np.full(8, -np.inf), np.full(8, np.inf)
+
+    def residuals(self, unknowns):
+        sites, place = self.fitting.base[1][self.fitting.mark_sites], self.costs[1]
+        rows = []
+        for frame in range(3):
+            turn, shift = unknowns[2 + 2 * frame], unknowns[3 + 2 * frame]
+            moved = sites * np.cos(turn) + shift + unknowns[0] * sites ** 2 + unknowns[1] * turn
+            rows.append((place[:, None] * (moved - 0.1 * (frame + 1))).ravel())
+            rows.append([self.costs[0] * (turn - 0.3)])
+        rows.append(place.mean() * unknowns[:2])
+        return np.concatenate(rows)
+
+
+def costed_jacobian(problem, unknowns):
+    """The costed toy's rows' Jacobian by central differences."""
+    return _adjoint.by_columns(problem.residuals, unknowns, 1e-6)
