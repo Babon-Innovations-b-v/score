@@ -23,7 +23,9 @@ builds it unchanged; it lands as record/<place>.json in the output.
     objects      one at each plan item of each prop or shell row of the batch's hand-in (several where the item
                  counts several or a run the plan draws once), `<row>_<n>`, on its spot at its shape's base, turned
                  along its item, waiting on the bake's model of its row's take (`bake`, `<first row>_1`), which the
-                 assembly lays (assembly/made_waiting.py); a row the plan's shell lays itself (route `plan`) is named
+                 assembly lays (assembly/made_waiting.py); a terrain row's too: ground-join lays its piece where its
+                 object stands (terrain/join.py laid_middles), and the assembly and the settle leave out each row
+                 ground-join joined (made_waiting.joined_rows: the ground lays it); a row the plan's shell lays itself (route `plan`) is named
                  on a shell piece of its part instead (an opening on the lintel over its item's cut); one at the
                  floor on a deck lying on the floor (airlock's porch deck) stands on it; each carries what holds it (`on`, from the place's relations,
                  score/review/holders: its opening, its wall, its holder's objects), which the assembly lays it by

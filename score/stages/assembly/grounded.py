@@ -57,7 +57,7 @@ def take_bakes(inputs, folder, place):
         return
     bake = pathlib.Path(inputs["surfaces-bake"])
     baked.take_bake(bake, pathlib.Path(inputs["surfaces-paint"]), folder)
-    for row in made_waiting.lay(folder, place, bake):
+    for row in made_waiting.lay(folder, place, bake, made_waiting.joined_rows(inputs)):
         baked.stamp_baked_hash(folder / BASE_LAYER, row, bake / "made" / f"{row}.gltf")
     for claimed in baked.claimed_bakes(inputs, folder):
         baked.take_bake(*claimed)
