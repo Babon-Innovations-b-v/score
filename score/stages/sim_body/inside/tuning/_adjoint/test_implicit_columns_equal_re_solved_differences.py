@@ -7,7 +7,7 @@ Breaks (each applied once, seen red, reverted), in `tuning/_adjoint/__init__.py`
 turns the outer rows test red; `case_rows` weighing joints 1.0 in place of
 JOINT_SHARE turns the case rows test red; dropping the mixed term
 (`moved` set to zeros) turns the columns test red; `schur_solve` skipping the couplings' reduction (`reduced = corner`)
-turns the Schur and columns tests red; removing the `Unconverged` check turns the refusal test red; `chained_jacobian` dropping level 2's term (R_c dc/dtheta) turns the level 2 chain test red; `stacked_jacobian` skipping `refused`
+turns the Schur and columns tests red; removing the `Unconverged` check turns the refusal test red; `rowed_jacobian` dropping the given R_z term (`by_outer` alone) turns the given rows test red; `chained_jacobian` dropping level 2's term (R_c dc/dtheta) turns the level 2 chain test red; `stacked_jacobian` skipping `refused`
 (no check before use) turns the stacked refusal test red; dropping the prior's block turns the stacked test red;
 in `_taped.py`, dropping `tape.zero()` (a second gradient adds onto the first's) turns the taped gradient test red; skipping
 the turn rows' launch turns it red; dropping the followers' launch (couplings) turns it red; reading level 2's
@@ -94,6 +94,27 @@ def test_implicit_columns_equal_re_solved_differences():
     implicit = _adjoint.implicit_jacobian(_residuals, _gradient, inner, OUTER, FRAMES, POSE, (1e-5, 1e-5), 1e-8)
     re_solved = _adjoint.by_columns(lambda point: _residuals(_solved(point), point), OUTER, 1e-4)
     assert np.allclose(implicit, re_solved, rtol=1e-4, atol=1e-6)
+
+
+def _toy_rows(inner, outer):
+    """The toy residuals' exact R_z and R_theta, written out by hand (standing in for taped rows)."""
+    poses, constants, first, _, _, _ = _parts(inner, outer)
+    by_inner, by_outer = np.zeros((2 * FRAMES + 1, len(inner))), np.zeros((2 * FRAMES + 1, len(outer)))
+    for frame in range(FRAMES):
+        by_inner[frame, [frame * POSE, frame * POSE + 1]] = 1.0
+        by_inner[FRAMES + frame, frame * POSE] = constants[0]
+        by_inner[FRAMES + frame, FRAMES * POSE] = first[frame]
+    by_outer[:FRAMES, 2] = -1.0
+    by_inner[2 * FRAMES, FRAMES * POSE + 1] = outer[1]
+    by_outer[2 * FRAMES, 1] = constants[1]
+    return by_inner, by_outer
+
+
+def test_given_rows_give_the_implicit_columns_without_residual_calls():
+    inner = _solved(OUTER)
+    rowed = _adjoint.rowed_jacobian(_toy_rows(inner, OUTER), _gradient, inner, OUTER, FRAMES, POSE, (1e-5, 1e-5), 1e-8)
+    re_solved = _adjoint.by_columns(lambda point: _residuals(_solved(point), point), OUTER, 1e-4)
+    assert np.allclose(rowed, re_solved, rtol=1e-4, atol=1e-6)
 
 
 def test_schur_solve_equals_the_dense_solve():

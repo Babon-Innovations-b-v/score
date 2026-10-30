@@ -82,8 +82,8 @@ def by_columns(function, point, step):
     return np.stack(columns, axis=1)
 
 
-def implicit_jacobian(residuals, gradient, inner, outer, frames, pose_size, steps, tolerance):
-    """dR/dtheta at the inner optimum `inner` for the outer unknowns `outer`: R_theta - R_z H^-1 dg/dtheta, `steps`
+def inner_motion(gradient, inner, outer, frames, pose_size, steps, tolerance):
+    """dz/dtheta = -H^-1 dg/dtheta at the inner optimum `inner`, as H^-1 dg/dtheta (inner size, outer size), `steps`
     (inner step, outer step) the central differences' steps; `Unconverged` when the gradient there exceeds
     `tolerance`."""
     norm = gradient_norm(gradient, inner, outer)
@@ -91,10 +91,25 @@ def implicit_jacobian(residuals, gradient, inner, outer, frames, pose_size, step
         raise Unconverged(f"inner gradient {norm:.3g} over tolerance {tolerance:.3g}")
     inner_step, outer_step = steps
     hessian = arrow_hessian(gradient, inner, outer, frames, pose_size, inner_step)
-    moved = schur_solve(*hessian, mixed(gradient, inner, outer, outer_step))
+    return schur_solve(*hessian, mixed(gradient, inner, outer, outer_step))
+
+
+def implicit_jacobian(residuals, gradient, inner, outer, frames, pose_size, steps, tolerance):
+    """dR/dtheta at the inner optimum `inner` for the outer unknowns `outer`: R_theta - R_z H^-1 dg/dtheta, R_z and
+    R_theta by central differences of `residuals` (`inner_motion` for the rest)."""
+    moved = inner_motion(gradient, inner, outer, frames, pose_size, steps, tolerance)
+    inner_step, outer_step = steps
     by_inner = by_columns(lambda point: residuals(point, outer), inner, inner_step)
     by_outer = by_columns(lambda point: residuals(inner, point), outer, outer_step)
     return by_outer - by_inner @ moved
+
+
+def rowed_jacobian(rows, gradient, inner, outer, frames, pose_size, steps, tolerance):
+    """dR/dtheta as `implicit_jacobian` with R's derivative given, not differenced: `rows` (R_z (rows, inner size),
+    R_theta (rows, outer size)) taped at (`inner`, `outer`), so a real body's thousands of inner unknowns cost no
+    residual calls."""
+    by_inner, by_outer = rows
+    return by_outer - by_inner @ inner_motion(gradient, inner, outer, frames, pose_size, steps, tolerance)
 
 
 class Body:
