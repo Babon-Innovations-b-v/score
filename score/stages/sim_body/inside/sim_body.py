@@ -100,8 +100,14 @@ def person_set_up(job, person, rig, worlds, path, size):
     """The person's file at `path` (MyoFullBody sized by `size`, `sizing.Size` of the person's rig) with the fit's
     constants (the person constants, solved once from all the body's `recordings`), its record (the fit's method and
     constants in it), each body's scale and the `Fitting` its clips' angles are solved on."""
-    segments = person["segments"]
     _, scales = myo.person_file(job["model"], size, person["kg"], path)
+    return constants_set_up(job, person, rig, worlds, path, size, scales)
+
+
+def constants_set_up(job, person, rig, worlds, path, size, scales):
+    """`person_set_up` from the sized file without constants already at `path` (its scales `scales`): the constants
+    solved on it, the file written again with them, its record, each body's scale and the `Fitting`."""
+    segments = person["segments"]
     held = fit.followed(segments)
     found = fit.constants(fit.fitting(path, scales, held, segments),
                           [fit.targets(rig, segments, clip, held) for clip in recordings(person, worlds)])

@@ -19,7 +19,9 @@ held-out rule (within 10 % of the tuning bodies).
   worker until the card's measures equal the CPU's to their rounding on the tuning cases (card build step 5).
 - `_card_batch.py` (card build step 5b) is `_card_case.py` for every body of an evaluation in one process: per body
   the state `_case.prepared` lays put back from a copy saved before the first body (`Saved`), never added on top; the
-  sizing, person file, level 2 and `Fitting` once per body (`sim_body.person_set_up`; a body's clips share one rig,
+  sizing and the file without constants once per body and calibration table, across sets too (`cached_set_up`:
+  links, trusts and weights leave them alone, a centre set reads the table anew), then level 2 and `Fitting` once
+  per (set, body) (`sim_body.constants_set_up`; a body's clips share one rig,
   refused otherwise) and every clip's frames in one card batch; `fit.following` not run (nothing here reads it);
   each clip written by `_case.written`. Gate 2026-10-29 (tall and slim, 14 cases, the per-case card run's constants):
   equal to the per-case card path, skins exact, joints within 5.5e-4 mm; one process 29 s wall, imports included.
@@ -36,5 +38,8 @@ held-out rule (within 10 % of the tuning bodies).
   trust, both hips' centres, both globals): with the skin rows as the share outside the columns were 1.4 to 21 % apart
   (noise: the share is a step), with them as the depth outside 0.04 to 0.61 %; the Gauss-Newton steps' cosine 0.99995
   (pass 0.99). The old 1e-4 bar cannot hold: the card's level 3 stops at its float32 floor.
+  Never warm-start a nudged set from the base point's answer (tried 2026-10-30, level 2's least_squares x0: the
+  columns 1.3 to 9.7 % apart, step cosine -0.91): a solve stops anywhere inside its tolerance, and a 0.4 step's
+  difference is that small, so every set starts where the base point started.
 - Judged on following SOMA, never on landmark distances; `fit._frozen` is never edited to follow the tree's calibration.
 - Test: `test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py` (a toy worker, any Python with numpy and scipy).
