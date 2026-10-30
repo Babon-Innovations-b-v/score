@@ -154,7 +154,10 @@ def colour_joined_parts(mesh, part_of, chosen, colours):
 
 def finished_frame(mesh, take):
     """The raw model laid on its finished model (labels.onto_finished, seeded as labels.py seeds it); the matrix,
-    the median gap and the finished model's bounds."""
+    the median gap and the finished model's bounds. A recovered turn starts from the frame the finish slimmed the raw
+    in, so a raw still stamped as facing +Z is turned back half round first (labels.raw_facing), as finish_turn does:
+    without it the half-turned raw was laid on its final by registration alone, 1.6 to 3.7 cm off and tipped (galley's
+    sink and workshop's desk on their backs, hangar's control desk 35 degrees over; 5 mm with it, #36 2026-10-30)."""
     import numpy as np
     import trimesh
     import labels
@@ -162,7 +165,7 @@ def finished_frame(mesh, take):
     final = trimesh.load(labels.PIXAL / f"{take}-final.glb", force="mesh")
     turn = recovered_turn(labels.PIXAL, take)
     matrix, gap = labels.onto_finished(mesh.sample(labels.SAMPLED, seed=1), final.sample(labels.SAMPLED, seed=2),
-                                       labels.finish_turn(take) if turn is None else turn)
+                                       labels.finish_turn(take) if turn is None else turn @ labels.raw_facing(take))
     return matrix, gap, final.bounds
 
 
