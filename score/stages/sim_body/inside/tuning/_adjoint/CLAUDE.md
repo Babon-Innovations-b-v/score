@@ -87,3 +87,10 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
 - Built and checked on a toy only (2026-10-30, five tests, 1.2 s); `../__init__.solved(exact=)` takes `stacked_jacobian` (its test, 2026-10-30). Not yet wired: the card gradient (Newton eval_fk on
   a wp.Tape for level 3, level 2's constants) as each `Body`'s callables, `solved`'s Jacobian switch to it, the gate on heavy_kimodo, tall_kimodo and
   a third tuning body against `_differences`, and the 70-case timing.
+- Gate floor rule (B4j, 2026-10-31, scratch b4m/gate.py): a column passes within max(2 %, the quarter~eighth step
+  gap), judged against the reference with the lower estimated step error (noise sigma from each row's fourth
+  difference of the five points, var 70 sigma^2, central noise sigma/(sqrt2 d); truncation the rest of the gap, the
+  quarter's 4x the eighth's); the step cosine's bar is min(0.99, the references' own cosine, fd eighth vs fd quarter,
+  centres included). After 11e0ef1c: heavy and mean pass; tall FAILS: own cosine 0.996 (so the bar stays 0.99),
+  hybrid vs fd eighth 0.9886 (vs fd quarter 0.9981); c0 judged vs the eighth (step error 3.3e-5 vs quarter 4.1e-5,
+  |c0| 5.9e-4) 9.3 % against a 7.7 % floor. Two steps cannot settle a column this small: it needs a third step.
