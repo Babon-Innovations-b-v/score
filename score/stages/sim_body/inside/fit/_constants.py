@@ -15,12 +15,16 @@ import numpy as np
 from scipy.linalg import cho_factor, cho_solve, eigvalsh, qr
 from scipy.optimize import least_squares
 from scipy.sparse import csc_matrix, diags, lil_matrix
+from scipy.sparse.linalg import spsolve
 from scipy.spatial.transform import Rotation
 
 from fit._frames import weights
 
 SETTLED_FTOL = 1e-12  # scipy's 1e-8 stopped level 2 on the cost's change before it settled (1.33 mm off, #70)
 SETTLED_GTOL = 1e-10
+POLISHED = 1e-10  # the free gradient a Gauss-Newton polish takes level 2's end to (scipy's trf/lsmr stalls 2.5-3 mm short, #70)
+POLISH_ROUNDS = 30
+BOUND_HELD = 1e-5  # an unknown this near its bound is held there by the polish
 MARK_MOST = 0.03  # metres a marker may move on its body off its landmark's link
 INSIDE = 1e-9  # a start this far inside its bounds (least_squares wants a start within them)
 TOLD = 1e-8  # an inside joint's column this far, relative, from the others' span is one the data cannot tell (tall,
@@ -35,7 +39,8 @@ class Problem:
     the held markers' moves are read from, `free` the markers that may move (by index)."""
 
     def __init__(self, fitting, path, turns, points, given, free=()):
-        self.fitting, self.path, self.turns, self.points = fitting, np.asarray(path), turns, points
+        self.fitting, self.turns, self.points = fitting, turns, points
+        self.path = np.asarray(path, dtype=float)  # float32 angles (the card's) rounded every qpos the residuals read (#70)
         self.given = np.asarray(given, dtype=float)
         model = fitting.model
         frozen = set(fitting.frozen)
@@ -202,10 +207,48 @@ def staged(fitting, path, turns, points, given, free=(), jacobian=None):
     found = least_squares(lambda unknowns: problem.residuals(whole(unknowns)), begin[keep],
                           bounds=(low[keep], high[keep]), x_scale="jac", method="trf", tr_solver="lsmr",
                           ftol=SETTLED_FTOL, xtol=SETTLED_FTOL, gtol=SETTLED_GTOL, **exact)
-    found.x = whole(found.x)
+    found.x = polished(problem, whole(found.x), keep, (low, high))
     constants = problem.constants(found.x)
     fitting.apply(constants)
     held = len(problem.slots)
     angles = np.array([problem.qpos(frame, found.x[held + frame * problem.width:held + (frame + 1) * problem.width])
                        for frame in range(len(path))])
     return constants, angles, int(found.nfev)
+
+
+def off_bounds(unknowns, keep, bounds):
+    """The told unknowns (of `keep`) further than BOUND_HELD inside both their bounds."""
+    low, high = bounds
+    inside = (unknowns[keep] > low[keep] + BOUND_HELD) & (unknowns[keep] < high[keep] - BOUND_HELD)
+    return np.asarray(keep)[inside]
+
+
+def polished(problem, unknowns, keep, bounds):
+    """`unknowns` moved by Gauss-Newton steps (the host-exact float64 Jacobian, `_card._level2.jacobian`, a sparse
+    direct solve) on the told unknowns off their bounds, each step halved until the cost falls and kept within the
+    bounds, until their gradient is under POLISHED; raises when POLISH_ROUNDS do not take it there."""
+    from fit._card._level2 import jacobian as exact_jacobian
+    low, high = bounds
+    found = unknowns.copy()
+    for _round in range(POLISH_ROUNDS):
+        free = off_bounds(found, keep, bounds)
+        residuals = problem.residuals(found)
+        matrix = exact_jacobian(problem, found)[:, free].tocsc()
+        gradient = matrix.T @ residuals
+        if not len(free) or np.abs(gradient).max() < POLISHED:
+            return found
+        found = descended(problem, found, free, spsolve((matrix.T @ matrix).tocsc(), -gradient), (low, high))
+    raise ArithmeticError(f"level 2's polish left a free gradient of {np.abs(gradient).max():.2e} after {POLISH_ROUNDS} rounds")
+
+
+def descended(problem, unknowns, free, step, bounds):
+    """`unknowns` with `step` laid on its `free` entries, clipped into the bounds and halved until the cost falls (the
+    unknowns as they stand when no halving does)."""
+    low, high = bounds
+    cost = float(np.sum(problem.residuals(unknowns) ** 2))
+    for halving in range(30):
+        moved = unknowns.copy()
+        moved[free] = np.clip(unknowns[free] + step / 2 ** halving, low[free], high[free])
+        if float(np.sum(problem.residuals(moved) ** 2)) <= cost:
+            return moved
+    return unknowns

@@ -52,6 +52,13 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   The other columns' span is taken by their Gram matrix (`_constants.off_span`, sparse Cholesky) when their smallest
   singular value is over `WELL_TOLD` of their largest (then the pivoted QR keeps their whole span), else by that QR
   (`qr_off_span`); heavy_kimodo: 0.15 s against 2.5-5.6 s, the same axes kept.
+- **Level 2 ends settled to float64** (#70, 2026-10-30): after scipy's `least_squares` (trf/lsmr, which stalled
+  2.5 to 3 mm short of settled on heavy_kimodo) `_constants.polished` takes Gauss-Newton steps (the host-exact
+  Jacobian, a sparse direct solve, halved until the cost falls) on the told unknowns more than `BOUND_HELD` inside
+  their bounds until their gradient is under `POLISHED` (1e-10), else raises. `Problem.path` is float64: the card's
+  float32 angles rounded every qpos the residuals read (a 1e-6 step on root z moved it 9.5e-7), so the polish
+  stalled at 6.5e-8 and the "exact Jacobian is off" reading was the residuals'. Toy: 2.0e-7 without the polish,
+  under 1e-10 with it, 0.028 s; per real body not yet timed.
 - **The calibration is the static table** (`calibration`), a site's quaternion R_cal^T on the group's frame body:
   never fitted, never per person.
 - **The followers' own ranges are not held** (`Fitting.limited_model`): 35 of MyoFullBody's 51 couplings have a
