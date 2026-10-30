@@ -319,13 +319,13 @@ def effects_standing(stage, place):
     if not scope:
         return laid
     names = laid | {child.GetName() for child in scope.GetChildren()}
-    for set_name in scope.GetVariantSets().GetNames():
-        variant_set = scope.GetVariantSet(set_name)
-        chosen = variant_set.GetVariantSelection()
-        for name in variant_set.GetVariantNames():
-            variant_set.SetVariantSelection(name)
-            names |= {child.GetName() for child in scope.GetChildren()}
-        variant_set.SetVariantSelection(chosen)
+    with Usd.EditContext(stage, stage.GetSessionLayer()):  # the stage is shared by every check: its files stay as read
+        for set_name in scope.GetVariantSets().GetNames():
+            variant_set = scope.GetVariantSet(set_name)
+            for name in variant_set.GetVariantNames():
+                variant_set.SetVariantSelection(name)
+                names |= {child.GetName() for child in scope.GetChildren()}
+            variant_set.ClearVariantSelection()
     return names
 
 

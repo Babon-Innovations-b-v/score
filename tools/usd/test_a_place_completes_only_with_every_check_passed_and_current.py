@@ -31,11 +31,14 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
   `if built.get("fingerprint") != current:` made `if False:`.
 - a_designed_place_s_boxes_are_judged_on_its_hand_in: tools/props/scene/box_check.py's `if is_whole(box, size):` made
   `if False:` (the whole-picture box on the hand-in passes).
+- every_check_judges_one_shared_stage_as_a_fresh_one: complete.shared's `return Usd.StageCacheContext(SHARED[key])`
+  made `return contextlib.nullcontext()` (each check composes the stage again).
 The ship place's beside-likeness check went (2026-10-27): no place of today's design has a beside node, so both sides
 read [] and no break could turn it red.
 
 Run: .venv/bin/python tools/usd/test_a_place_completes_only_with_every_check_passed_and_current.py
 """
+import contextlib
 import json
 import pathlib
 import sys
@@ -450,7 +453,27 @@ def a_backdrop_row_is_made_by_the_skyline_once_its_place_stands_its_object():
         return problems
 
 
-CHECKS = (loose_objects_with_no_drop_are_not_known_to_rest, a_finished_place_passes,
+def comparable(found):
+    """A check's result without the time it was made."""
+    return {name: value for name, value in found.items() if name != "at"}
+
+
+def every_check_judges_one_shared_stage_as_a_fresh_one():
+    with tempfile.TemporaryDirectory() as temporary:
+        stage = laid(pathlib.Path(temporary))
+        shared = [comparable(complete.run_check(check, resting_test.PLACE, stage)) for check in complete.CHECKS]
+        composed = [cache.Size() for cache in complete.SHARED.values()]
+        complete.SHARED.clear()
+        kept, complete.shared = complete.shared, lambda stage: contextlib.nullcontext()
+        try:
+            fresh = [comparable(complete.run_check(check, resting_test.PLACE, stage)) for check in complete.CHECKS]
+        finally:
+            complete.shared = kept
+        problems = [f"{one['check']}: shared {one} but fresh {other}" for one, other in zip(shared, fresh) if one != other]
+        return problems + ([] if composed == [1] else [f"the checks composed {composed} stages, not one"])
+
+
+CHECKS = (every_check_judges_one_shared_stage_as_a_fresh_one, loose_objects_with_no_drop_are_not_known_to_rest, a_finished_place_passes,
           an_accepted_gap_moves_only_the_faults_it_names, the_three_statuses,
           a_store_copy_takes_resting_from_its_assembly_gate,
           a_place_without_its_cast_fails_on_its_contents, a_failing_reach_is_shown_not_counted,
