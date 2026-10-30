@@ -228,6 +228,8 @@ tests it turned red:
 - bake_job.py: `if built or slender(size):` -> `if slender(size):` (laid_size)  ->
   a_code_build_bakes_at_its_own_section_its_longest_side_the_row_s; -> `if False:`  -> that one and
   a_slender_design_entry_keeps_its_take_s_own_proportions_its_longest_side_the_row_s
+- bake_job.py: `if own and lies(place_route.made_size(labelled, size, 0), size):` -> `if False and lies(...)`
+  (measured_turn)  -> a_code_build_standing_for_a_row_that_lies_is_laid_along_its_row_never_up
 - surface_data.py: `"bake scripts": "{repo}/tools/props/library/inside", "library": "{data}/library"}` -> `"bake
   scripts": "{repo}/tools/props/library/inside", "library": "{data}/library", "details": "{data}/library/details.json"}`
   -> every_place_s_bake_is_written_from_git_or_blocks_on_a_named_entry
@@ -3103,6 +3105,26 @@ def test_a_code_build_bakes_at_its_own_section_its_longest_side_the_row_s(stand_
         mark.write_text(json.dumps({"route": "code", "rule": "thin straight (owner, 2026-10-25)"}))
         _, (entry,) = place_line.bake_entries({"surfaces": surfaces}, {"lamp-t1": labelled})
         assert entry["base"] == bake_job.TURNS[0] and entry["size"] == [0.4, 0.046, 0.046], entry
+    finally:
+        shutil.rmtree(folder)
+
+
+def test_a_code_build_standing_for_a_row_that_lies_is_laid_along_its_row_never_up(stand_in_library, monkeypatch):
+    """hangar's wall pipes: a row 0.4 by 32 by 0.4 m (x wide, y tall, z deep: it runs 32 m along its wall), its code
+    build made up its receding picture 22 m tall. The bake lays the build's long side on the row's long level side and
+    its thinnest up, never standing 32 m in a 15 m hangar; a build for a row that stands keeps standing."""
+    folder = a_folder()
+    try:
+        monkeypatch.setattr(place_line.prop_env, "PROPS_HOME", folder)
+        labelled = a_box_take(folder, "pipes-t1", (4.9, 22.0, 0.4))
+        mark = bake_job.code_mark("pipes-t1", folder)
+        mark.parent.mkdir(parents=True)
+        mark.write_text(json.dumps({"route": "code", "rule": "thin straight (owner, 2026-10-25)"}))
+        for size, laid in (([0.4, 0.4, 32.0], [7.127, 0.582, 32.0]), ([0.4, 32.0, 0.4], [7.127, 32.0, 0.582])):
+            surfaces = written(folder, "surfaces", {"place": "hangar", "library": "hangar", "bake": {
+                "models": {"pipes_1": "pipes-t1"}, "entries": {"pipes_1": {"size": size, "faces": 19000, "foot": 0.0}}}})
+            _, (entry,) = place_line.bake_entries({"surfaces": surfaces}, {"pipes-t1": labelled})
+            assert entry["size"] == laid, (size, entry)
     finally:
         shutil.rmtree(folder)
 
