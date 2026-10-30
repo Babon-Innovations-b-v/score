@@ -243,13 +243,15 @@ def polished(problem, unknowns, keep, bounds):
 
 def descended(problem, unknowns, free, step, bounds):
     """`unknowns` with `step` laid on its `free` entries, clipped into the bounds and halved until the cost falls (the
-    unknowns as they stand when no halving does)."""
+    unknowns as they stand when no halving does). A fall is strict: an equal cost is one the cost cannot see, left to
+    `steadied` (heavy_kimodo, 2026-10-30: with `<=` a halving 1e-13 long at an equal cost was taken every round, so the
+    polish stood at a free gradient of 1.48e-10 for its last 10 rounds and `steadied` was never asked)."""
     low, high = bounds
     cost = float(np.sum(problem.residuals(unknowns) ** 2))
     for halving in range(30):
         moved = unknowns.copy()
         moved[free] = np.clip(unknowns[free] + step / 2 ** halving, low[free], high[free])
-        if float(np.sum(problem.residuals(moved) ** 2)) <= cost:
+        if float(np.sum(problem.residuals(moved) ** 2)) < cost:
             return moved
     return unknowns
 
