@@ -65,8 +65,12 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   does (`set_up`: `_case.prepared`, the sizing, level 2, `_clip.for_fitting`) and its clips' rows solved in one
   `Sets([clip]).angles` batch, Newton's order (`solved_rows`). heavy_kimodo at depth1's base set (`_check_real.py`, its
   test run only when `SCORE_ADJOINT_REAL` names the inputs): 136 frames x 129 coordinates, the largest gap to the card
-  solve's own angles 1.46e-5, 19.4 s. Open: the per-frame model (copies, couplings, RootTurns), the end sites' link
-  frames, `Body` and `refused` on it.
+  solve's own angles 1.46e-5, 19.4 s. The per-frame model (2026-10-30): `per_frame_model(fitting, path, frames)` the
+  person's file built as `for_fitting` builds it, copied once per frame (`add_builder`, requires_grad);
+  `frame_couplings(clip, rows)` its `couplings=` off `clip.projection`. Checked in `_check_real.py`: eval_fk at the
+  rows' pose (`pose_of`, `RootTurns` full(reduced()), followers written by `_taped._Couplings`) against the clip's
+  own model at each row, heavy_kimodo 136 copies x 155 bodies, largest body_q gap 1.43e-6, 9.5 s (zeroed
+  polynomials: 0.32). Open: the end sites' link frames on the copies, `Body` and `refused` on it.
 - Built and checked on a toy only (2026-10-30, five tests, 1.2 s); `../__init__.solved(exact=)` takes `stacked_jacobian` (its test, 2026-10-30). Not yet wired: the card gradient (Newton eval_fk on
   a wp.Tape for level 3, level 2's constants) as each `Body`'s callables, `solved`'s Jacobian switch to it, the gate on heavy_kimodo, tall_kimodo and
   a third tuning body against `_differences`, and the 70-case timing.
