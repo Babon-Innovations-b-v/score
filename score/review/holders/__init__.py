@@ -292,11 +292,28 @@ def room_side(toward, door_x, along_way):
     return float(numpy.sign(float(toward) * lined))
 
 
-def held(item, row, holder_row, holder_items, items, turn):
-    """A relation to a holder the plan lays, its nearest item: top, within it where the plan lays it inside, else
-    against the face the concept shows it on, the plan's side toward it, its facing, its holder's, or S."""
+def fits_over(row, holder_row, room):
+    """Whether the row, stood on its holder's top, stays under the place's height `room` (metres; None: no roof, it
+    fits): both rows' heights (size[2]) together no more than it. The docking airlock's 1.8 m spacesuits, their boxes
+    in their 2 m locker's top half, read as on its top and stood through the 2.5 m ceiling (round 32)."""
+    heights = [float((found.get("size") or [0.0, 0.0, 0.0])[2]) for found in (row, holder_row)]
+    return room is None or sum(heights) <= room
+
+
+def room_height(plan):
+    """The place's height under its roof: its highest roof's top or tallest wall (a dome rises over its walls: the
+    workshop's robotic arm on its console stands under it), or None where the plan draws neither."""
+    talls = [float(wall["tall"]) for wall in plan.get("walls") or [] if wall.get("tall")] + [
+        float(roof["top"]) for roof in plan.get("roofs") or [] if roof.get("top")]
+    return max(talls) if talls else None
+
+
+def held(item, row, holder_row, holder_items, items, turn, room=None):
+    """A relation to a holder the plan lays, its nearest item: top (where it fits under the place's height `room`),
+    within it where the plan lays it inside, else against the face the concept shows it on, the plan's side toward
+    it, its facing, its holder's, or S."""
     nearest = min(holder_items, key=lambda name: float(numpy.linalg.norm(middle(items[name]) - middle(item))))
-    if on_top(row, holder_row) and not design_shell.fills_opening(row):
+    if on_top(row, holder_row) and fits_over(row, holder_row, room) and not design_shell.fills_opening(row):
         return {"how": "top", "holder": nearest, "why": f"on {holder_row['id']}'s top in the concept"}
     if inside(item, items[nearest]):
         return {"how": "within", "holder": nearest, "why": f"within {holder_row['id']}: the plan lays it inside"}
@@ -823,7 +840,8 @@ def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, 
         items, shown = plan_items(plan), seen_holders(row, holder, rows, laid)
         nearest = min(((other, name) for other in shown for name in laid[other["id"]]),
                       key=lambda pair: float(numpy.linalg.norm(middle(items[pair[1]]) - middle(item))))
-        found = {**held(item, row, nearest[0], [nearest[1]], items, turn), "holder row": nearest[0]["id"]}
+        found = {**held(item, row, nearest[0], [nearest[1]], items, turn, room_height(plan)),
+                 "holder row": nearest[0]["id"]}
         holder_item = items[nearest[1]]
         holder_base = float(((plan.get("shapes") or {}).get(holder_item[0]) or {}).get("base") or 0.0)
         recess = recess_of(item, row, (middle(holder_item), item_way(holder_item), holder_base), nearest[0],

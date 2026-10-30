@@ -121,6 +121,29 @@ def test_a_monitor_stands_on_its_console_s_top():
     assert (monitor["how"], monitor["holder"]) == ("top", "CONSOLE 1"), monitor
 
 
+def test_a_spacesuit_too_tall_for_its_locker_s_top_stands_within_it():
+    """Round 32's docking airlock: the 1.8 m spacesuit's box lies in its 2 m locker's top half, so the concept reads
+    it as on the locker's top, and the assembly stood it there through the 2.5 m ceiling. On a top it must fit under
+    the place's height (its tallest wall or its highest roof): here within the locker, where the plan lays it; under
+    a dome rising to 4.2 m (the workshop's robotic arm on its console) it stays on the top.
+    Break: score/review/holders/__init__.py: `if on_top(row, holder_row) and fits_over(row, holder_row, room) and` ->
+        `if on_top(row, holder_row) and`
+    Break: score/review/holders/__init__.py: room_height's `+ [float(roof["top"]) for roof in plan.get("roofs") or []
+        if roof.get("top")]` -> `+ []`"""
+    rows = [{"id": "locker", "noun": "locker", "anchor": "floor", "size": [0.8, 0.6, 2.0], "box": [681, 565, 813, 1062]},
+            {"id": "suit", "noun": "spacesuit", "anchor": "on:locker", "size": [0.6, 0.4, 1.8],
+             "box": [687, 565, 812, 789]}]
+    picture = [3000, 1200]
+    walls = [{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2, "tall": 2.5}]
+    items = [["LOCKER 1", 2.0, 2.0, 0.8, 0.6, "S", "item"], ["SUIT 1", 2.1, 2.1, 0.6, 0.4, "S", "item"]]
+    tied = {"LOCKER 1": ["locker"], "SUIT 1": ["suit"]}
+    low = by_row(holders.relations(plan_of(items, tied, walls=walls), {"rows": rows, "picture": picture}))["suit"]
+    assert (low["how"], low["holder"]) == ("within", "LOCKER 1"), low
+    domed = plan_of(items, tied, walls=walls, roofs=[{"kind": "dome", "eave": 2.5, "top": 4.2}])
+    high = by_row(holders.relations(domed, {"rows": rows, "picture": picture}))["suit"]
+    assert high["how"] == "top", high
+
+
 def test_monitors_the_concept_shows_on_two_consoles_stand_on_the_nearest():
     """Hub (2026-10-29): the reading anchors all 38 monitors on its 3 x 0.8 m control bank (one anchor a row), but the
     concept shows them on the bank and on a console beside it. Each monitor stands on the nearest of the rows like
