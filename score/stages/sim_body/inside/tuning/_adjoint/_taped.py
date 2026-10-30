@@ -153,10 +153,12 @@ class TapedSites:
     (links, weights, targets, offsets: `_TurnRows`) and `couplings` (`_Couplings`' arguments after the device, the pose
     then the free coordinates) and `constants` (`_Constants`' arguments after the model: level 2's free sites and inside
 joints, the inner unknowns after the pose); `model` built with requires_grad, its joint_q the pose when no couplings
-are given."""
+are given. `trusted`: the outer unknowns hold each site's trust (its weight) after the offsets, level 1's landmark
+weights, replacing `weights` at every evaluation."""
 
-    def __init__(self, model, links, weights, targets, turns=None, couplings=None, constants=None):
+    def __init__(self, model, links, weights, targets, turns=None, couplings=None, constants=None, trusted=False):
         self.model = model
+        self.trusted = trusted
         self.state = model.state(requires_grad=True)
         device = model.device
         self.links = wp.array(np.asarray(links, dtype=np.int32), dtype=wp.int32, device=device)
@@ -183,7 +185,12 @@ are given."""
             self.model.joint_q.assign(pose.astype(np.float32))
         else:
             self.couplings.write(pose, self.model.joint_q)
-        offsets = np.asarray(outer, dtype=np.float32).reshape(-1, 3)
+        outer = np.asarray(outer, dtype=np.float32)
+        if self.trusted:
+            sites = self.links.shape[0]
+            self.weights.assign(outer[3 * sites:])
+            outer = outer[:3 * sites]
+        offsets = outer.reshape(-1, 3)
         if self.constants is not None:
             offsets = self.constants.lay(moves, offsets, self.model.joint_X_p)
         self.offsets.assign(offsets)
