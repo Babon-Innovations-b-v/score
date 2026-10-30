@@ -170,6 +170,44 @@ def test_a_door_goes_in_the_plan_s_opening_and_the_next_in_one_cut_for_it():
         "at": [10.0, 0.0], "wide": 1.0, "sill": 0.0, "head": 2.1, "cut": True}, found["back_door"]
 
 
+def test_a_window_takes_a_window_s_opening_and_a_door_a_door_s():
+    """#36, camp: the relations gave the dome door's opening to a dome window (the plan draws only door openings), so
+    the window stood in the door's swing. With one door opening at (5, 0) and a window laid first, at the north
+    wall's east end: the window is cut where its spot meets the wall, kept 0.25 + OPENING_ROOM + the wall's 0.2 m
+    inside its end (x 19.35), and the door takes the door opening.
+    Break: score/review/holders/__init__.py: `if number not in taken and (opening["kind"] == "window") == (word ==
+        "window")]` -> `if number not in taken]`
+    Break: score/review/holders/__init__.py: `at = start + run * kept_along(float((on_line(spot, wall) - start) @
+        run), length, keep)` -> `at = on_line(spot, wall)`"""
+    rows = [{"id": "dome_window", "noun": "window", "anchor": "wall", "size": [0.5, 0.1, 0.5]},
+            {"id": "dome_door", "noun": "door", "anchor": "wall", "size": [1.0, 0.1, 2.0]}]
+    walls = [{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2}, {"from": [20.0, 0.0], "to": [20.0, 12.0], "thick": 0.2}]
+    plan = plan_of([["DOME WINDOW 1", 19.6, 0.0, 0.2, 0.1, None, "item"],
+                    ["DOME DOOR 1", 4.5, 0.0, 1.0, 0.2, None, "item"]],
+                   {"DOME WINDOW 1": ["dome_window"], "DOME DOOR 1": ["dome_door"]}, walls=walls,
+                   openings=[{"kind": "door", "at": [5.0, 0.0], "wide": 1.4, "sill": 0.0, "head": 2.2}])
+    found = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
+    assert found["dome_window"]["opening"] == {"at": [19.35, 0.0], "wide": 0.5, "sill": 0.9, "head": 1.4,
+                                               "cut": True}, found["dome_window"]
+    assert found["dome_door"]["opening"]["at"] == [5.0, 0.0] and "cut" not in found["dome_door"]["opening"], found
+
+
+def test_doors_laid_on_one_item_each_get_their_own_opening():
+    """#36, cockpit: the plan lays its four 1.2 m rear doors on one item, so its relation gave them one opening and
+    the scene record stacked all four in it. Each piece takes an opening of its own where the scene record lays it
+    (along the item, x 8.25 to 9.75 on the north wall), cut at its built width and spread apart along the wall with
+    OPENING_ROOM between them: middles 8.25, 9.65, 11.05, 12.45.
+    Break: score/review/holders/__init__.py: `return [spot for spot, _ in piece_middles(item, row, plan)]` ->
+        `return [middle(item)]`"""
+    rows = [{"id": "rear_door", "noun": "door", "anchor": "wall", "size": [1.2, 0.2, 2.1], "count": 4}]
+    plan = plan_of([["REAR DOOR 1", 8.0, 0.2, 2.0, 0.4, None, "item"]], {"REAR DOOR 1": ["rear_door"]},
+                   walls=[{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2}])
+    door = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["rear_door"]
+    assert [piece["opening"]["at"] for piece in door["pieces"]] == [[8.25, 0.0], [9.65, 0.0], [11.05, 0.0],
+                                                                     [12.45, 0.0]], door
+    assert all(piece["opening"]["wide"] == 1.2 and piece["opening"]["cut"] for piece in door["pieces"]), door
+
+
 def test_openings_are_cut_at_their_built_widths_spread_apart_on_their_wall():
     """#36: stairwell's plan drew its 1 m doors and gate in 0.39 m openings, and the assembly shrank them to 0.39 m;
     habitat's 1 m door and 1.5 m window, drawn 0.42 m apart, would meet cut at their widths. On a 20 m wall a 1 m door

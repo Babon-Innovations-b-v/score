@@ -617,10 +617,21 @@ def test_the_settle_s_seed_leaves_out_a_row_ground_join_joined(tmp_path, monkeyp
     assert not opened(root).GetPrimAtPath(f"/{TOY}/Objects/rock_1")
 
 
+BOX_FACES = [0, 1, 3, 2, 4, 6, 7, 5, 0, 4, 5, 1, 2, 3, 7, 6, 0, 2, 6, 4, 1, 5, 7, 3]  # a box's six sides, of its corners
+
+
+def boxes_mesh(boxes):
+    """(points, face counts, indices) of a mesh of whole boxes (low, high), each its six sides."""
+    points, indices = [], []
+    for low, high in boxes:
+        indices += [len(points) + corner for corner in BOX_FACES]
+        points += [(x, y, z) for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])]
+    return points, [4] * (len(indices) // 4), indices
+
+
 def a_box_asset(path, low, high):
-    """A one-mesh asset, a box from `low` to `high` (its 8 corners as one face's points: only its bounds are read)."""
-    corners = [(x, y, z) for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])]
-    an_asset(path, corners, [8], list(range(8)))
+    """A one-mesh asset, a box from `low` to `high`, its six sides."""
+    an_asset(path, *boxes_mesh([(low, high)]))
 
 
 def test_base_s_garage_door_lands_on_its_module_s_front_face(tmp_path):
@@ -687,11 +698,9 @@ def test_base_s_built_garage_door_goes_in_its_recess_on_the_face_round_it(tmp_pa
                 "on": {"how": "face", "holder": ["square_module_front_right_1"], "out": [0.0, 1.0], "room": 0.6,
                        "room_way": [-1.0, 0.0], "why": "against its module's side the concept shows it on"}}]
     assembly.take_record(a_record(tmp_path, {"objects": entries}), root.parent, TOY)
-    body = [(x, y, z) for x in (-6.0, 6.0) for y in (0.0, 8.0) for z in (-6.0, 5.6)]
-    rim = [(x, y, z) for x in (-5.95, 0.65) for y in (0.0, 8.0) for z in (5.6, -0.05)]  # the recess's rim and back
-    lip = [(x, y, z) for x in (-6.0, 6.0) for y in (8.0, 12.0) for z in (-6.0, 6.0)]
-    points = body + rim + lip
-    an_asset(root.parent / "assets/module_1.usdc", points, [len(points)], list(range(len(points))))
+    an_asset(root.parent / "assets/module_1.usdc", *boxes_mesh([
+        ((-6.0, 0.0, -6.0), (-5.95, 8.0, 5.6)), ((0.65, 0.0, -6.0), (6.0, 8.0, 5.6)),  # the body beside the recess
+        ((-5.95, 0.0, -6.0), (0.65, 8.0, -0.05)), ((-6.0, 8.0, -6.0), (6.0, 12.0, 6.0))]))  # its back, the lip
     a_box_asset(root.parent / "assets/door_1.usdc", (-4.0, 0.0, -0.25), (4.0, 8.0, 0.25))
     (tmp_path / "bake").mkdir()
     (tmp_path / "bake/baked.json").write_text(json.dumps(
@@ -968,6 +977,26 @@ def test_nothing_laid_stands_in_a_doorway_s_passage_or_a_facade_door_s_swing():
     rack = (np.array([1.4, 0.0, 4.4]), np.array([2.6, 0.1, 4.8]))
     assert not fitting.on_face(*rack, facade, box, None, [recess])[2][1]  # a rack never hangs in a door's recess
     assert fitting.on_face(*rack, dict(facade, room=0.0), box, None, [recess])[2][1]  # the door it was cut for does
+
+
+def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
+    """#36, street 2026-10-30: two drying racks (0.12 m tall) stood 1.3 and 2.3 m inside their facade: its flat front
+    has corners only at its ends, and the corners within the racks' height were a window's back. A facade whose front
+    (z 0) is one box 10 m wide and a window's back 1.9 m inside it, its corners in the rack's height: the rack's back
+    stands on the front, z 0, never on the window's back.
+    Break: score/stages/assembly/fitting.py: `hits, _, _ = mesh.ray.intersects_location(origins, directions,
+        multiple_hits=False)` -> `hits = mesh.vertices[(mesh.vertices[:, 1] >= band[0]) & (mesh.vertices[:, 1] <=
+        band[1])]`"""
+    import trimesh
+    from score.stages.assembly import fitting
+    points, _, indices = boxes_mesh([((-5.0, 0.0, -0.3), (5.0, 10.0, 0.0)), ((-0.5, 6.0, -2.0), (0.5, 6.1, -1.9))])
+    facade = trimesh.Trimesh(points, [quad[:3] for quad in np.reshape(indices, (-1, 4))]
+                             + [quad[[0, 2, 3]] for quad in np.reshape(indices, (-1, 4))], process=False)
+    on = {"how": "face", "holder": ["facade_1"], "out": [0.0, 1.0]}
+    box = (np.array([-5.0, 0.0, -2.0]), np.array([5.0, 10.0, 0.0]))
+    scale, target, (back, hung) = fitting.on_face(np.array([-0.75, 6.0, 0.5]), np.array([0.75, 6.1, 1.0]), on, box,
+                                                  facade)
+    assert back == 0.0 and np.allclose(target, (0.0, 6.0, 0.25)) and scale == 1.0 and not hung, (back, target)
 
 
 def test_a_door_in_a_slanted_wall_hangs_on_the_face_it_swings_to():
