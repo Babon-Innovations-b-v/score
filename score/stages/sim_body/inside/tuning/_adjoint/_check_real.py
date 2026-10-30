@@ -18,6 +18,7 @@ sys.path.insert(0, sys.argv[1])
 import _real  # noqa: E402
 from _bodies import RootTurns, pose_of  # noqa: E402
 from _taped import _Couplings  # noqa: E402
+from tuning._adjoint import Body, refused  # noqa: E402
 from evaluation import _card_batch  # noqa: E402
 from fit._card import _seeds  # noqa: E402
 
@@ -64,4 +65,14 @@ began = time.time()
 copied = _real.per_frame_model(fitting, path, len(rows))
 gap = np.abs(copied_body_q(copied, _real.frame_couplings(clip, rows), rows) - own_body_q(clip.model, rows))
 fk = {"most": float(gap.max()), "bodies": int(gap.shape[1]), "seconds": time.time() - began}
-print(json.dumps({"cases": found, "rows": int(rows.shape[0]), "seconds": seconds, "fk": fk}))
+TOLERANCE = float(__import__('os').environ.get('SCORE_ADJOINT_TOLERANCE', '0'))
+began = time.time()
+sites, offsets = _real.taped_sites(clip, copied, rows, targets)
+couplings = _real.frame_couplings(clip, rows)
+turns = RootTurns(pose_of(couplings, rows), len(couplings[0]) // len(rows))
+body = Body("heavy_kimodo", lambda inner, outer: sites.residuals(turns.full(inner), outer),
+            lambda inner, outer: turns.pulled(inner, sites.gradient(turns.full(inner), outer)),
+            turns.reduced(), len(rows), turns.per_copy - 1)
+most = float(np.max(np.abs(body.gradient(body.inner, offsets))))
+taped = {"most": most, "refused": refused([body], offsets, TOLERANCE), "seconds": time.time() - began}
+print(json.dumps({"cases": found, "rows": int(rows.shape[0]), "seconds": seconds, "fk": fk, "taped": taped}))

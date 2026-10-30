@@ -70,7 +70,7 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   `frame_couplings(clip, rows)` its `couplings=` off `clip.projection`. Checked in `_check_real.py`: eval_fk at the
   rows' pose (`pose_of`, `RootTurns` full(reduced()), followers written by `_taped._Couplings`) against the clip's
   own model at each row, heavy_kimodo 136 copies x 155 bodies, largest body_q gap 1.43e-6, 9.5 s (zeroed
-  polynomials: 0.32). Open: the end sites' link frames on the copies, `Body` and `refused` on it.
+  polynomials: 0.32). `taped_sites(clip, model, rows, targets)` (2026-10-30): level 3's whole card cost on the per-frame model as `Clip.optimizer_for` lays it (marker sites at site_pos with place costs, turn rows at site_quat with the turn cost, copy by copy, `frame_couplings`), wrapped in `Body` over `RootTurns`' chart in `_check_real.py`: at heavy_kimodo's solved rows its largest gradient entry is 4.12e-3 (`refused` names it at any tolerance below that; cause not yet found). Open: why the gradient is not zero there, then TapedMeasures (CENTRES, TO_OWN, skins) and level 2's constants on it.
 - Built and checked on a toy only (2026-10-30, five tests, 1.2 s); `../__init__.solved(exact=)` takes `stacked_jacobian` (its test, 2026-10-30). Not yet wired: the card gradient (Newton eval_fk on
   a wp.Tape for level 3, level 2's constants) as each `Body`'s callables, `solved`'s Jacobian switch to it, the gate on heavy_kimodo, tall_kimodo and
   a third tuning body against `_differences`, and the 70-case timing.
