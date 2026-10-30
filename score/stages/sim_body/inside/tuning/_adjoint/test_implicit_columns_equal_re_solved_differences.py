@@ -17,7 +17,7 @@ unknowns' trust (`TapedSites._evaluate` not assigning `self.weights` when `trust
 skipping `self.centres.zero_()` (joint centres adding onto the last evaluation's) turns the taped measures test red.
 Building the bone points without `requires_grad` (`_Skins.points`: no skin depth row reaches the pose) turns it red.
 Cutting each seeded row from the first frame's block in place of its own (`_rows` with start 0) turns it red; `case_rows` laying a
-skin point's block at frame 0 (`rms_row` ignoring `point_frames`) turns it red. `_real.level2_solved` returning its start path in place of the solved angles (what `constants_on` drops) turns the real level 2 test red.
+skin point's block at frame 0 (`rms_row` ignoring `point_frames`) turns it red. `_real.level2_solved` returning its start path in place of the solved angles (what `constants_on` drops) turns the real level 2 test red. `fit/_constants.staged` without its `polished` step turns the real constant motion test red (its free gradient over 1e-9).
 In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
 without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pulled` skipping the normalisation's
 projection (`along` the raw turn gradient) turns the root chart test red; `RootTurns.pulled_rows` cutting each copy's fourth turn coordinate in place of pulling the row
@@ -564,3 +564,24 @@ def test_level_2_on_one_real_body_is_stationary_at_its_solve(tmp_path):
     assert ran.returncode == 0, ran.stderr[-2000:]
     found = json.loads(ran.stdout.strip().splitlines()[-1])
     assert found["solved most"] < LEVEL2_STATIONARY * found["start most"], found
+
+
+MOTION_SHARE = 0.02  # a slot's implicit dc/dtheta off its settled re-solves, over the column's largest entry
+
+
+def test_level_2_constant_motion_on_one_real_body_equals_settled_re_solves(tmp_path):
+    """`SCORE_ADJOINT_REAL` as above: `constant_motion` on level 2 at its float64-settled solve against central
+    differences of level 2 re-solved at marker goal +-0.1, on the told, unpinned slots off their bounds (heavy_kimodo,
+    2026-10-30: 157 s, over the 2 minute budget; run only when `SCORE_ADJOINT_REAL` is set, never by `make tests`)."""
+    python, named = _newton_python(), os.environ.get("SCORE_ADJOINT_REAL")
+    if python is None or not named:
+        pytest.skip("no Newton Python or no SCORE_ADJOINT_REAL")
+    given = json.loads(pathlib.Path(named).read_text())
+    ran = subprocess.run([str(python), "-B", str(pathlib.Path(__file__).parent / "_check_motion.py"),
+                          str(pathlib.Path(__file__).parent), given["set"], str(tmp_path), "0.1",
+                          *(f"{case}={job}" for case, job in given["cases"].items())],
+                         capture_output=True, text=True, timeout=300)
+    assert ran.returncode == 0, ran.stderr[-2000:]
+    found = json.loads(ran.stdout.strip().splitlines()[-1])
+    assert found["off"] > 0 and found["free gradient"] < 1e-9, found
+    assert found["most difference"] < MOTION_SHARE * found["top"], found
