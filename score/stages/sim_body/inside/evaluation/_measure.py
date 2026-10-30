@@ -71,6 +71,12 @@ def summary(values):
     return [float(np.median(values)), float(np.percentile(values, 95)), float(values.max())]
 
 
+def root_mean_square(values):
+    """The per-frame values' root mean square: level 1's tuned summary, smooth where the median's middle frames swap
+    (#70, 2026-10-30); the median stays the reported measure."""
+    return float(np.sqrt(np.mean(np.square(np.asarray(values, dtype=float)))))
+
+
 def measures(model, angles, rig, segments, worlds, scales):
     data = mujoco.MjData(model)
     names = [str(joint) for joint in rig["names"]]
@@ -141,6 +147,8 @@ def measures(model, angles, rig, segments, worlds, scales):
     return {"joints mm": summary(free), "per joint mm": {key: summary(value)[:2] for key, value in joints.items()},
             "turns deg": summary(sum(turns.values(), [])),
             "per group deg": {key: summary(value)[:2] for key, value in turns.items()},
+            "per joint rms mm": {key: root_mean_square(value) for key, value in joints.items()},
+            "per group rms deg": {key: root_mean_square(value) for key, value in turns.items()},
             "joint length over SOMA mm": long, "tips mm": {key: summary(value)[:2] for key, value in tips.items()},
             "hand tips mm": {key: summary(value)[:2] for key, value in hand.items()},
             "lowest collider mm": [float(np.median(lowest)), float(np.min(lowest))],

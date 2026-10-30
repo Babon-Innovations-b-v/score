@@ -152,11 +152,12 @@ def labels(found):
 
 def case_residuals(found):
     """One case's residuals: each region's bones' depth outside the skin (mm, root mean square: smooth where the share
-    outside, the judged measure, is a step; #70, 2026-10-30), each group's median turn error (deg, frozen
-    table), each joint's median error (mm, times JOINT_SHARE), each over its SCALES unit and the square root of its
-    kind's count, so each kind is its mean."""
-    values = {"skin": found["bones outside depth mm"], "turn": {key: value[0] for key, value in found["per group deg"].items()},
-              "joint": {key: value[0] for key, value in found["per joint mm"].items()}}
+    outside, the judged measure, is a step; #70, 2026-10-30), each group's turn error (deg, frozen table) and each
+    joint's error (mm, times JOINT_SHARE) as the root mean square over frames (smooth where the reported median's middle
+    frames swap under a step, 23 of 36 cases measured; #70, 2026-10-30), each over its SCALES unit and the square root
+    of its kind's count, so each kind is its mean."""
+    values = {"skin": found["bones outside depth mm"], "turn": found["per group rms deg"],
+              "joint": found["per joint rms mm"]}
     share = {"skin": 1.0, "turn": 1.0, "joint": JOINT_SHARE}
     return np.array([np.sqrt(share[kind] / len(values[kind])) * values[kind][key] / SCALES[kind]
                      for kind, key in labels(found)])

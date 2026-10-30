@@ -8,7 +8,7 @@ right apart (owner, 2026-10-29: "isn't this exactly what the solver will find", 
 within `END_REACH`; the two global weights, the markers' goal and a group end's weight; a left and right landmark share
 theirs, mirrored, `paired`), `offsets` the centres' moves, `applied` turns them into a landmark table and weights, `case_residuals` is one tuning case's
 follow measures (bones' depth outside SOMA's skin by region, root mean square in mm: the share outside, the judged
-measure, is a step that a sub-micron pose change flips, so its differences were noise (#70, 2026-10-30); turns on the FROZEN calibration table, joints at `JOINT_SHARE`),
+measure, is a step that a sub-micron pose change flips, so its differences were noise (#70, 2026-10-30); turns on the FROZEN calibration table, joints at `JOINT_SHARE`; turns and joints tuned as their root mean square over frames, m.json's "per group rms deg" / "per joint rms mm", the reported median's middle frames swapping under a step in 23 of 36 measured cases (B4g, 2026-10-30)),
 `prior` pulls links to their anatomical starts and centres to the model's own, `sparsity` the Jacobian's pattern (own, parent and child groups; a
 global everything), `solved` runs scipy's least_squares (trf, bounded), its Jacobian by `_differences`: ABSOLUTE
 steps of `STEP` (2 mm of a link or centre, 0.1 of a log weight) over the pattern's column groups, never scipy's
