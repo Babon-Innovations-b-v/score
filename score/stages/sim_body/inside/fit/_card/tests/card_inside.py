@@ -44,3 +44,34 @@ def written_file(text):
     path = pathlib.Path(tempfile.mkdtemp()) / "several.xml"
     path.write_text(text)
     return path
+
+
+def the_set_places_equal_a_build_per_set():
+    """`_clip.set_places` from one build holding set 0's move (MOVE) against a Newton build moved by each set's own
+    move (none, MOVE, three times MOVE): every joint place within TOLERANCE; problems as text."""
+    import types
+    import mujoco
+    import newton
+    import numpy as np
+    from fit._card._clip import inside_joints, moved_inside, set_places
+    mjm = mujoco.MjModel.from_xml_string(SEVERAL)
+    path = written_file(SEVERAL)
+    arm = mujoco.mj_name2id(mjm, mujoco.mjtObj.mjOBJ_BODY, "arm")
+    fitting = types.SimpleNamespace(model=mjm, base=[mjm.body_pos.copy()], inside=np.array([arm]))
+
+    def built(move):
+        mjm.body_pos[arm] = fitting.base[0][arm] + move
+        builder = newton.ModelBuilder(up_axis=newton.Axis.Z)
+        builder.add_mjcf(str(path), convert_mjc_equality_constraints=False, parse_meshes=False)
+        moved_inside(builder, fitting)
+        return builder.finalize(device="cpu")
+    base = built(np.array(MOVE))
+    joints, problems = inside_joints(base, fitting), []
+    for scale in (0.0, 1.0, 3.0):
+        move = scale * np.array(MOVE)
+        wanted = built(move).joint_X_p.numpy()
+        got = set_places(base.joint_X_p.numpy(), joints, [MOVE], [move])
+        if np.abs(got - wanted).max() > TOLERANCE:
+            problems.append(f"set_places: the set moved {scale:g} x MOVE off its own build by "
+                            f"{np.abs(got - wanted).max():.6f} m")
+    return problems

@@ -138,7 +138,10 @@ before that.
 - Newton's `add_mjcf` merges a MuJoCo body's several joints into one D6 joint into that body, placed at its first
   joint (checked 2026-10-30: hinge, hinge, slide on one body gave one joint `a1_a2_a3`), so `_clip.moved_inside`'s map
   of child body to joint has one entry a body and moving it moves the whole body (`tests/card_inside.py`; keyed by
-  the joint's own label instead, KeyError). Myo joints on one body at different places are not checked here.
+  the joint's own label instead, KeyError). Myo joints on one body at different places are not checked here. `_clip.set_places(places, joints, held, moves)` (2026-10-30) gives a nudged set's joint places from one
+  build (`inside_joints`: the Newton joint into each `Fitting.inside` body) by moving those joints by the set's moves
+  less the ones the build holds, so `_sets.Sets` needs no Newton build per set: on the toy equal to a build per set
+  (none, 1 and 3 x the move) to 1e-6 m; dropping `held` 10 mm off (test). Not yet called by the body run.
 - One test file (`tests/test_the_card_step_and_projection_equal_the_cpu_prototype.py`): a 12-row fixture against the
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
   the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the
