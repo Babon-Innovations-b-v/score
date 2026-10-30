@@ -74,8 +74,8 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
 - **Mink stops on its joint bounds where the card does not** (#70, 2026-10-30): on heavy_short_legged frame 16 mink
   ends at its ConfigurationLimit bounds (cost 0.307) while the card's solve ends at 0.0094 inside every range; that
   frame held two right-arm constants on their 0.03 m bound (level 2 cost 0.900 against 0.602 with card frames). So
-  level 2's sampled frames are posed on the card, across sets (`card_paths`, `constants_across`: one launch a frame for every set; wiring into `_card_sets`
-  under way); the bar is no worse than the CPU per body, better where mink is stuck. Why (measured 2026-10-30): not
+  level 2's sampled frames are posed on the card, across sets (`card_paths`, `constants_across`: one launch a frame for every set; `evaluation/_card_sets`
+  solves each body's constants that way); the bar is no worse than the CPU per body, better where mink is stuck. Why (measured 2026-10-30): not
   an early stop. From frame 15's seed mink's first full step is 2.0 rad (tangent norm) and lands in a second basin;
   its next 66 steps shrink geometrically, the cost flat at 0.30691 to 1e-15, and `moved < STEP_DONE` fires at a true
   local minimum. Seeded at the card's frame 16, mink stays there (cost 0.00929). So a toy for the card's edge needs a
