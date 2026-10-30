@@ -174,18 +174,29 @@ def out_of(stage, path, spot, way, low, high):
     return out
 
 
-def lamps_through_fixtures(stage, place):
+def place_middle(stage, place, record):
+    """The middle a freed lamp moves toward: an inside place's shell's (its record's floor box, half its ceiling up),
+    never the stage's bound, which holds whatever pokes out of the shell (2026-10-30: walkway's ceiling ducts and wall
+    pipes reached 6.1 m over a 2.6 m ceiling, the bound's middle stood over the ceiling and its ceiling lamps moved up
+    into it, unlit); an open place's bound otherwise."""
+    from pxr import Usd, UsdGeom
+    if record.get("inside") and record.get("ceiling") is not None:
+        (low_x, low_z), (high_x, high_z) = record["floor"]
+        return np.array([(low_x + high_x) / 2, float(record["ceiling"]) / 2, (low_z + high_z) / 2])
+    return np.array(UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"]).ComputeWorldBound(
+        stage.GetPrimAtPath(f"/{place}")).ComputeAlignedRange().GetMidpoint())
+
+
+def lamps_through_fixtures(stage, place, record):
     """Each lamp standing inside a small mesh (its fixture: the stairwell's caged bulkheads held all seven, and their
     cage and lens took nearly all their light, 2026-10-13), by measure: where the fixture's solid parts (its meshes
     not named glow) stop at least ENCLOSED of the ways out, the lamp moves out of the whole fixture, FIXTURE_GAP clear,
-    toward its lens where it has one, else toward the place's middle; where they do not, a lamp behind a lens stands
+    toward its lens where it has one, else toward the place's middle (place_middle); where they do not, a lamp behind a lens stands
     just outside the lens, inside the rest of its fixture, so the lens lets its light through as clear glass does (the
     library's clear glass stops 2%; Cycles cannot pass light through a lens that also glows) and the cage or shade
     still shapes it; a lamp in an open fixture with no lens stays. {lamp path: {rule, blocked, moved}}."""
-    from pxr import Usd, UsdGeom
     boxes = fixture_boxes(stage, place)
-    middle = np.array(UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"]).ComputeWorldBound(
-        stage.GetPrimAtPath(f"/{place}")).ComputeAlignedRange().GetMidpoint())
+    middle = place_middle(stage, place, record)
     found = {}
     for path, spot, _ in own_lamps(stage, place):
         holders = [(name, low, high) for name, low, high in boxes
@@ -272,7 +283,7 @@ def write(place, record, seed_folder, out, kept=None, faces=None, library=None):
     stage = Usd.Stage.Open(composed)
     stage.SetEditTarget(Usd.EditTarget(layer))
     placed = placed_lamps(stage, place, record)
-    fixtures = lamps_through_fixtures(stage, place)
+    fixtures = lamps_through_fixtures(stage, place, record)
     sky_written = write_sky(stage, place, record, out, kept, faces, library)
     glow = (record.get("environment") or {}).get("glow")
     if glow and stage.GetPrimAtPath(f"/{place}/Environment"):

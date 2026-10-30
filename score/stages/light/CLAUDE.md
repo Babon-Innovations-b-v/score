@@ -59,8 +59,9 @@ gates.
   Blender's dither a speck): the render's float colour times its mixed light, through Blender's own view transform
   (light-passes' `view-transform.npz`, a table Blender made on its own look's save, `mix.displayed`), 8 bits once.
 - **Lamps are measured where they shine** (2026-10-13): a lamp inside its fixture moves out of it when the fixture's
-  solid parts stop 90% of its rays, or stands just outside its lens otherwise (`layer.lamps_through_fixtures`, each
-  lamp's rule in lamps.json); the suns, an inside place's too (its sun shines in through its openings), each in a
+  solid parts stop 90% of its rays (with no lens, toward an inside place's shell middle, never the stage's bound:
+  2026-10-30, walkway's ducts over its ceiling sent its ceiling lamps up into it), or stands just outside its lens
+  otherwise (`layer.lamps_through_fixtures`, each lamp's rule in lamps.json); the suns, an inside place's too (its sun shines in through its openings), each in a
   light group, are swept after the lamps when the lamps cannot reach the concept or their sweep stops at an end of its
   range (2026-10-30). Lamps at one spot are one lamp; one outside an inside place's shell (past its record's floor
   box or over its ceiling) stands in no view and is not judged unlit.
