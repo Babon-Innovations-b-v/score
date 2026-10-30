@@ -96,9 +96,12 @@ tests it turned red:
 - finish_parts.py: `return kept_finishes(face_label, labels.without_crumbs(mesh, smoothed), mesh.area_faces)` ->
   `return labels.without_crumbs(mesh, smoothed)`, or kept_finishes `lost = np.union1d(..., shrunk)` -> `lost =
   np.setdiff1d(np.unique(before), np.unique(after))`  -> cleaning_never_removes_a_finish_whole
-- finish_parts.py: `stray = small & ~np.isclose(area, piece_area[piece[face_of]]) & np.isin(finish, finish[~small])` ->
-  `stray = small & ~np.isclose(area, piece_area[piece[face_of]])`  ->
+- finish_parts.py: `stray = ~standing & ~np.isclose(area, piece_area[piece[face_of]]) & np.isin(finish,
+  finish[standing])` -> `stray = ~standing & ~np.isclose(area, piece_area[piece[face_of]])`  ->
   a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named
+- finish_parts.py: `standing = (area >= least) | fragmented_largest(area, finish, least)` -> `standing = area >= least`,
+  or fragmented_largest `return first & (area < least) & (total[finish] >= least)` -> `return first & (area < least)`
+  -> a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named
 - finish_parts.py: `own = np.where(np.isin(face_label, details), part_of.max() + 1 + island, part_of)` -> `own =
   part_of`  -> islands_of_a_detail_finish_sharing_a_part_are_no_stray
 - finish_parts.py: `areas[seen & (face_label == label)].sum()` -> `areas[seen].sum()`  ->
@@ -1326,8 +1329,9 @@ def test_cleaning_never_removes_a_finish_whole():
 
 def test_a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named():
     """astronaut-made-s1, 2026-10-23: the walk left jagged islands of the dark joints over its fabric (stray 0.054).
-    A stray joins the finish it borders; a finish with no island of its own size keeps its islands, a whole piece
-    keeps its finish, and a small piece of mixed finishes joins its largest island."""
+    A stray joins the finish it borders; a finish with no island of its own size keeps its islands, unless they cover
+    that size together (the cooktop's specks, #36): then its largest island stands for it and the rest are strays. A
+    whole piece keeps its finish, and a small piece of mixed finishes joins its largest island."""
     import patchy  # on the path finish_parts gives
     sphere = trimesh.creation.icosphere(subdivisions=4)
     loose = trimesh.creation.box(extents=(0.05, 0.05, 0.05))
@@ -1350,6 +1354,20 @@ def test_a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named():
     assert (found[~patch] == label[~patch]).all()
     after = finish_parts.patchiness(mesh, found, found, body)
     assert after["stray"] < before["stray"] and after["pass"], (before, after)
+    specks = np.zeros(len(mesh.faces), dtype=bool)  # camp kitchen_counter_2's cooktop (#36): finish 2 in specks only,
+    for spot in sphere.vertices[::40][:30]:  # each under STRAY_ISLAND, over it together
+        specks |= on_sphere & (np.linalg.norm(middles - spot, axis=1) < 0.06) & (label == 0)
+    speckled = np.where(specks, 2, label)
+    speck_islands = np.unique(patchy.islands(speckled, mesh.face_adjacency)[speckled == 2])
+    assert len(speck_islands) > 10 and mesh.area_faces[specks].sum() / mesh.area > patchy.STRAY_ISLAND
+    smoothed = finish_parts.without_strays(mesh, speckled)
+    left = np.unique(patchy.islands(smoothed, mesh.face_adjacency)[smoothed == 2])
+    assert len(left) == 1 and (smoothed == 2).sum() < specks.sum(), len(left)  # its largest island stands for it
+    assert finish_parts.patchiness(mesh, smoothed, smoothed, body)["pass"]
+    portholes = on_sphere & (label == 0) & ((np.linalg.norm(middles - (0, -0.99, 0.1), axis=1) < 0.05)
+                                            | (np.linalg.norm(middles - (-0.99, 0, 0.1), axis=1) < 0.05))
+    assert mesh.area_faces[portholes].sum() / mesh.area < patchy.STRAY_ISLAND  # two islands, small together too
+    assert (finish_parts.without_strays(mesh, np.where(portholes, 3, label))[portholes] == 3).all()
     piece = (np.arange(len(mesh.faces)) >= len(sphere.faces)) & (middles[:, 0] > 3.02)  # a small piece, two finishes
     label[piece] = 0
     assert (finish_parts.without_strays(mesh, label)[~on_sphere] == 1).all()

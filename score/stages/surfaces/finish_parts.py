@@ -89,10 +89,10 @@ def without_strays(mesh, face_label):
     none is left. A stray is an island of one finish (its faces joined by shared edges) under patchy.py's STRAY_ISLAND
     of the area, not a whole piece of the shape, whose finish holds an island of at least that elsewhere: a detail
     that small is a decal or a part of its own, never a patch of paint (patchy.py), and a finish with no such island
-    keeps its islands (the porthole glass, merged_islands). The walk paints each face no view sees from its nearest
-    seen face, and the views' labels follow a texture's shading: on astronaut-made-s1 (71% of its area seen by no
-    view) that left jagged islands of the dark joints at the collar, wrists, lower back and inner thighs, stray
-    0.054 against patchy's 0.03 (2026-10-23)."""
+    keeps its islands (the porthole glass, merged_islands) unless they cover that much together (fragmented_largest).
+    The walk paints each face no view sees from its nearest seen face, and the views' labels follow a texture's
+    shading: on astronaut-made-s1 (71% of its area seen by no view) that left jagged islands of the dark joints at the
+    collar, wrists, lower back and inner thighs, stray 0.054 against patchy's 0.03 (2026-10-23)."""
     import numpy as np
     import patchy
     pairs = mesh.face_adjacency
@@ -106,8 +106,9 @@ def without_strays(mesh, face_label):
         face_of = np.zeros(len(area), dtype=int)
         face_of[island] = np.arange(len(island))
         finish = label[face_of]
-        small = area < patchy.STRAY_ISLAND * areas.sum()
-        stray = small & ~np.isclose(area, piece_area[piece[face_of]]) & np.isin(finish, finish[~small])
+        least = patchy.STRAY_ISLAND * areas.sum()
+        standing = (area >= least) | fragmented_largest(area, finish, least)
+        stray = ~standing & ~np.isclose(area, piece_area[piece[face_of]]) & np.isin(finish, finish[standing])
         across = np.r_[pairs, pairs[:, ::-1]]
         # voted by larger islands only: two strays never swap, and a small piece's strays join its largest island
         across = across[stray[island[across[:, 0]]] & (area[island[across[:, 1]]] > area[island[across[:, 0]]])]
@@ -116,6 +117,21 @@ def without_strays(mesh, face_label):
         votes = np.zeros((len(area), int(label.max()) + 1))
         np.add.at(votes, (island[across[:, 0]], label[across[:, 1]]), 1.0)
         label = np.where((votes.sum(1) > 0)[island], votes.argmax(1)[island], label)
+
+
+def fragmented_largest(area, finish, least):
+    """Per island (its `area`, its `finish`), whether it is the largest island of a fragmented finish: one whose
+    islands are each under `least` but cover at least `least` together. That much paint is no small detail, and kept
+    as islands it is patchy paint: camp kitchen_counter_2's black glass cooktop, 2233 islands the largest 0.92% of the
+    area, stray 0.068, and lab_table_1's flask glass, 18 islands, stray 0.035 (#36, 2026-10-31). Its largest island
+    stands for it and the rest are strays."""
+    import numpy as np
+    count = int(finish.max()) + 1
+    total = np.bincount(finish, weights=area, minlength=count)
+    order = np.lexsort((-np.arange(len(area)), area, finish))  # per finish, its largest island (the first on a tie) last
+    first = np.zeros(len(area), dtype=bool)
+    first[order[np.r_[finish[order][1:] != finish[order][:-1], True]]] = True
+    return first & (area < least) & (total[finish] >= least)
 
 
 # A small detail finish (detail_finish): its family, or these words in its finish or parts. merged_islands gathers a
