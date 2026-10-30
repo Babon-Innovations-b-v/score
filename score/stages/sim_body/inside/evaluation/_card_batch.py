@@ -122,10 +122,9 @@ def sized_key(job, person):
                                                                    for group, quaternion in calibration.TABLE.items()))
 
 
-def cached_set_up(job, person, rig, worlds, path, made):
-    """`sim_body.person_set_up` with the body's `Size` and first file (no constants) made once per `sized_key` and
-    written again at `path` for every later set; `made` the recordings' targets (`clip_targets`, the recordings being
-    the body's clips in order)."""
+def cached_sized(job, person, rig, path):
+    """The body's `Size` and scales, its file without constants written at `path`: made once per `sized_key`,
+    written again for every later set."""
     key = sized_key(job, person)
     if key not in SIZED:
         size = Size(rig)
@@ -133,22 +132,48 @@ def cached_set_up(job, person, rig, worlds, path, made):
         SIZED[key] = size, path.read_text(), scales
     size, text, scales = SIZED[key]
     path.write_text(text)
-    return sim_body.constants_set_up(job, person, rig, worlds, path, size, scales, made)
+    return size, scales
 
 
-def body_run(seeds_root, table, weights, root, cases, saved, constants=None):
+def cached_set_up(job, person, rig, worlds, path, made, found=None):
+    """`sim_body.person_set_up` on `cached_sized`'s file; `made` the recordings' targets (`clip_targets`, the
+    recordings being the body's clips in order), `found` the constants when solved already."""
+    size, scales = cached_sized(job, person, rig, path)
+    return sim_body.constants_set_up(job, person, rig, worlds, path, size, scales, made, found)
+
+
+def laid_clips(root, cases, recordings):
+    """One body's clips (`cases` {case: job path}) laid for one set from its `_case.prepared` recordings: the clips,
+    the shared rig, the file's path and every clip's targets."""
+    clips = {case: _case.case_of(pathlib.Path(job), recordings) for case, job in cases.items()}
+    _, (_, person, _, _) = next(iter(clips.items()))
+    path = root / next(iter(clips)) / f"{person['name']}.xml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return clips, shared_rig(clips), path, clip_targets(clips)
+
+
+def body_unfitted(table, weights, root, cases, saved):
+    """One body's `Fitting` without constants for one set and its recordings' targets, what
+    `fit.constants_across` takes for that set (phase A of `_card_sets`: a set's constants solved with every other
+    set's)."""
+    saved.restore()
+    clips, rig, path, targets = laid_clips(root, cases, _case.prepared(table, weights, root, cases))
+    _, (job, person, _, _) = next(iter(clips.items()))
+    _, scales = cached_sized(job, person, rig, path)
+    held = fit.followed(person["segments"])
+    return fit.fitting(path, scales, held, person["segments"]), recorded_targets(clips, targets)
+
+
+def body_run(seeds_root, table, weights, root, cases, saved, constants=None, found=None):
     """One body's clips (`cases` {case: job path}) on the card: state restored, laid, set up once, solved in one batch,
-    each clip written by `_case.written`."""
+    each clip written by `_case.written`. `found`: the set's constants when solved already (`fit.constants_across`)."""
     saved.restore(constants)
     recordings = _case.prepared(table, weights, root, cases)
     began = time.time()
-    clips = {case: _case.case_of(pathlib.Path(job), recordings) for case, job in cases.items()}
-    rig = shared_rig(clips)
-    first, (job, person, _, worlds) = next(iter(clips.items()))
-    path = root / first / f"{person['name']}.xml"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    targets = clip_targets(clips)
-    record, scales, fitting = cached_set_up(job, person, rig, worlds, path, recorded_targets(clips, targets))
+    clips, rig, path, targets = laid_clips(root, cases, recordings)
+    _, (job, person, _, worlds) = next(iter(clips.items()))
+    record, scales, fitting = cached_set_up(job, person, rig, worlds, path, recorded_targets(clips, targets),
+                                           found)
     angles = batched_angles(_clip.for_fitting(fitting, path), clips,
                             {case: _seeds.first(seeds_root, case) for case in clips}, targets)
     seconds, frames = time.time() - began, sum(len(found) for found in angles.values())
