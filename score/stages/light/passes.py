@@ -30,6 +30,7 @@ MINUTES_A_VIEW = 5
 # The size the passes are rendered at: the sweep and the gates read them, nothing ships from them.
 CHECK_SIZE = [960, 540]
 VIEWS = "views.json"  # in the light layer's output: the views the place's light is rendered and judged on
+VIEW_TRANSFORM = "view-transform.npz"  # beside each job's looks: Blender's view transform as a table (light_passes)
 RECORD = "scene-record"  # the row writing a place's scene record: the node's own place's an after, a shown one's beside
 # What the assembly lays over the record (source), read as it reads them: the surface line's bake and paint, the made
 # ground; and the place's design surface data, which bakes of other places it lays (grounded.take_bakes).
@@ -322,7 +323,8 @@ def judge_magenta(output, inputs, evidence):
 
 def passes_faults(folder):
     found = [] if any(folder.glob("passes/*/*-passes.npz")) else ["no passes rendered"]
-    return found + ([] if any(folder.glob("passes/*/*-look.png")) else ["no look rendered"])
+    found += [] if any(folder.glob("passes/*/*-look.png")) else ["no look rendered"]
+    return found + ([] if any(folder.glob(f"passes/*/{VIEW_TRANSFORM}")) else ["no view transform"])
 
 
 PASSES = contracts.Contract("light-passes", 1, passes_faults, {"length": "metre", "up axis": "Y"})

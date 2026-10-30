@@ -5,8 +5,11 @@ own tone curve, fitted on the render's look against its light.
 
     tone_curve(light, look) -> curve       the render's light (linear luminance) to its look's luminance (0 to 1)
     mixed(passes, scales) -> light         a view's light with each group at its scale
-    smoothed(values, guide) -> values      values (a look's ratio) smoothed where the guide (the denoised look) is
-                                           flat, kept across its edges
+    smoothed(values, guide) -> values      values smoothed where the guide (the denoised look) is flat, kept
+                                           across its edges
+    gain(passes, scales, guide) -> gain    a view's mixed light over its rendered light, smoothed on the guide
+    displayed(transform, colour) -> look   linear colour through Blender's view transform (light_passes'
+                                           view-transform.npz), 0 to 1
     sweep(views, swept, target) -> scale   the scale of the swept lamps that brings the place's brightness nearest
                                            its concept's
     pinned(scale)                          whether a sweep stopped at an end of its range
@@ -83,6 +86,30 @@ def smoothed(values, guide):
     guide_mean, values_mean = mean(guide), mean(values)
     slope = (mean(guide * values) - guide_mean * values_mean) / (mean(guide * guide) - guide_mean ** 2 + GUIDED_EDGE)
     return mean(slope) * guide + mean(values_mean - slope * guide_mean)
+
+
+def gain(passes, scales, guide):
+    """Each pixel's light mixed at the scales over its rendered light, both smoothed on `guide` (the lamp groups are not
+    denoised; one scale on every lamp stays that scale, edges and all); where the guided filter leaves the rendered
+    light at none (its ring by a glare, a black), the ratio of their plain window means."""
+    light, light_mixed = passes["combined"].astype(np.float64), mixed(passes, scales)
+    rendered = smoothed(light, guide)
+    def mean(field):
+        return ndimage.uniform_filter(field, 2 * GUIDED_REACH + 1, mode="nearest")
+    plain = mean(light_mixed) / np.maximum(mean(light), FLOOR)
+    guided = np.maximum(smoothed(light_mixed, guide), 0.0) / np.maximum(rendered, FLOOR)
+    return np.where(rendered > FLOOR, guided, plain)
+
+
+def displayed(transform, colour):
+    """`colour` (linear RGB, ... x 3) as Blender's view transform shows it: its table trilinear in log2 light, the
+    light under its lowest knot or over its highest held there."""
+    table = np.asarray(transform["table"], dtype=np.float64)
+    low, high, knots = float(transform["low"]), float(transform["high"]), table.shape[0]
+    at = (np.log2(np.maximum(np.asarray(colour, dtype=np.float64), 2.0 ** low)) - low) / (high - low) * (knots - 1)
+    at = np.clip(at, 0.0, knots - 1).reshape(-1, 3).T
+    shown = [ndimage.map_coordinates(table[..., channel], at, order=1) for channel in range(3)]
+    return np.stack(shown, axis=-1).reshape(np.shape(colour))
 
 
 def mixed(passes, scales):

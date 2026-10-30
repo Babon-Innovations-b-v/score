@@ -49,9 +49,12 @@ gates.
   before any was rendered); an outdoor place's sky colour against its own concepts' sky; every view's black and blown
   shares against its concepts' (`exposure`, the owner's "no black or blown areas").
 - **A mixed look is clean** (owner, 2026-10-20: the Library's Camp picture full of specks): only the render's
-  combined light is denoised, never a lamp group, so a look's mix ratio is smoothed on the rendered look
-  (`mix.smoothed`, a guided filter) before it scales the look, and the table's grain check
-  (`score/checks/grain.py`, `stages.GRAIN_PICTURES`) fails a grainy look by name.
+  combined light is denoised, never a lamp group, so the groups' change is smoothed on the rendered look
+  (`mix.smoothed`, a guided filter) before it scales the light, and the table's grain check
+  (`score/checks/grain.py`, `stages.GRAIN_PICTURES`) fails a grainy look by name. The light is mixed at full
+  precision, never the 8-bit look scaled (2026-10-30: engineroom's look swept 32 times up made every level step of
+  Blender's dither a speck): the render's float colour times its mixed light, through Blender's own view transform
+  (light-passes' `view-transform.npz`, a table Blender made on its own look's save, `mix.displayed`), 8 bits once.
 - **Lamps are measured where they shine** (2026-10-13): a lamp inside its fixture moves out of it when the fixture's
   solid parts stop 90% of its rays, or stands just outside its lens otherwise (`layer.lamps_through_fixtures`, each
   lamp's rule in lamps.json); the suns, an inside place's too (its sun shines in through its openings), each in a

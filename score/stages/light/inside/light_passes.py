@@ -8,9 +8,14 @@ views.json is usd_views.py's ({"size", "views": [{"name", "eye", "aim", "up", "f
 prim paths of the place's own lamps, and "device": "CPU" where the job is predicted past its card (passes.py
 with_devices): Cycles then renders on the processor at the same samples and denoising. Per view it writes <name>-look.png (the look as usd_views draws it, glow and all)
 and <name>-passes.npz: the linear luminance (Rec. 709) of the whole picture (`combined`) and of each lamp's group
-(`lamp_<n>`, n its place in "lamps"), each averaged over 2 x 2 pixels, as float16; and passes.json, which lamp each
-group holds. Light is linear in a lamp's strength, so the picture at any strengths is `combined` plus each group
-times its scale less one: the light stage's sweep needs no other render. The npz also holds `missing`: the share of
+(`lamp_<n>`, n its place in "lamps"), each averaged over 2 x 2 pixels, as float16, and `colour`: the picture's linear
+colour at full size as the look is drawn from it (the denoised combined, the composite's where the glow ran), as
+float16; passes.json, which lamp each group holds; and view-transform.npz: the scene's view transform (its view, look
+and exposure) as Blender applies it to a look, a table of the look's colour (0 to 1) at TABLE_KNOTS knots of log2
+linear red, green and blue from `low` to `high`, so the light stage puts its mixed light through the same curve at
+full precision (mix.displayed), never scales the look's 8-bit levels. Light is linear in a lamp's strength, so the
+picture at any strengths is `combined` plus each group times its scale less one: the light stage's sweep needs no
+other render. The npz also holds `missing`: the share of
 the view's pixels whose surface colour (Cycles' diffuse or glossy colour pass) is Blender's missing-picture magenta
 (1, 0, 1), which passes.judge_magenta reads; and `sky`: at full size, where the eye's ray met no surface but the sky's
 own (the world's background or the day dome, Cycles' object index pass), which light's exposure leaves to the sky
@@ -35,6 +40,11 @@ GROUP = re.compile(r"Combined_(lamp_\d+)\.([RGB])$")
 # of red in green and in red less blue, red at least MISSING_LEAST: a grey or a lit grey never comes near it.
 MISSING_NEAR = 0.05
 MISSING_LEAST = 0.3
+# The view transform's table: AgX holds 16.5 stops around mid grey (log2 0.18 - 12.47 to + 4.03), so -16 to +4 stops
+# once the exposure is on the light covers it, clamped beyond; 65 knots, a third of a stop apart.
+TABLE_KNOTS = 65
+TABLE_STOPS = (-16.0, 4.0)
+FLOAT16_MOST = 65504.0
 
 
 def lamp_order(stage):
@@ -102,8 +112,44 @@ def passes_of(exr):
         if match:
             weight = LUMINANCE["RGB".index(match.group(2))]
             found[match.group(1)] = found.get(match.group(1), 0.0) + weight * values
-    held = {name: halved(values).astype(numpy.float16) for name, values in found.items()}
-    return dict(held, missing=missing_share(channels), sky=sky_mask(channels))
+    held = {name: numpy.minimum(halved(values), FLOAT16_MOST).astype(numpy.float16) for name, values in found.items()}
+    return dict(held, colour=colour_of(channels), missing=missing_share(channels), sky=sky_mask(channels))
+
+
+def colour_of(channels):
+    """The picture's linear colour the look is drawn from, top row first, full size, as float16: the composite's
+    (the glow over it) where the compositor ran, else the denoised combined."""
+    import numpy
+    names = [name for name in channels if re.search(r"(^|\.)Combined\.R$", name)]
+    red = next((name for name in names if "Composite" in name), next(iter(names)))
+    rgb = numpy.stack([channels[red[:-1] + axis] for axis in "RGB"], axis=-1)
+    return numpy.minimum(numpy.maximum(rgb, 0.0), FLOAT16_MOST).astype(numpy.float16)
+
+
+def view_transform(scene, path):
+    """The scene's view transform as Blender applies it to a look, written to `path`: a probe of every knot of the
+    table saved as the look is saved (16 bits, no dither), read back."""
+    import numpy
+    import OpenImageIO
+    exposure = scene.view_settings.exposure
+    low, high = TABLE_STOPS[0] - exposure, TABLE_STOPS[1] - exposure
+    axis = 2.0 ** numpy.linspace(low, high, TABLE_KNOTS)
+    knots = numpy.stack(numpy.meshgrid(axis, axis, axis, indexing="ij"), axis=-1).reshape(TABLE_KNOTS, -1, 3)
+    probe = bpy.data.images.new("view_probe", TABLE_KNOTS * TABLE_KNOTS, TABLE_KNOTS, float_buffer=True)
+    rows = numpy.concatenate([knots, numpy.ones(knots.shape[:2] + (1,))], axis=-1)[::-1]  # Blender's rows bottom first
+    probe.pixels.foreach_set(rows.astype(numpy.float32).ravel())
+    settings = scene.render.image_settings
+    kept = (settings.file_format, settings.color_mode, settings.color_depth, scene.render.dither_intensity)
+    settings.file_format, settings.color_mode, settings.color_depth = "PNG", "RGB", "16"
+    scene.render.dither_intensity = 0.0
+    saved = path.with_suffix(".png")
+    probe.save_render(filepath=str(saved), scene=scene)
+    settings.file_format, settings.color_mode, settings.color_depth, scene.render.dither_intensity = kept
+    looks = numpy.asarray(OpenImageIO.ImageBuf(str(saved)).get_pixels(OpenImageIO.FLOAT))[:, :, :3]
+    saved.unlink()
+    bpy.data.images.remove(probe)
+    numpy.savez_compressed(path, table=looks.reshape(TABLE_KNOTS, TABLE_KNOTS, TABLE_KNOTS, 3).astype(numpy.float16),
+                           low=numpy.float64(low), high=numpy.float64(high))
 
 
 def sky_mask(channels):
@@ -162,6 +208,7 @@ def main():
     scene.view_layers[0].use_pass_diffuse_color = scene.view_layers[0].use_pass_glossy_color = True
     scene.view_layers[0].use_pass_object_index = True  # the sky apart (sky_mask)
     (out / "passes.json").write_text(json.dumps({"groups": groups, "size": views["size"]}, indent=1))
+    view_transform(scene, out / "view-transform.npz")
     for view in views["views"]:
         scene.frame_set(int(view.get("frame", scene.frame_current)))
         usd_views.draw_effects(effects, scene.frame_current)

@@ -10,11 +10,12 @@ holds, as three rows of the stage table.
     light-passes  (paid) the seed with that layer rendered on the views of the place's own scene record (the
                   layer's views.json, passes.record_views), once, at passes.CHECK_SIZE, on one card class, each of
                   the place's own lamps in a Cycles light group of its own (inside/light_passes.py): per view the
-                  look and the luminance of the whole picture and of each lamp alone
+                  look, its float colour and the luminance of the whole picture and of each lamp alone; the view
+                  transform as a table
     light         (free) the sweep on the passes (mix.py): one scale for every lamp without a shaft (a floodlight's is
                   its shaft sweep's, 2026-10-11) bringing the place's brightness nearest its concept's, each blown-out
                   lamp turned down; those strengths written into the layer; the look at them mixed from the passes
-                  (looks/), and every fault measured on it
+                  at full precision, through the view transform (looks/), and every fault measured on it
 
     gates (light-layer)  lamps placed  every lamp of the record stands in the layer
                          lit           a lamp of its own, or (an open place) a sky light over the horizon
@@ -420,17 +421,18 @@ def strengths(place, passes_folder, lamps, layer_folder, record):
                     "lamps": dict(sorted(lamp_found.items(), key=lambda item: item[1]["group"]))}
 
 
-def look_at(held, curve, look, scales):
-    """A view's look at the scales, from its rendered look: every pixel's colour times the ratio of its look luminance
-    mixed at the scales to the rendered one, that ratio smoothed on the rendered look (mix.smoothed: the lamp groups
-    are not denoised)."""
-    rendered = mix.toned(curve, held["combined"])
-    ratio = mix.toned(curve, mix.mixed(held, scales)) / np.maximum(rendered, 1.0 / 255.0)
-    ratio = mix.smoothed(ratio, luminance_of(look)[:ratio.shape[0], :ratio.shape[1]])
-    rgb = np.asarray(Image.open(look).convert("RGB"), dtype=np.float64)
-    full = np.repeat(np.repeat(ratio, 2, axis=0), 2, axis=1)
-    full = np.pad(full, ((0, rgb.shape[0] - full.shape[0]), (0, rgb.shape[1] - full.shape[1])), mode="edge")
-    return Image.fromarray(np.clip(rgb * full[..., None], 0, 255).astype(np.uint8))
+def look_at(held, look, scales):
+    """A view's look at the scales, from its render's full-precision linear colour (`colour`): every pixel's light
+    times its gain (mix.gain, smoothed on the rendered look), then Blender's view transform (its view-transform.npz
+    beside the look) and 8 bits once, at the end (2026-10-30: the 8-bit look scaled 32 times made every level step a
+    speck)."""
+    light = held["combined"]
+    gain = mix.gain(held, scales, luminance_of(look)[:light.shape[0], :light.shape[1]])
+    colour = held["colour"].astype(np.float64)
+    full = np.repeat(np.repeat(gain, 2, axis=0), 2, axis=1)
+    full = np.pad(full, ((0, colour.shape[0] - full.shape[0]), (0, colour.shape[1] - full.shape[1])), mode="edge")
+    shown = mix.displayed(np.load(look.with_name(passes.VIEW_TRANSFORM)), colour * full[..., None])
+    return Image.fromarray(np.round(np.clip(shown, 0.0, 1.0) * 255.0).astype(np.uint8))
 
 
 def floodlight_sweep(place, passes_folder, scales, shafted, out, inputs):
@@ -462,12 +464,12 @@ def mixed_looks(passes_folder, scales, shafted, out):
     floodlights with shafts, with those lamps off (<view>-unlit.png): the before their heads and beams are measured
     against, taken from the same render, never from an older one."""
     for name in {path.parent.name.rsplit("-", 1)[0] for path in passes_folder.glob("passes/*/*-passes.npz")}:
-        for view, (held, curve, look) in view_passes(passes_folder, name).items():
+        for view, (held, _, look) in view_passes(passes_folder, name).items():
             target = out / "looks" / name
             target.mkdir(parents=True, exist_ok=True)
-            look_at(held, curve, look, scales).save(target / f"{view}-look.png")
+            look_at(held, look, scales).save(target / f"{view}-look.png")
             if shafted:
-                look_at(held, curve, look, dict(scales, **dict.fromkeys(shafted, 0.0))).save(
+                look_at(held, look, dict(scales, **dict.fromkeys(shafted, 0.0))).save(
                     target / f"{view}-unlit.png")
 
 
