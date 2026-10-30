@@ -19,7 +19,8 @@ its bones-outside shares exactly (every point's count), their depths outside (le
 kernel on both devices) to DEPTH_MM. On fit's own toy (`card_level2.py`), level 2's exact
 Jacobian (_level2.py) equals its residuals' central differences to 1e-6 of each column's largest entry from the
 host's kinematics, to 1e-5 from the card's (_level2_card.py), nothing outside `Problem.sparsity`; level 2 solved with it (`_constants.staged(jacobian=...)`) from a path moved
-0.05 off equals the 2-point solve to 1e-3 mm and 1e-4 deg.
+0.05 off equals the 2-point solve to 1e-3 mm and 1e-4 deg. Its frames under 3 sets' constants on one card
+model (each world its set's body_pos and site_pos, level 2 across sets) equal each set alone bit for bit.
 
 Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _kept's release `wp.where(inside, 1.0, 0.0)` made `0.0` (holds only added): rows 0 and 1 keep dof 0
@@ -63,6 +64,8 @@ Breaks (each applied once, seen red, reverted):
   knee's move columns are off.
 - (2026-10-29) _level2_card.CardKinematics.frames' `body_pos.assign(...)` dropped: the card keeps the model's base
   inside joint places, the knee's move columns are off.
+- (2026-10-30) _level2_card.CardKinematics.lay's per-world rows made `np.asarray(given)[:1]` (one set's constants
+  for every world): sets 1 and 2's frames off theirs alone by 0.056-0.064 (card_level2).
 - (2026-10-29) _constants.staged's `jacobian(problem, unknowns)` made `jacobian(problem, begin)` (the Jacobian
   frozen at the start): the toy's constants 0.027 mm off the 2-point solve's.
 - (2026-10-29) _solve's `CYCLE_STEP = 1e-5` made `0.0`: a seeded toy row cycles at its float32 pose's floor and never
@@ -82,7 +85,8 @@ from card_chain import (LINKS, OBJECTIVE_ROWS, chain_model, log_rate, objective_
                         residuals_and_jacobian)
 from card_toy import CLIP_FRAMES, TOY, mink_frames, toy_card, toy_clip, toy_errors  # noqa: E402
 from card_body import the_measures_equal_the_cpu_measure  # noqa: E402
-from card_level2 import (the_level2_jacobian_equals_its_differences,  # noqa: E402
+from card_level2 import (the_frames_per_world_equal_each_set_alone,  # noqa: E402
+                         the_level2_jacobian_equals_its_differences,
                          the_level2_solve_with_the_exact_jacobian_equals_differences)
 from card_across import the_sets_solved_together_equal_each_set_alone  # noqa: E402
 from card_sets import the_sets_batch_equals_each_clip_alone  # noqa: E402
@@ -246,6 +250,7 @@ def the_next_iteration_from_its_seeds_equals_mink():
 CHECKS = (the_rows_equal_each_set_alone, the_rowwise_optimizer_equals_each_set_alone,
           the_float64_frames_equal_each_set_alone, the_sets_solved_together_equal_each_set_alone,
           the_sets_batch_equals_each_clip_alone,
+          the_frames_per_world_equal_each_set_alone,
           the_level2_jacobian_equals_its_differences, the_level2_solve_with_the_exact_jacobian_equals_differences,
           the_measures_equal_the_cpu_measure, the_step_equals_the_prototype, the_projection_equals_the_prototype,
           the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame,

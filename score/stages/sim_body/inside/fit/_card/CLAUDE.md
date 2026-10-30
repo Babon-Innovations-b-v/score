@@ -137,3 +137,8 @@ before that.
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
   the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the
   errors), the measures on a toy body (`tests/card_body.py`, its check there too), level 2's two checks in `tests/card_level2.py`; it needs Newton's Python and a CUDA card, else prints `skipped`. About 20 s.
+- `_level2_card.CardKinematics.lay` / `frames(qpos, body_pos, site_pos)` (2026-10-30): each world its own row of
+  constants (worlds x n x 3), so one card model holds every set's sampled frames (level 2 across sets' first
+  piece); on the toy, 3 sets equal each set alone bit for bit (test). Not yet used: the sets' level 2 solves still
+  each run their own scipy least_squares; the lockstep driver (one card call a round for every set still running)
+  is the next piece.
