@@ -91,6 +91,11 @@ class RootTurns:
         turned = np.einsum("cij,ci->cj", self.bases, along / length)
         return np.concatenate([rows[:, :TURN.start], turned, rows[:, TURN.stop:]], axis=1).ravel()
 
+    def pulled_rows(self, reduced, rows):
+        """Derivative rows (count, full pose size) over `TapedSites`' full pose as rows over the chart at `reduced`
+        (each row through `pulled`), so `TapedMeasures`' rows meet the Body's inner unknowns."""
+        return np.stack([self.pulled(reduced, row) for row in np.asarray(rows, dtype=float)])
+
 
 class Pinned:
     """The inner unknowns with the bound-held entries kept in place, so every frame's block keeps one size: a held
@@ -113,3 +118,10 @@ class Pinned:
         pinned = np.array(found, dtype=float)
         pinned[self.held] = np.asarray(inner, dtype=float)[self.held] - self.solved[self.held]
         return pinned
+
+    def rows(self, rows):
+        """Derivative rows over the inner unknowns with every held entry's column zero: `whole` never reads a held
+        entry, so no residual moves with it."""
+        kept = np.array(rows, dtype=float)
+        kept[:, self.held] = 0.0
+        return kept

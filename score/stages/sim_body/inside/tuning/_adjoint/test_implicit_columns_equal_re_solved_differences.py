@@ -20,7 +20,8 @@ Cutting each seeded row from the first frame's block in place of its own (`_rows
 skin point's block at frame 0 (`rms_row` ignoring `point_frames`) turns it red.
 In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
 without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pulled` skipping the normalisation's
-projection (`along` the raw turn gradient) turns the root chart test red; `Pinned.gradient` giving a held entry zero in place of its spring (a
+projection (`along` the raw turn gradient) turns the root chart test red; `RootTurns.pulled_rows` cutting each copy's fourth turn coordinate in place of pulling the row
+through the chart turns it red; `Pinned.rows` keeping a held column turns the pinned test red; `Pinned.gradient` giving a held entry zero in place of its spring (a
 singular frame block) turns the pinned test red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red. In `_real.py`, `solved_rows`
 giving MuJoCo's order (no `newton_order`) turns the real body test red; `frame_couplings` zeroing
 the projection's polynomials turns its per-frame model check red; `bound_held` holding nothing (bound-held coordinates left in the pose) turns its refused check red (4.12e-3); `joint_parts`
@@ -233,6 +234,11 @@ def test_the_root_turn_charted_as_three_tangent_dofs_pulls_back_the_gradient():
     differences = [(cost(chart.full(moved + step)) - cost(chart.full(moved - step))) / 2e-6
                    for step in np.eye(point.size) * 1e-6]
     assert np.allclose(pulled, differences, atol=1e-6)
+    mix = np.random.default_rng(7).normal(size=(3, 18))
+    pulled_rows = chart.pulled_rows(moved, mix * np.cos(chart.full(moved)))
+    row_differences = np.stack([(mix @ np.sin(chart.full(moved + step)) - mix @ np.sin(chart.full(moved - step)))
+                                / 2e-6 for step in np.eye(point.size) * 1e-6], axis=1)
+    assert pulled_rows.shape == (3, 16) and np.allclose(pulled_rows, row_differences, atol=1e-6)
 
 
 def test_the_taped_gradient_equals_central_differences_of_the_cost():
@@ -351,3 +357,5 @@ def test_a_pinned_held_entry_keeps_the_frame_blocks_and_equals_the_pose_with_it_
                                          lambda point, outer: _gradient(put(point), outer)[~held], inner[~held], OUTER,
                                          1, free, (1e-5, 1e-5), 1e-8)
     assert np.allclose(kept, dropped, rtol=1e-6, atol=1e-9)
+    rows = np.ones((2, inner.size))
+    assert not pinned.rows(rows)[:, held].any() and (pinned.rows(rows)[:, ~held] == 1.0).all()
