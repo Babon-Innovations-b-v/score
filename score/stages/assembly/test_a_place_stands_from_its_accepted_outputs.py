@@ -1004,6 +1004,61 @@ def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
         ("pipe_1", "laid 0.28 m inside wall_3, nothing holding it there", 0.276)], fitting.held_faults(record, laid)
 
 
+def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_under_its_dome_is_left():
+    """hangar's wall pipes stood 22 m up through its 15 m roof, and the inside-a-static check left roofs out because a
+    dome's box holds the room under it. A roof is read by its mesh: a gable from 3 m eaves at x 0 and 10 to a 5 m ridge
+    at x 5. A lamp under the ridge (its top 4.5 m, the roof 4.8 m over its edge) is inside the roof's box and left; a
+    crate whose top corner reaches 3.6 m where the roof is 3.2 m is moved 0.4 m straight down; a ship 6 m tall 2.6 m
+    up through it at its corner is left as laid (more than 1 m), and the held gate names it and a pipe its wall
+    relation laid against its wall at the eave, 6 m up through the roof, by name and how far; a crate wholly above the
+    roof is not through it, and a box on a loft deck under the eave, 0.42 m through, is left and named, never sunk
+    into its deck.
+    Break: score/stages/assembly/fitting.py: `return fits + moved_out(stage, place, loose) + moved_down(stage, place,
+        loose)` -> `return fits + moved_out(stage, place, loose)`
+    Break: score/stages/assembly/fitting.py: `if len(reach) and reach.min() < 0 < reach.max() else 0.0` -> `if
+        len(reach) else 0.0`
+    Break: score/stages/assembly/fitting.py: `lowest = height.min(axis=1)` -> `lowest = np.where(np.isfinite(height),
+        height, -np.inf).max(axis=1)` (the roof's highest face over a place, as its box's top)
+    Break: score/stages/assembly/fitting.py: `faults += [(entry["name"], f"laid {found['metres']:.2f} m up through`
+        -> `faults += [] and [(entry["name"], ...`
+    Break: score/stages/assembly/fitting.py: `if not through or drop > OUT_MOST or {name` -> `if not through or drop >
+        OUT_MOST or False and {name`"""
+    from pxr import Usd, UsdGeom
+    from score.stages.assembly import fitting
+    stage = Usd.Stage.CreateInMemory()
+    UsdGeom.Xform.Define(stage, f"/{TOY}/Structure/roof_1")
+    roof = UsdGeom.Mesh.Define(stage, f"/{TOY}/Structure/roof_1/geo")
+    roof.CreatePointsAttr([(0, 3, 0), (5, 5, 0), (5, 5, 10), (0, 3, 10), (10, 3, 0), (10, 3, 10),
+                           (0, 3.1, 0), (5, 5.1, 0), (5, 5.1, 10), (0, 3.1, 10), (10, 3.1, 0), (10, 3.1, 10)])
+    roof.CreateFaceVertexCountsAttr([4, 4, 4, 4])
+    roof.CreateFaceVertexIndicesAttr([0, 1, 2, 3, 1, 4, 5, 2, 6, 7, 8, 9, 7, 10, 11, 8])
+    a_built_box(stage, f"/{TOY}/Structure/deck_2", (0.0, 1.8, 8.5), (0.9, 2.0, 9.5))
+    for name, low, high in (("lamp_1", (4.5, 3.5, 4.0), (5.5, 4.5, 5.0)),
+                            ("box_1", (0.2, 2.0, 9.0), (0.6, 3.5, 9.4)),
+                            ("crate_1", (0.5, 2.6, 1.0), (1.5, 3.6, 2.0)),
+                            ("ship_1", (1.0, 0.0, 6.0), (3.0, 6.0, 8.0)),
+                            ("crate_2", (2.0, 5.0, 2.0), (2.5, 5.5, 2.5)),
+                            ("pipes_1", (8.0, 0.0, 4.0), (8.4, 9.0, 4.4))):
+        a_built_box(stage, f"/{TOY}/Objects/{name}", low, high)
+    wall = {"how": "wall", "span": [[10.0, 0.0], [10.0, 10.0]], "out": [-1.0, 0.0], "why": "against its wall"}
+    entries = [*[{"name": name, "row": name[:-2]} for name in ("lamp_1", "crate_1", "ship_1", "crate_2",
+                                                                 "box_1")],
+               {"name": "pipes_1", "row": "pipes", "on": wall}]
+    names = {entry["name"] for entry in entries}
+    fits = [fit for fit in fitting.fitted(stage, TOY, entries, names) if fit["how"] == "down"]
+    assert [(fit["name"], fit["moved"], fit["holder"]) for fit in fits] == [("crate_1", 0.4, ["roof_1"])], fits
+    assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/crate_1")[1], (1.5, 3.2, 2.0)), fits
+    assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/ship_1")[0], (1.0, 0.0, 6.0))
+    through = fitting.through_roofs(stage, TOY, sorted(names))
+    assert [(found["name"], found["metres"]) for found in through] == [("box_1", 0.42), ("pipes_1", 6.0), ("ship_1", 2.6)], through
+    faults = fitting.held_faults({"objects": entries}, {"roofs": through, "objects": [
+        {"name": name, **dict(zip(("low", "high"), fitting.world_box(stage, f"/{TOY}/Objects/{name}")))}
+        for name in ("pipes_1", "ship_1")]})
+    assert [fault for fault in faults if "through" in fault[1]] == [
+        ("ship_1", "laid 2.60 m up through roof_1, nothing holding it there", 2.6),
+        ("pipes_1", "laid 6.00 m up through roof_1, nothing holding it there", 6.0)], faults
+
+
 def test_a_door_goes_in_its_opening_narrowed_to_fit():
     """A 1.4 x 0.1 x 2.4 m door laid off its wall goes in its 1.2 m wide, 2.1 m tall opening: shrunk to 1.2 / 1.4,
     its foot's middle on the opening's middle at its sill.
