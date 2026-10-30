@@ -90,3 +90,74 @@ def goal_weights(tail, ends):
     trusts, end_weight, goal = tail[:-2], tail[-2], tail[-1]
     every = np.concatenate([trusts, np.full(ends, end_weight * trusts.mean())])
     return np.sqrt(goal * every / max(every.sum(), 1e-12))
+
+
+def level2_arrow(problem, jacobian, solved, kept, differenced, step):
+    """`arrow_hessian`'s blocks of level 2's pinned gradient at `solved` (Problem order) in Body order, off J and r in
+    place of a gradient call per constant: a frame's rows read only its pose and the constants, so one pose coordinate
+    of every frame stepped together gives each frame's couplings (its rows' J_c^T r, differenced); the constants enter
+    the rows linearly but for `differenced` (the inside joints' slots), so the corner is J_c^T J_c, its `differenced`
+    rows and columns central differences. Held entries (`pinned_mask`) keep a unit row and column, as `Pinned`."""
+    held, frames, width = len(problem.slots), len(problem.path), problem.width
+    blocks, couplings = _pose_steps(problem, jacobian, solved, step)
+    rows = _dense(jacobian(problem, solved))[:, :held]
+    corner = rows.T @ rows
+    for constant in differenced:
+        up, down = np.array(solved, dtype=float), np.array(solved, dtype=float)
+        up[constant] += step
+        down[constant] -= step
+        change = (_gradient(problem, jacobian, up) - _gradient(problem, jacobian, down)) / (2 * step)
+        corner[:, constant] = corner[constant, :] = change[:held]
+    mask = pinned_mask(problem, solved, kept).astype(bool)
+    return _masked(blocks, couplings, 0.5 * (corner + corner.T), mask[:frames * width].reshape(frames, width),
+                   mask[frames * width:])
+
+
+def _pose_steps(problem, jacobian, solved, step):
+    """The frame blocks (frames, width, width) and couplings (frames, width, constants) off one pose coordinate of
+    every frame stepped together, a frame's couplings its own rows' J_c^T r."""
+    held, frames, width = len(problem.slots), len(problem.path), problem.width
+    blocks, couplings = np.zeros((frames, width, width)), np.zeros((frames, width, held))
+    for coordinate in range(width):
+        moved = []
+        for sign in (1.0, -1.0):
+            point = np.array(solved, dtype=float)
+            point[held + np.arange(frames) * width + coordinate] += sign * step
+            moved.append(_frame_products(problem, jacobian, point))
+        blocks[:, :, coordinate] = (moved[0][0] - moved[1][0]) / (2 * step)
+        couplings[:, coordinate, :] = (moved[0][1] - moved[1][1]) / (2 * step)
+    return blocks, couplings
+
+
+def _frame_products(problem, jacobian, point):
+    """At `point`: each frame's pose gradient (frames, width) and its own rows' constants gradient (frames, held)."""
+    held, frames, width = len(problem.slots), len(problem.path), problem.width
+    rows, residuals = _dense(jacobian(problem, point)), np.asarray(problem.residuals(point), dtype=float)
+    per = (residuals.size - held) // frames
+    framed = rows[:frames * per, :held] * residuals[:frames * per, None]
+    whole = rows.T @ residuals
+    return whole[held:].reshape(frames, width), framed.reshape(frames, per, held).sum(axis=1)
+
+
+def _gradient(problem, jacobian, point):
+    """J^T r at `point` (Problem order)."""
+    return _dense(jacobian(problem, point)).T @ np.asarray(problem.residuals(point), dtype=float)
+
+
+def _dense(matrix):
+    """`matrix` as a dense array (the card's Jacobian is sparse)."""
+    return np.asarray(matrix.toarray() if hasattr(matrix, "toarray") else matrix, dtype=float)
+
+
+def _masked(blocks, couplings, corner, held_poses, held_constants):
+    """The blocks with each held entry's row and column zero but a unit diagonal (`Pinned`'s spring)."""
+    blocks[held_poses] = 0.0
+    blocks.transpose(0, 2, 1)[held_poses] = 0.0
+    frame, coordinate = np.nonzero(held_poses)
+    blocks[frame, coordinate, coordinate] = 1.0
+    couplings[held_poses] = 0.0
+    couplings[:, :, held_constants] = 0.0
+    corner[held_constants] = 0.0
+    corner[:, held_constants] = 0.0
+    corner[np.nonzero(held_constants)[0], np.nonzero(held_constants)[0]] = 1.0
+    return blocks, couplings, corner

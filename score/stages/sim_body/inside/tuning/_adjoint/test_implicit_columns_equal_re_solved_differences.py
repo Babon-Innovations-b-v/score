@@ -20,7 +20,7 @@ In `_bodies.py`, a copy's leaders not offset to its own pose (`copied_couplings`
 without `copy * len(free)`) turns the copied couplings test red; `RootTurns.pulled` skipping the normalisation's
 projection (`along` the raw turn gradient) turns the root chart test red; `RootTurns.pulled_rows` cutting each copy's fourth turn coordinate in place of pulling the row
 through the chart turns it red; `Pinned.rows` keeping a held column turns the pinned test red; `Pinned.gradient` giving a held entry zero in place of its spring (a
-singular frame block) turns the pinned test red. In `_level2.py`, `level2_body`'s gradient left in the Problem's order (no `to_body`) turns the constants-first level 2 test red; `pinned_mask` holding no bound-held entry turns it red; `level2_body` rebuilding the Problem on every gradient call (no `problem_of` cache) turns it red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red; `picked_columns` laying a site's rows at its row among the known names in place of its place in `names` turns it red, and laying a trust at its row among the known names (with ends) turns it red; an end moved by its first part only (a middle end's second dropped) turns it red. In `_real.py`, `solved_rows`
+singular frame block) turns the pinned test red. In `_level2.py`, `level2_body`'s gradient left in the Problem's order (no `to_body`) turns the constants-first level 2 test red; `pinned_mask` holding no bound-held entry turns it red; `level2_body` rebuilding the Problem on every gradient call (no `problem_of` cache) turns it red; `level2_arrow`'s couplings as J_q^T J_c alone (the second-order part of its pose steps dropped) turns the level 2 arrow test red. In `_outer.py`, the trusts' derivative without its LOG_UNIT factor (`site_derivative`) turns the outer map test red; `picked_columns` laying a site's rows at its row among the known names in place of its place in `names` turns it red, and laying a trust at its row among the known names (with ends) turns it red; an end moved by its first part only (a middle end's second dropped) turns it red. In `_real.py`, `solved_rows`
 giving MuJoCo's order (no `newton_order`) turns the real body test red; `frame_couplings` zeroing
 the projection's polynomials turns its per-frame model check red; `bound_held` holding nothing (bound-held coordinates left in the pose) turns its refused check red (4.12e-3); `joint_parts`
 dropping the centres' scales turns its joints check red; `turn_groups` without the frozen table turns its turns check red; `skin_parts` without the geom's turn turns its skins check red (0.19 m). The case rows' derivative left over the full pose (no `RootTurns.pulled_rows`) turns its pulled check red. `trusted_outer` laying the landmarks' trusts out of their sites' order turns its trusted check red. `ends_of` without the holder's turn (R_body alone) turns its ends check red.
@@ -245,6 +245,17 @@ def test_level_2_body_off_a_constants_first_problem_moves_its_constants_as_re_so
     assert np.abs(re_solved).max() > 0.1
     assert np.abs(moved - re_solved).max() < 1e-4 * np.abs(re_solved).max()
 
+
+
+def test_level_2_arrow_off_j_and_r_equals_the_differenced_arrow():
+    from score.stages.sim_body.inside.tuning._adjoint import _level2
+    outer = np.array([0.4, -0.3])
+    solved, kept = toys.constants_first_solved(outer)
+    problem, jacobian = toys.ConstantsFirst(outer), lambda problem, unknowns: problem.jacobian(unknowns)
+    body = _level2.level2_body(lambda point: problem, jacobian, solved, kept, outer)
+    wanted = _adjoint.arrow_hessian(body.gradient, body.inner, outer, body.frames, body.pose_size, 1e-5)
+    for found, want in zip(_level2.level2_arrow(problem, jacobian, solved, kept, [], 1e-5), wanted):
+        assert np.abs(found - want).max() < 1e-6 * np.abs(want).max()
 
 LEVEL2_STATIONARY = 1e-2  # level 2's pinned gradient at its solve over the one at its start (heavy_kimodo, 2026-10-30: 1.6e-3)
 MOTION_SHARE = 0.02  # a slot's implicit dc/dtheta off its settled re-solves, over the column's largest entry
