@@ -7,6 +7,8 @@ degrees).
 
     cut(path)                           the close-up's object: its Pixal3D cut-out's largest piece, holes filled
     look_down(size)                     the one look-down its close-up is drawn and checked at
+    look_downs(size, cut)               the look-downs the gate holds it at: the stated one, and for a row lying
+                                        flat the one its close-up shows too (likeness_row.shown_look_down)
     best(points, triangles, cut, down)  the best outline of YAWS ways round the mesh, at that look-down
 
 The ring, the square and the outline are tools/usd/compare.py's and the silhouette likeness.py's, written again here
@@ -41,6 +43,23 @@ def look_down(size):
     """check.look_down: from straight above for a row of `size` (wide, deep, tall) that lies flat, else its stated
     look-down."""
     return float(closeup_check().look_down(size))
+
+
+def shown_look_down(target, size):
+    """likeness_row.shown_look_down: the look-down a close-up of a row of `size` shows, read off its cut `target`'s
+    height:width on the close-up check's own view, to the half degree."""
+    check = closeup_check()
+    rows, columns = np.where(target)
+    seen = (rows.max() - rows.min() + 1) / (columns.max() - columns.min() + 1)
+    downs = np.arange(0.0, check.TOP_DOWN_DEGREES + 0.5, 0.5)
+    return float(downs[np.argmin([abs(np.log(check.expected_proportion(size, down) / seen)) for down in downs])])
+
+
+def look_downs(size, target):
+    """The look-downs likeness_row.whole_best_way holds a take at: its stated one, and for a row that lies flat the
+    one its close-up's cut `target` shows too; its outline is the better of them."""
+    stated = look_down(size)
+    return [stated, shown_look_down(target, size)] if size and closeup_check().lies_flat(size) else [stated]
 
 
 def cut(path):

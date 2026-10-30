@@ -287,11 +287,13 @@ def fitted(points, size):
 
 def outlines(points, triangles, poses, size, closeup, row):
     """Each pose's (3 by 3, kit frame) best outline against the close-up (take_outline.best) of the take fitted to
-    its `size`, at the look-down its row's close-up was drawn at (its `read_size` or `size`)."""
+    its `size`, at the look-downs the likeness gate holds its row at (its `read_size` or `size`; take_outline.look_downs),
+    the better of them."""
     import take_outline
     target = take_outline.cut(closeup)
-    down = take_outline.look_down((row or {}).get("read_size") or (row or {}).get("size"))
-    return [take_outline.best(fitted(points @ pose.T, size), triangles, target, down) for pose in poses]
+    downs = take_outline.look_downs((row or {}).get("read_size") or (row or {}).get("size"), target)
+    return [max(take_outline.best(fitted(points @ pose.T, size), triangles, target, down) for down in downs)
+            for pose in poses]
 
 
 def stood_square(entries, labelled, take, inputs, built=False):
