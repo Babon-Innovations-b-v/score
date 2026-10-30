@@ -568,6 +568,32 @@ def test_a_design_object_is_laid_under_objects_with_its_take_model_and_its_own_r
         "objects rail_1: its model comes from the bake"]
 
 
+def test_a_row_ground_join_joined_is_the_ground_s_and_is_not_laid_again_as_an_object(tmp_path):
+    """Fault (2026-10-30): camp's rocks stood twice at one spot, an object at /camp/Objects/rock_1_1 and a piece of
+    the ground ground-join cut and seated at /camp/Outside/Detail/rock_1. A record entry whose row ground-join joined
+    (its join.json pieces) is laid by the ground alone: no object, and no longer named waiting.
+    Break: score/stages/assembly/made_waiting.py: `if entry.get("waiting") and entry.get("row") in joined:` ->
+        `if False:`
+    Break: score/stages/assembly/__init__.py: `return frozenset(json.loads(...)["pieces"])` -> `return frozenset()`"""
+    root = a_toy(tmp_path / "out")
+    entries = [{"name": f"{row_id}_1", "row": row_id, "bake": f"{row_id}_1", "at": [1.0, 0.0, 1.0],
+                "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "its model comes from the bake"}
+               for row_id in ("rock", "bench")]
+    assembly.take_record(a_record(tmp_path, {"objects": entries}), root.parent, TOY)
+    for model in ("rock_1", "bench_1"):
+        a_box_asset(root.parent / f"assets/{model}.usdc", (-1.0, 0.0, -1.0), (1.0, 1.0, 1.0))
+    (tmp_path / "bake").mkdir()
+    (tmp_path / "bake/baked.json").write_text(json.dumps({"rock_1": {}, "bench_1": {}}))
+    (tmp_path / "join").mkdir()
+    (tmp_path / "join/join.json").write_text(json.dumps({"place": TOY, "pieces": {"rock": {}}, "code ground": {}}))
+    joined = assembly.joined_rows({"ground-join": tmp_path / "join"})
+    assert joined == {"rock"} and assembly.joined_rows({}) == frozenset()
+    assert made_waiting.lay(root.parent, TOY, tmp_path / "bake", joined) == ["bench_1"]
+    stage = opened(root)
+    assert not stage.GetPrimAtPath(f"/{TOY}/Objects/rock_1") and stage.GetPrimAtPath(f"/{TOY}/Objects/bench_1")
+    assert not stage.GetPrimAtPath(f"/{TOY}").HasAttribute(assembly.WAITING)
+
+
 def a_box_asset(path, low, high):
     """A one-mesh asset, a box from `low` to `high` (its 8 corners as one face's points: only its bounds are read)."""
     corners = [(x, y, z) for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])]

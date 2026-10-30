@@ -10,6 +10,9 @@ there re-keys their paid rows.
           /<place>/Objects/<name>, where the settle, physics and motion find a laid object; then each object
           with an `on` (what holds it: in its opening, against a wall, on, within or against a holder) is laid by it
           at its built size (fitting.py), and LAID written: every design object's box as laid and what was fitted
+          An entry whose row ground-join joined into the ground (`joined`, its join.json pieces: a terrain row, the
+          terrain's) is laid there alone, under /<place>/Outside/Detail: it leaves score:waiting and is laid nowhere
+          else (2026-10-30: camp's rocks stood twice, as an object and as ground)
 """
 import json
 
@@ -68,9 +71,10 @@ def laid_by_relations(stage, out, place, record, objects, baked=None):
         "fitted": fits}, indent=1))
 
 
-def lay(out, place, bake):
+def lay(out, place, bake, joined=frozenset()):
     """Every waiting entry of the record whose row the bake made, laid in the base layer and taken off the root's
-    score:waiting, its design objects then laid by their relations (laid_by_relations); the rows laid."""
+    score:waiting (one whose row is in `joined` only taken off: the ground lays it), its design objects then laid by
+    their relations (laid_by_relations); the rows laid."""
     from pxr import Sdf, Usd, UsdGeom
     baked = json.loads((bake / "baked.json").read_text())
     record = json.loads((out / RECORD).read_text())
@@ -82,6 +86,9 @@ def lay(out, place, bake):
     for part, entries in record.items():
         for entry in entries if isinstance(entries, list) else []:
             if not isinstance(entry, dict):
+                continue
+            if entry.get("waiting") and entry.get("row") in joined:
+                waiting.remove(f"{part} {entry.get('name', '?')}: {entry['waiting']}")
                 continue
             model = entry["bake"] if "bake" in entry else entry.get("row")
             if not (entry.get("waiting") and model in baked):
@@ -102,9 +109,9 @@ def lay(out, place, bake):
             if "bake" in entry:
                 objects.append(entry["name"])
     laid_by_relations(stage, out, place, record, objects, baked)
-    if laid and waiting:
+    if waiting:
         root.GetAttribute(WAITING).Set(waiting)
-    elif laid:
+    elif root.HasAttribute(WAITING):
         root.RemoveProperty(WAITING)
     layer.Save()
     return list(dict.fromkeys(laid))

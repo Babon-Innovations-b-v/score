@@ -103,6 +103,14 @@ SEED_NOTE = ("An old output brought in from world 1's round-three stages, never 
              "on this page judge it.")
 
 
+def joined_rows(inputs):
+    """The rows ground-join joined into the place's ground (its join.json pieces), which the ground lays."""
+    if "ground-join" not in inputs:
+        return frozenset()
+    # join.json is score/stages/terrain/join.py's JOIN, named here so join.py stays out of the assembly's key
+    return frozenset(json.loads((pathlib.Path(inputs["ground-join"]) / "join.json").read_text())["pieces"])
+
+
 def make_from_seed(inputs, out, seed, params):
     """Copy a seed stage's own files into the output, then take every accepted layer the node reads in place of the
     seed's part (the record's prims, each layer stage's sublayer, the bakes, the ground, the sounds), and write what
@@ -125,7 +133,7 @@ def make_from_seed(inputs, out, seed, params):
     if "surfaces-bake" in inputs:
         bake = pathlib.Path(inputs["surfaces-bake"])
         take_bake(bake, pathlib.Path(inputs["surfaces-paint"]), out)
-        for row in made_waiting.lay(out, folder.name, bake):
+        for row in made_waiting.lay(out, folder.name, bake, joined_rows(inputs)):
             stamp_baked_hash(out / BASE_LAYER, row, bake / "made" / f"{row}.gltf")
     for claimed in claimed_bakes(inputs, out):
         take_bake(*claimed)
