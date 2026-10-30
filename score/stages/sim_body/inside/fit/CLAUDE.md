@@ -91,6 +91,8 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   seven, not from the card. Like with like (seven recordings, set s00000) card frames read joints mm max 59.4 against
   59.6, bones outside 13.9 % against 14.7 %, foot 17.6 against 19.2 %, hand 49.4 against 54.2 %; worse by a hair on
   shin (0.82 against 0.65 %, depth 0.19 against 0.17 mm) and thigh (18.0 against 17.7 %).
+  On the body's seven clips (heavy, 4 real sets, measured 2026-10-30 with the card and CPU shared): across sets 70.8 s
+  against 112.1 s one after another, measures within 0.0033; about 5.7 s against 22 s a nudged set after the first.
 - **The record states the honest measures first** (#70's audit item 2, 2026-10-29): `following` gives the bones
   outside SOMA's skin by region and the turns on main's frozen table before the joint mm (partly the ends' own pull)
   and the tree's-table turns; the frozen table is never edited to follow the tree.
