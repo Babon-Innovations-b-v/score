@@ -96,6 +96,9 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   0.022 rad, its constants traded within their box), which is where the hand and forearm gain.
   On the body's seven clips (heavy, 4 real sets, measured 2026-10-30 with the card and CPU shared): across sets 70.8 s
   against 112.1 s one after another, measures within 0.0033; about 5.7 s against 22 s a nudged set after the first.
+  Tall's seven clips the same way (4 sets): 73.5 s against 110.5 s, measures within 0.033 mm; about 4.7 s against
+  23.2 s a nudged set. Every tuning body has seven clips, so a Jacobian's ~4.5 h would be ~0.9 to 1.15 h, one
+  process a body, if a process holding 138 sets keeps a set's card memory (measured on 4 sets only).
 - **The record states the honest measures first** (#70's audit item 2, 2026-10-29): `following` gives the bones
   outside SOMA's skin by region and the turns on main's frozen table before the joint mm (partly the ends' own pull)
   and the tree's-table turns; the frozen table is never edited to follow the tree.
