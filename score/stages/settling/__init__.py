@@ -72,13 +72,15 @@ PAST_LIMITS = "would not rest as laid:"
 
 def files(place):
     """What the stage reads: the place's seed stage, kit (its seat and its pieces' spots), its design's surface data
-    and scene inventory (what holds each object up), the resting rules, and the drop script its machine runs with
+    and scene inventory (what holds each object up), the resting rules, the row kinds (which rows swing, read by the
+    assembly's fitting the grounded seed is laid by), and the drop script its machine runs with
     the trial script it borrows from and the Python both run in."""
     import stage_inputs
     found = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
              "surfaces": "{home}/design/surfaces/{place}.json",
              "inventory": stage_inputs.inventory_pattern(place),
              "resting rules": "{data}/checks/resting.json",
+             "row kinds": "{data}/checks/row-kinds.json",  # the assembly's fitting reads which rows swing from it
              "drop script": "{repo}/score/stages/settling/inside/settle_drop.py",  # run by path on the machine
              "trial script": "{repo}/score/stages/physics/inside/physics_trial.py",
              "drop env": "{repo}/score/stages/physics/inside/newton_env.sh"}

@@ -838,7 +838,8 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
     on the room face, z 0, never on the floor deck's side under it; the held gate passes it on either face. A
     1 x 2 x 0.1 m door in its 1.2 m opening, in a shell wall from z -0.1 to 0.1 (quarters' walls are its Shell), turned so its own left edge faces +x and its own -z the room, stands on the wall's room
     face, x -0.4 to 0.6, z 0.05 to 0.15; its swing takes z 0.1 to 1.1 over that span. A 3.2 m pipe laid on the wall
-    across the doorway goes to the longest stretch beside it, shrunk to 2.6 m, x -3 to -0.4, though it comes first in
+    across the doorway goes to the longest stretch beside its passage (the 1.2 m opening's), shrunk to 2.4 m, x -3 to
+    -0.6, though it comes first in
     the record; a lamp on the wall above the door stays; a pipe beside a door swinging out of the room stays. Only a
     door, hatch or gate swings so (its row kind's motion): a window stands in its opening and claims no swing (tube's
     wall panel, moved 5.4 m clear of a window, 2026-10-30).
@@ -892,12 +893,118 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
                                                                                   (0.6, 2.0, 0.15)), fits
     swing = fitting.swing_box(stage, f"/{TOY}/Objects/door_1")
     assert np.allclose(swing[0], (-0.4, 0.0, 0.1)) and np.allclose(swing[1], (0.6, 2.0, 1.1)), swing
-    assert fits["pipe_1"]["scale"] == 0.8125 and np.allclose(fits["pipe_1"]["low"], (-3.0, 0.0, 0.1)) \
-        and np.allclose(fits["pipe_1"]["high"], (-0.4, 0.8125, 0.36)), fits
+    assert fits["pipe_1"]["scale"] == 0.75 and np.allclose(fits["pipe_1"]["low"], (-3.0, 0.0, 0.1)) \
+        and np.allclose(fits["pipe_1"]["high"], (-0.6, 0.75, 0.34)), fits
     assert fitting.swings("round_door_left") and fitting.swings("metal_gate_open") and not fitting.swings("windows")
     out = (np.array([-0.4, 0.0, -0.9]), np.array([0.6, 2.0, 0.1]))
     scale, target = fitting.on_wall(np.array([-1.6, 0.0, 1.0]), np.array([1.6, 1.0, 1.32]), wall, [out])
     assert scale == 1.0 and np.allclose(target, (0.0, 0.0, 0.26)), (scale, target)
+
+
+def test_nothing_laid_stands_in_a_doorway_s_passage_or_a_facade_door_s_swing():
+    """#36, garage 2026-10-30: its doors swung out of the room clear, but pipes laid along the walls inside ran across
+    both doorways, so nobody could walk through; street's drying racks, laid on their facade under its doors (hung on
+    the facade, no opening), stood in the doors' swing either way. A 1 x 2 x 0.1 m door in its 1.2 m opening of a
+    shell wall from z -0.1 to 0.1, swinging out of the room (to -z), hangs on the outer face against its left jamb,
+    x -0.6 to 0.4, z -0.15 to -0.05; its
+    passage is the opening's width, x -0.6 to 0.6, a person's 1.8 m from its foot, and a step (0.75 m) beyond either
+    face, z -0.9 to 0.85. A 3.2 m pipe laid on the wall's room face across the doorway, out of the door's swing but in
+    its passage, goes to the longest stretch beside it, shrunk to 2.4 m, x -3 to -0.6; a lamp on the wall over the
+    doorway at 1.9 to 2.2 m, above the passage, stays. A 1 x 2 x 0.1 m shop door laid on a facade box (x -3 to 3, its
+    face toward the street z 4.8), swinging to the street, stands x 1.5 to 2.5 on it; a 1.2 m drying rack laid on the
+    facade at its foot goes to the nearest stretch of the face out of its swing that holds it, x 0.3 to 1.5, whole;
+    it never hangs in a recess the bake cut in the facade, which only a thing whose relation names one (its `room`:
+    the door it was cut for) hangs in (street's racks hung in its doors' recesses).
+    Break: score/stages/assembly/fitting.py: `recess_of(recesses, axis, sign, foot, box) if "room" in on else None` ->
+        `recess_of(recesses, axis, sign, foot, box)`
+    Break: score/stages/assembly/fitting.py: `return swing_box(stage, path), passage_box(*world_box(stage, path),
+        by_name[leaf]["on"], built)` -> `return (swing_box(stage, path),)`
+    Break: score/stages/assembly/fitting.py: `low[axis], high[axis] = min([low[axis], *faces]) - STEP,
+        max([high[axis], *faces]) + STEP` -> `low[axis], high[axis] = min([low[axis], *faces]), max([high[axis],
+        *faces])`
+    Break: score/stages/assembly/fitting.py: `high[1] = low[1] + PASSAGE_TALL` -> `pass` (the passage as tall as the
+        door: the lamp over it moved)
+    Break: score/stages/assembly/fitting.py: `if how in ("wall", "face") and name not in leaves else ()` -> `if how ==
+        "wall" and name not in leaves else ()`
+    Break: score/stages/assembly/fitting.py: `entry["on"]["how"] in ("in", "face") and swings(entry["row"])` ->
+        `entry["on"]["how"] == "in" and swings(entry["row"])`
+    Break: score/stages/assembly/fitting.py: `scale, target, face = on_face(low, high, on, box, surface, recesses,
+        clear)` -> `scale, target, face = on_face(low, high, on, box, surface, recesses)`"""
+    from pxr import Gf, Usd, UsdGeom
+    from score.stages.assembly import fitting
+    stage = Usd.Stage.CreateInMemory()
+    for name, size, at in (("Objects/pipe_1", (3.2, 1.0, 0.32), (0.0, 0.5, 2.0)),
+                           ("Objects/lamp_1", (0.4, 0.3, 0.1), (0.0, 2.05, 0.15)),
+                           ("Objects/door_1", (1.0, 2.0, 0.1), (0.0, 1.0, 3.0)),
+                           ("Shell/wall_2", (1.2, 0.1, 0.2), (0.0, -0.05, 0.0)),
+                           ("Objects/facade_1", (6.0, 3.0, 0.4), (0.0, 1.5, 5.0)),
+                           ("Objects/shop_door_1", (1.0, 2.0, 0.1), (2.0, 1.0, 3.0)),
+                           ("Objects/drying_rack_1", (1.2, 0.1, 0.4), (2.0, 0.05, 3.0))):
+        xform = UsdGeom.Xform.Define(stage, f"/{TOY}/{name}")
+        cube = UsdGeom.Cube.Define(stage, f"/{TOY}/{name}/geo")
+        cube.AddScaleOp().Set(Gf.Vec3f(*(side / 2 for side in size)))
+        xform.AddTransformOp().Set(Gf.Matrix4d().SetTranslate(Gf.Vec3d(*at)))
+    wall = {"how": "wall", "span": [[-3.0, 0.1], [3.0, 0.1]], "out": [0.0, 1.0]}
+    facade = {"how": "face", "holder": ["facade_1"], "out": [0.0, -1.0]}
+    doorway = {"how": "in", "middle": [0.0, 0.0, 0.0], "along": [1.0, 0.0], "wide": 1.2, "tall": 2.2}
+    entries = [{"name": "pipe_1", "row": "pipe", "on": wall}, {"name": "lamp_1", "row": "lamp", "on": wall},
+               {"name": "drying_rack_1", "row": "drying_rack", "on": facade},
+               {"name": "shop_door_1", "row": "shop_door", "on": facade},
+               {"name": "door_1", "row": "door", "on": doorway}]
+    fits = {fit["name"]: fit for fit in fitting.fitted(stage, TOY, entries, {entry["name"] for entry in entries})}
+    assert np.allclose(fits["door_1"]["low"], (-0.6, 0.0, -0.15)) and np.allclose(fits["door_1"]["high"],
+                                                                                   (0.4, 2.0, -0.05)), fits
+    passage = fitting.passage_box(*fitting.world_box(stage, f"/{TOY}/Objects/door_1"), doorway,
+                                  [box for _, box in fitting.walls(stage, TOY)])
+    assert np.allclose(passage[0], (-0.6, 0.0, -0.9)) and np.allclose(passage[1], (0.6, 1.8, 0.85)), passage
+    assert fits["pipe_1"]["scale"] == 0.75 and np.allclose(fits["pipe_1"]["low"], (-3.0, 0.0, 0.1)) \
+        and np.allclose(fits["pipe_1"]["high"], (-0.6, 0.75, 0.34)), fits
+    assert "lamp_1" not in fits, fits
+    assert np.allclose(fits["shop_door_1"]["low"], (1.5, 0.0, 4.7)), fits
+    assert fits["drying_rack_1"]["scale"] == 1.0 and np.allclose(fits["drying_rack_1"]["low"], (0.3, 0.0, 4.4)) \
+        and np.allclose(fits["drying_rack_1"]["high"], (1.5, 0.1, 4.8)), fits
+    box, recess = (np.array([-3.0, 0.0, 4.8]), np.array([3.0, 3.0, 5.2])), (np.array([1.5, 0.0, 4.8]),
+                                                                              np.array([2.5, 2.1, 5.0]))
+    rack = (np.array([1.4, 0.0, 4.4]), np.array([2.6, 0.1, 4.8]))
+    assert not fitting.on_face(*rack, facade, box, None, [recess])[2][1]  # a rack never hangs in a door's recess
+    assert fitting.on_face(*rack, dict(facade, room=0.0), box, None, [recess])[2][1]  # the door it was cut for does
+
+
+def test_a_door_in_a_slanted_wall_hangs_on_the_face_it_swings_to():
+    """#36, cockpit 2026-10-30: its rear doors, in an opening of a slanted wall (its boxes say nothing of its faces),
+    stood on the plan's line 0.37 m in front of the built wall and swung their kind's way into its jamb. A 1 m opening
+    at the origin along (0.6, 0.8), its built wall's jambs from 0.3 to 0.5 m across it the way (0.8, -0.6): a door
+    turned so its own -z points that way (its kind's swing) stands with its foot middle on the far face, (0.4, -0.3);
+    one swinging the other way on the near face, (0.24, -0.18); the held gate passes it there. A deck's corner 0.9 m
+    out beside it is no wall face (camp's dome door, by no built wall, was hung on its deck's corner).
+    Break: score/stages/assembly/fitting.py: `surface = wall_points(stage, place)` -> `surface = None`
+    Break: score/stages/assembly/fitting.py: `if high[1] - low[1] >= 2 * WALL_REACH])` -> `])`
+    Break: score/stages/assembly/fitting.py: `spot[[0, 2]] += way * float(across_off[near].max())` -> `spot[[0, 2]]
+        += way * float(across_off[near].min())`
+    Break: score/stages/assembly/fitting.py: `return float(np.linalg.norm(off - normal * np.clip(off @ normal, -2 *
+        WALL_REACH, 2 * WALL_REACH)))` -> `return float(np.linalg.norm(off))`"""
+    from pxr import Gf, Usd, UsdGeom
+    from score.stages.assembly import fitting
+    run, normal = np.array([0.6, 0.8]), np.array([0.8, -0.6])
+    jambs = [run * along + normal * deep for along in (-1.5, -0.5, 0.5, 1.5) for deep in (0.3, 0.5)]
+    points = np.array([[x, y, z] for x, z in jambs for y in (0.0, 2.0)])
+    stage = Usd.Stage.CreateInMemory()
+    UsdGeom.Mesh.Define(stage, f"/{TOY}/Shell/wall_1").GetPointsAttr().Set([Gf.Vec3f(*point) for point in points])
+    corner = normal * 0.9  # a deck's corner beside the opening, no wall
+    UsdGeom.Mesh.Define(stage, f"/{TOY}/Shell/deck_1").GetPointsAttr().Set(
+        [Gf.Vec3f(corner[0], y, corner[1]) for y in (-0.2, 0.0)] + [Gf.Vec3f(-5.0, y, -5.0) for y in (-0.2, 0.0)])
+    xform = UsdGeom.Xform.Define(stage, f"/{TOY}/Objects/door_1")
+    UsdGeom.Cube.Define(stage, f"/{TOY}/Objects/door_1/geo").AddScaleOp().Set(Gf.Vec3f(0.5, 1.0, 0.05))
+    xform.AddTransformOp().Set(Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 1, 0), -53.130102))
+                               * Gf.Matrix4d().SetTranslate(Gf.Vec3d(0.0, 1.0, 2.0)))
+    opening = {"how": "in", "middle": [0.0, 0.0, 0.0], "along": [0.6, 0.8], "wide": 1.0, "tall": 2.0}
+    fits = fitting.fitted(stage, TOY, [{"name": "door_1", "row": "door", "on": opening}], {"door_1"})
+    middle = (np.array(fits[0]["low"]) + np.array(fits[0]["high"])) / 2
+    assert np.allclose(middle[[0, 2]], (0.4, -0.3), atol=1e-3) and abs(fits[0]["low"][1]) < 1e-6, fits
+    assert np.allclose(fitting.opening_spot(opening, opens=-normal, points=points), (0.24, 0.0, -0.18)), "near face"
+    record = {"objects": [{"name": "door_1", "on": opening, "fills": True}]}
+    assert fitting.held_faults(record, {"walls": [], "objects": [{"name": "door_1", "low": fits[0]["low"],
+                                                                  "high": fits[0]["high"]}]}) == [], fits
 
 
 def test_a_monitor_goes_on_its_console_s_top_within_its_span():

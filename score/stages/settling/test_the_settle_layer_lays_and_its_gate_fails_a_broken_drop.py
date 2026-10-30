@@ -27,6 +27,8 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   `False` (nothing kept) (2026-10-30).
 - a_pair_crossing_only_after_the_drop_still_breaks: crossing's `motions.get(name, np.eye(4))` made `np.eye(4)` (the
   pair judged as laid, not as the layer lays it).
+- the_row_kinds_the_fitting_reads_are_among_its_files: files' `"row kinds"` entry dropped (a change to which rows
+  swing would not re-key the settle row, whose grounded seed the assembly's fitting lays by it, 2026-10-30).
 - a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down (held.py): held_objects without its `row not in mounted`
   test.
 - a_cloud_drop_runs_on_the_trials_card_in_its_python_once (tools/usd/drop.py): simulate's `machine.run(..., env=ENV)`
@@ -384,7 +386,14 @@ def a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down():
         return [] if found == ["cup_1"] else [f"held to snap down: {found}, not the cup alone"]
 
 
-CHECKS = (a_pair_crossing_as_laid_is_kept_not_broken, one_stacked_on_a_support_left_as_laid_is_left_as_laid,
+def the_row_kinds_the_fitting_reads_are_among_its_files():
+    # the grounded seed is laid by the assembly's fitting, which reads which rows swing from the row kinds' table
+    from score.stages import row_kinds
+    found = settle.files(PLACE).get("row kinds", "").format(data=REPO / "data")
+    return [] if found == str(row_kinds.TABLE) else [f"row kinds declared as {found!r}, not {row_kinds.TABLE}"]
+
+
+CHECKS = (the_row_kinds_the_fitting_reads_are_among_its_files, a_pair_crossing_as_laid_is_kept_not_broken, one_stacked_on_a_support_left_as_laid_is_left_as_laid,
           a_pair_crossing_only_after_the_drop_still_breaks,
           a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down, a_row_the_reading_gave_no_anchor_reads_as_none, the_laid_stage_keeps_each_object_where_it_was_laid,a_cloud_drop_runs_on_the_trials_card_in_its_python_once, the_layer_lays_each_object_at_its_rest,
           the_drop_gate_fails_a_broken_drop_and_names_what_was_kept,
