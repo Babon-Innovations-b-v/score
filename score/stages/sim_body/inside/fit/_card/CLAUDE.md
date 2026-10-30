@@ -88,7 +88,8 @@ before that.
   constants 0.0011 mm, coordinates 3.2e-4 deg, cost 6.5e-10 relative, both 24 evaluations, status 2; 6.4 s against
   36.7 s (a Jacobian 0.20 s on the host, 1.7 s by differences). With the card's kinematics: 5.2e-6 of a column;
   constants 0.019 mm, coordinates 5.8e-4 deg, cost 8.7e-9 relative, 6.2 s against 35.5 s. `frame_rows` gives COO
-  triplets (the frame's own block's nonzeros, the move blocks vectorised, `moved_blocks`; a dense block over every
+  triplets (the frame's own block's nonzeros, the move blocks vectorised, `moved_blocks` and the model's `couplings` made once per Jacobian, not
+  per frame, 809dd8a2; a dense block over every
   unknown then csr took the Jacobian to 0.20 s): heavy's Jacobian 0.066 s with the card's kinematics, level 2 3.0 s
   against 32.3 s (constants 0.015 mm, coordinates 0.0020 deg, cost 6.4e-9 relative, 25 evaluations against 24). Wired as an
   option: `../_constants.staged(jacobian=...)` (2-point differences the default and the reference; `constants` does
