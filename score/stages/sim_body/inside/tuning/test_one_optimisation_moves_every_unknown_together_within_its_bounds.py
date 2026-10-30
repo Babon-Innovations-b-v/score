@@ -23,6 +23,10 @@ Breaks (each applied once, seen red, reverted):
   before it, the one-call Jacobian differs from the serial one (card build step 6a).
 - (2026-10-30) solved's `if exact: return exact(unknowns)` dropped: the adjoint's Jacobian is ignored and the
   differences still run (card build step 6b).
+- (2026-10-30) case_residuals' `/ SCALES[kind]` dropped: a measure counts in its raw mm or degrees, not in units of
+  its kind's noise floor, so the kinds are not weighed alike.
+- (2026-10-30) case_residuals' share's `"joint": JOINT_SHARE` made `1.0`: the joints, SOMA's own fit targets, count
+  as much as skin and turns.
 
 Run: .venv/bin/python score/stages/sim_body/inside/tuning/test_one_optimisation_moves_every_unknown_together_within_its_bounds.py
 """
@@ -185,6 +189,17 @@ def test_a_global_weight_is_written_back_into_its_module():
 def test_the_run_settles_when_the_objective_stops_moving():
     assert tuning.settled([10.0, 5.0, 4.99, 4.985, 4.98])
     assert not tuning.settled([10.0, 5.0, 4.0, 3.0])
+
+
+def test_one_scale_of_every_measure_is_one_unit_of_its_kind_and_joints_count_their_share():
+    found = {"bones outside depth mm": {"arm": tuning.SCALES["skin"], "leg": tuning.SCALES["skin"]},
+             "per group deg": {name: [tuning.SCALES["turn"]] for name in ("Hips", "LeftLeg", "RightLeg")},
+             "per joint mm": {name: [tuning.SCALES["joint"]] for name in ("knee_l", "knee_r")}}
+    residuals = tuning.case_residuals(found)
+    kinds = [kind for kind, _ in tuning.labels(found)]
+    norms = {kind: sum(value ** 2 for value, named in zip(residuals, kinds) if named == kind) for kind in set(kinds)}
+    assert np.allclose([norms["skin"], norms["turn"], norms["joint"]], [1.0, 1.0, tuning.JOINT_SHARE])
+    assert tuning.JOINT_SHARE < 1.0
 
 
 if __name__ == "__main__":
