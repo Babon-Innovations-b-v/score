@@ -50,6 +50,8 @@ LIKENESS_EUROS = 1.0
 # The library families a lamp's lit faces take (score/stages/surfaces/finish_parts.py SEEN_THROUGH_FAMILIES: glass,
 # screen and light, judged by their own colour), which a code-built light leaves to the light layer (finishes_missing).
 LIT_FAMILIES = ("glass", "screen", "light")
+# A sheet's words (`sheet`): a paper, a note, a card, a poster, a label.
+SHEET_WORDS = ("paper", "note", "card", "poster", "label")
 # The pose rules the bake's guard list reads (score/stages/surfaces/tumble.py rules_of), so drawn_size lays a model
 # as the bake laid it.
 POSE_RULES = {"stance rules": "{data}/checks/stance.json", "resting rules": "{data}/checks/resting.json"}
@@ -122,9 +124,40 @@ def model_checks(path, size, kind, square):
     if thin_straight.slender(size):
         laid = (mesh.extents * max(laid) / mesh.extents.max()).tolist()
     found = {"model_check": model_gate.check(kind, mesh, laid), "closed": bool(mesh.is_watertight)}
+    if sheet(kind, laid):
+        wall = round(through(mesh, laid, model_gate.SAMPLES), 4)
+        found["model_check"].update(thinnest=wall, sheet=True,
+                                    **{"pass": found["model_check"]["spread"] <= model_gate.SPREAD_LIMIT
+                                       and wall >= model_gate.least_wall(laid)})
     if square:
         found["straight"] = straight.straightness(mesh)
     return found
+
+
+def sheet(kind, laid):
+    """Whether a kind is a sheet (SHEET_WORDS in its name, laid thinner than flat_sheet.SHEET_SHARE of its longest side),
+    its wall read `through` its face rather than along its faces' normals: a sheet's warp and rounded rim tilt those
+    (quarters' paper 0.6 mm and sticky note 0.3 mm, habitat's paper note 1.4 mm, each a solid sheet, round 25)."""
+    return any(word in kind.lower() for word in SHEET_WORDS) and min(laid) < flat_sheet.SHEET_SHARE * max(laid)
+
+
+def through(mesh, laid, samples):
+    """A sheet's 5th-percentile wall once fitted to `laid` (model.py's `thinnest` fit), inside its rim: rays straight
+    down its thinnest side from above it, each its first stretch inside the mesh (a ray that enters and never leaves,
+    a one-sided plane, reads 0; a hollow shell reads its outer wall), none within its model's own thickness of its edge
+    (the finish's voxel remesh rounds a sheet's rim over that band: quarters' sticky note, 6 mm as baked, 1 mm laid)."""
+    fitted = mesh.copy()
+    fitted.vertices = (fitted.vertices - fitted.bounds[0]) / np.maximum(fitted.extents, 1e-6) * np.array(laid)
+    across = int(np.argmin(laid))
+    rim = min(float(mesh.extents[across]), 0.25 * min(laid[side] for side in range(3) if side != across))
+    starts = rim + np.random.default_rng(0).uniform(0, 1, (samples, 3)) * (np.array(laid) - 2 * rim)
+    starts[:, across] = laid[across] + 0.01
+    down = np.zeros((samples, 3))
+    down[:, across] = -1
+    where, index, _ = fitted.ray.intersects_location(starts, down, multiple_hits=True)
+    heights = [np.sort(where[index == ray, across])[::-1] for ray in np.unique(index)]
+    walls = [found[0] - found[1] if len(found) > 1 else 0.0 for found in heights]
+    return float(np.percentile(walls, 5)) if walls else 0.0
 
 
 def drawn_size(row, model, rows, inputs):
