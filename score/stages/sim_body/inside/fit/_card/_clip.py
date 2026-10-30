@@ -169,6 +169,22 @@ def moved_inside(builder, fitting):
                                                 wp.transform_get_rotation(place))
 
 
+def inside_joints(newton_model, fitting):
+    """The Newton joint into each of `fitting.inside`'s bodies, in its order (one a body: Newton merges a body's
+    several MuJoCo joints into one)."""
+    labels = [label.split("/")[-1] for label in newton_model.body_label]
+    into = {labels[child]: joint for joint, child in enumerate(newton_model.joint_child.numpy())}
+    return np.array([into[fitting.model.body(int(body)).name] for body in fitting.inside])
+
+
+def set_places(places, joints, held, moves):
+    """A nudged set's Newton joint places ([joints, 7], translation first) from `places`, which hold the inside
+    joints' moves `held`, with those joints moved by `moves` instead: no Newton build per set."""
+    moved = np.array(places, dtype=np.float32, copy=True)
+    moved[joints, :3] += np.asarray(moves) - np.asarray(held)
+    return moved
+
+
 def for_fitting(fitting, path):
     """The `Clip` of a `..._model.Fitting` compiled from the person's file at `path` with its current inside joint moves:
     Newton's model of the same file, refused when its site places miss MuJoCo's by over MAPPED."""
