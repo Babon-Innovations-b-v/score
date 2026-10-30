@@ -112,17 +112,23 @@ def spread(count, most=SAMPLE):
     return np.unique(np.linspace(0, count - 1, min(count, most)).round().astype(int))
 
 
-def sampled(fit, recordings):
+def sampled_targets(recordings):
     """The frames the constants are fitted on, from every recording of the body ([(turns, points)], each as `targets`
-    gives them): SAMPLE spread over them by length, at least two a recording, each recording's posed by mink from its
-    own start, on the card (`_card._sampled`: mink stops on its joint bounds where the card does not). Returns
-    (turns, points, path), the recordings' frames end to end."""
+    gives them): SAMPLE spread over them by length, at least two a recording. Returns (turns, points, lengths), the
+    recordings' sampled frames end to end and how many each recording gave."""
     total = sum(len(turns) for turns, _ in recordings)
     picked = [(turns, points, spread(len(turns), max(2, round(SAMPLE * len(turns) / total))))
               for turns, points in recordings]
-    turns = np.concatenate([turns[sample] for turns, _, sample in picked])
-    points = np.concatenate([points[sample] for _, points, sample in picked])
-    return turns, points, card_path(fit, turns, points, [len(sample) for _, _, sample in picked])
+    return (np.concatenate([turns[sample] for turns, _, sample in picked]),
+            np.concatenate([points[sample] for _, points, sample in picked]),
+            [len(sample) for _, _, sample in picked])
+
+
+def sampled(fit, recordings):
+    """`sampled_targets` with their angles, each recording's posed from its own start on the card (`_card._sampled`:
+    mink stops on its joint bounds where the card does not). Returns (turns, points, path)."""
+    turns, points, lengths = sampled_targets(recordings)
+    return turns, points, card_path(fit, turns, points, lengths)
 
 
 def card_path(fit, turns, points, lengths):
@@ -160,6 +166,11 @@ def constants(fit, recordings):
     {"marks": {landmark: [3] m, its body's frame}, "joints": {body: [3] m, its parent's frame}, "evaluations": n,
     "followed": [group]}."""
     turns, points, path = sampled(fit, recordings)
+    return constants_on(fit, turns, points, path)
+
+
+def constants_on(fit, turns, points, path):
+    """`constants`' solve on sampled targets already posed (`path` their angles at the start constants)."""
     free = [index for index, name in enumerate(fit.marks) if name not in HELD and not name.startswith(END)]
     found, _, evaluations = staged(fit, path, turns, points, fit.neutral(), free, card_jacobian(fit, len(path)))
     marks, joints = fit.unpack(found)
