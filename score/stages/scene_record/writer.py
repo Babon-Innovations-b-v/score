@@ -33,7 +33,9 @@ builds it unchanged; it lands as record/<place>.json in the output.
                  light over the horizon, every other body, every backdrop), which the light layer draws
                  (score/stages/light/sky.py); the record draws no sky and holds no air the design does not give
     views        one from inside each doorway looking across, one from each of the plan's person spots (an inside
-                 place's only where the eye stands inside its outline: the others in `views_left_out`, with why)
+                 place's only where the eye stands inside its outline: the others in `views_left_out`, with why); an
+                 open place's spot at its floor stands on the terrain row's made ground under it (`terrain`, the one
+                 thing made that the record reads: wreck's eyes stood under its ground, 2026-10-30)
     doorways     the plan's doorways in the place's frame (the plan row's), which ground-fit judges
     places       each other place its holder's plan holds that a door or opening of this place leads to, stood where
                  the holder's plan holds it (`holds`), turned as its own plan's frame is
@@ -347,10 +349,11 @@ def item_middle(plan, name):
     return np.array([(low_x + high_x) / 2, (low_z + high_z) / 2])
 
 
-def views(plan, eye_height):
+def views(plan, eye_height, ground=None):
     """One view inside each doorway looking across the inside's middle (the doorway's mirror through it), one from
     each standing spot to the middle at its own level or to the plan item it looks at on the floor; each eye at
-    standing height over its level (the plan row's plan.json: its `doorways` and `standing`)."""
+    standing height over its level (the plan row's plan.json: its `doorways` and `standing`), a spot at the floor
+    over the made ground under it where `ground` (ground_under) has one there."""
     found, middle = [], middle_of(plan)
     for door in plan.get("doorways", []):
         at = np.asarray(door["middle"], dtype=float)
@@ -363,12 +366,42 @@ def views(plan, eye_height):
     for number, spot in enumerate(plan["standing"], 1):
         aim = item_middle(plan, spot["looks_at"]) if spot["looks_at"] else middle
         aim_level = plan["floor_height"] if spot["looks_at"] else spot["level"]
+        stands = spot_ground(spot, plan["floor_height"], ground)
         found.append({"name": f"spot-{number}",
-                      "eye": [round(spot["at"][0], 3), round(spot["level"] + eye_height, 3), round(spot["at"][1], 3)],
+                      "eye": [round(spot["at"][0], 3), round(stands + eye_height, 3), round(spot["at"][1], 3)],
                       "aim": [round(aim[0], 3), round(aim_level + AIM_HEIGHT, 3), round(aim[1], 3)],
                       "fov": far.VIEW_FOV, "from": f"plan standing spot {number}, looking to " +
                                               (f"plan item {spot['looks_at']!r}" if spot["looks_at"] else "the middle")})
     return found
+
+
+def spot_ground(spot, floor_height, ground):
+    """What a standing spot stands on: the made ground under it where the spot is at the floor and `ground` has one
+    there (wreck's spot-3 and spot-6 eyes stood 2.6 and 4.3 m under its ground, their views black, 2026-10-30), else
+    its level (a deck)."""
+    under = ground(*spot["at"]) if ground and spot["level"] <= floor_height else None
+    return spot["level"] if under is None else under
+
+
+def ground_under(inputs, place):
+    """(x, z) -> the height of the place's made ground there (the terrain row's places/<place>.usdc, as the assembly
+    lays it, its water left out), None off it; None for a place it makes none for."""
+    import trimesh
+
+    import score.stages.cast.measure as measure  # this form: the code version hashes measure.py alone
+    made = sorted(pathlib.Path(inputs["terrain"]).glob(f"*/places/{place}.usdc")) if "terrain" in inputs else []
+    solid = [tris for name, tris in (measure.solids(made[0], place) if made else {}).items()
+             if not name.startswith(measure.WATER)]
+    if not solid:
+        return None
+    tris = np.concatenate(solid)
+    mesh = trimesh.Trimesh(vertices=tris.reshape(-1, 3), faces=np.arange(len(tris) * 3).reshape(-1, 3), process=False)
+    top = float(tris[..., 1].max()) + 1.0
+
+    def height(x, z):
+        hits = mesh.ray.intersects_location([[x, top, z]], [[0.0, -1.0, 0.0]], multiple_hits=False)[0]
+        return round(float(hits[0][1]), 4) if len(hits) else None
+    return height
 
 
 def inside_polygon(point, points):
@@ -836,7 +869,8 @@ def record_of(plan, design, inputs):
               "objects": design_objects(design, handin, relations) + far_laid[0],
               "lights": lights(design, inputs), "environment": environment(design, read(inputs["sky"])),
               "doorways": plan.get("doorways", []), "places": places_of(place, plan, design, inputs["plans"], handin)}
-    record["views"], left_out = views_inside(views(plan if record["inside"] else dict(plan, doorways=[]), eye),
+    ground = None if record["inside"] else ground_under(inputs, place)
+    record["views"], left_out = views_inside(views(plan if record["inside"] else dict(plan, doorways=[]), eye, ground),
                                              design, record["inside"])
     if left_out:
         record["views_left_out"] = left_out

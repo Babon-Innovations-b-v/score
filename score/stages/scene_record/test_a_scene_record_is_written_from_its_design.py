@@ -204,6 +204,31 @@ def test_the_record_is_written_from_the_design():
         assert verdict.answer == checks.FAIL and "'moon_city'" in " ".join(verdict.findings), verdict.findings
 
 
+def test_an_open_place_s_view_eye_stands_a_person_s_height_over_its_made_ground(tmp_path):
+    """A standing spot at the floor of an open place stands on the terrain row's made ground under it: a ground
+    rising 0.5 m a metre east puts the eye at (4, 2) 2 + 1.6 m up; a spot on a 1 m deck stays on its deck, and a
+    place the terrain made no ground for stands on its level (wreck's spot-3 and spot-6 eyes stood 2.6 and 4.3 m
+    under its ground, their views black, 2026-10-30).
+    Break: score/stages/scene_record/writer.py: `return spot["level"] if under is None else under` ->
+        `return spot["level"]`"""
+    from pxr import Usd, UsdGeom
+    from score.stages.scene_record import writer
+    ground = Usd.Stage.CreateNew(str(tmp_path / "moon/places/yard.usdc"))
+    UsdGeom.Xform.Define(ground, "/yard")
+    slope = UsdGeom.Mesh.Define(ground, "/yard/Outside/near")
+    slope.CreatePointsAttr([(-10, -5, -10), (10, 5, -10), (10, 5, 10), (-10, -5, 10)])
+    slope.CreateFaceVertexCountsAttr([4])
+    slope.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    ground.Save()
+    yard = {"floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [], "doorways": [],
+            "standing": [{"at": [4.0, 2.0], "level": 0.0, "looks_at": None},
+                         {"at": [4.0, 2.0], "level": 1.0, "looks_at": None}]}
+    under = writer.ground_under({"terrain": str(tmp_path)}, "yard")
+    assert [view["eye"][1] for view in writer.views(yard, 1.6, under)] == [3.6, 2.6]
+    assert writer.ground_under({"terrain": str(tmp_path)}, "shed") is None and writer.ground_under({}, "yard") is None
+    assert [view["eye"][1] for view in writer.views(yard, 1.6)] == [1.6, 2.6]
+
+
 def test_a_place_a_backdrop_row_is_shown_from_stands_in_the_record_where_its_holder_holds_it():
     """The stairwell's palm seen through its window is the square's (prepare's groups.shown_from: `shown`): the record
     stands the holder at its own plan's middle, a place it holds beside where it holds it, each once.
