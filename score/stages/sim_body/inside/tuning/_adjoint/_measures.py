@@ -2,7 +2,10 @@
 6b): each joint's model centre in SOMA's frame minus SOMA's joint (`evaluation/_measure`: TO_OWN @ centre(...) minus
 world[:3, 3], a MIDDLE centre the mean of its parts) and each group's turn error in degrees (the frozen table's link-frame
 turn against SOMA's, the card's own `_turn_error`). A body batched per frame: every frame a copy in one model, its
-links named per frame. Feeds `_adjoint.case_rows`. Newton's Python only. Skin depths are not taped here yet."""
+links named per frame. Feeds `_adjoint.case_rows`. Newton's Python only. Each region's bone points' depth outside
+SOMA's posed skin (`fit/_skin.marks_kernel`'s measure: the distance to the skin's closest point when outside by the
+winding number, 0 inside): the closest point and the side are found off the tape (SOMA never moves with the pose), the
+distance to that point taped, so its row is the unit normal's (the envelope rule of a closest point)."""
 import numpy as np
 import warp as wp
 
@@ -31,13 +34,72 @@ def _turn_degrees(body_q: wp.array[wp.transform], links: wp.array[wp.int32], off
     degrees[row] = wp.length(_turn_error(body_q[links[row]], targets[row], offsets[row])) * 57.29577951308232
 
 
+@wp.kernel
+def _bone_points(body_q: wp.array[wp.transform], point_link: wp.array[wp.int32], point_local: wp.array[wp.vec3],
+                 to_own: wp.mat33, points: wp.array[wp.vec3]):
+    point = wp.tid()
+    points[point] = to_own * wp.transform_point(body_q[point_link[point]], point_local[point])
+
+
+@wp.kernel
+def _closest(meshes: wp.array[wp.uint64], points: wp.array[wp.vec3], closest: wp.array[wp.vec3],
+             outside: wp.array[wp.float32]):
+    point = wp.tid()
+    found = wp.mesh_query_point_sign_winding_number(meshes[point], points[point], 1.0e6, 2.0, 0.5)
+    closest[point] = wp.mesh_eval_position(meshes[point], found.face, found.u, found.v)
+    outside[point] = wp.where(found.sign >= 0.0, 1.0, 0.0)
+
+
+@wp.kernel
+def _skin_depths(points: wp.array[wp.vec3], closest: wp.array[wp.vec3], outside: wp.array[wp.float32],
+                 depths: wp.array[wp.float32]):
+    point = wp.tid()
+    depths[point] = outside[point] * wp.length(points[point] - closest[point])
+
+
+class _Skins:
+    """Every region's bone points on every frame against that frame's posed SOMA skin."""
+
+    def __init__(self, skins, device):
+        self.names = sorted(skins)
+        frames = len(next(iter(skins.values()))[0]) if skins else 0
+        self.meshes = [wp.Mesh(points=wp.array(np.asarray(verts, dtype=np.float32), dtype=wp.vec3, device=device),
+                               indices=wp.array(np.asarray(faces, dtype=np.int32).ravel(), dtype=wp.int32, device=device))
+                       for verts, faces in (skins[self.names[0]][1] if skins else [])]
+        rows = [(name, frame, link, local) for name in self.names for frame in range(frames)
+                for link, local in skins[name][0][frame]]
+        self.counts = [sum(1 for row in rows if row[0] == name) for name in self.names]
+        self.link = wp.array([row[2] for row in rows], dtype=wp.int32, device=device)
+        self.local = wp.array(np.array([row[3] for row in rows], dtype=np.float32).reshape(-1, 3), dtype=wp.vec3,
+                              device=device)
+        self.mesh_ids = wp.array([self.meshes[row[1]].id for row in rows], dtype=wp.uint64, device=device)
+        self.points = wp.zeros(len(rows), dtype=wp.vec3, device=device, requires_grad=True)
+        self.closest = wp.zeros(len(rows), dtype=wp.vec3, device=device)
+        self.outside = wp.zeros(len(rows), dtype=wp.float32, device=device)
+        self.depths = wp.zeros(len(rows), dtype=wp.float32, device=device, requires_grad=True)
+
+    def evaluate(self, body_q, to_own, device):
+        """The bone points placed, their closest skin points found off the tape, then their depths outside."""
+        count = self.link.shape[0]
+        if not count:
+            return
+        wp.launch(_bone_points, dim=count, inputs=[body_q, self.link, self.local, to_own], outputs=[self.points],
+                  device=device)
+        wp.launch(_closest, dim=count, inputs=[self.mesh_ids, self.points], outputs=[self.closest, self.outside],
+                  device=device, record_tape=False)
+        wp.launch(_skin_depths, dim=count, inputs=[self.points, self.closest, self.outside], outputs=[self.depths],
+                  device=device)
+
+
 class TapedMeasures:
     """Joints and turn groups measured off `sites`' (a `TapedSites`) forward kinematics. `joints` {name: (parts per
     frame [[(link, local point in the link frame scaled, share)]], SOMA's joint per frame (frames, 3))}, `to_own` the
     3 x 3 turn into SOMA's frame; `turns` {group: (link per frame, frozen offset quat x y z w, SOMA's turn per frame
-    (frames, 4) x y z w, both folded into the link's frame and SOMA's)}."""
+    (frames, 4) x y z w, both folded into the link's frame and SOMA's)}; `skins` {region: (bone points per frame
+    [[(link, local point in the link frame scaled)]], SOMA's posed skin per frame [(verts (n, 3), faces (m, 3))]), the
+    same skin for every region}."""
 
-    def __init__(self, sites, joints, to_own, turns):
+    def __init__(self, sites, joints, to_own, turns, skins=None):
         device = sites.model.device
         self.sites, self.joint_names, self.turn_names = sites, sorted(joints), sorted(turns)
         self.frames = len(next(iter(joints.values()))[1]) if joints else len(next(iter(turns.values()))[0])
@@ -60,6 +122,7 @@ class TapedMeasures:
         wanted = np.concatenate([np.asarray(turns[name][2]) for name in self.turn_names]).astype(np.float32)
         self.turn_targets = wp.array(wanted, dtype=wp.vec4, device=device)
         self.degrees = wp.zeros(len(wanted), dtype=wp.float32, device=device, requires_grad=True)
+        self.skins = _Skins(skins or {}, device)
 
     def _evaluate(self, inner, outer):
         """Forward kinematics at `inner`, then every joint difference and turn degree."""
@@ -74,6 +137,7 @@ class TapedMeasures:
         wp.launch(_turn_degrees, dim=self.turn_links.shape[0],
                   inputs=[body_q, self.turn_links, self.turn_offsets, self.turn_targets], outputs=[self.degrees],
                   device=device)
+        self.skins.evaluate(body_q, self.to_own, device)
 
     def _row(self, inner, outer, output, entry):
         """d output[entry] / d inner (the pose's part) by one backward pass seeded on that entry alone."""
@@ -98,5 +162,10 @@ class TapedMeasures:
         turn_rows = np.array([self._row(inner, outer, self.degrees, entry) for entry in range(degrees.size)])
         joint_rows = joint_rows.reshape(len(self.joint_names), self.frames, 3, -1)
         turn_rows = turn_rows.reshape(len(self.turn_names), self.frames, -1)
+        depths = self.skins.depths.numpy().astype(np.float64)
+        skin_rows = np.array([self._row(inner, outer, self.skins.depths, entry) for entry in range(depths.size)])
+        bounds = np.cumsum([0] + self.skins.counts)
         return ({name: (differences[index], joint_rows[index]) for index, name in enumerate(self.joint_names)},
-                {name: (degrees[index], turn_rows[index]) for index, name in enumerate(self.turn_names)})
+                {name: (degrees[index], turn_rows[index]) for index, name in enumerate(self.turn_names)},
+                {name: (depths[bounds[index]:bounds[index + 1]], skin_rows[bounds[index]:bounds[index + 1]])
+                 for index, name in enumerate(self.skins.names)})
