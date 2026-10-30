@@ -142,6 +142,14 @@ class TapedMeasures:
                   device=device)
         self.skins.evaluate(body_q, self.to_own, device)
 
+    def part_turns(self):
+        """After an evaluation: each joint part's d (its joint and frame's difference) / d (its local point), its share
+        times to_own @ its link's rotation (parts, 3, 3), in `joints`' order (sorted names, then frames, then parts)."""
+        from scipy.spatial.transform import Rotation
+        placed = self.sites.state.body_q.numpy()[self.part_link.numpy()]
+        turned = np.asarray(self.to_own, dtype=np.float64).reshape(3, 3) @ Rotation.from_quat(placed[:, 3:7]).as_matrix()
+        return self.part_share.numpy().astype(np.float64)[:, None, None] * turned
+
     def _pose_grad(self):
         """The pose's gradient array (the free coordinates' under couplings, else joint_q)."""
         return self.sites.model.joint_q if self.sites.couplings is None else self.sites.couplings.pose
