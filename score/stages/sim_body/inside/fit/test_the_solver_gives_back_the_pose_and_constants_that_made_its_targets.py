@@ -11,7 +11,8 @@ segments' turns, its skin's landmarks and rig joints) leave both solves unchange
 fit ends on a step that moves no task's error, though the step itself is not small; level 2 solves only the inside joint
 axes its Jacobian can tell apart from the other unknowns (a pair fixed to the root: their common shift is the root's
 place; a marked body welded under a markerless hinged middle: the hinge's own axis), and every other axis it keeps,
-the other unknowns' span taken by their Gram matrix exactly as by the pivoted QR. It runs in Newton's own Python (mink
+the other unknowns' span taken by their Gram matrix exactly as by the pivoted QR; a direction of the constants the data
+leaves free gets a pull along it alone (`_flat.lift`). It runs in Newton's own Python (mink
 pinned there; score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there,
 as in `make tests`' sandbox home, it prints `skipped`.
 
@@ -44,6 +45,7 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-10-29) _constants.off_span's `scaled.T @ columns` made `scaled.T @ columns * 0.5`: the Gram path's projection
   is not the QR's.
 - (2026-10-30) staged's `start[keep]` made `begin[keep]`: a warm start from the answer takes as many evaluations as cold.
+- (2026-10-30) _flat.lift's `low = missing > 0` made `low = missing > missing.max()`: the flat direction gets no pull.
 - (2026-10-30) _skin.marks_kernel's depth `warp.where(found.sign >= 0.0, ..., 0.0)` made the distance alone: a point
   inside the skin counts 0.8 m deep.
 
@@ -239,6 +241,34 @@ def a_warm_start_from_the_answer_lands_on_it_in_fewer_evaluations():
                        [f"warm took {warm['evaluations']} evaluations, cold {cold['evaluations']}"])
 
 
+def a_flat_direction_of_the_constants_is_pulled_and_only_it():
+    """Two constants the data reads only by their sum (each frame's rows see both alike, beside its own angle): the
+    data leaves their difference free, so no answer is unique; `_flat.lift` adds one pull row, along the difference
+    only, and the stacked problem's smallest singular value is then the floor's, its told sum untouched."""
+    import types
+    import numpy as np
+    from scipy.sparse import vstack, csr_matrix
+    from fit._flat import lift
+    rng = np.random.default_rng(3)
+    frames, per = 2, 3
+    problem = types.SimpleNamespace(slots=np.arange(2), path=np.zeros((frames, 1)), width=1, fitting=types.SimpleNamespace(
+        frame_sites=[], place_sites=[0]))
+    data = np.zeros((frames * per, 2 + frames))
+    for frame in range(frames):
+        reads = rng.normal(size=per)
+        data[frame * per:(frame + 1) * per, :2] = reads[:, None]
+        data[frame * per:(frame + 1) * per, 2 + frame] = rng.normal(size=per)
+    matrix = vstack([csr_matrix(data), csr_matrix((2, 2 + frames))])
+    rows = lift(problem, matrix, np.arange(2 + frames), 1e-3)
+    problems = [] if len(rows) == 1 else [f"{len(rows)} pull rows, one flat direction"]
+    if len(rows):
+        problems += [] if abs(rows[0] @ [1.0, 1.0]) < 1e-12 else [f"the pull reads the told sum by {rows[0] @ [1.0, 1.0]:.2e}"]
+        stacked = np.vstack([data, np.hstack([rows, np.zeros((len(rows), frames))])])
+        smallest = np.linalg.svd(stacked, compute_uv=False)[-1]
+        problems += [] if smallest > 1e-6 else [f"still flat: smallest singular value {smallest:.2e}"]
+    return problems
+
+
 def every_recording_of_the_body_is_sampled():
     """The constants' frames from two recordings of the body (two frames and three): all five, in order, each posed
     from its own recording's start (at the true constants within MOST_RADIANS of its angles)."""
@@ -377,7 +407,7 @@ def a_bone_point_outside_the_skin_lies_as_deep_as_its_distance():
     return problems + ([] if abs(rms - 1000 * np.sqrt(1.0)) < 1e-3 else [f"root mean square {rms} mm"])
 
 
-CHECKS = (a_warm_start_from_the_answer_lands_on_it_in_fewer_evaluations, a_bone_point_outside_the_skin_lies_as_deep_as_its_distance, only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
+CHECKS = (a_flat_direction_of_the_constants_is_pulled_and_only_it, a_warm_start_from_the_answer_lands_on_it_in_fewer_evaluations, a_bone_point_outside_the_skin_lies_as_deep_as_its_distance, only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
           the_place_goal_sums_to_the_marker_goal, the_solver_gives_back_the_angles_and_the_constants,
           every_recording_of_the_body_is_sampled, somas_targets_leave_the_solves_unchanged, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows,
           a_step_no_task_sees_ends_the_fit)
