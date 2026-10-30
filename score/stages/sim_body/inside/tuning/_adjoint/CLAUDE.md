@@ -14,7 +14,8 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
 - `_taped.py` (`TapedSites`, Newton's Python only, never imported by `__init__.py`): one frame's level 3 sites cost on
   the card, its pose gradient by Warp's tape through Newton's eval_fk, in `Body`'s callable shape (`gradient`,
   `residuals`, site offsets the outer unknowns). Toy chain (4 hinges, 3 weighted sites): equals central differences of
-  its cost to 9.2e-5 of the largest entry (2026-10-30, float32). Not yet: MyoFullBody's couplings, turn objectives,
+  its cost to 9.2e-5 of the largest entry (2026-10-30, float32). Turn rows (level 3's link-frame turns, the card's own
+  `_turn_error` loaded by path) are in its cost and checked the same way (2026-10-30). Not yet: MyoFullBody's couplings,
   level 2's constants, rows batched.
 - Built and checked on a toy only (2026-10-30, five tests, 1.2 s); `../__init__.solved(exact=)` takes `stacked_jacobian` (its test, 2026-10-30). Not yet wired: the card gradient (Newton eval_fk on
   a wp.Tape for level 3, level 2's constants) as each `Body`'s callables, `solved`'s Jacobian switch to it, the gate on heavy_kimodo, tall_kimodo and
