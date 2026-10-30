@@ -676,3 +676,21 @@ def test_the_shell_and_stairs_take_the_scene_librarys_surfaces():
     mesh = stage.GetPrimAtPath("/shed/Structure/roof_1")
     assert "roof takes" in mesh.GetAttribute("score:surface:missing").Get(), mesh
     assert not mesh.HasRelationship("material:binding"), mesh
+
+
+def test_a_spot_looking_straight_down_is_given_the_floors_long_axis_as_its_up():
+    """Round 33's spot-1 at shiplock looked straight down at the item under it with the world's up (0, 1, 0), so its
+    picture had no sideways and every light measure was NaN (2026-10-30).
+
+    Break: score/stages/scene_record/writer.py: `return [upright(view, plan["floor"]) for view in found]` ->
+    `return found`"""
+    from score.stages.scene_record import writer
+    plan = {"floor": [[0.0, 0.0], [8.0, 6.0]], "floor_height": 0.0,
+            "items": [{"name": "HATCH", "box": [3.0, 2.0, 5.0, 4.0]}],
+            "standing": [{"at": [4.0, 3.0], "level": 3.0, "looks_at": "HATCH"},
+                         {"at": [1.0, 1.0], "level": 0.0, "looks_at": None}]}
+    down, level = writer.views(plan, 1.6)
+    assert down["up"] == [1.0, 0.0, 0.0], down
+    assert "up" not in level, level
+    deep = writer.views(dict(plan, floor=[[0.0, 0.0], [6.0, 8.0]], standing=plan["standing"][:1]), 1.6)[0]
+    assert deep["up"] == [0.0, 0.0, 1.0], deep

@@ -19,7 +19,8 @@ stages made here, each answer worked out by hand:
 
 Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - sky.py: the light's direction negated in `write_light` (the house sun test).
-- measure.where: `x = size[0] / 2 + ...` off by its focal (the where test).
+- measure.where: `x = size[0] / 2 + ...` off by its focal; its look-along-its-up refusal dropped (the where test;
+  round 33's spot-1 at shiplock looked straight down, up (0, 1, 0), and every measure was NaN, 2026-10-30).
 - measure.veil: the lower rows read as the upper (the veil test).
 - mix.sweep: return 1.0 always (the sweep test).
 - mix.lamp_faults: never "blown" (the sweep test).
@@ -366,6 +367,9 @@ def test_a_point_straight_ahead_falls_in_the_pictures_middle_and_one_behind_nowh
     x, y, depth, focal = measure.where(view, (200, 100), [0, 0, -5])
     assert (round(x), round(y), round(depth, 6), round(focal, 6)) == (100, 50, 5.0, 100.0)
     assert measure.where(view, (200, 100), [0, 0, 5])[0] is None
+    with pytest.raises(ValueError, match="'spot-1' looks along its own up"):
+        measure.where({"name": "spot-1", "eye": [0, 4, 0], "aim": [0, 1, 0], "up": [0, 1, 0], "fov": 90},
+                      (200, 100), [0, 0, 0])
 
 
 def test_a_view_far_blacker_or_more_blown_than_its_concept_fails_and_with_no_concept_is_unknown(tmp_path):
