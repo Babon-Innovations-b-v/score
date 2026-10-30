@@ -108,7 +108,8 @@ def passes_of(exr):
 
 def sky_mask(channels):
     """Where the object index pass is 0: no object met (sky_apart), or only the day dome."""
-    return next(values for name, values in channels.items() if name.endswith("IndexOB.X")) == 0
+    # Blender 5.0.1 names it "ViewLayer.Object Index.X" in the multilayer EXR, never "IndexOB" (a tiny stage, 2026-10-30)
+    return next(values for name, values in channels.items() if name.endswith("Object Index.X")) == 0
 
 
 def sky_apart(scene):

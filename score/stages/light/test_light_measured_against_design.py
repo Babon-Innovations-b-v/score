@@ -390,7 +390,7 @@ def test_a_missing_picture_counts_on_plain_and_metal_finishes_and_a_grey_under_a
 
 def test_the_sky_mask_is_where_the_object_index_pass_met_no_object_but_the_day_dome():
     index = np.array([[0.0, 1.0], [1.0, 0.0]])
-    assert inside_functions("sky_mask")["sky_mask"]({"ViewLayer.IndexOB.X": index}).tolist() == [[True, False],
+    assert inside_functions("sky_mask")["sky_mask"]({"ViewLayer.Object Index.X": index}).tolist() == [[True, False],
                                                                                                   [False, True]]
 
 
