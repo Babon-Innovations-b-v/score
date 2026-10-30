@@ -80,6 +80,10 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   its next 66 steps shrink geometrically, the cost flat at 0.30691 to 1e-15, and `moved < STEP_DONE` fires at a true
   local minimum. Seeded at the card's frame 16, mink stays there (cost 0.00929). So a toy for the card's edge needs a
   first step that overshoots into another basin, not a hinge driven past its range (that one mink slides along).
+  Across sets against one set after another (measured 2026-10-30, card frames on both): 32 sets of heavy_arms_raise
+  8.9 s a set against 17.8 s a nudged set alone; gate6a on heavy_kimodo + tall_kimodo, step cosine at least 0.99975
+  on all 6 columns, relative under 1 % but ASIS_l trust 2.26 %, whose card-against-CPU gap (6.3e-5 a step) is the size
+  of the start set's own gap (7.7e-5): float noise on a column that barely moves tall_kimodo, not a wiring error.
 - **The record states the honest measures first** (#70's audit item 2, 2026-10-29): `following` gives the bones
   outside SOMA's skin by region and the turns on main's frozen table before the joint mm (partly the ends' own pull)
   and the tree's-table turns; the frozen table is never edited to follow the tree.
