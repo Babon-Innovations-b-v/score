@@ -612,6 +612,35 @@ def test_a_row_its_concept_shows_glowing_gets_a_light_in_its_colour():
     assert lamp["energy"] == round(full["energy"] / 2, 4) and lamp["at"] == full["at"]
 
 
+def test_a_glowing_panel_drawn_as_the_whole_room_has_its_lamp_on_its_wall():
+    """Engineroom (#36): a glowing wall panel the plan draws as the whole room (7 x 5 m of the 8 x 6 m shed), held on
+    the east wall at its middle (plan 8, 3), has its lamp on that wall's face (x 7.9) 0.1 m out into the room, at
+    plan (7.8, 3), as high as the wall mount says on the shed's 3 m walls (1.5 m), never over the room's middle; the
+    plan-matched gate takes it there, off its item's box, and fails it moved off its wall.
+    Break: score/stages/scene_record/writer.py: `walled = relation is not None and relation.get("how") == "wall" and
+        holders.outlines_room(item, design)` -> `walled = False`
+    Break: score/stages/scene_record/gates.py: `if light.get("against"):` -> `if False:`"""
+    from score.stages.scene_record import gates, writer
+    design = {**WRITTEN, "items": [["PANEL", 0.5, 0.5, 7.0, 5.0, None, "item"]], "rows": {"PANEL": ["wall_panel"]},
+              "shapes": {}}
+    rows = [{"id": "wall_panel", "name": "wall panel", "noun": "panel", "anchor": "wall", "size": [8.0, 6.0, 3.0]}]
+    light = {"rows": {"wall_panel": {"glows": True, "glowing": "its lamps", "colour": "#ffeedd", "brightness": 1.0}}}
+    relations = {"relations": [{"item": "PANEL", "row": "wall_panel", "how": "wall", "side": 1, "spot": [8.0, 3.0],
+                                "wall": {"from": [8.0, 0.0], "to": [8.0, 6.0], "thick": 0.2}, "why": "its free wall"}]}
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        (folder / "inventory.json").write_text(json.dumps({"scene": "shed", "rows": rows}))
+        (folder / "light.json").write_text(json.dumps(light))
+        [lamp] = writer.lights(design, {"inventory": folder / "inventory.json", "concept light": folder / "light.json",
+                                        "row kinds": REPO / "data/checks/row-kinds.json",
+                                        "lamp library": REPO / "data/library/lamps.json"}, relations)
+    (spot,), floor = writer.in_frame(design, [[7.8, 3.0]], 1.5)
+    assert lamp["at"] == [spot[0], floor, spot[1]], lamp
+    assert gates.lamp_faults({"lights": [lamp]}, design) == []
+    moved = {**lamp, "at": [lamp["at"][0] - 1.0, *lamp["at"][1:]]}
+    assert gates.lamp_faults({"lights": [moved]}, design) == ["the light of plan item 'PANEL' stands off its wall"]
+
+
 def test_the_shell_and_stairs_take_the_scene_librarys_surfaces():
     """Each shell part and stair takes the variant the scene's surface library gives its kind (a stair the floor's
     when the library names no stair), and a part it gives none, or every part while no library is made, carries no

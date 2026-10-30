@@ -443,6 +443,47 @@ def test_a_thing_drawn_past_its_wall_stands_in_the_room_and_a_tunnel_outside():
     assert found["glass_tunnel"]["how"] == "wall" and found["glass_tunnel"]["side"] == -1, found
 
 
+ROOM_WALLS = [{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2},
+              {"from": [0.0, 12.0], "to": [20.0, 12.0], "thick": 0.2},
+              {"from": [0.0, 0.0], "to": [0.0, 12.0], "thick": 0.2},
+              {"from": [20.0, 0.0], "to": [20.0, 12.0], "thick": 0.2}]
+
+
+def test_two_wall_panels_each_drawn_as_the_whole_room_stand_on_walls_of_their_own():
+    """Engineroom (#36): the plan draws its two wall panels each as the whole room, on a hull that names no side; each
+    stands at the middle of the nearest wall the other does not hold (N, then S: both 6 m from the middle), never both
+    at the room's middle.
+    Break: score/review/holders/__init__.py: `free = [wall for wall in walls if wall_key(wall) not in taken] or walls`
+        -> `free = walls`"""
+    rows = [{"id": "hull", "noun": "hull", "part": "wall", "anchor": "floor"},
+            {"id": "wall_panel", "noun": "panel", "anchor": "on:hull", "size": [20.0, 12.0, 3.5]}]
+    plan = plan_of([["PANEL 1", 0.5, 0.5, 19.0, 11.0, None, "item"], ["PANEL 2", 0.5, 0.5, 19.0, 11.0, None, "item"]],
+                   {"PANEL 1": ["wall_panel"], "PANEL 2": ["wall_panel"]}, walls=ROOM_WALLS)
+    found = {entry["item"]: entry for entry in holders.relations(plan, {"rows": rows, "picture": PICTURE})["relations"]}
+    assert found["PANEL 1"]["wall"]["to"] == [20.0, 0.0] and found["PANEL 1"]["spot"] == [10.0, 0.0], found
+    assert found["PANEL 2"]["wall"]["to"] == [20.0, 12.0] and found["PANEL 2"]["spot"] == [10.0, 12.0], found
+    assert found["PANEL 1"]["side"] == 1 and found["PANEL 2"]["side"] == -1, found  # each on its room side
+
+
+def test_lights_on_the_wall_their_anchor_names_spread_along_it():
+    """Quarters (#36): its string lights and wall light, left on the walls item and anchored on its left wall, stand on
+    the wall furthest to the viewer's left (x 0: the viewer looks north), not the longest; both at its spot, they are
+    spread evenly along it, a third and two thirds of the way.
+    Break: score/review/holders/__init__.py: `wall = named_wall(holder, plan, turn) if holder is not None else None`
+        -> `wall = None`
+    Break: score/review/holders/__init__.py: `if all(after - before >= WALL_APART for` -> `if all(after - before >= 0
+        for`"""
+    rows = [{"id": "left_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
+            {"id": "string_lights", "noun": "lights", "anchor": "on:left_wall", "size": [3.0, 0.05, 0.05]},
+            {"id": "wall_light", "noun": "light", "anchor": "on:left_wall", "size": [1.0, 0.1, 0.1]}]
+    plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"]],
+                   {plan_checks.WALLS_ITEM: ["left_wall", "string_lights", "wall_light"]}, structure=["left_wall"],
+                   walls=ROOM_WALLS)
+    found = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
+    assert [found[row]["wall"]["to"] for row in ("string_lights", "wall_light")] == [[0.0, 12.0], [0.0, 12.0]], found
+    assert sorted(found[row]["spot"] for row in ("string_lights", "wall_light")) == [[0.0, 4.0], [0.0, 8.0]], found
+
+
 def test_the_relations_are_kept_beside_the_plan_with_its_sha(tmp_path, monkeypatch):
     """keep writes each place's relations under the relations folder, naming the kept plan's sha, and writes nothing
     again while plan and inventory stand.

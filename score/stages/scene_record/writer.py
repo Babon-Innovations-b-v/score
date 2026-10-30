@@ -19,7 +19,8 @@ builds it unchanged; it lands as record/<place>.json in the output.
                  showing it glow, `{home}/design/light/<place>.json`, reading.concept_light): over the item's
                  middle, as high on it as the library's lamp for the row's mount says, its numbers that lamp's
                  (data/library/lamps.json, tools/props/scene/lamps.py), reaching by how high it hangs; a row the
-                 concept shows glowing in the colour it shows there, its strength times its brightness there
+                 concept shows glowing in the colour it shows there, its strength times its brightness there; an
+                 item outlining the whole room held on a wall (score/review/holders) on that wall's face instead
     objects      one at each plan item of each prop or shell row of the batch's hand-in (several where the item
                  counts several or a run the plan draws once), `<row>_<n>`, on its spot at its shape's base, turned
                  along its item, waiting on the bake's model of its row's take (`bake`, `<first row>_1`), which the
@@ -51,7 +52,7 @@ import sys
 import numpy as np
 
 from score import contracts
-from score.review import overhead
+from score.review import holders, overhead
 from score.review.plan_checks import WALLS_ITEM
 from score.stages import row_kinds
 from score.stages.earth_seed import design_shell
@@ -267,40 +268,65 @@ def game_lamp():
     return scene.LAMP_ENERGY, scene.LAMP_COLOUR, scene.LAMP_ATTENUATION
 
 
-def item_lamp(item, row, rows, design, library, path, glow=None):
+# A lamp held on its wall stands this far out from the wall's face into the room, metres: off the face, never in it.
+LAMP_OUT = 0.1
+
+
+def wall_lamp_spot(relation):
+    """(plan spot, face ends) of a lamp on its wall relation (score/review/holders `wall`): its spot's nearest point
+    on the wall's face, LAMP_OUT out from it into the room."""
+    wall = relation["wall"]
+    start, end = np.asarray(wall["from"], float), np.asarray(wall["to"], float)
+    run = (end - start) / max(float(np.linalg.norm(end - start)), 1e-9)
+    out = np.array([-run[1], run[0]]) * relation["side"]
+    face = out * float(wall.get("thick") or 0.0) / 2
+    along = float(np.clip((np.asarray(relation["spot"], float) - start) @ run, 0.0, float((end - start) @ run)))
+    return start + face + run * along + out * LAMP_OUT, [start + face, end + face]
+
+
+def item_lamp(item, row, rows, design, library, path, glow=None, relation=None):
     """The light of a glowing row's plan item: over its middle, as high on it as the library's lamp for the row's
-    mount puts it, reaching by how high that is over the floor; where its concept shows it glowing (`glow`, the
-    concept's light), the colour its light is there and its strength that lamp's times its brightness there."""
+    mount puts it, reaching by how high that is over the floor; an item outlining the whole room (holders.outlines_room:
+    its middle says nothing of where it is) held on a wall (`relation`) on that wall's face at the relation's spot
+    (wall_lamp_spot), as high on its shape, else on the wall's height (the place's ceiling), as its mount puts it;
+    where its concept shows it glowing (`glow`, the concept's light), the colour its light is there and its strength
+    that lamp's times its brightness there."""
     name, x, y, wide, deep = item[0], *[float(value) for value in item[1:5]]
     shape = (design.get("shapes") or {}).get(name) or {}
-    base, tall = float(shape.get("base") or 0.0), float(shape.get("tall") or 0.0)
+    walled = relation is not None and relation.get("how") == "wall" and holders.outlines_room(item, design)
+    base, tall = float(shape.get("base") or 0.0), float(shape.get("tall") or (walled and ceiling(design)) or 0.0)
     mounts, words = library.mounts(path), library.mount_words(path)
     share = float(mounts[library.mount_of(row, rows, words)]["high"])
     high = base + tall * share
     light = library.light_at(row, high, rows, mounts, words)
     energy, colour, attenuation = game_lamp()
-    (spot,), floor = in_frame(design, [[x + wide / 2, y + deep / 2]], high)
+    plan_spot, face = wall_lamp_spot(relation) if walled else ([x + wide / 2, y + deep / 2], None)
+    (spot,), floor = in_frame(design, [plan_spot], high)
     why = f"its concept shows its {glow['glowing'] or 'light'} glowing" if glow else \
         f"row kind {row['row_kind']}, it glows"
     return {"type": "omni", "at": [spot[0], floor, spot[1]], "colour": glow["colour"] if glow else colour,
             "energy": round(energy * light["strength"] * (float(glow["brightness"]) if glow else 1.0), 4),
             "range": light["reach"], "attenuation": attenuation, "shadows": light["shadows"],
             "from": f"plan item {name!r}, inventory row {row['id']} ({why}): the library's lamp "
-                    f"(data/library/lamps.json) for its mount, {high:.2f} m over the floor"}
+                    f"(data/library/lamps.json) for its mount, {high:.2f} m over the floor"
+                    + (f", on its wall ({relation['why']})" if walled else ""),
+            **({"against": in_frame(design, face)[0]} if walled else {})}
 
 
-def lights(design, inputs):
+def lights(design, inputs, relations=None):
     """A light at each plan item of the scene's glowing rows: those whose row kind glows (row_kinds.rows_that) and
     those its concept shows glowing (`concept light`: an engine's core, a screen, a light strip; owner, 2026-10-25:
     "look at the concept, the engines themself should be a source of light"), in the colour and brightness the concept
-    shows; a row of the sky (anchored `sky`: its stars, a planet) is the physics' (the light layer's sky), no lamp."""
+    shows; a row of the sky (anchored `sky`: its stars, a planet) is the physics' (the light layer's sky), no lamp.
+    An item outlining the whole room has its lamp on the wall its relation (`relations`, score/review/holders) holds it
+    on (item_lamp)."""
     inventory = read(inputs["inventory"])
     glowing = {row["id"]: row for row in row_kinds.rows_that(inventory, "glows", row_kinds.table(inputs["row kinds"]))}
     shown = {row: glow for row, glow in (read(inputs["concept light"])["rows"] if "concept light" in inputs
                                          else {}).items() if glow["glows"]}
     glowing |= {row["id"]: {**row, "row_kind": glowing.get(row["id"], {}).get("row_kind")}
                 for row in inventory["rows"] if row["id"] in shown and row.get("anchor") != "sky"}
-    rows_of, library = design.get("rows") or {}, library_lamps()
+    rows_of, library, holding = design.get("rows") or {}, library_lamps(), relations_of(relations)
     found = []
     for item in design.get("items") or []:
         if len(item) > 6 and item[6] == "zone":
@@ -308,7 +334,7 @@ def lights(design, inputs):
         for row_id in rows_of.get(item[0]) or []:
             if row_id in glowing:
                 found.append(item_lamp(item, glowing[row_id], inventory["rows"], design, library,
-                                       inputs["lamp library"], shown.get(row_id)))
+                                       inputs["lamp library"], shown.get(row_id), holding.get((item[0], row_id))))
     return found
 
 
@@ -874,7 +900,7 @@ def record_of(plan, design, inputs):
               "structure": structure(plan, design, library_of(inputs), plan_rows(handin)) +
               arch_entries(design, plan["place"], library_of(inputs), handin),
               "objects": design_objects(design, handin, relations) + far_laid[0],
-              "lights": lights(design, inputs), "environment": environment(design, read(inputs["sky"])),
+              "lights": lights(design, inputs, relations), "environment": environment(design, read(inputs["sky"])),
               "doorways": plan.get("doorways", []), "places": places_of(place, plan, design, inputs["plans"], handin)}
     ground = None if record["inside"] else ground_under(inputs, place)
     record["views"], left_out = views_inside(views(plan if record["inside"] else dict(plan, doorways=[]), eye, ground),
