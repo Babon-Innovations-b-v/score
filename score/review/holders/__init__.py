@@ -15,9 +15,10 @@ Each plan item of a row that stands on, against or in something gets one relatio
            side toward it on the plan, else its facing, its holder's, or S (the garage door on its module's front)
     in     in a door or window opening of the plan (`opening`: its at, wide, sill, head, and the wall it stands on): a
            row that fills an opening (design_shell.fills_opening), anchored on a wall or on structure; each opening
-           holds one, the nearest to the item's spot, a kind like the row's first (a door in a door); with none left,
-           one cut for it (`cut`) where its spot meets the nearest wall; each piece its own (`pieces`) for the walls
-           item, at its concept boxes' projections, else spread along the longest wall
+           holds one, the nearest to the item's spot, of the row's kind (a window a window's, a door a door's); with
+           none left, one cut for it (`cut`) where its spot meets the nearest wall; each piece its own (`pieces`): an
+           item's where the scene record lays it, the walls item's at its concept boxes' projections, else spread
+           along the longest wall
     edge   past the plan's edge (`edge`, `spot` the edge's middle): a wall row the plan writer left on the walls item
            where the plan draws no wall (street's facades), on the side of the view its concept box stands; what is on
            it stands against its face toward the place
@@ -385,8 +386,9 @@ def wall_part(wall):
 
 
 def cut_in(spot, row, item, plan):
-    """A relation in an opening cut for the row (`cut`) where its spot meets the nearest wall: the row's width, from
-    its item's base (a window from WINDOW_SILL) to its top; None where the plan draws no wall."""
+    """A relation in an opening cut for the row (`cut`) where its spot meets the nearest wall, kept OPENING_ROOM and
+    the wall's thickness inside its ends (camp's dome windows were cut on their walls' corners): the row's width,
+    from its item's base (a window from WINDOW_SILL) to its top; None where the plan draws no wall."""
     walls = walls_of(plan)
     if not walls:
         return None
@@ -394,11 +396,22 @@ def cut_in(spot, row, item, plan):
     base = float(((plan.get("shapes") or {}).get(item[0]) or {}).get("base") or 0.0)
     sill = base or (WINDOW_SILL if kind_word(row) == "window" else 0.0)
     size = row.get("size") or [1.0, 0.1, design_shell.DOOR_HEAD]
-    return {"how": "in", "opening": {"at": [round(float(value), 3) for value in on_line(spot, wall)],
+    start, end = numpy.asarray(wall["from"], float), numpy.asarray(wall["to"], float)
+    length = float(numpy.linalg.norm(end - start))
+    run = (end - start) / max(length, 1e-9)
+    keep = float(size[0]) / 2 + OPENING_ROOM + float(wall.get("thick") or 0.0)
+    at = start + run * kept_along(float((on_line(spot, wall) - start) @ run), length, keep)
+    return {"how": "in", "opening": {"at": [round(float(value), 3) for value in at],
                                      "wide": float(size[0]), "sill": sill, "head": round(sill + float(size[2]), 3),
                                      "cut": True},
-            "wall": wall_part(wall), "why": "in an opening cut for it where it meets the nearest wall: the plan's own "
-                                            "openings each hold another"}
+            "wall": wall_part(wall), "why": "in an opening cut for it where it meets the nearest wall: the plan has no "
+                                            f"free {kind_word(row)} opening"}
+
+
+def kept_along(along, length, keep):
+    """`along` a wall `length` long moved the least that keeps it `keep` inside both ends; its middle where it is too
+    short."""
+    return min(max(along, keep), length - keep) if length >= 2 * keep else length / 2
 
 
 def widened(opening, row, wall):
@@ -484,13 +497,14 @@ def spread(found):
 
 
 def in_plan_opening(spot, row, plan, taken):
-    """A relation in the plan's opening nearest `spot` (any, with none) that holds none yet, of the row's kind first,
+    """A relation in the plan's opening nearest `spot` (any, with none) that holds none yet, of the row's kind (a
+    window a window's, a door a door's: camp's dome window took the dome door's opening, standing in its swing, #36),
     widened to the row (widened); None with none left."""
-    free = [(number, opening) for number, opening in enumerate(openings_of(plan)) if number not in taken]
-    if not free:
-        return None
     word = kind_word(row)
-    alike = [pair for pair in free if (pair[1]["kind"] == "window") == (word == "window")] or free
+    alike = [(number, opening) for number, opening in enumerate(openings_of(plan))
+             if number not in taken and (opening["kind"] == "window") == (word == "window")]
+    if not alike:
+        return None
     number, opening = min(alike, key=lambda pair: float(numpy.linalg.norm(numpy.subtract(pair[1]["at"], spot)))
                           if spot is not None else pair[0])
     taken.add(number)
@@ -501,12 +515,12 @@ def in_plan_opening(spot, row, plan, taken):
 
 
 def piece_spots(item, row, plan, inventory):
-    """Where each piece of an item stands on the plan: its middle for an item the plan places; for the walls item each
-    of the row's concept boxes as it projects onto the plan, else its pieces spread along the longest wall."""
-    count = max(1, int(((plan.get("shapes") or {}).get(item[0]) or {}).get("count") or 1),
-                int(row.get("count") or 1) if item[0] == plan_checks.WALLS_ITEM else 1)
+    """Where each piece of an item stands on the plan: for an item the plan places where the scene record lays each
+    (piece_middles: cockpit's four rear doors on one item, stacked in one opening, #36); for the walls item each of the
+    row's concept boxes as it projects onto the plan, else its pieces spread along the longest wall."""
     if item[0] != plan_checks.WALLS_ITEM:
-        return [middle(item)]
+        return [spot for spot, _ in piece_middles(item, row, plan)]
+    count = max(1, int(((plan.get("shapes") or {}).get(item[0]) or {}).get("count") or 1), int(row.get("count") or 1))
     seen = seen_spots(row, plan, inventory)
     if len(seen) >= count:
         return seen[:count]

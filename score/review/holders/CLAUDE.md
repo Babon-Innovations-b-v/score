@@ -15,7 +15,9 @@ ceiling) and how each is read.
   `python -m score moved`). The scene record reads the file, not this code.
 - **Every door and window in an opening, every item placed** (#72, owner 2026-10-29: "this is still not good"): a
   door the plan's openings do not hold gets one cut for it (`cut_in`, cut by the earth seed's and the scene record's
-  walls); a wall row the plan writer left unplaced where the plan draws no wall stands past the plan's edge
+  walls, kept inside its wall's ends); a window takes only a window opening, a door only a door's (camp's dome window
+  stood in its door's swing, #36); each piece the scene record lays at an item its own opening (cockpit's four rear
+  doors, #36); a wall row the plan writer left unplaced where the plan draws no wall stands past the plan's edge
   (`at_edge`); a stair row at the plan's stair, a railing along its sides; things the concept shows on several holders
   of one kind on the nearest (`seen_holders`). The assembly's `held` gate fails on any that comes back. A door that
   moves on a built model's face (its kind's motion rule, served) names the `recess` its holder model's bake cuts

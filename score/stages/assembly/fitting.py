@@ -76,14 +76,26 @@ def face_axes(on):
 FACE_REACH = 0.1
 
 
-def front_face(points, axis, sign, side, span, band):
-    """The frontmost (`sign` along `axis`) of a holder's surface `points` (world, [n, 3]) within `span` along `side`
-    and `band` in height, or None with none there."""
-    if points is None or not len(points):
+# Rays front_face casts at a holder's surface stand this far apart across the object's span and height, metres.
+RAY_STEP = 0.05
+
+
+def front_face(mesh, axis, sign, side, span, band):
+    """The frontmost (`sign` along `axis`) of a holder's surface (`mesh`, its world triangles) within `span` along
+    `side` and `band` in height: where rays every RAY_STEP over them, cast at it from in front, first meet it; None
+    with none met. Its triangles, never its corners: a facade's flat front has corners only at its ends, so within a
+    drying rack's 0.12 m the corners seen were a window's back, and two racks stood 1.3 and 2.3 m inside it (#36)."""
+    if mesh is None or not len(mesh.faces):
         return None
-    there = points[(points[:, side] >= span[0]) & (points[:, side] <= span[1]) & (points[:, 1] >= band[0])
-                   & (points[:, 1] <= band[1])]
-    return float((there[:, axis] * sign).max() * sign) if len(there) else None
+    grid = [np.linspace(low, high, max(2, int(np.ceil((high - low) / RAY_STEP)) + 1)) for low, high in (span, band)]
+    alongs, heights = (values.ravel() for values in np.meshgrid(*grid))
+    origins = np.zeros((len(alongs), 3))
+    origins[:, side], origins[:, 1] = alongs, heights
+    origins[:, axis] = mesh.bounds[1][axis] + 1.0 if sign > 0 else mesh.bounds[0][axis] - 1.0
+    directions = np.zeros_like(origins)
+    directions[:, axis] = -sign
+    hits, _, _ = mesh.ray.intersects_location(origins, directions, multiple_hits=False)
+    return float((hits[:, axis] * sign).max() * sign) if len(hits) else None
 
 
 def recess_of(recesses, axis, sign, foot, box):
@@ -298,7 +310,7 @@ def in_opening(low, high, on, walls=(), left=None, opens=None, points=None):
 def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=None, clear=()):
     """(scale, the new middle of its foot, words, its face (on_face's) or None) of an object laid by its relation `on`
     (module docstring), from its box (low, high) and its holders' boxes (an opening's: the built walls), a face's holder's
-    `surface` points (an opening's: its built walls' mesh points, slanted_face) and the `recesses` the bake cut in it
+    `surface` mesh (surface_mesh; an opening's: its built walls' mesh points, slanted_face) and the `recesses` the bake cut in it
     (on_face), an opening's object's own left way (`left`,
     and the way it swings to (`opens`, opening_spot), the swing and passage boxes a wall's or face's object keeps out
     of (`clear`, on_wall, face_stretch); None when it already sits (or
@@ -512,9 +524,33 @@ def meshes(stage, path):
 
 
 def surface_points(stage, path):
-    """World points [n, 3] of every mesh under a prim (a face holder's surface, front_face)."""
+    """World points [n, 3] of every mesh under a prim (a built wall's, slanted_face)."""
     return np.concatenate([np.zeros((0, 3))] + [points @ matrix[:3, :3] + matrix[3, :3]
                                                 for points, matrix in meshes(stage, path)])
+
+
+def surface_mesh(stage, path):
+    """The world triangles of every drawn mesh under a prim, as one mesh (a face holder's surface, front_face), each
+    face a fan from its first corner; None with none."""
+    import trimesh
+    from pxr import Usd, UsdGeom
+    points, triangles, count = [], [], 0
+    for prim in Usd.PrimRange(stage.GetPrimAtPath(path)):
+        if not prim.IsA(UsdGeom.Mesh) or UsdGeom.Imageable(prim).ComputePurpose() == UsdGeom.Tokens.guide:
+            continue
+        mesh = UsdGeom.Mesh(prim)
+        own = np.asarray(mesh.GetPointsAttr().Get() or [], float).reshape(-1, 3)
+        matrix = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
+        indices, first = np.asarray(mesh.GetFaceVertexIndicesAttr().Get() or [], np.int64), 0
+        for corners in np.asarray(mesh.GetFaceVertexCountsAttr().Get() or [], np.int64):
+            face = indices[first:first + corners] + count
+            triangles += [(face[0], face[step], face[step + 1]) for step in range(1, corners - 1)]
+            first += corners
+        points.append(own @ matrix[:3, :3] + matrix[3, :3])
+        count += len(own)
+    if not triangles:
+        return None
+    return trimesh.Trimesh(np.concatenate(points), np.asarray(triangles, np.int64), process=False)
 
 
 def recess_boxes(stage, path, cuts):
@@ -628,7 +664,7 @@ def fitted(stage, place, entries, laid, cuts=None):
         if how == "face" and held:
             box = nearest([box for _, box in held], low, high)
             holder = next(holder for holder, found in held if found is box)
-            surface = surface_points(stage, f"/{place}/{scope}/{holder}")
+            surface = surface_mesh(stage, f"/{place}/{scope}/{holder}")
             recesses = recess_boxes(stage, f"/{place}/{scope}/{holder}", (cuts or {}).get(bakes.get(holder)))
         if how == "in" and name in leaves and slanted(entry["on"]):
             surface = wall_points(stage, place)
