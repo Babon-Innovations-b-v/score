@@ -154,11 +154,15 @@ class TapedSites:
     then the free coordinates) and `constants` (`_Constants`' arguments after the model: level 2's free sites and inside
 joints, the inner unknowns after the pose); `model` built with requires_grad, its joint_q the pose when no couplings
 are given. `trusted`: the outer unknowns hold each site's trust (its weight) after the offsets, level 1's landmark
-weights, replacing `weights` at every evaluation."""
+weights, replacing `weights` at every evaluation. `ends` (with `trusted`): the last `ends` sites are the group ends
+(their offsets the group-end centres' moves) and the outer unknowns after the offsets are the landmarks' trusts, then
+"end weight", then "marker goal": each site weighs sqrt(goal * trust / sum of trusts), an end's trust "end weight"
+times the landmarks' mean (`fit.fitting` and `fit/_card/_objective`'s markers' goal)."""
 
-    def __init__(self, model, links, weights, targets, turns=None, couplings=None, constants=None, trusted=False):
+    def __init__(self, model, links, weights, targets, turns=None, couplings=None, constants=None, trusted=False, ends=None):
         self.model = model
         self.trusted = trusted
+        self.ends = ends
         self.state = model.state(requires_grad=True)
         device = model.device
         self.links = wp.array(np.asarray(links, dtype=np.int32), dtype=wp.int32, device=device)
@@ -177,6 +181,15 @@ weights, replacing `weights` at every evaluation."""
         size = self.constants.size if self.constants is not None else 0
         return inner[:len(inner) - size], inner[len(inner) - size:]
 
+    def _weighed(self, tail):
+        """The sites' weights from the outer unknowns after the offsets: the trusts themselves, or with `ends` the
+        markers' goal's weights from the landmarks' trusts, "end weight" and "marker goal"."""
+        if self.ends is None:
+            return tail
+        trusts, end_weight, goal = tail[:-2], tail[-2], tail[-1]
+        trusts = np.concatenate([trusts, np.full(self.ends, end_weight * trusts.mean())])
+        return np.sqrt(goal * trusts / max(trusts.sum(), 1e-12)).astype(np.float32)
+
     def _evaluate(self, inner, outer):
         """Forward kinematics at `inner` (the pose, then level 2's moves), then the sites' residuals and cost with
         offsets `outer` (flat)."""
@@ -188,7 +201,7 @@ weights, replacing `weights` at every evaluation."""
         outer = np.asarray(outer, dtype=np.float32)
         if self.trusted:
             sites = self.links.shape[0]
-            self.weights.assign(outer[3 * sites:])
+            self.weights.assign(self._weighed(outer[3 * sites:]))
             outer = outer[:3 * sites]
         offsets = outer.reshape(-1, 3)
         if self.constants is not None:

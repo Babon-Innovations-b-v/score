@@ -10,13 +10,14 @@ in `_taped.py`, dropping `tape.zero()` (a second gradient adds onto the first's)
 the turn rows' launch turns it red; dropping the followers' launch (couplings) turns it red; reading level 2's
 inside-joint gradient as zeros (`_Constants.gradient`) turns it red; reading only the first frame's copy of a constant
 in a batched body (`_Constants.gradient` taking `[0]` in place of `.sum(axis=0)`) turns it red. Ignoring the outer
-unknowns' trust (`TapedSites._evaluate` not assigning `self.weights` when `trusted`) turns it red.
+unknowns' trust (`TapedSites._evaluate` not assigning `self.weights` when `trusted`) turns it red. Assigning the trusts themselves when `ends` is given (`_weighed` returning `tail`) turns it red.
 
 The taped test runs `_taped` (Newton eval_fk on a wp.Tape) in Newton's own Python on the card, a four-link chain with
 three weighted sites and two link-frame turn rows, once on every coordinate and once with the last a follower of the
 second (a polynomial coupling, the pose the three free coordinates), and once with level 2's constants (two free
 sites' moves and the third joint's place move after the pose), and once batched (two frames as two copies of the chain
-in one model, one launch, level 2's constants shared by both), and once with each site's trust an outer unknown: its gradient, asked twice, equals central differences of its cost to 1e-3 of the largest entry. With no
+in one model, one launch, level 2's constants shared by both), and once with each site's trust an outer unknown, and once with the last site a group end and the
+end weight and markers' goal outer unknowns: its gradient, asked twice, equals central differences of its cost to 1e-3 of the largest entry. With no
 Newton Python (`SCORE_NEWTON_PYTHON`, else $PROPS_HOME/envs/newton_env) it is skipped."""
 import os
 import pathlib
@@ -216,6 +217,16 @@ def trusted_cost(moved):
 trusted_differences = np.array([(trusted_cost(pose + step * np.eye(4)[axis])
                                  - trusted_cost(pose - step * np.eye(4)[axis])) / (2 * step) for axis in range(4)])
 gaps.append(np.abs(trusted_taped - trusted_differences).max() / np.abs(trusted_differences).max())
+ended = _taped.TapedSites(model, [1, 3, 3], [9.0, 9.0, 9.0],
+                          [[0.1, 0.2, 0.5], [0.3, -0.2, 1.0], [0.0, 0.1, 0.8]], turns, trusted=True, ends=1)
+landmarks, end_weight, goal = np.array([1.0, 2.0]), 0.5, 3.0
+all_trusts = np.array([1.0, 2.0, 0.5 * 1.5])
+by_hand = np.sqrt(goal * all_trusts / all_trusts.sum())
+ended_rows = ended.residuals(pose, np.concatenate([outer, landmarks, [end_weight, goal]]))
+assert np.abs(ended_rows - trusted.residuals(pose, np.concatenate([outer, by_hand]))).max() < 1e-5, \
+    "end weight and marker goal not read from the outer unknowns"
+goal_doubled = ended.residuals(pose, np.concatenate([outer, landmarks, [end_weight, 2 * goal]]))
+assert np.abs(goal_doubled[:9] - np.sqrt(2) * ended_rows[:9]).max() < 1e-5, "marker goal not scaling every site"
 print("GAP", max(gaps))
 """
 
