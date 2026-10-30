@@ -4,7 +4,8 @@ unconverged inner fit is refused, and level 1's outer rows (a per-frame distance
 equal differences of the measures they stand for.
 
 Breaks (each applied once, seen red, reverted), in `tuning/_adjoint/__init__.py`: `rms_row` dropping its 1 / count
-turns the outer rows test red; dropping the mixed term
+turns the outer rows test red; `case_rows` weighing joints 1.0 in place of
+JOINT_SHARE turns the case rows test red; dropping the mixed term
 (`moved` set to zeros) turns the columns test red; `schur_solve` skipping the couplings' reduction (`reduced = corner`)
 turns the Schur and columns tests red; removing the `Unconverged` check turns the refusal test red; `stacked_jacobian` skipping `refused`
 (no check before use) turns the stacked refusal test red; dropping the prior's block turns the stacked test red;
@@ -273,3 +274,34 @@ def test_the_taped_gradient_equals_central_differences_of_the_cost():
     assert ran.returncode == 0, ran.stderr[-2000:]
     gap = float(ran.stdout.rsplit("GAP", 1)[1])
     assert gap < 1e-3
+
+
+def _measured(unknowns):
+    """A toy case's taped per-frame measures as functions of a 3-unknown inner pose (metres and degrees)."""
+    lean = _differences(unknowns)
+    return {"joints": {"LeftLeg": 0.01 * lean, "Hips": 0.02 * lean[::-1] + 0.005},
+            "turns": {"Hips": 4 + 3 * lean[:, 0] * lean[:, 1], "LeftLeg": 6 + 2 * lean[:, 2]},
+            "skins": {"pelvis": 0.002 * lean[:, 1], "thigh": 0.001 * (lean[:, 0] + 2)}}
+
+
+def _found(unknowns):
+    measured = _measured(unknowns)
+    return {"per joint mm": {key: [np.median(1000 * np.linalg.norm(value, axis=1))]
+                             for key, value in measured["joints"].items()},
+            "per group deg": {key: [np.median(value)] for key, value in measured["turns"].items()},
+            "bones outside depth mm": {key: 1000 * np.sqrt(np.mean(np.square(value)))
+                                       for key, value in measured["skins"].items()}}
+
+
+def test_the_taped_case_rows_equal_differences_of_the_case_residuals():
+    from score.stages.sim_body.inside.tuning import case_residuals
+    unknowns = np.array([0.3, 0.7, 1.1])
+    measured = _measured(unknowns)
+    rows = {kind: {key: _adjoint.by_columns(lambda point, kind=kind, key=key: np.ravel(_measured(point)[kind][key]),
+                                            unknowns, 1e-6).reshape(*np.shape(value), 3)
+                   for key, value in measured[kind].items()} for kind in measured}
+    values, jacobian = _adjoint.case_rows(*({key: (value, rows[kind][key]) for key, value in measured[kind].items()}
+                                            for kind in ("joints", "turns", "skins")))
+    assert np.allclose(values, case_residuals(_found(unknowns)))
+    expected = _adjoint.by_columns(lambda point: case_residuals(_found(point)), unknowns, 1e-6)
+    assert np.allclose(jacobian, expected, atol=1e-6)

@@ -8,6 +8,8 @@ whose gradient is not zero gives a wrong derivative, so `implicit_jacobian` refu
 Callables, not a model: the card code supplies g (Newton eval_fk on a wp.Tape) and the residuals; numpy only here."""
 import numpy as np
 
+from .. import JOINT_SHARE, SCALES
+
 
 class Unconverged(ValueError):
     """The inner fit stopped where its gradient is not zero: its implicit derivative would be wrong."""
@@ -148,3 +150,21 @@ def distance_rows(differences, rows):
     differences = np.asarray(differences, dtype=float)
     lengths = np.linalg.norm(differences, axis=1)
     return lengths, np.einsum("fk,fkn->fn", differences / lengths[:, None], np.asarray(rows))
+
+
+def case_rows(joints, turns, skins):
+    """One case's level 1 rows and their derivative rows over the inner unknowns, in `tuning.case_residuals`' order
+    and scale, from taped per-frame measures: `joints` {SOMA joint: (model minus SOMA joint per frame (frames, 3) m,
+    its rows (frames, 3, unknowns))}, `turns` {group: (turn error per frame deg, its rows (frames, unknowns))},
+    `skins` {region: (depths outside per point m, their rows (points, unknowns))}. A joint's and a turn's row is its
+    frames' median (`median_row`), a skin's the root mean square (`rms_row`), mm for metres as the measures give."""
+    reduced = {"skin": {key: rms_row(1000 * np.asarray(depths), 1000 * np.asarray(rows))
+                        for key, (depths, rows) in skins.items()},
+               "turn": {key: median_row(errors, rows) for key, (errors, rows) in turns.items()},
+               "joint": {key: median_row(*distance_rows(1000 * np.asarray(differences), 1000 * np.asarray(rows)))
+                         for key, (differences, rows) in joints.items()}}
+    share = {"skin": 1.0, "turn": 1.0, "joint": JOINT_SHARE}
+    scaled = [(np.sqrt(share[kind] / len(reduced[kind])) / SCALES[kind], reduced[kind][key])
+              for kind in ("skin", "turn", "joint") for key in sorted(reduced[kind])]
+    return (np.array([scale * value for scale, (value, _) in scaled]),
+            np.stack([scale * row for scale, (_, row) in scaled]))
