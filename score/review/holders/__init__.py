@@ -8,7 +8,8 @@ Each plan item of a row that stands on, against or in something gets one relatio
     top    on its holder item's top: the row's anchor `on:<row>`, and in the concept its box's foot stands over its
            holder's by more than TOP_SHARE of the holder's box (a monitor on its console, a lamp on its desk)
     within inside its holder item, where the plan lays its middle (plants in their greenhouse, a door in its frame)
-    face   (a moving door's `recess`, its room in its holder model behind it: recess_of)
+    face   (a moving door's `recess`, its room in its holder model behind it: recess_of; `spots` each piece's plan
+           middle where a moving door's item lays several, at least its width, room and OPENING_ROOM apart: face_spots)
            against its holder item's side, `face` N, E, S or W: the side the concept shows it against (toward the
            viewer where its box stands within its holder's across, else the holder's left or right as seen), else the
            side toward it on the plan, else its facing, its holder's, or S (the garage door on its module's front)
@@ -211,6 +212,32 @@ def piece_middles(item, row, plan):
     return writer.spots_of(item, shapes.get(item[0]) or {}, counts.get(item[0], 1))
 
 
+def face_spots(item, row, plan, room):
+    """[(plan middle, way)] of a moving door's pieces against a face (piece_middles), moved apart along the line they
+    stand on about their middle so neighbours stand their width, their recess's `room` and OPENING_ROOM apart where
+    they stood closer (street's three 1.0 m restaurant doors laid 0.58 m apart on their 1.74 m item, their recesses in
+    one another, #36); as laid where they stand far enough apart."""
+    placed = piece_middles(item, row, plan)
+    if len(placed) < 2:
+        return placed
+    pitch = float(row["size"][0]) + room + OPENING_ROOM
+    first, last = (numpy.asarray(placed[end][0], float) for end in (0, -1))
+    length = float(numpy.linalg.norm(last - first))
+    if length >= pitch * (len(placed) - 1) - 1e-9:
+        return placed
+    run = (last - first) / length if length else numpy.asarray(placed[0][1], float)
+    centre = (first + last) / 2
+    return [(centre + run * pitch * (number - (len(placed) - 1) / 2), way) for number, (_, way) in enumerate(placed)]
+
+
+def spots_entry(item, row, plan, recess):
+    """{"spots": each piece's plan middle} of a moving door's face relation (its `recess`) whose item lays several
+    (face_spots), where the scene record lays each piece (writer.related); {} for one piece or a door that never
+    moves (laid as before)."""
+    placed = face_spots(item, row, plan, float(recess["room"])) if recess else []
+    return {"spots": [[round(float(value), 3) for value in spot] for spot, _ in placed]} if len(placed) > 1 else {}
+
+
 def recess_of(item, row, holder, holder_row, face, plan, inventory, kinds):
     """The recess a moving door needs in its holder model behind it, in the model's own frame: the model `axis` (x or
     z) and `side` its face is on, the door's middle `along` the face from the model's middle (`pieces`: one each where
@@ -234,11 +261,11 @@ def recess_of(item, row, holder, holder_row, face, plan, inventory, kinds):
     depth = (wide * abs(math.sin(math.radians(float(rule.get("angle") or 90.0)))) if rule["move"] == "swing"
              else deep) + RECESS_MARGIN
     along_way = model_z if on_x else model_x
-    placed = piece_middles(item, row, plan)
+    room = (deep if rule["move"] == "swing" else wide + deep) + RECESS_MARGIN + RECESS_WALL
+    placed = face_spots(item, row, plan, room)
     alongs = [round(float((spot - holder_middle) @ along_way), 3) for spot, _ in placed]
     toward = (rule.get("hinge") if rule["move"] == "swing" else rule.get("slide") or [1.0, 0.0, 0.0]) or [None]
     sides = [room_side(toward[0], model_axes(way, row)[0], along_way) for _, way in placed]
-    room = (deep if rule["move"] == "swing" else wide + deep) + RECESS_MARGIN + RECESS_WALL
     ways = [[round(float(value), 6) + 0.0 for value in along_way * piece_side] for piece_side in sides]
     return {"model": f"{holder_row['id']}_1", "axis": "x" if on_x else "z", "side": side, "along": alongs[0],
             **({"pieces": alongs, "room_sides": sides, "room_ways": ways} if len(alongs) > 1 else {}),
@@ -615,7 +642,7 @@ def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, 
         found = {"how": "face", "holder": plan_checks.WALLS_ITEM, "holder row": holder["id"],
                  "face": OPPOSITE[edge["edge"]], "why": f"against {holder['id']}'s face toward the place"}
         recess = recess_of(item, row, edge_holder(edge, holder), holder, found["face"], plan, inventory, kinds)
-        return ({**found, "recess": recess} if recess else found), None
+        return {**found, **({"recess": recess} if recess else {}), **spots_entry(item, row, plan, recess)}, None
     if holder is not None and holder["id"] in laid and kind not in ("wall", "floor"):  # an item of its own, or tied to its holder's
         items, shown = plan_items(plan), seen_holders(row, holder, rows, laid)
         nearest = min(((other, name) for other in shown for name in laid[other["id"]]),
@@ -627,6 +654,8 @@ def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, 
                            found["face"], plan, inventory, kinds) if found["how"] == "face" else None
         if recess:
             found["recess"] = recess
+        if found["how"] == "face":
+            found.update(spots_entry(item, row, plan, recess))
         if len(shown) > 1:
             found["why"] += (f" (its things stand on {len(shown)} rows in the concept: "
                              f"{', '.join(other['id'] for other in shown)}; the nearest on the plan)")

@@ -85,6 +85,28 @@ def test_a_moving_door_s_recess_holds_its_motion_and_a_static_one_sits_flush():
     assert recess["depth"] == 0.5 + holders.RECESS_MARGIN and recess["room"] == 6.6 and recess["room_side"] == 1.0
 
 
+def test_three_doors_on_one_face_item_stand_their_width_and_room_apart():
+    """Street (#36): its three 1.0 m restaurant doors on one 1.74 m plan item were laid 0.58 m apart, their recesses
+    in one another. Each piece of a face relation gets its own spot (`spots`), its width, its recess's room and
+    OPENING_ROOM from the next, about the item's middle, and its recess's `pieces` read the same spots.
+    Break: score/review/holders/__init__.py: `if length >= pitch * (len(placed) - 1) - 1e-9:` -> `if True:`"""
+    rows = [{"id": "module", "noun": "building", "anchor": "ground", "size": [12.0, 12.0, 12.0],
+             "box": [500, 100, 900, 560]},
+            {"id": "restaurant_door", "noun": "door", "anchor": "on:module", "size": [1.0, 0.1, 2.1], "count": 3,
+             "box": [560, 300, 760, 540]},
+            {"id": "astronaut", "noun": "astronaut", "anchor": "floor"}]
+    plan = plan_of([["MODULE 1", 8.0, 1.0, 11.9, 17.2, None, "item"],
+                    ["RESTAURANT DOOR 1", 9.0, 18.4, 1.74, 0.5, None, "item"]],
+                   {"MODULE 1": ["module"], "RESTAURANT DOOR 1": ["restaurant_door"]})
+    door = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["restaurant_door"]
+    pitch = 1.0 + door["recess"]["room"] + holders.OPENING_ROOM
+    xs = [spot[0] for spot in door["spots"]]
+    assert len(xs) == 3 and all(abs(right - left - pitch) < 1e-3 for left, right in zip(xs, xs[1:])), door
+    assert abs(xs[1] - 9.87) < 1e-3, door  # about the item's middle
+    alongs = door["recess"]["pieces"]
+    assert all(abs(abs(right - left) - pitch) < 1e-3 for left, right in zip(alongs, alongs[1:])), door["recess"]
+
+
 def test_a_monitor_stands_on_its_console_s_top():
     """The concept shows the monitor's foot over the console's by more than a quarter of the console's box, its top
     above the console's top quarter: on the console's top, its nearest item named.
