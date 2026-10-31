@@ -59,6 +59,11 @@ paired changes, tuning and check bodies apart, verdicts once the run dir has flo
   differs up to 1.5e-5 on tall), the three nudged columns 0.2 to 0.9 % apart, cosine 0.99996 or more. What is left on
   the host: scipy's lsmr inside least_squares and the polish's sparse solve (SuperLU), the person's file written and
   compiled per set (`sim_body.constants_set_up`), the Newton build per set (`_clip.for_fitting`), the measures.
+- `_card_sets` writes and compiles a set's person's file once (since 2026-10-31; twice before, the second with the
+  constants): `body_run` takes level 2's own `Fitting`, the constants laid on in place, with its group ends laid again
+  (`fit.ends_relaid`), and Newton's model is built from the file without constants with the inside joints moved; the
+  clips' folders hold no copy of the file. 4 centre sets x tall's 7 clips beside l1d (night/gpu2/prof c, d): set-up B
+  4.3 s to 0, rows within 2.7e-5 of the two-file run (largest 5.0), the nudged columns 0.02 to 0.03 % apart.
 - `measured_many` runs one `_card_sets` process a body (since 2026-10-31; one process held every body before, ~1.3
   cores, the card mostly idle, a Jacobian 37 min on l1d), at most `SET_PROCESSES` side by side by `run_all`, a
   failed body once more; each writes its own cases into the shared out/pNNN/sNNNNN folders. Measured (night/gpu2/many,

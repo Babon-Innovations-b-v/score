@@ -36,12 +36,13 @@ def chunks_of(root):
 
 
 def body_constants(folders, body_cases, saved):
-    """Every set's constants of one body (`body_cases` {case: job path}), `fit.constants_across`: each set's
-    `Fitting` without constants laid on its own state (phase A), every set's sampled frames posed in one card launch a
-    frame (phase B)."""
+    """Every set's (`Fitting`, constants) of one body (`body_cases` {case: job path}), `fit.constants_across`: each
+    set's `Fitting` without constants laid on its own state (phase A), every set's sampled frames posed in one card
+    launch a frame (phase B); each `Fitting` is left with its set's constants laid on in place."""
     unfitted = [_card_batch.body_unfitted(str(folder / "table.json"), str(folder / "weights.json"), folder,
                                           body_cases, saved) for folder in folders]
-    return fit.constants_across([fitting for fitting, _ in unfitted], [made for _, made in unfitted])
+    fittings = [fitting for fitting, _ in unfitted]
+    return list(zip(fittings, fit.constants_across(fittings, [made for _, made in unfitted]), strict=True))
 
 
 def sets_run(seeds_root, folders, cases, saved, same):
@@ -51,10 +52,10 @@ def sets_run(seeds_root, folders, cases, saved, same):
     base = folders[0]
     for body_cases in evaluation.by_body(cases).values():
         found = body_constants(folders, body_cases, saved)
-        for folder, constants in zip(folders, found, strict=True):
+        for folder, (fitting, constants) in zip(folders, found, strict=True):
             seeds = seeds_root if same or folder == base else base
             _card_batch.body_run(seeds, str(folder / "table.json"), str(folder / "weights.json"), folder, body_cases,
-                                 saved, found=constants)
+                                 saved, found=constants, fitting=fitting)
 
 
 def main():

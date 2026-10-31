@@ -96,15 +96,32 @@ def fitting(path, scales, held, segments, moves=None):
     marks = [(name, filed(LANDMARKS[name][3]), marker(name, scales[LANDMARKS[name][3]]) + moves.get(name, 0.0))
              for name in names]
     model = mujoco.MjModel.from_xml_path(str(path))
-    ends = [(f"{END}{centre}", *end_site(model, [(filed(body), np.asarray(local, dtype=float) * scales[body], weight)
-                                                  for body, local, weight in myo_parts(centre)]))
-            for _, centre in group_ends(segments)]
+    ends = [(f"{END}{centre}", *end_site(model, end_parts(centre, scales))) for _, centre in group_ends(segments)]
     trusts = [trust(name) for name in names]
     fingers = {body for _, _, frame, bodies in table.values() if frame.startswith(HAND_TOP)
                for body in bodies if body != frame}
     inside = [{filed(body) for body in bodies} for _, _, _, bodies in table.values()]
     return Fitting(path, frames, marks + ends, fingers, trusts + [END_WEIGHT * float(np.mean(trusts))] * len(ends),
                    inside, _frames.MARKER_GOAL)
+
+
+def end_parts(centre, scales):
+    """A group end's centre as weighted points on MyoFullBody's sized bodies ([(body as filed, local point, weight)])."""
+    return [(filed(body), np.asarray(local, dtype=float) * scales[body], weight) for body, local, weight in myo_parts(centre)]
+
+
+def ends_relaid(fit, scales, segments):
+    """`fit` (a `Fitting` with its constants laid in place) with its group ends' sites laid again on its model as it now
+    stands, as `fitting` lays them on the person's file written with those constants (`end_site` reads the bodies' rest
+    places, which the inside joints' moves change): the set's second file and compile are not needed (2026-10-31)."""
+    for _, centre in group_ends(segments):
+        site = fit.mark_sites[fit.marks.index(f"{END}{centre}")]
+        holder, local = end_site(fit.model, end_parts(centre, scales))
+        if fit.model.body(holder).id != fit.model.site_bodyid[site]:
+            raise ValueError(f"{centre}: its end's holder moved from {fit.model.body(int(fit.model.site_bodyid[site])).name} to {holder}")
+        fit.model.site_pos[site] = local
+        fit.base[1][site] = local
+    return fit
 
 
 def spread(count, most=SAMPLE):
