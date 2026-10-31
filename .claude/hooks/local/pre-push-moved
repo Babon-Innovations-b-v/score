@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Refuse a push to main that moves the key of a paid row with an accepted output (score moved --pre-push), unless a
-# pushed commit's "Moved-rows: <node> ...: <reason>" trailer names it. Off until the owner turns it on: git runs only
-# .githooks/pre-push (his local guard, kept out of the repository), so his pre-push hands its stdin on to this script,
+# pushed commit's "Moved-rows: <node> ...: <reason>" trailer names it. Off until the owner turns it on: git runs
+# .claude/hooks/pre-push, which hands the push to .claude/hooks/local/pre-push (his local guard, git-ignored), so his
+# pre-push hands its stdin on to this script,
 #   printf '%s\n' "$lines" | "$(dirname "$0")/pre-push-moved" || exit 1
 # and he sets it running with
 #   git config score.movedCheck true        (score.movedTimeout: seconds before it gives up, default 3600)

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Refuse a commit that would leave the paper's committed PDF and LaTeX older than its draft.
-# Installed by .claude/scripts/bootstrap.sh (git config core.hooksPath .githooks).
+# Git runs .claude/hooks/pre-commit (core.hooksPath .claude/hooks, set by .claude/scripts/bootstrap.sh),
+# which runs the shared torn-commit guard and then this file.
 set -euo pipefail
 repo="$(git rev-parse --show-toplevel)"
 if git diff --cached --name-only | grep -q '^paper/'; then

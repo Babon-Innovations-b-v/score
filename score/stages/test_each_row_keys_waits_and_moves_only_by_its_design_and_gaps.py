@@ -215,7 +215,7 @@ Breaks (each applied once, seen red, reverted), in score/stages/batch_gaps.py:
 
 --- push gate names the paid rows it moves ---
 
-The push gate (moved.py, `score moved`, .githooks/pre-push-moved) names exactly the paid rows a change would buy
+The push gate (moved.py, `score moved`, .claude/hooks/local/pre-push-moved) names exactly the paid rows a change would buy
 again, each with its price and why, and refuses a push to main only for the rows that push moves and no Moved-rows
 trailer names with a reason; drift already on main is a warning, a move no file explains (a params, contract or
 model change) is refused like any other, and the hook leaves no process or checkout behind.
@@ -232,14 +232,14 @@ row; its second form let a framework-only push through unchecked and only warned
 tests that worked out the real commits 8b402226 and 1f90a0fe took two minutes (and the first no longer held on
 today's table): the toy's declared data files hold the same rule, a file a row declares moves it.
 
-Breaks (each applied once, seen red, reverted), in score/stages/moved.py and .githooks/pre-push-moved:
+Breaks (each applied once, seen red, reverted), in score/stages/moved.py and .claude/hooks/local/pre-push-moved:
 - `total`: `sum(row.euros ...)` read as `sum(0 * row.euros ...)`  -> the price-and-why test ("about EUR 3.00").
 - `main_pushes`: `ref == MAIN and` dropped  -> test_only_pushes_to_main_are_checked.
 - `trailer_nodes`: `and why.strip()` dropped  -> test_a_trailer_names_a_row_only_among_its_nodes_and_with_a_reason.
 - `split`: the pushed rows' `if base is None or row.node not in known...` dropped  -> the drift tests (drift refused).
 - `unexplained`: `not named_in(...)` read as `named_in(...)`  -> test_a_trailer_lets_only_the_rows_it_names_go.
 - `edited_into_framework`: `after - before` read as `before - after`  -> the framework-move test.
-- .githooks/pre-push-moved: its `trap '... worktree remove ...' EXIT` line made a no-op  -> the changed-tree hook test
+- .claude/hooks/local/pre-push-moved: its `trap '... worktree remove ...' EXIT` line made a no-op  -> the changed-tree hook test
   (the checkout is left behind).
 - score/__main__.py `moved_check`: `> 0` read as `>= 0`  -> test_nothing_changed_lists_nothing_and_passes.
 - score/graph/_code.py `source_files`: FRAMEWORK not left out  -> test_a_framework_only_edit_lists_nothing.
@@ -2159,7 +2159,7 @@ def test_a_framework_only_push_is_still_checked():
         assert worked_out == [1] and code == moved.MOVED_EXIT and "Moved-rows: bake@hangar: <why>" in printed
 
 
-HOOK = REPO / ".githooks/pre-push-moved"
+HOOK = REPO / ".claude/hooks/local/pre-push-moved"
 
 
 RECORDER = """import json, os, pathlib, sys
@@ -2198,7 +2198,7 @@ def hook_repo(command_text=RECORDER):
 
 
 def hook(where, push_lines, exit_with=0, temp=None, env=None):
-    """Run .githooks/pre-push-moved in `where` (with `env` added to its environment); (its exit code, its output, the
+    """Run .claude/hooks/local/pre-push-moved in `where` (with `env` added to its environment); (its exit code, its output, the
     recorder's record or None)."""
     record = pathlib.Path(tempfile.mkdtemp()) / "record.json"
     ran = subprocess.run(["bash", str(HOOK), "origin", "toy"], cwd=where, input="\n".join(push_lines) + "\n",

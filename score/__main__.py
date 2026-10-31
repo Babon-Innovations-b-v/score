@@ -67,7 +67,7 @@ would cost over EUR 5, unless given --rebuy-reason, which goes into the run's lo
 
 `moved` lists, read-only, every paid row with an accepted output this working tree would buy again over every
 environment's places, each with its price and why, and the total (score/stages/moved.py); it exits 3 above EUR 0. With --pre-push
-(.githooks/pre-push-moved, the push lines on stdin, run in a checkout of the commit pushed to main) it refuses the paid
+(.claude/hooks/local/pre-push-moved, the push lines on stdin, run in a checkout of the commit pushed to main) it refuses the paid
 rows that commit would buy again and main's commit would not, unless a pushed commit's "Moved-rows: <node> ...:
 <reason>" trailer names each; rows main already buys again print as a warning, and when main's commit cannot be
 worked out every moved row counts as the push's. The hook runs only once the owner sets
@@ -1124,7 +1124,7 @@ def pre_push_check(push_lines):
         return
     tip, remote = pushes[-1]
     if not moved.tree_is_at(tip):
-        sys.exit(f"refused: the moved check must run in a clean checkout of {tip} (.githooks/pre-push-moved makes one)")
+        sys.exit(f"refused: the moved check must run in a clean checkout of {tip} (.claude/hooks/local/pre-push-moved makes one)")
     print(f"moved check: working out which paid rows {tip[:12]} and main's {remote[:12]} would buy again, every world "
           f"(a few minutes each)...", flush=True)
     pushed_check(every_world_moved(), moved.base_rebuys(remote), moved.pushed_reasons(pushes))
