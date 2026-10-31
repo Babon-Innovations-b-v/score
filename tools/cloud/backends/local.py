@@ -95,7 +95,9 @@ HELD = {}  # {machine id: the open lock file} for the claims this process holds
 # a Pixal3D take (13.2 of 16 GB, 2026-10-28). A run's own measured need (run.need's card_gb) comes first; a kind in
 # neither holds the whole card. DINOv2's likeness (similar_worker.py): 2026-10-31, 56 pairs of an env1 likeness in a
 # container of this image, the card's total read every 100 ms: 729 MiB over a steady 2324 before and after.
-CARD_NEED = {"blender": 9.7, "pixal": 10.8, "similar": 0.8}
+# The library bakes (library_bake.py): the card queue's own measure of a claim alone on the card, 1.4 GB (2026-10-31,
+# card_queue.py measured; a Cycles bake is mostly processor work).
+CARD_NEED = {"blender": 9.7, "pixal": 10.8, "similar": 0.8, "library": 1.4}
 # The memory GB a kind's claim holds when its run gives none (run.need's memory_gb comes first); a kind in neither
 # holds the whole memory. DINOv2's likeness: 2026-10-31, the same 56 pairs, the worker's resident peak 1.26 GB.
 MEMORY_NEED = {"similar": 1.3}

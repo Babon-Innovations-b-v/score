@@ -90,7 +90,8 @@ The invariants, each with the break that turns its test red (each applied once a
   `run` -> it never ends; or drop the `if handle and share is None:` block in `local.take` -> the pixal claim starts
   beside the side job; or drop `CARDS[machine_id] = share` in `local.take` -> the claim's share is let go at once; or
   drop `"similar"` from `local.CARD_NEED` -> the likeness claim waits for the whole card beside the side job; or drop
-  `"similar"` from `local.MEMORY_NEED` -> it holds the whole memory and a 20 GiB side job waits.
+  `"similar"` from `local.MEMORY_NEED` -> it holds the whole memory and a 20 GiB side job waits; or drop `"library"`
+  from `local.CARD_NEED` -> the library bake waits for the whole card beside the side job.
 - Every watched share (each `run`, each claim of the container) is measured while held: the card's highest reading less
   the desktop, alone or beside another share, with its cores and memory, one line in measures.jsonl when given back.
   Break: drop `record(handle, cores, memory_gb)` in `release` -> nothing measured; or `<= 1` -> `< 1` in `read_card` ->
@@ -794,6 +795,9 @@ def test_this_pc_claims_hold_their_card_share_and_wait_while_a_side_job_holds_th
     assert likeness and beside
     card_queue.release(beside)
     local.delete(likeness["id"], "this-pc")
+    bake = local.take("library", "key")  # the library bakes' measured 1.4 GB fits beside it too
+    assert bake
+    local.delete(bake["id"], "this-pc")
     assert local.take("pixal", "key") is None  # 6 + 10.8 passes the card: it waits, holding no claim
     assert local.queued("pixal") and not local.queued("blender")  # in the queue: park.here holds its minutes
     with local.container_lock("score-this-pc-pixal").open("a+") as probe:
