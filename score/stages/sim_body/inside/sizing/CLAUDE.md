@@ -24,3 +24,5 @@ body by body; `path_lengths` reads each muscle's path for OpenSim's muscle scali
   "Anatomical hip"); SOMA's hip joints, 19.4 mm wider a side, are only the measure. The masses' centres still stand
   at SOMA's joints (`soma_point`): where a group's mass sits is not its length.
 - Its test runs in Newton's own Python (MuJoCo pinned there) by subprocess and prints `skipped` where no env is built.
+- A person's mesh is filled with cells once (`filled`, keyed by the mesh's bytes; 2026-10-31): level 1's centre sets
+  size the person anew, its mesh the same (0.47 s a set).

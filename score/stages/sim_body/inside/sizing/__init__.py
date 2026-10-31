@@ -175,6 +175,21 @@ def hip_width(spec, rig):
     return factor
 
 
+FILLED = {}  # {the mesh's bytes' digest: `volumes.filled`'s cells, read-only}: a person's mesh is filled once
+
+
+def filled(points, faces):
+    """`volumes.filled` of SOMA's mesh, made once per mesh (a level 1 centre set sizes the person anew, its mesh the
+    same: 0.47 s a set, 2026-10-31)."""
+    import hashlib
+    key = hashlib.sha256(np.ascontiguousarray(points, dtype=float).tobytes()
+                         + np.ascontiguousarray(faces, dtype=np.int64).tobytes()).hexdigest()
+    if key not in FILLED:
+        FILLED[key] = volumes.filled(points, faces)
+        FILLED[key].flags.writeable = False
+    return FILLED[key]
+
+
 class Size:
     """One person's sizing from its SOMA rig ({"names", "bind", "points", "faces", "weights"}, its bind in its own
     frame): `scales` (each body's), `weigh` (the masses from SOMA's volumes), `record`."""
@@ -183,7 +198,7 @@ class Size:
         self.rig, self.table = rig, table or groups()
         self.lengths = soma_lengths(rig, self.table)
         self.turns = turns or {group: turn(group) for group in stretches(self.table)}
-        cells = volumes.filled(rig["points"], rig["faces"])
+        cells = filled(rig["points"], rig["faces"])
         names = list(stretches(self.table))
         lines = [[(soma_point(start, rig), soma_point(end, rig)) for start, end in self._pieces(group)]
                  for group in names]
