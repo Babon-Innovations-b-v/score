@@ -196,6 +196,9 @@ def sweep(force):
     the floor); exit 1 when it is still under the floor."""
     from score.conductor import disk
     done = disk.sweep(force=force, say=lambda line: print(line, flush=True))
+    if done["refused"]:
+        print(f"sweep: refused, nothing done: {done['refused']}; {done['free_after_gb']} GB free", flush=True)
+        return
     short = f"; still under the {disk.FLOOR_GB} GB floor: filled by {done['fills']}; needs {done['bigger']}" \
         if done["bigger"] else ""
     print(f"sweep: {'every step' if done['escalated'] else 'routine'}; freed {done['freed_gb']} GB, "
