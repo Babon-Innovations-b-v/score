@@ -29,7 +29,9 @@ never moved). Two calls at once take turns on a lock in the checkout's .git fold
 5. `git checkout --detach <commit>`, then `uv sync --frozen --group dashboard` when uv.lock or pyproject.toml changed,
    and the prop environment ($PROPS_HOME/env, boot.sh props_env) synced the same way once the move made machine.json,
    on that change or whenever it is missing (left out of every backup; nothing runs boot.sh at a reboot).
-6. Whatever moved, score_lib's checkout beside it gets a machine's git identity when git knows no user.email there
+6. A move that changed tools/cloud/conductor/units runs `boot.sh units` (every unit there installed and enabled, its
+   timers started), so a new unit is live without a boot; a failed install is said in the line.
+7. Whatever moved, score_lib's checkout beside it gets a machine's git identity when git knows no user.email there
    (2026-10-28: boot.sh's clone had none, so every take-in, handover, concept lock and cockpit lock failed its commit,
    "unable to auto-detect email address"). Set in its own config, every process committing there has it.
 
@@ -49,6 +51,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 STARTERS = (("score", "run"), ("score", "resume"))
 SYNCING = (("score.dashboard", "sync"),)  # a sync pass: holds back only a uv.lock move
 LOCK_FILES = ("uv.lock", "pyproject.toml")
+UNITS = "tools/cloud/conductor/units"  # a move that changes it installs them again (boot.sh units)
 UV = os.environ.get("SCORE_UV", "/usr/local/bin/uv")
 PROC = pathlib.Path(os.environ.get("SCORE_PROC", "/proc"))
 HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
@@ -246,7 +249,21 @@ def moved(repo, sync_url, uv, opener, proc, token, home, sync_unit):
         subprocess.run([uv, "sync", "-q", "--frozen", "--group", "dashboard"], cwd=repo, check=True)
         synced = ", .venv synced"
     synced += props_env(repo, home, uv, lock_changed(repo, old, commit))
+    synced += units_installed(repo, old, commit)
     return f"update: {old[:12]} -> {commit[:12]}, {why}{synced}"
+
+
+def units_installed(repo, old, new):
+    """boot.sh's units part run when the move changed UNITS, so a new or changed unit is live without a boot
+    (2026-10-31: the disk sweep's own timer); what the line adds, a failed install said with its exit and last line."""
+    if git(repo, "diff", "--quiet", old, new, "--", UNITS, check=False).returncode == 0:
+        return ""
+    done = subprocess.run(["bash", str(repo / "tools" / "cloud" / "conductor" / "boot.sh"), "units"],
+                          capture_output=True, text=True)
+    if done.returncode != 0:
+        return f", the units NOT installed (boot.sh units exit {done.returncode}: " \
+               f"{(done.stderr.strip().splitlines() or ['no output'])[-1]})"
+    return ", the units installed"
 
 
 def main(argv):
