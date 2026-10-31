@@ -19,7 +19,10 @@ a time (env1, 2026-10-28: 26 bake rows waited on the claim of one place). An exc
 WANTING) keeps new shared claims out until it has its turn, so a stream of bakes never starves it; the container's
 set-up and each claim's own (`setting_up`) run one at a time. Each of the jobs' card calls (the Cycles bake, a render)
 waits its turn on the card (card_turn.py, put into the container's Blender startup folder at every claim), so the
-card never works for more than card_turn.CARD_SLOTS (two) jobs at once. Its offers are
+card never works for more than card_turn.CARD_SLOTS (two) jobs at once. Every claim also holds its share of this
+PC's one card queue (card_queue.py, CARD_NEED or the run's measured need; PRD #73) from its take to its delete, so a
+card user outside the container (sim body tuning, a proof container) and the run's jobs never pass the card together:
+while the queue has no room the claim waits as for a busy machine, and its waiting keeps side jobs off. Its offers are
 always `parked`, so batch.rent never orders anything: the machine is only ever taken through park.adopt
 (park.here), which asks no clearance, since it costs nothing (price 0; the ledger's rows carry the measured minutes
 at EUR 0). A job that needs more card or memory than this PC has is refused at its claim with the reason, never run
@@ -41,6 +44,7 @@ import subprocess
 import time
 import uuid
 
+import card_queue
 import provider
 from paths import HOME
 
@@ -77,6 +81,12 @@ CARD_TURN = pathlib.Path(__file__).resolve().parent / "card_turn.py"
 BLENDER_PEAK_GB = 6.7
 BLENDER_MARGIN_GB = 2
 HELD = {}  # {machine id: the open lock file} for the claims this process holds
+# The card GB a claim holds in this PC's card queue (card_queue.py, shared with every card user outside the container),
+# measured less the desktop's 2.4: Blender's two card calls beside its resting jobs (card_turn.py: 12.1 of 16.3 GB),
+# a Pixal3D take (13.2 of 16 GB, 2026-10-28). A run's own measured need (run.need's card_gb) comes first; a kind in
+# neither holds the whole card.
+CARD_NEED = {"blender": 9.7, "pixal": 10.8}
+CARDS = {}  # {machine id: its open share of the card queue} for the claims this process holds
 TURNS = {}  # {machine id: [its open turn files]} for the shared claims this process holds
 # Kinds whose claims share the machine (the docstring): each of their jobs' files is at its own absolute path.
 SHARED = frozenset({"blender"})
@@ -160,6 +170,12 @@ def take(kind, public_key, need=None):
     memory = (need or {}).get("memory_gb", 0) * 2**30
     alone = memory > int(memory_cap()[:-1]) * 2**30
     handle, turns = claimed(kind, alone)
+    share = handle and card_queue.take(f"this-pc {kind}", (need or {}).get("card_gb", CARD_NEED.get(kind)), "film",
+                                       "blender" if turns else None)
+    if handle and share is None:  # a card user outside the container holds the room: wait for it like a busy claim
+        for held in (*turns, handle):
+            held.close()
+        handle = None
     mark_waiting(handle is None)
     if handle is None:
         return None
@@ -167,6 +183,7 @@ def take(kind, public_key, need=None):
         with setting_up():
             host = running(public_key)
             if alone and memory > alone_room():
+                card_queue.release(share)
                 handle.close()
                 want()  # Blender claims stay out while it waits for the room
                 mark_waiting(True)
@@ -175,11 +192,13 @@ def take(kind, public_key, need=None):
                 docker("update", "--memory", alone_cap(), "--memory-swap", alone_cap(), MACHINE)
             card_in_turns()
     except BaseException:
+        card_queue.release(share)
         for held in (*turns, handle):
             held.close()
         raise
     machine_id = f"{MACHINE}:{uuid.uuid4().hex[:12]}"
     HELD[machine_id] = handle
+    CARDS[machine_id] = share
     for held in turns or [handle]:  # who holds it: the lock file of an exclusive claim, each turn of a shared one
         held.seek(0)
         held.truncate()
@@ -409,6 +428,8 @@ def delete(machine_id, _zone):
     call ended it."""
     for turn in TURNS.pop(machine_id, []):
         turn.close()
+    if machine_id in CARDS:
+        card_queue.release(CARDS.pop(machine_id))
     handle = HELD.pop(machine_id, None)
     if handle is not None:
         try:

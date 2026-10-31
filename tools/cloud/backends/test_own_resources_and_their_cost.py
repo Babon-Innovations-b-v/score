@@ -74,8 +74,18 @@ The invariants, each with the break that turns its test red (each applied once a
   processes, and leaves every other operator call free to run beside it. Break: in `turned`, call `call(...)` without
   `with card_turn(lock_path):` -> five bakes are on the card at once; or `range(CARD_SLOTS)` -> `range(1)` in
   `card_turn` -> one at a time.
+- This PC's card queue (card_queue.py, PRD #73) never lets its holders' shares pass the card's room (one group counted
+  once: the run's Blender claims), a film claim that waits keeps side jobs off until it has its share, an unmeasured
+  need takes the whole card, and a holder that dies (a command `run` exec'd with its share) frees its share. The
+  container's claims hold their share from take to delete and wait as for a busy machine while it has no room.
+  Break: `> BUDGET_GB` -> `> BUDGET_GB * 2` in `take` -> the side job joins two Blender claims; or drop `ahead or` ->
+  the side job starts before the waiting film claim; or `key = entry["group"] or entry["id"]` -> `key = entry["id"]`
+  in `in_use` -> the second Blender claim of the same group waits; or drop `os.set_inheritable(...)` in `run` -> the
+  command holds nothing; or drop the `if handle and share is None:` block in `local.take` -> the pixal claim starts
+  beside the side job; or drop `CARDS[machine_id] = share` in `local.take` -> the claim's share is let go at once.
 """
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -88,6 +98,7 @@ import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
+import card_queue  # noqa: E402
 import scaleway  # noqa: E402
 
 OURS = "project-ours"
@@ -139,6 +150,14 @@ def ours_key():
 
 def namespace(project, public=False, endpoint="rg/x"):
     return {"name": scaleway.REGISTRY_NAMESPACE, "project_id": project, "is_public": public, "endpoint": endpoint}
+
+
+@pytest.fixture(autouse=True)
+def card_queue_folder(monkeypatch, tmp_path):
+    """This PC's card queue in the test's own folder, never the PC's real one."""
+    monkeypatch.setattr(card_queue, "QUEUE", tmp_path / "card-queue")
+    monkeypatch.setattr(card_queue, "WAITING", {})
+    return card_queue.QUEUE
 
 
 # --- only our own project's resources -------------------------------------------------------------------------------
@@ -656,3 +675,45 @@ def test_card_turn_gives_the_card_to_its_slots_of_card_calls_at_a_time(tmp_path)
         beside.start()
         beside.join(5)
         assert not beside.is_alive()
+
+
+def test_the_card_queue_never_passes_the_card_and_a_waiting_film_claim_keeps_side_jobs_off(card_queue_folder):
+    first = card_queue.take("bake@lab", 9.7, "film", "blender")
+    second = card_queue.take("bake@hub", 9.7, "film", "blender")  # the same group: the card's turns are shared
+    assert first and second
+    assert card_queue.take("sim-body", 6, "side") is None  # 9.7 + 6 passes 13.5
+    card_queue.release(first)
+    card_queue.release(second)
+    side = card_queue.take("sim-body", 6, "side")
+    assert side and card_queue.take("pixal", 10.8, "film") is None  # 6 + 10.8 passes it: the film claim waits
+    assert card_queue.take("proof", 1, "side") is None  # it would fit, but the film claim asked first
+    assert "2 waiting" in card_queue.status()  # the film claim and the proof
+    card_queue.release(side)
+    film = card_queue.take("pixal", 10.8, "film")
+    assert film and card_queue.take("tuning", None, "side") is None  # unmeasured: the whole card
+    card_queue.release(film)
+    holder = subprocess.Popen([sys.executable, card_queue.__file__, "run", "--job", "proof", "--card-gb", "13", "--",
+                               sys.executable, "-c", "import sys; sys.stdin.read()"],
+                              stdin=subprocess.PIPE, env={**os.environ, "SCORE_CARD_QUEUE": str(card_queue_folder)})
+    give_up = time.time() + 30
+    while "held proof" not in card_queue.status() and time.time() < give_up:
+        time.sleep(0.05)
+    assert card_queue.take("pixal", 10.8, "film") is None  # the exec'd command holds the share
+    holder.stdin.close()
+    holder.wait(30)
+    assert card_queue.take("pixal", 10.8, "film")  # it ended: its share is free
+
+
+def test_this_pc_claims_hold_their_card_share_and_wait_while_a_side_job_holds_the_card(monkeypatch, tmp_path):
+    import local
+    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
+    monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
+    monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)
+    side = card_queue.take("sim-body", 6, "side")
+    assert local.take("pixal", "key") is None  # 6 + 10.8 passes the card: it waits, holding no claim
+    assert local.LOCK.exists() and local.claimed("judge")[0] is not None  # the machine's lock was let go
+    card_queue.release(side)
+    machine = local.take("pixal", "key")
+    assert machine and card_queue.take("sim-body", 6, "side") is None  # the claim holds its share
+    local.delete(machine["id"], "this-pc")
+    assert card_queue.take("sim-body", 6, "side")
