@@ -258,6 +258,42 @@ def test_a_view_eye_where_a_person_would_stand_in_a_thing_moves_out_with_its_loo
     assert [view["eye"] for view in writer.views(record, 1.6)][1:] == [[0.0, 1.6, -1.4], [3.0, 1.6, 3.0]]
 
 
+def test_a_view_looking_into_a_thing_close_by_turns_to_the_nearest_clear_way_or_is_left_out():
+    """Flat's spot-2, 2026-10-31: its eye 0.45 m off its wardrobe, aimed at the middle, saw only the wardrobe. On a
+    10 m plan (frame: its middle at the origin) a spot 0.15 m west of a 2 m tall wardrobe looking east at the middle
+    turns to the nearest way clear for a metre (+-15 degrees will not do: the wardrobe is 2 m deep), its eye kept; a
+    spot boxed in by wardrobes on every side is left out with why; a low bench in its look does not block it, nor
+    does anything for an eye off the plan (galley's and hangar's spots past their plans, 2026-10-31).
+    Break: score/stages/scene_record/writer.py: `if hit is None:` -> `if True:`; and `if (cell >= 0).all() and (cell
+        < grid.shape).all() and point[1] - base < tops[tuple(cell)]:` -> `if point[1] - base < tops[grid.cell_of(spot)]:`"""
+    from score.stages.scene_record import writer
+    wardrobe = ["WARDROBE 1", 3.9, 4.0, 0.6, 2.0, None, "item"]
+    design = {"w": 10.0, "d": 10.0, "items": [wardrobe, ["BENCH 1", 1.2, 1.9, 0.6, 0.4, None, "item"]],
+              "rows": {"WARDROBE 1": ["wardrobe"], "BENCH 1": ["bench"]},
+              "shapes": {"WARDROBE 1": {"tall": 2.0}, "BENCH 1": {"tall": 0.45}}}
+    inventory = {"rows": [{"id": "wardrobe", "anchor": "floor", "size": [0.6, 2.0, 2.0], "count": 1},
+                          {"id": "bench", "anchor": "floor", "size": [1.0, 0.4, 0.45], "count": 1}]}
+    record = {"floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [], "doorways": [],
+              "standing": [{"at": [-1.25, 0.0], "level": 0.0, "looks_at": None},
+                           {"at": [-4.0, -3.2], "level": 0.0, "looks_at": None}]}
+    beside, over_bench = writer.views(record, 1.6, sight=writer.sight_of(design, inventory))
+    assert beside["eye"] == [-1.25, 1.6, 0.0] and beside["aim"] != [0.0, 1.0, 0.0], beside
+    sight = writer.sight_of(design, inventory)
+    assert sight(np.array(beside["eye"]), np.array([0.0, 1.0, 0.0]), 0.0) < 0.2
+    assert sight(np.array(beside["eye"]), np.array(beside["aim"]), 0.0) is None and "turned" in beside["from"]
+    assert over_bench["aim"] == [0.0, 1.0, 0.0], over_bench
+    walled = writer.sight_of(dict(design, walls=[{"from": [0.0, 0.0], "to": [10.0, 0.0]}]), inventory)
+    assert walled(np.array([0.0, 1.6, -20.0]), np.array([0.0, 1.0, -30.0]), 0.0) is None  # off its plan: nothing
+    boxed = dict(design, items=[["WARDROBE 1", 4.3, 4.3, 1.4, 0.3, None, "item"], ["WARDROBE 2", 4.3, 4.3, 0.3, 1.4, None, "item"],
+                                ["WARDROBE 3", 5.4, 4.3, 0.3, 1.4, None, "item"], ["WARDROBE 4", 4.3, 5.4, 1.4, 0.3, None, "item"]],
+                 rows={f"WARDROBE {number}": ["wardrobe"] for number in range(1, 5)},
+                 shapes={f"WARDROBE {number}": {"tall": 2.0} for number in range(1, 5)})
+    alone = dict(record, standing=[{"at": [0.0, 0.0], "level": 0.0, "looks_at": None}])
+    kept, left = writer.views_inside(writer.views(dict(alone, floor=[[-5.0, -5.0], [5.0, 4.0]]), 1.6,
+                                                  sight=writer.sight_of(boxed, inventory)), boxed, False)
+    assert kept == [] and left[0]["name"] == "spot-1" and "every way it turns" in left[0]["why"], left
+
+
 def test_a_place_a_backdrop_row_is_shown_from_stands_in_the_record_where_its_holder_holds_it():
     """The stairwell's palm seen through its window is the square's (prepare's groups.shown_from: `shown`): the record
     stands the holder at its own plan's middle, a place it holds beside where it holds it, each once.
