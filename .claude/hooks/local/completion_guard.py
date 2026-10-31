@@ -20,7 +20,7 @@ import pathlib
 import re
 import sys
 
-_REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+_REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_REPO_ROOT / "tools/usd"))
 
 _TOOL_RUNS = r"(?:export|page|settle|complete|resting|placeholders|made_only)\.py\s+(?:check\s+|done\s+)?"

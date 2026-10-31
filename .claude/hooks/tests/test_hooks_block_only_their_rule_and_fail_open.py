@@ -23,7 +23,7 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_completion_guard_lets_an_honest_stop_end: drop `or _NEGATION.search(sentence)` in `claimed`.
   Or in `_says_all_done`, return `bool(re.search(every, sentence, re.IGNORECASE))` (any "all places" counts).
 - test_completion_guard_runs_under_the_projects_python (an incident, 2026-10-18; it reads settings.json for the hook's
-  command, a wording check guarding the rule that a false done is refused): the settings run it with `python3`.
+  command, a wording check guarding the rule that a false done is refused): the local hooks list runs it with `python3`.
 - test_issue_guard_blocks_bare_issues_and_destructive_git: `_is_destructive_git` returns False at once.
 - test_issue_guard_lets_complete_issues_and_ordinary_git_pass: `_is_gh_issue_create` returns `"create" in` the
   joined tokens (a substring match, not adjacent tokens).
@@ -157,13 +157,13 @@ GRANT_QUESTION = ("Confirm this standing rule: in a Claude Code session, I may a
 
 @pytest.mark.parametrize("payload", OWNER_ACTIONS, ids=range(len(OWNER_ACTIONS)))
 def test_accept_guard_blocks_the_owners_actions(payload):
-    code, said, _ = run(HOOKS / "accept_guard.py", payload)
+    code, said, _ = run(HOOKS / "local" / "accept_guard.py", payload)
     assert code == BLOCK and "only the owner accepts or rejects" in said, payload
 
 
 @pytest.mark.parametrize("payload", READ_AND_RUN, ids=range(len(READ_AND_RUN)))
 def test_accept_guard_allows_reading_running_and_the_framework(payload):
-    assert run(HOOKS / "accept_guard.py", payload)[0] == ALLOW, payload
+    assert run(HOOKS / "local" / "accept_guard.py", payload)[0] == ALLOW, payload
 
 
 def test_accept_guard_lets_a_benchmark_grant_pass():
@@ -172,15 +172,15 @@ def test_accept_guard_lets_a_benchmark_grant_pass():
              f"print(compute.grant_benchmark('Yes, approve it', {GRANT_QUESTION!r}, 12.0))\nEOF")
     tagged = ("SCORE_BENCHMARK_GRANT=20261020T120000.000000+0000 .venv/bin/python -m score run world1 --detach "
               "--place campgrounds --stage pixal")
-    assert [run(HOOKS / "accept_guard.py", bash(command))[0] for command in (grant, tagged)] == [ALLOW, ALLOW]
+    assert [run(HOOKS / "local" / "accept_guard.py", bash(command))[0] for command in (grant, tagged)] == [ALLOW, ALLOW]
 
 
 def test_accept_guard_answers_a_long_command_at_once():
     """Many `!== ` words are answered in seconds, never a hang that fails open; an env-prefixed accept stays blocked."""
-    done = subprocess.run([sys.executable, str(HOOKS / "accept_guard.py")], capture_output=True, text=True,
+    done = subprocess.run([sys.executable, str(HOOKS / "local" / "accept_guard.py")], capture_output=True, text=True,
                           input=json.dumps(bash("!== " * 40 + "x")), timeout=20)
     assert done.returncode == ALLOW
-    assert run(HOOKS / "accept_guard.py", bash("A=1 B=x=y python -m score.review accept closeup@hub"))[0] == BLOCK
+    assert run(HOOKS / "local" / "accept_guard.py", bash("A=1 B=x=y python -m score.review accept closeup@hub"))[0] == BLOCK
 
 
 YES = "20261027T170000123456Z"
@@ -217,13 +217,13 @@ CHAT_ROUTE = [
 def test_accept_guard_blocks_an_agents_own_locks_and_a_decision_without_his_yes(payload):
     """The owner's decisions in chat (owner, 2026-10-27): an agent's own lock, a call into the chat route's steps,
     or the apply without a recorded yes's id stays blocked."""
-    code, said, _ = run(HOOKS / "accept_guard.py", payload)
+    code, said, _ = run(HOOKS / "local" / "accept_guard.py", payload)
     assert code == BLOCK and "only the owner accepts or rejects" in said, payload
 
 
 @pytest.mark.parametrize("payload", CHAT_ROUTE, ids=range(len(CHAT_ROUTE)))
 def test_accept_guard_lets_his_decision_through_only_as_decide_with_its_yes_id(payload):
-    assert run(HOOKS / "accept_guard.py", payload)[0] == ALLOW, payload
+    assert run(HOOKS / "local" / "accept_guard.py", payload)[0] == ALLOW, payload
 
 
 # completion_guard: a stop may not claim a place it worked on is done while the place's gate does not pass.
@@ -266,7 +266,7 @@ def false_claims(folder):
 
 def test_completion_guard_refuses_a_false_done_claim(tmp_path, known_place):
     for payload in false_claims(tmp_path):
-        code, said, _ = run(HOOKS / "completion_guard.py", payload, env=known_place)
+        code, said, _ = run(HOOKS / "local" / "completion_guard.py", payload, env=known_place)
         assert code == BLOCK and PLACE in said and "unknown" in said, (payload, said)
 
 
@@ -285,24 +285,23 @@ def test_completion_guard_lets_an_honest_stop_end(tmp_path, known_place):
                                    "places."),  # a done-word beside "all places", no claim (2026-10-27)
     ]
     for path in honest:
-        assert run(HOOKS / "completion_guard.py", {"transcript_path": path}, env=known_place)[0] == ALLOW, path
+        assert run(HOOKS / "local" / "completion_guard.py", {"transcript_path": path}, env=known_place)[0] == ALLOW, path
     no_scene = dict(known_place, SCORE_GUARD_WITHIN=str(tmp_path / "none.json"))  # an empty scene list matched all
     claim = transcript(tmp_path / "h", f"The {PLACE} is complete now.")
-    assert run(HOOKS / "completion_guard.py", {"transcript_path": claim}, env=no_scene)[0] == ALLOW
+    assert run(HOOKS / "local" / "completion_guard.py", {"transcript_path": claim}, env=no_scene)[0] == ALLOW
 
 
 def test_completion_guard_runs_under_the_projects_python(tmp_path, known_place):
     """It imports score.stages, which needs pxr: under the system python3 it crashed on every stop and so blocked
-    nothing (2026-10-18). The settings run it with the project's .venv python, and under that python a false claim
+    nothing (2026-10-18). The local hooks list runs it with the project's .venv python, and under that python a false claim
     is refused with no import error."""
-    settings = json.loads((REPO / ".claude/settings.json").read_text())
-    commands = [hook["command"] for groups in settings["hooks"].values() for group in groups
-                for hook in group.get("hooks", []) if "completion_guard.py" in hook.get("command", "")]
-    assert commands and all(command.startswith('"${CLAUDE_PROJECT_DIR:-$PWD}/.venv/bin/python"') for command in commands)
+    local = json.loads((HOOKS / "local" / "hooks.json").read_text())
+    commands = [entry["command"] for entry in local if "completion_guard.py" in entry["command"]]
+    assert commands and all(command.startswith("py=.venv/bin/python;") for command in commands)
     main_venv = pathlib.Path(subprocess.run(["git", "-C", str(REPO), "rev-parse", "--path-format=absolute",
                                              "--git-common-dir"], capture_output=True, text=True).stdout.strip())
     python = main_venv.parent / ".venv/bin/python"
-    done = subprocess.run([str(python if python.exists() else sys.executable), str(HOOKS / "completion_guard.py")],
+    done = subprocess.run([str(python if python.exists() else sys.executable), "-I", str(HOOKS / "local" / "completion_guard.py")],
                           input=json.dumps({"transcript_path": transcript(tmp_path, f"The {PLACE} is complete now.")}),
                           capture_output=True, text=True, env=known_place)
     assert "ModuleNotFoundError" not in done.stderr
@@ -533,7 +532,7 @@ def test_wait_guard_allows_short_waits_reads_and_background_runs(payload):
 # every hook: a payload it cannot read never wedges a tool call (never exit 2; md_guard exits 1 on a tool_input that
 # is not an object, which the harness also lets through).
 
-@pytest.mark.parametrize("hook", ["accept_guard.py", "completion_guard.py", "issue_guard.py", "md_guard.py",
+@pytest.mark.parametrize("hook", ["local/accept_guard.py", "local/completion_guard.py", "issue_guard.py", "md_guard.py",
                                   "output_cap.py", "wait_guard.py"])
 def test_every_guard_fails_open_on_garbage(hook, tmp_path):
     garbage = ["not json at all {{{", {"tool_name": "Bash"}, {"tool_name": "Bash", "tool_input": "text"},

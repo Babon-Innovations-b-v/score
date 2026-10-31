@@ -1,0 +1,5 @@
+[
+  {"event": "PreToolUse", "matcher": "Bash|Write|Edit|NotebookEdit|Artifact", "command": "python3 .claude/hooks/local/accept_guard.py", "timeout": 5},
+  {"event": "Stop", "command": "py=.venv/bin/python; [ -x \"$py\" ] || py=\"${CLAUDE_PROJECT_DIR:-.}/.venv/bin/python\"; [ -x \"$py\" ] || py=python3; \"$py\" -I .claude/hooks/local/completion_guard.py", "timeout": 60},
+  {"event": "SubagentStop", "command": "py=.venv/bin/python; [ -x \"$py\" ] || py=\"${CLAUDE_PROJECT_DIR:-.}/.venv/bin/python\"; [ -x \"$py\" ] || py=python3; \"$py\" -I .claude/hooks/local/completion_guard.py", "timeout": 60}
+]
