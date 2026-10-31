@@ -40,6 +40,19 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   process 210 s on the loaded PC (env1 beside it), the first case 58 s, later ones 15 to 44 s. `per_frame_model` adds
   each copy as its own world: in one world Newton's finalize tested every shape pair across all copies (~9 s of a
   block under cProfile), the block within run noise.
+- Gate on seven clips a body (2026-10-31, night/gpu2/gate7/gate7f.py, fit-l1 d63466b5 + bf9b7f89's sets): the
+  earlier passes used one-clip references, the function no evaluation measures. References now as `measured_many`
+  builds them (mv's small and big step sets on heavy, tall and mean's seven clips; rows every clip's, blocks
+  `_check_columns` per body), the rule the same with one addition: a central difference whose two sets hold level 2
+  on another active set than the base (an unknown reaching or leaving its bound, level 2 re-solved at base and
+  +-0.05 .. +-0.4, night/gpu2/c3) differences across a kink and is not judged against; where every central does
+  (mean c261: a frame coordinate held at its bound at the base leaves it by +0.05), the second-order one-sided
+  difference on the side that keeps the base's set. GATE PASS: every non-centre column within 0.28 to 2.3 % of its
+  lowest-error reference (c0 1.1 to 2.3 % under floors 1.3 to 2.6 %; c3 0.44 to 0.69 %; c261 0.30 to 0.41 %; c262 0.44
+  to 0.89 %), every step cosine 1.00000. Two causes were found and fixed on the way: level 2's told axes picked by
+  the pivoted QR (bd27af2e) and the skin meshes built without `support_winding_number` (d63466b5); the kinks left
+  are level 2's bounds (MARK_MOST, the sampled frames' joint ranges), real and one-sided-differentiable, so the
+  implicit columns are the base's active-set derivative.
 - An inner fit whose gradient exceeds the tolerance raises `Unconverged`: the caller reports that body, never uses it.
 - `Body` is one tuning body's inner problem at its optimum; `stacked_jacobian` is level 1's whole Jacobian in
   `tuning`'s row order (every body's rows, then the prior's), every body checked first (`refused`) and each one stopped
