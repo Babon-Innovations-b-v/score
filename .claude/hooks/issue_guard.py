@@ -132,7 +132,7 @@ def _check_area_first_line(body, labels, config):
             continue
         label = str(rule.get("label") or "")
         if label and not re.search(rf"(?im)^\s*>?\s*\*\*{re.escape(label)}:?\*\*", body):
-            _block(f"BLOCKED: a {prefix}{area} issue must open with the **{label}:** line, so every {area} "
+            _block(f"BLOCKED: an issue labelled {prefix}{area} must open with the **{label}:** line, so every {area} "
                    f"effort is tied to what it serves.\nAdd as the first body line: "
                    + str(rule.get("example") or f"**{label}:** <link>"))
 
