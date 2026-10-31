@@ -95,9 +95,10 @@ def turned_size(labelled, size, base):
 
 def entry_of(model, inline, labelled, built=False, box=None, kept=None, person=False):
     """One model's make_chunky entry: `inline` (the surface data's own), turned by measured_turn over `labelled` (its
-    labelled take) when it says no turn (module docstring), a person's by person_turn (his raw take's pose); `built`: its take is a code build (code_built); `box`: its
-    row's SAM 3 box on its concept (drawn_row), which a Pixal3D take's width against its height follows (boxed);
-    `kept`, `person`: the guard list's word on its row (tumble.keeps_pose, tumble.person), which boxed follows."""
+    labelled take) when it says no turn (module docstring), a person's by person_turn (his raw take's pose); `built`:
+    its take is a code build (code_built); `box`: its row's SAM 3 box on its concept (drawn_row), which a Pixal3D
+    take's width against its height follows (boxed); `kept`, `person`: the guard list's word on its row
+    (tumble.keeps_pose, tumble.person), which boxed follows."""
     if isinstance(inline, str):
         raise NoEntry(f"no entry for {model}: the data names a job file ({inline}); write its entry out or drop it")
     if inline is None:
