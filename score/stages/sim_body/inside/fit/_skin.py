@@ -82,7 +82,8 @@ def skin(rig, segments, world):
 def marks(points, verts, faces):
     """(whether each point lies outside the closed mesh (verts, faces) by the winding number, its depth outside in m)."""
     mesh = warp.Mesh(points=warp.array(np.asarray(verts, dtype=np.float32), dtype=warp.vec3, device="cpu"),
-                     indices=warp.array(np.asarray(faces, dtype=np.int32).ravel(), dtype=int, device="cpu"))
+                     indices=warp.array(np.asarray(faces, dtype=np.int32).ravel(), dtype=int, device="cpu"),
+                     support_winding_number=True)
     signs, depths = (warp.zeros((1, len(points)), dtype=float, device="cpu") for _ in range(2))
     warp.launch(marks_kernel, dim=signs.shape, device="cpu",
                 inputs=[warp.array([mesh.id], dtype=warp.uint64, device="cpu"),

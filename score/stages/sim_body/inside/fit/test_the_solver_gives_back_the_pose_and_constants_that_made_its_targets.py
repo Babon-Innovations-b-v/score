@@ -52,6 +52,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   1e-3 rad a step and raises NotConverged.
 - (2026-10-29) _constants.told's kept `np.abs(np.diag(upper)) >= TOLD` made `>= 0`: every inside axis is solved, the
   pair's common shift and the hinge's axis among them.
+- (2026-10-31) _skin.marks' mesh built without `support_winding_number=True`: Warp's sign query misjudges points
+  of a skin that crosses itself (four overlapping spheres: 7 to 143 of 4,000 points on the wrong side).
 - (2026-10-31) _constants.told's QR pivoted again (`pivoting=True`, kept by its order): of the pair's two bodies the
   one whose marks' trust is doubled is kept (on tall a 5 % change flipped humphant_l's y and humphant1_l's, level 2's
   constants a centimetre apart between level 1's nudged sets).
@@ -409,6 +411,44 @@ def a_bone_point_outside_the_skin_lies_as_deep_as_its_distance():
     return problems + ([] if abs(rms - 1000 * np.sqrt(1.0)) < 1e-3 else [f"root mean square {rms} mm"])
 
 
+def a_skin_crossing_itself_tells_inside_by_its_winding_number():
+    """A posed skin crosses itself where limbs meet (2026-10-31: a forearm point 5.7 mm off mean_running's skin read
+    outside, then inside after a 0.003 mm move, though its exact winding number is 1 both times): on four overlapping
+    coarse spheres as one mesh, `_skin.marks`' side of 4,000 points is the exact winding number's (solid angles)."""
+    import numpy as np
+    from fit import _skin
+    rng = np.random.default_rng(4)
+    verts, faces = [], []
+    for _ in range(4):
+        turn, tilt = np.meshgrid(np.linspace(0, 2 * np.pi, 10, endpoint=False), np.linspace(0.15, np.pi - 0.15, 8),
+                                 indexing="ij")
+        ring = np.stack([np.cos(turn) * np.sin(tilt), np.sin(turn) * np.sin(tilt), np.cos(tilt)], -1).reshape(-1, 3)
+        start = sum(len(part) for part in verts)
+        verts.append(np.concatenate([ring, [[0, 0, 1], [0, 0, -1]]]) * rng.uniform(0.04, 0.08) + rng.normal(0, 0.05, 3))
+        for around in range(10):
+            ahead = (around + 1) % 10
+            for down in range(7):
+                faces += [[start + around * 8 + down, start + around * 8 + down + 1, start + ahead * 8 + down + 1],
+                          [start + around * 8 + down, start + ahead * 8 + down + 1, start + ahead * 8 + down]]
+            faces += [[start + 80, start + around * 8, start + ahead * 8],
+                      [start + 81, start + ahead * 8 + 7, start + around * 8 + 7]]
+    verts, faces = np.concatenate(verts), np.array(faces)
+    points = rng.normal(0, 0.07, (4000, 3))
+
+    def winding(point):
+        """The exact winding number of the mesh about `point` (each triangle's solid angle)."""
+        a, b, c = (verts[faces[:, corner]] - point for corner in range(3))
+        la, lb, lc = (np.linalg.norm(side, axis=1) for side in (a, b, c))
+        top = np.einsum("ij,ij->i", a, np.cross(b, c))
+        bottom = (la * lb * lc + np.einsum("ij,ij->i", a, b) * lc + np.einsum("ij,ij->i", b, c) * la
+                  + np.einsum("ij,ij->i", c, a) * lb)
+        return np.sum(2 * np.arctan2(top, bottom)) / (4 * np.pi)
+    inside = np.array([winding(point) for point in points]) >= 0.5
+    out, _ = _skin.marks(points, verts, faces)
+    wrong = int(np.sum(out == inside))
+    return [] if wrong == 0 else [f"{wrong} of {len(points)} points on the wrong side of the self-crossing skin"]
+
+
 def level_2_ends_settled():
     """On noisy markers (the toy's, 2 mm noise, seeded) level 2's solve ends where the cost's gradient on its free
     told unknowns off their bounds is under SETTLED_GRADIENT, float64's floor: not stalled short of it by scipy's
@@ -460,7 +500,7 @@ def a_step_the_cost_cannot_see_is_judged_by_its_gradient():
         [] if unseen is unknowns else ["a step the cost cannot see is taken by descended"])
 
 
-CHECKS = (a_bone_point_outside_the_skin_lies_as_deep_as_its_distance, only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
+CHECKS = (a_bone_point_outside_the_skin_lies_as_deep_as_its_distance, a_skin_crossing_itself_tells_inside_by_its_winding_number, only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
           the_place_goal_sums_to_the_marker_goal, the_solver_gives_back_the_angles_and_the_constants,
           every_recording_of_the_body_is_sampled, somas_targets_leave_the_solves_unchanged, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows,
           a_step_no_task_sees_ends_the_fit, level_2_ends_settled, a_step_the_cost_cannot_see_is_judged_by_its_gradient)

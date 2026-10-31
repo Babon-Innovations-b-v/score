@@ -112,7 +112,8 @@ class _Skins:
         self.names = sorted(skins)
         frames = len(next(iter(skins.values()))[0]) if skins else 0
         self.meshes = [wp.Mesh(points=wp.array(np.asarray(verts, dtype=np.float32), dtype=wp.vec3, device=device),
-                               indices=wp.array(np.asarray(faces, dtype=np.int32).ravel(), dtype=wp.int32, device=device))
+                               indices=wp.array(np.asarray(faces, dtype=np.int32).ravel(), dtype=wp.int32, device=device),
+                               support_winding_number=True)
                        for verts, faces in (skins[self.names[0]][1] if skins else [])]
         rows = [(name, frame, link, local) for name in self.names for frame in range(frames)
                 for link, local in skins[name][0][frame]]

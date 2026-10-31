@@ -114,6 +114,13 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   Tall's seven clips the same way (4 sets): 73.5 s against 110.5 s, measures within 0.033 mm; about 4.7 s against
   23.2 s a nudged set. Every tuning body has seven clips, so a Jacobian's ~4.5 h would be ~0.9 to 1.15 h, one
   process a body, if a process holding 138 sets keeps a set's card memory (measured on 4 sets only).
+- **The skin's side is the exact winding number's** (2026-10-31): every skin mesh is built with Warp's
+  `support_winding_number=True` (`_skin.marks`, `_card/_measure.Skins`, `tuning/_adjoint/_measures`). Without it
+  Warp's sign query misjudged points of a posed skin that crosses itself: a forearm point 5.7 mm off mean_running's
+  skin read outside, then inside after a 0.003 mm move (exact winding number 1 both times), and the jump of its depth
+  made the trust and end weight columns' differences scale as 1/step on running, squat and sit_stand (night/gpu2/c3);
+  on frame 12's skin 1 of 3,000 random points within a centimetre sat on the wrong side, none with it; the test's
+  four overlapping spheres 169 of 4,000.
 - **The record states the honest measures first** (#70's audit item 2, 2026-10-29): `following` gives the bones
   outside SOMA's skin by region and the turns on main's frozen table before the joint mm (partly the ends' own pull)
   and the tree's-table turns; the frozen table is never edited to follow the tree.
