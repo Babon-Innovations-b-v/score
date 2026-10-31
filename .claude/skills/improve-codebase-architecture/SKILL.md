@@ -31,7 +31,7 @@ Then use the Agent tool with `subagent_type=Explore` to walk the codebase. Don't
 - Where do tightly-coupled modules leak across their seams?
 - Which parts of the codebase are untested, or hard to test through their current interface?
 
-Apply the **deletion test** to anything you suspect is shallow: would deleting it concentrate complexity, or just move it? A "yes, concentrates" is the signal you want.
+Apply the **deletion test** to anything you suspect is shallow: would deleting it concentrate complexity, or just move it? A "yes, concentrates" is the signal you want. Count before you judge: the files that import the suspect directly are who would pick its complexity up, and the transitive importers are how far it travels. If root `CLAUDE.md` names an index tool that answers "who imports this path", ask it rather than grepping; half a dozen of those counts give a table you can compare, and the comparison is the candidate list. Importer counts are file-level: they say how many files would have to change, never how many call sites.
 
 ### 2. Present candidates as an HTML report
 
@@ -52,7 +52,7 @@ End the report with a **Top recommendation** section: which candidate you'd tack
 
 **Use `CONTEXT.md` vocabulary for the domain, and the `codebase-design` vocabulary for the architecture.** If `CONTEXT.md` defines **route**, talk about "the route module," not "the FooBarHandler," and not "the route service."
 
-**ADR conflicts**: if a candidate contradicts an existing ADR or a bible invariant, only surface it when the friction is real enough to warrant revisiting it. Mark it clearly in the card (e.g. a warning callout: _"contradicts ADR-0002, but worth reopening because…"_). Don't list every theoretical refactor an ADR forbids.
+**ADR conflicts**: if a candidate contradicts an existing ADR or a bible invariant, only surface it when the friction is real enough to warrant revisiting it. Mark it clearly in the card (e.g. a warning callout: _"contradicts ADR-NNNN, but worth reopening because…"_). Don't list every theoretical refactor an ADR forbids.
 
 See [HTML-REPORT.md](HTML-REPORT.md) for the full HTML scaffold, diagram patterns, and styling guidance.
 
