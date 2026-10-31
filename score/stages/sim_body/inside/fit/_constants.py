@@ -97,6 +97,11 @@ class Problem:
         return (np.concatenate([low, np.tile(np.concatenate([-free, joint_low]), frames)]),
                 np.concatenate([high, np.tile(np.concatenate([free, joint_high]), frames)]))
 
+    def exact(self, unknowns):
+        """The residuals' exact Jacobian at `unknowns` on the host's MuJoCo kinematics (`_card._level2.jacobian`)."""
+        from fit._card._level2 import jacobian
+        return jacobian(self, unknowns)
+
     def residuals(self, unknowns):
         """Every frame's weighed turn errors (the geodesic angle's rotation vector, mink's) and marker errors, then the
         constants' prior rows."""
@@ -183,19 +188,26 @@ def qr_off_span(others, columns):
     return columns - basis @ (basis.T @ columns)
 
 
-def staged(fitting, path, turns, points, given, free=(), jacobian=None):
+def staged(fitting, path, turns, points, given, free=(), jacobian=None, wide=False):
     """The constants (the whole vector, as `Fitting.unpack` reads it) and the frames' angles (frames x nq) that best
     meet the frames' targets together, from `given` and mink's path; the model is left with the constants laid on,
     and the solve's evaluation count. Only the unknowns the data can tell are solved (`told`, from the exact Jacobian
-    at the start on the host; an untold inside joint axis stays at its file's place). `jacobian(problem, unknowns)` (the card's
+    at the start in float64; an untold inside joint axis stays at its file's place). `jacobian(problem, unknowns)` (the
     exact one, `_card._level2.jacobian`) replaces scipy's 2-point differences in the problem's sparse pattern, the
-    reference, when given."""
-    from fit._card._level2 import jacobian as exact_jacobian
-    problem = Problem(fitting, path, turns, points, given, free)
-    low, high = problem.bounds()
-    begin = np.clip(problem.start(), np.where(np.isfinite(low), low + INSIDE, low),
+    reference, when given. `wide`: the residuals and the exact Jacobian for least_squares and the polish
+    from `_card._level2_wide.Wide` (every frame's float64 kinematics on the card; equal to the host's to float64's
+    rounding), `jacobian` then unused; `told` reads the host's either way."""
+    host = Problem(fitting, path, turns, points, given, free)
+    low, high = host.bounds()
+    begin = np.clip(host.start(), np.where(np.isfinite(low), low + INSIDE, low),
                     np.where(np.isfinite(high), high - INSIDE, high))
-    keep = told(problem, exact_jacobian(problem, begin))  # MuJoCo's double kinematics: the card's floats blur TOLD
+    # always the host's MuJoCo double kinematics: the card's floats blur TOLD, and even the card's float64 order of
+    # sums flips the pivoted QR's pick between two equally told axes (tall 2026-10-31: the root's x or the thorax's,
+    # 2.85 mm, the same residuals; the lumbar bones between them move)
+    keep = told(host, host.exact(begin))
+    if wide:
+        from fit._card._level2_wide import Wide
+    problem = Wide(host) if wide else host
 
     def whole(unknowns):
         """The whole unknowns: `begin` with the told ones laid in."""
@@ -203,6 +215,8 @@ def staged(fitting, path, turns, points, given, free=(), jacobian=None):
         found[keep] = unknowns
         return found
 
+    if wide:
+        jacobian = lambda problem, unknowns: problem.exact(unknowns)  # noqa: E731
     exact = {"jac": lambda unknowns: jacobian(problem, whole(unknowns))[:, keep]} if jacobian is not None else {
         "jac_sparsity": problem.sparsity().tocsc()[:, keep]}
     # scipy's own tolerances: the polish settles (at ftol 1e-12 trf took ~400 s a real body and still stalled, #70)
@@ -225,18 +239,17 @@ def off_bounds(unknowns, keep, bounds):
 
 
 def polished(problem, unknowns, keep, bounds):
-    """`unknowns` moved by Gauss-Newton steps (the host-exact float64 Jacobian, `_card._level2.jacobian`, a sparse
+    """`unknowns` moved by Gauss-Newton steps (the exact float64 Jacobian, `problem.exact`: the host's or `_card._level2_wide`'s, a sparse
     direct solve) on the told unknowns off their bounds, each step halved until the cost falls and kept within the
     bounds, until their gradient is under POLISHED, or the lowest it reached once STALLED_ROUNDS find none lower and
     that is under FLOOR; raises when POLISH_ROUNDS do neither."""
-    from fit._card._level2 import jacobian as exact_jacobian
     low, high = bounds
     found = unknowns.copy()
     best, lowest, since = found, np.inf, 0
     for _round in range(POLISH_ROUNDS):
         free = off_bounds(found, keep, bounds)
         residuals = problem.residuals(found)
-        matrix = exact_jacobian(problem, found)[:, free].tocsc()
+        matrix = problem.exact(found)[:, free].tocsc()
         gradient = matrix.T @ residuals
         if not len(free) or np.abs(gradient).max() < POLISHED:
             return found
@@ -270,9 +283,8 @@ def steadied(problem, unknowns, free, step, bounds, gradient):
     gradient is smaller than `gradient`, else `unknowns`: the polish's test once the cost cannot tell the step's fall
     (mean_kimodo, 2026-10-30: at a free gradient of 1.59e-10 the Gauss-Newton step's predicted fall was 4.4e-17 on a
     cost of 0.867, under the residuals' own float64 noise, so every halving was refused and the polish stood still)."""
-    from fit._card._level2 import jacobian as exact_jacobian
     low, high = bounds
     moved = unknowns.copy()
     moved[free] = np.clip(unknowns[free] + step, low[free], high[free])
-    reached = exact_jacobian(problem, moved)[:, free].T @ problem.residuals(moved)
+    reached = problem.exact(moved)[:, free].T @ problem.residuals(moved)
     return moved if np.abs(reached).max() < np.abs(gradient).max() else unknowns

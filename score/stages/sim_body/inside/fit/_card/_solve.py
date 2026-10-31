@@ -64,10 +64,12 @@ def _to_newton(qpos: wp.array2d[wp.float32], joint_q: wp.array2d[wp.float32]):
 
 @wp.kernel(enable_backward=False)
 def _stopped(residuals: wp.array2d[wp.float64], before: wp.array2d[wp.float64], norms: wp.array[wp.float32],
-             history: wp.array2d[wp.float64], step: int, active: wp.array[wp.int32], steps: wp.array[wp.int32]):
-    """The stop rule for one step: history holds each row's cost at the last three poses, before its residuals at
-    the last pose."""
+             history: wp.array2d[wp.float64], taken: wp.array[wp.int32], active: wp.array[wp.int32],
+             steps: wp.array[wp.int32]):
+    """The stop rule for one step (taken[0] steps before it): history holds each row's cost at the last three poses,
+    before its residuals at the last pose."""
     row = wp.tid()
+    step = taken[0]
     if active[row] == 0:
         return
     cost = wp.float64(0.0)
@@ -87,6 +89,12 @@ def _stopped(residuals: wp.array2d[wp.float64], before: wp.array2d[wp.float64], 
     unseen = step >= 1 and wp.sqrt(moved) < wp.float64(MOVED_DONE)
     if norms[row] < STEP_DONE or settled or cycling or unseen:
         active[row] = 0
+
+
+@wp.kernel(enable_backward=False)
+def _counted(taken: wp.array[wp.int32]):
+    """One step more (the step count lives on the card, so a captured step reads it at each replay)."""
+    taken[0] = taken[0] + 1
 
 
 @wp.kernel(enable_backward=False)
@@ -133,7 +141,10 @@ def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STE
     narrow = wp.empty((rows, optimizer.n_residuals), dtype=wp.float32, device=device)
     active = wp.ones(rows, dtype=wp.int32, device=device)
     steps = wp.zeros(rows, dtype=wp.int32, device=device)
-    for step in range(most_steps):
+    taken = wp.zeros(1, dtype=wp.int32, device=device)
+
+    def step():
+        """One step for every row: the Jacobian, the float64 residuals, the damped step, integrate, project, stop."""
         context = optimizer._ctx_solver(current)
         optimizer._residuals_analytic(context)
         jacobian = optimizer._jacobian_at(context)
@@ -145,8 +156,20 @@ def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STE
         wp.launch(_to_mujoco, dim=(rows, coords), inputs=[following], outputs=[qpos], device=device)
         project(projection, qpos, seeds, sets_of)
         wp.launch(_to_newton, dim=(rows, coords), inputs=[qpos], outputs=[current], device=device)
-        wp.launch(_stopped, dim=rows, inputs=[wide, before, norms, history, step, active, steps], device=device)
-        if step % 10 == 9 and not active.numpy().any():
+        wp.launch(_stopped, dim=rows, inputs=[wide, before, norms, history, taken, active, steps], device=device)
+        wp.launch(_counted, dim=1, inputs=[taken], device=device)
+
+    graph = None
+    for done in range(most_steps):
+        if done == 0 or not device.is_cuda:
+            step()  # the first step eagerly: every kernel loaded before the capture
+        else:
+            if graph is None:
+                with wp.ScopedCapture(device=device, force_module_load=False) as capture:
+                    step()
+                graph = capture.graph
+            wp.capture_launch(graph)
+        if done % 10 == 9 and not active.numpy().any():
             break
     if active.numpy().any():
         raise NotConverged(f"{int(active.numpy().sum())} rows did not stop in {most_steps} steps")

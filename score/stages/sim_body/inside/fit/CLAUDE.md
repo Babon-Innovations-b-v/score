@@ -8,7 +8,7 @@ place, the stretches' lengths), `_frames.py` mink per frame, `_constants.py` the
 `_follow.py` the judgement and the segments' riding, `_skin.py` the bones outside SOMA's posed skin by region
 (warp's winding number, every 10th frame; `marks_kernel` beside it each point's depth outside, its distance to the
 skin's closest point, 0 inside, `depth_mm` a region's root mean square: level 1's smooth skin residual, the share
-staying the judged measure; one kernel for the CPU and the card), `_frozen.py` main's calibration table frozen (227b29b2), `_card/` level 3's step and projection on the card (plan step 1, being proved equal to mink; mink stays the reference); level 2's exact Jacobian too, which `constants` hands `staged` (`card_jacobian`; scipy's 2-point differences stay `staged`'s default and the reference).
+staying the judged measure; one kernel for the CPU and the card), `_frozen.py` main's calibration table frozen (227b29b2), `_card/` level 3's step and projection on the card (plan step 1, being proved equal to mink; mink stays the reference); level 2's exact Jacobian too, and level 2's residuals and Jacobian in float64 with the frames' kinematics on the card (`_card._level2_wide`), which `constants` has `staged` use (`wide=True`; scipy's 2-point differences stay `staged`'s default and the reference, `told` reads the host's).
 
 - **Reuse, not handwritten maths** (owner, 2026-10-28): per frame mink 1.3.0 (Apache-2.0, pinned in
   `score/stages/physics/inside/newton_env.sh` with qpsolvers 4.13.0 and daqp 0.10.3), its `FrameTask`s for the

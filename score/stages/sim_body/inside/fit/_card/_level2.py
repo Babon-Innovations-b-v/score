@@ -6,7 +6,7 @@ leading joint its own dof and each follower's by its polynomial's slope); a plac
 through that, a turn row (the log of R_site^T R_target) its site's turn Jacobian through -J_l^-1(log) R_site^T; a
 marker's move reaches its site through its body's turn, an inside joint's move every site it carries through its
 parent's turn; a prior row its constant's weight. The frames' kinematics come from MuJoCo in float64 on the host
-(`Kinematics`, the reference) or from the card (`_level2_card`, float32)."""
+(`Kinematics`, the reference); `_level2_wide` gives the same in float64 with them on the card."""
 import mujoco
 import numpy as np
 from scipy.sparse import coo_matrix
@@ -147,17 +147,17 @@ def _logs(turns):
     return Rotation.from_matrix(turns).as_rotvec()
 
 
-def jacobian(problem, unknowns, card=None):
+def jacobian(problem, unknowns):
     """The whole Jacobian of `problem.residuals` at `unknowns` (sparse, rows and columns as the residuals and
     `problem.sparsity`), the constants laid on the model as the residuals lay them; the frames' kinematics MuJoCo's on
-    the host, or `card`'s (a `_level2_card.CardKinematics` of the problem's frames) when given."""
+    the host."""
     fitting = problem.fitting
     fitting.apply(problem.constants(unknowns))
     held = len(problem.slots)
     values = [unknowns[held + frame * problem.width:held + (frame + 1) * problem.width]
               for frame in range(len(problem.path))]
     poses = [problem.qpos(frame, value) for frame, value in enumerate(values)]
-    seen = card.frames(np.array(poses)) if card is not None else [Kinematics(fitting, pose) for pose in poses]
+    seen = [Kinematics(fitting, pose) for pose in poses]
     per = 3 * (len(fitting.frame_sites) + len(fitting.place_sites))
     triplets, shared = [], (couplings(fitting.model), moved_blocks(problem))
     bends = turn_bends(seen, problem.turns)

@@ -50,6 +50,15 @@ paired changes, tuning and check bodies apart, verdicts once the run dir has flo
   Warm level 2 (a `--warm <tolerance>` option, deleted 2026-10-30) was measured on the 6a gate's 7 sets against the
   serial CPU columns (cold: 0.04 to 0.61 %, cosine 0.99998): at 1e-8 the columns 1.5 to 29 % apart, at 1e-10 still
   1.4 to 15 % apart with about 7 times the cold evaluations. Stay cold: warm-starting level 2 is no speed lever.
+- Where a set's time goes (2026-10-31, night/gpu1/phases.txt: 4 of l1d's first Jacobian sets x tall's 7 clips, one
+  `_card_sets` process beside l1d and env1): level 2's least_squares 11.3 s and polish 9.1 s, level 3's sampled frames
+  7.3 s, measures and writing 4.7 s, the Newton clip builds 3.8 s, set-up 7.0 s, the clips' card batch 2.6 s; 48.9 s
+  wall at ~1.3 cores, the card at 5 to 11 % but in the clips' batch. With level 2's residuals and Jacobian on the card
+  (`fit/_card/_level2_wide`) and level 3's step a CUDA graph (`fit/_card/_solve`): 37.8 s (least_squares 8.5,
+  polish 5.4, sampled frames 3.5); level 1's rows equal to 1e-5 (largest row 5.06; the same set in two card processes
+  differs up to 1.5e-5 on tall), the three nudged columns 0.2 to 0.9 % apart, cosine 0.99996 or more. What is left on
+  the host: scipy's lsmr inside least_squares and the polish's sparse solve (SuperLU), the person's file written and
+  compiled per set (`sim_body.constants_set_up`), the Newton build per set (`_clip.for_fitting`), the measures.
 - `blocked(rows, weights, rest, cases, out, python, seeds_root)` (2026-10-30) runs `tuning/_adjoint/_check_columns.py`
   once per case side by side (`run_all`'s caps), each case's exact block (rows x every unknown) to out/<case>.npz;
   `level1.py --card <seeds root> --exact` hands `tuning.whole` the hybrid (`exact_stacked`: the blocks in sorted case

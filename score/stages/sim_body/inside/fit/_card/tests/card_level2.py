@@ -51,9 +51,9 @@ def differences(problem, unknowns):
 
 
 def staged_both(folder):
-    """The toy's constants and angles by `_constants.staged` twice from the same start, the path's places and hinges
-    moved SPREAD off the poses so the solve has a way to go: scipy's 2-point differences (the reference) and the exact
-    Jacobian (`jacobian`, host kinematics)."""
+    """The toy's constants and angles by `_constants.staged` from the same start, the path's places and hinges
+    moved SPREAD off the poses so the solve has a way to go: scipy's 2-point differences (the reference), the exact
+    Jacobian (`jacobian`, host kinematics) and the card's float64 evaluator (`wide`)."""
     from fit._card import _level2
     from fit._constants import staged
     problem, _ = problem_and_point(folder)
@@ -61,10 +61,10 @@ def staged_both(folder):
     unturned = [index for index in range(path.shape[1]) if index not in range(3, 7)]
     path[:, unturned] += np.random.default_rng(2).normal(0.0, SPREAD, (len(path), len(unturned)))
     given = (problem.fitting, path, problem.turns, problem.points, problem.given, problem.free)
-    return staged(*given), staged(*given, jacobian=_level2.jacobian)
+    return staged(*given), staged(*given, jacobian=_level2.jacobian), staged(*given, wide=True)
 
 
-LEVEL2_CARD_MOST = 1e-5  # the same from the card's float32 kinematics (_level2_card)
+WIDE_MOST = 1e-12  # the card's float64 kinematics (_level2_wide) against the host's, of the largest entry (measured 7.8e-16 / 1.2e-15)
 LEVEL2_SOLVE_MM = 1e-3  # level 2 with jac=exact against 2-point differences on the exact toy: constants (the
 LEVEL2_SOLVE_DEG = 1e-4  # plan's 0.05 mm / 0.01 deg is the real bodies'; a frozen Jacobian is 0.027 mm off here)
 LEVEL2_MOST = 1e-6  # a column's largest miss over its largest entry (measured 1.8e-10; the plan allows 1e-2 against 2-point)
@@ -73,20 +73,38 @@ LEVEL2_MOST = 1e-6  # a column's largest miss over its largest entry (measured 1
 def the_level2_jacobian_equals_its_differences():
     import tempfile
     import numpy as np
-    from fit._card import _level2, _level2_card
+    from fit._card import _level2
     with tempfile.TemporaryDirectory() as folder:
         problem, unknowns = problem_and_point(folder)
-        card = _level2_card.CardKinematics(problem.fitting, len(problem.path))  # made at the start constants
         moved = differences(problem, unknowns)
         outside = ~problem.sparsity().toarray().astype(bool)
-        found = {"card": (_level2.jacobian(problem, unknowns, card).toarray(), LEVEL2_CARD_MOST),
-                 "host": (_level2.jacobian(problem, unknowns).toarray(), LEVEL2_MOST)}
+        exact = _level2.jacobian(problem, unknowns).toarray()
+    worst = max(np.abs(exact[:, column] - moved[:, column]).max() / max(np.abs(moved[:, column]).max(), 1e-12)
+                for column in range(unknowns.size))
+    return ([f"host Jacobian off its differences by {worst:.2e} of a column"] if worst > LEVEL2_MOST else []) + (
+        ["host Jacobian outside the sparse pattern"] if np.abs(exact[outside]).max() > 0 else [])
+
+
+def the_wide_level2_equals_the_hosts():
+    """`_level2_wide.Wide` (every frame's float64 kinematics on the card, the rows in one pass) gives the host's
+    residuals and exact Jacobian, its sparse layout too, at the start and at a point moved off it."""
+    import tempfile
+    import numpy as np
+    from fit._card import _level2_wide
     problems = []
-    for source, (exact, most) in found.items():
-        worst = max(np.abs(exact[:, column] - moved[:, column]).max() / max(np.abs(moved[:, column]).max(), 1e-12)
-                    for column in range(unknowns.size))
-        problems += ([f"{source} Jacobian off its differences by {worst:.2e} of a column"] if worst > most else []) + (
-            [f"{source} Jacobian outside the sparse pattern"] if np.abs(exact[outside]).max() > 0 else [])
+    with tempfile.TemporaryDirectory() as folder:
+        problem, moved = problem_and_point(folder)
+        wide = _level2_wide.Wide(problem)
+        for label, point in (("start", problem.start()), ("moved", moved)):
+            host_rows, card_rows = problem.residuals(point), wide.residuals(point)
+            host, card = problem.exact(point), wide.exact(point)
+            off_rows = np.abs(host_rows - card_rows).max() / np.abs(host_rows).max()
+            off = abs(host - card).max() / abs(host).max()
+            problems += [f"{label}: card residuals off the host's by {off_rows:.2e}"] if off_rows > WIDE_MOST else []
+            problems += [f"{label}: card Jacobian off the host's by {off:.2e}"] if off > WIDE_MOST else []
+            problems += ([f"{label}: card Jacobian's sparse layout is not the host's"]
+                         if not (np.array_equal(host.indptr, card.indptr) and np.array_equal(host.indices, card.indices))
+                         else [])
     return problems
 
 
@@ -94,42 +112,15 @@ def the_level2_solve_with_the_exact_jacobian_equals_differences():
     import tempfile
     import numpy as np
     with tempfile.TemporaryDirectory() as folder:
-        (moved, moved_angles, _), (exact, exact_angles, _) = staged_both(folder)
-    off_mm, off_angles = 1000 * np.abs(exact - moved).max(), np.abs(exact_angles - moved_angles).max()
-    return ([f"level 2 with the exact Jacobian off differences' constants by {off_mm:.4f} mm"]
-            if off_mm > LEVEL2_SOLVE_MM else []) + (
-        [f"level 2 with the exact Jacobian off differences' angles by {off_angles:.2e}"]
-        if off_angles > np.radians(LEVEL2_SOLVE_DEG) else [])
-
-
-ACROSS_SETS = 3  # level 2 across sets: the toy's frames under this many sets' constants, one card model
-ACROSS_SPREAD = 0.02  # each set's constants moved this far off the toy's (metres)
-
-
-def the_frames_per_world_equal_each_set_alone():
-    """Every frame of every set laid on one card model (each world its set's body_pos and site_pos) equals the same
-    frames on a card model of that set alone, bit for bit."""
-    import tempfile
-    from fit._card import _level2_card
-    with tempfile.TemporaryDirectory() as folder:
-        problem, _ = problem_and_point(folder)
-        model, frames = problem.fitting.model, len(problem.path)
-        moved = np.random.default_rng(3)
-        sets = [(model.body_pos + moved.normal(0.0, ACROSS_SPREAD, model.body_pos.shape) * (index > 0),
-                 model.site_pos + moved.normal(0.0, ACROSS_SPREAD, model.site_pos.shape) * (index > 0))
-                for index in range(ACROSS_SETS)]
-        together = _level2_card.CardKinematics(problem.fitting, ACROSS_SETS * frames).frames(
-            np.tile(problem.path, (ACROSS_SETS, 1)), np.repeat([body for body, _ in sets], frames, axis=0),
-            np.repeat([site for _, site in sets], frames, axis=0))
-        alone = _level2_card.CardKinematics(problem.fitting, frames)
-        problems = []
-        for index, (body, site) in enumerate(sets):
-            for frame, own in enumerate(alone.frames(problem.path, body[None], site[None])):
-                mine = together[index * frames + frame]
-                worst = max(np.abs(getattr(mine, name) - getattr(own, name)).max()
-                            for name in ("site_turns", "body_turns", "places", "spins"))
-                problems += [f"set {index} frame {frame} off its set alone by {worst:.2e}"] if worst > 0 else []
-        return problems
+        (moved, moved_angles, _), *exact = staged_both(folder)
+    problems = []
+    for label, (constants, angles, _) in zip(("the exact Jacobian", "the card's float64 evaluator"), exact):
+        off_mm, off_angles = 1000 * np.abs(constants - moved).max(), np.abs(angles - moved_angles).max()
+        problems += ([f"level 2 with {label} off differences' constants by {off_mm:.4f} mm"]
+                     if off_mm > LEVEL2_SOLVE_MM else []) + (
+            [f"level 2 with {label} off differences' angles by {off_angles:.2e}"]
+            if off_angles > np.radians(LEVEL2_SOLVE_DEG) else [])
+    return problems
 
 
 def the_batched_inverses_equal_each_row():
