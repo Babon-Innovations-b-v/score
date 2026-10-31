@@ -196,7 +196,7 @@ def take(kind, public_key, need=None):
     alone = memory > int(memory_cap()[:-1]) * 2**30
     name = container(kind)
     handles, turns = claimed(kind, alone)
-    share = handles and card_queue.take(f"this-pc {kind}", (need or {}).get("card_gb", CARD_NEED.get(kind)), "high",
+    share = handles and card_queue.take(f"this-pc {kind}", (need or {}).get("card_gb", CARD_NEED.get(kind)), "env-run",
                                         "blender" if turns else None, memory_need(need, turns, alone))
     share = share and card_queue.watch(share)
     if handles and share is None:  # its card or memory is held (another kind's claim, a side job): it waits
