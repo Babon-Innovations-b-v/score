@@ -10,9 +10,12 @@ ceiling) and how each is read.
   (`plans_pass.main`, after the plans are kept), read by the scene record (`scene_record/writer.relations_input`).
   Never in `design/plans/`: the kept plan keys props-inputs (the paid close-ups) and the surface library (the bake).
   It names the kept plan's sha; the scene record lays by it only while the plan is that one.
-- **In no stage's code key.** Only `plans_pass` imports this package; never import it from `plans.py`,
-  `plan_writing.py`, `plan_fixes.py`, `plan_checks.py` or a stage (an edit there re-keys paid rows,
-  `python -m score moved`). The scene record reads the file, not this code.
+- **In two stages' code keys.** `plans_pass` derives the file; two stages import this package, so any edit here
+  re-keys them and every row after them (check `python -m score moved` before pushing): the scene record
+  (`scene_record/writer.py`, for `outlines_room`), and so everything laid from it, and the assembly
+  (`assembly/mounted.py`'s `holder_kind`, imported inside its function). Never import it from `plans.py`,
+  `plan_writing.py`, `plan_fixes.py`, `plan_checks.py` or another stage. Both read the relations from the file,
+  never derive them again.
 - **Every door and window in an opening, every item placed** (#72, owner 2026-10-29: "this is still not good"): a
   door the plan's openings do not hold gets one cut for it (`cut_in`, cut by the earth seed's and the scene record's
   walls, kept inside its wall's ends); a window takes only a window opening, a door only a door's (camp's dome window
