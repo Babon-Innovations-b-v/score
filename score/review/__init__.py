@@ -20,7 +20,7 @@ any accepted output from his terminal: the accepted output moves back to the one
 node that read it goes stale (score/graph). His own accept is refused for an output that did not pass, and for a
 worse one unless he writes why (`worse_reason`). Rejects, his accepts, waivers and spend yeses come only from `python
 -m score.review` in his own terminal; a hook blocks agents from running them or writing those areas of the store
-(.claude/hooks/accept_guard.py).
+(.claude/hooks/local/accept_guard.py).
 """
 import datetime
 import html

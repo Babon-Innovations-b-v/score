@@ -14,7 +14,7 @@ decision waits on anyone to copy it into a guard and no older line outlives it (
 runner refuses a paid job that would pass it before it starts). An environment's first line counts its spend from now.
 
 `reject`, `accept`, `waive`, `spend` and `stop` refuse to run without a terminal at both ends; the store refuses their
-writes in any process an agent started (score/store; a stop line, guard.set_line), and the accept guard hook (.claude/hooks/accept_guard.py) blocks
+writes in any process an agent started (score/store; a stop line, guard.set_line), and the accept guard hook (.claude/hooks/local/accept_guard.py) blocks
 agents from running them or writing those areas of the store by other routes. On one machine under YOLO this is a
 barrier, not a lock: an agent set on getting round it can, and every accept names who gave it and when.
 """

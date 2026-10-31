@@ -29,7 +29,7 @@ automatic accepts (score/graph: every gate passed, nothing got worse, the owner 
 owner's accepts, rejects, waivers and spend yeses are written only by his own commands (score/review). In the
 framework's store `write_once` refuses those in any process an agent started (Claude Code marks its shells:
 AGENT_MARKERS), and a hook keeps agents from the other routes and from writing clearances by hand
-(.claude/hooks/accept_guard.py). On one machine under YOLO that is a barrier, not a lock: an agent set on getting
+(.claude/hooks/local/accept_guard.py). On one machine under YOLO that is a barrier, not a lock: an agent set on getting
 round it can, and every accept names who gave it and when. Nothing else moves the accepted output: a new output lands
 beside it. The local cache (checkouts, hard links to the read-only stored bytes, and the folder a stage writes into
 before its output is stored) sits beside the objects.
