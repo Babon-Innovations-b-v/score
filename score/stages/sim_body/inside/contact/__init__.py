@@ -5,7 +5,7 @@ stands where the fit to SOMA puts it (#70)."""
 import mujoco
 import numpy as np
 
-from ground import heights_over, standing
+from ground import body_reach, heights_over, standing
 from model import TO_OWN
 
 # The ground pushes only a foot point touching it: within GAP of its drawn triangle or into it (MuJoCo's contact: a
@@ -36,14 +36,17 @@ def surface(model, data, geoms):
 
 
 def lowest_over(model, data, geoms, ground):
-    """The lowest of `geoms`' collider points over the ground (metres); None when none is over any of it."""
-    heights = heights_over(surface(model, data, geoms) @ TO_OWN.T, ground)
+    """The lowest of `geoms`' collider points over the ground within their reach (metres); None when none is over any
+    of it."""
+    own = surface(model, data, geoms) @ TO_OWN.T
+    heights = heights_over(own, ground, body_reach(own))
     return None if np.isnan(heights).all() else float(np.nanmin(heights))
 
 
 def pushes(model, data, ground, up, colliders):
     """The points the ground pushes ([(body, point's Jacobian, the directions it may push along)], MuJoCo's frame):
-    the colliders' surface points (`surface`) within GAP of the drawn ground under them, or into it, each pushed along
+    the colliders' surface points (`surface`) within GAP of the drawn ground under them (within the body's reach,
+    `body_reach`: a roof over its head is never pushing ground), or into it, each pushed along
     its triangle's normal (`up`, the person's frame) with Coulomb's friction: a point slower than SLIDE_MOST sticks (a
     friction pyramid, FRICTION), a faster one slides (the normal and FRICTION of it against its slip)."""
     found, along = [], np.zeros((3, model.nv))
@@ -51,7 +54,7 @@ def pushes(model, data, ground, up, colliders):
     owners = np.concatenate([np.full(len(mine), model.geom_bodyid[geom]) for geom, mine in zip(colliders, points)])
     points = np.concatenate(points)
     own = points @ TO_OWN.T
-    heights, triangles = standing(own, ground)
+    heights, triangles = standing(own, ground, body_reach(own))
     for point in np.flatnonzero(own[:, 1] - np.nan_to_num(heights, nan=np.inf) <= GAP):
         mujoco.mj_jac(model, data, along, None, points[point], owners[point])
         normal = TO_OWN.T @ up[triangles[point]]
