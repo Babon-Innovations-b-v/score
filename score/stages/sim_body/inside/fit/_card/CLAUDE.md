@@ -134,6 +134,11 @@ before that.
   max, 1.5e-5 relative, 2026-10-30), so equal-poly sets alone would refuse it; on the toy with each set's follower
   slope 0.05 apart, equal to each Clip alone, reading set 0's for every row 4.2 / 10.2 deg off. Toy timing, 4 sets x 10 frames warm: one batch 186 ms against 384 ms alone (2.07x, equal
   exactly). Still to come: the body run calling `Sets`, and the 4-set timing on a real body's short clip.
+- `newton_model_for` (2026-10-31) keeps Newton's model of a `Fitting`'s file (`BUILT`, weakly keyed by the Fitting):
+  asked again, it moves the kept build's inside joints to the fitting's current moves (`set_places`), so level 1's
+  set builds Newton once for level 2's sampled frames and once more never (the clips, constants laid on, reuse it).
+  4 centre sets x tall's 7 clips (night/gpu2/prof f, g2): every row bit for bit equal, the clip builds 4.5 to 2.3 s;
+  test `card_inside.a_kept_build_moves_to_the_fittings_moves` (red with the kept build returned unmoved).
 - Newton's `add_mjcf` merges a MuJoCo body's several joints into one D6 joint into that body, placed at its first
   joint (checked 2026-10-30: hinge, hinge, slide on one body gave one joint `a1_a2_a3`), so `_clip.moved_inside`'s map
   of child body to joint has one entry a body and moving it moves the whole body (`tests/card_inside.py`; keyed by

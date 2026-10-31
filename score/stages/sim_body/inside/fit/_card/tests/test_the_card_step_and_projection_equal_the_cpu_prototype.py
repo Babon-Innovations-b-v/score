@@ -28,6 +28,8 @@ inverse left Jacobians batched over every frame and group equal the per-row ones
 MuJoCo joints is one Newton joint, and `_clip.moved_inside` moves that one by the body's move (`card_inside.py`).
 
 Breaks (each applied once, seen red, reverted):
+- (2026-10-31) _clip.newton_model_for's kept build returned without `set_places`: the clips' Newton model keeps level 2's
+  sampled frames' inside joint places, the constants' moves never reach it.
 - (2026-10-31) _solve.solved's coordinate check dropped: seeds one coordinate short of the toy are solved, not
   refused: the toy runs to NotConverged (seeds147, made for the old joint layout, broke the card on the movable
   MyoFullBody).
@@ -105,7 +107,8 @@ from card_level2 import (the_batched_inverses_equal_each_row, the_wide_level2_eq
                          the_level2_jacobian_equals_its_differences,
                          the_level2_solve_with_the_exact_jacobian_equals_differences)
 from card_across import the_sets_solved_together_equal_each_set_alone  # noqa: E402
-from card_inside import the_body_with_several_joints_moves_as_one, the_set_places_equal_a_build_per_set  # noqa: E402,E501
+from card_inside import (a_kept_build_moves_to_the_fittings_moves, the_body_with_several_joints_moves_as_one,  # noqa: E402
+                         the_set_places_equal_a_build_per_set)
 from card_sets import the_sampled_path_across_sets_equals_each_set_chained, the_sets_batch_equals_each_clip_alone  # noqa: E402
 from card_rows import (the_float64_frames_equal_each_set_alone, the_rows_equal_each_set_alone,  # noqa: E402
                        the_rowwise_optimizer_equals_each_set_alone)
@@ -278,7 +281,7 @@ CHECKS = (the_rows_equal_each_set_alone, the_rowwise_optimizer_equals_each_set_a
           the_measures_equal_the_cpu_measure, the_skins_posed_once_follow_each_clip, the_step_equals_the_prototype, the_projection_equals_the_prototype,
           the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame,
           the_next_iteration_from_its_seeds_equals_mink, the_body_with_several_joints_moves_as_one,
-          the_set_places_equal_a_build_per_set)
+          the_set_places_equal_a_build_per_set, a_kept_build_moves_to_the_fittings_moves)
 
 
 def in_newton():
