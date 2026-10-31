@@ -28,6 +28,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - benchmarks.plan_gap: the missing check -> `if False:` -> test_a_benchmark_whose_inputs_do_not_stand_is_a_gap_...
 - groups.row_size: `if laid:` (the plan's item sizes the model), or `if laid and laid != made:` (his edited item
   sizes it, 2026-10-29) -> test_a_take_is_sized_by_its_reading_and_routed_...
+- groups.own_size: `return piece` (no box_shows_whole: the square's stage screen cut to 4.8 by 6 m) or
+  box_shows_whole -> `return True` (the railing's box kept at 50 m) -> test_a_take_is_sized_by_its_reading_and_routed_...
 - groups.shown_from: `source = None` -> test_a_backdrop_row_a_place_of_its_scene_makes_is_shown_from_there_...
 - groups.far_made: no seen_size for a single piece -> test_a_far_row_of_one_piece_is_as_wide_as_its_box_shows_it
 - groups.structure_of: the taller-than check dropped -> test_a_backdrop_part_of_a_structure_is_shown_by_a_...
@@ -478,6 +480,11 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
     assert groups.row_size(railing, ring, 5) == [9.435, 0.1, 1.0]
     assert groups.own_size(railing, ring, 5) == [9.435, 0.1, 1.0]  # its close-up draws the piece, not the 50 m run
     assert groups.own_size(post, footprint, 3) == post and groups.own_size(None, footprint) is None
+    assert groups.own_size(railing, ring, 5, [0, 0, 100, 100]) == [9.435, 0.1, 1.0]  # its box shows one piece
+    screen, stage_item = [14.4, 0.5, 6.0], [8.001, 1.681, 6.0]  # square's stage screen: boxed 414 by 209 px, 1.98:1
+    assert groups.own_size(screen, stage_item, 3, [1477, 436, 1891, 645]) == screen  # its box shows the whole
+    assert groups.row_size(screen, stage_item, 3, [1477, 436, 1891, 645]) == screen
+    assert groups.own_size(screen, stage_item, 3) == [4.8, 0.5, 6.0]  # no box: the run's piece, as before
     lamp = {"id": "street_lamp", "route": "prop", "part": "object"}
     assert groups.routed(lamp, set(), {"street_lamp"})["route"] == "skyline"  # beyond the place: the backdrop's
     sea = {"id": "sea", "name": "sea", "noun": "sea", "terrain": True, "part": "backdrop", "route": "skyline"}

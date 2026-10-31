@@ -174,10 +174,11 @@ def sized_rows(store, place, record):
     own = plan_parts(shown and shown["plan"])
     shell = plan_structure(shown and shown["plan"], own)
     beyond = beyond_of(shown and shown["plan"], rows, record.get("size"))
-    found = [{**read_row(record, row), "size": row_size(reading_size(row), laid.get(row["id"]),
-                                                         run_pieces(shown and shown["plan"], row)),
-              "read_size": own_size(reading_size(row), laid.get(row["id"]), run_pieces(shown and shown["plan"], row))}
-             for row in rows]
+    found = [{**read, "size": row_size(reading_size(row), laid.get(row["id"]), run_pieces(shown and shown["plan"], row),
+                                       read.get("box")),
+              "read_size": own_size(reading_size(row), laid.get(row["id"]), run_pieces(shown and shown["plan"], row),
+                                    read.get("box"))}
+             for row in rows for read in [read_row(record, row)]]
     return [routed(row, own, beyond, shell | plan_arches(shown and shown["plan"], found)) for row in found]
 
 
@@ -245,7 +246,7 @@ def routed(row, own, beyond, shell=frozenset()):
     return row
 
 
-def row_size(own, laid, pieces=None):
+def row_size(own, laid, pieces=None, box=None):
     """A row's size: the object's own metres from its reading (`own`), else its plan item's (`laid`: a row the reading
     gave none). A plan's item is the footprint the object is laid in (a run of things, room round it: the airlock's
     porch post laid 0.48 by 1.7 m, a 0.1 by 0.1 m post), so it only places the object, never sizes its model
@@ -256,16 +257,29 @@ def row_size(own, laid, pieces=None):
     whose own metres overrun its item by a piece measured the whole run (a railing round a floor, pipes along a wall:
     overruns): it is made as one repeating piece laid along the item (run_piece), never as one object the run's
     length."""
-    return own_size(own, laid, pieces) or laid
+    return own_size(own, laid, pieces, box) or laid
 
 
-def own_size(own, laid, pieces=None):
+def own_size(own, laid, pieces=None, box=None):
     """The object's own metres, the size its close-up is drawn and checked at (`read_size`): its reading's (`own`),
     but one repeating piece (run_piece) of a run the reading measured whole (overruns), so the close-up draws the
-    piece, never the 50 m railing (Batch 1 try 4: the greenhouse's railing)."""
+    piece, never the 50 m railing (Batch 1 try 4: the greenhouse's railing), unless its picture's box shows the
+    reading's whole object (box_shows_whole: the square's 14.4 by 6 m stage screen, boxed 1.98 wide a tall, was cut
+    to a 4.8 by 6 m piece taller than wide, 2026-10-31)."""
     if own and laid and pieces and overruns(own, laid, pieces):
-        return run_piece(own, laid, pieces)
+        piece = run_piece(own, laid, pieces)
+        return own if box_shows_whole(own, piece, box) else piece
     return own
+
+
+def box_shows_whole(own, piece, box):
+    """Whether a row's picture box ([x0, y0, x1, y1]) is in the proportion of the reading's whole object (`own`) more
+    than of one run piece (`piece`): its wide a tall nearer the whole's front (long side over tall) than the piece's,
+    in ratio. No box, or one with no area, shows neither."""
+    if not box or box[2] <= box[0] or box[3] <= box[1]:
+        return False
+    seen = math.log((box[2] - box[0]) / (box[3] - box[1]))
+    return abs(seen - math.log(max(own[:2]) / own[2])) < abs(seen - math.log(max(piece[:2]) / piece[2]))
 
 
 def run_pieces(plan, row):
