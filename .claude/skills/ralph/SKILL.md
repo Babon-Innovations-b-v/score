@@ -25,7 +25,7 @@ Empty queue → stop and report.
 3. **Build** the behavior from the brief. Reuse existing modules; `CONTEXT.md` vocab; `../../../docs/bible.md#workflowmodule-standard`. No scope beyond the Acceptance criteria.
 4. **Gates** (these replace the permission prompts):
    - every **Acceptance** line of the issue,
-   - the project's own test command (bible `build/release`),
+   - the project's own test command (root `CLAUDE.md` names it, and what runs before a push),
    - the relevant `audit-*` skills on what you touched.
    Gate red → fix, or stuck after a real attempt → `ready-for-human` with notes. Never fake green.
 5. **Ship.** Commit (scoped, imperative) + push to `main` (= deploy).
