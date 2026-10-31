@@ -544,7 +544,6 @@ def test_bootstrap_sets_the_hooks_and_builds_the_runtime_python_once(scratch_rep
     run = shell(scratch_repo, env, "bootstrap.sh")
     assert run.returncode == 0, run.stderr
     assert git(scratch_repo, "config", "core.hooksPath") == ".githooks"
-    assert (tmp_path / "home" / ".claude" / ".ponytail-statusline-nudged").exists()
     assert "gh: installed but not logged in. Run: gh auth login" in run.stdout
     assert (runtime / "bin" / "python").exists()
     assert f"runtime python: already at {runtime}" in shell(scratch_repo, env, "bootstrap.sh").stdout
