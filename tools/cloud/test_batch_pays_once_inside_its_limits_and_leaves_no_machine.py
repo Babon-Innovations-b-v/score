@@ -89,7 +89,8 @@ The break that turns each red (applied once, seen red, reverted):
 - test_a_character_machine_whose_set_up_failed_is_deleted_not_held_to_mend: in characters.py `held`, the set-up
   failure's `raise SystemExit(...)` -> `pass`.
 - test_a_clips_only_character_run_asks_this_pcs_card_with_the_encoder_on_the_processor: in characters.py
-  `card_need`, `steps <= CLIP_STEPS` -> `True` (a body build asks 4 GB); or `encoder = ""` in `make_one` (Kimodo's
+  `card_need`, `steps <= STEP_NEED.keys()` -> `True` (an unmeasured step asks a measured need), `max` -> `min` (a
+  run asks less than its largest step), or `or HELD_STEPS` -> `or []` (a held machine asks the kind's 17 GB); or `encoder = ""` in `make_one` (Kimodo's
   encoder goes onto this PC's 16 GB card); or `if machine.get("here")` -> `if True` (a rented card's run is changed).
 - test_a_served_blender_machine_runs_the_queue_on_its_card_and_is_deleted: in blender_cloud.py `serve`, `card =
   machine.get("class", "").startswith("gpu")` -> `card = False`.
@@ -928,7 +929,10 @@ def test_a_clips_only_character_run_asks_this_pcs_card_with_the_encoder_on_the_p
         return tmp_path / name
     clips, scene, body = make("clips", ["clips", "rig"]), make("scene", ["scene clips", "rig"]), make("b", ["build"])
     assert characters.card_need([clips, scene]) == characters.CLIP_NEED
-    assert characters.card_need([clips, body]) is None  # a body build: the whole machine
+    assert characters.card_need([clips, body]) == {"card_gb": 4, "memory_gb": 17}  # the largest step's
+    assert characters.card_need([body]) == characters.STEP_NEED["build"]
+    assert characters.card_need([make("hold", [])])["card_gb"] == 4  # held for identity's SAM 3D Body
+    assert characters.card_need([body, make("new", ["build", "unmeasured"])]) is None  # the kind's
     sent = []
     monkeypatch.setattr(batch, "remote", lambda folder, host, command, **_: sent.append(command))
     monkeypatch.setattr(batch, "copy", lambda *_, **__: None)
