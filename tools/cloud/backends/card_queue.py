@@ -60,6 +60,7 @@ ORDER = ("sim-body", "env-run", "other")  # first to last (owner, 2026-10-31: si
 RANK = {**{name: rank for rank, name in enumerate(ORDER)}, "high": 1, "first": 1, "film": 1, "low": 2, "side": 2}  # old names, still
 # written by runs frozen before
 WAIT_SECONDS = 120  # a waiting entry not refreshed for this long waits no more (its process stopped asking)
+MEMORY_LOOK_SECONDS = 0.5  # between readings of a claim's container memory (watch_memory)
 LOOK_SECONDS = 2  # between asks of `run` while it waits, and between its looks for its share asked back
 YIELD_SECONDS = 60  # a claim waiting this long asks the later-ranked shares back
 STOP_SECONDS = 30  # a side command asked back has this long after SIGTERM before SIGKILL
@@ -162,11 +163,16 @@ def take(job, card_gb=None, priority="env-run", group=None, memory=0):
 
 def resize(handle, memory):
     """The memory GiB the share `handle` holds set to `memory` (a claim that let some of its work go)."""
+    note(handle, memory_gb=memory)
+
+
+def note(handle, **fields):
+    """`fields` written into the share `handle`'s entry."""
     with queue_lock():
         held = json.loads(pathlib.Path(handle.name).read_text())
         handle.seek(0)
         handle.truncate()
-        handle.write(json.dumps({**held, "memory_gb": memory}))
+        handle.write(json.dumps({**held, **fields}))
         handle.flush()
 
 
@@ -194,6 +200,41 @@ def watch(handle):
     return handle
 
 
+def watch_memory(handle, stat, place):
+    """The share `handle`'s claim's memory measured while held: the anon bytes of `stat` (its container's cgroup
+    memory.stat, which leaves out the page cache a container lets go when pressed) read every MEMORY_LOOK_SECONDS for
+    the highest, and whether another share of the same `place` (its container, written into its entry) was held at a
+    reading: several Blender claims share score-this-pc, and a reading then counts them all."""
+    note(handle, place=place)
+    handle.memory_peak, handle.memory_alone, handle.memory_stat = 0, True, stat
+    handle.memory_stop = threading.Event()
+    handle.memory_reading = threading.Thread(target=read_memory, args=(handle,), daemon=True)
+    handle.memory_reading.start()
+    return handle
+
+
+def read_memory(handle):
+    """watch_memory's thread: each reading into `handle`'s memory_peak (bytes) and memory_alone, until memory_stop."""
+    mine = pathlib.Path(handle.name).name
+    while True:
+        with contextlib.suppress(OSError, ValueError, StopIteration):
+            line = next(line for line in handle.memory_stat.read_text().splitlines() if line.startswith("anon "))
+            handle.memory_peak = max(handle.memory_peak, int(line.split()[1]))
+            place = json.loads(pathlib.Path(handle.name).read_text())["place"]
+            handle.memory_alone = handle.memory_alone and not any(
+                beside(path, place) for path in (QUEUE / "held").glob("*.json") if path.name != mine)
+        if handle.memory_stop.wait(MEMORY_LOOK_SECONDS):
+            return
+
+
+def beside(path, place):
+    """Whether the held entry at `path` is a share of `place`; False when it cannot be read (given back meanwhile, or
+    being rewritten)."""
+    with contextlib.suppress(OSError, ValueError):
+        return json.loads(path.read_text()).get("place") == place
+    return False
+
+
 def read_card(handle):
     """watch's thread: each reading of the card's MiB into `handle`'s card_peak (GiB) and alone."""
     for line in handle.reader.stdout:
@@ -204,21 +245,30 @@ def read_card(handle):
 
 def record(handle, cores=None, memory_gb=None):
     """A watched share's measure appended to measures.jsonl: its job, seconds, card GB (its highest reading less
-    DESKTOP_GB), whether it was alone on the card, and the `cores` and `memory_gb` its holder measured."""
-    handle.reader.terminate()
-    handle.reader.wait()
-    handle.reading.join()
+    DESKTOP_GB), whether it was alone on the card, the `cores` its holder measured, and its memory GB (`memory_gb`
+    its holder measured, else its container's highest reading, watch_memory) with whether it was alone in its
+    container."""
+    if getattr(handle, "reader", None):
+        handle.reader.terminate()
+        handle.reader.wait()
+        handle.reading.join()
+    if getattr(handle, "memory_reading", None):
+        handle.memory_stop.set()
+        handle.memory_reading.join()
+        if memory_gb is None:
+            memory_gb = round(handle.memory_peak / 1e9, 2)
     held = json.loads(pathlib.Path(handle.name).read_text())
     line = {"job": held["job"], "at": time.time(), "seconds": round(time.time() - handle.began, 1),
             "card_gb": round(max(0.0, handle.card_peak - DESKTOP_GB), 2), "alone": handle.alone, "cores": cores,
-            "memory_gb": memory_gb}
+            "memory_gb": memory_gb, "memory_alone": getattr(handle, "memory_alone", True)}
     with (QUEUE / "measures.jsonl").open("a") as measures:
         measures.write(json.dumps(line) + "\n")
 
 
 def measured():
     """One line a job of measures.jsonl: its takes, the highest card GB of those alone on the card (others' shares
-    beside it would count in a reading), and the highest cores and memory GB."""
+    beside it would count in a reading), the highest cores, and the highest memory GB of those alone in their
+    container (other claims there count in a reading)."""
     rows = {}
     path = QUEUE / "measures.jsonl"
     for line in path.read_text().splitlines() if path.exists() else []:
@@ -227,16 +277,18 @@ def measured():
         row["takes"] += 1
         row["alone"] += [item["card_gb"]] if item["alone"] else []
         row["cores"] += [item["cores"]] if item["cores"] is not None else []
-        row["memory_gb"] += [item["memory_gb"]] if item["memory_gb"] is not None else []
+        row["memory_gb"] += [item["memory_gb"]] if item["memory_gb"] is not None and item.get(
+            "memory_alone", True) else []
     return "\n".join(f"{job}: {row['takes']} takes, card {max(row['alone'], default='unmeasured')} GB "
                      f"({len(row['alone'])} alone), cores {max(row['cores'], default='unmeasured')}, memory "
-                     f"{max(row['memory_gb'], default='unmeasured')} GB" for job, row in sorted(rows.items()))
+                     f"{max(row['memory_gb'], default='unmeasured')} GB ({len(row['memory_gb'])} alone)"
+                     for job, row in sorted(rows.items()))
 
 
 def release(handle, cores=None, memory_gb=None):
     """A share (or a waiting entry) given back: its measure recorded when it was watched, its file and its ask-back
     mark removed, its flock let go."""
-    if getattr(handle, "reader", None):
+    if getattr(handle, "reader", None) or getattr(handle, "memory_reading", None):
         record(handle, cores, memory_gb)
     pathlib.Path(handle.name).unlink(missing_ok=True)
     (QUEUE / "yield" / pathlib.Path(handle.name).name).unlink(missing_ok=True)

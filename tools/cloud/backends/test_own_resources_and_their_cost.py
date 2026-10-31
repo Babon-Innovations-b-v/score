@@ -110,6 +110,10 @@ The invariants, each with the break that turns its test red (each applied once a
   since)` -> `ORDER.index(...) < rank` in `card_queue.take` -> the free turn goes past the Pixal3D claim that asked
   first; or drop the memory sum in `card_queue.take` -> the Pixal3D claim starts beside both; or drop
   `card_queue.resize(...)` in `let_go_turn` -> the second place gets one turn.
+- A claim's memory is its container's highest anon reading while it holds its share, counted for its kind only from
+  claims alone in that container. Break: drop the `card_queue.watch_memory(...)` call in `local.take` -> memory
+  unmeasured; or drop `and not any(beside(...))` in `card_queue.read_memory` -> 5.0 GB from the two claims together;
+  or drop `memory_gb = round(handle.memory_peak / 1e9, 2)` in `record` -> unmeasured.
 - A claim the card queue refused says so (`queued`), so park.here holds its run's minutes while it waits there.
   Break: `return any(...)` -> `return False` in `queued`.
 """
@@ -810,6 +814,36 @@ def test_this_pc_claims_hold_their_card_share_and_wait_while_a_side_job_holds_th
     local.delete(machine["id"], "this-pc")
     assert card_queue.take("sim-body", 6, "other")
     assert "this-pc pixal: 1 takes, card 6.39 GB (1 alone)" in card_queue.measured()  # the claim was measured
+
+
+def test_this_pc_claims_memory_is_read_from_its_container_and_counted_only_alone_there(monkeypatch, tmp_path):
+    """2026-10-31: `measured` showed "memory unmeasured" for every claim of this PC. A claim's memory is its
+    container's anon bytes (cgroup memory.stat) at their highest while it holds its share; a reading taken while
+    another claim held the same container (two places' Blender claims in score-this-pc) is not alone and is left out
+    of the kind's measure, as a card reading beside another share is."""
+    import local
+    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
+    monkeypatch.setattr(local, "RUNS_AT_ONCE", {"blender": 3})
+    monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
+    monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)
+    monkeypatch.setattr(card_queue, "MEMORY_LOOK_SECONDS", 0.01)
+    cgroup = tmp_path / "cgroup"
+    cgroup.mkdir()
+    stat = cgroup / "memory.stat"
+    monkeypatch.setattr(local, "cgroup_of", lambda name=None: cgroup)
+    stat.write_text(f"anon {3 * 10**9}\nfile {9 * 10**9}\n")  # the page cache is not the claim's need
+    alone = local.take("blender", "key")
+    assert until(lambda: local.CARDS[alone["id"]].memory_peak)
+    local.delete(alone["id"], local.ZONE)
+    first = local.take("blender", "key")
+    local.let_go_turn(first["id"])
+    local.let_go_turn(first["id"])
+    second = local.take("blender", "key")  # another place's bake row in the same container
+    stat.write_text(f"anon {5 * 10**9}\nfile 0\n")  # both claims' jobs together
+    assert until(lambda: all(local.CARDS[claim["id"]].memory_peak == 5 * 10**9 for claim in (first, second)))
+    local.delete(second["id"], local.ZONE)
+    local.delete(first["id"], local.ZONE)
+    assert "memory 3.0 GB (1 alone)" in card_queue.measured().split("this-pc blender: 3 takes")[1]
 
 
 def test_this_pc_container_keeps_cores_for_the_pc_and_a_measured_claim_to_its_memory(monkeypatch, tmp_path):

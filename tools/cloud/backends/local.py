@@ -229,6 +229,9 @@ def take(kind, public_key, need=None):
                 held_to(need["memory_gb"], name)
             card_in_turns(name)
             share.cpu_began = cpu_seconds(name)
+            cgroup = cgroup_of(name)
+            if cgroup:  # the claim's memory read from its container while it holds its share
+                card_queue.watch_memory(share, cgroup / "memory.stat", name)
     except BaseException:
         card_queue.release(share)
         for held in (*turns, *handles):
@@ -450,14 +453,20 @@ def held_to(memory_gb, name=MACHINE):
               file=sys.stderr, flush=True)
 
 
+def cgroup_of(name=MACHINE):
+    """Container `name`'s cgroup folder (CGROUPS); None when it has none here."""
+    identity = getattr(docker("inspect", "-f", "{{.Id}}", name, check=False), "stdout", "").strip()
+    return next((folder for form in CGROUPS if identity and (folder := pathlib.Path(form.format(id=identity))).is_dir()),
+                None)
+
+
 def cpu_seconds(name=MACHINE):
     """The processor seconds container `name`'s processes used since it started (its cgroup's cpu.stat usage_usec);
     None when it cannot be read."""
-    identity = docker("inspect", "-f", "{{.Id}}", name, check=False)
-    for form in CGROUPS:
-        stat = pathlib.Path(form.format(id=getattr(identity, "stdout", "").strip())) / "cpu.stat"
-        with contextlib.suppress(OSError, ValueError, StopIteration):
-            return int(next(line for line in stat.read_text().splitlines() if line.startswith("usage_usec")).split()[1]) / 1e6
+    cgroup = cgroup_of(name)
+    with contextlib.suppress(OSError, ValueError, StopIteration, TypeError):
+        stat = (cgroup / "cpu.stat").read_text().splitlines()
+        return int(next(line for line in stat if line.startswith("usage_usec")).split()[1]) / 1e6
     return None
 
 
