@@ -151,16 +151,19 @@ def told(problem, matrix):
     """The unknowns the data can tell (column indices of the whole unknowns, in order) from `matrix`, the problem's
     Jacobian at the start (#70 level 2, one rule): an inside joint's column (one axis of its move) whose part off the
     span of every other column (the markers' moves, the frames' coordinates, root place included; `off_span`) and of
-    the inside columns kept before it (column-pivoted QR, the best told first) is under TOLD of its own length is
-    dropped; the constants' prior rows are left out, since they tell every column apart by construction."""
+    the inside columns before it in the model's order (QR without pivoting) is under TOLD of its own length is
+    dropped; the constants' prior rows are left out, since they tell every column apart by construction. The model's
+    order, never the pivoted QR's best-told-first: of two axes that move the markers alike (humphant_l's y and
+    humphant1_l's on tall, 2026-10-31) the pivot kept whichever a 5 % change of one landmark's trust made a hair longer,
+    so level 2's constants jumped by a centimetre between level 1's nudged sets and its trust columns read the jump."""
     held, marked = len(problem.slots), 3 * len(problem.free)
     data = csc_matrix(matrix)[:matrix.shape[0] - held]
     inside = np.arange(marked, held)
     others = np.setdiff1d(np.arange(data.shape[1]), inside)
     columns = data[:, inside].toarray()
     lengths = np.maximum(np.linalg.norm(columns, axis=0), 1e-300)
-    _, upper, order = qr(off_span(data[:, others], columns) / lengths, mode="economic", pivoting=True)
-    kept = inside[order[np.abs(np.diag(upper)) >= TOLD]] if len(inside) else inside
+    _, upper = qr(off_span(data[:, others], columns) / lengths, mode="economic")
+    kept = inside[np.abs(np.diag(upper)) >= TOLD] if len(inside) else inside
     return np.sort(np.concatenate([others, kept]))
 
 
