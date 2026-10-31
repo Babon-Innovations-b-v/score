@@ -17,7 +17,9 @@ assembled once its layers have landed. No spend: nothing is rendered or settled 
              bakes    a place's baked models (surfaces-bake) in place of the seed's assets, each laid object stamped
                       with the baked file's hash and the seed's as the model it repainted (stamp_baked_hash); a
                       record entry waiting on its model whose row the bake made is laid with it (made_waiting.py)
-             ground   the terrain stage's places/<place>.usdc as layers/ground.usdc, just over the base
+             ground   the terrain stage's places/<place>.usdc as layers/ground.usdc, just over the base, each of its
+                      meshes bound there to the surface the scene's surface library (surface-library) gives its
+                      row's kind (finish_ground); one it gives none keeps its finish named missing
              sound    the sound row's output (experimental) written as layers/sound.usda (sounds.py), in place of the
                       seed's
              origin.json says the seed it came from, the record, every layer output taken and any sound placed
@@ -94,7 +96,7 @@ LAYERS = {"effects-layer": (("effects-layer", 1), "layers/effects.usda", "assets
           "characters-layer": (("characters-layer", 1), "layers/characters.usda", "assets/characters")}
 # Every stage the assembly reads for the place's own layers (the bakes and the ground are read in the table).
 READS = {"scene-record": ("scene-record", 1), "sound": ("sound-layer", 1), "surface-tiles": ("surface-tiles", 1),
-         **{name: wanted for name, (wanted, _, _) in LAYERS.items()}}
+         "surface-library": ("surface-library", 1), **{name: wanted for name, (wanted, _, _) in LAYERS.items()}}
 # The layer stage the assembly takes for each layer kind a design shows (design_layers; the physics' settle layer).
 NEEDS = {"people": "characters-layer", "crops": "crops-layer", "effects": "effects-layer", "motion": "motion",
          "physics": "settle", "light": "light", "sound": "sound"}
@@ -132,12 +134,50 @@ def make_from_seed(inputs, out, seed, params):
     for claimed in claimed_bakes(inputs, out):
         take_bake(*claimed)
     take_ground(inputs["terrain"], folder.name, out / root.name)
+    finish_ground(inputs, out / root.name, folder.name)
     unplaced = sounds.take(pathlib.Path(inputs["sound"]), out / root.name, inputs) if "sound" in inputs else []
     motion_over_light(out / root.name)  # last: no hold after it sorts its layer under the light's
     taken = {name: pathlib.Path(inputs[name]).name for name in READS if name in inputs}
     (out / "origin.json").write_text(json.dumps({"seed": True, "from": str(folder), "note": SEED_NOTE,
                                                  "record": record, "layers": taken, "unplaced sounds": unplaced},
                                                 indent=1))
+
+
+def ground_surfaces(inputs, place):
+    """{a ground row's id: the surface the scene's surface library gives its kind}: each terrain row of the place's
+    scene inventory keyed by its noun, as the library's ask names a ground row's kind (scene_library.grounds_of);
+    {} without a library or an inventory."""
+    if "surface-library" not in inputs:
+        return {}
+    inventory = pathlib.Path(inputs["inventories"]) / f"{place}.json"
+    if not inventory.is_file():
+        return {}
+    kinds = json.loads((pathlib.Path(inputs["surface-library"]) / "materials.json").read_text()).get("kinds") or {}
+    return {row["id"]: kinds[row["noun"]][0] for row in json.loads(inventory.read_text())["rows"]
+            if row.get("terrain") and kinds.get(row.get("noun"))}
+
+
+def finish_ground(inputs, root, place):
+    """Each mesh of the place's made ground (/<place>/Outside: its near and far patches and its water, which the
+    terrain writes naming its row and its finish missing) bound in the taken ground layer to the library surface the
+    scene's surface library gives its row (ground_surfaces), laid under /<place>/Library by the earth seed (hub's
+    lunar_surface: its library's ground, lunar_regolith); one its library gives none keeps its finish named missing."""
+    import scene
+    from pxr import Sdf, Usd, UsdGeom
+    surfaces = ground_surfaces(inputs, place)
+    if not surfaces or not (root.parent / GROUND_LAYER).is_file():
+        return
+    (root.parent / GROUND_LAYER).chmod(0o644)  # the output's own copy, kept read-only from the store's by take_ground
+    stage = Usd.Stage.Open(str(root))
+    ground = Sdf.Layer.FindOrOpen(str(root.parent / GROUND_LAYER))
+    stage.SetEditTarget(ground)
+    outside = stage.GetPrimAtPath(f"/{place}/Outside")
+    for prim in outside.GetChildren() if outside else []:
+        row = prim.GetAttribute("score:row").Get() if prim.HasAttribute("score:row") else None
+        if prim.IsA(UsdGeom.Mesh) and row in surfaces:
+            prim.RemoveProperty("score:surface:missing")
+            scene.bind_surface(stage, UsdGeom.Mesh(prim), place, surfaces[row])
+    ground.Save()
 
 
 def take_layer(made, root, layer, assets):
