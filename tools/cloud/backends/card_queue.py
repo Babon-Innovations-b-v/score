@@ -16,12 +16,16 @@ under different homes and share one card.
 
     python3 tools/cloud/backends/card_queue.py run --job <name> --card-gb <GB> [--priority side] -- <command> ...
     python3 tools/cloud/backends/card_queue.py status
+    python3 tools/cloud/backends/card_queue.py measured
 
 `run` waits for a share, runs the command in a session of its own while it holds it, and when its share is asked back
 stops the command's session (SIGTERM, SIGKILL after STOP_SECONDS), gives the share back, waits for one again and starts
 the command again: a side job given way to must resume from its own checkpoints (sim body's level 1 tuning does). The
 command ends with `run` (its parent's death signal), so it never holds the card outside the queue. `status` is the
 PC's one line (the card's shares, what waits, each container's memory) with a line a share and a waiter after it.
+A watched share (every `run`, and every claim of the run's container) is measured while held (watch): the card's
+highest reading less the desktop, alone or beside other shares, with its cores and memory, one line in measures.jsonl
+when it is given back; `measured` gives each job's highest, the card only from takes alone on it.
 Standard library only, so any Python runs it (the Newton venv's too).
 """
 import argparse
@@ -31,9 +35,11 @@ import fcntl
 import json
 import os
 import pathlib
+import resource
 import signal
 import subprocess
 import sys
+import threading
 import time
 import uuid
 
@@ -41,6 +47,11 @@ QUEUE = pathlib.Path(os.environ.get("SCORE_CARD_QUEUE", pathlib.Path.home() / ".
 # The RTX 5080's 16303 MiB less what the Windows desktop holds on it (2.4 GB, measured 2026-10-31 beside the astronaut's
 # makes: tools/cloud/characters.py STEP_NEED).
 BUDGET_GB = 13.5
+DESKTOP_GB = 2.4
+# The card's memory read twice a second while a watched share is held (watch); its highest less DESKTOP_GB is the
+# share's measured card GB, kept in QUEUE's measures.jsonl with its cores and memory when known (`measured` sums them).
+SAMPLER = json.loads(os.environ.get("SCORE_CARD_SAMPLER") or "null") or [
+    "nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits", "-lms", "500"]
 ORDER = ("film", "side")  # earlier first: the run's work for the film, then everything else (tuning, proofs, scratch)
 WAIT_SECONDS = 120  # a waiting entry not refreshed for this long waits no more (its process stopped asking)
 LOOK_SECONDS = 2  # between asks of `run` while it waits, and between its looks for its share asked back
@@ -135,22 +146,85 @@ def asked_back(handle):
     return (QUEUE / "yield" / pathlib.Path(handle.name).name).exists()
 
 
-def release(handle):
-    """A share (or a waiting entry) given back: its file and its ask-back mark removed, its flock let go."""
+def watch(handle):
+    """The share `handle` measured while it is held: SAMPLER read in a thread for the card's highest memory and whether
+    any other share was held at a reading (nothing when this PC has no nvidia-smi); `handle`."""
+    handle.card_peak, handle.alone, handle.began = 0.0, True, time.time()
+    try:
+        handle.reader = subprocess.Popen(SAMPLER, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    except OSError:
+        return handle
+    handle.reading = threading.Thread(target=read_card, args=(handle,), daemon=True)
+    handle.reading.start()
+    return handle
+
+
+def read_card(handle):
+    """watch's thread: each reading of the card's MiB into `handle`'s card_peak (GiB) and alone."""
+    for line in handle.reader.stdout:
+        if line.strip().isdigit():
+            handle.card_peak = max(handle.card_peak, int(line) / 1024)
+            handle.alone = handle.alone and len(list((QUEUE / "held").glob("*.json"))) <= 1
+
+
+def record(handle, cores=None, memory_gb=None):
+    """A watched share's measure appended to measures.jsonl: its job, seconds, card GB (its highest reading less
+    DESKTOP_GB), whether it was alone on the card, and the `cores` and `memory_gb` its holder measured."""
+    handle.reader.terminate()
+    handle.reader.wait()
+    handle.reading.join()
+    held = json.loads(pathlib.Path(handle.name).read_text())
+    line = {"job": held["job"], "at": time.time(), "seconds": round(time.time() - handle.began, 1),
+            "card_gb": round(max(0.0, handle.card_peak - DESKTOP_GB), 2), "alone": handle.alone, "cores": cores,
+            "memory_gb": memory_gb}
+    with (QUEUE / "measures.jsonl").open("a") as measures:
+        measures.write(json.dumps(line) + "\n")
+
+
+def measured():
+    """One line a job of measures.jsonl: its takes, the highest card GB of those alone on the card (others' shares
+    beside it would count in a reading), and the highest cores and memory GB."""
+    rows = {}
+    path = QUEUE / "measures.jsonl"
+    for line in path.read_text().splitlines() if path.exists() else []:
+        item = json.loads(line)
+        row = rows.setdefault(item["job"], {"takes": 0, "alone": [], "cores": [], "memory_gb": []})
+        row["takes"] += 1
+        row["alone"] += [item["card_gb"]] if item["alone"] else []
+        row["cores"] += [item["cores"]] if item["cores"] is not None else []
+        row["memory_gb"] += [item["memory_gb"]] if item["memory_gb"] is not None else []
+    return "\n".join(f"{job}: {row['takes']} takes, card {max(row['alone'], default='unmeasured')} GB "
+                     f"({len(row['alone'])} alone), cores {max(row['cores'], default='unmeasured')}, memory "
+                     f"{max(row['memory_gb'], default='unmeasured')} GB" for job, row in sorted(rows.items()))
+
+
+def release(handle, cores=None, memory_gb=None):
+    """A share (or a waiting entry) given back: its measure recorded when it was watched, its file and its ask-back
+    mark removed, its flock let go."""
+    if getattr(handle, "reader", None):
+        record(handle, cores, memory_gb)
     pathlib.Path(handle.name).unlink(missing_ok=True)
     (QUEUE / "yield" / pathlib.Path(handle.name).name).unlink(missing_ok=True)
     handle.close()
 
 
 def status():
-    """The PC's line (the card's shares against BUDGET_GB, what waits, each running container's memory), then one
+    """The PC's line (the card's shares against BUDGET_GB, what waits, its free memory, each running container's
+    memory), then one
     line a live share and a live waiter."""
     with queue_lock():
         held, waiting = live("held"), live("waiting", time.time())
-    lines = [f"card {in_use(held, None, 0):.1f} of {BUDGET_GB} GB held, {len(waiting)} waiting; {containers()}"]
+    lines = [f"card {in_use(held, None, 0):.1f} of {BUDGET_GB} GB held, {len(waiting)} waiting; {free_memory()}; "
+             f"{containers()}"]
     lines += [f"{name} {item['job']} {item['card_gb']} GB {item['priority']} pid {item['pid']}"
               for name, items in (("held", held), ("waits", waiting)) for item in items]
     return "\n".join(lines)
+
+
+def free_memory():
+    """This PC's available memory (/proc/meminfo's MemAvailable), as "<GB> GB free"."""
+    line = next(line for line in pathlib.Path("/proc/meminfo").read_text().splitlines() if line.startswith("MemAvailable"))
+    return f"{int(line.split()[1]) * 1024 / 1e9:.1f} GB free"
 
 
 def containers():
@@ -207,18 +281,27 @@ def run(job, card_gb, priority, command):
     signal.signal(signal.SIGTERM, end)
     signal.signal(signal.SIGINT, end)
     while True:
-        handle = share_for(job, card_gb, priority)
+        handle = watch(share_for(job, card_gb, priority))
+        before = resource.getrusage(resource.RUSAGE_CHILDREN)
         child = subprocess.Popen(command, start_new_session=True, preexec_fn=ends_with_parent)
         while child.poll() is None and not asked_back(handle):
             with contextlib.suppress(subprocess.TimeoutExpired):
                 child.wait(LOOK_SECONDS)
         if child.poll() is not None:
-            release(handle)
+            release(handle, *used_since(before, handle.began))
             return child.returncode
         print(f"card_queue: {job} gives the card way to a waiting film claim; it starts again after",
               file=sys.stderr, flush=True)
         stop(child)
-        release(handle)
+        release(handle, *used_since(before, handle.began))
+
+
+def used_since(before, began):
+    """(Cores, memory GB) of the commands `run` waited for since `before` (getrusage of its children) and `began`:
+    their processor seconds over the wall seconds, and the highest resident memory of one of them."""
+    after = resource.getrusage(resource.RUSAGE_CHILDREN)
+    seconds = after.ru_utime + after.ru_stime - before.ru_utime - before.ru_stime
+    return round(seconds / max(time.time() - began, 1e-3), 2), round(after.ru_maxrss * 1024 / 1e9, 2)
 
 
 def main(arguments=None):
@@ -229,10 +312,11 @@ def main(arguments=None):
     runs.add_argument("--card-gb", type=float, help="the job's measured card GB; unmeasured takes the whole card")
     runs.add_argument("--priority", choices=ORDER, default="side")
     runs.add_argument("command", nargs=argparse.REMAINDER)
-    commands.add_parser("status", help="what holds the card and what waits")
+    commands.add_parser("status", help="the PC's line: what holds the card, what waits, the containers' memory")
+    commands.add_parser("measured", help="each job's measured card GB, cores and memory")
     parsed = parser.parse_args(arguments)
-    if parsed.action == "status":
-        print(status())
+    if parsed.action in ("status", "measured"):
+        print(status() if parsed.action == "status" else measured())
         return
     command = parsed.command[1:] if parsed.command[:1] == ["--"] else parsed.command
     if not command:

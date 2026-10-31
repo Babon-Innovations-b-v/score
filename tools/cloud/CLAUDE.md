@@ -85,7 +85,13 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   claim that waits keeps side jobs off until it has its share, and after `card_queue.YIELD_SECONDS` (60) asks the side
   shares back: `run` stops its command's session (SIGTERM, SIGKILL after 30 s; never SIGSTOP, which keeps the card's
   memory held), waits again and starts the command again once the card is free, so a side job must resume from its own
-  checkpoints (sim body's level 1 tuning does). The queue's folder (`~/.score-card`, `SCORE_CARD_QUEUE`) is one for
+  checkpoints (sim body's level 1 tuning does). Every `run` and every claim of the container is measured while it holds its
+  share (`card_queue.watch`: the card's highest reading less the desktop, and whether it was the only share at each
+  reading; a `run`'s cores and memory from its children's rusage, a claim's cores from the container's cgroup), one line
+  in the queue's `measures.jsonl`; `card_queue.py measured` gives each job's highest, the card only from takes alone on
+  it (a card user outside the queue still counts in a reading). The container keeps `local.HOST_CORES` (4) of this PC's
+  cores (`--cpus 20`), and a claim whose run gives its measured memory (characters' steps, MOSS) runs held to it times
+  `local.MEMORY_MARGIN` (1.5), set back to `memory_cap` at its delete. The queue's folder (`~/.score-card`, `SCORE_CARD_QUEUE`) is one for
   the whole PC, whatever `PROPS_HOME` a run works under.
 - **The only way models are made**, one or a hundred: no model runs on the owner's PC (owner,
   2026-10-03; `../local_models.py`). `batch.py` makes models, `pictures.py` pictures, `scene.py`
