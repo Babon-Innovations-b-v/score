@@ -12,7 +12,7 @@ saying, requirement by requirement, whether the place is complete, and its statu
 every requirement passes; "complete apart from accepted gaps (N)" when the accepted gaps requirement is the only one that
 does not, every gap listed with its numbers and who decided it (overseer, 2026-10-15); else "NOT complete". It exits 0
 on the first two. The
-Stop hook (.claude/hooks/completion_guard.py) runs `done` for each place a session worked on and refuses to let the
+Stop hook (.claude/hooks/local/completion_guard.py) runs `done` for each place a session worked on and refuses to let the
 session end on a claim that a place is done while its manifest says otherwise.
 
 Every check answers pass, fail or unknown, and unknown blocks like fail: a check that could not run, a result that is
