@@ -54,6 +54,6 @@ paper:
 check:
 	@python3 .claude/scripts/gate-scope.py | tee /tmp/score-gate-scope.txt
 	@if grep -q '^MODE full' /tmp/score-gate-scope.txt; then \
-		$(SANDBOX) $(PYTEST) paper/build .claude/scripts/tests .claude/hooks/tests && $(MAKE) --no-print-directory tests; \
+		$(SANDBOX) $(PYTEST) paper/build .claude/scripts/tests .claude/hooks/tests .claude/index/tests && $(MAKE) --no-print-directory tests; \
 	fi
 	python3 docs/adr/tools/check_index.py

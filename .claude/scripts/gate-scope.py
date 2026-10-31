@@ -30,9 +30,9 @@ DOC_NAMES = ("LICENSE", ".gitignore", ".gitattributes", ".mcp.json")
 # Markdown that is a build input, not a note: the paper's draft is built into its PDF and
 # LaTeX, and the check that they are current must run when it changes.
 BUILT_PREFIXES = ("paper/",)
-# The harness's own code under .claude/: the hooks, the scripts and the settings that wire them run in every session,
-# and their tests are part of the gate.
-CODE_PREFIXES = (".claude/hooks/", ".claude/scripts/", ".claude/settings.json")
+# The harness's own code under .claude/: the hooks, the scripts, the index and the settings that wire them run in
+# every session, and their tests are part of the gate.
+CODE_PREFIXES = (".claude/hooks/", ".claude/scripts/", ".claude/index/", ".claude/settings.json")
 
 
 def git_lines(*args):

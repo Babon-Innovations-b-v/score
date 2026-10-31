@@ -816,6 +816,8 @@ The house standard for a module, so a reader can predict the shape of code they 
    repo's git hooks, builds `.venv` from `uv.lock` and `PROPS_HOME`'s `env/` when missing, and reports
    anything else missing. Needs `node`, `python3` and `uv`. Safe to re-run.
 3. `python3 .claude/scripts/setup-github.py --board` on a fresh repo only (labels and the board are GitHub-side).
+4. Nothing to do for the code index: the first `index` question installs the pinned codebase-memory-mcp into
+   `~/.cache/harness/cbm/<version>/` and builds the index into `~/.cache/codebase-memory-mcp/`.
 
 **The runtime** lives under `PROPS_HOME` (default `~/.farm-factory-props`, kept so the ledger, keys and work carry
 over): `cloud/` (the runner's ssh key, the self-delete key, the spend ledgers, `books.json`), `store/` (the store; fault reports,
