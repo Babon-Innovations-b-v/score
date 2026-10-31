@@ -24,7 +24,7 @@ always `parked`, so batch.rent never orders anything: the machine is only ever t
 (park.here), which asks no clearance, since it costs nothing (price 0; the ledger's rows carry the measured minutes
 at EUR 0). A job that needs more card or memory than this PC has is refused at its claim with the reason, never run
 to an out-of-memory; it stays a cloud job. The need is the job's own measure when its run gives one (a characters
-run of clip steps only: characters.card_need), else its kind's (TOO_BIG). `delete` restarts the container, which ends whatever a job left running on
+run whose steps are all measured: characters.card_need), else its kind's (TOO_BIG). `delete` restarts the container, which ends whatever a job left running on
 the card (a detached worker), and keeps its files: only when no other claim holds it, so the last shared claim to
 leave restarts it and none restarts it under another claim's jobs.
 

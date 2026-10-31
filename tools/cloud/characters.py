@@ -61,10 +61,18 @@ PROGRAMS = {"prop_chain.py": "maker/prop_chain.py", "video_motion.py": "clips/vi
             "scene_clips.py": "clips/scene_clips.py"}
 # The steps measured on a 16 GB card (this PC's RTX 5080, 2026-10-27: scene_clips.py's Kimodo and rig steps in 87 s,
 # card peak 3.66 GB, 1.7 GB Kimodo's) with Kimodo's text encoder on the processor (TEXT_ENCODER_DEVICE=cpu, ENCODER),
-# which then holds 16.7 GB of system memory. A make with any other step needs the whole machine (backends/local.py
-# TOO_BIG's characters, the encoder on the card).
+# which then holds 16.7 GB of system memory.
 CLIP_STEPS = {"clips", "rig", "scene clips"}
 CLIP_NEED = {"card_gb": 4, "memory_gb": 17}
+# The prop route's steps, none loading Kimodo, measured on this PC's RTX 5080 (2026-10-31: the astronaut's makes in
+# the this-PC container, nvidia-smi every 100 ms less the desktop's 2.4 GB, the largest process's resident memory):
+# identity 3.2 GB card (SAM 3D Body's ONNX) and 2.1 GB, route 0.25 and 2.1, shell 0.2 and 1.8, build 0 and 0.8.
+# Rounded up as CLIP_NEED is. A step not here asks the kind's (backends/local.py TOO_BIG's characters).
+STEP_NEED = {**{step: CLIP_NEED for step in CLIP_STEPS},
+             "identity": {"card_gb": 4, "memory_gb": 3}, "route": {"card_gb": 1, "memory_gb": 3},
+             "shell": {"card_gb": 1, "memory_gb": 2}, "build": {"card_gb": 1, "memory_gb": 1}}
+# A make with no steps holds the machine for the look's shell, build and route (prop_person.machine_held).
+HELD_STEPS = {"shell", "build", "identity", "route"}
 ENCODER = "TEXT_ENCODER_DEVICE=cpu"
 
 
@@ -119,9 +127,13 @@ def program_of(make):
 
 
 def card_need(makes):
-    """The run's measured need (CLIP_NEED) when every make runs clip steps only, else None (its kind's)."""
-    steps = {step for make in makes for step in json.loads((make / "in" / "spec.json").read_text()).get("steps", [])}
-    return dict(CLIP_NEED) if steps and steps <= CLIP_STEPS else None
+    """The run's measured need: the largest STEP_NEED of its makes' steps (a make with none, HELD_STEPS'), else None
+    (its kind's) when a step is unmeasured."""
+    steps = {step for make in makes
+             for step in json.loads((make / "in" / "spec.json").read_text()).get("steps") or HELD_STEPS}
+    if not steps <= STEP_NEED.keys():
+        return None
+    return {key: max(STEP_NEED[step][key] for step in steps) for key in ("card_gb", "memory_gb")}
 
 
 def chain_line(name, program=PROGRAMS["prop_chain.py"]):
