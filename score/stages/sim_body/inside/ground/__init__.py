@@ -1,5 +1,6 @@
 """The scene's ground as the sim body stands on it (pure numpy, the person's own frame, Y up): each point's ground (the
-highest drawn triangle under it, at most REACH_UP over it, with HEADROOM free over it), its height over it, and each triangle's upward normal."""
+highest drawn triangle under it, at most REACH_UP over it, or over its body's lowest point (`body_reach`), with
+HEADROOM free over it), its height over it, and each triangle's upward normal."""
 import numpy as np
 
 # Free height over a surface for a body to stand on it (metres): under less (a table top, a shelf) it is a block.
@@ -35,15 +36,21 @@ def _crossings(points, ground):
     return np.concatenate(found_points), np.concatenate(found_heights), np.concatenate(found_triangles)
 
 
-def standing(points, ground):
-    """Each point's ground: the highest crossing at most REACH_UP over it with HEADROOM free over it, its height and
-    its triangle (nan and -1 where none is)."""
+def body_reach(points):
+    """The highest a body's ground may lie: REACH_UP over its lowest point, so a roof over its head is never its ground."""
+    return points[:, 1].min() + REACH_UP
+
+
+def standing(points, ground, reach=None):
+    """Each point's ground: the highest crossing at most `reach` high (default REACH_UP over the point) with HEADROOM
+    free over it, its height and its triangle (nan and -1 where none is)."""
+    reach = points[:, 1] + REACH_UP if reach is None else np.broadcast_to(reach, len(points))
     which, heights, triangles = _crossings(points, ground)
     order = np.lexsort((heights, which))
     which, heights, triangles = which[order], heights[order], triangles[order]
     above = np.append(heights[1:], np.inf)
     above[np.append(which[1:] != which[:-1], True)] = np.inf  # the top crossing of each point has nothing over it
-    free = (above - heights >= HEADROOM) & (heights <= points[which, 1] + REACH_UP)
+    free = (above - heights >= HEADROOM) & (heights <= reach[which])
     found, under = np.full(len(points), np.nan), np.full(len(points), -1)
     which, heights, triangles = which[free], heights[free], triangles[free]
     top = which != np.append(which[1:], -1)  # the highest standing crossing of each point
@@ -51,9 +58,9 @@ def standing(points, ground):
     return found, under
 
 
-def heights_over(points, ground):
-    """Each point's height over its ground; nan where it has none."""
-    return points[:, 1] - standing(points, ground)[0]
+def heights_over(points, ground, reach=None):
+    """Each point's height over its ground (`standing`'s reach); nan where it has none."""
+    return points[:, 1] - standing(points, ground, reach)[0]
 
 
 def normals(ground):
