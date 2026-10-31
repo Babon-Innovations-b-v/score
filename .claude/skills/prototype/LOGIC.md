@@ -69,7 +69,7 @@ When the prototype has done its job, the answer to the question is the only thin
 ## Anti-patterns
 
 - **Don't add tests.** A prototype that needs tests is no longer a prototype.
-- **Don't wire it to the real database.** Use an in-memory store unless the question is specifically about persistence. Never the research DB.
+- **Don't wire it to the real database.** Use an in-memory store unless the question is specifically about persistence. Never a shared or production data store.
 - **Don't generalise.** No "what if we wanted to support X later." The prototype answers one question.
 - **Don't blur the logic and the TUI together.** If the reducer / state machine references `print`, prompts, or terminal escape codes, it's no longer portable. Keep the TUI as a thin shell over a pure module.
 - **Don't ship the TUI shell into production.** The shell is optimised for being driven by hand from a terminal. The logic module behind it is the bit worth keeping.
