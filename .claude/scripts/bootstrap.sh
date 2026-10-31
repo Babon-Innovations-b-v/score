@@ -4,8 +4,8 @@
 #   bash .claude/scripts/bootstrap.sh
 #
 # Link Claude's memory folder into the repo (git-ignored: the repo is public), use the
-# repo's git hooks, mark ponytail's status-line offer as seen, build the framework's
-# Python from uv.lock, and report anything else the loop needs that is not here yet.
+# repo's git hooks, build the framework's Python from uv.lock, and report anything else the loop
+# needs that is not here yet.
 # Safe to re-run: every step skips what is already done.
 set -euo pipefail
 
@@ -118,20 +118,10 @@ seed_gltfpack() {
   say "gltfpack: $GLTFPACK_PIN in the npm cache"
 }
 
-# ponytail offers, once, to add its status line to ~/.claude/settings.json; its own flag file
-# marks the offer as seen.
-mark_ponytail_statusline_seen() {
-  local flag="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/.ponytail-statusline-nudged"
-  mkdir -p "$(dirname "$flag")"
-  [ -e "$flag" ] || : > "$flag"
-  say "ponytail: status line offer marked as seen"
-}
-
 link_memory
 use_repo_hooks
 build_python
 seed_gltfpack
-mark_ponytail_statusline_seen
 check_gh
 check_restic
 check_project_json
