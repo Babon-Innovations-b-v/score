@@ -38,7 +38,9 @@ builds it unchanged; it lands as record/<place>.json in the output.
                  open place's spot at its floor stands on the terrain row's made ground under it (`terrain`, the one
                  thing made that the record reads: wreck's eyes stood under its ground, 2026-10-30); an eye at the
                  floor where a person would stand in a wall, a floor thing or another person moved to the nearest
-                 free floor, its aim by the same offset (review/standing.py, `clear_of`)
+                 free floor, its aim by the same offset (review/standing.py, `clear_of`); a look meeting a wall or
+                 floor thing within CLEAR_LOOK turned to the nearest clear way, else left out with why (`looked`;
+                 flat's spot-2 faced its wardrobe from 0.45 m, 2026-10-31)
     doorways     the plan's doorways in the place's frame (the plan row's), which ground-fit judges
     places       each other place its holder's plan holds that a door or opening of this place leads to, stood where
                  the holder's plan holds it (`holds`), turned as its own plan's frame is
@@ -75,6 +77,13 @@ RAMP_STEP = 0.05
 # A view stands this far inside its doorway (every view sees far.VIEW_FOV wide).
 VIEW_IN = 1.0
 AIM_HEIGHT = 1.0
+# A view's look must run this far clear of walls and floor things: a view is judged by its whole picture's mean
+# luminance (stages/light/mix.py), and a surface nearer than a doorway eye stands in from its door fills most of its
+# far.VIEW_FOV picture (1.7 m across at 1 m), so it reads that surface, not the room (flat's spot-2, 0.45 m off its
+# wardrobe, read 0.026 against the concept's 0.263, 2026-10-31).
+CLEAR_LOOK = VIEW_IN
+# A blocked look turns by this many degrees a try, either way, nearest the aim first, up to all the way round.
+TURN_STEP = 15
 # A view looking within this many degrees of straight up or down has no up of the world's (its picture's sideways
 # is their cross product: round 33's spot-1 at shiplock looked straight down and every measure was NaN), so it is
 # given the floor's long axis as its up (`upright`).
@@ -389,12 +398,13 @@ def item_middle(plan, name):
     return np.array([(low_x + high_x) / 2, (low_z + high_z) / 2])
 
 
-def views(plan, eye_height, ground=None, clear=None):
+def views(plan, eye_height, ground=None, clear=None, sight=None):
     """One view inside each doorway looking across the inside's middle (the doorway's mirror through it), one from
     each standing spot to the middle at its own level or to the plan item it looks at on the floor; each eye at
     standing height over its level (the plan row's plan.json: its `doorways` and `standing`), a spot at the floor
     over the made ground under it where `ground` (ground_under) has one there. An eye at the floor where a person
-    would stand in a wall, a thing or another person moves by `clear`'s offset (`clear_of`), its aim with it."""
+    would stand in a wall, a thing or another person moves by `clear`'s offset (`clear_of`), its aim with it; a look
+    `sight` (`sight_of`) finds blocked within CLEAR_LOOK turns to the nearest clear way (`looked`)."""
     found, middle = [], middle_of(plan)
     for door in plan.get("doorways", []):
         at = np.asarray(door["middle"], dtype=float)
@@ -407,6 +417,7 @@ def views(plan, eye_height, ground=None, clear=None):
                                                              round(eye[2], 3)],
                       "aim": [round(aim[0], 3), round(at[1] + AIM_HEIGHT, 3), round(aim[1], 3)], "fov": far.VIEW_FOV,
                       "from": f"plan {door['name']} ({door['wide']:g} m wide, to {door['to']}), looking across"})
+        found[-1] = looked(found[-1], sight, min(float(at[1]), plan["floor_height"]))
     for number, spot in enumerate(plan["standing"], 1):
         aim = item_middle(plan, spot["looks_at"]) if spot["looks_at"] else middle
         aim_level = plan["floor_height"] if spot["looks_at"] else spot["level"]
@@ -420,7 +431,58 @@ def views(plan, eye_height, ground=None, clear=None):
                       "aim": [round(aim[0], 3), round(aim_level + AIM_HEIGHT, 3), round(aim[1], 3)],
                       "fov": far.VIEW_FOV, "from": f"plan standing spot {number}, looking to " +
                                               (f"plan item {spot['looks_at']!r}" if spot["looks_at"] else "the middle")})
+        found[-1] = looked(found[-1], sight, stands if spot["level"] <= plan["floor_height"] else plan["floor_height"])
     return [upright(view, plan["floor"]) for view in found]
+
+
+def looked(view, sight, base):
+    """The view as it is when `sight` finds its look clear for CLEAR_LOOK; else turned about its eye to the nearest
+    way TURN_STEP by TURN_STEP that is, said in its `from`; else marked `blind` with why (views_kept leaves it out)."""
+    if sight is None:
+        return view
+    eye, aim = np.asarray(view["eye"], dtype=float), np.asarray(view["aim"], dtype=float)
+    hit = sight(eye, aim, base)
+    if hit is None:
+        return view
+    for turn in [side * step for step in range(TURN_STEP, 181, TURN_STEP) for side in (1, -1)]:
+        cos, sin = math.cos(math.radians(turn)), math.sin(math.radians(turn))
+        way = aim[[0, 2]] - eye[[0, 2]]
+        turned = eye[[0, 2]] + [way[0] * cos - way[1] * sin, way[0] * sin + way[1] * cos]
+        new_aim = np.array([turned[0], aim[1], turned[1]])
+        if sight(eye, new_aim, base) is None:
+            return dict(view, aim=[round(float(value), 3) for value in new_aim],
+                        **{"from": f"{view['from']}, turned {turn:+d} degrees off a wall or thing {hit:.2f} m ahead"})
+    return dict(view, blind=f"a wall or thing stands within {CLEAR_LOOK:g} m of its eye every way it turns "
+                            f"({hit:.2f} m ahead): it would see one surface, not the room")
+
+
+def sight_of(design, inventory):
+    """(eye, aim, base) -> how far along the look from `eye` toward `aim` (place frame) its first wall or floor thing
+    (plan_checks.blocking, as tall as its shape; its doorways open) stands, within CLEAR_LOOK, or None when none does;
+    `base` is the height the things stand on."""
+    grid = plan_checks.Grid(design)
+    tops = np.zeros(grid.shape)
+    for item, _, shape in plan_checks.blocking(design, inventory):
+        covered = grid.covered(plan_checks.polygon_of(item, shape))
+        tops[covered] = np.maximum(tops[covered], float((shape or {}).get("tall") or 1.0))
+    for wall in design.get("walls", []):
+        tops[grid.covered(plan_checks.wall_polygon(wall))] = np.inf
+    for opening in design.get("openings", []):
+        if opening.get("kind") in ("door", "opening", "gate"):
+            tops[grid.covered(plan_checks.opening_polygon(opening))] = 0.0
+    corner, east, south = place_plan.frame_of(design)
+
+    def first_hit(eye, aim, base):
+        look = (aim - eye) / max(float(np.linalg.norm(aim - eye)), 1e-9)
+        for along in np.arange(0.0, CLEAR_LOOK, grid.size / 2):
+            point = eye + look * along
+            across = point[[0, 2]] - corner[[0, 2]]
+            spot = np.array([float(across @ east[[0, 2]]), float(across @ south[[0, 2]])])
+            cell = np.floor((spot - grid.low) / grid.size).astype(int)[::-1]  # off the grid nothing stands
+            if (cell >= 0).all() and (cell < grid.shape).all() and point[1] - base < tops[tuple(cell)]:
+                return float(along)
+        return None
+    return first_hit
 
 
 def upright(view, floor):
@@ -495,15 +557,18 @@ def inside_polygon(point, points):
 
 
 def views_inside(found, design, enclosed):
-    """(kept, left out) of an inside place's views: one whose eye stands outside its plan's outline sees its walls
-    from behind, so it is left out with why; an open place keeps every view."""
-    if not enclosed:
-        return found, []
-    outline, _ = in_frame(design, design_shell.outline_of(design))
-    kept = [view for view in found if inside_polygon([view["eye"][0], view["eye"][2]], outline)]
-    return kept, [{"name": view["name"], "eye": view["eye"], "from": view["from"],
-                   "why": "its eye stands outside the plan's outline: it would see the walls from behind"}
-                  for view in found if view not in kept]
+    """(kept, left out) of the views: one `looked` marked blind, and an inside place's one whose eye stands outside
+    its plan's outline (it sees its walls from behind), are left out with why."""
+    outline = in_frame(design, design_shell.outline_of(design))[0] if enclosed else None
+    kept, left = [], []
+    for view in found:
+        why = view.get("blind") or (None if outline is None or inside_polygon([view["eye"][0], view["eye"][2]], outline)
+                                    else "its eye stands outside the plan's outline: it would see the walls from behind")
+        if why:
+            left.append({"name": view["name"], "eye": view["eye"], "from": view["from"], "why": why})
+        else:
+            kept.append(view)
+    return kept, left
 
 
 # --- places -------------------------------------------------------------------------------------------------------
@@ -973,9 +1038,10 @@ def record_of(plan, design, inputs):
               "doorways": plan.get("doorways", []), "places": places_of(place, plan, design, inputs["plans"], handin)}
     ground = None if record["inside"] else ground_under(inputs, place)
     inventory = pathlib.Path(inputs.get("inventory") or "")
-    clear = clear_of(design, read(inventory) if inventory.is_file() else {})
+    rows = read(inventory) if inventory.is_file() else {}
     record["views"], left_out = views_inside(views(plan if record["inside"] else dict(plan, doorways=[]), eye, ground,
-                                                   clear), design, record["inside"])
+                                                   clear_of(design, rows), sight_of(design, rows)), design,
+                                             record["inside"])
     if left_out:
         record["views_left_out"] = left_out
     if far_laid[1]:
