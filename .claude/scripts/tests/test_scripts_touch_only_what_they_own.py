@@ -23,6 +23,9 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_worktree_reap_reaps_only_a_dead_sessions_clean_merged_worktree: is_clean returns True at once; or reap's
   `idle_hours(...) >= IDLE_HOURS` made `True` (a recent unlocked worktree is reaped).
 - test_worktree_reap_speaks_json_as_a_hook_and_only_when_it_did_something: main prints the report also when empty.
+- test_worktree_reap_keeps_a_worktree_a_process_or_a_this_pc_run_uses (an env1 run's code worktree was reaped
+  mid-run and while paused, 2026-10-31): reap's `or entry.name in in_use` dropped; or held_by_processes returns
+  `set()` (only the cwd and locked_cwd worktrees go); or named_by_runs returns `set()` (only registered and paused go).
 - test_the_guard_names_every_home_outside_a_sandbox: outside_temp's `folder == temp` test dropped.
 - test_a_pytest_run_without_a_sandbox_home_stops_before_collecting: pytest_configure's refusal skipped.
 - test_a_sandboxed_test_writes_only_its_own_home: sandbox-home's read_only_command drops `--ro-bind`.
@@ -302,8 +305,9 @@ def add_worktree(main, name, pid=None):
     return path
 
 
-def reap(main, hook=False):
+def reap(main, hook=False, this_pc_home=None):
     env = {key: value for key, value in os.environ.items() if key != "CLAUDE_HOOK"}
+    env["SCORE_THIS_PC_HOME"] = str(this_pc_home or main.parent / "no-this-pc")
     if hook:
         env["CLAUDE_HOOK"] = "SessionStart"
     return subprocess.run(["python3", main / ".claude" / "scripts" / "worktree-reap.py"], env=env,
@@ -354,6 +358,43 @@ def test_worktree_reap_speaks_json_as_a_hook_and_only_when_it_did_something(tmp_
     assert run.returncode == 0
     assert json.loads(run.stdout) == {"hookSpecificOutput": {
         "hookEventName": "SessionStart", "additionalContext": "Reaped 1 orphaned worktree(s): gone."}}
+
+
+def make_idle(main, *names):
+    """Age these worktrees' git admin files a day, past IDLE_HOURS."""
+    admin = pathlib.Path(git(main, "rev-parse", "--path-format=absolute", "--git-common-dir")) / "worktrees"
+    for name in names:
+        for path in (admin / name).rglob("*"):
+            if path.is_file():
+                os.utime(path, (time.time() - 86400, time.time() - 86400))
+
+
+def test_worktree_reap_keeps_a_worktree_a_process_or_a_this_pc_run_uses(tmp_path):
+    main = main_checkout(tmp_path)
+    cwd = add_worktree(main, "cwd")  # a process works in it (the run's leader, its venv's Python)
+    locked_cwd = add_worktree(main, "locked_cwd", dead_pid())  # its session is dead, a process it started is not
+    registered = add_worktree(main, "registered")  # a running this-PC run's registry entry names it
+    finished = add_worktree(main, "finished")  # only a finished run's entry names it: reaped
+    idle = add_worktree(main, "idle")  # nothing uses it: reaped
+    git(main, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "second")
+    git(main, "push", "-q", "origin", "main")
+    paused = add_worktree(main, "paused")  # checked out at the paused run's commit
+    make_idle(main, "cwd", "registered", "finished", "idle", "paused")
+    home = tmp_path / "this-pc"
+    (home / "runs").mkdir(parents=True)
+    (home / "runs" / "1.json").write_text(json.dumps({"state": "running", "worktree": str(registered.resolve())}))
+    (home / "runs" / "0.json").write_text(json.dumps({"state": "finished", "worktree": str(finished.resolve())}))
+    (home / "paused.json").write_text(json.dumps({"commit": git(main, "rev-parse", "HEAD"), "argv": ["run"]}))
+    workers = [subprocess.Popen(["sleep", "60"], cwd=folder) for folder in (cwd, locked_cwd)]
+    try:
+        run = reap(main, this_pc_home=home)
+    finally:
+        for worker in workers:
+            worker.kill()
+            worker.wait()
+    assert (run.returncode, run.stdout) == (0, "Reaped 2 orphaned worktree(s): finished, idle.\n")
+    assert all(path.exists() for path in (cwd, locked_cwd, registered, paused))
+    assert not finished.exists() and not idle.exists()
 
 
 # sandbox-home and conftest.py: no test reaches the real home, and what a test leaves goes with its sandbox

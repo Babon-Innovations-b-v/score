@@ -24,6 +24,8 @@ from pathlib import Path
 
 LOCK_PID_RE = re.compile(r"pid (\d+)")
 IDLE_HOURS = 6
+THIS_PC_HOME = Path(os.environ.get("SCORE_THIS_PC_HOME", Path.home() / ".score-this-pc"))
+PROC = Path("/proc")
 
 
 def git_out(args, cwd=None):
@@ -67,6 +69,88 @@ def idle_hours(common_dir, worktree_name):
     return (time.time() - max(stamps)) / 3600 if stamps else 0.0
 
 
+def process_paths(pid_dir):
+    """Every path one process holds: its working folder, program, root, open and mapped files, command-line words."""
+    paths = []
+    for link in ("cwd", "exe", "root"):
+        try:
+            paths.append(os.readlink(pid_dir / link))
+        except OSError:  # gone, or another user's: it holds nothing we can see
+            pass
+    try:
+        paths.extend(os.readlink(fd) for fd in (pid_dir / "fd").iterdir())
+    except OSError:
+        pass
+    try:
+        paths.extend(line.split(None, 5)[5] for line in (pid_dir / "maps").read_text().splitlines()
+                     if len(line.split(None, 5)) == 6)
+    except OSError:
+        pass
+    try:
+        paths.extend((pid_dir / "cmdline").read_bytes().decode(errors="replace").split("\0"))
+    except OSError:
+        pass
+    return paths
+
+
+def worktree_names(paths, worktrees_dir):
+    """The worktree names under worktrees_dir that these paths fall in (any text containing such a path counts)."""
+    marker = f"{worktrees_dir}/"
+    names = set()
+    for path in paths:
+        start = path.find(marker)
+        if start >= 0:
+            names.add(re.split(r"[/\s]", path[start + len(marker):], maxsplit=1)[0])
+    return names - {""}
+
+
+def held_by_processes(worktrees_dir):
+    """Names of the worktrees some live process uses (see process_paths)."""
+    paths = []
+    for pid_dir in PROC.glob("[0-9]*"):
+        paths.extend(process_paths(pid_dir))
+    return worktree_names(paths, worktrees_dir)
+
+
+def strings_in(value):
+    """Every string inside a JSON value."""
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return [text for item in value.values() for text in strings_in(item)]
+    if isinstance(value, list):
+        return [text for item in value for text in strings_in(item)]
+    return []
+
+
+def read_json(path):
+    """The JSON in path, or None when it is missing or unreadable."""
+    try:
+        return json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+
+
+def this_pc_records():
+    """The this-PC run records that name code to keep: every running registry entry, and the paused record or None."""
+    entries = [read_json(path) for path in sorted((THIS_PC_HOME / "runs").glob("*.json"))]
+    running = [entry for entry in entries if isinstance(entry, dict) and entry.get("state") == "running"]
+    paused = read_json(THIS_PC_HOME / "paused.json")
+    return running, paused if isinstance(paused, dict) else None
+
+
+def named_by_runs(worktrees_dir):
+    """Names of the worktrees a this-PC run names by path, or whose HEAD is the paused run's commit."""
+    running, paused = this_pc_records()
+    records = running + ([paused] if paused else [])
+    names = worktree_names([text for record in records for text in strings_in(record)], worktrees_dir)
+    commit = (paused or {}).get("commit")
+    for entry in worktrees_dir.iterdir():
+        if commit and entry.is_dir() and git_out(["rev-parse", "HEAD"], cwd=entry)[1] == commit:
+            names.add(entry.name)
+    return names
+
+
 def is_clean(worktree_path):
     """True when no uncommitted changes (untracked files included) and HEAD is on origin/main.
 
@@ -103,9 +187,11 @@ def reap():
     if not worktrees_dir.is_dir():
         return [], []
     self_root = Path(__file__).resolve().parents[2]
+    worktrees_dir = worktrees_dir.resolve()
+    in_use = held_by_processes(worktrees_dir) | named_by_runs(worktrees_dir)
     reaped, kept_dirty = [], []
     for entry in sorted(worktrees_dir.iterdir()):
-        if not entry.is_dir() or entry == self_root:
+        if not entry.is_dir() or entry == self_root or entry.name in in_use:
             continue
         pid = lock_pid(common_dir, entry.name)
         if pid is None:
