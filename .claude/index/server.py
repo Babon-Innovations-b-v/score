@@ -97,9 +97,12 @@ TOOLS = {
 
 def answer(tool: str, arguments: dict) -> dict:
     """One tool's answer: ``ok`` with ``result``, or ``error`` and ``fix``."""
-    if tool not in TOOLS:
+    if not isinstance(tool, str) or tool not in TOOLS:
         return {"ok": False, "error": f"no tool {tool!r}",
                 "fix": f"use one of {', '.join(TOOLS)}"}
+    if arguments is not None and not isinstance(arguments, dict):
+        return {"ok": False, "error": f"arguments must be an object, got {arguments!r:.80}",
+                "fix": "pass the tool's arguments as a JSON object of named values"}
     place = cbm_index.ready(cbm_index.REPO)
     if "error" in place:
         return {"ok": False, **place}
@@ -135,7 +138,7 @@ def _initialized(params: dict) -> dict:
 
 def _called(params: dict) -> dict:
     """The ``tools/call`` result for one call."""
-    result = answer(params.get("name", ""), params.get("arguments") or {})
+    result = answer(params.get("name", ""), params.get("arguments"))
     return {"content": [{"type": "text", "text": _as_text(result)}],
             "isError": not result.get("ok")}
 
@@ -146,6 +149,9 @@ def respond(message: dict) -> dict | None:
     if ident is None:
         return None
     params = message.get("params") or {}
+    if not isinstance(params, dict):
+        return {"jsonrpc": "2.0", "id": ident,
+                "error": {"code": -32602, "message": "params must be an object"}}
     if method == "initialize":
         result = _initialized(params)
     elif method == "tools/list":
@@ -171,7 +177,9 @@ def main() -> int:
             reply = {"jsonrpc": "2.0", "id": None,
                      "error": {"code": -32700, "message": f"parse error: {failed}"}}
         else:
-            reply = respond(message) if isinstance(message, dict) else None
+            reply = (respond(message) if isinstance(message, dict) else
+                     {"jsonrpc": "2.0", "id": None,
+                      "error": {"code": -32600, "message": "a request is one JSON object"}})
         if reply is not None:
             sys.stdout.write(json.dumps(reply) + "\n")
             sys.stdout.flush()
