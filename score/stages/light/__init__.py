@@ -14,7 +14,8 @@ holds, as three rows of the stage table.
                   transform as a table
     light         (free) the sweep on the passes (mix.py): one scale for every lamp without a shaft (a floodlight's is
                   its shaft sweep's, 2026-10-11) bringing the place's brightness nearest its concept's, the suns and
-                  the fill alone after where it cannot, each blown-out lamp turned down; those strengths written into
+                  the fill alone after where it cannot, a sun blowing out a view stepped down, each blown-out lamp
+                  turned down; those strengths written into
                   the layer; the look at them mixed from the passes at full precision, through the view transform
                   (looks/), and every fault measured on it
 
@@ -380,8 +381,9 @@ def strengths(place, passes_folder, lamps, layer_folder, record):
     """The sweep on the place's views (its passes, rendered on its light layer's views): (scales {group: scale},
     measures). Only a lamp those passes hold a group of is swept, in mix.py's order: the lamps; the suns (the fill
     with them) where the lamps cannot bring the place within its concept's brightness or their sweep stops at an end
-    of its range; the fill alone, the least that brings every view within and none more black or blown than its
-    concept (mix.fill_sweep, exposed_within); each blown lamp turned down."""
+    of its range; the suns stepped down while a view is more blown than its concept (mix.sun_down); the fill alone,
+    the least that brings every view within and none more black or blown than its concept (mix.fill_sweep,
+    exposed_within); each blown lamp turned down."""
     by_path = {lamp["path"]: lamp for lamp in lamps}
     groups = {group: path for group, path in groups_of(passes_folder).items() if path in by_path}
     rendered_views = view_passes(passes_folder, place)
@@ -399,9 +401,14 @@ def strengths(place, passes_folder, lamps, layer_folder, record):
         sun_scale = mix.sweep(views, suns, target, scales)
         scales.update(dict.fromkeys(suns, sun_scale))
     fill = next((group for group in suns if by_path[groups[group]].get("fill")), None)
+    concept = concept_extremes(place)
+    looks = {view: (held, look) for view, (held, _, look) in rendered_views.items()}
+    lit = [group for group in suns if group != fill]
+    if lit:  # a sun blowing out what it lights is stepped down, the fill swept after it (2026-10-31, camp)
+        sun_scale = mix.sun_down(views, lit, target, scales,
+                                 lambda tried: exposed_within(looks, concept, tried, ("blown",)))
+        scales.update(dict.fromkeys(lit, sun_scale))
     if fill:
-        concept = concept_extremes(place)
-        looks = {view: (held, look) for view, (held, _, look) in rendered_views.items()}
         scales[fill] = mix.fill_sweep(views, fill, target, scales, lambda tried: exposed_within(looks, concept, tried))
     lamp_found = {}
     sky_lit = [group for group, path in groups.items() if by_path[path].get("sun")]
@@ -713,17 +720,17 @@ def concept_extremes(place):
         if concepts else None
 
 
-def exposed_within(looks, concept, scales):
+def exposed_within(looks, concept, scales, kinds=("black", "blown")):
     """judge_exposure's rule on each view's look at the scales as the light row makes it (look_at; `looks` {view:
     (passes, rendered look path)}), its sky left out: no view's surfaces more black or blown than `concept` by
-    BLACK_OVER or BLOWN_OVER; true with no concept. Never the tone curve's estimate: it read airlock's from-door-2 13%
+    BLACK_OVER or BLOWN_OVER (of `kinds`); true with no concept. Never the tone curve's estimate: it read airlock's from-door-2 13%
     black where its look is 0.01% (2026-10-30)."""
     if not concept:
         return True
     for held, look in looks.values():
         shown = np.asarray(look_at(held, look, scales), dtype=np.float64) / 255.0
         found = extremes(shown @ np.array([0.2126, 0.7152, 0.0722]), held.get("sky"))
-        if found["black"] > concept["black"] + BLACK_OVER or found["blown"] > concept["blown"] + BLOWN_OVER:
+        if any(found[kind] > concept[kind] + {"black": BLACK_OVER, "blown": BLOWN_OVER}[kind] for kind in kinds):
             return False
     return True
 

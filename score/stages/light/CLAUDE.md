@@ -35,7 +35,9 @@ gates.
   lamp is turned down; a floodlight with a shaft keeps the strength its shaft sweep set (2026-10-11). One order (mix.py's
   docstring): the lamps, the suns with the fill where the lamps cannot, the fill alone raised from the sweep's floor
   only as far as the views need (every view within x2.5, none more black or blown than its concept; 2026-10-30:
-  hangar's floor in the ship's shadow, base's shaded walls), each blown lamp turned down, the floodlights last.
+  hangar's floor in the ship's shadow, base's shaded walls), each blown lamp turned down, the floodlights last. A sun
+  blowing a view past its concept is stepped down before the fill's sweep, only as far as that needs with the place
+  and every view kept within (`mix.sun_down`; 2026-10-31: camp's sunlit shell, 2.2-4.3% blown in seven views).
 - **The views come from the place's own scene record, never a copy** (#27, 2026-10-20: the demo's copies under
   `work/demo` were lost with the old disk and left eight ship places with no views): the light layer writes
   `views.json` from the record it reads (its accepted scene-record output where it has one), and the passes and the

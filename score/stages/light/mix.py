@@ -12,6 +12,9 @@ own tone curve, fitted on the render's look against its light.
                                            view-transform.npz), 0 to 1
     sweep(views, swept, target) -> scale   the scale of the swept lamps that brings the place's brightness nearest
                                            its concept's
+    sun_down(views, suns, target, scales,  the suns' greatest scale (from theirs down SCALES) at which `unblown`
+             unblown)                      holds (no view more blown than its concept), the place and every view kept
+                                           within
     fill_sweep(views, fill, target, scales, the concept fill's least scale (from the floor of SCALES up) at which
                exposed)                    every view is within VIEW_WITHIN, the place within BRIGHT_WITHIN and
                                            `exposed` holds (no view more black or blown than its concept)
@@ -24,7 +27,8 @@ The rules were set on 2026-10-12, before any light pass was rendered:
   concept pictures' (data/inventory's plan views). BRIGHT_WITHIN: the place within 1.5 times either way of its
   concept, every view within VIEW_WITHIN (2.5 times).
 - The sweep's order (light.strengths): one scale for every lamp without a shaft; the suns (the concept's fill with
-  them) where the lamps cannot; the fill alone, raised from the floor of SCALES only as far as the views need: the
+  them) where the lamps cannot; the suns stepped down SCALES where a view's surfaces are more blown than its
+  concept's, as far as that needs and the brightness rules allow (sun_down); the fill alone, raised from the floor of SCALES only as far as the views need: the
   least scale at which every view is within VIEW_WITHIN, the place within BRIGHT_WITHIN and no view's surfaces more
   black or blown than its concept's (the exposure gate's rule), the suns' scale kept where none is (fill_sweep); then
   each blown lamp turned down; the floodlights last, by their heads. The fill's own sweep was added on 2026-10-30,
@@ -32,6 +36,9 @@ The rules were set on 2026-10-12, before any light pass was rendered:
   read 0.120 against its concept's 0.304; the fill, the concept's light from no source in view, is what lights a
   shadow. Its floor and the exposure in its need the same day: base's sun, its only light, swept to 1/32 for the
   bright views, left its shaded walls 53% black in a brightness within x2.5; a fill the views do not need adds none.
+  The suns' step down was added on 2026-10-31, after the rules: camp's sunlit shell read 2.2-4.3% blown in seven
+  views (campgrounds' spot-4 2.4%) against its concept's 0.0%, the sun 99.7% of the light there; a sun is no lamp, so
+  the lamp rule below never judged it, and it would not have caught it (a view's 4% is not BLOWN_MOST of its pixels).
 - A lamp is unlit when it stands in some view's picture and its light reaches under UNLIT_SHARE of every view's
   light; one in no view's picture lighting nothing is unseen and said, not judged. UNLIT_SHARE was 0.0005 until the
   first fan-out (2026-10-12): the stairwell's landing light, behind its landing's ceiling from shot1 (standing in the
@@ -161,6 +168,21 @@ def views_within(views, scales, target):
     """Whether every view's brightness at the scales is within VIEW_WITHIN of `target`."""
     return all(abs(np.log(max(value, FLOOR) / target)) <= np.log(VIEW_WITHIN)
                for value in brightness(views, scales).values())
+
+
+def sun_down(views, suns, target, scales, unblown=lambda scales: True):
+    """The greatest of SCALES at or under the suns' scale in `scales` at which `unblown(scales)` holds, the place
+    within BRIGHT_WITHIN and every view within VIEW_WITHIN; the suns' scale where none is."""
+    held = scales[suns[0]]
+    for scale in SCALES[::-1]:
+        if scale > held:
+            continue
+        tried = dict(scales, **dict.fromkeys(suns, float(scale)))
+        if not (within(views, tried, target) and views_within(views, tried, target)):
+            break
+        if unblown(tried):
+            return float(scale)
+    return held
 
 
 def fill_sweep(views, fill, target, scales, exposed=lambda scales: True):
