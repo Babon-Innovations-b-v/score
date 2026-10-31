@@ -3,7 +3,7 @@ ground's contacts, as they were. mink per frame, set up as the fit's (`fit.solve
 foot body's place and turn a `FrameTask`, the pelvis' height held to its own by FOOTED_HEIGHT (a `FrameTask` on the
 root's body, only its height free: mink's `PostureTask` leaves a free joint out), every leading dof but the legs' and the
 root's height frozen (`DofFreezingTask`), the couplings held exactly (`EqualityConstraintTask` as a constraint) and the
-leading joints in their ranges (`ConfigurationLimit`); a frame that does not converge fails the run
+legs' leading joints in their ranges (`ConfigurationLimit`); a frame that does not converge fails the run
 (`fit.NotConverged`), never kept silently. Before #70's one-solver rule (2026-10-29) this was a handwritten damped least
 squares, 40 fixed steps, ranges by clipping."""
 import mink
@@ -36,11 +36,13 @@ class Footing:
         # is the height's, whatever the pelvis' tilt
         self.height = mink.FrameTask(model.body(self.root).name, "body", position_cost=FOOTED_HEIGHT,
                                      orientation_cost=0.0, lm_damping=fit.LM_DAMPING)
-        followers = [joint for joint, _, _ in couplings.followers]
-        self.limits = [mink.ConfigurationLimit(fit.followers_free(model, followers), gain=1.0)]
+        frozen = [int(dof) for dof in couplings.leads if int(dof) not in legs]
+        # only the moving legs' ranges held: a frozen leader the low-pass carried a hair past its range end (a freed
+        # girdle joint on its end, 0.01 deg, 2026-10-31) makes its freeze and its range one infeasible QP (daqp)
+        unheld = [joint for joint, _, _ in couplings.followers] + [int(model.dof_jntid[dof]) for dof in frozen]
+        self.limits = [mink.ConfigurationLimit(fit.followers_free(model, unheld), gain=1.0)]
         self.constraints = [mink.EqualityConstraintTask(model, cost=1.0, gain=1.0)] if model.neq else []
-        self.constraints.append(mink.DofFreezingTask(model, dof_indices=[int(dof) for dof in couplings.leads
-                                                                         if int(dof) not in legs]))
+        self.constraints.append(mink.DofFreezingTask(model, dof_indices=frozen))
         self.configuration = mink.Configuration(model)
         self.data = mujoco.MjData(model)
 
