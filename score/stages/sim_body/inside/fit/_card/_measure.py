@@ -67,7 +67,8 @@ class Skins:
     def __init__(self, rig, segments, worlds):
         self.frames = np.arange(0, len(worlds), EVERY)
         faces = warp.array(np.asarray(rig["faces"], dtype=np.int32).ravel(), dtype=int, device=DEVICE)
-        self.meshes = [warp.Mesh(points=warp.array(points, dtype=warp.vec3, device=DEVICE), indices=faces)
+        self.meshes = [warp.Mesh(points=warp.array(points, dtype=warp.vec3, device=DEVICE), indices=faces,
+                                 support_winding_number=True)
                        for points in posed_skins(rig, segments, worlds, self.frames)]
         self.ids = warp.array(np.array([mesh.id for mesh in self.meshes], dtype=np.uint64), dtype=warp.uint64,
                               device=DEVICE)
