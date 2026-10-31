@@ -87,7 +87,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   memory held), waits again and starts the command again once the card is free, so an `other` job must resume from its own
   checkpoints. Every `run` and every claim of the container is measured while it holds its
   share (`card_queue.watch`: the card's highest reading less the desktop, and whether it was the only share at each
-  reading; a `run`'s cores and memory from its children's rusage, a claim's cores from the container's cgroup), one line
+  reading; a `run`'s cores and memory from its children's rusage, a claim's cores from the container's cgroup, and its memory from the cgroup's anon bytes at their highest,
+  `card_queue.watch_memory`, alone only while no other claim held that container), one line
   in the queue's `measures.jsonl`; `card_queue.py measured` gives each job's highest, the card only from takes alone on
   it (a card user outside the queue still counts in a reading). The container keeps `local.HOST_CORES` (4) of this PC's
   cores (`--cpus 20`), and a claim whose run gives its measured memory (characters' steps, MOSS) runs held to it times
