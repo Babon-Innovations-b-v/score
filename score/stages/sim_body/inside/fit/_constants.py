@@ -22,6 +22,9 @@ from fit._frames import weights
 
 POLISHED = 1e-10  # the free gradient a Gauss-Newton polish takes level 2's end to (scipy's trf/lsmr stalls 2.5-3 mm short, #70)
 POLISH_ROUNDS = 80  # Gauss-Newton converges linearly here (about 0.64 a round): 30 rounds left 21 of 70 tuning cases at 1.5e-10 to 4.2e-9 (2026-10-31)
+STALLED_ROUNDS = 8  # rounds with no new lowest free gradient after which the polish stands at float64's floor
+FLOOR = 1e-8  # the free gradient a stalled polish may stand at (14 of 70 tuning cases stood at 1.5e-10 to 7.45e-10 the
+# same at 30 and at 80 rounds, 2026-10-31: the residuals' float64 noise, not too few rounds)
 BOUND_HELD = 1e-5  # an unknown this near its bound is held there by the polish
 MARK_MOST = 0.03  # metres a marker may move on its body off its landmark's link
 INSIDE = 1e-9  # a start this far inside its bounds (least_squares wants a start within them)
@@ -224,10 +227,12 @@ def off_bounds(unknowns, keep, bounds):
 def polished(problem, unknowns, keep, bounds):
     """`unknowns` moved by Gauss-Newton steps (the host-exact float64 Jacobian, `_card._level2.jacobian`, a sparse
     direct solve) on the told unknowns off their bounds, each step halved until the cost falls and kept within the
-    bounds, until their gradient is under POLISHED; raises when POLISH_ROUNDS do not take it there."""
+    bounds, until their gradient is under POLISHED, or the lowest it reached once STALLED_ROUNDS find none lower and
+    that is under FLOOR; raises when POLISH_ROUNDS do neither."""
     from fit._card._level2 import jacobian as exact_jacobian
     low, high = bounds
     found = unknowns.copy()
+    best, lowest, since = found, np.inf, 0
     for _round in range(POLISH_ROUNDS):
         free = off_bounds(found, keep, bounds)
         residuals = problem.residuals(found)
@@ -235,6 +240,10 @@ def polished(problem, unknowns, keep, bounds):
         gradient = matrix.T @ residuals
         if not len(free) or np.abs(gradient).max() < POLISHED:
             return found
+        best, lowest, since = (found, np.abs(gradient).max(), 0) if np.abs(gradient).max() < lowest else (
+            best, lowest, since + 1)
+        if since >= STALLED_ROUNDS and lowest < FLOOR:
+            return best
         step = spsolve((matrix.T @ matrix).tocsc(), -gradient)
         moved = descended(problem, found, free, step, (low, high))
         found = moved if moved is not found else steadied(problem, found, free, step, (low, high), gradient)
