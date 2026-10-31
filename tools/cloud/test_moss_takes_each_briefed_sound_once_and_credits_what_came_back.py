@@ -7,7 +7,9 @@ card a model at a time on this PC's machine only, and that measured need is one 
 Break that turns it red: in `write_manifest` drop `if (out / job["file"]).exists()` (takes that never came back are
 credited), or in `jobs_for` drop the `brief.get("page") == page` test (another page's sounds are paid for), or in
 `here_only` drop `if machine.get("here")` (a rented card's takes made another way), or set THIS_PC_NEED's card_gb
-past local.CARD_GB (this PC refuses the claim, as before).
+past local.CARD_GB (this PC refuses the claim, as before), or in `make_share` drop the space after
+`PYTHONUNBUFFERED=1` (the shell reads the Python as a variable and finds no moss_generate.py: every take of round 39
+on this PC, 2026-10-31).
 """
 import json
 import pathlib
@@ -59,3 +61,12 @@ def test_moss_goes_a_model_at_a_time_only_on_this_pcs_card_and_fits_its_claim_th
     assert moss_sound.here_only({"host": "10.0.0.2"}) == ""
     assert moss_sound.THIS_PC_NEED["card_gb"] < local.TOO_BIG["moss-sound"]  # under all of MOSS on the card at once
     assert local.refusal("moss-sound", {"card_gb": moss_sound.THIS_PC_NEED["card_gb"]}) is None
+
+
+def test_a_share_runs_moss_generate_with_the_venvs_python(tmp_path, monkeypatch):
+    commands = []
+    monkeypatch.setattr(moss_sound.batch, "copy", lambda *arguments, **options: None)
+    monkeypatch.setattr(moss_sound.batch, "remote", lambda folder, host, command, **options: commands.append(command) or __import__("subprocess").CompletedProcess(command, 0))
+    moss_sound.make_share({"folder": tmp_path, "host": "172.17.0.2", "here": True}, (0, []), 0, tmp_path / "out")
+    words = commands[0].split()
+    assert "/root/venv/bin/python" in words and words[words.index("/root/venv/bin/python") + 1] == "moss_generate.py"

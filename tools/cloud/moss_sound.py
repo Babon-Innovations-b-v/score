@@ -119,7 +119,7 @@ def make_share(machine, share, card, out):
     try:
         with (log_folder / f"generate-{number}.log").open("w") as log:
             done = batch.remote(log_folder, host, f"cd {REMOTE} && CUDA_VISIBLE_DEVICES={card} TORCHDYNAMO_DISABLE=1 "
-                                f"{here_only(machine)}PYTHONUNBUFFERED=1/root/venv/bin/python moss_generate.py {REMOTE}/jobs-{number}.json "
+                                f"{here_only(machine)}PYTHONUNBUFFERED=1 /root/venv/bin/python moss_generate.py {REMOTE}/jobs-{number}.json "
                                 f"{number}", stdout=log, stderr=subprocess.STDOUT)
     finally:
         out.mkdir(parents=True, exist_ok=True)
