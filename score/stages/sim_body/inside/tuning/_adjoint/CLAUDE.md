@@ -106,6 +106,27 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   floor to c.8, though 0.98 % off c.8; heavy c3 passes only with the 2 STEP pair (2.03 % vs c.4 over a 1.94 %
   floor before; 0.65 % vs c.8 after). Every other column passes, and every body's step cosine is 0.99984 or
   above. Not settled: the references themselves are 2.2 % apart on that column. `whole` keeps the differences.
+- Tall c3 settled (night/gpu1, 2026-10-31: mv/steps_giant.py at 4 STEP and 2 STEP, gate_giant.py: gate.py with the
+  4 STEP central added, the rule unchanged): GATE PASS on all three bodies. The 0.4~0.8 gap was the references' own
+  noise, not the adjoint: the hybrid's gap to each central falls as its step grows (c0.1 9.0 %, c0.2 4.6 %, c0.4
+  2.7 %, c0.8 0.98 %) and rises again at 1.6 (2.3 %, truncation), so with the 1.6 pair the curvature comes from
+  1.6~0.8 and c0.8 is the lowest-error reference (err 2.1e-5 of |c| 2.3e-3): c3 0.98 % against it, floor 2.25 %;
+  heavy c3 1.5 % against c1.6, mean c3 1.2 % against c0.8; step cosines 0.99995 / 0.99999 / 0.99978. The same set
+  run twice in two card processes is not bit for bit (huge's and giant's 2 STEP sets: tall rows up to 1e-5 apart,
+  heavy 9e-5, mean 4e-5; huge's c0.4 equalled big's on tall only by chance), which is the 1/d noise the small
+  steps show; `gate.py`'s sigma (one set's fourth difference) reads under it.
+- MuJoCo pins a site at its body's origin to the body (`site_sameframe` 1, mjSAMEFRAME_BODY, fixed at compile): 18
+  of tall's 22 group-end sites sit there, so on the host's kinematics (`Problem.residuals`, `_level2.jacobian`) a
+  move `sited_problem_at` lays on their base never reaches level 2: the block's centre columns lacked level 2's
+  part through those sites (found 2026-10-31 when `_check_columns` moved to `fit/_card/_level2_wide`, which always lays site_pos:
+  the centre columns 2 to 4 x apart, every other column within 6.7e-5 of the host's, the float noise of level 2's
+  solve). The hybrid differences the centres, so no hybrid Jacobian used them; the FD path compiles each set's model
+  anew, so it never met it. `_check_columns` now runs level 2 on `_level2_wide` (its `jacobian` is the problem's
+  own `exact`, the told rule's on the host's) and `_level2`'s products stay sparse (`_sparse`, `_frame_sums`; dense
+  copies of 12k x 1.9k a call before): tall_kimodo's block 98.5 s to 71.1 s (level 2 build 12.1 to 8.8, its factor
+  23.6 to 11.4, its mixed tape 15.5 to 7.8 s) with level 2 on the card; with the products sparse too, factor 8.7 s
+  and mixed tape 4.1 s (the block within 6.1e-5 of the dense one; its other steps slower that run, env1 holding the
+  card at 99 %, 82.5 s whole).
 - Blocks on real cases (B4j, 2026-10-31, scratch b4x/blocked3.py, rowscheck.py): `evaluation.blocked(most=1)` on
   heavy_kimodo, tall_kimodo and mean_kimodo at the card base s00000, one case process at a time: 471.7 s for the three
   (heavy 2 min 16 s wall, 101.8 s of it in its steps: level 2's factor 32.8 s, level 2's mixed tape 25.3 s, R_q and

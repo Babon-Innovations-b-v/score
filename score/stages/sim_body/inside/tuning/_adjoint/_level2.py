@@ -2,8 +2,9 @@
 level 2's own stationarity). The Problem's unknowns are the constants first, then each sampled frame's leading
 coordinates; a `Body` reads poses first, then constants, so the unknowns and the gradient are permuted between the two.
 The gradient is J^T r of the Problem's rows (`jacobian`, the card's exact `_card._level2.jacobian` in use), the
-untold entries and the bound-held ones pinned by `_bodies.Pinned`. Numpy only: the Problem and its Jacobian are given."""
+untold entries and the bound-held ones pinned by `_bodies.Pinned`. Numpy and scipy's sparse only: the Problem and its Jacobian are given."""
 import numpy as np
+from scipy.sparse import csr_matrix
 
 from . import Body
 from ._bodies import Pinned
@@ -124,7 +125,7 @@ def _free_site_columns(problem, pinned, arrow, weights):
 def _cost_gradients(problem, jacobian, pinned, unknowns):
     """dg/dc (Body order, held rows zero): 2 J^T dr/dc_m, every row linear in a cost (dr/dc_m exact by differences)."""
     held, (turn, costs) = len(problem.slots), problem.costs
-    rows = _dense(jacobian(problem, unknowns))
+    rows = _sparse(jacobian(problem, unknowns))
     slopes = []
     for mark in range(costs.size):
         changed = []
@@ -133,7 +134,7 @@ def _cost_gradients(problem, jacobian, pinned, unknowns):
             moved[mark] += sign
             problem.costs = turn, moved
             changed.append(np.asarray(problem.residuals(unknowns), dtype=float))
-        slopes.append(to_body(2 * rows.T @ ((changed[0] - changed[1]) / 2), held))
+        slopes.append(to_body(np.asarray(2 * (rows.T @ ((changed[0] - changed[1]) / 2))).ravel(), held))
     problem.costs = turn, costs
     found = np.stack(slopes, axis=1)
     found[pinned.held] = 0.0
@@ -210,8 +211,8 @@ def level2_arrow(problem, jacobian, solved, kept, differenced, step):
     rows and columns central differences. Held entries (`pinned_mask`) keep a unit row and column, as `Pinned`."""
     held, frames, width = len(problem.slots), len(problem.path), problem.width
     blocks, couplings = _pose_steps(problem, jacobian, solved, step)
-    rows = _dense(jacobian(problem, solved))[:, :held]
-    corner = rows.T @ rows
+    rows = _sparse(jacobian(problem, solved))[:, :held]
+    corner = (rows.T @ rows).toarray()
     for constant in differenced:
         up, down = np.array(solved, dtype=float), np.array(solved, dtype=float)
         up[constant] += step
@@ -242,16 +243,28 @@ def _pose_steps(problem, jacobian, solved, step):
 def _frame_products(problem, jacobian, point):
     """At `point`: each frame's pose gradient (frames, width) and its own rows' constants gradient (frames, held)."""
     held, frames, width = len(problem.slots), len(problem.path), problem.width
-    rows, residuals = _dense(jacobian(problem, point)), np.asarray(problem.residuals(point), dtype=float)
+    rows, residuals = _sparse(jacobian(problem, point)), np.asarray(problem.residuals(point), dtype=float)
     per = (residuals.size - held) // frames
-    framed = rows[:frames * per, :held] * residuals[:frames * per, None]
-    whole = rows.T @ residuals
-    return whole[held:].reshape(frames, width), framed.reshape(frames, per, held).sum(axis=1)
+    framed = rows[:frames * per, :held].multiply(residuals[:frames * per, None]).tocsr()
+    whole = np.asarray(rows.T @ residuals).ravel()
+    return whole[held:].reshape(frames, width), (_frame_sums(frames, per) @ framed).toarray()
 
 
 def _gradient(problem, jacobian, point):
     """J^T r at `point` (Problem order)."""
-    return _dense(jacobian(problem, point)).T @ np.asarray(problem.residuals(point), dtype=float)
+    return np.asarray(_sparse(jacobian(problem, point)).T @ np.asarray(problem.residuals(point), dtype=float)).ravel()
+
+
+def _sparse(matrix):
+    """`matrix` as a sparse CSR matrix (the exact Jacobian is sparse; a dense one is taken too): the products here
+    stay sparse, where `toarray` made 12k x 1.9k dense copies a call (tall, 2026-10-31)."""
+    return csr_matrix(matrix)
+
+
+def _frame_sums(frames, per):
+    """(frames, frames * per) sparse ones summing each frame's `per` rows."""
+    return csr_matrix((np.ones(frames * per), (np.repeat(np.arange(frames), per), np.arange(frames * per))),
+                      shape=(frames, frames * per))
 
 
 def _dense(matrix):
