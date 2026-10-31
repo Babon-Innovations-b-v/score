@@ -26,6 +26,12 @@ WATER = "Water"
 LOOK_DOWN = 3.0
 # A walk's body is tested every this many metres along it.
 WALK_STEP = 0.25
+# A person's two feet and their stance lie inside their body's footprint (BODY_RADIUS round their middle, turned any
+# way), tested at its middle and RIM points round its edge; the ground under it is even when none of them lies more
+# than FOOT_STEP off one plane through them (a deck's 5.8 cm edge lies 2.2 cm or more off it wherever it crosses the
+# footprint: camp's astronauts sank into it in sim-body, round 33).
+RIM = 12
+FOOT_STEP = 0.01
 
 
 def characters():
@@ -115,6 +121,20 @@ def ground_under(spots, found):
         if spots[ray][1] - hit[1] <= LOOK_DOWN:
             under[ray] = {"gap": round(float(spots[ray][1] - hit[1]), 4), "on": keys[names[face]]}
     return [dict(stand or {"gap": None, "on": None}, water=ray in wet) for ray, stand in enumerate(under)]
+
+
+def level_under(spots, found):
+    """For each spot (x, feet, z): whether the ground under its whole footprint (its middle and RIM points round it,
+    BODY_RADIUS out) is solid and lies within FOOT_STEP of one plane through it: a slope is (wreck's made ground, a
+    third as steep as it is long under a foot), a step's edge is not."""
+    turns = np.linspace(0.0, 2 * np.pi, RIM, endpoint=False)
+    ring = np.stack((BODY_RADIUS * np.cos(turns), np.zeros(RIM), BODY_RADIUS * np.sin(turns)), axis=1)
+    offsets = np.vstack(([0.0, 0.0, 0.0], ring))
+    points = (np.asarray(spots, dtype=float)[:, None, :] + offsets).reshape(-1, 3)
+    gaps = np.array([np.nan if ground["gap"] is None else ground["gap"] for ground in ground_under(points, found)])
+    plane = np.column_stack((offsets[:, [0, 2]], np.ones(RIM + 1)))
+    off_plane = gaps.reshape(-1, RIM + 1) @ (np.eye(RIM + 1) - plane @ np.linalg.pinv(plane)).T
+    return [bool(np.all(np.abs(row) <= FOOT_STEP)) for row in off_plane]  # a nan (nothing under) is never level
 
 
 def body(top):

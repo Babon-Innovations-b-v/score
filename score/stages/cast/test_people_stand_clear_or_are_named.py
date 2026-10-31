@@ -10,6 +10,10 @@ geometry of the test's own.
 
 Breaks that turn it red (each applied once and seen red, then reverted):
 - `spread.grounded`: `or next(clashes)` dropped  -> the toy place test (the member stays in the crate).
+- `spread.grounded`: `or not next(level)` dropped  -> the deck edge test (the member stays over the edge).
+- `measure.level_under`: `np.abs(row) <= FOOT_STEP` read as `<= 1.0`  -> the deck edge test.
+- `measure.level_under`: `- plane @ np.linalg.pinv(plane)` dropped (the gaps judged off the feet, not off a plane)
+  -> the deck edge test (the person on the slope is left out).
 - `measure.run_into`: `sorted(names) if hit else []` read as `[]`  -> the toy place test.
 - `cast.overlaps`: `< measure.KNEE` read as `< 100`  -> the overlap test (bodies on two levels overlap).
 - `cast.off_ground`: `> STAND_SLACK` read as `> 1.0`  -> the standing test.
@@ -130,6 +134,26 @@ def test_a_person_under_a_rise_of_the_made_ground_stands_on_it(tmp_path):
     assert [person["at"] for person in raised] == [[-2.0, 2.0, 0.0], [2.0, 0.0, 0.0]]
     assert spread.grounded([person["at"] for person in raised], found) == [[-2.0, 2.0, 0.0], [2.0, -1.0, 0.0]]
     assert cast.on_made_ground(record, None) == record
+
+
+def test_a_person_by_a_decks_edge_is_stood_where_the_ground_under_both_feet_is_level(tmp_path):
+    """Camp's astronaut_1 and astronaut_2_1 (round 33, 2026-10-30) stood within 0.15 m of a 5.8 cm deck's edge, their
+    middles on one level and a foot over the other, and sank into it in sim-body. Nudged, each stands BODY_RADIUS
+    clear of the edge; one in the deck's middle stays, and so does one on an even slope (wreck's made ground)."""
+    stage = Usd.Stage.CreateNew(str(tmp_path / "base.usda"))
+    UsdGeom.Xform.Define(stage, "/camp")
+    mesh(stage, "/camp/Ground/floor", [(-5, 0, -5), (5, 0, -5), (5, 0, 5), (-5, 0, 5)], [(0, 1, 2, 3)])
+    mesh(stage, "/camp/Shell/deck", [(0, 0.058, -5), (5, 0.058, -5), (5, 0.058, 5), (0, 0.058, 5)], [(0, 1, 2, 3)])
+    mesh(stage, "/camp/Ground/slope", [(-5, 0, 6), (5, 0, 6), (5, 2.4, 10), (-5, 2.4, 10)], [(0, 1, 2, 3)])
+    stage.Save()
+    found = measure.solids(tmp_path / "base.usda", "camp")
+    assert measure.level_under([[0.1, 0.058, 0.0], [-0.1, 0.0, 0.0], [2.0, 0.058, 0.0], [0.0, 1.8, 9.0]], found) == [
+        False, False, True, True]
+    members = [{"name": "edge", "at": [0.1, 0.0, 0.0]}, {"name": "middle", "at": [2.0, 0.0, 1.0]}]
+    placed = spread.nudged(members, found, spread.Kept())
+    edge, middle = (person["at"] for person in placed)
+    assert abs(edge[0]) >= measure.BODY_RADIUS and edge[1] == (0.058 if edge[0] > 0 else 0.0), edge
+    assert middle == [2.0, 0.058, 1.0]
 
 
 def test_standing_bodies_nearer_than_two_widths_on_one_level_overlap():
