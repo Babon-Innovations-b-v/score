@@ -26,7 +26,7 @@ A PRD is read by people who were not in the session. Write every PRD per [`.clau
 - Length follows the content. Write the shortest version that is fully clear, then stop.
 - No em dashes. Use commas, colons, semicolons.
 - State the goal and the decision directly. No preamble, no noise.
-- Everything reader-facing (Goal, Scope, Status, Tasks, Acceptance) in English (ADR-0004). Code names, paths, endpoints and labels stay unchanged.
+- Everything reader-facing (Goal, Scope, Status, Tasks, Acceptance) in English (root `CLAUDE.md`). Code names, paths, endpoints and labels stay unchanged.
 
 ## Process
 
@@ -54,7 +54,22 @@ Before you publish, check the two mandatory fields: a clear **Acceptance** list 
 
 **First: loose, or under a parent PRD?** Does this work belong under an existing parent PRD (a follow-up, or a larger effort grill named)? Then it is **not a loose top-level PRD**: skip the `PRD` label and nest it as a native sub-issue, see 4b. Only a standalone, top-level effort gets the `PRD` label. In doubt: if it has a clear parent PRD, you nest.
 
-`gh issue create --repo $REPO`. Title under 70 characters, imperative, no emoji. Labels: `PRD`, plus `area:<x>` when the project uses areas, and nothing else: no `bug`/`enhancement` (a category belongs on sub-issues) and no triage labels (`needs-triage`/`ready-for-*`; triage routes the grabbable pieces, not the epic itself). Add `vision` if this is a long-term vision PRD rather than operational work, which splits the roadmap into two views. Print the URL.
+**A new PRD is a new root, so check the roots first.** The backlog is a tree: PRD-labelled roots on top, their children carrying `bug`/`enhancement`, three layers at most, and one root per subject. A session that reads its own prompt as a new workstream opens a second root beside one that is already open, so before you publish:
+
+```bash
+gh issue list --repo $REPO --label PRD --state open --limit 60
+```
+
+Read that list against the subject you are about to open, remembering that a root's subject also lives in its children and its title may use another word for it. If a root covers this subject, nest under it instead (4b). If none does, say so in the body:
+
+```markdown
+## Root check
+Checked the open roots; #<N> (<its subject>) is the nearest and this is separate because <one line>. No open root covers <subject>.
+```
+
+`.claude/hooks/issue_guard.py` enforces both halves at creation: a `PRD` label on an issue whose body names a `## Parent` is refused, and a PRD without a `## Root check` section, or one whose subject overlaps an open root the section does not name, is refused with that root's number.
+
+`gh issue create --repo $REPO`. Title under 70 characters, imperative, no emoji. Labels: `PRD`, plus the area label when the project uses areas (`area_label_prefix` and `areas` in `.claude/project.json`, so `<prefix><area>`), and nothing else: no `bug`/`enhancement` (a category belongs on sub-issues) and no triage labels (`needs-triage`/`ready-for-*`; triage routes the grabbable pieces, not the epic itself). Add the vision label (whichever of `vision` or `visie` `gh label list` shows) if this is a long-term vision PRD rather than operational work, which splits the roadmap into two views. Print the URL.
 
 **Assignee = Owner.** Set the GitHub assignee right away, so the board's Owner column is right and not just the Owner line in the body. Map the name to the login with the `people` map in `.claude/project.json` and pass `--assignee <login>`. If the owner is not in that map, or the login is not assignable, do not publish: ask the user for the right login and add it to the map. An issue without an assignee does not exist (CLAUDE.md rule).
 
@@ -64,7 +79,7 @@ Then put it on the board:
 python3 .claude/scripts/board-status.py <N> "Not started"
 ```
 
-That adds the issue to the board when the auto-add workflow is off, and sets the column either way.
+That adds the issue to the board when the auto-add workflow is off, and sets the column either way. If the board also carries an area field, set it to the same area as the label, so the board's swimlanes match (field and option ids from `gh project field-list <number> --owner <owner> --format json`).
 
 ### Horizon (planning, not a deadline)
 
@@ -75,6 +90,9 @@ Every PRD gets a **horizon** at creation: roughly where it lands. Not binding; y
 Work the quarter out from today's date (Q1 Jan-Mar, Q2 Apr-Jun, Q3 Jul-Sep, Q4 Oct-Dec; roll the year over at Q4 → Q1), so "now" rolls along by itself. Write the bucket on the Owner line. The board also carries **Roadmap start** and **Roadmap end** date fields (created by `setup-github.py`) if you want the roadmap view; set them from the board UI, or with `gh project item-edit --project-id <id> --id <item> --field-id <field> --date <YYYY-MM-DD>` using the ids from `gh project field-list <number> --owner <owner> --format json`.
 
 ```markdown
+## Root check
+Which open PRD roots you looked at, and why this subject is not one of them. Mandatory on every PRD; the hook refuses a PRD without it.
+
 ## Goal
 Why this exists and what it delivers, 2-3 sentences, plain language, readable by someone who was not in the session.
 
@@ -96,6 +114,8 @@ Mandatory. This is the definition of done; [`close`](../close/SKILL.md) reads th
 
 ## Owner · Horizon
 <named person, mandatory> · <now | next | later>
+
+When the project uses areas, the area goes between them: `## Owner · Area · Horizon`.
 
 ---
 <details><summary><b>Technical</b> (code PRDs only)</summary>
@@ -154,7 +174,7 @@ Everything else stays a checklist line. Prefer few sub-issues over many; the boa
 
 Per approved task, `gh issue create`, link it as a **native sub-issue** under the PRD (same POST and verification as 4b), and:
 
-- Labels: a category (`bug`/`enhancement`), plus `area:<x>` when the project uses areas. No `PRD`. Lower priority is the `LowPriority` board column, never a label.
+- Labels: a category (`bug`/`enhancement`), plus the area label when the project uses areas. No `PRD`. Lower priority is the `LowPriority` board column, never a label.
 - **Assignee inherits the parent PRD, all owners**: `gh issue view <PRD> --repo $REPO --json assignees --jq '.assignees[].login'`, each passed as `--assignee <login>`. If the task names a different owner, use that one. If the parent has no assignee, stop and fix the PRD first. Never an issue without an assignee.
 - **AFK, no human needed** → label `ready-for-agent` plus the agent brief. **Needs a human** → `ready-for-human`.
 - Put it on the board: `python3 .claude/scripts/board-status.py <N> "Not started"`.
