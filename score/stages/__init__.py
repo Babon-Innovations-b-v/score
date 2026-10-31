@@ -112,6 +112,13 @@ SETTLE = graph.Stage("settle", "place", settling.make, settling.SETTLE_LAYER, se
                      beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                      neighbours=assembly.claiming_places, paid=True, euros=settling.EUROS,
                      applies=designed("physics"))
+def assembly_neighbours(place):
+    """The places an assembly reads beside: those whose bake paints models it lays (claiming_places) and the scenes
+    whose inventory holds a row of its made ground, whose surface library finishes it (ground_scenes: base's for the
+    airlock). Each is read for every beside stage, so a ground scene's bake is waited on too."""
+    return sorted({*assembly.claiming_places(place), *assembly.ground_scenes(place)})
+
+
 # The place's final assembly: its seed with every accepted layer it reads in place of the seed's part (assembly.READS,
 # joined in `layered` for each layer stage the table holds), its layers gate unknown while one it needs is missing.
 # Its held gate takes held_apart's face rule here, in the table, so no maker hashing the assembly's package moves.
@@ -121,8 +128,9 @@ ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.O
                        files=assembly.files, gatherers=assembly.GATHERERS,
                        after={"terrain": ("grounds", 2),
                               "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
-                       beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
-                       neighbours=assembly.claiming_places)
+                       beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
+                               "surface-library": ("surface-library", 1)},
+                       neighbours=assembly_neighbours)
 # Experimental (PRD #6) until the owner reviews it: each place's assembly with the places its scene record shows,
 # each read beside as its own accepted assembly. Complete reads it: a place whose shown places do not stand is not
 # complete, so a neighbour whose assembly fails (the hub's) stops every place that shows it.

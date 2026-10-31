@@ -1428,6 +1428,68 @@ def test_a_place_s_made_ground_takes_the_surface_its_scene_library_gives_its_row
     assert faults == [f"/{TOY}/Outside/water"], faults
 
 
+def test_a_room_s_made_ground_takes_the_surface_of_the_scene_holding_its_row(tmp_path, monkeypatch):
+    """Airlock (#36): a room the base holds stands on the base's made ground, its row base's lunar_surface, which the
+    room's own inventory and surface library lack, so it stayed drawn with no material. The assembly reads beside the
+    surface library of the scene holding the row (ground_scenes: the base, its ground's top scene; none for the base
+    itself), lays that library's surface under the room's own Library (it has none of that name) and binds the
+    ground to it, so the placeholder gate passes. The flat's ground is the square's plaza, a made ground the
+    square's library was asked no kind for: it takes that library's floor, the ground people walk on; a natural
+    ground the library names no kind for takes none.
+    Break: score/stages/assembly/__init__.py: `found |= set(next(([top] for top in sorted(ground["tops"])` ->
+        `found |= set(next(([top] for top in []`
+    Break: score/stages/assembly/__init__.py: `lay_surface(stage, place, surface, library)` -> `None`
+    Break: score/stages/assembly/__init__.py: `return palette_library.shell_surface("deck", library) if made else
+        None` -> `return None`"""
+    square = {"kinds": {"floor": ["plaza_floor_tiles"], "sea": ["bay_water"]}}
+    assert assembly.ground_surface({"id": "plaza", "name": "main plaza", "noun": "plaza"}, square) == \
+        "plaza_floor_tiles"
+    assert assembly.ground_surface({"id": "sea", "name": "sea", "noun": "sea"}, square) == "bay_water"
+    assert assembly.ground_surface({"id": "dunes", "name": "red dunes", "noun": "dunes"}, square) is None
+    from pxr import Usd, UsdShade
+    from score.stages import design_layers
+    from score.stages.terrain import outside
+    import placeholders
+    design = tmp_path / "home/design"
+    for folder in ("plans", "sky", "inventory"):
+        (design / folder).mkdir(parents=True)
+    (design / "plans/base.json").write_text(json.dumps({"w": 20.0, "d": 20.0, "structure": ["lunar_surface"],
+                                                        "holds": [{"place": TOY, "x": 2.0, "y": 2.0}]}))
+    (design / f"plans/{TOY}.json").write_text(json.dumps({"w": 4.0, "d": 4.0}))
+    (design / "sky/base.json").write_text(json.dumps({"top": "base", "site": {"on": "moon", "latitude": 0.0,
+                                                                             "longitude": 0.0},
+                                                      "setting": {"bodies": [{"body": "moon", "radius_km": 1737.4}]}}))
+    (design / "inventory/base.json").write_text(json.dumps({"rows": [
+        {"id": "lunar_surface", "noun": "ground", "terrain": True}]}))
+    (design / f"inventory/{TOY}.json").write_text(json.dumps({"rows": [{"id": "hatch", "noun": "hatch"}]}))
+    monkeypatch.setattr(design_layers, "KEPT", design / "inventory")
+    assert assembly.ground_scenes(TOY) == ["base"] and assembly.ground_scenes("base") == []
+    read_only_toy(tmp_path / "store" / TOY)
+    inputs = a_record(tmp_path, ONE_LAMP)
+    (tmp_path / "terrain/moon/places").mkdir(parents=True)
+    ground = Usd.Stage.CreateNew(str(tmp_path / "terrain/moon/places" / f"{TOY}.usdc"))
+    points, triangles = np.array([[0, 0, 0], [1, 0, 0], [0, 0, 1]], float), np.array([[0, 2, 1]])
+    outside.write(ground, TOY, {"near": (points, triangles)}, "lunar_surface", ["regolith", "the test's"])
+    ground.GetRootLayer().Save()
+    (tmp_path / "base-library").mkdir()
+    (tmp_path / "base-library/materials.json").write_text(json.dumps({
+        "recipes": {"regolith": {"roughness": 0.95}}, "tokens": {"regolith-tan": "#8a7350"},
+        "families": {"regolith": {"variants": {"lunar_regolith": {"recipe": "regolith", "token": "regolith-tan"}}}},
+        "kinds": {"ground": ["lunar_regolith"]}}))
+    (tmp_path / "surfaces.json").write_text(json.dumps({}))
+    out = tmp_path / "out"
+    out.mkdir()
+    assembly.make_from_seed({"seed": tmp_path / "store" / TOY, "surfaces": tmp_path / "surfaces.json",
+                             "inventories": design / "inventory", "surface-library@base": tmp_path / "base-library",
+                             **inputs}, out, tmp_path / "store" / TOY, {})
+    stage = opened(out / f"{TOY}.usda")
+    near = stage.GetPrimAtPath(f"/{TOY}/Outside/near")
+    bound = UsdShade.MaterialBindingAPI(near).ComputeBoundMaterial()[0]
+    assert bound.GetPath() == f"/{TOY}/Library/lunar_regolith", bound
+    assert bound.GetPrim().GetAttribute("score:recipe").Get() == "regolith"
+    assert placeholders.check(out / f"{TOY}.usda") == []
+
+
 def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(tmp_path):
     """The settle's grounded seed of a store checkout (read-only, no assets/ folder: Batch 1, 2026-10-25, every
     settle) is laid with its record written over the copied base and an assets folder of its own.
