@@ -1,16 +1,26 @@
 #!/usr/bin/env python3
-"""PreToolUse guard: a new markdown file needs the owner's go-ahead (ADR-0003).
+"""PreToolUse guard: a new markdown file needs the user's go-ahead.
 
 Reads the Claude Code PreToolUse payload on stdin and blocks creating a ``.md`` that does not exist yet anywhere under
-the repo, by ``Write`` or by a Bash redirect, ``tee``, ``touch`` or ``cp``. Allowed: editing an existing ``.md``,
-anything outside the repo (``/tmp``, a job scratch dir: where generated pages belong), ``mv``/``git mv`` (a rename
-leaves the count unchanged; ``cp`` adds a file), and a per-directory ``CLAUDE.md`` overlay (the standing exception: it
-is the mechanism that loads a directory's rules, so a code directory without one is a gap, not a document), a file the
-owner said yes to in a session (listed in ``md_allowed.json`` beside this hook with his words and the time), and
-``.claude/memory/`` (git-ignored private notes, never published).
+the repo, by ``Write`` or by a Bash redirect (``>``, ``>>``), ``tee``, ``touch`` or ``cp`` with a ``.md``
+destination.
 
-Why: every markdown file here is living, read by someone and kept current. A summary file dropped at a session's end
-has nobody keeping it current and the next session reads it as truth, so each new file is the owner's decision.
+Allowed:
+
+- editing an existing ``.md``;
+- anything outside the repo (``/tmp``, a job scratch dir), which is where generated pages belong;
+- ``mv`` and ``git mv``: a rename leaves the count unchanged (``cp`` adds a file, so it still counts);
+- a per-directory ``CLAUDE.md`` overlay, the standing exception: it is the mechanism that loads a directory's rules,
+  so a code directory without one is a gap, not a document;
+- ``.claude/memory/``: private working notes;
+- a file the user asked for: when one of the person's last twenty typed messages in the session transcript names an
+  md or markdown file, the creation goes through (tool results do not count, they are the machine talking);
+- a path listed in ``.claude/hooks/local/md_allowed.json`` with the user's words and the time, when the repository
+  keeps such a list (``[{"path": ..., "words": ..., "at": ...}]``; an entry without words does not count).
+
+Why: every markdown file in a repository run this way is living, read by someone and kept current. A summary file
+dropped at a session's end has nobody keeping it current and the next session reads it as truth, so each new file is
+the user's decision, not a side effect of a session.
 
 FAILURE POLICY: fail-open. Any parse error, unknown shape or unrelated call exits 0 (allow). Exit 2 + stderr is the
 only block path (the harness feeds stderr back to the model as the block reason).
@@ -23,9 +33,10 @@ import re
 import sys
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
-_ALLOWED = pathlib.Path(__file__).resolve().parent / "md_allowed.json"
+_ALLOWED = pathlib.Path(__file__).resolve().parent / "local" / "md_allowed.json"
 _MEMORY = _REPO_ROOT / ".claude" / "memory"
 
+# Shell forms that can bring a new file into existence.
 _SHELL_TARGETS = (
     re.compile(r">>?\s*(?P<path>[^\s|;&<>()]+\.md)\b", re.IGNORECASE),
     re.compile(r"\btee\s+(?:-a\s+)?(?P<path>[^\s|;&<>()-][^\s|;&<>()]*\.md)\b", re.IGNORECASE),
@@ -37,21 +48,23 @@ _CD = re.compile(r"(?:^|[;&|\n(])\s*cd\s+(?P<dir>[^\s|;&<>()]+)")
 _ASSIGN = re.compile(r"(?:^|[;&|\n(])\s*(?P<name>[A-Za-z_]\w*)=(?P<value>[^\s|;&<>()]+)")
 
 _MESSAGE = (
-    "Blocked: creating a new markdown file needs the owner's go-ahead (CLAUDE.md, ADR-0003).\n"
+    "Blocked: creating a new markdown file needs the user's go-ahead (CLAUDE.md, Rules).\n"
     "  would create: {path}\n"
     "Every .md in this repo is living and earns its place, so the count stays minimal.\n"
     "Instead: put it in an existing file, add a section to docs/bible.md, or post it as a\n"
     "comment on the issue it belongs to. ADRs are covered too: offer one in a line and\n"
     "write it after the yes. Generated pages render outside the repo (/tmp or the job\n"
     "scratch dir), which this guard allows.\n"
-    "If the file genuinely has to exist, ask the owner in this session; on his yes, add\n"
-    "{{\"path\": \"{path}\", \"words\": \"<his yes, quoted>\", \"at\": \"<UTC time>\"}}\n"
-    "to .claude/hooks/md_allowed.json and write the file."
+    "If the file genuinely has to exist, ask the user in this session: a message of theirs\n"
+    "naming an md file lets it through."
 )
+
+_ASKED_FOR_MARKDOWN = re.compile(r"(?<![\w/])(?:\.md|md|markdown)\b", re.IGNORECASE)
+_RECENT_USER_MESSAGES = 20  # a yes holds through a working session; 3 lost one after a night of status messages
 
 
 def _approved() -> set[pathlib.Path]:
-    """The repo paths the owner said yes to, from md_allowed.json; none when it is missing or unreadable."""
+    """The repo paths the user said yes to, from the local allow list; none when it is missing or unreadable."""
     try:
         entries = json.loads(_ALLOWED.read_text())
     except (OSError, ValueError):
@@ -60,8 +73,11 @@ def _approved() -> set[pathlib.Path]:
 
 
 def _blocked(raw: str, base: pathlib.Path) -> pathlib.Path | None:
-    """The offending path when `raw` names a new .md inside the repo, else None. A relative path resolves against
-    `base`, the directory the command writes from (a command that cd's to scratch first writes outside the repo)."""
+    """The offending path when `raw` names a new .md inside the repo, else None.
+
+    A relative path resolves against `base`, the directory the command writes from, not the repository root: a
+    session working in another repository on the same machine, or a command that cd's to scratch first, writes
+    outside this tree."""
     if not raw:
         return None
     candidate = base / raw.strip().strip("'\"")  # an absolute path replaces base
@@ -110,10 +126,44 @@ def _shell_candidates(command: str, base: pathlib.Path) -> list[tuple[str, pathl
     return found
 
 
+def _typed_messages(transcript: pathlib.Path) -> list[str]:
+    """The text of every message the person typed, oldest first; tool results are left out."""
+    texts: list[str] = []
+    for line in transcript.read_text(encoding="utf-8", errors="replace").splitlines():
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        message = entry.get("message") or {}
+        if entry.get("type") != "user" or message.get("role") != "user":
+            continue
+        content = message.get("content")
+        if isinstance(content, str):
+            texts.append(content)
+        elif isinstance(content, list) and not any(
+                isinstance(part, dict) and part.get("type") == "tool_result" for part in content):
+            texts.append(" ".join(str(part.get("text", "")) for part in content if isinstance(part, dict)))
+    return texts
+
+
+def _user_asked_for_markdown(payload: dict) -> bool:
+    """True when one of the person's last few messages names an md or markdown file."""
+    transcript = payload.get("transcript_path")
+    if not transcript:
+        return False
+    try:
+        recent = _typed_messages(pathlib.Path(transcript))[-_RECENT_USER_MESSAGES:]
+    except OSError:
+        return False
+    return any(_ASKED_FOR_MARKDOWN.search(text) for text in recent)
+
+
 def main() -> int:
     try:
         payload = json.load(sys.stdin)
     except Exception:
+        return 0
+    if _user_asked_for_markdown(payload):
         return 0
     tool = payload.get("tool_name", "")
     tool_input = payload.get("tool_input") or {}

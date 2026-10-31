@@ -2,9 +2,10 @@
 
 Every hook is driven as the harness drives it: its own script, the payload as JSON on stdin; a PreToolUse or Stop
 guard blocks with exit 2 and a reason on stderr, allows with exit 0. Each case's answer is the rule's, worked out by
-hand from the hook's docstring and the owner rule it guards, never from the hook's code. The guards that read a file
-beside them (issue_guard's project.json, md_guard's md_allowed.json and the repo it polices) run as a copy in a
-scratch repo, so no test edits the real config.
+hand from the hook's docstring and the owner rule it guards, never from the hook's code. The shared hooks (the ones
+every repository built from this template carries) run as a copy in a scratch repo with its own project.json, so no
+test reads or edits the real config, the real checkout or its state folder; this repository's own hooks
+(.claude/hooks/local) run in place.
 
 The break that turns each test red (applied once each, seen red, reverted):
 
@@ -28,12 +29,24 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_issue_guard_lets_complete_issues_and_ordinary_git_pass: `_is_gh_issue_create` returns `"create" in` the
   joined tokens (a substring match, not adjacent tokens).
 - test_issue_guard_wants_an_area_once_the_project_has_areas: `_areas` returns [] at once.
+- test_issue_guard_refuses_a_second_root_for_a_subject_with_an_open_one: `_open_roots` returns [] at once.
+- test_issue_guard_holds_the_projects_body_rules: `_check_dead_paths` returns at once.
 - test_md_guard_blocks_a_new_md_without_a_yes: the `tee` pattern taken out of `_SHELL_TARGETS`.
-- test_md_guard_allows_the_standing_exceptions: `_approved` returns an empty set at once.
+- test_md_guard_allows_the_standing_exceptions: `_approved` returns an empty set at once; or
+  `_user_asked_for_markdown` returns False at once (the user's yes is never heard).
+- test_commit_guard_refuses_a_session_waiving_a_guard: `bypass_in` returns None at once.
+- test_commit_guard_refuses_the_shared_checkout_while_a_worktree_is_live: `live_session_worktrees` returns [] at once.
+- test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file: `blocks` returns False at once.
+- test_torn_commit_guard_refuses_conflict_markers_and_a_broken_sourced_shell_contract: `sourced_shell_dirs` returns
+  [] at once.
+- test_leftover_guard_says_once_that_a_worktree_holds_uncommitted_work: `session_worktree` returns None at once.
+- test_soul_guard_nudges_once_on_an_em_dash_or_a_long_answer_to_a_short_question: `broken_rules` returns [] at once.
+- test_call_efficiency_nudges_on_three_single_fast_commands_and_lands_a_row: `is_single_fast` returns False at once.
+- test_checkout_current_catches_up_and_says_when_it_cannot: `catch_up` returns "" at once.
 - test_output_cap_spills_a_long_output_whole_and_summarises_it: `text_excerpt`'s `if matches:` made `if False:`.
 - test_output_cap_leaves_what_the_agent_asked_for_alone: `leave_alone` returns False at once.
 - test_output_cap_caps_only_with_a_real_saving: `capped_output`'s saving check made `if False:`.
-- test_wait_guard_blocks_foreground_waits: `poll_loop` returns None at once.
+- test_wait_guard_blocks_foreground_waits: `poll_loop` returns None at once; or `_foreground_runs` returns [] at once.
 - test_wait_guard_allows_short_waits_reads_and_background_runs: drop the `_MESSAGE.sub` in `blocked`.
 - test_every_guard_fails_open_on_garbage: accept_guard's `except Exception: return 0` made `return 2`.
 
@@ -54,11 +67,27 @@ REPO = HOOKS.parents[1]
 BLOCK, ALLOW = 2, 0
 
 
-def run(script, payload, env=None):
+def hook(name):
+    """A hook's script: a shared hook sits in .claude/hooks, a repository's own in .claude/hooks/local."""
+    shared = HOOKS / name
+    return shared if shared.exists() else HOOKS / "local" / name
+
+
+def run(script, payload, env=None, cwd=None):
     """(exit code, stderr, stdout) of a hook script given this payload (a dict as JSON, or raw text) on stdin."""
-    done = subprocess.run([sys.executable, str(script)], capture_output=True, text=True, env=env,
+    done = subprocess.run([sys.executable, str(script)], capture_output=True, text=True, env=env, cwd=cwd,
                           input=payload if isinstance(payload, str) else json.dumps(payload))
     return done.returncode, done.stderr, done.stdout
+
+
+def hook_copy(folder, name, config=None):
+    """The shared hook `name` copied into a scratch repo at `folder`, with this project.json; its path. A guard that
+    reads the files beside it (project.json, the repo it polices, a state folder) then reads the scratch ones."""
+    hooks = folder / ".claude" / "hooks"
+    hooks.mkdir(parents=True, exist_ok=True)
+    shutil.copy(HOOKS / name, hooks)
+    (folder / ".claude" / "project.json").write_text(json.dumps(config or {"repo": "acme/widget", "areas": []}))
+    return hooks / name
 
 
 def bash(command, background=False):
@@ -157,13 +186,13 @@ GRANT_QUESTION = ("Confirm this standing rule: in a Claude Code session, I may a
 
 @pytest.mark.parametrize("payload", OWNER_ACTIONS, ids=range(len(OWNER_ACTIONS)))
 def test_accept_guard_blocks_the_owners_actions(payload):
-    code, said, _ = run(HOOKS / "local" / "accept_guard.py", payload)
+    code, said, _ = run(hook("accept_guard.py"), payload)
     assert code == BLOCK and "only the owner accepts or rejects" in said, payload
 
 
 @pytest.mark.parametrize("payload", READ_AND_RUN, ids=range(len(READ_AND_RUN)))
 def test_accept_guard_allows_reading_running_and_the_framework(payload):
-    assert run(HOOKS / "local" / "accept_guard.py", payload)[0] == ALLOW, payload
+    assert run(hook("accept_guard.py"), payload)[0] == ALLOW, payload
 
 
 def test_accept_guard_lets_a_benchmark_grant_pass():
@@ -172,15 +201,15 @@ def test_accept_guard_lets_a_benchmark_grant_pass():
              f"print(compute.grant_benchmark('Yes, approve it', {GRANT_QUESTION!r}, 12.0))\nEOF")
     tagged = ("SCORE_BENCHMARK_GRANT=20261020T120000.000000+0000 .venv/bin/python -m score run world1 --detach "
               "--place campgrounds --stage pixal")
-    assert [run(HOOKS / "local" / "accept_guard.py", bash(command))[0] for command in (grant, tagged)] == [ALLOW, ALLOW]
+    assert [run(hook("accept_guard.py"), bash(command))[0] for command in (grant, tagged)] == [ALLOW, ALLOW]
 
 
 def test_accept_guard_answers_a_long_command_at_once():
     """Many `!== ` words are answered in seconds, never a hang that fails open; an env-prefixed accept stays blocked."""
-    done = subprocess.run([sys.executable, str(HOOKS / "local" / "accept_guard.py")], capture_output=True, text=True,
+    done = subprocess.run([sys.executable, str(hook("accept_guard.py"))], capture_output=True, text=True,
                           input=json.dumps(bash("!== " * 40 + "x")), timeout=20)
     assert done.returncode == ALLOW
-    assert run(HOOKS / "local" / "accept_guard.py", bash("A=1 B=x=y python -m score.review accept closeup@hub"))[0] == BLOCK
+    assert run(hook("accept_guard.py"), bash("A=1 B=x=y python -m score.review accept closeup@hub"))[0] == BLOCK
 
 
 YES = "20261027T170000123456Z"
@@ -217,13 +246,13 @@ CHAT_ROUTE = [
 def test_accept_guard_blocks_an_agents_own_locks_and_a_decision_without_his_yes(payload):
     """The owner's decisions in chat (owner, 2026-10-27): an agent's own lock, a call into the chat route's steps,
     or the apply without a recorded yes's id stays blocked."""
-    code, said, _ = run(HOOKS / "local" / "accept_guard.py", payload)
+    code, said, _ = run(hook("accept_guard.py"), payload)
     assert code == BLOCK and "only the owner accepts or rejects" in said, payload
 
 
 @pytest.mark.parametrize("payload", CHAT_ROUTE, ids=range(len(CHAT_ROUTE)))
 def test_accept_guard_lets_his_decision_through_only_as_decide_with_its_yes_id(payload):
-    assert run(HOOKS / "local" / "accept_guard.py", payload)[0] == ALLOW, payload
+    assert run(hook("accept_guard.py"), payload)[0] == ALLOW, payload
 
 
 # completion_guard: a stop may not claim a place it worked on is done while the place's gate does not pass.
@@ -266,7 +295,7 @@ def false_claims(folder):
 
 def test_completion_guard_refuses_a_false_done_claim(tmp_path, known_place):
     for payload in false_claims(tmp_path):
-        code, said, _ = run(HOOKS / "local" / "completion_guard.py", payload, env=known_place)
+        code, said, _ = run(hook("completion_guard.py"), payload, env=known_place)
         assert code == BLOCK and PLACE in said and "unknown" in said, (payload, said)
 
 
@@ -285,41 +314,41 @@ def test_completion_guard_lets_an_honest_stop_end(tmp_path, known_place):
                                    "places."),  # a done-word beside "all places", no claim (2026-10-27)
     ]
     for path in honest:
-        assert run(HOOKS / "local" / "completion_guard.py", {"transcript_path": path}, env=known_place)[0] == ALLOW, path
+        assert run(hook("completion_guard.py"), {"transcript_path": path}, env=known_place)[0] == ALLOW, path
     no_scene = dict(known_place, SCORE_GUARD_WITHIN=str(tmp_path / "none.json"))  # an empty scene list matched all
     claim = transcript(tmp_path / "h", f"The {PLACE} is complete now.")
-    assert run(HOOKS / "local" / "completion_guard.py", {"transcript_path": claim}, env=no_scene)[0] == ALLOW
+    assert run(hook("completion_guard.py"), {"transcript_path": claim}, env=no_scene)[0] == ALLOW
 
 
 def test_completion_guard_runs_under_the_projects_python(tmp_path, known_place):
     """It imports score.stages, which needs pxr: under the system python3 it crashed on every stop and so blocked
-    nothing (2026-10-18). The local hooks list runs it with the project's .venv python, and under that python a false claim
-    is refused with no import error."""
+    nothing (2026-10-18). The local hooks list runs it with the project's .venv python, and under that python a false
+    claim is refused with no import error."""
     local = json.loads((HOOKS / "local" / "hooks.json").read_text())
     commands = [entry["command"] for entry in local if "completion_guard.py" in entry["command"]]
     assert commands and all(command.startswith("py=.venv/bin/python;") for command in commands)
     main_venv = pathlib.Path(subprocess.run(["git", "-C", str(REPO), "rev-parse", "--path-format=absolute",
                                              "--git-common-dir"], capture_output=True, text=True).stdout.strip())
     python = main_venv.parent / ".venv/bin/python"
-    done = subprocess.run([str(python if python.exists() else sys.executable), "-I", str(HOOKS / "local" / "completion_guard.py")],
+    done = subprocess.run([str(python if python.exists() else sys.executable), "-I", str(hook("completion_guard.py"))],
                           input=json.dumps({"transcript_path": transcript(tmp_path, f"The {PLACE} is complete now.")}),
                           capture_output=True, text=True, env=known_place)
     assert "ModuleNotFoundError" not in done.stderr
     assert done.returncode == BLOCK and PLACE in done.stderr
 
 
-# issue_guard: every new issue has an assignee and a category, no prose line numbers; no history-destroying git.
 
-def issue_guard_copy(folder, areas):
-    """issue_guard.py in a scratch repo whose project.json lists these areas; its path."""
-    hooks = folder / ".claude" / "hooks"
-    hooks.mkdir(parents=True)
-    shutil.copy(HOOKS / "issue_guard.py", hooks)
-    (folder / ".claude" / "project.json").write_text(json.dumps({"repo": "acme/widget", "areas": areas}))
-    return hooks / "issue_guard.py"
+
+# issue_guard: every new issue has an assignee, a category and (once the project has areas) an area; no rot in its
+# body; a PRD is a root that names the roots it checked; no history-destroying git.
+
+def issue_guard_copy(folder, areas, **config):
+    """issue_guard.py in a scratch repo whose project.json lists these areas (and any other keys); its path."""
+    return hook_copy(folder, "issue_guard.py", {"repo": "acme/widget", "areas": areas, **config})
 
 
 FULL_ISSUE = "gh issue create --title x --label bug --assignee someone"
+ROOT_CHECKED = ' --body "## Root check\nNo open root covers this."'
 
 BARE_OR_DESTRUCTIVE = [
     (bash('gh issue create --title "x" --body "y"'), "bare issue creation"),
@@ -331,6 +360,10 @@ BARE_OR_DESTRUCTIVE = [
     (bash(FULL_ISSUE + ' --body "See notes.md:42 for the claim."'), "numbers in prose rot"),
     ({"tool_name": "mcp__github__create_issue", "tool_input": {
         "title": "x", "labels": ["bug"], "assignees": ["someone"], "body": "See notes.md:42"}}, "numbers in prose rot"),
+    (bash('gh issue create --title x --label PRD --assignee someone --body "## Parent\n#5"'), "names #5 as its parent"),
+    (bash("gh issue create --title x --label PRD --assignee someone"), "## Root check"),
+    ({"tool_name": "mcp__github__create_issue", "tool_input": {
+        "title": "x", "labels": ["PRD"], "assignees": ["someone"], "body": "no sections"}}, "## Root check"),
     (bash("git push --force origin main"), "destructive git"),
     (bash("git push --force-with-lease origin main"), "destructive git"),
     (bash("git push -f origin main"), "destructive git"),
@@ -339,11 +372,13 @@ BARE_OR_DESTRUCTIVE = [
 ]
 
 COMPLETE_OR_ORDINARY = [
-    bash('gh issue create --title "x" --label PRD --assignee someone'),
+    bash('gh issue create --title "x" --label PRD --assignee someone' + ROOT_CHECKED),
     bash('gh issue create --title "x" -l "bug,enhancement" -a someone'),
-    bash("gh issue create --title=x --label=PRD --assignee=someone"),
-    {"tool_name": "mcp__github__create_issue", "tool_input": {"title": "x", "labels": ["PRD"], "assignees": ["someone"]}},
+    bash("gh issue create --title=x --label=PRD --assignee=someone" + ROOT_CHECKED),
+    {"tool_name": "mcp__github__create_issue", "tool_input": {"title": "x", "labels": ["PRD"], "assignees": ["someone"],
+                                                              "body": "## Root check\nnone"}},
     bash(FULL_ISSUE + ' --body "Bug lives in src/dispatcher.py:419"'),  # a code ref is the house citation
+    bash(FULL_ISSUE + ' --body "## Parent\n#5"'),  # a nested issue names its parent
     bash("gh issue list --label needs-triage"),
     bash('gh issue close 919 --comment "the guard now enforces the create rules"'),
     bash("ls -la && echo hi"),
@@ -364,50 +399,99 @@ def test_issue_guard_lets_complete_issues_and_ordinary_git_pass(tmp_path, payloa
 
 
 def test_issue_guard_wants_an_area_once_the_project_has_areas(tmp_path):
-    guard = issue_guard_copy(tmp_path, ["dev", "art"])
+    guard = issue_guard_copy(tmp_path / "a", ["dev", "art"])
     code, said, _ = run(guard, bash(FULL_ISSUE))
     assert code == BLOCK and "area:<x>" in said
     assert run(guard, bash(FULL_ISSUE + " --label area:dev"))[0] == ALLOW
+    guard = issue_guard_copy(tmp_path / "b", ["dev"], area_label_prefix="team:")  # the project names its prefix
+    code, said, _ = run(guard, bash(FULL_ISSUE + " --label area:dev"))
+    assert code == BLOCK and "team:<x>" in said
+    assert run(guard, bash(FULL_ISSUE + " --label team:dev"))[0] == ALLOW
 
 
-# md_guard: a new .md inside the repo needs the owner's yes (ADR-0003).
+def test_issue_guard_refuses_a_second_root_for_a_subject_with_an_open_one(tmp_path):
+    """An open root's subject is its own title's words and its children's; a standing backlog PRD is never one."""
+    roots = tmp_path / "roots.json"
+    roots.write_text(json.dumps([
+        {"number": 7, "title": "Render farm queue", "parent": None, "labels": ["PRD"]},
+        {"number": 8, "title": "Lighting rig rebuild", "parent": 7, "labels": ["bug"]},
+        {"number": 36, "title": "Shader cleanup", "parent": None, "labels": ["PRD"]}]))
+    guard = issue_guard_copy(tmp_path / "repo", [], backlog_prd=36)
+    env = dict(os.environ, ISSUE_GUARD_ROOTS=str(roots))
+    prd = 'gh issue create --title "{title}" --label PRD --assignee someone --body "## Root check\n{check}"'
+    code, said, _ = run(guard, bash(prd.format(title="Lighting rig for night scenes", check="none")), env=env)
+    assert code == BLOCK and "#7 Render farm queue" in said and "lighting" in said, said
+    assert run(guard, bash(prd.format(title="Lighting rig for night scenes", check="#7 is the farm, not lights")),
+               env=env)[0] == ALLOW
+    assert run(guard, bash(prd.format(title="Shader library", check="none")), env=env)[0] == ALLOW
+
+
+def test_issue_guard_holds_the_projects_body_rules(tmp_path):
+    """Cited paths under a listed prefix must exist; an area with a required first line must carry it."""
+    guard = issue_guard_copy(tmp_path, ["sales", "dev"], cited_paths_must_exist=["business/"],
+                             area_first_line={"sales": {"label": "Business case", "example": "**Business case:** x"}})
+    (tmp_path / "business").mkdir()
+    (tmp_path / "business" / "real.md").write_text("# real\n")
+    issue = FULL_ISSUE + " --label area:{area} --body '{body}'"
+    code, said, _ = run(guard, bash(issue.format(area="dev", body="See business/gone/plan.md")))
+    assert code == BLOCK and "business/gone/plan.md" in said, said
+    assert run(guard, bash(issue.format(area="dev", body="See business/real.md")))[0] == ALLOW
+    code, said, _ = run(guard, bash(issue.format(area="sales", body="Sell it.")))
+    assert code == BLOCK and "**Business case:**" in said, said
+    assert run(guard, bash(issue.format(area="sales", body="**Business case:** x\nSell it.")))[0] == ALLOW
+
+
+# md_guard: a new .md inside the repo needs the user's yes.
 
 @pytest.fixture
 def md_repo(tmp_path):
-    """A scratch repo holding md_guard.py, an md_allowed.json with one yes, and one existing .md; (guard, repo)."""
+    """A scratch repo holding md_guard.py, a local md_allowed.json with one yes, and one existing .md; (guard, repo)."""
     repo = tmp_path / "repo"
-    hooks = repo / ".claude" / "hooks"
-    hooks.mkdir(parents=True)
-    shutil.copy(HOOKS / "md_guard.py", hooks)
-    (hooks / "md_allowed.json").write_text(json.dumps([
-        {"path": "docs/asked-for.md", "words": "yes, write it", "at": "2026-10-21T14:30Z"},
-        {"path": "docs/no-words.md", "at": "2026-10-21T14:30Z"}]))
+    guard = hook_copy(repo, "md_guard.py")
+    (guard.parent / "local").mkdir()
+    (guard.parent / "local" / "md_allowed.json").write_text(json.dumps([
+        {"path": "docs/asked-for.md", "words": "yes, write it", "at": "2026-01-01T00:00Z"},
+        {"path": "docs/no-words.md", "at": "2026-01-01T00:00Z"}]))
     (repo / "docs").mkdir()
     (repo / "docs" / "existing.md").write_text("# kept\n")
-    return hooks / "md_guard.py", repo
+    return guard, repo
 
 
-def md_write(repo, path):
-    return {"tool_name": "Write", "tool_input": {"file_path": str(repo / path)}, "cwd": str(repo)}
+def md_write(repo, path, transcript=None):
+    payload = {"tool_name": "Write", "tool_input": {"file_path": str(repo / path)}, "cwd": str(repo)}
+    return dict(payload, transcript_path=str(transcript)) if transcript else payload
 
 
 def md_bash(repo, command):
     return {"tool_name": "Bash", "tool_input": {"command": command}, "cwd": str(repo)}
 
 
-def test_md_guard_blocks_a_new_md_without_a_yes(md_repo):
+def typed_transcript(folder, entries):
+    """A session transcript of these user entries: a string is a typed message, a dict a tool result."""
+    lines = [{"type": "user", "message": {"role": "user", "content": entry if isinstance(entry, str) else [
+        {"type": "tool_result", "tool_use_id": "x", "content": entry["result"]}]}} for entry in entries]
+    path = folder / "transcript.jsonl"
+    path.write_text("\n".join(json.dumps(line) for line in lines) + "\n")
+    return path
+
+
+def test_md_guard_blocks_a_new_md_without_a_yes(md_repo, tmp_path):
     guard, repo = md_repo
+    never = typed_transcript(tmp_path, ["hello", "run the validation", {"result": "wrote notes.md"}])
     for payload in (md_write(repo, "docs/never-asked-for.md"), md_write(repo, "docs/no-words.md"),
+                    md_write(repo, "docs/never-asked-for.md", never),  # a tool result naming .md is not the person
                     md_bash(repo, "echo hi > notes.md"), md_bash(repo, "echo hi | tee -a docs/summary.md"),
                     md_bash(repo, "touch docs/new.md"), md_bash(repo, "cp docs/existing.md docs/copy.md"),
                     md_bash(repo, "cd docs && echo x > new.md"), md_bash(repo, f"OUT={repo}/docs; echo x > $OUT/n.md")):
         code, said, _ = run(guard, payload)
-        assert code == BLOCK and "owner's go-ahead" in said, payload
+        assert code == BLOCK and "go-ahead" in said, payload
 
 
 def test_md_guard_allows_the_standing_exceptions(md_repo, tmp_path):
     guard, repo = md_repo
-    for payload in (md_write(repo, "docs/asked-for.md"),  # the owner's yes, with his words
+    asked = typed_transcript(tmp_path, ["hello", "can you make a report, u can make a md file for it"])
+    for payload in (md_write(repo, "docs/asked-for.md"),  # listed with the user's words
+                    md_write(repo, "docs/report.md", asked),  # the user asked for one in their last messages
                     md_write(repo, ".claude/memory/some-note.md"),  # private memory
                     md_write(repo, "tools/new/CLAUDE.md"),  # a directory's overlay
                     md_write(repo, "docs/existing.md"),  # an edit
@@ -417,6 +501,200 @@ def test_md_guard_allows_the_standing_exceptions(md_repo, tmp_path):
                     md_bash(repo, f"cd {tmp_path} && echo x > page.md"),
                     md_bash(repo, "echo x > $UNKNOWN_SOMEWHERE/page.md")):  # unknowable: fail open
         assert run(guard, payload)[0] == ALLOW, payload
+
+
+# commit_guard: a session may not waive the commit guards, nor commit in the shared checkout while another session
+# is live in a worktree.
+
+GIT_ENV = dict(os.environ, GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_NOSYSTEM="1", GIT_AUTHOR_NAME="t",
+               GIT_AUTHOR_EMAIL="t@example.com", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@example.com")
+
+
+def git(repo, *args):
+    """Run git in `repo` with a clean config; its stdout."""
+    return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=True,
+                          env=GIT_ENV).stdout.strip()
+
+
+def git_repo(folder, files=None):
+    """A git repo at `folder` on `main`, with these files (path: text) in its first commit."""
+    folder.mkdir(parents=True, exist_ok=True)
+    git(folder, "init", "-q", "-b", "main")
+    for path, text in (files or {"README": "x\n"}).items():
+        (folder / path).parent.mkdir(parents=True, exist_ok=True)
+        (folder / path).write_text(text)
+    git(folder, "add", "-A")
+    git(folder, "commit", "-q", "-m", "first")
+    return folder
+
+
+WAIVERS = ["git commit --no-verify -m x", "git commit -n -m x", "TORN_GUARD=0 git commit -m x",
+           "LEFTOVER_GUARD=0 true"]
+
+
+def test_commit_guard_refuses_a_session_waiving_a_guard(tmp_path):
+    guard = hook_copy(tmp_path, "commit_guard.py")
+    for command in WAIVERS:
+        code, said, _ = run(guard, dict(bash(command), cwd=str(tmp_path)))
+        assert code == BLOCK and "routes around" in said, (command, said)
+    for command in ('git commit -m "never use --no-verify or TORN_GUARD=0"', "git status", "ls -n"):
+        assert run(guard, dict(bash(command), cwd=str(tmp_path)))[0] == ALLOW, command
+
+
+def test_commit_guard_refuses_the_shared_checkout_while_a_worktree_is_live(tmp_path):
+    repo = git_repo(tmp_path / "repo")
+    guard = hook_copy(tmp_path / "hooks_home", "commit_guard.py")
+    worktree = repo / ".claude" / "worktrees" / "w1"
+    git(repo, "worktree", "add", "-q", "-b", "w1", str(worktree))
+    commit = bash("git commit -m x")
+    assert run(guard, dict(commit, cwd=str(repo)), env=GIT_ENV)[0] == ALLOW  # nobody else is live
+    git(repo, "worktree", "lock", "--reason", f"claude session pid {os.getpid()}", str(worktree))
+    code, said, _ = run(guard, dict(commit, cwd=str(repo)), env=GIT_ENV)
+    assert code == BLOCK and "w1" in said, said
+    assert run(guard, dict(commit, cwd=str(worktree)), env=GIT_ENV)[0] == ALLOW  # inside a worktree
+    assert run(guard, dict(commit, cwd=str(repo)), env=dict(GIT_ENV, WORKTREE_GUARD="0"))[0] == ALLOW
+    assert run(guard, dict(bash(f"git -C {tmp_path} commit -m x"), cwd=str(repo)), env=GIT_ENV)[0] == ALLOW
+    for elsewhere in (f"cd {worktree}; git commit -m x", f"cd {worktree} && git commit -m x"):
+        assert run(guard, dict(bash(elsewhere), cwd=str(repo)), env=GIT_ENV)[0] == ALLOW, elsewhere
+
+
+# torn_commit_guard: a commit may not need what it leaves behind.
+
+def torn_repo(folder, sourced=None):
+    """A repo holding torn_commit_guard.py (and a project.json listing these sourced dirs), all committed."""
+    hook_copy(folder, "torn_commit_guard.py", {"sourced_shell_dirs": sourced or []})
+    return git_repo(folder, {"lib/module_kept.py": "VALUE = 1\n"})
+
+
+def torn(repo, env=None):
+    """(exit code, stderr) of the guard run as git runs a pre-commit hook: in the repo's top folder."""
+    code, said, _ = run(repo / ".claude/hooks/torn_commit_guard.py", "", env=env or GIT_ENV, cwd=repo)
+    return code, said
+
+
+def stage(repo, path, text):
+    (repo / path).parent.mkdir(parents=True, exist_ok=True)
+    (repo / path).write_text(text)
+    git(repo, "add", path)
+
+
+def test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file(tmp_path):
+    repo = torn_repo(tmp_path / "repo")
+    (repo / "fixtures").mkdir()
+    (repo / "fixtures" / "case_fixture.json").write_text("{}\n")  # never committed
+    stage(repo, "tests/test_reads.py", "DATA = 'fixtures/case_fixture.json'\n")
+    code, said = torn(repo)
+    assert code == 1 and "fixtures/case_fixture.json" in said, said
+    assert torn(repo, env=dict(GIT_ENV, TORN_GUARD="0"))[0] == 0
+    git(repo, "add", "fixtures/case_fixture.json")
+    assert torn(repo)[0] == 0
+    git(repo, "commit", "-q", "-m", "both")
+    (repo / "lib" / "module_kept.py").write_text("VALUE = 2\n")  # tracked, merely dirty: a note, not a block
+    stage(repo, "tests/test_kept.py", "from lib import module_kept\n")
+    code, said = torn(repo)
+    assert code == 0 and "note" in said, said
+
+
+def test_torn_commit_guard_refuses_conflict_markers_and_a_broken_sourced_shell_contract(tmp_path):
+    repo = torn_repo(tmp_path / "markers")
+    stage(repo, "notes.txt", "a\n<<<<<<< Updated upstream\nb\n=======\nc\n>>>>>>> Stashed changes\n")
+    code, said = torn(repo)
+    assert code == 1 and "conflict markers" in said, said
+    repo = torn_repo(tmp_path / "sourced", sourced=["steps"])
+    stage(repo, "steps/10-first.sh", 'made_here=1\n')
+    git(repo, "commit", "-q", "-m", "first step")
+    stage(repo, "steps/20-second.sh", 'echo "$made_here $made_nowhere"\n')
+    code, said = torn(repo)
+    assert code == 1 and "made_nowhere" in said and "made_here" not in said.replace("made_nowhere", ""), said
+    stage(repo, "steps/20-second.sh", 'echo "$made_here ${made_nowhere:-}"\n')  # a read with a default is safe
+    assert torn(repo)[0] == 0
+
+
+# leftover_guard: a session may not end leaving its own worktree dirty; said once.
+
+def test_leftover_guard_says_once_that_a_worktree_holds_uncommitted_work(tmp_path):
+    repo = git_repo(tmp_path / "repo")
+    guard = hook_copy(tmp_path / "hooks_home", "leftover_guard.py")
+    worktree = repo / ".claude" / "worktrees" / "w1"
+    git(repo, "worktree", "add", "-q", "-b", "w1", str(worktree))
+    (worktree / "half_done.py").write_text("x = 1\n")
+    stop = {"cwd": str(worktree), "session_id": "s1"}
+    code, _, out = run(guard, stop, env=GIT_ENV)
+    assert code == 0 and json.loads(out)["decision"] == "block" and "half_done.py" in out, out
+    assert run(guard, stop, env=GIT_ENV)[2] == ""  # said once per session
+    (repo / "someone_elses.py").write_text("y = 1\n")  # the shared checkout's dirt is everybody's: silent
+    assert run(guard, {"cwd": str(repo), "session_id": "s2"}, env=GIT_ENV)[2] == ""
+    assert run(guard, {"cwd": str(worktree), "session_id": "s3"}, env=dict(GIT_ENV, LEFTOVER_GUARD="0"))[2] == ""
+
+
+# soul_guard: no em dash, and no long reply to a short question that did not ask for detail; nudge once.
+
+def soul_turn(folder, question, reply):
+    lines = [{"type": "user", "message": {"role": "user", "content": question}},
+             {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": reply}]}}]
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / "transcript.jsonl"
+    path.write_text("\n".join(json.dumps(line) for line in lines) + "\n")
+    return {"transcript_path": str(path)}
+
+
+def test_soul_guard_nudges_once_on_an_em_dash_or_a_long_answer_to_a_short_question(tmp_path):
+    guard = HOOKS / "soul_guard.py"
+    long_reply = " ".join(["word"] * 150)
+    for name, question, reply, rule in (("a", "is it done?", "Yes — it is.", "Rule 3"),
+                                        ("b", "is it done?", long_reply, "Rules 2 and 5")):
+        code, _, out = run(guard, soul_turn(tmp_path / name, question, reply))
+        assert code == 0 and json.loads(out)["decision"] == "block" and rule in out, out
+    for name, question, reply, extra in (("c", "is it done?", "Yes, it is.", {}),
+                                         ("d", "explain in detail how the cache works", long_reply, {}),
+                                         ("e", "is it done?", "Yes — it is.", {"stop_hook_active": True})):
+        assert run(guard, dict(soul_turn(tmp_path / name, question, reply), **extra))[2] == "", name
+
+
+# call_efficiency: count single fast commands; nudge on the third in a row; land one row a session at Stop.
+
+def test_call_efficiency_nudges_on_three_single_fast_commands_and_lands_a_row(tmp_path):
+    counter = hook_copy(tmp_path, "call_efficiency.py")
+    post = dict(os.environ, CLAUDE_HOOK="PostToolUse")
+    said = [run(counter, dict(bash(command), session_id="s1"), env=post)[2]
+            for command in ("ls", "cat a.txt", "git status")]
+    assert said[:2] == ["", ""] and "3 single fast commands" in said[2], said
+    assert json.loads(said[2])["hookSpecificOutput"]["hookEventName"] == "PostToolUse"
+    for command in ("ls && cat a.txt", "make tests", "ls", "cat b"):  # a bundle or a real job resets the streak
+        assert run(counter, dict(bash(command), session_id="s2"), env=post)[2] == "", command
+    code, stderr, _ = run(counter, {"session_id": "s1"}, env=dict(os.environ, CLAUDE_HOOK="Stop"))
+    assert code == 0 and "3 Bash calls" in stderr, stderr
+    rows = (tmp_path / ".claude/state/call-efficiency.jsonl").read_text().splitlines()
+    assert [json.loads(row)["single_fast"] for row in rows] == [3]
+
+
+# checkout_current: the shared checkout on main catches up with origin/main, and says so when it cannot.
+
+def test_checkout_current_catches_up_and_says_when_it_cannot(tmp_path):
+    origin = tmp_path / "origin.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True, env=GIT_ENV)
+    seed = git_repo(tmp_path / "seed", {"shared.txt": "one\n"})
+    git(seed, "push", "-q", str(origin), "main")
+    shared = tmp_path / "shared"
+    subprocess.run(["git", "clone", "-q", str(origin), str(shared)], check=True, env=GIT_ENV)
+    for round_number in range(3):
+        (seed / "shared.txt").write_text(f"remote {round_number}\n")
+        git(seed, "commit", "-q", "-am", f"remote {round_number}")
+    git(seed, "push", "-q", str(origin), "main")
+    hook_path = HOOKS / "checkout_current.py"
+    start = dict(GIT_ENV, CLAUDE_PROJECT_DIR=str(shared), CLAUDE_HOOK="SessionStart")
+    assert run(hook_path, {"session_id": "s1"}, env=start)[0] == 0
+    assert git(shared, "rev-parse", "HEAD") == git(shared, "rev-parse", "origin/main")  # caught up
+    (shared / "shared.txt").write_text("local\n")  # a local commit that conflicts with three new remote ones
+    git(shared, "commit", "-q", "-am", "local")
+    for round_number in range(3, 6):
+        (seed / "shared.txt").write_text(f"remote {round_number}\n")
+        git(seed, "commit", "-q", "-am", f"remote {round_number}")
+    git(seed, "push", "-q", str(origin), "main")
+    before = git(shared, "rev-parse", "HEAD")
+    code, said, _ = run(hook_path, {"session_id": "s2"}, env=start)
+    assert code == 0 and "cannot catch itself up" in said, said
+    assert git(shared, "rev-parse", "HEAD") == before and not git(shared, "status", "--porcelain", "-uno")  # as found
 
 
 # output_cap: a long output goes whole to a file and the agent sees a short summary with its path.
@@ -430,7 +708,7 @@ def long_log():
 
 def capped(payload, spill_dir):
     """The output the model sees instead (the Bash response shape), or None when the output is left as it was."""
-    code, said, out = run(HOOKS / "output_cap.py", payload, env=dict(os.environ, SCORE_OUTPUT_DIR=str(spill_dir)))
+    code, said, out = run(HOOKS / "output_cap.py", payload, env=dict(os.environ, OUTPUT_CAP_DIR=str(spill_dir)))
     assert code == 0, said
     return json.loads(out)["hookSpecificOutput"]["updatedToolOutput"] if out.strip() else None
 
@@ -467,7 +745,7 @@ def test_output_cap_leaves_what_the_agent_asked_for_alone(tmp_path):
     log = long_log()
     for command in ("sed -n '1,400p' route.py", "git log -p | head -500", "grep -c x big.log",
                     "awk 'NR>=10 && NR<=400' f", "cd /x; sed -n 1,300p a.py; echo ===; tail -n 200 b.py",
-                    "SCORE_FULL_OUTPUT=1 make tests", "cat tools/props/library/CLAUDE.md",
+                    "FULL_OUTPUT=1 make tests", "cat tools/props/library/CLAUDE.md",
                     "ls x; cat .claude/skills/grill/SKILL.md", "ls y && cat a/CLAUDE.md 2>/dev/null | head -150"):
         assert capped(cap_bash(command, log), tmp_path) is None, command
     for payload in (cap_bash("ls", "a\nb\n"), cap_bash("cat a.png", log, isImage=True),
@@ -487,7 +765,20 @@ def test_output_cap_caps_only_with_a_real_saving(tmp_path):
     assert not (tmp_path / "s1").exists()
 
 
-# wait_guard: no waiting in the foreground (owner, 2026-10-09).
+# wait_guard: no waiting in the foreground; the project names its own long runs in project.json.
+
+PYTHON_RUN = r"(?:^|\s)\S*python[\w.]*\s+(?:-\S+\s+)*\S*"
+WAIT_CONFIG = {"wait_guard": {"foreground_runs": [
+    {"run": PYTHON_RUN + r"blender_cloud\.py\b", "unless": r"--dry-run\b", "what": "a cloud Blender run"},
+    {"run": PYTHON_RUN + r"settle\.py\b.*--cloud\b", "unless": None, "what": "a cloud Blender run"},
+    {"run": PYTHON_RUN + r"review/page\.py\b.*--cloud\b", "unless": r"--no-render\b", "what": "a cloud Blender run"},
+], "way_out": "Add --detach."}}
+
+
+@pytest.fixture
+def wait_guard(tmp_path):
+    return hook_copy(tmp_path, "wait_guard.py", WAIT_CONFIG)
+
 
 FOREGROUND_WAITS = [
     ("cd /tmp && sleep 300 && cat out.json", "sleep of 300 s"),
@@ -519,31 +810,38 @@ SHORT_OR_BACKGROUND = [
 
 
 @pytest.mark.parametrize("command,reason", FOREGROUND_WAITS, ids=range(len(FOREGROUND_WAITS)))
-def test_wait_guard_blocks_foreground_waits(command, reason):
-    code, said, _ = run(HOOKS / "wait_guard.py", bash(command))
+def test_wait_guard_blocks_foreground_waits(wait_guard, command, reason):
+    code, said, _ = run(wait_guard, bash(command))
     assert code == BLOCK and reason in said and "run_in_background" in said, said
+    assert "Add --detach." in said or "cloud" not in reason
 
 
 @pytest.mark.parametrize("payload", SHORT_OR_BACKGROUND, ids=range(len(SHORT_OR_BACKGROUND)))
-def test_wait_guard_allows_short_waits_reads_and_background_runs(payload):
-    assert run(HOOKS / "wait_guard.py", payload)[0] == ALLOW, payload
+def test_wait_guard_allows_short_waits_reads_and_background_runs(wait_guard, payload):
+    assert run(wait_guard, payload)[0] == ALLOW, payload
 
 
 # every hook: a payload it cannot read never wedges a tool call (never exit 2; md_guard exits 1 on a tool_input that
-# is not an object, which the harness also lets through).
+# is not an object, which the harness also lets through). Shared hooks run as a copy in a scratch folder that is no
+# repository, so none of them reads or moves the real checkout.
 
-@pytest.mark.parametrize("hook", ["local/accept_guard.py", "local/completion_guard.py", "issue_guard.py", "md_guard.py",
-                                  "output_cap.py", "wait_guard.py"])
-def test_every_guard_fails_open_on_garbage(hook, tmp_path):
+SHARED_HOOKS = ["issue_guard.py", "md_guard.py", "output_cap.py", "wait_guard.py", "commit_guard.py",
+                "torn_commit_guard.py", "leftover_guard.py", "checkout_current.py", "soul_guard.py",
+                "call_efficiency.py"]
+
+
+@pytest.mark.parametrize("name", SHARED_HOOKS + ["accept_guard.py", "completion_guard.py"])
+def test_every_guard_fails_open_on_garbage(name, tmp_path):
     garbage = ["not json at all {{{", {"tool_name": "Bash"}, {"tool_name": "Bash", "tool_input": "text"},
                bash('gh issue create --title "unterminated'), {"transcript_path": "/nowhere/at/all.jsonl"},
                {"tool_name": "Bash", "tool_input": {"command": "x"}, "tool_response": "text"}]
-    env = dict(os.environ, SCORE_OUTPUT_DIR=str(tmp_path))
+    script = hook_copy(tmp_path / "scratch", name) if name in SHARED_HOOKS else hook(name)
+    env = dict(GIT_ENV, OUTPUT_CAP_DIR=str(tmp_path), CLAUDE_PROJECT_DIR=str(tmp_path / "scratch"))
     for payload in garbage:
-        code, _, out = run(HOOKS / hook, payload, env=env)
+        code, _, out = run(script, payload, env=env, cwd=tmp_path / "scratch" if name in SHARED_HOOKS else None)
         assert code != BLOCK and out.strip() == "", payload
     blocker = tmp_path / "file"  # output_cap's spill folder is a file: the output stays whole
     blocker.write_text("")
     code, _, out = run(HOOKS / "output_cap.py", cap_bash("make tests", long_log()),
-                       env=dict(os.environ, SCORE_OUTPUT_DIR=str(blocker)))
+                       env=dict(os.environ, OUTPUT_CAP_DIR=str(blocker)))
     assert (code, out) == (0, "")

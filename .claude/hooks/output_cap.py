@@ -2,14 +2,14 @@
 """PostToolUse hook: a long Bash output goes to a file, and the agent sees a short summary of it with the file's path.
 
 When a Bash call's stdout and stderr together are longer than ``CAP_CHARS``, the whole output is written to
-``<SCORE_OUTPUT_DIR or /tmp/score-output>/<session>/<call>.txt`` and the output the model sees is replaced
+``<OUTPUT_CAP_DIR or $TMPDIR/output-cap>/<session>/<call>.txt`` and the output the model sees is replaced
 (``hookSpecificOutput.updatedToolOutput``) by a header with the counts and the file's path, then the JSON's structure
 or else the first lines, the error and warning lines and the last lines. Nothing is lost: the file holds every byte.
 
 Left untouched: outputs up to the cap, images, background commands, reads the agent narrowed itself (a pipeline ending
 in ``head``, ``tail``, ``sed -n``, ``awk`` with ``NR``, ``grep -m`` or ``-c``, ``wc``), a ``cat`` of a rules file read
 whole to follow it (``CLAUDE.md``, ``SKILL.md``, ``soul.md``, ``CONTEXT.md``), a summary not at least ``MIN_SAVING``
-shorter, and any command carrying ``SCORE_FULL_OUTPUT=1``. Claude Code's own limit still applies above 30,000
+shorter, and any command carrying ``FULL_OUTPUT=1``. Claude Code's own limit still applies above 30,000
 characters. A failing command fires PostToolUseFailure, which cannot replace output, so it is never capped here.
 
 FAILURE POLICY: fail open. An unreadable payload, an unknown output shape, or a spill file that cannot be written
@@ -31,7 +31,7 @@ MATCH_LINES = 20
 LINE_CHARS = 200
 SECTION_CHARS = 1200
 MIN_SAVING = 0.4
-FULL_OUTPUT_MARKER = "SCORE_FULL_OUTPUT=1"
+FULL_OUTPUT_MARKER = "FULL_OUTPUT=1"
 _MATCH = re.compile(r"\b(errors?|traceback|fail(ed|ures?)?|warnings?|exception)\b", re.IGNORECASE)
 _NARROWED = re.compile(r"^(head|tail|wc)\b|^sed\s+(-\w+\s+)*-n\b|^awk\b.*\bNR\b|^grep\b.*\s-\w*[mc]\w*\b")
 _QUIET = re.compile(r"^(cd|echo|printf|export|set|true|mkdir|rm|mv|cp|touch|sleep)\b|^$")
@@ -78,7 +78,8 @@ def leave_alone(command):
 
 def spill_path(payload):
     """The file this call's full output goes to, unique per session and call."""
-    root = pathlib.Path(os.environ.get("SCORE_OUTPUT_DIR") or "/tmp/score-output")
+    default = pathlib.Path(os.environ.get("TMPDIR") or "/tmp") / "output-cap"
+    root = pathlib.Path(os.environ.get("OUTPUT_CAP_DIR") or default)
     session = re.sub(r"[^\w.-]", "_", str(payload.get("session_id") or "session"))
     call = re.sub(r"[^\w.-]", "_", str(payload.get("tool_use_id") or f"call-{time.time_ns()}"))
     return root / session / f"{call}.txt"

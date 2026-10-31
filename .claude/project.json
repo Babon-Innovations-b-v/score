@@ -7,8 +7,29 @@
     "owner": "Babon-Innovations-b-v"
   },
   "backlog_prd": 36,
+  "area_label_prefix": "area:",
   "areas": [],
   "people": {
     "JoeyKardolus": "JoeyKardolus"
+  },
+  "wait_guard": {
+    "foreground_runs": [
+      {
+        "run": "(?:^|\\s)\\S*python[\\w.]*\\s+(?:-\\S+\\s+)*\\S*blender_cloud\\.py\\b",
+        "unless": "--dry-run\\b",
+        "what": "a cloud Blender run"
+      },
+      {
+        "run": "(?:^|\\s)\\S*python[\\w.]*\\s+(?:-\\S+\\s+)*\\S*settle\\.py\\b.*--cloud\\b",
+        "unless": null,
+        "what": "a cloud Blender run"
+      },
+      {
+        "run": "(?:^|\\s)\\S*python[\\w.]*\\s+(?:-\\S+\\s+)*\\S*review/page\\.py\\b.*--cloud\\b",
+        "unless": "--no-render\\b",
+        "what": "a cloud Blender run"
+      }
+    ],
+    "way_out": "Cloud runs and test gates: add --detach (blender_cloud.py, tools/usd/settle.py, tools/review/page.py) or wrap them in tools/cloud/detached.py, which prints one result line at the end."
   }
 }
