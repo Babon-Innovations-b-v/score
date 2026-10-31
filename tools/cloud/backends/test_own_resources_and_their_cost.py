@@ -89,7 +89,8 @@ The invariants, each with the break that turns its test red (each applied once a
   after the give-way line in `run` -> the first tuning stays alive; or `return child.returncode` -> `continue` in
   `run` -> it never ends; or drop the `if handle and share is None:` block in `local.take` -> the pixal claim starts
   beside the side job; or drop `CARDS[machine_id] = share` in `local.take` -> the claim's share is let go at once; or
-  drop `"similar"` from `local.CARD_NEED` -> the likeness claim waits for the whole card beside the side job.
+  drop `"similar"` from `local.CARD_NEED` -> the likeness claim waits for the whole card beside the side job; or drop
+  `"similar"` from `local.MEMORY_NEED` -> it holds the whole memory and a 20 GiB side job waits.
 - Every watched share (each `run`, each claim of the container) is measured while held: the card's highest reading less
   the desktop, alone or beside another share, with its cores and memory, one line in measures.jsonl when given back.
   Break: drop `record(handle, cores, memory_gb)` in `release` -> nothing measured; or `<= 1` -> `< 1` in `read_card` ->
@@ -789,7 +790,9 @@ def test_this_pc_claims_hold_their_card_share_and_wait_while_a_side_job_holds_th
     monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)
     side = card_queue.take("sim-body", 6, "other")
     likeness = local.take("similar", "key")  # DINOv2's measured 0.8 GB fits beside it
-    assert likeness
+    beside = card_queue.take("side memory", 1, "other", memory=20)  # it holds its measured 1.3 GB, not all 27
+    assert likeness and beside
+    card_queue.release(beside)
     local.delete(likeness["id"], "this-pc")
     assert local.take("pixal", "key") is None  # 6 + 10.8 passes the card: it waits, holding no claim
     assert local.queued("pixal") and not local.queued("blender")  # in the queue: park.here holds its minutes
