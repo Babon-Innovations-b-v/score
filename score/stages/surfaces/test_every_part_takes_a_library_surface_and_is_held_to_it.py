@@ -229,7 +229,8 @@ tests it turned red:
   a_code_build_bakes_at_its_own_section_its_longest_side_the_row_s; -> `if False:`  -> that one and
   a_slender_design_entry_keeps_its_take_s_own_proportions_its_longest_side_the_row_s
 - bake_job.py: `if own and lies(place_route.made_size(labelled, size, 0), size):` -> `if False and lies(...)`
-  (measured_turn)  -> a_code_build_standing_for_a_row_that_lies_is_laid_along_its_row_never_up
+  (measured_turn), or its `square_turn(..., keep_up=False)` -> `square_turn(...)` (the stand step's turn, which keeps
+  the take's up)  -> a_code_build_standing_for_a_row_that_lies_is_laid_along_its_row_never_up
 - surface_data.py: `"bake scripts": "{repo}/tools/props/library/inside", "library": "{data}/library"}` -> `"bake
   scripts": "{repo}/tools/props/library/inside", "library": "{data}/library", "details": "{data}/library/details.json"}`
   -> every_place_s_bake_is_written_from_git_or_blocks_on_a_named_entry
@@ -2740,7 +2741,7 @@ def test_a_rolled_take_is_stood_square_and_a_lying_one_keeps_its_pose(tmp_path):
     Break: score/stages/surfaces/tumble.py: `return f"its design lays it lying ({said})"` -> `return None`
     Break: score/stages/surfaces/tumble.py: `if built:` -> `if False:`, or route_bake.py `rules, rows, built)` ->
         `rules, rows)`
-    Break: score/stages/surfaces/tumble.py `square_turn`: `if order[1] == up)` -> `if True)`"""
+    Break: score/stages/surfaces/tumble.py `square_turn`: `if order[1] == up or not keep_up)` -> `if True)`"""
     import tumble
     identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
     entry = {"base": identity, "size": [2.0, 1.0, 0.6]}
