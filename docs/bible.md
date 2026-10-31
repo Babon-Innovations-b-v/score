@@ -529,7 +529,7 @@ when the request's user is the machine's `SCORE_OWNER`; Buy answers 403 to anyon
 price shown, refused if the price moved. Agents are kept from these by a barrier, not a lock: the store refuses its
 owner areas (accepts, rejects, waivers, spend yeses, clearances, stops, grants) to any process Claude Code started,
 the runner's own automatic accept and clearance excepted; `python -m score.review` wants a terminal; and
-`.claude/hooks/accept_guard.py` blocks the other routes. An agent's design edit is written only with his words and the
+`.claude/hooks/local/accept_guard.py` blocks the other routes. An agent's design edit is written only with his words and the
 time attached (`score/review/plans.py` `kept_record`, `asked`; `workflow/loop`).
 
 **Owner-only decisions in chat** (owner, 2026-10-27: "i hate the rule that i cant make discisions in chat aswell").
@@ -698,7 +698,7 @@ GitHub Actions; every command runs locally.
   Then `docs/adr/tools/check_index.py`.
 - `make paper`: `paper/source/score.md` through pandoc into `paper/out/` (`score.tex`, `score.pdf`) and the arXiv tree
   `paper/arxiv/`, with `paper/out/stamp.json` hashing every input and output; `paper/build/test_paper_build_matches_its_source.py`
-  fails when they no longer match. `.githooks/pre-commit` runs it on any commit touching `paper/`.
+  fails when they no longer match. `.claude/hooks/local/pre-commit` runs it on any commit touching `paper/`.
 - **The hosted cockpit** runs the dashboard at the commit its host repository pins (`SCORE_COMMIT` in the host's
   Dockerfile). After pushes that change `score/dashboard`, the coordinating session releases once for the group:
   `.venv/bin/python -m score.dashboard release --host <host repository> --dockerfile <its Dockerfile> --subject
@@ -765,7 +765,7 @@ state is a label (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-hu
 **Before you push.** The tests of what you touched and `python3 docs/adr/tools/check_index.py`. The repo works on
 `main` only (ADR-0001), so a push is the ship. Before pushing an edit to anything a stage hashes, run `python -m score
 moved`: it lists every paid row the diff would buy again; a commit that moves one on purpose names it in a
-`Moved-rows: <node> ...: <reason>` trailer (`.githooks/pre-push-moved` refuses an unnamed move once the owner sets
+`Moved-rows: <node> ...: <reason>` trailer (`.claude/hooks/local/pre-push-moved` refuses an unnamed move once the owner sets
 `git config score.movedCheck true`).
 
 **Commits.** Imperative and scoped, `module: description`; a subject that needs "and" is two commits.
