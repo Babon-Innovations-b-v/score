@@ -7,7 +7,7 @@ hash only this.
     measure(points)                 (degrees off, looseness): its oriented box's axes against the frame's
     rules_of(inputs)                the pose rules a row's kept pose is read by (stance.json, resting.json)
     keeps_pose(row, rules, rows, built)  why a row keeps the pose it was made in, or None: the one guard list
-    square_turn(points, size)       the turn standing a tumbled take square, its box's proportions the row's
+    square_turn(points, size, keep_up)  the turn standing a tumbled take square, its box's proportions the row's
 
 A take is tumbled when its oriented box (of its convex hull) is turned more than DEGREES off the frame (the axis
 nearest up off up, or its long plan axis off the frame's, mod 90, for one not round in plan) and its frame-aligned
@@ -134,18 +134,19 @@ def keeps_pose(row, rules, rows=(), built=False):
     return None
 
 
-def square_turn(points, size):
+def square_turn(points, size, keep_up=True):
     """The turn (rows, the frame's) that stands points square: their oriented box's axis nearest up set up (the take
     stands as the finish stood it, only its tilt taken off), and of the two ways to set the other two on the frame's
     plan axes, the one whose box best keeps the row's `size` proportions (x wide, y tall, z deep: |log| misfits, as
     bake_job.measured_turn weighs a footprint), the least turn on a tie. The row's proportions never choose its up:
     a row drawn flatter than its take laid it on its back (workshop's desk_front_right, its row 1.5 x 1.0 x 0.8 for an
-    L desk 0.71 x 0.42 x 0.61, #36 2026-10-30)."""
+    L desk 0.71 x 0.42 x 0.61, #36 2026-10-30). With `keep_up` False the proportions choose its up too, of every way to
+    set the box's axes on the frame's: a standing take laid down along its lying row (bake_job.measured_turn)."""
     axes, extents, _ = oriented(points)
     wide, tall, deep = (max(float(side), 1e-6) for side in size)
     up = int(np.argmax(np.abs(axes[1, :])))
     best = None
-    for order in (order for order in itertools.permutations(range(3)) if order[1] == up):
+    for order in (order for order in itertools.permutations(range(3)) if order[1] == up or not keep_up):
         rows = []
         for frame_axis, box_axis in enumerate(order):
             way = axes[:, box_axis]

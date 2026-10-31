@@ -64,7 +64,8 @@ def measured_turn(labelled, size, own=False):
     2026-10-31)."""
     if own and lies(place_route.made_size(labelled, size, 0), size):
         import tumble
-        return [round(float(value), 6) for value in tumble.square_turn(take_points(labelled), size).reshape(-1)]
+        turn = tumble.square_turn(take_points(labelled), size, keep_up=False)  # its up chosen by its row, laid down
+        return [round(float(value), 6) for value in turn.reshape(-1)]
 
     def misfit(yaw):
         wide, _, deep = place_route.made_size(labelled, size, yaw)
