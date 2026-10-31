@@ -1,35 +1,40 @@
 """This PC as the one machine the runners use (SCORE_CLOUD=local; the owner, 2026-10-27: "couldnt u just finish the
 rest of env1 on this gpu aswell", then "yes"): its card, never rented, never billed.
 
-The machine is one Docker container on this PC (MACHINE), made from IMAGE (Ubuntu 24.04 with NVIDIA's CUDA base, as
-the rented card machines run, plus sshd): the runners reach it as root over ssh and rsync with the runner's key, at
-the same absolute paths, exactly as a rented machine, so no runner changes. Its set-up (Blender, a kind's venv) stays
-in the container from one job to the next, each kind's own (park.own_set_up: its own /root/venv, its marks never
-removed there), so a kind sets up once. The card comes in
-through WSL's /dev/dxg and /usr/lib/wsl (on plain Linux through `--gpus all`); the container's memory is held under
-this PC's own so a job that runs out of memory fails alone and never takes WSL down.
+The machine is a Docker container on this PC per kind (container: MACHINE for the FIRST kinds, Blender and the
+library bakes, whose set-up it holds; MACHINE-<kind> for every other; PRD #73), each made from IMAGE (Ubuntu 24.04
+with NVIDIA's CUDA base, as the rented card machines run, plus sshd) with no commit of another, so the image's id in
+every kept job's content stays: the runners reach it as root over ssh and rsync with the runner's key, at the same
+absolute paths, exactly as a rented machine, so no runner changes. A kind's set-up stays in its container from one
+job to the next (park.own_set_up: its own /root/venv, its marks never removed there), so a kind sets up once; a kind
+moved out of MACHINE sets up once in its own. The card comes in through WSL's /dev/dxg and /usr/lib/wsl (on plain
+Linux through `--gpus all`); each container's memory and cores are held under this PC's own (memory_cap, cpu_arguments)
+so a job that runs out of memory fails alone and never takes WSL down.
 
-One claim at a time over the whole PC (a file lock, `take`), but for the SHARED kinds: a claim that finds it busy gets
-None and its runner waits and asks again (batch.claim_rounds polls park.adopt). A SHARED kind's jobs (Blender: every
-input and output at its own absolute path, nothing of one claim's in another's way) share the machine across claims:
-such a claim holds the lock shared and takes every free one of RUNS_AT_ONCE's turns (a lock file each, one Blender
-job a turn), each turn let go as its slot runs out of work (spread.tend), so the container runs RUNS_AT_ONCE's Blender
-jobs at once (as many as its memory holds at a take's measured peak) over all the places' bake rows, never one row at
-a time (env1, 2026-10-28: 26 bake rows waited on the claim of one place). An exclusive claim waiting (its want under
-WANTING) keeps new shared claims out until it has its turn, so a stream of bakes never starves it; the container's
-set-up and each claim's own (`setting_up`) run one at a time. Each of the jobs' card calls (the Cycles bake, a render)
-waits its turn on the card (card_turn.py, put into the container's Blender startup folder at every claim), so the
-card never works for more than card_turn.CARD_SLOTS (two) jobs at once. Every claim also holds its share of this
-PC's one card queue (card_queue.py, CARD_NEED or the run's measured need; PRD #73) from its take to its delete, so a
-card user outside the container (sim body tuning, a proof container) and the run's jobs never pass the card together:
-while the queue has no room the claim waits as for a busy machine, and its waiting keeps side jobs off. Its offers are
+Claims of different kinds run side by side, each in its container, while their shares of this PC's one card queue
+(card_queue.py: card GB from CARD_NEED or the run's measured need, memory GiB from memory_need; an unmeasured need
+holds the whole) fit together; a claim holds the PC's LOCK shared and its container's lock (container_lock), one claim
+a container at a time but for the SHARED kinds. A claim that finds either busy, or the queue without room for it, gets
+None and its runner waits and asks again (batch.claim_rounds polls park.adopt); a claim the queue refused waits in
+it, first come first served, so a stream of claims never starves an earlier one, and a card user outside the
+containers (sim body tuning, a proof container) never passes the card beside them. A SHARED kind's jobs (Blender:
+every input and output at its own absolute path, nothing of one claim's in another's way) share its container across
+claims: such a claim holds its container's lock shared and takes free ones of RUNS_AT_ONCE's turns (a lock file each,
+one Blender job a turn) as many as the queue's free memory holds (free_memory_turns), each turn let go as its slot
+runs out of work (spread.tend, its share's memory with it), so the container runs up to RUNS_AT_ONCE's Blender jobs at
+once over all the places' bake rows, never one row at a time (env1, 2026-10-28: 26 bake rows waited on the claim of
+one place). An exclusive claim waiting for a lock (its want beside the lock) keeps new shared claims of it out until
+it has its turn; set-ups (`setting_up`) run one at a time over the PC. Each of the jobs' card calls (the Cycles bake,
+a render) waits its turn on the card (card_turn.py, put into the claim's container's Blender startup folder at every
+claim), so the card never works for more than card_turn.CARD_SLOTS (two) Blender jobs at once. Its offers are
 always `parked`, so batch.rent never orders anything: the machine is only ever taken through park.adopt
 (park.here), which asks no clearance, since it costs nothing (price 0; the ledger's rows carry the measured minutes
 at EUR 0). A job that needs more card or memory than this PC has is refused at its claim with the reason, never run
 to an out-of-memory; it stays a cloud job. The need is the job's own measure when its run gives one (a characters
-run whose steps are all measured: characters.card_need), else its kind's (TOO_BIG). `delete` restarts the container, which ends whatever a job left running on
-the card (a detached worker), and keeps its files: only when no other claim holds it, so the last shared claim to
-leave restarts it and none restarts it under another claim's jobs.
+run whose steps are all measured: characters.card_need), else its kind's (TOO_BIG). A job predicted past its
+container's memory runs alone (the PC's LOCK exclusive). `delete` restarts the claim's container, which ends whatever
+a job left running on the card (a detached worker), and keeps its files: only when no other claim holds it, so the
+last shared claim to leave restarts it and none restarts it under another claim's jobs.
 
 The interface is provider.py's; what has no meaning here (accounts, addresses, disks, the registry and the object
 store) says so or gives nothing.
@@ -83,6 +88,7 @@ CARD_TURN = pathlib.Path(__file__).resolve().parent / "card_turn.py"
 # alone in the container, never WSL.
 BLENDER_PEAK_GB = 6.7
 BLENDER_MARGIN_GB = 2
+GB_IN_GIB = 1e9 / 2**30  # the peaks are decimal GB, the card queue's memory GiB (as Docker's "g")
 HELD = {}  # {machine id: the open lock file} for the claims this process holds
 # The card GB a claim holds in this PC's card queue (card_queue.py, shared with every card user outside the container),
 # measured less the desktop's 2.4: Blender's two card calls beside its resting jobs (card_turn.py: 12.1 of 16.3 GB),
@@ -100,6 +106,13 @@ MEMORY_MARGIN = 1.5
 TURNS = {}  # {machine id: [its open turn files]} for the shared claims this process holds
 # Kinds whose claims share the machine (the docstring): each of their jobs' files is at its own absolute path.
 SHARED = frozenset({"blender"})
+# The kinds that stay in MACHINE, the first container, which holds their set-up (Blender 5.0 and its system packages,
+# card_turn.py); every other kind has a container of its own (container), made from the same IMAGE (PRD #73).
+FIRST = frozenset({"blender", "library"})
+# Containers of their own for the other kinds only when the run says so (SCORE_THIS_PC_OWN_CONTAINERS=1, set at a
+# restart: each such kind then sets up once in its own); without it every kind stays in MACHINE, one claim at a time
+# but Blender's, as before.
+OWN = os.environ.get("SCORE_THIS_PC_OWN_CONTAINERS") == "1"
 # An exclusive claim's want holds this long after its last ask (it asks every park.PARKED_POLL_SECONDS).
 WANT_SECONDS = 120
 SSHD_SECONDS = 60
@@ -181,41 +194,43 @@ def take(kind, public_key, need=None):
         raise ValueError(refused)
     memory = (need or {}).get("memory_gb", 0) * 2**30
     alone = memory > int(memory_cap()[:-1]) * 2**30
-    handle, turns = claimed(kind, alone)
-    share = handle and card_queue.take(f"this-pc {kind}", (need or {}).get("card_gb", CARD_NEED.get(kind)), "film",
-                                       "blender" if turns else None)
+    name = container(kind)
+    handles, turns = claimed(kind, alone)
+    share = handles and card_queue.take(f"this-pc {kind}", (need or {}).get("card_gb", CARD_NEED.get(kind)), "film",
+                                        "blender" if turns else None, memory_need(need, turns, alone))
     share = share and card_queue.watch(share)
-    if handle and share is None:  # a card user outside the container holds the room: wait for it like a busy claim
-        for held in (*turns, handle):
+    if handles and share is None:  # its card or memory is held (another kind's claim, a side job): it waits
+        for held in (*turns, *handles):
             held.close()
-        handle = None
-    mark_waiting(handle is None)
-    if handle is None:
+        handles = []
+    mark_waiting(not handles)
+    if not handles:
         return None
     try:
         with setting_up():
-            host = running(public_key)
-            if alone and memory > alone_room():
+            host = running(public_key, name)
+            if alone and memory > alone_room(name):
                 card_queue.release(share)
-                handle.close()
-                want()  # Blender claims stay out while it waits for the room
+                for held in handles:
+                    held.close()
+                want()  # every other claim stays out while it waits for the room
                 mark_waiting(True)
                 return None
             if alone:
-                docker("update", "--memory", alone_cap(), "--memory-swap", alone_cap(), MACHINE)
+                docker("update", "--memory", alone_cap(), "--memory-swap", alone_cap(), name)
             elif not turns and (need or {}).get("memory_gb"):
-                held_to(need["memory_gb"])
-            card_in_turns()
-            share.cpu_began = cpu_seconds()
+                held_to(need["memory_gb"], name)
+            card_in_turns(name)
+            share.cpu_began = cpu_seconds(name)
     except BaseException:
         card_queue.release(share)
-        for held in (*turns, handle):
+        for held in (*turns, *handles):
             held.close()
         raise
-    machine_id = f"{MACHINE}:{uuid.uuid4().hex[:12]}"
-    HELD[machine_id] = handle
+    machine_id = f"{name}:{uuid.uuid4().hex[:12]}"
+    HELD[machine_id] = handles
     CARDS[machine_id] = share
-    for held in turns or [handle]:  # who holds it: the lock file of an exclusive claim, each turn of a shared one
+    for held in turns or handles[-1:]:  # who holds it: its container's lock, each turn of a shared one
         held.seek(0)
         held.truncate()
         held.write(f"{machine_id} pid {os.getpid()} {kind}\n")
@@ -230,28 +245,73 @@ def take(kind, public_key, need=None):
     return found
 
 
-def claimed(kind, alone=False):
-    """The lock for a claim of `kind` and its turns: held exclusive for most kinds and a job `alone` (the want written
-    while it waits), shared for a SHARED kind with every free one of its RUNS_AT_ONCE turns; (None, []) while the
-    machine is busy for it (held exclusive, an exclusive claim waiting, or every turn taken)."""
-    LOCK.parent.mkdir(parents=True, exist_ok=True)
-    shared = kind in SHARED and not alone
-    handle = LOCK.open("a+")
+def container(kind):
+    """The container a claim of `kind` runs in: one of the kind's own under OWN, but MACHINE for the FIRST kinds and
+    for every kind without OWN."""
+    return MACHINE if kind in FIRST or not OWN else f"{MACHINE}-{kind}"
+
+
+def container_lock(name):
+    """The lock file of container `name`'s claims, beside LOCK."""
+    return LOCK.with_name(f"{LOCK.stem}.{name}")
+
+
+def got(handle, exclusive):
+    """Whether this call got `handle`'s flock (exclusive or shared) without waiting."""
     try:
-        fcntl.flock(handle, (fcntl.LOCK_SH if shared else fcntl.LOCK_EX) | fcntl.LOCK_NB)
+        fcntl.flock(handle, (fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH) | fcntl.LOCK_NB)
     except BlockingIOError:
-        handle.close()
+        return False
+    return True
+
+
+def claimed(kind, alone=False):
+    """The locks a claim of `kind` holds, and its turns: the PC's LOCK, exclusive for a job `alone` and shared for
+    every other claim, so claims of different kinds run side by side (their card and memory then the card queue's);
+    and its container's lock (container_lock), exclusive for most kinds and shared for a SHARED kind with every free
+    one of its turns (as many of RUNS_AT_ONCE as the queue's memory holds, free_memory_turns). An exclusive lock that
+    is busy writes its want, which keeps new shared claims of that lock out until it has its turn. ([], []) while busy
+    for it."""
+    LOCK.parent.mkdir(parents=True, exist_ok=True)
+    whole = LOCK.open("a+")
+    if not got(whole, alone) or not alone and wanted_elsewhere(LOCK):
+        whole.close()
+        if alone:
+            want(LOCK)
+        return [], []
+    if alone:
+        (wanting(LOCK) / str(os.getpid())).unlink(missing_ok=True)
+    lock = container_lock(container(kind))
+    shared = kind in SHARED and not alone
+    own = lock.open("a+")
+    if not got(own, not shared) or shared and wanted_elsewhere(lock):
+        for held in (own, whole):
+            held.close()
         if not shared:
-            want()
-        return None, []
+            want(lock)
+        return [], []
     if not shared:
-        (wanting() / str(os.getpid())).unlink(missing_ok=True)
-        return handle, []
-    turns = [] if wanted_elsewhere() else free_turns(RUNS_AT_ONCE.get(kind, 1))
+        (wanting(lock) / str(os.getpid())).unlink(missing_ok=True)
+        return [whole, own], []  # alone: its container's lock too, so a late delete elsewhere leaves it running
+    turns = free_turns(RUNS_AT_ONCE.get(kind, 1), free_memory_turns())
     if not turns:
-        handle.close()
-        return None, []
-    return handle, turns
+        for held in (own, whole):
+            held.close()
+        return [], []
+    return [whole, own], turns
+
+
+def memory_need(need, turns, alone):
+    """The memory GB a claim holds in the card queue: the whole of it alone, BLENDER_PEAK_GB a turn and
+    BLENDER_MARGIN_GB for a shared claim, its run's measured memory_gb, else the whole (unmeasured)."""
+    if turns and not alone:
+        return (len(turns) * BLENDER_PEAK_GB + BLENDER_MARGIN_GB) * GB_IN_GIB
+    return None if alone else (need or {}).get("memory_gb")
+
+
+def free_memory_turns():
+    """How many Blender turns the card queue's free memory holds now (card_queue.memory_free), at least none."""
+    return max(0, int((card_queue.memory_free() / GB_IN_GIB - BLENDER_MARGIN_GB) // BLENDER_PEAK_GB))
 
 
 def waiting_claims():
@@ -272,23 +332,25 @@ def mark_waiting(waits):
         mark.unlink(missing_ok=True)
 
 
-def wanting():
-    """The folder of the exclusive claims' wants, a file named by each waiting process's pid, beside LOCK."""
-    return LOCK.with_name(f"{LOCK.stem}.wanting")
+def wanting(lock=None):
+    """The folder of the exclusive claims' wants of `lock` (LOCK when None), a file named by each waiting process's
+    pid, beside it."""
+    lock = lock or LOCK
+    return lock.with_name(f"{lock.stem}{lock.suffix}.wanting")
 
 
-def want():
-    """This process's want of an exclusive claim, written (or refreshed) at each ask that found the machine busy."""
-    wanting().mkdir(parents=True, exist_ok=True)
-    (wanting() / str(os.getpid())).touch()
+def want(lock=None):
+    """This process's want of `lock` exclusive, written (or refreshed) at each ask that found it busy."""
+    wanting(lock).mkdir(parents=True, exist_ok=True)
+    (wanting(lock) / str(os.getpid())).touch()
 
 
-def wanted_elsewhere(now=None):
-    """Whether another live process asked for an exclusive claim within WANT_SECONDS; the wants of processes gone
-    are removed."""
+def wanted_elsewhere(lock=None, now=None):
+    """Whether another live process asked for `lock` exclusive within WANT_SECONDS; the wants of processes gone are
+    removed."""
     now = now or time.time()
     found = False
-    for path in sorted(wanting().glob("*")) if wanting().exists() else ():
+    for path in sorted(wanting(lock).glob("*")) if wanting(lock).exists() else ():
         try:
             fresh = now - path.stat().st_mtime < WANT_SECONDS
             os.kill(int(path.name), 0)
@@ -299,10 +361,13 @@ def wanted_elsewhere(now=None):
     return found
 
 
-def free_turns(count):
-    """Every free one of `count` turn files beside LOCK, each held exclusive (its open file)."""
+def free_turns(count, most=None):
+    """The free ones of `count` turn files beside LOCK, at most `most` (every free one when None), each held exclusive
+    (its open file)."""
     turns = []
     for number in range(count):
+        if most is not None and len(turns) >= most:
+            break
         turn = LOCK.with_name(f"{LOCK.stem}.turn{number}").open("a+")
         try:
             fcntl.flock(turn, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -317,6 +382,7 @@ def let_go_turn(machine_id):
     turns = TURNS.get(machine_id) or []
     if turns:
         turns.pop().close()
+        card_queue.resize(CARDS[machine_id], memory_need(None, turns, False))
 
 
 @contextlib.contextmanager
@@ -329,8 +395,8 @@ def setting_up():
         yield
 
 
-def running(public_key):
-    """The container's address once its sshd answers: the image built and the container started when missing.
+def running(public_key, name=MACHINE):
+    """Container `name`'s address once its sshd answers: the image built and the container started when missing.
     RuntimeError naming the owner's one-time fix when this user may not use Docker."""
     reached = docker("version", "--format", "{{.Server.Version}}", check=False)
     if reached.returncode != 0:
@@ -338,15 +404,15 @@ def running(public_key):
                            "owner, once: sudo usermod -aG docker $USER, then a new terminal")
     if not docker("image", "inspect", IMAGE, check=False).returncode == 0:
         docker("build", "-t", IMAGE, "-", input=DOCKERFILE, timeout=1800)
-    state = docker("inspect", "-f", "{{.State.Running}}", MACHINE, check=False)
+    state = docker("inspect", "-f", "{{.State.Running}}", name, check=False)
     if state.returncode != 0:
-        docker("run", "-d", "--name", MACHINE, *card_arguments(), "--shm-size", "8g", *memory_arguments(), *cpu_arguments(),
+        docker("run", "-d", "--name", name, *card_arguments(), "--shm-size", "8g", *memory_arguments(), *cpu_arguments(),
                "-e", f"AUTHORIZED_KEY={public_key}", IMAGE)
     else:
-        docker("update", *memory_arguments(), *cpu_arguments(), MACHINE)  # one made before these limits takes them too
+        docker("update", *memory_arguments(), *cpu_arguments(), name)  # one made before these limits takes them too
         if state.stdout.strip() != "true":
-            docker("start", MACHINE)
-    return answering()
+            docker("start", name)
+    return answering(name)
 
 
 def memory_arguments():
@@ -361,21 +427,21 @@ def cpu_arguments():
     return ["--cpus", str(max(1, os.cpu_count() - HOST_CORES))]
 
 
-def held_to(memory_gb):
-    """The container held to a claim's measured `memory_gb` times MEMORY_MARGIN (never past memory_cap). Docker refuses
+def held_to(memory_gb, name=MACHINE):
+    """Container `name` held to a claim's measured `memory_gb` times MEMORY_MARGIN (never past memory_cap). Docker refuses
     a cap under what the container holds now (a job left from before its restart): the claim then keeps memory_cap,
     as before this limit, and says so."""
     cap = f"{min(math.ceil(memory_gb * MEMORY_MARGIN), int(memory_cap()[:-1]))}g"
-    done = docker("update", "--memory", cap, "--memory-swap", cap, MACHINE, check=False)
+    done = docker("update", "--memory", cap, "--memory-swap", cap, name, check=False)
     if getattr(done, "returncode", 0):
-        print(f"local: the container stays at {memory_cap()}: docker refused {cap} ({done.stderr.strip()[:120]})",
+        print(f"local: {name} stays at {memory_cap()}: docker refused {cap} ({done.stderr.strip()[:120]})",
               file=sys.stderr, flush=True)
 
 
-def cpu_seconds():
-    """The processor seconds the container's processes used since it started (its cgroup's cpu.stat usage_usec);
+def cpu_seconds(name=MACHINE):
+    """The processor seconds container `name`'s processes used since it started (its cgroup's cpu.stat usage_usec);
     None when it cannot be read."""
-    identity = docker("inspect", "-f", "{{.Id}}", MACHINE, check=False)
+    identity = docker("inspect", "-f", "{{.Id}}", name, check=False)
     for form in CGROUPS:
         stat = pathlib.Path(form.format(id=getattr(identity, "stdout", "").strip())) / "cpu.stat"
         with contextlib.suppress(OSError, ValueError, StopIteration):
@@ -410,10 +476,10 @@ def alone_cap():
     return f"{max(int(memory_cap()[:-1]), room)}g"
 
 
-def alone_room():
+def alone_room(name=MACHINE):
     """The bytes a job alone may grow to now: what the container holds (the anon of its memory.stat, which
     MemAvailable leaves out) and this PC's available memory less HOST_FLOOR_GB, never past alone_cap."""
-    stat = docker("exec", MACHINE, "cat", "/sys/fs/cgroup/memory.stat").stdout.split()
+    stat = docker("exec", name, "cat", "/sys/fs/cgroup/memory.stat").stdout.split()
     held = int(stat[stat.index("anon") + 1])
     return min(held + meminfo("MemAvailable") - HOST_FLOOR_GB * 2**30, int(alone_cap()[:-1]) * 2**30)
 
@@ -433,31 +499,32 @@ def blender_at_once(memory_gb):
 RUNS_AT_ONCE = {"pixal": 1, "blender": blender_at_once(int(memory_cap()[:-1]) * 2**30 / 1e9)}
 
 
-def card_in_turns():
+def card_in_turns(name=MACHINE):
     """card_turn.py into the container's Blender user startup folder, so every Blender there takes the card at most
     card_turn.CARD_SLOTS calls at a time while RUNS_AT_ONCE's Blender jobs share it."""
     import card_turn
 
-    docker("exec", MACHINE, "mkdir", "-p", card_turn.STARTUP)
+    docker("exec", name, "mkdir", "-p", card_turn.STARTUP)
     # Copied beside and moved in, so a Blender of another claim starting meanwhile never reads half of it.
-    docker("cp", str(CARD_TURN), f"{MACHINE}:{card_turn.STARTUP}/.{CARD_TURN.name}.new")
-    docker("exec", MACHINE, "mv", f"{card_turn.STARTUP}/.{CARD_TURN.name}.new", f"{card_turn.STARTUP}/{CARD_TURN.name}")
+    docker("cp", str(CARD_TURN), f"{name}:{card_turn.STARTUP}/.{CARD_TURN.name}.new")
+    docker("exec", name, "mv", f"{card_turn.STARTUP}/.{CARD_TURN.name}.new", f"{card_turn.STARTUP}/{CARD_TURN.name}")
 
 
-def answering():
-    """The container's address once its sshd listens; RuntimeError after SSHD_SECONDS."""
+def answering(name=MACHINE):
+    """Container `name`'s address once its sshd listens; RuntimeError after SSHD_SECONDS."""
     give_up = time.time() + SSHD_SECONDS
     while time.time() < give_up:
-        host = address(MACHINE, ZONE)
-        if host and docker("exec", MACHINE, "sh", "-c", "pgrep -x sshd", check=False).returncode == 0:
+        host = address(name, ZONE)
+        if host and docker("exec", name, "sh", "-c", "pgrep -x sshd", check=False).returncode == 0:
             return host
         time.sleep(1)
-    raise RuntimeError(f"{MACHINE}'s sshd did not start within {SSHD_SECONDS} s (docker logs {MACHINE})")
+    raise RuntimeError(f"{name}'s sshd did not start within {SSHD_SECONDS} s (docker logs {name})")
 
 
-def address(_machine_id, _zone):
-    """The container's address on Docker's bridge, or None while it has none."""
-    found = docker("inspect", "-f", "{{json .NetworkSettings.Networks}}", MACHINE, check=False)
+def address(machine_id, _zone):
+    """The address of `machine_id`'s container (the part before its ":") on Docker's bridge, or None while it has
+    none."""
+    found = docker("inspect", "-f", "{{json .NetworkSettings.Networks}}", machine_id.split(":")[0], check=False)
     if found.returncode != 0:
         return None
     return next((network["IPAddress"] for network in json.loads(found.stdout).values() if network.get("IPAddress")),
@@ -465,39 +532,35 @@ def address(_machine_id, _zone):
 
 
 def delete(machine_id, _zone):
-    """End a claim: its turns and lock let go, and the container restarted (whatever its job left running on the card
-    ends; its files stay) when no other claim holds it, so a shared claim leaving never restarts it under another's
-    jobs. A claim another process still holds (a watchdog of a claim that already ended) is left alone; True when this
-    call ended it."""
+    """End a claim: its turns, card share and locks let go, and its container (the part of `machine_id` before ":")
+    restarted (whatever its job left running on the card ends; its files stay) when no other claim holds it, so a
+    shared claim leaving never restarts it under another's jobs. A claim another process still holds (a watchdog of
+    a claim that already ended) is left alone; True when this call ended it."""
+    name = machine_id.split(":")[0]
     for turn in TURNS.pop(machine_id, []):
         turn.close()
     if machine_id in CARDS:
         share = CARDS.pop(machine_id)
-        used = cpu_seconds()
+        used = cpu_seconds(name)
         cores = None if None in (used, share.cpu_began) else round((used - share.cpu_began) / max(
             time.time() - share.began, 1e-3), 2)
         card_queue.release(share, cores)
-    handle = HELD.pop(machine_id, None)
-    if handle is not None:
-        try:
-            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)  # held alone: no other claim's jobs run there
-        except BlockingIOError:
-            handle.close()
-            return True
-    else:
-        if not LOCK.exists():
+    handles = HELD.pop(machine_id, None)
+    ours = handles is not None
+    if not ours:
+        if not container_lock(name).exists():
             return False
-        handle = LOCK.open("a+")
-        try:
-            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            handle.close()
-            return False
+        handles = [container_lock(name).open("a+")]
+    if not got(handles[-1], True):  # held alone: no other claim's jobs run in its container
+        for held in handles:
+            held.close()
+        return ours
     try:
-        docker("restart", "-t", "5", MACHINE, check=False)
-        docker("update", *memory_arguments(), MACHINE, check=False)  # back from a job alone's or held_to's room
+        docker("restart", "-t", "5", name, check=False)
+        docker("update", *memory_arguments(), name, check=False)  # back from a job alone's or held_to's room
     finally:
-        handle.close()
+        for held in handles:
+            held.close()
     return True
 
 

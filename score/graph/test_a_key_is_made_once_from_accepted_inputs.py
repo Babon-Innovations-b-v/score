@@ -2156,6 +2156,38 @@ def a_container_job(proc, session, kind, resident_gb, high_gb):
     (proc / str(session + 1) / "status").write_text(f"Name:\tblender\nVmHWM:\t{int(high_gb * GIGA) // 1024} kB\n")
 
 
+def test_every_score_container_on_this_pc_is_counted_its_room_summed_and_its_jobs_read(tmp_path, monkeypatch):
+    """PRD #73, 2026-10-31: each kind runs in a container of its own beside the first (score-this-pc), so the run's
+    memory room is every SCORE container's: the first's 20 GB of room and a kind's 6 GB give 26 GB, the kind's running
+    take counted among the jobs; another program's container on this PC is never read.
+    Break: score/graph/__init__.py: '    return sum(room for room, _ in readings), jobs' ->
+    '    return readings[0][0], container_jobs(readings[0][1])' -> 20 GB, the kind's take missing; or
+    'name == CONTAINER or name.startswith(f"{CONTAINER}-")' -> 'True' in container_cgroups -> the other program's
+    container is read."""
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    monkeypatch.setattr(graph, "PROC", str(proc))
+    a_process(proc, 1, 0, 0)
+    a_process(proc, 10, 1, 1)
+    a_container_job(proc, 20, "segment_worker.py", 3, 4)
+    folders = {name: tmp_path / "cgroups" / identity for name, identity in
+               (("first", "aaa"), ("segment", "bbb"), ("theirs", "ccc"))}
+    for name, (room, anon, procs) in {"first": (30, 10, ""), "segment": (10, 4, "10\n20\n21\n"),
+                                      "theirs": (50, 0, "")}.items():
+        folders[name].mkdir(parents=True)
+        (folders[name] / "cgroup.procs").write_text(procs)
+        (folders[name] / "memory.max").write_text(f"{room * GIGA}\n")
+        (folders[name] / "memory.stat").write_text(f"anon {anon * GIGA}\nfile 0\n")
+    listed = "aaa score-this-pc\nbbb score-this-pc-segment\nccc postgres\n"
+    monkeypatch.setattr(graph.subprocess, "run", lambda *_, **__: subprocess.CompletedProcess([], 0, listed, ""))
+    monkeypatch.setattr(graph, "CGROUPS", (str(tmp_path / "cgroups" / "{id}"),))
+    found = graph.container_cgroups()
+    assert found == [folders["first"], folders["segment"]]
+    monkeypatch.setattr(graph, "CGROUPS_OF", lambda: found)
+    room, jobs = graph.container_reading()
+    assert room == 26 * GIGA and [kind for kind, _, _ in jobs.values()] == ["segment_worker.py"]
+
+
 def test_the_container_reserves_what_its_running_takes_may_still_grow_to_and_each_kinds_measured_peak_is_kept(
         tmp_path, monkeypatch):
     """2026-10-29: while a bake held the container's claim the drive reserved the cap's whole room (16.5 GiB) beside

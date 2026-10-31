@@ -32,8 +32,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   PC (Ubuntu 24.04 with CUDA's base, sshd, the card through WSL's `/dev/dxg`), reached as root over ssh like a
   rented machine, so no runner changes; never rented and never billed (its offers are `parked` at EUR 0, so
   `batch.rent` orders nothing, and `park.adopt` hands it out through `park.here`, no clearance asked, its ledger rows
-  EUR 0 with the measured minutes), one claim at a time over the whole PC (a file lock; a busy claim waits and asks
-  again) but Blender's (`local.SHARED`), which share it across places: Blender jobs run side by side as many as the
+  EUR 0 with the measured minutes), one claim a container at a time (its lock; a busy claim waits and asks
+  again; kinds side by side by the card queue, below) but Blender's (`local.SHARED`), which share it across places: Blender jobs run side by side as many as the
   container's memory holds at a take's measured peak (`local.RUNS_AT_ONCE`, four in 27 GiB at the takes' p90, 2026-10-29; env1, 2026-10-28: one
   take at a time left about 20 of 24 cores idle), one a turn (a lock file each) that a Blender claim takes while
   free and lets go as its slot runs out of work, so several places' bake rows fill the turns together (2026-10-29:
@@ -91,7 +91,16 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   in the queue's `measures.jsonl`; `card_queue.py measured` gives each job's highest, the card only from takes alone on
   it (a card user outside the queue still counts in a reading). The container keeps `local.HOST_CORES` (4) of this PC's
   cores (`--cpus 20`), and a claim whose run gives its measured memory (characters' steps, MOSS) runs held to it times
-  `local.MEMORY_MARGIN` (1.5), set back to `memory_cap` at its delete. The queue's folder (`~/.score-card`, `SCORE_CARD_QUEUE`) is one for
+  `local.MEMORY_MARGIN` (1.5), set back to `memory_cap` at its delete. Under `SCORE_THIS_PC_OWN_CONTAINERS=1` (set by
+  the run at a restart; `local.OWN`) each kind runs in a container of its own made from the same image,
+  `score-this-pc:1` (`local.container`: Blender and the library bakes stay in `score-this-pc`, which holds their
+  set-up; every other kind `score-this-pc-<kind>`, set up once there with its own set-up script: its system packages
+  are outside `/root`, so no copy of the old container's set-up, and no commit of it, so the image id in every kept
+  job stays); a claim's end restarts only its own container, once no other claim holds it. Then claims of different kinds run side by side while their card and memory
+  shares fit the queue (memory: the PC's less 16 GiB; a Blender claim 6.7 GB a turn and 2 GB, as many turns as fit;
+  a run's measured `memory_gb`; an unmeasured kind the whole), first come first served among the run's claims. The
+  run's memory room sums every SCORE container's cgroup (`score/graph` `container_cgroups`), and `this_pc.py pause`
+  stops them all. The queue's folder (`~/.score-card`, `SCORE_CARD_QUEUE`) is one for
   the whole PC, whatever `PROPS_HOME` a run works under.
 - **The only way models are made**, one or a hundred: no model runs on the owner's PC (owner,
   2026-10-03; `../local_models.py`). `batch.py` makes models, `pictures.py` pictures, `scene.py`

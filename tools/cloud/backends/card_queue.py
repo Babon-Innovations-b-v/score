@@ -48,6 +48,9 @@ QUEUE = pathlib.Path(os.environ.get("SCORE_CARD_QUEUE", pathlib.Path.home() / ".
 # makes: tools/cloud/characters.py STEP_NEED).
 BUDGET_GB = 13.5
 DESKTOP_GB = 2.4
+# Memory GiB this PC keeps from the shares (8 for WSL, 8 for the run's own steps beside its containers; the same as
+# backends/local.py's HOST_RESERVE_GB); the rest is MEMORY_GB, which the shares' memory never passes together.
+HOST_RESERVE_GB = 16
 # The card's memory read twice a second while a watched share is held (watch); its highest less DESKTOP_GB is the
 # share's measured card GB, kept in QUEUE's measures.jsonl with its cores and memory when known (`measured` sums them).
 SAMPLER = json.loads(os.environ.get("SCORE_CARD_SAMPLER") or "null") or [
@@ -100,39 +103,68 @@ def in_use(held, group, need):
     return sum(largest.values())
 
 
-def entry(folder, job, need, priority, group):
+def memory_gb():
+    """The memory GiB the shares may hold together: this PC's (/proc/meminfo's MemTotal) less HOST_RESERVE_GB, at
+    least 8."""
+    line = next(line for line in pathlib.Path("/proc/meminfo").read_text().splitlines() if line.startswith("MemTotal"))
+    return max(8, int(line.split()[1]) // 2**20 - HOST_RESERVE_GB)
+
+
+def memory_free():
+    """The memory GiB no live share holds now (memory_gb less their memory_gb)."""
+    with queue_lock():
+        return memory_gb() - sum(share.get("memory_gb", 0) for share in live("held"))
+
+
+def entry(folder, job, need, priority, group, memory=0):
     """A new entry in `folder`, its flock held: its open file."""
     path = QUEUE / folder / f"{uuid.uuid4().hex[:12]}.json"
     handle = path.open("w")
     fcntl.flock(handle, fcntl.LOCK_EX)
-    handle.write(json.dumps({"id": path.stem, "job": job, "card_gb": need, "priority": priority, "group": group,
-                             "pid": os.getpid(), "since": time.time()}))
+    handle.write(json.dumps({"id": path.stem, "job": job, "card_gb": need, "memory_gb": memory, "priority": priority,
+                             "group": group, "pid": os.getpid(), "since": time.time()}))
     handle.flush()
     return handle
 
 
-def take(job, card_gb=None, priority="film", group=None):
-    """A share of the card for `job` (`card_gb` measured, else the whole BUDGET_GB), held until `release`: its open
-    entry file; None, with this process's waiting entry written or refreshed, while it does not fit or an earlier
-    priority waits."""
+def take(job, card_gb=None, priority="film", group=None, memory=0):
+    """A share of the card for `job` (`card_gb` measured, else the whole BUDGET_GB) and of the PC's memory (`memory`
+    GiB; None: unmeasured, the whole memory_gb), held until `release`: its open entry file; None, with this process's
+    waiting entry written or refreshed, while it does not fit or a waiter before it waits (an earlier priority, or the
+    same one asking since earlier)."""
     need = min(card_gb or BUDGET_GB, BUDGET_GB)
     rank = ORDER.index(priority)
     with queue_lock():
         now = time.time()
+        room = memory_gb()
+        memory = room if memory is None else min(memory, room)
         mine = WAITING.get((job, priority))
-        ahead = [waiter for waiter in live("waiting", now) if ORDER.index(waiter["priority"]) < rank]
+        since = json.loads(pathlib.Path(mine.name).read_text())["since"] if mine else now
+        ahead = [waiter for waiter in live("waiting", now) if (ORDER.index(waiter["priority"]), waiter["since"])
+                 < (rank, since) and (mine is None or waiter["id"] != pathlib.Path(mine.name).stem)]
         held = live("held")
-        if ahead or in_use(held, group, need) > BUDGET_GB:
+        if ahead or in_use(held, group, need) > BUDGET_GB or sum(
+                share.get("memory_gb", 0) for share in held) + memory > room:
             if mine is None:
-                WAITING[(job, priority)] = mine = entry("waiting", job, need, priority, group)
+                WAITING[(job, priority)] = mine = entry("waiting", job, need, priority, group, memory)
             else:
                 os.utime(mine.name)
-            if not ahead and now - json.loads(pathlib.Path(mine.name).read_text())["since"] >= YIELD_SECONDS:
+            if not ahead and now - since >= YIELD_SECONDS:
                 ask_back([share for share in held if ORDER.index(share["priority"]) > rank])
             return None
         if mine is not None:
             release(WAITING.pop((job, priority)))
-        return entry("held", job, need, priority, group)
+        return entry("held", job, need, priority, group, memory)
+
+
+def resize(handle, memory):
+    """The memory GiB the share `handle` holds set to `memory` (a claim that let some of its work go)."""
+    with queue_lock():
+        held = json.loads(pathlib.Path(handle.name).read_text())
+        handle.seek(0)
+        handle.truncate()
+        handle.write(json.dumps({**held, "memory_gb": memory}))
+        handle.flush()
 
 
 def ask_back(shares):
@@ -214,9 +246,11 @@ def status():
     line a live share and a live waiter."""
     with queue_lock():
         held, waiting = live("held"), live("waiting", time.time())
-    lines = [f"card {in_use(held, None, 0):.1f} of {BUDGET_GB} GB held, {len(waiting)} waiting; {free_memory()}; "
-             f"{containers()}"]
-    lines += [f"{name} {item['job']} {item['card_gb']} GB {item['priority']} pid {item['pid']}"
+    memory = sum(share.get("memory_gb", 0) for share in held)
+    lines = [f"card {in_use(held, None, 0):.1f} of {BUDGET_GB} GB held, memory {memory:.1f} of {memory_gb()} GiB, "
+             f"{len(waiting)} waiting; {free_memory()}; {containers()}"]
+    lines += [f"{name} {item['job']} {item['card_gb']} GB card {item.get('memory_gb', 0)} GiB memory "
+              f"{item['priority']} pid {item['pid']}"
               for name, items in (("held", held), ("waits", waiting)) for item in items]
     return "\n".join(lines)
 
@@ -240,10 +274,10 @@ def containers():
     return ", ".join(answer.stdout.split("\n")[:-1]) or "no container running"
 
 
-def share_for(job, card_gb, priority):
+def share_for(job, card_gb, priority, memory=0):
     """`job`'s share, waited for (said once on stderr while it waits)."""
     said = False
-    while (handle := take(job, card_gb, priority)) is None:
+    while (handle := take(job, card_gb, priority, memory=memory)) is None:
         if not said:
             print(f"card_queue: {job} waits for {card_gb or BUDGET_GB} GB of the card", file=sys.stderr, flush=True)
             said = True
@@ -268,7 +302,7 @@ def stop(child):
         child.wait()
 
 
-def run(job, card_gb, priority, command):
+def run(job, card_gb, priority, command, memory=0):
     """`command` run while `job` holds its share, stopped and started again each time the share is asked back; its
     exit code. A stop signal to `run` ends the command first."""
     child = None
@@ -281,7 +315,7 @@ def run(job, card_gb, priority, command):
     signal.signal(signal.SIGTERM, end)
     signal.signal(signal.SIGINT, end)
     while True:
-        handle = watch(share_for(job, card_gb, priority))
+        handle = watch(share_for(job, card_gb, priority, memory))
         before = resource.getrusage(resource.RUSAGE_CHILDREN)
         child = subprocess.Popen(command, start_new_session=True, preexec_fn=ends_with_parent)
         while child.poll() is None and not asked_back(handle):
@@ -311,6 +345,8 @@ def main(arguments=None):
     runs.add_argument("--job", required=True)
     runs.add_argument("--card-gb", type=float, help="the job's measured card GB; unmeasured takes the whole card")
     runs.add_argument("--priority", choices=ORDER, default="side")
+    runs.add_argument("--memory-gb", type=float, default=0,
+                      help="memory it holds of the run's room (0: it lives in the PC's own reserve, its scope capped)")
     runs.add_argument("command", nargs=argparse.REMAINDER)
     commands.add_parser("status", help="the PC's line: what holds the card, what waits, the containers' memory")
     commands.add_parser("measured", help="each job's measured card GB, cores and memory")
@@ -321,7 +357,7 @@ def main(arguments=None):
     command = parsed.command[1:] if parsed.command[:1] == ["--"] else parsed.command
     if not command:
         parser.error("run needs a command after --")
-    sys.exit(run(parsed.job, parsed.card_gb, parsed.priority, command))
+    sys.exit(run(parsed.job, parsed.card_gb, parsed.priority, command, parsed.memory_gb))
 
 
 if __name__ == "__main__":

@@ -160,6 +160,7 @@ TAKE_RANK = 0.9
 TAKES_TRUSTED = 5
 TAKE_MARKS = score_store.PROPS_HOME / "cloud" / "this-pc.takes"
 SETTLE_SECONDS = 3600
+# This PC's first container; each kind's own is CONTAINER-<kind> (tools/cloud/backends/local.py container, PRD #73).
 CONTAINER = "score-this-pc"
 CGROUPS = ("/sys/fs/cgroup/system.slice/docker-{id}.scope", "/sys/fs/cgroup/docker/{id}")
 # A node's process reads its own tree's memory every MEMORY_SAMPLE seconds for the peak it reports (watch_memory).
@@ -607,15 +608,21 @@ def watch_memory(high, every=None):
         time.sleep(every or MEMORY_SAMPLE)
 
 
-def container_cgroup():
-    """This PC's container's cgroup folder (CGROUPS); None when it is not running or has none of them."""
+def container_cgroups():
+    """The cgroup folder (CGROUPS) of every running SCORE container on this PC: CONTAINER and each kind's own
+    (CONTAINER-<kind>); none when docker is not here."""
     with contextlib.suppress(OSError):  # no docker here
-        found = subprocess.run(["docker", "inspect", "-f", "{{.Id}}", CONTAINER], capture_output=True, text=True,
-                               check=False)
-        for cgroup in [pathlib.Path(form.format(id=found.stdout.strip())) for form in CGROUPS] if not found.returncode else []:
-            if cgroup.is_dir():
-                return cgroup
-    return None
+        found = subprocess.run(["docker", "ps", "--no-trunc", "--format", "{{.ID}} {{.Names}}"], capture_output=True,
+                               text=True, check=False)
+        named = [line.split() for line in found.stdout.splitlines()] if not found.returncode else []
+        ids = [identity for identity, name in named if name == CONTAINER or name.startswith(f"{CONTAINER}-")]
+        folders = [[pathlib.Path(form.format(id=identity)) for form in CGROUPS] for identity in ids]
+        return [next(folder for folder in forms if folder.is_dir()) for forms in folders
+                if any(folder.is_dir() for folder in forms)]
+    return []
+
+
+CGROUPS_OF = container_cgroups  # the tests give a fake reading
 
 
 def container_room(cgroup):
@@ -703,11 +710,16 @@ def container_jobs(cgroup):
 
 
 def container_reading():
-    """(The room this PC's container has left (container_room), its running jobs (container_jobs)); None when it is
-    not running or its room cannot be read."""
-    cgroup = container_cgroup()
-    room = container_room(cgroup) if cgroup else None
-    return None if room is None else (room, container_jobs(cgroup))
+    """(The room this PC's SCORE containers have left together (container_room, summed), their running jobs
+    (container_jobs, every container's)); None when none runs or no room can be read (2026-10-31: the kinds moved
+    into containers of their own, and the run counted only the first)."""
+    readings = [(room, cgroup) for cgroup in CGROUPS_OF() if (room := container_room(cgroup)) is not None]
+    if not readings:
+        return None
+    jobs = {}
+    for _, cgroup in readings:
+        jobs.update(container_jobs(cgroup))
+    return sum(room for room, _ in readings), jobs
 
 
 CONTAINER_READ = container_reading  # the tests give a fake reading

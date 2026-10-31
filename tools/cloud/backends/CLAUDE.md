@@ -2,9 +2,10 @@
 
 The cloud providers the runners rent from, one module each, behind `../provider.py`'s interface.
 `scaleway.py` is the current backend; `SCORE_CLOUD` chooses one. `local.py` is this PC's own card as one machine
-(a Docker container, never rented, EUR 0; `../CLAUDE.md` "This PC's card"): its offers are always `parked`, and its
-`take`, which only `park.here` calls, holds the PC's one claim, or for a `SHARED` kind (Blender) a share of it with
-the free ones of its `RUNS_AT_ONCE` turns, so several places' Blender claims run side by side. `card_turn.py` is no backend: a Blender startup
+(a Docker container per kind, never rented, EUR 0; `../CLAUDE.md` "This PC's card"): its offers are always `parked`,
+and its `take`, which only `park.here` calls, holds its container's one claim, or for a `SHARED` kind (Blender) a share
+of it with free ones of its `RUNS_AT_ONCE` turns, so several places' Blender claims run side by side, and claims of
+different kinds run side by side while their card queue shares fit. `card_turn.py` is no backend: a Blender startup
 script `local.take` copies into the container so the Blender jobs a claim runs side by side take the card at most
 `card_turn.CARD_SLOTS` (two) calls at a time. `card_queue.py` is no backend either: this PC's one card queue, which
 `local.take` and every card user outside the container take a measured share of (`../CLAUDE.md` "One card queue").

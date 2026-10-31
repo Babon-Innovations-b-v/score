@@ -14,6 +14,7 @@ Breaks (each applied once, seen red, reverted):
 - this_pc.py `push`: drop the `except FileNotFoundError: continue` -> a file a live run removed after the listing
   ends the push (2026-10-28).
 - this_pc.py `pause`: drop the `while group_alive(leader)` wait -> the container stops while the run still holds it.
+- this_pc.py `stop_containers`: `names or [MACHINE]` -> `[MACHINE]` -> a kind's own container keeps the card.
 - this_pc.py `RUN_OWN`: drop "SCORE_FROZEN" -> a resumed run would carry the paused run's frozen copy.
 - this_pc.py `resume`: drop its `live_run` refusal -> a second run starts beside the live one.
 - this_pc.py `resume`: drop `**record["env"]` -> the resumed run loses its go and SCORE_MIN_FREE_GB.
@@ -236,11 +237,14 @@ def test_pause_records_the_run_stops_it_and_only_then_the_container(tmp_path, mo
     process, entry = stand_in_run(home, tmp_path, SCORE_MIN_FREE_GB="8", SCORE_OWNERS_GO="go1", SCORE_CLOUD="local",
                                   SCORE_FROZEN="/frozen/copy", PROPS_HOME="/frozen/copy.home")
     called = []
+    listed = "score-this-pc\npostgres\nscore-this-pc-segment\n"
     monkeypatch.setattr(this_pc, "asked", lambda command, **given: called.append(
-        (command, this_pc.group_alive(process.pid))) or subprocess.CompletedProcess(command, 1, "", ""))
+        (command, this_pc.group_alive(process.pid))) or subprocess.CompletedProcess(command, 0, listed, ""))
     line = this_pc.pause(home)
     assert process.wait(timeout=5) == 0 and not this_pc.group_alive(process.pid)
-    assert called[0] == (["docker", "stop", "score-this-pc"], False)  # stopped once the run's group was gone
+    stops = [call for call in called if call[0][:2] == ["docker", "stop"]]
+    assert stops == [(["docker", "stop", "score-this-pc", "score-this-pc-segment"], False)]  # every SCORE container,
+    # once the run's group was gone
     record = this_pc.json.loads((home / this_pc.PAUSED).read_text())
     assert record["argv"] == entry["argv"] and record["commit"] == "a" * 40
     assert record["env"] == {"SCORE_MIN_FREE_GB": "8", "SCORE_OWNERS_GO": "go1", "SCORE_CLOUD": "local"}
