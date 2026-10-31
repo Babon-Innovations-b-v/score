@@ -1,24 +1,32 @@
 #!/usr/bin/env python3
-"""PreToolUse guard on Bash: no waiting in the foreground (owner, 2026-10-09, WAITING).
+"""PreToolUse guard on Bash: no waiting in the foreground.
 
-An agent's turn that comes more than 5 minutes after its previous one re-writes its whole context to the prompt cache;
-on 2026-10-09 that was about half of all agent spend, most of it after foreground sleep and poll loops and foreground
-cloud runs. Claude Code blocks a command that *starts* with ``sleep`` in some sessions but not in others (in the
-2026-10-09 bench's background sessions ``sleep 300; tail log`` ran), so this guard blocks, for a Bash call not run
-with ``run_in_background``: a ``sleep`` over ``LONGEST_SLEEP`` seconds anywhere in the command; a poll loop (``while``
-or ``until`` with a ``sleep`` in it, or a ``for`` loop sleeping over ``LONGEST_LOOP_SLEEP`` seconds a round); and a
-foreground cloud Blender run (``blender_cloud.py`` but not ``--dry-run``, ``settle.py --cloud``, ``page.py --cloud``
-but not ``--no-render``), which blocks for many minutes. The block message names the way out.
+An agent's turn that comes more than 5 minutes after its previous one re-writes its whole context to the prompt cache,
+and most of those long gaps are foreground sleeps, poll loops and long foreground runs. Claude Code blocks a command
+that *starts* with ``sleep`` in some sessions but not in others (in background sessions ``sleep 300; tail log`` runs),
+so this guard blocks, for a Bash call not run with ``run_in_background``:
+
+- a ``sleep`` over ``LONGEST_SLEEP`` seconds anywhere in the command;
+- a poll loop: ``while`` or ``until`` with a ``sleep`` in it, or a ``for`` loop sleeping over ``LONGEST_LOOP_SLEEP``
+  seconds a round;
+- a command the project names as long-running in ``.claude/project.json``, under ``wait_guard.foreground_runs``: each
+  entry is ``{"run": <regex>, "unless": <regex or null>, "what": <how the block names it>}``, matched per command
+  segment, and the entry's ``unless`` exempts a segment (a dry run, say). ``wait_guard.way_out`` adds the project's
+  own route out (a detach flag, a wrapper) to the block message.
+
+The block message names the way out.
 
 FAILURE POLICY: fail-open. Any parse error or unknown shape exits 0 (allow). Exit 2 + stderr is the only block path.
 """
 
 import json
+import pathlib
 import re
 import sys
 
 LONGEST_SLEEP = 60
 LONGEST_LOOP_SLEEP = 5
+_CONFIG_PATH = pathlib.Path(__file__).resolve().parents[2] / ".claude" / "project.json"
 _UNITS = {"": 1, "s": 1, "m": 60, "h": 3600, "d": 86400}
 # A shell sleep (not time.sleep): a word boundary, then a number with an optional unit.
 _SLEEP = re.compile(r"(?<![\w.])sleep\s+(\d+(?:\.\d+)?)([smhd]?)\b")
@@ -26,18 +34,30 @@ _MESSAGE = re.compile(r"""(?<![\w-])-m\s+(["'])[\s\S]*?(?<!\\)\1""")  # a commit
 _UNBOUNDED_LOOP = re.compile(r"(?<![\w.-])(while|until)\s[\s\S]*?(?<![\w.-])do\b([\s\S]*?)(?<![\w.-])done\b")
 _FOR_LOOP = re.compile(r"(?<![\w.-])for\s[\s\S]*?(?<![\w.-])do\b([\s\S]*?)(?<![\w.-])done\b")
 _SEGMENT = re.compile(r"&&|\|\||[;|\n]")
-_PYTHON_RUN = r"(?:^|\s)\S*python[\w.]*\s+(?:-\S+\s+)*\S*"
-_CLOUD_RUNS = (
-    (re.compile(_PYTHON_RUN + r"blender_cloud\.py\b"), re.compile(r"--dry-run\b")),
-    (re.compile(_PYTHON_RUN + r"settle\.py\b.*--cloud\b"), None),
-    (re.compile(_PYTHON_RUN + r"review/page\.py\b.*--cloud\b"), re.compile(r"--no-render\b")),
-)
 _WAY_OUT = (
-    "Never wait in the foreground (CLAUDE.md, Agent tools): start the command with run_in_background: true and go on "
-    "with other work or end your turn; the completion notice wakes you. Cloud runs and test gates: add --detach "
-    "(blender_cloud.py, tools/usd/settle.py, tools/review/page.py) or wrap them in tools/cloud/detached.py, "
-    "which prints one result line at the end. To wait for a condition, use the Monitor tool."
+    "Never wait in the foreground (CLAUDE.md): start the command with run_in_background: true and go on with other "
+    "work or end your turn; the completion notice wakes you. To wait for a condition, use the Monitor tool."
 )
+
+
+def _settings():
+    """The ``wait_guard`` block of .claude/project.json, or {} when there is none."""
+    try:
+        return json.loads(_CONFIG_PATH.read_text()).get("wait_guard") or {}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def _foreground_runs(settings):
+    """(runs, unless, what) per long-running command the project lists; an entry that does not compile is skipped."""
+    runs = []
+    for entry in settings.get("foreground_runs") or []:
+        try:
+            unless = re.compile(entry["unless"]) if entry.get("unless") else None
+            runs.append((re.compile(entry["run"]), unless, str(entry.get("what") or "a long run")))
+        except (KeyError, TypeError, re.error):
+            continue
+    return runs
 
 
 def sleeps(text):
@@ -62,31 +82,33 @@ def poll_loop(command):
     return None
 
 
-def cloud_run(command):
-    """A command segment that runs a cloud Blender tool in the foreground, or None."""
+def long_run(command, runs):
+    """A command segment that runs one of the project's long-running commands in the foreground, or None."""
     for segment in _SEGMENT.split(command):
-        for runs, exempt in _CLOUD_RUNS:
-            if runs.search(segment) and not (exempt and exempt.search(segment)):
-                return "a cloud Blender run in the foreground"
+        for pattern, unless, what in runs:
+            if pattern.search(segment) and not (unless and unless.search(segment)):
+                return f"{what} in the foreground"
     return None
 
 
-def blocked(tool_input):
+def blocked(tool_input, settings):
     """Why this Bash call waits in the foreground, or None."""
     if tool_input.get("run_in_background"):
         return None
     command = _MESSAGE.sub("-m ''", tool_input.get("command") or "")
-    return long_sleep(command) or poll_loop(command) or cloud_run(command)
+    return long_sleep(command) or poll_loop(command) or long_run(command, _foreground_runs(settings))
 
 
 def main():
     try:
         payload = json.load(sys.stdin)
-        reason = blocked(payload.get("tool_input") or {}) if payload.get("tool_name") == "Bash" else None
+        settings = _settings()
+        reason = blocked(payload.get("tool_input") or {}, settings) if payload.get("tool_name") == "Bash" else None
     except Exception:  # fail-open: a broken guard must never wedge a tool call
         sys.exit(0)
     if reason:
-        print(f"Blocked: {reason}. {_WAY_OUT}", file=sys.stderr)
+        extra = str(settings.get("way_out") or "")
+        print(f"Blocked: {reason}. {_WAY_OUT}" + (f" {extra}" if extra else ""), file=sys.stderr)
         sys.exit(2)
 
 
