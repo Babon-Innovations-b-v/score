@@ -55,13 +55,14 @@ prompt** so parallel writers never touch the same file.
 | What came out | Where it lands |
 |---|---|
 | A new word | [`CONTEXT.md`](../../../CONTEXT.md) **first**, so the documents can use it |
-| A trade-off that is hard to reverse, surprising, and real | The issue it belongs to, plus a one-line offer of an ADR; write the ADR only after the owner says yes, per [`docs/adr/ADR-FORMAT.md`](../../../docs/adr/ADR-FORMAT.md) |
-| A figure | The project's **fact store**, with its source and its confidence |
+| A trade-off that is hard to reverse, surprising, and real | The issue it belongs to, plus a one-line offer of an ADR; write the ADR only after the user says yes, per [`docs/adr/ADR-FORMAT.md`](../../../docs/adr/ADR-FORMAT.md) |
+| A figure | The set's **fact store**, with its source and its confidence |
 | The thinking itself | One file per subject, in a fixed section order |
 | A load-bearing invariant | Its `docs/bible.md` chapter, via the map in root `CLAUDE.md` |
 | A document that now exists | Its row in the index of whatever set it belongs to |
 
-**The governing rule: a document may not state a number that is not in the fact store.** If it needs one, the figure goes there first, or it is marked unverified in the same
+**The governing rule, in the set's README: a document may not state a number that is not in the
+fact store.** If it needs one, the figure goes there first, or it is marked unverified in the same
 sentence every time. Keep an **assumption register** beside it: the value, what it rests on, how
 confident, what would settle it. That register is what makes the set arguable rather than merely
 confident. *Done when every survivor is in one home.*
@@ -100,8 +101,8 @@ What survives the merge becomes issues, never a list inside a document. Hand the
 The planning agent returns the set as data and creates nothing; you create it, so it is read
 before it hits the board. Then burn the research ones down the wayfinder way: one subagent each,
 any number in parallel, each closing its sub-issue with a resolution comment. Every issue gets an
-assignee at creation, its category label, and **a link to the document it serves, with the document
-linking back**. *Done when every open question is
+assignee at creation, its area label when the project has areas (`.claude/project.json`), and **a
+link to the document it serves, with the document linking back**. *Done when every open question is
 an issue or a line of fog, and no parent has more than about seven open children.*
 
 ## 7. Check
