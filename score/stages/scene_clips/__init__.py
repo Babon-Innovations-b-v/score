@@ -50,6 +50,7 @@ for its street (seven), when the cast stands them as singles.
 import json
 import math
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -278,10 +279,33 @@ def make_folder(place, plans, name):
 
 
 def on_machine(place, who):
-    """The make folder run on a rented characters machine: place/out/ rig.npz, motions/ and make.json."""
+    """The make folder run on a rented characters machine (place/out/ rig.npz, motions/ and make.json); the run folder
+    characters.py wrote, named by its process id (None when it rented nothing)."""
     sys.path.insert(0, str(REPO / "tools/props"))
-    from paths import HOME
-    subprocess.run([str(HOME / "env/bin/python"), str(CLOUD / "characters.py"), str(place), "--who", who], check=True)
+    from paths import HOME, WORK
+    process = subprocess.Popen([str(HOME / "env/bin/python"), str(CLOUD / "characters.py"), str(place), "--who", who])
+    if process.wait():
+        raise subprocess.CalledProcessError(process.returncode, process.args)
+    runs = sorted((WORK / "cloud").glob(f"characters-*-{process.pid}"))
+    return runs[-1] if runs else None
+
+
+def last_line(log):
+    lines = [line for line in log.read_text().splitlines() if line.strip()]
+    return lines[-1] if lines else "empty"
+
+
+def failure_of(run, work):
+    """Why a machine brought back no rig: its chain's last log line when the chain ran, else the set-up steps that
+    failed and the set-up log's last line (characters.py leaves a failed set-up as a gap and exits 0)."""
+    chain = work / "out" / "chain.log"
+    if chain.exists():
+        return f"its chain failed ({last_line(chain)}; {chain})"
+    for log in sorted(run.glob("*/setup.log")) if run else []:
+        steps = re.findall(r"^setup step (\S+) failed:", log.read_text(), re.M)
+        if steps:
+            return f"the set-up step {', '.join(steps)} failed ({last_line(log)}; {log})"
+    return f"the machine brought back nothing (run folder {run})"
 
 
 def walkers_of(cast):
@@ -305,7 +329,9 @@ def make(inputs, out, seed, params):
                 left_out.append(why)
     if plans:
         work = make_folder(out / "make", plans, place)
-        on_machine(work, f"{ROW}-{place}")
+        run = on_machine(work, f"{ROW}-{place}")
+        if not (work / "out" / "rig.npz").exists():
+            raise RuntimeError(f"{ROW}@{place}: no rig.npz came back: {failure_of(run, work)}")
         for made in ("rig.npz", "make.json"):
             shutil.copy2(work / "out" / made, out / made)
         shutil.copytree(work / "out" / "motions", out / "motions")
