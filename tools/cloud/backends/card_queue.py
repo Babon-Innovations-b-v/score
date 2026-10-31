@@ -62,6 +62,7 @@ RANK = {**{name: rank for rank, name in enumerate(ORDER)}, "high": 1, "first": 1
 WAIT_SECONDS = 120  # a waiting entry not refreshed for this long waits no more (its process stopped asking)
 MEMORY_LOOK_SECONDS = 0.5  # between readings of a claim's container memory (watch_memory)
 LOOK_SECONDS = 2  # between asks of `run` while it waits, and between its looks for its share asked back
+BACKFILL_SECONDS = 600  # a waiter that does not fit is passed by smaller ones that do for at most this long
 YIELD_SECONDS = 60  # a claim waiting this long asks the later-ranked shares back
 STOP_SECONDS = 30  # a side command asked back has this long after SIGTERM before SIGKILL
 WAITING = {}  # {(job, priority): this process's open waiting entry}
@@ -134,8 +135,8 @@ def entry(folder, job, need, priority, group, memory=0):
 def take(job, card_gb=None, priority="env-run", group=None, memory=0):
     """A share of the card for `job` (`card_gb` measured, else the whole BUDGET_GB) and of the PC's memory (`memory`
     GiB; None: unmeasured, the whole memory_gb), held until `release`: its open entry file; None, with this process's
-    waiting entry written or refreshed, while it does not fit or a waiter before it waits (an earlier priority, or the
-    same one asking since earlier)."""
+    waiting entry written or refreshed, while it does not fit or a waiter before it blocks it (blocks: an earlier
+    priority, or the same one asking since earlier that fits now or has waited BACKFILL_SECONDS)."""
     need = min(card_gb or BUDGET_GB, BUDGET_GB)
     rank = RANK[priority]
     with queue_lock():
@@ -144,11 +145,11 @@ def take(job, card_gb=None, priority="env-run", group=None, memory=0):
         memory = room if memory is None else min(memory, room)
         mine = WAITING.get((job, priority))
         since = json.loads(pathlib.Path(mine.name).read_text())["since"] if mine else now
-        ahead = [waiter for waiter in live("waiting", now) if (RANK[waiter["priority"]], waiter["since"])
-                 < (rank, since) and (mine is None or waiter["id"] != pathlib.Path(mine.name).stem)]
         held = live("held")
-        if ahead or in_use(held, group, need) > BUDGET_GB or sum(
-                share.get("memory_gb", 0) for share in held) + memory > room:
+        ahead = [waiter for waiter in live("waiting", now) if (RANK[waiter["priority"]], waiter["since"])
+                 < (rank, since) and (mine is None or waiter["id"] != pathlib.Path(mine.name).stem)
+                 and blocks(waiter, held, rank, room, now)]
+        if ahead or not fits(held, group, need, memory, room):
             if mine is None:
                 WAITING[(job, priority)] = mine = entry("waiting", job, need, priority, group, memory)
             else:
@@ -159,6 +160,22 @@ def take(job, card_gb=None, priority="env-run", group=None, memory=0):
         if mine is not None:
             release(WAITING.pop((job, priority)))
         return entry("held", job, need, priority, group, memory)
+
+
+def fits(held, group, need, memory, room):
+    """Whether a share of `need` card GB in `group` and `memory` GiB fits beside the `held` shares (BUDGET_GB, `room`)."""
+    return in_use(held, group, need) <= BUDGET_GB and sum(share.get("memory_gb", 0) for share in held) + memory <= room
+
+
+def blocks(waiter, held, rank, room, now):
+    """Whether an earlier `waiter` keeps a take of `rank` out: one of an earlier priority always; one of the same
+    priority while it fits now (it takes the room at its next ask) or once it has waited BACKFILL_SECONDS, so a smaller
+    claim that fits goes past a bigger one that does not, never for longer than that (round 38, 2026-10-31: two Blender
+    claims joining their held group's card share waited behind a MOSS claim that needed the card the held one had)."""
+    if RANK[waiter["priority"]] < rank:
+        return True
+    return (fits(held, waiter["group"], waiter["card_gb"], waiter.get("memory_gb", 0), room)
+            or now - waiter["since"] >= BACKFILL_SECONDS)
 
 
 def resize(handle, memory):

@@ -397,7 +397,7 @@ def let_go_turn(machine_id):
     turns = TURNS.get(machine_id) or []
     if turns:
         turns.pop().close()
-        card_queue.resize(CARDS[machine_id], memory_need(None, turns, False))
+        card_queue.resize(CARDS[machine_id], memory_need(None, turns, False) if turns else 0)  # no job left: none
 
 
 @contextlib.contextmanager
