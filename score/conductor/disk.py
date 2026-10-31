@@ -70,7 +70,8 @@ checkout's data/, and no text-like blob so named (a listing kept as a blob), fol
 elsewhere too (frees nothing) or written in the last day is kept. collectable_why is the one guard every removal
 passes. It refuses, removing nothing, when a file cannot be read.
 
-sweep (2026-10-30, the owner: "this should be routine") is the sync pass's first step: every pass the routine
+sweep (2026-10-30, the owner: "this should be routine") runs on its own timer (score-sweep.timer) and as the sync
+pass's first step, one at a time (alone): every pass the routine
 (clean-frozen, clean-cache's making/, clean-kept); on a conductor under WARN_GB, before the floor, every step in
 order: clean-cache whole, relink-pixal, run logs past LOG_DAYS and tmp/ past SCRATCH_DAYS, store-gc, offload-pixal
 last (its read-back needs the room the others freed). Each step's line says what it freed; one refused or failed is
@@ -79,7 +80,9 @@ said and the next runs. Still under FLOOR_GB, it names what fills the disk and p
 owner asked. Never the store's named blobs, the paid caches (cloud/google-cache, drops), the design or a take kept
 nowhere else.
 """
+import contextlib
 import datetime
+import fcntl
 import json
 import math
 import os
@@ -420,6 +423,22 @@ def cache_refusal(home, runs_folder, cache, targets):
     return None
 
 
+@contextlib.contextmanager
+def alone(home, name):
+    """True while this process holds home/conductor/<name>.lock, False when another does: one sweep and one
+    offload-pixal at a time (2026-10-31: the door's offload-pixal beside the sync pass's sweep removed a take's files
+    under the other's stat, FileNotFoundError, and the sweep timer's runs overlap a pass's)."""
+    path = pathlib.Path(home) / "conductor" / f"{name}.lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a") as held:
+        try:
+            fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            yield False
+            return
+        yield True
+
+
 def remove_tree(path):
     """Remove a folder whatever its folders' modes (a make may copy a read-only one); links are not followed."""
     for folder in [path, *path.rglob("*")]:
@@ -525,6 +544,14 @@ def offload_pixal(home=None, runs_folder=None, now=None, commit=None):
     once the library's pushed entry hands every file back at its size and hash (read_back), its files removed here:
     a reader gets them back from the library (pixal_takes.take_back). {freed, freed_gb, refused, kept: {why: takes}}."""
     home = pathlib.Path(home or PROPS_HOME)
+    with alone(home, "offload-pixal") as first:
+        if not first:
+            return {"freed": 0, "freed_gb": 0.0, "refused": "another offload-pixal is running", "kept": {}}
+        return offloaded(home, runs_folder, now, commit)
+
+
+def offloaded(home, runs_folder, now, commit):
+    """offload_pixal's work, its one process holding the lock."""
     folder, takes = home / "work" / "pixal", pixal_takes()
     refused = cache_refusal(home, pathlib.Path(runs_folder or home / "runs"), home / "store" / "cache", [])
     if refused:
@@ -567,6 +594,9 @@ def take_kept_why(takes, take, folder, now):
     names = takes.take_names(take, folder)
     if not all(f"{take}{suffix}" in names for suffix in (".glb", "-final.glb")):
         return "not whole (no raw or final model)"
+    gone = [name for name in names if not (folder / name).exists()]
+    if gone:
+        return f"a file is gone or a link to nothing: {', '.join(gone)}"
     statuses = [(folder / name).stat() for name in names]
     if any(now - status.st_mtime < YOUNG_SECONDS for status in statuses):
         return "changed in the last 15 minutes"
@@ -852,7 +882,15 @@ def sweep(home=None, runs_folder=None, force=False, say=print):
     what it freed; still under FLOOR_GB, what fills the disk and the bigger volume it needs, priced. Written to
     conductor/sweep.json, which the Machine card's note reads (warning); the record."""
     home = pathlib.Path(home or PROPS_HOME)
-    runs_folder = pathlib.Path(runs_folder or home / "runs")
+    with alone(home, "sweep") as first:
+        if not first:
+            return {"refused": "another sweep is running", "steps": [], "escalated": False, "freed_gb": 0.0,
+                    "free_after_gb": round(free_gb(home), 2), "bigger": None}
+        return swept_once(home, pathlib.Path(runs_folder or home / "runs"), force, say)
+
+
+def swept_once(home, runs_folder, force, say):
+    """sweep's work, its one process holding the lock."""
     record = json.loads((home / "machine.json").read_text()) if (home / "machine.json").is_file() else None
     start = free_gb(home)
     escalated = force or (record is not None and start < WARN_GB)
@@ -872,7 +910,7 @@ def sweep(home=None, runs_folder=None, force=False, say=print):
     after = free_gb(home)
     swept = {"at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
              "free_before_gb": round(start, 2), "free_after_gb": round(after, 2), "escalated": escalated,
-             "freed_gb": round(after - start, 2), "steps": done, "fills": None, "bigger": None}
+             "freed_gb": round(after - start, 2), "steps": done, "fills": None, "bigger": None, "refused": None}
     if escalated and after < FLOOR_GB:
         more = STEP_GB * math.ceil((WARN_GB - after) / STEP_GB)
         swept["fills"] = fills(home, home / "conductor" / "disk.json")

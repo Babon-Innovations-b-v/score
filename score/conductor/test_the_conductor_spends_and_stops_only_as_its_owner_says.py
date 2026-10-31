@@ -760,6 +760,47 @@ def test_offload_pixal_frees_only_painted_takes_the_library_hands_back_whole(tmp
     assert all((pixal / name).exists() for name in ("b-s1.glb", "c-s1.glb", "d-s1.glb", "b-s1.svviews/input.png"))
 
 
+def test_offload_pixal_says_a_file_gone_and_one_sweep_or_offload_runs_at_a_time(tmp_path, monkeypatch):
+    """2026-10-31: offload-pixal crashed with FileNotFoundError on work/pixal/crowd-made-s1-19000.glb (a link to
+    nothing, or a file another offload removed under it), so the sweep never freed work/pixal and the disk filled.
+    Break: score/conductor/disk.py take_kept_why: drop the 'gone' test (the link to nothing crashes the offload), or
+    alone: 'yield True' for 'yield False' (a second offload or sweep runs beside the first)."""
+    real = disk.pixal_takes()
+    home = tmp_path / "home"
+    pixal = home / "work" / "pixal"
+    (home / "design" / "surfaces").mkdir(parents=True)
+    (home / "design" / "surfaces" / "p.json").write_text(json.dumps({"takes": {"a-s1": {}, "b-s1": {}}}))
+    pixal.mkdir(parents=True)
+    for take in ("a-s1", "b-s1"):
+        for name in (f"{take}.glb", f"{take}-final.glb"):
+            (pixal / name).write_bytes(take.encode() * 100)
+    (pixal / "a-s1-19000.glb").symlink_to(tmp_path / "gone.glb")
+    old = time.time() - 2 * disk.YOUNG_SECONDS
+    for path in pixal.iterdir():
+        os.utime(path, (old, old), follow_symlinks=False)
+    stand_in = type(real)("pixal_takes")
+    stand_in.__dict__.update({**real.__dict__, "taken_in": lambda takes, folder, commit, scratch: {
+        "new": [f"take/{real.take_id(take)}@1" for take in takes], "refused": [],
+        "saved": {"committed": "x", "pushed": True, "why": ""}}, "upstream_holds": lambda take: True,
+        "newest_record": lambda take: {"address": f"take/{real.take_id(take)}@1"},
+        "read_back": lambda take, folder, scratch: None})
+    monkeypatch.setattr(disk, "pixal_takes", lambda: stand_in)
+    with disk.alone(home, "offload-pixal") as first:
+        assert first
+        done = disk.offload_pixal(home, commit="0" * 40)
+    assert "another offload-pixal is running" in done["refused"] and (pixal / "b-s1.glb").exists(), done
+    done = disk.offload_pixal(home, commit="0" * 40)
+    kept = {why: takes for why, takes in done["kept"].items() if why != "not whole (no raw or final model)"}
+    assert kept == {"a file is gone or a link to nothing: a-s1-19000.glb": ["a-s1"]} and done["freed"] == 1, done
+    assert (pixal / "a-s1.glb").exists() and not (pixal / "b-s1.glb").exists(), done
+    (home / "machine.json").write_text("{}")
+    with disk.alone(home, "sweep"):
+        said = []
+        done = disk.sweep(home, say=said.append)
+    assert "another sweep is running" in done["refused"] and not done["steps"], done
+    assert not (home / "conductor" / "sweep.json").exists()
+
+
 def a_copy(repo, folder, name, home):
     """A frozen copy `name` of `repo` under `folder` with its home: the design copied read-only, the rest linked."""
     path = folder / name

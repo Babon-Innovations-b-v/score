@@ -85,6 +85,10 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   days and tmp/ past a day, store-gc, offload-pixal, a line each with what it freed; still under the floor it names what
   fills the disk and prices the bigger volume (`conductor/sweep.json`, read by the Machine card's note): only then the
   owner. Never named blobs, paid caches (cloud/google-cache, drops), the design or a take kept nowhere else.
+  Its own timer too (`score-sweep.timer`, every 10 min; 2026-10-31: at 0 GB free the update before each sync pass
+  failed writing pin.json, so no pass and no sweep ran until a rescue boot by hand). One sweep and one offload-pixal at
+  a time (`alone`, a lock under conductor/; a second is refused, said): the door's offload beside a pass's removed a
+  take's files under the other's stat. A take with a file gone or a link to nothing is kept and named, never a crash.
 - **Money**: the conductor bills in its own project (`SCORE_CONDUCTOR_PROJECT`, `score-conductor`); the stop line reads
   the batch project's bill alone, and `project_refusal` (in `compute.books_refusal`, `compute.require_books` and
   `guard.refusal`) refuses every clearance and rent point if the two names are ever the same.
