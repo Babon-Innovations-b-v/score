@@ -40,6 +40,7 @@ class Chain:
         # A chain run again for some steps (mending one on a held machine) keeps the steps run before.
         if (self.out / "make.json").exists():
             self.record["steps"] = json.loads((self.out / "make.json").read_text())["steps"]
+        self.record["minutes"] = self.minutes()  # a make of no steps (a held machine's hold) took none
 
     def file(self, relative):
         """A file the spec names, as it lies in the make folder."""
@@ -76,9 +77,13 @@ class Chain:
             self.write_record()
             print(f"== {name}: {'ok' if entry.get('ok') else 'FAILED'} in {entry['minutes']} min", flush=True)
 
-    def write_record(self):
+    def minutes(self):
+        """The make's minutes: each step's latest run, summed."""
         latest = {entry["step"]: entry["minutes"] for entry in self.record["steps"]}
-        self.record["minutes"] = round(sum(latest.values()), 2)
+        return round(sum(latest.values()), 2)
+
+    def write_record(self):
+        self.record["minutes"] = self.minutes()
         (self.out / "make.json").write_text(json.dumps(self.record, indent=1))
 
 
