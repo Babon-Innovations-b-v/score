@@ -41,8 +41,11 @@ import os
 import pathlib
 import shutil
 import subprocess
+import sys
 import time
 import uuid
+
+import math
 
 import card_queue
 import provider
@@ -87,12 +90,21 @@ HELD = {}  # {machine id: the open lock file} for the claims this process holds
 # neither holds the whole card.
 CARD_NEED = {"blender": 9.7, "pixal": 10.8}
 CARDS = {}  # {machine id: its open share of the card queue} for the claims this process holds
+# Cores the container never gets (--cpus): WSL, the desktop and the run's own steps beside it keep them, so this PC
+# answers while the container is busy (2026-10-31: the PC lagged under load). No kind's cores are measured yet: each
+# claim's are, from the container's cgroup (card_queue.py measured), to set a kind's own from.
+HOST_CORES = 4
+# A claim whose run gives its measured memory (run.need's memory_gb: characters' steps, MOSS) runs in the container
+# held to that times MEMORY_MARGIN, so a job past its measure ends alone; any other keeps memory_cap.
+MEMORY_MARGIN = 1.5
 TURNS = {}  # {machine id: [its open turn files]} for the shared claims this process holds
 # Kinds whose claims share the machine (the docstring): each of their jobs' files is at its own absolute path.
 SHARED = frozenset({"blender"})
 # An exclusive claim's want holds this long after its last ask (it asks every park.PARKED_POLL_SECONDS).
 WANT_SECONDS = 120
 SSHD_SECONDS = 60
+# Where a container's cgroup is (score/graph CGROUPS: systemd's driver, then cgroupfs).
+CGROUPS = ("/sys/fs/cgroup/system.slice/docker-{id}.scope", "/sys/fs/cgroup/docker/{id}")
 DOCKERFILE = """\
 FROM nvidia/cuda:12.8.1-base-ubuntu24.04@sha256:133c78a0575303be34164d0b90137a042172bdf60696af01a3c424ab402d86e2
 ENV DEBIAN_FRONTEND=noninteractive
@@ -172,6 +184,7 @@ def take(kind, public_key, need=None):
     handle, turns = claimed(kind, alone)
     share = handle and card_queue.take(f"this-pc {kind}", (need or {}).get("card_gb", CARD_NEED.get(kind)), "film",
                                        "blender" if turns else None)
+    share = share and card_queue.watch(share)
     if handle and share is None:  # a card user outside the container holds the room: wait for it like a busy claim
         for held in (*turns, handle):
             held.close()
@@ -190,7 +203,10 @@ def take(kind, public_key, need=None):
                 return None
             if alone:
                 docker("update", "--memory", alone_cap(), "--memory-swap", alone_cap(), MACHINE)
+            elif not turns and (need or {}).get("memory_gb"):
+                held_to(need["memory_gb"])
             card_in_turns()
+            share.cpu_began = cpu_seconds()
     except BaseException:
         card_queue.release(share)
         for held in (*turns, handle):
@@ -324,10 +340,10 @@ def running(public_key):
         docker("build", "-t", IMAGE, "-", input=DOCKERFILE, timeout=1800)
     state = docker("inspect", "-f", "{{.State.Running}}", MACHINE, check=False)
     if state.returncode != 0:
-        docker("run", "-d", "--name", MACHINE, *card_arguments(), "--shm-size", "8g", *memory_arguments(),
+        docker("run", "-d", "--name", MACHINE, *card_arguments(), "--shm-size", "8g", *memory_arguments(), *cpu_arguments(),
                "-e", f"AUTHORIZED_KEY={public_key}", IMAGE)
     else:
-        docker("update", *memory_arguments(), MACHINE)  # a container made before the swap limit takes it too
+        docker("update", *memory_arguments(), *cpu_arguments(), MACHINE)  # one made before these limits takes them too
         if state.stdout.strip() != "true":
             docker("start", MACHINE)
     return answering()
@@ -338,6 +354,33 @@ def memory_arguments():
     Docker lets it swap as much again into this PC's swap (env1, 2026-10-28: garage_vehicle_lift's paint at 27 GB
     filled 15 of 16 GB of WSL's swap)."""
     return ["--memory", memory_cap(), "--memory-swap", memory_cap()]
+
+
+def cpu_arguments():
+    """The container's cores: this PC's less HOST_CORES (at least 1)."""
+    return ["--cpus", str(max(1, os.cpu_count() - HOST_CORES))]
+
+
+def held_to(memory_gb):
+    """The container held to a claim's measured `memory_gb` times MEMORY_MARGIN (never past memory_cap). Docker refuses
+    a cap under what the container holds now (a job left from before its restart): the claim then keeps memory_cap,
+    as before this limit, and says so."""
+    cap = f"{min(math.ceil(memory_gb * MEMORY_MARGIN), int(memory_cap()[:-1]))}g"
+    done = docker("update", "--memory", cap, "--memory-swap", cap, MACHINE, check=False)
+    if getattr(done, "returncode", 0):
+        print(f"local: the container stays at {memory_cap()}: docker refused {cap} ({done.stderr.strip()[:120]})",
+              file=sys.stderr, flush=True)
+
+
+def cpu_seconds():
+    """The processor seconds the container's processes used since it started (its cgroup's cpu.stat usage_usec);
+    None when it cannot be read."""
+    identity = docker("inspect", "-f", "{{.Id}}", MACHINE, check=False)
+    for form in CGROUPS:
+        stat = pathlib.Path(form.format(id=getattr(identity, "stdout", "").strip())) / "cpu.stat"
+        with contextlib.suppress(OSError, ValueError, StopIteration):
+            return int(next(line for line in stat.read_text().splitlines() if line.startswith("usage_usec")).split()[1]) / 1e6
+    return None
 
 
 def card_arguments():
@@ -429,7 +472,11 @@ def delete(machine_id, _zone):
     for turn in TURNS.pop(machine_id, []):
         turn.close()
     if machine_id in CARDS:
-        card_queue.release(CARDS.pop(machine_id))
+        share = CARDS.pop(machine_id)
+        used = cpu_seconds()
+        cores = None if None in (used, share.cpu_began) else round((used - share.cpu_began) / max(
+            time.time() - share.began, 1e-3), 2)
+        card_queue.release(share, cores)
     handle = HELD.pop(machine_id, None)
     if handle is not None:
         try:
@@ -448,7 +495,7 @@ def delete(machine_id, _zone):
             return False
     try:
         docker("restart", "-t", "5", MACHINE, check=False)
-        docker("update", *memory_arguments(), MACHINE, check=False)  # back from a job alone's room (alone_cap)
+        docker("update", *memory_arguments(), MACHINE, check=False)  # back from a job alone's or held_to's room
     finally:
         handle.close()
     return True

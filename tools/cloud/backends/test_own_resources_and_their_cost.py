@@ -87,10 +87,19 @@ The invariants, each with the break that turns its test red (each applied once a
   after the give-way line in `run` -> the first tuning stays alive; or `return child.returncode` -> `continue` in
   `run` -> it never ends; or drop the `if handle and share is None:` block in `local.take` -> the pixal claim starts
   beside the side job; or drop `CARDS[machine_id] = share` in `local.take` -> the claim's share is let go at once.
+- Every watched share (each `run`, each claim of the container) is measured while held: the card's highest reading less
+  the desktop, alone or beside another share, with its cores and memory, one line in measures.jsonl when given back.
+  Break: drop `record(handle, cores, memory_gb)` in `release` -> nothing measured; or `<= 1` -> `< 1` in `read_card` ->
+  never alone; or drop `- DESKTOP_GB` in `record` -> 8.79 GB.
+- The container keeps HOST_CORES of this PC's cores (--cpus 20 of 24) at every claim, and a claim whose run gives its
+  measured memory is held to it times MEMORY_MARGIN (17 GB: 26g), set back at its delete; one with none keeps 27g.
+  Break: drop `*cpu_arguments()` from `running`'s update; or `memory_gb * MEMORY_MARGIN` -> `memory_gb` in `held_to`
+  -> 17g; or drop the `elif ... held_to(...)` branch in `take`.
 """
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import threading
@@ -162,7 +171,13 @@ def card_queue_folder(monkeypatch, tmp_path):
     monkeypatch.setattr(card_queue, "QUEUE", tmp_path / "card-queue")
     monkeypatch.setattr(card_queue, "WAITING", {})
     monkeypatch.setattr(card_queue, "containers", lambda: "score-this-pc 3GiB / 27GiB")
+    monkeypatch.setattr(card_queue, "SAMPLER", SAMPLER)
+    monkeypatch.setenv("SCORE_CARD_SAMPLER", json.dumps(SAMPLER))  # the `run` under test reads the same card
     return card_queue.QUEUE
+
+
+# A card read twice: 8000 and 9000 MiB, 6.39 GB less the desktop.
+SAMPLER = [sys.executable, "-c", "import time; print(8000); print(9000, flush=True); time.sleep(5)"]
 
 
 # --- only our own project's resources -------------------------------------------------------------------------------
@@ -697,7 +712,8 @@ def test_the_card_queue_never_passes_the_card_and_a_waiting_film_claim_keeps_sid
     film = card_queue.take("pixal", 10.8, "film")
     assert film and card_queue.take("tuning", None, "side") is None  # unmeasured: the whole card
     card_queue.release(film)
-    assert card_queue.status().startswith("card 0.0 of 13.5 GB held, 2 waiting; score-this-pc 3GiB / 27GiB")
+    assert re.match(r"card 0\.0 of 13\.5 GB held, 2 waiting; \d+\.\d GB free; score-this-pc 3GiB / 27GiB",
+                    card_queue.status())
 
 
 def until(done, seconds=30):
@@ -735,6 +751,7 @@ def test_a_side_job_gives_the_card_way_to_a_film_claim_waiting_and_starts_again_
     assert until(lambda: len(starts.read_text().split()) == 2)  # started again once the film claim let go
     holder.stdin.close()
     assert holder.wait(30) == 0 and card_queue.take("pixal", 10.8, "film")  # it ended: its share is free
+    assert card_queue.measured().startswith("tuning: 2 takes, card 6.39 GB (2 alone), cores ")  # both runs measured
 
 
 def test_this_pc_claims_hold_their_card_share_and_wait_while_a_side_job_holds_the_card(monkeypatch, tmp_path):
@@ -748,5 +765,26 @@ def test_this_pc_claims_hold_their_card_share_and_wait_while_a_side_job_holds_th
     card_queue.release(side)
     machine = local.take("pixal", "key")
     assert machine and card_queue.take("sim-body", 6, "side") is None  # the claim holds its share
+    assert until(lambda: local.CARDS[machine["id"]].card_peak)  # the card read while it holds it
     local.delete(machine["id"], "this-pc")
     assert card_queue.take("sim-body", 6, "side")
+    assert "this-pc pixal: 1 takes, card 6.39 GB (1 alone)" in card_queue.measured()  # the claim was measured
+
+
+def test_this_pc_container_keeps_cores_for_the_pc_and_a_measured_claim_to_its_memory(monkeypatch, tmp_path):
+    import local
+    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
+    monkeypatch.setattr(local, "answering", lambda: "172.17.0.2")
+    monkeypatch.setattr(local, "memory_cap", lambda: "27g")
+    monkeypatch.setattr(local.os, "cpu_count", lambda: 24)
+    calls = []
+    monkeypatch.setattr(local, "docker", lambda *arguments, **_: calls.append(arguments) or types.SimpleNamespace(
+        returncode=0, stdout="true", stderr=""))
+    machine = local.take("characters", "key", {"card_gb": 4, "memory_gb": 17})
+    assert ("update", "--memory", "27g", "--memory-swap", "27g", "--cpus", "20", "score-this-pc") in calls
+    assert ("update", "--memory", "26g", "--memory-swap", "26g", "score-this-pc") in calls  # 17 GB measured, x1.5
+    local.delete(machine["id"], "this-pc")
+    assert calls[-1] == ("update", "--memory", "27g", "--memory-swap", "27g", "score-this-pc")  # set back
+    calls.clear()
+    local.delete(local.take("pixal", "key")["id"], "this-pc")
+    assert not [call for call in calls if call[:2] == ("update", "--memory") and call[2] != "27g"]  # no measure: 27g
