@@ -13,7 +13,8 @@ free root, three ranged hinges, a follower coupled by polyval in its own body, a
 10-frame clip, each row seeded as mink's frame was, equals mink (../_frames.solved, targets set as _frames.Frames sets
 them) to 0.01 deg and its sites to 0.01 mm, with a frame holding h1 at its range; in chunks of 3 rows it equals
 itself in one batch. Seeded from that clip's answers (its angles.npz, `_seeds`) with the places 3 mm on, the card
-equals mink's answer to the moved clip to 0.01 deg and 0.01 mm (a cold seed only reported). On a toy body
+equals mink's answer to the moved clip to 0.01 deg and 0.01 mm (a cold seed only reported); seeds one coordinate
+short of the model are refused. On a toy body
 (`card_body.py`), the card's measures (_measure.py) equal evaluation._measure's to 1e-9 (joints mm, turns deg) and
 its bones-outside shares exactly (every point's count), their depths outside (level 1's skin residual, the same
 kernel on both devices) to DEPTH_MM. A second clip after the skin was posed once (`_measure.POSED`, shared across sets) equals the CPU's on its own. On fit's own toy (`card_level2.py`), level 2's exact
@@ -25,6 +26,9 @@ inverse left Jacobians batched over every frame and group equal the per-row ones
 MuJoCo joints is one Newton joint, and `_clip.moved_inside` moves that one by the body's move (`card_inside.py`).
 
 Breaks (each applied once, seen red, reverted):
+- (2026-10-31) _solve.solved's coordinate check dropped: seeds one coordinate short of the toy are solved, not
+  refused: the toy runs to NotConverged (seeds147, made for the old joint layout, broke the card on the movable
+  MyoFullBody).
 - (2026-10-29) _kept's release `wp.where(inside, 1.0, 0.0)` made `0.0` (holds only added): rows 0 and 1 keep dof 0
   held on its bound though its descent points inside, the step 1 rad off.
 - (2026-10-29) _step's `LM_DAMPING * squared + DAMPING` made `DAMPING`: mink's damping is lost, the step differs.
@@ -257,6 +261,12 @@ def the_next_iteration_from_its_seeds_equals_mink():
     cold_found, _ = solved_in_chunks(optimizer_for, reduction, projection, _seeds.newton_order(cold), cold)
     print("cold seed (reported, not used): angles %.4f deg, sites %.4f mm off mink's" % toy_errors(
         mjm, cold_found, reference))
+    short = seeds["toy"][:, :-1]
+    try:
+        solved_in_chunks(optimizer_for, reduction, projection, _seeds.newton_order(short), short)
+        problems.append("seeds one coordinate short of the model were solved, not refused")
+    except ValueError:
+        pass
     return problems
 
 
