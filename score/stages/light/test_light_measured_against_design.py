@@ -50,6 +50,9 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   the fill's sweep not applied (the shadow test, 2026-10-30).
 - mix.fill_sweep: from the top of SCALES down, or `exposed` left out; light.exposed_within: never more black (the
   floor test, 2026-10-30).
+- light.strengths: the suns' step down not applied; mix.sun_down: the suns' own scale returned always, the brightness
+  rules left out, or from the floor of SCALES up; light.exposed_within: `kinds` ignored (the sunlit wall test,
+  2026-10-31).
 - light.look_at: the look's 8-bit levels scaled for the float colour through the table; mix.displayed: the nearest
   knot (`order=0`); mix.gain: the ratio unsmoothed; passes.passes_faults: no view transform left unsaid (the float look
   test, 2026-10-30).
@@ -519,6 +522,7 @@ def test_the_sun_is_swept_when_the_lamps_stop_at_their_floor_and_lamps_at_one_sp
              {"path": "/p/Lights/sky_sun", "spot": None, "shaft": False, "sun": True}]
     record = {"inside": True, "floor": [[-3.0, -3.0], [3.0, 3.0]], "ceiling": 3.0}
     monkeypatch.setattr(light, "concept_brightness", lambda place: float(toned_look(np.full((40, 60), 0.2)).mean()))
+    monkeypatch.setattr(light, "concept_extremes", lambda place: None)
     assert mix.pinned(float(mix.SCALES[0])) and mix.pinned(float(mix.SCALES[-1])) and not mix.pinned(1.0)
     scales, found = light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", record)
     assert found["swept_scale"] == mix.SCALES[0] and found["sun_scale"] < 1.0, found
@@ -608,6 +612,54 @@ def test_a_fill_the_views_do_not_need_stays_at_the_floor_and_rises_only_as_far_a
     assert raised > floor and light.exposed_within(looks, concept, {"lamp_2": raised})
     assert not light.exposed_within(looks, concept, {"lamp_2": lower})  # the least raise
     assert light.exposed_within(looks, None, {"lamp_2": floor})  # no concept picture: no exposure need
+
+
+def test_a_sun_blowing_out_the_wall_it_lights_is_stepped_down_only_as_far_as_the_views_need_and_the_fill_after(
+        tmp_path, monkeypatch):
+    """Fault of 2026-10-31 (#36, round 33): camp's sunlit shell read 2.2-4.3% blown in seven views against its concept's
+    0.0% (campgrounds' spot-4 2.4%), the sun 99.7% of the light there and never turned down: a sun is no lamp, and the
+    sweep judged blown only lamps. A sun blowing a view past its concept is stepped down SCALES only as far as that
+    needs, the place and every view kept within (mix.sun_down), the fill swept after it."""
+    low, high = -24.0, 4.0
+    axis = 2.0 ** np.linspace(low, high, 57)
+    knots = np.stack(np.meshgrid(axis, axis, axis, indexing="ij"), axis=-1)
+    transform = {"table": (knots / (knots + 0.05)) ** 0.6, "low": low, "high": high}  # 252 of 255 at 2.3
+    job = tmp_path / "passes/passes/p-0"
+    job.mkdir(parents=True)
+    np.savez(job / passes.VIEW_TRANSFORM, **transform)
+    (job / "passes.json").write_text(json.dumps({"groups": {"lamp_0": "/p/Lights/sky_sun",
+                                                            "lamp_1": "/p/Lights/concept_fill"}}))
+    wall = (np.arange(60) >= 54)[None, :]  # the right tenth: a pale wall in the sun
+    sun = np.where(wall, 3.0, 0.2) * np.ones((40, 60))
+    fill = np.full((40, 60), 1e-3)
+    colour = np.repeat(np.repeat(np.repeat((sun + fill)[..., None], 3, axis=2), 2, axis=0), 2, axis=1)
+    Image.fromarray(np.round(mix.displayed(transform, colour) * 255).astype(np.uint8)).save(job / "v-look.png")
+    np.savez(job / "v-passes.npz", lamp_0=sun, lamp_1=fill, combined=sun + fill, colour=colour,
+             sky=np.zeros(colour.shape[:2], dtype=bool))
+    (tmp_path / "layer").mkdir()
+    (tmp_path / "layer" / passes.VIEWS).write_text(json.dumps({"size": [120, 80], "views": [
+        {"name": "v", "eye": [0.0, 1.6, 5.0], "aim": [0.0, 1.6, 0.0], "up": [0.0, 1.0, 0.0], "fov": 70.0}]}))
+    lamps = [{"path": "/p/Lights/sky_sun", "spot": None, "shaft": False, "sun": True},
+             {"path": "/p/Lights/concept_fill", "spot": [0.0, 2.5, 0.0], "shaft": False, "sun": True, "fill": True}]
+    rendered = light.view_passes(tmp_path / "passes", "p")
+    views = {view: (held, curve) for view, (held, curve, _) in rendered.items()}
+    looks = {view: (held, look) for view, (held, _, look) in rendered.items()}
+    target, concept = mix.place_brightness(views, {}), {"black": 0.0, "blown": 0.0}
+    assert not light.exposed_within(looks, concept, {}, ("blown",))  # the wall is white in the render
+    monkeypatch.setattr(light, "concept_brightness", lambda place: target)
+    monkeypatch.setattr(light, "concept_extremes", lambda place: concept)
+    scales, found = light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", {"inside": False})
+    upper = float(mix.SCALES[list(mix.SCALES).index(scales["lamp_0"]) + 1])
+    assert scales["lamp_0"] == found["sun_scale"] < 1.0, found
+    assert light.exposed_within(looks, concept, scales)  # the gate's rule holds at the swept strengths
+    assert not light.exposed_within(looks, concept, dict(scales, lamp_0=upper), ("blown",))  # the least step down
+    assert mix.views_within(views, scales, target) and mix.within(views, scales, target)
+    assert scales["lamp_1"] == mix.fill_sweep(views, "lamp_1", target, scales,
+                                              lambda tried: light.exposed_within(looks, concept, tried))
+    assert mix.sun_down(views, ["lamp_0"], target * 4.0, {"lamp_0": 1.0},
+                        lambda tried: light.exposed_within(looks, concept, tried, ("blown",))) == 1.0  # too dark: kept
+    monkeypatch.setattr(light, "concept_extremes", lambda place: None)
+    assert light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", {"inside": False})[0]["lamp_0"] == 1.0
 
 
 def test_a_black_view_is_measured_black_not_a_crash():
