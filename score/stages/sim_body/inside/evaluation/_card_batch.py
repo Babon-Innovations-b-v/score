@@ -164,23 +164,32 @@ def body_unfitted(table, weights, root, cases, saved):
     return fit.fitting(path, scales, held, person["segments"]), recorded_targets(clips, targets)
 
 
-def body_run(seeds_root, table, weights, root, cases, saved, constants=None, found=None):
+def body_run(seeds_root, table, weights, root, cases, saved, constants=None, found=None, fitting=None):
     """One body's clips (`cases` {case: job path}) on the card: state restored, laid, set up once, solved in one batch,
-    each clip written by `_case.written`. `found`: the set's constants when solved already (`fit.constants_across`)."""
+    each clip written by `_case.written`. `found`: the set's constants when solved already (`fit.constants_across`);
+    with `fitting` too (that solve's `Fitting`, the constants laid on in place) no second person's file is written or
+    compiled: its group ends are laid again on it (`fit.ends_relaid`) and Newton's model is built from the file without
+    constants with the inside joints moved (`_clip.for_fitting`), each clip's folder holding no copy of the file."""
     saved.restore(constants)
     recordings = _case.prepared(table, weights, root, cases)
     began = time.time()
     clips, rig, path, targets = laid_clips(root, cases, recordings)
     _, (job, person, _, worlds) = next(iter(clips.items()))
-    record, scales, fitting = cached_set_up(job, person, rig, worlds, path, recorded_targets(clips, targets),
-                                           found)
+    filed = fitting is None  # the file at `path` holds the set's constants
+    if filed:
+        record, scales, fitting = cached_set_up(job, person, rig, worlds, path, recorded_targets(clips, targets),
+                                               found)
+    else:
+        _, scales = cached_sized(job, person, rig, path)
+        fitting = fit.ends_relaid(fitting, scales, person["segments"])
+        record = {"fit": {"method": fit.METHOD, "constants": fit.constants_record(found)}}
     angles = batched_angles(_clip.for_fitting(fitting, path), clips,
                             {case: _seeds.first(seeds_root, case) for case in clips}, targets)
     seconds, frames = time.time() - began, sum(len(found) for found in angles.values())
     for case, (_, person, rig, worlds) in clips.items():
         out = root / case
         out.mkdir(parents=True, exist_ok=True)
-        if out / f"{person['name']}.xml" != path:
+        if filed and out / f"{person['name']}.xml" != path:
             shutil.copyfile(path, out / f"{person['name']}.xml")
         _case.written(out, person, rig, worlds,
                       (record, scales, fitting.model, angles[case], seconds * len(angles[case]) / frames),
