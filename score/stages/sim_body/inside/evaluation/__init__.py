@@ -138,6 +138,11 @@ def blocked(rows, weights, rest, cases, out, python, seeds_root, launch=None, **
                                 stderr=subprocess.STDOUT)
     codes = run_all({case: {case: job} for case, job in cases.items()}, out, python, launch=launch or started,
                     **options)
+    # a failed block runs once more: the card may refuse a context while the run beside it holds it (2026-10-31,
+    # l1d: 3 of 70 blocks "Failed to acquire primary context for device cuda:0", and the whole step was lost)
+    again = {case: cases[case] for case, code in codes.items() if code}
+    codes.update(run_all({case: {case: job} for case, job in again.items()}, out, python,
+                         launch=launch or started, **options) if again else {})
     missing = [case for case in cases if not (out / f"{case}.npz").exists()]
     if missing or any(codes.values()):
         raise RuntimeError(f"{out.name}: blocks failed {codes}, missing {missing}; logs in {out}")

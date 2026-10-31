@@ -10,6 +10,7 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
 - tuning.whole's `checks.append(("end", ...))` dropped: no held-out score at the end.
 - accepted's `1 + HELD_OUT_SHARE` made `1`: a check 5 % worse fails.
 - measured's rest.json write dropped: the worker never sees the group ends' centres (2026-10-29).
+- blocked's second `run_all` over `again` dropped: a block the card refused once fails the whole step (2026-10-31).
 - measured reading `m.json` for `SOLVED`: the solver is handed the rounded copy (2026-10-29).
 - rounded's list branch dropped: a summary's floats reach m.json unrounded (2026-10-29).
 - measured_many's folders zipped reversed: a set is handed another set's measures (2026-10-29).
@@ -190,7 +191,12 @@ def test_the_exact_jacobian_stacks_each_cases_own_block_in_whole_order_then_the_
     with tempfile.TemporaryDirectory() as root:
         out = pathlib.Path(root) / "exact"
 
+        tries = []
+
         def launch(case, one):
+            tries.append(case)
+            if case == "heavy_kimodo" and tries.count(case) == 1:
+                return subprocess.Popen(["false"])  # the card refused its context once
             np.savez(out / f"{case}.npz", block=np.full((2, len(entries)), float(len(one[case]))))
             return subprocess.Popen(["true"])
         blocks = evaluation.blocked({}, {}, {}, cases, out, "python", "/seeds", launch=launch, free_gb=0)
@@ -200,6 +206,7 @@ def test_the_exact_jacobian_stacks_each_cases_own_block_in_whole_order_then_the_
     assert (jacobian[:2] == by_case[0]).all() and (jacobian[2:4] == by_case[1]).all()
     assert np.allclose(jacobian[4:], [[tuning.LINK_UNIT / tuning.PRIOR, 0, 0], [0, 0, tuning.LINK_UNIT / tuning.PRIOR]])
     assert level1.centre_columns(entries) == [2]
+    assert sorted(tries) == ["heavy_kimodo", "heavy_kimodo", "tall_kimodo"]
 
 
 if __name__ == "__main__":
