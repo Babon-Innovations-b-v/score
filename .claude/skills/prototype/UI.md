@@ -86,7 +86,7 @@ Behaviour:
 - Clicking an arrow updates the URL search param (use the framework's router) so the variant is shareable and reload-stable.
 - Keyboard: `←` and `→` arrow keys also cycle. Don't intercept arrow keys when an `<input>`, `<textarea>`, or `[contenteditable]` is focused.
 - Visually distinct from the page (e.g. high-contrast pill, subtle shadow) so it's obviously not part of the design being evaluated.
-- **Hidden in production builds** — gate on `import.meta.env.PROD === false` / `process.env.NODE_ENV !== 'production'`, so a stray prototype merge cannot ship the bar to real users. This repo deploys from `main` (ADR-0001), so a hidden gate is the last line of defence.
+- **Hidden in production builds** — gate on `import.meta.env.PROD === false` / `process.env.NODE_ENV !== 'production'`, so a stray prototype merge cannot ship the bar to real users. This repo deploys from `main`, so a hidden gate is the last line of defence.
 
 Put the switcher in a single shared component so both sub-shapes can reuse it.
 
