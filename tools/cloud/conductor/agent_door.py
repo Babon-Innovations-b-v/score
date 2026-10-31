@@ -517,30 +517,61 @@ def store_missing(home, asked):
     return "".join(f"{name}\n" for name in names if not os.path.lexists(push_target(home, name)))
 
 
+LANDING = ("store/objects/blobs/", "store/objects/outputs/")  # land first, in this order: what a record names
+
+
+def landing_rank(name):
+    """A pushed path's place in the landing order: blobs, then output listings, then everything else (records,
+    accepts, judgements and work, which name them)."""
+    return next((rank for rank, prefix in enumerate(LANDING) if name.startswith(prefix)), len(LANDING))
+
+
 def store_push(home, stream):
-    """Adds each regular file of the tar `stream` under PUSHED, never replacing one already there: written under
-    home/tmp first, then linked in place (atomic, and refused when the path exists); (added, bytes, kept)."""
-    home, added, size, kept = pathlib.Path(home), 0, 0, 0
+    """Adds each regular file of the tar `stream` under PUSHED, never replacing one already there; (added, bytes,
+    kept). The whole stream is written and synced under home/tmp first, and only then linked in place (atomic, refused
+    when the path exists), blobs before the listings that name them before the records that name those, each folder
+    synced: a stream cut short (a full disk, a dropped ssh) lands nothing, and a crash never leaves a record naming an
+    output whose listing is missing or empty (2026-10-31: a settle@airlock record without its listing broke
+    batch-money's page; the push had landed files in the folders' disk order, unsynced, through a full disk)."""
+    home, parts = pathlib.Path(home), []
     temporary = home / "tmp" / "this-pc-push"
     temporary.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(fileobj=stream, mode="r|") as archive:
-        for member in archive:
-            if member.isdir():
-                continue
-            if not member.isfile():
-                raise Refused(f"store-push takes regular files only, not {member.name!r}")
-            target = push_target(home, member.name)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            part = temporary / f"{os.getpid()}-{added + kept}"
-            with archive.extractfile(member) as source, open(part, "wb") as written:
-                shutil.copyfileobj(source, written)
-            try:
-                os.link(part, target)
-                added, size = added + 1, size + member.size
-            except FileExistsError:
-                kept += 1
-            finally:
-                part.unlink()
+    try:
+        with tarfile.open(fileobj=stream, mode="r|") as archive:
+            for member in archive:
+                if member.isdir():
+                    continue
+                if not member.isfile():
+                    raise Refused(f"store-push takes regular files only, not {member.name!r}")
+                target = push_target(home, member.name)
+                part = temporary / f"{os.getpid()}-{len(parts)}"
+                parts.append((member.name, target, part, member.size))
+                with archive.extractfile(member) as source, open(part, "wb") as written:
+                    shutil.copyfileobj(source, written)
+                    written.flush()
+                    os.fsync(written.fileno())
+        return landed(sorted(parts, key=lambda row: landing_rank(row[0])))
+    finally:
+        for _, _, part, _ in parts:
+            part.unlink(missing_ok=True)
+
+
+def landed(parts):
+    """Each written part linked at its target in the order given, its folder synced after; (added, bytes, kept)."""
+    added, size, kept = 0, 0, 0
+    for _, target, part, length in parts:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.link(part, target)
+            added, size = added + 1, size + length
+        except FileExistsError:
+            kept += 1
+            continue
+        folder = os.open(target.parent, os.O_RDONLY)
+        try:
+            os.fsync(folder)
+        finally:
+            os.close(folder)
     return added, size, kept
 
 
