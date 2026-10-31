@@ -100,6 +100,12 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   best-reference fd step, bar min(0.99, best vs next-best). GATE PASS on all three: tall c0 3.0 % vs c.2 under its
   5.4 % floor, c3 1.7 % vs c.2, cosine 0.99991 (own 0.99922); heavy 0.99597, mean 0.99667. `_check_columns` saves
   the base rows (`rows`, case_rows' values) beside the block, for the rows-vs-`tuning.case_residuals` check.
+- Gate on the movable MyoFullBody (739961a2, 2026-10-31, scratch night/adjoint/mv: the same gate.py, its sets on the
+  remade seeds card/build/movable/seeds, every body at STEP/8 .. STEP and a third pair 2 STEP, STEP): GATE FAIL on
+  one column. Tall c3 (the first trust, |c| 2.3e-3) 2.69 % off its lowest-error reference c.4 over that one's 2.24 %
+  floor to c.8, though 0.98 % off c.8; heavy c3 passes only with the 2 STEP pair (2.03 % vs c.4 over a 1.94 %
+  floor before; 0.65 % vs c.8 after). Every other column passes, and every body's step cosine is 0.99984 or
+  above. Not settled: the references themselves are 2.2 % apart on that column. `whole` keeps the differences.
 - Blocks on real cases (B4j, 2026-10-31, scratch b4x/blocked3.py, rowscheck.py): `evaluation.blocked(most=1)` on
   heavy_kimodo, tall_kimodo and mean_kimodo at the card base s00000, one case process at a time: 471.7 s for the three
   (heavy 2 min 16 s wall, 101.8 s of it in its steps: level 2's factor 32.8 s, level 2's mixed tape 25.3 s, R_q and
@@ -109,4 +115,6 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   relative, correlation 0.9999999973 or above), the card's float32 noise.
 - 70-case timing (started 2026-10-31 01:08, scratch b4x/hybrid70.py, log b4x/hybrid70.log): one hybrid Jacobian at
   level 1's start, the 70 tuning cases' blocks (most=1) then the centres' differences; not yet measured (at about
-  2.3 min a case serial, the blocks alone about 2.7 h).
+  2.3 min a case serial, the blocks alone about 2.7 h). That run failed on the movable model: its seeds (seeds147,
+  129 coordinates) were made for the old joint layout (the model has 134 since 739961a2); the card's solve now
+  refuses such seeds. Ready again on the remade seeds: scratch night/adjoint/mv70/hybrid70c.sh.
