@@ -93,8 +93,9 @@ HELD = {}  # {machine id: the open lock file} for the claims this process holds
 # The card GB a claim holds in this PC's card queue (card_queue.py, shared with every card user outside the container),
 # measured less the desktop's 2.4: Blender's two card calls beside its resting jobs (card_turn.py: 12.1 of 16.3 GB),
 # a Pixal3D take (13.2 of 16 GB, 2026-10-28). A run's own measured need (run.need's card_gb) comes first; a kind in
-# neither holds the whole card.
-CARD_NEED = {"blender": 9.7, "pixal": 10.8}
+# neither holds the whole card. DINOv2's likeness (similar_worker.py): 2026-10-31, 56 pairs of an env1 likeness in a
+# container of this image, the card's total read every 100 ms: 729 MiB over a steady 2324 before and after.
+CARD_NEED = {"blender": 9.7, "pixal": 10.8, "similar": 0.8}
 CARDS = {}  # {machine id: its open share of the card queue} for the claims this process holds
 # Cores the container never gets (--cpus): WSL, the desktop and the run's own steps beside it keep them, so this PC
 # answers while the container is busy (2026-10-31: the PC lagged under load). No kind's cores are measured yet: each
