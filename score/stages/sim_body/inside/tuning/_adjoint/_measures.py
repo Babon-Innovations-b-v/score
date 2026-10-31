@@ -57,6 +57,52 @@ def _skin_depths(points: wp.array[wp.vec3], closest: wp.array[wp.vec3], outside:
     depths[point] = outside[point] * wp.length(points[point] - closest[point])
 
 
+@wp.kernel
+def _link_frames(body_q: wp.array[wp.transform], links: wp.array[wp.int32], frames: wp.array[wp.vec3]):
+    """Each used link's place and its turn's three columns, side by side (4 vec3 a link)."""
+    used = wp.tid()
+    placed = body_q[links[used]]
+    turn = wp.transform_get_rotation(placed)
+    frames[4 * used] = wp.transform_get_translation(placed)
+    frames[4 * used + 1] = wp.quat_rotate(turn, wp.vec3(1.0, 0.0, 0.0))
+    frames[4 * used + 2] = wp.quat_rotate(turn, wp.vec3(0.0, 1.0, 0.0))
+    frames[4 * used + 3] = wp.quat_rotate(turn, wp.vec3(0.0, 0.0, 1.0))
+
+
+@wp.kernel
+def _seeded(entries: wp.array2d[wp.int32], slot: wp.array[wp.int32], grad: wp.array[wp.float32]):
+    """The output's incoming gradient: 1 at each frame's entry of the current slot (-1: the frame has none left)."""
+    frame = wp.tid()
+    entry = entries[slot[0], frame]
+    if entry >= 0:
+        grad[entry] = 1.0
+
+
+@wp.kernel
+def _pose_gathered(entries: wp.array2d[wp.int32], slot: wp.array[wp.int32], pose_grad: wp.array[wp.float32],
+                   width: wp.int32, rows: wp.array2d[wp.float32]):
+    """Each seeded entry's row: its own frame's block of the pose's gradient."""
+    frame, column = wp.tid()
+    entry = entries[slot[0], frame]
+    if entry >= 0:
+        rows[entry, column] = pose_grad[frame * width + column]
+
+
+@wp.kernel
+def _constants_gathered(entries: wp.array2d[wp.int32], slot: wp.array[wp.int32], joint_grad: wp.array[wp.transform],
+                        inside: wp.array2d[wp.int32], start: wp.int32, rows: wp.array2d[wp.float32]):
+    """Each seeded entry's row over level 2's inside joints from `start`: its frame's copy's joint_X_p place grads."""
+    frame, joint, axis = wp.tid()
+    entry = entries[slot[0], frame]
+    if entry >= 0:
+        rows[entry, start + 3 * joint + axis] = wp.transform_get_translation(joint_grad[inside[frame, joint]])[axis]
+
+
+@wp.kernel
+def _advanced(slot: wp.array[wp.int32]):
+    slot[0] = slot[0] + 1
+
+
 class _Skins:
     """Every region's bone points on every skin frame against that frame's posed SOMA skin; each point's frame
     (`frame_of`) is its link's copy (`per_copy` bodies a copy), not its skin frame's index: the skins are on every
@@ -80,6 +126,12 @@ class _Skins:
         self.closest = wp.zeros(len(rows), dtype=wp.vec3, device=device)
         self.outside = wp.zeros(len(rows), dtype=wp.float32, device=device)
         self.depths = wp.zeros(len(rows), dtype=wp.float32, device=device, requires_grad=True)
+        links = np.array([row[2] for row in rows], dtype=np.int64)
+        used, self.used_of = np.unique(links, return_inverse=True)
+        self.locals = np.array([row[3] for row in rows], dtype=np.float32).reshape(-1, 3).astype(np.float64)
+        self.used = wp.array(used.astype(np.int32), dtype=wp.int32, device=device)
+        self.link_frames = wp.zeros(4 * len(used), dtype=wp.vec3, device=device, requires_grad=True)
+        self.link_entry_frames = np.repeat(used // per_copy, 12)
 
     def evaluate(self, body_q, to_own, device):
         """The bone points placed, their closest skin points found off the tape, then their depths outside."""
@@ -92,6 +144,27 @@ class _Skins:
                   device=device, record_tape=False)
         wp.launch(_skin_depths, dim=count, inputs=[self.points, self.closest, self.outside], outputs=[self.depths],
                   device=device)
+        wp.launch(_link_frames, dim=self.used.shape[0], inputs=[body_q, self.used], outputs=[self.link_frames],
+                  device=device)
+
+    def rows_of(self, link_rows, to_own):
+        """Every bone point's depth row from its link's frame rows (`link_rows` (used links x 12, width): d of the
+        link's place and turn columns, as `_link_frames` lays them): the depth's gradient in the point (outside times
+        the unit from its closest skin point, SOMA's frame) turned back to the world, times d(place + turn @ local).
+        One backward pass a link frame entry, not a bone point (2026-10-31: tall_kimodo's 8,233 passes, each the
+        whole tape run back, were a block's largest step)."""
+        points, closest = self.points.numpy().astype(np.float64), self.closest.numpy().astype(np.float64)
+        apart = points - closest
+        lengths = np.linalg.norm(apart, axis=1)
+        unit = np.divide(apart, lengths[:, None], out=np.zeros_like(apart), where=lengths[:, None] > 0)
+        world = (self.outside.numpy().astype(np.float64)[:, None] * unit) @ np.asarray(to_own, dtype=np.float64)
+        weights = np.concatenate([world[:, None, :], self.locals[:, :, None] * world[:, None, :]], axis=1).reshape(-1, 1, 12)
+        per_link = link_rows.reshape(-1, 12, link_rows.shape[1])
+        found = np.empty((len(points), link_rows.shape[1]))
+        for start in range(0, len(points), 2048):
+            stop = start + 2048
+            found[start:stop] = (weights[start:stop] @ per_link[self.used_of[start:stop]])[:, 0]
+        return found
 
 
 class TapedMeasures:
@@ -116,6 +189,7 @@ class TapedMeasures:
         targets = np.concatenate([np.asarray(joints[name][1], dtype=np.float32) for name in self.joint_names])
         self.targets = wp.array(targets, dtype=wp.vec3, device=device)
         self.to_own = wp.mat33(*np.asarray(to_own, dtype=np.float32).ravel())
+        self.own = np.asarray(to_own, dtype=np.float64).reshape(3, 3)
         self.centres = wp.zeros(len(targets), dtype=wp.vec3, device=device, requires_grad=True)
         self.differences = wp.zeros(len(targets), dtype=wp.vec3, device=device, requires_grad=True)
         self.turn_links = wp.array(np.concatenate([turns[name][0] for name in self.turn_names]).astype(np.int32),
@@ -154,63 +228,96 @@ class TapedMeasures:
         """The pose's gradient array (the free coordinates' under couplings, else joint_q)."""
         return self.sites.model.joint_q if self.sites.couplings is None else self.sites.couplings.pose
 
-    def _pose_blocks(self):
-        """After a backward pass: each frame's own pose block of the pose's gradient (frames, block)."""
-        size = self._pose_grad().shape[0]
-        if size % self.frames:
-            raise ValueError(f"pose of {size} does not split into {self.frames} equal frame blocks")
-        return self._pose_grad().grad.numpy().astype(np.float64).reshape(self.frames, size // self.frames)
+    def _gathers(self, pose, constants, rows, entries, slot):
+        """The launches that copy each seeded entry's row into `rows` on the card after a backward pass: its frame's
+        pose block (`pose`), then level 2's moves (`constants`: the free sites' columns zero, then each inside joint's
+        joint_X_p place grad off its frame's copy); the row width they fill."""
+        device, launches, width = self.sites.model.device, [], 0
+        if pose:
+            size = self._pose_grad().shape[0]
+            if size % self.frames:
+                raise ValueError(f"pose of {size} does not split into {self.frames} equal frame blocks")
+            block = size // self.frames
+            launches.append(lambda: wp.launch(_pose_gathered, dim=(self.frames, block), inputs=[
+                entries, slot, self._pose_grad().grad, block], outputs=[rows()], device=device))
+            width = block
+        if constants:
+            held = self.sites.constants
+            if held is None or held.inside_joints.shape[0] != self.frames:
+                raise ValueError("constant rows need `sites` with constants given per frame (frames, count)")
+            start, count = width + 3 * held.free_count, held.inside_joints.shape[1]
+            inside = wp.array(np.asarray(held.inside_joints, dtype=np.int32).reshape(self.frames, count), dtype=wp.int32,
+                              device=device)
+            launches.append(lambda: wp.launch(_constants_gathered, dim=(self.frames, count, 3), inputs=[
+                entries, slot, self.sites.model.joint_X_p.grad, inside, start], outputs=[rows()],
+                device=device))
+            width = start + 3 * count
+        return launches, width
 
-    def _constant_blocks(self):
-        """After a backward pass: each frame's gradient over level 2's moves (frames, constants), off its own copy's
-        inside joints' joint_X_p grads; the free sites' columns zero (no measure reads a site)."""
-        constants = self.sites.constants
-        if constants is None or constants.inside_joints.shape[0] != self.frames:
-            raise ValueError("constant rows need `sites` with constants given per frame (frames, count)")
-        joints = self.sites.model.joint_X_p.grad.numpy()[constants.inside_joints, :3].reshape(self.frames, -1)
-        return np.concatenate([np.zeros((self.frames, 3 * constants.free_count)), joints], axis=1).astype(np.float64)
-
-    def _rows(self, tape, output, entry_frames, blocks):
-        """d output[entry] / d (what `blocks` reads) for every entry as its own frame's row only (entries, width),
-        `entry_frames` each entry's frame, `blocks` reading every frame's row after a backward pass. A frame's entries
-        move only its own copy, so one backward pass seeds one entry of every frame at once (its k-th): as many passes
-        as a frame's most entries, never one per entry."""
-        rows = None
+    def _rows(self, tape, output, entry_frames, pose, constants):
+        """d output[entry] / d (the pose's frame blocks when `pose`, level 2's moves when `constants`, side by side)
+        for every entry as its own frame's row only (entries, width). A frame's entries move only its own copy, so one
+        backward pass seeds one entry of every frame at once (its k-th): as many passes as a frame's most entries,
+        never one per entry. All on the card: each pass seeds, runs the tape back, gathers its rows and zeroes the
+        grads by launches alone, the first eagerly and the rest one CUDA graph replayed (2026-10-31: a real block's
+        8,233 passes, each read back to the host, took 21 s alone and 83 s beside l1d's other blocks)."""
+        device = output.device
         slots = [np.flatnonzero(entry_frames == frame) for frame in range(self.frames)]
-        for slot in range(max((len(entries) for entries in slots), default=0)):
-            seeded = np.array([entries[slot] for entries in slots if slot < len(entries)], dtype=np.int64)
-            seed = np.zeros(output.numpy().shape, dtype=np.float32)
-            seed.reshape(-1)[seeded] = 1.0
-            tape.backward(grads={output: wp.array(seed, dtype=output.dtype, device=output.device)})
-            found = blocks()
+        count = max((len(found) for found in slots), default=0)
+        table = np.full((max(count, 1), self.frames), -1, dtype=np.int32)
+        for frame, found in enumerate(slots):
+            table[:len(found), frame] = found
+        entries, slot = wp.array(table, dtype=wp.int32, device=device), wp.zeros(1, dtype=wp.int32, device=device)
+        made = {}
+        launches, width = self._gathers(pose, constants, lambda: made["rows"], entries, slot)
+        made["rows"] = wp.zeros((len(entry_frames), width), dtype=wp.float32, device=device)
+        if not count:
+            return made["rows"].numpy().astype(np.float64)
+        if output.grad is None:
+            output.grad = wp.zeros_like(output)
+        incoming = output.grad.view(wp.float32).flatten()
+
+        def passed():
+            """One backward pass: seeded, run back, its rows gathered, every grad zeroed, the slot moved on."""
+            wp.launch(_seeded, dim=self.frames, inputs=[entries, slot], outputs=[incoming], device=device)
+            tape.backward()
+            for launch in launches:
+                launch()
             tape.zero()
-            self.passes += 1
-            rows = np.zeros((len(entry_frames), found.shape[1])) if rows is None else rows
-            rows[seeded] = found[entry_frames[seeded]]
-        return rows
+            wp.launch(_advanced, dim=1, inputs=[slot], device=device)
+        tape.zero()
+        passed()  # the first eagerly: every kernel loaded and every grad the tape keeps made before the capture
+        if count > 1:
+            with wp.ScopedCapture(device=device, force_module_load=False) as capture:
+                passed()
+            for _ in range(count - 1):
+                wp.capture_launch(capture.graph)
+        self.passes += count
+        return made["rows"].numpy().astype(np.float64)
 
     def measured(self, inner, outer):
         """`case_rows`' joints {name: (differences (frames, 3) m, rows (frames, 3, block))}, turns {group: (degrees
         (frames,), rows (frames, block))} and skins {region: (depths m, rows (points, block), each point's frame)} at
         (`inner`, `outer`), each row its own frame's pose block (`case_rows(..., frames=)`), off one recorded tape
         (`passes` counts its backward passes)."""
-        return self._measured(inner, outer, self._pose_blocks)
+        return self._measured(inner, outer, pose=True, constants=False)
 
     def constant_measured(self, inner, outer):
         """`measured`'s values with rows over level 2's moves (the inner unknowns after the pose, `sites`' constants)
         in place of the pose: joints' (frames, 3, constants), turns' (frames, constants), skins' (points, constants),
         whole rows for `case_rows` without `frames` (its derivative is R_c)."""
-        return self._measured(inner, outer, self._constant_blocks)
+        return self._measured(inner, outer, pose=False, constants=True)
 
     def joined_measured(self, inner, outer):
         """(`measured`, `constant_measured`) off one tape and one set of backward passes: each pass reads both the
         pose's and level 2's moves' gradient, so R_q and R_c cost one taping, not two."""
         width = self._pose_grad().shape[0] // self.frames
-        both = self._measured(inner, outer, lambda: np.hstack([self._pose_blocks(), self._constant_blocks()]))
+        both = self._measured(inner, outer, pose=True, constants=True)
         return _split(both, slice(None, width)), _split(both, slice(width, None))
 
-    def _measured(self, inner, outer, blocks):
-        """Every measure at (`inner`, `outer`) with its rows over what `blocks` reads, off one recorded tape."""
+    def _measured(self, inner, outer, pose, constants):
+        """Every measure at (`inner`, `outer`) with its rows over the pose and/or level 2's moves, off one recorded
+        tape."""
         tape = wp.Tape()
         with tape:
             self._evaluate(inner, outer)
@@ -218,11 +325,12 @@ class TapedMeasures:
         differences = self.differences.numpy().astype(np.float64).reshape(len(self.joint_names), self.frames, 3)
         degrees = self.degrees.numpy().astype(np.float64).reshape(len(self.turn_names), self.frames)
         joint_frames = np.repeat(np.tile(np.arange(self.frames), len(self.joint_names)), 3)
-        joint_rows = self._rows(tape, self.differences, joint_frames, blocks).reshape(len(self.joint_names), self.frames, 3, -1)
+        joint_rows = self._rows(tape, self.differences, joint_frames, pose, constants).reshape(len(self.joint_names), self.frames, 3, -1)
         turn_frames = np.tile(np.arange(self.frames), len(self.turn_names))
-        turn_rows = self._rows(tape, self.degrees, turn_frames, blocks).reshape(len(self.turn_names), self.frames, -1)
+        turn_rows = self._rows(tape, self.degrees, turn_frames, pose, constants).reshape(len(self.turn_names), self.frames, -1)
         depths = self.skins.depths.numpy().astype(np.float64)
-        skin_rows = self._rows(tape, self.skins.depths, self.skins.frame_of, blocks) if depths.size else np.zeros((0, 0))
+        skin_rows = self.skins.rows_of(self._rows(tape, self.skins.link_frames, self.skins.link_entry_frames, pose,
+                                                  constants), self.own) if depths.size else np.zeros((0, 0))
         bounds = np.cumsum([0] + self.skins.counts)
         return ({name: (differences[index], joint_rows[index]) for index, name in enumerate(self.joint_names)},
                 {name: (degrees[index], turn_rows[index]) for index, name in enumerate(self.turn_names)},
