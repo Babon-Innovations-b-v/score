@@ -19,6 +19,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-10-29) soma_lengths' `soma_point(end, rig) - soma_point(start, rig)` made `soma_point(end, rig)`: each
   stretch sized to its end joint's distance from SOMA's origin, not its two joints apart.
 
+- (2026-10-31) sizing.filled's cache dropped (`volumes.filled` called every time): the mesh is filled once per sizing.
+
 Run: .venv/bin/python score/stages/sim_body/inside/sizing/test_a_sized_group_is_somas_length_and_weight.py
 """
 import os
@@ -184,7 +186,29 @@ def every_group_is_somas_length_mass_and_centre():
     return problems + ([] if abs(final.body_mass.sum() - KG) < 1e-6 else [f"mass {final.body_mass.sum()} kg"])
 
 
-CHECKS = (every_group_is_somas_length_mass_and_centre,)
+def a_mesh_is_filled_once_and_sizes_alike():
+    """Two sizings of one rig fill its mesh once and give the same volumes; a moved mesh is filled anew."""
+    import numpy as np
+    import sizing
+    import volumes
+    from model import TO_OWN
+    rig, _, _ = toy_rig()
+    calls, original = [], volumes.filled
+    volumes.filled = lambda *given: calls.append(1) or original(*given)
+    try:
+        sizing.FILLED.clear()
+        first, second = (sizing.Size(rig, TABLE, turns={group: TO_OWN for group in TABLE}) for _ in range(2))
+        moved = {**rig, "points": np.asarray(rig["points"]) + 0.001}
+        sizing.Size(moved, TABLE, turns={group: TO_OWN for group in TABLE})
+    finally:
+        volumes.filled = original
+    problems = [] if len(calls) == 2 else [f"the mesh filled {len(calls)} times for two meshes"]
+    same = all(volume == again and np.array_equal(centre, centre_again) and spread == spread_again
+               for (volume, centre, spread), (again, centre_again, spread_again) in zip(first.found, second.found))
+    return problems + ([] if same else ["the second sizing's volumes differ"])
+
+
+CHECKS = (every_group_is_somas_length_mass_and_centre, a_mesh_is_filled_once_and_sizes_alike)
 
 
 def in_newton():
