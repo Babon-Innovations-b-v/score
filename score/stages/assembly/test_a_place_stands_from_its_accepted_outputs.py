@@ -1237,11 +1237,12 @@ def test_a_door_in_a_slanted_wall_hangs_on_the_face_it_swings_to():
     at the origin along (0.6, 0.8), its built wall's jambs from 0.3 to 0.5 m across it the way (0.8, -0.6): a door
     turned so its own -z points that way (its kind's swing) stands with its foot middle on the far face, (0.4, -0.3);
     one swinging the other way on the near face, (0.24, -0.18); the held gate passes it there. A deck's corner 0.9 m
-    out beside it is no wall face (camp's dome door, by no built wall, was hung on its deck's corner).
+    out beside it is no wall face (camp's dome door, by no built wall, was hung on its deck's corner), nor is a wall
+    under its sill 0.8 m out (greenhouse's door, in its dome, was hung on the tops of the walls under it, motion round 34).
     Break: score/stages/assembly/fitting.py: `surface = wall_points(stage, place)` -> `surface = None`
-    Break: score/stages/assembly/fitting.py: `if high[1] - low[1] >= 2 * WALL_REACH])` -> `])`
-    Break: score/stages/assembly/fitting.py: `spot[[0, 2]] += way * float(across_off[near].max())` -> `spot[[0, 2]]
-        += way * float(across_off[near].min())`
+    Break: score/stages/assembly/fitting.py: `or wall[beside, 1].max() < head - WALL_REACH:` -> `or False:`
+    Break: score/stages/assembly/fitting.py: `spot[[0, 2]] += way * float(max(faces))` -> `spot[[0, 2]] += way *
+        float(min(faces))`
     Break: score/stages/assembly/fitting.py: `return float(np.linalg.norm(off - normal * np.clip(off @ normal, -2 *
         WALL_REACH, 2 * WALL_REACH)))` -> `return float(np.linalg.norm(off))`"""
     from pxr import Gf, Usd, UsdGeom
@@ -1254,6 +1255,9 @@ def test_a_door_in_a_slanted_wall_hangs_on_the_face_it_swings_to():
     corner = normal * 0.9  # a deck's corner beside the opening, no wall
     UsdGeom.Mesh.Define(stage, f"/{TOY}/Shell/deck_1").GetPointsAttr().Set(
         [Gf.Vec3f(corner[0], y, corner[1]) for y in (-0.2, 0.0)] + [Gf.Vec3f(-5.0, y, -5.0) for y in (-0.2, 0.0)])
+    under = [run * along + normal * 0.8 for along in (-0.5, 0.5)]  # a wall under the sill, out beside it
+    UsdGeom.Mesh.Define(stage, f"/{TOY}/Shell/wall_2").GetPointsAttr().Set(
+        [Gf.Vec3f(x, y, z) for x, z in under for y in (-2.0, 0.0)])
     xform = UsdGeom.Xform.Define(stage, f"/{TOY}/Objects/door_1")
     UsdGeom.Cube.Define(stage, f"/{TOY}/Objects/door_1/geo").AddScaleOp().Set(Gf.Vec3f(0.5, 1.0, 0.05))
     xform.AddTransformOp().Set(Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 1, 0), -53.130102))
@@ -1262,7 +1266,7 @@ def test_a_door_in_a_slanted_wall_hangs_on_the_face_it_swings_to():
     fits = fitting.fitted(stage, TOY, [{"name": "door_1", "row": "door", "on": opening}], {"door_1"})
     middle = (np.array(fits[0]["low"]) + np.array(fits[0]["high"])) / 2
     assert np.allclose(middle[[0, 2]], (0.4, -0.3), atol=1e-3) and abs(fits[0]["low"][1]) < 1e-6, fits
-    assert np.allclose(fitting.opening_spot(opening, opens=-normal, points=points), (0.24, 0.0, -0.18)), "near face"
+    assert np.allclose(fitting.opening_spot(opening, opens=-normal, points=[points]), (0.24, 0.0, -0.18)), "near face"
     record = {"objects": [{"name": "door_1", "on": opening, "fills": True}]}
     assert fitting.held_faults(record, {"walls": [], "objects": [{"name": "door_1", "low": fits[0]["low"],
                                                                   "high": fits[0]["high"]}]}) == [], fits
