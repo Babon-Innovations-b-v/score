@@ -1060,15 +1060,24 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
 
 
 def test_a_door_goes_in_its_opening_narrowed_to_fit():
-    """A 1.4 x 0.1 x 2.4 m door laid off its wall goes in its 1.2 m wide, 2.1 m tall opening: shrunk to 1.2 / 1.4,
-    its foot's middle on the opening's middle at its sill.
-    Break: score/stages/assembly/fitting.py: `scale = min(1.0, float(on["wide"]) / max(across(on["along"], size),
-        1e-9), float(on["tall"]) / size[1])` -> `scale = 1.0`"""
+    """A 1.4 x 0.1 x 2.4 m door laid off its wall goes in its 1.2 m wide, 2.1 m tall opening: shrunk to 2.1 / 2.4 for
+    its height, then held across its width alone to the opening's 1.2 m (1.2 / 1.4 of its own), its foot's middle on
+    the opening's middle at its sill. Between built jambs 0.3 m thick centred on the opening's ends (the lab's entry
+    passage, motion@lab round 35: 1.264 m clear in a 1.896 m opening) it is held to the 0.9 m clear between them, and
+    a 0.6 m door there stands against the jamb its own left edge faces, not the plan's opening end.
+    Break: score/stages/assembly/fitting.py: `scale[run_axis] *= (end - start) / wide` -> `pass`
+    Break: score/stages/assembly/fitting.py: `            start = max(start, far)` -> `            pass`"""
     from score.stages.assembly import fitting
     opening = {"how": "in", "middle": [5.0, 0.0, 0.0], "along": [1.0, 0.0], "wide": 1.2, "tall": 2.1}
     scale, target, words, _ = fitting.fit((0.3, 0.0, 2.95), (1.7, 2.4, 3.05), opening)
-    assert abs(scale - 1.2 / 1.4) < 1e-9 and np.allclose(target, (5.0, 0.0, 0.0)), (scale, target)
-    assert "shrunk to 86%" in words, words
+    assert np.allclose(scale, (1.2 / 1.4, 2.1 / 2.4, 2.1 / 2.4)), scale
+    assert np.allclose(target, (5.0, 0.0, 0.0)), target
+    assert "narrowed to 86% across" in words, words
+    jambs = [((4.25, -0.2, -1.0), (4.55, 2.8, 1.0)), ((5.45, -0.2, -1.0), (5.75, 2.8, 1.0))]
+    scale, target, _, _ = fitting.fit((0.3, 0.0, 2.95), (1.7, 2.1, 3.05), opening, jambs)
+    assert np.allclose(scale, (0.9 / 1.4, 1.0, 1.0)) and np.allclose(target, (5.0, 0.0, 0.0)), (scale, target)
+    _, target, _, _ = fitting.fit((0.3, 0.0, 2.95), (0.9, 2.1, 3.05), opening, jambs, left=(-1.0, 0.0))
+    assert np.allclose(target, (4.85, 0.0, 0.0)), target
 
 
 def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_its_swing():

@@ -16,6 +16,8 @@ import sys
 import numpy as np
 from pxr import Gf, Sdf, UsdGeom, Vt
 
+from score.stages import shell_parts
+from score.stages.earth_seed import design_shell
 from score.stages.terrain import design
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -78,6 +80,33 @@ def meshes(ground, place, shaped=None):
     """The ground's meshes for one place, {name: (points, triangles)} in its frame (grids)."""
     return {name: (design.ground_points(ground, place, spots, shaped), triangles)
             for name, (spots, triangles) in grids(ground, place).items()}
+
+
+def under_floor(points, plan):
+    """The ground's points [x, y, z] of a place's frame with each under one of its room's decks at the floor (its plan
+    lays a deck, design_shell.decks) lowered to that deck's foot, so the ground runs under the room's floor, never
+    through it: the moon rooms' ground stood at their floor, over their decks' tops or level with them."""
+    if "deck" not in shell_parts.parts(plan):
+        return points
+    corner, east, south = design.place_plan.frame_of(plan)
+    points = np.array(points, dtype=float)
+    for _, (piece,), _ in design_shell.decks(plan, design_shell.outline_of(plan)):
+        if piece["high"] > shell_parts.LEVEL_OFF:
+            continue
+        outline = np.array([(corner + east * x + south * y)[[0, 2]] for x, y in piece["points"]])
+        inside = within(points[:, [0, 2]], outline)
+        points[inside, 1] = np.minimum(points[inside, 1], float(corner[1]) + piece["low"])
+    return points
+
+
+def within(spots, outline):
+    """Which spots [[x, z]] lie inside an outline [[x, z]] (the even-odd rule, design_shell.inside's, all at once)."""
+    found = np.zeros(len(spots), dtype=bool)
+    for one, two in zip(outline, np.roll(outline, -1, axis=0)):
+        crosses = (one[1] > spots[:, 1]) != (two[1] > spots[:, 1])
+        at = one[0] + (spots[:, 1] - one[1]) * (two[0] - one[0]) / np.where(two[1] == one[1], 1.0, two[1] - one[1])
+        found ^= crosses & (spots[:, 0] < at)
+    return found
 
 
 def water(ground, place, found, sheets):

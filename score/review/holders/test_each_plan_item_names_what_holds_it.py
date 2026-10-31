@@ -517,3 +517,17 @@ def test_the_relations_are_kept_beside_the_plan_with_its_sha(tmp_path, monkeypat
     (tmp_path / "KEPT_INVENTORY/hut.json").write_text(json.dumps({"rows": []}))
     assert holders.keep(["hut", "nowhere"]) == ["hut"] and holders.keep(["hut"]) == []
     assert json.loads((tmp_path / "KEPT/hut.json").read_text())["plan"] == holders.plan_sha(text)
+
+
+def test_an_opening_on_no_wall_the_shell_builds_is_named_loose():
+    """The plan check that every opening sits on a wall the shell builds (its outline's or an inner wall's): in a
+    20 x 12 m room an opening on its north wall and one on an inner wall across it at y 6 are on walls; one in the
+    room's middle of nothing is named loose (the lab's doors, in walls the shell did not build, hung on nothing,
+    motion@lab round 35; camp's airlock door still stands in its dome's gap).
+    Break: score/review/holders/__init__.py: `if not design_shell.on_a_wall(plan, opening)]` -> `if False]`"""
+    walls = [{"from": [0.0, 6.0], "to": [20.0, 6.0], "thick": 0.2}]
+    openings = [{"kind": "door", "at": at, "wide": 1.0, "sill": 0.0, "head": 2.0} for at in ([5.0, 0.0], [10.0, 6.0],
+                                                                                              [10.0, 3.0])]
+    found = holders.relations(plan_of([], {}, walls=walls, openings=openings), {"rows": []})
+    loose = [{"opening": 3, "at": [10.0, 3.0], "why": "it sits on no wall the shell builds"}]
+    assert found.get("loose") == loose, found

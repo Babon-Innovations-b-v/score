@@ -26,6 +26,9 @@ ceiling) and how each is read.
   of one kind on the nearest (`seen_holders`). The assembly's `held` gate fails on any that comes back. A door that
   moves on a built model's face (its kind's motion rule, served) names the `recess` its holder model's bake cuts
   behind it (`recess_of`: as deep as its swing sweeps and widened on its hinge side by its thickness, or its thickness deep with its width and thickness of slide room); several on one item each get a spot their width, room and OPENING_ROOM apart (`spots`, `face_spots`: street's three restaurant doors, #36), the scene record laying each there; a static one sits flush. Different things on one face that meet at their built sizes, along it and in height, are spread along it in the order the plan draws them, OPENING_ROOM apart and inside its ends (`face_spread`; whether they meet is judged with each kept inside the face's built ends as the assembly keeps it, `kept_on_face`: hub's three monitors drawn past its console's 4.5 m end, #36; each moved one given `spots`, a moving door its recess there: street's window, stairwell entrance and shutters, #36); a face too short for them is named `crowded`, its things kept as drawn.
+- **Every opening on a built wall** (`loose_openings`): a plan opening on no wall the shell builds (its outline's or an
+  inner one, design_shell.on_a_wall) is listed in the file's `loose`, the plan-side check (camp's airlock door in its
+  dome's gap, street's stairwell opening, 2026-10-31).
 - **The assembly lays by it** at built sizes (`score/stages/assembly/fitting.py`), and the plan page shows what it laid
   (`dashboard/state/local.laid_on_plan`). A relation it cannot state is `unheld` with why, never guessed.
 - Test: `test_each_plan_item_names_what_holds_it.py`.

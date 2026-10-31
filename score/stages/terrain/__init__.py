@@ -117,6 +117,8 @@ def make_ground(name, ground, row, recipe, out, plans, inventories):
     sheets, waters = design.waters(ground, plans, inventories, outside.reach(ground))
     shaped = design.reliefs(ground) + far + [(source, relief) for source, relief, _, _ in sheets]
     laid = {place: outside.meshes(ground, place, shaped) for place in ground["places"]}
+    for place, found in laid.items():  # the ground runs under a room's floor (outside.under_floor)
+        found["near"] = (outside.under_floor(found["near"][0], plans[place]), found["near"][1])
     for place, found in laid.items():
         write_layer(folder, place, found, row, recipe, sheet_of(ground, place, found, sheets, inventories))
     (folder / "ground.json").write_text(json.dumps({**ground, "ground": name, "row": row, "recipe": recipe[0],

@@ -157,22 +157,25 @@ def volume(triangles):
 
 def test_a_room_shell_stands_round_its_plan():
     """Worked by hand: the deck and the roof each 4.3 x 3.3 x 0.2 m (the room grown 0.15 m to the walls' inside);
-    the walls a ring 0.15 to 0.35 m out (4.7 x 3.7 less 4.3 x 3.3 = 3.2 m2) from the deck's foot (-0.242 m) to 2.5 m,
-    less the door's hole of 1.0 x 0.2 x 2.0 m; the room's middle the place's origin.
-    Break: score/stages/earth_seed/design_shell.py: `        if head < high:` -> `        if False:`"""
+    the walls a ring 0.15 to 0.35 m out (4.7 x 3.7 less 4.3 x 3.3 = 3.2 m2) from the deck's foot (-0.2 m) to 2.5 m,
+    less the door's hole of 1.0 x 0.2 x 2.0 m; the room's middle the place's origin; the deck's top the floor itself
+    (the lab's things all stood 0.042 m over its deck, laid by the retired kits' floor plates, motion@lab round 35).
+    Break: score/stages/earth_seed/design_shell.py: `        if head < high:` -> `        if False:`
+    Break: score/stages/earth_seed/design_shell.py: `DECK_BELOW = 0.0` -> `DECK_BELOW = 0.042`"""
     parts = {name: triangles for name, triangles, _ in design_shell.shell(ROOM)}
     assert sorted(parts) == ["deck_1", "roof_1", "wall_1", "wall_2", "wall_3", "wall_4"], sorted(parts)
     assert abs(volume(parts["deck_1"]) - 4.3 * 3.3 * 0.2) < 1e-6, volume(parts["deck_1"])
     assert abs(volume(parts["roof_1"]) - 4.3 * 3.3 * 0.2) < 1e-6, volume(parts["roof_1"])
     walls = sum(volume(parts[f"wall_{number}"]) for number in range(1, 5))
-    assert abs(walls - ((4.7 * 3.7 - 4.3 * 3.3) * (2.5 + 0.242) - 1.0 * 0.2 * 2.0)) < 1e-6, walls
+    assert abs(walls - ((4.7 * 3.7 - 4.3 * 3.3) * (2.5 + 0.2) - 1.0 * 0.2 * 2.0)) < 1e-6, walls
     north = numpy.asarray(parts["wall_1"], float).mean(axis=1)  # [x, up, y] of each face's middle
     in_door = (north[:, 0] > 1.5 + 1e-6) & (north[:, 0] < 2.5 - 1e-6) & \
         (north[:, 1] > 1e-6) & (north[:, 1] < 2.0 - 1e-6)
     assert not in_door.any(), north[in_door]
     points = numpy.vstack([design_shell.placed(triangles, ROOM) for triangles in parts.values()])
-    assert numpy.allclose(points.min(axis=0), [-2.35, -0.242, -1.85]) and \
+    assert numpy.allclose(points.min(axis=0), [-2.35, -0.2, -1.85]) and \
         numpy.allclose(points.max(axis=0), [2.35, 2.7, 1.85]), (points.min(axis=0), points.max(axis=0))
+    assert abs(numpy.asarray(parts["deck_1"], float)[..., 1].max()) < 1e-9, "the deck's top is the floor"
     from score.stages.scene_record import writer
     assert (design_shell.BACKING, design_shell.DECK_BELOW) == (writer.BACKING, writer.DECK_BELOW)
     assert design_shell.footprint(ROOM) == [[-2.0, -1.5], [2.0, 1.5]]
@@ -180,6 +183,34 @@ def test_a_room_shell_stands_round_its_plan():
     pitched = {name: triangles for name, triangles, _ in design_shell.shell(
         dict(ROOM, roofs=[{"kind": "pitched", "points": BOX, "eave": 2.5, "top": 3.5}]))}
     assert abs(volume(pitched["roof_1"]) - 4.3 * 3.3 * 1.0 / 2) < 1e-6, volume(pitched["roof_1"])
+
+
+def test_every_wall_the_plan_writes_is_built_and_cut_where_its_opening_sits():
+    """The test room with an inner wall across it at y 1.5 (0.2 m thick, 2.5 m high), a door 1 m wide in its middle,
+    and a quarter arc of 1 m round its middle: the outline's own written walls are built once (wall_1 to wall_4), the
+    inner wall centred on its line (y 1.4 to 1.6) from the deck's foot to 2.5 m less the door's hole (4 x 0.2 x 2.7 -
+    1.0 x 0.2 x 2.0 = 1.76 m3), the arc in six 15 degree pieces; the door is on a wall the shell builds. The lab's
+    doors stood in their entry passages' end walls, which the outline does not hold, and hung on nothing (motion@lab,
+    round 35).
+    Break: score/stages/earth_seed/design_shell.py: `return found + inner_pieces(plan, len(outline), openings,
+        roof_eave)` -> `return found`
+    Break: score/stages/earth_seed/design_shell.py: `and not on_outline(entry, outline) for start, end in` -> `for
+        start, end in`"""
+    plan = {**ROOM, "walls": ROOM["walls"] + [
+        {"from": [0.0, 1.5], "to": [4.0, 1.5], "thick": 0.2, "tall": 2.5},
+        {"arc": {"centre": [2.0, 1.5], "radius": 1.0, "start": 0.0, "end": 90.0}, "thick": 0.2, "tall": 2.5}],
+        "openings": [{"kind": "door", "at": [2.0, 1.5], "wide": 1.0, "sill": 0.0, "head": 2.0, "to": "lab"}]}
+    parts = {name: triangles for name, triangles, _ in design_shell.shell(plan)}
+    assert sorted(name for name in parts if name.startswith("wall")) == [f"wall_{number}" for number in
+                                                                         sorted(range(1, 12), key=str)], sorted(parts)
+    assert abs(volume(parts["wall_5"]) - (4 * 0.2 * 2.7 - 1.0 * 0.2 * 2.0)) < 1e-6, volume(parts["wall_5"])
+    across = numpy.asarray(parts["wall_5"], float)[..., 2]
+    assert numpy.isclose(across.min(), 1.4) and numpy.isclose(across.max(), 1.6), (across.min(), across.max())
+    ends = numpy.asarray([corner for number in range(6, 12) for triangle in parts[f"wall_{number}"]
+                          for corner in triangle], float)[:, [0, 2]]
+    assert numpy.allclose(numpy.linalg.norm(ends - [2.0, 1.5], axis=1).max(), 1.1, atol=0.01), "the arc's pieces"
+    assert design_shell.on_a_wall(plan, plan["openings"][0]) and not design_shell.on_a_wall(
+        ROOM, {"at": [2.0, 1.5], "wide": 1.0, "sill": 0.0, "head": 2.0})
 
 
 def test_a_dome_roof_stands_as_a_dome():
