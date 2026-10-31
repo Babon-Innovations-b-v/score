@@ -16,7 +16,8 @@ FREE_GB = 12
 HELD_OUT_SHARE = 0.10  # the check bodies' score may be at most this much worse than the tuning bodies'
 WORKER = pathlib.Path(__file__).resolve().parent / "_case.py"
 SETS_WORKER = pathlib.Path(__file__).resolve().parent / "_card_sets.py"  # every set of a Jacobian, one card process
-SET_PROCESSES = 4  # bodies' set processes side by side (`measured_many`): each holds its own card context and caches
+SET_PROCESSES = 10  # bodies' set processes side by side (`measured_many`): every tuning body at once (2026-10-31, l1d's sets
+# phase with 4: the card at 14 %, 3.3 GB, load 6 on 24 cores; a process holds ~2 GB of memory, `FREE_GB` still guards)
 CHUNK = 12  # sets per chunk of the one card process: 32 tall sets peaked ~5.2-5.5 GB own (phase A ~2.6, +~2.7 per 32 in the constants phase; night/across c38), 12 keeps ~3.7 under 4
 BLOCKS_WORKER = pathlib.Path(__file__).resolve().parents[1] / "tuning" / "_adjoint" / "_check_columns.py"  # one body's exact blocks
 SAME_SEEDS = "--same-seeds"  # _card_sets: every set seeded from the seeds root, the base point's way

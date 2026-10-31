@@ -65,7 +65,7 @@ paired changes, tuning and check bodies apart, verdicts once the run dir has flo
   clips' folders hold no copy of the file. 4 centre sets x tall's 7 clips beside l1d (night/gpu2/prof c, d): set-up B
   4.3 s to 0, rows within 2.7e-5 of the two-file run (largest 5.0), the nudged columns 0.02 to 0.03 % apart.
 - `measured_many` runs one `_card_sets` process a body (since 2026-10-31; one process held every body before, ~1.3
-  cores, the card mostly idle, a Jacobian 37 min on l1d), at most `SET_PROCESSES` side by side by `run_all`, a
+  cores, the card mostly idle, a Jacobian 37 min on l1d), at most `SET_PROCESSES` (10, every tuning body) side by side by `run_all`, a
   failed body once more; each writes its own cases into the shared out/pNNN/sNNNNN folders. Measured (night/gpu2/many,
   4 centre sets x tall, mean, slim and mid_tall's 28 cases, env1 beside it): 168.4 s in one process (3.4 cores, card
   19 % mean) against 56.1 s in four (5.3 cores, card 29 %, 5.7 GB on the card at most), every row bit for bit equal.
