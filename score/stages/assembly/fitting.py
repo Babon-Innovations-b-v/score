@@ -265,22 +265,32 @@ def slanted(on):
 
 def slanted_face(on, points, opens):
     """The foot middle of a door in an opening along neither axis on the face of its built wall it swings to: the
-    farthest the way `opens` points (across the opening) of the built walls' mesh points (`points`, world [n, 3])
-    within WALL_REACH of its span, two WALL_REACH of its middle and WALL_REACH of its sill and head (its jambs'
-    corners); None where none stands so. Cockpit's rear doors stood on the plan's line of their slanted wall, 0.37 m
-    in front of the built wall's room face, and swung their kind's way into its jamb (#36, 2026-10-30)."""
+    farthest the way `opens` points (across the opening) of its jambs' mesh points within WALL_REACH of its sill and
+    head, a jamb a built wall (`points`, one world [n, 3] a wall) that stands within WALL_REACH of the opening's span
+    and two WALL_REACH of its middle from its sill up to its head, each within WALL_REACH; None where none stands so.
+    Cockpit's rear doors stood on the plan's line of their slanted wall, 0.37 m in front of the built wall's room face,
+    and swung their kind's way into its jamb (#36, 2026-10-30). A deck or a wall under the sill is no jamb: camp's dome
+    door was hung on its deck's corner; greenhouse's door, in its dome, 0.86 m out on the tops of the walls under it,
+    and swung off them (motion@greenhouse, round 34)."""
     middle = np.asarray(on["middle"], float)
+    head = middle[1] + float(on["tall"])
     run = np.asarray(on["along"], float) / max(float(np.linalg.norm(on["along"])), 1e-9)
     way = np.asarray(opens, float) - run * float(np.asarray(opens, float) @ run)
     way = way / max(float(np.linalg.norm(way)), 1e-9)
-    flat = points[:, [0, 2]] - middle[[0, 2]]
-    along_off, across_off = flat @ run, flat @ way
-    near = (np.abs(along_off) <= float(on["wide"]) / 2 + WALL_REACH) & (np.abs(across_off) <= 2 * WALL_REACH) \
-        & (points[:, 1] >= middle[1] - WALL_REACH) & (points[:, 1] <= middle[1] + float(on["tall"]) + WALL_REACH)
-    if not near.any():
+    faces = []
+    for wall in points:
+        flat = wall[:, [0, 2]] - middle[[0, 2]]
+        along_off, across_off = flat @ run, flat @ way
+        beside = (np.abs(along_off) <= float(on["wide"]) / 2 + WALL_REACH) & (np.abs(across_off) <= 2 * WALL_REACH)
+        if not beside.any() or wall[beside, 1].min() > middle[1] + WALL_REACH \
+                or wall[beside, 1].max() < head - WALL_REACH:
+            continue
+        near = beside & (wall[:, 1] >= middle[1] - WALL_REACH) & (wall[:, 1] <= head + WALL_REACH)
+        faces.extend(across_off[near])
+    if not faces:
         return None
     spot = middle.copy()
-    spot[[0, 2]] += way * float(across_off[near].max())
+    spot[[0, 2]] += way * float(max(faces))
     return spot
 
 
@@ -322,7 +332,7 @@ def in_opening(low, high, on, walls=(), left=None, opens=None, points=None):
 def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=None, clear=()):
     """(scale, the new middle of its foot, words, its face (on_face's) or None) of an object laid by its relation `on`
     (module docstring), from its box (low, high) and its holders' boxes (an opening's: the built walls), a face's holder's
-    `surface` mesh (surface_mesh; an opening's: its built walls' mesh points, slanted_face) and the `recesses` the bake cut in it
+    `surface` mesh (surface_mesh; an opening's: its built walls' mesh points, one array a wall, slanted_face) and the `recesses` the bake cut in it
     (on_face), an opening's object's own left way (`left`,
     and the way it swings to (`opens`, opening_spot), the swing and passage boxes a wall's or face's object keeps out
     of (`clear`, on_wall, face_stretch); None when it already sits (or
@@ -628,13 +638,10 @@ def walls(stage, place):
 
 
 def wall_points(stage, place):
-    """World mesh points [n, 3] of the place's built walls (walls), a slanted wall's faces (slanted_face): never a
-    deck or slab under two WALL_REACH tall (camp's dome door, in an opening by no built wall, was hung on its deck's
-    corner)."""
-    return np.concatenate([np.zeros((0, 3))] + [surface_points(stage, f"/{place}/{scope}/{name}")
-                                                for scope in ("Structure", "Shell")
-                                                for name, (low, high) in walls_in(stage, place, scope)
-                                                if high[1] - low[1] >= 2 * WALL_REACH])
+    """World mesh points [n, 3] of each of the place's built walls (walls), one array a wall: a slanted wall's faces,
+    each judged a jamb or not by itself (slanted_face)."""
+    return [surface_points(stage, f"/{place}/{scope}/{name}") for scope in ("Structure", "Shell")
+            for name, _ in walls_in(stage, place, scope)]
 
 
 def walls_in(stage, place, scope):
