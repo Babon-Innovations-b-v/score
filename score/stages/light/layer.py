@@ -44,6 +44,9 @@ SAME_SPOT = 0.05
 # A mesh no side of which is over this is small enough to be a lamp's fixture, metres; a freed lamp stands this far clear of it.
 FIXTURE_MOST = 1.5
 FIXTURE_GAP = 0.05
+# A lamp inside a larger mesh is judged on that mesh's part this near its spot, metres: the head of a model fused whole
+# with its post (2026-10-31, round 34's street lamps, heads 0.5-0.9 m across), never the rest of a room's shell.
+HEAD_REACH = FIXTURE_MOST / 2
 # A fixture whose solid parts stop this share of a lamp's ways out encloses it (RAYS ways tried).
 ENCLOSED = 0.9
 RAYS = 256
@@ -118,8 +121,8 @@ def moved(stage, path, entry):
         shaping.CreateShapingConeSoftnessAttr().Set(float(entry.get("softness", scene.SPOT_SOFTNESS)))
 
 
-def fixture_boxes(stage, place):
-    """[(path, low, high)] of every small drawn mesh (no side over FIXTURE_MOST) of the place: a lamp's fixture."""
+def drawn_boxes(stage, place):
+    """[(path, low, high)] of every drawn mesh of the place, its world bound."""
     from pxr import Usd, UsdGeom
     cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"])
     found = []
@@ -130,7 +133,7 @@ def fixture_boxes(stage, place):
             if mesh.IsA(UsdGeom.Mesh):
                 box = cache.ComputeWorldBound(mesh).ComputeAlignedRange()
                 low, high = np.array(box.GetMin()), np.array(box.GetMax())
-                if not box.IsEmpty() and np.all(high - low <= FIXTURE_MOST):
+                if not box.IsEmpty():
                     found.append((str(mesh.GetPath()), low, high))
     return found
 
@@ -187,6 +190,35 @@ def place_middle(stage, place, record):
         stage.GetPrimAtPath(f"/{place}")).ComputeAlignedRange().GetMidpoint())
 
 
+def model_head(mesh, spot):
+    """A large mesh's part round a lamp's spot: (its faces with a corner within HEAD_REACH, those corners' low and
+    high), or None where no corner is that near."""
+    near = np.linalg.norm(mesh.vertices - spot, axis=1) <= HEAD_REACH
+    faces = np.flatnonzero(near[mesh.faces].any(axis=1))
+    if not len(faces):
+        return None
+    return mesh.submesh([faces], append=True), mesh.vertices[near].min(axis=0), mesh.vertices[near].max(axis=0)
+
+
+def out_of_model_head(stage, path, spot, middle, names):
+    """A lamp inside larger drawn meshes, a model fused whole with its head (round 34, 2026-10-31: the bake laid
+    square's street lamps and street's lamp posts as one 4 m mesh each, the head closed round the spot the library's
+    mount height gave the lamp, 256 of 256 ways out stopped, every one unlit): where the meshes' parts round the spot
+    (model_head) stop at least ENCLOSED of its ways out, the lamp moves out of those parts' bound toward the place's
+    middle, FIXTURE_GAP clear. {rule, blocked, moved}, or None for a lamp they do not enclose."""
+    heads = [head for head in (model_head(world_mesh(stage, name), spot) for name in names) if head]
+    if not heads:
+        return None
+    blocked = blocked_share(spot, [mesh for mesh, _, _ in heads])
+    if blocked < ENCLOSED:
+        return None
+    low, high = np.min([low for _, low, _ in heads], axis=0), np.max([high for _, _, high in heads], axis=0)
+    way = middle - spot if np.linalg.norm(middle - spot) > 1e-6 else np.array([0.0, -1.0, 0.0])
+    out = out_of(stage, path, spot, way, low, high)
+    return {"rule": "moved out of its model's head", "blocked": round(blocked, 3),
+            "moved": round(float(np.linalg.norm(out - spot)), 3)}
+
+
 def lamps_through_fixtures(stage, place, record):
     """Each lamp standing inside a small mesh (its fixture: the stairwell's caged bulkheads held all seven, and their
     cage and lens took nearly all their light, 2026-10-13), by measure: where the fixture's solid parts (its meshes
@@ -194,14 +226,19 @@ def lamps_through_fixtures(stage, place, record):
     toward its lens where it has one, else toward the place's middle (place_middle); where they do not, a lamp behind a lens stands
     just outside the lens, inside the rest of its fixture, so the lens lets its light through as clear glass does (the
     library's clear glass stops 2%; Cycles cannot pass light through a lens that also glows) and the cage or shade
-    still shapes it; a lamp in an open fixture with no lens stays. {lamp path: {rule, blocked, moved}}."""
-    boxes = fixture_boxes(stage, place)
+    still shapes it; a lamp in an open fixture with no lens stays. A lamp held by no small mesh is judged on the larger
+    ones round it (out_of_model_head). {lamp path: {rule, blocked, moved}}."""
+    boxes = drawn_boxes(stage, place)
     middle = place_middle(stage, place, record)
     found = {}
     for path, spot, _ in own_lamps(stage, place):
-        holders = [(name, low, high) for name, low, high in boxes
-                   if np.all(spot >= low - 1e-3) and np.all(spot <= high + 1e-3)]
+        around = [(name, low, high) for name, low, high in boxes
+                  if np.all(spot >= low - 1e-3) and np.all(spot <= high + 1e-3)]
+        holders = [(name, low, high) for name, low, high in around if np.all(high - low <= FIXTURE_MOST)]
         if not holders:
+            freed = out_of_model_head(stage, path, spot, middle, [name for name, _, _ in around if "glow" not in name])
+            if freed:
+                found[path] = freed
             continue
         bodies = [(name, low, high) for name, low, high in holders if "glow" not in name]
         lenses = [(name, low, high) for name, low, high in holders if "glow" in name]

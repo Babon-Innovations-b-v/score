@@ -26,6 +26,8 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - mix.lamp_faults: never "blown" (the sweep test).
 - layer.strengths: write the strength unscaled (the layer test).
 - layer.place_middle: the stage's bound for an inside place too (the ceiling lamp test, 2026-10-30).
+- layer.lamps_through_fixtures: a lamp with no holder of at most FIXTURE_MOST skipped, the old rule (the post baked
+  as one mesh test, 2026-10-31: kept, every way out stopped).
 - light.unlit_why: an inside place lit by a sun alone counted lit (the unlit test).
 - light.fill_wanted: ignore `unseen` (the fill test); no fill beside a sun, the old rule (the fill test, 2026-10-30).
 - light.body_faults: drop the "not lit from its sun" fault (the discs test).
@@ -806,6 +808,46 @@ def test_a_ceiling_lamp_freed_from_its_fixture_moves_into_its_room_never_toward_
     assert found["fixtures"]["/tiny/Lights/light_1"]["rule"] == "moved out of its fixture", found["fixtures"]
     freed = next(lamp for lamp in found["lamps"] if lamp["path"] == "/tiny/Lights/light_1")
     assert freed["spot"][1] < 2.3, freed
+
+
+def post_mesh(stage, path):
+    """One mesh, a 4 m lamp post fused whole with its closed head: post (-0.05, 0, -0.05)-(0.05, 3.3, 0.05), head
+    (-0.25, 3.3, -0.25)-(0.25, 4.0, 0.25)."""
+    corners, faces = [], []
+    for low, high in (((-0.05, 0.0, -0.05), (0.05, 3.3, 0.05)), ((-0.25, 3.3, -0.25), (0.25, 4.0, 0.25))):
+        start = len(corners)
+        corners += [(x, y, z) for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])]
+        faces += [start + index for index in (0, 1, 3, 2, 4, 6, 7, 5, 0, 4, 5, 1, 2, 3, 7, 6, 0, 2, 6, 4, 1, 5, 7, 3)]
+    mesh = UsdGeom.Mesh.Define(stage, path)
+    mesh.CreatePointsAttr([Gf.Vec3f(*corner) for corner in corners])
+    mesh.CreateFaceVertexCountsAttr([4] * 12)
+    mesh.CreateFaceVertexIndicesAttr(faces)
+
+
+@pytest.mark.parametrize("spot, rule", [((0.0, 3.8, 0.0), "moved out of its model's head"),
+                                        ((0.2, 3.1, 0.2), None)])
+def test_a_lamp_closed_in_the_head_of_a_post_baked_as_one_mesh_moves_out_and_one_under_it_stays(tmp_path, spot, rule):
+    """Square and street, round 34 (2026-10-31): the bake laid each street lamp as one 4 m mesh, post and head, its
+    head closed round the lamp at the library's mount height; no part was small enough to be its fixture, the lamp was
+    kept, every way out stopped, and it lit nothing."""
+    seed, out = tmp_path / "seed", tmp_path / "out"
+    tiny_seed(seed)
+    base = Usd.Stage.Open(str(seed / "layers/base.usda"))
+    UsdGeom.Xformable(base.GetPrimAtPath("/tiny/Lights/light_1")).GetOrderedXformOps()[0].Set(Gf.Vec3d(*spot))
+    post_mesh(base, "/tiny/Objects/street_lamp")
+    box_mesh(base, "/tiny/Objects/pavement", (2.0, 0.0, -1.0), (8.0, 0.1, 1.0))
+    base.Save()
+    found = layer.write("tiny", {"lights": []}, seed, out)
+    freed = next(lamp for lamp in found["lamps"] if lamp["path"] == "/tiny/Lights/light_1")
+    if rule is None:
+        assert "/tiny/Lights/light_1" not in found.get("fixtures", {}), found.get("fixtures")
+        assert freed["spot"] == list(spot), freed
+        return
+    assert found["fixtures"]["/tiny/Lights/light_1"]["rule"] == rule, found["fixtures"]
+    assert freed["spot"][0] > 0.25 and 3.3 <= freed["spot"][1] <= 4.0, freed
+    stage = Usd.Stage.Open(str(seed / "layers/base.usda"))
+    assert layer.blocked_share(np.array(freed["spot"]), [layer.world_mesh(stage, "/tiny/Objects/street_lamp")]) \
+        < layer.ENCLOSED
 
 
 def test_no_camera_glow_is_written_from_a_record_that_holds_none(tmp_path):

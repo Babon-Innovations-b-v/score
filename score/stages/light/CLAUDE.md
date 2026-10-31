@@ -63,7 +63,10 @@ gates.
 - **Lamps are measured where they shine** (2026-10-13): a lamp inside its fixture moves out of it when the fixture's
   solid parts stop 90% of its rays (with no lens, toward an inside place's shell middle, never the stage's bound:
   2026-10-30, walkway's ducts over its ceiling sent its ceiling lamps up into it), or stands just outside its lens
-  otherwise (`layer.lamps_through_fixtures`, each lamp's rule in lamps.json); the suns, an inside place's too (its sun shines in through its openings), each in a
+  otherwise (`layer.lamps_through_fixtures`, each lamp's rule in lamps.json); a lamp inside a larger mesh, a model
+  baked whole with its head, is judged on that mesh's part within HEAD_REACH of it and moved out of that part when it
+  stops 90% (`layer.out_of_model_head`; 2026-10-31: round 34's bake fused square's and street's lamp posts into one
+  4 m mesh, the head closed round the lamp, 20 lamps dark); the suns, an inside place's too (its sun shines in through its openings), each in a
   light group, are swept after the lamps when the lamps cannot reach the concept or their sweep stops at an end of its
   range (2026-10-30). Lamps at one spot are one lamp; one outside an inside place's shell (past its record's floor
   box or over its ceiling) stands in no view and is not judged unlit.
