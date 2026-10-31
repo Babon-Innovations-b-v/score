@@ -19,6 +19,8 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `spread.far_enough`: `< FAR_SHARE` read as `<= 1.0`  -> the views test (the copy before the door kept).
 - `cast.plan_views`: the `unaimed` refusal dropped  -> the unaimed-spot test.
 - `cast.on_levels`: `at[1] + min(heights)` read as `at[1]`  -> the levels test.
+- `cast.on_made_ground`: `ground > at[1]` read as `False`  -> the made ground rise test (the one under it found
+  nothing under it).
 - `layer.make`: `if row is None or row not in inputs:` read as `if row is None:`  -> the layer test (it reaches for
   a body that is not there instead of naming the gap).
 - `driven.size_over_sim`: `/ float(body["size"]["of the rig"])` dropped  -> the sim body test (the 1.1 body's sim
@@ -39,6 +41,7 @@ from pxr import Usd, UsdGeom
 from score import checks
 from score.stages import cast
 from score.stages.cast import driven, layer, measure, spread
+from score.stages.scene_record import writer
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PLACES = REPO / "data/definitions/place.json"
@@ -107,6 +110,26 @@ def test_a_body_stands_on_the_places_made_ground(tmp_path):
     assert measure.solids(tmp_path / "base.usda", "camp") == {}
     found = measure.solids(tmp_path / "base.usda", "camp", made)
     assert [stood["on"] for stood in measure.ground_under([[0.0, 0.0, 0.0]], found)] == ["Ground/patch"]
+
+
+def test_a_person_under_a_rise_of_the_made_ground_stands_on_it(tmp_path):
+    """Wreck's astronaut_3 (round 33, 2026-10-30): its plan spot at 0 lay under a 3.9 m rise of the made ground, the
+    knee's ray down found nothing and it was left out. Raised onto the ground it stands; one over a hollow stays."""
+    base = Usd.Stage.CreateNew(str(tmp_path / "base.usda"))
+    UsdGeom.Xform.Define(base, "/camp")
+    base.Save()
+    ground = Usd.Stage.CreateNew(str(tmp_path / "world/places/camp.usdc"))
+    mesh(ground, "/camp/Ground/rise", [(-5, 2, -5), (0, 2, -5), (0, 2, 5), (-5, 2, 5)], [(0, 1, 2, 3)])
+    mesh(ground, "/camp/Ground/hollow", [(0, -1, -5), (5, -1, -5), (5, -1, 5), (0, -1, 5)], [(0, 1, 2, 3)])
+    ground.Save()
+    inputs = {"terrain": str(tmp_path)}
+    found = measure.solids(tmp_path / "base.usda", "camp", cast.made_ground(inputs, "camp"))
+    record = {"people": [{"name": "up", "at": [-2.0, 0.0, 0.0]}, {"name": "down", "at": [2.0, 0.0, 0.0]}]}
+    assert spread.grounded([person["at"] for person in record["people"]], found)[0] is None
+    raised = cast.on_made_ground(record, writer.ground_under(inputs, "camp"))["people"]
+    assert [person["at"] for person in raised] == [[-2.0, 2.0, 0.0], [2.0, 0.0, 0.0]]
+    assert spread.grounded([person["at"] for person in raised], found) == [[-2.0, 2.0, 0.0], [2.0, -1.0, 0.0]]
+    assert cast.on_made_ground(record, None) == record
 
 
 def test_standing_bodies_nearer_than_two_widths_on_one_level_overlap():
