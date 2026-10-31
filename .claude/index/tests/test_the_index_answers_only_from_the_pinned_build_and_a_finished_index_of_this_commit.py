@@ -17,6 +17,8 @@ The break that turns each test red (applied once each, seen red, reverted):
   `if not stamp:` (an index of an older commit is answered from).
 - test_a_build_that_wrote_no_rows_is_never_stamped_or_placed: the `row_count` refusal in `_assembled` deleted.
 - test_a_failed_question_answers_its_cause_and_the_fix: in `server._called`, `"isError": False`.
+- test_a_malformed_call_is_answered_and_the_server_keeps_reading: the `isinstance(arguments, dict)` refusal in
+  `server.answer` deleted (a string as arguments raised and ended the server).
 """
 from __future__ import annotations
 
@@ -156,3 +158,21 @@ def test_a_failed_question_answers_its_cause_and_the_fix(monkeypatch: pytest.Mon
     assert {tool["name"] for tool in listed["result"]["tools"]} == {"search_graph", "query_graph", "search_code"}
     assert server.respond({"jsonrpc": "2.0", "method": "notifications/initialized"}) is None
     assert json.dumps(server.respond({"jsonrpc": "2.0", "id": 9, "method": "nope"})).count("-32601") == 1
+
+
+def test_a_malformed_call_is_answered_and_the_server_keeps_reading(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Arguments, params or a name of the wrong shape get an error reply; none of them ends the server."""
+    monkeypatch.setattr(cbm_index, "ready", lambda here: {"path": "", "project": "p", "head": ""})
+    monkeypatch.setattr(cbm_index, "ask", lambda tool, given: {"ok": True, "result": "rows: 0"})
+    for params in ({"name": "search_graph", "arguments": "oops"}, {"name": "search_graph", "arguments": []},
+                   {"name": ["search_graph"], "arguments": {}}):
+        reply = server.respond({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": params})
+        assert reply["result"]["isError"] is True and "fix: " in reply["result"]["content"][0]["text"]
+    refused = server.respond({"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": ["x"]})
+    assert refused["error"]["code"] == -32602
+    lines = ['{"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "query_graph", "arguments": "x"}}',
+             "[1, 2]", '{"jsonrpc": "2.0", "id": 6, "method": "ping"}']
+    done = subprocess.run([sys.executable, str(pathlib.Path(server.__file__))], input="\n".join(lines) + "\n",
+                          capture_output=True, text=True, timeout=30, check=False)
+    replies = [json.loads(line) for line in done.stdout.splitlines()]
+    assert [reply.get("id") for reply in replies] == [5, None, 6] and done.returncode == 0
