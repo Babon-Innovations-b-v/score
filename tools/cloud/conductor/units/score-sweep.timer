@@ -1,0 +1,11 @@
+# TEMPLATE: the data disk's sweep every 10 minutes after the last one ended (score-sweep.service says what it does).
+# Enabled with the conductor's other units; update.py installs a changed units/ folder after a move, no boot needed.
+[Unit]
+Description=SCORE conductor: the disk sweep every 10 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=10min
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,15 @@
+# TEMPLATE: the data disk's sweep on a timer of its own (score-sweep.timer; score/conductor/disk.py sweep): every
+# routine step, every step once the disk is under the warning line, one line a step (journalctl --user -u
+# score-sweep.service). Its own unit, not only the sync pass's first step (2026-10-31: the disk filled to 0; the
+# update before each pass then failed writing conductor/pin.json, so no pass, and no sweep, ran until a rescue boot by
+# hand). One sweep at a time (disk.alone): a pass's sweep and this one never run together.
+[Unit]
+Description=SCORE conductor: sweep the data disk
+ConditionPathExists=%h/.farm-factory-props/machine.json
+
+[Service]
+Type=oneshot
+Nice=10
+WorkingDirectory=<path to the score repository>
+EnvironmentFile=<path to the env file kept outside the repo>
+ExecStart=<path to the score repository>/.venv/bin/python -m score.conductor sweep

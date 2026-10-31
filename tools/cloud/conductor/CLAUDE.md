@@ -91,6 +91,10 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   `code.why` gives it while the checkout is off the pin; a uv.lock move held by a pass names a sync unit with no
   update before its pass. Other areas add their own units here;
   `boot.sh` installs whatever is in the folder, filling the deploy templates' slots for user score.
+  A move that changes this folder installs it again (update.py, `boot.sh units`), so a new unit is live without a
+  boot. `score-sweep` runs the disk sweep every 10 min (score/conductor/disk.py). The door's store-push writes and
+  syncs the whole stream under tmp/ before it links anything, then lands blobs, then output listings, then the rest:
+  a cut stream lands nothing, and no record lands before the output it names (2026-10-31).
 - Tests (free, no cloud; each file well under 120 s): `test_owner_gates_and_safe_moves.py` (the owner's gates and
   the door, `up --dry` and the move, cloud-init schema and `systemd-analyze --user verify`, boot.sh against a temp
   root, the health record, the secrets, score-update) and `size_function/test_never_powered_off_under_work.py` (with

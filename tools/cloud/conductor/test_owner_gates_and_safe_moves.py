@@ -73,6 +73,7 @@ The checkout moves (update.py):
 - It waits while score starts from the checkout, while a run works in its frozen copy, while the checkout has changes;
   a sync pass holds back only a uv.lock move, and the line (noted for the health record) names a sync unit with no
   update before its pass; two updates take turns on the checkout's lock.
+- A move that changes units/ installs them (`boot.sh units`), so a new unit is live without a boot.
   Break: `frozen_users` returns []. Break: drop the lock in `main`. Break: `pass_updates_first` always True.
 - score_lib's checkout beside it gets the machine's committer when git knows no user.email there, even when nothing
   moves, and an identity it has stays (2026-10-28: every library commit on the conductor failed for want of one).
@@ -407,6 +408,40 @@ def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path):
     assert agent_door.store_missing(home, "store/objects/records/k1.json\nwork/new.glb\n") == "work/new.glb\n"
     with pytest.raises(agent_door.Refused):
         agent_door.store_missing(home, "cloud/ssh_key\n")
+
+
+def test_the_doors_store_push_lands_what_a_record_names_first_and_a_cut_stream_lands_nothing(tmp_path, monkeypatch):
+    """2026-10-31: a settle@airlock record on the conductor named an output whose listing was missing, and
+    batch-money's page build crashed on it.
+    Break: in `store_push`, `sorted(parts, key=...)` -> `parts` (the record lands before its listing and blob), or
+    land each member as it is read (a stream cut short leaves the record without its output)."""
+    import io
+    import tarfile
+    import agent_door
+    home = tmp_path / "home"
+    home.mkdir()
+    members = (("store/objects/records/settle@airlock/k.json", b'{"output": "o"}'),
+               ("store/objects/outputs/o.json", b'{"model.usd": "b"}'), ("store/objects/blobs/b", b"usd bytes"))
+
+    def stream(cut=False):
+        data = io.BytesIO()
+        with tarfile.open(fileobj=data, mode="w") as archive:
+            for name, body in members:
+                info = tarfile.TarInfo(name)
+                info.size = len(body)
+                archive.addfile(info, io.BytesIO(body))
+        whole = data.getvalue()
+        return io.BytesIO(whole[:5 * 512 + 4] if cut else whole)  # cut inside the last member's bytes
+
+    with pytest.raises(tarfile.TarError):
+        agent_door.store_push(home, stream(cut=True))
+    assert not (home / "store").exists() or not [path for path in (home / "store").rglob("*") if path.is_file()]
+    assert not list((home / "tmp" / "this-pc-push").iterdir())
+    order, link = [], os.link
+    monkeypatch.setattr(os, "link", lambda source, target: (order.append(str(target)), link(source, target))[1])
+    assert agent_door.store_push(home, stream()) == (3, sum(len(body) for _, body in members), 0)
+    assert [pathlib.Path(path).relative_to(home).as_posix() for path in order] == [
+        "store/objects/blobs/b", "store/objects/outputs/o.json", "store/objects/records/settle@airlock/k.json"]
 
 
 def test_the_doors_job_log_reads_only_a_frozen_homes_cloud_logs(tmp_path):
@@ -1029,6 +1064,24 @@ def test_the_checkout_follows_the_pin_and_syncs_only_when_the_lock_moved(world):
         line = world.move(url)
     assert world.at() == world.commits[2] and ".venv synced" in line
     assert world.log.read_text().split() == ["sync", "-q", "--frozen", "--group", "dashboard"]
+
+
+def test_a_move_that_changes_the_units_installs_them_without_a_boot(world):
+    """2026-10-31: the disk sweep's own timer would reach the live conductor only at its next boot.
+    Break: in update.py `units_installed`, return "" always (a new unit waits for a boot)."""
+    folder = world.origin / "tools" / "cloud" / "conductor" / "units"
+    folder.mkdir(parents=True)
+    log = world.folder / "boot-units.log"
+    commit(world.origin, "tools/cloud/conductor/boot.sh", f'echo "$1" >> {log}\n')
+    changed = commit(world.origin, "tools/cloud/conductor/units/score-sweep.timer", "[Timer]\n")
+    later = commit(world.origin, "b.txt", "not a unit")
+    git(world.checkout, "checkout", "-q", "--detach", world.commits[2])
+    with cockpit({"ok": True, "commit": changed}) as url:
+        line = world.move(url)
+    assert world.at() == changed and line.endswith(", the units installed"), line
+    with cockpit({"ok": True, "commit": later}) as url:
+        line = world.move(url)
+    assert world.at() == later and "units" not in line and log.read_text().split() == ["units"], line
 
 
 def test_after_the_move_a_lock_move_or_a_missing_prop_environment_syncs_it(world):

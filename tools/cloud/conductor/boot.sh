@@ -18,6 +18,7 @@
 #   pipes it over ssh), the tmpfs secrets written and score_lib cloned with its deploy key from tmpfs, its .venv synced.
 #   Last, once machine.json is there: the checkout to the pin (score-update) and the sync's units (install-sync --no-pull).
 # env: the prop environment alone (the move runs it right after its restore).
+# units: every unit in units/ installed and enabled again (update.py, after a move that changed units/).
 #
 # SCORE_BOOT_ROOT puts every path under another root (the dry check, machine_test.py, runs it against a temp root
 # with its commands shimmed); on the machine it is empty.
@@ -382,5 +383,6 @@ case "${1:-}" in
   system) system_part ;;
   user) user_part ;;
   env) props_env "$HOME/projects/score" ;;
-  *) echo "usage: boot.sh system|user|env" >&2; exit 2 ;;
+  units) install_units "$(cd "$HERE/../../.." && pwd)" ;;
+  *) echo "usage: boot.sh system|user|env|units" >&2; exit 2 ;;
 esac
