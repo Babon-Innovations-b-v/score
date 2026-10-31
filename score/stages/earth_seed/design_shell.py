@@ -380,11 +380,38 @@ def on_outline(entry, outline):
 
 def inner_walls(plan):
     """[(start, end, written wall)] of every written wall the outline does not stand on (on_outline), an arc as its
-    straight pieces: the shell builds them too, centred on their line (only an outline wall knows an outside)."""
-    outline = outline_of(plan)
+    straight pieces and those across its gap round each opening there (gap_lines): the shell builds them too, centred
+    on their line (only an outline wall knows an outside)."""
+    outline, openings = outline_of(plan), openings_of(plan)
     return [(start, end, entry) for entry in plan.get("walls") or [] if isinstance(entry, dict)
-            and not on_outline(entry, outline) for start, end in written_lines(entry)
+            and not on_outline(entry, outline) for start, end in written_lines(entry) + gap_lines(entry, openings)
             if np.linalg.norm(np.subtract(end, start)) >= 1e-6]
+
+
+def gap_lines(entry, openings):
+    """[(start, end)] of an arc wall's straight pieces across the part of its gap each opening on its circle (within
+    its thickness and ON_WALL of it) stands in, as wide as the opening: the plan draws a dome's door in its wall's gap
+    (camp's airlock door, where its entry tube meets the dome), and a door needs its wall built round it."""
+    arc = entry.get("arc")
+    if not arc:
+        return []
+    start, end = float(arc["start"]), float(arc["end"])
+    end += 360.0 if end <= start else 0.0
+    centre, radius = np.asarray(arc["centre"], float), float(arc["radius"])
+    reach = float(entry.get("thick") or THICK) + ON_WALL
+    found = []
+    for opening in openings:
+        off = np.asarray(opening["at"], float) - centre
+        if abs(float(np.linalg.norm(off)) - radius) > reach:
+            continue
+        turn = float(np.degrees(np.arctan2(off[1], off[0]))) % 360.0
+        turn += 360.0 if turn < start else 0.0
+        half = float(np.degrees(np.arcsin(min(1.0, float(opening["wide"]) / 2 / radius))))
+        low, high = max(end, turn - half), min(start + 360.0, turn + half)
+        if turn > end and high > low:
+            points = arc_points({**arc, "start": low, "end": high})
+            found += list(zip(points, points[1:]))
+    return found
 
 
 def wall_lines(plan):

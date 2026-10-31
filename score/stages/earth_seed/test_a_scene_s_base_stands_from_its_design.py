@@ -213,6 +213,24 @@ def test_every_wall_the_plan_writes_is_built_and_cut_where_its_opening_sits():
         ROOM, {"at": [2.0, 1.5], "wide": 1.0, "sill": 0.0, "head": 2.0})
 
 
+def test_a_door_in_a_round_wall_s_gap_has_its_wall_built_round_it():
+    """Camp (2026-10-31): its dome's round wall is drawn from 190 to 170 degrees, its gap where its entry tube meets
+    it, and the plan's door stands in that gap. In the test room, a round wall of 1.4 m round its middle with a 40
+    degree gap at the west and a 1 m door there (about 41 degrees of it): the pieces across the gap are built, the door
+    sits on a built wall, cut in them; a round wall's gap with no opening stays open.
+    Break: score/stages/earth_seed/design_shell.py: `for start, end in written_lines(entry) + gap_lines(entry,
+        openings)` -> `for start, end in written_lines(entry)`"""
+    round_wall = {"arc": {"centre": [2.0, 1.5], "radius": 1.4, "start": 200.0, "end": 160.0}, "thick": 0.2, "tall": 2.5}
+    door = {"kind": "door", "at": [0.6, 1.5], "wide": 1.0, "sill": 0.0, "head": 2.0, "to": "tube"}
+    plan = {**ROOM, "walls": ROOM["walls"] + [round_wall], "openings": [door]}
+    assert design_shell.on_a_wall(plan, door), "the door in the gap is on a built wall"
+    gap = design_shell.gap_lines(round_wall, design_shell.openings_of(plan))
+    assert gap and all(abs(numpy.linalg.norm(numpy.subtract(point, [2.0, 1.5])) - 1.4) < 1e-6
+                       for line in gap for point in line), gap
+    assert all(point[0] < 1.0 for line in gap for point in line), "across the west gap only"
+    assert design_shell.gap_lines(round_wall, []) == []
+
+
 def test_a_dome_roof_stands_as_a_dome():
     """Batch 1 of 2026-10-27: the greenhouse's glass dome stood as a gable along its box's longer side, so over its
     3 m walk two of the five astronauts its concept stands there ran into the roof and the cast left them out. A dome
