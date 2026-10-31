@@ -3,7 +3,9 @@ joints, a muscle whose class gives its parameters, names with '-'), sized to a t
 compiles in MuJoCo and builds in Newton with the
 same joints, one joint a body, no '-' in a name, no floor, the person's mass, and every muscle's gain and bias in
 Newton's model the published model's (#60's import fixes); with the fit's constants given, an inside joint's
-body sits moved by its found move. It runs in Newton's own Python
+body sits moved by its found move; the neck and head carry MyoHead's two joints, the torso the thoracic three, and the
+girdle's coupling to the arm's elevation is gone, its joint on its own range, and its phantom follows it at -1
+(`myo._movable`). It runs in Newton's own Python
 (score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there, as in `make
 tests`' sandbox home, it prints `skipped`.
 
@@ -15,6 +17,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   gainprm loses its class's range and Newton refuses it ("lmin<1<lmax required in muscle").
 - person_file's `spec.delete(geom)` made `pass`: the floor stays.
 - (2026-10-29) inside_moved's `body.pos = body.pos + joints[filed]` made `pass`: the talus stays where it was.
+- (2026-10-31) _fresh's `movable(spec)` made `pass`: no neck or thoracic joint, the girdle still coupled.
+- (2026-10-31) _girdle's `elif stem in PHANTOMS:` made `elif False:`: the phantom stays tied to shoulder_elv.
 
 Run: .venv/bin/python score/stages/sim_body/inside/myo/test_the_persons_file_builds_in_newton_as_mujoco_compiles_it.py
 """
@@ -75,7 +79,8 @@ def toy_rig():
 
 def toy_body():
     """The toy body's MJCF as MyoFullBody's wheel has it: a floor, every body a sphere of 1 kg (a moving body needs a
-    mass), the torso with two joints and carrying a mesh up to 1.6 m, each toes body a mesh down to 0 m, one muscle
+    mass), the spine with two joints and carrying a mesh up to 1.6 m, the torso on it (the neck, head and a girdle
+    joint and its phantom coupled to an arm lift on it), each toes body a mesh down to 0 m, one muscle
     of a class with partial parameters from the pelvis to the left tibia, names with '-'."""
     sides = []
     for side, mirror in (("l", 1.0), ("r", -1.0)):
@@ -108,15 +113,38 @@ def toy_body():
       <geom type="sphere" size="0.1" mass="1"/>
       <site name="rect-fem-origin" pos="0.1 0.1 -0.05"/>
       {children("pelvis")}
-      <body name="torso" pos="0 0 0.1">
+      <body name="spine" pos="0 0 0.1">
         <joint name="lumbar-flex" type="hinge" axis="1 0 0"/>
         <joint name="lumbar-bend" type="hinge" axis="0 1 0"/>
         <geom type="sphere" size="0.1" mass="1"/>
         <geom type="mesh" mesh="head" mass="0.1"/>
+        <body name="torso">
+        <geom type="sphere" size="0.05" mass="1"/>
         {children("torso")}
+        <body name="neck" pos="0 0 0.3">
+          <geom type="sphere" size="0.03" mass="1"/>
+          <body name="head" pos="0 0 0.1"><geom type="sphere" size="0.08" mass="1"/></body>
+        </body>
+        <body name="clavicle_l" pos="0.1 0 0.3">
+          <joint name="sternoclavicular_r2_l" type="hinge" axis="0 0 1"/>
+          <geom type="sphere" size="0.02" mass="1"/>
+          <body name="clavphant_l" pos="0.05 0 0">
+          <joint name="unrotscap_r2_l" type="hinge" axis="0 0 1"/>
+          <geom type="sphere" size="0.02" mass="1"/>
+          <body name="blade_l">
+            <joint name="shoulder_elv_l" type="hinge" axis="1 0 0"/>
+            <geom type="sphere" size="0.02" mass="1"/>
+          </body>
+          </body>
+        </body>
+        </body>
       </body>
     </body>
   </worldbody>
+  <equality>
+    <joint joint1="sternoclavicular_r2_l" joint2="shoulder_elv_l" polycoef="0 -0.242 0 0 0"/>
+    <joint joint1="unrotscap_r2_l" joint2="shoulder_elv_l" polycoef="0 0.242 0 0 0"/>
+  </equality>
   <tendon>
     <spatial name="rect_fem">
       <site site="rect-fem-origin"/>
@@ -203,7 +231,27 @@ def every_muscle_keeps_its_published_parameters_in_newton():
     return problems
 
 
-CHECKS = (the_constants_move_the_file, the_written_file_builds_as_it_compiles,
+def the_neck_thorax_and_girdle_move():
+    """The written file's neck, head and torso carry `myo._movable`'s joints with their ranges, and the girdle's
+    joint leads on GIRDLE's range, its phantom the one coupling left, at -1 on it."""
+    import numpy as np
+    from myo._movable import GIRDLE, NECK, THORACIC
+    with tempfile.TemporaryDirectory() as folder:
+        compiled = written(folder)[2]
+    wanted = {joint["name"]: joint["range"] for joint in NECK.values()}
+    wanted.update({name: span for name, _, span in THORACIC[3]})
+    wanted["sternoclavicular_r2_l"] = GIRDLE["sternoclavicular_r2"]
+    names = [compiled.joint(joint).name for joint in range(compiled.njnt)]
+    problems = [f"{name}: missing" for name in wanted if name not in names]
+    problems += [f"{name}: range {compiled.joint(name).range} against {span}" for name, span in wanted.items()
+                 if name in names and not np.allclose(compiled.joint(name).range, span)]
+    tied = [(compiled.joint(int(compiled.eq_obj1id[at])).name, compiled.joint(int(compiled.eq_obj2id[at])).name,
+             compiled.eq_data[at, :5].tolist()) for at in range(compiled.neq)]
+    return problems + ([] if tied == [("unrotscap_r2_l", "sternoclavicular_r2_l", [0.0, -1.0, 0.0, 0.0, 0.0])] else
+                       [f"couplings {tied}"])
+
+
+CHECKS = (the_neck_thorax_and_girdle_move, the_constants_move_the_file, the_written_file_builds_as_it_compiles,
           every_muscle_keeps_its_published_parameters_in_newton)
 
 

@@ -52,9 +52,9 @@ __all__ = ["Fitting", "end_site", "Frames", "NotConverged", "LM_DAMPING", "solve
 
 def followed(segments):
     """The bone groups whose turns are targets: every group SOMA has (OpenSense: every segment a sensor, weight 1),
-    in `groups()` order. One with no joint of its own (the thorax, neck and head, rigid on lumbar1) or whose joints
-    follow another's (the lumbar levels above L5, the shoulder girdle on the arm's elevation) is met as near as the
-    joints that lead it allow (`LACKS`); leaving them out was measured worse on the Kimodo walker (2026-10-28: joints
+    in `groups()` order. One whose joints follow another's (the lumbar levels above L5) or that has fewer than SOMA's
+    (the neck) is met as near as the joints that lead it allow
+    (`LACKS`); leaving them out was measured worse on the Kimodo walker (2026-10-28: joints
     24 mm median against 17 with every group)."""
     return [group for group in groups() if group in segments]
 
@@ -63,8 +63,7 @@ def group_ends(segments):
     """The bone groups' ends that are a SOMA rig joint, in `groups()` order ([(SOMA end, MyoFullBody centre)]): each
     group's start (every joint between two groups starts one; a chain's tip is no joint) whose rig joints `segments`
     hold, one rule for every end: a middle of two (the hips', the neck's) is an end like any other (`soma_joints`,
-    `myo_parts`). A group rigid on the one before it (MyoFullBody's neck and head, `LACKS`) has no joint at its start,
-    yet SOMA's rig joint is there: its end sits on it as every other's does (#70: no joint special-cased). An end
+    `myo_parts`). Every group's end sits on SOMA's rig joint the same way (#70: no joint special-cased). An end
     whose SOMA side is only other ends' own joints (the hips' middle: the two hip ends) is left out, so no rig joint
     is counted twice."""
     ends = [(soma[0], myo[0]) for soma, myo, _, _ in groups().values()
