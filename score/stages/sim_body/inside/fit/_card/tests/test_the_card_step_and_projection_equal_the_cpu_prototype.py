@@ -19,9 +19,11 @@ short of the model are refused. On a toy body
 its bones-outside shares exactly (every point's count), their depths outside (level 1's skin residual, the same
 kernel on both devices) to DEPTH_MM. A second clip after the skin was posed once (`_measure.POSED`, shared across sets) equals the CPU's on its own. On fit's own toy (`card_level2.py`), level 2's exact
 Jacobian (_level2.py) equals its residuals' central differences to 1e-6 of each column's largest entry from the
-host's kinematics, to 1e-5 from the card's (_level2_card.py), nothing outside `Problem.sparsity`; level 2 solved with it (`_constants.staged(jacobian=...)`) from a path moved
-0.05 off equals the 2-point solve to 1e-3 mm and 1e-4 deg. Its frames under 3 sets' constants on one card
-model (each world its set's body_pos and site_pos, level 2 across sets) equal each set alone bit for bit. Level 2's
+host's kinematics, nothing outside `Problem.sparsity`; the card's float64 evaluator (_level2_wide.py: every frame's
+kinematics on the card) gives the host's residuals and Jacobian to 1e-12 of their largest entry, the same sparse
+layout, at the start and off it; level 2 solved with the exact Jacobian (`_constants.staged(jacobian=...)`) and
+with the card's evaluator (`staged(wide=True)`) from a path moved 0.05 off equals the 2-point solve to 1e-3 mm and
+1e-4 deg. Level 2's
 inverse left Jacobians batched over every frame and group equal the per-row ones to 2e-15. A body carrying several
 MuJoCo joints is one Newton joint, and `_clip.moved_inside` moves that one by the body's move (`card_inside.py`).
 
@@ -68,10 +70,8 @@ Breaks (each applied once, seen red, reverted):
   columns are off their differences.
 - (2026-10-29) _level2.frame_rows' inside joint `body_turns[parent]` made `body_turns[fitting.inside[joint]]`: the
   knee's move columns are off.
-- (2026-10-29) _level2_card.CardKinematics.frames' `body_pos.assign(...)` dropped: the card keeps the model's base
-  inside joint places, the knee's move columns are off.
-- (2026-10-30) _level2_card.CardKinematics.lay's per-world rows made `np.asarray(given)[:1]` (one set's constants
-  for every world): sets 1 and 2's frames off theirs alone by 0.056-0.064 (card_level2).
+- (2026-10-29, 2026-10-30, retired with _level2_card on 2026-10-31) _level2_card.CardKinematics' constants laid
+  wrongly (the base inside joint places kept; one set's constants for every world).
 - (2026-10-30) _level2.left_jacobian_inverses' `factor[:, None, None] * cross @ cross` dropped: every bent row off
   its own (card_level2).
 - (2026-10-29) _constants.staged's `jacobian(problem, unknowns)` made `jacobian(problem, begin)` (the Jacobian
@@ -101,7 +101,7 @@ from card_chain import (LINKS, OBJECTIVE_ROWS, chain_model, log_rate, objective_
                         residuals_and_jacobian)
 from card_toy import CLIP_FRAMES, TOY, mink_frames, toy_card, toy_clip, toy_errors  # noqa: E402
 from card_body import the_measures_equal_the_cpu_measure, the_skins_posed_once_follow_each_clip  # noqa: E402
-from card_level2 import (the_batched_inverses_equal_each_row, the_frames_per_world_equal_each_set_alone,  # noqa: E402
+from card_level2 import (the_batched_inverses_equal_each_row, the_wide_level2_equals_the_hosts,  # noqa: E402
                          the_level2_jacobian_equals_its_differences,
                          the_level2_solve_with_the_exact_jacobian_equals_differences)
 from card_across import the_sets_solved_together_equal_each_set_alone  # noqa: E402
@@ -273,7 +273,7 @@ def the_next_iteration_from_its_seeds_equals_mink():
 CHECKS = (the_rows_equal_each_set_alone, the_rowwise_optimizer_equals_each_set_alone,
           the_float64_frames_equal_each_set_alone, the_sets_solved_together_equal_each_set_alone,
           the_sets_batch_equals_each_clip_alone, the_sampled_path_across_sets_equals_each_set_chained,
-          the_frames_per_world_equal_each_set_alone, the_batched_inverses_equal_each_row,
+          the_wide_level2_equals_the_hosts, the_batched_inverses_equal_each_row,
           the_level2_jacobian_equals_its_differences, the_level2_solve_with_the_exact_jacobian_equals_differences,
           the_measures_equal_the_cpu_measure, the_skins_posed_once_follow_each_clip, the_step_equals_the_prototype, the_projection_equals_the_prototype,
           the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame,

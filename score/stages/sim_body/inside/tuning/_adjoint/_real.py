@@ -250,12 +250,11 @@ def level2_free(fitting):
 
 def level2_solved(fitting, turns, points, lengths):
     """Level 2's solve on one body's sampled targets as `fit.constants_on` runs it (`card_path`'s start angles,
-    `card_jacobian`, `level2_free`), keeping what `constants_on` drops: (start path, constants vector, solved angles)."""
-    from fit import card_jacobian, card_path
+    `wide`, `level2_free`), keeping what `constants_on` drops: (start path, constants vector, solved angles)."""
+    from fit import card_path
     from fit._constants import staged
     path = card_path(fitting, turns, points, lengths)
-    constants, angles, _ = staged(fitting, path, turns, points, fitting.neutral(), level2_free(fitting),
-                                  card_jacobian(fitting, len(path)))
+    constants, angles, _ = staged(fitting, path, turns, points, fitting.neutral(), level2_free(fitting), wide=True)
     return path, constants, angles
 
 

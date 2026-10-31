@@ -31,7 +31,11 @@ before that.
   converted on the card), a row stopping when its reduced step is under 1e-6 or its cost moved under 1e-10 of itself
   over two steps (1e-9 until 8258bcab: mean_squat's chain stopped 0.047 deg short in elv_angle_r's flat valley), or (as mink's frames, `../_frames.solved`, 2026-10-29) a step moved its float64 residuals by under
   1e-8 (arms_raise's shoulder gimbal drift; its proto-clip and toy tests unchanged, its own break test and the
-  arms_raise gate not yet run); NotConverged at 300. Measured 2026-10-29 on the proto clip (136 frames, each row seeded as mink's
+  arms_raise gate not yet run); NotConverged at 300. Since 2026-10-31 every step after the first is one CUDA graph (`wp.ScopedCapture` of
+  the step, replayed; the step count on the card, `_counted`, read by `_stopped`): the first step runs eagerly so
+  every kernel is loaded before the capture. The level 1 profile showed ~270k Python launches over 4 sets of tall's
+  7 clips (~12 s of 72 under cProfile); the toy clip's angles and steps are bit for bit the same captured or not
+  (4 tiled copies, night/gpu1/check/toy_solve.py), and the sampled frames' card phase went 7.3 to 3.5 s on 4 sets. Measured 2026-10-29 on the proto clip (136 frames, each row seeded as mink's
   frame was), float32 residuals: angles 0.020 deg and sites 0.029 mm max, all in elv_angle_l/r (the shoulder's
   elevation plane near the hanging arm, a flat direction); mink's answer is the float64 minimum there (scipy's least
   squares at 1e-15 from both answers lands on mink's to 4e-5 deg and 0.0002 mm), so the miss is the card's. With the
@@ -75,17 +79,12 @@ before that.
   place one for one, its rotation vector by SO(3)'s right Jacobian, MuJoCo's free joint turning in its body frame, a
   leader its dof, a follower by polyval's slope), place rows the site's place Jacobian, turn rows -J_l^-1(log)
   R_site^T times the site's turn Jacobian, a marker's move its body's turn, an inside joint's move its parent's turn
-  on every site it carries, the priors diagonal. The frames' kinematics are MuJoCo's float64 on the host for now
-  (`Kinematics`, the reference) or the card's (`_level2_card.CardKinematics`: every sampled frame a MuJoCo Warp
-  world, `kinematics`, then MuJoCo Warp's own `_cdof` about each root body's origin (not `com_pos`: its float32 atomic
-  sums over sibling bodies ran in no fixed order, so two runs of one set ended 1.2e-4 mm apart in joints, 2026-10-29;
-  `jac_dof` adds the same point back, the same Jacobian), then one launch of MuJoCo Warp's own `jac_dof` per world,
-  site and dof; the
-  constants assigned to its `body_pos`/`site_pos` each call, float32, equal to the host's to 3.3e-7; MuJoCo Warp
-  reads both per world, `body_pos[worldid % body_pos.shape[0]]` in `smooth.py`'s kinematics and site kernels, so
-  level 2 across sets needs no per-world models: one model whose `body_pos`/`site_pos` hold a row per set x frame
-  world, checked in the installed mujoco_warp 2026-10-30, not yet built). On fit's toy
-  (test, `tests/card_level2.py`) the host's equals central differences to 1.8e-10 of a column, the card's to 1e-5.
+  on every site it carries, the priors diagonal. The frames' kinematics are MuJoCo's float64 on the host
+  (`Kinematics`, the reference); `_level2_wide` gives the same on the card in float64 (below). Before 2026-10-31 the
+  card's were MuJoCo Warp's float32 (`_level2_card.CardKinematics`, every sampled frame a world; retired with
+  `fit.card_jacobian` once `_level2_wide` replaced it: 1e-5 of a column off, and the host still made level 2's
+  residuals and polish). On fit's toy
+  (test, `tests/card_level2.py`) the host's equals central differences to 1.8e-10 of a column.
   Gate on heavy (host kinematics, 2026-10-29, build/4/gate.py): 12,333 rows x 1,483 unknowns, 283,149 nonzeros; the
   exact Jacobian equals scipy's 2-point to 8.0e-7 of a column (plan 1 %); level 2 with jac=exact against today's:
   constants 0.0011 mm, coordinates 3.2e-4 deg, cost 6.5e-10 relative, both 24 evaluations, status 2; 6.4 s against
@@ -146,10 +145,21 @@ before that.
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
   the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the
   errors), the measures on a toy body (`tests/card_body.py`, its check there too), level 2's two checks in `tests/card_level2.py`; it needs Newton's Python and a CUDA card, else prints `skipped`. About 20 s.
-- `_level2_card.CardKinematics.lay` / `frames(qpos, body_pos, site_pos)` (2026-10-30): each world its own row of
-  constants (worlds x n x 3), so one card model holds every set's sampled frames (level 2 across sets' first
-  piece); on the toy, 3 sets equal each set alone bit for bit (test). Not used: a lockstep driver (one card `frames`
-  call a round for every running set, 3acb8b02) was built and deleted 2026-10-30: on tall's first case the card
-  `frames` calls are 0.40 s of a 2.42 s level 2 solve (host assembly 1.04 s, residuals 0.34 s, scipy ~0.64 s), so
-  batching them across sets saves at most 17 % of level 2. Level 3 across sets (`_sets.Sets`) measured no gain either
-  (heavy, 7 clips x 4 sets: 68.1 s alone, 72.3 s together), so its driver went too.
+- `_level2_wide.py` (`Wide`, 2026-10-31; level 1's card process sat at ~1.3 cores with the card near 0 %, level 2's
+  per-frame host loops its largest share): a `../_constants.Problem` whose `residuals` and `exact` (its Jacobian)
+  are float64 with every frame's kinematics on the card: each frame's pose made for all frames in one array pass on
+  the host (`poses`: `Problem.qpos` and `Fitting.coupled`), one launch of MuJoCo's own mj_kinematics steps a thread
+  a frame (`_kinematics`: body_pos, body_quat, a hinge about its anchor, a slide, the free joint from qpos; float64),
+  one of the picked sites (`_sites`, mj_local2Global) and one of their Jacobian columns (`_jacobians`, mj_jacSite's:
+  a hinge's world axis and axis x (point - anchor), a slide's axis, the free joint's world places and body-frame
+  turns), then `_level2.frame_rows`' rows for every frame at once (`mappings` its `dof_map`s), in its order. The
+  turns' targets enter as scipy reads R_site^T R_target (`polar`: a target off orthogonal at 1e-12 replaced by its
+  nearest rotation, which R_site^T carries). Ball joints refused. `staged(wide=True)` uses it for least_squares and
+  the polish; `told` stays on the host's Jacobian (with `Wide`'s, equal to 8e-16, the pivoted QR picked the thorax's x
+  where the host picks the root's on tall: two equally told axes, the same residuals, 2.85 mm apart, the lumbar
+  between them moved). Measured 2026-10-31: the toy's residuals and Jacobian equal the host's to 2.3e-16 and 7.8e-16
+  (test, 1e-12, the sparse layout the host's too); tall's set s00000 (30 frames, 1908 told unknowns) residuals
+  3.4e-16 / Jacobian 8.3e-16 off the host's (a few entries exact zeros on one side only, so not the host's
+  sparse layout there), a residual 1.9 against 9.6 ms and a Jacobian 18 against 45 ms;
+  `staged` with it against the host's exact Jacobian throughout: constants 3.6e-7 mm, angles 2.1e-7 deg, 47
+  evaluations each, 3.5 s against 6.0 s.
