@@ -175,7 +175,17 @@ def blocks(waiter, held, rank, room, now):
     if RANK[waiter["priority"]] < rank:
         return True
     return (fits(held, waiter["group"], waiter["card_gb"], waiter.get("memory_gb", 0), room)
-            or now - waiter["since"] >= BACKFILL_SECONDS)
+            or now - waiter["since"] >= BACKFILL_SECONDS and could_fit(waiter, held))
+
+
+def could_fit(waiter, held):
+    """Whether `waiter` fits once every share it may outwait is gone (those of its own priority or later): one that
+    cannot fit beside the shares of an earlier priority waits for them and keeps nothing out meanwhile (round 41,
+    2026-10-31: an unmeasured segment claim asked the whole card beside sim body's held 3 GB, and after
+    BACKFILL_SECONDS every claim queued behind it with the card idle)."""
+    earlier = [share for share in held if RANK[share["priority"]] < RANK[waiter["priority"]]]
+    return waiter["card_gb"] + sum({share["group"] or share["id"]: share["card_gb"] for share in earlier}.values()) \
+        <= BUDGET_GB
 
 
 def resize(handle, memory):
