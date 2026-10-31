@@ -550,6 +550,7 @@ def test_this_pc_refuses_a_job_by_its_measured_need_not_its_kind(monkeypatch, tm
     monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
     monkeypatch.setattr(local, "memory_cap", lambda: "35g")
     monkeypatch.setattr(local, "alone_cap", lambda: "35g")
+    monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)  # never the PC's own container
     with pytest.raises(ValueError, match="17 GB of card"):
         local.take("characters", "key")  # the whole machine: Kimodo's encoder on the card
     with pytest.raises(ValueError, match="40.0 GB of memory"):
