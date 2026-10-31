@@ -694,8 +694,15 @@ def spread_face(pieces, half):
     return lefts if clear and lefts[0] >= -half + OPENING_ROOM - 1e-9 else None
 
 
+def kept_on_face(piece, half):
+    """A piece's `along` moved the least that keeps it inside a face `half` long either side of its middle, as the
+    assembly keeps a face thing within its holder's built span (fitting.on_face)."""
+    return min(max(piece["along"], -half + piece["before"]), half - piece["after"])
+
+
 def face_spread(found, items, rows, plan, inventory, kinds):
-    """The pieces against each holder's face that would overlap at their built sizes (along it and in height) spread
+    """The pieces against each holder's face that would overlap at their built sizes (along it and in height, each
+    kept inside the face's ends as the assembly keeps it: kept_on_face) spread
     along it in the order the plan draws them (spread_face), each relation of a piece moved given its pieces' `spots`
     and a moving door its recess at them; a face too short for them all keeps them as drawn, named in the
     [{holder, holder row, face, rows, why}] returned (street's 3 m window, stairwell entrance and roller shutters laid
@@ -713,8 +720,10 @@ def face_spread(found, items, rows, plan, inventory, kinds):
                               key=lambda piece: piece["along"]) for entry in entries),
                       key=lambda own: sum(piece["along"] for piece in own) / max(len(own), 1))
         pieces = [piece for own in each for piece in own]  # an item's pieces together, items in their plan order
-        if all(later["along"] - later["before"] >= piece["along"] + piece["after"] - 1e-9 or not meet(piece, later)
-               for number, piece in enumerate(pieces) for later in pieces[number + 1:]):
+        kept = [kept_on_face(piece, half) for piece in pieces]
+        if all(kept[later] - pieces[later]["before"] >= kept[number] + piece["after"] - 1e-9
+               or not meet(piece, pieces[later])
+               for number, piece in enumerate(pieces) for later in range(number + 1, len(pieces))):
             continue
         lefts = spread_face(pieces, half)
         if lefts is None:

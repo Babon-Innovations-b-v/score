@@ -369,6 +369,27 @@ def test_things_on_one_face_that_meet_at_their_built_widths_are_spread_along_it(
     assert [(entry["face"], entry["rows"]) for entry in found["crowded"]] == [("E", ["air_conditioner_unit", "shutter", "window"])], found
 
 
+def test_things_drawn_past_their_holder_s_built_end_are_spread_inside_it():
+    """Hub (#36, assembly@hub held): three 0.5 m monitors drawn against a 9 m console item stood past its 4.5 m built
+    model's end, apart as drawn; the assembly kept each inside the face's ends and they overlapped there by 0.5 m. Kept
+    inside the ends as the assembly keeps them they meet, so they are spread along it in their plan order, 0.2 m
+    apart and 0.2 m inside its end.
+    Break: score/review/holders/__init__.py: `kept = [kept_on_face(piece, half) for piece in pieces]` ->
+        `kept = [piece["along"] for piece in pieces]`"""
+    rows = [{"id": "console", "noun": "console", "anchor": "floor", "size": [4.5, 0.8, 1.0]},
+            {"id": "monitor", "noun": "monitor", "anchor": "on:console", "size": [0.5, 0.1, 0.4]}]
+    items = [["CONSOLE 1", 0.0, 4.0, 9.0, 1.0, "N", "item"]]
+    items += [[f"MONITOR {number}", along, 5.0, 0.5, 0.1, None, "item"]
+              for number, along in ((1, 6.5), (2, 7.5), (3, 8.4))]
+    plan = plan_of(items, {"CONSOLE 1": ["console"], **{item[0]: ["monitor"] for item in items[1:]}})
+    plan["shapes"] = {item[0]: {"base": 1.0} for item in items[1:]}
+    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
+    faces = [entry for entry in found["relations"] if entry["row"] == "monitor"]
+    assert [(entry["how"], entry["face"]) for entry in faces] == [("face", "S")] * 3, faces
+    assert [entry["spots"] for entry in faces] == [[[4.9, 5.05]], [[5.6, 5.05]], [[6.3, 5.05]]], faces
+    assert "crowded" not in found, found
+
+
 def test_a_stair_the_plan_writer_left_unplaced_stands_at_the_plan_s_stair():
     """Greenhouse (2026-10-29): its two stairs rows, on its lower floor, stood at the room's middle (the walls item);
     the plan draws its stairs. Each stands at the next stair's middle, along its way up (90 degrees: south, the
