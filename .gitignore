@@ -36,6 +36,8 @@ yarn-error.log*
 # Session state: per-clone, regenerable
 .claude/worktrees/
 .claude/state/
+# The owner's own pre-push guard, kept out of the repository
+.claude/hooks/local/pre-push
 tmp/
 
 # Claude's memory: private working notes, never pushed (this repository is public)

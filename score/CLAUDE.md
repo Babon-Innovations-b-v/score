@@ -143,7 +143,7 @@ stage as each stage is built; nothing moves before.
   blank lines, layout, docstrings unless something reads `__doc__`: `_code.words_only`, "same meaning", the files
   named in its record; type hints and names still count), a rewired stage, another Python or a dropped file edited
   or deleted made again). `python -m score moved` lists the paid rows a tree would buy again;
-  `.githooks/pre-push-moved` refuses a push that moves one without a `Moved-rows:` reason (off until the owner
+  `.claude/hooks/local/pre-push-moved` refuses a push that moves one without a `Moved-rows:` reason (off until the owner
   sets `git config score.movedCheck true` and calls it from his pre-push). Before `run` starts, `rebuy.py` lists every paid row it would buy with its
   estimate (a Google ask google_spend's cache answers at EUR 0) and refuses, over EUR 5 of rows that already have an
   accepted output, unless given `--rebuy-reason "<why>"`, which goes into the run's log and the cloud ledger.

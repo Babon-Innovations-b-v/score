@@ -13,7 +13,7 @@ file the change moves into FRAMEWORK and edits too (the rows that read it are ma
 every moved row as {paid, code, files: {path: [places]}, places: [every place the row is declared at, "None" for a
 world row]}.
 
-The push gate (`python -m score moved [--pre-push]`, .githooks/pre-push-moved) asks the dearer question of every world:
+The push gate (`python -m score moved [--pre-push]`, .claude/hooks/local/pre-push-moved) asks the dearer question of every world:
 which paid rows with an accepted output a drive would buy again (rebuy.buys), each at its price and why.
 
     found = moved.rebuys(runner, nodes)          # [rebuy.Buy] of the re-buys, priced
