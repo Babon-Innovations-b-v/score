@@ -56,13 +56,17 @@ class Kept:
 
 
 def grounded(spots, found):
-    """Each spot with its feet on the solid under it, or None where nothing solid is, it is wet or its body there
-    runs into something."""
+    """Each spot with its feet on the solid under it, or None where nothing solid is, it is wet, the ground under its
+    footprint is not level (measure.level_under: a deck's edge under one foot) or its body there runs into
+    something."""
     if not spots:
         return []
     grounds = measure.ground_under(spots, found)
     stood = [None if ground["gap"] is None or ground["water"] else [round(float(spot[0]), 3), round(float(spot[1] - ground["gap"]), 3), round(float(spot[2]), 3)]
              for spot, ground in zip(spots, grounds)]
+    standing = [spot for spot in stood if spot is not None]
+    level = iter(measure.level_under(standing, found) if standing else [])
+    stood = [None if spot is None or not next(level) else spot for spot in stood]
     standing = [spot for spot in stood if spot is not None]
     clashes = iter(measure.run_into(standing, found))
     return [None if spot is None or next(clashes) else spot for spot in stood]
