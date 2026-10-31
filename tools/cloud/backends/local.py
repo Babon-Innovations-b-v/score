@@ -96,6 +96,9 @@ HELD = {}  # {machine id: the open lock file} for the claims this process holds
 # neither holds the whole card. DINOv2's likeness (similar_worker.py): 2026-10-31, 56 pairs of an env1 likeness in a
 # container of this image, the card's total read every 100 ms: 729 MiB over a steady 2324 before and after.
 CARD_NEED = {"blender": 9.7, "pixal": 10.8, "similar": 0.8}
+# The memory GB a kind's claim holds when its run gives none (run.need's memory_gb comes first); a kind in neither
+# holds the whole memory. DINOv2's likeness: 2026-10-31, the same 56 pairs, the worker's resident peak 1.26 GB.
+MEMORY_NEED = {"similar": 1.3}
 CARDS = {}  # {machine id: its open share of the card queue} for the claims this process holds
 # Cores the container never gets (--cpus): WSL, the desktop and the run's own steps beside it keep them, so this PC
 # answers while the container is busy (2026-10-31: the PC lagged under load). No kind's cores are measured yet: each
@@ -190,6 +193,7 @@ def take(kind, public_key, need=None):
     """This PC's machine for one claim, held by this process until `delete`: {id, zone, type, class, cards, price,
     unit_minutes, host, disk_gb, here}; None while another claim holds it, or while the room a job alone needs is
     not free (alone_room). ValueError for a job too big (refusal)."""
+    need = {"memory_gb": MEMORY_NEED[kind], **(need or {})} if kind in MEMORY_NEED else need
     refused = refusal(kind, need)
     if refused:
         raise ValueError(refused)
