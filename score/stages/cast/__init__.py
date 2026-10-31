@@ -101,6 +101,20 @@ def on_levels(record, plan):
     return dict(record, people=[dict(person, at=raised(person["at"])) for person in record.get("people", [])])
 
 
+def on_made_ground(record, height):
+    """The record with each person whose feet lie under the made ground (`height`: writer.ground_under's, None for a
+    place with none) raised onto it: spread.grounded looks down from the knee, so a spot where the ground rises over it
+    by more than KNEE found nothing under it (wreck's astronaut_3, under its 3.9 m rise: round 33, 2026-10-30)."""
+    if height is None:
+        return record
+
+    def raised(at):
+        ground = height(at[0], at[2])
+        return [at[0], ground, at[2]] if ground is not None and ground > at[1] else at
+
+    return dict(record, people=[dict(person, at=raised(person["at"])) for person in record.get("people", [])])
+
+
 def made_ground(inputs, place):
     """The terrain row's made ground of the place (places/<place>.usdc, as the assembly's take_ground finds it), or
     None: a room's floor is its seed's or its scene record's."""
@@ -194,7 +208,8 @@ def make(inputs, out, seed, params):
     seed lays none: layer_base.built) on its made ground (`measures.json`)."""
     place = pathlib.Path(inputs["seed"]).name
     design = read_json(inputs["design"])
-    record = on_levels(people_rows.cast_record(place, design), read_json(inputs["design plan"]))
+    record = on_made_ground(on_levels(people_rows.cast_record(place, design), read_json(inputs["design plan"])),
+                            writer.ground_under(inputs, place))
     singles = dealt(record, inputs)
     crowd = crowd_of(record, singles, inputs)
     with layer_base.built(inputs) as folder:
