@@ -531,3 +531,12 @@ def test_an_opening_on_no_wall_the_shell_builds_is_named_loose():
     found = holders.relations(plan_of([], {}, walls=walls, openings=openings), {"rows": []})
     loose = [{"opening": 3, "at": [10.0, 3.0], "why": "it sits on no wall the shell builds"}]
     assert found.get("loose") == loose, found
+
+
+def test_an_open_place_s_doorway_is_no_loose_opening():
+    """The street (2026-10-31): its plan draws no walls (an open ground has none) and its stairwell door stands in
+    its facade row, a doorway into the building: no wall opening of its own, so it is not named loose.
+    Break: score/review/holders/__init__.py: `if "wall" not in shell_parts.parts(plan):` -> `if False:`"""
+    opening = {"kind": "door", "at": [1.4, 19.4], "wide": 1.0, "sill": 0.14, "head": 2.2, "to": "stairwell"}
+    street = plan_of([], {}, shell="kit", inside=False, walls=[], openings=[opening])
+    assert "loose" not in holders.relations(street, {"rows": []}), "an open place's doorway"

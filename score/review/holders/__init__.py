@@ -59,6 +59,7 @@ import numpy
 
 from score.review import plan_checks
 from score.stages import row_kinds
+from score.stages import shell_parts
 from score.stages.earth_seed import design_shell
 from score.store import PROPS_HOME
 
@@ -1037,9 +1038,13 @@ def relations(plan, inventory, sha=None, kinds=None):
 
 
 def loose_openings(plan):
-    """The plan check that every opening sits on a wall the shell builds (design_shell.on_a_wall: its outline's and
-    its inner walls): [{opening, at, why}] of each that sits on none, which no wall is cut for (the lab's doors stood
-    in their entry passages' end walls, which the shell did not build, motion@lab round 35)."""
+    """The plan check that every opening of a place whose shell builds walls sits on one (design_shell.on_a_wall: its
+    outline's and its inner walls): [{opening, at, why}] of each that sits on none, which no wall is cut for (the
+    lab's doors stood in their entry passages' end walls, which the shell did not build, motion@lab round 35). An open
+    place's opening is a doorway into a building its facade row stands for, no opening of a wall of its own (the
+    street's stairwell door, its plan drawing no walls: an open ground has none, plan_writing)."""
+    if "wall" not in shell_parts.parts(plan):
+        return []
     return [{"opening": number + 1, "at": opening["at"], "why": "it sits on no wall the shell builds"}
             for number, opening in enumerate(design_shell.plan_openings(plan))
             if not design_shell.on_a_wall(plan, opening)]
