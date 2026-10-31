@@ -18,7 +18,8 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_gate_scope_runs_everything_when_asked_or_on_ci: forced_reason's CI branch removed.
 - test_setup_github_needs_a_login_and_a_dry_run_changes_nothing: sync_labels creates a label even on a dry run.
 - test_setup_github_resets_a_template_config_and_syncs_labels: main keeps the template's backlog_prd.
-- test_setup_github_gives_the_board_its_columns_and_fields: "Review" taken out of STATUS_OPTIONS.
+- test_setup_github_gives_the_board_its_columns_and_fields: "Review" taken out of STATUS_OPTIONS; or main's
+  `config.get("owner") or owner` made `owner` (a re-run overwrites the hand-edited owner).
 - test_worktree_reap_reaps_only_a_dead_sessions_clean_merged_worktree: is_clean returns True at once; or reap's
   `idle_hours(...) >= IDLE_HOURS` made `True` (a recent unlocked worktree is reaped).
 - test_worktree_reap_speaks_json_as_a_hook_and_only_when_it_did_something: main prints the report also when empty.
@@ -250,7 +251,7 @@ def test_setup_github_resets_a_template_config_and_syncs_labels(scratch_repo, fa
 def test_setup_github_gives_the_board_its_columns_and_fields(scratch_repo, fake_gh):
     env, answer, calls = fake_gh
     config = scratch_repo / ".claude" / "project.json"
-    config.write_text(json.dumps({"repo": "acme/widget", "areas": ["paper"]}))
+    config.write_text(json.dumps({"repo": "acme/widget", "owner": "someone", "areas": ["paper"]}))
     fields = {"fields": [{"id": "F1", "name": "Status", "options": [{"name": "Todo"}]},
                          {"id": "F2", "name": "Roadmap start"}]}
     answer({"repo view": REPO_VIEW, "label list": {"stdout": "[]"},
@@ -261,7 +262,9 @@ def test_setup_github_gives_the_board_its_columns_and_fields(scratch_repo, fake_
             "graphql mutation": {"stdout": json.dumps({"data": {}})}})
     run = script(scratch_repo, env, "setup-github.py", "--board")
     assert run.returncode == 0, run.stderr
-    assert json.loads(config.read_text())["project"] == {"number": 5, "owner": "acme"}
+    written = json.loads(config.read_text())
+    assert written["project"] == {"number": 5, "owner": "acme"}
+    assert written["owner"] == "someone"  # a re-run in the same repo keeps the hand-edited owner
     mutations = [json.loads(call["stdin"])["variables"] for call in calls() if call["stdin"]]
     assert [option["name"] for option in mutations[0]["o"]] == [
         "LowPriority", "Not started", "In Progress", "Review", "Done"]

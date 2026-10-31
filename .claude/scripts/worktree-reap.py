@@ -8,8 +8,9 @@ worktree as "in use by another live session" forever.
 A worktree is reaped only when its lock pid is dead AND it is clean (no uncommitted changes, HEAD
 already on origin/main). Dirty orphans are reported, never deleted, so no work is lost. An unlocked
 worktree (a finished agent's, or one made by hand) is reaped only when it is clean and merged AND
-untouched for IDLE_HOURS: agents left 306 such worktrees, 49 GB, by 2026-10-27; a dirty or unmerged
-unlocked one is never touched.
+untouched for IDLE_HOURS, because finished agents leave many of them behind: they fill the disk, and
+they sit inside the repository tree, where a check that walks the tree finds files from other
+branches. A dirty or unmerged unlocked one is never touched.
 
 Run standalone (`python3 .claude/scripts/worktree-reap.py`) or via the SessionStart hook. Exit
 status is always 0 so it never blocks a session.
