@@ -2,6 +2,7 @@
 model as `../_frames.Frames` sets mink up (the turns' and the markers' sites and costs, the couplings held, the leading
 joints in their followers-free ranges, the frozen dofs), every frame one row seeded on its own (`_seeds`). The
 prototype's setup (the card build's gate.py) made production; mink in `../_frames.py` stays the reference."""
+import weakref
 from types import SimpleNamespace
 
 import mujoco
@@ -185,16 +186,35 @@ def set_places(places, joints, held, moves):
     return moved
 
 
+BUILT = weakref.WeakKeyDictionary()  # {Fitting: (its file's path, Newton's model of it, the inside moves it holds)}
+
+
+def newton_model_for(fitting, path, device=DEVICE):
+    """Newton's model of the person's file at `path` with `fitting`'s current inside joint moves, built once per
+    `Fitting` and file and kept (`BUILT`): a later call moves its inside joints to the fitting's current moves in
+    place (`set_places`), as level 1's sets ask for it once for level 2's sampled frames and again, the constants laid
+    on, for the clips (2026-10-31: two Newton builds a set, ~0.9 s each)."""
+    import newton
+    moves = fitting.model.body_pos[fitting.inside] - fitting.base[0][fitting.inside]
+    kept = BUILT.get(fitting)
+    if kept is not None and kept[0] == str(path):
+        model, held = kept[1], kept[2]
+        model.joint_X_p.assign(set_places(model.joint_X_p.numpy(), inside_joints(model, fitting), held, moves))
+    else:
+        builder = newton.ModelBuilder(up_axis=newton.Axis.Z)
+        builder.add_mjcf(str(path), convert_mjc_equality_constraints=False, parse_meshes=False)
+        moved_inside(builder, fitting)
+        model = builder.finalize(device=device)
+    BUILT[fitting] = (str(path), model, moves.copy())
+    return model
+
+
 def for_fitting(fitting, path):
     """The `Clip` of a `..._model.Fitting` compiled from the person's file at `path` with its current inside joint moves:
-    Newton's model of the same file, refused when its site places miss MuJoCo's by over MAPPED."""
-    import newton
+    Newton's model of the same file (`newton_model_for`), refused when its site places miss MuJoCo's by over MAPPED."""
     from .._frames import weights
-    builder = newton.ModelBuilder(up_axis=newton.Axis.Z)
-    builder.add_mjcf(str(path), convert_mjc_equality_constraints=False, parse_meshes=False)
-    moved_inside(builder, fitting)
     turn_cost, place_costs = weights(fitting)
-    clip = Clip(builder.finalize(device=DEVICE), fitting.model, fitting.frame_sites, fitting.place_sites, turn_cost,
+    clip = Clip(newton_model_for(fitting, path), fitting.model, fitting.frame_sites, fitting.place_sites, turn_cost,
                 place_costs, fitting.frozen, followers_free_ranges(fitting.model, fitting.followers))
     miss = site_miss(clip)
     if miss > MAPPED:

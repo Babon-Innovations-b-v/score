@@ -75,3 +75,30 @@ def the_set_places_equal_a_build_per_set():
             problems.append(f"set_places: the set moved {scale:g} x MOVE off its own build by "
                             f"{np.abs(got - wanted).max():.6f} m")
     return problems
+
+
+class Kept:
+    """A fitting stand-in `_clip.newton_model_for` keeps a build for (weak-referenceable, unlike SimpleNamespace)."""
+
+    def __init__(self, model, inside):
+        self.model, self.base, self.inside = model, [model.body_pos.copy()], inside
+
+
+def a_kept_build_moves_to_the_fittings_moves():
+    """`_clip.newton_model_for` asked twice for one fitting and file, its arm moved by MOVE between: the same model,
+    its joint places within TOLERANCE of a build moved by MOVE; problems as text."""
+    import mujoco
+    import numpy as np
+    from fit._card._clip import newton_model_for
+    mjm = mujoco.MjModel.from_xml_string(SEVERAL)
+    path = written_file(SEVERAL)
+    arm = mujoco.mj_name2id(mjm, mujoco.mjtObj.mjOBJ_BODY, "arm")
+    kept, fresh = Kept(mjm, np.array([arm])), Kept(mujoco.MjModel.from_xml_string(SEVERAL), np.array([arm]))
+    first = newton_model_for(kept, path, "cpu")
+    mjm.body_pos[arm] += MOVE
+    fresh.model.body_pos[arm] += MOVE
+    second, wanted = newton_model_for(kept, path, "cpu"), newton_model_for(fresh, path, "cpu")
+    if second is not first:
+        return ["the second call built a new model"]
+    gap = np.abs(second.joint_X_p.numpy() - wanted.joint_X_p.numpy()).max()
+    return [] if gap <= TOLERANCE else [f"the kept build's joint places {gap:.6f} m off a build moved by MOVE"]
