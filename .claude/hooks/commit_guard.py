@@ -72,12 +72,25 @@ def git_out(args, cwd):
     return done.stdout.strip() if done.returncode == 0 else ""
 
 
+GIT_OPTIONS_WITH_A_VALUE = ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path")
+
+
+def git_subcommand(tokens, start):
+    """The subcommand of the `git` word at `start`, past git's own options; "" when there is none."""
+    index = start + 1
+    while index < len(tokens) and tokens[index].startswith("-"):
+        index += 2 if tokens[index] in GIT_OPTIONS_WITH_A_VALUE else 1
+    return tokens[index].rstrip(";&|") if index < len(tokens) else ""
+
+
 def is_git_commit(tokens):
-    """True for a real `git commit` invocation."""
-    if "git" not in tokens:
-        return False
-    start = tokens.index("git")
-    return "commit" in tokens[start + 1:]
+    """True when some `git` word in the command runs `commit` as its subcommand.
+
+    Only the subcommand counts: `git log --grep commit`, or a comment body that names git and later says commit, is
+    not a commit.
+    """
+    starts = [index for index, word in enumerate(tokens) if word == "git" or word.endswith("/git")]
+    return any(git_subcommand(tokens, start) == "commit" for start in starts)
 
 
 def bypass_in(tokens):

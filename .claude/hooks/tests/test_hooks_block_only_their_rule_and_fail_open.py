@@ -36,6 +36,7 @@ The break that turns each test red (applied once each, seen red, reverted):
   `_user_asked_for_markdown` returns False at once (the user's yes is never heard).
 - test_commit_guard_refuses_a_session_waiving_a_guard: `bypass_in` returns None at once.
 - test_commit_guard_refuses_the_shared_checkout_while_a_worktree_is_live: `live_session_worktrees` returns [] at once.
+- test_commit_guard_reads_only_gits_subcommand_as_a_commit: `is_git_commit` returns `"commit" in tokens` (any word).
 - test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file: `blocks` returns False at once.
 - test_torn_commit_guard_refuses_conflict_markers_and_a_broken_sourced_shell_contract: `sourced_shell_dirs` returns
   [] at once.
@@ -557,6 +558,19 @@ def test_commit_guard_refuses_the_shared_checkout_while_a_worktree_is_live(tmp_p
     for elsewhere in (f"cd {worktree}; git commit -m x", f"cd {worktree} && git commit -m x"):
         assert run(guard, dict(bash(elsewhere), cwd=str(repo)), env=GIT_ENV)[0] == ALLOW, elsewhere
 
+
+
+def test_commit_guard_reads_only_gits_subcommand_as_a_commit(tmp_path):
+    repo = git_repo(tmp_path / "repo")
+    guard = hook_copy(tmp_path / "hooks_home", "commit_guard.py")
+    worktree = repo / ".claude" / "worktrees" / "w1"
+    git(repo, "worktree", "add", "-q", "-b", "w1", str(worktree))
+    git(repo, "worktree", "lock", "--reason", f"claude session pid {os.getpid()}", str(worktree))
+    for command in ("git -c user.name=x commit -m x", "/usr/bin/git commit -m x", "git status; git commit -m x"):
+        assert run(guard, dict(bash(command), cwd=str(repo)), env=GIT_ENV)[0] == BLOCK, command
+    for command in ("git log --grep commit", 'gh issue comment 1 --body "git log shows the commit"',
+                    "git status && echo commit"):
+        assert run(guard, dict(bash(command), cwd=str(repo)), env=GIT_ENV)[0] == ALLOW, command
 
 # torn_commit_guard: a commit may not need what it leaves behind.
 
