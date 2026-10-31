@@ -98,6 +98,7 @@ unless named):
 - test_the_body_under_a_cut_web_is_not_drawn_where_it_would_show_through_the_cloth: under_layer's
   `& (under_cloth(inset, garments) >= UNDER_INSET)` dropped (the 2026-10-22 white patches).
 - test_the_route_reads_the_body_node_its_outfit_named: body_node's `!= "far"` dropped.
+- test_a_runs_own_home_holds_its_takes: prop_person.PIXAL made `pathlib.Path.home() / ".farm-factory-props/work/pixal"`.
 """
 import json
 import pathlib
@@ -932,3 +933,12 @@ def test_the_route_reads_the_body_node_its_outfit_named():
     assert route_build.body_node(document) == "made"
     with pytest.raises(SystemExit):
         route_build.body_node({"nodes": [{"name": "far", "mesh": 0, "skin": 0}]})
+
+
+def test_a_runs_own_home_holds_its_takes(tmp_path):
+    """Fault (env1 round 34): PIXAL and CHECKS_TABLE named the retired default home, read-only since 2026-10-24, so
+    every people look on this PC failed laying its take; a run's own PROPS_HOME (and PROPS_WORK) holds them."""
+    found = subprocess.run([sys.executable, "-c", "import prop_person; print(prop_person.PIXAL); print(prop_person.CHECKS_TABLE)"],
+                           cwd=HERE, env={"PATH": "/usr/bin:/bin", "PROPS_HOME": str(tmp_path), "PYTHONPATH": str(HERE)},
+                           capture_output=True, text=True, check=True).stdout.split()
+    assert found == [str(tmp_path / "work/pixal"), str(tmp_path / "score-coordinator/prop-people")]

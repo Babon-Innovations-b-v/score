@@ -33,6 +33,7 @@ import argparse
 import contextlib
 import hashlib
 import json
+import os
 import pathlib
 import shutil
 import subprocess
@@ -163,7 +164,10 @@ def on_held(place, run):
     return place
 
 
-PIXAL = pathlib.Path.home() / ".farm-factory-props/work/pixal"
+# The props home and its work folder as tools/props/paths.py reads them, so a run with its own home (this PC's frozen
+# home) lays and reads its takes there, never in the retired default home (read-only since 2026-10-24).
+PROPS_HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
+PIXAL = pathlib.Path(os.environ.get("PROPS_WORK", PROPS_HOME / "work")) / "pixal"
 # The welded mesh is thinned part by part to this many triangles before the rig (prop_rig.py --faces), so the outfit
 # with its tucks and its piping's cuts stays within the shipped player's 29,849 (the player: 28,500 made 29,244 with
 # the tucks, and the piping's cuts add about 1,650).
@@ -309,7 +313,7 @@ def clips_rig(clips, out, who, dry_run):
     return json.loads((out / "make.json").read_text())
 
 
-CHECKS_TABLE = pathlib.Path.home() / ".farm-factory-props/score-coordinator/prop-people"
+CHECKS_TABLE = PROPS_HOME / "score-coordinator/prop-people"
 # The reviewer's count of skin and hard parts through cloth (2026-10-10), in the repo with its depth beyond the margin.
 BODYCLOTH = HERE / "bodycloth.py"
 RIGID_MOST = 1.2
