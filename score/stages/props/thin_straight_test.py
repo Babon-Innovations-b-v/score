@@ -37,12 +37,16 @@ crop). code_builds keeping a build already made as it is (`thin_straight.rebuilt
 test_the_pixal_row_builds_a_failed_thin_row_and_drops_its_close_up_gap red (the older builder's box kept).
 held_across holding nothing (`hold[across, across] = min(...)` -> `hold[across, across] = 1.0`) turns
 test_a_band_is_its_drawn_width_across_its_picture_and_at_most_its_row_s_thinnest_side_deep red (the conduit 0.3 m
-across on its 0.1 m); view not undoing it (`@ np.linalg.inv(held_across(row, alpha))` dropped) turns that test,
+across on its 0.1 m); view not undoing it (`@ np.linalg.inv(as_built(row, alpha))` dropped) turns that test,
 test_a_thin_run_is_held_to_its_path_s_own_size_never_crushed_to_its_box and
 test_a_path_is_built_in_its_picture_s_plane_facing_the_outline_s_view red (the rail's outline 0.445); write_take laying
 its crop on the held build (`seen = mesh.copy()`) turns
 test_a_code_build_carries_its_crop_where_it_lies_so_each_finish_has_faces_of_its_own red (the thin bar's crop 0.021 of
-its 0.095 across).
+its 0.095 across). thin_straight leaving networks out (`or network(row)` dropped) and flat_sheet.sheet taking them
+(`and not thin_straight.network(row)` dropped) each turn
+test_a_flat_network_of_straight_runs_is_built_along_its_mask_each_run_held_across_never_a_flat_sheet red (the pipes a
+sheet); run_holds holding nothing (`return np.ones(skeleton.shape)` first) turns it red too (its thick branch 0.84 m
+across on 0.2 m), and as_built never laying it down (`if False:`) too (stood, its model check read spread 16.99).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/thin_straight_test.py
 """
@@ -578,3 +582,25 @@ def test_the_masks_row_cuts_only_the_kept_thin_straight_rows_by_their_own_mask(t
     other.mkdir()
     masks_row.make_masks(inputs, other, 0, {"objects": ["g_pipe"]})  # the object filter keeps the pipe alone
     assert asked[-1] == ["pipe"]
+
+
+def test_a_flat_network_of_straight_runs_is_built_along_its_mask_each_run_held_across_never_a_flat_sheet(tmp_path):
+    """A straight kind spread flat over a floor (thin_straight.network: env1 round 35's engineroom pipes, 9.3 by 10.9
+    by 0.2 m, went to flat_sheet as one slab, DINOv2 0.041) is built along its mask's centreline, forks kept, laid
+    down on its floor, each run held across to the row's thinnest side (run_holds), never a flat sheet; a flag on a
+    pole stays a sheet."""
+    import score.stages.props.flat_sheet as flat_sheet
+    from PIL import ImageDraw
+    row = {"id": "network", "name": "pipes", "noun": "pipes", "size": [3.6, 10.9, 0.2], "view": "v1"}
+    assert thin_straight.thin_straight(row) and not flat_sheet.sheet(row)
+    assert flat_sheet.sheet({"name": "red flag on a pole", "noun": "flag", "size": [1.0, 0.04, 3.0]})
+    found, faults = held(tmp_path, row, [[(40, 100), (560, 100)], [(300, 20), (300, 180)],
+                                         [(120, 100), (120, 30), (200, 30)]])
+    assert found["code"]["profile"] == "path" and found["outline"] >= likeness.OUTLINE_LEAST and not faults, found
+    mask = Image.new("L", (600, 200), 0)
+    ImageDraw.Draw(mask).line([(40, 100), (560, 100)], fill=255, width=9)
+    ImageDraw.Draw(mask).line([(300, 100), (300, 180)], fill=255, width=40)  # a branch drawn 0.84 m across
+    made = thin_straight.build(row, np.asarray(mask) > 127)
+    assert np.isclose(made.extents[1], 0.2, rtol=0.05) and np.isclose(made.extents[2], 10.9, rtol=0.02), made.extents
+    end = made.vertices[made.vertices[:, 0] > made.bounds[1][0] - 0.4]  # the branch's far end, past its tee
+    assert np.ptp(end[:, 2]) <= 0.2 * 1.15, np.ptp(end[:, 2])

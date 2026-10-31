@@ -29,7 +29,7 @@ import score.stages.props.thin_straight as thin_straight
 
 # A sheet: it lies flat and its height is under this share of its longest side (a 2 cm mat on 52 cm, 0.04; a 1 mm
 # note on 28 cm), so it has no relief beyond its outline. A keyboard, a book or a cabinet lying low is no sheet.
-SHEET_SHARE = 0.05
+SHEET_SHARE = thin_straight.FLAT_SHARE
 RULE = "flat sheet (its Pixal3D take made no model)"
 
 
@@ -37,11 +37,13 @@ def sheet(row):
     """Whether the row is a sheet, at the size its close-up was drawn at: its thinnest side under SHEET_SHARE of its
     longest and its middle one no rod's (check.SLENDER_SHARE), lying flat (check.lies_flat) or standing on its edge (a
     note pinned to a wall, `upright`: the habitat's paper note, 0.2 by 0.01 by 0.3, its finish made no model and no
-    route built it, 2026-10-28)."""
+    route built it, 2026-10-28). A network of straight runs (thin_straight.network) is never one: its runs are built
+    along its mask (the engineroom's pipes as a slab, DINOv2 0.041, env1 round 35)."""
     with prop_data.tools("props/closeup", "props"):
         import check
     smallest, middle, largest = sorted(float(value) for value in row.get("read_size") or row["size"])
-    return smallest < SHEET_SHARE * largest and middle >= check.SLENDER_SHARE * largest
+    return (smallest < SHEET_SHARE * largest and middle >= check.SLENDER_SHARE * largest
+            and not thin_straight.network(row))
 
 
 def upright(row):

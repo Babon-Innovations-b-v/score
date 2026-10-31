@@ -59,6 +59,9 @@ ROUND = frozenset(("pipe", "cable", "conduit", "pole", "rail", "handrail", "rod"
 # A railing's kinds: posts standing along its length under a top rail and a mid rail (`railing`; Batch 1's retry: the
 # greenhouse's 9.4 m railing piece, every close-up of it failed as a rod).
 RAILING = frozenset(("railing", "balustrade", "guardrail", "banister"))
+# A row this flat (its thinnest side under this share of its longest) is spread across a floor, wall or ceiling: a
+# straight kind so is a network (`network`), any other a sheet (flat_sheet.SHEET_SHARE).
+FLAT_SHARE = 0.05
 # Metres between a railing's posts at most: a guard's usual post spacing (no library row gives one), so a run of its
 # length has ceil(length / POST_GAP) bays.
 POST_GAP = 1.5
@@ -133,8 +136,19 @@ def slender(size):
 
 
 def thin_straight(row):
-    """Whether an inventory row is a thin straight thing (module docstring)."""
-    return (bool(kind_words(row) & (STRAIGHT | RAILING)) or slender_light(row)) and slender(row["size"])
+    """Whether an inventory row is a thin straight thing (module docstring), or a network of them (`network`)."""
+    return (bool(kind_words(row) & (STRAIGHT | RAILING)) or slender_light(row)) and slender(row["size"]) or network(row)
+
+
+def network(row):
+    """Whether a row is a network of straight runs: its kind (its noun, else its name) a straight one, its size not
+    slender but spread flat (its thinnest side under FLAT_SHARE of its longest). Its box spans the runs, not one: the
+    engineroom's pipes, 9.3 by 10.9 by 0.2 m, went to flat_sheet as one slab, DINOv2 0.041 (env1 round 35). Built
+    along its mask's centreline, each run held across to the row's thinnest side (`run_holds`); a flag on a pole, a
+    coiled cable or a computer tower is no network."""
+    kind = kind_words({"name": row.get("noun") or row.get("name") or ""})
+    smallest, _, largest = sorted(float(value) for value in row.get("read_size") or row["size"])
+    return bool(kind & STRAIGHT) and not slender(row["size"]) and smallest < FLAT_SHARE * largest
 
 
 def slender_light(row):
@@ -163,7 +177,7 @@ def build(row, alpha=None):
     import trimesh
     if alpha is not None and alpha.any():
         return path_build(row, alpha, axis_turn(row, alpha)).apply_transform(
-            held_across(row, alpha) @ np.linalg.inv(slanted(row, alpha)))
+            as_built(row, alpha) @ np.linalg.inv(slanted(row, alpha)))
     wide, deep, tall = (float(value) for value in row["size"])
     extents = np.array([min(wide, deep), tall, max(wide, deep)])
     along = int(np.argmax(extents))
@@ -307,11 +321,22 @@ def held_across(row, alpha):
     return hold
 
 
+def as_built(row, alpha):
+    """The turn (4 by 4) from a build laid along its row in its picture's plane to the pose it is built in: held across
+    its run (`held_across`), and a network lying on a floor or under a ceiling (`network`, its height its thinnest
+    side) laid down, its picture's plane level and its normal up (the engineroom's pipes, 0.2 m tall over 9.3 by
+    10.9, would stand 3 m up a wall)."""
+    lay = np.eye(4)
+    if network(row) and float(row["size"][2]) <= min(float(value) for value in row["size"]):
+        lay[:2, :2] = [[0.0, -1.0], [1.0, 0.0]]  # x, the picture's normal, up; its up across the ground
+    return lay @ held_across(row, alpha)
+
+
 def view(row, alpha):
     """The turn (4 by 4) the likeness row sees a code build by: across its run as the picture draws it
     (`held_across` undone), back into its picture's slant (`slanted`) and leaned to face the look-down (`facing`), so
     its outline is held to its crop as the picture draws it while the model keeps its row's pose and section."""
-    return facing(row) @ slanted(row, alpha) @ np.linalg.inv(held_across(row, alpha))
+    return facing(row) @ slanted(row, alpha) @ np.linalg.inv(as_built(row, alpha))
 
 
 def facing(row):
@@ -404,6 +429,8 @@ def path_build(row, alpha, turn=0.0):
     low = np.array([across.min(), down.min()], dtype=float)
     scale, reach = picture_scale(row, kept, turn)
     off, ball = balls(kept, skeleton, scale, reach)
+    if network(row):
+        off, ball = balls(kept, skeleton, scale, reach, run_holds(row, skeleton, ball, scale))
     width = float(np.median(2 * ball[skeleton]))
     laid = laid_runs(skeleton, low, scale, width)
     fitted = [pair for pairs in fittings(laid, row, width * scale).values() for pair in pairs]
@@ -439,14 +466,28 @@ def drawn_thin(alpha):
     return 2 * float(np.median(edge[skeletonize(kept)])) <= SECTION_SHARE * reach
 
 
-def balls(kept, skeleton, scale, reach):
+def run_holds(row, skeleton, ball, scale):
+    """Each skeleton pixel's hold across (`balls`' `hold`) for a network (`network`): its run's (`traces`) the row's
+    thinnest side over that run's drawn width (twice its balls' median radius at `scale` metres a pixel), at most one,
+    the least where runs meet. held_across's rule, run by run: a network's runs go every way, so no one turn holds
+    them, and at its spread's scale the engineroom's pipes would be drawn metres across."""
+    hold = np.ones(skeleton.shape)
+    thinnest = min(float(value) for value in row["size"])
+    for run in traces(skeleton):
+        across, down = np.asarray(run).T
+        drawn = float(np.median(2 * ball[down, across])) * scale
+        hold[down, across] = np.minimum(hold[down, across], min(1.0, thinnest / max(drawn, 1e-9)))
+    return hold
+
+
+def balls(kept, skeleton, scale, reach, hold=None):
     """(each pixel's distance to the skeleton, the radius of the skeleton's ball nearest it), in pixels: a skeleton
-    pixel's ball is its distance to the mask's edge, at least half `least_tube` (the gate's thinnest, at `scale`
+    pixel's ball is its distance to the mask's edge times its `hold` (`run_holds`; none by default), at least half `least_tube` (the gate's thinnest, at `scale`
     metres a pixel) and at most half SECTION_SHARE of the mask's `reach` (a mask SAM 3 drew as a blob is no thin
     thing, and no chunky build is made of it)."""
     from scipy import ndimage
     edge = ndimage.distance_transform_edt(np.pad(kept, 1))[1:-1, 1:-1]  # the picture's border is an edge too
-    radius = np.clip(edge, least_tube() / 2 / scale, SECTION_SHARE * reach / 2)
+    radius = np.clip(edge * (1.0 if hold is None else hold), least_tube() / 2 / scale, SECTION_SHARE * reach / 2)
     off, (near_down, near_across) = ndimage.distance_transform_edt(~skeleton, return_indices=True)
     return off, radius[near_down, near_across]
 
@@ -714,7 +755,7 @@ def write_take(take, row, picture, faces, pixal, mask, box=None):
     views.mkdir(parents=True, exist_ok=True)
     picture.save(views / "input.png")
     mesh = build(row, alpha)
-    seen = mesh.copy().apply_transform(np.linalg.inv(held_across(row, alpha)))  # the crop lies on it as drawn
+    seen = mesh.copy().apply_transform(np.linalg.inv(as_built(row, alpha)))  # the crop lies on it as drawn
     mesh.visual = textured(seen, picture).visual
     for name in (f"{take}.glb", f"{take}-{faces}.glb", f"{take}-final.glb"):  # raw, slimmed, final: never stood
         mesh.export(pixal / name)

@@ -49,6 +49,11 @@ gate passes it), else
   only by prepare's prediction (`predict.straight_outcome`), which builds each in code and holds it free to the
   likeness rules. The table adds it in score/stages/__init__.py after the library rows: in this package's table or
   shapes_first it would re-key most rows (their code versions hash those modules).
+- **A flat network of straight runs is thin_straight's, never a sheet** (`thin_straight.network`: its noun a straight
+  kind, its size not slender but flat, the engineroom's pipes 9.3 by 10.9 by 0.2 m a flat_sheet slab at DINOv2 0.041,
+  env1 round 35): built along its mask's centreline, forks kept, each run held across to the row's thinnest side
+  (`run_holds`, held_across's rule run by run) and, lying, laid down (`as_built`); a flat build of one before is masked
+  anew, never rebuilt from its close-up (`pixal_row.code_builds`).
 - **Flat sheets are built in code when their take made no model** (`flat_sheet.py`): a sheet, its thinnest side under
   `SHEET_SHARE` of its longest (a poster, rug, note, paper, mat), lying flat (its close-up drawn from straight above)
   or standing on its edge on a wall (`upright`: its face in the wall's plane, made in its own pose, never stood), whose

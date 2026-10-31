@@ -226,7 +226,8 @@ def code_builds(failed, rows, inputs, out):
     pixal = take_files("-")[0].parent
     thin = {row: entry for row, entry in sorted(failed.items())
             if row in rows and rows[row].get("box") and thin_straight.thin_straight(rows[row])}
-    kept = {row: entry for row, entry in thin.items() if thin_straight.code_built(entry["take"], pixal)}
+    kept = {row: entry for row, entry in thin.items()  # a network's flat sheet before (flat_sheet.sheet) is masked
+            if thin_straight.code_built(entry["take"], pixal) and not flat_sheet.built(entry["take"], pixal)}
     concepts = {row: inputs[f"view {rows[row]['view']}"] for row, entry in thin.items()
                 if row not in kept or not thin_straight.cut_as_built(entry["take"], rows[row], pixal)}
     masks = thin_straight.concept_masks({row: rows[row] for row in concepts}, concepts, out / "masks") if concepts else {}
