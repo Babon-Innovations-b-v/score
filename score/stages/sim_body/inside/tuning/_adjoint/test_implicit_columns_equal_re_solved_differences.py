@@ -167,7 +167,8 @@ def test_the_taped_measures_rows_equal_differences_of_the_case_residuals():
     found = json.loads(runs.newton_ran("_check_measures.py").rsplit("JSON", 1)[1])
     taped = dict(zip(("joints", "turns", "skins"), toys.taped_parts(found, "taped")))
     assert all(np.abs(depths).max() > 1e-3 for depths, *_ in taped["skins"].values()), "no bone point outside the skin"
-    assert found["passes"] == 2 * 3 + 2 + 3, found["passes"]  # a frame's most entries per output: joints, turns, skins
+    # a frame's most entries per output: joints, turns, then the skins' 12 link frame entries of each of a frame's 3 links
+    assert found["passes"] == 2 * 3 + 2 + 12 * 3, found["passes"]
     assert all(rows.shape[-1] == 4 for kind in ("joints", "turns") for _, rows in taped[kind].values())  # frame blocks
     values, jacobian = _adjoint.case_rows(taped["joints"], taped["turns"], taped["skins"], frames=3)
     at = {kind: {key: value[0] for key, value in taped[kind].items()} for kind in taped}
