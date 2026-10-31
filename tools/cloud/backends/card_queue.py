@@ -7,14 +7,14 @@ A share is an entry file in QUEUE's `held/`, its JSON the job, its card GB, its 
 exclusive flock on its open file for as long as the holder lives: a holder that dies frees its share with no clean-up.
 A take is admitted while the held shares (each group counted once, at its largest: the run's Blender claims share the
 card's turns, card_turn.py) and its own fit BUDGET_GB, and no fresh waiter of an earlier priority (ORDER) waits; a take
-that is not admitted leaves a waiting entry (`waiting/`, refreshed at each ask, stale after WAIT_SECONDS), so a high
+that is not admitted leaves a waiting entry (`waiting/`, refreshed at each ask, stale after WAIT_SECONDS), so an earlier
 claim the runner asks again every few seconds keeps every side job off the card until it has its share. A need not
-measured takes the whole card. A high claim that has waited YIELD_SECONDS asks every low share back (a mark under
+measured takes the whole card. A claim that has waited YIELD_SECONDS asks every later-ranked share back (a mark under
 `yield/` for each): a side job on the card gives way at once rather than at its end, since a stopped process (SIGSTOP)
 keeps its card memory. QUEUE is one folder for the whole PC, never under a PROPS_HOME: the run and the agents work
 under different homes and share one card.
 
-    python3 tools/cloud/backends/card_queue.py run --job <name> --card-gb <GB> [--priority low] -- <command> ...
+    python3 tools/cloud/backends/card_queue.py run --job <name> --card-gb <GB> [--priority other] -- <command> ...
     python3 tools/cloud/backends/card_queue.py status
     python3 tools/cloud/backends/card_queue.py measured
 
@@ -55,11 +55,13 @@ HOST_RESERVE_GB = 16
 # share's measured card GB, kept in QUEUE's measures.jsonl with its cores and memory when known (`measured` sums them).
 SAMPLER = json.loads(os.environ.get("SCORE_CARD_SAMPLER") or "null") or [
     "nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits", "-lms", "500"]
-ORDER = ("high", "low")  # high first: the run's claims and the sim body tuning; low: everything else (proofs, scratch)
-RANK = {"high": 0, "low": 1, "first": 0, "film": 0, "side": 1}  # first, film and side: old names, still written by runs frozen before
+ORDER = ("sim-body", "env-run", "other")  # first to last (owner, 2026-10-31: sim bodies before the film): the sim body
+# tuning, then the environment run's claims, then everything else (proofs, scratch)
+RANK = {**{name: rank for rank, name in enumerate(ORDER)}, "high": 1, "first": 1, "film": 1, "low": 2, "side": 2}  # old names, still
+# written by runs frozen before
 WAIT_SECONDS = 120  # a waiting entry not refreshed for this long waits no more (its process stopped asking)
 LOOK_SECONDS = 2  # between asks of `run` while it waits, and between its looks for its share asked back
-YIELD_SECONDS = 60  # a high claim waiting this long asks the low shares back
+YIELD_SECONDS = 60  # a claim waiting this long asks the later-ranked shares back
 STOP_SECONDS = 30  # a side command asked back has this long after SIGTERM before SIGKILL
 WAITING = {}  # {(job, priority): this process's open waiting entry}
 
@@ -128,7 +130,7 @@ def entry(folder, job, need, priority, group, memory=0):
     return handle
 
 
-def take(job, card_gb=None, priority="high", group=None, memory=0):
+def take(job, card_gb=None, priority="env-run", group=None, memory=0):
     """A share of the card for `job` (`card_gb` measured, else the whole BUDGET_GB) and of the PC's memory (`memory`
     GiB; None: unmeasured, the whole memory_gb), held until `release`: its open entry file; None, with this process's
     waiting entry written or refreshed, while it does not fit or a waiter before it waits (an earlier priority, or the
@@ -325,7 +327,7 @@ def run(job, card_gb, priority, command, memory=0):
         if child.poll() is not None:
             release(handle, *used_since(before, handle.began))
             return child.returncode
-        print(f"card_queue: {job} gives the card way to a waiting high claim; it starts again after",
+        print(f"card_queue: {job} gives the card way to a waiting earlier-ranked claim; it starts again after",
               file=sys.stderr, flush=True)
         stop(child)
         release(handle, *used_since(before, handle.began))
@@ -345,7 +347,7 @@ def main(arguments=None):
     runs = commands.add_parser("run", help="run the command while it holds a share of the card")
     runs.add_argument("--job", required=True)
     runs.add_argument("--card-gb", type=float, help="the job's measured card GB; unmeasured takes the whole card")
-    runs.add_argument("--priority", choices=ORDER, default="low")
+    runs.add_argument("--priority", choices=ORDER, default="other")
     runs.add_argument("--memory-gb", type=float, default=0,
                       help="memory it holds of the run's room (0: it lives in the PC's own reserve, its scope capped)")
     runs.add_argument("command", nargs=argparse.REMAINDER)
