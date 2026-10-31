@@ -11,7 +11,7 @@ A clean end to a session. A PRD can span many sessions, so the job is to leave i
 
 1. **Find the work.** The PRD/issue this session served: a `#N` from the chat, or infer it from the branch and commits. No issue and the work was real → run `to-prd` first. A throwaway question → nothing to close.
 
-2. **Sweep.** `git status` + `git log` for what landed or is still uncommitted. Open threads in the chat: half-done edits, "I'll do X next", decisions not written down. Leave any `TODO(<reviewer>)` in place.
+2. **Sweep.** `git status` + `git log` for what landed or is still uncommitted. Open threads in the chat: half-done edits, "I'll do X next", decisions not written down. A review finding still open goes on an issue, never in a code comment.
 
 3. **Park each loose end.** A small in-scope one you can finish now, finish it. The rest is written down, never filed: a loose end becomes a **Tasks** checklist line or a comment on the parent PRD, not a new issue.
    - fits this PRD → its **Tasks** checklist;
