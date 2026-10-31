@@ -100,7 +100,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   shares fit the queue (memory: the PC's less 16 GiB; a Blender claim 6.7 GB a turn and 2 GB, as many turns as fit;
   a run's measured `memory_gb`; an unmeasured kind the whole), first come first served among the run's claims. The
   run's memory room sums every SCORE container's cgroup (`score/graph` `container_cgroups`), and `this_pc.py pause`
-  stops them all. The queue's folder (`~/.score-card`, `SCORE_CARD_QUEUE`) is one for
+  stops them all. Time a claim waits in the card queue is outside its run's minutes (`park.queue_paused`, as
+  `pool.paused` for a warm pool: its deadline held as far ahead as when the wait began, the runaway watch told;
+  2026-10-31: likeness@base's similar claim ran out of its minutes waiting behind sim body's share). The queue's folder (`~/.score-card`, `SCORE_CARD_QUEUE`) is one for
   the whole PC, whatever `PROPS_HOME` a run works under.
 - **The only way models are made**, one or a hundred: no model runs on the owner's PC (owner,
   2026-10-03; `../local_models.py`). `batch.py` makes models, `pictures.py` pictures, `scene.py`

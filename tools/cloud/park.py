@@ -399,7 +399,8 @@ def here(run, number, kind):
     asks again (batch.claim_rounds). Never rented, so no clearance is asked: it costs nothing. Each kind's set-up
     stays from its last claim, its own /root/venv put back (own_set_up), so it sets up once; the files a last claim
     of its kind left go first (`cleanup_of`: its container restart kills the job, not its files, so pixal's leftover
-    `closed` ended the next worker at once, 2026-10-28), never another's set-up under way (local.setting_up). A shared claim (local.SHARED:
+    `closed` ended the next worker at once, 2026-10-28), never another's set-up under way (local.setting_up). Time
+    its claim waits in the card queue is held outside the run's minutes (queue_paused). A shared claim (local.SHARED:
     blender, whose clean-up names only the claim's own job paths, none at its start) so never removes the files of
     the claims beside it; a kind too big for its card is refused (compute's
     Refused, naming the GB), never run into an out-of-memory; by the run's own measured need (`run.need`) when it
@@ -411,7 +412,9 @@ def here(run, number, kind):
     except ValueError as too_big:
         raise batch.compute.Refused(str(too_big)) from too_big
     if found is None:
+        queue_paused(run, kind)
         return None
+    run.queue_left = None
     now = time.time()
     folder = run.folder / f"{run.folder.name}-{number}"
     folder.mkdir(parents=True, exist_ok=True)
@@ -440,6 +443,22 @@ def own_set_up(kind):
             f"if [ \"$held\" != {kind} ]; then "
             f"if [ -e venv ]; then rm -rf {stash} && mkdir -p {stash} && mv venv {stash}/venv; fi && "
             f"if [ -e {KINDS}/{kind}/venv ]; then mv {KINDS}/{kind}/venv venv; fi && echo {kind} > {KINDS}/.venv; fi")
+
+
+def queue_paused(run, kind):
+    """While this PC's claim of `kind` waits in the card queue (cloud.queued), `run`'s deadline held as far ahead as
+    it was when that wait began (pool.paused), so the wait never counts in its minutes and the runaway watch leaves it
+    out (preflight.mark_waiting); the limit itself never changes. Fault, 2026-10-31: likeness@base's similar claim
+    waited behind sim body's level 1 share until its deadline ran out ("no machine could be rented")."""
+    import pool
+    import preflight
+
+    if not getattr(cloud, "queued", lambda _kind: False)(kind):
+        return
+    if getattr(run, "queue_left", None) is None:
+        run.queue_left = run.deadline - time.time()
+    pool.paused(run, run.queue_left)
+    preflight.mark_waiting()
 
 
 def live_of(run):
