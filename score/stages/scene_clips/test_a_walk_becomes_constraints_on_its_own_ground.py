@@ -12,7 +12,9 @@ first, and SOMA77's rest pose puts each sole (hips less 1.0052 m) on its ground;
 so Kimodo's post-processing is off. A walker whose cast path runs into the wall is cut 0.25 m (its body's radius) before it; one cut under two
 seconds is left out. The machine's spec carries each clip's constraints, sentence, duration and post-processing.
 Gates on written outputs (no Kimodo run): a clip on its route with its soles on their ground passes; hips 0.2 m off
-fail `path held`; soles 0.1 m off fail `feet held`; a clip missing from the rig fails `made`.
+fail `path held`; soles 0.1 m off fail `feet held`; a clip missing from the rig fails `made`. A machine whose set-up
+failed (characters.py exits 0, its run folder's setup.log naming the step) stops the make with the row, the place,
+the step and the log's last line, before any copy.
 
 Breaks that turn each test red (each applied once and seen red, reverted, 2026-10-27):
 - a_straight_leg_walks_the_way_the_walker_faces: legs_of's `at[0] - math.sin(turn) * length` made
@@ -28,9 +30,12 @@ Breaks that turn each test red (each applied once and seen red, reverted, 2026-1
   `"postprocess": True`.
 - a_good_clip_passes_and_each_gate_fails_its_break: judge_path's `off > PATH_HELD` made `off > 1.0`; judge_feet's
   `off > FOOT_HELD` made `off > 1.0`; judge_made's `f"clip_{plan['clip']}" in held` made `True`.
+- a_failed_set_up_is_named: make's `if not (work / "out" / "rig.npz").exists():` made `if False:` (a bare
+  FileNotFoundError); failure_of's pattern `^setup step ` made `^setup ` (2026-10-31).
 
 Run: .venv/bin/python -m pytest score/stages/scene_clips/test_a_walk_becomes_constraints_on_its_own_ground.py
 """
+import contextlib
 import json
 import math
 import pathlib
@@ -186,3 +191,31 @@ def test_a_good_clip_passes_and_each_gate_fails_its_break(plan, tmp_path):
     assert verdicts(written(tmp_path, plan, hips_off=0.2))["path held"] == "fail"
     assert verdicts(written(tmp_path, plan, sole_off=0.1))["feet held"] == "fail"
     assert verdicts(written(tmp_path, plan, in_rig=False))["made"] == "fail"
+
+
+SETUP_LOG = """downloading uv 0.13.6 x86_64-unknown-linux-gnu
+setup step sam3dbody failed:
+No python3-pip. Installing all missing dependencies now ...
+scripts/setup.sh: line 61: sudo: command not found
+"""
+
+
+def test_a_failed_set_up_is_named(plan, tmp_path, monkeypatch):
+    run = tmp_path / "cloud" / "characters-1-2"
+
+    def failed_machine(work, who):
+        (run / "machine-1").mkdir(parents=True)
+        (run / "machine-1" / "setup.log").write_text(SETUP_LOG)
+        return run
+
+    monkeypatch.setattr(scene_clips.layer_base, "built", lambda inputs: contextlib.nullcontext(tmp_path))
+    monkeypatch.setattr(scene_clips.measure, "solids", lambda *args: {})
+    monkeypatch.setattr("score.stages.cast.made_ground", lambda *args: None)
+    monkeypatch.setattr(scene_clips, "plan_of", lambda single, found: (plan, None))
+    monkeypatch.setattr(scene_clips, "on_machine", failed_machine)
+    (tmp_path / "cast").mkdir()
+    (tmp_path / "cast" / "cast.json").write_text(json.dumps({"place": "camp", "characters": [WALKER]}))
+    with pytest.raises(RuntimeError) as failure:
+        scene_clips.make({"cast": str(tmp_path / "cast")}, tmp_path, 0, {})
+    assert str(failure.value).startswith("scene-clips@camp: no rig.npz came back: the set-up step sam3dbody failed "
+                                         "(scripts/setup.sh: line 61: sudo: command not found; ")
