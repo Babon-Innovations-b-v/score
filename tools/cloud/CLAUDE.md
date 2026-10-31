@@ -99,7 +99,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   are outside `/root`, so no copy of the old container's set-up, and no commit of it, so the image id in every kept
   job stays); a claim's end restarts only its own container, once no other claim holds it. Then claims of different kinds run side by side while their card and memory
   shares fit the queue (memory: the PC's less 16 GiB; a Blender claim 6.7 GB a turn and 2 GB, as many turns as fit;
-  a run's measured `memory_gb`; an unmeasured kind the whole), first come first served among the run's claims. The
+  a run's measured `memory_gb`; an unmeasured kind the whole), first come first served among the run's claims, but a claim that fits goes past an earlier one of its rank that does
+  not, until that one has waited `card_queue.BACKFILL_SECONDS` (600; round 38: two Blender claims joining their group's
+  held card share waited behind a MOSS claim that needed the card the held one had). The
   run's memory room sums every SCORE container's cgroup (`score/graph` `container_cgroups`), and `this_pc.py pause`
   stops them all. Time a claim waits in the card queue is outside its run's minutes (`park.queue_paused`, as
   `pool.paused` for a warm pool: its deadline held as far ahead as when the wait began, the runaway watch told;

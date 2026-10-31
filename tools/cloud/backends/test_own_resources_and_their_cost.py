@@ -109,7 +109,8 @@ The invariants, each with the break that turns its test red (each applied once a
   in `free_turns` -> the second place takes a turn past the memory; or `(ORDER.index(...), waiter["since"]) < (rank,
   since)` -> `ORDER.index(...) < rank` in `card_queue.take` -> the free turn goes past the Pixal3D claim that asked
   first; or drop the memory sum in `card_queue.take` -> the Pixal3D claim starts beside both; or drop
-  `card_queue.resize(...)` in `let_go_turn` -> the second place gets one turn.
+  `card_queue.resize(...)` in `let_go_turn` -> the second place gets one turn; or drop `if turns else 0` there -> a claim
+  that let its last turn go holds memory None and every next claim fails to count the queue's memory.
 - A claim's memory is its container's highest anon reading while it holds its share, counted for its kind only from
   claims alone in that container. Break: drop the `card_queue.watch_memory(...)` call in `local.take` -> memory
   unmeasured; or drop `and not any(beside(...))` in `card_queue.read_memory` -> 5.0 GB from the two claims together;
@@ -538,8 +539,13 @@ def test_this_pc_shares_its_blender_turns_across_places_and_restarts_only_when_l
     assert second is not None and second["turns"] == 2 and spread.slots("blender", second) == [0, 0]
     assert local.take("pixal", "key") is None  # its card share does not fit beside the Blender claims': it waits
     local.let_go_turn(second["id"])
-    assert local.take("blender", "key") is None  # a turn is free, but the Pixal3D claim asked first
-    assert local.delete(first["id"], local.ZONE) is True and not restarted  # the second's jobs still run
+    third = local.take("blender", "key")  # a turn is free: it joins the group's card, past the Pixal3D claim that
+    assert third is not None  # does not fit (card_queue.blocks), while that one has waited under its bound
+    local.let_go_turn(third["id"])
+    monkeypatch.setattr(card_queue, "BACKFILL_SECONDS", 0)
+    assert local.take("blender", "key") is None  # the Pixal3D claim waited its bound: nothing passes it now
+    assert local.delete(first["id"], local.ZONE) is True and not restarted  # the others' jobs still run
+    assert local.delete(third["id"], local.ZONE) is True and not restarted
     assert local.delete(second["id"], local.ZONE) is True and restarted  # the last to leave restarts it
     alone = local.take("pixal", "key")
     assert alone is not None
@@ -740,13 +746,15 @@ def test_the_card_queue_never_passes_the_card_and_a_waiting_env_run_claim_keeps_
     side = card_queue.take("sim-body", 6, "other")
     assert side and card_queue.take("pixal", 10.8, "env-run") is None  # 6 + 10.8 passes it: the env-run claim waits
     assert card_queue.take("proof", 1, "other") is None  # it would fit, but the env-run claim asked first
-    assert card_queue.take("old-run", 1, "film") is None  # a run frozen before the rename still writes "film": env-run's rank
-    assert "3 waiting" in card_queue.status()  # the env-run claim, the proof and the old run
+    old = card_queue.take("old-run", 1, "film")  # a run frozen before the rename still writes "film": env-run's rank,
+    assert old  # so it goes past the Pixal3D claim of its rank that does not fit (blocks), as the proof may not
+    card_queue.release(old)
+    assert "2 waiting" in card_queue.status()  # the env-run claim and the proof
     card_queue.release(side)
     film = card_queue.take("pixal", 10.8, "env-run")
     assert film and card_queue.take("tuning", None, "other") is None  # unmeasured: the whole card
     card_queue.release(film)
-    assert re.match(r"card 0\.0 of 13\.5 GB held, memory 0\.0 of 27 GiB, 3 waiting; \d+\.\d GB free; score-this-pc 3GiB / 27GiB",
+    assert re.match(r"card 0\.0 of 13\.5 GB held, memory 0\.0 of 27 GiB, 2 waiting; \d+\.\d GB free; score-this-pc 3GiB / 27GiB",
                     card_queue.status())
 
 
@@ -756,6 +764,29 @@ def until(done, seconds=30):
     while not done() and time.time() < give_up:
         time.sleep(0.05)
     return done()
+
+
+def test_a_claim_that_fits_goes_past_an_earlier_one_that_does_not_but_never_for_long(monkeypatch, card_queue_folder):
+    """Round 38, 2026-10-31: sim body's 3 GB and one Blender claim's 9.7 GB held 12.7 of 13.5 GB of the card; a MOSS
+    claim (10 GB) waited first, and two more Blender claims, which join their group's held share and add no card, waited
+    behind it while the card stood nearly idle. A waiter that fits goes past one of its rank that does not, until that
+    one has waited BACKFILL_SECONDS; one that fits keeps its turn.
+    Break: in `blocks`, drop `or now - waiter["since"] >= BACKFILL_SECONDS` -> the MOSS claim is passed for ever; or
+    return True for the same rank -> the Blender claims wait behind MOSS again."""
+    tuning = card_queue.take("sim-body-l1d", 3, "sim-body")
+    bakes = card_queue.take("this-pc blender", 9.7, "env-run", "blender", memory=8)
+    assert tuning and bakes
+    assert card_queue.take("this-pc moss-sound", 10, "env-run", memory=20) is None  # 3 + 9.7 + 10: it waits
+    second = card_queue.take("other blender", 9.7, "env-run", "blender", memory=8)
+    assert second  # joins the group's card share: it fits, MOSS does not, MOSS has waited under the bound
+    assert card_queue.take("small proof", 1, "env-run", memory=1) is None  # 1 more passes 13.5: it waits too
+    card_queue.release(card_queue.WAITING.pop(("small proof", "env-run")))
+    monkeypatch.setattr(card_queue, "BACKFILL_SECONDS", 0)  # MOSS has waited long enough: nothing passes it now
+    assert card_queue.take("third blender", 9.7, "env-run", "blender", memory=8) is None
+    card_queue.release(card_queue.WAITING.pop(("third blender", "env-run")))
+    for share in (bakes, second):
+        card_queue.release(share)
+    assert card_queue.take("this-pc moss-sound", 10, "env-run", memory=20)  # the group gone, MOSS fits
 
 
 def test_a_side_job_gives_the_card_way_to_a_film_claim_waiting_and_starts_again_after(monkeypatch, card_queue_folder,
