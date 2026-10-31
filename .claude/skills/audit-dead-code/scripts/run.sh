@@ -26,9 +26,11 @@ PY_OUT="$OUT_DIR/python.txt"
 if [ "$PY_COUNT" -gt 0 ]; then
     echo "running vulture..."
     {
-        vulture \
+        # vulture from PATH, else a throwaway one through uv, so no install step is needed.
+        if command -v vulture >/dev/null 2>&1; then VULTURE=(vulture); else VULTURE=(uv run --with vulture vulture); fi
+        "${VULTURE[@]}" \
             --min-confidence 80 \
-            --exclude '**/.venv/**,**/node_modules/**,**/vendor/**,**/migrations/**,**/tests/**,**/build/**,**/dist/**' \
+            --exclude '**/.venv/**,**/node_modules/**,**/vendor/**,**/third_party/**,**/*_libs/**,**/migrations/**,**/tests/**,**/build/**,**/dist/**,**/.claude/worktrees/**' \
             "$REPO" 2>&1 || true
     } > "$PY_OUT"
 else

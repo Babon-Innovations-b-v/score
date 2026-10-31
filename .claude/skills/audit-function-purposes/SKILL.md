@@ -26,7 +26,7 @@ The enumerator script lists every candidate fn (path:line, name, length). The ag
 `scripts/enumerate.sh` uses Python `ast` to list every `def` in scope:
 
 - **Scope**: every tracked `*.py` in the repo. A repo with no Python has nothing to audit here: say so and stop.
-- **Exclude**: `**/tests/**`, `**/migrations/**`, `**/__pycache__/**`, `**/.venv/**`, and vendored third-party code, which is frozen and not ours to decompose.
+- **Exclude**: `**/tests/**`, `**/migrations/**`, `**/__pycache__/**`, `**/.venv/**`, and vendored third-party code (`vendor/`, `third_party/`, any `*_libs/`), which is frozen and not ours to decompose.
 - **Output**: `tmp/_audit-function-purposes/candidates.tsv` — `path\tline\tend_line\tlength\tname`.
 
 Sort by length descending. The fattest functions are the most likely violators; agent reads top-N first.

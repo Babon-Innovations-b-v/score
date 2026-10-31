@@ -56,7 +56,7 @@ PYEOF
 
 git -C "$REPO" ls-files -z '*.py' \
     | tr '\0' '\n' \
-    | grep -vE '(^|/)(tests|migrations|vendor|__pycache__|\.venv|node_modules)/' \
+    | grep -vE '(^|/)(tests|migrations|vendor|third_party|[^/]*_libs|__pycache__|\.venv|node_modules)/' \
     | sed "s|^|$REPO/|" \
     | tr '\n' '\0' \
     | xargs -0 -r python3 "$HELPER" "$REPO" "$CANDIDATES" "$PARSE_ERRORS"
