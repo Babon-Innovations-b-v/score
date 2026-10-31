@@ -37,15 +37,28 @@ def followers_free(model, followers):
 def end_site(model, parts):
     """A group end's marker site (body name, body-local point): MyoFullBody's centre given as weighted body points
     (`parts`: [(body, sized local point, weight)]) put on the bodies' nearest common holder at the model's rest pose,
-    one rule for every end (one body's point stays as it is; the hips' middle lands on the pelvis, where both hip
-    centres are fixed; the neck's on the thorax, the neck and head rigid on it)."""
+    or, when a moving body stands between that holder and a part's body, on the first such (`_between`): one rule
+    for every end (one body's point stays as it is; the hips' middle lands on the pelvis, where both hip centres are
+    fixed; the neck's, C7/T1 at the neck's turn and C0/C1 at its flexion, on the neck)."""
     data = mujoco.MjData(model)
     mujoco.mj_kinematics(model, data)
     bodies = [model.body(name).id for name, _, _ in parts]
     holder = next(body for body in _above(model, bodies[0]) if all(body in _above(model, other) for other in bodies))
+    holder = _between(model, holder, bodies)
     world = sum(weight * (data.xpos[body] + data.xmat[body].reshape(3, 3) @ local)
                 for body, (_, local, weight) in zip(bodies, parts))
     return model.body(holder).name, data.xmat[holder].reshape(3, 3).T @ (world - data.xpos[holder])
+
+
+def _between(model, holder, bodies):
+    """The first body with a joint of its own below `holder` on the way to one of `bodies`, that is none of them;
+    else `holder` (a middle of two joint centres rides the body moving between them)."""
+    for body in bodies:
+        way = _above(model, body)
+        moving = [step for step in reversed(way[1:way.index(holder)]) if model.body_jntnum[step]]
+        if moving:
+            return moving[0]
+    return holder
 
 
 def _above(model, body):

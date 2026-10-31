@@ -46,6 +46,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   by the solve.
 - (2026-10-29) end_site's holder `next(body for body in _above(...) if all(...))` made `bodies[0]`: the hips' middle
   rides the left thigh.
+- (2026-10-31) end_site's `holder = _between(model, holder, bodies)` dropped: the hip and knee's middle rides the
+  pelvis, not the thigh moving between them.
 - (2026-10-29) _frames.solved's `or moved < STEP_DONE` dropped: the hinge whose mass sits 1e-6 m off its axis drifts
   1e-3 rad a step and raises NotConverged.
 - (2026-10-29) _constants.told's kept `np.abs(np.diag(upper)) >= TOLD` made `>= 0`: every inside axis is solved, the
@@ -342,14 +344,16 @@ def the_place_goal_sums_to_the_marker_goal():
 
 def a_middle_end_sits_on_the_common_holder():
     """The toy's hips' middle (each thigh's origin, half each) lands on the pelvis between them; one body's point stays
-    on that body as it is."""
+    on that body as it is; the left hip and knee's middle (the thigh's origin on the pelvis, the shin's) rides the
+    thigh, the body moving between them, at its middle."""
     import mujoco
     import numpy as np
     from fit import end_site
     model = mujoco.MjModel.from_xml_string(TOY)
     found = [end_site(model, [("leg_l", np.zeros(3), 0.5), ("leg_r", np.zeros(3), 0.5)]),
-             end_site(model, [("shin_l", np.array([0.0, 0.01, 0.0]), 1.0)])]
-    wanted = [("pelvis", (0.0, 0.0, -0.1)), ("shin_l", (0.0, 0.01, 0.0))]
+             end_site(model, [("shin_l", np.array([0.0, 0.01, 0.0]), 1.0)]),
+             end_site(model, [("pelvis", np.array([0.1, 0.0, -0.1]), 0.5), ("shin_l", np.zeros(3), 0.5)])]
+    wanted = [("pelvis", (0.0, 0.0, -0.1)), ("shin_l", (0.0, 0.01, 0.0)), ("leg_l", (0.0, 0.0, -0.2))]
     return [f"{name} at {np.round(local, 4)}, not {body} {place}" for (name, local), (body, place) in zip(found, wanted)
             if name != body or not np.allclose(local, place, atol=1e-9)]
 
