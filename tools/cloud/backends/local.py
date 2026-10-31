@@ -245,6 +245,11 @@ def take(kind, public_key, need=None):
     return found
 
 
+def queued(kind):
+    """Whether this process's claim of `kind` waits in the card queue (its waiting entry there, card_queue.take)."""
+    return any(job == f"this-pc {kind}" for job, _ in card_queue.WAITING)
+
+
 def container(kind):
     """The container a claim of `kind` runs in: one of the kind's own under OWN, but MACHINE for the FIRST kinds and
     for every kind without OWN."""

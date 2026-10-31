@@ -107,6 +107,8 @@ The invariants, each with the break that turns its test red (each applied once a
   since)` -> `ORDER.index(...) < rank` in `card_queue.take` -> the free turn goes past the Pixal3D claim that asked
   first; or drop the memory sum in `card_queue.take` -> the Pixal3D claim starts beside both; or drop
   `card_queue.resize(...)` in `let_go_turn` -> the second place gets one turn.
+- A claim the card queue refused says so (`queued`), so park.here holds its run's minutes while it waits there.
+  Break: `return any(...)` -> `return False` in `queued`.
 """
 import json
 import os
@@ -786,11 +788,13 @@ def test_this_pc_claims_hold_their_card_share_and_wait_while_a_side_job_holds_th
     monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)
     side = card_queue.take("sim-body", 6, "other")
     assert local.take("pixal", "key") is None  # 6 + 10.8 passes the card: it waits, holding no claim
+    assert local.queued("pixal") and not local.queued("blender")  # in the queue: park.here holds its minutes
     with local.container_lock("score-this-pc-pixal").open("a+") as probe:
         assert local.got(probe, True)  # its container's lock was let go
     card_queue.release(side)
     machine = local.take("pixal", "key")
     assert machine and card_queue.take("sim-body", 6, "other") is None  # the claim holds its share
+    assert not local.queued("pixal")
     assert until(lambda: local.CARDS[machine["id"]].card_peak)  # the card read while it holds it
     local.delete(machine["id"], "this-pc")
     assert card_queue.take("sim-body", 6, "other")

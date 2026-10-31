@@ -470,6 +470,44 @@ def test_this_pcs_card_is_taken_free_one_claim_at_a_time_and_never_parked(calls,
     assert ledger.machine_row({**taken, "deleted": taken["adopted"] + 600})["euros"] == 0.0
 
 
+def test_a_claim_waiting_in_this_pcs_card_queue_keeps_its_minutes(calls, monkeypatch):
+    """Fault, 2026-10-31: likeness@base's similar claim waited in the card queue behind sim body's level 1 share until
+    its own deadline ran out ("no machine could be rented"). While the claim waits in the queue its run's deadline is
+    held as far ahead as when the wait began; a claim busy for any other reason keeps its deadline as it runs, and the
+    deadline is never pushed past what was left. Break: drop `queue_paused(run, kind)` in `here` -> the deadline is
+    spent; or `run.queue_left = None` dropped after a take -> the next wait starts from the old room."""
+    waits, given = [True], []
+
+    def take(kind, public_key, need=None):
+        return None if waits[0] is not None else {
+            "id": "score-this-pc:1", "zone": "this-pc", "type": "score-this-pc", "class": "gpu-16gb", "cards": 1,
+            "price": 0.0, "unit_minutes": 1, "host": "172.17.0.2", "disk_gb": 500, "here": True}
+
+    monkeypatch.setattr(cloud, "take", take, raising=False)
+    monkeypatch.setattr(cloud, "queued", lambda kind: bool(waits[0]), raising=False)
+    monkeypatch.setattr(batch, "ssh_key", lambda: "ssh-ed25519 AAAA runner")
+    clock = [1000.0]
+    monkeypatch.setattr(park.time, "time", lambda: clock[0])
+    import pool
+    monkeypatch.setattr(pool.time, "time", lambda: clock[0])
+    run = run_of("likeness")
+    run.deadline = 1600.0  # 10 min left
+    assert batch.park_taken(run, CARD_OFFERS, 1, KIND, 60) is None
+    clock[0] = 2000.0  # 1000 s later, still waiting in the queue
+    assert batch.park_taken(run, CARD_OFFERS, 1, KIND, 60) is None and run.deadline == 2600.0  # its 10 min kept
+    waits[0] = False  # busy for another reason (another claim of its container): the clock runs
+    clock[0] = 2300.0
+    assert batch.park_taken(run, CARD_OFFERS, 1, KIND, 60) is None and run.deadline == 2600.0
+    waits[0] = None  # its turn: taken
+    assert batch.park_taken(run, CARD_OFFERS, 1, KIND, 60)["here"]
+    waits[0], clock[0] = True, 2500.0  # a later claim of the run waits from what is left now: 100 s
+    run.machines.clear()
+    batch.park_taken(run, CARD_OFFERS, 1, KIND, 60)
+    clock[0] = 3000.0
+    batch.park_taken(run, CARD_OFFERS, 1, KIND, 60)
+    assert run.deadline == 3100.0
+
+
 def test_each_kind_on_this_pcs_card_keeps_its_own_set_up(tmp_path):
     """This PC's container is one machine kept for good (2026-10-29: a characters claim set up from scratch while
     every Blender bake waited): each kind gets its own /root/venv back at its claim, nothing a claim runs removes
