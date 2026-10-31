@@ -212,8 +212,11 @@ def main() -> int:
         config["project"] = {"number": 0, "owner": ""}
         config["backlog_prd"] = None
         config["people"] = {}
+        config["owner"] = ""
     config["repo"] = repo
-    config["owner"] = owner
+    # The owner is a person's handle, edited by hand; the repo's GitHub owner (often an
+    # organisation) only fills it when it is empty, so a re-run never overwrites it.
+    config["owner"] = config.get("owner") or owner
     if not config.get("people"):
         config["people"] = {owner: owner}
 
