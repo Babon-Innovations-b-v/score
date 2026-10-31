@@ -62,6 +62,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-10-30) _constants.descended's `< cost` made `<= cost`: a step the cost cannot see is taken by `descended`
   and never judged by `steadied` (heavy_kimodo's polish stood at 1.48e-10 for its last 10 rounds, halvings 1e-13 long).
 
+- (2026-10-31) _constants.polished's `lowest < FLOOR` made `lowest < np.inf`: a polish stalled far from settled is
+  taken as settled.
+
 Run: .venv/bin/python score/stages/sim_body/inside/fit/test_the_solver_gives_back_the_pose_and_constants_that_made_its_targets.py
 """
 import os
