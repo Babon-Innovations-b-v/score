@@ -73,6 +73,17 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   same run detached from `~/.score-this-pc/resume-code` at the recorded commit (log under `~/.score-this-pc/logs`);
   `status` says running, paused or neither, the newest heartbeat's rows and what is on the card. The owner's one-time
   step: `sudo usermod -aG docker $USER`. The rule below that no model runs on the owner's PC holds everywhere else.
+- **One card queue for this PC** (`backends/card_queue.py`, PRD #73; owner, 2026-10-31: "go full docker ... even for
+  local, then we can control and manage this way better"; 2026-10-31: a SAM 3 masks job failed with
+  `cudaErrorDevicesUnavailable` while sim body's level 1 seeds held the card outside the run): every user of the card
+  holds a measured share of it while it works, and the shares never pass the card less the desktop
+  (`card_queue.BUDGET_GB`). The run's container claims take theirs in `local.take` (`local.CARD_NEED`, else the run's
+  own `card_gb`, else the whole card) at priority `film`; any other card user (sim body tuning, a proof container, a
+  scratch run) starts under `python3 tools/cloud/backends/card_queue.py run --job <name> --card-gb <measured GB>
+  --priority side -- <command>`, which waits for its share and execs the command holding it, and `card_queue.py
+  status` says what holds the card and what waits. A film claim that waits keeps side jobs off until it has its share;
+  a side job already on the card is not stopped. The queue's folder (`~/.score-card`, `SCORE_CARD_QUEUE`) is one for
+  the whole PC, whatever `PROPS_HOME` a run works under.
 - **The only way models are made**, one or a hundred: no model runs on the owner's PC (owner,
   2026-10-03; `../local_models.py`). `batch.py` makes models, `pictures.py` pictures, `scene.py`
   a scene's steps (target, SAM 3 cut-outs, MoGe-2 depth, redraws) on one card, then its objects

@@ -6,7 +6,8 @@ The cloud providers the runners rent from, one module each, behind `../provider.
 `take`, which only `park.here` calls, holds the PC's one claim, or for a `SHARED` kind (Blender) a share of it with
 the free ones of its `RUNS_AT_ONCE` turns, so several places' Blender claims run side by side. `card_turn.py` is no backend: a Blender startup
 script `local.take` copies into the container so the Blender jobs a claim runs side by side take the card at most
-`card_turn.CARD_SLOTS` (two) calls at a time.
+`card_turn.CARD_SLOTS` (two) calls at a time. `card_queue.py` is no backend either: this PC's one card queue, which
+`local.take` and every card user outside the container take a measured share of (`../CLAUDE.md` "One card queue").
 
 **Adding a backend:**
 1. Write `<name>.py` with everything `../provider.py`'s docstring lists (`NAME`, `CLASSES`, `QUOTAS`, `account()`,
