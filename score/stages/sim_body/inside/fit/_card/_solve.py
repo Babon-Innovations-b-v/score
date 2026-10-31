@@ -109,6 +109,10 @@ def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STE
     arrays) give each row its set's joint places, row_set its set's coupling polys too (the reduction's and the
     projection's [sets, couplings, 5]; rows = set x frame); neither, the model's own."""
     device = joint_q.device
+    coords = optimizer.model.joint_coord_count
+    if joint_q.shape[1] != coords or seeds.shape[1] != coords:
+        # a seed cache made for another joint layout (2026-10-31: MyoFullBody made movable, 129 -> more coords)
+        raise ValueError(f"seeds have {seeds.shape[1]} coordinates, the model {coords}: made for another model")
     sets_of = None if row_set is None else rows_of(row_set, joint_q.shape[0], device)
     for part in (reduction, projection):
         if row_set is not None and 1 < part.poly.shape[0] <= int(np.max(row_set)):
