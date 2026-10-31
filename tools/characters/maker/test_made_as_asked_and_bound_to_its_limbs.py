@@ -99,6 +99,7 @@ unless named):
   `& (under_cloth(inset, garments) >= UNDER_INSET)` dropped (the 2026-10-22 white patches).
 - test_the_route_reads_the_body_node_its_outfit_named: body_node's `!= "far"` dropped.
 - test_a_runs_own_home_holds_its_takes: prop_person.PIXAL made `pathlib.Path.home() / ".farm-factory-props/work/pixal"`.
+- test_a_make_of_no_steps_says_it_took_no_minutes: chain.Chain's `self.record["minutes"] = self.minutes()` dropped.
 """
 import json
 import pathlib
@@ -942,3 +943,13 @@ def test_a_runs_own_home_holds_its_takes(tmp_path):
                            cwd=HERE, env={"PATH": "/usr/bin:/bin", "PROPS_HOME": str(tmp_path), "PYTHONPATH": str(HERE)},
                            capture_output=True, text=True, check=True).stdout.split()
     assert found == [str(tmp_path / "work/pixal"), str(tmp_path / "score-coordinator/prop-people")]
+
+
+def test_a_make_of_no_steps_says_it_took_no_minutes(tmp_path, monkeypatch):
+    """Fault (env1 round 35): a held machine's hold, a make with no steps, never wrote its record, so prop_chain.py's
+    last line read record["minutes"] and raised KeyError; a chain's record says its minutes from the start."""
+    import chain
+    monkeypatch.setattr(chain, "card_name", lambda: "test card")
+    (tmp_path / "in").mkdir()
+    (tmp_path / "in/spec.json").write_text(json.dumps({"name": "held", "steps": []}))
+    assert chain.Chain(tmp_path).record["minutes"] == 0.0
