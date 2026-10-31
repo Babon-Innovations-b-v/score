@@ -16,8 +16,9 @@ FREE_GB = 12
 HELD_OUT_SHARE = 0.10  # the check bodies' score may be at most this much worse than the tuning bodies'
 WORKER = pathlib.Path(__file__).resolve().parent / "_case.py"
 SETS_WORKER = pathlib.Path(__file__).resolve().parent / "_card_sets.py"  # every set of a Jacobian, one card process
+SET_PROCESSES = 4  # bodies' set processes side by side (`measured_many`): each holds its own card context and caches
 CHUNK = 12  # sets per chunk of the one card process: 32 tall sets peaked ~5.2-5.5 GB own (phase A ~2.6, +~2.7 per 32 in the constants phase; night/across c38), 12 keeps ~3.7 under 4
-BLOCKS_WORKER = pathlib.Path(__file__).resolve().parents[1] / "tuning" / "_adjoint" / "_check_columns.py"  # one case's exact block
+BLOCKS_WORKER = pathlib.Path(__file__).resolve().parents[1] / "tuning" / "_adjoint" / "_check_columns.py"  # one body's exact blocks
 SAME_SEEDS = "--same-seeds"  # _card_sets: every set seeded from the seeds root, the base point's way
 SOLVED = "measures.json"  # a clip's unrounded measures, the solver's; m.json beside it is the rounded copy people read
 SEEDS = "angles.npz"  # a clip's mink angles per frame (qpos, frames x nq): the card's seeds (fit._card._seeds)
@@ -116,33 +117,34 @@ def read_back(folder, cases, codes):
     return {case: json.loads((folder / case / SOLVED).read_text()) for case in cases}
 
 
-def block_command(python, seeds_root, folder, case, job):
-    """One case's exact level 1 block (`tuning/_adjoint/_check_columns.py` at the set `folder`, saved to
-    folder/<case>.npz), capped like every Python process on this PC."""
+def block_command(python, seeds_root, folder, cases):
+    """One body's exact level 1 blocks (`tuning/_adjoint/_check_columns.py` at the set `folder`: level 2 once for the
+    body, then each case's block saved to folder/<case>.npz), capped like every Python process on this PC."""
     return ["systemd-run", "--user", "--scope", "-p", "MemoryMax=6G", "-q", "env", "OMP_NUM_THREADS=2",
             "OPENBLAS_NUM_THREADS=2", "MKL_NUM_THREADS=2", str(python), "-B", str(BLOCKS_WORKER),
-            str(BLOCKS_WORKER.parent), str(seeds_root), str(folder), str(folder / case), str(folder / f"{case}.npz"),
-            f"{case}={job}"]
+            str(BLOCKS_WORKER.parent), str(seeds_root), str(folder), str(folder),
+            *[f"{case}={job}" for case, job in cases.items()]]
 
 
 def blocked(rows, weights, rest, cases, out, python, seeds_root, launch=None, **options):
     """{case: out/<case>.npz}, each case's exact block (rows x every unknown of `tuning.layout(ends=)`) at one set,
-    one process a case side by side as `run_all` runs bodies; raises when any fails or misses its block.
-    `launch(case, {case: job})` starts one (default: `block_command` under out/<case>.log)."""
+    one process a body side by side as `run_all` runs bodies (level 2 solved and factored once a body from all its
+    clips, as the evaluations solve it; 2026-10-31: one process a case solved it from that case's clip alone, seven
+    times a body); a failed body runs once more; raises when one still fails or a case misses its block.
+    `launch(body, cases)` starts one (default: `block_command` under out/<body>.log)."""
     shutil.rmtree(out, ignore_errors=True)
     set_written(out, rows, weights, rest)
 
-    def started(case, one):
-        log = open(out / f"{case}.log", "w")
-        return subprocess.Popen(block_command(python, seeds_root, out, case, one[case]), stdout=log,
+    def started(body, body_cases):
+        log = open(out / f"{body}.log", "w")
+        return subprocess.Popen(block_command(python, seeds_root, out, body_cases), stdout=log,
                                 stderr=subprocess.STDOUT)
-    codes = run_all({case: {case: job} for case, job in cases.items()}, out, python, launch=launch or started,
-                    **options)
-    # a failed block runs once more: the card may refuse a context while the run beside it holds it (2026-10-31,
+    bodies = by_body(cases)
+    codes = run_all(bodies, out, python, launch=launch or started, **options)
+    # a failed body runs once more: the card may refuse a context while the run beside it holds it (2026-10-31,
     # l1d: 3 of 70 blocks "Failed to acquire primary context for device cuda:0", and the whole step was lost)
-    again = {case: cases[case] for case, code in codes.items() if code}
-    codes.update(run_all({case: {case: job} for case, job in again.items()}, out, python,
-                         launch=launch or started, **options) if again else {})
+    again = {body: bodies[body] for body, code in codes.items() if code}
+    codes.update(run_all(again, out, python, launch=launch or started, **options) if again else {})
     missing = [case for case in cases if not (out / f"{case}.npz").exists()]
     if missing or any(codes.values()):
         raise RuntimeError(f"{out.name}: blocks failed {codes}, missing {missing}; logs in {out}")
@@ -150,31 +152,36 @@ def blocked(rows, weights, rest, cases, out, python, seeds_root, launch=None, **
 
 
 def sets_command(python, seeds_root, out, cases):
-    """The one card process of `measured_many`, capped like every Python process on this PC."""
+    """One body's card process of `measured_many`, capped like every Python process on this PC."""
     return ["systemd-run", "--user", "--scope", "-p", "MemoryMax=6G", "-q", "env", "OMP_NUM_THREADS=2",
             "OPENBLAS_NUM_THREADS=2", "MKL_NUM_THREADS=2", str(python), "-B", str(SETS_WORKER), str(seeds_root),
             str(out), SAME_SEEDS, *[f"{case}={job}" for case, job in cases.items()]]
 
 
-def launched(command, log):
-    """Runs `command` to its end, its output into `log`; its exit code."""
-    with open(log, "w") as file:
-        return subprocess.call(command, stdout=file, stderr=subprocess.STDOUT)
-
-
-def measured_many(sets, cases, out, python, seeds_root, launch=launched, chunk=None):
-    """[{case: honest measures}] for every set ([(rows, weights, rest)], as `measured` takes one) in ONE card process
-    (`_card_sets.py`, card build step 6a) that keeps each body's start-up and runs the sets in chunks of at most
-    `chunk` (default CHUNK, so its card memory stays bounded), one chunk after another, every set seeded from
-    `seeds_root`'s angles. out/p000/s00000.. hold the sets; raises when the process fails or any set misses a case.
-    `launch(command, log)` runs it (default `launched`)."""
+def measured_many(sets, cases, out, python, seeds_root, launch=None, chunk=None, most=SET_PROCESSES,
+                  free_gb=FREE_GB):
+    """[{case: honest measures}] for every set ([(rows, weights, rest)], as `measured` takes one): one card process a
+    body (`_card_sets.py`, card build step 6a: every set of that body in it, its start-up kept), at most `most` side by
+    side as `run_all` runs bodies (2026-10-31: one process for every body sat at ~1.3 cores, the card mostly idle, 37
+    min a Jacobian on l1d), a failed one run once more (the card may refuse a context, as `blocked`'s). Each process
+    runs the sets in chunks of at most `chunk` (default CHUNK, so its card memory stays bounded), one chunk after
+    another, every set seeded from `seeds_root`'s angles. out/p000/s00000.. hold the sets; raises when a process fails
+    or any set misses a case. `launch(body, cases)` starts one (default: `sets_command` under out/sets-<body>.log)."""
     shutil.rmtree(out, ignore_errors=True)
     chunk = chunk or CHUNK
     folders = [out / f"p{index // chunk:03d}" / f"s{index:05d}" for index in range(len(sets))]
     for folder, (rows, weights, rest) in zip(folders, sets, strict=True):
         set_written(folder, rows, weights, rest)
-    code = launch(sets_command(python, seeds_root, out, cases), out / "sets.log")
-    return [read_back(folder, cases, {"sets": code}) for folder in folders]
+
+    def started(body, body_cases):
+        log = open(out / f"sets-{body}.log", "w")
+        return subprocess.Popen(sets_command(python, seeds_root, out, body_cases), stdout=log,
+                                stderr=subprocess.STDOUT)
+    bodies = by_body(cases)
+    codes = run_all(bodies, out, python, launch=launch or started, most=most, free_gb=free_gb)
+    again = {body: bodies[body] for body, code in codes.items() if code}
+    codes.update(run_all(again, out, python, launch=launch or started, most=most, free_gb=free_gb) if again else {})
+    return [read_back(folder, cases, codes) for folder in folders]
 
 
 def case_score(found):

@@ -59,8 +59,17 @@ paired changes, tuning and check bodies apart, verdicts once the run dir has flo
   differs up to 1.5e-5 on tall), the three nudged columns 0.2 to 0.9 % apart, cosine 0.99996 or more. What is left on
   the host: scipy's lsmr inside least_squares and the polish's sparse solve (SuperLU), the person's file written and
   compiled per set (`sim_body.constants_set_up`), the Newton build per set (`_clip.for_fitting`), the measures.
+- `measured_many` runs one `_card_sets` process a body (since 2026-10-31; one process held every body before, ~1.3
+  cores, the card mostly idle, a Jacobian 37 min on l1d), at most `SET_PROCESSES` side by side by `run_all`, a
+  failed body once more; each writes its own cases into the shared out/pNNN/sNNNNN folders. Measured (night/gpu2/many,
+  4 centre sets x tall, mean, slim and mid_tall's 28 cases, env1 beside it): 168.4 s in one process (3.4 cores, card
+  19 % mean) against 56.1 s in four (5.3 cores, card 29 %, 5.7 GB on the card at most), every row bit for bit equal.
 - `blocked(rows, weights, rest, cases, out, python, seeds_root)` (2026-10-30) runs `tuning/_adjoint/_check_columns.py`
-  once per case side by side (`run_all`'s caps), each case's exact block (rows x every unknown) to out/<case>.npz;
+  once per BODY side by side (since 2026-10-31; once per case before), each case's exact block (rows x every unknown)
+  to out/<case>.npz: level 2 solved, built and factored once a body from all its clips, as `measured_many` solves it.
+  Before, a case's block solved level 2 from that case's clip alone (`_case.prepared` lays the recordings of the
+  cases it is given), so the hybrid's exact columns were not the derivative of the function the evaluations measure;
+  given one case the per-body script equals the old block (tall_kimodo, 8.7e-5 of 0.106, two old runs 6.7e-5 apart);
   `level1.py --card <seeds root> --exact` hands `tuning.whole` the hybrid (`exact_stacked`: the blocks in sorted case
   order, then the prior's columns; `centre_columns` differenced). About 3 min a case serially; the 70-case timing is
   not measured yet.

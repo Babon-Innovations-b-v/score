@@ -16,12 +16,15 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
 - measured_many's folders zipped reversed: a set is handed another set's measures (2026-10-29).
 - measured_many's every chunk written from the first sets: a later chunk's sets get the first chunk's measures (2026-10-30).
 - measured_many launching one process a chunk again: each body's start-up is repeated every chunk (2026-10-30).
+- measured_many launching every body in one process again (by_body dropped), or its second `run_all` over `again`
+  dropped: one process holds every body at ~1.3 cores, or a body the card refused once fails the step (2026-10-31).
 - sets_command's SAME_SEEDS dropped: the nudged sets start from the base set's angles, not the seeds root's.
 - tuning.case_residuals' skin read from "bones outside skin %": level 1 solves on the share, a step, not the
   depth outside (2026-10-30).
 - _card_batch.targets_key's landmark rows dropped: a set that moves a landmark's face weights reuses the targets
   of the set before it (2026-10-30).
-- blocked's `{case: {case: job}}` made `{case: {case: first job}}` (every case's process handed one job), or exact_stacked stacking the blocks in their given order
+- blocked launching one process a case again (`by_body` dropped: level 2 solved from one clip, seven times a body,
+  2026-10-31), or exact_stacked stacking the blocks in their given order
   and not sorted as tuning.whole's rows are: a case's exact rows land on another case's residuals (2026-10-30).
 
 Run: .venv/bin/python score/stages/sim_body/inside/evaluation/test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py
@@ -87,36 +90,43 @@ def test_an_evaluation_runs_every_tuning_body_once_two_at_most_at_once():
         assert all(value["joints mm"][0] == 1.0000004 for value in found.values())  # the solver's, unrounded
 
 
-def toy_sets_launch(calls):
-    def launch(command, log):
-        calls.append(command)
-        root, cases = pathlib.Path(command[command.index(str(evaluation.SETS_WORKER)) + 2]), command[-2:]
+def toy_sets_launch(calls, root, fail_once=()):
+    """A toy `measured_many` launch: writes every set's measures (its table) for the body's cases, as the card
+    process would; a body in `fail_once` fails its first try."""
+    def launch(body, cases):
+        command = evaluation.sets_command(sys.executable, "/seeds", root, cases)
+        calls.append((body, command))
+        if body in fail_once and [called for called, _ in calls].count(body) == 1:
+            return subprocess.Popen(["false"])  # the card refused its context once
         for folder in sorted(root.glob("p*/s*")):
-            for case in (given.split("=")[0] for given in cases):
-                (folder / case).mkdir()
+            for case in cases:
+                (folder / case).mkdir(exist_ok=True)
                 (folder / case / "measures.json").write_text((folder / "table.json").read_text())
-        return 0
+        return subprocess.Popen(["true"])
     return launch
 
 
-def test_every_set_of_a_jacobian_runs_in_one_card_process_and_gets_its_own_measures():
+def test_every_set_of_a_jacobian_runs_in_one_card_process_a_body_and_gets_its_own_measures():
     with tempfile.TemporaryDirectory() as folder:
-        calls, cases = [], evaluation.picked(CASES, {"tuning": ["tall"]}, "tuning")
+        root, calls, cases = pathlib.Path(folder) / "jacobian", [], evaluation.picked(CASES, SPLIT, "tuning")
         sets = [({"set": index}, {"marker goal": 1.0}, {"centres": {}}) for index in range(3)]
-        found = evaluation.measured_many(sets, cases, pathlib.Path(folder) / "jacobian", sys.executable,
-                                         "/seeds", launch=toy_sets_launch(calls))
-        assert len(calls) == 1 and evaluation.SAME_SEEDS in calls[0] and "/seeds" in calls[0]
-        assert [found_set["tall_kimodo"] for found_set in found] == [{"set": index} for index in range(3)]
+        found = evaluation.measured_many(sets, cases, root, sys.executable, "/seeds",
+                                         launch=toy_sets_launch(calls, root, fail_once=("short",)), free_gb=0)
+        assert sorted(body for body, _ in calls) == ["short", "short", "slim", "tall"]  # a failed body once more
+        assert all(evaluation.SAME_SEEDS in command and "/seeds" in command for _, command in calls)
+        assert all(sorted(given.split("=")[0] for given in command[-2:]) == [f"{body}_kimodo", f"{body}_rigwalk"]
+                   for body, command in calls)
+        assert [found_set["slim_kimodo"] for found_set in found] == [{"set": index} for index in range(3)]
 
 
-def test_a_jacobian_over_the_chunk_runs_its_chunks_in_one_process_each_set_keeping_its_own_measures():
+def test_a_jacobian_over_the_chunk_runs_its_chunks_in_one_process_a_body_each_set_keeping_its_own_measures():
     with tempfile.TemporaryDirectory() as folder:
-        calls, cases = [], evaluation.picked(CASES, {"tuning": ["tall"]}, "tuning")
+        root, calls, cases = pathlib.Path(folder) / "jacobian", [], evaluation.picked(CASES, {"tuning": ["tall"]}, "tuning")
         sets = [({"set": index}, {"marker goal": 1.0}, {"centres": {}}) for index in range(5)]
-        found = evaluation.measured_many(sets, cases, pathlib.Path(folder) / "jacobian", sys.executable,
-                                         "/seeds", launch=toy_sets_launch(calls), chunk=2)
+        found = evaluation.measured_many(sets, cases, root, sys.executable, "/seeds",
+                                         launch=toy_sets_launch(calls, root), chunk=2, free_gb=0)
         assert len(calls) == 1
-        assert sorted(path.parent.name for path in (pathlib.Path(folder) / "jacobian").glob("p*/s*")) == \
+        assert sorted(path.parent.name for path in root.glob("p*/s*")) == \
             ["p000", "p000", "p001", "p001", "p002"]
         assert [found_set["tall_kimodo"] for found_set in found] == [{"set": index} for index in range(5)]
 
@@ -187,26 +197,29 @@ def test_the_exact_jacobian_stacks_each_cases_own_block_in_whole_order_then_the_
     from evaluation import level1
     entries = [("ASIS_l", "link", 0, ("pelvis",)), ("ASIS_l", "trust", None, ("pelvis",)),
                ("Hips", "centre", 1, ("pelvis",))]
-    cases = {"tall_kimodo": "/jobs/tall/kimodo.json", "heavy_kimodo": "/jobs/heavy/kimodo.json"}
+    cases = {"tall_kimodo": "/jobs/tall/kimodo.json", "heavy_kimodo": "/jobs/heavy/kimodo.json",
+             "heavy_rigwalk": "/jobs/heavy/rig.json"}
     with tempfile.TemporaryDirectory() as root:
         out = pathlib.Path(root) / "exact"
 
         tries = []
 
-        def launch(case, one):
-            tries.append(case)
-            if case == "heavy_kimodo" and tries.count(case) == 1:
+        def launch(body, given):
+            tries.append((body, sorted(given)))
+            if body == "heavy" and len(tries) <= 2:
                 return subprocess.Popen(["false"])  # the card refused its context once
-            np.savez(out / f"{case}.npz", block=np.full((2, len(entries)), float(len(one[case]))))
+            for case, job in given.items():
+                np.savez(out / f"{case}.npz", block=np.full((2, len(entries)), float(len(job))))
             return subprocess.Popen(["true"])
         blocks = evaluation.blocked({}, {}, {}, cases, out, "python", "/seeds", launch=launch, free_gb=0)
         jacobian = level1.exact_stacked(blocks, np.zeros(len(entries)), entries)
     by_case = [len(cases[case]) for case in sorted(cases)]
-    assert jacobian.shape == (4 + 2, len(entries))
-    assert (jacobian[:2] == by_case[0]).all() and (jacobian[2:4] == by_case[1]).all()
-    assert np.allclose(jacobian[4:], [[tuning.LINK_UNIT / tuning.PRIOR, 0, 0], [0, 0, tuning.LINK_UNIT / tuning.PRIOR]])
+    assert jacobian.shape == (6 + 2, len(entries))
+    assert all((jacobian[2 * index:2 * index + 2] == length).all() for index, length in enumerate(by_case))
+    assert np.allclose(jacobian[6:], [[tuning.LINK_UNIT / tuning.PRIOR, 0, 0], [0, 0, tuning.LINK_UNIT / tuning.PRIOR]])
     assert level1.centre_columns(entries) == [2]
-    assert sorted(tries) == ["heavy_kimodo", "heavy_kimodo", "tall_kimodo"]
+    heavy = ["heavy_kimodo", "heavy_rigwalk"]  # one process a body, its every case in it, once more after a failure
+    assert sorted(tries) == [("heavy", heavy), ("heavy", heavy), ("tall", ["tall_kimodo"])]
 
 
 if __name__ == "__main__":
