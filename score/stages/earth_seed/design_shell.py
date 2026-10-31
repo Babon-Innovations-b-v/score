@@ -12,9 +12,10 @@ raised levels (the street, the square, the base: a plan that encloses nothing), 
            the level, out to the walls (BACKING past the plan's line)
     wall   (a room) round the outline (the plan's `outline`, else its box w x d), each edge a slab of its written wall's
            thickness (else THICK) standing BACKING behind the plan's inside line, from the deck's foot to its written
-           height (else the height words' ceiling, else STOREY), raised to a roof's eave over it; each opening on it
-           (a door, window, gate or opening: a written plan's `openings`, else a data plan's `doors`) cut from its
-           sill to its head
+           height (else the height words' ceiling, else STOREY), raised to a roof's eave over it; and every written wall
+           the outline does not stand on (an inner wall, an arc in ARC_STEP pieces) centred on its line, as thick and
+           high; each opening on a wall (a door, window, gate or opening: a written plan's `openings`, else a data
+           plan's `doors`) cut from its sill to its head
     roof   (a room) each written roof over its points out to the walls: a flat one a slab on its eave; a dome a
            sphere's cap over the circle round its box's middle (builders' `dome`), so the people the concept stands
            under it fit (the greenhouse's upper walk, Batch 1 of 2026-10-27); a vault a circle's arc from its eave
@@ -60,15 +61,20 @@ from score.store import PROPS_HOME
 KEPT_RELATIONS = PROPS_HOME / "design" / "relations"  # holders.KEPT, held equal by the scene record's test
 
 # The scene record's backing shell (scene_record.writer BACKING, DECK_BELOW; held equal by the test): the shell stands
-# this far behind the plan's inside line and the deck this far under the floor. Both take each part's surface from the
-# scene's library (PART_KINDS).
+# this far behind the plan's inside line and the deck's top this far under the floor: none, the deck is the floor
+# (the retired kits laid 0.04 m floor plates on it; with none, every thing laid at the floor stood 0.042 m over it).
+# Both take each part's surface from the scene's library (PART_KINDS).
 BACKING = 0.15
-DECK_BELOW = 0.042
+DECK_BELOW = 0.0
 SLAB = 0.2  # metres of a deck, level or roof slab
 THICK = 0.3  # metres of a wall the plan gives no thickness
 STOREY = 3.0  # metres of a wall neither the plan nor its words give a height
 DOOR_HEAD = 2.1  # metres of a door's head the plan gives none
 ON_WALL = 0.3  # metres an opening may stand off its wall's line past the wall's thickness and still be cut in it
+ARC_STEP = 15.0  # degrees of a written arc wall each straight piece of it spans
+# A written wall runs along the outline (on_outline) where every point of it stands within OUTLINE_REACH metres of an
+# outline edge turned within ALONG_TURN degrees of it: a round wall drawn round a polygon outline.
+OUTLINE_REACH, ALONG_TURN = 1.0, 45.0
 CEILING = re.compile(r"\bceiling[^0-9;,]*?(\d+(?:\.\d+)?) ?m\b")
 DOOR_SIZE = re.compile(r"\d+(?:\.\d+)? ?x ?(\d+(?:\.\d+)?) ?m")  # a data door's words "(0.9 x 2.0 m)": its height
 ROOT = "Shell"
@@ -323,10 +329,77 @@ def cut_for(plan, rows, relations=None):
 
 
 def on_a_wall(plan, opening):
-    """Whether an edge of the plan's outline cuts the opening (on_edge, at its written wall's thickness)."""
+    """Whether a wall the shell builds (wall_lines: the outline's and the inner ones) cuts the opening (on_edge, at its
+    thickness)."""
+    return any(on_edge([opening], start, end, thick) for _, start, end, thick, *_ in wall_lines(plan))
+
+
+def arc_points(arc):
+    """The points [[x, y]] along a written arc ({centre, radius, start, end}: degrees from x toward y, run from start
+    up to end), one each ARC_STEP or less."""
+    start, end = float(arc["start"]), float(arc["end"])
+    end += 360.0 if end <= start else 0.0
+    turns = np.radians(np.linspace(start, end, max(1, int(np.ceil((end - start) / ARC_STEP))) + 1))
+    centre, radius = np.asarray(arc["centre"], float), float(arc["radius"])
+    return [list(centre + radius * np.array([np.cos(turn), np.sin(turn)])) for turn in turns]
+
+
+def written_lines(entry):
+    """[(start, end)] of a written wall: its line from `from` to `to`, an arc's straight pieces (arc_points)."""
+    if "from" in entry and "to" in entry:
+        return [(list(map(float, entry["from"])), list(map(float, entry["to"])))]
+    points = arc_points(entry["arc"]) if "arc" in entry else []
+    return list(zip(points, points[1:]))
+
+
+def off_line(point, start, end):
+    """Metres from a point to the segment from `start` to `end`."""
+    point, start, end = (np.asarray(each, float) for each in (point, start, end))
+    run = end - start
+    share = float(np.clip((point - start) @ run / max(float(run @ run), 1e-12), 0.0, 1.0))
+    return float(np.linalg.norm(start + run * share - point))
+
+
+def on_outline(entry, outline):
+    """Whether a written wall runs along the outline, so the outline's wall is that wall: every point along it (each
+    piece's ends, quarters and middle) within OUTLINE_REACH of an outline edge that runs its way (within ALONG_TURN).
+    The greenhouse's round walls stand up to 0.76 m inside its eight-sided outline; the lab's entry passage walls, 0.79
+    m from its outline, run across it."""
+    corners = [np.asarray(point, float) for point in outline]
+    edges = list(zip(corners, corners[1:] + corners[:1]))
+    edges = [(start, end) for start, end in edges if np.linalg.norm(end - start) >= 1e-6]
+
+    def along(start, end, point):
+        run = (end - start) / float(np.linalg.norm(end - start))
+        return any(off_line(point, *edge) <= OUTLINE_REACH and abs(float(run @ (edge[1] - edge[0])))
+                   >= np.cos(np.radians(ALONG_TURN)) * float(np.linalg.norm(edge[1] - edge[0])) for edge in edges)
+    return all(along(start, end, start + (end - start) * share)
+               for start, end in (tuple(np.asarray(each, float) for each in line) for line in written_lines(entry))
+               for share in np.linspace(0.0, 1.0, 5))
+
+
+def inner_walls(plan):
+    """[(start, end, written wall)] of every written wall the outline does not stand on (on_outline), an arc as its
+    straight pieces: the shell builds them too, centred on their line (only an outline wall knows an outside)."""
     outline = outline_of(plan)
-    return any(on_edge([opening], start, end, float(written_wall(plan, start, end).get("thick") or THICK))
-               for start, end in zip(outline, outline[1:] + outline[:1]))
+    return [(start, end, entry) for entry in plan.get("walls") or [] if isinstance(entry, dict)
+            and not on_outline(entry, outline) for start, end in written_lines(entry)
+            if np.linalg.norm(np.subtract(end, start)) >= 1e-6]
+
+
+def wall_lines(plan):
+    """[(name, start, end, thick, written wall, inner)] of every wall the shell builds (walls): the outline's edges
+    `wall_1` on, then its inner walls (inner_walls, `inner` true)."""
+    outline = outline_of(plan)
+    found = []
+    for index, start in enumerate(outline):
+        end = outline[(index + 1) % len(outline)]
+        entry = written_wall(plan, start, end)
+        if np.linalg.norm(np.subtract(end, start)) >= 1e-6:
+            found.append((f"wall_{index + 1}", start, end, float(entry.get("thick") or THICK), entry, False))
+    found += [(f"wall_{number}", start, end, float(entry.get("thick") or THICK), entry, True)
+              for number, (start, end, entry) in enumerate(inner_walls(plan), len(outline) + 1)]
+    return found
 
 
 def relations_file(place):
@@ -407,6 +480,12 @@ def spans(length, cuts, low, high):
     return found
 
 
+def inner_spans(length, cuts, high):
+    """An inner wall's spans (spans), less any of no length: the lab's entry passage end walls are as long as their
+    doors' openings, which leave no piece beside them."""
+    return [span for span in spans(length, cuts, -DECK_BELOW - SLAB, high) if span[1] - span[0] > 1e-6]
+
+
 def wall_height(plan, entry, roof_eave):
     """A wall's top: its written height, else the words' ceiling, else STOREY; raised to the roof's eave over it."""
     tall = float(entry.get("tall") or measured_ceiling(plan) or STOREY)
@@ -414,7 +493,8 @@ def wall_height(plan, entry, roof_eave):
 
 
 def walls(plan, outline, roof_eave):
-    """[(name, triangles, from)] of the outline's walls (module docstring), each edge's pieces round its openings."""
+    """[(name, triangles, from)] of the outline's walls (module docstring), each edge's pieces round its openings, then
+    the plan's inner walls (inner_pieces)."""
     count, openings = len(outline), openings_of(plan)
     entries = [written_wall(plan, outline[index], outline[(index + 1) % count]) for index in range(count)]
     thick = [float(entry.get("thick") or THICK) for entry in entries]
@@ -444,6 +524,27 @@ def walls(plan, outline, roof_eave):
                 f"{BACKING:g} m behind its inside line, {high:g} m high" +
                 (f", {len(cuts)} openings cut" if cuts else ""))
         found.append((f"wall_{index + 1}", parts, said))
+    return found + inner_pieces(plan, len(outline), openings, roof_eave)
+
+
+def inner_pieces(plan, count, openings, roof_eave):
+    """[(name, triangles, from)] of the plan's inner walls (inner_walls), each centred on its line, round its
+    openings: the lab's doors stood in their entry passages' end walls, which the outline does not hold, so no wall
+    was built at them and they hung on nothing (motion@lab, round 35)."""
+    found = []
+    for number, (start, end, entry) in enumerate(inner_walls(plan), count + 1):
+        start, end = np.asarray(start, float), np.asarray(end, float)
+        length, thick = float(np.linalg.norm(end - start)), float(entry.get("thick") or THICK)
+        along, half = (end - start) / length, outward(start, end) * thick / 2
+        cuts = on_edge(openings, start, end, thick)
+        high = wall_height(plan, entry, roof_eave)
+        parts = [slab_piece([list(start + along * begin - half), list(start + along * finish - half),
+                             list(start + along * finish + half), list(start + along * begin + half)], bottom, top)
+                 for begin, finish, bottom, top in inner_spans(length, cuts, high)]
+        found.append((f"wall_{number}", parts,
+                      f"the plan's inner wall from {[round(float(value), 3) for value in start]} to "
+                      f"{[round(float(value), 3) for value in end]}, {thick:g} m thick centred on its line, "
+                      f"{high:g} m high" + (f", {len(cuts)} openings cut" if cuts else "")))
     return found
 
 

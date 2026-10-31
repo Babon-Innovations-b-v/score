@@ -13,7 +13,7 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   design file is a named missing input, never a crash. The one made thing read is the terrain row's ground (made from
   the design alone), so an open place's view eye stands a person's height over the ground under it (2026-10-30:
   wreck's spot-3 and spot-6 eyes stood under its ground, their views black).
-- **The shell is the plan's**, built by `earth_seed/design_shell.pieces` (each level's deck, the outline's walls with
+- **The shell is the plan's**, built by `earth_seed/design_shell.pieces` (each level's deck, its top at the floor, the outline's walls and every inner wall the plan writes, centred on its line, with
   every opening cut, the roofs, BACKING behind the plan's inside line) and stood in the place's frame as the builders'
   `slab`, `gable`, `dome` and `tube_arc` (a vault) entries (`tools/usd/builders.py`, plain numbers, `plain: shell`). It is the record's for an
   inside place (walls or roofs drawn, no terrain spots) whose base does not lay it already (`design_shell.laid_for`: a

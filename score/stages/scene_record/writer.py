@@ -173,24 +173,20 @@ def shell_entry(name, number, piece, design, said):
 def cut_piece(design, middle):
     """The name of the shell piece over the cut an opening at plan point `middle` makes in its wall (its lintel, else
     the wall's foot under it: design_shell.walls' pieces, in its spans' order), else None: no wall is cut there."""
-    outline, openings, eave = design_shell.outline_of(design), design_shell.openings_of(design), \
-        design_shell.lowest_eave(design)
-    for index, start in enumerate(outline):
-        end = outline[(index + 1) % len(outline)]
+    openings, eave = design_shell.openings_of(design), design_shell.lowest_eave(design)
+    for name, start, end, thick, entry, inner in design_shell.wall_lines(design):
         length = math.dist(start, end)
-        entry = design_shell.written_wall(design, start, end)
-        thick = float(entry.get("thick") or design_shell.THICK)
-        at = design_shell.on_edge([{"at": middle, "wide": 0.0, "sill": 0.0, "head": 0.0}], start, end, thick) \
-            if length >= 1e-6 else []
+        at = design_shell.on_edge([{"at": middle, "wide": 0.0, "sill": 0.0, "head": 0.0}], start, end, thick)
         if not at:
             continue
         cuts = design_shell.on_edge(openings, start, end, thick)
-        spans = design_shell.spans(length, cuts, -DECK_BELOW - design_shell.SLAB,
-                                   design_shell.wall_height(design, entry, eave))
+        high = design_shell.wall_height(design, entry, eave)
+        spans = design_shell.inner_spans(length, cuts, high) if inner else \
+            design_shell.spans(length, cuts, -DECK_BELOW - design_shell.SLAB, high)
         over = [number for number, (begin, finish, *_) in enumerate(spans)
                 if (begin, finish) in {cut[:2] for cut in cuts} and begin <= at[0][0] <= finish]
         if over:
-            return f"wall_{index + 1}" if over[-1] == 0 else f"wall_{index + 1}_{over[-1] + 1}"
+            return name if over[-1] == 0 else f"{name}_{over[-1] + 1}"
     return None
 
 

@@ -316,17 +316,57 @@ def opening_spot(on, walls=(), wide=None, left=None, opens=None, points=None):
         spot = next((found for found in [slanted_face(on, points, opens)] if found is not None), spot)
     run = np.asarray(on["along"], float) / max(float(np.linalg.norm(on["along"])), 1e-9)
     lined = float(np.asarray(left, float) @ run) if left is not None else 0.0
-    if wide is not None and abs(lined) >= 0.9 and float(on["wide"]) - wide > HELD_MOST:
-        spot[[0, 2]] += run * np.sign(lined) * (float(on["wide"]) - wide) / 2
+    start, end = jambs(on, walls, spot)
+    if wide is not None and abs(lined) >= 0.9 and end - start - wide > HELD_MOST:
+        spot[[0, 2]] += run * ((start + end) / 2 + np.sign(lined) * (end - start - wide) / 2)
+    else:
+        spot[[0, 2]] += run * (start + end) / 2
     return spot
 
 
+def jambs(on, walls, spot):
+    """(from, to) metres along an opening from its middle between the built jambs beside a door laid at `spot`: the
+    nearest faces of the built walls (`walls`, boxes) standing beside it either way at the door's across place and
+    half its height, within the opening's own width; the opening's own ends where none stands so, or the opening runs
+    along neither axis (its boxes say nothing of its jambs). The lab's 1.896 m opening stood between its entry
+    passage's walls 0.632 m thick, centred on its ends: 1.264 m clear (motion@lab, round 35)."""
+    half = float(on["wide"]) / 2
+    if slanted(on):
+        return -half, half
+    run_axis = 0 if abs(on["along"][0]) >= abs(on["along"][1]) else 2
+    sign, middle = float(np.sign(on["along"][run_axis // 2])), np.asarray(on["middle"], float)
+    across, height = 2 - run_axis, middle[1] + float(on["tall"]) / 2
+    start, end = -half, half
+    for low, high in walls:
+        if not (low[across] <= spot[across] <= high[across] and low[1] <= height <= high[1]):
+            continue
+        near, far = sorted(((low[run_axis] - middle[run_axis]) * sign, (high[run_axis] - middle[run_axis]) * sign))
+        if far <= 0.0:
+            start = max(start, far)
+        elif near >= 0.0:
+            end = min(end, near)
+    return start, end
+
+
 def in_opening(low, high, on, walls=(), left=None, opens=None, points=None):
-    """(scale, foot middle) of an object in its opening, no wider or taller than it, on the face of its built wall it
-    swings to and against the jamb its own left edge faces (opening_spot)."""
+    """(scale, foot middle) of an object in its opening, no taller than it, on the face of its built wall it swings to
+    and against the jamb its own left edge faces (opening_spot); one wider than the clear width between its built
+    jambs (jambs) held to it across its width alone, as a thin build is held to its row's section (scale then a world
+    [x, y, z]), never left standing in its jambs (the lab's 1.447 m door in its 1.264 m clear opening)."""
     size = high - low
-    scale = min(1.0, float(on["wide"]) / max(across(on["along"], size), 1e-9), float(on["tall"]) / size[1])
-    return scale, opening_spot(on, walls, across(on["along"], size * scale), left, opens, points)
+    scale = min(1.0, float(on["tall"]) / size[1])
+    run_axis = 0 if abs(on["along"][0]) >= abs(on["along"][1]) else 2
+    spot = opening_spot(on, walls, None, left, opens, points)
+    start, end = jambs(on, walls, spot)
+    wide = across(on["along"], size * scale)
+    if wide > end - start and not slanted(on):
+        scale = np.full(3, scale)
+        scale[run_axis] *= (end - start) / wide
+        wide = end - start
+    elif wide > end - start:
+        scale *= (end - start) / wide
+        wide = end - start
+    return scale, opening_spot(on, walls, wide, left, opens, points)
 
 
 def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=None, clear=()):
@@ -352,11 +392,12 @@ def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=N
         scale, target = on_wall(low, high, on, clear)
     else:
         scale, target = in_opening(low, high, on, boxes, left, opens, surface)
-    moved = float(np.linalg.norm(target - foot_middle(low, high)))
-    if moved < MOVE_LEAST and 1.0 - scale < SHRINK_LEAST:
+    moved, least = float(np.linalg.norm(target - foot_middle(low, high))), float(np.min(scale))
+    if moved < MOVE_LEAST and 1.0 - least < SHRINK_LEAST:
         return None
     words = f"laid {how} ({on.get('why', '')}): moved {moved:.2f} m" + (
-        f", shrunk to {scale:.0%} to fit" if 1.0 - scale >= SHRINK_LEAST else "")
+        (f", narrowed to {least:.0%} across to fit" if np.ndim(scale) else f", shrunk to {least:.0%} to fit")
+        if 1.0 - least >= SHRINK_LEAST else "")
     return scale, target, words, face
 
 
@@ -779,9 +820,11 @@ def swings(row):
 
 
 def moved_by(prim, foot, scale, target):
-    """The prim's transform op set so its world box's foot middle `foot` moves to `target`, shrunk by `scale` about it."""
+    """The prim's transform op set so its world box's foot middle `foot` moves to `target`, shrunk by `scale` about it
+    (a number, or a world [x, y, z]: a door held to its opening's clear width, in_opening)."""
     from pxr import Gf
-    changed_by(prim, Gf.Matrix4d().SetTranslate(Gf.Vec3d(*(-foot))) * Gf.Matrix4d().SetScale(float(scale))
+    changed_by(prim, Gf.Matrix4d().SetTranslate(Gf.Vec3d(*(-foot)))
+               * Gf.Matrix4d().SetScale(Gf.Vec3d(*np.broadcast_to(np.asarray(scale, float), 3)))
                * Gf.Matrix4d().SetTranslate(Gf.Vec3d(*target)))
 
 
@@ -931,7 +974,7 @@ def fitted(stage, place, entries, laid, cuts=None):
         after = world_box(stage, path)
         fits.append({"name": name, "row": entry["row"], "how": how,
                      "holder": entry["on"].get("holder"), "moved": round(float(np.linalg.norm(
-                         target - foot_middle(low, high))), 3), "scale": round(float(scale), 4),
+                         target - foot_middle(low, high))), 3), "scale": round(float(np.min(scale)), 4),
                      "low": [round(float(value), 4) for value in after[0]],
                      "high": [round(float(value), 4) for value in after[1]], "words": words,
                      **({"face": round(face[0], 4), **({"hung": True} if face[1] else {})} if face is not None

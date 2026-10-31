@@ -47,7 +47,7 @@ does not lay and is no wall, floor or roof, or a wall item in an open place with
 is `unheld` with why. The file names the kept plan's sha it was derived from (`plan`), so the scene record lays by
 it only while the plan is the same.
 
-    relations(plan, inventory)   the place's relations {place, plan, about, relations, unheld}
+    relations(plan, inventory)   the place's relations {place, plan, about, relations, unheld, loose}
     keep(places)                 written for each place with a kept plan and inventory, where the scene record reads it
 """
 import hashlib
@@ -1032,7 +1032,17 @@ def relations(plan, inventory, sha=None, kinds=None):
     return {"place": plan.get("place") or inventory.get("place"), "plan": sha,
             "about": "What holds each plan item, derived from the scene inventory's anchors, the concept's boxes and "
                      "the kept plan (score/review/holders); the scene record lays each object by it.",
-            "relations": found, "unheld": unheld, **({"crowded": crowded} if crowded else {})}
+            "relations": found, "unheld": unheld, **({"crowded": crowded} if crowded else {}),
+            **({"loose": loose} if (loose := loose_openings(plan)) else {})}
+
+
+def loose_openings(plan):
+    """The plan check that every opening sits on a wall the shell builds (design_shell.on_a_wall: its outline's and
+    its inner walls): [{opening, at, why}] of each that sits on none, which no wall is cut for (the lab's doors stood
+    in their entry passages' end walls, which the shell did not build, motion@lab round 35)."""
+    return [{"opening": number + 1, "at": opening["at"], "why": "it sits on no wall the shell builds"}
+            for number, opening in enumerate(design_shell.plan_openings(plan))
+            if not design_shell.on_a_wall(plan, opening)]
 
 
 def keep(places):

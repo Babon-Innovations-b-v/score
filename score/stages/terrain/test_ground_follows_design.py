@@ -24,6 +24,8 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - join.made_pieces: `elif made_one:` -> `elif False:` (a made row the record lays nowhere not named); join.laid_middles
   reading `entry["at"][1]` for along; join.AFTER without scene-record (2026-10-30: ground-join read `at` off
   inventory rows, which never had it).
+- outside.under_floor: `points[inside, 1] = np.minimum(...)` -> `pass` (a room's ground through its floor, 2026-10-31:
+  the moon rooms' ground stood level with their decks' tops once the decks stood at the floor).
 """
 import json
 import math
@@ -263,3 +265,15 @@ def test_ground_join_lays_each_made_piece_where_the_scene_record_lays_its_row(tm
     assert [(row["id"], middle) for row, _, _, middle in pieces] == [("rock_1", (-8.4, 6.1))]
     assert list(left) == ["crater"] and "nowhere" in left["crater"]
     assert join.AFTER["scene-record"] == ("scene-record", 1)
+
+
+def test_the_ground_runs_under_a_room_s_floor():
+    """A 4 x 3 m room (walls, an inside place: its shell lays a deck 0.2 m thick, its top at the floor, out 0.15 m past
+    its outline) on flat ground at its floor: the ground under its deck lies at the deck's foot, -0.2 m, the ground
+    round it stays at the floor, and an open place's ground is left as it is."""
+    room = {"w": 4.0, "d": 3.0, "inside": True, "outline": [[0, 0], [4, 0], [4, 3], [0, 3]],
+            "walls": [{"from": [0, 0], "to": [4, 0]}], "levels": []}
+    points = np.array([[0.0, 0.0, 0.0], [1.9, 0.0, 1.4], [2.1, 0.0, 0.0], [2.5, 0.0, 0.0], [0.0, 0.0, 1.8]])
+    lowered = outside.under_floor(points, room)
+    assert np.allclose(lowered[:, 1], [-0.2, -0.2, -0.2, 0.0, 0.0]), lowered
+    assert np.allclose(outside.under_floor(points, {**room, "inside": False, "walls": []}), points)

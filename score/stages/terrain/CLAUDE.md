@@ -34,6 +34,9 @@ standing on it. `__init__.py`'s and `fit.py`'s docstrings have the makes and the
   least 1.5 km), static colliders, each only the points its triangles use; stamped a whole asset
   (`tools/usd/whole_layer.py`). No over of an old `Ground`, `Terrain` or `Water`: no base drawn from a design has one,
   and an over of nothing dangles (the USD check).
+- **The ground runs under a room's floor** (`outside.under_floor`): in a place whose shell lays a deck, the fine
+  patch's points under a deck at the floor lie at the deck's foot, never level with its top (2026-10-31: with the
+  deck's top at the floor the moon rooms' ground stood level with it).
 - **The far ground follows the concept** (2026-10-26: the campgrounds' distant hills had no maker). A landform of the
   far ground (`design.far_row`: a terrain row whose part is the ground or the backdrop, that the plan marks beyond)
   is raised by `design.far_reliefs` round its place over the bearings its concept box spans, as water's
