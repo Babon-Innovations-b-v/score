@@ -789,6 +789,20 @@ def test_a_claim_that_fits_goes_past_an_earlier_one_that_does_not_but_never_for_
     assert card_queue.take("this-pc moss-sound", 10, "env-run", memory=20)  # the group gone, MOSS fits
 
 
+def test_a_claim_that_cannot_fit_beside_an_earlier_priority_keeps_nothing_out(monkeypatch, card_queue_folder):
+    """Round 41, 2026-10-31: sim body held 3 GB; a segment claim asked the whole 13.5 GB, which can never fit beside
+    it, and once it had waited BACKFILL_SECONDS every likeness claim queued behind it with the card idle.
+    Break: in `blocks`, drop `and could_fit(waiter, held)` -> the likeness claim waits behind segment for ever."""
+    tuning = card_queue.take("sim-body-l1d", 3, "sim-body")
+    assert tuning and card_queue.take("this-pc segment", None, "env-run") is None  # the whole card: it waits
+    monkeypatch.setattr(card_queue, "BACKFILL_SECONDS", 0)
+    likeness = card_queue.take("this-pc similar", 0.8, "env-run", memory=1)
+    assert likeness  # segment cannot fit until the sim body share goes: it keeps nothing out meanwhile
+    card_queue.release(likeness)
+    card_queue.release(tuning)
+    assert card_queue.take("this-pc segment", None, "env-run")  # alone on the card, it fits
+
+
 def test_a_side_job_gives_the_card_way_to_a_film_claim_waiting_and_starts_again_after(monkeypatch, card_queue_folder,
                                                                                          tmp_path, request):
     starts = tmp_path / "starts"

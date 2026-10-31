@@ -97,7 +97,9 @@ HELD = {}  # {machine id: the open lock file} for the claims this process holds
 # container of this image, the card's total read every 100 ms: 729 MiB over a steady 2324 before and after.
 # The library bakes (library_bake.py): the card queue's own measure of a claim alone on the card, 1.4 GB (2026-10-31,
 # card_queue.py measured; a Cycles bake is mostly processor work).
-CARD_NEED = {"blender": 9.7, "pixal": 10.8, "similar": 0.8, "library": 1.4}
+# SAM 2's close-up regions (segment_worker.py): the card queue's own measure, 7.55 GB over 2 takes alone on the card
+# (2026-10-31, card_queue.py measured).
+CARD_NEED = {"blender": 9.7, "pixal": 10.8, "similar": 0.8, "library": 1.4, "segment": 7.55}
 # The memory GB a kind's claim holds when its run gives none (run.need's memory_gb comes first); a kind in neither
 # holds the whole memory. DINOv2's likeness: 2026-10-31, the same 56 pairs, the worker's resident peak 1.26 GB.
 MEMORY_NEED = {"similar": 1.3}
