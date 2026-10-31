@@ -19,7 +19,9 @@ draw_missing's new takes asked in a free-only run too (`[] if runs_free_only() e
 run's mode, turns
 test_a_rejected_close_up_is_retried_strictly_at_its_own_size_and_a_kept_picture_is_never_drawn_again red;
 reuse_row's `if today == then` made `if True`, or draw_missing's `reused_pictures(...)` dropped, turns
-test_a_take_the_cache_misses_is_read_back_from_the_accepted_output_only_for_the_same_request red.
+test_a_take_the_cache_misses_is_read_back_from_the_accepted_output_only_for_the_same_request red; unbaked's
+`hold[:3, :3] = ...` made `pass` (the bake's turn kept) turns
+test_a_code_build_is_seen_back_in_its_own_frame_whatever_the_bake_turned_it red.
 """
 import contextlib
 import importlib.util
@@ -801,6 +803,35 @@ def test_the_comparison_prepares_the_hub_and_runs_its_free_first_row():
     finally:
         compare.FOLDER, props.prop_data.FOLDER, stages.surfaces.data.FOLDER = kept
         shutil.rmtree(root, ignore_errors=True)
+
+
+def test_a_code_build_is_seen_back_in_its_own_frame_whatever_the_bake_turned_it():
+    """The bake lays a code build along its row (its entry's `base`, a quarter round about up for airlock's 0.8 m
+    ceiling lamp) and the likeness row sees the baked model: thin_straight's view is the build's own frame's, so the
+    bake's turn is undone first (`unbaked`; airlock's ceiling lamp read 0.263 baked, 0.896 so seen, round 34)."""
+    import trimesh
+    tmp_path = pathlib.Path(tempfile.mkdtemp())
+    row = {"id": "bar", "size": [0.8, 0.2, 0.1], "name": "light bar"}
+    built = trimesh.creation.cylinder(0.05, 0.8, sections=24)  # along z, as a build lies
+    built.apply_scale([1.0, 1.4, 1.0])
+    base = [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0]  # the bake's quarter turn about up
+    turned = built.copy()
+    turned.vertices = turned.vertices @ np.asarray(base).reshape(3, 3).T
+    (tmp_path / "made").mkdir()
+    model = tmp_path / "made" / "bar_1.glb"
+    turned.export(model)
+    (tmp_path / "baked.json").write_text(json.dumps({"bar_1": {"parts": "labelled/place_bar_take", "base": base}}))
+    lean = thin_straight.facing(row)
+    seen = built.copy().apply_transform(lean)
+    pixels = np.zeros((likeness.SIDE, likeness.SIDE, 4), dtype=np.uint8)
+    pixels[likeness.silhouette(seen.vertices, seen.faces, 0, likeness.look_down(row["size"]))] = 255
+    from PIL import Image
+    Image.fromarray(pixels).save(tmp_path / "cut.png")
+    unturned = likeness_row.unbaked({"surfaces-bake": tmp_path}, "place_bar_take")
+    held = likeness_row.whole_best_way(model, tmp_path / "cut.png", row["size"], lean @ unturned)["outline"]
+    as_baked = likeness_row.whole_best_way(model, tmp_path / "cut.png", row["size"], lean)["outline"]
+    assert held > 0.9 > as_baked, (held, as_baked)
+    shutil.rmtree(tmp_path)
 
 
 if __name__ == "__main__":
