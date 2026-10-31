@@ -129,7 +129,9 @@ def make_share(machine, share, card, out):
 
 def on_this_pc(jobs, out, minutes):
     """The jobs' takes on this PC's card (SCORE_CLOUD=local, which has no image registry for the moss image) through
-    the machine path, back into `out` as make_share brings them; the run's ledger line at EUR 0."""
+    the machine path, back into `out` as make_share brings them; the run's ledger line at EUR 0. Returns the shares
+    that failed as jobs or never ran (spread's gaps), each "share <number>", with the run's folder holding their
+    logs."""
     import pictures
     account = cloud.account()
     found = batch.offers(list(capacity.classes_for("moss-sound")))
@@ -137,13 +139,15 @@ def on_this_pc(jobs, out, minutes):
     run = pictures.Run(batch.BATCHES / time.strftime("moss-%Y%m%d-%H%M%S"), started + minutes * 60)
     run.need = dict(THIS_PC_NEED)
     run.folder.mkdir(parents=True)
+    shares = spread.Shares([(0, jobs)], deadline=run.deadline)
     try:
-        spread.on_machines(run, account, found, 1, "moss-sound", spread.Shares([(0, jobs)], deadline=run.deadline),
-                           set_up, lambda machine, share, card: make_share(machine, share, card, out))
+        spread.on_machines(run, account, found, 1, "moss-sound", shares, set_up,
+                           lambda machine, share, card: make_share(machine, share, card, out))
     finally:
         for machine in run.machines:
             batch.delete_machine(machine)
         record(run, run.machines, started, out, [job for job in jobs if (out / job["file"]).exists()])
+    return [f"share {number} ({run.folder})" for number, _jobs in [*shares.failed, *shares.waiting]]
 
 
 def join_scores(out):

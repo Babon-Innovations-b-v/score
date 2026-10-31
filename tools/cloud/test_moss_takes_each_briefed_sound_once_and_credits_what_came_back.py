@@ -9,7 +9,8 @@ credited), or in `jobs_for` drop the `brief.get("page") == page` test (another p
 `here_only` drop `if machine.get("here")` (a rented card's takes made another way), or set THIS_PC_NEED's card_gb
 past local.CARD_GB (this PC refuses the claim, as before), or in `make_share` drop the space after
 `PYTHONUNBUFFERED=1` (the shell reads the Python as a variable and finds no moss_generate.py: every take of round 39
-on this PC, 2026-10-31).
+on this PC, 2026-10-31), or in `on_this_pc` return `[]` for its failed shares (a share that exited non-zero
+passes as if it made nothing, and the sound row turns its takes into gaps instead of failing).
 """
 import json
 import pathlib
@@ -70,3 +71,16 @@ def test_a_share_runs_moss_generate_with_the_venvs_python(tmp_path, monkeypatch)
     moss_sound.make_share({"folder": tmp_path, "host": "172.17.0.2", "here": True}, (0, []), 0, tmp_path / "out")
     words = commands[0].split()
     assert "/root/venv/bin/python" in words and words[words.index("/root/venv/bin/python") + 1] == "moss_generate.py"
+
+
+def test_a_share_that_failed_on_this_pc_is_returned_by_name(tmp_path, monkeypatch):
+    def on_machines(run, account, found, count, kind, shares, prepare, do):
+        shares.failed_job(shares.waiting.popleft())  # make_share raised spread.JobFailed (exit 127)
+
+    monkeypatch.setattr(moss_sound.cloud, "account", lambda: "account")
+    monkeypatch.setattr(moss_sound.batch, "offers", lambda classes: [])
+    monkeypatch.setattr(moss_sound.batch, "BATCHES", tmp_path)
+    monkeypatch.setattr(moss_sound.spread, "on_machines", on_machines)
+    monkeypatch.setattr(moss_sound, "record", lambda *args: None)
+    failed = moss_sound.on_this_pc([{"file": "pump.wav"}], tmp_path / "out", 10)
+    assert len(failed) == 1 and failed[0].startswith("share 0 ("), failed

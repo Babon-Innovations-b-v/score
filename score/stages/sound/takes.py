@@ -8,6 +8,9 @@ the row, or another place's line asking the same brief). Each take is locked whi
 places' lines side by side make a shared brief (crew_talk) on one card, the other line waiting and reading it (#29).
 A take its batch asked for and did not get (lost, failed, no card) is a named failure and a gap on every place that
 plays it: a waiting line never asks for it again (`asked_here`); new spend on it is a new batch, another run (#29).
+A job that failed as a job (its generator exited non-zero, a command error) with no take back is no gap: the generator
+never made the takes, a fault of the framework, so the row fails (`JobFailed`) on every place that asked for them, its
+cause fixed and the row made again (owner, 2026-10-28; 13e63538: days of "command not found" passed as gaps).
 
 The takes are one batch (#21, #29): one job a sound, its brief's first prompt at seed 1, made once; the likeness gate
 sorts each take by its CLAP score against gates.CLAP_FLOOR into a pass or a gap, and a new take (another seed, the
@@ -44,6 +47,10 @@ RUN_ID = "SCORE_RUN_ID"  # the run's id; every node of a score run inherits it (
 # (tools/props/cloud, moved 2026-10-24), so every take of Batch 1 failed with "can't open file" (exit 2).
 RUN_SCRIPT = "tools/cloud/images/moss/run.sh"
 SEED = 1  # one take a sound (#29): a take under the floor is a gap, never another seed inside the batch
+
+
+class JobFailed(Exception):
+    """The moss job failed as a job and brought no take back: the framework's fault, never a batch gap."""
 
 
 def take_file(name, prompt, seconds, seed, weights):
@@ -97,10 +104,10 @@ def on_card(plan):
     """The plan on one card (#21): a card of the run's warm pool, else one rented, the claim waiting for stock while
     the card's deadline is ahead (no stock never makes a gap: owner, 2026-10-23); no card had by then is Blocked, a
     new batch asks again. On this PC (SCORE_CLOUD=local, no image registry) the same jobs go through moss_sound.py's
-    machine path instead, MOSS a model at a time on its 16 GB card."""
+    machine path instead, MOSS a model at a time on its 16 GB card. Returns how the job failed as a job (its command's
+    error, a share's non-zero exit), else None."""
     if graph.on_this_pc():
-        on_this_pc(plan)
-        return
+        return on_this_pc(plan)
     prove = prove_tool()
     from provider import cloud  # prove.py put it on the path
     account = cloud.account()
@@ -112,19 +119,23 @@ def on_card(plan):
         raise graph.Blocked(f"no card of {', '.join(plan['classes'])} was had before the deadline: the takes are "
                             "gaps, a new batch asks again")
     failed = [job for numbers in results.get(KIND, []) for job in numbers["jobs"].values() if job.get("failed")]
-    if failed:  # its takes are gaps (made says which), never asked again inside the batch
+    if failed:  # bought says whether any take came back: if none did, the row fails
         print(f"the moss job failed on its card: {failed}", flush=True)
+        return f"the moss job failed on its card: {failed}"
+    return None
 
 
 def on_this_pc(plan):
-    """The plan's takes on this PC's card through tools/cloud/moss_sound.py, back where the plan's output names."""
+    """The plan's takes on this PC's card through tools/cloud/moss_sound.py, back where the plan's output names;
+    the shares that failed as jobs, named, else None."""
     folder = str(REPO / "tools/cloud")
     if folder not in sys.path:
         sys.path.insert(0, folder)
     import moss_sound
     run = plan["runs"][0]
     jobs = json.loads(pathlib.Path(run["inputs"][0]["from"]).read_text())
-    moss_sound.on_this_pc(jobs, pathlib.Path(run["jobs"][0]["outputs"][0]["to"]), plan["minutes"])
+    failed = moss_sound.on_this_pc(jobs, pathlib.Path(run["jobs"][0]["outputs"][0]["to"]), plan["minutes"])
+    return f"the moss job failed on this PC's card: {', '.join(failed)}" if failed else None
 
 
 @contextlib.contextmanager
@@ -150,11 +161,18 @@ def asked_here(job):
     return path.exists() and json.loads(path.read_text())["batch"] == batch_id()
 
 
-def mark_asked(jobs):
-    """Each job's take recorded as asked by this batch, before the card is asked for."""
+def mark_asked(jobs, failed=None):
+    """Each job's take recorded as asked by this batch, before the card is asked for; `failed`, how its job failed as
+    a job with no take back, recorded after."""
     (TAKES / ASKED).mkdir(parents=True, exist_ok=True)
     for job in jobs:
-        (TAKES / ASKED / f"{job['file']}.json").write_text(json.dumps({"batch": batch_id()}))
+        (TAKES / ASKED / f"{job['file']}.json").write_text(json.dumps({"batch": batch_id(), "failed": failed}))
+
+
+def failed_before(jobs):
+    """How the job this batch asked for these takes in failed as a job, if it did (another place's line, #29)."""
+    records = [json.loads((TAKES / ASKED / f"{job['file']}.json").read_text()) for job in jobs]
+    return next((record["failed"] for record in records if record.get("failed")), None)
 
 
 def made(jobs, work):
@@ -165,6 +183,9 @@ def made(jobs, work):
     with held(jobs):
         wanted = missing(jobs)
         lost_before = [job for job in wanted if asked_here(job)]
+        failed = failed_before(lost_before)
+        if failed:
+            raise JobFailed(f"{failed}; no take came back, so the row fails, never a gap")
         if lost_before:
             print(f"{len(lost_before)} shared takes failed in this batch ({batch_id()}), gaps, not asked again: "
                   f"{[job['file'] for job in lost_before][:5]}", flush=True)
@@ -179,17 +200,18 @@ def made(jobs, work):
 
 
 def bought(wanted, work):
-    """The wanted takes made on one card and kept in TAKES with their scores and the batch's timings."""
+    """The wanted takes made on one card and kept in TAKES with their scores and the batch's timings; JobFailed when
+    the job failed as a job and none came back."""
     if wanted:
         TAKES.mkdir(parents=True, exist_ok=True)
         back = work / "back"
         back.mkdir(parents=True)
         (work / "jobs.json").write_text(json.dumps(wanted, indent=1))
-        on_card(plan_for(work / "jobs.json", back, round(FIRST_RESULT_MINUTES + MINUTES_A_TAKE * len(wanted)),
-                         len(wanted)))
-        for job in wanted:
-            if (back / job["file"]).exists():
-                shutil.copy2(back / job["file"], TAKES / job["file"])
+        failed = on_card(plan_for(work / "jobs.json", back, round(FIRST_RESULT_MINUTES + MINUTES_A_TAKE * len(wanted)),
+                                  len(wanted)))
+        came_back = [job for job in wanted if (back / job["file"]).exists()]
+        for job in came_back:
+            shutil.copy2(back / job["file"], TAKES / job["file"])
         if (back / "timings-0.json").exists():  # each take's warm seconds, what the per-unit price reads (#29)
             (TAKES / TIMINGS).mkdir(exist_ok=True)
             shutil.copy2(back / "timings-0.json", TAKES / TIMINGS / f"{time.strftime('%Y%m%dT%H%M%S')}.json")
@@ -200,3 +222,6 @@ def bought(wanted, work):
                 kept.update(json.loads((back / "scores-0.json").read_text()))
             (TAKES / SCORES).write_text(json.dumps(kept, indent=1))
         shutil.rmtree(work)
+        if failed and not came_back:
+            mark_asked(wanted, failed)
+            raise JobFailed(f"{failed}; no take came back, so the row fails, never a gap")
