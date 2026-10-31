@@ -259,8 +259,11 @@ def solved(residuals, entries, pattern, checkpoint, limit_seconds, every=None, s
         if settled(costs) or time.time() - began > limit_seconds:
             raise StopIteration
 
+    # x_scale "jac": the unknowns mix units (links, trusts, weights, centres) and start at 0, where x_scale 1.0 sets
+    # trf's first trust radius to 1 (l1d, 2026-10-31: step 1 moved 263 unknowns a norm of 1.13 and took the cost only
+    # 621 -> 587, the step held by the radius, not the model)
     return least_squares(evaluated, np.clip(start, lower, upper), jac=differenced, bounds=(lower, upper),
-                         method="trf", x_scale=1.0, callback=iterated)
+                         method="trf", x_scale="jac", callback=iterated)
 
 
 def whole(evaluate, check, entries, checkpoint, limit_seconds, start=None, every=3, evaluate_many=None,
