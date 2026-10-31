@@ -96,6 +96,21 @@ def baked_models(bake):
     return found
 
 
+def unbaked(inputs, take):
+    """The turn (4 by 4) undoing the bake's own turn of a take's first baked model (its entry's `base`, rows of the
+    rotation from the take's frame to the kit's, bake_job.measured_turn), so thin_straight.view sees a code build in
+    the frame it was built in: the bake lays airlock's 0.8 m ceiling lamp along its row a quarter round, and viewed
+    so its outline read 0.263 against 0.893 as built (#36, round 34)."""
+    hold = np.eye(4)
+    if "surfaces-bake" not in inputs:
+        return hold
+    for model, entry in sorted(json.loads((inputs["surfaces-bake"] / "baked.json").read_text()).items()):
+        if pathlib.Path(entry["parts"]).name == take and entry.get("base"):
+            hold[:3, :3] = np.asarray(entry["base"], float).reshape(3, 3).T
+            break
+    return hold
+
+
 def model_of(row, record, inputs, baked):
     """An object's model file, or None when its route made none."""
     if route_of(row, record) == "code":
@@ -345,7 +360,7 @@ def object_record(row, record, inputs, baked, parts, rows, square, cuts):
     kind = f"{place}_{row}"
     drawn = rows[row].get("read_size") or rows[row]["size"]
     turn = (thin_straight.view(rows[row], np.asarray(Image.open(closeup).convert("RGBA"))[..., 3] > 127)
-            if thin_built(inputs, row) else None)
+            @ unbaked(inputs, record["objects"][row]["take"]) if thin_built(inputs, row) else None)
     found.update(model=str(model), closeup=str(closeup), **whole_best_way(model, closeup, drawn, turn),
                  **model_checks(model, rows[row]["size"] if "made" in found
                                 else drawn_size(rows[row], model, list(rows.values()), inputs,
