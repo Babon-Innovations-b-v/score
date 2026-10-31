@@ -455,7 +455,7 @@ def test_a_shared_take_that_fails_is_a_gap_on_every_place_and_never_asked_again(
     real_takes, real_on_card = takes.TAKES, takes.on_card
     asked, scored = [], {}
 
-    def on_card(plan):  # the job fails on its card: nothing comes back
+    def on_card(plan):  # the job works on its card but brings nothing back
         asked.append(json.loads(pathlib.Path(plan["runs"][0]["inputs"][0]["from"]).read_text()))
         time.sleep(0.3)
 
@@ -476,6 +476,55 @@ def test_a_shared_take_that_fails_is_a_gap_on_every_place_and_never_asked_again(
     assert len(asked) == 1, asked
     assert scored == {"hub": {}, "airlock": {}}, scored
 
+
+
+def test_a_job_that_failed_as_a_job_with_no_take_back_fails_the_row_on_every_place_never_a_gap():
+    """A generator that never ran (this PC's moss job, "moss_generate.py: command not found" for days, 13e63538) is the
+    framework's fault, not a gap: two places' lines wait on one take whose job exits non-zero with nothing back, one
+    card asked for, both lines fail. A failed job that still brought a take back leaves only its missing takes as gaps.
+    Break: score/stages/sound/takes.py: `if failed and not came_back:` -> `if False:`
+    Break: score/stages/sound/takes.py: `        if failed:\n            raise JobFailed` -> `        if False:\n
+        raise JobFailed`"""
+    import threading
+    from score.stages.sound import takes
+    kept_folder = pathlib.Path(tempfile.mkdtemp())
+    real_takes, real_on_card = takes.TAKES, takes.on_card
+    asked, failed = [], {}
+
+    def on_card(plan):  # the share exits 127: nothing comes back
+        asked.append(json.loads(pathlib.Path(plan["runs"][0]["inputs"][0]["from"]).read_text()))
+        time.sleep(0.3)
+        return "the moss job failed on this PC's card: share 0"
+
+    def line(place):
+        try:
+            takes.made(takes.jobs_for("crew_talk", {"prompts": ["crew talk"]}, "rev"), kept_folder / f"work-{place}")
+        except takes.JobFailed as error:
+            failed[place] = str(error)
+
+    def half_back(plan):  # the job exits non-zero after one of its two takes came back
+        back = pathlib.Path(plan["runs"][0]["jobs"][0]["outputs"][0]["to"])
+        first = json.loads(pathlib.Path(plan["runs"][0]["inputs"][0]["from"]).read_text())[0]
+        (back / first["file"]).write_bytes(b"RIFF")
+        (back / "scores-0.json").write_text(json.dumps({first["file"]: 0.4}))
+        return "the moss job failed on this PC's card: share 0"
+
+    try:
+        takes.TAKES, takes.on_card = kept_folder / "takes", on_card
+        lines = [threading.Thread(target=line, args=(place,)) for place in ("hub", "airlock")]
+        for each in lines:
+            each.start()
+        for each in lines:
+            each.join()
+        takes.on_card = half_back
+        jobs = [job for name in ("pump", "fan") for job in takes.jobs_for(name, {"prompts": [f"a {name}"]}, "rev")]
+        scored = takes.made(jobs, kept_folder / "work-garage")
+    finally:
+        takes.TAKES, takes.on_card = real_takes, real_on_card
+        shutil.rmtree(kept_folder)
+    assert len(asked) == 1, asked
+    assert sorted(failed) == ["airlock", "hub"] and all("share 0" in text for text in failed.values()), failed
+    assert scored == {jobs[0]["file"]: 0.4}, scored  # the fan's take, not back, is a gap
 
 def test_moving_things_sound_off_their_own_moves():
     """A door the motion row swings plays its latch as it starts to open and its bolts as it is shut tight (its

@@ -55,7 +55,9 @@ gates; `takes.py` the paid part.
   (`take_gaps`, `batch-gaps.json`, `score/stages/batch_gaps.py`) and the row passes: a take of this batch under
   `CLAP_FLOOR` plays and fails `likeness`, its fault moved to the gap (`stages.BATCH_GATES`); a take that did not
   come back usable has no sound, its uses left out of the record (so the assembly plays nothing there) and named in
-  its gap. A picked sound under the floor is no take of the batch and still fails. A new take (another seed, the
+  its gap. A picked sound under the floor is no take of the batch and still fails. A job that failed as a job (non-zero exit, a command
+  error) with no take back is no gap: the generator never made them, so the make raises (`takes.JobFailed`) on every
+  place that asked for them, its cause fixed and the row made again (13e63538). A new take (another seed, the
   brief's next prompt) is a new batch, never inside this one.
 - **One take across places** (#29): a brief several places play (a voice, wherever people stand) is one take. Each take is
   locked while its batch runs (`takes.held`), so the first line to reach it makes it on its card and the others wait
