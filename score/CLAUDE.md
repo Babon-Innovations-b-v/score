@@ -157,7 +157,7 @@ stage as each stage is built; nothing moves before.
   and in status) `spend` (his override, a yes for a run outside the runner, node `override`) and `stop` (his money yes for an environment: it
   writes the environment's stop line itself, so no yes waits on someone to copy it into a guard). `python -m
   score.review ...` refuses those without a terminal, the store refuses their writes in an agent's process, and
-  `.claude/hooks/accept_guard.py` blocks the other routes: a barrier, not a lock. `concepts.py` is the concept
+  `.claude/hooks/local/accept_guard.py` blocks the other routes: a barrier, not a lock. `concepts.py` is the concept
   review's (CONTEXT.md): a place's concept draws, each one direct Nano Banana Pro call inside the owner's yes his cockpit
   click wrote (`web.concept_draw`), and his locks, kept in the store under `concepts/` (written only in the owner's process);
   `discuss.py` his Discuss of a shown draw (CONTEXT.md "discussion"): one Gemini 3.1 Pro call inside his click's yes

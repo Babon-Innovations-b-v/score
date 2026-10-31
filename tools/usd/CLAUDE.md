@@ -85,7 +85,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   `accepted gaps` requirement fails each gap by name; a fault no gap names still fails. Reach runs and shows on the manifest but is experimental (`EXPERIMENTAL`): its faults are not counted (it
   fails backdrop rows nobody walks to), only that it was recorded on this stage. The runner's complete stage
   (`score/stages/complete`) runs these same checks on the place's assembled stage: one gate, two ways in. The Stop
-  and SubagentStop hooks (`.claude/hooks/completion_guard.py`) refuse a session's or sub-agent's "done" for a place it
+  and SubagentStop hooks (`.claude/hooks/local/completion_guard.py`) refuse a session's or sub-agent's "done" for a place it
   worked on unless the gate passes.
   Export writes `inputs.json` (what the stage was made from, each model by hash); keep it, the gate reads it.
 - `contents.py` is the gate's contents checks (its docstring has each): people against the cast its design gives
