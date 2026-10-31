@@ -21,7 +21,7 @@ from scipy.spatial.transform import Rotation
 from fit._frames import weights
 
 POLISHED = 1e-10  # the free gradient a Gauss-Newton polish takes level 2's end to (scipy's trf/lsmr stalls 2.5-3 mm short, #70)
-POLISH_ROUNDS = 30
+POLISH_ROUNDS = 80  # Gauss-Newton converges linearly here (about 0.64 a round): 30 rounds left 21 of 70 tuning cases at 1.5e-10 to 4.2e-9 (2026-10-31)
 BOUND_HELD = 1e-5  # an unknown this near its bound is held there by the polish
 MARK_MOST = 0.03  # metres a marker may move on its body off its landmark's link
 INSIDE = 1e-9  # a start this far inside its bounds (least_squares wants a start within them)
