@@ -6,25 +6,13 @@ Scoring is mechanical (labels + checklist counts); the agent turns each row
 into a plain-language explanation — that part is not scriptable.
 """
 import json
-import pathlib
 import re
 import subprocess
 import sys
+from pathlib import Path
 
-def _repo():
-    """The repo from .claude/project.json, so nothing is hard-coded per project."""
-    config = pathlib.Path(__file__).resolve().parents[3] / "project.json"
-    try:
-        name = json.loads(config.read_text()).get("repo") or ""
-    except OSError:
-        name = ""
-    if "/" not in name:
-        print("no repo in .claude/project.json; run setup-github.py first", file=sys.stderr)
-        sys.exit(1)
-    return name
-
-
-REPO = _repo()
+CONFIG_PATH = Path(__file__).resolve().parents[4] / ".claude" / "project.json"
+REPO = json.loads(CONFIG_PATH.read_text())["repo"]
 BLOCKED_STATES = {"needs-triage", "needs-info"}
 STATE_ROLES = {"needs-triage", "needs-info", "ready-for-agent", "ready-for-human", "wontfix"}
 
