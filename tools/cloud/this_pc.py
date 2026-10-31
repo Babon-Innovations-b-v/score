@@ -75,7 +75,7 @@ PC_ENV = pathlib.Path.home() / ".farm-factory-props" / "env"  # the prop environ
 CONDUCTOR = ("score-conductor", "fr-par-2")  # its server's name and zone (tools/cloud/conductor/machine.py)
 ENVIRONMENT = {"SCORE_CLOUD": "local", "SCORE_FREE_ONLY": "1", "SCORE_INPUTS_DIRECT": "1",
                "SCORE_MAX_MACHINES": "all=1"}  # one machine: this PC
-MACHINE = "score-this-pc"  # backends/local.py's container
+MACHINE = "score-this-pc"  # backends/local.py's first container; each other kind's is MACHINE-<kind>
 PAUSED = "paused.json"  # under HOME: the paused run, until resume starts it again
 RUN_OWN = ("SCORE_FROZEN", "SCORE_FROZEN_OWNER", "SCORE_RUN_ID")  # set by `score run` itself, never carried over
 STOP_SECONDS = 240  # a stopped run's 30 s grace, its batches' deletes and the detached wrapper's 90 s, with room
@@ -264,11 +264,11 @@ def run_log(pid):
 
 
 def pause(home):
-    """Stop the live run cleanly and record it in PAUSED, then stop the container once the run's processes are gone;
+    """Stop the live run cleanly and record it in PAUSED, then stop the containers once the run's processes are gone;
     one line."""
     entry = live_run(home)
     if entry is None:
-        asked(["docker", "stop", MACHINE])
+        stop_containers()
         held = " (the paused run stays recorded)" if (home / PAUSED).exists() else ""
         return f"paused: no run was live; {MACHINE} stopped{held}"
     leader = entry["pid"]
@@ -282,8 +282,15 @@ def pause(home):
             raise SystemExit(f"pause: run {entry['id']} (pid {leader}) still has processes after {STOP_SECONDS} s; "
                              f"the container is left running")
         time.sleep(0.5)
-    asked(["docker", "stop", MACHINE])
+    stop_containers()
     return f"paused run {entry['id']} ({' '.join(entry['argv'])}); {MACHINE} stopped, {card()}"
+
+
+def stop_containers():
+    """`docker stop` every SCORE container on this PC: MACHINE and each kind's own (MACHINE-<kind>, PRD #73)."""
+    listed = asked(["docker", "ps", "--format", "{{.Names}}"])
+    names = [name for name in listed.stdout.split() if name == MACHINE or name.startswith(f"{MACHINE}-")]
+    asked(["docker", "stop", *(names or [MACHINE])])
 
 
 def resume(home):

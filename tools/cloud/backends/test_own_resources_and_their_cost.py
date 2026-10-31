@@ -95,6 +95,16 @@ The invariants, each with the break that turns its test red (each applied once a
   measured memory is held to it times MEMORY_MARGIN (17 GB: 26g), set back at its delete; one with none keeps 27g.
   Break: drop `*cpu_arguments()` from `running`'s update; or `memory_gb * MEMORY_MARGIN` -> `memory_gb` in `held_to`
   -> 17g; or drop the `elif ... held_to(...)` branch in `take`.
+- Claims of different kinds run side by side, each in its kind's own container (Blender in score-this-pc, the others
+  in score-this-pc-<kind>), while their card and memory shares fit the queue; an unmeasured kind holds the whole
+  memory and waits for both; claims the queue refused are served first come first served; a Blender claim takes only
+  the turns the free memory holds, and gives a turn's memory back with the turn. Break: `got(whole, alone)` ->
+  `got(whole, True)` in `claimed` -> the second kind waits; or `container` -> always MACHINE; or drop `or not OWN` in
+  `container` -> without SCORE_THIS_PC_OWN_CONTAINERS the route claim runs beside the bakes in one container; or drop the `most` stop
+  in `free_turns` -> the second place takes a turn past the memory; or `(ORDER.index(...), waiter["since"]) < (rank,
+  since)` -> `ORDER.index(...) < rank` in `card_queue.take` -> the free turn goes past the Pixal3D claim that asked
+  first; or drop the memory sum in `card_queue.take` -> the Pixal3D claim starts beside both; or drop
+  `card_queue.resize(...)` in `let_go_turn` -> the second place gets one turn.
 """
 import json
 import os
@@ -172,6 +182,9 @@ def card_queue_folder(monkeypatch, tmp_path):
     monkeypatch.setattr(card_queue, "WAITING", {})
     monkeypatch.setattr(card_queue, "containers", lambda: "score-this-pc 3GiB / 27GiB")
     monkeypatch.setattr(card_queue, "SAMPLER", SAMPLER)
+    monkeypatch.setattr(card_queue, "memory_gb", lambda: 27)  # this PC's 43 GiB less its reserve, whatever runs the test
+    import local
+    monkeypatch.setattr(local, "OWN", True)  # each kind in its own container (SCORE_THIS_PC_OWN_CONTAINERS=1)
     monkeypatch.setenv("SCORE_CARD_SAMPLER", json.dumps(SAMPLER))  # the `run` under test reads the same card
     return card_queue.QUEUE
 
@@ -471,7 +484,7 @@ def test_a_machine_whose_state_cannot_be_read_is_refused_not_raised(monkeypatch)
 def test_this_pc_orders_nothing_costs_nothing_and_holds_one_claim(monkeypatch, tmp_path):
     import local
     monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
+    monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
     restarted = []
     monkeypatch.setattr(local, "docker",
                         lambda *arguments, **_: arguments[0] == "restart" and restarted.append(arguments))
@@ -484,8 +497,10 @@ def test_this_pc_orders_nothing_costs_nothing_and_holds_one_claim(monkeypatch, t
         local.take("judge", "key")
     first = local.take("pixal", "key")
     assert first["here"] and first["price"] == 0.0 and first["host"] == "172.17.0.2"
-    assert local.take("pixal", "key") is None and local.take("blender", "key") is None  # one claim at a time
-    assert local.delete("score-this-pc:another", "this-pc") is False and not restarted  # a watchdog's late delete
+    assert first["id"].startswith("score-this-pc-pixal:")  # its kind's own container
+    assert local.take("pixal", "key") is None  # one claim a container
+    assert local.take("blender", "key") is None  # unmeasured, the Pixal3D claim holds the whole memory
+    assert local.delete("score-this-pc-pixal:another", "this-pc") is False and not restarted  # a watchdog's late delete
     assert local.delete(first["id"], "this-pc") is True and restarted  # its own claim ends: the container restarted
     local.delete(local.take("pixal", "key")["id"], "this-pc")
 
@@ -496,7 +511,7 @@ def test_this_pc_shares_its_blender_turns_across_places_and_restarts_only_when_l
     import local
     import spread
     monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
+    monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
     monkeypatch.setattr(local, "RUNS_AT_ONCE", {"pixal": 1, "blender": 3})
     monkeypatch.setattr(capacity.provider, "cloud", local)
     restarted = []
@@ -510,12 +525,9 @@ def test_this_pc_shares_its_blender_turns_across_places_and_restarts_only_when_l
     spread.work_turn(first, spread.Shares([]), lambda *_: None, 0, ended)
     second = local.take("blender", "key")  # another place's bake row, while the first still runs a job
     assert second is not None and second["turns"] == 2 and spread.slots("blender", second) == [0, 0]
-    assert local.take("pixal", "key") is None  # exclusive: waits for both
-    want = local.wanting() / str(os.getpid())
-    assert want.exists()
-    want.rename(local.wanting() / str(os.getppid()))  # that want stands for another live process
+    assert local.take("pixal", "key") is None  # its card share does not fit beside the Blender claims': it waits
     local.let_go_turn(second["id"])
-    assert local.take("blender", "key") is None  # a turn is free, but the exclusive claim asked first
+    assert local.take("blender", "key") is None  # a turn is free, but the Pixal3D claim asked first
     assert local.delete(first["id"], local.ZONE) is True and not restarted  # the second's jobs still run
     assert local.delete(second["id"], local.ZONE) is True and restarted  # the last to leave restarts it
     alone = local.take("pixal", "key")
@@ -530,7 +542,7 @@ def test_this_pc_marks_a_claim_that_waits_holding_none_and_drops_the_mark_once_i
     import os
     import local
     monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
+    monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
     monkeypatch.setattr(local, "RUNS_AT_ONCE", {"pixal": 1, "blender": 3})
     monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)
     mark = local.waiting_claims() / str(os.getpid())
@@ -547,10 +559,10 @@ def test_this_pc_marks_a_claim_that_waits_holding_none_and_drops_the_mark_once_i
 def test_this_pc_refuses_a_job_by_its_measured_need_not_its_kind(monkeypatch, tmp_path):
     import local
     monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
+    monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
     monkeypatch.setattr(local, "memory_cap", lambda: "35g")
     monkeypatch.setattr(local, "alone_cap", lambda: "35g")
-    monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)  # never the PC's own container
+    monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)  # never the PC's own containers
     with pytest.raises(ValueError, match="17 GB of card"):
         local.take("characters", "key")  # the whole machine: Kimodo's encoder on the card
     with pytest.raises(ValueError, match="40.0 GB of memory"):
@@ -564,13 +576,13 @@ def test_this_pc_runs_a_job_past_its_container_alone_in_the_container_raised_for
     import local
     import spread
     monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
+    monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
     monkeypatch.setattr(local, "RUNS_AT_ONCE", {"pixal": 1, "blender": 3})
     monkeypatch.setattr(local, "memory_cap", lambda: "27g")
     monkeypatch.setattr(local, "alone_cap", lambda: "35g")
     monkeypatch.setattr(capacity.provider, "cloud", local)
     room = [20 * 2**30]
-    monkeypatch.setattr(local, "alone_room", lambda: room[0])
+    monkeypatch.setattr(local, "alone_room", lambda name=None: room[0])
     calls = []
     monkeypatch.setattr(local, "docker", lambda *arguments, **_: calls.append(arguments))
     updates = lambda: [call[call.index("--memory") + 1] for call in calls if call[0] == "update"]  # noqa: E731
@@ -617,7 +629,7 @@ def test_this_pc_container_never_swaps_past_its_memory(monkeypatch):
                                      stdout="true")
     monkeypatch.setattr(local, "docker", docker)
     monkeypatch.setattr(local, "memory_cap", lambda: "27g")
-    monkeypatch.setattr(local, "answering", lambda: "172.17.0.2")
+    monkeypatch.setattr(local, "answering", lambda name=None: "172.17.0.2")
     monkeypatch.setattr(local.shutil, "which", lambda name: "/usr/bin/docker")
     for found in (False, True):
         calls.clear()
@@ -640,7 +652,7 @@ def test_this_pc_runs_blender_jobs_side_by_side_as_its_memory_holds_with_the_car
     try:
         importlib.reload(local)
         monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-        monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
+        monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
         monkeypatch.setattr(capacity.provider, "cloud", local)
         calls = []
         monkeypatch.setattr(local, "docker", lambda *arguments, **_: calls.append(arguments))
@@ -713,7 +725,7 @@ def test_the_card_queue_never_passes_the_card_and_a_waiting_film_claim_keeps_sid
     film = card_queue.take("pixal", 10.8, "film")
     assert film and card_queue.take("tuning", None, "side") is None  # unmeasured: the whole card
     card_queue.release(film)
-    assert re.match(r"card 0\.0 of 13\.5 GB held, 2 waiting; \d+\.\d GB free; score-this-pc 3GiB / 27GiB",
+    assert re.match(r"card 0\.0 of 13\.5 GB held, memory 0\.0 of 27 GiB, 2 waiting; \d+\.\d GB free; score-this-pc 3GiB / 27GiB",
                     card_queue.status())
 
 
@@ -758,11 +770,12 @@ def test_a_side_job_gives_the_card_way_to_a_film_claim_waiting_and_starts_again_
 def test_this_pc_claims_hold_their_card_share_and_wait_while_a_side_job_holds_the_card(monkeypatch, tmp_path):
     import local
     monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "running", lambda public_key: "172.17.0.2")
+    monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
     monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)
     side = card_queue.take("sim-body", 6, "side")
     assert local.take("pixal", "key") is None  # 6 + 10.8 passes the card: it waits, holding no claim
-    assert local.LOCK.exists() and local.claimed("judge")[0] is not None  # the machine's lock was let go
+    with local.container_lock("score-this-pc-pixal").open("a+") as probe:
+        assert local.got(probe, True)  # its container's lock was let go
     card_queue.release(side)
     machine = local.take("pixal", "key")
     assert machine and card_queue.take("sim-body", 6, "side") is None  # the claim holds its share
@@ -775,17 +788,44 @@ def test_this_pc_claims_hold_their_card_share_and_wait_while_a_side_job_holds_th
 def test_this_pc_container_keeps_cores_for_the_pc_and_a_measured_claim_to_its_memory(monkeypatch, tmp_path):
     import local
     monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "answering", lambda: "172.17.0.2")
+    monkeypatch.setattr(local, "answering", lambda name=None: "172.17.0.2")
     monkeypatch.setattr(local, "memory_cap", lambda: "27g")
     monkeypatch.setattr(local.os, "cpu_count", lambda: 24)
     calls = []
     monkeypatch.setattr(local, "docker", lambda *arguments, **_: calls.append(arguments) or types.SimpleNamespace(
         returncode=0, stdout="true", stderr=""))
     machine = local.take("characters", "key", {"card_gb": 4, "memory_gb": 17})
-    assert ("update", "--memory", "27g", "--memory-swap", "27g", "--cpus", "20", "score-this-pc") in calls
-    assert ("update", "--memory", "26g", "--memory-swap", "26g", "score-this-pc") in calls  # 17 GB measured, x1.5
+    own = "score-this-pc-characters"
+    assert ("update", "--memory", "27g", "--memory-swap", "27g", "--cpus", "20", own) in calls
+    assert ("update", "--memory", "26g", "--memory-swap", "26g", own) in calls  # 17 GB measured, x1.5
     local.delete(machine["id"], "this-pc")
-    assert calls[-1] == ("update", "--memory", "27g", "--memory-swap", "27g", "score-this-pc")  # set back
+    assert calls[-1] == ("update", "--memory", "27g", "--memory-swap", "27g", own)  # set back
     calls.clear()
     local.delete(local.take("pixal", "key")["id"], "this-pc")
     assert not [call for call in calls if call[:2] == ("update", "--memory") and call[2] != "27g"]  # no measure: 27g
+
+
+def test_this_pc_claims_of_different_kinds_run_side_by_side_each_in_its_own_container_while_they_fit(monkeypatch,
+                                                                                                       tmp_path):
+    import local
+    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
+    monkeypatch.setattr(local, "RUNS_AT_ONCE", {"pixal": 1, "blender": 3})
+    started = []
+    monkeypatch.setattr(local, "running", lambda public_key, name=None: started.append(name) or "172.17.0.2")
+    monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)
+    bakes = local.take("blender", "key")  # three turns: 3 x 6.7 + 2 = 22.1 GiB, 9.7 GB of card
+    route = local.take("characters", "key", {"card_gb": 1, "memory_gb": 3})  # 25.1 GiB and 10.7 GB: it fits
+    assert bakes["id"].startswith("score-this-pc:") and route["id"].startswith("score-this-pc-characters:")
+    assert started == ["score-this-pc", "score-this-pc-characters"]
+    assert local.take("pixal", "key") is None  # unmeasured: the whole memory, so it waits for both
+    local.delete(route["id"], local.ZONE)
+    local.delete(bakes["id"], local.ZONE)
+    alone = local.take("pixal", "key")
+    assert alone and local.take("characters", "key", {"card_gb": 1, "memory_gb": 3}) is None  # now it holds it all
+    local.delete(alone["id"], local.ZONE)
+    card_queue.release(card_queue.WAITING.pop(("this-pc characters", "film")))  # that claim stopped asking
+    monkeypatch.setattr(local, "OWN", False)  # the run did not ask for containers of their own: one, as before
+    bakes = local.take("blender", "key")
+    assert bakes["id"].startswith("score-this-pc:") and local.take("characters", "key", {"card_gb": 1,
+                                                                                          "memory_gb": 3}) is None
+    local.delete(bakes["id"], local.ZONE)
