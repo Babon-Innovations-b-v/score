@@ -4,19 +4,21 @@ description: "Conduct a retrospective on a coding session: suggest changes to th
 disable-model-invocation: true
 ---
 
-The user has asked for a **retrospective**. You are suggesting improvements to the coding agent's **environment** to improve future runs. Every improvement lands in a home that already exists; a new `.md` file needs the owner's yes first (root `CLAUDE.md`, ADR-0003).
+The user has asked for a **retrospective**. You are suggesting improvements to the coding agent's **environment** to improve future runs. Every improvement lands in a home that already exists; a new `.md` file needs the owner's yes first (root `CLAUDE.md`).
+
+Adapted from Matt Pocock's [`retro`](https://github.com/mattpocock/skills/blob/a7d038f6bf7f01b516408e95e2fb56e0b338fa6f/skills/engineering/retro/SKILL.md) (MIT, upstream commit `a7d038f6bf7f`).
 
 ## Steps
 
 1. Call the Skill tool with `write-a-skill` for the writing style guide, and read [`.claude/soul.md`](../../soul.md) for the voice.
 
-2. Read the primary sources for the session the user specifies. This may mean searching the session logs on this machine (`~/.claude/projects/<repo-slug>/*.jsonl`, sub-agents' included) and the capped outputs under `/tmp/score-output/<session>/`. If the user doesn't specify a session, default to the current one.
+2. Read the primary sources for the session the user specifies. This may mean searching the session logs on this machine (`~/.claude/projects/<repo-slug>/*.jsonl`, sub-agents' included) and the full outputs `output_cap.py` saved (each capped output names its file). If the user doesn't specify a session, default to the current one.
 
 3. Look for candidates for improvement in these categories.
 
 - **Navigation**: how easy was it for the agent to find the right files? Are there hidden dependencies between files? Would a **navigation pointer** (a line in the area's `CLAUDE.md` overlay, the bible chapter map, or a `CONTEXT.md` term) make it easier? _Use when_ the session took a long time to find a piece of information.
-- **Automated checks**: are there automated checks that could catch errors the agent made? Tests, linters, the hooks in `.claude/hooks/`, the stage checks? Read what already exists first (the bible's `build/release` and `workflow/loop` chapters for what runs before a push, `.claude/settings.json` for the wired hooks), so a check that exists but sits unwired or silently broken is the finding, not a reinvention. There is no CI here, so the guardrail is a hook or the local test run before pushing. _Use when_ the agent made a mistake an automated check could have caught.
-- **House rules**: should a rule be added, removed or clarified? Classify the violation first: a **mechanical** one (a fixed syntactic pattern, a banned API, an import shape, a file-location rule) gets a deterministic check, full stop: a hook, a test, or a stage check, whichever is cheapest. Default to building the check over writing the rule. Reserve prose rules for genuine **judgement calls**, placed where they load: the overlay of the area they govern, the bible chapter they belong to, or the review pass (the audit-* skills, `/code-review`). _Use when_ a mistake got past review.
+- **Automated checks**: are there automated checks that could catch errors the agent made? Tests, linters, the hooks in `.claude/hooks/`, the project's own checks? Read what already exists first (root `CLAUDE.md` and the bible's `workflow/loop` chapter for what runs before a push, `.claude/settings.json` for the wired hooks), so a check that exists but sits unwired or silently broken is the finding, not a reinvention. Nothing in GitHub Actions builds or tests here, so the guardrail is a hook or the local test run before pushing. _Use when_ the agent made a mistake an automated check could have caught.
+- **House rules**: should a rule be added, removed or clarified? Classify the violation first: a **mechanical** one (a fixed syntactic pattern, a banned API, an import shape, a file-location rule) gets a deterministic check, full stop: a hook, a test, or a project check, whichever is cheapest. Default to building the check over writing the rule. Reserve prose rules for genuine **judgement calls**, placed where they load: the overlay of the area they govern, the bible chapter they belong to, or the review pass (the audit-* skills, `/code-review`). _Use when_ a mistake got past review.
 - **Root CLAUDE.md**: are there steering instructions that should move to an overlay, a bible chapter, a skill or a check instead? _Use when_ root `CLAUDE.md` or `.claude/soul.md` is particularly large.
 - **Tool economy**: did the agent make expensive tool calls that could be streamlined? Long output read whole instead of through the `output_cap.py` file, waits in the foreground instead of `run_in_background` or `--detach`, a custom tool that prints far more than one summary line? _Use when_ the agent made an expensive tool call.
 - **No-ops**: look for instructions in steering files (root `CLAUDE.md`, overlays, skills, `soul.md`) that don't modify the agent's behavior. _Use when_ the steering files are large and unwieldy.
