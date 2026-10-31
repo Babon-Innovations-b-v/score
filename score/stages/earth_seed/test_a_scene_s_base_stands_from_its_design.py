@@ -205,6 +205,34 @@ def test_a_dome_roof_stands_as_a_dome():
     assert apart.min(axis=1).max() < 1e-3 and apart.min(axis=0).max() < 1e-3, "the record's dome is not the seed's"
 
 
+def test_a_vault_roof_stands_as_an_arc():
+    """Round 33 of 2026-10-30: the tube's vault (eave 0 m, top 3.2 m) stood as a gable, so its flat sides came down
+    through the room: the cast stood person_mid_left_1 on a 32 degree side 0.27 m up (sim-body: 0.147 m into it) and
+    the other two under it at 1.86 and 2.09 m. A vault is a circle's arc from its eave up to its top across its grown
+    box, along the longer side: over BOX's 4.3 x 3.3 m from 0 to 2 m, a circle of (1.65^2 + 2^2) / 4 = 1.680625 m, so
+    1 m off the ridge it stands sqrt(1.680625^2 - 1) - (1.680625 - 2) = 1.670 m (a gable's 0.788 m); as
+    tools/usd/builders' `tube_arc` draws it from the scene record's entry, the box either way round.
+    Break: score/stages/earth_seed/design_shell.py: `entry.get("kind") == "vault"` -> `False`"""
+    sys.path.insert(0, str(REPO / "tools" / "usd"))
+    import scene
+    from score.stages.scene_record import writer
+    for box, across in ((BOX, 2), ([[y, x] for x, y in BOX], 0)):
+        vaulted = dict(ROOM, outline=box, roofs=[{"kind": "vault", "points": box, "eave": 0.0, "top": 2.0}])
+        name, (piece,), said = design_shell.roofs(vaulted, design_shell.outline_of(vaulted), 0.0)[0]
+        assert piece["builder"] == "vault" and "arc" in said, (piece, said)
+        roof = numpy.asarray({part: tris for part, tris, _ in design_shell.shell(vaulted)}["roof_1"]).reshape(-1, 3)
+        assert abs(roof[:, 1].max() - 2.0) < 1e-9 and abs(roof[:, 1].min()) < 1e-9, (roof[:, 1].min(), roof[:, 1].max())
+        order = numpy.argsort(roof[:, across])
+        assert abs(numpy.interp(1.5 + 1.0, roof[order, across], roof[order, 1]) - 1.670) < 0.01
+        entry = writer.shell_entry(name, 0, piece, vaulted, said)
+        assert entry["builder"] == "tube_arc", entry
+        drawn = numpy.vstack([mesh["points"] for mesh in scene.built_meshes(dict(entry, surface=None))])
+        # the record keeps its numbers to 0.1 mm
+        seed = design_shell.placed(roof, vaulted)
+        apart = numpy.linalg.norm(seed[:, None] - drawn[None], axis=2)
+        assert apart.min(axis=1).max() < 1e-3 and apart.min(axis=0).max() < 1e-3, "the record's vault is not the seed's"
+
+
 def test_the_parts_a_shell_lays_are_named_without_building_it():
     """2026-10-27: the scene library and the surface tiles asked which parts a shell lays by building it, so every
     change to how a part is built keyed them (and the people, sound and palette rows behind them). shell_parts.parts

@@ -17,9 +17,10 @@ raised levels (the street, the square, the base: a plan that encloses nothing), 
            sill to its head
     roof   (a room) each written roof over its points out to the walls: a flat one a slab on its eave; a dome a
            sphere's cap over the circle round its box's middle (builders' `dome`), so the people the concept stands
-           under it fit (the greenhouse's upper walk, Batch 1 of 2026-10-27); one rising otherwise (shed, pitched,
-           vault) a closed gable along its box's longer side; no written roof, a flat one on
-           the walls' height
+           under it fit (the greenhouse's upper walk, Batch 1 of 2026-10-27); a vault a circle's arc from its eave
+           to its top across its box, along the box's longer side (builders' `tube_arc`), so the people under it fit
+           (the tube's, round 33 of 2026-10-30); one rising otherwise (shed, pitched) a closed gable along its box's
+           longer side; no written roof, a flat one on the walls' height
     level  (an open place: no room, and a plan that encloses nothing, `encloses`) each level standing off the ground by
            more than LEVEL_OFF: one up to STOREY high stands solid from the ground (a raised deck, a
            stage); a higher one a slab SLAB thick under its height (a balcony)
@@ -177,6 +178,36 @@ def gable(points, eave, top):
                   [corners[0], corners[1], ridge[0]], [corners[2], corners[3], ridge[1]]]
     box = [[west, north], [east, north], [east, south], [west, south]]
     return [[one, three, two] for one, two, three in inward + cap(box, eave, True)]
+
+
+def vault_arc(points, eave, top):
+    """A vault over an outline's box as tools/usd/builders' `tube_arc` draws it: the circle's `radius`, its axis'
+    height (`axis_high`), the arc's half angle (degrees from straight up), and its run: `start` the middle of its
+    west or north end, `along` its unit way ([1, 0] east, [0, 1] south) along the box's longer side, `length` that
+    side."""
+    xs, ys = [float(point[0]) for point in points], [float(point[1]) for point in points]
+    west, east, north, south = min(xs), max(xs), min(ys), max(ys)
+    lengthwise = east - west >= south - north
+    half, rise = ((south - north) if lengthwise else (east - west)) / 2, top - eave
+    radius = (half ** 2 + rise ** 2) / (2 * rise)
+    start = [west, (north + south) / 2] if lengthwise else [(west + east) / 2, north]
+    return {"radius": radius, "axis_high": top - radius, "half": float(np.degrees(np.arctan2(half, radius - rise))),
+            "start": start, "along": [1.0, 0.0] if lengthwise else [0.0, 1.0],
+            "length": (east - west) if lengthwise else (south - north)}
+
+
+def vault(points, eave, top, segments=24):
+    """A vault's arc (vault_arc) in plan metres [x, up, y], the triangles tools/usd/builders' `tube_arc` draws."""
+    arc = vault_arc(points, eave, top)
+    along = np.array([arc["along"][0], 0.0, arc["along"][1]])
+    across = np.array([arc["along"][1], 0.0, -arc["along"][0]])
+    start = np.array([arc["start"][0], 0.0, arc["start"][1]])
+    angles = np.radians(np.linspace(-arc["half"], arc["half"], segments + 1))
+    rows = [[start + across * arc["radius"] * np.sin(angle) + along * run
+             + [0.0, arc["axis_high"] + arc["radius"] * np.cos(angle), 0.0] for run in (0.0, arc["length"])]
+            for angle in angles]
+    return [triangle for one, two in zip(rows, rows[1:])
+            for triangle in ([one[0], one[1], two[0]], [one[1], two[1], two[0]])]
 
 
 def dome(centre, radius, base, rise, rings=12, segments=48):
@@ -449,13 +480,15 @@ def roofs(plan, outline, high):
         points, eave = grown(outline_of({"outline": entry["points"]})), float(entry["eave"])
         top = float(entry.get("top") or eave)
         rising = top > eave + 1e-6
-        domed = entry.get("kind") == "dome"
+        domed, vaulted = entry.get("kind") == "dome", entry.get("kind") == "vault"
         piece = (dome_piece(points, eave, top) if domed else
-                 {"builder": "gable", "points": [[float(x), float(y)] for x, y in points], "eave": eave, "top": top}) \
+                 {"builder": "vault" if vaulted else "gable", "points": [[float(x), float(y)] for x, y in points],
+                  "eave": eave, "top": top}) \
             if rising else slab_piece(points, eave, eave + SLAB)
         found.append((f"roof_{number}", [piece],
                       f"the plan's {entry.get('kind', 'flat')} roof, eave {eave:g} m" +
                       (f", top {top:g} m: " + ("a dome over the circle round it" if domed else
+                                               "a circle's arc across its box, along its longer side" if vaulted else
                                                "a gable along its box's longer side") if rising else
                        f": a slab {SLAB:g} m thick on it")))
     return found
@@ -478,8 +511,9 @@ def lowest_eave(plan):
 
 def pieces(plan):
     """[(name, pieces, what it was made from)] of the plan's room shell, each piece a builder's numbers in plan metres
-    (points [[x, y]]): a `slab` (points, low, high) or a `gable` (points, eave, top), as tools/usd/builders takes them
-    once stood in the place's frame (the scene record's shell entries, scene_record.writer)."""
+    (points [[x, y]]): a `slab` (points, low, high), a `gable` or `vault` (points, eave, top) or a `dome`, as
+    tools/usd/builders takes them once stood in the place's frame (the scene record's shell entries,
+    scene_record.writer)."""
     outline = outline_of(plan)
     eave = lowest_eave(plan)
     found = decks(plan, outline) + walls(plan, outline, eave)
@@ -491,6 +525,8 @@ def solid(piece):
     """A piece's triangles [[[x, up, y] x 3]] in plan metres."""
     if piece["builder"] == "gable":
         return gable(piece["points"], piece["eave"], piece["top"])
+    if piece["builder"] == "vault":
+        return vault(piece["points"], piece["eave"], piece["top"])
     if piece["builder"] == "dome":
         return dome(piece["centre"], piece["radius"], piece["base"], piece["rise"])
     return prism(piece["points"], piece["low"], piece["high"])

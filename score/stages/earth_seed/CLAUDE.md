@@ -15,7 +15,7 @@ the gates.
   reads.
 - **Each shell is laid once, from the plan** (`design_shell.py`, one set of pieces for both layers): the earth seed
   lays a room whose kit holds its walls (shell `kit` and inside, or, its inside not said, one that writes walls:
-  `laid_for`) as deck, walls with every opening cut and roof (a dome a sphere's cap, another rising roof a closed gable), BACKING behind the plan's
+  `laid_for`) as deck, walls with every opening cut and roof (a dome a sphere's cap, a vault a circle's arc, another rising roof a closed gable), BACKING behind the plan's
   line, and an open place's raised levels (a plan that encloses nothing, `encloses`: a deck up to a storey solid from
   the ground, a balcony a slab); the scene record lays every other enclosed place's shell from the same pieces and
   every stair and ramp (scene_record.writer), and each arched structure row's band at its plan items
