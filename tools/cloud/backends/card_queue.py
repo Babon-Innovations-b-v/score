@@ -9,21 +9,30 @@ A take is admitted while the held shares (each group counted once, at its larges
 card's turns, card_turn.py) and its own fit BUDGET_GB, and no fresh waiter of an earlier priority (ORDER) waits; a take
 that is not admitted leaves a waiting entry (`waiting/`, refreshed at each ask, stale after WAIT_SECONDS), so a film
 claim the runner asks again every few seconds keeps every side job off the card until it has its share. A need not
-measured takes the whole card. QUEUE is one folder for the whole PC, never under a PROPS_HOME: the run and the agents
-work under different homes and share one card.
+measured takes the whole card. A film claim that has waited YIELD_SECONDS asks every side share back (a mark under
+`yield/` for each): a side job on the card gives way at once rather than at its end, since a stopped process (SIGSTOP)
+keeps its card memory. QUEUE is one folder for the whole PC, never under a PROPS_HOME: the run and the agents work
+under different homes and share one card.
 
     python3 tools/cloud/backends/card_queue.py run --job <name> --card-gb <GB> [--priority side] -- <command> ...
     python3 tools/cloud/backends/card_queue.py status
 
-`run` waits for a share, then execs the command with the entry's file left open in it, so the command itself holds the
-share and frees it when it ends. Standard library only, so any Python runs it (the Newton venv's too).
+`run` waits for a share, runs the command in a session of its own while it holds it, and when its share is asked back
+stops the command's session (SIGTERM, SIGKILL after STOP_SECONDS), gives the share back, waits for one again and starts
+the command again: a side job given way to must resume from its own checkpoints (sim body's level 1 tuning does). The
+command ends with `run` (its parent's death signal), so it never holds the card outside the queue. `status` is the
+PC's one line (the card's shares, what waits, each container's memory) with a line a share and a waiter after it.
+Standard library only, so any Python runs it (the Newton venv's too).
 """
 import argparse
 import contextlib
+import ctypes
 import fcntl
 import json
 import os
 import pathlib
+import signal
+import subprocess
 import sys
 import time
 import uuid
@@ -34,14 +43,16 @@ QUEUE = pathlib.Path(os.environ.get("SCORE_CARD_QUEUE", pathlib.Path.home() / ".
 BUDGET_GB = 13.5
 ORDER = ("film", "side")  # earlier first: the run's work for the film, then everything else (tuning, proofs, scratch)
 WAIT_SECONDS = 120  # a waiting entry not refreshed for this long waits no more (its process stopped asking)
-LOOK_SECONDS = 2  # between asks of `run` while it waits
+LOOK_SECONDS = 2  # between asks of `run` while it waits, and between its looks for its share asked back
+YIELD_SECONDS = 60  # a film claim waiting this long asks the side shares back
+STOP_SECONDS = 30  # a side command asked back has this long after SIGTERM before SIGKILL
 WAITING = {}  # {(job, priority): this process's open waiting entry}
 
 
 @contextlib.contextmanager
 def queue_lock():
     """The block run alone among the queue's takes, releases and readers."""
-    for folder in ("held", "waiting"):
+    for folder in ("held", "waiting", "yield"):
         (QUEUE / folder).mkdir(parents=True, exist_ok=True)
     with (QUEUE / "queue.lock").open("a+") as handle:
         fcntl.flock(handle, fcntl.LOCK_EX)
@@ -65,6 +76,7 @@ def live(folder, now=None):
                     found.append(json.loads(path.read_text()))
                 continue
         path.unlink(missing_ok=True)
+        (QUEUE / "yield" / path.name).unlink(missing_ok=True)
     return found
 
 
@@ -83,7 +95,7 @@ def entry(folder, job, need, priority, group):
     handle = path.open("w")
     fcntl.flock(handle, fcntl.LOCK_EX)
     handle.write(json.dumps({"id": path.stem, "job": job, "card_gb": need, "priority": priority, "group": group,
-                             "pid": os.getpid()}))
+                             "pid": os.getpid(), "since": time.time()}))
     handle.flush()
     return handle
 
@@ -98,49 +110,121 @@ def take(job, card_gb=None, priority="film", group=None):
         now = time.time()
         mine = WAITING.get((job, priority))
         ahead = [waiter for waiter in live("waiting", now) if ORDER.index(waiter["priority"]) < rank]
-        if ahead or in_use(live("held"), group, need) > BUDGET_GB:
+        held = live("held")
+        if ahead or in_use(held, group, need) > BUDGET_GB:
             if mine is None:
-                WAITING[(job, priority)] = entry("waiting", job, need, priority, group)
+                WAITING[(job, priority)] = mine = entry("waiting", job, need, priority, group)
             else:
                 os.utime(mine.name)
+            if not ahead and now - json.loads(pathlib.Path(mine.name).read_text())["since"] >= YIELD_SECONDS:
+                ask_back([share for share in held if ORDER.index(share["priority"]) > rank])
             return None
         if mine is not None:
             release(WAITING.pop((job, priority)))
         return entry("held", job, need, priority, group)
 
 
+def ask_back(shares):
+    """A mark under `yield/` for each of `shares`, which its `run` reads as its share asked back."""
+    for share in shares:
+        (QUEUE / "yield" / f"{share['id']}.json").touch()
+
+
+def asked_back(handle):
+    """Whether the share whose open entry is `handle` was asked back (ask_back)."""
+    return (QUEUE / "yield" / pathlib.Path(handle.name).name).exists()
+
+
 def release(handle):
-    """A share (or a waiting entry) given back: its file removed and its flock let go."""
+    """A share (or a waiting entry) given back: its file and its ask-back mark removed, its flock let go."""
     pathlib.Path(handle.name).unlink(missing_ok=True)
+    (QUEUE / "yield" / pathlib.Path(handle.name).name).unlink(missing_ok=True)
     handle.close()
 
 
 def status():
-    """One line a live share and a live waiter, the shares' sum against BUDGET_GB first."""
+    """The PC's line (the card's shares against BUDGET_GB, what waits, each running container's memory), then one
+    line a live share and a live waiter."""
     with queue_lock():
         held, waiting = live("held"), live("waiting", time.time())
-    lines = [f"card {in_use(held, None, 0):.1f} of {BUDGET_GB} GB held, {len(waiting)} waiting"]
+    lines = [f"card {in_use(held, None, 0):.1f} of {BUDGET_GB} GB held, {len(waiting)} waiting; {containers()}"]
     lines += [f"{name} {item['job']} {item['card_gb']} GB {item['priority']} pid {item['pid']}"
               for name, items in (("held", held), ("waits", waiting)) for item in items]
     return "\n".join(lines)
 
 
-def run(job, card_gb, priority, command):
-    """`command` exec'd once `job` has its share, the share's file left open in it (the command holds it)."""
+def containers():
+    """Each running container's name and memory use against its limit, from `docker stats`; what docker said when it
+    did not answer."""
+    try:
+        answer = subprocess.run(["docker", "stats", "--no-stream", "--format", "{{.Name}} {{.MemUsage}}"],
+                                capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return f"containers unread ({error})"
+    if answer.returncode:
+        return f"containers unread ({answer.stderr.strip()[:80]})"
+    return ", ".join(answer.stdout.split("\n")[:-1]) or "no container running"
+
+
+def share_for(job, card_gb, priority):
+    """`job`'s share, waited for (said once on stderr while it waits)."""
     said = False
     while (handle := take(job, card_gb, priority)) is None:
         if not said:
             print(f"card_queue: {job} waits for {card_gb or BUDGET_GB} GB of the card", file=sys.stderr, flush=True)
             said = True
         time.sleep(LOOK_SECONDS)
-    os.set_inheritable(handle.fileno(), True)
-    os.execvp(command[0], command)
+    return handle
+
+
+def ends_with_parent():
+    """In the command's process before it starts: SIGTERM to it when `run` dies (Linux's PR_SET_PDEATHSIG)."""
+    ctypes.CDLL(None, use_errno=True).prctl(1, signal.SIGTERM)
+
+
+def stop(child):
+    """`child`'s whole session ended: SIGTERM, then SIGKILL after STOP_SECONDS."""
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(child.pid, signal.SIGTERM)
+    try:
+        child.wait(STOP_SECONDS)
+    except subprocess.TimeoutExpired:
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(child.pid, signal.SIGKILL)
+        child.wait()
+
+
+def run(job, card_gb, priority, command):
+    """`command` run while `job` holds its share, stopped and started again each time the share is asked back; its
+    exit code. A stop signal to `run` ends the command first."""
+    child = None
+
+    def end(number, _frame):
+        if child is not None:
+            stop(child)
+        sys.exit(128 + number)
+
+    signal.signal(signal.SIGTERM, end)
+    signal.signal(signal.SIGINT, end)
+    while True:
+        handle = share_for(job, card_gb, priority)
+        child = subprocess.Popen(command, start_new_session=True, preexec_fn=ends_with_parent)
+        while child.poll() is None and not asked_back(handle):
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                child.wait(LOOK_SECONDS)
+        if child.poll() is not None:
+            release(handle)
+            return child.returncode
+        print(f"card_queue: {job} gives the card way to a waiting film claim; it starts again after",
+              file=sys.stderr, flush=True)
+        stop(child)
+        release(handle)
 
 
 def main(arguments=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     commands = parser.add_subparsers(dest="action", required=True)
-    runs = commands.add_parser("run", help="wait for a share of the card, then exec the command holding it")
+    runs = commands.add_parser("run", help="run the command while it holds a share of the card")
     runs.add_argument("--job", required=True)
     runs.add_argument("--card-gb", type=float, help="the job's measured card GB; unmeasured takes the whole card")
     runs.add_argument("--priority", choices=ORDER, default="side")
@@ -153,7 +237,7 @@ def main(arguments=None):
     command = parsed.command[1:] if parsed.command[:1] == ["--"] else parsed.command
     if not command:
         parser.error("run needs a command after --")
-    run(parsed.job, parsed.card_gb, parsed.priority, command)
+    sys.exit(run(parsed.job, parsed.card_gb, parsed.priority, command))
 
 
 if __name__ == "__main__":
