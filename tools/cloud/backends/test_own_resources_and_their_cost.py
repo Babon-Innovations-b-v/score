@@ -76,12 +76,16 @@ The invariants, each with the break that turns its test red (each applied once a
   `card_turn` -> one at a time.
 - This PC's card queue (card_queue.py, PRD #73) never lets its holders' shares pass the card's room (one group counted
   once: the run's Blender claims), a film claim that waits keeps side jobs off until it has its share, an unmeasured
-  need takes the whole card, and a holder that dies (a command `run` exec'd with its share) frees its share. The
-  container's claims hold their share from take to delete and wait as for a busy machine while it has no room.
+  need takes the whole card, and `status` leads with the PC's line (shares, waiters, containers' memory). A film claim
+  that waited YIELD_SECONDS asks side shares back: `run` stops its command's session, gives its share back, waits and
+  starts the command again once the card is free. The container's claims hold their share from take to delete and
+  wait as for a busy machine while it has no room.
   Break: `> BUDGET_GB` -> `> BUDGET_GB * 2` in `take` -> the side job joins two Blender claims; or drop `ahead or` ->
   the side job starts before the waiting film claim; or `key = entry["group"] or entry["id"]` -> `key = entry["id"]`
-  in `in_use` -> the second Blender claim of the same group waits; or drop `os.set_inheritable(...)` in `run` -> the
-  command holds nothing; or drop the `if handle and share is None:` block in `local.take` -> the pixal claim starts
+  in `in_use` -> the second Blender claim of the same group waits; or drop `{containers()}` in `status` -> no
+  containers' memory; or drop the `ask_back(...)` call in `take` -> the film claim is never admitted; or drop `stop(child)`
+  after the give-way line in `run` -> the first tuning stays alive; or `return child.returncode` -> `continue` in
+  `run` -> it never ends; or drop the `if handle and share is None:` block in `local.take` -> the pixal claim starts
   beside the side job; or drop `CARDS[machine_id] = share` in `local.take` -> the claim's share is let go at once.
 """
 import json
@@ -157,6 +161,7 @@ def card_queue_folder(monkeypatch, tmp_path):
     """This PC's card queue in the test's own folder, never the PC's real one."""
     monkeypatch.setattr(card_queue, "QUEUE", tmp_path / "card-queue")
     monkeypatch.setattr(card_queue, "WAITING", {})
+    monkeypatch.setattr(card_queue, "containers", lambda: "score-this-pc 3GiB / 27GiB")
     return card_queue.QUEUE
 
 
@@ -692,16 +697,44 @@ def test_the_card_queue_never_passes_the_card_and_a_waiting_film_claim_keeps_sid
     film = card_queue.take("pixal", 10.8, "film")
     assert film and card_queue.take("tuning", None, "side") is None  # unmeasured: the whole card
     card_queue.release(film)
-    holder = subprocess.Popen([sys.executable, card_queue.__file__, "run", "--job", "proof", "--card-gb", "13", "--",
-                               sys.executable, "-c", "import sys; sys.stdin.read()"],
-                              stdin=subprocess.PIPE, env={**os.environ, "SCORE_CARD_QUEUE": str(card_queue_folder)})
-    give_up = time.time() + 30
-    while "held proof" not in card_queue.status() and time.time() < give_up:
+    assert card_queue.status().startswith("card 0.0 of 13.5 GB held, 2 waiting; score-this-pc 3GiB / 27GiB")
+
+
+def until(done, seconds=30):
+    """Whether `done()` came true within `seconds`, asked every 50 ms (the subprocess under test works meanwhile)."""
+    give_up = time.time() + seconds
+    while not done() and time.time() < give_up:
         time.sleep(0.05)
-    assert card_queue.take("pixal", 10.8, "film") is None  # the exec'd command holds the share
+    return done()
+
+
+def test_a_side_job_gives_the_card_way_to_a_film_claim_waiting_and_starts_again_after(monkeypatch, card_queue_folder,
+                                                                                         tmp_path, request):
+    starts = tmp_path / "starts"
+    tuning = (f"import os, sys; open({str(starts)!r}, 'a').write(f'{{os.getpid()}}\\n'); sys.stdin.read()")
+    holder = subprocess.Popen([sys.executable, card_queue.__file__, "run", "--job", "tuning", "--card-gb", "6", "--",
+                               sys.executable, "-c", tuning],
+                              stdin=subprocess.PIPE, env={**os.environ, "SCORE_CARD_QUEUE": str(card_queue_folder)})
+    request.addfinalizer(holder.kill)  # a red run leaves no queue runner behind (its command ends with it)
+    assert until(lambda: starts.exists() and "held tuning" in card_queue.status())
+    assert card_queue.take("pixal", 10.8, "film") is None  # 6 + 10.8 passes the card: it waits
+    monkeypatch.setattr(card_queue, "YIELD_SECONDS", 0)  # it has waited long enough: the side share is asked back
+    film = None
+
+    def admitted():
+        nonlocal film
+        film = film or card_queue.take("pixal", 10.8, "film")
+        return film
+
+    assert until(admitted)
+    first = int(starts.read_text().split()[0])
+    with pytest.raises(ProcessLookupError):
+        os.kill(first, 0)  # the tuning was stopped, not left on the card beside the film claim
+    assert "waits tuning" in card_queue.status()  # its run waits again behind the film claim, its share given back
+    card_queue.release(film)
+    assert until(lambda: len(starts.read_text().split()) == 2)  # started again once the film claim let go
     holder.stdin.close()
-    holder.wait(30)
-    assert card_queue.take("pixal", 10.8, "film")  # it ended: its share is free
+    assert holder.wait(30) == 0 and card_queue.take("pixal", 10.8, "film")  # it ended: its share is free
 
 
 def test_this_pc_claims_hold_their_card_share_and_wait_while_a_side_job_holds_the_card(monkeypatch, tmp_path):

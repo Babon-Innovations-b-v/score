@@ -81,8 +81,11 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   own `card_gb`, else the whole card) at priority `film`; any other card user (sim body tuning, a proof container, a
   scratch run) starts under `python3 tools/cloud/backends/card_queue.py run --job <name> --card-gb <measured GB>
   --priority side -- <command>`, which waits for its share and execs the command holding it, and `card_queue.py
-  status` says what holds the card and what waits. A film claim that waits keeps side jobs off until it has its share;
-  a side job already on the card is not stopped. The queue's folder (`~/.score-card`, `SCORE_CARD_QUEUE`) is one for
+  status` is the PC's line (the card's shares, what waits, each container's memory) and what holds the card. A film
+  claim that waits keeps side jobs off until it has its share, and after `card_queue.YIELD_SECONDS` (60) asks the side
+  shares back: `run` stops its command's session (SIGTERM, SIGKILL after 30 s; never SIGSTOP, which keeps the card's
+  memory held), waits again and starts the command again once the card is free, so a side job must resume from its own
+  checkpoints (sim body's level 1 tuning does). The queue's folder (`~/.score-card`, `SCORE_CARD_QUEUE`) is one for
   the whole PC, whatever `PROPS_HOME` a run works under.
 - **The only way models are made**, one or a hundred: no model runs on the owner's PC (owner,
   2026-10-03; `../local_models.py`). `batch.py` makes models, `pictures.py` pictures, `scene.py`
