@@ -35,9 +35,11 @@ nvidia-smi --query-gpu=name,driver_version,memory.total,compute_cap --format=csv
 ARCH="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -1 | tr -d '.')"
 
 apt-get update -qq
-apt-get install -y -qq build-essential cmake git wget unzip xz-utils libjpeg-dev libpng-dev libzstd-dev liblz4-dev \
-  libopencv-dev libgl1-mesa-dev libglew-dev libgl1 libegl1 libxi6 libxxf86vm1 libxfixes3 libxrender1 libsm6 \
-  libxkbcommon0 libx11-6 libglib2.0-0 >/dev/null
+# python3-pip, python3-venv and libpthread-stubs0-dev complete SAM3DBody-cpp's own dependency list (its
+# scripts/setup.sh SYSTEM_DEPENDENCIES): it installs a missing one with sudo, which this PC's container has not.
+apt-get install -y -qq python3-pip python3-venv libpthread-stubs0-dev build-essential cmake git wget unzip xz-utils \
+  libjpeg-dev libpng-dev libzstd-dev liblz4-dev libopencv-dev libgl1-mesa-dev libglew-dev libgl1 libegl1 libxi6 \
+  libxxf86vm1 libxfixes3 libxrender1 libsm6 libxkbcommon0 libx11-6 libglib2.0-0 >/dev/null
 curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/root/uv sh >/dev/null
 UV=/root/uv/uv
 
