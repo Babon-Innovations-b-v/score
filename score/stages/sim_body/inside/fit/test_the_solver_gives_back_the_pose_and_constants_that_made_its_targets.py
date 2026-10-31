@@ -52,6 +52,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   1e-3 rad a step and raises NotConverged.
 - (2026-10-29) _constants.told's kept `np.abs(np.diag(upper)) >= TOLD` made `>= 0`: every inside axis is solved, the
   pair's common shift and the hinge's axis among them.
+- (2026-10-31) _constants.told's QR pivoted again (`pivoting=True`, kept by its order): of the pair's two bodies the
+  one whose marks' trust is doubled is kept (on tall a 5 % change flipped humphant_l's y and humphant1_l's, level 2's
+  constants a centimetre apart between level 1's nudged sets).
 - (2026-10-29) _constants.off_span's `scaled.T @ columns` made `scaled.T @ columns * 0.5`: the Gram path's projection
   is not the QR's.
 - (2026-10-30) _skin.marks_kernel's depth `warp.where(found.sign >= 0.0, ..., 0.0)` made the distance alone: a point
@@ -189,23 +192,35 @@ def only_what_the_data_tells_is_an_inside_unknown():
     from fit._card._level2 import jacobian
     from scipy.sparse import csc_matrix
     from fit._constants import Problem, off_span, qr_off_span, told
-    with tempfile.TemporaryDirectory() as folder:
-        path = pathlib.Path(folder) / "traded.xml"
-        path.write_text(TRADED)
-        marks = [(f"{body}{axis}", body, np.eye(3)[axis] * 0.05) for body in ("hip", "back", "top") for axis in range(3)]
-        fitting = Fitting(path, [("base", "base", np.eye(3))], marks, (), None, [{"base", "hip", "back", "mid", "top"}])
-    poses = np.tile(fitting.model.qpos0, (4, 1))
-    poses[:, 3:7] = Rotation.from_rotvec([[0, 0, 0], [0.3, 0, 0], [0, 0.4, 0.1], [0.1, -0.2, 0.5]]).as_quat(scalar_first=True)
-    poses[:, 7] = [0.0, 0.5, -0.4, 1.0]
-    turns, points, data = [], [], mujoco.MjData(fitting.model)
-    for pose in poses:
-        data.qpos[:] = pose
-        mujoco.mj_kinematics(fitting.model, data)
-        turns.append(data.site_xmat[fitting.frame_sites].reshape(-1, 3, 3))
-        points.append(data.site_xpos[fitting.mark_sites].copy())
-    problem = Problem(fitting, poses, np.array(turns), np.array(points), fitting.neutral())
-    matrix = jacobian(problem, problem.start())
-    kept = told(problem, matrix)
+    def told_at(trusts):
+        """(the Problem, its Jacobian at the start, `told`'s kept) of the traded toy with the marks' `trusts`."""
+        with tempfile.TemporaryDirectory() as folder:
+            path = pathlib.Path(folder) / "traded.xml"
+            path.write_text(TRADED)
+            marks = [(f"{body}{axis}", body, np.eye(3)[axis] * 0.05) for body in ("hip", "back", "top")
+                     for axis in range(3)]
+            fitting = Fitting(path, [("base", "base", np.eye(3))], marks, (), trusts,
+                              [{"base", "hip", "back", "mid", "top"}])
+        poses = np.tile(fitting.model.qpos0, (4, 1))
+        poses[:, 3:7] = Rotation.from_rotvec([[0, 0, 0], [0.3, 0, 0], [0, 0.4, 0.1], [0.1, -0.2, 0.5]]).as_quat(
+            scalar_first=True)
+        poses[:, 7] = [0.0, 0.5, -0.4, 1.0]
+        turns, points, data = [], [], mujoco.MjData(fitting.model)
+        for pose in poses:
+            data.qpos[:] = pose
+            mujoco.mj_kinematics(fitting.model, data)
+            turns.append(data.site_xmat[fitting.frame_sites].reshape(-1, 3, 3))
+            points.append(data.site_xpos[fitting.mark_sites].copy())
+        problem = Problem(fitting, poses, np.array(turns), np.array(points), fitting.neutral())
+        matrix = jacobian(problem, problem.start())
+        return problem, matrix, told(problem, matrix)
+    # the pair's common shift is told by either body's axes: which is kept must not follow the trusts (one body's doubled)
+    picks = [told_at([1.0 + 1.0 * (body == heavier) for body in ("hip", "back", "top") for _ in range(3)])[2]
+             for heavier in ("hip", "back")]
+    if not np.array_equal(*picks):
+        return [f"the kept axes follow the trusts: {sorted(set(picks[0]) ^ set(picks[1]))}"]
+    problem, matrix, kept = told_at(None)
+    fitting = problem.fitting
     data = csc_matrix(matrix)[:matrix.shape[0] - len(problem.slots)]
     inside = np.arange(3 * len(problem.free), len(problem.slots))
     others, columns = data[:, np.setdiff1d(np.arange(data.shape[1]), inside)], data[:, inside].toarray()

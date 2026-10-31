@@ -45,7 +45,10 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   flat, card and 2-point ending 1.1-1.55 mm apart): an inside joint axis whose column of level 2's exact Jacobian at
   the start (the host's double kinematics, never the card's floats) lies within `TOLD` of the span of every other
   column (the markers' moves, the frames' coordinates, root place included) and of the inside axes kept before it
-  (column-pivoted QR) stays at its file's place. On the tall walker 38 of 96 axes: the pelvis (its common shift with
+  in the model's order (QR without pivoting; column-pivoted until 2026-10-31, when tall's c3, a landmark's trust,
+  showed the pivot flipping between humphant_l's y and humphant1_l's at a 5 % trust change: level 2's constants
+  jumped ~1 cm between level 1's nudged sets, their STEP and STEP/2 central differences 99.9 % apart; in the model's
+  order the kept set is the same in every set and they are 0.1 % apart, night/gpu2/c3) stays at its file's place. On the tall walker 38 of 96 axes: the pelvis (its common shift with
   the sacrum is the root's place), the welded root, thorax and cervical spine (the bimanual attachment above takes
   them), the capitate and metacarpals (their markers' own moves take them), each humphant1's y; every other axis,
   the clavicle phantoms and scapulae too, is told (least: a scapula's y, 4e-3).
