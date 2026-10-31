@@ -17,6 +17,7 @@ import mujoco
 
 import resting
 from myo._fixes import full_muscles, multi_joint_bodies, renamed, split
+from myo._movable import movable
 from sizing import (WRAPPER_KG, assumed, hip_width, kept_bodies, path_lengths, sized,
                     ungrouped_kg)
 
@@ -29,11 +30,12 @@ def _source_model(folder):
 
 
 def _fresh(source):
-    """A new spec of the published model, its floor gone."""
+    """A new spec of the published model, its floor gone, movable above the lower back (`movable`)."""
     spec = mujoco.MjSpec.from_file(source)
     spec.meshdir = spec.texturedir = str(pathlib.Path(source).parents[1])
     for geom in list(spec.worldbody.geoms):
         spec.delete(geom)
+    movable(spec)
     return spec
 
 

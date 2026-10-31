@@ -3,8 +3,8 @@ frame body the segment rides), the feet, the trunk's lumbar leaders and what Myo
 Newton); `sided` and `sided_map` write a `{Side}`/`{side}` name out for both sides."""
 FEET = ("Foot", "ToeBase")
 LACKS = {"Spine1, Spine2": "one lumbar joint spread over its five levels by the model's couplings",
-         "Neck1, Neck2, Head": "MyoFullBody's head and neck are rigid on its thorax",
-         "{Side}Shoulder": "the clavicle and scapula follow the arm's elevation (the model's shoulder rhythm)",
+         "Chest": "the thoracic spine's motion lumped in one three-axis joint at T12/L1 (myo._movable)",
+         "Neck1, Neck2, Head": "the neck turns at C7/T1 and flexes at C0/C1 (MyoHead's own two joints), no side bending",
          "{Side}Shin, {Side}Foot, {Side}ToeBase": "the knee, ankle, subtalar and toe joints are hinges"}
 # The lumbar leaders the residual reduction moves with the pelvis (the owner's: "adjust the pelvis and trunk path
 # slightly"), by the ends of their joint names.
@@ -49,8 +49,8 @@ GROUPS = {
 NO_COUNTERPART = {"patella_{side}": "kneecap: its slides and turn follow knee_angle_{side} (couplings)",
                   "Abdomen": "abdominal wall wrapper: Abs_t1 and Abs_t2 locked, Abs_r3 follows flex_extension"}
 # Bodies on a group's stretch with no target of their own.
-NO_TARGET = {"clavicle_{side}": "its two dofs follow shoulder_elv_{side}",
-             "scapula_{side}": "every shoulder-girdle dof follows shoulder_elv_{side}",
+NO_TARGET = {"clavicle_{side}": "its two sternoclavicular dofs lead, placed by its landmarks; the shoulder group's "
+                                "frame is the scapula",
              "talus_{side}": "ankle_angle_{side}; the foot group's frame is the calcaneus (subtalar)",
              "radius_{side}": "its pro_sup_{side} turn is SOMA's {Side}Hand twist",
              "lumbar5": "its flex_extension, lat_bending and axial_rotation lead every lumbar level",
