@@ -75,15 +75,15 @@ The invariants, each with the break that turns its test red (each applied once a
   `with card_turn(lock_path):` -> five bakes are on the card at once; or `range(CARD_SLOTS)` -> `range(1)` in
   `card_turn` -> one at a time.
 - This PC's card queue (card_queue.py, PRD #73) never lets its holders' shares pass the card's room (one group counted
-  once: the run's Blender claims), a film claim that waits keeps side jobs off until it has its share, an unmeasured
-  need takes the whole card, and `status` leads with the PC's line (shares, waiters, containers' memory). A film claim
+  once: the run's Blender claims), a first claim that waits keeps side jobs off until it has its share, an unmeasured
+  need takes the whole card, and `status` leads with the PC's line (shares, waiters, containers' memory). A first claim
   that waited YIELD_SECONDS asks side shares back: `run` stops its command's session, gives its share back, waits and
   starts the command again once the card is free. The container's claims hold their share from take to delete and
   wait as for a busy machine while it has no room.
   Break: `> BUDGET_GB` -> `> BUDGET_GB * 2` in `take` -> the side job joins two Blender claims; or drop `ahead or` ->
-  the side job starts before the waiting film claim; or `key = entry["group"] or entry["id"]` -> `key = entry["id"]`
+  the side job starts before the waiting first claim; or `key = entry["group"] or entry["id"]` -> `key = entry["id"]`
   in `in_use` -> the second Blender claim of the same group waits; or drop `{containers()}` in `status` -> no
-  containers' memory; or drop the `ask_back(...)` call in `take` -> the film claim is never admitted; or drop `stop(child)`
+  containers' memory; or drop the `ask_back(...)` call in `take` -> the first claim is never admitted; or drop `stop(child)`
   after the give-way line in `run` -> the first tuning stays alive; or `return child.returncode` -> `continue` in
   `run` -> it never ends; or drop the `if handle and share is None:` block in `local.take` -> the pixal claim starts
   beside the side job; or drop `CARDS[machine_id] = share` in `local.take` -> the claim's share is let go at once.
@@ -710,22 +710,23 @@ def test_card_turn_gives_the_card_to_its_slots_of_card_calls_at_a_time(tmp_path)
         assert not beside.is_alive()
 
 
-def test_the_card_queue_never_passes_the_card_and_a_waiting_film_claim_keeps_side_jobs_off(card_queue_folder):
-    first = card_queue.take("bake@lab", 9.7, "film", "blender")
-    second = card_queue.take("bake@hub", 9.7, "film", "blender")  # the same group: the card's turns are shared
+def test_the_card_queue_never_passes_the_card_and_a_waiting_first_claim_keeps_side_jobs_off(card_queue_folder):
+    first = card_queue.take("bake@lab", 9.7, "first", "blender")
+    second = card_queue.take("bake@hub", 9.7, "first", "blender")  # the same group: the card's turns are shared
     assert first and second
     assert card_queue.take("sim-body", 6, "side") is None  # 9.7 + 6 passes 13.5
     card_queue.release(first)
     card_queue.release(second)
     side = card_queue.take("sim-body", 6, "side")
-    assert side and card_queue.take("pixal", 10.8, "film") is None  # 6 + 10.8 passes it: the film claim waits
-    assert card_queue.take("proof", 1, "side") is None  # it would fit, but the film claim asked first
-    assert "2 waiting" in card_queue.status()  # the film claim and the proof
+    assert side and card_queue.take("pixal", 10.8, "first") is None  # 6 + 10.8 passes it: the first claim waits
+    assert card_queue.take("proof", 1, "side") is None  # it would fit, but the first claim asked first
+    assert card_queue.take("old-run", 1, "film") is None  # a run frozen before the rename still writes "film": first's rank
+    assert "3 waiting" in card_queue.status()  # the first claim, the proof and the old run
     card_queue.release(side)
-    film = card_queue.take("pixal", 10.8, "film")
+    film = card_queue.take("pixal", 10.8, "first")
     assert film and card_queue.take("tuning", None, "side") is None  # unmeasured: the whole card
     card_queue.release(film)
-    assert re.match(r"card 0\.0 of 13\.5 GB held, memory 0\.0 of 27 GiB, 2 waiting; \d+\.\d GB free; score-this-pc 3GiB / 27GiB",
+    assert re.match(r"card 0\.0 of 13\.5 GB held, memory 0\.0 of 27 GiB, 3 waiting; \d+\.\d GB free; score-this-pc 3GiB / 27GiB",
                     card_queue.status())
 
 
@@ -746,24 +747,24 @@ def test_a_side_job_gives_the_card_way_to_a_film_claim_waiting_and_starts_again_
                               stdin=subprocess.PIPE, env={**os.environ, "SCORE_CARD_QUEUE": str(card_queue_folder)})
     request.addfinalizer(holder.kill)  # a red run leaves no queue runner behind (its command ends with it)
     assert until(lambda: starts.exists() and "held tuning" in card_queue.status())
-    assert card_queue.take("pixal", 10.8, "film") is None  # 6 + 10.8 passes the card: it waits
+    assert card_queue.take("pixal", 10.8, "first") is None  # 6 + 10.8 passes the card: it waits
     monkeypatch.setattr(card_queue, "YIELD_SECONDS", 0)  # it has waited long enough: the side share is asked back
     film = None
 
     def admitted():
         nonlocal film
-        film = film or card_queue.take("pixal", 10.8, "film")
+        film = film or card_queue.take("pixal", 10.8, "first")
         return film
 
     assert until(admitted)
     first = int(starts.read_text().split()[0])
     with pytest.raises(ProcessLookupError):
-        os.kill(first, 0)  # the tuning was stopped, not left on the card beside the film claim
-    assert "waits tuning" in card_queue.status()  # its run waits again behind the film claim, its share given back
+        os.kill(first, 0)  # the tuning was stopped, not left on the card beside the first claim
+    assert "waits tuning" in card_queue.status()  # its run waits again behind the first claim, its share given back
     card_queue.release(film)
-    assert until(lambda: len(starts.read_text().split()) == 2)  # started again once the film claim let go
+    assert until(lambda: len(starts.read_text().split()) == 2)  # started again once the first claim let go
     holder.stdin.close()
-    assert holder.wait(30) == 0 and card_queue.take("pixal", 10.8, "film")  # it ended: its share is free
+    assert holder.wait(30) == 0 and card_queue.take("pixal", 10.8, "first")  # it ended: its share is free
     assert card_queue.measured().startswith("tuning: 2 takes, card 6.39 GB (2 alone), cores ")  # both runs measured
 
 
@@ -823,7 +824,7 @@ def test_this_pc_claims_of_different_kinds_run_side_by_side_each_in_its_own_cont
     alone = local.take("pixal", "key")
     assert alone and local.take("characters", "key", {"card_gb": 1, "memory_gb": 3}) is None  # now it holds it all
     local.delete(alone["id"], local.ZONE)
-    card_queue.release(card_queue.WAITING.pop(("this-pc characters", "film")))  # that claim stopped asking
+    card_queue.release(card_queue.WAITING.pop(("this-pc characters", "first")))  # that claim stopped asking
     monkeypatch.setattr(local, "OWN", False)  # the run did not ask for containers of their own: one, as before
     bakes = local.take("blender", "key")
     assert bakes["id"].startswith("score-this-pc:") and local.take("characters", "key", {"card_gb": 1,

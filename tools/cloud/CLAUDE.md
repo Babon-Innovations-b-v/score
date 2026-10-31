@@ -78,10 +78,10 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `cudaErrorDevicesUnavailable` while sim body's level 1 seeds held the card outside the run): every user of the card
   holds a measured share of it while it works, and the shares never pass the card less the desktop
   (`card_queue.BUDGET_GB`). The run's container claims take theirs in `local.take` (`local.CARD_NEED`, else the run's
-  own `card_gb`, else the whole card) at priority `film`; any other card user (sim body tuning, a proof container, a
+  own `card_gb`, else the whole card) at priority `first` (the sim body tuning too: the owner, 2026-10-31, sim bodies before the film); any other card user (a proof container, a
   scratch run) starts under `python3 tools/cloud/backends/card_queue.py run --job <name> --card-gb <measured GB>
   --priority side -- <command>`, which waits for its share and execs the command holding it, and `card_queue.py
-  status` is the PC's line (the card's shares, what waits, each container's memory) and what holds the card. A film
+  status` is the PC's line (the card's shares, what waits, each container's memory) and what holds the card. A first
   claim that waits keeps side jobs off until it has its share, and after `card_queue.YIELD_SECONDS` (60) asks the side
   shares back: `run` stops its command's session (SIGTERM, SIGKILL after 30 s; never SIGSTOP, which keeps the card's
   memory held), waits again and starts the command again once the card is free, so a side job must resume from its own

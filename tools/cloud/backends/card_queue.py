@@ -7,9 +7,9 @@ A share is an entry file in QUEUE's `held/`, its JSON the job, its card GB, its 
 exclusive flock on its open file for as long as the holder lives: a holder that dies frees its share with no clean-up.
 A take is admitted while the held shares (each group counted once, at its largest: the run's Blender claims share the
 card's turns, card_turn.py) and its own fit BUDGET_GB, and no fresh waiter of an earlier priority (ORDER) waits; a take
-that is not admitted leaves a waiting entry (`waiting/`, refreshed at each ask, stale after WAIT_SECONDS), so a film
+that is not admitted leaves a waiting entry (`waiting/`, refreshed at each ask, stale after WAIT_SECONDS), so a first
 claim the runner asks again every few seconds keeps every side job off the card until it has its share. A need not
-measured takes the whole card. A film claim that has waited YIELD_SECONDS asks every side share back (a mark under
+measured takes the whole card. A first claim that has waited YIELD_SECONDS asks every side share back (a mark under
 `yield/` for each): a side job on the card gives way at once rather than at its end, since a stopped process (SIGSTOP)
 keeps its card memory. QUEUE is one folder for the whole PC, never under a PROPS_HOME: the run and the agents work
 under different homes and share one card.
@@ -55,10 +55,11 @@ HOST_RESERVE_GB = 16
 # share's measured card GB, kept in QUEUE's measures.jsonl with its cores and memory when known (`measured` sums them).
 SAMPLER = json.loads(os.environ.get("SCORE_CARD_SAMPLER") or "null") or [
     "nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits", "-lms", "500"]
-ORDER = ("film", "side")  # earlier first: the run's work for the film, then everything else (tuning, proofs, scratch)
+ORDER = ("first", "side")  # earlier first: the run's claims and the sim body tuning, then everything else (proofs, scratch)
+RANK = {"first": 0, "film": 0, "side": 1}  # "film": the old name of "first", still written by runs frozen before it
 WAIT_SECONDS = 120  # a waiting entry not refreshed for this long waits no more (its process stopped asking)
 LOOK_SECONDS = 2  # between asks of `run` while it waits, and between its looks for its share asked back
-YIELD_SECONDS = 60  # a film claim waiting this long asks the side shares back
+YIELD_SECONDS = 60  # a first claim waiting this long asks the side shares back
 STOP_SECONDS = 30  # a side command asked back has this long after SIGTERM before SIGKILL
 WAITING = {}  # {(job, priority): this process's open waiting entry}
 
@@ -127,20 +128,20 @@ def entry(folder, job, need, priority, group, memory=0):
     return handle
 
 
-def take(job, card_gb=None, priority="film", group=None, memory=0):
+def take(job, card_gb=None, priority="first", group=None, memory=0):
     """A share of the card for `job` (`card_gb` measured, else the whole BUDGET_GB) and of the PC's memory (`memory`
     GiB; None: unmeasured, the whole memory_gb), held until `release`: its open entry file; None, with this process's
     waiting entry written or refreshed, while it does not fit or a waiter before it waits (an earlier priority, or the
     same one asking since earlier)."""
     need = min(card_gb or BUDGET_GB, BUDGET_GB)
-    rank = ORDER.index(priority)
+    rank = RANK[priority]
     with queue_lock():
         now = time.time()
         room = memory_gb()
         memory = room if memory is None else min(memory, room)
         mine = WAITING.get((job, priority))
         since = json.loads(pathlib.Path(mine.name).read_text())["since"] if mine else now
-        ahead = [waiter for waiter in live("waiting", now) if (ORDER.index(waiter["priority"]), waiter["since"])
+        ahead = [waiter for waiter in live("waiting", now) if (RANK[waiter["priority"]], waiter["since"])
                  < (rank, since) and (mine is None or waiter["id"] != pathlib.Path(mine.name).stem)]
         held = live("held")
         if ahead or in_use(held, group, need) > BUDGET_GB or sum(
@@ -150,7 +151,7 @@ def take(job, card_gb=None, priority="film", group=None, memory=0):
             else:
                 os.utime(mine.name)
             if not ahead and now - since >= YIELD_SECONDS:
-                ask_back([share for share in held if ORDER.index(share["priority"]) > rank])
+                ask_back([share for share in held if RANK[share["priority"]] > rank])
             return None
         if mine is not None:
             release(WAITING.pop((job, priority)))
@@ -324,7 +325,7 @@ def run(job, card_gb, priority, command, memory=0):
         if child.poll() is not None:
             release(handle, *used_since(before, handle.began))
             return child.returncode
-        print(f"card_queue: {job} gives the card way to a waiting film claim; it starts again after",
+        print(f"card_queue: {job} gives the card way to a waiting first claim; it starts again after",
               file=sys.stderr, flush=True)
         stop(child)
         release(handle, *used_since(before, handle.began))
