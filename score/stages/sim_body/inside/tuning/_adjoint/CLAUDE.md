@@ -26,6 +26,20 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   (8,233 whole-tape passes before), the block within 3.9e-5 of the old one's (two old runs differ by 5.6e-5 to
   6.7e-5, largest 0.106); the toy test's rows equal differences as before (passes 2 x 3 + 2 + 12 x 3; red with the
   slot not moved on, or the turn columns' term dropped).
+- `_check_columns.py` runs one BODY's cases (2026-10-31): the body's constants (`_real.body_constants`) and level 2
+  (built, sited check, factored) once from all the given clips, then each case's level 3, taping and solves. Before,
+  `evaluation.blocked` ran it once per case, and `_case.prepared` lays the recordings of the cases it is given, so
+  each block solved level 2 from that ONE clip while the evaluations (`measured_many`, one body's every clip) solve it
+  from seven: the hybrid's exact columns were the derivative of another function. Measured on tall's seven cases at
+  the gate's base set against central differences of the seven-clip evaluation (night/gpu2/fd7, mv/big's 25 sets:
+  STEP 0.4 and 0.2 on columns 0, 3, 261, 262): the one-clip tall_kimodo block 48 to 93 % off on every column, its base
+  rows 0.476 off the evaluation's (largest 1.74); the seven-clip blocks' base rows within 8e-4, columns 0, 261 and
+  262 within the differences' own STEP-to-STEP/2 spread (c0 0.3 to 2.5 %, c261 0.16 to 0.69 %, c262 3.3 to 6.9 %
+  against 4.4 to 10.2 %), c3 (a trust, the differences 3 to 43 % apart between their two steps) 10 to 55 %. Given one
+  case it equals the old per-case block (8.7e-5 of 0.106; two old runs 6.7e-5 apart). Tall's seven blocks in one
+  process 210 s on the loaded PC (env1 beside it), the first case 58 s, later ones 15 to 44 s. `per_frame_model` adds
+  each copy as its own world: in one world Newton's finalize tested every shape pair across all copies (~9 s of a
+  block under cProfile), the block within run noise.
 - An inner fit whose gradient exceeds the tolerance raises `Unconverged`: the caller reports that body, never uses it.
 - `Body` is one tuning body's inner problem at its optimum; `stacked_jacobian` is level 1's whole Jacobian in
   `tuning`'s row order (every body's rows, then the prior's), every body checked first (`refused`) and each one stopped

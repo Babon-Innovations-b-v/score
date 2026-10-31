@@ -16,17 +16,25 @@ from _bodies import copied_couplings  # noqa: E402
 from fit._card._sets import Sets  # noqa: E402
 
 
-def set_up(table, weights, root, cases, saved):
+def set_up(table, weights, root, cases, saved, found=None):
     """One body's `Clip`, its `Fitting`, its clips' targets ({case: (turns, points)}) and the person's file for the set whose table.json,
     weights.json and rest.json are `table`, `weights` and `root`'s (`cases` {case: job path}, one body); `saved`
-    (`_card_batch.Saved`) puts the module state back first, so a body never lays on top of another."""
+    (`_card_batch.Saved`) puts the module state back first, so a body never lays on top of another. `found`: the
+    body's constants when solved already (`body_constants`, from every clip of the body), else solved from `cases`'."""
     saved.restore()
     recordings = _case.prepared(table, weights, root, cases)
     clips, rig, path, targets = _card_batch.laid_clips(root, cases, recordings)
     _, (job, person, _, worlds) = next(iter(clips.items()))
     _, _, fitting = _card_batch.cached_set_up(job, person, rig, worlds, path,
-                                             _card_batch.recorded_targets(clips, targets))
+                                             _card_batch.recorded_targets(clips, targets), found)
     return _clip.for_fitting(fitting, path), fitting, targets, path
+
+
+def body_constants(table, weights, root, cases, saved):
+    """The body's constants (`fit.constants`, as `set_up` solves them) from every clip in `cases` (one body), its
+    person's file under `root`: level 2 solved once from all the body's clips, as the evaluations solve it."""
+    from fit import constants
+    return constants(*_card_batch.body_unfitted(table, weights, root, cases, saved))
 
 
 def soma_of(table, weights, root, cases, saved):
@@ -123,14 +131,16 @@ def solved_rows(clip, targets, seeds):
 
 def per_frame_model(fitting, path, frames):
     """Newton's model of the person's file at `path` (its inside joints moved as `fitting` holds them, as
-    `_clip.for_fitting` builds it) copied `frames` times, joint_q copy by copy, built with requires_grad for the tape."""
+    `_clip.for_fitting` builds it) copied `frames` times, joint_q copy by copy, built with requires_grad for the tape.
+    Each copy its own world: copies in one world made Newton's finalize test every shape pair across all of them
+    (`_find_shape_contact_pairs`, ~9 s of a block's ~45 s on tall_kimodo, 2026-10-31); nothing here collides."""
     import newton
     one = newton.ModelBuilder(up_axis=newton.Axis.Z)
     one.add_mjcf(str(path), convert_mjc_equality_constraints=False, parse_meshes=False)
     _clip.moved_inside(one, fitting)
     copied = newton.ModelBuilder(up_axis=newton.Axis.Z)
     for _ in range(frames):
-        copied.add_builder(one)
+        copied.add_world(one)
     return copied.finalize(device=_clip.DEVICE, requires_grad=True)
 
 
