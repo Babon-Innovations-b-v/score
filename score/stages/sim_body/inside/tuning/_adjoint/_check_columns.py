@@ -24,7 +24,7 @@ from _measures import TapedMeasures  # noqa: E402
 from _taped import turned_offsets  # noqa: E402
 from evaluation import _card_batch  # noqa: E402
 from fit import sampled_targets  # noqa: E402
-from fit._card._level2 import jacobian  # noqa: E402
+from fit._card._level2_wide import Wide  # noqa: E402
 from fit._constants import INSIDE, Problem, told  # noqa: E402
 from tuning._adjoint import arrow_hessian, case_rows, schur_solve, transposed_mixed  # noqa: E402
 from tuning._adjoint._level2 import (goal_weights, level2_arrow, level2_body, sited_problem_at,  # noqa: E402
@@ -57,6 +57,12 @@ def measures_on(clip, sites):
                          _real.turn_groups(clip, segments, worlds), _real.skin_parts(clip, rig, segments, worlds))
 
 
+def jacobian(problem, unknowns):
+    """Level 2's exact Jacobian off `problem`'s own: the card's float64 one on a `Wide` (the sited problem), the
+    host's on a `Problem` (equal to 8e-16, `fit/_card/_level2_wide`)."""
+    return problem.exact(unknowns)
+
+
 def level2_at_base():
     """Level 2's Body at the base set over every entry (as `_check_chained.py`'s, `_real.problem_at` off the base)."""
     fitting, recordings = _card_batch.body_unfitted(str(out / "table.json"), str(out / "weights.json"), out, cases,
@@ -67,8 +73,8 @@ def level2_at_base():
     low, high = first.bounds()
     begin = np.clip(first.start(), np.where(np.isfinite(low), low + INSIDE, low),
                     np.where(np.isfinite(high), high - INSIDE, high))
-    kept = told(first, jacobian(first, begin))
-    problem = Problem(fitting, angles, turns, points, constants, _real.level2_free(fitting))
+    kept = told(first, first.exact(begin))  # the host's, as `staged` reads it
+    problem = Wide(Problem(fitting, angles, turns, points, constants, _real.level2_free(fitting)))
     if problem.fitting.marks != names:
         raise ValueError("level 2's marks are not level 3's place sites in order")
     ends = sites.ends or 0
