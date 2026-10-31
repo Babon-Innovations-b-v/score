@@ -8,9 +8,9 @@ builds it unchanged; it lands as record/<place>.json in the output.
 
     inside       the plan encloses the place (walls or roofs drawn) on no ground of its own (no terrain spots)
     structure    an inside place's room shell from its plan (earth_seed/design_shell.pieces: each level's deck, the
-                 outline's walls with every opening cut, the roofs), stood in the place's frame as builders' `slab` and
-                 `gable` entries BACKING behind the plan's inside line; none where the place's base already lays it
-                 (design_shell.laid_for: a room whose plan says its kit holds its walls); and each stair or ramp the
+                 outline's walls with every opening cut, the roofs), stood in the place's frame as builders' `slab`,
+                 `gable`, `dome` and `tube_arc` (a vault) entries BACKING behind the plan's inside line; none where
+                 the place's base already lays it (design_shell.laid_for: a room whose plan says its kit holds its walls); and each stair or ramp the
                  plan draws as a flight of steps; an `arch` at each plan item of an arched structure row of the
                  hand-in (design_shell.arched: a tube's ribs), at the row's size, named its row; each entry's surface the scene's surface library's for its kind
                  (surface-library@<place>, read as an `after`: design_shell.PART_KINDS), else none and
@@ -144,6 +144,14 @@ def shell_entry(name, number, piece, design, said):
         del entry["points"]
         entry.update(centre=points[0], radius=round(piece["radius"], 4), base=round(floor + piece["base"], 4),
                      rise=round(piece["rise"], 4), layer=2)
+    elif piece["builder"] == "vault":  # builders' tube_arc runs along z from 0: turned a quarter about up to run east
+        arc = design_shell.vault_arc(entry.pop("points"), floor + piece["eave"], floor + piece["top"])
+        entry.update(builder="tube_arc", radius=round(arc["radius"], 4), axis_high=round(arc["axis_high"], 4),
+                     start=round(-arc["half"], 4), end=round(arc["half"], 4), length=round(arc["length"], 4),
+                     placed_at=[round(arc["start"][0], 4), 0.0, round(arc["start"][1], 4)],
+                     placed_turn=[0.0, math.sqrt(0.5), 0.0, math.sqrt(0.5)] if arc["along"][0]
+                     else [0.0, 0.0, 0.0, 1.0],
+                     layer=2)
     elif piece["builder"] == "gable":
         entry.update(eave=round(floor + piece["eave"], 4), top=round(floor + piece["top"], 4), layer=2)
     else:
