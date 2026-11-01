@@ -296,7 +296,8 @@ def whole(evaluate, check, entries, checkpoint, limit_seconds, start=None, every
     if first is None:
         raise RuntimeError("level 1's start did not evaluate: a body's level 3 did not stop on it")
     names = sorted(first)
-    pattern = sparsity(entries, labels(first[names[0]]), len(names))
+    pattern = sparsity(entries, sum((labels(first[name]) for name in names), []), 1)  # a clip with no unfolded
+    # skin frame has no rows: its folds are SOMA's alone, so its rows stay none at every evaluation
     kept = {start.tobytes(): first}
     checks = []
 

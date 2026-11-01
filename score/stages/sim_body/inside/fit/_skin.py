@@ -11,6 +11,8 @@ off the skin's closest point (`apart_kernel`: the same winding query, the closes
 float64), whose Jacobian in the point is the projector off the closest feature (the face's normal, an edge's plane, a
 corner's every axis): so a solve sees the skin's bend at its edges and corners, where a depth row's own Gauss-Newton
 square misses it. Nothing here moves SOMA."""
+import hashlib
+
 import mujoco
 import numpy as np
 import warp
@@ -35,14 +37,21 @@ POCKET_SEGMENT = "Head"  # the segment whose pockets a closed face covers (lips,
 # 4.61 / 4.603 / 4.735 deg: 1e3 the largest goal whose turns are no worse; env1's seated and standing astronauts read
 # fewer bones outside at it too (fit/CLAUDE.md). Level 2 holds no skin rows: its polish did not settle with them.
 SKIN_GOAL = 1.0e3
-# A frame whose posed skin lies inside itself over FOLD_MOST of its area (a deep squat's or a kneel's skin folding into
+# A frame whose posed skin folds into itself over FOLD_MOST of its area (a deep squat's or a kneel's skin folding into
 # itself, which no skeleton can follow) is left out of the skin rows of levels 1 and 3 and out of the bones-outside
 # share, and reported apart (the owner, 2026-11-01). A skin vertex lies inside itself when the point FOLD_IN in from it
-# along its normal winds 1.5 or more. On the mean body's 15 clips (every 10th frame, main's fit, 2026-11-01) 81 of 281
-# frames folded over 0.5 % held 79 % of the bones' squared depth outside, 24.8 % of their bone vertices outside
-# against 16.0 % on the rest.
+# along its normal winds 1.5 or more; it folds when that point winds FOLD_OWN or more on the skin across its own
+# segment's joints alone (`joined_faces`: its segment, its parent and its children; a knee's shin into its thigh), not
+# where it presses into a segment further off: a heavy body's upper arm into its chest past the shoulder, a hand on the
+# thigh (#70, 2026-11-01: by the whole skin l1h's five heavy standing clips read 0.5 to 2.8 % inside itself on every
+# frame, their rest pose 0.007 % at most, so every frame folded and their bones-outside share was NaN; by the joined
+# skin 0.00 to 0.17 %, none folded). On the mean body's 15 clips (every 10th frame, main's fit) 81 of 281 frames
+# folded by the whole skin (their bones 24.8 % outside against 16.0 % on the rest), 52 by the joined skin: every squat
+# and kneel frame over 0.7 % still folds (the three dropped, 0.55 to 0.68 %, are their clips' standing ends), the
+# arms-down frames of arms_raise and reach no longer (their upper arms into the chest).
 FOLD_MOST = 0.005
 FOLD_IN = 0.001  # m
+FOLD_OWN = 1.5  # the winding on the joined skin at which a doubly inside point folds rather than presses
 
 warp.config.quiet = True
 
@@ -286,7 +295,6 @@ def envelope(rig):
     ears), and a point's depth outside is to the face's skin or the pocket's lid. The inside test's faces
     (owner, 2026-11-01: the teeth read outside in every frame; 49 of a frame's 827 outside jaw and skull vertices sat in
     the mouth's slit, 22 in the eye sockets, the other 756 out of the face itself)."""
-    import hashlib
     from scipy.spatial import ConvexHull
     faces = np.asarray(rig["faces"], dtype=np.int32)
     key = hashlib.sha1(np.ascontiguousarray(rig["points"], dtype=np.float64).tobytes() + faces.tobytes()).hexdigest()
@@ -311,9 +319,9 @@ def _doubled(mesh: warp.uint64, points: warp.array(dtype=warp.vec3), found: warp
     found[point] = warp.where(query.sign < 0.0, 1.0, 0.0)
 
 
-def folded(verts, faces):
-    """The share of a posed skin's area (`verts`, its own `faces`, no pockets closed) lying inside itself: each vertex
-    by its area (a third of its faces'), inside itself when the point FOLD_IN in along its normal winds 1.5 or more."""
+def doubled(verts, faces):
+    """Whether each vertex of a posed skin (`verts`, its own `faces`, no pockets closed) lies inside itself: the point
+    FOLD_IN in along its normal winds 1.5 or more; and each vertex's area (a third of its faces')."""
     verts, faces = np.asarray(verts, dtype=np.float64), np.asarray(faces, dtype=np.int32)
     normals = np.zeros_like(verts)
     crossed = np.cross(verts[faces[:, 1]] - verts[faces[:, 0]], verts[faces[:, 2]] - verts[faces[:, 0]])
@@ -327,18 +335,70 @@ def folded(verts, faces):
     warp.launch(_doubled, dim=len(verts), device="cpu",
                 inputs=[mesh.id, warp.array((verts - FOLD_IN * normals).astype(np.float32), dtype=warp.vec3,
                                             device="cpu"), found])
-    return float(area[found.numpy() > 0].sum() / area.sum())
+    return found.numpy() > 0, area, verts - FOLD_IN * normals
 
 
-def unfolded(verts, faces):
-    """Whether a posed skin is kept in the skin rows and the share: it lies inside itself over at most FOLD_MOST of its
+def winding(points, triangles):
+    """Each point's generalised winding number on the triangles (n x 3 x 3), exact in float64 (Van Oosterom and
+    Strackee's solid angle, summed): open sheets give fractions."""
+    total = np.zeros(len(points))
+    for start in range(0, len(points), 64):
+        corners = triangles[None, :, :, :] - points[start:start + 64, None, None, :]
+        first, second, third = corners[:, :, 0], corners[:, :, 1], corners[:, :, 2]
+        lengths = [np.linalg.norm(corner, axis=-1) for corner in (first, second, third)]
+        turned = np.einsum("pfi,pfi->pf", first, np.cross(second, third))
+        under = (lengths[0] * lengths[1] * lengths[2] + np.einsum("pfi,pfi->pf", first, second) * lengths[2]
+                 + np.einsum("pfi,pfi->pf", second, third) * lengths[0]
+                 + np.einsum("pfi,pfi->pf", third, first) * lengths[1])
+        total[start:start + 64] = (2 * np.arctan2(turned, under)).sum(axis=1) / (4 * np.pi)
+    return total
+
+
+JOINED = {}  # {skin key: (each vertex's segment, each segment's joined faces mask)}, a rig's own
+
+
+def joined_faces(rig):
+    """(each skin vertex's segment, its heaviest skin weight; [segments x faces] whether a face's segment (its first
+    corner's) is that segment, its parent or a child of it: the skin across one joint), once per rig."""
+    faces = np.asarray(rig["faces"], dtype=np.int32)
+    weights = np.asarray(rig["weights"], dtype=float)
+    parents = np.asarray(rig["parents"], dtype=np.int64)
+    key = hashlib.sha1(np.ascontiguousarray(weights).tobytes() + faces.tobytes() + parents.tobytes()).hexdigest()
+    if key not in JOINED:
+        joints = np.arange(len(parents))
+        joined = ((joints[:, None] == joints[None, :]) | (parents[:, None] == joints[None, :])
+                  | (joints[:, None] == parents[None, :]))
+        owner = weights.argmax(axis=1)
+        JOINED[key] = owner, joined[:, owner[faces[:, 0]]]
+    return JOINED[key]
+
+
+def folded(verts, rig):
+    """The share of a posed skin's area (`verts`, the rig's own `faces`, no pockets closed) folding into itself: each
+    vertex by its area, a vertex lying inside itself (`doubled`) whose inward point winds FOLD_OWN or more on the skin
+    across its segment's joints (`joined_faces`: a knee's shin into its thigh); one pressing into a segment further off
+    (an upper arm into the chest past its shoulder, a hand on the thigh) is contact, not a fold."""
+    faces = np.asarray(rig["faces"], dtype=np.int32)
+    inside, area, points = doubled(verts, faces)
+    owner, joined = joined_faces(rig)
+    verts = np.asarray(verts, dtype=np.float64)
+    folds = np.zeros(len(verts), dtype=bool)
+    for segment in np.unique(owner[inside]):
+        mine = np.flatnonzero(inside & (owner == segment))
+        folds[mine] = winding(points[mine], verts[faces[joined[segment]]]) >= FOLD_OWN
+    return float(area[folds].sum() / area.sum())
+
+
+def unfolded(verts, rig):
+    """Whether a posed skin is kept in the skin rows and the share: it folds into itself over at most FOLD_MOST of its
     area (`folded`)."""
-    return folded(verts, faces) <= FOLD_MOST
+    return folded(verts, rig) <= FOLD_MOST
 
 
 def bones_outside(model, path, worlds, segments, rig):
     """({"all": %, region: %} of the bone vertices outside SOMA's posed skin over every EVERY-th frame whose skin is
-    `unfolded`, {"frames": the folded ones' count, "all": their own %}) (`FOLD_MOST`)."""
+    `unfolded`, {"frames": the folded ones' count, "all": their own %, "no unfolded frame": whether every one folds})
+    (`FOLD_MOST`). With no unfolded frame the shares are {}: no measure, never 0 or NaN."""
     data, meshes, shares, apart = mujoco.MjData(model), bone_meshes(model), {}, []
     for qpos, world in list(zip(path, worlds))[::EVERY]:
         data.qpos[:] = qpos
@@ -347,14 +407,15 @@ def bones_outside(model, path, worlds, segments, rig):
         labels = np.array([scored(region(bone)) for bone in bones])
         posed = skin(rig, segments, world)
         out = outside(points, posed, envelope(rig))
-        if not unfolded(posed, rig["faces"]):
+        if not unfolded(posed, rig):
             apart.append(float(out.mean()))
             continue
         shares.setdefault("all", []).append(float(out.mean()))
         for label in set(labels):
             shares.setdefault(label, []).append(float(out[labels == label].mean()))
     return ({label: round(100 * float(np.mean(found)), 2) for label, found in shares.items()},
-            {"frames": len(apart), "all": round(100 * float(np.mean(apart)), 2) if apart else 0.0})
+            {"frames": len(apart), "all": round(100 * float(np.mean(apart)), 2) if apart else 0.0,
+             "no unfolded frame": not shares})
 
 
 class PosedSkins:
@@ -386,7 +447,7 @@ class PosedSkins:
 def posed_skins(rig, segments, worlds):
     """SOMA's skin on every frame of `worlds` (`skin`, linear blend) in MuJoCo's frame, each kept when `unfolded`."""
     own = np.stack([skin(rig, segments, world) for world in np.asarray(worlds, dtype=float)])
-    return PosedSkins(own @ TO_OWN, envelope(rig), [unfolded(posed, rig["faces"]) for posed in own])
+    return PosedSkins(own @ TO_OWN, envelope(rig), [unfolded(posed, rig) for posed in own])
 
 
 def bone_bodies(model):

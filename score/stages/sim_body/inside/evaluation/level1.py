@@ -114,8 +114,10 @@ def main():
     rows, weights = tuning.applied(result.x, entries, starts, table, GLOBALS)
     (run / "result_table.json").write_text(json.dumps(tuning.relative(rows), indent=1))
     (run / "result_weights.json").write_text(json.dumps(weights))
-    tuned = evaluation.side_score(side(result.x, "tuning", "final"))
+    final = side(result.x, "tuning", "final")
+    tuned = evaluation.side_score(final)
     held = {"tuning score": tuned, "check score": checks[-1][1], "checks": checks,
+            "clips with no unfolded frame": evaluation.reported(final)["clips with no unfolded frame"],
             "accepted": evaluation.accepted(checks[-1][1], tuned)}
     (run / "held_out.json").write_text(json.dumps(held, indent=1))
     print(f"done: {result.message} tuning {tuned:.4f} check {checks[-1][1]:.4f} accepted {held['accepted']} "

@@ -13,6 +13,10 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
 - tuning.whole's `checks.append(("end", ...))` dropped: no held-out score at the end.
 - accepted's `1 + HELD_OUT_SHARE` made `1`: a check 5 % worse fails.
 - (2026-11-01) case_score given back its joints and turns terms: the score is no longer the bones outside alone.
+- (2026-11-01) side_score's `if score is not None` filter dropped: a clip with no unfolded skin frame (every frame
+  folded, l1h's tuning score nan) fails the sum; case_score's `None if share is None` dropped: None / 10 raises;
+  side_score's `if not scores: raise` dropped: a side with no scored clip divides by zero
+  (a_clip_with_no_unfolded_skin_frame_is_left_out_of_the_score_and_counted red).
 - measured's rest.json write dropped: the worker never sees the group ends' centres (2026-10-29).
 - blocked's second `run_all` over `again` dropped: a block the card refused once fails the whole step (2026-10-31).
 - measured reading `m.json` for `SOLVED`: the solver is handed the rounded copy (2026-10-29).
@@ -98,8 +102,23 @@ def test_an_evaluation_runs_every_tuning_body_once_two_at_most_at_once():
         assert json.loads((out / "rest.json").read_text()) == rest
         assert evaluation.side_score(found) == 10 / 10  # the bones outside alone (2026-11-01): turns, joints reported
         assert evaluation.reported(found) == {"turns median deg": 5.0, "turns worst group": "LeftLeg 5.00",
-                                              "joints median mm": 1.0}
+                                              "joints median mm": 1.0, "clips with no unfolded frame": []}
         assert all(value["joints mm"][0] == 1.0000004 for value in found.values())  # the solver's, unrounded
+
+
+def test_a_clip_with_no_unfolded_skin_frame_is_left_out_of_the_score_and_counted():
+    def clip(share):
+        return {"bones outside all %": share, "per group rms deg": {"LeftLeg": 5.0}, "turns deg": [5.0],
+                "joints mm": [1.0]}
+    found = {"heavy_sidestep": clip(None), "heavy_kimodo": clip(20.0), "slim_kimodo": clip(10.0)}
+    assert evaluation.case_score(found["heavy_sidestep"]) is None
+    assert evaluation.side_score(found) == 1.5  # the two scored clips' mean, never NaN, never a 0 for the third
+    assert evaluation.reported(found)["clips with no unfolded frame"] == ["heavy_sidestep"]
+    try:
+        evaluation.side_score({"heavy_sidestep": clip(None)})
+    except ValueError:
+        return
+    raise AssertionError("a side with no clip scored gave a score")
 
 
 def toy_sets_launch(calls, root, fail_once=()):

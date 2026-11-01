@@ -35,6 +35,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   own skin, the knee 1.033 rad off its target (a_clips_first_frame_is_not_held_in_another_parts_skin red).
 - (2026-11-01) _skin.unfolded's `<= FOLD_MOST` made `<= 2.0`: the overlapping cubes' frame is kept and its point reads
   1 m deep (a_skin_folding_into_itself_gives_no_rows red).
+- (2026-11-01) _skin.joined_faces' `| (parents[:, None] == joints[None, :]) | (joints[:, None] == parents[None, :])`
+  dropped (each segment joined to itself alone): the parent and child cubes fold 0, not over 0.4; made every segment
+  joined to every other: the sibling cubes fold 0.5 (a_skin_folding_into_itself_gives_no_rows red).
 - (2026-11-01) _skin.apart_kernel's `if kept[mesh] != 0:` made `... or True`: the folded frame's point reads 1 m deep
   (a_skin_folding_into_itself_gives_no_rows red).
 - (2026-11-01) PosedSkins.__getitem__ dropping `self.kept[frames]`: indexed skins read every frame kept.
@@ -715,18 +718,23 @@ def the_depth_is_the_nearest_faces_where_the_query_flips():
 
 
 def a_skin_folding_into_itself_gives_no_rows():
-    """A posed skin folding into itself (a deep squat's; no skeleton can follow it) is left out of the skin rows: on
-    two 2 m cubes as one mesh, standing apart its `_skin.folded` share is 0 and it is kept, overlapping by half (half
-    of each cube's corners inside the other) it is not, `PosedSkins` carries which through indexing and joining, and a
-    point 1 m outside reads 1 m off the kept frame's skin (`SkinMeshes.apart`) and 0 off the folded one's."""
+    """A posed skin folding into itself across a joint (a deep squat's knee; no skeleton can follow it) is left out of
+    the skin rows, a skin pressing into a segment further off (a heavy body's arm on its chest) is not: on two 2 m cubes
+    as one mesh, each its own segment, standing apart the `_skin.folded` share is 0 and the frame kept; overlapping by
+    half (half of each cube's corners inside the other) as parent and child it folds over 0.4 and is not kept, as two
+    siblings it folds 0 and is kept; `PosedSkins` carries which through indexing and joining, and a point 1 m outside
+    reads 1 m off the kept frame's skin (`SkinMeshes.apart`) and 0 off the folded one's."""
     import numpy as np
     from fit import _skin
     corners = np.array([[x, y, z] for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)], dtype=float)
     faces = np.array(CUBE_FACES + [[corner + 8 for corner in face] for face in CUBE_FACES], dtype=np.int32)
+    weights = np.zeros((16, 3))
+    weights[:8, 1], weights[8:, 2] = 1.0, 1.0
+    joined, siblings = ({"faces": faces, "weights": weights, "parents": parents} for parents in ([-1, 0, 1], [-1, 0, 0]))
     apart, folding = (np.concatenate([corners, corners + [shift, 0.0, 0.0]]) for shift in (5.0, 1.0))
-    shares = [_skin.folded(verts, faces) for verts in (apart, folding)]
-    problems = [] if shares[0] == 0.0 and shares[1] > 0.4 else [f"folded shares {shares}"]
-    posed = _skin.PosedSkins.joined([_skin.PosedSkins([verts], faces, [_skin.unfolded(verts, faces)])
+    shares = [_skin.folded(apart, joined), _skin.folded(folding, joined), _skin.folded(folding, siblings)]
+    problems = [] if shares[0] == 0.0 and shares[1] > 0.4 and shares[2] == 0.0 else [f"folded shares {shares}"]
+    posed = _skin.PosedSkins.joined([_skin.PosedSkins([verts], faces, [_skin.unfolded(verts, joined)])
                                      for verts in (apart, folding)])
     problems += [] if list(posed.kept) == [True, False] and list(posed[::-1].kept) == [False, True] else [
         f"kept frames {list(posed.kept)}"]

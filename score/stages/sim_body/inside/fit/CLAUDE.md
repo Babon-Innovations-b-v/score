@@ -206,17 +206,27 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   jaw outside went 28.2/42.5/45.5 % to 24.8/38.8/42.8 %, the head region 17.4/31.2/35.5 % to 15.9/29.7/34.4 %, "all"
   under 0.1 point: level 1's score changes with it.
 - **A frame whose skin folds into itself has no skin rows** (the owner, 2026-11-01: a deep squat's skin folds into
-  itself, which no skeleton can follow): `_skin.folded` is the share of a posed skin's area lying inside itself (a
-  vertex, by a third of its faces' area, whose point `FOLD_IN` 1 mm in along its normal winds 1.5 or more, on the skin's
-  own faces, no pockets closed); over `FOLD_MOST` (0.5 %) the frame is left out of the skin rows of levels 1 (the taped
+  itself, which no skeleton can follow): `_skin.folded` is the share of a posed skin's area folding into itself (a
+  vertex, by a third of its faces' area, whose point `FOLD_IN` 1 mm in along its normal winds 1.5 or more on the
+  skin's own faces, no pockets closed, and `FOLD_OWN` 1.5 or more on the faces across its own segment's joints alone,
+  `_skin.joined_faces`: its segment, parent and children). Skin pressing into a segment further off is contact, not a
+  fold (#70, 2026-11-01: l1h scored NaN, its five heavy standing clips, g19_sidestep, short_heavy_sidestep and
+  _circle, heavy_short_legged_rigwalk and _sidestep, 0.5 to 2.8 % inside themselves by the whole skin on every frame,
+  99 of 99 frames folded; the overlap was the upper arms into the chest past the shoulder and a hand on the thigh, not
+  the rest pose, which is 0.007 % at most; by the joined skin 0.00 to 0.17 %, 0 of 99 folded. Mean's 15 clips: 81 ->
+  52 of 281, every squat and kneel frame over 0.7 % still folded, arms_raise 8 -> 0 and reach 7 -> 0; scratch
+  `/tmp/foldfix`). Over `FOLD_MOST` (0.5 %) the frame is left out of the skin rows of levels 1 (the taped
   `tuning/_adjoint/_real.skin_parts`) and 3 (`PosedSkins.kept`, zero offsets in `apart_kernel` and the card's
   `_skin_step._points`; the taped level 3 rows drop its copies) and out of the bones-outside share and depth
   (`bones_outside`, `evaluation/_measure`, `_card/_measure`), each of which reports them apart: `skin folded frames`
-  {frames, all: their bone vertices' share outside}. Its basis (mean's 15 clips, every 10th frame, main's fit before the
-  skin rows, 2026-11-01): 182 of 281 frames fold over 0, holding 86 % of the bones' squared depth outside; 81 over
+  {frames, all: their bone vertices' share outside, and in the stage's record `no unfolded frame`}. A clip
+  whose every skin frame folds has no share at all ("bones outside all %" None, no region's share or depth, never 0 or
+  NaN): `evaluation.case_score` leaves it out of the score, `reported` and level 1's held_out.json name it ("clips
+  with no unfolded frame"), `tuning.whole` gives it no rows, its exact block has none. Its basis (mean's 15 clips, every 10th frame, main's fit before the
+  skin rows, 2026-11-01, by the whole-skin rule then): 182 of 281 frames fold over 0, holding 86 % of the bones' squared depth outside; 81 over
   0.5 %, 79 % of it, their bones 24.8 % outside against 16.0 % on the rest; 31 over 2 %, 72 %, 36.8 % against 16.2 %;
   the worst mean_kneel's frames 130 to 140 and mean_squat. The fold does not itself read a bone outside (the union
-  counts as inside): it marks poses past what the model's ranges reach. A frame's share costs about 25 ms on the CPU.
+  counts as inside): it marks poses past what the model's ranges reach. A frame's share costs 35 to 110 ms on the CPU (measured on the 20 clips above).
 - **The record states the honest measures first** (#70's audit item 2, 2026-10-29): `following` gives the bones
   outside SOMA's skin by region and the turns on main's frozen table before the joint mm (partly the ends' own pull)
   and the tree's-table turns; the frozen table is never edited to follow the tree.

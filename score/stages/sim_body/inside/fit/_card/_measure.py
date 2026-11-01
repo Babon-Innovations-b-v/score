@@ -71,7 +71,7 @@ def kept_skins(rig, segments, worlds, frames):
     `posed_key`."""
     key = posed_key(rig, segments, worlds)
     if key not in KEPT:
-        KEPT[key] = np.array([unfolded(points, rig["faces"]) for points in posed_skins(rig, segments, worlds, frames)])
+        KEPT[key] = np.array([unfolded(points, rig) for points in posed_skins(rig, segments, worlds, frames)])
     return KEPT[key]
 
 
@@ -185,7 +185,8 @@ def measures(model, angles, rig, segments, worlds, scales, skins=None):
     turns = turn_errors(model, data, worlds, segments)
     frozen = turn_errors(model, data, worlds, segments, frozen_turn)
     marks, depths = outside_marks(data, skins)
-    outside = skin_shares(marks[skins.kept], data.bones)
+    unfolded_any = bool(skins.kept.any())  # none: the clip's skin shares are no measure (`evaluation.case_score`)
+    outside = skin_shares(marks[skins.kept], data.bones) if unfolded_any else {}
     folded = marks[~skins.kept]
     return {"joints mm": cpu.summary(np.concatenate(list(joints.values()))),
             "per joint mm": {key: cpu.summary(value)[:2] for key, value in joints.items()},
@@ -196,8 +197,8 @@ def measures(model, angles, rig, segments, worlds, scales, skins=None):
             "turns deg, main's frozen table": cpu.summary(np.concatenate(list(frozen.values()))),
             "per group deg, main's frozen table": {key: cpu.summary(value)[:2] for key, value in frozen.items()},
             "bones outside skin %": {key: 100 * float(np.mean(value)) for key, value in outside.items()},
-            "bones outside depth mm": skin_depths(depths[skins.kept], data.bones),
-            "bones outside all %": 100 * float(np.mean(sum(outside.values(), []))),
+            "bones outside depth mm": skin_depths(depths[skins.kept], data.bones) if unfolded_any else {},
+            "bones outside all %": 100 * float(np.mean(sum(outside.values(), []))) if unfolded_any else None,
             "skin folded frames": {"frames": len(folded),
                                    "all": 100 * float(folded.mean()) if len(folded) else 0.0}}
 

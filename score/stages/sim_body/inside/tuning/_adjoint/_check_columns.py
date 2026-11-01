@@ -27,6 +27,8 @@ from _measures import TapedMeasures  # noqa: E402
 from _taped import turned_offsets  # noqa: E402
 from evaluation import _card_batch, body_of  # noqa: E402
 from fit import sampled_targets  # noqa: E402
+from fit._card._measure import kept_skins  # noqa: E402
+from fit._skin import EVERY  # noqa: E402
 from fit._card._level2_wide import Wide  # noqa: E402
 from fit._constants import INSIDE, Problem, told  # noqa: E402
 from tuning._adjoint import arrow_hessian, scaled_rows, schur_solve, transposed_mixed  # noqa: E402
@@ -230,6 +232,13 @@ def case_block(case, found, body):
     out, one = laid(root / case), {case: cases[case]}
     clip, fitting, targets, path = timed("case set-up", lambda: _real.set_up(
         str(out / "table.json"), str(out / "weights.json"), out, one, saved, found))
+    _, segments, worlds, rig = _real.soma_of(str(out / "table.json"), str(out / "weights.json"), out, one, saved)
+    if not kept_skins(rig, segments, worlds, np.arange(0, len(worlds), EVERY)).any():
+        # no unfolded skin frame: the case has no rows (`tuning.whole`, `evaluation.case_score`), never NaN ones
+        np.savez(root / f"{case}.npz", block=np.zeros((0, len(entries))), rows=np.zeros(0),
+                 entries=np.array([json.dumps(list(map(str, entry))) for entry in entries]))
+        print(json.dumps({"case": case, "shape": [0, len(entries)], "no unfolded frame": True}), flush=True)
+        return body
     rows, _ = timed("case level 3", lambda: _real.solved_rows(clip, targets, {case: __import__(
         "fit._card._seeds", fromlist=["first"]).first(seeds_root, case)}))
     model = timed("per-frame model", lambda: _real.per_frame_model(fitting, path, len(rows)))
