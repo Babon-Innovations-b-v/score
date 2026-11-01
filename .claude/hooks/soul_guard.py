@@ -58,7 +58,7 @@ NOT_A_QUESTION = re.compile(r"^\s*<(task-notification|system-reminder|local-comm
 ASKED_FOR_DETAIL = re.compile(
     r"\b(explain|walk me through|in detail|deep dive|full (report|picture|"
     r"breakdown)|everything|elaborate|why does|how does|write up|document|"
-    r"summar(y|ise|ize) of)\b",
+    r"summar(y|ise|ize) of|list (me )?(all|every)|all the|full list|every one)\b",
     re.IGNORECASE,
 )
 
