@@ -1,0 +1,9 @@
+{
+ "about": "The dusty air of the real bodies that have it (data/physics/bodies.json's keys), as tools/usd/mars_sky.py scatters it: a flat layer of dust over the ground lit by the place's sun, seen from its floor. depth its optical depth; albedo its single-scattering albedo in red, green and blue; forward the Henyey-Greenstein phase's forward throw; diffuse the many-times-scattered light as an even glow. The scene record carries a body's dust as the day sky (`sky_dome`) of a place standing outside on it (score/stages/scene_record/writer.py sky_dome); in `cited` the source of each body's values, by key of `sources`.",
+ "sources": {
+  "mars-dust": "The framework's since 2026-10-11 (paper-vs-world-1 item 17: Mars's sky a flat brown wall with no sun), the old data/scene records' sky_dome until eb01c402: single-scattering albedo 0.975 in red is Wolff et al. 2009 (JGR 114, E00D04) at 650 nm as Chen-Chen et al. 2019 (Icarus 330, MSL Navcam) take it; green 0.93 and blue 0.86 lower, as Wolff et al. found the dust takes more blue (the framework's numbers, not quoted); forward throw 0.67 is Chen-Chen et al. 2019's Navcam retrieval (0.673 +- 0.081); optical depth 0.6 the framework's choice for a clear afternoon outside the storm season; diffuse 0.25 the framework's"
+ },
+ "bodies": {
+  "mars": {"depth": 0.6, "albedo": [0.975, 0.93, 0.86], "forward": 0.67, "diffuse": 0.25, "cited": "mars-dust"}
+ }
+}

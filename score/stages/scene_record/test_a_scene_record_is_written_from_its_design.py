@@ -1,7 +1,7 @@
 """A scene record is written from its design alone, on a plan of its own (a small shed beside a yard on a site): its
 plan maps, and an item with no rows, a door that says nowhere it leads and a sealed door the layout leaves open each
 fail `mapped`; a written plan with no corner takes its outline; the record holds the shell cut round its door, its
-stair, a light over its lamp, the sky from the physics, the places its doors lead to and its backdrop rows are shown
+stair, a light over its lamp, the sky from the physics (outside on Mars its dusty day sky), the places its doors lead to and its backdrop rows are shown
 from, every object at its plan item waiting on its model, a row the plan lays only against its edge past it, a far
 row far off, each object carrying what holds it (its opening, its wall, its holder), an arched rib as a band, a light where a tower or a glowing row stands, and each part the scene
 library's surface; its gates fail a filled door, a moved lamp and a door to no place. Every spot is worked out by hand from the plans below.
@@ -142,7 +142,8 @@ def written(folder, design):
     (folder / "hand-in.json").write_text(json.dumps(HANDIN))
     inputs = {**inputs, "plan": out, "sky": folder / "sky.json", "hand-in": folder / "hand-in.json",
               "row kinds": REPO / "data/checks/row-kinds.json",
-              "lamp library": REPO / "data/library/lamps.json", "places": REPO / "data/definitions/place.json"}
+              "lamp library": REPO / "data/library/lamps.json", "places": REPO / "data/definitions/place.json",
+              "dust": REPO / "data/physics/dust.json"}
     record = folder / "record"
     record.mkdir()
     writer.make(inputs, record, 0, {})
@@ -227,6 +228,35 @@ def test_an_open_place_s_view_eye_stands_a_person_s_height_over_its_made_ground(
     assert [view["eye"][1] for view in writer.views(yard, 1.6, under)] == [3.6, 2.6]
     assert writer.ground_under({"terrain": str(tmp_path)}, "shed") is None and writer.ground_under({}, "yard") is None
     assert [view["eye"][1] for view in writer.views(yard, 1.6)] == [1.6, 2.6]
+
+
+def test_a_place_outside_on_mars_has_its_dusty_day_sky_and_one_inside_or_on_the_moon_none():
+    """2026-11-02, round 44: the day sky's dust left with the old records (eb01c402) and every outdoor Mars place's
+    sky was black, campgrounds' 192.8 levels off its concept's. An open place on Mars carries Mars's dusty air
+    (data/physics/dust.json: depth 0.6, albedo 0.975, 0.93, 0.86, forward 0.67, diffuse 0.25, its source said) with
+    the gain measured against the camp's old concept, and mars_sky draws it butterscotch, its red over its blue; an
+    enclosed place on Mars and an open one on the Moon (no dust) carry none; the file is a declared input.
+    Break: score/stages/scene_record/writer.py: `return found if dome is None else {**found, "sky_dome": dome}` ->
+        `return found`"""
+    sys.path.insert(0, str(REPO / "tools" / "usd"))
+    import mars_sky
+    from score.review import setting
+    from score.stages.scene_record import writer
+    dust = json.loads((REPO / "data/physics/dust.json").read_text())
+    on_mars = {"site": {"on": "mars", "latitude": 30.0, "longitude": 130.0, "height_m": 0.0},
+               "time": "2099-10-01T16:00:00Z", "setting": setting.now()}
+    yard = {"title": "YARD", "outline": [[0, 0], [10, 0], [10, 10], [0, 10]], "terrain": {"spots": [[5, 5]]}}
+    dome = writer.environment(yard, on_mars, dust)["sky_dome"]
+    assert {key: dome[key] for key in ("depth", "albedo", "forward", "diffuse", "gain")} == {
+        "depth": 0.6, "albedo": [0.975, 0.93, 0.86], "forward": 0.67, "diffuse": 0.25,
+        "gain": list(writer.SKY_GAIN)}, dome
+    assert "Wolff et al. 2009" in dome["from"] and "cited" not in dome, dome
+    picture = mars_sky.picture(dome, [0.0, -0.5, -0.866], 64)
+    red, _, blue = picture[: picture.shape[0] // 2].reshape(-1, 3).mean(axis=0)
+    assert red > blue > 0, (red, blue)
+    assert "sky_dome" not in writer.environment(WRITTEN, on_mars, dust)
+    assert "sky_dome" not in writer.environment(yard, {**on_mars, "site": {**on_mars["site"], "on": "moon"}}, dust)
+    assert writer.files("yard")["dust"] == "{data}/physics/dust.json"
 
 
 def test_a_view_eye_where_a_person_would_stand_in_a_thing_moves_out_with_its_look_kept():
