@@ -41,7 +41,7 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_torn_commit_guard_refuses_conflict_markers_and_a_broken_sourced_shell_contract: `sourced_shell_dirs` returns
   [] at once.
 - test_leftover_guard_says_once_that_a_worktree_holds_uncommitted_work: `session_worktree` returns None at once.
-- test_soul_guard_nudges_once_on_an_em_dash_or_a_long_answer_to_a_short_question: `broken_rules` returns [] at once.
+- test_soul_guard_sends_a_too_long_or_em_dash_reply_back_at_most_twice: `broken_rules` returns [] at once.
 - test_call_efficiency_nudges_on_three_single_fast_commands_and_lands_a_row: `is_single_fast` returns False at once.
 - test_checkout_current_catches_up_and_says_when_it_cannot: `catch_up` returns "" at once.
 - test_output_cap_spills_a_long_output_whole_and_summarises_it: `text_excerpt`'s `if matches:` made `if False:`.
@@ -652,7 +652,7 @@ def soul_turn(folder, question, reply):
     return {"transcript_path": str(path)}
 
 
-def test_soul_guard_nudges_once_on_an_em_dash_or_a_long_answer_to_a_short_question(tmp_path):
+def test_soul_guard_sends_a_too_long_or_em_dash_reply_back_at_most_twice(tmp_path):
     guard = HOOKS / "soul_guard.py"
     long_reply = " ".join(["word"] * 150)
     for name, question, reply, rule in (("a", "is it done?", "Yes — it is.", "Rule 3"),
@@ -661,8 +661,14 @@ def test_soul_guard_nudges_once_on_an_em_dash_or_a_long_answer_to_a_short_questi
         assert code == 0 and json.loads(out)["decision"] == "block" and rule in out, out
     for name, question, reply, extra in (("c", "is it done?", "Yes, it is.", {}),
                                          ("d", "explain in detail how the cache works", long_reply, {}),
-                                         ("e", "is it done?", "Yes — it is.", {"stop_hook_active": True})):
+                                         ):
         assert run(guard, dict(soul_turn(tmp_path / name, question, reply), **extra))[2] == "", name
+    # The rewrite is checked again: a still-long rewrite goes back once more, then the turn may end.
+    session = {"session_id": f"soul-twice-{tmp_path.name}"}
+    turn = soul_turn(tmp_path / "e", "is it done?", long_reply)
+    assert json.loads(run(guard, dict(turn, **session))[2])["decision"] == "block"
+    assert json.loads(run(guard, dict(turn, stop_hook_active=True, **session))[2])["decision"] == "block"
+    assert run(guard, dict(turn, stop_hook_active=True, **session))[2] == ""
 
 
 # call_efficiency: count single fast commands; nudge on the third in a row; land one row a session at Stop.
