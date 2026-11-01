@@ -98,5 +98,14 @@ paired changes, tuning and check bodies apart, verdicts once the run dir has flo
   and `blocked` runs every tuning body side by side (`most=SET_PROCESSES`; 6 before). Timing (night/l1g_work/t1,
   2026-11-01, l1f's 70 cases, before the region rows): an iteration 5.4 min (an evaluation about 1 min, the blocks
   4.6 min, every body 268 to 277 s, the taping 59 to 103 s of it), 19 to 33 GB left of 43, the card at 8.5 GB most.
+- **Each card process holds its own card share, never the run** (2026-11-01; l1h held 12 GB for its whole run under
+  `card_queue.py run`, the card at 1.5 GB and 1 % busy between its bursts while env1's claims waited): `run_all` starts
+  a `_card_sets` (`measured_many`) or `_check_columns` (`blocked`) process only once it holds its own share of this
+  PC's card queue (`CardShares`, tools/cloud/backends/card_queue.py `take`, job `sim-body-l1 <sets|blocks> <body>`, at
+  `sim-body` priority, watched), and gives it back the moment that process ends; `_case.py` (the CPU worker) and
+  level 1's own host work (scipy) hold none. Its size is the process's measured peak (`SETS_CARD_GB`,
+  `BLOCKS_CARD_GB`, how measured beside them). The seconds a ready body waited for its share are `CardShares.waited`,
+  which `tuning.solved` leaves off `--hours` (`paused`). Start level1.py outside the queue: wrapping it in
+  `card_queue.py run` holds a share for the whole run again.
 - Judged on following SOMA, never on landmark distances; `fit._frozen` is never edited to follow the tree's calibration.
 - Test: `test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py` (a toy worker, any Python with numpy and scipy).

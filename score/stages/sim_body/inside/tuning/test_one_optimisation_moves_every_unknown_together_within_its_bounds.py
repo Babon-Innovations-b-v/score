@@ -40,6 +40,8 @@ Breaks (each applied once, seen red, reverted):
   len(names))`): a first clip with no unfolded skin frame (no rows) leaves the pattern no skin rows, the solve
   breaks its Jacobian (IndexError: the pattern 5 rows, the residuals 14) (a_clip_with_no_unfolded_skin_frame_has_no_rows
   red).
+- (2026-11-01) solved's `- paused()` dropped: the seconds level 1's evaluations waited for their card shares count
+  against its --hours (seconds_waited_for_the_card red).
 - (2026-10-30) _differences.hybrid's `merged[:, chosen] = differenced[:, chosen]` dropped: the hybrid keeps the
   exact Jacobian's chosen (centre) columns in place of their differences.
 
@@ -49,6 +51,7 @@ import json
 import pathlib
 import sys
 import tempfile
+import time
 
 import numpy as np
 
@@ -121,6 +124,25 @@ def test_the_unknowns_are_solved_together_and_resumed_from_the_best():
         assert np.allclose(tuning.resumed(checkpoint, len(ENTRIES)), result.x, atol=1e-3)
         lower, upper = tuning.bounds(ENTRIES)
         assert (result.x >= lower).all() and (result.x <= upper).all()
+
+
+def test_seconds_waited_for_the_card_are_not_counted_against_the_time_limit():
+    target = np.linspace(-1.0, 1.0, len(ENTRIES))
+    coupling = np.eye(len(ENTRIES)) + 0.3 * np.ones((len(ENTRIES), len(ENTRIES)))
+    pattern = np.ones((len(ENTRIES), len(ENTRIES)), dtype=np.int8)
+    waited = [0.0]
+
+    def waiting(unknowns):  # every evaluation waits 0.1 s for its card share
+        time.sleep(0.1)
+        waited[0] += 0.1
+        return coupling @ (unknowns - target)
+    with tempfile.TemporaryDirectory() as folder:
+        paused = tuning.solved(waiting, ENTRIES, pattern, pathlib.Path(folder) / "a.jsonl", 0.09,
+                               start=np.zeros(len(ENTRIES)), paused=lambda: waited[0])
+        timed = tuning.solved(waiting, ENTRIES, pattern, pathlib.Path(folder) / "b.jsonl", 0.09,
+                              start=np.zeros(len(ENTRIES)))
+    assert np.allclose(paused.x, target, atol=1e-3)  # solved: its waits were no time of its own
+    assert timed.nfev < paused.nfev and not np.allclose(timed.x, target, atol=1e-3)  # stopped by the waits
 
 
 def test_an_exact_jacobian_replaces_the_differences():

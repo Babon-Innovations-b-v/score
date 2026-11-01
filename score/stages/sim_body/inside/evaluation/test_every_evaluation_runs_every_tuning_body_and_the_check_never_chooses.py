@@ -34,6 +34,11 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
 - (2026-11-01) batched_angles' `if evaluation.SKIN_ROWS` dropped, or fitted_case not passing `evaluation.SKIN_ROWS`
   to fitted_person: level 1's level 3 holds the skin rows, whose jumps between minima its gradient cannot follow;
   sim_body.clip_angles' `skin_rows` defaulting to False: the stage's people lose their skin rows.
+- (2026-11-01) run_all's `refused` made `False` (a body started without its card share), or its give_back on a
+  process's end dropped (the share held past it), or `shares.waited +=` dropped (a card wait counted as level 1's
+  time): a_card_process_runs_only_while_it_holds_its_share red; measured_many or blocked not passing `shares` to
+  run_all: their toy shares' takes never asked (every_set_of_a_jacobian and the_exact_jacobian
+  red: no share taken).
 - blocked launching one process a case again (`by_body` dropped: level 2 solved from one clip, seven times a body,
   2026-10-31), or exact_stacked stacking the blocks in their given order
   and not sorted as tuning.whole's rows are: a case's exact rows land on another case's residuals (2026-10-30).
@@ -47,6 +52,8 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 
 import numpy as np
 
@@ -121,6 +128,47 @@ def test_a_clip_with_no_unfolded_skin_frame_is_left_out_of_the_score_and_counted
     raise AssertionError("a side with no clip scored gave a score")
 
 
+class FreeShares:
+    """A toy CardShares whose card always has room (the real queue is the card share test's, in its own folder)."""
+    def __init__(self):
+        self.waited, self.taken, self.given = 0.0, [], []
+
+    def take(self, body):
+        self.taken.append(body)
+        return body
+
+    def give_back(self, handle):
+        self.given.append(handle)
+
+
+def test_a_card_process_runs_only_while_it_holds_its_share_and_its_wait_is_not_level_1s_time():
+    queue = evaluation.card_queue()
+    with tempfile.TemporaryDirectory() as folder:
+        queue.QUEUE, queue.SAMPLER = pathlib.Path(folder) / "queue", ["true"]
+        other = queue.take("env-run blender", queue.BUDGET_GB - 0.5, "env-run")  # the card all but held by another
+        shares, held_at_launch = evaluation.CardShares("sets", 1.0, queue=queue), []
+        freed = threading.Timer(3.0, queue.release, [other])
+        freed.start()
+
+        def launch(body, cases):
+            with queue.queue_lock():
+                held_at_launch.append((body, sorted(share["job"] for share in queue.live("held"))))
+            return subprocess.Popen([sys.executable, "-c", "import time; time.sleep(0.5)"])
+        began = time.time()
+        codes = evaluation.run_all({"tall": {}, "slim": {}}, pathlib.Path(folder), sys.executable, most=1, free_gb=0,
+                                   launch=launch, shares=shares)
+        freed.join()
+        with queue.queue_lock():
+            left = queue.live("held")
+        measured = (queue.QUEUE / "measures.jsonl").read_text().splitlines()
+    assert codes == {"tall": 0, "slim": 0}
+    assert time.time() - began >= 3.0  # neither started before the other's share was given back
+    assert held_at_launch[0] == ("tall", ["sim-body-l1 sets tall"]), held_at_launch  # its own share, the other's gone
+    assert held_at_launch[1] == ("slim", ["sim-body-l1 sets slim"])  # tall's given back when its process ended
+    assert left == [] and len(measured) == 2  # each share given back at its process's end, measured
+    assert 2.0 <= shares.waited <= time.time() - began, shares.waited  # the wait counted, the run itself not
+
+
 def toy_sets_launch(calls, root, fail_once=()):
     """A toy `measured_many` launch: writes every set's measures (its table) for the body's cases, as the card
     process would; a body in `fail_once` fails its first try."""
@@ -141,8 +189,11 @@ def test_every_set_of_a_jacobian_runs_in_one_card_process_a_body_and_gets_its_ow
     with tempfile.TemporaryDirectory() as folder:
         root, calls, cases = pathlib.Path(folder) / "jacobian", [], evaluation.picked(CASES, SPLIT, "tuning")
         sets = [({"set": index}, {"marker goal": 1.0}, {"centres": {}}) for index in range(3)]
+        shares = FreeShares()
         found = evaluation.measured_many(sets, cases, root, sys.executable, "/seeds",
-                                         launch=toy_sets_launch(calls, root, fail_once=("short",)), free_gb=0)
+                                         launch=toy_sets_launch(calls, root, fail_once=("short",)), free_gb=0,
+                                         shares=shares)
+        assert sorted(shares.taken) == sorted(shares.given) == ["short", "short", "slim", "tall"]  # one a process
         assert sorted(body for body, _ in calls) == ["short", "short", "slim", "tall"]  # a failed body once more
         assert all(evaluation.SAME_SEEDS in command and "/seeds" in command for _, command in calls)
         assert all(sorted(given.split("=")[0] for given in command[-2:]) == [f"{body}_kimodo", f"{body}_rigwalk"]
@@ -155,7 +206,8 @@ def test_a_jacobian_over_the_chunk_runs_its_chunks_in_one_process_a_body_each_se
         root, calls, cases = pathlib.Path(folder) / "jacobian", [], evaluation.picked(CASES, {"tuning": ["tall"]}, "tuning")
         sets = [({"set": index}, {"marker goal": 1.0}, {"centres": {}}) for index in range(5)]
         found = evaluation.measured_many(sets, cases, root, sys.executable, "/seeds",
-                                         launch=toy_sets_launch(calls, root), chunk=2, free_gb=0)
+                                         launch=toy_sets_launch(calls, root), chunk=2, free_gb=0,
+                                         shares=FreeShares())
         assert len(calls) == 1
         assert sorted(path.parent.name for path in root.glob("p*/s*")) == \
             ["p000", "p000", "p001", "p001", "p002"]
@@ -263,7 +315,10 @@ def test_the_exact_jacobian_stacks_each_cases_own_block_in_whole_order_then_the_
             for case, job in given.items():
                 np.savez(out / f"{case}.npz", block=np.full((2, len(entries)), float(len(job))))
             return subprocess.Popen(["true"])
-        blocks = evaluation.blocked({}, {}, {}, cases, out, "python", "/seeds", launch=launch, free_gb=0)
+        shares = FreeShares()
+        blocks = evaluation.blocked({}, {}, {}, cases, out, "python", "/seeds", launch=launch, free_gb=0,
+                                    shares=shares)
+        assert sorted(shares.taken) == sorted(shares.given) == ["heavy", "heavy", "tall"]  # one a process
         jacobian = level1.exact_stacked(blocks, np.zeros(len(entries)), entries)
     by_case = [len(cases[case]) for case in sorted(cases)]
     assert jacobian.shape == (6 + 2, len(entries))

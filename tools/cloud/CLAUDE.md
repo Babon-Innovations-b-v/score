@@ -78,7 +78,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `cudaErrorDevicesUnavailable` while sim body's level 1 seeds held the card outside the run): every user of the card
   holds a measured share of it while it works, and the shares never pass the card less the desktop
   (`card_queue.BUDGET_GB`). The run's container claims take theirs in `local.take` (`local.CARD_NEED`, else the run's
-  own `card_gb`, else the whole card) at priority `env-run`; the sim body tuning at `sim-body`, before it (the owner, 2026-10-31: sim bodies before the film); any other card user (a proof container, a
+  own `card_gb`, else the whole card) at priority `env-run`; the sim body tuning at `sim-body`, before it (the owner, 2026-10-31: sim bodies before the film), each of level 1's card processes its own measured share while it runs, never the run as a whole (`score/stages/sim_body/inside/evaluation` `CardShares`; 2026-11-01: l1h's whole-run 12 GB sat at 1 % busy between its bursts while env1's claims waited); any other card user (a proof container, a
   scratch run) starts under `python3 tools/cloud/backends/card_queue.py run --job <name> --card-gb <measured GB>
   --priority other -- <command>`, which waits for its share and execs the command holding it, and `card_queue.py
   status` is the PC's line (the card's shares, what waits, each container's memory) and what holds the card. An earlier-ranked

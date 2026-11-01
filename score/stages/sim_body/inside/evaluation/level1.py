@@ -5,7 +5,9 @@ calibration table's rest); it gets evals/ (the latest evaluations),
 checkpoint.jsonl (every evaluation and iteration; a restart resumes from its best), check.jsonl (the held-out score
 every --every iterations, 3 unless given, and at the end), steps.jsonl (each check against the one before: per-case paired changes of
 the honest measures, tuning and check bodies apart, verdicts past floor.json when the run dir has it, `tuning._paired`), result_table.json (its trusts relative, the largest 1), result_weights.json and held_out.json (the check bodies'
-score against the tuning bodies', accepted within 10 %). With --card every evaluation runs on the card
+score against the tuning bodies', accepted within 10 %). Each card process holds its own share of this PC's card
+queue while it runs (`evaluation.CardShares`, sim-body priority), so start level 1 outside the queue; --hours counts
+no second a process waited for its share. With --card every evaluation runs on the card
 (`evaluation.measured_many`, seeded from the seeds root's angles), a Jacobian's nudged sets in one process; with --exact too the Jacobian is exact
 (`exact_stacked`: each tuning case's block, `evaluation.blocked`, then the prior's columns). The unknowns are the
 links, trusts and the two global weights (`tuning.layout` with no group-end centres: since 2026-11-01 level 1 aims at
@@ -59,6 +61,10 @@ def main():
     latest = {}
     sides = {case: name for name in ("tuning", "check") for case in evaluation.picked(cases, split, name)}
     noise = json.loads((run / "floor.json").read_text())["floor"] if (run / "floor.json").exists() else None
+    sets_shares = evaluation.CardShares("sets", evaluation.SETS_CARD_GB) if given.card else None
+    blocks_shares = evaluation.CardShares("blocks", evaluation.BLOCKS_CARD_GB) if given.exact else None
+    jacobian_shares = evaluation.CardShares("jacobian", evaluation.CHUNK_CARD_GB) if given.card else None
+    shares = (sets_shares, blocks_shares, jacobian_shares)  # their card waits are not level 1's --hours
 
     def worker_set(unknowns):
         rows, weights = tuning.applied(unknowns, entries, starts, table, GLOBALS)
@@ -68,13 +74,13 @@ def main():
         picked = evaluation.picked(cases, split, name)
         if given.card:
             return evaluation.measured_many([worker_set(unknowns)], picked, run / "evals" / label, given.python,
-                                            given.card, unconverged=unconverged)[0]
+                                            given.card, unconverged=unconverged, shares=sets_shares)[0]
         return evaluation.measured(*worker_set(unknowns), picked, run / "evals" / label, given.python)
 
     def evaluate_many(sets):
         return evaluation.measured_many([worker_set(unknowns) for unknowns in sets],
                                         evaluation.picked(cases, split, "tuning"), run / "evals" / "jacobian",
-                                        given.python, given.card, unconverged=True)
+                                        given.python, given.card, unconverged=True, shares=jacobian_shares)
 
     def evaluate(unknowns):
         count[0] += 1
@@ -89,7 +95,7 @@ def main():
 
     def exact(unknowns):
         blocks = evaluation.blocked(*worker_set(unknowns), evaluation.picked(cases, split, "tuning"),
-                                    run / "evals" / "exact", given.python, given.card)
+                                    run / "evals" / "exact", given.python, given.card, shares=blocks_shares)
         return exact_stacked(blocks, unknowns, entries)
 
     def check(unknowns):
@@ -110,7 +116,8 @@ def main():
         return score
     result, checks = tuning.whole(evaluate, check, entries, run / "checkpoint.jsonl", given.hours * 3600,
                                   every=given.every, evaluate_many=evaluate_many if given.card else None,
-                                  exact=exact if given.exact else None)
+                                  exact=exact if given.exact else None,
+                                  paused=lambda: sum(kind.waited for kind in shares if kind))
     rows, weights = tuning.applied(result.x, entries, starts, table, GLOBALS)
     (run / "result_table.json").write_text(json.dumps(tuning.relative(rows), indent=1))
     (run / "result_weights.json").write_text(json.dumps(weights))
