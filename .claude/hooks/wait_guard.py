@@ -95,6 +95,10 @@ def blocked(tool_input, settings):
     """Why this Bash call waits in the foreground, or None."""
     if tool_input.get("run_in_background"):
         return None
+    if "timeout_ms" in tool_input:
+        # The Monitor tool's script reaches this hook as a Bash call; its loop is
+        # the background watch this guard sends people to, never a foreground wait.
+        return None
     command = _MESSAGE.sub("-m ''", tool_input.get("command") or "")
     return long_sleep(command) or poll_loop(command) or long_run(command, _foreground_runs(settings))
 
