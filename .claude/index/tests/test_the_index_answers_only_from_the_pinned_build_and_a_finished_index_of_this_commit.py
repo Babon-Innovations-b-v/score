@@ -1,45 +1,34 @@
 """The code index answers only through the pinned binary and from a finished index of the commit asked about.
 
-Its GitHub issues are part of that answer: fetched with `gh`, written into the index as Issue rows with CHILD_OF
-edges, put back after a rebuild drops them, and when gh cannot answer the reply says why and names the fix. Those
-tests drive `cbm_issues.answer` and the server with a stand-in `gh` on PATH and a scratch index in the tool's own
-schema; the issue numbers, titles and states they expect are the stand-in's, never read from the code under test.
-
-A published index is fetched through a stand-in `gh` serving one labelled asset, into a scratch git repository; the
-cleanup runs against a scratch cache holding tree indexes, binary versions and leftovers of known ages.
+ONE TEST (owner 2026-11-01: one test function a file, its checks merged into the answers that matter). It walks one
+session's life against scratch state: the binary it may run, the index it may answer from, the published index it may
+install, the issues it carries, the server's replies, and what the cache sweep removes.
 
 Driven as its callers drive it: `cbm_pin.verified` with fake binaries whose sha256 this test computes itself,
-`cbm_index.ready` and `cbm_index.build` against a scratch git repository and a scratch cache (`CBM_CACHE_DIR`), with
-the tool's indexer replaced by a stand-in that writes a `nodes` table, and the MCP server's `respond` with JSON-RPC
-messages. No real binary runs and nothing touches the network, the real cache or the real checkout. Each expected
-answer is the rule's (a sha256 is 64 hex characters; upstream v0.12.1 ships four non-Windows tarballs; an index with
-no stamp, or stamped for another commit, is not an answer), never read from the code under test.
+`cbm_index.ready` and `cbm_index.build` against a scratch git repository and a scratch cache (`CBM_CACHE_DIR`) with
+the tool's indexer replaced by a stand-in that writes a `nodes` table, `cbm_fetch.fetch` through a stand-in `gh`
+serving one labelled asset, `cbm_issues.answer` through a stand-in `gh` serving two issues into a scratch index in
+the tool's own schema, the MCP server's `respond` and its stdio loop with JSON-RPC messages, and `cbm_clean.sweep`
+over a scratch cache of known ages. No real binary runs and nothing touches the network, the real cache or the real
+checkout. Each expected answer is the rule's (a sha256 is 64 hex characters; upstream v0.12.1 ships four non-Windows
+tarballs; an index with no stamp, or stamped for another commit, is not an answer) or the stand-in's (issue numbers,
+titles, states), never read from the code under test.
 
-The break that turns each test red (applied once each, seen red, reverted):
-
-- test_only_the_pinned_build_is_accepted: in `cbm_pin.verified`, `if not is_pinned_build(binary, build)` made
-  `if not binary.exists()` (any existing file accepted).
-- test_every_shipped_platform_has_a_complete_pin: one `CBM_SHA256_*` line deleted from `pin.env`.
-- test_the_binary_lives_under_the_cache_by_version: `install_dir` returns `~/.local/bin`.
-- test_an_unstamped_or_outdated_index_is_built_before_it_is_asked: in `cbm_index.ready`, the condition made
-  `if not stamp:` (an index of an older commit is answered from).
-- test_a_build_that_wrote_no_rows_is_never_stamped_or_placed: the `row_count` refusal in `_assembled` deleted.
-- test_a_failed_question_answers_its_cause_and_the_fix: in `server._called`, `"isError": False`.
-- test_a_malformed_call_is_answered_and_the_server_keeps_reading: the `isinstance(arguments, dict)` refusal in
-  `server.answer` deleted (a string as arguments raised and ended the server).
-- test_an_issue_is_answered_by_number_with_its_parent_even_after_a_rebuild_dropped_the_rows: in
-  `cbm_issues.answer`, `everything = _held(database, project) < len(cached["issues"])` made `everything = False`
-  (a rebuilt index stays without its Issue rows).
-- test_without_a_gh_login_an_issue_question_says_issues_are_not_loaded_and_names_the_fix: in
-  `cbm_issues.gh_unready`, `if done.returncode != 0:` made `if done.returncode == 0:`.
-- test_only_a_question_that_names_issues_waits_on_github: in `server.answer`, `if cbm_issues.names_issues(tool,
-  given) else ""` made `if True else ""` (every question pays for a gh call).
-- test_a_published_index_of_an_ancestor_commit_is_installed_as_this_checkouts_own: in
-  `cbm_fetch.rename_project`, `if qualified:` made `if False:` (qualified names keep the publisher's prefix).
-- test_a_published_index_of_a_commit_this_checkout_lacks_or_already_has_is_not_installed: in
-  `cbm_fetch._check_offer`, `if not head or not is_ancestor(shared, commit, head):` made `if not head:`.
-- test_cleanup_removes_a_stale_tree_index_an_old_binary_and_leftover_build_files: in `cbm_clean._trees`,
-  `if gone or now - _newest(directory, live) > IDLE_DAYS * 86400:` made `if gone:` (an idle tree is kept).
+Breaks (each applied once, seen red, reverted):
+- in `cbm_pin.verified`, `if not is_pinned_build(binary, build)` made `if not binary.exists()` (any file accepted).
+- one `CBM_SHA256_*` line deleted from `pin.env`.
+- `install_dir` returns `~/.local/bin`.
+- in `cbm_index.ready`, the condition made `if not stamp:` (an index of an older commit is answered from).
+- the `row_count` refusal in `cbm_index._assembled` deleted.
+- in `server._called`, `"isError": False`.
+- the `isinstance(arguments, dict)` refusal in `server.answer` deleted (a string as arguments ended the server).
+- in `cbm_issues.answer`, `everything = _held(database, project) < len(cached["issues"])` made `everything = False`.
+- in `cbm_issues.gh_unready`, `if done.returncode != 0:` made `if done.returncode == 0:`.
+- in `server.answer`, `if cbm_issues.names_issues(tool, given) else ""` made `if True else ""`.
+- in `cbm_fetch.rename_project`, `if qualified:` made `if False:`.
+- in `cbm_fetch._check_offer`, `if not head or not is_ancestor(shared, commit, head):` made `if not head:`.
+- in `cbm_clean._trees`, `if gone or now - _newest(directory, live) > IDLE_DAYS * 86400:` made `if gone:`.
+- in `cbm_issues.repository`, the `_origin_repository` fallback dropped.
 """
 from __future__ import annotations
 
@@ -85,18 +74,6 @@ def _git(repo: pathlib.Path, *args: str) -> str:
                           capture_output=True, text=True).stdout.strip()
 
 
-@pytest.fixture
-def repo(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> pathlib.Path:
-    """A one-commit git repository and a private cache for its index."""
-    root = tmp_path / "repo"
-    root.mkdir()
-    _git(root, "init", "-q")
-    (root / "a.py").write_text("x = 1\n")
-    _git(root, "add", "a.py")
-    _git(root, "commit", "-q", "-m", "one")
-    monkeypatch.setenv("CBM_CACHE_DIR", str(tmp_path / "cache"))
-    return root.resolve()
-
 
 def _stand_in_indexer(rows: int):
     """Replaces the tool's indexer: a `nodes` table holding `rows` rows for the project."""
@@ -107,101 +84,6 @@ def _stand_in_indexer(rows: int):
         connection.commit()
         connection.close()
     return index_into
-
-
-def test_only_the_pinned_build_is_accepted(tmp_path: pathlib.Path) -> None:
-    """The pinned hash and version pass; another hash, a swapped file and no file do not."""
-    binary = tmp_path / "codebase-memory-mcp"
-    digest = _fake_binary(binary, "0.12.1")
-    assert cbm_pin.verified(binary, cbm_pin.Build("v0.12.1", "a.tar.gz", "0" * 64, digest))
-    assert not cbm_pin.verified(binary, cbm_pin.Build("v0.12.1", "a.tar.gz", "0" * 64, "f" * 64))
-    _fake_binary(binary, "0.11.0")
-    stamp = binary.stat()
-    os.utime(binary, ns=(stamp.st_atime_ns, stamp.st_mtime_ns + 1_000_000_000))
-    assert not cbm_pin.verified(binary, cbm_pin.Build("v0.12.1", "a.tar.gz", "0" * 64, digest))
-    assert not cbm_pin.verified(tmp_path / "missing", cbm_pin.Build("v0.12.1", "a", "0" * 64, digest))
-
-
-def test_every_shipped_platform_has_a_complete_pin() -> None:
-    """pin.env names an asset and two distinct sha256s for each platform upstream ships."""
-    fields = cbm_pin.read()
-    for key in _PLATFORMS:
-        build = cbm_pin.build_for(fields, key)
-        system, cpu = key.split("_")
-        assert build.asset.endswith(".tar.gz") and system in build.asset and cpu in build.asset, key
-        assert _HEX64.fullmatch(build.tarball_sha256) and _HEX64.fullmatch(build.sha256), key
-        assert build.tarball_sha256 != build.sha256, key
-
-
-def test_the_binary_lives_under_the_cache_by_version(
-        tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Installed by version under the cache, never in the shared ~/.local/bin."""
-    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
-    assert cbm_pin.binary_path("v9.9.9") == tmp_path / "harness/cbm/v9.9.9/codebase-memory-mcp"
-
-
-def test_an_unstamped_or_outdated_index_is_built_before_it_is_asked(
-        repo: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """No index or an older commit's: ready builds first. This commit's: ready builds nothing."""
-    monkeypatch.setattr(cbm_index, "ensure_binary", lambda: pathlib.Path("/no/binary"))
-    monkeypatch.setattr(cbm_index, "index_into", _stand_in_indexer(rows=1))
-    first = cbm_index.ready(repo)
-    assert first.get("rebuilt") and "error" not in first
-    head = _git(repo, "rev-parse", "HEAD")
-    assert cbm_index.stamp_of(pathlib.Path(first["path"]), first["project"]) == head
-
-    assert not cbm_index.ready(repo).get("rebuilt")
-
-    (repo / "a.py").write_text("x = 2\n")
-    _git(repo, "commit", "-q", "-am", "two")
-    moved = cbm_index.ready(repo)
-    assert moved.get("rebuilt")
-    assert cbm_index.stamp_of(pathlib.Path(moved["path"]), moved["project"]) == _git(repo, "rev-parse", "HEAD")
-
-
-def test_a_build_that_wrote_no_rows_is_never_stamped_or_placed(
-        repo: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """An index with no rows for the project raises with the rebuild as its fix, and nothing is placed."""
-    monkeypatch.setattr(cbm_index, "ensure_binary", lambda: pathlib.Path("/no/binary"))
-    monkeypatch.setattr(cbm_index, "index_into", _stand_in_indexer(rows=0))
-    with pytest.raises(cbm_index.BuildError) as refused:
-        cbm_index.build(repo, force=True)
-    assert refused.value.fix == cbm_index.REBUILD
-    assert not (pathlib.Path(os.environ["CBM_CACHE_DIR"]) / f"{cbm_index.project_for(repo)}.db").exists()
-
-
-def test_a_failed_question_answers_its_cause_and_the_fix(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A call that cannot be answered is an error naming its cause and fix, never an empty result."""
-    monkeypatch.setattr(cbm_index, "ready", lambda here: {
-        "error": "the index could not be built: no network", "fix": cbm_pin.INSTALL})
-    reply = server.respond({"jsonrpc": "2.0", "id": 7, "method": "tools/call",
-                            "params": {"name": "query_graph", "arguments": {"query": "MATCH (n) RETURN n"}}})
-    assert reply["id"] == 7 and reply["result"]["isError"] is True
-    text = reply["result"]["content"][0]["text"]
-    assert "no network" in text and f"fix: {cbm_pin.INSTALL}" in text
-
-    listed = server.respond({"jsonrpc": "2.0", "id": 8, "method": "tools/list"})
-    assert {tool["name"] for tool in listed["result"]["tools"]} == {"search_graph", "query_graph", "search_code"}
-    assert server.respond({"jsonrpc": "2.0", "method": "notifications/initialized"}) is None
-    assert json.dumps(server.respond({"jsonrpc": "2.0", "id": 9, "method": "nope"})).count("-32601") == 1
-
-
-def test_a_malformed_call_is_answered_and_the_server_keeps_reading(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Arguments, params or a name of the wrong shape get an error reply; none of them ends the server."""
-    monkeypatch.setattr(cbm_index, "ready", lambda here: {"path": "", "project": "p", "head": ""})
-    monkeypatch.setattr(cbm_index, "ask", lambda tool, given: {"ok": True, "result": "rows: 0"})
-    for params in ({"name": "search_graph", "arguments": "oops"}, {"name": "search_graph", "arguments": []},
-                   {"name": ["search_graph"], "arguments": {}}):
-        reply = server.respond({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": params})
-        assert reply["result"]["isError"] is True and "fix: " in reply["result"]["content"][0]["text"]
-    refused = server.respond({"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": ["x"]})
-    assert refused["error"]["code"] == -32602
-    lines = ['{"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "query_graph", "arguments": "x"}}',
-             "[1, 2]", '{"jsonrpc": "2.0", "id": 6, "method": "ping"}']
-    done = subprocess.run([sys.executable, str(pathlib.Path(server.__file__))], input="\n".join(lines) + "\n",
-                          capture_output=True, text=True, timeout=30, check=False)
-    replies = [json.loads(line) for line in done.stdout.splitlines()]
-    assert [reply.get("id") for reply in replies] == [5, None, 6] and done.returncode == 0
 
 
 _ISSUE_PAGE = {"data": {"repository": {"issues": {"pageInfo": {"hasNextPage": False}, "nodes": [
@@ -215,46 +97,6 @@ _ISSUE_PAGE = {"data": {"repository": {"issues": {"pageInfo": {"hasNextPage": Fa
      "closedAt": "2099-01-01T00:00:00Z", "body": "", "labels": {"nodes": []}, "assignees": {"nodes": []},
      "parent": {"number": 10}, "comments": {"totalCount": 0, "nodes": []}, "latest": {"nodes": []}},
 ]}}}}
-
-
-@pytest.fixture
-def issues_box(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
-    """A checkout naming `o/r`, a stand-in gh logged in or not, and an empty index in the tool's schema."""
-    root = tmp_path / "checkout"
-    (root / ".claude").mkdir(parents=True)
-    (root / ".claude/project.json").write_text(json.dumps({"repo": "o/r"}))
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    page = tmp_path / "page.json"
-    page.write_text(json.dumps(_ISSUE_PAGE))
-    gh = bin_dir / "gh"
-    gh.write_text(f"""#!{sys.executable}
-import sys, os
-if sys.argv[1:2] == ["auth"]:
-    sys.exit(int(os.environ.get("FAKE_GH_AUTH", "0")))
-if any("OPEN, CLOSED" in argument for argument in sys.argv):  # the live sync: nothing changed since
-    print('{{"data": {{"repository": {{"issues": {{"pageInfo": {{"hasNextPage": false}}, "nodes": []}}}}}}}}')
-else:
-    print(open({str(page)!r}).read())
-""")
-    gh.chmod(0o755)
-    monkeypatch.setenv("HOME", str(tmp_path / "home"))
-    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
-    database = tmp_path / "cache" / "p.db"
-    database.parent.mkdir()
-    connection = sqlite3.connect(database)
-    connection.executescript("""
-        CREATE TABLE nodes (id INTEGER PRIMARY KEY AUTOINCREMENT, project TEXT NOT NULL, label TEXT NOT NULL,
-            name TEXT NOT NULL, qualified_name TEXT NOT NULL, file_path TEXT DEFAULT '',
-            start_line INTEGER DEFAULT 0, end_line INTEGER DEFAULT 0, properties TEXT DEFAULT '{}',
-            UNIQUE(project, qualified_name));
-        CREATE TABLE edges (id INTEGER PRIMARY KEY AUTOINCREMENT, project TEXT NOT NULL, source_id INTEGER NOT NULL,
-            target_id INTEGER NOT NULL, type TEXT NOT NULL, properties TEXT DEFAULT '{}',
-            UNIQUE(source_id, target_id, type));
-        CREATE VIRTUAL TABLE nodes_fts USING fts5(name, qualified_name, label, file_path, body, content='');
-    """)
-    connection.close()
-    return root, database
 
 
 def _issue_rows(database: pathlib.Path) -> dict:
@@ -271,60 +113,6 @@ def _issue_rows(database: pathlib.Path) -> dict:
         return rows
     finally:
         connection.close()
-
-
-def test_an_issue_is_answered_by_number_with_its_parent_even_after_a_rebuild_dropped_the_rows(issues_box) -> None:
-    """gh's issues land as Issue rows with their fields and CHILD_OF edge, and come back after a rebuild."""
-    root, database = issues_box
-    said = cbm_issues.answer(database, "p", root)
-    assert "live" in said and "NOT" not in said and "0 changed" in said
-    rows = _issue_rows(database)
-    assert set(rows) == {10, 11}
-    title, props, parent = rows[10]
-    assert title == "The effort" and props["state"] == "open" and props["is_prd"] is True
-    assert props["open_tasks"] == "- [ ] first open task" and props["done_tasks_count"] == 1
-    assert props["assignees"] == ["someone"] and props["url"].endswith("/issues/10")
-    assert rows[11][1]["state"] == "closed" and rows[11][2] == 10
-    assert cbm_issues.cache_beside(database).exists()
-
-    connection = sqlite3.connect(database)
-    connection.execute("DELETE FROM nodes WHERE label = 'Issue'")
-    connection.execute("DELETE FROM edges")
-    connection.commit()
-    connection.close()
-    cbm_issues.answer(database, "p", root)
-    assert set(_issue_rows(database)) == {10, 11} and _issue_rows(database)[11][2] == 10
-
-
-def test_without_a_gh_login_an_issue_question_says_issues_are_not_loaded_and_names_the_fix(
-        issues_box, monkeypatch: pytest.MonkeyPatch) -> None:
-    """No login and no cache: "not loaded" and gh auth login. A cache and a failing gh: its age and the fix."""
-    root, database = issues_box
-    monkeypatch.setenv("FAKE_GH_AUTH", "1")
-    said = cbm_issues.answer(database, "p", root)
-    assert "not loaded" in said and "not logged in" in said and "gh auth login" in said
-    assert _issue_rows(database) == {}
-
-    monkeypatch.setenv("FAKE_GH_AUTH", "0")
-    cbm_issues.status_of(cbm_issues.cache_beside(database)).unlink()
-    cbm_issues.answer(database, "p", root)
-    monkeypatch.setenv("PATH", "/nonexistent")
-    stale = cbm_issues.answer(database, "p", root)
-    assert "NOT live" in stale and "minutes ago" in stale and "gh auth login" in stale
-    assert set(_issue_rows(database)) == {10, 11}
-
-
-def test_only_a_question_that_names_issues_waits_on_github(monkeypatch: pytest.MonkeyPatch) -> None:
-    """An Issue query carries the sync's line; a question about code never calls it."""
-    calls = []
-    monkeypatch.setattr(cbm_index, "ready", lambda here: {"path": "/x/p.db", "project": "p", "head": ""})
-    monkeypatch.setattr(cbm_index, "ask", lambda tool, given: {"ok": True, "result": "rows: 1"})
-    monkeypatch.setattr(cbm_issues, "answer", lambda database, project, root: calls.append(project) or "rows live")
-    asked = server.answer("query_graph", {"query": "MATCH (i:Issue) RETURN i.number"})
-    assert asked["issues"] == "rows live" and calls == ["p"]
-    assert "[index] rows live" in server._as_text(asked)
-    code = server.answer("query_graph", {"query": "MATCH (f:Function) RETURN f.name"})
-    assert "issues" not in code and calls == ["p"]
 
 
 def _published(tmp_path: pathlib.Path, project: str, head: str) -> pathlib.Path:
@@ -347,17 +135,37 @@ def _published(tmp_path: pathlib.Path, project: str, head: str) -> pathlib.Path:
     return database
 
 
-@pytest.fixture
-def release(repo: pathlib.Path, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
-    """A stand-in gh serving one release asset labelled with a commit; returns a setter for that commit."""
-    served = tmp_path / "served"
-    served.mkdir()
-    label = tmp_path / "label"
-    bin_dir = tmp_path / "ghbin"
+def _repo(root: pathlib.Path) -> pathlib.Path:
+    """A one-commit git repository at `root`."""
+    root.mkdir(parents=True)
+    _git(root, "init", "-q")
+    (root / "a.py").write_text("x = 1\n")
+    _git(root, "add", "a.py")
+    _git(root, "commit", "-q", "-m", "one")
+    return root.resolve()
+
+
+def _commit(repo: pathlib.Path, name: str) -> str:
+    """Add one file as a new commit; return the commit."""
+    (repo / name).write_text("y = 2\n")
+    _git(repo, "add", name)
+    _git(repo, "commit", "-q", "-m", name)
+    return _git(repo, "rev-parse", "HEAD")
+
+
+def _stand_in_gh(bin_dir: pathlib.Path, body: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A `gh` running `body`, first on PATH."""
     bin_dir.mkdir()
-    gh = bin_dir / "gh"
-    gh.write_text(f"""#!{sys.executable}
-import json, shutil, sys
+    (bin_dir / "gh").write_text(f"#!{sys.executable}\n{body}")
+    (bin_dir / "gh").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+
+
+def _release(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
+    """A stand-in gh serving one release asset labelled with a commit; returns a setter for that commit."""
+    served, label = tmp_path / "served", tmp_path / "label"
+    served.mkdir()
+    _stand_in_gh(tmp_path / "ghbin", f"""import json, shutil, sys
 arguments = sys.argv[1:]
 if arguments[:2] == ["release", "view"]:
     print(json.dumps({{"assets": [{{"name": "i.db.zst", "label": open({str(label)!r}).read()}}]}}))
@@ -365,9 +173,7 @@ elif arguments[:2] == ["release", "download"]:
     shutil.copy({str(served / "i.db.zst")!r}, arguments[arguments.index("-D") + 1])
 else:
     sys.exit(1)
-""")
-    gh.chmod(0o755)
-    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+""", monkeypatch)
     # The asset is served uncompressed; what is under test is what is installed, not the codec.
     monkeypatch.setattr(cbm_fetch, "unzstd", lambda source, into: shutil.copy(source, into))
 
@@ -377,54 +183,46 @@ else:
     return publish
 
 
-def test_a_published_index_of_an_ancestor_commit_is_installed_as_this_checkouts_own(
-        repo: pathlib.Path, release) -> None:
-    """Published for an ancestor of HEAD: placed under this checkout's project, prefix and root, its commit kept."""
-    first = _git(repo, "rev-parse", "HEAD")
-    (repo / "b.py").write_text("y = 2\n")
-    _git(repo, "add", "b.py")
-    _git(repo, "commit", "-q", "-m", "two")
-    release(first)
-    got = cbm_fetch.fetch(repo, slug="o/r", tag="t", asset="i.db.zst")
-    project = cbm_index.project_name(repo)
-    assert got["head"] == first and got["behind"] == 1 and got["project"] == project
-    database = pathlib.Path(got["path"])
-    assert cbm_index.stamp_of(database, project) == first
+def _issues_box(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
+    """A checkout naming `o/r`, a stand-in gh logged in or not, and an empty index in the tool's schema."""
+    root = tmp_path / "checkout"
+    (root / ".claude").mkdir(parents=True)
+    (root / ".claude/project.json").write_text(json.dumps({"repo": "o/r"}))
+    page = tmp_path / "page.json"
+    page.write_text(json.dumps(_ISSUE_PAGE))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    _stand_in_gh(tmp_path / "bin", f"""import sys, os
+if sys.argv[1:2] == ["auth"]:
+    sys.exit(int(os.environ.get("FAKE_GH_AUTH", "0")))
+if any("OPEN, CLOSED" in argument for argument in sys.argv):  # the live sync: nothing changed since
+    print('{{"data": {{"repository": {{"issues": {{"pageInfo": {{"hasNextPage": false}}, "nodes": []}}}}}}}}')
+else:
+    print(open({str(page)!r}).read())
+""", monkeypatch)
+    database = tmp_path / "issues-cache" / "p.db"
+    database.parent.mkdir()
     connection = sqlite3.connect(database)
-    assert connection.execute("SELECT project, qualified_name FROM nodes").fetchall() == [
-        (project, f"{project}.a.f")]
-    assert connection.execute("SELECT root_path FROM projects").fetchall() == [(str(repo),)]
-    assert connection.execute("SELECT k FROM store_meta").fetchall() == [(f"fp:{project}",)]
+    connection.executescript("""
+        CREATE TABLE nodes (id INTEGER PRIMARY KEY AUTOINCREMENT, project TEXT NOT NULL, label TEXT NOT NULL,
+            name TEXT NOT NULL, qualified_name TEXT NOT NULL, file_path TEXT DEFAULT '',
+            start_line INTEGER DEFAULT 0, end_line INTEGER DEFAULT 0, properties TEXT DEFAULT '{}',
+            UNIQUE(project, qualified_name));
+        CREATE TABLE edges (id INTEGER PRIMARY KEY AUTOINCREMENT, project TEXT NOT NULL, source_id INTEGER NOT NULL,
+            target_id INTEGER NOT NULL, type TEXT NOT NULL, properties TEXT DEFAULT '{}',
+            UNIQUE(source_id, target_id, type));
+        CREATE VIRTUAL TABLE nodes_fts USING fts5(name, qualified_name, label, file_path, body, content='');
+    """)
     connection.close()
+    return root, database
 
 
-def test_a_published_index_of_a_commit_this_checkout_lacks_or_already_has_is_not_installed(
-        repo: pathlib.Path, release) -> None:
-    """A commit not in this history, or one no newer than the index here, places nothing."""
-    release("0" * 40)
-    with pytest.raises(cbm_fetch.FetchError, match="not HEAD or an ancestor"):
-        cbm_fetch.fetch(repo, slug="o/r", tag="t", asset="i.db.zst")
-    assert not (cbm_index.cache_dir() / f"{cbm_index.project_name(repo)}.db").exists()
+def _swept_cache(tmp_path: pathlib.Path, now: float) -> tuple[pathlib.Path, list, list, pathlib.Path]:
+    """A cache of three tree indexes, two binary versions, a legacy root, leftovers and a long log.
 
-    first = _git(repo, "rev-parse", "HEAD")
-    release(first)
-    cbm_fetch.fetch(repo, slug="o/r", tag="t", asset="i.db.zst")
-    (repo / "b.py").write_text("y = 2\n")
-    _git(repo, "add", "b.py")
-    _git(repo, "commit", "-q", "-m", "two")
-    with pytest.raises(cbm_fetch.FetchError, match="as new as"):
-        cbm_fetch.fetch(repo, slug="o/r", tag="t", asset="i.db.zst")
-
-
-def test_cleanup_removes_a_stale_tree_index_an_old_binary_and_leftover_build_files(
-        tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Gone or idle trees, unpinned versions, dead builds' leftovers and a log's head go; the live and the pinned stay."""
-    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
-    monkeypatch.setenv("CBM_CACHE_DIR", str(tmp_path / "codebase-memory-mcp"))
+    Returns (the cache, what the sweep must remove, what it must keep, the log).
+    """
     cache, trees = tmp_path / "codebase-memory-mcp", tmp_path / "codebase-memory-mcp-trees"
     cache.mkdir()
-    now = time.time()
-    old = now - 4 * 86400
     dead_pid = 2 ** 22 + 7  # above Linux's pid_max default, so never a live process
 
     def tree(name: str, root: pathlib.Path, when: float) -> pathlib.Path:
@@ -437,7 +235,7 @@ def test_cleanup_removes_a_stale_tree_index_an_old_binary_and_leftover_build_fil
         return directory
 
     gone = tree("gone-tree", tmp_path / "removed-worktree", now)
-    idle = tree("idle-tree", tmp_path, old)
+    idle = tree("idle-tree", tmp_path, now - 4 * 86400)
     kept = tree("kept-tree", tmp_path, now)
     pinned = cbm_pin.read()["CBM_VERSION"]
     for version in (pinned, "v0.0.1"):
@@ -445,8 +243,7 @@ def test_cleanup_removes_a_stale_tree_index_an_old_binary_and_leftover_build_fil
         (tmp_path / "harness/cbm" / version / "codebase-memory-mcp").write_bytes(b"b" * 100)
     legacy = tmp_path / "legacy/cbm/v0.0.2"
     legacy.mkdir(parents=True)
-    leftovers = [tmp_path / f".cbm-build.p.{dead_pid}", kept / f".work.{dead_pid}",
-                 cache / ".p.build.lock"]
+    leftovers = [tmp_path / f".cbm-build.p.{dead_pid}", kept / f".work.{dead_pid}", cache / ".p.build.lock"]
     leftovers[0].mkdir()
     leftovers[1].mkdir()
     leftovers[2].write_text("")
@@ -456,25 +253,123 @@ def test_cleanup_removes_a_stale_tree_index_an_old_binary_and_leftover_build_fil
         os.utime(path, (now - 7200, now - 7200))
     log = cache / "gaps.jsonl"
     log.write_text("".join(f'{{"n": {number}, "padding": "{"x" * 80}"}}\n' for number in range(30)))
+    removed = [gone, idle, cache / "gone-tree.db", cache / "idle-tree.db", tmp_path / "harness/cbm/v0.0.1", legacy,
+               *leftovers]
+    return cache, removed, [kept, cache / "kept-tree.db", tmp_path / "harness/cbm" / pinned, young], log
 
-    removed = {path for path, _ in cbm_clean.sweep(now, older_roots=(tmp_path / "legacy/cbm",),
-                                                   capped=((log, 10),))}
+
+def test_the_index_answers_only_from_the_pinned_build_and_a_finished_index_of_this_commit(
+        tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    monkeypatch.setenv("CBM_CACHE_DIR", str(tmp_path / "cache"))
+    path = os.environ["PATH"]
+
+    # The binary: only the pinned build runs, every shipped platform has its pins, it lives in the cache by version.
+    binary = tmp_path / "fake" / "codebase-memory-mcp"
+    digest = _fake_binary(binary, "0.12.1")
+    assert cbm_pin.verified(binary, cbm_pin.Build("v0.12.1", "a.tar.gz", "0" * 64, digest))
+    assert not cbm_pin.verified(binary, cbm_pin.Build("v0.12.1", "a.tar.gz", "0" * 64, "f" * 64))
+    assert not cbm_pin.verified(tmp_path / "missing", cbm_pin.Build("v0.12.1", "a", "0" * 64, digest))
+    for key in _PLATFORMS:
+        build = cbm_pin.build_for(cbm_pin.read(), key)
+        assert all(part in build.asset for part in key.split("_")) and build.asset.endswith(".tar.gz"), key
+        assert _HEX64.fullmatch(build.tarball_sha256) and _HEX64.fullmatch(build.sha256), key
+    assert cbm_pin.binary_path("v9.9.9") == tmp_path / "harness/cbm/v9.9.9/codebase-memory-mcp"
+
+    # The index: a build with no rows is never placed; an unstamped or older commit's index is built before answering.
+    repo = _repo(tmp_path / "repo")
+    monkeypatch.setattr(cbm_index, "ensure_binary", lambda: pathlib.Path("/no/binary"))
+    monkeypatch.setattr(cbm_index, "index_into", _stand_in_indexer(rows=0))
+    with pytest.raises(cbm_index.BuildError) as refused:
+        cbm_index.build(repo, force=True)
+    assert refused.value.fix == cbm_index.REBUILD
+    assert not (tmp_path / "cache" / f"{cbm_index.project_for(repo)}.db").exists()
+    monkeypatch.setattr(cbm_index, "index_into", _stand_in_indexer(rows=1))
+    first = cbm_index.ready(repo)
+    assert first.get("rebuilt") and cbm_index.stamp_of(pathlib.Path(first["path"]), first["project"]) == _git(
+        repo, "rev-parse", "HEAD")
+    assert not cbm_index.ready(repo).get("rebuilt")
+    moved_to = _commit(repo, "b.py")
+    moved = cbm_index.ready(repo)
+    assert moved.get("rebuilt") and cbm_index.stamp_of(pathlib.Path(moved["path"]), moved["project"]) == moved_to
+
+    # A published index: installed as this checkout's own only for an ancestor newer than the index here.
+    fetched = _repo(tmp_path / "fetched")
+    release = _release(tmp_path, monkeypatch)
+    release("0" * 40)
+    with pytest.raises(cbm_fetch.FetchError, match="not HEAD or an ancestor"):
+        cbm_fetch.fetch(fetched, slug="o/r", tag="t", asset="i.db.zst")
+    one = _git(fetched, "rev-parse", "HEAD")
+    _commit(fetched, "b.py")
+    release(one)
+    got = cbm_fetch.fetch(fetched, slug="o/r", tag="t", asset="i.db.zst")
+    project = cbm_index.project_name(fetched)
+    assert got["head"] == one and got["behind"] == 1 and got["project"] == project
+    connection = sqlite3.connect(got["path"])
+    assert connection.execute("SELECT project, qualified_name FROM nodes").fetchall() == [(project, f"{project}.a.f")]
+    assert connection.execute("SELECT root_path FROM projects").fetchall() == [(str(fetched),)]
+    connection.close()
+    with pytest.raises(cbm_fetch.FetchError, match="as new as"):
+        cbm_fetch.fetch(fetched, slug="o/r", tag="t", asset="i.db.zst")
+
+    # Issues: without a login they say so and name the fix; with one they land with their parent and come back after
+    # a rebuild; from a stale cache they say how old; with no repository named, the GitHub origin names it.
+    root, database = _issues_box(tmp_path, monkeypatch)
+    monkeypatch.setenv("FAKE_GH_AUTH", "1")
+    said = cbm_issues.answer(database, "p", root)
+    assert "not loaded" in said and "gh auth login" in said and _issue_rows(database) == {}
+    monkeypatch.setenv("FAKE_GH_AUTH", "0")
+    cbm_issues.status_of(cbm_issues.cache_beside(database)).unlink(missing_ok=True)
+    assert "NOT" not in cbm_issues.answer(database, "p", root)
+    rows = _issue_rows(database)
+    assert rows[10][0] == "The effort" and rows[10][1]["state"] == "open" and rows[10][1]["is_prd"] is True
+    assert rows[10][1]["open_tasks"] == "- [ ] first open task" and rows[11][1]["state"] == "closed"
+    assert rows[11][2] == 10
+    connection = sqlite3.connect(database)
+    connection.execute("DELETE FROM nodes WHERE label = 'Issue'")
+    connection.execute("DELETE FROM edges")
+    connection.commit()
+    connection.close()
+    cbm_issues.answer(database, "p", root)
+    assert set(_issue_rows(database)) == {10, 11} and _issue_rows(database)[11][2] == 10
+    cbm_issues.status_of(cbm_issues.cache_beside(database)).unlink(missing_ok=True)
+    monkeypatch.setenv("PATH", "/nonexistent")
+    stale = cbm_issues.answer(database, "p", root)
+    assert "NOT live" in stale and "minutes ago" in stale and "gh auth login" in stale
+    monkeypatch.setenv("PATH", path)
+    copy = tmp_path / "copy"
+    (copy / ".claude").mkdir(parents=True)
+    (copy / ".claude/project.json").write_text(json.dumps({"repo": ""}))
+    _git(copy, "init", "-q")
+    _git(copy, "remote", "add", "origin", "git@github.com:someone/my-company.git")
+    assert cbm_issues.repository(copy) == "someone/my-company"
+
+    # The server: a failed question names its cause and fix; only an issue question waits on GitHub; a malformed
+    # call is answered and the stdio loop keeps reading.
+    monkeypatch.setattr(cbm_index, "ready", lambda here: {"error": "no network", "fix": cbm_pin.INSTALL})
+    reply = server.respond({"jsonrpc": "2.0", "id": 7, "method": "tools/call",
+                            "params": {"name": "query_graph", "arguments": {"query": "MATCH (n) RETURN n"}}})
+    assert reply["result"]["isError"] is True and f"fix: {cbm_pin.INSTALL}" in reply["result"]["content"][0]["text"]
+    calls = []
+    monkeypatch.setattr(cbm_index, "ready", lambda here: {"path": "/x/p.db", "project": "p", "head": ""})
+    monkeypatch.setattr(cbm_index, "ask", lambda tool, given: {"ok": True, "result": "rows: 1"})
+    monkeypatch.setattr(cbm_issues, "answer", lambda database, project, root: calls.append(project) or "rows live")
+    assert server.answer("query_graph", {"query": "MATCH (i:Issue) RETURN i.number"})["issues"] == "rows live"
+    assert "issues" not in server.answer("query_graph", {"query": "MATCH (f:Function) RETURN f.name"})
+    assert calls == ["p"]
+    lines = ['{"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "query_graph", "arguments": "x"}}',
+             "[1, 2]", '{"jsonrpc": "2.0", "id": 6, "method": "ping"}']
+    done = subprocess.run([sys.executable, str(pathlib.Path(server.__file__))], input="\n".join(lines) + "\n",
+                          capture_output=True, text=True, timeout=30, check=False)
+    assert [json.loads(line).get("id") for line in done.stdout.splitlines()] == [5, None, 6] and done.returncode == 0
+
+    # The cache sweep: gone or idle trees, unpinned versions, dead builds' leftovers and a log's head go.
+    monkeypatch.setenv("CBM_CACHE_DIR", str(tmp_path / "codebase-memory-mcp"))
+    now = time.time()
+    cache, removed, kept, log = _swept_cache(tmp_path, now)
+    swept = {path for path, _ in cbm_clean.sweep(now, older_roots=(tmp_path / "legacy/cbm",), capped=((log, 10),))}
     assert [json.loads(line)["n"] for line in log.read_text().splitlines()] == list(range(20, 30))
-    for path in (gone, idle, cache / "gone-tree.db", cache / "idle-tree.db",
-                 tmp_path / "harness/cbm/v0.0.1", legacy, *leftovers):
-        assert str(path) in removed and not path.exists(), path
-    for path in (kept, cache / "kept-tree.db", tmp_path / "harness/cbm" / pinned, young):
+    for path in removed:
+        assert str(path) in swept and not path.exists(), path
+    for path in kept:
         assert path.exists(), path
-
-
-def test_a_checkout_whose_project_json_names_no_repository_uses_its_github_origin(tmp_path: pathlib.Path) -> None:
-    """A fresh copy of a template has an empty `repo`; its GitHub origin names the repository instead."""
-    import cbm_issues
-    root = tmp_path / "copy"
-    (root / ".claude").mkdir(parents=True)
-    (root / ".claude/project.json").write_text(json.dumps({"repo": ""}))
-    subprocess.run(["git", "init", "-q", str(root)], check=True)
-    subprocess.run(["git", "-C", str(root), "remote", "add", "origin", "git@github.com:someone/my-company.git"], check=True)
-    assert cbm_issues.repository(root) == "someone/my-company"
-    (root / ".claude/project.json").write_text(json.dumps({"repo": "o/r"}))
-    assert cbm_issues.repository(root) == "o/r"
