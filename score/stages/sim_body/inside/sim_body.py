@@ -37,7 +37,7 @@ here moves, scales or grounds SOMA.
   (`within_follows`). Nothing is applied to the body; how far it moved is the body's `adjusted` record.
 - The physics, frame by frame, on the MuJoCo model Newton builds (SolverMuJoCo on MuJoCo's CPU backend; nothing is
   stepped): the generalised forces the movement needs (inverse dynamics, armature and passive forces in), the ground's
-  contacts (each collider's surface point within GAP of the drawn triangle under it or into it, along the triangle's
+  contacts (each point of the person's skin, riding the bones, within GAP of the drawn triangle under it or into it, along the triangle's
   normal: a friction pyramid, FRICTION, under SLIDE_MOST, else sliding, its friction against its slip), and one
   bounded least squares (`shared`) that gives the forces to the ground, to a joint at an end of its range (`stops`)
   and to the muscles (activations 0 to 1 on each muscle's force-length-velocity, its passive force in), least squared
@@ -55,8 +55,8 @@ out.json: {"engine", "rate", "people": {name: {"model" (the person's model recor
 of each driven dof), "com height" (m, frame 0, over its ground), "frames":
 [{"angles": [[x, y, z] degrees, rotation vector, per SOMA segment but the first, against its parent, as the body's
 segment riding its bone turns], "targets": [...the clip's...], "torques": [N m per joint], "ground": [x, y, z] N
-(the ground's push), "lowest": m (the lowest collider
-point's height over the ground, null off it), "feet": {segment: [its lowest collider point's height over the ground
+(the ground's push), "lowest": m (the lowest skin
+point's height over the ground, null off it), "feet": {segment: [its lowest skin point's height over the ground
 (null off it), the ground's upward push on it N]} (FEET), "residual": [force xyz N, moment xyz N m], "reserve": N m
 (the largest joint reserve), "activations": [0..1 per muscle], "forces": [N per muscle, tension]}],
 "adjusted": RRA's moves (`adjustment_record`)}}}, everything in the person's own frame (Y
@@ -76,6 +76,7 @@ import numpy as np
 import fit
 import myo
 from bone_groups import FEET, groups
+from contact import Skin
 from model import TO_OWN, body_index, built, carried, filtered, posed_path, rates
 from muscles import Physics
 from records import adjustment_record, arrays, bones_of, com_height, entry, frames
@@ -142,6 +143,16 @@ def fitted_person(job, person, rig, worlds, path):
     return record, scales, fitting.model, angles
 
 
+def skin_of(rig, segments, bodies, riding):
+    """The person's drawn skin the ground pushes (`contact.Skin`): SOMA's mesh at its bind, its weights on the
+    segments, each segment riding its bone."""
+    names = [str(name) for name in rig["names"]]
+    joints = [names.index(segment) for segment in segments]
+    return Skin(rig["points"], np.asarray(rig["weights"], dtype=float)[:, joints],
+                np.asarray(rig["bind"], dtype=float)[joints], [bodies[segment] for segment in segments],
+                [riding[segment] for segment in segments])
+
+
 def run_person(job, person, out_path):
     """One person: its model sized and fitted to SOMA, its path, its physics frame by frame."""
     targets = np.load(person["targets"])
@@ -153,22 +164,20 @@ def run_person(job, person, out_path):
     model = built(path, job["gravity"])
     rides = {segment: groups()[segment][2] for segment in segments}
     bodies = {segment: body_index(model, rides[segment]) for segment in segments}
-    colliders = [geom for geom in range(model.ngeom) if model.geom_contype[geom] or model.geom_conaffinity[geom]]
-    physics = Physics(model, ground, colliders)
-    feet = {segment: [geom for geom in colliders if model.geom_bodyid[geom] == bodies[segment]]
-            for segment in segments if segment.endswith(FEET)}
-    soles = {bodies[segment]: geoms for segment, geoms in feet.items()}
+    riding = fit.riding(model, scales, segments)
+    skin = skin_of(rig, segments, bodies, riding)
+    physics = Physics(model, ground, skin)
+    feet = {segment: np.flatnonzero(skin.owners == bodies[segment]) for segment in segments if segment.endswith(FEET)}
     qpath = filtered(model, physics.couplings, carried(own, model, angles), job["rate"])
     names = [str(name) for name in person["rig"]["names"]]
     parents = [segments.index(names[parent]) if parent >= 0 and names[parent] in segments else -1
                for parent in (person["rig"]["parents"][names.index(segment)] for segment in segments)]
-    riding = fit.riding(model, scales, segments)
     fitted_poses = posed_path(model, qpath, segments, bodies, riding)
     weight = sum(model.body_mass) * job["gravity"]
     limits = (job["residual"]["force"] * weight, job["residual"]["moment"] * weight * com_height(model, qpath[0], ground))
     most = (job["adjust"]["move most m"], np.radians(job["adjust"]["turn most deg"]))
 
-    footing = Footing(model, physics.couplings, list(soles))
+    footing = Footing(model, physics.couplings, [bodies[segment] for segment in feet])
 
     def land(path):
         return footing.footed(path, qpath)

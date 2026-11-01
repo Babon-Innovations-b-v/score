@@ -22,11 +22,11 @@ AT_STOP = 1e-4  # radians or metres: a joint this near an end of its range stand
 class Physics:
     """One person's MuJoCo model as Newton built it, and the frame by frame share of its movement's forces."""
 
-    def __init__(self, model, ground, colliders):
+    def __init__(self, model, ground, skin):
         self.model, self.data = model, mujoco.MjData(model)
         self.couplings = Couplings(model)
         self.ground, self.up = ground, normals(ground)
-        self.colliders = colliders
+        self.skin = skin  # the person's drawn surface the ground pushes (`contact.Skin`)
         self.muscles = np.flatnonzero(model.actuator_dyntype == mujoco.mjtDyn.mjDYN_MUSCLE)
 
     def needed(self, qpos, qvel, qacc):
@@ -40,8 +40,8 @@ class Physics:
         return found + model.dof_armature * qacc - data.qfrc_passive
 
     def contacts(self):
-        """The points the ground pushes now (`contact.pushes` on this person's colliders and ground)."""
-        return pushes(self.model, self.data, self.ground, self.up, self.colliders)
+        """The points the ground pushes now (`contact.pushes` on this person's skin and ground)."""
+        return pushes(self.model, self.data, self.ground, self.up, self.skin)
 
     def stops(self):
         """Each leading hinge or slide at an end of its range now, as a one-sided generalised force pushing it back

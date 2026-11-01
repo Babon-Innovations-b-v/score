@@ -33,6 +33,19 @@ BODY = """<mujoco model="block">
 """
 
 
+def ball_skin(found):
+    """The ball's skin: its surface (0.1 m) in 26 directions at qpos0, riding the pelvis."""
+    import contact
+    import mujoco
+    import numpy as np
+    from model import TO_OWN, own_pose
+    data = mujoco.MjData(found)
+    mujoco.mj_kinematics(found, data)
+    directions = np.array([[x, y, z] for x in (-1, 0, 1) for y in (-1, 0, 1) for z in (-1, 0, 1) if x or y or z], float)
+    points = TO_OWN @ data.xpos[1] + 0.1 * directions / np.linalg.norm(directions, axis=1, keepdims=True)
+    return contact.Skin(points, np.ones((len(points), 1)), [own_pose(found, data, 1)], [1], [np.eye(4)])
+
+
 def the_ground_carries_a_still_body():
     """A 10 kg ball standing 1 mm over a flat ground, still: the movement needs 98.1 N up at the pelvis, the ground's
     push sums to it within 1% and the pelvis' residual force is under 1% of it."""
@@ -45,7 +58,7 @@ def the_ground_carries_a_still_body():
         found = built_model.built(path, GRAVITY)
     ground = np.array([[[-5.0, 0.0, -5.0], [5.0, 0.0, 5.0], [5.0, 0.0, -5.0]],
                        [[-5.0, 0.0, -5.0], [-5.0, 0.0, 5.0], [5.0, 0.0, 5.0]]])
-    physics = muscles.Physics(found, ground, [0])
+    physics = muscles.Physics(found, ground, ball_skin(found))
     still = np.zeros(found.nv)
     needed = physics.needed(found.qpos0.copy(), still, still)
     weight = KG * GRAVITY

@@ -13,6 +13,8 @@ RECORD = "sim_bodies.json"
 # 0.9 mm over it with it (measured, MuJoCo 3.x, 1 ms steps, 2026-10-28), so
 # a body more than a few millimetres into its ground is sunk (owner, 2026-10-28: "ground contact is real"); the ground
 # pushes a point only within the run's GAP (5 mm) over it, so a carrying foot further off is floating.
+# Since 2026-11-01 the points measured and pushed are the person's skin (inside/contact Skin), not those colliders; the
+# 3 mm stands as measured on them.
 SUNK_MOST = 0.003  # metres
 LANDED = 0.005  # metres
 CONTACT = 0.05  # share of the weight a foot's push must reach to count as landed

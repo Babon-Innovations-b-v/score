@@ -1,19 +1,53 @@
-"""The body's feet on the scene's ground: the colliders' surface points (`surface`), the lowest one's height over the
-ground (`lowest_over`) and the points the ground pushes with their push directions (`pushes`: within GAP of the drawn
-triangle under them or into it, a friction pyramid under SLIDE_MOST, else sliding). Nothing here moves the body: it
-stands where the fit to SOMA puts it (#70)."""
+"""The body on the scene's ground: the colliders' surface points (`surface`), the person's drawn skin riding the
+body's bones (`Skin`: SOMA's mesh, linear blend over the segments each bone carries), its lowest point's height over
+the ground (`lowest_over`) and the skin points the ground pushes with their push directions (`pushes`: within GAP of
+the drawn triangle under them or into it, a friction pyramid under SLIDE_MOST, else sliding). Nothing here moves the
+body: it stands where the fit to SOMA puts it (#70)."""
 import mujoco
 import numpy as np
 
 from ground import body_reach, heights_over, standing
-from model import TO_OWN
+from model import TO_OWN, own_pose
 
-# The ground pushes only a foot point touching it: within GAP of its drawn triangle or into it (MuJoCo's contact: a
-# geom meets the ground within its margin, MyoFullBody's foot colliders' 1 mm, and rests 0.1 to 0.4 mm into it under
-# the body's weight with MuJoCo's default solref and solimp, as MyoSuite, MuscleMimic and KINESIS leave them).
+# The ground pushes only a skin point touching it: within GAP of its drawn triangle or into it, the same 5 mm the
+# stage's `lands` gate takes a landed foot within (`_gates.LANDED`).
 GAP = 0.005  # metres
 SLIDE_MOST = 1.2  # m/s
 FRICTION = 0.5
+
+
+class Skin:
+    """The person's drawn surface, SOMA's skin, carried by the body's bones: each segment rides its bone
+    (`riding`), and each skin point is the linear blend of the segments its weights name, so a seat, a bed or a ledge
+    it touches carries it as a floor carries a foot (2026-11-01: MyoFullBody's colliders stood 16 to 27 mm inside a
+    seated astronaut's skin, which sat 10 mm into its floor, so nothing carried his weight)."""
+
+    def __init__(self, points, weights, binds, bodies, riding):
+        """`points` the skin at its bind (v x 3, the person's frame), `weights` each point's share per segment (v x
+        segments), `binds` each segment's frame at the bind (segments x 4 x 4), `bodies` the body each segment rides
+        and `riding` its frame on that body (segments x 4 x 4)."""
+        self.points, self.weights = np.asarray(points, float), np.asarray(weights, float)
+        self.unbound = np.linalg.inv(np.asarray(binds, float))
+        self.bodies, self.riding = list(bodies), np.asarray(riding, float)
+        self.owners = np.asarray(self.bodies)[self.weights.argmax(axis=1)]  # the body a point's force is booked on
+
+    def by_segment(self, model, data):
+        """Each skin point as each segment alone carries it now (v x segments x 3, the person's frame)."""
+        moves = np.array([own_pose(model, data, body) for body in self.bodies]) @ self.riding @ self.unbound
+        return np.einsum("sij,vj->vsi", moves[:, :3, :3], self.points) + moves[None, :, :3, 3]
+
+    def placed(self, model, data):
+        """The skin now (v x 3, the person's frame)."""
+        return np.einsum("vs,vsi->vi", self.weights, self.by_segment(model, data))
+
+    def jacobian(self, model, data, carried, point):
+        """A skin point's Jacobian (3 x nv, MuJoCo's frame): its segments' points' Jacobians on their bodies,
+        blended by its weights; `carried` is `by_segment`'s."""
+        found, along = np.zeros((3, model.nv)), np.zeros((3, model.nv))
+        for segment in np.flatnonzero(self.weights[point]):
+            mujoco.mj_jac(model, data, along, None, TO_OWN.T @ carried[point, segment], self.bodies[segment])
+            found += self.weights[point, segment] * along
+        return found
 
 
 def surface(model, data, geoms):
@@ -35,28 +69,26 @@ def surface(model, data, geoms):
     return np.concatenate(found)
 
 
-def lowest_over(model, data, geoms, ground):
-    """The lowest of `geoms`' collider points over the ground within their reach (metres); None when none is over any
-    of it."""
-    own = surface(model, data, geoms) @ TO_OWN.T
-    heights = heights_over(own, ground, body_reach(own))
+def lowest_over(model, data, skin, ground, points=None):
+    """The lowest of the skin's points (`points`, else all) over the ground within the body's reach (metres); None
+    when none is over any of it."""
+    placed = skin.placed(model, data)
+    heights = heights_over(placed if points is None else placed[points], ground, body_reach(placed))
     return None if np.isnan(heights).all() else float(np.nanmin(heights))
 
 
-def pushes(model, data, ground, up, colliders):
+def pushes(model, data, ground, up, skin):
     """The points the ground pushes ([(body, point's Jacobian, the directions it may push along)], MuJoCo's frame):
-    the colliders' surface points (`surface`) within GAP of the drawn ground under them (within the body's reach,
-    `body_reach`: a roof over its head is never pushing ground), or into it, each pushed along
-    its triangle's normal (`up`, the person's frame) with Coulomb's friction: a point slower than SLIDE_MOST sticks (a
-    friction pyramid, FRICTION), a faster one slides (the normal and FRICTION of it against its slip)."""
-    found, along = [], np.zeros((3, model.nv))
-    points = [surface(model, data, [geom]) for geom in colliders]
-    owners = np.concatenate([np.full(len(mine), model.geom_bodyid[geom]) for geom, mine in zip(colliders, points)])
-    points = np.concatenate(points)
-    own = points @ TO_OWN.T
+    the skin's points within GAP of the drawn ground under them (within the body's reach, `body_reach`: a roof over
+    its head is never pushing ground), or into it, each pushed along its triangle's normal (`up`, the person's frame)
+    with Coulomb's friction: a point slower than SLIDE_MOST sticks (a friction pyramid, FRICTION), a faster one slides
+    (the normal and FRICTION of it against its slip); booked on the body its heaviest segment rides."""
+    found = []
+    carried = skin.by_segment(model, data)
+    own = np.einsum("vs,vsi->vi", skin.weights, carried)
     heights, triangles = standing(own, ground, body_reach(own))
     for point in np.flatnonzero(own[:, 1] - np.nan_to_num(heights, nan=np.inf) <= GAP):
-        mujoco.mj_jac(model, data, along, None, points[point], owners[point])
+        along = skin.jacobian(model, data, carried, point)
         normal = TO_OWN.T @ up[triangles[point]]
         moving = along @ data.qvel
         slip = moving - (moving @ normal) * normal
@@ -68,5 +100,5 @@ def pushes(model, data, ground, up, colliders):
             second = np.cross(normal, first)
             edges = [normal + FRICTION * first, normal - FRICTION * first, normal + FRICTION * second,
                      normal - FRICTION * second]
-        found.append((owners[point], along.copy(), edges))
+        found.append((skin.owners[point], along, edges))
     return found
