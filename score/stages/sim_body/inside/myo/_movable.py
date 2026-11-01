@@ -2,9 +2,12 @@
 of the pinned source, the download untouched: the neck's two joints the source leaves commented out (`NECK`), one
 three-axis thoracic joint where the torso meets lumbar1 (`THORACIC`), and the shoulder girdle's couplings to the
 arm's elevation dropped, its clavicle and scapula joints given their own two-sided ranges (`GIRDLE`) and each phantom
-tied to the joint it undoes (`PHANTOMS`). A body or coupling the source does not
+tied to the joint it undoes (`PHANTOMS`); and its feet given the twist on the shin their hinges lack and the ankle's
+and subtalar joint's human ranges (`FEET`, 2026-11-01). A body or coupling the source does not
 have is left alone (a toy wheel in the tests)."""
+import mujoco
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 # MyoHead's own lines (head/assets/myohead_rigid_chain.xml, commented out there), as written: {body: joint}.
 NECK = {"neck": {"name": "neck_rotation", "pos": [-0.02, 0.4, 0.0], "axis": [0.2, 1.0, 0.0], "range": [-1.4, 1.4]},
@@ -37,13 +40,33 @@ GIRDLE = {"sternoclavicular_r2": [-0.75, np.radians(20)], "sternoclavicular_r3":
 PHANTOMS = {"unrotscap_r2": "sternoclavicular_r2", "unrotscap_r3": "sternoclavicular_r3",
             "unrothum_r1": "acromioclavicular_r1", "unrothum_r2": "acromioclavicular_r2",
             "unrothum_r3": "acromioclavicular_r3"}
+# The foot's twist on the shin (#70, the owner, 2026-11-01: SOMA's foot turns about the shin's long axis, MyoFullBody's
+# hinges cannot): one hinge `ankle_rotation_{side}` on the talus at the ankle's centre, about the tibia's long axis
+# (knee to ankle centre), before the ankle's flexion, positive turning the toes in (adduction) on both sides. At the
+# ankle: the ankle complex's transverse-plane axis is the tibia's long axis (Brockett and Chapman 2016, Orthop Trauma
+# 30(3):232, doi:10.1016/j.mporth.2016.04.015), and under full body load the talus turns about the vertical axis in the
+# talocrural joint as the leg turns, the talonavicular joint beyond it (Lundberg 1989, Acta Orthop Scand Suppl 233,
+# p. 15: 5.0 and 12 degrees within a 20-degree internal to 10-degree external leg rotation, not end ranges), joints
+# MyoFullBody's rigid foot lumps into this one. Range: the ankle joint complex's abduction 20 and adduction 25 degrees
+# (Gunaratne and Tamura 2024, Sensors 24(24), PMC11679897, a review of active ankle orthoses beside Grimston et al.
+# 1993, Foot Ankle 14:215, who measured the complex's abduction and adduction; the review's sentence names no source).
+# Ranges widened to human ones, never to what a clip asks:
+# plantar flexion to 55 degrees (the ankle complex's "10 to 20 of dorsiflexion through to 40-55 of plantarflexion",
+# Brockett and Chapman 2016, after Grimston et al. 1993 and Stauffer et al. 1977), dorsiflexion to 33 (averages 13 to
+# 33 across studies: Roaas and Andersson 1982, Boone and Azen 1979, Lundberg et al. 1989, Stauffer et al. 1977, as
+# OrthopaedicsOne's foot-and-ankle biomechanics review gathers them), subtalar inversion to 23 (the frontal plane's
+# "23 inversion, 12 eversion", Brockett and Chapman 2016 after Stauffer et al. 1977); eversion keeps the model's 20
+# (wider than 12: the published model stays reachable).
+FEET = {"twist": ("ankle_rotation", [-np.radians(20), np.radians(25)]),
+        "ranges": {"ankle_angle": [-np.radians(55), np.radians(33)], "subtalar_angle": [-0.349066, np.radians(23)]}}
 
 
 def movable(spec):
-    """The spec's neck, thorax and shoulder girdle made movable in place (the module's three changes)."""
+    """The spec's neck, thorax, shoulder girdle and feet made movable in place (the module's four changes)."""
     _neck(spec)
     _thoracic(spec)
     _girdle(spec)
+    _feet(spec)
 
 
 def _neck(spec):
@@ -79,3 +102,33 @@ def _girdle(spec):
             equality.data[:5] = [0.0, -1.0, 0.0, 0.0, 0.0]
             low, high = GIRDLE[PHANTOMS[stem]]
             spec.joint(equality.name1).range = [-high, -low]
+
+
+def _feet(spec):
+    """Each foot's twist hinge added on its talus before the ankle's flexion (`FEET`), the ankle's and subtalar
+    joint's ranges widened."""
+    name, span = FEET["twist"]
+    for side in "lr":
+        talus = spec.body(f"talus_{side}")
+        if talus is None or spec.joint(f"ankle_angle_{side}") is None:
+            continue
+        shin_axis = -np.asarray(talus.pos, dtype=float) / np.linalg.norm(talus.pos)  # tibia origin (knee) from the ankle
+        turned = Rotation.from_quat(np.roll(np.asarray(talus.quat, dtype=float), -1)).as_matrix()
+        axis = turned.T @ shin_axis * (-1.0 if side == "l" else 1.0)  # +: toes in on both sides
+        later = [_kept(joint) for joint in talus.joints]
+        for joint in list(talus.joints):
+            spec.delete(joint)
+        talus.add_joint(default=spec.find_default("myolegs"), name=f"{name}_{side}", type=mujoco.mjtJoint.mjJNT_HINGE,
+                        pos=[0.0, 0.0, 0.0], axis=axis, range=span, limited=True)
+        for kept in later:
+            talus.add_joint(**kept)
+        for stem, wide in FEET["ranges"].items():
+            spec.joint(f"{stem}_{side}").range = wide
+
+
+def _kept(joint):
+    """A joint's settings, to add it again after another (MjSpec adds joints last only)."""
+    return {field: getattr(joint, field) for field in
+            ("name", "type", "pos", "axis", "range", "limited", "ref", "springref", "stiffness", "damping",
+             "armature", "frictionloss", "margin", "group", "solref_limit", "solimp_limit", "solref_friction",
+             "solimp_friction", "actfrclimited", "actfrcrange", "actgravcomp", "align", "springdamper")}
