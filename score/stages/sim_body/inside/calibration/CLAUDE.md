@@ -9,8 +9,10 @@ each group's anatomical axes (`aligned`, `frame`, `REFERENCES`); `turn(group)` g
   is SOMA's template hand's shape (SOMA's hand is one rigid shape; MyoFullBody's published zero has the fingers straight
   and the thumb opposed, 67.6 % of the finger bones' vertices outside the template's skin, the thumb 25 to 45 mm;
   24.7 % with them, the thumb inside). `_measure.fingers_measured` reads them on the table as it stands (paste TABLE
-  first): each finger bone vertex as deep in SOMA's skin as the joints' ranges let it, both hands one solve; laid in
-  the person's file by `myo._rested`. The index stays out (SOMA's index stands dorsal of where MyoFullBody's metacarpal
+  first): each finger bone vertex as deep in SOMA's skin as the joints' ranges let it, both hands one solve, each hand
+  moved as one body (not kept) to where its palm stands least outside, as the fit holds it (read again so,
+  2026-11-01: mean's hand 9.43 -> 5.42 %, all 6.95 -> 6.59 %, turns 4.603 -> 4.587 degrees; env1 13.48 -> 13.43 and
+  13.82 -> 13.82 %; at SOMA's Hand joint before); laid in the person's file by `myo._rested`. The index stays out (SOMA's index stands dorsal of where MyoFullBody's metacarpal
   puts it and its knuckle does not bend back). Static like the table: never per person or per clip.
 - Never fit it, never per person or per clip: it would absorb a person's posture (a curved spine) and erase it
   (owner, 2026-10-28). It is the geometry every retargeting tool uses, not fitted to reference data.
