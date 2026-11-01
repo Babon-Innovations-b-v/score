@@ -193,4 +193,29 @@ skin_differences = np.array([(skinned_cost(pose + step * np.eye(4)[axis]) - skin
 assert np.abs(skin_differences - differences).max() > 1e-3, "the skin rows do not reach the cost"
 gaps.append(np.abs(skin_taped - skin_differences).max() / np.abs(skin_differences).max())
 print("SKIN", gaps[-1], skin_rows.tolist())
+half, out = 0.1, (0.01, 0.0101)  # an L prism's inner crease, the bone point just off its bisector (MuJoCo's frame)
+profile = [(-half, -half), (half, -half), (half, 0.0), (0.0, 0.0), (0.0, half), (-half, half)]
+skinned.skin.held = False
+skinned.residuals(pose, outer)
+crease = skinned.skin.placed.numpy()[0].astype(float) - np.array([out[0], out[1], 0.0])
+prism = [[crease[0] + x, crease[1] + y, crease[2] + z] for z in (-half, half) for x, y in profile]
+prism_faces = ([[0, corner + 1, corner] for corner in range(1, 5)]
+               + [[6, 6 + corner, 6 + corner + 1] for corner in range(1, 5)]
+               + [face for edge in range(6) for face in ([edge, (edge + 1) % 6, 6 + (edge + 1) % 6],
+                                                         [edge, 6 + (edge + 1) % 6, 6 + edge])])
+creased = _taped.TapedSites(model, [1, 3, 3], [1.0, 2.0, 0.5], [[0.1, 0.2, 0.5], [0.3, -0.2, 1.0], [0.0, 0.1, 0.8]],
+                            turns, skin=([2], [[0.05, 0.0, 0.15]], [(prism, prism_faces)], [0], 3.0))
+free = creased.gradient(pose, outer)
+creased.hold_skin(pose, outer)
+held = creased.gradient(pose, outer)
+assert creased.residuals(pose, outer)[-1] > 1e-3, "the creased point is not outside"
+def columns(at):
+    return np.stack([(creased.gradient(pose + at * np.eye(4)[axis], outer)
+                      - creased.gradient(pose - at * np.eye(4)[axis], outer)) / (2 * at) for axis in range(4)], axis=1)
+held_steps = np.abs(columns(1e-3) - columns(2.5e-4)).max() / np.abs(columns(2.5e-4)).max()
+creased.skin.held = False
+switching = np.abs(columns(1e-3) - columns(2.5e-4)).max() / np.abs(columns(2.5e-4)).max()
+assert switching > 1e-2, f"the point's nearest sheet does not switch within the steps ({switching})"
+gaps += [held_steps, np.abs(held - free).max() / np.abs(free).max()]
+print("CREASE held steps", held_steps, "found each time", switching, "held gradient", gaps[-1])
 print("GAP", max(gaps))

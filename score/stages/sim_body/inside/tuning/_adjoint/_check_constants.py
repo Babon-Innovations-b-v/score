@@ -51,8 +51,18 @@ def cost(moved):
     return 0.5 * float(np.sum(np.square(sites.residuals(np.concatenate([pose, moved]), offsets))))
 
 
+def picked_entries(moves, marks):
+    """The `PICKED` largest constants' entries, the last swapped for the largest free mark's when none is a free mark's
+    (its first `marks` entries): the theta check needs one (2026-11-01: with the skin rows the inside joints'
+    entries lead and the check had no column)."""
+    picked = np.argsort(-np.abs(moves))[:PICKED]
+    if not (picked < marks).any():
+        picked[-1] = int(np.argmax(np.abs(moves[:marks])))
+    return picked
+
+
 moves = found[len(pose):]
-picked = np.argsort(-np.abs(moves))[:PICKED]
+picked = picked_entries(moves, 3 * constants[0].shape[1])
 gaps = {}
 for step in STEPS:
     differenced = []

@@ -111,10 +111,38 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   rows and its gradient central differences (all gaps under 7.5e-5 of the largest entry). `outer_gradient(inner, outer)` (2026-10-30) is d cost / d outer off the same tape: offsets.grad summed over the copies, then (`trusted`) weights.grad summed over the copies through `_weighed`'s Jacobian transposed (`_weighed_back`, closed form); on the toy's group-end and two-copy sites it equals central differences of the cost over every outer unknown to 2.0e-5 and 1.7e-5 of the largest entry (red 0.14 with the trusts' sum term dropped). It is what level 3's `products` hook differences: `level3_body(..., columns=)` (2026-10-30, `placed`'s linear columns) gives the Body `products(inner, outer, weights)`, each weight column's row the derivative of (columns^T outer_gradient, then the constants' gradient) along w (`directional_rows`, +-step/|w| scaled back by |w|), two outer gradients a column whatever theta's size; on the group-end toy chain it equals w^T `mixed` to 4.4e-4 of the largest entry (red 0.61 without the |w| scale back). Not yet run on a real body. Its step on a real body (B4i, 2026-10-31, heavy_kimodo, against level 3 re-solved alone by the card): the float32 outer gradient's noise grows as 1/step, so products at 3e-5 / 1e-4 / 3e-4 / 1e-3 put level3[:, 0] 7.8 / 2.0 / 0.95 / 0.63 % and D_c[:, 241] 13.1 / 2.9 / 1.08 / 0.41 % off (the arrow's step, 3e-5 to 1e-3, moved them under 0.4 %); `_check_columns` passes STEPS[1] = 1e-3, the heavy gate's 2.7-2.9 % c0/c3 gap.
 - **Level 3's cost holds the skin** (2026-11-01): `TapedSites(skin=)` (`_real.skin_rows`: the clip's bone points copy
   by copy, each frame's posed skin, `fit._skin.skin_cost`) adds 0.5 sum (c d)^2, the closest point and side found off
-  the tape (`_skin_closest`), so its taped gradient is the unit's and `arrow_hessian`'s differences of it carry the
+  the tape (`_SkinRows.find`), so its taped gradient is the unit's and `arrow_hessian`'s differences of it carry the
   skin's bend; level 2 holds no skin rows (`fit/CLAUDE.md`), so its Body is as before. R_theta stays zero and no
   level 1 unknown moves the skin's weight. `_check_taped.py`'s skin case: the gradient equals central
   differences of the cost on a box skin (some points out, some in).
+- **The skin's closest features are held at level 3's solve** (2026-11-01; `TapedSites.hold_skin`, called by
+  `_real.taped_sites` at the solved rows): each bone point's closest feature is the solver's own (`fit._skin.apart_of`
+  through `SkinMeshes.apart`: the float64 nearest of the query's face and its corners' rings), and once held its
+  depth is the one to that feature's plane, line or corner (its projector times the offset from the held closest
+  point), so the tape's cost is the solve's smooth piece. Found again at every evaluation, a point 1 to 9 mm out in a
+  crease switched its nearest skin sheet (up to 32 mm across) between pose steps 5e-5 apart: genuine kinks of the
+  distance, found by brute force in float64 too, not a float32 miss. `arrow_hessian`'s central differences then
+  read those jumps: along a random pose line the gradient's slope sat at 6.8 but fell to -2 to -4 at 20 of 80 steps,
+  and the implicit pose motion on heavy_kimodo frames 40-45 (level 3 alone, the ASIS_l site's y moved, against the
+  card re-solved; scratch `/tmp/skinl23/l1g`) was 0.20 / 1.44 / 0.13 at inner steps 1e-5 / 1e-4 / 1e-3 against the
+  re-solve's 0.090 (gap 1.2 to 16). Held: the slope 6.8 to 7.1 at every step, the motion 0.0900 to 0.0902 at every
+  inner step, 2.5 % off the re-solve at site step 3e-3 (scale 1.002; frames 0.5 to 5.5 %), 12.7 % at 1e-3 (the
+  re-solves' own noise: 1e-3 and 3e-3 differ by 12 %) and the 1e-2 re-solve jumps to another minimum on two frames;
+  without the skin rows the same case is 0.1 to 0.6 % off. Level 3's gradient at its solve is 2.5e-5 with the skin
+  (1.1e-6 without): its judged steps stop there, about 3e-6 rad off a stationary point at the skin's curvature, too
+  little to move the derivative. The fold mask is the solver's (`skin_rows`' kept copies), and the card's level 3
+  has no skinless first-frame pre-solve (mink's `Frames.fitted` only), so there is none to mirror. `_check_taped.py`'s
+  crease case: a point 1 cm out of an L prism's inner crease, just off its bisector: held, H's columns at steps 1e-3
+  and 2.5e-4 equal to 1.0e-4 of the largest; found each time 0.81 apart (red with `hold_skin` not holding).
+  Frames 0-5 and 100-105 the same way: 2.4 % and 2.2 % off at their best re-solve step (scale 1.000 and 1.001), the
+  re-solve jumping on single frames at 1e-3 (0.98 on one). The hybrid gate on the same sets (scratch
+  `/tmp/skinl23/gate/held`) moved from 7.6 to 25 times off to 0.15 to 0.93 off, tall's and mean's step cosines pass
+  (tall -0.245 to 0.996), heavy's does not (-0.962 against 0.989), and every column but mean c0 still fails: the
+  references are 7 to 91 % apart among their own steps, and the globals (c198, c199) stay 15 to 20 % off where the
+  references agree to 7 to 13 %. Still open: level 3 with the skin is not a smooth function of its inputs on a few
+  frames: heavy_kimodo's solve by `_real.solved_rows` against the evaluation's own (`measured_many`, the same set and
+  one clip; Sets and one Clip give the same rows bit for bit) differs on 10 of 136 frames, 0.052 rad on frame 28,
+  where without the skin the two were within 1.46e-5.
 - `_bodies.py` (numpy, 2026-10-30): the real body's pieces for `TapedSites`. `copied_couplings` turns the card's
   projection fields (followers, leaders, rests, polys, frozen, MuJoCo coordinates) into `couplings=` for a model
   holding one copy per frame (joint_q copy by copy, the pose every copy's free coordinates: not followers, not
