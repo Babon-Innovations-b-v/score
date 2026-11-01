@@ -55,7 +55,9 @@ Breaks (each applied once, seen red, reverted):
   the solve with no skin pull (a_folded_frame_has_no_skin_rows_on_the_card red).
 - (2026-11-01) _measure.measures' `skin_shares(marks[skins.kept], ...)` made `skin_shares(marks, ...)`: the card counts
   the folded frame in its shares, 77.2 against the CPU's 74.6 % (a_folded_frame_is_measured_apart_as_on_the_cpu red).
-- (2026-11-01) evaluation._measure's `if not unfolded(skin, rig["faces"]):` made `if False:`: the CPU counts the
+- (2026-11-01) _measure.measures' "bones outside all %" `if unfolded_any else None` dropped: with every frame folded
+  the card gives NaN (l1h's "tuning score nan") (a_folded_frame_is_measured_apart_as_on_the_cpu red).
+- (2026-11-01) evaluation._measure's `if not unfolded(skin, rig):` made `if False:`: the CPU counts the
   folded frame, no folded frame reported (the same check red).
 - (2026-10-29) _measure.skin_shares' "hand" merge dropped: the hand's parts are scored apart, the keys differ.
 - (2026-10-30) _per_row._per_row_fk's `set_places[row_set[problem_idx]]` made `set_places[0]`: every row takes

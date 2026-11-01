@@ -145,7 +145,7 @@ def measures(model, angles, rig, segments, worlds, scales):
             unbent = labels != "hand"
             unbent |= np.isin(parts, ("carpals", "metacarpals"))
             out, depths = marks(own, skin, faces)
-            if not unfolded(skin, rig["faces"]):
+            if not unfolded(skin, rig):
                 folded.append(float(out.mean()))
                 continue
             tree = cKDTree(skin)
@@ -189,10 +189,10 @@ def measures(model, angles, rig, segments, worlds, scales):
             "bones outside depth mm": {key: depth_mm(value) for key, value in deep.items()},
             "outside depth p95 mm": {key: float(np.percentile(value, 95)) if value else 0.0
                                      for key, value in depth.items()},
-            "bones outside all %": 100 * float(np.mean(sum(outside.values(), []))),
+            "bones outside all %": 100 * float(np.mean(sum(outside.values(), []))) if outside else None,
             "skin folded frames": {"frames": len(folded), "all": 100 * float(np.mean(folded)) if folded else 0.0},
             "hand parts outside %": {key: 100 * float(np.mean(value)) for key, value in hand_parts.items()},
-            "bones outside no fingers %": 100 * float(np.mean(sum(no_fingers.values(), []))),
+            "bones outside no fingers %": 100 * float(np.mean(sum(no_fingers.values(), []))) if outside else None,
             "bones outside by bone %": {key: 100 * float(np.mean(value)) for key, value in by_bone.items()}}
 
 

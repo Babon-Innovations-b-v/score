@@ -44,7 +44,8 @@ def turn(axis, angle):
 
 
 def rig(own):
-    """The toy SOMA rig (own frame): a joint per segment at its body's place, a tip 5 cm on, an 8 cm skin box each."""
+    """The toy SOMA rig (own frame): a joint per segment at its body's place, a tip 5 cm on (its child), an 8 cm skin
+    box each."""
     names = list(SEGMENTS) + list(TIPS) + list(LIMBS)
     places = ([own[RIDES[segment]] for segment in SEGMENTS] + [own[RIDES[tip]] + [0.05, 0, 0] for tip in TIPS.values()]
               + [own[body] for body in LIMBS.values()])
@@ -55,7 +56,8 @@ def rig(own):
     for index in range(len(SEGMENTS)):
         weights[8 * index:8 * index + 8, index] = 1.0
     faces = np.concatenate([FACES + 8 * index for index in range(len(SEGMENTS))])
-    return {"names": names, "bind": bind, "points": points, "faces": faces, "weights": weights}
+    parents = [-1] * len(SEGMENTS) + [names.index(segment) for segment in TIPS.values()] + [-1] * len(LIMBS)
+    return {"names": names, "parents": parents, "bind": bind, "points": points, "faces": faces, "weights": weights}
 
 
 def clip(seed=3):
@@ -101,7 +103,8 @@ def the_skins_posed_once_follow_each_clip():
 def a_folded_frame_is_measured_apart_as_on_the_cpu():
     """With the second skin frame's skin folding (`unfolded` False for it, in the card's and the CPU's measure alike),
     the card's measures equal the CPU's, both report one folded frame apart, and the shares are the first frame's
-    alone (`fit._skin.FOLD_MOST`: a folding skin's frame is left out of the share)."""
+    alone (`fit._skin.FOLD_MOST`: a folding skin's frame is left out of the share). With every frame folding both give
+    no share at all: "bones outside all %" None, no region's share or depth, never 0 or NaN."""
     from evaluation import _measure as cpu
     from fit._card import _measure as card
 
@@ -120,6 +123,17 @@ def a_folded_frame_is_measured_apart_as_on_the_cpu():
         cpu.unfolded, card.unfolded = kept
         card.KEPT.clear()
     first = card.measures(played[0], played[1][:1], played[2], played[3], played[4][:1], played[5])
+    cpu.unfolded, card.unfolded = (lambda verts, rig: False), (lambda verts, rig: False)
+    card.KEPT.clear()
+    try:
+        none = {"cpu": cpu.measures(*played), "card": card.measures(*played)}
+    finally:
+        cpu.unfolded, card.unfolded = kept
+        card.KEPT.clear()
+    problems += [f"every frame folded, {side}: {found['bones outside all %']}, {found['bones outside skin %']}, "
+                 f"{found['bones outside depth mm']}" for side, found in none.items()
+                 if not (found["bones outside all %"] is None and found["bones outside skin %"] == {}
+                         and found["bones outside depth mm"] == {})]
     problems += [] if fast["skin folded frames"]["frames"] == 1 else [f"folded {fast['skin folded frames']}"]
     return problems + ([] if fast["bones outside skin %"] == first["bones outside skin %"] else [
         f"shares {fast['bones outside skin %']} are not the first frame's {first['bones outside skin %']}"])

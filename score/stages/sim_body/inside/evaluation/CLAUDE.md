@@ -91,6 +91,9 @@ paired changes, tuning and check bodies apart, verdicts once the run dir has flo
 - **Level 1 aims at the bones inside the skin (owner, 2026-11-01)**: `case_score` is a clip's share of bones outside
   over 10 % (`side_score` their mean: the log's score and the held-out rule's), `reported` the turns check (median and
   worst group, deg) and the joints (median mm) beside it on every evaluation line and check.jsonl, never tuned.
+  A clip whose every skin frame folds (`fit._skin.unfolded`) has no share: `case_score` None, left out of
+  `side_score` (refused when no clip has one) and named in `reported`'s "clips with no unfolded frame" and in
+  held_out.json; never a 0 or NaN in the mean (l1h, 2026-11-01: "tuning score nan").
   `level1.py` lays out no centres (`rest.json`'s centres {}), its Jacobian exact (`--exact`, no differenced columns),
   and `blocked` runs every tuning body side by side (`most=SET_PROCESSES`; 6 before). Timing (night/l1g_work/t1,
   2026-11-01, l1f's 70 cases, before the region rows): an iteration 5.4 min (an evaluation about 1 min, the blocks

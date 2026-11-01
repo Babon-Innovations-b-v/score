@@ -199,26 +199,32 @@ def measured_many(sets, cases, out, python, seeds_root, launch=None, chunk=None,
 def case_score(found):
     """One clip's score (lower is better): the share of its bones outside the skin over 10 %, level 1's aim since
     2026-11-01 (the bones inside the person's skin; its least squares reads their depth, `tuning.case_residuals`).
-    Turns and joints are not in it: `reported`."""
-    return found["bones outside all %"] / 10
+    Turns and joints are not in it: `reported`. None for a clip with no unfolded skin frame (`fit._skin.unfolded`):
+    its share is no measure, left out of `side_score` and counted in `reported`."""
+    share = found["bones outside all %"]
+    return None if share is None else share / 10
 
 
 def reported(found):
     """What a side's evaluation reports beside its score, never tuned ({name: value}, means over its clips): the turns
     check (each SOMA segment drives one bone group, so about 0 by construction: the median and the worst group's root
-    mean square, deg) and the joint centres' error (median, mm)."""
+    mean square, deg), the joint centres' error (median, mm) and the clips with no unfolded frame (`case_score`)."""
     cases = list(found.values())
     groups = sorted(cases[0]["per group rms deg"])
     by_group = {group: sum(case["per group rms deg"][group] for case in cases) / len(cases) for group in groups}
     worst = max(by_group, key=by_group.get)
     return {"turns median deg": round(sum(case["turns deg"][0] for case in cases) / len(cases), 3),
             "turns worst group": f"{worst} {by_group[worst]:.2f}",
-            "joints median mm": round(sum(case["joints mm"][0] for case in cases) / len(cases), 3)}
+            "joints median mm": round(sum(case["joints mm"][0] for case in cases) / len(cases), 3),
+            "clips with no unfolded frame": sorted(case for case, value in found.items() if case_score(value) is None)}
 
 
 def side_score(found):
-    """The mean case score over a side's clips."""
-    return sum(case_score(value) for value in found.values()) / len(found)
+    """The mean case score over a side's clips that have one (`case_score`); refused when none has."""
+    scores = [score for score in map(case_score, found.values()) if score is not None]
+    if not scores:
+        raise ValueError(f"no clip of {sorted(found)} has an unfolded skin frame: no score")
+    return sum(scores) / len(scores)
 
 
 def accepted(check, tuning):

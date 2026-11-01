@@ -62,7 +62,8 @@ def flattened(found):
     flat = {f"joint {key} mm": value[0] for key, value in found["per joint mm"].items()}
     flat.update({f"turn {key} deg": value[0] for key, value in found["per group deg"].items()})
     flat.update({f"outside {key} %": value for key, value in found["bones outside skin %"].items()})
-    flat["outside all %"] = found["bones outside all %"]
+    if found["bones outside all %"] is not None:  # None: no unfolded skin frame (`evaluation.case_score`)
+        flat["outside all %"] = found["bones outside all %"]
     flat["joints mean mm"] = float(np.mean([value[0] for value in found["per joint mm"].values()]))
     flat["turns mean deg"] = float(np.mean([value[0] for value in found["per group deg"].values()]))
     return flat
