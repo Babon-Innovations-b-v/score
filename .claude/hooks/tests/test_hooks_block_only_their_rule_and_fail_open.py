@@ -661,6 +661,7 @@ def test_soul_guard_sends_a_too_long_or_em_dash_reply_back_at_most_twice(tmp_pat
         assert code == 0 and json.loads(out)["decision"] == "block" and rule in out, out
     for name, question, reply, extra in (("c", "is it done?", "Yes, it is.", {}),
                                          ("d", "explain in detail how the cache works", long_reply, {}),
+                                         ("f", "can u list me all modules and their groups", long_reply, {}),
                                          ):
         assert run(guard, dict(soul_turn(tmp_path / name, question, reply), **extra))[2] == "", name
     # The rewrite is checked again: a still-long rewrite goes back once more, then the turn may end.
