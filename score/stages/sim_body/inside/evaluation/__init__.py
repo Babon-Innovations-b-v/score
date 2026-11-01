@@ -21,6 +21,7 @@ SET_PROCESSES = 10  # bodies' set processes side by side (`measured_many`): ever
 CHUNK = 12  # sets per chunk of the one card process: 32 tall sets peaked ~5.2-5.5 GB own (phase A ~2.6, +~2.7 per 32 in the constants phase; night/across c38), 12 keeps ~3.7 under 4
 BLOCKS_WORKER = pathlib.Path(__file__).resolve().parents[1] / "tuning" / "_adjoint" / "_check_columns.py"  # one body's exact blocks
 SAME_SEEDS = "--same-seeds"  # _card_sets: every set seeded from the seeds root, the base point's way
+UNCONVERGED = "unconverged-{body}.txt"  # _card_sets: a set whose level 3 frame of `body` did not stop (its message)
 SOLVED = "measures.json"  # a clip's unrounded measures, the solver's; m.json beside it is the rounded copy people read
 SEEDS = "angles.npz"  # a clip's mink angles per frame (qpos, frames x nq): the card's seeds (fit._card._seeds)
 PLACES = 2  # decimals of the rounded copy
@@ -110,8 +111,15 @@ def set_written(folder, rows, weights, rest):
     (folder / "rest.json").write_text(json.dumps(rest, indent=1))
 
 
-def read_back(folder, cases, codes):
-    """{case: unrounded measures} from folder/<case>/SOLVED; raises when any exit code is not 0 or a case has none."""
+def read_back(folder, cases, codes, unconverged=False):
+    """{case: unrounded measures} from folder/<case>/SOLVED; raises when any exit code is not 0 or a case has none.
+    A set a body's level 3 did not stop on (an UNCONVERGED file, `_card_sets`) is None when `unconverged`, else raises
+    with its message."""
+    stuck = sorted(folder.glob(UNCONVERGED.format(body="*")))
+    if stuck and not any(codes.values()):
+        if unconverged:
+            return None
+        raise RuntimeError(f"{folder.name}: " + "; ".join(path.read_text() for path in stuck))
     missing = [case for case in cases if not (folder / case / SOLVED).exists()]
     if missing or any(codes.values()):
         raise RuntimeError(f"{folder.name}: failed {codes}, missing {missing}; logs in {folder}")
@@ -160,14 +168,15 @@ def sets_command(python, seeds_root, out, cases):
 
 
 def measured_many(sets, cases, out, python, seeds_root, launch=None, chunk=None, most=SET_PROCESSES,
-                  free_gb=FREE_GB):
+                  free_gb=FREE_GB, unconverged=False):
     """[{case: honest measures}] for every set ([(rows, weights, rest)], as `measured` takes one): one card process a
     body (`_card_sets.py`, card build step 6a: every set of that body in it, its start-up kept), at most `most` side by
     side as `run_all` runs bodies (2026-10-31: one process for every body sat at ~1.3 cores, the card mostly idle, 37
     min a Jacobian on l1d), a failed one run once more (the card may refuse a context, as `blocked`'s). Each process
     runs the sets in chunks of at most `chunk` (default CHUNK, so its card memory stays bounded), one chunk after
     another, every set seeded from `seeds_root`'s angles. out/p000/s00000.. hold the sets; raises when a process fails
-    or any set misses a case. `launch(body, cases)` starts one (default: `sets_command` under out/sets-<body>.log)."""
+    or any set misses a case; a set some body's level 3 did not stop on is None when `unconverged` (a Jacobian's
+    nudged set: `tuning._differences.jacobian` steps its columns the other way), else raises. `launch(body, cases)` starts one (default: `sets_command` under out/sets-<body>.log)."""
     shutil.rmtree(out, ignore_errors=True)
     chunk = chunk or CHUNK
     folders = [out / f"p{index // chunk:03d}" / f"s{index:05d}" for index in range(len(sets))]
@@ -182,7 +191,7 @@ def measured_many(sets, cases, out, python, seeds_root, launch=None, chunk=None,
     codes = run_all(bodies, out, python, launch=launch or started, most=most, free_gb=free_gb)
     again = {body: bodies[body] for body, code in codes.items() if code}
     codes.update(run_all(again, out, python, launch=launch or started, most=most, free_gb=free_gb) if again else {})
-    return [read_back(folder, cases, codes) for folder in folders]
+    return [read_back(folder, cases, codes, unconverged) for folder in folders]
 
 
 def case_score(found):

@@ -77,7 +77,7 @@ def main():
     def evaluate_many(sets):
         return evaluation.measured_many([worker_set(unknowns) for unknowns in sets],
                                         evaluation.picked(cases, split, "tuning"), run / "evals" / "jacobian",
-                                        given.python, given.card)
+                                        given.python, given.card, unconverged=True)
 
     def evaluate(unknowns):
         count[0] += 1

@@ -33,6 +33,9 @@ Breaks (each applied once, seen red, reverted):
   as much as skin and turns.
 - (2026-10-30) case_residuals reading the median ("per group deg"/"per joint mm" [0]) in place of the root mean
   square: level 1 tunes the median, whose middle frames swap under a step, not a smooth summary.
+- (2026-11-01) jacobian's retry of a failed set (`if failed:` made `if False:`): a nudged set the card's level 3 did
+  not stop on (None) kills the Jacobian, as l1e's s00014 killed level 1.
+- (2026-11-01) jacobian's retry stepping `steps` again (not `-steps`): the failed side is asked twice.
 - (2026-10-30) _differences.hybrid's `merged[:, chosen] = differenced[:, chosen]` dropped: the hybrid keeps the
   exact Jacobian's chosen (centre) columns in place of their differences.
 
@@ -176,6 +179,29 @@ def test_the_differences_step_a_fixed_amount_grouped_on_the_pattern_within_the_b
     found = tuning._differences.jacobian(tuning._differences.serially(residuals), unknowns, residuals(unknowns),
                                          pattern, groups, steps)
     assert np.allclose(found, matrix, atol=0.01), found
+
+
+def test_a_set_the_solve_did_not_stop_on_is_differenced_the_other_way_within_the_bounds():
+    pattern = np.array([[1, 0, 1], [0, 1, 1], [0, 0, 1]], dtype=np.int8)
+    matrix = np.array([[2.0, 0.0, 0.5], [0.0, -1.0, 0.25], [0.0, 0.0, 3.0]])
+    groups, unknowns = tuning._differences.grouped(pattern), np.zeros(3)
+    steps = tuning._differences.signed_steps(unknowns, tuning.STEP, np.full(3, 5.0))
+    asked = []
+
+    def many(sets):  # a set moving column 2 up does not converge (a frame held on its bounds)
+        asked.extend(moved.copy() for moved in sets)
+        return [None if moved[2] > 0 else matrix @ moved for moved in sets]
+    bounds = (np.full(3, -5.0), np.full(3, 5.0))
+    found = tuning._differences.jacobian(many, unknowns, np.zeros(3), pattern, groups, steps, bounds)
+    assert np.allclose(found, matrix), found
+    assert np.allclose(asked[-1], [0, 0, -tuning.STEP])  # asked once more, on the other side
+    try:
+        tuning._differences.jacobian(many, unknowns, np.zeros(3), pattern, groups, steps,
+                                     (np.array([-5.0, -5.0, -0.1]), bounds[1]))
+    except RuntimeError as error:
+        assert "bound" in str(error)
+    else:
+        raise AssertionError("the other side past its bound was taken")
 
 
 def test_one_call_with_every_nudged_set_gives_the_serial_jacobian_and_solve():

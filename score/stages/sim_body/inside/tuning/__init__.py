@@ -258,7 +258,8 @@ def solved(residuals, entries, pattern, checkpoint, limit_seconds, every=None, s
     def batched(sets):
         founds = many(sets)
         for moved, found in zip(sets, founds):
-            checkpointed(checkpoint, moved, 0.5 * float(found @ found), "evaluation")
+            if found is not None:  # a set level 3 did not stop on (`_differences.jacobian` steps it the other way)
+                checkpointed(checkpoint, moved, 0.5 * float(found @ found), "evaluation")
         return founds
 
     def differenced(unknowns):
@@ -267,7 +268,7 @@ def solved(residuals, entries, pattern, checkpoint, limit_seconds, every=None, s
         found = last.get(np.asarray(unknowns, dtype=float).tobytes())
         found = evaluated(unknowns) if found is None else found
         columns = jacobian(batched if many else serially(evaluated), unknowns, found, pattern, groups,
-                           signed_steps(unknowns, STEP, upper))
+                           signed_steps(unknowns, STEP, upper), (lower, upper))
         return hybrid(exact(unknowns), columns, chosen) if exact else columns
 
     def iterated(intermediate_result):
@@ -307,7 +308,7 @@ def whole(evaluate, check, entries, checkpoint, limit_seconds, start=None, every
         return stacked(unknowns, kept.pop(np.asarray(unknowns, dtype=float).tobytes(), None) or evaluate(unknowns))
 
     def many(sets):
-        return [stacked(moved, found) for moved, found in zip(sets, evaluate_many(sets))]
+        return [None if found is None else stacked(moved, found) for moved, found in zip(sets, evaluate_many(sets))]
 
     def checked(iteration, unknowns):
         if iteration % every == 0:

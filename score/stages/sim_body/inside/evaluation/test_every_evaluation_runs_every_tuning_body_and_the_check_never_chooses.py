@@ -5,6 +5,9 @@ the solver reads them unrounded, m.json is the rounded copy people read.
 
 Breaks that turn a test red (each seen red once, 2026-10-29):
 - run_all's `len(running) < most` made `<= most`: more bodies at once than allowed.
+- (2026-11-01) read_back's `if unconverged: return None` made to fall through: a Jacobian set one body's level 3
+  did not stop on raises (l1e's s00014 killed level 1); its `raise` for an evaluation dropped: an evaluation reads a
+  body missing as nothing wrong.
 - by_body's `.setdefault(body_of(case), {})[case]` keyed by case: a body's clips split over processes.
 - body_of's TWO_WORD_MOTIONS made `()`: mean_sit_stand reads as body mean_sit, its clips split from mean's and off the split.
 - tuning.whole's `checks.append(("end", ...))` dropped: no held-out score at the end.
@@ -129,6 +132,22 @@ def test_a_jacobian_over_the_chunk_runs_its_chunks_in_one_process_a_body_each_se
         assert sorted(path.parent.name for path in root.glob("p*/s*")) == \
             ["p000", "p000", "p001", "p001", "p002"]
         assert [found_set["tall_kimodo"] for found_set in found] == [{"set": index} for index in range(5)]
+
+
+def test_a_set_a_body_did_not_converge_on_is_none_for_a_jacobian_and_fails_an_evaluation():
+    with tempfile.TemporaryDirectory() as root:
+        folder = pathlib.Path(root) / "s00014"
+        (folder / "tall_kimodo").mkdir(parents=True)
+        (folder / "tall_kimodo" / evaluation.SOLVED).write_text(json.dumps({"joints mm": [1, 2, 3]}))
+        (folder / evaluation.UNCONVERGED.format(body="heavy")).write_text("heavy: 1 rows did not stop in 300 steps")
+        cases = {"tall_kimodo": "/t.json", "heavy_kimodo": "/h.json"}
+        assert evaluation.read_back(folder, cases, {"tall": 0, "heavy": 0}, unconverged=True) is None
+        try:
+            evaluation.read_back(folder, cases, {"tall": 0, "heavy": 0})
+        except RuntimeError as error:
+            assert "did not stop" in str(error)
+        else:
+            raise AssertionError("an evaluation read a body that did not converge as nothing wrong")
 
 
 def test_the_copy_people_read_is_rounded_and_the_solvers_is_not():
