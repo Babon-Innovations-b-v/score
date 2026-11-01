@@ -67,32 +67,36 @@ TABLE = {
 # The held fingers' rest turns (radians, each joint by its name without its side, both sides alike): MyoFullBody's
 # finger and thumb joints turned so its hand at rest has SOMA's template hand's shape (SOMA has no finger joints, its
 # hand one rigid shape; MyoFullBody's fingers are held where they stand, `fit`), each finger bone as deep in SOMA's
-# skin as its joints' ranges let it with the hand laid by TABLE (`_measure.fingers_measured`); laid in the person's
-# file by `myo._rested`. Never per person or per clip. Printed by `_measure.py` on 2026-11-01 (the hands' turns of
-# that day): on the template, 67.6 % of the finger bones' vertices outside SOMA's skin at the published zero pose,
-# 24.7 % at these (the thumb 25 to 45 mm out before, inside after; the index stays out: SOMA's stands dorsal of where
-# its metacarpal puts it, and its knuckle does not bend back, range 0 to 90 degrees).
+# skin as its joints' ranges let it with the hand laid by TABLE and moved as one body to where its palm stands least
+# outside, as the fit holds it (`_measure.fingers_measured`); laid in the person's file by `myo._rested`. Never per
+# person or per clip. Printed by `_measure.py` on 2026-11-01 (the hands' turns of that day): on the template, 67.6 %
+# of the finger bones' vertices outside SOMA's skin at the published zero pose, 24.7 % at the first read (the hand at
+# SOMA's Hand joint; the thumb 25 to 45 mm out before, inside after; the index stays out: SOMA's stands dorsal of where
+# its metacarpal puts it, and its knuckle does not bend back, range 0 to 90 degrees). Read again with the hand placed
+# (#70, 2026-11-01): the fingers bend 6 to 13 degrees more at the knuckles, the thumb's CMC 11 less; on the mean body's
+# 15 clips the hand 9.43 -> 5.42 % outside (forearm 2.87 -> 4.27, shoulder 2.07 -> 1.51), all 6.95 -> 6.59 %, the turns
+# 4.603 -> 4.587 degrees, joints 14.14 -> 13.43 mm; env1 standing all 13.48 -> 13.43 %, seated 13.82 -> 13.82 %.
 FINGERS = {
-    "cmc_abduction": -0.3956,
-    "cmc_flexion": 0.3529,
-    "ip_flexion": -0.0416,
-    "mcp2_abduction": 0.0053,
-    "mcp2_flexion": 0.0,
-    "mcp3_abduction": -0.0803,
-    "mcp3_flexion": 0.0,
-    "mcp4_abduction": -0.0004,
-    "mcp4_flexion": 0.0001,
-    "mcp5_abduction": -0.1191,
-    "mcp5_flexion": 0.0011,
-    "md2_flexion": 0.0001,
-    "md3_flexion": 0.1279,
-    "md4_flexion": 0.3576,
-    "md5_flexion": 0.0762,
-    "mp_flexion": -0.09,
-    "pm2_flexion": 0.0,
-    "pm3_flexion": 0.0003,
-    "pm4_flexion": 0.0211,
-    "pm5_flexion": 0.0476,
+    "cmc_abduction": -0.3119,
+    "cmc_flexion": 0.1645,
+    "ip_flexion": -0.0157,
+    "mcp2_abduction": 0.0057,
+    "mcp2_flexion": 0.0122,
+    "mcp3_abduction": -0.0798,
+    "mcp3_flexion": 0.1014,
+    "mcp4_abduction": -0.046,
+    "mcp4_flexion": 0.1215,
+    "mcp5_abduction": -0.1579,
+    "mcp5_flexion": 0.1115,
+    "md2_flexion": 0.1043,
+    "md3_flexion": 0.2321,
+    "md4_flexion": 0.3481,
+    "md5_flexion": 0.1303,
+    "mp_flexion": -0.0643,
+    "pm2_flexion": 0.025,
+    "pm3_flexion": 0.0552,
+    "pm4_flexion": 0.0436,
+    "pm5_flexion": 0.0715,
 }
 
 
