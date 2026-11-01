@@ -54,7 +54,7 @@ Before you publish, check the two mandatory fields: a clear **Acceptance** list 
 
 **First: loose, or under a parent PRD?** Does this work belong under an existing parent PRD (a follow-up, or a larger effort grill named)? Then it is **not a loose top-level PRD**: skip the `PRD` label and nest it as a native sub-issue, see 4b. Only a standalone, top-level effort gets the `PRD` label. In doubt: if it has a clear parent PRD, you nest.
 
-**A new PRD is a new root, so check the roots first.** The backlog is a tree: PRD-labelled roots on top, their children carrying `bug`/`enhancement`, three layers at most, and one root per subject. A session that reads its own prompt as a new workstream opens a second root beside one that is already open, so before you publish:
+**A new PRD is a new root, so check the roots first.** The backlog is a tree: PRD-labelled roots on top, their children carrying `bug`/`enhancement`, as many layers deep as the work needs, and one root per subject. A session that reads its own prompt as a new workstream opens a second root beside one that is already open, so before you publish:
 
 ```bash
 gh issue list --repo $REPO --label PRD --state open --limit 60
