@@ -1,6 +1,7 @@
 """Level 1's result written into the source (#70): the landmark table's links and trusts (`rewritten`, into
-`landmarks/_table.py`) and a global weight's line (`weight_rewritten`, MARKER_GOAL in `fit/_frames.py`, END_WEIGHT in
-`fit/__init__.py`)."""
+`landmarks/_table.py`), a global weight's line (`weight_rewritten`, MARKER_GOAL in `fit/_frames.py`, END_WEIGHT in
+`fit/__init__.py`) and the group ends' centres moved by their offsets (`centres_rewritten`, `landmarks/_table.py`'s
+CENTRES and the measure's copy in `evaluation/_measure.py`, as `evaluation._case.load_centres` moves both)."""
 
 import re
 
@@ -23,3 +24,17 @@ def weight_rewritten(source, name, value):
     if count != 1:
         raise ValueError(f"{name}: {count} lines matched in the source")
     return found
+
+
+def centres_rewritten(source, offsets):
+    """A source's centre rows (`"name": ("body", (x, y, z))`) each moved by its offset ({name: [3]} m, its body's
+    frame); raises when a named centre is not one row of the source."""
+    for name, offset in offsets.items():
+        pattern = re.compile(r'("%s": \("[^"]+", )\(([^)]*)\)' % re.escape(name))
+        found = pattern.findall(source)
+        if len(found) != 1:
+            raise ValueError(f"{name}: {len(found)} centre rows matched in the source")
+        moved = [float(value) + float(move) for value, move in zip(found[0][1].split(","), offset)]
+        text = "(" + ", ".join(f"{round(value, 6):g}" for value in moved) + ")"
+        source = pattern.sub(lambda match: match.group(1) + text, source)
+    return source

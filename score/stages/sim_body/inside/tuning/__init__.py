@@ -18,7 +18,7 @@ import numpy as np
 from scipy.optimize import least_squares
 
 from tuning._differences import chosen_groups, hybrid, jacobian, serially, signed_steps
-from tuning._rewriting import rewritten, weight_rewritten  # noqa: F401  (level 1's writers, read as tuning.<name>)
+from tuning._rewriting import centres_rewritten, rewritten, weight_rewritten  # noqa: F401  (level 1's writers, read as tuning.<name>)
 
 LONG_AXIS = 1  # MyoFullBody's bodies run along their own y (OpenSim's convention): the axis a joint link keeps
 MIRROR = np.array([1.0, 1.0, -1.0])  # a right landmark's body-frame vector as its left one's
