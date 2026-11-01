@@ -3,8 +3,9 @@ femur, tibia, talus and toes), sized to a SOMA made of one thin box along each b
 stretch between its two end joints (the child bodies' joint anchors) SOMA's rig joints apart (the foot 1.5 times the
 model's), every group's
 mass its box's volume at Dempster's density (all brought to the person's mass with the bodies of no group kept), each
-group's centre of mass on its stretch's middle and each one-body group's inertia its box's (all worked out by hand
-from the boxes). It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh,
+group's centre of mass on its stretch's middle and each one-body group's inertia its box's, each limb body as wide
+across its long axis as its length scale times its box's width over its length over SOMA's mean shape's, and a box's
+inertia under an uneven scale the scaled box's (all worked out by hand from the boxes). It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh,
 built at $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted):
@@ -20,6 +21,11 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   stretch sized to its end joint's distance from SOMA's origin, not its two joints apart.
 
 - (2026-10-31) sizing.filled's cache dropped (`volumes.filled` called every time): the mesh is filled once per sizing.
+- (2026-11-01) body_scales' `np.full(3, scales[owner[name]] * across)` made `np.full(3, scales[owner[name]])`: the
+  limbs as wide as long.
+- (2026-11-01) long_axes' `np.argmax(np.abs(local))` made `np.argmin(np.abs(local))`: the length laid across the
+  bone, the foot sized along its width.
+- (2026-11-01) _inertia's `* _stretched(scale, quat) ** 2` dropped: the box's inertia only by its mass.
 
 Run: .venv/bin/python score/stages/sim_body/inside/sizing/test_a_sized_group_is_somas_length_and_weight.py
 """
@@ -163,7 +169,8 @@ def every_group_is_somas_length_mass_and_centre():
     import sizing
     from model import Couplings, default_pose
     final, scales, sizes, found = sized_toy()
-    problems = [] if abs(scales["talus_l"] - FOOT_SCALE) < 1e-3 else [f"the foot sized {scales['talus_l']:.4f}"]
+    along = scales["talus_l"][1]  # the toy's foot runs along the talus's y
+    problems = [] if abs(along - FOOT_SCALE) < 1e-3 else [f"the foot sized {along:.4f}"]
     for group, length in found.items():
         if abs(length - LENGTHS[group.removeprefix("Left").removeprefix("Right")]) > 0.001:
             problems.append(f"{group} {length:.4f} m")
@@ -208,7 +215,42 @@ def a_mesh_is_filled_once_and_sizes_alike():
     return problems + ([] if same else ["the second sizing's volumes differ"])
 
 
-CHECKS = (every_group_is_somas_length_mass_and_centre, a_mesh_is_filled_once_and_sizes_alike)
+# Each toy limb's long axis in its body's frame: the femur and tibia run along z, the talus to the toes along y.
+LONG = {"femur": 2, "tibia": 2, "talus": 1}
+
+
+def a_limb_is_as_wide_as_its_girth_asks():
+    """Each limb body's scale across its long axis its length scale times its box's SIDE over its stretch's length
+    over MEAN_SLENDERNESS (the cells read the box's section within 2%)."""
+    import numpy as np
+    import sizing
+    _, scales, _, _ = sized_toy()
+    problems = []
+    for side, letter in (("Left", "l"), ("Right", "r")):
+        for segment, body in (("Leg", "femur"), ("Shin", "tibia"), ("Foot", "talus")):
+            scale = scales[f"{body}_{letter}"]
+            wanted = scale[LONG[body]] * SIDE / LENGTHS[segment] / sizing.MEAN_SLENDERNESS[segment]
+            across = [axis for axis in range(3) if axis != LONG[body]]
+            if not np.allclose(scale[across], wanted, rtol=0.02):
+                problems.append(f"{side}{segment}: {np.round(scale, 4)}, across not {wanted:.4f}")
+    return problems
+
+
+def a_box_stretched_unevenly_has_the_stretched_boxs_inertia():
+    """A 1 kg box 0.1 x 0.2 x 0.3 m, its inertial frame turned a quarter about z, scaled (2, 1, 1) in its body's
+    frame with its mass doubled: the 0.2 x 0.2 x 0.3 m box's of 2 kg, m (b2 + c2) / 12 axis by axis."""
+    import numpy as np
+    import sizing
+    def box(a, b, c, kg):
+        return kg * np.array([b * b + c * c, a * a + c * c, a * a + b * b]) / 12
+    quarter = np.array([np.cos(np.pi / 4), 0, 0, np.sin(np.pi / 4)])  # the inertial x along the body's y
+    found = sizing._inertia(box(0.1, 0.2, 0.3, 1.0), quarter, np.array([1.0, 2.0, 1.0]), 2.0)
+    wanted = box(0.2, 0.2, 0.3, 2.0)
+    return [] if np.allclose(found, wanted, rtol=1e-9) else [f"{found}, not {wanted}"]
+
+
+CHECKS = (every_group_is_somas_length_mass_and_centre, a_mesh_is_filled_once_and_sizes_alike,
+          a_limb_is_as_wide_as_its_girth_asks, a_box_stretched_unevenly_has_the_stretched_boxs_inertia)
 
 
 def in_newton():

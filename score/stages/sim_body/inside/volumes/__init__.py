@@ -1,7 +1,7 @@
 """SOMA's segment volumes and the masses, centres of mass and inertias they give (#70; pure numpy): the person's closed
 mesh at its bind filled with cells (`filled`), each cell given to the bone group whose SOMA stretch is nearest
-(`shares`), each group's volume, centre and spread (`measured`), and its mass, centre of mass and inertia's trace at
-Dempster's segment densities, all brought to the person's mass (`weighed`).
+(`shares`), each group's volume, centre and spread (`measured`) and its girth for its length (`slenderness`), and its
+mass, centre of mass and inertia's trace at Dempster's segment densities, all brought to the person's mass (`weighed`).
 
 Motion cannot tell weight, so the masses come from the body's shape (the owner's design, #70). The densities are
 assumed: Dempster 1955 (WADC TR 55-159, eight cadavers aged 52 to 83) as Winter 2009 tabulates them (Biomechanics and
@@ -90,6 +90,18 @@ def measured(cells, owner, count, cell=CELL):
         found.append((volume, centre, float(((mine - centre) ** 2).sum()) * cell ** 3 + volume * cell ** 2 / 4))
     return found
 
+
+GIRTH_MIDDLE = (0.2, 0.8)  # the share of a stretch its girth is read over: clear of the cells its ends share
+
+
+def slenderness(cells, owner, group, start, end, cell=CELL):
+    """A group's girth for its length: the width of its mean cross-section (the square root of its cells' volume
+    between GIRTH_MIDDLE of its stretch, start to end, over that span's length) over the stretch's length."""
+    start, end = np.asarray(start, dtype=float), np.asarray(end, dtype=float)
+    length = float(np.linalg.norm(end - start))
+    along = (cells[owner == group] - start) @ (end - start) / length ** 2
+    within = np.count_nonzero((along >= GIRTH_MIDDLE[0]) & (along <= GIRTH_MIDDLE[1]))
+    return float(np.sqrt(within * cell ** 3 / ((GIRTH_MIDDLE[1] - GIRTH_MIDDLE[0]) * length))) / length
 
 def weighed(groups, found, kg):
     """Each group's (kg, centre of mass, inertia's trace kg m2 about it): its volume at its density, all brought to

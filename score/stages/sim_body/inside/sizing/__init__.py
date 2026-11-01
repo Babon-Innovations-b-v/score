@@ -8,17 +8,22 @@
   laid on the group's bodies (frames under FRAME_KG left out) in the model's own proportions, the centre carried
   into the group's frame by the calibration table and the inertias scaled together to the trace (`weigh`); the
   bodies of no group (the kneecaps, the abdominal wrapper) keep the model's share;
+- each limb group's width (GIRTH_GROUPS; the two axes across its stretch) its length's scale times the person's girth
+  for its length over SOMA's mean shape's (`volumes.slenderness`, MEAN_SLENDERNESS: MyoFullBody sized evenly is
+  taken to fit the mean shape's girth, so a slimmer limb gets slimmer bones; `Size.widths`);
 - what SOMA does not give marked as assumed with a plausible range (`assumed`).
-A body takes its group's scale, a body of no group its parent's; a body's place in its parent scales with its
-parent, but OWN_PLACED's with its own. Positions, geoms, sites, joint anchors, meshes and a
-slide joint's coupling and range scale with it (`sized`); each muscle's path length at the zero pose is read for
+A body's scale is three, one per axis of its own frame: its group's length scale along the axis nearest the group's
+stretch at the default pose (`long_axes`), its width scale across (the same as the length's outside GIRTH_GROUPS); a
+body of no group takes its parent's. A body's place in its parent scales with its parent, but OWN_PLACED's with its
+own. Positions, geoms, sites, joint anchors, meshes, inertias and a slide joint's coupling and range scale with it
+(`sized`; a shape's or an inertia's axes, and a slide's, by the stretch along each, `_stretched`); each muscle's path length at the zero pose is read for
 OpenSim's muscle scaling (`path_lengths`). The masses' centres stand at SOMA's own joints (`soma_point`,
 `myo_point`): where a group's mass sits is not its length."""
 import mujoco
 import numpy as np
 
 import volumes
-from bone_groups import groups
+from bone_groups import groups, sided
 from calibration import turn
 from landmarks import myo_parts, soma_point
 from model import TO_OWN, Couplings, default_pose
@@ -30,6 +35,15 @@ OWN_PLACED = {"torso"}
 SCALE_RANGE = (0.5, 2.0)  # a bone group's scale's bounds
 # More SOMA bone lines a group's volume is given by, beyond its stretch: the hips' line for the pelvis.
 MORE_LINES = {"Hips": (("LeftLeg", "RightLeg"),)}
+# The limb groups whose bones' width is sized from SOMA's girth (#70, 2026-11-01: the coordinator's decision; env1's
+# forearm bones, scaled evenly by length, stood 58 to 63 mm across in a 55 to 57 mm wrist). The toes are left out:
+# their short stretch's girth reads 0.79 to 1.43 times the mean shape's over level 1's 41 bodies, with no tie to build.
+GIRTH_GROUPS = tuple(sided(("{Side}Arm", "{Side}ForeArm", "{Side}Hand", "{Side}Leg", "{Side}Shin", "{Side}Foot")))
+# SOMA's mean shape's girth for its length per limb group (`volumes.slenderness`; its coefficients zero, level 1's
+# `mean` body, 1.684 m; both sides' mean; `Size(rig).slender` on its rig, measured 2026-11-01). Its limbs are the
+# reference MyoFullBody's bones, sized evenly by length, are taken to fit (env1's forearm bones' best even shrink in
+# its skin 0.85, the mean body's 1.00; env1's forearm reads 0.89 of the mean's).
+MEAN_SLENDERNESS = {"Arm": 0.3668, "ForeArm": 0.2481, "Hand": 0.246, "Leg": 0.3572, "Shin": 0.2222, "Foot": 0.4672}
 # What SOMA does not give, as assumed, with a plausible range (`assumed` adds the bone shape measured on the person).
 ASSUMED = {
     "muscle strength": {
@@ -87,31 +101,96 @@ def posed_lengths(model, scales, table=None):
     was."""
     kept = model.body_pos.copy(), model.jnt_pos.copy(), model.eq_data.copy()
     name = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, body) for body in range(model.nbody)]
-    above = np.array([1.0] + [scales.get(name[model.body_parentid[body]], 1.0) for body in range(1, model.nbody)])
-    placed = np.array([1.0] + [scales[name[body]] if name[body] in OWN_PLACED else above[body]
-                               for body in range(1, model.nbody)])
-    model.body_pos[:] = kept[0] * placed[:, None]
-    model.jnt_pos[:] = kept[1] * np.array([scales.get(name[model.jnt_bodyid[joint]], 1.0)
-                                          for joint in range(model.njnt)])[:, None]
+    even = np.ones(3)
+    above = np.array([even] + [scales.get(name[model.body_parentid[body]], even) for body in range(1, model.nbody)])
+    placed = np.array([even] + [scales[name[body]] if name[body] in OWN_PLACED else above[body]
+                                for body in range(1, model.nbody)])
+    model.body_pos[:] = kept[0] * placed
+    model.jnt_pos[:] = kept[1] * np.array([scales.get(name[model.jnt_bodyid[joint]], even)
+                                          for joint in range(model.njnt)])
     for equality in range(model.neq):
         joint = model.eq_obj1id[equality]
         if model.eq_type[equality] == mujoco.mjtEq.mjEQ_JOINT and model.jnt_type[joint] == mujoco.mjtJoint.mjJNT_SLIDE:
-            model.eq_data[equality, :5] = kept[2][equality, :5] * above[model.jnt_bodyid[joint]]
+            body = model.jnt_bodyid[joint]
+            model.eq_data[equality, :5] = kept[2][equality, :5] * _slide_scale(above[body], model.body_quat[body],
+                                                                               model.jnt_axis[joint])
     try:
         return myo_lengths(model, scales, table)
     finally:
         model.body_pos[:], model.jnt_pos[:], model.eq_data[:] = kept
 
 
-def body_scales(model, scales, table=None):
-    """Each body's scale ({body name: scale}): its group's, a body of no group its parent's."""
+def body_scales(model, scales, table=None, spreads=None):
+    """Each body's scale ({body name: [3], one per axis of its frame}): its group's length scale, across its long
+    axis times its group's width over length (`spreads`: {body: (long axis, width over length)}, `Size.spreads`;
+    none: even); a body of no group its parent's."""
     owner = {body: group for group, (_, _, bodies) in stretches(table).items() for body in bodies}
+    spreads = spreads or {}
     found = {}
     for body in range(1, model.nbody):
         name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, body)
         parent = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, model.body_parentid[body])
-        found[name] = scales[owner[name]] if name in owner else found.get(parent, 1.0)
+        if name not in owner:
+            found[name] = found.get(parent, np.ones(3))
+            continue
+        axis, across = spreads.get(name, (0, 1.0))
+        found[name] = np.full(3, scales[owner[name]] * across)
+        found[name][axis] = scales[owner[name]]
     return found
+
+
+def long_axes(model, groups_found, table=None):
+    """Each body of `groups_found` ({body name: 0, 1 or 2}): the axis of its frame nearest its group's stretch (start
+    to end centre) at the default pose."""
+    data = default_pose(model, Couplings(model))
+    even = body_scales(model, dict.fromkeys(stretches(table), 1.0), table)
+    found = {}
+    for group in groups_found:
+        _, (start, end), bodies = stretches(table)[group]
+        along = myo_point(model, data, end, even) - myo_point(model, data, start, even)
+        for name in bodies:
+            local = data.xmat[_body_id(model, name)].reshape(3, 3).T @ along
+            found[name] = int(np.argmax(np.abs(local)))
+    return found
+
+
+def _stretched(scale, quat):
+    """How far each axis of a frame turned by `quat` in a body stretches when the body scales by `scale` ([3])."""
+    turn = np.zeros(9)
+    mujoco.mju_quat2Mat(turn, np.asarray(quat, dtype=float))
+    return np.linalg.norm(np.asarray(scale)[:, None] * turn.reshape(3, 3), axis=0)
+
+
+def _shape_size(kind, size, stretch):
+    """A geom's or site's size under its axes' stretches: a sphere's radius by their geometric mean, a capsule's or
+    cylinder's radius by its two cross axes' and half length by its own, any other shape axis by axis."""
+    size = np.asarray(size, dtype=float).copy()
+    if kind == mujoco.mjtGeom.mjGEOM_SPHERE:
+        size[0] *= float(np.prod(stretch)) ** (1 / 3)
+    elif kind in (mujoco.mjtGeom.mjGEOM_CAPSULE, mujoco.mjtGeom.mjGEOM_CYLINDER):
+        size[0] *= float(np.sqrt(stretch[0] * stretch[1]))
+        size[1] *= stretch[2]
+    else:
+        size *= stretch
+    return size
+
+
+def _inertia(inertia, quat, scale, mass_share):
+    """A body's principal inertias under its scale: each second moment along an inertial axis by that axis's squared
+    stretch, times the mass's share."""
+    inertia = np.asarray(inertia, dtype=float)
+    moments = inertia.sum() / 2 - inertia
+    moments = moments * _stretched(scale, quat) ** 2 * mass_share
+    return moments.sum() - moments
+
+
+def _slide_scale(scale, quat, axis):
+    """How far a slide joint's travel stretches: its axis (in its body's frame, the body turned by `quat` in its
+    parent) under its parent's `scale`."""
+    turn = np.zeros(9)
+    mujoco.mju_quat2Mat(turn, np.asarray(quat, dtype=float))
+    direction = turn.reshape(3, 3) @ np.asarray(axis, dtype=float)
+    return float(np.linalg.norm(np.asarray(scale) * direction) / np.linalg.norm(direction))
 
 
 def _body_id(model, name):
@@ -122,40 +201,42 @@ def sized(spec, model, scales, kg, wrappers):
     """The spec sized body by body (see the module's docstring), its mass brought to `kg` with `wrappers` wrapper
     bodies' mass left for them, in the model's own proportions."""
     mujoco.mj_forward(model, mujoco.MjData(model))
-    grown = sum(model.body_mass[_body_id(model, body.name)] * scales[body.name] ** 3 for body in spec.bodies[1:])
+    grown = sum(model.body_mass[_body_id(model, body.name)] * np.prod(scales[body.name]) for body in spec.bodies[1:])
     share = (kg - wrappers * WRAPPER_KG) / grown
     meshes = {mesh.name: mesh for mesh in spec.meshes}
     for body in spec.bodies[1:]:
-        scale = scales[body.name]
-        above = scales.get(body.parent.name, scale) if body.parent.name != "world" else 1.0
+        scale = np.asarray(scales[body.name], dtype=float)
+        above = np.asarray(scales.get(body.parent.name, scale) if body.parent.name != "world" else np.ones(3))
         body.pos = np.asarray(body.pos) * (scale if body.name in OWN_PLACED else above)
         index = _body_id(model, body.name)
-        mass = model.body_mass[index] * scale ** 3 * share
+        mass = model.body_mass[index] * np.prod(scale) * share
         body.explicitinertial = True
         body.ipos = model.body_ipos[index] * scale
         body.iquat = model.body_iquat[index]
-        body.inertia = model.body_inertia[index] * (mass / max(model.body_mass[index], 1e-12)) * scale ** 2
+        body.inertia = _inertia(model.body_inertia[index], model.body_iquat[index], scale,
+                                mass / max(model.body_mass[index], 1e-12))
         body.fullinertia = [float("nan")] * 6
         body.mass = mass
         for geom in body.geoms:
+            stretch = _stretched(scale, geom.quat)
             geom.pos = np.asarray(geom.pos) * scale
-            geom.size = np.asarray(geom.size) * scale
+            geom.size = _shape_size(geom.type, geom.size, stretch)
             if geom.type == mujoco.mjtGeom.mjGEOM_MESH:
-                meshes[geom.meshname].scale = np.asarray(meshes[geom.meshname].scale) * scale
+                meshes[geom.meshname].scale = np.asarray(meshes[geom.meshname].scale) * stretch
         for site in body.sites:
             site.pos = np.asarray(site.pos) * scale
-            site.size = np.asarray(site.size) * scale
+            site.size = _shape_size(site.type, site.size, _stretched(scale, site.quat))
         for joint in body.joints:
             joint.pos = np.asarray(joint.pos) * scale
             if joint.type == mujoco.mjtJoint.mjJNT_SLIDE:
-                joint.range = np.asarray(joint.range) * above
-    slides = {body.name: scales.get(body.parent.name, 1.0) for body in spec.bodies[1:]}
+                joint.range = np.asarray(joint.range) * _slide_scale(above, body.quat, joint.axis)
     joints = {joint.name: joint for joint in spec.joints}
     for equality in spec.equalities:
         joint = joints.get(equality.name1)
         if joint is not None and joint.type == mujoco.mjtJoint.mjJNT_SLIDE:
             data = np.asarray(equality.data)
-            data[:5] *= slides[joint.parent.name]
+            holder = joint.parent
+            data[:5] *= _slide_scale(scales.get(holder.parent.name, np.ones(3)), holder.quat, joint.axis)
             equality.data = data
 
 
@@ -202,7 +283,10 @@ class Size:
         names = list(stretches(self.table))
         lines = [[(soma_point(start, rig), soma_point(end, rig)) for start, end in self._pieces(group)]
                  for group in names]
-        self.found = volumes.measured(cells, volumes.shares(cells, lines), len(names))
+        owner = volumes.shares(cells, lines)
+        self.found = volumes.measured(cells, owner, len(names))
+        self.slender = {group: volumes.slenderness(cells, owner, names.index(group), *lines[names.index(group)][0])
+                        for group in GIRTH_GROUPS if group in names}
         self.names = names
         self.moved = {}  # each group's centre of mass moved by `weigh` (cm)
 
@@ -216,22 +300,36 @@ class Size:
                 found.append((later_start, later_end))
         return found + list(MORE_LINES.get(group, ()))
 
+    def widths(self):
+        """Each GIRTH_GROUPS group's width over its length scale: the person's girth for its length over SOMA's mean
+        shape's (MEAN_SLENDERNESS)."""
+        return {group: found / MEAN_SLENDERNESS[group.removeprefix("Left").removeprefix("Right")]
+                for group, found in self.slender.items()}
+
+    def spreads(self, source):
+        """{body: (its long axis, its group's width over its length scale)} for the GIRTH_GROUPS groups' bodies."""
+        widths = self.widths()
+        axes = long_axes(source, widths, self.table)
+        return {name: (axis, widths[group]) for group in widths
+                for name, axis in axes.items() if name in stretches(self.table)[group][2]}
+
     def scales(self, source):
-        """Each body's scale: the group scales whose stretches at the default pose are SOMA's lengths, one bounded
-        least squares (scipy's `least_squares`, a scale within SCALE_RANGE) on the source model posed at them
-        (`posed_lengths`), as a group's end may sit on another group's body."""
+        """Each body's scale ([3]): the group scales whose stretches at the default pose are SOMA's lengths, one
+        bounded least squares (scipy's `least_squares`, a scale within SCALE_RANGE) on the source model posed at them
+        (`posed_lengths`), as a group's end may sit on another group's body; the limbs' widths with them (`spreads`)."""
         from scipy.optimize import least_squares
         groups_found = list(self.lengths)
         wanted = np.array([self.lengths[group] for group in groups_found])
         own = myo_lengths(source, body_scales(source, dict.fromkeys(groups_found, 1.0), self.table), self.table)
+        spreads = self.spreads(source)
 
         def misses(logs):
-            scales = body_scales(source, dict(zip(groups_found, np.exp(logs))), self.table)
+            scales = body_scales(source, dict(zip(groups_found, np.exp(logs))), self.table, spreads)
             found = posed_lengths(source, scales, self.table)
             return np.array([found[group] for group in groups_found]) - wanted
         start = np.log(np.clip(wanted / [own[group] for group in groups_found], *SCALE_RANGE))
         solved = least_squares(misses, start, bounds=(np.log(SCALE_RANGE[0]), np.log(SCALE_RANGE[1])), xtol=1e-10)
-        return body_scales(source, dict(zip(groups_found, np.exp(solved.x))), self.table)
+        return body_scales(source, dict(zip(groups_found, np.exp(solved.x))), self.table, spreads)
 
     def weigh(self, spec, grown, scales, kg):
         """Each group's bodies given its mass, centre of mass and inertia's trace from SOMA's volumes (`kg` the
@@ -287,8 +385,8 @@ def ungrouped_kg(model, table=None):
 
 
 def assumed(model, scales, rig):
-    """ASSUMED with the bone shape: each group scaled evenly by its length, its widths measured against SOMA's (the
-    hip joints and the shoulder joints apart, SOMA's over the sized model's)."""
+    """ASSUMED with the bone shape: each group scaled by its length, the limbs' widths by SOMA's girth, its widths
+    measured against SOMA's (the hip joints and the shoulder joints apart, SOMA's over the sized model's)."""
     data = default_pose(model, Couplings(model))
     widths = {}
     for label, (soma_pair, myo_pair) in {"hips": (("LeftLeg", "RightLeg"), ("hip_l", "hip_r")),
@@ -298,7 +396,8 @@ def assumed(model, scales, rig):
         myo = np.linalg.norm(myo_point(model, data, myo_pair[0], scales) - myo_point(model, data, myo_pair[1], scales))
         widths[label] = round(float(soma / myo), 3)
     return {**ASSUMED, "bone shape": {
-        "value": "MyoFullBody's own bones, each bone group scaled evenly by its stretch's length",
+        "value": "MyoFullBody's own bones, each bone group scaled by its stretch's length, a limb's width by the "
+                 "person's girth for its length over SOMA's mean shape's",
         "plausible": f"widths {min(widths.values())} to {max(widths.values())} times the sized ones (SOMA's joints "
                      f"apart over the sized body's: {widths})"}}
 
