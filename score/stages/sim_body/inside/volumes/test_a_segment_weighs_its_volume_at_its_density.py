@@ -1,13 +1,17 @@
 """volumes: a closed box 0.2 x 1 x 0.1 m is filled to its volume (0.02 m3), cut between two bone lines into halves
 of 0.01 m3 centred a quarter up and down, each with a solid's spread V (a2 + b2 + c2) / 12, and the halves weighed
-at their densities share the mass as density times volume, each inertia's trace m (a2 + b2 + c2) / 6 (all worked out
-by hand). Pure: the score venv runs it.
+at their densities share the mass as density times volume, each inertia's trace m (a2 + b2 + c2) / 6, and each half's
+girth for its length is its 0.2 x 0.1 m section's width, sqrt(0.02) m, over 0.5 m (all worked out by hand). Pure: the
+score venv runs it.
 
 Breaks (each applied once, seen red, reverted), 2026-10-28:
 - filled's `np.searchsorted(crossings, ys) % 2 == 1` made `== 0`: the outside filled, not the inside.
 - shares' `nearer = away < best` made `nearer = away > best`: every cell to the farthest line.
 - measured's `+ volume * cell ** 2 / 4` dropped: the cells' own spread lost (6.25e-8 m5 under a solid's).
 - weighed's `2.0 * density(group)` made `density(group)`: half the inertia.
+- (2026-11-01) slenderness's `/ length` at its end dropped: the width, not the width over the length.
+- (2026-11-01) slenderness's `(GIRTH_MIDDLE[1] - GIRTH_MIDDLE[0]) * length` made `length`: the section read over the
+  whole stretch while the cells are counted in its middle.
 
 Run: .venv/bin/python score/stages/sim_body/inside/volumes/test_a_segment_weighs_its_volume_at_its_density.py
 """
@@ -59,7 +63,20 @@ def the_halves_share_the_mass_by_density():
     return problems
 
 
-CHECKS = (the_box_fills_to_its_volume_in_two_halves, the_halves_share_the_mass_by_density)
+def each_half_is_as_wide_for_its_length_as_its_section():
+    """Each half's girth for its length sqrt(0.2 x 0.1) / 0.5 = 0.2828 within 1% (its cells fill the box exactly)."""
+    cells, _ = halves()
+    owner = volumes.shares(cells, LINES)
+    problems = []
+    for group, [(start, end)] in enumerate(LINES):
+        found = volumes.slenderness(cells, owner, group, start, end)
+        if abs(found - np.sqrt(0.02) / 0.5) > 0.01 * np.sqrt(0.02) / 0.5:
+            problems.append(f"half {group}: {found:.4f}")
+    return problems
+
+
+CHECKS = (the_box_fills_to_its_volume_in_two_halves, the_halves_share_the_mass_by_density,
+          each_half_is_as_wide_for_its_length_as_its_section)
 
 
 if __name__ == "__main__":

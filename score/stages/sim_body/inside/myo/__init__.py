@@ -4,7 +4,8 @@ Newton and sized to one person (#65): `person_file` writes the person's file and
 The model is the pinned wheel the stage fetched (musclemimic_models 1.0.6, `SOURCE` in it). Each person's file is the
 model with:
 - its floor gone (the person stands on the scene's own ground);
-- each bone group sized to the person's SOMA body, its masses from SOMA's volumes (`sizing`);
+- each bone group sized to the person's SOMA body (a limb's width by its girth), its masses from SOMA's volumes
+  (`sizing`);
 - each muscle's length range scaled by its path's length at the model's zero pose over the model's (OpenSim's
   muscle scaling: optimal fibre and tendon slack length with the path); its peak isometric force kept (#64: strength
   does not scale here); then its tendon slack length lengthened where it stands stretched (`resting`);
@@ -86,7 +87,8 @@ def person_file(folder, size, kg, path, constants=None):
     # an inertia written out to 6 digits may miss A + B >= C by a rounding
     xml = xml.replace("<compiler ", '<compiler balanceinertia="true" ', 1)
     path.write_text(split(full_muscles(renamed(xml), final)))
-    return {"scales": {name: round(scale, 4) for name, scale in scales.items() if name in kept_bodies(size.table)},
+    return {"scales": {name: [round(float(axis), 4) for axis in scale] for name, scale in scales.items()
+                       if name in kept_bodies(size.table)},
             "lengths": size.record(final, scales), "inertia scale": {group: round(factor, 3)
                                                                      for group, factor in factors.items()},
             "centre of mass moved cm": size.moved,
