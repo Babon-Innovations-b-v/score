@@ -14,7 +14,9 @@ WHAT. One function, ``sweep``, meant for session start. It removes:
   there), unless a running process was started from it. Each is about 330 MB;
 - leftovers of a killed build or download older than ``LEFTOVER_SECONDS``: a
   private build or fetch directory, a tree's scratch files, whose names end in
-  the pid that made them, when that pid is gone; and a build lock nobody holds.
+  the pid that made them, when that pid is gone; and a build lock nobody holds;
+- the head of any append-only log the caller names, past its last ``keep``
+  lines.
 
 WHY IT IS CHEAP. Nothing is hashed or walked unless it is about to go: a quiet
 box costs a handful of ``listdir`` and ``stat`` calls, well under 50 ms.
@@ -55,13 +57,15 @@ TREES = "codebase-memory-mcp-trees"
 _PID = re.compile(r"\.(\d+)(\.[a-z]+)?$")
 
 
-def sweep(now: float | None = None, older_roots: tuple[pathlib.Path, ...] = ()) -> list[tuple[str, int]]:
+def sweep(now: float | None = None, older_roots: tuple[pathlib.Path, ...] = (),
+          capped: tuple[tuple[pathlib.Path, int], ...] = ()) -> list[tuple[str, int]]:
     """Remove what is stale and return each removed path with the bytes it held.
 
     Args:
         now: the time to judge ages against; the clock by default.
         older_roots: install roots of earlier layouts, each holding one
             directory per version, swept like the current one.
+        capped: ``(log, keep)`` pairs: each log is cut to its last ``keep`` lines.
     """
     now = time.time() if now is None else now
     removed: list[tuple[str, int]] = []
@@ -74,7 +78,27 @@ def sweep(now: float | None = None, older_roots: tuple[pathlib.Path, ...] = ()) 
         removed += _versions(older_roots)
     except (OSError, cbm_pin.PinError):
         pass
+    for log, keep in capped:
+        try:
+            removed += _cut(log, keep)
+        except OSError:
+            continue
     return removed
+
+
+def _cut(log: pathlib.Path, keep: int) -> list[tuple[str, int]]:
+    """Keep a log's last ``keep`` lines; read only once it is long enough to need it."""
+    if not log.is_file() or log.stat().st_size < keep * 80:
+        return []
+    lines = log.read_bytes().splitlines(keepends=True)
+    if len(lines) <= keep:
+        return []
+    kept = b"".join(lines[-keep:])
+    scratch = log.with_name(f".{log.name}.{os.getpid()}")
+    scratch.write_bytes(kept)
+    freed = log.stat().st_size - len(kept)
+    os.replace(scratch, log)
+    return [(str(log), freed)]
 
 
 def _trees(now: float) -> list[tuple[str, int]]:

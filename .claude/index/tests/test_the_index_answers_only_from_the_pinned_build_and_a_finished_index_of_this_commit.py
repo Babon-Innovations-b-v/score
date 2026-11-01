@@ -418,7 +418,7 @@ def test_a_published_index_of_a_commit_this_checkout_lacks_or_already_has_is_not
 
 def test_cleanup_removes_a_stale_tree_index_an_old_binary_and_leftover_build_files(
         tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Gone or idle trees, unpinned versions and dead builds' leftovers go; the live and the pinned stay."""
+    """Gone or idle trees, unpinned versions, dead builds' leftovers and a log's head go; the live and the pinned stay."""
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     monkeypatch.setenv("CBM_CACHE_DIR", str(tmp_path / "codebase-memory-mcp"))
     cache, trees = tmp_path / "codebase-memory-mcp", tmp_path / "codebase-memory-mcp-trees"
@@ -454,8 +454,12 @@ def test_cleanup_removes_a_stale_tree_index_an_old_binary_and_leftover_build_fil
     young.mkdir()
     for path in leftovers:
         os.utime(path, (now - 7200, now - 7200))
+    log = cache / "gaps.jsonl"
+    log.write_text("".join(f'{{"n": {number}, "padding": "{"x" * 80}"}}\n' for number in range(30)))
 
-    removed = {path for path, _ in cbm_clean.sweep(now, older_roots=(tmp_path / "legacy/cbm",))}
+    removed = {path for path, _ in cbm_clean.sweep(now, older_roots=(tmp_path / "legacy/cbm",),
+                                                   capped=((log, 10),))}
+    assert [json.loads(line)["n"] for line in log.read_text().splitlines()] == list(range(20, 30))
     for path in (gone, idle, cache / "gone-tree.db", cache / "idle-tree.db",
                  tmp_path / "harness/cbm/v0.0.1", legacy, *leftovers):
         assert str(path) in removed and not path.exists(), path
