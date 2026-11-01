@@ -2,7 +2,8 @@
 barycentric weights, on a SOMA segment; a MyoFullBody body of that segment's bone group), each left landmark is its
 right one mirrored; a landmark is its face's barycentric point on a person's mesh, and on the clip's skin its corners'
 skinned moves' (each corner its joints' weighted moves from the bind); a SOMA joint end is its joint, the hip joints'
-middle or the hand's tip (all worked out by hand; pure: the score venv runs it).
+middle or the hand's tip; a knuckle's skin point stands within KNUCKLE_SKIN of its bone point (all worked out by
+hand; pure: the score venv runs it).
 
 Breaks (each applied once, seen red, reverted):
 - (2026-10-28) on_skin's `np.asarray(row[1]) @ points[faces[row[0]]]` made `points[faces[row[0]]].mean(axis=0)`:
@@ -16,6 +17,8 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _table's spinous_L4 body `lumbar4` made `lumbar3`: it no longer resolves in its segment's group.
 - (2026-10-29) _table's MT1_head_l face `3570` made `9100`: past the template's faces.
 - (2026-10-29) _table's MC3_head_r trust `0.098` made `0.099` (the study's own side): its trust is not the left's.
+- (2026-11-01) _table's MC5_head_l link `(-0.01197, -0.00386, -0.00927)` made the study's `(0.01192, 0.00289,
+  -0.02595)`: its skin point 29 mm off the bone, on the ring finger's knuckle.
 
 Run: .venv/bin/python score/stages/sim_body/inside/landmarks/test_every_landmark_resolves_on_both_models_where_worked_by_hand.py
 """
@@ -123,7 +126,20 @@ def each_left_point_is_its_right_ones_mirror():
 
 
 
-CHECKS = (every_landmark_resolves_on_both_models, a_landmark_is_its_faces_barycentric_point,
+# The back of a hand over a metacarpal head: skin, the extensor tendon and its hood, at most this thick on SOMA's
+# template (the knuckles' links measured on it 2026-11-01: 15.6 to 23.0 mm). The study's MC5_head stood 28.7 mm off
+# its bone point, on the face over the ring finger's knuckle (35 mm from the little finger's), and turned the hand's
+# calibration 15 degrees about its long axis.
+KNUCKLE_SKIN = 0.025
+
+
+def a_knuckles_skin_point_is_over_its_bone():
+    """Each MC head's link (its skin point off its bone point) is at most KNUCKLE_SKIN long."""
+    return [f"{name}: link {1000 * np.linalg.norm(row[5]):.1f} mm" for name, row in landmarks.LANDMARKS.items()
+            if name.startswith("MC") and "_head_" in name and np.linalg.norm(row[5]) > KNUCKLE_SKIN]
+
+
+CHECKS = (a_knuckles_skin_point_is_over_its_bone, every_landmark_resolves_on_both_models, a_landmark_is_its_faces_barycentric_point,
           a_skinned_landmark_is_its_corners_blended_moves, a_stretch_end_is_a_joint_the_hips_middle_or_the_hands_tip,
           each_left_point_is_its_right_ones_mirror)
 

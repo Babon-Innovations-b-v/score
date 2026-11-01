@@ -35,7 +35,8 @@ REFERENCES = {"Hips": ("own x", "own x"), "Spine1": ("own x", "own x"), "Spine2"
               "{Side}Foot": ("own x", "own x"), "{Side}ToeBase": ("own x", "own x")}
 # R_cal per bone group as a quaternion (x, y, z, w), printed by `_measure.py` on 2026-10-29 (MyoFullBody of
 # MuscleMimic 1.0.6, SOMA's template rig of people-clips-make; the shoulders again that day, their start the
-# sternoclavicular centre, no longer the landmark of that name).
+# sternoclavicular centre, no longer the landmark of that name; the hands again on 2026-11-01, MC5_head moved onto the
+# little finger's knuckle: the hand turned 14.9 degrees about its long axis).
 TABLE = {
     "Hips": (0.663583, 0.748103, 0.000268687, -0.000290935),
     "Spine1": (0.756786, 0.653663, 0.000257497, -0.00029812),
@@ -50,8 +51,8 @@ TABLE = {
     "RightArm": (0.0330002, 0.00346837, 0.714478, -0.698871),
     "LeftForeArm": (-0.0687568, -0.0555397, 0.679171, 0.728639),
     "RightForeArm": (-0.0555991, 0.0686931, 0.728645, -0.679166),
-    "LeftHand": (0.0132221, -0.189965, 0.674954, 0.712865),
-    "RightHand": (-0.18995, -0.013092, 0.712843, -0.674984),
+    "LeftHand": (-0.0829827, -0.0998119, 0.680886, 0.720795),
+    "RightHand": (-0.0999123, 0.0829961, 0.720768, -0.680899),
     "LeftLeg": (-0.70709, 0.707102, 0.00266821, 0.00488039),
     "RightLeg": (0.707102, 0.70709, 0.00483335, -0.00262117),
     "LeftShin": (-0.698192, 0.715865, -0.00573602, -0.00559442),
@@ -61,6 +62,42 @@ TABLE = {
     "LeftToeBase": (0.994273, -0.030612, 0.0988721, -0.0266242),
     "RightToeBase": (0.0306151, 0.994272, 0.026656, 0.0988718),
 }
+
+# The held fingers' rest turns (radians, each joint by its name without its side, both sides alike): MyoFullBody's
+# finger and thumb joints turned so its hand at rest has SOMA's template hand's shape (SOMA has no finger joints, its
+# hand one rigid shape; MyoFullBody's fingers are held where they stand, `fit`), each finger bone as deep in SOMA's
+# skin as its joints' ranges let it with the hand laid by TABLE (`_measure.fingers_measured`); laid in the person's
+# file by `myo._rested`. Never per person or per clip. Printed by `_measure.py` on 2026-11-01 (the hands' turns of
+# that day): on the template, 67.6 % of the finger bones' vertices outside SOMA's skin at the published zero pose,
+# 24.7 % at these (the thumb 25 to 45 mm out before, inside after; the index stays out: SOMA's stands dorsal of where
+# its metacarpal puts it, and its knuckle does not bend back, range 0 to 90 degrees).
+FINGERS = {
+    "cmc_abduction": -0.3956,
+    "cmc_flexion": 0.3529,
+    "ip_flexion": -0.0416,
+    "mcp2_abduction": 0.0053,
+    "mcp2_flexion": 0.0,
+    "mcp3_abduction": -0.0803,
+    "mcp3_flexion": 0.0,
+    "mcp4_abduction": -0.0004,
+    "mcp4_flexion": 0.0001,
+    "mcp5_abduction": -0.1191,
+    "mcp5_flexion": 0.0011,
+    "md2_flexion": 0.0001,
+    "md3_flexion": 0.1279,
+    "md4_flexion": 0.3576,
+    "md5_flexion": 0.0762,
+    "mp_flexion": -0.09,
+    "pm2_flexion": 0.0,
+    "pm3_flexion": 0.0003,
+    "pm4_flexion": 0.0211,
+    "pm5_flexion": 0.0476,
+}
+
+
+def fingers():
+    """FINGERS written out for both sides ({joint: rest turn})."""
+    return {f"{stem}_{side}": angle for stem, angle in FINGERS.items() for side in "lr"}
 
 
 def turn(group):

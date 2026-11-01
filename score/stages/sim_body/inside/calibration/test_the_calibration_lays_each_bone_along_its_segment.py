@@ -1,7 +1,8 @@
 """calibration: `aligned` lays a MyoFullBody bone along its SOMA segment's (worked by hand), and the stored table keeps
 the two models' symmetry: a middle group turns no body sideways, a right group is its left one with the body's half
 turn about its z (MyoFullBody's right bodies are its left ones mirrored in z; measured on the table within 0.03
-degrees, 2026-10-28). Pure: the score venv runs it.
+degrees, 2026-10-28); the held fingers' rest turns are written alike for both hands, each a finger or thumb joint
+of MyoFullBody's. Pure: the score venv runs it.
 
 Breaks (each applied once, seen red, reverted), 2026-10-28:
 - aligned's `soma_turn.T @ frame(...)` made `frame(...)` (the segment's own turn dropped).
@@ -12,6 +13,9 @@ Breaks (each applied once, seen red, reverted), 2026-10-28:
 Break (applied once, seen red, reverted), 2026-10-29:
 - REFERENCES' `{Side}Arm` made `("z of {Side}ForeArm", "axis of elbow_flex_{side}")`: a twist from a rig joint's
   bind and a model joint's axis, not the same landmarks on both models.
+
+Break (applied once, seen red, reverted), 2026-11-01:
+- fingers' `for side in "lr"` made `for side in "l"`: the right hand's fingers stay straight.
 
 Run: .venv/bin/python score/stages/sim_body/inside/calibration/test_the_calibration_lays_each_bone_along_its_segment.py
 """
@@ -75,7 +79,22 @@ def each_twist_is_read_from_the_same_landmarks_on_both_models():
     return problems
 
 
-CHECKS = (a_hanging_bone_is_laid_along_its_segment, the_table_keeps_both_sides_and_the_middle,
+FINGER_JOINTS = ("cmc_flexion", "cmc_abduction", "mp_flexion", "ip_flexion",
+                 *(f"{joint}{finger}_{turn}" for finger in "2345"
+                   for joint, turn in (("mcp", "flexion"), ("mcp", "abduction"), ("pm", "flexion"), ("md", "flexion"))))
+
+
+def both_hands_rest_their_fingers_alike():
+    """`fingers()` gives every FINGERS stem on both sides with the same turn; every stem is one of MyoFullBody's
+    finger and thumb joints (the four thumb joints and each finger's four, as the published model names them)."""
+    written = calibration.fingers()
+    problems = [f"{stem}: not a finger or thumb joint" for stem in calibration.FINGERS if stem not in FINGER_JOINTS]
+    return problems + [f"{stem}_{side}: {written.get(f'{stem}_{side}')} against {turn}"
+                       for stem, turn in calibration.FINGERS.items() for side in "lr"
+                       if written.get(f"{stem}_{side}") != turn]
+
+
+CHECKS = (both_hands_rest_their_fingers_alike, a_hanging_bone_is_laid_along_its_segment, the_table_keeps_both_sides_and_the_middle,
           each_twist_is_read_from_the_same_landmarks_on_both_models)
 
 
