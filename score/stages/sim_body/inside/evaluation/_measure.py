@@ -14,7 +14,7 @@ from scipy.spatial import cKDTree
 import calibration
 from contact import surface
 from fit._frozen import frozen_turn
-from fit._skin import EVERY, HAND, bone_meshes, bone_points, depth_mm, marks, region, skin as skinned
+from fit._skin import EVERY, HAND, bone_meshes, bone_points, depth_mm, envelope, marks, region, skin as skinned
 from landmarks import soma_point
 from model import TO_OWN
 
@@ -102,7 +102,7 @@ def measures(model, angles, rig, segments, worlds, scales):
     turns = {segment: [] for segment in segments if segment in FRAME_BODY}
     frozen = {segment: [] for segment in turns}
     lowest, skin_lowest, outside, depth, deep, by_bone, hand_parts, no_fingers = [], [], {}, {}, {}, {}, {}, {}
-    faces, meshes = np.asarray(rig["faces"]), bone_meshes(model)
+    faces, meshes = envelope(rig), bone_meshes(model)
     hand_tips = {side: soma_point(f"{side}Hand tip", rig) for side in hand}
     for frame, (qpos, world) in enumerate(zip(angles, worlds)):
         data.qpos[:] = qpos
