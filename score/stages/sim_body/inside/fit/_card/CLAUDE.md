@@ -71,7 +71,9 @@ before that.
   its other readings stay on the CPU. The skin posed every EVERY-th frame once per clip across every nudged set (`posed_skins`, keyed by `posed_key`: the rig, segments and worlds a set never changes; float32 points kept read-only on the host, `Skins` a Warp mesh each per case; 5.8 s of acr7's 4-set profile, 2026-10-30);
   the poses by MuJoCo's own float64 kinematics on the host (with MuJoCo Warp's float32 poses one hand vertex fell
   across the skin on heavy_kimodo, 2026-10-29); joint and turn errors float64 Warp kernels (the turn by
-  arccos of the trace as the CPU: atan2 differed 0.001 deg on targets not quite orthonormal); the winding test on the
+  arccos of the trace as the CPU: atan2 differed 0.001 deg on targets not quite orthonormal; the target is
+  SOMA's turn as its nearest rotation, `evaluation._measure.segment_turn`, since 2026-11-01: the played worlds sit up to
+  3.5e-6 off orthonormal and the arccos read a 0.06 degree shoulder turn as 0, the taped measure 0.06); the winding test on the
   card. Gate 2026-10-29 (heavy_kimodo, heavy_rigwalk from the seed cache): every measure equal to 4e-13, the skin
   shares exact, no rounded value differs; 0.05 / 0.09 s against the CPU's 2.8 / 2.5 s, the skins cached apart.
 - `_level2.py` (`jacobian`; plan step 4, first piece): level 2's exact Jacobian of `../_constants.Problem.residuals`
