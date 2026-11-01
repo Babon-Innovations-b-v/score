@@ -31,7 +31,9 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
   and not sorted as tuning.whole's rows are: a case's exact rows land on another case's residuals (2026-10-30).
 
 Run: .venv/bin/python score/stages/sim_body/inside/evaluation/test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py
+(the clip targets' test runs in Newton's own Python, its env's bin/python on this file; the score venv skips it)
 """
+import importlib.util
 import json
 import pathlib
 import subprocess
@@ -191,6 +193,9 @@ def test_the_held_out_bodies_pass_within_ten_percent():
 
 
 def test_a_clips_targets_are_made_once_per_landmark_set_and_never_written_in_place():
+    if importlib.util.find_spec("mujoco") is None:  # _card_batch imports fit, which needs Newton's own Python
+        print("skipped: a clip's targets need MuJoCo (Newton's own Python, score/stages/physics/inside/newton_env.sh)")
+        return
     from evaluation import _card_batch
     from landmarks import LANDMARKS, solver_marks
     calls, kept = [], _card_batch.fit.targets
