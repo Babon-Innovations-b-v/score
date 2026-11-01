@@ -99,21 +99,22 @@ import sys
 INSIDE = pathlib.Path(__file__).resolve().parents[3]
 IN_ENV = "SIM_BODY_INSIDE_TEST"
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from card_chain import (LINKS, OBJECTIVE_ROWS, chain_model, log_rate, objective_rows,  # noqa: E402
-                        residuals_and_jacobian)
-from card_toy import CLIP_FRAMES, TOY, mink_frames, toy_card, toy_clip, toy_errors  # noqa: E402
-from card_body import the_measures_equal_the_cpu_measure, the_skins_posed_once_follow_each_clip  # noqa: E402
-from card_level2 import (the_batched_inverses_equal_each_row, the_wide_level2_equals_the_hosts,  # noqa: E402
-                         the_level2_jacobian_equals_its_differences,
-                         the_level2_solve_with_the_exact_jacobian_equals_differences)
-from card_across import the_sets_solved_together_equal_each_set_alone  # noqa: E402
-from card_inside import (a_kept_build_moves_to_the_fittings_moves, the_body_with_several_joints_moves_as_one,  # noqa: E402
-                         the_set_places_equal_a_build_per_set)
-from card_sets import the_sampled_path_across_sets_equals_each_set_chained, the_sets_batch_equals_each_clip_alone  # noqa: E402
-from card_rows import (the_float64_frames_equal_each_set_alone, the_rows_equal_each_set_alone,  # noqa: E402
-                       the_rowwise_optimizer_equals_each_set_alone)
-from card_step import (BOUNDED, COUPLINGS, FROZEN, ROWS, fixture, prototype_projected,  # noqa: E402
-                       prototype_step)
+if os.environ.get(IN_ENV):  # the helpers import MuJoCo and Warp, which only Newton's own Python has
+    from card_chain import (LINKS, OBJECTIVE_ROWS, chain_model, log_rate, objective_rows,  # noqa: E402
+                            residuals_and_jacobian)
+    from card_toy import CLIP_FRAMES, TOY, mink_frames, toy_card, toy_clip, toy_errors  # noqa: E402
+    from card_body import the_measures_equal_the_cpu_measure, the_skins_posed_once_follow_each_clip  # noqa: E402
+    from card_level2 import (the_batched_inverses_equal_each_row, the_wide_level2_equals_the_hosts,  # noqa: E402
+                             the_level2_jacobian_equals_its_differences,
+                             the_level2_solve_with_the_exact_jacobian_equals_differences)
+    from card_across import the_sets_solved_together_equal_each_set_alone  # noqa: E402
+    from card_inside import (a_kept_build_moves_to_the_fittings_moves, the_body_with_several_joints_moves_as_one,  # noqa: E402
+                             the_set_places_equal_a_build_per_set)
+    from card_sets import the_sampled_path_across_sets_equals_each_set_chained, the_sets_batch_equals_each_clip_alone  # noqa: E402
+    from card_rows import (the_float64_frames_equal_each_set_alone, the_rows_equal_each_set_alone,  # noqa: E402
+                           the_rowwise_optimizer_equals_each_set_alone)
+    from card_step import (BOUNDED, COUPLINGS, FROZEN, ROWS, fixture, prototype_projected,  # noqa: E402
+                           prototype_step)
 
 
 def the_step_equals_the_prototype():
@@ -273,15 +274,17 @@ def the_next_iteration_from_its_seeds_equals_mink():
     return problems
 
 
-CHECKS = (the_rows_equal_each_set_alone, the_rowwise_optimizer_equals_each_set_alone,
-          the_float64_frames_equal_each_set_alone, the_sets_solved_together_equal_each_set_alone,
-          the_sets_batch_equals_each_clip_alone, the_sampled_path_across_sets_equals_each_set_chained,
-          the_wide_level2_equals_the_hosts, the_batched_inverses_equal_each_row,
-          the_level2_jacobian_equals_its_differences, the_level2_solve_with_the_exact_jacobian_equals_differences,
-          the_measures_equal_the_cpu_measure, the_skins_posed_once_follow_each_clip, the_step_equals_the_prototype, the_projection_equals_the_prototype,
-          the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame,
-          the_next_iteration_from_its_seeds_equals_mink, the_body_with_several_joints_moves_as_one,
-          the_set_places_equal_a_build_per_set, a_kept_build_moves_to_the_fittings_moves)
+def checks():
+    """Every check, in order (their helpers are imported only in Newton's own Python)."""
+    return (the_rows_equal_each_set_alone, the_rowwise_optimizer_equals_each_set_alone,
+            the_float64_frames_equal_each_set_alone, the_sets_solved_together_equal_each_set_alone,
+            the_sets_batch_equals_each_clip_alone, the_sampled_path_across_sets_equals_each_set_chained,
+            the_wide_level2_equals_the_hosts, the_batched_inverses_equal_each_row,
+            the_level2_jacobian_equals_its_differences, the_level2_solve_with_the_exact_jacobian_equals_differences,
+            the_measures_equal_the_cpu_measure, the_skins_posed_once_follow_each_clip, the_step_equals_the_prototype, the_projection_equals_the_prototype,
+            the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame,
+            the_next_iteration_from_its_seeds_equals_mink, the_body_with_several_joints_moves_as_one,
+            the_set_places_equal_a_build_per_set, a_kept_build_moves_to_the_fittings_moves)
 
 
 def in_newton():
@@ -291,7 +294,7 @@ def in_newton():
         print("skipped: no CUDA card")
         return 0
     sys.path.insert(0, str(INSIDE))
-    failures = [f"{check.__name__}: {problem}" for check in CHECKS for problem in check()]
+    failures = [f"{check.__name__}: {problem}" for check in checks() for problem in check()]
     for failure in failures:
         print(failure)
     print("ok" if not failures else f"{len(failures)} failed")

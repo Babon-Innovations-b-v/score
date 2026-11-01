@@ -1,9 +1,9 @@
-"""A step counts only past its noise floor, on a fixed case set (#70). Red when: a case one scoring could not fit is
-dropped from the set instead of counted as its failure (test_failed_case_counted); the floor is not the spread of the
-same point scored twice (test_floor_is_twice_scored_spread); a median change inside the floor is called better or
-worse (test_inside_floor_unchanged); a kind's unit is not its measures' median floor (test_scales_from_noise); a
-missing m.json is dropped instead of read as a failure, or the share outside is not the reported one
-(test_scored_reads_failures); a step's report drops its failures or verdicts (test_stepped_report)."""
+"""A step counts only past its noise floor, on a fixed case set (#70). Breaks that turn it red: a case one scoring could
+not fit is dropped from the set instead of counted as its failure (test_failed_case_counted); the floor is not the
+spread of the same point scored twice (test_floor_is_twice_scored_spread); a median change inside the floor is called
+better or worse (test_inside_floor_unchanged); a kind's unit is not its measures' median floor
+(test_scales_from_noise); a missing m.json is dropped instead of read as a failure, or the share outside is not the
+reported one (test_scored_reads_failures); a step's report drops its failures or verdicts (test_stepped_report)."""
 import json
 import pathlib
 import tempfile
