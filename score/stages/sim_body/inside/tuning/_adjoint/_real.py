@@ -12,7 +12,7 @@ import numpy as np
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 from evaluation import _card_batch, _case  # noqa: E402
 from fit._card import _clip, _seeds  # noqa: E402
-from _bodies import copied_couplings  # noqa: E402
+from _bodies import copied_couplings, pose_of  # noqa: E402
 from fit._card._sets import Sets  # noqa: E402
 from fit._skin import PosedSkins  # noqa: E402
 
@@ -152,7 +152,7 @@ def taped_sites(clip, model, rows, targets, constants=None, fitting=None):
     """`TapedSites` on `per_frame_model`'s `model` holding level 3's whole cost as the card's `Clip.optimizer_for`
     lays it: each frame's marker sites (link, site_pos, its place cost, its target point), turn rows (link,
     site_quat x y z w, the turn cost, its target turn) and bones-in-skin rows (`skin_rows`), copy by copy, with
-    `frame_couplings` at the solved `rows`;
+    `frame_couplings` at the solved `rows`, the skin's closest features held at them (`TapedSites.hold_skin`);
     `constants` (`level2_constants`) puts level 2's moves after the pose; `fitting` (the clip's `Fitting`) tapes its
     weights too (`trusted_outer`), the outer the offsets then the trusts and globals."""
     from scipy.spatial.transform import Rotation
@@ -173,7 +173,10 @@ def taped_sites(clip, model, rows, targets, constants=None, fitting=None):
                        turns=(turn_links, np.full(len(turn_links), clip.turn_cost), wanted, turn_offsets),
                        couplings=frame_couplings(clip, rows), constants=constants, trusted=fitting is not None,
                        ends=ends, copies=frames, skin=skin_rows(clip, targets, frames))
-    return sites, np.concatenate([offsets, tail])
+    outer = np.concatenate([offsets, tail])
+    pose = np.asarray(pose_of(frame_couplings(clip, rows), rows), dtype=np.float64)
+    sites.hold_skin(np.concatenate([pose, np.zeros(0 if sites.constants is None else sites.constants.size)]), outer)
+    return sites, outer
 
 
 def skin_rows(clip, targets, frames):

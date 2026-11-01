@@ -7,6 +7,7 @@ point and side found off the tape, the distance taped, so the gradient is the un
 `residuals(inner, outer)`). Float32 on the card, returned as float64."""
 import importlib.util
 import pathlib
+import sys
 
 import numpy as np
 import warp as wp
@@ -64,51 +65,73 @@ class _TurnRows:
 
 
 @wp.kernel
-def _skin_closest(body_q: wp.array[wp.transform], links: wp.array[wp.int32], places: wp.array[wp.vec3],
-                  meshes: wp.array[wp.uint64], closest: wp.array[wp.vec3], outside: wp.array[wp.float32]):
-    """Each bone point's closest skin point and side (off the tape: SOMA does not move with the pose)."""
+def _skin_placed(body_q: wp.array[wp.transform], links: wp.array[wp.int32], places: wp.array[wp.vec3],
+                 placed: wp.array[wp.vec3]):
+    """Each bone point placed in the world (off the tape: where its closest skin feature is read)."""
     point = wp.tid()
-    placed = wp.transform_point(body_q[links[point]], places[point])
-    found = wp.mesh_query_point_sign_winding_number(meshes[point], placed, 1.0e6, 2.0, 0.5)
-    closest[point] = wp.mesh_eval_position(meshes[point], found.face, found.u, found.v)
-    outside[point] = wp.where(found.sign >= 0.0, 1.0, 0.0)
+    placed[point] = wp.transform_point(body_q[links[point]], places[point])
 
 
 @wp.kernel
 def _skin_cost(body_q: wp.array[wp.transform], links: wp.array[wp.int32], places: wp.array[wp.vec3],
-               closest: wp.array[wp.vec3], outside: wp.array[wp.float32], weight: wp.float32,
-               residuals: wp.array[wp.float32], cost: wp.array[wp.float32]):
+               closest: wp.array[wp.vec3], bends: wp.array[wp.mat33], outside: wp.array[wp.float32],
+               weight: wp.float32, residuals: wp.array[wp.float32], cost: wp.array[wp.float32]):
+    """Each point's weighted depth off its closest feature (the projector `bends` times its offset from the feature's
+    closest point: a face's plane, an edge's line, a corner), zero for a point inside."""
     point = wp.tid()
-    residual = weight * outside[point] * wp.length(wp.transform_point(body_q[links[point]], places[point])
-                                                   - closest[point])
+    residual = float(0.0)
+    if outside[point] > 0.0:
+        residual = weight * wp.length(bends[point] * (wp.transform_point(body_q[links[point]], places[point])
+                                                      - closest[point]))
     residuals[point] = residual
     wp.atomic_add(cost, 0, 0.5 * residual * residual)
 
 
 class _SkinRows:
     """Level 3's bones-in-skin rows: bone points (`links`, `places` in the link frames), each point's posed skin
-    (`skins` [(verts, faces)], `skin_of` each point's index into them), their weight `cost`; fixed, no outer unknowns."""
+    (`skins` [(verts, faces)], one person's mesh, `skin_of` each point's index into them), their weight `cost`; fixed,
+    no outer unknowns. Each point's closest feature is the level 3 solver's own (`fit._skin.apart_of`: the nearest
+    in float64 of the query's face and its corners' rings), read off the tape at each evaluation, or `held` at one
+    pose (`hold`) so the cost is that pose's smooth piece: its depth to the feature's plane, line or corner."""
 
     def __init__(self, device, links, places, skins, skin_of, cost):
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
+        from fit._skin import PosedSkins, SkinMeshes
         self.links = wp.array(np.asarray(links, dtype=np.int32), dtype=wp.int32, device=device)
         self.places = wp.array(np.asarray(places, dtype=np.float32), dtype=wp.vec3, device=device)
-        self.meshes = [wp.Mesh(points=wp.array(np.asarray(verts, dtype=np.float32), dtype=wp.vec3, device=device),
-                               indices=wp.array(np.asarray(faces, dtype=np.int32).ravel(), dtype=wp.int32, device=device),
-                               support_winding_number=True) for verts, faces in skins]
-        ids = np.array([mesh.id for mesh in self.meshes], dtype=np.uint64)
-        self.mesh_ids = wp.array(ids[np.asarray(skin_of, dtype=int)], dtype=wp.uint64, device=device)
+        faces = np.asarray(skins[0][1], dtype=np.int32)
+        if any(not np.array_equal(np.asarray(other, dtype=np.int32), faces) for _, other in skins):
+            raise ValueError("posed skins of different meshes")
+        self.meshes = SkinMeshes(PosedSkins(np.stack([np.asarray(verts, dtype=np.float32) for verts, _ in skins]),
+                                            faces), device)
+        self.skin_of = np.asarray(skin_of, dtype=np.int32)
         self.cost = float(cost)
+        self.placed = wp.zeros(len(links), dtype=wp.vec3, device=device)
         self.closest = wp.zeros(len(links), dtype=wp.vec3, device=device)
+        self.bends = wp.zeros(len(links), dtype=wp.mat33, device=device)
         self.outside = wp.zeros(len(links), dtype=wp.float32, device=device)
         self.residual_rows = wp.zeros(len(links), dtype=wp.float32, device=device, requires_grad=True)
+        self.held = False
+
+    def find(self, body_q):
+        """Each point's closest skin feature at `body_q` (its closest point, projector and side), off the tape."""
+        device, count = self.links.device, self.links.shape[0]
+        wp.launch(_skin_placed, dim=count, inputs=[body_q, self.links, self.places], outputs=[self.placed],
+                  device=device, record_tape=False)
+        points = self.placed.numpy().astype(np.float64)
+        offsets, bends = self.meshes.apart(points, self.skin_of)
+        outside = np.linalg.norm(offsets, axis=1) > 0.0
+        self.closest.assign((points - offsets).astype(np.float32))
+        self.bends.assign(np.where(outside[:, None, None], bends, np.eye(3)).astype(np.float32))
+        self.outside.assign(outside.astype(np.float32))
 
     def launch(self, body_q, cost):
         """Each point's weighted depth outside, added into `cost` as half its square."""
-        device, count = self.links.device, self.links.shape[0]
-        wp.launch(_skin_closest, dim=count, inputs=[body_q, self.links, self.places, self.mesh_ids],
-                  outputs=[self.closest, self.outside], device=device, record_tape=False)
-        wp.launch(_skin_cost, dim=count, inputs=[body_q, self.links, self.places, self.closest, self.outside,
-                                                 self.cost], outputs=[self.residual_rows, cost], device=device)
+        if not self.held:
+            self.find(body_q)
+        wp.launch(_skin_cost, dim=self.links.shape[0],
+                  inputs=[body_q, self.links, self.places, self.closest, self.bends, self.outside, self.cost],
+                  outputs=[self.residual_rows, cost], device=self.links.device)
 
 
 COUPLING_TERMS = 5
@@ -272,6 +295,16 @@ its trusts), laid on every copy, so each copy's last `ends` sites are its ends a
             self.turns.launch(self.state.body_q, self.cost)
         if self.skin is not None:
             self.skin.launch(self.state.body_q, self.cost)
+
+    def hold_skin(self, inner, outer):
+        """Every bone point's closest skin feature held as it is at (`inner`, `outer`), level 3's solve: the cost is
+        then that pose's smooth piece, so `arrow_hessian`'s differences read its curvature, never the jumps where a
+        point's nearest skin switches between two sheets (2026-11-01: a point 9 mm out in a crease switched 18 mm
+        across between steps 5e-5 apart, and H's columns read those jumps)."""
+        if self.skin is not None:
+            self.skin.held = False
+            self._evaluate(inner, outer)
+            self.skin.held = True
 
     def gradient(self, inner, outer):
         """d cost / d inner at (`inner`, `outer`) by the tape's backward pass: the pose's, then level 2's moves'."""
