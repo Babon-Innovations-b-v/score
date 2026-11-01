@@ -1,15 +1,17 @@
 """The honest measures of following SOMA (#70), from one fitted clip: each SOMA joint's position error (MyoFullBody's
-joint centre against SOMA's joint, mm), each bone group's rotation error on the FROZEN calibration copy (fit._frozen,
-deg), the share of bone vertices outside SOMA's posed skin by region (every EVERY-th frame) and its smooth twin, the
+joint centre against SOMA's joint, mm), each bone group's rotation error on the calibration table as it stands
+(`judged_turn`: `calibration.TABLE`, which level 1's worker reads again from each evaluation's centres, the table the
+stage builds its follows targets from; deg) and beside it on main's FROZEN copy (fit._frozen, never tuned on), the share of bone vertices outside SOMA's posed skin by region (every EVERY-th frame) and its smooth twin, the
 depth outside (`fit._skin.depth_mm`, level 1's least-squares residual only), and beside them tip,
 length and floor readings. Never a landmark distance the solver pulls on. The skin, the winding test, the regions and
-the frozen table are the stage's own (fit._skin, fit._frozen), so the record and level 1's score are one code. Every
+the tables are the stage's own (fit._skin, calibration, fit._frozen), so the record and level 1's score are one code. Every
 value is unrounded (the solver's); `evaluation.rounded` makes the copy people read (m.json).
 Newton's Python (mujoco, warp)."""
 import mujoco
 import numpy as np
 from scipy.spatial import cKDTree
 
+import calibration
 from contact import surface
 from fit._frozen import frozen_turn
 from fit._skin import EVERY, HAND, bone_meshes, bone_points, depth_mm, marks, region, skin as skinned
@@ -66,6 +68,18 @@ def centre(model, data, name, scales):
     return data.xpos[index] + data.xmat[index].reshape(3, 3) @ (np.asarray(local) * scales[bone])
 
 
+def judged_turn(segment):
+    """The R_cal a group's turn is judged on (3 x 3): the calibration table as it stands, read again from the
+    evaluation's centres (`_case.recalibrated`), as the stage's follows targets ride it (2026-11-01: on the frozen
+    table level 1 never saw a centre move turn Spine1's calibration 6 degrees, Spine2's 10, and worsened follows)."""
+    return calibration.turn(segment)
+
+
+def turn_angle(seen, wanted):
+    """The angle (degrees) between two turns."""
+    return np.degrees(np.arccos(np.clip((np.trace(seen.T @ wanted) - 1) / 2, -1, 1)))
+
+
 def summary(values):
     values = np.asarray(values, dtype=float)
     return [float(np.median(values)), float(np.percentile(values, 95)), float(values.max())]
@@ -86,6 +100,7 @@ def measures(model, angles, rig, segments, worlds, scales):
     tips = {tip: [] for tip in TIPS}
     hand = {side: [] for side in ("Left", "Right")}
     turns = {segment: [] for segment in segments if segment in FRAME_BODY}
+    frozen = {segment: [] for segment in turns}
     lowest, skin_lowest, outside, depth, deep, by_bone, hand_parts, no_fingers = [], [], {}, {}, {}, {}, {}, {}
     faces, meshes = np.asarray(rig["faces"]), bone_meshes(model)
     hand_tips = {side: soma_point(f"{side}Hand tip", rig) for side in hand}
@@ -105,9 +120,10 @@ def measures(model, angles, rig, segments, worlds, scales):
             hand[side].append(1000 * np.linalg.norm(
                 TO_OWN @ centre(model, data, f"finger_tip_{side[0].lower()}", scales) - soma))
         for segment in turns:
-            seen = TO_OWN @ data.xmat[body(model, FRAME_BODY[segment])].reshape(3, 3) @ frozen_turn(segment).T
+            held = TO_OWN @ data.xmat[body(model, FRAME_BODY[segment])].reshape(3, 3)
             wanted = world[segments.index(segment)][:3, :3]
-            turns[segment].append(np.degrees(np.arccos(np.clip((np.trace(seen.T @ wanted) - 1) / 2, -1, 1))))
+            turns[segment].append(turn_angle(held @ judged_turn(segment).T, wanted))
+            frozen[segment].append(turn_angle(held @ frozen_turn(segment).T, wanted))
         low = float((surface(model, data, colliders) @ TO_OWN.T)[:, 1].min())
         skin = skinned(rig, segments, world)
         lowest.append(1000 * low)
@@ -149,6 +165,8 @@ def measures(model, angles, rig, segments, worlds, scales):
             "per group deg": {key: summary(value)[:2] for key, value in turns.items()},
             "per joint rms mm": {key: root_mean_square(value) for key, value in joints.items()},
             "per group rms deg": {key: root_mean_square(value) for key, value in turns.items()},
+            "turns deg, main's frozen table": summary(sum(frozen.values(), [])),
+            "per group deg, main's frozen table": {key: summary(value)[:2] for key, value in frozen.items()},
             "joint length over SOMA mm": long, "tips mm": {key: summary(value)[:2] for key, value in tips.items()},
             "hand tips mm": {key: summary(value)[:2] for key, value in hand.items()},
             "lowest collider mm": [float(np.median(lowest)), float(np.min(lowest))],

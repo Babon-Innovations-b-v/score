@@ -10,11 +10,13 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) reached's `near.add(PARENT.get(segment, segment))` dropped: a landmark misses its parent group's rows.
 - (2026-10-29) resumed's `min(lines, ...)` made `lines[0]`: a resume starts from the first evaluation, not the best.
 - (2026-10-29) weight_rewritten's `flags=re.MULTILINE` dropped: no global weight is written back.
+- (2026-11-01) relative's `/ largest` dropped: a written trust stays over 1 (level 1's trusts float in scale).
 - (2026-11-01) centres_rewritten's `float(value) + float(move)` made `float(move)`: a centre off its body's origin
   (C7_T1 on the torso) lands at its offset, not moved by it.
 - (2026-10-29) ended's `middles.get(start, (start,))` made `(start,)`: a hip's centre misses the Hips group it ends.
-- (2026-10-29) offsets keyed by `paired(centre)[0]`: the right hip's centre takes the left's move (bodies are not
-  symmetric: each end its own).
+- (2026-11-01) offsets' `* float(factor[axis])` dropped: the right hip's centre takes the left's move unmirrored.
+- (2026-11-01) layout's `paired(centre)[0]` made `centre`: each end its own unknown again, the sides apart.
+- (2026-11-01) layout's `axis != LATERAL` made `True`: a middle end's centre moves off the mid-plane.
 - (2026-10-29) bounds' "centre" reach dropped: a centre held within a link's 30 mm, not its 40.
 - (2026-10-29) prior's `kind in MOVES` made `kind == "link"`: no prior pulls a centre to the model's own.
 - (2026-10-29) solved's `jac=differenced` made scipy's `jac="2-point", jac_sparsity=pattern, diff_step=STEP`: at 0
@@ -80,14 +82,19 @@ def test_a_landmark_reaches_its_parents_and_childrens_rows():
     assert pattern[:6, -1].all()  # a global weight reaches every row
 
 
-def test_every_group_end_is_its_own_unknown_within_its_reach_pulled_to_the_models_centre():
+def test_a_pair_of_group_ends_is_one_mirrored_unknown_a_middle_one_on_the_mid_plane_within_its_reach():
     assert ENDS == {"hip_l": ["Hips", "LeftLeg"], "hip_r": ["Hips", "RightLeg"]}
-    entries = tuning.layout(TABLE, held=(), joints=set(), ends=ENDS)
+    ends = {**ENDS, "L5_S1": ["Hips", "Spine1"]}
+    entries = tuning.layout(TABLE, held=(), joints=set(), ends=ends)
     centres = [index for index, (_, kind, _, _) in enumerate(entries) if kind == "centre"]
-    assert [entries[index][:3] for index in centres] == [(centre, "centre", axis) for centre in ENDS for axis in range(3)]
+    assert [entries[index][:3] for index in centres] == [("hip_l", "centre", axis) for axis in range(3)] + [
+        ("L5_S1", "centre", axis) for axis in (0, 1)]
+    assert entries[centres[0]][3] == ["Hips", "LeftLeg", "RightLeg"]  # the pair reaches both sides' rows
     unknowns = np.zeros(len(entries))
-    unknowns[centres[2]] = 1  # the left hip's z
-    assert tuning.offsets(unknowns, entries) == {"hip_l": [0, 0, tuning.LINK_UNIT], "hip_r": [0, 0, 0]}
+    unknowns[centres[0]], unknowns[centres[2]], unknowns[centres[4]] = 2, 1, 3  # the hips' x and z, L5_S1's y
+    unit = tuning.LINK_UNIT
+    assert tuning.offsets(unknowns, entries) == {"hip_l": [2 * unit, 0, unit], "hip_r": [2 * unit, 0, -unit],
+                                                 "L5_S1": [0, 3 * unit, 0]}
     lower, upper = tuning.bounds(entries)
     assert np.allclose(upper[centres], tuning.END_REACH / tuning.LINK_UNIT) and np.allclose(lower, -upper)
     assert len(tuning.prior(unknowns, entries)) == len(centres) + sum(kind == "link" for _, kind, _, _ in entries)
@@ -214,6 +221,13 @@ def test_a_global_weight_is_written_back_into_its_module():
     source = "MARKER_GOAL = 1.0\nOTHER_GOAL = 1.0\n"
     found = tuning.weight_rewritten(source, "MARKER_GOAL", 2.5)
     assert found == "MARKER_GOAL = 2.5\nOTHER_GOAL = 1.0\n", found
+
+
+def test_written_trusts_keep_their_ratios_the_largest_one():
+    rows = {"a": {"trust": 2.4, "link": [0, 0, 0]}, "b": {"trust": 0.6, "link": [1, 0, 0]}}
+    found = tuning.relative(rows)
+    assert found == {"a": {"trust": 1.0, "link": [0, 0, 0]}, "b": {"trust": 0.25, "link": [1, 0, 0]}}, found
+    assert rows["a"]["trust"] == 2.4  # the rows given are left as they were
 
 
 def test_a_group_ends_centre_is_moved_by_its_offset_in_both_tables():

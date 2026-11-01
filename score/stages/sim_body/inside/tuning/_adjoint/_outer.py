@@ -1,11 +1,12 @@
 """Level 1's unknowns (`tuning.layout`'s units) as one frame's `TapedSites(trusted=True, ends=...)` outer unknowns, and
 their derivative, so a body's rows over the taped outer unknowns become rows over level 1's (chain rule): each
 landmark site's offset is `tuning.applied`'s link (its start plus LINK_UNIT times the move, mirrored on the right), each
-group end's offset MyoFullBody's own centre plus its move (`tuning.offsets`, the centre's body frame) turned into the
+group end's offset MyoFullBody's own centre plus its move (`tuning.offsets`, the centre's body frame; a right end its
+left one's unknown mirrored) turned into the
 end site's link frame, each trust and global its start times e^(LOG_UNIT * unknown). Numpy only."""
 import numpy as np
 
-from .. import GLOBALS, LINK_UNIT, LOG_UNIT, applied, offsets, paired
+from .. import GLOBALS, LINK_UNIT, LOG_UNIT, applied, centre_members, offsets, paired
 
 TAPED_GLOBALS = ("end weight", "marker goal")  # `TapedSites._weighed`'s order after the trusts
 
@@ -41,9 +42,10 @@ def site_derivative(unknowns, entries, landmarks, ends, table, globals_):
                 found[3 * sites + row, column] = LOG_UNIT * table[name]["trust"] * np.exp(LOG_UNIT * value)
         elif kind == "centre":
             for end, (_, parts) in enumerate(ends):
-                if pool in parts:
-                    found[3 * (len(landmarks) + end):3 * (len(landmarks) + end) + 3, column] = \
-                        LINK_UNIT * np.asarray(parts[pool])[:, axis]
+                for part, factor in centre_members(pool):
+                    if part in parts:
+                        found[3 * (len(landmarks) + end):3 * (len(landmarks) + end) + 3, column] += \
+                            LINK_UNIT * factor[axis] * np.asarray(parts[part])[:, axis]
         elif kind == "global":
             row = 3 * sites + len(landmarks) + TAPED_GLOBALS.index(pool)
             found[row, column] = LOG_UNIT * globals_[pool] * np.exp(LOG_UNIT * value)

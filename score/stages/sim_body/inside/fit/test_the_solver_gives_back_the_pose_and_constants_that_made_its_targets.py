@@ -19,6 +19,9 @@ Level 1's skin residual (fit._skin.marks, depth_mm) is a bone point's distance t
 outside, 0 inside, by the winding test; the region's root mean square.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted):
+- (2026-11-01) `_card/_measure.turn_errors`' default `table=cpu.judged_turn` made `frozen_turn`, or
+  `evaluation._measure.judged_turn` returning `frozen_turn`: level 1 scores the turns on main's frozen table while
+  the stage's follows targets ride the table read again from the moved centres.
 - (2026-10-28) Fitting's site `Rotation.from_matrix(calibration.T)` made `Rotation.from_matrix(calibration)`: the turned
   thigh's target is met by a wrong pose.
 - (2026-10-28) limited_model's `found.jnt_limited[self.followers] = 0` dropped: the follower's own range stops its
@@ -411,6 +414,42 @@ def a_bone_point_outside_the_skin_lies_as_deep_as_its_distance():
     return problems + ([] if abs(rms - 1000 * np.sqrt(1.0)) < 1e-3 else [f"root mean square {rms} mm"])
 
 
+def a_turn_is_judged_on_the_calibration_table_as_it_stands():
+    """Level 1's turn rows are the stage's: with the calibration table read again 20 degrees off main's frozen row
+    (as a moved centre turns it), a thigh standing as SOMA's segment through that table reads 0 degrees on the card's
+    turn errors and the CPU's `judged_turn`, and 20 on main's frozen table beside them."""
+    import numpy as np
+    import mujoco
+    import warp
+    from scipy.spatial.transform import Rotation
+    import calibration
+    from evaluation import _measure as cpu
+    from fit._card import _measure as card
+    from fit._frozen import frozen_turn
+    from model import TO_OWN
+    kept = dict(calibration.TABLE)
+    moved = Rotation.from_matrix(frozen_turn("LeftLeg")) * Rotation.from_rotvec([0.0, 0.0, np.radians(20.0)])
+    calibration.TABLE["LeftLeg"] = tuple(moved.as_quat())
+    try:
+        model = mujoco.MjModel.from_xml_string('<mujoco><worldbody><body name="femur_l"><geom size="0.1"/></body>'
+                                              '</worldbody></mujoco>')
+        body = Rotation.from_rotvec([0.3, -0.2, 0.5]).as_matrix()  # the thigh's turn in MuJoCo's frame
+        xmat = np.repeat(np.stack([np.eye(3), body])[None], 2, axis=0)
+        data = type("Posed", (), {"xmat": warp.array(xmat, dtype=warp.mat33d, device=card.DEVICE)})()
+        world = np.tile(np.eye(4), (2, 1, 1, 1))
+        world[:, 0, :3, :3] = TO_OWN @ body @ calibration.turn("LeftLeg").T  # SOMA's segment through the table
+        judged = card.turn_errors(model, data, world, ["LeftLeg"])["LeftLeg"]
+        frozen = card.turn_errors(model, data, world, ["LeftLeg"], frozen_turn)["LeftLeg"]
+        problems = [] if np.allclose(judged, 0.0, atol=1e-5) else [f"card on the table as it stands: {judged}"]
+        problems += [] if np.allclose(frozen, 20.0, atol=1e-4) else [f"card on main's frozen table: {frozen}"]
+        cpu_turn = cpu.judged_turn("LeftLeg")
+        problems += [] if np.allclose(cpu_turn, calibration.turn("LeftLeg")) else ["the CPU judges on another table"]
+        return problems
+    finally:
+        calibration.TABLE.clear()
+        calibration.TABLE.update(kept)
+
+
 def a_skin_crossing_itself_tells_inside_by_its_winding_number():
     """A posed skin crosses itself where limbs meet (2026-10-31: a forearm point 5.7 mm off mean_running's skin read
     outside, then inside after a 0.003 mm move, though its exact winding number is 1 both times): on four overlapping
@@ -500,7 +539,7 @@ def a_step_the_cost_cannot_see_is_judged_by_its_gradient():
         [] if unseen is unknowns else ["a step the cost cannot see is taken by descended"])
 
 
-CHECKS = (a_bone_point_outside_the_skin_lies_as_deep_as_its_distance, a_skin_crossing_itself_tells_inside_by_its_winding_number, only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
+CHECKS = (a_turn_is_judged_on_the_calibration_table_as_it_stands, a_bone_point_outside_the_skin_lies_as_deep_as_its_distance, a_skin_crossing_itself_tells_inside_by_its_winding_number, only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
           the_place_goal_sums_to_the_marker_goal, the_solver_gives_back_the_angles_and_the_constants,
           every_recording_of_the_body_is_sampled, somas_targets_leave_the_solves_unchanged, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows,
           a_step_no_task_sees_ends_the_fit, level_2_ends_settled, a_step_the_cost_cannot_see_is_judged_by_its_gradient)

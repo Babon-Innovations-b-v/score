@@ -1,5 +1,6 @@
 """The honest measures level 1 scores on, on the card (#70, the card build plan's step 3): each SOMA joint's position
-error (mm), each bone group's rotation error on the frozen table (deg) and the share of bone vertices outside SOMA's
+error (mm), each bone group's rotation error on the calibration table as it stands (`evaluation._measure.judged_turn`,
+deg; beside it on main's frozen table) and the share of bone vertices outside SOMA's
 posed skin by region, as `evaluation._measure.measures` gives them ("joints mm", "per joint mm", "turns deg",
 "per group deg", "bones outside skin %", "bones outside depth mm", "bones outside all %"); its other readings (tips, lengths, floor, depths)
 stay on the CPU. The frames' poses by MuJoCo's float64 kinematics (`Posed`), the joint and turn errors one Warp
@@ -120,11 +121,12 @@ def joint_errors(model, data, worlds, segments, scales):
     return dict(zip(joints, out.numpy().T.astype(float)))
 
 
-def turn_errors(model, data, worlds, segments):
-    """{segment: [deg per frame]}: each bone group's rotation off SOMA's segment on the frozen table."""
+def turn_errors(model, data, worlds, segments, table=cpu.judged_turn):
+    """{segment: [deg per frame]}: each bone group's rotation off SOMA's segment on `table` (a group's R_cal, 3 x 3:
+    the table as it stands, else main's frozen one)."""
     groups = [segment for segment in segments if segment in cpu.FRAME_BODY]
     bodies = np.array([cpu.body(model, cpu.FRAME_BODY[segment]) for segment in groups], dtype=np.int32)
-    turned = np.stack([TO_OWN.T @ np.asarray(worlds)[:, segments.index(segment), :3, :3] @ frozen_turn(segment)
+    turned = np.stack([TO_OWN.T @ np.asarray(worlds)[:, segments.index(segment), :3, :3] @ table(segment)
                        for segment in groups], axis=1)
     out = warp.zeros((len(worlds), len(groups)), dtype=warp.float64, device=DEVICE)
     warp.launch(_turn_errors, dim=out.shape, device=DEVICE,
@@ -166,6 +168,7 @@ def measures(model, angles, rig, segments, worlds, scales, skins=None):
     data = Posed(model, angles, set(skins.frames.tolist()))
     joints = joint_errors(model, data, worlds, segments, scales)
     turns = turn_errors(model, data, worlds, segments)
+    frozen = turn_errors(model, data, worlds, segments, frozen_turn)
     marks, depths = outside_marks(data, skins)
     outside = skin_shares(marks, data.bones)
     return {"joints mm": cpu.summary(np.concatenate(list(joints.values()))),
@@ -174,6 +177,8 @@ def measures(model, angles, rig, segments, worlds, scales, skins=None):
             "per group deg": {key: cpu.summary(value)[:2] for key, value in turns.items()},
             "per joint rms mm": {key: cpu.root_mean_square(value) for key, value in joints.items()},
             "per group rms deg": {key: cpu.root_mean_square(value) for key, value in turns.items()},
+            "turns deg, main's frozen table": cpu.summary(np.concatenate(list(frozen.values()))),
+            "per group deg, main's frozen table": {key: cpu.summary(value)[:2] for key, value in frozen.items()},
             "bones outside skin %": {key: 100 * float(np.mean(value)) for key, value in outside.items()},
             "bones outside depth mm": skin_depths(depths, data.bones),
             "bones outside all %": 100 * float(np.mean(sum(outside.values(), [])))}

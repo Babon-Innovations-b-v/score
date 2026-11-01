@@ -4,7 +4,7 @@ table.json (the starting landmark rows, each link its anatomical start) and rig.
 calibration table's rest); it gets evals/ (the latest evaluations),
 checkpoint.jsonl (every evaluation and iteration; a restart resumes from its best), check.jsonl (the held-out score
 every --every iterations, 3 unless given, and at the end), steps.jsonl (each check against the one before: per-case paired changes of
-the honest measures, tuning and check bodies apart, verdicts past floor.json when the run dir has it, `tuning._paired`), result_table.json, result_weights.json, result_centres.json (each group end's offset) and held_out.json (the check bodies'
+the honest measures, tuning and check bodies apart, verdicts past floor.json when the run dir has it, `tuning._paired`), result_table.json (its trusts relative, the largest 1), result_weights.json, result_centres.json (each group end's offset) and held_out.json (the check bodies'
 score against the tuning bodies', accepted within 10 %). With --card every evaluation runs on the card
 (`evaluation.measured_many`, seeded from the seeds root's angles), a Jacobian's nudged sets in one process; with --exact too the Jacobian is the hybrid (`exact_stacked`: each tuning case's
 exact block, `evaluation.blocked`, beside the centres' differences, `centre_columns`). Any Python with numpy and scipy; the workers run in Newton's."""
@@ -108,7 +108,7 @@ def main():
                                   every=given.every, evaluate_many=evaluate_many if given.card else None,
                                   exact=exact if given.exact else None, by_differences=centre_columns(entries))
     rows, weights = tuning.applied(result.x, entries, starts, table, GLOBALS)
-    (run / "result_table.json").write_text(json.dumps(rows, indent=1))
+    (run / "result_table.json").write_text(json.dumps(tuning.relative(rows), indent=1))
     (run / "result_weights.json").write_text(json.dumps(weights))
     (run / "result_centres.json").write_text(json.dumps(tuning.offsets(result.x, entries), indent=1))
     tuned = evaluation.side_score(side(result.x, "tuning", "final"))
