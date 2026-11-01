@@ -17,7 +17,7 @@ A clean end to a session. A PRD can span many sessions, so the job is to leave i
 
 3. **Finish every loose end you can, then park the rest.** Take the list from step 2 one item at a time and ask a single question: can I do this now? If yes, do it, and let it ride out on this session's commit.
 
-   **The bar is deliberately low.** A one-line fix, a stale sentence, a wrong comment, a missing test, a rename, a data update you have the access for: all of that is smaller than the paragraph explaining why you left it. Three signs you are about to park something you should be doing: you are writing "worth doing if", "candidate", or "buys nothing today"; you are describing the fix precisely enough that doing it would be shorter; you are closing an issue while listing what is still wrong with it. In each case, stop writing and go do it.
+   **The bar is deliberately low.** A one-line fix, a stale sentence, a wrong comment, a missing test, a rename, a data update you have access for: all of that is smaller than the paragraph explaining why you left it. Three signs you are about to park something you should be doing: you are writing "worth doing if", "candidate", or "buys nothing today"; you are describing the fix precisely enough that doing it would be shorter; you are closing an issue while listing what is still wrong with it. In each case, stop writing and go do it.
 
    **Park only what you genuinely cannot finish now**, and say which of these it is, in the line itself:
    - it needs a decision that is not yours to make, and you have asked;
