@@ -250,7 +250,8 @@ def solved(residuals, entries, pattern, checkpoint, limit_seconds, every=None, s
 
     def evaluated(unknowns):
         found = residuals(unknowns)
-        checkpointed(checkpoint, unknowns, 0.5 * float(found @ found), "evaluation")
+        if np.all(np.isfinite(found)):  # a refused trial (infinite) is no point to resume from
+            checkpointed(checkpoint, unknowns, 0.5 * float(found @ found), "evaluation")
         last.clear()
         last[np.asarray(unknowns, dtype=float).tobytes()] = found
         return found
@@ -291,11 +292,15 @@ def whole(evaluate, check, entries, checkpoint, limit_seconds, start=None, every
     """Level 1 entire: `solved` over every tuning case at once, `evaluate(unknowns)` ({case: measures} of levels 2
     and 3 on every tuning body, the evaluation runner's) giving each evaluation's residuals with the prior
     (`evaluate_many(sets)`, when given, every nudged set of a Jacobian at once: [{case: measures}]), and
-    `check(unknowns)` (the held-out bodies' score) logged every `every` iterations and at the end, never used to
+    `evaluate` giving None (a trial point some body's level 3 did not stop on, `evaluation.read_back`) is refused:
+    its residuals are infinite, so trf shrinks its trust region and steps again (scipy's own rule for a non-finite
+    trial), never accepting it; the start itself must evaluate. `check(unknowns)` (the held-out bodies' score) logged every `every` iterations and at the end, never used to
     choose; `exact` and `by_differences` go to `solved` (level 1's hybrid Jacobian). Returns (scipy's result,
     [(iteration, check score)])."""
     start = resumed(checkpoint, len(entries)) if start is None else start
     first = evaluate(start)
+    if first is None:
+        raise RuntimeError("level 1's start did not evaluate: a body's level 3 did not stop on it")
     names = sorted(first)
     pattern = sparsity(entries, labels(first[names[0]]), len(names))
     kept = {start.tobytes(): first}
@@ -304,8 +309,11 @@ def whole(evaluate, check, entries, checkpoint, limit_seconds, start=None, every
     def stacked(unknowns, found):
         return np.concatenate([case_residuals(found[case]) for case in names] + [prior(unknowns, entries)])
 
+    size = len(stacked(start, first))
+
     def residuals(unknowns):
-        return stacked(unknowns, kept.pop(np.asarray(unknowns, dtype=float).tobytes(), None) or evaluate(unknowns))
+        found = kept.pop(np.asarray(unknowns, dtype=float).tobytes(), None) or evaluate(unknowns)
+        return np.full(size, np.inf) if found is None else stacked(unknowns, found)
 
     def many(sets):
         return [None if found is None else stacked(moved, found) for moved, found in zip(sets, evaluate_many(sets))]

@@ -67,11 +67,11 @@ def main():
         rows, weights = tuning.applied(unknowns, entries, starts, table, GLOBALS)
         return rows, weights, {"centres": tuning.offsets(unknowns, entries), "rig": str(run / "rig.npz")}
 
-    def side(unknowns, name, label):
+    def side(unknowns, name, label, unconverged=False):
         picked = evaluation.picked(cases, split, name)
         if given.card:
             return evaluation.measured_many([worker_set(unknowns)], picked, run / "evals" / label, given.python,
-                                            given.card)[0]
+                                            given.card, unconverged=unconverged)[0]
         return evaluation.measured(*worker_set(unknowns), picked, run / "evals" / label, given.python)
 
     def evaluate_many(sets):
@@ -81,8 +81,11 @@ def main():
 
     def evaluate(unknowns):
         count[0] += 1
-        found = side(unknowns, "tuning", f"e{count[0]:05d}")
+        found = side(unknowns, "tuning", f"e{count[0]:05d}", unconverged=True)
         shutil.rmtree(run / "evals" / f"e{count[0] - 2:05d}", ignore_errors=True)
+        if found is None:  # a body's level 3 did not stop on this trial point: tuning.whole refuses it
+            print(f"eval {count[0]}: a tuning body's level 3 did not stop: trial refused", flush=True)
+            return None
         latest["tuning"] = found
         print(f"eval {count[0]}: tuning score {evaluation.side_score(found):.4f}", flush=True)
         return found
@@ -93,7 +96,11 @@ def main():
         return exact_stacked(blocks, unknowns, entries)
 
     def check(unknowns):
-        found = side(unknowns, "check", "check")
+        found = side(unknowns, "check", "check", unconverged=True)
+        if found is None:  # a check body's level 3 did not stop here: no score, never used to choose
+            with open(run / "check.jsonl", "a") as file:
+                file.write(json.dumps({"evaluation": count[0], "check score": None, "unconverged": True}) + "\n")
+            return float("nan")
         score = evaluation.side_score(found)
         now = {case: _paired.flattened(value) for case, value in {**latest["tuning"], **found}.items()}
         if "check" in latest:
