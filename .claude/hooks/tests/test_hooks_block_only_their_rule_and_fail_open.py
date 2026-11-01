@@ -825,6 +825,8 @@ SHORT_OR_BACKGROUND = [
     bash("grep -n detach tools/cloud/blender_cloud*.py | head -40"), bash("cat tools/usd/settle.py | grep cloud"),
     bash("git diff tools/review/page.py --stat"),
     bash("while true; do sleep 30; done", background=True),
+    {"tool_name": "Bash", "tool_input": {"command": "while true; do sleep 60; done", "timeout_ms": 1800000,
+                                         "description": "the Monitor tool's watch script"}},
     bash("python tools/cloud/blender_cloud.py job.json --who me", background=True),
     {"tool_name": "Read", "tool_input": {"file_path": "x"}},
 ]
