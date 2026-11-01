@@ -6,7 +6,8 @@
 bone group's stretch on SOMA's bind (`landmarks.soma_point`) and on MyoFullBody at its default pose
 (`landmarks.myo_parts`), each reference axis (`REFERENCES`: a landmark line on SOMA's template skin and between
 MyoFullBody's bone points), then `aligned`. The MyoFullBody reference is turned to agree in sign with SOMA's. Then `FINGERS` (`fingers_measured`, on
-the table as it stands in `TABLE`: paste the turns first, then measure again)."""
+the table as it stands in `TABLE`: paste the turns first, then measure again). `calibration.INSIDE_GROUPS`' rows are
+read in SOMA's skin instead (`inside_measured`, from their rows as they stand; `table_rows`)."""
 import pathlib
 import sys
 
@@ -124,6 +125,91 @@ def fingers_measured(folder, rig_path, kg=70.0):
     return {stem: round(calibration.FINGERS.get(stem, 0.0) + float(turn), 4) for stem, turn in zip(stems, solved.x)}
 
 
+def inside_measured(folder, rig_path, groups_of, kg=70.0):
+    """{group: (R_cal quaternion (x, y, z, w), its turn off TABLE's in degrees, the share of its bone vertices outside
+    SOMA's skin at TABLE's and at the found turn, the shift in mm)} for `groups_of` (TABLE's names; a left group brings
+    its right one): MyoFullBody sized to SOMA's template at its default pose, each group's bone vertices
+    (`_skin.bone_meshes`' kept ones on the group's bodies) laid on SOMA's bind with their start centre (`myo_parts`,
+    scaled with its body) at the group's start joint and turned by TABLE, then turned (a rotvec about the body's own
+    axes, `calibration.turned`) and shifted as one rigid body by scipy's `least_squares` to their least depth outside
+    SOMA's skin (`_skin.envelope`: the head's pockets closed). A middle group turns about its body's z alone, so it
+    turns no body sideways; a side's two groups share one turn, mirrored, each its own shift. The shift is not kept:
+    the row is the turn."""
+    import tempfile
+
+    import myo
+    from fit import _skin
+    from sizing import Size
+    rig = dict(np.load(rig_path))
+    path = pathlib.Path(tempfile.mkdtemp()) / "template.xml"
+    _, scales = myo.person_file(folder, Size(rig), kg, path)
+    model = mujoco.MjModel.from_xml_path(str(path))
+    data = default_pose(model, Couplings(model))
+    mesh = warp.Mesh(points=warp.array(rig["points"].astype(np.float32), dtype=warp.vec3, device="cpu"),
+                     indices=warp.array(_skin.envelope(rig).ravel(), dtype=int, device="cpu"),
+                     support_winding_number=True)
+    points, bones = _skin.bone_points(model, data, _skin.bone_meshes(model))
+    found = {}
+    for unit in _units(groups_of):
+        laid = [_bones_at_rest(model, data, scales, rig, points, bones, group) for group in unit]
+        if all(len(local) for local, _, _ in laid):  # Neck2 has no body of its own
+            found.update(_fitted_in_skin(mesh, unit, laid))
+    return found
+
+
+def _units(groups_of):
+    """The groups fitted together: a middle group alone, a side's two groups as one pair (left first)."""
+    found = []
+    for group in groups_of:
+        unit = (group,) if not group.startswith(("Left", "Right")) else (
+            "Left" + group.removeprefix("Left").removeprefix("Right"), "Right" + group.removeprefix("Left").removeprefix("Right"))
+        if unit not in found:
+            found.append(unit)
+    return found
+
+
+def _bones_at_rest(model, data, scales, rig, points, bones, group):
+    """(its bone vertices in the group body's own frame from its start centre, its segment's bind turn, SOMA's start
+    joint): what `_fitted_in_skin` lays."""
+    from fit._follow import centre
+    from fit._model import own_name
+    (start, _), (myo_start, _), frame_body, bodies = groups()[group]
+    mine = np.isin([own_name(bone) for bone in bones], bodies)
+    body = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, frame_body)
+    local = (points[mine] - TO_OWN @ centre(model, data, myo_start, scales)) @ (TO_OWN @ data.xmat[body].reshape(3, 3))
+    names = [str(joint) for joint in rig["names"]]
+    return local, rig["bind"][names.index(group), :3, :3], soma_point(start, rig)
+
+
+def _fitted_in_skin(mesh, unit, laid):
+    """{group: (quaternion, degrees, outside at TABLE, outside found, shift mm)} for one unit: its shared turn (a
+    middle group's about z alone) and each group's shift solved to the least depth outside the skin."""
+    from scipy.optimize import least_squares
+    from scipy.spatial.transform import Rotation
+    middle = len(unit) == 1
+
+    def rotvec(unknowns):
+        return np.array([0.0, 0.0, unknowns[0]]) if middle else unknowns[:3]
+
+    def placed(unknowns):
+        turns = 1 if middle else 3
+        shifts = unknowns[turns:].reshape(len(unit), 3)
+        return [start + shift + local @ (segment_turn @ Rotation.from_quat(calibration.turned(group, rotvec(unknowns))).as_matrix()).T
+                for group, (local, segment_turn, start), shift in zip(unit, laid, shifts)]
+
+    def depths(unknowns):
+        return np.maximum(0.0, -_depth_inside(mesh, np.concatenate(placed(unknowns))))
+    unknowns = np.zeros((1 if middle else 3) + 3 * len(unit))
+    solved = least_squares(depths, unknowns, x_scale=0.01, diff_step=1e-4)
+    sizes = np.cumsum([0] + [len(local) for local, _, _ in laid])
+    before, after = depths(unknowns) > 0, depths(solved.x) > 0
+    shifts = solved.x[(1 if middle else 3):].reshape(len(unit), 3)
+    return {group: (calibration.turned(group, rotvec(solved.x)), float(np.degrees(np.linalg.norm(rotvec(solved.x)))),
+                    float(before[sizes[index]:sizes[index + 1]].mean()), float(after[sizes[index]:sizes[index + 1]].mean()),
+                    1000 * shifts[index])
+            for index, group in enumerate(unit)}
+
+
 def _hand(model, rig, side):
     """One hand's finger bodies (the Hand group's bodies but its frame body and the carpals), their hinges by stem
     (address, range), its frame body and its lay on SOMA's bind (turn, SOMA's Hand joint)."""
@@ -169,8 +255,15 @@ def _depth_inside(mesh, points):
     return depths.numpy().astype(float)
 
 
+def table_rows(folder, rig_path):
+    """{group: R_cal quaternion}: the landmark lines' rows, INSIDE_GROUPS' read in the skin."""
+    inside = inside_measured(folder, rig_path, calibration.INSIDE_GROUPS)
+    return {group: inside[group][0] if group in inside else quaternion
+            for group, quaternion in measured(folder, rig_path).items()}
+
+
 if __name__ == "__main__":
-    for group, quaternion in measured(*sys.argv[1:3]).items():
+    for group, quaternion in table_rows(*sys.argv[1:3]).items():
         print(f'    "{group}": ({", ".join(f"{value:.6g}" for value in quaternion)}),')
     for stem, turn in fingers_measured(*sys.argv[1:3]).items():
         print(f'    "{stem}": {turn},')
