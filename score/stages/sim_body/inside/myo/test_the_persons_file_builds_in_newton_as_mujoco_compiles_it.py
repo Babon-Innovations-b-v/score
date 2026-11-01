@@ -6,7 +6,9 @@ Newton's model the published model's (#60's import fixes); with the fit's consta
 body sits moved by its found move; the neck and head carry MyoHead's two joints, the torso the thoracic three, and the
 girdle's coupling to the arm's elevation is gone, its joint on its own range, and its phantom follows it at -1
 (`myo._movable`); a finger body laid at its joints' rest turns (`myo._rested`) stands at zero where it stood at those
-turns and reaches every pose as before, its ranges moved by them. It runs in Newton's own Python
+turns and reaches every pose as before, its ranges moved by them; each foot turns on its shin about the shin's long
+axis at the ankle, before the ankle's flexion, toes in for a positive turn on both sides, on `FEET`' ranges, and at
+no twist stands as it did. It runs in Newton's own Python
 (score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there, as in `make
 tests`' sandbox home, it prints `skipped`.
 
@@ -23,6 +25,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-11-01) rested's `_carried(joint, moves[index + 1:])` made `pass`: the first of two joints turns about its old
   axis, the tip lands 0.4 to 3.3 mm off.
 - (2026-11-01) rested's `- turns[index]` made `- 0.0`: the range stays where it was.
+- (2026-11-01) _feet's twist added after the ankle's flexion (the re-adding loop moved before it): the twist's axis
+  tips with the foot's flexion, off the shin.
+- (2026-11-01) _feet's `(-1.0 if side == "l" else 1.0)` made `1.0`: the left toes turn out for a positive twist.
 
 Run: .venv/bin/python score/stages/sim_body/inside/myo/test_the_persons_file_builds_in_newton_as_mujoco_compiles_it.py
 """
@@ -293,7 +298,58 @@ def a_rested_finger_reaches_every_pose_as_before():
     return problems
 
 
-CHECKS = (a_rested_finger_reaches_every_pose_as_before, the_neck_thorax_and_girdle_move, the_constants_move_the_file, the_written_file_builds_as_it_compiles,
+LEG = """<mujoco><compiler angle="radian"/><default><default class="myolegs"><joint damping="0.5"/></default></default>
+  <worldbody>{legs}</worldbody></mujoco>"""
+SIDE = """<body name="tibia_{s}" pos="0 1 {side}"><geom type="sphere" size="0.02" mass="1"/>
+  <body name="talus_{s}" pos="-0.01 -0.4 0"><joint name="ankle_angle_{s}" type="hinge" axis="0.1 0.17 {z}" range="-0.7 0.52"/>
+    <geom type="sphere" size="0.02" mass="0.1"/>
+    <body name="calcn_{s}" pos="-0.05 -0.04 0"><joint name="subtalar_angle_{s}" type="hinge" axis="-0.79 -0.6 -0.12"
+      range="-0.35 0.35"/><geom type="sphere" size="0.02" mass="0.1"/>
+      <body name="toes_{s}" pos="0.18 0 0"><geom type="sphere" size="0.01" mass="0.05"/></body></body></body></body>"""
+
+
+def a_foot_twists_on_its_shin():
+    """A MyoFullBody-shaped leg each side (tibia, talus with the ankle hinge, calcaneus with the subtalar one; x
+    forward, y up the shin, z to the body's right as OpenSim's, the left side at -z): the talus's first joint is `ankle_rotation`, its world axis along the
+    knee-to-ankle line at a flexed ankle too; a positive twist moves the toes toward the middle on both sides; the
+    ranges are FEET's; at no twist every body stands as the published leg's."""
+    import mujoco
+    import numpy as np
+    from myo._movable import FEET, _feet
+    text = LEG.format(legs="".join(SIDE.format(s=side, side=-0.1 if side == "l" else 0.1, z=0.98 if side == "l" else -0.98)
+                                   for side in "lr"))
+    published = mujoco.MjModel.from_xml_string(text)
+    spec = mujoco.MjSpec.from_string(text)
+    _feet(spec)
+    laid = spec.compile()
+    problems = []
+    for side, middle in (("l", 1.0), ("r", -1.0)):
+        talus = laid.body(f"talus_{side}").id
+        first = laid.joint(int(laid.body_jntadr[talus])).name
+        problems += [] if first == f"ankle_rotation_{side}" else [f"{side}: the talus's first joint is {first}"]
+        data = mujoco.MjData(laid)
+        data.qpos[laid.jnt_qposadr[laid.joint(f"ankle_angle_{side}").id]] = 0.4
+        mujoco.mj_kinematics(laid, data)
+        shin = data.xpos[laid.body(f"tibia_{side}").id] - data.xpos[talus]
+        twist_axis = data.xaxis[laid.joint(f"ankle_rotation_{side}").id]
+        if abs(abs(twist_axis @ shin) / np.linalg.norm(shin) - 1.0) > 1e-9:
+            problems.append(f"{side}: twist axis {twist_axis} off the shin {shin} at a flexed ankle")
+        toes = laid.body(f"toes_{side}").id
+        before = data.xpos[toes][2]
+        data.qpos[laid.jnt_qposadr[laid.joint(f"ankle_rotation_{side}").id]] = 0.1
+        mujoco.mj_kinematics(laid, data)
+        if (data.xpos[toes][2] - before) * middle <= 0:
+            problems.append(f"{side}: a positive twist moves the toes {data.xpos[toes][2] - before:+.4f} m across, not in")
+        ranges = {"ankle_rotation": FEET["twist"][1], **FEET["ranges"]}
+        problems += [f"{side}: {stem} range {laid.joint(f'{stem}_{side}').range}" for stem, span in ranges.items()
+                     if not np.allclose(laid.joint(f"{stem}_{side}").range, span)]
+    rest, plain = mujoco.MjData(laid), mujoco.MjData(published)
+    mujoco.mj_kinematics(laid, rest)
+    mujoco.mj_kinematics(published, plain)
+    return problems + ([] if np.allclose(rest.xpos, plain.xpos, atol=1e-12) else ["at no twist the feet moved"])
+
+
+CHECKS = (a_foot_twists_on_its_shin, a_rested_finger_reaches_every_pose_as_before, the_neck_thorax_and_girdle_move, the_constants_move_the_file, the_written_file_builds_as_it_compiles,
           every_muscle_keeps_its_published_parameters_in_newton)
 
 

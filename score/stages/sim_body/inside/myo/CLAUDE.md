@@ -18,6 +18,13 @@ several joints split into 1 g wrappers, Euler written out, the floor gone).
   unrothum) stays tied at -1 to the joint it undoes: left free, it shares that joint's axis and the clavicle's own
   turn has no target (the card's level 3 swung the pair bound to bound, 2026-10-31). A range is the anatomy's, never
   widened to pass a check.
+- **Its feet turn as SOMA's do, within human ranges** (`_movable.FEET`, the owner, 2026-11-01): a twist hinge on the
+  talus about the tibia's long axis (`ankle_rotation_{side}`, before the ankle's flexion, +: toes in), 25 degrees in
+  and 20 out (the ankle complex's adduction and abduction; Lundberg 1989's 5 and 12 degrees under a 30-degree leg
+  turn put the foot at that range's end on 57 % of mean's frames, standing ones too); the ankle to 55 degrees plantar flexion and 33
+  dorsiflexion, the subtalar joint to 23 inversion (eversion the model's 20), each cited beside it. A clip that asks
+  more (the seated clip's ~61 degrees pointed foot) is the clip's fault: never widened to follow it. Seed caches made
+  before have two coordinates fewer and are refused by the card (`fit/_card/_solve`): make them again.
 - **Its held fingers rest in SOMA's hand** (`_rested.py`, 2026-11-01): each finger and thumb body turned by its
   joints' rest turns (`calibration.FINGERS`), so the file's zero pose, where `fit` holds the fingers, is SOMA's
   template hand's shape; each joint's axis and anchor carried so every pose is reached as before, its range moved by
