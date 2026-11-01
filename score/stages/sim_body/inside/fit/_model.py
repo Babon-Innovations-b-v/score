@@ -12,6 +12,8 @@ import mujoco
 import numpy as np
 from scipy.spatial.transform import Rotation
 
+from model import TO_OWN
+
 WRAPPER = re.compile(r"__j\d+$")  # a split body's wrapper (`myo._fixes.split`): it is its body's
 
 
@@ -48,6 +50,15 @@ def end_site(model, parts):
     world = sum(weight * (data.xpos[body] + data.xmat[body].reshape(3, 3) @ local)
                 for body, (_, local, weight) in zip(bodies, parts))
     return model.body(holder).name, data.xmat[holder].reshape(3, 3).T @ (world - data.xpos[holder])
+
+
+def shifted_end(model, holder, local, shift):
+    """`local` (a point on `holder`) moved by -`shift` (m, the person's frame, Y up) at the model's rest pose: the
+    marker that SOMA's rig joint pulls, so the bones it holds stand `shift` off that joint."""
+    data = mujoco.MjData(model)
+    mujoco.mj_kinematics(model, data)
+    turn = data.xmat[model.body(holder).id].reshape(3, 3)
+    return np.asarray(local, dtype=float) - turn.T @ (TO_OWN.T @ np.asarray(shift, dtype=float))
 
 
 def _between(model, holder, bodies):

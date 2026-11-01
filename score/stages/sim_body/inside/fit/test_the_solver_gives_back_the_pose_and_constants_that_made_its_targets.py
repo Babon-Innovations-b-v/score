@@ -98,6 +98,10 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 
 - (2026-10-31) _constants.polished's `lowest < FLOOR` made `lowest < np.inf`: a polish stalled far from settled is
   taken as settled.
+- (2026-11-01) shifted_end's `local - turn.T @ ...` made `local + turn.T @ ...`: SOMA's joint pulls the bones the
+  shift's way twice over, not off it (an_end_read_in_the_skin_holds_its_bones_off_somas_joint red).
+- (2026-11-01) shifted_end's `turn.T @ (TO_OWN.T @ shift)` made `turn.T @ shift`: the shift taken in MuJoCo's frame,
+  not the person's (Y up), the bones held off sideways.
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/test_the_solver_gives_back_the_pose_and_constants_that_made_its_targets.py
 """
@@ -459,6 +463,26 @@ def a_middle_end_sits_on_the_common_holder():
             if name != body or not np.allclose(local, place, atol=1e-9)]
 
 
+def an_end_read_in_the_skin_holds_its_bones_off_somas_joint():
+    """An end's marker moved by `shifted_end` stands -shift (the person's frame, Y up) off its place at rest, on a
+    holder turned at rest: SOMA's joint, pulling the marker, holds the bones `shift` off it."""
+    import mujoco
+    import numpy as np
+    from fit._model import shifted_end
+    from model import TO_OWN
+    model = mujoco.MjModel.from_xml_string(TOY.replace('<body name="shin_l"', '<body name="shin_l" euler="0 0 90"', 1))
+    data = mujoco.MjData(model)
+    mujoco.mj_kinematics(model, data)
+    body, local, shift = model.body("shin_l").id, np.array([0.0, 0.01, 0.0]), np.array([0.0, 0.006, 0.008])
+    turn = data.xmat[body].reshape(3, 3)
+    moved = data.xpos[body] + turn @ shifted_end(model, "shin_l", local, shift)
+    wanted = data.xpos[body] + turn @ local - TO_OWN.T @ shift
+    problems = [] if np.allclose(moved, wanted, atol=1e-12) else [f"the end stands at {np.round(moved, 4)}, not {np.round(wanted, 4)}"]
+    if np.allclose(turn, np.eye(3)):
+        problems.append("the toy's shin is not turned at rest: the frame of the shift is not tested")
+    return problems
+
+
 def a_step_no_task_sees_ends_the_fit():
     """A hinge whose mass sits 1e-6 m off its axis, pulled 1 m away: each step turns it 1e-3 rad and moves the mass 1e-9
     m, a direction its task barely sees (#70's arms_raise gimbal); the fit ends, its error as it was within a step."""
@@ -794,7 +818,7 @@ def a_step_the_cost_cannot_see_is_judged_by_its_gradient():
         [] if unseen is unknowns else ["a step the cost cannot see is taken by descended"])
 
 
-CHECKS = (a_turn_is_judged_on_the_calibration_table_as_it_stands, a_bone_point_outside_the_skin_lies_as_deep_as_its_distance, a_skin_crossing_itself_tells_inside_by_its_winding_number, only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
+CHECKS = (an_end_read_in_the_skin_holds_its_bones_off_somas_joint, a_turn_is_judged_on_the_calibration_table_as_it_stands, a_bone_point_outside_the_skin_lies_as_deep_as_its_distance, a_skin_crossing_itself_tells_inside_by_its_winding_number, only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
           the_place_goal_sums_to_the_marker_goal, the_solver_gives_back_the_angles_and_the_constants,
           every_recording_of_the_body_is_sampled, somas_targets_leave_the_solves_unchanged, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows,
           a_step_no_task_sees_ends_the_fit, level_2_ends_settled, a_step_the_cost_cannot_see_is_judged_by_its_gradient,

@@ -117,6 +117,13 @@ def turn(group):
 # Level 1's worker reads the other rows again from its centres (`remeasured`); these stay as written.
 INSIDE_GROUPS = ("Head", "Hips", "LeftForeArm", "RightForeArm", "LeftShin", "RightShin", "LeftFoot", "RightFoot")
 
+# A group end's shift read in SOMA's skin (`_measure.end_shift_measured`; m, the person's frame, Y up): the marker at
+# that MyoFullBody centre is moved by -shift (`fit.end_marker`), so SOMA's rig joint holds the group's bones that far off
+# it (#70, 2026-11-01). The head's: the skull and jaw laid at the Head row on SOMA's template, 20.6 % of their vertices
+# outside its skin at its Head joint, 2.5 % at this shift; on the mean body's 15 clips the head 17.4 -> 13.0 %, env1's
+# standing 6.7 -> 3.0 %, seated 5.4 -> 2.7 %, the turns within 0.01 degree. Static like the table: never per person.
+END_SHIFTS = {"C0_C1": (0.0, 0.006, 0.008)}
+
 MIRROR = np.diag([-1.0, -1.0, 1.0])  # a right body is its left one mirrored in z: R_right = R_left @ MIRROR
 
 

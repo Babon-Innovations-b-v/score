@@ -25,7 +25,8 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   rig joint (`group_ends`: hips, knees, ankles, toes' bases, sternoclavicular, shoulders, elbows, wrists, the lumbar,
   thoracic and skull joints, the neck's middle too (the hips' middle left out: its two hip ends already hold both its rig joints, never counted twice): one rule for every end, a middle of two bodies' centres
   put on their nearest common holder at rest by `end_site`, the pelvis and the thorax, SOMA's side the mean of its two
-  rig joints, `landmarks.soma_joints`) is a marker at MyoFullBody's centre there, never moved, weighed END_WEIGHT times the landmarks' mean trust, the same for
+  rig joints, `landmarks.soma_joints`) is a marker at MyoFullBody's centre there (`end_marker`; the head's moved by its shift read in
+  SOMA's skin, `calibration.END_SHIFTS`, 2026-11-01), never moved by the solve, weighed END_WEIGHT times the landmarks' mean trust, the same for
   every end, in the markers' goal beside the landmarks (whose weights keep their own sum, `Fitting.goal`); joints inside
   a group come from the landmarks and couplings. Before (2026-10-29 upstream fit) SOMA's joints were only the measure,
   and before that a SOMA rule centre as target pulled the ankle 16 mm up the shank. Since the ends are a target, the

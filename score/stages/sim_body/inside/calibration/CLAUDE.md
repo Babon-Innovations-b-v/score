@@ -38,3 +38,9 @@ each group's anatomical axes (`aligned`, `frame`, `REFERENCES`); `turn(group)` g
   points: until 2026-10-29 the landmark `sternoclavicular_{side}` (7 mm off the clavicle's origin) shadowed the
   centre of that name, turning the shoulders' rows about 2 degrees; measured again, they are main's. Level 1's
   worker (`../evaluation/_case.py`) reads the table again at rest from each evaluation's group-end centres.
+- `END_SHIFTS` (2026-11-01, #70): a group end's shift read in SOMA's skin (`_measure.end_shift_measured`: the group's
+  bones laid at its row on the template, every shift on a 2 mm grid within 24 mm, the least share outside; the share
+  is a step, so no least squares). Only the head's (C0_C1, 6 mm up and 8 mm forward): at SOMA's Head joint 20.6 % of
+  the skull and jaw's vertices stand outside the template's skin (the dropped shift of its row's read), 2.5 % shifted.
+  `fit.end_marker` moves that end's marker by it. Mean's 15 clips: head 17.4 -> 13.0 %, all 6.95 -> 6.39 %, turns
+  within 0.01 degree; env1 head 6.7 -> 3.0 % standing, 5.4 -> 2.7 % seated. Static: never per person or per clip.
