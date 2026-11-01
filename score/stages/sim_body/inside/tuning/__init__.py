@@ -226,11 +226,12 @@ def resumed(path, size):
 
 
 def solved(residuals, entries, pattern, checkpoint, limit_seconds, every=None, start=None, many=None, exact=None,
-           by_differences=()):
+           by_differences=(), paused=lambda: 0.0):
     """The one optimisation: least_squares over `residuals(unknowns)` (the cases' residuals then the prior's) from
     `start` (default: the checkpoint's best), its Jacobian by absolute steps of STEP over `pattern`'s column groups
     (`_differences`; every nudged set in one call of `many(sets)` when given, else one `residuals` each), every
-    evaluation checkpointed; stopped when the objective settles or `limit_seconds` pass;
+    evaluation checkpointed; stopped when the objective settles or `limit_seconds` pass, less `paused()` (the
+    seconds its evaluations waited for the card, `evaluation.CardShares.waited`: a wait is not level 1's time);
     `every` (iteration, unknowns) is called after each iteration (the check bodies' score, logged, never used to
     choose). `exact(unknowns)`, when given, is the Jacobian instead (`_adjoint.stacked_jacobian` over the bodies
     solved at `unknowns`); the differences stay the default and its check. With `exact`, the `by_differences`
@@ -271,7 +272,7 @@ def solved(residuals, entries, pattern, checkpoint, limit_seconds, every=None, s
         checkpointed(checkpoint, intermediate_result.x, intermediate_result.cost, f"iteration {len(costs)}")
         if every:
             every(len(costs), intermediate_result.x)
-        if settled(costs) or time.time() - began > limit_seconds:
+        if settled(costs) or time.time() - began - paused() > limit_seconds:
             raise StopIteration
 
     # x_scale "jac": the unknowns mix units (links, trusts, weights, centres) and start at 0, where x_scale 1.0 sets
@@ -282,14 +283,15 @@ def solved(residuals, entries, pattern, checkpoint, limit_seconds, every=None, s
 
 
 def whole(evaluate, check, entries, checkpoint, limit_seconds, start=None, every=3, evaluate_many=None,
-          exact=None, by_differences=()):
+          exact=None, by_differences=(), paused=lambda: 0.0):
     """Level 1 entire: `solved` over every tuning case at once, `evaluate(unknowns)` ({case: measures} of levels 2
     and 3 on every tuning body, the evaluation runner's) giving each evaluation's residuals with the prior
     (`evaluate_many(sets)`, when given, every nudged set of a Jacobian at once: [{case: measures}]), and
     `evaluate` giving None (a trial point some body's level 3 did not stop on, `evaluation.read_back`) is refused:
     its residuals are infinite, so trf shrinks its trust region and steps again (scipy's own rule for a non-finite
     trial), never accepting it; the start itself must evaluate. `check(unknowns)` (the held-out bodies' score) logged every `every` iterations and at the end, never used to
-    choose; `exact` and `by_differences` go to `solved` (level 1's hybrid Jacobian). Returns (scipy's result,
+    choose; `exact`, `by_differences` and `paused` go to `solved` (level 1's hybrid Jacobian; the card waits left
+    off its clock). Returns (scipy's result,
     [(iteration, check score)])."""
     start = resumed(checkpoint, len(entries)) if start is None else start
     first = evaluate(start)
@@ -317,7 +319,8 @@ def whole(evaluate, check, entries, checkpoint, limit_seconds, start=None, every
         if iteration % every == 0:
             checks.append((iteration, check(unknowns)))
     result = solved(residuals, entries, pattern, checkpoint, limit_seconds, every=checked, start=start,
-                    many=many if evaluate_many else None, exact=exact, by_differences=by_differences)
+                    many=many if evaluate_many else None, exact=exact, by_differences=by_differences,
+                    paused=paused)
     checks.append(("end", check(result.x)))
     return result, checks
 
