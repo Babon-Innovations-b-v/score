@@ -9,9 +9,22 @@ and right pair one mirrored unknown under the left's name and a middle end's on 
 the sides apart poorly: l1d's best put one knee on its 40 mm bound and moved the sides very differently, and the
 stage's own tests ask mirror symmetry within 2 mm and no sideways turn of a middle group); the two global weights, the markers' goal and a group end's weight; a left and right landmark share
 theirs, mirrored, `paired`), `offsets` the centres' moves, `applied` turns them into a landmark table and weights, `case_residuals` is one tuning case's
-follow measures (bones' depth outside SOMA's skin by region, root mean square in mm: the share outside, the judged
-measure, is a step that a sub-micron pose change flips, so its differences were noise (#70, 2026-10-30); turns on the calibration table read again from the evaluation's own centres (`evaluation._measure.judged_turn`: the table the stage's follows targets ride; 2026-11-01, on the frozen table l1d never saw its moved hips and L5_S1 turn Spine1's calibration ~6 degrees and Spine2's ~10, and its best point worsened follows standing 8.50 to 9.32, seated 10.50 to 11.78; main's frozen table stays in the record beside it), joints at `JOINT_SHARE`; turns and joints tuned as their root mean square over frames, m.json's "per group rms deg" / "per joint rms mm", the reported median's middle frames swapping under a step in 23 of 36 measured cases (B4g, 2026-10-30)),
-`prior` pulls links to their anatomical starts and centres to the model's own, `sparsity` the Jacobian's pattern (own, parent and child groups; a
+rows: the bones inside the person's skin, each region's bones' depth outside SOMA's skin (root mean square in mm over
+`SKIN_SCALE`; its true value 0). Owner, 2026-11-01: "why should joint centres be a target at all? we know at ultra
+accuracy they will be wrong, and the segments to bonegroups actually CAN be one to one, then lastly we just know bones
+need to be inside the skin, so we also know it must be able to get down to about 0". So turns are its check (each
+SOMA segment drives one bone group, `fit.followed`: about 0 by construction, what is not is a fault to find, never
+tuned) and the joint centres' error is reported only (`evaluation.reported`, beside every evaluation's score). Before
+(2026-10-30 to 11-01) the rows were the skin depth, each group's turn on the table read again from the centres and
+the joints at a 0.5 share; the share outside stays the judged measure (`evaluation.case_score`), its depth the smooth
+one level 1 solves on (the share is a step that a sub-micron pose change flips, 2026-10-30). Level 1 (`evaluation/level1.py`)
+lays out no group-end centres since 2026-11-01 (`layout` without `ends`): they were tuned mostly for the joint error,
+and their differenced columns were about 13 min of a 16 min step; they stay at MyoFullBody's own. The turn check at
+level 1's start (mean and tall, 14 clips, 2026-11-01): 4.6 degrees median, per group root mean square Spine1 10.7,
+the feet and toes 7.8 to 8.4, the arms and forearms 5.8 to 6.0, Chest 5.7, Neck1 4.7, Hips 3.9, the legs and shins
+3.6 to 4.6, the hands 0.1; markers or group ends 100 times weaker moved none of them by over 0.3 (so they come from
+what MyoFullBody's joints can reach, not from the markers' pull), while the bones outside rose from 17.7 % to 19.0 %
+and 23.6 %. `prior` pulls links to their anatomical starts and centres to the model's own, `sparsity` the Jacobian's pattern (own, parent and child groups; a
 global everything), `solved` runs scipy's least_squares (trf, bounded), its Jacobian by `_differences`: ABSOLUTE
 steps of `STEP` (2 mm of a link or centre, 0.1 of a log weight) over the pattern's column groups, never scipy's
 `diff_step`, which is relative to |x| and at the start (every unknown 0) stepped 1.5e-8 so nothing moved (2026-10-29), every group's nudged set handed over in ONE call (`_differences.nudged`, `jacobian(many, ...)`; `solved(many=)`, `whole(evaluate_many=)`, card build step 6a: one card batch for them all; 1 + G = 138 sets, G = 137 column groups on the real table's 263 unknowns and 54 rows a case, measured 2026-10-29), with every evaluation checkpointed

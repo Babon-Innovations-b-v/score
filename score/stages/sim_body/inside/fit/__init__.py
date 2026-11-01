@@ -51,12 +51,17 @@ __all__ = ["Fitting", "end_site", "Frames", "NotConverged", "LM_DAMPING", "solve
 
 
 def followed(segments):
-    """The bone groups whose turns are targets: every group SOMA has (OpenSense: every segment a sensor, weight 1),
-    in `groups()` order. One whose joints follow another's (the lumbar levels above L5) or that has fewer than SOMA's
-    (the neck) is met as near as the joints that lead it allow
-    (`LACKS`); leaving them out was measured worse on the Kimodo walker (2026-10-28: joints
-    24 mm median against 17 with every group)."""
-    return [group for group in groups() if group in segments]
+    """The bone groups whose turns are targets, in `groups()` order: every group SOMA has (OpenSense: every segment a
+    sensor, weight 1), one segment to one group (owner, 2026-11-01: "the segments to bonegroups actually CAN be one to
+    one"): a segment whose group's frame body an earlier segment's group already rides drives none (Neck2: MyoFullBody's
+    neck is one rigid body, which Neck1 drives; before, both drove it and it was met as their compromise). One whose
+    joints follow another's (the lumbar levels above L5) is met as near as the joints that lead it allow (`LACKS`)."""
+    found, ridden = [], set()
+    for group, (_, _, frame_body, _) in groups().items():
+        if group in segments and frame_body not in ridden:
+            found.append(group)
+            ridden.add(frame_body)
+    return found
 
 
 def group_ends(segments):

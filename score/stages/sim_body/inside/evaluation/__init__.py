@@ -135,11 +135,11 @@ def block_command(python, seeds_root, folder, cases):
             *[f"{case}={job}" for case, job in cases.items()]]
 
 
-def blocked(rows, weights, rest, cases, out, python, seeds_root, launch=None, **options):
+def blocked(rows, weights, rest, cases, out, python, seeds_root, launch=None, most=SET_PROCESSES, **options):
     """{case: out/<case>.npz}, each case's exact block (rows x every unknown of `tuning.layout(ends=)`) at one set,
     one process a body side by side as `run_all` runs bodies (level 2 solved and factored once a body from all its
     clips, as the evaluations solve it; 2026-10-31: one process a case solved it from that case's clip alone, seven
-    times a body); a failed body runs once more; raises when one still fails or a case misses its block.
+    times a body), at most `most` side by side (SET_PROCESSES: every tuning body at once since 2026-11-01, MOST before); a failed body runs once more; raises when one still fails or a case misses its block.
     `launch(body, cases)` starts one (default: `block_command` under out/<body>.log)."""
     shutil.rmtree(out, ignore_errors=True)
     set_written(out, rows, weights, rest)
@@ -149,11 +149,11 @@ def blocked(rows, weights, rest, cases, out, python, seeds_root, launch=None, **
         return subprocess.Popen(block_command(python, seeds_root, out, body_cases), stdout=log,
                                 stderr=subprocess.STDOUT)
     bodies = by_body(cases)
-    codes = run_all(bodies, out, python, launch=launch or started, **options)
+    codes = run_all(bodies, out, python, launch=launch or started, most=most, **options)
     # a failed body runs once more: the card may refuse a context while the run beside it holds it (2026-10-31,
     # l1d: 3 of 70 blocks "Failed to acquire primary context for device cuda:0", and the whole step was lost)
     again = {body: bodies[body] for body, code in codes.items() if code}
-    codes.update(run_all(again, out, python, launch=launch or started, **options) if again else {})
+    codes.update(run_all(again, out, python, launch=launch or started, most=most, **options) if again else {})
     missing = [case for case in cases if not (out / f"{case}.npz").exists()]
     if missing or any(codes.values()):
         raise RuntimeError(f"{out.name}: blocks failed {codes}, missing {missing}; logs in {out}")
@@ -195,11 +195,23 @@ def measured_many(sets, cases, out, python, seeds_root, launch=None, chunk=None,
 
 
 def case_score(found):
-    """One clip's follow score (lower is better): mean joint error / 10 mm + mean group rotation error / 5 deg +
-    bones outside the skin / 10 %."""
-    joints = sum(value[0] for value in found["per joint mm"].values()) / len(found["per joint mm"])
-    groups = sum(value[0] for value in found["per group deg"].values()) / len(found["per group deg"])
-    return joints / 10 + groups / 5 + found["bones outside all %"] / 10
+    """One clip's score (lower is better): the share of its bones outside the skin over 10 %, level 1's aim since
+    2026-11-01 (the bones inside the person's skin; its least squares reads their depth, `tuning.case_residuals`).
+    Turns and joints are not in it: `reported`."""
+    return found["bones outside all %"] / 10
+
+
+def reported(found):
+    """What a side's evaluation reports beside its score, never tuned ({name: value}, means over its clips): the turns
+    check (each SOMA segment drives one bone group, so about 0 by construction: the median and the worst group's root
+    mean square, deg) and the joint centres' error (median, mm)."""
+    cases = list(found.values())
+    groups = sorted(cases[0]["per group rms deg"])
+    by_group = {group: sum(case["per group rms deg"][group] for case in cases) / len(cases) for group in groups}
+    worst = max(by_group, key=by_group.get)
+    return {"turns median deg": round(sum(case["turns deg"][0] for case in cases) / len(cases), 3),
+            "turns worst group": f"{worst} {by_group[worst]:.2f}",
+            "joints median mm": round(sum(case["joints mm"][0] for case in cases) / len(cases), 3)}
 
 
 def side_score(found):

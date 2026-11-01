@@ -88,5 +88,12 @@ paired changes, tuning and check bodies apart, verdicts once the run dir has flo
   `level1.py --card <seeds root> --exact` hands `tuning.whole` the hybrid (`exact_stacked`: the blocks in sorted case
   order, then the prior's columns; `centre_columns` differenced). About 3 min a case serially; the 70-case timing is
   not measured yet.
+- **Level 1 aims at the bones inside the skin (owner, 2026-11-01)**: `case_score` is a clip's share of bones outside
+  over 10 % (`side_score` their mean: the log's score and the held-out rule's), `reported` the turns check (median and
+  worst group, deg) and the joints (median mm) beside it on every evaluation line and check.jsonl, never tuned.
+  `level1.py` lays out no centres (`rest.json`'s centres {}), its Jacobian exact (`--exact`, no differenced columns),
+  and `blocked` runs every tuning body side by side (`most=SET_PROCESSES`; 6 before). Timing (night/l1g_work/t1,
+  2026-11-01, l1f's 70 cases, before the region rows): an iteration 5.4 min (an evaluation about 1 min, the blocks
+  4.6 min, every body 268 to 277 s, the taping 59 to 103 s of it), 19 to 33 GB left of 43, the card at 8.5 GB most.
 - Judged on following SOMA, never on landmark distances; `fit._frozen` is never edited to follow the tree's calibration.
 - Test: `test_every_evaluation_runs_every_tuning_body_and_the_check_never_chooses.py` (a toy worker, any Python with numpy and scipy).

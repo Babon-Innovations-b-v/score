@@ -8,7 +8,7 @@ whose gradient is not zero gives a wrong derivative, so `implicit_jacobian` refu
 Callables, not a model: the card code supplies g (Newton eval_fk on a wp.Tape) and the residuals; numpy only here."""
 import numpy as np
 
-from .. import JOINT_SHARE, SCALES
+from .. import SKIN_SCALE
 
 
 class Unconverged(ValueError):
@@ -217,17 +217,6 @@ def rms_row(values, rows, point_frames=None, frames=None):
     return root, summed.ravel() / (len(values) * root)
 
 
-def spread(rows):
-    """Per-frame rows (frames, ..., block), frame f's its pose block, laid into the whole pose (frames, ..., frames *
-    block): zero outside each frame's own block."""
-    rows = np.asarray(rows, dtype=float)
-    frames, block = rows.shape[0], rows.shape[-1]
-    dense = np.zeros(rows.shape[:-1] + (frames * block,))
-    for frame in range(frames):
-        dense[frame, ..., frame * block:(frame + 1) * block] = rows[frame]
-    return dense
-
-
 def distance_rows(differences, rows):
     """Per-frame distances |d| and their derivative rows from per-frame differences (frames, 3) and their derivatives
     (frames, 3, unknowns): d|d| = (d / |d|) . dd."""
@@ -236,23 +225,22 @@ def distance_rows(differences, rows):
     return lengths, np.einsum("fk,fkn->fn", differences / lengths[:, None], np.asarray(rows))
 
 
-def case_rows(joints, turns, skins, frames=None):
+def case_rows(skins, frames=None):
     """One case's level 1 rows and their derivative rows over the inner unknowns, in `tuning.case_residuals`' order
-    and scale, from taped per-frame measures: `joints` {SOMA joint: (model minus SOMA joint per frame (frames, 3) m,
-    its rows (frames, 3, unknowns))}, `turns` {group: (turn error per frame deg, its rows (frames, unknowns))},
-    `skins` {region: (depths outside per point m, their rows (points, unknowns))}. Every row is the root mean square
-    (`rms_row`): a joint's and a turn's over its frames, a skin's over its points, mm for metres as the measures give.
-    With `frames` (a pose of that many frame blocks) every row is its own frame's block (`TapedMeasures.measured`):
-    joints' and turns' frame is their leading index, a skin is (depths, rows (points, block), each point's frame)."""
-    whole = spread if frames is not None else np.asarray
-    reduced = {"skin": {key: rms_row(1000 * np.asarray(part[0]), 1000 * np.asarray(part[1]),
+    and scale, from taped measures: `skins` {region: (depths outside per point m, their rows (points, unknowns))},
+    each row the root mean square over its points (`rms_row`), mm for metres as the measures give. With `frames` (a
+    pose of that many frame blocks) a skin is (depths, rows (points, block), each point's frame) and every row is laid
+    on its own frame's block (`TapedMeasures.measured`). Turns and joints are no rows (the owner's aim of 2026-11-01:
+    level 1 tunes the bones inside the skin; turns are its check, joints reported)."""
+    return scaled_rows({key: rms_row(1000 * np.asarray(part[0]), 1000 * np.asarray(part[1]),
                                      *((part[2], frames) if frames is not None else ()))
-                        for key, part in skins.items()},
-               "turn": {key: rms_row(errors, whole(rows)) for key, (errors, rows) in turns.items()},
-               "joint": {key: rms_row(*distance_rows(1000 * np.asarray(differences), 1000 * whole(rows)))
-                         for key, (differences, rows) in joints.items()}}
-    share = {"skin": 1.0, "turn": 1.0, "joint": JOINT_SHARE}
-    scaled = [(np.sqrt(share[kind] / len(reduced[kind])) / SCALES[kind], reduced[kind][key])
-              for kind in ("skin", "turn", "joint") for key in sorted(reduced[kind])]
-    return (np.array([scale * value for scale, (value, _) in scaled]),
-            np.stack([scale * row for scale, (_, row) in scaled]))
+                        for key, part in skins.items()})
+
+
+def scaled_rows(reduced):
+    """`case_rows`' values and rows from each region's (root mean square mm, its row): over SKIN_SCALE and the square
+    root of the regions' count, in sorted order (`tuning.case_residuals`' scale), as `TapedMeasures.region_rows`
+    gives them too."""
+    scale = np.sqrt(1.0 / len(reduced)) / SKIN_SCALE
+    return (np.array([scale * reduced[key][0] for key in sorted(reduced)]),
+            np.stack([scale * np.asarray(reduced[key][1]) for key in sorted(reduced)]))

@@ -12,6 +12,7 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
 - body_of's TWO_WORD_MOTIONS made `()`: mean_sit_stand reads as body mean_sit, its clips split from mean's and off the split.
 - tuning.whole's `checks.append(("end", ...))` dropped: no held-out score at the end.
 - accepted's `1 + HELD_OUT_SHARE` made `1`: a check 5 % worse fails.
+- (2026-11-01) case_score given back its joints and turns terms: the score is no longer the bones outside alone.
 - measured's rest.json write dropped: the worker never sees the group ends' centres (2026-10-29).
 - blocked's second `run_all` over `again` dropped: a block the card refused once fails the whole step (2026-10-31).
 - measured reading `m.json` for `SOLVED`: the solver is handed the rounded copy (2026-10-29).
@@ -56,6 +57,7 @@ for given in sys.argv[4:]:
     case = given.split("=")[0]
     (out / case).mkdir()
     found = {"per joint mm": {"knee_l": [10, 0]}, "per group deg": {"LeftLeg": [5, 0]}, "bones outside all %": 10,
+             "per group rms deg": {"LeftLeg": 5.0}, "turns deg": [5.0, 6.0, 7.0],
              "bones outside skin %": {"thigh": 10}, "joints mm": [1.0000004, 2.0, 3.0], "args": sys.argv[1:]}
     (out / case / "measures.json").write_text(json.dumps(found))
     (out / case / "m.json").write_text(json.dumps({**found, "joints mm": [1.0, 2.0, 3.0]}))
@@ -91,7 +93,9 @@ def test_an_evaluation_runs_every_tuning_body_once_two_at_most_at_once():
         assert max(peaks) <= 2
         assert json.loads((out / "weights.json").read_text()) == {"marker goal": 1.0}
         assert json.loads((out / "rest.json").read_text()) == rest
-        assert evaluation.side_score(found) == 1 + 1 + 1
+        assert evaluation.side_score(found) == 10 / 10  # the bones outside alone (2026-11-01): turns, joints reported
+        assert evaluation.reported(found) == {"turns median deg": 5.0, "turns worst group": "LeftLeg 5.00",
+                                              "joints median mm": 1.0}
         assert all(value["joints mm"][0] == 1.0000004 for value in found.values())  # the solver's, unrounded
 
 
@@ -241,7 +245,6 @@ def test_the_exact_jacobian_stacks_each_cases_own_block_in_whole_order_then_the_
     assert jacobian.shape == (6 + 2, len(entries))
     assert all((jacobian[2 * index:2 * index + 2] == length).all() for index, length in enumerate(by_case))
     assert np.allclose(jacobian[6:], [[tuning.LINK_UNIT / tuning.PRIOR, 0, 0], [0, 0, tuning.LINK_UNIT / tuning.PRIOR]])
-    assert level1.centre_columns(entries) == [2]
     heavy = ["heavy_kimodo", "heavy_rigwalk"]  # one process a body, its every case in it, once more after a failure
     assert sorted(tries) == [("heavy", heavy), ("heavy", heavy), ("tall", ["tall_kimodo"])]
 

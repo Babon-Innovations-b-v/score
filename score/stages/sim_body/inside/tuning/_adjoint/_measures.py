@@ -148,24 +148,37 @@ class _Skins:
         wp.launch(_link_frames, dim=self.used.shape[0], inputs=[body_q, self.used], outputs=[self.link_frames],
                   device=device)
 
-    def rows_of(self, link_rows, to_own):
-        """Every bone point's depth row from its link's frame rows (`link_rows` (used links x 12, width): d of the
-        link's place and turn columns, as `_link_frames` lays them): the depth's gradient in the point (outside times
-        the unit from its closest skin point, SOMA's frame) turned back to the world, times d(place + turn @ local).
-        One backward pass a link frame entry, not a bone point (2026-10-31: tall_kimodo's 8,233 passes, each the
-        whole tape run back, were a block's largest step)."""
+    def point_weights(self, to_own):
+        """Each bone point's depth gradient over its link's frame entries ((points, 12), as `_link_frames` lays them):
+        the depth's gradient in the point (outside times the unit from its closest skin point, SOMA's frame) turned
+        back to the world, times d(place + turn @ local)."""
         points, closest = self.points.numpy().astype(np.float64), self.closest.numpy().astype(np.float64)
         apart = points - closest
         lengths = np.linalg.norm(apart, axis=1)
         unit = np.divide(apart, lengths[:, None], out=np.zeros_like(apart), where=lengths[:, None] > 0)
         world = (self.outside.numpy().astype(np.float64)[:, None] * unit) @ np.asarray(to_own, dtype=np.float64)
-        weights = np.concatenate([world[:, None, :], self.locals[:, :, None] * world[:, None, :]], axis=1).reshape(-1, 1, 12)
+        return np.concatenate([world[:, None, :], self.locals[:, :, None] * world[:, None, :]], axis=1).reshape(-1, 12)
+
+    def rows_of(self, link_rows, to_own):
+        """Every bone point's depth row from its link's frame rows (`link_rows` (used links x 12, width): d of the
+        link's place and turn columns, as `_link_frames` lays them), through `point_weights`. One backward pass a
+        link frame entry, not a bone point (2026-10-31: tall_kimodo's 8,233 passes, each the whole tape run back, were
+        a block's largest step)."""
+        weights = self.point_weights(to_own)[:, None, :]
         per_link = link_rows.reshape(-1, 12, link_rows.shape[1])
-        found = np.empty((len(points), link_rows.shape[1]))
-        for start in range(0, len(points), 2048):
+        found = np.empty((len(weights), link_rows.shape[1]))
+        for start in range(0, len(weights), 2048):
             stop = start + 2048
             found[start:stop] = (weights[start:stop] @ per_link[self.used_of[start:stop]])[:, 0]
         return found
+
+    def seed(self, coefficients, part, to_own, weights=None):
+        """The link frames' incoming gradient (4 x used links vec3) of sum(coefficients * depth) over the points
+        `part` (a slice): each point's `point_weights` row summed onto its link."""
+        weights = self.point_weights(to_own) if weights is None else weights
+        seeded = np.zeros((self.used.shape[0], 12))
+        np.add.at(seeded, self.used_of[part], coefficients[:, None] * weights[part])
+        return seeded.reshape(-1, 3)
 
 
 class TapedMeasures:
@@ -297,16 +310,17 @@ class TapedMeasures:
         return made["rows"].numpy().astype(np.float64)
 
     def measured(self, inner, outer):
-        """`case_rows`' joints {name: (differences (frames, 3) m, rows (frames, 3, block))}, turns {group: (degrees
-        (frames,), rows (frames, block))} and skins {region: (depths m, rows (points, block), each point's frame)} at
-        (`inner`, `outer`), each row its own frame's pose block (`case_rows(..., frames=)`), off one recorded tape
-        (`passes` counts its backward passes)."""
+        """Joints {name: (differences (frames, 3) m, None)}, turns {group: (degrees (frames,), None)} and skins
+        {region: (depths m, rows (points, block), each point's frame)} at (`inner`, `outer`), each skin row its own
+        frame's pose block (`case_rows(skins, frames=)`), off one recorded tape (`passes` counts its backward passes).
+        Only the skins are taped: level 1's rows are the bones inside the skin since 2026-11-01 (turns its check,
+        joints reported; their rows were about 89 of a frame's backward passes)."""
         return self._measured(inner, outer, pose=True, constants=False)
 
     def constant_measured(self, inner, outer):
-        """`measured`'s values with rows over level 2's moves (the inner unknowns after the pose, `sites`' constants)
-        in place of the pose: joints' (frames, 3, constants), turns' (frames, constants), skins' (points, constants),
-        whole rows for `case_rows` without `frames` (its derivative is R_c)."""
+        """`measured`'s values with the skins' rows over level 2's moves (the inner unknowns after the pose, `sites`'
+        constants) in place of the pose, (points, constants): whole rows for `case_rows` without `frames` (its
+        derivative is R_c)."""
         return self._measured(inner, outer, pose=False, constants=True)
 
     def joined_measured(self, inner, outer):
@@ -315,6 +329,39 @@ class TapedMeasures:
         width = self._pose_grad().shape[0] // self.frames
         both = self._measured(inner, outer, pose=True, constants=True)
         return _split(both, slice(None, width)), _split(both, slice(width, None))
+
+    def region_rows(self, inner, outer):
+        """{region: (its bones' depth outside, root mean square in mm; its row over the whole pose, every frame's
+        block; its row over level 2's moves)} at (`inner`, `outer`): `case_rows`' rows before their scale, each by ONE
+        backward pass seeded with the root mean square's own gradient over the depths (a vector-Jacobian product,
+        `_Skins.seed`), not one a link frame entry (2026-11-01: a frame's ~600 passes each ran the whole tape back,
+        most of a block's time). `passes` counts them."""
+        tape = wp.Tape()
+        with tape:
+            self._evaluate(inner, outer)
+        depths = self.skins.depths.numpy().astype(np.float64)
+        weights = self.skins.point_weights(self.own)
+        bounds = np.cumsum([0] + self.skins.counts)
+        pose_size = self._pose_grad().shape[0]
+        constant_size = self.sites.constants.size if self.sites.constants is not None else 0
+        found, self.passes = {}, 0
+        for index, name in enumerate(self.skins.names):
+            part = slice(bounds[index], bounds[index + 1])
+            root = float(np.sqrt(np.mean(np.square(depths[part]))))
+            if root == 0.0:
+                found[name] = (0.0, np.zeros(pose_size), np.zeros(constant_size))
+                continue
+            coefficients = 1000.0 * depths[part] / (len(depths[part]) * root)
+            seeded = self.skins.seed(coefficients, part, self.own, weights)
+            tape.backward(grads={self.skins.link_frames: wp.array(seeded.astype(np.float32), dtype=wp.vec3,
+                                                                  device=self.skins.link_frames.device)})
+            pose_row = self._pose_grad().grad.numpy().astype(np.float64)
+            constant_row = (self.sites.constants.gradient(self.sites.offsets, self.sites.model.joint_X_p)
+                            if constant_size else np.zeros(0))
+            tape.zero()
+            self.passes += 1
+            found[name] = (1000.0 * root, pose_row, constant_row)
+        return found
 
     def _measured(self, inner, outer, pose, constants):
         """Every measure at (`inner`, `outer`) with its rows over the pose and/or level 2's moves, off one recorded
@@ -325,24 +372,19 @@ class TapedMeasures:
         self.passes = 0
         differences = self.differences.numpy().astype(np.float64).reshape(len(self.joint_names), self.frames, 3)
         degrees = self.degrees.numpy().astype(np.float64).reshape(len(self.turn_names), self.frames)
-        joint_frames = np.repeat(np.tile(np.arange(self.frames), len(self.joint_names)), 3)
-        joint_rows = self._rows(tape, self.differences, joint_frames, pose, constants).reshape(len(self.joint_names), self.frames, 3, -1)
-        turn_frames = np.tile(np.arange(self.frames), len(self.turn_names))
-        turn_rows = self._rows(tape, self.degrees, turn_frames, pose, constants).reshape(len(self.turn_names), self.frames, -1)
         depths = self.skins.depths.numpy().astype(np.float64)
         skin_rows = self.skins.rows_of(self._rows(tape, self.skins.link_frames, self.skins.link_entry_frames, pose,
                                                   constants), self.own) if depths.size else np.zeros((0, 0))
         bounds = np.cumsum([0] + self.skins.counts)
-        return ({name: (differences[index], joint_rows[index]) for index, name in enumerate(self.joint_names)},
-                {name: (degrees[index], turn_rows[index]) for index, name in enumerate(self.turn_names)},
+        return ({name: (differences[index], None) for index, name in enumerate(self.joint_names)},
+                {name: (degrees[index], None) for index, name in enumerate(self.turn_names)},
                 {name: (depths[bounds[index]:bounds[index + 1]], skin_rows[bounds[index]:bounds[index + 1]],
                         self.skins.frame_of[bounds[index]:bounds[index + 1]])
                  for index, name in enumerate(self.skins.names)})
 
 
 def _split(found, columns):
-    """`_measured`'s (joints, turns, skins) with each row cut to `columns` (the values and frames kept)."""
+    """`_measured`'s (joints, turns, skins) with each skin row cut to `columns` (the values and frames kept)."""
     joints, turns, skins = found
-    return ({name: (values, rows[..., columns]) for name, (values, rows) in joints.items()},
-            {name: (values, rows[..., columns]) for name, (values, rows) in turns.items()},
+    return (joints, turns,
             {name: (values, rows[..., columns], frames) for name, (values, rows, frames) in skins.items()})

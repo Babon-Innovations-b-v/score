@@ -4,10 +4,14 @@ table.json (the starting landmark rows, each link its anatomical start) and rig.
 calibration table's rest); it gets evals/ (the latest evaluations),
 checkpoint.jsonl (every evaluation and iteration; a restart resumes from its best), check.jsonl (the held-out score
 every --every iterations, 3 unless given, and at the end), steps.jsonl (each check against the one before: per-case paired changes of
-the honest measures, tuning and check bodies apart, verdicts past floor.json when the run dir has it, `tuning._paired`), result_table.json (its trusts relative, the largest 1), result_weights.json, result_centres.json (each group end's offset) and held_out.json (the check bodies'
+the honest measures, tuning and check bodies apart, verdicts past floor.json when the run dir has it, `tuning._paired`), result_table.json (its trusts relative, the largest 1), result_weights.json and held_out.json (the check bodies'
 score against the tuning bodies', accepted within 10 %). With --card every evaluation runs on the card
-(`evaluation.measured_many`, seeded from the seeds root's angles), a Jacobian's nudged sets in one process; with --exact too the Jacobian is the hybrid (`exact_stacked`: each tuning case's
-exact block, `evaluation.blocked`, beside the centres' differences, `centre_columns`). Any Python with numpy and scipy; the workers run in Newton's."""
+(`evaluation.measured_many`, seeded from the seeds root's angles), a Jacobian's nudged sets in one process; with --exact too the Jacobian is exact
+(`exact_stacked`: each tuning case's block, `evaluation.blocked`, then the prior's columns). The unknowns are the
+links, trusts and the two global weights (`tuning.layout` with no group-end centres: since 2026-11-01 level 1 aims at
+the bones inside the skin, and the centres were tuned mostly for the joint error, which is now reported only; they
+stay at MyoFullBody's own). Every evaluation's line also gives the turns check and the joints, never tuned
+(`evaluation.reported`). Any Python with numpy and scipy; the workers run in Newton's."""
 import argparse
 import json
 import pathlib
@@ -21,7 +25,6 @@ import numpy as np  # noqa: E402
 import tuning  # noqa: E402
 from tuning import _paired  # noqa: E402
 from tuning._adjoint import by_columns  # noqa: E402
-from bone_groups import groups  # noqa: E402
 
 GLOBALS = {"marker goal": 1.0, "end weight": 1.0}
 PRIOR_STEP = 1.0  # the prior is linear in every unknown, so any step gives its exact columns
@@ -34,11 +37,6 @@ def exact_stacked(blocks, unknowns, entries):
     return np.concatenate(rows + [by_columns(lambda moved: tuning.prior(moved, entries), unknowns, PRIOR_STEP)])
 
 
-def centre_columns(entries):
-    """The unknowns level 1 differences beside the exact Jacobian: every group end's centre (decided 2026-10-30)."""
-    return [index for index, (_, kind, _, _) in enumerate(entries) if kind == "centre"]
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("run", type=pathlib.Path)
@@ -46,7 +44,7 @@ def main():
     parser.add_argument("--hours", type=float, default=8.0)
     parser.add_argument("--card", type=pathlib.Path, help="seeds root: evaluate on the card, sets batched")
     parser.add_argument("--exact", action="store_true",
-                        help="with --card: the hybrid Jacobian, exact blocks a case and the centres differenced")
+                        help="with --card: the exact Jacobian, a block a case")
     parser.add_argument("--every", type=int, default=3, help="score the check bodies every this many iterations")
     given = parser.parse_args()
     if given.exact and not given.card:
@@ -56,8 +54,7 @@ def main():
     split = json.loads((run / "split.json").read_text())
     table = json.loads((run / "table.json").read_text())
     starts = {name: row["link"] for name, row in table.items()}
-    entries = tuning.layout(table, held=landmarks.HELD, joints=set(),
-                            ends=tuning.ended(groups(), landmarks.MIDDLE_CENTRES))
+    entries = tuning.layout(table, held=landmarks.HELD, joints=set())
     count = [0]
     latest = {}
     sides = {case: name for name in ("tuning", "check") for case in evaluation.picked(cases, split, name)}
@@ -65,7 +62,7 @@ def main():
 
     def worker_set(unknowns):
         rows, weights = tuning.applied(unknowns, entries, starts, table, GLOBALS)
-        return rows, weights, {"centres": tuning.offsets(unknowns, entries), "rig": str(run / "rig.npz")}
+        return rows, weights, {"centres": {}, "rig": str(run / "rig.npz")}
 
     def side(unknowns, name, label, unconverged=False):
         picked = evaluation.picked(cases, split, name)
@@ -87,7 +84,7 @@ def main():
             print(f"eval {count[0]}: a tuning body's level 3 did not stop: trial refused", flush=True)
             return None
         latest["tuning"] = found
-        print(f"eval {count[0]}: tuning score {evaluation.side_score(found):.4f}", flush=True)
+        print(f"eval {count[0]}: tuning score {evaluation.side_score(found):.4f} {evaluation.reported(found)}", flush=True)
         return found
 
     def exact(unknowns):
@@ -109,15 +106,14 @@ def main():
                            + "\n")
         latest["check"] = now
         with open(run / "check.jsonl", "a") as file:
-            file.write(json.dumps({"evaluation": count[0], "check score": score}) + "\n")
+            file.write(json.dumps({"evaluation": count[0], "check score": score, **evaluation.reported(found)}) + "\n")
         return score
     result, checks = tuning.whole(evaluate, check, entries, run / "checkpoint.jsonl", given.hours * 3600,
                                   every=given.every, evaluate_many=evaluate_many if given.card else None,
-                                  exact=exact if given.exact else None, by_differences=centre_columns(entries))
+                                  exact=exact if given.exact else None)
     rows, weights = tuning.applied(result.x, entries, starts, table, GLOBALS)
     (run / "result_table.json").write_text(json.dumps(tuning.relative(rows), indent=1))
     (run / "result_weights.json").write_text(json.dumps(weights))
-    (run / "result_centres.json").write_text(json.dumps(tuning.offsets(result.x, entries), indent=1))
     tuned = evaluation.side_score(side(result.x, "tuning", "final"))
     held = {"tuning score": tuned, "check score": checks[-1][1], "checks": checks,
             "accepted": evaluation.accepted(checks[-1][1], tuned)}

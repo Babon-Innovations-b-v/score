@@ -75,10 +75,9 @@ def measures_on(clip, sites):
 
 
 def raw_measures(measures, pose, offsets):
-    """Every per-frame measure (joint differences m, turn degrees, skin depths m) flat at `pose`."""
+    """Every skin depth (m) flat at `pose` (level 1's rows since 2026-11-01)."""
     measures._evaluate(pose, offsets)
-    return np.concatenate([measures.differences.numpy().astype(np.float64).ravel(),
-                           measures.degrees.numpy().astype(np.float64), measures.skins.depths.numpy().astype(np.float64)])
+    return measures.skins.depths.numpy().astype(np.float64)
 
 
 def link_column(clip):
@@ -128,10 +127,10 @@ pose = np.asarray(pose_of(_real.frame_couplings(clip, rows), rows), dtype=np.flo
 inner = np.concatenate([pose, np.zeros(sites.constants.size)])
 turns = RootTurns(pose, len(_real.frame_couplings(clip, rows)[0]) // len(rows))
 pinned = Pinned(turns.reduced(), _real.bound_held(clip, _real.frame_couplings(clip, rows), rows))
-by_poses = pinned.rows(turns.pulled_rows(turns.reduced(), case_rows(*measures.measured(inner, offsets),
+by_poses = pinned.rows(turns.pulled_rows(turns.reduced(), case_rows(measures.measured(inner, offsets)[2],
                                                                     frames=len(rows))[1]))
 measured = measures.constant_measured(inner, offsets)
-by_constants = case_rows(*measured)[1]
+by_constants = case_rows(measured[2])[1]
 level2 = level2_at_base(chosen)
 solved = level2.inner[level2.frames * level2.pose_size:]
 if solved.size != sites.constants.size:
@@ -152,19 +151,16 @@ raw_differenced = ((sides[0] - sides[1]) / (2 * step))[:, None]
 
 
 def with_rows(flat):
-    """`measured` with its rows replaced by `flat` (raw entries, columns) in `raw_measures`' order."""
-    laid, start = [], 0
-    for part in measured:
-        given = {}
-        for name, entry in part.items():
-            count = int(np.prod(entry[1].shape[:-1]))
-            given[name] = (entry[0], flat[start:start + count].reshape(*entry[1].shape[:-1], -1), *entry[2:])
-            start += count
-        laid.append(given)
-    return laid
+    """`measured`'s skins with their rows replaced by `flat` (raw entries, columns) in `raw_measures`' order."""
+    given, start = {}, 0
+    for name, entry in measured[2].items():
+        count = int(np.prod(entry[1].shape[:-1]))
+        given[name] = (entry[0], flat[start:start + count].reshape(*entry[1].shape[:-1], -1), *entry[2:])
+        start += count
+    return given
 
 
-differenced = case_rows(*with_rows(raw_differenced))[1][:, 0]
+differenced = case_rows(with_rows(raw_differenced))[1][:, 0]
 gap = np.abs(differenced - implicit)
 largest = float(np.abs(differenced).max())
 print(json.dumps({"entry": list(map(str, entries[chosen])), "rows": int(len(implicit)), "largest": largest,
