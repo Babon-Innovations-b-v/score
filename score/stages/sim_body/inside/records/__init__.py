@@ -102,7 +102,7 @@ def adjustment_record(moved_by, kept, shares, step, before, after, segments, fol
 
 def frames(physics, path, velocities, accelerations, worlds, ground, riders, feet, drawn_ids):
     """Every frame's record and the drawn arrays beside it: its physics shared out (`Physics.shared`), its segments
-    riding their bones (`riders`: segments, bodies, riding, parents), the feet (`feet`: {segment: geoms}); returns
+    riding their bones (`riders`: segments, bodies, riding, parents), the feet (`feet`: {segment: its skin points}); returns
     the records, each drawn body's poses, each segment's, the muscles' paths and their point counts. The poses the
     skin plays are SOMA's own, written by the stage (#70: SOMA is the truth, never moved)."""
     model = physics.model
@@ -118,9 +118,9 @@ def frames(physics, path, velocities, accelerations, worlds, ground, riders, fee
             "targets": np.round(local_turns(worlds[frame], parents), 3).tolist(),
             "torques": np.round(share["moments"], 3).tolist(),
             "ground": np.round(pushes.sum(axis=0), 3).tolist(),
-            "lowest": rounded(lowest_over(model, data, physics.colliders, ground)),
-            "feet": {segment: [rounded(lowest_over(model, data, geoms, ground)) if geoms else None,
-                               round(float(pushes[bodies[segment], 1]), 3)] for segment, geoms in feet.items()},
+            "lowest": rounded(lowest_over(model, data, physics.skin, ground)),
+            "feet": {segment: [rounded(lowest_over(model, data, physics.skin, ground, points)) if len(points) else None,
+                               round(float(pushes[bodies[segment], 1]), 3)] for segment, points in feet.items()},
             "residual": np.round(np.concatenate([TO_OWN @ share["residual"][:3], TO_OWN @ share["residual"][3:]]),
                                  3).tolist(),
             "reserve": round(float(np.abs(share["reserves"]).max(initial=0.0)), 3),

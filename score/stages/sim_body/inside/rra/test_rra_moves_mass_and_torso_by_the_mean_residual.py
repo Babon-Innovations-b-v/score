@@ -130,6 +130,7 @@ def a_foot_frame_that_does_not_converge_fails():
 
 
 def toy_physics():
+    import contact
     import model
     import muscles
     import numpy as np
@@ -138,7 +139,8 @@ def toy_physics():
         path.write_text(TOY)
         found = model.built(path, GRAVITY)
     ground = np.array([[[-5.0, 0.0, -5.0], [5.0, 0.0, 5.0], [5.0, 0.0, -5.0]]])
-    return muscles.Physics(found, ground, [])
+    nothing = contact.Skin(np.zeros((0, 3)), np.zeros((0, 1)), [np.eye(4)], [0], [np.eye(4)])  # no skin: no contact
+    return muscles.Physics(found, ground, nothing)
 
 
 def made_of(found):

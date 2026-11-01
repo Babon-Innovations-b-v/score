@@ -94,8 +94,8 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   The SOMA forearm rides the ulna, so its hand's twist is the forearm's pronation. The path is low-passed (zero-lag
   4th-order Butterworth at 6 Hz, Winter 2009) before it is differentiated.
 - **Its feet are where SOMA's are** (#70: SOMA is the truth, never moved, scaled or grounded): MyoFullBody's root
-  follows the markers on SOMA's skin and nothing moves it onto the ground; the ground pushes whatever collider point
-  the fit puts within `GAP` of it. Before 2026-10-28 the fit held standing feet on the ground (`stances`,
+  follows the markers on SOMA's skin and nothing moves it onto the ground; the ground pushes whatever point of the person's
+  skin the fit puts within `GAP` of it. Before 2026-10-28 the fit held standing feet on the ground (`stances`,
   `on_ground`, `unslipped`, `landed`) and moved the path once onto it (`grounded`); those went with the old fit.
   Measured 2026-10-28: the two test walkers' SOMA skin stood 26 to 57 mm over their ground (its lowest point, every
   10th frame), so the sim body following it stood 10 to 13 mm over it on the median, its feet seldom pushed, and
@@ -114,8 +114,10 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   frame is Z up; `TO_OWN` turns everything back to the person's Y up.
 - **It stands on the scene's own ground**: the stage the cast is measured on (`layer_base.built` with the scene
   record, `cast/measure.solids` on the terrain row's made ground), the solids within `REACH` of each clip's path,
-  their drawn triangles themselves: the ground pushes only a collider surface point touching it, within the inside's
-  `GAP` of the triangle under it or into it (MuJoCo's own rule: contact within the geoms' margin), one moving slower
+  their drawn triangles themselves: the ground pushes only a point of the person's drawn skin touching it (SOMA's mesh carried by the
+  bones each segment rides, `inside/contact` `Skin`; MyoFullBody's colliders are not the contact since 2026-11-01:
+  they stood 16 to 27 mm inside a seated astronaut's skin, so his floor carried 0 N of his 121 N), within the
+  inside's `GAP` of the triangle under it or into it, whichever drawn surface that is (a seat, a bed, a ledge as a floor), one moving slower
   than `SLIDE_MOST` (1.2 m/s) inside a friction 0.5 pyramid (Karatsidis et al., arXiv:1801.01668), a faster one
   sliding (Coulomb: the normal and 0.5 of it against its slip), along that triangle's normal; no force anywhere else.
   No heightfield and no MuJoCo collision: a MuJoCo heightfield met with a margin gave contacts 3 to 5 cm deep with
