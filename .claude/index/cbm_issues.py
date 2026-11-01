@@ -373,9 +373,11 @@ def sync(cache: pathlib.Path | None, repo: str, *, timeout: float = SYNC_TIMEOUT
     last = float(cached.get("synced_at") or cached.get("fetched_at") or 0)
     started = time.time()
     since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(last - SYNC_OVERLAP))
+    if not repo:
+        return {"synced": False, "fetched": [], "say": _stale_line(
+            last, "no repository is named in .claude/project.json",
+            'set "repo": "<owner>/<name>" in .claude/project.json, then ask again')}
     try:
-        if not repo:
-            raise RuntimeError("no repository is named in .claude/project.json")
         if shutil.which("gh", path=_gh_environment()["PATH"]) is None:
             raise RuntimeError("gh is not installed on this machine")
         fetched = _pages(_CHANGED_QUERY, repo, since, started + timeout)
@@ -410,13 +412,13 @@ def _sync_cause(failed: Exception) -> str:
     return str(failed)
 
 
-def _stale_line(last: float, cause: str) -> str:
+def _stale_line(last: float, cause: str,
+                fix: str = "gh auth login (or check the network), then ask again") -> str:
     """How old the cached issue rows are, why they were not synced, and the fix."""
     minutes = max(0.0, time.time() - last) / 60.0
     age = f"{minutes:.0f} minutes" if minutes < 120 else f"{minutes / 60:.1f} hours"
     return (f"issue rows are NOT live: {cause}, so they are GitHub as of {age} ago "
-            "and may miss what changed since. Fix: gh auth login (or check the "
-            "network), then ask again")
+            f"and may miss what changed since. Fix: {fix}")
 
 
 # ── rows ───────────────────────────────────────────────────────────────────
