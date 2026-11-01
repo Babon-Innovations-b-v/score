@@ -15,7 +15,7 @@ import warp
 
 from evaluation import _measure as cpu
 from fit._frozen import frozen_turn
-from fit._skin import EVERY, HAND, marks_kernel, bone_meshes, bone_points, depth_mm, region, skin as skinned
+from fit._skin import EVERY, HAND, marks_kernel, bone_meshes, bone_points, depth_mm, envelope, region, skin as skinned
 from model import TO_OWN
 
 DEVICE = "cuda:0"
@@ -67,7 +67,7 @@ class Skins:
 
     def __init__(self, rig, segments, worlds):
         self.frames = np.arange(0, len(worlds), EVERY)
-        faces = warp.array(np.asarray(rig["faces"], dtype=np.int32).ravel(), dtype=int, device=DEVICE)
+        faces = warp.array(envelope(rig).ravel(), dtype=int, device=DEVICE)
         self.meshes = [warp.Mesh(points=warp.array(points, dtype=warp.vec3, device=DEVICE), indices=faces,
                                  support_winding_number=True)
                        for points in posed_skins(rig, segments, worlds, self.frames)]

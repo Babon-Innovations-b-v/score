@@ -132,6 +132,14 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   made the trust and end weight columns' differences scale as 1/step on running, squat and sit_stand (night/gpu2/c3);
   on frame 12's skin 1 of 3,000 random points within a centimetre sat on the wrong side, none with it; the test's
   four overlapping spheres 169 of 4,000.
+- **The head's pockets are closed for the inside test** (2026-11-01): SOMA's mesh is closed but holds inward
+  pockets (the mouth's slit 46 mm wide and 13 mm deep, the eye sockets, nostrils, ears), and the teeth and skull read
+  outside in them. `_skin.envelope` adds each `pockets` (faces whose outward normal meets the mesh again within
+  POCKET_REACH, mostly riding Head) as its convex hull, a shell of its own after the skin's faces, which keep their
+  indices. Every inside test uses it (`bones_outside`, `_card/_measure.Skins`, `evaluation/_measure`,
+  `tuning/_adjoint/_real.skin_parts`); sizing uses the skin as it is. On mean_running's re-fit (frames 0, 75, 82) the
+  jaw outside went 28.2/42.5/45.5 % to 24.8/38.8/42.8 %, the head region 17.4/31.2/35.5 % to 15.9/29.7/34.4 %, "all"
+  under 0.1 point: level 1's score changes with it.
 - **The record states the honest measures first** (#70's audit item 2, 2026-10-29): `following` gives the bones
   outside SOMA's skin by region and the turns on main's frozen table before the joint mm (partly the ends' own pull)
   and the tree's-table turns; the frozen table is never edited to follow the tree.

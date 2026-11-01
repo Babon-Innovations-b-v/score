@@ -19,6 +19,8 @@ Level 1's skin residual (fit._skin.marks, depth_mm) is a bone point's distance t
 outside, 0 inside, by the winding test; the region's root mean square.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted):
+- (2026-11-01) _skin.envelope's `for verts in pockets(rig):` made `pockets(rig)[:0]`, no pocket closed: the point in
+  the cube's mouth reads outside the envelope (the_heads_pockets_are_closed_for_the_inside_test red).
 - (2026-11-01) `_card/_measure.turn_errors`' default `table=cpu.judged_turn` made `frozen_turn`, or
   `evaluation._measure.judged_turn` returning `frozen_turn`: level 1 scores the turns on main's frozen table while
   the stage's follows targets ride the table read again from the moved centres.
@@ -488,6 +490,41 @@ def a_skin_crossing_itself_tells_inside_by_its_winding_number():
     return [] if wrong == 0 else [f"{wrong} of {len(points)} points on the wrong side of the self-crossing skin"]
 
 
+def pocket_head():
+    """A head-weighted closed mesh: a 10 cm cube whose +x face holds a pocket 2 cm wide and 2 cm deep (a mouth), its
+    faces outward; as a rig ({"points", "faces", "weights", "names"})."""
+    import numpy as np
+    half, gap, deep = 0.05, 0.01, 0.02
+    corners = [[x, y, z] for x in (-half, half) for y in (-half, half) for z in (-half, half)]
+    rim = [[half, y, z] for y, z in ((-gap, -gap), (gap, -gap), (gap, gap), (-gap, gap))]
+    bottom = [[half - deep, y, z] for y, z in ((-gap, -gap), (gap, -gap), (gap, gap), (-gap, gap))]
+    faces = [[0, 1, 3], [0, 3, 2], [0, 4, 5], [0, 5, 1], [2, 3, 7], [2, 7, 6], [0, 2, 6], [0, 6, 4], [1, 5, 7], [1, 7, 3]]
+    outer = [4, 6, 7, 5]  # the +x face's corners: (-,-), (+,-), (+,+), (-,+) in (y, z)
+    for side in range(4):
+        ahead = (side + 1) % 4
+        faces += [[outer[side], outer[ahead], 8 + ahead], [outer[side], 8 + ahead, 8 + side]]
+        faces += [[8 + side, 8 + ahead, 12 + ahead], [8 + side, 12 + ahead, 12 + side]]
+    faces += [[12, 13, 14], [12, 14, 15]]
+    points = np.array(corners + rim + bottom, dtype=float)
+    return {"points": points, "faces": np.array(faces, dtype=np.int32), "weights": np.ones((len(points), 1)),
+            "names": np.array(["Head"])}
+
+
+def the_heads_pockets_are_closed_for_the_inside_test():
+    """SOMA's head holds pockets (the mouth's slit, the eye sockets, nostrils, ears) a closed face covers: on a head
+    mesh with a mouth-like pocket, a point in the pocket reads outside the skin as it is and inside its `envelope`
+    (`_skin.pockets` finds the one pocket), a point in the head inside both, one beside the head outside both."""
+    import numpy as np
+    from fit import _skin
+    rig = pocket_head()
+    points = np.array([[0.04, 0.0, 0.0], [0.0, 0.0, 0.0], [0.08, 0.0, 0.0]])
+    plain = _skin.marks(points, rig["points"], rig["faces"])[0]
+    closed = _skin.marks(points, rig["points"], _skin.envelope(rig))[0]
+    problems = [] if list(plain) == [True, False, True] else [f"the pocket mesh's sides as it is: {list(plain)}"]
+    problems += [] if len(_skin.pockets(rig)) == 1 else [f"{len(_skin.pockets(rig))} pockets found, not 1"]
+    return problems + ([] if list(closed) == [False, False, True] else [f"the envelope's sides: {list(closed)}"])
+
+
 def level_2_ends_settled():
     """On noisy markers (the toy's, 2 mm noise, seeded) level 2's solve ends where the cost's gradient on its free
     told unknowns off their bounds is under SETTLED_GRADIENT, float64's floor: not stalled short of it by scipy's
@@ -542,7 +579,8 @@ def a_step_the_cost_cannot_see_is_judged_by_its_gradient():
 CHECKS = (a_turn_is_judged_on_the_calibration_table_as_it_stands, a_bone_point_outside_the_skin_lies_as_deep_as_its_distance, a_skin_crossing_itself_tells_inside_by_its_winding_number, only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,
           the_place_goal_sums_to_the_marker_goal, the_solver_gives_back_the_angles_and_the_constants,
           every_recording_of_the_body_is_sampled, somas_targets_leave_the_solves_unchanged, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows,
-          a_step_no_task_sees_ends_the_fit, level_2_ends_settled, a_step_the_cost_cannot_see_is_judged_by_its_gradient)
+          a_step_no_task_sees_ends_the_fit, level_2_ends_settled, a_step_the_cost_cannot_see_is_judged_by_its_gradient,
+          the_heads_pockets_are_closed_for_the_inside_test)
 
 
 def in_newton():

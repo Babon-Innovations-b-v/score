@@ -65,7 +65,7 @@ def skin_parts(clip, rig, segments, worlds):
     `posed_skins`' points), each kept vertex moved off its geom into its body's frame, the link shifted copy by copy."""
     from scipy.spatial.transform import Rotation
     from fit._card._measure import posed_skins, scored_labels
-    from fit._skin import EVERY, bone_meshes
+    from fit._skin import EVERY, bone_meshes, envelope
     mjm, bodies, frames = clip.mjm, clip.model.body_count, np.arange(0, len(worlds), EVERY)
     links, locals_, bones = [], [], []
     for geom, kept, label in bone_meshes(mjm):
@@ -75,7 +75,7 @@ def skin_parts(clip, rig, segments, worlds):
         links += [clip.body[label]] * len(kept)
         bones += [label] * len(kept)
     links, locals_, labels = np.array(links), np.concatenate(locals_), scored_labels(bones)
-    skins = [(verts, rig["faces"]) for verts in posed_skins(rig, segments, worlds, frames)]
+    skins = [(verts, envelope(rig)) for verts in posed_skins(rig, segments, worlds, frames)]
     return {name: ([[(link + frame * bodies, local) for link, local in zip(links[labels == name], locals_[labels == name])]
                     for frame in frames], skins) for name in sorted(set(labels))}
 
