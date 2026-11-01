@@ -18,11 +18,9 @@ Rules 1, 4, 6 and 7 (plain language, no preamble, warmth, English) stay
 requests. A word list cannot tell jargon from the right technical term, and a
 guard that looks like protection and is not is worse than none.
 
-It blocks at most ONCE per stop, and a re-sent reply goes through. That is
-deliberate and its shape is nudge, then allow. A long
-answer is sometimes the right answer, and a guard that can veto one would be a
-guard that suppresses a report. What it buys is that the length is chosen
-rather than drifted into.
+It blocks at most ONCE per stop, so a turn can always end. Its message asks
+for the short rewrite outright: an earlier wording let a session "keep it if
+deliberate", and sessions re-sent the same long reply.
 
 FAILURE POLICY: fail-open. Anything unreadable, any unexpected shape, any
 exception exits 0 with no output, which ends the turn normally. A session that
@@ -160,9 +158,9 @@ def main():
             "Your reply breaks a soul rule that is checked rather than asked "
             "for (.claude/soul.md):\n"
             + "\n".join(f"  {item}" for item in found)
-            + "\nRewrite it and answer again. This is said once per turn, so a "
-            "reply you send again goes through: if the length is deliberate, "
-            "keep it."
+            + "\nRewrite it now: the plain answer in a few lines, under "
+            f"{LONG_REPLY_WORDS} words, and at most one line offering detail. "
+            "Sending the same reply again is not an answer to this."
         ),
     }))
 

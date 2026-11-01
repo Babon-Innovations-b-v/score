@@ -7,6 +7,10 @@ description: Pocock grill-with-docs, adapted for this repo. You're on the team b
 
 The default grilling session, the [Pocock `grill-with-docs`](https://github.com/mattpocock/skills) pattern. Interview the plan against the existing domain model, sharpen terminology into `CONTEXT.md`, record real trade-offs as ADRs, all inline as decisions crystallise.
 
+## A question, not a task (check this first)
+
+A status or lookup question ("where does X stand", "what is still open on Y", "did Z get finished", "what is our ...") is not a task: skip orient, the dump check and the wayfinder check. Ask the repo's index (the tools root `CLAUDE.md` names) in one or two calls, using the ready-made query it lists when there is one, and answer from that. Check nothing the user did not ask about: no gate status, no diffs, no full issue bodies, no extra findings. Reply in a few lines that lead with the answer; offer detail in one short line, never give it unasked. If the index cannot answer, say so and make the one call that can.
+
 ## Before asking anything (orient)
 
 1. Read the user's prompt.
