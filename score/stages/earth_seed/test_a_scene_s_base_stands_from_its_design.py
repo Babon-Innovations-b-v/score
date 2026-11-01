@@ -282,6 +282,33 @@ def test_a_vault_roof_stands_as_an_arc():
         assert apart.min(axis=1).max() < 1e-3 and apart.min(axis=0).max() < 1e-3, "the record's vault is not the seed's"
 
 
+def test_a_square_vault_runs_between_its_doorways():
+    """2026-11-02, round 44: the tube's box is 10.04 m square, its doorways on its north and south ends, and its vault
+    ran east, across its length: its arc came down to 1.3 m at the doorways, spot-1's eye (1.6 m up, 0.74 m in) stood
+    over the roof and its picture was the roof's outer skin (light@tube: 0.810 against the concept's 0.323). A square
+    box's vault runs between the ends its openings stand on: over SQUARE (4 m, grown to 4.3) from 0 to 2 m with its
+    doors north and south, a circle of (2.15^2 + 2^2) / 4 = 2.155625 m across x, so its crown at x = 2 stands the full
+    2 m at y = 0.3 by the north door (run east, it would stand sqrt(2.155625^2 - 1.85^2) - 0.155625 = 0.951 m);
+    with its doors west and east it runs east, its crown at y = 2 the full 2 m by the west door; the scene record's
+    tube_arc is turned a quarter only for the east run.
+    Break: score/stages/earth_seed/design_shell.py: `return ends >= sides` -> `return True`"""
+    from score.stages.scene_record import writer
+    square = [[0.0, 0.0], [4.0, 0.0], [4.0, 4.0], [0.0, 4.0]]
+    doors = {"north and south": [[2.0, 0.0], [2.0, 4.0]], "west and east": [[0.0, 2.0], [4.0, 2.0]]}
+    for (ends, (one, two)), lengthwise, crown_at in zip(doors.items(), (False, True), ([2.0, 0.3], [0.3, 2.0])):
+        vaulted = dict(ROOM, w=4.0, d=4.0, outline=square,
+                       openings=[{"kind": "door", "at": at, "wide": 1.0, "sill": 0.0, "head": 2.0, "to": "hangar"}
+                                 for at in (one, two)],
+                       roofs=[{"kind": "vault", "points": square, "eave": 0.0, "top": 2.0}])
+        name, (piece,), said = design_shell.roofs(vaulted, design_shell.outline_of(vaulted), 0.0)[0]
+        assert piece["lengthwise"] is lengthwise, (ends, piece)
+        roof = numpy.asarray(design_shell.solid(piece)).reshape(-1, 3)
+        near = roof[numpy.argsort(numpy.hypot(roof[:, 0] - crown_at[0], roof[:, 2] - crown_at[1]))[:4]]
+        assert abs(near[:, 1].max() - 2.0) < 0.05, (ends, near)
+        entry = writer.shell_entry(name, 0, piece, vaulted, said)
+        assert (entry["placed_turn"] != [0.0, 0.0, 0.0, 1.0]) is lengthwise, (ends, entry["placed_turn"])
+
+
 def test_the_parts_a_shell_lays_are_named_without_building_it():
     """2026-10-27: the scene library and the surface tiles asked which parts a shell lays by building it, so every
     change to how a part is built keyed them (and the people, sound and palette rows behind them). shell_parts.parts

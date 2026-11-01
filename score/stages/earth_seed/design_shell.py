@@ -19,7 +19,8 @@ raised levels (the street, the square, the base: a plan that encloses nothing), 
     roof   (a room) each written roof over its points out to the walls: a flat one a slab on its eave; a dome a
            sphere's cap over the circle round its box's middle (builders' `dome`), so the people the concept stands
            under it fit (the greenhouse's upper walk, Batch 1 of 2026-10-27); a vault a circle's arc from its eave
-           to its top across its box, along the box's longer side (builders' `tube_arc`), so the people under it fit
+           to its top across its box, along the box's longer side, a square box's between the ends its openings stand
+           on (`vault_way`; builders' `tube_arc`), so the people under it fit
            (the tube's, round 33 of 2026-10-30); one rising otherwise (shed, pitched) a closed gable along its box's
            longer side; no written roof, a flat one on the walls' height
     level  (an open place: no room, and a plan that encloses nothing, `encloses`) each level standing off the ground by
@@ -71,6 +72,7 @@ THICK = 0.3  # metres of a wall the plan gives no thickness
 STOREY = 3.0  # metres of a wall neither the plan nor its words give a height
 DOOR_HEAD = 2.1  # metres of a door's head the plan gives none
 ON_WALL = 0.3  # metres an opening may stand off its wall's line past the wall's thickness and still be cut in it
+VAULT_TIE = 0.05  # share two sides of a vault's box may differ by and still be equal (vault_way)
 ARC_STEP = 15.0  # degrees of a written arc wall each straight piece of it spans
 # A written wall runs along the outline (on_outline) where every point of it stands within OUTLINE_REACH metres of an
 # outline edge turned within ALONG_TURN degrees of it: a round wall drawn round a polygon outline.
@@ -186,14 +188,30 @@ def gable(points, eave, top):
     return [[one, three, two] for one, two, three in inward + cap(box, eave, True)]
 
 
-def vault_arc(points, eave, top):
-    """A vault over an outline's box as tools/usd/builders' `tube_arc` draws it: the circle's `radius`, its axis'
-    height (`axis_high`), the arc's half angle (degrees from straight up), and its run: `start` the middle of its
-    west or north end, `along` its unit way ([1, 0] east, [0, 1] south) along the box's longer side, `length` that
-    side."""
+def vault_way(points, openings):
+    """Whether a vault over an outline's box runs east (True) or south (False): along the box's longer side; where
+    its sides are within VAULT_TIE of each other, between the ends its plan's openings stand on, a tube running from
+    door to door (2026-11-02: the tube's 10.04 m square box ran its vault east, across its length, so its arc came
+    down to 1.3 m at its doorways and spot-1's eye stood over the roof, its picture the roof's outer skin); east
+    where no opening tells."""
     xs, ys = [float(point[0]) for point in points], [float(point[1]) for point in points]
     west, east, north, south = min(xs), max(xs), min(ys), max(ys)
-    lengthwise = east - west >= south - north
+    if abs((east - west) - (south - north)) > VAULT_TIE * max(east - west, south - north):
+        return east - west > south - north
+    reach = ON_WALL + BACKING
+    ends = sum(min(abs(opening["at"][0] - west), abs(opening["at"][0] - east)) <= reach for opening in openings)
+    sides = sum(min(abs(opening["at"][1] - north), abs(opening["at"][1] - south)) <= reach for opening in openings)
+    return ends >= sides
+
+
+def vault_arc(points, eave, top, lengthwise=None):
+    """A vault over an outline's box as tools/usd/builders' `tube_arc` draws it: the circle's `radius`, its axis'
+    height (`axis_high`), the arc's half angle (degrees from straight up), and its run: `start` the middle of its
+    west or north end, `along` its unit way ([1, 0] east, [0, 1] south) east when `lengthwise` (vault_way's), else
+    south (None: along the box's longer side), `length` that side."""
+    xs, ys = [float(point[0]) for point in points], [float(point[1]) for point in points]
+    west, east, north, south = min(xs), max(xs), min(ys), max(ys)
+    lengthwise = east - west >= south - north if lengthwise is None else lengthwise
     half, rise = ((south - north) if lengthwise else (east - west)) / 2, top - eave
     radius = (half ** 2 + rise ** 2) / (2 * rise)
     start = [west, (north + south) / 2] if lengthwise else [(west + east) / 2, north]
@@ -202,9 +220,9 @@ def vault_arc(points, eave, top):
             "length": (east - west) if lengthwise else (south - north)}
 
 
-def vault(points, eave, top, segments=24):
+def vault(points, eave, top, lengthwise=None, segments=24):
     """A vault's arc (vault_arc) in plan metres [x, up, y], the triangles tools/usd/builders' `tube_arc` draws."""
-    arc = vault_arc(points, eave, top)
+    arc = vault_arc(points, eave, top, lengthwise)
     along = np.array([arc["along"][0], 0.0, arc["along"][1]])
     across = np.array([arc["along"][1], 0.0, -arc["along"][0]])
     start = np.array([arc["start"][0], 0.0, arc["start"][1]])
@@ -613,10 +631,13 @@ def roofs(plan, outline, high):
                  {"builder": "vault" if vaulted else "gable", "points": [[float(x), float(y)] for x, y in points],
                   "eave": eave, "top": top}) \
             if rising else slab_piece(points, eave, eave + SLAB)
+        if piece["builder"] == "vault":
+            piece["lengthwise"] = vault_way(points, plan_openings(plan))
         found.append((f"roof_{number}", [piece],
                       f"the plan's {entry.get('kind', 'flat')} roof, eave {eave:g} m" +
                       (f", top {top:g} m: " + ("a dome over the circle round it" if domed else
-                                               "a circle's arc across its box, along its longer side" if vaulted else
+                                               "a circle's arc across its box, running " +
+                                               ("east" if piece.get("lengthwise") else "south") if vaulted else
                                                "a gable along its box's longer side") if rising else
                        f": a slab {SLAB:g} m thick on it")))
     return found
@@ -654,7 +675,7 @@ def solid(piece):
     if piece["builder"] == "gable":
         return gable(piece["points"], piece["eave"], piece["top"])
     if piece["builder"] == "vault":
-        return vault(piece["points"], piece["eave"], piece["top"])
+        return vault(piece["points"], piece["eave"], piece["top"], piece.get("lengthwise"))
     if piece["builder"] == "dome":
         return dome(piece["centre"], piece["radius"], piece["base"], piece["rise"])
     return prism(piece["points"], piece["low"], piece["high"])

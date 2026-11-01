@@ -154,7 +154,8 @@ def shell_entry(name, number, piece, design, said):
         entry.update(centre=points[0], radius=round(piece["radius"], 4), base=round(floor + piece["base"], 4),
                      rise=round(piece["rise"], 4), layer=2)
     elif piece["builder"] == "vault":  # builders' tube_arc runs along z from 0: turned a quarter about up to run east
-        arc = design_shell.vault_arc(entry.pop("points"), floor + piece["eave"], floor + piece["top"])
+        arc = design_shell.vault_arc(entry.pop("points"), floor + piece["eave"], floor + piece["top"],
+                                     piece.get("lengthwise"))
         entry.update(builder="tube_arc", radius=round(arc["radius"], 4), axis_high=round(arc["axis_high"], 4),
                      start=round(-arc["half"], 4), end=round(arc["half"], 4), length=round(arc["length"], 4),
                      placed_at=[round(arc["start"][0], 4), 0.0, round(arc["start"][1], 4)],
