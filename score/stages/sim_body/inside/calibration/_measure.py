@@ -170,6 +170,38 @@ def inside_measured(folder, rig_path, groups_of, kg=70.0):
     return found
 
 
+SHIFT_REACH = 0.024  # m: the head's shift read within this on each axis
+SHIFT_STEP = 0.002  # m
+
+
+def end_shift_measured(folder, rig_path, group="Head", kg=70.0):
+    """The shift (m, the person's frame, Y up) of `group`'s bone vertices off SOMA's start joint at their least share
+    outside SOMA's skin (`_skin.envelope`: the head's pockets closed): MyoFullBody sized to SOMA's template at its
+    default pose, the bones laid as `inside_measured` lays them at TABLE's turn, every shift on a SHIFT_STEP grid within
+    SHIFT_REACH tried (the share is a step, which a least squares' differences do not see), a tie the shortest."""
+    import itertools
+    import tempfile
+
+    import myo
+    from fit import _skin
+    from sizing import Size
+    rig = dict(np.load(rig_path))
+    path = pathlib.Path(tempfile.mkdtemp()) / "template.xml"
+    _, scales = myo.person_file(folder, Size(rig), kg, path)
+    model = mujoco.MjModel.from_xml_path(str(path))
+    data = default_pose(model, Couplings(model))
+    mesh = warp.Mesh(points=warp.array(rig["points"].astype(np.float32), dtype=warp.vec3, device="cpu"),
+                     indices=warp.array(_skin.envelope(rig).ravel(), dtype=int, device="cpu"),
+                     support_winding_number=True)
+    points, bones = _skin.bone_points(model, data, _skin.bone_meshes(model))
+    local, segment_turn, start = _bones_at_rest(model, data, scales, rig, points, bones, group)
+    laid = start + local @ (segment_turn @ calibration.turn(group)).T
+    steps = np.arange(-SHIFT_REACH, SHIFT_REACH + SHIFT_STEP / 2, SHIFT_STEP)
+    tried = [(float((_depth_inside(mesh, laid + np.array(shift)) < 0).mean()), float(np.linalg.norm(shift)), shift)
+             for shift in itertools.product(steps, repeat=3)]
+    return tuple(round(float(value), 4) for value in min(tried)[2])
+
+
 def _units(groups_of):
     """The groups fitted together: a middle group alone, a side's two groups as one pair (left first)."""
     found = []
@@ -281,3 +313,4 @@ if __name__ == "__main__":
         print(f'    "{group}": ({", ".join(f"{value:.6g}" for value in quaternion)}),')
     for stem, turn in fingers_measured(*sys.argv[1:3]).items():
         print(f'    "{stem}": {turn},')
+    print(f'    "C0_C1": {end_shift_measured(*sys.argv[1:3])},')

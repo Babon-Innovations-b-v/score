@@ -21,12 +21,12 @@ import mujoco
 import numpy as np
 
 from bone_groups import groups
-from calibration import turn
+from calibration import END_SHIFTS, turn
 from fit import _frames
 from fit._constants import staged
 from fit._follow import following, riding
 from fit._frames import LM_DAMPING, Frames, NotConverged, solved
-from fit._model import Fitting, end_site, filed, followers_free
+from fit._model import Fitting, end_site, filed, followers_free, shifted_end
 from fit._skin import posed_skins
 from landmarks import HELD, LANDMARKS, MIDDLE_CENTRES, marker, myo_parts, posed, soma_joints, solver_marks, trust
 from landmarks._table import CENTRES
@@ -105,7 +105,7 @@ def fitting(path, scales, held, segments, moves=None):
     marks = [(name, filed(LANDMARKS[name][3]), marker(name, scales[LANDMARKS[name][3]]) + moves.get(name, 0.0))
              for name in names]
     model = mujoco.MjModel.from_xml_path(str(path))
-    ends = [(f"{END}{centre}", *end_site(model, end_parts(centre, scales))) for _, centre in group_ends(segments)]
+    ends = [(f"{END}{centre}", *end_marker(model, centre, scales)) for _, centre in group_ends(segments)]
     trusts = [trust(name) for name in names]
     fingers = {body for _, _, frame, bodies in table.values() if frame.startswith(HAND_TOP)
                for body in bodies if body != frame}
@@ -119,13 +119,20 @@ def end_parts(centre, scales):
     return [(filed(body), np.asarray(local, dtype=float) * scales[body], weight) for body, local, weight in myo_parts(centre)]
 
 
+def end_marker(model, centre, scales):
+    """A group end's marker site (body name, body-local point): `end_site` of its centre's sized parts, moved by
+    `shifted_end` off it by the end's shift read in SOMA's skin (`calibration.END_SHIFTS`; none for most ends)."""
+    holder, local = end_site(model, end_parts(centre, scales))
+    return holder, shifted_end(model, holder, local, END_SHIFTS.get(centre, (0.0, 0.0, 0.0)))
+
+
 def ends_relaid(fit, scales, segments):
     """`fit` (a `Fitting` with its constants laid in place) with its group ends' sites laid again on its model as it now
     stands, as `fitting` lays them on the person's file written with those constants (`end_site` reads the bodies' rest
     places, which the inside joints' moves change): the set's second file and compile are not needed (2026-10-31)."""
     for _, centre in group_ends(segments):
         site = fit.mark_sites[fit.marks.index(f"{END}{centre}")]
-        holder, local = end_site(fit.model, end_parts(centre, scales))
+        holder, local = end_marker(fit.model, centre, scales)
         if fit.model.body(holder).id != fit.model.site_bodyid[site]:
             raise ValueError(f"{centre}: its end's holder moved from {fit.model.body(int(fit.model.site_bodyid[site])).name} to {holder}")
         fit.model.site_pos[site] = local

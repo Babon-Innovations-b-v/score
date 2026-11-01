@@ -219,12 +219,14 @@ def trusted_outer(fitting):
 
 def ends_of(path, scales, segments):
     """`_outer`'s `ends` for the person's file at `path` sized by `scales`: [(own, {part: turn})] in `fit.fitting`'s
-    end order (`group_ends(segments)`), own the end site's local point (`fit._model.end_site`, as the fitting lays
-    it) and, for each centre part (a middle end's two), d(own) / d(the part's move in its source local point):
+    end order (`group_ends(segments)`), own the end site's local point (`fit._model.end_site` moved by its
+    `calibration.END_SHIFTS`, as the fitting lays it, `fit.end_marker`) and, for each centre part (a middle end's two),
+    d(own) / d(the part's move in its source local point):
     its weight times (R_holder^T R_body) times its body's scale, at the model's rest pose (mj_kinematics)."""
     import mujoco
     from fit import group_ends
-    from fit._model import end_site, filed
+    from calibration import END_SHIFTS
+    from fit._model import end_site, filed, shifted_end
     from landmarks import MIDDLE_CENTRES, myo_parts
     model = mujoco.MjModel.from_xml_path(str(path))
     data = mujoco.MjData(model)
@@ -234,6 +236,7 @@ def ends_of(path, scales, segments):
         parts = myo_parts(centre)
         holder, own = end_site(model, [(filed(body), np.asarray(local, dtype=float) * scales[body], weight)
                                        for body, local, weight in parts])
+        own = shifted_end(model, holder, own, END_SHIFTS.get(centre, (0.0, 0.0, 0.0)))
         holding = data.xmat[model.body(holder).id].reshape(3, 3)
         found.append((own, {part: weight * (holding.T @ data.xmat[model.body(filed(body)).id].reshape(3, 3))
                                 * np.asarray(scales[body], dtype=float)

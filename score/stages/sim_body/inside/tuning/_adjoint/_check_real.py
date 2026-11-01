@@ -111,7 +111,8 @@ def moved_ends(path, scales, segments, step=1e-4):
     each axis: (the largest |difference|, the largest turn entry)."""
     import mujoco
     from fit import group_ends
-    from fit._model import end_site, filed
+    from calibration import END_SHIFTS
+    from fit._model import end_site, filed, shifted_end
     from landmarks import MIDDLE_CENTRES, myo_parts
     model, most, largest = mujoco.MjModel.from_xml_path(str(path)), 0.0, 0.0
     for (_, centre), (own, turns) in zip(group_ends(segments), _real.ends_of(path, scales, segments)):
@@ -120,7 +121,8 @@ def moved_ends(path, scales, segments, step=1e-4):
             for axis in range(3):
                 moved = [(filed(body), (np.asarray(local, dtype=float) + step * (spot == index) * np.eye(3)[axis])
                           * scales[body], weight) for spot, (body, local, weight) in enumerate(parts)]
-                column = (end_site(model, moved)[1] - own) / step
+                holder, local = end_site(model, moved)
+                column = (shifted_end(model, holder, local, END_SHIFTS.get(centre, (0.0, 0.0, 0.0))) - own) / step
                 most = max(most, float(np.abs(column - turns[part][:, axis]).max()))
                 largest = max(largest, float(np.abs(turns[part]).max()))
     return most, largest
