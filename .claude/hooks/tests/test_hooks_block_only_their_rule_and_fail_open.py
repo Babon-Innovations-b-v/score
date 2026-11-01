@@ -557,6 +557,9 @@ def test_commit_guard_refuses_the_shared_checkout_while_a_worktree_is_live(tmp_p
     assert run(guard, dict(bash(f"git -C {tmp_path} commit -m x"), cwd=str(repo)), env=GIT_ENV)[0] == ALLOW
     for elsewhere in (f"cd {worktree}; git commit -m x", f"cd {worktree} && git commit -m x"):
         assert run(guard, dict(bash(elsewhere), cwd=str(repo)), env=GIT_ENV)[0] == ALLOW, elsewhere
+    # `~` reaches the guard unexpanded; it names the home directory as the shell would.
+    for elsewhere in ("git -C ~/repo/.claude/worktrees/w1 commit -m x", "cd ~/repo/.claude/worktrees/w1 && git commit -m x"):
+        assert run(guard, dict(bash(elsewhere), cwd=str(repo)), env=dict(GIT_ENV, HOME=str(tmp_path)))[0] == ALLOW, elsewhere
 
 
 
