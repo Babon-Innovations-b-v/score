@@ -122,11 +122,13 @@ def written(out, person, rig, worlds, fitted, measures, points=None):
 
 
 def fitted_case(job_path, out, recordings, measures=_measure.measures):
-    """One clip of the body: levels 2 (held) and 3, then `written` with `measures`."""
+    """One clip of the body: levels 2 (held) and 3 (skin rows as `evaluation.SKIN_ROWS`), then `written` with
+    `measures`."""
     out.mkdir(parents=True, exist_ok=True)
     job, person, rig, worlds = case_of(job_path, recordings)
     began = time.time()
-    record, scales, model, angles = sim_body.fitted_person(job, person, rig, worlds, out / f"{person['name']}.xml")
+    record, scales, model, angles = sim_body.fitted_person(job, person, rig, worlds, out / f"{person['name']}.xml",
+                                                          evaluation.SKIN_ROWS)
     written(out, person, rig, worlds, (record, scales, model, angles, time.time() - began), measures)
 
 

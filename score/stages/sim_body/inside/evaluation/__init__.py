@@ -26,6 +26,8 @@ SOLVED = "measures.json"  # a clip's unrounded measures, the solver's; m.json be
 SEEDS = "angles.npz"  # a clip's mink angles per frame (qpos, frames x nq): the card's seeds (fit._card._seeds)
 PLACES = 2  # decimals of the rounded copy
 TWO_WORD_MOTIONS = ("arms_raise", "sit_stand")  # motions whose name holds an underscore
+SKIN_ROWS = False  # level 1 tunes on level 3 without its skin rows; the stage (sim_body.py) holds them (#70 2026-11-01:
+# with them level 3 jumps between minima under small moves of level 1's unknowns, so its gradient cannot be checked)
 
 
 def rounded(value, places=PLACES):

@@ -27,6 +27,9 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
   depth outside (2026-10-30).
 - _card_batch.targets_key's landmark rows dropped: a set that moves a landmark's face weights reuses the targets
   of the set before it (2026-10-30).
+- (2026-11-01) batched_angles' `if evaluation.SKIN_ROWS` dropped, or fitted_case not passing `evaluation.SKIN_ROWS`
+  to fitted_person: level 1's level 3 holds the skin rows, whose jumps between minima its gradient cannot follow;
+  sim_body.clip_angles' `skin_rows` defaulting to False: the stage's people lose their skin rows.
 - blocked launching one process a case again (`by_body` dropped: level 2 solved from one clip, seven times a body,
   2026-10-31), or exact_stacked stacking the blocks in their given order
   and not sorted as tuning.whole's rows are: a case's exact rows land on another case's residuals (2026-10-30).
@@ -249,6 +252,40 @@ def test_the_exact_jacobian_stacks_each_cases_own_block_in_whole_order_then_the_
     assert np.allclose(jacobian[6:], [[tuning.LINK_UNIT / tuning.PRIOR, 0, 0], [0, 0, tuning.LINK_UNIT / tuning.PRIOR]])
     heavy = ["heavy_kimodo", "heavy_rigwalk"]  # one process a body, its every case in it, once more after a failure
     assert sorted(tries) == [("heavy", heavy), ("heavy", heavy), ("tall", ["tall_kimodo"])]
+
+
+def test_level_1s_level_3_holds_no_skin_rows_and_the_stages_does():
+    """Level 1's evaluation solves level 3 without the skin rows (`evaluation.SKIN_ROWS`); the stage holds them."""
+    if importlib.util.find_spec("mujoco") is None:  # sim_body and _card_batch import fit, which needs Newton's own Python
+        print("skipped: level 3's paths need MuJoCo (Newton's own Python, score/stages/physics/inside/newton_env.sh)")
+        return
+    import sim_body
+    from evaluation import _card_batch, _case
+    from fit._skin import PosedSkins
+    skins = PosedSkins(np.zeros((2, 3, 3)), [[0, 1, 2]])
+    targets = (np.zeros((2, 1, 3, 3)), np.zeros((2, 4, 3)), skins)
+    seen = []
+
+    class Clip:
+        def angles(self, turns, points, seeds, given=None):
+            seen.append(given)
+            return np.zeros((len(seeds), 2)), None
+
+    _card_batch.batched_angles(Clip(), ["a"], {"a": np.zeros((2, 2))}, {"a": targets})
+    kept = (sim_body.fit.targets, sim_body.fit.angles, sim_body.fitted_person, _case.case_of, _case.written)
+    try:
+        sim_body.fit.targets = lambda *given: targets
+        sim_body.fit.angles = lambda fitting, turns, points, given=None: seen.append(given)
+        sim_body.clip_angles(None, None, ["pelvis"], None)
+        sim_body.clip_angles(None, None, ["pelvis"], None, skin_rows=False)
+        _case.case_of = lambda *given: ({}, {"name": "a"}, None, None)
+        sim_body.fitted_person = lambda *given: seen.append(given[5:]) or (None, None, None, None)
+        _case.written = lambda *given: None
+        _case.fitted_case(pathlib.Path("job.json"), pathlib.Path(tempfile.mkdtemp()), {})
+    finally:
+        sim_body.fit.targets, sim_body.fit.angles, sim_body.fitted_person, _case.case_of, _case.written = kept
+    assert evaluation.SKIN_ROWS is False
+    assert seen[0] is None and seen[1] is skins and seen[2] is None and seen[3] == (False,), seen
 
 
 if __name__ == "__main__":

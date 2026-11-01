@@ -125,6 +125,14 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   Tall's seven clips the same way (4 sets): 73.5 s against 110.5 s, measures within 0.033 mm; about 4.7 s against
   23.2 s a nudged set. Every tuning body has seven clips, so a Jacobian's ~4.5 h would be ~0.9 to 1.15 h, one
   process a body, if a process holding 138 sets keeps a set's card memory (measured on 4 sets only).
+- **The skin rows are the stage's, not level 1's** (#70, 2026-11-01, the coordinator's decision): level 3 with the
+  skin rows is not a smooth function of level 1's unknowns (a few frames jump between minima under small moves; heavy
+  frame 28 0.052 rad apart between two solves of the same route), so level 1's gradient through it cannot be checked
+  (the gate's references 7 to 91 % apart among their steps). One switch decides: `sim_body.clip_angles(...,
+  skin_rows=True)` (and `fitted_person`'s) holds them on the stage's per-frame fit, the film's people; level 1's
+  evaluation, sets and blocks run without them (`evaluation.SKIN_ROWS = False`: `_case.fitted_case`,
+  `_card_batch.batched_angles`, `tuning/_adjoint/_real`), its objective the bones outside the skin measured on that
+  skinless fit, as in run l1g. The taped skin rows (`tuning/_adjoint/_taped`) stay for later, unused by level 1.
 - **Level 3 holds the bones inside the skin; level 2 does not** (#70, 2026-11-01, the owner: "we just know bones need
   to be inside the skin"): `targets` gives SOMA's skin posed on every frame (`_skin.PosedSkins`, MuJoCo's frame) beside
   the turns and markers, and level 3 holds every kept bone vertex (`_skin.bone_bodies`, the measure's 80 a mesh) in it:

@@ -121,11 +121,12 @@ def constants_set_up(job, person, rig, worlds, path, size, scales, made=None, fo
     return record, scales, fitting
 
 
-def clip_angles(fitting, rig, segments, worlds):
+def clip_angles(fitting, rig, segments, worlds, skin_rows=True):
     """The clip's fitted path on `fitting` (qpos of MuJoCo's own compile of the file: the pose alone per frame, the
-    constants held), by `fit.angles`."""
+    constants held), by `fit.angles`; `skin_rows` holds the bones inside SOMA's posed skin (the stage's; level 1's
+    evaluation runs without them: `evaluation.SKIN_ROWS`)."""
     turns, points, skins = fit.targets(rig, segments, worlds, fit.followed(segments))
-    return fit.angles(fitting, turns, points, skins)
+    return fit.angles(fitting, turns, points, skins if skin_rows else None)
 
 
 def followed_record(record, fitting, angles, worlds, segments, scales, rig):
@@ -134,11 +135,12 @@ def followed_record(record, fitting, angles, worlds, segments, scales, rig):
     return record
 
 
-def fitted_person(job, person, rig, worlds, path):
+def fitted_person(job, person, rig, worlds, path, skin_rows=True):
     """The person's file at `path` with the fit's constants, its record (the fit and its following of SOMA in it),
-    each body's scale, the fitted model and the clip's fitted path: set up, angles, record."""
+    each body's scale, the fitted model and the clip's fitted path (`skin_rows`: `clip_angles`'): set up, angles,
+    record."""
     record, scales, fitting = person_set_up(job, person, rig, worlds, path, Size(rig))
-    angles = clip_angles(fitting, rig, person["segments"], worlds)
+    angles = clip_angles(fitting, rig, person["segments"], worlds, skin_rows)
     record = followed_record(record, fitting, angles, worlds, person["segments"], scales, rig)
     return record, scales, fitting.model, angles
 
