@@ -19,6 +19,25 @@ Level 1's skin residual (fit._skin.marks, depth_mm) is a bone point's distance t
 outside, 0 inside, by the winding test; the region's root mean square.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted):
+- (2026-11-01) _skin.apart_of's ring `face = ring_faces[slot]` made `face = found.face` (the float32 query's face
+  alone): 9 of 600 depths off the nearest face's, by up to 1.31e-6 m
+  (the_depth_is_the_nearest_faces_where_the_query_flips red).
+- (2026-11-01) _skin.closest_on_triangle's edge `bend = _away(along)` made a zero matrix: the offsets' projectors 0.496
+  off their central differences (the_depth_is_the_nearest_faces_where_the_query_flips red).
+- (2026-11-01) _skin_rows' point rows `jacp - crossed(...) @ jacr` made `jacp + 0 * crossed(...) @ jacr` (the turn's
+  lever dropped): a frame's fit does not converge in 300 steps (NotConverged).
+- (2026-11-01) _skin_rows' `rows = bends @ moved` made `moved` (no projector): NotConverged, its last step 1.5e-5.
+- (2026-11-01) _frames.SkinTask's objective `pull` made `-pull`: the bones 183.8 mm outside held against 7.07 mm free,
+  the held frames' cost (turns, markers and skin rows) 170.2 over the free 0.25
+  (the_frames_hold_the_bones_inside_the_skin red).
+- (2026-11-01) _frames.Frames.fitted's first frame fitted without the skin dropped (`if skins is not None` made
+  `... and False`): from the standing start the skin holds the shin bone in the other part's box, 153.6 mm outside its
+  own skin, the knee 1.033 rad off its target (a_clips_first_frame_is_not_held_in_another_parts_skin red).
+- (2026-11-01) _skin.unfolded's `<= FOLD_MOST` made `<= 2.0`: the overlapping cubes' frame is kept and its point reads
+  1 m deep (a_skin_folding_into_itself_gives_no_rows red).
+- (2026-11-01) _skin.apart_kernel's `if kept[mesh] != 0:` made `... or True`: the folded frame's point reads 1 m deep
+  (a_skin_folding_into_itself_gives_no_rows red).
+- (2026-11-01) PosedSkins.__getitem__ dropping `self.kept[frames]`: indexed skins read every frame kept.
 - (2026-11-01) _skin.envelope's `for verts in pockets(rig):` made `pockets(rig)[:0]`, no pocket closed: the point in
   the cube's mouth reads outside the envelope (the_heads_pockets_are_closed_for_the_inside_test red).
 - (2026-11-01) `_card/_measure.turn_errors`' default `table=cpu.judged_turn` made `frozen_turn`, or
@@ -89,6 +108,8 @@ INSIDE = pathlib.Path(__file__).resolve().parents[1]
 IN_ENV = "SIM_BODY_INSIDE_TEST"
 TOY = """<mujoco model="toy">
   <compiler angle="radian"/>
+  <asset><mesh name="shinbone" vertex="-0.015 -0.015 -0.05  0.015 -0.015 -0.05  -0.015 0.015 -0.05  0.015 0.015 -0.05
+    -0.015 -0.015 -0.35  0.015 -0.015 -0.35  -0.015 0.015 -0.35  0.015 0.015 -0.35"/></asset>
   <worldbody>
     <body name="pelvis" pos="0 0 1">
       <freejoint name="root"/><geom type="box" size="0.15 0.1 0.1" mass="10"/>
@@ -96,6 +117,7 @@ TOY = """<mujoco model="toy">
         <joint name="hip_l" type="hinge" axis="1 0 0" range="-1 1"/><geom type="capsule" fromto="0 0 0 0 0 -0.4" size="0.05" mass="5"/>
         <body name="shin_l" pos="0 0 -0.4">
           <joint name="knee_l" type="hinge" axis="1 0 0" range="-2 0"/><geom type="capsule" fromto="0 0 0 0 0 -0.4" size="0.04" mass="3"/>
+          <geom type="mesh" mesh="shinbone" contype="0" conaffinity="0" mass="0.001"/>
         </body></body>
       <body name="leg_r" pos="-0.1 0 -0.1">
         <joint name="hip_r" type="hinge" axis="0 1 0" range="-1 1"/><geom type="capsule" fromto="0 0 0 0 0 -0.4" size="0.05" mass="5"/>
@@ -119,6 +141,16 @@ LOW_TRUST = ("pelvis2", 0.25)
 POSES = [((0.0, 0.0, 1.0), 0.2, -0.4, 0.1), ((0.05, 0.0, 1.0), 0.4, -0.8, -0.3), ((0.1, 0.02, 0.98), 0.1, -1.2, 0.6),
          ((0.15, 0.03, 0.99), -0.3, -0.3, 0.9), ((0.2, 0.03, 1.0), -0.5, -0.1, 0.3),
          ((0.25, 0.03, 1.0), 1.3, -0.5, 0.2)]
+# The toy shin's skin (each frame posed with the shin at its true angles): a box about the bone's middle (0, 0, -0.2)
+# in the shin's frame, half sizes 0.03, 0.03, 0.18, moved SKIN_SHIFT along y, so the bone's four -y corners stand
+# 1 cm outside it at the true pose and the leg must swing about x to hold them in.
+SKIN_SHIFT = 0.025
+CUBE_FACES = [[0, 1, 3], [0, 3, 2], [4, 6, 7], [4, 7, 5], [0, 4, 5], [0, 5, 1], [2, 3, 7], [2, 7, 6], [0, 2, 6],
+              [0, 6, 4], [1, 5, 7], [1, 7, 3]]  # a box's outward faces over its corners in x, y, z order
+# Another part's skin beside the shin bone at the standing start: a box of half width DECOY_HALF along the bone,
+# DECOY_SHIFT along the shin's y off it (the bone 1.5 cm outside it); FOUND_MM the bone's depth outside its own skin
+# once held (2026-11-01: 0.07 mm from the fit without the skin, 154 mm from the standing start).
+DECOY_HALF, DECOY_SHIFT, FOUND_MM = 0.03, 0.06, 1.0
 MOST_RADIANS = 1e-4
 SETTLED_GRADIENT = 1e-10  # the free gradient level 2 ends at, absolute (2026-10-30: scipy's trf/lsmr alone left 2.5e-7)
 # The marker's move is pulled to its link by one row at its own weight against the five frames' (found 2026-10-29: 7.1 mm
@@ -168,6 +200,50 @@ def posed_targets(fitting, truth, poses):
         angles.append(qpos[7:11])
     fitting.apply(fitting.neutral())
     return np.array(turns), np.array(points), np.array(angles)
+
+
+def posed_qpos(model, pose):
+    """The toy's qpos at one of POSES' rows (the ankle on its coupling)."""
+    place, hip_l, knee_l, hip_r = pose
+    qpos = model.qpos0.copy()
+    qpos[:3] = place
+    qpos[7:11] = hip_l, knee_l, hip_r, 0.5 * hip_r
+    return qpos
+
+
+def shin_skins(fitting, truth, poses):
+    """Each pose's skin around the toy's shin bone (`SKIN_SHIFT`), posed with the shin at the constants `truth`, as
+    `_skin.PosedSkins` in MuJoCo's frame; the model left neutral."""
+    import mujoco
+    import numpy as np
+    from fit._skin import PosedSkins
+    model, data = fitting.model, mujoco.MjData(fitting.model)
+    corners = np.array([[x, y, z] for x in (-0.03, 0.03) for y in (-0.03, 0.03) for z in (-0.18, 0.18)])
+    corners += [0.0, SKIN_SHIFT, -0.2]
+    fitting.apply(truth)
+    verts = []
+    for pose in poses:
+        data.qpos[:] = posed_qpos(model, pose)
+        mujoco.mj_kinematics(model, data)
+        shin = model.body("shin_l").id
+        verts.append(corners @ data.xmat[shin].reshape(3, 3).T + data.xpos[shin])
+    fitting.apply(fitting.neutral())
+    return PosedSkins(np.array(verts), CUBE_FACES)
+
+
+def bone_depths(model, path, skins):
+    """Every frame's bone points' depth outside its skin (frames x points, m) by `_skin.marks`, MuJoCo's frame."""
+    import mujoco
+    import numpy as np
+    from fit import _skin
+    data, found = mujoco.MjData(model), []
+    bodies, places = _skin.bone_bodies(model)
+    for qpos, verts in zip(path, skins.verts):
+        data.qpos[:] = qpos
+        mujoco.mj_kinematics(model, data)
+        points = data.xpos[bodies] + np.einsum("pij,pj->pi", data.xmat[bodies].reshape(-1, 3, 3), places)
+        found.append(_skin.marks(points, verts, skins.faces)[1])
+    return np.array(found)
 
 
 def truth_of(fitting):
@@ -490,6 +566,65 @@ def a_skin_crossing_itself_tells_inside_by_its_winding_number():
     return [] if wrong == 0 else [f"{wrong} of {len(points)} points on the wrong side of the self-crossing skin"]
 
 
+def the_frames_hold_the_bones_inside_the_skin():
+    """mink's frames on the toy at the true constants: given the skins (1 cm off at the true pose), the bones' depth
+    outside (root mean square over the frames) falls to under a quarter of the frames' without them, and the
+    frames' whole cost (`_constants.Problem`'s turns and markers, plus the skin rows: `_skin.skin_cost` times each
+    point's depth) is lower there than at the frames fitted without the skin: the skin task moves the pose to the
+    joint optimum, never away from it."""
+    import numpy as np
+    import fit
+    from fit import _skin
+    from fit._constants import Problem
+    with tempfile.TemporaryDirectory() as folder:
+        fitting = toy_fitting(folder)
+        truth = truth_of(fitting)
+        turns, points, _ = posed_targets(fitting, truth, POSES[:-1])
+        skins = shin_skins(fitting, truth, POSES[:-1])
+        fitting.apply(truth)
+        held = fit.angles(fitting, turns, points, skins)
+        free = fit.angles(fitting, turns, points)
+        depths = [bone_depths(fitting.model, path, skins) for path in (held, free)]
+        inside, outside = (float(np.sqrt(np.mean(found ** 2))) for found in depths)
+        problems_at = [Problem(fitting, path, turns, points, truth, ()) for path in (held, free)]
+        costs = [float(np.sum(problem.residuals(problem.start()) ** 2))
+                 + _skin.skin_cost(found.shape[1]) ** 2 * float(np.sum(found ** 2))
+                 for problem, found in zip(problems_at, depths)]
+    problems = [] if inside < 0.25 * outside else [f"bones {1000 * inside:.2f} mm outside held, {1000 * outside:.2f} free"]
+    return problems + ([] if costs[0] < costs[1] else [f"the held frames' cost {costs[0]:.6f} over the free {costs[1]:.6f}"])
+
+
+def a_clips_first_frame_is_not_held_in_another_parts_skin():
+    """mink's frames on the toy whose skin also holds another part's (a box beside the shin bone where the standing
+    start puts it, DECOY_SHIFT off, as env1's seated thighs stood beside his hanging forearms): the knee still reaches
+    its bent target and the bone its own skin (within FOUND_MM), the first frame's skin rows starting from its fit
+    without them; from the standing start the skin pulled the bone into the other box and held it there."""
+    import mujoco
+    import numpy as np
+    import fit
+    from fit import _frames, _skin
+    with tempfile.TemporaryDirectory() as folder:
+        fitting = toy_fitting(folder)
+        truth = truth_of(fitting)
+        turns, points, angles = posed_targets(fitting, truth, POSES[2:3])
+        own = shin_skins(fitting, truth, POSES[2:3])
+        fitting.apply(truth)
+        model, data = fitting.model, mujoco.MjData(fitting.model)
+        data.qpos[:] = _frames.Frames(fitting).start(turns[0], points[0])
+        mujoco.mj_kinematics(model, data)
+        shin = model.body("shin_l").id
+        corners = np.array([[x, y, z] for x in (-DECOY_HALF, DECOY_HALF) for y in (-DECOY_HALF, DECOY_HALF)
+                            for z in (-0.37, -0.03)]) + [0.0, DECOY_SHIFT, 0.0]
+        decoy = corners @ data.xmat[shin].reshape(3, 3).T + data.xpos[shin]
+        both = _skin.PosedSkins(np.concatenate([own.verts[0], decoy])[None],
+                                np.concatenate([own.faces, np.array(CUBE_FACES) + len(corners)]))
+        held = fit.angles(fitting, turns, points, both)
+        depth = 1000 * float(np.sqrt(np.mean(bone_depths(model, held, own) ** 2)))
+    knee = abs(float(held[0, 8] - angles[0, 1]))
+    return [] if depth < FOUND_MM and knee < 0.01 else [
+        f"the bone {depth:.1f} mm outside its own skin, the knee {knee:.3f} rad off its target"]
+
+
 def pocket_head():
     """A head-weighted closed mesh: a 10 cm cube whose +x face holds a pocket 2 cm wide and 2 cm deep (a mouth), its
     faces outward; as a rig ({"points", "faces", "weights", "names"})."""
@@ -523,6 +658,81 @@ def the_heads_pockets_are_closed_for_the_inside_test():
     problems = [] if list(plain) == [True, False, True] else [f"the pocket mesh's sides as it is: {list(plain)}"]
     problems += [] if len(_skin.pockets(rig)) == 1 else [f"{len(_skin.pockets(rig))} pockets found, not 1"]
     return problems + ([] if list(closed) == [False, False, True] else [f"the envelope's sides: {list(closed)}"])
+
+
+def nearest_on_faces(points, verts, faces):
+    """Each point's distance to the nearest of every face (verts, faces), in float64 by brute force: per face the
+    closest point of its plane's projection clamped to its edges (the nearest of the inside projection and every
+    edge's clamped segment point)."""
+    import numpy as np
+    first, second, third = (verts[faces[:, corner]][None] for corner in range(3))
+    off = points[:, None] - first
+    normal = np.cross(second - first, third - first)
+    normal /= np.linalg.norm(normal, axis=2)[..., None]
+    flat = points[:, None] - np.einsum("pfi,pfi->pf", off, np.broadcast_to(normal, off.shape))[..., None] * normal
+    inside = np.ones(flat.shape[:2], dtype=bool)
+    for start, end in ((first, second), (second, third), (third, first)):
+        inside &= np.einsum("pfi,pfi->pf", np.cross(end - start, flat - start),
+                            np.broadcast_to(normal, flat.shape)) >= 0
+    best = np.where(inside, np.linalg.norm(points[:, None] - flat, axis=2), np.inf)
+    for start, end in ((first, second), (second, third), (third, first)):
+        along = np.clip(np.einsum("pfi,pfi->pf", points[:, None] - start, np.broadcast_to(end - start, flat.shape))
+                        / np.einsum("pfi,pfi->pf", end - start, end - start), 0.0, 1.0)
+        best = np.minimum(best, np.linalg.norm(points[:, None] - start - along[..., None] * (end - start), axis=2))
+    return best.min(axis=1)
+
+
+def the_depth_is_the_nearest_faces_where_the_query_flips():
+    """A point's depth off the skin (`SkinMeshes.apart`) is its distance to the nearest face in float64, though Warp's
+    float32 query picks one of near-tied faces (mean's sampled frames, 2026-11-01: a level 2 inside-joint column
+    2.95e-4 off its central difference where it flipped): on a 400-point sphere of 0.1 m standing 10 m out (float32's
+    step there 1e-6 m), 600 points 0.1 to 5 mm outside lie as deep as brute force says to 1e-9 m (the query's face
+    alone: 9 off, by up to 1.3e-6 m), and each offset's projector (`bends`: a face's n n^T, an edge's I - e e^T, a
+    corner's I) is its central difference over a 1e-7 m move to 1e-3 of the largest."""
+    import numpy as np
+    from scipy.spatial import ConvexHull
+    from fit import _skin
+    generator = np.random.default_rng(1)
+    unit = generator.normal(size=(400, 3))
+    unit /= np.linalg.norm(unit, axis=1)[:, None]
+    faces = ConvexHull(unit).simplices.copy()
+    outward = np.einsum("ij,ij->i", np.cross(unit[faces[:, 1]] - unit[faces[:, 0]], unit[faces[:, 2]] - unit[faces[:, 0]]),
+                        unit[faces].mean(axis=1)) > 0
+    faces[~outward] = faces[~outward][:, [0, 2, 1]]
+    verts = (0.1 * unit + [10.0, 0.0, 0.0]).astype(np.float32).astype(np.float64)
+    away = generator.normal(size=(600, 3))
+    away /= np.linalg.norm(away, axis=1)[:, None]
+    points = 0.1 * away * (1 + generator.uniform(0.001, 0.05, (600, 1))) + [10.0, 0.0, 0.0]
+    meshes = _skin.SkinMeshes(_skin.PosedSkins(verts[None], faces), "cpu")
+    offsets, bends = meshes.apart(points, np.zeros(600, np.int32))
+    gap = np.abs(np.linalg.norm(offsets, axis=1) - nearest_on_faces(points, verts, faces))
+    problems = [] if gap.max() < 1e-9 else [f"{int((gap >= 1e-9).sum())} depths off the nearest face's, by {gap.max():.2e}"]
+    move = 1e-7 * generator.normal(size=(600, 3))
+    moved = (meshes.apart(points + move, np.zeros(600, np.int32))[0]
+             - meshes.apart(points - move, np.zeros(600, np.int32))[0]) / 2
+    slope = np.abs(np.einsum("pij,pj->pi", bends, move) - moved).max() / np.abs(moved).max()
+    return problems + ([] if slope < 1e-3 else [f"the offsets' projectors {slope:.2e} off their central differences"])
+
+
+def a_skin_folding_into_itself_gives_no_rows():
+    """A posed skin folding into itself (a deep squat's; no skeleton can follow it) is left out of the skin rows: on
+    two 2 m cubes as one mesh, standing apart its `_skin.folded` share is 0 and it is kept, overlapping by half (half
+    of each cube's corners inside the other) it is not, `PosedSkins` carries which through indexing and joining, and a
+    point 1 m outside reads 1 m off the kept frame's skin (`SkinMeshes.apart`) and 0 off the folded one's."""
+    import numpy as np
+    from fit import _skin
+    corners = np.array([[x, y, z] for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)], dtype=float)
+    faces = np.array(CUBE_FACES + [[corner + 8 for corner in face] for face in CUBE_FACES], dtype=np.int32)
+    apart, folding = (np.concatenate([corners, corners + [shift, 0.0, 0.0]]) for shift in (5.0, 1.0))
+    shares = [_skin.folded(verts, faces) for verts in (apart, folding)]
+    problems = [] if shares[0] == 0.0 and shares[1] > 0.4 else [f"folded shares {shares}"]
+    posed = _skin.PosedSkins.joined([_skin.PosedSkins([verts], faces, [_skin.unfolded(verts, faces)])
+                                     for verts in (apart, folding)])
+    problems += [] if list(posed.kept) == [True, False] and list(posed[::-1].kept) == [False, True] else [
+        f"kept frames {list(posed.kept)}"]
+    offsets, _ = _skin.SkinMeshes(posed, "cpu").apart(np.array([[0.0, 2.0, 0.0]] * 2), np.array([0, 1]))
+    depths = np.linalg.norm(offsets, axis=1)
+    return problems + ([] if np.allclose(depths, [1.0, 0.0], atol=1e-6) else [f"depths off the frames {depths}"])
 
 
 def level_2_ends_settled():
@@ -580,7 +790,9 @@ CHECKS = (a_turn_is_judged_on_the_calibration_table_as_it_stands, a_bone_point_o
           the_place_goal_sums_to_the_marker_goal, the_solver_gives_back_the_angles_and_the_constants,
           every_recording_of_the_body_is_sampled, somas_targets_leave_the_solves_unchanged, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows,
           a_step_no_task_sees_ends_the_fit, level_2_ends_settled, a_step_the_cost_cannot_see_is_judged_by_its_gradient,
-          the_heads_pockets_are_closed_for_the_inside_test)
+          the_frames_hold_the_bones_inside_the_skin,
+          a_clips_first_frame_is_not_held_in_another_parts_skin, the_heads_pockets_are_closed_for_the_inside_test, a_skin_folding_into_itself_gives_no_rows,
+          the_depth_is_the_nearest_faces_where_the_query_flips)
 
 
 def in_newton():

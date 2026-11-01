@@ -104,7 +104,8 @@ def following(model, path, worlds, segments, scales, rig):
             turns[group].append(_angle(TO_OWN @ data.xmat[body].reshape(3, 3) @ calibration.T, wanted))
             frozen[group].append(_angle(TO_OWN @ data.xmat[body].reshape(3, 3) @ main.T, wanted))
             limited_turns[group].append(_at_limit(model, qpos, limits[group]))
-    return {"bones outside skin %": bones_outside(model, path, worlds, segments, rig),
+    shares, folded = bones_outside(model, path, worlds, segments, rig)
+    return {"bones outside skin %": shares, "skin folded frames": folded,
             "turns deg, main's frozen table": _summary(sum(frozen.values(), []), sum(limited_turns.values(), [])),
             "per group deg, main's frozen table": {group: [round(float(np.median(found)), 2),
                                                            round(float(np.max(found)), 2)]

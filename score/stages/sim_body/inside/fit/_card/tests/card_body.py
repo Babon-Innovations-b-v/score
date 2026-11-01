@@ -98,6 +98,33 @@ def the_skins_posed_once_follow_each_clip():
                                                                    [f"{len(card.POSED)} posed clips, not 2"])
 
 
+def a_folded_frame_is_measured_apart_as_on_the_cpu():
+    """With the second skin frame's skin folding (`unfolded` False for it, in the card's and the CPU's measure alike),
+    the card's measures equal the CPU's, both report one folded frame apart, and the shares are the first frame's
+    alone (`fit._skin.FOLD_MOST`: a folding skin's frame is left out of the share)."""
+    from evaluation import _measure as cpu
+    from fit._card import _measure as card
+
+    def second_folds():
+        calls = []
+        return lambda verts, faces: calls.append(1) or len(calls) != 2
+
+    kept = cpu.unfolded, card.unfolded
+    cpu.unfolded, card.unfolded = second_folds(), second_folds()
+    card.KEPT.clear()
+    try:
+        played = clip(seed=7)
+        problems = _measured_against_cpu(played)
+        fast = card.measures(*played)
+    finally:
+        cpu.unfolded, card.unfolded = kept
+        card.KEPT.clear()
+    first = card.measures(played[0], played[1][:1], played[2], played[3], played[4][:1], played[5])
+    problems += [] if fast["skin folded frames"]["frames"] == 1 else [f"folded {fast['skin folded frames']}"]
+    return problems + ([] if fast["bones outside skin %"] == first["bones outside skin %"] else [
+        f"shares {fast['bones outside skin %']} are not the first frame's {first['bones outside skin %']}"])
+
+
 def _measured_against_cpu(played):
     import numpy as np
     from evaluation import _measure as cpu

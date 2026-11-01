@@ -150,6 +150,17 @@ before that.
   CPU prototype's float64 maths, the objectives on a six-link chain (`tests/card_chain.py`), the loop and the seeds on
   the toy clip (`tests/card_toy.py`: the MJCF, mink's answer set up as `_frames.Frames`, the card's setup, the
   errors), the measures on a toy body (`tests/card_body.py`, its check there too), level 2's two checks in `tests/card_level2.py`; it needs Newton's Python and a CUDA card, else prints `skipped`. About 20 s.
+- `_skin_step.py` (`BoneSkin`, `SkinRows`, 2026-11-01): level 3's bones-in-skin rows (`../_skin_rows`' three offset
+  rows a kept bone vertex, `../CLAUDE.md`) put into `_step.damped_step`'s normal equations as `extra` (J^T J, J^T r and
+  their squared sum in the reduced dofs), never stored as rows: per row and body its points' M = c^2 sum A^T P A and
+  m = c^2 sum A^T o (`_bodies`, one thread a row and body, its points in order, no atomics), each (body, reduced
+  column) pair's world motion from Newton's joint_S_s and the couplings' slopes (`_columns`), then sum V^T M V and
+  V^T m (`_normal`). A distinct row skin is one Warp mesh (~3.6 MB on the card: 600 measured 2.2 GB), so with skins a
+  chunk is at most SKIN_CHUNK_ROWS rows; rows of several sets on one frame share it. `_solve` judges each step with
+  the skin (`_judged`: a trial pose whose float64 cost is not under the kept pose's is turned back and the row's
+  added damping raised, `_step`'s `lam`), the stop rule reading kept poses only, as `../_frames.judged_solve`.
+  The toy (`tests/card_skin.py`): card equals mink's `SkinTask` to 0.005 deg and 0.003 mm on every frame at
+  `TOY_GOAL` (at the real 1e3 on 8 points, 0.018 deg in a flat valley of the same cost).
 - `_level2_wide.py` (`Wide`, 2026-10-31; level 1's card process sat at ~1.3 cores with the card near 0 %, level 2's
   per-frame host loops its largest share): a `../_constants.Problem` whose `residuals` and `exact` (its Jacobian)
   are float64 with every frame's kinematics on the card: each frame's pose made for all frames in one array pass on

@@ -47,6 +47,16 @@ Breaks (each applied once, seen red, reverted):
   Jacobian is no longer the log's exact one.
 - (2026-10-29) solved_in_chunks' `values[start:stop]` made `values[:stop - start]`: every chunk solves the first rows.
 - (2026-10-29) _measure.joint_table's `* scales[bone]` dropped: the joints miss by the unscaled offset.
+- (2026-11-01) _skin_step._bodies' `square[3 + first, 3 + second] -= ...far...` made `+=`: 10 rows do not stop in 300
+  steps (NotConverged).
+- (2026-11-01) _step's `pulled += extra_g[row, first]` made `0.0 * extra_g`: the card's angles 3.15 deg and sites
+  8.86 mm off mink's with the skin (the_card_holds_the_bones_inside_as_mink red).
+- (2026-11-01) _skin_step._points' `if kept[row] != 0:` made `... or True`: the folded toy clip's angles 3.24 deg off
+  the solve with no skin pull (a_folded_frame_has_no_skin_rows_on_the_card red).
+- (2026-11-01) _measure.measures' `skin_shares(marks[skins.kept], ...)` made `skin_shares(marks, ...)`: the card counts
+  the folded frame in its shares, 77.2 against the CPU's 74.6 % (a_folded_frame_is_measured_apart_as_on_the_cpu red).
+- (2026-11-01) evaluation._measure's `if not unfolded(skin, rig["faces"]):` made `if False:`: the CPU counts the
+  folded frame, no folded frame reported (the same check red).
 - (2026-10-29) _measure.skin_shares' "hand" merge dropped: the hand's parts are scored apart, the keys differ.
 - (2026-10-30) _per_row._per_row_fk's `set_places[row_set[problem_idx]]` made `set_places[0]`: every row takes
   the first set's joint places, sets 1 and 2 off theirs alone by 0.05-0.08 m (card_rows: per-row FK, rows = set x
@@ -103,11 +113,13 @@ if os.environ.get(IN_ENV):  # the helpers import MuJoCo and Warp, which only New
     from card_chain import (LINKS, OBJECTIVE_ROWS, chain_model, log_rate, objective_rows,  # noqa: E402
                             residuals_and_jacobian)
     from card_toy import CLIP_FRAMES, TOY, mink_frames, toy_card, toy_clip, toy_errors  # noqa: E402
-    from card_body import the_measures_equal_the_cpu_measure, the_skins_posed_once_follow_each_clip  # noqa: E402
+    from card_body import (a_folded_frame_is_measured_apart_as_on_the_cpu, the_measures_equal_the_cpu_measure,  # noqa: E402
+                           the_skins_posed_once_follow_each_clip)
     from card_level2 import (the_batched_inverses_equal_each_row, the_wide_level2_equals_the_hosts,  # noqa: E402
                              the_level2_jacobian_equals_its_differences,
                              the_level2_solve_with_the_exact_jacobian_equals_differences)
     from card_across import the_sets_solved_together_equal_each_set_alone  # noqa: E402
+    from card_skin import a_folded_frame_has_no_skin_rows_on_the_card, the_card_holds_the_bones_inside_as_mink  # noqa: E402,E501
     from card_inside import (a_kept_build_moves_to_the_fittings_moves, the_body_with_several_joints_moves_as_one,  # noqa: E402
                              the_set_places_equal_a_build_per_set)
     from card_sets import the_sampled_path_across_sets_equals_each_set_chained, the_sets_batch_equals_each_clip_alone  # noqa: E402
@@ -284,7 +296,9 @@ def checks():
             the_measures_equal_the_cpu_measure, the_skins_posed_once_follow_each_clip, the_step_equals_the_prototype, the_projection_equals_the_prototype,
             the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame,
             the_next_iteration_from_its_seeds_equals_mink, the_body_with_several_joints_moves_as_one,
-            the_set_places_equal_a_build_per_set, a_kept_build_moves_to_the_fittings_moves)
+            the_set_places_equal_a_build_per_set, a_kept_build_moves_to_the_fittings_moves,
+            the_card_holds_the_bones_inside_as_mink, a_folded_frame_has_no_skin_rows_on_the_card,
+            a_folded_frame_is_measured_apart_as_on_the_cpu)
 
 
 def in_newton():

@@ -16,27 +16,38 @@ TOY = """<mujoco><compiler angle="radian"/><worldbody><body name="root"><freejoi
 CLIP_FRAMES, PLACE_SITES, TURN_COST, PLACE_COST = 10, ("p0", "p1", "p2", "p3"), 0.7, 3.0
 
 
+def toy_poses(mjm):
+    """The toy clip's true poses (qpos per frame): one hinge driven past its range, the follower on its coupling."""
+    import numpy as np
+    found = []
+    for moment in np.linspace(0.0, 1.0, CLIP_FRAMES):
+        qpos = mjm.qpos0.copy()
+        qpos[:3] = (0.1 * moment, 0.0, 0.05 * moment)
+        qpos[7:10] = (0.8 * np.sin(2.0 * moment), 1.5 * moment, -0.6 * moment)
+        qpos[10] = 0.5 * qpos[8] + 0.2 * qpos[8] ** 2
+        found.append(qpos)
+    return found
+
+
 def toy_clip(mjm):
-    """The toy's targets: a path of poses (one hinge driven past its range) through its sites, the places 2 mm off."""
+    """The toy's targets: a path of poses (`toy_poses`) through its sites, the places 2 mm off."""
     import mujoco
     import numpy as np
     data, generator = mujoco.MjData(mjm), np.random.default_rng(5)
-    turns, places, path = [], [], np.linspace(0.0, 1.0, CLIP_FRAMES)
-    for moment in path:
-        data.qpos[:] = mjm.qpos0
-        data.qpos[:3] = (0.1 * moment, 0.0, 0.05 * moment)
-        data.qpos[7:10] = (0.8 * np.sin(2.0 * moment), 1.5 * moment, -0.6 * moment)
-        data.qpos[10] = 0.5 * data.qpos[8] + 0.2 * data.qpos[8] ** 2
+    turns, places = [], []
+    for qpos in toy_poses(mjm):
+        data.qpos[:] = qpos
         mujoco.mj_kinematics(mjm, data)
         turns.append(data.site("t").xmat.reshape(3, 3).copy())
         places.append([data.site(name).xpos + generator.normal(0.0, 0.002, 3) for name in PLACE_SITES])
     return np.array(turns), np.array(places)
 
 
-def mink_frames(mjm, turns, places):
+def mink_frames(mjm, turns, places, skins=None):
     """mink (../_frames.solved) frame by frame, each frame from the one before, its targets set as _frames.Frames sets
-    them (a place's target turned as its site turns now, so the error is the plain place error; limits at gain 1):
-    the reference angles."""
+    them (a place's target turned as its site turns now, so the error is the plain place error; limits at gain 1), and
+    with `skins` (`fit._skin.PosedSkins`, a frame each) the bones held inside them by `_frames.SkinTask`: the
+    reference angles."""
     import mink
     import numpy as np
     from fit import _frames
@@ -50,12 +61,14 @@ def mink_frames(mjm, turns, places):
         for mark, place in zip(marks, places[frame], strict=True):
             now = configuration.get_transform_frame_to_world(mark.frame_name, "site").rotation()
             mark.set_target(mink.SE3.from_rotation_and_translation(now, place))
-    found = []
+    found, skin = [], None if skins is None else _frames.SkinTask(mjm)
     for frame in range(len(turns)):
         turn.set_target(mink.SE3.from_rotation(mink.SO3.from_matrix(turns[frame])))
         marked(frame)
-        found.append(_frames.solved(configuration, [turn, *marks], [mink.ConfigurationLimit(mjm, gain=1.0)],
-                                    constraints, lambda: marked(frame)))
+        if skin is not None:
+            skin.set_skin(skins[frame:frame + 1])
+        found.append(_frames.solved(configuration, [turn, *marks, *([skin] if skin else [])],
+                                    [mink.ConfigurationLimit(mjm, gain=1.0)], constraints, lambda: marked(frame)))
     return np.array(found)
 
 

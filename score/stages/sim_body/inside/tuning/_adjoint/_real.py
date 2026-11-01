@@ -14,6 +14,7 @@ from evaluation import _card_batch, _case  # noqa: E402
 from fit._card import _clip, _seeds  # noqa: E402
 from _bodies import copied_couplings  # noqa: E402
 from fit._card._sets import Sets  # noqa: E402
+from fit._skin import PosedSkins  # noqa: E402
 
 
 def set_up(table, weights, root, cases, saved, found=None):
@@ -62,20 +63,23 @@ def skin_parts(clip, rig, segments, worlds):
     """`TapedMeasures`' skins on `per_frame_model`: {scored region: (bone points per skin frame [[(link, local point in
     the link frame)]], SOMA's posed skin per skin frame [(verts, faces)])}, as `fit/_card/_measure` measures them (every
     EVERY-th frame of `worlds` taken as one clip, `fit/_skin.bone_meshes`' kept vertices, the hand's parts as "hand",
-    `posed_skins`' points), each kept vertex moved off its geom into its body's frame, the link shifted copy by copy."""
+    `posed_skins`' points, a frame whose skin folds left out: `kept_skins`), each kept vertex moved off its geom into
+    its body's frame, the link shifted copy by copy."""
     from scipy.spatial.transform import Rotation
-    from fit._card._measure import posed_skins, scored_labels
+    from fit._card._measure import kept_skins, posed_skins, scored_labels
     from fit._skin import EVERY, bone_meshes, envelope
-    mjm, bodies, frames = clip.mjm, clip.model.body_count, np.arange(0, len(worlds), EVERY)
+    mjm, bodies, every = clip.mjm, clip.model.body_count, np.arange(0, len(worlds), EVERY)
+    kept = kept_skins(rig, segments, worlds, every)
+    frames = every[kept]
     links, locals_, bones = [], [], []
-    for geom, kept, label in bone_meshes(mjm):
+    for geom, vertices, label in bone_meshes(mjm):
         start = mjm.mesh_vertadr[mjm.geom_dataid[geom]]
         turn = Rotation.from_quat(mjm.geom_quat[geom], scalar_first=True).as_matrix()
-        locals_.append(mjm.mesh_vert[start + kept] @ turn.T + mjm.geom_pos[geom])
-        links += [clip.body[label]] * len(kept)
-        bones += [label] * len(kept)
+        locals_.append(mjm.mesh_vert[start + vertices] @ turn.T + mjm.geom_pos[geom])
+        links += [clip.body[label]] * len(vertices)
+        bones += [label] * len(vertices)
     links, locals_, labels = np.array(links), np.concatenate(locals_), scored_labels(bones)
-    skins = [(verts, envelope(rig)) for verts in posed_skins(rig, segments, worlds, frames)]
+    skins = [(verts, envelope(rig)) for verts, keep in zip(posed_skins(rig, segments, worlds, every), kept) if keep]
     return {name: ([[(link + frame * bodies, local) for link, local in zip(links[labels == name], locals_[labels == name])]
                     for frame in frames], skins) for name in sorted(set(labels))}
 
@@ -97,12 +101,13 @@ def turn_groups(clip, segments, worlds):
 def solved_rows(clip, targets, seeds):
     """Every clip's level 3 rows (frames x nq, Newton's order, clip after clip in `targets`' order) and steps from
     one `Sets([clip]).angles` batch; `seeds` {case: qpos [frames, nq], MuJoCo's layout}."""
-    for case, (turns, _) in targets.items():
+    for case, (turns, _, _) in targets.items():
         if len(seeds[case]) != len(turns):
             raise ValueError(f"{case}: {len(seeds[case])} seeds for {len(turns)} frames")
-    ((qpos, steps),) = Sets([clip]).angles([np.concatenate([turns for turns, _ in targets.values()])],
-                                           [np.concatenate([points for _, points in targets.values()])],
-                                           [np.concatenate([seeds[case] for case in targets])])
+    ((qpos, steps),) = Sets([clip]).angles([np.concatenate([turns for turns, _, _ in targets.values()])],
+                                           [np.concatenate([points for _, points, _ in targets.values()])],
+                                           [np.concatenate([seeds[case] for case in targets])],
+                                           [PosedSkins.joined([skins for _, _, skins in targets.values()])])
     return _seeds.newton_order(qpos), steps
 
 
@@ -145,14 +150,15 @@ def level2_constants(fitting, model, frames):
 
 def taped_sites(clip, model, rows, targets, constants=None, fitting=None):
     """`TapedSites` on `per_frame_model`'s `model` holding level 3's whole cost as the card's `Clip.optimizer_for`
-    lays it: each frame's marker sites (link, site_pos, its place cost, its target point) and turn rows (link,
-    site_quat x y z w, the turn cost, its target turn), copy by copy, with `frame_couplings` at the solved `rows`;
+    lays it: each frame's marker sites (link, site_pos, its place cost, its target point), turn rows (link,
+    site_quat x y z w, the turn cost, its target turn) and bones-in-skin rows (`skin_rows`), copy by copy, with
+    `frame_couplings` at the solved `rows`;
     `constants` (`level2_constants`) puts level 2's moves after the pose; `fitting` (the clip's `Fitting`) tapes its
     weights too (`trusted_outer`), the outer the offsets then the trusts and globals."""
     from scipy.spatial.transform import Rotation
     from _taped import TapedSites
-    turns = np.concatenate([turned for turned, _ in targets.values()])
-    points = np.concatenate([placed for _, placed in targets.values()])
+    turns = np.concatenate([turned for turned, _, _ in targets.values()])
+    points = np.concatenate([placed for _, placed, _ in targets.values()])
     frames, bodies = len(rows), clip.model.body_count
     shift = np.repeat(np.arange(frames) * bodies, len(clip.place_sites))
     links = np.tile([clip.link(site) for site in clip.place_sites], frames) + shift
@@ -166,8 +172,25 @@ def taped_sites(clip, model, rows, targets, constants=None, fitting=None):
     sites = TapedSites(model, links, weights, points.reshape(-1, 3),
                        turns=(turn_links, np.full(len(turn_links), clip.turn_cost), wanted, turn_offsets),
                        couplings=frame_couplings(clip, rows), constants=constants, trusted=fitting is not None,
-                       ends=ends, copies=frames)
+                       ends=ends, copies=frames, skin=skin_rows(clip, targets, frames))
     return sites, np.concatenate([offsets, tail])
+
+
+def skin_rows(clip, targets, frames):
+    """`TapedSites`' `skin=` on `per_frame_model`: the clip's bone points copy by copy (`fit/_card/_skin_step.BoneSkin`,
+    its links shifted copy by copy), each copy's frame's posed skin from `targets` (clip after clip), their cost; None
+    without bone meshes."""
+    bones = clip.bones()
+    if bones is None:
+        return None
+    skins = PosedSkins.joined([skins for _, _, skins in targets.values()])
+    if len(skins) != frames:
+        raise ValueError(f"{len(skins)} posed skins for {frames} frames")
+    links = np.repeat(bones.links, np.diff(bones.starts))
+    copies = np.repeat(np.arange(frames), bones.count)
+    held = skins.kept[copies]  # a copy whose skin folds has no rows (`fit._skin.unfolded`)
+    return ((np.tile(links, frames) + copies * clip.model.body_count)[held], np.tile(bones.places, (frames, 1))[held],
+            [(verts, skins.faces) for verts in skins.verts], copies[held], bones.cost)
 
 
 def trusted_outer(fitting):

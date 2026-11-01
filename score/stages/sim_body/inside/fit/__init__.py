@@ -6,7 +6,8 @@ markers (SCORE's landmark set on the clip's own skin, each weighed by its trust,
 group's start, `group_ends`), weighed as OpenSim's IK weighs its goals; SOMA's joints are also the measure
 (`following`), within the joints' ranges and with the model's couplings held.
 
-- `targets`: the clip's targets in MuJoCo's frame: each group's segment turn, each solver landmark skinned.
+- `targets`: the clip's targets in MuJoCo's frame: each group's segment turn, each solver landmark skinned, SOMA's
+  skin posed on every frame (`_skin.PosedSkins`: level 3 holds the bones inside it, #70 2026-11-01).
 - `constants`: on SAMPLE frames spread over all the body's recordings (Cotton et al. 2026, arXiv:2608.29928, the
   idea only): the whole body placed and posed by mink at the sizing's lengths (`_frames`), then the poses with the
   markers' moves and the joints inside the groups, scipy's bounded `least_squares` over those constants and the
@@ -26,6 +27,7 @@ from fit._constants import staged
 from fit._follow import following, riding
 from fit._frames import LM_DAMPING, Frames, NotConverged, solved
 from fit._model import Fitting, end_site, filed, followers_free
+from fit._skin import posed_skins
 from landmarks import HELD, LANDMARKS, MIDDLE_CENTRES, marker, myo_parts, posed, soma_joints, solver_marks, trust
 from landmarks._table import CENTRES
 from model import TO_OWN
@@ -81,12 +83,14 @@ def group_ends(segments):
 
 def targets(rig, segments, worlds, held):
     """The clip's targets in MuJoCo's frame: (each frame's turns of the `held` groups, frames x groups x 3 x 3; each
-    frame's solver landmarks on the clip's skin, then SOMA's rig joint (a middle's two's mean) at each `group_ends`, frames x points x 3)."""
+    frame's solver landmarks on the clip's skin, then SOMA's rig joint (a middle's two's mean) at each `group_ends`, frames x points x 3;
+    SOMA's skin posed on each frame, `_skin.PosedSkins`)."""
     worlds = np.asarray(worlds, dtype=float)
     turns = np.einsum("ij,fgjk->fgik", TO_OWN.T, worlds[:, [segments.index(group) for group in held], :3, :3])
     joints = np.stack([worlds[:, [segments.index(joint) for joint in soma_joints(soma_end)]][..., :3, 3].mean(axis=1)
                        for soma_end, _ in group_ends(segments)], axis=1)
-    return turns, np.concatenate([posed(rig, segments, worlds), joints], axis=1) @ TO_OWN
+    return (turns, np.concatenate([posed(rig, segments, worlds), joints], axis=1) @ TO_OWN,
+            posed_skins(rig, segments, worlds))
 
 
 def fitting(path, scales, held, segments, moves=None):
@@ -135,12 +139,13 @@ def spread(count, most=SAMPLE):
 
 
 def sampled_targets(recordings):
-    """The frames the constants are fitted on, from every recording of the body ([(turns, points)], each as `targets`
-    gives them): SAMPLE spread over them by length, at least two a recording. Returns (turns, points, lengths), the
+    """The frames the constants are fitted on, from every recording of the body ([(turns, points, ...)], each as
+    `targets` gives them; level 2 holds no skin rows, so a posed skin is not read): SAMPLE spread over them by length,
+    at least two a recording. Returns (turns, points, lengths), the
     recordings' sampled frames end to end and how many each recording gave."""
-    total = sum(len(turns) for turns, _ in recordings)
+    total = sum(len(turns) for turns, *_ in recordings)
     picked = [(turns, points, spread(len(turns), max(2, round(SAMPLE * len(turns) / total))))
-              for turns, points in recordings]
+              for turns, points, *_ in recordings]
     return (np.concatenate([turns[sample] for turns, _, sample in picked]),
             np.concatenate([points[sample] for _, points, sample in picked]),
             [len(sample) for _, _, sample in picked])
@@ -204,10 +209,10 @@ def constants_on(fit, turns, points, path):
             "followed": list(fit.groups)}
 
 
-def angles(fit, turns, points):
+def angles(fit, turns, points, skins=None):
     """Every frame's joint angles on `fit` (frames x nq of its model; MuJoCo's own compile): the pose alone, the
-    person's constants laid on `fit` held fixed."""
-    return Frames(fit).fitted(turns, points)
+    person's constants laid on `fit` held fixed, the bones held inside `skins` (each frame's posed skin) when given."""
+    return Frames(fit).fitted(turns, points, skins=skins)
 
 
 def constants_record(found):
