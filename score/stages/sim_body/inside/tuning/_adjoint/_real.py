@@ -10,6 +10,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
+import evaluation  # noqa: E402
 from evaluation import _card_batch, _case  # noqa: E402
 from fit._card import _clip, _seeds  # noqa: E402
 from _bodies import copied_couplings, pose_of  # noqa: E402
@@ -100,14 +101,16 @@ def turn_groups(clip, segments, worlds):
 
 def solved_rows(clip, targets, seeds):
     """Every clip's level 3 rows (frames x nq, Newton's order, clip after clip in `targets`' order) and steps from
-    one `Sets([clip]).angles` batch; `seeds` {case: qpos [frames, nq], MuJoCo's layout}."""
+    one `Sets([clip]).angles` batch, the skin rows as `evaluation.SKIN_ROWS`; `seeds` {case: qpos [frames, nq],
+    MuJoCo's layout}."""
     for case, (turns, _, _) in targets.items():
         if len(seeds[case]) != len(turns):
             raise ValueError(f"{case}: {len(seeds[case])} seeds for {len(turns)} frames")
     ((qpos, steps),) = Sets([clip]).angles([np.concatenate([turns for turns, _, _ in targets.values()])],
                                            [np.concatenate([points for _, points, _ in targets.values()])],
                                            [np.concatenate([seeds[case] for case in targets])],
-                                           [PosedSkins.joined([skins for _, _, skins in targets.values()])])
+                                           [PosedSkins.joined([skins for _, _, skins in targets.values()])]
+                                           if evaluation.SKIN_ROWS else None)
     return _seeds.newton_order(qpos), steps
 
 
@@ -151,7 +154,8 @@ def level2_constants(fitting, model, frames):
 def taped_sites(clip, model, rows, targets, constants=None, fitting=None):
     """`TapedSites` on `per_frame_model`'s `model` holding level 3's whole cost as the card's `Clip.optimizer_for`
     lays it: each frame's marker sites (link, site_pos, its place cost, its target point), turn rows (link,
-    site_quat x y z w, the turn cost, its target turn) and bones-in-skin rows (`skin_rows`), copy by copy, with
+    site_quat x y z w, the turn cost, its target turn) and, with `evaluation.SKIN_ROWS`, bones-in-skin rows
+    (`skin_rows`), copy by copy, with
     `frame_couplings` at the solved `rows`, the skin's closest features held at them (`TapedSites.hold_skin`);
     `constants` (`level2_constants`) puts level 2's moves after the pose; `fitting` (the clip's `Fitting`) tapes its
     weights too (`trusted_outer`), the outer the offsets then the trusts and globals."""
@@ -172,7 +176,8 @@ def taped_sites(clip, model, rows, targets, constants=None, fitting=None):
     sites = TapedSites(model, links, weights, points.reshape(-1, 3),
                        turns=(turn_links, np.full(len(turn_links), clip.turn_cost), wanted, turn_offsets),
                        couplings=frame_couplings(clip, rows), constants=constants, trusted=fitting is not None,
-                       ends=ends, copies=frames, skin=skin_rows(clip, targets, frames))
+                       ends=ends, copies=frames,
+                       skin=skin_rows(clip, targets, frames) if evaluation.SKIN_ROWS else None)
     outer = np.concatenate([offsets, tail])
     pose = np.asarray(pose_of(frame_couplings(clip, rows), rows), dtype=np.float64)
     sites.hold_skin(np.concatenate([pose, np.zeros(0 if sites.constants is None else sites.constants.size)]), outer)

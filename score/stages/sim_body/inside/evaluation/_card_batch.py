@@ -102,14 +102,15 @@ def recorded_targets(clips, targets):
 
 def batched_angles(clip, clips, seeds, targets):
     """{case: angles} for every clip of a body in one `Clip.angles` call, rows clip after clip (`targets`:
-    `clip_targets`)."""
+    `clip_targets`), the skin rows as `evaluation.SKIN_ROWS`."""
     for case, (turns, _, _) in targets.items():
         if len(seeds[case]) != len(turns):
             raise ValueError(f"{case}: {len(seeds[case])} seeds for {len(turns)} frames")
     found, _ = clip.angles(np.concatenate([turns for turns, _, _ in targets.values()]),
                            np.concatenate([points for _, points, _ in targets.values()]),
                            np.concatenate([seeds[case] for case in clips]),
-                           PosedSkins.joined([skins for _, _, skins in targets.values()]))
+                           PosedSkins.joined([skins for _, _, skins in targets.values()]) if evaluation.SKIN_ROWS
+                           else None)
     ends = np.cumsum([len(seeds[case]) for case in clips])
     return {case: found[end - len(seeds[case]):end].astype(float) for case, end in zip(clips, ends)}
 
