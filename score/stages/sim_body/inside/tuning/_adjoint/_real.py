@@ -20,7 +20,7 @@ def set_up(table, weights, root, cases, saved, found=None):
     """One body's `Clip`, its `Fitting`, its clips' targets ({case: (turns, points)}) and the person's file for the set whose table.json,
     weights.json and rest.json are `table`, `weights` and `root`'s (`cases` {case: job path}, one body); `saved`
     (`_card_batch.Saved`) puts the module state back first, so a body never lays on top of another. `found`: the
-    body's constants when solved already (`body_constants`, from every clip of the body), else solved from `cases`'."""
+    body's constants when solved already (`_check_columns.body_level2`, from every clip of the body), else solved from `cases`'."""
     saved.restore()
     recordings = _case.prepared(table, weights, root, cases)
     clips, rig, path, targets = _card_batch.laid_clips(root, cases, recordings)
@@ -28,13 +28,6 @@ def set_up(table, weights, root, cases, saved, found=None):
     _, _, fitting = _card_batch.cached_set_up(job, person, rig, worlds, path,
                                              _card_batch.recorded_targets(clips, targets), found)
     return _clip.for_fitting(fitting, path), fitting, targets, path
-
-
-def body_constants(table, weights, root, cases, saved):
-    """The body's constants (`fit.constants`, as `set_up` solves them) from every clip in `cases` (one body), its
-    person's file under `root`: level 2 solved once from all the body's clips, as the evaluations solve it."""
-    from fit import constants
-    return constants(*_card_batch.body_unfitted(table, weights, root, cases, saved))
 
 
 def soma_of(table, weights, root, cases, saved):
@@ -63,22 +56,6 @@ def joint_parts(clip, scales, segments, worlds):
         joints[segment] = ([[(link + frame * bodies, local, share) for link, local, share in parts]
                             for frame in range(len(worlds))], worlds[:, segments.index(segment), :3, 3])
     return joints
-
-
-def centre_columns(segments, frames, entries, scales):
-    """d (each `joint_parts` part's local point) / d level 1's entries (parts, 3, entries), parts in `TapedMeasures`'
-    order (sorted segments, frames, parts): a "centre" entry moves its CENTRES point by LINK_UNIT along its axis in
-    the source model, scaled by its bone's scale as `joint_parts` scales it (the measure's direct partial)."""
-    from evaluation import _measure as cpu
-    from tuning import LINK_UNIT
-    names = [name for segment in sorted(segment for segment in cpu.JOINTS if segment in segments) for _ in range(frames)
-             for name in cpu.MIDDLE.get(cpu.JOINTS[segment], (cpu.JOINTS[segment],))]
-    found = np.zeros((len(names), 3, len(entries)))
-    for column, (pool, kind, axis, _) in enumerate(entries):
-        for part in [part for part, name in enumerate(names) if kind == "centre" and name == pool]:
-            scale = np.broadcast_to(np.asarray(scales[cpu.CENTRES[pool][0]], dtype=float), 3)
-            found[part, axis, column] = LINK_UNIT * scale[axis]
-    return found
 
 
 def skin_parts(clip, rig, segments, worlds):

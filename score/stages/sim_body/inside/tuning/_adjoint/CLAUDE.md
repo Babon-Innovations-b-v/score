@@ -7,6 +7,17 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   (the card study measured Gauss-Newton alone 22.4 % off, the full one 0.19 % from a re-solve).
 - H is read block-arrow: one pose coordinate of every frame stepped together, then each constant alone
   (2 x (pose size + constants) gradients, not 2 x inner size); solved by the Schur step over the constants.
+- **Level 1's rows are the bones inside the skin (2026-11-01, the owner's aim)**: `case_rows(skins, frames=)` is each
+  region's depth outside over `SKIN_SCALE` (`scaled_rows`, `tuning.case_residuals`' scale), no turn or joint rows;
+  `TapedMeasures` tapes only the skins (joints and turns keep their values, rows None). `_check_columns.py` reads a
+  case's rows off `TapedMeasures.region_rows`: ONE backward pass a region, seeded with its root mean square's own
+  gradient over the depths (`_Skins.seed`: each point's `point_weights` row summed onto its link frame), a
+  vector-Jacobian product in place of a pass a link frame entry (a frame's ~600 passes, each the whole tape run back).
+  The toy test holds them equal to the per-entry `case_rows` to 1e-4 (red with the seed's 1000 dropped); on mean's 7
+  clips at the l1g timing point the blocks within 0.13 % of the per-entry ones (float32; night/l1g_work/vjp), its
+  taping 2.8 to 0.07 s a case alone (59 to 103 s a body of 7 clips beside nine others before). R_theta is zero: no level 1
+  entry moves a skin (level 1 lays out no centres). Level 2 is solved once a body (`body_level2`, kept for
+  `level2_at_base`; it was solved twice, 21 to 29 s a body).
 - `rowed_jacobian` (2026-10-30) is `implicit_jacobian` with R_z and R_theta given (taped rows) in place of central
   differences of the residuals, the shared H^-1 dg/dtheta in `inner_motion`; on the toy, hand-written rows equal
   differences of the re-solved fit. `chained_jacobian` still differences its residuals (not yet switched to rows).

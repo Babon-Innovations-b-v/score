@@ -5,12 +5,12 @@ MyoFullBody (its offset in its body's frame off the model's own: a left and righ
 end's on the mid-plane, `centre_members`; 2026-11-01, the sides were poorly told apart: one knee on its bound, the
 stage's own tests ask mirror symmetry within 2 mm and no sideways turn of a middle group), and the two global weights
 (the markers' goal against the turns', a group end's weight); a left and a right landmark share their unknowns, the
-right mirrored (`paired`). The residuals (`case_residuals`) are what following SOMA means, from levels 2 and 3 run on
-each tuning case: bones outside SOMA's skin by region, each group's rotation error on the calibration table read
-again from the evaluation's own centres (the table the stage builds its follows targets from; 2026-11-01: on the
-frozen table level 1 never saw the moved hips turn Spine1's calibration 6 degrees and its best point worsened follows),
-each joint's error beside them (`JOINT_SHARE`, since SOMA's group ends are fit targets); never a landmark distance the
-solver pulls on. A prior (`prior`) pulls each link toward its anatomical start and each centre toward the model's own. scipy's least_squares (trf) runs it
+right mirrored (`paired`). The residuals (`case_residuals`) are the bones inside the person's skin, from levels 2 and 3 run on
+each tuning case: each region's bones' depth outside SOMA's skin, whose true value is 0 (owner, 2026-11-01: "bones need
+to be inside the skin, so we also know it must be able to get down to about 0"). Each group's turn error is a check, not
+a target: each SOMA segment drives one bone group, so it should be about 0 by construction, and what is not is a fault
+to find, never tuned; joint centre error is reported only (owner, 2026-11-01: "why should joint centres be a target at
+all? we know at ultra accuracy they will be wrong"); never a landmark distance the solver pulls on. A prior (`prior`) pulls each link toward its anatomical start and each centre toward the model's own. scipy's least_squares (trf) runs it
 with finite differences of ABSOLUTE steps (`_differences`, STEP of each unknown's units) over a sparse pattern's column
 groups (`sparsity`: a landmark reaches its own group and the groups next to it, a global weight everything), every
 evaluation checkpointed (`checkpointed`) and the run stopped when the objective
@@ -34,9 +34,8 @@ END_REACH = 0.040  # metres: no group end's centre moves further than this from 
 PRIOR = 0.010  # metres: the anatomical start's spread (the prior's residual is the offset over it)
 STEP = 0.4  # unknown's units: the ABSOLUTE finite-difference step (2 mm of link or centre, 0.1 of log weight)
 WEIGHT_REACH = 3.0  # unknown's units of log either way a trust or global weight may move (e^0.75: about 2x)
-JOINT_SHARE = 0.5  # joint error's weight beside skin and turns: SOMA's group ends are fit targets (#70 honesty rule)
-SCALES = {"skin": 2.4, "turn": 5.0, "joint": 10.0}  # mm deep, degrees, mm: one unit of each counts the same; the skin's
-# 2.4 mm gives its rows the norm 10 % of the share outside gave them at the start (heavy and tall_kimodo, 2026-10-30)
+SKIN_SCALE = 2.4  # mm deep a skin row's unit (2026-10-30: its rows the norm 10 % of the share outside gave them at the
+# start, heavy and tall_kimodo); the prior's rows are in PRIOR units beside them
 GLOBALS = ("marker goal", "end weight")
 MOVES = ("link", "centre")  # the unknowns that are a place (metres), each with its prior row
 # SOMA's bone groups: each one's parent, and the skin region its bones are measured in
@@ -163,23 +162,18 @@ def prior(unknowns, entries):
 
 
 def labels(found):
-    """One case's residual labels ([(kind, key)]) in a fixed order, from its measures (the harness's m.json)."""
-    return ([("skin", key) for key in sorted(found["bones outside depth mm"])]
-            + [("turn", key) for key in sorted(found["per group deg"])]
-            + [("joint", key) for key in sorted(found["per joint mm"])])
+    """One case's residual labels ([(kind, key)]) in a fixed order, from its measures (the harness's m.json): each skin
+    region's."""
+    return [("skin", key) for key in sorted(found["bones outside depth mm"])]
 
 
 def case_residuals(found):
     """One case's residuals: each region's bones' depth outside the skin (mm, root mean square: smooth where the share
-    outside, the judged measure, is a step; #70, 2026-10-30), each group's turn error (deg, the evaluation's table) and each
-    joint's error (mm, times JOINT_SHARE) as the root mean square over frames (smooth where the reported median's middle
-    frames swap under a step, 23 of 36 cases measured; #70, 2026-10-30), each over its SCALES unit and the square root
-    of its kind's count, so each kind is its mean."""
-    values = {"skin": found["bones outside depth mm"], "turn": found["per group rms deg"],
-              "joint": found["per joint rms mm"]}
-    share = {"skin": 1.0, "turn": 1.0, "joint": JOINT_SHARE}
-    return np.array([np.sqrt(share[kind] / len(values[kind])) * values[kind][key] / SCALES[kind]
-                     for kind, key in labels(found)])
+    outside, the judged measure, is a step; #70, 2026-10-30), over SKIN_SCALE and the square root of the regions'
+    count, so the case is their mean. Turns and joints are not in it (the owner's aim of 2026-11-01): `evaluation`
+    reports them beside it."""
+    depths = found["bones outside depth mm"]
+    return np.array([np.sqrt(1.0 / len(depths)) * depths[key] / SKIN_SCALE for _, key in labels(found)])
 
 
 def reached(segments):

@@ -1,7 +1,7 @@
 """`adjoint_rows` with EVERY level 1 column on one real body, timed, run in Newton's own Python (`python
 _check_columns.py <this folder> <seeds root> <set folder> <out root> <case>=<job.json> ...`, every case one body's;
 each case's block to <out root>/<case>.npz, its work in <out root>/<case>/, the body's in body-<body>/ and level2-<body>/): level 2 solved, built and factored once
-for the body from all its given clips (the body's constants as the evaluations solve them, `_real.body_constants`;
+for the body from all its given clips (the body's constants as the evaluations solve them, `body_level2`, solved once;
 2026-10-31: one process a case re-solved and re-factored them per case, from that case's clip alone), then per case at the base set,
 level 3 on `taped_sites(fitting=, constants=)` with placed(theta) = trusted_outer + `picked_columns(ends=ends_of(...))`
 @ theta over every entry of `tuning.layout(ends=)` (as `evaluation/level1.py`: 263 on depth1, 63 of them centres),
@@ -22,7 +22,6 @@ sys.path.insert(0, sys.argv[1])
 import _real  # noqa: E402
 import landmarks  # noqa: E402
 import tuning  # noqa: E402
-from bone_groups import groups  # noqa: E402
 from _bodies import Pinned, RootTurns, level3_body, pose_of  # noqa: E402
 from _measures import TapedMeasures  # noqa: E402
 from _taped import turned_offsets  # noqa: E402
@@ -30,7 +29,7 @@ from evaluation import _card_batch, body_of  # noqa: E402
 from fit import sampled_targets  # noqa: E402
 from fit._card._level2_wide import Wide  # noqa: E402
 from fit._constants import INSIDE, Problem, told  # noqa: E402
-from tuning._adjoint import arrow_hessian, case_rows, schur_solve, transposed_mixed  # noqa: E402
+from tuning._adjoint import arrow_hessian, scaled_rows, schur_solve, transposed_mixed  # noqa: E402
 from tuning._adjoint._level2 import (goal_weights, level2_arrow, level2_body, sited_problem_at,  # noqa: E402
                                      turned_frame_sites)
 from tuning._adjoint._outer import picked_columns  # noqa: E402
@@ -39,8 +38,7 @@ STEPS = (1e-4, 1e-3)  # as `_check_motion.py`
 seeds_root, folder, root = (pathlib.Path(arg) for arg in sys.argv[2:5])
 cases = dict(given.split("=", 1) for given in sys.argv[5:] if not given.startswith("--"))
 table, weights = (json.loads((folder / name).read_text()) for name in ("table.json", "weights.json"))
-entries = tuning.layout(table, held=landmarks.HELD, joints=set(),
-                        ends=tuning.ended(groups(), landmarks.MIDDLE_CENTRES))
+entries = tuning.layout(table, held=landmarks.HELD, joints=set())  # level 1's (evaluation/level1.py): no centres
 starts = {name: row["link"] for name, row in table.items()}
 saved, seconds, began = _card_batch.Saved(), {}, time.time()
 
@@ -78,7 +76,7 @@ def level2_at_base(out, names, ends, trusted, columns):
     outer and `columns` the first case's (the body's: every case's own are checked equal to them)."""
     fitting, recordings = _card_batch.body_unfitted(str(out / "table.json"), str(out / "weights.json"), out, cases,
                                                     saved)
-    path, constants, angles = _real.level2_solved(fitting, *sampled_targets(recordings))
+    path, constants, angles = LEVEL2["solved"]  # the body's one solve (`body_level2`), never solved twice
     turns, points, _ = sampled_targets(recordings)
     first = Problem(fitting, path, turns, points, fitting.neutral(), _real.level2_free(fitting))
     low, high = first.bounds()
@@ -94,6 +92,23 @@ def level2_at_base(out, names, ends, trusted, columns):
     rebuilt = _real.problem_at(applied, out, cases, saved, angles, constants)
     sited = sited_problem_at(problem, columns, trusted, ends)
     return sited, rebuilt, level2_body(sited, jacobian, problem.start(), kept, np.zeros(len(entries))), kept
+
+
+LEVEL2 = {}  # the body's level 2 solve (path, constants, angles), made once by `body_level2`
+
+
+def body_level2(out):
+    """The body's constants as the evaluations solve them (`fit.constants_on`'s dict) from every clip of the body,
+    its person's file under `out`; the solve (start path, constants vector, solved angles) kept in LEVEL2 for
+    `level2_at_base` (2026-11-01: it solved level 2 a second time, 21 to 29 s a body)."""
+    from fit import END
+    fitting, recordings = _card_batch.body_unfitted(str(out / "table.json"), str(out / "weights.json"), out, cases,
+                                                    saved)
+    LEVEL2["solved"] = _real.level2_solved(fitting, *sampled_targets(recordings))
+    marks, joints = fitting.unpack(LEVEL2["solved"][1])
+    return {"marks": {name: move.tolist() for name, move in zip(fitting.marks, marks) if not name.startswith(END)},
+            "joints": {name: move.tolist() for name, move in zip(fitting.inside_names, joints)},
+            "evaluations": None, "followed": list(fitting.groups)}
 
 
 def moved_site_rows(columns, marks, free):
@@ -122,19 +137,6 @@ def sited_gaps(sited, rebuilt, unknowns, picks):
         again = change(rebuilt, pick)
         gaps[str(entries[pick])] = float(np.abs(change(sited, pick) - again).max() / max(np.abs(again).max(), 1e-30))
     return gaps
-
-
-def direct_rows(measures, pose_parts, frames, segments, scales):
-    """R_theta: the case rows' derivative over level 1's entries at the base pose, its joints' direct partial alone
-    (a centre entry moves the measure's joint centre, `_real.centre_columns`); the turns' and skins' read no entry."""
-    joints, turns, skins = pose_parts
-    moved = np.einsum("pij,pje->pie", measures.part_turns(), _real.centre_columns(segments, frames, entries, scales))
-    slotted = np.zeros((len(measures.joint_names) * frames, 3, len(entries)))
-    np.add.at(slotted, measures.part_slot.numpy(), moved)
-    by_joint = slotted.reshape(len(measures.joint_names), frames, 3, len(entries))
-    return case_rows({name: (joints[name][0], by_joint[index]) for index, name in enumerate(measures.joint_names)},
-                     {name: (values, np.zeros((frames, len(entries)))) for name, (values, _) in turns.items()},
-                     {name: (values, np.zeros((len(values), len(entries)))) for name, (values, _, _) in skins.items()})[1]
 
 
 def group_turned_gradient(level3, sites, groups_of_rows, outer, moves):
@@ -226,25 +228,27 @@ def case_block(case, found, body):
     """One case's block (rows x every entry) saved to <root>/<case>.npz, its level 3 laid in <root>/<case>/ from the
     body's constants `found`; `body` the body's `BodyLevel2`, made on the first case (returned)."""
     out, one = laid(root / case), {case: cases[case]}
-    clip, fitting, targets, path = _real.set_up(str(out / "table.json"), str(out / "weights.json"), out, one, saved,
-                                                found)
-    rows, _ = _real.solved_rows(clip, targets, {case: __import__("fit._card._seeds", fromlist=["first"]).first(
-        seeds_root, case)})
-    model = _real.per_frame_model(fitting, path, len(rows))
-    sites, trusted = _real.taped_sites(clip, model, rows, targets, fitting=fitting,
-                                       constants=_real.level2_constants(fitting, model, len(rows)))
-    scales, segments, _, _ = _real.soma_of(str(out / "table.json"), str(out / "weights.json"), out, one, saved)
+    clip, fitting, targets, path = timed("case set-up", lambda: _real.set_up(
+        str(out / "table.json"), str(out / "weights.json"), out, one, saved, found))
+    rows, _ = timed("case level 3", lambda: _real.solved_rows(clip, targets, {case: __import__(
+        "fit._card._seeds", fromlist=["first"]).first(seeds_root, case)}))
+    model = timed("per-frame model", lambda: _real.per_frame_model(fitting, path, len(rows)))
+    sites, trusted = timed("taped sites", lambda: _real.taped_sites(
+        clip, model, rows, targets, fitting=fitting, constants=_real.level2_constants(fitting, model, len(rows))))
+    scales, segments, _, _ = timed("soma", lambda: _real.soma_of(str(out / "table.json"), str(out / "weights.json"),
+                                                                  out, one, saved))
     names = [clip.mjm.site(int(site)).name.removeprefix("mark:") for site in clip.place_sites]
     columns = picked_columns(names, list(range(len(entries))), entries, table, weights,
                              ends=_real.ends_of(path, scales, segments))
-    measures = measures_on(clip, sites, out, one)
+    measures = timed("measures set-up", lambda: measures_on(clip, sites, out, one))
     pose = np.asarray(pose_of(_real.frame_couplings(clip, rows), rows), dtype=np.float64)
     inner = np.concatenate([pose, np.zeros(sites.constants.size)])
     turns = RootTurns(pose, len(_real.frame_couplings(clip, rows)[0]) // len(rows))
     pinned = Pinned(turns.reduced(), _real.bound_held(clip, _real.frame_couplings(clip, rows), rows))
-    pose_parts, constant_parts = timed("taping R_q and R_c", lambda: measures.joined_measured(inner, trusted))
-    by_poses = pinned.rows(turns.pulled_rows(turns.reduced(), case_rows(*pose_parts, frames=len(rows))[1]))
-    values, by_constants = case_rows(*constant_parts)
+    regions = timed("taping R_q and R_c", lambda: measures.region_rows(inner, trusted))
+    values, by_pose = scaled_rows({name: (value, pose_row) for name, (value, pose_row, _) in regions.items()})
+    by_poses = pinned.rows(turns.pulled_rows(turns.reduced(), by_pose))
+    by_constants = scaled_rows({name: (value, row) for name, (value, _, row) in regions.items()})[1]
     if body is None:
         body = BodyLevel2(names, sites.ends or 0, trusted, columns)
     body.same(names, sites.ends or 0, trusted, columns)
@@ -252,7 +256,7 @@ def case_block(case, found, body):
                          len(rows), columns=columns, step=STEPS[1])  # float32 products: 1e-4 left 2-3 %, 1e-3 0.4-0.6 %
     joined = np.concatenate([np.zeros(len(entries)), np.zeros(body.solved.size)])
     lifted, _ = factored_solve(level3, differenced_arrow(level3, joined, STEPS[0]), np.asarray(by_poses, dtype=float).T)
-    direct = timed("direct rows", lambda: direct_rows(measures, pose_parts, len(rows), segments, scales))
+    direct = np.zeros((len(values), len(entries)))  # R_theta: the skins read no entry of level 1 (no centre moves them)
     both = np.hstack([direct, by_constants]) - timed(
         "taping level 3 products", lambda: transposed_mixed(level3, lifted, joined, STEPS[1]))
     dtable = next((json.loads(pathlib.Path(given[9:]).read_text()) for given in sys.argv if given.startswith("--dtable=")),
@@ -287,8 +291,7 @@ body_name = body_of(next(iter(cases)))
 if any(body_of(case) != body_name for case in cases):
     raise ValueError(f"{sorted(cases)}: not one body's cases")
 body_out = laid(root / f"body-{body_name}")
-found = timed("body constants", lambda: _real.body_constants(str(body_out / "table.json"),
-                                                             str(body_out / "weights.json"), body_out, cases, saved))
+found = timed("body constants", lambda: body_level2(body_out))
 body = None
 for case in cases:
     body = case_block(case, found, body)

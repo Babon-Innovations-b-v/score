@@ -74,6 +74,16 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   follower range narrower than its polynomial over its leader's range (the published model's); held, they stopped a
   leader 50 degrees short of a reachable pose (solver study, 2026-10-28). OpenSim's assembler and the old fit did not
   hold them either.
+- **One segment drives one bone group** (`followed`, owner 2026-11-01: "the segments to bonegroups actually CAN be one
+  to one"): a segment whose group's frame body an earlier group already rides drives none. Only Neck2 shares one
+  (MyoFullBody's neck is one rigid body, Neck1's): before, Neck1 and Neck2 both pulled it and it stood at their
+  compromise. Neck2 is still judged (its riding and turn measure). Where one to one still cannot be met by
+  construction, measured at level 1's start (mean and tall, 14 clips, per group root mean square): Spine1 10.7 and
+  Spine2 6.7 degrees (the lumbar levels follow one leader, `LACKS`), the feet 7.8 to 8.2 and toes 8.0 to 8.4 (three
+  hinges and a toe hinge), the forearms 5.8 and arms 6.0 (a hinge elbow), the shins 3.8 to 4.6 (a hinge knee), the
+  neck 4.7 and 3.7; and Hips 3.9 and the thighs 3.6 to 4.0, whose joints could reach SOMA's turn: a fault still to
+  find (the neighbours' misses shared through the turns' least squares is the guess, not measured). Markers or group
+  ends 100 times weaker moved none of them by over 0.3 degrees.
 - **Every group SOMA has is a turn target** (`followed`): leaving out the groups with no joint of their own (thorax,
   neck, head) or only followers (lumbar above L5, shoulder girdle) measured worse on the Kimodo walker (joints 24 mm
   median against 17, 2026-10-28, before SOMA's joints were a goal).

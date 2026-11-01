@@ -32,7 +32,7 @@ measures = _measures.TapedMeasures(sites, joints, to_own, turns, skins)
 pose = np.array([0.2, 0.4, -0.3, 0.6, 0.1, -0.5, 0.3, 0.2, -0.2, 0.3, 0.5, -0.4])
 outer = np.zeros(3)
 def plain(found):
-    return {kind: {key: [piece.tolist() for piece in value] for key, value in part.items()} for kind, part in zip(("joints", "turns", "skins"), found)}
+    return {kind: {key: [None if piece is None else piece.tolist() for piece in value] for key, value in part.items()} for kind, part in zip(("joints", "turns", "skins"), found)}
 step, nudged = 1e-3, []
 for column in range(len(pose)):
     for sign in (1, -1):
@@ -53,6 +53,10 @@ separate_poses = plain(constant_measures.measured(np.concatenate([pose, moves]),
 separate_passes = constant_measures.passes
 joined_poses, joined_constants = (plain(part) for part in constant_measures.joined_measured(np.concatenate([pose, moves]), np.zeros(9)))
 joined_same = joined_poses == separate_poses and joined_constants == constant_taped
+joined_passes = constant_measures.passes
+regions = constant_measures.region_rows(np.concatenate([pose, moves]), np.zeros(9))
+region_rows = {name: [value, pose_row.tolist(), constant_row.tolist()] for name, (value, pose_row, constant_row) in regions.items()}
+region_passes = constant_measures.passes
 print("JSON" + json.dumps({"taped": taped, "nudged": nudged, "step": step, "passes": passes,
                            "constant_taped": constant_taped, "constant_nudged": constant_nudged,
-                           "joined same": joined_same, "joined passes": constant_measures.passes, "separate passes": separate_passes}))
+                           "joined same": joined_same, "joined_poses": joined_poses, "regions": region_rows, "region passes": region_passes, "joined passes": joined_passes, "separate passes": separate_passes}))

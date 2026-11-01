@@ -42,30 +42,22 @@ measures = TapedMeasures(sites, _real.joint_parts(clip, scales, segments, worlds
 pose = np.asarray(pose_of(_real.frame_couplings(clip, rows), rows), dtype=np.float64)
 moves = np.zeros(sites.constants.size)
 measured = measures.constant_measured(np.concatenate([pose, moves]), offsets)
-_, constant_rows = case_rows(*measured)
-raw_rows = np.concatenate([np.concatenate([rows.reshape(-1, rows.shape[-1]) for _, rows in part.values()])
-                           for part in measured[:2]] + [np.concatenate([part[1] for part in measured[2].values()])])
+_, constant_rows = case_rows(measured[2])
+raw_rows = np.concatenate([part[1] for part in measured[2].values()])  # the skins' rows: level 1's only (2026-11-01)
 
 
 def raw(moved):
-    """Every per-frame measure (joint differences m, turn degrees, skin depths m) flat, in `raw_rows`' order."""
+    """Every skin depth (m) flat, in `raw_rows`' order."""
     measures._evaluate(np.concatenate([pose, moved]), offsets)
-    return np.concatenate([measures.differences.numpy().astype(np.float64).ravel(),
-                           measures.degrees.numpy().astype(np.float64), measures.skins.depths.numpy().astype(np.float64)])
+    return measures.skins.depths.numpy().astype(np.float64)
 
 
 def values(moved):
     """`case_rows`' values at the solved pose with level 2's moves `moved` (one evaluation, no tape)."""
     measures._evaluate(np.concatenate([pose, moved]), offsets)
-    differences = measures.differences.numpy().astype(np.float64).reshape(len(measures.joint_names), len(rows), 3)
-    degrees = measures.degrees.numpy().astype(np.float64).reshape(len(measures.turn_names), len(rows))
     depths = measures.skins.depths.numpy().astype(np.float64)
     bounds = np.cumsum([0] + measures.skins.counts)
-    blank = np.zeros((len(rows), 1))
-    return case_rows({name: (differences[index], np.zeros((len(rows), 3, 1)))
-                      for index, name in enumerate(measures.joint_names)},
-                     {name: (degrees[index], blank) for index, name in enumerate(measures.turn_names)},
-                     {name: (depths[bounds[index]:bounds[index + 1]], np.zeros((bounds[index + 1] - bounds[index], 1)))
+    return case_rows({name: (depths[bounds[index]:bounds[index + 1]], np.zeros((bounds[index + 1] - bounds[index], 1)))
                       for index, name in enumerate(measures.skins.names)})[0]
 
 
@@ -81,19 +73,16 @@ raw_gap = np.abs(raw_differenced - raw_rows[:, picked])
 
 
 def with_rows(flat):
-    """`measured` with its rows replaced by `flat` (raw entries, columns) in `raw_rows`' order."""
-    laid, start = [], 0
-    for part in measured:
-        given = {}
-        for name, entry in part.items():
-            count = int(np.prod(entry[1].shape[:-1]))
-            given[name] = (entry[0], flat[start:start + count].reshape(*entry[1].shape[:-1], -1), *entry[2:])
-            start += count
-        laid.append(given)
-    return laid
+    """`measured`'s skins with their rows replaced by `flat` (raw entries, columns) in `raw_rows`' order."""
+    given, start = {}, 0
+    for name, entry in measured[2].items():
+        count = int(np.prod(entry[1].shape[:-1]))
+        given[name] = (entry[0], flat[start:start + count].reshape(*entry[1].shape[:-1], -1), *entry[2:])
+        start += count
+    return given
 
 
-masked = case_rows(*with_rows(raw_differenced))[1]
+masked = case_rows(with_rows(raw_differenced))[1]
 largest = float(np.max(np.abs(constant_rows[:, picked])))
 print(json.dumps({"rows shape": list(constant_rows.shape), "picked": picked.tolist(), "largest": largest,
                   "gap over largest": float(np.max(np.abs(differenced - constant_rows[:, picked])) / largest),

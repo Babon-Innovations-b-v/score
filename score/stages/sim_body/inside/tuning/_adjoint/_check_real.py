@@ -158,7 +158,7 @@ measures = {"joints": len(joints), "most": float(np.max(np.abs(mine - wanted))),
             "ends largest": ends_largest, "seconds": time.time() - began}
 began = time.time()
 from tuning._adjoint import case_rows  # noqa: E402
-values, derivative = case_rows(*taped_joints.measured(turns.full(turns.reduced()), offsets), frames=len(rows))
+values, derivative = case_rows(taped_joints.measured(turns.full(turns.reduced()), offsets)[2], frames=len(rows))
 charted = pinned.rows(turns.pulled_rows(turns.reduced(), derivative))
 pulled = {"full": list(derivative.shape), "charted": list(charted.shape), "finite": bool(np.isfinite(charted).all()),
           "held columns most": float(np.max(np.abs(charted[:, held]))), "seconds": time.time() - began}
