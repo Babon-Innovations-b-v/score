@@ -1,10 +1,14 @@
 """Level 1 of the fit (#70; CONTEXT.md "landmark set"; numpy and scipy): ONE joint optimisation of the landmark set
 over every tuning body at once, never a round of pieces judged alone. The unknowns (`layout`): each landmark's link
 on its bone (a joint-defining one only across the bone's long axis), its trust (log), each group end's centre on
-MyoFullBody (its offset in its body's frame off the model's own, each end its own: bodies are not symmetric; owner,
-2026-10-29: "isn't this exactly what the solver will find"), and the two global weights (the markers' goal against
-the turns', a group end's weight); a left and a right landmark share their unknowns, the right mirrored (`paired`). The residuals (`case_residuals`) are what following SOMA means, from levels 2 and 3 run on
-each tuning case: bones outside SOMA's skin by region, each group's rotation error on a FROZEN calibration table,
+MyoFullBody (its offset in its body's frame off the model's own: a left and right end one mirrored unknown, a middle
+end's on the mid-plane, `centre_members`; 2026-11-01, the sides were poorly told apart: one knee on its bound, the
+stage's own tests ask mirror symmetry within 2 mm and no sideways turn of a middle group), and the two global weights
+(the markers' goal against the turns', a group end's weight); a left and a right landmark share their unknowns, the
+right mirrored (`paired`). The residuals (`case_residuals`) are what following SOMA means, from levels 2 and 3 run on
+each tuning case: bones outside SOMA's skin by region, each group's rotation error on the calibration table read
+again from the evaluation's own centres (the table the stage builds its follows targets from; 2026-11-01: on the
+frozen table level 1 never saw the moved hips turn Spine1's calibration 6 degrees and its best point worsened follows),
 each joint's error beside them (`JOINT_SHARE`, since SOMA's group ends are fit targets); never a landmark distance the
 solver pulls on. A prior (`prior`) pulls each link toward its anatomical start and each centre toward the model's own. scipy's least_squares (trf) runs it
 with finite differences of ABSOLUTE steps (`_differences`, STEP of each unknown's units) over a sparse pattern's column
@@ -18,10 +22,11 @@ import numpy as np
 from scipy.optimize import least_squares
 
 from tuning._differences import chosen_groups, hybrid, jacobian, serially, signed_steps
-from tuning._rewriting import centres_rewritten, rewritten, weight_rewritten  # noqa: F401  (level 1's writers, read as tuning.<name>)
+from tuning._rewriting import centres_rewritten, relative, rewritten, weight_rewritten  # noqa: F401  (level 1's writers, read as tuning.<name>)
 
 LONG_AXIS = 1  # MyoFullBody's bodies run along their own y (OpenSim's convention): the axis a joint link keeps
 MIRROR = np.array([1.0, 1.0, -1.0])  # a right landmark's body-frame vector as its left one's
+LATERAL = 2  # the body-frame axis MIRROR flips: a middle end's centre never moves along it (the mid-plane)
 LINK_UNIT = 0.005  # metres per unknown's unit: finite-difference steps and bounds are in these units
 LOG_UNIT = 0.25  # natural-log units per unknown's unit, for trusts and global weights
 REACH = 0.030  # metres: no link ends further than this from its anatomical start (the bound)
@@ -63,6 +68,14 @@ def mirrored(segment):
     return [segment]
 
 
+def centre_members(pool):
+    """The group ends one centre unknown moves and each one's factor ([(centre, [3])]): a left end and its right twin
+    mirrored, a middle end alone."""
+    if pool.endswith("_l"):
+        return [(pool, np.ones(3)), (pool[:-2] + "_r", MIRROR)]
+    return [(pool, np.ones(3))]
+
+
 def ended(groups, middles):
     """Each group end's MyoFullBody centre and the bone groups it starts ({centre: [segment]}): every group's start
     centre (`bone_groups.groups()`), a middle of two (`landmarks.MIDDLE_CENTRES`) as its two parts."""
@@ -75,8 +88,8 @@ def ended(groups, middles):
 
 def layout(table, held, joints, ends=None):
     """The unknowns: [(pool, kind, axes or None, segments)], kind "link" (axes: the body-frame components it moves)
-    or "trust", then each group end's centre ("centre", its three body-frame axes, each end its own: bodies are not
-    symmetric), then each global weight ("global", None, None). `table` {name: row} (the harness's rows: "segment",
+    or "trust", then each group end's centre ("centre": a left and right pair one, under the left's name, its three
+    body-frame axes; a middle end's two, off LATERAL), then each global weight ("global", None, None). `table` {name: row} (the harness's rows: "segment",
     "solver"), `held` names whose links stay, `joints` the joint-defining names, `ends` `ended`'s."""
     pools = {}
     for name, row in table.items():
@@ -90,7 +103,11 @@ def layout(table, held, joints, ends=None):
                 else [0, 1, 2]
             out.extend((pool, "link", axis, segments) for axis in axes)
         out.append((pool, "trust", None, segments))
-    out.extend((centre, "centre", axis, segments) for centre, segments in (ends or {}).items() for axis in range(3))
+    centres = {}
+    for centre, segments in (ends or {}).items():
+        centres.setdefault(paired(centre)[0], set()).update(segments)
+    out.extend((centre, "centre", axis, sorted(segments)) for centre, segments in centres.items()
+               for axis in range(3) if centre.endswith("_l") or axis != LATERAL)
     return out + [(name, "global", None, None) for name in GLOBALS]
 
 
@@ -120,11 +137,13 @@ def applied(unknowns, entries, starts, table, globals_):
 
 
 def offsets(unknowns, entries):
-    """Each group end's move off MyoFullBody's own centre ({centre: [3]}, metres in its body's frame, source model)."""
+    """Each group end's move off MyoFullBody's own centre ({centre: [3]}, metres in its body's frame, source model),
+    a right end its left one's mirrored."""
     found = {}
-    for value, (centre, kind, axis, _) in zip(unknowns, entries):
+    for value, (pool, kind, axis, _) in zip(unknowns, entries):
         if kind == "centre":
-            found.setdefault(centre, [0.0, 0.0, 0.0])[axis] = LINK_UNIT * float(value)
+            for centre, factor in centre_members(pool):
+                found.setdefault(centre, [0.0, 0.0, 0.0])[axis] = LINK_UNIT * float(value) * float(factor[axis])
     return found
 
 
@@ -152,7 +171,7 @@ def labels(found):
 
 def case_residuals(found):
     """One case's residuals: each region's bones' depth outside the skin (mm, root mean square: smooth where the share
-    outside, the judged measure, is a step; #70, 2026-10-30), each group's turn error (deg, frozen table) and each
+    outside, the judged measure, is a step; #70, 2026-10-30), each group's turn error (deg, the evaluation's table) and each
     joint's error (mm, times JOINT_SHARE) as the root mean square over frames (smooth where the reported median's middle
     frames swap under a step, 23 of 36 cases measured; #70, 2026-10-30), each over its SCALES unit and the square root
     of its kind's count, so each kind is its mean."""

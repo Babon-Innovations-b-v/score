@@ -3,7 +3,9 @@
 Level 1's runner (#70): `__init__.py` runs levels 2 and 3 on every body of a side (tuning, or the held-out check)
 side by side, one `_case.py` process per SOMA body in Newton's Python (at most `MOST`, systemd-run MemoryMax=6G, two
 threads, only while `FREE_GB` is available), and reads back each clip's honest measures (`_measure`: joint error,
-rotation error on `fit._frozen`, the frozen copy of main's calibration, bones outside SOMA's skin by region through
+rotation error on the calibration table as it stands (`judged_turn`, read again from the evaluation's centres: the
+stage's follows targets ride it; since 2026-11-01) and beside it on `fit._frozen`, the frozen copy of main's
+calibration (the `... main's frozen table` keys, never tuned on), bones outside SOMA's skin by region through
 `fit._skin` and, for level 1's least squares only, their depth outside (`bones outside depth mm`, smooth where the
 share is a step; #70, 2026-10-30): the stage's record and level 1's score share that one code), each clip's written twice: `measures.json`
 unrounded, the one the solver reads (rounded measures read as flat to its differences), and `m.json`, the copy people

@@ -1,7 +1,8 @@
 """Level 1's result written into the source (#70): the landmark table's links and trusts (`rewritten`, into
 `landmarks/_table.py`), a global weight's line (`weight_rewritten`, MARKER_GOAL in `fit/_frames.py`, END_WEIGHT in
 `fit/__init__.py`) and the group ends' centres moved by their offsets (`centres_rewritten`, `landmarks/_table.py`'s
-CENTRES and the measure's copy in `evaluation/_measure.py`, as `evaluation._case.load_centres` moves both)."""
+CENTRES and the measure's copy in `evaluation/_measure.py`, as `evaluation._case.load_centres` moves both); the trusts
+written relative (`relative`: the largest 1)."""
 
 import re
 
@@ -38,3 +39,11 @@ def centres_rewritten(source, offsets):
         text = "(" + ", ".join(f"{round(value, 6):g}" for value in moved) + ")"
         source = pattern.sub(lambda match: match.group(1) + text, source)
     return source
+
+
+def relative(rows):
+    """The landmark rows ({name: row}) with every trust over the largest, so the largest is 1: the fit reads trusts
+    only relative to one another (the markers keep their own sum, an end weighs END_WEIGHT times their mean), so the
+    scale level 1 leaves them at changes nothing and a written trust stays at most 1."""
+    largest = max(row["trust"] for row in rows.values())
+    return {name: {**row, "trust": float(row["trust"] / largest)} for name, row in rows.items()}

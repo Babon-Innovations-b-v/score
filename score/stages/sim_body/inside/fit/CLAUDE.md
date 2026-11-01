@@ -30,7 +30,8 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   a group come from the landmarks and couplings. Before (2026-10-29 upstream fit) SOMA's joints were only the measure,
   and before that a SOMA rule centre as target pulled the ankle 16 mm up the shank. Since the ends are a target, the
   joint measure partly measures what the solver pulls on: judge with the bones inside SOMA's skin and the turns on a
-  frozen calibration table beside it.
+  frozen calibration table beside it. Level 1 tunes the turns on the table as it stands (`evaluation._measure.judged_turn`,
+  `_card/_measure.turn_errors`' default: what the stage's follows targets ride), main's frozen one recorded beside it.
 - **No size unknowns** (#70 level 2: lengths straight from SOMA): the lengths are the sizing's (`inside/sizing`),
   never solved here. The size-factor stage (14 mirrored size groups pulled to 1) never ran and was deleted
   (2026-10-29, the audit's item 9) with its record fields. The constants are each free marker's move off its link,

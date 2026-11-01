@@ -105,16 +105,16 @@ def skin_parts(clip, rig, segments, worlds):
 
 def turn_groups(clip, segments, worlds):
     """`TapedMeasures`' turns on `per_frame_model`: {segment: (FRAME_BODY's link per frame, identity offset, SOMA's
-    turn per frame x y z w)}, the frozen table folded into SOMA's side (TO_OWN.T @ the world's turn @ frozen_turn), so
+    turn per frame x y z w)}, the judged table folded into SOMA's side (TO_OWN.T @ the world's turn @
+    `evaluation._measure.judged_turn`: the set's own table, read again from its centres), so
     each degree is `fit/_card/_measure.turn_errors`' angle between the link's turn and that one."""
     from scipy.spatial.transform import Rotation
     from evaluation import _measure as cpu
-    from fit._frozen import frozen_turn
     from model import TO_OWN
     frames = np.arange(len(worlds)) * clip.model.body_count
     return {segment: (frames + clip.body[cpu.FRAME_BODY[segment]], np.array([0, 0, 0, 1.0]),
                       Rotation.from_matrix(TO_OWN.T @ worlds[:, segments.index(segment), :3, :3]
-                                           @ frozen_turn(segment)).as_quat())
+                                           @ cpu.judged_turn(segment)).as_quat())
             for segment in segments if segment in cpu.FRAME_BODY}
 
 def solved_rows(clip, targets, seeds):
