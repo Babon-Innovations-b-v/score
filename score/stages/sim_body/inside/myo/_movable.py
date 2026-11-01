@@ -2,8 +2,9 @@
 of the pinned source, the download untouched: the neck's two joints the source leaves commented out (`NECK`), one
 three-axis thoracic joint where the torso meets lumbar1 (`THORACIC`), and the shoulder girdle's couplings to the
 arm's elevation dropped, its clavicle and scapula joints given their own two-sided ranges (`GIRDLE`) and each phantom
-tied to the joint it undoes (`PHANTOMS`); and its feet given the twist on the shin their hinges lack and the ankle's
-and subtalar joint's human ranges (`FEET`, 2026-11-01). A body or coupling the source does not
+tied to the joint it undoes (`PHANTOMS`); its feet given the twist on the shin their hinges lack and the ankle's
+and subtalar joint's human ranges (`FEET`, 2026-11-01); and its fingers' knuckles let bend back as a person's do
+(`KNUCKLES`, 2026-11-01). A body or coupling the source does not
 have is left alone (a toy wheel in the tests)."""
 import mujoco
 import numpy as np
@@ -59,14 +60,23 @@ PHANTOMS = {"unrotscap_r2": "sternoclavicular_r2", "unrotscap_r3": "sternoclavic
 # (wider than 12: the published model stays reachable).
 FEET = {"twist": ("ankle_rotation", [-np.radians(20), np.radians(25)]),
         "ranges": {"ankle_angle": [-np.radians(55), np.radians(33)], "subtalar_angle": [-0.349066, np.radians(23)]}}
+# The fingers' knuckles bend back (#70, 2026-11-01): MyoFullBody's metacarpophalangeal flexion of the index to the
+# little finger (mcp2 to mcp5) stops at 0 (the finger straight on its metacarpal), so SOMA's flatter hand, which asks
+# them 20 to 30 degrees back, leaves the index and little distal phalanges outside its skin. A person's finger MCP
+# joint hyperextends: extension 0 to 45 degrees beside flexion 0 to 90 (the AAOS average ranges, Greene and Heckman,
+# The Clinical Measurement of Joint Motion, AAOS 1994, as Norkin and White, Measurement of Joint Motion, 5th ed. 2016,
+# reproduce them; Eaton's hand reference table: "(0-45H)/90"). Extension widened to 45 degrees; flexion keeps the
+# model's 90; the thumb's MCP (mp_flexion) and every other joint keep theirs.
+KNUCKLES = {"stems": tuple(f"mcp{finger}_flexion" for finger in "2345"), "extension": np.radians(45)}
 
 
 def movable(spec):
-    """The spec's neck, thorax, shoulder girdle and feet made movable in place (the module's four changes)."""
+    """The spec's neck, thorax, shoulder girdle, feet and knuckles made movable in place (the module's five changes)."""
     _neck(spec)
     _thoracic(spec)
     _girdle(spec)
     _feet(spec)
+    _knuckles(spec)
 
 
 def _neck(spec):
@@ -124,6 +134,15 @@ def _feet(spec):
             talus.add_joint(**kept)
         for stem, wide in FEET["ranges"].items():
             spec.joint(f"{stem}_{side}").range = wide
+
+
+def _knuckles(spec):
+    """Each finger MCP flexion joint's (`KNUCKLES`) lower end moved to the knuckle's extension, its flexion kept."""
+    for stem in KNUCKLES["stems"]:
+        for side in "lr":
+            joint = spec.joint(f"{stem}_{side}")
+            if joint is not None:
+                joint.range = [-KNUCKLES["extension"], float(joint.range[1])]
 
 
 def _kept(joint):

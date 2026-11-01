@@ -72,31 +72,32 @@ TABLE = {
 # person or per clip. Printed by `_measure.py` on 2026-11-01 (the hands' turns of that day): on the template, 67.6 %
 # of the finger bones' vertices outside SOMA's skin at the published zero pose, 24.7 % at the first read (the hand at
 # SOMA's Hand joint; the thumb 25 to 45 mm out before, inside after; the index stays out: SOMA's stands dorsal of where
-# its metacarpal puts it, and its knuckle does not bend back, range 0 to 90 degrees). Read again with the hand placed
+# its metacarpal puts it, and its knuckle then did not bend back, range 0 to 90 degrees). Read again with the hand placed
 # (#70, 2026-11-01): the fingers bend 6 to 13 degrees more at the knuckles, the thumb's CMC 11 less; on the mean body's
 # 15 clips the hand 9.43 -> 5.42 % outside (forearm 2.87 -> 4.27, shoulder 2.07 -> 1.51), all 6.95 -> 6.59 %, the turns
 # 4.603 -> 4.587 degrees, joints 14.14 -> 13.43 mm; env1 standing all 13.48 -> 13.43 %, seated 13.82 -> 13.82 %.
+# Read again on 2026-11-01 with the finger knuckles bending back 45 degrees (`myo._movable.KNUCKLES`).
 FINGERS = {
-    "cmc_abduction": -0.3119,
-    "cmc_flexion": 0.1645,
-    "ip_flexion": -0.0157,
-    "mcp2_abduction": 0.0057,
-    "mcp2_flexion": 0.0122,
-    "mcp3_abduction": -0.0798,
-    "mcp3_flexion": 0.1014,
-    "mcp4_abduction": -0.046,
-    "mcp4_flexion": 0.1215,
-    "mcp5_abduction": -0.1579,
-    "mcp5_flexion": 0.1115,
-    "md2_flexion": 0.1043,
-    "md3_flexion": 0.2321,
-    "md4_flexion": 0.3481,
-    "md5_flexion": 0.1303,
-    "mp_flexion": -0.0643,
-    "pm2_flexion": 0.025,
-    "pm3_flexion": 0.0552,
-    "pm4_flexion": 0.0436,
-    "pm5_flexion": 0.0715,
+    "cmc_abduction": -0.4006,
+    "cmc_flexion": 0.0716,
+    "ip_flexion": -0.0375,
+    "mcp2_abduction": -0.0243,
+    "mcp2_flexion": -0.1546,
+    "mcp3_abduction": -0.0796,
+    "mcp3_flexion": -0.0362,
+    "mcp4_abduction": -0.0079,
+    "mcp4_flexion": -0.0191,
+    "mcp5_abduction": -0.0935,
+    "mcp5_flexion": -0.0308,
+    "md2_flexion": 0.1346,
+    "md3_flexion": 0.2285,
+    "md4_flexion": 0.3048,
+    "md5_flexion": 0.1148,
+    "mp_flexion": 0.088,
+    "pm2_flexion": 0.0794,
+    "pm3_flexion": 0.0477,
+    "pm4_flexion": 0.0581,
+    "pm5_flexion": 0.1177,
 }
 
 

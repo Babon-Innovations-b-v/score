@@ -12,8 +12,8 @@ each group's anatomical axes (`aligned`, `frame`, `REFERENCES`); `turn(group)` g
   first): each finger bone vertex as deep in SOMA's skin as the joints' ranges let it, both hands one solve, each hand
   moved as one body (not kept) to where its palm stands least outside, as the fit holds it (read again so,
   2026-11-01: mean's hand 9.43 -> 5.42 %, all 6.95 -> 6.59 %, turns 4.603 -> 4.587 degrees; env1 13.48 -> 13.43 and
-  13.82 -> 13.82 %; at SOMA's Hand joint before); laid in the person's file by `myo._rested`. The index stays out (SOMA's index stands dorsal of where MyoFullBody's metacarpal
-  puts it and its knuckle does not bend back). Static like the table: never per person or per clip.
+  13.82 -> 13.82 %; at SOMA's Hand joint before); laid in the person's file by `myo._rested`. The finger knuckles bend back 45 degrees (`myo._movable.KNUCKLES`, read again 2026-11-01), so the index
+  can reach SOMA's, which stands dorsal of where MyoFullBody's metacarpal puts it. Static like the table: never per person or per clip.
 - Never fit it, never per person or per clip: it would absorb a person's posture (a curved spine) and erase it
   (owner, 2026-10-28). It is the geometry every retargeting tool uses, not fitted to reference data.
 - `_measure.py` measures it again in Newton's own Python and prints `TABLE`; run it after a model or template change

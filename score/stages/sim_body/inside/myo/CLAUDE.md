@@ -25,6 +25,10 @@ several joints split into 1 g wrappers, Euler written out, the floor gone).
   dorsiflexion, the subtalar joint to 23 inversion (eversion the model's 20), each cited beside it. A clip that asks
   more (the seated clip's ~61 degrees pointed foot) is the clip's fault: never widened to follow it. Seed caches made
   before have two coordinates fewer and are refused by the card (`fit/_card/_solve`): make them again.
+- **Its finger knuckles bend back as a person's do** (`_movable.KNUCKLES`, 2026-11-01): each finger's MCP flexion
+  (mcp2 to mcp5) from 45 degrees of extension (the AAOS average range, cited beside it) to the model's 90 of flexion;
+  the published 0 left the index and little distal phalanges outside SOMA's flatter hand. The thumb and every other
+  joint keep their ranges.
 - **Its held fingers rest in SOMA's hand** (`_rested.py`, 2026-11-01): each finger and thumb body turned by its
   joints' rest turns (`calibration.FINGERS`), so the file's zero pose, where `fit` holds the fingers, is SOMA's
   template hand's shape; each joint's axis and anchor carried so every pose is reached as before, its range moved by
