@@ -36,11 +36,15 @@ Breaks (each applied once, seen red, reverted):
 - (2026-11-01) jacobian's retry of a failed set (`if failed:` made `if False:`): a nudged set the card's level 3 did
   not stop on (None) kills the Jacobian, as l1e's s00014 killed level 1.
 - (2026-11-01) jacobian's retry stepping `steps` again (not `-steps`): the failed side is asked twice.
+- (2026-11-01) whole's `np.full(size, np.inf) if found is None` dropped: a trial point a body's level 3 did not
+  stop on (l1e's tall_heavy, 10:5x) kills level 1 instead of being refused.
+- (2026-11-01) evaluated's `if np.all(np.isfinite(found))` dropped: a refused trial is checkpointed at an infinite cost.
 - (2026-10-30) _differences.hybrid's `merged[:, chosen] = differenced[:, chosen]` dropped: the hybrid keeps the
   exact Jacobian's chosen (centre) columns in place of their differences.
 
 Run: .venv/bin/python score/stages/sim_body/inside/tuning/test_one_optimisation_moves_every_unknown_together_within_its_bounds.py
 """
+import json
 import pathlib
 import sys
 import tempfile
@@ -202,6 +206,31 @@ def test_a_set_the_solve_did_not_stop_on_is_differenced_the_other_way_within_the
         assert "bound" in str(error)
     else:
         raise AssertionError("the other side past its bound was taken")
+
+
+def test_a_trial_point_no_body_converged_on_is_refused_and_the_solve_goes_on():
+    target = np.linspace(-0.5, 0.5, len(ENTRIES))
+    calls = []
+
+    def evaluate(unknowns):  # the first trial after the start: a body's level 3 did not stop (None)
+        calls.append(np.asarray(unknowns).copy())
+        if len(calls) == 2:
+            return None
+        moved = np.asarray(unknowns) - target
+        return {"tall": {"per group deg": {}, "per joint mm": {}, "per group rms deg": {}, "per joint rms mm": {},
+                         "bones outside depth mm": {f"r{index:02d}": float(value * tuning.SCALES["skin"])
+                                                    for index, value in enumerate(moved)}}}
+    count = len(ENTRIES)
+    places = [index for index, (_, kind, _, _) in enumerate(ENTRIES) if kind in tuning.MOVES]
+    exact = np.vstack([np.eye(count) / np.sqrt(count),
+                       np.eye(count)[places] * tuning.LINK_UNIT / tuning.PRIOR])  # no differences: every call a trial
+    with tempfile.TemporaryDirectory() as folder:
+        checkpoint = pathlib.Path(folder) / "checkpoint.jsonl"
+        result, _ = tuning.whole(evaluate, lambda unknowns: 0.0, ENTRIES, checkpoint, 60,
+                                 start=np.zeros(len(ENTRIES)), every=100, exact=lambda unknowns: exact)
+        costs = [json.loads(line)["cost"] for line in checkpoint.read_text().splitlines()]
+    assert len(calls) > 2 and np.isfinite(result.cost) and np.all(np.isfinite(costs))
+    assert result.cost < 0.5 * costs[0]  # the solve went on past the refused trial
 
 
 def test_one_call_with_every_nudged_set_gives_the_serial_jacobian_and_solve():
