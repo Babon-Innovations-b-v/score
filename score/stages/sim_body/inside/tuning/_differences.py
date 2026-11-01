@@ -58,14 +58,30 @@ def serially(residuals):
     return lambda sets: [residuals(moved) for moved in sets]
 
 
-def jacobian(many, unknowns, found, pattern, groups, steps):
+def jacobian(many, unknowns, found, pattern, groups, steps, bounds=None):
     """The dense Jacobian at `unknowns` (`found` its residuals there): every group's nudged set (`nudged`) evaluated
     in one call of `many` (sets -> their residuals), each column's change read only on its own rows of the pattern,
-    over the step actually taken."""
+    over the step actually taken. A set `many` gives back as None (a frame the solve did not stop on: l1e's s00014 sat
+    on its bounds, 2026-11-01) is stepped once the other way, within `bounds` (lower, upper), its columns that side's
+    one-sided difference; raises when that set fails too or the other side passes a bound."""
     unknowns = np.asarray(unknowns, dtype=float)
     sets = nudged(unknowns, groups, steps)
+    found_sets = list(many(sets))
+    failed = [index for index, residuals in enumerate(found_sets) if residuals is None]
+    if failed:
+        flipped = -np.asarray(steps, dtype=float)
+        again = nudged(unknowns, [groups[index] for index in failed], flipped)
+        lower, upper = bounds if bounds is not None else (-np.inf, np.inf)
+        if any((moved < lower).any() or (moved > upper).any() for moved in again):
+            raise RuntimeError(f"sets {failed} did not converge and their other side passes a bound")
+        for index, moved, residuals in zip(failed, again, many(again), strict=True):
+            if residuals is None:
+                raise RuntimeError(f"set {index} (columns {groups[index]}) did not converge on either side")
+            sets[index], found_sets[index] = moved, residuals
+            print(f"jacobian: set {index} (columns {groups[index]}) did not converge; differenced the other way",
+                  flush=True)
     columns = np.zeros((len(found), len(unknowns)))
-    for group, moved, residuals in zip(groups, sets, many(sets)):
+    for group, moved, residuals in zip(groups, sets, found_sets):
         change = np.asarray(residuals) - found
         for column in group:
             rows = pattern[:, column].astype(bool)

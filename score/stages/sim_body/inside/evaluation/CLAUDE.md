@@ -66,6 +66,14 @@ paired changes, tuning and check bodies apart, verdicts once the run dir has flo
   (`fit.ends_relaid`), and Newton's model is built from the file without constants with the inside joints moved; the
   clips' folders hold no copy of the file. 4 centre sets x tall's 7 clips beside l1d (night/gpu2/prof c, d): set-up B
   4.3 s to 0, rows within 2.7e-5 of the two-file run (largest 5.0), the nudged columns 0.02 to 0.03 % apart.
+- A set one of a body's level 3 frames does not stop on (`fit._card._solve.NotConverged`) no longer kills its
+  process: `_card_sets` writes <set>/`UNCONVERGED` and goes on, `read_back` gives None for it when asked
+  (`measured_many(unconverged=True)`, level1.py's Jacobian sets; `tuning._differences.jacobian` steps those columns
+  the other way) and raises for an evaluation. Why (2026-11-01, l1e/evals/jacobian s00014, reproduced in
+  l1e_work/nc with 3000 steps): heavy_short_legged_squat's frame 112 sat on its knees', an ankle's and the neck's
+  range ends, its step 4.04e-4 every step (over `CYCLE_STEP`) taken back by the projection, its cost flat at
+  0.0373157 within 7e-9 (2e-7 of itself) from step 280 to 724, where a 1e-10 settle fell out by chance: a bound,
+  not slow progress, so the step cap stays 300 and no stop tolerance moved.
 - `measured_many` runs one `_card_sets` process a body (since 2026-10-31; one process held every body before, ~1.3
   cores, the card mostly idle, a Jacobian 37 min on l1d), at most `SET_PROCESSES` (10, every tuning body) side by side by `run_all`, a
   failed body once more; each writes its own cases into the shared out/pNNN/sNNNNN folders. Measured (night/gpu2/many,
