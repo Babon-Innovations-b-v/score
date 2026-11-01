@@ -9,7 +9,7 @@ The default grilling session, the [Pocock `grill-with-docs`](https://github.com/
 
 ## A question, not a task (check this first)
 
-A status or lookup question ("where does X stand", "what is still open on Y", "did Z get finished", "what is our ...") is not a task: skip orient, the dump check and the wayfinder check. Ask the repo's index (the tools root `CLAUDE.md` names) in one or two calls, using the ready-made query it lists when there is one, and answer from that. Check nothing the user did not ask about: no gate status, no diffs, no full issue bodies, no extra findings. Reply in a few lines that lead with the answer; offer detail in one short line, never give it unasked. If the index cannot answer, say so and make the one call that can.
+A question that asks for facts rather than for work is not a task: a status question ("where does X stand", "did Z get finished"), a lookup ("what is our ..."), or an impact question ("what would I have to touch to ...", "what breaks if ..."). Skip orient, the dump check and the wayfinder check. Ask the repo's index (the tools root `CLAUDE.md` names) first, using a ready-made query it lists when there is one; put every remaining search into ONE bundled shell call that prints a labelled report; read only the lines that call names. Check nothing the user did not ask about. Answer in this shape: the answer in two or three sentences, then at most five bullets of the things that matter most (what breaks, what to touch), then one line offering the full list. Never paste the full list unasked.
 
 ## Before asking anything (orient)
 
