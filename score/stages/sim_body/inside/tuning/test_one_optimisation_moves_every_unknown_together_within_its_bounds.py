@@ -10,6 +10,8 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) reached's `near.add(PARENT.get(segment, segment))` dropped: a landmark misses its parent group's rows.
 - (2026-10-29) resumed's `min(lines, ...)` made `lines[0]`: a resume starts from the first evaluation, not the best.
 - (2026-10-29) weight_rewritten's `flags=re.MULTILINE` dropped: no global weight is written back.
+- (2026-11-01) centres_rewritten's `float(value) + float(move)` made `float(move)`: a centre off its body's origin
+  (C7_T1 on the torso) lands at its offset, not moved by it.
 - (2026-10-29) ended's `middles.get(start, (start,))` made `(start,)`: a hip's centre misses the Hips group it ends.
 - (2026-10-29) offsets keyed by `paired(centre)[0]`: the right hip's centre takes the left's move (bodies are not
   symmetric: each end its own).
@@ -212,6 +214,15 @@ def test_a_global_weight_is_written_back_into_its_module():
     source = "MARKER_GOAL = 1.0\nOTHER_GOAL = 1.0\n"
     found = tuning.weight_rewritten(source, "MARKER_GOAL", 2.5)
     assert found == "MARKER_GOAL = 2.5\nOTHER_GOAL = 1.0\n", found
+
+
+def test_a_group_ends_centre_is_moved_by_its_offset_in_both_tables():
+    source = ('    "hip_l": ("femur_l", (0, 0, 0)),\n    "C7_T1": ("torso", (-0.03192, 0.39675, 0.00031)),\n'
+              '    "L5_S1": ("lumbar5", (0, 0, 0)), "C0_C1": ("head", (-0.00763, 0.00738, 0.00005)),\n')
+    found = tuning.centres_rewritten(source, {"hip_l": [0.001, -0.002, 0.0], "C7_T1": [0.002, 0.0, -0.001],
+                                              "C0_C1": [0.0, 0.001, 0.0]})
+    assert found == ('    "hip_l": ("femur_l", (0.001, -0.002, 0)),\n    "C7_T1": ("torso", (-0.02992, 0.39675, -0.00069)),\n'
+                     '    "L5_S1": ("lumbar5", (0, 0, 0)), "C0_C1": ("head", (-0.00763, 0.00838, 5e-05)),\n'), found
 
 
 def test_the_run_settles_when_the_objective_stops_moving():
