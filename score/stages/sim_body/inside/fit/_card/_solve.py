@@ -14,7 +14,14 @@ the float32 pose's rounding moves the cost 9e-9 either way, so it went A, B, A f
 returns, so the cycle rule cannot stop one early. It also stops, as mink's frames do (`../_frames.solved`), when a step
 moved its float64 residuals (the weighted errors) by under MOVED_DONE: a drift no objective sees, elv_angle and its
 follower cancelling at zero shoulder elevation (#70's arms_raise). A stopped row's step is zero from then on. A row still going at MOST_STEPS
-raises NotConverged, as mink's frames do (`../_frames.py`)."""
+raises NotConverged, as mink's frames do (`../_frames.py`). Given the rows' posed skins, the bones-in-skin rows
+(`_skin_step`) are in each step's normal equations and in the stop rule's cost and change, as mink's `SkinTask` is,
+and each step is judged (Levenberg-Marquardt's control, as `../_frames.solved` with the skin): a trial pose whose
+cost (the float64 residuals' and the skin's) is not under the last kept pose's is turned back and the row's added
+damping raised LAM_RAISE times (from LAM_FIRST), a kept one lowers it (to 0 under LAM_FIRST); a row turned back stops
+when its step is under STEP_DONE or its damping passes LAM_MOST (no step lowers its cost: its minimum, though a kink),
+the stop rule's cost and change read on kept poses only (#70, 2026-11-01: the skin's depth bends where its closest
+point jumps, and the plain steps cycled for good on a sampled frame and ran away on another)."""
 import numpy as np
 import warp as wp
 
@@ -22,6 +29,7 @@ from ._forward import Forward, frames
 from ._objective import wide_residuals
 from ._per_row import rowwise
 from ._project import project, rows_of
+from ._skin_step import SKIN_CHUNK_ROWS
 from ._step import damped_step
 
 MOST_STEPS = 300
@@ -32,6 +40,9 @@ MOVED_DONE = 1e-8  # mink's own, `_frames.STEP_DONE` on the change of the weight
 CYCLE_STEP = 1e-4  # a row back at its cost of two steps before, by steps this short, is at its float32 pose's floor
 CYCLE_RETURN = 1e-2  # ... back within this share of the cost change between the two
 ROOT_TURN = 3  # the free root's quaternion starts at coordinate 3 in both layouts
+LAM_FIRST = 1e-3  # the step control's first added damping, then LAM_RAISE times each turned-back step
+LAM_RAISE = 10.0
+LAM_MOST = 1e8  # a row turned back past this damping has no step that lowers its cost: it stops there
 
 
 class NotConverged(RuntimeError):
@@ -63,14 +74,51 @@ def _to_newton(qpos: wp.array2d[wp.float32], joint_q: wp.array2d[wp.float32]):
 
 
 @wp.kernel(enable_backward=False)
+def _judged(residuals: wp.array2d[wp.float64], skin_cost: wp.array[wp.float64], kept_cost: wp.array[wp.float64],
+            lam: wp.array[wp.float32], current: wp.array2d[wp.float32], kept_q: wp.array2d[wp.float32],
+            kept_residuals: wp.array2d[wp.float64], judged: wp.array[wp.int32], active: wp.array[wp.int32]):
+    """The step control: a row's trial pose (`current`) is kept when its cost is under its last kept one's (which
+    lowers its added damping), else turned back to it with its residuals (which raises it)."""
+    row = wp.tid()
+    if active[row] == 0:
+        judged[row] = 1
+        return
+    cost = skin_cost[row]
+    for residual in range(residuals.shape[1]):
+        cost += residuals[row, residual] * residuals[row, residual]
+    if cost < kept_cost[row]:
+        kept_cost[row] = cost
+        for coord in range(current.shape[1]):
+            kept_q[row, coord] = current[row, coord]
+        for residual in range(residuals.shape[1]):
+            kept_residuals[row, residual] = residuals[row, residual]
+        judged[row] = 1
+        lam[row] = wp.where(lam[row] > LAM_FIRST, lam[row] / LAM_RAISE, 0.0)
+    else:
+        for coord in range(current.shape[1]):
+            current[row, coord] = kept_q[row, coord]
+        for residual in range(residuals.shape[1]):
+            residuals[row, residual] = kept_residuals[row, residual]
+        judged[row] = 0
+        lam[row] = wp.max(lam[row] * LAM_RAISE, LAM_FIRST)
+
+
+@wp.kernel(enable_backward=False)
 def _stopped(residuals: wp.array2d[wp.float64], before: wp.array2d[wp.float64], norms: wp.array[wp.float32],
              history: wp.array2d[wp.float64], taken: wp.array[wp.int32], active: wp.array[wp.int32],
-             steps: wp.array[wp.int32]):
+             skin_cost: wp.array[wp.float64], skin_change: wp.array[wp.float64], skin: int,
+             judged: wp.array[wp.int32], lam: wp.array[wp.float32], steps: wp.array[wp.int32]):
     """The stop rule for one step (taken[0] steps before it): history holds each row's cost at the last three poses,
-    before its residuals at the last pose."""
+    before its residuals at the last pose; with `skin` the bones-in-skin rows' cost and change (`_skin_step`) too,
+    read on kept poses only (`_judged`): a turned-back row stops on a short step or past LAM_MOST."""
     row = wp.tid()
     step = taken[0]
     if active[row] == 0:
+        return
+    if skin != 0 and judged[row] == 0:
+        steps[row] = step + 1
+        if norms[row] < STEP_DONE or lam[row] > LAM_MOST:
+            active[row] = 0
         return
     cost = wp.float64(0.0)
     moved = wp.float64(0.0)
@@ -79,6 +127,9 @@ def _stopped(residuals: wp.array2d[wp.float64], before: wp.array2d[wp.float64], 
         change = residuals[row, residual] - before[row, residual]
         moved += change * change
         before[row, residual] = residuals[row, residual]
+    if skin != 0:
+        cost += skin_cost[row]
+        moved += skin_change[row]
     history[row, 2] = history[row, 1]
     history[row, 1] = history[row, 0]
     history[row, 0] = cost
@@ -110,12 +161,14 @@ def _wide_residuals(optimizer, forward, joint_q, body_q, wide):
         wide_residuals(objective, body_q, start, optimizer.problem_idx, wide)
 
 
-def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STEPS, set_places=None, row_set=None):
+def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STEPS, set_places=None, row_set=None,
+           skin=None):
     """Every row's pose fitted from joint_q [rows, coords] (Newton's layout): (qpos [rows, coords] in MuJoCo's
     layout, steps [rows]). optimizer is the batch's IKOptimizerLM (Newton's IKSolver(...)._impl), seeds [rows,
     coords] MuJoCo's layout (the frozen coordinates' values). set_places [sets, joints, 7] and row_set [rows] (host
     arrays) give each row its set's joint places, row_set its set's coupling polys too (the reduction's and the
-    projection's [sets, couplings, 5]; rows = set x frame); neither, the model's own."""
+    projection's [sets, couplings, 5]; rows = set x frame); neither, the model's own. `skin`: the rows' bones in their
+    posed skins (`_skin_step.SkinRows`), else none."""
     device = joint_q.device
     coords = optimizer.model.joint_coord_count
     if joint_q.shape[1] != coords or seeds.shape[1] != coords:
@@ -143,20 +196,37 @@ def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STE
     steps = wp.zeros(rows, dtype=wp.int32, device=device)
     taken = wp.zeros(1, dtype=wp.int32, device=device)
 
+    held_off = None if skin is None else (lambda slopes: skin.normal(optimizer.joint_S_s, slopes))
+    unread = wp.zeros(1, dtype=wp.float64, device=device)  # the stop rule's skin sums when there is none (flag 0)
+    skin_sums = (skin.cost, skin.change, 1) if skin is not None else (unread, unread, 0)
+    judged, lam = wp.ones(rows, dtype=wp.int32, device=device), wp.zeros(rows, dtype=wp.float32, device=device)
+    kept_q, kept_residuals = wp.clone(current), wp.zeros_like(wide)
+    kept_cost = wp.array(np.full(rows, np.inf), dtype=wp.float64, device=device)
+
     def step():
-        """One step for every row: the Jacobian, the float64 residuals, the damped step, integrate, project, stop."""
+        """One step for every row: the Jacobian, the float64 residuals, the damped step, integrate, project, stop;
+        with the skin the trial pose judged first (`_judged`), the step taken from the kept one."""
+        if skin is not None:
+            _wide_residuals(optimizer, forward, current, body_q, wide)
+            skin.measure(body_q)
+            wp.launch(_judged, dim=rows, inputs=[wide, skin.cost, kept_cost, lam, current, kept_q, kept_residuals,
+                                                 judged, active], device=device)
+            skin.kept(judged)
         context = optimizer._ctx_solver(current)
         optimizer._residuals_analytic(context)
         jacobian = optimizer._jacobian_at(context)
-        _wide_residuals(optimizer, forward, current, body_q, wide)
+        if skin is None:
+            _wide_residuals(optimizer, forward, current, body_q, wide)
         wp.launch(_narrowed, dim=wide.shape, inputs=[wide], outputs=[narrow], device=device)
         wp.launch(_to_mujoco, dim=(rows, coords), inputs=[current], outputs=[qpos], device=device)
-        full, norms = damped_step(reduction, jacobian, narrow, qpos, active, sets_of)
+        full, norms = damped_step(reduction, jacobian, narrow, qpos, active, sets_of, held_off,
+                                  None if skin is None else lam)
         optimizer._integrate_dq(current, dq_in=full, joint_q_out=following, joint_qd_out=velocity)
         wp.launch(_to_mujoco, dim=(rows, coords), inputs=[following], outputs=[qpos], device=device)
         project(projection, qpos, seeds, sets_of)
         wp.launch(_to_newton, dim=(rows, coords), inputs=[qpos], outputs=[current], device=device)
-        wp.launch(_stopped, dim=rows, inputs=[wide, before, norms, history, taken, active, steps], device=device)
+        wp.launch(_stopped, dim=rows, inputs=[wide, before, norms, history, taken, active, *skin_sums, judged, lam,
+                                              steps], device=device)
         wp.launch(_counted, dim=1, inputs=[taken], device=device)
 
     graph = None
@@ -173,24 +243,30 @@ def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STE
             break
     if active.numpy().any():
         raise NotConverged(f"{int(active.numpy().sum())} rows did not stop in {most_steps} steps")
-    wp.launch(_to_mujoco, dim=(rows, coords), inputs=[current], outputs=[qpos], device=device)
+    wp.launch(_to_mujoco, dim=(rows, coords), inputs=[current if skin is None else kept_q], outputs=[qpos],
+              device=device)
     return qpos, steps
 
 
 def solved_in_chunks(optimizer_for, reduction, projection, joint_q, seeds, chunk_rows=CHUNK_ROWS, set_places=None,
-                     row_set=None):
+                     row_set=None, skin=None):
     """`solved` over joint_q's rows CHUNK_ROWS at a time: (qpos [rows, coords] in MuJoCo's layout, steps [rows]) as
     host arrays. optimizer_for(start, stop) gives the IKOptimizerLM for rows start:stop (one IKSolver a chunk: its
-    buffers are per row); joint_q and seeds are host arrays [rows, coords]; set_places and row_set as `solved`'s."""
+    buffers are per row); joint_q and seeds are host arrays [rows, coords]; set_places and row_set as `solved`'s;
+    `skin` (bones, skins): the clip's `_skin_step.BoneSkin` and each row's posed skin (`fit._skin.PosedSkins`), the
+    chunks then at most SKIN_CHUNK_ROWS rows (a distinct skin a mesh on the card)."""
     found, steps = [], []
+    if skin is not None:
+        chunk_rows = min(chunk_rows, SKIN_CHUNK_ROWS)
     for start in range(0, joint_q.shape[0], chunk_rows):
         stop = min(start + chunk_rows, joint_q.shape[0])
         optimizer = optimizer_for(start, stop)
         device = optimizer.model.device
         chunk = lambda values: wp.array(np.ascontiguousarray(values[start:stop], dtype=np.float32), dtype=wp.float32,
                                         device=device)
+        rows = None if skin is None else skin[0].rows(skin[1][start:stop], device)
         qpos, made = solved(optimizer, reduction, projection, chunk(joint_q), chunk(seeds), set_places=set_places,
-                            row_set=None if row_set is None else np.asarray(row_set)[start:stop])
+                            row_set=None if row_set is None else np.asarray(row_set)[start:stop], skin=rows)
         found.append(qpos.numpy())
         steps.append(made.numpy())
     return np.concatenate(found), np.concatenate(steps)

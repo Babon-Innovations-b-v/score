@@ -8,6 +8,8 @@ import numpy as np
 import warp as wp
 from scipy.spatial.transform import Rotation
 
+from fit._skin import PosedSkins
+
 from ._clip import card
 from ._objective import PlacePerProblem, TurnPerProblem
 from ._seeds import newton_order
@@ -91,14 +93,16 @@ class Sets:
                                jacobian_mode=ik.IKJacobianType.ANALYTIC)._impl
         return made
 
-    def angles(self, turns, points, seeds):
-        """Each set's angles (its frames x nq, MuJoCo's layout) and steps from one batch: `turns`, `points` and
-        `seeds` one array per set, as `_clip.Clip.angles` takes them."""
+    def angles(self, turns, points, seeds, skins=None):
+        """Each set's angles (its frames x nq, MuJoCo's layout) and steps from one batch: `turns`, `points`, `seeds`
+        and `skins` (`fit._skin.PosedSkins`, or None: no skin rows) one per set, as `_clip.Clip.angles` takes them;
+        the bone points are the base set's (the sets' bodies are the same)."""
         frames = [len(set_seeds) for set_seeds in seeds]
         joined = np.concatenate([np.asarray(value, dtype=float) for value in seeds])
         row_set = np.repeat(np.arange(len(self.clips)), frames)
         qpos, steps = solved_in_chunks(self.optimizer_for(np.concatenate(turns), np.concatenate(points), frames),
                                        self.reduction, self.projection, newton_order(joined), joined,
-                                       set_places=self.set_places, row_set=row_set)
+                                       set_places=self.set_places, row_set=row_set,
+                                       skin=None if skins is None else self.base.skin_of(PosedSkins.joined(skins)))
         bounds = np.cumsum([0] + frames)
         return [(qpos[start:stop], steps[start:stop]) for start, stop in zip(bounds[:-1], bounds[1:])]

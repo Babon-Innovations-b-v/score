@@ -16,12 +16,12 @@ from fit._card import _clip, _measure as card_measure, _seeds  # noqa: E402
 
 
 def card_angles(seeds, path):
-    """fit.angles(fitting, turns, points) on the card for one clip: its frames from `seeds` (qpos [frames, nq]), the
+    """fit.angles(fitting, turns, points, skins) on the card for one clip: its frames from `seeds` (qpos [frames, nq]), the
     Newton model read from the person's file at `path` (the constants written there); float64 qpos like mink's."""
-    def angles(fitting, turns, points):
+    def angles(fitting, turns, points, skins=None):
         if len(seeds) != len(turns):
             raise ValueError(f"{path}: {len(seeds)} seeds for {len(turns)} frames")
-        found, _ = _clip.for_fitting(fitting, path).angles(turns, points, seeds)
+        found, _ = _clip.for_fitting(fitting, path).angles(turns, points, seeds, skins)
         return found.astype(float)
     return angles
 

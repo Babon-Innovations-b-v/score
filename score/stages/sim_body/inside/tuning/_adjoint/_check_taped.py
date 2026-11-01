@@ -174,4 +174,23 @@ by_mixed = lifted.T @ mixed(chain.gradient, pose, np.zeros(2), step)
 products = chain.products(pose, np.zeros(2), lifted)
 print("PRODUCTS", np.abs(products - by_mixed).max() / np.abs(by_mixed).max())
 gaps.append(np.abs(products - by_mixed).max() / np.abs(by_mixed).max())
+low, high = np.array([-0.05, -0.08, 0.0]), np.array([0.11, 0.08, 1.2])  # a box skin about the chain (MuJoCo's frame)
+box = [[(low, high)[corner >> 2 & 1][0], (low, high)[corner >> 1 & 1][1], (low, high)[corner & 1][2]] for corner in range(8)]
+box_faces = [[0, 1, 3], [0, 3, 2], [4, 6, 7], [4, 7, 5], [0, 4, 5], [0, 5, 1], [2, 3, 7], [2, 7, 6], [0, 2, 6], [0, 6, 4],
+             [1, 5, 7], [1, 7, 3]]
+skinned = _taped.TapedSites(model, [1, 3, 3], [1.0, 2.0, 0.5], [[0.1, 0.2, 0.5], [0.3, -0.2, 1.0], [0.0, 0.1, 0.8]], turns,
+                            skin=([2, 3, 3, 1], [[0.05, 0.0, 0.15], [0.0, 0.0, 0.1], [0.14, 0.02, 0.1], [0.0, 0.12, 0.0]],
+                                  [(box, box_faces)], [0, 0, 0, 0], 3.0))
+skinned.gradient(pose, outer)
+skin_taped = skinned.gradient(pose, outer)
+skin_rows = skinned.residuals(pose, outer)[-4:]
+assert (skin_rows > 1e-3).any() and (skin_rows == 0).any(), f"the skin's points are not some outside, some in: {skin_rows}"
+def skinned_cost(moved):
+    found = skinned.residuals(moved, outer)
+    return 0.5 * float(found @ found)
+skin_differences = np.array([(skinned_cost(pose + step * np.eye(4)[axis]) - skinned_cost(pose - step * np.eye(4)[axis]))
+                             / (2 * step) for axis in range(4)])
+assert np.abs(skin_differences - differences).max() > 1e-3, "the skin rows do not reach the cost"
+gaps.append(np.abs(skin_taped - skin_differences).max() / np.abs(skin_differences).max())
+print("SKIN", gaps[-1], skin_rows.tolist())
 print("GAP", max(gaps))

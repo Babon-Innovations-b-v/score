@@ -146,7 +146,7 @@ turned = np.array([card_degrees[name] for name in sorted(groups)])
 card_skins = card.Skins(rig, segments, worlds)
 card_data = card.Posed(clip.mjm, np.concatenate([rows[:, :3], rows[:, [6, 3, 4, 5]], rows[:, 7:]], axis=1),
                        set(card_skins.frames.tolist()))
-card_depths = card.outside_marks(card_data, card_skins)[1]
+card_depths = card.outside_marks(card_data, card_skins)[1][card_skins.kept]  # the folded frames left out, as the measures
 labels = card.scored_labels(card_data.bones)
 skin_wanted = np.concatenate([card_depths[:, labels == name].ravel() for name in sorted(skins)])
 skin_mine = taped_joints.skins.depths.numpy().astype(float)

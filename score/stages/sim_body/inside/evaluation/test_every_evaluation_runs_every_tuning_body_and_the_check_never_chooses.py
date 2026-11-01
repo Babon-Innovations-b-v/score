@@ -203,7 +203,9 @@ def test_a_clips_targets_are_made_once_per_landmark_set_and_never_written_in_pla
     from evaluation import _card_batch
     from landmarks import LANDMARKS, solver_marks
     calls, kept = [], _card_batch.fit.targets
-    _card_batch.fit.targets = lambda *given: calls.append(given) or (np.zeros((2, 1, 3, 3)), np.zeros((2, 4, 3)))
+    from fit._skin import PosedSkins
+    _card_batch.fit.targets = lambda *given: calls.append(given) or (np.zeros((2, 1, 3, 3)), np.zeros((2, 4, 3)),
+                                                                     PosedSkins(np.zeros((2, 3, 3)), [[0, 1, 2]]))
     rig = {"names": np.array(["root"]), "bind": np.eye(4)[None]}
     clips = {"tall_kimodo": (None, {"segments": ["pelvis"]}, rig, np.zeros((2, 1, 4, 4)))}
     name, row = solver_marks()[0], LANDMARKS[solver_marks()[0]]
@@ -217,7 +219,7 @@ def test_a_clips_targets_are_made_once_per_landmark_set_and_never_written_in_pla
         LANDMARKS[name], _card_batch.fit.targets = row, kept
         _card_batch.TARGETS.clear()
     assert len(calls) == 2 and again["tall_kimodo"] is first["tall_kimodo"] and moved["tall_kimodo"] is not first["tall_kimodo"]
-    assert not first["tall_kimodo"][1].flags.writeable
+    assert not first["tall_kimodo"][1].flags.writeable and not first["tall_kimodo"][2].verts.flags.writeable
 
 
 

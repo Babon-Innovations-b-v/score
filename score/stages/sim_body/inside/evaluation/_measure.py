@@ -14,7 +14,8 @@ from scipy.spatial import cKDTree
 import calibration
 from contact import surface
 from fit._frozen import frozen_turn
-from fit._skin import EVERY, HAND, bone_meshes, bone_points, depth_mm, envelope, marks, region, skin as skinned
+from fit._skin import (EVERY, HAND, bone_meshes, bone_points, depth_mm, envelope, marks, region, skin as skinned,
+                       unfolded)
 from landmarks import soma_point
 from model import TO_OWN
 
@@ -102,6 +103,7 @@ def measures(model, angles, rig, segments, worlds, scales):
     turns = {segment: [] for segment in segments if segment in FRAME_BODY}
     frozen = {segment: [] for segment in turns}
     lowest, skin_lowest, outside, depth, deep, by_bone, hand_parts, no_fingers = [], [], {}, {}, {}, {}, {}, {}
+    folded = []  # the bone vertices' share outside on each skin frame whose skin folds (`fit._skin.unfolded`)
     faces, meshes = envelope(rig), bone_meshes(model)
     hand_tips = {side: soma_point(f"{side}Hand tip", rig) for side in hand}
     for frame, (qpos, world) in enumerate(zip(angles, worlds)):
@@ -135,6 +137,9 @@ def measures(model, angles, rig, segments, worlds, scales):
             unbent = labels != "hand"
             unbent |= np.isin(parts, ("carpals", "metacarpals"))
             out, depths = marks(own, skin, faces)
+            if not unfolded(skin, rig["faces"]):
+                folded.append(float(out.mean()))
+                continue
             tree = cKDTree(skin)
             far, _ = tree.query(own[out]) if out.any() else (np.zeros(0), None)
             for label in set(labels):
@@ -177,6 +182,7 @@ def measures(model, angles, rig, segments, worlds, scales):
             "outside depth p95 mm": {key: float(np.percentile(value, 95)) if value else 0.0
                                      for key, value in depth.items()},
             "bones outside all %": 100 * float(np.mean(sum(outside.values(), []))),
+            "skin folded frames": {"frames": len(folded), "all": 100 * float(np.mean(folded)) if folded else 0.0},
             "hand parts outside %": {key: 100 * float(np.mean(value)) for key, value in hand_parts.items()},
             "bones outside no fingers %": 100 * float(np.mean(sum(no_fingers.values(), []))),
             "bones outside by bone %": {key: 100 * float(np.mean(value)) for key, value in by_bone.items()}}

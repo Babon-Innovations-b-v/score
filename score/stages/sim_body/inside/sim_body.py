@@ -124,8 +124,8 @@ def constants_set_up(job, person, rig, worlds, path, size, scales, made=None, fo
 def clip_angles(fitting, rig, segments, worlds):
     """The clip's fitted path on `fitting` (qpos of MuJoCo's own compile of the file: the pose alone per frame, the
     constants held), by `fit.angles`."""
-    turns, points = fit.targets(rig, segments, worlds, fit.followed(segments))
-    return fit.angles(fitting, turns, points)
+    turns, points, skins = fit.targets(rig, segments, worlds, fit.followed(segments))
+    return fit.angles(fitting, turns, points, skins)
 
 
 def followed_record(record, fitting, angles, worlds, segments, scales, rig):

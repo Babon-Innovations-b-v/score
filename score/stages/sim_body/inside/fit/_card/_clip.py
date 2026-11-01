@@ -13,6 +13,7 @@ from scipy.spatial.transform import Rotation
 from ._objective import PlacePerProblem, TurnPerProblem
 from ._project import Projection
 from ._seeds import newton_order
+from ._skin_step import BoneSkin
 from ._solve import solved_in_chunks
 from ._step import Reduction
 
@@ -108,6 +109,20 @@ class Clip:
         self.body = {label.split("/")[-1]: index for index, label in enumerate(newton_model.body_label)}
         self.reduction = reduction_of(mjm, limited, frozen)
         self.projection = projection_of(mjm, limited, frozen)
+        self._bones = None
+
+    def bones(self):
+        """The model's bone points for the skin's rows (`_skin_step.BoneSkin`), made once; None without bone meshes."""
+        if self._bones is None:
+            self._bones = BoneSkin(self)
+        return self._bones if self._bones.count else None
+
+    def skin_of(self, skins):
+        """`solved_in_chunks`' `skin` for rows posed in `skins` (`fit._skin.PosedSkins`, a frame a row), None when
+        none are given or the model has no bone meshes."""
+        if skins is None or self.bones() is None:
+            return None
+        return self.bones(), skins
 
     def link(self, site):
         """The Newton body a MuJoCo site rides."""
@@ -132,12 +147,13 @@ class Clip:
                                jacobian_mode=ik.IKJacobianType.ANALYTIC)._impl
         return made
 
-    def angles(self, turns, points, seeds):
+    def angles(self, turns, points, seeds, skins=None):
         """Every frame's angles (frames x nq, MuJoCo's layout) and steps, each frame from its own seed [frames, nq]:
-        `turns` frames x groups x 3 x 3, `points` frames x markers x 3."""
+        `turns` frames x groups x 3 x 3, `points` frames x markers x 3, `skins` each frame's posed skin
+        (`fit._skin.PosedSkins`; None: no skin rows)."""
         seeds = np.asarray(seeds, dtype=float)
         return solved_in_chunks(self.optimizer_for(np.asarray(turns), np.asarray(points)), self.reduction,
-                                self.projection, newton_order(seeds), seeds)
+                                self.projection, newton_order(seeds), seeds, skin=self.skin_of(skins))
 
 
 MAPPED = 1e-5  # m, the plan's site tolerance: Newton's float32 sites at rest off MuJoCo's (heavy: 0.0073 mm)

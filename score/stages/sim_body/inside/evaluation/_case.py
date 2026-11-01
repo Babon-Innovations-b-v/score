@@ -111,7 +111,7 @@ def written(out, person, rig, worlds, fitted, measures, points=None):
     np.savez(out / evaluation.SEEDS, qpos=angles)
     found = measures(model, angles, rig, person["segments"], worlds, scales)
     if points is None:
-        _, points = fit.targets(rig, person["segments"], worlds, fit.followed(person["segments"]))
+        _, points, _ = fit.targets(rig, person["segments"], worlds, fit.followed(person["segments"]))
     found["landmarks"] = leftovers(model, angles, scales, points)
     found["fit seconds"] = round(seconds, 1)
     found["recordings"] = person["recordings"]

@@ -1,7 +1,9 @@
 """One frame's level 3 gradient on the card, exact by Warp's tape through Newton's eval_fk (#70, card plan step 6b):
 the cost 0.5 sum w^2 |target - site(q, offset)|^2 over sites on links, plus level 3's link-frame turn rows
-0.5 sum w^2 |log(turn(q) offset target^-1)|^2 (the card's own `_turn_error`), its gradient over the pose q (the inner
-unknowns) with the site offsets as the outer ones, in the shape `Body` takes (`gradient(inner, outer)`,
+0.5 sum w^2 |log(turn(q) offset target^-1)|^2 (the card's own `_turn_error`), and level 3's bones-in-skin rows
+0.5 sum (c d)^2 (each bone point's depth outside its frame's posed skin, `fit/_card/_skin_step`'s rows: the closest
+point and side found off the tape, the distance taped, so the gradient is the unit's), its gradient over the pose q
+(the inner unknowns) with the site offsets as the outer ones, in the shape `Body` takes (`gradient(inner, outer)`,
 `residuals(inner, outer)`). Float32 on the card, returned as float64."""
 import importlib.util
 import pathlib
@@ -59,6 +61,54 @@ class _TurnRows:
         wp.launch(_turn_cost, dim=self.links.shape[0],
                   inputs=[body_q, self.links, self.offsets, self.targets, self.weights],
                   outputs=[self.residual_rows, cost], device=self.links.device)
+
+
+@wp.kernel
+def _skin_closest(body_q: wp.array[wp.transform], links: wp.array[wp.int32], places: wp.array[wp.vec3],
+                  meshes: wp.array[wp.uint64], closest: wp.array[wp.vec3], outside: wp.array[wp.float32]):
+    """Each bone point's closest skin point and side (off the tape: SOMA does not move with the pose)."""
+    point = wp.tid()
+    placed = wp.transform_point(body_q[links[point]], places[point])
+    found = wp.mesh_query_point_sign_winding_number(meshes[point], placed, 1.0e6, 2.0, 0.5)
+    closest[point] = wp.mesh_eval_position(meshes[point], found.face, found.u, found.v)
+    outside[point] = wp.where(found.sign >= 0.0, 1.0, 0.0)
+
+
+@wp.kernel
+def _skin_cost(body_q: wp.array[wp.transform], links: wp.array[wp.int32], places: wp.array[wp.vec3],
+               closest: wp.array[wp.vec3], outside: wp.array[wp.float32], weight: wp.float32,
+               residuals: wp.array[wp.float32], cost: wp.array[wp.float32]):
+    point = wp.tid()
+    residual = weight * outside[point] * wp.length(wp.transform_point(body_q[links[point]], places[point])
+                                                   - closest[point])
+    residuals[point] = residual
+    wp.atomic_add(cost, 0, 0.5 * residual * residual)
+
+
+class _SkinRows:
+    """Level 3's bones-in-skin rows: bone points (`links`, `places` in the link frames), each point's posed skin
+    (`skins` [(verts, faces)], `skin_of` each point's index into them), their weight `cost`; fixed, no outer unknowns."""
+
+    def __init__(self, device, links, places, skins, skin_of, cost):
+        self.links = wp.array(np.asarray(links, dtype=np.int32), dtype=wp.int32, device=device)
+        self.places = wp.array(np.asarray(places, dtype=np.float32), dtype=wp.vec3, device=device)
+        self.meshes = [wp.Mesh(points=wp.array(np.asarray(verts, dtype=np.float32), dtype=wp.vec3, device=device),
+                               indices=wp.array(np.asarray(faces, dtype=np.int32).ravel(), dtype=wp.int32, device=device),
+                               support_winding_number=True) for verts, faces in skins]
+        ids = np.array([mesh.id for mesh in self.meshes], dtype=np.uint64)
+        self.mesh_ids = wp.array(ids[np.asarray(skin_of, dtype=int)], dtype=wp.uint64, device=device)
+        self.cost = float(cost)
+        self.closest = wp.zeros(len(links), dtype=wp.vec3, device=device)
+        self.outside = wp.zeros(len(links), dtype=wp.float32, device=device)
+        self.residual_rows = wp.zeros(len(links), dtype=wp.float32, device=device, requires_grad=True)
+
+    def launch(self, body_q, cost):
+        """Each point's weighted depth outside, added into `cost` as half its square."""
+        device, count = self.links.device, self.links.shape[0]
+        wp.launch(_skin_closest, dim=count, inputs=[body_q, self.links, self.places, self.mesh_ids],
+                  outputs=[self.closest, self.outside], device=device, record_tape=False)
+        wp.launch(_skin_cost, dim=count, inputs=[body_q, self.links, self.places, self.closest, self.outside,
+                                                 self.cost], outputs=[self.residual_rows, cost], device=device)
 
 
 COUPLING_TERMS = 5
@@ -162,7 +212,7 @@ frame): the sites are that many copies of one frame's, copy by copy, and `outer`
 its trusts), laid on every copy, so each copy's last `ends` sites are its ends and its weights are its own frame's."""
 
     def __init__(self, model, links, weights, targets, turns=None, couplings=None, constants=None, trusted=False, ends=None,
-                 copies=1):
+                 copies=1, skin=None):
         self.model = model
         self.copies = copies
         self.trusted = trusted
@@ -179,6 +229,7 @@ its trusts), laid on every copy, so each copy's last `ends` sites are its ends a
         self.turns = _TurnRows(device, *turns) if turns is not None else None
         self.couplings = _Couplings(device, *couplings) if couplings is not None else None
         self.constants = _Constants(model, *constants) if constants is not None else None
+        self.skin = _SkinRows(device, *skin) if skin is not None else None
 
     def _split(self, inner):
         """The pose and level 2's moves from `inner` (the moves empty when no constants are given)."""
@@ -219,6 +270,8 @@ its trusts), laid on every copy, so each copy's last `ends` sites are its ends a
                   outputs=[self.residual_rows, self.cost], device=self.model.device)
         if self.turns is not None:
             self.turns.launch(self.state.body_q, self.cost)
+        if self.skin is not None:
+            self.skin.launch(self.state.body_q, self.cost)
 
     def gradient(self, inner, outer):
         """d cost / d inner at (`inner`, `outer`) by the tape's backward pass: the pose's, then level 2's moves'."""
@@ -266,12 +319,14 @@ its trusts), laid on every copy, so each copy's last `ends` sites are its ends a
         return found
 
     def residuals(self, inner, outer):
-        """The sites' weighted residuals, then the turn rows', flat (rows x 3)."""
+        """The sites' weighted residuals, then the turn rows' (rows x 3), then the skin's, flat."""
         self._evaluate(inner, outer)
-        rows = [self.residual_rows.numpy()]
+        rows = [self.residual_rows.numpy().ravel()]
         if self.turns is not None:
-            rows.append(self.turns.residual_rows.numpy())
-        return np.concatenate(rows).astype(np.float64).ravel()
+            rows.append(self.turns.residual_rows.numpy().ravel())
+        if self.skin is not None:
+            rows.append(self.skin.residual_rows.numpy())
+        return np.concatenate(rows).astype(np.float64)
 
 
 def turned_offsets(sites, moves, work):

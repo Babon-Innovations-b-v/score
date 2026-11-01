@@ -15,7 +15,8 @@ import warp
 
 from evaluation import _measure as cpu
 from fit._frozen import frozen_turn
-from fit._skin import EVERY, HAND, marks_kernel, bone_meshes, bone_points, depth_mm, envelope, region, skin as skinned
+from fit._skin import (EVERY, HAND, marks_kernel, bone_meshes, bone_points, depth_mm, envelope, region, skin as skinned,
+                       unfolded)
 from model import TO_OWN
 
 DEVICE = "cuda:0"
@@ -62,8 +63,21 @@ def posed_skins(rig, segments, worlds, frames):
     return POSED[key]
 
 
+KEPT = {}  # {`posed_key`: whether each skin frame's skin is kept (`fit._skin.unfolded`)}, a clip's own
+
+
+def kept_skins(rig, segments, worlds, frames):
+    """Whether each of `frames`' posed skins is kept in the skin rows and the share (`fit._skin.unfolded`), once per
+    `posed_key`."""
+    key = posed_key(rig, segments, worlds)
+    if key not in KEPT:
+        KEPT[key] = np.array([unfolded(points, rig["faces"]) for points in posed_skins(rig, segments, worlds, frames)])
+    return KEPT[key]
+
+
 class Skins:
-    """SOMA's skin posed on every EVERY-th frame of one case, each a Warp mesh on the card (posed once per clip)."""
+    """SOMA's skin posed on every EVERY-th frame of one case, each a Warp mesh on the card (posed once per clip), and
+    which are `kept` (`kept_skins`)."""
 
     def __init__(self, rig, segments, worlds):
         self.frames = np.arange(0, len(worlds), EVERY)
@@ -71,6 +85,7 @@ class Skins:
         self.meshes = [warp.Mesh(points=warp.array(points, dtype=warp.vec3, device=DEVICE), indices=faces,
                                  support_winding_number=True)
                        for points in posed_skins(rig, segments, worlds, self.frames)]
+        self.kept = kept_skins(rig, segments, worlds, self.frames)
         self.ids = warp.array(np.array([mesh.id for mesh in self.meshes], dtype=np.uint64), dtype=warp.uint64,
                               device=DEVICE)
 
@@ -170,7 +185,8 @@ def measures(model, angles, rig, segments, worlds, scales, skins=None):
     turns = turn_errors(model, data, worlds, segments)
     frozen = turn_errors(model, data, worlds, segments, frozen_turn)
     marks, depths = outside_marks(data, skins)
-    outside = skin_shares(marks, data.bones)
+    outside = skin_shares(marks[skins.kept], data.bones)
+    folded = marks[~skins.kept]
     return {"joints mm": cpu.summary(np.concatenate(list(joints.values()))),
             "per joint mm": {key: cpu.summary(value)[:2] for key, value in joints.items()},
             "turns deg": cpu.summary(np.concatenate(list(turns.values()))),
@@ -180,6 +196,8 @@ def measures(model, angles, rig, segments, worlds, scales, skins=None):
             "turns deg, main's frozen table": cpu.summary(np.concatenate(list(frozen.values()))),
             "per group deg, main's frozen table": {key: cpu.summary(value)[:2] for key, value in frozen.items()},
             "bones outside skin %": {key: 100 * float(np.mean(value)) for key, value in outside.items()},
-            "bones outside depth mm": skin_depths(depths, data.bones),
-            "bones outside all %": 100 * float(np.mean(sum(outside.values(), [])))}
+            "bones outside depth mm": skin_depths(depths[skins.kept], data.bones),
+            "bones outside all %": 100 * float(np.mean(sum(outside.values(), []))),
+            "skin folded frames": {"frames": len(folded),
+                                   "all": 100 * float(folded.mean()) if len(folded) else 0.0}}
 

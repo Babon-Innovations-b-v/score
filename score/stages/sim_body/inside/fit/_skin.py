@@ -4,7 +4,13 @@ generalised winding number (inside at 0.5 or more: warp's BVH winding query on t
 measures with), the share outside kept per region (REGIONS, the hand's parts (HAND) one region). The stage's record
 and level 1's score (evaluation._measure) both measure through this one module. Level 1's least squares reads the
 depth outside instead (`marks_kernel`: each point's distance to the skin's closest point when outside, 0 inside), smooth
-where the share is a step (#70, 2026-10-30): the share stays the judged measure. Nothing here moves SOMA."""
+where the share is a step (#70, 2026-10-30): the share stays the judged measure. Levels 2 and 3 hold the bones inside
+too (#70, 2026-11-01, the owner: "we just know bones need to be inside the skin"): each kept bone vertex's depth outside
+the frame's posed skin (`PosedSkins`, MuJoCo's frame) times `skin_cost` is the residual of both solves, as its offset
+off the skin's closest point (`apart_kernel`: the same winding query, the closest point on the face it finds in
+float64), whose Jacobian in the point is the projector off the closest feature (the face's normal, an edge's plane, a
+corner's every axis): so a solve sees the skin's bend at its edges and corners, where a depth row's own Gauss-Newton
+square misses it. Nothing here moves SOMA."""
 import mujoco
 import numpy as np
 import warp
@@ -22,6 +28,21 @@ REGIONS = {"shoulder": ("clavicle", "scapula", "humerus"), "forearm": ("ulna", "
 HAND = ("fingers", "metacarpals", "carpals")  # the hand's parts, scored together as "hand"
 POCKET_REACH = 0.03  # m: a face whose outward normal meets the skin again this near is a pocket's wall
 POCKET_SEGMENT = "Head"  # the segment whose pockets a closed face covers (lips, eyelids and eyes, nostrils, ears)
+# The bones-in-skin goal of level 3 against the turns' 1 (`_frames.weights`): its rows sum to SKIN_GOAL times the
+# mean over the kept bone vertices of their squared depth outside (m), each goal over its own count as OpenSim weighs
+# its goals. Chosen from measurement (#70, 2026-11-01), never set to pass a score: on mean's 15 clips with the skin rows
+# in level 3 only, bones outside 11.45 % (none) -> 9.57 / 6.95 / 4.88 % at 1e2 / 1e3 / 1e4, the turns 4.662 ->
+# 4.61 / 4.603 / 4.735 deg: 1e3 the largest goal whose turns are no worse; env1's seated and standing astronauts read
+# fewer bones outside at it too (fit/CLAUDE.md). Level 2 holds no skin rows: its polish did not settle with them.
+SKIN_GOAL = 1.0e3
+# A frame whose posed skin lies inside itself over FOLD_MOST of its area (a deep squat's or a kneel's skin folding into
+# itself, which no skeleton can follow) is left out of the skin rows of levels 1 and 3 and out of the bones-outside
+# share, and reported apart (the owner, 2026-11-01). A skin vertex lies inside itself when the point FOLD_IN in from it
+# along its normal winds 1.5 or more. On the mean body's 15 clips (every 10th frame, main's fit, 2026-11-01) 81 of 281
+# frames folded over 0.5 % held 79 % of the bones' squared depth outside, 24.8 % of their bone vertices outside
+# against 16.0 % on the rest.
+FOLD_MOST = 0.005
+FOLD_IN = 0.001  # m
 
 warp.config.quiet = True
 
@@ -36,6 +57,116 @@ def marks_kernel(meshes: warp.array(dtype=warp.uint64), points: warp.array2d(dty
     closest = warp.mesh_eval_position(meshes[shot], found.face, found.u, found.v)
     signs[shot, point] = found.sign
     depths[shot, point] = warp.where(found.sign >= 0.0, warp.length(points[shot, point] - closest), 0.0)
+
+
+@warp.func
+def _away(direction: warp.vec3d):
+    """The projector off a feature along `direction` (an edge's): I - e e^T."""
+    unit = warp.normalize(direction)
+    return warp.identity(n=3, dtype=warp.float64) - warp.outer(unit, unit)
+
+
+@warp.func
+def closest_on_triangle(point: warp.vec3d, first: warp.vec3d, second: warp.vec3d, third: warp.vec3d):
+    """The triangle's closest point to `point` in float64 (Ericson, Real-Time Collision Detection, 5.1.5) and the
+    Hessian of half the squared distance to it there: the projector off the closest feature's span (n n^T on the face,
+    I - e e^T on an edge, I at a corner)."""
+    along = second - first
+    across = third - first
+    off = point - first
+    d1 = warp.dot(along, off)
+    d2 = warp.dot(across, off)
+    found = first
+    bend = warp.identity(n=3, dtype=warp.float64)
+    if d1 > warp.float64(0.0) or d2 > warp.float64(0.0):
+        off_second = point - second
+        d3 = warp.dot(along, off_second)
+        d4 = warp.dot(across, off_second)
+        off_third = point - third
+        d5 = warp.dot(along, off_third)
+        d6 = warp.dot(across, off_third)
+        vc = d1 * d4 - d3 * d2
+        vb = d5 * d2 - d1 * d6
+        va = d3 * d6 - d5 * d4
+        if d3 >= warp.float64(0.0) and d4 <= d3:
+            found = second
+        elif vc <= warp.float64(0.0) and d1 >= warp.float64(0.0) and d3 <= warp.float64(0.0):
+            found = first + along * (d1 / (d1 - d3))
+            bend = _away(along)
+        elif d6 >= warp.float64(0.0) and d5 <= d6:
+            found = third
+        elif vb <= warp.float64(0.0) and d2 >= warp.float64(0.0) and d6 <= warp.float64(0.0):
+            found = first + across * (d2 / (d2 - d6))
+            bend = _away(across)
+        elif va <= warp.float64(0.0) and d4 - d3 >= warp.float64(0.0) and d5 - d6 >= warp.float64(0.0):
+            found = second + (third - second) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)))
+            bend = _away(third - second)
+        else:
+            scale = warp.float64(1.0) / (va + vb + vc)
+            found = first + along * (vb * scale) + across * (vc * scale)
+            normal = warp.normalize(warp.cross(along, across))
+            bend = warp.outer(normal, normal)
+    return found, bend
+
+
+@warp.func
+def apart_of(mesh: warp.uint64, verts: warp.array(dtype=warp.vec3d), first_vert: int,
+             faces: warp.array(dtype=warp.int32), ring_starts: warp.array(dtype=warp.int32),
+             ring_faces: warp.array(dtype=warp.int32), point: warp.vec3d):
+    """A point's offset off its skin (zero inside by the winding number, `marks_kernel`'s query on the float32 mesh)
+    and the offset's Jacobian in the point (`closest_on_triangle`'s projector, zero inside). The closest point is the
+    nearest, in float64, of the face the query finds and every face touching its corners (`rings`: the faces at vertex
+    v are `ring_faces[ring_starts[v]:ring_starts[v + 1]]`; `verts` the mesh's float64 points from `first_vert`): the
+    query's float32 face flips between near neighbours, so the depth to its face alone jumped there (mean's sampled
+    frames, 2026-11-01: a lumbar inside-joint column 2.95e-4 off its central difference at a 1e-6 step, 1.4e-8 with
+    the ring). What stays is the depth's kink where a point crosses the skin: a residual max(0, d), whose square, the
+    cost, is smooth."""
+    near = warp.vec3(warp.float32(point[0]), warp.float32(point[1]), warp.float32(point[2]))
+    found = warp.mesh_query_point_sign_winding_number(mesh, near, 1.0e6, 2.0, 0.5)
+    offset = warp.vec3d()
+    bend = warp.mat33d()
+    if found.sign >= 0.0:
+        best = warp.float64(1.0e30)
+        for corner in range(3):
+            vert = faces[3 * found.face + corner]
+            for slot in range(ring_starts[vert], ring_starts[vert + 1]):
+                face = ring_faces[slot]
+                closest, projector = closest_on_triangle(point, verts[first_vert + faces[3 * face]],
+                                                         verts[first_vert + faces[3 * face + 1]],
+                                                         verts[first_vert + faces[3 * face + 2]])
+                apart = point - closest
+                length = warp.dot(apart, apart)
+                if length < best:
+                    best = length
+                    offset = apart
+                    bend = projector
+    return offset, bend
+
+
+def rings(faces, count):
+    """Each of `count` vertices' faces (`faces` faces x 3) as (starts count + 1, faces), int32: `apart_of`'s rings."""
+    faces = np.asarray(faces, dtype=np.int64).reshape(-1, 3)
+    order = np.argsort(faces.ravel(), kind="stable")
+    starts = np.searchsorted(faces.ravel()[order], np.arange(count + 1))
+    return starts.astype(np.int32), (order // 3).astype(np.int32)
+
+
+@warp.kernel
+def apart_kernel(meshes: warp.array(dtype=warp.uint64), first_verts: warp.array(dtype=warp.int32),
+                 kept: warp.array(dtype=warp.int32), verts: warp.array(dtype=warp.vec3d),
+                 faces: warp.array(dtype=warp.int32),
+                 ring_starts: warp.array(dtype=warp.int32), ring_faces: warp.array(dtype=warp.int32),
+                 mesh_of: warp.array(dtype=warp.int32), points: warp.array(dtype=warp.vec3d),
+                 apart: warp.array(dtype=warp.vec3d), bends: warp.array(dtype=warp.mat33d)):
+    """Per point: its offset off its skin (`apart_of`; `mesh_of` its mesh), its length the depth, and that offset's
+    Jacobian in the point (the projector off the closest feature); zero on a skin not `kept` (`unfolded`)."""
+    point = warp.tid()
+    mesh = mesh_of[point]
+    if kept[mesh] != 0:
+        offset, bend = apart_of(meshes[mesh], verts, first_verts[mesh], faces, ring_starts, ring_faces,
+                                points[point])
+        apart[point] = offset
+        bends[point] = bend
 
 
 def region(body):
@@ -172,16 +303,143 @@ def envelope(rig):
     return ENVELOPES[key]
 
 
+@warp.kernel
+def _doubled(mesh: warp.uint64, points: warp.array(dtype=warp.vec3), found: warp.array(dtype=float)):
+    """1 where a point winds 1.5 or more (inside the skin twice), else 0."""
+    point = warp.tid()
+    query = warp.mesh_query_point_sign_winding_number(mesh, points[point], 1.0e6, 2.0, 1.5)
+    found[point] = warp.where(query.sign < 0.0, 1.0, 0.0)
+
+
+def folded(verts, faces):
+    """The share of a posed skin's area (`verts`, its own `faces`, no pockets closed) lying inside itself: each vertex
+    by its area (a third of its faces'), inside itself when the point FOLD_IN in along its normal winds 1.5 or more."""
+    verts, faces = np.asarray(verts, dtype=np.float64), np.asarray(faces, dtype=np.int32)
+    normals = np.zeros_like(verts)
+    crossed = np.cross(verts[faces[:, 1]] - verts[faces[:, 0]], verts[faces[:, 2]] - verts[faces[:, 0]])
+    for corner in range(3):
+        np.add.at(normals, faces[:, corner], crossed)
+    area = np.linalg.norm(normals, axis=1)
+    normals /= np.maximum(area, 1e-30)[:, None]
+    mesh = warp.Mesh(points=warp.array(verts.astype(np.float32), dtype=warp.vec3, device="cpu"),
+                     indices=warp.array(faces.ravel(), dtype=int, device="cpu"), support_winding_number=True)
+    found = warp.zeros(len(verts), dtype=float, device="cpu")
+    warp.launch(_doubled, dim=len(verts), device="cpu",
+                inputs=[mesh.id, warp.array((verts - FOLD_IN * normals).astype(np.float32), dtype=warp.vec3,
+                                            device="cpu"), found])
+    return float(area[found.numpy() > 0].sum() / area.sum())
+
+
+def unfolded(verts, faces):
+    """Whether a posed skin is kept in the skin rows and the share: it lies inside itself over at most FOLD_MOST of its
+    area (`folded`)."""
+    return folded(verts, faces) <= FOLD_MOST
+
+
 def bones_outside(model, path, worlds, segments, rig):
-    """{"all": %, region: %} of the bone vertices outside SOMA's posed skin, over every EVERY-th frame."""
-    data, meshes, shares = mujoco.MjData(model), bone_meshes(model), {}
+    """({"all": %, region: %} of the bone vertices outside SOMA's posed skin over every EVERY-th frame whose skin is
+    `unfolded`, {"frames": the folded ones' count, "all": their own %}) (`FOLD_MOST`)."""
+    data, meshes, shares, apart = mujoco.MjData(model), bone_meshes(model), {}, []
     for qpos, world in list(zip(path, worlds))[::EVERY]:
         data.qpos[:] = qpos
         mujoco.mj_kinematics(model, data)
         points, bones = bone_points(model, data, meshes)
         labels = np.array([scored(region(bone)) for bone in bones])
-        out = outside(points, skin(rig, segments, world), envelope(rig))
+        posed = skin(rig, segments, world)
+        out = outside(points, posed, envelope(rig))
+        if not unfolded(posed, rig["faces"]):
+            apart.append(float(out.mean()))
+            continue
         shares.setdefault("all", []).append(float(out.mean()))
         for label in set(labels):
             shares.setdefault(label, []).append(float(out[labels == label].mean()))
-    return {label: round(100 * float(np.mean(found)), 2) for label, found in shares.items()}
+    return ({label: round(100 * float(np.mean(found)), 2) for label, found in shares.items()},
+            {"frames": len(apart), "all": round(100 * float(np.mean(apart)), 2) if apart else 0.0})
+
+
+class PosedSkins:
+    """SOMA's skin posed on each frame in MuJoCo's frame (`verts` frames x points x 3, float32), its `faces` and which
+    frames are `kept` (`unfolded`; all when not given): the target level 3 holds the bones inside, a frame not
+    kept giving no rows. Indexed by frames like an array; `joined` puts several end to end."""
+
+    def __init__(self, verts, faces, kept=None):
+        self.verts = np.asarray(verts, dtype=np.float32)
+        self.faces = np.asarray(faces, dtype=np.int32)
+        self.kept = np.ones(len(self.verts), dtype=bool) if kept is None else np.asarray(kept, dtype=bool)
+
+    def __len__(self):
+        return len(self.verts)
+
+    def __getitem__(self, frames):
+        return PosedSkins(self.verts[frames], self.faces, self.kept[frames])
+
+    @staticmethod
+    def joined(parts):
+        """`parts` end to end, refused when their faces differ (one person's mesh)."""
+        parts = list(parts)
+        if any(not np.array_equal(part.faces, parts[0].faces) for part in parts):
+            raise ValueError("posed skins of different meshes")
+        return PosedSkins(np.concatenate([part.verts for part in parts]), parts[0].faces,
+                          np.concatenate([part.kept for part in parts]))
+
+
+def posed_skins(rig, segments, worlds):
+    """SOMA's skin on every frame of `worlds` (`skin`, linear blend) in MuJoCo's frame, each kept when `unfolded`."""
+    own = np.stack([skin(rig, segments, world) for world in np.asarray(worlds, dtype=float)])
+    return PosedSkins(own @ TO_OWN, envelope(rig), [unfolded(posed, rig["faces"]) for posed in own])
+
+
+def bone_bodies(model):
+    """Every kept bone vertex (`bone_meshes`' order) as (its body's id, its place in the body's frame): points x 3."""
+    bodies, places = [], []
+    for geom, kept, _ in bone_meshes(model):
+        start = model.mesh_vertadr[model.geom_dataid[geom]]
+        turn = np.zeros(9)
+        mujoco.mju_quat2Mat(turn, model.geom_quat[geom])
+        places.append(model.mesh_vert[start + kept].astype(float) @ turn.reshape(3, 3).T + model.geom_pos[geom])
+        bodies += [int(model.geom_bodyid[geom])] * len(kept)
+    return np.array(bodies, dtype=int), (np.concatenate(places) if places else np.zeros((0, 3)))
+
+
+def skin_cost(count):
+    """One bone vertex's residual weight: SKIN_GOAL over the `count` kept vertices, as a cost multiplies a depth."""
+    return float(np.sqrt(SKIN_GOAL / max(count, 1)))
+
+
+def card_device():
+    """The card when Warp sees one, else the CPU."""
+    return "cuda:0" if warp.is_cuda_available() else "cpu"
+
+
+class SkinMeshes:
+    """A `PosedSkins`' frames as Warp meshes (exact winding numbers) on `device`, with their float64 points (`verts`,
+    each frame's from `first_verts`) for `apart`."""
+
+    def __init__(self, skins, device):
+        self.device = device
+        faces = warp.array(skins.faces.ravel(), dtype=int, device=device)
+        self.meshes = [warp.Mesh(points=warp.array(verts, dtype=warp.vec3, device=device), indices=faces,
+                                 support_winding_number=True) for verts in skins.verts]
+        self.ids = warp.array(np.array([mesh.id for mesh in self.meshes], dtype=np.uint64), dtype=warp.uint64,
+                              device=device)
+        count = skins.verts.shape[1] if len(skins) else 0
+        self.first_verts = warp.array(np.arange(len(skins), dtype=np.int32) * count, dtype=warp.int32, device=device)
+        self.verts = warp.array(skins.verts.reshape(-1, 3).astype(np.float64), dtype=warp.vec3d, device=device)
+        self.faces = warp.array(skins.faces.ravel(), dtype=warp.int32, device=device)
+        self.kept = warp.array(skins.kept.astype(np.int32), dtype=warp.int32, device=device)
+        starts, ringed = rings(skins.faces, count)
+        self.ring_starts = warp.array(starts, dtype=warp.int32, device=device)
+        self.ring_faces = warp.array(ringed, dtype=warp.int32, device=device)
+
+    def apart(self, points, frames):
+        """Each point's offset off its frame's skin and that offset's Jacobian in the point (`apart_kernel`; points
+        n x 3 in MuJoCo's frame, `frames` n: its mesh's index), float64: (n x 3, n x 3 x 3)."""
+        found = warp.zeros(len(points), dtype=warp.vec3d, device=self.device)
+        bends = warp.zeros(len(points), dtype=warp.mat33d, device=self.device)
+        warp.launch(apart_kernel, dim=len(points), device=self.device,
+                    inputs=[self.ids, self.first_verts, self.kept, self.verts, self.faces, self.ring_starts,
+                            self.ring_faces,
+                            warp.array(np.asarray(frames, dtype=np.int32), dtype=warp.int32, device=self.device),
+                            warp.array(np.asarray(points, dtype=np.float64), dtype=warp.vec3d, device=self.device),
+                            found, bends])
+        return found.numpy().astype(float), bends.numpy().astype(float)

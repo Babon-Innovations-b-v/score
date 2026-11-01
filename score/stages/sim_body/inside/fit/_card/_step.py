@@ -50,11 +50,15 @@ def _reduced_jacobian(jacobian: wp.array3d[wp.float32], free_dof: wp.array[wp.in
 @wp.kernel(enable_backward=False)
 def _normal_equations(reduced: wp.array3d[wp.float32], residuals: wp.array2d[wp.float32],
                       keep: wp.array2d[wp.float32], slopes: wp.array2d[wp.float32],
-                      leader_reduced: wp.array[wp.int32], hessian: wp.array3d[wp.float32],
+                      leader_reduced: wp.array[wp.int32], extra_h: wp.array3d[wp.float32],
+                      extra_g: wp.array2d[wp.float32], extra_squared: wp.array[wp.float32], extra: int,
+                      lam: wp.array[wp.float32], marquardt: int, hessian: wp.array3d[wp.float32],
                       gradient: wp.array2d[wp.float32]):
     """Damped J_red^T J_red and -J_red^T r, a held dof's row and column replaced by the identity's. The damping is
     mink's on every dof of the full step, S^T S in the reduced dofs: a leader's own plus its followers' slopes squared
-    (elv_angle with its follower at slope -1 damped twice; damped once, heavy_squat's row 148 swung 1 rad a step)."""
+    (elv_angle with its follower at slope -1 damped twice; damped once, heavy_squat's row 148 swung 1 rad a step).
+    With `extra` the rows held off the Jacobian add their own (`_skin_step`: J^T J, J^T r and their squared sum); with
+    `marquardt` each row's own `lam` is added to the damping (`_solve`'s step control)."""
     row, first, second = wp.tid()
     squared = float(0.0)
     spread = float(1.0)
@@ -66,14 +70,22 @@ def _normal_equations(reduced: wp.array3d[wp.float32], residuals: wp.array2d[wp.
     for residual in range(reduced.shape[1]):
         product += reduced[row, residual, first] * reduced[row, residual, second]
         squared += residuals[row, residual] * residuals[row, residual]
+    if extra != 0:
+        product += extra_h[row, first, second]
+        squared += extra_squared[row]
     value = product * keep[row, first] * keep[row, second]
     if first == second:
-        value += keep[row, first] * (LM_DAMPING * squared + DAMPING) * spread + (1.0 - keep[row, first])
+        damping = LM_DAMPING * squared + DAMPING
+        if marquardt != 0:
+            damping += lam[row]
+        value += keep[row, first] * damping * spread + (1.0 - keep[row, first])
     hessian[row, first, second] = value
     if second == 0:
         pulled = float(0.0)
         for residual in range(reduced.shape[1]):
             pulled += reduced[row, residual, first] * residuals[row, residual]
+        if extra != 0:
+            pulled += extra_g[row, first]
         gradient[row, first] = -pulled * keep[row, first]
 
 
@@ -105,9 +117,11 @@ def _predicted(reduced: wp.array3d[wp.float32], step: wp.array2d[wp.float32], re
 @wp.kernel(enable_backward=False)
 def _kept(step: wp.array2d[wp.float32], qpos: wp.array2d[wp.float32], free_coord: wp.array[wp.int32],
           lower: wp.array[wp.float32], upper: wp.array[wp.float32], reduced: wp.array3d[wp.float32],
-          predicted: wp.array2d[wp.float32], keep: wp.array2d[wp.float32]):
+          predicted: wp.array2d[wp.float32], extra_h: wp.array3d[wp.float32], extra_g: wp.array2d[wp.float32],
+          extra: int, keep: wp.array2d[wp.float32]):
     """A free dof at its bound whose step pushes out is held (keep 0); a held one whose model gradient there,
-    J_red^T (r + J_red s), points its descent back inside is released (keep 1)."""
+    J_red^T (r + J_red s) (with `extra` the held-off rows' J^T r + J^T J s too), points its descent back inside is
+    released (keep 1)."""
     row, column = wp.tid()
     at = qpos[row, free_coord[column]]
     on_low = at <= lower[column] + BOUND_SLACK
@@ -116,6 +130,10 @@ def _kept(step: wp.array2d[wp.float32], qpos: wp.array2d[wp.float32], free_coord
         slope = float(0.0)
         for residual in range(reduced.shape[1]):
             slope += reduced[row, residual, column] * predicted[row, residual]
+        if extra != 0:
+            slope += extra_g[row, column]
+            for other in range(step.shape[1]):
+                slope += extra_h[row, column, other] * step[row, other]
         inside = (on_low and slope < 0.0) or (on_high and slope > 0.0)
         keep[row, column] = wp.where(inside, 1.0, 0.0)
         return
@@ -161,25 +179,47 @@ class Reduction:
         self.poly = per_set(poly, device)
 
 
-def _solved(reduction, reduced, residuals, keep, slopes, device):
-    """One damped reduced solve for every row under its keep mask."""
+def _solved(reduction, reduced, residuals, keep, slopes, extra, lam, device):
+    """One damped reduced solve for every row under its keep mask, `extra` (`_extra_of`) and `lam` (`_lam_of`)
+    added."""
     rows, size = keep.shape
     hessian = wp.empty((rows, size, size), dtype=wp.float32, device=device)
     gradient = wp.empty((rows, size), dtype=wp.float32, device=device)
     step = wp.empty((rows, size), dtype=wp.float32, device=device)
-    wp.launch(_normal_equations, dim=(rows, size, size), inputs=[reduced, residuals, keep, slopes, reduction.leader_reduced],
+    wp.launch(_normal_equations, dim=(rows, size, size),
+              inputs=[reduced, residuals, keep, slopes, reduction.leader_reduced, *extra, *lam],
               outputs=[hessian, gradient], device=device)
     wp.launch_tiled(_cholesky_kernel(reduction.size), dim=[rows], inputs=[hessian, gradient], outputs=[step],
                     block_dim=TILE_THREADS, device=device)
     return step
 
 
-def damped_step(reduction, jacobian, residuals, qpos, active, row_set=None):
+@functools.cache
+def _placeholder(device):
+    """The kernels' held-off arrays when there are none (never read: their flag is 0), one set a device."""
+    return (wp.zeros((1, 1, 1), dtype=wp.float32, device=device), wp.zeros((1, 1), dtype=wp.float32, device=device),
+            wp.zeros(1, dtype=wp.float32, device=device), 0)
+
+
+def _lam_of(lam, device):
+    """(each row's added damping, 1), or the placeholder and 0."""
+    return (_placeholder(str(device))[2], 0) if lam is None else (lam, 1)
+
+
+def _extra_of(extra, slopes, device):
+    """The held-off rows' (J^T J, J^T r, squared sum, 1) from `extra(slopes)`, or the placeholder and 0."""
+    return _placeholder(str(device)) if extra is None else (*extra(slopes), 1)
+
+
+def damped_step(reduction, jacobian, residuals, qpos, active, row_set=None, extra=None, lam=None):
     """mink's damped step for every row: (full step [rows, dofs], reduced step length [rows]).
 
     jacobian [rows, residuals, dofs] and residuals [rows, residuals] at qpos [rows, coords] (MuJoCo's layout);
     active [rows] int32, a stopped row's step zero; row_set [rows] each row's set of the couplings' polys (set 0
-    when None). Active-set passes: solve, hold the dofs at a bound the step pushes
+    when None); `extra(slopes)` (each coupling's slope [rows, couplings]) gives rows held off the Jacobian as their
+    (J^T J [rows, size, size], J^T r [rows, size], squared sum [rows]) in the reduced dofs (`_skin_step`'s bones in the
+    skin); `lam` [rows] each row's damping added on every full dof (`_solve`'s step control with the skin). Active-set
+    passes: solve, hold the dofs at a bound the step pushes
     out, solve again, HOLD_PASSES times, a held dof whose descent points back inside released (one pass left a toy row
     with two dofs at their bounds pushing a third out and back by projection every step, never stopping)."""
     device = jacobian.device
@@ -193,14 +233,16 @@ def damped_step(reduction, jacobian, residuals, qpos, active, row_set=None):
                                                             reduction.leader_reduced, slopes],
               outputs=[reduced], device=device)
     keep = wp.ones((rows, reduction.size), dtype=wp.float32, device=device)
-    step = _solved(reduction, reduced, residuals, keep, slopes, device)
+    held_off, damped = _extra_of(extra, slopes, device), _lam_of(lam, device)
+    step = _solved(reduction, reduced, residuals, keep, slopes, held_off, damped, device)
     predicted = wp.empty((rows, count), dtype=wp.float32, device=device)
     for _ in range(HOLD_PASSES):
         wp.launch(_predicted, dim=predicted.shape, inputs=[reduced, step, residuals], outputs=[predicted],
                   device=device)
         wp.launch(_kept, dim=keep.shape, inputs=[step, qpos, reduction.free_coord, reduction.lower, reduction.upper,
-                                                 reduced, predicted], outputs=[keep], device=device)
-        step = _solved(reduction, reduced, residuals, keep, slopes, device)
+                                                 reduced, predicted, held_off[0], held_off[1], held_off[3]],
+                  outputs=[keep], device=device)
+        step = _solved(reduction, reduced, residuals, keep, slopes, held_off, damped, device)
     full = wp.zeros((rows, dofs), dtype=wp.float32, device=device)
     wp.launch(_scattered, dim=step.shape, inputs=[step, reduction.free_dof, active], outputs=[full], device=device)
     norms = wp.empty(rows, dtype=wp.float32, device=device)

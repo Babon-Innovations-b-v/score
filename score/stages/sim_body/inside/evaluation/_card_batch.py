@@ -27,6 +27,7 @@ import sim_body  # noqa: E402
 from evaluation import _case, _measure  # noqa: E402
 from fit import _frames  # noqa: E402
 from fit._card import _clip, _measure as card_measure, _seeds  # noqa: E402
+from fit._skin import PosedSkins  # noqa: E402
 from landmarks import CENTRES, LANDMARKS, solver_marks  # noqa: E402
 from sizing import Size  # noqa: E402
 
@@ -83,7 +84,7 @@ def clip_targets(clips):
         key = targets_key(rig, person["segments"], worlds)
         if key not in TARGETS:
             TARGETS[key] = fit.targets(rig, person["segments"], worlds, fit.followed(person["segments"]))
-            for made in TARGETS[key]:
+            for made in (*TARGETS[key][:2], TARGETS[key][2].verts):
                 made.flags.writeable = False  # shared by later sets: a write in place would reach them
         found[case] = TARGETS[key]
     return found
@@ -102,12 +103,13 @@ def recorded_targets(clips, targets):
 def batched_angles(clip, clips, seeds, targets):
     """{case: angles} for every clip of a body in one `Clip.angles` call, rows clip after clip (`targets`:
     `clip_targets`)."""
-    for case, (turns, _) in targets.items():
+    for case, (turns, _, _) in targets.items():
         if len(seeds[case]) != len(turns):
             raise ValueError(f"{case}: {len(seeds[case])} seeds for {len(turns)} frames")
-    found, _ = clip.angles(np.concatenate([turns for turns, _ in targets.values()]),
-                           np.concatenate([points for _, points in targets.values()]),
-                           np.concatenate([seeds[case] for case in clips]))
+    found, _ = clip.angles(np.concatenate([turns for turns, _, _ in targets.values()]),
+                           np.concatenate([points for _, points, _ in targets.values()]),
+                           np.concatenate([seeds[case] for case in clips]),
+                           PosedSkins.joined([skins for _, _, skins in targets.values()]))
     ends = np.cumsum([len(seeds[case]) for case in clips])
     return {case: found[end - len(seeds[case]):end].astype(float) for case, end in zip(clips, ends)}
 

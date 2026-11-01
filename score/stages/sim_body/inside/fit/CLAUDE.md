@@ -125,6 +125,63 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   Tall's seven clips the same way (4 sets): 73.5 s against 110.5 s, measures within 0.033 mm; about 4.7 s against
   23.2 s a nudged set. Every tuning body has seven clips, so a Jacobian's ~4.5 h would be ~0.9 to 1.15 h, one
   process a body, if a process holding 138 sets keeps a set's card memory (measured on 4 sets only).
+- **Level 3 holds the bones inside the skin; level 2 does not** (#70, 2026-11-01, the owner: "we just know bones need
+  to be inside the skin"): `targets` gives SOMA's skin posed on every frame (`_skin.PosedSkins`, MuJoCo's frame) beside
+  the turns and markers, and level 3 holds every kept bone vertex (`_skin.bone_bodies`, the measure's 80 a mesh) in it:
+  `_skin.skin_cost` (sqrt(SKIN_GOAL / points), one goal over its own count as OpenSim weighs its goals) times its
+  offset off the frame's skin, zero inside by the winding number, the closest point the nearest of the float32
+  query's face and the faces touching its corners (`_skin.rings`: the query's face flips between near-tied
+  neighbours) measured in float64 (`_skin.apart_kernel`; float32 depths left level 3's cost noisy at 2e-6 of itself,
+  so no stop rule fired). The offset's Jacobian in the point is the projector off the closest feature (n n^T on a
+  face, I - e e^T on an edge, I at a corner); level 3 steps on the offset's three rows a point (`_skin_rows.BonePoints`):
+  a depth row's own Gauss-Newton square (n n^T everywhere) misses the skin's bend at the triangle mesh's edges and
+  corners, and its steps overshot there (a toy frame crawled 300 steps, a real sampled frame cycled for good). Mink's
+  `_frames.SkinTask` (its QP objective the offset rows, its error the depth rows) and the card's `_card/_skin_step`
+  (the same rows put into the damped step's normal equations), both with each step judged (Levenberg-Marquardt's
+  control, `_frames.judged_solve`, `_card/_solve._judged`): plain steps ran away from a cold sampled frame (cost 3e4
+  to 5e8). Without skins every solve is as before, bit for bit. Level 2 (the person's constants, `_constants`) holds
+  no skin rows (the coordinator's decision, 2026-11-01, on the sweep below): with them its polish did not settle (the
+  depth's max(0, d) kink cycling one coordinate's rows) and it traded the person's constants for skin, inside joints
+  moved 40 to 52 mm; its sampled frames are posed without the skin too (`card_paths`). Never bring them back without
+  a polish that settles on them and constants that stay the person's.
+- **The skin goal, swept** (mean's 15 clips, l1g's point, the fold rule on, 2026-11-01; scratch
+  `/tmp/skinl23/runs/s5_*`). Skin rows in levels 2 and 3: level 2's polish does not settle (goal 1e2: 8.4e-9 after 80
+  rounds, the stall rule ending it at round 84 when given 160; 1e3: 3.2e-7; 1e4: 1.1e-3; env1 seated at 1e2: 1.5e-7
+  after 160), the max(0, d) kink cycling one coordinate's rows; and at 1e2 it trades the person's constants for skin
+  on the 31 sampled frames: inside joints moved 40 to 52 mm (scapulae, humeri, radii, sacrum), joints 12.1 -> 30.0 mm,
+  forearm outside 2.7 -> 34.3 %, shoulder 1.7 -> 18.6 %, all 11.45 -> 13.53 %. Skin rows in level 3 only (level 2
+  without): all outside 11.45 -> 9.57 / 6.95 / 4.88 % at 1e2 / 1e3 / 1e4 (thigh 19.5 -> 15.9 / 8.8 / 3.5, foot 23.9
+  -> 20.9 / 15.3 / 10.6, hand 23.3 -> 15.6 / 9.4 / 5.4, shin 12.0 -> 10.0 / 6.6 / 5.2, head 19.8 -> 19.2 / 17.4 /
+  15.0), turns 4.662 -> 4.61 / 4.603 / 4.735 deg (hands 0.15/0.26 -> 1.12/1.46 at 1e3, Spine1 10.83 -> 11.13), joints
+  12.07 -> 12.49 / 14.14 / 15.51 mm, every level 3 frame stopped. The 81 of 281 measured frames whose skin folds are
+  apart in every run (their bones 24.1 % outside). SKIN_GOAL is 1e3. On env1 (level 3 only, the first frame's fix, l1apply's point; scratch
+  `/tmp/skinl23/s5/env1/final_g1e2`, `final_g1e3`), main -> 1e2 -> 1e3: seated all outside 20.96 -> 20.45 -> 13.82 %,
+  turns free median 4.75 -> 4.74 -> 4.90 deg, residual after RRA 0 -> 0.21 N, 3.28 N m -> 1.36 N, 8.46 N m (frames
+  within the residual limits 100 -> 98.7 -> 96.7 %); standing all 21.71 -> 20.48 -> 13.48 %, turns 4.25 -> 4.25 ->
+  4.67 deg, residual 3.99 N, 5.77 N m -> 4.47, 9.45 -> 3.43, 5.15 (within limits 84.0 -> 78.7 -> 87.3 %). No goal
+  leaves both env1 people's turns and residual no worse: 1e2 barely moves the bones and raises the standing residual,
+  1e3 moves them most and raises the seated residual on a few frames.
+- **A clip's first frame takes its skin rows from its fit without them** (`Frames.fitted`, 2026-11-01): the skin
+  pulls a bone point to the nearest skin, whichever part's, and counts it inside any part's. From the standing start
+  env1's seated astronaut's hanging forearms stood in his thighs' skin: frame 0 ran 62 judged steps into a pose with
+  the radii and scaphoids beside the thighs (their nearest skin LeftLeg/RightLeg), the arms, forearms and hands 23 to
+  43 degrees off, and every later frame started from it (level 3 alone, goal 1e3, every 10th frame: forearm 9.8 ->
+  63.9 %, shoulder 2.6 -> 36.7 %, head 5.5 -> 31.5 %). From its own fit without the skin: all 21.0 -> 13.8 %, forearm
+  18.3, shoulder 4.1, head 5.4, hand 31.6 -> 19.2, thigh 25.1 -> 15.1 %, every group's turn within 0.5 degree of the
+  fit without the skin. Standing (env1 centre) hid the same fault behind a better share: from the standing start the
+  left arm stood 18.3 degrees off (shoulder_elv_l at its range end on every frame), all 21.7 -> 8.7 % but shoulder 3.5
+  -> 12.4, head 5.9 -> 13.3; from its own fit all 13.5, shoulder 9.2, head 6.7 %, the left arm 4.9 degrees. Solving
+  every frame so instead read the same (seated all 14.1 %) for 4.2 times the steps. The forearm's rise is the hand's
+  trade: the fingers are frozen (`DofFreezingTask`), their second phalanges 13 mm outside SOMA's hand, and the wrist
+  carries them in (the second phalanges 13 -> 2 mm deep) with the left radius 0.4 -> 2.7 mm. The mean body's sweep
+  never met it: the card's level 3 starts every frame from mink's angles without the skin (`_card/_seeds.first`), so
+  its 15 clips read the same after the change (all 6.95 %, turns 4.603 deg, joints 14.14 mm). The whole env1 run
+  (level 2 without skin rows, l1apply's point, goal 1e3; scratch `/tmp/skinl23/s5/env1/fix_l3_g1e3`), main's fit ->
+  the standing start -> the fix: seated all 20.96 -> 20.10 -> 13.82 %, forearm 9.8 -> 63.9 -> 18.35, shoulder 2.6 ->
+  36.6 -> 4.0, head 5.5 -> 31.5 -> 5.4, turns at a limit 600 -> 1744 -> 600 of 3450, residual before RRA 0 -> 200 ->
+  1.5 N (after RRA 0 -> 215 -> 1.4 N, 8.5 N m on its worst frame); standing all 21.71 -> 8.65 -> 13.48 %, forearm
+  15.5 -> 23.4 -> 15.4, shoulder 3.6 -> 12.4 -> 9.1, head 6.0 -> 13.3 -> 6.7, leading joints at a range end on over
+  5 % of frames 5 -> 8 -> 4, after RRA 4.0 -> 4.8 -> 3.4 N.
 - **The skin's side is the exact winding number's** (2026-10-31): every skin mesh is built with Warp's
   `support_winding_number=True` (`_skin.marks`, `_card/_measure.Skins`, `tuning/_adjoint/_measures`). Without it
   Warp's sign query misjudged points of a posed skin that crosses itself: a forearm point 5.7 mm off mean_running's
@@ -140,6 +197,18 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   `tuning/_adjoint/_real.skin_parts`); sizing uses the skin as it is. On mean_running's re-fit (frames 0, 75, 82) the
   jaw outside went 28.2/42.5/45.5 % to 24.8/38.8/42.8 %, the head region 17.4/31.2/35.5 % to 15.9/29.7/34.4 %, "all"
   under 0.1 point: level 1's score changes with it.
+- **A frame whose skin folds into itself has no skin rows** (the owner, 2026-11-01: a deep squat's skin folds into
+  itself, which no skeleton can follow): `_skin.folded` is the share of a posed skin's area lying inside itself (a
+  vertex, by a third of its faces' area, whose point `FOLD_IN` 1 mm in along its normal winds 1.5 or more, on the skin's
+  own faces, no pockets closed); over `FOLD_MOST` (0.5 %) the frame is left out of the skin rows of levels 1 (the taped
+  `tuning/_adjoint/_real.skin_parts`) and 3 (`PosedSkins.kept`, zero offsets in `apart_kernel` and the card's
+  `_skin_step._points`; the taped level 3 rows drop its copies) and out of the bones-outside share and depth
+  (`bones_outside`, `evaluation/_measure`, `_card/_measure`), each of which reports them apart: `skin folded frames`
+  {frames, all: their bone vertices' share outside}. Its basis (mean's 15 clips, every 10th frame, main's fit before the
+  skin rows, 2026-11-01): 182 of 281 frames fold over 0, holding 86 % of the bones' squared depth outside; 81 over
+  0.5 %, 79 % of it, their bones 24.8 % outside against 16.0 % on the rest; 31 over 2 %, 72 %, 36.8 % against 16.2 %;
+  the worst mean_kneel's frames 130 to 140 and mean_squat. The fold does not itself read a bone outside (the union
+  counts as inside): it marks poses past what the model's ranges reach. A frame's share costs about 25 ms on the CPU.
 - **The record states the honest measures first** (#70's audit item 2, 2026-10-29): `following` gives the bones
   outside SOMA's skin by region and the turns on main's frozen table before the joint mm (partly the ends' own pull)
   and the tree's-table turns; the frozen table is never edited to follow the tree.

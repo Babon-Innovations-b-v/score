@@ -4,10 +4,15 @@ bone groups' turns (orientation-only `FrameTask`s on the calibration sites, the 
 (position-only `FrameTask`s on the marker sites) weighed as OpenSim's IK weighs
 its goals (each goal's squared errors over its own count: `weights`), the model's couplings held exactly
 (`EqualityConstraintTask` as a constraint, OpenSim's default), the leading joints kept in their ranges
-(`ConfigurationLimit`), the joints no target sees frozen (`DofFreezingTask`). Each frame starts from the one before."""
+(`ConfigurationLimit`), the joints no target sees frozen (`DofFreezingTask`), and given the frames' posed skins the
+bones held inside them (`SkinTask`: each kept bone vertex's depth outside, `_skin_rows`, #70 2026-11-01). Each frame
+starts from the one before."""
 import mink
 import mujoco
 import numpy as np
+
+from fit._skin import SkinMeshes, card_device
+from fit._skin_rows import BonePoints
 
 SOLVER = "daqp"  # the QP solver every mink example uses; pinned with mink
 STEP_DONE = 1e-8  # a step this small (its tangent norm, or its change to the weighted errors) ends a frame's fit
@@ -33,8 +38,10 @@ def solved(configuration, tasks, limits, constraints, refresh=None):
     """mink's steps on `configuration` (from where it stands) until a step is under STEP_DONE, its own norm or the
     change it makes to the tasks' and constraints' weighted errors (a step along a direction no task sees, a gimbal's
     two cancelling joints at the shoulder's zero elevation, never ends by its own norm: #70's arms_raise): its qpos;
-    `refresh`, when given, sets the targets again before each step. Not converged in MOST_STEPS raises
-    NotConverged."""
+    `refresh`, when given, sets the targets again before each step. With a `SkinTask` the steps are judged
+    (`judged_solve`). Not converged in MOST_STEPS raises NotConverged."""
+    if any(isinstance(task, SkinTask) for task in tasks):
+        return judged_solve(configuration, tasks, limits, constraints, refresh)
     seen = tasks + [constraint for constraint in constraints if isinstance(constraint, mink.EqualityConstraintTask)]
     for _ in range(MOST_STEPS):
         if refresh is not None:
@@ -50,6 +57,46 @@ def solved(configuration, tasks, limits, constraints, refresh=None):
                        f"{np.linalg.norm(velocity)})")
 
 
+LAM_FIRST, LAM_RAISE, LAM_MOST = 1e-3, 10.0, 1e8  # the judged steps' added damping (`fit._card._solve`'s)
+
+
+def judged_solve(configuration, tasks, limits, constraints, refresh=None):
+    """`solved` with each step judged, Levenberg-Marquardt's control (the skin's depth bends where its closest point
+    jumps: plain steps cycled for good, #70 2026-11-01): a step whose tasks' weighted cost is not under the kept pose's
+    is turned back and the added damping (on mink's `damping`) raised LAM_RAISE times from LAM_FIRST, a kept one lowers
+    it (to 0 under LAM_FIRST) and ends the fit when it, or its change to the weighted errors, is under STEP_DONE; a
+    turned-back fit ends on a step under STEP_DONE or past LAM_MOST (no step lowers its cost). The card's
+    (`fit._card._solve`) the same rule."""
+    seen = tasks + [constraint for constraint in constraints if isinstance(constraint, mink.EqualityConstraintTask)]
+    kept, lam, cost = configuration.q.copy(), 0.0, np.inf
+    before = weighted_errors(configuration, seen)
+    for _ in range(MOST_STEPS):
+        if refresh is not None:
+            refresh()
+        errors = weighted_errors(configuration, seen)
+        trial = float(np.sum(weighted_errors(configuration, tasks) ** 2))
+        if trial < cost:
+            moved = np.linalg.norm(errors - before) if np.isfinite(cost) else np.inf
+            kept, cost, before = configuration.q.copy(), trial, errors
+            lam = lam / LAM_RAISE if lam > LAM_FIRST else 0.0
+            if moved < STEP_DONE:
+                return kept
+        else:
+            configuration.update(kept)
+            if refresh is not None:
+                refresh()
+            lam = max(lam * LAM_RAISE, LAM_FIRST)
+            if lam > LAM_MOST:
+                return kept
+        velocity = mink.solve_ik(configuration, tasks, 1.0, SOLVER, damping=DAMPING + lam, limits=limits,
+                                 constraints=constraints)
+        if np.linalg.norm(velocity) < STEP_DONE:
+            return kept
+        configuration.integrate_inplace(velocity, 1.0)
+    raise NotConverged(f"a frame's fit did not converge in {MOST_STEPS} steps (its last step "
+                       f"{np.linalg.norm(velocity)})")
+
+
 def weights(fitting):
     """Each turn task's cost and each marker's: OpenSim's IK normalises each goal by its own weight sum (Simbody's
     OrientationSensors and Markers goals), here two goals, the turns (every weight 1, as OpenSense's) and the markers
@@ -59,6 +106,50 @@ def weights(fitting):
     trusts = np.asarray(fitting.trusts, dtype=float)
     places = np.sqrt(fitting.marker_goal * trusts / max(trusts.sum(), 1e-12))
     return 1.0 / np.sqrt(max(len(fitting.frame_sites), 1)), places
+
+
+class SkinTask(mink.Task):
+    """The bones inside the frame's posed skin as a mink task (`_skin_rows.BonePoints`): its error each kept bone
+    vertex's cost times its depth outside (what the stop rule and the judged steps read), its QP objective the three
+    offset rows a point (the offset's Jacobian the projector off the skin's closest feature, so the skin's bend at
+    its edges and corners is in the step) with mink's LM damping on their squared sum; exact, SOMA does not move with
+    the pose."""
+
+    def __init__(self, model):
+        self.points = BonePoints(model)
+        super().__init__(cost=np.ones(self.points.count), gain=1.0, lm_damping=LM_DAMPING)
+        self.meshes, self.device = None, card_device()
+
+    def set_skin(self, skin):
+        """The frame's posed skin (`_skin.PosedSkins` of one frame) as the target."""
+        self.meshes = SkinMeshes(skin, self.device)
+
+    def _apart(self, configuration):
+        """The points (world), their offsets off the skin and those offsets' projectors at `configuration`."""
+        placed = self.points.placed(configuration.data)
+        apart, bends = self.meshes.apart(placed, np.zeros(len(placed), dtype=np.int32))
+        return placed, apart, bends
+
+    def compute_error(self, configuration):
+        return self.points.depths(self._apart(configuration)[1])
+
+    def compute_jacobian(self, configuration):
+        """The depth rows' Jacobian: each outside point's unit off the skin through its offset's rows."""
+        placed, apart, bends = self._apart(configuration)
+        found = np.zeros((self.points.count, configuration.model.nv))
+        outside, rows = self.points.nv_rows(configuration.model, configuration.data, placed, apart, bends)
+        units = apart[outside] / np.linalg.norm(apart[outside], axis=1)[:, None]
+        found[outside] = np.einsum("pi,pij->pj", units, rows)
+        return found
+
+    def compute_qp_residual(self, configuration):
+        return None  # the offset rows' objective, not the depth rows' (`compute_qp_objective`)
+
+    def compute_qp_objective(self, configuration):
+        _, apart, bends = self._apart(configuration)
+        square, pull = self.points.objective(configuration.model, configuration.data, apart, bends)
+        damping = self.lm_damping * float(np.sum(self.points.depths(apart) ** 2))
+        return mink.tasks.task.Objective(square + damping * np.eye(configuration.model.nv), pull)
 
 
 class Frames:
@@ -77,6 +168,7 @@ class Frames:
         if fitting.frozen:
             self.constraints.append(mink.DofFreezingTask(model, dof_indices=fitting.frozen))
         self.configuration = mink.Configuration(model)
+        self.skin = None
 
     def _targets(self, turns, points):
         """The frame's targets set: each group site's world turn (MuJoCo's frame); each marker's place, its target
@@ -92,12 +184,17 @@ class Frames:
             turn = configuration.get_transform_frame_to_world(task.frame_name, "site").rotation()
             task.set_target(mink.SE3.from_rotation_and_translation(turn, point))
 
-    def frame(self, qpos, turns, points):
-        """One frame's angles (qpos) from `qpos`, to convergence."""
+    def frame(self, qpos, turns, points, skin=None):
+        """One frame's angles (qpos) from `qpos`, to convergence; `skin` the frame's posed skin (`_skin.PosedSkins`
+        of one frame) holds the bones inside it (`SkinTask`)."""
         self.configuration.update(qpos)
         self._targets(turns, points)
-        return solved(self.configuration, self.turns + self.marks, self.limits, self.constraints,
-                      lambda: self._marked(points))
+        tasks = self.turns + self.marks
+        if skin is not None:
+            self.skin = self.skin or SkinTask(self.fitting.model)
+            self.skin.set_skin(skin)
+            tasks = tasks + ([self.skin] if self.skin.points.count else [])
+        return solved(self.configuration, tasks, self.limits, self.constraints, lambda: self._marked(points))
 
     def start(self, turns, points):
         """The first frame's start: the standing pose, its root turned so the first group's site turns as its target
@@ -115,13 +212,17 @@ class Frames:
         qpos[:3] += np.mean(points, axis=0) - np.mean(data.site_xpos[self.fitting.place_sites], axis=0)
         return qpos
 
-    def fitted(self, turns, points, start=None):
+    def fitted(self, turns, points, start=None, skins=None):
         """Every frame's angles (frames x nq): `turns` frames x groups x 3 x 3 and `points` frames x markers x 3, both
-        MuJoCo's frame; each frame from the one before, the first from
-        `start` (else `start()`)."""
+        MuJoCo's frame, `skins` each frame's posed skin (`_skin.PosedSkins`, or None: no skin rows); each frame from
+        the one before, the first from `start` (else `start()`), its skin rows from its own fit without them: the
+        skin pulls a bone to the nearest skin, whichever part's, so from the standing start it pulled env1's seated
+        astronaut's forearms to his thighs' skin (arms 23 to 43 degrees off, 2026-11-01)."""
         qpos = self.start(turns[0], points[0]) if start is None else start
+        if skins is not None:
+            qpos = self.frame(qpos, turns[0], points[0])
         found = []
-        for frame_turns, frame_points in zip(turns, points):
-            qpos = self.frame(qpos, frame_turns, frame_points)
+        for frame, (frame_turns, frame_points) in enumerate(zip(turns, points)):
+            qpos = self.frame(qpos, frame_turns, frame_points, None if skins is None else skins[frame:frame + 1])
             found.append(qpos)
         return np.array(found)
