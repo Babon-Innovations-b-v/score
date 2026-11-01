@@ -20,6 +20,7 @@ Breaks (each applied once, seen red, reverted):
 - `install_dir` returns `~/.local/bin`.
 - in `cbm_index.ready`, the condition made `if not stamp:` (an index of an older commit is answered from).
 - the `row_count` refusal in `cbm_index._assembled` deleted.
+- the `aborted_previous_preserved` retry in `cbm_index.index_into` deleted (a build aborted once is reported).
 - in `server._called`, `"isError": False`.
 - the `isinstance(arguments, dict)` refusal in `server.answer` deleted (a string as arguments ended the server).
 - in `cbm_issues.answer`, `everything = _held(database, project) < len(cached["issues"])` made `everything = False`.
@@ -275,6 +276,24 @@ def test_the_index_answers_only_from_the_pinned_build_and_a_finished_index_of_th
         assert all(part in build.asset for part in key.split("_")) and build.asset.endswith(".tar.gz"), key
         assert _HEX64.fullmatch(build.tarball_sha256) and _HEX64.fullmatch(build.sha256), key
     assert cbm_pin.binary_path("v9.9.9") == tmp_path / "harness/cbm/v9.9.9/codebase-memory-mcp"
+
+    # The tool's build: one it aborted mid-run (files changed under it) is retried once; a second abort is reported.
+    for aborts, finishes in ((1, True), (2, False)):
+        runs = tmp_path / f"runs-{aborts}"
+        tool = tmp_path / f"tool-{aborts}" / "codebase-memory-mcp"
+        tool.parent.mkdir()
+        tool.write_text(f"""#!/bin/sh
+[ "$2" = index_repository ] || [ "$3" = index_repository ] || exit 0
+echo run >> {runs}
+if [ "$(wc -l < {runs})" -le {aborts} ]; then echo 'error: aborted_previous_preserved, retry' >&2; exit 1; fi
+""")
+        tool.chmod(0o755)
+        if finishes:
+            cbm_index.index_into(tool, tmp_path, "p", dict(os.environ))
+        else:
+            with pytest.raises(cbm_index.BuildError, match="aborted_previous_preserved"):
+                cbm_index.index_into(tool, tmp_path, "p", dict(os.environ))
+        assert len(runs.read_text().splitlines()) == 2, aborts
 
     # The index: a build with no rows is never placed; an unstamped or older commit's index is built before answering.
     repo = _repo(tmp_path / "repo")
