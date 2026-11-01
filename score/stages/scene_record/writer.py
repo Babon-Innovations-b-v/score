@@ -88,6 +88,11 @@ TURN_STEP = 15
 # is their cross product: round 33's spot-1 at shiplock looked straight down and every measure was NaN), so it is
 # given the floor's long axis as its up (`upright`).
 STEEP = 10.0
+# The day sky's picture (sky_dome): its brightness and colour balance in red, green and blue, measured 2026-10-11 by
+# the light stage's sweep of the rendered sky against the camp's old concept K05 (4 times the first guess, colour gap
+# 10.7 levels; the old data/scene records' sky_dome), and the picture's width in texels.
+SKY_GAIN = (11.76, 7.56, 5.04)
+SKY_WIDTH = 1024
 # What a door may lead to that is no place.
 NOT_PLACES = ("outside", "sealed")
 # The routes whose rows' models the record lays at their plan items (prepare's groups.ROUTES): people are the cast's.
@@ -101,11 +106,13 @@ FACING_WAY = {None: (1.0, 0.0), "N": (1.0, 0.0), "S": (-1.0, 0.0), "E": (0.0, 1.
 
 def files(place):
     """The design files the writer reads: the place's kept plan and every other (its holder's `holds`, its siblings'
-    frames), its scene inventory, its concept's light once read, its sky inputs (scene_sky.keep's), the row-kind
+    frames), its scene inventory, its concept's light once read, its sky inputs (scene_sky.keep's), the real bodies'
+    dusty air (data/physics/dust.json, its day sky outside), the row-kind
     rules, the library's lamp, the environment's eye height (place.json `shared`), the batch's hand-in (prepare's
     handin.py: each row's route and the take that makes its model) and its relations once derived (relations_file)."""
     return {"inventory": "{home}/design/inventory/{place}.json", "plans": "{home}/design/plans",
-            "sky": "{home}/design/sky/{place}.json", "row kinds": "{data}/checks/row-kinds.json",
+            "sky": "{home}/design/sky/{place}.json", "dust": "{data}/physics/dust.json",
+            "row kinds": "{data}/checks/row-kinds.json",
             "lamp library": "{data}/library/lamps.json", "places": "{data}/definitions/place.json",
             "hand-in": "{home}/design/props/{place}.json", **concept_light.concept_light_input(place),
             **design_shell.relations_file(place)}
@@ -374,12 +381,33 @@ def sky_seen(kept):
             "backdrops": seen["backdrops"]}
 
 
-def environment(design, kept):
-    """Inside or not, and the place's sky from the physics at its site at its scene time (sky_seen)."""
+def sky_dome(design, kept, dust):
+    """The day sky's air over a place standing outside on a real body with dusty air (`dust`, data/physics/dust.json:
+    its entry by the site body's reference), as tools/usd/mars_sky.py scatters it (scene.write_sky_dome, the light
+    layer draws it while a sun is up); None inside or on a body without dust (2026-11-02: the sky_dome entries left
+    with the old records, eb01c402, and every outdoor Mars place's sky was black: campgrounds' 192.8 levels off its
+    concept's)."""
+    on = kept["site"].get("on")
+    body = next((body for body in kept["setting"].get("bodies") or [] if body.get("body") == on), None)
+    found = (dust.get("bodies") or {}).get(body.get("reference") or body.get("body")) if body else None
+    if inside(design) or not found:
+        return None
+    return {**{key: value for key, value in found.items() if key != "cited"}, "gain": list(SKY_GAIN),
+            "width": SKY_WIDTH,
+            "from": f"{body['name']}'s dusty air (data/physics/dust.json: {dust['sources'][found['cited']]}); its "
+                    f"gain {list(SKY_GAIN)} the light stage's sweep of the rendered sky against the camp's old concept "
+                    f"K05 (2026-10-11, colour gap 10.7 levels), never against this place's own concept"}
+
+
+def environment(design, kept, dust=None):
+    """Inside or not, and the place's sky from the physics at its site at its scene time (sky_seen), with its day
+    sky's dusty air where it stands outside on a dusty body (sky_dome, from `dust`, data/physics/dust.json)."""
     site = kept["site"]
-    return {"inside": inside(design), "site": site, "time": kept["time"], "sky": sky_seen(kept),
-            "from": f"the environment concept's physics (score/review/overhead.py) at the place's site on "
-                    f"{site.get('on')} at its scene time {kept['time']}; its sky is drawn by the light layer"}
+    found = {"inside": inside(design), "site": site, "time": kept["time"], "sky": sky_seen(kept),
+             "from": f"the environment concept's physics (score/review/overhead.py) at the place's site on "
+                     f"{site.get('on')} at its scene time {kept['time']}; its sky is drawn by the light layer"}
+    dome = sky_dome(design, kept, dust or {})
+    return found if dome is None else {**found, "sky_dome": dome}
 
 
 # --- views --------------------------------------------------------------------------------------------------------
@@ -1031,7 +1059,7 @@ def record_of(plan, design, inputs):
               "structure": structure(plan, design, library_of(inputs), plan_rows(handin)) +
               arch_entries(design, plan["place"], library_of(inputs), handin),
               "objects": design_objects(design, handin, relations) + far_laid[0],
-              "lights": lights(design, inputs, relations), "environment": environment(design, read(inputs["sky"])),
+              "lights": lights(design, inputs, relations), "environment": environment(design, read(inputs["sky"]), read(inputs["dust"])),
               "doorways": plan.get("doorways", []), "places": places_of(place, plan, design, inputs["plans"], handin)}
     ground = None if record["inside"] else ground_under(inputs, place)
     inventory = pathlib.Path(inputs.get("inventory") or "")

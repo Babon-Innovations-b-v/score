@@ -62,7 +62,10 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   for the gate. No lamp list per place.
 - **The sky is the physics'**: the record's environment says inside or not and what overhead.py sees at the site at
   the scene time (lights over the horizon, bodies, backdrops); the light layer draws it (`score/stages/light/sky.py`).
-  The record holds no air, haze or glow the design does not give.
+  The record holds no air, haze or glow the design does not give; a place standing outside on a real body with dusty
+  air (data/physics/dust.json, cited: Mars) carries that dust as its `sky_dome`, the day sky tools/usd/mars_sky.py
+  draws (`writer.sky_dome`; 2026-11-02: left out since the old records went, every outdoor Mars sky was black). Kept
+  out of data/physics/bodies.json and score/review/setting.py on purpose: those sit in about 200 rows' keys.
 - **Views** from inside each doorway and from each person spot; an inside place's view whose eye stands outside its
   outline is left out with why (`views_left_out`), never written to see the walls from behind. A look that meets a wall or
   floor thing within 1 m (`CLEAR_LOOK`) turns to the nearest clear way, else is left out with why (2026-10-31: flat's
