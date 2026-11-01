@@ -17,12 +17,19 @@ Break (applied once, seen red, reverted), 2026-10-29:
 Break (applied once, seen red, reverted), 2026-11-01:
 - fingers' `for side in "lr"` made `for side in "l"`: the right hand's fingers stay straight.
 
+Breaks (each applied once, seen red, reverted), 2026-11-01 (the rows read in the skin):
+- remeasured's `TABLE[group] if group in INSIDE_GROUPS else tuple(quaternion)` made `tuple(quaternion)`: level 1's
+  re-read replaced the skin-read rows ("Head: its skin-read row was replaced").
+- turned's `MIRROR @ np.asarray(rotvec)` for a right group made `np.asarray(rotvec)`: the right side turned unmirrored
+  ("RightShin's turn is not LeftShin's, mirrored").
+
 Run: .venv/bin/python score/stages/sim_body/inside/calibration/test_the_calibration_lays_each_bone_along_its_segment.py
 """
 import pathlib
 import sys
 
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 INSIDE = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(INSIDE))
@@ -79,6 +86,31 @@ def each_twist_is_read_from_the_same_landmarks_on_both_models():
     return problems
 
 
+def the_rows_read_in_the_skin_stay_and_turn_both_sides_alike():
+    """`remeasured` takes a landmark-line row read again for every group but INSIDE_GROUPS', whose row stays;
+    `turned` turns a right group by its left one's rotvec mirrored (its move off its row is the left one's, mirrored),
+    so the pair keeps the table's mirror, and a middle
+    group turned about its body's z alone keeps the sideways axis."""
+    problems = []
+    lines = {group: (0.0, 0.0, 0.0, 1.0) for group in calibration.TABLE}
+    kept = calibration.remeasured(lines)
+    problems += [f"{group}: its skin-read row was replaced" for group in calibration.INSIDE_GROUPS
+                 if kept[group] != calibration.TABLE[group]]
+    problems += [f"{group}: its landmark-line row was not taken" for group in calibration.TABLE
+                 if group not in calibration.INSIDE_GROUPS and kept[group] != lines[group]]
+    rotvec = np.radians([3.0, -5.0, 7.0])
+    left = Rotation.from_quat(calibration.turned("LeftShin", rotvec)).as_matrix()
+    right = Rotation.from_quat(calibration.turned("RightShin", rotvec)).as_matrix()
+    left_move = calibration.turn("LeftShin").T @ left
+    right_move = calibration.turn("RightShin").T @ right
+    if not np.allclose(calibration.MIRROR @ left_move @ calibration.MIRROR, right_move, atol=1e-9):
+        problems.append("RightShin's turn is not LeftShin's, mirrored")
+    head = Rotation.from_quat(calibration.turned("Head", [0.0, 0.0, np.radians(9.0)])).as_matrix()
+    if abs(head[2, 2]) < np.cos(np.radians(0.5)):
+        problems.append(f"Head turned about z turns sideways: R[2, 2] {head[2, 2]:.4f}")
+    return problems
+
+
 FINGER_JOINTS = ("cmc_flexion", "cmc_abduction", "mp_flexion", "ip_flexion",
                  *(f"{joint}{finger}_{turn}" for finger in "2345"
                    for joint, turn in (("mcp", "flexion"), ("mcp", "abduction"), ("pm", "flexion"), ("md", "flexion"))))
@@ -95,7 +127,7 @@ def both_hands_rest_their_fingers_alike():
 
 
 CHECKS = (both_hands_rest_their_fingers_alike, a_hanging_bone_is_laid_along_its_segment, the_table_keeps_both_sides_and_the_middle,
-          each_twist_is_read_from_the_same_landmarks_on_both_models)
+          each_twist_is_read_from_the_same_landmarks_on_both_models, the_rows_read_in_the_skin_stay_and_turn_both_sides_alike)
 
 
 if __name__ == "__main__":

@@ -36,29 +36,30 @@ REFERENCES = {"Hips": ("own x", "own x"), "Spine1": ("own x", "own x"), "Spine2"
 # R_cal per bone group as a quaternion (x, y, z, w), printed by `_measure.py` on 2026-10-29 (MyoFullBody of
 # MuscleMimic 1.0.6, SOMA's template rig of people-clips-make; the shoulders again that day, their start the
 # sternoclavicular centre, no longer the landmark of that name; the hands again on 2026-11-01, MC5_head moved onto the
-# little finger's knuckle: the hand turned 14.9 degrees about its long axis).
+# little finger's knuckle: the hand turned 14.9 degrees about its long axis). INSIDE_GROUPS' rows read in the skin on
+# 2026-11-01 (`_measure.table_rows`): Head 6.6 degrees off its line, Shins 5.5, Feet 1.5, Hips 0.2, ForeArms 0.1.
 TABLE = {
-    "Hips": (0.663583, 0.748103, 0.000268687, -0.000290935),
+    "Hips": (0.664729, 0.747084, 0.000268241, -0.000291347),
     "Spine1": (0.756786, 0.653663, 0.000257497, -0.00029812),
     "Spine2": (0.596189, 0.802841, 0.00165502, 0.00162641),
     "Chest": (0.683552, 0.729902, 0.000118136, -0.000455094),
     "Neck1": (0.770799, 0.637077, -0.000728835, -0.00110972),
     "Neck2": (0.770799, 0.637077, -0.000728836, -0.00110972),
-    "Head": (0.703505, 0.710691, 0.00016192, -0.000400028),
+    "Head": (0.743314, 0.668942, 0.000138584, -0.000408699),
     "LeftShoulder": (-0.446904, -0.498353, 0.576873, 0.468122),
     "RightShoulder": (0.498428, -0.446843, -0.46818, 0.576809),
     "LeftArm": (-0.00349838, 0.0330295, 0.698869, 0.714478),
     "RightArm": (0.0330002, 0.00346837, 0.714478, -0.698871),
-    "LeftForeArm": (-0.0687568, -0.0555397, 0.679171, 0.728639),
-    "RightForeArm": (-0.0555991, 0.0686931, 0.728645, -0.679166),
+    "LeftForeArm": (-0.0687563, -0.0554584, 0.679663, 0.728186),
+    "RightForeArm": (-0.0555178, 0.0686927, 0.728193, -0.679658),
     "LeftHand": (-0.0829827, -0.0998119, 0.680886, 0.720795),
     "RightHand": (-0.0999123, 0.0829961, 0.720768, -0.680899),
     "LeftLeg": (-0.70709, 0.707102, 0.00266821, 0.00488039),
     "RightLeg": (0.707102, 0.70709, 0.00483335, -0.00262117),
-    "LeftShin": (-0.698192, 0.715865, -0.00573602, -0.00559442),
-    "RightShin": (0.715866, 0.698193, -0.00556864, 0.0057096),
-    "LeftFoot": (0.985798, -0.16093, -0.0379763, -0.0293416),
-    "RightFoot": (0.16092, 0.985791, 0.0295935, -0.0380175),
+    "LeftShin": (-0.674394, 0.737872, 0.0240203, 0.0126529),
+    "RightShin": (0.737871, 0.674394, 0.0126778, -0.0240475),
+    "LeftFoot": (0.986649, -0.158671, -0.0255066, -0.026405),
+    "RightFoot": (0.158664, 0.986642, 0.0266571, -0.0255472),
     "LeftToeBase": (0.994273, -0.030612, 0.0988721, -0.0266242),
     "RightToeBase": (0.0306151, 0.994272, 0.026656, 0.0988718),
 }
@@ -103,6 +104,31 @@ def fingers():
 def turn(group):
     """The group's calibration turn R_cal (3 x 3): the group body's frame in its SOMA segment's frame."""
     return Rotation.from_quat(TABLE[group]).as_matrix()
+
+
+# The groups whose row is read by laying the group's bones in SOMA's skin at rest (`_measure.inside_measured`: its
+# bones moved rigidly to their least depth outside SOMA's template skin, the turn kept; the owner and the coordinator,
+# 2026-11-01, for the skull and jaw, then every group where it lowers the bones outside at rest without worsening the
+# turns check on the mean body's 15 clips) instead of the landmark lines (#70). Each side named, both sides alike.
+# Level 1's worker reads the other rows again from its centres (`remeasured`); these stay as written.
+INSIDE_GROUPS = ("Head", "Hips", "LeftForeArm", "RightForeArm", "LeftShin", "RightShin", "LeftFoot", "RightFoot")
+
+MIRROR = np.diag([-1.0, -1.0, 1.0])  # a right body is its left one mirrored in z: R_right = R_left @ MIRROR
+
+
+def remeasured(measured):
+    """TABLE with `measured`'s rows ({group: quaternion}, the landmark lines read again) for every group but
+    INSIDE_GROUPS', whose rows are read in the skin and kept."""
+    return {group: TABLE[group] if group in INSIDE_GROUPS else tuple(quaternion)
+            for group, quaternion in {**TABLE, **measured}.items()}
+
+
+def turned(group, rotvec):
+    """R_cal of `group` turned by `rotvec` (radians, about the group body's own axes), as a quaternion (x, y, z, w):
+    TABLE's turn times exp(rotvec), a right group's rotvec its left one's mirrored (MIRROR @ rotvec), so one rotvec
+    turns both sides alike and the table keeps its mirror."""
+    rotvec = MIRROR @ np.asarray(rotvec, dtype=float) if group.startswith("Right") else np.asarray(rotvec, dtype=float)
+    return Rotation.from_matrix(turn(group) @ Rotation.from_rotvec(rotvec).as_matrix()).as_quat()
 
 
 def frame(long, reference):

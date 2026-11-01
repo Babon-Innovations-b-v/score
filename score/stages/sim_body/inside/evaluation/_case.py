@@ -47,8 +47,9 @@ def load_centres(offsets):
 
 def recalibrated(folder, rig):
     """The calibration table read again at rest from the current centres (MyoFullBody's default pose in `folder`
-    against SOMA's template `rig`), in place: a rest-pose table, never fitted to motion."""
-    calibration.TABLE.update({group: tuple(quaternion) for group, quaternion in rest_measure.measured(folder, rig).items()})
+    against SOMA's template `rig`), in place: a rest-pose table, never fitted to motion; the rows read in the skin
+    (`calibration.INSIDE_GROUPS`) kept."""
+    calibration.TABLE.update(calibration.remeasured(rest_measure.measured(folder, rig)))
 
 
 def leftovers(model, angles, scales, points):
