@@ -461,3 +461,16 @@ def test_cleanup_removes_a_stale_tree_index_an_old_binary_and_leftover_build_fil
         assert str(path) in removed and not path.exists(), path
     for path in (kept, cache / "kept-tree.db", tmp_path / "harness/cbm" / pinned, young):
         assert path.exists(), path
+
+
+def test_a_checkout_whose_project_json_names_no_repository_uses_its_github_origin(tmp_path: pathlib.Path) -> None:
+    """A fresh copy of a template has an empty `repo`; its GitHub origin names the repository instead."""
+    import cbm_issues
+    root = tmp_path / "copy"
+    (root / ".claude").mkdir(parents=True)
+    (root / ".claude/project.json").write_text(json.dumps({"repo": ""}))
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    subprocess.run(["git", "-C", str(root), "remote", "add", "origin", "git@github.com:someone/my-company.git"], check=True)
+    assert cbm_issues.repository(root) == "someone/my-company"
+    (root / ".claude/project.json").write_text(json.dumps({"repo": "o/r"}))
+    assert cbm_issues.repository(root) == "o/r"
