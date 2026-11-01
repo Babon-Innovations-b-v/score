@@ -18,4 +18,9 @@ several joints split into 1 g wrappers, Euler written out, the floor gone).
   unrothum) stays tied at -1 to the joint it undoes: left free, it shares that joint's axis and the clavicle's own
   turn has no target (the card's level 3 swung the pair bound to bound, 2026-10-31). A range is the anatomy's, never
   widened to pass a check.
+- **Its held fingers rest in SOMA's hand** (`_rested.py`, 2026-11-01): each finger and thumb body turned by its
+  joints' rest turns (`calibration.FINGERS`), so the file's zero pose, where `fit` holds the fingers, is SOMA's
+  template hand's shape; each joint's axis and anchor carried so every pose is reached as before, its range moved by
+  its turn. On the source's spec before sizing (one bone group, one scale); the muscles' length scale is read against
+  the same rested source (`_fresh(source).compile()`), so a finger muscle's range does not scale by its rest turn.
 - Its test runs in Newton's own Python by subprocess and prints `skipped` where no env is built.

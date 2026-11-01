@@ -5,7 +5,8 @@ same joints, one joint a body, no '-' in a name, no floor, the person's mass, an
 Newton's model the published model's (#60's import fixes); with the fit's constants given, an inside joint's
 body sits moved by its found move; the neck and head carry MyoHead's two joints, the torso the thoracic three, and the
 girdle's coupling to the arm's elevation is gone, its joint on its own range, and its phantom follows it at -1
-(`myo._movable`). It runs in Newton's own Python
+(`myo._movable`); a finger body laid at its joints' rest turns (`myo._rested`) stands at zero where it stood at those
+turns and reaches every pose as before, its ranges moved by them. It runs in Newton's own Python
 (score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there, as in `make
 tests`' sandbox home, it prints `skipped`.
 
@@ -19,6 +20,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-10-29) inside_moved's `body.pos = body.pos + joints[filed]` made `pass`: the talus stays where it was.
 - (2026-10-31) _fresh's `movable(spec)` made `pass`: no neck or thoracic joint, the girdle still coupled.
 - (2026-10-31) _girdle's `elif stem in PHANTOMS:` made `elif False:`: the phantom stays tied to shoulder_elv.
+- (2026-11-01) rested's `_carried(joint, moves[index + 1:])` made `pass`: the first of two joints turns about its old
+  axis, the tip lands 0.4 to 3.3 mm off.
+- (2026-11-01) rested's `- turns[index]` made `- 0.0`: the range stays where it was.
 
 Run: .venv/bin/python score/stages/sim_body/inside/myo/test_the_persons_file_builds_in_newton_as_mujoco_compiles_it.py
 """
@@ -251,7 +255,45 @@ def the_neck_thorax_and_girdle_move():
                        [f"couplings {tied}"])
 
 
-CHECKS = (the_neck_thorax_and_girdle_move, the_constants_move_the_file, the_written_file_builds_as_it_compiles,
+FINGER = """<mujoco><compiler angle="radian"/><worldbody><body name="hand" pos="0.1 0.2 0.3" quat="0.9 0.1 0.3 0.2">
+  <geom type="sphere" size="0.01" mass="0.1"/>
+  <body name="finger" pos="0.02 -0.03 0.01" quat="0.8 -0.2 0.1 0.4">
+    <joint name="flex" type="hinge" axis="1 0.2 0" pos="0.003 0.001 0" range="0 1.5"/>
+    <joint name="spread" type="hinge" axis="0 0.3 1" pos="0 -0.002 0.004" range="-0.3 0.3"/>
+    <geom type="sphere" size="0.01" mass="0.01"/>
+    <body name="tip" pos="0 -0.04 0"><joint name="bend" type="hinge" axis="1 0 0" range="0 1.5"/>
+      <geom type="sphere" size="0.01" mass="0.01"/></body>
+  </body></body></worldbody></mujoco>"""
+
+
+def a_rested_finger_reaches_every_pose_as_before():
+    """A finger body with two hinges (and a tip on a third) laid at rest turns (flex 0.4, spread -0.2, bend 0.3): at
+    each of three poses less the rest turns, the finger and tip stand where the published file put them at those poses
+    (to 1e-9 m and in turn); each laid joint's range is its own less its rest turn."""
+    import mujoco
+    import numpy as np
+    from myo._rested import rested
+    rest = {"flex": 0.4, "spread": -0.2, "bend": 0.3}
+    published = mujoco.MjModel.from_xml_string(FINGER)
+    spec = mujoco.MjSpec.from_string(FINGER)
+    rested(spec, rest)
+    laid = spec.compile()
+    problems = []
+    for pose in ([0.4, -0.2, 0.3], [0.0, 0.0, 0.0], [1.1, 0.25, 0.9]):
+        before, after = mujoco.MjData(published), mujoco.MjData(laid)
+        before.qpos[:] = pose
+        after.qpos[:] = np.asarray(pose) - [rest["flex"], rest["spread"], rest["bend"]]
+        mujoco.mj_kinematics(published, before)
+        mujoco.mj_kinematics(laid, after)
+        if not (np.allclose(before.xpos, after.xpos, atol=1e-9) and np.allclose(before.xmat, after.xmat, atol=1e-9)):
+            problems.append(f"at {pose}: places off by {np.abs(before.xpos - after.xpos).max():.2e} m")
+    for name, turn in rest.items():
+        if not np.allclose(laid.joint(name).range, published.joint(name).range - turn):
+            problems.append(f"{name}: range {laid.joint(name).range} against {published.joint(name).range - turn}")
+    return problems
+
+
+CHECKS = (a_rested_finger_reaches_every_pose_as_before, the_neck_thorax_and_girdle_move, the_constants_move_the_file, the_written_file_builds_as_it_compiles,
           every_muscle_keeps_its_published_parameters_in_newton)
 
 

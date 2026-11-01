@@ -16,8 +16,10 @@ import pathlib
 import mujoco
 
 import resting
+from calibration import fingers
 from myo._fixes import full_muscles, multi_joint_bodies, renamed, split
 from myo._movable import movable
+from myo._rested import rested
 from sizing import (WRAPPER_KG, assumed, hip_width, kept_bodies, path_lengths, sized,
                     ungrouped_kg)
 
@@ -30,12 +32,14 @@ def _source_model(folder):
 
 
 def _fresh(source):
-    """A new spec of the published model, its floor gone, movable above the lower back (`movable`)."""
+    """A new spec of the published model, its floor gone, movable above the lower back (`movable`), its held fingers
+    at SOMA's hand's rest (`rested`)."""
     spec = mujoco.MjSpec.from_file(source)
     spec.meshdir = spec.texturedir = str(pathlib.Path(source).parents[1])
     for geom in list(spec.worldbody.geoms):
         spec.delete(geom)
     movable(spec)
+    rested(spec, fingers())
     return spec
 
 
@@ -66,7 +70,7 @@ def person_file(folder, size, kg, path, constants=None):
     grown = spec.compile()
     factors = size.weigh(spec, grown, scales, kg - wrappers * WRAPPER_KG - ungrouped_kg(grown, size.table))
     grown = spec.compile()
-    stretch = path_lengths(grown) / path_lengths(model)
+    stretch = path_lengths(grown) / path_lengths(_fresh(source).compile())  # both at the same rest
     for actuator in spec.actuators:
         index = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, actuator.name)
         actuator.lengthrange = model.actuator_lengthrange[index] * stretch[index]
