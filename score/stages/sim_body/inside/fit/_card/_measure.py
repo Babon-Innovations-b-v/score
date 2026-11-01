@@ -141,7 +141,7 @@ def turn_errors(model, data, worlds, segments, table=cpu.judged_turn):
     the table as it stands, else main's frozen one)."""
     groups = [segment for segment in segments if segment in cpu.FRAME_BODY]
     bodies = np.array([cpu.body(model, cpu.FRAME_BODY[segment]) for segment in groups], dtype=np.int32)
-    turned = np.stack([TO_OWN.T @ np.asarray(worlds)[:, segments.index(segment), :3, :3] @ table(segment)
+    turned = np.stack([TO_OWN.T @ cpu.segment_turn(np.asarray(worlds)[:, segments.index(segment)]) @ table(segment)
                        for segment in groups], axis=1)
     out = warp.zeros((len(worlds), len(groups)), dtype=warp.float64, device=DEVICE)
     warp.launch(_turn_errors, dim=out.shape, device=DEVICE,

@@ -76,6 +76,14 @@ def judged_turn(segment):
     return calibration.turn(segment)
 
 
+def segment_turn(world):
+    """A SOMA segment's turn (..., 3, 3) as the nearest rotation to its world's 3 x 3 (the polar factor): the played
+    worlds sit up to 3.5e-6 off orthonormal (heavy_kimodo, 2026-11-01), and `turn_angle`'s arccos of the trace on
+    such a target read a 0.06 degree turn as 0 (the taped measure, which turns it through a quaternion, read 0.06)."""
+    left, _, right = np.linalg.svd(np.asarray(world, dtype=float)[..., :3, :3])
+    return left @ right
+
+
 def turn_angle(seen, wanted):
     """The angle (degrees) between two turns."""
     return np.degrees(np.arccos(np.clip((np.trace(seen.T @ wanted) - 1) / 2, -1, 1)))
@@ -123,7 +131,7 @@ def measures(model, angles, rig, segments, worlds, scales):
                 TO_OWN @ centre(model, data, f"finger_tip_{side[0].lower()}", scales) - soma))
         for segment in turns:
             held = TO_OWN @ data.xmat[body(model, FRAME_BODY[segment])].reshape(3, 3)
-            wanted = world[segments.index(segment)][:3, :3]
+            wanted = segment_turn(world[segments.index(segment)])
             turns[segment].append(turn_angle(held @ judged_turn(segment).T, wanted))
             frozen[segment].append(turn_angle(held @ frozen_turn(segment).T, wanted))
         low = float((surface(model, data, colliders) @ TO_OWN.T)[:, 1].min())
