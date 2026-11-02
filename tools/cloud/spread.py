@@ -250,8 +250,12 @@ def one_machine(run, account, found, number, kind, shares, prepare, do, disk_gb,
     setup_deaths = 0
     while True:
         began = time.time()
-        machine = batch.claim(run, account, found, number, kind, disk_gb,
-                              wanted=lambda: shares.queued() > 0 or shares.open)
+        try:
+            machine = batch.claim(run, account, found, number, kind, disk_gb,
+                                  wanted=lambda: shares.queued() > 0 or shares.open)
+        except batch.compute.CloudOnly as refusal:  # the job is too big for this PC's card: said once, for on_machines
+            run.cloud_only = refusal
+            return
         if this_pc_waited(run, shares, time.time() - began) and machine is None and \
                 (shares.queued() > 0 or shares.open) and not batch.STOPPING.is_set():
             continue
@@ -297,8 +301,13 @@ def start_machine(run, account, found, number, kind, shares, prepare, do, disk_g
 
 def on_machines(run, account, found, count, kind, shares, prepare, do, disk_gb=batch.DISK_GB, at_once=None):
     """Claim `count` machines side by side and let each take shares as soon as it is set up; returns when every
-    machine is deleted. What was never done stays in `shares.waiting`, what failed in `shares.failed`: both gaps."""
+    machine is deleted. What was never done stays in `shares.waiting`, what failed in `shares.failed`: both gaps.
+    A claim this PC refused as too big for its card (compute.CloudOnly, park.here) is raised here once every machine
+    is done, so the tool's process ends on it (park.ended_cloud_only: its paid row is left for the Buy, priced),
+    never as "no card could be rented" (2026-11-02, round 46: meshparts' 24 GB in a claim's thread)."""
     threads = [start_machine(run, account, found, number, kind, shares, prepare, do, disk_gb, at_once)
                for number in range(1, count + 1)]
     for thread in threads:
         thread.join()
+    if getattr(run, "cloud_only", None) is not None:  # a claim this PC refused as too big for its card (one_machine)
+        raise run.cloud_only
