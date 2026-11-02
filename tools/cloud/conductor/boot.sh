@@ -149,6 +149,9 @@ mount_data() {
     chattr +i "$ROOT$mountpoint"
     mount "$ROOT$mountpoint"
   fi
+  # A volume grown since the last boot (machine.py grow-data) gets its room: ext4 grows online, and on a file system
+  # that already fills its device this changes nothing.
+  resize2fs "$device"
   chown "$SCORE_USER:$SCORE_USER" "$ROOT$mountpoint"
   say "data volume $uuid at $mountpoint"
 }

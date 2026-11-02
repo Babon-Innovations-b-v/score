@@ -729,8 +729,8 @@ ALLOWED = {
                                              "order; the nodes come to the ledger as the submitter's run rows",
                                              {"create_cluster", "ensure_pools"}),
     "tools/cloud/conductor/machine.py": ("the conductor's own set-up, run only by the owner: ledger.order_started "
-                                         "before each billed order (address, data volume, server)",
-                                         {"address", "data_volume", "make_server"}),
+                                         "before each billed order (address, data volume, its growth, server)",
+                                         {"address", "data_volume", "grow_data", "make_server"}),
     "score/conductor/logs.py": ("the log scrubber names the Google key header to blank it, calls nothing",
                                 {"SECRET_WORDS"}),
     str(pathlib.Path(__file__).resolve().relative_to(REPO)): (
