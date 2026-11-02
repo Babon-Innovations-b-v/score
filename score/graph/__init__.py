@@ -1372,6 +1372,7 @@ class Runner:
         passed and got no worse; what it did. It holds the node's key's lock throughout, so of two runs wanting one
         key the second waits and finds the first's record. Its key is worked out in a fresh `still` pass (a key's reads
         cost 6-15 min outside one, 2026-10-30), closed before the make writes; a remake's re-key gets a pass of its own."""
+        keyed = None
         try:
             with self.still():
                 keyed = self.key(stage, place)
@@ -1379,7 +1380,25 @@ class Runner:
                 did = self.run_held(stage, place, keyed)
         except Blocked as block:
             return f"blocked: {block}"
+        except Exception as error:  # noqa: BLE001 - only a job too big for this PC's card, the rest goes up as it was
+            left = self.left_cloud_only(stage, place, keyed, error)
+            if left is None:
+                raise
+            return left
         return self.after_failure(stage, place, keyed, did)
+
+    def left_cloud_only(self, stage, place, keyed, error):
+        """A paid node made free on this PC in a free-only run whose make met a job too big for this PC's card
+        (compute.cloud_only: raised here, or a cloud tool's process ended on it): PAID_LEFT with its price and why,
+        its line waiting there as for a paid node left before it started, never an error (2026-11-02:
+        people-look-parts-astronaut_spacesuit-made crashed on meshparts' 24 GB); else None."""
+        from score.adapters import compute  # here: compute imports this module for its tickets
+        refusal = compute.cloud_only(error)
+        if refusal is None or not (self.free_only and stage.paid and on_this_pc()):
+            return None
+        traceback.print_exc()
+        euros = self.price(stage, place, keyed) if keyed else (stage.euros or 0.0)
+        return f"{PAID_LEFT} (about EUR {euros:.2f}: {refusal})"
 
     def after_failure(self, stage, place, keyed, did):
         """Once the node's output failed its gates (fail, the owner's waivers counted; not unknown, not only its
@@ -1849,7 +1868,7 @@ class Runner:
             try:
                 cap_threads(threads)
                 did = self.run_retrying(stage, place)
-                wanted = [] if did.startswith(("blocked", "broken")) else self.gatherable(stage, place)
+                wanted = [] if did.startswith(("blocked", "broken", PAID_LEFT)) else self.gatherable(stage, place)
                 if wanted:
                     self.gather(stage, place, wanted)
                     did = f"{did}; gathered {', '.join(wanted)}: {self.run_retrying(stage, place)}"
@@ -2119,7 +2138,10 @@ class Runner:
 
     def conclude(self, stage, place, did):
         """A finished node's fault report when it does not stand, else its old report removed; (what it did, whether
-        it stands)."""
+        it stands). A node left for the Buy (PAID_LEFT, left_cloud_only) stands not and has no fault report: its line
+        waits there."""
+        if did.startswith(PAID_LEFT):
+            return did, False
         with self.still():
             cause = self.standing(stage, place)
             if cause:
@@ -2200,7 +2222,7 @@ class Runner:
                     if waits:
                         waiting.remove((stage, place))
                         stopped[node] = waits[0]
-                        done[node] = (FREE_WAITS.format(node=waits[0]) if done.get(waits[0]) == PAID_LEFT
+                        done[node] = (FREE_WAITS.format(node=waits[0]) if done.get(waits[0], "").startswith(PAID_LEFT)
                                       else f"not run: its line stopped at {waits[0]}")
                         say(f"{node}: {done[node]}")
                     elif stood.union(passes).issuperset(earlier) and \
