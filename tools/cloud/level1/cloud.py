@@ -14,7 +14,8 @@ renting call (score.adapters.compute.require_cleared); a batch past the owner's 
   absolute path the cases' job.json files name, those under the cases' common data folder as that one folder (the
   MyoFullBody model folder on its own).
 - Brought back (every --bring-every minutes while it runs, and at its end, also when it fails or is stopped):
-  BROUGHT (checkpoint.jsonl, check.jsonl, steps.jsonl, level1.log, the results) and evals/; evaluation folders older
+  BROUGHT (checkpoint.jsonl, check.jsonl, steps.jsonl, level1.log, the results), evals/ and the seeds root (built on
+  the machine as the first batch's first step when it lacks a case's seed: on_machine.py); evaluation folders older
   than the newest KEEP_EVALS are then removed here, as level 1 removes them on its machine.
 - The machine: kind `sim-body-l1` (capacity.py: the most cores beside a card first; level 1 is held by processor
   time, two threads a body), the job's env newton_env.sh (built there in a few minutes), its card queue sized to its
@@ -87,7 +88,7 @@ def job(run, seeds, minutes, every, bring_every):
     arguments = [run, "--seeds", seeds, "--minutes", minutes - STOP_EARLY, "--every", every]
     wide = processes(run)
     found = blender_cloud.job_of(LAUNCHER, [*arguments, *(["--processes", wide] if wide else [])],
-                                 carried(run, seeds), [*(run / name for name in BROUGHT), run / "evals"], minutes,
+                                 carried(run, seeds), [*(run / name for name in BROUGHT), run / "evals", seeds], minutes,
                                  env=ENV)
     return {**found, "bring_every": bring_every}
 

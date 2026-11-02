@@ -4,6 +4,12 @@ names, newton_env.sh: numpy and scipy for level 1 itself, Newton, Warp and MuJoC
 
     <newton python> on_machine.py <run dir> --seeds <seeds root> --minutes M [--every 3] [--processes N]
 
+- The seeds first, when the seeds root lacks a case's angles.npz: levels 2 and 3 (mink, on the processors) on every
+  case of the run's cases.json from the run's own src, its table.json at its starts and its rig.npz
+  (`evaluation.measured`, level1.py's set at zero unknowns), at most half this machine's cores in bodies at once, two
+  threads each, inside the batch's --minutes (owner, 2026-11-02: seeds are built on the rented machine, never on his PC).
+  Their log is <seeds root>/seeds.log; the job brings the seeds root back, so the next batch carries them up built.
+
 - Its card queue (tools/cloud/backends/card_queue.py) holds this machine's card: SCORE_CARD_BUDGET_GB its first card's
   memory less CARD_MARGIN_GB, no desktop on it, the queue's folder in its home, so level 1's card processes fit as many
   side by side as that card holds (a run frozen before 2026-11-02 reads this PC's 13.5 GB whatever is set).
@@ -15,6 +21,7 @@ names, newton_env.sh: numpy and scipy for level 1 itself, Newton, Warp and MuJoC
   (settled: held_out.json written) gives its own exit code. A signal here stops level 1 the same way first.
 """
 import argparse
+import json
 import os
 import pathlib
 import signal
@@ -28,6 +35,20 @@ CARD_MARGIN_GB = 2.0  # each process's own CUDA context beside its measured shar
 STOP_SECONDS = 60
 QUEUE = pathlib.Path.home() / "score-card"  # /root on the machine
 SHIM = pathlib.Path.home() / "level1-shim"
+SEED_SCRIPT = """import json, pathlib, sys
+import numpy as np
+run, seeds, most = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), int(sys.argv[3])
+sys.path.insert(0, str(run / "src" / "score" / "stages" / "sim_body" / "inside"))
+import evaluation, landmarks, tuning
+table = json.loads((run / "table.json").read_text())
+cases = json.loads((run / "cases.json").read_text())
+entries = tuning.layout(table, held=landmarks.HELD, joints=set())
+starts = {name: row["link"] for name, row in table.items()}
+rows, weights = tuning.applied(np.zeros(len(entries)), entries, starts, table, {"marker goal": 1.0, "end weight": 1.0})
+found = evaluation.measured(rows, weights, {"centres": {}, "rig": str(run / "rig.npz")}, cases, seeds, sys.executable,
+                            most=most)
+print("seeds done", len(found), flush=True)
+"""
 SHIM_SCRIPT = """#!/usr/bin/env bash
 # systemd-run stand-in (tools/cloud/level1/on_machine.py): drops --user, --scope, -q and -p <property>, runs the rest.
 while [ $# -gt 0 ]; do
@@ -57,6 +78,16 @@ def scope_path():
     return f"{SHIM}:{os.environ['PATH']}"
 
 
+def seeded(run, seeds):
+    """Whether the seeds root holds every case's angles.npz (the card's seed, `fit._card._seeds.first`)."""
+    return all((seeds / case / "angles.npz").exists() for case in json.loads((run / "cases.json").read_text()))
+
+
+def seed_command(run, seeds):
+    """The seeds' levels 2 and 3 from the run's own src, half this machine's cores in bodies at once."""
+    return [sys.executable, "-B", "-c", SEED_SCRIPT, str(run), str(seeds), str(max(1, (os.cpu_count() or 2) // 2))]
+
+
 def command(run, seeds, every, processes):
     """Level 1 from the run's own code, this Python for it and its workers, on the card, exact."""
     found = [sys.executable, "-B", str(run / "src" / LEVEL1), str(run), "--python", sys.executable, "--hours", "1000",
@@ -77,13 +108,37 @@ def stop(child):
 
 
 def copied(child, log):
-    """Level 1's output line by line into its log and onto this process's output, until it ends."""
+    """A child's output (level 1's, the seeds') line by line into its log and onto this process's output, until it
+    ends."""
     with log.open("a") as kept:
         for line in child.stdout:
             kept.write(line)
             kept.flush()
             sys.stdout.write(line)
             sys.stdout.flush()
+
+
+def ran(line, cwd, environment, log, seconds, current):
+    """`line` in its own process group, its output into `log` and onto this one's, stopped at `seconds`; its exit code,
+    or None when it was stopped there. `current` holds it for the signal handler while it runs."""
+    child = subprocess.Popen(line, cwd=cwd, env=environment, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             text=True, start_new_session=True)
+    current[0] = child
+    copier = threading.Thread(target=copied, args=(child, log), daemon=True)
+    copier.start()
+    try:
+        child.wait(max(seconds, 0))
+    except subprocess.TimeoutExpired:
+        stop(child)
+        copier.join(10)
+        return None
+    copier.join(10)
+    return child.returncode
+
+
+def stamp():
+    """Now, as the logs write it."""
+    return time.strftime('%Y-%m-%dT%H:%M:%S%z')
 
 
 def main():
@@ -94,32 +149,38 @@ def main():
     parser.add_argument("--every", type=int, default=3)
     parser.add_argument("--processes", type=int, help="bodies' card processes side by side (level1.py --processes)")
     given = parser.parse_args()
-    run = given.run.resolve()
+    run, seeds = given.run.resolve(), given.seeds.resolve()
+    ends = time.time() + given.minutes * 60
     environment = {**os.environ, "PATH": scope_path(), "SCORE_CARD_BUDGET_GB": str(card_gb()),
                    "SCORE_CARD_DESKTOP_GB": "0", "SCORE_CARD_QUEUE": str(QUEUE), "OMP_NUM_THREADS": "8",
                    "OPENBLAS_NUM_THREADS": "8", "PYTHONUNBUFFERED": "1"}
-    line = command(run, given.seeds, given.every, given.processes)
-    with (run / "level1.log").open("a") as log:
-        log.write(f"started {time.strftime('%Y-%m-%dT%H:%M:%S%z')} on a rented machine for {given.minutes:.0f} min "
-                  f"(card queue {environment['SCORE_CARD_BUDGET_GB']} GB): {' '.join(line)}\n")
-    child = subprocess.Popen(line, cwd=run, env=environment, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                             text=True, start_new_session=True)
+    current = [None]
     for number in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
-        signal.signal(number, lambda *_: (stop(child), sys.exit("stopped by signal; level 1 stopped first")))
-    copier = threading.Thread(target=copied, args=(child, run / "level1.log"), daemon=True)
-    copier.start()
-    try:
-        child.wait(given.minutes * 60)
-    except subprocess.TimeoutExpired:
-        stop(child)
-        copier.join(10)
+        signal.signal(number, lambda *_: (current[0] and stop(current[0]),
+                                          sys.exit("stopped by signal; its process group stopped first")))
+    if not seeded(run, seeds):
+        seeds.mkdir(parents=True, exist_ok=True)
+        line = seed_command(run, seeds)
         with (run / "level1.log").open("a") as log:
-            log.write(f"paused {time.strftime('%Y-%m-%dT%H:%M:%S%z')} at the batch's end: the next batch resumes from "
-                      "checkpoint.jsonl's best\n")
+            log.write(f"seeds {stamp()}: the seeds root lacks cases' angles; levels 2 and 3 on every case first, "
+                      f"{line[-1]} bodies at once, log {seeds / 'seeds.log'}\n")
+        code = ran(line, run, {**environment, "OMP_NUM_THREADS": "2", "OPENBLAS_NUM_THREADS": "2"},
+                   seeds / "seeds.log", ends - time.time(), current)
+        if code != 0 or not seeded(run, seeds):
+            with (run / "level1.log").open("a") as log:
+                log.write(f"seeds {stamp()}: {'stopped at the batch end' if code is None else f'exit {code}'}, "
+                          "not every case seeded: level 1 not started\n")
+            return 1
+    line = command(run, seeds, given.every, given.processes)
+    with (run / "level1.log").open("a") as log:
+        log.write(f"started {stamp()} on a rented machine for {(ends - time.time()) / 60:.0f} min "
+                  f"(card queue {environment['SCORE_CARD_BUDGET_GB']} GB): {' '.join(line)}\n")
+    code = ran(line, run, environment, run / "level1.log", ends - time.time(), current)
+    if code is None:
+        with (run / "level1.log").open("a") as log:
+            log.write(f"paused {stamp()} at the batch's end: the next batch resumes from checkpoint.jsonl's best\n")
         return 0
-    copier.join(10)
-    return child.returncode
-
+    return code
 
 if __name__ == "__main__":
     sys.exit(main())

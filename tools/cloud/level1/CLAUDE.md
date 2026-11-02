@@ -11,6 +11,9 @@ batches; `on_machine.py` is the job the machine runs. Their docstrings are the c
   H100-2-80G with 48 cores) and needs the owner's yes; it rents only under a cleared run, as any renting call.
 - **The run runs its own code.** The machine runs `<run>/src`, the copy frozen when the run began; a run frozen before
   2026-11-02 has the card queue fixed at this PC's 13.5 GB and no `--processes`, so it runs as wide as on this PC.
+- **Seeds on the machine, never on the owner's PC** (owner, 2026-11-02). A seeds root lacking a case's angles.npz is
+  built by on_machine.py as the batch's first step (levels 2 and 3 from the run's own src), inside the batch's minutes;
+  the job brings the seeds root back, so later batches carry it up built.
 - **Resume, never restart.** Level 1 is stopped at its batch's minutes with its whole process group and the next batch
   resumes from checkpoint.jsonl's best (`tuning.resumed`); a chain ends on held_out.json, a failed batch or a batch
   that added no checkpoint line.
