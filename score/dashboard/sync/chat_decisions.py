@@ -6,8 +6,9 @@ click makes on the store's machine (applying.apply, so every check of his click 
     record(decision, target, answer, question, store, **given)
                         his yes {id, purpose "decide", decision, target, given, answer, question, at, by}, kept once in
                         the store (grants/decide/<id>.json, score.review.web): `target` what it applies to as it stands
-                        at the question (state_of), `given` his words for it: reason, worse_reason, check, and a
-                        reject's takes (the takes of that output to remake, the rest kept: graph.Stage.retakes)
+                        at the question (state_of), `given` his words for it: reason, worse_reason, check, a
+                        reject's takes (the takes of that output to remake, the rest kept: graph.Stage.retakes), and a
+                        spend's euros and purpose
     apply(yes id, store)
                         his decision under that yes, once: refused when there is no quoted yes, it was used already
                         (grants/decide-used/<id>.json, written before it is applied, so a refused one needs a new
@@ -18,7 +19,10 @@ click makes on the store's machine (applying.apply, so every check of his click 
 Decisions and what each names: an accept or a reject names a node and one output, with the node's accepted output
 then; a waiver a node, one output and its check; lock-concept a place and one draw's sha, with its lock then;
 lock-film a film and the sha256 of its script as his editor shows it; go an environment: a run he started himself,
-tagged score.review.web.OWNERS_GO, counts as a bought batch for review.IN_BATCH (owner, 2026-10-27, his "sure").
+tagged score.review.web.OWNERS_GO, counts as a bought batch for review.IN_BATCH (owner, 2026-10-27, his "sure"); spend
+the name of his override (his yes to one run outside the runner, node `override`, the run carrying
+SCORE_SPEND_TICKET="override <name>"), its euros and what it is for, with no yes under that name yet (owner,
+2026-11-02, on being sent to his terminal for one: "we talked about this, those kinda rules are stupid").
 
 Reached from the agents' door (tools/cloud/conductor/agent_door.py `decide-yes`, `decide`) and, for a run on this PC,
 tools/cloud/this_pc.py's own. The records are the cockpit's own (his accept, reject, waiver or lock by his name), so
@@ -36,7 +40,7 @@ from score import review
 from score.dashboard import state
 from score.dashboard.sync import applying
 
-DECISIONS = ("accept", "reject", "waive", "lock-concept", "lock-film", "go")
+DECISIONS = ("accept", "reject", "waive", "lock-concept", "lock-film", "go", "spend")
 
 
 class Refused(RuntimeError):
@@ -67,6 +71,23 @@ def film_script(film):
         raise Refused(f"no film script {film}: {missing}") from None
 
 
+def override_state(store, name, euros, purpose):
+    """{override, euros, purpose}: his override yes as asked; Refused for euros that are not a positive amount, no
+    purpose, or a name that holds a yes already (one name, one run: a new run gets a new name)."""
+    from score.review import web
+    try:
+        amount = float(euros)
+    except (TypeError, ValueError):
+        raise Refused(f"a spend names its euros as an amount, not {euros!r}") from None
+    if not amount > 0 or amount == float("inf"):
+        raise Refused(f"a spend names its euros as an amount above 0, not {euros!r}")
+    if not str(purpose or "").strip():
+        raise Refused("a spend says what it is for, in his words: --purpose")
+    if web.override_yes(store, name) is not None:
+        raise Refused(f"the override {name} holds a yes already: a new run gets a new name")
+    return {"override": name, "euros": amount, "purpose": str(purpose)}
+
+
 def script_sha(found):
     return hashlib.sha256(json.dumps(found, sort_keys=True).encode()).hexdigest()
 
@@ -83,6 +104,8 @@ def state_of(decision, target, given, store):
         return concept_state(store, target, given.get("sha"))
     if decision == "lock-film":
         return {"film": target, "script": script_sha(film_script(target))}
+    if decision == "spend":
+        return override_state(store, target, given.get("euros"), given.get("purpose"))
     return {"world": target}
 
 
@@ -100,6 +123,8 @@ def record(decision, target, answer, question, store=None, **given):
         raise Refused(f"a {decision} says why, in his words: --reason")
     if given.get("takes") and decision != "reject":
         raise Refused("only a reject names takes to remake (--takes)")
+    if (given.get("euros") or given.get("purpose")) and decision != "spend":
+        raise Refused("only a spend names euros and a purpose (--euros, --purpose)")
     store = store or state.source().store
     given = {name: value for name, value in given.items() if value}
     moment = datetime.datetime.now(datetime.timezone.utc)
@@ -121,6 +146,9 @@ def request_of(yes):
         return {"kind": "waiver", "user": user, "payload": {
             "node": target["node"], "output": target["output"], "check": target["check"],
             "reason": given.get("reason", "")}}
+    if yes["decision"] == "spend":
+        return {"kind": "spend-override", "user": user, "payload": {
+            "name": target["override"], "euros": target["euros"], "purpose": target["purpose"]}}
     if yes["decision"] == "lock-concept":
         return {"kind": "concept-pick", "user": user, "payload": {"place": target["place"], "sha": target["sha"]}}
     return {"kind": "film-lock", "user": user, "payload": {"film": target["film"],
@@ -129,7 +157,8 @@ def request_of(yes):
 
 def target_name(yes):
     target = yes["target"]
-    return target.get("node") or target.get("place") or target.get("film") or target.get("world")
+    return (target.get("node") or target.get("place") or target.get("film") or target.get("override")
+            or target.get("world"))
 
 
 def refusal(yes, yes_id, store):

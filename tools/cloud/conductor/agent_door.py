@@ -81,11 +81,14 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 click (the same checkout, stop line and refusals); again, a retry
                                                 of its batch inside the batch's budget, no new ask (owner,
                                                 2026-10-26); refused while the free-only latch is set
-    decide-yes <decision> <target> [--output H] [--check C] [--sha S] [--reason R] [--worse-reason W] <answer>
-               <question>                       python -m score.dashboard decide-yes: the owner's quoted yes, asked in
+    decide-yes <decision> <target> [--output H] [--check C] [--sha S] [--reason R] [--worse-reason W] [--euros E]
+               [--purpose P] <answer> <question>
+                                                python -m score.dashboard decide-yes: the owner's quoted yes, asked in
                                                 a Claude Code session, to one accept, reject, waive, lock-concept,
-                                                lock-film or go, its target as it stands now (owner, 2026-10-27: "i
-                                                hate the rule that i cant make discisions in chat aswell")
+                                                lock-film, go or spend override: his yes to one run outside the
+                                                runner, named (owner 2026-11-02), its target as it stands now
+                                                (owner, 2026-10-27: "i hate the rule that i cant make discisions in
+                                                chat aswell")
                                                 (score/dashboard/sync/chat_decisions.py); prints its id
     decide <yes id>                             python -m score.dashboard decide: that decision, once, through the
                                                 cockpit's own request code as his click; refused when its target
@@ -300,7 +303,8 @@ def decide(words, latch):
     if verb == "decide-yes":
         if len(args) < 4 or args[0].startswith("-"):
             raise Refused("decide-yes <decision> <target> [--output H] [--check C] [--sha S] [--reason R] "
-                          "[--worse-reason W] <the owner's answer> <the question he answered>")
+                          "[--worse-reason W] [--euros E] [--purpose P] <the owner's answer> "
+                          "<the question he answered>")
         return ["-m", "score.dashboard", "decide-yes", *args], {}
     if verb == "decide":
         if len(args) != 1 or not GRANT_ID.match(args[0]):

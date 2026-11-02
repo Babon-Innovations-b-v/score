@@ -12,7 +12,10 @@ in place of the terminal check of `python -m score.review` (owner_at_terminal), 
 own barrier still refuses these writes in a process an agent started (Store.write_once), so a dashboard started from
 an agent's shell records nothing. His waiver (`waived`, one check of the output he saw) and his Google month
 (`google_month`, into the month's books, refused in an agent's process by compute itself) come the same way; the
-spend override (a yes for a run outside the runner) stays terminal-only, except his concept review's draw button.
+spend override (a yes for a run outside the runner, `spend_override`) comes from his terminal, his concept review's
+draw button, or his yes in a session (chat_decisions, below).
+
+    web.spend_override(store, "relight-hangar", 4.0, by="joey", purpose="one relight of the hangar")
 
     web.concept_draw(store, "airlock", {"marks": [...], "note": "", "base": sha}, 0.15, by="joey")
     web.concept_pick(store, "airlock", sha, by="joey")    # sha None: unlocked again
@@ -44,8 +47,8 @@ approved in a Claude Code session (root CLAUDE.md, owner 2026-10-25), his answer
 
 Every other owner-only decision may be made in a Claude Code session the same way (root CLAUDE.md, owner 2026-10-27:
 "i hate the rule that i cant make discisions in chat aswell"): his quoted yes to one accept, reject, waiver, concept
-lock or film lock, or his go for a run (score/dashboard/sync/chat_decisions.py), applied once through the cockpit's
-own request code.
+lock, film lock or spend override, or his go for a run (score/dashboard/sync/chat_decisions.py), applied once through
+the cockpit's own request code.
 
     web.decision_yes_written(store, yes)   # grants/decide/<id>.json
     web.decision_yes_spent(store, yes_id, record)   # grants/decide-used/<id>.json: one yes, one decision
@@ -227,6 +230,21 @@ def waived(store, node, output, check, by, reason):
     if record is None:
         raise review.Refused(f"{node} has no output {output[:12]} here")
     return review.waive(store, node, record["key"], check, name, reason)
+
+
+def spend_override(store, name, euros, by, purpose):
+    """The owner's override yes for one run outside the runner under `name` (node `override`, the run carrying
+    SCORE_SPEND_TICKET="override <name>"), at his euros and for his purpose, by his signed-in name; the yes.
+    FileExistsError when the name holds a yes already; PermissionError in a process an agent started (the store's own
+    barrier)."""
+    from score.adapters import compute
+    return review.spend(store, compute.OVERRIDE, name, euros, checked_by(by), purpose=purpose)
+
+
+def override_yes(store, name):
+    """His override yes under `name` as written, or None."""
+    from score.adapters import compute
+    return store.spend_yes(compute.OVERRIDE, name)
 
 
 def stop_line(store, world):

@@ -21,11 +21,13 @@ Reads the Claude Code PreToolUse payload on stdin and blocks an agent from:
    (``tee``, ``cp``, ``mv``, ``ln``, ``rm``, ``touch``, ``install``, ``rsync``, ``dd``, ``chmod``, ``sed -i``, ``find -delete``, Python) that names one.
 5. Writing an artifact database collection or document of those names (``Artifact`` with ``write_db``, a batch's
    writes included).
-6. His concept and film locks and the chat route's own steps by any other route (owner, 2026-10-27: "i hate the rule
-   that i cant make discisions in chat aswell"): a shell command that runs Python, or writes a script outside the
-   framework, holding a call to ``concept_pick(``, ``film_locked(``, ``concepts.pick(``, ``script.lock(``,
-   ``chat_decisions.apply(``, ``applying.apply(``, ``as_owner_deciding(``, ``as_owner_under(``, ``markers_lifted(``,
-   ``decision_yes_spent(`` or ``buy_yes_spent(`` (a code file outside the framework and ``score/dashboard/`` too); a
+6. His concept and film locks, his spend override and the chat route's own steps by any other route (owner,
+   2026-10-27: "i hate the rule that i cant make discisions in chat aswell"; the spend override 2026-11-02: "we talked
+   about this, those kinda rules are stupid"): a shell command that runs Python, or writes a script outside the
+   framework, holding a call to ``concept_pick(``, ``film_locked(``, ``spend_override(``, ``concepts.pick(``,
+   ``script.lock(``, ``chat_decisions.apply(``, ``applying.apply(``, ``as_owner_deciding(``, ``as_owner_under(``,
+   ``markers_lifted(``, ``decision_yes_spent(`` or ``buy_yes_spent(`` (a code file outside the framework and
+   ``score/dashboard/`` too); a
    hand write into the store's concept ``picks/`` or the cockpit's ``films/locked/`` (rule 4); and the apply command
    (``python -m score.dashboard decide``, ``this_pc.py decide``, the agents' door's ``decide``) without the id of his
    yes. That command with its yes id is the one route an agent applies his decision by: decide-yes records his
@@ -68,7 +70,7 @@ _OWNER_CALL = re.compile(r"\b(accept|reject|spend|waive|write_once|write_accept|
                          r"write_waiver|write_clearance|set_line)\s*\(")
 # His concept and film locks and the chat route's own steps (owner, 2026-10-27): his decision made in chat is applied
 # only as `decide <yes id>`, never by calling what that command calls.
-_LOCK_CALL = re.compile(r"\b(concept_pick|film_locked|as_owner_deciding|as_owner_under|markers_lifted|"
+_LOCK_CALL = re.compile(r"\b(concept_pick|film_locked|spend_override|as_owner_deciding|as_owner_under|markers_lifted|"
                         r"decision_yes_spent|buy_yes_spent)\s*\(|\b(concepts\.pick|script\.lock|chat_decisions\.apply|"
                         r"applying\.apply)\s*\(")
 _DASHBOARD = re.compile(r"(^|/)score/dashboard/")

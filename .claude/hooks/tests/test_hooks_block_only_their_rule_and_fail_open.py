@@ -14,7 +14,8 @@ The break that turns each test red (applied once each, seen red, reverted):
   drop the `not _TEXT_FILE.search(path)` in `_file_offence`.
 - test_accept_guard_lets_a_benchmark_grant_pass: add `grant_benchmark` to `_OWNER_CALL`'s names.
 - test_accept_guard_blocks_an_agents_own_locks_and_a_decision_without_his_yes: in `_owner_command`, `not
-  _YES_ID.match(...)` -> `False`; or drop the `_LOCK_CALL` check.
+  _YES_ID.match(...)` -> `False`; or drop the `_LOCK_CALL` check; or drop `spend_override|` from `_LOCK_CALL` (his
+  spend override called straight from Python passes).
 - test_accept_guard_lets_his_decision_through_only_as_decide_with_its_yes_id: `_YES_ID` made `^$` (every id refused),
   or drop `and not _DASHBOARD.search(path)` in `_file_offence`.
 - test_accept_guard_answers_a_long_command_at_once: the env-assignment group of `_REVIEW_RUN`, `_DECIDE_RUN` and
@@ -222,6 +223,9 @@ OWN_LOCKS_AND_STEPS = [
     bash("python -c 'from score.dashboard.pages import actions; actions.concept_pick(\"joey\", {\"place\": \"hub\"})'"),
     bash("python -c 'from score.dashboard.pages import films; films.film_locked(\"joey\", {\"film\": \"f\"})'"),
     bash("python -c 'from score.review import concepts; concepts.pick(s, \"hub\", \"sha\", \"joey\")'"),
+    bash("python -c 'from score.review import web; web.spend_override(s, \"relight\", 4.0, \"joey\", \"why\")'"),
+    bash("python -c 'from score.dashboard.pages import actions; actions.spend_override(\"joey\", {\"euros\": 4})'"),
+    bash("ssh score@1.2.3.4 'decide spend relight'"),
     bash(f"python -c 'from score.dashboard.sync import chat_decisions as c; c.chat_decisions.apply(\"{YES}\")'"),
     bash("python -c 'from score.dashboard.sync import applying; applying.apply({\"kind\": \"decision\"}, s)'"),
     bash(f"python -c 'from score.review import web; web.decision_yes_spent(s, \"{YES}\", {{}})'"),
@@ -236,7 +240,9 @@ CHAT_ROUTE = [
     bash(f"ssh -i ~/.ssh/score_conductor_agents -o IdentitiesOnly=yes score@1.2.3.4 'decide {YES}'"),
     bash(".venv/bin/python -m score.dashboard decide-yes lock-film env 'Yes, lock it' 'Lock film env as shown?'"),
     bash("ssh score@1.2.3.4 \"decide-yes accept closeup@hub --output abc 'yes' 'Accept closeup@hub abc?'\""),
+    bash("ssh score@1.2.3.4 \"decide-yes spend relight-hangar --euros 4 --purpose 'one relight' 'yes' 'EUR 4?'\""),
     bash("SCORE_OWNERS_GO=20261027T170000Z python3 tools/cloud/this_pc.py env1"),
+    bash("SCORE_SPEND_TICKET='override relight-hangar' .venv/bin/python -m score.stages run hangar"),
     bash("git commit -m 'sync: python -m score.dashboard decide <yes id> applies it'"),
     {"tool_name": "Write", "tool_input": {"file_path": "/repo/score/dashboard/sync/chat_decisions.py",
                                           "content": "applying.apply(request, source)\n"}},

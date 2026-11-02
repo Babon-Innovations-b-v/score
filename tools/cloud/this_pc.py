@@ -41,8 +41,9 @@ shell): its `store-pull` and `store-push` verbs, a tar stream each way over ssh.
   half a file.
 - **The owner's decisions in chat** (owner, 2026-10-27: "i hate the rule that i cant make discisions in chat
   aswell"): `decide-yes ...` and `decide <yes id>` are the door's verbs of the same name (score/dashboard/sync/
-  chat_decisions.py) against HOME's store, so a decision on this run's outputs is his recorded yes applied through the
-  cockpit's own request code, and goes back to the conductor's store with the next push like any new output.
+  chat_decisions.py) against HOME's store, so a decision on this run's outputs, or his spend override
+  (`decide-yes spend <name> --euros E --purpose P`), is his recorded yes applied through the cockpit's own request
+  code, and goes back to the conductor's store with the next push like any new output.
 - **His go** (owner, 2026-10-27, his "sure" to: "let a free run you started accept passing results on its own, like a
   bought batch, so the run doesn't stop for clicks"): `decide-yes go world1 <answer> <question>` records it in HOME's
   store, and `env1 --go <go id>` (or `run ... --go <go id>`) tags the run SCORE_OWNERS_GO, so the runner takes it as a

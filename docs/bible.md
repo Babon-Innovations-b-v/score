@@ -538,16 +538,18 @@ time attached (`score/review/plans.py` `kept_record`, `asked`; `workflow/loop`).
 
 **Owner-only decisions in chat** (owner, 2026-10-27: "i hate the rule that i cant make discisions in chat aswell").
 Every owner-only decision may also be his answer in a Claude Code session, applied exactly like his click: an accept,
-a reject, a waiver, a concept lock, a film lock, as a Buy already was (`checkout/chat_yes.py`). The session asks with
+a reject, a waiver, a concept lock, a film lock, a spend override (his yes to one run outside the runner; owner,
+2026-11-02: "we talked about this, those kinda rules are stupid"), as a Buy already was (`checkout/chat_yes.py`). The session asks with
 its question tool, naming what the decision applies to; `decide-yes` records his yes once in the store
 (`grants/decide/<id>.json`: his answer, the question, the time, the decision and its target as it stood: the node, the
 output and the node's accepted output then; the check; the place, the draw and its lock then; the film and the sha256
-of its script as his editor shows it), and `decide <yes id>` applies it once (`grants/decide-used/<id>.json`, written
+of its script as his editor shows it; the override's name, euros and purpose, refused once a yes stands under that
+name, `decide-yes spend <name> --euros E --purpose P`, its run then carrying `SCORE_SPEND_TICKET="override <name>"`), and `decide <yes id>` applies it once (`grants/decide-used/<id>.json`, written
 first) as the request his click makes, through `sync/applying.apply` with his name and the agent markers lifted in that
 process only (`score.review.web.as_owner_deciding`), so every check of his click runs; it is refused when its target
 changed since the question, like a changed basket refuses a Buy (`score/dashboard/sync/chat_decisions.py`). Both are
 verbs of the agents' door, and of `tools/cloud/this_pc.py` against a run's own home on his PC (its records reach the
-conductor with that run's push). The accept guard still blocks an agent's own accept, reject, waive or lock, and the
+conductor with that run's push). The accept guard still blocks an agent's own accept, reject, waive, lock or spend, and the
 apply command without a recorded yes's id. His go for a run (`decide-yes go <environment>`) is carried by the run
 (`SCORE_OWNERS_GO`), which then counts as a bought batch for the in-batch accept (`architecture/lifecycles`).
 

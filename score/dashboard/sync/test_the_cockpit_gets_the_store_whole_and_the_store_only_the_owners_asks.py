@@ -65,6 +65,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside
 - chat_decisions.refusal: the `now != yes["target"]` check -> `if False:` ->
   test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question
+- applying.OWNER_FIGURES: the "spend-override" line dropped (his spend override in chat has no request kind) ->
+  test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside
+- chat_decisions.override_state: the `web.override_yes(...) is not None` check -> `if False:` ->
+  test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question
 - state/exported.py: `import numpy` at its top -> test_hosted_renders_every_page_light
 - launch/localrun.py: `from score.graph import runs` at its top (93fec2b1) -> test_hosted_renders_every_page_light,
   test_every_module_the_hosted_image_holds_imports_from_it_alone
@@ -1238,6 +1242,22 @@ def test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_mar
                   output=output)  # a reject says why, in his words
     pytest.raises(chat_decisions.Refused, chat_decisions.record, "accept", "closeup@alpha", "Yes", QUESTION,
                   output="0" * 64)  # no such output
+    # his spend override in chat (owner, 2026-11-02: "we talked about this, those kinda rules are stupid"): applied
+    # once through the cockpit's own request, as his override yes under its name, the agent marks lifted only inside
+    asked = "Say yes to EUR 4 for relight-hangar, one relight of the hangar outside the runner?"
+    spend = chat_decisions.record("spend", "relight-hangar", "Yes", asked, euros="4", purpose="one relight")
+    applied = chat_decisions.apply(spend["id"])
+    assert applied.state == "done" and 'SCORE_SPEND_TICKET="override relight-hangar"' in applied.detail, applied.detail
+    assert seen[-1] == ({"kind": "spend-override", "user": "joey", "payload": {
+        "name": "relight-hangar", "euros": 4.0, "purpose": "one relight"}}, False) and os.environ[mark] == "1"
+    assert {name: world.store.spend_yes("override", "relight-hangar")[name] for name in ("euros", "by", "purpose")} == {
+        "euros": 4.0, "by": "joey", "purpose": "one relight"}
+    pytest.raises(chat_decisions.Refused, chat_decisions.apply, spend["id"])
+    for euros, purpose, name in (("4", "", "a"), ("0", "x", "a"), ("four", "x", "a"), ("4", "x", "relight-hangar")):
+        pytest.raises(chat_decisions.Refused, chat_decisions.record, "spend", name, "Yes", asked, euros=euros,
+                      purpose=purpose)  # no purpose, no amount above 0, or a name holding a yes already
+    pytest.raises(chat_decisions.Refused, chat_decisions.record, "accept", "closeup@alpha", "Yes", QUESTION,
+                  output=output, euros="4")  # only a spend names euros
 
 
 def test_a_reject_made_in_chat_carries_the_takes_he_named_to_remake_into_his_reject(world):
@@ -1282,3 +1302,8 @@ def test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_qu
     assert web.owners_go(world.store, go["id"], "world1") == go and web.owners_go(world.store, go["id"], "w2") is None
     assert web.owners_go(world.store, yes["id"], "world1") is None  # only a go
     pytest.raises(chat_decisions.Refused, chat_decisions.apply, go["id"])
+    first, second = (chat_decisions.record("spend", "relight", "Yes", "EUR 2 for relight?", euros="2",
+                                           purpose="relight") for _ in range(2))
+    assert chat_decisions.apply(first["id"]).state == "done"
+    assert "gone since the question" in str(pytest.raises(chat_decisions.Refused, chat_decisions.apply,
+                                                          second["id"]).value)  # the name took a yes since
