@@ -84,8 +84,10 @@ def parse(argv):
     commands.add_parser("buy", help="his Buy under a yes from buy-yes, once (checkout/chat_yes.py)").add_argument("yes")
     decide_yes = commands.add_parser("decide-yes", help="the owner's decision made in a session, quoted "
                                                         "(sync/chat_decisions.py)")
-    decide_yes.add_argument("decision", help="accept, reject, waive, lock-concept, lock-film, go or spend")
-    decide_yes.add_argument("target", help="the node, place, film, environment or override name it applies to")
+    decide_yes.add_argument("decision", help="accept, reject, waive, lock-concept, lock-film, go, spend or "
+                                                   "google-month")
+    decide_yes.add_argument("target", help="the node, place, film, environment, override name or month "
+                                                 "(YYYY-MM) it applies to")
     for name in ("output", "check", "sha", "reason", "worse-reason", "euros", "purpose"):
         decide_yes.add_argument(f"--{name}", default="")
     decide_yes.add_argument("--takes", default="", help="a reject's takes to remake, comma-separated")

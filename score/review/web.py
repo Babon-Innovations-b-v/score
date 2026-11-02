@@ -11,7 +11,8 @@ in place of the terminal check of `python -m score.review` (owner_at_terminal), 
 `by` is never empty and never the runner's name: an accept by the runner skips the store's agent barrier. The store's
 own barrier still refuses these writes in a process an agent started (Store.write_once), so a dashboard started from
 an agent's shell records nothing. His waiver (`waived`, one check of the output he saw) and his Google month
-(`google_month`, into the month's books, refused in an agent's process by compute itself) come the same way; the
+(`google_month`, into the month's books, refused in an agent's process by compute itself, or his yes in a session)
+come the same way; the
 spend override (a yes for a run outside the runner, `spend_override`) comes from his terminal, his concept review's
 draw button, or his yes in a session (chat_decisions, below).
 
@@ -47,8 +48,8 @@ approved in a Claude Code session (root CLAUDE.md, owner 2026-10-25), his answer
 
 Every other owner-only decision may be made in a Claude Code session the same way (root CLAUDE.md, owner 2026-10-27:
 "i hate the rule that i cant make discisions in chat aswell"): his quoted yes to one accept, reject, waiver, concept
-lock, film lock or spend override, or his go for a run (score/dashboard/sync/chat_decisions.py), applied once through
-the cockpit's own request code.
+lock, film lock, spend override or Google month (`books_of`: the books as they stood at the question), or his go
+for a run (score/dashboard/sync/chat_decisions.py), applied once through the cockpit's own request code.
 
     web.decision_yes_written(store, yes)   # grants/decide/<id>.json
     web.decision_yes_spent(store, yes_id, record)   # grants/decide-used/<id>.json: one yes, one decision
@@ -219,6 +220,15 @@ def google_month(euros, by):
         return compute.owners_google_month(euros, by=name)
     except compute.Refused as refused:
         raise review.Refused(str(refused)) from refused
+
+
+def books_of(month):
+    """(this month, the books as written for `month`): the month as YYYY-MM, in UTC like the ledger's times, and the
+    month's books ({} when none were written for `month`)."""
+    from score.adapters import compute
+    books = compute.ledger()
+    found = books.read_books()
+    return books.this_month(), (found if found.get("month") == month else {})
 
 
 def waived(store, node, output, check, by, reason):
