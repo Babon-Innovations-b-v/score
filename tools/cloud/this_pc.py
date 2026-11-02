@@ -30,6 +30,10 @@ shell): its `store-pull` and `store-push` verbs, a tar stream each way over ssh.
   step that fails stops the run. With a run live in HOME they are left as they are (that run reads them). Pull never
   brings the hand-ins down (OWN_DESIGN): it copies every file whose size or mtime differs from HOME's, so the
   conductor's, older or made by other code, would come back over the one written here, under a live run too.
+- **Every run here pushes when it ends** (coordinator, 2026-11-02, after a run's outputs sat on this PC unpushed):
+  `run` and `env1` push what they made once `score run` ends, whatever its exit, unless given `--no-push "<reason>"`.
+  That reason is the run's first log line and is kept in NO_PUSH, so `status` says the newest run kept its outputs
+  here and why; a run that pushes clears it. A paused and resumed run is detached and pushes nothing: push it by hand.
 - **Push** adds the store's new objects and the work folder's new files (regular files; links stay here) to the
   conductor's: `store-push --missing` names what the conductor lacks, `store-push` adds those, never replacing a file
   that is there: the store is written once by content and key, so the conductor's own outputs stand and a node made
@@ -84,6 +88,7 @@ BEAT = re.compile(r"rows done (\d+), running (\d+), queued (\d+)")  # score.grap
 # remake_prepared): the plans the plan stage reads, then the hand-ins prepare writes from them.
 DESIGN_STEPS = ("score.review.plans_pass", "score.stages.complete.prepare")
 OWN_DESIGN = ("design/props/", "design/surfaces/")  # prepare's hand-ins (prop_data.DESIGN, surface_data.DESIGN)
+NO_PUSH = "no-push.json"  # under HOME: the newest run here that pushed nothing, with the reason it was given
 
 
 def conductor_host():
@@ -173,6 +178,36 @@ def go_taken(arguments):
     if at + 1 >= len(arguments):
         raise SystemExit("--go names the go id decide-yes go printed")
     return [*arguments[:at], *arguments[at + 2:]], arguments[at + 1]
+
+
+def no_push_taken(arguments):
+    """(arguments without `--no-push <reason>`, the reason or None); a `--no-push` with no reason is refused."""
+    if "--no-push" not in arguments:
+        return list(arguments), None
+    at = arguments.index("--no-push")
+    reason = arguments[at + 1].strip() if at + 1 < len(arguments) else ""
+    if not reason or reason.startswith("--"):
+        raise SystemExit('--no-push needs its reason: --no-push "<why this run\'s outputs stay on this PC>"')
+    return [*arguments[:at], *arguments[at + 2:]], reason
+
+
+def push_stated(home, reason, arguments):
+    """The run's first line on whether it pushes: with a `reason` it keeps it in NO_PUSH for `status`, without one it
+    clears an earlier run's."""
+    if reason is None:
+        (home / NO_PUSH).unlink(missing_ok=True)
+        return "push: what this run makes goes to the conductor when it ends"
+    record = {"reason": reason, "argv": list(arguments), "at": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
+    (home / NO_PUSH).write_text(json.dumps(record, indent=1))
+    return f"no push: {reason}"
+
+
+def unpushed(home):
+    """'not pushed: <reason> (<argv>, <at>)' for the newest run here that pushed nothing, or None."""
+    if not (home / NO_PUSH).exists():
+        return None
+    record = json.loads((home / NO_PUSH).read_text())
+    return f"not pushed: {record['reason']} ({' '.join(record['argv'])}, {record['at']})"
 
 
 def design_current(home, code, environment):
@@ -361,7 +396,8 @@ def status_line(home):
     else:
         state, log = "neither running nor paused", None
     beat = newest_beat(log or (str(logs[-1]) if logs else None)) or "no heartbeat yet"
-    return f"{state}; {beat}; {card()}"
+    kept_here = unpushed(home)
+    return f"{state}; {beat}; {card()}" + (f"; {kept_here}" if kept_here else "")
 
 
 def main(argv=None):
@@ -369,7 +405,7 @@ def main(argv=None):
     parser.add_argument("command", choices=("env1", "pull", "run", "push", "decide-yes", "decide",
                                                         "pause", "resume", "status"))
     parser.add_argument("arguments", nargs=argparse.REMAINDER, help="run: score run's arguments (default world1), "
-                        "--go <go id> among them; decide-yes and decide: the door's verbs' arguments")
+                        "--go <go id> and --no-push <reason> among them; decide-yes and decide: the door's verbs' arguments")
     parser.add_argument("--host", help="the conductor's address (default: read from Scaleway by its name)")
     parser.add_argument("--key", default="~/.ssh/score_conductor_agents", help="the agents' ssh key to the door")
     options = parser.parse_args(argv)
@@ -380,14 +416,18 @@ def main(argv=None):
     if options.command in ("decide-yes", "decide"):
         return deciding(home, options.command, options.arguments)
     arguments, go = go_taken(options.arguments)
-    if options.command == "run":
-        return run(home, arguments or ["world1"], go)
-    host = options.host or conductor_host()
+    arguments, reason = no_push_taken(arguments)
+    running = options.command in ("env1", "run")
+    if running:
+        print(push_stated(home, reason, arguments or ["world1"]), flush=True)
+    host = None
     if options.command in ("env1", "pull"):
+        host = options.host or conductor_host()
         files, size = pull(home, door_command(host, options.key, "store-pull"))
         print(f"pulled {files} files ({size / 1e9:.2f} GB) into {home}")
-    status = run(home, ["world1"], go) if options.command == "env1" else 0
-    if options.command in ("env1", "push"):
+    status = run(home, arguments or ["world1"], go) if running else 0
+    if options.command == "push" or (running and reason is None):
+        host = host or options.host or conductor_host()
         files, size = push(home, door_command(host, options.key, "store-push --missing"),
                            door_command(host, options.key, "store-push"))
         print(f"pushed {files} files ({size / 1e9:.2f} GB)")

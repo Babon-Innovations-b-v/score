@@ -28,6 +28,8 @@ Breaks (each applied once, seen red, reverted):
 - this_pc.py `run`: drop the `entry is None` test -> the steps rewrite the design a live run reads.
 - this_pc.py `resume`: drop `design_current(home, code, environment)` -> a resumed run reads the design as paused.
 - this_pc.py `pull`: drop the `OWN_DESIGN` skip -> the conductor's hand-in comes back over the one written here.
+- this_pc.py `no_push_taken`: drop the empty-reason refusal -> a run keeps its outputs here with no reason given.
+- this_pc.py `push_stated`: drop the `unlink` -> status still says a run kept its outputs after a later one pushed.
 """
 import pathlib
 import subprocess
@@ -195,6 +197,15 @@ def test_a_run_here_carries_the_owners_go_only_when_named_and_decisions_reach_it
     assert arguments == ["world1", "--place", "hub"] and go == "20261027T170000Z"
     assert this_pc.run_environment(home, go)[this_pc.OWNERS_GO] == go
     assert this_pc.go_taken(["world1"]) == (["world1"], None)
+    assert this_pc.no_push_taken(["world1", "--no-push", "the conductor's disk is full", "--place", "hub"]) == (
+        ["world1", "--place", "hub"], "the conductor's disk is full")
+    assert this_pc.no_push_taken(["world1"]) == (["world1"], None)
+    for bare in (["world1", "--no-push"], ["world1", "--no-push", " "], ["world1", "--no-push", "--place"]):
+        with pytest.raises(SystemExit, match="needs its reason"):
+            this_pc.no_push_taken(bare)
+    assert this_pc.push_stated(home, "disk full", ["world1"]) == "no push: disk full"
+    assert this_pc.unpushed(home).startswith("not pushed: disk full (world1, ")
+    assert this_pc.push_stated(home, None, ["world1"]).startswith("push: ") and this_pc.unpushed(home) is None
     ran = []
     monkeypatch.setattr(this_pc.subprocess, "run", lambda command, **given: ran.append((command, given["env"])) or
                         subprocess.CompletedProcess(command, 0))
