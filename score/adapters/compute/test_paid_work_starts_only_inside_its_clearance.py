@@ -35,6 +35,8 @@ Each test's break (applied once, seen red, reverted), in score/adapters/compute/
 - owner's yes keeps the start: guard.set_line writes the new baseline.
 - stop command: guard.current reads the oldest line (`keys[0]`), not the newest.
 - spend across months: guard.spent_since takes the baseline as every month's start.
+- credits never negative spend: in guard.spent_parts, `max(0.0, books["google"] - start["google"])` ->
+  `books["google"] - start["google"]`.
 - framework store with no line: stop_refusal returns None for any store.
 - trial store: covering_store returns the trial's own store.
 - clearance whose run ended: require_cleared's ended-run check becomes `if False:`.
@@ -748,6 +750,17 @@ def test_spend_counts_from_the_worlds_start_across_months():
     assert guard.spent_since(start, months) == (200.0 + 4.0) + (30.0 + 2.0)
     # its parts, which the cockpit names: the bill over the ledger is cloud less ledger
     assert guard.spent_parts(start, months) == {"cloud": 230.0, "ledger": 225.0, "google": 6.0}
+
+
+def test_credits_given_back_never_count_as_negative_spend():
+    """2026-11-02: credits given back on October's Google bill after the batch's baseline made its Google growth
+    EUR -838.93, Batch 1 read EUR -635.25 spent and the guard's room grew past its budget. A month's book that fell
+    since the baseline counts 0, never less; one that grew counts its growth, as before."""
+    start = {"month": "2026-10", "bill": 120.0, "ledger": 100.0, "google": 900.0}
+    months = {"2026-10": {"bill": 150.0, "ledger": 140.0, "google": 61.07}, "2026-11": {"bill": 10.0, "ledger": 8.0,
+                                                                                       "google": 3.5}}
+    assert guard.spent_parts(start, months) == {"cloud": 40.0 + 10.0, "ledger": 40.0 + 8.0, "google": 0.0 + 3.5}
+    assert guard.spent_since(start, months) == 53.5
 
 
 def test_the_framework_store_refuses_a_world_with_no_line():
