@@ -31,9 +31,9 @@ on the user's behalf. *Done when every line sits in exactly one list.*
 
 ## 2. Sweep
 
-**Ask the repo's index before the sweep, once per claim and question.** Load the index tools root
-`CLAUDE.md` names (they arrive deferred, so a session that skips the load sees no tools) and put
-each line to them: what the repo already holds on a line is that line's first finding, and the
+**Ask the repo's index before the sweep, once per claim and question.** Use the index tools root
+`CLAUDE.md` names (load them first if they arrive deferred; a session that skips that sees no
+tools) and put each line to them: what the repo already holds on a line is that line's first finding, and the
 agents start from it. Every agent brief says the same, because a subagent starts with nothing
 loaded.
 
