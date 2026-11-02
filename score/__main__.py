@@ -1237,7 +1237,7 @@ def free_closing(found):
     """A free-only run's closing list printed (the free nodes that stand, each that failed with its cause, the paid
     nodes left for the Buy, the nodes waiting on them, the nodes after a failure) and its exit status: ok unless a
     free node failed."""
-    left = [node for node, did in found.items() if did == graph.PAID_LEFT]
+    left = [node for node, did in found.items() if did.startswith(graph.PAID_LEFT)]
     waiting = [node for node, did in found.items() if did.startswith(graph.FREE_WAITS.split("{")[0])]
     after = [node for node, did in found.items() if did.startswith("not run:") and node not in left + waiting]
     failed = {node: did for node, did in found.items() if "fault report" in did}

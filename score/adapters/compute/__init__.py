@@ -113,6 +113,33 @@ class Refused(Exception):
     """A paid run is refused: its node is blocked, the month's books are unknown, or its stop has no room for it."""
 
 
+# The exit code of a cloud tool's own process that ended on a CloudOnly (tools/cloud/batch.py exits with it), so its
+# caller across the process boundary tells it from a crash (cloud_only).
+CLOUD_ONLY_EXIT = 75
+
+
+class CloudOnly(Refused):
+    """A job too big for this PC's card: it stays a cloud job, so a paid row of it, run here free, is left for the Buy
+    (the runner's PAID_LEFT, priced), never an error (2026-11-02: people-look-parts-astronaut_spacesuit-made's
+    meshparts needed 24 GB of card and its row crashed)."""
+
+
+def cloud_only(error):
+    """The CloudOnly `error` is or was raised from (its causes and contexts), or one a cloud tool's process ended on
+    (a CalledProcessError of exit code CLOUD_ONLY_EXIT); else None."""
+    import subprocess
+    seen = set()
+    while error is not None and id(error) not in seen:
+        seen.add(id(error))
+        if isinstance(error, CloudOnly):
+            return error
+        if isinstance(error, subprocess.CalledProcessError) and error.returncode == CLOUD_ONLY_EXIT:
+            return CloudOnly(f"{pathlib.Path(str(error.cmd[1] if len(error.cmd) > 1 else error.cmd[0])).name}: "
+                             "a job too big for this PC's card, a cloud job")
+        error = error.__cause__ or error.__context__
+    return None
+
+
 def ledger():
     """tools/cloud/ledger.py, the batch limits, the books and what the month has cost."""
     for folder in ("tools/props", "tools/cloud"):

@@ -64,6 +64,24 @@ import ledger
 import provider
 from provider import cloud
 
+
+def ended_cloud_only(kind, error, trace, before=sys.excepthook):
+    """This process's end on an exception nothing caught: said as Python says it, and when it is (or came of) a
+    compute.CloudOnly, a job too big for this PC's card (`here`), the exit handlers run and the process ends with
+    compute.CLOUD_ONLY_EXIT, so its caller across the process boundary tells it from a crash (compute.cloud_only:
+    the runner leaves its paid row for the Buy; 2026-11-02, people-look-parts-astronaut_spacesuit-made crashed on
+    meshparts' 24 GB). Every cloud tool imports batch, which imports this module, so each ends this way."""
+    before(kind, error, trace)
+    if batch.compute.cloud_only(error) is not None:
+        import atexit
+        sys.stdout.flush()
+        sys.stderr.flush()
+        atexit._run_exitfuncs()
+        os._exit(batch.compute.CLOUD_ONLY_EXIT)
+
+
+sys.excepthook = ended_cloud_only
+
 PARKED = batch.CLOUD / "parked"
 LOCK = batch.CLOUD / "parked.lock"
 # A parked machine is deleted this long before its paid hour ends: a delete takes up to a minute, and the provider's
@@ -403,14 +421,14 @@ def here(run, number, kind):
     its claim waits in the card queue is held outside the run's minutes (queue_paused). A shared claim (local.SHARED:
     blender, whose clean-up names only the claim's own job paths, none at its start) so never removes the files of
     the claims beside it; a kind too big for its card is refused (compute's
-    Refused, naming the GB), never run into an out-of-memory; by the run's own measured need (`run.need`) when it
-    has one."""
+    CloudOnly, naming the GB: its paid row left for the Buy), never run into an out-of-memory; by the run's own
+    measured need (`run.need`) when it has one."""
     if not getattr(run, "deadline", None):
         return None
     try:
         found = cloud.take(kind, batch.ssh_key(), getattr(run, "need", None))
     except ValueError as too_big:
-        raise batch.compute.Refused(str(too_big)) from too_big
+        raise batch.compute.CloudOnly(str(too_big)) from too_big
     if found is None:
         queue_paused(run, kind)
         return None

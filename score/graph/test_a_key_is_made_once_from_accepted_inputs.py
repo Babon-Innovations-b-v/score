@@ -3513,6 +3513,43 @@ def test_a_free_only_run_on_this_pcs_card_makes_its_paid_nodes_with_no_ticket(mo
     assert painted.read_text() == "ticket None"  # no clearance: a real paid point inside it would refuse
 
 
+def test_on_this_pc_a_paid_node_whose_job_is_too_big_for_its_card_is_left_for_the_buy_priced_never_an_error(
+        monkeypatch, run_registry):
+    """2026-11-02, round 45: people-look-parts-astronaut_spacesuit-made's meshparts needed 24 GB of card on this PC's
+    16 GB; park.here refused it inside the cloud tool's own process, and the row crashed (CalledProcessError) with a
+    fault report. A paid node made free here whose cloud tool ended on that refusal (compute.CLOUD_ONLY_EXIT) is left
+    for the Buy, priced at its estimate, no fault report, its reader waiting on it; the same tool crashing otherwise is
+    still an error with its report.
+    Break: score/graph/__init__.py: `        if refusal is None or not (self.free_only and stage.paid and on_this_pc()):`
+        -> `        if True:`"""
+    import subprocess
+    monkeypatch.setattr(compute, "clearance", refused_clearance)
+    monkeypatch.setenv("SCORE_CLOUD", "local")
+    for code in (compute.CLOUD_ONLY_EXIT, 1):
+        def make_paint_elsewhere(inputs, out, seed, params, code=code):
+            raise subprocess.CalledProcessError(code, ["python", "tools/cloud/meshparts.py", "run", "--who", "x"])
+
+        runner = free_runner()
+        runner.stages["paint"] = dataclasses.replace(runner.stages["paint"], make=make_paint_elsewhere)
+        found = runner.drive(["hangar"], say=quiet)
+        if code == compute.CLOUD_ONLY_EXIT:
+            assert found["paint@hangar"] == (f"{graph.PAID_LEFT} (about EUR 0.50: meshparts.py: a job too big for "
+                                             "this PC's card, a cloud job)"), found
+            assert found["count@hangar"] == "not run: waits on paint@hangar, paid, left for the Buy", found
+            assert not report_of(runner, "paint@hangar").exists()
+        else:
+            assert found["paint@hangar"].startswith("error: CalledProcessError") and "fault report" in \
+                found["paint@hangar"], found
+    assert compute.cloud_only(RuntimeError("wrapped")) is None
+    try:
+        try:
+            raise compute.CloudOnly("a meshparts job needs about 24 GB of card")
+        except compute.CloudOnly as refusal:
+            raise RuntimeError("its row") from refusal
+    except RuntimeError as error:
+        assert str(compute.cloud_only(error)) == "a meshparts job needs about 24 GB of card"
+
+
 # --- an optional read the run makes: the people line a place's cast reads ------------------------------------------
 # Fault (Buy of 2026-10-24): no Buy held a people-* node, since the cast read the dress rows only as optional and an
 # optional read not usable now was left out of the run's line; the people were never made.
