@@ -11,6 +11,9 @@
 - each limb group's width (GIRTH_GROUPS; the two axes across its stretch) its length's scale times the person's girth
   for its length over SOMA's mean shape's (`volumes.slenderness`, MEAN_SLENDERNESS: MyoFullBody sized evenly is
   taken to fit the mean shape's girth, so a slimmer limb gets slimmer bones; `Size.widths`);
+- each foot's width (FOOT_WIDTH) across its forefoot: the forefoot bone's axis across the foot scaled so its
+  metatarsal heads stand as far apart across the foot as SOMA's on its skin (`forefoot_width`, `Size.fixed`), never
+  by its length or girth;
 - what SOMA does not give marked as assumed with a plausible range (`assumed`).
 A body's scale is three, one per axis of its own frame: its group's length scale along the axis nearest the group's
 stretch at the default pose (`long_axes`), its width scale across (the same as the length's outside GIRTH_GROUPS); a
@@ -25,7 +28,7 @@ import numpy as np
 import volumes
 from bone_groups import groups, sided
 from calibration import turn
-from landmarks import myo_parts, soma_point
+from landmarks import LANDMARKS, myo_parts, on_skin, soma_point
 from model import TO_OWN, Couplings, default_pose
 
 WRAPPER_KG = 0.001  # a split body's wrapper (MuJoCo's boundmass for MyoFullBody, which Newton does not apply)
@@ -39,6 +42,14 @@ MORE_LINES = {"Hips": (("LeftLeg", "RightLeg"),)}
 # forearm bones, scaled evenly by length, stood 58 to 63 mm across in a 55 to 57 mm wrist). The toes are left out:
 # their short stretch's girth reads 0.79 to 1.43 times the mean shape's over level 1's 41 bodies, with no tie to build.
 GIRTH_GROUPS = tuple(sided(("{Side}Arm", "{Side}ForeArm", "{Side}Hand", "{Side}Leg", "{Side}Shin", "{Side}Foot")))
+# The foot's width (#70, 2026-11-02): {group: (the heel's landmark, the two metatarsal heads' across the foot)}, each
+# head's bone point on the forefoot's body. MyoFullBody's metatarsal heads stand 85.8 mm apart across the foot, SOMA's
+# skin's 74.1 on env1, 73.4 on the mean shape, 79.0 on g01, so no length or girth scale fits them (the girth rule gave
+# env1's foot 1.00, its bones 1.0275 times as wide: 9.8 and 11.3 % of the calcanei outside standing, 25.7 and 22.2 % of
+# the toes; across alone at 0.85, 3.7 and 6.3 %; their height changed nothing). The bone's heads then stand where the
+# skin's do, MyoFullBody's bone points of the landmark study, SOMA's skin points.
+FOOT_WIDTH = {f"{side}Foot": (f"heel_back_{letter}", f"MT1_head_{letter}", f"MT5_head_{letter}")
+              for side, letter in (("Left", "l"), ("Right", "r"))}
 # SOMA's mean shape's girth for its length per limb group (`volumes.slenderness`; its coefficients zero, level 1's
 # `mean` body, 1.684 m; both sides' mean; `Size(rig).slender` on its rig, measured 2026-11-01). Its limbs are the
 # reference MyoFullBody's bones, sized evenly by length, are taken to fit (env1's forearm bones' best even shrink in
@@ -120,10 +131,11 @@ def posed_lengths(model, scales, table=None):
         model.body_pos[:], model.jnt_pos[:], model.eq_data[:] = kept
 
 
-def body_scales(model, scales, table=None, spreads=None):
+def body_scales(model, scales, table=None, spreads=None, fixed=None):
     """Each body's scale ({body name: [3], one per axis of its frame}): its group's length scale, across its long
     axis times its group's width over length (`spreads`: {body: (long axis, width over length)}, `Size.spreads`;
-    none: even); a body of no group its parent's."""
+    none: even), along an axis of `fixed` ({body: (axis, scale)}, `Size.fixed`) that scale alone; a body of no group
+    its parent's."""
     owner = {body: group for group, (_, _, bodies) in stretches(table).items() for body in bodies}
     spreads = spreads or {}
     found = {}
@@ -136,6 +148,8 @@ def body_scales(model, scales, table=None, spreads=None):
         axis, across = spreads.get(name, (0, 1.0))
         found[name] = np.full(3, scales[owner[name]] * across)
         found[name][axis] = scales[owner[name]]
+        if name in (fixed or {}):
+            found[name][fixed[name][0]] = fixed[name][1]
     return found
 
 
@@ -152,6 +166,17 @@ def long_axes(model, groups_found, table=None):
             local = data.xmat[_body_id(model, name)].reshape(3, 3).T @ along
             found[name] = int(np.argmax(np.abs(local)))
     return found
+
+
+def forefoot_width(heel, first, fifth):
+    """How far apart the two metatarsal heads stand across the foot (m) and that across's direction: their apart less
+    its share along the heel to their middle (the same rule on SOMA's skin points and MyoFullBody's bone points)."""
+    heel, first, fifth = (np.asarray(point, dtype=float) for point in (heel, first, fifth))
+    along = (first + fifth) / 2 - heel
+    along /= np.linalg.norm(along)
+    apart = first - fifth
+    across = apart - along * (apart @ along)
+    return float(np.linalg.norm(across)), across / np.linalg.norm(across)
 
 
 def _stretched(scale, quat):
@@ -288,6 +313,8 @@ class Size:
         self.slender = {group: volumes.slenderness(cells, owner, names.index(group), *lines[names.index(group)][0])
                         for group in GIRTH_GROUPS if group in names}
         self.names = names
+        self.feet = {group: forefoot_width(*on_skin(rig["points"], rig["faces"], marks).values())
+                     for group, marks in FOOT_WIDTH.items() if group in names}
         self.moved = {}  # each group's centre of mass moved by `weigh` (cm)
 
     def _pieces(self, group):
@@ -313,23 +340,34 @@ class Size:
         return {name: (axis, widths[group]) for group in widths
                 for name, axis in axes.items() if name in stretches(self.table)[group][2]}
 
+    def fixed(self):
+        """{body: (its axis nearest the foot's across, SOMA's forefoot width over the bone's)} for each FOOT_WIDTH
+        group, the body its metatarsal heads' bone points ride (`forefoot_width`)."""
+        found = {}
+        for group, (soma, _) in self.feet.items():
+            marks = FOOT_WIDTH[group]
+            bone, across = forefoot_width(*(LANDMARKS[name][4] for name in marks))
+            found[LANDMARKS[marks[1]][3]] = (int(np.argmax(np.abs(across))), soma / bone)
+        return found
+
     def scales(self, source):
         """Each body's scale ([3]): the group scales whose stretches at the default pose are SOMA's lengths, one
         bounded least squares (scipy's `least_squares`, a scale within SCALE_RANGE) on the source model posed at them
-        (`posed_lengths`), as a group's end may sit on another group's body; the limbs' widths with them (`spreads`)."""
+        (`posed_lengths`), as a group's end may sit on another group's body; the limbs' widths with them (`spreads`)
+        and the feet's (`fixed`)."""
         from scipy.optimize import least_squares
         groups_found = list(self.lengths)
         wanted = np.array([self.lengths[group] for group in groups_found])
         own = myo_lengths(source, body_scales(source, dict.fromkeys(groups_found, 1.0), self.table), self.table)
-        spreads = self.spreads(source)
+        spreads, fixed = self.spreads(source), self.fixed()
 
         def misses(logs):
-            scales = body_scales(source, dict(zip(groups_found, np.exp(logs))), self.table, spreads)
+            scales = body_scales(source, dict(zip(groups_found, np.exp(logs))), self.table, spreads, fixed)
             found = posed_lengths(source, scales, self.table)
             return np.array([found[group] for group in groups_found]) - wanted
         start = np.log(np.clip(wanted / [own[group] for group in groups_found], *SCALE_RANGE))
         solved = least_squares(misses, start, bounds=(np.log(SCALE_RANGE[0]), np.log(SCALE_RANGE[1])), xtol=1e-10)
-        return body_scales(source, dict(zip(groups_found, np.exp(solved.x))), self.table, spreads)
+        return body_scales(source, dict(zip(groups_found, np.exp(solved.x))), self.table, spreads, fixed)
 
     def weigh(self, spec, grown, scales, kg):
         """Each group's bodies given its mass, centre of mass and inertia's trace from SOMA's volumes (`kg` the
@@ -397,7 +435,8 @@ def assumed(model, scales, rig):
         widths[label] = round(float(soma / myo), 3)
     return {**ASSUMED, "bone shape": {
         "value": "MyoFullBody's own bones, each bone group scaled by its stretch's length, a limb's width by the "
-                 "person's girth for its length over SOMA's mean shape's",
+                 "person's girth for its length over SOMA's mean shape's, a foot's across its forefoot by SOMA's "
+                 "metatarsal heads apart",
         "plausible": f"widths {min(widths.values())} to {max(widths.values())} times the sized ones (SOMA's joints "
                      f"apart over the sized body's: {widths})"}}
 

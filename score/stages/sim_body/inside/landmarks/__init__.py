@@ -46,10 +46,12 @@ def marker(name, scale):
     return np.asarray(row[4], dtype=float) * scale + np.asarray(row[5], dtype=float)
 
 
-def on_skin(points, faces):
-    """Each landmark on a mesh of SOMA's topology ({name: point}, the mesh's frame)."""
+def on_skin(points, faces, names=None):
+    """Each landmark (of `names`, in their order; else every one) on a mesh of SOMA's topology ({name: point}, the
+    mesh's frame)."""
     points, faces = np.asarray(points, dtype=float), np.asarray(faces)
-    return {name: np.asarray(row[1]) @ points[faces[row[0]]] for name, row in LANDMARKS.items()}
+    return {name: np.asarray(LANDMARKS[name][1]) @ points[faces[LANDMARKS[name][0]]]
+            for name in (LANDMARKS if names is None else names)}
 
 
 def posed(rig, segments, worlds, names=None):
