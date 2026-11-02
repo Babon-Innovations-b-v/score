@@ -12,7 +12,7 @@ unrounded, the one the solver reads (rounded measures read as flat to its differ
 read (`rounded`), and `angles.npz` beside them, mink's angles per frame, the card's seeds (`fit/_card`, plan step 2). A case's body is its name less its motion (`body_of`; `arms_raise` and `sit_stand` hold an underscore, `TWO_WORD_MOTIONS`). Each evaluation's group-end centres go to the
 worker in `rest.json` with SOMA's template rig: `_case` moves `landmarks.CENTRES` and the measure's copy by them (the
 fit's end targets, the sizing's lengths and the joint measure read them) and reads the calibration table again at rest
-from them (`calibration._measure`), never from motion; the run dir holds that rig as `rig.npz`. `tuning.whole` calls it each evaluation; `level1.py <run dir> --python <Newton's Python>` is the thin
+from them (`calibration._measure`), never from motion; the run dir holds that rig as `rig.npz`. `tuning.whole` calls it each evaluation; `level1.py <run dir> --python <Newton's Python>` (`--processes N`: bodies side by side on the card, SET_PROCESSES unless given; on a rented machine every tuning body, `tools/cloud/level1`) is the thin
 command. The check bodies are scored every `--every` iterations (3 unless given) and at the end, never used to choose; `accepted` is the
 held-out rule (within 10 % of the tuning bodies). Each check after the first also goes to steps.jsonl as `tuning._paired.stepped` against the check before (per-case
 paired changes, tuning and check bodies apart, verdicts once the run dir has floor.json).

@@ -1,4 +1,4 @@
-"""level1.py <run dir> --python <Newton's Python> [--hours H] [--card <seeds root> [--exact]]: starts level 1 (#70, `tuning.whole`) on the run dir's
+"""level1.py <run dir> --python <Newton's Python> [--hours H] [--card <seeds root> [--exact]] [--processes N]: starts level 1 (#70, `tuning.whole`) on the run dir's
 bodies. The run dir holds cases.json ({case: job.json}), split.json ({"tuning": [bodies], "check": [bodies]}) and
 table.json (the starting landmark rows, each link its anatomical start) and rig.npz (SOMA's template rig, the
 calibration table's rest); it gets evals/ (the latest evaluations),
@@ -8,7 +8,9 @@ the honest measures, tuning and check bodies apart, verdicts past floor.json whe
 score against the tuning bodies', accepted within 10 %). Each card process holds its own share of this PC's card
 queue while it runs (`evaluation.CardShares`, sim-body priority), so start level 1 outside the queue; --hours counts
 no second a process waited for its share. With --card every evaluation runs on the card
-(`evaluation.measured_many`, seeded from the seeds root's angles), a Jacobian's nudged sets in one process; with --exact too the Jacobian is exact
+(`evaluation.measured_many`, seeded from the seeds root's angles), a Jacobian's nudged sets in one process, at most
+--processes bodies side by side (`evaluation.SET_PROCESSES` unless given: a rented machine with the cores runs every
+tuning body at once, tools/cloud/level1); with --exact too the Jacobian is exact
 (`exact_stacked`: each tuning case's block, `evaluation.blocked`, then the prior's columns). The unknowns are the
 links, trusts and the two global weights (`tuning.layout` with no group-end centres: since 2026-11-01 level 1 aims at
 the bones inside the skin, and the centres were tuned mostly for the joint error, which is now reported only; they
@@ -48,6 +50,8 @@ def main():
     parser.add_argument("--exact", action="store_true",
                         help="with --card: the exact Jacobian, a block a case")
     parser.add_argument("--every", type=int, default=3, help="score the check bodies every this many iterations")
+    parser.add_argument("--processes", type=int, default=evaluation.SET_PROCESSES,
+                        help="with --card: bodies' card processes side by side")
     given = parser.parse_args()
     if given.exact and not given.card:
         parser.error("--exact needs --card (the blocks are seeded from its angles)")
@@ -74,13 +78,15 @@ def main():
         picked = evaluation.picked(cases, split, name)
         if given.card:
             return evaluation.measured_many([worker_set(unknowns)], picked, run / "evals" / label, given.python,
-                                            given.card, unconverged=unconverged, shares=sets_shares)[0]
+                                            given.card, unconverged=unconverged, shares=sets_shares,
+                                            most=given.processes)[0]
         return evaluation.measured(*worker_set(unknowns), picked, run / "evals" / label, given.python)
 
     def evaluate_many(sets):
         return evaluation.measured_many([worker_set(unknowns) for unknowns in sets],
                                         evaluation.picked(cases, split, "tuning"), run / "evals" / "jacobian",
-                                        given.python, given.card, unconverged=True, shares=jacobian_shares)
+                                        given.python, given.card, unconverged=True, shares=jacobian_shares,
+                                        most=given.processes)
 
     def evaluate(unknowns):
         count[0] += 1
@@ -95,7 +101,8 @@ def main():
 
     def exact(unknowns):
         blocks = evaluation.blocked(*worker_set(unknowns), evaluation.picked(cases, split, "tuning"),
-                                    run / "evals" / "exact", given.python, given.card, shares=blocks_shares)
+                                    run / "evals" / "exact", given.python, given.card, shares=blocks_shares,
+                                    most=given.processes)
         return exact_stacked(blocks, unknowns, entries)
 
     def check(unknowns):

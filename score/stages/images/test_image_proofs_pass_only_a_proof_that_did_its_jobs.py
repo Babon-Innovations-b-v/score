@@ -9,6 +9,7 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `judge_hashed`: `not version or not hashes` read as `not version`  -> test_loose_pins_fail.
 - `take_faults`: the `dbfs < SILENT_DBFS` fault, the length fault, or the CLAP fault left out  -> the moss test.
 - `clip_faults`: the travel range left out of the checked pair  -> the walking clip test.
+- `smoke_faults`: the pins' comparison or the fall's range left out  -> the walking clip test (its newton smoke part).
 - `judge_jobs_ran`: `"first_result" not in ...marks` read as `False`  -> the jobs test.
 - `publish`: `runner.usable(...)` read as `runner.store.records(...)`, any record  -> the publish test.
 """
@@ -56,7 +57,7 @@ def test_the_images_world_has_its_own_table_and_no_places():
     runner = stages.runner(world=images.image_world())
     assert stages.places(runner.world) == []
     assert {"image-pins-moss", "image-proof-moss", "image-pins-characters-motion",
-            "image-proof-characters-motion"} <= set(runner.stages)
+            "image-proof-characters-motion", "image-pins-newton", "image-proof-newton"} <= set(runner.stages)
     assert runner.stages["image-proof-moss"].paid and runner.stages["image-proof-moss"].euros > 0
     assert not runner.stages["image-pins-moss"].paid
     assert "image-pins-moss" not in stages.runner().stages  # environment 1's table has none of them
@@ -93,6 +94,18 @@ def test_the_walking_clip_passes_and_one_standing_still_fails():
             joints[:, :, 2] = np.linspace(0, travel, 150)[:, None]
             np.savez(clip / "walking.npz", posed_joints=joints)
             assert images.judge_motion_clip(output, {}, None).answer == wanted
+    pins = {"newton": "1.7.0", "mujoco": "3.15.0", "mujoco-warp": "3.15.0", "warp-lang": "1.18.0", "usd-core": "26.8",
+            "newton-usd-schemas": "0.5.0", "numpy": "2.5.3", "scipy": "1.18.1", "python-fcl": "0.7.0.11",
+            "mink": "1.3.0", "qpsolvers": "4.13.0", "daqp": "0.10.3", "typing-extensions": "4.16.0"}
+    smoke = {"versions": pins, "cuda_devices": 1, "kernel_sum": 500500, "fall_metres": 4.91}  # the newton image's
+    for broken, wanted in (({}, checks.PASS), ({"versions": {**pins, "mink": "1.2.0"}}, checks.FAIL),
+                           ({"fall_metres": 0.0}, checks.FAIL)):
+        with tempfile.TemporaryDirectory() as temp:
+            output = pathlib.Path(temp)
+            (output / images.PROOF / "smoke").mkdir(parents=True)
+            (output / images.PLAN).write_text((images.IMAGES / "newton" / images.PLAN).read_text())
+            (output / images.PROOF / "smoke" / "smoke.json").write_text(json.dumps({**smoke, **broken}))
+            assert images.judge_newton_smoke(output, {}, None).answer == wanted
 
 
 def test_a_job_that_did_not_finish_fails_jobs_ran():

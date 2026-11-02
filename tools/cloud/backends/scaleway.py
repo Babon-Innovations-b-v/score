@@ -39,6 +39,9 @@ CLASSES = {
     "gpu-80gb": ("H100-1-80G",),
     "gpu-24gb-x2": ("L4-2-24G",),
     "gpu-80gb-x2": ("H100-SXM-2-80G", "H100-2-80G"),
+    # Two H100s with 48 cores and 480 GB (the SXM pair has 32): level 1's every tuning body side by side, two threads
+    # each, on one card (tools/cloud/level1, 2026-11-02); the second card idles, sold only with the cores.
+    "gpu-80gb-x2-48c": ("H100-2-80G",),
     # The big processor machines a render or bake takes from a run's warm pool (owner, 2026-10-23: "cant u just get a
     # faster cpu"): Cycles on a processor scales about with its cores and so does the price, so more cores render a
     # job sooner at about the same euros. POP2-HC (2 GB a core) is the cheapest a core: EUR 0.027 a core-hour in

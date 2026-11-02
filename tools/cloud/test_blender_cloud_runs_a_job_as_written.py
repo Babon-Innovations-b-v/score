@@ -29,6 +29,8 @@ No machine is rented: each test reads the command, job or offers the module buil
   job.get("outputs", ()))`.
 - test_jobs_side_by_side_on_one_machine_bring_their_outputs_back_one_at_a_time: in `run_job`, drop `with
   BRINGING.setdefault(host, threading.Lock()):` (bring the outputs back unguarded) -> three copies at once.
+  Or drop the `bring_while` thread's start in `run_job` -> a job asking `bring_every` brings its outputs back only at
+  its end (one copy).
 - test_a_job_keeps_only_the_files_its_copy_back_wrote: in `copy_back`, drop `"--out-format=%n"` (no list of what
   the copy wrote).
 - test_jobs_writing_into_one_output_are_refused_by_name_before_any_runs: in `shared_outputs`, `if
@@ -304,6 +306,11 @@ def test_jobs_side_by_side_on_one_machine_bring_their_outputs_back_one_at_a_time
     for slot in slots:
         slot.join()
     assert most[0] == 1
+    calls = []  # a long job that asks brings its outputs back while it runs, not only at its end
+    monkeypatch.setattr(blender_cloud, "bring_back", lambda log_folder, host, local: calls.append(time.time()))
+    monkeypatch.setattr(blender_cloud.batch, "remote", lambda *args, **keywords: time.sleep(0.5))
+    blender_cloud.run_job(tmp_path, "cloud", 9, {**job, "bring_every": 0.002}, True)
+    assert len(calls) >= 3  # every 0.12 s of its 0.5 s run, then at its end
 
 
 def test_a_job_keeps_only_the_files_its_copy_back_wrote(tmp_path, monkeypatch):

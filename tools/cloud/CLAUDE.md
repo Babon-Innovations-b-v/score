@@ -440,6 +440,12 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   folder), deleted when the tool closes the queue or after 10 idle minutes; never rent one per step. The PC's own Blender (one at a time,
   the machine lock) is for checks of seconds only. An agent starts a cloud Blender call with `--detach` under `run_in_background`
   (`detached.py`: progress to a log, one result line at the end) and never polls it in the foreground.
+- **Newton jobs take the same path** (`"env": "score/stages/physics/inside/newton_env.sh"`, built on the machine in a
+  few minutes; the physics trial, the sim body stage under SCORE_SIM_BODY_CLASSES, and sim body's level 1,
+  `level1/`, owner 2026-11-02): a long one names `bring_every` (its outputs also brought back every that many minutes
+  while it runs) and a call that needs a class Blender never takes names its own `--kind` (`sim-body-l1`, capacity.py:
+  `gpu-80gb-x2-48c` first, a card class naming its least cores). The `newton` job image
+  (`images/newton/`, the env script's pins resolved and hashed) serves the cluster path; no runner sends it yet.
 - **A path a job names reaches the same place up there as here** (`inputs.link_named`, for a job's inputs and its
   outputs): every link on its way (a frozen run's `<copy>.home/store`, a take's `work/pixal` file link) is made a link
   on the machine, never a folder of file links; a job whose script ended well and brought none of its outputs back is

@@ -49,7 +49,8 @@ sys.path.insert(0, str(HERE / "backends"))
 # type, its zone, euros a minute, the capability class, its place in the class's list of types, and the stock word.
 Offer = collections.namedtuple("Offer", "per_card stock type zone price machine_class order stock_word")
 
-GPU = re.compile(r"gpu-(\d+)gb(?:-x(\d+))?$")
+# A card class may name its least cores (`-<N>c`): a job held by processor time beside its card (level 1, 2026-11-02).
+GPU = re.compile(r"gpu-(\d+)gb(?:-x(\d+))?(?:-(\d+)c)?$")
 CPU = re.compile(r"cpu-(\d+)c-(\d+)gb$")
 
 
@@ -60,7 +61,7 @@ def cards(machine_class):
         return int(found.group(2) or 1)
     if CPU.match(machine_class):
         return 0
-    raise SystemExit(f"'{machine_class}' is not a capability class (gpu-<GB>gb[-x<N>] or cpu-<cores>c-<GB>gb)")
+    raise SystemExit(f"'{machine_class}' is not a capability class (gpu-<GB>gb[-x<N>][-<cores>c] or cpu-<cores>c-<GB>gb)")
 
 
 def card_gb(machine_class):

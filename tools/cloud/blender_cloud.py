@@ -21,8 +21,10 @@ deletes the machine when the tool closes the queue or after IDLE_MINUTES with no
      "inputs": ["/abs/folder", "/abs/file"],   files and folders it reads (sent as they are)
      "outputs": ["/abs/out.json", "/abs/folder"],   files and folders it writes (brought back)
      "minutes": 5,   about how long it runs on the machine
-     "env": "score/stages/physics/inside/newton_env.sh"}   optional: the script is no Blender script but runs in the
+     "env": "score/stages/physics/inside/newton_env.sh",   optional: the script is no Blender script but runs in the
                                     Python this script beside it builds (once) at the folder it is given
+     "bring_every": 20}             optional: its outputs also brought back every this many minutes while it runs (a
+                                    long run's checkpoints kept here before its end: tools/cloud/level1)
 
 Every input and output lies at the same absolute path on the machine as here, so a script, its arguments and the paths
 inside its input files (a review page's shots.json names the model files) need no change to run up there. An input of
@@ -39,7 +41,9 @@ time (batch.one_class_in_stock: the first asked that the run's warm pool holds, 
 first sold), never another class or a processor machine for a card job; no stock never makes a gap (owner,
 2026-10-23): under a run's warm pool every claim takes a pool card, else it waits for stock. Blender is 5.0.1 from blender.org, set up by
 library_setup.sh. The owner's limits, the self-delete, the watchdog, the delete and the ledger
-are batch.py's.
+are batch.py's. `--kind` names the job kind the machines are rented for (capacity.py's classes and order, the
+ledger's kind): blender unless given, which never takes an H100 (capacity.NEVER); a Newton job held by processor time
+(tools/cloud/level1, `sim-body-l1`) names its own.
 
 Under SCORE_CLOUD=k8s the same calls run each job as a Kubernetes Job of the blender image on the cluster
 (tools/cloud/k8s/cluster_jobs.py), inputs and outputs at the same paths; the machines stay the default.
@@ -220,16 +224,27 @@ def run_job(log_folder, host, number, job, card):
     for local in job.get("outputs", ()):
         batch.remote(log_folder, host, f"mkdir -p {shlex.quote(str(pathlib.Path(local).resolve().parent))}",
                      check=True)
-    began = time.time()
+    began, ended = time.time(), threading.Event()
+    if job.get("bring_every"):
+        threading.Thread(target=bring_while, args=(log_folder, host, job, ended), daemon=True).start()
     try:
         with (log_folder / f"job{number}.log").open("w") as log:
             batch.remote(log_folder, host, run_line(job, card), check=True, stdout=log, stderr=subprocess.STDOUT)
     finally:
+        ended.set()
         with BRINGING.setdefault(host, threading.Lock()):
             copies = [bring_back(log_folder, host, local) for local in job.get("outputs", ())]
         batch.say(f"Blender job {number} ({job['script']}): {(time.time() - began) / 60:.1f} min")
     came = sum(found is not None for found in copies)
     return round(time.time() - began, 1), came, {"brought": set().union(*(found or () for found in copies))}
+
+
+def bring_while(log_folder, host, job, ended):
+    """A job's outputs brought back every `bring_every` minutes until `ended` is set (its own end brings them last)."""
+    while not ended.wait(float(job["bring_every"]) * 60):
+        with BRINGING.setdefault(host, threading.Lock()):
+            for local in job.get("outputs", ()):
+                bring_back(log_folder, host, local)
 
 
 def log_tail(log_folder, number):
@@ -443,11 +458,11 @@ def still_to_run(jobs):
     return waiting
 
 
-def run_spread(run, account, found, count, jobs):
-    """Spread the jobs over `count` machines, each set up once and taking the next job as it ends one; the numbers
-    of the jobs that failed or never ran."""
+def run_spread(run, account, found, count, jobs, kind=KIND):
+    """Spread the jobs over `count` machines of `kind`, each set up once and taking the next job as it ends one; the
+    numbers of the jobs that failed or never ran."""
     shares = spread.Shares(enumerate(jobs), deadline=run.deadline)
-    spread.on_machines(run, account, found, count, KIND, shares,
+    spread.on_machines(run, account, found, count, kind, shares,
                        lambda machine: set_up(machine["folder"], machine["host"], jobs), one_job)
     return sorted(number for number, _ in [*shares.failed, *shares.waiting])
 
@@ -477,8 +492,8 @@ def job_of(script, arguments, inputs, outputs, minutes, env=None):
 class Machine:
     """One rented machine held for a chain of jobs from one tool run (this file's --serve on a queue folder)."""
 
-    def __init__(self, classes, who, minutes=SERVE_MINUTES):
-        self.classes, self.who, self.minutes = classes, who, minutes
+    def __init__(self, classes, who, minutes=SERVE_MINUTES, kind=KIND):
+        self.classes, self.who, self.minutes, self.kind = classes, who, minutes, kind
         self.queue = batch.BATCHES / "queues" / f"{time.strftime('%Y%m%d-%H%M%S')}-{os.getpid()}"
         self.process, self.count = None, 0
 
@@ -487,7 +502,7 @@ class Machine:
         self.process = subprocess.Popen([str(cloud_python()), str(HERE / "blender_cloud.py"), "--serve",
                                          str(self.queue),
                                          "--who", self.who, "--classes", ",".join(self.classes),
-                                         "--minutes", str(self.minutes)])
+                                         "--minutes", str(self.minutes), "--kind", self.kind])
         return self
 
     def run(self, script, arguments, inputs, outputs, minutes=10, env=None):
@@ -598,6 +613,7 @@ def main():
     parser.add_argument("--serve", type=pathlib.Path, help="hold one machine for the jobs written to this queue folder")
     parser.add_argument("--minutes", type=float, default=SERVE_MINUTES, help="--serve: the chain's expected minutes")
     parser.add_argument("--who", required=True, help="the session asking")
+    parser.add_argument("--kind", default=KIND, help="the job kind the machines are rented for (capacity.py)")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
     parser.add_argument("--classes", help="capability classes in order, comma separated: the first the "
                         "run's warm pool holds, else the first in stock, else the first sold")
@@ -640,20 +656,20 @@ def main():
     left = []
     try:
         if options.serve:
-            machines = pictures.rent_machines(run, account, found, 1, kind=KIND)
+            machines = pictures.rent_machines(run, account, found, 1, kind=options.kind)
             if not machines:
                 (options.serve / "failed").write_text("no machine could be rented")
                 raise SystemExit("no machine could be rented")
             serve(run, machines[0], options.serve, IDLE_MINUTES)
         else:
-            left = run_spread(run, account, found, count, jobs)
+            left = run_spread(run, account, found, count, jobs, options.kind)
             if not run.machines:
                 raise SystemExit("no machine could be rented")
     finally:
         for machine in run.machines:
             batch.delete_machine(machine)
         entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)), "batch": run_folder.name,
-                 "kind": KIND, "who": options.who, "jobs": [job.get("script", "a held machine") for job in jobs],
+                 "kind": options.kind, "who": options.who, "jobs": [job.get("script", "a held machine") for job in jobs],
                  "classes": list(classes), "class": found[0].machine_class,
                  **ledger.machines_record(run.machines, run.attempts, started),
                  "wall_minutes": (time.time() - started) / 60}

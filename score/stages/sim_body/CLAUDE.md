@@ -128,7 +128,9 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   `$PROPS_HOME/envs/newton_env`; never a second env or a pip install of its own. mink, qpsolvers and daqp are pinned
   there for the fit (#70); the script is declared by physics-trial, settle and effects too, so a pin moves their keys.
   Newton is given no meshes (`parse_meshes=False`: its mesh loading needs trimesh, which the env does not hold); the
-  drawn bones come from MuJoCo's own compile of the file. MuJoCo's CPU backend, run on this machine (free).
+  drawn bones come from MuJoCo's own compile of the file. MuJoCo's CPU backend, run on this machine (free); with
+  SCORE_SIM_BODY_CLASSES set (capability classes, comma separated) on a rented machine instead (`ran_elsewhere`, the
+  machine path with the env script built there), which, the row being free, rents only under the owner's spend yes.
 - **Its readers** (contract version 2): the characters layer (`../cast/driven.py`) plays each person's skeleton from
   `measures/<name>.json`'s `poses`, which are the clip's own segment frames, written by the stage itself, never
   moved, scaled or grounded to the sim body (owner, 2026-10-28: SOMA is the truth; the stage's test checks them bit

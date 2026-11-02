@@ -39,6 +39,8 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
   time): a_card_process_runs_only_while_it_holds_its_share red; measured_many or blocked not passing `shares` to
   run_all: their toy shares' takes never asked (every_set_of_a_jacobian and the_exact_jacobian
   red: no share taken).
+- (2026-11-02) level1.py's `most=given.processes` dropped from any card call: --processes 19 (a rented machine
+  running every tuning body at once, tools/cloud/level1) runs at SET_PROCESSES (the_exact_jacobian red).
 - blocked launching one process a case again (`by_body` dropped: level 2 solved from one clip, seven times a body,
   2026-10-31), or exact_stacked stacking the blocks in their given order
   and not sorted as tuning.whole's rows are: a case's exact rows land on another case's residuals (2026-10-30).
@@ -326,6 +328,39 @@ def test_the_exact_jacobian_stacks_each_cases_own_block_in_whole_order_then_the_
     assert np.allclose(jacobian[6:], [[tuning.LINK_UNIT / tuning.PRIOR, 0, 0], [0, 0, tuning.LINK_UNIT / tuning.PRIOR]])
     heavy = ["heavy_kimodo", "heavy_rigwalk"]  # one process a body, its every case in it, once more after a failure
     assert sorted(tries) == [("heavy", heavy), ("heavy", heavy), ("tall", ["tall_kimodo"])]
+    assert widths(["--processes", "19"]) == {19} and widths([]) == {evaluation.SET_PROCESSES}
+
+
+def widths(extra):
+    """The `most` every card call of level1.py's main gets, given `extra` arguments (its workers and solver stubbed)."""
+    from evaluation import level1
+    seen, stubs = set(), {
+        (evaluation, "measured_many"): lambda sets, *_, most, **__: seen.add(most) or [{"tall_kimodo": {}}] * len(sets),
+        (evaluation, "blocked"): lambda *_, most, **__: seen.add(most) or {},
+        (level1, "exact_stacked"): lambda *_: None,
+        (evaluation, "CardShares"): lambda *_: type("Shares", (), {"waited": 0})(),
+        (evaluation, "side_score"): lambda found: 1.0,
+        (evaluation, "reported"): lambda found: {"clips with no unfolded frame": []},
+        (tuning, "layout"): lambda *_, **__: [], (tuning, "applied"): lambda *_: ({}, {}),
+        (tuning, "relative"): lambda rows: rows,
+        (tuning, "whole"): lambda evaluate, check, entries, *_, evaluate_many, exact, **__: (
+            evaluate_many([np.zeros(0)]), exact(np.zeros(0)),
+            (type("Result", (), {"x": np.zeros(0), "message": "stub"})(), [("end", 1.0)]))[-1]}
+    before = {key: getattr(*key) for key in stubs}
+    with tempfile.TemporaryDirectory() as root:
+        run = pathlib.Path(root)
+        for name, value in (("cases", CASES), ("split", SPLIT), ("table", {})):
+            (run / f"{name}.json").write_text(json.dumps(value))
+        argv, sys.argv = sys.argv, ["level1.py", str(run), "--python", "python", "--card", root, "--exact", *extra]
+        try:
+            for (module, name), stub in stubs.items():
+                setattr(module, name, stub)
+            level1.main()
+        finally:
+            sys.argv = argv
+            for (module, name), value in before.items():
+                setattr(module, name, value)
+    return seen
 
 
 def test_level_1s_level_3_holds_no_skin_rows_and_the_stages_does():

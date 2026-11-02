@@ -20,7 +20,9 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
              turn, then the dressed body's Turned: own_frame); a body with none is left out by name. The movement is
              its clip's (`doing`, the rig's clip_<doing>), followed exactly, root included (the owner, 2026-10-27);
              Newton and MuJoCo give its physics (inside/sim_body.py, in Newton's own Python,
-             score/stages/physics/inside/newton_env.sh, on this machine, under the gravity of the body the scene
+             score/stages/physics/inside/newton_env.sh, on this machine, or on a rented machine of the capability
+             classes SCORE_SIM_BODY_CLASSES names (comma separated; the machine path, newton_env.sh built there; a free
+             row, so it rents only under the owner's spend yes, `override`), under the gravity of the body the scene
              stands on, physics/design.py ground): the model's joint angles fitted to the clip's segment turns and its
              skin's bony landmarks (one solver: mink per frame, scipy's least_squares over the constants), the
              forces that movement needs, shared between the ground's contacts and the muscles (activations and
@@ -82,6 +84,11 @@ INSIDE_FOLDER = "score/stages/sim_body/inside"  # the run and every module it im
 ENV_SCRIPT = "score/stages/physics/inside/newton_env.sh"
 HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
 ENV = HOME / "envs/newton_env"
+# The run on a rented machine of these capability classes instead of this PC when set (ran_elsewhere), and about how
+# long a person's run takes there (6.5 to 9 min on this PC, 2026-11-02).
+CLOUD_CLASSES = "SCORE_SIM_BODY_CLASSES"
+CLOUD_MINUTES = 15
+WHO = "score runner, sim-body row"
 # MyoFullBody as MuscleMimic publishes it (Apache-2.0; its NOTICE: MyoSuite and myo_sim, Apache-2.0, from OpenSim's
 # Rajagopal 2016, lumbar spine and hand models, MIT, and MoBL-ARMS, whose model definition was released for
 # non-commercial use only): fetched by its pinned wheel and sha256, never kept in this repository.
@@ -130,10 +137,13 @@ def fetched():
 
 
 def ran(job, out):
-    """inside/sim_body.py run on `job` in Newton's own Python on this machine (built once by the env script): its
-    record and its arrays (bones, muscle paths)."""
-    subprocess.run(["bash", str(REPO / ENV_SCRIPT), str(ENV)], check=True, stdout=subprocess.DEVNULL)
-    subprocess.run([str(ENV / "bin/python"), str(REPO / INSIDE), str(job), str(out)], check=True)
+    """inside/sim_body.py run on `job` in Newton's own Python (built once by the env script), on this machine or, when
+    CLOUD_CLASSES is set, on a rented one (ran_elsewhere): its record and its arrays (bones, muscle paths)."""
+    if os.environ.get(CLOUD_CLASSES):
+        ran_elsewhere(job, out, os.environ[CLOUD_CLASSES].split(","))
+    else:
+        subprocess.run(["bash", str(REPO / ENV_SCRIPT), str(ENV)], check=True, stdout=subprocess.DEVNULL)
+        subprocess.run([str(ENV / "bin/python"), str(REPO / INSIDE), str(job), str(out)], check=True)
     found = json.loads(out.read_text())
     arrays = dict(np.load(out.with_suffix(".npz")))
     out.unlink()
@@ -214,6 +224,18 @@ def make(inputs, out, seed, params):
                                           "rate": RATE, "model": {"wheel": MODEL[0].rpartition("/")[2],
                                                                   "attribution": ATTRIBUTION}, "bodies": records,
                                           "left out": left_out, **no_singles(cast)}, indent=1))
+
+
+def ran_elsewhere(job, out, classes):
+    """inside/sim_body.py run on a rented machine of `classes` through the machine path (blender_cloud's Machine, the
+    env script built there): the job, its people's targets and the model carried up at their paths, `out` and its
+    arrays brought back."""
+    from score.adapters import engines
+    given = json.loads(job.read_text())
+    inputs = [job, *sorted({pathlib.Path(person["targets"]).parent for person in given["people"]}), given["model"]]
+    minutes = CLOUD_MINUTES * len(given["people"])
+    with engines.machine_runner().Machine(classes, WHO, minutes) as machine:
+        machine.run(REPO / INSIDE, [job, out], inputs, [out, out.with_suffix(".npz")], minutes, env=REPO / ENV_SCRIPT)
 
 
 def no_singles(cast):

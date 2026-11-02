@@ -1,0 +1,8 @@
+{"classes": ["gpu-24gb"], "minutes": 40, "disk_gb": 100, "euros": 2.0,
+ "runs": [{"kind": "newton", "code": ["tools/cloud/images/newton/smoke.py"], "inputs": [],
+           "jobs": [{"name": "smoke", "cache": "a", "models": [], "minutes": 10,
+                     "command": ["newton-run", "/work/repo/tools/cloud/images/newton/smoke.py", "/root/newton/out"],
+                     "outputs": [{"path": "/root/newton/out", "to": "smoke"}]}]}],
+ "expect": {"smoke": {"json": "smoke.json", "pins": "score/stages/physics/inside/newton_env.sh", "kernel_sum": 500500,
+                      "fall_metres": [4.85, 4.95],
+                      "note": "smoke.py in the levers env (newton_env.sh's pins) on this PC's card, 2026-11-02: every pin at its version, 1 CUDA device, kernel sum 500500, the sphere fell 4.91 m"}}}

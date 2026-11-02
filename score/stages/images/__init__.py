@@ -402,8 +402,38 @@ def judge_motion_clip(output, inputs, evidence):
     return checks.Verdict("clip walks", checks.PASS, "the clip has its length and walks", measures)
 
 
+def smoke_faults(smoke, expect):
+    """What is wrong with the newton image's smoke.json: missing, a pin of the env script at another version, no card
+    Warp sees, its kernel's sum wrong, or MuJoCo's sphere not falling as gravity makes it."""
+    if not smoke.is_file():
+        return [f"{smoke.name}: none"]
+    found = json.loads(smoke.read_text())
+    pins = dict(re.findall(r'"([A-Za-z0-9_.-]+)==([^"]+)"', (REPO / expect["pins"]).read_text()))
+    faults = [f"{name} {found['versions'].get(name.lower().replace('_', '-'))}, pinned {version}"
+              for name, version in sorted(pins.items())
+              if found["versions"].get(name.lower().replace("_", "-")) != version]
+    if found["cuda_devices"] < 1:
+        faults.append("Warp sees no CUDA device")
+    if found["kernel_sum"] != expect["kernel_sum"]:
+        faults.append(f"the kernel summed {found['kernel_sum']}, not {expect['kernel_sum']}")
+    low, high = expect["fall_metres"]
+    if not low <= found["fall_metres"] <= high:
+        faults.append(f"the sphere fell {found['fall_metres']} m, not {low} to {high}")
+    return faults
+
+
+def judge_newton_smoke(output, inputs, evidence):
+    """Pass when the image's Python holds newton_env.sh's pins, runs a Warp kernel on the card and MuJoCo's physics."""
+    expect = json.loads((output / PLAN).read_text())["expect"]["smoke"]
+    faults = smoke_faults(output / PROOF / "smoke" / expect["json"], expect)
+    if faults:
+        return checks.Verdict("newton runs", checks.FAIL, f"{len(faults)} faults in the smoke job", findings=tuple(faults))
+    return checks.Verdict("newton runs", checks.PASS, "the env script's pins, a card kernel and MuJoCo's fall right")
+
+
 PROOF_CHECKS = {"moss": checks.Check("takes sound right", judge_moss_takes),
-                "characters-motion": checks.Check("clip walks", judge_motion_clip)}
+                "characters-motion": checks.Check("clip walks", judge_motion_clip),
+                "newton": checks.Check("newton runs", judge_newton_smoke)}
 
 
 def proof_checks(kind):
