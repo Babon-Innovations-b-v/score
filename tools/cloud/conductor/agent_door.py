@@ -85,8 +85,9 @@ as an argument list, never through a shell, and only when it is one of these:
                [--purpose P] <answer> <question>
                                                 python -m score.dashboard decide-yes: the owner's quoted yes, asked in
                                                 a Claude Code session, to one accept, reject, waive, lock-concept,
-                                                lock-film, go or spend override: his yes to one run outside the
-                                                runner, named (owner 2026-11-02), its target as it stands now
+                                                lock-film, go, spend override (his yes to one run outside the
+                                                runner, named) or google-month (his Google figure for this month,
+                                                into the books; both owner 2026-11-02), its target as it stands now
                                                 (owner, 2026-10-27: "i hate the rule that i cant make discisions in
                                                 chat aswell")
                                                 (score/dashboard/sync/chat_decisions.py); prints its id
