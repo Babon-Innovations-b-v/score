@@ -313,7 +313,7 @@ def decide(user, place, stage, output, decision, reason, worse_reason, takes=())
     source = state.source()
     try:
         web.decide(source.store, node, output, decision, by=user, reason=reason, worse_reason=worse_reason or None,
-                   takes=takes)
+                   takes=takes, hand=bool(settings.SCORE_LIB_ROOT))  # an accept goes to the library at once (#40)
     except (review.Refused, PermissionError, FileExistsError) as refused:
         return f"refused: {refused}"
     source.refresh()

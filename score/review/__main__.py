@@ -100,7 +100,8 @@ def main(argv=None):
                                     options.worse)
         except review.Refused as refusal:
             raise SystemExit(f"refused: {refusal}")
-        print(f"accepted {written['node']} {written['output']}")
+        from score.review import web
+        print(f"accepted {written['node']} {written['output']}; library: {web.hand_accept(store)}")
         return
     if options.command == "waive":
         try:
