@@ -40,6 +40,8 @@ No machine is rented: each test reads the command, job or offers the module buil
   `cloud.alone_cap()` -> `cloud.memory_cap()` in `too_big_here` (job 0, past the shared container but within its
   room alone, is refused too); or `max(map(predicted_bytes, jobs))` -> `min(...)` in `alone_need` (the claim asks
   the small job's room).
+  Or in `alone_need`, `**({"card_gb": max(cards)} if cards else {})` -> `**{}` (a light-passes claim
+  books only the bakes' Blender card share; round 45's flat failed to make its CUDA context).
 """
 import json
 import os
@@ -391,7 +393,10 @@ def test_a_job_whose_pictures_sum_past_this_pcs_machine_is_refused_by_name_befor
     monkeypatch.setattr(blender_cloud, "still_to_run", lambda jobs: jobs)
     monkeypatch.setattr(blender_cloud, "TAKE_MARKS", tmp_path / "marks")
     assert blender_cloud.too_big_here([small]) is None
-    assert blender_cloud.alone_need([small, big]) == {"memory_gb": blender_cloud.predicted_bytes(big) / 2**30}
+    assert blender_cloud.alone_need([small, big]) == {"memory_gb": blender_cloud.predicted_bytes(big) / 2**30,
+                                                      "card_gb": blender_cloud.CARD_NEEDS["light_passes.py"]}
+    bake = {**small, "script": "tools/library/inside/bake_surface.py"}  # its claim keeps the Blender share
+    assert blender_cloud.alone_need([bake]) == {"memory_gb": blender_cloud.predicted_bytes(bake) / 2**30}
     paths = []
     for number, job in enumerate([small, big]):
         paths.append(tmp_path / f"job-{number}.json")

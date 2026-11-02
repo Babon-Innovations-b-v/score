@@ -96,6 +96,11 @@ LOG_TAIL_LINES = 40
 # whether it wrote its outputs go in its mark under TAKE_MARKS, which the runner's memory reserve reads (score/graph
 # take_peak).
 PREDICTED_BASE = 2 * 10**9
+# The card GB a script's jobs take on this PC, two calls at once (backends/card_turn.py CARD_SLOTS), where it is more
+# than the Blender claims' own share (local.CARD_NEED, the bakes' 9.7): measured 2026-11-02 05:13, round 45, three
+# light-passes claims (flat, square, stairwell) read 13.01 GB of card past the desktop, and flat's render failed to
+# make its CUDA context beside the bakes' 9.7 GB share (the card at 15.2 of 16.3 GB).
+CARD_NEEDS = {"light_passes.py": 13.0}
 PICTURE_SUFFIXES = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".webp", ".tga", ".bmp")
 TAKE_MARKS = HOME / "cloud" / "this-pc.takes"
 
@@ -364,10 +369,14 @@ def too_big_here(jobs):
 
 def alone_need(jobs):
     """On this PC the jobs' claim need (local.take's `need`): the most memory one of them is predicted to take
-    (predicted_bytes, in GiB), which past the container's memory makes the claim one alone; None off this PC."""
+    (predicted_bytes, in GiB), which past the container's memory makes the claim one alone, and the card its script
+    measured (CARD_NEEDS, the most of its jobs'), which the Blender claims' card queue group then holds at its largest
+    while it runs; None off this PC."""
     if cloud.NAME != "local" or not jobs:
         return None
-    return {"memory_gb": max(map(predicted_bytes, jobs)) / 2**30}
+    cards = [CARD_NEEDS[pathlib.PurePosixPath(job["script"]).name] for job in jobs
+             if pathlib.PurePosixPath(job["script"]).name in CARD_NEEDS]
+    return {"memory_gb": max(map(predicted_bytes, jobs)) / 2**30, **({"card_gb": max(cards)} if cards else {})}
 
 
 def take_key(arguments):
