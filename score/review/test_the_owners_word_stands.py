@@ -148,6 +148,8 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     environment_concept.py: `if named in index and index[named]["key"] != key:` made `if False:`
 - test_an_agents_process_cannot_keep_a_version_or_a_reference:
     environment_concept.py: `if offsite is None and running_under_agent():` made `if False:`
+- test_people_the_plan_stands_inside_its_outline_are_in_the_place_not_beyond_it:
+    plans_pass.py: `if plan_checks.inside(numpy.asarray(points, dtype=float), outline).all()]` made `if False]`
 - test_every_real_bodys_value_names_its_source:
     data/physics/bodies.json: `"name": "nasa-sun", "radius_km": "nasa-sun",` made `"name": "nasa-sun",`
 - test_environment_one_takes_its_bodies_from_the_table_and_its_gravity_from_their_mass:
@@ -3068,6 +3070,21 @@ def test_a_row_at_the_concept_s_foot_marked_beyond_is_placed_where_its_box_proje
     assert plan["beyond"] == [] and fixes[0].startswith("sandbags: at the concept's foot")
     sandbags = [item for item in plan["items"] if item[0] == "SANDBAGS 1"]
     assert sandbags and (sandbags[0][1], sandbags[0][2]) == (4.5, 9.5)  # its box's foot projects to y = 10
+
+
+def test_people_the_plan_stands_inside_its_outline_are_in_the_place_not_beyond_it():
+    """2026-11-02: lab's writing marked its `person` row beyond while its fixes stood its three people on spots inside
+    the room, so the people rows dropped them and its cast was empty while its design showed people. A row marked
+    beyond whose person spots all stand inside the outline is kept in; one with a spot outside (seen past a window)
+    stays beyond, and a far row with no spot is untouched."""
+    plan = {"w": 10.0, "d": 10.0, "outline": [[0, 0], [10, 0], [10, 10], [0, 10]], "items": [],
+            "people": [[2.0, 3.0, 0.0, "person"], [7.0, 6.0, 0.0, "person"], [4.0, 12.0, 0.0, "walker"],
+                       [5.0, 5.0, 0.0, "walker"]],
+            "beyond": ["person", "walker", "skyline"]}
+    answer, fixes = plans_pass.brought_inside(plan)
+    assert answer["beyond"] == ["walker", "skyline"], answer["beyond"]
+    assert fixes == ["person: stands on person spots inside this place, so in it, not beyond it"], fixes
+    assert plans_pass.unsettled(plan, {"rows": []}, parts=False)  # plans keep fixes it again, free
 
 
 # --- the sync pass's plans keep (plans_pass.py): the narrow walk, one moment, a re-fix in its own process --------

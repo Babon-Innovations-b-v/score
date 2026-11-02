@@ -40,6 +40,8 @@ import os
 import subprocess
 import sys
 
+import numpy
+
 from score.review import concepts, holders, plan_checks, plan_fixes, plan_writing, plans, relation_solver, standing
 from score.store import Store, locked, runtime_store
 
@@ -158,11 +160,29 @@ def spaced_people(plan, inventory):
     return {**plan, "people": kept}, fixes
 
 
+def brought_inside(plan):
+    """(the plan with every row marked beyond whose person spots all stand inside its outline taken off `beyond`, the
+    fixes said), free, no Correct asked: plan_fixes.stood_people stands a people row where its concept boxes project,
+    so a row it stands inside the room is in it, not beyond it (2026-11-02: lab's writing marked its three people at
+    the desks beyond, the people rows dropped them and its cast was empty while its design showed people). Kept here,
+    not in plan_fixes, which sits in the code of about 80 rows (surface libraries and bakes, the body faces)."""
+    beyond, spots = set(plan.get("beyond") or []), {}
+    for spot in plan.get("people") or []:
+        if len(spot) >= 4 and spot[3] in beyond:
+            spots.setdefault(spot[3], []).append(spot[:2])
+    outline = plan_checks.outline_of(plan)
+    inside = [row for row, points in spots.items()
+              if plan_checks.inside(numpy.asarray(points, dtype=float), outline).all()]
+    answer = {**plan, "beyond": [row for row in plan.get("beyond") or [] if row not in inside]} if inside else plan
+    return answer, [f"{plan_checks.said_name(row)}: stands on person spots inside this place, so in it, not beyond it"
+                    for row in inside]
+
+
 def unsettled(plan, inventory, parts=True):
     """Whether a written plan wants fixing again: `placing_more`, a Correct's copy of a person spot or one standing in
-    something (`spaced_people`), or (when it `parts`) the relation solver parts things the fixes left in each other
-    (relation_solver.parted)."""
-    return (placing_more(plan, inventory) or bool(spaced_people(plan, inventory)[1])
+    something (`spaced_people`), a row marked beyond standing inside (`brought_inside`), or (when it `parts`) the
+    relation solver parts things the fixes left in each other (relation_solver.parted)."""
+    return (placing_more(plan, inventory) or bool(spaced_people(plan, inventory)[1]) or bool(brought_inside(plan)[1])
             or (parts and bool(relation_solver.parted(plan, inventory)[1])))
 
 
@@ -174,10 +194,11 @@ def settled_again(store, place, plan, inventory, ask, parts=True):
     calls = []
     if placing_more(plan, inventory):
         plan, calls = plan_fixes.settled(store, place, plan, inventory, ask)
-    answer, more = relation_solver.parted(plan, inventory) if parts else (plan, [])
+    answer, inside = brought_inside(plan)
+    answer, more = relation_solver.parted(answer, inventory) if parts else (answer, [])
     answer, spaced = spaced_people(answer, inventory)
-    if more or spaced:
-        plan = {**answer, "fixes": [*plan.get("fixes", []), *more, *spaced]}
+    if inside or more or spaced:
+        plan = {**answer, "fixes": [*plan.get("fixes", []), *inside, *more, *spaced]}
         plan["gaps"] = plan_fixes.why_left(plan_fixes.open_gaps(plan, inventory))
     return plan, calls
 
