@@ -340,13 +340,21 @@ def waiting_claims():
 
 def mark_waiting(waits):
     """This process's mark in waiting_claims: touched while its claim `waits` and it holds no claim (HELD), else
-    removed."""
+    removed; the marks of processes gone are swept (2026-11-02: 76 of 80 marks were of processes that died waiting,
+    over a day of runs)."""
     mark = waiting_claims() / str(os.getpid())
     if waits and not HELD:
         mark.parent.mkdir(parents=True, exist_ok=True)
         mark.touch()
     else:
         mark.unlink(missing_ok=True)
+    for other in waiting_claims().glob("*") if waiting_claims().is_dir() else ():
+        try:
+            os.kill(int(other.name), 0)
+        except (ProcessLookupError, ValueError):
+            other.unlink(missing_ok=True)
+        except PermissionError:  # another user's live process
+            continue
 
 
 def wanting(lock=None):

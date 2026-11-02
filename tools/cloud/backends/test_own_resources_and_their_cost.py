@@ -553,8 +553,10 @@ def test_this_pc_shares_its_blender_turns_across_places_and_restarts_only_when_l
 
 
 def test_this_pc_marks_a_claim_that_waits_holding_none_and_drops_the_mark_once_it_holds_one(monkeypatch, tmp_path):
-    """The runner's drive counts a node apart from --jobs while it holds such a mark (score/graph CLAIM_WAITERS).
-    Break: tools/cloud/backends/local.py: '    mark_waiting(handle is None)' -> '    mark_waiting(False)'"""
+    """The runner's drive counts a node apart from --jobs while it holds such a mark (score/graph CLAIM_WAITERS); the
+    mark of a process that died waiting is swept (2026-11-02: 76 of 80 marks were of dead processes).
+    Break: tools/cloud/backends/local.py: '    mark_waiting(handle is None)' -> '    mark_waiting(False)'
+    Break: tools/cloud/backends/local.py: `            other.unlink(missing_ok=True)` -> `            pass`"""
     import fcntl
     import os
     import local
@@ -563,9 +565,14 @@ def test_this_pc_marks_a_claim_that_waits_holding_none_and_drops_the_mark_once_i
     monkeypatch.setattr(local, "RUNS_AT_ONCE", {"pixal": 1, "blender": 3})
     monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)
     mark = local.waiting_claims() / str(os.getpid())
+    local.waiting_claims().mkdir(parents=True)
+    gone, alive = local.waiting_claims() / str(2**22 + 7), local.waiting_claims() / str(os.getppid())
+    gone.touch()  # a process that died while it waited (no pid is this high: Linux's pid_max at most 2**22)
+    alive.touch()
     holder = local.LOCK.open("a+")
     fcntl.flock(holder, fcntl.LOCK_EX)  # another claim holds the machine
     assert local.take("blender", "key") is None and mark.exists()
+    assert not gone.exists() and alive.exists()  # the dead one's mark swept, a live one's kept
     holder.close()
     held = local.take("blender", "key")
     assert held is not None and not mark.exists()
