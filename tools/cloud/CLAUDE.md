@@ -65,7 +65,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   card also makes its paid rows, with no ticket, so a Google ask its cache does not answer fails, saying so:
   `graph.on_this_pc`) and pushes the new store objects and takes back, adding only: the door never replaces a file the conductor holds; `run` pushes the same way when it ends, and a run
   here keeps its outputs only when given `--no-push "<reason>"`, its first log line, which `status` shows until a
-  run pushes. Its `decide-yes` and `decide <yes id>`
+  run pushes. Its `decide-yes` and `decide <yes id>` (a spend override among them, `decide-yes spend <name> --euros E
+  --purpose P`)
   are the door's, against that run's home (owner, 2026-10-27), and `env1 --go <id>` tags the run with his go
   (SCORE_OWNERS_GO: a bought batch for the in-batch accept). `pause`, `resume` and `status` free the PC for the
   owner's games (owner, 2026-10-28: "make it so that you can ez pause and resume using my system"): `pause` records

@@ -177,6 +177,34 @@ def read_books_back(user):
     return f"bills read back: the books are {books.get('state')}" + (f" ({unread})" if unread else "")
 
 
+def spend_override(user, payload):
+    """The owner's override yes for one run outside the runner (score.review.web.spend_override), in words: local
+    written, hosted queued; refused for anyone else, in an agent's process, for a name that is not plain, euros that
+    are not an amount above 0, no purpose, or a name that holds a yes already."""
+    name, amount = str(payload.get("name") or ""), euro_amount(payload.get("euros"))
+    purpose = str(payload.get("purpose") or "").strip()
+    if not SCENE_NAME.fullmatch(name):
+        return f"refused: {name!r} is not a plain override name"
+    if not amount or not purpose:
+        return "refused: an override names its euros above 0 and says what it is for"
+    if hosted():
+        return queued_for_store("spend-override", user, {"name": name, "euros": amount, "purpose": purpose},
+                                f"says yes to EUR {amount:.2f} for {name}")
+    why = owner_figure_off_why(user)
+    if why:
+        return why
+    from score import review
+    from score.review import web
+    try:
+        yes = web.spend_override(state.source().store, name, amount, by=user, purpose=purpose)
+    except FileExistsError:
+        return f"refused: the override {name} holds a yes already"
+    except (review.Refused, PermissionError) as refused:
+        return f"refused: {refused}"
+    return (f"spend yes: override {name} at EUR {yes['euros']:.2f}, for {purpose}; its run carries "
+            f"SCORE_SPEND_TICKET=\"override {name}\"")
+
+
 def waive_check(user, place, stage, output, check, reason):
     """The owner's waiver of one check of an output he saw (score.review.web.waived), in words: local written,
     hosted queued."""
