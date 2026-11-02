@@ -11,6 +11,9 @@ browser). This module is the machine as code, driving the scw CLI as tools/cloud
     python3 tools/cloud/conductor/machine.py price          # per month, from Scaleway's product catalog
     python3 tools/cloud/conductor/machine.py dry            # free: cloud-init schema, the units, `up --dry`
     python3 tools/cloud/conductor/machine.py user-data [--dry]   # the live server's user-data set to cloud-init.yaml
+    python3 tools/cloud/conductor/machine.py grow-data <GB> --owners-yes "<his answer, the question, the time>" [--dry]
+                                                            # the data volume grown by <GB>; its file system grows at
+                                                            # the next boot (boot.sh mount_data's resize2fs)
 
 What `up` makes, in the project named SCORE_CONDUCTOR_PROJECT (default score-conductor, looked up by name, never
 written down), zone fr-par-2 (SCORE_CONDUCTOR_ZONE): a security group (inbound tcp/22 only, outbound open), a 20 GB
@@ -256,6 +259,29 @@ def data_volume(scw, project):
     made = scw("block", "volume", "create", f"name={DATA_NAME}", f"perf-iops={IOPS}", f"from-empty.size={DATA_GB}GB",
                f"project-id={project}", f"tags.0={TAG}", f"zone={ZONE}")
     return placeholder(scw, "data volume", made)
+
+
+def grow_data(scw, gigabytes, owners_yes, say=print):
+    """Grow the data volume by `gigabytes` (only ever larger: Scaleway refuses a smaller size), its order on the cloud
+    ledger with the owner's yes quoted before it is sent (2026-11-02: the 91 GB volume held 84.7 GB of store and takes
+    and could not take this PC's push; his "Yes, grow it" to 100 GB more, about EUR 9.50 a month). The file system
+    fills the bigger device at the next boot (boot.sh mount_data). The new size in GB."""
+    if gigabytes <= 0:
+        raise SystemExit("grow-data: name how many GB to add, more than 0")
+    if not owners_yes.strip():
+        raise SystemExit("grow-data: --owners-yes quotes his answer, the question and the time; it costs money")
+    found = existing_volume(scw, project_id(scw, PROJECT_NAME))
+    if found is None and not scw.dry:
+        raise SystemExit(f"grow-data: no volume named {DATA_NAME} in the project")
+    now_gb = found["size"] // 10 ** 9 if found else DATA_GB
+    size_gb = now_gb + gigabytes
+    if not scw.dry:
+        ledger.order_started("conductor-volume-grow", DATA_NAME, {"zone": ZONE, "size_gb": size_gb,
+                                                                  "from_gb": now_gb, "owners_yes": owners_yes})
+    scw("block", "volume", "update", found["id"] if found else "<id of the data volume>", f"size={size_gb}GB",
+        f"zone={ZONE}")
+    say(f"grow-data: {DATA_NAME} {now_gb} -> {size_gb} GB; its file system grows at the conductor's next boot")
+    return size_gb
 
 
 def server(scw, project):
@@ -897,6 +923,10 @@ def parser():
     for name in ("status", "grow", "shrink", "stop", "price"):
         commands.add_parser(name)
     commands.add_parser("down").add_argument("--with-data", action="store_true")
+    grow = commands.add_parser("grow-data")
+    grow.add_argument("gigabytes", type=int, help="how many GB to add to the data volume")
+    grow.add_argument("--owners-yes", required=True, help="his answer, the question and the time, quoted")
+    grow.add_argument("--dry", action="store_true", help="print the scw calls, make none")
     return made
 
 
@@ -922,6 +952,8 @@ def main(argv):
         stop(scw)
     elif options.command == "down":
         down(options, scw)
+    elif options.command == "grow-data":
+        grow_data(scw, options.gigabytes, options.owners_yes)
     return 0
 
 

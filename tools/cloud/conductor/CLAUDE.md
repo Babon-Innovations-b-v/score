@@ -5,7 +5,7 @@ named and tagged `score-conductor`) that holds the store, the design, the ledger
 runner, with sync, the listener, resume and every free step. `machine.py`'s docstring is the contract: what `up`
 makes, the rights of the two keys, and what is still unchecked until the first `up`.
 
-- **`machine.py`** `up | move | status | grow | shrink | stop | down | price | dry`. `up` costs money and is the owner's
+- **`machine.py`** `up | move | status | grow | shrink | stop | down | price | dry | grow-data`. `grow-data <GB> --owners-yes "<his words>"` grows the data volume on his recorded yes, its order ledgered with his words first; boot.sh's `resize2fs` gives the file system the room at the next boot. `up` costs money and is the owner's
   command alone: it refuses in an agent's process (the store's agent markers, imported from `score.store`), puts no
   key in user-data or the repo, and pipes the conductor's one credential over ssh. `up --dry` and `dry` are
   free and open to agents: they print every scw call and make none. `up` also pipes the sizes record

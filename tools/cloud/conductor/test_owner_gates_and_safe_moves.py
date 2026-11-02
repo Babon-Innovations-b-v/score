@@ -53,7 +53,8 @@ Boot (cloud-init, boot.sh, units):
   score-update) only after the move; a download that misses its
   pin stops it, as does a missing system bus or any failing command (named by its line).
   Break: drop `chattr +i` before the mount in boot.sh. Break: skip the SHA-256 check in boot.sh's download.
-  Break: drop `sync_units "$repo"` from boot.sh's user part.
+  Break: drop `sync_units "$repo"` from boot.sh's user part. Break: drop `resize2fs "$device"` from boot.sh's
+  mount_data (a volume grown by `machine.py grow-data` never gets its room).
 - Wording checks guarding owner rules (they read text on purpose): no unit names a path of the owner's PC; boot.sh's
   gltfpack pin is the one tools/review/viewer/export.py runs. Break: change `GLTFPACK_PIN` in boot.sh.
 
@@ -184,6 +185,14 @@ def test_up_dry_names_project_and_zone_on_every_call_and_makes_none(tmp_path, mo
     assert any(call.startswith("instance user-data set ") and f"zone={machine.ZONE}" in call
                for call in user_data.calls)
     assert not any(" create " in f" {call} " or " delete " in f" {call} " for call in user_data.calls)
+
+    grown = machine.Scw(dry=True, say=lambda line: None)
+    assert machine.grow_data(grown, 100, "his yes", say=lambda line: None) == machine.DATA_GB + 100
+    assert [call for call in grown.calls if call.startswith("block volume update")] == [
+        f"block volume update '<id of the data volume>' size={machine.DATA_GB + 100}GB zone={machine.ZONE}"]
+    for bad in ((0, "his yes"), (100, " ")):
+        with pytest.raises(SystemExit):
+            machine.grow_data(machine.Scw(dry=True, say=lambda line: None), *bad, say=lambda line: None)
 
 
 PREPARE_SECRETS = ("score-conductor-key", "score-conductor-size-key", "score-conductor-size-token",
@@ -720,8 +729,8 @@ case "$(basename "$0")" in
 esac
 exit 0
 """
-SHIMMED = ("apt-get", "id", "useradd", "loginctl", "blkid", "mkfs.ext4", "mountpoint", "mount", "chown", "systemctl",
-           "runuser", "git", "curl", "chattr", "npx", "npm")
+SHIMMED = ("apt-get", "id", "useradd", "loginctl", "blkid", "mkfs.ext4", "mountpoint", "mount", "resize2fs", "chown",
+           "systemctl", "runuser", "git", "curl", "chattr", "npx", "npm")
 
 
 def boot_root(folder, installed=True):
@@ -792,6 +801,8 @@ def test_boot_runs_against_a_temp_root_and_again_the_same(short_path):
     assert not any(call.startswith("curl") for call in calls), "a pinned tool already there was downloaded again"
     assert "UUID=1111-uuid /home/score/.farm-factory-props ext4" in (root / "etc" / "fstab").read_text()
     mountpoint = root / "home" / "score" / ".farm-factory-props"
+    assert calls.index(f"mount {mountpoint}") < calls.index(
+        "resize2fs /dev/disk/by-id/scsi-0SCW_sbs_volume-test")  # a grown volume gets its room at each boot
     assert calls.index(f"chattr +i {mountpoint}") < calls.index(f"mount {mountpoint}"), \
         "the bare mountpoint is not made immutable before the data volume is mounted on it"
     for name in ("score-secret-reader", "score-agent-door"):
