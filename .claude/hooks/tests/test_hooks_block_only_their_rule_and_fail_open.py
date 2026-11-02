@@ -32,6 +32,8 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_issue_guard_wants_an_area_once_the_project_has_areas: `_areas` returns [] at once.
 - test_issue_guard_refuses_a_second_root_for_a_subject_with_an_open_one: `_open_roots` returns [] at once.
 - test_issue_guard_holds_the_projects_body_rules: `_check_dead_paths` returns at once.
+- test_issue_guard_caps_each_issue_types_body: `_check_size` returns at once; or `_check_edit_size`
+  returns at once (an edit then grows an over-cap body unchecked).
 - test_md_guard_blocks_a_new_md_without_a_yes: the `tee` pattern taken out of `_SHELL_TARGETS`.
 - test_md_guard_allows_the_standing_exceptions: `_approved` returns an empty set at once; or
   `_user_asked_for_markdown` returns False at once (the user's yes is never heard).
@@ -447,6 +449,43 @@ def test_issue_guard_holds_the_projects_body_rules(tmp_path):
     assert code == BLOCK and "**Business case:**" in said, said
     assert run(guard, bash(issue.format(area="sales", body="**Business case:** x\nSell it.")))[0] == ALLOW
 
+
+
+def test_issue_guard_caps_each_issue_types_body(tmp_path):
+    """A sub-issue, a PRD and a vision PRD each have a maximum body, a comment has its own; an edit may shrink an
+    over-cap body but never grow it, and a first `<!-- Budget: -->` line lifts the cap."""
+    caps = {"sub_issue": 300, "prd": 600, "vision_prd": 1000, "comment": 250}
+    guard = issue_guard_copy(tmp_path, [], issue_body_caps=caps)
+
+    def create(labels, body):
+        return run(guard, {"tool_name": "mcp__github__create_issue", "tool_input": {
+            "title": "a size probe", "labels": labels, "assignees": ["someone"], "body": body}})
+
+    root = "## Root check\nNo open root covers this.\n"
+    code, said, _ = create(["bug"], "x" * 301)
+    assert code == BLOCK and "300" in said, said
+    assert create(["bug"], "x" * 300)[0] == ALLOW
+    assert create(["bug"], "<!-- Budget: a long spec -->\n" + "x" * 900)[0] == ALLOW
+    assert create(["PRD"], root + "x" * 600)[0] == BLOCK
+    assert create(["PRD", "vision"], root + "x" * 600)[0] == ALLOW
+
+    comment = {"tool_name": "mcp__github__add_issue_comment", "tool_input": {"issue_number": 7}}
+    assert run(guard, {**comment, "tool_input": {**comment["tool_input"], "body": "y" * 251}})[0] == BLOCK
+    assert run(guard, {**comment, "tool_input": {**comment["tool_input"], "body": "y" * 250}})[0] == ALLOW
+    assert run(guard, bash("gh issue comment 7 --body " + "y" * 251))[0] == BLOCK
+
+    stand_in = tmp_path / "bin"
+    stand_in.mkdir()
+    current = {"body": "z" * 400, "labels": [{"name": "bug"}]}
+    (tmp_path / "issue.json").write_text(json.dumps(current))
+    (stand_in / "gh").write_text(f"#!/bin/sh\ncat {tmp_path / 'issue.json'}\n")
+    (stand_in / "gh").chmod(0o755)
+    env = {**os.environ, "PATH": f"{stand_in}:{os.environ.get('PATH', '')}"}
+    edit = {"tool_name": "mcp__github__update_issue", "tool_input": {"issue_number": 7}}
+    grown = {**edit, "tool_input": {**edit["tool_input"], "body": current["body"] + "more"}}
+    shrunk = {**edit, "tool_input": {**edit["tool_input"], "body": current["body"][:-50]}}
+    assert run(guard, grown, env=env)[0] == BLOCK
+    assert run(guard, shrunk, env=env)[0] == ALLOW
 
 # md_guard: a new .md inside the repo needs the user's yes.
 
