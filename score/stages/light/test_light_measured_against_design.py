@@ -358,6 +358,30 @@ def test_a_look_s_sky_is_read_where_the_render_met_no_surface_never_its_top_rows
     assert "no sky mask" in verdict.reason
 
 
+def test_a_sky_s_blue_to_red_is_judged_only_where_the_concept_s_sky_shows_a_hue(tmp_path):
+    """2026-11-02: base's concept drew the Moon's airless sky dark navy ([11.4, 16.5, 27.6], 18.5 levels off black,
+    blue to red 2.42); the physics' black sky passed the colour gap (16.7) and failed blue to red (1.0) every round.
+    A concept sky within SKY_GAP_MOST of black leaves blue to red unjudged; a lit one still holds it: a sky of
+    [95, 90, 95] under a concept of [80, 90, 110] (93 levels off black) passes the gap at 10 levels and fails on blue
+    to red 1.0 against 1.375.
+    Break: score/stages/light/__init__.py: `hued = dark or abs(ratio - concept["blue_to_red"]) <= BLUE_TO_RED_WITHIN`
+        -> `hued = abs(ratio - concept["blue_to_red"]) <= BLUE_TO_RED_WITHIN`"""
+    def judged(concept_rgb, sky_rgb):
+        concept = {"mean_rgb": concept_rgb, "blue_to_red": round(concept_rgb[2] / concept_rgb[0], 4),
+                   "rise_to_horizon": 0.0, "pictures": 1}
+        after = {"mean_rgb": sky_rgb, "rise_to_horizon": 0.0, "blue_to_red": round(sky_rgb[2] / sky_rgb[0], 4),
+                 "gap_to_concept": measure.colour_gap(sky_rgb, concept_rgb)}
+        (tmp_path / "measures.json").write_text(json.dumps({"sky": {"concept": concept, "views": [
+            {"view": "spot-1", "after": after, "masked": True}]}}))
+        return light.judge_sky(tmp_path, {}, {})
+
+    dark = judged([11.4, 16.5, 27.6], [2.5, 2.6, 2.6])
+    assert dark.answer == checks.PASS and "not judged" in dark.reason, dark.reason
+    lit = judged([80.0, 90.0, 110.0], [95.0, 90.0, 95.0])
+    assert lit.answer == checks.FAIL and "gap to the concept 10.0 levels" in lit.reason and "within 0.15" in \
+        lit.reason, lit.reason
+
+
 def test_haze_over_the_lower_part_reads_as_a_veil_and_glow_in_the_sky_does_not():
     before = np.full((100, 100, 3), 40.0)
     after = before.copy()
