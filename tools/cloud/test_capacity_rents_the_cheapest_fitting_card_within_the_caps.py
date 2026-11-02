@@ -10,7 +10,8 @@ The expected cards and counts are worked out by hand from the offers and the rul
 processes against one shared count. The break that turns each red (applied once, seen red, reverted):
 
 - test_every_kind_runs_on_capability_classes_only: in `classes_for`, the unknown kind's `raise SystemExit(...)` ->
-  `return ()`; or in provider.py `cards`, the last `raise SystemExit(...)` -> `return 0`.
+  `return ()`; or in provider.py `cards`, the last `raise SystemExit(...)` -> `return 0`; or drop `(?:-(\d+)c)?` from
+  provider.GPU -> a class naming its cores is no class.
 - test_the_next_machine_is_the_cheapest_fitting_card_in_stock_spread_over_the_zones: in `next_offer`'s key, drop
   `offer.stock_word == "shortage", `; or `in_zone[offer.zone]` -> `0`; or `and offer.machine_class not in
   NEVER.get(kind, ())` -> ``.
@@ -90,6 +91,7 @@ def test_every_kind_runs_on_capability_classes_only():
         provider.cards(machine_class)  # every backend class reads as one
     assert provider.cards("cpu-32c-128gb") == 0 and provider.cards("gpu-80gb-x2") == 2
     assert provider.card_gb("gpu-48gb") == 48
+    assert provider.cards("gpu-80gb-x2-48c") == 2 and provider.card_gb("gpu-80gb-x2-48c") == 80  # cores named too
     for wrong in ("L4-1-24G", "gpu"):  # a provider's type is never a class
         assert "capability class" in refused(provider.cards, wrong)
     assert "no capability classes" in refused(capacity.classes_for, "nothing")

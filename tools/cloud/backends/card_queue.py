@@ -45,9 +45,10 @@ import uuid
 
 QUEUE = pathlib.Path(os.environ.get("SCORE_CARD_QUEUE", pathlib.Path.home() / ".score-card"))
 # The RTX 5080's 16303 MiB less what the Windows desktop holds on it (2.4 GB, measured 2026-10-31 beside the astronaut's
-# makes: tools/cloud/characters.py STEP_NEED).
-BUDGET_GB = 13.5
-DESKTOP_GB = 2.4
+# makes: tools/cloud/characters.py STEP_NEED). A rented machine's card has its own size and no desktop: its launcher
+# sets SCORE_CARD_BUDGET_GB and SCORE_CARD_DESKTOP_GB (tools/cloud/level1/on_machine.py).
+BUDGET_GB = float(os.environ.get("SCORE_CARD_BUDGET_GB") or 13.5)
+DESKTOP_GB = float(os.environ.get("SCORE_CARD_DESKTOP_GB") or 2.4)
 # Memory GiB this PC keeps from the shares (8 for WSL, 8 for the run's own steps beside its containers; the same as
 # backends/local.py's HOST_RESERVE_GB); the rest is MEMORY_GB, which the shares' memory never passes together.
 HOST_RESERVE_GB = 16

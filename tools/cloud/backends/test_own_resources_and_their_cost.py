@@ -79,8 +79,9 @@ The invariants, each with the break that turns its test red (each applied once a
   need takes the whole card, and `status` leads with the PC's line (shares, waiters, containers' memory). A env-run claim
   that waited YIELD_SECONDS asks side shares back: `run` stops its command's session, gives its share back, waits and
   starts the command again once the card is free. The container's claims hold their share from take to delete and
-  wait as for a busy machine while it has no room.
-  Break: `> BUDGET_GB` -> `> BUDGET_GB * 2` in `take` -> the side job joins two Blender claims; or drop `ahead or` ->
+  wait as for a busy machine while it has no room. A rented machine sizes it to its own card (SCORE_CARD_BUDGET_GB, SCORE_CARD_DESKTOP_GB).
+  Break: read `BUDGET_GB` as the constant 13.5 again -> the rented card's 78 GB is capped at this PC's; or
+  `> BUDGET_GB` -> `> BUDGET_GB * 2` in `take` -> the side job joins two Blender claims; or drop `ahead or` ->
   the side job starts before the waiting env-run claim; or drop `"film": 1` from `RANK` -> a run frozen before the rename
   (it still writes "film") crashes the queue; or swap "sim-body" and "env-run" in `ORDER` -> the env-run claim starts
   before the waiting sim body share; or `key = entry["group"] or entry["id"]` -> `key = entry["id"]`
@@ -763,6 +764,10 @@ def test_the_card_queue_never_passes_the_card_and_a_waiting_env_run_claim_keeps_
     card_queue.release(film)
     assert re.match(r"card 0\.0 of 13\.5 GB held, memory 0\.0 of 27 GiB, 2 waiting; \d+\.\d GB free; score-this-pc 3GiB / 27GiB",
                     card_queue.status())
+    sized = subprocess.run([sys.executable, "-c", "import card_queue; print(card_queue.BUDGET_GB, card_queue.DESKTOP_GB)"],
+                           cwd=card_queue.__file__.rpartition("/")[0], capture_output=True, text=True, check=True,
+                           env={**os.environ, "SCORE_CARD_BUDGET_GB": "78", "SCORE_CARD_DESKTOP_GB": "0"})
+    assert sized.stdout.split() == ["78.0", "0.0"]  # a rented card's whole size, no desktop on it
 
 
 def until(done, seconds=30):

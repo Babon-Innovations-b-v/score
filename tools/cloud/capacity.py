@@ -93,6 +93,9 @@ KINDS = {
     "characters": SINGLE_CARD,
     # SegviGen and GeoSAM2 on our own models (meshparts.py): SegviGen's README asks for at least 24 GB.
     "meshparts": SINGLE_CARD,
+    # Sim body's level 1 (tools/cloud/level1): held by processor time, every tuning body two threads beside one card,
+    # so the most cores with a card first (Scaleway sells cores only with cards).
+    "sim-body-l1": ("gpu-80gb-x2-48c", "gpu-80gb-x2", "gpu-80gb"),
 }
 # Kinds that take their offers in an order of their own, the cheapest per job first, measured in October 2026
 # (`capacity.py report`, euros a job): Pixal3D L4 0.137, L40S 0.147, H100 0.161, two-H100 0.472 (an H100 is about three
@@ -104,6 +107,7 @@ KIND_ORDER = {
     "pictures-20b": ("gpu-80gb", "gpu-80gb-x2", "gpu-48gb"),
     "judge": ("gpu-48gb", "gpu-80gb", "gpu-80gb-x2"),
     "meshparts": ("gpu-24gb", "gpu-48gb", "gpu-80gb"),
+    "sim-body-l1": ("gpu-80gb-x2-48c", "gpu-80gb-x2", "gpu-80gb"),
 }
 # Classes a kind never takes (owner, 2026-10-12: no H100 for bakes or Blender): an H100 has no ray-tracing cores and
 # rendered a Blender job at EUR 0.86 against an L4's 0.23 (October 2026). Its callers' class lists still name them;

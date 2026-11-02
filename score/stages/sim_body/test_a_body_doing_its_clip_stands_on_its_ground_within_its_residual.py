@@ -53,6 +53,9 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   make's targets `points=rig["points"]` made `rig["bind"]` (the mesh not handed to the sizing).
 - the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-10-28 (#70's solver): make's
   `"calibrated on": CALIBRATED_ON` made `"the rig's standing clip"`.
+- the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-11-02: ran's `if os.environ.get(CLOUD_CLASSES)`
+  made `if False` (SCORE_SIM_BODY_CLASSES set, the run stays on this PC); ran_elsewhere's targets' folders dropped
+  from its inputs (the machine has no targets).
 - a_cast_of_no_singles_passes_with_its_reason_and_a_missing_clip_fails, 2026-10-30 (#70): output_faults'
   `"no bodies" not in` check dropped (the crowd-only cast failed again); no_singles' `cast["characters"]` made `True`.
 - a_cast_of_no_singles_passes_with_its_reason_and_a_missing_clip_fails, 2026-10-30 (#70): no_singles'
@@ -62,6 +65,7 @@ Run: .venv/bin/python -m pytest score/stages/sim_body/test_a_body_doing_its_clip
 """
 import hashlib
 import json
+import types
 import zipfile
 
 import numpy as np
@@ -298,6 +302,33 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
     assert [line.split(":")[0] for line in record["left out"]] == ["bob", "cid", "crowd"]
     assert record["bodies"]["ann"]["adjusted"] == {"pelvis cm": [0.5, 1.2], "largest turn deg": 3.0, "mass %": -1.0}
     assert "Holzbaur" in record["model"]["attribution"] and "Apache-2.0" in record["model"]["attribution"]
+    monkeypatch.undo()  # the real ran again
+    held = []  # with SCORE_SIM_BODY_CLASSES the run goes to a rented machine of them, its files at their paths
+
+    class Machine:
+        def __init__(self, classes, who, minutes):
+            held.append((classes, minutes))
+
+        def __enter__(self):
+            return self
+
+        def run(self, script, arguments, inputs, outputs, minutes, env):
+            held.append((script, arguments, inputs, outputs, env))
+            json.dump({"engine": "rented", "people": {}}, outputs[0].open("w"))
+            np.savez(outputs[1], none=0)
+
+        def __exit__(self, *_):
+            pass
+    monkeypatch.setattr(sim_body.subprocess, "run", lambda *_, **__: pytest.fail("ran on this PC"))
+    monkeypatch.setattr("score.adapters.engines.machine_runner", lambda: types.SimpleNamespace(Machine=Machine))
+    monkeypatch.setenv(sim_body.CLOUD_CLASSES, "cpu-48c-96gb,cpu-32c-128gb")
+    job = tmp_path / "job.json"
+    job.write_text(json.dumps({"model": "/models/88b0", "people": [{"targets": str(tmp_path / "clips/ann.npz")}]}))
+    assert sim_body.ran(job, tmp_path / "run.json") == ({"engine": "rented", "people": {}}, {"none": 0})
+    assert held == [(["cpu-48c-96gb", "cpu-32c-128gb"], sim_body.CLOUD_MINUTES),
+                    (sim_body.REPO / sim_body.INSIDE, [job, tmp_path / "run.json"],
+                     [job, tmp_path / "clips", "/models/88b0"], [tmp_path / "run.json", tmp_path / "run.npz"],
+                     sim_body.REPO / sim_body.ENV_SCRIPT)]
     stage = Usd.Stage.Open(str(out / sim_body.LAYER))
     root = "/toy/Characters/ann/SimBody"
     cache = UsdGeom.XformCache(5)
