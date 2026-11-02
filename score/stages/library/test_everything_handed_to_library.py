@@ -7,6 +7,10 @@ render that never passes) and a store of its own; the machine's score_lib checko
     no library configured     library@garage says so, `configured` fails, the place is not complete
     library-free environment  the same environment named in library-free.json passes and is complete
     a configured library      the fake command runs once with the template's words; a second run reuses the record
+    every accept handed       off by default; a run's automatic accept and the owner's start the handover (handed.py);
+                              a failing command keeps the accept, writes failed.json and status counts what waits; the
+                              retry covers it; an accept during a handover is taken by a second loop; an unpushed
+                              report is not handed (owner, 2026-11-02, #40)
     the route                 a route stage's code moves it, another stage's does not
     coverage                  an output the handover misses fails `handed` by name; a written exception covers it; an
                               output no entry holds is held through what it was made into
@@ -33,6 +37,10 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - pictures.held_or_why: ask a file marked lost again (pictures).
 - demos.shape_problem: accept any shape kind (demos).
 - library.rows: the place row reads straight-masks too (the real table).
+- graph.Runner conclude: drop `self.hand_accepted()` after an automatic accept; hand_on_accept True by default;
+  handed.hand_waiting: no record_failure; handed.drain: hand once (`while` -> `if`, no second look after the lock);
+  handed.covered: count an unpushed report; web.hand_accept: say started without starting (every accept handed,
+  2026-11-02).
 """
 import json
 import os
@@ -43,7 +51,8 @@ import pytest
 
 from score import checks, contracts, graph
 from score.stages import library
-from score.stages.library import backend, checks as library_checks, demos, handover, invariant, pictures, sweep
+from score.review import web
+from score.stages.library import backend, checks as library_checks, demos, handed, handover, invariant, pictures, sweep
 from score.store import Store
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -212,6 +221,41 @@ def test_a_configured_library_runs_once_with_the_templates_words(tmp_path, monke
     assert again[f"library@{PLACE}"] == "fresh", again
     assert len(calls.read_text().splitlines()) == 2, "a second run called the library again"
     assert library.world_completion(runner, [PLACE]) == []
+
+    # every accept handed the moment it is made (#40): off unless the run or the owner's click asks
+    asked = []
+    monkeypatch.setattr(handed, "spawn", lambda store, job: asked.append(job))
+    store, nodes = runner.store, lambda: handed.nodes_of(runner.stages.values(), [PLACE])
+    assert asked == [] and not (tmp_path / "store" / handed.FOLDER).exists()
+    (tmp_path / f"data/briefs/{PLACE}.txt").write_text("the garage, again")
+    runner.hand_on_accept = True
+    assert runner.run([PLACE])[f"made@{PLACE}"].endswith("accepted automatically")
+    made = store.accepted(f"made@{PLACE}")
+    assert asked and {job["route"] for job in asked} == {route}, asked  # the run's accepts started the handover
+    assert handed.waiting(store, WORLD, nodes()) == {None: [("ground", store.accepted("ground"))],
+                                                     PLACE: [(f"made@{PLACE}", made)]}
+    job = {"world": WORLD, "seed": 7, "commit": asked[0]["commit"], "route": route, "repo": str(REPO)}
+    library_command = os.environ["SCORE_LIB_COMMAND"]
+    monkeypatch.setenv("SCORE_LIB_COMMAND", f"{sys.executable} -c 'import sys; sys.exit(3)'")
+    handed.drain(store, WORLD, lambda: job, nodes, say=lambda line: None)
+    assert store.accepted(f"made@{PLACE}") == made  # a failed handover never loses the accept
+    assert "exited 3" in handed.failure(store, WORLD, PLACE)["error"]
+    line = handed.status_line(store, WORLD, nodes())
+    assert "2 accepted outputs not in the library yet (world 1, garage 1); failing: " in line, line
+    monkeypatch.setenv("SCORE_LIB_COMMAND", library_command)
+    loops, hand_waiting = [], handed.hand_waiting
+    monkeypatch.setattr(handed, "hand_waiting", lambda *given: loops.append(
+        "" if loops else handed.start(store, WORLD)) or hand_waiting(*given))  # an accept lands during the handover
+    started = len(asked)
+    assert web.hand_accept(store, WORLD) == "handover started" and len(asked) == started + 1  # the owner's accept
+    handed.drain(store, WORLD, lambda: job, nodes, say=lambda line: None)
+    assert loops == ["a handover is running: it hands this next", ""], loops  # taken by a second loop
+    assert handed.failure(store, WORLD, PLACE) is None and handed.waiting(store, WORLD, nodes()) == {}
+    assert handed.status_line(store, WORLD, nodes()).endswith("every accepted output is in the library")
+    report = json.loads((handed.place_folder(store, WORLD, PLACE) / handover.REPORT).read_text())
+    report["saved"]["pushed"] = False
+    handover.write(handed.place_folder(store, WORLD, PLACE) / handover.REPORT, report)
+    assert handed.waiting(store, WORLD, nodes()) == {PLACE: [(f"made@{PLACE}", made)]}  # not pushed: not handed
 
 
 def test_the_route_moves_with_a_route_stages_code_only():

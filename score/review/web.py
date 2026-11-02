@@ -75,16 +75,30 @@ def checked_by(by):
     return name
 
 
-def decide(store, node, output, decision, by, reason="", worse_reason=None, takes=()):
+def decide(store, node, output, decision, by, reason="", worse_reason=None, takes=(), hand=False):
     """Record the owner's accept or reject of one output of a node, by his signed-in name; what was written.
     review.Refused when the output may not be taken so (it did not pass, it is worse with no reason, a reject with no
-    reason, it is not the accepted output). `takes`: a reject's takes to remake (review.reject)."""
+    reason, it is not the accepted output). `takes`: a reject's takes to remake (review.reject). `hand`: an accept
+    starts the library handover of environment 1 (hand_accept), as the cockpit with a library does."""
     name = checked_by(by)
     if decision == "reject":
         return review.reject(store, node, output, name, reason, takes)
     if decision == "accept":
-        return review.accept(store, node, output, name, reason, worse_reason=worse_reason or None)
+        written = review.accept(store, node, output, name, reason, worse_reason=worse_reason or None)
+        if hand:
+            hand_accept(store)
+        return written
     raise review.Refused(f"a decision is one of {', '.join(DECISIONS)}, not {decision!r}")
+
+
+def hand_accept(store, world="world1"):
+    """Start the library handover after the owner's accept (score/stages/library/handed.py); its words. One that cannot
+    start is said and left to the next sync pass: the accept stands either way."""
+    from score.stages.library import handed
+    try:
+        return handed.start(store, world)
+    except Exception as error:  # said in the words, the accept stands, status and the sync pass take it up
+        return f"library handover not started: {type(error).__name__}: {error}"
 
 
 def books_now():

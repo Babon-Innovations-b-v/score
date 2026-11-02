@@ -1471,11 +1471,17 @@ def main(argv=None):
         if whole and stages.library.WORLD_ROW in runner.stages:
             print(stages.library.completion_line(runner.world.name,
                                                  stages.library.world_completion(runner, places)))
+            from score.stages.library import handed
+            print(handed.status_line(runner.store, runner.world.name,
+                                     handed.nodes_of(runner.stages.values(), places)))
         for line in runs.unresumable():
             print(f"unresumable run {line}")
         for entry in runs.waiting().values():
             print(f"waiting for size {runs.describe(entry)}: {entry.get('jobs')} jobs")
         return
+    runner.hand_on_accept = stages.library.WORLD_ROW in runner.stages  # every accept to the library (#40)
+    if runner.hand_on_accept:  # what waits from before (a handover that failed, a PC with no sync) goes first
+        runner.hand_accepted()
     _, status = run_with_exit_line(runner, places, whole, options, sys.argv[1:] if argv is None else argv,
                                    chosen)
     if not status.startswith("ok"):  # a free-only run's lines wait at the paid rows left: only a failure counts

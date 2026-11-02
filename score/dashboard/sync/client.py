@@ -428,6 +428,13 @@ def pushed_words(remote, source, chosen):
             f"{pushed['to_come']} still to come" + ("" if pushed["committed"] else ", records among them: not swapped in"))
 
 
+def library_handing(world):
+    """What accepted outputs have not reached the library, and their handover started when any have (python -m
+    score.stages.library.handed --start: a failed one tried again, an accept no run or click handed taken up; the
+    handover runs detached, minutes); its line, or why it failed. Before the sweep, which compares what was handed."""
+    return step_line("score.stages.library.handed", "library handing failed", "--world", world, "--start")
+
+
 def library_sweep():
     """The environment compared with its library (score.stages.library.sweep, free, seconds), its findings written where
     the place pages read their problems; its words. A sweep that fails is said in the pass's words, and the pass goes
@@ -718,6 +725,7 @@ def sync_pass(remote, source, chosen=None):
         if refused:
             return refused_words(f"{refused}; {copies}")
         started = head(settings.SCORE_REPO)
+        handing = library_handing(source.world.name)  # every accept to the library, a failed handover again (#40)
         swept = library_sweep()
         readings = readings_fixed(source.store_root)  # before the parts, light and plans: each reads its rows
         parts = parts_read(source.store_root)  # before the gaps, plans, prepare and price: each routes rows by part
@@ -728,8 +736,8 @@ def sync_pass(remote, source, chosen=None):
         demos = library_demos()
         priced, failed = runner_price(settings.SCORE_REPO, source.world.name)
         if failed:
-            return refused_words(f"{failed}; {copies}; {swept}; {readings}; {parts}; {lights}; {gaps}; {planned}; "
-                                 f"{prepared}; {benched}; {pictured}; {demos}")
+            return refused_words(f"{failed}; {copies}; {handing}; {swept}; {readings}; {parts}; {lights}; {gaps}; "
+                                 f"{planned}; {prepared}; {benched}; {pictured}; {demos}")
         basket = basket_made(chosen)  # after prepare (its benchmarks) and the price, before the export carries it
         now = head(settings.SCORE_REPO)
         pushed = pushed_words(remote, source, chosen) + ("" if now == started else (
@@ -742,6 +750,7 @@ def sync_pass(remote, source, chosen=None):
     previews = film_previews()  # minutes of Chromium: after the requests, outside the pricing lock
     refused = f" (none applied here: {remote.not_the_store})" if remote.not_the_store else ""
     return (f"{pushed}; applied {len(applied)} requests{refused}; {len(ended)} launches ended; {tidy}; {copies}; {swept}; "
-            f"{readings}; {parts}; {lights}; {gaps}; {usd}; {priced}; {planned}; {prepared}; {benched}; {basket}; {pictured}; {demos}; "
+            f"{handing}; {readings}; {parts}; {lights}; {gaps}; {usd}; {priced}; {planned}; {prepared}; {benched}; "
+            f"{basket}; {pictured}; {demos}; "
             f"{previews}"
             f"{design_moved()}")

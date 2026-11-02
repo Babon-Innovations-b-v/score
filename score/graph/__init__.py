@@ -1002,6 +1002,8 @@ class Runner:
         self.objects = None  # the object filter (`score run --object`): the names a selecting stage keeps, or None
         self.free_only = False  # a free-only run (PAID_LEFT): nothing cleared, paid nodes left for the Buy
         self.bought = False  # a bought batch (his checkout or benchmark grant): a passing worse output is accepted
+        self.hand_on_accept = False  # `score run`: each automatic accept starts the library handover (hand_accepted)
+        self.handed_job = None  # (commit, route) the handover is told, worked out once (hand_accepted)
         unknown = {before for stage in stages for before in (*stage.after, *stage.beside)} - set(self.stages)
         if unknown:
             raise ValueError(f"stages read stages the table lacks: {sorted(unknown)}")
@@ -1504,7 +1506,22 @@ class Runner:
         against = self.rejudged_accepted(stage, place) if judged and (judged["answer"] == checks.PASS or (
             review.fails_only_on_gaps(judged["verdicts"], self.store.waivers(node, keyed["key"])))) else None
         accepted = review.accept_automatically(self.store, node, record["output"], against, self.bought)
+        if accepted and self.hand_on_accept:
+            self.hand_accepted()
         return f"{done}, accepted automatically" if accepted else done
+
+    def hand_accepted(self):
+        """Start the library handover of this run's world (score/stages/library/handed.py) at this run's commit and
+        route; one that cannot start is said in the run's output and left to the next accept or sync pass (the accept
+        stands, and status names what waits)."""
+        from score.stages import library
+        from score.stages.library import handed
+        try:
+            if self.handed_job is None:
+                self.handed_job = (_code.git_commit()["commit"], library.runner_route(self))
+            print(f"library handover: {handed.start(self.store, self.world.name, *self.handed_job)}", flush=True)
+        except Exception as error:  # said here, recorded by status as waiting, started again by the sync pass
+            print(f"library handover not started: {type(error).__name__}: {error}", flush=True)
 
     def rejudged_accepted(self, stage, place):
         """The accepted output's scorecard judged now, by today's gates on today's environment files (its accepted gaps among

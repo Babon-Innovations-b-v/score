@@ -30,6 +30,15 @@ is in an environment shows up in the library by construction, never by an agent'
   accepted bakes, read only. A change of that check's rules is made there, never here.
 - **A library-free environment** is an owner's dated decision in `data/checks/library-free.json`; write one only on his
   word.
+- **Every accept is handed at once** (`handed.py`, owner 2026-11-02 on #40: a PC run's accepts lived only in its
+  store, so a cloud run would have made them again): the runner's automatic accept in a `score run`
+  (`Runner.hand_on_accept`), the owner's click (`web.decide(hand=True)` when the cockpit has a library) and his
+  terminal accept start one detached handover process a world (`.again` and `.lock` under `<store root>/library-handed/
+  <world>/`), which hands each place with an accepted output no pushed report covers through the library rows' own
+  backend; a failure writes `failed.json` there, keeps the accept, and is started again by the next accept, `score
+  run`'s start and every sync pass (`library_handing`, before the sweep); `python -m score status` says what waits.
+  It is in `_code.FRAMEWORK`, imported by no row: editing it re-keys nothing. library@<place> and library-world stay
+  the completion checks.
 - **The invariant** (`invariant.py`, pure; `sweep.py` gathers and writes): each library node's accepted handover
   against the library's entries and the store's accepted outputs, one plain problem a mismatch (not handed, not in
   the library, made from an output that moved on, shown nowhere, not pushed). Every cockpit sync pass runs the sweep
