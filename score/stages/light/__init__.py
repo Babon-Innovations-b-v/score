@@ -102,6 +102,10 @@ SHOWN_LEAST = 0.5
 LIT_LEAST = 0.15
 SUNWARD_LEVELS = 4.0
 SKY_GAP_MOST = 20.0
+# A sky's blue to red is judged only where its concept's sky stands more than SKY_GAP_MOST from black: within it, a
+# black sky passes the gap, and a ratio of levels near the floor is no hue the eye sees (2026-11-02: base's concept
+# drew the Moon's airless sky dark navy, mean [11, 17, 28], 18.5 levels off black; the physics' black sky passed the
+# gap at 16.7 and failed blue to red, 1.0 against 2.4, in every round since 2026-10-31).
 BLUE_TO_RED_WITHIN = 0.15
 # Black and blown out (#27, the owner's gate "every place lit with no black or blown areas", set 2026-10-20 before any
 # look it judges was rendered): a pixel under BLACK or over BLOWN in luminance, 0 to 1; a view fails when its share of
@@ -910,7 +914,8 @@ def judge_bodies(output, inputs, evidence):
 
 def judge_sky(output, inputs, evidence):
     """An outdoor place's sky reads as its concept's: within SKY_GAP_MOST levels of its colour and its blue to red
-    within BLUE_TO_RED_WITHIN (medians over the views); its rise to the horizon reported, not judged."""
+    within BLUE_TO_RED_WITHIN (medians over the views), the blue to red only where the concept's sky stands more than
+    SKY_GAP_MOST from black (a darker one shows no hue to judge); its rise to the horizon reported, not judged."""
     found = measures_of(output)
     if "sky" not in found:
         return verdict("sky", True, "no open sky over this place", {})
@@ -926,10 +931,14 @@ def judge_sky(output, inputs, evidence):
     gap = {"after": float(np.median([view["after"]["gap_to_concept"] for view in views]))}
     ratio = float(np.median([view["after"]["blue_to_red"] for view in views]))
     rise = float(np.median([view["after"]["rise_to_horizon"] for view in views]))
-    passed = gap["after"] <= SKY_GAP_MOST and abs(ratio - concept["blue_to_red"]) <= BLUE_TO_RED_WITHIN
+    dark = measure.colour_gap(concept["mean_rgb"], [0.0, 0.0, 0.0]) <= SKY_GAP_MOST
+    hued = dark or abs(ratio - concept["blue_to_red"]) <= BLUE_TO_RED_WITHIN
+    passed = gap["after"] <= SKY_GAP_MOST and hued
     return verdict("sky", passed, f"{len(views)} views: colour gap to the concept "
                    f"{gap['after']:.1f} levels (<= {SKY_GAP_MOST}), blue to red {ratio:.3f} (concept "
-                   f"{concept['blue_to_red']}, within {BLUE_TO_RED_WITHIN}), rise to the horizon {rise:.4f}",
+                   f"{concept['blue_to_red']}, " + ("not judged: the concept's sky is within the gap of black"
+                                                    if dark else f"within {BLUE_TO_RED_WITHIN}") +
+                   f"), rise to the horizon {rise:.4f}",
                    {"gap": round(gap["after"], 1), "blue_to_red": round(ratio, 4), "rise": round(rise, 4)},
                    {"gap": "lower"})
 
