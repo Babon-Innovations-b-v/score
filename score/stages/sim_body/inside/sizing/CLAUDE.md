@@ -23,6 +23,14 @@ body by body; `path_lengths` reads each muscle's path for OpenSim's muscle scali
   the calcaneus's x, the fingers up to 30 off their hand's line. The toes are left out: their short stretch's girth
   reads 0.79 to 1.43 times the mean shape's over level 1's 41 bodies. env1 (the template person, a slim one): upper
   arm 0.82, forearm 0.89, hand 0.98, thigh 0.84, shin 0.87, foot 1.00 of its length's scale.
+- **A foot is as wide across its forefoot as SOMA's** (#70, 2026-11-02): the forefoot body's axis across the foot
+  (calcn's z) takes SOMA's metatarsal heads apart on its skin over MyoFullBody's heads' bone points apart, each across
+  the heel to the heads' middle (`FOOT_WIDTH`, `forefoot_width`, `Size.fixed`), not the length's or girth's scale.
+  MyoFullBody's heads stand 85.8 mm apart, SOMA's skin's 74.1 (env1), 73.4 (the mean shape), 79.0 (g01): env1's
+  calcanei 0.864 across, not 1.0275. Measured on main 67ce22be's env1 path, the calcanei 9.8 and 11.3 % outside
+  standing, 20.0 and 16.7 % seated; across alone at 0.85 standing 3.7 and 6.3 %, their height (y) changing nothing,
+  the length a little (the heel's back stands 3 mm behind the skin's on the template); seated the share stays 13 % at
+  0.85: the seated foot is placement, not shape. The talus (no bone outside) and the toes keep their rule.
 - The torso is placed in lumbar1 by its own scale (`OWN_PLACED`): its origin sits 8.9 cm below lumbar1's, so by its
   parent's scale a longer lumbar stretch moved T12/L1 down and no scale fit Spine2 (measured 2026-10-28).
 - A body under `FRAME_KG` is a frame, not a bone (MyoFullBody's phantoms carry 1 g and inertias of several kg m2):

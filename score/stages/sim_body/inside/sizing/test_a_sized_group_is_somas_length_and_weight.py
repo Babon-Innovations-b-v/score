@@ -4,7 +4,8 @@ stretch between its two end joints (the child bodies' joint anchors) SOMA's rig 
 model's), every group's
 mass its box's volume at Dempster's density (all brought to the person's mass with the bodies of no group kept), each
 group's centre of mass on its stretch's middle and each one-body group's inertia its box's, each limb body as wide
-across its long axis as its length scale times its box's width over its length over SOMA's mean shape's, and a box's
+across its long axis as its length scale times its box's width over its length over SOMA's mean shape's, each foot
+across its forefoot as SOMA's metatarsal heads stand apart across it over the model's (0.06 over 0.08 m), and a box's
 inertia under an uneven scale the scaled box's (all worked out by hand from the boxes). It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh,
 built at $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
@@ -26,6 +27,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-11-01) long_axes' `np.argmax(np.abs(local))` made `np.argmin(np.abs(local))`: the length laid across the
   bone, the foot sized along its width.
 - (2026-11-01) _inertia's `* _stretched(scale, quat) ** 2` dropped: the box's inertia only by its mass.
+- (2026-11-02) body_scales' `found[name][fixed[name][0]] = fixed[name][1]` dropped: the foot as wide as its girth asks,
+  not as SOMA's forefoot.
+- (2026-11-02) forefoot_width's `- along * (apart @ along)` dropped: the heads' plain distance apart (0.767, not 0.75).
 
 Run: .venv/bin/python score/stages/sim_body/inside/sizing/test_a_sized_group_is_somas_length_and_weight.py
 """
@@ -58,6 +62,11 @@ ON_BODY = {"j_hipmid": ("pelvis", (0, 0, -0.1)), "j_Spine1": ("lumbar5", (0, 0, 
            **{f"j_{side}{segment}": (f"{body}_{side[0].lower()}", (0, 0, 0)) for side in ("Left", "Right")
               for segment, body in (("Leg", "femur"), ("Shin", "tibia"), ("Foot", "talus"), ("ToeBase", "toes"))}}
 DENSITY = {"Hips": 1.01, "Spine1": 1.01, "Leg": 1.05, "Shin": 1.09, "Foot": 1.10}  # Winter 2009 Table 4.1
+# The foot's width landmarks (the left's; the right mirrored): SOMA's skin point (own frame) and the talus's bone point
+# (MuJoCo's frame, forward -y). Across the heel to the heads' middle SOMA's heads stand 0.06 m apart, the model's 0.08.
+FOOT_MARKS = {"heel_back": ((0.1, 0.1, -0.03), (0, 0.03, 0)), "MT1_head": ((0.07, 0.1, 0.13), (-0.04, -0.09, 0)),
+              "MT5_head": ((0.13, 0.1, 0.11), (0.04, -0.07, 0))}
+FOOT_ACROSS = 0.75  # the foot's scale along the talus's x
 # Each group's box: 0.04 x 0.04 m across, along the middle 60% of its stretch, so its centre is the stretch's middle.
 SIDE, SHARE = 0.04, 0.6
 
@@ -108,6 +117,13 @@ def toy_rig():
         link = (0, 0, TOE_LIFT) if joint.endswith("ToeBase") else (0, 0, 0)
         table[name] = (len(np.concatenate(faces)) - 1, (1.0, 0.0, 0.0), "Hips", body, local, link, 1.0, True)
         count += 1
+    for name, (at, local) in FOOT_MARKS.items():
+        for letter, mirror in (("l", 1), ("r", -1)):
+            faces.append(np.array([[count, count, count]]))
+            points.append(np.array([[mirror * at[0], at[1], at[2]]]))
+            table[f"{name}_{letter}"] = (len(np.concatenate(faces)) - 1, (1.0, 0.0, 0.0), "Hips", f"talus_{letter}",
+                                         (mirror * local[0], local[1], local[2]), (0, 0, 0), 1.0, True)
+            count += 1
     return {"names": names, "bind": bind, "points": np.concatenate(points), "faces": np.concatenate(faces),
             "weights": np.zeros((count, len(names)))}, sizes, table
 
@@ -199,9 +215,12 @@ def a_mesh_is_filled_once_and_sizes_alike():
     import sizing
     import volumes
     from model import TO_OWN
-    rig, _, _ = toy_rig()
-    calls, original = [], volumes.filled
+    from landmarks._table import LANDMARKS
+    rig, _, table = toy_rig()
+    calls, original, kept = [], volumes.filled, dict(LANDMARKS)
     volumes.filled = lambda *given: calls.append(1) or original(*given)
+    LANDMARKS.clear()
+    LANDMARKS.update(table)
     try:
         sizing.FILLED.clear()
         first, second = (sizing.Size(rig, TABLE, turns={group: TO_OWN for group in TABLE}) for _ in range(2))
@@ -209,6 +228,8 @@ def a_mesh_is_filled_once_and_sizes_alike():
         sizing.Size(moved, TABLE, turns={group: TO_OWN for group in TABLE})
     finally:
         volumes.filled = original
+        LANDMARKS.clear()
+        LANDMARKS.update(kept)
     problems = [] if len(calls) == 2 else [f"the mesh filled {len(calls)} times for two meshes"]
     same = all(volume == again and np.array_equal(centre, centre_again) and spread == spread_again
                for (volume, centre, spread), (again, centre_again, spread_again) in zip(first.found, second.found))
@@ -221,7 +242,8 @@ LONG = {"femur": 2, "tibia": 2, "talus": 1}
 
 def a_limb_is_as_wide_as_its_girth_asks():
     """Each limb body's scale across its long axis its length scale times its box's SIDE over its stretch's length
-    over MEAN_SLENDERNESS (the cells read the box's section within 2%)."""
+    over MEAN_SLENDERNESS (the cells read the box's section within 2%), but the foot's across its forefoot (the
+    talus's x) FOOT_ACROSS, SOMA's heads apart over the model's."""
     import numpy as np
     import sizing
     _, scales, _, _ = sized_toy()
@@ -230,9 +252,11 @@ def a_limb_is_as_wide_as_its_girth_asks():
         for segment, body in (("Leg", "femur"), ("Shin", "tibia"), ("Foot", "talus")):
             scale = scales[f"{body}_{letter}"]
             wanted = scale[LONG[body]] * SIDE / LENGTHS[segment] / sizing.MEAN_SLENDERNESS[segment]
-            across = [axis for axis in range(3) if axis != LONG[body]]
+            across = [axis for axis in range(3) if axis != LONG[body] and not (body == "talus" and axis == 0)]
             if not np.allclose(scale[across], wanted, rtol=0.02):
                 problems.append(f"{side}{segment}: {np.round(scale, 4)}, across not {wanted:.4f}")
+        if abs(scales[f"talus_{letter}"][0] - FOOT_ACROSS) > 1e-9:
+            problems.append(f"{side}Foot across its forefoot {scales[f'talus_{letter}'][0]:.4f}, not {FOOT_ACROSS}")
     return problems
 
 
