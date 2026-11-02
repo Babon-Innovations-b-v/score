@@ -34,6 +34,7 @@ taken out (the wreck, 2026-10-24) never had it back, and prepare took its hand-i
 """
 import collections
 import contextlib
+import copy
 import io
 import math
 import os
@@ -178,12 +179,29 @@ def brought_inside(plan):
                     for row in inside]
 
 
+def unstood(plan, inventory):
+    """The people rows (plan_checks.person_rows) the plan stands on no person spot: a writing fixed before
+    plan_fixes.stood_people stood people (2026-11-02: stairwell's, written 2026-10-21, its man and woman on the stairs
+    on no spot and marked beyond, its cast empty)."""
+    have = {spot[3] for spot in plan.get("people") or [] if len(spot) >= 4}
+    return [row["id"] for row in plan_checks.person_rows(inventory) if row["id"] not in have]
+
+
+def stood_again(plan, inventory):
+    """(the plan with its unstood people rows stood where their concept boxes project, its fixes said), free; the plan
+    as it was when every people row stands."""
+    if not unstood(plan, inventory):
+        return plan, []
+    answer = copy.deepcopy(plan)
+    return answer, plan_fixes.stood_people(answer, inventory, plan_fixes.projector(answer, inventory))
+
+
 def unsettled(plan, inventory, parts=True):
     """Whether a written plan wants fixing again: `placing_more`, a Correct's copy of a person spot or one standing in
     something (`spaced_people`), a row marked beyond standing inside (`brought_inside`), or (when it `parts`) the
     relation solver parts things the fixes left in each other (relation_solver.parted)."""
     return (placing_more(plan, inventory) or bool(spaced_people(plan, inventory)[1]) or bool(brought_inside(plan)[1])
-            or (parts and bool(relation_solver.parted(plan, inventory)[1])))
+            or bool(unstood(plan, inventory)) or (parts and bool(relation_solver.parted(plan, inventory)[1])))
 
 
 def settled_again(store, place, plan, inventory, ask, parts=True):
@@ -194,11 +212,15 @@ def settled_again(store, place, plan, inventory, ask, parts=True):
     calls = []
     if placing_more(plan, inventory):
         plan, calls = plan_fixes.settled(store, place, plan, inventory, ask)
-    answer, inside = brought_inside(plan)
-    answer, more = relation_solver.parted(answer, inventory) if parts else (answer, [])
+    answer, more = relation_solver.parted(plan, inventory) if parts else (plan, [])
     answer, spaced = spaced_people(answer, inventory)
-    if inside or more or spaced:
-        plan = {**answer, "fixes": [*plan.get("fixes", []), *inside, *more, *spaced]}
+    answer, stood = stood_again(answer, inventory)
+    if stood:
+        answer, again = spaced_people(answer, inventory)
+        spaced = [*spaced, *again]
+    answer, inside = brought_inside(answer)
+    if more or spaced or stood or inside:
+        plan = {**answer, "fixes": [*plan.get("fixes", []), *more, *spaced, *stood, *inside]}
         plan["gaps"] = plan_fixes.why_left(plan_fixes.open_gaps(plan, inventory))
     return plan, calls
 

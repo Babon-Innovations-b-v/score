@@ -3087,6 +3087,25 @@ def test_people_the_plan_stands_inside_its_outline_are_in_the_place_not_beyond_i
     assert plans_pass.unsettled(plan, {"rows": []}, parts=False)  # plans keep fixes it again, free
 
 
+def test_a_people_row_a_writing_never_stood_is_stood_and_brought_in_free():
+    """2026-11-02: stairwell's writing (2026-10-21) predates stood_people: its man on the stairs stood on no person spot
+    and was marked beyond, so its cast was empty. plans keep finds the unstood row (unsettled) and stands it where its
+    item lies, then brings it in from beyond; a writing whose people all stand is left as it is.
+    Break: score/review/plans_pass.py: `return [row["id"] for row in plan_checks.person_rows(inventory) if row["id"] not
+        in have]` -> `return []`"""
+    inventory = {"rows": [{"id": "person_man", "noun": "man", "name": "man walking up stairs", "count": 1}]}
+    plan = {"w": 10.0, "d": 10.0, "outline": [[0, 0], [10, 0], [10, 10], [0, 10]], "people": [[1.5, 3.0]],
+            "items": [["PERSON MAN 1", 3.0, 3.0, 0.6, 0.6, None, "item"]], "rows": {"PERSON MAN 1": ["person_man"]},
+            "beyond": ["person_man", "skyline"], "fixes": []}
+    assert plans_pass.unstood(plan, inventory) == ["person_man"]
+    assert plans_pass.unsettled(plan, inventory, parts=False)
+    stood, fixes = plans_pass.stood_again(plan, inventory)
+    assert [spot[3] for spot in stood["people"] if len(spot) >= 4] == ["person_man"], stood["people"]
+    answer, inside = plans_pass.brought_inside(stood)
+    assert answer["beyond"] == ["skyline"] and fixes and inside, (answer["beyond"], fixes, inside)
+    assert plans_pass.stood_again(stood, inventory) == (stood, [])
+
+
 # --- the sync pass's plans keep (plans_pass.py): the narrow walk, one moment, a re-fix in its own process --------
 
 KEYS = ["outputs/a.json", "outputs/ab/c.json", "outputs/b.json", "plans/x/edits/1.json", "plans/xy/edits/2.json",
