@@ -26,8 +26,16 @@
     "picture": "{home}/design/concepts/hangar.png"
    },
    {
+    "id": "lab",
+    "picture": "{home}/design/concepts/lab.png"
+   },
+   {
     "id": "square",
     "picture": "{home}/design/concepts/square.png"
+   },
+   {
+    "id": "stairwell",
+    "picture": "{home}/design/concepts/stairwell.png"
    },
    {
     "id": "tube",
@@ -121,6 +129,26 @@
    "clothes": "the clothes as drawn in the square concept"
   },
   {
+   "id": "man_stair-made",
+   "name": "man walking up stairs, an average build, as drawn in the stairwell concept; the clothes as drawn in the stairwell concept",
+   "prop": "man_stair-made",
+   "size": [
+    0.5,
+    0.3,
+    1.8
+   ],
+   "size_from": "stairwell/person_man of data/people/rows.json",
+   "view": "stairwell",
+   "box": [
+    1283,
+    747,
+    1345,
+    951
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the stairwell concept"
+  },
+  {
    "id": "officer-made",
    "name": "officer, an average build, as drawn in the cockpit concept; the clothes as drawn in the cockpit concept",
    "prop": "officer-made",
@@ -159,6 +187,26 @@
    ],
    "grounded": "SAM 3's box in the reading of the picked concept",
    "clothes": "the clothes as drawn in the workshop concept"
+  },
+  {
+   "id": "person_spacesuit-made",
+   "name": "person in spacesuit, an average build, as drawn in the lab concept; the clothes as drawn in the lab concept",
+   "prop": "person_spacesuit-made",
+   "size": [
+    0.5,
+    0.5,
+    1.8
+   ],
+   "size_from": "lab/person of data/people/rows.json",
+   "view": "lab",
+   "box": [
+    1691,
+    869,
+    1921,
+    1200
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the lab concept"
   },
   {
    "id": "person_uniform-made",
@@ -201,6 +249,26 @@
    "clothes": "the clothes as drawn in the cockpit concept"
   },
   {
+   "id": "woman_stair-made",
+   "name": "woman walking down stairs, an average build, as drawn in the stairwell concept; the clothes as drawn in the stairwell concept",
+   "prop": "woman_stair-made",
+   "size": [
+    0.5,
+    0.3,
+    1.7
+   ],
+   "size_from": "stairwell/person_woman of data/people/rows.json",
+   "view": "stairwell",
+   "box": [
+    1491,
+    987,
+    1538,
+    1173
+   ],
+   "grounded": "SAM 3's box in the reading of the picked concept",
+   "clothes": "the clothes as drawn in the stairwell concept"
+  },
+  {
    "id": "worker_jumpsuit-made",
    "name": "worker in blue jumpsuit, an average build, as drawn in the hangar concept; the clothes as drawn in the hangar concept",
    "prop": "worker_jumpsuit-made",
@@ -229,7 +297,9 @@
    "garage",
    "greenhouse",
    "hangar",
+   "lab",
    "square",
+   "stairwell",
    "tube",
    "workshop"
   ]

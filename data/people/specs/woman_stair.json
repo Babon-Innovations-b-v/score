@@ -1,0 +1,17 @@
+{
+ "name": "woman_stair",
+ "kind": "person",
+ "route": "prop",
+ "approved": "the creator's pick of the stairwell concept (68895bd4): its scene inventory's people row person_woman (data/people/rows.json), this spec written from it by score/stages/people_rows.py",
+ "why": "woman walking down stairs of the stairwell concept, bottom flight of stairs",
+ "references": [],
+ "description": "woman walking down stairs, an average build, as drawn in the stairwell concept",
+ "outfit_words": {
+  "made": "the clothes as drawn in the stairwell concept"
+ },
+ "outfits": [
+  "made"
+ ],
+ "hair": "the hair as drawn in the stairwell concept",
+ "face": "the face as drawn in the stairwell concept"
+}
