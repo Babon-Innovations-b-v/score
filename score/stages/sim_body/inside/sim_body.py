@@ -197,11 +197,13 @@ def run_person(job, person, out_path):
     adjustment["feet held mm, deg"] = [round(1000 * float(feet_off[:, 0].max()), 3),
                                        round(float(np.degrees(feet_off[:, 1].max())), 3)]
     qpath = adjusted
-    record["fit"]["following, the path the physics takes"] = fit.following(model, qpath, worlds, segments, scales, rig)
+    own_model = mujoco.MjModel.from_xml_path(str(path))  # MuJoCo's own compile: its meshes and muscle names
+    # its bones measured on MuJoCo's own compile (Newton is given no meshes); its qpos is Newton's in the same order
+    record["fit"]["following, the path the physics takes"] = fit.following(own_model, qpath, worlds, segments, scales,
+                                                                           rig)
     velocities, accelerations = rates(model, qpath, job["rate"])
     joints = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, model.dof_jntid[dof]) for dof in
               physics.couplings.leads[6:]]
-    own_model = mujoco.MjModel.from_xml_path(str(path))  # MuJoCo's own compile: its meshes and muscle names
     named = {mujoco.mj_id2name(own_model, mujoco.mjtObj.mjOBJ_TENDON, own_model.actuator_trnid[actuator, 0]):
              mujoco.mj_id2name(own_model, mujoco.mjtObj.mjOBJ_ACTUATOR, actuator) for actuator in range(own_model.nu)}
     muscles = [named[mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_TENDON, model.actuator_trnid[actuator, 0])]
