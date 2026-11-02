@@ -81,14 +81,18 @@ def spent_parts(baseline, months):
     """{cloud, ledger, google}: the euros spent since `baseline` by book, from `months` ({month: {bill (None for a
     month whose bill is not read), ledger, google}}): cloud in each month the higher of the bill's and the ledger's
     growth, ledger the cloud ledger's growth alone (cloud less it is what the bill holds and the ledger missed), google
-    Google's growth."""
+    Google's growth. A book's growth in a month is never below 0: a bill lowered after the baseline (credits given
+    back, a started call that never billed) lowers what is owed, never the spend, so it never widens the stop's room
+    (2026-11-02: credits given back on October's Google bill read EUR -838.93 of spend and Batch 1 EUR -635.25 spent,
+    EUR 1300.43 left of a EUR 665.18 budget; owner's rule through the coordinator: spend is what was charged, never
+    less than 0, credits only lower the bill)."""
     parts = {"cloud": 0.0, "ledger": 0.0, "google": 0.0}
     for month, books in months.items():
         start = baseline if month == baseline["month"] else NOTHING
-        ledger = books["ledger"] - start["ledger"]
+        ledger = max(0.0, books["ledger"] - start["ledger"])
         parts["ledger"] += ledger
         parts["cloud"] += ledger if books["bill"] is None else max(ledger, books["bill"] - start["bill"])
-        parts["google"] += books["google"] - start["google"]
+        parts["google"] += max(0.0, books["google"] - start["google"])
     return parts
 
 
