@@ -42,6 +42,9 @@ def file_hash(path):
     return digest.hexdigest()
 
 
+PLAIN = 180.0  # a model's shade where its colours cannot be read
+
+
 def located(name, sha, roots):
     """The file of that name under a folder of the roots (one level down) whose content is that hash; None."""
     for root in roots:
@@ -62,7 +65,10 @@ def faces_of(path):
     if len(picked) > MOST_FACES:
         picked = picked[np.linspace(0, len(picked) - 1, MOST_FACES).astype(int)]
     coloured = mesh.visual.to_color() if hasattr(mesh.visual, "to_color") else mesh.visual
-    colours = np.asarray(coloured.vertex_colors, dtype=float)[:, :3]
+    colours = np.asarray(coloured.vertex_colors, dtype=float)
+    if colours.ndim != 2 or colours.shape[1] < 3 or len(colours) < len(mesh.vertices):  # colours trimesh could not
+        colours = np.full((len(mesh.vertices), 3), PLAIN)  # read for its points (2026-11-03: a pushed model): grey
+    colours = colours[:, :3]
     corners = mesh.faces[picked]
     return mesh.triangles_center[picked], mesh.face_normals[picked], colours[corners].mean(axis=1)
 
