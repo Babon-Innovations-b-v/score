@@ -367,20 +367,6 @@ def missing_keys():
     return [str(path) for path in (KEY, SELF_DELETE_KEY) if not path.exists()]
 
 
-def self_delete_key_refusal(zone):
-    """Why the self-delete key here would not let a machine in `zone` delete itself, or None when the provider takes it
-    (`cloud.self_delete_refusal`, a free read). Fault of 2026-11-02: this PC's home held a placeholder key, every
-    terminate got 401, and an H100 sat idle 12.8 h (about EUR 85) after its launcher died with this PC."""
-    try:
-        secret = json.loads(SELF_DELETE_KEY.read_text()).get("secret_key")
-    except (OSError, ValueError, AttributeError) as unread:
-        return f"{SELF_DELETE_KEY} unreadable: {unread}"
-    if not secret:
-        return f"{SELF_DELETE_KEY} holds no secret_key"
-    why = cloud.self_delete_refusal(secret, zone)
-    return f"{SELF_DELETE_KEY}: {why}" if why else None
-
-
 def ssh_options(folder):
     return ["-i", str(KEY), "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new",
             "-o", f"UserKnownHostsFile={folder / 'known_hosts'}", "-o", "ConnectTimeout=10",
@@ -850,8 +836,7 @@ def queue(fleet, models):
 def rent(fleet, account, offer, number, disk_gb=DISK_GB):
     """Rent one machine from `offer` with its watchdog and a root disk of `disk_gb`; its record, or None when
     refused. Nothing is rented outside a cleared run (compute.require_cleared raises Refused, also while the month's
-    books are unknown) or without the runner's ssh and self-delete keys, or with a self-delete key the provider does
-    not take (Refused before any order: self_delete_key_refusal); nothing
+    books are unknown) or without the runner's ssh and self-delete keys (Refused before any provider call); nothing
     is ordered from an offer the backend's stock read says has none (NO_STOCK), since every such order billed a disk
     and an address for a machine that never started."""
     machine_type, zone = offer.type, offer.zone
@@ -861,10 +846,6 @@ def rent(fleet, account, offer, number, disk_gb=DISK_GB):
     compute.require_cleared(f"a {machine_type} in {zone}")
     if missing_keys():
         raise compute.Refused(f"a {machine_type} in {zone}: missing {', '.join(missing_keys())}; {OWNER_MAKES_KEYS}")
-    refused_key = self_delete_key_refusal(zone)
-    if refused_key:
-        raise compute.Refused(f"a {machine_type} in {zone}: no machine is rented that could not delete itself; "
-                              f"the self-delete key {refused_key}; owner: a working self-delete key there")
     name = f"{fleet.folder.name}-{number}"
     tags = run_tags(os.getpid(), fleet.deadline + WATCHDOG_GRACE_MINUTES * 60)
     server_id, refused = cloud.create(account, offer, name, tags, disk_gb)

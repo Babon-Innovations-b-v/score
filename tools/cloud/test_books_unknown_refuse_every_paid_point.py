@@ -12,8 +12,8 @@ made a new key for the account beside the stale one. Review of #13: `--google-mo
 
 Break that turns it red: in ledger.books_refusal accept one ledger from before the month (`or` for `and`); in
 compute.read_back_books make the books `known` from the Scaleway bill alone; or in batch.rent order before checking
-the self-delete key, or skip self_delete_key_refusal (a key the provider answers 401 rents a machine that cannot
-delete itself: 2026-11-02, an H100 idle 12.8 h).
+the self-delete key, or in scaleway.create skip self_delete_key_refusal (a key the provider answers 401 rents a
+machine that cannot delete itself: 2026-11-02, an H100 idle 12.8 h).
 """
 import io
 import json
@@ -153,7 +153,7 @@ def test_a_cleared_submit_writes_no_job_while_the_books_are_unknown(tmp_path, mo
 
 def test_rent_refuses_without_the_runners_keys_before_any_provider_call(tmp_path, monkeypatch):
     books_of([cloud_line(last_month())], [google_line(last_month())])
-    ordered = []
+    ordered, create = [], scaleway.create  # the backend's own order, kept before it is swapped for a recorder
     monkeypatch.setattr(batch.cloud, "create", lambda *arguments: ordered.append(arguments) or (None, "refused"))
     monkeypatch.setattr(batch, "month_spent", lambda account: ordered.append("bill") or 0.0)
     monkeypatch.setattr(batch.compute, "require_cleared", lambda what: None)
@@ -173,17 +173,21 @@ def test_rent_refuses_without_the_runners_keys_before_any_provider_call(tmp_path
         if request.get_header("X-auth-token") != "works":
             raise urllib.error.HTTPError(request.full_url, 401, "Unauthorized", {}, io.BytesIO(b"{}"))
         return io.BytesIO(b'{"servers": []}')
-    monkeypatch.setattr(batch.cloud, "self_delete_refusal", scaleway.self_delete_refusal)
     monkeypatch.setattr(urllib.request, "urlopen", answered)
+    started = []  # the backend's order, every rent path's one way to a machine (scaleway.create), checks it first
+    monkeypatch.setattr(scaleway.subprocess, "run", lambda *arguments, **given: pytest.fail("ordered"))
+    import ledger
+    monkeypatch.setattr(ledger, "rent_started", lambda *arguments: started.append(arguments))
     for placeholder in ('{"secret_key": "", "for": "this PC: never used"}', '{"secret_key": "revoked"}', "not json"):
         batch.SELF_DELETE_KEY.write_text(placeholder)
         with pytest.raises(compute.Refused, match="could not delete itself") as refused:
-            batch.rent(fleet, None, OFFER, 0)
-        assert "owner" in str(refused.value) and ordered == []
+            create("project", OFFER, "run-0", ["deadline=0"], 20)
+        assert "owner" in str(refused.value) and started == []
     assert "401" in str(refused.value) or "unreadable" in str(refused.value)
     assert [url for url, _ in asked] == [scaleway.SERVERS_URL.format(zone=OFFER.zone)]  # the empty secret never asked
     batch.SELF_DELETE_KEY.write_text('{"secret_key": "works"}')
-    assert batch.rent(fleet, None, OFFER, 0) is None and len(ordered) == 1  # a working key: the order goes out
+    assert scaleway.self_delete_key_refusal(OFFER.zone) is None  # a working key: the order goes on
+    assert batch.rent(fleet, None, OFFER, 0) is None and len(ordered) == 1
 
 
 def test_the_runners_ssh_key_is_never_made_here(tmp_path, monkeypatch):
