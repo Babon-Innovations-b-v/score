@@ -2090,7 +2090,10 @@ def test_a_ready_node_too_large_for_memory_waits_alone_and_the_ones_after_it_tha
     On a machine whose whole memory cannot hold big beside the floor (3.5 floors), big is refused at once with why
     and the run ends; late and small still run (2026-11-02: a plan row run waited ten hours on the idle conductor).
     Break: score/graph/__init__.py: '    if expected + memory_floor() <= TOTAL():' -> '    if True:' -> the run
-    waits for ever (here: the 3 s deadline passes with big still waiting)."""
+    waits for ever (here: the 3 s deadline passes with big still waiting). A stage never measured on such a machine
+    (its peak the floor's guess) is not refused: its nodes run one at a time, alone (2026-11-03: the conductor refused
+    its 0.16 GB plan rows at the 6 GB guess). Break: score/graph/__init__.py: 'if refused and stage.name not in
+    peaks:' -> 'if False:' -> the unmeasured nodes are refused."""
     monkeypatch.delenv(graph.FLOOR_VARIABLE, raising=False)
     monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
     monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
@@ -2122,6 +2125,13 @@ def test_a_ready_node_too_large_for_memory_waits_alone_and_the_ones_after_it_tha
     assert len(refused) == 2 and all("can never start here" in line and "21.0 GB in all" in line
                                      for line in refused.values()), refused
     assert all(found[node] == ACCEPTED for node in found if not node.startswith("big@")), found
+
+    monkeypatch.setattr(graph, "TOTAL", lambda: 1.5 * FLOOR)  # the guess and the floor beside it pass the machine
+    monkeypatch.setattr(graph, "AVAILABLE", lambda: 1.2 * FLOOR)
+    fresh = graph.Stage("fresh", "place", make_mark, TEXT, PASSES, files=files)
+    guessed = a_runner(a_world({"hangar": "a ship", "station": "a hub"}), a_store(), (fresh,))
+    found = guessed.drive(PLACES, say=quiet, jobs=4)
+    assert set(found.values()) == {ACCEPTED} and len(found) == 2, found
 
 
 def test_on_this_pc_a_container_clients_next_node_is_expected_at_its_own_tree_not_its_stage_peak(monkeypatch):

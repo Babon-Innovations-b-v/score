@@ -552,7 +552,8 @@ def memory_room(running, expected):
 def never_fits(expected):
     """Why a node expected to take `expected` bytes can never start on this machine (its peak and the floor beside it
     pass the machine's whole memory, so no wait frees room), or None (2026-11-02: a plan row run on the idle
-    conductor, 7.75 GB in all, waited ten hours for its 6 GB beside the 6 GB floor and held the checkout off its pin)."""
+    conductor, 7.75 GB in all, waited ten hours for its 6 GB beside the 6 GB floor and held the checkout off its pin).
+    Only a measured peak is refused: a stage never measured here runs alone instead (`alone`)."""
     if expected + memory_floor() <= TOTAL():
         return None
     return (f"not run: it needs {expected / 2**30:.1f} GB beside the {memory_floor() / 2**30:.0f} GB kept free, and "
@@ -2280,6 +2281,12 @@ class Runner:
                         # held a third bake back beside two with a turn free and 37 GB available (2026-10-29)
                         expected = client_reserve(stage.name, peaks, clients, grown)
                         refused = never_fits(expected)
+                        if refused and stage.name not in peaks:  # a guess, not a measure (2026-11-03: the conductor
+                            # refused plan rows of 0.16 GB at the 6 GB default): it runs alone, and is measured then
+                            if running or ready:
+                                held = True
+                                continue
+                            expected, refused = 0, None
                         if refused:  # no wait frees the room: refused now, its line stops, the run goes on
                             waiting.remove((stage, place))
                             stopped[node], done[node] = node, refused
