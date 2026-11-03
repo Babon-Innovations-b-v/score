@@ -100,6 +100,12 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 and whole-second mtime the manifest on stdin already names
                                                 (`size<TAB>mtime<TAB>path` lines); never keys, ledgers, run records
                                                 or frozen copies (owner, 2026-10-27: the door route for this_pc.py)
+    carry --no-op <file>=<why> ... [--skip <node>] [--only <prefix>] [--since <commit>] [--write]
+                                                python -m score.stages.surfaces.carry on the conductor's store: the
+                                                accepted outputs whose key moved only by a file proved a no-op kept
+                                                under their new key (--write stores it; else only listed); refused
+                                                while a run is live (2026-11-03: 7f68af46's bodies.py edit would have
+                                                re-bought about EUR 1,100 of accepted rows, and the door had no route)
     route-log <path>                            the tail of a people route's log, read only: a .log file under
                                                 ~/.farm-factory-motion/candidates/ (2026-11-03: officer-made-route's
                                                 chain.log, its fault's cause, was unreadable)
@@ -140,7 +146,7 @@ sys.path.insert(0, str(REPO))
 from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
-VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], clean-frozen, clean-cache, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, "
+VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], clean-frozen, clean-cache, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, carry --no-op <file>=<why> ..., "
          "run-log [--lines N], fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, decide-yes, decide <yes id>, "
          "stop-batch <reason>")
@@ -194,6 +200,8 @@ RUN_LOG = "--run-log"  # this file's own read of the newest launch's run log (th
 FAULT = "--fault"  # this file's own read of a fault report of the newest launch (the fault verb runs it)
 DESIGN_FILE = "--design-file"  # this file's own read of one design file (the design-file verb runs it)
 ROUTE_LOG = "--route-log"  # this file's own read of a people route's log (the route-log verb runs it)
+CARRY = "--carry"  # this file's own carry, refused while a run is live (the carry verb runs it)
+CARRY_FLAGS = ("--no-op", "--skip", "--only", "--since")  # carry's options that take a value
 CANDIDATES = pathlib.Path.home() / ".farm-factory-motion" / "candidates"  # the people routes' work folders
 DESIGN_FILE_PATH = re.compile(r"design/(props|plans|surfaces)/[A-Za-z0-9_-]+\.json")
 DESIGN_FILE_BYTES = 4_000_000
@@ -295,6 +303,8 @@ def decide(words, latch):
             raise Refused("run-log [--lines N], N a whole number of lines")
         lines = min(int(args[1]) if args else RUN_LOG_LINES, RUN_LOG_LINES_MAX)
         return [str(pathlib.Path(__file__).resolve()), RUN_LOG, str(lines)], {}
+    if verb == "carry":
+        return [str(pathlib.Path(__file__).resolve()), CARRY, *carry_args(args)], {}
     if verb == "route-log":
         if len(args) != 1 or not args[0].endswith(".log"):
             raise Refused("route-log <a .log path under ~/.farm-factory-motion/candidates>")
@@ -498,6 +508,36 @@ def own_read(argv, props_home):
     if argv[0] == RUN_LOG:
         return run_log(newest_launch_log(), props_home, int(argv[1]))
     return fault(newest_launch_log(), argv[1], props_home)
+
+
+def carry_args(args):
+    """The carry verb's arguments as asked, checked: at least one --no-op <repository file>=<why>, each option with
+    its value, --write at most once; Refused otherwise."""
+    rest, no_ops = list(args), 0
+    while rest:
+        flag = rest.pop(0)
+        if flag == "--write":
+            continue
+        if flag not in CARRY_FLAGS or not rest or not rest[0].strip() or rest[0].startswith("--"):
+            raise Refused(f"carry: {flag!r} is not one of --write, {', '.join(CARRY_FLAGS)} with its value")
+        value = rest.pop(0)
+        if flag == "--no-op":
+            name, _, why = value.partition("=")
+            if not why.strip() or not name or ".." in pathlib.PurePath(name).parts or name.startswith("/"):
+                raise Refused(f"carry --no-op <repository file>=<why>, not {value!r}")
+            no_ops += 1
+    if not no_ops or list(args).count("--write") > 1:
+        raise Refused("carry --no-op <file>=<why> ... [--skip <node>] [--only <prefix>] [--since <commit>] [--write]")
+    return list(args)
+
+
+def carried(args, home):
+    """carry's run on this store, once no run is live (replace_refusal: a run may be making the same nodes)."""
+    refused = replace_refusal(home)
+    if refused:
+        raise Refused(f"carry: {refused}")
+    from score.stages.surfaces import carry
+    return carry.main(args)
 
 
 def route_log(asked, candidates=None):
@@ -765,6 +805,13 @@ def main():
             print(f"score-agent-door: refused: {refused}", file=sys.stderr)
             return REFUSED_EXIT
         return 0
+    if sys.argv[1:2] == [CARRY]:
+        from score.store import PROPS_HOME
+        try:
+            return carried(carry_args(sys.argv[2:]), PROPS_HOME) or 0
+        except Refused as refused:
+            print(f"score-agent-door: refused: {refused}", file=sys.stderr)
+            return REFUSED_EXIT
     if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [FAULT], [DESIGN_FILE], [ROUTE_LOG]):
         from score.store import PROPS_HOME
         try:
