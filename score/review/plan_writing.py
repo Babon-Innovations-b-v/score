@@ -533,18 +533,20 @@ def rows_scale(answer, inventory):
 
 
 def scale_of(answer, skeleton, inventory, held):
-    """((metres a unit along x, along y), (origin x, origin y) in units, how): a place the layer above lays out
-    (`held`) fills its box there, each way; any other is measured by its rows' metres, else fills its own plan's box;
-    its origin its drawn outline's north-west corner. Refused when none tells."""
+    """((metres a unit along x, along y), (origin x, origin y) in units, how): measured by its rows' metres, one scale
+    both ways; with no row to tell, a place the layer above lays out (`held`) takes its box's floor there at the
+    drawing's own proportions (never stretched to that box's shape: its holder's spot then takes its size, the issue
+    #72 loop), any other fills its own plan's box; its origin its drawn outline's north-west corner. Refused when none
+    tells."""
     extent = drawn_extent(answer)
     if extent is None or extent[2] <= extent[0] or extent[3] <= extent[1]:
         raise Refused("the answer draws no outline to measure")
-    if held:
-        return ((skeleton["w"] / (extent[2] - extent[0]), skeleton["d"] / (extent[3] - extent[1])), extent[:2],
-                "its box on the layer above's plan")
     found = rows_scale(answer, inventory)
     if found is not None:
         return (found, found), extent[:2], "its rows' metres"
+    if held and skeleton.get("w") and skeleton.get("d"):
+        found = math.sqrt(skeleton["w"] * skeleton["d"] / ((extent[2] - extent[0]) * (extent[3] - extent[1])))
+        return (found, found), extent[:2], "its box's floor on the layer above's plan (no row with metres drawn)"
     if skeleton.get("w") and skeleton.get("d"):
         return ((skeleton["w"] / (extent[2] - extent[0]), skeleton["d"] / (extent[3] - extent[1])), extent[:2],
                 "its own plan's box (no row with metres drawn)")
@@ -635,16 +637,27 @@ def metred(answer, scale, origin):
 
 def measured(answer, skeleton, inventory, held):
     """(the answer in plan metres, the skeleton with its outline box measured, how it was measured): the drawing's
-    units turned into metres (`scale_of`); a place not laid out above takes its outline box from the drawing."""
+    units turned into metres (`scale_of`), the outline box the drawing's, a place laid out above too (its holder's
+    spot takes this size, plans.holds_fitted), its doors on its box there kept at their share of their walls."""
     if not isinstance(answer, dict):
         raise Refused("the answer is no JSON object")
     answer = unboxed_all(answer)
     scale, origin, how = scale_of(answer, skeleton, inventory, held)
     found = metred(answer, scale, origin)
-    if not held:
-        low_x, low_y, high_x, high_y = drawn_extent(answer)
-        skeleton = {**skeleton, "w": round((high_x - low_x) * scale[0], 3), "d": round((high_y - low_y) * scale[1], 3)}
+    low_x, low_y, high_x, high_y = drawn_extent(answer)
+    wide, deep = round((high_x - low_x) * scale[0], 3), round((high_y - low_y) * scale[1], 3)
+    skeleton = {**skeleton, "w": wide, "d": deep, **({"doors": doors_along(skeleton, wide, deep)} if held else {})}
     return found, skeleton, {"metres a unit": [round(scale[0], 5), round(scale[1], 5)], "by": how}
+
+
+def doors_along(skeleton, wide, deep):
+    """The skeleton's wall doors [side, along, ...] at the same share of their wall on an outline `wide` x `deep` (a
+    held place's doors are placed on its box there); a faceted or tube door, or a skeleton with no box, as it is."""
+    if not (skeleton.get("w") and skeleton.get("d")):
+        return skeleton.get("doors", [])
+    ratio = {"N": wide / skeleton["w"], "S": wide / skeleton["w"], "E": deep / skeleton["d"], "W": deep / skeleton["d"]}
+    return [[door[0], round(door[1] * ratio[door[0]], 3), *door[2:]] if door and door[0] in ratio
+            and number(door[1]) is not None else door for door in skeleton.get("doors", [])]
 
 
 def creator_laid(plan):
