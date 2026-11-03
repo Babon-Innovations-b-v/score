@@ -387,6 +387,9 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
         code, why, argv, env = door(asked)
         assert code == 0 and argv[1:] == [flag] and argv[0].endswith("agent_door.py"), (why, argv)
     assert door("store-push --force")[0] != 0 and door("store-push --replace --missing")[0] != 0
+    code, why, argv, _ = door("route-log /home/score/.farm-factory-motion/candidates/x/out/chain.log")
+    assert code == 0 and argv[1] == "--route-log", (why, argv)
+    assert door("route-log /etc/passwd")[0] != 0  # not a .log: refused at the door
     code, why, argv, _ = door("design-file design/props/lab.json")
     assert code == 0 and argv[1:] == ["--design-file", "design/props/lab.json"], (why, argv)
     for asked in ("design-file", "design-file design/../cloud/ssh_key", "design-file cloud/ledger.jsonl",
@@ -450,6 +453,15 @@ def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path):
     (home / "design/props/lab.json").write_text('{"rows": []}')
     (home / "design/props/out.json").symlink_to(home / "store/objects/records/k1.json")
     assert agent_door.design_file("design/props/lab.json", home) == '{"rows": []}'
+    # route-log (2026-11-03): a .log under the people routes' candidates only, no link out
+    candidates = tmp_path / "candidates"
+    (candidates / "officer/made/route/out").mkdir(parents=True)
+    (candidates / "officer/made/route/out/chain.log").write_text("Traceback: the route failed\n")
+    (candidates / "out.log").symlink_to(home / "store/objects/records/k1.json")
+    assert agent_door.route_log("officer/made/route/out/chain.log", candidates).endswith("the route failed\n")
+    for name in ("out.log", "../home/store/objects/records/k1.json", "officer/made/route/out/missing.log"):
+        with pytest.raises(agent_door.Refused):
+            agent_door.route_log(name, candidates)
     for name in ("design/props/out.json", "design/props/none.json", "cloud/ssh_key", "design/props/../x.json"):
         with pytest.raises(agent_door.Refused):
             agent_door.design_file(name, home)
