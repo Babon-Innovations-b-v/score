@@ -44,6 +44,12 @@ Breaks (each applied once, seen red, reverted):
   against its --hours (seconds_waited_for_the_card red).
 - (2026-10-30) _differences.hybrid's `merged[:, chosen] = differenced[:, chosen]` dropped: the hybrid keeps the
   exact Jacobian's chosen (centre) columns in place of their differences.
+- (2026-11-03) weights' `* means[kind]` dropped: a term is not over its own start value, the turns outweigh the skin.
+- (2026-11-03) labels' turn rows dropped: the turns are no term (the owner's second term missing).
+- (2026-11-03) _ends.mirrored_starts' `* SIDE_MIRROR` on the right's read dropped: a knee pair's start is not mirrored.
+- (2026-11-03) _ends.shifts' `* float(factor[axis])` dropped: the right knee's shift takes the left's unmirrored.
+- (2026-11-03) layout's `axis != SIDEWAYS` made `True`: a middle end's shift moves sideways.
+- (2026-11-03) segment_ends' left-out middle (`continue`) dropped: the hips' middle counted beside both hips.
 
 Run: .venv/bin/python score/stages/sim_body/inside/tuning/test_one_optimisation_moves_every_unknown_together_within_its_bounds.py
 """
@@ -57,6 +63,7 @@ import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import tuning  # noqa: E402
+from bone_groups import groups  # noqa: E402
 
 TABLE = {"knee_l": {"segment": "LeftLeg", "solver": True, "trust": 0.5, "link": [0, 0, 0]},
          "knee_r": {"segment": "RightLeg", "solver": True, "trust": 0.5, "link": [0, 0, 0]},
@@ -241,11 +248,11 @@ def test_a_trial_point_no_body_converged_on_is_refused_and_the_solve_goes_on():
             return None
         moved = np.asarray(unknowns) - target
         return {"tall": {"per group deg": {}, "per joint mm": {}, "per group rms deg": {}, "per joint rms mm": {},
-                         "bones outside depth mm": {f"r{index:02d}": float(value * tuning.SKIN_SCALE)
+                         "bones outside depth mm": {f"r{index:02d}": float(value)
                                                     for index, value in enumerate(moved)}}}
     count = len(ENTRIES)
     places = [index for index, (_, kind, _, _) in enumerate(ENTRIES) if kind in tuning.MOVES]
-    exact = np.vstack([np.eye(count) / np.sqrt(count),
+    exact = np.vstack([np.eye(count),  # raw rows, as `case_residuals`: `whole` weighs them
                        np.eye(count)[places] * tuning.LINK_UNIT / tuning.PRIOR])  # no differences: every call a trial
     with tempfile.TemporaryDirectory() as folder:
         checkpoint = pathlib.Path(folder) / "checkpoint.jsonl"
@@ -263,13 +270,13 @@ def test_a_clip_with_no_unfolded_skin_frame_has_no_rows_and_the_others_are_solve
     def evaluate(unknowns):  # "a_folded" sorts first: every skin frame of it folds, so it has no skin depths
         moved = np.asarray(unknowns) - target
         return {"a_folded": {**empty, "bones outside depth mm": {}},
-                "tall": {**empty, "bones outside depth mm": {f"r{index:02d}": float(value * tuning.SKIN_SCALE)
+                "tall": {**empty, "bones outside depth mm": {f"r{index:02d}": float(value)
                                                              for index, value in enumerate(moved)}}}
     with tempfile.TemporaryDirectory() as folder:
         result, _ = tuning.whole(evaluate, lambda unknowns: 0.0, ENTRIES, pathlib.Path(folder) / "checkpoint.jsonl",
                                  60, start=np.zeros(len(ENTRIES)), every=100)
     assert np.all(np.isfinite(result.fun)) and len(result.fun) == len(ENTRIES) + len(tuning.prior(target, ENTRIES))
-    assert result.cost < float(np.sum(np.square(target)) / len(ENTRIES) / 2)  # below the start's: it solved
+    assert result.cost < 0.5  # below the start's (its one term, 1 there, halved): it solved
 
 
 def test_one_call_with_every_nudged_set_gives_the_serial_jacobian_and_solve():
@@ -338,16 +345,36 @@ def test_the_run_settles_when_the_objective_stops_moving():
     assert not tuning.settled([10.0, 5.0, 4.0, 3.0])
 
 
-def test_only_the_bones_depth_outside_the_skin_is_tuned_never_the_turns_or_joints():
-    found = {"bones outside depth mm": {"arm": tuning.SKIN_SCALE, "leg": tuning.SKIN_SCALE},
-             "per group deg": {"Hips": [9.0, 20.0]}, "per group rms deg": {"Hips": 4.0},
+def test_the_objective_is_the_skin_and_the_turns_each_over_its_start_and_the_ends_shift_mirrored():
+    found = {"bones outside depth mm": {"arm": 2.0, "leg": 4.0},
+             "per group deg": {"Hips": [9.0, 20.0]}, "per group rms deg": {"Hips": 6.0, "LeftLeg": 2.0},
              "per joint mm": {"knee_l": [7.0, 30.0]}, "per joint rms mm": {"knee_l": 3.0}}
-    residuals = tuning.case_residuals(found)
-    assert [kind for kind, _ in tuning.labels(found)] == ["skin", "skin"]
-    assert np.isclose(residuals @ residuals, 1.0)  # one unit of depth in every region is one unit of the case
-    worse = {**found, "per group rms deg": {"Hips": 40.0}, "per joint rms mm": {"knee_l": 30.0}}
-    assert np.array_equal(tuning.case_residuals(worse), residuals)
-
+    other = {**found, "bones outside depth mm": {"arm": 1.0}, "per group rms deg": {"Hips": 3.0, "LeftLeg": 1.0}}
+    assert [kind for kind, _ in tuning.labels(found)] == ["skin", "skin", "turn", "turn"]
+    start = {"a": found, "b": other}
+    weights = tuning.weights(start)
+    for kind in tuning.TERMS:  # each term's weighed sum of squares is 1 at the start: the two weigh alike
+        assert np.isclose(sum(np.sum(np.square((weights[case] * tuning.case_residuals(start[case]))[[
+            index for index, (label, _) in enumerate(tuning.labels(start[case])) if label == kind]])) for case in start), 1.0)
+    worse = {**found, "per joint rms mm": {"knee_l": 30.0}}  # the joints are reported, never tuned
+    assert np.array_equal(tuning.case_residuals(worse), tuning.case_residuals(found))
+    ends = tuning.segment_ends(groups(), {"hipmid": ("LeftLeg", "RightLeg")})
+    assert "hipmid" not in ends and ends["knee_l"] == ["LeftShin"] and ends["mid_cervical"] == ["Neck2"]
+    entries = tuning.layout(TABLE, held=set(), joints=set(), shifted=ends)
+    shifted = [entry for entry in entries if entry[1] == "end"]
+    assert {entry[0] for entry in shifted} == {end for end in ends if not end.endswith("_r")}  # a pair one unknown
+    assert all(axis != tuning.SIDEWAYS for pool, _, axis, _ in shifted if not pool.endswith("_l"))
+    lower, upper = tuning.bounds(entries)
+    assert np.allclose(upper[[entries.index(entry) for entry in shifted]] * tuning.LINK_UNIT, 0.040)
+    starts = tuning.mirrored_starts({"knee_l": (0.004, 0.006, -0.024), "knee_r": (-0.004, 0.004, -0.024),
+                                     "T12_L1": (0.01, 0.004, -0.008)}, ends)
+    assert np.allclose(starts["knee_l"], [0.004, 0.005, -0.024]) and np.allclose(starts["knee_r"], [-0.004, 0.005, -0.024])
+    assert np.allclose(starts["T12_L1"], [0.0, 0.004, -0.008]) and np.allclose(starts["hip_l"], 0.0)
+    unknowns = np.zeros(len(entries))
+    unknowns[entries.index(("knee_l", "end", 0, ["LeftShin", "RightShin"]))] = 2.0
+    moved = tuning.shifts(unknowns, entries, starts, tuning.LINK_UNIT)
+    assert np.allclose(moved["knee_l"], [0.014, 0.005, -0.024]) and np.allclose(moved["knee_r"], [-0.014, 0.005, -0.024])
+    assert len(tuning.prior(unknowns, entries)) == sum(kind in ("link", "end") for _, kind, _, _ in entries)
 
 if __name__ == "__main__":
     for test in [value for name, value in sorted(globals().items()) if name.startswith("test_")]:

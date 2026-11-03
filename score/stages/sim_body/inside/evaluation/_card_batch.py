@@ -31,7 +31,7 @@ from fit._skin import PosedSkins  # noqa: E402
 from landmarks import CENTRES, LANDMARKS, solver_marks  # noqa: E402
 from sizing import Size  # noqa: E402
 
-LAID = (LANDMARKS, CENTRES, _measure.CENTRES, calibration.TABLE)  # the dicts `_case.prepared` changes in place
+LAID = (LANDMARKS, CENTRES, _measure.CENTRES, calibration.TABLE, calibration.END_SHIFTS)  # the dicts `_case.prepared` changes in place
 
 
 class Saved:

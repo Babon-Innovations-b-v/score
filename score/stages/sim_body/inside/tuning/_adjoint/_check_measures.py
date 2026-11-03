@@ -55,7 +55,7 @@ joined_poses, joined_constants = (plain(part) for part in constant_measures.join
 joined_same = joined_poses == separate_poses and joined_constants == constant_taped
 joined_passes = constant_measures.passes
 regions = constant_measures.region_rows(np.concatenate([pose, moves]), np.zeros(9))
-region_rows = {name: [value, pose_row.tolist(), constant_row.tolist()] for name, (value, pose_row, constant_row) in regions.items()}
+region_rows = {" ".join(name): [value, pose_row.tolist(), constant_row.tolist()] for name, (value, pose_row, constant_row) in regions.items()}
 region_passes = constant_measures.passes
 print("JSON" + json.dumps({"taped": taped, "nudged": nudged, "step": step, "passes": passes,
                            "constant_taped": constant_taped, "constant_nudged": constant_nudged,

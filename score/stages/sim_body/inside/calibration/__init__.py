@@ -124,6 +124,20 @@ INSIDE_GROUPS = ("Head", "Hips", "LeftForeArm", "RightForeArm", "LeftShin", "Rig
 # outside its skin at its Head joint, 2.5 % at this shift; on the mean body's 15 clips the head 17.4 -> 13.0 %, env1's
 # standing 6.7 -> 3.0 %, seated 5.4 -> 2.7 %, the turns within 0.01 degree. Static like the table: never per person.
 END_SHIFTS = {"C0_C1": (0.0, 0.006, 0.008)}
+# Every group's start end's shift read the same way (`_measure.end_shift_measured` of the group it starts, SOMA's
+# template rig, MyoFullBody sized to it at its default pose; #70, 2026-11-02 and 11-03): level 1's starts for its
+# segment end unknowns (`tuning._ends.mirrored_starts`, a pair's mean mirrored, a middle's sideways part dropped:
+# T12_L1 read 10 mm sideways), never read by the stage. Neck2 starts no bones of its own (mid_cervical: none read).
+END_READS = {"L5_S1": (0.0, 0.0, 0.0), "L3_L4": (0.0, 0.0, 0.0), "T12_L1": (0.01, 0.004, -0.008),
+             "C7_T1": (0.0, -0.002, 0.006), "C0_C1": (0.0, 0.006, 0.008),
+             "sternoclavicular_l": (0.0, 0.0, 0.0), "sternoclavicular_r": (0.0, 0.0, 0.0),
+             "glenohumeral_l": (0.0, 0.0, 0.0), "glenohumeral_r": (0.0, 0.0, 0.0),
+             "elbow_l": (0.0, 0.0, 0.002), "elbow_r": (0.0, 0.0, 0.002),
+             "wrist_l": (-0.002, 0.018, -0.008), "wrist_r": (0.002, 0.018, -0.008),
+             "hip_l": (0.0, 0.0, 0.0), "hip_r": (0.0, 0.0, 0.0),
+             "knee_l": (0.004, 0.006, -0.024), "knee_r": (-0.004, 0.004, -0.024),
+             "ankle_l": (0.0, -0.008, 0.002), "ankle_r": (0.002, -0.004, 0.002),
+             "mtp_l": (-0.02, 0.004, -0.016), "mtp_r": (0.022, 0.006, -0.02)}
 
 MIRROR = np.diag([-1.0, -1.0, 1.0])  # a right body is its left one mirrored in z: R_right = R_left @ MIRROR
 

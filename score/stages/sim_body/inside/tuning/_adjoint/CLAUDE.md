@@ -7,7 +7,14 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   (the card study measured Gauss-Newton alone 22.4 % off, the full one 0.19 % from a re-solve).
 - H is read block-arrow: one pose coordinate of every frame stepped together, then each constant alone
   (2 x (pose size + constants) gradients, not 2 x inner size); solved by the Schur step over the constants.
-- **Level 1's rows are the bones inside the skin (2026-11-01, the owner's aim)**: `case_rows(skins, frames=)` is each
+- **Level 1's rows are the bones inside the skin and the turns (2026-11-03, the owner: "aim at bones in skin, and
+  segment orientation to bone group orientation error, aswell")**: `case_rows(skins, turns, frames=)` gives raw rows
+  (skin regions, then turn groups; `tuning.weights` scales them), `TapedMeasures.region_rows` one backward pass a
+  region and one a turn group (seeded with its root mean square's gradient over its frames' degrees; the toy test
+  holds the turn rows to differences of `case_residuals`, red without the 1 / frames). The segment ends' shifts are
+  exact columns: `_real.end_shifts` gives each end site's d(local)/d(shift) (-R_holder^T TO_OWN^T at rest, as
+  `shifted_end`), `_outer.site_derivative(shifting=)` lays them; no R_theta (a shift moves only the fit marker). The
+  2026-11-01 text follows: (2026-11-01, the owner's aim) `case_rows(skins, frames=)` is each
   region's depth outside over `SKIN_SCALE` (`scaled_rows`, `tuning.case_residuals`' scale), no turn or joint rows;
   `TapedMeasures` tapes only the skins (joints and turns keep their values, rows None). `_check_columns.py` reads a
   case's rows off `TapedMeasures.region_rows`: ONE backward pass a region, seeded with its root mean square's own
@@ -226,3 +233,11 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   2.3 min a case serial, the blocks alone about 2.7 h). That run failed on the movable model: its seeds (seeds147,
   129 coordinates) were made for the old joint layout (the model has 134 since 739961a2); the card's solve now
   refuses such seeds. Ready again on the remade seeds: scratch night/adjoint/mv70/hybrid70c.sh.
+- **Gate of the segment ends' exact columns: FAIL (2026-11-03, tall and mean, 15 clips each, level 1's start with the
+  ends' starts; scratch `ends-gate/gate.py`, 36 end columns and three controls against central differences of
+  `measured_many` at STEP and STEP/2)**. The turn rows' base values equal the evaluation's to 2.5e-5 deg, but every
+  column, the controls too (ASIS_l link 34 %, its trust 4 %, end weight 25 %), is 4 to 97 % off its references (whose
+  STEP to STEP/2 floors are 0.04 to 23 %), step cosine 0.95. The skin rows are off at the base already: foot,
+  forearm, hand, head, shoulder and spine regions 1.2 to 3.0 mm against the evaluation's 0.03 to 2.0 (shin, thigh,
+  pelvis equal), and main's own l1k blocks show the same against its first evaluation (g03_backward), so main's exact
+  skin rows are not the evaluation's measure either. Until both are found, level 1 runs its differences (no `--exact`).

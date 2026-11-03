@@ -331,36 +331,53 @@ class TapedMeasures:
         return _split(both, slice(None, width)), _split(both, slice(width, None))
 
     def region_rows(self, inner, outer):
-        """{region: (its bones' depth outside, root mean square in mm; its row over the whole pose, every frame's
-        block; its row over level 2's moves)} at (`inner`, `outer`): `case_rows`' rows before their scale, each by ONE
-        backward pass seeded with the root mean square's own gradient over the depths (a vector-Jacobian product,
-        `_Skins.seed`), not one a link frame entry (2026-11-01: a frame's ~600 passes each ran the whole tape back,
-        most of a block's time). `passes` counts them."""
+        """{("skin", region): (its bones' depth outside, root mean square in mm; its row over the whole pose, every
+        frame's block; its row over level 2's moves), ("turn", group): (its turn error, root mean square over frames
+        in degrees; the same two rows)} at (`inner`, `outer`): `case_rows`' raw rows, each by ONE backward pass seeded
+        with the root mean square's own gradient (a vector-Jacobian product: a skin's over its depths, `_Skins.seed`;
+        a turn's over its frames' degrees), not one a link frame entry (2026-11-01: a frame's ~600 passes each ran the
+        whole tape back, most of a block's time). `passes` counts them. The turns are level 1's second term (owner,
+        2026-11-03)."""
         tape = wp.Tape()
         with tape:
             self._evaluate(inner, outer)
         depths = self.skins.depths.numpy().astype(np.float64)
+        degrees = self.degrees.numpy().astype(np.float64)
         weights = self.skins.point_weights(self.own)
         bounds = np.cumsum([0] + self.skins.counts)
         pose_size = self._pose_grad().shape[0]
         constant_size = self.sites.constants.size if self.sites.constants is not None else 0
         found, self.passes = {}, 0
-        for index, name in enumerate(self.skins.names):
-            part = slice(bounds[index], bounds[index + 1])
-            root = float(np.sqrt(np.mean(np.square(depths[part]))))
-            if root == 0.0:
-                found[name] = (0.0, np.zeros(pose_size), np.zeros(constant_size))
-                continue
-            coefficients = 1000.0 * depths[part] / (len(depths[part]) * root)
-            seeded = self.skins.seed(coefficients, part, self.own, weights)
-            tape.backward(grads={self.skins.link_frames: wp.array(seeded.astype(np.float32), dtype=wp.vec3,
-                                                                  device=self.skins.link_frames.device)})
+
+        def passed(grads):
+            """The pose's and level 2's moves' rows of one backward pass seeded by `grads`."""
+            tape.backward(grads=grads)
             pose_row = self._pose_grad().grad.numpy().astype(np.float64)
             constant_row = (self.sites.constants.gradient(self.sites.offsets, self.sites.model.joint_X_p)
                             if constant_size else np.zeros(0))
             tape.zero()
             self.passes += 1
-            found[name] = (1000.0 * root, pose_row, constant_row)
+            return pose_row, constant_row
+        for index, name in enumerate(self.skins.names):
+            part = slice(bounds[index], bounds[index + 1])
+            root = float(np.sqrt(np.mean(np.square(depths[part]))))
+            if root == 0.0:
+                found[("skin", name)] = (0.0, np.zeros(pose_size), np.zeros(constant_size))
+                continue
+            coefficients = 1000.0 * depths[part] / (len(depths[part]) * root)
+            seeded = self.skins.seed(coefficients, part, self.own, weights)
+            found[("skin", name)] = (1000.0 * root, *passed({self.skins.link_frames: wp.array(
+                seeded.astype(np.float32), dtype=wp.vec3, device=self.skins.link_frames.device)}))
+        for index, name in enumerate(self.turn_names):
+            part = slice(index * self.frames, (index + 1) * self.frames)
+            root = float(np.sqrt(np.mean(np.square(degrees[part]))))
+            if root == 0.0:
+                found[("turn", name)] = (0.0, np.zeros(pose_size), np.zeros(constant_size))
+                continue
+            seed = np.zeros(len(degrees), dtype=np.float32)
+            seed[part] = degrees[part] / (self.frames * root)
+            found[("turn", name)] = (root, *passed({self.degrees: wp.array(seed, dtype=wp.float32,
+                                                                           device=self.degrees.device)}))
         return found
 
     def _measured(self, inner, outer, pose, constants):

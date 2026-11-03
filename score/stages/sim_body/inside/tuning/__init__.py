@@ -5,12 +5,13 @@ MyoFullBody (its offset in its body's frame off the model's own: a left and righ
 end's on the mid-plane, `centre_members`; 2026-11-01, the sides were poorly told apart: one knee on its bound, the
 stage's own tests ask mirror symmetry within 2 mm and no sideways turn of a middle group), and the two global weights
 (the markers' goal against the turns', a group end's weight); a left and a right landmark share their unknowns, the
-right mirrored (`paired`). The residuals (`case_residuals`) are the bones inside the person's skin, from levels 2 and 3 run on
-each tuning case: each region's bones' depth outside SOMA's skin, whose true value is 0 (owner, 2026-11-01: "bones need
-to be inside the skin, so we also know it must be able to get down to about 0"). Each group's turn error is a check, not
-a target: each SOMA segment drives one bone group, so it should be about 0 by construction, and what is not is a fault
-to find, never tuned; joint centre error is reported only (owner, 2026-11-01: "why should joint centres be a target at
-all? we know at ultra accuracy they will be wrong"); never a landmark distance the solver pulls on. A prior (`prior`) pulls each link toward its anatomical start and each centre toward the model's own. scipy's least_squares (trf) runs it
+right mirrored (`paired`); each segment end's shift (`_ends`, owner 2026-11-03: the group ends' markers shifted on
+their holder bodies, never MyoFullBody's joint centres moved). The residuals (`case_residuals`, weighed by `weights`)
+are the owner's two terms (2026-11-03: "aim at bones in skin, and segment orientation to bone group orientation
+error, aswell"), from levels 2 and 3 run on each tuning case: each region's bones' depth outside SOMA's skin (true
+value 0) and each SOMA segment's turn error against its bone group, each term over its own value at the start and the
+two weighed alike; joint centre error is reported only (owner, 2026-11-01: "why should joint centres be a target at
+all? we know at ultra accuracy they will be wrong"); never a landmark distance the solver pulls on. A prior (`prior`) pulls each link toward its anatomical start, each centre toward the model's own and each end shift toward its start. scipy's least_squares (trf) runs it
 with finite differences of ABSOLUTE steps (`_differences`, STEP of each unknown's units) over a sparse pattern's column
 groups (`sparsity`: a landmark reaches its own group and the groups next to it, a global weight everything), every
 evaluation checkpointed (`checkpointed`) and the run stopped when the objective
@@ -22,6 +23,7 @@ import numpy as np
 from scipy.optimize import least_squares
 
 from tuning._differences import chosen_groups, hybrid, jacobian, serially, signed_steps
+from tuning._ends import SIDEWAYS, mirrored_starts, segment_ends, shifts  # noqa: F401  (level 1's ends, read as tuning.<name>)
 from tuning._rewriting import centres_rewritten, relative, rewritten, weight_rewritten  # noqa: F401  (level 1's writers, read as tuning.<name>)
 
 LONG_AXIS = 1  # MyoFullBody's bodies run along their own y (OpenSim's convention): the axis a joint link keeps
@@ -34,10 +36,10 @@ END_REACH = 0.040  # metres: no group end's centre moves further than this from 
 PRIOR = 0.010  # metres: the anatomical start's spread (the prior's residual is the offset over it)
 STEP = 0.4  # unknown's units: the ABSOLUTE finite-difference step (2 mm of link or centre, 0.1 of log weight)
 WEIGHT_REACH = 3.0  # unknown's units of log either way a trust or global weight may move (e^0.75: about 2x)
-SKIN_SCALE = 2.4  # mm deep a skin row's unit (2026-10-30: its rows the norm 10 % of the share outside gave them at the
-# start, heavy and tall_kimodo); the prior's rows are in PRIOR units beside them
+TERMS = ("skin", "turn")  # the objective's two terms (owner, 2026-11-03), each over its own value at the start, weighed
+# alike: a stated design choice, never tuned to pass a check
 GLOBALS = ("marker goal", "end weight")
-MOVES = ("link", "centre")  # the unknowns that are a place (metres), each with its prior row
+MOVES = ("link", "centre", "end")  # the unknowns that are a place (metres), each with its prior row
 # SOMA's bone groups: each one's parent, and the skin region its bones are measured in
 PARENT = {"Spine1": "Hips", "Spine2": "Spine1", "Chest": "Spine2", "Neck1": "Chest", "Neck2": "Neck1",
           "Head": "Neck2", **{f"{side}{part}": f"{side}{parent}" if parent else root
@@ -85,11 +87,13 @@ def ended(groups, middles):
     return {centre: sorted(segments) for centre, segments in found.items()}
 
 
-def layout(table, held, joints, ends=None):
+def layout(table, held, joints, ends=None, shifted=None):
     """The unknowns: [(pool, kind, axes or None, segments)], kind "link" (axes: the body-frame components it moves)
     or "trust", then each group end's centre ("centre": a left and right pair one, under the left's name, its three
-    body-frame axes; a middle end's two, off LATERAL), then each global weight ("global", None, None). `table` {name: row} (the harness's rows: "segment",
-    "solver"), `held` names whose links stay, `joints` the joint-defining names, `ends` `ended`'s."""
+    body-frame axes; a middle end's two, off LATERAL), then each segment end's shift ("end": a left and right pair one,
+    under the left's name, the person's frame's three axes; a middle end's two, off `SIDEWAYS`; `_ends`), then each
+    global weight ("global", None, None). `table` {name: row} (the harness's rows: "segment", "solver"), `held` names
+    whose links stay, `joints` the joint-defining names, `ends` `ended`'s, `shifted` `segment_ends`'."""
     pools = {}
     for name, row in table.items():
         if row["solver"]:
@@ -107,6 +111,11 @@ def layout(table, held, joints, ends=None):
         centres.setdefault(paired(centre)[0], set()).update(segments)
     out.extend((centre, "centre", axis, sorted(segments)) for centre, segments in centres.items()
                for axis in range(3) if centre.endswith("_l") or axis != LATERAL)
+    pooled = {}
+    for end, segments in (shifted or {}).items():
+        pooled.setdefault(paired(end)[0], set()).update(side for segment in segments for side in mirrored(segment))
+    out.extend((end, "end", axis, sorted(segments)) for end, segments in pooled.items()
+               for axis in range(3) if end.endswith("_l") or axis != SIDEWAYS)
     return out + [(name, "global", None, None) for name in GLOBALS]
 
 
@@ -147,33 +156,56 @@ def offsets(unknowns, entries):
 
 
 def bounds(entries):
-    """least_squares' bounds (lower, upper) in the unknowns' units: links within REACH, centres within END_REACH,
-    weights within WEIGHT_REACH."""
-    reach = {"link": REACH / LINK_UNIT, "centre": END_REACH / LINK_UNIT}
+    """least_squares' bounds (lower, upper) in the unknowns' units: links within REACH, centres and end shifts within
+    END_REACH, weights within WEIGHT_REACH."""
+    reach = {"link": REACH / LINK_UNIT, "centre": END_REACH / LINK_UNIT, "end": END_REACH / LINK_UNIT}
     reach = np.array([reach.get(kind, WEIGHT_REACH) for _, kind, _, _ in entries])
     return -reach, reach
 
 
 def prior(unknowns, entries):
-    """The prior's residuals: each link's move from its anatomical start and each centre's from MyoFullBody's own,
-    over PRIOR."""
+    """The prior's residuals: each link's move from its anatomical start, each centre's from MyoFullBody's own and
+    each end shift's from its start (the shift read at rest in SOMA's skin), over PRIOR."""
     return np.array([LINK_UNIT * value / PRIOR for value, (_, kind, _, _) in zip(unknowns, entries)
                      if kind in MOVES])
 
 
 def labels(found):
     """One case's residual labels ([(kind, key)]) in a fixed order, from its measures (the harness's m.json): each skin
-    region's."""
-    return [("skin", key) for key in sorted(found["bones outside depth mm"])]
+    region's, then each SOMA segment's turn against its bone group."""
+    return ([("skin", key) for key in sorted(found["bones outside depth mm"])]
+            + [("turn", key) for key in sorted(found["per group rms deg"])])
 
 
 def case_residuals(found):
-    """One case's residuals: each region's bones' depth outside the skin (mm, root mean square: smooth where the share
-    outside, the judged measure, is a step; #70, 2026-10-30), over SKIN_SCALE and the square root of the regions'
-    count, so the case is their mean. Turns and joints are not in it (the owner's aim of 2026-11-01): `evaluation`
-    reports them beside it."""
-    depths = found["bones outside depth mm"]
-    return np.array([np.sqrt(1.0 / len(depths)) * depths[key] / SKIN_SCALE for _, key in labels(found)])
+    """One case's raw rows in `labels`' order: each region's bones' depth outside SOMA's skin (mm, root mean square:
+    smooth where the share outside, the judged measure, is a step; #70, 2026-10-30) and each segment's turn error
+    against its bone group (deg, root mean square over frames, on the table the stage builds its follows targets
+    from: `evaluation._measure.judged_turn`). `weights` scales them into the objective."""
+    values = {"skin": found["bones outside depth mm"], "turn": found["per group rms deg"]}
+    return np.array([values[kind][key] for kind, key in labels(found)], dtype=float)
+
+
+def weights(start):
+    """Each case's row weights ({case: [rows]}) from the start point's measures (`start` {case: measures}): the owner's
+    two terms (2026-11-03: "aim at bones in skin, and segment orientation to bone group orientation error, aswell"),
+    the bones outside the skin and the turns, each its rows' mean square over every case holding it divided by that
+    mean square at the start, so each term is 1 there and they weigh alike (`TERMS`). A row's weight is
+    1 / sqrt(rows of its kind in its case * cases holding the kind * the kind's start mean square)."""
+    shares = {kind: [] for kind in TERMS}
+    for found in start.values():
+        rows = case_residuals(found)
+        for kind in TERMS:
+            mine = rows[[index for index, (label, _) in enumerate(labels(found)) if label == kind]]
+            if mine.size:
+                shares[kind].append(float(np.mean(np.square(mine))))
+    means = {kind: float(np.mean(values)) if values else 1.0 for kind, values in shares.items()}
+    found_weights = {}
+    for case, found in start.items():
+        kinds = [label for label, _ in labels(found)]
+        found_weights[case] = np.array([1.0 / np.sqrt(kinds.count(kind) * len(shares[kind]) * means[kind])
+                                        if means[kind] > 0 else 0.0 for kind in kinds])
+    return found_weights
 
 
 def reached(segments):
@@ -289,7 +321,10 @@ def whole(evaluate, check, entries, checkpoint, limit_seconds, start=None, every
     (`evaluate_many(sets)`, when given, every nudged set of a Jacobian at once: [{case: measures}]), and
     `evaluate` giving None (a trial point some body's level 3 did not stop on, `evaluation.read_back`) is refused:
     its residuals are infinite, so trf shrinks its trust region and steps again (scipy's own rule for a non-finite
-    trial), never accepting it; the start itself must evaluate. `check(unknowns)` (the held-out bodies' score) logged every `every` iterations and at the end, never used to
+    trial), never accepting it; the start itself must evaluate. Every case's rows are weighed by `weights` of the
+    measures at level 1's start (every unknown 0; evaluated again when resuming from elsewhere, the store keeps it),
+    so a resumed run weighs as the first did; `exact(unknowns)`'s rows are raw like `case_residuals`' and weighed the
+    same. `check(unknowns)` (the held-out bodies' score) logged every `every` iterations and at the end, never used to
     choose; `exact`, `by_differences` and `paused` go to `solved` (level 1's hybrid Jacobian; the card waits left
     off its clock). Returns (scipy's result,
     [(iteration, check score)])."""
@@ -297,14 +332,26 @@ def whole(evaluate, check, entries, checkpoint, limit_seconds, start=None, every
     first = evaluate(start)
     if first is None:
         raise RuntimeError("level 1's start did not evaluate: a body's level 3 did not stop on it")
+    origin = first if not np.any(start) else evaluate(np.zeros(len(entries)))
+    if origin is None:
+        raise RuntimeError("level 1's start point did not evaluate: a body's level 3 did not stop on it")
     names = sorted(first)
+    scaled = weights(origin)
+    if sorted(scaled) != names:
+        raise RuntimeError("level 1's start point and resumed point measured other cases")
+    row_weights = np.concatenate([scaled[case] for case in names])
     pattern = sparsity(entries, sum((labels(first[name]) for name in names), []), 1)  # a clip with no unfolded
     # skin frame has no rows: its folds are SOMA's alone, so its rows stay none at every evaluation
     kept = {start.tobytes(): first}
     checks = []
 
     def stacked(unknowns, found):
-        return np.concatenate([case_residuals(found[case]) for case in names] + [prior(unknowns, entries)])
+        return np.concatenate([row_weights * np.concatenate([case_residuals(found[case]) for case in names]),
+                               prior(unknowns, entries)])
+
+    def weighed(unknowns):
+        found = exact(unknowns)
+        return np.concatenate([row_weights[:, None] * found[:len(row_weights)], found[len(row_weights):]])
 
     size = len(stacked(start, first))
 
@@ -319,7 +366,7 @@ def whole(evaluate, check, entries, checkpoint, limit_seconds, start=None, every
         if iteration % every == 0:
             checks.append((iteration, check(unknowns)))
     result = solved(residuals, entries, pattern, checkpoint, limit_seconds, every=checked, start=start,
-                    many=many if evaluate_many else None, exact=exact, by_differences=by_differences,
+                    many=many if evaluate_many else None, exact=weighed if exact else None, by_differences=by_differences,
                     paused=paused)
     checks.append(("end", check(result.x)))
     return result, checks

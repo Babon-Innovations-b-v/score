@@ -4,7 +4,8 @@ each case's block to <out root>/<case>.npz, its work in <out root>/<case>/, the 
 for the body from all its given clips (the body's constants as the evaluations solve them, `body_level2`, solved once;
 2026-10-31: one process a case re-solved and re-factored them per case, from that case's clip alone), then per case at the base set,
 level 3 on `taped_sites(fitting=, constants=)` with placed(theta) = trusted_outer + `picked_columns(ends=ends_of(...))`
-@ theta over every entry of `tuning.layout(ends=)` (as `evaluation/level1.py`: 263 on depth1, 63 of them centres),
+@ theta over every entry of `evaluation.level1.laid_out` (links, trusts, the segment ends' shifts through
+`_real.end_shifts`, the globals),
 level 2 on `_real.problem_at` over every entry; the steps of `adjoint_rows` run one by one so each is timed: factor
 (`arrow_hessian` on both levels), solves (`schur_solve`) and taping (R_q, R_c rows; `products` and level 2's
 transposed mixed term). Prints one JSON line a step as it ends, then the result: the rows x columns block's shape, its
@@ -40,7 +41,7 @@ STEPS = (1e-4, 1e-3)  # as `_check_motion.py`
 seeds_root, folder, root = (pathlib.Path(arg) for arg in sys.argv[2:5])
 cases = dict(given.split("=", 1) for given in sys.argv[5:] if not given.startswith("--"))
 table, weights = (json.loads((folder / name).read_text()) for name in ("table.json", "weights.json"))
-entries = tuning.layout(table, held=landmarks.HELD, joints=set())  # level 1's (evaluation/level1.py): no centres
+entries = __import__("evaluation.level1", fromlist=["laid_out"]).laid_out(table)  # level 1's own: its segment ends too
 starts = {name: row["link"] for name, row in table.items()}
 saved, seconds, began = _card_batch.Saved(), {}, time.time()
 
@@ -247,8 +248,12 @@ def case_block(case, found, body):
     scales, segments, _, _ = timed("soma", lambda: _real.soma_of(str(out / "table.json"), str(out / "weights.json"),
                                                                   out, one, saved))
     names = [clip.mjm.site(int(site)).name.removeprefix("mark:") for site in clip.place_sites]
+    shifting = _real.end_shifts(path, scales, segments)
+    if sorted(name for name, _ in shifting) != sorted(tuning.segment_ends(__import__("bone_groups").groups(),
+                                                                        landmarks.SOMA_MIDDLES)):
+        raise ValueError("the fitting's group ends are not level 1's segment ends")
     columns = picked_columns(names, list(range(len(entries))), entries, table, weights,
-                             ends=_real.ends_of(path, scales, segments))
+                             ends=_real.ends_of(path, scales, segments), shifting=shifting)
     measures = timed("measures set-up", lambda: measures_on(clip, sites, out, one))
     pose = np.asarray(pose_of(_real.frame_couplings(clip, rows), rows), dtype=np.float64)
     inner = np.concatenate([pose, np.zeros(sites.constants.size)])
@@ -265,7 +270,8 @@ def case_block(case, found, body):
                          len(rows), columns=columns, step=STEPS[1])  # float32 products: 1e-4 left 2-3 %, 1e-3 0.4-0.6 %
     joined = np.concatenate([np.zeros(len(entries)), np.zeros(body.solved.size)])
     lifted, _ = factored_solve(level3, differenced_arrow(level3, joined, STEPS[0]), np.asarray(by_poses, dtype=float).T)
-    direct = np.zeros((len(values), len(entries)))  # R_theta: the skins read no entry of level 1 (no centre moves them)
+    direct = np.zeros((len(values), len(entries)))  # R_theta: the skins and turns read no entry of level 1 (no centre
+    # moves them; an end's shift moves only its fit marker, and the table it is judged on is read from the centres)
     both = np.hstack([direct, by_constants]) - timed(
         "taping level 3 products", lambda: transposed_mixed(level3, lifted, joined, STEPS[1]))
     dtable = next((json.loads(pathlib.Path(given[9:]).read_text()) for given in sys.argv if given.startswith("--dtable=")),

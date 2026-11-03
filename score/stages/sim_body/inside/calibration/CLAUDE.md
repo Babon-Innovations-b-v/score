@@ -44,3 +44,6 @@ each group's anatomical axes (`aligned`, `frame`, `REFERENCES`); `turn(group)` g
   the skull and jaw's vertices stand outside the template's skin (the dropped shift of its row's read), 2.5 % shifted.
   `fit.end_marker` moves that end's marker by it. Mean's 15 clips: head 17.4 -> 13.0 %, all 6.95 -> 6.39 %, turns
   within 0.01 degree; env1 head 6.7 -> 3.0 % standing, 5.4 -> 2.7 % seated. Static: never per person or per clip.
+- `END_READS` (2026-11-03, #70): every group start end's shift read the same way, level 1's starts for its segment
+  end unknowns (`tuning._ends`; the owner: "segment ends ... is better" than joint centre to joint centre); the stage
+  never reads it. Level 1's worker lays an evaluation's shifts into `END_SHIFTS` in place (`evaluation._case.load_shifts`).
