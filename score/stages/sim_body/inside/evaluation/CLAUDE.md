@@ -23,6 +23,13 @@ paired changes, tuning and check bodies apart, verdicts once the run dir has flo
   started, each body's cases kept the moment its process ends (a failed body's finished ones too), results read from
   the store; `out` is a view (read-only links), whatever stands where a case is written set aside into the store first.
   `level1.py` keeps its checkpoint lines there too and gets back every line of its run kept anywhere.
+- **`_case.py` makes each target once** (2026-11-03, #70 comment 6607775555: 88 % of a seed build was `fit.targets`
+  made for all 15 recordings on every clip, posing SOMA's skin and its fold test that nothing read): level 2's
+  targets of the body's recordings once a process (`recorded`, no posed skin), the clip's own once for level 3 and
+  `written`, its skin posed only when `evaluation.SKIN_ROWS`, `fit.following` not run. The measure's bones outside
+  (`_measure`, the folded-frame rule) is untouched. Gate 2026-11-03 (g20, its 15 cases, one `_case.py` process
+  through `card_queue.py run --card-gb 1.4 --priority sim-body`, PYTHONHASHSEED=0, beside l1j): every angles.npz and
+  measures.json (less `fit seconds`) bit for bit equal; 2512 s wall to 274 s, a case's fit 146-164 s to 6-19 s.
 - `_card_case.py <seeds root> ...` is `_case.py` with level 3 on the card (`fit._card._clip`, each frame seeded from the
   seeds root's angles.npz) and the card's measures (`fit._card._measure`); `_case.py` stays the reference and the runner's
   worker until the card's measures equal the CPU's to their rounding on the tuning cases (card build step 5).

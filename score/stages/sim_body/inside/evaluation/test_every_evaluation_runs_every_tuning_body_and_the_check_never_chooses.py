@@ -32,8 +32,12 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
 - _card_batch.targets_key's landmark rows dropped: a set that moves a landmark's face weights reuses the targets
   of the set before it (2026-10-30).
 - (2026-11-01) batched_angles' `if evaluation.SKIN_ROWS` dropped, or fitted_case not passing `evaluation.SKIN_ROWS`
-  to fitted_person: level 1's level 3 holds the skin rows, whose jumps between minima its gradient cannot follow;
-  sim_body.clip_angles' `skin_rows` defaulting to False: the stage's people lose their skin rows.
+  to fit.targets: level 1's level 3 holds the skin rows, whose jumps between minima its gradient cannot follow (and
+  poses SOMA's skin and its fold test for nothing, 2026-11-03); sim_body.clip_angles passing `None` for its skins:
+  the stage's people lose their skin rows.
+- (2026-11-03) _case.recorded's `if found not in RECORDED` dropped: every clip of a body makes level 2's targets of
+  all its recordings again (88 % of a seed build); fitted_case not handing `written` its clip's points: written
+  makes the clip's targets a second time (level_1s_level_3_holds_no_skin_rows red).
 - (2026-11-01) run_all's `refused` made `False` (a body started without its card share), or its give_back on a
   process's end dropped (the share held past it), or `shares.waited +=` dropped (a card wait counted as level 1's
   time): a_card_process_runs_only_while_it_holds_its_share red; measured_many or blocked not passing `shares` to
@@ -380,7 +384,8 @@ def widths(extra):
 
 
 def test_level_1s_level_3_holds_no_skin_rows_and_the_stages_does():
-    """Level 1's evaluation solves level 3 without the skin rows (`evaluation.SKIN_ROWS`); the stage holds them."""
+    """Level 1's evaluation solves level 3 without the skin rows (`evaluation.SKIN_ROWS`) and poses no skin for them;
+    its level 2 targets are made once a recording, not once a clip; the stage holds the skin rows."""
     if importlib.util.find_spec("mujoco") is None:  # sim_body and _card_batch import fit, which needs Newton's own Python
         print("skipped: level 3's paths need MuJoCo (Newton's own Python, score/stages/physics/inside/newton_env.sh)")
         return
@@ -389,28 +394,44 @@ def test_level_1s_level_3_holds_no_skin_rows_and_the_stages_does():
     from fit._skin import PosedSkins
     skins = PosedSkins(np.zeros((2, 3, 3)), [[0, 1, 2]])
     targets = (np.zeros((2, 1, 3, 3)), np.zeros((2, 4, 3)), skins)
-    seen = []
+    seen, posed, levels_2, given = [], [], [], []
 
     class Clip:
         def angles(self, turns, points, seeds, given=None):
             seen.append(given)
             return np.zeros((len(seeds), 2)), None
 
+    class Fitting:
+        model = None
+
     _card_batch.batched_angles(Clip(), ["a"], {"a": np.zeros((2, 2))}, {"a": targets})
-    kept = (sim_body.fit.targets, sim_body.fit.angles, sim_body.fitted_person, _case.case_of, _case.written)
+    folder = pathlib.Path(tempfile.mkdtemp())
+    recordings = [str(folder / f"{clip}.npz") for clip in ("a", "b")]
+    for found in recordings:
+        np.savez(found, world=np.zeros((2, 1, 4, 4)))
+    kept = (sim_body.fit.targets, sim_body.fit.angles, sim_body.person_set_up, sim_body.Size, _case.case_of,
+            _case.written)
     try:
-        sim_body.fit.targets = lambda *given: targets
+        _case.RECORDED.clear()
+        sim_body.fit.targets = lambda *args, skins=True: posed.append(skins) or (targets if skins else (*targets[:2], None))
         sim_body.fit.angles = lambda fitting, turns, points, given=None: seen.append(given)
         sim_body.clip_angles(None, None, ["pelvis"], None)
-        sim_body.clip_angles(None, None, ["pelvis"], None, skin_rows=False)
-        _case.case_of = lambda *given: ({}, {"name": "a"}, None, None)
-        sim_body.fitted_person = lambda *given: seen.append(given[5:]) or (None, None, None, None)
-        _case.written = lambda *given: None
-        _case.fitted_case(pathlib.Path("job.json"), pathlib.Path(tempfile.mkdtemp()), {})
+        sim_body.Size = lambda rig: None
+        sim_body.person_set_up = lambda *args: levels_2.append(args[6]) or (None, None, Fitting())
+        _case.case_of = lambda *args: ({}, {"name": "a", "segments": ["pelvis"], "recordings": recordings}, None, None)
+        _case.written = lambda *args: given.append(args[6])
+        for _ in range(2):  # two clips of one body
+            _case.fitted_case(pathlib.Path("job.json"), folder / "out", recordings)
     finally:
-        sim_body.fit.targets, sim_body.fit.angles, sim_body.fitted_person, _case.case_of, _case.written = kept
+        (sim_body.fit.targets, sim_body.fit.angles, sim_body.person_set_up, sim_body.Size, _case.case_of,
+         _case.written) = kept
+        shutil.rmtree(folder)
     assert evaluation.SKIN_ROWS is False
-    assert seen[0] is None and seen[1] is skins and seen[2] is None and seen[3] == (False,), seen
+    assert seen[0] is None and seen[1] is skins and seen[2] is None and seen[3] is None, seen
+    assert posed == [True, False, False, False, False], posed  # the stage's clip; clip, two recordings; clip
+    assert len(levels_2) == 2 and levels_2[0] is not levels_2[1] and len(levels_2[1]) == 2
+    assert all(mine is theirs for mine, theirs in zip(*levels_2)), "level 2's targets made again for a later clip"
+    assert all(points is targets[1] for points in given), "a clip's targets made again for its measures"
 
 
 if __name__ == "__main__":

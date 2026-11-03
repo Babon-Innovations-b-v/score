@@ -121,15 +121,33 @@ def written(out, person, rig, worlds, fitted, measures, points=None):
     print("done", out, found["joints mm"], found["turns deg"], found["bones outside all %"], seconds, flush=True)
 
 
+RECORDED = {}  # {recording's path: its `fit.targets`, no posed skin}: level 2's targets, made once per process
+
+
+def recorded(person, rig):
+    """Level 2's targets of the body's recordings in order (`fit.targets` with no posed skin: level 2 reads none),
+    each made once (`RECORDED`), never again for the body's later clips (2026-11-03: every clip made all 15 anew, 88 %
+    of a seed build; level 2 is held after the first clip, `held_constants`, so only the first's are read)."""
+    segments = person["segments"]
+    for found in person["recordings"]:
+        if found not in RECORDED:
+            RECORDED[found] = fit.targets(rig, segments, np.load(found)["world"], fit.followed(segments), skins=False)
+    return [RECORDED[found] for found in person["recordings"]]
+
+
 def fitted_case(job_path, out, recordings, measures=_measure.measures):
-    """One clip of the body: levels 2 (held) and 3 (skin rows as `evaluation.SKIN_ROWS`), then `written` with
-    `measures`."""
+    """One clip of the body: levels 2 (held) and 3 (skin rows as `evaluation.SKIN_ROWS`, the skin posed only for
+    them), then `written` with `measures` and the clip's targets made once; `fit.following` not run (nothing an
+    evaluation writes reads it)."""
     out.mkdir(parents=True, exist_ok=True)
     job, person, rig, worlds = case_of(job_path, recordings)
     began = time.time()
-    record, scales, model, angles = sim_body.fitted_person(job, person, rig, worlds, out / f"{person['name']}.xml",
-                                                          evaluation.SKIN_ROWS)
-    written(out, person, rig, worlds, (record, scales, model, angles, time.time() - began), measures)
+    segments = person["segments"]
+    turns, points, skins = fit.targets(rig, segments, worlds, fit.followed(segments), skins=evaluation.SKIN_ROWS)
+    record, scales, fitting = sim_body.person_set_up(job, person, rig, worlds, out / f"{person['name']}.xml",
+                                                     sim_body.Size(rig), recorded(person, rig))
+    angles = fit.angles(fitting, turns, points, skins)
+    written(out, person, rig, worlds, (record, scales, fitting.model, angles, time.time() - began), measures, points)
 
 
 def load_weights(path):
