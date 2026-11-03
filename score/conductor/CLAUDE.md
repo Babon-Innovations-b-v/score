@@ -22,7 +22,7 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   machine's memory less 6 GB set at each detach; inside the slice the shim adds `--slice-inherit` to a step's own
   `systemd-run --user --scope`, so its 14-16 GB scope stays under the cap. An OOM then ends a run, never the listener
   or the sync. The drive's own guard is `graph.memory_room` (a floor per node starting); `SCORE_MIN_FREE_GB` in the
-  env file gives the conductor its own floor (the idle size has 16 GB).
+  env file gives the conductor its own floor (the idle size, POP2-2C-8G since 2026-11-03, has 8 GB).
 - **`health.py`**: `$PROPS_HOME/health.json` for the Machine card (`python -m score.conductor health --write`, AREA 1's
   minute timer). Its `code` is the checkout's commit beside the cockpit's pin score-update last read
   (`conductor/pin.json`), red on the card when they differ. **`logs.py`**: `tails(limit_lines)`, newest run logs, fault reports and unit journals; a line naming
