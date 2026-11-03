@@ -38,7 +38,9 @@ shell): its `store-pull` and `store-push` verbs, a tar stream each way over ssh.
   conductor's: `store-push --missing` names what the conductor lacks, `store-push` adds those, never replacing a file
   that is there: the store is written once by content and key, so the conductor's own outputs stand and a node made
   on both sides keeps the conductor's record. Files land under the conductor's tmp/ first, so its store never lists
-  half a file.
+  half a file. Then each work/pixal file the conductor holds with other bytes (a take remade here in place) is put in
+  place there (`store-push --differs`, then `--replace`, the old one kept under work/pixal/replaced/; 2026-11-03: the
+  add-only push left the conductor the old close-ups of every take remade here, and 22 places' palette rows went due).
 - **The owner's decisions in chat** (owner, 2026-10-27: "i hate the rule that i cant make discisions in chat
   aswell"): `decide-yes ...` and `decide <yes id>` are the door's verbs of the same name (score/dashboard/sync/
   chat_decisions.py) against HOME's store, so a decision on this run's outputs, or his spend override
@@ -59,6 +61,7 @@ shell): its `store-pull` and `store-push` verbs, a tar stream each way over ssh.
   (HOME/resume-code). `status` says running, paused or neither, the newest heartbeat's rows and what is on the card.
 """
 import argparse
+import hashlib
 import json
 import os
 import pathlib
@@ -90,6 +93,8 @@ BEAT = re.compile(r"rows done (\d+), running (\d+), queued (\d+)")  # score.grap
 # remake_prepared): the plans the plan stage reads, then the hand-ins prepare writes from them.
 DESIGN_STEPS = ("score.review.plans_pass", "score.stages.complete.prepare")
 OWN_DESIGN = ("design/props/", "design/surfaces/")  # prepare's hand-ins (prop_data.DESIGN, surface_data.DESIGN)
+REPLACEABLE = "work/pixal"  # the takes, remade here in place; the one folder a push replaces in (agent_door.REPLACEABLE)
+SET_ASIDE = ("work/pixal/retaken/", "work/pixal/replaced/")  # a retake's and a replace's kept old files, never replaced
 NO_PUSH = "no-push.json"  # under HOME: the newest run here that pushed nothing, with the reason it was given
 
 
@@ -240,6 +245,41 @@ def run(home, arguments, go=None):
     if "--free" not in command:
         command.append("--free")
     return subprocess.run(command, cwd=REPO, env=environment).returncode
+
+
+def file_sha(path):
+    """The sha256 of a file's bytes, read in chunks."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def replace_changed(home, differs_command, replace_command):
+    """Puts in place on the conductor every regular file of `home`'s work/pixal (not its retaken/ or replaced/) that
+    the conductor holds with other bytes: the door's store-push --differs names them, --replace takes them; (files,
+    bytes)."""
+    lines = []
+    for path in walked(home, (REPLACEABLE,)):
+        name = path.relative_to(home).as_posix()
+        if path.is_symlink() or not path.is_file() or name.startswith(SET_ASIDE):
+            continue
+        lines.append(f"{path.stat().st_size}\t{file_sha(path)}\t{name}\n")
+    asked = subprocess.run(differs_command, input="".join(lines), capture_output=True, text=True,
+                           check=True).stdout.split()
+    if not asked:
+        return 0, 0
+    process = subprocess.Popen(replace_command, stdin=subprocess.PIPE)
+    size = 0
+    with tarfile.open(fileobj=process.stdin, mode="w|", dereference=True) as archive:
+        for name in asked:
+            archive.add(home / name, arcname=name, recursive=False)
+            size += (home / name).stat().st_size
+    process.stdin.close()
+    if process.wait():
+        raise SystemExit(f"store-push --replace failed (exit {process.returncode})")
+    return len(asked), size
 
 
 def deciding(home, verb, arguments):
@@ -433,6 +473,9 @@ def main(argv=None):
         files, size = push(home, door_command(host, options.key, "store-push --missing"),
                            door_command(host, options.key, "store-push"))
         print(f"pushed {files} files ({size / 1e9:.2f} GB)")
+        files, size = replace_changed(home, door_command(host, options.key, "store-push --differs"),
+                                      door_command(host, options.key, "store-push --replace"))
+        print(f"replaced {files} remade takes' files ({size / 1e9:.2f} GB)")
     return status
 
 
