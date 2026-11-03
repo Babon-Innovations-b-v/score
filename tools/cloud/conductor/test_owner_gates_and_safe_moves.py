@@ -387,6 +387,11 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
         code, why, argv, env = door(asked)
         assert code == 0 and argv[1:] == [flag] and argv[0].endswith("agent_door.py"), (why, argv)
     assert door("store-push --force")[0] != 0 and door("store-push --replace --missing")[0] != 0
+    code, why, argv, _ = door('carry --no-op "score/stages/people_bodies/bodies.py=same bytes" --write')
+    assert code == 0 and argv[1:] == ["--carry", "--no-op", "score/stages/people_bodies/bodies.py=same bytes",
+                                      "--write"], (why, argv)
+    for asked in ("carry --write", "carry --no-op x.py", "carry --no-op ../x.py=why", "carry --rm x"):
+        assert door(asked)[0] != 0, asked  # no reason, a path out, an unknown flag: refused at the door
     code, why, argv, _ = door("route-log /home/score/.farm-factory-motion/candidates/x/out/chain.log")
     assert code == 0 and argv[1] == "--route-log", (why, argv)
     assert door("route-log /etc/passwd")[0] != 0  # not a .log: refused at the door
@@ -397,7 +402,7 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
         assert door(asked)[0] != 0, asked
 
 
-def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path):
+def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path, monkeypatch):
     """2026-10-27: the owner's PC pushes a free run's outputs back through the door, never his key on the conductor."""
     import io
     import tarfile
@@ -462,6 +467,10 @@ def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path):
     for name in ("out.log", "../home/store/objects/records/k1.json", "officer/made/route/out/missing.log"):
         with pytest.raises(agent_door.Refused):
             agent_door.route_log(name, candidates)
+    # carry (2026-11-03) never runs with a run live
+    monkeypatch.setattr(agent_door, "replace_refusal", lambda home: "a run is live (r1)")
+    with pytest.raises(agent_door.Refused, match="a run is live"):
+        agent_door.carried(["--no-op", "x.py=why"], tmp_path)  # never with a run live
     for name in ("design/props/out.json", "design/props/none.json", "cloud/ssh_key", "design/props/../x.json"):
         with pytest.raises(agent_door.Refused):
             agent_door.design_file(name, home)
