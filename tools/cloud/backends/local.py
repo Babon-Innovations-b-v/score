@@ -160,6 +160,11 @@ def account():
     return ZONE
 
 
+def self_delete_refusal(_secret_key, _zone):
+    """None: this PC's container is never rented, so it never deletes itself."""
+    return None
+
+
 def offers(classes):
     """This PC for every class of `classes` it serves, at EUR 0 and always `parked` (taken only through park.adopt);
     SystemExit naming the classes when it serves none of them, so a cloud-only job never waits on this PC."""

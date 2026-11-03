@@ -86,6 +86,8 @@ PROCESSOR_ZONES = ("nl-ams-2", "nl-ams-3", "pl-waw-1", "pl-waw-3", "it-mil-1", "
 # A machine type's quota in a zone is named this and the type (POP2-HC-48C-96G: cp_servers_type_POP2_HC_48C_96G).
 QUOTA_PREFIX = "cp_servers_type_"
 QUOTA_URL = "https://api.scaleway.com/iam/v1alpha1/quota"
+# The read a self-delete key is checked with before any rent (self_delete_refusal).
+SERVERS_URL = "https://api.scaleway.com/instance/v1/zones/{zone}/servers?per_page=1"
 QUOTA_PAGE = 100
 # What a machine's root disk (block storage, 5k IOPS) and public address cost, in euros a GB-hour and an
 # address-hour, each billed by the started hour from the machine's creation (the October 2026 bill: EUR 31.87 for
@@ -194,6 +196,23 @@ def quota_pages(organization, secret_key):
         if not body.get("quota") or len(found) >= body.get("total_count", 0):
             return found
         page += 1
+
+
+def self_delete_refusal(secret_key, zone):
+    """Why a machine in `zone` could not delete itself with the self-delete key `secret_key`, or None when the key
+    reads the zone's machines (a free read its policy allows, as self_delete.py's terminate needs). Fault of
+    2026-11-02: a key the API answered 401 left an H100 idle 12.8 h after its launcher died with this PC."""
+    import urllib.request
+
+    request = urllib.request.Request(SERVERS_URL.format(zone=zone), headers={"X-Auth-Token": secret_key})
+    try:
+        with urllib.request.urlopen(request, timeout=30) as answer:
+            answer.read()
+        return None
+    except urllib.error.HTTPError as refused:
+        return f"Scaleway's instance API answers it {refused.code} {refused.reason}"
+    except (urllib.error.URLError, OSError) as failed:
+        return f"Scaleway's instance API could not be asked: {failed}"
 
 
 @functools.lru_cache(maxsize=None)

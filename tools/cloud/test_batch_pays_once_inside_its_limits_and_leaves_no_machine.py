@@ -594,7 +594,8 @@ def test_a_rent_writes_its_started_line_before_the_order_is_sent(monkeypatch, tm
     monkeypatch.setattr(batch, "KEY", keys / "ssh_key")
     monkeypatch.setattr(batch, "SELF_DELETE_KEY", keys / "self_delete.json")
     batch.KEY.write_text("private")
-    batch.SELF_DELETE_KEY.write_text("{}")
+    batch.SELF_DELETE_KEY.write_text('{"secret_key": "works"}')
+    monkeypatch.setattr(batch.cloud, "self_delete_refusal", lambda secret, zone: None)  # the provider takes it
     fleet = types.SimpleNamespace(folder=tmp_path / "pixal-run-7", deadline=time.time() + 60, attempts=[])
     assert batch.rent(fleet, None, l4(), 3) is None
     after = ledger.entries()

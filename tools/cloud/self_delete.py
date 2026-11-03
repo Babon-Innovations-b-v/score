@@ -15,6 +15,7 @@ import json
 import pathlib
 import sys
 import time
+import urllib.error
 import urllib.request
 
 HEARTBEAT = pathlib.Path("/root/batch/heartbeat")
@@ -45,6 +46,14 @@ def scaleway_terminate(server, zone, secret):
         return answer.status
 
 
+def failure(error):
+    """A failed terminate in one line: an HTTP answer's code and body (2026-11-02: a 401 logged only as its reason), else
+    the error."""
+    if isinstance(error, urllib.error.HTTPError):
+        return f"HTTP {error.code} {error.read()[:300].decode(errors='replace')}"
+    return f"{type(error).__name__}: {error}"
+
+
 # Each backend's (who am I, terminate me), by the backend's name (provider.py).
 BACKENDS = {"scaleway": (scaleway_who_am_i, scaleway_terminate)}
 
@@ -64,7 +73,8 @@ def main():
             try:
                 print("terminate answered", terminate(server, zone, secret), flush=True)
             except Exception as error:  # noqa: BLE001 - keep asking until the machine is gone
-                print("terminate failed:", error, flush=True)
+                print(f"{time.strftime('%H:%M:%S')} SELF-DELETE FAILED, this machine keeps billing: {failure(error)}; "
+                      f"asking again in {LOOK_SECONDS} s", flush=True)
         time.sleep(LOOK_SECONDS)
 
 
