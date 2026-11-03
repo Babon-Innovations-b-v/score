@@ -215,6 +215,22 @@ def self_delete_refusal(secret_key, zone):
         return f"Scaleway's instance API could not be asked: {failed}"
 
 
+def self_delete_key_refusal(zone):
+    """Why the runner's self-delete key (batch.SELF_DELETE_KEY) would not let a machine in `zone` delete itself, or None
+    when the provider takes it (self_delete_refusal, a free read). Here, not in batch.rent, as ledger.rent_started:
+    the rough-model and pixal rows declare batch.py, and 52fdadda's check there re-keyed 307 paid rows (EUR 1,131)."""
+    import batch
+
+    try:
+        secret = json.loads(batch.SELF_DELETE_KEY.read_text()).get("secret_key")
+    except (OSError, ValueError, AttributeError) as unread:
+        return f"{batch.SELF_DELETE_KEY} unreadable: {unread}"
+    if not secret:
+        return f"{batch.SELF_DELETE_KEY} holds no secret_key"
+    why = self_delete_refusal(secret, zone)
+    return f"{batch.SELF_DELETE_KEY}: {why}" if why else None
+
+
 @functools.lru_cache(maxsize=None)
 def zone_quotas():
     """{(machine type, zone): machines} the project's organisation may hold, read once a process (a free read). A
@@ -344,8 +360,16 @@ def create(project, offer, name, tags, disk_gb):
     as when the zone is out of stock or the quota is used up. The ledger's started line (ledger.rent_started, its run
     read from batch.rent's `<run>-<number>` name, its deadline from the `deadline=` tag) is written before the order is
     sent, and a refused order writes its refused line (ledger.rent_refused). It is written here, not in
-    batch.rent: the pixal rows declare batch.py (Stage.files), and an edit there re-keys them in every place."""
+    batch.rent: the pixal rows declare batch.py (Stage.files), and an edit there re-keys them in every place. Before
+    both, no machine is ordered with a self-delete key the provider refuses (self_delete_key_refusal; 2026-11-02: every
+    terminate got 401 and an H100 sat idle 12.8 h): compute.Refused, naming the key and what the owner fixes."""
     machine_type, zone = offer.type, offer.zone
+    refused_key = self_delete_key_refusal(zone)
+    if refused_key:
+        import batch
+
+        raise batch.compute.Refused(f"a {machine_type} in {zone}: no machine is rented that could not delete itself; "
+                                    f"the self-delete key {refused_key}; owner: a working self-delete key there")
     image = IMAGES["gpu" if cards(offer.machine_class) else "cpu"]
     import ledger
 
