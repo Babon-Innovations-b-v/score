@@ -23,11 +23,21 @@ host's kinematics, nothing outside `Problem.sparsity`; the card's float64 evalua
 kinematics on the card) gives the host's residuals and Jacobian to 1e-12 of their largest entry, the same sparse
 layout, at the start and off it; level 2 solved with the exact Jacobian (`_constants.staged(jacobian=...)`) and
 with the card's evaluator (`staged(wide=True)`) from a path moved 0.05 off equals the 2-point solve to 1e-3 mm and
-1e-4 deg. Level 2's
+1e-4 deg. Level 2 by the card's own Levenberg-Marquardt (`_level2_lm`, `staged(card=True)`) equals
+`staged(wide=True)` with its polish on the toy (0.01 mm, 0.01 deg, cost 1e-8 relative, free gradient under 1e-10), its
+own solve settled there before the polish, its Schur step (two sets in one launch, a constant held) the dense damped
+solve to 1e-9, and two sets solved together (`staged_across`) each equal to its own reference. Level 2's
 inverse left Jacobians batched over every frame and group equal the per-row ones to 2e-15. A body carrying several
 MuJoCo joints is one Newton joint, and `_clip.moved_inside` moves that one by the body's move (`card_inside.py`).
 
 Breaks (each applied once, seen red, reverted):
+- (2026-11-03) _level2_lm._schur's sum made `0.0 *` (no Schur correction): the step 0.24 of itself off the dense
+  solve (the solve still settled: Levenberg-Marquardt's control hides a wrong step, so the step is checked itself).
+- (2026-11-03) _level2_lm.steps' frame step `own[:, :, 0] - own[...] @ constant_step` made `+`: 0.090 off.
+- (2026-11-03) _level2_lm._schur's `frame_set[frame] == own` made `== 0`: the second set's Schur sum reads the
+  first set's frames, 0.31 off.
+- (2026-11-03) _level2_lm.Arrow.damped's held constant's diagonal 1 dropped: the constants' Cholesky fails
+  (LinAlgError) on the held one.
 - (2026-10-31) _clip.newton_model_for's kept build returned without `set_places`: the clips' Newton model keeps level 2's
   sampled frames' inside joint places, the constants' moves never reach it.
 - (2026-10-31) _solve.solved's coordinate check dropped: seeds one coordinate short of the toy are solved, not
@@ -119,7 +129,8 @@ if os.environ.get(IN_ENV):  # the helpers import MuJoCo and Warp, which only New
                            the_skins_posed_once_follow_each_clip)
     from card_level2 import (the_batched_inverses_equal_each_row, the_wide_level2_equals_the_hosts,  # noqa: E402
                              the_level2_jacobian_equals_its_differences,
-                             the_level2_solve_with_the_exact_jacobian_equals_differences)
+                             the_level2_solve_with_the_exact_jacobian_equals_differences,
+                             the_card_levenberg_marquardt_equals_scipys_level2)
     from card_across import the_sets_solved_together_equal_each_set_alone  # noqa: E402
     from card_skin import a_folded_frame_has_no_skin_rows_on_the_card, the_card_holds_the_bones_inside_as_mink  # noqa: E402,E501
     from card_inside import (a_kept_build_moves_to_the_fittings_moves, the_body_with_several_joints_moves_as_one,  # noqa: E402
@@ -295,6 +306,7 @@ def checks():
             the_sets_batch_equals_each_clip_alone, the_sampled_path_across_sets_equals_each_set_chained,
             the_wide_level2_equals_the_hosts, the_batched_inverses_equal_each_row,
             the_level2_jacobian_equals_its_differences, the_level2_solve_with_the_exact_jacobian_equals_differences,
+            the_card_levenberg_marquardt_equals_scipys_level2,
             the_measures_equal_the_cpu_measure, the_skins_posed_once_follow_each_clip, the_step_equals_the_prototype, the_projection_equals_the_prototype,
             the_objectives_equal_newtons_own_row_by_row, the_clip_equals_mink_frame_by_frame,
             the_next_iteration_from_its_seeds_equals_mink, the_body_with_several_joints_moves_as_one,

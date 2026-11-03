@@ -16,6 +16,14 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   site's own so the error is the plain place error), `EqualityConstraintTask` as a hard constraint (the couplings,
   OpenSim's default), `ConfigurationLimit` on the leading joints only, `DofFreezingTask` for the fingers; the
   constants by scipy's `least_squares` with bounds. No handwritten iterative solver here; never bring one back.
+  One exception, the owner's (2026-11-03, "yes make", #70 comment 6607949871, to the card plan's step 2 in comment
+  6607775555): level 2's constants by our own Levenberg-Marquardt with the Schur complement on the card
+  (`_card/_level2_lm`: each sampled frame's coordinates eliminated by the batched tile Cholesky level 3 uses, one
+  dense Cholesky for the constants, many sets batched; the host keeps `told`, the float64 gradient check `POLISHED`
+  and the stop). Behind `_constants.ON_CARD` (off; `staged(card=True)`, `staged_across` for several sets) until it
+  equals `staged(wide=True)` plus the polish on every tuning body (constants 0.01 mm, angles 0.01 deg, cost 1e-8
+  relative, free gradient under 1e-10) and level 1's Jacobian columns pass the 2026-10-30 gate rule (below). No other
+  handwritten solver.
 - **Weights are OpenSim's IK's** (InverseKinematicsSolver, Simbody's OrientationSensors and Markers goals): each goal
   normalised by its own count, here two goals (the turns, and the landmarks' markers, each weighed by its
   trust); the turns are the main term. Never tune a weight to pass a gate. The markers' goal's sum is each

@@ -181,3 +181,16 @@ before that.
   sparse layout there), a residual 1.9 against 9.6 ms and a Jacobian 18 against 45 ms;
   `staged` with it against the host's exact Jacobian throughout: constants 3.6e-7 mm, angles 2.1e-7 deg, 47
   evaluations each, 3.5 s against 6.0 s.
+- `_level2_lm.py` (`Set`, `solved`, `steps`, `Arrow`; the card plan's step 2, the owner's exception in `../CLAUDE.md`,
+  2026-11-03): level 2's told unknowns by Levenberg-Marquardt (Marquardt's lambda times each unknown's own diagonal,
+  as scipy's x_scale="jac"; Nielsen's update; a step clipped into the bounds and kept only when the cost falls; an
+  unknown within `BOUND_HELD` of a bound its descent pushes past held). Per round per set the float64 residuals and
+  exact Jacobian (`Wide`), the arrow's blocks as sparse products on the host (each frame's W x W, its rows of Hfc, the
+  constants' C x C); then every frame of every set in one launch: its block factored by Warp's tile Cholesky in
+  float64 (`_frames_kernel`, COLUMNS right-hand columns a block) and solved for [-g_f | Hfc], the Schur sum per set
+  (`_schur`); each set's constants by one dense Cholesky on the host (scipy), the frames' steps back from it. The host
+  stops a set when its free gradient is under `POLISHED` ("settled"), lambda passes LAMBDA_MOST ("stalled") or ROUNDS;
+  `_constants.polished` runs after it as after scipy's. Toy (test, `tests/card_level2.py`): equals `staged(wide=True)`
+  within the proof tolerances, settled by itself, its step the dense damped solve to 1e-9 (two sets, a constant held),
+  two sets at once each equal alone. A wrong Schur step still settles (the control hides it), so the step is checked
+  itself. Not yet proved on a real body.
