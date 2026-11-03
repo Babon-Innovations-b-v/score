@@ -392,6 +392,8 @@ class LocalSource:
         files = [(name, self.blob_path(sha)) for name, sha in sorted(listing.items())]
         path = previews.picture(files, self.place_plan(place) if place else None, self.surface_library(), self.home,
                                 output, groups.label(stage), (self.props_home / "work",))
+        if path is None:  # it failed to draw: its error kept (previews.failure), the card shows no picture
+            return None
         sha = previews.preview_id(output)
         self.known.add(sha, previews.PREVIEW_NAME, path)
         return file_ref(sha, previews.PREVIEW_NAME, path.stat().st_size)
