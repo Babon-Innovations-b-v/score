@@ -6,7 +6,7 @@ read only its own coordinates and the constants, so the damped normal equations 
 frame (width x width), the constants' block, and the frames' couplings to the constants. Each round, per set: the
 float64 residuals and exact Jacobian (`_level2_wide.Wide`: every frame's kinematics on the card), the blocks as
 sparse products on the host, Marquardt's damping (lambda times the diagonal, as scipy's x_scale="jac"), an unknown
-within BOUND_HELD of a bound its descent pushes past held (its row and column the identity's, its step 0); then on
+on a bound its descent pushes past held (its row and column the identity's, its step 0); then on
 the card, for every frame of every set in one launch, the frame's block factored by Warp's tile Cholesky in float64
 (level 3's `_step` pattern) and solved for its gradient and its constants' columns, and the Schur complement summed
 over each set's frames; one dense Cholesky for each set's constants (scipy, float64, on the host); the frames' steps
@@ -166,13 +166,14 @@ class Set:
         return self.whole[self.keep]
 
     def linearised(self):
-        """The Arrow at the point (the exact Jacobian's told columns), its free mask: an unknown within
-        `_constants.BOUND_HELD` of a bound its descent (-gradient) pushes past is held."""
-        from fit._constants import BOUND_HELD
+        """The Arrow at the point (the exact Jacobian's told columns), its free mask: an unknown on a bound its
+        descent (-gradient) pushes past is held; one near it moves on, its step clipped onto it (2026-11-03: held
+        within `_constants.BOUND_HELD` of it, the constants stood short of their bound and the real bodies' cost 1.1e-8
+        of itself over scipy's)."""
         self.matrix = self.problem.exact(self.whole)[:, self.keep].tocsr()
         gradient = self.matrix.T @ self.residuals
         at = self.point()
-        held = ((at <= self.low + BOUND_HELD) & (gradient > 0)) | ((at >= self.high - BOUND_HELD) & (gradient < 0))
+        held = ((at <= self.low) & (gradient > 0)) | ((at >= self.high) & (gradient < 0))
         self.arrow = Arrow(self.matrix, self.residuals, self.told_constants, len(self.problem.path),
                            self.problem.width, ~held)
 

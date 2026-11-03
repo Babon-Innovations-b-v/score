@@ -170,14 +170,16 @@ def free_gradient(ready, constants, angles):
 
 def apart(ready, reference, found):
     """Where `found` (constants, angles, _) misses `reference` past the owner's proof tolerances (`ready` as
-    `free_gradient` reads it)."""
+    `free_gradient` reads it). The cost only above scipy's: below it is scipy's own shortfall (2026-11-03, the
+    bounded toy: trf keeps its unknowns strictly inside their bounds and the polish leaves those within BOUND_HELD of
+    one, so scipy's cost stood 3.2e-8 of itself over the card's, whose step lands on the bound)."""
     (constants, angles, _), (own_constants, own_angles, _) = reference, found
     off_mm, off_deg = 1000 * np.abs(own_constants - constants).max(), np.degrees(np.abs(own_angles - angles).max())
     gradient, cost = free_gradient(ready, own_constants, own_angles)
     _, reference_cost = free_gradient(ready, constants, angles)
     return ([f"constants {off_mm:.2e} mm off"] if off_mm > CARD_MM else []) + (
         [f"angles {off_deg:.2e} deg off"] if off_deg > CARD_DEG else []) + (
-        [f"cost {abs(cost / reference_cost - 1):.2e} relative off"] if abs(cost / reference_cost - 1) > CARD_COST
+        [f"cost {cost / reference_cost - 1:.2e} relative over scipy's"] if cost / reference_cost - 1 > CARD_COST
         else []) + ([f"free gradient {gradient:.2e}"] if gradient > 1e-10 else [])
 
 
@@ -207,6 +209,23 @@ def steps_off(cases):
     return worst
 
 
+NARROW = 1e-3  # metres: the toy's constants' bound in the bounded case, so the solve ends with constants on it
+
+
+def bounded(folder):
+    """The toy at its moved path with its constants' bound NARROW (`_constants.MARK_MOST` for the case's
+    preparation and solves): (case, prepared, scipy's reference, the card's solve), several constants ending on it."""
+    from fit import _constants
+    most = _constants.MARK_MOST
+    _constants.MARK_MOST = NARROW
+    try:
+        case = moved_given(folder, 4)
+        ready = _constants.prepared(*case, True)
+        return (ready, _constants.staged(*case, wide=True, card=False), _constants.staged(*case, wide=True, card=True))
+    finally:
+        _constants.MARK_MOST = most
+
+
 def own_stops(cases):
     """How `_card._level2_lm.solved` itself stopped on each case solved together (before any polish)."""
     from fit._card._level2_lm import Set, solved
@@ -220,7 +239,9 @@ def the_card_levenberg_marquardt_equals_scipys_level2():
     """Level 2 by `_card._level2_lm` (`staged(card=True)`) equals `staged(wide=True)` (scipy's least_squares and the
     polish) on the toy from the moved path, constants 0.01 mm, angles 0.01 deg, cost 1e-8 relative, its free
     gradient under 1e-10, the card's solve settled there by itself (not by the polish after it), its damped step (two sets in one launch, a
-    bound held) the whole normal equations' dense solve to 1e-9; two sets solved at once (`staged_across`, each its own moved path) equal each alone."""
+    bound held) the whole normal equations' dense solve to 1e-9; two sets solved at once (`staged_across`, each its own moved path) equal each alone; with the constants' bound
+    NARROW, so several end on it, equal too (a bound held only once the step put it there, 2026-11-03: held within
+    BOUND_HELD of it, the real bodies' cost stood 1.1e-8 over scipy's)."""
     import tempfile
     from fit._constants import prepared, staged, staged_across
     problems = []
@@ -236,4 +257,8 @@ def the_card_levenberg_marquardt_equals_scipys_level2():
         problems += [f"the card's Schur step {off:.2e} off the dense damped solve"] if off > STEP_MOST else []
         for number, (ready, reference, found) in enumerate(zip(readies, references, staged_across(cases))):
             problems += [f"set {number} of two: {miss}" for miss in apart(ready, reference, found)]
+        ready, reference, found = bounded(folder)
+        on_bound = int((np.abs(np.abs(reference[0]) - NARROW) < 1e-9).sum())
+        problems += [f"bounded: {miss}" for miss in apart(ready, reference, found)] + (
+            [f"bounded: only {on_bound} constants on their bound"] if on_bound < 2 else [])
     return problems

@@ -26,11 +26,16 @@ with the card's evaluator (`staged(wide=True)`) from a path moved 0.05 off equal
 1e-4 deg. Level 2 by the card's own Levenberg-Marquardt (`_level2_lm`, `staged(card=True)`) equals
 `staged(wide=True)` with its polish on the toy (0.01 mm, 0.01 deg, cost 1e-8 relative, free gradient under 1e-10), its
 own solve settled there before the polish, its Schur step (two sets in one launch, a constant held) the dense damped
-solve to 1e-9, and two sets solved together (`staged_across`) each equal to its own reference. Level 2's
+solve to 1e-9, two sets solved together (`staged_across`) each equal to its own reference, and with the toy's
+constants' bound 1 mm (several end on it) equal too, its cost judged only above scipy's (scipy stops short of a
+bound, so the card's may be lower). Level 2's
 inverse left Jacobians batched over every frame and group equal the per-row ones to 2e-15. A body carrying several
 MuJoCo joints is one Newton joint, and `_clip.moved_inside` moves that one by the body's move (`card_inside.py`).
 
 Breaks (each applied once, seen red, reverted):
+- (2026-11-03) _level2_lm.Set.tried's step not clipped into the bounds: the bounded toy's constants 7.1 mm and its
+  angles 0.12 deg off scipy's. (Holding an unknown within BOUND_HELD of its bound instead of on it, the real bodies'
+  first proof's fault, cost 1.1e-8 of itself over scipy's, is not seen by the toy: its steps land on the bound.)
 - (2026-11-03) _level2_lm._schur's sum made `0.0 *` (no Schur correction): the step 0.24 of itself off the dense
   solve (the solve still settled: Levenberg-Marquardt's control hides a wrong step, so the step is checked itself).
 - (2026-11-03) _level2_lm.steps' frame step `own[:, :, 0] - own[...] @ constant_step` made `+`: 0.090 off.
