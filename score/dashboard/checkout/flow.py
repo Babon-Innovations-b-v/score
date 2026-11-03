@@ -383,21 +383,27 @@ def batch_budget(tries, spent, need, yes):
     `need` this try's high plus BUFFER; `yes` his yes in chat, if any. His click raises the budget to what the batch
     spent plus `need` when that is more; his yes in chat is the batch total he approved (owner, 2026-10-26: "the stop
     should be a total of the batch, not per try"), and a retry under a yes already used (`retry`) asks nothing new
-    and keeps the budget: either launches while the batch has room left, a try that needs more stopping at the line
-    (owner, 2026-10-27: "not just stop when u got to the limit, like ur supposed to"); refused with none left."""
+    and keeps the budget its own yes set, never above the total that yes approved: either launches while the batch
+    has room left, a try that needs more stopping at the line (owner, 2026-10-27: "not just stop when u got to the
+    limit, like ur supposed to"); refused with none left. A yes whose earlier checkouts wrote no line (refused before
+    it: 2026-11-03, checkout 12 on unknown books) set no budget yet, so its next try sets the total he approved, never
+    the batch's older budget (checkout 13 took October's EUR 665.18 over his EUR 462 and was stopped at once)."""
     lined = [one.stop_line for one in tries[:-1] if "euros" in one.stop_line]
     start = watched.batch_start(lined[0]) if lined and watched.batch_start(lined[0]) is not None else spent
     # the newest budget as the line holds it from this batch's start (a try once counted as its own batch's kept
     # another start: checkouts 5 and 6, 2026-10-26)
     before = next((round(line["euros"] - start, 2) for line in reversed(lined) if "batch_budget" in line), None)
     used = round(spent - start, 2)
-    if yes and yes.get("retry"):
-        if before is None or not any((one.chat_yes or {}).get("id") == yes["id"] for one in tries[:-1]):
-            raise Refused(f"the yes {yes['id']} set no budget of this batch: ask him again")
-        if used >= before:
+    own = [one.stop_line for one in tries[:-1]
+           if yes and yes.get("id") and (one.chat_yes or {}).get("id") == yes["id"] and "euros" in one.stop_line]
+    if yes and yes.get("retry") and own:
+        budget = before if yes.get("batch_total_euros") is None else min(before, round(yes["batch_total_euros"], 2))
+        if used >= budget:
             raise Refused(f"the batch budget is spent: EUR {used:.2f} spent with what is in flight of EUR "
-                          f"{before:.2f}: ask him again for a higher total")
-        return start, before
+                          f"{budget:.2f}: ask him again for a higher total")
+        return start, budget
+    if yes and yes.get("retry") and yes.get("batch_total_euros") is None:
+        raise Refused(f"the yes {yes['id']} set no budget of this batch: ask him again")
     if yes:
         total = round(yes["batch_total_euros"], 2)
         if used >= total:

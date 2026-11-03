@@ -11,6 +11,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - flow.place_refusals: `elif actions.agent_started():` -> `elif False:` -> test_every_checkout_refusal_is_in_words
 - flow.bought_items: the version check -> `elif False:` -> test_an_item_changed_since_he_chose_it_...
 - flow.left_out: `not in stages` -> `or True` -> test_a_buy_approved_in_chat_is_refused_outside_what_he_approved
+- flow.batch_budget: `min(before, round(yes["batch_total_euros"], 2))` -> `before` -> a retry whose yes wrote no
+  line takes the batch's older, larger budget -> test_a_batch_has_one_budget_across_its_tries
 - flow.start: drop `items = left_out(...)` -> a Buy without the film buys the left-out rows ->
   test_a_buy_approved_in_chat_is_refused_outside_what_he_approved
 - flow.BUFFER = 1.10 -> 1.0 -> test_the_checkout_plans_the_batch_once_writes_the_line_and_launches_one_run
@@ -625,6 +627,16 @@ def test_a_batch_has_one_budget_across_its_tries(chat, monkeypatch, tmp_path):
     assert "the batch budget is spent: EUR 100.00" in said and record.state == "refused", said
     assert stop_line(chat)["euros"] == 210.0  # never above the total he approved
     assert flow.batch_budget([first, again, third, record], 200.0, 33.0, None) == (110.0, 123.0)  # a click raises it
+    # 2026-11-03: his yes's first checkout was refused before its line (books unknown); the next try under it sets
+    # the total he approved, never the batch's older, larger budget, and a retry never goes above that total
+    older = types.SimpleNamespace(chat_yes={}, stop_line={"euros": 665.18, "batch_from": 0.0, "batch_budget": 665.18})
+    refused = types.SimpleNamespace(chat_yes={"id": "y"}, stop_line={})
+    now = types.SimpleNamespace(chat_yes={"id": "y"}, stop_line={})
+    his = {"id": "y", "retry": 1, "batch_total_euros": 462.0}
+    assert flow.batch_budget([older, refused, now], 289.6, 180.52, his) == (0.0, 462.0)
+    lined = types.SimpleNamespace(chat_yes={"id": "y"}, stop_line={"euros": 700.0, "batch_from": 0.0,
+                                                                   "batch_budget": 700.0})
+    assert flow.batch_budget([older, lined, now], 289.6, 180.52, his) == (0.0, 462.0)
 
 
 def test_a_batch_budget_counts_from_an_older_first_try_line():
