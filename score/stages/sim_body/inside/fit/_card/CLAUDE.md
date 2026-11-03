@@ -197,4 +197,4 @@ before that.
   bound (its cost 3.2e-8 of itself over the card's: the proof judges the card's cost only above scipy's). A wrong
   Schur step still settles (the control hides it), so the step is checked itself. On the real bodies the card's own
   solve ends "stalled" (lambda past LAMBDA_MOST at the float64 floor, free gradient a few 1e-10) and the polish
-  settles it. Not yet proved on every tuning body.
+  settles it. Proved on all 19 tuning bodies and level 1's gate columns, the default since 2026-11-03 (`../CLAUDE.md`).

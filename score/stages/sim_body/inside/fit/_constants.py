@@ -30,7 +30,7 @@ MARK_MOST = 0.03  # metres a marker may move on its body off its landmark's link
 INSIDE = 1e-9  # a start this far inside its bounds (least_squares wants a start within them)
 TOLD = 1e-8  # an inside joint's column this far, relative, from the others' span is one the data cannot tell (tall,
 # 2026-10-29: the untold at 1e-15, the least told, a scapula's y, at 4e-3)
-ON_CARD = False  # level 2 by `_card._level2_lm` (the owner's "yes make", 2026-11-03), off until proved on every tuning body
+ON_CARD = True  # level 2 by `_card._level2_lm` (the owner's "yes make", 2026-11-03) wherever `wide`; proved on every tuning body (fit/CLAUDE.md)
 WELL_TOLD = 1e-4  # the others' smallest singular value over their largest above which their span is whole (far over TOLD:
 # the Gram matrix's eigenvalues are good to ~1e-13 of the largest; heavy_kimodo 2026-10-29 at 0.07)
 
@@ -200,11 +200,11 @@ def staged(fitting, path, turns, points, given, free=(), jacobian=None, wide=Fal
     exact one, `_card._level2.jacobian`) replaces scipy's 2-point differences in the problem's sparse pattern, the
     reference, when given. `wide`: the residuals and the exact Jacobian for least_squares and the polish
     from `_card._level2_wide.Wide` (every frame's float64 kinematics on the card; equal to the host's to float64's
-    rounding), `jacobian` then unused; `told` reads the host's either way. `card` (default ON_CARD, needs `wide`):
+    rounding), `jacobian` then unused; `told` reads the host's either way. `card` (default ON_CARD when `wide`; needs `wide`):
     scipy's least_squares replaced by `_card._level2_lm` (Levenberg-Marquardt, the frames eliminated on the card by
     the Schur complement), the same polish after it."""
     problem, begin, keep, bounds = prepared(fitting, path, turns, points, given, free, wide)
-    if (ON_CARD if card is None else card):
+    if (ON_CARD and wide if card is None else card):
         if not wide:
             raise ValueError("level 2's card solve reads the card's float64 evaluator: staged(wide=True)")
         from fit._card._level2_lm import Set, solved

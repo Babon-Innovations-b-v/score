@@ -20,10 +20,15 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   6607775555): level 2's constants by our own Levenberg-Marquardt with the Schur complement on the card
   (`_card/_level2_lm`: each sampled frame's coordinates eliminated by the batched tile Cholesky level 3 uses, one
   dense Cholesky for the constants, many sets batched; the host keeps `told`, the float64 gradient check `POLISHED`
-  and the stop). Behind `_constants.ON_CARD` (off; `staged(card=True)`, `staged_across` for several sets) until it
-  equals `staged(wide=True)` plus the polish on every tuning body (constants 0.01 mm, angles 0.01 deg, cost 1e-8
-  relative, free gradient under 1e-10) and level 1's Jacobian columns pass the 2026-10-30 gate rule (below). No other
-  handwritten solver.
+  and the stop). `_constants.ON_CARD` (on since 2026-11-03: every `staged(wide=True)`; `card=False` gives scipy's,
+  `staged_across` several sets at once) after it equalled `staged(wide=True, card=False)` plus the polish on all 19
+  tuning bodies (l1j's split, l1j's start point; scratch `/tmp/l2card/proof`): constants within 0.0057 mm, angles
+  9e-5 deg, cost 4.4e-9 relative at most (every body at or below scipy's), free gradient 5.1e-11 to 9.9e-11; and
+  level 1's 6 gate columns (g03's 15 clips, g10's 9, `/tmp/l2gate`) passed the 2026-10-30 rule (below): relative
+  0.03 to 1.6 %, step cosine at least 0.99987, the start set's own card-against-host gap 9.3e-5. Speed per body
+  (one set, six bodies sharing the card): the card's solve 1.2 to 2.6 s plus the polish 0.1 to 0.7 s, 1.84 s
+  median, against scipy's plus polish 4.1 to 6.6 s, 5.4 s median (38 s against 100 s over the 19); `told` 0.3 to
+  0.5 s either way. No other handwritten solver.
 - **Weights are OpenSim's IK's** (InverseKinematicsSolver, Simbody's OrientationSensors and Markers goals): each goal
   normalised by its own count, here two goals (the turns, and the landmarks' markers, each weighed by its
   trust); the turns are the main term. Never tune a weight to pass a gate. The markers' goal's sum is each
