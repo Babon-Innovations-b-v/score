@@ -48,7 +48,13 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   set-up kept, each kind's own (`park.own_set_up`, 2026-10-29: a characters set-up ran from scratch while every
   Blender bake waited): at its claim a kind gets its own `/root/venv` back (the one held moved under `/root/kinds/`),
   and no set-up mark is removed there (`park.THIS_PC` makes `park.ALL_MARKS` a no-op), so a kind sets up once; apt's
-  system packages stay. A kind too big for its 16 GB (`local.TOO_BIG`: judge, pictures-20b,
+  system packages stay. A claim's job files go at its end (2026-11-03: the PC's disk 98% full, 476 GB in the
+  containers' own layers, score-this-pc 379 GB, since jobs copy to the same absolute paths and nothing removed them
+  there): the claim leaving its container alone runs its kind's `park.CLEANUPS` (`park.park` hands it to
+  `local.ends_with`) and empties the runner's folders there (`local.runner_paths`: home, PROPS_HOME, the repo, the
+  temporary folder), set-ups and model caches kept; a shared Blender claim's go with the last to leave. Before a
+  claim a layer past `local.LAYER_LIMIT_GB` (80) loses its installer caches (`local.bounded`, said with the GB), and
+  `this_pc.py status` gives each container's size and the free disk, warning under 100 GB. A kind too big for its 16 GB (`local.TOO_BIG`: judge, pictures-20b,
   characters, meshparts, moss-sound) is refused at its claim with the GB, and a class above one 24 GB card is never
   offered: those stay cloud jobs. A run that gives its own measured need (`run.need`) is refused by that instead: a
   characters run of clip steps only (people-clips-made, scene-clips; `characters.card_need`) needs 4 GB of card and
