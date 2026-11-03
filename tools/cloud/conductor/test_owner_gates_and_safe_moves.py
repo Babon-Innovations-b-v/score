@@ -73,7 +73,10 @@ The checkout moves (update.py):
   Break: `lock_changed` always True.
 - It waits while score starts from the checkout, while a run works in its frozen copy, while the checkout has changes;
   a sync pass holds back only a uv.lock move, and the line (noted for the health record) names a sync unit with no
-  update before its pass; two updates take turns on the checkout's lock.
+  update before its pass; two updates take turns on the checkout's lock. A run that buys and runs nothing (its
+  registry entry, fresh: running 0, buys 0) holds back only a uv.lock move (2026-11-02: a plan row run waiting ten
+  hours for memory held the conductor off its pin). Break: `idle_copies` drops the `running` test -> a working run is
+  passed by. Break: drop the `if runs and lock_changed` refusal -> .venv is synced under an idle run.
 - A move that changes units/ installs them (`boot.sh units`), so a new unit is live without a boot.
   Break: `frozen_users` returns []. Break: drop the lock in `main`. Break: `pass_updates_first` always True.
 - score_lib's checkout beside it gets the machine's committer when git knows no user.email there, even when nothing
@@ -95,6 +98,7 @@ import stat
 import subprocess
 import sys
 import threading
+import time
 import types
 
 import pytest
@@ -286,6 +290,7 @@ def test_the_door_refuses_a_shell_a_paid_run_the_owners_commands_and_anything_un
                   "cat /home/score/.config/scw/config.yaml", "health --write", "gaps", "gaps a b",
                   "gaps ../x", "gaps 'closeup@hub;id'", "predicted x", "buy", "buy a b", "buy 'y 1'",
                   "buy-yes 30 33 'yes'", "buy-yes 33 30 'yes' 'q?'", "buy-yes --stop 33 30 'yes' 'q?'",
+                  "buy-yes --no-film 33 30 'yes' 'q?'", "batch-money --film", "batch-money --no-film x",
                   "batch-money 1", "disk /", "clean-frozen --all", "clean-cache --making-only", "relink-pixal x", "score-lib", "score-lib push",
                   "score-lib pull --force", "job-log",
                   "batch-money 1", "disk /", "clean-frozen --all", "clean-cache --making-only", "relink-pixal x", "offload-pixal x", "sweep --force", "store-gc --all", "store-gc --dry x", "job-log",
@@ -343,6 +348,10 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
     assert env["SCORE_FREE_ONLY"] == "1"  # recording a yes spends nothing
     code, why, argv, env = door("batch-money")
     assert code == 0 and argv == ["-m", "score.dashboard", "batch-money"] and env["SCORE_FREE_ONLY"] == "1", why
+    code, why, argv, _ = door("batch-money --no-film")
+    assert code == 0 and argv == ["-m", "score.dashboard", "batch-money", "--no-film"], why
+    code, why, argv, _ = door("buy-yes --no-film --batch-total 380 343 'Yes' 'Batch 1 total EUR 380, no film?'")
+    assert code == 0 and argv[:5] == ["-m", "score.dashboard", "buy-yes", "--no-film", "--batch-total"], why
     code, why, argv, env = door("buy 20261025T170000Z")
     assert code == 0 and argv == ["-m", "score.dashboard", "buy", "20261025T170000Z"], (why, argv)
     assert "SCORE_FREE_ONLY" not in env and all(env.get(marker) == "1" for marker in AGENT_MARKERS)
@@ -1137,6 +1146,22 @@ def test_a_move_waits_while_a_run_works_in_its_frozen_copy_or_score_starts_from_
     assert world.at() == world.commits[0] and not world.log.exists()
     with cockpit({"commit": world.commits[1]}) as url:
         assert "5151" in world.move(url) and world.at() == world.commits[0]  # a.txt only: still held
+    entry = world.home / "runs" / "r1.json"
+    entry.parent.mkdir(parents=True)
+    for gauges, moves in (({"running": 1, "buys": 0}, False), ({"running": 0, "buys": 2}, False),
+                          ({"running": 0, "buys": 0}, True)):
+        entry.write_text(json.dumps({"state": "running", "worktree": str(copy), **gauges}))
+        with cockpit({"commit": world.commits[2]}) as url:  # uv.lock moves: an idle run's copy links .venv
+            assert "not now" in world.move(url) and world.at() == world.commits[0]
+        with cockpit({"commit": world.commits[1]}) as url:
+            line = world.move(url)
+        assert (world.at() == world.commits[1]) == moves, (gauges, line)
+        git(world.checkout, "checkout", "-q", "--detach", world.commits[0])
+    old = time.time() - update.IDLE_FRESH - 60
+    os.utime(entry, (old, old))  # an entry not noted lately says nothing of what its run does now
+    with cockpit({"commit": world.commits[1]}) as url:
+        assert "5151" in world.move(url) and world.at() == world.commits[0]
+    entry.unlink()
     world.process(5151, b"/x/.venv/bin/python\0-m\0score\0run\0world1\0", world.folder)  # the run ended
     world.process(4242, b"/x/.venv/bin/python\0-m\0score\0run\0world1\0", world.checkout)
     line = world.move(None)

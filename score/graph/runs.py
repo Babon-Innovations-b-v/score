@@ -146,15 +146,25 @@ def mark(path, state, why=None):
     write_whole(pathlib.Path(path), json.dumps(entry, indent=1).encode())
 
 
+def noted(path, gauge):
+    """A registered run's entry written again with `gauge()` ({running, buys}: the nodes it runs now, the paid rows it
+    would buy) in it, so the checkout's update (tools/cloud/conductor/update.py) never waits behind a run that buys and
+    runs nothing; with no gauge only touched. Its last sign of life either way."""
+    if gauge is None:
+        os.utime(path)
+        return
+    written(pathlib.Path(path), {**json.loads(pathlib.Path(path).read_text()), **gauge()})
+
+
 @contextlib.contextmanager
-def beating(path):
-    """Touch a registered run's entry every HEARTBEAT seconds while the block runs: its last sign of life."""
+def beating(path, gauge=None):
+    """Note a registered run's entry every HEARTBEAT seconds while the block runs (`noted`): its last sign of life."""
     done = threading.Event()
 
     def beat():
         while not done.wait(HEARTBEAT):
             with contextlib.suppress(FileNotFoundError):  # its registry folder removed under it (a test's)
-                os.utime(path)
+                noted(path, gauge)
     beater = threading.Thread(target=beat, name="run-heartbeat", daemon=True)
     beater.start()
     try:

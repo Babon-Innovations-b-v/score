@@ -62,6 +62,7 @@ def no_cloud_bill_and_no_memory_taken(monkeypatch):
     monkeypatch.setattr(compute.ledger(), "BOOKS", compute.ledger().BOOKS)  # recorded: open_books_for_tests moves it
     compute.ledger().open_books_for_tests(BOOKS_FOLDER)
     monkeypatch.setattr(graph, "AVAILABLE", lambda: 2**50)
+    monkeypatch.setattr(graph, "TOTAL", lambda: 2**50)
 
 
 @pytest.fixture(autouse=True)
@@ -2085,7 +2086,11 @@ def test_a_ready_node_too_large_for_memory_waits_alone_and_the_ones_after_it_tha
     late), 2.5 floors available until both small nodes started (or 3 s): late starts first, small once late stands,
     though big has waited many turns by then, and big once the room is there.
     Break: score/graph/__init__.py: '                            continue\n                        waiting.remove'
-    -> '                            break\n                        waiting.remove' -> big starts first."""
+    -> '                            break\n                        waiting.remove' -> big starts first.
+    On a machine whose whole memory cannot hold big beside the floor (3.5 floors), big is refused at once with why
+    and the run ends; late and small still run (2026-11-02: a plan row run waited ten hours on the idle conductor).
+    Break: score/graph/__init__.py: '    if expected + memory_floor() <= TOTAL():' -> '    if True:' -> the run
+    waits for ever (here: the 3 s deadline passes with big still waiting)."""
     monkeypatch.delenv(graph.FLOOR_VARIABLE, raising=False)
     monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
     monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
@@ -2103,6 +2108,20 @@ def test_a_ready_node_too_large_for_memory_waits_alone_and_the_ones_after_it_tha
     found = runner.drive(PLACES, say=quiet, jobs=4)
     assert set(found.values()) == {ACCEPTED} and len(found) == 6, found
     assert started == ["late", "late", "small", "small", "big", "big"], started
+
+    monkeypatch.setattr(graph, "TOTAL", lambda: 3.5 * FLOOR)
+    deadline = time.monotonic() + 3  # past it room appears, so a waiting run ends and the timing check fails
+    monkeypatch.setattr(graph, "AVAILABLE", lambda: 2.5 * FLOOR if time.monotonic() < deadline else 100 * FLOOR)
+    small_machine = a_runner(a_world({"hangar": "a ship", "station": "a hub"}), a_store(), (big, late, small))
+    for stage, peak in (("big", 3 * FLOOR), ("late", int(0.1 * FLOOR)), ("small", int(0.1 * FLOOR))):
+        small_machine.keep_peak(stage, peak)
+    said, began = [], time.monotonic()
+    found = small_machine.drive(PLACES, say=said.append, jobs=4)
+    assert time.monotonic() - began < 3, "a node that can never fit was waited for"
+    refused = {node: line for node, line in found.items() if node.startswith("big@")}
+    assert len(refused) == 2 and all("can never start here" in line and "21.0 GB in all" in line
+                                     for line in refused.values()), refused
+    assert all(found[node] == ACCEPTED for node in found if not node.startswith("big@")), found
 
 
 def test_on_this_pc_a_container_clients_next_node_is_expected_at_its_own_tree_not_its_stage_peak(monkeypatch):
@@ -3187,7 +3206,10 @@ def test_a_run_waiting_for_size_is_left_on_too_few_cores_and_resumed_on_the_batc
 
 
 def test_a_driving_run_touches_its_entry_so_resume_knows_it_was_alive(monkeypatch):
-    """Break: score/graph/runs.py: '                os.utime(path)' -> '                pass'"""
+    """With its gauges the entry also says how many nodes the run runs and how many paid rows it would buy, which the
+    conductor's checkout update reads (tools/cloud/conductor/update.py idle_copies).
+    Break: score/graph/runs.py: '                os.utime(path)' -> '                pass'
+    Break: score/graph/runs.py: '**gauge()}' -> '}' -> the entry never says what the run does."""
     folder = pathlib.Path(tempfile.mkdtemp())
     path = runs.register(["run", "world1"], folder=folder)
     os.utime(path, (1, 1))
@@ -3195,6 +3217,12 @@ def test_a_driving_run_touches_its_entry_so_resume_knows_it_was_alive(monkeypatc
     with runs.beating(path):
         time.sleep(0.3)
     assert path.stat().st_mtime > 1
+    os.utime(path, (1, 1))
+    with runs.beating(path, lambda: {"running": 0, "buys": 0}):
+        time.sleep(0.3)
+    entry = json.loads(path.read_text())
+    assert path.stat().st_mtime > 1 and entry["running"] == 0 and entry["buys"] == 0 and entry["argv"] == ["run",
+                                                                                                         "world1"]
 
 
 # --- one commit per store (C10): a live run of another commit, or of the same commit making the same nodes, refuses

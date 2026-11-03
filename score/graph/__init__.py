@@ -523,6 +523,18 @@ def available_memory():
 AVAILABLE = available_memory  # the tests give a fake reading
 
 
+def total_memory():
+    """This machine's whole memory in bytes (MemTotal of /proc/meminfo)."""
+    with open("/proc/meminfo") as meminfo:
+        for line in meminfo:
+            if line.startswith("MemTotal:"):
+                return int(line.split()[1]) * 1024
+    raise RuntimeError("/proc/meminfo has no MemTotal line")
+
+
+TOTAL = total_memory  # the tests give a fake reading
+
+
 def memory_floor():
     """The memory one node is given room for, in bytes: SCORE_MIN_FREE_GB when set, else MEMORY_FLOOR."""
     named = os.environ.get(FLOOR_VARIABLE)
@@ -535,6 +547,16 @@ def memory_room(running, expected):
     (memory_floor) or above."""
     coming = sum(max(0, peak - holds) for peak, holds in running)
     return AVAILABLE() - coming - expected >= memory_floor()
+
+
+def never_fits(expected):
+    """Why a node expected to take `expected` bytes can never start on this machine (its peak and the floor beside it
+    pass the machine's whole memory, so no wait frees room), or None (2026-11-02: a plan row run on the idle
+    conductor, 7.75 GB in all, waited ten hours for its 6 GB beside the 6 GB floor and held the checkout off its pin)."""
+    if expected + memory_floor() <= TOTAL():
+        return None
+    return (f"not run: it needs {expected / 2**30:.1f} GB beside the {memory_floor() / 2**30:.0f} GB kept free, and "
+            f"this machine has {TOTAL() / 2**30:.1f} GB in all: it can never start here")
 
 
 def process_table():
@@ -2257,6 +2279,12 @@ class Runner:
                         # idle slots at a take peak), so only its own tree is expected; counting its stage peak too
                         # held a third bake back beside two with a turn free and 37 GB available (2026-10-29)
                         expected = client_reserve(stage.name, peaks, clients, grown)
+                        refused = never_fits(expected)
+                        if refused:  # no wait frees the room: refused now, its line stops, the run goes on
+                            waiting.remove((stage, place))
+                            stopped[node], done[node] = node, refused
+                            say(f"{node}: {refused}")
+                            continue
                         if not memory_room(coming, expected):
                             held = True  # this node waits; the nodes after it that fit still start
                             continue

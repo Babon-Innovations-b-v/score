@@ -877,6 +877,7 @@ def checked_buys(runner, places, whole, options):
         if not options.detach:
             from score.adapters import compute
             compute.ledger().record(rebuy.ledger_entry(bought, options.rebuy_reason))
+    return bought
 
 
 def plan_json(runner, places, whole, options):
@@ -1292,7 +1293,9 @@ def driven(runner, places, whole, options, argv, gauges=None):
     entry = runs.new_entry(argv)
     path = runs.entry_path(entry)
     try:
-        with runs.beating(runs.written(path, entry)), watching(runner):
+        gauge = lambda: {"running": (runner.driving or (0,))[0],  # noqa: E731 - its registry entry's gauges
+                         "buys": getattr(options, "paid_rows", None)}
+        with runs.beating(runs.written(path, entry), gauge), watching(runner):
             found = runner.drive(places, say=lambda line: print(line, flush=True), jobs=options.jobs, whole=whole,
                                  only=options.stage, gauges=gauges)
     except Exception:
@@ -1458,8 +1461,9 @@ def main(argv=None):
             return
         checked_threads(options)
         chosen = claim(runner, places, whole, options)
-        if not options.free:  # a free-only run buys nothing: no re-buy list or reason
-            checked_buys(runner, places, whole, options)
+        options.paid_rows = 0  # a free-only run buys nothing: no re-buy list or reason
+        if not options.free:
+            options.paid_rows = len(checked_buys(runner, places, whole, options))
     if getattr(options, "detach", False):
         detach(sys.argv)
         return
