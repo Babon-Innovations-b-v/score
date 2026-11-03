@@ -14,6 +14,11 @@ batches; `on_machine.py` is the job the machine runs. Their docstrings are the c
 - **Seeds on the machine, never on the owner's PC** (owner, 2026-11-02). A seeds root lacking a case's angles.npz is
   built by on_machine.py as the batch's first step (levels 2 and 3 from the run's own src), inside the batch's minutes;
   the job brings the seeds root back, so later batches carry it up built.
+- **What the machine makes goes into SCORE's store** (#70, owner 2026-11-03): the machine keeps every seed,
+  evaluation and block in the run's slice, <run>/home/store (SCORE_LEVEL1_STORE, `evaluation.stored`); before a
+  batch `cloud.sliced` gives the slice the store's marks of the seeds root's cases, so the machine makes only what is
+  missing, and after it `brought_back` puts every piece into this PC's store (the first make of a key stands) and
+  removes the slice. evals/ is no longer brought back: its pieces come in the slice.
 - **Resume, never restart.** Level 1 is stopped at its batch's minutes with its whole process group and the next batch
   resumes from checkpoint.jsonl's best (`tuning.resumed`); a chain ends on held_out.json, a failed batch or a batch
   that added no checkpoint line.

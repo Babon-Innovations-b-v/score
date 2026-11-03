@@ -19,6 +19,11 @@ Breaks, each seen red once (2026-11-02):
 - on_machine's `if not seeded(run, seeds):` made `if False:` -> level 1 starts on an empty seeds root.
 - on_machine's seed failure check `code != 0 or` dropped -> a seed step that failed (its angles written or not) starts level 1 anyway.
 - `chain`'s `if lines(...) <= before` check dropped -> a batch that added nothing is followed by another.
+- (2026-11-03) `job`'s outputs without the slice (run/home) -> what the machine kept never comes back; on_machine's
+  SCORE_LEVEL1_STORE dropped -> the machine keeps its pieces outside the slice; `sliced`'s `exported` dropped -> the
+  machine is given none of the seeds' marks and makes them again; `brought_back`'s merge dropped -> the pieces the
+  slice brought are lost with it; `copied`'s `if target.read(key) is not None` check dropped -> a piece the PC's
+  store holds is written over by the machine's.
 """
 import json
 import os
@@ -35,6 +40,7 @@ TOY_LEVEL1 = """import json, os, pathlib, subprocess, sys, time
 run = pathlib.Path(sys.argv[1])
 seeds = pathlib.Path(sys.argv[sys.argv.index("--card") + 1])
 (run / "seen.json").write_text(json.dumps({"argv": sys.argv[1:], "budget": os.environ["SCORE_CARD_BUDGET_GB"],
+                                          "store": os.environ["SCORE_LEVEL1_STORE"],
                                           "desktop": os.environ["SCORE_CARD_DESKTOP_GB"],
                                           "seeded": sorted(path.parent.name for path in seeds.glob("*/angles.npz"))}))
 subprocess.run(["systemd-run", "--user", "--scope", "-p", "MemoryMax=6G", "-q", "env", "A=1", "touch", str(run / "scoped")],
@@ -106,7 +112,7 @@ def test_a_rented_batch_carries_the_run_stops_in_time_and_resumes_from_its_check
     assert set(job["inputs"]) == {str(run / name) for name in ("cases.json", "checkpoint.jsonl", "split.json", "src", "table.json")} \
         | {str(seeds), str(data), str(model)}
     assert {str(run / "checkpoint.jsonl"), str(run / "level1.log"), str(run / "held_out.json"),
-            str(run / "evals"), str(seeds)} <= set(job["outputs"])
+            str(run / "home"), str(seeds)} <= set(job["outputs"])
     assert job["env"] == "score/stages/physics/inside/newton_env.sh" and job["bring_every"] == 20
     assert job["script"] == "tools/cloud/level1/on_machine.py" and job["minutes"] == 230
     assert job["args"][-2:] == ["--processes", "1"] and "215" in job["args"]  # its minutes less STOP_EARLY
@@ -133,6 +139,7 @@ def test_a_rented_batch_carries_the_run_stops_in_time_and_resumes_from_its_check
     assert seen["argv"][:3] == [str(run), "--python", sys.executable] and seen["argv"][-2:] == ["--processes", "1"]
     assert seen["seeded"] == ["short_walk", "tall_walk"]  # level 1 began on every case's seed
     assert (seen["budget"], seen["desktop"]) == ("77.6", "0")  # 81559 MiB less the margin, no desktop
+    assert seen["store"] == str(run / "home" / "store")  # what it makes kept in the slice the job brings back
     assert (run / "scoped").exists()  # the worker ran through the systemd-run stand-in
     worker = int((run / "worker.pid").read_text())
     time.sleep(0.5)
@@ -141,6 +148,26 @@ def test_a_rented_batch_carries_the_run_stops_in_time_and_resumes_from_its_check
     log = (run / "level1.log").read_text()
     assert "eval 1: tuning score 1.0" in log and "paused" in log
     assert len((run / "checkpoint.jsonl").read_text().splitlines()) == 3
+
+    # the slice: the PC store's marks of the seeds given to the machine, its pieces put back, the first make standing
+    stored = cloud.stored_module()
+    pc = stored.Store.in_folder(tmp_path / "pc-store")
+    (seeds / "tall_walk" / "angles.npz").write_bytes(b"seed")
+    given = pc.put_tree(seeds / "tall_walk")
+    stored.written_once(pc, "level1/cpu/k1.json", {"output": given})
+    assert cloud.sliced(run, seeds, stored, pc) == 1
+    machine_store = stored.Store.in_folder(run / "home" / "store")
+    assert machine_store.read("level1/cpu/k1.json") == {"output": given}
+    (tmp_path / "made").mkdir()
+    (tmp_path / "made" / "measures.json").write_text("{}")
+    stored.written_once(machine_store, "level1/card/k2.json", {"output": machine_store.put_tree(tmp_path / "made")})
+    (tmp_path / "other").mkdir()
+    (tmp_path / "other" / "angles.npz").write_bytes(b"other")
+    machine_store.objects.path("level1/cpu/k1.json").unlink()  # the machine made k1 again, differently
+    stored.written_once(machine_store, "level1/cpu/k1.json", {"output": machine_store.put_tree(tmp_path / "other")})
+    assert cloud.brought_back(run, stored, pc) == 1 and not (run / "home").exists()
+    assert pc.read_file(pc.read("level1/card/k2.json")["output"], "measures.json") == {}
+    assert pc.read("level1/cpu/k1.json") == {"output": given}
 
     options = types.SimpleNamespace(batches=5, dry_run=False)
     adds = lambda run, seeds, options: (run / "checkpoint.jsonl").open("a").write("{}\n") > 0  # noqa: E731

@@ -2,7 +2,9 @@
 bodies. The run dir holds cases.json ({case: job.json}), split.json ({"tuning": [bodies], "check": [bodies]}) and
 table.json (the starting landmark rows, each link its anatomical start) and rig.npz (SOMA's template rig, the
 calibration table's rest); it gets evals/ (the latest evaluations),
-checkpoint.jsonl (every evaluation and iteration; a restart resumes from its best), check.jsonl (the held-out score
+checkpoint.jsonl (every evaluation and iteration; a restart resumes from its best; each line also kept in SCORE's
+store under the run's key, `stored.run_key`, and a run folder on any machine gets every kept line of its run back,
+so it resumes from the best anywhere), check.jsonl (the held-out score
 every --every iterations, 3 unless given, and at the end), steps.jsonl (each check against the one before: per-case paired changes of
 the honest measures, tuning and check bodies apart, verdicts past floor.json when the run dir has it, `tuning._paired`), result_table.json (its trusts relative, the largest 1), result_weights.json and held_out.json (the check bodies'
 score against the tuning bodies', accepted within 10 %). Each card process holds its own share of this PC's card
@@ -15,7 +17,8 @@ tuning body at once, tools/cloud/level1); with --exact too the Jacobian is exact
 links, trusts and the two global weights (`tuning.layout` with no group-end centres: since 2026-11-01 level 1 aims at
 the bones inside the skin, and the centres were tuned mostly for the joint error, which is now reported only; they
 stay at MyoFullBody's own). Every evaluation's line also gives the turns check and the joints, never tuned
-(`evaluation.reported`). Any Python with numpy and scipy; the workers run in Newton's."""
+(`evaluation.reported`). Every evaluation, block and seed is found in the store or made and kept there
+(`evaluation.kept_run`, `stored`): evals/ holds read-only views of them. Any Python with numpy and scipy; the workers run in Newton's."""
 import argparse
 import json
 import pathlib
@@ -27,6 +30,7 @@ import evaluation  # noqa: E402
 import landmarks  # noqa: E402
 import numpy as np  # noqa: E402
 import tuning  # noqa: E402
+from evaluation import stored  # noqa: E402
 from tuning import _paired  # noqa: E402
 from tuning._adjoint import by_columns  # noqa: E402
 
@@ -69,6 +73,14 @@ def main():
     blocks_shares = evaluation.CardShares("blocks", evaluation.BLOCKS_CARD_GB) if given.exact else None
     jacobian_shares = evaluation.CardShares("jacobian", evaluation.CHUNK_CARD_GB) if given.card else None
     shares = (sets_shares, blocks_shares, jacobian_shares)  # their card waits are not level 1's --hours
+    store = stored.default_store()
+    kept_as = stored.run_key(pathlib.Path(__file__), table, split, cases, run / "rig.npz",
+                             {"every": given.every, "card": bool(given.card), "exact": given.exact})
+
+    def lines_kept():
+        """checkpoint.jsonl's lines kept in the store, and the store's lines of this run on any machine in it."""
+        stored.lines_kept(store, kept_as, run / "checkpoint.jsonl")
+    lines_kept()
 
     def worker_set(unknowns):
         rows, weights = tuning.applied(unknowns, entries, starts, table, GLOBALS)
@@ -79,16 +91,17 @@ def main():
         if given.card:
             return evaluation.measured_many([worker_set(unknowns)], picked, run / "evals" / label, given.python,
                                             given.card, unconverged=unconverged, shares=sets_shares,
-                                            most=given.processes)[0]
-        return evaluation.measured(*worker_set(unknowns), picked, run / "evals" / label, given.python)
+                                            most=given.processes, store=store)[0]
+        return evaluation.measured(*worker_set(unknowns), picked, run / "evals" / label, given.python, store=store)
 
     def evaluate_many(sets):
         return evaluation.measured_many([worker_set(unknowns) for unknowns in sets],
                                         evaluation.picked(cases, split, "tuning"), run / "evals" / "jacobian",
                                         given.python, given.card, unconverged=True, shares=jacobian_shares,
-                                        most=given.processes)
+                                        most=given.processes, store=store)
 
     def evaluate(unknowns):
+        lines_kept()
         count[0] += 1
         found = side(unknowns, "tuning", f"e{count[0]:05d}", unconverged=True)
         shutil.rmtree(run / "evals" / f"e{count[0] - 2:05d}", ignore_errors=True)
@@ -100,9 +113,10 @@ def main():
         return found
 
     def exact(unknowns):
+        lines_kept()
         blocks = evaluation.blocked(*worker_set(unknowns), evaluation.picked(cases, split, "tuning"),
                                     run / "evals" / "exact", given.python, given.card, shares=blocks_shares,
-                                    most=given.processes)
+                                    most=given.processes, store=store)
         return exact_stacked(blocks, unknowns, entries)
 
     def check(unknowns):
@@ -125,6 +139,7 @@ def main():
                                   every=given.every, evaluate_many=evaluate_many if given.card else None,
                                   exact=exact if given.exact else None,
                                   paused=lambda: sum(kind.waited for kind in shares if kind))
+    lines_kept()
     rows, weights = tuning.applied(result.x, entries, starts, table, GLOBALS)
     (run / "result_table.json").write_text(json.dumps(tuning.relative(rows), indent=1))
     (run / "result_weights.json").write_text(json.dumps(weights))
