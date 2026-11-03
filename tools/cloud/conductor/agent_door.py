@@ -100,6 +100,9 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 and whole-second mtime the manifest on stdin already names
                                                 (`size<TAB>mtime<TAB>path` lines); never keys, ledgers, run records
                                                 or frozen copies (owner, 2026-10-27: the door route for this_pc.py)
+    route-log <path>                            the tail of a people route's log, read only: a .log file under
+                                                ~/.farm-factory-motion/candidates/ (2026-11-03: officer-made-route's
+                                                chain.log, its fault's cause, was unreadable)
     design-file <path>                          one design file, read only: design/props|plans|surfaces/<name>.json,
                                                 at most DESIGN_FILE_BYTES (2026-11-03: lab's and workshop's hand-ins
                                                 differed from this PC's and nothing could show how)
@@ -137,7 +140,7 @@ sys.path.insert(0, str(REPO))
 from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
-VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], clean-frozen, clean-cache, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, "
+VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], clean-frozen, clean-cache, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, "
          "run-log [--lines N], fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, decide-yes, decide <yes id>, "
          "stop-batch <reason>")
@@ -190,6 +193,8 @@ JOB_LOG_CHARACTERS = 40000
 RUN_LOG = "--run-log"  # this file's own read of the newest launch's run log (the run-log verb runs it)
 FAULT = "--fault"  # this file's own read of a fault report of the newest launch (the fault verb runs it)
 DESIGN_FILE = "--design-file"  # this file's own read of one design file (the design-file verb runs it)
+ROUTE_LOG = "--route-log"  # this file's own read of a people route's log (the route-log verb runs it)
+CANDIDATES = pathlib.Path.home() / ".farm-factory-motion" / "candidates"  # the people routes' work folders
 DESIGN_FILE_PATH = re.compile(r"design/(props|plans|surfaces)/[A-Za-z0-9_-]+\.json")
 DESIGN_FILE_BYTES = 4_000_000
 RUN_LOG_LINES, RUN_LOG_LINES_MAX = 200, 2000
@@ -290,6 +295,10 @@ def decide(words, latch):
             raise Refused("run-log [--lines N], N a whole number of lines")
         lines = min(int(args[1]) if args else RUN_LOG_LINES, RUN_LOG_LINES_MAX)
         return [str(pathlib.Path(__file__).resolve()), RUN_LOG, str(lines)], {}
+    if verb == "route-log":
+        if len(args) != 1 or not args[0].endswith(".log"):
+            raise Refused("route-log <a .log path under ~/.farm-factory-motion/candidates>")
+        return [str(pathlib.Path(__file__).resolve()), ROUTE_LOG, args[0]], {}
     if verb == "design-file":
         if len(args) != 1 or not DESIGN_FILE_PATH.fullmatch(args[0]):
             raise Refused("design-file design/props|plans|surfaces/<name>.json, one design file")
@@ -482,11 +491,25 @@ def own_read(argv, props_home):
     """The text of one of this file's own reads (job-log, run-log, fault, design-file), as the door's verb asked it."""
     if argv[0] == DESIGN_FILE:
         return design_file(argv[1], props_home)
+    if argv[0] == ROUTE_LOG:
+        return route_log(argv[1])
     if argv[0] == JOB_LOG:
         return job_log(argv[1], props_home)
     if argv[0] == RUN_LOG:
         return run_log(newest_launch_log(), props_home, int(argv[1]))
     return fault(newest_launch_log(), argv[1], props_home)
+
+
+def route_log(asked, candidates=None):
+    """The tail of a people route's log: a .log file under CANDIDATES (asked whole or under it), no link out, at most
+    JOB_LOG_CHARACTERS; Refused for anything else."""
+    folder = pathlib.Path(candidates or CANDIDATES)
+    named = pathlib.Path(os.path.normpath(folder / asked))
+    if named.suffix != ".log" or not named.resolve().is_relative_to(folder.resolve()) or not named.is_file():
+        raise Refused(f"route-log reads a .log file under {folder} only, not {asked}")
+    text = named.read_text(errors="replace")
+    return (f"{named} ({len(text)} characters, the last {JOB_LOG_CHARACTERS}):\n"
+            if len(text) > JOB_LOG_CHARACTERS else f"{named}:\n") + text[-JOB_LOG_CHARACTERS:]
 
 
 def design_file(name, props_home):
@@ -742,7 +765,7 @@ def main():
             print(f"score-agent-door: refused: {refused}", file=sys.stderr)
             return REFUSED_EXIT
         return 0
-    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [FAULT], [DESIGN_FILE]):
+    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [FAULT], [DESIGN_FILE], [ROUTE_LOG]):
         from score.store import PROPS_HOME
         try:
             print(own_read(sys.argv[1:], PROPS_HOME))
