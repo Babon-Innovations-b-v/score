@@ -20,7 +20,11 @@ never moved). Two calls at once take turns on a lock in the checkout's .git fold
    The pin read is kept in $PROPS_HOME/conductor/pin.json with this call's line (`said`), so the health record shows a
    checkout off the pin and why.
 3. `git fetch origin main`; a pin origin/main does not hold is refused (never a commit off main).
-4. Nothing moves while a process works in a frozen copy under $PROPS_HOME/frozen (a live run): every run's copy links
+4. Nothing moves while a process works in a frozen copy under $PROPS_HOME/frozen (a live run), unless that run buys
+   and runs nothing (its registry entry, $PROPS_HOME/runs/<id>.json, noted within IDLE_FRESH by the run itself:
+   running 0, buys 0; 2026-11-02: a plan row run waiting ten hours for memory held the checkout off its pin, and was
+   started again by the next pass after a stop), which holds back only a move that changes uv.lock or pyproject.toml.
+   Every run's copy links
    this checkout's .venv in (graph/frozen.py) and its rows run the prop environment, and its own steps reach the
    checkout's tools, so the move waits and goes on at the first tick after the run ends. A sync pass from the checkout
    holds back only a move that changes uv.lock or pyproject.toml; the pass's own ExecStartPre makes that move before
@@ -45,6 +49,7 @@ import os
 import pathlib
 import subprocess
 import sys
+import time
 import urllib.request
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -159,6 +164,37 @@ def frozen_users(home=HOME, proc=PROC):
     return found
 
 
+IDLE_FRESH = 180  # seconds: a run notes its entry every minute (graph/runs.py HEARTBEAT); older says nothing of now
+
+
+def idle_copies(home=HOME, now=time.time):
+    """The frozen copies whose live run buys and runs nothing: its registry entry running, noted within IDLE_FRESH,
+    with `running` 0 and `buys` 0."""
+    found = set()
+    for path in (home / "runs").glob("*.json"):
+        try:
+            entry, age = json.loads(path.read_text()), now() - path.stat().st_mtime
+        except (OSError, ValueError):
+            continue  # gone or half written meanwhile: not idle
+        if entry.get("state") == "running" and entry.get("running") == 0 and entry.get("buys") == 0 \
+                and age <= IDLE_FRESH and entry.get("worktree"):
+            found.add(pathlib.Path(entry["worktree"]))
+    return found
+
+
+def working(pids, idle, proc=PROC):
+    """The `pids` whose working folder is in none of the `idle` copies."""
+    busy = []
+    for pid in pids:
+        try:
+            cwd = pathlib.Path(os.readlink(proc / str(pid) / "cwd"))
+        except OSError:
+            continue  # ended meanwhile
+        if not any(copy == cwd or copy in cwd.parents for copy in idle):
+            busy.append(pid)
+    return busy
+
+
 def named(proc, pid):
     """`pid <n>: <its command line>`, cut to 120 characters, so the line says which process holds the checkout."""
     try:
@@ -233,9 +269,13 @@ def moved(repo, sync_url, uv, opener, proc, token, home, sync_unit):
     if commit == old:
         return f"update: at {commit[:12]}, {why}{props_env(repo, home, uv, False)}"
     runs = frozen_users(home, proc)
-    if runs:
-        return (f"update: not now, a live run works from the checkout ({'; '.join(named(proc, pid) for pid in runs)}); "
+    busy = working(runs, idle_copies(home), proc)
+    if busy:
+        return (f"update: not now, a live run works from the checkout ({'; '.join(named(proc, pid) for pid in busy)}); "
                 f"{commit[:12]} moves after it ends")
+    if runs and lock_changed(repo, old, commit):
+        return (f"update: not now, {commit[:12]} changes uv.lock and an idle run's copy links .venv "
+                f"({'; '.join(named(proc, pid) for pid in runs)})")
     passes = starting(repo, proc, SYNCING) if lock_changed(repo, old, commit) else []
     if passes:
         unit = "" if pass_updates_first(sync_unit) else (
