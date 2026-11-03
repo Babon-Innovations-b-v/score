@@ -78,6 +78,18 @@ def bought_items(seen):
     return found, changed
 
 
+def left_out(items, stages):
+    """The `items` with the nodes of `stages` taken out of each (a Buy approved without the demo films, chat_yes
+    NO_FILM; owner, 2026-11-03: Batch 1 bought with the film left out), an item left with none dropped. The run names
+    only the nodes kept (batch_groups), so a left-out row is neither bought nor made."""
+    found = []
+    for item in items:
+        nodes = {node: price for node, price in item["nodes"].items() if node.partition("@")[0] not in stages}
+        if nodes:
+            found.append({**item, "nodes": nodes})
+    return found
+
+
 def item_refusals(items):
     """Why the items cannot be bought as they stand, in words."""
     found = []
@@ -194,6 +206,7 @@ def start(user, key, confirmed, seen, at_once=False, yes=None):
         if found is not None:
             return found, f"checkout {found.pk} was already made with this key: {found.state}"
         items, changed = bought_items(seen)
+        items = left_out(items, (yes or {}).get("leave_out", ()))
         bought = snapshot(items)
         totals = pricing.totals(pricing.basket_prices(bought))
         refused = refusals(user, seen, items, changed, confirmed) + yes_refusals(yes, totals)

@@ -4,7 +4,7 @@ buy with u aswell, u just click the button"). The session asks him with its ques
 a total of the batch, not per try, i have no clue now"); his yes is recorded here, quoted, and launches the checkout
 his Buy button makes (flow.start, every refusal of his click), once.
 
-    figures()                             what the question names, read only (the door's `batch-money`): {batch,
+    figures(reading, leave_out)           what the question names, read only (the door's `batch-money`): {batch,
                                           tries, retry (the next Buy tries this batch again), money (watched.
                                           batch_money: spent so far by the money guard's measure, in flight, its
                                           budget, left, the books' parts), runs (its runs' own heartbeats), try
@@ -12,9 +12,12 @@ his Buy button makes (flow.start, every refusal of his click), once.
                                           total holding this try), click (the total his Buy click would set),
                                           may_stop (a retry under the yes already used would stop at the batch
                                           limit before every step is made: what is left is under this try's stop)}
-    record(total, high, answer, question) his yes {id, purpose, batch_total_euros, high_euros, answer, question, at, by,
-                                          basket {commit, made_at, items [{id, version}]}}, the basket the Buy screen
-                                          buys now; kept once in the store, grants/buy/<id>.json (score.review.web)
+    record(total, high, answer, question, leave_out)
+                                          his yes {id, purpose, batch_total_euros, high_euros, answer, question, at, by,
+                                          basket {commit, made_at, items [{id, version}]}, leave_out}, the basket the
+                                          Buy screen buys now; kept once in the store, grants/buy/<id>.json
+                                          (score.review.web). `leave_out` (NO_FILM, the door's --no-film) the stages
+                                          whose rows that Buy neither buys nor makes, priced without them
     buy(yes id)                           his Buy under that yes, refused when: no quoted yes, used already (one yes
                                           launches at most one checkout: grants/buy-used/<id>.json, written once
                                           before the checkout, so a checkout refused after that needs a new yes),
@@ -44,6 +47,8 @@ from score import conductor
 from score.conductor import health
 from score.dashboard import state
 from score.dashboard.checkout import flow, pricing
+
+NO_FILM = ("demo-film", "demo-film-extra")  # the demo films' paid rows (owner, 2026-11-03: Batch 1 without the film)
 from score.dashboard.pages import basket
 from score.dashboard.pages.models import Checkout
 from score.dashboard.proposals import records
@@ -80,7 +85,7 @@ def current_basket():
             "items": sorted(basket.batch_items(records.items(root), "now"), key=lambda item: item["id"])}
 
 
-def record(total, high, answer, question, store=None):
+def record(total, high, answer, question, store=None, leave_out=()):
     """Write his quoted yes to the current basket at this try's `high` and the batch `total` he approved (the batch's
     whole stop, every try's spend in it); the yes. Refused without an owner here, an answer and a question both,
     figures above 0, or a basket to buy."""
@@ -97,17 +102,20 @@ def record(total, high, answer, question, store=None):
         "id": moment.strftime("%Y%m%dT%H%M%S%fZ"), "at": moment.isoformat(timespec="seconds"), "purpose": "buy",
         "batch_total_euros": euros_of(total, "batch total"),
         "high_euros": euros_of(high, "high"), "answer": str(answer), "question": str(question),
-        "by": settings.SCORE_OWNER, "basket": approved})
+        "by": settings.SCORE_OWNER, "basket": approved, "leave_out": list(leave_out)})
 
 
-def basket_totals(now_basket):
-    """pricing.totals of the basket `now_basket` (current_basket) at the runner's prices now."""
+def basket_totals(now_basket, leave_out=()):
+    """pricing.totals of the basket `now_basket` (current_basket) at the runner's prices now, the rows of the stages
+    `leave_out` taken out (flow.left_out)."""
     items, _ = flow.bought_items(now_basket["items"])
+    items = flow.left_out(items, leave_out)
     return pricing.totals(pricing.basket_prices(flow.snapshot(items)))
 
 
-def figures(reading):
-    """What his question names, read only (module docstring), at the Spend `reading()` gives (the backend's now)."""
+def figures(reading, leave_out=()):
+    """What his question names, read only (module docstring), at the Spend `reading()` gives (the backend's now), the
+    try priced without the stages `leave_out`."""
     from score.dashboard.checkout import watched
     spend = reading()
     records = list(Checkout.objects.order_by("at"))
@@ -115,7 +123,7 @@ def figures(reading):
     ahead = Checkout(at=datetime.datetime.now(datetime.timezone.utc))
     retry = bool(tries) and not watched.batch_ended(tries, ahead, accepted_at)
     money = watched.batch_money(tries, spend) if retry else None
-    totals = basket_totals(current_basket())
+    totals = basket_totals(current_basket(), leave_out)
     need = round(pricing.cleared_high(totals) * flow.BUFFER, 2)
     run = state.source().batch_run(reading=lambda: spend) if retry else None
     return {"batch": number if retry else number + 1, "tries": watched.try_count(tries) if retry else 0, "retry": retry,
@@ -197,7 +205,7 @@ def buy(yes_id, store=None):
     store = store or state.source().store
     yes = yes_found(store, yes_id)
     now_basket = current_basket()
-    totals = basket_totals(now_basket)  # flow.start checks it again, under its lock
+    totals = basket_totals(now_basket, yes.get("leave_out", ()))  # flow.start checks it again, under its lock
     refused = (([] if yes.get("retry") else basket_refusals(yes, now_basket)) + flow.yes_refusals(yes, totals)
                + latch_refusals() + pin_refusals(health.code()) + run_refusals())
     if refused:

@@ -10,6 +10,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - pricing.cleared_high: drop the guessed euros -> test_totals_count_each_node_once..., test_an_unmeasured_buy_...
 - flow.place_refusals: `elif actions.agent_started():` -> `elif False:` -> test_every_checkout_refusal_is_in_words
 - flow.bought_items: the version check -> `elif False:` -> test_an_item_changed_since_he_chose_it_...
+- flow.left_out: `not in stages` -> `or True` -> test_a_buy_approved_in_chat_is_refused_outside_what_he_approved
+- flow.start: drop `items = left_out(...)` -> a Buy without the film buys the left-out rows ->
+  test_a_buy_approved_in_chat_is_refused_outside_what_he_approved
 - flow.BUFFER = 1.10 -> 1.0 -> test_the_checkout_plans_the_batch_once_writes_the_line_and_launches_one_run
 - flow.refusals: `if actions.running_launch():` -> `if False:` -> test_a_press_while_a_batch_runs_is_refused_...
 - guard.polled: drop "refused" from the states it reads -> test_a_checkout_whose_run_the_runner_refused_shows_...
@@ -576,6 +579,17 @@ def test_a_buy_approved_in_chat_is_refused_outside_what_he_approved(chat, settin
     chat.items = a_basket(settings, ["closeup@alpha"])
     refused(changed, "the basket changed since he approved it")
     assert not Checkout.objects.exists() and not launches() and stop_line(chat) is None
+    # without the film (owner, 2026-11-03): its stages' rows are taken out of the items, so neither priced nor bought
+    price = {"likely": 1.0, "high": 2.0}
+    items = [{"id": "a", "nodes": {"closeup@a": price, "demo-film@a": price}},
+             {"id": "f", "nodes": {"demo-film-extra@b": price}}]
+    assert flow.left_out(items, chat_yes.NO_FILM) == [{"id": "a", "nodes": {"closeup@a": price}}]
+    assert flow.left_out(items, ()) == items
+    nothing_left = chat_yes.record(33, 30, "Yes, buy it", QUESTION, leave_out=("closeup",))
+    assert nothing_left["leave_out"] == ["closeup"] and chat_yes.basket_totals(
+        chat_yes.current_basket(), nothing_left["leave_out"])["high_euros"] == 0
+    record, said = chat_buy(nothing_left["id"])
+    assert not launches() and (record is None or record.state != "launched"), said
 
 
 def test_a_batch_has_one_budget_across_its_tries(chat, monkeypatch, tmp_path):

@@ -76,9 +76,13 @@ def parse(argv):
     words.add_argument("--says", help="one plain sentence: the fault in the place this fixes, as the owner sees it")
     words.add_argument("--ask", action="append", default=[], help="a decision only the owner can make (repeat)")
     words.add_argument("--recommend", action="append", default=[], help="the answer you recommend, one an --ask")
-    commands.add_parser("batch-money", help="the batch's money a Buy question names, read only (checkout/chat_yes.py)")
+    money = commands.add_parser("batch-money", help="the batch's money a Buy question names, read only "
+                                                    "(checkout/chat_yes.py)")
+    money.add_argument("--no-film", action="store_true", help="this try priced without the demo films' rows")
     yes = commands.add_parser("buy-yes", help="the owner's Buy approved in a session, quoted (checkout/chat_yes.py)")
     yes.add_argument("--batch-total", required=True, help="the batch's whole stop he approved, every try in it")
+    yes.add_argument("--no-film", action="store_true", help="his Buy without the demo films: their rows neither "
+                                                            "bought nor made")
     for name in ("high", "answer", "question"):
         yes.add_argument(name)
     commands.add_parser("buy", help="his Buy under a yes from buy-yes, once (checkout/chat_yes.py)").add_argument("yes")
@@ -128,18 +132,21 @@ def buy_yes(options):
     from score.dashboard.checkout import chat_yes
     migrate()
     try:
-        yes = chat_yes.record(options.batch_total, options.high, options.answer, options.question)
+        yes = chat_yes.record(options.batch_total, options.high, options.answer, options.question,
+                              leave_out=chat_yes.NO_FILM if options.no_film else ())
     except chat_yes.Refused as refused:
         sys.exit(f"buy-yes: refused: {refused}")
     print(f"buy-yes {yes['id']}: high EUR {yes['high_euros']:.2f}, batch total EUR {yes['batch_total_euros']:.2f}, "
-          f"{len(yes['basket']['items'])} items of the basket made at {yes['basket']['made_at']}")
+          f"{len(yes['basket']['items'])} items of the basket made at {yes['basket']['made_at']}"
+          + (f", without {', '.join(yes['leave_out'])}" if yes["leave_out"] else ""))
 
 
-def batch_money():
-    """Print what a Buy question names (chat_yes.figures), read only, in words; the figures as JSON last."""
+def batch_money(no_film=False):
+    """Print what a Buy question names (chat_yes.figures), read only, in words, this try without the demo films when
+    `no_film`; the figures as JSON last."""
     from score.dashboard.checkout import chat_yes
     from score.dashboard.launch import guard
-    found = chat_yes.figures(guard.backend().spend)
+    found = chat_yes.figures(guard.backend().spend, chat_yes.NO_FILM if no_film else ())
     money, now = found["money"], found["try"]
     if money is None:
         print(f"Batch {found['batch']}: a new batch, nothing spent of it yet")
@@ -155,7 +162,7 @@ def batch_money():
             print(f"  the environment's books since its first stop line (the batch counts from EUR "
                   f"{money['start']:.2f} of it): cloud EUR {parts['cloud']:.2f} (the higher of bill and ledger; "
                   f"ledger EUR {parts['ledger']:.2f}), model calls EUR {parts['models']:.2f}")
-    print(f"This try (the Buy screen's basket now): likely EUR {now['likely']:.2f}, high EUR {now['high']:.2f}, "
+    print(f"This try (the Buy screen's basket now{', without the demo films' if no_film else ''}): likely EUR {now['likely']:.2f}, high EUR {now['high']:.2f}, "
           f"its stop (high plus 10%) EUR {now['stop']:.2f}")
     print(f"Batch {found['batch']} total: at least EUR {found['fits']:.2f} holds this try; a Buy click would set "
           f"EUR {found['click']:.2f}. Ask, then: buy-yes --batch-total <the total he approves> {now['high']:.2f} ...")
@@ -387,7 +394,7 @@ def main(argv=None):
     elif options.command == "install-sync":
         install_sync(options)
     elif options.command == "batch-money":
-        batch_money()
+        batch_money(options.no_film)
     elif options.command == "buy-yes":
         buy_yes(options)
     elif options.command == "buy":

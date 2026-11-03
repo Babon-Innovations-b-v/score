@@ -288,12 +288,15 @@ def decide(words, latch):
     if verb == "benchmark":
         return benchmark(args, latch)
     if verb == "batch-money":
-        if args:
-            raise Refused("batch-money takes no arguments")
-        return ["-m", "score.dashboard", "batch-money"], {}
+        if args not in ([], ["--no-film"]):
+            raise Refused("batch-money [--no-film]")
+        return ["-m", "score.dashboard", "batch-money", *args], {}
     if verb == "buy-yes":
-        if len(args) != 5 or args[0] != "--batch-total":
-            raise Refused("buy-yes --batch-total <euros> <high euros> <the owner's answer> <the question he answered>")
+        film = args[:1] == ["--no-film"]
+        rest = args[1:] if film else args
+        if len(rest) != 5 or rest[0] != "--batch-total":
+            raise Refused("buy-yes [--no-film] --batch-total <euros> <high euros> <the owner's answer> <the question he "
+                          "answered>")
         return ["-m", "score.dashboard", "buy-yes", *args], {}
     if verb == "buy":
         if len(args) != 1 or not GRANT_ID.match(args[0]):
