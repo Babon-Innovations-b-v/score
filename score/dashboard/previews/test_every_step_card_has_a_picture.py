@@ -10,6 +10,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - previews.picture: both cache checks dropped -> test_a_picture_is_made_once_and_kept
 - state/local.with_preview: `made = None` -> test_a_step_with_no_picture_of_its_own_gets_its_preview
 - meshes: `file_hash(candidate) == sha` -> `True` -> test_a_model_is_drawn_only_when_its_hash_matches
+- meshes.faces_of: drop the no-faces return -> a point cloud's colours raise IndexError ->
+  test_a_model_is_drawn_only_when_its_hash_matches
 - state/files.packaged: `return False` -> test_a_packaged_file_is_not_the_steps_own
 - previews.record_name: `key` alone -> test_a_record_that_lacks_something_says_so
 - labels.free: `return inside` (taken labels ignored) -> test_plan_labels_never_cover_each_other
@@ -194,6 +196,12 @@ def test_a_model_is_drawn_only_when_its_hash_matches(tmp_path):
     assert previews.meshes.picture({"crate": {"crate-final.glb": sha}}, (tmp_path / "work",), tmp_path / "a.png")
     assert previews.meshes.picture({"crate": {"crate-final.glb": "0" * 64}}, (tmp_path / "work",),
                                    tmp_path / "b.png") is None
+    import numpy
+    import trimesh
+    cloud = tmp_path / "work" / "takes" / "dust-final.glb"
+    trimesh.PointCloud(numpy.arange(30, dtype=float).reshape(10, 3)).export(cloud)
+    assert previews.meshes.picture({"dust": {"dust-final.glb": previews.meshes.file_hash(cloud)}},
+                                   (tmp_path / "work",), tmp_path / "c.png")  # a point cloud: an empty cell, no fault
 
 
 def test_a_packaged_file_is_not_the_steps_own(tmp_path):

@@ -56,6 +56,8 @@ def faces_of(path):
     import trimesh
     loaded = trimesh.load(str(path), process=False)
     mesh = loaded.to_geometry() if hasattr(loaded, "to_geometry") else loaded
+    if not len(getattr(mesh, "faces", ())):  # a point cloud or an empty model: nothing to draw (2026-11-03: a point
+        return np.zeros((0, 3)), np.zeros((0, 3)), np.zeros((0, 3))  # cloud's colours failed every sync pass)
     picked = np.arange(len(mesh.faces))
     if len(picked) > MOST_FACES:
         picked = picked[np.linspace(0, len(picked) - 1, MOST_FACES).astype(int)]
