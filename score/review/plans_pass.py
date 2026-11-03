@@ -154,11 +154,21 @@ def spaced_people(plan, inventory):
         others = list(zip(kept, sizes))
         free = None if row in left_out or not standing.stands_in(spot, size, walls_things[sits_on], grid, others) \
             else standing.nearest_free(spot, size, walls_things[sits_on], grid, outline, others)
+        if free is not None and math.dist(spot[:2], free) < STILL_M:  # its own cell: no move (2026-11-03, below)
+            free = None
         kept.append(spot if free is None else [*free, *spot[2:]])
         if free is not None:
             fixes.append(f"{plan_checks.said_name(row or 'a standing spot')}: moved "
                          f"{math.dist(spot[:2], free):.2f} m out of what it stood in")
     return {**plan, "people": kept}, fixes
+
+
+# A spot the free search hands back where it already stands is no move: nearest_free gives a cell centre rounded to the
+# millimetre, and the rounding can bring the footprint's edge a hair over the next cell, so stands_in said "in a wall"
+# again on every pass and lab's and workshop's plans were rewritten each sync pass with one more "moved 0.00 m" fix
+# (2026-11-03: terrain reads every plan, so the whole environment's lines counted as re-bought, EUR 1,102). Here, not in
+# standing.py, which the scene record reads.
+STILL_M = 0.001
 
 
 def brought_inside(plan):

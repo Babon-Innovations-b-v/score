@@ -375,7 +375,8 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     `< (size[0] + other_size[0]) / 2 + 0.2` (the near spot moved); standing.py `stands_in`:
     `bool((walls_things & under(grid, spot, size)).any()) or` dropped (the spot in the wall kept); plans_pass.py
     (parted_first) `parting(store, place) or spaced_people(writing["plan"], inventory)[1]` made
-    `parting(store, place)`; (unsettled) `or bool(spaced_people(plan, inventory)[1])` dropped
+    `parting(store, place)`; (unsettled) `or bool(spaced_people(plan, inventory)[1])` dropped; (spaced_people)
+    `< STILL_M` made `< 0` (a spot the free search hands back where it stands logs a 0.00 m move every pass)
 - test_a_done_place_with_no_kept_plan_gets_one:
     plans_pass.py: `if not (plans.KEPT / f"{place}.json").is_file()` made `if True`
 """
@@ -399,7 +400,7 @@ from score import checks, contracts, graph, review, stages
 from score.adapters import compute
 from score.review import (concepts, discuss, environment_concept, environment_concept as ec, environment_plan,
                           overhead, plan_checks, plan_drawing, plan_fixes, plan_writing, plans, plans_pass, reading,
-                          reading_fixes, scene_sky, setting, web)
+                          reading_fixes, scene_sky, setting, standing, web)
 from score.store import RUNNER, Store, runtime_store
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -3275,6 +3276,14 @@ def test_a_correct_s_copy_of_a_person_is_dropped_and_only_a_person_standing_in_s
     assert all(abs(person_one[0] - other[0]) >= 0.6 - 0.05 or abs(person_one[1] - other[1]) >= 0.6 - 0.05
                for other in spots[:5]), spots
     assert not plans_pass.unsettled(fixed, inventory, parts=False) and len(fixed["fixes"]) == 8, fixed["fixes"]
+    # the free search handing back the spot itself (its rounded cell centre) is no move: no fix, the plan settled
+    # (2026-11-03: lab and workshop logged "moved 0.00 m" on every sync pass, re-keying terrain and every line)
+    found, standing.nearest_free = standing.nearest_free, lambda spot, *rest: [spot[0] + 0.0004, spot[1]]
+    try:
+        still, said = plans_pass.spaced_people({**plan, "people": [[0.2, 3.0]]}, inventory)
+        assert still["people"] == [[0.2, 3.0]] and said == [], said
+    finally:
+        standing.nearest_free = found
     kept, before = [], (plan_writing.written_of, plans.inventory_of, plan_writing.kept)
     with tempfile.TemporaryDirectory() as folder:
         store = Store.in_folder(folder)
