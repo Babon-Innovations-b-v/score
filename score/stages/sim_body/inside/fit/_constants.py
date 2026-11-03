@@ -30,6 +30,7 @@ MARK_MOST = 0.03  # metres a marker may move on its body off its landmark's link
 INSIDE = 1e-9  # a start this far inside its bounds (least_squares wants a start within them)
 TOLD = 1e-8  # an inside joint's column this far, relative, from the others' span is one the data cannot tell (tall,
 # 2026-10-29: the untold at 1e-15, the least told, a scapula's y, at 4e-3)
+ON_CARD = False  # level 2 by `_card._level2_lm` (the owner's "yes make", 2026-11-03), off until proved on every tuning body
 WELL_TOLD = 1e-4  # the others' smallest singular value over their largest above which their span is whole (far over TOLD:
 # the Gram matrix's eigenvalues are good to ~1e-13 of the largest; heavy_kimodo 2026-10-29 at 0.07)
 
@@ -191,7 +192,7 @@ def qr_off_span(others, columns):
     return columns - basis @ (basis.T @ columns)
 
 
-def staged(fitting, path, turns, points, given, free=(), jacobian=None, wide=False):
+def staged(fitting, path, turns, points, given, free=(), jacobian=None, wide=False, card=None):
     """The constants (the whole vector, as `Fitting.unpack` reads it) and the frames' angles (frames x nq) that best
     meet the frames' targets together, from `given` and mink's path; the model is left with the constants laid on,
     and the solve's evaluation count. Only the unknowns the data can tell are solved (`told`, from the exact Jacobian
@@ -199,18 +200,17 @@ def staged(fitting, path, turns, points, given, free=(), jacobian=None, wide=Fal
     exact one, `_card._level2.jacobian`) replaces scipy's 2-point differences in the problem's sparse pattern, the
     reference, when given. `wide`: the residuals and the exact Jacobian for least_squares and the polish
     from `_card._level2_wide.Wide` (every frame's float64 kinematics on the card; equal to the host's to float64's
-    rounding), `jacobian` then unused; `told` reads the host's either way."""
-    host = Problem(fitting, path, turns, points, given, free)
-    low, high = host.bounds()
-    begin = np.clip(host.start(), np.where(np.isfinite(low), low + INSIDE, low),
-                    np.where(np.isfinite(high), high - INSIDE, high))
-    # always the host's MuJoCo double kinematics: the card's floats blur TOLD, and even the card's float64 order of
-    # sums flips the pivoted QR's pick between two equally told axes (tall 2026-10-31: the root's x or the thorax's,
-    # 2.85 mm, the same residuals; the lumbar bones between them move)
-    keep = told(host, host.exact(begin))
-    if wide:
-        from fit._card._level2_wide import Wide
-    problem = Wide(host) if wide else host
+    rounding), `jacobian` then unused; `told` reads the host's either way. `card` (default ON_CARD, needs `wide`):
+    scipy's least_squares replaced by `_card._level2_lm` (Levenberg-Marquardt, the frames eliminated on the card by
+    the Schur complement), the same polish after it."""
+    problem, begin, keep, bounds = prepared(fitting, path, turns, points, given, free, wide)
+    if (ON_CARD if card is None else card):
+        if not wide:
+            raise ValueError("level 2's card solve reads the card's float64 evaluator: staged(wide=True)")
+        from fit._card._level2_lm import Set, solved
+        (unknowns,), (evaluations,) = solved([Set(problem, begin, keep, bounds)])
+        return finished(problem, polished(problem, unknowns, keep, bounds), evaluations)
+    low, high = bounds
 
     def whole(unknowns):
         """The whole unknowns: `begin` with the told ones laid in."""
@@ -225,13 +225,45 @@ def staged(fitting, path, turns, points, given, free=(), jacobian=None, wide=Fal
     # scipy's own tolerances: the polish settles (at ftol 1e-12 trf took ~400 s a real body and still stalled, #70)
     found = least_squares(lambda unknowns: problem.residuals(whole(unknowns)), begin[keep],
                           bounds=(low[keep], high[keep]), x_scale="jac", method="trf", tr_solver="lsmr", **exact)
-    found.x = polished(problem, whole(found.x), keep, (low, high))
-    constants = problem.constants(found.x)
-    fitting.apply(constants)
+    return finished(problem, polished(problem, whole(found.x), keep, bounds), int(found.nfev))
+
+
+def staged_across(cases):
+    """`staged(..., wide=True, card=True)` of several sets at once (`cases` [(fitting, path, turns, points, given,
+    free)], one model): every set's frames eliminated in one card launch a round (`_card._level2_lm.solved`), each
+    set polished on its own after. [(constants, angles, evaluations)] in the cases' order."""
+    from fit._card._level2_lm import Set, solved
+    ready = [prepared(*case, True) for case in cases]
+    found, evaluations = solved([Set(*one) for one in ready])
+    return [finished(problem, polished(problem, unknowns, keep, bounds), count)
+            for (problem, _, keep, bounds), unknowns, count in zip(ready, found, evaluations)]
+
+
+def prepared(fitting, path, turns, points, given, free, wide):
+    """A set's (problem, start, told columns, bounds): the problem the host's or, `wide`, the card's float64
+    evaluator; the start the path's, just inside the bounds; `told` on the host's exact Jacobian there."""
+    host = Problem(fitting, path, turns, points, given, free)
+    low, high = host.bounds()
+    begin = np.clip(host.start(), np.where(np.isfinite(low), low + INSIDE, low),
+                    np.where(np.isfinite(high), high - INSIDE, high))
+    # always the host's MuJoCo double kinematics: the card's floats blur TOLD, and even the card's float64 order of
+    # sums flips the pivoted QR's pick between two equally told axes (tall 2026-10-31: the root's x or the thorax's,
+    # 2.85 mm, the same residuals; the lumbar bones between them move)
+    keep = told(host, host.exact(begin))
+    if wide:
+        from fit._card._level2_wide import Wide
+        return Wide(host), begin, keep, (low, high)
+    return host, begin, keep, (low, high)
+
+
+def finished(problem, unknowns, evaluations):
+    """(constants, angles frames x nq, evaluations) at the solved whole `unknowns`, the constants laid on the model."""
+    constants = problem.constants(unknowns)
+    problem.fitting.apply(constants)
     held = len(problem.slots)
-    angles = np.array([problem.qpos(frame, found.x[held + frame * problem.width:held + (frame + 1) * problem.width])
-                       for frame in range(len(path))])
-    return constants, angles, int(found.nfev)
+    angles = np.array([problem.qpos(frame, unknowns[held + frame * problem.width:held + (frame + 1) * problem.width])
+                       for frame in range(len(problem.path))])
+    return constants, angles, evaluations
 
 
 def off_bounds(unknowns, keep, bounds):

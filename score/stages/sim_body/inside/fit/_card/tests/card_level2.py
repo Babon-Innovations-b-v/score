@@ -50,17 +50,22 @@ def differences(problem, unknowns):
     return np.array(columns).T
 
 
+def moved_given(folder, seed=2):
+    """The toy's staged inputs with the path's places and hinges moved SPREAD off the poses (`seed` the move)."""
+    problem, _ = problem_and_point(folder)
+    path = problem.path.copy()
+    unturned = [index for index in range(path.shape[1]) if index not in range(3, 7)]
+    path[:, unturned] += np.random.default_rng(seed).normal(0.0, SPREAD, (len(path), len(unturned)))
+    return problem.fitting, path, problem.turns, problem.points, problem.given, problem.free
+
+
 def staged_both(folder):
     """The toy's constants and angles by `_constants.staged` from the same start, the path's places and hinges
     moved SPREAD off the poses so the solve has a way to go: scipy's 2-point differences (the reference), the exact
     Jacobian (`jacobian`, host kinematics) and the card's float64 evaluator (`wide`)."""
     from fit._card import _level2
     from fit._constants import staged
-    problem, _ = problem_and_point(folder)
-    path = problem.path.copy()
-    unturned = [index for index in range(path.shape[1]) if index not in range(3, 7)]
-    path[:, unturned] += np.random.default_rng(2).normal(0.0, SPREAD, (len(path), len(unturned)))
-    given = (problem.fitting, path, problem.turns, problem.points, problem.given, problem.free)
+    given = moved_given(folder)
     return staged(*given), staged(*given, jacobian=_level2.jacobian), staged(*given, wide=True)
 
 
@@ -132,3 +137,103 @@ def the_batched_inverses_equal_each_row():
     worst = max(np.abs(batched[index] - _level2.left_jacobian_inverse(rotation)).max()
                 for index, rotation in enumerate(rotations))
     return [f"batched inverse left Jacobians off each row's by {worst:.2e}"] if worst > 2e-15 else []
+
+
+CARD_MM, CARD_DEG, CARD_COST = 0.01, 0.01, 1e-8  # the owner's proof tolerances (#70, 2026-11-03), on the toy too
+
+
+def free_gradient(ready, constants, angles):
+    """The polish's free gradient (told unknowns off their bounds) and the cost at a solved (constants, angles), on
+    `ready` (`_constants.prepared(..., wide=True)`: problem, start, told columns, bounds)."""
+    from fit._constants import off_bounds
+    problem, begin, keep, bounds = ready
+    unknowns = begin.copy()
+    held = len(problem.slots)
+    unknowns[:held] = constants[problem.slots]
+    for frame, qpos in enumerate(angles):
+        start = 0
+        if problem.root is not None:
+            from scipy.spatial.transform import Rotation
+            at = problem.root
+            unknowns[held + frame * problem.width:held + frame * problem.width + 3] = qpos[at:at + 3]
+            unknowns[held + frame * problem.width + 3:held + frame * problem.width + 6] = (
+                Rotation.from_quat(problem.path[frame][at + 3:at + 7], scalar_first=True).inv()
+                * Rotation.from_quat(qpos[at + 3:at + 7], scalar_first=True)).as_rotvec()
+            start = 6
+        unknowns[held + frame * problem.width + start:held + (frame + 1) * problem.width] = qpos[
+            problem.fitting.model.jnt_qposadr[problem.leading]]
+    residuals = problem.residuals(unknowns)
+    free = off_bounds(unknowns, keep, bounds)
+    gradient = problem.exact(unknowns)[:, free].T @ residuals
+    return np.abs(gradient).max(), float(residuals @ residuals)
+
+
+def apart(ready, reference, found):
+    """Where `found` (constants, angles, _) misses `reference` past the owner's proof tolerances (`ready` as
+    `free_gradient` reads it)."""
+    (constants, angles, _), (own_constants, own_angles, _) = reference, found
+    off_mm, off_deg = 1000 * np.abs(own_constants - constants).max(), np.degrees(np.abs(own_angles - angles).max())
+    gradient, cost = free_gradient(ready, own_constants, own_angles)
+    _, reference_cost = free_gradient(ready, constants, angles)
+    return ([f"constants {off_mm:.2e} mm off"] if off_mm > CARD_MM else []) + (
+        [f"angles {off_deg:.2e} deg off"] if off_deg > CARD_DEG else []) + (
+        [f"cost {abs(cost / reference_cost - 1):.2e} relative off"] if abs(cost / reference_cost - 1) > CARD_COST
+        else []) + ([f"free gradient {gradient:.2e}"] if gradient > 1e-10 else [])
+
+
+STEP_MOST = 1e-9  # the card's Schur step off the dense damped solve, of the step's largest entry
+
+
+def steps_off(cases):
+    """How far `_card._level2_lm.steps` (both cases in one launch, a bound held in the first) is off each set's
+    whole damped normal equations solved dense: (H + lambda diag H) d = -g, held unknowns' rows the identity's."""
+    from fit._card._level2_lm import Set, steps
+    from fit._constants import prepared
+    sets = [Set(*prepared(*case, True)) for case in cases]
+    for one in sets:
+        one.linearised()
+    sets[0].arrow.free[1] = False
+    lams = [1e-3, 0.37]
+    worst = 0.0
+    for one, lam, step in zip(sets, lams, steps([one.arrow for one in sets], lams)):
+        arrow = one.arrow
+        square = (one.matrix.T @ one.matrix).toarray() + lam * np.diag(arrow.diagonal)
+        free = arrow.free
+        square[~free, :] = 0.0
+        square[:, ~free] = 0.0
+        square[~free, ~free] = 1.0
+        dense = np.linalg.solve(square, -np.where(free, arrow.gradient, 0.0))
+        worst = max(worst, np.abs(step - dense).max() / np.abs(dense).max())
+    return worst
+
+
+def own_stops(cases):
+    """How `_card._level2_lm.solved` itself stopped on each case solved together (before any polish)."""
+    from fit._card._level2_lm import Set, solved
+    from fit._constants import prepared
+    sets = [Set(*prepared(*case, True)) for case in cases]
+    solved(sets)
+    return [one.stop for one in sets]
+
+
+def the_card_levenberg_marquardt_equals_scipys_level2():
+    """Level 2 by `_card._level2_lm` (`staged(card=True)`) equals `staged(wide=True)` (scipy's least_squares and the
+    polish) on the toy from the moved path, constants 0.01 mm, angles 0.01 deg, cost 1e-8 relative, its free
+    gradient under 1e-10, the card's solve settled there by itself (not by the polish after it), its damped step (two sets in one launch, a
+    bound held) the whole normal equations' dense solve to 1e-9; two sets solved at once (`staged_across`, each its own moved path) equal each alone."""
+    import tempfile
+    from fit._constants import prepared, staged, staged_across
+    problems = []
+    with tempfile.TemporaryDirectory() as folder:
+        cases = [moved_given(folder, seed) for seed in (2, 3)]
+        readies = [prepared(*case, True) for case in cases]
+        references = [staged(*case, wide=True, card=False) for case in cases]
+        alone = staged(*cases[0], wide=True, card=True)
+        problems += [f"alone: {miss}" for miss in apart(readies[0], references[0], alone)]
+        problems += [f"the card's own solve stopped {stop}, not settled (the polish did its work)"
+                     for stop in own_stops(cases) if stop != "settled"]
+        off = steps_off(cases)
+        problems += [f"the card's Schur step {off:.2e} off the dense damped solve"] if off > STEP_MOST else []
+        for number, (ready, reference, found) in enumerate(zip(readies, references, staged_across(cases))):
+            problems += [f"set {number} of two: {miss}" for miss in apart(ready, reference, found)]
+    return problems
