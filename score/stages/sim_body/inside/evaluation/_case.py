@@ -1,6 +1,6 @@
 """_case.py <table.json> <weights.json> <out root> <case>=<job.json> ...: one SOMA body's levels 2 and 3 for level 1's
 runner: the landmark set replaced in place by the table's rows and the global weights by the weights file's, each
-group end's centre moved by <out root>/rest.json's offsets (the fit's targets, the sizing's lengths and the measure's
+group end's centre moved by <out root>/rest.json's offsets and each segment end's marker by its shifts (the fit's targets, the sizing's lengths and the measure's
 joints all read it) and the calibration table read again at rest from them (on SOMA's template rig), the
 person constants solved once from every clip of the body together (held for its later clips), then each clip's pose
 per frame, then per clip the honest measures (_measure.measures) and per landmark its leftover and its fitted move
@@ -43,6 +43,13 @@ def load_centres(offsets):
         for name, offset in offsets.items():
             body, local = table[name]
             table[name] = (body, tuple(float(value) for value in np.asarray(local, dtype=float) + offset))
+
+
+def load_shifts(shifts):
+    """Lay each segment end's shift ({end: [3]} m, the person's frame, level 1's `tuning.shifts`) into
+    `calibration.END_SHIFTS` in place, the table `fit.end_marker` and every reader moves the end markers by: a marker
+    shifted on its holder body, never the joint centre moved (owner, 2026-11-03)."""
+    calibration.END_SHIFTS.update({end: tuple(float(value) for value in shift) for end, shift in shifts.items()})
 
 
 def recalibrated(folder, rig):
@@ -164,6 +171,7 @@ def prepared(table, weights, root, cases):
     load_weights(weights)
     rest = json.loads((root / "rest.json").read_text())
     load_centres(rest["centres"])
+    load_shifts(rest.get("shifts", {}))
     recalibrated(json.loads(pathlib.Path(next(iter(cases.values()))).read_text())["model"], rest["rig"])
     held_constants()
     return [json.loads(pathlib.Path(job).read_text())["people"][0]["targets"] for job in cases.values()]

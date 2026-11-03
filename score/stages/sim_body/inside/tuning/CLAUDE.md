@@ -39,3 +39,14 @@ A trial point a body's level 3 does not stop on (an evaluation's None) is refuse
 - The bone's long axis is the body's own y (`LONG_AXIS`, OpenSim's convention for MyoFullBody's long bones).
 - `whole` is level 1 entire: `solved` with each evaluation's residuals from the runner (`../evaluation`: levels 2 and
   3 on every tuning body, side by side) and the held-out check scored every few iterations and at the end.
+- **Segment ends and two terms (owner, 2026-11-03)**: "what i didnt want anymore was joint centre to joint centre
+  fitting, but segment ends ... is better", and "shouldnt it mean aim at bones in skin, and segment orientation to bone
+  group orientation error, aswell". Level 1 tunes every segment end's marker shift (`_ends`: each group start that is
+  a SOMA rig joint, `segment_ends` in `fit.group_ends`' rule; `layout(shifted=)` kind "end", a pair one mirrored
+  unknown, x sideways flipped, a middle end never sideways; within END_REACH 40 mm of its start, the prior over PRIOR
+  pulling it there; starts the at-rest reads `calibration.END_READS`, `mirrored_starts`; `shifts` gives the worker its
+  `rest.json` "shifts", laid into `calibration.END_SHIFTS`). No joint centre moves. `case_residuals` gives raw rows
+  (each skin region's depth mm, then each segment's turn deg) and `weights` weighs each term over its own mean square
+  at level 1's start (every unknown 0), so each is 1 there and the two weigh alike: a stated design choice, never tuned
+  to pass a check. `whole` weighs the exact Jacobian's raw rows the same way. The paragraph above (turns a check only,
+  no centres) is the 2026-11-01 state this replaces.

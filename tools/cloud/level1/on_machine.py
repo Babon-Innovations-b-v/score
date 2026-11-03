@@ -6,7 +6,7 @@ names, newton_env.sh: numpy and scipy for level 1 itself, Newton, Warp and MuJoC
 
 - The seeds first, when the seeds root lacks a case's angles.npz: levels 2 and 3 (mink, on the processors) on every
   case of the run's cases.json from the run's own src, its table.json at its starts and its rig.npz
-  (`evaluation.measured`, level1.py's set at zero unknowns), at most half this machine's cores in bodies at once, two
+  (`evaluation.measured`, level1.py's set at zero unknowns, `level1.worker_set` where the run's own code has it), at most half this machine's cores in bodies at once, two
   threads each, inside the batch's --minutes (owner, 2026-11-02: seeds are built on the rented machine, never on his PC).
   Their log is <seeds root>/seeds.log; the job brings the seeds root back, so the next batch carries them up built.
 
@@ -44,11 +44,17 @@ sys.path.insert(0, str(run / "src" / "score" / "stages" / "sim_body" / "inside")
 import evaluation, landmarks, tuning
 table = json.loads((run / "table.json").read_text())
 cases = json.loads((run / "cases.json").read_text())
-entries = tuning.layout(table, held=landmarks.HELD, joints=set())
-starts = {name: row["link"] for name, row in table.items()}
-rows, weights = tuning.applied(np.zeros(len(entries)), entries, starts, table, {"marker goal": 1.0, "end weight": 1.0})
-found = evaluation.measured(rows, weights, {"centres": {}, "rig": str(run / "rig.npz")}, cases, seeds, sys.executable,
-                            most=most)
+own = run / "src" / "score" / "stages" / "sim_body" / "inside" / "evaluation" / "level1.py"
+if own.is_file() and "def worker_set(" in own.read_text():  # a run frozen since 2026-11-03: level 1's own start set,
+    from evaluation import level1  # its segment ends' shifts too
+    entries = level1.laid_out(table)
+    rows, weights, rest = level1.worker_set(np.zeros(len(entries)), entries, table, run / "rig.npz")
+else:
+    entries = tuning.layout(table, held=landmarks.HELD, joints=set())
+    starts = {name: row["link"] for name, row in table.items()}
+    rows, weights = tuning.applied(np.zeros(len(entries)), entries, starts, table, {"marker goal": 1.0, "end weight": 1.0})
+    rest = {"centres": {}, "rig": str(run / "rig.npz")}
+found = evaluation.measured(rows, weights, rest, cases, seeds, sys.executable, most=most)
 print("seeds done", len(found), flush=True)
 """
 SHIM_SCRIPT = """#!/usr/bin/env bash

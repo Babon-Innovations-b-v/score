@@ -243,6 +243,26 @@ def ends_of(path, scales, segments):
                                 for part, (body, _, weight) in zip(MIDDLE_CENTRES.get(centre, (centre,)), parts)}))
     return found
 
+
+def end_shifts(path, scales, segments):
+    """`_outer`'s `shifting` for the person's file at `path`: [(end, turn)] in `ends_of`'s order, each end's name and
+    d(its end site's local point) / d(its shift, m, the person's frame): -R_holder^T TO_OWN^T at the model's rest, as
+    `fit._model.shifted_end` lays the shift (owner, 2026-11-03: level 1 shifts the segment ends' markers)."""
+    import mujoco
+    from fit import group_ends
+    from fit._model import end_site, filed
+    from landmarks import myo_parts
+    from model import TO_OWN
+    model = mujoco.MjModel.from_xml_path(str(path))
+    data = mujoco.MjData(model)
+    mujoco.mj_kinematics(model, data)
+    found = []
+    for _, centre in group_ends(segments):
+        holder, _ = end_site(model, [(filed(body), np.asarray(local, dtype=float) * scales[body], weight)
+                                     for body, local, weight in myo_parts(centre)])
+        found.append((centre, -data.xmat[model.body(holder).id].reshape(3, 3).T @ TO_OWN.T))
+    return found
+
 HELD = 1e-5  # rad or m: a coordinate this close to its bound is held there by the card's active set
 
 

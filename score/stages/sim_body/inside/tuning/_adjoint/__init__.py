@@ -8,7 +8,6 @@ whose gradient is not zero gives a wrong derivative, so `implicit_jacobian` refu
 Callables, not a model: the card code supplies g (Newton eval_fk on a wp.Tape) and the residuals; numpy only here."""
 import numpy as np
 
-from .. import SKIN_SCALE
 
 
 class Unconverged(ValueError):
@@ -225,22 +224,27 @@ def distance_rows(differences, rows):
     return lengths, np.einsum("fk,fkn->fn", differences / lengths[:, None], np.asarray(rows))
 
 
-def case_rows(skins, frames=None):
-    """One case's level 1 rows and their derivative rows over the inner unknowns, in `tuning.case_residuals`' order
-    and scale, from taped measures: `skins` {region: (depths outside per point m, their rows (points, unknowns))},
-    each row the root mean square over its points (`rms_row`), mm for metres as the measures give. With `frames` (a
-    pose of that many frame blocks) a skin is (depths, rows (points, block), each point's frame) and every row is laid
-    on its own frame's block (`TapedMeasures.measured`). Turns and joints are no rows (the owner's aim of 2026-11-01:
-    level 1 tunes the bones inside the skin; turns are its check, joints reported)."""
-    return scaled_rows({key: rms_row(1000 * np.asarray(part[0]), 1000 * np.asarray(part[1]),
-                                     *((part[2], frames) if frames is not None else ()))
-                        for key, part in skins.items()})
+def case_rows(skins, turns=None, frames=None):
+    """One case's level 1 raw rows and their derivative rows over the inner unknowns, in `tuning.case_residuals`'
+    order and units (`tuning.weights` scales them into the objective), from taped measures: `skins` {region: (depths
+    outside per point m, their rows (points, unknowns))}, each row the root mean square over its points (`rms_row`),
+    mm for metres as the measures give, then `turns` {group: (turn error per frame deg, its rows (frames,
+    unknowns))}, each the root mean square over its frames (the owner's two terms, 2026-11-03). With `frames` (a pose
+    of that many frame blocks) a skin is (depths, rows (points, block), each point's frame), a turn's rows (frames,
+    block), and every row is laid on its own frame's block (`TapedMeasures.measured`). Joints are no rows (reported
+    only)."""
+    reduced = {("skin", key): rms_row(1000 * np.asarray(part[0]), 1000 * np.asarray(part[1]),
+                                      *((part[2], frames) if frames is not None else ()))
+               for key, part in skins.items()}
+    reduced.update({("turn", key): rms_row(errors, rows, *((np.arange(len(errors)), frames) if frames is not None
+                                                            else ()))
+                    for key, (errors, rows) in (turns or {}).items()})
+    return scaled_rows(reduced)
 
 
 def scaled_rows(reduced):
-    """`case_rows`' values and rows from each region's (root mean square mm, its row): over SKIN_SCALE and the square
-    root of the regions' count, in sorted order (`tuning.case_residuals`' scale), as `TapedMeasures.region_rows`
+    """`case_rows`' values and rows from each row's ((kind, key): (root mean square, its row)), raw, in
+    `tuning.labels`' order (sorted: every "skin" region, then every "turn" group), as `TapedMeasures.region_rows`
     gives them too."""
-    scale = np.sqrt(1.0 / len(reduced)) / SKIN_SCALE
-    return (np.array([scale * reduced[key][0] for key in sorted(reduced)]),
-            np.stack([scale * np.asarray(reduced[key][1]) for key in sorted(reduced)]))
+    return (np.array([reduced[key][0] for key in sorted(reduced)]),
+            np.stack([np.asarray(reduced[key][1]) for key in sorted(reduced)]))

@@ -4,7 +4,8 @@ unconverged inner fit is refused, and level 1's outer rows (a per-frame distance
 equal differences of the measures they stand for.
 
 Breaks (each applied once, seen red, reverted), in `tuning/_adjoint/__init__.py`: `rms_row` dropping its 1 / count
-turns the outer rows test red; `case_rows` dropping its 1 / SKIN_SCALE turns the case rows test red;
+turns the outer rows test red; `case_rows` dropping its turns turns the case rows test red (2026-11-03); `TapedMeasures.region_rows` seeding a turn
+without its 1 / frames turns the measures test red;
 `TapedMeasures._measured` taping the joints' and turns' rows again turns the measures test's passes red (2026-11-01); dropping the mixed term
 (`moved` set to zeros) turns the columns test red; `schur_solve` skipping the couplings' reduction (`reduced = corner`)
 turns the Schur and columns tests red; removing the `Unconverged` check turns the refusal test red; `rowed_jacobian` dropping the given R_z term (`by_outer` alone) turns the given rows test red; `chained_jacobian` dropping level 2's term (R_c dc/dtheta) turns the level 2 chain test red; `chained_rows` dropping it the same way turns the given level 3 rows test red, and `adjoint_rows` its level 2 solve (`lowered` zeros) too; `stacked_jacobian` skipping `refused`
@@ -110,6 +111,23 @@ def test_level_1_unknowns_map_onto_the_taped_outer_unknowns_with_their_derivativ
     moved = np.linspace(-0.6, 0.9, len(paired))
     assert np.allclose(_outer.site_derivative(moved, paired, toys.LANDMARKS, sided, toys.TABLE, toys.GLOBALS),
                        _adjoint.by_columns(sited, moved, 1e-6), atol=1e-6)
+    # a segment end's shift (owner, 2026-11-03): one mirrored unknown a pair, a middle end's never sideways, each
+    # moving its end site by its shift turn
+    ended = tuning.layout(toys.TABLE, set(), {"knee_l"}, shifted={"knee_l": ["LeftLeg"], "knee_r": ["RightLeg"],
+                                                                  "C7_T1": ["Neck1"]})
+    turns = [("knee_l", toys.TURN), ("C7_T1", 2.0 * np.eye(3))]
+    two = [(np.zeros(3), {}), (np.ones(3), {})]
+
+    def shifted_sites(point, shifting=turns):
+        return _outer.site_unknowns(point, ended, toys.LANDMARKS, two, toys.STARTS, toys.TABLE, toys.GLOBALS, shifting)
+    moved = np.linspace(-0.6, 0.9, len(ended))
+    assert [entry[2] for entry in ended if entry[1] == "end"] == [0, 1, 2, 1, 2]
+    assert np.allclose(_outer.site_derivative(moved, ended, toys.LANDMARKS, two, toys.TABLE, toys.GLOBALS, turns),
+                       _adjoint.by_columns(shifted_sites, moved, 1e-6), atol=1e-6)
+    left = tuning.shifts(moved, ended, {end: np.zeros(3) for end in ("knee_l", "knee_r", "C7_T1")}, 1.0)
+    assert np.allclose(np.array(left["knee_r"]), np.array(left["knee_l"]) * [-1, 1, 1])
+    assert np.allclose(shifted_sites(moved)[9:12] - shifted_sites(moved, ())[9:12],
+                       toys.TURN @ (tuning.LINK_UNIT * np.array(left["knee_l"])))
     start = _outer.site_derivative(np.zeros(len(entries)), entries, ["hip", "knee_l"], toys.ENDS, toys.TABLE,
                                    toys.GLOBALS)  # picked: names' order, the ends last, an unknown name zero
     assert np.allclose(_outer.picked_columns(["x", "hip", "knee_l", "end", "mid"], range(len(entries)), entries,
@@ -163,7 +181,8 @@ def test_the_taped_case_rows_equal_differences_of_the_case_residuals():
     rows = {kind: {key: _adjoint.by_columns(lambda point, kind=kind, key=key: np.ravel(toys.measured(point)[kind][key]),
                                             unknowns, 1e-6).reshape(*np.shape(value), 3)
                    for key, value in measured[kind].items()} for kind in measured}
-    values, jacobian = _adjoint.case_rows({key: (value, rows["skins"][key]) for key, value in measured["skins"].items()})
+    values, jacobian = _adjoint.case_rows({key: (value, rows["skins"][key]) for key, value in measured["skins"].items()},
+                                          {key: (value, rows["turns"][key]) for key, value in measured["turns"].items()})
     assert np.allclose(values, case_residuals(toys.found(unknowns)))
     expected = _adjoint.by_columns(lambda point: case_residuals(toys.found(point)), unknowns, 1e-6)
     assert np.allclose(jacobian, expected, atol=1e-6)
@@ -177,24 +196,31 @@ def test_the_taped_measures_rows_equal_differences_of_the_case_residuals():
     # a frame's most entries: the skins' 12 link frame entries of each of a frame's 3 links (joints and turns untaped)
     assert found["passes"] == 12 * 3, found["passes"]
     assert all(rows.shape[-1] == 4 for _, rows, _ in taped["skins"].values())  # frame blocks
-    values, jacobian = _adjoint.case_rows(taped["skins"], frames=3)
+    values, jacobian = _adjoint.case_rows(taped["skins"], frames=3)  # the per-entry taping: skins only
+    skin = len(taped["skins"])
     at = {kind: {key: value[0] for key, value in taped[kind].items()} for kind in taped}
-    assert np.allclose(values, case_residuals(toys.case_found(at["joints"], at["turns"], at["skins"])), atol=1e-4)
-    expected = toys.nudged_differences(found["nudged"], found["step"])
-    assert np.abs(jacobian - expected).max() < 1e-2 * np.abs(expected).max()
+    whole = case_residuals(toys.case_found(at["joints"], at["turns"], at["skins"]))
+    assert np.allclose(values, whole[:skin], atol=1e-4)
+    pose_expected = toys.nudged_differences(found["nudged"], found["step"])
+    assert np.abs(jacobian - pose_expected[:skin]).max() < 1e-2 * np.abs(pose_expected).max()
     constant_jacobian = _adjoint.case_rows(toys.taped_parts(found, "constant_taped")[2])[1]  # R_c: a free mark, a joint
     expected = toys.nudged_differences(found["constant_nudged"], found["step"])
-    assert np.all(constant_jacobian[:, :3] == 0) and np.abs(constant_jacobian - expected).max() < 1e-2 * np.abs(expected).max()
+    assert np.all(constant_jacobian[:, :3] == 0) and np.abs(constant_jacobian - expected[:skin]).max() < 1e-2 * np.abs(expected).max()
     assert found["joined same"] and found["joined passes"] == found["separate passes"], found  # R_q and R_c, one taping
-    # one backward pass a region (a vector-Jacobian product) gives `case_rows`' rows of the per-entry taping
-    regions = found["regions"]
+    # one backward pass a skin region or a turn group (a vector-Jacobian product) gives `case_rows`' rows of the
+    # per-entry taping, and the turns' rows central differences of `case_residuals` (the owner's second term)
+    regions = {tuple(name.split(" ", 1)): value for name, value in found["regions"].items()}
     values, by_pose = _adjoint.scaled_rows({name: (value, pose_row) for name, (value, pose_row, _) in regions.items()})
     _, by_constants = _adjoint.scaled_rows({name: (value, row) for name, (value, _, row) in regions.items()})
     poses = dict(zip(("joints", "turns", "skins"), toys.taped_parts(found, "joined_poses")))
     wanted_values, wanted_pose = _adjoint.case_rows(poses["skins"], frames=3)
-    assert found["region passes"] == len(regions) and np.allclose(values, wanted_values, atol=1e-6)
-    assert np.abs(by_pose - wanted_pose).max() < 1e-4 * np.abs(wanted_pose).max()
-    assert np.abs(by_constants - constant_jacobian).max() < 1e-4 * np.abs(constant_jacobian).max()
+    # (the regions are taped with level 2's moves laid, which move the skins but never a turn)
+    assert found["region passes"] == len(regions) == len(whole) and np.allclose(values[skin:], whole[skin:], atol=1e-4)
+    assert np.allclose(values[:skin], wanted_values, atol=1e-6)
+    assert np.abs(by_pose[:skin] - wanted_pose).max() < 1e-4 * np.abs(wanted_pose).max()
+    assert np.abs(by_pose[skin:] - pose_expected[skin:]).max() < 1e-2 * np.abs(pose_expected[skin:]).max()
+    assert np.abs(by_constants[:skin] - constant_jacobian).max() < 1e-4 * np.abs(constant_jacobian).max()
+    assert np.abs(by_constants[skin:] - expected[skin:]).max() < 1e-2 * np.abs(expected).max()
 
 
 def test_one_real_body_builds_and_its_rows_equal_the_card_solve(tmp_path):
