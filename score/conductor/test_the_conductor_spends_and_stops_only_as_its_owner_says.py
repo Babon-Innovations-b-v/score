@@ -603,17 +603,17 @@ def test_sweep_frees_room_itself_and_asks_only_for_a_bigger_disk_priced(tmp_path
     said = []
     done = disk.sweep(home, say=said.append)  # no machine.json: off a conductor, the routine only
     assert not done["escalated"] and [step["step"] for step in done["steps"]] == [
-        "clean-frozen", "clean-cache", "clean-kept"], done
+        "clean-frozen", "clean-cache", "clean-kept", "laid-plain"], done
     (home / "machine.json").write_text(json.dumps({"zone": "fr-par-2"}))
     free["gb"] = 5.0
     done = disk.sweep(home, say=said.append)
-    assert done["escalated"] and [step["step"] for step in done["steps"]][3:] == [
+    assert done["escalated"] and [step["step"] for step in done["steps"]][4:] == [
         "relink-pixal", "old-logs", "store-gc", "offload-pixal"], done
     assert not (home / "logs" / "old.log").exists() and (home / "logs" / "new.log").exists()
     assert named["orphan"] not in {path.name for path in blobs.iterdir()} and named["record"] in {
         path.name for path in blobs.iterdir()}
     assert done["bigger"] == "50 GB more, EUR 4.00 a month in fr-par-2" and done["fills"], done
-    assert sum(line.startswith("sweep ") for line in said) == 3 + 7, said  # a line a step, each with what it freed
+    assert sum(line.startswith("sweep ") for line in said) == 4 + 8, said  # a line a step, each with what it freed
     note = disk.warning(5.0, swept=home / "conductor" / "sweep.json")
     assert "could not reach it" in note and "50 GB more, EUR 4.00 a month" in note, note
     free["gb"] = 12.0  # it reached the floor: nothing is asked
@@ -689,7 +689,8 @@ def test_relink_pixal_links_only_old_takes_the_store_holds_and_removes_nothing(t
     """2026-10-28: 16 GB free of 91, work/pixal 20.5 GB, most of it kept nowhere else.
     Break: score/conductor/disk.py: '    if not blob.is_file():\n        return "not held in the store"' -> '    if False:
     \n        return "not held in the store"' (a take the store lacks is lost), or '    if now - status.st_mtime <
-    YOUNG_SECONDS:' -> '    if False:' (a take a run is writing is linked)"""
+    YOUNG_SECONDS:' -> '    if False:' (a take a run is writing is linked), or 'if laid_by_a_row(path, pixal):' -> 'if
+    False:' (a people look's take linked, so its row copies a file onto itself: 2026-11-03, SameFileError)"""
     home = tmp_path / "home"
     store = Store.in_folder(home / "store")
     made = tmp_path / "made"
@@ -714,6 +715,18 @@ def test_relink_pixal_links_only_old_takes_the_store_holds_and_removes_nothing(t
     assert (pixal / "t-final.glb").read_bytes() == b"only here" and (pixal / "young.glb").stat().st_nlink == 1
     assert (pixal / "t.glb").read_bytes() == b"raw" * 1000 and not list(pixal.rglob("*.partial"))
     assert disk.relink_pixal(home)["kept"]["already a link to its blob"] == 2
+    # a people look's take file stays a plain copy, and one linked before is copied back
+    (pixal / "officer-made-s1.svviews").mkdir()
+    look = pixal / "officer-made-s1.svviews/input.png"
+    os.link(blob, look)
+    again = disk.relink_pixal(home)
+    assert again["copied"] == 1 and look.stat().st_nlink == 1 and not look.samefile(blob), again
+    assert look.read_bytes() == b"raw" * 1000 and os.access(look, os.W_OK)
+    assert disk.relink_pixal(home)["copied"] == 0 and look.stat().st_nlink == 1
+    look.unlink()
+    os.link(blob, look)  # linked before the rule: every sweep pass copies it back, the disk low or not
+    assert disk.laid_plain(home) == {"copied": 1} and look.stat().st_nlink == 1
+    assert "laid-plain" in [name for name, _ in disk.steps(home, home / "runs", print, False)]
 
 
 def test_offload_pixal_frees_only_painted_takes_the_library_hands_back_whole(tmp_path, monkeypatch):
