@@ -482,15 +482,33 @@ def relink_checkouts(home, say=print):
     return freed
 
 
+# A people look's take files (people_bodies/bodies.laid_take copies them from the store into work/pixal over what is
+# there): kept plain copies, never links. 2026-11-03: linked to the very blob the store's checkout links, the copy was
+# a file onto itself (SameFileError) and three looks' lines stopped in Batch 1's try.
+LAID = re.compile(r"^[A-Za-z0-9_]+-made-s\d+")
+
+
+def laid_by_a_row(path, pixal):
+    """Whether the work/pixal file at `path` is a people look's take file, which a row copies over (LAID)."""
+    return bool(LAID.match(path.relative_to(pixal).parts[0]))
+
+
 def relink_pixal(home=None, now=None):
     """Every work/pixal file whose bytes the store holds as a blob, untouched for YOUNG_SECONDS, made a hard link to
-    that blob; {relinked, freed_gb, kept: {why: files}}."""
+    that blob, but a people look's take file (laid_by_a_row), which is kept a plain copy and made one again if it
+    was linked before; {relinked, freed_gb, kept: {why: files}, copied}."""
     home = pathlib.Path(home or PROPS_HOME)
     blobs = Store.in_folder(home / "store").objects.path("blobs")
     now = time.time() if now is None else now
-    relinked, freed, kept = 0, 0, {}
-    for path in sorted((home / "work" / "pixal").rglob("*")):
+    relinked, freed, kept, copied = 0, 0, {}, 0
+    pixal = home / "work" / "pixal"
+    for path in sorted(pixal.rglob("*")):
         if path.is_dir() and not path.is_symlink():
+            continue
+        if laid_by_a_row(path, pixal):
+            copied += plain_again(path)
+            kept["a people look's take, copied over by its row"] = kept.get(
+                "a people look's take, copied over by its row", 0) + 1
             continue
         size = path.lstat().st_size
         why = relinked_or_why(path, blobs, now)
@@ -498,7 +516,29 @@ def relink_pixal(home=None, now=None):
             kept[why] = kept.get(why, 0) + 1
         else:
             relinked, freed = relinked + 1, freed + size
-    return {"relinked": relinked, "freed_gb": round(freed / 1024 ** 3, 2), "kept": kept}
+    return {"relinked": relinked, "freed_gb": round(freed / 1024 ** 3, 2), "kept": kept, "copied": copied}
+
+
+def laid_plain(home=None):
+    """Every people look's take file in work/pixal (laid_by_a_row) made a plain copy again where it is a link; {copied}.
+    The sweep's every pass runs it, so a take linked before the rule is put right without a low disk."""
+    home = pathlib.Path(home or PROPS_HOME)
+    pixal = home / "work" / "pixal"
+    files = [path for path in sorted(pixal.rglob("*")) if path.is_file() and laid_by_a_row(path, pixal)] \
+        if pixal.is_dir() else []
+    return {"copied": sum(plain_again(path) for path in files)}
+
+
+def plain_again(path):
+    """The file at `path` made a plain, writable copy of itself when it shares its bytes with another link (a blob);
+    1 when it did, else 0. The copy is written beside it and renamed over it, so nothing is lost on the way."""
+    if path.is_symlink() or not path.is_file() or path.stat().st_nlink < 2:
+        return 0
+    spare = partial_of(path)
+    shutil.copyfile(path, spare)
+    os.chmod(spare, 0o644)
+    spare.replace(path)
+    return 1
 
 
 def relinked_or_why(path, blobs, now):
@@ -839,7 +879,8 @@ def steps(home, runs_folder, say, escalated):
     routine = [("clean-frozen", lambda: clean(home, runs_folder, say)),
                ("clean-cache", lambda: clean_cache(home, runs_folder, tuple(CLEARED) if escalated else ("making",),
                                                    say)),
-               ("clean-kept", lambda: clean_kept(home, runs_folder, say=say))]
+               ("clean-kept", lambda: clean_kept(home, runs_folder, say=say)),
+               ("laid-plain", lambda: laid_plain(home))]
     return routine + ([("relink-pixal", lambda: relink_pixal(home)),
                        ("old-logs", lambda: old_logs(home, runs_folder)),
                        ("store-gc", lambda: store_gc(home, runs_folder, say=say)),
