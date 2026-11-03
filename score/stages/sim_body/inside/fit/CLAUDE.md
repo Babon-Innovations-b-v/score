@@ -111,6 +111,15 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   tasks' and couplings' weighted errors (2026-10-29: at zero shoulder elevation elv_angle and its follower cancel, a
   direction no task sees; mink drifted along it 1e-4 rad a step for ever on every body's arms_raise; with the rule
   mean, heavy and short converge on all 7 clips, the other clips' angles moved at most 7e-6 rad).
+- **No card, the CPU's reference** (2026-11-03: the conductor, 16 cores and no CUDA, failed every sim-body row on
+  "Invalid device identifier: cuda:0"): when Warp sees no CUDA device (`on_card`) the stage's level 2 poses its sampled
+  frames by mink (`posed_paths` -> `mink_paths`, each recording from its own start) and solves its constants by
+  scipy's `least_squares` on the host's exact Jacobian (`staged(..., Problem.exact, wide=False)`); level 3 is mink
+  either way and the skin measures take Warp's CPU device (`_skin.card_device`). With a card nothing changes. On env1's
+  person_centre (CUDA hidden against the card through the card queue, both side by side on this PC, 20 and 16 min)
+  every bones-outside share and every turn measure of both followings equal to the record's rounding, the markers'
+  moves and inside joints too (0.0 mm apart); level 2's evaluations 22 against 21. Level 2's card solve
+  (`_level2_lm`, `_level2_wide`) itself runs on Warp's default device, so `staged(wide=True)` also runs with no card.
 - **Mink stops on its joint bounds where the card does not** (#70, 2026-10-30): on heavy_short_legged frame 16 mink
   ends at its ConfigurationLimit bounds (cost 0.307) while the card's solve ends at 0.0094 inside every range; that
   frame held two right-arm constants on their 0.03 m bound (level 2 cost 0.900 against 0.602 with card frames). So

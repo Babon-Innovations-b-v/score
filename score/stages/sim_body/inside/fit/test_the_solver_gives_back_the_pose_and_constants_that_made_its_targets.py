@@ -11,7 +11,8 @@ segments' turns, its skin's landmarks and rig joints) leave both solves unchange
 fit ends on a step that moves no task's error, though the step itself is not small; level 2 solves only the inside joint
 axes its Jacobian can tell apart from the other unknowns (a pair fixed to the root: their common shift is the root's
 place; a marked body welded under a markerless hinged middle: the hinge's own axis), and every other axis it keeps,
-the other unknowns' span taken by their Gram matrix exactly as by the pivoted QR. It runs in Newton's own Python (mink
+the other unknowns' span taken by their Gram matrix exactly as by the pivoted QR; the constants are found the same
+with no card (CUDA hidden: mink's frames and scipy's solve, the conductor's way). It runs in Newton's own Python (mink
 pinned there; score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there,
 as in `make tests`' sandbox home, it prints `skipped`.
 
@@ -46,6 +47,10 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-11-01) `_card/_measure.turn_errors`' default `table=cpu.judged_turn` made `frozen_turn`, or
   `evaluation._measure.judged_turn` returning `frozen_turn`: level 1 scores the turns on main's frozen table while
   the stage's follows targets ride the table read again from the moved centres.
+- (2026-11-03) posed_paths' `card_paths if on_card() else mink_paths` made `card_paths`: with the card hidden the
+  solve raises "Invalid device identifier: cuda:0" (the conductor's fault; the_solver_gives_back_the_angles_and_the_
+  constants (no card) red). constants_on's `wide=card` made `wide=True` stays green: level 2's card solve
+  (`_card._level2_lm`, `_level2_wide`) runs on Warp's default device, the CPU with no card.
 - (2026-10-28) Fitting's site `Rotation.from_matrix(calibration.T)` made `Rotation.from_matrix(calibration)`: the turned
   thigh's target is met by a wrong pose.
 - (2026-10-28) limited_model's `found.jnt_limited[self.followers] = 0` dropped: the follower's own range stops its
@@ -113,6 +118,7 @@ import tempfile
 
 INSIDE = pathlib.Path(__file__).resolve().parents[1]
 IN_ENV = "SIM_BODY_INSIDE_TEST"
+NO_CARD = "SIM_BODY_INSIDE_NO_CARD"  # the solve's check again with the card hidden (CUDA_VISIBLE_DEVICES empty)
 TOY = """<mujoco model="toy">
   <compiler angle="radian"/>
   <asset><mesh name="shinbone" vertex="-0.015 -0.015 -0.05  0.015 -0.015 -0.05  -0.015 0.015 -0.05  0.015 0.015 -0.05
@@ -325,25 +331,36 @@ def only_what_the_data_tells_is_an_inside_unknown():
 
 def the_solver_gives_back_the_angles_and_the_constants():
     """TRUE_MOVE's marker and TRUE_JOINT's joint moved along their true moves by MOVE_SHARE to all of it, within MOST_METRES of that line; at the true constants every frame within reach (all but the last) within
-    MOST_RADIANS of its angles."""
+    MOST_RADIANS of its angles; the constants so on the card when there is one and with none (`fit.on_card` False:
+    mink's frames and scipy's solve, the conductor's way), within MOST_METRES of each other."""
     import fit
     import numpy as np
+    seen = fit.on_card
+    found = {}
     with tempfile.TemporaryDirectory() as folder:
         fitting = toy_fitting(folder)
         truth = truth_of(fitting)
         turns, points, angles = posed_targets(fitting, truth, POSES[:-1])
-        found = fit.constants(fitting, [(turns[:2], points[:2]), (turns[2:], points[2:])])
+        for card in (True, False) if seen() else (False,):
+            fit.on_card = lambda card=card: card
+            try:
+                found[card] = fit.constants(fitting, [(turns[:2], points[:2]), (turns[2:], points[2:])])
+            finally:
+                fit.on_card = seen
         fitting.apply(truth)
         path = fit.angles(fitting, turns, points)
     problems = []
     off = np.abs(path[:, 7:11] - angles).max()
     if off > MOST_RADIANS:
         problems.append(f"angles off by up to {off:.6f} rad")
-    for kind, (name, wanted) in (("marks", TRUE_MOVE), ("joints", TRUE_JOINT)):
-        move, true = np.array(found[kind][name]), np.array(wanted)
-        along = move @ true / (true @ true)
-        if not MOVE_SHARE <= along <= 1.0 or np.linalg.norm(move - along * true) > MOST_METRES:
-            problems.append(f"{name} moved {move}, not {wanted}")
+    for card, constants in found.items():
+        for kind, (name, wanted) in (("marks", TRUE_MOVE), ("joints", TRUE_JOINT)):
+            move, true = np.array(constants[kind][name]), np.array(wanted)
+            along = move @ true / (true @ true)
+            if not MOVE_SHARE <= along <= 1.0 or np.linalg.norm(move - along * true) > MOST_METRES:
+                problems.append(f"{'card' if card else 'no card'}: {name} moved {move}, not {wanted}")
+            if card and np.linalg.norm(move - np.array(found[False][kind][name])) > MOST_METRES:
+                problems.append(f"{name} moved {move} on the card, {found[False][kind][name]} with none")
     return problems
 
 
@@ -828,9 +845,11 @@ CHECKS = (an_end_read_in_the_skin_holds_its_bones_off_somas_joint, a_turn_is_jud
 
 
 def in_newton():
-    """The checks, in Newton's own Python."""
+    """The checks, in Newton's own Python; with NO_CARD set (the card hidden, the conductor's way) the solve's alone."""
     sys.path.insert(0, str(INSIDE))
-    failures = [f"{check.__name__}: {problem}" for check in CHECKS for problem in check()]
+    checks = (the_solver_gives_back_the_angles_and_the_constants,) if os.environ.get(NO_CARD) else CHECKS
+    failures = [f"{check.__name__}{' (no card)' if os.environ.get(NO_CARD) else ''}: {problem}"
+                for check in checks for problem in check()]
     for failure in failures:
         print(failure)
     print("ok" if not failures else f"{len(failures)} failed")
@@ -846,4 +865,6 @@ if __name__ == "__main__":
     if not list(env.glob(".built-*")):
         print(f"skipped: no Newton env built at {env} (score/stages/physics/inside/newton_env.sh)")
         sys.exit(0)
-    sys.exit(subprocess.run([str(env / "bin/python"), "-B", __file__], env={**os.environ, IN_ENV: "1"}).returncode)
+    sys.exit(subprocess.run([str(env / "bin/python"), "-B", __file__], env={**os.environ, IN_ENV: "1"}).returncode
+             or subprocess.run([str(env / "bin/python"), "-B", __file__],
+                               env={**os.environ, IN_ENV: "1", NO_CARD: "1", "CUDA_VISIBLE_DEVICES": ""}).returncode)

@@ -23,11 +23,11 @@ import numpy as np
 from bone_groups import groups
 from calibration import END_SHIFTS, turn
 from fit import _frames
-from fit._constants import staged
+from fit._constants import Problem, staged
 from fit._follow import following, riding
 from fit._frames import LM_DAMPING, Frames, NotConverged, solved
 from fit._model import Fitting, end_site, filed, followers_free, shifted_end
-from fit._skin import posed_skins
+from fit._skin import card_device, posed_skins
 from landmarks import HELD, LANDMARKS, MIDDLE_CENTRES, marker, myo_parts, posed, soma_joints, solver_marks, trust
 from landmarks._table import CENTRES
 from model import TO_OWN
@@ -159,11 +159,33 @@ def sampled_targets(recordings):
             [len(sample) for _, _, sample in picked])
 
 
+def on_card():
+    """Whether Warp sees a CUDA card: level 2's sampled frames and solve run there when it does, else on the CPU's
+    reference (mink per frame, scipy's least_squares on the host's exact Jacobian), as on the conductor (16 cores, no
+    card)."""
+    return card_device() != "cpu"
+
+
 def sampled(fit, recordings):
-    """`sampled_targets` with their angles, each recording's posed from its own start on the card (`_card._sampled`:
-    mink stops on its joint bounds where the card does not). Returns (turns, points, path)."""
+    """`sampled_targets` with their angles, each recording's posed from its own start (`posed_paths`). Returns
+    (turns, points, path)."""
     turns, points, lengths = sampled_targets(recordings)
-    return turns, points, card_path(fit, turns, points, lengths)
+    return turns, points, posed_paths([fit], [turns], [points], lengths)[0]
+
+
+def posed_paths(fits, turns, points, lengths):
+    """Every set's sampled frames' angles: on the card when there is one (`card_paths`: mink stops on its joint bounds
+    where the card does not), else by mink (`mink_paths`, the reference the card was proved against)."""
+    return (card_paths if on_card() else mink_paths)(fits, turns, points, lengths)
+
+
+def mink_paths(fits, turns, points, lengths):
+    """`card_paths` by mink on the CPU: each set's recordings (`lengths` frames each, end to end) fitted frame after
+    frame, each from its own `Frames.start`."""
+    ends = np.cumsum([0, *lengths])
+    return [np.concatenate([Frames(fit).fitted(set_turns[first:last], set_points[first:last])
+                            for first, last in zip(ends[:-1], ends[1:])])
+            for fit, set_turns, set_points in zip(fits, turns, points)]
 
 
 def card_path(fit, turns, points, lengths):
@@ -198,10 +220,10 @@ def constants(fit, recordings):
 def constants_across(fits, recordings):
     """`constants` of every set of one body (`fits` one `Fitting` a set, `recordings` that set's [(turns, points)],
     the same recordings' lengths in every set), every set's sampled frames posed in one card launch a frame
-    (`card_paths`), then each set's constants solved on its own."""
+    (`posed_paths`: by mink with no card), then each set's constants solved on its own."""
     sampled_sets = [sampled_targets(given) for given in recordings]
-    paths = card_paths(fits, [turns for turns, _, _ in sampled_sets], [points for _, points, _ in sampled_sets],
-                       sampled_sets[0][2])
+    paths = posed_paths(fits, [turns for turns, _, _ in sampled_sets], [points for _, points, _ in sampled_sets],
+                        sampled_sets[0][2])
     return [constants_on(fit, turns, points, path)
             for fit, (turns, points, _), path in zip(fits, sampled_sets, paths)]
 
@@ -209,7 +231,9 @@ def constants_across(fits, recordings):
 def constants_on(fit, turns, points, path):
     """`constants`' solve on sampled targets already posed (`path` their angles at the start constants)."""
     free = [index for index, name in enumerate(fit.marks) if name not in HELD and not name.startswith(END)]
-    found, _, evaluations = staged(fit, path, turns, points, fit.neutral(), free, wide=True)
+    card = on_card()  # no card: scipy's on the host's exact Jacobian, what the card's solve was proved equal to
+    found, _, evaluations = staged(fit, path, turns, points, fit.neutral(), free, None if card else Problem.exact,
+                                   wide=card)
     marks, joints = fit.unpack(found)
     return {"marks": {name: move.tolist() for name, move in zip(fit.marks, marks) if not name.startswith(END)},
             "joints": {name: move.tolist() for name, move in zip(fit.inside_names, joints)},
