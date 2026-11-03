@@ -184,7 +184,8 @@ before that.
 - `_level2_lm.py` (`Set`, `solved`, `steps`, `Arrow`; the card plan's step 2, the owner's exception in `../CLAUDE.md`,
   2026-11-03): level 2's told unknowns by Levenberg-Marquardt (Marquardt's lambda times each unknown's own diagonal,
   as scipy's x_scale="jac"; Nielsen's update; a step clipped into the bounds and kept only when the cost falls; an
-  unknown within `BOUND_HELD` of a bound its descent pushes past held). Per round per set the float64 residuals and
+  unknown on a bound its descent pushes past held: held within `BOUND_HELD` of it, the first proof's six bodies, 2026-11-03,
+  ended 1.1e-8 of their cost over scipy's, their constants and angles within 1e-5 mm and 5e-6 deg). Per round per set the float64 residuals and
   exact Jacobian (`Wide`), the arrow's blocks as sparse products on the host (each frame's W x W, its rows of Hfc, the
   constants' C x C); then every frame of every set in one launch: its block factored by Warp's tile Cholesky in
   float64 (`_frames_kernel`, COLUMNS right-hand columns a block) and solved for [-g_f | Hfc], the Schur sum per set
@@ -192,5 +193,8 @@ before that.
   stops a set when its free gradient is under `POLISHED` ("settled"), lambda passes LAMBDA_MOST ("stalled") or ROUNDS;
   `_constants.polished` runs after it as after scipy's. Toy (test, `tests/card_level2.py`): equals `staged(wide=True)`
   within the proof tolerances, settled by itself, its step the dense damped solve to 1e-9 (two sets, a constant held),
-  two sets at once each equal alone. A wrong Schur step still settles (the control hides it), so the step is checked
-  itself. Not yet proved on a real body.
+  two sets at once each equal alone, and with the constants' bound at 1 mm, where scipy's trf stops short of the
+  bound (its cost 3.2e-8 of itself over the card's: the proof judges the card's cost only above scipy's). A wrong
+  Schur step still settles (the control hides it), so the step is checked itself. On the real bodies the card's own
+  solve ends "stalled" (lambda past LAMBDA_MOST at the float64 floor, free gradient a few 1e-10) and the polish
+  settles it. Not yet proved on every tuning body.
