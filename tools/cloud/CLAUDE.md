@@ -145,8 +145,13 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `batch.rent`, `park`, the cluster and every Google and World Labs caller) and `compute.submit` ask it before anything
   is ordered; `tools/cloud/runtime/submit.py` is left alone, as it is in every job image's tag (`google_spend.py`
   is not, run machinery outside every code version since 2026-10-23). Under SCORE_FREE_ONLY=1 the same points raise `ledger.FreeOnly`.
-  `batch.rent` refuses before any provider call without `ssh_key` and `self_delete_key.json`, and `batch.ssh_key`
-  never makes a key: the owner makes the runner's key and deletes the stale IAM key `farm-factory-batch`.
+  `batch.rent` refuses before any provider call without `ssh_key` and `self_delete_key.json`, and before any order
+  with a self-delete key the provider does not take (`batch.self_delete_key_refusal`: a free read of the zone's
+  machines, `cloud.self_delete_refusal`; 2026-11-02, this PC's home held `this_pc.py`'s placeholder key, every
+  terminate got 401 and an H100 sat idle 12.8 h, about EUR 85, after its launcher died with the PC), and
+  `batch.ssh_key` never makes a key: the owner makes the runner's key and deletes the stale IAM key
+  `farm-factory-batch`. `self_delete.py` logs a failed terminate as `SELF-DELETE FAILED` with its HTTP code and body
+  and asks again each minute.
 - **The month's spend is the provider's own bill when that is higher** (2026-10-12: Scaleway billed EUR 1,554 for
   October, the ledger held EUR 1,387): the stop check (`score.adapters.compute.guard.spent_since`) and `batch.month_spent` take the higher of
   the bill (`provider.cloud.consumption`, lagging by hours) and the ledger. The gap was disks (EUR 71) and addresses

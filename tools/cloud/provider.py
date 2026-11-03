@@ -21,6 +21,7 @@ The backend is chosen by SCORE_CLOUD (default `scaleway`, the backend the framew
                                            to belong to the account by its own record
     leftover_addresses(account), leftover_disks(account), delete_address(id, zone), delete_disk(id, zone)
     secret(name)                           a secret's value from the provider's secret store, never printed
+    self_delete_refusal(secret_key, zone)  why a machine in the zone could not delete itself with that key, or None
     registry()                             the private image registry the job images are pushed to and pulled from:
                                            {"endpoint": "<host>/<namespace>", "username": ..., "password": ...},
                                            made once if missing, credentials read at run time (tools/cloud/images/)

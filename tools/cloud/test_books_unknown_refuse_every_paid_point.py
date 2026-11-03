@@ -3,8 +3,8 @@ while this month's books are unknown, at every paid point (the month check, requ
 before anything is ordered or written; the books open only when they say this month is `known`, or the cloud ledger
 and the Google ledger each hold a line from before the month began; a read-back opens them only once Google's bill
 was read, and keeps a known month when it fails; the owner's Google figure is a finite figure of at least zero, counted
-once; and the runner's keys are never made here. No cloud: the ledgers, the books and the keys are temp files, the
-provider a recorder.
+once; the runner's keys are never made here; and no machine is rented with a self-delete key the provider refuses.
+No cloud: the ledgers, the books and the keys are temp files, the provider a recorder.
 
 Fault (2026-10-19, #13): the old WSL disk went with the cloud ledger, the Google ledger and the runner's keys. A
 missing ledger read as EUR 0; the first refused rent would have written a ledger line; and batch.ssh_key would have
@@ -12,14 +12,18 @@ made a new key for the account beside the stale one. Review of #13: `--google-mo
 
 Break that turns it red: in ledger.books_refusal accept one ledger from before the month (`or` for `and`); in
 compute.read_back_books make the books `known` from the Scaleway bill alone; or in batch.rent order before checking
-the self-delete key.
+the self-delete key, or skip self_delete_key_refusal (a key the provider answers 401 rents a machine that cannot
+delete itself: 2026-11-02, an H100 idle 12.8 h).
 """
+import io
 import json
 import os
 import pathlib
 import sys
 import time
 import types
+import urllib.error
+import urllib.request
 
 import pytest
 
@@ -31,6 +35,7 @@ import google_bill  # noqa: E402
 import google_spend  # noqa: E402
 import ledger  # noqa: E402
 import provider  # noqa: E402
+import scaleway  # noqa: E402
 from score.adapters import compute  # noqa: E402
 from score.store import Store  # noqa: E402
 
@@ -160,6 +165,25 @@ def test_rent_refuses_without_the_runners_keys_before_any_provider_call(tmp_path
         batch.rent(fleet, None, OFFER, 0)
     assert "self_delete_key.json" in str(refused.value) and "owner" in str(refused.value)
     assert ordered == []
+    # a key the provider refuses (2026-11-02: this PC's placeholder, every terminate 401, an H100 idle 12.8 h): no order
+    asked = []
+
+    def answered(request, timeout):
+        asked.append((request.full_url, request.get_header("X-auth-token")))
+        if request.get_header("X-auth-token") != "works":
+            raise urllib.error.HTTPError(request.full_url, 401, "Unauthorized", {}, io.BytesIO(b"{}"))
+        return io.BytesIO(b'{"servers": []}')
+    monkeypatch.setattr(batch.cloud, "self_delete_refusal", scaleway.self_delete_refusal)
+    monkeypatch.setattr(urllib.request, "urlopen", answered)
+    for placeholder in ('{"secret_key": "", "for": "this PC: never used"}', '{"secret_key": "revoked"}', "not json"):
+        batch.SELF_DELETE_KEY.write_text(placeholder)
+        with pytest.raises(compute.Refused, match="could not delete itself") as refused:
+            batch.rent(fleet, None, OFFER, 0)
+        assert "owner" in str(refused.value) and ordered == []
+    assert "401" in str(refused.value) or "unreadable" in str(refused.value)
+    assert [url for url, _ in asked] == [scaleway.SERVERS_URL.format(zone=OFFER.zone)]  # the empty secret never asked
+    batch.SELF_DELETE_KEY.write_text('{"secret_key": "works"}')
+    assert batch.rent(fleet, None, OFFER, 0) is None and len(ordered) == 1  # a working key: the order goes out
 
 
 def test_the_runners_ssh_key_is_never_made_here(tmp_path, monkeypatch):
