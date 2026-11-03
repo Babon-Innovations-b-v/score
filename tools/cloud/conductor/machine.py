@@ -18,7 +18,7 @@ browser). This module is the machine as code, driving the scw CLI as tools/cloud
 What `up` makes, in the project named SCORE_CONDUCTOR_PROJECT (default score-conductor, looked up by name, never
 written down), zone fr-par-2 (SCORE_CONDUCTOR_ZONE): a security group (inbound tcp/22 only, outbound open), a 20 GB
 SBS root volume, a 100 GB SBS 5K data volume (mounted at /home/score/.farm-factory-props, so PROPS_HOME keeps its
-default), one flexible IPv4, a POP2-HM-2C-16G server named and tagged score-conductor (never farm-factory-batch, so
+default), one flexible IPv4, a POP2-2C-8G server named and tagged score-conductor (never farm-factory-batch, so
 the runner's leftover sweeps cannot touch it), protected from deletion, with cloud-init.yaml as its user-data; the
 backup bucket (SCORE_CONDUCTOR_BUCKET, default score-conductor-backup, nl-ams, versioning on, non-current versions
 kept 30 days: lifecycle.json); and the Serverless Function score-conductor-size (size_function/). Then, over ssh with
@@ -91,7 +91,9 @@ ZONE = os.environ.get("SCORE_CONDUCTOR_ZONE", "fr-par-2")
 REGION = ZONE.rsplit("-", 1)[0]
 NAME = TAG = "score-conductor"
 BATCH_TAG = "farm-factory-batch"  # the runner's machines' tag, which its leftover sweeps delete by: never ours
-IDLE_TYPE, BATCH_TYPE = "POP2-HM-2C-16G", "POP2-HM-16C-128G"
+# The idle size is the type the server runs at (2026-11-03: it was changed by hand to POP2-2C-8G, 8 GB, and the size
+# function, still set to POP2-HM-2C-16G, refused every grow as "neither of the two sizes"; owner's "sure" to growing).
+IDLE_TYPE, BATCH_TYPE = "POP2-2C-8G", "POP2-HM-16C-128G"
 CHEAPER_BATCH_TYPE, FIXED_TYPE = "POP2-16C-64G", "POP2-HM-8C-64G"
 IMAGE = "ubuntu_noble"
 ROOT_GB, DATA_GB, IOPS = 20, 100, 5000
