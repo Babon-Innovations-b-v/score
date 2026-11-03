@@ -298,7 +298,10 @@ def waiting_jobs(queue):
 
 def serve(run, machine, queue, idle_minutes):
     """One machine for a chain: Blender up, then each job file written to `queue` run in turn (`<n>.done` or
-    `<n>.failed` beside it), until the queue is closed (`close`) and empty or nothing came for `idle_minutes`."""
+    `<n>.failed` beside it), until the queue is closed (`close`) and empty or nothing came for `idle_minutes`. A job
+    that ends any other way (an error past its script, a stop signal) still writes `<n>.failed` with what ended it and
+    the end of its logs before the machine goes (2026-11-03: settle@hangar's fault said only "ended before 1.json ran",
+    its job log gone with the machine)."""
     log_folder = machine["folder"]
     with spread.tended(run, machine) as host:
         set_up(log_folder, host, [])
@@ -322,6 +325,10 @@ def serve(run, machine, queue, idle_minutes):
                 waiting[0].with_suffix(".done").write_text(str(seconds))
             except subprocess.CalledProcessError as failed:
                 waiting[0].with_suffix(".failed").write_text(f"{failed}{log_tail(log_folder, waiting[0].stem)}")
+            except BaseException as ended:  # noqa: BLE001 - said in the job's .failed, then raised as it was
+                waiting[0].with_suffix(".failed").write_text(
+                    f"the job ended: {type(ended).__name__}: {ended}{log_tail(log_folder, waiting[0].stem)}")
+                raise
             last = time.time()
 
 

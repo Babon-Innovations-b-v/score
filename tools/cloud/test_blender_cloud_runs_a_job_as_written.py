@@ -15,7 +15,9 @@ No machine is rented: each test reads the command, job or offers the module buil
 - test_a_held_machine_runs_a_chain_in_order_and_raises_on_a_failed_job: in `Machine.run`, the `.failed` branch's
   `raise RuntimeError(...)` -> `return`; or in `Machine.__exit__`, `(self.queue / "close").write_text("")` -> `pass`.
 - test_a_failed_held_job_raises_with_the_end_of_its_logs: in `serve`, `{log_tail(log_folder, waiting[0].stem)}` ->
-  `; log: {log_folder}/job{waiting[0].stem}.log`; or in `log_tail`, `[-LOG_TAIL_LINES:]` -> `[-LOG_TAIL_LINES - 1:]`.
+  `; log: {log_folder}/job{waiting[0].stem}.log`; or in `log_tail`, `[-LOG_TAIL_LINES:]` -> `[-LOG_TAIL_LINES - 1:]`;
+  or in `serve`, drop the `except BaseException` (a job ended by anything but its script's exit leaves no .failed,
+  and the fault says only "ended before 1.json ran": settle@hangar, 2026-11-03).
 - test_a_cluster_job_keeps_the_paths_and_the_engine_follows_the_class: in `cluster_job`, `card = any(provider.cards(name)
   for name in classes)` -> `card = True`.
 - test_the_runner_python_follows_props_home: `CLOUD_PYTHON = HOME / "env/bin/python"` -> `CLOUD_PYTHON =
@@ -176,6 +178,17 @@ def test_a_failed_held_job_raises_with_the_end_of_its_logs(tmp_path, monkeypatch
     said = str(error.value)
     assert "blender ready" in said and said.endswith("RuntimeError: the drop met 832 contacts"), said
     assert "line 21" in said and "line 20\n" not in said  # the job log's last 40 lines, no more
+    # a job ended by anything else (an error past its script, a stop signal) still leaves its .failed with its logs
+    (queue / "1.failed").unlink()
+
+    def stopped(log_folder, host, number, job, card):
+        (log_folder / f"job{number}.log").write_text("Blender: settling\n")
+        raise SystemExit("stopped by signal 15")
+    monkeypatch.setattr(blender_cloud, "run_job", stopped)
+    with pytest.raises(SystemExit):
+        blender_cloud.serve(types.SimpleNamespace(deadline=float("inf")), {"folder": logs}, queue, 1)
+    kept = (queue / "1.failed").read_text()
+    assert kept.startswith("the job ended: SystemExit: stopped by signal 15") and "Blender: settling" in kept, kept
 
 
 def test_a_cluster_job_keeps_the_paths_and_the_engine_follows_the_class():
