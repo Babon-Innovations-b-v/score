@@ -12,7 +12,6 @@ here; the worker needs Newton's Python."""
 import importlib.util
 import json
 import pathlib
-import shutil
 import subprocess
 import time
 
@@ -118,11 +117,11 @@ def card_queue():
     return module
 
 
-def run_all(bodies, out, python, worker=WORKER, most=MOST, free_gb=FREE_GB, launch=None, shares=None):
+def run_all(bodies, out, python, worker=WORKER, most=MOST, free_gb=FREE_GB, launch=None, shares=None, ended=None):
     """Every body's worker, at most `most` at once and only while `free_gb` is available; {body: exit code}.
     `launch(body, cases)` starts one (default: `command` under its log out/<body>.log). With `shares` (CardShares)
     each starts only once it holds its card share, given back when it ends; the seconds a ready body waited for it
-    go to `shares.waited`."""
+    go to `shares.waited`. `ended(body, code)` is called the moment a body's process ends (its cases kept then)."""
     def started(body, cases):
         log = open(out / f"{body}.log", "w")
         return subprocess.Popen(command(python, worker, cases, out), stdout=log, stderr=subprocess.STDOUT)
@@ -137,6 +136,8 @@ def run_all(bodies, out, python, worker=WORKER, most=MOST, free_gb=FREE_GB, laun
                     del running[body]
                     if body in held:
                         shares.give_back(held.pop(body))
+                    if ended:
+                        ended(body, process.returncode)
             refused = False
             if waiting and len(running) < most and available_gb() >= free_gb:
                 share = shares.take(waiting[0]) if shares else None
@@ -155,37 +156,95 @@ def run_all(bodies, out, python, worker=WORKER, most=MOST, free_gb=FREE_GB, laun
     return codes
 
 
-def measured(rows, weights, rest, cases, out, python, **options):
-    """{case: honest measures} of levels 2 and 3 on `cases` with the landmark table `rows`, global `weights` and
-    `rest` ({"centres": the group ends' offsets, "rig": SOMA's template rig the calibration is read at rest from},
-    out/rest.json, the worker's); raises when any body fails or any clip has no measures."""
-    shutil.rmtree(out, ignore_errors=True)
-    set_written(out, rows, weights, rest)
-    codes = run_all(by_body(cases), out, python, **options)
-    return read_back(out, cases, codes)
+def kept_run(kind, worker, sets, cases, folders, run, store=None, seeds_root=None):
+    """Each set's ([(rows, weights, rest)], its working folder in `folders`) marks {case: mark} of `kind`, found in
+    the store or made (#70, owner 2026-11-03: never cleared, made once, found by any machine; `stored`): a body whose
+    every case of every set is kept is not started; for the others whatever stands at their cases' paths is set aside
+    into the store (never deleted), `run(bodies, ended)` starts them (`run_all`), and each body's finished cases are
+    kept the moment its process ends, a failed body's too (its level 2 was solved from all its clips). Raises when a
+    case is still missing."""
+    from evaluation import stored
+    store = store or stored.default_store()
+    bodies = by_body(cases)
+    keyed = [stored.keys(store, kind, worker, bodies, one, seeds_root) for one in sets]
+    for folder, (rows, weights, rest) in zip(folders, sets, strict=True):
+        set_written(folder, rows, weights, rest, store)
+    missing = {body: body_cases for body, body_cases in bodies.items()
+               if any(stored.found(store, kind, keys[case]) is None for keys in keyed for case in body_cases)}
+    codes = {}
+    if missing:
+        for folder in folders:
+            for body, body_cases in missing.items():
+                stored.aside(store, folder / UNCONVERGED.format(body=body), "a body made again")
+                for case in body_cases:
+                    stored.aside(store, case_path(kind, folder, case), "a case made again")
+
+        def ended(body, code):
+            for folder, keys in zip(folders, keyed):
+                stuck = folder / UNCONVERGED.format(body=body)
+                for case in bodies[body]:
+                    path = case_path(kind, folder, case)
+                    record = {"case": case, "body": body, "worker": worker.name, "exit": code}
+                    if path.exists() and (kind == "block" or (path / SOLVED).exists()):
+                        stored.kept(store, kind, keys[case], path, stored.made(), **record)
+                    elif code == 0 and stuck.exists():
+                        stored.kept(store, kind, keys[case], None, stored.made(), unconverged=stuck.read_text(),
+                                    **record)
+        codes = run(missing, ended)
+    marks = []
+    for folder, keys in zip(folders, keyed):
+        found = {case: stored.found(store, kind, keys[case]) for case in cases}
+        lacking = sorted(case for case, mark in found.items() if mark is None)
+        if lacking:
+            raise RuntimeError(f"{folder.name}: failed {codes}, missing {lacking}; logs in {folder}")
+        for case, mark in found.items():
+            if "output" in mark:
+                stored.placed(store, mark, case_path(kind, folder, case), kind)
+        marks.append(found)
+    return marks
 
 
-def set_written(folder, rows, weights, rest):
-    """folder/table.json, weights.json and rest.json: what a worker reads for one set of unknowns."""
-    folder.mkdir(parents=True)
-    (folder / "table.json").write_text(json.dumps(rows, indent=1))
-    (folder / "weights.json").write_text(json.dumps(weights))
-    (folder / "rest.json").write_text(json.dumps(rest, indent=1))
+def case_path(kind, folder, case):
+    """Where a worker writes a case: a block's npz, else the case's folder."""
+    return folder / f"{case}.npz" if kind == "block" else folder / case
 
 
-def read_back(folder, cases, codes, unconverged=False):
-    """{case: unrounded measures} from folder/<case>/SOLVED; raises when any exit code is not 0 or a case has none.
-    A set a body's level 3 did not stop on (an UNCONVERGED file, `_card_sets`) is None when `unconverged`, else raises
-    with its message."""
-    stuck = sorted(folder.glob(UNCONVERGED.format(body="*")))
-    if stuck and not any(codes.values()):
+def read_marks(store, marks, folder, unconverged=False):
+    """{case: unrounded measures} of one set's kept marks; a set some body's level 3 did not stop on (an
+    {unconverged} mark) is None when `unconverged`, else raises with its message."""
+    from evaluation import stored
+    stuck = sorted({mark["unconverged"] for mark in marks.values() if "unconverged" in mark})
+    if stuck:
         if unconverged:
             return None
-        raise RuntimeError(f"{folder.name}: " + "; ".join(path.read_text() for path in stuck))
-    missing = [case for case in cases if not (folder / case / SOLVED).exists()]
-    if missing or any(codes.values()):
-        raise RuntimeError(f"{folder.name}: failed {codes}, missing {missing}; logs in {folder}")
-    return {case: json.loads((folder / case / SOLVED).read_text()) for case in cases}
+        raise RuntimeError(f"{folder.name}: " + "; ".join(stuck))
+    return {case: stored.measures(store, mark) for case, mark in marks.items()}
+
+
+def measured(rows, weights, rest, cases, out, python, store=None, **options):
+    """{case: honest measures} of levels 2 and 3 on `cases` with the landmark table `rows`, global `weights` and
+    `rest` ({"centres": the group ends' offsets, "rig": SOMA's template rig the calibration is read at rest from},
+    out/rest.json, the worker's), each case found in the store or made and kept (`kept_run`, kind `cpu`: at level
+    1's start these are the card's seeds, out/<case>/angles.npz); raises when any clip has no measures."""
+    from evaluation import stored
+    store = store or stored.default_store()
+    marks = kept_run("cpu", WORKER, [(rows, weights, rest)], cases, [out],
+                     lambda bodies, ended: run_all(bodies, out, python, ended=ended, **options), store)[0]
+    return read_marks(store, marks, out)
+
+
+def set_written(folder, rows, weights, rest, store=None):
+    """folder/table.json, weights.json and rest.json: what a worker reads for one set of unknowns; a differing file
+    standing there is set aside into the store first."""
+    from evaluation import stored
+    folder.mkdir(parents=True, exist_ok=True)
+    for name, text in (("table.json", json.dumps(rows, indent=1)), ("weights.json", json.dumps(weights)),
+                       ("rest.json", json.dumps(rest, indent=1))):
+        path = folder / name
+        if path.is_file() and path.read_text() == text:
+            continue
+        stored.aside(store or stored.default_store(), path, "a set's unknowns written over it")
+        path.write_text(text)
 
 
 def block_command(python, seeds_root, folder, cases):
@@ -198,31 +257,32 @@ def block_command(python, seeds_root, folder, cases):
 
 
 def blocked(rows, weights, rest, cases, out, python, seeds_root, launch=None, most=SET_PROCESSES, shares=None,
-            **options):
+            store=None, **options):
     """{case: out/<case>.npz}, each case's exact block (rows x every unknown of `tuning.layout(ends=)`) at one set,
-    one process a body side by side as `run_all` runs bodies (level 2 solved and factored once a body from all its
-    clips, as the evaluations solve it; 2026-10-31: one process a case solved it from that case's clip alone, seven
-    times a body), at most `most` side by side (SET_PROCESSES: every tuning body at once since 2026-11-01, MOST before); a failed body runs once more; raises when one still fails or a case misses its block.
-    `launch(body, cases)` starts one (default: `block_command` under out/<body>.log); each holds its card share
-    (`shares`, default CardShares("blocks", BLOCKS_CARD_GB)) while it runs."""
+    found in the store or made and kept (`kept_run`, kind `block`, keyed by the body's seeds too), one process a body
+    side by side as `run_all` runs bodies (level 2 solved and factored once a body from all its clips, as the
+    evaluations solve it; 2026-10-31: one process a case solved it from that case's clip alone, seven times a body),
+    at most `most` side by side (SET_PROCESSES: every tuning body at once since 2026-11-01, MOST before); a failed
+    body runs once more; raises when a case still misses its block. `launch(body, cases)` starts one (default:
+    `block_command` under out/<body>.log); each holds its card share (`shares`, default CardShares("blocks",
+    BLOCKS_CARD_GB)) while it runs."""
     shares = shares or CardShares("blocks", BLOCKS_CARD_GB)
-    shutil.rmtree(out, ignore_errors=True)
-    set_written(out, rows, weights, rest)
 
     def started(body, body_cases):
         log = open(out / f"{body}.log", "w")
         return subprocess.Popen(block_command(python, seeds_root, out, body_cases), stdout=log,
                                 stderr=subprocess.STDOUT)
-    bodies = by_body(cases)
-    codes = run_all(bodies, out, python, launch=launch or started, most=most, shares=shares, **options)
-    # a failed body runs once more: the card may refuse a context while the run beside it holds it (2026-10-31,
-    # l1d: 3 of 70 blocks "Failed to acquire primary context for device cuda:0", and the whole step was lost)
-    again = {body: bodies[body] for body, code in codes.items() if code}
-    codes.update(run_all(again, out, python, launch=launch or started, most=most, shares=shares, **options)
-                 if again else {})
-    missing = [case for case in cases if not (out / f"{case}.npz").exists()]
-    if missing or any(codes.values()):
-        raise RuntimeError(f"{out.name}: blocks failed {codes}, missing {missing}; logs in {out}")
+
+    def ran(bodies, ended):
+        codes = run_all(bodies, out, python, launch=launch or started, most=most, shares=shares, ended=ended,
+                        **options)
+        # a failed body runs once more: the card may refuse a context while the run beside it holds it (2026-10-31,
+        # l1d: 3 of 70 blocks "Failed to acquire primary context for device cuda:0", and the whole step was lost)
+        again = {body: bodies[body] for body, code in codes.items() if code}
+        codes.update(run_all(again, out, python, launch=launch or started, most=most, shares=shares, ended=ended,
+                             **options) if again else {})
+        return codes
+    kept_run("block", BLOCKS_WORKER, [(rows, weights, rest)], cases, [out], ran, store, seeds_root)
     return {case: out / f"{case}.npz" for case in cases}
 
 
@@ -234,33 +294,38 @@ def sets_command(python, seeds_root, out, cases):
 
 
 def measured_many(sets, cases, out, python, seeds_root, launch=None, chunk=None, most=SET_PROCESSES,
-                  free_gb=FREE_GB, unconverged=False, shares=None):
-    """[{case: honest measures}] for every set ([(rows, weights, rest)], as `measured` takes one): one card process a
-    body (`_card_sets.py`, card build step 6a: every set of that body in it, its start-up kept), at most `most` side by
+                  free_gb=FREE_GB, unconverged=False, shares=None, store=None):
+    """[{case: honest measures}] for every set ([(rows, weights, rest)], as `measured` takes one), each case found in
+    the store or made and kept (`kept_run`, kind `card`, keyed by the body's seeds too): one card process a body
+    (`_card_sets.py`, card build step 6a: every set of that body in it, its start-up kept), at most `most` side by
     side as `run_all` runs bodies (2026-10-31: one process for every body sat at ~1.3 cores, the card mostly idle, 37
     min a Jacobian on l1d), a failed one run once more (the card may refuse a context, as `blocked`'s). Each process
     runs the sets in chunks of at most `chunk` (default CHUNK, so its card memory stays bounded), one chunk after
-    another, every set seeded from `seeds_root`'s angles. out/p000/s00000.. hold the sets; raises when a process fails
-    or any set misses a case; a set some body's level 3 did not stop on is None when `unconverged` (a Jacobian's
-    nudged set: `tuning._differences.jacobian` steps its columns the other way), else raises. `launch(body, cases)` starts one (default: `sets_command` under out/sets-<body>.log); each holds its card share
-    (`shares`, default CardShares("sets", SETS_CARD_GB)) while it runs."""
+    another, every set seeded from `seeds_root`'s angles. out/p000/s00000.. hold the sets; raises when a set still
+    misses a case; a set some body's level 3 did not stop on is None when `unconverged` (a Jacobian's nudged set:
+    `tuning._differences.jacobian` steps its columns the other way), else raises. `launch(body, cases)` starts one
+    (default: `sets_command` under out/sets-<body>.log); each holds its card share (`shares`, default
+    CardShares("sets", SETS_CARD_GB)) while it runs."""
     shares = shares or CardShares("sets", SETS_CARD_GB)
-    shutil.rmtree(out, ignore_errors=True)
     chunk = chunk or CHUNK
     folders = [out / f"p{index // chunk:03d}" / f"s{index:05d}" for index in range(len(sets))]
-    for folder, (rows, weights, rest) in zip(folders, sets, strict=True):
-        set_written(folder, rows, weights, rest)
 
     def started(body, body_cases):
         log = open(out / f"sets-{body}.log", "w")
         return subprocess.Popen(sets_command(python, seeds_root, out, body_cases), stdout=log,
                                 stderr=subprocess.STDOUT)
-    bodies = by_body(cases)
-    codes = run_all(bodies, out, python, launch=launch or started, most=most, free_gb=free_gb, shares=shares)
-    again = {body: bodies[body] for body, code in codes.items() if code}
-    codes.update(run_all(again, out, python, launch=launch or started, most=most, free_gb=free_gb, shares=shares)
-                 if again else {})
-    return [read_back(folder, cases, codes, unconverged) for folder in folders]
+
+    def ran(bodies, ended):
+        codes = run_all(bodies, out, python, launch=launch or started, most=most, free_gb=free_gb, shares=shares,
+                        ended=ended)
+        again = {body: bodies[body] for body, code in codes.items() if code}
+        codes.update(run_all(again, out, python, launch=launch or started, most=most, free_gb=free_gb,
+                             shares=shares, ended=ended) if again else {})
+        return codes
+    from evaluation import stored
+    store = store or stored.default_store()
+    marks = kept_run("card", SETS_WORKER, sets, cases, folders, ran, store, seeds_root)
+    return [read_marks(store, found, folder, unconverged) for found, folder in zip(marks, folders)]
 
 
 def case_score(found):

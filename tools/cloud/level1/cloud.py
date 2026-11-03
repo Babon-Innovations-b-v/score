@@ -14,9 +14,14 @@ renting call (score.adapters.compute.require_cleared); a batch past the owner's 
   absolute path the cases' job.json files name, those under the cases' common data folder as that one folder (the
   MyoFullBody model folder on its own).
 - Brought back (every --bring-every minutes while it runs, and at its end, also when it fails or is stopped):
-  BROUGHT (checkpoint.jsonl, check.jsonl, steps.jsonl, level1.log, the results), evals/ and the seeds root (built on
-  the machine as the first batch's first step when it lacks a case's seed: on_machine.py); evaluation folders older
-  than the newest KEEP_EVALS are then removed here, as level 1 removes them on its machine.
+  BROUGHT (checkpoint.jsonl, check.jsonl, steps.jsonl, level1.log, the results), the run's slice of SCORE's store
+  (<run>/home/store: every seed, evaluation and block the machine made, kept by `evaluation.stored`) and the seeds root
+  (built on the machine as the first batch's first step when it lacks a case's seed: on_machine.py).
+- The slice (#70, owner 2026-11-03: level 1's pieces in SCORE's store, never cleared): before a batch it is given the
+  store's marks of the seeds root's cases (`stored.exported`), so the machine makes only what is missing; after it
+  (and before the next, for a batch cut off here) every piece it brought is put into this PC's store
+  (`stored.merged`, SCORE_LEVEL1_STORE else PROPS_HOME's: the first make of a key stands) and the slice removed.
+  Evaluation folders older than the newest KEEP_EVALS are then removed here (views: their pieces are in the store).
 - The machine: kind `sim-body-l1` (capacity.py: the most cores beside a card first; level 1 is held by processor
   time, two threads a body), the job's env newton_env.sh (built there in a few minutes), its card queue sized to its
   card and every tuning body at once (`--processes`, when the run's own level1.py takes it): on_machine.py.
@@ -25,6 +30,7 @@ renting call (score.adapters.compute.require_cleared); a batch past the owner's 
   stops it like any batch: the job's outputs come back as it ends.
 """
 import argparse
+import importlib.util
 import json
 import os
 import pathlib
@@ -44,6 +50,8 @@ CLASSES = ("gpu-80gb-x2-48c", "gpu-80gb-x2", "gpu-80gb")
 ENV = blender_cloud.REPO / "score/stages/physics/inside/newton_env.sh"
 LAUNCHER = HERE / "on_machine.py"
 LEVEL1 = "score/stages/sim_body/inside/evaluation/level1.py"
+STORED = blender_cloud.REPO / "score/stages/sim_body/inside/evaluation/stored/__init__.py"
+SLICE = "home"  # <run>/home/store: the machine's SCORE_LEVEL1_STORE (on_machine.py)
 # The owner's 4 h a batch less blender_cloud's SETUP_MINUTES and a little; level 1 stops STOP_EARLY minutes before
 # the job's end, so its outputs come back before the machine must go.
 BATCH_MINUTES = 230
@@ -88,7 +96,7 @@ def job(run, seeds, minutes, every, bring_every):
     arguments = [run, "--seeds", seeds, "--minutes", minutes - STOP_EARLY, "--every", every]
     wide = processes(run)
     found = blender_cloud.job_of(LAUNCHER, [*arguments, *(["--processes", wide] if wide else [])],
-                                 carried(run, seeds), [*(run / name for name in BROUGHT), run / "evals", seeds], minutes,
+                                 carried(run, seeds), [*(run / name for name in BROUGHT), run / SLICE, seeds], minutes,
                                  env=ENV)
     return {**found, "bring_every": bring_every}
 
@@ -104,8 +112,37 @@ def pruned(run):
         shutil.rmtree(path)
 
 
+def stored_module():
+    """`evaluation.stored` of this checkout (standard library and score.store), loaded from its file."""
+    spec = importlib.util.spec_from_file_location("level1_stored", STORED)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def brought_back(run, stored, store):
+    """The run's slice, when one came back, put into `store` (the first make of a key stands) and removed; how many
+    pieces were new there."""
+    home = run / SLICE
+    if not (home / "store" / "objects").is_dir():
+        return 0
+    count = stored.merged(stored.Store.in_folder(home / "store"), store)
+    shutil.rmtree(home)
+    return count
+
+
+def sliced(run, seeds, stored, store):
+    """The run's slice made for a batch: a slice left from a batch cut off here merged first, then the store's marks
+    of the seeds root's cases put in it; how many."""
+    brought_back(run, stored, store)
+    return stored.exported(store, stored.Store.in_folder(run / SLICE / "store"), seeds)
+
+
 def batch(run, seeds, options):
     """One batch through blender_cloud.py; whether it ended well."""
+    stored = stored_module()
+    store = stored.default_store()
+    print(f"slice: {sliced(run, seeds, stored, store)} seeds' marks given to the machine", flush=True)
     folder = run / "cloud"
     folder.mkdir(exist_ok=True)
     path = folder / f"{time.strftime('%Y%m%d-%H%M%S')}.json"
@@ -113,6 +150,7 @@ def batch(run, seeds, options):
     command = [str(blender_cloud.cloud_python()), str(blender_cloud.HERE / "blender_cloud.py"), str(path), "--who",
                options.who, "--classes", options.classes, "--kind", KIND, *(["--dry-run"] if options.dry_run else [])]
     ended = subprocess.run(command).returncode == 0
+    print(f"slice: {brought_back(run, stored, store)} pieces new in the store", flush=True)
     pruned(run)
     return ended
 

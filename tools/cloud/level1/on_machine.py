@@ -10,6 +10,8 @@ names, newton_env.sh: numpy and scipy for level 1 itself, Newton, Warp and MuJoC
   threads each, inside the batch's --minutes (owner, 2026-11-02: seeds are built on the rented machine, never on his PC).
   Their log is <seeds root>/seeds.log; the job brings the seeds root back, so the next batch carries them up built.
 
+- What it makes is kept in the run's slice of SCORE's store, <run>/home/store (SCORE_LEVEL1_STORE, for the seeds and
+  level 1 alike: `evaluation.stored`), which the job brings back; a seed or evaluation the slice holds is not made again.
 - Its card queue (tools/cloud/backends/card_queue.py) holds this machine's card: SCORE_CARD_BUDGET_GB its first card's
   memory less CARD_MARGIN_GB, no desktop on it, the queue's folder in its home, so level 1's card processes fit as many
   side by side as that card holds (a run frozen before 2026-11-02 reads this PC's 13.5 GB whatever is set).
@@ -153,7 +155,8 @@ def main():
     ends = time.time() + given.minutes * 60
     environment = {**os.environ, "PATH": scope_path(), "SCORE_CARD_BUDGET_GB": str(card_gb()),
                    "SCORE_CARD_DESKTOP_GB": "0", "SCORE_CARD_QUEUE": str(QUEUE), "OMP_NUM_THREADS": "8",
-                   "OPENBLAS_NUM_THREADS": "8", "PYTHONUNBUFFERED": "1"}
+                   "OPENBLAS_NUM_THREADS": "8", "PYTHONUNBUFFERED": "1",
+                   "SCORE_LEVEL1_STORE": str(run / "home" / "store")}
     current = [None]
     for number in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
         signal.signal(number, lambda *_: (current[0] and stop(current[0]),
