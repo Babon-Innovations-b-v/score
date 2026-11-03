@@ -10,6 +10,11 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `loop.take_faults`: the `file_hash(path) != recorded...` test dropped  -> the take bytes test.
 - `loop.judge_made`: `PASS if through else FAIL` read as `PASS`  -> the take bytes test (no look came through).
 - `loop.handed`: the missing labelled take's gap made a `pass`  -> the labelled take test.
+- `bodies.laid_take`: the `filecmp.cmp` skip dropped  -> the loop test (a file of the same bytes written again);
+  `os.replace(partial, laid)` made `shutil.copyfile(path, laid)`  -> the loop test (another take's file
+  rewritten in place).
+- `bodies.judge_shell`: `& (offsets[soft] <= depths)` dropped  -> the shell test (the tight garment passes);
+  `(offsets[soft] > 0) &` dropped  -> the shell test (the body standing out through the look passes).
 - `bodies.rigid_part`: the CLOTH_WORDS test made `if False`  -> the belt test.
 - `bodies.refused_on_record`: `if foretold:` read as `if False:`  -> the tucks record test.
 - `dress.outer_labels`: every point kept at its nearest sample (`if not near` read as `if True`)  -> the outer
@@ -20,6 +25,8 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `clips.usable`: `if not passes` read as `if False`  -> the clip by clip test.
 - `clips.per_clip`: the flexible check's `<= FLEX_MOST` read as `<= float("inf")`  -> the clip by clip test (the 2.4x shaft).
 - `full.full_looks`: `>= FAR_SHARE` read as `>= 0.0`  -> the full-or-far tests.
+- `bodies.laid_take`: the `filecmp.cmp(...)` skip and the rename dropped (copied over in place)  -> the loop's
+  hand-on test (the same bytes written again over the people line's own inputs).
 """
 import json
 import pathlib
@@ -92,9 +99,18 @@ def test_the_loop_hands_each_look_on_and_names_its_gap():
         assert (stored / "pp-player.svviews" / "input.png").read_bytes() == b"the close-up", found
         laid = pathlib.Path(held) / "laid"
         bodies.laid_take(out, "player-work", laid)
+        stamps = {path: path.stat().st_ctime_ns for path in laid.rglob("*") if path.is_file()}
         bodies.laid_take(out, "player-work", laid)  # laid again over itself: plain copies, never read-only
         assert sorted(path.name for path in laid.iterdir()) == ["pp-player-final.glb", "pp-player.glb",
                                                                 "pp-player.svviews"]
+        # the people line's own inputs: the same bytes are never written again, another's replaced whole
+        assert {path: path.stat().st_ctime_ns for path in stamps} == stamps
+        changed = laid / "pp-player.glb"
+        changed.write_bytes(b"remade in place")
+        before = changed.stat().st_ino
+        bodies.laid_take(out, "player-work", laid)
+        assert changed.read_bytes() == b"pp-player.glb" and changed.stat().st_ino != before
+        assert not list(laid.glob(".*.laying"))
         verdict = loop.judge_made(out, ends, {})
         assert verdict.answer == "pass" and verdict.measures["gaps"] == 1 and "nev-space" in verdict.findings[0]
         assert verdict.measures["named_failures"] == 1, verdict
@@ -213,10 +229,13 @@ def test_a_cast_doing_a_failing_clip_fails():
         assert verdict.answer == "fail" and verdict.measures == {"failing": 1, "judged": 2}, verdict
 
 
-def shell_verdict(soft_tail):
-    """judge_shell on a look of 1,000 soft points, `soft_tail` of them 8 cm off, and a hand and a boot 12 cm off."""
+def shell_verdict(soft_tail, tail_offset=0.08, under_depth=None):
+    """judge_shell on a look of 1,000 soft points, `soft_tail` of them `tail_offset` off the fitted body, and a hand
+    and a boot 12 cm off; with `under_depth`, the body under the clothes lies that far inside every point (a plane
+    under the look, checks/base.npz)."""
     with tempfile.TemporaryDirectory() as held:
-        checks = pathlib.Path(held) / "checks"
+        out = pathlib.Path(held)
+        checks = out / "checks"
         checks.mkdir()
         near, far = [0] * 21, [0] * 81
         near[20], far[80] = 1000 - soft_tail, soft_tail
@@ -228,7 +247,16 @@ def shell_verdict(soft_tail):
         (checks / "parts.json").write_text(json.dumps({"parts": [
             {"part": 1, "role": "garment", "name": "cloth"}, {"part": 2, "role": "garment", "name": "cloth"},
             {"part": 3, "role": "hard", "name": "boot"}, {"part": 4, "role": "skin", "name": "skin_hands"}]}))
-        return bodies.judge_shell(pathlib.Path(held), {}, {})
+        part_of = np.r_[np.full(1000 - soft_tail, 1), np.full(soft_tail, 2), np.full(50, 3), np.full(50, 4)]
+        offsets = np.r_[np.full(1000 - soft_tail, 0.02), np.full(soft_tail, tail_offset), np.full(100, 0.12)]
+        grid = np.random.default_rng(0).uniform(-0.5, 0.5, (len(part_of), 2))
+        points = np.c_[grid, np.zeros(len(part_of))]
+        np.savez(out / "rig.npz", points=points, faces=np.repeat(np.arange(len(points))[:, None], 3, 1),
+                 part_of=part_of, shell_offsets=offsets)
+        if under_depth is not None:  # a square of two triangles facing up, under_depth below the look
+            np.savez(checks / "base.npz", faces=np.array([[0, 1, 2], [0, 2, 3]]),
+                     under_points=np.array([[-1, -1, 0], [1, -1, 0], [1, 1, 0], [-1, 1, 0]]) - [0, 0, under_depth])
+        return bodies.judge_shell(out, {}, {})
 
 
 def test_the_shell_holds_most_soft_points_and_leaves_rigid_parts_out():
@@ -236,6 +264,14 @@ def test_the_shell_holds_most_soft_points_and_leaves_rigid_parts_out():
     assert passing.answer == "pass" and passing.measures["offset_share_m"] == 0.02, passing
     assert passing.measures["offset_most_m"] == 0.08 and "part 2" in passing.reason, passing
     assert failing.answer == "fail" and failing.measures["offset_share_m"] == 0.08, failing
+    # a bulky suit 8 cm off its fitted body passes only where the person under it lies deeper still (its measured
+    # thickness); a tight garment as far off, its person close under it, fails, and so does a fitted body
+    # standing 8 cm out through the look
+    suit, tight = shell_verdict(200, under_depth=0.12), shell_verdict(200, under_depth=0.03)
+    through = shell_verdict(200, tail_offset=-0.08, under_depth=0.12)
+    assert suit.answer == "pass" and suit.measures["held_share"] == 1.0, suit
+    assert tight.answer == "fail" and tight.measures["held_share"] == 0.8, tight
+    assert through.answer == "fail" and through.measures["held_share"] == 0.8, through
 
 
 def test_a_belt_is_worn_as_cloth():

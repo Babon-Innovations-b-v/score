@@ -22,9 +22,12 @@ their numbers, a cast held to the passing ones by people-clips), outline (outlin
 close-up's cut-out), likeness (the props' likeness gate, score/stages/props/likeness.py: the body's best outline of
 eight ways round against its close-up, at least its OUTLINE_LEAST), triangles (within the shipped player's budget)
 and shell (SHELL_SHARE of the soft parts' points within OFFSET_MOST of SOMA-X's body fitted to the look's
-outside, prop_shell.py; the worst point recorded).
+outside, prop_shell.py, or past it only inside the garment's thickness measured against the body under the clothes;
+the worst point recorded).
 """
+import filecmp
 import json
+import os
 import pathlib
 import shutil
 import sys
@@ -135,14 +138,22 @@ def take_folder(handed, look):
 
 
 def laid_take(handed, look, target):
-    """The look's Pixal3D files, from the store, laid where the maker reads them (`target`, its work folder; each
-    file copied plain, not as the checkout's read-only mode), over whatever is there."""
+    """The look's Pixal3D files, from the store, laid where the maker reads them (`target`, its work folder): only a
+    file missing there or holding other bytes, each written whole at the folder's top under a hidden name (outside
+    the take's close-up folder, which a row hashes whole) and renamed over it (a plain copy, not the checkout's
+    read-only mode). The same files are the people line's own inputs (its surface rows key on them):
+    copied over themselves in place, a row keying them mid-copy read half a file, and cast@camp and the people looks
+    stopped on "has not run on its current inputs" in Batch 1's try (2026-11-03)."""
     source = take_folder(handed, look)
     for path in sorted(source.rglob("*")):
         if path.is_file():
             laid = target / path.relative_to(source)
+            if laid.is_file() and filecmp.cmp(path, laid, shallow=False):
+                continue
             laid.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(path, laid)
+            partial = target / f".{'-'.join(path.relative_to(source).parts)}.laying"
+            shutil.copyfile(path, partial)
+            os.replace(partial, laid)
 
 
 def refused_on_record(foretold, who):
@@ -230,6 +241,7 @@ def kept(folder, name, entry, out, takes):
     shutil.copy2(folder / "route" / "checks" / f"{name}.json", checks / "joins.json")
     shutil.copy2(folder / "out" / f"{name}.json", checks / "build.json")
     shutil.copy2(folder / "route" / f"{name}.json", checks / "route.json")
+    shutil.copy2(folder / "route" / "base.npz", checks / "base.npz")  # the body under the clothes the shell gate reads
     shutil.copy2(folder / "fit" / "rig.json", checks / "rig.json")
     shutil.copy2(folder / "fit" / "shell.json", checks / "shell.json")
     shutil.copy2(folder / "parts" / entry["take"] / "parts.json", checks / "parts.json")
@@ -373,29 +385,59 @@ def rigid_part(part):
     return part.get("role") in RIGID_ROLES or name in RIGID_NAMES
 
 
+def garment_depths(output, points):
+    """Each look point's signed distance to the body under the clothes (SAM 3D Body's read of the close-up, laid
+    under the look by the people route: checks/base.npz's `under_points`), positive outside it: the garment's own
+    measured thickness there. None where the route laid no such body (a far-only look is never routed)."""
+    path = output / "checks" / "base.npz"
+    if not path.exists():
+        return None
+    import trimesh
+    with np.load(path) as base:
+        body = trimesh.Trimesh(base["under_points"], base["faces"], process=False)
+    closest, distance, triangle = trimesh.proximity.closest_point(body, points)
+    side = np.sign(np.einsum("ij,ij->i", points - closest, body.face_normals[triangle]))
+    return distance * np.where(side == 0, 1.0, side)
+
+
 def judge_shell(output, inputs, evidence):
     """The look a thin shell over SOMA-X's fitted body (owner, 2026-10-12): SHELL_SHARE of the soft parts' points
     (every part but the rigid ones: hard parts other than belts and buckles, hair and the bare hands, which ride
-    one joint) within OFFSET_MOST of
-    the body. A proxy (captain, 2026-10-13, the owner may reverse it): the points past it are loose cloth edges, cuffs,
-    hems and caps, which no part label names; the clips gate judges what the cloth does in every clip. The worst
-    point's part and offset are recorded."""
+    one joint) held by the body: within OFFSET_MOST of it, or standing outside it no farther than the garment is
+    thick there, measured against the body under the clothes (`garment_depths`; 2026-11-03: a bulky spacesuit
+    stood 8.7 cm off its fitted body, the fit at its largest scale, while the person under it is deeper still; a
+    tight garment off its body is not so excused, its person lying close under it). A proxy (captain, 2026-10-13,
+    the owner may reverse it): the points past it are loose cloth edges, cuffs, hems and caps, which no part label
+    names; the clips gate judges what the cloth does in every clip. The worst point's part and offset are
+    recorded."""
     found = record(output, "shell.json")
     parts = {str(part["part"]): part for part in record(output, "parts.json")["parts"]}
-    soft = {key: entry for key, entry in found["parts"].items() if not rigid_part(parts.get(key, {}))}
-    counts = np.zeros(max((len(entry["offsets_mm"]) for entry in soft.values()), default=1))
-    for entry in soft.values():
-        counts[:len(entry["offsets_mm"])] += entry["offsets_mm"]
-    reach_m = float(np.searchsorted(np.cumsum(counts), SHELL_SHARE * counts.sum())) / 1000
-    worst = max(soft, key=lambda key: soft[key]["most_m"], default=None)
-    worst_m = soft[worst]["most_m"] if worst else 0.0
-    failing = [] if reach_m <= OFFSET_MOST else [f"{SHELL_SHARE:.0%} of the soft points within {reach_m} m, over "
-                                                f"{OFFSET_MOST} m"]
-    where = (f"part {worst} ({parts.get(worst, {}).get('name')}, by {soft[worst].get('most_near', 'no joint recorded')})"
-             if worst else "no soft part")
-    return verdict("shell", failing, f"{SHELL_SHARE:.0%} of the soft points within {reach_m} m of the body; worst "
-                   f"{worst_m} m, {where}", {"offset_share_m": reach_m, "offset_most_m": worst_m,
-                                            "scale": found["scale"]})
+    with np.load(output / "rig.npz") as rig:
+        points, offsets = rig["points"], rig["shell_offsets"]
+        part_of = np.zeros(len(points), int)
+        part_of[rig["faces"].ravel()] = np.repeat(rig["part_of"], 3)
+    soft = np.array([not rigid_part(parts.get(str(part), {})) for part in part_of], bool)
+    reach = np.abs(offsets[soft])
+    depths = garment_depths(output, points[soft])
+    within = reach <= OFFSET_MOST
+    thick = ~within & (offsets[soft] > 0) & (offsets[soft] <= depths) if depths is not None else np.zeros_like(within)
+    held = float((within | thick).mean()) if soft.any() else 1.0
+    ranked = np.sort(np.round(reach * 1000))  # whole millimetres, as shell.json counts them
+    reach_m = float(ranked[max(int(np.ceil(SHELL_SHARE * len(ranked))) - 1, 0)]) / 1000 if soft.any() else 0.0
+    worst_point = int(np.flatnonzero(soft)[reach.argmax()]) if soft.any() else None
+    worst = str(part_of[worst_point]) if worst_point is not None else None
+    worst_m = round(float(reach.max()), 4) if soft.any() else 0.0
+    failing = [] if held >= SHELL_SHARE else [
+        f"{held:.1%} of the soft points held, under {SHELL_SHARE:.0%}: {SHELL_SHARE:.0%} within {reach_m} m, over "
+        f"{OFFSET_MOST} m" + ("" if depths is not None else ", and no body under the clothes to measure the "
+                                                           "garment's thickness by")]
+    where = (f"part {worst} ({parts.get(worst, {}).get('name')}, by "
+             f"{found['parts'].get(worst, {}).get('most_near', 'no joint recorded')})" if worst else "no soft part")
+    return verdict("shell", failing, f"{held:.1%} of the soft points held ({int(thick.sum())} past {OFFSET_MOST} m "
+                   f"inside the garment's measured thickness); {SHELL_SHARE:.0%} within {reach_m} m of the body; "
+                   f"worst {worst_m} m, {where}",
+                   {"held_share": round(held, 4), "offset_share_m": reach_m, "offset_most_m": worst_m,
+                    "scale": found["scale"]})
 
 
 def judge_clips(output, inputs, evidence):
