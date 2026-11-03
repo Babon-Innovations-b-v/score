@@ -63,7 +63,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   (round 31: base's light passes, 29.8 GB beside the shared 27 GiB). `python3 tools/cloud/this_pc.py env1` (through the agents' door's `store-pull` and `store-push`, the
   agents' key: owner, 2026-10-27, never his own key on the conductor) pulls what a run reads into `~/.score-this-pc`, runs `score run world1 --free` there (a free-only run on this PC's
   card also makes its paid rows, with no ticket, so a Google ask its cache does not answer fails, saying so:
-  `graph.on_this_pc`) and pushes the new store objects and takes back, adding only: the door never replaces a file the conductor holds; `run` pushes the same way when it ends, and a run
+  `graph.on_this_pc`) and pushes the new store objects and takes back, adding only: the door never replaces a file the conductor holds, but a take remade here in place (a work/pixal file it holds with other bytes) is put in place there with its old copy kept (`replace_changed`); `run` pushes the same way when it ends, and a run
   here keeps its outputs only when given `--no-push "<reason>"`, its first log line, which `status` shows until a
   run pushes. Its `decide-yes` and `decide <yes id>` (a spend override among them, `decide-yes spend <name> --euros E
   --purpose P`, and his Google month, `decide-yes google-month <YYYY-MM> --euros E`, into that home's books: a rent

@@ -28,6 +28,10 @@ Breaks (each applied once, seen red, reverted):
 - this_pc.py `run`: drop the `entry is None` test -> the steps rewrite the design a live run reads.
 - this_pc.py `resume`: drop `design_current(home, code, environment)` -> a resumed run reads the design as paused.
 - this_pc.py `pull`: drop the `OWN_DESIGN` skip -> the conductor's hand-in comes back over the one written here.
+- agent_door.py `store_differs`: `file_sha(target) != sha` -> `False` -> a take remade here at the same size keeps
+  the conductor's old bytes (2026-11-03: 22 places' palette rows due).
+- agent_door.py `replaced`: drop `os.link(target, keep)` -> the conductor's old file is lost, not kept.
+- agent_door.py `replaceable_target`: drop the REPLACEABLE test -> a push replaces a store object.
 - this_pc.py `no_push_taken`: drop the empty-reason refusal -> a run keeps its outputs here with no reason given.
 - this_pc.py `push_stated`: drop the `unlink` -> status still says a run kept its outputs after a later one pushed.
 """
@@ -159,6 +163,22 @@ def test_a_push_adds_new_outputs_and_never_replaces_the_conductors(tmp_path):
     assert (conductor / "store/objects/records/hub/k2.json").read_text() == "made on this PC"
     assert (conductor / "work/pixal/new.glb").read_text() == "a take"
     assert not (conductor / "cloud").exists() and not list((conductor / "tmp/this-pc-push").iterdir())
+    # a take remade here in place (same size, other bytes) replaces the conductor's, whose old copy is kept;
+    # a store object is never replaced, a take already the same stays as it is
+    write(conductor / "work/pixal/lamp.svviews/input.png", "old close-up")
+    write(home / "work/pixal/lamp.svviews/input.png", "new close-up")
+    write(conductor / "work/pixal/same.glb", "the same")
+    write(home / "work/pixal/same.glb", "the same")
+    replaced = this_pc.replace_changed(home, door(conductor, "store-push --differs"),
+                                       door(conductor, "store-push --replace"))
+    assert replaced == (1, len("new close-up"))
+    assert (conductor / "work/pixal/lamp.svviews/input.png").read_text() == "new close-up"
+    kept = list((conductor / "work/pixal/replaced").rglob("input.png"))
+    assert len(kept) == 1 and kept[0].read_text() == "old close-up"
+    assert (conductor / "store/objects/records/hub/k1.json").read_text() == "the conductor's record"
+    refused = subprocess.run(door(conductor, "store-push --differs"), input="1\tx\tstore/objects/records/hub/k1.json\n",
+                             capture_output=True, text=True)
+    assert refused.returncode != 0 and "work/pixal/ only" in refused.stderr
 
 
 def test_a_push_skips_a_file_a_live_run_removed_after_it_was_listed(tmp_path, monkeypatch):

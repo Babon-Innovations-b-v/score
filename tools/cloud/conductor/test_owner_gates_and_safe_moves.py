@@ -382,9 +382,11 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
     assert code == 0 and argv[0] == "-c" and argv[2:] == ["the run holds 13 idle machines"], (why, argv)
     assert all(env.get(marker) == "1" for marker in AGENT_MARKERS)
     for asked, flag in (("store-pull", "--store-pull"), ("store-push --missing", "--store-missing"),
-                        ("store-push", "--store-push")):
+                        ("store-push", "--store-push"), ("store-push --differs", "--store-differs"),
+                        ("store-push --replace", "--store-replace")):
         code, why, argv, env = door(asked)
         assert code == 0 and argv[1:] == [flag] and argv[0].endswith("agent_door.py"), (why, argv)
+    assert door("store-push --force")[0] != 0 and door("store-push --replace --missing")[0] != 0
 
 
 def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path):
@@ -426,6 +428,18 @@ def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path):
     assert agent_door.store_missing(home, "store/objects/records/k1.json\nwork/new.glb\n") == "work/new.glb\n"
     with pytest.raises(agent_door.Refused):
         agent_door.store_missing(home, "cloud/ssh_key\n")
+    # a replacing push (2026-11-03): only under work/pixal/, never while a run is live
+    (home / "work/pixal").mkdir(parents=True)
+    (home / "work/pixal/take.png").write_text("old")
+    for name in ("store/objects/records/k1.json", "work/other.glb", "work/pixal/replaced/x/take.png"):
+        with pytest.raises(agent_door.Refused):
+            agent_door.store_replace(home, stream((name, "x", regular)), "now")
+    from score.conductor import disk
+    with pytest.MonkeyPatch.context() as patched:
+        patched.setattr(disk, "needed", lambda folder: {"frozen/copy"})
+        with pytest.raises(agent_door.Refused, match="a run is live"):
+            agent_door.store_replace(home, stream(("work/pixal/take.png", "new", regular)), "now")
+    assert (home / "work/pixal/take.png").read_text() == "old"
 
 
 def test_the_doors_store_push_lands_what_a_record_names_first_and_a_cut_stream_lands_nothing(tmp_path, monkeypatch):

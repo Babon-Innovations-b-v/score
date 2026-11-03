@@ -100,6 +100,12 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 and whole-second mtime the manifest on stdin already names
                                                 (`size<TAB>mtime<TAB>path` lines); never keys, ledgers, run records
                                                 or frozen copies (owner, 2026-10-27: the door route for this_pc.py)
+    store-push --differs | --replace            --differs: of the `size<TAB>sha256<TAB>path` lines on stdin under
+                                                work/pixal/, the paths the conductor holds with other bytes; --replace:
+                                                those files from the tar stream on stdin put in place, each old one kept
+                                                under work/pixal/replaced/<time>/, refused while a run is live (2026-11-03:
+                                                takes remade on the PC kept their old close-ups here, the add-only push
+                                                never replacing them, and 22 places' palette rows went due)
     store-push [--missing]                      --missing: of the paths on stdin, those the conductor lacks; else
                                                 a tar stream on stdin of new files under PUSHED (store/objects,
                                                 work), each only added: a file already there is kept, never
@@ -112,6 +118,8 @@ the one checkout his yes covers, once that yes passed every check and is marked 
 as_owner_under), and `decide` likewise for the one decision his yes covers (as_owner_deciding). Anything else is refused with the reason, exit
 126. The env file (~/.config/score/dashboard.env) is read as data, NAME=value lines, never run.
 """
+import datetime
+import hashlib
 import os
 import pathlib
 import re
@@ -127,7 +135,7 @@ from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
 VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], clean-frozen, clean-cache, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, "
-         "run-log [--lines N], fault <node>, predicted, store-pull, store-push [--missing], "
+         "run-log [--lines N], fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, decide-yes, decide <yes id>, "
          "stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
@@ -181,6 +189,9 @@ FAULT = "--fault"  # this file's own read of a fault report of the newest launch
 RUN_LOG_LINES, RUN_LOG_LINES_MAX = 200, 2000
 # The store's copy to and from the owner's PC (tools/cloud/this_pc.py): what a run reads, and the folders it adds to.
 STORE_PULL, STORE_MISSING, STORE_PUSH = "--store-pull", "--store-missing", "--store-push"
+STORE_DIFFERS, STORE_REPLACE = "--store-differs", "--store-replace"
+REPLACEABLE = "work/pixal/"  # the one folder a push replaces in: the PC remakes takes there in place
+REPLACED = "work/pixal/replaced"  # where each replaced file is kept, under the push's time
 PULLED = ("store/objects", "design", "work", "cloud/google-cache", "cache/library")
 PUSHED = ("store/objects", "work")
 
@@ -319,9 +330,11 @@ def decide(words, latch):
             raise Refused("store-pull takes no arguments: the manifest of what you hold comes on stdin")
         return [str(pathlib.Path(__file__).resolve()), STORE_PULL], {}
     if verb == "store-push":
-        if args not in ([], ["--missing"]):
-            raise Refused("store-push [--missing]: the paths or the tar stream come on stdin")
-        return [str(pathlib.Path(__file__).resolve()), STORE_MISSING if args else STORE_PUSH], {}
+        flags = {(): STORE_PUSH, ("--missing",): STORE_MISSING, ("--differs",): STORE_DIFFERS,
+                 ("--replace",): STORE_REPLACE}
+        if tuple(args) not in flags:
+            raise Refused("store-push [--missing | --differs | --replace]: the paths or the tar stream come on stdin")
+        return [str(pathlib.Path(__file__).resolve()), flags[tuple(args)]], {}
     if verb == "stop-batch":
         if len(args) != 1 or not args[0].strip():
             raise Refused("stop-batch <reason>, one quoted reason")
@@ -525,6 +538,99 @@ def store_missing(home, asked):
     return "".join(f"{name}\n" for name in names if not os.path.lexists(push_target(home, name)))
 
 
+def replaceable_target(home, name):
+    """Where a replacing push's path lands: push_target, and only under REPLACEABLE; Refused else."""
+    if not name.startswith(REPLACEABLE) or name.startswith(REPLACED + "/"):
+        raise Refused(f"store-push --replace replaces files under {REPLACEABLE} only (not its replaced/), not {name!r}")
+    return push_target(home, name)
+
+
+def file_sha(path):
+    """The sha256 of a file's bytes, read in chunks."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def store_differs(home, asked):
+    """Of the `size<TAB>sha256<TAB>path` lines `asked`, the paths the conductor's home holds as a file with other
+    bytes (a missing one is store-push --missing's), one a line."""
+    found = []
+    for line in asked.splitlines():
+        if not line:
+            continue
+        size, sha, name = line.split("\t", 2)
+        target = replaceable_target(home, name)
+        if target.is_file() and (target.stat().st_size != int(size) or file_sha(target) != sha):
+            found.append(f"{name}\n")
+    return "".join(found)
+
+
+def replace_refusal(home):
+    """Why work/pixal's files may not be replaced now (a run may read them), or None; a run entry or process that
+    cannot be read refuses too."""
+    from score.conductor import disk
+    from score.graph import runs
+    try:
+        need = disk.needed(runs.RUNS)
+        busy = disk.working(pathlib.Path(home) / "frozen")
+    except Exception as unread:  # noqa: BLE001 - Unprovable or unreadable: no replace while it cannot tell
+        return f"cannot tell whether a run is live: {unread}"
+    if need or busy:
+        return f"a run is live ({', '.join(sorted(need)) or ', '.join(sorted(busy))})"
+    return None
+
+
+def store_replace(home, stream, stamp):
+    """Puts each regular file of the tar `stream` (under REPLACEABLE only) in place, the file there before kept under
+    REPLACED/<stamp>/; one with the same bytes already there is kept as it is. Refused while a run is live
+    (replace_refusal). The whole stream is written under home/tmp first; (replaced, bytes, kept)."""
+    home = pathlib.Path(home)
+    refused = replace_refusal(home)
+    if refused:
+        raise Refused(f"store-push --replace: {refused}")
+    temporary, parts = home / "tmp" / "this-pc-replace", []
+    temporary.mkdir(parents=True, exist_ok=True)
+    try:
+        with tarfile.open(fileobj=stream, mode="r|") as archive:
+            for member in archive:
+                if member.isdir():
+                    continue
+                if not member.isfile():
+                    raise Refused(f"store-push takes regular files only, not {member.name!r}")
+                target = replaceable_target(home, member.name)
+                part = temporary / f"{os.getpid()}-{len(parts)}"
+                parts.append((member.name, target, part, member.size))
+                with archive.extractfile(member) as source, open(part, "wb") as written:
+                    shutil.copyfileobj(source, written)
+                    written.flush()
+                    os.fsync(written.fileno())
+        return replaced(home, parts, stamp)
+    finally:
+        for _, _, part, _ in parts:
+            part.unlink(missing_ok=True)
+
+
+def replaced(home, parts, stamp):
+    """Each written part put at its target, the old file first linked under REPLACED/<stamp>/; (replaced, bytes,
+    kept)."""
+    count, size, kept = 0, 0, 0
+    for name, target, part, length in parts:
+        if target.is_file() and file_sha(target) == file_sha(part):
+            kept += 1
+            continue
+        if target.exists():
+            keep = pathlib.Path(home, REPLACED, stamp, *pathlib.PurePosixPath(name).parts[2:])
+            keep.parent.mkdir(parents=True, exist_ok=True)
+            os.link(target, keep)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(part, target)
+        count, size = count + 1, size + length
+    return count, size, kept
+
+
 LANDING = ("store/objects/blobs/", "store/objects/outputs/")  # land first, in this order: what a record names
 
 
@@ -591,12 +697,20 @@ def store_move(flag, home):
     if flag == STORE_PULL:
         sent, size, kept = store_pull(home, held(sys.stdin.read()), sys.stdout.buffer)
         return f"store-pull: sent {sent} files ({size / 1e9:.2f} GB), {kept} already on the PC"
+    if flag == STORE_DIFFERS:
+        sys.stdout.write(store_differs(home, sys.stdin.read()))
+        return "store-push --differs: listed"
+    if flag == STORE_REPLACE:
+        stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        count, size, kept = store_replace(home, sys.stdin.buffer, stamp)
+        return (f"store-push --replace: replaced {count} files ({size / 1e9:.2f} GB), the old ones under "
+                f"{REPLACED}/{stamp}; {kept} already the same")
     added, size, kept = store_push(home, sys.stdin.buffer)
     return f"store-push: added {added} files ({size / 1e9:.2f} GB), kept {kept} already there"
 
 
 def main():
-    if sys.argv[1:2] in ([STORE_PULL], [STORE_MISSING], [STORE_PUSH]):
+    if sys.argv[1:2] in ([STORE_PULL], [STORE_MISSING], [STORE_PUSH], [STORE_DIFFERS], [STORE_REPLACE]):
         from score.store import PROPS_HOME
         try:
             print(store_move(sys.argv[1], PROPS_HOME), file=sys.stderr)
