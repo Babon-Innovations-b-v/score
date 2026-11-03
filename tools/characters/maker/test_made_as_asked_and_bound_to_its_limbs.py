@@ -77,7 +77,8 @@ unless named):
 - test_a_cut_is_closed_on_each_side_by_its_own_fan: closed's `kept = faces[~cut]` made `faces[cut]`.
 - test_a_limb_point_keeps_only_its_chain_and_its_shoulder: kept_to_limb's zeroing of the other joints dropped.
 - test_the_face_is_one_setting_and_keeps_the_made_face_by_default: route_build.kept_surfaces' drawn face's
-  `("skin_head",)` made `()`.
+  `("skin_head",)` made `()`; or samplers_of made `return document["samplers"]` (a made body with no pictures and
+  the old head's pictures added stops the route: the officer, 2026-11-03).
 - test_the_collar_line_is_filled_round_the_neck: route_head.collar_line's empty-bin fill dropped.
 - test_points_under_the_collar_are_listed_last: tuck_order's order made `np.arange(len(points))`.
 - test_the_neck_is_appended_under_the_old_head: Extension's `new = piece_faces[~same[piece_faces].all(1)]` made
@@ -778,6 +779,12 @@ def test_the_face_is_one_setting_and_keeps_the_made_face_by_default():
     assert named("made") == ["skin_head", "hair"] and named("drawn") == ["hair"]
     with pytest.raises(SystemExit, match="--old"):
         route_build.drawn_head(argparse.Namespace(old=None), document, surfaces, None, None, [], None)
+    # the new file's samplers: the made file's, else the old head's, else a default; none without textures
+    old = {"samplers": [{"magFilter": 9729}]}
+    assert route_build.samplers_of({"samplers": [{"wrapS": 33071}]}, old, [{}]) == [{"wrapS": 33071}]
+    assert route_build.samplers_of({}, old, [{"sampler": 0}]) == [{"magFilter": 9729}]
+    assert route_build.samplers_of({}, {}, [{"sampler": 0}]) == [{}]
+    assert route_build.samplers_of({}, old, []) == []
 
 
 def test_the_collar_line_is_filled_round_the_neck():
