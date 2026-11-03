@@ -7,11 +7,17 @@ drawer is picked from the files, never from the stage's name. Each picture is ma
 light (one thread), and kept at <home>/previews/<VERSION>/<output>.png; it is served and exported under PREVIEW_NAME with an id made from the output.
 
     path = previews.picture(files, plan, known, home, output, words, elsewhere)   # files: [(listed name, path)]
+
+A picture that fails to draw costs only that picture (2026-11-03: one pushed model's colours failed every conductor sync
+pass, three releases running, and with it the plans, prepare, the basket and the export): `picture` gives None, keeps
+the error at <home>/previews/<VERSION>/<output>.failed.json (`failure` reads it; not drawn again until a drawer
+changes VERSION) and says it in one line on stderr, the pass's journal.
 """
 import hashlib
 import json
 import os
 import pathlib
+import sys
 import threading
 
 for _threads in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
@@ -188,14 +194,33 @@ def drawn_from_records(files, parsed, words, destination, elsewhere):
     return sheets.tiles(tile_names(parsed, files), words, destination)
 
 
+def failed_record(home, output):
+    return pathlib.Path(home) / "previews" / VERSION / f"{output}.failed.json"
+
+
+def failure(home, output):
+    """{output, error} of a picture that failed to draw at this VERSION, or None."""
+    path = failed_record(home, output)
+    return json.loads(path.read_text()) if path.is_file() else None
+
+
 def picture(files, plan, known, home, output, words, elsewhere=()):
-    """The output's preview, made once and kept; its path."""
+    """The output's preview, made once and kept; its path, or None when it failed to draw (its error kept, failure)."""
     path = cached(home, output)
     if path.is_file():
         return path
+    if failed_record(home, output).is_file():
+        return None
     with _one_at_a_time:
         if not path.is_file():
             partial = path.with_name(path.stem + ".partial.png")
-            draw(files, plan, known, partial, words, elsewhere)
+            try:
+                draw(files, plan, known, partial, words, elsewhere)
+            except Exception as error:  # noqa: BLE001 - one picture's fault: kept and said, the rest goes on
+                partial.unlink(missing_ok=True)
+                said = f"{type(error).__name__}: {error}"
+                failed_record(home, output).write_text(json.dumps({"output": output, "error": said}))
+                print(f"preview: {output} not drawn: {said}", file=sys.stderr, flush=True)
+                return None
             partial.replace(path)
     return path

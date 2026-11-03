@@ -8,6 +8,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - previews.picture: a blank picture saved in place of `draw(...)` -> test_each_kind_draws_a_real_picture
 - previews.draw: `found = settle_document(parsed)` -> `found = None` -> test_each_kind_reaches_its_own_drawer_...
 - previews.picture: both cache checks dropped -> test_a_picture_is_made_once_and_kept
+- previews.picture: drop its `except Exception` -> one model's fault raises through the pass ->
+  test_a_picture_is_made_once_and_kept
 - state/local.with_preview: `made = None` -> test_a_step_with_no_picture_of_its_own_gets_its_preview
 - meshes: `file_hash(candidate) == sha` -> `True` -> test_a_model_is_drawn_only_when_its_hash_matches
 - meshes.faces_of: drop the no-faces return -> a point cloud's colours raise IndexError ->
@@ -180,6 +182,16 @@ def test_a_picture_is_made_once_and_kept(tmp_path, monkeypatch):
     assert previews.picture(files, PLAN, KNOWN, tmp_path / "home", "output-1", "plan") == first
     assert previews.preview_id("output-1") != previews.preview_id("output-2")
     assert len(previews.preview_id("output-1")) == 64
+
+    def broken(*args):  # one model that cannot be drawn costs only its own picture, kept with its error
+        raise IndexError("too many indices for array")
+    monkeypatch.setattr(previews, "draw", broken)
+    assert previews.picture(files, PLAN, KNOWN, tmp_path / "home", "output-2", "plan") is None
+    assert previews.failure(tmp_path / "home", "output-2") == {"output": "output-2",
+                                                               "error": "IndexError: too many indices for array"}
+    monkeypatch.setattr(previews, "draw", lambda *args: pytest.fail("a failed picture drawn again"))
+    assert previews.picture(files, PLAN, KNOWN, tmp_path / "home", "output-2", "plan") is None
+    assert not list((tmp_path / "home" / "previews" / previews.VERSION).glob("*.partial.png"))
 
 
 def test_a_step_with_no_picture_of_its_own_gets_its_preview(world):
