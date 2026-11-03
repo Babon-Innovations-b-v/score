@@ -28,9 +28,8 @@ break that turns each red (applied once, seen red, reverted):
 - test_a_watchdog_deletes_its_machine_at_once_when_its_renter_is_gone: in batch.py `watchdog`, drop `and
   os.getppid() == holder`.
 - test_a_parked_machine_that_does_not_answer_is_deleted_and_none_taken: in `adopt`, the failure's
-  `batch.delete_machine(machine)\n            continue` -> `return machine`; or `raise refused_retag(record, pool_of,
-  error) from error` -> `batch.delete_machine(machine)\n            continue` (a card whose tags the provider
-  refused to change is deleted as unanswering, card after card: 2026-11-03).
+  `batch.delete_machine(machine)\n            continue` -> `return machine`; or the retag's own `except` dropped (a
+  card whose tag update failed is deleted as unanswering, card after card: 2026-11-03).
 - test_a_card_waits_its_kinds_measured_cold_start_at_most_the_cap: in `idle_minutes`, `min(IDLE_CAP_MINUTES,
   statistics.median(starts))` -> `statistics.median(starts)`.
 - test_a_card_with_no_claim_waiting_is_released_not_parked: in `parkable`, `(not card or queued())` -> `True`.
@@ -270,16 +269,15 @@ def test_a_parked_machine_that_does_not_answer_is_deleted_and_none_taken(calls, 
     monkeypatch.setattr(batch, "remote", no_answer)
     assert batch.park_taken(run_of("unlucky"), OFFERS, 1, KIND, 60) is None
     assert calls.deleted == ["m6"]
-    # the provider refusing its tag update is no dead machine: kept parked, the claim refused with the provider's words
+    # a failed tag update is bookkeeping, no dead machine: the card that answers is taken all the same
     monkeypatch.setattr(batch, "remote", answering)
     batch.delete_machine(machine(20, server_id="m7"))
 
     def refused(server_id, zone, tags):
         raise subprocess.CalledProcessError(1, ["scw"], "", "permission denied: instance server update")
     monkeypatch.setattr(cloud, "retag", refused)
-    with pytest.raises(batch.compute.Refused, match="refused to change its tags.*permission denied"):
-        batch.park_taken(run_of("unlucky"), OFFERS, 1, KIND, 60)
-    assert calls.deleted == ["m6"] and (park.PARKED / "m7.json").exists()  # put back, still parked
+    taken = batch.park_taken(run_of("lucky"), OFFERS, 1, KIND, 60)
+    assert taken is not None and taken["id"] == "m7" and calls.deleted == ["m6"]
 
 
 def test_a_card_waits_its_kinds_measured_cold_start_at_most_the_cap(calls):
