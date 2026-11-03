@@ -9,4 +9,9 @@ squares it replaced, 40 fixed steps with ranges by clipping, went 2026-10-29: on
 
 - Moved unchanged in #70's split; changed since by #70 only where its review asked (2026-10-29): the mass step bounded
   (`MASS_MOST`) and `Footing` on mink.
+- `Footing` holds each moving leg joint in its range, or where the frame it puts the feet back to (`before`, the
+  fitted path) already stands past a stop, within where it stands (2026-11-03, #70): camp's walking astronaut_1, its
+  right knee carried 0.38 degrees past its 0 stop by the path's low-pass on 27 of 150 frames, had that knee pulled
+  in at no move, the hip turned 18 degrees to keep the foot, so `within_frames` found those frames 3.55 times the cap
+  with every share at 0 and failed the run. The cap and the follows limit are unchanged.
 - Its test runs in Newton's own Python by subprocess and prints `skipped` where no env is built.

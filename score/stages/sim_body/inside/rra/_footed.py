@@ -41,6 +41,7 @@ class Footing:
         # girdle joint on its end, 0.01 deg, 2026-10-31) makes its freeze and its range one infeasible QP (daqp)
         unheld = [joint for joint, _, _ in couplings.followers] + [int(model.dof_jntid[dof]) for dof in frozen]
         self.limits = [mink.ConfigurationLimit(fit.followers_free(model, unheld), gain=1.0)]
+        self.ranges = self.limits[0].lower.copy(), self.limits[0].upper.copy()
         self.constraints = [mink.EqualityConstraintTask(model, cost=1.0, gain=1.0)] if model.neq else []
         self.constraints.append(mink.DofFreezingTask(model, dof_indices=frozen))
         self.configuration = mink.Configuration(model)
@@ -50,9 +51,15 @@ class Footing:
         """`path` with each foot body put back where it stands in `before`, place and turn, frame by frame, by the
         legs' joints; the pelvis' height held to its own in `path` by FOOTED_HEIGHT: a pelvis raised past what a
         straight leg reaches comes down, or its feet would leave the ground (1 cm up lifted them 9 mm, 600 N of
-        residual, 2026-10-28)."""
+        residual, 2026-10-28). Each leg joint is held within its range, or, on a frame where `before` stands past
+        a range end (the low-pass carries the fitted path a little past a stop), within where `before` stands
+        there: never further out, and never pulled in when nothing moved (2026-11-03: camp's walking astronaut's knee
+        0.38 degrees past its 0 stop, pulled in at no move, turned the hip 18 degrees to keep the foot, past the cap
+        before any of RRA's move)."""
         found = []
+        limit, (lower, upper) = self.limits[0], self.ranges
         for qpos, still in zip(path, before):
+            limit.lower, limit.upper = np.minimum(lower, still), np.maximum(upper, still)
             self.data.qpos[:] = still
             mujoco.mj_kinematics(self.model, self.data)
             for task, body in zip(self.tasks, self.feet):

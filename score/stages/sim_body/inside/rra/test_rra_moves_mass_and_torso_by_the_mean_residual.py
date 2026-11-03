@@ -19,6 +19,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   last step is kept silently (2026-10-29).
 - reweighed's `np.clip(model.body_ipos[torso] + shift - home, -COM_MOST, COM_MOST)` made `model.body_ipos[torso] +
   shift - home`: the torso's centre of mass moves past RRA's 0.1 m.
+- Footing.footed's `limit.lower, limit.upper = np.minimum(lower, still), np.maximum(upper, still)` dropped: a knee
+  the fitted path carries past its stop is pulled in with no move (camp, 2026-11-03).
 
 Run: .venv/bin/python score/stages/sim_body/inside/rra/test_rra_moves_mass_and_torso_by_the_mean_residual.py
 """
@@ -110,6 +112,22 @@ def the_feet_stay_where_they_stood_when_the_pelvis_moves():
     problems = [] if off[:, 0].max() < 1e-5 and np.degrees(off[:, 1].max()) < 1e-3 else [f"feet off {off.tolist()}"]
     return problems + ([] if np.allclose(found[:, :3], moved[:, :3], atol=1e-6) else
                        [f"pelvis at {found[:, :3].tolist()}, moved to {moved[:, :3].tolist()}"])
+
+
+def a_leg_past_its_stop_is_left_where_it_stood():
+    """A knee the fitted path carries 0.05 rad past its 0 stop: unmoved, the frame comes back as it was (to 1e-9); with
+    the pelvis 1 cm down, the knee bends no further past its stop than it stood."""
+    import numpy as np
+    footing, standing = legs_footing()
+    knee = footing.model.jnt_qposadr[footing.model.joint("knee_l").id]
+    standing[knee] = -0.05
+    still = footing.footed(standing[None], standing[None])[0]
+    lowered = standing.copy()
+    lowered[2] -= 0.01
+    moved = footing.footed(lowered[None], standing[None])[0]
+    changed = np.abs(still - standing).max()
+    problems = [] if changed < 1e-9 else [f"an unmoved frame changed by {changed}"]
+    return problems + ([] if moved[knee] >= -0.05 - 1e-9 else [f"knee {moved[knee]} past where it stood (-0.05)"])
 
 
 def a_foot_frame_that_does_not_converge_fails():
@@ -221,6 +239,7 @@ def a_turn_between_two_paths_is_its_angle():
 
 CHECKS = (the_mass_follows_the_mean_upward_residual, a_floating_body_keeps_its_mass_within_the_bound,
           the_torso_moves_under_the_mean_moment_within_its_cap, the_feet_stay_where_they_stood_when_the_pelvis_moves,
+          a_leg_past_its_stop_is_left_where_it_stood,
           a_foot_frame_that_does_not_converge_fails,
           a_turn_between_two_paths_is_its_angle)
 
