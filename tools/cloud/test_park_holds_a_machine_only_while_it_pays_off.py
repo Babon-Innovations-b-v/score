@@ -53,7 +53,8 @@ break that turns each red (applied once, seen red, reverted):
 - test_this_pcs_card_is_taken_free_one_claim_at_a_time_and_never_parked: in `adopt`, drop `if hasattr(cloud,
   "take"): return here(...)` -> the claim asks a clearance and finds nothing parked; or in `park`, drop `if
   machine.get("here"): return False` -> the PC's machine is listed as parked; or in `here`, `f"{own_set_up(kind)};
-  {cleanup_of(machine)}"` -> `own_set_up(kind)` (a last claim's `closed` ends the next worker at once).
+  {cleanup_of(machine)}"` -> `own_set_up(kind)` (a last claim's `closed` ends the next worker at once); or in `park`,
+  drop the `ends_with(...)` call -> the claim's files stay in the container (2026-11-03: 476 GB in their layers).
 - test_each_kind_on_this_pcs_card_keeps_its_own_set_up: in `own_set_up`, drop `if [ -e {KINDS}/{kind}/venv ]; then mv
   {KINDS}/{kind}/venv venv; fi && ` (a kind's venv never comes back); or `ALL_MARKS` -> `"rm -f /root/.*-setup-*"`
   (moss' set-up wipes the other kinds' marks there).
@@ -466,9 +467,12 @@ def test_this_pcs_card_is_taken_free_one_claim_at_a_time_and_never_parked(calls,
     with pytest.raises(batch.compute.Refused, match="30 GB"):
         batch.park_taken(run_of("big"), CARD_OFFERS, 1, "judge", 60)
     taken["healthy"] = True
+    ended = []
+    monkeypatch.setattr(cloud, "ends_with", lambda *handed: ended.append(handed), raising=False)
     with park.wanting(OTHER):  # a claim waits, yet this PC's card is never parked: its claim ends
         batch.delete_machine(taken)
     assert calls.deleted == ["score-this-pc:1"] and not list(park.PARKED.glob("*.json"))
+    assert ended == [("score-this-pc:1", CLEAN)]  # its run's files go from the container at its end
     assert ledger.machine_row({**taken, "deleted": taken["adopted"] + 600})["euros"] == 0.0
 
 

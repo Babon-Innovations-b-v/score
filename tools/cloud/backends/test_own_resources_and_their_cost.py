@@ -49,6 +49,13 @@ The invariants, each with the break that turns its test red (each applied once a
   held branch -> the first leaving restarts the container under the second's jobs; or `[] if wanted_elsewhere()`
   dropped in `claimed` -> a waiting exclusive claim is starved; or drop `provider.cloud.let_go_turn` in
   `spread.work_turn` -> a slot out of work keeps its turn.
+- A claim's end removes its own files from its container (2026-11-03: 476 GB in the containers' layers, this PC's
+  disk 98% full): the claim leaving it alone runs its kind's clean-up and empties the runner's folders there (each
+  once, never /root, each folder kept), a shared claim with others beside removes nothing of theirs; before a claim a
+  layer past LAYER_LIMIT_GB loses its installer caches, measured once a LAYER_EVERY_SECONDS. Break: in `delete`, drop
+  `tidied(name, f"{own}; {swept()}")` -> nothing goes; or in `runner_paths` drop `not folder.is_relative_to("/root")` -> /root/repo is swept; or
+  `-mindepth 1` -> `-mindepth 0` in `swept` -> the folders go too; or in `bounded` drop the LAYER_EVERY_SECONDS
+  return -> the caches go at every claim; or drop `bounded(name)` in `take` -> none go.
 - A job is refused by its measured need, not its kind: a characters run of clip steps (4 GB of card, 17 GB of memory
   with the encoder on the processor) takes this PC, a whole characters machine (17 GB of card) or a need past the
   container's memory does not. Break: `card = TOO_BIG.get(kind)` in `refusal` -> the clip run is refused; or drop the
@@ -498,9 +505,15 @@ def test_this_pc_orders_nothing_costs_nothing_and_holds_one_claim(monkeypatch, t
     import local
     monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
     monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
-    restarted = []
-    monkeypatch.setattr(local, "docker",
-                        lambda *arguments, **_: arguments[0] == "restart" and restarted.append(arguments))
+    restarted, execs = [], []
+
+    def docker(*arguments, **_):
+        restarted.extend([arguments] if arguments[0] == "restart" else [])
+        execs.extend([arguments[-1]] if arguments[2:4] == ("sh", "-c") else [])
+        layer = "90000000000"  # 90 GB, its set-ups' own past the limit too
+        return types.SimpleNamespace(returncode=0, stdout=layer if arguments[:2] == ("inspect", "--size") else "",
+                                     stderr="")
+    monkeypatch.setattr(local, "docker", docker)
     offers = local.offers(["gpu-80gb", "gpu-24gb", "cpu-32c-128gb", "gpu-24gb-x2"])
     assert [offer.machine_class for offer in offers] == ["gpu-24gb", "cpu-32c-128gb"]
     assert {(offer.price, offer.stock_word) for offer in offers} == {(0.0, "parked")}  # batch.rent orders nothing
@@ -511,11 +524,13 @@ def test_this_pc_orders_nothing_costs_nothing_and_holds_one_claim(monkeypatch, t
     first = local.take("pixal", "key")
     assert first["here"] and first["price"] == 0.0 and first["host"] == "172.17.0.2"
     assert first["id"].startswith("score-this-pc-pixal:")  # its kind's own container
+    assert execs == [local.INSTALLER_CACHES]  # its layer past LAYER_LIMIT_GB: the caches went before the claim
     assert local.take("pixal", "key") is None  # one claim a container
     assert local.take("blender", "key") is None  # unmeasured, the Pixal3D claim holds the whole memory
     assert local.delete("score-this-pc-pixal:another", "this-pc") is False and not restarted  # a watchdog's late delete
     assert local.delete(first["id"], "this-pc") is True and restarted  # its own claim ends: the container restarted
     local.delete(local.take("pixal", "key")["id"], "this-pc")
+    assert execs.count(local.INSTALLER_CACHES) == 1  # measured again only after LAYER_EVERY_SECONDS
 
 
 def test_this_pc_shares_its_blender_turns_across_places_and_restarts_only_when_left_alone(monkeypatch, tmp_path):
@@ -527,9 +542,13 @@ def test_this_pc_shares_its_blender_turns_across_places_and_restarts_only_when_l
     monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
     monkeypatch.setattr(local, "RUNS_AT_ONCE", {"pixal": 1, "blender": 3})
     monkeypatch.setattr(capacity.provider, "cloud", local)
-    restarted = []
-    monkeypatch.setattr(local, "docker",
-                        lambda *arguments, **_: arguments[0] == "restart" and restarted.append(arguments))
+    restarted, execs = [], []
+
+    def docker(*arguments, **_):
+        restarted.extend([arguments] if arguments[0] == "restart" else [])
+        execs.extend([(len(restarted), arguments[-1])] if arguments[2:4] == ("sh", "-c") else [])
+        return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+    monkeypatch.setattr(local, "docker", docker)
     first = local.take("blender", "key")  # one place's bake row: every free turn
     assert first["turns"] == 3 and spread.slots("blender", first) == [0, 0, 0]
     assert local.take("blender", "key") is None  # every turn busy
@@ -545,12 +564,30 @@ def test_this_pc_shares_its_blender_turns_across_places_and_restarts_only_when_l
     local.let_go_turn(third["id"])
     monkeypatch.setattr(card_queue, "BACKFILL_SECONDS", 0)
     assert local.take("blender", "key") is None  # the Pixal3D claim waited its bound: nothing passes it now
+    for claim in (first, second, third):
+        local.ends_with(claim["id"], f"rm -rf /job/{claim['id']}")
+    execs.clear()
     assert local.delete(first["id"], local.ZONE) is True and not restarted  # the others' jobs still run
+    assert not execs  # nothing of theirs goes: an input of one may be another's
     assert local.delete(third["id"], local.ZONE) is True and not restarted
     assert local.delete(second["id"], local.ZONE) is True and restarted  # the last to leave restarts it
+    assert execs == [(1, f"rm -rf /job/{second['id']}; {local.swept()}")]  # then every job file
+
     alone = local.take("pixal", "key")
     assert alone is not None
     local.delete(alone["id"], local.ZONE)
+
+    home = tmp_path / "pc"  # the runner's folders a sweep empties: each once, never the container's own
+    monkeypatch.setattr(local.pathlib.Path, "home", lambda: home)
+    monkeypatch.setattr(local, "HOME", home / ".props")
+    monkeypatch.setattr(local, "REPO", pathlib.Path("/root/repo"))
+    monkeypatch.setattr(local.tempfile, "tempdir", str(tmp_path / "t"))
+    assert local.runner_paths() == [home, tmp_path / "t"]
+    for leftover in (home / ".props/store/take.png", home / "work/out/a.glb", tmp_path / "t/blender_tmp/x"):
+        leftover.parent.mkdir(parents=True, exist_ok=True)
+        leftover.write_text("x")
+    subprocess.run(["sh", "-c", local.swept()], check=True)
+    assert home.is_dir() and not any(home.iterdir()) and not any((tmp_path / "t").iterdir())
 
 
 def test_this_pc_marks_a_claim_that_waits_holding_none_and_drops_the_mark_once_it_holds_one(monkeypatch, tmp_path):
@@ -917,7 +954,8 @@ def test_this_pc_container_keeps_cores_for_the_pc_and_a_measured_claim_to_its_me
     assert ("update", "--memory", "27g", "--memory-swap", "27g", "--cpus", "20", own) in calls
     assert ("update", "--memory", "26g", "--memory-swap", "26g", own) in calls  # 17 GB measured, x1.5
     local.delete(machine["id"], "this-pc")
-    assert calls[-1] == ("update", "--memory", "27g", "--memory-swap", "27g", own)  # set back
+    updates = [call for call in calls if call[0] == "update"]
+    assert updates[-1] == ("update", "--memory", "27g", "--memory-swap", "27g", own)  # set back
     calls.clear()
     local.delete(local.take("pixal", "key")["id"], "this-pc")
     assert not [call for call in calls if call[:2] == ("update", "--memory") and call[2] != "27g"]  # no measure: 27g

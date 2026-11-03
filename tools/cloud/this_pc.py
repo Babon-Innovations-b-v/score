@@ -58,7 +58,8 @@ shell): its `store-pull` and `store-push` verbs, a tar stream each way over ssh.
   node runs again), waits until its process group is gone, then `docker stop`s the container (not `docker pause`:
   the card's memory and the processor are freed). `resume` refuses while a run is live, starts the container and the
   same run again, detached (its log under HOME/logs), from a worktree of its own at the recorded commit
-  (HOME/resume-code). `status` says running, paused or neither, the newest heartbeat's rows and what is on the card.
+  (HOME/resume-code). `status` says running, paused or neither, the newest heartbeat's rows, what is on the card,
+  each SCORE container's own size and this PC's free disk (a warning under FREE_WARN_GB).
 """
 import argparse
 import hashlib
@@ -67,6 +68,7 @@ import os
 import pathlib
 import re
 import signal
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -85,6 +87,7 @@ CONDUCTOR = ("score-conductor", "fr-par-2")  # its server's name and zone (tools
 ENVIRONMENT = {"SCORE_CLOUD": "local", "SCORE_FREE_ONLY": "1", "SCORE_INPUTS_DIRECT": "1",
                "SCORE_MAX_MACHINES": "all=1"}  # one machine: this PC
 MACHINE = "score-this-pc"  # backends/local.py's first container; each other kind's is MACHINE-<kind>
+FREE_WARN_GB = 100  # status warns while this PC's disk has less free
 PAUSED = "paused.json"  # under HOME: the paused run, until resume starts it again
 RUN_OWN = ("SCORE_FROZEN", "SCORE_FROZEN_OWNER", "SCORE_RUN_ID")  # set by `score run` itself, never carried over
 STOP_SECONDS = 240  # a stopped run's 30 s grace, its batches' deletes and the detached wrapper's 90 s, with room
@@ -426,8 +429,21 @@ def card():
     return f"{used}, {MACHINE}'s top job: {biggest[1][:100] if biggest else 'none'}"
 
 
+def disk(home):
+    """Each SCORE container's own writable layer (docker's size) and this PC's free disk, warned under FREE_WARN_GB
+    (2026-11-03: the disk 98% full, 476 GB in the containers' layers)."""
+    listed = asked(["docker", "ps", "-a", "--size", "--format", "{{.Names}}\t{{.Size}}"])
+    rows = [line.split("\t") for line in listed.stdout.splitlines() if "\t" in line] if listed.returncode == 0 else []
+    sizes = ", ".join(f"{name} {size.split(' (')[0]}" for name, size in rows
+                      if name == MACHINE or name.startswith(f"{MACHINE}-")) or "no container"
+    free = shutil.disk_usage(home).free / 1e9
+    warning = f" WARNING: under {FREE_WARN_GB} GB free" if free < FREE_WARN_GB else ""
+    return f"containers {sizes}; disk {free:.0f} GB free{warning}"
+
+
 def status_line(home):
-    """One line: running, paused or neither, the newest heartbeat's rows, what is on the card."""
+    """One line: running, paused or neither, the newest heartbeat's rows, what is on the card, the containers' sizes
+    and the free disk."""
     entry = live_run(home)
     logs = sorted((home / "logs").glob("*.log"), key=lambda path: path.stat().st_mtime)
     if entry is not None:
@@ -439,7 +455,7 @@ def status_line(home):
         state, log = "neither running nor paused", None
     beat = newest_beat(log or (str(logs[-1]) if logs else None)) or "no heartbeat yet"
     kept_here = unpushed(home)
-    return f"{state}; {beat}; {card()}" + (f"; {kept_here}" if kept_here else "")
+    return f"{state}; {beat}; {card()}; {disk(home)}" + (f"; {kept_here}" if kept_here else "")
 
 
 def main(argv=None):

@@ -273,8 +273,10 @@ def park(machine):
     parked is deleted here and struck off its pool only once that delete went through, so a card mid-delete stays in
     sight of the release and the collector's tidy (review of 2026-10-24); the caller's own delete then finds it gone.
     Here, not in batch.delete_machine: the pixal and rough-model rows declare batch.py. This PC's machine
-    (SCORE_CLOUD=local) is never parked: its claim ends with the caller's delete."""
+    (SCORE_CLOUD=local) is never parked: its claim ends with the caller's delete, which removes its run's files there
+    (cleanup_of, local.ends_with)."""
     if machine.get("here"):
+        getattr(cloud, "ends_with", lambda *_: None)(machine["id"], cleanup_of(machine))
         return False
     parked = park_here(machine)
     if machine.get("pool"):

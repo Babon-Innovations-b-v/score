@@ -36,6 +36,14 @@ container's memory runs alone (the PC's LOCK exclusive). `delete` restarts the c
 a job left running on the card (a detached worker), and keeps its files: only when no other claim holds it, so the
 last shared claim to leave restarts it and none restarts it under another claim's jobs.
 
+A claim's end also removes its own files from its container, as a rented machine's clean-up does before it is parked
+(2026-11-03: this PC's disk 98% full, 476 GB in the containers' own layers, score-this-pc 379 GB, since nothing removed
+a job's inputs and outputs at their absolute paths): the claim leaving its container alone runs its kind's clean-up
+(park.CLEANUPS, handed over by park.park: `ends_with`) and empties the runner's own folders there (runner_paths, the
+temporary folder among them), so a shared claim's files go with the last claim to leave (an input of one may be
+another's beside it). Each kind's set-up (/root/venv, /root/kinds) and its model caches stay. Before a claim, a
+container whose own layer is past LAYER_LIMIT_GB loses its installer caches (`bounded`), said with the GB.
+
 The interface is provider.py's; what has no meaning here (accounts, addresses, disks, the registry and the object
 store) says so or gives nothing.
 """
@@ -44,9 +52,11 @@ import fcntl
 import json
 import os
 import pathlib
+import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 
@@ -54,7 +64,7 @@ import math
 
 import card_queue
 import provider
-from paths import HOME
+from paths import HOME, REPO
 
 NAME = "local"
 MACHINE = "score-this-pc"  # the container's name, and the machine type the offers name
@@ -126,6 +136,17 @@ WANT_SECONDS = 120
 SSHD_SECONDS = 60
 # Where a container's cgroup is (score/graph CGROUPS: systemd's driver, then cgroupfs).
 CGROUPS = ("/sys/fs/cgroup/system.slice/docker-{id}.scope", "/sys/fs/cgroup/docker/{id}")
+# A claim's own clean-up at its delete (park.park hands it over, ends_with): {machine id: its kind's clean-up}.
+ENDS = {}
+# A container's own writable layer past this many GB (docker's SizeRw) loses its installer caches before a claim
+# (bounded): above what the set-ups hold (the kinds' venvs, Blender, the model caches; 2026-11-03 the characters
+# container held 45 GB, set-up and job files together), measured at most every LAYER_EVERY_SECONDS a container.
+LAYER_LIMIT_GB = 80
+LAYER_EVERY_SECONDS = 600
+# What a set-up downloads to install and never reads once it has ended: uv's and pip's caches, apt's packages. The
+# model caches (/root/.cache/huggingface, each kind's own folder) are set-up and stay.
+INSTALLER_CACHES = "rm -rf /root/.cache/uv /root/.cache/pip; apt-get clean >/dev/null 2>&1; true"
+TIDY_SECONDS = 600
 DOCKERFILE = """\
 FROM nvidia/cuda:12.8.1-base-ubuntu24.04@sha256:133c78a0575303be34164d0b90137a042172bdf60696af01a3c424ab402d86e2
 ENV DEBIAN_FRONTEND=noninteractive
@@ -223,6 +244,7 @@ def take(kind, public_key, need=None):
     try:
         with setting_up():
             host = running(public_key, name)
+            bounded(name)
             if alone and memory > alone_room(name):
                 card_queue.release(share)
                 for held in handles:
@@ -582,6 +604,7 @@ def delete(machine_id, _zone):
             time.time() - share.began, 1e-3), 2)
         card_queue.release(share, cores)
     handles = HELD.pop(machine_id, None)
+    own = ENDS.pop(machine_id, "true")
     ours = handles is not None
     if not ours:
         if not container_lock(name).exists():
@@ -594,10 +617,77 @@ def delete(machine_id, _zone):
     try:
         docker("restart", "-t", "5", name, check=False)
         docker("update", *memory_arguments(), name, check=False)  # back from a job alone's or held_to's room
+        tidied(name, f"{own}; {swept()}")  # no job runs there now: every job file goes
     finally:
         for held in handles:
             held.close()
     return True
+
+
+def ends_with(machine_id, command):
+    """The command that removes claim `machine_id`'s files from its container (its kind's park.CLEANUPS), run at its
+    `delete` when it leaves the container alone; a shared claim with others beside leaves them to the last one's."""
+    ENDS[machine_id] = command
+
+
+def runner_paths():
+    """The folders of this PC whose files the jobs take into a container at their own absolute paths (blender_cloud):
+    the runner's home folder, PROPS_HOME, the repository and the temporary folder, resolved, each once (none inside
+    another), never one of the container's own (/, /root, a top-level system folder but the temporary one)."""
+    found = {pathlib.Path(folder).resolve() for folder in (pathlib.Path.home(), HOME, REPO)}
+    found = {folder for folder in found if len(folder.parts) > 2 and not folder.is_relative_to("/root")}
+    found.add(pathlib.Path(tempfile.gettempdir()).resolve())
+    return sorted(folder for folder in found if not any(folder != other and folder.is_relative_to(other)
+                                                        for other in found))
+
+
+def swept():
+    """The shell command that empties runner_paths in a container (each folder kept, everything in it gone)."""
+    return "".join(f"find {shlex.quote(str(folder))} -mindepth 1 -maxdepth 1 -exec rm -rf {{}} + 2>/dev/null; "
+                   for folder in runner_paths()) + "true"
+
+
+def tidied(name, command):
+    """`command` run in container `name` (a claim's clean-up); a failure is said, never raised: the claim's outputs
+    are home already and its end must still let go of its locks."""
+    try:
+        done = docker("exec", name, "sh", "-c", command, check=False, timeout=TIDY_SECONDS)
+    except subprocess.TimeoutExpired:
+        print(f"local: {name}'s clean-up ran past {TIDY_SECONDS} s: {command[:120]}", file=sys.stderr, flush=True)
+        return
+    if getattr(done, "returncode", 0):
+        print(f"local: {name}'s clean-up failed ({done.stderr.strip()[:160]}): {command[:120]}", file=sys.stderr,
+              flush=True)
+
+
+def layer_gb(name):
+    """Container `name`'s own writable layer in GB (docker's SizeRw); None when docker does not say within
+    TIDY_SECONDS."""
+    try:
+        found = docker("inspect", "--size", "-f", "{{.SizeRw}}", name, check=False, timeout=TIDY_SECONDS)
+    except subprocess.TimeoutExpired:
+        return None
+    text = (getattr(found, "stdout", "") or "").strip()
+    return int(text) / 1e9 if text.isdigit() else None
+
+
+def bounded(name, now=None):
+    """Before a claim, under setting_up (no set-up runs, so every cache is older than the newest set-up): container
+    `name`'s installer caches (INSTALLER_CACHES) removed when its own layer is past LAYER_LIMIT_GB, said with the GB
+    before and after; measured at most every LAYER_EVERY_SECONDS a container (a mark beside LOCK)."""
+    mark = LOCK.with_name(f"{LOCK.stem}.{name}.measured")
+    now = now or time.time()
+    if mark.exists() and now - mark.stat().st_mtime < LAYER_EVERY_SECONDS:
+        return
+    mark.parent.mkdir(parents=True, exist_ok=True)
+    mark.touch()
+    size = layer_gb(name)
+    if size is None or size <= LAYER_LIMIT_GB:
+        return
+    tidied(name, INSTALLER_CACHES)
+    after = layer_gb(name)
+    print(f"local: {name}'s own layer held {size:.0f} GB, past {LAYER_LIMIT_GB}: its installer caches removed, "
+          f"{'unread' if after is None else f'{after:.0f} GB'} now", file=sys.stderr, flush=True)
 
 
 def start_if_stopped(_machine_id, _zone):

@@ -34,6 +34,8 @@ Breaks (each applied once, seen red, reverted):
 - agent_door.py `replaceable_target`: drop the REPLACEABLE test -> a push replaces a store object.
 - this_pc.py `no_push_taken`: drop the empty-reason refusal -> a run keeps its outputs here with no reason given.
 - this_pc.py `push_stated`: drop the `unlink` -> status still says a run kept its outputs after a later one pushed.
+- this_pc.py `disk`: `free < FREE_WARN_GB` -> `False` -> status says 76 GB free with no warning; or drop the MACHINE
+  name filter -> postgres is listed as a SCORE container.
 """
 import pathlib
 import subprocess
@@ -282,6 +284,11 @@ def test_pause_records_the_run_stops_it_and_only_then_the_container(tmp_path, mo
     assert record["log"] == str(tmp_path / "run.log") and line.startswith(f"paused run {entry['id']}")
     assert this_pc.status_line(home).startswith(f"paused {entry['id']} since ")
     assert "rows done 4, running 5, waiting 6" in this_pc.status_line(home)
+    sizes = "score-this-pc\t379GB (virtual 380GB)\npostgres\t1GB (virtual 2GB)\nscore-this-pc-segment\t24GB (virtual 25GB)\n"
+    monkeypatch.setattr(this_pc, "asked", lambda command, **given: subprocess.CompletedProcess(command, 0, sizes, ""))
+    monkeypatch.setattr(this_pc.shutil, "disk_usage", lambda path: this_pc.shutil._ntuple_diskusage(1007e9, 931e9, 76e9))
+    assert this_pc.status_line(home).endswith("containers score-this-pc 379GB, score-this-pc-segment 24GB; "
+                                              "disk 76 GB free WARNING: under 100 GB free")  # 2026-11-03's disk
 
 
 def test_resume_refuses_while_a_run_is_live_and_starts_the_paused_one_detached_as_it_ran(tmp_path, monkeypatch):
