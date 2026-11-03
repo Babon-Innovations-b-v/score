@@ -530,6 +530,15 @@ def copied_materials(contents, document, blob, old_document, old_blob, old_head)
     return materials, textures
 
 
+def samplers_of(document, old_document, textures):
+    """The new file's samplers: the made file's, else the old head's, else one default; none when no texture reads
+    one (every texture here reads sampler 0). 2026-11-03: the officer's made body had no pictures and so no samplers,
+    the old head's pictures were added, and the route stopped on `document["samplers"]`."""
+    if not textures:
+        return document.get("samplers", [])
+    return document.get("samplers") or old_document.get("samplers") or [{}]
+
+
 def written(path, document, blob, old_document, old_blob, old_head, surfaces, shapes, clip_weights):
     """The new body file: the made file's skeleton, far body and clips, the new work surfaces."""
     contents = Copying()
@@ -555,7 +564,8 @@ def written(path, document, blob, old_document, old_blob, old_head, surfaces, sh
     skin = dict(document["skins"][0], inverseBindMatrices=contents.copied(
         document, blob, document["skins"][0]["inverseBindMatrices"]))
     out = {"asset": document["asset"], "scene": 0, "scenes": document["scenes"], "nodes": nodes, "meshes": meshes,
-           "skins": [skin], "materials": materials, "textures": textures, "samplers": document["samplers"],
+           "skins": [skin], "materials": materials, "textures": textures,
+           "samplers": samplers_of(document, old_document, textures),
            "animations": copied_animations(contents, document, blob, clip_weights, work_node)}
     return glb.write(path, out, contents)
 
