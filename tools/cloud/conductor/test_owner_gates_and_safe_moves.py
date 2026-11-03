@@ -387,6 +387,11 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
         code, why, argv, env = door(asked)
         assert code == 0 and argv[1:] == [flag] and argv[0].endswith("agent_door.py"), (why, argv)
     assert door("store-push --force")[0] != 0 and door("store-push --replace --missing")[0] != 0
+    code, why, argv, _ = door("design-file design/props/lab.json")
+    assert code == 0 and argv[1:] == ["--design-file", "design/props/lab.json"], (why, argv)
+    for asked in ("design-file", "design-file design/../cloud/ssh_key", "design-file cloud/ledger.jsonl",
+                  "design-file design/props/lab.json extra", "design-file design/kit/kit.json"):
+        assert door(asked)[0] != 0, asked
 
 
 def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path):
@@ -440,6 +445,14 @@ def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path):
         with pytest.raises(agent_door.Refused, match="a run is live"):
             agent_door.store_replace(home, stream(("work/pixal/take.png", "new", regular)), "now")
     assert (home / "work/pixal/take.png").read_text() == "old"
+    # design-file (2026-11-03): one design file read, nothing outside design/props|plans|surfaces, no link out
+    (home / "design/props").mkdir(parents=True)
+    (home / "design/props/lab.json").write_text('{"rows": []}')
+    (home / "design/props/out.json").symlink_to(home / "store/objects/records/k1.json")
+    assert agent_door.design_file("design/props/lab.json", home) == '{"rows": []}'
+    for name in ("design/props/out.json", "design/props/none.json", "cloud/ssh_key", "design/props/../x.json"):
+        with pytest.raises(agent_door.Refused):
+            agent_door.design_file(name, home)
 
 
 def test_the_doors_store_push_lands_what_a_record_names_first_and_a_cut_stream_lands_nothing(tmp_path, monkeypatch):
