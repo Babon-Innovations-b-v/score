@@ -322,6 +322,10 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     plan_checks.py: `if (mask & other_mask).sum() > OVERLAP * min(mask.sum(), other_mask.sum())]` made `if False]`
 - test_a_footprint_answered_as_box_2d_is_measured_from_its_box:
     plan_writing.py: `keys[0]: left + wide / 2 if middle else left` made `keys[0]: left`
+    plan_writing.py (2026-11-03, #72): `found = rows_scale(answer, inventory)` moved under the held branch's return
+    of its box each way (`(skeleton["w"] / (extent[2] - extent[0]), skeleton["d"] / (extent[3] - extent[1]))`), and
+    `skeleton = {**skeleton, "w": wide, "d": deep, ...}` made `if not held:` only; `doors_along` returning the
+    skeleton's doors as they are
 - test_an_arrangement_not_the_concepts_and_a_tube_joining_nothing_are_gaps:
     plan_checks.py: `for first, second, axis, said, drawn in relations(seen, laid, turn) if said != drawn]` made
     `for first, second, axis, said, drawn in relations(seen, laid, turn) if False]`
@@ -2819,6 +2823,15 @@ def test_a_footprint_answered_as_box_2d_is_measured_from_its_box():
     assert {key: found["items"][0][key] for key in ("x", "y", "wide", "deep")} == {"x": 3.0, "y": 1.3, "wide": 2.0,
                                                                                     "deep": 0.6}
     assert {key: found["places"][0][key] for key in ("x", "y", "w", "d")} == {"x": 5.0, "y": 5.0, "w": 3.0, "d": 2.0}
+    # a held place keeps its own size: its rows' metres both ways and its drawn outline, never its holder's box shape
+    # (#72: the Square's 2.145 x 6.609 m strip stretched the flat 2.3x across); its doors keep their share of the wall
+    box = {"w": 2.0, "d": 6.0, "doors": [["S", 1.0, 0.9, "DOOR"], ["E", 3.0, 0.9, "DOOR"]]}
+    found, skeleton, how = plan_writing.measured(answer, box, inventory, held=True)
+    assert how == {"metres a unit": [0.01, 0.01], "by": "its rows' metres"}
+    assert (skeleton["w"], skeleton["d"]) == (10, 10) and found["items"][0]["wide"] == 2.0
+    assert skeleton["doors"] == [["S", 5.0, 0.9, "DOOR"], ["E", 5.0, 0.9, "DOOR"]]
+    found, skeleton, how = plan_writing.measured(answer, box, {"rows": []}, held=True)  # no row tells: its box's floor
+    assert how["metres a unit"][0] == how["metres a unit"][1] and (skeleton["w"], skeleton["d"]) == (3.464, 3.464)
 
 
 def test_an_arrangement_not_the_concepts_and_a_tube_joining_nothing_are_gaps():
