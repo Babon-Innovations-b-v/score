@@ -38,7 +38,9 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
   his total, and stops there (owner, 2026-10-27: "not just stop when u got to the limit, like ur supposed to"); the
   checkout's words, the door's `batch-money` (`may_stop`) and the Buy page say it may stop before every step is made. The checkout's `by` and `chat_yes` name the yes; the monitor and Buy page show it.
   `buy <id>` again under a yes that launched a checkout is a retry of its batch (`chat-<id>-retry-N`), no new ask,
-  held to the batch's budget.
+  held to the batch's budget. A yes recorded with `--no-film` (`leave_out`, `chat_yes.NO_FILM`: demo-film and
+  demo-film-extra; owner, 2026-11-03) prices and buys the basket with those stages' rows taken out of its items
+  (`flow.left_out`, in `flow.start` and `chat_yes.basket_totals`), so the run never names them.
 - **One budget a batch, across its tries** (root CLAUDE.md, owner 2026-10-26: "those budget asks should become per
   batch tho, not per try"). `flow.batch_budget` (in `write_line`): the batch's start is what its first try's line was
   written over (`watched.batch_start`: `batch_from`, else that line's spent plus reserved); its budget the newest
