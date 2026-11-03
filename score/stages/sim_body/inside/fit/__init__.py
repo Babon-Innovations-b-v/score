@@ -81,16 +81,17 @@ def group_ends(segments):
             if soma_joints(soma_end) == (soma_end,) or not set(soma_joints(soma_end)) <= own]
 
 
-def targets(rig, segments, worlds, held):
+def targets(rig, segments, worlds, held, skins=True):
     """The clip's targets in MuJoCo's frame: (each frame's turns of the `held` groups, frames x groups x 3 x 3; each
     frame's solver landmarks on the clip's skin, then SOMA's rig joint (a middle's two's mean) at each `group_ends`, frames x points x 3;
-    SOMA's skin posed on each frame, `_skin.PosedSkins`)."""
+    SOMA's skin posed on each frame, `_skin.PosedSkins`, or None when not `skins`: posing it and its fold test are
+    most of the targets' time, and level 2 and level 1's level 3 read none)."""
     worlds = np.asarray(worlds, dtype=float)
     turns = np.einsum("ij,fgjk->fgik", TO_OWN.T, worlds[:, [segments.index(group) for group in held], :3, :3])
     joints = np.stack([worlds[:, [segments.index(joint) for joint in soma_joints(soma_end)]][..., :3, 3].mean(axis=1)
                        for soma_end, _ in group_ends(segments)], axis=1)
     return (turns, np.concatenate([posed(rig, segments, worlds), joints], axis=1) @ TO_OWN,
-            posed_skins(rig, segments, worlds))
+            posed_skins(rig, segments, worlds) if skins else None)
 
 
 def fitting(path, scales, held, segments, moves=None):
