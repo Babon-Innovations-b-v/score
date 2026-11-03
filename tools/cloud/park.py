@@ -376,10 +376,9 @@ def taken_machine(run, record, number, now):
 def adopt(run, offers, number, kind, disk_gb, classes=None):
     """A parked machine of `kind` for `run`, of a type and zone `offers` name (a pool machine: of one of `classes`,
     default the offers' own), answering and tagged as the run's; None when there is none. One that does not answer is
-    deleted and the next tried. One whose tags the provider refuses to change is no dead machine: it is put back, the
-    run's pool closed (nothing more rented for it) and compute.Refused raised with the provider's words (2026-11-03:
-    the conductor's key could not update a server's tags, and every pool card a claim tried was deleted as
-    unanswering, four in one claim). Under SCORE_CLOUD=local, this PC's machine while no other claim holds it
+    deleted and the next tried. Its tags (who holds it, till when) are bookkeeping for the sweeps: a tag update that
+    fails is said and the machine taken all the same, never deleted or refused for it (2026-11-03: four pool cards
+    that answered were deleted when their tag update failed; owner: "this sounds like a gate nobody asked for"). Under SCORE_CLOUD=local, this PC's machine while no other claim holds it
     (`here`)."""
     import pool
     if hasattr(cloud, "take"):
@@ -405,8 +404,10 @@ def adopt(run, offers, number, kind, disk_gb, classes=None):
         deadline = run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60
         try:
             cloud.retag(machine["id"], machine["zone"], batch.run_tags(os.getpid(), deadline))
-        except Exception as error:  # noqa: BLE001 - the provider refused our call, not the machine: kept, refused
-            raise refused_retag(record, pool_of, error) from error
+        except Exception as error:  # noqa: BLE001 - bookkeeping only: said, the machine taken all the same
+            said = (getattr(error, "stderr", None) or str(error)).strip()[-300:]
+            batch.say(f"the parked {record['type']} in {record['zone']}: its tags were not updated ({said}); "
+                      "taken all the same")
         try:
             batch.remote(machine["folder"], machine["host"], STALE_MARKS, check=True, capture_output=True,
                          timeout=60)
@@ -419,21 +420,6 @@ def adopt(run, offers, number, kind, disk_gb, classes=None):
         batch.say(f"took the parked {machine['type']} in {machine['zone']} ({machine['folder'].name}), "
                   f"{(record['until'] - now) / 60:.0f} min left before it had to go")
         return machine
-
-
-def refused_retag(record, pool_of, error):
-    """The compute.Refused for a parked machine whose tags the provider would not change: the machine put back as it
-    was parked, the run's pool closed so its collector rents no more cards nobody can take, the provider's words in
-    the reason."""
-    import pool
-    put_back(record)
-    if pool_of:
-        pool.close(pool_of)
-    said = (getattr(error, "stderr", None) or str(error)).strip()[-300:]
-    batch.say(f"the parked {record['type']} in {record['zone']} could not be retagged ({said}); kept, not deleted")
-    return batch.compute.Refused(f"a parked {record['type']} could not be taken: the provider refused to change its "
-                                 f"tags ({said}); nothing deleted, the run's pool closed so nothing more is rented; "
-                                 "owner: the key needs instance server update in this project")
 
 
 def here(run, number, kind):
