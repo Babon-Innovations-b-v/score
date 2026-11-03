@@ -66,7 +66,7 @@ def staged_both(folder):
     from fit._card import _level2
     from fit._constants import staged
     given = moved_given(folder)
-    return staged(*given), staged(*given, jacobian=_level2.jacobian), staged(*given, wide=True)
+    return staged(*given), staged(*given, jacobian=_level2.jacobian), staged(*given, wide=True, card=False)
 
 
 WIDE_MOST = 1e-12  # the card's float64 kinematics (_level2_wide) against the host's, of the largest entry (measured 7.8e-16 / 1.2e-15)
