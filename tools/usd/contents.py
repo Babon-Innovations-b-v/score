@@ -439,6 +439,18 @@ def laid_rows(stage, place):
             and not str(prim.GetPath()).startswith(f"/{place}/Places/")}
 
 
+def object_counts(stage, place):
+    """{row: how many of its objects stand on the stage}: the place's own objects (/<place>/Objects' children), each
+    counted once by its score:row."""
+    root = stage.GetPrimAtPath(f"/{place}/Objects")
+    counts = {}
+    for prim in root.GetChildren() if root else []:
+        if prim.HasAttribute("score:row"):
+            row = prim.GetAttribute("score:row").Get()
+            counts[row] = counts.get(row, 0) + 1
+    return counts
+
+
 def shown_laid(stage, place, shown):
     """The backdrop rows (`shown`: {row: {place, row}}, prepare's groups.shown_from) whose object stands on the stage
     in the place it is shown from: an object of that place's row under /<place>/Places/<that place>."""

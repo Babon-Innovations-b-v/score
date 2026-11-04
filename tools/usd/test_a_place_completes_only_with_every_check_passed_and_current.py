@@ -1,5 +1,6 @@
 """The completion gate (tools/usd/complete.py) on places made here: a laid place with every check run and its review
-page built passes, and only then; a row with no object fails until it has a written drop reason; a stage edited after
+page built passes, and only then; a row with no object, or fewer than its count, fails until it has a written drop
+reason; a stage edited after
 its checks makes them stale (unknown, which blocks); an inventory changed after the export fails the stage; a mesh
 nothing says the framework made fails the made-only check; a check that cannot run is unknown; the review page's stamp
 goes stale with the stage; a place missing what its cast says fails on its contents; a failing reach is shown, the
@@ -19,7 +20,9 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
   faults, note)` made `result(check, PASS, ...)`.
 - a_failing_reach_is_shown_not_counted: complete.recorded's `return (PASS, f"recorded, {verdict}: {why}")` made
   `(verdict, ...)`.
-- a_row_with_no_object_needs_a_drop_reason: complete.unlaid_rows' `and not str(row.get("dropped", "")).strip()` dropped.
+- a_row_with_no_object_needs_a_drop_reason: complete.unlaid_rows' `and not str(row.get("dropped", "")).strip()` dropped;
+  and (2026-11-04, the lab's 10 pipes stood as 6) complete.short_rows' `if 0 < counts.get(row["id"], 0) <
+  int(row.get("count") or 1) and not` made `if False and not` (a row laid short of its count passes).
 - a_backdrop_row_is_made_by_the_skyline_once_its_place_stands_its_object: complete.rows_faults'
   `| contents.shown_laid(opened, place, shown or {})` dropped.
 - an_edit_after_the_checks_makes_them_stale: complete.check_requirement's `if found["fingerprint"] != current:` made
@@ -160,6 +163,11 @@ def a_row_with_no_object_needs_a_drop_reason():
         (folder / "inventory.json").write_text(json.dumps(inventory))
         if complete.rows_check(resting_test.PLACE, stage)["result"] != complete.PASS:
             problems.append("a row dropped with a written reason still fails")
+        inventory["rows"][0]["count"] = 2  # one crate laid for two: short of its count, by name
+        (folder / "inventory.json").write_text(json.dumps(inventory))
+        short = complete.rows_check(resting_test.PLACE, stage)
+        if short["result"] != complete.FAIL or [fault["row"] for fault in short["faults"]] != ["crate"]:
+            problems.append(f"a row laid short of its count did not fail by name: {short['faults']}")
         if complete.stage_requirement(stage)[0] != complete.FAIL:
             problems.append("the inventory changed after the export, and the stage still reads current")
         return problems

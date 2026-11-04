@@ -340,13 +340,10 @@ def glow_share(row, glow, path):
 
 def lamp_count(row, laid):
     """How many lamps each plan item of a glowing row lays (`laid`, [(item, shape)]): as many as its pieces
-    (pieces_of: its shape's count, the row's own on its only item), and at least the row's counted things (its
-    reading's `count`) over all its items, those short spread over its items in turn (2026-11-04: 23 glowing rows in
-    13 places laid one lamp for a row read as up to 13, garage's three ceiling lamps one)."""
-    counts = pieces_of(row, laid)
-    for number in range(max(int(row.get("count") or 1) - sum(counts), 0)):
-        counts[number % len(counts)] += 1
-    return counts
+    (pieces_of: its shape's count, and at least the row's counted things, its reading's `count`, over all its items;
+    2026-11-04: 23 glowing rows in 13 places laid one lamp for a row read as up to 13, garage's three ceiling lamps
+    one)."""
+    return pieces_of(row, laid)
 
 
 def item_lamps(item, row, rows, design, library, path, glow=None, relation=None, pieces=1):
@@ -866,11 +863,14 @@ def past_edge_spot(item, design, spot, size):
 
 
 def pieces_of(row, items):
-    """How many pieces an item of the row lays: its shape's count; the row's own count on its only item (a run the
-    plan draws once, laid as the pieces prepare's groups.run_pieces makes it of)."""
+    """How many pieces an item of the row lays: its shape's count, and at least the row's own count across its items,
+    what they fall short of laid one more an item in turn from the first (a run the plan draws once laid as the pieces
+    prepare's groups.run_pieces makes it of). 2026-11-04: the lab's 10 pipes on 6 items laid 6, its 3 desk dividers on
+    2 items laid 2."""
     counts = [int(shape.get("count") or 1) for _, shape in items]
-    if len(items) == 1:
-        counts = [max(counts[0], int(row.get("count") or 1))]
+    short = int(row.get("count") or 1) - sum(counts)
+    for turn in range(max(short, 0)):
+        counts[turn % len(counts)] += 1
     return counts
 
 
