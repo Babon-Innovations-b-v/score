@@ -28,6 +28,11 @@ Break (applied once, seen red, reverted), 2026-11-01 (the head's end read in the
   0.008121)`, the same break): the head held off its joint sideways
   ("C0_C1: a middle end shifted sideways").
 
+Breaks (each applied once, seen red, reverted), 2026-11-04 (the hinges' rows):
+- hinged's `along - (along @ across) * across` made `along` (the long axis not made square): "hinged does not keep its
+  reference exact (x, y, z)".
+- REFERENCES' `{Side}Foot` made `("own x", "own x")`: "{Side}ToeBase: a hinge group's reference is not its pair's".
+
 Run: .venv/bin/python score/stages/sim_body/inside/calibration/test_the_calibration_lays_each_bone_along_its_segment.py
 """
 import pathlib
@@ -52,6 +57,8 @@ def a_hanging_bone_is_laid_along_its_segment():
     segment's x. The same bone hanging (along -y) in a segment turned -90 degrees about z, whose own x hangs: R_cal is
     the same, read in the segment's own frame. A bone along x with reference z has the axes x, y, z (right-handed)."""
     problems = [] if np.allclose(calibration.frame([2, 0, 0], [0.3, 0, 1]), np.eye(3)) else ["frame is not x, y, z"]
+    if not np.allclose(calibration.hinged([2, 0, 0.3], [0, 0, 1]), np.eye(3)):
+        problems.append("hinged does not keep its reference exact (x, y, z)")
     found = calibration.aligned((np.eye(3), [1, 0, 0], [0, 0, 1]), (np.eye(3), [0, -1, 0], [0, 0, 1]))
     if not np.allclose(found, TURN_Z):
         problems.append(f"unturned: {np.round(found, 3).tolist()}")
@@ -79,9 +86,16 @@ def the_table_keeps_both_sides_and_the_middle():
 
 def each_twist_is_read_from_the_same_landmarks_on_both_models():
     """Every reference is the person's own axis or one landmark line, the same on SOMA and on MyoFullBody, its two
-    landmarks in the landmark set on both sides."""
+    landmarks in the landmark set on both sides; a hinge's groups (HINGED) come as parent and child sharing one
+    reference, so both rest frames hold the hinge alike."""
     from landmarks import LANDMARKS
-    problems = []
+    hinge_groups = set(calibration.HINGED)
+    problems = [f"{child}: hinged without its parent {parent}" for parent, child in
+                (("{Side}Arm", "{Side}ForeArm"), ("{Side}Foot", "{Side}ToeBase"))
+                if (parent in hinge_groups) != (child in hinge_groups)]
+    problems += [f"{group}: a hinge group's reference is not its pair's" for group, pair in
+                 (("{Side}ForeArm", "{Side}Arm"), ("{Side}ToeBase", "{Side}Foot"))
+                 if group in hinge_groups and calibration.REFERENCES[group] != calibration.REFERENCES[pair]]
     for group, (soma, myo) in calibration.REFERENCES.items():
         if soma != myo:
             problems.append(f"{group}: SOMA's reference {soma!r} is not MyoFullBody's {myo!r}")
