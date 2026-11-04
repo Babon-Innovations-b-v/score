@@ -86,7 +86,11 @@ as an argument list, never through a shell, and only when it is one of these:
     buy <yes id>                                python -m score.dashboard buy: his Buy under that yes, once, as his
                                                 click (the same checkout, stop line and refusals); again, a retry
                                                 of its batch inside the batch's budget, no new ask (owner,
-                                                2026-10-26); refused while the free-only latch is set
+                                                2026-10-26); refused while the free-only latch is set; started in
+                                                a session of its own, the door answering at once with its log
+                                                (2026-11-04: a Buy pricing on 2 cores outlived its caller's ssh)
+    buy-log                                     the tail of the newest Buy's log the door started: its checkout
+                                                line and its result
     decide-yes <decision> <target> [--output H] [--check C] [--sha S] [--reason R] [--worse-reason W] [--euros E]
                [--purpose P] <answer> <question>
                                                 python -m score.dashboard decide-yes: the owner's quoted yes, asked in
@@ -143,8 +147,10 @@ import pathlib
 import re
 import shlex
 import shutil
+import subprocess
 import sys
 import tarfile
+import time
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
@@ -154,7 +160,7 @@ from score.store import AGENT_MARKERS  # noqa: E402
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
 VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], store-evict [--dry], clean-frozen, clean-cache, clean-scratch, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, carry --no-op <file>=<why> ..., "
          "run-log [--lines N], fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
-         "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, decide-yes, decide <yes id>, "
+         "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, buy-log, decide-yes, decide <yes id>, "
          "stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
 # applied launched nothing and nothing outside said why).
@@ -207,6 +213,9 @@ FAULT = "--fault"  # this file's own read of a fault report of the newest launch
 DESIGN_FILE = "--design-file"  # this file's own read of one design file (the design-file verb runs it)
 ROUTE_LOG = "--route-log"  # this file's own read of a people route's log (the route-log verb runs it)
 CARRY = "--carry"  # this file's own carry, refused while a run is live (the carry verb runs it)
+BUY = "--buy"  # this file's own start of a Buy in a session of its own (the buy verb runs it)
+BUY_LOG = "--buy-log"  # this file's own read of the newest Buy's log (the buy-log verb runs it)
+BUY_LOGS = "logs/buys"  # under PROPS_HOME: one log a Buy the door started
 CARRY_FLAGS = ("--no-op", "--skip", "--only", "--since")  # carry's options that take a value
 CANDIDATES = pathlib.Path.home() / ".farm-factory-motion" / "candidates"  # the people routes' work folders
 DESIGN_FILE_PATH = re.compile(r"design/(props|plans|surfaces)/[A-Za-z0-9_-]+\.json")
@@ -350,7 +359,11 @@ def decide(words, latch):
             raise Refused("buy <yes id>, the id buy-yes printed")
         if latch:
             raise Refused("the owner's free-only latch is set: no Buy")
-        return ["-m", "score.dashboard", "buy", args[0]], {"SCORE_FREE_ONLY": None}
+        return [str(pathlib.Path(__file__).resolve()), BUY, args[0]], {"SCORE_FREE_ONLY": None}
+    if verb == "buy-log":
+        if args:
+            raise Refused("buy-log takes no arguments: the newest Buy's log")
+        return [str(pathlib.Path(__file__).resolve()), BUY_LOG], {}
     if verb == "decide-yes":
         if len(args) < 4 or args[0].startswith("-"):
             raise Refused("decide-yes <decision> <target> [--output H] [--check C] [--sha S] [--reason R] "
@@ -545,6 +558,28 @@ def carried(args, home):
         raise Refused(f"carry: {refused}")
     from score.stages.surfaces import carry
     return carry.main(args)
+
+
+def buy_started(yes, home, command=None):
+    """`python -m score.dashboard buy <yes>` started in a session of its own, its words in a log under
+    home/BUY_LOGS, and the door's answer at once: the log's path (2026-11-04: a Buy priced on the idle conductor's
+    2 cores held the ssh past its caller's 15 minutes, the ssh dropped and the Buy was cut off, no checkout written)."""
+    folder = pathlib.Path(home) / BUY_LOGS
+    folder.mkdir(parents=True, exist_ok=True)
+    log = folder / f"buy-{time.strftime('%Y%m%d-%H%M%S')}-{yes}.log"
+    with log.open("w") as written:
+        subprocess.Popen(command or [sys.executable, "-m", "score.dashboard", "buy", yes], cwd=REPO,
+                         stdin=subprocess.DEVNULL, stdout=written, stderr=subprocess.STDOUT, start_new_session=True)
+    return f"buy {yes}: started in its own session; its checkout and result in {log} (the door's buy-log)"
+
+
+def buy_log(home):
+    """The tail of the newest Buy's log (buy_started), at most JOB_LOG_CHARACTERS; Refused when there is none."""
+    logs = sorted((pathlib.Path(home) / BUY_LOGS).glob("buy-*.log"))
+    if not logs:
+        raise Refused(f"no Buy log under {pathlib.Path(home) / BUY_LOGS}")
+    text = logs[-1].read_text(errors="replace")
+    return f"{logs[-1]}:\n" + text[-JOB_LOG_CHARACTERS:]
 
 
 def route_log(asked, candidates=None):
@@ -827,6 +862,14 @@ def main():
         from score.store import PROPS_HOME
         try:
             print(store_move(sys.argv[1], PROPS_HOME), file=sys.stderr)
+        except Refused as refused:
+            print(f"score-agent-door: refused: {refused}", file=sys.stderr)
+            return REFUSED_EXIT
+        return 0
+    if sys.argv[1:2] in ([BUY], [BUY_LOG]):
+        from score.store import PROPS_HOME
+        try:
+            print(buy_started(sys.argv[2], PROPS_HOME) if sys.argv[1] == BUY else buy_log(PROPS_HOME))
         except Refused as refused:
             print(f"score-agent-door: refused: {refused}", file=sys.stderr)
             return REFUSED_EXIT

@@ -9,7 +9,8 @@ applied once and seen red:
 Spending and moving are the owner's (machine.py, agent_door.sh, prepare.sh):
 - An agent's process is refused `up` and `move` unless the owner's yes is open; `down` needs its confirmation.
   Break: `return None` at the top of `agent_refusal`. Break: `step_refusal` returns `(None, None)` for agents.
-  Break: drop the `confirmed(...)` refusal in `down`.
+  Break: drop the `confirmed(...)` refusal in `down`. Break: in agent_door.buy_started, `subprocess.Popen(...)` ->
+  `subprocess.run(...)` (the door's buy holds the ssh for the Buy's whole pricing, 2026-11-04).
 - `up --dry` and `move` make no scw call; every call names its zone or region and every list or create the project;
   the conductor is never tagged `farm-factory-batch`; a secret value never shows.
   Break: drop `f"zone={ZONE}"` from the server create in `make_server`.
@@ -355,8 +356,10 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
     code, why, argv, _ = door("buy-yes --no-film --batch-total 380 343 'Yes' 'Batch 1 total EUR 380, no film?'")
     assert code == 0 and argv[:5] == ["-m", "score.dashboard", "buy-yes", "--no-film", "--batch-total"], why
     code, why, argv, env = door("buy 20261025T170000Z")
-    assert code == 0 and argv == ["-m", "score.dashboard", "buy", "20261025T170000Z"], (why, argv)
+    assert code == 0 and argv[1:] == ["--buy", "20261025T170000Z"], (why, argv)  # started detached, below
     assert "SCORE_FREE_ONLY" not in env and all(env.get(marker) == "1" for marker in AGENT_MARKERS)
+    code, why, argv, _ = door("buy-log")
+    assert code == 0 and argv[1:] == ["--buy-log"], (why, argv)
     code, why, argv, _ = door("resume --dry")
     assert code == 0 and argv == ["-m", "score", "resume", "--dry"]
     code, why, argv, _ = door("logs --lines 5")
@@ -478,6 +481,13 @@ def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path, monkeypatch
     for name in ("out.log", "../home/store/objects/records/k1.json", "officer/made/route/out/missing.log"):
         with pytest.raises(agent_door.Refused):
             agent_door.route_log(name, candidates)
+    # buy (2026-11-04) answers at once, the Buy going on in its own session, its words in its log
+    started = time.monotonic()
+    said = agent_door.buy_started("20261104T000000Z", tmp_path, [sys.executable, "-c",
+                                  "import time; print('checkout 18: launched', flush=True); time.sleep(5)"])
+    assert time.monotonic() - started < 2 and "buy-log" in said, said  # never held for the Buy's own time
+    time.sleep(0.5)
+    assert agent_door.buy_log(tmp_path).endswith("checkout 18: launched\n")
     # carry (2026-11-03) never runs with a run live
     monkeypatch.setattr(agent_door, "replace_refusal", lambda home: "a run is live (r1)")
     with pytest.raises(agent_door.Refused, match="a run is live"):
