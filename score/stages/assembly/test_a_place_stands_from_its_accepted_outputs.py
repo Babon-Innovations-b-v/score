@@ -844,7 +844,9 @@ def test_the_held_gate_names_each_object_not_where_what_holds_it_puts_it():
     Break: score/stages/assembly/fitting.py: `if narrow > HELD_MOST:` -> `if False:`
     Break: score/stages/assembly/fitting.py: `elif distance > HELD_MOST:` -> `elif False:`
     Break: score/stages/assembly/fitting.py: `if entry.get("fills") and not (on and on["how"] in ("in", "face",
-        "within", "top")):` -> `if False:`"""
+        "within", "top")):` -> `if False:`
+    Break: score/stages/assembly/fitting.py: placement_faults' `if wrong:` -> `if False:`; on_holder's
+        `hold_low[1] if on.get("under") else` dropped (cables under a desk left up in it)"""
     from score.stages.assembly import fitting
     face = {"how": "face", "holder": ["module_1"], "out": [0.0, 1.0]}
     narrow = {"how": "face", "holder": ["shed_1"], "out": [0.0, 1.0], "room": 0.55, "room_way": [1.0, 0.0]}
@@ -864,6 +866,18 @@ def test_the_held_gate_names_each_object_not_where_what_holds_it_puts_it():
         fitting.held_faults(record, laid), faults
     assert faults["door_2"][1] == 1.0 and faults["window_1"][0].startswith("a door or window in no opening"), faults
     assert faults["crate_1"][0].startswith("at the room middle") and faults["lamp_1"][0].startswith("held by nothing")
+    # its relation against its reading's placement word: cables said under the desk, laid on its top, fail; held
+    # under it, laid at its foot, they pass (quarters, 2026-11-04)
+    rows = {"desk": {"id": "desk"}, "cables": {"id": "cables", "anchor": "on:desk", "where": "under desk"}}
+    top = {"how": "top", "holder": ["desk_1"], "holder row": "desk"}
+    under = {"how": "within", "under": True, "holder": ["desk_1"], "holder row": "desk"}
+    assert fitting.placement_faults({"objects": [{"name": "cables_1", "row": "cables", "on": top}]}, rows) == [
+        ("cables_1", "laid top desk, though its reading says 'under desk' (under)", None)]
+    assert fitting.placement_faults({"objects": [{"name": "cables_1", "row": "cables", "on": under}]}, rows) == []
+    desk = (np.array([0.0, 0.0, 0.0]), np.array([1.2, 0.75, 0.6]))
+    scale, foot = fitting.on_holder(np.array([0.2, 0.5, 0.1]), np.array([0.6, 0.6, 0.3]), "within", under, desk)
+    assert scale == 1.0 and abs(foot[1]) < 1e-9, foot  # at the desk's foot, never left 0.5 m up in it
+    assert fitting.off_holder(np.array([0.2, 0.5, 0.1]), np.array([0.6, 0.6, 0.3]), "within", under, desk) == 0.5
 
 
 def test_the_held_gate_names_two_objects_overlapping_on_one_face(tmp_path):

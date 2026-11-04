@@ -29,6 +29,11 @@ ceiling) and how each is read.
 - **Every opening on a built wall** (`loose_openings`): a plan opening on no wall the shell builds (its outline's or an
   inner one, design_shell.on_a_wall) is listed in the file's `loose`, the plan-side check (camp's airlock door in its
   dome's gap, street's stairwell opening, 2026-10-31).
+- **A placement word past `on` is kept** (`placement`, 2026-11-04): a row its reading's `where` says is under its
+  holder is `within` it with `under` (the assembly lays it at the holder's foot), one on its shelves `within` it (the
+  settle lets it down onto the shelf under it), one on its holder's side never on its top; the assembly's held gate
+  fails a relation that disagrees (`fitting.placement_faults`). One anchor for a row whose `where` names several
+  holders (quarters' books on "desk, window sill, top bunk") is the reading's limit, not mended here.
 - **The assembly lays by it** at built sizes (`score/stages/assembly/fitting.py`), and the plan page shows what it laid
   (`dashboard/state/local.laid_on_plan`). A relation it cannot state is `unheld` with why, never guessed.
 - Test: `test_each_plan_item_names_what_holds_it.py`.

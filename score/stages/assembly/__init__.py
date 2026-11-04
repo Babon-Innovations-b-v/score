@@ -434,14 +434,18 @@ def judge_layers(output, inputs, evidence):
 
 def judge_held(output, inputs, evidence):
     """Fail by name on every design object off where its relation puts it, a door or window in no opening, one held
-    by nothing or left at the room's middle (fitting.held_faults, #72), its distance a measure; pass on a place whose
-    assembly laid no design object."""
+    by nothing or left at the room's middle (fitting.held_faults, #72), its distance a measure, and one held otherwise
+    than its reading's placement word says (under, on the shelves, on the side: fitting.placement_faults, on the
+    inventory the seed names); pass on a place whose assembly laid no design object."""
     from score.stages.assembly import fitting
     laid_path, record_path = pathlib.Path(output) / made_waiting.LAID, pathlib.Path(output) / RECORD
     if not laid_path.exists() or not record_path.exists():
         return checks.Verdict("held", checks.PASS, "no design object laid, so nothing to hold")
-    laid = json.loads(laid_path.read_text())
-    faults = fitting.held_faults(json.loads(record_path.read_text()), laid)
+    laid, record = json.loads(laid_path.read_text()), json.loads(record_path.read_text())
+    inventory = declared_inventory(output, inputs["inventories"]) if "inventories" in inputs else None
+    faults = fitting.held_faults(record, laid) + (fitting.placement_faults(
+        record, {row["id"]: row for row in json.loads(inventory.read_text())["rows"]})
+        if inventory is not None and inventory.exists() else [])
     worst = max([distance for *_, distance in faults if distance is not None], default=0.0)
     reason = (f"{len({name for name, *_ in faults})} of {len(laid.get('objects', []))} objects not where what holds "
               "them puts them" if faults else f"{len(laid.get('objects', []))} objects where what holds them puts them")
