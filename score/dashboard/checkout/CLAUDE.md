@@ -18,7 +18,8 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
   yes; there is no stop he sets, CONTEXT.md "batch") -> the runner's spend must show room -> ONE run command through
   the compute backend holding every bought node (`flow.batch_groups`: each node in `--stage`, so no two runs of one
   batch make the same upstream node, which graph/runs.py refuses). A refusal or failure after the line, and a batch
-  that ended, write it back at spent plus in flight (`flow.closed`, only while it is still this checkout's line); a
+  that ended, write it back at spent plus in flight (`flow.closed`, only while it is still this checkout's line, checked and written under one lock: `web.stop`'s
+  `replaces`, so a close never lands over the line the next try wrote while it read the spend); a
   checkout left launching by a process that is gone (`Checkout.pid`) is failed (`flow.abandoned`). Nothing here
   stops a run once started. The Benchmarks item (`proposals/benchmarks.py`) is
   priced at prepare's estimate and launched as its own batch (`RunGroup.benchmarks`), which plans each benchmark

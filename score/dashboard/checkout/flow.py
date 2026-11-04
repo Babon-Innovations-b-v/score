@@ -432,17 +432,26 @@ def room_refusals(record, chosen):
 def close_line(record, chosen, why):
     """Write the environment's stop line back at the spend so far plus what is in flight, so nothing more is cleared
     under this checkout's yes; kept on the record as `closed`. Only while the newest line is still the one this
-    checkout wrote (a later yes's line stands); said as `superseded` otherwise."""
+    checkout wrote (a later yes's line stands, one written while the spend was read too: web.stop's `replaces`);
+    said as `superseded` otherwise."""
     from score.review import web
     store = state.source().store
     newest = web.stop_line(store, WORLD)
     if newest is None or newest.get("at") != record.stop_line.get("at"):
-        record.stop_line = {**record.stop_line, "closed": {"superseded": True, "why": why}}
-        record.save()
-        return record
+        return superseded(record, why)
     spent, reserved = spend_now(chosen)
-    line = web.stop(store, WORLD, round(spent + reserved, 2), f"checkout {record.pk} closed: {why}", by=record.by)
+    line = web.stop(store, WORLD, round(spent + reserved, 2), f"checkout {record.pk} closed: {why}", by=record.by,
+                    replaces=record.stop_line["at"])
+    if line is None:
+        return superseded(record, why)
     record.stop_line = {**record.stop_line, "closed": {"euros": line["euros"], "at": line["at"], "why": why}}
+    record.save()
+    return record
+
+
+def superseded(record, why):
+    """The record's line left standing under a later try's, said as `superseded`; the record."""
+    record.stop_line = {**record.stop_line, "closed": {"superseded": True, "why": why}}
     record.save()
     return record
 

@@ -30,6 +30,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - flow.abandoned: `if record.pid is not None and pid_alive(...)` -> `if True:` -> test_a_checkout_left_launching_...
 - flow.orphaned_launches: its `launch.save()` dropped -> test_a_checkout_left_launching_... (a cut Buy's launch blocks every Buy)
 - flow.batches_ended: its skip -> `if True:` -> test_an_ended_batch_takes_its_line_back_once
+- web.stop: its `replaces` check -> `if False:` -> an ended try's close lands over the line the next try wrote while
+  it read the spend, so a closed line sets the next try's room -> test_an_ended_batch_takes_its_line_back_once
 - localrun.LocalBackend.poll: the handed-on branch -> `if False:` -> test_a_batch_stopped_by_the_grow_and_resumed_keeps_...
 - flow.launch: drop `record.launch = started` -> test_a_hosted_checkout_is_followed_to_its_run_with_its_stop_line
 - results.billed_by_node: `(euros + line.euros, ...)` -> `(line.euros, ...)` -> test_results_show_real_cost_...
@@ -366,6 +368,28 @@ def test_an_ended_batch_takes_its_line_back_once(shop, tmp_path, monkeypatch):
     line = stop_line(shop)
     assert line["euros"] == 110.0 and f"checkout {record['id']} closed: its batch ended done" in line["reason"]
     assert flow.tidied(FakeBackend()).endswith("0 ended batches' lines taken back")
+    # 2026-11-04: the next try wrote its line while an ended try read the spend to take its own back; the close
+    # landed on top, and the runner (its ceiling the store's newest line) read room EUR -0.00 for checkout 19
+    from score.review import web
+    ended_try = Checkout.objects.get(pk=checked_out(client, "v")["checkout"]["id"])
+    reading, next_try = flow.spend_now, []
+
+    def next_line_meanwhile(chosen, books=False):
+        """The next try's line written between the close's check and its write, as checkout 19's was."""
+        if not next_try:
+            line = web.stop(shop.store, "world1", 200.0, "checkout next: alpha", by="joey")
+            next_try.append(Checkout.objects.create(
+                key="w" * 32, by="joey", state="launching", totals=ended_try.totals,
+                stop_line={"euros": line["euros"], "at": line["at"], "spent": 100.0, "reserved": 10.0}))
+        return reading(chosen, books)
+
+    monkeypatch.setattr(flow, "spend_now", next_line_meanwhile)
+    flow.tidied(FakeBackend())
+    ended_try.refresh_from_db()
+    newest = stop_line(shop)
+    assert newest["at"] == next_try[0].stop_line["at"] and ended_try.stop_line["closed"]["superseded"], newest
+    monkeypatch.setattr(FakeBackend, "ceiling", newest["euros"])  # the runner's ceiling: the store's newest line
+    assert flow.room_refusals(next_try[0], FakeBackend()) == ""  # its own line's room, EUR 200 less 110
 
 
 def test_a_batch_stopped_by_the_grow_and_resumed_keeps_its_stop_line_till_the_resumed_run_ends(shop, tmp_path,
