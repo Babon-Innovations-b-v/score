@@ -10,8 +10,9 @@ own tone curve, fitted on the render's look against its light.
     gain(passes, scales, guide) -> gain    a view's mixed light over its rendered light, smoothed on the guide
     displayed(transform, colour) -> look   linear colour through Blender's view transform (light_passes'
                                            view-transform.npz), 0 to 1
-    sweep(views, swept, target) -> scale   the scale of the swept lamps that brings the place's brightness nearest
-                                           its concept's
+    sweep(views, swept, target, held,      the scale of the swept lamps (at most `most`) that brings the place's
+          most) -> scale                   brightness nearest its concept's
+    own_share(views, scales, groups)       the share of the views' light the place's own lamps give (median)
     sun_down(views, suns, target, scales,  the suns' greatest scale (from theirs down SCALES) at which `unblown`
              unblown)                      holds (no view more blown than its concept), the place and every view kept
                                            within
@@ -39,6 +40,14 @@ The rules were set on 2026-10-12, before any light pass was rendered:
   The suns' step down was added on 2026-10-31, after the rules: camp's sunlit shell read 2.2-4.3% blown in seven
   views (campgrounds' spot-4 2.4%) against its concept's 0.0%, the sun 99.7% of the light there; a sun is no lamp, so
   the lamp rule below never judged it, and it would not have caught it (a view's 4% is not BLOWN_MOST of its pixels).
+- A sun is the sky's physics: it is never swept past its physical strength, SUN_MOST (1). Where an inside place's
+  concept shows no daylight (its reading's concept light) its suns stand at the floor of SCALES before the lamps are
+  swept, so its own lamps light it as its concept does, and they are raised back, at most to SUN_MOST, only where
+  the lamps cannot. Its own lamps then give at least LAMP_SHARE_LEAST of its light (the light gate `light source`).
+  Both added on 2026-11-04, after the rules, by the light audit: hangar's sun swept to x19 (about 2.4 million lux)
+  in a night hangar, its lamps 8% of its light; airlock's, garage's, tube's and hub's lamps at the 1/32 floor, 0.5 to
+  5% of the light, their concepts' lamp pools gone. LAMP_SHARE_LEAST is the audit's own figure, set before any look
+  it judges is made.
 - A lamp is unlit when it stands in some view's picture and its light reaches under UNLIT_SHARE of every view's
   light; one in no view's picture lighting nothing is unseen and said, not judged. UNLIT_SHARE was 0.0005 until the
   first fan-out (2026-10-12): the stairwell's landing light, behind its landing's ceiling from shot1 (standing in the
@@ -55,6 +64,8 @@ SCALES = 2.0 ** np.arange(-5.0, 5.0 + 1e-9, 0.125)
 BRIGHT_WITHIN = 1.5
 VIEW_WITHIN = 2.5
 UNLIT_SHARE = 0.00001
+SUN_MOST = 1.0
+LAMP_SHARE_LEAST = 0.3
 DOMINANT = 0.5
 DOMINATES_LEAST = 0.005
 WHITE = 0.98
@@ -149,14 +160,28 @@ def place_brightness(views, scales):
     return float(np.median(list(brightness(views, scales).values())))
 
 
-def sweep(views, swept, target, held=None):
-    """The scale (from SCALES) of every swept lamp that brings the place's brightness nearest `target`, the other
-    groups at their `held` scales; 1.0 when no lamp is swept."""
+def sweep(views, swept, target, held=None, most=None):
+    """The scale (from SCALES, at most `most` where given) of every swept lamp that brings the place's brightness
+    nearest `target`, the other groups at their `held` scales; 1.0 when no lamp is swept."""
     if not swept:
         return 1.0
+    tried = [scale for scale in SCALES if most is None or scale <= most + 1e-9]
     gaps = [abs(np.log(max(place_brightness(views, dict(held or {}, **dict.fromkeys(swept, scale))), FLOOR) / target))
-            for scale in SCALES]
-    return float(SCALES[int(np.argmin(gaps))])
+            for scale in tried]
+    return float(tried[int(np.argmin(gaps))])
+
+
+def own_share(views, scales, groups):
+    """The median over the views of the share of each view's light (all its pixels' light summed) that `groups` (the
+    place's own lamps) give at the scales; None with no view or no group."""
+    shares = []
+    for passes, _ in views.values():
+        held = [group for group in groups if group in passes]
+        if not held:
+            continue
+        own = sum(float(scales.get(group, 1.0) * passes[group].astype(np.float64).sum()) for group in held)
+        shares.append(own / max(float(mixed(passes, scales).sum()), FLOOR))
+    return float(np.median(shares)) if shares else None
 
 
 def within(views, scales, target):

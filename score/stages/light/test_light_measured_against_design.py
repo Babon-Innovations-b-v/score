@@ -38,6 +38,13 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - light.sky_measures: the look's sky read by measure.sky_pixels, not its passes' mask (the look's sky test,
   2026-10-30).
 - passes.judge_magenta: the share read times 0 (the magenta view test, 2026-10-30).
+- mix.sweep: `most` ignored; mix.own_share: the lamp's light left unscaled (`scales.get(group, 1.0) *` dropped) (the
+  sweep test, 2026-11-04).
+- light.strengths: `first` always {} (a lamp-lit place's suns not at the floor), or the suns' sweep without
+  `mix.SUN_MOST`; light.judge_source: the lamp share rule or the sun rule dropped (the sun-swept test, 2026-11-04).
+- measure.surface_cast: brightness left in (`* 128.0 / ...` dropped); light.judge_colour: `gap <= CAST_MOST` ->
+  `True` (the exposure test, 2026-11-04).
+- light.row_skies: the rows' boxes read as [top, left, bottom, right] (the look's sky test, 2026-11-04).
 - light_passes.missing_share: the glossy colour pass left out (the missing picture test, 2026-10-30).
 - passes.neighbours: keep a planless shown place (the neighbours test).
 - mix.tone_curve: the one-knot curve of a black view dropped (the black view test, 2026-10-29).
@@ -356,6 +363,25 @@ def test_a_look_s_sky_is_read_where_the_render_met_no_surface_never_its_top_rows
         verdict = light.judge_sky(tmp_path, {}, {})
         assert verdict.answer == answer, verdict.reason
     assert "no sky mask" in verdict.reason
+    # an inside place whose views see sky (2026-11-04: camp's glass domes showed black space, and only outdoor places
+    # were judged): read against its sky rows' boxes on its concept, the black top half here, so the look's black
+    # sky passes and a lit one fails; with no sky row its concept shows none to judge against
+    np.savez(tmp_path / "passes/yard-0/v-passes.npz", combined=np.ones((50, 50)), sky=sky)
+    inventory = tmp_path / "inventory.json"
+    monkeypatch.setattr(light, "designed", lambda place: True)
+    assert light.sees_sky("yard", tmp_path, tmp_path)
+    for rows, answer in (([{"id": "stars", "anchor": "sky", "boxes": [[0, 0, 100, 40]]}], checks.PASS),
+                         ([{"id": "stars", "anchor": "sky", "boxes": []}], checks.PASS)):
+        inventory.write_text(json.dumps({"rows": rows}))
+        concept_sky = light.row_skies("yard", inventory)
+        measured = light.sky_measures("yard", tmp_path, tmp_path, concept_sky) if concept_sky else \
+            {"concept": None, "views": [], "inside": "its concept shows no sky"}
+        (tmp_path / "measures.json").write_text(json.dumps({"sky": measured}))
+        assert light.judge_sky(tmp_path, {}, {}).answer == answer
+    inventory.write_text(json.dumps({"rows": [{"id": "stars", "anchor": "sky", "boxes": [[0, 60, 100, 100]]}]}))
+    measured = light.sky_measures("yard", tmp_path, tmp_path, light.row_skies("yard", inventory))
+    (tmp_path / "measures.json").write_text(json.dumps({"sky": measured}))
+    assert light.judge_sky(tmp_path, {}, {}).answer == checks.FAIL  # its concept's sky lit grey, the look's black
 
 
 def test_a_sky_s_blue_to_red_is_judged_only_where_the_concept_s_sky_shows_a_hue(tmp_path):
@@ -410,6 +436,16 @@ def test_a_view_far_blacker_or_more_blown_than_its_concept_fails_and_with_no_con
                                    (None, {"wide": {"black": 0.0, "blown": 0.0}}, checks.UNKNOWN)):
         (tmp_path / "measures.json").write_text(json.dumps({"exposure": {"concept": concept, "views": views}}))
         assert light.judge_exposure(tmp_path, {}, {}).answer == answer, (concept, views)
+    # the colour (2026-11-04, the light audit: the lab lit green by its screens, quarters' warm room cool): a cast is
+    # read on the mid-tones with brightness taken out, so a grey room twice as bright reads the same, a green one not
+    grey, green = np.full((40, 40, 3), 60.0), np.full((40, 40, 3), [60.0, 75.0, 50.0])
+    assert light.measure.surface_cast(grey) == light.measure.surface_cast(grey * 2) == [128.0, 128.0, 128.0]
+    assert light.measure.surface_cast(np.zeros((40, 40, 3))) is None  # black says nothing of a colour
+    for views, answer in (({"v": light.measure.surface_cast(grey * 2)}, checks.PASS),
+                          ({"v": light.measure.surface_cast(green)}, checks.FAIL), ({"v": None}, checks.UNKNOWN)):
+        (tmp_path / "measures.json").write_text(json.dumps({"colour": {"concept": [128.0, 128.0, 128.0],
+                                                                       "views": views}}))
+        assert light.judge_colour(tmp_path, {}, {}).answer == answer, views
 
 
 def test_exposure_judges_the_places_surfaces_and_leaves_its_sky_to_the_sky_check(tmp_path, monkeypatch):
@@ -512,6 +548,10 @@ def test_the_sweep_finds_the_lamps_scale_turns_a_blown_lamp_down_and_names_an_un
     target = float(toned_look(rest + 2.0 * lamp).mean())
     assert abs(np.log2(mix.sweep(views, ["lamp_0"], target) / 2.0)) <= 0.25  # the curve past what was rendered
     assert mix.sweep(views, [], target) == 1.0
+    assert mix.sweep(views, ["lamp_0"], target, most=mix.SUN_MOST) == 1.0  # a sun held at its physical strength
+    share = float(2.0 * lamp.sum() / (views_passes["combined"] + lamp).sum())  # the lamp at twice its strength
+    assert abs(mix.own_share(views, {"lamp_0": 2.0}, ["lamp_0"]) - share) < 1e-9, share
+    assert mix.own_share(views, {}, ["lamp_2"]) is None
     assert mix.lamp_faults(mix.lamp_measures(views, {}, ["lamp_1"]), ["v"]) == "unlit"
     assert mix.lamp_faults(mix.lamp_measures(views, {}, ["lamp_1"]), []) == "unseen"
     bright = {"combined": rest + 50.0 * lamp, "lamp_0": 50.0 * lamp}
@@ -558,6 +598,26 @@ def test_the_sun_is_swept_when_the_lamps_stop_at_their_floor_and_lamps_at_one_sp
     assert found["lamps"]["/p/Lights/beacon"]["fault"] == "unseen", found["lamps"]
     assert light.outside_shell([0.0, 3.2, 0.0], record) and not light.outside_shell([0.0, 3.2, 0.0], {"inside": False})
     assert not light.outside_shell([2.9, -0.05, -2.9], record)  # sunk in its deck: still judged
+    assert found["source"]["sun_most"] <= mix.SUN_MOST and found["source"]["lamp_lit"] is None, found["source"]
+    # 2026-11-04, the light audit: hangar's sun swept to x19 in a night hangar, its lamps 8% of its light. A lamp-lit
+    # concept (inside, no daylight) has its suns at the floor while its lamps are swept, never past SUN_MOST after
+    held_at = []
+    swept = mix.sweep
+    monkeypatch.setattr(mix, "sweep", lambda views, groups, target, held=None, most=None: held_at.append(
+        (list(groups), dict(held or {}), most)) or swept(views, groups, target, held, most))
+    _, night = light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", record,
+                               {"scene": {"daylight": False}})
+    assert held_at[0][1] == {"lamp_3": float(mix.SCALES[0])} and all(
+        most == mix.SUN_MOST for groups, _, most in held_at if "lamp_3" in groups), held_at
+    assert night["source"]["lamp_lit"] is True and night["source"]["sun_most"] <= mix.SUN_MOST, night["source"]
+    for source, answer, said in (({"lamp_lit": True, "lamp_share": 0.05, "sun_most": 0.5}, checks.FAIL, "5.0%"),
+                                 ({"lamp_lit": False, "lamp_share": 0.05, "sun_most": 0.5}, checks.PASS, "daylight"),
+                                 ({"lamp_lit": True, "lamp_share": 0.6, "sun_most": 0.5}, checks.PASS, "lamp-lit"),
+                                 ({"lamp_lit": False, "lamp_share": 0.6, "sun_most": 19.0}, checks.FAIL, "x19"),
+                                 ({"lamp_lit": None, "lamp_share": 0.6, "sun_most": 1.0}, checks.UNKNOWN, "not read")):
+        (tmp_path / "measures.json").write_text(json.dumps({"brightness": {"source": source}}))
+        verdict = light.judge_source(tmp_path, {}, {})
+        assert verdict.answer == answer and said in verdict.reason, (source, verdict.reason)
 
 
 def test_a_view_in_the_suns_shadow_is_lit_by_the_fill_alone_raised_the_least_that_brings_it(tmp_path, monkeypatch):
