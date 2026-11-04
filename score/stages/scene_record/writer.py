@@ -15,12 +15,15 @@ builds it unchanged; it lands as record/<place>.json in the output.
                  hand-in (design_shell.arched: a tube's ribs), at the row's size, named its row; each entry's surface the scene's surface library's for its kind
                  (surface-library@<place>, read as an `after`: design_shell.PART_KINDS), else none and
                  `surface_missing` says why (the scene builder names it on the mesh, never paints another way)
-    lights       one at each plan item of a glowing row (its row kind, score/stages/row_kinds.py, or its concept
-                 showing it glow, `{home}/design/light/<place>.json`, reading.concept_light): over the item's
-                 middle, as high on it as the library's lamp for the row's mount says, its numbers that lamp's
-                 (data/library/lamps.json, tools/props/scene/lamps.py), reaching by how high it hangs; a row the
-                 concept shows glowing in the colour it shows there, its strength times its brightness there; an
-                 item outlining the whole room held on a wall (score/review/holders) on that wall's face instead
+    lights       at each plan item of a glowing row (its row kind, score/stages/row_kinds.py, or its concept
+                 showing it glow, `{home}/design/light/<place>.json`, reading.concept_light) as many as its pieces,
+                 and at least the things its reading counts over the row's items (lamp_count): over the item's
+                 middle, several along it, as high on it as the library's lamp for the row's mount says, its numbers
+                 that lamp's (data/library/lamps.json, tools/props/scene/lamps.py), reaching by how high it hangs; a
+                 row the concept shows glowing in the colour it shows there, its strength times its brightness there
+                 and times its glowing part's share (lamps.json `glowing`: a screen or an indicator a faint emitter);
+                 an item outlining the whole room held on a wall (score/review/holders) on that wall's face instead,
+                 several spread along it
     objects      one at each plan item of each prop or shell row of the batch's hand-in (several where the item
                  counts several or a run the plan draws once), `<row>_<n>`, on its spot at its shape's base, turned
                  along its item, waiting on the bake's model of its row's take (`bake`, `<first row>_1`), which the
@@ -300,69 +303,124 @@ def game_lamp():
 LAMP_OUT = 0.1
 
 
-def wall_lamp_spot(relation):
-    """(plan spot, face ends) of a lamp on its wall relation (score/review/holders `wall`): its spot's nearest point
-    on the wall's face, LAMP_OUT out from it into the room."""
+def wall_lamp_spot(relation, pieces=1, piece=0):
+    """(plan spot, face ends) of a lamp on its wall relation (score/review/holders `wall`), LAMP_OUT out from the
+    wall's face into the room: one lamp at its spot's nearest point on the face; the `piece`-th of several spread
+    evenly along the face, each the middle of its own share of it (2026-11-04: a row of three wall lamps stood as
+    one, on one spot)."""
     wall = relation["wall"]
     start, end = np.asarray(wall["from"], float), np.asarray(wall["to"], float)
-    run = (end - start) / max(float(np.linalg.norm(end - start)), 1e-9)
+    length = float(np.linalg.norm(end - start))
+    run = (end - start) / max(length, 1e-9)
     out = np.array([-run[1], run[0]]) * relation["side"]
     face = out * float(wall.get("thick") or 0.0) / 2
-    along = float(np.clip((np.asarray(relation["spot"], float) - start) @ run, 0.0, float((end - start) @ run)))
+    along = float(np.clip((np.asarray(relation["spot"], float) - start) @ run, 0.0, float((end - start) @ run))) \
+        if pieces == 1 else length * (piece + 0.5) / pieces
     return start + face + run * along + out * LAMP_OUT, [start + face, end + face]
 
 
-def item_lamp(item, row, rows, design, library, path, glow=None, relation=None):
-    """The light of a glowing row's plan item: over its middle, as high on it as the library's lamp for the row's
-    mount puts it, reaching by how high that is over the floor; an item outlining the whole room (holders.outlines_room:
-    its middle says nothing of where it is) held on a wall (`relation`) on that wall's face at the relation's spot
-    (wall_lamp_spot), as high on its shape, else on the wall's height (the place's ceiling), as its mount puts it;
-    where its concept shows it glowing (`glow`, the concept's light), the colour its light is there and its strength
-    that lamp's times its brightness there."""
+def glow_share(row, glow, path):
+    """(share, kind) of the library's lamp a glowing part throws as room light (data/library/lamps.json `glowing`):
+    a faint emitter (a screen, an indicator, a keyboard, a flame: its `emitter` words in what glows, else in the row's
+    noun or name) its `emitter` share, any other glowing part (a lamp, a strip, a grow light) a light source at 1
+    (2026-11-04: screens and indicator lamps threw room light as lamps did, and the lab came out green and red)."""
+    entry = json.loads(pathlib.Path(path).read_text()).get("glowing") or {}
+    emitter = entry.get("emitter")
+    if not emitter:
+        return 1.0, "source"
+    said = set(row_kinds.words(" ".join(str(text) for text in (
+        (glow or {}).get("glowing") or "", row.get("noun") or "", row.get("name") or "", row.get("id") or ""
+    ))).split())
+    return (float(emitter["share"]), "emitter") if said & set(emitter["words"]) else (1.0, "source")
+
+
+def lamp_count(row, laid):
+    """How many lamps each plan item of a glowing row lays (`laid`, [(item, shape)]): as many as its pieces
+    (pieces_of: its shape's count, the row's own on its only item), and at least the row's counted things (its
+    reading's `count`) over all its items, those short spread over its items in turn (2026-11-04: 23 glowing rows in
+    13 places laid one lamp for a row read as up to 13, garage's three ceiling lamps one)."""
+    counts = pieces_of(row, laid)
+    for number in range(max(int(row.get("count") or 1) - sum(counts), 0)):
+        counts[number % len(counts)] += 1
+    return counts
+
+
+def item_lamps(item, row, rows, design, library, path, glow=None, relation=None, pieces=1):
+    """The lights of a glowing row's plan item, `pieces` of them (lamp_count): one over its middle, several evenly
+    along its path (spots_of; an item outlining the whole room along its box's long middle line, never round the room's
+    outline), each as high on it as the library's lamp for the row's mount puts it, reaching by how high that is over
+    the floor; an item outlining the whole room (holders.outlines_room: its middle says nothing of where it is) held on
+    a wall (`relation`) on that wall's face (wall_lamp_spot: at the relation's spot, several spread along the face), as
+    high on its shape, else on the wall's height (the place's ceiling), as its mount puts it; where its concept shows it
+    glowing (`glow`, the concept's light), the colour its light is there and its strength that lamp's times its
+    brightness there; each times its glowing part's share (glow_share: a screen is no lamp)."""
     name, x, y, wide, deep = item[0], *[float(value) for value in item[1:5]]
     shape = (design.get("shapes") or {}).get(name) or {}
-    walled = relation is not None and relation.get("how") == "wall" and holders.outlines_room(item, design)
+    room = holders.outlines_room(item, design)
+    walled = relation is not None and relation.get("how") == "wall" and room
     base, tall = float(shape.get("base") or 0.0), float(shape.get("tall") or (walled and ceiling(design)) or 0.0)
     mounts, words = library.mounts(path), library.mount_words(path)
     share = float(mounts[library.mount_of(row, rows, words)]["high"])
     high = base + tall * share
     light = library.light_at(row, high, rows, mounts, words)
     energy, colour, attenuation = game_lamp()
-    plan_spot, face = wall_lamp_spot(relation) if walled else ([x + wide / 2, y + deep / 2], None)
-    (spot,), floor = in_frame(design, [plan_spot], high)
+    part, kind = glow_share(row, glow, path)
     why = f"its concept shows its {glow['glowing'] or 'light'} glowing" if glow else \
         f"row kind {row['row_kind']}, it glows"
-    return {"type": "omni", "at": [spot[0], floor, spot[1]], "colour": glow["colour"] if glow else colour,
-            "energy": round(energy * light["strength"] * (float(glow["brightness"]) if glow else 1.0), 4),
-            "range": light["reach"], "attenuation": attenuation, "shadows": light["shadows"],
-            "from": f"plan item {name!r}, inventory row {row['id']} ({why}): the library's lamp "
-                    f"(data/library/lamps.json) for its mount, {high:.2f} m over the floor"
-                    + (f", on its wall ({relation['why']})" if walled else ""),
-            **({"against": in_frame(design, face)[0]} if walled else {})}
+    spots = [wall_lamp_spot(relation, pieces, piece) for piece in range(pieces)] if walled else \
+        [(spot, None) for spot, _ in spots_of(item, {} if room else shape, pieces, row)]
+    found = []
+    for number, (plan_spot, face) in enumerate(spots, 1):
+        (spot,), floor = in_frame(design, [plan_spot], high)
+        found.append({"type": "omni", "at": [spot[0], floor, spot[1]], "row": row["id"],
+                      "colour": glow["colour"] if glow else colour,
+                      "energy": round(energy * light["strength"] * part *
+                                      (float(glow["brightness"]) if glow else 1.0), 4),
+                      "range": light["reach"], "attenuation": attenuation, "shadows": light["shadows"],
+                      "from": f"plan item {name!r}, inventory row {row['id']} ({why}): the library's lamp "
+                              f"(data/library/lamps.json) for its mount, {high:.2f} m over the floor"
+                              + (f", lamp {number} of {pieces} at the item" if pieces > 1 else "")
+                              + (f", a faint {kind} at {part:g} of a lamp" if kind == "emitter" else "")
+                              + (f", on its wall ({relation['why']})" if walled else ""),
+                      **({"against": in_frame(design, face)[0]} if walled else {})})
+    return found
 
 
-def lights(design, inputs, relations=None):
-    """A light at each plan item of the scene's glowing rows: those whose row kind glows (row_kinds.rows_that) and
-    those its concept shows glowing (`concept light`: an engine's core, a screen, a light strip; owner, 2026-10-25:
-    "look at the concept, the engines themself should be a source of light"), in the colour and brightness the concept
-    shows; a row of the sky (anchored `sky`: its stars, a planet) is the physics' (the light layer's sky), no lamp.
-    An item outlining the whole room has its lamp on the wall its relation (`relations`, score/review/holders) holds it
-    on (item_lamp)."""
+def glowing_rows(inputs):
+    """({row id: inventory row}, {row id: its concept's glow}) of the scene's glowing rows: those whose row kind glows
+    (row_kinds.rows_that) and those its concept shows glowing, a row of the sky (anchored `sky`) left to the
+    physics."""
     inventory = read(inputs["inventory"])
     glowing = {row["id"]: row for row in row_kinds.rows_that(inventory, "glows", row_kinds.table(inputs["row kinds"]))}
     shown = {row: glow for row, glow in (read(inputs["concept light"])["rows"] if "concept light" in inputs
                                          else {}).items() if glow["glows"]}
     glowing |= {row["id"]: {**row, "row_kind": glowing.get(row["id"], {}).get("row_kind")}
                 for row in inventory["rows"] if row["id"] in shown and row.get("anchor") != "sky"}
+    return glowing, shown
+
+
+def lights(design, inputs, relations=None):
+    """Lights at the plan items of the scene's glowing rows (glowing_rows): those whose row kind glows and those its
+    concept shows glowing (an engine's core, a screen, a light strip; owner, 2026-10-25: "look at the concept, the
+    engines themself should be a source of light"), in the colour and brightness the concept shows; a row of the sky
+    (anchored `sky`: its stars, a planet) is the physics' (the light layer's sky), no lamp. Each item lays as many as
+    lamp_count gives it, so a row lays at least the things its reading counts; an item outlining the whole room has
+    its lamps on the wall its relation (`relations`, score/review/holders) holds it on (item_lamps)."""
+    inventory = read(inputs["inventory"])
+    glowing, shown = glowing_rows(inputs)
     rows_of, library, holding = design.get("rows") or {}, library_lamps(), relations_of(relations)
-    found = []
+    shapes, laid = design.get("shapes") or {}, {}
     for item in design.get("items") or []:
         if len(item) > 6 and item[6] == "zone":
             continue
         for row_id in rows_of.get(item[0]) or []:
             if row_id in glowing:
-                found.append(item_lamp(item, glowing[row_id], inventory["rows"], design, library,
-                                       inputs["lamp library"], shown.get(row_id), holding.get((item[0], row_id))))
+                laid.setdefault(row_id, []).append((item, shapes.get(item[0]) or {}))
+    found = []
+    for row_id, items in laid.items():
+        for (item, _), pieces in zip(items, lamp_count(glowing[row_id], items)):
+            found += item_lamps(item, glowing[row_id], inventory["rows"], design, library, inputs["lamp library"],
+                                shown.get(row_id), holding.get((item[0], row_id)), pieces)
     return found
 
 
@@ -383,15 +441,16 @@ def sky_seen(kept):
 
 
 def sky_dome(design, kept, dust):
-    """The day sky's air over a place standing outside on a real body with dusty air (`dust`, data/physics/dust.json:
-    its entry by the site body's reference), as tools/usd/mars_sky.py scatters it (scene.write_sky_dome, the light
-    layer draws it while a sun is up); None inside or on a body without dust (2026-11-02: the sky_dome entries left
-    with the old records, eb01c402, and every outdoor Mars place's sky was black: campgrounds' 192.8 levels off its
-    concept's)."""
+    """The day sky's air over a place on a real body with dusty air (`dust`, data/physics/dust.json: its entry by the
+    site body's reference), as tools/usd/mars_sky.py scatters it (scene.write_sky_dome, the light layer draws it while
+    a sun is up); None on a body without dust (2026-11-02: the sky_dome entries left with the old records, eb01c402,
+    and every outdoor Mars place's sky was black: campgrounds' 192.8 levels off its concept's). An inside place
+    carries it too: its views see the sky through its glass and openings (2026-11-04: camp's glass domes showed black
+    starry space in a Mars afternoon, its sun 9.8 degrees up), and a shell with none hides it."""
     on = kept["site"].get("on")
     body = next((body for body in kept["setting"].get("bodies") or [] if body.get("body") == on), None)
     found = (dust.get("bodies") or {}).get(body.get("reference") or body.get("body")) if body else None
-    if inside(design) or not found:
+    if not found:
         return None
     return {**{key: value for key, value in found.items() if key != "cited"}, "gain": list(SKY_GAIN),
             "width": SKY_WIDTH,
