@@ -211,7 +211,9 @@ def test_the_record_is_written_from_the_design():
         `found.append(f"opening {number} leads to {to!r}, no place of the design nor a row of its inventory")`
         -> `pass`
     Break: score/stages/scene_record/gates.py: unbuilt_rows' `if row_id not in named]` -> `if False]` (a shell row
-        the shell cannot build dropped without a word: the hangar's landing pad, 2026-11-04)"""
+        the shell cannot build dropped without a word: the hangar's landing pad, 2026-11-04)
+    Break: score/stages/scene_record/writer.py stair: the `if high < low:` swap dropped (a flight drawn from 1 m down
+        to 0 m stands its foot at its high end, which the builder lays as a flat block, its treads underneath)"""
     from score.review import overhead
     from score.stages.scene_record import gates, writer
     with tempfile.TemporaryDirectory() as folder:
@@ -232,6 +234,11 @@ def test_the_record_is_written_from_the_design():
         assert [view["name"] for view in record["views"]] == ["from-door-1", "spot-1"], record["views"]
         assert [view["name"] for view in record["views_left_out"]] == ["spot-2"], record["views_left_out"]
         assert record["ceiling"] == 3.0, record
+        stair = next(entry for entry in record["structure"] if entry["name"] == "stair_1")
+        down = writer.stair(1, {**WRITTEN["stairs"][0], "from": 1.0, "to": 0.0}, WRITTEN)
+        assert down["foot"][1] < down["top"][1] and (down["foot"], down["top"]) == (
+            [stair["top"][0], stair["foot"][1], stair["top"][2]], [stair["foot"][0], stair["top"][1], stair["foot"][2]]
+        ), (down, stair)  # a flight drawn from its high end stands its foot at its low end: its treads face up
         for check in gates.CHECKS:
             verdict = check.judge(output, inputs, {})
             assert verdict.answer == checks.PASS, (verdict.check, verdict.reason, verdict.findings)
