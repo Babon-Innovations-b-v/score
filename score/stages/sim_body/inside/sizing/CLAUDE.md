@@ -35,7 +35,8 @@ body by body; `path_lengths` reads each muscle's path for OpenSim's muscle scali
   skin caves up to 17 mm in at the front of a bent knee (env1 seated, 88 deg), and MyoFullBody's kneecap, sized with
   its femur, stood up to 10 mm proud of the mean shape's knee even straight: the thigh's region (femur and patella)
   read 26 % outside seated, 23 points of it the patella. Each kneecap's two slides' polynomials in the knee are
-  refitted (`in_range`: within the slides' published ranges at every bend) to the source's plus the move that lays
+  refitted (`in_range`: within the slides' published ranges at every bend, the exact QP by daqp since 2026-11-04;
+  scipy's SLSQP failed at its optimum by chance, the mean body's lunge and twist on one machine) to the source's plus the move that lays
   its every bone vertex inside SOMA's skin posed at that bend (`kneecap_moves`: the femur laid on SOMA's thigh by its
   three landmarks, SOMA's shin turned about its knee joint by the model's bend less SOMA's own at its bind, which its
   tibia's five landmarks give: env1's bind knee stands 15 deg bent, the measure's skin and inside test). env1: moved
@@ -54,3 +55,7 @@ body by body; `path_lengths` reads each muscle's path for OpenSim's muscle scali
 - Its test runs in Newton's own Python (MuJoCo pinned there) by subprocess and prints `skipped` where no env is built.
 - A person's mesh is filled with cells once (`filled`, keyed by the mesh's bytes; 2026-10-31): level 1's centre sets
   size the person anew, its mesh the same (0.47 s a set).
+- **No body's inertia sits on its triangle's edge** (`balanced`, 2026-11-04): MyoFullBody's lumbar vertebrae have
+  their largest principal inertia exactly the other two's sum; sizing and weigh keep it, the written 6 digits tipped it
+  past by about 1e-8, and SolverMuJoCo's compile failed the clip ('inertia must satisfy A + B >= C') by how its
+  scales rounded. Each body's largest is kept 1e-5 under the sum before writing; more than 1e-4 over raises.

@@ -217,12 +217,14 @@ class Frames:
         MuJoCo's frame, `skins` each frame's posed skin (`_skin.PosedSkins`, or None: no skin rows); each frame from
         the one before, the first from `start` (else `start()`), its skin rows from its own fit without them: the
         skin pulls a bone to the nearest skin, whichever part's, so from the standing start it pulled env1's seated
-        astronaut's forearms to his thighs' skin (arms 23 to 43 degrees off, 2026-11-01)."""
+        astronaut's forearms to his thighs' skin (arms 23 to 43 degrees off, 2026-11-01), and from the frame before
+        it pulled a fast-swinging arm onto the hips' or chest's skin and held it there (running's wrist 94 to 168 mm
+        off SOMA's, kimodo's 309, 2026-11-04): every frame's, not the first's only."""
         qpos = self.start(turns[0], points[0]) if start is None else start
-        if skins is not None:
-            qpos = self.frame(qpos, turns[0], points[0])
         found = []
         for frame, (frame_turns, frame_points) in enumerate(zip(turns, points)):
-            qpos = self.frame(qpos, frame_turns, frame_points, None if skins is None else skins[frame:frame + 1])
+            qpos = self.frame(qpos, frame_turns, frame_points)
+            if skins is not None:
+                qpos = self.frame(qpos, frame_turns, frame_points, skins[frame:frame + 1])
             found.append(qpos)
         return np.array(found)

@@ -7,7 +7,9 @@ group's centre of mass on its stretch's middle and each one-body group's inertia
 across its long axis as its length scale times its box's width over its length over SOMA's mean shape's, each foot
 across its forefoot as SOMA's metatarsal heads stand apart across it over the model's (0.06 over 0.08 m), and a box's
 inertia under an uneven scale the scaled box's (all worked out by hand from the boxes); and a kneecap standing 15 mm
-proud of a toy thigh moved inside it at every bend of its knee, its slide kept in its range (`knee_toy`). It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh,
+proud of a toy thigh moved inside it at every bend of its knee, its slide kept in its range (`knee_toy`); the mean
+body's lunge patella_r slide coupling (`SLIDE_WANTED`) refitted in its range under 1e-9 relative noise on every try,
+alike; and a body on its inertia's triangle edge (MyoFullBody's lumbar2) kept off it through a float32 round trip. It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh,
 built at $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted):
@@ -34,6 +36,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-11-04) kneecaps' `+ moves @ model.jnt_axis[joint]` dropped: the kneecap stays 15 mm proud.
 - (2026-11-04) kneecap_moves' `back += float(depths[out].max())` made `back += 0.0`: nothing moves, the record 0.
 - (2026-11-04) kneecaps' `in_range(...)` made plain `np.linalg.lstsq`: the slide up 0.0202 m, past its 0.02 range.
+- (2026-11-04) in_range's daqp QP put back as scipy's SLSQP (the code before 2026-11-04): it raises 'Positive
+  directional derivative for linesearch' on some of the noisy tries.
+- (2026-11-04) balanced's `inertia[largest] = most` dropped: lumbar2's A + B - C stays at 0 after float32.
 
 Run: .venv/bin/python score/stages/sim_body/inside/sizing/test_a_sized_group_is_somas_length_and_weight.py
 """
@@ -367,9 +372,71 @@ def a_kneecap_lies_inside_somas_skin_over_the_knees_range():
     return problems
 
 
+# The mean body's lunge, patella_r's slide (the third in_range call, 2026-11-04): its wanted values at 25 bends over
+# the knee's 0 to 2.0944 range, the slide's range (m).
+SLIDE_WANTED = (0.03714917876204052, 0.036981018205693945, 0.035308841729662026, 0.03309159489001319,
+                0.030399338722681513, 0.02721261401474103, 0.02356698841342715, 0.019679899082057285,
+                0.01562887897382559, 0.011370973401664592, 0.006775995886805167, 0.002229956126625951,
+                -0.002202379846328213, -0.00668476239948167, -0.01096236259417012, -0.014992662844653481,
+                -0.018745715877791193, -0.022199517204963166, *[-0.022950002975886508] * 7)
+SLIDE_RANGE = (-0.022950002975886508, 0.05282639587906741)
+NOISY_TRIES = 200
+
+
+def a_couplings_refit_holds_its_range_under_rounding_noise():
+    """in_range on SLIDE_WANTED, NOISY_TRIES times with 1e-9 relative noise: never raises, every fit within
+    SLIDE_RANGE within 1e-9 m at the checks, and within 1 um of the noiseless fit at every bend."""
+    import numpy as np
+    import sizing
+    bent = np.array([0.0, 2.0944])
+    powers = np.vander(np.linspace(*bent, len(SLIDE_WANTED)), 5, increasing=True)
+    wanted, kept = np.array(SLIDE_WANTED), np.array(SLIDE_RANGE)
+    checks = np.vander(np.linspace(*bent, sizing.RANGE_CHECKS), 5, increasing=True)
+    rng, problems, plain = np.random.default_rng(0), [], None
+    for attempt in range(NOISY_TRIES):
+        noisy = wanted * (1 + 1e-9 * rng.standard_normal(wanted.shape)) if attempt else wanted
+        try:
+            values = checks @ sizing.in_range(powers, noisy, kept, bent)
+        except RuntimeError as error:
+            problems.append(f"try {attempt}: {error}")
+            continue
+        plain = values if plain is None else plain
+        if values.min() < kept[0] - 1e-9 or values.max() > kept[1] + 1e-9:
+            problems.append(f"try {attempt}: the slide {values.min():.6f} to {values.max():.6f} m, past its range")
+        elif np.abs(values - plain).max() > 1e-6:
+            problems.append(f"try {attempt}: {np.abs(values - plain).max():.2e} m off the noiseless fit")
+    return problems[:3] + ([f"{len(problems)} of {NOISY_TRIES} tries failed"] if problems else [])
+
+
+def a_body_on_its_inertias_edge_is_kept_off_it():
+    """A body with MyoFullBody's lumbar2 inertia (its largest the other two's sum) after `balanced` and a float32
+    round trip: its largest under the other two's sum by more than 1e-6 of it, and moved at most BALANCE_MARGIN; a
+    body off the edge untouched."""
+    import mujoco
+    import numpy as np
+    import sizing
+    spec = mujoco.MjSpec()
+    edge, off = (0.00365967, 0.00675583, 0.0104155), (0.01, 0.02, 0.025)
+    for name, inertia in (("lumbar2", edge), ("off", off)):
+        body = spec.worldbody.add_body(name=name, mass=1.0, inertia=list(inertia))
+        body.explicitinertial = True
+    sizing.balanced(spec)
+    bodies = {body.name: np.asarray(body.inertia, dtype=float) for body in spec.bodies[1:]}
+    rounded = bodies["lumbar2"].astype(np.float32).astype(float)
+    problems = []
+    if not rounded[0] + rounded[1] - rounded[2] > 1e-6 * rounded[2]:
+        problems.append(f"lumbar2's inertia {rounded.tolist()} on its edge")
+    if np.abs(bodies["lumbar2"] - edge).max() > sizing.BALANCE_MARGIN * max(edge):
+        problems.append(f"lumbar2's inertia moved to {bodies['lumbar2'].tolist()}")
+    if not np.allclose(bodies["off"], off, rtol=0, atol=0):
+        problems.append(f"a body off its edge moved to {bodies['off'].tolist()}")
+    return problems
+
+
 CHECKS = (every_group_is_somas_length_mass_and_centre, a_mesh_is_filled_once_and_sizes_alike,
           a_limb_is_as_wide_as_its_girth_asks, a_box_stretched_unevenly_has_the_stretched_boxs_inertia,
-          a_kneecap_lies_inside_somas_skin_over_the_knees_range)
+          a_kneecap_lies_inside_somas_skin_over_the_knees_range,
+          a_couplings_refit_holds_its_range_under_rounding_noise, a_body_on_its_inertias_edge_is_kept_off_it)
 
 
 def in_newton():

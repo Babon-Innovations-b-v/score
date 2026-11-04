@@ -21,7 +21,7 @@ from calibration import fingers
 from myo._fixes import full_muscles, multi_joint_bodies, renamed, split
 from myo._movable import movable
 from myo._rested import rested
-from sizing import (WRAPPER_KG, assumed, hip_width, kept_bodies, kneecaps, path_lengths, sized,
+from sizing import (WRAPPER_KG, assumed, balanced, hip_width, kept_bodies, kneecaps, path_lengths, sized,
                     ungrouped_kg)
 
 SOURCE = "musclemimic_models/model/body/myofullbody.xml"
@@ -71,6 +71,7 @@ def person_file(folder, size, kg, path, constants=None):
     kneecap_moved = kneecaps(spec, size.rig, scales)
     grown = spec.compile()
     factors = size.weigh(spec, grown, scales, kg - wrappers * WRAPPER_KG - ungrouped_kg(grown, size.table))
+    balanced(spec)
     grown = spec.compile()
     stretch = path_lengths(grown) / path_lengths(_fresh(source).compile())  # both at the same rest
     for actuator in spec.actuators:
