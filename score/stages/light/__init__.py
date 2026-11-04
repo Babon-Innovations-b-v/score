@@ -72,7 +72,7 @@ import numpy as np
 from PIL import Image
 
 from score import checks, contracts, graph
-from score.stages.light import haze, layer, measure, mix, needs, passes, sky
+from score.stages.light import bare, haze, layer, measure, mix, needs, passes, sky
 from score.stages.light.passes import groups_of, neighbours, views_of
 from score.stages.scene_record import concept_light
 from score.store import PROPS_HOME
@@ -311,6 +311,22 @@ def judge_views_clear(output, inputs, evidence):
                    {"faults": "lower", "left_out": "lower"}, faults + left)
 
 
+def judge_surfaced(output, inputs, evidence):
+    """The stage the layer lights (passes.source with the layer taken) renders nothing bare, before light-passes is
+    bought: every drawn ground, water and shell mesh bound to its library surface, an outdoor place's sky holding
+    something (bare.faults; 2026-11-04: the light rows laid the made ground unfinished and the campgrounds, base,
+    square and street rendered a white sheet)."""
+    import tempfile
+    place = json.loads((output / "lamps.json").read_text())["place"]
+    (PROPS_HOME / "store/cache").mkdir(parents=True, exist_ok=True)  # on the store's disk, as judge_drawn's
+    with tempfile.TemporaryDirectory(dir=PROPS_HOME / "store/cache") as folder:
+        stage = passes.source(place, inputs, pathlib.Path(folder) / "source")
+        found = bare.faults(passes.take(output, stage, place), place)
+    return verdict("surfaced", not found, f"{len(found)} bare: {'; '.join(found[:3])}" if found
+                   else "every ground, water and shell mesh takes its library surface, and the sky holds its own",
+                   {"bare": len(found)}, {"bare": "lower"}, found)
+
+
 def missing_elements(found):
     """The sky elements ({name: [wanted, held]}) the record holds and the layer does not."""
     return [f"{name}: the record holds {wanted}, the layer {held}" for name, (wanted, held) in found.items()
@@ -354,7 +370,8 @@ def layer_files(place):
     concept's light (scene_record.concept_light) when it has them; the record is the scene-record row's output."""
     return {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json", **passes.SURFACES,
             "library": "{data}/library/materials.json", "lamp library": "{data}/library/lamps.json",
-            **passes.place_files(place), **sky.kept_input(place), **concept_light.concept_light_input(place)}
+            **passes.place_files(place), **sky.kept_input(place), **concept_light.concept_light_input(place),
+            **passes.ground_files(place)}
 
 
 # --- light: the sweep, the strengths and the measures ------------------------------------------------------------
@@ -1153,7 +1170,7 @@ def light_files(place):
              **passes.place_files(place), "inventory": stage_inputs.inventory_pattern(place),
              # which lamps light a shaft (haze.shafted_kinds): the glowing rows each place's plan aims
              "row kinds": "{data}/checks/row-kinds.json", "lamp library": "{data}/library/lamps.json",
-             **aimed_files(place), **concept_light.concept_light_input(place)}
+             **aimed_files(place), **concept_light.concept_light_input(place), **passes.ground_files(place)}
     if designed(place):  # its picked concept
         found["concepts"] = "{home}/design/concepts/" + f"{place}.png"
     else:
@@ -1178,16 +1195,21 @@ def aimed_files(name):
 
 LIT = contracts.Contract("light", 1, light_faults, {"length": "metre", "up axis": "Y"})
 RECORD = {passes.RECORD: ("scene-record", 1)}  # the place's own as an after, each shown place's beside
+# Read beside (passes.read_beside): each shown place's record, and the surface library of each scene finishing the
+# made ground (the airlock's is base's lunar_regolith).
+BESIDE = {**RECORD, **passes.LIBRARY}
 LAYER_STAGE = graph.Stage("light-layer", "place", make_layer, LAYERED,
                           (checks.Check("lamps placed", judge_placed), checks.Check("lit", judge_lit),
                            checks.Check("drawn", judge_drawn), checks.Check("views clear", judge_views_clear),
-                           checks.Check("sky elements", judge_layer_sky), checks.Check("sky bodies", judge_sky_bodies)),
-                          files=layer_files, after={**RECORD, **passes.LAID}, applies=applies)
+                           checks.Check("sky elements", judge_layer_sky), checks.Check("sky bodies", judge_sky_bodies),
+                           checks.Check("surfaced", judge_surfaced)),
+                          files=layer_files, after={**RECORD, **passes.LAID}, beside=passes.LIBRARY,
+                          neighbours=passes.read_beside, applies=applies)
 PASSES_STAGE = graph.Stage("light-passes", "place", passes.make_passes, passes.PASSES,
                            (checks.Check("rendered", passes.judge_rendered),
                             checks.Check("no missing pictures", passes.judge_magenta)), files=passes.passes_files,
                            after={"light-layer": ("light-layer", 1), **RECORD, **passes.LAID}, paid=True, euros=passes.EUROS,
-                           beside=RECORD, neighbours=neighbours, applies=applies)
+                           beside=BESIDE, neighbours=passes.read_beside, applies=applies)
 LIGHT_STAGE = graph.Stage("light", "place", make_light, LIT,
                           (checks.Check("brightness", judge_brightness), checks.Check("lamps", judge_lamps),
                            checks.Check("light source", judge_source),
@@ -1197,5 +1219,5 @@ LIGHT_STAGE = graph.Stage("light", "place", make_light, LIT,
                            checks.Check("stage_no_worse", judge_stage)),
                           files=light_files, after={"light-layer": ("light-layer", 1),
                                                     "light-passes": ("light-passes", 1), **RECORD, **passes.LAID},
-                          beside=RECORD, neighbours=neighbours, applies=applies)
+                          beside=BESIDE, neighbours=passes.read_beside, applies=applies)
 ROWS = (LAYER_STAGE, PASSES_STAGE, LIGHT_STAGE)

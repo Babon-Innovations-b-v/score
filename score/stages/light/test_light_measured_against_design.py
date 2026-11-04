@@ -803,9 +803,26 @@ def test_a_stage_drawing_nothing_but_its_sky_is_named_before_the_paid_render(tmp
 def test_the_stage_lit_lays_the_bakes_models_and_the_made_ground(tmp_path, monkeypatch):
     """Fault (2026-10-29, light-passes@base and @airlock): the lit stage was the seed with its record, every design
     object waiting on the surface line's bake and no made ground, so base drew nothing and airlock a bare shell. The
-    stage is laid by the assembly's own code: the bake's model at its waiting entry, the made ground over the base."""
+    stage is laid by the assembly's own code: the bake's model at its waiting entry, the made ground over the base.
+    Fault (2026-11-04, the eyes review of env1): the made ground was laid with its finish named missing, never bound to
+    the surface its scene library gives its row as the assembly binds it, so the campgrounds', base's, square's and
+    street's ground rendered a white sheet. It is finished by the assembly's own code (ground_finish), and the layer's
+    `surfaced` gate (bare.faults) names a ground or shell mesh with no library surface and an outdoor place's empty
+    sky before the paid render.
+    Break: passes.source: `ground_finish.finish_ground(...)` dropped (the ground stays named missing).
+    Break: bare.faults: `why = bare_why(prim)` -> `why = None` (an unfinished ground or bare wall passes).
+    Break: bare.faults: `if outdoor and not sky` -> `if False` (an outdoor place with an empty sky passes).
+    Break: passes.shown_in: the `neighbour <name>` test dropped (a ground scene read beside is rendered as shown)."""
     import score.stages.assembly.baked as baked
+    from score.stages.light import bare
+    from score.stages.terrain import outside
     tiny_seed(tmp_path / "seed")
+    seed = Usd.Stage.Open(str(tmp_path / "seed/layers/base.usda"))
+    shader = UsdShade.Shader.Define(seed, "/tiny/Library/lunar_regolith/surface")
+    shader.CreateIdAttr("UsdPreviewSurface")
+    UsdShade.Material.Define(seed, "/tiny/Library/lunar_regolith").CreateSurfaceOutput().ConnectToSource(
+        shader.ConnectableAPI(), "surface")
+    seed.GetRootLayer().Save()
     (tmp_path / "record/record").mkdir(parents=True)
     hub = {"name": "hub_1", "row": "hub", "bake": "hub_1", "kind": "object", "at": [0.0, 0.0, 0.0],
            "rotation": [0.0, 0.0, 0.0, 1.0], "waiting": "its model comes from the bake"}
@@ -818,7 +835,13 @@ def test_the_stage_lit_lays_the_bakes_models_and_the_made_ground(tmp_path, monke
     (tmp_path / "terrain/grounds/places").mkdir(parents=True)
     ground = Usd.Stage.CreateNew(str(tmp_path / "terrain/grounds/places/tiny.usdc"))
     UsdGeom.Cube.Define(ground, "/tiny/Terrain/ground")
+    points, triangles = np.array([[0, 0, 0], [1, 0, 0], [0, 0, 1]], float), np.array([[0, 2, 1]])
+    outside.write(ground, "tiny", {"near": (points, triangles)}, "regolith", ["regolith", "the test's"])
     ground.Save()
+    (tmp_path / "inventory.json").write_text(json.dumps({"rows": [{"id": "regolith", "noun": "ground",
+                                                                   "terrain": True}]}))
+    (tmp_path / "library").mkdir()
+    (tmp_path / "library/materials.json").write_text(json.dumps({"kinds": {"ground": ["lunar_regolith"]}}))
 
     def made(bake, paint, out, models=None):  # the bake's asset as take_bake writes it, without its paint
         asset = Usd.Stage.CreateNew(str(out / "assets/hub_1.usdc"))
@@ -830,10 +853,28 @@ def test_the_stage_lit_lays_the_bakes_models_and_the_made_ground(tmp_path, monke
               "kit": str(tmp_path / "kit.json"), "surfaces": str(tmp_path / "surfaces.json"),
               "surfaces-bake": str(tmp_path / "bake"), "surfaces-paint": str(tmp_path / "bake"),
               "terrain": str(tmp_path / "terrain")}
+    bare_root = passes.source("tiny", inputs, tmp_path / "bare") / "tiny.usda"
+    named = bare.faults(bare_root, "tiny")
+    assert any("/tiny/Outside/near (ground): its finish is named missing" in fault for fault in named), named
+    assert any("empty sky" in fault for fault in named), named
+    inputs.update({"surface-library": str(tmp_path / "library"), "inventory tiny": str(tmp_path / "inventory.json")})
     root = passes.source("tiny", inputs, tmp_path / "lit") / "tiny.usda"
     stage = Usd.Stage.Open(str(root))
     assert stage.GetPrimAtPath("/tiny/Objects/hub_1").IsValid() and stage.GetPrimAtPath("/tiny/Terrain/ground")
-    assert light.drawn_count(root, "tiny") == 2
+    assert light.drawn_count(root, "tiny") == 3
+    near = stage.GetPrimAtPath("/tiny/Outside/near")
+    assert UsdShade.MaterialBindingAPI(near).ComputeBoundMaterial()[0].GetPath() == "/tiny/Library/lunar_regolith"
+    assert bare.faults(root, "tiny") == ["/tiny: an outdoor place with an empty sky (no sky element nor dome light)"]
+    wall = UsdGeom.Mesh.Define(stage, "/tiny/Shell/wall").GetPrim()
+    wall.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("structure")
+    UsdLux.DomeLight.Define(stage, "/tiny/Sky/Backdrops/stars")
+    stage.Save()
+    assert bare.faults(root, "tiny") == ["/tiny/Shell/wall (structure): it is bound to no material"]
+    UsdGeom.Imageable(wall).MakeInvisible()
+    stage.Save()
+    assert bare.faults(root, "tiny") == []
+    assert passes.shown_in({"scene-record@base": "x", "scene-record@square": "y", "neighbour square": "z"}) == \
+        ["square"]
 
 
 # --- the layer on a stage made here ---------------------------------------------------------------------------------
@@ -1071,6 +1112,7 @@ def test_the_rows_read_the_scene_record_output_never_a_hand_kept_record(tmp_path
         kit = tmp_path / f"{place}-kit.json"  # the design's kit, as earth-seed writes it
         kit.write_text(json.dumps({"room": place, "pieces": []}))
         inputs["kit" if place == "launch" else f"kit {place}"] = str(kit)
+    inputs["neighbour square"] = str(tmp_path)  # its seed, as passes_files declares each shown place's
     assert passes.place_of(inputs) == "launch" and passes.shown_in(inputs) == ["square"]
     assert passes.record_of("square", inputs)["place"] == "square"
     assert light.lamp_heads("launch", inputs) == []  # no kit lays a shafted lamp: no floodlight head

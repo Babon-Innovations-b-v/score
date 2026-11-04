@@ -1477,7 +1477,7 @@ def test_a_place_s_made_ground_takes_the_surface_its_scene_library_gives_its_row
     the place's Library by the earth seed), its missing note gone, so the placeholder gate passes it; a row the
     library gives none (the sea) keeps its finish named missing.
     Break: score/stages/assembly/__init__.py: `finish_ground(inputs, out / root.name, folder.name)` -> `None`
-    Break: score/stages/assembly/__init__.py: `prim.RemoveProperty("score:surface:missing")` -> `None`"""
+    Break: score/stages/assembly/ground_finish.py: `prim.RemoveProperty("score:surface:missing")` -> `None`"""
     from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade
     from score.stages.terrain import outside
     import placeholders
@@ -1532,10 +1532,10 @@ def test_a_room_s_made_ground_takes_the_surface_of_the_scene_holding_its_row(tmp
     ground to it, so the placeholder gate passes. The flat's ground is the square's plaza, a made ground the
     square's library was asked no kind for: it takes that library's floor, the ground people walk on; a natural
     ground the library names no kind for takes none.
-    Break: score/stages/assembly/__init__.py: `found |= set(next(([top] for top in sorted(ground["tops"])` ->
+    Break: score/stages/assembly/ground_finish.py: `found |= set(next(([top] for top in sorted(ground["tops"])` ->
         `found |= set(next(([top] for top in []`
-    Break: score/stages/assembly/__init__.py: `lay_surface(stage, place, surface, library)` -> `None`
-    Break: score/stages/assembly/__init__.py: `return palette_library.shell_surface("deck", library) if made else
+    Break: score/stages/assembly/ground_finish.py: `lay_surface(stage, place, surface, library)` -> `None`
+    Break: score/stages/assembly/ground_finish.py: `return palette_library.shell_surface("deck", library) if made else
         None` -> `return None`"""
     square = {"kinds": {"floor": ["plaza_floor_tiles"], "sea": ["bay_water"]}}
     assert assembly.ground_surface({"id": "plaza", "name": "main plaza", "noun": "plaza"}, square) == \

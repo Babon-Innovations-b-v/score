@@ -420,3 +420,18 @@ def ball_of(ground, place):
     entry = ground["places"][place]
     origin, axes = np.asarray(entry["origin"], dtype=float), np.asarray(entry["axes"], dtype=float)
     return (-origin) @ axes, float(ground["radius"])
+
+
+def ground_row(ground, inventories, plans):
+    """The row the ground is: of its first top scene's plan `structure` rows its scene inventory marks terrain, the
+    one a level of its plan at the floor's height is named for (the square's plaza, not its sea), else the first;
+    None when it has none."""
+    for top in sorted(ground["tops"]):
+        path = pathlib.Path(inventories) / f"{top}.json"
+        rows = {row["id"]: row for row in json.loads(path.read_text())["rows"]} if path.is_file() else {}
+        found = [row for row in plans[top].get("structure") or [] if (rows.get(row) or {}).get("terrain")]
+        floors = {str(level.get("name", "")).lower() for level in plans[top].get("levels") or []
+                  if abs(float(level.get("height") or 0.0)) < 1e-6}
+        if found:
+            return next((row for row in found if row.replace("_", " ") in floors), found[0])
+    return None
