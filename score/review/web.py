@@ -111,15 +111,21 @@ def books_now():
     return compute.books_now()
 
 
-def stop(store, world, euros, reason, by, books=None):
+def stop(store, world, euros, reason, by, books=None, replaces=None):
     """Write the environment's new stop line at `euros` by the signed-in owner's name, his reason with it; the record. A
-    environment's first line counts its spend from `books()` (default books_now). review.Refused for an empty or the runner's
-    name;
-    PermissionError in a process an agent started (guard.set_line)."""
+    environment's first line counts its spend from `books()` (default books_now). With `replaces` (the `at` of the
+    line this one takes back), None and nothing written once the newest line is another. Read and written under one
+    lock (guard.writing), its time taken inside it, so a try taking its line back never writes over the line the next
+    try wrote meanwhile (2026-11-04: checkout 19's line under a closed one, the runner read room EUR -0.00).
+    review.Refused for an empty or the runner's name; PermissionError in a process an agent started (guard.set_line)."""
     from score.adapters.compute import guard
     name = checked_by(by)
-    baseline = None if guard.current(store, world) else (books or books_now)()
-    return guard.set_line(store, world, euros, reason, name, graph.now(), baseline)
+    with guard.writing(store, world):
+        latest = guard.current(store, world)
+        if replaces is not None and (latest or {}).get("at") != replaces:
+            return None
+        baseline = None if latest else (books or books_now)()
+        return guard.set_line(store, world, euros, reason, name, graph.now(), baseline)
 
 
 def buy_yes_written(store, yes):

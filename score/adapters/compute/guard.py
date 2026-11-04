@@ -52,6 +52,12 @@ def current(store, world):
     return store.read(keys[-1]) if keys else None
 
 
+def writing(store, world):
+    """An exclusive lock on the environment's stop lines across this machine's processes, held while a line is read
+    and written in one step (score.review.web.stop), so a line meant to replace one never lands over a newer one."""
+    return locked(store.cache / AREA / f"{world}.lock")
+
+
 def set_line(store, world, euros, reason, by, at, baseline):
     """Write the owner's stop line for one environment at `euros`, his reason with it; the record. The environment's spend counts
     from its first line's `baseline` ({month, bill, ledger, google}), this `baseline` only for a first line.
