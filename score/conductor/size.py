@@ -23,6 +23,7 @@ that saw the machine busy, or from the boot, so a boot or a grow has IDLE_MINUTE
 pass (the pass the 2026-10-25 shrink left ran 40 minutes on 2 cores and 16 GB without running out of memory): a pass
 is never a reason to grow, only to wait.
 """
+import contextlib
 import datetime
 import json
 import os
@@ -40,6 +41,8 @@ from score.store import PROPS_HOME, running_under_agent
 GROW, SHRINK = "grow", "shrink"
 IDLE_MINUTES = 30  # idle this long, counted from the last busy pass or the boot (a grow is a boot), before a shrink
 BUSY = ("claims", "running", "waiting", "parked", "frozen", "working")
+DRAIN = "drain"  # decide's answer while a pass holds an idle machine: no new pass starts, so the shrink gets its gap
+DRAIN_MINUTES = 15  # a drain mark older than this is no mark: passes go on whether or not the shrink came
 PASS_HOLD = "sync-pass-"  # score/dashboard/__main__.py sync's hold, `<name>-<pid>`: it waits a shrink, never the clock
 GROW_WAIT = 3600  # seconds a waiting run waits for the grow's shutdown before it gives up (unresumable)
 WAIT_STEP = 5
@@ -151,7 +154,7 @@ def decide(view, cores, record, idle_since, now, latched):
     if idle < IDLE_MINUTES:
         return None, f"idle {idle:.0f} of {IDLE_MINUTES} minutes"
     if view.get("passing"):
-        return None, f"idle {idle:.0f} minutes; the shrink waits for the sync pass to end ({', '.join(view['held'])})"
+        return DRAIN, f"idle {idle:.0f} minutes; the shrink waits for the sync pass to end ({', '.join(view['held'])})"
     return SHRINK, f"idle {idle:.0f} minutes at the batch size"
 
 
@@ -218,12 +221,27 @@ def tick(say=print, now=None, asker=ask, state_path=None, view=None):
     idle_since = max(state.get("busy_at", 0), runs.boot_time())
     action, why = decide(view, conductor.cores(), record, idle_since, now, conductor.free_only())
     answer = None
-    if action:
+    if action == DRAIN:  # no new pass starts while the mark is fresh (draining); this one ends, the next tick shrinks
+        conductor.DRAINING.parent.mkdir(parents=True, exist_ok=True)
+        conductor.DRAINING.write_text(json.dumps({"at": now}))
+    elif action is None or action == GROW:
+        conductor.DRAINING.unlink(missing_ok=True)
+    if action in (GROW, SHRINK):
         answer = asked(action, asker)
         state.update(asked=action, asked_at=now)
     keep_state(state, state_path)
     say(f"size: {action or 'nothing'}: {why}" + (f"; the size function said: {answer}" if answer else ""))
-    return {"action": action, "why": why, "asked": bool(action)}
+    return {"action": action, "why": why, "asked": action in (GROW, SHRINK)}
+
+
+def draining(now=None):
+    """Whether a fresh drain mark (tick, DRAIN_MINUTES) asks the sync not to start a pass now."""
+    if not conductor.DRAINING.is_file():
+        return False
+    with contextlib.suppress(OSError, ValueError, KeyError):
+        at = json.loads(conductor.DRAINING.read_text())["at"]
+        return (time.time() if now is None else now) - at < DRAIN_MINUTES * 60
+    return False
 
 
 def start_size_service():

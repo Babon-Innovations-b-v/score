@@ -244,7 +244,11 @@ def sync():
     if not settings.SCORE_SYNC_URL or len(settings.SCORE_SYNC_TOKEN) < 32:
         sys.exit("refused: sync needs SCORE_SYNC_URL and a SCORE_SYNC_TOKEN of 32+ characters")
     from score import conductor
+    from score.conductor import size
     from score.graph import stopped
+    if size.draining():  # the size timer waits for a gap to shrink an idle machine (2026-11-04: passes left none)
+        print("sync: skipped, the idle machine is about to shrink (conductor/draining.json)", flush=True)
+        return
     migrate()
     # a stop (the unit's, a shutdown's) exits through the finally blocks, so each step's processes end with the pass
     stopped.stop_on_signals(lambda number: print(f"sync: stopped by signal {number}", flush=True))

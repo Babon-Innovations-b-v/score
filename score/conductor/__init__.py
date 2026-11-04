@@ -120,6 +120,7 @@ def apply_free_only():
 
 
 RESIZING = HOME / "resizing.json"  # written by the size timer just before it asks for a grow or a shrink
+DRAINING = HOME / "draining.json"  # written by the size timer on an idle machine a sync pass holds: no new pass starts
 RESIZE_WINDOW = 15 * 60  # seconds a resize's power-off may take to reach a run after the ask
 
 
