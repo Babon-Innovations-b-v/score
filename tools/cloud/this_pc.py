@@ -98,6 +98,7 @@ DESIGN_STEPS = ("score.review.plans_pass", "score.stages.complete.prepare")
 OWN_DESIGN = ("design/props/", "design/surfaces/")  # prepare's hand-ins (prop_data.DESIGN, surface_data.DESIGN)
 REPLACEABLE = "work/pixal"  # the takes, remade here in place; the one folder a push replaces in (agent_door.REPLACEABLE)
 SET_ASIDE = ("work/pixal/retaken/", "work/pixal/replaced/")  # a retake's and a replace's kept old files, never replaced
+BLOBS = "store/objects/blobs/"  # the store's content-named blobs: one held here is never pulled again
 NO_PUSH = "no-push.json"  # under HOME: the newest run here that pushed nothing, with the reason it was given
 
 
@@ -120,14 +121,16 @@ def door_command(host, key, verb):
 
 def pull(home, command):
     """Copies PULLED down through the door's store-pull (`command`) into `home`, only what `home` lacks or holds
-    changed, never the hand-ins written here (OWN_DESIGN); (files, bytes)."""
+    changed, never the hand-ins written here (OWN_DESIGN) and never a store blob `home` holds already: a blob is named
+    by its content, so the same name is the same bytes, and it is read-only here (2026-11-04: a blob sent again for
+    its other mtime stopped the pull on PermissionError); (files, bytes)."""
     process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     process.stdin.write(manifest(home, PULLED).encode())
     process.stdin.close()
     files, size = 0, 0
     with tarfile.open(fileobj=process.stdout, mode="r|") as archive:
         for member in archive:
-            if member.name.startswith(OWN_DESIGN):
+            if member.name.startswith(OWN_DESIGN) or (member.name.startswith(BLOBS) and (home / member.name).exists()):
                 continue
             archive.extract(member, home, filter="tar")
             files, size = files + 1, size + member.size
