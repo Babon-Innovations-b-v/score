@@ -2,7 +2,9 @@
 place whose design shows people. Each walker of the place's accepted cast gets a Kimodo clip made from its own walk
 through the scene, not a walk on a flat floor played over it.
 
-    make     each cast single whose clip is `walking`: its route (the cast's `path`, else a straight leg from its spot
+    make     each cast single whose clip is `walking`: its route (the cast's `path`, else a climber's flight from its
+             first tread to its last, cast.on_stairs' `stairs`, at one tread a stance, pace_of, asked with STAIRS'
+             sentence, else a straight leg from its spot
              the way it faces, cast.py's front -z, for the walking sentence's seconds at its pace) walked at its pace
              (cast.py WALK_PACE) one frame at a time at Kimodo's RATE, and the walk check run along it on the same
              geometry the cast is measured on (its seed's base layer with its scene record, on its made ground:
@@ -92,6 +94,10 @@ FOOT_HELD = 0.05  # metres, mean
 # Not measured (see the docstring's Price): a place's machine with its set-up and up to eight clips. Replaced once a
 # run is measured.
 EUROS = 0.35
+# A climber's sentence by the way it walks its flight (cast.on_stairs `stairs`), with the walking clip's model and seed
+# (people/clips.py): its footfalls come from the constraints, the climb from the sentence (2026-11-04).
+STAIRS = {"up": "a person walking up a flight of stairs at a steady, easy pace",
+          "down": "a person walking down a flight of stairs at a steady, easy pace"}
 
 
 def files(place):
@@ -111,16 +117,37 @@ def heading_of(start, end):
 
 
 def legs_of(single):
-    """A walker's route as points (x, feet, z): its cast `path`, else a straight leg from its spot the way it faces
-    (cast.py's front is -z, turned by `turn` degrees about up) for its walking sentence's seconds at its pace."""
+    """A walker's route as points (x, feet, z): its cast `path`, else a climber's flight from its first tread to its
+    last (the cast's `stairs`, cast.on_stairs), else a straight leg from its spot the way it faces (cast.py's front is
+    -z, turned by `turn` degrees about up) for its walking sentence's seconds at its pace."""
     if single.get("path"):
         return [list(map(float, point)) for point in single["path"]]
+    if single.get("stairs"):
+        return [list(map(float, single["at"])), list(map(float, single["stairs"]["to"]))]
     sys.path.insert(0, str(PEOPLE))
     import clips
     turn = math.radians(float(single.get("turn", 0.0)))
     length = clips.SENTENCES[CLIP][1] * float(single.get("pace", WALK_PACE))
     at = list(map(float, single["at"]))
     return [at, [at[0] - math.sin(turn) * length, at[1], at[2] - math.cos(turn) * length]]
+
+
+def pace_of(single):
+    """A walker's pace, metres a second along the ground: a climber's one tread a step at the walking clip's cadence
+    (its `stairs` run every STEP_FRAMES, so each stance middle stands on the next tread), else the cast's."""
+    if single.get("stairs"):
+        return float(single["stairs"]["run"]) * RATE / STEP_FRAMES
+    return float(single.get("pace", WALK_PACE))
+
+
+def sentence_of(single):
+    """The sentence a walker's clip is asked with: a climber's up or down its stairs (STAIRS), else the walking clip's
+    own (people/clips.py)."""
+    if single.get("stairs"):
+        return STAIRS[single["stairs"]["way"]]
+    sys.path.insert(0, str(PEOPLE))
+    import clips
+    return clips.SENTENCES[CLIP][0]
 
 
 def walked(points, pace):
@@ -242,7 +269,7 @@ def plan_of(single, found):
     """A walker's scene-made clip: its route walked and checked, its footfalls and constraints, its placement (the
     clip's canonical frame under translate `origin`, rotateY `turn` degrees), seconds and post-processing; or None and
     why it has none."""
-    pace = float(single.get("pace", WALK_PACE))
+    pace = pace_of(single)
     roots, headings = walked(legs_of(single), pace)
     grounds, kept, cut = checked(roots, headings, found)
     if kept < 2 * RATE:
@@ -252,7 +279,8 @@ def plan_of(single, found):
     origin = np.array([roots[0][0], grounds[0], roots[0][2]])
     heights = [fall["ground"] for fall in falls] or [grounds[0]]
     relief = float(max(heights) - min(heights))
-    return {"name": single["name"], "clip": f"scene_{single['name']}", "pace": pace,
+    return {"name": single["name"], "clip": f"scene_{single['name']}", "pace": pace, "sentence": sentence_of(single),
+            "stairs": single.get("stairs"),
             "seconds": seconds_of(kept), "frames": kept, "cut": cut,
             "placement": {"origin": np.round(origin, 5).tolist(), "turn": round(math.degrees(headings[0]), 4)},
             "route": np.round(np.column_stack([roots[:, 0], grounds, roots[:, 2]]), 4).tolist(),
@@ -264,13 +292,11 @@ def plan_of(single, found):
 
 def make_folder(place, plans, name):
     """The make folder characters.py runs scene_clips.py on: in/spec.json and each clip's constraints in in/files/."""
-    sys.path.insert(0, str(PEOPLE))
-    import clips
     (place / "in" / "files").mkdir(parents=True)
     scene = {}
     for plan in plans:
         (place / "in" / "files" / f"{plan['clip']}.json").write_text(json.dumps(plan["constraints"]))
-        scene[plan["clip"]] = {"sentence": clips.SENTENCES[CLIP][0], "seconds": plan["seconds"],
+        scene[plan["clip"]] = {"sentence": plan["sentence"], "seconds": plan["seconds"],
                                "constraints": f"in/files/{plan['clip']}.json", "postprocess": plan["postprocess"]}
     spec = {"name": f"{ROW}-{name}", "program": "scene_clips.py", "steps": ["scene clips", "rig"], "references": [],
             "clips": list(scene), "scene clips": scene, "approved": f"the batch's {ROW}@{name} row"}
