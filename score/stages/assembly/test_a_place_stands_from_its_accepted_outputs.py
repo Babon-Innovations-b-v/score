@@ -929,6 +929,10 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     Break: score/stages/assembly/fitting.py: `if not (through(middle, middle + move, walls_near) & ~started).any():`
         -> `if True:`
     Break: score/stages/assembly/fitting.py: `return faults + crowded_faults(record, boxes)` -> `return faults`
+    Break: score/stages/assembly/fitting.py: crowded_faults' `if entry["name"] in boxes` -> `if entry["name"] in
+        boxes and not entry.get("on")` (two jars held at one spot on their shelf pass, galley 2026-11-03)
+    Break: score/stages/assembly/fitting.py: holders_of's `more = {holder for one in more ...} - seen` -> `more =
+        set()` (a book within a shelf on a desk named inside the desk)
     Break: score/stages/assembly/fitting.py: `return inside if (np.asarray(inside[:2]) <= middle).all()` -> `return
         inside if True`
     Break: score/stages/assembly/fitting.py: `done, fits = set(), parted(stage, place, loose, set(by_name))` -> `done,
@@ -1036,6 +1040,18 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
                                      {**floor, "crate_3": ((2.5, 0.0, 1.0), (3.1, 0.5, 1.6))}.items()]}
     assert fitting.held_faults(record, laid) == [
         ("bed_1", "laid 0.50 m inside crate_3 at its built size, nothing holding either there", 0.5)], laid
+    shelf = {"how": "within", "holder": ["shelf_1"], "why": "within shelf"}
+    record = {"objects": [{"name": "desk_1", "row": "desk"},
+                          {"name": "shelf_1", "row": "shelf", "on": {"how": "top", "holder": ["desk_1"]}},
+                          *[{"name": f"jar_{number}", "row": "jar", "on": shelf} for number in (1, 2)],
+                          {"name": "book_1", "row": "book", "on": shelf}]}
+    held = {"desk_1": ((0.0, 0.0, 0.0), (2.0, 0.8, 1.0)), "shelf_1": ((0.2, 0.0, 0.2), (1.8, 0.79, 0.8)),
+            "jar_1": ((0.3, 0.3, 0.3), (0.5, 0.5, 0.5)), "jar_2": ((0.31, 0.3, 0.3), (0.51, 0.5, 0.5)),
+            "book_1": ((1.0, 0.2, 0.3), (1.3, 0.5, 0.6))}
+    laid = {"walls": [], "objects": [{"name": name, "low": list(low), "high": list(high)}
+                                     for name, (low, high) in held.items()]}
+    found = [fault for fault in fitting.held_faults(record, laid) if "inside" in fault[1]]
+    assert found == [("jar_1", "laid 0.19 m inside jar_2 at its built size", 0.19)], found  # never its shelf or desk
 
 
 def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():

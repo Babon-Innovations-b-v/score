@@ -17,13 +17,16 @@ ground, laid as an OpenUSD settle layer that the assembly stage puts into the pl
              stood up or unstacked or the triage finds a fault on it (free, first); a drop already paid for (the same
              job, drop script and stage) is read back from DROPS, not bought again.
     gates    rested    the drop did not break: nothing still moving at its end, no two inside each other as the layer
-                       lays them that were not as laid (a pair crossing as laid is kept as laid, "laid inside"); one
-                       kept as laid (it would turn or drift past the settle's limits: its layout's or its model's fault)
-                       or stood upright on uneven feet for the paint is named, not failed
+                       lays them that were not as laid; and nothing left as laid inside another or a static ("laid
+                       inside": a pair crossing as laid, kept as laid) or floating over what is under it: the layout's
+                       fault, failed, back to the assembly's parting (laid_wrong); one kept as laid (it would turn or
+                       drift past the settle's limits: its layout's or its model's fault) or stood upright on uneven
+                       feet for the paint is named, not failed
              resting   the settle layer makes nothing rest worse: no object the resting triage finds a real fault on
                        on the seed with its made ground and the layer that it found none on without it (the feet
-                       and lean of one stood upright for the paint aside); what is left is named, for the assembly's
-                       own drop and triage to judge on the baked models
+                       and lean of one stood upright for the paint aside), and no real overlap with it at all, as laid
+                       or not; what is left is named, for the assembly's own drop and triage to judge on the baked
+                       models
 
 Only a place whose design shows a loose object has the row (score/stages/design_layers.py, physics), and its
 assembly waits on it; any other place's assembly lays the seed's poses. The surface
@@ -152,7 +155,7 @@ def make(inputs, out, seed, params):
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     (out / RECORD).write_text(json.dumps({
-        "place": place, "overlaps": overlaps, "one hull": unsplit,
+        "place": place, "overlaps": overlaps, "laid inside each other": as_laid, "one hull": unsplit,
         "objects": {name: {"rested": pose["rested"], "said": pose["said"], "matrix": pose["after"].tolist()}
                     for name, pose in sorted(poses.items())}}, indent=1))
 
@@ -419,16 +422,19 @@ def layer_faults(folder):
 
 def judge_rested(output, inputs, evidence):
     """Fail when the drop broke: an object still moving at its end, or two at rest inside each other (a rest of at
-    least one written). One that would not rest as laid keeps its pose (its fault stays where it was, for its layout
-    or its model; counted as `kept`, lower is better) and one stood upright on uneven feet waits on the paint (named,
-    not counted): neither fails the row."""
+    least one written); and when one is left as laid inside another or a static, or floating over what is under it
+    (laid_wrong: its layout's fault, which no settle mends). One that would not rest as laid keeps its pose (its fault
+    stays where it was, for its layout or its model; counted as `kept`, lower is better) and one stood upright on
+    uneven feet waits on the paint (named, not counted): neither fails the row."""
     record = read_json(pathlib.Path(output) / RECORD)
     faults = [f"{name}: {entry['said']}" for name, entry in sorted(record["objects"].items())
               if "still moving" in entry["said"]]
     faults += [f"{first} and {second} came to rest inside each other" for first, second in record["overlaps"]
                if any(record["objects"].get(name, {}).get("rested") for name in (first, second))]  # not both kept
+    faults += [f"{name}: {entry['said']} (its layout's fault: back to the assembly's parting)"
+               for name, entry in sorted(record["objects"].items()) if laid_wrong(entry)]
     unrested = [(name, entry) for name, entry in sorted(record["objects"].items())
-                if not entry["rested"] and "still moving" not in entry["said"]]
+                if not entry["rested"] and "still moving" not in entry["said"] and not laid_wrong(entry)]
     kept = [f"{name}: {entry['said']}" for name, entry in unrested if not for_the_paint(entry)]
     for_paint = [f"{name}: {entry['said']}" for name, entry in unrested if for_the_paint(entry)]
     reason = (f"{len(faults)} drops broke" if faults else f"all {len(record['objects'])} rests found") + \
@@ -441,6 +447,17 @@ def judge_rested(output, inputs, evidence):
                           tuple(faults) + tuple(kept) + tuple(for_paint))
 
 
+def laid_wrong(entry):
+    """Whether an object is left as laid because its layout is wrong, not its rest: laid inside another object or a
+    static (rest_poses, laid_inside_each_other: galley's chairs inside its dining table, its counters inside each
+    other, settled and accepted on 2026-11-03), or floating over what is under it past what a let-down may move
+    (held.fixed_let_down: the hangar's ship 72 cm up). The settle never mends either, and kept as laid it is no rest:
+    the gate fails it, so the layout goes back to the assembly's parting or its maker, never on to be accepted."""
+    said = entry["said"]
+    return not entry["rested"] and said.endswith("left as laid") and (
+        said.startswith("laid inside ") or (said.startswith("floats ") and "over what is under it" in said))
+
+
 def for_the_paint(entry):
     """Whether an object's rest is a stand upright on uneven feet (settle.rest_poses), for the paint to finish."""
     return not entry["rested"] and entry["said"].endswith("stood upright on its lowest foot")
@@ -449,8 +466,9 @@ def for_the_paint(entry):
 def judge_resting(output, inputs, evidence):
     """Fail when the settle layer makes any object rest worse: an object the resting triage finds a real fault on, on
     the seed with its made ground and the settle layer, that it found none on without the layer (the feet and lean of
-    an object stood upright for the paint aside). What is left is named; the assembly's own drop and triage judge it
-    on the baked models."""
+    an object stood upright for the paint aside), and on every real overlap the triage finds with the layer, whether
+    or not it was there as laid (one overlap gate over the final layout, held or not). What is left is named; the
+    assembly's own drop and triage judge it on the baked models."""
     record = read_json(pathlib.Path(output) / RECORD)
     for_paint = {name for name, entry in record["objects"].items() if for_the_paint(entry)}
     found = {}
@@ -462,16 +480,25 @@ def judge_resting(output, inputs, evidence):
     real = {state: [fault for fault in found[state]["faults"] if fault["real"]
                     and not (fault["object"].rsplit("/", 1)[-1] in for_paint and fault["kind"] in FOR_THE_PAINT)]
             for state in found}
-    was = {fault["object"] for fault in real["before"]}  # an object at fault as laid is no worse for another kind
-    worse = [fault for fault in real["after"] if fault["object"] not in was]
+    worse = worse_faults(real["before"], real["after"])
     objects = {state: len({fault["object"] for fault in real[state]}) for state in real}
     findings = tuple(f"{'worse' if fault in worse else 'left'}: {fault['object']}: {fault['kind']} {fault['measure']}: "
                      f"{fault['why']}" for fault in sorted(real["after"], key=lambda fault: fault not in worse))
     reason = (f"{objects['after']} of {found['after']['objects']} objects with real resting faults rested, "
-              f"{objects['before']} as laid" + (f"; {len(worse)} faults new with the settle layer" if worse else ""))
+              f"{objects['before']} as laid" + (f"; {len(worse)} faults new with the settle layer or overlapping"
+                                                if worse else ""))
     return checks.Verdict("resting", checks.FAIL if worse else checks.PASS, reason,
                           {"objects with faults": objects["after"], "as laid": objects["before"], "worse": len(worse)},
                           {"objects with faults": "lower", "worse": "lower"}, findings)
+
+
+def worse_faults(before, after):
+    """The real faults `after` (the triage's with the settle layer) that fail the resting gate: each on an object with
+    none `before` (as laid; an object at fault as laid is no worse for another kind), and every overlap, which being
+    one as laid never excuses: two things inside each other fail, held or not, as laid or not (galley's chairs in its
+    table, quarters' lockers in each other, accepted on 2026-11-03)."""
+    was = {fault["object"] for fault in before}
+    return [fault for fault in after if fault["object"] not in was or fault["kind"] == "overlaps"]
 
 
 def rested_root(output, inputs, folder, layered=True):
