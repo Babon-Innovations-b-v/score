@@ -29,6 +29,10 @@ several joints split into 1 g wrappers, Euler written out, the floor gone).
   (mcp2 to mcp5) from 45 degrees of extension (the AAOS average range, cited beside it) to the model's 90 of flexion;
   the published 0 left the index and little distal phalanges outside SOMA's flatter hand. The thumb and every other
   joint keep their ranges.
+- **Its shin turns on the femur of its own** (`_movable.KNEE`, 2026-11-04): knee_angle_rotation3's coupling to the
+  flexion dropped (0.26 rad at 90 degrees, the range's end: seated the fitted shin stood 6 to 10 degrees from SOMA's
+  Shin turn), the joint leading on the published model's own 15 degrees each way, inside a flexed knee's active 30
+  medial and 40 lateral (Kapandji, cited beside it). The knee's other couplings stay.
 - **Its held fingers rest in SOMA's hand** (`_rested.py`, 2026-11-01): each finger and thumb body turned by its
   joints' rest turns (`calibration.FINGERS`), so the file's zero pose, where `fit` holds the fingers, is SOMA's
   template hand's shape; each joint's axis and anchor carried so every pose is reached as before, its range moved by

@@ -1,10 +1,11 @@
 """rra: RRA's model step changes the body's mass by the mean upward residual over its weight, at most MASS_MOST from the
 mass it was made with over every round together (the unbounded change recorded as recommended), and moves the torso's
 centre of mass under the mean residual moment, at most COM_MOST from where it was made; the feet stay where they stood
-when the pelvis moves (`Footing`, mink), and a frame that does not converge fails loudly; as worked out by hand (to
-1e-6: Newton keeps gravity in float32); and a segment's turn between two posed paths is measured in degrees. It runs in
-Newton's own Python (on a model Newton builds; score/stages/physics/inside/newton_env.sh, built at
-$PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
+when the pelvis moves (`Footing`, mink), a leg's direction no foot task sees held where the frame stood
+(`FreeHold`), and a frame that does not converge fails loudly; as worked out by hand (to 1e-6: Newton keeps gravity
+in float32); and a segment's turn between two posed paths is measured in degrees. It runs in Newton's own Python
+(on a model Newton builds; score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none
+built there, as in `make tests`' sandbox home, it prints `skipped`.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted), 2026-10-28:
 - reweighed's `share = -float(np.mean(residuals[:, 2]))` made `share = float(...)`: the body gets lighter when the
@@ -21,6 +22,10 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   shift - home`: the torso's centre of mass moves past RRA's 0.1 m.
 - Footing.footed's `limit.lower, limit.upper = np.minimum(lower, still), np.maximum(upper, still)` dropped: a knee
   the fitted path carries past its stop is pulled in with no move (camp, 2026-11-03).
+- Footing.footed's `self.hold.set_target(qpos)` made `self.hold.set_target(still)`: the shin's turn and the ankle's
+  twist go back to where `before` stood them, a direction no foot sees moved (2026-11-04).
+- FreeHold._free's `turns[rank:]` made `turns[:rank]` (the directions the feet see held instead): the feet 15 mm off
+  (2026-11-04).
 
 Run: .venv/bin/python score/stages/sim_body/inside/rra/test_rra_moves_mass_and_torso_by_the_mean_residual.py
 """
@@ -128,6 +133,38 @@ def a_leg_past_its_stop_is_left_where_it_stood():
     changed = np.abs(still - standing).max()
     problems = [] if changed < 1e-9 else [f"an unmoved frame changed by {changed}"]
     return problems + ([] if moved[knee] >= -0.05 - 1e-9 else [f"knee {moved[knee]} past where it stood (-0.05)"])
+
+
+def a_legs_free_direction_is_held_where_the_frame_stood():
+    """The legs toy with the left shin turning on the knee and the foot twisting on the shin, both about the shin's
+    long axis (`knee_angle_rotation3_l` and `ankle_rotation_l`, as MyoFullBody's): one direction, the turn against the
+    twist, moves no foot. A frame turned 0.1 rad and twisted back 0.1, its pelvis 1 cm down, comes back with its feet
+    where they stood and the turn and the twist where the frame had them."""
+    import mujoco
+    import numpy as np
+    import model
+    import rra
+    legs = LEGS.replace('<joint name="knee_l" type="hinge" axis="0 1 0" range="0 2.5"/>',
+                        '<joint name="knee_l" type="hinge" axis="0 1 0" range="0 2.5"/>'
+                        '<joint name="knee_angle_rotation3_l" type="hinge" axis="0 0 1" range="-0.26 0.26"/>')
+    legs = legs.replace('<joint name="ankle_l" type="hinge" axis="0 1 0" range="-1 1"/>',
+                        '<joint name="ankle_rotation_l" type="hinge" axis="0 0 1" range="-0.35 0.44"/>'
+                        '<joint name="ankle_l" type="hinge" axis="0 1 0" range="-1 1"/>')
+    found = mujoco.MjModel.from_xml_string(legs)
+    standing = found.qpos0.copy()
+    for name, angle in (("hip", -0.3), ("knee", 0.6), ("ankle", -0.3)):
+        for side in "lr":
+            standing[found.jnt_qposadr[found.joint(f"{name}_{side}").id]] = angle
+    footing = rra.Footing(found, model.Couplings(found), [model.body_index(found, f"foot_{side}") for side in "lr"])
+    pair = [found.jnt_qposadr[found.joint(name).id] for name in ("knee_angle_rotation3_l", "ankle_rotation_l")]
+    frame = standing.copy()
+    frame[pair] = 0.1, -0.1
+    frame[2] -= 0.01
+    put = footing.footed(frame[None], standing[None])
+    off = footing.off(put, standing[None])[0]
+    problems = [] if off[0] < 1e-5 and np.degrees(off[1]) < 1e-3 else [f"feet off {off.tolist()}"]
+    return problems + ([] if np.allclose(put[0][pair], [0.1, -0.1], atol=1e-6) else
+                       [f"the turn and the twist moved to {put[0][pair].tolist()}"])
 
 
 def a_foot_frame_that_does_not_converge_fails():
@@ -239,7 +276,7 @@ def a_turn_between_two_paths_is_its_angle():
 
 CHECKS = (the_mass_follows_the_mean_upward_residual, a_floating_body_keeps_its_mass_within_the_bound,
           the_torso_moves_under_the_mean_moment_within_its_cap, the_feet_stay_where_they_stood_when_the_pelvis_moves,
-          a_leg_past_its_stop_is_left_where_it_stood,
+          a_leg_past_its_stop_is_left_where_it_stood, a_legs_free_direction_is_held_where_the_frame_stood,
           a_foot_frame_that_does_not_converge_fails,
           a_turn_between_two_paths_is_its_angle)
 

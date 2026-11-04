@@ -15,3 +15,8 @@ squares it replaced, 40 fixed steps with ranges by clipping, went 2026-10-29: on
   in at no move, the hip turned 18 degrees to keep the foot, so `within_frames` found those frames 3.55 times the cap
   with every share at 0 and failed the run. The cap and the follows limit are unchanged.
 - Its test runs in Newton's own Python by subprocess and prints `skipped` where no env is built.
+- `Footing` holds each leg's free directions where the frame stands them (`FreeHold`, 2026-11-04, #70): the null
+  space of the feet's and the pelvis' height's weighted Jacobian over the moving leads, so it moves no foot. A leg has
+  more joints than its foot's six directions (the ankle's twist; the knee's shin turn freed from the flexion), and at
+  the fit's damping a step along a direction no foot sees was unbounded: env1's seated astronaut's left leg, its
+  subtalar on its stop, cycled for good and failed the run (`fit.NotConverged`).

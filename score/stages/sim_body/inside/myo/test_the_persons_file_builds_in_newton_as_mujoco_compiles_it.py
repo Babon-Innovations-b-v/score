@@ -9,7 +9,8 @@ girdle's coupling to the arm's elevation is gone, its joint on its own range, an
 turns and reaches every pose as before, its ranges moved by them; each foot turns on its shin about the shin's long
 axis at the ankle, before the ankle's flexion, toes in for a positive turn on both sides, on `FEET`' ranges, and at
 no twist stands as it did; each finger's MCP flexion bends back to `KNUCKLES`' extension, its flexion and every other
-joint's range kept. It runs in Newton's own Python
+joint's range kept; each knee's shin turn (knee_angle_rotation3) leads on its published range, no longer set by the
+flexion, the knee's other couplings kept (`KNEE`). It runs in Newton's own Python
 (score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there, as in `make
 tests`' sandbox home, it prints `skipped`.
 
@@ -31,6 +32,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-11-01) _feet's `(-1.0 if side == "l" else 1.0)` made `1.0`: the left toes turn out for a positive twist.
 - (2026-11-01) _knuckles' `joint.range = [...]` made `pass`: the MCP flexion stays at 0.
 - (2026-11-01) KNUCKLES' stems made every `mcp{finger}_{turn}` (abduction too): the abduction's range moves.
+- (2026-11-04) _knee's `spec.delete(equality)` made `pass`: the shin's turn stays tied to the flexion.
+- (2026-11-04) _knee's `equality.name1[:-2] == follower and` dropped: the knee's sideways turn loses its coupling too.
 
 Run: .venv/bin/python score/stages/sim_body/inside/myo/test_the_persons_file_builds_in_newton_as_mujoco_compiles_it.py
 """
@@ -376,7 +379,37 @@ def the_knuckles_bend_back():
             if not np.allclose(laid.joint(name).range, span)]
 
 
-CHECKS = (the_knuckles_bend_back, a_foot_twists_on_its_shin, a_rested_finger_reaches_every_pose_as_before,
+KNEE = """<mujoco><compiler angle="radian"/><worldbody>{legs}</worldbody><equality>{ties}</equality></mujoco>"""
+KNEE_SIDE = """<body name="femur_{s}"><geom type="sphere" size="0.02" mass="1"/><body name="tibia_{s}" pos="0 -0.4 0">
+  <joint name="knee_angle_{s}" type="hinge" axis="0 0 -1" range="0 2.0944"/>
+  <joint name="knee_angle_rotation2_{s}" type="hinge" axis="1 0 0" range="-0.00167821 0.0335354"/>
+  <joint name="knee_angle_rotation3_{s}" type="hinge" axis="0 1 0" range="-0.262788 0.262788"/>
+  <geom type="sphere" size="0.02" mass="0.5"/></body></body>"""
+KNEE_TIES = """<joint joint1="knee_angle_rotation2_{s}" joint2="knee_angle_{s}" polycoef="0 0.0791 -0.0328478 -0.0252183 0.0108321"/>
+  <joint joint1="knee_angle_rotation3_{s}" joint2="knee_angle_{s}" polycoef="0 0.369499 -0.169478 0.0251643 0"/>"""
+
+
+def the_knee_turns_the_shin_of_its_own():
+    """A MyoFullBody-shaped knee each side (the flexion, the sideways turn and the shin's turn, both tied to the
+    flexion by the published polynomials): the shin's turn is tied to nothing and keeps its published range; the
+    sideways turn stays tied to the flexion."""
+    import mujoco
+    import numpy as np
+    from myo._movable import _knee
+    text = KNEE.format(legs="".join(KNEE_SIDE.format(s=side) for side in "lr"),
+                       ties="".join(KNEE_TIES.format(s=side) for side in "lr"))
+    spec = mujoco.MjSpec.from_string(text)
+    _knee(spec)
+    tied = sorted(equality.name1 for equality in spec.equalities)
+    laid = spec.compile()
+    problems = [] if tied == ["knee_angle_rotation2_l", "knee_angle_rotation2_r"] else [f"tied: {tied}"]
+    return problems + [f"{side}: the shin's turn's range {laid.joint(f'knee_angle_rotation3_{side}').range}"
+                       for side in "lr"
+                       if not np.allclose(laid.joint(f"knee_angle_rotation3_{side}").range, [-0.262788, 0.262788])]
+
+
+CHECKS = (the_knee_turns_the_shin_of_its_own, the_knuckles_bend_back, a_foot_twists_on_its_shin,
+          a_rested_finger_reaches_every_pose_as_before,
           the_neck_thorax_and_girdle_move, the_constants_move_the_file, the_written_file_builds_as_it_compiles,
           every_muscle_keeps_its_published_parameters_in_newton)
 
