@@ -279,6 +279,12 @@ def plain_store():
             setattr(Store, name, method)
 
 
+def installed(name):
+    """Store's method `name` as durable installed it, under offload's write wrap of put_blob (its __wrapped__)."""
+    method = vars(Store)[name]
+    return getattr(method, "__wrapped__", method)
+
+
 def test_the_runner_and_the_owners_commands_install_the_reboot_safety():
     from score import graph
     from score.review import __main__ as owner
@@ -286,14 +292,14 @@ def test_the_runner_and_the_owners_commands_install_the_reboot_safety():
     try:
         plain_store()
         graph.Runner((), None, a_store())
-        assert all(vars(Store)[name] is method for name, method in durable.METHODS.items())
+        assert all(installed(name) is method for name, method in durable.METHODS.items())
         plain_store()
         Store.default = classmethod(lambda cls: a_store())  # never the live store
         try:
             owner.main(["page", "clean@hangar"])
         except Exception:  # a node this empty store lacks: only the install before the page counts here
             pass
-        assert all(vars(Store)[name] is method for name, method in durable.METHODS.items())
+        assert all(installed(name) is method for name, method in durable.METHODS.items())
     finally:
         Store.default = default
         durable.install()

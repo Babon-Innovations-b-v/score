@@ -35,6 +35,8 @@ Spending and moving are the owner's (machine.py, agent_door.sh, prepare.sh):
   Break: in `store_push`, `os.replace(part, target)` for `os.link(part, target)` -> the conductor's record replaced.
   Break: in `push_target`, drop the `target.parent.resolve()` check -> a write through a link leaves work/.
   Break: in `store_push`, drop the `not member.isfile()` refusal -> a link member is accepted.
+  Break: in `store_missing` or `store_push`, drop `evicted_here` -> a blob the conductor evicted into the store bucket
+  is listed missing and landed again (#74: the PC sends evicted blobs back).
   Break: in `fault`, drop the `NODE.match` refusal -> `../../logs/x` is read.
 - The env file carries no secret. Break: let SCORE_SYNC_TOKEN through `env_text`.
 - The move: this PC's store units off first (a failed disable is said), its home backed up before the conductor
@@ -440,6 +442,14 @@ def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path, monkeypatch
     assert not list((tmp_path / "outside").iterdir()) and not (home / "cloud").exists()
     assert not (home / "work/key").exists() and not (tmp_path / "escape").exists()
     assert agent_door.store_missing(home, "store/objects/records/k1.json\nwork/new.glb\n") == "work/new.glb\n"
+    gone, fresh = "a" * 64, "b" * 64  # gone: evicted into the store bucket here (its mark), never sent back
+    (home / "store/evicted").mkdir(parents=True)
+    (home / "store/evicted" / gone).write_text('{"size": 4}')
+    asked = f"store/objects/blobs/{gone}\nstore/objects/blobs/{fresh}\n"
+    assert agent_door.store_missing(home, asked) == f"store/objects/blobs/{fresh}\n"
+    assert agent_door.store_push(home, stream((f"store/objects/blobs/{gone}", "blob", regular),
+                                              (f"store/objects/blobs/{fresh}", "blob", regular))) == (1, 4, 1)
+    assert not (home / "store/objects/blobs" / gone).exists() and (home / "store/objects/blobs" / fresh).is_file()
     with pytest.raises(agent_door.Refused):
         agent_door.store_missing(home, "cloud/ssh_key\n")
     # a replacing push (2026-11-03): only under work/pixal/, never while a run is live

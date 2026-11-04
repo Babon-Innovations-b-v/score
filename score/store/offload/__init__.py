@@ -17,9 +17,11 @@ from the bytes hashed just before the upload; a local copy whose bytes do not ha
 An evicted blob leaves a mark, `store/evicted/<sha256>` beside the objects ({size, at}), written and synced before
 the local copy goes, so at every moment the blob is local or marked. install() makes every FolderStore treat a marked
 blob as present and fetch it on its first read through `path` (every read, open, download and link goes through it):
-to a partial file of its own, its sha256 checked, mode 0444, renamed into place, the mark removed. A sha256 that does
-not match is fetched once more, then BlobMismatch is raised; a network error propagates and is never read as absent.
-A blob with no mark that is missing stays missing, as before, so a write of a new blob never asks the bucket.
+to a partial file of its own, its sha256 checked, mode 0444, renamed into place, the mark removed. A blob missing with
+no mark is asked of the bucket too on a read (a PC that pulled a listing without its blob reads it): HEAD first, a 404
+alone absent (it stays missing, as before), then the same fetch. A sha256 that does not match is fetched once more,
+then BlobMismatch is raised; a network error propagates and is never read as absent. A write of a new blob
+(Store.put_blob, which asks `exists` and then `path`) never asks the bucket: install() marks it as a write.
 
 Like durable.py this is framework-only (score/graph's Runner and score/review install it; score/graph/_code.py's
 FRAMEWORK lists this folder), so it is in no row's key: score/store/__init__.py and tools/cloud/runtime/store.py are
@@ -27,11 +29,14 @@ in every row's code version and are not edited. Which blobs may be evicted (no c
 or the next one reads) is score/conductor/disk.py's store-evict; this module only moves and proves bytes.
 """
 import datetime
+import functools
 import json
 import os
 import pathlib
+import re
 import shutil
 import sys
+import threading
 
 from score.store import file_hash, locked, partial_of, runtime_store
 from score.store.durable import landed, synced, whole_file
@@ -42,6 +47,12 @@ SHA_FIELD = "sha256"  # the object metadata naming the bytes' sha256
 FETCH_TRIES = 2  # a fetched blob whose sha256 does not match is fetched once more, then BlobMismatch
 WORKERS = 16  # uploads and answers at once
 PLAIN_PATH = runtime_store.FolderStore.path  # FolderStore's own, before install
+SHA = re.compile(r"[0-9a-f]{64}")
+WRITING = threading.local()  # .depth > 0 inside a put_blob of this thread: its misses are a write's, never asked
+
+
+class BucketUnreachable(RuntimeError):
+    """The store bucket cannot be opened: the backend names none, or its key or the bucket cannot be read."""
 
 
 class BlobMismatch(OSError):
@@ -170,7 +181,7 @@ class FolderBucket:
 
 def open_bucket():
     """The store bucket, its runtime key read by name from the backend's secret store (tools/cloud/provider.py);
-    never made here: a missing bucket stops with its name."""
+    never made here: BucketUnreachable when the backend names none (a missing bucket's 404 raises as boto3 gives it)."""
     cloud = pathlib.Path(__file__).resolve().parents[3] / "tools" / "cloud"
     for folder in (cloud / "backends", cloud):
         if str(folder) not in sys.path:
@@ -179,7 +190,7 @@ def open_bucket():
 
     backend = provider.cloud
     if not hasattr(backend, "RUN_STORE_BUCKET"):
-        raise SystemExit(f"the {backend.NAME} backend names no store bucket (RUN_STORE_BUCKET)")
+        raise BucketUnreachable(f"the {backend.NAME} backend names no store bucket (RUN_STORE_BUCKET)")
     key = json.loads(backend.secret(backend.RUNTIME_KEY_SECRET))
     bucket = Bucket({"endpoint": f"https://s3.{backend.REGION}.scw.cloud", "region": backend.REGION,
                      "bucket": backend.RUN_STORE_BUCKET, "access_key": key["access_key"],
@@ -238,13 +249,19 @@ def bucket_now():
 
 
 def fetched(objects_root, sha):
-    """An evicted blob back in place from the bucket: downloaded to a partial file of this process, its sha256 checked
-    (fetched once more on a mismatch, then BlobMismatch), mode 0444, synced, renamed into place, its mark removed."""
+    """A missing blob back in place from the bucket, marked or not: asked first (HEAD; a 404 alone is absent: None,
+    except for a marked blob, which the bucket proved it held: FileNotFoundError), then downloaded to a partial file of
+    this process, its sha256 checked (fetched once more on a mismatch, then BlobMismatch), mode 0444, synced, renamed
+    into place, its mark removed. Any other error of the bucket propagates."""
     target = pathlib.Path(objects_root) / BLOBS / sha
     mark = mark_of(objects_root, sha)
     with locked(mark.parent / "locks" / sha[:2]):  # one fetch of a blob at a time on this machine
         if target.is_file():
             return target
+        if bucket_now().answer(blob_key(sha)) is None:
+            if mark.is_file():
+                raise FileNotFoundError(f"{blob_key(sha)} is marked evicted and the store bucket does not hold it")
+            return None
         for _ in range(FETCH_TRIES):
             partial = partial_of(target)
             try:
@@ -260,30 +277,58 @@ def fetched(objects_root, sha):
         raise BlobMismatch(f"{blob_key(sha)} came from the bucket {FETCH_TRIES} times with other bytes than its name")
 
 
-def evicted_sha(store, key):
-    """The blob's sha256 when `key` names a blob that is not here but marked evicted, else None."""
+def missing_sha(store, key):
+    """The blob's sha256 when `key` names a blob that is not here, else None."""
     if not key.startswith(BLOBS) or PLAIN_PATH(store, key).is_file():
         return None
     sha = key[len(BLOBS):]
-    return sha if "/" not in sha and mark_of(store.root, sha).is_file() else None
+    return sha if SHA.fullmatch(sha) else None
+
+
+def writing():
+    return getattr(WRITING, "depth", 0) > 0
 
 
 def fetching_path(self, key):
-    """FolderStore.path, an evicted blob fetched first: every read, open, download and link of a blob passes here."""
-    sha = evicted_sha(self, key)
-    if sha is not None:
+    """FolderStore.path, a missing blob fetched first (marked or not; a write's miss never asked): every read, open,
+    download and link of a blob passes here."""
+    sha = missing_sha(self, key)
+    if sha is not None and not writing():
         fetched(self.root, sha)
     return PLAIN_PATH(self, key)
 
 
 def present(self, key):
-    """FolderStore.exists, a blob marked evicted counted as present (the bucket holds it), without fetching it."""
-    return PLAIN_PATH(self, key).is_file() or evicted_sha(self, key) is not None
+    """FolderStore.exists, a missing blob counted as present when it is marked evicted or, outside a write, the bucket
+    answers for it (HEAD only, nothing fetched)."""
+    if PLAIN_PATH(self, key).is_file():
+        return True
+    sha = missing_sha(self, key)
+    if sha is None:
+        return False
+    return mark_of(self.root, sha).is_file() or (not writing() and bucket_now().answer(blob_key(sha)) is not None)
+
+
+def as_a_write(put_blob):
+    """Store.put_blob run as a write: its own `exists` and `path` on the new blob never ask the bucket."""
+    @functools.wraps(put_blob)  # __wrapped__: the put_blob durable installed stays readable under it
+    def put(self, path, sha):
+        WRITING.depth = getattr(WRITING, "depth", 0) + 1
+        try:
+            return put_blob(self, path, sha)
+        finally:
+            WRITING.depth -= 1
+    put.as_a_write = True
+    return put
 
 
 def install(opener=None):
     """Every FolderStore in this process fetches an evicted blob when it is read and counts it as present
     (idempotent); `opener` gives the bucket (a FolderBucket in the tests), open_bucket by default."""
+    from score.store import Store
+
     OPENER["open"], OPENER["bucket"] = opener or open_bucket, None
     runtime_store.FolderStore.path = fetching_path
     runtime_store.FolderStore.exists = present
+    if not getattr(Store.put_blob, "as_a_write", False):
+        Store.put_blob = as_a_write(Store.put_blob)

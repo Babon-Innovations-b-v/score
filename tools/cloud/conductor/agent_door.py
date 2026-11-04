@@ -629,10 +629,21 @@ def push_target(home, name):
     return target
 
 
+def evicted_here(home, name):
+    """True when `name` is a store blob (store/objects/blobs/<sha>) the conductor evicted into the store bucket (its
+    mark, score/store/offload): it is not missing here and is never landed again."""
+    from score.store import offload
+
+    parts = pathlib.PurePosixPath(name).parts
+    return (len(parts) == 4 and parts[:3] == ("store", "objects", "blobs")
+            and offload.mark_of(pathlib.Path(home, "store", "objects"), parts[3]).is_file())
+
+
 def store_missing(home, asked):
-    """Of the paths `asked` (one a line), those the conductor's home lacks, one a line."""
+    """Of the paths `asked` (one a line), those the conductor's home lacks and did not evict, one a line."""
     names = [name for name in asked.splitlines() if name]
-    return "".join(f"{name}\n" for name in names if not os.path.lexists(push_target(home, name)))
+    return "".join(f"{name}\n" for name in names
+                   if not os.path.lexists(push_target(home, name)) and not evicted_here(home, name))
 
 
 def replaceable_target(home, name):
@@ -743,8 +754,9 @@ def store_push(home, stream):
     when the path exists), blobs before the listings that name them before the records that name those, each folder
     synced: a stream cut short (a full disk, a dropped ssh) lands nothing, and a crash never leaves a record naming an
     output whose listing is missing or empty (2026-10-31: a settle@airlock record without its listing broke
-    batch-money's page; the push had landed files in the folders' disk order, unsynced, through a full disk)."""
-    home, parts = pathlib.Path(home), []
+    batch-money's page; the push had landed files in the folders' disk order, unsynced, through a full disk). A blob
+    the conductor evicted into the store bucket (evicted_here) is kept, never landed again."""
+    home, parts, evicted = pathlib.Path(home), [], 0
     temporary = home / "tmp" / "this-pc-push"
     temporary.mkdir(parents=True, exist_ok=True)
     try:
@@ -755,13 +767,17 @@ def store_push(home, stream):
                 if not member.isfile():
                     raise Refused(f"store-push takes regular files only, not {member.name!r}")
                 target = push_target(home, member.name)
+                if evicted_here(home, member.name):
+                    evicted += 1
+                    continue
                 part = temporary / f"{os.getpid()}-{len(parts)}"
                 parts.append((member.name, target, part, member.size))
                 with archive.extractfile(member) as source, open(part, "wb") as written:
                     shutil.copyfileobj(source, written)
                     written.flush()
                     os.fsync(written.fileno())
-        return landed(sorted(parts, key=lambda row: landing_rank(row[0])))
+        added, size, kept = landed(sorted(parts, key=lambda row: landing_rank(row[0])))
+        return added, size, kept + evicted
     finally:
         for _, _, part, _ in parts:
             part.unlink(missing_ok=True)
