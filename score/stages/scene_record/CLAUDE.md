@@ -59,11 +59,17 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   there; a row of the sky is the physics', no lamp), over its middle, as high on it as the library's lamp for the
   row's mount says, numbered by that lamp; an item outlining the whole room (holders.outlines_room: engineroom's
   wall panels) held on a wall stands its lamp on that wall's face at its relation's spot, `against` naming the face
-  for the gate. No lamp list per place.
+  for the gate. A row lays as many lamps as its items' pieces and at least as many as its reading counts
+  (`writer.lamp_count`, spread along each item or its wall's face; 2026-11-04: 23 rows in 13 places laid one lamp
+  for up to 13 things), each `row` named, and plan-matched fails a glowing row with fewer (`gates.count_faults`). A
+  glowing part that shows light rather than throws it (a screen, an indicator, a keyboard, a flame: lamps.json
+  `glowing`, by what the concept shows glowing, else the row's words) is a faint emitter at its share of the lamp
+  (2026-11-04: the lab's screens lit its room green). No lamp list per place.
 - **The sky is the physics'**: the record's environment says inside or not and what overhead.py sees at the site at
   the scene time (lights over the horizon, bodies, backdrops); the light layer draws it (`score/stages/light/sky.py`).
-  The record holds no air, haze or glow the design does not give; a place standing outside on a real body with dusty
-  air (data/physics/dust.json, cited: Mars) carries that dust as its `sky_dome`, the day sky tools/usd/mars_sky.py
+  The record holds no air, haze or glow the design does not give; a place on a real body with dusty
+  air (data/physics/dust.json, cited: Mars), inside places too (their glass and openings show it; 2026-11-04, camp),
+  carries that dust as its `sky_dome`, the day sky tools/usd/mars_sky.py
   draws (`writer.sky_dome`; 2026-11-02: left out since the old records went, every outdoor Mars sky was black). Kept
   out of data/physics/bodies.json and score/review/setting.py on purpose: those sit in about 200 rows' keys.
 - **Views** from inside each doorway and from each person spot; an inside place's view whose eye stands outside its

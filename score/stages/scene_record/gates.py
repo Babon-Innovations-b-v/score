@@ -5,7 +5,8 @@
     plan-matched  the record is its plan's: where the record lays the room shell, every wall of the plan's outline
                   stands in it and every opening on a wall is cut through it (no wall piece fills the opening's middle
                   between its sill and its head); every stair the plan draws is laid; every plan item of a glowing row
-                  has its light over its footprint (one outlining the whole room on its wall's face)
+                  has its light over its footprint (one outlining the whole room on its wall's face); every glowing
+                  row the plan lays has at least as many lamps as its reading counts things (count_faults)
     openings      every doorway leads somewhere: each door, gate or open doorway of the plan leads to a place of the
                   design, outside, sealed, onto a row of its own inventory (a ground it opens onto), or (none named)
                   into what holds it; a door to a place its holder's plan holds beside it has that place stood in the
@@ -134,13 +135,28 @@ def lamp_faults(record, design):
     return found
 
 
+def count_faults(record, design, inputs):
+    """Each glowing row (writer.glowing_rows) the plan lays at an item that has fewer lamps in the record than its
+    reading counts (its `count`; 2026-11-04: garage's three ceiling lamps, workshop's thirteen monitors and hangar's
+    row of wall lamps each laid as one, and no gate compared a lamp with the inventory)."""
+    glowing, _ = writer.glowing_rows(inputs)
+    tied = {row for item in design.get("items") or [] if not (len(item) > 6 and item[6] == "zone")
+            for row in (design.get("rows") or {}).get(item[0]) or []}
+    made = {}
+    for light in record["lights"]:
+        made[light.get("row")] = made.get(light.get("row"), 0) + 1
+    return [f"glowing row {row_id} has {made.get(row_id, 0)} lamps, its reading counts {int(row.get('count') or 1)}"
+            for row_id, row in sorted(glowing.items())
+            if row_id in tied and made.get(row_id, 0) < int(row.get("count") or 1)]
+
+
 def judge_plan_matched(output, inputs, evidence):
     """Fail on a wall, opening, stair or lamp of the plan the record does not hold as the plan says."""
     place, record = writer.record_in(output)
     design = design_of(inputs, place)
     shelled = writer.inside(design) and not design_shell.laid_for(design)
     faults = (wall_faults(record, design) + opening_faults(record, design) if shelled else []) + \
-        stair_faults(record, design) + lamp_faults(record, design)
+        stair_faults(record, design) + lamp_faults(record, design) + count_faults(record, design, inputs)
     said = "its shell's walls and openings, " if shelled else \
         ("no shell of the record's (its base lays it), " if writer.inside(design) else "no shell (an open place), ")
     reason = "; ".join(faults[:3]) + (f" and {len(faults) - 3} more" if len(faults) > 3 else "") if faults else \

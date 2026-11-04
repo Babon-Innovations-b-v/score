@@ -1,7 +1,7 @@
 """A scene record is written from its design alone, on a plan of its own (a small shed beside a yard on a site): its
 plan maps, and an item with no rows, a door that says nowhere it leads and a sealed door the layout leaves open each
 fail `mapped`; a written plan with no corner takes its outline; the record holds the shell cut round its door, its
-stair, a light over its lamp, the sky from the physics (outside on Mars its dusty day sky), the places its doors lead to and its backdrop rows are shown
+stair, a light over its lamp, the sky from the physics (on Mars its dusty day sky, inside too), the places its doors lead to and its backdrop rows are shown
 from, every object at its plan item waiting on its model, a row the plan lays only against its edge past it, a far
 row far off, each object carrying what holds it (its opening, its wall, its holder), an arched rib as a band, a light where a tower or a glowing row stands, and each part the scene
 library's surface; its gates fail a filled door, a moved lamp and a door to no place. Every spot is worked out by hand from the plans below.
@@ -205,6 +205,8 @@ def test_the_record_is_written_from_the_design():
     Break: score/stages/scene_record/gates.py: `found.append(f"the light of plan item {name!r} stands off its
         footprint")`
         -> `pass`
+    Break: score/stages/scene_record/gates.py: `if row_id in tied and made.get(row_id, 0) < int(row.get("count") or
+        1)]` -> `if False]` (a glowing row with fewer lamps than its reading counts passes)
     Break: score/stages/scene_record/gates.py:
         `found.append(f"opening {number} leads to {to!r}, no place of the design nor a row of its inventory")`
         -> `pass`"""
@@ -241,6 +243,10 @@ def test_the_record_is_written_from_the_design():
         path.write_text(json.dumps({**record, "lights": [{**lamp, "at": [3.0, 2.7, 0.0]}]}))
         verdict = gates.judge_plan_matched(output, inputs, {})
         assert verdict.answer == checks.FAIL and "'LAMP' stands off" in " ".join(verdict.findings), verdict.findings
+        path.write_text(json.dumps({**record, "lights": []}))
+        verdict = gates.judge_plan_matched(output, inputs, {})
+        assert verdict.answer == checks.FAIL and "glowing row ceiling_lamp has 0 lamps, its reading counts 1" in \
+            verdict.findings, verdict.findings
     nowhere = json.loads(json.dumps(WRITTEN))
     nowhere["openings"][0]["to"] = "moon_city"
     with tempfile.TemporaryDirectory() as folder:
@@ -298,14 +304,16 @@ def test_an_open_place_s_view_eye_stands_a_person_s_height_over_its_made_ground(
     assert [view["eye"][1] for view in writer.views(yard, 1.6)] == [1.6, 2.6]
 
 
-def test_a_place_outside_on_mars_has_its_dusty_day_sky_and_one_inside_or_on_the_moon_none():
+def test_a_place_on_mars_inside_or_out_has_its_dusty_day_sky_and_one_on_the_moon_none():
     """2026-11-02, round 44: the day sky's dust left with the old records (eb01c402) and every outdoor Mars place's
     sky was black, campgrounds' 192.8 levels off its concept's. An open place on Mars carries Mars's dusty air
     (data/physics/dust.json: depth 0.6, albedo 0.975, 0.93, 0.86, forward 0.67, diffuse 0.25, its source said) with
     the gain measured against the camp's old concept, and mars_sky draws it butterscotch, its red over its blue; an
-    enclosed place on Mars and an open one on the Moon (no dust) carry none; the file is a declared input.
+    enclosed place on Mars carries it too (2026-11-04: camp's glass domes showed black space in a Mars afternoon), an
+    open one on the Moon (no dust) none; the file is a declared input.
     Break: score/stages/scene_record/writer.py: `return found if dome is None else {**found, "sky_dome": dome}` ->
-        `return found`"""
+        `return found`
+    Break: score/stages/scene_record/writer.py: `if not found:` -> `if inside(design) or not found:` (camp's domes)"""
     sys.path.insert(0, str(REPO / "tools" / "usd"))
     import mars_sky
     from score.review import setting
@@ -322,7 +330,7 @@ def test_a_place_outside_on_mars_has_its_dusty_day_sky_and_one_inside_or_on_the_
     picture = mars_sky.picture(dome, [0.0, -0.5, -0.866], 64)
     red, _, blue = picture[: picture.shape[0] // 2].reshape(-1, 3).mean(axis=0)
     assert red > blue > 0, (red, blue)
-    assert "sky_dome" not in writer.environment(WRITTEN, on_mars, dust)
+    assert writer.environment(WRITTEN, on_mars, dust)["sky_dome"] == dome  # seen through its glass and openings
     assert "sky_dome" not in writer.environment(yard, {**on_mars, "site": {**on_mars["site"], "on": "moon"}}, dust)
     assert writer.files("yard")["dust"] == "{data}/physics/dust.json"
 
@@ -765,20 +773,29 @@ def test_a_row_its_concept_shows_glowing_gets_a_light_in_its_colour():
         `for row in inventory["rows"] if row["id"] in shown and row.get("anchor") != "sky"}`
         -> `for row in inventory["rows"] if row["id"] in shown}`
     Break: score/stages/scene_record/concept_light.py: `PROPS_HOME / "design" / "light"` -> `PROPS_HOME / "light"`
-        (the row reads its concept light where plans.keep keeps none)"""
+        (the row reads its concept light where plans.keep keeps none)
+    Break: score/stages/scene_record/writer.py: `counts[number % len(counts)] += 1` -> `pass` (four counted screens
+        on two items lay two lamps)
+    Break: score/stages/scene_record/writer.py: `return (float(emitter["share"]), "emitter") if said & set(emitter[
+        "words"]) else (1.0, "source")` -> `return 1.0, "source"` (a screen throws a lamp's light)"""
     from score.review import plans
     from score.stages.scene_record import concept_light, writer
     assert concept_light.KEPT_LIGHT == plans.KEPT_LIGHT
     design = {**WRITTEN, "items": [["CORE", 3.0, 2.0, 1.0, 1.0, None, "item"], ["ENGINE", 1.0, 1.0, 2.0, 1.0, None,
                                                                                   "item"],
-                                   ["SKY", 0.0, 0.0, 1.0, 1.0, None, "item"]],
-              "rows": {"CORE": ["core"], "ENGINE": ["engine"], "SKY": ["sky"]},
+                                   ["SKY", 0.0, 0.0, 1.0, 1.0, None, "item"],
+                                   ["SCREENS", 1.0, 4.0, 3.0, 0.5, None, "item"],
+                                   ["SCREENS 2", 5.0, 4.0, 2.0, 0.5, None, "item"]],
+              "rows": {"CORE": ["core"], "ENGINE": ["engine"], "SKY": ["sky"], "SCREENS": ["screens"],
+                       "SCREENS 2": ["screens"]},
               "shapes": {"CORE": {"shape": "rect", "tall": 3.0, "base": 0.0}}}
     rows = [{"id": "core", "name": "energy core", "noun": "core", "anchor": "floor", "size": [1.0, 1.0, 3.0]},
             {"id": "engine", "name": "engine", "noun": "engine", "anchor": "floor", "size": [2.0, 1.0, 1.0]},
-            {"id": "sky", "name": "starfield", "noun": "sky", "anchor": "sky"}]
+            {"id": "sky", "name": "starfield", "noun": "sky", "anchor": "sky"},
+            {"id": "screens", "name": "wall monitors", "noun": "monitor", "anchor": "floor", "count": 4}]
     dark = {"glows": False, "glowing": "", "colour": "", "brightness": 0}
     light = {"rows": {"core": {"glows": True, "glowing": "its column", "colour": "#44aaff", "brightness": 0.5},
+                      "screens": {"glows": True, "glowing": "screens", "colour": "#44aaff", "brightness": 0.5},
                       "engine": dark,
                       "sky": {"glows": True, "glowing": "stars", "colour": "#ffffff", "brightness": 0.4}},
              "scene": {"daylight": False, "unseen": False, "unseen_colour": ""}}
@@ -789,11 +806,20 @@ def test_a_row_its_concept_shows_glowing_gets_a_light_in_its_colour():
         inputs = {"inventory": folder / "inventory.json", "row kinds": REPO / "data/checks/row-kinds.json",
                   "lamp library": REPO / "data/library/lamps.json"}
         assert writer.lights(design, inputs) == []  # its row kinds alone light nothing
-        [lamp] = writer.lights(design, {**inputs, "concept light": folder / "light.json"})
-        full = writer.item_lamp(design["items"][0], {**rows[0], "row_kind": "machine"}, rows, design,
-                                writer.library_lamps(), inputs["lamp library"])
+        lamp, *screens = writer.lights(design, {**inputs, "concept light": folder / "light.json"})
+        [full] = writer.item_lamps(design["items"][0], {**rows[0], "row_kind": "machine"}, rows, design,
+                                   writer.library_lamps(), inputs["lamp library"])
+        [bulb] = writer.item_lamps(design["items"][3], {**rows[3], "id": "bulbs", "name": "bulbs", "noun": "bulb"},
+                                   rows, design, writer.library_lamps(), inputs["lamp library"],
+                                   {**light["rows"]["screens"], "glowing": "bulbs"})
     assert lamp["colour"] == "#44aaff" and "its column" in lamp["from"] and "core" in lamp["from"], lamp
     assert lamp["energy"] == round(full["energy"] / 2, 4) and lamp["at"] == full["at"]
+    # four counted screens on two items (3 m from x 1, 2 m from x 5): two lamps along each, at 1.75, 3.25, 5.5 and
+    # 6.5 m (x -2.25, -0.75, 1.5, 2.5 on the shed's 8 m), each a faint emitter at 0.1 of the lamp (lamps.json
+    # `glowing`), never one lamp an item as a room light
+    assert [screen["at"][0] for screen in screens] == [-2.25, -0.75, 1.5, 2.5], screens
+    assert all(screen["row"] == "screens" and "faint emitter" in screen["from"] and
+               abs(screen["energy"] - bulb["energy"] * 0.1) <= 1e-4 for screen in screens), (screens, bulb)
 
 
 def test_a_glowing_panel_drawn_as_the_whole_room_has_its_lamp_on_its_wall():
@@ -803,7 +829,9 @@ def test_a_glowing_panel_drawn_as_the_whole_room_has_its_lamp_on_its_wall():
     plan-matched gate takes it there, off its item's box, and fails it moved off its wall.
     Break: score/stages/scene_record/writer.py: `walled = relation is not None and relation.get("how") == "wall" and
         holders.outlines_room(item, design)` -> `walled = False`
-    Break: score/stages/scene_record/gates.py: `if light.get("against"):` -> `if False:`"""
+    Break: score/stages/scene_record/gates.py: `if light.get("against"):` -> `if False:`
+    Break: score/stages/scene_record/writer.py: `if pieces == 1 else length * (piece + 0.5) / pieces` -> `if True
+        else 0.0` (three panels' lamps on one spot)"""
     from score.stages.scene_record import gates, writer
     design = {**WRITTEN, "items": [["PANEL", 0.5, 0.5, 7.0, 5.0, None, "item"]], "rows": {"PANEL": ["wall_panel"]},
               "shapes": {}}
@@ -823,6 +851,17 @@ def test_a_glowing_panel_drawn_as_the_whole_room_has_its_lamp_on_its_wall():
     assert gates.lamp_faults({"lights": [lamp]}, design) == []
     moved = {**lamp, "at": [lamp["at"][0] - 1.0, *lamp["at"][1:]]}
     assert gates.lamp_faults({"lights": [moved]}, design) == ["the light of plan item 'PANEL' stands off its wall"]
+    # read as three panels: three lamps spread along the face, at the middles of its thirds (plan y 1, 3 and 5)
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        (folder / "inventory.json").write_text(json.dumps({"scene": "shed", "rows": [{**rows[0], "count": 3}]}))
+        (folder / "light.json").write_text(json.dumps(light))
+        three = writer.lights(design, {"inventory": folder / "inventory.json", "concept light": folder / "light.json",
+                                       "row kinds": REPO / "data/checks/row-kinds.json",
+                                       "lamp library": REPO / "data/library/lamps.json"}, relations)
+    spots, _ = writer.in_frame(design, [[7.8, 1.0], [7.8, 3.0], [7.8, 5.0]], 1.5)
+    assert [[found["at"][0], found["at"][2]] for found in three] == [list(spot) for spot in spots], three
+    assert gates.lamp_faults({"lights": three}, design) == []
 
 
 def test_the_shell_and_stairs_take_the_scene_librarys_surfaces():
