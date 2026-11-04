@@ -83,7 +83,7 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   against the bone groups' turns (the main term: each SOMA segment's world turn on its group, through the static
   calibration table, as OpenSense tracks orientations: Al Borno et al. 2022, doi:10.1186/s12984-022-01001-x), the
   SOMA mesh's bony landmarks skinned on the clip (SCORE's landmark set, `inside/landmarks`, each weighed by its
-  trust, the plantar pads held at SOMA's sole; SOMA's own joints only the measure since 2026-10-29), weighed as OpenSim's IK weighs its goals, within the leading joints' ranges, MuJoCo's couplings held
+  trust, the plantar pads held at SOMA's sole and the skull's at its scalp; SOMA's own joints only the measure since 2026-10-29), weighed as OpenSim's IK weighs its goals, within the leading joints' ranges, MuJoCo's couplings held
   exactly: mink per frame and scipy's bounded `least_squares` over the
   constants with the angles of frames spread over the clip. **Never use the owner's own
   method** (arXiv:2607.17639, under Babon's patent application NL4001444; SCORE is public MIT): no swing-twist split

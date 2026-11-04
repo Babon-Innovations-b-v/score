@@ -19,6 +19,7 @@ Breaks (each applied once, seen red, reverted):
 - (2026-10-29) _table's MC3_head_r trust `0.098` made `0.099` (the study's own side): its trust is not the left's.
 - (2026-11-01) _table's MC5_head_l link `(-0.01197, -0.00386, -0.00927)` made the study's `(0.01192, 0.00289,
   -0.02595)`: its skin point 29 mm off the bone, on the ring finger's knuckle.
+- (2026-11-04) HELD's `"head_side_l"` made `"head_side"`: a held name that is no landmark, so nothing is held there.
 
 Run: .venv/bin/python score/stages/sim_body/inside/landmarks/test_every_landmark_resolves_on_both_models_where_worked_by_hand.py
 """
@@ -75,7 +76,7 @@ def a_skinned_landmark_is_its_corners_blended_moves():
 def every_landmark_resolves_on_both_models():
     """Each landmark's face is one of the template's, its weights none negative and summing to 1, its segment a bone
     group's and its MyoFullBody body one of that group's bodies; every rule reads landmarks the solver takes, every
-    one trusted above 0."""
+    one trusted above 0; every held landmark (`HELD`) is one the solver takes."""
     table, problems = groups(), []
     for name, (face, weights, segment, body, _, _, trust, solver) in landmarks.LANDMARKS.items():
         if not 0 <= face < TEMPLATE_FACES or min(weights) < 0 or abs(sum(weights) - 1) > 1e-3:
@@ -84,6 +85,8 @@ def every_landmark_resolves_on_both_models():
             problems.append(f"{name}: {body} is not in {segment}'s bone group")
         if solver and not 0 < trust <= 1:
             problems.append(f"{name}: trust {trust}")
+    problems += [f"{name}: held but no solver landmark" for name in landmarks.HELD
+                 if name not in landmarks.LANDMARKS or not landmarks.LANDMARKS[name][7]]
     return problems
 
 
