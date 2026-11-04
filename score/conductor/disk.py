@@ -12,8 +12,8 @@ about twelve runs had started that day, and the copies of the ones stopped, fail
     python -m score.conductor store-evict [--dry]  # with no run live, blobs into the store bucket, proven ones evicted
     python -m score.conductor sweep [--force]   # the routine (every sync pass); every step under WARN_GB on a conductor
 
-launch_refusal() is `score run`'s check before it makes its copy: a run is refused while the disk has under FLOOR_GB
-free. health.read() carries FLOOR_GB and warning() (a note on the Machine card). When free is short it counts the
+launch_refusal() is `score run`'s check before it makes its copy: a run is refused while store-evict runs (its lock
+held) and while the disk has under FLOOR_GB free. health.read() carries FLOOR_GB and warning() (a note on the Machine card). When free is short it counts the
 GB store-evict could free (evictable_gb) and names them: when that is enough, it says to run store-evict first.
 
 A frozen copy (graph/frozen.py: the worktree <name> and its home <name>.home under $PROPS_HOME/frozen) is dead when
@@ -75,7 +75,7 @@ passes. It refuses, removing nothing, when a file cannot be read.
 sweep (2026-10-30, the owner: "this should be routine") runs on its own timer (score-sweep.timer) and as the sync
 pass's first step, one at a time (alone): every pass the routine
 (clean-frozen, clean-cache's making/, clean-kept); on a conductor under WARN_GB, before the floor, every step in
-order: clean-cache whole, relink-pixal, run logs past LOG_DAYS and tmp/ past SCRATCH_DAYS, store-gc, store-evict,
+order: clean-cache whole, relink-pixal, run logs past LOG_DAYS and tmp/ past SCRATCH_DAYS, store-gc,
 offload-pixal last (its read-back needs the room the others freed). Each step's line says what it freed; one refused or failed is
 said and the next runs. Still under FLOOR_GB, it names what fills the disk and prices the bigger data volume
 (Scaleway's catalog, machine.py's read): conductor/sweep.json, which the Machine card's note reads; only then is the
@@ -83,15 +83,16 @@ owner asked. Never the store's named blobs, the paid caches (cloud/google-cache,
 nowhere else.
 
 store-evict (#74, 2026-11-04: store/objects 138 GB, store-gc freed 0, Batch 1 died with ENOSPC), only with no run live
-(cache_refusal; with no run live, no run has pinned an input), sends every local blob the store bucket does not list
+(cache_refusal, asked again before each BATCH of blobs: a run that became live stops it, the rest kept; with no run
+live, no run has pinned an input) and one at a time (alone: `score run` refuses while it holds its lock), sends every local blob the store bucket does not list
 into it (score/store/offload: a conditional put, a 412 meaning the same bytes are there) and removes the local copy
 of a blob only once the bucket answers for it with its size and sha256 (offload.proven), and only a blob that has one
 link (no checkout, kept mark or work/pixal link), is named by nothing under the home but the output listings (records,
 concepts, kept jobs, the design and cockpit links keep theirs), is in no listing of an output a node stands on (each
 node's current accept and its newest record's output: what the next run reads), and is no text naming other blobs
 (store-gc follows those). Its mark (store/evicted/<sha>) is written first; the runner and the review fetch a marked
-blob back on its first read. Never cloud/google-cache, never anything outside store/objects/blobs. The sweep runs it
-under WARN_GB after store-gc.
+blob back on its first read. Never cloud/google-cache, never anything outside store/objects/blobs. Only its own
+command and the door's verb run it, never the sweep: a first eviction sends about 138 GB, hours a pass would wait.
 """
 import concurrent.futures
 import contextlib
@@ -128,6 +129,8 @@ KEPT = {"drops": "paid drops read back so a drop is never bought twice",
         "convex-parts": "CoACD's parts are seeded, but a paid drop's key hashes them: a recompute not byte-equal buys "
                         "the drop again"}
 REPO = pathlib.Path(__file__).resolve().parents[2]  # the checkout: its data named blobs, the tools it runs
+EVICT_LOCK = "store-evict"  # alone's lock name: one store-evict at a time, and no run starts while it is held
+BATCH = 256  # store-evict asks cache_refusal again before each this many blobs
 
 
 class Unprovable(Exception):
@@ -170,9 +173,26 @@ def written_most(runs_folder=None):
     return most * WRITTEN_MARGIN
 
 
+def evicting(home):
+    """True while a store-evict process holds home/conductor/store-evict.lock (alone's)."""
+    path = pathlib.Path(home) / "conductor" / f"{EVICT_LOCK}.lock"
+    if not path.is_file():
+        return False
+    with open(path) as held:
+        try:
+            fcntl.flock(held, fcntl.LOCK_SH | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+        fcntl.flock(held, fcntl.LOCK_UN)
+    return False
+
+
 def launch_refusal(path=None, floor=None, runs_folder=None):
-    """Why `score run` must not start now, or None: under `floor` GB free on PROPS_HOME's disk, FLOOR_GB or the most a
-    run was measured to write (written_most), whichever is more; the GB store-evict could free named beside it."""
+    """Why `score run` must not start now, or None: while store-evict runs (it evicts blobs a run would read), or under
+    `floor` GB free on PROPS_HOME's disk, FLOOR_GB or the most a run was measured to write (written_most), whichever is
+    more; the GB store-evict could free named beside it."""
+    if evicting(path or PROPS_HOME):
+        return "refused: store-evict is running (it evicts blobs a run may read); start again once it has ended"
     floor = max(FLOOR_GB, round(written_most(runs_folder), 1)) if floor is None else floor
     free = free_gb(path)
     if free >= floor:
@@ -991,14 +1011,24 @@ def pushed_and_evicted(objects, bucket, listed, sha, size, evictable):
 
 
 def store_evict(home=None, runs_folder=None, dry=False, repo=None, bucket=None, say=print):
-    """With no run live (cache_refusal), every local blob sent to the store bucket (the evictable first) and each
-    evictable one (evict_candidates) evicted once the bucket proves it holds it; with `dry` the evictable counted only,
-    nothing sent. {sent, there, evicted, freed_gb, kept, failed: {kind: count}, refused, dry}, and first_failure when
-    a blob failed; Unprovable when a file cannot be read."""
+    """One at a time (alone), store_evicted below; refused while another store-evict holds the lock."""
     home = pathlib.Path(home or PROPS_HOME)
-    refused = cache_refusal(home, pathlib.Path(runs_folder or home / "runs"), home / "store" / "cache", [])
+    with alone(home, EVICT_LOCK) as first:
+        if not first:
+            return {"sent": 0, "there": 0, "evicted": 0, "freed_gb": 0.0, "kept": {}, "failed": {},
+                    "refused": "another store-evict is running", "stopped": None, "dry": dry}
+        return store_evicted(home, pathlib.Path(runs_folder or home / "runs"), dry, repo, bucket, say)
+
+
+def store_evicted(home, runs_folder, dry, repo, bucket, say):
+    """With no run live (cache_refusal, asked again before each BATCH: a run that became live stops it, `stopped`
+    saying why), every local blob sent to the store bucket (the evictable first) and each evictable one
+    (evict_candidates) evicted once the bucket proves it holds it; with `dry` the evictable counted only, nothing sent.
+    {sent, there, evicted, freed_gb, kept, failed: {kind: count}, refused, stopped, dry}, and first_failure when a blob
+    failed; Unprovable when a file cannot be read."""
+    refused = cache_refusal(home, runs_folder, home / "store" / "cache", [])
     done = {"sent": 0, "there": 0, "evicted": 0, "freed_gb": 0.0, "kept": {}, "failed": {}, "refused": refused,
-            "dry": dry}
+            "stopped": None, "dry": dry}
     if refused:
         return done
     candidates, done["kept"] = evict_candidates(home, repo)
@@ -1010,26 +1040,31 @@ def store_evict(home=None, runs_folder=None, dry=False, repo=None, bucket=None, 
     listed, chosen = bucket.listed(offload.BLOBS), {sha for sha, _ in candidates}
     rest = [(path.name, path.stat().st_size) for path in sorted((objects / "blobs").iterdir())
             if SHA.fullmatch(path.name.encode()) and path.name not in chosen]
-    freed = 0
+    freed, todo = 0, [*candidates, *rest]
     with concurrent.futures.ThreadPoolExecutor(offload.WORKERS) as pool:
-        work = {pool.submit(pushed_and_evicted, objects, bucket, listed, sha, size, sha in chosen): size
-                for sha, size in [*candidates, *rest]}
-        for future in concurrent.futures.as_completed(work):
-            try:
-                went, evicted = future.result()
-            except Exception as error:  # one blob's fault keeps the rest going; counted and said, never hidden
-                kind = type(error).__name__
-                done["failed"][kind] = done["failed"].get(kind, 0) + 1
-                done.setdefault("first_failure", f"{kind}: {error}")
-                continue
-            if went in ("sent", "there"):
-                done[went] += 1
-            if went == "unproven":
-                done["kept"][UNPROVEN] = done["kept"].get(UNPROVEN, 0) + 1
-            done["evicted"], freed = done["evicted"] + evicted, freed + work[future] * evicted
+        for start in range(0, len(todo), BATCH):
+            done["stopped"] = cache_refusal(home, runs_folder, home / "store" / "cache", [])
+            if done["stopped"]:
+                break
+            work = {pool.submit(pushed_and_evicted, objects, bucket, listed, sha, size, sha in chosen): size
+                    for sha, size in todo[start:start + BATCH]}
+            for future in concurrent.futures.as_completed(work):
+                try:
+                    went, evicted = future.result()
+                except Exception as error:  # one blob's fault keeps the rest going; counted and said, never hidden
+                    kind = type(error).__name__
+                    done["failed"][kind] = done["failed"].get(kind, 0) + 1
+                    done.setdefault("first_failure", f"{kind}: {error}")
+                    continue
+                if went in ("sent", "there"):
+                    done[went] += 1
+                if went == "unproven":
+                    done["kept"][UNPROVEN] = done["kept"].get(UNPROVEN, 0) + 1
+                done["evicted"], freed = done["evicted"] + evicted, freed + work[future] * evicted
     done["freed_gb"] = round(freed / 1024 ** 3, 2)
+    stopped = f"; stopped, the rest kept: {done['stopped']}" if done["stopped"] else ""
     say(f"store-evict: sent {done['sent']}, there {done['there']}, evicted {done['evicted']} blobs, "
-        f"{done['freed_gb']} GB; failed {sum(done['failed'].values())}")
+        f"{done['freed_gb']} GB; failed {sum(done['failed'].values())}{stopped}")
     return done
 
 
@@ -1088,7 +1123,6 @@ def steps(home, runs_folder, say, escalated):
     return routine + ([("relink-pixal", lambda: relink_pixal(home)),
                        ("old-logs", lambda: old_logs(home, runs_folder)),
                        ("store-gc", lambda: store_gc(home, runs_folder, say=say)),
-                       ("store-evict", lambda: store_evict(home, runs_folder, say=say)),
                        ("offload-pixal", lambda: offload_pixal(home, runs_folder))] if escalated else [])
 
 

@@ -211,11 +211,12 @@ def store_gc(dry):
 
 def store_evict(dry):
     """disk.store_evict in one summary line: blobs sent, already there and evicted (or counted with `dry`), GB, kept
-    and why, failures; exit 1 when refused or when a blob failed."""
+    and why, failures, why it stopped; exit 1 when refused (the bucket unreachable too), stopped or a blob failed."""
     from score.conductor import disk
+    from score.store import offload
     try:
         done = disk.store_evict(dry=dry, say=lambda line: None)
-    except disk.Unprovable as why:
+    except (disk.Unprovable, offload.BucketUnreachable) as why:
         done = {"refused": str(why)}
     if done["refused"]:
         print(f"store-evict: refused, nothing sent or evicted: {done['refused']}", flush=True)
@@ -224,8 +225,9 @@ def store_evict(dry):
     failed = sum(done["failed"].values())
     print(f"store-evict: {'would evict' if dry else 'evicted'} {done['evicted']} blobs, {done['freed_gb']} GB; sent "
           f"{done['sent']}, there {done['there']}; kept: {kept}; failed {failed}"
-          f"{' (' + done['first_failure'] + ')' if failed else ''}; {disk.free_gb():.1f} GB free", flush=True)
-    if failed:
+          f"{' (' + done['first_failure'] + ')' if failed else ''}; {disk.free_gb():.1f} GB free"
+          f"{'; stopped, the rest kept: ' + done['stopped'] if done['stopped'] else ''}", flush=True)
+    if failed or done["stopped"]:
         sys.exit(1)
 
 

@@ -497,7 +497,13 @@ def test_no_run_starts_under_the_disk_floor_and_the_health_warns_there(tmp_path,
     """2026-10-26: 0.24 GB free of 91 GB and Batch 1 died with "No space left on device"; 2026-11-04: checkout 17 began
     at 10.4 GB free, over the 10 GB floor, and ran out 7 min in.
     Break: disk.launch_refusal's `max(FLOOR_GB, round(written_most(runs_folder), 1))` -> `FLOOR_GB` (a run starts on
-    less room than the last one took), or graph/runs.noted's `min(entry.get("disk_lowest", free), free)` -> `free`."""
+    less room than the last one took), or graph/runs.noted's `min(entry.get("disk_lowest", free), free)` -> `free`,
+    or launch_refusal's `if evicting(...)` dropped (a run starts while store-evict evicts the blobs it reads, #74), or
+    store_evict's `alone` dropped (a second store-evict runs beside the first)."""
+    assert disk.launch_refusal(tmp_path, floor=0) is None
+    with disk.alone(tmp_path, disk.EVICT_LOCK):
+        assert "store-evict is running" in disk.launch_refusal(tmp_path, floor=0)
+        assert disk.store_evict(tmp_path, say=lambda line: None)["refused"] == "another store-evict is running"
     assert disk.launch_refusal(tmp_path, floor=0) is None
     refused = disk.launch_refusal(tmp_path / "not-yet", floor=10 ** 6)
     assert refused.startswith("refused: ") and "GB floor" in refused
@@ -659,12 +665,12 @@ def test_sweep_frees_room_itself_and_asks_only_for_a_bigger_disk_priced(tmp_path
     free["gb"] = 5.0
     done = disk.sweep(home, say=said.append)
     assert done["escalated"] and [step["step"] for step in done["steps"]][5:] == [
-        "relink-pixal", "old-logs", "store-gc", "store-evict", "offload-pixal"], done
+        "relink-pixal", "old-logs", "store-gc", "offload-pixal"], done  # store-evict never: hours a pass waits
     assert not (home / "logs" / "old.log").exists() and (home / "logs" / "new.log").exists()
     assert named["orphan"] not in {path.name for path in blobs.iterdir()} and named["record"] in {
         path.name for path in blobs.iterdir()}
     assert done["bigger"] == "50 GB more, EUR 4.00 a month in fr-par-2" and done["fills"], done
-    assert sum(line.startswith("sweep ") for line in said) == 5 + 10, said  # a line a step, each with what it freed
+    assert sum(line.startswith("sweep ") for line in said) == 5 + 9, said  # a line a step, each with what it freed
     note = disk.warning(5.0, swept=home / "conductor" / "sweep.json")
     assert "could not reach it" in note and "50 GB more, EUR 4.00 a month" in note, note
     free["gb"] = 12.0  # it reached the floor: nothing is asked

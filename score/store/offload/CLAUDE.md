@@ -16,11 +16,12 @@ The package docstring is the contract.
   aborted): a 412 means the key is taken, for a blob the same bytes. Each object carries its sha256 as metadata,
   from the bytes hashed just before the upload. Probed 2026-11-04 from this PC: the second put and the second
   complete both 412, HEAD gives the size and the metadata, a missing key 404.
-- **Evicting**: `score/conductor/disk.py` store-evict picks which blobs (one link, nothing but output listings naming
+- **Evicting**: `score/conductor/disk.py` store-evict (its own command and the door's verb, never the sweep) picks which blobs (one link, nothing but output listings naming
   them, no output a node stands on, no text naming blobs, no run live) and calls `proven` then `evict`. The mark
   `store/evicted/<sha256>` is written and synced before the copy goes.
-- **Fetching**: `install()` patches FolderStore's `path` and `exists` for marked blobs only; a blob missing with no
-  mark stays missing, so a new blob's write never asks the bucket. A sha256 mismatch is fetched once more, then
-  `BlobMismatch`; a network error propagates, never read as absent.
+- **Fetching**: `install()` patches FolderStore's `path` and `exists`: any missing blob, marked or not (a PC that
+  pulled a listing without its blob), is asked of the bucket on a read, HEAD then GET, a 404 alone absent. A write
+  (`Store.put_blob`, wrapped by `install()`) never asks. A sha256 mismatch is fetched once more, then `BlobMismatch`;
+  a network error propagates, never read as absent. `open_bucket` raises `BucketUnreachable`, never SystemExit.
 - Tests: `test_a_blob_leaves_only_once_the_bucket_holds_it_and_comes_back_whole.py`, a local folder bucket
   (`FolderBucket`), never the cloud.

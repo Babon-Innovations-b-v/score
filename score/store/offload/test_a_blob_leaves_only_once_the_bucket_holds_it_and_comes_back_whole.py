@@ -11,7 +11,10 @@ Breaks (each applied once, seen red, reverted), in score/store/offload/__init__.
 - offload.FolderBucket.put_new / Bucket.put_new: a taken key overwritten instead of refused (the 412 is gone).
 - disk.evict_why: drop the `st_nlink > 1` check (a checkout's linked blob evicted), or evict_keep: drop the standing
   outputs' listings (an accepted output the next run reads evicted).
-- offload.fetching_path: return PLAIN_PATH at once (an evicted blob is never fetched; the checkout fails).
+- offload.fetching_path: return PLAIN_PATH at once (an evicted blob is never fetched; the checkout fails), or
+  missing_sha's miss asked only when marked (a PC that pulled a listing without its blob cannot read it: red).
+- offload.install: drop the as_a_write wrap of Store.put_blob (a new blob's write asks the bucket; a bucket that
+  fails on the network fails the write: red).
 - offload.fetched: catch the bucket's error and return (a network error read as absent).
 """
 import json
@@ -33,6 +36,9 @@ class LostUploads(offload.FolderBucket):
 class FailingFetch(offload.FolderBucket):
     """A bucket whose reads fail on the network."""
 
+    def answer(self, key):
+        raise ConnectionError("the bucket did not answer")
+
     def fetch(self, key, destination):
         raise ConnectionError("the bucket did not answer")
 
@@ -48,6 +54,7 @@ def stored(store, tmp_path, name, data):
 def test_a_blob_leaves_only_once_the_bucket_holds_it_and_comes_back_whole(tmp_path, monkeypatch):
     monkeypatch.setattr(runtime_store.FolderStore, "path", runtime_store.FolderStore.path)  # restored after
     monkeypatch.setattr(runtime_store.FolderStore, "exists", runtime_store.FolderStore.exists)
+    monkeypatch.setattr(Store, "put_blob", Store.put_blob)
     home = tmp_path / "home"
     store = Store.in_folder(home / "store")
     blobs = home / "store" / "objects" / "blobs"
@@ -97,6 +104,12 @@ def test_a_blob_leaves_only_once_the_bucket_holds_it_and_comes_back_whole(tmp_pa
     assert (blobs / outputs["lost"][1]).stat().st_mode & 0o777 == 0o444
     assert not offload.mark_of(home / "store" / "objects", outputs["lost"][1]).exists()
 
+    # a blob missing with no mark (a PC that pulled a listing without it) is asked of the bucket and read; a 404 absent
+    standing = outputs["standing"][1]  # sent to the bucket by store-evict above, kept here
+    (blobs / standing).unlink()
+    assert store.objects.read_bytes(offload.blob_key(standing)) == b"standing-" * 4096
+    assert not store.objects.exists(offload.blob_key("0" * 64))
+
     # a fetched blob whose bytes are not its name is refused after a second try; nothing lands
     bad = outputs["bad"][1]
     os.chmod(tmp_path / "bucket" / "blobs" / bad, 0o644)
@@ -110,3 +123,8 @@ def test_a_blob_leaves_only_once_the_bucket_holds_it_and_comes_back_whole(tmp_pa
     with pytest.raises(ConnectionError):
         store.checkout(outputs["free"][0])
     assert store.objects.exists(offload.blob_key(outputs["free"][1]))
+    (blobs / standing).unlink()
+    with pytest.raises(ConnectionError):  # an unmarked miss is asked too, and the bucket's error propagates
+        store.objects.read_bytes(offload.blob_key(standing))
+    new, sha = stored(store, tmp_path, "new", b"new-" * 4096)  # a write never asks the bucket
+    assert (blobs / sha).is_file() and store.listing(new) == {"new.bin": sha}
