@@ -30,7 +30,8 @@ Breaks (each applied once, seen red, reverted):
 - this_pc.py `resume`: drop `design_current(home, code, environment)` -> a resumed run reads the design as paused.
 - this_pc.py `pull`: drop the `OWN_DESIGN` skip -> the conductor's hand-in comes back over the one written here;
   or drop the `BLOBS` skip -> a read-only blob held here, sent again for its other mtime, stops the pull; or
-  `linked_anew` always True with no unlink -> a hard link over its own path stops the pull (seeking backwards).
+  `linked_anew` always True -> a hard link over its own path stops the pull (seeking backwards); or drop
+  `cleared` -> a changed work file held here as a read-only link stops the pull, or is written through.
 - agent_door.py `store_differs`: `file_sha(target) != sha` -> `False` -> a take remade here at the same size keeps
   the conductor's old bytes (2026-11-03: 22 places' palette rows due).
 - agent_door.py `replaced`: drop `os.link(target, keep)` -> the conductor's old file is lost, not kept.
@@ -93,6 +94,12 @@ def test_a_pull_brings_what_a_run_reads_and_no_key_or_ledger_and_again_only_what
     os.utime(conductor / "store/objects/blobs/aa", (2, 2))
     this_pc.pull(home, door(conductor, "store-pull"))
     assert (home / "store/objects/records/k.json").samefile(home / "store/objects/blobs/aa")
+    # a work file held here as a link to a read-only blob, changed there: replaced, the blob untouched
+    os.link(home / "store/objects/blobs/aa", home / "work/pixal/scene.json")
+    write(conductor / "work/pixal/scene.json", "the scene, changed")
+    this_pc.pull(home, door(conductor, "store-pull"))
+    assert (home / "work/pixal/scene.json").read_text() == "the scene, changed"
+    assert (home / "store/objects/blobs/aa").read_text() == "store/objects/blobs/aa"
     assert (home / "design/plans/hub.json").read_text() == "the hub, changed"
 
 
