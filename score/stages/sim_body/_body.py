@@ -41,14 +41,10 @@ def bind_offsets(rig):
                      for joint, parent in enumerate(rig["parents"])])[:, :3, 3]
 
 
-def person_rig(rig, built):
-    """The clips rig at a person's own build, as the people build plays its clips (`tools.characters.played`, the
-    people route's one definition: prop_build.py's clip_world and floor_lift): the built body's bind and surface
-    (rig.npz's moved mean surface), every clip's joint offsets the built ones and its travel (Hips) scaled by the built
-    Hips' height over the rig's, every clip lifted so the standing clip's first frame puts the feet where the bind
-    does; and that size. With no build, the rig's own bind is the build, size 1: its clips were posed on SOMA's
-    zero-identity body, 7 cm shorter than the template its bind and surface are, and their own offsets floated its
-    skin 26 to 57 mm over its ground (#70)."""
+def played_build(rig, built):
+    """(the build, its size over the rig's, the floor lift) a person's clips are played at (person_rig's): the built
+    body's (with none, the rig's own bind), its Hips' height over the rig's, the lift that stands the standing
+    clip's first frame's feet where the build's bind does."""
     if built is None:
         built = {"bind": rig["bind"], "offsets": bind_offsets(rig), "source_points": rig["points"]}
     names = [str(name) for name in rig["names"]]
@@ -57,7 +53,37 @@ def person_rig(rig, built):
         raise ValueError(f"the rig's travelling joint is {names[hips]}, not Hips")
     size = float(built["bind"][hips, 1, 3] / rig["bind"][hips, 1, 3])
     bones = {"offsets": built["offsets"], "parents": rig["parents"], "bind": built["bind"]}
-    lift = played.floor_lift(rig, bones, names, size)
+    return built, size, played.floor_lift(rig, bones, names, size)
+
+
+def route_clip(rig, built, scene_rig, plan):
+    """A scene-made clip (scene-clips' rig.npz `clip_<its clip>`, `plan` its scene_clips.json entry) at a person's
+    own build, its joints against their parents (frames x joints x 4 x 4): played as person_rig plays a clip (the
+    built offsets, the floor lift), its travel kept where its route goes, along the ground and up or down its steps,
+    and only the Hips' height over the route's ground scaled by the build, as a clip's travel is: the route's treads
+    are the scene's, never moved with the walker's size (2026-11-04, a climber's feet on the stairwell's steps)."""
+    if [str(name) for name in scene_rig["names"]] != [str(name) for name in rig["names"]]:
+        raise ValueError(f"{plan['clip']}: the scene-made clips' rig has other joints than the clips rig")
+    built, size, lift = played_build(rig, built)
+    clip = plan["clip"]
+    local = played.clip_local({**rig, f"clip_{clip}": np.asarray(scene_rig[f"clip_{clip}"], dtype=float)}, clip,
+                              built["offsets"], rig["parents"], 1.0, 0.0)
+    route = np.asarray(plan["route"], dtype=float)[:, 1] - float(plan["placement"]["origin"][1])
+    ground = route[np.minimum(np.arange(len(local)), len(route) - 1)]
+    hips = played.TRAVELLING_JOINT
+    local[:, hips, 1, 3] = ground + (local[:, hips, 1, 3] - ground) * size + lift
+    return local
+
+
+def person_rig(rig, built):
+    """The clips rig at a person's own build, as the people build plays its clips (`tools.characters.played`, the
+    people route's one definition: prop_build.py's clip_world and floor_lift): the built body's bind and surface
+    (rig.npz's moved mean surface), every clip's joint offsets the built ones and its travel (Hips) scaled by the built
+    Hips' height over the rig's, every clip lifted so the standing clip's first frame puts the feet where the bind
+    does; and that size. With no build, the rig's own bind is the build, size 1: its clips were posed on SOMA's
+    zero-identity body, 7 cm shorter than the template its bind and surface are, and their own offsets floated its
+    skin 26 to 57 mm over its ground (#70)."""
+    built, size, lift = played_build(rig, built)
     found = dict(rig, bind=np.asarray(built["bind"]), points=np.asarray(built["source_points"]))
     for key in [key for key in rig if key.startswith("clip_")]:
         found[key] = played.clip_local(rig, key[len("clip_"):], built["offsets"], rig["parents"], size, lift)

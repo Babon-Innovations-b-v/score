@@ -30,7 +30,8 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - the_root_and_end_sites_go_to_their_carrier: segments_of's carrier `joint = parents[joint]` made `joint = -1`.
 - the_mass_is_stated_else_height_times_bmi: mass_of's `tall ** 2` made `tall`.
 - a_body_is_built_at_its_persons_own_size: person_rig's `size` handed to played as 1.0 (2026-10-29; before, its
-  `local[:, hips, :3, 3] *= size` dropped).
+  `local[:, hips, :3, 3] *= size` dropped); route_clip's scale handed to played as `size` (the climber's route
+  1.1 m long, 2026-11-04); its `ground + (... - ground) * size` made `... * size` (its feet under the steps).
 - a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground, 2026-10-29 (#70's float): person_rig's no-build case
   made `return rig, 1.0` (the clip's own offsets, 5 cm short, played raw: the standing foot 2 cm over its ground); its
   lift handed to played as 0.0 (the foot 3 cm under its ground; 2026-10-29, the lift now `played.floor_lift`).
@@ -55,6 +56,8 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   make's targets `points=rig["points"]` made `rig["bind"]` (the mesh not handed to the sizing).
 - the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-10-28 (#70's solver): make's
   `"calibrated on": CALIBRATED_ON` made `"the rig's standing clip"`.
+- the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-11-04: left_out_why's climber check dropped
+  (the climber walks the flat clip through its steps).
 - the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-11-02: ran's `if os.environ.get(CLOUD_CLASSES)`
   made `if False` (SCORE_SIM_BODY_CLASSES set, the run stays on this PC); ran_elsewhere's targets' folders dropped
   from its inputs (the machine has no targets).
@@ -127,6 +130,18 @@ def test_a_body_is_built_at_its_persons_own_size():
     assert world[0, 0, 1, 3] == pytest.approx(0.55)  # the Hips travel 1.1 times the clip's
     assert world[0, 1, 1, 3] == pytest.approx(0.0)  # the LeftFoot at its built offset under it
     assert sim_body.standing_height(person) == pytest.approx(1.1)
+    # a climber's scene-made clip up 0.3 m over 1 m of route (its ground 1 m up in the scene): its travel kept where
+    # the route goes, only the Hips' 0.5 m over the route's ground made 1.1 times as tall
+    climb = np.array(rig["clip_standing"])
+    ground = np.linspace(0.0, 0.3, len(climb))
+    climb[:, 1, 0, 3], climb[:, 1, 1, 3] = np.linspace(0.0, 1.0, len(climb)), ground + 0.5
+    plan = {"clip": "scene_man", "placement": {"origin": [4.0, 1.0, 2.0], "turn": 90.0},
+            "route": [[4.0 + along, 1.0 + up, 2.0] for along, up in zip(np.linspace(0.0, 1.0, len(climb)), ground)]}
+    local = sim_body.route_clip(rig, built, {**rig, "clip_scene_man": climb}, plan)
+    world = sim_body.clip_frames({**person, "clip_scene_man": local}, "scene_man", [1, 2])
+    assert world[:, 0, 0, 3] == pytest.approx(np.linspace(0.0, 1.0, len(climb)))  # along its route, never 1.1 m
+    assert world[:, 0, 1, 3] == pytest.approx(ground + 0.55)  # up its steps, its hips its own height over them
+    assert world[:, 1, 1, 3] == pytest.approx(ground)  # its foot on the route's ground
 
 
 def test_a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground():
@@ -272,7 +287,9 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
     cast = {"place": "toy", "crowd": {"name": "crowd"}, "characters": [
         {"name": "ann", "doing": "standing", "at": [1.0, 0.0, 2.0], "turn": 30.0, "weight": 50.0},
         {"name": "bob", "doing": "flying", "at": [0.0, 0.0, 0.0]},
-        {"name": "cid", "doing": "standing", "at": [50.0, 0.0, 50.0]}]}
+        {"name": "cid", "doing": "standing", "at": [50.0, 0.0, 50.0]},
+        {"name": "dee", "doing": "standing", "at": [1.0, 0.0, 2.0],
+         "stairs": {"way": "up", "flight": "stair_1", "to": [1.0, 1.0, 3.0], "rise": 0.2, "run": 0.2}}]}
     (tmp_path / "cast/cast.json").write_text(json.dumps(cast))
 
     def written(job, out):
@@ -304,7 +321,8 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
                                                                                       "LeftFoot": "tibia_l"}
     assert ann["ground"] == {"solids": ["Ground/Ground"], "triangles": 2}
     assert ann["calibrated on"] == sim_body.CALIBRATED_ON
-    assert [line.split(":")[0] for line in record["left out"]] == ["bob", "cid", "crowd"]
+    assert [line.split(":")[0] for line in record["left out"]] == ["bob", "cid", "dee", "crowd"]
+    assert "no scene-made clip up its stairs (stair_1)" in record["left out"][2]  # a climber never walks flat
     assert record["bodies"]["ann"]["adjusted"] == {"pelvis cm": [0.5, 1.2], "largest turn deg": 3.0, "mass %": -1.0}
     assert "Holzbaur" in record["model"]["attribution"] and "Apache-2.0" in record["model"]["attribution"]
     monkeypatch.undo()  # the real ran again
