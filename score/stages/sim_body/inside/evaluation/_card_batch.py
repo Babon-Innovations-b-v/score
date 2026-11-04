@@ -125,15 +125,21 @@ def sized_key(job, person):
                                                                    for group, quaternion in calibration.TABLE.items()))
 
 
-def cached_sized(job, person, rig, path):
-    """The body's `Size` and scales, its file without constants written at `path`: made once per `sized_key`,
-    written again for every later set."""
+def sized(job, person, rig, path):
+    """The body's (`Size`, its file without constants' text, scales), made once per `sized_key` (that once the file is
+    written at `path`); a later call writes nothing, so a file holding the constants stays as it is."""
     key = sized_key(job, person)
     if key not in SIZED:
         size = Size(rig)
         _, scales = myo.person_file(job["model"], size, person["kg"], path)
         SIZED[key] = size, path.read_text(), scales
-    size, text, scales = SIZED[key]
+    return SIZED[key]
+
+
+def cached_sized(job, person, rig, path):
+    """The body's `Size` and scales, its file without constants written at `path`: made once per `sized_key`,
+    written again for every later set."""
+    size, text, scales = sized(job, person, rig, path)
     path.write_text(text)
     return size, scales
 

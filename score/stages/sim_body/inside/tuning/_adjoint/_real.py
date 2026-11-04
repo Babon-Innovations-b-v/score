@@ -35,11 +35,12 @@ def set_up(table, weights, root, cases, saved, found=None):
 def soma_of(table, weights, root, cases, saved):
     """SOMA's side of the measures for the body `set_up` laid: (MyoFullBody's scales, SOMA's segments, every clip's
     worlds (frames, segments, 4, 4) clip after clip in `targets`' order, SOMA's rig); run after `set_up`, so the sizing
-    is cached."""
+    is cached and the person's file at its path, which holds the constants, is not written again (#78: written back
+    without them, `per_frame_model` built a model missing level 2's inside moves)."""
     saved.restore()
     clips, rig, path, _ = _card_batch.laid_clips(root, cases, _case.prepared(table, weights, root, cases))
     job, person, _, _ = next(iter(clips.values()))
-    _, scales = _card_batch.cached_sized(job, person, rig, path)
+    _, _, scales = _card_batch.sized(job, person, rig, path)
     return scales, person["segments"], np.concatenate([np.asarray(clip[3]) for clip in clips.values()]), rig
 
 
@@ -126,7 +127,28 @@ def per_frame_model(fitting, path, frames):
     copied = newton.ModelBuilder(up_axis=newton.Axis.Z)
     for _ in range(frames):
         copied.add_world(one)
-    return copied.finalize(device=_clip.DEVICE, requires_grad=True)
+    model = copied.finalize(device=_clip.DEVICE, requires_grad=True)
+    miss = body_miss(model, fitting, frames)
+    if miss > _clip.MAPPED:
+        raise ValueError(f"{path}: the per-frame model's bodies {miss * 1000:.4f} mm off the fitting's at rest "
+                         "(the file is not the one the fitting was compiled from)")
+    return model
+
+
+def body_miss(model, fitting, frames):
+    """The largest distance (m) between the first copy's body origins in `per_frame_model`'s `model` at qpos0 and
+    MuJoCo's in `fitting.model` (its inside moves as the fitting holds them)."""
+    import mujoco
+    import newton
+    data = mujoco.MjData(fitting.model)
+    mujoco.mj_kinematics(fitting.model, data)
+    model.joint_q.assign(np.tile(_seeds.newton_order(fitting.model.qpos0[None])[0], frames).astype(np.float32))
+    state = model.state()
+    newton.eval_fk(model, model.joint_q, model.joint_qd, state)
+    bodies = model.body_count // frames
+    placed = state.body_q.numpy()[:bodies, :3].astype(float)
+    wanted = [data.xpos[fitting.model.body(label.split("/")[-1]).id] for label in model.body_label[:bodies]]
+    return float(np.max(np.linalg.norm(placed - np.array(wanted), axis=1)))
 
 
 def frame_couplings(clip, rows):
@@ -262,6 +284,35 @@ def end_shifts(path, scales, segments):
                                      for body, local, weight in myo_parts(centre)])
         found.append((centre, -data.xmat[model.body(holder).id].reshape(3, 3).T @ TO_OWN.T))
     return found
+
+def end_moves(path, scales, segments, inside, step=1e-4):
+    """d(each group end's site local point) / d(level 2's inside joint moves) on the person's file at `path`:
+    (ends, 3, 3 x len(inside)) in `ends_of`'s order, a move each inside body's body_pos in its parent (as
+    `_clip.moved_inside` lays it). The evaluation's level 3 lays its ends again on the bodies the constants moved
+    (`fit.ends_relaid`, `end_site` reads the rest places), so its end sites move with level 2's constants (#78);
+    `end_site` is linear in the body places, so the central difference is exact to rounding."""
+    import mujoco
+    from fit import end_marker, group_ends
+    model = mujoco.MjModel.from_xml_path(str(path))
+    centres = [centre for _, centre in group_ends(segments)]
+
+    def laid():
+        return [end_marker(model, centre, scales) for centre in centres]
+
+    base = laid()
+    found = np.zeros((len(centres), 3, 3 * len(inside)))
+    for slot, (body, axis) in enumerate((body, axis) for body in inside for axis in range(3)):
+        sides = []
+        for sign in (1.0, -1.0):
+            model.body_pos[body, axis] += sign * step
+            sides.append(laid())
+            model.body_pos[body, axis] -= sign * step
+        for end, ((holder, _), (plus_holder, plus), (minus_holder, minus)) in enumerate(zip(base, *sides)):
+            if not holder == plus_holder == minus_holder:
+                raise ValueError(f"{centres[end]}: its end's holder changes under an inside move")
+            found[end, :, slot] = (np.asarray(plus) - np.asarray(minus)) / (2 * step)
+    return found
+
 
 HELD = 1e-5  # rad or m: a coordinate this close to its bound is held there by the card's active set
 

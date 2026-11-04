@@ -65,6 +65,9 @@ def copied_body_q(model, couplings, rows):
     return state.body_q.numpy().reshape(len(rows), -1, 7)
 
 
+# SOMA's side read before the per-frame model, as `_check_columns.case_block` does (#78)
+scales, segments, worlds, rig = _real.soma_of(str(out / "table.json"), str(out / "weights.json"), out, cases,
+                                         _card_batch.Saved())
 began = time.time()
 copied = _real.per_frame_model(fitting, path, len(rows))
 gap = np.abs(copied_body_q(copied, _real.frame_couplings(clip, rows), rows) - own_body_q(clip.model, rows))
@@ -130,8 +133,6 @@ def moved_ends(path, scales, segments, step=1e-4):
 
 began = time.time()
 from _measures import TapedMeasures  # noqa: E402
-scales, segments, worlds, rig = _real.soma_of(str(out / "table.json"), str(out / "weights.json"), out, cases,
-                                         _card_batch.Saved())
 ends_most, ends_largest = moved_ends(path, scales, segments)
 joints = _real.joint_parts(clip, scales, segments, worlds)
 groups = _real.turn_groups(clip, segments, worlds)

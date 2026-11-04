@@ -241,3 +241,28 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   forearm, hand, head, shoulder and spine regions 1.2 to 3.0 mm against the evaluation's 0.03 to 2.0 (shin, thigh,
   pelvis equal), and main's own l1k blocks show the same against its first evaluation (g03_backward), so main's exact
   skin rows are not the evaluation's measure either. Until both are found, level 1 runs its differences (no `--exact`).
+- **#78's three causes, found and fixed (2026-11-04)**: (1) `_real.soma_of` called `_card_batch.cached_sized`, which
+  writes the person's file back WITHOUT the constants, between `set_up` and `per_frame_model` (`_check_columns`'
+  kept_skins check, 8c3884d5): the per-frame Newton model lost level 2's inside moves (sacrum 8.7, lumbar2 31, calcn
+  22 mm), so every skin row but shin, thigh and pelvis was off at the base and level 3 was off its optimum (gradient
+  7.8e-3). `soma_of` now reads `_card_batch.sized` (no write); `per_frame_model` refuses a model whose first copy's
+  bodies at qpos0 miss the fitting's MuJoCo bodies by over MAPPED (`body_miss`); `_check_columns` raises `Unconverged`
+  on level 3's gradient over TOLERANCE before it factors. (2) The evaluation's level 3 lays its group ends again on the
+  bodies level 2 moved (`fit.ends_relaid`: `end_site` reads the rest places), so its end sites move with the inside
+  joints; level 3's g_q,c lacked that (`_real.end_moves`, `level3_body(moved=)`, `_check_columns.relaid_ends`). Level
+  2 itself holds its ends at the base (`Fitting.apply` resets site_pos). Mean_backward with (1) alone: skin columns 29
+  of 39 within the rule, turn 21 of 39; with (2): 36 and 36 (the spine ends' 23-28 % gone). (3) Level 3's products
+  step: float32 directional differences at 1e-3 left the turn rows 7 % off (median), 1e-2 1 %; kneel's L3_L4
+  column read 13 % at 3e-3, 2 to 3 % at 1e-2 (two runs differ) and 0.2 to 0.4 % at 3e-2, now `PRODUCTS`; H3's step
+  (1e-4 to 1e-3) changes nothing measurable.
+- **sternoclavicular_l's end columns sit on a told jump at level 1's start (2026-11-04)**: at shift 0 level 2 leaves
+  clavphant_r and clavphant_l's z axes untold (`fit/_constants.told`), and every nudged set (+-STEP, +STEP/2) tells
+  them (tall and mean alike, scratch /tmp/exp78/told), so the evaluation jumps by up to 0.08 in the shoulder skin rows
+  at any move of that end, either way (p - base = m - base = half - base): its central differences straddle the jump,
+  so under the 2026-10-31 kink rule they are not judged against, and no side keeps the base's set.
+- **Gate of the segment ends after #78's fixes: FAIL, 33 of 39 (2026-11-04, tall and mean, 15 clips each, the gate's
+  own references, scratch /tmp/gate78)**: base rows within 2.5e-3 of the evaluation's (largest 17.7), step cosine
+  0.99879 (was 0.094). Failing: C0_C1 y 2.34 %, mtp_l x 2.03 %, wrist_l x 16.7 % (floor 7.8 %) and sternoclavicular_l
+  x, y, z (22.6, 12.6, 3.3 %). Central differences at STEP/4 and STEP/8 (fine.npy, the same base exactly) bring the
+  first three to 1.42 %, 1.07 % and 0.55 %: the exact columns are right, STEP is too coarse on those three (wrist_l
+  x's floor STEP/4 to STEP/8 is 10 %). sternoclavicular_l's stay 3.7 to 24 % at every step: the told jump above.
