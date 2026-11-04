@@ -37,7 +37,7 @@ settle stages hash it.
     held_faults(record, laid)     [(object, what is wrong, metres or None)]: the assembly's `held` gate, one left
                                   inside a deck or wall, or up through a roof (laid's `roofs`), its relation does not
                                   lay it in (an opening's door, a passage against its wall: passes) too, and two
-                                  things nothing holds inside each other
+                                  things inside each other, held or not, but for one holding the other
     through_roofs(stage, place, names)   [{name, roof, metres}] of the objects passing up through a roof's surface
     short_doors(record, laid)     [(object, what is wrong, metres)]: doors short of their openings, named, not failed
 """
@@ -606,7 +606,7 @@ def held_faults(record, laid):
     made_waiting.LAID): off where their relation puts them (more than HELD_MOST; a face one off the face it was laid
     on, an opening's by the built walls), a door whose holder's face is too narrow for it and its recess (the
     shortfall), a door or window in no opening and on no holder, held by nothing (`unheld`), left at the room's
-    middle (`unplaced`), or two things nothing holds left inside each other (crowded_faults)."""
+    middle (`unplaced`), or two things left inside each other, held or not (crowded_faults)."""
     boxes = {entry["name"]: (entry["low"], entry["high"]) for entry in [*laid.get("objects", []),
                                                                          *laid.get("holders", [])]}
     faced = {fit["name"]: fit for fit in laid.get("fitted", []) if fit.get("face") is not None}
@@ -658,16 +658,37 @@ def held_faults(record, laid):
 
 
 def crowded_faults(record, boxes):
-    """[(object, what is wrong, metres)] of each pair of the record's objects nothing holds (no `on`, no climbing row)
-    laid inside each other by more than HELD_MOST every way (boxes {name: (low, high)} as laid): two things on the
-    floor parting could not fit at their built size (parted), named, never shrunk or forced (habitat's bunk beds laid
-    across its slanted inner wall, 2026-11-04)."""
-    loose = sorted(entry["name"] for entry in record.get("objects") or []
-                   if entry["name"] in boxes and not entry.get("on") and not climbs(entry))
+    """[(object, what is wrong, metres)] of each pair of the record's objects laid inside each other by more than
+    HELD_MOST every way (boxes {name: (low, high)} as laid), held or not: two things on the floor parting could not fit
+    at their built size (parted: habitat's bunk beds laid across its slanted inner wall, 2026-11-04), two held at one
+    spot (galley's seven jars on its corner shelves, quarters' lockers in each other, 2026-11-03), named, never shrunk
+    or forced. A pair one of which holds the other (its relation's `holder`, down a chain: a book on a shelf on a
+    desk) is the relation's to judge, and so is one laid into the structure (held_in), a climbing row or one filling
+    its holder (`fills`: a door's window)."""
+    entries = [entry for entry in record.get("objects") or [] if entry["name"] in boxes
+               and not held_in(entry.get("on")) and not climbs(entry) and not entry.get("fills")]
+    holding = holders_of(record)
+    names = sorted(entry["name"] for entry in entries)
     found = [(first, second, float(depths(*boxes[first], [np.asarray(end, float) for end in boxes[second]]).min()))
-             for number, first in enumerate(loose) for second in loose[number + 1:]]
-    return [(first, f"laid {depth:.2f} m inside {second} at its built size, nothing holding either there",
+             for number, first in enumerate(names) for second in names[number + 1:]
+             if second not in holding.get(first, ()) and first not in holding.get(second, ())]
+    return [(first, f"laid {depth:.2f} m inside {second} at its built size" +
+             ("" if holding.get(first) or holding.get(second) else ", nothing holding either there"),
              round(depth, 3)) for first, second, depth in found if depth > HELD_MOST]
+
+
+def holders_of(record):
+    """{object: every object holding it, down its chain of relations (its `on`'s `holder`, theirs, ...)} of the
+    record's objects."""
+    direct = {entry["name"]: set((entry.get("on") or {}).get("holder") or []) for entry in record.get("objects") or []}
+    found = {}
+    for name in direct:
+        seen, more = set(), set(direct[name])
+        while more:
+            seen |= more
+            more = {holder for one in more for holder in direct.get(one, ())} - seen
+        found[name] = seen
+    return found
 
 
 def short_doors(record, laid):

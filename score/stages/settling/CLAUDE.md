@@ -24,11 +24,16 @@ edit there moves its ~90 rows anyway (2026-10-27); never call them.
   assembly's own drop and triage judge the baked model. A model whose base is one sloping or uneven piece (the
   hangar's racks: legs ending 22 cm over a part under their middle) is no tip onto uneven feet: its tilted rest stays
   the triage's fault, the model's to fix.
-- **The gates block only what this stage breaks**: a broken drop (`rested`) or an object resting worse with the layer
-  than without it (`resting`). What is left is named on the page; the assembly's resting gate is the final judge.
-  Two loose objects inside each other are judged at the poses the layer lays (the drop's loose-to-loose collision is
-  off): a pair already crossing as laid is kept as laid, "laid inside" the other, as one laid inside a static is;
-  only a pair the layer brings to cross is a broken drop (settle@airlock's sandbags, 2026-10-30). One stacked on a
+- **The gates block what this stage breaks, and a layout it cannot mend**: a broken drop (`rested`) or an object
+  resting worse with the layer than without it (`resting`). Two loose objects inside each other are judged at the
+  poses the layer lays (the drop's loose-to-loose collision is off): a pair already crossing as laid is kept as laid,
+  "laid inside" the other, as one laid inside a static is, and a pair the layer brings to cross is a broken drop
+  (settle@airlock's sandbags, 2026-10-30). Kept as laid is no pass: one left laid inside another or a static, or
+  floating over what is under it, fails `rested` (`laid_wrong`), and every real overlap the triage finds with the
+  layer fails `resting`, as laid or not, held or not (`worse_faults`): galley's chairs in its table and quarters'
+  lockers in each other were accepted on 2026-11-03 with an empty overlap list. The fix is the assembly's parting
+  (`assembly/fitting.parted`) or the maker's, never a settle. What else is left is named on the page; the
+  assembly's resting gate is the final judge. One stacked on a
   loose support the layer leaves unrested is left as laid with it (`kept_with_their_supports`): its rest was found
   on the support where the drop left it (settle@airlock's sandbags_18, 52 cm down a ramp kept as laid, 2026-10-30).
 - **Held on a wall or ceiling row is mounted** (`holders.holder_kind`): never snapped down; its laid pose stands. A

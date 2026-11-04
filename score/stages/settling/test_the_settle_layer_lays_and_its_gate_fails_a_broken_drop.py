@@ -9,7 +9,9 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - the_layer_lays_each_object_at_its_rest: write_layer's `Gf.Matrix4d(local.T.tolist())` made
   `Gf.Matrix4d(local.tolist())` (the matrix written untransposed).
 - the_drop_gate_fails_a_broken_drop_and_names_what_was_kept: judge_rested's `if "still moving" in entry["said"]`
-  made `if False`.
+  made `if False`; and its `if laid_wrong(entry)]` made `if False]` (one left as laid inside another, inside a wall
+  or floating passes, as galley's chairs in its table did on 2026-11-03 and the hangar's ship 72 cm up); and
+  worse_faults' `or fault["kind"] == "overlaps"` dropped (an overlap there as laid excused).
 - only_what_lies_on_the_object_resting_worse_is_kept_with_it: kept_where_worse's `resting_on(name) & worse` made
   `True` (every case of the row kept).
 - a_flush_pose_resting_worse_falls_back_to_the_drops_rest: fallen_back's `back = {...}` made `back = set()`.
@@ -156,7 +158,19 @@ def the_drop_gate_fails_a_broken_drop_and_names_what_was_kept():
         more = settle.judge_rested(output, {}, None)
         if not review.regressions(card(more), card(passed)):
             problems.append("one more kept as laid was not worse than the accepted output")
-        return problems
+        for name, said in (("chair_2", "laid inside dining_table_1; left as laid"),
+                           ("counter_3", "laid inside /galley/Shell/wall_2; left as laid"),
+                           ("ship_1", "floats 72 cm over what is under it; left as laid")):
+            (output / settle.RECORD).write_text(json.dumps({"place": PLACE, "overlaps": [], "objects": {
+                **objects, name: {"rested": False, "said": said}}}))
+            laid_wrong = settle.judge_rested(output, {}, None)
+            if laid_wrong.answer != checks.FAIL or laid_wrong.measures["broken"] != 1:
+                problems.append(f"{name} {said!r} passed the gate: {laid_wrong}")
+    overlap = {"object": "/galley/Objects/dining_chair_2", "kind": "overlaps"}
+    lean = {"object": "/galley/Objects/dining_chair_2", "kind": "leans"}
+    if settle.worse_faults([overlap], [overlap, lean]) != [overlap] or settle.worse_faults([], [lean]) != [lean]:
+        problems.append("the resting gate excused an overlap there as laid, or failed another fault kept as laid")
+    return problems
 
 
 def only_what_lies_on_the_object_resting_worse_is_kept_with_it():
