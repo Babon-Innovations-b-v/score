@@ -929,11 +929,13 @@ def cleared(store, places, euros, clear=None):
     return contextlib.nullcontext()
 
 
-def write_now(store, places, by, clear=None, ask=None):
-    """Write the plan of every place of `places` whose inventory counts and has no plan written from it, a layer at a
-    time (`layered`), the places of a layer side by side; the records. compute.Refused when it may not spend."""
+def write_now(store, places, by, clear=None, ask=None, again=False):
+    """Write the plan of every place of `places` whose inventory counts and has no plan written from it (`again`: has
+    one or not, a writing made by a measure since retired: the held places stretched to their holder's box, #72), a
+    layer at a time (`layered`), the places of a layer side by side; the records. compute.Refused when it may not
+    spend."""
     from score.adapters import compute
-    places = to_write(store, places)
+    places = [place for place in places if plans.counts(store, place)] if again else to_write(store, places)
     if not places:
         return []
     folder = store.cache / AREA / stamp_key(concepts.now())
@@ -968,10 +970,11 @@ def main(argv):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("places", nargs="+")
     parser.add_argument("--by", default="the owner's standing allowance")
+    parser.add_argument("--again", action="store_true", help="write the places named though written already")
     options = parser.parse_args(argv)
     store = Store.in_folder(os.environ["SCORE_SPEND_STORE"]) if os.environ.get("SCORE_SPEND_STORE") else Store.default()
     try:
-        found = write(store, options.places, options.by)
+        found = write(store, options.places, options.by, again=options.again)
     except (concepts.Refused, NotCleared) as refused:
         print(f"refused: {refused}", file=sys.stderr)
         return 1

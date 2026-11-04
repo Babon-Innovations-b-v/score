@@ -320,6 +320,11 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     plan_writing.py: `if row_id not in placed and parent in placed:` made `if False:`
 - test_a_door_walled_in_or_an_inside_place_overlapping_another_is_a_gap:
     plan_checks.py: `if (mask & other_mask).sum() > OVERLAP * min(mask.sum(), other_mask.sum())]` made `if False]`
+- test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_says_so:
+    plan_drawing.py (2026-11-04, #72): OUTLINE's "not its shape" wording made "draw this place filling exactly that
+    box's shape"
+- test_the_answer_is_a_plan_of_the_stage_tables_schema_and_each_failed_check_a_named_gap:
+    plan_writing.py (2026-11-04, #72): write_now's `if again else to_write(store, places)` made `to_write(...)` alone
 - test_a_footprint_answered_as_box_2d_is_measured_from_its_box:
     plan_writing.py: `keys[0]: left + wide / 2 if middle else left` made `keys[0]: left`
     plan_writing.py (2026-11-03, #72): `found = rows_scale(answer, inventory)` moved under the held branch's return
@@ -2691,6 +2696,10 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     assert fitted["items"][0][1:5] == [13.0, 7.0, 1.0, 1.0]  # pushed north off the shed, the shortest way
     assert [gap["item"] for gap in fitted["gaps"] if gap["kind"] == "held"] == ["shed", "CART 1"]
     assert plans.moved_draws(store, "shed") == set()  # its own size is no move of its room
+    # its drawing is asked at its own proportions in a square frame, never its spot's shape (#72: the flat drawn to
+    # the Square's thin strip of it)
+    wording = plan_drawing.wording_of(store, "shed")
+    assert "not its shape" in wording and "filling exactly" not in wording and plan_drawing.FRAME == "1:1"
 
 
 # --- plan writing and its free checks: each failure a named gap -------------------------------------------------------
@@ -2781,6 +2790,9 @@ def test_the_answer_is_a_plan_of_the_stage_tables_schema_and_each_failed_check_a
     assert [fix for fix in plan["fixes"] if "moved" in fix and "out of" in fix]
     assert not [word for word in words if "reached" in word or "outside" in word]
     assert plan_writing.write(store, ["shed"], "the allowance", clear=cleared(clears), ask=ask) == []  # written once
+    # asked again (a writing made by a retired measure, #72), it is written again though written
+    again, = plan_writing.write(store, ["shed"], "the allowance", clear=cleared(clears), ask=ask, again=True)
+    assert again["at"] > record["at"] and plan_writing.written_of(store, "shed")["at"] == again["at"]
     plan["items"] = [[*item[:2], 0.3, *item[3:]] if item[0] == "CRATE 1" else item for item in plan["items"]]
     plan["items"].append(["CRATE 2", 3.2, 2.0, 0.5, 0.5, None, "item"])
     plan["rows"]["CRATE 2"] = ["crate"]

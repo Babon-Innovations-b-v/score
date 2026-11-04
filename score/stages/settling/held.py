@@ -28,11 +28,19 @@ SPOT_STEP = 0.05
 NEAR_FACES = 20000
 
 
-def held_objects(stage, place, inventory, kit_path=None):
+def faced(record):
+    """The names of the scene `record`'s objects laid with their back on their holder's side (its relation `face`,
+    #72: the assembly's fitting lays them on that side, front_face): mounted there, not held up from under."""
+    return {entry["name"] for entry in record.get("objects") or [] if (entry.get("on") or {}).get("how") == "face"}
+
+
+def held_objects(stage, place, inventory, kit_path=None, on_sides=frozenset()):
     """The stage's top-level objects held on another (the triage's support `held`: row anchor `on:<row>`; the kit
     given its kinds' groups), lowest first, so one held on a held one comes after its holder. One held on a wall or a
-    ceiling row (`mounted`) is mounted, not held up from under, and left out: its laid pose stands
-    (airlock's ceiling lamps on its roof dome, snapped toward a floor 280 cm down, 2026-10-30)."""
+    ceiling row (`mounted`), or laid on its holder's side (`on_sides`, `faced`), is mounted, not held up from under,
+    and left out: its laid pose stands (airlock's ceiling lamps on its roof dome, snapped toward a floor 280 cm down,
+    2026-10-30; storage's pipes against its pillar's side snapped one by one, the one between left leaning 3.06
+    degrees on its moved neighbour, settle@storage 2026-11-03)."""
     data, groups = triage.rules(), triage.kit_groups(kit_path)
     rows = {row["id"]: row for row in inventory["rows"]}
     on_walls = mounted(rows)
@@ -41,23 +49,24 @@ def held_objects(stage, place, inventory, kit_path=None):
     for path, prim in resting.objects_of(stage, place).items():
         name = path.removeprefix(f"/{place}/Objects/")
         row = prim.GetAttribute("score:row").Get()
-        if "/" not in name and row not in on_walls and triage.support_type(rows.get(row, {}), prim, data,
+        if "/" not in name and row not in on_walls and name not in on_sides and triage.support_type(rows.get(row, {}), prim, data,
                                                                            groups) == "held":
             found.append((cache.ComputeWorldBound(prim).ComputeAlignedRange().GetMin()[1], name))
     return [name for _, name in sorted(found)]
 
 
-def held_rests(stage_path, place, inventory, kit_path):
+def held_rests(stage_path, place, inventory, kit_path, record=None):
     """Where each held object rests on what holds it, its holders as the stage lays them (after their drop): {name:
     {"before", "after", "rested", "said"}}. A held object is not dropped (a convex hull of its holder, a shelf unit,
     spans the shelf it lies on): it is stood upright in its seat as a loose one is (upright_starts) and snapped
     straight down onto the first surface under it (snap.py's down), lowest first, each one's new place seen by the
-    next. One with nothing under it, or that would fall further than DRIFT_MOST, keeps its laid pose, not rested."""
+    next. One with nothing under it, or that would fall further than DRIFT_MOST, keeps its laid pose, not rested; one
+    the scene `record` lays on its holder's side is not snapped (held_objects)."""
     data = triage.rules()
     parts = data["parts"]
     rows = {row["id"]: row for row in inventory["rows"]}
     stage = Usd.Stage.Open(str(stage_path))
-    names = [name for name in held_objects(stage, place, inventory, kit_path)
+    names = [name for name in held_objects(stage, place, inventory, kit_path, faced(record or {}))
              if not settle.lies_as_laid(rows.get(name.rsplit("_", 1)[0], {}), data)]
     kit = json.loads(pathlib.Path(kit_path).read_text())
     starts = settle.upright_starts(stage, place, inventory, names, settle.seat_ground(place, kit))
