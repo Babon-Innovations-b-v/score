@@ -19,6 +19,16 @@ each group's anatomical axes (`aligned`, `frame`, `REFERENCES`); `turn(group)` g
 - `_measure.py` measures it again in Newton's own Python and prints `TABLE`; run it after a model or template change
   and paste the rows. Measured 2026-10-28: the same as the tables study's within 0.002 (quaternion parts).
 - A right group's turn is its left one's times diag(-1, -1, 1); a middle group turns no body sideways (the test).
+- **The toes' hinge's two groups share its line, the lumbar pair the whole lumbar's** (2026-11-04, #70): `HINGED`
+  (foot and toes about the MT1 to MT5 heads, the same landmarks on both models) keep that reference exact and square
+  the long axis to it (`hinged`); `LONG_LINES` gives Spine1 and Spine2 the line from L5/S1 to T12/L1 (SOMA's Spine1
+  to Chest joints). The `follows` gate's error was almost all a fixed offset per segment, the same in every frame,
+  clip and person: the toes' pitch against the foot and the lumbar levels' rest curvature differed between the two
+  models by a turn no MyoFullBody joint makes (the oblique mtp hinge, one lumbar joint spread over five levels). A rest
+  solve of every leading joint against SOMA's bind (scratch, not kept) left Spine1 13.4, Spine2 23.0 and each toe 15.8
+  degrees no joint reaches with the old rows; with these 0.5, 0.9 and 2.6. The feet left `INSIDE_GROUPS`. The elbow
+  stays on its line: hinged too, its forearm's 12.2 degrees went to 0.5 at rest, but the bones then lie along
+  MyoFullBody's carrying angle, 12 degrees off SOMA's forearm (env1 standing: forearm bones outside 1.9 -> 12.6 %).
 - `INSIDE_GROUPS` (2026-11-01, #70; the owner and the coordinator: the Head's row by its skull and jaw in SOMA's
   head, then every group where it helps): their rows are read by `_measure.inside_measured`, the group's bone vertices
   laid at rest with their start centre (`myo_parts`, scaled) at SOMA's start joint, then turned and shifted rigidly to

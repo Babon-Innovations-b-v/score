@@ -12,8 +12,9 @@ rig joints, MyoFullBody's joint centres). The reference fixes the twist about th
 landmarks on both models (since 2026-10-29, #70; before, SOMA's bind z of the forearm and shin and MyoFullBody's elbow
 and knee axes, which left the upper arm turned about 9 degrees on every body): the humerus' epicondyles for upper arm
 and forearm (the ulna's flexion axis: SOMA's forearm does not pronate), the femur's for the thigh, the malleoli for
-the shin, MC5 head to MC2 head for the hand; the person's own x (left) for the trunk, feet and toes, own y (up) for the
-shoulder.
+the shin, MC5 head to MC2 head for the hand, MT1 head to MT5 head for the foot and toes (since 2026-11-04); the
+person's own x (left) for the trunk, own y (up) for the shoulder. The toes' hinge's two groups (`HINGED`) keep the reference
+exact and square their long axis to it; the lumbar pair takes the whole lumbar's line (`LONG_LINES`).
 
 Against taking SOMA's rest as MyoFullBody's default literally, it differs by the two rests' posture (measured
 2026-10-28): the arms 48 degrees (SOMA's A-pose), toes 26, shin 12.6, shoulder 12, Spine2 12, Spine1 9.6, head 6.7,
@@ -26,22 +27,38 @@ from scipy.spatial.transform import Rotation
 # its bone point), the same two landmarks on both models.
 _ELBOW = "line humerus_medial_epicondyle_{side} humerus_lateral_epicondyle_{side}"
 _KNEE = "line femur_medial_epicondyle_{side} femur_lateral_epicondyle_{side}"
+_TOES = "line MT1_head_{side} MT5_head_{side}"
 REFERENCES = {"Hips": ("own x", "own x"), "Spine1": ("own x", "own x"), "Spine2": ("own x", "own x"),
               "Chest": ("own x", "own x"), "Neck1": ("own x", "own x"), "Neck2": ("own x", "own x"),
               "Head": ("own x", "own x"), "{Side}Shoulder": ("own y", "own y"),
               "{Side}Arm": (_ELBOW, _ELBOW), "{Side}ForeArm": (_ELBOW, _ELBOW),
               "{Side}Hand": ("line MC5_head_{side} MC2_head_{side}",) * 2, "{Side}Leg": (_KNEE, _KNEE),
               "{Side}Shin": ("line medial_malleolus_{side} lateral_malleolus_{side}",) * 2,
-              "{Side}Foot": ("own x", "own x"), "{Side}ToeBase": ("own x", "own x")}
+              "{Side}Foot": (_TOES, _TOES), "{Side}ToeBase": (_TOES, _TOES)}
+# The groups on each side of a hinge (the toes' mtp) take their reference exact, the line the hinge turns about, and
+# their long axis made square to it (`hinged`), so the parent's and the child's rest frames share the hinge on both
+# models and the two rests differ only by a turn the hinge makes (#70, 2026-11-04). Long axis first and own x, the
+# toes' pitch against the foot differed between the two models by a turn the oblique mtp hinge does not make: a fixed
+# 15 degrees on each toe, every frame. Not the elbow: hinged there, the forearm's bones lay along MyoFullBody's carrying
+# angle, 12 degrees off SOMA's forearm (env1 standing: its turn 12.2 -> 0.7 degrees, but the forearm's bones outside
+# SOMA's skin 1.9 -> 12.6 %), so it stays on its line, its fixed 12 degrees the hinge's (`LACKS`).
+HINGED = ("{Side}Foot", "{Side}ToeBase")
+# The lumbar pair's long axis: the whole lumbar's line on both models (SOMA's Spine1 to Chest joints, MyoFullBody's
+# L5/S1 to T12/L1 centres), not each level's own (#70, 2026-11-04). MyoFullBody's lumbar is one joint spread over five
+# levels by fixed shares (`LACKS`), so its rest curvature between the levels is not a turn any joint makes: each level
+# on its own line left Spine1 a fixed 15 degrees and Spine2 18 off SOMA's in flexion, every frame.
+LONG_LINES = {"Spine1": (("Spine1", "Chest"), ("L5_S1", "T12_L1")), "Spine2": (("Spine1", "Chest"), ("L5_S1", "T12_L1"))}
 # R_cal per bone group as a quaternion (x, y, z, w), printed by `_measure.py` on 2026-10-29 (MyoFullBody of
 # MuscleMimic 1.0.6, SOMA's template rig of people-clips-make; the shoulders again that day, their start the
 # sternoclavicular centre, no longer the landmark of that name; the hands again on 2026-11-01, MC5_head moved onto the
 # little finger's knuckle: the hand turned 14.9 degrees about its long axis). INSIDE_GROUPS' rows read in the skin on
-# 2026-11-01 (`_measure.table_rows`): Head 6.6 degrees off its line, Shins 5.5, Feet 1.5, Hips 0.2, ForeArms 0.1.
+# 2026-11-01 (`_measure.table_rows`): Head 6.6 degrees off its line, Shins 5.5, ForeArms 0.1, Hips 0.2. The lumbar
+# pair, feet and toes printed again on 2026-11-04 (`HINGED`, `LONG_LINES`, the MT heads line): Spine1 13.5 and Spine2
+# 8.3 degrees off their rows before, the toes 13.5, the feet 2.2.
 TABLE = {
     "Hips": (0.664729, 0.747084, 0.000268241, -0.000291347),
-    "Spine1": (0.756786, 0.653663, 0.000257497, -0.00029812),
-    "Spine2": (0.596189, 0.802841, 0.00165502, 0.00162641),
+    "Spine1": (0.675027, 0.737792, 0.00121172, 0.000810537),
+    "Spine2": (0.652946, 0.757403, 0.00123513, 0.000774402),
     "Chest": (0.683552, 0.729902, 0.000118136, -0.000455094),
     "Neck1": (0.770799, 0.637077, -0.000728835, -0.00110972),
     "Neck2": (0.770799, 0.637077, -0.000728836, -0.00110972),
@@ -58,10 +75,10 @@ TABLE = {
     "RightLeg": (0.707102, 0.70709, 0.00483335, -0.00262117),
     "LeftShin": (-0.674394, 0.737872, 0.0240203, 0.0126529),
     "RightShin": (0.737871, 0.674394, 0.0126778, -0.0240475),
-    "LeftFoot": (0.986649, -0.158671, -0.0255066, -0.026405),
-    "RightFoot": (0.158664, 0.986642, 0.0266571, -0.0255472),
-    "LeftToeBase": (0.994273, -0.030612, 0.0988721, -0.0266242),
-    "RightToeBase": (0.0306151, 0.994272, 0.026656, 0.0988718),
+    "LeftFoot": (0.987227, -0.157876, -0.00776399, -0.0199309),
+    "RightFoot": (0.157878, 0.987222, 0.0201725, -0.00782707),
+    "LeftToeBase": (0.999263, -0.0345712, -0.0128052, 0.0106455),
+    "RightToeBase": (0.0345713, 0.999265, -0.0104016, -0.0128581),
 }
 
 # The held fingers' rest turns (radians, each joint by its name without its side, both sides alike): MyoFullBody's
@@ -116,7 +133,9 @@ def turn(group):
 # 2026-11-01, for the skull and jaw, then every group where it lowers the bones outside at rest without worsening the
 # turns check on the mean body's 15 clips) instead of the landmark lines (#70). Each side named, both sides alike.
 # Level 1's worker reads the other rows again from its centres (`remeasured`); these stay as written.
-INSIDE_GROUPS = ("Head", "Hips", "LeftForeArm", "RightForeArm", "LeftShin", "RightShin", "LeftFoot", "RightFoot")
+# The feet left it on 2026-11-04: their row is their hinge's line (`HINGED`), whose shared turn a read in the skin
+# would break.
+INSIDE_GROUPS = ("Head", "Hips", "LeftForeArm", "RightForeArm", "LeftShin", "RightShin")
 
 # A group end's shift read in SOMA's skin (`_measure.end_shift_measured`; m, the person's frame, Y up): the marker at
 # that MyoFullBody centre is moved by -shift (`fit.end_marker`), so SOMA's rig joint holds the group's bones that far off
@@ -177,8 +196,17 @@ def frame(long, reference):
     return np.column_stack([along, np.cross(across, along), across])
 
 
-def aligned(soma, myo):
+def hinged(long, reference):
+    """A hinge group's anatomical axes (3 x 3, columns, as `frame`'s): the long axis made square to the reference,
+    the reference crossed with it, the reference itself (the line the hinge turns about)."""
+    across = np.asarray(reference, dtype=float) / np.linalg.norm(reference)
+    along = np.asarray(long, dtype=float) - (np.asarray(long, dtype=float) @ across) * across
+    along = along / np.linalg.norm(along)
+    return np.column_stack([along, np.cross(across, along), across])
+
+
+def aligned(soma, myo, axes=frame):
     """R_cal from each rest's (frame turn, long axis, reference axis), all in one shared frame: a_s a_m^T, a_s and
-    a_m the anatomical axes in the segment's and the body's frame."""
+    a_m the anatomical axes (`axes`: `frame`, else `hinged` for a hinge group) in the segment's and the body's frame."""
     (soma_turn, soma_long, soma_reference), (body_turn, myo_long, myo_reference) = soma, myo
-    return (soma_turn.T @ frame(soma_long, soma_reference)) @ (body_turn.T @ frame(myo_long, myo_reference)).T
+    return (soma_turn.T @ axes(soma_long, soma_reference)) @ (body_turn.T @ axes(myo_long, myo_reference)).T
