@@ -10,7 +10,9 @@ shows a layer of kind:
     crops          a row that grows standing on a bed (BEDS, or a row that grows itself: a planter): the beds' crops
     effects        a row that emits (a kettle, a stove): its effects layer
     motion         a row that moves (a door, a crane, a lift, a machine): its motion layer, which moves the row's
-                   own laid objects (their models are the prop pipeline's, laid by the assembly like any other)
+                   own laid objects (their models are the prop pipeline's, laid by the assembly like any other); and
+                   a row no stage makes (row_kinds.uncovered: a flag no kind moves, a screen's picture), so the
+                   motion row's `covered` fails it by name rather than no row judging it
     physics        a row that is loose (a chair, a crate): where it settles, its physics layer and trial
     light, sound   every designed scene (EVERY_SCENE)
 
@@ -60,7 +62,8 @@ def kinds_of(inventory, kinds=None):
     row-kind rules `kinds` (the house's, data/checks/row-kinds.json, by default)."""
     kinds = row_kinds.table() if kinds is None else kinds
     rows = {row["id"]: row for row in inventory.get("rows", [])}
-    return set(EVERY_SCENE).union(*(row_layers(row, rows, kinds) for row in rows.values()))
+    found = set(EVERY_SCENE).union(*(row_layers(row, rows, kinds) for row in rows.values()))
+    return found | {"motion"} if row_kinds.uncovered(inventory, kinds) else found
 
 
 def plants_of(inventory, kinds):

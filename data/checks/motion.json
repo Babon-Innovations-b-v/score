@@ -65,8 +65,26 @@
   },
   "sliding_door": {
    "prims": ["sliding_glass_leaf", "big_door_leaf", "roof_leaf", "inner_door", "outer_door", "door_leaf"],
-   "game": true,
-   "sources": ["the game's own door speeds (data/motion, each motion's `from`)"]
+   "linear": [0.193, 0.387],
+   "sources": [
+    "ANSI/BHMA A156.10 (power operated pedestrian doors), a sliding door's latch-check speed V = sqrt(161/W) ft/s for a leaf of W lb: 1.27 ft/s (0.387 m/s) for a 100 lb leaf, 1.00 ft/s at 160 lb, 0.63 ft/s (0.193 m/s) for a 400 lb leaf; the 1979 edition's table 100 lb 1.27 ft/s to 160 lb 1.00 ft/s, https://s3.amazonaws.com/s3-absupply-net/pdf/ABS_ANSI_A156.10.pdf, https://www.automateddoorsolutions.com/wp-content/uploads/2018/08/ANSI-A156-10-2005.pdf"
+   ]
+  },
+  "garage_door": {
+   "prims": [],
+   "linear": [0.165, 0.305],
+   "sources": [
+    "Overhead Door opener guide: models opening at 6.5, 7.0, 7.5, 9.0 and 12.0 in/s, each +/- 0.5 in/s (0.165 to 0.305 m/s), https://overheaddoornorfolkne.com/wp-content/uploads/2023/06/Overhead-Door-Company%E2%84%A2-Garage-Door-Opener-Guide.pdf",
+    "Genie 2128 opener: 'opening speed 7 inches per second' +/- 0.5 in/s; Genie 4064H screw drive: at most 12.0 in/s, https://ohanagd.com/wp-content/uploads/2022/03/Genie-2128-Garage-Door-Opener-2.pdf, https://www.geniecompany.com/garage-door-opener-/model-4064h"
+   ]
+  },
+  "robot_arm": {
+   "prims": [],
+   "angular": [30.0, 180.0],
+   "sources": [
+    "Universal Robots UR5e datasheet (08/2023): every joint, the base too, at most 180 degrees a second, https://www.universal-robots.com/media/1807465/ur5e_e-series_datasheets_web.pdf",
+    "Universal Robots UR5e user manual: in Recovery Mode the joint speed is capped at 30 degrees a second, taken as the bottom, https://s3-eu-west-1.amazonaws.com/ur-support-site/40974/UR5e_User_Manual_en_US.pdf"
+   ]
   },
   "ceiling_fan": {
    "prims": ["ceiling_fan"],

@@ -1,5 +1,5 @@
 {
- "about": "The effects a row kind emits (data/checks/row-kinds.json `effects`), each measured on real footage (the owner's rule: real footage first): its emitter as tools/usd/effects.py bakes it, where on its object's own box it stands (`at`: from the box's middle, each axis a share of its half size, y up, z the object's front), why it gives no light (`no_light`), and its footage sources and checks (each measured on the emitter itself at its `at` second). How each kind is made is the one rule `methods` (its `matter`), never a pick for a place or an object. General for any scene: the effects stage lays one on every object of every row whose kind emits it (score/stages/effects/from_design.py).",
+ "about": "The effects a row kind emits (data/checks/row-kinds.json `effects`), each measured on real footage of its `subject` (the row kinds it was measured on and, with `on`, the kinds that subject stood on: a simmering pot on a hob; the effects row's `subject` gate fails an emitter on anything else) (the owner's rule: real footage first): its emitter as tools/usd/effects.py bakes it, where on its object's own box it stands (`at`: from the box's middle, each axis a share of its half size, y up, z the object's front), why it gives no light (`no_light`), and its footage sources and checks (each measured on the emitter itself at its `at` second). How each kind is made is the one rule `methods` (its `matter`), never a pick for a place or an object. General for any scene: the effects stage lays one on every object of every row whose kind emits it (score/stages/effects/from_design.py).",
  "how": "Measured on each photograph's pixels against a thing of known size in it (named with each source; a typical size where the maker's own was not looked up, so to roughly a third), or read off a report's text. A plume running off the frame bounds a measure on one side only (null).",
  "licence": "NASA photographs and reports are not copyrighted in the United States; the others under the licence each source names. Every source is used here only as measurements, never shown.",
  "methods": {
@@ -70,6 +70,7 @@
  "kinds": {
   "steam_jet": {
    "matter": "vapour",
+   "subject": {"kinds": ["kettle"]},
    "at": [
     0.0,
     0.6,
@@ -237,6 +238,7 @@
   },
   "steam_rise": {
    "matter": "vapour",
+   "subject": {"kinds": ["pot"], "on": ["cooker"]},
    "at": [
     0.0,
     1.0,
@@ -363,6 +365,7 @@
   },
   "humidifier_mist": {
    "matter": "vapour",
+   "subject": {"kinds": ["humidifier"]},
    "at": [
     0.0,
     1.0,
@@ -508,6 +511,7 @@
   },
   "drill_cuttings": {
    "matter": "granular",
+   "subject": {"kinds": ["drill"]},
    "at": [
     0.0,
     -1.0,
