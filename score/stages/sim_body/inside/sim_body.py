@@ -77,6 +77,7 @@ import fit
 import myo
 from bone_groups import FEET, groups
 from contact import Skin
+from landmarks import at_starts
 from model import TO_OWN, body_index, built, carried, filtered, posed_path, rates
 from muscles import Physics
 from records import adjustment_record, arrays, bones_of, com_height, entry, frames
@@ -147,12 +148,13 @@ def fitted_person(job, person, rig, worlds, path):
 
 def skin_of(rig, segments, bodies, riding):
     """The person's drawn skin the ground pushes (`contact.Skin`): SOMA's mesh at its bind, its weights on the
-    segments, each segment riding its bone."""
+    segments, each segment riding its bone from its group's start (`landmarks.at_starts`, as `riding` stands it)."""
     names = [str(name) for name in rig["names"]]
     joints = [names.index(segment) for segment in segments]
+    table = groups()
     return Skin(rig["points"], np.asarray(rig["weights"], dtype=float)[:, joints],
-                np.asarray(rig["bind"], dtype=float)[joints], [bodies[segment] for segment in segments],
-                [riding[segment] for segment in segments])
+                at_starts(rig, segments, [table[segment][0][0] for segment in segments]),
+                [bodies[segment] for segment in segments], [riding[segment] for segment in segments])
 
 
 def run_person(job, person, out_path):

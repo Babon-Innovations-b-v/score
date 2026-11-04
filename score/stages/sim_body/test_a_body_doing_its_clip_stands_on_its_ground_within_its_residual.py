@@ -11,7 +11,7 @@ as the people build plays it (`tools.characters.played`, prop_build.py's arithme
 down the tree (a root turned 90 degrees about up carries a child 1 m along x to -1 m along z). The model's wheel is
 unpacked only when its sha256 is the pinned one. On runs written here (no engine): a good run passes every gate, a body
 5 cm into its ground fails `on floor`, a landed foot 5 cm off its ground fails `lands` and so does a body no foot of
-which lands, a ground that pushes 10% under the weight fails `carries`, a segment 10 degrees off the clip fails
+which lands, unless it sits and its ground carries it (a seated body its ground never carries fails), a ground that pushes 10% under the weight fails `carries`, a segment 10 degrees off the clip fails
 `follows` and so does RRA's move of a segment 6 degrees or the pelvis 2.5 cm off the fitted path in one frame, a
 residual force over 2% of the weight or a moment over 1% of it times the centre's height fails `residual`. The make on
 the toy, over a toy seed whose ground is one raised square, its engine run stood in by a written one, hands each body
@@ -41,7 +41,9 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   `> LANDED` made `> 1.0`; landings' `push >= CONTACT * weight` made `push >= 0`; judge_carries'
   `abs(... - 1.0) > CARRIED` made `> 1.0`; judge_follows' `> FOLLOWED` made `> 90`; judge_residual's force check
   dropped; its moment check dropped; RESIDUAL_FORCE 0.02 made 0.05 (2026-10-28); judge_follows' per-frame turn
-  check dropped; its pelvis check dropped (2026-10-28).
+  check dropped; its pelvis check dropped (2026-10-28); landing_fault's seated `return None if ... else` made
+  `return None` (a seated body its ground never carried passes), and `body.get("clip") in SEATED` made `False` (a
+  seated body its seat carries fails "no foot landed"; 2026-11-04).
 - the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-10-28: make's `adjusted=entry["adjusted"]`
   dropped (the RRA adjustment not recorded); make's job `"adjust"` dropped (the run gets no cap).
 - the_make_stands_each_body_on_its_own_ground_under_its_character: ground_of's `np.linalg.inv(frame)` made `frame`;
@@ -182,11 +184,12 @@ def frames(count, lowest=0.001, push=1.0, off=0.0, weight=100.0, foot=0.003, foo
              "poses": []} for _ in range(count)]
 
 
-def judged(tmp_path, run, turn=3.0, pelvis=1.5):
-    """The gates on a written run whose RRA moved a segment `turn` degrees and the pelvis `pelvis` cm at most."""
+def judged(tmp_path, run, turn=3.0, pelvis=1.5, clip="walking"):
+    """The gates on a written run of `clip` whose RRA moved a segment `turn` degrees and the pelvis `pelvis` cm at
+    most."""
     adjusted = {"largest turn deg": turn, "pelvis cm": [0.5, pelvis]}
     measures = sim_body.measured({"frames": run, "kg": 10.0, "com height": 1.0, "adjusted": adjusted}, 10.0)
-    (tmp_path / sim_body.RECORD).write_text(json.dumps({"bodies": {"one": {"measures": measures}}}))
+    (tmp_path / sim_body.RECORD).write_text(json.dumps({"bodies": {"one": {"clip": clip, "measures": measures}}}))
     return {check.name: check.judge(tmp_path, {}, {}).answer for check in sim_body.CHECKS}, measures
 
 
@@ -201,6 +204,8 @@ def test_a_good_run_passes_and_each_gate_fails_its_break(tmp_path):
     assert judged(tmp_path, frames(40, lowest=-0.05))[0]["on floor"] == checks.FAIL
     assert judged(tmp_path, frames(40, foot=0.05))[0]["lands"] == checks.FAIL
     assert judged(tmp_path, frames(40, foot_push=0.0))[0]["lands"] == checks.FAIL
+    assert judged(tmp_path, frames(40, foot_push=0.0), clip="sitting")[0]["lands"] == checks.PASS  # its seat carries
+    assert judged(tmp_path, frames(40, push=0.0, foot_push=0.0), clip="sitting")[0]["lands"] == checks.FAIL
     assert judged(tmp_path, frames(40, push=0.9))[0]["carries"] == checks.FAIL
     off, measures = judged(tmp_path, frames(40, off=10.0))
     assert off["follows"] == checks.FAIL and measures["mean off clip deg"] == pytest.approx(10.0)

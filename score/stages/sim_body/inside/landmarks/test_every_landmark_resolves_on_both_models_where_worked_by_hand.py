@@ -2,7 +2,7 @@
 barycentric weights, on a SOMA segment; a MyoFullBody body of that segment's bone group), each left landmark is its
 right one mirrored; a landmark is its face's barycentric point on a person's mesh, and on the clip's skin its corners'
 skinned moves' (each corner its joints' weighted moves from the bind); a SOMA joint end is its joint, the hip joints'
-middle or the hand's tip; a knuckle's skin point stands within KNUCKLE_SKIN of its bone point (all worked out by
+middle or the hand's tip, and a segment's frame stands at its start; a knuckle's skin point stands within KNUCKLE_SKIN of its bone point (all worked out by
 hand; pure: the score venv runs it).
 
 Breaks (each applied once, seen red, reverted):
@@ -20,6 +20,8 @@ Breaks (each applied once, seen red, reverted):
 - (2026-11-01) _table's MC5_head_l link `(-0.01197, -0.00386, -0.00927)` made the study's `(0.01192, 0.00289,
   -0.02595)`: its skin point 29 mm off the bone, on the ring finger's knuckle.
 - (2026-11-04) HELD's `"head_side_l"` made `"head_side"`: a held name that is no landmark, so nothing is held there.
+- (2026-11-04) at_starts' `frame[:3, 3] = soma_point(start, rig)` dropped: the Hips' frame stands at its own joint,
+  8 cm over the hip joints' middle where fit.riding stands it, and a seated skin sinks into its seat.
 
 Run: .venv/bin/python score/stages/sim_body/inside/landmarks/test_every_landmark_resolves_on_both_models_where_worked_by_hand.py
 """
@@ -91,17 +93,24 @@ def every_landmark_resolves_on_both_models():
 
 
 def a_stretch_end_is_a_joint_the_hips_middle_or_the_hands_tip():
-    """A rig with LeftLeg at (0.1, 1, 0), RightLeg at (-0.1, 1, 0.02) and LeftHand at 0, its 100 own points along x
-    at 0.01 to 1.00 m: hipmid (0, 1, 0.01); the hand's tip the 2% furthest, 0.99 and 1.00: (0.995, 0, 0)."""
-    bind = np.tile(np.eye(4), (3, 1, 1))
-    bind[0, :3, 3], bind[1, :3, 3] = [0.1, 1, 0], [-0.1, 1, 0.02]
+    """A rig with LeftLeg at (0.1, 1, 0), RightLeg at (-0.1, 1, 0.02), LeftHand at 0 and Hips at (0, 1.08, -0.02)
+    turned 90 degrees about x, its 100 own points along x at 0.01 to 1.00 m: hipmid (0, 1, 0.01); the hand's tip the
+    2% furthest, 0.99 and 1.00: (0.995, 0, 0); at their starts (hipmid, LeftHand) the Hips' frame keeps its turn and
+    stands at (0, 1, 0.01), the hand's is its bind's."""
+    bind = np.tile(np.eye(4), (4, 1, 1))
+    bind[0, :3, 3], bind[1, :3, 3], bind[3, :3, 3] = [0.1, 1, 0], [-0.1, 1, 0.02], [0, 1.08, -0.02]
+    bind[3, 1:3, 1:3] = [[0, -1], [1, 0]]
     points = np.column_stack([np.arange(1, 101) / 100.0, np.zeros(100), np.zeros(100)])
-    weights = np.zeros((100, 3))
+    weights = np.zeros((100, 4))
     weights[:, 2] = 1.0
-    rig = {"names": ["LeftLeg", "RightLeg", "LeftHand"], "bind": bind, "points": points, "weights": weights}
+    rig = {"names": ["LeftLeg", "RightLeg", "LeftHand", "Hips"], "bind": bind, "points": points, "weights": weights}
     problems = [] if np.allclose(landmarks.soma_point("hipmid", rig), [0, 1, 0.01]) else ["hipmid"]
     tip = landmarks.soma_point("LeftHand tip", rig)
-    return problems + ([] if np.allclose(tip, [0.995, 0, 0]) else [f"the hand's tip at {tip}"])
+    problems += [] if np.allclose(tip, [0.995, 0, 0]) else [f"the hand's tip at {tip}"]
+    started = landmarks.at_starts(rig, ["Hips", "LeftHand"], ["hipmid", "LeftHand"])
+    hips = np.array(bind[3])
+    hips[:3, 3] = [0, 1, 0.01]
+    return problems + ([] if np.allclose(started, [hips, bind[2]]) else [f"the frames at their starts {started}"])
 
 
 def each_left_point_is_its_right_ones_mirror():

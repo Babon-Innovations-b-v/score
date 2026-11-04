@@ -1,7 +1,8 @@
 """SCORE's landmark set (#70; CONTEXT.md "landmark set"; pure numpy): each landmark linked once to a point of the SOMA
 mesh and to a point on MyoFullBody's bones (`LANDMARKS`), MyoFullBody's own joint centres (`CENTRES`: the group ends'
 and the measure's), each landmark found on a person's mesh (`on_skin`) and skinned on the clip (`posed`), and SOMA's own
-joints as group ends for the fit, the measure and the masses (`soma_point`, `soma_joints`, `myo_parts`). The links and
+joints as group ends for the fit, the measure and the masses (`soma_point`, `soma_joints`, `myo_parts`), and each
+segment's bind frame at its group's start for the skin the ground pushes (`at_starts`). The links and
 trusts are level 1's (`tuning`, over many bodies at once).
 
 How the set was found (landmark study, 2026-10-29, scripts kept with the study, not here): every MyoFullBody point by
@@ -94,6 +95,18 @@ def soma_point(name, rig):
         away = np.linalg.norm(own - bind[hand, :3, 3], axis=1)
         return own[away >= np.quantile(away, 1.0 - TIP_SHARE)].mean(axis=0)
     return bind[[names.index(joint) for joint in soma_joints(name)], :3, 3].mean(axis=0)
+
+
+def at_starts(rig, segments, starts):
+    """Each segment's frame at SOMA's bind (segments x 4 x 4) standing at its bone group's SOMA start (`soma_point`):
+    where `fit.riding` stands the segment on its bone, at that start's MyoFullBody centre, so a skin point carried by
+    the segment keeps its place on it. The Hips' start is the hip joints' middle, 8 cm under SOMA's Hips joint: carried
+    from the joint, a seated body's skin sat 4 to 5 cm low, into its seat (#70, 2026-11-04)."""
+    names = [str(joint) for joint in rig["names"]]
+    found = np.array(np.asarray(rig["bind"], dtype=float)[[names.index(segment) for segment in segments]])
+    for frame, start in zip(found, starts):
+        frame[:3, 3] = soma_point(start, rig)
+    return found
 
 
 def myo_parts(name):

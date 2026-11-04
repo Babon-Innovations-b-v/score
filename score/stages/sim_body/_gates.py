@@ -19,6 +19,10 @@ SUNK_MOST = 0.003  # metres
 LANDED = 0.005  # metres
 CONTACT = 0.05  # share of the weight a foot's push must reach to count as landed
 CARRIED = 0.05  # share of the weight
+# The clips a body does seated (people_rows.doing_of): its seat carries it, not its feet, so `lands` asks that the
+# ground carried it, not that a foot did (#70, 2026-11-04: every seated body failed "no foot landed" with its ground
+# carrying its weight within 0.3%).
+SEATED = ("sitting",)
 FOLLOWED = 5.0  # degrees
 # The residual's limits, the body's weight standing in for the net external force (none is measured here): the force
 # at most 2% of it (owner, 2026-10-28, from 5%: AddBiomechanics' published residual forces are "smaller than 2% of peak
@@ -67,7 +71,9 @@ def measured(entry, gravity):
     forces, activations = np.array([frame["forces"] for frame in frames]), np.array([frame["activations"]
                                                                                      for frame in frames])
     return {"deepest": round(-min(0.0, min(frame["lowest"] for frame in frames if frame["lowest"] is not None)), 4),
-            "landings": len(landed), "mean foot off ground m": round(float(landed.mean()), 4) if len(landed) else None,
+            "landings": len(landed),
+            "carried frames": int(sum(frame["ground"][1] >= CONTACT * weight for frame in frames)),
+            "mean foot off ground m": round(float(landed.mean()), 4) if len(landed) else None,
             "worst foot off ground m": round(float(landed.max()), 4) if len(landed) else None,
             "weight N": round(weight, 2), "mean push N": round(float(push), 2),
             "push over weight": round(float(push / weight), 4),
@@ -105,15 +111,25 @@ def judge_on_floor(output, inputs, evidence):
                    {"bodies": len(bodies)})
 
 
+def landing_fault(name, body):
+    """Why a body did not land, or None: a landed foot more than LANDED off its ground; no foot ever landed (a seated
+    body: its ground never carried it with CONTACT of its weight)."""
+    found = body["measures"]
+    if found["landings"]:
+        worst = found["worst foot off ground m"]
+        return f"{name}: a landed foot {worst:.3f} m off its ground" if worst > LANDED else None
+    if body.get("clip") in SEATED:
+        return None if found.get("carried frames") else f"{name}: seated, and its ground never carried it"
+    return f"{name}: no foot landed on its ground"
+
+
 def judge_lands(output, inputs, evidence):
-    """Fail a body a landed foot of which stood more than LANDED off its ground, or none of whose feet ever landed."""
+    """Fail a body a landed foot of which stood more than LANDED off its ground, or none of whose feet ever landed
+    (seated: that its ground never carried)."""
     bodies = bodies_of(output)
-    faults = [f"{name}: no foot landed on its ground" if not body["measures"]["landings"] else
-              f"{name}: a landed foot {body['measures']['worst foot off ground m']:.3f} m off its ground"
-              for name, body in bodies.items() if not body["measures"]["landings"]
-              or body["measures"]["worst foot off ground m"] > LANDED]
-    return verdict("lands", faults, f"{len(bodies)} bodies, each landed foot within {LANDED} m of its ground",
-                   {"bodies": len(bodies)})
+    faults = [fault for name, body in bodies.items() if (fault := landing_fault(name, body))]
+    return verdict("lands", faults, f"{len(bodies)} bodies, each landed foot within {LANDED} m of its ground, each "
+                   "seated one carried by its ground", {"bodies": len(bodies)})
 
 
 def judge_carries(output, inputs, evidence):

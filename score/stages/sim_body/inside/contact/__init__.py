@@ -24,8 +24,9 @@ class Skin:
 
     def __init__(self, points, weights, binds, bodies, riding):
         """`points` the skin at its bind (v x 3, the person's frame), `weights` each point's share per segment (v x
-        segments), `binds` each segment's frame at the bind (segments x 4 x 4), `bodies` the body each segment rides
-        and `riding` its frame on that body (segments x 4 x 4)."""
+        segments), `binds` each segment's frame at the bind standing where `riding` stands it, its group's start
+        (segments x 4 x 4: `landmarks.at_starts`), `bodies` the body each segment rides and `riding` its frame on
+        that body (segments x 4 x 4)."""
         self.points, self.weights = np.asarray(points, float), np.asarray(weights, float)
         self.unbound = np.linalg.inv(np.asarray(binds, float))
         self.bodies, self.riding = list(bodies), np.asarray(riding, float)
