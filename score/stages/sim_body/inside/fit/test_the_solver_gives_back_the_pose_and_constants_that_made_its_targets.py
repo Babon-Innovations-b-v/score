@@ -436,18 +436,18 @@ def a_hip_past_its_range_stops_at_its_end_and_its_follower_follows():
 def each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal():
     """The toy's ten markers, one trusted 0.25: each place cost the square root of its trust over 9.25, each of the
     five turns one over the square root of 5; the markers' goal, every marker's (a group end's too) squared cost
-    summed, is MARKER_GOAL, 1, the turns' goal's sum: the turns stay the main term."""
+    summed, is the fitting's marker goal (the toy's 1; the stage's `MARKER_GOAL` is level 1's), the turns' goal's 1."""
     import numpy as np
-    from fit._frames import MARKER_GOAL, weights
+    from fit._frames import weights
     with tempfile.TemporaryDirectory() as folder:
         fitting = toy_fitting(folder)
         turn_cost, place_costs = weights(fitting)
-    wanted = np.array([np.sqrt(MARKER_GOAL * (LOW_TRUST[1] if name == LOW_TRUST[0] else 1.0) / 9.25)
+    wanted = np.array([np.sqrt(fitting.marker_goal * (LOW_TRUST[1] if name == LOW_TRUST[0] else 1.0) / 9.25)
                        for name in fitting.marks])
     problems = [] if np.allclose(place_costs, wanted) else [f"place costs {place_costs.tolist()}"]
     problems += [] if np.isclose(turn_cost, 1 / np.sqrt(5)) else [f"turn cost {turn_cost}"]
     marker_sum, turn_sum = float(np.sum(place_costs ** 2)), turn_cost ** 2 * len(fitting.frame_sites)
-    good = np.isclose(marker_sum, MARKER_GOAL) and np.isclose(marker_sum, turn_sum)
+    good = np.isclose(marker_sum, fitting.marker_goal) and np.isclose(turn_sum, 1.0)
     return problems + ([] if good else [f"markers' goal {marker_sum}, turns' {turn_sum}"])
 
 

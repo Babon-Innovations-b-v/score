@@ -22,7 +22,7 @@ DAMPING = 1e-9
 # level 1's global balance (#70): the markers' goal's (the landmarks' and the group ends' together) total weight against
 # the turns' goal's 1. OpenSim's IK weighs its goals equally, so 1: the turns stay the main term (#70) unless level 1's
 # least squares over many bodies, judged on following SOMA, finds otherwise; never set by hand to pass a score
-MARKER_GOAL = 1.0
+MARKER_GOAL = 2.1169
 
 
 class NotConverged(RuntimeError):

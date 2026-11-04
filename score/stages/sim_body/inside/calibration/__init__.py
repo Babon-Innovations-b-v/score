@@ -122,8 +122,20 @@ INSIDE_GROUPS = ("Head", "Hips", "LeftForeArm", "RightForeArm", "LeftShin", "Rig
 # that MyoFullBody centre is moved by -shift (`fit.end_marker`), so SOMA's rig joint holds the group's bones that far off
 # it (#70, 2026-11-01). The head's: the skull and jaw laid at the Head row on SOMA's template, 20.6 % of their vertices
 # outside its skin at its Head joint, 2.5 % at this shift; on the mean body's 15 clips the head 17.4 -> 13.0 %, env1's
-# standing 6.7 -> 3.0 %, seated 5.4 -> 2.7 %, the turns within 0.01 degree. Static like the table: never per person.
-END_SHIFTS = {"C0_C1": (0.0, 0.006, 0.008)}
+# standing 6.7 -> 3.0 %, seated 5.4 -> 2.7 %, the turns within 0.01 degree. Since 2026-11-04 every end's shift is level
+# 1's (run l1n, its 21 tuned ends to the micrometre, an end it left at zero not written; END_READS its starts): the
+# region average of bones outside SOMA's skin 3.97 -> 3.55 % on env1 standing, 10.85 -> 9.73 % seated, 6.41 -> 6.04 %
+# on the mean body's 15 clips. Static like the table: never per person.
+END_SHIFTS = {"L5_S1": (0.0, 6e-06, 1e-05), "T12_L1": (0.0, 0.00403, -0.007995), "C7_T1": (0.0, -0.00197, 0.006004),
+              "mid_cervical": (0.0, 0.000142, 6e-05), "C0_C1": (0.0, 0.006094, 0.008121),
+              "sternoclavicular_l": (1.2e-05, -3e-05, 0.00013), "sternoclavicular_r": (-1.2e-05, -3e-05, 0.00013),
+              "glenohumeral_l": (-7.2e-05, 3.7e-05, 1e-06), "glenohumeral_r": (7.2e-05, 3.7e-05, 1e-06),
+              "elbow_l": (-7.3e-05, 2.2e-05, 0.002024), "elbow_r": (7.3e-05, 2.2e-05, 0.002024),
+              "wrist_l": (-0.001684, 0.018127, -0.007317), "wrist_r": (0.001684, 0.018127, -0.007317),
+              "hip_l": (7.6e-05, 0.000168, -0.000406), "hip_r": (-7.6e-05, 0.000168, -0.000406),
+              "knee_l": (0.004014, 0.00507, -0.024513), "knee_r": (-0.004014, 0.00507, -0.024513),
+              "ankle_l": (-0.000965, -0.005988, 0.001467), "ankle_r": (0.000965, -0.005988, 0.001467),
+              "mtp_l": (-0.020954, 0.004796, -0.017998), "mtp_r": (0.020954, 0.004796, -0.017998)}
 # Every group's start end's shift read the same way (`_measure.end_shift_measured` of the group it starts, SOMA's
 # template rig, MyoFullBody sized to it at its default pose; #70, 2026-11-02 and 11-03): level 1's starts for its
 # segment end unknowns (`tuning._ends.mirrored_starts`, a pair's mean mirrored, a middle's sideways part dropped:
