@@ -27,6 +27,7 @@ Breaks that turn it red (each applied once and seen red, then reverted):
   3 m landing, goes onto the flight under him, nearer across the floor).
 - `cast.stairs_of`: `"down" if "down" in words` read as `"up"`  -> the levels test.
 - `cast.on_stairs`: `(lowest, highest) if ... == "up"` read as `(highest, lowest)`  -> the levels test.
+- `cast.off_the_plan`: `not any(...)` read as `False`  -> the levels test (the spot off the plan stood).
 - `cast.on_made_ground`: `ground > at[1]` read as `False`  -> the made ground rise test (the one under it found
   nothing under it).
 - `layer.make`: `if row is None or row not in inputs:` read as `if row is None:`  -> the layer test (it reaches for
@@ -313,7 +314,8 @@ def test_a_spot_on_a_raised_level_stands_at_its_height():
     under him; the woman walking down, on the floor, onto the one from 0 to 1.5 m, its foot its low end though the
     plan draws it from 1.5 m), on its
     first tread the way it walks, facing its last; nobody else moves. Which way it walks is read off its row's words
-    (up, down, or no stairs at all)."""
+    (up, down, or no stairs at all). One outside the plan's outline and off every level is refused by
+    name."""
     plan = {"w": 4.0, "d": 4.0, "frame": {"anchor": {"plan": [0.0, 0.0], "place": [10.0, 0.0, -5.0]}},
             "levels": [{"height": 3.0, "points": [[0.0, 0.0], [2.0, 0.0], [2.0, 2.0], [0.0, 2.0]]}]}
     record = {"people": [{"name": "up", "at": [11.0, 0.0, -4.0]}, {"name": "down", "at": [13.0, 0.0, -2.0]}]}
@@ -343,6 +345,11 @@ def test_a_spot_on_a_raised_level_stands_at_its_height():
                                                                         [12.1, 0.5, -1.3333]), woman
     assert (woman["stairs"]["way"], woman["stairs"]["rise"], woman["stairs"]["run"]) == ("down", 0.5, 0.6667), woman
     assert still == record["people"][2] and cast.climbers_of(cast.on_stairs(record, stairs)) == {"man", "woman"}
+    # a spot off the 4 m plan and off its level is refused by name (the hangar's workers on Outside/near, 2026-11-04)
+    record["people"].append({"name": "off", "at": [15.0, 0.0, -4.0]})
+    refused = cast.off_the_plan(record, plan)
+    assert list(refused) == ["off"], refused
+    assert cast.short_of({"left_out": [], "refused": refused, "crowd": None}) == [f"off refused: {refused['off']}"]
 
 
 def test_a_look_is_made_only_by_its_own_usable_dress_row():

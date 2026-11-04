@@ -3231,9 +3231,12 @@ def test_people_the_plan_stands_inside_its_outline_are_in_the_place_not_beyond_i
 def test_a_people_row_a_writing_never_stood_is_stood_and_brought_in_free():
     """2026-11-02: stairwell's writing (2026-10-21) predates stood_people: its man on the stairs stood on no person spot
     and was marked beyond, so its cast was empty. plans keep finds the unstood row (unsettled) and stands it where its
-    item lies, then brings it in from beyond; a writing whose people all stand is left as it is.
+    item lies, then brings it in from beyond; a writing whose people all stand is left as it is. A row with no box that
+    projects and no thing laid is spread, its count of them, over the free floor inside the outline.
     Break: score/review/plans_pass.py: `return [row["id"] for row in plan_checks.person_rows(inventory) if row["id"] not
-        in have]` -> `return []`"""
+        in have]` -> `return []`
+    Break: score/review/plans_pass.py `stood_again`: `+ spread_people(answer, inventory)` dropped -> the hangar's
+        workers stand on no spot."""
     inventory = {"rows": [{"id": "person_man", "noun": "man", "name": "man walking up stairs", "count": 1}]}
     plan = {"w": 10.0, "d": 10.0, "outline": [[0, 0], [10, 0], [10, 10], [0, 10]], "people": [[1.5, 3.0]],
             "items": [["PERSON MAN 1", 3.0, 3.0, 0.6, 0.6, None, "item"]], "rows": {"PERSON MAN 1": ["person_man"]},
@@ -3245,6 +3248,18 @@ def test_a_people_row_a_writing_never_stood_is_stood_and_brought_in_free():
     answer, inside = plans_pass.brought_inside(stood)
     assert answer["beyond"] == ["skyline"] and fixes and inside, (answer["beyond"], fixes, inside)
     assert plans_pass.stood_again(stood, inventory) == (stood, [])
+    # no box of it projects and no thing of it is laid: its count spread over the free floor inside the outline, clear
+    # of the crate (the hangar's eight workers stood on none, four of them dealt view spots outside it, 2026-11-04)
+    workers = {"rows": [{"id": "worker_blue", "noun": "worker", "name": "worker in blue", "count": 4,
+                         "size": [0.5, 0.3, 1.8]}, {"id": "crate", "noun": "crate", "name": "crate", "count": 1}]}
+    hangar = {"w": 32.0, "d": 64.0, "people": [[40.0, 10.0]], "items": [["CRATE 1", 6.0, 14.0, 6.0, 6.0, None, "item"]],
+              "rows": {"CRATE 1": ["crate"]}, "fixes": []}
+    spread, fixes = plans_pass.stood_again(hangar, workers)
+    spots = [spot for spot in spread["people"] if len(spot) >= 4 and spot[3] == "worker_blue"]
+    assert len(spots) == 4 and fixes, (spread["people"], fixes)
+    assert all(0 < spot[0] < 32 and 0 < spot[1] < 64 and not (5.75 < spot[0] < 12.25 and 13.85 < spot[1] < 20.15)
+               for spot in spots), spots
+    assert len({tuple(spot[:2]) for spot in spots}) == 4 and not plans_pass.unstood(spread, workers), spots
 
 
 # --- the sync pass's plans keep (plans_pass.py): the narrow walk, one moment, a re-fix in its own process --------

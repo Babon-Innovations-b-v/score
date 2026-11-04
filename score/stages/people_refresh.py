@@ -39,6 +39,23 @@ def line_fabrics(store):
                                                              for row, output in accepted.items()}))
 
 
+def stood_plan(store, place):
+    """The place's plan in force (plans.current: his newest edit, else its writing), or None, with each people row it
+    stands on no person spot spread over its free floor (plans_pass.spread_people, on a copy: his edit is never
+    written): the hangar's edit (2026-10-21) stands its eight workers on none, so the cast dealt them its four view
+    spots, two of them outside its 32 x 64 m (2026-11-04)."""
+    import copy
+
+    from score.review import plans, plans_pass
+    plan = (plans.current(store, place) or {}).get("plan")
+    inventory = plans.inventory_of(store, place) if plan else None
+    if not inventory:
+        return plan
+    plan = copy.deepcopy(plan)
+    plans_pass.spread_people(plan, inventory)
+    return plan
+
+
 def refresh(store):
     """rows.json from every place's current reading and plan (a place with none is left out; the places are those
     whose scene inventory the design keeps, plans.KEPT_INVENTORY); written."""
@@ -48,8 +65,7 @@ def refresh(store):
     inventories, _ = groups.current(store, places)
     fabrics = line_fabrics(store)  # NoFabrics, before anything is written, when the line has none
     old = read() if ROWS.exists() else {"places": {}}
-    found = {place: refreshed_place(place, inventory, (plans.current(store, place) or {}).get("plan"),
-                                    old["places"].get(place), fabrics,
+    found = {place: refreshed_place(place, inventory, stood_plan(store, place), old["places"].get(place), fabrics,
                                     concept_picture(store, inventory["concept_pick"]["sha256"]))
              for place, inventory in sorted(inventories.items())}
     record = {"why": old.get("why", ""), "places": found}
