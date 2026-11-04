@@ -259,33 +259,52 @@ def test_an_object_filter_narrows_the_loop_rows_and_their_forecast():
 def test_a_drawn_close_up_that_does_not_open_is_one_object_s_gap():
     """Buy of 2026-10-24: the square's object `stage` took the row's tool input "close-up stage" (a folder) as its
     drawn close-up, and opening it stopped closeup@square and with it the square's whole line. Only an object whose
-    prop data names a close-up has one drawn, and one that does not open is that object's batch gap."""
+    prop data names a close-up has one drawn, and one that does not open is that object's batch gap. Checkout 18,
+    2026-11-04 (#75): rows.json kept its concept and drawn close-ups as absolute paths into the frozen home of the run
+    that made it, gone after, so every later close-up failed; they are kept relative to PROPS_HOME and found again
+    under the run's own (home_relative's `str(path)` returned whole, or make_closeups without `at_home`, turns it red)."""
+    import score.store as score_store
     import score.stages.props.closeup_row as closeup_row
+    from PIL import Image
     with tempfile.TemporaryDirectory() as held:
         data = pathlib.Path(held)
+        then, now = data / "then.home", data / "now.home"
         (data / "props").mkdir()
-        (data / "tool").mkdir()
+        (then / "tool").mkdir(parents=True)
+        (then / "design/concepts").mkdir(parents=True)
+        Image.new("RGB", (64, 64), closeup_row.GREY).save(then / "lamp.png")
         objects = {"stage": {"route": "prop", "take": "stage-p1"},
-                   "crate": {"route": "prop", "take": "crate-p1", "closeup": "{data}/crate.png"}}
+                   "crate": {"route": "prop", "take": "crate-p1", "closeup": "{data}/crate.png"},
+                   "lamp": {"route": "prop", "take": "lamp-p1", "closeup": "{home}/lamp.png"}}
         (data / "props/square.json").write_text(json.dumps({"place": "square", "objects": objects}))
         (data / "inventory.json").write_text(json.dumps({"scene": "square", "rows": [
-            {"id": row, "name": row, "size": [1, 1, 1]} for row in objects]}))
+            {"id": row, "name": row, "size": [1, 1, 1], "view": "v1" if row == "stage" else None} for row in objects]}))
         inputs = {"props": data / "props/square.json", "inventory": data / "inventory.json",
-                  "close-up stage": data / "tool", "close-up crate": data / "tool"}
+                  "close-up stage": then / "tool", "close-up crate": then / "tool", "close-up lamp": then / "lamp.png",
+                  "view v1": then / "design/concepts/square.png"}
         (data / "inputs").mkdir()
-        closeup_row.make_inputs(inputs, data / "inputs", 7, {})
-        drawn = {row["id"]: row["drawn"] for row in json.loads((data / "inputs/rows.json").read_text())["rows"]}
-        assert drawn == {"stage": None, "crate": str(data / "tool")}, drawn
-        kept = closeup_row.draw_missing
-        closeup_row.draw_missing = lambda rows, out: {}
+        kept_home, kept_draw = score_store.PROPS_HOME, closeup_row.draw_missing
+        asked = []
+        closeup_row.draw_missing = lambda rows, out: asked.extend(rows) or {}
         try:
+            score_store.PROPS_HOME = then
+            closeup_row.make_inputs(inputs, data / "inputs", 7, {})
+            found = {row["id"]: row for row in json.loads((data / "inputs/rows.json").read_text())["rows"]}
+            assert {row: entry["drawn"] for row, entry in found.items()} == {
+                "stage": None, "crate": "tool", "lamp": "lamp.png"}, found
+            assert found["stage"]["concept"] == "design/concepts/square.png", found
+            then.rename(now)
+            score_store.PROPS_HOME = now
             (data / "out").mkdir()
             closeup_row.make_closeups({"props-inputs": data / "inputs"}, data / "out", 7, {})
         finally:
-            closeup_row.draw_missing = kept
+            score_store.PROPS_HOME, closeup_row.draw_missing = kept_home, kept_draw
+        assert [row["concept"] for row in asked] == [str(now / "design/concepts/square.png")], asked
+        assert (data / "out/closeups/lamp.png").is_file()
         gaps = json.loads((data / "out/batch-gaps.json").read_text())["gaps"]
         assert [gap["name"] for gap in gaps] == ["stage: no close-up passed",
                                                  "crate: its drawn close-up could not be read"], gaps
+        assert gaps[1]["faults"][0].startswith(f"{now / 'tool'}: "), gaps
 
 
 def test_a_raw_take_is_finished_on_a_rented_machine_never_here():

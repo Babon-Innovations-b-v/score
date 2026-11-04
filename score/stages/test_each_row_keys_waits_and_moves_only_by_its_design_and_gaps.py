@@ -269,6 +269,7 @@ import contextlib
 import dataclasses
 import fnmatch
 import functools
+import hashlib
 import importlib
 import inspect
 import io
@@ -730,9 +731,11 @@ def test_a_row_reading_the_recipes_declares_the_vendored_libraries_they_import()
 def test_a_take_the_owner_rejected_is_set_aside_once_and_retaken_without_moving_the_pixal_row(tmp_path):
     """Owner, 2026-10-28 (a failing object remade once, free): the table wires pixal to retake with its code version
     as it was; a take his reject names has its files moved aside once (the other takes and a take its name starts
-    kept), is asked at its seed plus the attempt, and stays out of takes_back until its retake is made; a code build's
-    take is refused.
-    Break: score/stages/__init__.py: '        if not aside.exists():' -> '        if True:'"""
+    kept), is asked at its seed plus the attempt, and stays out of takes_back until its retake is made (its mark, or
+    the library's newest record holding another raw model than the one set aside: checkout 18, 2026-11-04, four made
+    retakes with no mark left out on the cloud machine); a code build's take is refused.
+    Break: score/stages/__init__.py: '        if not aside.exists():' -> '        if True:'; retake_pending without
+    `and not retake_handed(...)`, or retake_handed's `!=` on the size made `==`."""
     row = next(row for row in stages.STAGES if row.name == "pixal")
     assert row.retakes and graph.stage_code(row) == graph.stage_code(dataclasses.replace(row,
                                                                                           make=inspect.unwrap(row.make)))
@@ -752,6 +755,11 @@ def test_a_take_the_owner_rejected_is_set_aside_once_and_retaken_without_moving_
     (tmp_path / "stool_1.glb").write_text("new")
     stages.set_aside(retake, objects, tmp_path)
     assert (tmp_path / "stool_1.glb").read_text() == "new" and (aside / "stool_1.glb").read_text() == "old"
+    def record(raw):
+        return {"files": {"stool_1.glb": {"bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest()}}}
+    assert stages.retake_pending("stool_1", tmp_path, record(b"old")) and stages.retake_pending("stool_1", tmp_path, {})
+    assert not stages.retake_pending("stool_1", tmp_path, record(b"new"))
+    assert not stages.retake_pending("stool_1", tmp_path, record(b"olD"))
     (aside / stages.RETAKE_MADE).touch()
     assert not stages.retake_pending("stool_1", tmp_path)
     with pytest.raises(ValueError, match="pipe_1"):
