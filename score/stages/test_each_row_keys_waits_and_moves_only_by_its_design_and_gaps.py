@@ -126,6 +126,8 @@ Breaks (each applied once, seen red, reverted), in score/stages/people_rows.py:
   (drawn from the seated copilot), and the drawn-from and line tests.
 - score/stages/complete/prepare/groups.py `stood_beyond`: `and anchors[row_id] not in found` dropped  ->
   test_a_people_row_the_plan_shows_beyond_the_place_is_not_its_own.
+- `mapping_rows`: `said` left out of `rank` (`return standing, fields.get("share") or 0.0`)  ->
+  test_a_person_row_s_look_is_written_from_the_row_alone (the astronaut drawn from the "person in spacesuit").
 - `size_of`: `person_sized` not asked (`if origin:`)  ->
   test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size (the crowd's extent as one person).
 - score/stages/people_refresh.py `drawn_from`: the tallest box read with `min`  -> test_each_line_row_is_drawn_from_the_person_that_maps_it.
@@ -135,6 +137,12 @@ Breaks (each applied once, seen red, reverted), in score/stages/people_rows.py:
   -> test_each_line_rows_close_up_words_say_who_the_look_is.
 - score/stages/people_clothes.py `worn`: the nearest fabric read with `max`  ->
   test_a_row_wears_the_fabric_its_words_name_nearest_its_torso.
+- score/stages/people_clothes.py `said_colour`: `return []`  -> test_a_row_wears_the_fabric_its_words_name_nearest_its_torso
+  (the shaded white suit dressed in the dark seam cloth).
+- score/stages/people_clothes.py `fabrics_of`: `if not lab_of:` -> `if False:` (an empty library answers {})  ->
+  test_a_row_wears_the_fabric_its_words_name_nearest_its_torso.
+- `worn_by`: `IMPLIED.get(who, ())` -> `()` (astronaut_suit-made), or `wearers = []` (person_spacesuit-made)  ->
+  test_people_rows_are_grouped_into_looks_by_what_they_are_and_wear.
 
 --- a ground follows its words then its physics ---
 
@@ -453,8 +461,11 @@ def test_a_dress_row_is_read_where_a_design_dresses_its_look_so():
     plain = table["people-dress-person_uniform-made"]
     assert plain.applies("tube") and not plain.applies("square")  # the tube's "person in uniform" names no fabric
     worn =[stage for stage in stages.STAGES if stage.name.startswith("people-dress-") and "-in-" in stage.name]
+    assert worn, "the base's astronauts in white suits wear their look in the white fabric (2026-11-04)"
     for stage in worn:
-        assert stage.params == {"surface": stage.name.partition("-in-")[2]} and stage.name in table["cast"].after
+        _, surface, variant = stages.characters_layer.dressed_of(stage.name)
+        assert stage.params == {"surface": surface, **({"variant": variant} if variant else {})}, stage.params
+        assert stage.name in table["cast"].after
 
 
 def test_a_worn_dress_row_applies_only_where_its_look_wears_that_fabric():
@@ -1087,6 +1098,8 @@ def test_people_rows_are_grouped_into_looks_by_what_they_are_and_wear():
         == look("person") == "person-made"
     assert look("worker in blue jumpsuit") == look("worker in grey jumpsuit") == "worker_jumpsuit-made"
     assert look("person in uniform") == "person_uniform-made" != look("person in spacesuit")
+    assert look("astronaut in white suit") == look("astronaut in spacesuit") == look("person in spacesuit") \
+        == look("astronauts") == "astronaut-made", "a garment its who wears, or that says who wears it, is no look"
     assert look("crowd of people", crowd=True) == "crowd-made" and look("crowd of aliens", crowd=True) == "alien-made"
     assert look("the player in a work suit", row="hero") == look("Nev at the console", row="hero") == "deck_hero-made"
 
@@ -1115,6 +1128,13 @@ def test_a_person_row_s_look_is_written_from_the_row_alone():
     assert "a broad build" in made["guest-made"]["description"]  # seated: its narrower side, 0.7 m
     assert made["crowd-made"]["description"].startswith("one person of the crowd of people, an average build")
     assert all(not specs.problems_of(spec) for spec in made.values()), [specs.problems_of(s) for s in made.values()]
+    # a row read into a look by its garment wears it and draws it only where no row's words name it
+    found["places"]["deck"]["rows"]["suited"] = {"name": "person in spacesuit", "noun": "person", "count": 1,
+                                                 "size": [0.5, 0.5, 1.8], "share": 0.9, "looks": ["astronaut-made"]}
+    assert people_rows.origin_of("astronaut-made", found)[1] == "suited"
+    found["places"]["deck"]["rows"]["astronaut"] = {"name": "astronaut", "noun": "astronaut", "count": 1,
+                                                    "size": [0.6, 0.4, 1.8], "share": 0.1, "looks": ["astronaut-made"]}
+    assert people_rows.origin_of("astronaut-made", found)[1] == "astronaut", "drawn from the lab's bare-headed bust"
     assert people_rows.member_size("crowd-made", found) == ([0.55, 0.55, 1.8], "deck/crowd")
     props, inventory, lined = people_rows.with_designed(made, {"objects": {}}, {"rows": []}, surfaces)
     take = lined["bake"]["models"]["pilot_suit-made"]
@@ -1133,7 +1153,7 @@ def test_a_crowd_s_ground_is_the_plan_items_its_row_makes():
     assert people_rows.crowd_ground(plan, "pilot") == [] and people_rows.crowd_ground(None, "crowd") == []
     inventory = {"concept_pick": {"sha256": "0badcafe"}, "rows": [
         {"id": "crowd", "name": "crowd of people", "noun": "people", "count": 1, "route": "people"}]}
-    entry = people_rows.refreshed_place("deck", inventory, plan, None)
+    entry = people_rows.refreshed_place("deck", inventory, plan, None, {})
     crowd = people_rows.crowd_record("crowd", entry["rows"]["crowd"], entry)
     assert crowd["spread"] == [-8.0, -4.0, 6.0, 4.0] and crowd["grounds"] == [[-8.0, -4.0, 6.0, 4.0]]
     assert crowd["count"] is None and crowd["seed"] == 0x0badcafe and crowd["facing_to"] == entry["middle"]
@@ -1162,7 +1182,7 @@ def test_a_people_row_the_plan_shows_beyond_the_place_is_not_its_own():
     beyond = groups.stood_beyond(rows, set(plan["beyond"]))
     assert beyond == {"far_crowd", "far_stage", "singer"}, beyond  # the man stands on the place's own stairs
     inventory = {"concept_pick": {"sha256": "0badcafe"}, "rows": [groups.routed(row, set(), beyond) for row in rows]}
-    assert set(people_rows.refreshed_place("deck", inventory, plan, None)["rows"]) == {"pilot", "man"}
+    assert set(people_rows.refreshed_place("deck", inventory, plan, None, {})["rows"]) == {"pilot", "man"}
 
 
 def test_each_person_stands_on_a_plan_spot_each_its_own_variant_of_the_look():
@@ -1174,7 +1194,7 @@ def test_each_person_stands_on_a_plan_spot_each_its_own_variant_of_the_look():
          "route": "people"}]}
     plan = {"w": 20.0, "d": 10.0, "items": [], "rows": {},
             "people": [[1.0, 1.0, 0, "pilot"], [3.0, 2.0, 0, "pilot"], [5.0, 3.0, 0, "pilot"]]}
-    entry = people_rows.refreshed_place("deck", inventory, plan, None)
+    entry = people_rows.refreshed_place("deck", inventory, plan, None, {})
     people = people_rows.cast_record("deck", {"places": {"deck": {**entry, "concept": "one"}}})["people"]
     assert [person["at"] for person in people] == [[-9.0, 0.0, -4.0], [-7.0, 0.0, -3.0], [-5.0, 0.0, -2.0]]
     assert {person["look"] for person in people} == {"person_uniform_made"}
@@ -1251,18 +1271,18 @@ def test_a_refresh_keeps_the_choices_of_the_same_concept():
         {"id": "pilot", "name": "person", "noun": "person", "count": 2, "size": [0.5, 0.3, 1.8], "route": "people"},
         {"id": "crowd", "name": "crowd of people", "noun": "people", "count": 1, "route": "people"},
         {"id": "chair", "name": "chair", "noun": "chair", "count": 1, "route": "prop"}]}
-    fresh = people_rows.refreshed_place("deck", inventory, None, None)
+    fresh = people_rows.refreshed_place("deck", inventory, None, None, {})
     assert fresh["rows"]["pilot"]["looks"] == ["person-made", "person-made"] and "chair" not in fresh["rows"]
     assert fresh["rows"]["crowd"]["crowd"] == "crowd-made", \
         "a crowd takes no look drawn from another scene's row"
     fresh["rows"]["pilot"]["looks"] = ["deck_pilot-made", "person-made"]
-    assert people_rows.refreshed_place("deck", inventory, None, fresh)["rows"]["pilot"]["looks"][0] == \
+    assert people_rows.refreshed_place("deck", inventory, None, fresh, {})["rows"]["pilot"]["looks"][0] == \
         "person-made", "a pick with no why is no hand-made choice: read again from the design"
     fresh["rows"]["pilot"]["why"] = "the owner's pick: the player"
-    assert people_rows.refreshed_place("deck", inventory, None, fresh)["rows"]["pilot"]["looks"][0] == \
+    assert people_rows.refreshed_place("deck", inventory, None, fresh, {})["rows"]["pilot"]["looks"][0] == \
         "deck_pilot-made"
     redrawn = {**inventory, "concept_pick": {"sha256": "two"}}
-    assert people_rows.refreshed_place("deck", redrawn, None, fresh)["rows"]["pilot"]["looks"][0] == "person-made"
+    assert people_rows.refreshed_place("deck", redrawn, None, fresh, {})["rows"]["pilot"]["looks"][0] == "person-made"
 
 
 def test_a_crowds_look_is_read_off_its_words():
@@ -1321,23 +1341,38 @@ def test_a_row_wears_the_fabric_its_words_name_nearest_its_torso():
     def lab(srgb):
         return [float(value) for value in labels.lab(np.array(srgb, dtype=float)[None] / 255)[0]]
     fabrics = {"jacket_blue": lab(blue), "suit_light_blue": lab([150, 180, 220]), "suit_grey": lab([128, 128, 128])}
-    assert people_clothes.fabrics() == {}  # the repository's library holds none
+    # the fabrics are the people line's own library's (surface-library@people), and an empty one is refused: the
+    # repository's, read until 2026-11-04, holds none, so no row's clothes were ever chosen
+    surfaces = {"jacket_blue": {"family": "fabric", "colour": [0.02, 0.05, 0.3]}, "boot": {"family": "rubber",
+                                                                                         "colour": [0.1, 0.1, 0.1]}}
+    assert set(people_clothes.fabrics_of(surfaces)) == {"jacket_blue"}
+    try:
+        people_clothes.fabrics_of({"boot": surfaces["boot"]})
+        raise AssertionError("a library with no fabric chose no row's clothes in silence")
+    except people_clothes.NoFabrics:
+        pass
     box = [20, 10, 60, 90]
     inventory = {"concept_pick": {"sha256": "one"}, "rows": [
         {"id": "worker", "name": "worker in blue jumpsuit", "where": "near the light", "noun": "worker", "count": 1,
          "size": [0.5, 0.3, 1.8], "route": "people", "boxes": [box]},
         {"id": "pilot", "name": "person", "where": "left", "noun": "person", "count": 1, "size": [0.5, 0.3, 1.8],
          "route": "people", "box": box}]}
-    entry = people_rows.refreshed_place("deck", inventory, None, None, a_concept(blue, box), fabrics)
+    entry = people_rows.refreshed_place("deck", inventory, None, None, fabrics, a_concept(blue, box))
     worker, pilot = entry["rows"]["worker"]["dress"], entry["rows"]["pilot"]["dress"]
     assert worker["surface"] == "jacket_blue" and worker["de"] < 1 and worker["figures"] == 1, worker
     assert "suit_light_blue" in worker["named"] and not any("light" in name and "blue" not in name
                                                             for name in worker["named"]), worker
     assert pilot["surface"] is None and pilot["named"] == [], pilot
+    # a colour the words say is theirs: a white suit in a dim concept is the white fabric, never a dark one nearer
+    fabrics_white = {"white_suit": lab([235, 235, 235]), "suit_seam": lab([60, 60, 60])}
+    white = {**inventory["rows"][0], "id": "astronaut", "name": "astronaut in white suit", "noun": "astronaut"}
+    shaded = people_rows.refreshed_place("deck", {**inventory, "rows": [white]}, None, None, fabrics_white,
+                                         a_concept([70, 70, 72], box))["rows"]["astronaut"]["dress"]
+    assert shaded["surface"] == "white_suit", shaded
     orange = a_concept([230, 90, 20], box)
-    far = people_rows.refreshed_place("deck", inventory, None, None, orange, fabrics)["rows"]["worker"]["dress"]
+    far = people_rows.refreshed_place("deck", inventory, None, None, fabrics, orange)["rows"]["worker"]["dress"]
     assert far["surface"] is None and far["de"] > people_clothes.WITHIN, far
-    unseen = people_rows.refreshed_place("deck", inventory, None, None, None, fabrics)["rows"]["worker"]["dress"]
+    unseen = people_rows.refreshed_place("deck", inventory, None, None, fabrics, None)["rows"]["worker"]["dress"]
     assert unseen["surface"] is None and unseen["torso_lab"] is None, unseen
     found = {"places": {"deck": {**entry, "concept": "one"}}}
     assert people_rows.dressed_looks("deck", found) == {("worker_jumpsuit-made", "jacket_blue", 0),

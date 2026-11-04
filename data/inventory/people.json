@@ -6,10 +6,6 @@
  "plan": {
   "views": [
    {
-    "id": "base",
-    "picture": "{home}/design/concepts/base.png"
-   },
-   {
     "id": "cockpit",
     "picture": "{home}/design/concepts/cockpit.png"
    },
@@ -18,16 +14,8 @@
     "picture": "{home}/design/concepts/garage.png"
    },
    {
-    "id": "greenhouse",
-    "picture": "{home}/design/concepts/greenhouse.png"
-   },
-   {
     "id": "hangar",
     "picture": "{home}/design/concepts/hangar.png"
-   },
-   {
-    "id": "lab",
-    "picture": "{home}/design/concepts/lab.png"
    },
    {
     "id": "square",
@@ -67,46 +55,6 @@
    ],
    "grounded": "SAM 3's box in the reading of the picked concept",
    "clothes": "the clothes as drawn in the garage concept"
-  },
-  {
-   "id": "astronaut_spacesuit-made",
-   "name": "astronaut in spacesuit, an average build, as drawn in the greenhouse concept; the clothes as drawn in the greenhouse concept",
-   "prop": "astronaut_spacesuit-made",
-   "size": [
-    0.6,
-    0.4,
-    1.8
-   ],
-   "size_from": "greenhouse/astronaut of data/people/rows.json",
-   "view": "greenhouse",
-   "box": [
-    2207,
-    939,
-    2303,
-    1141
-   ],
-   "grounded": "SAM 3's box in the reading of the picked concept",
-   "clothes": "the clothes as drawn in the greenhouse concept"
-  },
-  {
-   "id": "astronaut_suit-made",
-   "name": "astronaut in white suit, an average build, as drawn in the base concept; the clothes as drawn in the base concept",
-   "prop": "astronaut_suit-made",
-   "size": [
-    0.6,
-    0.4,
-    1.8
-   ],
-   "size_from": "base/astronaut_left of data/people/rows.json",
-   "view": "base",
-   "box": [
-    382,
-    1371,
-    420,
-    1430
-   ],
-   "grounded": "SAM 3's box in the reading of the picked concept",
-   "clothes": "the clothes as drawn in the base concept"
   },
   {
    "id": "crowd-made",
@@ -187,26 +135,6 @@
    ],
    "grounded": "SAM 3's box in the reading of the picked concept",
    "clothes": "the clothes as drawn in the workshop concept"
-  },
-  {
-   "id": "person_spacesuit-made",
-   "name": "person in spacesuit, an average build, as drawn in the lab concept; the clothes as drawn in the lab concept",
-   "prop": "person_spacesuit-made",
-   "size": [
-    0.5,
-    0.5,
-    1.8
-   ],
-   "size_from": "lab/person of data/people/rows.json",
-   "view": "lab",
-   "box": [
-    1691,
-    869,
-    1921,
-    1200
-   ],
-   "grounded": "SAM 3's box in the reading of the picked concept",
-   "clothes": "the clothes as drawn in the lab concept"
   },
   {
    "id": "person_uniform-made",
@@ -292,12 +220,9 @@
  "approved": {
   "by": "the creator's pick",
   "places": [
-   "base",
    "cockpit",
    "garage",
-   "greenhouse",
    "hangar",
-   "lab",
    "square",
    "stairwell",
    "tube",

@@ -1,7 +1,8 @@
 """What a person row of a picked design wears (owner, 2026-10-13: the concept decides the clothes), read off the design
-alone in the people rows' refresh (people_rows.refreshed_place): of the library's fabrics, those whose name
-shares a word with the row's name as read (words_of), the nearest by CIE76 dE to the row's measured
-torso, used only within WITHIN of it. The torso is measured on the locked concept: each figure's torso (rows 30-60%
+alone in the people rows' refresh (people_rows.refreshed_place): of the people line's own library's fabrics
+(fabrics_of), those whose name shares a word with the row's name as read (words_of), the nearest by CIE76 dE to the
+row's measured torso, used only within WITHIN of it (a fabric whose name holds a colour the row's words say is chosen among those
+alone, by hue: said_colour). The torso is measured on the locked concept: each figure's torso (rows 30-60%
 and columns 30-70% of its SAM 3 box), its median colour, and the median over the row's figures. Lightness never
 chooses on its own: the concepts are dim, warm-lit rooms, so only a fabric the words name is a candidate.
 
@@ -34,13 +35,22 @@ def labels():
     return found
 
 
-def fabrics():
-    """{fabric: its CIELAB} of every library fabric, each in its own token (the people place's own list of materials
-    in place.json was retired, 2026-10-21)."""
+class NoFabrics(RuntimeError):
+    """The people line's library gives no fabric to choose a row's clothes from."""
+
+
+def fabrics_of(surfaces):
+    """{fabric: its CIELAB} of every fabric of `surfaces` ({surface: spec}, dress.library_surfaces), each in its own
+    token; NoFabrics when it holds none: a refresh choosing from no fabric chose no row's clothes and said nothing, so
+    every person wore its look's own paint (the repository's library, read here until 2026-11-04, holds none since
+    2026-10-21: the camp's astronauts wore the garage's grey and brown, audit 2026-11-04)."""
     found = labels()
-    import library
-    return {name: [float(value) for value in found.lab(found.srgb(np.array(spec["colour"], dtype=float))[None])[0]]
-            for name, spec in library.by_library(people_rows.LINE).items() if spec.get("family") == "fabric"}
+    lab_of = {name: [float(value) for value in found.lab(found.srgb(np.array(spec["colour"], dtype=float))[None])[0]]
+              for name, spec in surfaces.items() if spec.get("family") == "fabric"}
+    if not lab_of:
+        raise NoFabrics(f"the people line's library holds no fabric ({len(surfaces)} surfaces): no row's clothes "
+                        "can be chosen; make surface-library@people first")
+    return lab_of
 
 
 def words_of(row):
@@ -86,11 +96,24 @@ def worn(row, picture, lab_of):
         return {**record, "why": "the words name no library fabric of the people place: the look's own paint"}
     if measured is None:
         return {**record, "why": "no torso measured (no SAM 3 box or no concept picture): the look's own paint"}
-    distances = {name: float(np.linalg.norm(np.array(lab_of[name]) - measured)) for name in candidates}
+    coloured = said_colour(row, candidates)
+    kept = slice(1, 3) if coloured else slice(0, 3)  # a colour the words say keeps its lightness: chroma alone
+    distances = {name: float(np.linalg.norm(np.array(lab_of[name])[kept] - np.array(measured)[kept]))
+                 for name in coloured or candidates}
     nearest = min(distances, key=distances.get)
+    measure = "dE (a, b: the words name its colour)" if coloured else "dE"
     if distances[nearest] > WITHIN:
         return {**record, "de": round(distances[nearest], 1),
-                "why": f"{nearest}, the nearest fabric the words name, lies dE {distances[nearest]:.1f} from the "
-                       f"torso, over {WITHIN:g}: the look's own paint"}
+                "why": f"{nearest}, the nearest fabric the words name, lies {measure} {distances[nearest]:.1f} from "
+                       f"the torso, over {WITHIN:g}: the look's own paint"}
     return {**record, "surface": nearest, "de": round(distances[nearest], 1),
-            "why": f"the words name {', '.join(candidates)}; {nearest} the nearest to the torso"}
+            "why": f"the words name {', '.join(candidates)}; {nearest} the nearest to the torso by {measure}"}
+
+
+def said_colour(row, candidates):
+    """The candidates whose name holds a colour word the row's words say (people_rows.COLOUR_WORDS), or []: a colour
+    the words name is theirs to give, and the concept's dim, warm-lit torso then judges its hue alone (the base's
+    "astronaut in white suit", its torso L 43 in shade, was dressed in the ink-grey seam cloth, dE 5, over white_suit,
+    dE 48: audit 2026-11-04)."""
+    colours = words_of(row) & people_rows.COLOUR_WORDS
+    return [name for name in candidates if colours & set(name.split("_"))]

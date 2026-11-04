@@ -110,20 +110,26 @@
      "anchor": "ground",
      "share": 0.0384,
      "looks": [
-      "astronaut_suit-made"
+      "astronaut-made"
      ],
      "dress": {
       "words": "astronaut in white suit",
-      "named": [],
+      "named": [
+       "canvas_suit",
+       "canvas_suit_seam",
+       "eva_suit_lower",
+       "eva_suit_upper",
+       "white_suit"
+      ],
       "torso_lab": [
        42.8,
        1.9,
        2.3
       ],
       "figures": 1,
-      "surface": null,
-      "de": null,
-      "why": "the words name no library fabric of the people place: the look's own paint"
+      "surface": "white_suit",
+      "de": 2.6,
+      "why": "the words name canvas_suit, canvas_suit_seam, eva_suit_lower, eva_suit_upper, white_suit; white_suit the nearest to the torso by dE (a, b: the words name its colour)"
      }
     },
     "astronaut_right": {
@@ -139,20 +145,26 @@
      "anchor": "ground",
      "share": 0.0378,
      "looks": [
-      "astronaut_suit-made"
+      "astronaut-made"
      ],
      "dress": {
       "words": "astronaut in white suit",
-      "named": [],
+      "named": [
+       "canvas_suit",
+       "canvas_suit_seam",
+       "eva_suit_lower",
+       "eva_suit_upper",
+       "white_suit"
+      ],
       "torso_lab": [
        43.2,
        4.0,
        0.2
       ],
       "figures": 1,
-      "surface": null,
-      "de": null,
-      "why": "the words name no library fabric of the people place: the look's own paint"
+      "surface": "white_suit",
+      "de": 4.4,
+      "why": "the words name canvas_suit, canvas_suit_seam, eva_suit_lower, eva_suit_upper, white_suit; white_suit the nearest to the torso by dE (a, b: the words name its colour)"
      }
     }
    }
@@ -801,11 +813,11 @@
      "anchor": "floor",
      "share": 0.1315,
      "looks": [
-      "astronaut_spacesuit-made",
-      "astronaut_spacesuit-made",
-      "astronaut_spacesuit-made",
-      "astronaut_spacesuit-made",
-      "astronaut_spacesuit-made"
+      "astronaut-made",
+      "astronaut-made",
+      "astronaut-made",
+      "astronaut-made",
+      "astronaut-made"
      ],
      "dress": {
       "words": "astronaut in spacesuit",
@@ -903,16 +915,19 @@
      ],
      "dress": {
       "words": "worker in blue jumpsuit",
-      "named": [],
+      "named": [
+       "jumpsuit_piping",
+       "jumpsuit_steel_blue"
+      ],
       "torso_lab": [
        34.8,
        3.9,
        -19.0
       ],
       "figures": 8,
-      "surface": null,
-      "de": null,
-      "why": "the words name no library fabric of the people place: the look's own paint"
+      "surface": "jumpsuit_steel_blue",
+      "de": 7.7,
+      "why": "the words name jumpsuit_piping, jumpsuit_steel_blue; jumpsuit_steel_blue the nearest to the torso by dE (a, b: the words name its colour)"
      }
     }
    }
@@ -1006,9 +1021,9 @@
      "anchor": "floor",
      "share": 0.2155,
      "looks": [
-      "person_spacesuit-made",
-      "person_spacesuit-made",
-      "person_spacesuit-made"
+      "astronaut-made",
+      "astronaut-made",
+      "astronaut-made"
      ],
      "dress": {
       "words": "person in spacesuit",
