@@ -134,6 +134,8 @@ def pull(home, command):
                 continue
             if member.islnk() and not linked_anew(home, member):
                 continue
+            if not member.isdir():
+                cleared(home / member.name)
             archive.extract(member, home, filter="tar")
             files, size = files + 1, size + member.size
     if process.wait():
@@ -141,16 +143,20 @@ def pull(home, command):
     return files, size
 
 
+def cleared(path):
+    """The file at `path` removed before a pulled one takes its place, never written through: a file here may be a hard
+    link to a read-only store blob (2026-11-04: work/motion-scratch's scene.json stopped the pull on PermissionError;
+    a writable one would have changed the blob)."""
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+
+
 def linked_anew(home, member):
     """Whether the hard link `member` is still to be made in `home`: False when its path is already its target there;
     else its path is cleared first, since a link over a file there falls back to reading its target's data again, which
     the one-pass stream cannot (2026-11-04: `seeking backwards is not allowed`, the pull stopped)."""
     path, target = home / member.name, home / member.linkname
-    if path.exists() and target.exists() and path.samefile(target):
-        return False
-    if path.exists() or path.is_symlink():
-        path.unlink()
-    return True
+    return not (path.exists() and target.exists() and path.samefile(target))
 
 
 def push(home, missing_command, push_command):
