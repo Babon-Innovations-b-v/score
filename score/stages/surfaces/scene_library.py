@@ -37,6 +37,7 @@ from score.stages import natural_grounds  # noqa: E402
 
 import finish_ask  # noqa: E402
 import palette_library  # noqa: E402
+import prop_env  # noqa: E402
 import route_ask  # noqa: E402
 import scene_palette  # noqa: E402
 import surface_gates as gates  # noqa: E402
@@ -77,9 +78,12 @@ def files(place):
 
 
 def plan_files(place):
-    """The scene's locked plan where it has one ({home}/design/plans/<place>.json); none for a line no scene owns."""
-    from score.review import plans
-    return {"plan": f"{{home}}/design/plans/{place}.json"} if (plans.KEPT / f"{place}.json").is_file() else {}
+    """The scene's locked plan where it has one ({home}/design/plans/<place>.json, where score/review/plans.KEPT keeps
+    it); none for a line no scene owns. The path is spelled here, not read off plans: importing plans put the whole
+    review behind it (concepts, reading, plan_writing, people_rows, people_bodies, the conductor and the store) into
+    the row's code version, so their edits re-asked this paid row (7f68af46, 6456c223, cd5d01c8, 2026-11-03)."""
+    return {"plan": f"{{home}}/design/plans/{place}.json"} if \
+        (prop_env.PROPS_HOME / "design" / "plans" / f"{place}.json").is_file() else {}
 
 
 # The words the question gives each shell part's library kind (palette_library.SHELL_KINDS, its first).
@@ -101,11 +105,11 @@ def shell_kinds(plan):
 
 def ground_files(place):
     """The scene's kept inventory and kept sky where it has them, with the physics' reference table: what its ground
-    rows' natural ground recipes are ruled from (grounds_of); none for a line no scene owns."""
-    from score.review import scene_sky
+    rows' natural ground recipes are ruled from (grounds_of); none for a line no scene owns. The design folder is
+    spelled here (plan_files says why), not read off score/review/scene_sky.KEPT."""
     found = {name: f"{{home}}/design/{folder}/{place}.json" for name, folder in (("inventory", "inventory"),
                                                                                  ("sky", "sky"))
-             if (scene_sky.KEPT.parent / folder / f"{place}.json").is_file()}
+             if (prop_env.PROPS_HOME / "design" / folder / f"{place}.json").is_file()}
     return {**found, "reference": "{data}/physics/bodies.json"} if "inventory" in found else {}
 
 

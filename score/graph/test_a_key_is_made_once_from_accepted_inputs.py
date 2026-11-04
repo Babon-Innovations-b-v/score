@@ -212,12 +212,26 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches():
 def test_the_shared_loop_s_wiring_keys_no_row_that_reads_one_of_its_steps():
     """scene_palette's `from score.stages.shapes_first import align` reads the loop's package, whose rows wire the
     whole prop route: none of it is in the palette's code version (2026-10-28: a likeness_row edit moved body-face).
-    Break: score/graph/_code.py: '"score/stages/shapes_first/__init__.py",' -> ''."""
+    The palette's and surface-library's whole code versions (make, faults, judge, files) hold no review page, people
+    row, conductor or store either: scene_library's file map read only the design folders' paths off review/plans and
+    review/scene_sky, which put concepts, reading, plan_writing, people_bodies/bodies.py, the conductor and the store in
+    its key (7f68af46, 6456c223, cd5d01c8 and d2f47c01..cac0d843 each re-asked the paid row, 2026-11-03).
+    Breaks: score/graph/_code.py: '"score/stages/shapes_first/__init__.py",' -> ''; score/stages/surfaces/
+    scene_library.py plan_files: `prop_env.PROPS_HOME / "design" / "plans"` -> `plans.KEPT`, with `from score.review
+    import plans` back inside the function."""
+    from score.stages import surfaces
     from score.stages.surfaces import scene_palette
+    _code.search_folders.cache_clear()  # the stage's folders on the path, as a run's table import puts them first
     files = {path.relative_to(_code.REPO).as_posix() for path in _code.source_files([scene_palette.files])}
     assert "score/stages/shapes_first/align.py" in files  # what it calls stays in
     assert not {"score/stages/shapes_first/__init__.py", "score/stages/props/likeness_row.py",
                 "score/stages/props/thin_straight.py"} & files
+    for row in (row for row in surfaces.ROWS if row.name in ("finish-route-palette", "surface-library")):
+        version = {path.relative_to(_code.REPO).as_posix() for path in _code.source_files(graph.code_functions(row))}
+        assert "score/stages/surfaces/scene_palette.py" in version  # what it reads stays in
+        wiring = {name for name in version
+                  if name.startswith(("score/review/", "score/stages/people", "score/conductor/", "score/store/"))}
+        assert not wiring, (row.name, sorted(wiring))
 
 def test_new_evidence_judges_an_output_again_without_remaking_it():
     """Break: score/graph/__init__.py: '(self.store.evidence_hash(check.name, output) or "missing") if check.evidence else "none"' -> '"none"'"""
