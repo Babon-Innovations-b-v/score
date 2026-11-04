@@ -66,6 +66,14 @@ FLAT_SHARE = 0.05
 # length has ceil(length / POST_GAP) bays.
 POST_GAP = 1.5
 SEGMENTS = 32
+# A run off a fork with a free end shorter than this many of its widths is a spur of the mask's ragged edge (`spine`):
+# a finger on a hand-like blob, not a run of the thing.
+SPUR_WIDTHS = 2.0
+# A railing's run drawn wider than this many of its rails is the band of its posts and what is seen between them, built
+# as posts and rails (`ladder`), never a slab.
+LADDER_WIDTHS = 3.0
+# A hole inside a mask under this many of its drawn widths squared is a pinhole of its ragged cut (`filled`).
+HOLE_WIDTHS = 2.0
 # A band at most this share of its length across (`balls`): the model gate's slender share (tools/props/gates/model.py
 # SLENDER_SHARE), so a mask drawn fatter than a thin thing never builds a chunky one.
 SECTION_SHARE = 0.25
@@ -306,10 +314,11 @@ def held_across(row, alpha):
     one. A picture's scale is its length's, and a run going away from the camera is foreshortened along its length
     but not across it: the walkway's 12 m wall pipes, on a 0.1 m section, were built 2.9 m tall, its ceiling duct
     (0.3 m) 3.4 m (#36, 2026-10-31). Its bends and sag across keep their share of its tube. A row that is not
-    slender keeps its picture's metres (the bake fits it to its row side by side)."""
+    slender keeps its picture's metres (the bake fits it to its row side by side); nor does a railing, its section its
+    rails' (`ladder`), its band across its posts' height."""
     from skimage.morphology import skeletonize
     hold = np.eye(4)
-    if alpha is None or not alpha.any() or not slender(row["size"]):
+    if alpha is None or not alpha.any() or not slender(row["size"]) or profile(row) == "railing":
         return hold
     kept = pieces(alpha)
     skeleton = skeletonize(kept)
@@ -405,40 +414,199 @@ def fittings(laid, row, thick):
 
 
 def path_build(row, alpha, turn=0.0):
-    """The row's model along its mask's centreline (owner's ask, 2026-10-26: bent pipe networks, a sagging lantern
-    string, a railing's posts and rails, a bundle of parallel cables were each built as one straight sweep and failed
-    their outline): a ball at each point of the mask's skeleton as wide as the mask is there (`balls`: its distance to
-    the mask's edge), the union of them one closed surface (`swelled`), so a sag stays a sag, an elbow a bend, a ladder
-    its posts and rails, a band its band, a post its flared foot and a lamp post its head (a tube of one width along
-    the centreline lost the airlock porch post's foot, 0.75 to 0.46, and the street lamp post's head, 0.61 to 0.494;
-    #36, 2026-10-30), laid in the picture's plane at one scale, the mask's longest reach (as it lies turned `turn`
-    degrees along its row, `axis_turn`) the row's longest side and its
-    other reach the path's own, never a box side (a thin run's box is its thickness on its two short sides: a sagging
-    string 8 by 0.01 by 0.01; a railing curving round a floor drawn from above shows its plan's depth as its picture's
-    height: the greenhouse's held to its 1 m read 0.023, 2026-10-28); held at most the row's thinnest side deep
-    through the picture's plane (a 5 m drape's box 1 m deep is no 1 m tube, a flat wall run of pipes no round one),
-    never under `least_tube`, in its row's pose (the likeness row sees it in its picture's, `view`); a rigid run's
-    fittings
-    (`fittings`: elbows, tees, wall clamps on its traced runs) made in code on the same surface, its finish the finish
+    """The row's model swept along its mask's centreline (owner's ask, 2026-10-26: bent pipe networks, a sagging
+    lantern string, a railing's posts and rails, a bundle of parallel cables were each built as one straight sweep and
+    failed their outline): each run of the mask's skeleton, its spurs dropped, a straight polyline at one width of its
+    own (`spine`), so a sag stays a sag, an elbow a bend, a ladder its posts and rails, a separate foot its own width,
+    and a railing drawn as one band its posts and rails (`ladder`); the union of those clean tubes one closed surface
+    (`swelled`). A ball at each skeleton point as wide as the mask was there made every ragged mask edge a lump and
+    every spur a finger: the stairwell's conduit and railing, the quarters' desk cables, the hub's cable bundles, the
+    street's lamp posts and the base's link tube rendered as black hand-like blobs (eyes-on review, 2026-11-02; the
+    likeness row's `swept clean` check fails such a model now). Laid in the picture's plane at one scale, the mask's
+    longest reach (as it lies turned `turn` degrees along its row, `axis_turn`) the row's longest side and its other
+    reach the path's own, never a box side (a thin run's box is its thickness on its two short sides: a sagging string
+    8 by 0.01 by 0.01; a railing curving round a floor drawn from above shows its plan's depth as its picture's height:
+    the greenhouse's held to its 1 m read 0.023, 2026-10-28); held at most the row's thinnest side deep through the
+    picture's plane (a 5 m drape's box 1 m deep is no 1 m tube, a flat wall run of pipes no round one), never under
+    `least_tube`, in its row's pose (the likeness row sees it in its picture's, `view`); a rigid run's fittings
+    (`fittings`: elbows, tees, wall clamps on its runs) made in code on the same surface, its finish the finish
     route's like the rest."""
     from skimage.morphology import skeletonize
-    kept = pieces(alpha)
+    from scipy import ndimage
+    from PIL import ImageDraw
+    kept = filled(pieces(alpha))
     skeleton = skeletonize(kept)
     sides = sorted(float(value) for value in row["size"])
-    down, across = np.nonzero(kept)
-    low = np.array([across.min(), down.min()], dtype=float)
     scale, reach = picture_scale(row, kept, turn)
-    off, ball = balls(kept, skeleton, scale, reach)
+    _, ball = balls(kept, skeleton, scale, reach)
     if network(row):
-        off, ball = balls(kept, skeleton, scale, reach, run_holds(row, skeleton, ball, scale))
-    width = float(np.median(2 * ball[skeleton]))
-    laid = laid_runs(skeleton, low, scale, width)
+        _, ball = balls(kept, skeleton, scale, reach, run_holds(row, skeleton, ball, scale))
+    runs = spine(skeleton, ball)
+    if profile(row) == "railing":
+        rail = max(sides[0], least_tube()) / 2 / scale
+        runs = [part for points, radius in runs for part in
+                (ladder(points, radius, rail, POST_GAP / scale, kept) if 2 * radius > LADDER_WIDTHS * 2 * rail
+                 else [(points, radius)])]
+    lengths = np.array([max(float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum()), 1.0) for points, _ in runs])
+    radii = np.array([radius for _, radius in runs])
+    width = 2 * float(radii[np.argsort(radii)][np.searchsorted(np.cumsum(lengths[np.argsort(radii)]),
+                                                                lengths.sum() / 2)])  # its length's median width
+    margin = int(np.ceil(radii.max() * FITTING_SHARE)) + 2  # room round the picture for the tubes and fittings
+    drawn = Image.new("I", (kept.shape[1] + 2 * margin, kept.shape[0] + 2 * margin), 0)
+    draw = ImageDraw.Draw(drawn)
+    for number, (points, _) in enumerate(runs, 1):
+        draw.line([(float(x) + margin, float(y) + margin) for x, y in points], fill=number, width=1)
+    lines = np.asarray(drawn)
+    off, (near_down, near_across) = ndimage.distance_transform_edt(lines == 0, return_indices=True)
+    ball = np.concatenate([[0.0], radii])[lines[near_down, near_across]]
+    laid = [np.c_[np.zeros(len(points)), -(points[:, 1] + margin) * scale, (points[:, 0] + margin) * scale]
+            for points, _ in runs]
     fitted = [pair for pairs in fittings(laid, row, width * scale).values() for pair in pairs]
-    mesh = swelled(off, ball, [[(point[2] / scale + low[0], -point[1] / scale + low[1]) for point in pair]
-                               for pair in fitted], width, scale)
+    mesh = swelled(off, ball, [[(point[2] / scale, -point[1] / scale) for point in pair] for pair in fitted], width,
+                   scale)
     deep = max(sides[0], least_tube())
     mesh.apply_transform(np.diag([min(1.0, deep / max(float(np.ptp(mesh.vertices[:, 0])), 1e-9)), 1.0, 1.0, 1.0]))
     return mesh.apply_translation(-mesh.bounds.mean(0))
+
+
+def filled(kept):
+    """The mask with its pinholes filled: each hole under HOLE_WIDTHS squared of its drawn widths' area (twice its
+    median distance to its edge along its skeleton). A hole a ragged mask leaves inside a pipe splits its skeleton
+    into a loop, two runs side by side that swept as a bulge (the stairwell's conduit, 2026-11-04); a railing's bays,
+    many widths across, stay open."""
+    from scipy import ndimage
+    from skimage.morphology import skeletonize
+    edge = ndimage.distance_transform_edt(np.pad(kept, 1))[1:-1, 1:-1]
+    width = 2 * float(np.median(edge[skeletonize(kept)]))
+    holes, count = ndimage.label(ndimage.binary_fill_holes(kept) & ~kept)
+    if count == 0:
+        return kept
+    areas = ndimage.sum(np.ones_like(kept), holes, range(1, count + 1))
+    return kept | np.isin(holes, 1 + np.flatnonzero(areas < (HOLE_WIDTHS * width) ** 2))
+
+
+def spine(skeleton, ball, tolerance=None, spur=SPUR_WIDTHS):
+    """[(points, radius)]: the skeleton's runs (`traces`) as the clean tubes a path build sweeps, in pixels (across,
+    down), at one radius for each piece of the skeleton, its runs' balls' median along their length (`ball`): a piece
+    is one thing of one section, so no joint, knot or ragged stretch swells, while a post's separate foot keeps its
+    own. The skeleton's knots (run ends within its radius of each other: a ragged edge's pixel forks) are one joint
+    each (`joints`), the runs inside one dropped; a spur (a run from a free end to a fork, shorter than SPUR_WIDTHS
+    of its widths, or `spur`) is a ragged edge's, not a run of the thing, and is dropped; runs meeting two at a joint are one
+    run; each run a polyline within `tolerance` pixels of its pixels (approximate_polygon; by default half its
+    width, so a ragged edge's wobble is a straight run). A knot's three short runs each took a tee (`fittings`) and
+    swelled the stairwell's conduit every few pixels (2026-11-04)."""
+    from scipy import ndimage
+    from skimage.measure import approximate_polygon
+    runs = [np.asarray(run, dtype=float) for run in traces(skeleton) if len(run) > 1]
+    if not runs:  # a skeleton a pixel long
+        down, across = np.nonzero(skeleton)
+        point = np.array([[across[0], down[0]]], dtype=float)
+        return [(np.vstack([point, point]), float(ball[down[0], across[0]]))]
+    piece_of = ndimage.label(skeleton, structure=np.ones((3, 3)))[0]
+    piece = [int(piece_of[int(run[0, 1]), int(run[0, 0])]) for run in runs]
+    medians = [float(np.median(ball[run[:, 1].astype(int), run[:, 0].astype(int)])) for run in runs]
+    radius = {}
+    for label in set(piece):
+        own = sorted((medians[number], run_length(runs[number])) for number in range(len(runs))
+                     if piece[number] == label)
+        along = np.cumsum([max(length, 1.0) for _, length in own])
+        radius[label] = own[int(np.searchsorted(along, along[-1] / 2))][0]
+    found = joints([(run, radius[piece[number]], piece[number]) for number, run in enumerate(runs)], spur)
+    return [(approximate_polygon(run, tolerance=width if tolerance is None else tolerance), width)
+            for run, width in found]
+
+
+def run_length(run):
+    """A polyline's length."""
+    return float(np.linalg.norm(np.diff(run, axis=0), axis=1).sum())
+
+
+def joints(runs, spur=SPUR_WIDTHS):
+    """[(points, radius)]: `runs` (each (points, radius, its piece), pixels) with each knot of their ends (ends within
+    the radius of each other) one joint at its ends' middle, the runs inside a knot dropped, the spurs dropped (a run
+    from a free end to a joint of three or more, shorter than `spur` of its widths), and the runs meeting two at
+    a joint joined into one; a piece all knot (a post's foot drawn as wide as it is long) keeps its longest run."""
+    from scipy.spatial import cKDTree
+    ends = np.array([end for run, _, _ in runs for end in (run[0], run[-1])])
+    reach = np.repeat([width for _, width, _ in runs], 2)
+    parent = list(range(len(ends)))
+
+    def root(index):
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    for first, second in cKDTree(ends).query_pairs(float(reach.max())):
+        if np.linalg.norm(ends[first] - ends[second]) <= min(reach[first], reach[second]):
+            parent[root(first)] = root(second)
+    knot = [root(index) for index in range(len(ends))]
+    middle = {label: ends[[index for index in range(len(ends)) if knot[index] == label]].mean(0) for label in set(knot)}
+    kept = []
+    for number, (run, width, _) in enumerate(runs):
+        start, end = knot[2 * number], knot[2 * number + 1]
+        if start == end and run_length(run) < 2 * width:
+            continue  # inside a knot
+        kept.append([np.vstack([middle[start], run[1:-1], middle[end]]), width, start, end])
+    pieces_kept = {runs[number][2] for number in range(len(runs))
+                   if knot[2 * number] != knot[2 * number + 1] or run_length(runs[number][0]) >= 2 * runs[number][1]}
+    for label in {piece for _, _, piece in runs} - pieces_kept:
+        run, width, _ = max((entry for entry in runs if entry[2] == label), key=lambda entry: run_length(entry[0]))
+        kept.append([run, width, ("piece", label, 0), ("piece", label, 1)])
+
+    def degrees():
+        count = {}
+        for _, _, start, end in kept:
+            count[start] = count.get(start, 0) + 1
+            count[end] = count.get(end, 0) + 1
+        return count
+
+    count = degrees()
+    kept = [entry for entry in kept if not ({count[entry[2]], count[entry[3]]} & {1} and max(
+        count[entry[2]], count[entry[3]]) >= 3 and run_length(entry[0]) < spur * 2 * entry[1])]
+    count = degrees()
+    joined = True
+    while joined:
+        joined = False
+        for label, many in count.items():
+            meeting = [entry for entry in kept if label in (entry[2], entry[3])]
+            if many != 2 or len(meeting) != 2 or meeting[0] is meeting[1]:
+                continue
+            first, second = meeting
+            ahead = first[0] if first[3] == label else first[0][::-1]
+            after = second[0] if second[2] == label else second[0][::-1]
+            kept = [entry for entry in kept if entry is not first and entry is not second]
+            kept.append([np.vstack([ahead, after[1:]]), first[1],
+                         first[2] if first[3] == label else first[3], second[3] if second[2] == label else second[2]])
+            count = degrees()
+            joined = True
+            break
+    return [(run, width) for run, width, _, _ in kept]
+
+
+def ladder(points, radius, rail, gap, kept):
+    """[(points, radius)]: a railing drawn as one band (its run `points`, `radius` pixels either side) built as a
+    railing (`railing`'s parts, along its path): a top rail along its band's top, a mid rail along its centreline and
+    posts from its top rail to its foot at least every `gap` pixels, each `rail` pixels round, its ends reaching its
+    band's within its mask `kept` (its skeleton stops up to a half-width short of them). Swept as one band, the
+    stairwell's stair railing, its mask the stairs seen between its posts, was a lumpy slab (2026-11-02)."""
+    rise = np.array([0.0, radius - rail])  # the picture's down is the world's down
+    points = np.asarray(points, dtype=float).copy()
+    for end, inward in ((0, 1), (-1, -2)):  # a band's skeleton stops short of its ends: reach them, within its mask
+        way = points[end] - points[inward]
+        way = way / max(float(np.linalg.norm(way)), 1e-9)
+        for _ in range(int(radius)):
+            ahead = points[end] + way
+            down, across = int(round(ahead[1])), int(round(ahead[0]))
+            if not (0 <= down < kept.shape[0] and 0 <= across < kept.shape[1] and kept[down, across]):
+                break
+            points[end] = ahead
+    steps = np.linalg.norm(np.diff(points, axis=0), axis=1)
+    along = np.concatenate([[0.0], np.cumsum(steps)])
+    stations = np.linspace(0.0, along[-1], max(1, int(np.ceil(along[-1] / gap))) + 1)
+    middles = np.c_[np.interp(stations, along, points[:, 0]), np.interp(stations, along, points[:, 1])]
+    return [(points - rise, rail), (points, rail), *((np.vstack([middle - rise, middle + rise]), rail)
+                                                      for middle in middles)]
 
 
 def picture_scale(row, kept, turn):
@@ -490,16 +658,6 @@ def balls(kept, skeleton, scale, reach, hold=None):
     radius = np.clip(edge * (1.0 if hold is None else hold), least_tube() / 2 / scale, SECTION_SHARE * reach / 2)
     off, (near_down, near_across) = ndimage.distance_transform_edt(~skeleton, return_indices=True)
     return off, radius[near_down, near_across]
-
-
-def laid_runs(skeleton, low, scale, width):
-    """The skeleton's runs (`traces`, forks kept, each kept to within a quarter of the band's `width` of its pixels)
-    in the build's frame: across the picture z, up it y (the picture's down is the world's up), metres from the mask's
-    corner `low`."""
-    from skimage.measure import approximate_polygon
-    runs = [approximate_polygon(np.asarray(run, dtype=float), tolerance=width / 4) for run in traces(skeleton)
-            if len(run) > 1]
-    return [np.c_[np.zeros(len(run)), -(run[:, 1] - low[1]) * scale, (run[:, 0] - low[0]) * scale] for run in runs]
 
 
 def swelled(off, ball, fitted, width, scale):

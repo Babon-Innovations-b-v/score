@@ -454,6 +454,44 @@ def test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s
         built = thin_straight.build({"view": "v1", **row}, np.asarray(Image.open(
             tmp_path / name / "pixal" / "take.svviews" / "input.png"))[..., 3] > 127)
         assert np.allclose(made.bounds, built.bounds, atol=1e-5), name  # the final keeps the pose it was built in
+        assert found["swept"]["pass"], (name, found["swept"])  # the likeness row holds it to its swept fit
+    # a ragged mask (fingers off its edge, pinholes in it: SAM 3's cut of the stairwell's conduit) is swept clean, one
+    # straight tube; built of balls as wide as the mask is there, it was the lumpy, hand-like blob the eyes-on review
+    # saw (2026-11-02), and the swept check fails that
+    import score.stages.props.likeness_row as likeness_row
+    from PIL import ImageDraw
+    from skimage.morphology import skeletonize
+    rng = np.random.default_rng(7)
+    ragged = Image.new("L", (600, 200), 0)
+    draw = ImageDraw.Draw(ragged)
+    draw.line([(30, 100), (570, 100)], fill=255, width=14)
+    for x in rng.uniform(40, 560, 30):
+        side = rng.choice([-1, 1])
+        draw.line([(x, 100 + side * 6), (x + rng.uniform(-8, 8), 100 + side * (6 + rng.uniform(4, 14)))], fill=255,
+                  width=3)
+    ragged = np.asarray(ragged) > 127
+    for x in rng.uniform(60, 540, 6).astype(int):
+        ragged[99:101, x:x + 2] = False
+    conduit = {"name": "conduit", "noun": "conduit", "size": [4.0, 0.1, 0.1]}
+    clean = thin_straight.build(conduit, ragged)
+    assert likeness_row.swept_stray(clean) <= likeness_row.SWEPT_LIMIT, likeness_row.swept_stray(clean)
+    kept = thin_straight.pieces(ragged)
+    skeleton = skeletonize(kept)
+    scale, reach = thin_straight.picture_scale(conduit, kept, 0.0)
+    off, ball = thin_straight.balls(kept, skeleton, scale, reach)
+    lumpy = thin_straight.swelled(off, ball, [], float(np.median(2 * ball[skeleton])), scale)
+    found = {"swept": {"stray": likeness_row.swept_stray(lumpy), "pass": False}}
+    found["swept"]["pass"] = found["swept"]["stray"] <= likeness_row.SWEPT_LIMIT
+    assert likeness_row.swept_faults("conduit", found), found  # the blob fails
+    # a railing drawn as one band (the stairwell's stair railing, its mask the stairs seen between its posts) is built
+    # as posts and rails along its band, never a slab
+    band = np.zeros((200, 600), dtype=bool)
+    band[60:140, 40:560] = True
+    railing = thin_straight.build({"name": "stair railing", "noun": "railing", "size": [4.0, 0.1, 1.0]}, band)
+    side = railing.vertices[:, 1:]
+    assert np.isclose(np.ptp(side[:, 1]), 4.0, rtol=0.03) and np.isclose(np.ptp(side[:, 0]), 4.0 * 80 / 520, rtol=0.1)
+    assert railing.volume < 0.5 * np.prod(railing.extents), railing.volume  # its bays open, no slab
+    assert likeness_row.swept_stray(railing) <= likeness_row.SWEPT_LIMIT
 
 
 def test_a_thin_run_is_held_to_its_path_s_own_size_never_crushed_to_its_box(tmp_path):
