@@ -266,3 +266,9 @@ the inner gradient g(z, theta) over z = (every frame's pose, then the body's con
   x, y, z (22.6, 12.6, 3.3 %). Central differences at STEP/4 and STEP/8 (fine.npy, the same base exactly) bring the
   first three to 1.42 %, 1.07 % and 0.55 %: the exact columns are right, STEP is too coarse on those three (wrist_l
   x's floor STEP/4 to STEP/8 is 10 %). sternoclavicular_l's stay 3.7 to 24 % at every step: the told jump above.
+- **The gate's rule in code (#78, 2026-11-04)**: `judged_columns(exact, sides, steps, held)` judges each exact column
+  against central differences at `gate_steps(tuning.STEP)`, STEP/4 and STEP/8 (`GATE_SHARES`; STEP and STEP/2 were too
+  coarse on C0_C1 y, mtp_l x and wrist_l x), within max(`GATE_BAR` 2 %, the two references' gap) of the nearer, step
+  cosine at least `GATE_COSINE`; a column in `held` is reported held, never passed. sternoclavicular_l's three are
+  held by #79. On /tmp/gate78's sets: GATE PASS, 36 judged, 36 under 2 % (C0_C1 y 1.42, wrist_l x 0.55, mtp_l x 1.07 %
+  at STEP/8; the other 33 on their STEP and STEP/2 sets, worst 1.66 %, no finer sets made for them yet), 3 held.

@@ -3,7 +3,7 @@ and shared constants, residuals nonzero at the optimum so Gauss-Newton differs f
 unconverged inner fit is refused, and level 1's outer rows (a per-frame distance's root mean square)
 equal differences of the measures they stand for.
 
-Breaks (each applied once, seen red, reverted), in `tuning/_adjoint/__init__.py`: `rms_row` dropping its 1 / count
+Breaks (each applied once, seen red, reverted), in `tuning/_adjoint/__init__.py`: `GATE_SHARES` back at STEP and STEP/2 (the gate's references too coarse, #78) turns the columns test's gate red (3.8 % against a floor of 0); `rms_row` dropping its 1 / count
 turns the outer rows test red; `case_rows` dropping its turns turns the case rows test red (2026-11-03); `TapedMeasures.region_rows` seeding a turn
 without its 1 / frames turns the measures test red;
 `TapedMeasures._measured` taping the joints' and turns' rows again turns the measures test's passes red (2026-11-01); dropping the mixed term
@@ -46,6 +46,20 @@ def test_implicit_columns_equal_re_solved_differences():
     implicit = _adjoint.implicit_jacobian(toys.residuals, toys.gradient, inner, OUTER, FRAMES, POSE, (1e-5, 1e-5), 1e-8)
     re_solved = _adjoint.by_columns(lambda point: toys.residuals(toys.solved(point), point), OUTER, 1e-4)
     assert np.allclose(implicit, re_solved, rtol=1e-4, atol=1e-6)
+    # the gate (#78): a row whose cubic bend and a bump past 0.3 cancel at STEP and STEP/2, so both of those
+    # references sit 3.8 % off its slope 1 and agree (floor 0); the finer steps read it under 2 %
+    from score.stages.sim_body.inside.tuning import STEP
+
+    def bent(move):
+        return np.array([move + move ** 3 - 4.8 * np.sign(move) * max(abs(move) - 0.3, 0.0) ** 2, 0.5 * move])
+
+    steps = _adjoint.gate_steps(STEP)
+    sides = [[(bent(step), bent(-step)) for step in steps]] * 2
+    exact = np.array([[1.0, 5.0], [0.5, 5.0]])  # the second column wrong, held: never judged, never passed
+    lines, verdict = _adjoint.judged_columns(exact, sides, steps, held={1: "held by #79, not judged"})
+    assert lines[0]["pass"] and min(lines[0]["gaps"].values()) < _adjoint.GATE_BAR
+    assert lines[1] == {"column": 1, "held": "held by #79, not judged", "judged": False}
+    assert verdict["GATE"] == "PASS" and verdict["judged"] == verdict["passed"] == 1 and "1" in verdict["held"]
 
 
 def test_given_rows_give_the_implicit_columns_without_residual_calls():
