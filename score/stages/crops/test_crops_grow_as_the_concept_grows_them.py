@@ -168,14 +168,20 @@ def test_measured_gate(tmp_path):
     assert concept.judge_measured(output, inputs, None).answer == "unknown"
 
 
-def laid_on_greenhouse(folder, spacing_widths):
-    """The design's beds shared and laid at `spacing_widths` plant widths for every kind, plants 0.2 m wide; the
-    gates' inputs and output folder."""
+SQUARE = [-0.1, 0.1, -0.1, 0.1]  # a plant 0.2 m wide, its foot in its middle
+
+
+def laid_on_greenhouse(folder, spacing_widths, footprint=SQUARE):
+    """The design's beds shared and laid at `spacing_widths` plant widths for every kind, plants of `footprint`
+    (0.2 m wide unless given); the gates' inputs and output folder."""
     beds = crop_data.beds_in(design_inputs(folder), RECORD)
     shared = layer.shared_by_bed(RECORD, beds, {kind: 1.0 for kind in RECORD["kinds"]})
-    widths = {kind: 0.2 for kind in RECORD["kinds"]}
-    spots = layer.laid_spots(beds, shared, {kind: spacing_widths * 0.2 for kind in RECORD["kinds"]}, 7)
-    (folder / "spots.json").write_text(json.dumps({"beds": shared, "spots": spots, "widths": widths}))
+    width = max(footprint[1] - footprint[0], footprint[3] - footprint[2])
+    widths = {kind: width for kind in RECORD["kinds"]}
+    footprints = {kind: footprint for kind in RECORD["kinds"]}
+    spots = layer.laid_spots(beds, shared, {kind: spacing_widths * width for kind in RECORD["kinds"]}, footprints, 7)
+    (folder / "spots.json").write_text(json.dumps({"beds": shared, "spots": spots, "widths": widths,
+                                                   "footprints": footprints}))
     concept_folder = folder / "concept"
     concept_folder.mkdir(exist_ok=True)
     (concept_folder / "concept.json").write_text(json.dumps({"kinds": {kind: {"spacing": 1.5}
@@ -185,9 +191,17 @@ def laid_on_greenhouse(folder, spacing_widths):
 
 def test_layer_gates(tmp_path):
     """Laid at the concept's 1.5 widths every bed carries plants and both gates pass; laid at 3 widths spacing fails;
-    a plant moved off its bed fails `on beds`.
+    a plant moved off its bed fails `on beds`. Greenhouse, 2026-11-04: one 2.3 m planter tray was laid on every bed
+    of 0.47 x 0.67 m, overhanging it and passing through its neighbours; now each plant is sized to its bed, in its
+    proportions, and `on beds` fails a plant whose turned footprint overhangs its bed or passes through another's.
     Break: score/stages/crops/layer.py: `elif abs(got - wanted) > LAID_WITHIN * wanted:` -> `elif False:`
-    Break: score/stages/crops/layer.py: `if max(off_x, off_z) > 0:` -> `if False:`"""
+    Break: score/stages/crops/layer.py: `if max(off_x, off_z) > 0:` -> `if False:`
+    Break: score/stages/crops/layer.py: `return min(1.0, min(float(bed["size"][0]), float(bed["size"][2])) / 2.0 /
+        reach)` -> `return 1.0`
+    Break: score/stages/crops/layer.py: `if over > TOUCH:` -> `if False:`
+    Break: score/stages/crops/layer.py: `for number, other in crossings(spots, footprints)]` -> `for number, other in
+        []]`
+    Break: score/stages/crops/layer.py: `/ (widths[kind] * float(own[index]["size"]))` -> `/ widths[kind]`"""
     folder = tmp_path
     inputs, beds, shared, spots = laid_on_greenhouse(folder, 1.5)
     assert sum(len(names) for names in shared.values()) == len(beds) == 25, shared
@@ -200,6 +214,33 @@ def test_layer_gates(tmp_path):
     record["spots"][0]["at"][0] += 1.0
     (folder / "spots.json").write_text(json.dumps(record))
     assert layer.judge_on_beds(folder, inputs, None).answer == "fail"
+    tray = [-1.15, 1.15, -0.4, 0.4]  # the greenhouse's planter tray, 2.3 m long, on beds of 0.6 m
+    inputs, beds, shared, spots = laid_on_greenhouse(folder, 1.45, tray)
+    verdict = layer.judge_on_beds(folder, inputs, None)
+    assert verdict.answer == "pass", verdict
+    named = {bed["name"]: bed for bed in beds}
+    assert all(layer.overhang(layer.corners_of(spot, tray), named[spot["bed"]]) <= 0 and spot["size"] < 0.3
+               for spot in spots), spots
+    sizes = [spot["size"] for spot in spots]
+    assert max(sizes) / min(sizes) <= (1 + layer.SIZE_SPREAD) / (1 - layer.SIZE_SPREAD) + 1e-9, sizes
+    spacings = layer.judge_spacing(folder, inputs, None).measures
+    assert min(spacings.values()) > 1.0, spacings  # in each tray's laid width: in its 2.3 m model's, 0.26
+    long_bed = {"name": "long", "row": "planter_bed", "centre": [0.0, 0.43, 0.0], "size": [0.6, 0.06, 3.0]}
+    along = layer.laid_spots([long_bed], {"greens": ["long"]}, {"greens": 1.45 * 2.3}, {"greens": tray}, 7)
+    assert len(along) == 3 and all(layer.overhang(layer.corners_of(spot, tray), long_bed) <= 0 for spot in along), \
+        along  # the bed's spacing sized with its trays, so a long bed holds a row of them at the concept's spacing
+    record = json.loads((folder / "spots.json").read_text())
+    record["spots"][0]["size"] *= 1.5  # centre still on its bed, the tray past its edge
+    (folder / "spots.json").write_text(json.dumps(record))
+    verdict = layer.judge_on_beds(folder, inputs, None)
+    assert verdict.answer == "fail" and any("overhangs" in finding for finding in verdict.findings), verdict
+    inputs, beds, shared, spots = laid_on_greenhouse(folder, 1.5)
+    record = json.loads((folder / "spots.json").read_text())
+    first, second = [spot for spot in record["spots"] if spot["bed"] == record["spots"][0]["bed"]][:2]
+    second["at"] = [first["at"][0] + 0.05, first["at"][1], first["at"][2] + 0.02]  # within its bed, on its neighbour
+    (folder / "spots.json").write_text(json.dumps(record))
+    verdict = layer.judge_on_beds(folder, inputs, None)
+    assert verdict.answer == "fail" and any("pass through" in finding for finding in verdict.findings), verdict
 
 
 def test_a_kind_the_prop_route_left_out_is_a_gap_with_its_beds_bare(tmp_path):
@@ -237,7 +278,8 @@ def test_a_kind_the_prop_route_left_out_is_a_gap_with_its_beds_bare(tmp_path):
     inputs, beds, shared, spots = laid_on_greenhouse(folder, 1.5)
     laid = [spot for spot in spots if spot["kind"] != "potato"]
     (folder / "spots.json").write_text(json.dumps({"beds": shared, "spots": laid,
-                                                   "widths": {kind: 0.2 for kind in RECORD["kinds"]}}))
+                                                   "widths": {kind: 0.2 for kind in RECORD["kinds"]},
+                                                   "footprints": {kind: SQUARE for kind in RECORD["kinds"]}}))
     assert layer.judge_on_beds(folder, inputs, None).answer == "fail"  # the gate's own answer stands
     assert layer.judge_spacing(folder, inputs, None).answer == "fail"
     batch_gaps.write(folder, [*batch_gaps.read([pixal]), *layer.bare_gaps(RECORD, left, shared)])
@@ -246,7 +288,8 @@ def test_a_kind_the_prop_route_left_out_is_a_gap_with_its_beds_bare(tmp_path):
         assert moved.answer == "pass" and "moved to complete as accepted gaps" in moved.reason, moved
     laid[0]["at"][0] += 1.0  # a laid kind's own fault is no gap's
     (folder / "spots.json").write_text(json.dumps({"beds": shared, "spots": laid,
-                                                   "widths": {kind: 0.2 for kind in RECORD["kinds"]}}))
+                                                   "widths": {kind: 0.2 for kind in RECORD["kinds"]},
+                                                   "footprints": {kind: SQUARE for kind in RECORD["kinds"]}}))
     assert gated["on beds"].judge(folder, {**inputs, "pixal": pixal}, None).answer == "fail"
 
 
