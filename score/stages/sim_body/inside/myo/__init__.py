@@ -21,7 +21,7 @@ from calibration import fingers
 from myo._fixes import full_muscles, multi_joint_bodies, renamed, split
 from myo._movable import movable
 from myo._rested import rested
-from sizing import (WRAPPER_KG, assumed, hip_width, kept_bodies, path_lengths, sized,
+from sizing import (WRAPPER_KG, assumed, hip_width, kept_bodies, kneecaps, path_lengths, sized,
                     ungrouped_kg)
 
 SOURCE = "musclemimic_models/model/body/myofullbody.xml"
@@ -68,6 +68,7 @@ def person_file(folder, size, kg, path, constants=None):
     hip_width(spec, size.rig)
     if constants:
         inside_moved(spec, constants.get("joints", {}))
+    kneecap_moved = kneecaps(spec, size.rig, scales)
     grown = spec.compile()
     factors = size.weigh(spec, grown, scales, kg - wrappers * WRAPPER_KG - ungrouped_kg(grown, size.table))
     grown = spec.compile()
@@ -91,7 +92,7 @@ def person_file(folder, size, kg, path, constants=None):
                        if name in kept_bodies(size.table)},
             "lengths": size.record(final, scales), "inertia scale": {group: round(factor, 3)
                                                                      for group, factor in factors.items()},
-            "centre of mass moved cm": size.moved,
+            "centre of mass moved cm": size.moved, "kneecap moved in mm": kneecap_moved,
             "muscle length scale": [round(float(stretch.min()), 4), round(float(stretch.max()), 4)],
             "kg": round(float(final.body_subtreemass[0]) + wrappers * WRAPPER_KG, 3),
             "resting": resting.record(stretched, final, moves),

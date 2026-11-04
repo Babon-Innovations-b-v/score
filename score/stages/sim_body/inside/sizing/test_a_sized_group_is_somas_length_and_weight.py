@@ -6,7 +6,8 @@ mass its box's volume at Dempster's density (all brought to the person's mass wi
 group's centre of mass on its stretch's middle and each one-body group's inertia its box's, each limb body as wide
 across its long axis as its length scale times its box's width over its length over SOMA's mean shape's, each foot
 across its forefoot as SOMA's metatarsal heads stand apart across it over the model's (0.06 over 0.08 m), and a box's
-inertia under an uneven scale the scaled box's (all worked out by hand from the boxes). It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh,
+inertia under an uneven scale the scaled box's (all worked out by hand from the boxes); and a kneecap standing 15 mm
+proud of a toy thigh moved inside it at every bend of its knee, its slide kept in its range (`knee_toy`). It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh,
 built at $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted):
@@ -30,6 +31,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-11-02) body_scales' `found[name][fixed[name][0]] = fixed[name][1]` dropped: the foot as wide as its girth asks,
   not as SOMA's forefoot.
 - (2026-11-02) forefoot_width's `- along * (apart @ along)` dropped: the heads' plain distance apart (0.767, not 0.75).
+- (2026-11-04) kneecaps' `+ moves @ model.jnt_axis[joint]` dropped: the kneecap stays 15 mm proud.
+- (2026-11-04) kneecap_moves' `back += float(depths[out].max())` made `back += 0.0`: nothing moves, the record 0.
+- (2026-11-04) kneecaps' `in_range(...)` made plain `np.linalg.lstsq`: the slide up 0.0202 m, past its 0.02 range.
 
 Run: .venv/bin/python score/stages/sim_body/inside/sizing/test_a_sized_group_is_somas_length_and_weight.py
 """
@@ -273,8 +277,99 @@ def a_box_stretched_unevenly_has_the_stretched_boxs_inertia():
     return [] if np.allclose(found, wanted, rtol=1e-9) else [f"{found}, not {wanted}"]
 
 
+# The kneecap's toy (SOMA's own frame, Y up, facing +z, the left leg only): a thigh box and a shin box 0.1 x 0.08 m
+# across (z -0.04 to 0.04), the knee at y 0.55; a 1 cm cube kneecap 15 mm over the knee, its front at z 0.055, 15 mm
+# proud of the thigh's front, its slide up the femur kept within CAP_UP of its rest.
+CAP_PROUD, CAP_UP = 0.015, 0.02
+KNEE_MARKS = {"greater_trochanter_l": ("femur_l", (0.15, 0.95, 0.0)), "femur_lateral_epicondyle_l": ("femur_l", (0.15, 0.56, 0.0)),
+              "femur_medial_epicondyle_l": ("femur_l", (0.05, 0.56, 0.0)), "fibular_head_l": ("tibia_l", (0.15, 0.5, 0.0)),
+              "tibial_tuberosity_l": ("tibia_l", (0.1, 0.5, 0.04)), "tibia_medial_condyle_l": ("tibia_l", (0.05, 0.53, 0.0)),
+              "lateral_malleolus_l": ("tibia_l", (0.15, 0.12, 0.0)), "medial_malleolus_l": ("tibia_l", (0.05, 0.12, 0.0))}
+KNEE_JOINTS = {"Head": (0.1, 1.6, 0.0), "LeftLeg": (0.1, 1.0, 0.0), "LeftShin": (0.1, 0.55, 0.0), "LeftFoot": (0.1, 0.1, 0.0)}
+
+
+def knee_toy():
+    """The kneecap's toy: (its MJCF, MuJoCo's frame: the femur's origin the hip, the knee 0.45 m under it, the
+    kneecap's slides forward (-y) and up (z) coupled to the knee at its rest; the toy SOMA rig, its two boxes each
+    weighted wholly to its own joint; the landmark table, each landmark on a box's face)."""
+    import numpy as np
+    thigh, thigh_faces, _ = box((0.1, 1.0, 0.0), (0.1, 0.55, 0.0))
+    shin, shin_faces, _ = box((0.1, 0.55, 0.0), (0.1, 0.1, 0.0))
+    for corners in (thigh, shin):  # the boxes' full length and 0.1 x 0.08 m across
+        corners[:, 0] = np.where(corners[:, 0] > 0.1, 0.15, 0.05)
+        corners[:, 2] = np.where(corners[:, 2] > 0, 0.04, -0.04)
+    thigh[:, 1] = np.where(thigh[:, 1] > 0.775, 1.0, 0.55)
+    shin[:, 1] = np.where(shin[:, 1] > 0.325, 0.55, 0.1)
+    points, faces = np.concatenate([thigh, shin]), np.concatenate([thigh_faces, shin_faces + 8])
+    weights = np.zeros((16, len(KNEE_JOINTS)))
+    weights[:8, 1], weights[8:, 2] = 1.0, 1.0
+    names = list(KNEE_JOINTS)
+    bind = np.tile(np.eye(4), (len(names), 1, 1))
+    for index, name in enumerate(names):
+        bind[index, :3, 3] = KNEE_JOINTS[name]
+    table = {}
+    for name, (body, at) in KNEE_MARKS.items():
+        for face, corners in enumerate(points[faces]):
+            weights_on = np.linalg.lstsq(np.vstack([corners.T, np.ones(3)]), np.append(at, 1.0), rcond=None)[0]
+            if weights_on.min() > -1e-9 and np.allclose(weights_on @ corners, at):
+                break
+        origin = KNEE_JOINTS["LeftLeg" if body == "femur_l" else "LeftShin"]
+        local = np.asarray(at) - origin
+        table[name] = (face, tuple(weights_on), "LeftLeg", body, (local[0], -local[2], local[1]), (0, 0, 0), 1.0, True)
+    cube = " ".join(f"{x} {y} {z}" for x in (-0.005, 0.005) for y in (-0.005, 0.005) for z in (-0.005, 0.005))
+    body = f"""<mujoco model="knee"><compiler angle="radian"/><asset><mesh name="cap" vertex="{cube}"/></asset><worldbody>
+      <body name="femur_l" pos="0.1 0 1"><geom type="sphere" size="0.03" mass="1"/>
+        <body name="tibia_l" pos="0 0 -0.45"><joint name="knee_angle_l" type="hinge" axis="1 0 0" range="0 2.0944"/>
+          <geom type="sphere" size="0.03" mass="1"/><body name="talus_l" pos="0 0 -0.45">
+          <geom type="sphere" size="0.02" mass="1"/></body></body>
+        <body name="patella_l" pos="0 0 -0.435">
+          <joint name="knee_angle_beta_translation1_l" type="slide" axis="0 -1 0" range="-0.02 0.06"/>
+          <joint name="knee_angle_beta_translation2_l" type="slide" axis="0 0 1" range="-0.03 {CAP_UP}"/>
+          <geom type="mesh" mesh="cap" mass="0.1"/></body></body></worldbody>
+      <equality><joint joint1="knee_angle_beta_translation1_l" joint2="knee_angle_l" polycoef="0.05 0 0 0 0"/>
+        <joint joint1="knee_angle_beta_translation2_l" joint2="knee_angle_l" polycoef="0 0 0 0 0"/></equality></mujoco>"""
+    rig = {"names": names, "parents": [-1, -1, 1, 2], "bind": bind, "points": points, "faces": faces,
+           "weights": weights}
+    return body, rig, table
+
+
+def a_kneecap_lies_inside_somas_skin_over_the_knees_range():
+    """The toy kneecap (`knee_toy`) after `sizing.kneecaps`: at every bend of the knee's range its front within
+    0.5 mm of the thigh's (it stood CAP_PROUD out), its slide up the femur within its range (the move asks it past
+    CAP_UP at the deepest bends), and the record its most move."""
+    import mujoco
+    import numpy as np
+    import sizing
+    from landmarks._table import LANDMARKS
+    from model import Couplings
+    body, rig, table = knee_toy()
+    kept = dict(LANDMARKS)
+    LANDMARKS.update(table)
+    try:
+        spec = mujoco.MjSpec.from_string(body)
+        moved = sizing.kneecaps(spec, rig, {name: np.ones(3) for name in ("femur_l", "tibia_l", "patella_l", "talus_l")})
+    finally:
+        LANDMARKS.clear()
+        LANDMARKS.update(kept)
+    model = spec.compile()
+    couplings, problems, fronts = Couplings(model), [], []
+    up = model.jnt_qposadr[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "knee_angle_beta_translation2_l")]
+    for bend in np.linspace(0.0, 2.0944, 60):
+        data = sizing._bent(model, couplings, "knee_angle_l", bend)
+        verts, _, _ = sizing._in_femur(model, data, "patella_l", "tibia_l", "talus_l")
+        fronts.append(float(-verts[:, 1].max()))
+        if not -0.03 - 1e-9 <= data.qpos[up] <= CAP_UP + 1e-9:
+            problems.append(f"the kneecap's slide up {data.qpos[up]:.4f} m at {np.degrees(bend):.0f} deg")
+    if max(fronts) > 0.04 + 0.0005:
+        problems.append(f"the kneecap's front {max(fronts):.4f} m forward, the thigh's at 0.04")
+    if not moved.get("patella_l", 0.0) >= 1000 * CAP_PROUD - 0.5:
+        problems.append(f"the record {moved}")
+    return problems
+
+
 CHECKS = (every_group_is_somas_length_mass_and_centre, a_mesh_is_filled_once_and_sizes_alike,
-          a_limb_is_as_wide_as_its_girth_asks, a_box_stretched_unevenly_has_the_stretched_boxs_inertia)
+          a_limb_is_as_wide_as_its_girth_asks, a_box_stretched_unevenly_has_the_stretched_boxs_inertia,
+          a_kneecap_lies_inside_somas_skin_over_the_knees_range)
 
 
 def in_newton():
