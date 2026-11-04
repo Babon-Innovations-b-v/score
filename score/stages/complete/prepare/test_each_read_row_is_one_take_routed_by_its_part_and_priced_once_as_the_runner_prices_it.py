@@ -20,6 +20,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - predict.straight_outcome: no `views is None` gap (thin_straight.drawn_thin -> `return True`) -> test_a_thin_straight_row_...
 - predict.own_outcome: `coded = False` (no thin_straight.coded) -> test_a_pipe_whose_close_up_passed_is_predicted_...
 - contract.faults: the picture check -> `elif False:` -> test_inputs_break_their_contract_on_an_unknown_view_...
+- contract.faults: `elif short := smaller_than_held(...)` -> `elif False:` (the hangar's ship made at its reading's 24 m
+  round 36 m of rooms, 2026-11-04), and groups.holding_sizes' shape `tall` dropped (the ship's 4 m reading kept)
+  -> test_inputs_break_their_contract_on_an_unknown_view_...
 - machines.best_zone: `min` for `max` -> test_the_first_class_in_the_kinds_order_is_fixed_in_its_zone_with_the_best_...
 - estimate.layer_price: the likely euros without the bill share -> test_layers_run_each_take_once_a_shell_piece_...
 - estimate.layer_cost: the no-units check -> `if False:` -> test_the_eta_walks_the_layers_in_the_routes_order_...
@@ -315,6 +318,16 @@ def test_inputs_break_their_contract_on_an_unknown_view_a_missing_picture_or_no_
     assert "not in the work folder" in contract.faults(record, {**good, "view": "v2"}, work)[0]
     assert "not one of the plan's views" in contract.faults(record, {**good, "view": "v9"}, work)[0]
     assert contract.faults(record, {**good, "box": [5, 5, 5, 9]}, work) == ["box [5, 5, 5, 9] has no area"]
+    # an outside shell smaller than the places its plan holds in it is a gap; one sized to its item holds them
+    plan = {"holds": [{"place": "cockpit", "row": "ship", "x": 12.0, "y": 37.0, "w": 9.4, "d": 9.8},
+                      {"place": "engineroom", "row": "ship", "x": 13.0, "y": 11.0, "w": 9.3, "d": 10.9}],
+            "items": [["SHIP 1", 10.8, 10.6, 13.688, 45.965, "S", "item"]], "rows": {"SHIP 1": ["ship"]},
+            "shapes": {"SHIP 1": {"tall": 8.099}}}
+    held = groups.holding_sizes(plan, [{"id": "ship", "size": [8.0, 24.0, 4.0]}])
+    assert held == {"ship": {"size": [13.688, 45.965, 8.099], "span": [10.3, 35.8]}}, held
+    assert contract.faults(record, {**good, "size": held["ship"]["size"], "holds": held["ship"]["span"]}, work) == []
+    assert "smaller than the 35.8 by 10.3 m" in contract.faults(
+        record, {**good, "size": [8.0, 24.0, 4.0], "holds": held["ship"]["span"]}, work)[0]
     assert contract.upscale([0, 0, 100, 50]) == 3.66 and contract.upscale([0, 0, 1000, 500]) == 1.0
 
 

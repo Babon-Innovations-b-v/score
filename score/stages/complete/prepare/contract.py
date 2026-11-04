@@ -49,7 +49,23 @@ def faults(record, group, work):
         found.append("its box is the whole picture, which frames no close-up (the box gate fails it)")
     if group["size"] is None or not isinstance(group["size"], list) or len(group["size"]) != 3:
         found.append("no size of three sides")
+    elif short := smaller_than_held(group["size"], group.get("holds")):
+        found.append(short)
     return found
+
+
+def smaller_than_held(size, span):
+    """Why a row is too small for the places its plan holds in it (`span`: the wide and deep of the box round them,
+    groups.holding_sizes), its ground sides set against theirs, longest with longest; None when it holds them (or
+    holds none). An outside shell made smaller than its rooms is half the length of its own inside (the hangar's
+    ship, 24 m round 36 m of rooms, 2026-11-04)."""
+    if not span:
+        return None
+    own, held = sorted(float(side) for side in size[:2]), sorted(float(side) for side in span)
+    if all(side >= need - 1e-6 for side, need in zip(own, held)):
+        return None
+    return (f"its {own[1]:g} by {own[0]:g} m is smaller than the {held[1]:g} by {held[0]:g} m of the places its plan "
+            "holds in it")
 
 
 def whole(box, size):
