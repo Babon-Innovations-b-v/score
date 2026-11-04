@@ -562,7 +562,26 @@ class LocalSource:
                               remake=self.remake(), concepts=self.concepts(review), **review,
                               **self.environment_concept(), **self.plan_review(), **self.hierarchy(),
                               **self.environment_plan(), body_faces=self.body_faces(),
-                              sound_beds=self.sound_beds(), plants=self.plants())
+                              sound_beds=self.sound_beds(), plants=self.plants(), scene_inside=self.scene_inside())
+
+    def scene_inside(self):
+        """{scene: its accepted scene record's `inside`} of every place whose scene record stands accepted."""
+        found = {}
+        for place in self.places():
+            sha = self.listing(self.accepted_output(self.node_of("scene-record", place))).get(f"record/{place}.json")
+            if sha:
+                found[place] = bool(json.loads(self.blob_path(sha).read_text()).get("inside"))
+        return found
+
+    def kept_plans(self):
+        """{place or shell: the plan its plan page shows} of every design node with one (score/review/plans.py)."""
+        from score.review import plans
+        found = {}
+        for node in self.design_nodes():
+            shown = plans.current(self.store, node)
+            if shown is not None:
+                found[node] = shown["plan"]
+        return found
 
     def plants(self):
         """{place: its design's plants (design_layers.plants_of)} of every place whose kept scene inventory grows

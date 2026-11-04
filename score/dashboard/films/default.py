@@ -23,7 +23,14 @@ the hosted process cannot import); a `time` the owner gives a zoom is kept as he
             before, on another body)}] (every top scene in the journey's order, the top scene first),
             "surfaces" {body: library surface} (each body's, as earlier scripts drew it; a body with none waits),
             "people" {place: walks} (every scene whose design shows people, data/people/rows.json, and whether one
-            of them walks)}
+            of them walks),
+            "inside" {place: bool} (each scene record's own `inside`: a walk's Inside or Outside and the rooms leg's
+            words say what the record says, never where the scene sits in the tree; a scene with no record is said
+            neither), "eyes" {place: {"from", "metres"}} (the viewpoint a scene's plan names, `designed_eye`: it is
+            filmed as a still from there, never walked)}
+
+A top scene is walked itself unless it is a shell with no plan of its own: a shell whose design has a plan (the Base,
+its exterior rows and people outside) is a scene the batch builds, so its finished stage is on screen.
 
 Last comes the sim bodies part (owner, 2026-10-27: "show the layers in the demo, from full player model with clothes,
 to mesh, to sim body"; no picking: every scene the film shows whose design has people, each the same way): a layer
@@ -33,6 +40,7 @@ first (Earth: the numbers of bodies), then the rest in the order the film shows 
 motion was made for Earth.
 """
 import math
+import re
 
 from score.dashboard.films import script
 
@@ -45,6 +53,10 @@ CLIPS_TRUE_ON = "earth"
 # A layer peel lasts one clip as the sim body record holds it (score/stages/sim_body: 150 frames at 30 a second).
 PEEL_SECONDS = 5.0
 LOW_GRAVITY_NOTE = "Motion made for Earth gravity; movement in lower gravity is not simulated yet"
+# A plan names its viewpoint in its heights line, "<level> eye <metres> m" (the square's "balcony eye 10.6 m"), the
+# level one of its own levels.
+EYE = re.compile(r"(?:^|;)\s*([a-z][a-z ]*?) eye (\d+(?:\.\d+)?) m\b")
+STILL_SECONDS = 7.0  # a still from a designed eye holds as long as a walk would
 
 
 def titled(word):
@@ -141,7 +153,7 @@ def zoom(facts):
         caption(0.3, 3.3, "5 · One shot, every scale", "The physics"), caption(3.7, 7.3, "World", body),
         caption(7.7, 11.3, "Site", f"{top}'s site, from the environment plan"),
         caption(11.7, 16.2, "Place", f"{top} from outside, its concept beside it"),
-        caption(16.6, 21.8, "Rooms", "Inside: " + ", ".join(name for _, name in rooms))],
+        caption(16.6, 21.8, "Rooms", rooms_words(rooms, facts["inside"]))],
         surfaces=surfaces, legs=[
             {"layer": "setting", "seconds": 3.5, "days_per_second": 1.0}, {"layer": "world", "seconds": 4.0},
             {"layer": "site", "seconds": 4.0, "tag": waits},
@@ -157,6 +169,16 @@ def waiting_words(name, bare, rooms=True):
     return (f"the finished {name}{' and its rooms' if rooms else ''} (the batch): until then the site and place legs "
             "show the masses of its plan" + (" and the room leg the rooms' locked concepts" if rooms else "")
             + (f"; no library surface drawn for {', '.join(bare)} yet" if bare else ""))
+
+
+def rooms_words(rooms, inside):
+    """The rooms leg's words: its rooms by what each one's scene record says, "Inside: ..." and "Outside: ...", a
+    room with no record under neither ("Held: ...")."""
+    said = {True: "Inside", False: "Outside", None: "Held"}
+    found = {}
+    for place, name in rooms:
+        found.setdefault(said[inside.get(place)], []).append(name)
+    return "; ".join(f"{words}: {', '.join(names)}" for words, names in found.items())
 
 
 def distance_words(km):
@@ -199,7 +221,7 @@ def stop_zoom(facts, before, stop):
     if rooms:
         legs.append({"layer": "room", "seconds": max(2.5, 1.8 * len(rooms)), "rooms": [room for room, _ in rooms],
                      "tag": "Concepts · the finished rooms wait on the batch"})
-        words.append(["Rooms", "Inside: " + ", ".join(room_name for _, room_name in rooms)])
+        words.append(["Rooms", rooms_words(rooms, facts["inside"])])
     return segment("scale-zoom", {"place": stop["place"]}, round(sum(leg["seconds"] for leg in legs), 2),
                    legs_captioned(legs, words), surfaces=surfaces, legs=legs, waiting=waiting_words(name, bare, bool(rooms)),
                    pip={"concept": stop["place"], "corner": "top-left", "label": "Concept",
@@ -211,12 +233,15 @@ def journey(facts):
     each zoom followed by its walks."""
     stops = facts["stops"]
     return [shown for before, stop in zip(stops, stops[1:])
-            for shown in (stop_zoom(facts, before, stop), *walks(stop))]
+            for shown in (stop_zoom(facts, before, stop), *walks(stop, facts))]
 
 
-def walks(stop):
-    """A walk through each of the stop's scenes (its `walks`): the top scene itself from outside, the rest inside."""
-    return [walk(place, name, "Outside" if place == stop["place"] else "Inside") for place, name in stop["walks"]]
+def walks(stop, facts):
+    """A shot of each of the stop's scenes (its `walks`): a still from the eye its plan names, else a walk; each said
+    Inside or Outside by its scene record (`facts["inside"]`), neither where it has none."""
+    return [still(place, name, facts["eyes"][place]) if place in facts["eyes"]
+            else walk(place, name, {True: "Inside", False: "Outside"}.get(facts["inside"].get(place), "Scene"))
+            for place, name in stop["walks"]]
 
 
 def walk(place, name, line):
@@ -224,6 +249,35 @@ def walk(place, name, line):
     return {**segment("walk-through", {"place": place}, script.WALK_SECONDS, []), "sound": "place", "line": line,
             "text": name,
             "waiting": "the finished scene and its film (the batch): until then the preview shows its name"}
+
+
+def still(place, name, eye):
+    """A still of one scene from the viewpoint its plan names (`eye`, designed_eye), on its own sound: the design
+    films it from there, never walked."""
+    return {**segment("hero-still", {"place": place}, STILL_SECONDS, []), "sound": "place",
+            "line": f"Seen from the {eye['from']}", "text": name, "eye": eye,
+            "waiting": "the finished scene, seen from its designed eye (the batch): until then the preview shows its "
+                       "name"}
+
+
+def designed_eye(plan):
+    """{"from": level, "metres": height} of the viewpoint a plan names in its heights line (EYE), the level one of
+    its own; None where it names none."""
+    levels = {level.get("name") for level in plan.get("levels") or [] if isinstance(level, dict)}
+    found = EYE.search(str(plan.get("height") or "").lower())
+    return {"from": found.group(1), "metres": float(found.group(2))} if found and found.group(1) in levels else None
+
+
+def design_of(facts):
+    """What the design says that a script's words and shots must match (script.design_faults): each scene record's
+    `inside`, the designed eyes, the top scenes that are scenes (a shell with no plan of its own is none) and each
+    named site's metres from the site before it, by name."""
+    stops = facts["stops"]
+    return {"inside": facts["inside"], "eyes": facts["eyes"],
+            "tops": [stop["place"] for stop in stops if stop["place"] in [place for place, _ in stop["walks"]]],
+            "names": {place: name for stop in stops for place, name in ([stop["place"], stop["name"]], *stop["walks"])},
+            "apart": [[stop["name"], before["name"], stop["metres"]] for before, stop in zip(stops, stops[1:])
+                      if stop.get("metres")]}
 
 
 def shown_places(facts):
@@ -297,7 +351,7 @@ def built(film, facts):
                    "zoom followed by a walk through its scene and every scene it holds (the owner's script for "
                    "environment 1, filled in from this environment's scenes)",
             "segments": [title, setting_take(facts), animation, concept_take(facts), review_take(facts),
-                         plan_take(facts), zoom(facts), *walks(facts["stops"][0]), *journey(facts),
+                         plan_take(facts), zoom(facts), *walks(facts["stops"][0], facts), *journey(facts),
                          *sim_bodies(shown_places(facts), facts["people"])]}
     return {**made, "target_seconds": 5 * math.ceil(script.total_seconds(made) / 5)}
 
@@ -317,11 +371,11 @@ def held_by(place, within):
     return [found for child, holder in within.items() if holder == place for found in (child, *held_by(child, within))]
 
 
-def stops_of(plan, within, names, radii, top):
+def stops_of(plan, within, names, radii, top, planned=()):
     """Every top scene in the journey's order: the top scene, the other sites on its body, then each other body's
     sites, all in the environment plan's order; each with its rooms (the first three it holds), its walks (itself
-    unless a shell, a key of `names`, then every scene it holds), the metres from the site before on the same body and
-    the km from the site before to a new body."""
+    unless a shell, a key of `names`, with no plan of its own in `planned`, then every scene it holds), the metres from
+    the site before on the same body and the km from the site before to a new body."""
     maps = plan["maps"]
     first = next(found for found in maps if any(site["place"] == top for site in found["sites"]))
     ordered = [(first, next(site for site in first["sites"] if site["place"] == top))]
@@ -332,7 +386,8 @@ def stops_of(plan, within, names, radii, top):
         stop = {"place": site["place"], "name": named(site["place"], {site["place"]: site["name"], **names}),
                 "body": found["on"], "sky": site.get("sky") or {},
                 "rooms": [[room, named(room, names)] for room, holder in within.items() if holder == site["place"]][:3],
-                "walks": [[place, named(place, names)] for place in ([] if site["place"] in names else [site["place"]])
+                "walks": [[place, named(place, names)] for place in
+                          ([] if site["place"] in names and site["place"] not in planned else [site["place"]])
                           + held_by(site["place"], within)]}
         before = stops[-1] if stops else None
         if before and before["body"] == stop["body"]:
@@ -351,11 +406,12 @@ def top_scene(sites, within):
     return top, held[top]
 
 
-def facts_of(world, title, setting, plan, within, names, surfaces, people):
+def facts_of(world, title, setting, plan, within, names, surfaces, people, plans=None, inside=None):
     """The facts `built` fills in, from the environment's setting ({bodies}), its plan ({maps [{on, sites, distances}]}),
-    what each scene sits within (no part of a scene's outside, nothing removed), {place or shell: its short name} and
-    the library surfaces earlier scripts drew each body with and the scenes whose design shows people; None when the
-    plan places no scene or its top scene holds none."""
+    what each scene sits within (no part of a scene's outside, nothing removed), {place or shell: its short name},
+    the library surfaces earlier scripts drew each body with, the scenes whose design shows people, each scene's or
+    shell's kept plan ({place: plan}) and each scene record's `inside` ({place: bool}); None when the plan places no
+    scene or its top scene holds none."""
     sites = {site["place"]: found["on"] for found in (plan or {}).get("maps", []) for site in found["sites"]}
     if not sites:
         return None
@@ -363,11 +419,13 @@ def facts_of(world, title, setting, plan, within, names, surfaces, people):
     if not rooms:
         return None
     bodies = setting.get("bodies", [])
-    stops = stops_of(plan, within, names, {body["body"]: body.get("radius_km") for body in bodies}, top)
+    plans = plans or {}
+    stops = stops_of(plan, within, names, {body["body"]: body.get("radius_km") for body in bodies}, top, set(plans))
     return {"world": world, "title": title, "bodies": [body["body"] for body in bodies],
             "shining": [body["body"] for body in bodies if body.get("kelvin")],
             "body": sites[top], "top": top, "top_name": stops[0]["name"], "rooms": stops[0]["rooms"],
-            "stops": stops, "surfaces": surfaces, "people": people}
+            "stops": stops, "surfaces": surfaces, "people": people, "inside": dict(inside or {}),
+            "eyes": {place: eye for place, found in plans.items() if (eye := designed_eye(found))}}
 
 
 def drawn_surfaces(scripts):

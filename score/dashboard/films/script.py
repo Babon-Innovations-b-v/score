@@ -189,6 +189,71 @@ def faults(script, places=None):
     return found
 
 
+# The cuts that show a scene's finished stage, which every top scene needs at least one of, and the place lines a walk
+# or still is said by.
+FINISHED_CUTS = ("walk-through", "orbit", "hero-still")
+PLACE_LINES = {"Inside": True, "Outside": False}
+APART = re.compile(r"^(.+), (\d+(?:\.\d+)?) m from (.+)$")
+
+
+def design_faults(script, design):
+    """What in a script no longer says what the design says, in words; empty when it matches. `design`
+    (films/default.design_of): {inside {place: the scene record's inside}, eyes {place: {from, metres}} (the viewpoint
+    its plan names), tops [top scene], names {place: name}, apart [[name, name before, metres]]}. A walk or still said
+    Inside or Outside, and a rooms leg's "Inside: ..." or "Outside: ...", by the scene's record; every top scene's
+    finished stage in at least one shot of its own (FINISHED_CUTS); a scene with a designed eye shot as a still from
+    that eye, never walked; a caption's "X, N m from Y" the design's metres between them."""
+    segments = script.get("segments") or []
+    inside, eyes, names = design.get("inside", {}), design.get("eyes", {}), design.get("names", {})
+    found = []
+    for number, segment in enumerate(segments, 1):
+        place, cut = (segment.get("shows") or {}).get("place"), segment.get("cut")
+        said = PLACE_LINES.get(segment.get("line"))
+        if place in inside and said is not None and said != inside[place]:
+            found.append(f"segment {number}: {names.get(place, place)} is said {segment['line']}, its scene record "
+                         f"says {'inside' if inside[place] else 'outside'}")
+        if cut == "scale-zoom":
+            found += rooms_faults(number, segment, inside, names)
+        if place in eyes and cut in FINISHED_CUTS and (cut != "hero-still" or segment.get("eye") != eyes[place]):
+            found.append(f"segment {number}: {names.get(place, place)} is designed seen from its {eyes[place]['from']} "
+                         f"eye at {eyes[place]['metres']:g} m, not a {CUTS.get(cut, {}).get('label', cut)} "
+                         + ("from another eye" if cut == "hero-still" else "walked"))
+        found += apart_faults(number, segment, design.get("apart", []))
+    shown = {(segment.get("shows") or {}).get("place") for segment in segments if segment.get("cut") in FINISHED_CUTS}
+    found += [f"{names.get(top, top)} (a top scene) has no shot of its finished stage" for top in design.get("tops", [])
+              if top not in shown]
+    return found
+
+
+def rooms_faults(number, segment, inside, names):
+    """A scale zoom's rooms words against the scene records of the rooms its leg goes into."""
+    rooms = [room for leg in segment.get("legs") or [] if leg.get("layer") == "room" for room in leg.get("rooms", [])]
+    by_name = {names.get(room, room): room for room in rooms}
+    found = []
+    for words in (caption.get("text", "") for caption in segment.get("captions") or []):
+        for part in words.split("; "):
+            said, _, listed = part.partition(": ")
+            wrong = [name for name in listed.split(", ") if said in PLACE_LINES and name in by_name
+                     and inside.get(by_name[name]) not in (None, PLACE_LINES[said])]
+            found += [f"segment {number}: {name} is said {said.lower()}, its scene record says "
+                      f"{'inside' if inside[by_name[name]] else 'outside'}" for name in wrong]
+    return found
+
+
+def apart_faults(number, segment, apart):
+    """A caption's "X, N m from Y" against the design's metres between X and Y."""
+    metres = {(name, before): value for name, before, value in apart}
+    found = []
+    for caption in segment.get("captions") or []:
+        said = APART.match(caption.get("text", ""))
+        if said and (said.group(1), said.group(3)) in metres:
+            designed = metres[(said.group(1), said.group(3))]
+            if abs(float(said.group(2)) - designed) > 0.05:
+                found.append(f"segment {number}: \"{caption['text']}\" says {said.group(2)} m, the design "
+                             f"{designed:g} m")
+    return found
+
+
 def blank(film, title):
     """A new film's script: its title card only."""
     return {"format": FORMAT, "version": VERSION, "film": film, "title": title, "world": "world1",

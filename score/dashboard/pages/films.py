@@ -36,22 +36,38 @@ ENDED = ("refused", "failed")  # a checkout in these bought nothing
 def environment_default(source, film):
     """The environment's default script (films/default.py), filled in from its setting and scenes; None when its
     setting places no scene holding others."""
+    facts = environment_facts(source)
+    return facts and default.built(film, facts)
+
+
+def environment_facts(source):
+    """The facts the environment's default film is filled in from (films/default.facts_of): its setting, plan,
+    scenes, kept plans and scene records as they stand now; None when its setting places no scene holding others."""
     if hasattr(source, "hierarchy"):
         found = source.hierarchy()
         concept, plan = source.environment_concept()["environment_concept"], source.environment_plan()["environment_plan"]
+        kept, inside = source.kept_plans(), source.scene_inside()
     else:
         world = source.world_state()
         concept, plan = world.environment_concept, world.environment_plan
         found = {"within": world.within, "shells": world.shells, "parts": world.parts, "removed": world.removed}
+        kept = {node: review.plan for node, review in world.plan_reviews.items()}
+        inside = world.scene_inside
     within = {place: holder for place, holder in found["within"].items()
               if place not in found["parts"] and place not in found["removed"]}
     from score.dashboard.pages.environment import title_of
     starters = [script.read(settings.SCORE_REPO, settings.SCORE_HOME, name)[0]
                 for name in script.names(settings.SCORE_REPO, settings.SCORE_HOME)]
-    facts = default.facts_of(WORLD, title_of(WORLD), (concept or {}).get("concept", {}).get("setting", {}),
-                             (plan or {}).get("plan"), within, found["shells"], default.drawn_surfaces(starters),
-                             people_places())
-    return facts and default.built(film, facts)
+    return default.facts_of(WORLD, title_of(WORLD), (concept or {}).get("concept", {}).get("setting", {}),
+                            (plan or {}).get("plan"), within, found["shells"], default.drawn_surfaces(starters),
+                            people_places(), kept, inside)
+
+
+def design_faults(source, given):
+    """What in a script of the environment no longer says what its design says now (script.design_faults); none for
+    another environment's script or while the design places no scene."""
+    facts = environment_facts(source) if given.get("world") == WORLD else None
+    return script.design_faults(given, default.design_of(facts)) if facts else []
 
 
 def people_places():
@@ -111,6 +127,7 @@ def film_locked(user, payload):
     source = state.source()
     found = script.faults(given, set(source.places()) | set(shells_of(source))) if given.get("film") == film else [
         f"the script is not film {film}'s"]
+    found = found or design_faults(source, given)
     if found:
         return "refused: " + "; ".join(found)
     script.save(settings.SCORE_HOME, given)
