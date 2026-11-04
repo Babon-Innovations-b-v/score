@@ -232,8 +232,10 @@ def shell(design, place, library, rows=None):
 
 
 def stair(number, entry, design):
-    """A stair or ramp the plan draws as a flight of steps up its footprint the way it says (`angle`: degrees from east,
-    clockwise as y runs south), from its `from` height to its `to`."""
+    """A stair or ramp the plan draws as a flight of steps along its footprint the way it says (`angle`: degrees from
+    east, clockwise as y runs south), from its `from` height to its `to`: its `foot` the lower end, wherever the
+    plan's `from` lies, since the builder (tools/usd/builders.py stairs) lays steps up from its foot (the stairwell's
+    flights of 3 m to 1.5 m stood as flat blocks 1.5 m tall, their treads underneath, 2026-11-04)."""
     points = np.asarray(entry["points"], dtype=float)
     turn = math.radians(float(entry.get("angle") or 0.0))
     way, across = np.array([math.cos(turn), math.sin(turn)]), np.array([-math.sin(turn), math.cos(turn)])
@@ -244,6 +246,8 @@ def stair(number, entry, design):
     low, high = float(entry["from"]), float(entry["to"])
     steps = int(entry.get("steps") or 0) if entry.get("kind") != "ramp" else \
         max(1, math.ceil(abs(high - low) / RAMP_STEP))
+    if high < low:
+        (foot, low), (top, high) = (top, high), (foot, low)
     return {"name": f"{entry.get('kind', 'stair')}_{number}", "builder": "stairs",
             "foot": [foot[0], round(floor + low, 4), foot[1]], "top": [top[0], round(floor + high, 4), top[1]],
             "wide": round(float(side.max() - side.min()), 4), "steps": max(1, steps),
