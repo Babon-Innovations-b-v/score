@@ -913,21 +913,37 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     end's foot on the deck's near side at x 3.19. A thing nothing holds that starts inside a deck or wall is moved the
     least way out: a sandbag 0.158 m into the deck's top up onto it, the post 0.141 m into the wall back to its face
     at z 6.699, a locker reaching up into a loft deck out past its side (never down under the floor), a 4.2 m cable
-    bundle across a 0.14 m wall 0.34 m past the wall's near side (tube's, 2026-10-30), never more than 1 m (a ship
-    2.5 m from clear of a wall is left as laid, and named); a lamp in the
+    bundle across a 0.14 m wall 0.34 m past the wall's near side (tube's, 2026-10-30); a ship longer than the place
+    across a wall fits nowhere clear of it and is left as laid, and named; a lamp in the
     roof's box, a crate in a slanted wall's 5 m box and a stair reaching into its loft deck are left (a roof's and a
     slanted wall's box hold the room, a stair climbs into its level). The held gate
     fails one left inside a deck by name and its depth, never a door the record lays in its opening.
+    settle@flat (#72, 2026-11-03): floor things nothing holds, laid at their built size, bigger than the plan's
+    estimates, stood in each other. They are parted on the floor at their built size by the relation solver, never
+    shrunk: a 2.4 m bed and the wardrobe 0.2 m into it, a crate in a kit fixture (which never moves), all kept inside
+    the walls; a table on a 2 cm rug is no overlap and neither moves. habitat (#72, 2026-11-04): bunk beds laid
+    across its inner wall are moved to the nearest free spot in their own room (a bed across a two-room split goes
+    1.75 m round a locker on its own side, never 1.2 m through the wall into the next room); one that fits nowhere
+    in its room at its built size (3.5 m in a 3 m room) is left as laid, and two floor things left inside each other
+    are named by the held gate (a bed in a crate, never a table on its rug).
+    Break: score/stages/assembly/fitting.py: `if not (through(middle, middle + move, walls_near) & ~started).any():`
+        -> `if True:`
+    Break: score/stages/assembly/fitting.py: `return faults + crowded_faults(record, boxes)` -> `return faults`
+    Break: score/stages/assembly/fitting.py: `return inside if (np.asarray(inside[:2]) <= middle).all()` -> `return
+        inside if True`
+    Break: score/stages/assembly/fitting.py: `done, fits = set(), parted(stage, place, loose, set(by_name))` -> `done,
+        fits = set(), []`
+    Break: score/stages/assembly/fitting.py: `if crossing({**held, **after}, thin) >= crossing({**held, **boxes},
+        thin):` -> `if True:`
     Break: score/stages/assembly/fitting.py: `return pivot, np.cross(way, [0.0, 1.0, 0.0]),` -> `return pivot,
         np.cross([0.0, 1.0, 0.0], way),`
-    Break: score/stages/assembly/fitting.py: `return fits + moved_out(stage, place, [entry` -> `return fits + ([entry`
-    Break: score/stages/assembly/fitting.py: `and not climbs(entry)])` (moved_out's) -> `])`
-    Break: score/stages/assembly/fitting.py: `moves = np.where(ahead <= back, ahead, -back)` -> `moves = ahead`
+    Break: score/stages/assembly/fitting.py: `fits += moved_out(stage, place, loose)` -> `fits += []`
+    Break: score/stages/assembly/fitting.py: `and not entry.get("on") and not climbs(entry)]` (fitted's loose) ->
+        `and not entry.get("on")]`
     Break: score/stages/assembly/fitting.py: `return [(name, box) for name, box in built if name.split("_")[0] in
         STATICS]` -> `return built`
     Break: score/stages/assembly/fitting.py: `if not held_in(on) and not climbs(entry):` -> `if True:`
     Break: score/stages/assembly/fitting.py: `back[1] = np.inf` -> `pass`
-    Break: score/stages/assembly/fitting.py: `if not left or moved > OUT_MOST:` -> `if not left:`
     Break: score/stages/assembly/fitting.py: `<= WALL_THICKEST)]` -> `<= 99.0)]`
     Break: score/stages/assembly/fitting.py: `if depths(low, high, box).min() > HELD_MOST]` -> `if False]`"""
     import math
@@ -948,8 +964,8 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
                             ("stairs_1", (11.0, 0.0, 8.0), (12.0, 2.997, 10.5)),
                             ("locker_1", (15.5, 0.0, 12.0), (16.3, 2.9, 12.6)),
                             ("crate_2", (22.0, 0.0, 22.0), (22.5, 0.5, 22.5)),
-                            ("cable_bundles_1", (29.8, 0.0, 31.0), (34.0, 2.0, 31.5)),
-                            ("spaceship_1", (27.0, 0.0, 30.5), (33.0, 2.0, 32.5))):
+                            ("cable_bundles_1", (29.8, 0.0, 30.0), (34.0, 2.0, 30.4)),  # clear of the ship,
+                            ("spaceship_1", (-1.0, 0.0, 30.5), (33.0, 2.0, 32.5))):  # longer than the place
         a_built_box(stage, f"/{TOY}/Objects/{name}", low, high)
     ramp = {"how": "ramp", "edge": [[3.34, 8.19], [3.34, 2.08]], "up": [1.0, 0.0], "top": 0.2, "why": "up to the deck"}
     entries = [{"name": "ramp_1", "row": "ramp", "on": ramp},
@@ -967,7 +983,7 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     assert abs(boxes["cable_bundles_1"][0][0] - 30.14) < 1e-6, boxes  # clear past the thin wall's near side
     boxes.update({name: fitting.world_box(stage, f"/{TOY}/Objects/{name}") for name in ("stairs_1", "crate_2")})
     ship = fitting.world_box(stage, f"/{TOY}/Objects/spaceship_1")
-    assert np.allclose(ship[0], (27.0, 0.0, 30.5)), ship  # 2.5 m from clear of the wall: left as laid, named
+    assert np.allclose(ship[0], (-1.0, 0.0, 30.5)), ship  # no spot clear of the wall in the place: left as laid, named
     walls = [{"name": name, "low": list(found[0]), "high": list(found[1])}
              for name, found in fitting.walls(stage, TOY)]
     laid = {"walls": walls, "objects": [{"name": name, "low": list(box[0]), "high": list(box[1])}
@@ -982,6 +998,44 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
                                         {"name": "door_1", "low": [0.0, 0.0, 6.799], "high": [1.0, 2.0, 6.899]}]}
     assert fitting.held_faults(record, laid) == [
         ("crate_1", "laid 0.16 m inside deck_2, nothing holding it there", 0.158)], fitting.held_faults(record, laid)
+    room = Usd.Stage.CreateInMemory()
+    for name, low, high in (("deck_1", (0.0, -0.2, 0.0), (6.0, 0.0, 4.0)), ("wall_1", (6.0, 0.0, 0.0), (6.2, 3.0, 4.0)),
+                            ("wall_2", (-0.2, 0.0, 0.0), (0.0, 3.0, 4.0))):
+        a_built_box(room, f"/{TOY}/Structure/{name}", low, high)
+    a_built_box(room, f"/{TOY}/Fixtures/kit_1", (0.6, 0.0, 0.2), (1.2, 1.0, 0.8))
+    floor = {"bed_1": ((2.0, 0.0, 0.5), (4.4, 0.6, 2.5)), "wardrobe_1": ((4.2, 0.0, 0.5), (5.4, 2.0, 1.1)),
+             "crate_3": ((0.2, 0.0, 0.2), (0.8, 0.5, 0.8)), "rug_1": ((0.2, 0.0, 2.6), (2.2, 0.02, 3.8)),
+             "table_1": ((0.7, 0.0, 2.9), (1.7, 0.8, 3.5))}
+    for name, (low, high) in floor.items():
+        a_built_box(room, f"/{TOY}/Objects/{name}", low, high)
+    entries = [{"name": name, "row": name[:-2]} for name in floor]
+    fits = fitting.fitted(room, TOY, entries, set(floor))
+    assert sorted(fit["name"] for fit in fits if fit["how"] == "parted") == ["bed_1", "crate_3", "wardrobe_1"], fits
+    laid = {name: fitting.world_box(room, f"/{TOY}/Objects/{name}") for name in floor}
+    kit = fitting.world_box(room, f"/{TOY}/Fixtures/kit_1")
+    assert all(np.allclose(laid[name][1] - laid[name][0], np.subtract(high, low)) for name, (low, high) in
+               floor.items()), laid  # at its built size: never shrunk
+    assert np.allclose(kit[0], (0.6, 0.0, 0.2)) and fitting.crossing({**laid, "kit_1": kit}, []) == 0, laid
+    assert all(box[0][0] >= -1e-3 and box[1][0] <= 6.2 + 1e-3 for box in laid.values()), laid  # inside the walls
+    assert all(np.allclose(laid[name][0], floor[name][0]) for name in ("rug_1", "table_1")), laid  # on its rug: left
+    split = Usd.Stage.CreateInMemory()
+    for name, low, high in (("wall_1", (-0.1, 0.0, 0.0), (0.0, 3.0, 4.0)), ("wall_2", (6.0, 0.0, 0.0), (6.1, 3.0, 4.0)),
+                            ("wall_3", (0.0, 0.0, -0.1), (6.0, 3.0, 0.0)), ("wall_4", (0.0, 0.0, 4.0), (6.0, 3.0, 4.1)),
+                            ("wall_5", (3.0, 0.0, 0.0), (3.1, 3.0, 4.0))):  # the inner wall: two rooms
+        a_built_box(split, f"/{TOY}/Structure/{name}", low, high)
+    a_built_box(split, f"/{TOY}/Fixtures/locker_1", (3.1, 0.0, 0.0), (6.0, 2.0, 2.5))
+    across = {"bunk_bed_2": ((2.2, 0.0, 1.0), (4.2, 0.6, 2.0)), "bunk_bed_3": ((-0.2, 0.0, 0.0), (3.3, 0.6, 1.0))}
+    for name, (low, high) in across.items():
+        a_built_box(split, f"/{TOY}/Objects/{name}", low, high)
+    fitting.fitted(split, TOY, [{"name": name, "row": "bunk_bed"} for name in across], set(across))
+    bunks = {name: fitting.world_box(split, f"/{TOY}/Objects/{name}") for name in across}
+    assert np.allclose(bunks["bunk_bed_2"][0], (3.1, 0.0, 2.5)), bunks  # its own room's free spot, not 1.2 m through
+    assert np.allclose(bunks["bunk_bed_3"][0], across["bunk_bed_3"][0]), bunks  # 3.5 m in a 3 m room: left, named
+    record = {"objects": [{"name": name, "row": name[:-2]} for name in ("bed_1", "crate_3", "rug_1", "table_1")]}
+    laid = {"walls": [], "objects": [{"name": name, "low": list(low), "high": list(high)} for name, (low, high) in
+                                     {**floor, "crate_3": ((2.5, 0.0, 1.0), (3.1, 0.5, 1.6))}.items()]}
+    assert fitting.held_faults(record, laid) == [
+        ("bed_1", "laid 0.50 m inside crate_3 at its built size, nothing holding either there", 0.5)], laid
 
 
 def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
@@ -1013,8 +1067,7 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
     relation laid against its wall at the eave, 6 m up through the roof, by name and how far; a crate wholly above the
     roof is not through it, and a box on a loft deck under the eave, 0.42 m through, is left and named, never sunk
     into its deck.
-    Break: score/stages/assembly/fitting.py: `return fits + moved_out(stage, place, loose) + moved_down(stage, place,
-        loose)` -> `return fits + moved_out(stage, place, loose)`
+    Break: score/stages/assembly/fitting.py: `return fits + moved_down(stage, place, loose)` -> `return fits`
     Break: score/stages/assembly/fitting.py: `if len(reach) and reach.min() < 0 < reach.max() else 0.0` -> `if
         len(reach) else 0.0`
     Break: score/stages/assembly/fitting.py: `lowest = height.min(axis=1)` -> `lowest = np.where(np.isfinite(height),

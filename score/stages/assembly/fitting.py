@@ -20,7 +20,10 @@ shrunk where it does not fit (never grown past its own model), so it sits
     ramp    up its way onto its level's built deck: its foot on the ground it stands on, pitched by the slope from
             there to the deck's top over its length, its high end's foot on the deck's near side (ramp_rest)
 
-and a thing nothing holds (no `on`) that starts inside a deck or wall (statics) is moved the least way out of it
+and things nothing holds (no `on`) laid at their built size inside each other, a fixture or a wall are parted on the
+floor at that size, each in its own room, by the plan fixes' relation solver and then the nearest free spot (parted;
+a thin rug under a table is no overlap; one with no free spot is named, crowded_faults), and one still inside a deck or
+wall (statics) is moved the least way out of it
 (moved_out: airlock's sandbags in its porch deck, its porch post in its wall), and one whose built surface passes up
 through a roof's built surface (by the roof's mesh, never its box: a dome's box holds the room under it) is moved down
 under it (moved_down, through_roofs). Boxes are the place's axis-aligned ones (Y up), so a face is the box side nearest `out`; the plan's sizes are
@@ -33,7 +36,8 @@ settle stages hash it.
     off(low, high, on, holders)   metres an object as laid stands off where its relation puts it
     held_faults(record, laid)     [(object, what is wrong, metres or None)]: the assembly's `held` gate, one left
                                   inside a deck or wall, or up through a roof (laid's `roofs`), its relation does not
-                                  lay it in (an opening's door, a passage against its wall: passes) too
+                                  lay it in (an opening's door, a passage against its wall: passes) too, and two
+                                  things nothing holds inside each other
     through_roofs(stage, place, names)   [{name, roof, metres}] of the objects passing up through a roof's surface
     short_doors(record, laid)     [(object, what is wrong, metres)]: doors short of their openings, named, not failed
 """
@@ -601,8 +605,8 @@ def held_faults(record, laid):
     """[(object, what is wrong, metres or None)] of the record's design objects as the assembly laid them (`laid`,
     made_waiting.LAID): off where their relation puts them (more than HELD_MOST; a face one off the face it was laid
     on, an opening's by the built walls), a door whose holder's face is too narrow for it and its recess (the
-    shortfall), a door or window in no opening and on no holder, held by nothing (`unheld`), or left at the room's
-    middle (`unplaced`)."""
+    shortfall), a door or window in no opening and on no holder, held by nothing (`unheld`), left at the room's
+    middle (`unplaced`), or two things nothing holds left inside each other (crowded_faults)."""
     boxes = {entry["name"]: (entry["low"], entry["high"]) for entry in [*laid.get("objects", []),
                                                                          *laid.get("holders", [])]}
     faced = {fit["name"]: fit for fit in laid.get("fitted", []) if fit.get("face") is not None}
@@ -650,7 +654,20 @@ def held_faults(record, laid):
             if entry.get(mark):
                 faults.append((entry["name"], f"{'held by nothing' if mark == 'unheld' else 'at the room middle'}: "
                                               f"{entry[mark]}", None))
-    return faults
+    return faults + crowded_faults(record, boxes)
+
+
+def crowded_faults(record, boxes):
+    """[(object, what is wrong, metres)] of each pair of the record's objects nothing holds (no `on`, no climbing row)
+    laid inside each other by more than HELD_MOST every way (boxes {name: (low, high)} as laid): two things on the
+    floor parting could not fit at their built size (parted), named, never shrunk or forced (habitat's bunk beds laid
+    across its slanted inner wall, 2026-11-04)."""
+    loose = sorted(entry["name"] for entry in record.get("objects") or []
+                   if entry["name"] in boxes and not entry.get("on") and not climbs(entry))
+    found = [(first, second, float(depths(*boxes[first], [np.asarray(end, float) for end in boxes[second]]).min()))
+             for number, first in enumerate(loose) for second in loose[number + 1:]]
+    return [(first, f"laid {depth:.2f} m inside {second} at its built size, nothing holding either there",
+             round(depth, 3)) for first, second, depth in found if depth > HELD_MOST]
 
 
 def short_doors(record, laid):
@@ -930,10 +947,13 @@ def fitted(stage, place, entries, laid, cuts=None):
     one against its nearest holder's surface and in the recess the bake cut there (`cuts`, {model: baked.json's cuts}),
     an opening's against the built walls, each swinging one in an opening or on a face (swings) on the face it swings
     to and before any on a wall or face, which keeps out of its swing and its passage; the fits [{name, how, holder, moved, scale, low, high, words, face}]
-    (its box as laid after), the stage left unsaved."""
+    (its box as laid after), the stage left unsaved. The things nothing holds are parted first (parted) and what is
+    still in a deck or wall pulled out of it (moved_out), so what they hold is fitted where they stand."""
     by_name = {entry["name"]: entry for entry in entries if entry.get("on") and entry["name"] in laid}
     bakes = {entry["name"]: entry.get("bake") for entry in entries}
-    done, fits = set(), []
+    loose = [entry for entry in entries if entry["name"] in laid and not entry.get("on") and not climbs(entry)]
+    done, fits = set(), parted(stage, place, loose, set(by_name))
+    fits += moved_out(stage, place, loose)
     built = [box for _, box in walls(stage, place)]
 
     def one(name, seen=()):
@@ -988,17 +1008,232 @@ def fitted(stage, place, entries, laid, cuts=None):
     leaves = {name for name, entry in by_name.items() if entry["on"]["how"] in ("in", "face") and swings(entry["row"])}
     for name in sorted(by_name, key=lambda name: name not in leaves):  # the leaves first: a wall's things keep clear of them
         one(name)
-    loose = [entry for entry in entries if entry["name"] in laid and not entry.get("on") and not climbs(entry)]
-    return fits + moved_out(stage, place, loose) + moved_down(stage, place, loose)
+    return fits + moved_down(stage, place, loose)
+
+
+def laid_fit(stage, path, entry, how, holder, moved, scale, words):
+    """The fit {name, how, ...} of an entry moved on the stage: its words set on the prim, its box as laid after."""
+    from pxr import Sdf
+    stage.GetPrimAtPath(path).CreateAttribute("score:fitted", Sdf.ValueTypeNames.String).Set(words)
+    after = world_box(stage, path)
+    return {"name": entry["name"], "row": entry["row"], "how": how, "holder": holder, "moved": round(float(moved), 3),
+            "scale": round(float(np.min(scale)), 4), "low": [round(float(value), 4) for value in after[0]],
+            "high": [round(float(value), 4) for value in after[1]], "words": words}
+
+
+# The pull back to a parted thing's laid spot a metre off, as the plan fixes' solver pulls a plan spot
+# (relation_solver.SOFT): weaker than staying inside the place's structure (the solver's ON_SLOPE) and an overlap's.
+PULL = 1.0
+
+
+def tall_together(box, other):
+    """Whether two boxes (low, high) reach into each other's height by more than HELD_MOST: a rug a few cm thick and
+    the table on it never do."""
+    return min(box[1][1], other[1][1]) - max(box[0][1], other[0][1]) > HELD_MOST
+
+
+def crossing(boxes, statics_built):
+    """How many of the boxes {name: (low, high)} stand inside each other or inside a static, by more than HELD_MOST
+    every way (inside_of's rule)."""
+    names = sorted(boxes)
+    return sum(depths(*boxes[first], boxes[second]).min() > HELD_MOST
+               for number, first in enumerate(names) for second in names[number + 1:]) \
+        + sum(len(inside_of(*box, statics_built)) for box in boxes.values())
+
+
+def through(start, end, others):
+    """Which of the boxes `others` (low (M, 3), high (M, 3)) the floor path from `start` to `end` ([x, y, z]; x and z
+    read) passes through, (M,) booleans: a thing whose middle went that way through a wall went into the next room."""
+    low, high = others[0][:, [0, 2]], others[1][:, [0, 2]]
+    first, way = np.asarray(start, float)[[0, 2]], (np.asarray(end, float) - start)[[0, 2]]
+    still = np.abs(way) < 1e-12
+    with np.errstate(divide="ignore", invalid="ignore"):
+        near, far = (low - first) / np.where(still, 1.0, way), (high - first) / np.where(still, 1.0, way)
+    enter = np.where(still, np.where((low < first) & (first < high), -np.inf, np.inf), np.minimum(near, far))
+    leave = np.where(still, np.where((low < first) & (first < high), np.inf, -np.inf), np.maximum(near, far))
+    return np.maximum(enter.max(axis=1), 0.0) < np.minimum(leave.min(axis=1), 1.0)
+
+
+def stacked(boxes):
+    """Boxes [(low, high)] as (low (M, 3), high (M, 3)), the form through and free_spot read."""
+    return (np.array([box[0] for box in boxes], float).reshape(-1, 3),
+            np.array([box[1] for box in boxes], float).reshape(-1, 3))
+
+
+def flush_moves(box, others, inside, axis, side):
+    """The moves along one floor axis (0: x, 2: z; `side` that axis's in `inside`: 0 or 1) that set a box (low,
+    high) flush against a side of one of `others` (low (M, 3), high (M, 3)) or of `inside` [low x, low z, high x,
+    high z], and no move: the only moves a least move clear of boxes needs."""
+    bounds = [bound for bound in (inside[side] - box[0][axis], inside[side + 2] - box[1][axis]) if np.isfinite(bound)]
+    return np.unique(np.concatenate([[0.0], others[1][:, axis] - box[0][axis], others[0][:, axis] - box[1][axis],
+                                     bounds]))
+
+
+# How many moves free_spot judges at once (memory: each against every other box).
+FREE_CHUNK = 2048
+
+
+def free_spot(box, others, pieces, inside):
+    """The least move [x, y, z] on the floor that takes a box (low, high) clear of every box of `others` and of the
+    wall `pieces` (each [(low, high)], those it shares height with: tall_together) and keeps it in `inside` [low x,
+    low z, high x, high z], its middle passing through no wall piece it did not start in (it stays in its room); None
+    where no move does. Only flush moves are judged (flush_moves), so the move found is exact. The solver's overlap
+    gives a box laid across a wall no way out (it holds the wall's piece inside its own on both axes, so the
+    overlap's gradient is 0): habitat's bunk beds, 2.1 m long, laid across its slanted inner wall."""
+    near = stacked([other for other in [*others, *pieces] if tall_together(box, other)])
+    walls_near = stacked([piece for piece in pieces if tall_together(box, piece)])
+    middle, size = foot_middle(*box), box[1] - box[0]
+    started = through(middle, middle, walls_near)
+    along, across = np.meshgrid(flush_moves(box, near, inside, 0, 0), flush_moves(box, near, inside, 2, 1))
+    moves = np.stack([along.ravel(), np.zeros(along.size), across.ravel()], axis=1)
+    moves = moves[np.lexsort((moves[:, 2], moves[:, 0], np.hypot(moves[:, 0], moves[:, 2])))]
+    spots = box[0][[0, 2]] + moves[:, [0, 2]]
+    moves = moves[(spots >= np.asarray(inside[:2]) - 1e-6).all(axis=1)
+                  & (spots + size[[0, 2]] <= np.asarray(inside[2:]) + 1e-6).all(axis=1)]
+    for first in range(0, len(moves), FREE_CHUNK):
+        chunk = moves[first:first + FREE_CHUNK]
+        reach = (np.minimum(box[1] + chunk[:, None], near[1][None]) - np.maximum(box[0] + chunk[:, None],
+                                                                                 near[0][None])).min(axis=2)
+        for move in chunk[~(reach > HELD_MOST).any(axis=1)]:
+            if not (through(middle, middle + move, walls_near) & ~started).any():
+                return move
+    return None
+
+
+def parted_spots(boxes, movers, fixed, inside):
+    """{name: its box (low, high)} of the movers {name: the box it starts from} parted on the floor by the relation
+    solver, at their built size: each pulled softly back to where it starts, kept in `inside` [low x, low z, high x,
+    high z], clear of each other and of the `fixed` boxes [(low, high)] and the things not moving ({name: box} of
+    `boxes` not in `movers`) it shares height with (tall_together)."""
+    from score.review.relation_solver._solver import Problem, solved
+    obstacles = [*fixed, *(box for name, box in boxes.items() if name not in movers)]
+    order = sorted(movers)
+    boxes = {**boxes, **movers}
+    problem = Problem([(boxes[name][1] - boxes[name][0])[[0, 2]] for name in order],
+                      [boxes[name][0][[0, 2]] for name in order], PULL, inside,
+                      [[low[0], low[2], high[0], high[2]] for low, high in obstacles],
+                      [[1.0 if tall_together(boxes[name], other) else 0.0 for other in obstacles] for name in order],
+                      [[1.0 if tall_together(boxes[name], boxes[other]) else 0.0 for other in order]
+                       for name in order], 0.0)
+    spots, _ = solved(problem)
+    return {name: (np.array([spot[0], boxes[name][0][1], spot[1]]),
+                   np.array([spot[0], boxes[name][0][1], spot[1]]) + boxes[name][1] - boxes[name][0])
+            for name, spot in zip(order, spots)}
+
+
+def crowded(boxes, fixed):
+    """The names of the boxes {name: (low, high)} standing inside another of them or inside one of `fixed` [(low,
+    high)] by more than HELD_MOST every way, sharing height (tall_together: a rug under a table never does)."""
+    return {name for name, box in boxes.items()
+            if any(tall_together(box, other) and depths(*box, other).min() > HELD_MOST for other in fixed)
+            or any(tall_together(box, found) and depths(*box, found).min() > HELD_MOST
+                   for other_name, found in boxes.items() if other_name != name)}
+
+
+def moved_box(box, shift):
+    """A box (low, high) moved by `shift` [x, y, z], or as it was when there is no shift (None)."""
+    return box if shift is None else (box[0] + shift, box[1] + shift)
+
+
+OPEN = [-np.inf, -np.inf, np.inf, np.inf]
+
+
+def bound_of(box, inside):
+    """The floor box [low x, low z, high x, high z] a thing (low, high) is kept in: `inside` (the box of the place's
+    walls) when its middle stands in it, else none (OPEN: airlock's porch post, outside its walls)."""
+    middle = foot_middle(*box)[[0, 2]]
+    return inside if (np.asarray(inside[:2]) <= middle).all() and (middle <= np.asarray(inside[2:])).all() else OPEN
+
+
+def bound_of_all(boxes, inside):
+    """The one floor box the solver keeps the boxes [(low, high)] in: `inside` grown to hold each one standing
+    outside it as laid (bound_of)."""
+    outside = [box for box in boxes if bound_of(box, inside) is OPEN]
+    return [min([inside[0], *(box[0][0] for box in outside)]), min([inside[1], *(box[0][2] for box in outside)]),
+            max([inside[2], *(box[1][0] for box in outside)]), max([inside[3], *(box[1][2] for box in outside)])]
+
+
+def parted_boxes(boxes, still, pieces, inside):
+    """{name: box (low, high)} of the boxes {name: (low, high)} of the things nothing holds, the crowded ones parted
+    at their built size, kept in `inside` [low x, low z, high x, high z], clear of the `still` boxes (fixtures and held
+    things) and the wall `pieces` [(low, high)]: each laid across a still box or a wall moved to the free spot
+    nearest it among those alone (free_spot: the solver's overlap gives one laid across a wall no way out), those
+    then inside each other parted by the relation solver (parted_spots); then each one still inside another, a still
+    box or a wall piece, or
+    whose middle the solver took through a wall into the next room, the biggest first, at the free spot nearest its
+    laid one among everything (free_spot); one with none left as laid (the held gate names it)."""
+    fixed = [*still, *pieces]
+    movers = crowded(boxes, fixed)
+    if not movers:
+        return boxes
+    after = {**boxes, **{name: moved_box(boxes[name], free_spot(boxes[name], still, pieces,
+                                                                 bound_of(boxes[name], inside)))
+                         for name in movers if crowded({name: boxes[name]}, fixed)}}
+    crowd = crowded(after, []) & movers
+    if crowd:
+        after.update(parted_spots(after, {name: after[name] for name in crowd}, fixed,
+                                  bound_of_all([boxes[name] for name in crowd], inside)))
+    walls_all = stacked(pieces)
+    crossed = {name for name in movers if (through(foot_middle(*boxes[name]), foot_middle(*after[name]), walls_all)
+                                           & ~through(foot_middle(*boxes[name]), foot_middle(*boxes[name]),
+                                                      walls_all)).any()}
+    tried = set()
+    while pending := sorted((crowded(after, fixed) & movers | crossed) - tried,
+                            key=lambda name: (-float(np.prod((boxes[name][1] - boxes[name][0])[[0, 2]])), name)):
+        name = pending[0]
+        tried.add(name)
+        others = [*still, *(box for other, box in after.items() if other != name)]
+        if name in crossed or crowded({name: after[name]}, [*others, *pieces]):
+            after[name] = moved_box(boxes[name], free_spot(boxes[name], others, pieces,
+                                                           bound_of(boxes[name], inside)))
+    return after
+
+
+def parted(stage, place, entries, holding=()):
+    """The entries nothing holds (a thing on the floor) laid at their built size inside another, a fixture or a wall
+    (more than HELD_MOST every way: a rug under a table never is) parted on the floor at their built size
+    (parted_boxes: the nearest free spot in its own room for one in a fixture or wall, then the plan fixes' relation
+    solver, score/review/relation_solver/_solver, for those inside each other, each pulled softly back to where it
+    starts, then the nearest free spot again for one the solver left crossing; each kept inside the box of the place's
+    walls where its middle stands in it (bound_of), clear of every fixture, still thing and wall piece it shares
+    height with), never shrunk; the fixtures, the structure and the things nothing crowds never move, and the held
+    things (`holding`, their names) are left out: fitted after, onto where their holders stand. Kept only when fewer
+    stand inside each other or a static after (#72, settle@flat: its bed in its bedside table and wardrobe, laid
+    bigger than the plan's estimates); the fits [{name, how "parted", ...}]."""
+    paths = {entry["name"]: f"/{place}/Objects/{entry['name']}" for entry in entries}
+    boxes = {name: world_box(stage, path) for name, path in paths.items()}
+    held = {f"{scope}/{name}": box for scope in ("Objects", "Fixtures") for name, box in walls_in(stage, place, scope)
+            if scope == "Fixtures" or (name not in boxes and name not in holding)}
+    built = walls(stage, place)
+    thin = statics(built)
+    pieces = [box for name, box in thin if name.split("_")[0] == "wall"]
+    room = [box for name, box in built if name.split("_")[0] == "wall"]
+    inside = ([min(box[0][0] for box in room), min(box[0][2] for box in room), max(box[1][0] for box in room),
+               max(box[1][2] for box in room)] if room else [-np.inf, -np.inf, np.inf, np.inf])
+    after = parted_boxes(boxes, list(held.values()), pieces, inside)
+    if crossing({**held, **after}, thin) >= crossing({**held, **boxes}, thin):
+        return []
+    fits = []
+    for entry in entries:
+        shift = after[entry["name"]][0] - boxes[entry["name"]][0]
+        if float(np.linalg.norm(shift)) < MOVE_LEAST:
+            continue
+        foot = foot_middle(*boxes[entry["name"]])
+        moved_by(stage.GetPrimAtPath(paths[entry["name"]]), foot, 1.0, foot + shift)
+        fits.append(laid_fit(stage, paths[entry["name"]], entry, "parted", None, np.linalg.norm(shift), 1.0,
+                             f"parted {float(np.linalg.norm(shift)):.2f} m on the floor at its built size: laid "
+                             f"inside another thing, nothing holding it there"))
+    return fits
 
 
 def moved_out(stage, place, entries):
-    """Each entry laid with nothing holding it (no `on`: a thing on the floor) that starts inside a static of the
-    built structure (statics: airlock's sandbags in its porch deck, its porch post in its wall, laid at the plan's
-    estimate) moved the least way out of each in turn (out_of), on the stage, where that is OUT_MOST at most (a
-    thing further in crosses the structure: hangar's 46 m ship in its 32 m room, left as laid for the held gate to
-    name); the fits [{name, how, ...}]. A climbing row (climbs: a stair into its level) is left to its stair."""
-    built, fits = statics(walls(stage, place)), []
+    """Each entry laid with nothing holding it (no `on`: a thing on the floor) that starts inside a deck or level of
+    the built structure (statics: airlock's sandbags in its porch deck, laid at the plan's estimate) moved the least
+    way out of each in turn (out_of), on the stage, where that is OUT_MOST at most; the fits [{name, how, ...}]. A
+    climbing row (climbs: a stair into its level) is left to its stair. One in a wall is parted's, which keeps it in
+    its room (the least way out of a wall can be through it: habitat's bunk bed, 2026-11-04), and leaves one that fits
+    nowhere there as laid for the held gate to name (hangar's 46 m ship in its 32 m room)."""
+    built, fits = [(name, box) for name, box in statics(walls(stage, place)) if name.split("_")[0] != "wall"], []
     for entry in entries:
         path = f"/{place}/Objects/{entry['name']}"
         low, high = world_box(stage, path)
