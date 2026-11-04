@@ -49,8 +49,8 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
 - **No size unknowns** (#70 level 2: lengths straight from SOMA): the lengths are the sizing's (`inside/sizing`),
   never solved here. The size-factor stage (14 mirrored size groups pulled to 1) never ran and was deleted
   (2026-10-29, the audit's item 9) with its record fields. The constants are each free marker's move off its link,
-  pulled to it at its own weight, and the joints inside groups (below); the plantar pads (`landmarks.HELD`) never
-  move, so a foot cannot sink through SOMA's sole.
+  pulled to it at its own weight, and the joints inside groups (below); the plantar pads and the skull's five (`landmarks.HELD`)
+  never move, so a foot cannot sink through SOMA's sole nor the skull into SOMA's head (2026-11-04).
 - **The joints inside groups are person constants** (#70 level 2, 2026-10-29): every body whose parent is another
   body of its own bone group (the lumbar levels, clavicle to scapula, the wrist bones, talus to calcaneus, the radius)
   and that a marker rides, it or a body below it (`Fitting.inside`), moves in its parent, solved in the markers' stage
