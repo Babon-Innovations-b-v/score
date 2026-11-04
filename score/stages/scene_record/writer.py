@@ -933,12 +933,12 @@ def related(design, relation, spot, way, base, size, piece=0):
                 {"how": "in", "middle": [middle[0], floor, middle[1]], "along": plan_way(design, along),
                  "wide": float(opening["wide"]), "tall": round(float(opening["head"]) - float(opening["sill"]), 4),
                  "why": relation["why"]})
-    if how == "wall":
+    if how == "wall":  # its front (FACING_WAY's) out into the room: its x way the run's, turned by the side it is on
         wall = relation["wall"]
         ends, out = wall_face(design, wall, relation["side"])
-        along = np.subtract(wall["to"], wall["from"])
-        return (np.asarray(relation["spot"], float), along / max(float(np.linalg.norm(along)), 1e-9), base,
-                {"how": "wall", "span": ends, "out": out, "why": relation["why"]})
+        along = np.subtract(wall["to"], wall["from"]) * -float(relation["side"])
+        return (np.asarray(relation["spot"], float), along / max(float(np.linalg.norm(along)), 1e-9),
+                float(relation.get("height", base)), {"how": "wall", "span": ends, "out": out, "why": relation["why"]})
     if how in ("top", "within", "face"):
         found = {"how": how, "holder item": relation["holder"], "why": relation["why"],
                  **({"holder row": relation["holder row"]} if relation.get("holder row") else {}),
@@ -964,8 +964,37 @@ def related(design, relation, spot, way, base, size, piece=0):
         depth = min(float(size[0]), float(size[1])) if isinstance(size, list) and len(size) == 3 else 0.0
         return np.asarray(relation["spot"], float) + out * depth / 2, np.array([out[1], -out[0]]), base, None
     if relation.get("spot"):
-        return np.asarray(relation["spot"], float), np.asarray(relation.get("way") or way, float), base, None
+        spot, way = np.asarray(relation["spot"], float), np.asarray(relation.get("way") or way, float)
+    if how == "ceiling" and relation.get("to roof") and isinstance(size, list) and len(size) == 3:
+        base = roof_under(design, spot) - float(size[2]) - ROOF_CLEAR  # its top at the roof's underside over it
     return spot, way, base, None
+
+
+# A thing hung from the roof stands this far under its underside, metres: against it, never in it.
+ROOF_CLEAR = 0.01
+
+
+def roof_under(design, spot):
+    """The underside of the place's roof over a plan spot, metres over the floor, as design_shell builds it: a slab's
+    or a gable's (closed on its eave) at its eave, a dome's on its sphere's cap, a vault's on its arc; the lowest of
+    those over the spot; the walls' height (the place's ceiling) under none."""
+    found = []
+    for name, laid, _ in design_shell.pieces(design):
+        for piece in laid if name.startswith("roof") else []:
+            if piece["builder"] == "dome":
+                reach = float(np.linalg.norm(np.subtract(spot, piece["centre"])))
+                sphere = (float(piece["radius"]) ** 2 + float(piece["rise"]) ** 2) / (2 * float(piece["rise"]))
+                if reach <= float(piece["radius"]):
+                    found.append(float(piece["base"]) + math.sqrt(max(sphere ** 2 - reach ** 2, 0.0)) -
+                                 (sphere - float(piece["rise"])))
+            elif design_shell.inside(spot, piece["points"]):
+                if piece["builder"] == "vault":
+                    arc = design_shell.vault_arc(piece["points"], piece["eave"], piece["top"], piece.get("lengthwise"))
+                    across = abs(float(np.subtract(spot, arc["start"]) @ [arc["along"][1], -arc["along"][0]]))
+                    found.append(arc["axis_high"] + math.sqrt(max(arc["radius"] ** 2 - across ** 2, 0.0)))
+                else:
+                    found.append(float(piece.get("low", piece.get("eave", 0.0))))
+    return min(found) if found else float(ceiling(design) or design_shell.STOREY)
 
 
 def arch_names(design, handin):
@@ -982,6 +1011,9 @@ def holder_names(found, laid, arched=None):
     one whose holder item laid neither keeps no `on` and says so."""
     rows = {entry["name"]: entry["row"] for entry in found}
     for entry in found:
+        if "beside" in entry:  # a seat before its holder (holders' `beside`): its holder's objects named
+            entry["beside"]["holder"] = [name for name in laid.get(entry["beside"]["holder item"]) or []
+                                         if rows.get(name) == entry["beside"]["holder row"]]
         on = entry.get("on")
         if on and "holder item" in on:
             names = [name for name in laid.get(on["holder item"]) or []
@@ -1069,7 +1101,11 @@ def design_objects(design, handin, relations=None):
                               "at": [point[0], floor, point[1]], "rotation": yaw_turn(design, way, size),
                               "waiting": waits(row, model, by_id),
                               "from": f"plan item {item[0]!r}, inventory row {row_id}: piece {number} of the row, "
-                                      f"{height:g} m over the floor", **({"on": dict(on)} if on else {}), **marked})
+                                      f"{height:g} m over the floor", **({"on": dict(on)} if on else {}), **marked,
+                              **({"beside": {"holder item": relation["beside"], "holder row": relation["holder row"]}}
+                                 if relation and relation.get("beside") else {}),
+                              **({"under roof": True} if relation and relation.get("to roof") and sized(
+                                  {"size": size}) else {})})
                 laid_at.setdefault(item[0], []).append(found[-1]["name"])
     return holder_names(found, laid_at, arch_names(design, handin))
 

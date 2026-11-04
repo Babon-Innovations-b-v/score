@@ -5,6 +5,7 @@ every door and standing spot reachable on foot from the others, and the inside p
 overlap. Measured on a grid of the plan (`Grid`): an item's footprint is its shape (`footprint`), the walls block,
 their openings do not."""
 import collections
+import json
 import math
 import re
 
@@ -212,15 +213,21 @@ def placed_items(plan):
 
 
 def count_gaps(plan, inventory, structure):
-    """A gap for each row standing on the floor or the ground placed another number of times than it counts (none for
-    a row the writer saw beyond the place, through a window or past its edge: the plan's `beyond`); an item of a run
-    (a row of shelving, a stack of crates) counts as many as its shape's `count`."""
+    """A gap for each row placed another number of times than it counts, wherever it stands (on the floor, a wall or
+    a holder: the plan writer re-counted wall rows too, lab's pipes 10 to 6, 2026-11-04 audit), with no reason in the
+    plan's `dropped` naming it (none for a row the writer saw beyond the place, through a window or past its edge:
+    the plan's `beyond`); an item of a run (a row of shelving, a stack of crates) counts as many as its shape's
+    `count`."""
     placed = collections.Counter()
-    for _, row, shape in placed_items(plan):
-        placed[row] += int((shape or {}).get("count") or 1)
+    for item in plan.get("items", []):  # every row tied to an item, the walls item's too: the scene record lays each
+        if item[6] != "item":
+            continue
+        for row in plan.get("rows", {}).get(item[0]) or []:
+            placed[row] += int((plan.get("shapes", {}).get(item[0]) or {}).get("count") or 1)
     gaps, left_out = [], beyond(plan, inventory) | people(inventory)  # people stand on person spots
+    said = json.dumps(plan.get("dropped") or [])
     for row in inventory.get("rows", []):
-        if row["id"] in structure | left_out or (row.get("anchor") or "floor") not in FLOOR_ANCHORS:
+        if row["id"] in structure | left_out or row["id"] in said:
             continue
         count = int(row.get("count", 1) or 1)
         if placed[row["id"]] != count:

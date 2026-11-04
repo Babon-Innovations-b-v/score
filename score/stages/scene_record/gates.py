@@ -7,7 +7,8 @@
                   between its sill and its head), and every row the hand-in gives the shell (route `plan`) is named
                   on a piece of it (unbuilt_rows); every stair the plan draws is laid; every plan item of a glowing row
                   has its light over its footprint (one outlining the whole room on its wall's face); every glowing
-                  row the plan lays has at least as many lamps as its reading counts things (count_faults)
+                  row the plan lays has at least as many lamps as its reading counts things (count_faults); every
+                  row laid numbers as its scene inventory counts unless the plan says why (row_count_faults)
     openings      every doorway leads somewhere: each door, gate or open doorway of the plan leads to a place of the
                   design, outside, sealed, onto a row of its own inventory (a ground it opens onto), or (none named)
                   into what holds it; a door to a place its holder's plan holds beside it has that place stood in the
@@ -18,12 +19,14 @@
 Whether the made ground fits the place round its doorways is ground-fit's, judged on the assembly that stands on it.
 """
 import json
+import math
 import pathlib
 import re
 
 import numpy as np
 
 from score import checks
+from score.review import holders
 from score.stages.earth_seed import design_shell
 from score.stages.scene_record import writer
 
@@ -151,6 +154,29 @@ def count_faults(record, design, inputs):
             if row_id in tied and made.get(row_id, 0) < int(row.get("count") or 1)]
 
 
+def row_count_faults(record, design, inputs):
+    """Each row the record lays (a prop or shell row of the hand-in, not far, nor the place's structure, a person or
+    seen beyond it) whose objects number other than its scene inventory counts, with no reason in the plan's
+    `dropped` or notes naming it (2026-11-04 audit: the plan writer re-counted about 25 rows, hangar's crates 14 to
+    7, and the record matched the plan, so nothing caught it)."""
+    handin = json.loads(pathlib.Path(inputs["hand-in"]).read_text())
+    inventory = json.loads(pathlib.Path(inputs["inventory"]).read_text())
+    laid = {row["id"] for row in handin.get("rows", []) if row.get("route", "prop") in writer.LAID_ROUTES
+            and not row.get("far")}
+    left = set(design.get("structure") or []) | set(design.get("beyond") or []) | \
+        {row["id"] for row in inventory.get("rows", []) if row.get("noun") in ("person", "people")}
+    said = json.dumps([design.get("dropped") or [], design.get("notes") or [],
+                       [shape.get("note") for shape in (design.get("shapes") or {}).values()]])
+    counted = {}
+    for entry in record.get("objects", []):
+        if entry.get("kind") == "object":
+            counted[entry["row"]] = counted.get(entry["row"], 0) + 1
+    return [f"row {row['id']}: {int(row.get('count') or 1)} in the scene inventory, {counted.get(row['id'], 0)} laid, "
+            "and the plan says no reason" for row in inventory.get("rows", [])
+            if row["id"] in laid - left and counted.get(row["id"], 0) != int(row.get("count") or 1)
+            and row["id"] not in said]
+
+
 def unbuilt_rows(record, handin):
     """Each row the hand-in gives the plan's shell to lay (route `plan`, writer.plan_rows) that no structure piece of
     the record is named for: a row the shell has no way to build, dropped without a word (the hangar's landing pad,
@@ -161,8 +187,9 @@ def unbuilt_rows(record, handin):
 
 
 def judge_plan_matched(output, inputs, evidence):
-    """Fail on a wall, opening, stair or lamp of the plan the record does not hold as the plan says, and on a row of
-    the shell's that no piece of it builds (unbuilt_rows)."""
+    """Fail on a wall, opening, stair or lamp of the plan the record does not hold as the plan says, on a row of the
+    shell's that no piece of it builds (unbuilt_rows), or a row laid another number of times than its scene inventory
+    counts with no reason given (row_count_faults)."""
     place, record = writer.record_in(output)
     design = design_of(inputs, place)
     shelled = writer.inside(design) and not design_shell.laid_for(design)
@@ -170,7 +197,7 @@ def judge_plan_matched(output, inputs, evidence):
     faults = (wall_faults(record, design) + opening_faults(record, design) +
               (unbuilt_rows(record, json.loads(handin.read_text())) if handin.is_file() else [])
               if shelled else []) + stair_faults(record, design) + lamp_faults(record, design) + \
-        count_faults(record, design, inputs)
+        count_faults(record, design, inputs) + row_count_faults(record, design, inputs)
     said = "its shell's walls and openings, " if shelled else \
         ("no shell of the record's (its base lays it), " if writer.inside(design) else "no shell (an open place), ")
     reason = "; ".join(faults[:3]) + (f" and {len(faults) - 3} more" if len(faults) > 3 else "") if faults else \
@@ -246,12 +273,83 @@ def view_faults(record, design):
             if not writer.inside_polygon([view["eye"][0], view["eye"][2]], outline)]
 
 
+# An opening stands within this share of its door row's metres (the drawing places it, the row sizes it), and a
+# doorway a person walks through is at least PASSABLE metres wide (2026-11-04 audit: habitat's 2.2 m hatches cut
+# 0.237 m wide, stairwell's 1 m doors 0.39 m).
+DOOR_SHARE = 0.25
+PASSABLE = 0.7
+BEARING_REACH = 30.0  # degrees a doorway's bearing may stand off its door row's
+
+
+def side_of(design, point):
+    """The plan side (N, E, S or W) a plan point lies toward from the plan's middle, its box's half sides as one."""
+    half = np.array([float(design["w"]) / 2, float(design["d"]) / 2])
+    return holders.snapped((np.asarray(point, float) - half) / np.maximum(half, 1e-9))
+
+
+def bearing_of(design, point):
+    """A plan point's bearing from the plan's middle, degrees clockwise from north (up the plan)."""
+    way = np.asarray(point, float) - [float(design["w"]) / 2, float(design["d"]) / 2]
+    return math.degrees(math.atan2(float(way[0]), float(-way[1]))) % 360.0
+
+
+def door_rows(design):
+    """[(how it is placed: a side N/E/S/W, a bearing in degrees or another word (a tube's `near`), metres, words, sill
+    or None, its lead)] of the plan's door rows ([side, along, metres, words, sill], [bearing, metres, words],
+    [word, metres, words]), each its lead under its key, its key and sill (`W@9`)."""
+    leads, found = design.get("leads") or {}, []
+    for door in design.get("doors") or []:
+        if not isinstance(door, list) or len(door) < 3:
+            continue
+        sided = door[0] in holders.FACES
+        metres, words = (door[2], door[3] if len(door) > 3 else "") if sided else (door[1], door[2])
+        sill = float(door[4]) if sided and len(door) > 4 and door[4] is not None else None
+        key = door[0] if isinstance(door[0], str) else f"{float(door[0]):g}"
+        lead = (leads.get(f"{key}@{sill:g}") if sill is not None else None) or leads.get(key) or {}
+        found.append((door[0], float(metres), str(words), sill, lead.get("to")))
+    return found
+
+
+def door_faults(design):
+    """Each door row of the plan (door_rows) with no doorway of the plan's openings where it says (on its side and at
+    its sill, at its bearing within BEARING_REACH, else leading where it leads), or one of another width than its
+    metres (DOOR_SHARE), narrower than PASSABLE, or leading elsewhere than its lead; and, where the plan has door
+    rows, each doorway none of them is (the scene record cuts the plan's openings, so the design's doors are what it
+    stands)."""
+    found, doors = [], door_rows(design)
+    left = [(number, opening) for number, opening in enumerate(design.get("openings") or [], 1)
+            if opening.get("kind") in DOORWAYS]
+    for where, metres, words, sill, lead in doors:
+        if where in holders.FACES:
+            fits = [pair for pair in left if side_of(design, pair[1]["at"]) == where and
+                    (sill is None or abs(float(pair[1].get("sill") or 0.0) - sill) <= TOLERANCE)]
+        elif isinstance(where, (int, float)):
+            fits = sorted([pair for pair in left if abs((bearing_of(design, pair[1]["at"]) - float(where) + 180.0)
+                                                         % 360.0 - 180.0) <= BEARING_REACH],
+                          key=lambda pair: abs((bearing_of(design, pair[1]["at"]) - float(where) + 180.0) % 360.0
+                                               - 180.0))
+        else:
+            fits = [pair for pair in left if lead is not None and pair[1].get("to") == lead]
+        if not fits:
+            found.append(f"door row {words!r} has no doorway where it says ({where})")
+            continue
+        number, opening = fits[0]
+        left.remove(fits[0])
+        wide = float(opening["wide"])
+        if abs(wide - metres) > DOOR_SHARE * metres or wide < PASSABLE:
+            found.append(f"opening {number} is {wide:g} m wide for door row {words!r} of {metres:g} m")
+        if lead is not None and opening.get("to") != lead:
+            found.append(f"opening {number} leads to {opening.get('to')!r}, its door row {words!r} to {lead!r}")
+    return found + [f"opening {number} is no door row of the plan" for number, _ in (left if doors else [])]
+
+
 def judge_openings(output, inputs, evidence):
     """Fail on a doorway that leads nowhere the design knows, to a neighbour the record lacks or stands off its door
     back, or a view outside."""
     place, record = writer.record_in(output)
     design = design_of(inputs, place)
-    faults = lead_faults(record, design, inputs) + pair_faults(record, design, inputs) + view_faults(record, design)
+    faults = lead_faults(record, design, inputs) + pair_faults(record, design, inputs) + view_faults(record, design) + \
+        door_faults(design)
     doorways = sum(1 for opening in design.get("openings") or [] if opening.get("kind") in DOORWAYS)
     reason = "; ".join(faults[:3]) + (f" and {len(faults) - 3} more" if len(faults) > 3 else "") if faults else \
         (f"every doorway leads somewhere ({doorways} doorways, {len(record['places'])} neighbours stood) and every "
@@ -260,5 +358,164 @@ def judge_openings(output, inputs, evidence):
                           {"faults": len(faults), "doorways": doorways}, {"faults": "lower"}, tuple(faults))
 
 
+# --- laid-as-designed ----------------------------------------------------------------------------------------------
+
+# Two pieces of one row nearer than this stand at one spot, metres (each piece laid at its own).
+SAME_SPOT = 0.02
+# A seat its words put at, by or before a holder stands no further than this from the holder's built side, metres.
+SEAT_REACH = 0.3
+# A wall thing its words say is high, or a light, stands at least this far over the floor, metres.
+OFF_FLOOR = 0.05
+# A wall thing is longer than its wall's face by at most this share of it (the assembly shrinks it a few percent).
+LONGER = 0.05
+
+
+def plan_of_place(design, point):
+    """A place point [x, y, z] as its plan spot [x, y] and its height over the floor."""
+    corner, east, south = (np.asarray(value, float) for value in writer.place_plan.frame_of(design))
+    turn = np.array([[east[0], south[0]], [east[2], south[2]]])
+    spot = np.linalg.solve(turn, np.array([point[0] - corner[0], point[2] - corner[2]]))
+    return spot, float(point[1] - corner[1])
+
+
+def x_axis(rotation):
+    """A turn about up [x, y, z, w] as the place way [x, z] its model's x points."""
+    angle = 2 * math.atan2(float(rotation[1]), float(rotation[3]))
+    return np.array([math.cos(angle), -math.sin(angle)])
+
+
+def plan_turn(design, way):
+    """A place way [x, z] as a plan way [x, y]."""
+    _, east, south = writer.place_plan.frame_of(design)
+    return np.linalg.solve(np.array([[east[0], south[0]], [east[2], south[2]]]), np.asarray(way, float))
+
+
+def sizes_of(handin):
+    """{row id: the size [wide, deep, tall] its objects are built at} (its take's model's row's, as the writer lays)."""
+    by_id, models = {row["id"]: row for row in handin.get("rows", [])}, writer.models_of(handin)
+    found = {}
+    for row_id, row in by_id.items():
+        model = models.get(row_id)
+        size = by_id.get(model.removesuffix("_1"), row).get("size") if model else row.get("size")
+        if writer.sized({"size": size}):
+            found[row_id] = [float(side) for side in size]
+    return found
+
+
+def reach_along(entry, size, way):
+    """Half a laid object's built footprint along a place way [x, z]: its box's support turned as it is laid."""
+    x = x_axis(entry["rotation"])
+    z = np.array([-x[1], x[0]])
+    return abs(float(way @ x)) * size[0] / 2 + abs(float(way @ z)) * size[1] / 2
+
+
+def spot_faults(objects):
+    """Each two pieces of one row laid at one spot (within SAME_SPOT): one lump where the design shows several."""
+    found, by_row = [], {}
+    for entry in objects:
+        by_row.setdefault(entry["row"], []).append(entry)
+    for row, laid in by_row.items():
+        for number, one in enumerate(laid):
+            for other in laid[number + 1:]:
+                if float(np.linalg.norm(np.subtract(one["at"], other["at"]))) < SAME_SPOT:
+                    found.append(f"{one['name']} and {other['name']} of row {row} stand at one spot")
+    return found
+
+
+def held_wall_faults(objects, design, sizes, rows):
+    """Each wall-held object that faces its wall (its model's front, FACING_WAY's, against its `out`), whose built
+    length along its wall is more than the wall's face holds, or that stands on the floor where its words say it is
+    high or it is a light."""
+    found = []
+    for entry in objects:
+        on = entry.get("on") or {}
+        if on.get("how") != "wall":
+            continue
+        start, end = (np.asarray(point, float) for point in on["span"])
+        run = (end - start) / max(float(np.linalg.norm(end - start)), 1e-9)
+        x = x_axis(entry["rotation"])
+        if abs(float(x @ run)) > 0.7:  # its x along its wall (one deeper than wide lays its z there instead)
+            ahead = plan_turn(design, x)
+            front = writer.plan_way(design, [ahead[1], -ahead[0]])
+            if float(np.asarray(front) @ np.asarray(on["out"], float)) < 0.0:
+                found.append(f"{entry['name']} faces its wall, its back to the room")
+        size = sizes.get(entry["row"])
+        if size and max(size[0], size[1]) > float(np.linalg.norm(end - start)) * (1 + LONGER) + TOLERANCE:
+            found.append(f"{entry['name']} is {max(size[0], size[1]):g} m long on a wall face "
+                         f"{float(np.linalg.norm(end - start)):.2f} m long")
+        row = rows.get(entry["row"]) or {"id": entry["row"]}
+        _, height = plan_of_place(design, entry["at"])
+        if height < OFF_FLOOR and (holders.where_words(row) & holders.HIGH_WORDS or
+                                   holders.kind_words(row) & holders.LIGHT_WORDS):
+            found.append(f"{entry['name']} stands on the floor, but its row is {row.get('where')!r} on its wall")
+    return found
+
+
+def roof_faults(objects, design, sizes, relations, rows):
+    """Each object held under the roof (a `ceiling` relation) whose row hangs from it (holders.under_roof: anchored
+    ceiling or roof, or its words say so) whose top is off the roof's underside over it by more than TOLERANCE."""
+    hung = {(entry["item"], entry["row"]) for entry in (relations or {}).get("relations", [])
+            if entry.get("how") == "ceiling" and holders.under_roof(rows.get(entry["row"]) or {})}
+    found = []
+    for entry in objects:
+        named = re.match(r"plan item '(.+?)'", entry.get("from", ""))
+        size = sizes.get(entry["row"])
+        if not named or (named.group(1), entry["row"]) not in hung or not size:
+            continue
+        spot, height = plan_of_place(design, entry["at"])
+        under = writer.roof_under(design, spot)
+        if abs(height + size[2] - under) > TOLERANCE:
+            found.append(f"{entry['name']}'s top stands {height + size[2]:.2f} m up, its roof's underside "
+                         f"{under:.2f} m over it")
+    return found
+
+
+def seat_faults(objects, sizes, rows, design):
+    """Each seat its words put at, by or before a holder (holders.beside_holder) that stands further than SEAT_REACH
+    from the nearest of that holder's objects' built sides, or in it, or before none."""
+    by_name = {entry["name"]: entry for entry in objects}
+    found = []
+    for entry in objects:
+        row = rows.get(entry["row"])
+        if not row or not holders.kind_words(row) & holders.SEAT_WORDS or \
+                not holders.where_words(row) & holders.BESIDE_WORDS:
+            continue
+        held = [by_name[name] for name in (entry.get("beside") or {}).get("holder") or [] if name in by_name]
+        if not held:
+            if entry.get("beside"):
+                found.append(f"{entry['name']} stands before {entry['beside']['holder item']}, which lays nothing")
+            continue
+        seat = np.array([entry["at"][0], entry["at"][2]])
+        gaps = []
+        for holder in held:  # the footprints' gap: their widest parting across either of the holder's sides
+            middle, x = np.array([holder["at"][0], holder["at"][2]]), x_axis(holder["rotation"])
+            gaps.append(max(abs(float((seat - middle) @ way)) - reach_along(holder, sizes.get(holder["row"], [0, 0, 0]),
+                                                                              way)
+                            - reach_along(entry, sizes.get(entry["row"], [0, 0, 0]), way)
+                            for way in (x, np.array([-x[1], x[0]]))))
+        gap = min(gaps)
+        if not -TOLERANCE <= gap <= SEAT_REACH:
+            found.append(f"{entry['name']} stands {gap:.2f} m from {entry['beside']['holder item']}, its words "
+                         f"{row.get('where')!r}")
+    return found
+
+
+def judge_laid_as_designed(output, inputs, evidence):
+    """Fail on pieces of one row at one spot, a wall thing facing its wall, longer than its wall or on the floor where
+    its words say high, a thing hung from the roof off its underside, or a seat away from what it stands at."""
+    place, record = writer.record_in(output)
+    design = design_of(inputs, place)
+    handin = json.loads(pathlib.Path(inputs["hand-in"]).read_text())
+    rows = {row["id"]: row for row in json.loads(pathlib.Path(inputs["inventory"]).read_text()).get("rows", [])}
+    sizes, objects = sizes_of(handin), [entry for entry in record.get("objects", []) if entry.get("kind") == "object"]
+    relations, _ = writer.relations_input(inputs, place)
+    faults = spot_faults(objects) + held_wall_faults(objects, design, sizes, rows) + \
+        roof_faults(objects, design, sizes, relations, rows) + seat_faults(objects, sizes, rows, design)
+    reason = "; ".join(faults[:3]) + (f" and {len(faults) - 3} more" if len(faults) > 3 else "") if faults else \
+        f"its {len(objects)} objects stand as the design lays them"
+    return checks.Verdict("laid-as-designed", checks.FAIL if faults else checks.PASS, reason,
+                          {"faults": len(faults), "objects": len(objects)}, {"faults": "lower"}, tuple(faults))
+
+
 CHECKS = (checks.Check("game-free", judge_game_free), checks.Check("plan-matched", judge_plan_matched),
-          checks.Check("openings", judge_openings))
+          checks.Check("openings", judge_openings), checks.Check("laid-as-designed", judge_laid_as_designed))

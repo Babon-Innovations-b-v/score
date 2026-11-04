@@ -24,6 +24,7 @@ import copy
 import io
 import json
 import math
+import re
 import sys
 
 import numpy
@@ -279,6 +280,127 @@ def brought_in(plan, inventory):
             for row in moved]
 
 
+# A door row's doorway stands within this of its bearing, degrees; the kinds of opening a person walks through.
+BEARING_REACH = 30.0
+DOORWAY_KINDS = ("door", "gate", "opening")
+SIDE_ANGLES = {"N": 0.0, "E": 90.0, "S": 180.0, "W": 270.0}
+SIDE_WAYS = {"N": (0.0, -1.0), "S": (0.0, 1.0), "E": (1.0, 0.0), "W": (-1.0, 0.0)}
+DOOR_SIZE = re.compile(r"\d+(?:\.\d+)? ?x ?(\d+(?:\.\d+)?) ?m")  # a door row's words "(0.9 x 2.0 m)": its height
+DOOR_HEAD = 2.1  # metres of a cut doorway's head its words give none (design_shell.DOOR_HEAD)
+
+
+def toward(plan, point):
+    """The plan side (N, E, S or W) a plan point lies toward from the plan's middle, its box's half sides as one."""
+    half = numpy.array([float(plan["w"]) / 2, float(plan["d"]) / 2])
+    way = (numpy.asarray(point, float) - half) / numpy.maximum(half, 1e-9)
+    return max(SIDE_WAYS, key=lambda side: float(numpy.asarray(SIDE_WAYS[side]) @ way))
+
+
+def bearing(plan, point):
+    way = numpy.asarray(point, float) - [float(plan["w"]) / 2, float(plan["d"]) / 2]
+    return math.degrees(math.atan2(float(way[0]), float(-way[1]))) % 360.0
+
+
+def off_bearing(plan, point, degrees):
+    return abs((bearing(plan, point) - float(degrees) + 180.0) % 360.0 - 180.0)
+
+
+def on_outline(plan, point):
+    """The point of the plan's outline nearest a plan point."""
+    outline = numpy.asarray(plan_checks.outline_of(plan), float)
+    best = None
+    for start, end in zip(outline, numpy.roll(outline, -1, axis=0)):
+        run = end - start
+        near = start + run * float(numpy.clip((point - start) @ run / max(float(run @ run), 1e-9), 0.0, 1.0))
+        if best is None or float(numpy.linalg.norm(near - point)) < float(numpy.linalg.norm(best - point)):
+            best = near
+    return best
+
+
+def side_spot(plan, side, along, metres):
+    """Where a door row [side, along, metres] stands: `along` its side (from its west or north end, kept its half
+    width inside it), on the plan's outline."""
+    length = float(plan["w"] if side in ("N", "S") else plan["d"])
+    along = min(max(float(along), metres / 2), max(length - metres / 2, metres / 2))
+    point = {"N": [along, 0.0], "S": [along, float(plan["d"])], "W": [0.0, along], "E": [float(plan["w"]), along]}[side]
+    return [round(float(value), 3) for value in on_outline(plan, numpy.asarray(point, float))]
+
+
+def door_of(plan, door):
+    """(how it is placed, metres, words, sill, along, lead) of a plan door row: [side, along, metres, words, sill],
+    [bearing, metres, words] or [word, metres, words] (a tube's `near`), its lead under its key, else its key and
+    sill (`W@9`)."""
+    sided = door[0] in SIDE_WAYS
+    metres, words = (door[2], door[3] if len(door) > 3 else "") if sided else (door[1], door[2])
+    sill = float(door[4]) if sided and len(door) > 4 and door[4] is not None else None
+    key = door[0] if isinstance(door[0], str) else f"{float(door[0]):g}"
+    leads = plan.get("leads") or {}
+    lead = (leads.get(f"{key}@{sill:g}") if sill is not None else None) or leads.get(key) or {}
+    return door[0], float(metres), str(words), sill, door[1] if sided else None, lead.get("to")
+
+
+def doorway_for(plan, place, metres, sill, lead, left):
+    """The doorway of `left` [(index, opening)] a door row is: on its side at its sill, at its bearing, else leading
+    where it leads; None."""
+    if place in SIDE_WAYS:
+        fits = [pair for pair in left if toward(plan, pair[1]["at"]) == place and
+                (sill is None or abs(float(pair[1].get("sill") or 0.0) - sill) <= 0.05)]
+    elif isinstance(place, (int, float)):
+        fits = sorted([pair for pair in left if off_bearing(plan, pair[1]["at"], place) <= BEARING_REACH],
+                      key=lambda pair: off_bearing(plan, pair[1]["at"], place))
+    else:
+        fits = [pair for pair in left if lead is not None and pair[1].get("to") == lead]
+    return fits[0] if fits else None
+
+
+def doors_kept(plan, inventory):
+    """Every doorway of the plan the design's door rows say (2026-11-04 audit: the drawing's openings, Gemini's answer
+    scaled, came out 0.2 to 5 m wide against 1 to 2.2 m door rows, on other walls, more or fewer): each door row's
+    doorway (on its side and sill, at its bearing, else where it leads) its metres wide and leading where its lead
+    does, the drawing kept only for where along its wall it stands; a side door row with none there moves the
+    doorway left over that leads where it does, else any left over, to its side at its along, else one is cut there;
+    the doorways no door row is dropped, where the plan has door rows; the fixes said."""
+    doors = [door_of(plan, door) for door in plan.get("doors") or [] if isinstance(door, list) and len(door) >= 3]
+    if not doors:
+        return []
+    openings, fixes = plan.setdefault("openings", []), []
+    left = [(number, opening) for number, opening in enumerate(openings) if opening.get("kind") in DOORWAY_KINDS]
+    unmet = []
+    for place, metres, words, sill, along, lead in doors:
+        found = doorway_for(plan, place, metres, sill, lead, left)
+        if found is None:
+            unmet.append((place, metres, words, sill, along, lead))
+            continue
+        left.remove(found)
+        opening = found[1]
+        if abs(float(opening["wide"]) - metres) > 1e-6 or (lead is not None and opening.get("to") != lead):
+            fixes.append(f"{words}: its doorway {float(opening['wide']):g} m wide to {opening.get('to')!r} made "
+                         f"its door row's {metres:g} m to {lead!r}")
+            opening.update(wide=metres, **({"to": lead} if lead is not None else {}))
+    for place, metres, words, sill, along, lead in unmet:
+        if place not in SIDE_WAYS:
+            fixes.append(f"{words}: no doorway at its {place} and none moved there (only a side door row is)")
+            continue
+        spare = next((pair for pair in left if lead is not None and pair[1].get("to") == lead), None) or (
+            left[0] if left else None)
+        head = DOOR_SIZE.search(words)
+        opening = spare[1] if spare else {"kind": "door", "swing": "none",
+                                          "head": round((sill or 0.0) + (float(head.group(1)) if head else
+                                                                         DOOR_HEAD), 3)}
+        if spare:
+            left.remove(spare)
+        else:
+            openings.append(opening)
+        opening.update(at=side_spot(plan, place, along, metres), wide=metres, angle=SIDE_ANGLES[place],
+                       sill=opening.get("sill", sill or 0.0) if sill is None else sill,
+                       **({"to": lead} if lead is not None else {"to": opening.get("to")}))
+        fixes.append(f"{words}: its doorway {'moved' if spare else 'cut'} to its {place} side at {along}")
+    for number, opening in sorted(left, reverse=True):
+        openings.pop(number)
+        fixes.append(f"the doorway at {opening['at']} to {opening.get('to')!r}: no door row of the plan, dropped")
+    return fixes
+
+
 def fixed(plan, inventory):
     """(the plan with every free fix made, the fixes said): rows at the concept's foot brought in from beyond, people
     stood, runs split, missing things placed, facings turned, overlaps parted, in that order (each later one on the
@@ -288,6 +410,7 @@ def fixed(plan, inventory):
     project = projector(plan, inventory)
     fixes += stood_people(plan, inventory, project) + split_runs(plan, inventory, project)
     fixes += placed_missing(plan, inventory, project) + faced(plan, inventory) + nudged(plan, inventory)
+    fixes += doors_kept(plan, inventory)
     return plan, fixes
 
 
