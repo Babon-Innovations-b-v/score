@@ -186,7 +186,8 @@ def on_holder(low, high, how, on, box):
     half = size * scale / 2
     target = np.array([kept_within(foot[0], hold_low[0], hold_high[0], half[0]), 0.0,
                        kept_within(foot[2], hold_low[2], hold_high[2], half[2])])
-    target[1] = hold_high[1] if how == "top" else float(np.clip(foot[1], hold_low[1], hold_high[1] - size[1] * scale))
+    target[1] = hold_high[1] if how == "top" else hold_low[1] if on.get("under") else \
+        float(np.clip(foot[1], hold_low[1], hold_high[1] - size[1] * scale))
     return scale, target
 
 
@@ -455,7 +456,8 @@ def off_holder(low, high, how, on, box):
     if how == "top":
         return max(abs(low[1] - hold_high[1]), overhang(low, high, hold_low, hold_high, (0, 2)))
     if how == "within":
-        return overhang(low, high, hold_low, hold_high, (0, 1, 2))
+        return max(overhang(low, high, hold_low, hold_high, (0, 1, 2)),
+                   abs(low[1] - hold_low[1]) if on.get("under") else 0.0)
     axis, side, sign = face_axes(on)
     below, above = beside(on, side)
     face = on.get("face at")
@@ -675,6 +677,27 @@ def crowded_faults(record, boxes):
     return [(first, f"laid {depth:.2f} m inside {second} at its built size" +
              ("" if holding.get(first) or holding.get(second) else ", nothing holding either there"),
              round(depth, 3)) for first, second, depth in found if depth > HELD_MOST]
+
+
+def placement_faults(record, rows):
+    """[(object, what is wrong, None)] of the record's objects whose relation is not the one their reading's placement
+    word asks (score/review/holders.placement, inventory `rows` {id: row}): one said under its holder or on its
+    shelves held other than within it (under: at its foot), one said on its holder's side laid on its top
+    (quarters' cables under its desk on the desk top, its poster on the locker's side flat on its top, 2026-11-04)."""
+    from score.review import holders  # not at import: holders is in the scene record's key, never this one's
+    found = []
+    for entry in record.get("objects") or []:
+        on, row = entry.get("on") or {}, rows.get(entry.get("row"))
+        holder = rows.get(on.get("holder row"))
+        if not (row and holder):
+            continue
+        said = holders.placement(row, holder)
+        wrong = (said == "under" and not (on["how"] == "within" and on.get("under"))) or \
+            (said == "shelf" and on["how"] != "within") or (said == "side" and on["how"] == "top")
+        if wrong:
+            found.append((entry["name"], f"laid {on['how']} {holder['id']}, though its reading says "
+                                         f"{row.get('where')!r} ({said})", None))
+    return found
 
 
 def holders_of(record):

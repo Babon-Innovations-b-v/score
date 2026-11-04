@@ -8,7 +8,8 @@ Each plan item of a row that stands on, against or in something gets one relatio
     top    on its holder item's top: the row's anchor `on:<row>`, and in the concept its box's foot stands over its
            holder's by more than TOP_SHARE of the holder's box (a monitor on its console, a lamp on its desk)
     within inside its holder item, where the plan lays its middle (plants in their greenhouse, a door in its frame);
-           `hangs` where it hangs in it (hangs: a spacesuit in its locker)
+           `hangs` where it hangs in it (hangs: a spacesuit in its locker); a row its reading's `where` says is under
+           its holder (`under`: at its holder's foot, cables under the desk) or on its shelves (placement)
     face   (a moving door's `recess`, its room in its holder model behind it: recess_of; `spots` each piece's plan
            middle where a moving door's item lays several, at least its width, room and OPENING_ROOM apart: face_spots,
            or where things on one face that meet at their built sizes are spread along it: face_spread, a face too
@@ -324,12 +325,38 @@ def room_height(plan):
     return max(talls) if talls else None
 
 
+def placement(row, holder_row):
+    """The placement word a row's reading says beside its holder (its `where`), past `on`: "under" (cables under the
+    desk, a box under the lab table), "shelf" (boxes on the shelves, a tray on its rack's top shelf) or "side" (a
+    poster on the locker's side, a hose on the side of the AC unit; never "left side of the desk", where on it), else
+    None. Quarters' cables under its desk lay on the desk's top, the engine room's boxes on their shelves at 2 m on
+    the unit's top (2026-11-04)."""
+    where = str(row.get("where") or "").lower()
+    named = "|".join(re.escape(word) for word in sorted(kind_words(holder_row)))
+    if re.search(r"\b(under|underneath|beneath|below)\b", where):
+        return "under"
+    if re.search(r"\bshel(f|ves)\b", where):
+        return "shelf"
+    if re.search(r"(?<!left )(?<!right )\bsides? of\b", where) or (named and re.search(rf"\b({named})s? sides?\b",
+                                                                                         where)):
+        return "side"
+    return None
+
+
 def held(item, row, holder_row, holder_items, items, turn, room=None):
-    """A relation to a holder the plan lays, its nearest item: top (where it fits under the place's height `room`),
-    within it where the plan lays it inside, else against the face the concept shows it on, the plan's side toward
-    it, its facing, its holder's, or S."""
+    """A relation to a holder the plan lays, its nearest item: within it, at its foot, where its reading says it is
+    under it, and within it where on its shelves (placement: the settle lets it down onto the shelf under it); top
+    (where it fits under the place's height `room`, never one said on its holder's side), within it where the plan
+    lays it inside, else against the face the concept shows it on, the plan's side toward it, its facing, its
+    holder's, or S."""
     nearest = min(holder_items, key=lambda name: float(numpy.linalg.norm(middle(items[name]) - middle(item))))
-    if on_top(row, holder_row) and fits_over(row, holder_row, room) and not design_shell.fills_opening(row):
+    said = placement(row, holder_row)
+    if said in ("under", "shelf"):
+        return {"how": "within", "holder": nearest, **({"under": True} if said == "under" else {}),
+                "why": f"{'under' if said == 'under' else 'on the shelves of'} {holder_row['id']}: its reading says "
+                       f"{row.get('where')!r}"}
+    if said != "side" and on_top(row, holder_row) and fits_over(row, holder_row, room) \
+            and not design_shell.fills_opening(row):
         return {"how": "top", "holder": nearest, "why": f"on {holder_row['id']}'s top in the concept"}
     if inside(item, items[nearest]):
         return {"how": "within", "holder": nearest, "why": f"within {holder_row['id']}: the plan lays it inside"}

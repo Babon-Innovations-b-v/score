@@ -111,7 +111,9 @@ def test_a_monitor_stands_on_its_console_s_top():
     """The concept shows the monitor's foot over the console's by more than a quarter of the console's box, its top
     above the console's top quarter: on the console's top, its nearest item named.
     Break: score/review/holders/__init__.py: `return under[3] - seen[3] > TOP_SHARE * tall and seen[1] < under[1] +
-        TOP_SHARE * tall` -> `return False`"""
+        TOP_SHARE * tall` -> `return False`
+    Break: score/review/holders/__init__.py: held's `if said in ("under", "shelf"):` -> `if False:`, or placement's
+        `(?<!left )(?<!right )` dropped (a monitor on the left of its console laid on its side)"""
     rows = [{"id": "console", "noun": "console", "anchor": "floor", "box": [300, 300, 700, 500]},
             {"id": "monitor", "noun": "monitor", "anchor": "on:console", "box": [400, 220, 480, 330]}]
     plan = plan_of([["CONSOLE 1", 2.0, 2.0, 3.0, 0.8, "S", "item"], ["CONSOLE 2", 12.0, 2.0, 3.0, 0.8, "S", "item"],
@@ -119,6 +121,12 @@ def test_a_monitor_stands_on_its_console_s_top():
                    {"CONSOLE 1": ["console"], "CONSOLE 2": ["console"], "MONITOR 1": ["monitor"]})
     monitor = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["monitor"]
     assert (monitor["how"], monitor["holder"]) == ("top", "CONSOLE 1"), monitor
+    # its reading's placement word past `on`: under it at its foot, on its shelves within, on its side against it;
+    # "left side of the console" says where on it, never its side (quarters' cables, poster, 2026-11-04)
+    for where, wanted in (("under console", ("within", True)), ("on shelves", ("within", None)),
+                          ("console side", ("face", None)), ("left side of console", ("top", None))):
+        said = by_row(holders.relations(plan, {"rows": [rows[0], {**rows[1], "where": where}], "picture": PICTURE}))
+        assert (said["monitor"]["how"], said["monitor"].get("under")) == wanted, (where, said["monitor"])
 
 
 def test_a_spacesuit_too_tall_for_its_locker_s_top_stands_within_it():
