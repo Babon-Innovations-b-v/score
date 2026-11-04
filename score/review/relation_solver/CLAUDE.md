@@ -17,5 +17,8 @@ Rules:
   only when `plan_checks.checked` finds fewer overlaps and no more gaps of any other kind. What still overlaps stays a
   gap. Boxes only: a turned (polygon) footprint is solved as its box, so a diagonal crowd may stay unparted (the
   habitat's turned furniture in its kept plan of 2026-10-21: 5 pairs left).
-- **In no stage's code key.** Only `plans_pass` imports it; never import it from `plan_fixes.py`, `plans.py`,
-  `plan_writing.py` or a stage (an edit there re-keys about 74 paid rows: `python -m score.stages.moved origin/main`).
+- **In no stage's code key, but `_solver.py`.** Only `plans_pass` imports the package; never import it from
+  `plan_fixes.py`, `plans.py`, `plan_writing.py` or a stage (an edit there re-keys about 74 paid rows: `python -m
+  score.stages.moved origin/main`). `assembly/fitting.parted_spots` imports `_solver` alone, by its full module name
+  (`from score.review.relation_solver._solver import ...`), so only `_solver.py` (numpy only) is in the assembly's,
+  light's and settle's keys (#72): an edit of `_solver.py` re-keys those rows; `__init__.py` re-keys none.
