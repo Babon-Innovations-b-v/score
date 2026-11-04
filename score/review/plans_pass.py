@@ -201,13 +201,45 @@ def unstood(plan, inventory):
     return [row["id"] for row in plan_checks.person_rows(inventory) if row["id"] not in have]
 
 
+def spread_people(plan, inventory):
+    """The fixes said of each people row the plan still stands on no person spot (`unstood`: no box of it projects
+    and no thing of it is laid), but one beyond or afar (out there on purpose), spread, its count of them, over free
+    floor inside the outline: plan_fixes.spread_spots over the middle half of the outline's box (round it, clear of
+    the walls), each moved to the nearest floor inside the outline where it stands in nothing (standing.nearest_free);
+    `plan["people"]` given them. The hangar's eight workers stood on none, so its cast dealt them its four view
+    spots, four of them outside its 32 x 64 m (2026-11-04)."""
+    rows = {row["id"]: row for row in plan_checks.person_rows(inventory)}
+    grid = plan_checks.Grid(plan)
+    outline = plan_checks.outline_of(plan)
+    inside, corners = grid.covered(outline), numpy.asarray(outline, dtype=float)
+    low, high = corners.min(axis=0), corners.max(axis=0)
+    middle = [*(low + (high - low) / 4).tolist(), *((high - low) / 2).tolist()]
+    others = list(zip(plan.get("people", []), standing.footprints(plan, inventory)))
+    fixes, away = [], plan_checks.beyond(plan, inventory) | plan_checks.afar(inventory)
+    for row_id in [row_id for row_id in unstood(plan, inventory) if row_id not in away]:
+        row, stood = rows[row_id], []
+        size = [float(side) for side in row["size"][:2]] if isinstance(row.get("size"), list) else [standing.PERSON] * 2
+        walls_things = standing.blocked(plan, inventory, grid, plan_checks.anchor_of(row))
+        for spot in plan_fixes.spread_spots(middle, int(row.get("count", 1) or 1), size):
+            free = standing.nearest_free(spot, size, walls_things, grid, inside, others)
+            if free is not None:
+                stood.append([round(free[0], 3), round(free[1], 3), 0.0, row_id])
+                others.append((stood[-1], size))
+        plan["people"] = [*plan.get("people", []), *stood]
+        if stood:
+            fixes.append(f"{plan_checks.said_name(row_id)}: no box of it projects, so its {len(stood)} people "
+                         f"spread over the free floor")
+    return fixes
+
+
 def stood_again(plan, inventory):
-    """(the plan with its unstood people rows stood where their concept boxes project, its fixes said), free; the plan
-    as it was when every people row stands."""
+    """(the plan with its unstood people rows stood where their concept boxes project, else spread over its free floor
+    (`spread_people`), its fixes said), free; the plan as it was when every people row stands."""
     if not unstood(plan, inventory):
         return plan, []
     answer = copy.deepcopy(plan)
-    return answer, plan_fixes.stood_people(answer, inventory, plan_fixes.projector(answer, inventory))
+    fixes = plan_fixes.stood_people(answer, inventory, plan_fixes.projector(answer, inventory))
+    return answer, fixes + spread_people(answer, inventory)
 
 
 def unsettled(plan, inventory, parts=True):

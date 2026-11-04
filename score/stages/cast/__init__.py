@@ -2,18 +2,19 @@
 shows, each placed in the place with a clip, and measured against the concept and the place's geometry.
 
     make     the place's cast from its picked design (data/people/rows.json, score/stages/people_rows.py: its scene
-             inventory's people rows, each person a look of the shared people line, at the plan's people spots in
-             turn and stood clear round them, one its words stand on stairs on its flight's first tread: on_stairs;
-             a crowd one far look in its palettes, #26), never the old game records
+             inventory's people rows, each person a look of the shared people line, at its row's own plan people
+             spot (people_rows.dealt_spots) and stood clear round it, one whose spot lies off the plan refused by
+             name (off_the_plan), one its words stand on stairs on its flight's first tread: on_stairs; a crowd one
+             far look in its palettes, #26), never the old game records
              or the lost concept pictures, dealt by cast.py's own rules, each with its
              spot, clip, look and whether it is made: its look's dress row (people-dress-<look>, `-in-<surface>`
              where its design row wears a fabric of its own, `-v<n>` the person's variant) stands usable, read as an optional input; `cast.json`. Then every
              spot measured on the seed's base layer (measure.py): what it stands on and what its body runs into;
              `measures.json`.
     gates    counted   the cast holds as many people as the design shows (its rows' counts), everyone fits on the
-                       place, and a crowd stands on its ground as many as it asks (a design's: the plan items its
-                       row makes, its count SAM 3's instances, else as many as its ground holds packed; a crowd row
-                       with no plan item is named short)
+                       place (none refused off the plan), and a crowd stands on its ground as many as it asks (a
+                       design's: the plan items its row makes, its count SAM 3's instances, else as many as its
+                       ground holds packed; a crowd row with no plan item is named short)
              standing  everyone stands on something solid: the first solid under their knee within STAND_SLACK of
                        their feet, not in water; a seated person (the "seated" clip, its anchor a seat: on_support) on
                        its seat the same way, measured from its seat's top, and one whose anchor lays no seat fails
@@ -168,6 +169,20 @@ def on_stairs(record, plan):
         return dict(person, at=start, facing_to=end, stairs=walk)
 
     return dict(record, people=[stood(person) for person in record.get("people", [])])
+
+
+def off_the_plan(record, plan):
+    """{name: words} of the record's people whose spot lies outside the plan's outline and off every level (the
+    place's frame): refused by name, never stood on whatever lies round the place (the hangar's four workers dealt
+    view spots outside its 32 x 64 m stood on Outside/near, 2026-11-04)."""
+    outline = plan.get("outline") or []
+    outline = outline if len(outline) >= 3 else [[0, 0], [plan["w"], 0], [plan["w"], plan["d"]], [0, plan["d"]]]
+    shapes = [outline] + [level["points"] for level in plan.get("levels") or [] if len(level.get("points") or []) >= 3]
+    placed = [[place_plan.placed(plan, *point[:2])[[0, 2]].tolist() for point in shape] for shape in shapes]
+    return {person["name"]: f"its spot ({person['at'][0]:.2f}, {person['at'][2]:.2f}) lies outside the plan's outline "
+                            f"and off every level"
+            for person in record.get("people", [])
+            if not any(writer.inside_polygon([person["at"][0], person["at"][2]], shape) for shape in placed)}
 
 
 def on_made_ground(record, height):
@@ -326,8 +341,11 @@ def make(inputs, out, seed, params):
     place = pathlib.Path(inputs["seed"]).name
     design = read_json(inputs["design"])
     plan = read_json(inputs["design plan"])
-    record = on_stairs(on_made_ground(on_levels(with_stairs(people_rows.cast_record(place, design), place, design),
-                                                plan), writer.ground_under(inputs, place)), plan)
+    record = on_made_ground(on_levels(with_stairs(people_rows.cast_record(place, design), place, design), plan),
+                            writer.ground_under(inputs, place))
+    refused = off_the_plan(record, plan)
+    record = on_stairs(dict(record, people=[person for person in record.get("people", [])
+                                            if person["name"] not in refused]), plan)
     with layer_base.built(inputs) as folder:
         base = folder / "layers/base.usda"
         found = (measure.solids(base, place, made_ground(inputs, place))
@@ -343,7 +361,7 @@ def make(inputs, out, seed, params):
         crowd = stood_crowd(crowd, copies) if crowd else None
     cast = {"place": place, "inventory": place, "from": record.get("from"), "note": record.get("note"),
             "count_reason": record.get("count_reason"), "concept": design_count(place, design), "characters": singles,
-            "left_out": left_out if found else [], "crowd": crowd}
+            "left_out": left_out if found else [], "refused": refused, "crowd": crowd}
     (out / "cast.json").write_text(json.dumps(cast, indent=1))
     (out / "measures.json").write_text(json.dumps(measured(record, singles, crowd, found, base, place), indent=1))
 
@@ -429,9 +447,11 @@ def head_count(cast):
 
 
 def short_of(cast):
-    """What the record asked for that did not fit on the place: group members left out, crowd copies short."""
+    """What the record asked for that did not fit on the place: group members left out, people refused off the plan
+    (off_the_plan), crowd copies short."""
     short = [f"{len(cast['left_out'])} group members left out ({', '.join(cast['left_out'][:NAMED])})"
              ] if cast["left_out"] else []
+    short += [f"{name} refused: {words}" for name, words in sorted((cast.get("refused") or {}).items())]
     crowd = cast["crowd"]
     if crowd and crowd["asked"] is None and crowd.get("grounds") is None:
         short.append(f"the crowd's ground is not read from the plan yet: refresh data/people/rows.json "

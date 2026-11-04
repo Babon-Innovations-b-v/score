@@ -2,7 +2,8 @@
 concept, score/review/reading.py) mapped to a look on the shared people line, kept in data/people/rows.json:
 
     {"places": {<place>: {"concept": <the picked draw's sha256 the reading was read from>,
-                          "spots": [[x, y, z], ...] (the plan's people spots in the place's frame), "middle": [x, y, z],
+                          "spots": [[x, y, z(, row)], ...] (the plan's people spots in the place's frame, each one
+                                    stood for a people row tagged with its id), "middle": [x, y, z],
                           "rows": {<row>: {"name", "noun", "count", "size" [wide, deep, tall] metres, "where",
                                            "anchor" (what its reading stands it on: "floor", "on:<row>", ...),
                                            "share" (its tallest box's share of the concept's frame height, or null),
@@ -188,19 +189,38 @@ def split_look(look):
     return character, outfit
 
 
+def dealt_spots(entry, people):
+    """The spot [x, y, z] each of `people` (persons') stands at: the next of the spots tagged with its own row (in
+    turn), and for a row with no tagged spot the next of the untagged ones (a view's), else the place's middle. Dealt
+    in turn over persons sorted by row id, the cockpit's pilot stood on the officer's spot and the street's diner on
+    the pavement (2026-11-04)."""
+    spots = entry.get("spots") or []
+    tagged = {}
+    for spot in spots:
+        if len(spot) >= 4:
+            tagged.setdefault(spot[3], []).append(spot[:3])
+    untagged = [spot[:3] for spot in spots if len(spot) < 4] or [entry.get("middle", [0.0, 0.0, 0.0])]
+    taken, found = {}, []
+    for person in people:
+        own = tagged.get(person["row"]) or untagged
+        key = person["row"] if person["row"] in tagged else None
+        found.append(own[taken.get(key, 0) % len(own)])
+        taken[key] = taken.get(key, 0) + 1
+    return found
+
+
 def cast_record(place, found=None):
-    """The place's cast record in tools/characters/cast.py's form, from its design: each person at the plan's people
-    spots in turn (the cast stage stands them clear round it), facing the place's middle; the crowd its far look in
-    its variants on its ground (crowd_record)."""
+    """The place's cast record in tools/characters/cast.py's form, from its design: each person at its row's own plan
+    people spot (dealt_spots; the cast stage stands them clear round it), facing the place's middle; the crowd its
+    far look in its variants on its ground (crowd_record)."""
     found = found or read()
     entry = place_entry(place, found)
-    spots = entry.get("spots") or [entry.get("middle", [0.0, 0.0, 0.0])]
-    people = []
-    for number, person in enumerate(persons(place, found)):
+    people, shown = [], persons(place, found)
+    for person, spot in zip(shown, dealt_spots(entry, shown)):
         character, outfit = split_look(person["look"])
         people.append({"name": person["name"], "character": character, "look": f"{character}_{outfit}",
                        "doing": person["doing"], "surface": person["surface"], "variant": person["variant"],
-                       "anchor": person["anchor"], "at": spots[number % len(spots)],
+                       "anchor": person["anchor"], "at": spot,
                        "facing_to": entry.get("middle", [0.0, 0.0, 1.0]),
                        "why": f"row {person['row']} of the picked design's scene inventory"})
     record = {"place": place, "from": f"the picked design (concept {entry['concept'][:8]}): data/people/rows.json",
@@ -366,9 +386,12 @@ def crowd_ground(plan, row_id):
 
 
 def placed_spots(plan):
-    """The plan's people spots and its middle in the place's frame (scene_record.plan.placed)."""
+    """The plan's people spots and its middle in the place's frame (scene_record.plan.placed), each spot the plan
+    stood for a people row keeping that row's id as its fourth value ([x, y, z, row]; a view's spot only [x, y, z])."""
     from score.stages.scene_record.plan import placed
-    spots = [placed(plan, spot[0], spot[1]).tolist() for spot in plan.get("people", [])
+    spots = [placed(plan, spot[0], spot[1]).tolist() + ([spot[3]] if len(spot) >= 4 and isinstance(spot[3], str)
+                                                        else [])
+             for spot in plan.get("people", [])
              if len(spot) >= 2 and all(isinstance(value, (int, float)) for value in spot[:2])]
     return spots, placed(plan, plan.get("w", 0.0) / 2, plan.get("d", 0.0) / 2).tolist()
 

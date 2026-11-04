@@ -116,6 +116,9 @@ Breaks (each applied once, seen red, reverted), in score/stages/people_rows.py:
 - `persons`: every person given variant 0  -> the cast test ("each its own variant").
 - `placed_spots`: a spot's two plan coordinates swapped  -> the cast test (the spot (1, 1) of a 20 x 10 plan
   stands at (-9, 0, -4)).
+- `placed_spots`: the row tag dropped  -> the cast test (the pilot dealt the officer's spot, its row id first).
+- `dealt_spots`: `own = tagged.get(person["row"]) or untagged` read as `own = untagged`  -> the cast test (the pilot
+  on the view's spot).
 - `refreshed_place`: a kept pick taken with no `why`  -> the refresh test.
 - `crowd_look`: `needed = 0` (the crowd word alone decides)  -> the crowd look test ("crowd of aliens").
 - `mapping_rows`: `if look not in mapped or ...` read as `if look in mapped and ...` (no look mapped)  ->
@@ -1186,9 +1189,10 @@ def test_a_people_row_the_plan_shows_beyond_the_place_is_not_its_own():
 
 
 def test_each_person_stands_on_a_plan_spot_each_its_own_variant_of_the_look():
-    """Each person of a row is dealt the plan's people spots in turn (a plan unframed: its middle at 0, so the spot
-    (1, 1) of a 20 x 10 m plan stands at (-9, 0, -4)), and each person of one look wears its own variant of the body
-    (owner, 2026-10-25: "Each one looks different")."""
+    """Each person of a row is dealt its row's own plan people spots in turn (a plan unframed: its middle at 0, so the
+    spot (1, 1) of a 20 x 10 m plan stands at (-9, 0, -4)), a view's untagged spot only to a row with none of its
+    own, and each person of one look wears its own variant of the body (owner, 2026-10-25: "Each one looks
+    different")."""
     inventory = {"concept_pick": {"sha256": "one"}, "rows": [
         {"id": "pilot", "name": "person in uniform", "noun": "person", "count": 3, "size": [0.5, 0.3, 1.8],
          "route": "people"}]}
@@ -1199,6 +1203,15 @@ def test_each_person_stands_on_a_plan_spot_each_its_own_variant_of_the_look():
     assert [person["at"] for person in people] == [[-9.0, 0.0, -4.0], [-7.0, 0.0, -3.0], [-5.0, 0.0, -2.0]]
     assert {person["look"] for person in people} == {"person_uniform_made"}
     assert sorted(person["variant"] for person in people) == [0, 1, 2]
+    # a tagged spot reaches its own row whatever the order of the row ids; an untagged (view) spot only a row with
+    # none tagged (the cockpit's pilot and officer swapped, the street's diner on the pavement, 2026-11-04)
+    rows = {row: {"looks": ["person_uniform-made"]} for row in ("b_officer", "a_pilot", "c_guest")}
+    spots, _ = people_rows.placed_spots({"w": 20.0, "d": 10.0, "people": [[11.0, 6.0, 0, "b_officer"],
+                                                                         [19.0, 14.0], [12.0, 7.0, 0, "a_pilot"]]})
+    entry = {"concept": "one", "rows": rows, "spots": spots}
+    people = people_rows.cast_record("deck", {"places": {"deck": entry}})["people"]
+    assert {person["name"]: person["at"] for person in people} == {
+        "a_pilot": [2.0, 0.0, 2.0], "b_officer": [1.0, 0.0, 1.0], "c_guest": [9.0, 0.0, 9.0]}, people
 
 
 def test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size(tmp_path):
