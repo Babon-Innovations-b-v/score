@@ -342,6 +342,16 @@ def code_marked(row):
     return dataclasses.replace(row, files=surfaces.route_parts.files)
 
 
+def meaning_checked(row):
+    """surfaces-parts with the gate "kept the list's meaning" beside its own (route_parts.judge_meaning: a finish
+    the colour check moved keeps the list's recipe and hue). Set here, as code_marked is, so no row reading the
+    surfaces package moves."""
+    if row.name != "surfaces-parts":
+        return row
+    return dataclasses.replace(row, checks=(*row.checks, guarded("kept the list's meaning",
+                                                                 surfaces.route_parts.judge_meaning)))
+
+
 def close_up_laid(row):
     """finish-route-views with each own close-up's camera as a file (route_views.files: the close-up laid on the model
     through it, one more view of its regions). Set here, as code_marked is, so no row reading route_data moves (the
@@ -509,8 +519,8 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
           PHYSICS_TRIAL,
           # The place's plan (its scene record first: the cockpit groups the plan by its first reader, the base), then
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
-          SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(code_marked, map(
-              close_up_laid, map(boxed_split, map(designed_rough, shapes_first.rows())))))))),
+          SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(meaning_checked, map(code_marked, map(
+              close_up_laid, map(boxed_split, map(designed_rough, shapes_first.rows()))))))))),
           *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, CAST, SIM_BODY, CHARACTERS,
           PEOPLE_CLOTH, SCENE_CLIPS, MOTION,
           *light.ROWS, *crops.ROWS,

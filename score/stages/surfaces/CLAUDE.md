@@ -189,7 +189,15 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
 - **Each finish's surface is checked against the close-up's colour** (`finish_parts.checked_finishes`,
   `COLOUR_DELTA_E` 32 CIE76, set on round 4's six models): the colour only chooses among library surfaces (the
   nearest of the listed one's family); a finish none fits gets a tinted proposal in the registry and fails the paint
-  row's gate "colour against the close-up" by name. A finish is measured on its label's brighter half, a
+  row's gate "colour against the close-up" by name. Every surface taken over the listed one (the family's nearest,
+  the room's kit surface, the order's) keeps the list's meaning (`meaning_kept`; the audit of 2026-11-04: by colour
+  and family alone the kit took 161 finishes, handrails as floor grating, counters as tiles, rusted steel as clean
+  paint, and the re-pick took gold foil to silver, red cables to black hose, glows to glass): the same recipe (so a
+  glow stays a glow and a floor pattern stays off what the list did not pattern), and the hue its finish's colour
+  words name (`COLOUR_WORDS`, `HUES`), else within `HUE_DE` 10 of the listed colour in a*b*, lightness free; none
+  such, it is off its colour. The parts row's gate "kept the list's meaning" (`route_parts.judge_meaning`, wired in
+  the table, `stages.meaning_checked`) fails a moved finish whose painted look (`looks`) lost them, and a take whose
+  largest finish moved off the colour its row's name names. A finish is measured on its label's brighter half, a
   dark one (library L* under `DARK_L` 35) on all its pixels: the light lifts blacks' brighter half to L* 40 to 45.
   Glass, screen glow, lamp light and print off the lit colour keep their surface (owner, #8: judged by their own
   colour), and so does a see-through finish of another family (`coloured_cover`: the garage beacon's red transparent

@@ -256,7 +256,8 @@ def checked_finishes(entry, finishes, measured, every, kit=()):
     take's surfaces (`every`: palette_library.take_surfaces), when within it; else the listed one kept, a new surface
     tinted to the measured colour proposed, and the finish marked off its colour (the paint's gate fails it). A
     see-through finish of a surface that is not glass, glow or light keeps its surface (coloured_cover). A finish that fits takes the room's own kit
-    surface where one of its family fits too (`kit`, kit_taken)."""
+    surface where one of its family fits too (`kit`, kit_taken). Every surface taken over the listed one keeps the
+    list's meaning (meaning_kept: its recipe and its hue)."""
     import numpy as np
     found = []
     for finish, colour in zip(finishes, measured):
@@ -274,7 +275,8 @@ def checked_finishes(entry, finishes, measured, every, kit=()):
             record.update(by="its own colour", cover=True)
         elif apart > COLOUR_DELTA_E:
             family = [(float(np.linalg.norm(library_lab(spec) - colour)), name) for name, spec in every.items()
-                      if spec.get("family") == listed.get("family") and "colour" in spec]
+                      if spec.get("family") == listed.get("family") and "colour" in spec
+                      and meaning_kept(finish, listed, spec)]
             nearest_apart, nearest = min(family) if family else (float("inf"), None)
             if nearest_apart <= COLOUR_DELTA_E:
                 record.update(surface=nearest, delta_e=round(nearest_apart, 1), by="nearest of its family by colour")
@@ -294,20 +296,167 @@ def checked_finishes(entry, finishes, measured, every, kit=()):
 
 def kit_taken(record, colour, every, kit):
     """A finish that fits by colour given the scene's own shell surface (`kit`: palette_library.shell_surfaces) where
-    one of its surface's family lies within COLOUR_DELTA_E of the close-up's colour, the nearest such; as it was otherwise, and
-    always for glass, glow, light and print, judged by their own colour (the materials audit, 2026-10-18: the hangar's
-    ship took painted_grey_light, 165 L* grey, beside kit walls of painted_panel)."""
+    one of its surface's family that keeps the list's meaning (meaning_kept) lies within COLOUR_DELTA_E of the
+    close-up's colour, the nearest such; as it was otherwise, and always for glass, glow, light and print, judged by
+    their own colour (the materials audit, 2026-10-18: the hangar's ship took painted_grey_light, 165 L* grey, beside
+    kit walls of painted_panel). Kept by family and colour alone, the kit took 161 finishes over to a shell surface
+    and 36 lost their meaning: handrails and a bench as perforated floor grating, domes as tread plate, counters as
+    floor tiles, rusted steel as clean hull paint, red, orange and blue labels as grey frame paint (the audit of
+    2026-11-04)."""
     import numpy as np
     family = every.get(record["surface"], {}).get("family")
     if (record.get("by") not in ("the list", "nearest of its family by colour") or record["surface"] in kit
             or family in OWN_COLOUR):
         return record
+    listed = listed_spec(record, every)
     fits = sorted((float(np.linalg.norm(library_lab(every[name]) - colour)), name) for name in kit
-                  if name in every and every[name].get("family") == family and "colour" in every[name])
+                  if name in every and every[name].get("family") == family and "colour" in every[name]
+                  and meaning_kept(record, listed, every[name]))
     if not fits or fits[0][0] > COLOUR_DELTA_E:
         return record
     return dict(record, surface=fits[0][1], delta_e=round(fits[0][0], 1), by="the room's kit surface by colour",
                 kit_over=record["surface"])
+
+
+# A surface taken over the listed one keeps what the list meant (the audit of 2026-11-04: 161 finishes swapped to the
+# room's kit surface, 36 losing their meaning, and about 72 more re-picked by lit colour alone, a dim warm close-up
+# pulling reds, golds and glows to black, grey, silver or glass): its recipe (no floor grating, tread plate or tiles
+# on a handrail, a dome or a counter; rust kept rust; a glowing or screen recipe, which gives off light, never glass
+# or paint), and its hue: the
+# hue its finish's colour words name (COLOUR_WORDS), else within HUE_DE in a*b* of the listed colour, its lightness
+# free (what the re-pick is for). Hue ranges are CIELAB hue angles in degrees, measured on the named colours' sRGB
+# values (red 40, maroon 38, crimson 30, pink 0; orange 73, dark orange 64; gold 91, yellow 102; olive 103; green 136;
+# sky blue 234, blue 306; ochre 69, bronze 71, copper 63, rust 49, brown 57), each with room either side.
+HUE_DE = 10.0
+COLOURED_LEAST = 10.0  # a named colour's least chroma
+NEUTRAL_MOST = 12.0  # grey and silver: at most this chroma
+HUES = {"red": (340.0, 50.0), "orange": (35.0, 80.0), "yellow": (70.0, 110.0), "gold": (55.0, 105.0),
+        "green": (100.0, 200.0), "blue": (200.0, 315.0), "purple": (280.0, 345.0), "brown": (30.0, 90.0),
+        "olive": (75.0, 130.0), "ochre": (50.0, 95.0), "bronze": (40.0, 95.0), "copper": (35.0, 80.0),
+        "rust": (25.0, 75.0)}
+COLOUR_WORDS = {"red": "red", "reddish": "red", "crimson": "red", "maroon": "red", "scarlet": "red",
+                "orange": "orange", "amber": "orange", "yellow": "yellow", "yellowish": "yellow", "gold": "gold",
+                "golden": "gold", "green": "green", "greenish": "green", "blue": "blue", "bluish": "blue",
+                "navy": "blue", "purple": "purple", "violet": "purple", "brown": "brown", "brownish": "brown",
+                "olive": "olive", "ochre": "ochre", "ocher": "ochre", "bronze": "bronze", "copper": "copper",
+                "rust": "rust", "rusted": "rust", "rusty": "rust", "rusting": "rust", "grey": "neutral",
+                "gray": "neutral", "greyish": "neutral", "grayish": "neutral", "silver": "neutral",
+                "silvery": "neutral"}
+RUST_RECIPE = "rusted_metal"
+
+
+def listed_spec(finish, every):
+    """The surface the list named for `finish` in the list's own colour where it gives one (its settings' token)."""
+    listed = every[finish.get("listed_surface", finish["surface"])]
+    return dict(listed, **({"colour": finish["colour"]} if finish.get("colour") else {}))
+
+
+def colour_words(text):
+    """The colours (HUES' names, or "neutral") that `text`'s words name, sorted."""
+    import re
+    return sorted({COLOUR_WORDS[word] for word in re.findall(r"[a-z]+", text.lower()) if word in COLOUR_WORDS})
+
+
+def in_named_colour(named, lab, recipe):
+    """True when a surface of `recipe` painting `lab` (L*a*b*) is one of the `named` colours (colour_words): rust by
+    its recipe or hue, grey and silver near neutral, any other colour in its hue range with COLOURED_LEAST chroma."""
+    import math
+    chroma, hue = math.hypot(lab[1], lab[2]), math.degrees(math.atan2(lab[2], lab[1])) % 360.0
+    for colour in named:
+        if colour == "rust" and recipe == RUST_RECIPE:
+            return True
+        if colour == "neutral":
+            if chroma <= NEUTRAL_MOST:
+                return True
+            continue
+        low, high = HUES[colour]
+        if chroma >= COLOURED_LEAST and (low <= hue <= high if low < high else (hue >= low or hue <= high)):
+            return True
+    return False
+
+
+def hue_kept(words, listed_lab, lab, recipe):
+    """True when a surface of `recipe` painting `lab` is the colour a finish's `words` name (in_named_colour), or,
+    where they name none, lies within HUE_DE of `listed_lab` in a*b*."""
+    import numpy as np
+    named = colour_words(words)
+    if named:
+        return in_named_colour(named, lab, recipe)
+    return float(np.linalg.norm(np.asarray(lab)[1:] - np.asarray(listed_lab)[1:])) <= HUE_DE
+
+
+def look_kept(words, listed, painted):
+    """True when the `painted` look (look_of) keeps what the `listed` one meant by a finish of `words`: the same
+    recipe (so a glow stays a glow) and its hue (hue_kept)."""
+    return painted["recipe"] == listed["recipe"] and hue_kept(words, listed["lab"], painted["lab"], painted["recipe"])
+
+
+def look_of(spec):
+    """A library spec's look: its recipe and its L*a*b* colour."""
+    return {"recipe": spec.get("recipe"), "lab": [round(float(value), 1) for value in library_lab(spec)]}
+
+
+def meaning_kept(finish, listed, spec):
+    """True when a library spec taken over the `listed` one (listed_spec) keeps what the list meant by `finish`
+    (look_kept on its finish words)."""
+    return "colour" in spec and look_kept(finish.get("finish", ""), look_of(listed), look_of(spec))
+
+
+def looked(finishes, every):
+    """Each finish with `looks` where its listed surface and its surface are in `every`: the look it was listed in
+    (listed_spec) and the look it paints (finish_lab: its own colour where it keeps the listed surface)."""
+    found = []
+    for finish in finishes:
+        listed = finish.get("listed_surface", finish["surface"])
+        if listed not in every or finish["surface"] not in every or "colour" not in every[finish["surface"]]:
+            found.append(finish)
+            continue
+        painted = dict(look_of(every[finish["surface"]]),
+                       lab=[round(float(value), 1) for value in finish_lab(finish, every)])
+        found.append(dict(finish, looks={"listed": look_of(listed_spec(finish, every)), "painted": painted}))
+    return found
+
+
+# How a finish came by a surface other than its listed one that the meaning check leaves alone: a light built in
+# code takes the glowing surface (route_parts.lit_finishes), a finish off its colour keeps its listed one and fails the
+# paint's gate by name.
+MEANING_EXEMPT = ("its light, built in code", "off its colour")
+
+
+def meaning_faults(take, record):
+    """The gate "kept the list's meaning" on one take's parts.json record: each finish moved off its listed surface
+    whose painted look loses the listed one's recipe or hue (look_kept), and a take whose largest painted part's
+    finish moved to a surface not the colour its row's name names (`object`: the hangar's thick red cables as
+    black_hose)."""
+    faults = []
+    for finish in record["finishes"]:
+        if (finish["surface"] == finish.get("listed_surface", finish["surface"]) or "looks" not in finish
+                or finish.get("by") in MEANING_EXEMPT):
+            continue
+        if not look_kept(finish["finish"], finish["looks"]["listed"], finish["looks"]["painted"]):
+            faults.append(f"{take}: {finish['finish']} listed {finish['listed_surface']} "
+                          f"{finish['looks']['listed']}, painted {finish['surface']} {finish['looks']['painted']} "
+                          f"({finish.get('by')})")
+    largest = largest_finish(record)
+    named = colour_words(record.get("object") or "")
+    if (largest is not None and named and "looks" in largest and largest.get("by") not in MEANING_EXEMPT
+            and largest["surface"] != largest.get("listed_surface", largest["surface"])
+            and not in_named_colour(named, largest["looks"]["painted"]["lab"], largest["looks"]["painted"]["recipe"])):
+        faults.append(f"{take}: its row '{record['object']}' names {', '.join(named)}, its largest finish "
+                      f"{largest['finish']} paints {largest['surface']} {largest['looks']['painted']}")
+    return faults
+
+
+def largest_finish(record):
+    """The finish of a parts.json take record whose parts cover the most of its area (by judge and words), or None."""
+    share = {}
+    for row in record["parts"]:
+        share[(row["judge"], row["words"])] = share.get((row["judge"], row["words"]), 0.0) + row["share"]
+    if not share:
+        return None
+    judge, words = max(share, key=share.get)
+    return next((finish for finish in record["finishes"]
+                 if finish["surface"] == judge and finish["finish"] == words), None)
 
 
 def coloured_cover(finish, every):
@@ -343,12 +492,14 @@ def out_of_order(lighter, darker, every, lightness, slack=ORDER_LIBRARY):
 
 def nearest_in_order(finish, every, lightness, keeps):
     """The surface of `finish`'s family nearest its close-up colour, within COLOUR_DELTA_E, whose library L* `keeps`
-    (a test on it) allows: (dE, name), or None."""
+    (a test on it) allows and that keeps the list's meaning (meaning_kept): (dE, name), or None."""
     import numpy as np
     colour = np.array(finish["measured_lab"])
     family = every[finish["surface"]].get("family")
+    listed = listed_spec(finish, every)
     fits = sorted((float(np.linalg.norm(library_lab(every[name]) - colour)), name) for name in lightness
-                  if every[name].get("family") == family and keeps(lightness[name]))
+                  if every[name].get("family") == family and keeps(lightness[name])
+                  and meaning_kept(finish, listed, every[name]))
     return fits[0] if fits and fits[0][0] <= COLOUR_DELTA_E else None
 
 
