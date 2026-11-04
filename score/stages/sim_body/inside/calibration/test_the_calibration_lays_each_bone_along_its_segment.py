@@ -24,7 +24,8 @@ Breaks (each applied once, seen red, reverted), 2026-11-01 (the rows read in the
   ("RightShin's turn is not LeftShin's, mirrored").
 
 Break (applied once, seen red, reverted), 2026-11-01 (the head's end read in the skin):
-- END_SHIFTS' C0_C1 `(0.0, 0.006, 0.008)` made `(0.004, 0.006, 0.008)`: the head held off its joint sideways
+- END_SHIFTS' C0_C1 `(0.0, 0.006, 0.008)` made `(0.004, 0.006, 0.008)` (since 2026-11-04 level 1's `(0.0, 0.006094,
+  0.008121)`, the same break): the head held off its joint sideways
   ("C0_C1: a middle end shifted sideways").
 
 Run: .venv/bin/python score/stages/sim_body/inside/calibration/test_the_calibration_lays_each_bone_along_its_segment.py
@@ -38,6 +39,9 @@ from scipy.spatial.transform import Rotation
 INSIDE = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(INSIDE))
 import calibration  # noqa: E402
+import landmarks  # noqa: E402
+import tuning  # noqa: E402
+from bone_groups import groups  # noqa: E402
 
 TURN_Z = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])  # 90 degrees about z
 
@@ -130,14 +134,14 @@ def both_hands_rest_their_fingers_alike():
                        if written.get(f"{stem}_{side}") != turn]
 
 
-MIDDLE_ENDS = ("C0_C1",)  # MyoFullBody's centres on the body's middle plane
-
-
 def a_middle_end_shifts_in_the_middle_plane():
-    """A middle end's shift read in the skin (`END_SHIFTS`, the person's frame, x sideways) moves its bones up, down,
-    forward or back, never sideways; every shifted end is a known one."""
-    return [f"{end}: a middle end shifted sideways ({shift[0]} m)" if end in MIDDLE_ENDS else f"{end}: not a known end"
-            for end, shift in calibration.END_SHIFTS.items() if end not in MIDDLE_ENDS or shift[0] != 0.0]
+    """A middle end's shift (`END_SHIFTS`, the person's frame, x sideways; an end with no side suffix, on the body's
+    middle plane) moves its bones up, down, forward or back, never sideways; every shifted end is a segment end
+    level 1 tunes (`tuning.segment_ends`)."""
+    known = tuning.segment_ends(groups(), landmarks.SOMA_MIDDLES)
+    return [f"{end}: not a known end" if end not in known else f"{end}: a middle end shifted sideways ({shift[0]} m)"
+            for end, shift in calibration.END_SHIFTS.items()
+            if end not in known or (not end.endswith(("_l", "_r")) and shift[0] != 0.0)]
 
 
 CHECKS = (a_middle_end_shifts_in_the_middle_plane, both_hands_rest_their_fingers_alike, a_hanging_bone_is_laid_along_its_segment, the_table_keeps_both_sides_and_the_middle,

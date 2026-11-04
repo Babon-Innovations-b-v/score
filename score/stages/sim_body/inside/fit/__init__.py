@@ -40,7 +40,7 @@ END = "end:"  # a group end's marker's name prefix: MyoFullBody's joint centre t
 # A group end's weight among the markers (#70, 2026-10-29: SOMA's rig joints mark where each bone group starts and
 # ends): this times the landmarks' mean trust, the same for every end, inside the one markers' goal (`_frames.weights`),
 # never on top of it; 1 (a landmark's) unless level 1 finds otherwise, never set by hand to pass a score
-END_WEIGHT = 1.0
+END_WEIGHT = 2.1169
 
 METHOD = ("one solver (#70): mink 1.3.0 per frame (the bone groups' turns on the static calibration table, SCORE's "
           "landmark set on the SOMA skin as markers weighed by their trust and SOMA's rig joints at the group ends, "
