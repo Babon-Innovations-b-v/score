@@ -36,12 +36,17 @@ INVENTORY = {"scene": "shed", "rows": [{"id": "bench", "name": "a bench", "ancho
              "room": {"layout": {"open": ["north", "south"]}}}
 
 
-def made(folder, record):
+# The yard: 20 x 12 m, its gate on its south wall leading to the shed.
+YARD = {"title": "YARD", "w": 20.0, "d": 12.0, "leads": {},
+        "openings": [{"kind": "gate", "at": [10.0, 12.0], "wide": 1.2, "angle": 0.0, "sill": 0.0, "to": "shed"}]}
+
+
+def made(folder, record, yard=YARD):
     """plan@shed made into `folder` from `record`, as the table hands it (its kit the plan itself: plan_as_kit)."""
     folder = pathlib.Path(folder)
     plans = folder / "plans"
     plans.mkdir()
-    (plans / "yard.json").write_text(json.dumps({"title": "YARD", "w": 20.0, "d": 12.0, "leads": {}}))
+    (plans / "yard.json").write_text(json.dumps(yard))
     (plans / "shed.json").write_text(json.dumps(record))
     (folder / "inventory.json").write_text(json.dumps(INVENTORY))
     inputs = {"plan": plans / "shed.json", "kit": plans / "shed.json", "plans": plans,
@@ -58,12 +63,36 @@ def test_a_plan_maps_and_faults_fail():
     it leads and a sealed door the layout leaves open each fail `mapped` by name.
     Break: score/stages/scene_record/plan.py: `return [f"{name} says nowhere it leads, or not why"]` -> `return []`
     Break: score/stages/scene_record/plan.py:
-        `found.append(f"{name} is sealed but the room layout leaves it open (no leaf shuts it)")` -> `pass`"""
+        `found.append(f"{name} is sealed but the room layout leaves it open (no leaf shuts it)")` -> `pass`
+    Its `held` gate passes it, and fails a person spot or an item drawn outside its box (the hangar's workers 3.8 m
+    past its wall, the garage's pipes 5 m out: the audit of 2026-11-04), never a pipe drawn on its wall's line; two
+    overlapping holds and a place held once that more doors lead to than lead back (the base's one tube) fail too.
+    Break: score/stages/scene_record/plan.py: `if not within([float(spot[0]), float(spot[1]), 0.0, 0.0], outer):` ->
+        `if False:`
+    Break: score/stages/scene_record/plan.py: `return within([x + reach, y + reach,` -> `return True or within([x + reach, y + reach,`
+    Break: score/stages/scene_record/plan.py: `if across > EDGE and along > EDGE:` -> `if False:`
+    Break: score/stages/scene_record/plan.py: `if leading > back:` -> `if False:`"""
     with tempfile.TemporaryDirectory() as folder:
         out, inputs = made(folder, SHED)
         found = plan.judge_mapped(out, inputs, None)
         assert found.answer == checks.PASS, (found.reason, found.findings)
         assert [door["leads"] for door in json.loads((out / "plan.json").read_text())["doors"]] == ["yard", "outside"]
+        assert plan.judge_held(out, inputs, None).answer == checks.PASS
+        (pathlib.Path(folder) / "plans/shed.json").write_text(json.dumps(
+            {**SHED, "people": [[4.0, 3.0], [9.5, 3.0]], "items": [*SHED["items"], ["PIPE", -5.0, 3.0, 10.0, 0.1, None,
+                                                                                     "item"],
+                                                                 ["DUCT", -0.1, 4.0, 0.2, 1.0, None, "item"]]}))
+        found = plan.judge_held(out, inputs, None)
+        assert found.answer == checks.FAIL and found.findings == (
+            "shed's person spot 2 [9.5, 3.0] lies outside its 8.0 x 6.0 m plan",
+            "shed's item 'PIPE' [-5.0, 3.0, 10.0, 0.1] lies outside its 8.0 x 6.0 m plan"), found.findings
+    holds = [{"place": "hub", "x": 0.0, "y": 0.0, "w": 10.0, "d": 10.0}, {"place": "tube", "x": 9.0, "y": 2.0, "w": 4.0,
+                                                                          "d": 4.0}]
+    assert plan.overlap_faults({"holds": holds}) == ["the holds of hub and tube overlap by 1.0 x 4.0 m"]
+    door = {"kind": "door", "at": [0.0, 0.0], "to": "tube"}
+    held = {"hub": (holds[0], {"openings": [door, door]}), "tube": (holds[1], {"openings": [{**door, "to": "hub"}]})}
+    assert plan.once_faults(held) == ["tube is held once, but 2 doors of its siblings lead to it and 1 of its own "
+                                      "lead back"]
     for change, said in ((lambda record: record["rows"].pop("BENCH"), "BENCH"),
                          (lambda record: record["leads"].pop("S"), "door S"),
                          (lambda record: record["leads"].update(N={"to": "sealed", "why": "test"}), "leaves it open")):
@@ -117,9 +146,13 @@ WRITTEN = {**SHED, "outline": [[0.0, 0.0], [8.0, 0.0], [8.0, 6.0], [0.0, 6.0]],
            "people": [[4.0, 3.0, None, None], [20.0, 3.0, None, None]], "terrain": {}}
 LAMP_ROW = {"id": "ceiling_lamp", "name": "ceiling lamp", "noun": "lamp", "anchor": "ceiling", "size": [1.0, 1.0, 0.2],
             "count": 1}
+# The site holds the yard at its north-west corner and the shed south of it, the shed's north door on the yard's gate
+# at (10, 12); its items for both rows are their holds.
 SITE = {"title": "SITE", "w": 40.0, "d": 20.0, "leads": {},
-        "holds": [{"place": "shed", "row": "shed", "x": 2.0, "y": 2.0, "w": 8.0, "d": 6.0},
-                  {"place": "yard", "row": "yard", "x": 12.0, "y": 2.0, "w": 20.0, "d": 12.0}]}
+        "holds": [{"place": "shed", "row": "shed", "x": 6.0, "y": 12.0, "w": 8.0, "d": 6.0},
+                  {"place": "yard", "row": "yard", "x": 0.0, "y": 0.0, "w": 20.0, "d": 12.0}],
+        "items": [["SHED", 6.0, 12.0, 8.0, 6.0, None, "item"], ["YARD", 0.0, 0.0, 20.0, 12.0, None, "zone"]],
+        "rows": {"SHED": ["shed"], "YARD": ["yard"]}}
 # The batch's hand-in (prepare's handin.py): the bench a model of its own take, the lamp sharing the bench's take, the
 # shed's floor the plan's own shell.
 HANDIN = {"rows": [{"id": "bench", "route": "prop", "size": [2.0, 0.6, 0.9], "count": 1},
@@ -130,13 +163,13 @@ HANDIN = {"rows": [{"id": "bench", "route": "prop", "size": [2.0, 0.6, 0.9], "co
 SKY = {"site": {"on": "moon", "latitude": 55.0, "longitude": 0.0, "height_m": 0.0}, "time": "2099-10-01T14:00:00Z"}
 
 
-def written(folder, design):
+def written(folder, design, yard=YARD, site=SITE):
     """scene-record@shed written into `folder` from its design `design`: (the record's output, the writer's inputs)."""
     from score.review import setting
     from score.stages.scene_record import writer
     folder = pathlib.Path(folder)
-    out, inputs = made(folder, design)
-    (folder / "plans/site.json").write_text(json.dumps(SITE))
+    out, inputs = made(folder, design, yard)
+    (folder / "plans/site.json").write_text(json.dumps(site))
     (folder / "inventory.json").write_text(json.dumps({**INVENTORY, "rows": [*INVENTORY["rows"], LAMP_ROW]}))
     (folder / "sky.json").write_text(json.dumps({**SKY, "place": "shed", "top": "site", "setting": setting.now()}))
     (folder / "hand-in.json").write_text(json.dumps(HANDIN))
@@ -156,6 +189,17 @@ def test_the_record_is_written_from_the_design():
     physics, the yard its door leads to where the site holds it, and only the view standing inside its walls; its
     gates pass, and a door filled, a lamp moved off its item and a door to no place each fail by name. The lamp item
     (3.5, 2.5) 1 m square on the 8 x 6 m shed is at the shed's middle, its base 2.7 m, the light 5% up its 0.2 m.
+    The yard stands with its gate on the shed's door, (0, 0, -9) from the shed's middle (the base's airlock opened
+    21.8 m from the hub's door, the flat stood 9 m under its stairwell door: the audit of 2026-11-04): held 2 m off
+    its gate it still stands there and the site's `held` gate fails on the hold and the door; its gate 3 m up stands
+    the shed 3 m over it, the yard 3 m down; the yard moved 5 m off fails `openings`.
+    Break: score/stages/scene_record/writer.py: `there = there + met[0]["spot"] - met[0]["there"]` -> `pass`
+    Break: score/stages/scene_record/writer.py: `round(floor - other_floor + other_level - level, 4)` ->
+        `round(floor - other_floor, 4)`
+    Break: score/stages/scene_record/gates.py:
+        `if along > writer.place_plan.DOORS_MET or up > writer.place_plan.LEVEL_MET:` -> `if False:`
+    Break: score/stages/scene_record/plan.py: `elif pair["gap"] > DOORS_MET:` -> `elif False:`
+    Break: score/stages/scene_record/plan.py: `if not sized or middle > HOLD_MIDDLE:` -> `if False:`
     Break: score/stages/scene_record/gates.py:
         `found.append(f"opening {number} ({opening.get('kind')}) at {opening['at']} is filled by {filled}")` -> `pass`
     Break: score/stages/scene_record/gates.py: `found.append(f"the light of plan item {name!r} stands off its
@@ -180,7 +224,7 @@ def test_the_record_is_written_from_the_design():
         [up] = record["environment"]["sky"]["lights"]
         assert up["name"] == "Sun" and up["altitude"] == sun["altitude"] > 0, (up, sun)
         [yard] = record["places"]
-        assert yard["name"] == "yard" and yard["at"] == [16.0, 0.0, 3.0] and yard["rotation"] == [0, 0, 0, 1], yard
+        assert yard["name"] == "yard" and yard["at"] == [0.0, 0.0, -9.0] and yard["rotation"] == [0, 0, 0, 1], yard
         assert [view["name"] for view in record["views"]] == ["from-door-1", "spot-1"], record["views"]
         assert [view["name"] for view in record["views_left_out"]] == ["spot-2"], record["views_left_out"]
         assert record["ceiling"] == 3.0, record
@@ -203,6 +247,30 @@ def test_the_record_is_written_from_the_design():
         output, inputs = written(folder, nowhere)
         verdict = gates.judge_openings(output, inputs, {})
         assert verdict.answer == checks.FAIL and "'moon_city'" in " ".join(verdict.findings), verdict.findings
+    off = {**SITE, "holds": [SITE["holds"][0], {**SITE["holds"][1], "x": 2.0}]}  # the yard held 2 m off its gate
+    raised = {**YARD, "openings": [{**YARD["openings"][0], "sill": 3.0}]}  # the yard's gate 3 m up: the shed 3 m up
+    for yard, site, at in ((YARD, off, [0.0, 0.0, -9.0]), (raised, SITE, [0.0, -3.0, -9.0])):
+        with tempfile.TemporaryDirectory() as folder:
+            output, inputs = written(folder, WRITTEN, yard, site)
+            place, record = writer.record_in(output)
+            [stood] = record["places"]
+            assert stood["at"] == at, (stood, at)  # on the door back, at its height, whatever the hold
+            verdict = gates.judge_openings(output, inputs, {})
+            assert verdict.answer == checks.PASS, verdict.findings
+            (output / "record/shed.json").write_text(json.dumps({**record, "places": [{**stood, "at": [5.0, *at[1:]]}]}))
+            verdict = gates.judge_openings(output, inputs, {})
+            assert verdict.answer == checks.FAIL and "opens 5.00 m along the floor" in " ".join(verdict.findings)
+            holder = pathlib.Path(folder) / "site-plan"
+            holder.mkdir()
+            (holder / "plan.json").write_text(json.dumps({"place": "site"}))
+            verdict = plan.judge_held(holder, inputs, None)
+            if site is off:
+                said = " | ".join(verdict.findings)
+                assert verdict.answer == checks.FAIL and "yard's hold is 20.0 x 12.0 m, its yard item 20.0 x 12.0 m, " \
+                    "their middles 2.0 m apart" in said and "shed's door to yard at [4.0, 0.0] opens 2.0 m from " \
+                    "yard's nearest door back" in said, verdict.findings
+            else:
+                assert verdict.answer == checks.PASS and verdict.measures["held places"] == 2, verdict.findings
 
 
 def test_an_open_place_s_view_eye_stands_a_person_s_height_over_its_made_ground(tmp_path):
@@ -337,7 +405,7 @@ def test_a_place_a_backdrop_row_is_shown_from_stands_in_the_record_where_its_hol
         found = writer.places_of("shed", plan_record, WRITTEN, inputs["plans"], handin)
         by_name = {entry["name"]: entry for entry in found}
         assert [entry["name"] for entry in found] == ["yard", "site"], found  # the yard already stood by its door
-        assert by_name["site"]["at"] == [14.0, 0.0, 5.0] and "palm_tree" in by_name["site"]["from"], by_name["site"]
+        assert by_name["site"]["at"] == [10.0, 0.0, -5.0] and "palm_tree" in by_name["site"]["from"], by_name["site"]
 
 
 def test_a_far_row_stands_far_off_where_its_concept_box_is_seen_as_a_run_of_its_pieces():

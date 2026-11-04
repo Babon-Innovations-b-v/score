@@ -71,14 +71,21 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   floor thing within 1 m (`CLEAR_LOOK`) turns to the nearest clear way, else is left out with why (2026-10-31: flat's
   spot-2 faced its wardrobe from 0.45 m).
 - **Places** are the design's: each place a door or opening leads to that its holder's plan holds beside it, stood
-  where the holder holds it, and each place of its scene a backdrop row of its hand-in is `shown` from
+  with its nearest door leading back on this place's door to it (`plan.paired`; the hold only the first guess) and
+  as high as a sibling's door to it stands (`plan.levels`: the square's flat 9 m up under its stairwell door; the
+  scene tree raises a child the same way), and each place of its scene a backdrop row of its hand-in is `shown` from
   (prepare's groups.shown_from: the holder at its own plan's corner, a place it holds beside where it holds it).
   A top place has none (its children are its scene tree's).
 - **Gates**: `game-free` (no game file or name: a date of the year 2099 is a scene time, not the game), `plan-matched`
   (every wall of the outline in the shell, every opening cut through it, every stair laid, every lamp over its
   item), `openings` (each doorway leads to a place of the design, outside, sealed, a row of the inventory or into its
-  holder; a door to a neighbour has it stood; every view of an inside place inside its outline). Whether the made
-  ground fits round the doorways is ground-fit's.
+  holder; a door to a neighbour has it stood, meeting one of its doors leading back within `plan.DOORS_MET` along
+  the floor and `LEVEL_MET` in height; every view of an inside place inside its outline). Whether the made
+  ground fits round the doorways is ground-fit's. The plan row's `held` (`plan.judge_held`, the audit of 2026-11-04:
+  holds and door leads were never reconciled) fails a frame anchor, person spot or item outside its plan's box (a
+  passage excepted, a thing on its wall's line allowed half its thickness), and on a holder's plan a hold off its own
+  item for its row (10% in size, 0.5 m in middle), two holds overlapping, a place held once more doors lead to than
+  lead back, and a door of a held place meeting no door of the sibling it leads to on the holder's plan.
 - Run the proof with `python -m score run world1 --place <place> --stage scene-record --detach`; the test is
   `test_a_scene_record_is_written_from_its_design.py` (a shed of its own: its plan maps, its record is written from a written plan, and a filled
   door, a moved lamp and a door to no place fail by name; its shell and stairs take the scene library's surfaces, or
