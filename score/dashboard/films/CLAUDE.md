@@ -48,7 +48,13 @@ Rules:
   (`default.sim_bodies`, owner 2026-10-27): a layer peel of every shown scene whose design has people
   (`data/people/rows.json`), and a close-up peel after it where one walks, Earth's first (the clips' motion is true
   there), every other carrying `LOW_GRAVITY_NOTE` (env1_demo's from the kept designs' people rows,
-  `design_layers`; the environment film refuses a lock missing one). A default is complete: every segment names a real scene, each long enough
+  `design_layers`; the environment film refuses a lock missing one). Its words and shots follow the design, never
+  the tree (audit, 2026-11-04): a walk is said Inside or Outside by its scene record's `inside` (`WorldState.
+  scene_inside`), the rooms leg the same; a shell with a plan of its own (the Base) is walked like any top scene; a
+  scene whose plan names its eye ("balcony eye 10.6 m", `default.designed_eye`) is a still from there, never walked;
+  site metres from the environment plan as it stands. `script.design_faults` (from `default.design_of` of the facts
+  now) checks a script for each of these, and his Lock of an environment's script is refused while one stands, so a
+  script that froze data since moved is locked again only once it says what the design says. A default is complete: every segment names a real scene, each long enough
   to read (the physics animation 12 s, `script.CUTS` defaults the same), its target its own length. The list of every
   film is `/film/all/`.
 - **The page is a cockpit** (owner, 2026-10-21: "this is not at all easy to use"; the design page's panels, enlarge

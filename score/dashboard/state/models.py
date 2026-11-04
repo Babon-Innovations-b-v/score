@@ -252,6 +252,9 @@ class WorldState(BaseModel):
     # Each designed place's plants (CONTEXT.md "plant", score/stages/design_layers.plants_of): {rows, objects, crops,
     # beds}; a place whose design grows nothing is absent.
     plants: dict[str, dict] = {}
+    # Each scene's `inside` as its accepted scene record says it (score/stages/scene_record), which the film's words
+    # follow (films/default.py); a scene whose record stands nowhere yet is absent.
+    scene_inside: dict[str, bool] = {}
 
 
 class PlanReview(BaseModel):

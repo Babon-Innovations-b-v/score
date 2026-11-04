@@ -25,6 +25,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - script.films_node: `return False` -> test_buy_leaves_out_the_film_rows_until_a_film_script_is_locked
 - default.sim_bodies: the CLIPS_TRUE_ON scenes not put first -> test_every_scene_whose_design_has_people_is_peeled_...
 - default.walks: Outside and Inside swapped -> test_an_environments_default_film_is_the_owners_structure_...
+- default.walks: a held scene said "Inside" whatever its record says -> test_an_environments_default_film_is_...
+- default.stops_of: a shell walked never, its plan or not (`planned` dropped) -> test_an_environments_default_film_...
+- default.walks: no still from a designed eye (`facts["eyes"]` unread) -> test_an_environments_default_film_is_...
+- script.design_faults: each of its checks (record, rooms_faults, finished stage, eye, apart_faults) -> `if False:` ->
+  test_an_environments_default_film_is_the_owners_structure_...
 - script.default_name: the saved scripts read before the starters -> test_the_film_step_opens_on_the_environments_...
 - preview/make.beat_offset: rounded to 1 place -> test_the_bed_starts_where_its_beats_fall_on_the_cuts_...
 - preview/scenes.LIT_DEGREES = -90 -> test_a_scale_zoom_arrives_where_its_site_is_lit_...
@@ -414,8 +419,11 @@ def test_an_environments_default_film_is_the_owners_structure_filled_from_its_ow
     here an environment that shares no name with his."""
     from score.dashboard.films import default
     within = {"dock": "port", "bar": "port", "bunk": "deck", "hold": "port", "deck": "port", "tent": "camp"}
+    # each scene record's own inside: the bar is open to the sky though the port holds it
+    inside = {"port": False, "pier": False, "camp": False, "dock": True, "bar": False, "hold": True, "deck": True,
+              "bunk": True, "tent": True}
     facts = default.facts_of("world7", "Environment 7", SETTING, PLAN, within, {"port": "The Port"},
-                             {"tess": "tess_dust"}, {})
+                             {"tess": "tess_dust"}, {}, {}, inside)
     assert facts["top"] == "port" and [room for room, _ in facts["rooms"]] == ["dock", "bar", "hold"]
     assert [stop["place"] for stop in facts["stops"]] == ["port", "pier", "camp"]
     film = default.built("world7-film", facts)
@@ -427,6 +435,36 @@ def test_an_environments_default_film_is_the_owners_structure_filled_from_its_ow
         "dock", "bar", "hold", "deck", "bunk", "pier", "pier", "camp", "camp", "tent"]
     assert [segment["line"] for segment in film["segments"][-4::2]] == ["Outside", "Outside"]
     assert film["segments"][-1]["line"] == "Inside"
+    assert [segment["line"] for segment in film["segments"][7:9]] == ["Inside", "Outside"]  # dock, bar: their records
+    assert film["segments"][6]["captions"][-1]["text"] == "Inside: Dock, Hold; Outside: Bar"
+    design = default.design_of(facts)
+    assert script.design_faults(film, design) == []
+    # a film that froze what has moved since: a record now outside said inside, a top scene with no shot of its own,
+    # a site's metres from an older plan, a scene with a designed eye walked
+    frozen = json.loads(json.dumps(film))
+    frozen["segments"][8]["line"] = "Inside"
+    frozen["segments"][6]["captions"][-1]["text"] = "Inside: Dock, Bar, Hold"
+    frozen["segments"] = [segment for segment in frozen["segments"]
+                          if (segment["shows"].get("place"), segment["cut"]) != ("camp", "walk-through")]
+    pier = next(segment for segment in frozen["segments"] if segment["cut"] == "scale-zoom"
+                and segment["shows"]["place"] == "pier")
+    pier["captions"][0]["text"] = "Pier, 56.7 m from The Port"
+    eyed = {**design, "eyes": {"pier": {"from": "deck", "metres": 4.0}}}
+    assert script.design_faults(frozen, eyed) == [
+        "segment 7: Bar is said inside, its scene record says outside",
+        "segment 9: Bar is said Inside, its scene record says outside",
+        'segment 13: "Pier, 56.7 m from The Port" says 56.7 m, the design 80 m',
+        "segment 14: Pier is designed seen from its deck eye at 4 m, not a Walk-through walked",
+        "Camp (a top scene) has no shot of its finished stage"]
+    # a shell with a plan of its own is walked, and a plan naming its eye is filmed as a still from there
+    planned = default.facts_of("world7", "Environment 7", SETTING, PLAN, within, {"port": "The Port"},
+                               {"tess": "tess_dust"}, {}, {"port": {}, "pier": {
+                                   "height": "deck eye 4 m; mast 9 m", "levels": [{"name": "deck"}]}}, inside)
+    shots = default.built("world7-film", planned)["segments"]
+    assert [(shot["cut"], shot["line"]) for shot in shots if shot["shows"].get("place") in ("port", "pier")
+            and shot["cut"] != "scale-zoom"] == [("walk-through", "Outside"), ("hero-still", "Seen from the deck")]
+    assert script.design_faults({"segments": shots}, default.design_of(planned)) == []
+    assert default.designed_eye({"height": "balcony eye 10.6 m", "levels": [{"name": "plaza"}]}) is None
     assert script.total_seconds(film) <= film["target_seconds"] < script.total_seconds(film) + 5
     assert film["segments"][2]["seconds"] == 12.0
     pages = [segment["shows"].get("page") for segment in film["segments"] if segment["cut"] == "screen-take"]
