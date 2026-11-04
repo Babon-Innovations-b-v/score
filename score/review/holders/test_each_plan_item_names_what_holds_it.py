@@ -501,7 +501,22 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     Break: score/review/holders/__init__.py: `wall = named_wall(holder, plan, turn) if holder is not None else None`
         -> `wall = None`
     Break: score/review/holders/__init__.py: `if all(after - before >= WALL_APART for` -> `if all(after - before >= 0
-        for`"""
+        for`
+    And the 2026-11-04 audit's wall, roof and seat faults: six tools on one item each stand at a spot of their own, at
+    least their length and PIECE_GAP apart (they all stood at one), centred 1.5 m up (a small wall thing the plan gives
+    no height); a 6 m pipe nearest a 2 m jamb stub stands on the 20 m wall instead (it was shrunk onto the stub); a
+    crane 'top, spanning left to right' read on a wall hangs from the roof; a lamp 'high on the right wall' stands at
+    a quarter under the room's top; a chair 'at the desk' stands before the desk's built side, SEAT_GAP clear, facing
+    it (it stood at its plan box, 3 times the desk's size); three railings of a stair share its two sides, never one
+    spot.
+    Break: score/review/holders/__init__.py: `entry["pieces"] = wall_pieces(entry, items[entry["item"]], row, count,
+        walls_of(plan))` -> `pass`
+    Break: score/review/holders/__init__.py: `fitting = ([wall for wall in walls if wall_length(wall) >= need] if
+        pieces == 1 else [])` -> `fitting = (walls if pieces == 1 else [])`
+    Break: score/review/holders/__init__.py: `spanning = kind == "wall" and spans(row)` -> `spanning = False`
+    Break: score/review/holders/__init__.py: `return round(EYE_MOUNT - tall / 2, 3)` -> `return None`
+    Break: score/review/holders/__init__.py: `seats_beside(found, items, rows, plan, tied)` -> `pass`
+    Break: score/review/holders/__init__.py: `rails_along(found, plan)` -> `pass`"""
     rows = [{"id": "left_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
             {"id": "string_lights", "noun": "lights", "anchor": "on:left_wall", "size": [3.0, 0.05, 0.05]},
             {"id": "wall_light", "noun": "light", "anchor": "on:left_wall", "size": [1.0, 0.1, 0.1]}]
@@ -511,6 +526,37 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     found = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
     assert [found[row]["wall"]["to"] for row in ("string_lights", "wall_light")] == [[0.0, 12.0], [0.0, 12.0]], found
     assert sorted(found[row]["spot"] for row in ("string_lights", "wall_light")) == [[0.0, 4.0], [0.0, 8.0]], found
+    rows = [{"id": "tools", "noun": "tool", "anchor": "wall", "where": "left wall", "size": [0.5, 0.05, 0.3], "count": 6},
+            {"id": "pipe", "noun": "pipe", "anchor": "wall", "where": "back", "size": [6.0, 0.2, 0.2]},
+            {"id": "crane", "noun": "crane", "anchor": "wall", "where": "top, spanning left to right",
+             "size": [18.0, 2.0, 1.0]},
+            {"id": "lamp", "noun": "lamp", "anchor": "wall", "where": "high on the right wall", "size": [0.8, 0.2, 0.3]},
+            {"id": "desk", "noun": "desk", "anchor": "floor", "size": [2.0, 0.8, 0.8]},
+            {"id": "chair", "noun": "chair", "anchor": "floor", "where": "at the desk", "size": [0.6, 0.6, 1.0]},
+            {"id": "staircase", "noun": "staircase", "anchor": "floor"},
+            {"id": "railing", "noun": "railing", "anchor": "on:staircase", "size": [3.0, 0.1, 1.0]}]
+    items = [["TOOLS 1", 0.2, 5.0, 0.5, 2.0, None, "item"], ["PIPE 1", 10.3, 0.5, 0.5, 1.0, None, "item"],
+             ["CRANE 1", 1.0, 1.0, 18.0, 2.0, None, "item"], ["LAMP 1", 19.5, 6.0, 0.5, 0.5, None, "item"],
+             ["DESK 1", 8.0, 5.0, 6.0, 3.0, "S", "item"], ["CHAIR 1", 10.5, 9.0, 1.0, 1.0, None, "item"],
+             *[[f"RAIL {number}", 2.0, 8.0, 1.0, 3.0, None, "item"] for number in (1, 2, 3)]]
+    plan = plan_of(items, {item[0]: [item[0].split()[0].lower().replace("rail", "railing")] for item in items},
+                   walls=[*ROOM_WALLS, {"from": [10.0, 0.0], "to": [10.0, 2.0], "thick": 0.2}],
+                   stairs=[{"points": [[2.0, 8.0], [3.0, 8.0], [3.0, 11.0], [2.0, 11.0]], "angle": 90.0}])
+    plan["shapes"] = {"TOOLS 1": {"count": 6}}
+    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})["relations"]
+    by_item = {entry["item"]: entry for entry in found}
+    tools = by_item["TOOLS 1"]["pieces"]
+    alongs = sorted(piece["spot"][1] for piece in tools)
+    assert len(tools) == 6 and all(piece["wall"]["from"][0] == piece["wall"]["to"][0] == 0.0 for piece in tools), tools
+    assert all(after - before >= 0.5 + holders.PIECE_GAP - 1e-3 for before, after in zip(alongs, alongs[1:])), alongs
+    assert {piece["height"] for piece in tools} == {1.35}, tools
+    assert (by_item["PIPE 1"]["wall"]["from"], by_item["PIPE 1"]["wall"]["to"]) == ([0.0, 0.0], [20.0, 0.0]), by_item
+    assert (by_item["CRANE 1"]["how"], by_item["CRANE 1"].get("to roof")) == ("ceiling", True), by_item["CRANE 1"]
+    assert by_item["LAMP 1"]["height"] == 2.25, by_item["LAMP 1"]
+    [seat] = by_item["CHAIR 1"]["pieces"]
+    assert (by_item["CHAIR 1"]["beside"], seat["spot"], seat["way"]) == ("DESK 1", [11.0, 7.3], [1.0, 0.0]), seat
+    rails = [by_item[f"RAIL {number}"]["pieces"][0]["spot"] for number in (1, 2, 3)]
+    assert len({tuple(spot) for spot in rails}) == 3, rails
 
 
 def test_the_relations_are_kept_beside_the_plan_with_its_sha(tmp_path, monkeypatch):

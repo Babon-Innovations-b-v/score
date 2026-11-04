@@ -211,7 +211,8 @@ def unsettled(plan, inventory, parts=True):
     something (`spaced_people`), a row marked beyond standing inside (`brought_inside`), or (when it `parts`) the
     relation solver parts things the fixes left in each other (relation_solver.parted)."""
     return (placing_more(plan, inventory) or bool(spaced_people(plan, inventory)[1]) or bool(brought_inside(plan)[1])
-            or bool(unstood(plan, inventory)) or (parts and bool(relation_solver.parted(plan, inventory)[1])))
+            or bool(unstood(plan, inventory)) or bool(plan_fixes.doors_kept(copy.deepcopy(plan), inventory))
+            or (parts and bool(relation_solver.parted(plan, inventory)[1])))
 
 
 def settled_again(store, place, plan, inventory, ask, parts=True):
@@ -229,8 +230,10 @@ def settled_again(store, place, plan, inventory, ask, parts=True):
         answer, again = spaced_people(answer, inventory)
         spaced = [*spaced, *again]
     answer, inside = brought_inside(answer)
-    if more or spaced or stood or inside:
-        plan = {**answer, "fixes": [*plan.get("fixes", []), *more, *spaced, *stood, *inside]}
+    answer = copy.deepcopy(answer)
+    doors = plan_fixes.doors_kept(answer, inventory)  # its doorways the design's door rows (a fix added 2026-11-04)
+    if more or spaced or stood or inside or doors:
+        plan = {**answer, "fixes": [*plan.get("fixes", []), *more, *spaced, *stood, *inside, *doors]}
         plan["gaps"] = plan_fixes.why_left(plan_fixes.open_gaps(plan, inventory))
     return plan, calls
 

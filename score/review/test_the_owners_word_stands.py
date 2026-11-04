@@ -3042,6 +3042,12 @@ def stand_in_plan():
 
 
 def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_the_rest_saying_why():
+    """The free fixes stand people, place the missing, turn and part; a plan's doorways are made its door rows.
+    Break: score/review/plan_fixes.py: `opening.update(wide=metres, **({"to": lead} if lead is not None else {}))` ->
+        `pass`
+    Break: score/review/plan_fixes.py: `left.remove(spare)` -> `pass` (the moved doorway kept on its drawn wall)
+    Break: score/review/plan_checks.py: `for item in plan.get("items", []):  # every row tied to an item` loop ->
+        placed_items' floor rows alone"""
     inventory = {"picture": [1000, 1000], "rows": ROWS}
     plan = stand_in_plan()
     before = [gap["kind"] for gap in plan_checks.checked(plan, inventory)]
@@ -3053,6 +3059,21 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     assert barrels == [(1.5, 6.5), (7.5, 6.5)]  # the missing one where its box projects
     assert {item[0]: item for item in plan["items"]}["DESK 1"][5] == "S"  # it faces the viewer in the concept
     assert plan_checks.checked(plan, inventory) == [] and len(fixes) == 4
+    # 2026-11-04 audit: the doorways are the design's door rows (habitat's 2.2 m hatches drawn 0.237 m wide, galley's
+    # W door drawn on its S wall), and a wall row re-counted is a gap like a floor row (lab's pipes 10 to 6)
+    doored = {"w": 10.0, "d": 10.0, "items": [["PIPE 1", 0.0, 2.0, 0.2, 3.0, None, "item"]], "rows": {"PIPE 1": ["pipe"]},
+              "doors": [["N", 5.0, 1.0, "DOOR N 1.0 x 2.2 m"], ["W", 3.0, 0.9, "HATCH W 0.9 x 2.0 m"]],
+              "leads": {"N": {"to": "yard"}, "W": {"to": "sealed"}},
+              "openings": [{"kind": "door", "at": [5.0, 0.0], "wide": 0.3, "sill": 0.0, "head": 2.2, "to": "yard"},
+                           {"kind": "door", "at": [5.0, 10.0], "wide": 1.4, "sill": 0.0, "head": 2.0, "to": "sealed"},
+                           {"kind": "window", "at": [10.0, 5.0], "wide": 1.0, "sill": 1.0, "head": 2.0, "to": None}]}
+    said = plan_fixes.doors_kept(doored, {})
+    assert [(opening["at"], opening["wide"], opening["to"]) for opening in doored["openings"]] == [
+        ([5.0, 0.0], 1.0, "yard"), ([0.0, 3.0], 0.9, "sealed"), ([10.0, 5.0], 1.0, None)], doored["openings"]
+    assert len(said) == 2 and plan_fixes.doors_kept(doored, {}) == [], said  # and none again once kept
+    wall_row = {"rows": [{"id": "pipe", "anchor": "wall", "count": 3, "size": [0.2, 3.0, 0.2]}]}
+    assert [gap["words"] for gap in plan_checks.count_gaps(doored, wall_row, set())] == [
+        "pipe: 3 in the concept, 1 on the plan"]
 
 
 def test_a_missing_thing_crossing_one_of_its_row_is_piled_on_it():

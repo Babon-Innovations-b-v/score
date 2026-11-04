@@ -26,6 +26,16 @@ ceiling) and how each is read.
   of one kind on the nearest (`seen_holders`). The assembly's `held` gate fails on any that comes back. A door that
   moves on a built model's face (its kind's motion rule, served) names the `recess` its holder model's bake cuts
   behind it (`recess_of`: as deep as its swing sweeps and widened on its hinge side by its thickness, or its thickness deep with its width and thickness of slide room); several on one item each get a spot their width, room and OPENING_ROOM apart (`spots`, `face_spots`: street's three restaurant doors, #36), the scene record laying each there; a static one sits flush. Different things on one face that meet at their built sizes, along it and in height, are spread along it in the order the plan draws them, OPENING_ROOM apart and inside its ends (`face_spread`; whether they meet is judged with each kept inside the face's built ends as the assembly keeps it, `kept_on_face`: hub's three monitors drawn past its console's 4.5 m end, #36; each moved one given `spots`, a moving door its recess there: street's window, stairwell entrance and shutters, #36); a face too short for them is named `crowded`, its things kept as drawn.
+- **Each piece its own spot, at its built size** (2026-11-04 audit): a wall relation goes on the nearest wall long
+  enough for its row's pieces at their built length (`run_needed`; a run of several round corners along the wall's
+  chain, `chain_of`; one piece round a round wall's facets, its face the chord it covers), else the longest, named
+  `short`; an item laying several pieces gives each its own wall relation (`pieces`, `wall_pieces`, packed their
+  length and `PIECE_GAP` apart), a walls-item floor row's pieces where their concept boxes project; a wall thing the
+  plan gives no base its mount `height` (`mount_height`: high words or a light, else a small thing at `EYE_MOUNT`); a
+  wall row whose words say it spans the room under the roof (`spans`) is held by the ceiling, and a ceiling row hung
+  from it (`under_roof`) is marked `to roof`; a seat its words put at, by or around a holder row (`beside_holder`)
+  stands before that holder's built side, `SEAT_GAP` clear, facing it (`seats_beside`); a stair's railings share its
+  sides (`rails_along`).
 - **Every opening on a built wall** (`loose_openings`): a plan opening on no wall the shell builds (its outline's or an
   inner one, design_shell.on_a_wall) is listed in the file's `loose`, the plan-side check (camp's airlock door in its
   dome's gap, street's stairwell opening, 2026-10-31).

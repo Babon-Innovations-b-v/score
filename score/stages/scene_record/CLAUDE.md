@@ -86,12 +86,23 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   (every wall of the outline in the shell, every opening cut through it, every stair laid, every lamp over its
   item), `openings` (each doorway leads to a place of the design, outside, sealed, a row of the inventory or into its
   holder; a door to a neighbour has it stood, meeting one of its doors leading back within `plan.DOORS_MET` along
-  the floor and `LEVEL_MET` in height; every view of an inside place inside its outline). Whether the made
-  ground fits round the doorways is ground-fit's. The plan row's `held` (`plan.judge_held`, the audit of 2026-11-04:
-  holds and door leads were never reconciled) fails a frame anchor, person spot or item outside its plan's box (a
-  passage excepted, a thing on its wall's line allowed half its thickness), and on a holder's plan a hold off its own
-  item for its row (10% in size, 0.5 m in middle), two holds overlapping, a place held once more doors lead to than
-  lead back, and a door of a held place meeting no door of the sibling it leads to on the holder's plan.
+  the floor and `LEVEL_MET` in height; every view of an inside place inside its outline; each doorway its plan's
+  door row: on its side, sill or bearing, its metres within `DOOR_SHARE`, at least `PASSABLE`, leading where its lead
+  does), `laid-as-designed` (2026-11-04 audit, faults every check had passed: no two pieces of one row at one spot; a
+  wall-held object's front out into the room, its built length within its wall's face, off the floor where its words
+  say high or it is a light; a thing hung from the roof its top at the roof's underside over it, `writer.roof_under`;
+  a seat its words put at, by or before a holder within `SEAT_REACH` of its built side); `plan-matched` also holds
+  each laid row to its scene inventory's count unless the plan's `dropped` or notes say why (`row_count_faults`).
+  Whether the made ground fits round the doorways is ground-fit's. The plan row's `held` (`plan.judge_held`, the
+  audit of 2026-11-04: holds and door leads were never reconciled) fails a frame anchor, person spot or item outside
+  its plan's box (a passage excepted, a thing on its wall's line allowed half its thickness), and on a holder's plan
+  a hold off its own item for its row (10% in size, 0.5 m in middle), two holds overlapping, a place held once more
+  doors lead to than lead back, and a door of a held place meeting no door of the sibling it leads to on the
+  holder's plan.
+- **Wall, roof and seat laying** (2026-11-04 audit): a wall object's x way is its wall's run turned by its `side`, so
+  its front faces `out`; it stands at its relation's `height` (holders' mount height) where the plan gives no base; a
+  `ceiling` relation marked `to roof` lays its top `ROOF_CLEAR` under the roof's underside at its spot; a relation's
+  `beside` (a seat before its holder) is carried as the object's `beside`, its holder's objects named.
 - Run the proof with `python -m score run world1 --place <place> --stage scene-record --detach`; the test is
   `test_a_scene_record_is_written_from_its_design.py` (a shed of its own: its plan maps, its record is written from a written plan, and a filled
   door, a moved lamp and a door to no place fail by name; its shell and stairs take the scene library's surfaces, or

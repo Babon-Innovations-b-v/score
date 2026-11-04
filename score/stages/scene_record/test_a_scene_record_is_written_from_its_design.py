@@ -134,7 +134,9 @@ WRITTEN = {**SHED, "outline": [[0.0, 0.0], [8.0, 0.0], [8.0, 6.0], [0.0, 6.0]],
                      {"from": [8.0, 6.0], "to": [0.0, 6.0], "thick": 0.2, "tall": 3.0},
                      {"from": [0.0, 6.0], "to": [0.0, 0.0], "thick": 0.2, "tall": 3.0}],
            "openings": [{"kind": "door", "at": [4.0, 0.0], "wide": 1.2, "angle": 0.0, "swing": "slide", "sill": 0.0,
-                         "head": 2.1, "to": "yard"}],
+                         "head": 2.1, "to": "yard"},
+                        {"kind": "door", "at": [4.0, 6.0], "wide": 2.0, "angle": 180.0, "swing": "slide", "sill": 0.0,
+                         "head": 3.0, "to": "outside"}],
            "levels": [{"name": "floor", "height": 0.0, "points": [[0.0, 0.0], [8.0, 0.0], [8.0, 6.0], [0.0, 6.0]]}],
            "roofs": [{"kind": "flat", "points": [[0.0, 0.0], [8.0, 0.0], [8.0, 6.0], [0.0, 6.0]], "eave": 3.0,
                       "top": 3.0}],
@@ -213,7 +215,16 @@ def test_the_record_is_written_from_the_design():
     Break: score/stages/scene_record/gates.py: unbuilt_rows' `if row_id not in named]` -> `if False]` (a shell row
         the shell cannot build dropped without a word: the hangar's landing pad, 2026-11-04)
     Break: score/stages/scene_record/writer.py stair: the `if high < low:` swap dropped (a flight drawn from 1 m down
-        to 0 m stands its foot at its high end, which the builder lays as a flat block, its treads underneath)"""
+        to 0 m stands its foot at its high end, which the builder lays as a flat block, its treads underneath)
+    And (2026-11-04 audit) a doorway is its door row's: one drawn 0.3 m wide for the 1.2 m hatch row, or leading
+    elsewhere than its lead, fails `openings` by name; a row laid another number of times than its scene inventory
+    counts, the plan giving no reason, fails `plan-matched`.
+    Break: score/stages/scene_record/gates.py: `if abs(wide - metres) > DOOR_SHARE * metres or wide < PASSABLE:` ->
+        `if False:`
+    Break: score/stages/scene_record/gates.py: `if lead is not None and opening.get("to") != lead:` -> `if False:`
+    Break: score/stages/scene_record/gates.py: `stair_faults(record, design) + lamp_faults(record, design) + \\
+        count_faults(record, design, inputs) + row_count_faults(record, design, inputs)` -> `... + \\
+        count_faults(record, design, inputs)`"""
     from score.review import overhead
     from score.stages.scene_record import gates, writer
     with tempfile.TemporaryDirectory() as folder:
@@ -231,7 +242,7 @@ def test_the_record_is_written_from_the_design():
         assert up["name"] == "Sun" and up["altitude"] == sun["altitude"] > 0, (up, sun)
         [yard] = record["places"]
         assert yard["name"] == "yard" and yard["at"] == [0.0, 0.0, -9.0] and yard["rotation"] == [0, 0, 0, 1], yard
-        assert [view["name"] for view in record["views"]] == ["from-door-1", "spot-1"], record["views"]
+        assert [view["name"] for view in record["views"]] == ["from-door-1", "from-door-2", "spot-1"], record["views"]
         assert [view["name"] for view in record["views_left_out"]] == ["spot-2"], record["views_left_out"]
         assert record["ceiling"] == 3.0, record
         stair = next(entry for entry in record["structure"] if entry["name"] == "stair_1")
@@ -269,6 +280,17 @@ def test_the_record_is_written_from_the_design():
         output, inputs = written(folder, nowhere)
         verdict = gates.judge_openings(output, inputs, {})
         assert verdict.answer == checks.FAIL and "'moon_city'" in " ".join(verdict.findings), verdict.findings
+        assert "opening 1 leads to 'moon_city', its door row 'HATCH N, 1.2 x 2.1 m' to 'yard'" in verdict.findings
+    narrow = json.loads(json.dumps(WRITTEN))
+    narrow["openings"][0]["wide"] = 0.3  # the drawing's width, not its door row's 1.2 m (habitat's 0.237 m hatches)
+    with tempfile.TemporaryDirectory() as folder:
+        output, inputs = written(folder, narrow)
+        verdict = gates.judge_openings(output, inputs, {})
+        assert verdict.findings == ("opening 1 is 0.3 m wide for door row 'HATCH N, 1.2 x 2.1 m' of 1.2 m",), verdict
+        pathlib.Path(inputs["inventory"]).write_text(json.dumps({**INVENTORY, "rows": [
+            {**INVENTORY["rows"][0], "count": 2}, LAMP_ROW]}))  # the plan re-counted the benches, saying no reason
+        verdict = gates.judge_plan_matched(output, inputs, {})
+        assert verdict.findings == ("row bench: 2 in the scene inventory, 1 laid, and the plan says no reason",), verdict
     off = {**SITE, "holds": [SITE["holds"][0], {**SITE["holds"][1], "x": 2.0}]}  # the yard held 2 m off its gate
     raised = {**YARD, "openings": [{**YARD["openings"][0], "sill": 3.0}]}  # the yard's gate 3 m up: the shed 3 m up
     for yard, site, at in ((YARD, off, [0.0, 0.0, -9.0]), (raised, SITE, [0.0, -3.0, -9.0])):
@@ -602,23 +624,46 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     Break: score/stages/scene_record/writer.py: `on["holder"] = names` -> `pass`
     Break: score/stages/scene_record/writer.py: `found["room"] = float(recess["room"])` -> `pass`
     Break: score/stages/scene_record/writer.py: `**({"hangs": True} if relation.get("hangs") else {})}` -> `}` (the
-        docking airlock's spacesuit, hanging in its locker, laid as standing in it)"""
-    from score.stages.scene_record import writer
+        docking airlock's spacesuit, hanging in its locker, laid as standing in it)
+    And the 2026-11-04 audit's laid-as-designed gate: the wall lamp's front faces out of its wall into the room (it
+    was laid with its back to the room), at its relation's 2 m height; a lamp hung from the roof has its top 0.01 m
+    under the place's 3 m ceiling; a chair before the module stands at its piece's spot, naming the module; the
+    gate passes on them and fails, by name, on the lamp turned to its wall, two lamps at one spot, the hung lamp
+    1 m lower and the chair 1.2 m off its holder.
+    Break: score/stages/scene_record/writer.py: `along = np.subtract(wall["to"], wall["from"]) * -float(relation["side"])`
+        -> `along = np.subtract(wall["to"], wall["from"])`
+    Break: score/stages/scene_record/writer.py: `base = roof_under(design, spot) - float(size[2]) - ROOF_CLEAR` -> `pass`
+    Break: score/stages/scene_record/gates.py: `found.append(f"{entry['name']} faces its wall, its back to the room")`
+        -> `pass`
+    Break: score/stages/scene_record/gates.py: `found.append(f"{one['name']} and {other['name']} of row {row} stand
+        at one spot")` -> `pass`
+    Break: score/stages/scene_record/gates.py: `if abs(height + size[2] - under) > TOLERANCE:` -> `if False:`
+    Break: score/stages/scene_record/gates.py: `if not -TOLERANCE <= gap <= SEAT_REACH:` -> `if False:`"""
+    from score.stages.scene_record import gates, writer
     design = {"w": 20.0, "d": 20.0, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 20.0, 20.0, None, "item"],
                                               ["MODULE 1", 8.0, 2.0, 6.0, 6.0, None, "item"],
                                               ["GARAGE DOOR 1", 4.0, 9.0, 3.0, 3.0, None, "item"],
-                                              ["SUIT 1", 9.0, 3.0, 0.5, 0.5, None, "item"]],
+                                              ["SUIT 1", 9.0, 3.0, 0.5, 0.5, None, "item"],
+                                              ["HUNG 1", 2.0, 2.0, 1.0, 1.0, None, "item"],
+                                              ["CHAIR 1", 10.0, 12.0, 2.0, 2.0, None, "item"]],
               "rows": {"ON THE WALLS AND CEILING": ["door", "lamp"], "MODULE 1": ["module"],
-                       "GARAGE DOOR 1": ["garage_door"], "SUIT 1": ["suit"]}}
+                       "GARAGE DOOR 1": ["garage_door"], "SUIT 1": ["suit"], "HUNG 1": ["hung"],
+                       "CHAIR 1": ["chair"]}}
     rows = [{"id": name, "anchor": "floor", "route": "prop", "size": size}
             for name, size in (("door", [1.2, 0.1, 2.1]), ("lamp", [0.3, 0.2, 0.3]), ("module", [6.0, 6.0, 6.0]),
-                               ("garage_door", [3.0, 0.2, 3.0]), ("suit", [0.5, 0.4, 1.8]))]
+                               ("garage_door", [3.0, 0.2, 3.0]), ("suit", [0.5, 0.4, 1.8]), ("hung", [0.4, 0.4, 0.5]),
+                               ("chair", [0.6, 0.6, 1.0]))]
     relations = {"relations": [
         {"item": "ON THE WALLS AND CEILING", "row": "door", "how": "in", "why": "in the plan's door opening 1",
          "opening": {"at": [5.0, 0.0], "wide": 1.4, "sill": 0.0, "head": 2.2},
          "wall": {"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2}},
         {"item": "ON THE WALLS AND CEILING", "row": "lamp", "how": "wall", "why": "against the wall nearest",
-         "wall": {"from": [0.0, 20.0], "to": [0.0, 0.0], "thick": 0.2}, "side": 1, "spot": [0.0, 10.0]},
+         "wall": {"from": [0.0, 20.0], "to": [0.0, 0.0], "thick": 0.2}, "side": 1, "spot": [0.0, 10.0],
+         "height": 2.0},
+        {"item": "HUNG 1", "row": "hung", "how": "ceiling", "to roof": True, "why": "on the place's ceiling"},
+        {"item": "CHAIR 1", "row": "chair", "how": "floor", "beside": "MODULE 1", "holder row": "module",
+         "pieces": [{"how": "floor", "spot": [11.0, 8.4], "way": [1.0, 0.0], "why": "before module's S side"}],
+         "why": "before module"},
         {"item": "GARAGE DOOR 1", "row": "garage_door", "how": "face", "holder": "MODULE 1", "face": "S",
          "why": "against module's side", "recess": {"room": 0.55, "room_way": [-1.0, 0.0]}},
         {"item": "SUIT 1", "row": "suit", "how": "within", "holder": "MODULE 1", "why": "within module", "hangs": True}]}
@@ -630,6 +675,27 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     assert garage["on"]["holder"] == ["module_1"] and garage["on"]["out"] == [0.0, 1.0], garage
     assert (garage["on"]["room"], garage["on"]["room_way"]) == (0.55, [-1.0, 0.0]), garage  # kept within the face
     assert lamp["on"]["span"] == [[-9.9, 10.0], [-9.9, -10.0]] and lamp["on"]["out"] == [1.0, 0.0], lamp
+    assert lamp["rotation"] == writer.yaw_turn(design, (0.0, 1.0), rows[1]["size"]) and lamp["at"][1] == 2.0, lamp
+    assert found["hung"]["at"][1] == round(3.0 - 0.5 - writer.ROOF_CLEAR, 4), found["hung"]
+    assert found["chair"]["at"] == [1.0, 0.0, -1.6] and found["chair"]["beside"]["holder"] == ["module_1"], found
+    objects = [entry for entry in found.values() if entry["kind"] == "object"]
+    sizes, by_id = {row["id"]: row["size"] for row in rows}, {row["id"]: row for row in rows}
+
+    def faults(laid):
+        return (gates.spot_faults(laid) + gates.held_wall_faults(laid, design, sizes, by_id) +
+                gates.roof_faults(laid, design, sizes, relations, {**by_id, "hung": {"anchor": "ceiling"}}) +
+                gates.seat_faults(laid, sizes, {**by_id, "chair": {"id": "chair", "noun": "chair",
+                                                                   "where": "at the module"}}, design))
+    assert faults(objects) == [], faults(objects)
+    turned = [{**entry, "rotation": writer.yaw_turn(design, (0.0, -1.0), None)} if entry is lamp else entry
+              for entry in objects]
+    assert faults(turned) == ["lamp_1 faces its wall, its back to the room"], faults(turned)
+    assert "lamp_1 and lamp_2 of row lamp stand at one spot" in faults(objects + [{**lamp, "name": "lamp_2"}])
+    lowered = [{**entry, "at": [entry["at"][0], entry["at"][1] - 1.0, entry["at"][2]]} if entry["row"] == "hung"
+               else entry for entry in objects]
+    assert faults(lowered) == ["hung_1's top stands 1.99 m up, its roof's underside 3.00 m over it"], faults(lowered)
+    away = [{**entry, "at": [1.0, 0.0, -0.5]} if entry["row"] == "chair" else entry for entry in objects]
+    assert faults(away) == ["chair_1 stands 1.20 m from MODULE 1, its words 'at the module'"], faults(away)
     assert found["suit"]["on"]["hangs"] is True and found["suit"]["on"]["holder"] == ["module_1"], found["suit"]
     (tmp_path / "plans").mkdir()
     (tmp_path / "plans/hut.json").write_text(json.dumps(design))
