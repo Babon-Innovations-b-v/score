@@ -24,6 +24,11 @@ OpenUSD stage (tools/usd/sound.py's layout: room tones, objects' sounds, motions
                        those under CC0 with their row in data/sound/licences.json (the owner, 2026-10-20, #29)
              events    every thing the motion row moves in the place (needs.events over its moves) plays a sound
              voices    a place whose design stands people plays a voice on one of them (#29: voices where people are)
+             heard     where the scene is heard through a suit (beds.py), no object, motion or voice sound carried by
+                       air plays (all_uses silences them, named in sound.json's `unheard`): only the suit's bed, the
+                       bank's contact and a brief written for the suit (a helmet radio)
+             suits     every sound's brief was written for how the scene is heard (sounds.json `heard_in`: its hearing
+                       and its body's outside air), so a sealed module's crew talk never plays in a Hong Kong flat
 
 Every designed scene has the row (score/stages/design_layers.py, the stage table's and the assembly's one answer);
 its plan and scene inventory are the design's (beds.files: under {home}/design, where the creator's are kept); the
@@ -119,23 +124,48 @@ def object_uses(inputs):
     return uses
 
 
-def voice_uses(place, inputs):
-    """The voice of the place's people (data/sound/voices.json), on the first person its design stands; none with no
-    one, or while no voice is named (the voices gate fails it then)."""
+def voice_of(voices, facts):
+    """The voice a scene heard as `facts` says plays (data/sound/voices.json): the first of `by_hearing` whose heard
+    and air fit, else `people`; (name, where it came from)."""
+    for entry in voices.get("by_hearing", []):
+        if entry["heard"] == facts.get("heard") and entry.get("air", facts.get("air")) == facts.get("air"):
+            return entry["sound"], f"data/sound/voices.json by_hearing ({facts.get('heard')}, {facts.get('air')})"
+    return voices.get("people"), "data/sound/voices.json people"
+
+
+def voice_uses(place, inputs, facts=None):
+    """The voice of the place's people as the scene is heard (voice_of), on the first person its design stands; none
+    with no one, or while no voice is named (the voices gate fails it then)."""
     people = needs.people(place, inputs["people"]) if "people" in inputs else []
-    voice = read_json(inputs["voices"]).get("people")
+    facts = beds.of_place(place, inputs)["facts"] if facts is None else facts
+    voice, said = voice_of(read_json(inputs["voices"]), facts)
     if not people or not voice:
         return []
-    return [{"sound": voice, "role": "object", "on": people[0],
-             "from": "data/sound/voices.json people, the first person its design stands"}]
+    return [{"sound": voice, "role": "object", "on": people[0], "voice": True,
+             "from": f"{said}, the first person its design stands"}]
+
+
+def all_uses(place, inputs):
+    """(every use the place plays [{sound, role, on, from}], every one the scene's hearing silences [{..., why}]):
+    where the scene is heard through a suit (beds.facts), no air carries an object's, a motion's or a voice's sound
+    to the ear, so only those written for the suit play; its bed (the suit's own) and the bank's contact sounds
+    stay."""
+    bed = beds.of_place(place, inputs)
+    uses = [{"sound": name, "role": "room", "on": None, "from": "the scene's design (score/stages/sound/beds.py)"}
+            for name in bed["sounds"]]
+    carried = object_uses(inputs) + voice_uses(place, inputs, bed["facts"]) + moving_uses(inputs)
+    if bed["facts"].get("heard") == "suit":
+        silenced = [dict(use, why="heard through a pressure suit: no air carries it (beds.facts heard suit)")
+                    for use in carried if not gates.heard_by_suit(use, inputs)]
+        carried = [use for use in carried if gates.heard_by_suit(use, inputs)]
+    else:
+        silenced = []
+    return uses + carried + bank_uses(read_json(inputs["surfaces"])), silenced
 
 
 def uses_of(place, inputs):
-    """Every place the place plays a sound from: [{sound, role, on, from}]."""
-    uses = [{"sound": name, "role": "room", "on": None, "from": "the scene's design (score/stages/sound/beds.py)"}
-            for name in beds.of_place(place, inputs)["sounds"]]
-    uses += object_uses(inputs) + voice_uses(place, inputs)
-    return uses + moving_uses(inputs) + bank_uses(read_json(inputs["surfaces"]))
+    """Every place the place plays a sound from: [{sound, role, on, from}] (all_uses, those its hearing lets in)."""
+    return all_uses(place, inputs)[0]
 
 
 def moving_uses(inputs):
@@ -353,7 +383,8 @@ def make(inputs, out, seed, params):
     made_here = to_make(names, inputs)
     batch_gaps.write(out, take_gaps(made_here, sounds, uses))
     kept = [use for use in uses if use["sound"] in sounds or use["sound"] not in made_here]
-    (out / RECORD).write_text(json.dumps({"place": place, "sounds": sounds, "uses": kept}, indent=1))
+    (out / RECORD).write_text(json.dumps({"place": place, "sounds": sounds, "uses": kept,
+                                          "unheard": all_uses(place, inputs)[1]}, indent=1))
 
 
 def take_gaps(made_here, sounds, uses):
@@ -398,4 +429,5 @@ LAYER = contracts.Contract("sound-layer", 1, layer_faults, {"time": "second"})
 CHECKS = (checks.Check("sources", gates.judge_sources), checks.Check("bed", gates.judge_bed),
           checks.Check("level", gates.judge_level),
           checks.Check("likeness", gates.judge_likeness), checks.Check("no freesound", gates.judge_no_freesound),
-          checks.Check("events", gates.judge_events), checks.Check("voices", gates.judge_voices))
+          checks.Check("events", gates.judge_events), checks.Check("voices", gates.judge_voices),
+          checks.Check("heard", gates.judge_heard), checks.Check("suits", gates.judge_suits))

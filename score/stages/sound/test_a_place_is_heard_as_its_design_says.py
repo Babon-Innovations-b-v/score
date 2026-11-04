@@ -218,11 +218,71 @@ def toy_recorded(folder, drop_on=()):
     return inputs, out
 
 
+def heard_on_the_moon(folder, moves=None):
+    """The toy scene standing outside on the Moon (an outdoor plan on a site of the Moon: heard through a suit), the
+    house's voices table (by hearing); its inputs."""
+    inputs = toy_design(folder)
+    inputs["plan"].write_text(json.dumps({"shell": "outdoor", "leads": {}, "rows": {}}))
+    inputs["setting"] = pathlib.Path(folder) / "setting.json"
+    inputs["setting"].write_text(json.dumps({"bodies": [{"body": "moon", "reference": "moon"}], "plots": [],
+                                             "sites": [{"place": "toy", "on": "moon"}]}))
+    inputs["voices"] = REPO / "data/sound/voices.json"
+    return inputs
+
+
+def recorded(inputs, folder):
+    """The scene's sound record as the make writes it (all_uses, every sound with a file), its output."""
+    uses, unheard = sound.all_uses("toy", inputs)
+    out = pathlib.Path(folder) / "out"
+    out.mkdir()
+    (out / gates.RECORD).write_text(json.dumps({"place": "toy", "uses": uses, "unheard": unheard,
+                                                "sounds": {use["sound"]: {"files": ["files/x.wav"]} for use in uses}}))
+    return out
+
+
 def test_a_silent_moving_thing_fails_events_and_people_with_no_voice_fail_voices():
     """#29: the motion row's swinging door and the person the design stands; the door silent fails events, the
-    person's voice left out fails voices; with no voice named, none plays.
+    person's voice left out fails voices; with no voice named, none plays. Fault (the audit of 2026-11-04): objects,
+    doors and every person's 'crew_talk' played as if heard through air where the bed rightly played the suit, and a
+    sealed module's crew talk played in a Hong Kong flat. Outside on the Moon the door's sounds are named unheard
+    (events passes on them), the voice is the helmet radio's (voices passes), and `heard` passes; the door's latch
+    and crew talk written back into the record fail `heard`. In a room on Earth's breathable air the voice is
+    room_talk, and crew talk (written for a sealed module) written in fails `suits`.
     Break: score/stages/sound/gates.py: `if not sounding & set(event["prims"])]` -> `if False]`
-    Break: score/stages/sound/__init__.py: `if not people or not voice:` -> `if not people:`"""
+    Break: score/stages/sound/__init__.py: `if not people or not voice:` -> `if not people:`
+    Break: score/stages/sound/__init__.py: `if bed["facts"].get("heard") == "suit":` -> `if False:`
+    Break: score/stages/sound/gates.py: `if facts.get(key) not in values]` -> `if False]`
+    Break: score/stages/sound/__init__.py: `for entry in voices.get("by_hearing", []):` -> `for entry in []:`"""
+    with tempfile.TemporaryDirectory() as folder:
+        inputs = heard_on_the_moon(folder)
+        out = recorded(inputs, folder)
+        record = gates.record_of(out)
+        assert {(use["on"], use["sound"]) for use in record["unheard"]} == {
+            ("/toy/Objects/hatch_1", "door_open"), ("/toy/Objects/hatch_1", "door_shut")}, record["unheard"]
+        assert [use["sound"] for use in record["uses"] if use["on"] == "pilot"] == ["helmet_radio_talk"], record
+        for judge in (gates.judge_events, gates.judge_voices, gates.judge_heard, gates.judge_suits):
+            verdict = judge(out, inputs, None)
+            assert verdict.answer == checks.PASS, (verdict.reason, verdict.findings)
+        record["uses"] += [dict(record["unheard"][0]), {"sound": "crew_talk", "role": "object", "on": "pilot"}]
+        (out / gates.RECORD).write_text(json.dumps(record))
+        heard = gates.judge_heard(out, inputs, None)
+        assert heard.answer == checks.FAIL and [line.split(":")[0] for line in heard.findings] == [
+            "/toy/Objects/hatch_1", "pilot"], heard.findings
+    with tempfile.TemporaryDirectory() as folder:
+        inputs = heard_on_the_moon(folder)
+        inputs["setting"].write_text(json.dumps({"bodies": [{"body": "earth", "reference": "earth"}], "plots": [],
+                                                 "sites": [{"place": "toy", "on": "earth"}]}))
+        inputs["plan"].write_text(json.dumps({"shell": "kit", "inside": True, "leads": {}, "rows": {}}))
+        out = recorded(inputs, folder)
+        voices = [use["sound"] for use in gates.record_of(out)["uses"] if use["on"] == "pilot"]
+        assert voices == ["room_talk"], voices
+        assert gates.judge_suits(out, inputs, None).answer == checks.PASS
+        record = gates.record_of(out)
+        record["uses"].append({"sound": "crew_talk", "role": "object", "on": "pilot"})
+        (out / gates.RECORD).write_text(json.dumps(record))
+        suits = gates.judge_suits(out, inputs, None)
+        assert suits.answer == checks.FAIL and suits.findings == (
+            "pilot: crew_talk heard here as air breathable (written for sealed)",), suits.findings
     with tempfile.TemporaryDirectory() as folder:
         inputs, out = toy_recorded(folder)
         assert gates.judge_events(out, inputs, None).answer == checks.PASS
@@ -249,8 +309,9 @@ def needs_of_toy(folder, named):
         shutil.copyfile(REPO / f"data/sound/{name}.json", data / f"sound/{name}.json")
     if not named:
         table = json.loads((data / "sound/moving.json").read_text())
-        for moves in table["kinds"].values():
-            for move in moves.values():
+        worded = [entry for entries in table["words"].values() for entry in entries]
+        for moves in [*table["kinds"].values(), *worded]:
+            for move in [value for key, value in moves.items() if key != "words"]:
                 move["sounds"] = [{key: value for key, value in part.items() if key != "name"}
                                   for part in move["sounds"]]
         (data / "sound/moving.json").write_text(json.dumps(table))
@@ -601,7 +662,9 @@ def test_a_moving_thing_sounds_by_its_row_kind_and_move_never_its_name():
         `return next((kind for kind, rule in kinds.items() if rule.get("motion", {}).get("kind") == entry["kind"]),
         None)`
         -> `return None`
-    Break: score/stages/sound/needs.py: `return pivots[0] if pivots else entry["prim"]` -> `return entry["prim"]`"""
+    Break: score/stages/sound/needs.py: `return pivots[0] if pivots else entry["prim"]` -> `return entry["prim"]`
+    Break: score/stages/sound/moving.py: `found = next((worded[move] for worded in table.get("words", {}).get(kind,
+        []) if said & set(worded["words"]) and move in worded), None) or` -> `found =`"""
     from score.stages import row_kinds
     from score.stages.sound import moving, needs
     kinds = row_kinds.table(REPO / "data/checks/row-kinds.json")
@@ -644,6 +707,21 @@ def test_a_moving_thing_sounds_by_its_row_kind_and_move_never_its_name():
     sounded = [sorted({use["on"] for use in moving.event_uses(event, rows, kinds, table, {})})
                for event in needs.events([], alike + riding, {})]
     assert sounded == [[f"/toy/Objects/yard_gate_{number}"] for number in (1, 2, 3)], sounded
+    # Fault (the audit of 2026-11-04): every door played a spacecraft hatch's latch and airlock bolts, Hong Kong's
+    # too. By the house table, a wooden door plays an ordinary latch, a metal hatch the hatch's, a garage door its
+    # opener: the row's own words.
+    house = json.loads((REPO / "data/sound/moving.json").read_text())
+    worded = [{"id": "front", "name": "wooden door", "noun": "door"}, {"id": "lock", "name": "metal hatch",
+                                                                       "noun": "hatch"},
+              {"id": "bay", "name": "large garage door", "noun": "door"}]
+    swung = [{"name": f"{row}_1", "prim": f"/toy/Objects/{row}_1", "row": row, "start": 0.0, "length": 20.0,
+              "loop": False, "swing": swing} for row in ("front", "lock")]
+    rising = [{"name": "bay_1", "prim": "/toy/Objects/bay_1", "row": "bay", "start": 0.0, "length": 40.0,
+               "loop": False, "slide": {"by": [0.0, 8.0, 0.0], "speed": 0.235, "moves": [[0.0, "open"]]}}]
+    heard = {event["name"]: [use["sound"] for use in moving.event_uses(event, worded, kinds, house, {})]
+             for event in needs.events([], swung + rising, {})}
+    assert heard == {"front_1": ["door_latch_open", "door_close_thud"],
+                     "lock_1": ["hatch_open", "airlock_hatch_seal_clunk"], "bay_1": ["garage_door_run"]}, heard
 
 
 def test_a_brief_is_one_batch_of_its_takes_and_a_lost_take_is_a_gap():
@@ -817,12 +895,16 @@ def test_a_moving_thing_or_a_voice_left_silent_by_a_lost_take_is_its_gap_and_eve
 def test_the_environment_names_a_brief_for_every_moving_part_it_plays_and_for_the_voice():
     """Every sound moving.json and voices.json name is a library brief the batch can make (data/sound/sounds.json,
     with prompts): a name with no brief would be silent with no take to ask. A check of the environment's data.
-    Break: data/sound/voices.json: `"people": "crew_talk"` -> `"people": "no_such_brief"`"""
+    Break: data/sound/voices.json: `"people": "crew_talk"` -> `"people": "no_such_brief"`
+    Break: data/sound/moving.json: a `words` entry's `"name": "garage_door_run"` -> `"name": "no_such_brief"`"""
     briefs = json.loads((REPO / "data/sound/sounds.json").read_text())["sounds"]
     table = json.loads((REPO / "data/sound/moving.json").read_text())
-    named = [part["name"] for moves in table["kinds"].values() for move in moves.values()
+    worded = [{key: value for key, value in entry.items() if key != "words"}
+              for entries in table["words"].values() for entry in entries]
+    named = [part["name"] for moves in [*table["kinds"].values(), *worded] for move in moves.values()
              for part in move["sounds"] if part.get("name")]
-    named.append(json.loads((REPO / "data/sound/voices.json").read_text())["people"])
+    voices = json.loads((REPO / "data/sound/voices.json").read_text())
+    named += [voices["people"], *(entry["sound"] for entry in voices["by_hearing"])]
     assert all(briefs.get(name, {}).get("pick", {}).get("prompts") for name in named), named
     assert all(any(part.get("name") for part in move["sounds"]) for moves in table["kinds"].values()
                for move in moves.values()), "a kind's move with no sound named fails events wherever it moves"
