@@ -3,9 +3,9 @@ of the pinned source, the download untouched: the neck's two joints the source l
 three-axis thoracic joint where the torso meets lumbar1 (`THORACIC`), and the shoulder girdle's couplings to the
 arm's elevation dropped, its clavicle and scapula joints given their own two-sided ranges (`GIRDLE`) and each phantom
 tied to the joint it undoes (`PHANTOMS`); its feet given the twist on the shin their hinges lack and the ankle's
-and subtalar joint's human ranges (`FEET`, 2026-11-01); and its fingers' knuckles let bend back as a person's do
-(`KNUCKLES`, 2026-11-01). A body or coupling the source does not
-have is left alone (a toy wheel in the tests)."""
+and subtalar joint's human ranges (`FEET`, 2026-11-01); its fingers' knuckles let bend back as a person's do
+(`KNUCKLES`, 2026-11-01); and its shin's turn on the femur let free of the knee's flexion (`KNEE`, 2026-11-04). A
+body or coupling the source does not have is left alone (a toy wheel in the tests)."""
 import mujoco
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -67,16 +67,26 @@ FEET = {"twist": ("ankle_rotation", [-np.radians(20), np.radians(25)]),
 # The Clinical Measurement of Joint Motion, AAOS 1994, as Norkin and White, Measurement of Joint Motion, 5th ed. 2016,
 # reproduce them; Eaton's hand reference table: "(0-45H)/90"). Extension widened to 45 degrees; flexion keeps the
 # model's 90; the thumb's MCP (mp_flexion) and every other joint keep theirs.
+# The shin turns on the femur of its own (#70, 2026-11-04): MyoFullBody's knee sets the tibia's turn about its long axis
+# (knee_angle_rotation3) from the flexion alone (polycoef 0, 0.3695, -0.1695, 0.0252: 0.26 rad at 90 degrees, its
+# range end), so seated the fitted shin stood 6 to 10 degrees from SOMA's Shin turn and the lateral malleolus swung
+# out of SOMA's skin. A person's flexed knee turns the tibia of its own: at 90 degrees of flexion 30 degrees medially
+# and 40 laterally (Kapandji, The Physiology of the Joints, vol. 2, the lower limb: the knee's active axial rotation),
+# none at full extension. The coupling is dropped and the joint leads on the published model's own range (15 degrees
+# each way, inside the flexed knee's), never widened; the knee's other couplings stay.
+KNEE = ("knee_angle_rotation3", "knee_angle")
 KNUCKLES = {"stems": tuple(f"mcp{finger}_flexion" for finger in "2345"), "extension": np.radians(45)}
 
 
 def movable(spec):
-    """The spec's neck, thorax, shoulder girdle, feet and knuckles made movable in place (the module's five changes)."""
+    """The spec's neck, thorax, shoulder girdle, feet, knuckles and knees made movable in place (the module's six
+    changes)."""
     _neck(spec)
     _thoracic(spec)
     _girdle(spec)
     _feet(spec)
     _knuckles(spec)
+    _knee(spec)
 
 
 def _neck(spec):
@@ -143,6 +153,14 @@ def _knuckles(spec):
             joint = spec.joint(f"{stem}_{side}")
             if joint is not None:
                 joint.range = [-KNUCKLES["extension"], float(joint.range[1])]
+
+
+def _knee(spec):
+    """Each knee's coupling of the shin's turn to its flexion (`KNEE`) deleted, the joint kept on its own range."""
+    follower, leader = KNEE
+    for equality in list(spec.equalities):
+        if equality.name1[:-2] == follower and equality.name2[:-2] == leader:
+            spec.delete(equality)
 
 
 def _kept(joint):

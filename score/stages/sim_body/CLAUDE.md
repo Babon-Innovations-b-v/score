@@ -89,7 +89,7 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   method** (arXiv:2607.17639, under Babon's patent application NL4001444; SCORE is public MIT): no swing-twist split
   into calibrated axes, no per-joint calibration table of axes, weights and offsets, no regression of joint angles
   against a reference. What MyoFullBody lacks (`LACKS`: the thorax one joint at T12/L1, a two-axis neck, one lumbar joint spread over five
-  levels, a hinge knee, a foot on three hinges, its twist on the shin added 2026-11-01) is recorded in each body's model record; how closely it
+  levels, a hinge knee (the shin's turn on it free of the flexion since 2026-11-04), a foot on three hinges, its twist on the shin added 2026-11-01) is recorded in each body's model record; how closely it
   follows SOMA (each joint's mm, each group's degrees, at a range limit or not, before and after RRA) is its `fit`.
   The SOMA forearm rides the ulna, so its hand's twist is the forearm's pronation. The path is low-passed (zero-lag
   4th-order Butterworth at 6 Hz, Winter 2009) before it is differentiated.
