@@ -852,6 +852,7 @@ def store_gc(home=None, runs_folder=None, dry=False, now=None, repo=None, say=pr
 WARN_GB = 20  # under this the sweep goes past its routine steps, before the floor is reached
 LOG_DAYS = 30  # run logs older than this go
 SCRATCH_DAYS = 1  # the home's tmp/ entries untouched this long go, with no run live
+MOTION_SCRATCH = "work/motion-scratch"  # score/stages/layer_base.py SCRATCH: a make's own copies, none kept after it
 STEP_GB = 50  # a bigger data volume is asked in these steps
 
 
@@ -872,6 +873,22 @@ def old_logs(home, runs_folder, now=None):
     return {"removed": removed, "refused": refused and f"tmp/ kept: {refused}"}
 
 
+def clean_scratch(home=None, runs_folder=None):
+    """With no run live (cache_refusal), every entry of work/motion-scratch removed: layer_base's copies of a seed,
+    each a make's own and removed as that make ends, left there only by a make killed mid-way (2026-11-04: 3.3 GB,
+    the disk at 7.3 GB free and no run could start); {removed, refused}."""
+    home = pathlib.Path(home or PROPS_HOME)
+    refused = cache_refusal(home, pathlib.Path(runs_folder or home / "runs"), home / "store" / "cache", [])
+    scratch = home / MOTION_SCRATCH
+    if refused or not scratch.is_dir():
+        return {"removed": 0, "refused": refused}
+    removed = 0
+    for path in sorted(scratch.iterdir()):
+        remove_tree(path) if path.is_dir() and not path.is_symlink() else path.unlink()
+        removed += 1
+    return {"removed": removed, "refused": None}
+
+
 def steps(home, runs_folder, say, escalated):
     """[(name, call)] of the sweep's steps in order: the routine (copies, makes left behind, kept jobs no key asks
     for), then under WARN_GB everything else made again for free or held elsewhere, offload last (its read-back needs
@@ -880,7 +897,8 @@ def steps(home, runs_folder, say, escalated):
                ("clean-cache", lambda: clean_cache(home, runs_folder, tuple(CLEARED) if escalated else ("making",),
                                                    say)),
                ("clean-kept", lambda: clean_kept(home, runs_folder, say=say)),
-               ("laid-plain", lambda: laid_plain(home))]
+               ("laid-plain", lambda: laid_plain(home)),
+               ("clean-scratch", lambda: clean_scratch(home, runs_folder))]
     return routine + ([("relink-pixal", lambda: relink_pixal(home)),
                        ("old-logs", lambda: old_logs(home, runs_folder)),
                        ("store-gc", lambda: store_gc(home, runs_folder, say=say)),

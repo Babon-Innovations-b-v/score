@@ -33,6 +33,7 @@ def main(argv=None):
     commands.add_parser("clean-cache").add_argument("--making-only", action="store_true",
                                                     help="only the orphaned makes (the sync pass's sweep)")
     commands.add_parser("clean-kept")
+    commands.add_parser("clean-scratch")
     commands.add_parser("relink-pixal")
     commands.add_parser("score-lib").add_argument("action", choices=("status", "pull"))
     commands.add_parser("offload-pixal")
@@ -59,6 +60,8 @@ def main(argv=None):
         clean_cache(options.making_only)
     elif options.command == "clean-kept":
         clean_kept()
+    elif options.command == "clean-scratch":
+        clean_scratch()
     elif options.command == "relink-pixal":
         relink_pixal()
     elif options.command == "score-lib":
@@ -119,6 +122,17 @@ def clean_kept():
         print(f"clean-kept: refused, nothing dropped: {done['refused']}", flush=True)
         sys.exit(1)
     print(f"clean-kept: dropped {done['dropped']} kept entries no current key asks for; freed {done['freed_gb']} GB",
+          flush=True)
+
+
+def clean_scratch():
+    """disk.clean_scratch in one summary line; exit 1 when refused."""
+    from score.conductor import disk
+    done = disk.clean_scratch()
+    if done["refused"]:
+        print(f"clean-scratch: refused, nothing removed: {done['refused']}", flush=True)
+        sys.exit(1)
+    print(f"clean-scratch: removed {done['removed']} entries of {disk.MOTION_SCRATCH}; {disk.free_gb():.1f} GB free",
           flush=True)
 
 

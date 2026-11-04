@@ -587,7 +587,8 @@ def test_sweep_frees_room_itself_and_asks_only_for_a_bigger_disk_priced(tmp_path
     """2026-10-30, the owner on the conductor's full disk needing him: "this should be routine".
     Break: score/conductor/disk.py sweep: 'escalated = force or (record is not None and start < WARN_GB)' ->
     'escalated = force' (under the warning line the sweep runs its routine only), or warning: drop
-    '{last['bigger']}' (the owner is never told the price)."""
+    '{last['bigger']}' (the owner is never told the price), or steps: drop the clean-scratch step (a killed make's
+    work/motion-scratch copies stay, 2026-11-04)."""
     home, blobs, named = gc_home(tmp_path)
     monkeypatch.setattr(disk, "REPO", tmp_path)
     monkeypatch.setattr(disk, "mount_of", lambda path: home)
@@ -601,19 +602,21 @@ def test_sweep_frees_room_itself_and_asks_only_for_a_bigger_disk_priced(tmp_path
     free = {"gb": 50.0}
     monkeypatch.setattr(disk, "free_gb", lambda path=None: free["gb"])
     said = []
+    (home / disk.MOTION_SCRATCH / "layer-camp-x1" / "camp").mkdir(parents=True)  # a killed make's seed copy
     done = disk.sweep(home, say=said.append)  # no machine.json: off a conductor, the routine only
     assert not done["escalated"] and [step["step"] for step in done["steps"]] == [
-        "clean-frozen", "clean-cache", "clean-kept", "laid-plain"], done
+        "clean-frozen", "clean-cache", "clean-kept", "laid-plain", "clean-scratch"], done
+    assert list((home / disk.MOTION_SCRATCH).iterdir()) == []  # no run live: the scratch is cleared
     (home / "machine.json").write_text(json.dumps({"zone": "fr-par-2"}))
     free["gb"] = 5.0
     done = disk.sweep(home, say=said.append)
-    assert done["escalated"] and [step["step"] for step in done["steps"]][4:] == [
+    assert done["escalated"] and [step["step"] for step in done["steps"]][5:] == [
         "relink-pixal", "old-logs", "store-gc", "offload-pixal"], done
     assert not (home / "logs" / "old.log").exists() and (home / "logs" / "new.log").exists()
     assert named["orphan"] not in {path.name for path in blobs.iterdir()} and named["record"] in {
         path.name for path in blobs.iterdir()}
     assert done["bigger"] == "50 GB more, EUR 4.00 a month in fr-par-2" and done["fills"], done
-    assert sum(line.startswith("sweep ") for line in said) == 4 + 8, said  # a line a step, each with what it freed
+    assert sum(line.startswith("sweep ") for line in said) == 5 + 9, said  # a line a step, each with what it freed
     note = disk.warning(5.0, swept=home / "conductor" / "sweep.json")
     assert "could not reach it" in note and "50 GB more, EUR 4.00 a month" in note, note
     free["gb"] = 12.0  # it reached the floor: nothing is asked
