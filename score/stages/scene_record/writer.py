@@ -43,7 +43,8 @@ builds it unchanged; it lands as record/<place>.json in the output.
                  flat's spot-2 faced its wardrobe from 0.45 m, 2026-10-31)
     doorways     the plan's doorways in the place's frame (the plan row's), which ground-fit judges
     places       each other place its holder's plan holds that a door or opening of this place leads to, stood where
-                 the holder's plan holds it (`holds`), turned as its own plan's frame is
+                 its door leading back meets this place's door to it (else where the holder's plan holds it, `holds`),
+                 as high as a sibling's door to it says (place_plan.levels), turned as its own plan's frame is
 
 Every entry's `from` names the plan element, inventory row or physics it was made from. Nothing of a game, a kit, a
 filed definition or an old record is read.
@@ -614,9 +615,10 @@ def leads_of(plan, design):
 
 
 def origin_on_holder(design, hold):
-    """The place's frame origin as a point of its holder's plan: its own plan laid unturned in its hold's box."""
+    """The place's frame origin as a point of its holder's plan (its own plan laid unturned in its hold's box, middle
+    on middle: place_plan.on_holder) and its plan's floor in its frame."""
     corner, east, south = place_plan.frame_of(design)
-    return np.array([hold["x"] - float(corner @ east), hold["y"] - float(corner @ south)]), float(corner[1])
+    return place_plan.on_holder(hold, design, (-float(corner @ east), -float(corner @ south))), float(corner[1])
 
 
 def axes_in(design, other):
@@ -636,22 +638,31 @@ def quaternion(axes):
 
 
 def sibling(place, design, holder, name, plans, why=None):
-    """A place the holder's plan holds beside this one, stood in this place's frame where the holder holds it."""
+    """A place the holder's plan holds beside this one, stood in this place's frame where its door leading back meets
+    this place's door to it, else where the holder holds it; each at its floor's height (place_plan.levels)."""
     holds = {hold["place"]: hold for hold in holder.get("holds") or []}
     other = read(pathlib.Path(plans) / f"{name}.json")
+    level = place_plan.levels(holder, plans)
     return stood(place, design, holds[place], name, other, holds[name],
-                 why or f"a door of {place} leads to {name}: where its holder's plan holds both (holds)")
+                 why or f"a door of {place} leads to {name}: where its door back meets it, both as high as the "
+                        "holder's plan stands them (holds, levels)", level.get(place, 0.0), level.get(name, 0.0))
 
 
-def stood(place, design, hold, name, other, other_hold, why):
-    """Another place stood in this place's frame, both plans laid unturned on the holder's plan: this one in `hold`,
-    the other in `other_hold` (the holder itself at its own plan's corner)."""
+def stood(place, design, hold, name, other, other_hold, why, level=0.0, other_level=0.0):
+    """Another place stood in this place's frame, both plans laid unturned on the holder's plan, this one in `hold`
+    with its floor `level` over the holder's, the other in `other_hold` at `other_level` (the holder itself at its
+    own plan's corner, at 0): moved along the floor so the nearest door of it leading back meets this place's door to
+    it (place_plan.paired: the base's airlock opened 21.8 m off the hub's door, 2026-11-04), the hold the first guess."""
     here, floor = origin_on_holder(design, hold)
     there, other_floor = origin_on_holder(other, other_hold)
+    met = [pair for pair in place_plan.paired(design, hold, place, other, other_hold, name) if pair["back"]]
+    if met:
+        there = there + met[0]["spot"] - met[0]["there"]
     _, east, south = place_plan.frame_of(design)
     offset = there - here
     at = east * offset[0] + south * offset[1]
-    return {"name": name, "stage": name, "at": [round(float(at[0]), 4), round(floor - other_floor, 4),
+    return {"name": name, "stage": name, "at": [round(float(at[0]), 4),
+                                                round(floor - other_floor + other_level - level, 4),
                                                 round(float(at[2]), 4)],
             "rotation": quaternion(axes_in(design, other)), "from": why}
 
@@ -684,7 +695,8 @@ def shown_places(place, design, holder_name, holder, plans, handin, stood_alread
         if name in stood_already or name == place:
             continue
         if name == holder_name:
-            found.append(stood(place, design, held[place], name, holder, {"x": 0.0, "y": 0.0}, why))
+            found.append(stood(place, design, held[place], name, holder, {"x": 0.0, "y": 0.0}, why,
+                               place_plan.levels(holder, plans).get(place, 0.0)))
         elif name in held and (pathlib.Path(plans) / f"{name}.json").is_file():
             found.append(sibling(place, design, holder, name, plans, why))
     return found

@@ -8,7 +8,8 @@ its own layer stack, made, checked and changed apart. Free, local, no machine.
              an Xform referencing the child's root file with the transform that lays the child's plan outline on its
              hold of the scene's plan (its room outline in metres, x east and y south from the plan's north-west corner,
              each plan's frame in its own scene from scene_record.plan.frame_of), its middle on the hold's middle and
-             its floor on the scene's floor. A scene that holds none is its assembly alone.
+             its floor on the scene's floor, raised as high as a sibling's door to it stands (plan.levels_of). A
+             scene that holds none is its assembly alone.
     gate     child scenes  every child the plan lays out, and every child read beside, stands under /<scene>/Scenes,
                            its reference resolves, it has children, its plan is the hold's size and its outline's
                            corners land on the hold's
@@ -24,7 +25,7 @@ import numpy as np
 from score import checks
 from score.stages.assembly import stage_file
 from score.stages.assembly.neighbours import reference_faults
-from score.stages.scene_record.plan import frame_of, placed
+from score.stages.scene_record.plan import frame_of, levels_of, placed
 from score.store import PROPS_HOME
 
 KEPT = PROPS_HOME / "design" / "plans"  # the creator's kept plans (score/review/plans.KEPT)
@@ -87,16 +88,17 @@ def files(place):
     return {name: pattern for name, pattern in named.items() if pattern}
 
 
-def child_matrix(plan, hold, child_plan):
+def child_matrix(plan, hold, child_plan, level=0.0):
     """The 4x4 row-vector transform (OpenUSD's) taking a point of the child scene's frame to the parent's: the
-    child's plan's north-west corner, east and south onto its hold's, its middle on the hold's middle."""
+    child's plan's north-west corner, east and south onto its hold's, its middle on the hold's middle, its floor
+    `level` over the scene's (plan.levels_of: the square's flat 9 m up, as the stairwell's door to it)."""
     corner, east, south = frame_of(plan)
     child_corner, child_east, child_south = frame_of(child_plan)
     up = np.array([0.0, 1.0, 0.0])
     turn = np.outer(east, child_east) + np.outer(south, child_south) + np.outer(up, up)  # p' = turn @ p
     across = hold["x"] + (hold["w"] - child_plan["w"]) / 2
     along = hold["y"] + (hold["d"] - child_plan["d"]) / 2
-    shift = corner + east * across + south * along - turn @ child_corner
+    shift = corner + east * across + south * along + up * level - turn @ child_corner
     matrix = np.identity(4)
     matrix[:3, :3] = turn.T
     matrix[3, :3] = shift
@@ -126,7 +128,8 @@ def make(inputs, out, seed, params):
         child_root = stage_file(out / FOLDER / child)
         prim = UsdGeom.Xform.Define(stage, f"/{scene}/{SCENES}/{child}")
         prim.GetPrim().GetReferences().AddReference(f"../{FOLDER}/{child}/{child_root.name}")
-        matrix = child_matrix(plan, laid[child], read_plan(inputs[f"plan {child}"]))
+        matrix = child_matrix(plan, laid[child], read_plan(inputs[f"plan {child}"]),
+                              child_levels(plan, inputs).get(child, 0.0))
         prim.AddTransformOp().Set(Gf.Matrix4d(*matrix.flatten().tolist()))
     stage.GetRootLayer().Save()
     top = Sdf.Layer.FindOrOpen(str(root))
@@ -139,16 +142,24 @@ def corners(plan):
     return [placed(plan, x, y) for x, y in ((0.0, 0.0), (plan["w"], 0.0), (plan["w"], plan["d"]), (0.0, plan["d"]))]
 
 
-def hold_corners(plan, hold, child_plan):
-    """Where the child's outline corners belong on the parent's plan: on its hold, its middle on the hold's."""
+def child_levels(plan, inputs):
+    """{child: its floor's height over the scene's} of the child scenes whose plans were read (plan.levels_of)."""
+    laid = holds(plan)
+    read = {child: read_plan(inputs.get(f"plan {child}")) for child in laid}
+    return levels_of({child: (hold, read[child]) for child, hold in laid.items() if read[child] is not None})
+
+
+def hold_corners(plan, hold, child_plan, level=0.0):
+    """Where the child's outline corners belong on the parent's plan: on its hold, its middle on the hold's, its floor
+    `level` over the scene's."""
     across = hold["x"] + (hold["w"] - child_plan["w"]) / 2
     along = hold["y"] + (hold["d"] - child_plan["d"]) / 2
-    return [placed(plan, across + x, along + y)
+    return [placed(plan, across + x, along + y, level)
             for x, y in ((0.0, 0.0), (child_plan["w"], 0.0), (child_plan["w"], child_plan["d"]),
                          (0.0, child_plan["d"]))]
 
 
-def placement_faults(prim, scene_prim, plan, hold, child_plan):
+def placement_faults(prim, scene_prim, plan, hold, child_plan, level=0.0):
     """Each way the composed child stands off its hold: its plan another size than the hold, a corner elsewhere."""
     from pxr import Gf, UsdGeom
     faults = []
@@ -159,7 +170,7 @@ def placement_faults(prim, scene_prim, plan, hold, child_plan):
     cache = UsdGeom.XformCache()
     relative = cache.GetLocalToWorldTransform(prim) * cache.GetLocalToWorldTransform(scene_prim).GetInverse()
     for name, own, wanted in zip(("north-west", "north-east", "south-east", "south-west"), corners(child_plan),
-                                 hold_corners(plan, hold, child_plan)):
+                                 hold_corners(plan, hold, child_plan, level)):
         landed = np.array(relative.Transform(Gf.Vec3d(*own.tolist())))
         if np.linalg.norm(landed - wanted) > PLACED:
             faults.append(f"{path}: its {name} corner lands at {np.round(landed, 3).tolist()}, its hold's at "
@@ -182,7 +193,8 @@ def child_faults(stage, scene, plan, child, inputs):
     child_plan = read_plan(inputs.get(f"plan {child}"))
     if child_plan is None:
         return [*faults, f"{prim.GetPath()}: no plan of {child} read, its spot cannot be judged"]
-    return faults + placement_faults(prim, stage.GetPrimAtPath(f"/{scene}"), plan, hold, child_plan)
+    return faults + placement_faults(prim, stage.GetPrimAtPath(f"/{scene}"), plan, hold, child_plan,
+                                     child_levels(plan, inputs).get(child, 0.0))
 
 
 def judge_children(output, inputs, evidence):

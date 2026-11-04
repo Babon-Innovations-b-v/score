@@ -9,7 +9,9 @@
     openings      every doorway leads somewhere: each door, gate or open doorway of the plan leads to a place of the
                   design, outside, sealed, onto a row of its own inventory (a ground it opens onto), or (none named)
                   into what holds it; a door to a place its holder's plan holds beside it has that place stood in the
-                  record's places; and every view of an inside place stands on its floor, inside its outline
+                  record's places, each door to it meeting one of the stood place's leading back (within
+                  place_plan.DOORS_MET along the floor, LEVEL_MET in height); and every view of an inside place
+                  stands on its floor, inside its outline
 
 Whether the made ground fits the place round its doorways is ground-fit's, judged on the assembly that stands on it.
 """
@@ -170,6 +172,41 @@ def lead_faults(record, design, inputs):
     return found
 
 
+def door_spot(design, door, at=None, axes=None):
+    """A door's middle on its sill in the frame of the place it is a door of, or, given where that place stands
+    (`at`, its frame's `axes`: a stood place's), in the frame it stands in."""
+    (point,), floor = writer.in_frame(design, [door["at"]], float(door.get("sill") or 0.0))
+    spot = np.array([point[0], floor, point[1]])
+    return spot if at is None else np.asarray(at, float) + spot @ axes
+
+
+def pair_faults(record, design, inputs):
+    """Each door of the place to a place it stands beside that meets no door of that place leading back where the
+    record stands it: none leads back, or the nearest is off along the floor or in height."""
+    found = []
+    plans = pathlib.Path(inputs["plans"])
+    for entry in record["places"]:
+        path = plans / f"{entry['name']}.json"
+        doors = writer.place_plan.doors_to(design, entry["name"])
+        if not doors or not path.is_file():
+            continue
+        other = json.loads(path.read_text())
+        axes = writer.axes_in(design, other)
+        back = [door_spot(other, door, entry["at"], axes) for door in writer.place_plan.doors_to(other, record["place"])]
+        for door in doors:
+            spot = door_spot(design, door)
+            said = f"the door to {entry['name']} at {door['at']}"
+            if not back:
+                found.append(f"{said}: no door of {entry['name']} leads back")
+                continue
+            nearest = min(back, key=lambda there: float(np.linalg.norm((there - spot)[[0, 2]])))
+            along, up = float(np.linalg.norm((nearest - spot)[[0, 2]])), abs(float(nearest[1] - spot[1]))
+            if along > writer.place_plan.DOORS_MET or up > writer.place_plan.LEVEL_MET:
+                found.append(f"{said} opens {along:.2f} m along the floor and {up:.2f} m in height from "
+                             f"{entry['name']}'s nearest door back, as the record stands it")
+    return found
+
+
 def view_faults(record, design):
     """Each view of an inside place whose eye stands outside its outline."""
     if not record.get("inside"):
@@ -180,10 +217,11 @@ def view_faults(record, design):
 
 
 def judge_openings(output, inputs, evidence):
-    """Fail on a doorway that leads nowhere the design knows or to a neighbour the record lacks, or a view outside."""
+    """Fail on a doorway that leads nowhere the design knows, to a neighbour the record lacks or stands off its door
+    back, or a view outside."""
     place, record = writer.record_in(output)
     design = design_of(inputs, place)
-    faults = lead_faults(record, design, inputs) + view_faults(record, design)
+    faults = lead_faults(record, design, inputs) + pair_faults(record, design, inputs) + view_faults(record, design)
     doorways = sum(1 for opening in design.get("openings") or [] if opening.get("kind") in DOORWAYS)
     reason = "; ".join(faults[:3]) + (f" and {len(faults) - 3} more" if len(faults) > 3 else "") if faults else \
         (f"every doorway leads somewhere ({doorways} doorways, {len(record['places'])} neighbours stood) and every "

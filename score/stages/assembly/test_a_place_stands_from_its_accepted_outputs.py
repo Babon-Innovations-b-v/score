@@ -1829,12 +1829,13 @@ def crate_at(stage, path):
             UsdGeom.XformCache().GetLocalToWorldTransform(stage.GetPrimAtPath(path)).ExtractTranslation()]
 
 
-def the_yard(root, hut_plan=HUT, children=("shed", "hut")):
+def the_yard(root, hut_plan=HUT, children=("shed", "hut"), shed_plan=SHED):
     """The yard's tree over the shed's tree (holding the nook's) and the hut's."""
     nook, _ = tree_of(root, "nook", a_scene(root / "made", "nook", (0.0, 0.0, 0.0)), NOOK, {})
-    shed, _ = tree_of(root, "shed", a_scene(root / "made", "shed", (6.0, 0.0, -1.0)), SHED, {"nook": (nook, NOOK)})
-    hut, _ = tree_of(root, "hut", a_scene(root / "made", "hut", (-1.0, 0.0, 2.0)), HUT, {})
-    trees = {"shed": (shed, SHED), "hut": (hut, hut_plan)}
+    shed, _ = tree_of(root, "shed", a_scene(root / "made", "shed", (6.0, 0.0, -1.0)), shed_plan,
+                      {"nook": (nook, NOOK)})
+    hut, _ = tree_of(root, "hut", a_scene(root / "made", "hut", (-1.0, 0.0, 2.0)), hut_plan, {})
+    trees = {"shed": (shed, shed_plan), "hut": (hut, hut_plan)}
     return tree_of(root, "yard", a_scene(root / "made", "yard", (0.0, 0.0, 0.0)), YARD,
                    {child: trees[child] for child in children})
 
@@ -1843,10 +1844,13 @@ def test_opening_the_yard_opens_the_whole_tree_each_child_at_its_hold(tmp_path):
     """The shed's crate at (6, 0, -1) of its frame is plan (1, 1) on the shed, (3, 4) on the yard: (-7, 0, -2). The
     nook's crate at its middle is plan (1, 0.5) on the nook, (2, 1.5) on the shed, (4, 4.5) on the yard: (-6, 0, -1.5).
     The hut's crate at (-1, 0, 2) is plan (2, 1) on the turned hut, (12, 6) on the yard: (2, 0, 0). The gate passes
-    and a scene holding none says so.
+    and a scene holding none says so. A shed door to the hut 2.5 m up, the hut's door back on its floor, stands the
+    hut 2.5 m up (the square's flat under its stairwell door, 2026-11-04), and the gate holds it there.
     Break: score/stages/assembly/scene_tree.py: `matrix[:3, :3] = turn.T` -> `matrix[:3, :3] = turn`
-    Break: score/stages/assembly/scene_tree.py: `shift = corner + east * across + south * along - turn @ child_corner`
-        -> `shift = corner + east * across + south * along`"""
+    Break: score/stages/assembly/scene_tree.py:
+        `shift = corner + east * across + south * along + up * level - turn @ child_corner`
+        -> `shift = corner + east * across + south * along + up * level`
+    Break: score/stages/assembly/scene_tree.py: `+ up * level` -> ``"""
     yard, inputs = the_yard(tmp_path)
     stage = opened(yard / "yard.usda")
     assert crate_at(stage, "/yard/Scenes/shed/Objects/crate_1") == [-7.0, 0.0, -2.0]
@@ -1857,6 +1861,14 @@ def test_opening_the_yard_opens_the_whole_tree_each_child_at_its_hold(tmp_path):
     assert verdict.answer == checks.PASS and verdict.measures["children"] == 2, verdict.findings
     nook = scene_tree.judge_children(tmp_path / "trees/nook", {"plan": tmp_path / "plans/nook.json"}, None)
     assert nook.answer == checks.PASS and nook.reason == "its plan lays out no child scene"
+    door = {"kind": "door", "wide": 1.0, "sill": 0.0}
+    raised, inputs = the_yard(tmp_path / "raised", {**HUT, "openings": [{**door, "at": [0.0, 1.5], "to": "shed"}]},
+                              shed_plan={**SHED, "openings": [{**door, "at": [4.0, 1.5], "sill": 2.5, "to": "hut"}]})
+    stage = opened(raised / "yard.usda")
+    assert crate_at(stage, "/yard/Scenes/hut/Objects/crate_1") == [2.0, 2.5, 0.0]
+    assert crate_at(stage, "/yard/Scenes/shed/Objects/crate_1") == [-7.0, 0.0, -2.0]
+    verdict = scene_tree.judge_children(raised, inputs, None)
+    assert verdict.answer == checks.PASS, verdict.findings
 
 
 def test_a_child_laid_out_and_not_stood_fails_by_name(tmp_path):

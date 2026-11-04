@@ -37,6 +37,12 @@ item a library model makes: its model must be a library reference, tools/library
 exist, a plan door, a plan object, a plan decal, a plan item (a plot) or its drop, every door says where it leads and why, a sealed door is
 one the inventory's room layout shuts with a leaf, and every outdoor lamp and beam stands on a row that exists. How far a row's laid spot (the inventory's, else the kit's pieces of it)
 lies from its item's box is measured and shown, never judged here: the layout is the inventory's.
+
+Gate `held` (the audit of 2026-11-04: holds and door leads never reconciled, plans sized apart from their holders): the
+plan's frame anchors, person spots and items lie inside its own box; a plan holding places holds each the size and
+middle of its own item for the hold's row (rooms several to one item inside it), no two holds overlap, no place held
+once is led to by more doors than it has leading back, and every door of a held place to a held sibling meets one of
+the sibling's leading back on the holder's plan (`levels`: a place stands as high as a sibling's door to it says).
 """
 import json
 import math
@@ -347,6 +353,81 @@ def plan_faults(folder):
 PLACE_PLAN = contracts.Contract("place-plan", 2, plan_faults, {"length": "metre", "up axis": "Y"})
 
 
+# --- held places: where the holder's plan holds them and where their doors meet -------------------------------------
+
+# A door to a held sibling meets a door of the sibling leading back within these (metres: along the floor, in height;
+# the audit of 2026-11-04: the base's airlock door opened 21.8 m from the hub's, the flat stood 9 m under its door).
+DOORS_MET = 0.3
+LEVEL_MET = 0.1
+# A hold the size of its holder's item for its row within this share, its middle within HOLD_MIDDLE (metres).
+HOLD_SIZED = 0.1
+HOLD_MIDDLE = 0.5
+# Metres a plan point, a box or a hold may stand past what holds it before it is out.
+EDGE = 0.05
+# A passage's words (score/review/holders' PASSAGE_WORDS, not imported: holders keys two other stages): a tunnel or
+# tube drawn past the plan's edge stands outside it by design.
+PASSAGE_WORDS = {"tunnel", "tunnels", "tube", "tubes", "corridor", "corridors"}
+
+
+def doors_to(plan, name):
+    """The plan's doorways (openings a person walks through) leading to `name`."""
+    return [opening for opening in plan.get("openings") or []
+            if opening.get("kind") in DOORWAYS and opening.get("to") == name]
+
+
+def on_holder(hold, plan, point):
+    """A point of a held place's plan on its holder's plan: its plan laid unturned in its hold, middle on middle (the
+    scene tree's child_matrix); the holder itself is held at its own corner (no w or d)."""
+    across = hold["x"] + (hold.get("w", plan["w"]) - plan["w"]) / 2
+    along = hold["y"] + (hold.get("d", plan["d"]) - plan["d"]) / 2
+    return np.array([across + float(point[0]), along + float(point[1])])
+
+
+def paired(plan, hold, name, other, other_hold, other_name):
+    """Each door of `plan` (place `name`, held at `hold`) leading to `other_name`, with the door of `other` leading back
+    nearest it on the holder's plan and that door's spot there (None, None: no door leads back), nearest first."""
+    back = [(door, on_holder(other_hold, other, door["at"])) for door in doors_to(other, name)]
+    found = []
+    for door in doors_to(plan, other_name):
+        spot = on_holder(hold, plan, door["at"])
+        nearest, there = min(back, key=lambda entry: float(np.linalg.norm(entry[1] - spot)), default=(None, None))
+        found.append({"door": door, "spot": spot, "back": nearest, "there": there,
+                      "gap": None if there is None else float(np.linalg.norm(there - spot))})
+    return sorted(found, key=lambda pair: math.inf if pair["gap"] is None else pair["gap"])
+
+
+def held_plans(holder, plans):
+    """{held place: (its hold, its kept plan)} of each place the holder's plan holds that has a plan in `plans`."""
+    found = {}
+    for hold in holder.get("holds") or []:
+        path = pathlib.Path(plans) / f"{hold['place']}.json"
+        if path.is_file():
+            found[hold["place"]] = (hold, read(path))
+    return found
+
+
+def sill(door):
+    return float(door.get("sill") or 0.0)
+
+
+def levels(holder, plans):
+    """{held place: its floor's height over its holder's floor} of the places the holder's plan holds (levels_of)."""
+    return levels_of(held_plans(holder, plans))
+
+
+def levels_of(held):
+    """{held place: its floor's height over its holder's floor} ({place: (its hold, its plan)}): on the holder's floor,
+    unless a held sibling's door leading to it stands higher than its own door leading back (the stairwell's flat
+    door 9 m up: the flat 9 m up), by the pair that meets nearest along the floor; never under the holder's floor."""
+    found = {}
+    for name, (hold, plan) in held.items():
+        raised = [sill(pair["door"]) - sill(pair["back"])
+                  for other, (other_hold, other_plan) in sorted(held.items()) if other != name
+                  for pair in paired(other_plan, other_hold, other, plan, hold, name)[:1] if pair["back"]]
+        found[name] = round(max([0.0, *raised]), 4)
+    return found
+
+
 # --- the gate ---------------------------------------------------------------------------------------------------
 
 def row_spots(inventory, kit):
@@ -466,4 +547,132 @@ def judge_mapped(output, inputs, evidence):
                           tuple(faults + [f"shown, not judged: {line}" for line in shown]))
 
 
-CHECKS = (checks.Check("mapped", judge_mapped),)
+def door_faults_held(held, level):
+    """Each door of a held place to a held sibling that meets no door of the sibling leading back on the holder's
+    plan: none leads back, the nearest is more than DOORS_MET away, or stands at another height (LEVEL_MET)."""
+    found = []
+    for name, (hold, plan) in sorted(held.items()):
+        for other, (other_hold, other_plan) in sorted(held.items()):
+            if other == name:
+                continue
+            for pair in paired(plan, hold, name, other_plan, other_hold, other):
+                said = f"{name}'s door to {other} at {pair['door']['at']}"
+                if pair["back"] is None:
+                    found.append(f"{said}: no door of {other} leads back to {name}")
+                elif pair["gap"] > DOORS_MET:
+                    found.append(f"{said} opens {pair['gap']:.1f} m from {other}'s nearest door back "
+                                 f"({pair['back']['at']}) where the holder holds both")
+                elif abs(level[name] + sill(pair["door"]) - level[other] - sill(pair["back"])) > LEVEL_MET:
+                    found.append(f"{said} stands {level[name] + sill(pair['door']):.2f} m up, {other}'s door back "
+                                 f"{level[other] + sill(pair['back']):.2f} m")
+    return found
+
+
+def once_faults(held):
+    """Each held place more doors of its held siblings lead to than it has doors leading back: held once, it cannot
+    meet them all (the base's one tube for six)."""
+    found = []
+    for name, (_, plan) in sorted(held.items()):
+        leading = sum(len(doors_to(other_plan, name)) for other, (_, other_plan) in held.items() if other != name)
+        back = sum(len(doors_to(plan, other)) for other in held if other != name)
+        if leading > back:
+            found.append(f"{name} is held once, but {leading} doors of its siblings lead to it and {back} of its own "
+                         "lead back")
+    return found
+
+
+def overlap_faults(holder):
+    """Each two holds of the holder's plan whose boxes overlap (more than EDGE both ways)."""
+    holds = holder.get("holds") or []
+    found = []
+    for number, one in enumerate(holds):
+        for two in holds[number + 1:]:
+            across = min(one["x"] + one["w"], two["x"] + two["w"]) - max(one["x"], two["x"])
+            along = min(one["y"] + one["d"], two["y"] + two["d"]) - max(one["y"], two["y"])
+            if across > EDGE and along > EDGE:
+                found.append(f"the holds of {one['place']} and {two['place']} overlap by {across:.1f} x {along:.1f} m")
+    return found
+
+
+def within(box, outer):
+    """Whether a box (x, y, w, d) lies inside another, EDGE allowed."""
+    return box[0] >= outer[0] - EDGE and box[1] >= outer[1] - EDGE and \
+        box[0] + box[2] <= outer[0] + outer[2] + EDGE and box[1] + box[3] <= outer[1] + outer[3] + EDGE
+
+
+def hold_faults(holder):
+    """Each hold that disagrees with the holder's own item for its row: no item of the row; one place a row holds
+    another size (HOLD_SIZED) or middle (HOLD_MIDDLE) than its nearest item; rooms several to an item (the ship's in
+    its hull) outside it."""
+    rows = holder.get("rows") or {}
+    holds = holder.get("holds") or []
+    found = []
+    for hold in holds:
+        if not hold.get("row"):
+            continue
+        items = [[float(value) for value in item[1:5]] for item in holder.get("items") or []
+                 if hold["row"] in (rows.get(item[0]) or [])]
+        box = [hold["x"], hold["y"], hold["w"], hold["d"]]
+        if not items:
+            found.append(f"{hold['place']} is held in row {hold['row']}, which no item of the plan draws")
+            continue
+        nearest = min(items, key=lambda item: math.dist((item[0] + item[2] / 2, item[1] + item[3] / 2),
+                                                        (box[0] + box[2] / 2, box[1] + box[3] / 2)))
+        sharing = sum(1 for other in holds if other.get("row") == hold["row"])
+        if sharing > len(items):
+            if not within(box, nearest):
+                found.append(f"{hold['place']}'s hold {box} stands outside its {hold['row']} item {nearest}")
+            continue
+        middle = math.dist((nearest[0] + nearest[2] / 2, nearest[1] + nearest[3] / 2),
+                           (box[0] + box[2] / 2, box[1] + box[3] / 2))
+        sized = all(abs(own - its) <= HOLD_SIZED * its for own, its in ((box[2], nearest[2]), (box[3], nearest[3])))
+        if not sized or middle > HOLD_MIDDLE:
+            found.append(f"{hold['place']}'s hold is {box[2]:.1f} x {box[3]:.1f} m, its {hold['row']} item "
+                         f"{nearest[2]:.1f} x {nearest[3]:.1f} m, their middles {middle:.1f} m apart")
+    return found
+
+
+def inside_faults(plan, name):
+    """Each frame anchor, person spot or item box of the plan outside its own box (w by d, EDGE allowed)."""
+    outer = [0.0, 0.0, float(plan["w"]), float(plan["d"])]
+    found = []
+    for key in ("anchor", "toward"):
+        point = ((plan.get("frame") or {}).get(key) or {}).get("plan")
+        if point is not None and not within([*point, 0.0, 0.0], outer):
+            found.append(f"{name}'s frame {key} {point} lies outside its {outer[2]} x {outer[3]} m plan")
+    for number, spot in enumerate(plan.get("people") or [], 1):
+        if not within([float(spot[0]), float(spot[1]), 0.0, 0.0], outer):
+            found.append(f"{name}'s person spot {number} {spot[:2]} lies outside its {outer[2]} x {outer[3]} m plan")
+    for item in plan.get("items") or []:
+        if not set(re.findall(r"[a-z]+", str(item[0]).lower())) & PASSAGE_WORDS and not item_inside(item, outer):
+            found.append(f"{name}'s item {item[0]!r} {item[1:5]} lies outside its {outer[2]} x {outer[3]} m plan")
+    return found
+
+
+def item_inside(item, outer):
+    """Whether a plan item stands in the plan's box: its middle inside, reaching past the box by at most half its
+    thinner side (a door or a pipe drawn centred on the wall line), EDGE allowed."""
+    x, y, wide, deep = (float(value) for value in item[1:5])
+    if not within([x + wide / 2, y + deep / 2, 0.0, 0.0], outer):
+        return False
+    reach = min(wide, deep) / 2
+    return within([x + reach, y + reach, max(wide - 2 * reach, 0.0), max(deep - 2 * reach, 0.0)], outer)
+
+
+def judge_held(output, inputs, evidence):
+    """Fail on a plan that does not hold what it says where it says (module docstring): its frame anchors, person
+    spots and items outside its own box; and, holding places, a hold another size or spot than its item, two holds
+    overlapping, a place held once that several doors lead to, a door to a held sibling meeting none leading back."""
+    place = read(pathlib.Path(output) / "plan.json")["place"]
+    design = read(pathlib.Path(inputs["plans"]) / f"{place}.json")
+    held = held_plans(design, inputs["plans"])
+    faults = inside_faults(design, place) + hold_faults(design) + overlap_faults(design) + once_faults(held) + \
+        door_faults_held(held, levels_of(held))
+    reason = "; ".join(faults[:3]) + (f" and {len(faults) - 3} more" if len(faults) > 3 else "") if faults else \
+        (f"its plan holds its things inside it and its {len(held)} held places where their doors meet" if held
+         else "its plan holds its things inside it")
+    return checks.Verdict("held", checks.FAIL if faults else checks.PASS, reason,
+                          {"faults": len(faults), "held places": len(held)}, {"faults": "lower"}, tuple(faults))
+
+
+CHECKS = (checks.Check("mapped", judge_mapped), checks.Check("held", judge_held))
