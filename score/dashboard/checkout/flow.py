@@ -470,7 +470,23 @@ def abandoned(chosen=None):
         gone = f"the process running it (pid {record.pid}) ended before it launched"
         found.append(closed(ended(record, "failed", f"{record.detail} stopped: {gone}".lstrip()), chosen,
                             "its checkout failed"))
+    orphaned_launches()
     return found
+
+
+def orphaned_launches():
+    """Fail each launch still `starting` whose checkout is no longer launching: its process ended between making the
+    launch and handing it to the runner, and a `starting` launch is never polled, so it held every later Buy off as
+    "a launch from this cockpit is still running" (2026-11-04: a Buy cut off with its ssh); the ones failed."""
+    failed = []
+    for launch in Launch.objects.filter(state="starting", plan__basket_hash__startswith="checkout-"):
+        number = launch.plan.basket_hash.removeprefix("checkout-")
+        if number.isdigit() and Checkout.objects.filter(pk=int(number), state__in=ACTIVE).exists():
+            continue
+        launch.state, launch.result = "failed", "its checkout ended before the launch reached the runner"
+        launch.save()
+        failed.append(launch)
+    return failed
 
 
 def batches_ended(chosen=None):

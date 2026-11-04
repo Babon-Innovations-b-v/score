@@ -28,6 +28,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - flow.stale_basket: the other-checkout check -> `if False:` -> test_a_basket_made_in_another_checkout_...
 - flow.spend_now: `if books and spend.paid_refused:` -> `if False:` -> test_the_months_books_unknown_refuse_...
 - flow.abandoned: `if record.pid is not None and pid_alive(...)` -> `if True:` -> test_a_checkout_left_launching_...
+- flow.orphaned_launches: its `launch.save()` dropped -> test_a_checkout_left_launching_... (a cut Buy's launch blocks every Buy)
 - flow.batches_ended: its skip -> `if True:` -> test_an_ended_batch_takes_its_line_back_once
 - localrun.LocalBackend.poll: the handed-on branch -> `if False:` -> test_a_batch_stopped_by_the_grow_and_resumed_keeps_...
 - flow.launch: drop `record.launch = started` -> test_a_hosted_checkout_is_followed_to_its_run_with_its_stop_line
@@ -340,10 +341,16 @@ def test_a_checkout_left_launching_by_a_gone_process_is_failed_on_the_next_one(s
     gone.wait()
     left = [Checkout.objects.create(key=key * 32, by="joey", state="launching", pid=pid)
             for key, pid in (("p", gone.pid), ("q", None))]  # None: a row from before the pid was kept
+    # 2026-11-04: its process ended after making the launch, before the runner had it; the launch stayed starting
+    stuck = Launch.objects.create(plan=Plan.objects.create(basket_hash=f"checkout-{left[0].pk}", made_by="joey",
+                                                           state="ready", body={}), by="joey", jobs=1,
+                                  state="starting")
     client = api()
     bought(shop, "alpha-pieces")
     record = checked_out(client, "m")["checkout"]  # not refused as "another checkout is still launching"
-    assert record["state"] == "launched", record
+    assert record["state"] == "launched", record  # nor as "a launch from this cockpit is still running"
+    stuck.refresh_from_db()
+    assert stuck.state == "failed", stuck.state
     for each in left:
         each.refresh_from_db()
         assert each.state == "failed" and f"(pid {each.pid}) ended before it launched" in each.detail
