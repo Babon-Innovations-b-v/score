@@ -44,8 +44,8 @@ temporary folder among them), so a shared claim's files go with the last claim t
 another's beside it). Each kind's set-up (/root/venv, /root/kinds) and its model caches stay. Before a claim, a
 container whose own layer is past LAYER_LIMIT_GB loses its installer caches (`bounded`), said with the GB.
 
-The interface is provider.py's; what has no meaning here (accounts, addresses, disks, the registry and the object
-store) says so or gives nothing.
+The interface is provider.py's; what has no meaning here (accounts, addresses, disks, the registry) says so or gives
+nothing; the secrets and the object store are the Scaleway backend's.
 """
 import contextlib
 import fcntl
@@ -730,4 +730,9 @@ def registry():
 
 
 def object_store():
-    raise SystemExit("SCORE_CLOUD=local has no object store: every input goes straight to the container")
+    """The Scaleway backend's object store, as `secret`: what outlives this PC's runs (the library's blobs, which a
+    handover from here puts in and a fetch takes out; tools/library/library_files.cloud_store). The runners' own inputs
+    never go there: this PC's runs send them straight to the container (SCORE_INPUTS_DIRECT), and the cluster's paths
+    stop at `registry`."""
+    import scaleway
+    return scaleway.object_store()
