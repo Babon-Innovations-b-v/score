@@ -73,6 +73,25 @@ FLAT_AREA = 1e-9
 NOT_SOLID = ("Characters", "Effects")
 # A box's corners, from its low corner (0) along z (1), y (2) and x (4).
 UNIT_CORNERS = np.array(list(itertools.product((0.0, 1.0), repeat=3)))
+# A still view (a look the light is rendered and judged on) stands in free air: its eye outside every solid and
+# CLEARANCE from every mesh, and its picture meets no surface nearer than LOOK_CLEAR along its middle nor over more
+# than NEAR_MOST of a PICTURE_RAYS grid of rays through its picture. A surface nearer than a doorway eye stands in
+# from its door (scene_record's VIEW_IN) fills an 80 degree picture, 1.7 m across at 1 m (2026-11-02: flat's spot-2
+# all wardrobe, street's views in its police car, square's spot-2 one black blob, base's spot-2 all link tube).
+LOOK_CLEAR = 1.0
+NEAR_MOST = 0.25
+PICTURE_RAYS = (16, 9)
+# An eye is inside a solid when at least this share of the rays it sends every way (INSIDE_WAYS) meet a surface from
+# behind first: from inside a closed mesh every one does, from a room none.
+INSIDE_SHARE = 0.5
+INSIDE_WAYS = np.array([way for way in itertools.product((-1.0, 0.0, 1.0), repeat=3) if any(way)])
+INSIDE_WAYS = INSIDE_WAYS / np.linalg.norm(INSIDE_WAYS, axis=1)[:, None]
+# A view that is not clear turns about its eye this many degrees a try, either way, up to all the way round; else its
+# eye moves out in rings this far apart, at this many headings, up to MOVE_MOST (metres), its aim moved with it.
+TURN_STEP = 15
+MOVE_STEP = 0.25
+MOVE_MOST = 1.5
+MOVE_HEADINGS = 16
 
 
 def people(stage_path, times=None):
@@ -333,13 +352,107 @@ def stands_clear(walls, persons):
 
 def clearances(scenes, eyes, boxes=None):
     """How far each eye stands from the nearest mesh of the place and from the nearest of the people's and moving things' boxes
-    ((count, 8, 3) corners; the scenes' own when not given; 0 inside one): two arrays, metres, inf where there is
-    nothing."""
+    ((count, 8, 3) corners; the scenes' own when not given; 0 inside one, a closed mesh too: inside_solid; FCL
+    measures an eye inside a wardrobe by its walls, 2026-11-04): two arrays, metres, inf where there is nothing."""
     boxes = scenes["boxes"] if boxes is None else boxes
-    walls = np.array([fcl.distance(scenes["tree"], fcl.CollisionObject(fcl.Sphere(1e-6), fcl.Transform(eye)),
+    walls = np.array([0.0 if inside_solid(scenes["still"], eye) else
+                      fcl.distance(scenes["tree"], fcl.CollisionObject(fcl.Sphere(1e-6), fcl.Transform(eye)),
                                    fcl.DistanceRequest(), fcl.DistanceResult()) + 1e-6 for eye in np.atleast_2d(eyes)])
     persons = np.array([box_distances(boxes, eye).min() if len(boxes) else np.inf for eye in np.atleast_2d(eyes)])
     return walls, persons
+
+
+def picture_ways(view, size):
+    """The unit ways from a view's eye through a PICTURE_RAYS grid of its picture (`size` [wide, tall] pixels, its
+    fov across), the middle first."""
+    eye, aim = np.asarray(view["eye"], dtype=float), np.asarray(view["aim"], dtype=float)
+    forward = (aim - eye) / np.linalg.norm(aim - eye)
+    right = np.cross(forward, np.asarray(view.get("up", [0.0, 1.0, 0.0]), dtype=float))
+    right /= np.linalg.norm(right)
+    upward = np.cross(right, forward)
+    half = np.tan(np.radians(view["fov"]) / 2.0)
+    across = (np.arange(PICTURE_RAYS[0]) + 0.5) / PICTURE_RAYS[0] * 2.0 - 1.0
+    down = ((np.arange(PICTURE_RAYS[1]) + 0.5) / PICTURE_RAYS[1] * 2.0 - 1.0) * size[1] / size[0]
+    sideways, upwards = np.meshgrid(across * half, down * half)
+    ways = forward + sideways.reshape(-1, 1) * right + upwards.reshape(-1, 1) * upward
+    return np.vstack([forward, ways / np.linalg.norm(ways, axis=1)[:, None]])
+
+
+def inside_solid(mesh, eye):
+    """Whether an eye stands inside a solid of the mesh: at least INSIDE_SHARE of the ways round it (INSIDE_WAYS) meet
+    a face from behind first."""
+    origins = np.tile(np.asarray(eye, dtype=float), (len(INSIDE_WAYS), 1))
+    _, rays, faces = mesh.ray.intersects_location(origins, INSIDE_WAYS, multiple_hits=False)
+    behind = np.einsum("ij,ij->i", mesh.face_normals[faces], INSIDE_WAYS[rays]) > 0
+    return int(behind.sum()) >= INSIDE_SHARE * len(INSIDE_WAYS)
+
+
+def view_faults(scenes, view, size):
+    """Why a still view would not see the place, [] when it does: its eye inside a solid, nearer than CLEARANCE to a
+    mesh, a person or a moving thing, its middle meeting a surface nearer than LOOK_CLEAR, or more than NEAR_MOST of
+    its picture doing so."""
+    eye = np.asarray(view["eye"], dtype=float)
+    if inside_solid(scenes["still"], eye):
+        return ["its eye stands inside a solid"]
+    walls, persons = clearances(scenes, eye)
+    found = [] if stands_clear(walls, persons)[0] else \
+        [f"its eye stands {min(walls[0], persons[0]):.2f} m from a surface, nearer than {CLEARANCE:g} m"]
+    ways = picture_ways(view, size)
+    distances = first_hits(scenes["blocking"], np.tile(eye, (len(ways), 1)), ways)
+    if distances[0] < LOOK_CLEAR:
+        found.append(f"its look meets a surface {distances[0]:.2f} m ahead, nearer than {LOOK_CLEAR:g} m")
+    near = float(np.mean(distances[1:] < LOOK_CLEAR))
+    if near > NEAR_MOST:
+        found.append(f"{near:.0%} of its picture is a surface nearer than {LOOK_CLEAR:g} m (at most {NEAR_MOST:.0%})")
+    return found
+
+
+def turned(view, eye, degrees):
+    """The view with its eye at `eye`, its aim moved with it and turned about it by `degrees` round the up axis."""
+    eye = np.asarray(eye, dtype=float)
+    way = np.asarray(view["aim"], dtype=float) - np.asarray(view["eye"], dtype=float)
+    cosine, sine = np.cos(np.radians(degrees)), np.sin(np.radians(degrees))
+    way = np.array([way[0] * cosine - way[2] * sine, way[1], way[0] * sine + way[2] * cosine])
+    return dict(view, eye=[round(float(value), 4) for value in eye],
+                aim=[round(float(value), 4) for value in eye + way])
+
+
+def reached(scenes, eye, spot, inside):
+    """Whether a straight line from the eye reaches the spot through no surface (but the one it leaves when the eye
+    stands `inside` a solid)."""
+    span = np.asarray(spot, dtype=float) - eye
+    length = float(np.linalg.norm(span))
+    locations, _, _ = scenes["still"].ray.intersects_location([eye], [span / length], multiple_hits=True)
+    crossed = int((np.linalg.norm(locations - eye, axis=1) < length).sum()) if len(locations) else 0
+    return crossed <= int(inside)
+
+
+def cleared_view(scenes, view, size):
+    """(view, why): the view as it is when it sees the place (view_faults); else the nearest change that does, a turn
+    about its eye of TURN_STEP or a move of its eye MOVE_STEP out (along a line meeting no surface, its aim moved with
+    it) weighing one step each, up to all the way round and MOVE_MOST out: a door's view keeps looking into the room
+    where a short move clears it rather than turning to a wall; the change said in its `cleared`. (None, why) when
+    nothing within reach clears it."""
+    faults = view_faults(scenes, view, size)
+    if not faults:
+        return view, None
+    eye = np.asarray(view["eye"], dtype=float)
+    inside = inside_solid(scenes["still"], eye)
+    headings = np.linspace(0.0, 2.0 * np.pi, MOVE_HEADINGS, endpoint=False)
+    rings = np.arange(1, int(round(MOVE_MOST / MOVE_STEP)) + 1)
+    spots = [(0, eye)] + [(ring, eye + ring * MOVE_STEP * np.array([np.cos(heading), 0.0, np.sin(heading)]))
+                          for ring in rings for heading in headings]
+    spots = [(ring, spot) for ring, spot in spots if ring == 0 or reached(scenes, eye, spot, inside)]
+    turns = [0] + [side * step for step in range(TURN_STEP, 181, TURN_STEP) for side in (1, -1)]
+    tries = sorted(((ring + abs(degrees) // TURN_STEP, number, degrees) for number, (ring, _) in enumerate(spots)
+                    for degrees in turns), key=lambda tried: tried[0])
+    for _, number, degrees in tries:
+        tried = turned(view, spots[number][1], degrees)
+        if not view_faults(scenes, tried, size):
+            moved = float(np.linalg.norm(spots[number][1] - eye))
+            return dict(tried, cleared=f"moved {moved:.2f} m and turned {degrees:+d} degrees: "
+                                       f"{'; '.join(faults)}"), None
+    return None, "; ".join(faults) + f", every way it turns within {MOVE_MOST:g} m"
 
 
 def edges_floored(scenes, starts, ends, eye=EYE_HEIGHT):
