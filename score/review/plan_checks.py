@@ -25,7 +25,7 @@ WALLS_ITEM = "ON THE WALLS AND CEILING"
 PEOPLE = {"person", "people", "crowd", "man", "woman", "child", "figure", "pedestrian", "astronaut", "worker"}
 AFAR = {"distant", "far", "background", "faraway"}
 CROWD = {"crowd", "crowds", "audience", "spectators"}  # a people row the cast stands as a far crowd, no spots
-KINDS = ("placed", "people", "outside", "overlap", "reach", "tiling", "arrangement", "joined", "stairs")  # the gaps' kinds
+KINDS = ("placed", "people", "outside", "overlap", "reach", "tiling", "arrangement", "joined", "stairs", "shape")  # the gaps' kinds
 # The arrangement against the concept: two rows' order counts where clear in both, the concept's as shares of its
 # picture, the plan's as a share of its reach; left and right only for rows at about one depth (perspective).
 SAME_DEPTH = 0.12
@@ -47,6 +47,10 @@ STEEPEST = 42.0
 HEADROOM = 2.0
 STAIR_SAMPLE = 0.1
 FACE_SLACK = 0.01
+# A held place's plan is off its creator's shape (data/places/shapes.json) when its outline differs from it by more than
+# this share on either axis (#72: the flat written 4.78 x 4.78 m for its 6 x 5 m inside, the street 10.09 x 6.68 m for
+# its 8 x 36 m strip).
+SHAPE_SLACK = 0.25
 
 
 def polygon_of(item, shape):
@@ -501,6 +505,24 @@ def stair_gaps(plan):
     return gaps
 
 
+def shape_off(wide, deep, shape):
+    """The share a `wide` x `deep` outline is off `shape` ({w, d}) by on the axis it is most off: the larger of the two
+    lengths over the smaller, less one, the same either way (the flat's 4.78 m for its 6 m is 0.255 off)."""
+    return max(max(have, want) / max(min(have, want), 1e-9) - 1.0
+               for have, want in ((wide, shape["w"]), (deep, shape["d"])))
+
+
+def shape_gaps(plan):
+    """A gap when the plan of a held place with a creator's shape (its `held`, stamped by plan_writing.fitted) has an
+    outline more than SHAPE_SLACK off it on an axis and was not fitted to it."""
+    held = plan.get("held")
+    if not held or held.get("fitted") or shape_off(plan["w"], plan["d"], held) <= SHAPE_SLACK:
+        return []
+    return [{"kind": "shape", "item": None, "row": None, "at": [round(plan["w"] / 2, 2), round(plan["d"] / 2, 2)],
+             "words": f"the plan is {plan['w']:g} x {plan['d']:g} m, its shape {held['w']:g} x {held['d']:g} m "
+                      f"({held.get('from', 'data/places/shapes.json')}): more than {SHAPE_SLACK:.0%} off, not fitted"}]
+
+
 # --- the arrangement against the concept --------------------------------------------------------------------------
 
 def laid_boxes(plan):
@@ -718,7 +740,7 @@ def checked(plan, inventory, structure=()):
             + overlap_gaps(plan, inventory, grid) + reach_gaps(plan, inventory, grid, outline)
             + hold_gaps(plan, grid, outline) + order_gaps(plan, inventory) + frame_gaps(plan, inventory)
             + facing_gaps(plan, inventory) + run_gaps(plan, inventory) + join_gaps(plan, inventory)
-            + stair_gaps(plan))
+            + stair_gaps(plan) + shape_gaps(plan))
 
 
 # --- the rows the place itself is, and the projection from the concept onto the plan -------------------------------

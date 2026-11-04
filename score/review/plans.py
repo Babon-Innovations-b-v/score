@@ -182,7 +182,17 @@ def newest_edit(store, place):
     """His newest edit of `place`'s plan made on its current pick, else None."""
     pick = pick_of(store, place)
     found = [record for record in records(store, place, "edits") if pick and record["concept"] == pick]
-    return found[-1] if found else None
+    return found[-1] if found and found[-1].get("plan") is not None else None  # none: replaced by its writing
+
+
+def edit_replaced(store, place, by, asked):
+    """His edit of `place`'s plan on its current pick replaced by its writing, on his yes (`asked`: {words, question,
+    at} of it): an edit record with no plan, so the writing is shown again; the record. Refused with no edit."""
+    if newest_edit(store, place) is None:
+        raise Refused(f"{place} has no edit of his on its current pick to replace")
+    return kept_record(store, place, "edits", {"place": place, "plan": None, "concept": pick_of(store, place),
+                                               "by": by, "at": concepts.now(), "how": "replaced by its writing",
+                                               "calls": [], "asked": asked})
 
 
 def holder_of(store, place):
@@ -198,6 +208,13 @@ def holder_of(store, place):
     box = (row.get("boxes") or [None])[0] if "boxes" in row else row.get("box")  # a reading's surest SAM box first
     return {"holder": holder, "row": hold.get("row"), "box": box, "view": row.get("view"),
             "outline": [hold["x"], hold["y"], hold["w"], hold["d"]]}
+
+
+def creator_shape(place, path=None):
+    """{w, d, from} of a held place's shape its parent scene's plan cannot give (data/places/shapes.json), None for a
+    place it does not list."""
+    path = path or DATA / "places" / "shapes.json"
+    return json.loads(path.read_text())["shapes"].get(place) if path.is_file() else None
 
 
 def above_plan(store, place):
@@ -568,7 +585,9 @@ def made_plan(store, place):
         return None
     found = written(store, place)
     if found:
-        plan = {**found["plan"], "gaps": checked_again(found["plan"], inventory_of(store, place))}
+        shape = creator_shape(place)  # a writing from before shapes were kept is checked against its shape too
+        written_plan = {**found["plan"], "held": shape} if shape and "held" not in found["plan"] else found["plan"]
+        plan = {**written_plan, "gaps": checked_again(written_plan, inventory_of(store, place))}
         if "fixes" in plan:  # fixed after writing (plan_fixes): each gap left says why no fix took
             from score.review import plan_fixes
             plan["gaps"] = plan_fixes.why_left(plan["gaps"])
