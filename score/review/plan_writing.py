@@ -49,6 +49,8 @@ import sys
 import time
 import urllib.error
 
+import numpy
+
 from score.review import concepts, creator_plans, plan_checks, plan_drawing, plan_fixes, plans, reading
 from score.store import Store, locked, stamp_key
 
@@ -71,6 +73,16 @@ SWINGS = ("left", "right", "double", "slide", "none")
 OPENINGS = ("door", "window", "opening", "gate")
 ROOFS = ("flat", "dome", "pitched", "vault", "shed")
 SHAPES = ("rect", "circle", "polygon")
+# A flight is built from its rise (#87): risers and treads in these metres, a landing LANDING deep where flights turn
+# (more than TURNED degrees apart; EarthSite's core lays 1.2 m), and laid inside its walls and clear of the others by
+# the least shift, tried every SHIFT_STEP metres up to SHIFT_REACH.
+RISER = (0.15, 0.19)
+TREAD = (0.25, 0.30)
+LANDING = 1.2
+TURNED = 10.0
+SAME_HEIGHT = 0.02
+SHIFT_STEP = 0.05
+SHIFT_REACH = 3.0
 FACINGS = ("N", "E", "S", "W")
 SEEN = ("toward", "away", "left", "right")  # the way a thing faces in the painting, from its viewer
 ASKED = """You are an architect drawing the dimensioned floor plan of one place of a game environment, element by
@@ -102,8 +114,10 @@ Write the plan as one JSON object with these keys:
 - "levels": every floor or ground area at its own height, {{"name": words, "height": m, "points": [[x, y], ...]}}
   (the main floor +0.00; a raised deck, a sunken pit, a platform, a balcony; outside, the ground's own areas: a
   plaza, a road, a quay, the sea or a pool at its water line, sand, grass).
-- "stairs": every stair or ramp as drawn, {{"kind": "stair"|"ramp", "points": its footprint, "from": m, "to": m,
-  "angle": the direction one walks up in degrees, "steps": a count}}.
+- "stairs": every stair or ramp as drawn, {{"kind": "stair"|"ramp", "points": its footprint, "from": m (the height at
+  its foot), "to": m (at its head), "angle": the direction one walks up from its foot in degrees, "steps": its
+  risers}}: each flight its own footprint between its landings (a switchback's flights side by side in their own
+  lanes, never one over the next under head height), inside the walls, every landing where flights turn a level.
 - "roofs": every roof as drawn, {{"kind": "flat"|"dome"|"pitched"|"vault"|"shed", "points": its footprint, "eave": m,
   "top": m, "openings": [{{"points": its footprint}}, ...]}}: each opening in a roof (a hatch, a skylight, a door in
   the roof that opens to the sky) as wide and deep as the facts or the drawing give it, [] for a roof with none.
@@ -377,6 +391,129 @@ def stair_of(stair):
     return {"kind": "ramp" if stair.get("kind") == "ramp" else "stair", "points": points(stair["points"]),
             "from": number(stair["from"]), "to": number(stair["to"]), "angle": number(stair.get("angle"), 0.0),
             "steps": int(number(stair.get("steps"), 0) or 0)}
+
+
+def risers(rise, drawn):
+    """A flight's risers: as drawn when each is RISER high, else the fewest no higher than RISER's top."""
+    if drawn and RISER[0] <= rise / drawn <= RISER[1]:
+        return drawn
+    return max(1, math.ceil(rise / RISER[1] - 1e-9))
+
+
+def flight_built(stair, shortest=False):
+    """A stair as built (#87): from its low end up the way it rises, its risers (`risers`) and its run their count
+    of treads (TREAD) round its drawn middle, as wide as drawn (`shortest`: the fewest risers on the shallowest
+    treads); a ramp keeps its run, turned the same way."""
+    way, across, foot, run, wide, low, high = plan_checks.flight(stair)
+    steps = stair.get("steps", 0)
+    if stair.get("kind") != "ramp" and high > low:
+        steps = risers(high - low, None if shortest else steps)
+        built = steps * (TREAD[0] if shortest else min(max(run / steps, TREAD[0]), TREAD[1]))
+        foot, run = foot + way * (run - built) / 2, built
+    angle = round(math.degrees(math.atan2(way[1], way[0])) % 360.0, 3)
+    return {**stair, "points": [[round(value, 3) for value in corner]
+                                for corner in plan_checks.flight_corners(way, across, foot, run, wide)],
+            "from": low, "to": high, "angle": angle, "steps": steps}
+
+
+def turned(first, second):
+    """Whether two flights' ways differ by more than TURNED degrees."""
+    return abs((first["angle"] - second["angle"] + 180.0) % 360.0 - 180.0) > TURNED
+
+
+def landing_ends(stairs):
+    """[(a landing at its foot, at its head)] of each flight: where it meets a flight turned from it at that height."""
+    return [(any(abs(other["to"] - stair["from"]) < SAME_HEIGHT and turned(stair, other) for other in stairs),
+             any(abs(other["from"] - stair["to"]) < SAME_HEIGHT and turned(stair, other) for other in stairs))
+            for stair in stairs]
+
+
+def fits(stair, ends, laid, outline, walls):
+    """Whether a flight with its landings' room (`ends`, LANDING deep) lies inside `outline` and its `walls`, and
+    clear of the flights `laid`."""
+    way, across, foot, run, wide, low, high = plan_checks.flight(stair)
+    room_foot, room_head = (LANDING if end else 0.0 for end in ends)
+    room, _ = plan_checks.flight_samples(way, across, foot - way * room_foot, run + room_foot + room_head, wide)
+    if plan_checks.past_walls(room, outline, walls):
+        return False
+    samples, share = plan_checks.flight_samples(way, across, foot, run, wide)
+    return not any(plan_checks.too_close(samples, share, low, high, other) for other in laid)
+
+
+def shifts():
+    """Every shift [along x, along y] up to SHIFT_REACH metres every SHIFT_STEP, the least first."""
+    steps = numpy.arange(-SHIFT_REACH, SHIFT_REACH + SHIFT_STEP / 2, SHIFT_STEP)
+    found = [(round(float(along), 3), round(float(down), 3)) for along in steps for down in steps]
+    return sorted(found, key=lambda shift: (math.hypot(*shift), shift))
+
+
+SHIFTS = shifts()
+
+
+def shifted(stair, shift):
+    return {**stair, "points": [[round(corner[0] + shift[0], 3), round(corner[1] + shift[1], 3)]
+                                for corner in stair["points"]]}
+
+
+def flights_placed(drawn, outline, walls):
+    """The flights built (`flight_built`), lowest first, each moved the least (`shifts`) to fit inside its walls with
+    its landings' room and clear of those placed before it, built shortest when it fits no other way, then without
+    its landings' room; one that fits nowhere is left as built where drawn (plan_checks.stair_gaps says so)."""
+    stairs = [flight_built(stair) for stair in drawn]
+    order = sorted(range(len(stairs)), key=lambda number: (stairs[number]["from"], number))
+    ends, laid, placed = landing_ends(stairs), [], list(stairs)
+    for number in order:
+        tried = ((shifted(built, shift), room) for room in (ends[number], (False, False))
+                 for built in (stairs[number], flight_built(drawn[number], shortest=True)) for shift in SHIFTS)
+        placed[number] = next((stair for stair, room in tried if fits(stair, room, laid, outline, walls)),
+                              stairs[number])
+        laid.append(placed[number])
+    return placed
+
+
+def end_edge(stair, head):
+    """The two corners of a flight's foot or head (`head`) and the way off it onto its landing."""
+    way, across, foot, run, wide, _, _ = plan_checks.flight(stair)
+    middle, off = (foot + way * run, way) if head else (foot, -way)
+    return [middle - across * wide / 2, middle + across * wide / 2], off
+
+
+def landed(levels, height, point):
+    """Whether a level at `height` holds `point`."""
+    return any(abs(float(level["height"]) - height) < SAME_HEIGHT
+               and plan_checks.inside(numpy.asarray([point], dtype=float), level["points"])[0] for level in levels)
+
+
+def landings(stairs, levels):
+    """A landing level for each turn of flights at one height not standing on a level there already: the box round
+    the lower flight's head, LANDING beyond it, and the upper one's foot (none when they stand apart)."""
+    added = []
+    for lower in stairs:
+        for upper in stairs:
+            if abs(upper["from"] - lower["to"]) >= SAME_HEIGHT or not turned(lower, upper):
+                continue
+            (head, head_off), (foot, foot_off) = end_edge(lower, True), end_edge(upper, False)
+            head_middle, foot_middle = (head[0] + head[1]) / 2, (foot[0] + foot[1]) / 2
+            apart = float(numpy.linalg.norm(head_middle - foot_middle))
+            if apart > plan_checks.flight(lower)[4] + plan_checks.flight(upper)[4] + LANDING:
+                continue
+            if landed(levels + added, lower["to"], head_middle + head_off * 0.1) \
+                    and landed(levels + added, lower["to"], foot_middle + foot_off * 0.1):
+                continue
+            corners = numpy.asarray([*head, *(corner + head_off * LANDING for corner in head), *foot])
+            (low_x, low_y), (high_x, high_y) = corners.min(axis=0), corners.max(axis=0)
+            added.append({"name": f"landing at {lower['to']:g} m", "height": lower["to"],
+                          "points": [[round(float(x), 3), round(float(y), 3)] for x, y in
+                                     ((low_x, low_y), (high_x, low_y), (high_x, high_y), (low_x, high_y))]})
+    return added
+
+
+def flights_laid(plan):
+    """The plan's stairs built from their rises and placed inside its walls apart (`flights_placed`), and its levels
+    with a landing where flights turn (`landings`): (stairs, levels)."""
+    stairs = flights_placed(plan.get("stairs") or [], plan_checks.outline_of(plan), plan.get("walls") or [])
+    levels = list(plan.get("levels") or [])
+    return stairs, levels + landings(stairs, levels)
 
 
 def roof_of(roof):
@@ -721,6 +858,7 @@ def plan_from(answer, skeleton, inventory):
                        ("roofs", roof_of)):
         plan[key], off = listed(answer, key, check)
         dropped += [{"item": key, "why": f"{off} off the schema"}] if off else []
+    plan["stairs"], plan["levels"] = flights_laid(plan)
     # the skeleton's lamps, beams and leaves on rows this concept lacks are left out of it already: no gap of his
     plan["dropped"] = dropped + [{"item": gap["item"], "why": gap["words"]} for gap in skeleton.get("gaps", [])
                                  if gap["kind"] != "size"]

@@ -321,6 +321,10 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     plan_writing.py: `if row_id not in placed and parent in placed:` made `if False:`
 - test_a_door_walled_in_or_an_inside_place_overlapping_another_is_a_gap:
     plan_checks.py: `if (mask & other_mask).sum() > OVERLAP * min(mask.sum(), other_mask.sum())]` made `if False]`
+- test_a_door_walled_in_or_an_inside_place_overlapping_another_is_a_gap (2026-11-04, #87):
+    plan_checks.py: stair_gaps' `if slope > STEEPEST:` made `if False:`
+    plan_writing.py: fits' `return not any(plan_checks.too_close(samples, share, low, high, other) for other in laid)`
+    made `return True`
 - test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_says_so:
     plan_drawing.py (2026-11-04, #72): OUTLINE's "not its shape" wording made "draw this place filling exactly that
     box's shape"
@@ -2848,6 +2852,26 @@ def test_a_door_walled_in_or_an_inside_place_overlapping_another_is_a_gap():
     plan["shapes"] = {}
     plan["items"][0][3] = 4.0  # a way round the crates: every door and spot reached
     assert not [word for word in plan_checks.checked(plan, inventory) if "reached" in word]
+    # the stairwell's flights (#87): 1.5 m over a 1 m run, one over the next in one lane, one through the east wall;
+    # the writer builds each from its rise, lays them inside the core's walls apart and a landing where they turn
+    core = {"w": 2.8, "d": 5.0, "doors": [], "items": [], "rows": {}, "levels": [],
+            "walls": [{"from": [0, 0], "to": [2.8, 0], "thick": 0.2}, {"from": [2.8, 0], "to": [2.8, 5.0], "thick": 0.2},
+                      {"from": [2.8, 5.0], "to": [0, 5.0], "thick": 0.2}, {"from": [0, 5.0], "to": [0, 0], "thick": 0.2}],
+            "stairs": [{"kind": "stair", "points": [[0.2, 2.0], [1.4, 2.0], [1.4, 3.0], [0.2, 3.0]], "from": 0.0,
+                        "to": 1.5, "angle": 270.0, "steps": 9},
+                       {"kind": "stair", "points": [[0.2, 1.5], [1.4, 1.5], [1.4, 2.5], [0.2, 2.5]], "from": 3.0,
+                        "to": 1.5, "angle": 270.0, "steps": 9},
+                       {"kind": "stair", "points": [[2.2, 3.0], [3.2, 3.0], [3.2, 4.0], [2.2, 4.0]], "from": 3.0,
+                        "to": 4.5, "angle": 270.0, "steps": 9}]}
+    words = [gap["words"] for gap in plan_checks.checked(core, {"rows": []}) if gap["kind"] == "stairs"]
+    assert "stair 1 rises 1.5 m over a 1.00 m run, 56 degrees (steeper than 42)" in words, words
+    assert "stair 1 and stair 2 overlap, under 2 m apart" in words and "stair 3 lies past its walls (south-east)" \
+        in words, words
+    stairs, levels = plan_writing.flights_laid(core)
+    assert not plan_checks.stair_gaps({**core, "stairs": stairs, "levels": levels})
+    assert all(0.15 <= (stair["to"] - stair["from"]) / stair["steps"] <= 0.19 and 0.25 <= plan_checks.flight(
+        stair)[3] / stair["steps"] <= 0.30 for stair in stairs), stairs
+    assert [level["name"] for level in levels] == ["landing at 1.5 m", "landing at 3 m"], levels
 
 
 def test_a_footprint_answered_as_box_2d_is_measured_from_its_box():

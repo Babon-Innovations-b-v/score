@@ -25,7 +25,7 @@ WALLS_ITEM = "ON THE WALLS AND CEILING"
 PEOPLE = {"person", "people", "crowd", "man", "woman", "child", "figure", "pedestrian", "astronaut", "worker"}
 AFAR = {"distant", "far", "background", "faraway"}
 CROWD = {"crowd", "crowds", "audience", "spectators"}  # a people row the cast stands as a far crowd, no spots
-KINDS = ("placed", "people", "outside", "overlap", "reach", "tiling", "arrangement", "joined")  # the gaps' kinds
+KINDS = ("placed", "people", "outside", "overlap", "reach", "tiling", "arrangement", "joined", "stairs")  # the gaps' kinds
 # The arrangement against the concept: two rows' order counts where clear in both, the concept's as shares of its
 # picture, the plan's as a share of its reach; left and right only for rows at about one depth (perspective).
 SAME_DEPTH = 0.12
@@ -40,6 +40,13 @@ SPREAD = 4.0  # times its things' footprints side by side a run's box may cover 
 SPREAD_SLACK = 4.0  # square metres more than its things a run's box may always cover (a small run's loose box)
 # A box whose foot is within this share of the picture's height of its bottom edge reaches the picture's foot.
 FOOT_SHARE = 0.01
+# A flight of stairs (#87): none steeper than this (degrees: a riser of 0.19 m on a tread of 0.25 m is 37), none over
+# another with less than HEADROOM between them, none past its walls' inner faces; its footprint is sampled every
+# STAIR_SAMPLE metres, FACE_SLACK in from its edges, so a flight laid against a wall's face is inside it.
+STEEPEST = 42.0
+HEADROOM = 2.0
+STAIR_SAMPLE = 0.1
+FACE_SLACK = 0.01
 
 
 def polygon_of(item, shape):
@@ -407,6 +414,93 @@ def hold_gaps(plan, grid, outline):
     return gaps
 
 
+# --- the stairs: buildable, apart and inside their walls (#87) -----------------------------------------------------
+
+def flight(stair):
+    """A plan stair {points, from, to, angle} as (way: the unit vector one walks up, across: its unit normal, foot:
+    the middle of its low end, run: its length along the way, wide: across it, low, high): its `from` and `to` the
+    heights at its ends along `angle` (scene_record/writer.stair's reading), whichever is higher."""
+    corners = numpy.asarray(stair["points"], dtype=float)
+    turn = math.radians(float(stair.get("angle") or 0.0))
+    way, across = numpy.array([math.cos(turn), math.sin(turn)]), numpy.array([-math.sin(turn), math.cos(turn)])
+    along, side = corners @ way, corners @ across
+    low, high = float(stair["from"]), float(stair["to"])
+    middle_side = across * (side.min() + side.max()) / 2
+    if high < low:
+        way, across, along, low, high = -way, -across, -along, high, low
+    foot = way * along.min() + middle_side
+    return way, across, foot, float(along.max() - along.min()), float(side.max() - side.min()), low, high
+
+
+def flight_corners(way, across, foot, run, wide):
+    """A flight's footprint [[x, y], ...] from its foot's middle `run` along `way`, `wide` across."""
+    half = across * wide / 2
+    return [[float(value) for value in corner] for corner in (foot - half, foot + way * run - half,
+                                                               foot + way * run + half, foot + half)]
+
+
+def flight_samples(way, across, foot, run, wide):
+    """(points N x 2 over a flight's footprint every STAIR_SAMPLE metres, FACE_SLACK in from its edges, their share
+    0..1 of its run)."""
+    shares = numpy.linspace(0.0, 1.0, max(2, int(math.ceil(run / STAIR_SAMPLE)) + 1))
+    sides = numpy.linspace(-0.5, 0.5, max(2, int(math.ceil(wide / STAIR_SAMPLE)) + 1))
+    share, side = (grid.ravel() for grid in numpy.meshgrid(shares, sides))
+    along = FACE_SLACK + share * max(run - 2 * FACE_SLACK, 0.0)
+    sideways = side * max(wide - 2 * FACE_SLACK, 0.0)
+    return foot + numpy.outer(along, way) + numpy.outer(sideways, across), share
+
+
+def steepness(stair):
+    """A stair's slope in degrees, its rise over its run (90 for a flight with no run)."""
+    _, _, _, run, _, low, high = flight(stair)
+    return math.degrees(math.atan2(high - low, run))
+
+
+def past_walls(samples, outline, walls):
+    """Whether any of `samples` lies outside `outline` or in a wall of `walls` (plan walls)."""
+    if not inside(samples, outline).all():
+        return True
+    return any(inside(samples, wall_polygon(wall)).any() for wall in walls)
+
+
+def too_close(samples, share, low, high, other):
+    """Whether a flight sampled at `samples` (their `share` of its run from `low` to `high`) and the stair `other`
+    stand over each other with less than HEADROOM between them anywhere."""
+    way, across, foot, run, wide, other_low, other_high = flight(other)
+    offset = samples - foot
+    along, side = offset @ way, offset @ across
+    over = (along >= 0) & (along <= run) & (numpy.abs(side) <= wide / 2)
+    if not over.any():
+        return False
+    heights = low + share[over] * (high - low)
+    other_heights = other_low + along[over] / max(run, 1e-6) * (other_high - other_low)
+    return bool((numpy.abs(heights - other_heights) < HEADROOM).any())
+
+
+def stair_gaps(plan):
+    """A gap for each flight steeper than STEEPEST, over another with less than HEADROOM between them, or past its
+    walls' inner faces (outside the outline or in a wall)."""
+    stairs = [stair for stair in plan.get("stairs") or [] if len(stair.get("points") or []) >= 3]
+    outline, walls, gaps = outline_of(plan), plan.get("walls") or [], []
+    for number, stair in enumerate(stairs, 1):
+        name, frame = f"{stair.get('kind', 'stair')} {number}", flight(stair)
+        samples, share = flight_samples(*frame[:5])
+        at = middle_of(stair["points"])
+        slope = steepness(stair)
+        if slope > STEEPEST:
+            gaps.append({"kind": "stairs", "item": name, "row": None, "at": at,
+                         "words": f"{name} rises {frame[6] - frame[5]:g} m over a {frame[3]:.2f} m run, "
+                                  f"{slope:.0f} degrees (steeper than {STEEPEST:g})"})
+        if past_walls(samples, outline, walls):
+            gaps.append({"kind": "stairs", "item": name, "row": None, "at": at,
+                         "words": f"{name} lies past its walls ({where(at, plan)})"})
+        gaps += [{"kind": "stairs", "item": name, "row": None, "at": at, "with": f"{other.get('kind', 'stair')} {later}",
+                  "words": f"{name} and {other.get('kind', 'stair')} {later} overlap, under {HEADROOM:g} m apart"}
+                 for later, other in enumerate(stairs[number:], number + 1)
+                 if too_close(samples, share, frame[5], frame[6], other)]
+    return gaps
+
+
 # --- the arrangement against the concept --------------------------------------------------------------------------
 
 def laid_boxes(plan):
@@ -623,7 +717,8 @@ def checked(plan, inventory, structure=()):
     return (count_gaps(plan, inventory, set(structure)) + people_gaps(plan, inventory) + outside_gaps(plan, inventory, grid, outline)
             + overlap_gaps(plan, inventory, grid) + reach_gaps(plan, inventory, grid, outline)
             + hold_gaps(plan, grid, outline) + order_gaps(plan, inventory) + frame_gaps(plan, inventory)
-            + facing_gaps(plan, inventory) + run_gaps(plan, inventory) + join_gaps(plan, inventory))
+            + facing_gaps(plan, inventory) + run_gaps(plan, inventory) + join_gaps(plan, inventory)
+            + stair_gaps(plan))
 
 
 # --- the rows the place itself is, and the projection from the concept onto the plan -------------------------------
