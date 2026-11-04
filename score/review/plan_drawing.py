@@ -26,6 +26,13 @@ OUTLINE = (" The second picture is the plan of the place holding it, top down an
            "it shows where this place sits and where its doors are, not its shape (that plan is drawn from another "
            "painting): draw this place at its own proportions as the painting shows them, north up, its doors on the "
            "sides where the box's doors are, and every part at its true size against the others.")
+# An open place held by another (a street, a yard) is drawn as its own ground alone: told only OUTLINE, the street was
+# drawn as the shops beside it with their rooms and part of the Square it runs from, and its outline taken as the whole
+# frame, 25 x 25 m (2026-11-04).
+OPEN = (" This place is open ground: draw only its own ground (its road, pavements, plaza or yard) and what stands on "
+        "it, end to end, as large as the picture allows with white paper round it; a building along it is only the "
+        "thin strip of its front wall on this ground's edge, never its rooms or its inside; draw nothing of the second "
+        "picture outside the yellow box, no other place and none of the place holding it.")
 # a part the creator planned is drawn at the plan's own size (creator data wins; the owner, 2026-10-21)
 PLANNED_SIZE = " ({long:g} m long, {wide:.1f} m wide: draw it at exactly this size)"
 # The frame every drawing is drawn in (Nano Banana Pro's aspect ratio), a held place's too: framed to its box on the
@@ -66,12 +73,13 @@ def parts_of(store, place):
 def wording_of(store, place):
     """What the drawing is asked with: the place's name and parts, how it is seen from above (indoors its floor plan,
     else its roofs), the way the plan is turned against the painting (north up from the fixed south-east view its
-    locked draw was drawn to, else the painting's near side at the bottom) and its outline when sent."""
+    locked draw was drawn to, else the painting's near side at the bottom) and its outline when sent (an open place
+    held by another drawn as its own ground alone, OPEN)."""
     inside, held = concepts.indoors(store, place), plans.holder_of(store, place)
     return WORDING.format(name=concepts.name_of(place), kind="floor plan" if inside else "roof plan",
                           seen=INSIDE if inside else OUTSIDE, parts=parts_of(store, place),
                           orientation=FROM_SOUTH_EAST if from_south_east(store, place) else NEAR_BOTTOM,
-                          outline=OUTLINE if held else "")
+                          outline=(OUTLINE + ("" if inside else OPEN)) if held else "")
 
 
 def from_south_east(store, place):
@@ -97,7 +105,7 @@ def outline_key(pictures):
 
 
 def drawings(store, place):
-    return [store.read(key) for key in sorted(store.objects.keys(f"{AREA}/{place}/"))]
+    return [store.read(key) for key in sorted(concepts.keys_under(store, f"{AREA}/{place}/"))]
 
 
 def drawing_of(store, place, outline, wording):

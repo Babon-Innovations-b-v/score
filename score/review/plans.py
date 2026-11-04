@@ -65,7 +65,7 @@ class Refused(ValueError):
 
 def records(store, place, kind):
     """The records of one place's `kind` (edits or named), oldest first."""
-    return [store.read(key) for key in sorted(store.objects.keys(f"{AREA}/{place}/{kind}/"))]
+    return [store.read(key) for key in sorted(concepts.keys_under(store, f"{AREA}/{place}/{kind}/"))]
 
 
 def kept_record(store, place, kind, record):
@@ -106,7 +106,7 @@ def overlaid(store, within):
     """{place: what holds it} with each holder's inside places replaced by the ones his newest edit of its plan lays
     out (CONTEXT.md "shell split", owner 2026-10-21)."""
     within = dict(within)
-    for holder in sorted({key.split("/")[1] for key in store.objects.keys(f"{AREA}/")}):
+    for holder in sorted({key.split("/")[1] for key in concepts.keys_under(store, f"{AREA}/")}):
         edit = newest_edit(store, holder)
         if edit is None or "holds" not in edit["plan"]:
             continue

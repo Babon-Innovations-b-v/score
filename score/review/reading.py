@@ -206,7 +206,7 @@ def picture_path(store, sha, folder):
 
 def readings(store, place):
     """The place's readings, oldest first."""
-    return [store.read(key) for key in sorted(store.objects.keys(f"{AREA}/{place}/"))]
+    return [store.read(key) for key in sorted(concepts.keys_under(store, f"{AREA}/{place}/"))]
 
 
 def reading_of(store, place):
@@ -221,7 +221,7 @@ def reading_of(store, place):
 
 def part_records(store, place):
     """The place's parts records (`parted`), oldest first."""
-    return [store.read(key) for key in sorted(store.objects.keys(f"{PARTS_AREA}/{place}/"))]
+    return [store.read(key) for key in sorted(concepts.keys_under(store, f"{PARTS_AREA}/{place}/"))]
 
 
 def asked_parts_of(store, record, current=False):
@@ -257,7 +257,7 @@ def with_parts(store, record):
 
 def light_records(store, place):
     """The place's concept light records (`lit`), oldest first."""
-    return [store.read(key) for key in sorted(store.objects.keys(f"{LIGHT_AREA}/{place}/"))]
+    return [store.read(key) for key in sorted(concepts.keys_under(store, f"{LIGHT_AREA}/{place}/"))]
 
 
 def concept_light(store, place):
@@ -824,7 +824,7 @@ def earlier_rows(store, place):
     """(Gemini's rows of the newest earlier reading of the place's picked draw, as it answered them, its key), or
     None without one: a reading by an older method is read again from its own rows, SAM 3 only (no Gemini call)."""
     sha = concepts.picked(store, place)
-    found = next((key for key in reversed(sorted(store.objects.keys(f"{AREA}/{place}/")))
+    found = next((key for key in reversed(sorted(concepts.keys_under(store, f"{AREA}/{place}/")))
                   if (record := store.read(key))["concept"] == sha and not record.get("refused")), None)
     if not found:
         return None

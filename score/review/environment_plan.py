@@ -498,7 +498,7 @@ def concept_timed(store, setting, site, on):
 # --- kept ---------------------------------------------------------------------------------------------------------
 
 def records(store, world, kind):
-    return [store.read(key) for key in sorted(store.objects.keys(f"{AREA}/{world}/{kind}/"))]
+    return [store.read(key) for key in sorted(concepts.keys_under(store, f"{AREA}/{world}/{kind}/"))]
 
 
 def concept_version(store):

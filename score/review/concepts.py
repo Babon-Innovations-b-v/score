@@ -137,9 +137,21 @@ def yes_key(place, at):
     return f"concept-{place}-{stamp_key(at)}"
 
 
+def keys_under(store, prefix):
+    """Every store key starting with `prefix`, sorted; on a folder store walked from the prefix's own folder, never the
+    whole store (FolderStore.keys walks every file, about 70 s a call on this PC's store, 2026-11-04)."""
+    root = getattr(store.objects, "root", None)
+    if root is None:
+        return store.objects.keys(prefix)
+    folder = root / prefix.rpartition("/")[0]
+    found = (path.relative_to(root).as_posix() for path in folder.rglob("*")
+             if path.is_file() and not path.name.endswith(".partial"))
+    return sorted(key for key in found if key.startswith(prefix))
+
+
 def records(store, place, kind):
     """The records of one place's `kind` (draws or picks), oldest first."""
-    return [store.read(key) for key in sorted(store.objects.keys(f"{AREA}/{place}/{kind}/"))]
+    return [store.read(key) for key in sorted(keys_under(store, f"{AREA}/{place}/{kind}/"))]
 
 
 def draws(store, place):
@@ -215,7 +227,7 @@ def plan_changed(store, place):
 
 def placed(store):
     """The places with a draw or a pick in the store."""
-    return sorted({key.split("/")[1] for key in store.objects.keys(f"{AREA}/")})
+    return sorted({key.split("/")[1] for key in keys_under(store, f"{AREA}/")})
 
 
 def pick(store, place, sha, by):
