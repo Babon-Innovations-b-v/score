@@ -516,6 +516,113 @@ def flights_laid(plan):
     return stairs, levels + landings(stairs, levels)
 
 
+# --- a held place fitted to its creator's shape (#72) ---------------------------------------------------------------
+
+CLOCKWISE = {"N": "E", "E": "S", "S": "W", "W": "N"}
+
+
+def mapped(plan, at, turn):
+    """`plan` with every point moved by `at` ([x, y] -> [x, y]): its outline, walls, openings, levels, stairs, roofs,
+    terrain, inside places, keep-clear zones, standing spots, section and doors; each thing's middle moved and its
+    own size kept (turned a quarter clockwise with `turn`: its size, facing, angles and sides too); the walls' item and
+    the keep-clear zones span their moved corners. Its w and d are the moved outline's box."""
+    def each(points):
+        return [[round(value, 3) for value in at(point)] for point in points or []]
+
+    def boxed(box):
+        corners = numpy.asarray(each([box[:2], [box[0] + box[2], box[1] + box[3]]]))
+        low, high = corners.min(axis=0), corners.max(axis=0)
+        return [round(float(value), 3) for value in (*low, *(high - low))]
+
+    def item_of(item):
+        name, x, y, wide, deep, facing, kind = item
+        if kind == "zone" or name == plan_checks.WALLS_ITEM:
+            return [name, *boxed([x, y, wide, deep]), facing, kind]
+        middle = at([x + wide / 2, y + deep / 2])
+        wide, deep = (deep, wide) if turn else (wide, deep)
+        return [name, round(middle[0] - wide / 2, 3), round(middle[1] - deep / 2, 3), wide, deep,
+                CLOCKWISE.get(facing, facing) if turn else facing, kind]
+
+    def side(door):
+        if not (door and door[0] in CLOCKWISE and number(door[1]) is not None):
+            return door
+        edge = {"N": [door[1], 0.0], "S": [door[1], plan["d"]], "W": [0.0, door[1]], "E": [plan["w"], door[1]]}
+        found, way = at(edge[door[0]]), CLOCKWISE[door[0]] if turn else door[0]
+        return [way, round(found[0] if way in "NS" else found[1], 3), *door[2:]]
+
+    def angled(entry, key="angle"):
+        return {**entry, key: round((entry[key] + 90.0) % 360.0, 3)} if turn and number(entry.get(key)) is not None \
+            else entry
+
+    def walled(wall):
+        found = {**wall, "from": each([wall["from"]])[0], "to": each([wall["to"]])[0]}
+        return {**found, "arc": {**wall["arc"], "centre": each([wall["arc"]["centre"]])[0]}} if wall.get("arc") \
+            else found
+
+    outline = each(plan_checks.outline_of(plan))
+    xs, ys = [point[0] for point in outline], [point[1] for point in outline]
+    terrain = plan.get("terrain") or {}
+    found = {**plan, "outline": outline, "w": round(max(xs) - min(xs), 3), "d": round(max(ys) - min(ys), 3),
+             "items": [item_of(item) for item in plan.get("items", [])],
+             "shapes": {name: {**shape, "points": [[round(1 - v, 4), u] for u, v in shape["points"]]}
+                        if turn and shape.get("points") else shape for name, shape in plan.get("shapes", {}).items()},
+             "walls": [walled(wall) for wall in plan.get("walls") or []],
+             "openings": [angled({**opening, "at": each([opening["at"]])[0]}) for opening in plan.get("openings") or []],
+             "levels": [{**level, "points": each(level["points"])} for level in plan.get("levels") or []],
+             "stairs": [angled({**stair, "points": each(stair["points"])}) for stair in plan.get("stairs") or []],
+             "roofs": [{**roof, "points": each(roof["points"]), "openings": [
+                 {**opening, "points": each(opening.get("points"))} for opening in roof.get("openings") or []]}
+                 for roof in plan.get("roofs") or []],
+             "terrain": {**terrain, **({"spots": [[*each([spot[:2]])[0], *spot[2:]] for spot in terrain["spots"]]}
+                                       if terrain.get("spots") else {}),
+                         **({"contours": [{**line, "points": each(line.get("points"))} for line in terrain["contours"]]}
+                            if terrain.get("contours") else {})},
+             "people": [[*each([spot[:2]])[0], *spot[2:]] for spot in plan.get("people") or []],
+             "doors": [side(door) for door in plan.get("doors") or []],
+             "leads": {(CLOCKWISE.get(key[0], key[0]) + key[1:]) if turn else key: lead
+                       for key, lead in (plan.get("leads") or {}).items()}}
+    if plan.get("holds"):
+        found["holds"] = [{**hold, **dict(zip("xywd", boxed([hold["x"], hold["y"], hold["w"], hold["d"]])))}
+                          for hold in plan["holds"]]
+    if number((plan.get("section") or {}).get("y")) is not None:
+        found["section"] = {**plan["section"], "y": round(found["d"] / 2, 3) if turn else
+                            round(at([0.0, plan["section"]["y"]])[1], 3)}
+    return found
+
+
+def turned_quarter(plan):
+    """`plan` turned a quarter clockwise, its north-west corner still at 0, 0 (x, y -> d - y, x)."""
+    return mapped(plan, lambda point: [plan["d"] - point[1], point[0]], True)
+
+
+def scaled_plan(plan, along_x, along_y):
+    """`plan`'s layout scaled `along_x` east to west and `along_y` north to south, its things at their own size."""
+    return mapped(plan, lambda point: [point[0] * along_x, point[1] * along_y], False)
+
+
+def fitted(plan, shape):
+    """`plan` with its creator's shape as its `held` ({w, d, from}); fitted to it when its outline is off it by more
+    than plan_checks.SHAPE_SLACK on an axis: turned a quarter first when its proportions run the other way and turned
+    it is nearer, then its layout scaled to the shape on each axis, its things kept at their own size, the fit said
+    in `held.fitted` (from, turned, scale) and in its fixes. No shape: the plan as it is."""
+    if not shape:
+        return plan
+    held = {key: shape[key] for key in ("w", "d", "from") if key in shape}
+    off = plan_checks.shape_off(plan["w"], plan["d"], shape)
+    if off <= plan_checks.SHAPE_SLACK:
+        return {**plan, "held": held}
+    turn = plan_checks.shape_off(plan["d"], plan["w"], shape) < off and (plan["w"] - plan["d"]) * (
+        shape["w"] - shape["d"]) < 0
+    found = turned_quarter(plan) if turn else plan
+    along_x, along_y = shape["w"] / found["w"], shape["d"] / found["d"]
+    found = scaled_plan(found, along_x, along_y)
+    said = (f"fitted to its shape {shape['w']:g} x {shape['d']:g} m from {plan['w']:g} x {plan['d']:g} m"
+            + (", turned a quarter clockwise" if turn else "") + f", its layout scaled {along_x:.3f} x {along_y:.3f}")
+    return {**found, "w": shape["w"], "d": shape["d"], "fixes": [*plan.get("fixes", []), said],
+            "held": {**held, "fitted": {"from": [plan["w"], plan["d"]], "turned": turn,
+                                        "scale": [round(along_x, 4), round(along_y, 4)]}}}
+
+
 def roof_of(roof):
     if not isinstance(roof, dict) or not points(roof.get("points")) or number(roof.get("eave")) is None:
         return None
@@ -833,10 +940,11 @@ def creator_laid(plan):
     return set(rooms), gaps
 
 
-def plan_from(answer, skeleton, inventory):
+def plan_from(answer, skeleton, inventory, shape=None):
     """The written plan: the skeleton (its outline box, doors, leads, lamps, elements, the stage table's keys) with the
-    answer's items, zones, inside places, standing spots and architecture, and every gap: the skeleton's that still
-    hold, what the answer left off the schema, and the free checks' (plan_checks.checked)."""
+    answer's items, zones, inside places, standing spots and architecture, fitted to its creator's `shape` when it
+    has one (`fitted`), its flights laid (`flights_laid`), and every gap: the skeleton's that still hold, what the
+    answer left off the schema, and the free checks' (plan_checks.checked)."""
     if not isinstance(answer, dict):
         raise Refused("the answer is no JSON object")
     plan = dict(skeleton)
@@ -858,7 +966,6 @@ def plan_from(answer, skeleton, inventory):
                        ("roofs", roof_of)):
         plan[key], off = listed(answer, key, check)
         dropped += [{"item": key, "why": f"{off} off the schema"}] if off else []
-    plan["stairs"], plan["levels"] = flights_laid(plan)
     # the skeleton's lamps, beams and leaves on rows this concept lacks are left out of it already: no gap of his
     plan["dropped"] = dropped + [{"item": gap["item"], "why": gap["words"]} for gap in skeleton.get("gaps", [])
                                  if gap["kind"] != "size"]
@@ -868,6 +975,8 @@ def plan_from(answer, skeleton, inventory):
     plan["structure"] = structure_of(answer, inventory)
     said_beyond = answer.get("beyond") if isinstance(answer.get("beyond"), list) else []
     plan["beyond"] = [row["id"] for row in inventory.get("rows", []) if row["id"] in said_beyond]
+    plan = fitted(plan, shape)  # a held place off its creator's shape fitted to it (#72), before its flights are laid
+    plan["stairs"], plan["levels"] = flights_laid(plan)
     plan["gaps"] = hold_gaps + plan_checks.checked(plan, inventory, plan["structure"])
     return plan
 
@@ -1046,7 +1155,7 @@ def written_one(store, place, by, folder, ask):
     try:
         answer, skeleton, record["measured"] = measured(json.loads(reading.answer_text(response)), skeleton,
                                                          inventory, plans.holder_of(store, place) is not None)
-        record["plan"] = plan_from(answer, skeleton, inventory)
+        record["plan"] = plan_from(answer, skeleton, inventory, plans.creator_shape(place))
     except (ValueError, Refused) as refused:
         record["refused"] = f"the plan answer is no plan: {str(refused)[:200]}"
         return kept(store, record)

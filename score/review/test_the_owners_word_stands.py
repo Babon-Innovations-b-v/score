@@ -331,6 +331,14 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     plan_drawing.py (2026-11-04): `outline=(OUTLINE + ("" if inside else OPEN))` made `outline=OUTLINE`, or ASKED's
     open-ground outline sentence dropped
     concepts.py (2026-11-04): keys_under's `root / prefix.rpartition("/")[0]` made `root / prefix`
+    plan_checks.py (2026-11-05, #72): shape_gaps' `if not held or held.get("fitted") or shape_off(plan["w"],
+    plan["d"], held) <= SHAPE_SLACK:` made `if True:`
+    plan_writing.py (2026-11-05, #72): fitted's `found = turned_quarter(plan) if turn else plan` made `found = plan`,
+    or mapped's item_of `middle = at([x + wide / 2, y + deep / 2])` made `middle = at([x, y])`
+    plan_drawing.py (2026-11-05, #72): `OPEN + strip_of(place)` made `OPEN`
+    plans_pass.py (2026-11-05, #87): laid_again's `stairs, levels = plan_writing.flights_laid(answer)` made `stairs,
+    levels = answer.get("stairs") or [], answer.get("levels") or []`
+    plans.py (2026-11-05, #72): newest_edit's `and found[-1].get("plan") is not None` dropped
 - test_the_answer_is_a_plan_of_the_stage_tables_schema_and_each_failed_check_a_named_gap:
     plan_writing.py (2026-11-04, #72): write_now's `if again else to_write(store, places)` made `to_write(...)` alone
 - test_a_footprint_answered_as_box_2d_is_measured_from_its_box:
@@ -2726,6 +2734,42 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     # a prefix walk gives the keys a whole-store walk gives, a part of a folder's name too
     for prefix in ("concepts/", "concepts/sh", "plans/shed/", "nothing/"):
         assert concepts.keys_under(store, prefix) == store.objects.keys(prefix)
+    # a held place off its creator's shape by more than SHAPE_SLACK on an axis is fitted to it, its things at their own
+    # size, and one not fitted is a gap (#72: the flat written 4.78 x 4.78 m for its 6 x 5 m inside)
+    room = {"w": 4.78, "d": 4.78, "outline": [[0, 0], [4.78, 0], [4.78, 4.78], [0, 4.78]], "rows": {"BED 1": ["bed"]},
+            "items": [["BED 1", 1.0, 1.0, 2.0, 1.0, "E", "item"]], "doors": [["E", 2.39, 0.9, "DOOR"]],
+            "leads": {"E": {"to": "stairwell"}}}
+    shape = {"w": 6.0, "d": 5.0, "from": "the kit's flat"}
+    assert [gap["kind"] for gap in plan_checks.shape_gaps({**room, "held": shape})] == ["shape"]
+    fit = plan_writing.fitted(room, shape)
+    assert (fit["w"], fit["d"], fit["held"]["fitted"]["scale"]) == (6.0, 5.0, [1.2552, 1.046]), fit["held"]
+    assert fit["items"][0][1:] == [1.51, 1.069, 2.0, 1.0, "E", "item"] and fit["doors"] == [["E", 2.5, 0.9, "DOOR"]]
+    assert not plan_checks.shape_gaps(fit) and "fitted" not in plan_writing.fitted(fit, shape)["held"]
+    # one whose proportions run the other way is turned a quarter first (the street drawn east to west for its 8 x
+    # 36 m strip north to south): its things, facings, doors and leads with it
+    street = {"w": 10.0, "d": 6.0, "outline": [[0, 0], [10.0, 0], [10.0, 6.0], [0, 6.0]], "rows": {},
+              "items": [["CAR 1", 0.0, 0.0, 4.0, 2.0, "E", "item"]], "doors": [["N", 2.0, 3.0, "GATE"]],
+              "leads": {"N": {"to": "square"}}}
+    turned = plan_writing.fitted(street, {"w": 8.0, "d": 36.0})
+    assert turned["held"]["fitted"]["turned"] and (turned["w"], turned["d"]) == (8.0, 36.0)
+    assert turned["items"][0][1:6] == [5.667, 5.2, 2.0, 4.0, "S"], turned["items"]
+    assert turned["doors"] == [["E", 7.2, 3.0, "GATE"]] and list(turned["leads"]) == ["E"]
+    # an open place with a shape is told its strip's metres and the way it runs in its drawing's wording
+    monkeypatch.setattr(plan_drawing.plans, "creator_shape", lambda place, path=None: {"w": 8.0, "d": 36.0})
+    assert "36 m from north to south, its long side running north to south" in plan_drawing.wording_of(store, "shed")
+    # a kept writing is laid again by the writer's free steps: its flights built from their rises (#87)
+    core = {"w": 2.8, "d": 5.0, "doors": [], "items": [], "rows": {}, "levels": [], "outline": [],
+            "walls": [{"from": [0, 0], "to": [2.8, 0], "thick": 0.2}, {"from": [2.8, 0], "to": [2.8, 5.0], "thick": 0.2},
+                      {"from": [2.8, 5.0], "to": [0, 5.0], "thick": 0.2}, {"from": [0, 5.0], "to": [0, 0], "thick": 0.2}],
+            "stairs": [{"kind": "stair", "points": [[0.2, 2.0], [1.4, 2.0], [1.4, 3.0], [0.2, 3.0]], "from": 0.0,
+                        "to": 1.5, "angle": 270.0, "steps": 9}]}
+    laid, said = plans_pass.laid_again(core, {"rows": []}, None)
+    assert plan_checks.stair_gaps(core) and not plan_checks.stair_gaps(laid) and "1 flights built" in said[0], said
+    # his edit replaced by its writing on his yes in chat: the plan shown is the one made without him again
+    assert plans.current(store, "yard")["how"] == "edited"
+    plans.edit_replaced(store, "yard", "an agent, on his yes", {"words": "Replace my edit", "question": "Replace?",
+                                                                 "at": "2026-11-04T14:15"})
+    assert plans.newest_edit(store, "yard") is None and plans.current(store, "yard")["how"] != "edited"
 
 
 # --- plan writing and its free checks: each failure a named gap -------------------------------------------------------

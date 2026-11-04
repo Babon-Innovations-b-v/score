@@ -28,6 +28,10 @@ it alone re-fixes (free) is parted before the keep in the pass itself (`parted_f
 once, from the parted writing, never from the unparted one a pass earlier. Here, not in plan_fixes.py, which is in the code version of every stage that
 reads plans.py (an edit to it re-keyed 74 paid rows, `score.stages.moved`, 2026-10-26).
 
+`python -m score.review.plans_pass refit <place> [--from <at>]` makes a place's writing (in force, or the one made at
+`--from`) again by today's writer steps that need no call (`refit`: fitted to its creator's shape, its flights laid),
+free, kept as the writing in force: the stairwell's writing of 2026-11-02 laid again after a later writing went wrong.
+
 Before it, every place of the environment (stages.places: each scene whose design is done) with no kept plan gets one
 (`restored`): `keep` walks only the kept plans and the scene tree, so a scene outside the tree whose kept plan was once
 taken out (the wreck, 2026-10-24) never had it back, and prepare took its hand-in and surface data out every pass.
@@ -298,6 +302,43 @@ def refixed(store, place, by, ask, free=False):
             "euros": round(sum(call.get("euros", 0.0) for call in calls), 6), "calls": calls, "plan": plan})
 
 
+def laid_again(plan, inventory, shape):
+    """(the plan with today's writer steps that need no call made again, what changed said): fitted to its creator's
+    `shape` (plan_writing.fitted) and its flights laid (plan_writing.flights_laid), its gaps checked again, each left
+    saying why (#72, #87: the stairwell's kept writing of 2026-11-02 had 56-degree flights, the flat's of 2026-11-04 a
+    4.78 x 4.78 m outline for its 6 x 5 m inside)."""
+    answer = plan_writing.fitted(copy.deepcopy(plan), shape)
+    said = answer.get("fixes", [])[len(plan.get("fixes", [])):]
+    stairs, levels = plan_writing.flights_laid(answer)
+    if stairs != (answer.get("stairs") or []) or levels != (answer.get("levels") or []):
+        steep = sum(1 for gap in plan_checks.stair_gaps(answer) if "degrees" in gap["words"])
+        answer = {**answer, "stairs": stairs, "levels": levels}
+        said = [*said, f"{len(stairs)} flights built from their rises and laid inside the walls apart ({steep} were "
+                       f"steeper than {plan_checks.STEEPEST:g} degrees), {len(levels) - len(plan.get('levels') or [])} "
+                       f"landings added"]
+    answer = {**answer, "fixes": [*plan.get("fixes", []), *said]}
+    answer["gaps"] = plan_fixes.why_left(plan_fixes.open_gaps(answer, inventory))
+    return answer, said
+
+
+def refit(store, place, by, written_at=None):
+    """`place`'s writing in force, or its writing made at `written_at` (a kept one a later writing went wrong over),
+    made again by `laid_again`, free, and kept as a new writing of the same lock, reading and method under the
+    place's writing lock, so it is the writing in force; None when nothing changed."""
+    with locked(store.cache / plan_writing.AREA / "locks" / f"{place}.lock"):
+        writing = next((found for found in plan_writing.writings(store, place) if found["at"] == written_at), None) \
+            if written_at else plan_writing.written_of(store, place)
+        if writing is None or writing.get("refused"):
+            raise ValueError(f"{place} has no writing {'made at ' + written_at if written_at else 'in force'}")
+        plan, said = laid_again(writing["plan"], plans.inventory_of(store, place), plans.creator_shape(place))
+        if not said:
+            return None
+        return plan_writing.kept(store, {
+            **{key: writing[key] for key in ("place", "concept", "reading", "method", "drawing", "measured")
+               if key in writing}, "by": by, "at": concepts.now(), "drawing_euros": 0.0, "fixed_from": writing["at"],
+            "euros": 0.0, "calls": [], "plan": plan})
+
+
 def fix_main(places):
     """Fix `places` again under the plan-writing allowance (the store SCORE_SPEND_STORE names, plan_writing.started's);
     one line a place fixed; its exit code."""
@@ -337,5 +378,22 @@ def main():
     return code
 
 
+def refit_main(argv):
+    """`refit <place> [--from <a writing's at>]`: `refit` in the framework's store, free; one line."""
+    import argparse
+    parser = argparse.ArgumentParser(description=refit.__doc__.split("\n")[0])
+    parser.add_argument("place")
+    parser.add_argument("--from", dest="written_at")
+    parser.add_argument("--by", default="the free writer steps (plans_pass refit)")
+    options = parser.parse_args(argv)
+    install()
+    record = refit(Store.default(), options.place, options.by, options.written_at)
+    plan = record and record["plan"]
+    print(f"{options.place}: " + (f"{plan['w']:g} x {plan['d']:g} m, {len(plan['stairs'] or [])} flights, "
+                                  f"{len(plan['gaps'])} gaps left, kept at {record['at']}" if record else "unchanged"))
+    return 0
+
+
 if __name__ == "__main__":
-    sys.exit(fix_main(sys.argv[2:]) if sys.argv[1:2] == ["fix"] else main())
+    sys.exit(fix_main(sys.argv[2:]) if sys.argv[1:2] == ["fix"] else refit_main(sys.argv[2:])
+             if sys.argv[1:2] == ["refit"] else main())

@@ -33,6 +33,11 @@ OPEN = (" This place is open ground: draw only its own ground (its road, pavemen
         "it, end to end, as large as the picture allows with white paper round it; a building along it is only the "
         "thin strip of its front wall on this ground's edge, never its rooms or its inside; draw nothing of the second "
         "picture outside the yellow box, no other place and none of the place holding it.")
+# An open place with a creator's shape (data/places/shapes.json) is told it: the street, an 8 x 36 m strip running north
+# to south, was drawn as the Square's ground laid east to west and outlined 10.09 x 6.68 m (2026-11-04, #72).
+STRIP = (" Its ground is one strip {w:g} m from west to east and {d:g} m from north to south, its long side running "
+         "{long}, about {ratio:.1f} times as long as it is wide: draw it as that one strip at those proportions, its "
+         "long side {across} on your picture, and only that strip, nothing of the ground beyond its ends or sides.")
 # a part the creator planned is drawn at the plan's own size (creator data wins; the owner, 2026-10-21)
 PLANNED_SIZE = " ({long:g} m long, {wide:.1f} m wide: draw it at exactly this size)"
 # The frame every drawing is drawn in (Nano Banana Pro's aspect ratio), a held place's too: framed to its box on the
@@ -79,7 +84,19 @@ def wording_of(store, place):
     return WORDING.format(name=concepts.name_of(place), kind="floor plan" if inside else "roof plan",
                           seen=INSIDE if inside else OUTSIDE, parts=parts_of(store, place),
                           orientation=FROM_SOUTH_EAST if from_south_east(store, place) else NEAR_BOTTOM,
-                          outline=(OUTLINE + ("" if inside else OPEN)) if held else "")
+                          outline=(OUTLINE + ("" if inside else OPEN + strip_of(place))) if held else "")
+
+
+def strip_of(place):
+    """What an open place with a creator's shape is told of it (STRIP: its metres, the way its long side runs and its
+    proportions); "" with none."""
+    shape = plans.creator_shape(place)
+    if not shape:
+        return ""
+    north = shape["d"] >= shape["w"]
+    return STRIP.format(w=shape["w"], d=shape["d"], long="north to south" if north else "west to east",
+                        ratio=max(shape["w"], shape["d"]) / min(shape["w"], shape["d"]),
+                        across="top to bottom" if north else "left to right")
 
 
 def from_south_east(store, place):
