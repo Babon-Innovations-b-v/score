@@ -508,7 +508,10 @@ def test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model
         `            base = 0.0`
     Break: score/stages/scene_record/writer.py: `return [along(path, (number + 0.5) / pieces) for number in
         range(pieces)]`
-        -> `return [along(path, 0.5) for number in range(pieces)]`"""
+        -> `return [along(path, 0.5) for number in range(pieces)]`
+    2026-11-04: the lab's 10 pipes on 6 plan items laid 6. A row counting 5 on two items lays 3 and 2.
+    Break: score/stages/scene_record/writer.py pieces_of: `for turn in range(max(short, 0)):` -> `for turn in
+        range(0):` (two pipes laid for five)"""
     from score.stages.scene_record import writer
     design = {**WRITTEN, "items": [*WRITTEN["items"], ["RAIL", 1.0, 4.0, 3.0, 1.0, None, "item"]],
               "rows": {**WRITTEN["rows"], "RAIL": ["rail"]},
@@ -536,6 +539,14 @@ def test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model
     unsized = {**handin, "rows": [{**row, "size": None} if row["id"] == "rail" else row for row in handin["rows"]]}
     [rail] = [entry for entry in writer.design_objects(design, unsized) if entry["name"] == "rail_1"]
     assert "row rail has no size" in rail["waiting"], rail
+    pipes = {**design, "items": [*design["items"], ["PIPE 1", 5.0, 1.0, 1.0, 0.2, None, "item"],
+                                 ["PIPE 2", 5.0, 3.0, 1.0, 0.2, None, "item"]],
+             "rows": {**design["rows"], "PIPE 1": ["pipe"], "PIPE 2": ["pipe"]}}
+    piped = {"rows": [*handin["rows"], {"id": "pipe", "route": "prop", "size": [1.0, 0.1, 0.1], "count": 5}],
+             "objects": {**handin["objects"], "pipe": {"rows": ["pipe"]}}}
+    laid = writer.design_objects(pipes, piped)
+    assert [entry["from"].split(",")[0] for entry in laid if entry["row"] == "pipe"] == \
+        ["plan item 'PIPE 1'"] * 3 + ["plan item 'PIPE 2'"] * 2, laid
 
 
 def test_a_row_the_plan_lays_only_against_its_edge_stands_past_it_facing_in():

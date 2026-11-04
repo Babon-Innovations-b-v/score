@@ -411,19 +411,19 @@ def held(item, row, holder_row, holder_items, items, turn, room=None):
 
 
 def walls_of(plan):
-    """The plan's walls as straight pieces: a straight wall itself, an arc (the greenhouse's round wall) its
-    plan_checks.ROUND pieces round its centre."""
+    """The plan's walls as straight pieces: a straight wall itself, an arc (the greenhouse's round wall) the straight
+    pieces the shell builds it of (design_shell.written_lines: one each ARC_STEP, run from start up to end). 2026-11-04:
+    24 pieces an arc whatever its span, run backwards past 0 degrees, held workshop's wall things on 0.16 m chords of
+    a wall the shell does not build, and the assembly shrank them to those chords (a 1 m panel to 0.2 m)."""
     found = []
     for wall in plan.get("walls") or []:
         if "from" in wall and "to" in wall:
             found.append(wall)
         elif "arc" in wall:
-            arc = wall["arc"]
-            turns = numpy.radians(numpy.linspace(float(arc["start"]), float(arc["end"]), plan_checks.ROUND + 1))
-            line = [[round(float(arc["centre"][0]) + float(arc["radius"]) * math.cos(turn), 4),
-                     round(float(arc["centre"][1]) + float(arc["radius"]) * math.sin(turn), 4)] for turn in turns]
-            found += [{"from": first, "to": second, "thick": float(wall.get("thick") or design_shell.THICK)}
-                      for first, second in zip(line, line[1:])]
+            thick = float(wall.get("thick") or design_shell.THICK)
+            found += [{"from": [round(float(value), 4) for value in first],
+                       "to": [round(float(value), 4) for value in second], "thick": thick}
+                      for first, second in design_shell.written_lines(wall)]
     return found
 
 

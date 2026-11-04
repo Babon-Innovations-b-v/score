@@ -13,6 +13,8 @@ import json
 import pathlib
 import sys
 
+import numpy
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
 from score.review import holders, plan_checks  # noqa: E402
@@ -441,7 +443,23 @@ def test_a_wall_lamp_stands_on_its_wall_s_room_side():
     longest wall's middle, on the side of its line toward the plan's middle: walking it from (0, 0) to (0, 12) (y
     south), the room to +x is its line's side -1.
     Break: score/review/holders/__init__.py: `side = off_line(numpy.array([float(plan["w"]) / 2, float(plan["d"]) /
-        2]), wall)[1]` -> `side = 1`"""
+        2]), wall)[1]` -> `side = 1`
+    2026-11-04: workshop's wall things were held on 0.16 m chords of 24 an arc, run backwards past 0 degrees round a
+    wall the shell does not build, and the assembly shrank a 1 m panel to 0.2 m. A panel by a round wall drawn from
+    315 to 45 degrees (radius 5 about (10, 6)) is held on the piece the shell builds there: from 0 to 15 degrees, 1.31 m.
+    Break: score/review/holders/__init__.py walls_of: `for first, second in design_shell.written_lines(wall)]` ->
+        `for first, second in zip(*[[[10 + 5 * numpy.cos(turn), 6 + 5 * numpy.sin(turn)] for turn in
+        numpy.radians(numpy.linspace(315, 45, 25))][index:] for index in (0, 1)])]` (the old 24 pieces)"""
+    turn = numpy.radians(7.5)
+    middle = [10.0 + 4.6 * numpy.cos(turn), 6.0 + 4.6 * numpy.sin(turn)]
+    round_plan = plan_of([["PANEL 1", middle[0] - 0.1, middle[1] - 0.1, 0.2, 0.2, None, "item"]], {"PANEL 1": ["panel"]},
+                         walls=[{"arc": {"centre": [10.0, 6.0], "radius": 5.0, "start": 315.0, "end": 45.0},
+                                 "thick": 0.2}])
+    panel = by_row(holders.relations(round_plan, {"rows": [{"id": "panel", "noun": "panel", "anchor": "wall",
+                                                             "size": [1.0, 0.1, 1.0]}], "picture": PICTURE}))["panel"]
+    assert panel["how"] == "wall" and numpy.allclose(panel["wall"]["from"], [15.0, 6.0], atol=1e-3) and numpy.allclose(
+        panel["wall"]["to"], [10.0 + 5 * numpy.cos(numpy.radians(15)), 6.0 + 5 * numpy.sin(numpy.radians(15))],
+        atol=1e-3), panel
     rows = [{"id": "left_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
             {"id": "wall_lamp", "noun": "lamp", "anchor": "on:left_wall", "size": [0.3, 0.2, 0.3]}]
     plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"]],

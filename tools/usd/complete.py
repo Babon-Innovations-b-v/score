@@ -22,7 +22,8 @@ agent finishing while validations are stale). The requirements:
 
     stage         the stage was exported after the last change to its inputs (the inventory, the kit, the scene record,
                   the cast and the made models, as export.py recorded them in <stage folder>/inputs.json)
-    rows          every inventory row has its made model on the stage (an object of that row), or a written drop reason
+    rows          every inventory row has its made model on the stage (an object of that row), as many of its objects
+                  under /<place>/Objects as its reading counts where it stands there, or a written drop reason
                   (the row's `dropped`, or the row listed in the inventory's `held_back`); a backdrop row its hand-in
                   shows from another place of its scene (`shown`) has that place's object stood under its Places
     made_only     every visible mesh on the stage was made by the framework: a made model, a code builder's mesh or a
@@ -179,13 +180,27 @@ def unlaid_rows(inventory, laid):
             if row["id"] not in laid and not str(row.get("dropped", "")).strip() and row["id"] not in held_back]
 
 
+def short_rows(inventory, counts):
+    """Each inventory row whose objects stand on the stage (`counts`, {row: objects}, contents.object_counts) fewer
+    than its reading counts (its `count`), with no written drop reason: [{row, why}]. 2026-11-04: the lab's 10 pipes
+    stood as 6, and the rows check passed every row with one object."""
+    held_back = {row["id"] for row in inventory.get("held_back", []) if row.get("why_code") or row.get("why")}
+    return [{"row": row["id"], "why": f"{counts[row['id']]} objects of this row on the stage, its reading counts "
+                                      f"{int(row.get('count') or 1)}, and no written drop reason (`dropped`)"}
+            for row in inventory["rows"]
+            if 0 < counts.get(row["id"], 0) < int(row.get("count") or 1) and not str(row.get("dropped", "")).strip()
+            and row["id"] not in held_back]
+
+
 def rows_faults(stage_file, inventory, place, shown=None):
-    """Each inventory row with no object of the place's own on the stage (a shown place's never counts) and no
-    written drop reason: [{row, why}]. A backdrop row shown from another place of its scene (`shown`, shown_rows) is
-    made by the skyline when an object of that place's row stands in the place's Places (contents.shown_laid)."""
+    """Each inventory row with no object of the place's own on the stage (a shown place's never counts), or fewer of
+    its objects than its count (short_rows), and no written drop reason: [{row, why}]. A backdrop row shown from
+    another place of its scene (`shown`, shown_rows) is made by the skyline when an object of that place's row stands
+    in the place's Places (contents.shown_laid)."""
     from pxr import Usd
     opened = Usd.Stage.Open(str(stage_file))
-    return unlaid_rows(inventory, contents.laid_rows(opened, place) | contents.shown_laid(opened, place, shown or {}))
+    return unlaid_rows(inventory, contents.laid_rows(opened, place) | contents.shown_laid(opened, place, shown or {})) + \
+        short_rows(inventory, contents.object_counts(opened, place))
 
 
 def shown_rows(place):
