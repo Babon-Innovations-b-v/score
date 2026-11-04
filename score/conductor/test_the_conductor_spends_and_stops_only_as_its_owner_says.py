@@ -88,7 +88,7 @@ def test_a_grow_is_asked_for_a_waiting_run_once_no_run_is_live_and_no_latch_hold
     assert "free-only latch" in size.decide(waiting, 2, RECORD, 0, 100, True)[1]
 
 
-def test_a_shrink_comes_only_after_thirty_idle_minutes_at_the_batch_size():
+def test_a_shrink_comes_only_after_thirty_idle_minutes_at_the_batch_size(tmp_path):
     now = 10_000_000
     assert size.decide(IDLE, 16, RECORD, now - 29 * 60, now, False)[0] is None
     assert size.decide(IDLE, 16, RECORD, now - 31 * 60, now, False)[0] == size.SHRINK
@@ -96,6 +96,15 @@ def test_a_shrink_comes_only_after_thirty_idle_minutes_at_the_batch_size():
     for busy in ("claims", "running", "waiting", "parked", "frozen", "working"):
         found = size.decide({**IDLE, busy: 1}, 16, RECORD, 0, now, False)
         assert found[0] is None and busy in found[1], (busy, found)
+    # 2026-11-04: sync passes back to back held the clock at 0 all morning; a pass waits the shrink, never the clock
+    passing = {**IDLE, "passing": 1, "held": ["sync-pass-4242"]}
+    assert not size.is_busy(passing)
+    found = size.decide(passing, 16, RECORD, now - 31 * 60, now, False)
+    assert found[0] is None and "sync-pass-4242" in found[1], found
+    assert size.decide({**passing, "passing": 0, "held": []}, 16, RECORD, now - 31 * 60, now, False)[0] == size.SHRINK
+    with conductor.holding("sync-pass", tmp_path / "holds"), conductor.holding("reading", tmp_path / "holds"):
+        view = size.busy(tmp_path / "runs", tmp_path / "parked", tmp_path / "frozen", tmp_path / "holds")
+    assert (view["working"], view["passing"]) == (1, 1) and len(view["held"]) == 2, view
 
 
 def test_the_idle_time_counts_from_the_last_busy_pass_and_marks_its_resize(home, as_conductor):
@@ -166,14 +175,15 @@ def test_busy_counts_claims_waiting_runs_parked_machines_and_frozen_copies_in_us
     (tmp_path / "parked" / "machine.json").write_text("{}")
     monkeypatch.chdir(tmp_path / "frozen" / "live-copy")
     view = size.busy(tmp_path / "runs", tmp_path / "parked", tmp_path / "frozen", tmp_path / "holds")
-    assert view == {"claims": 1, "running": 0, "waiting": 1, "wanted": 16, "parked": 1, "frozen": 1, "working": 0}
+    assert view == {"claims": 1, "running": 0, "waiting": 1, "wanted": 16, "parked": 1, "frozen": 1, "working": 0,
+                    "passing": 0, "held": []}
 
 
 def test_a_hold_keeps_the_machine_busy_until_its_process_lets_go(tmp_path, monkeypatch):
     """2026-10-25: a shrink cut the first sync pass after a boot. A holder killed mid-way holds nothing."""
     with conductor.holding("sync-pass", tmp_path):
         assert conductor.holds(tmp_path) == [f"sync-pass-{os.getpid()}"]
-        assert size.busy(tmp_path / "runs", tmp_path / "parked", tmp_path / "frozen", tmp_path)["working"] == 1
+        assert size.busy(tmp_path / "runs", tmp_path / "parked", tmp_path / "frozen", tmp_path)["passing"] == 1  # a pass waits the shrink (decide)
     assert conductor.holds(tmp_path) == [] and not list(tmp_path.glob("*.lock"))
     code = (f"import os, sys, pathlib; sys.path.insert(0, {str(REPO)!r}); from score import conductor; "
             f"h = conductor.holding('film-preview', pathlib.Path({str(tmp_path)!r})); h.__enter__(); "
@@ -406,7 +416,7 @@ def test_the_health_has_every_field_the_machine_card_reads_and_is_written_whole(
             {"at": f"2026-10-22T{stamp[:2]}:{stamp[2:]}:00+00:00", "kind": kind, "ok": ok}))
     found = health.read(properties)
     assert set(found) == {"at", "machine", "size", "state", "cores", "memory_total", "memory_available", "memory",
-                          "disk_free", "disk", "load", "units", "runs_active", "runs_waiting", "parked_machines",
+                          "disk_free", "disk", "load", "units", "runs_active", "runs_waiting", "parked_machines", "holds",
                           "last_backup", "backup", "last_sync", "sync", "free_only", "notes", "code"}
     assert found["last_backup"] == found["backup"] == {"at": "2026-10-22T09:30:00+00:00", "ok": True}
     assert found["memory_total"] >= found["memory_available"] > 0 and len(found["load"]) == 3

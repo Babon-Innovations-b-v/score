@@ -112,6 +112,7 @@ def read(properties=unit_properties):
             "load": [round(value, 2) for value in os.getloadavg()],
             "units": {name: unit_state(units, properties) for name, units in UNITS.items()},
             "runs_active": view["claims"], "runs_waiting": view["waiting"], "parked_machines": view["parked"],
+            "holds": view["held"],
             "last_backup": backup, "backup": backup, "last_sync": sync, "sync": sync,
             "free_only": conductor.free_only(), "notes": notes() + ([low] if low else []), "code": code()}
 
