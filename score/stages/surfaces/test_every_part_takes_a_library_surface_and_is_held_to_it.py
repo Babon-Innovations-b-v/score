@@ -87,6 +87,12 @@ tests it turned red:
 - carry.py: `if not str(proof.get("no-ops", {}).get(name, "")).strip()]` -> `if False]`  ->
   a_proof_carries_only_when_it_names_every_changed_file_for_these_code_versions
 - carry.py: `str(folder), commit],` -> `str(folder), "HEAD"],`  -> a_proof_speaks_from_the_code_rows_had_at_its_commit
+- props/same_content.py: `return PROPS_HOME.joinpath(*parts[index + 1:])` -> `return path`  -> a closeup whose
+  props-inputs moved by path text alone is not kept: a_proof_carries_only_when_it_names_every_changed_file_for_these_
+  code_versions (content_keeps_only_the_same_pictures)
+- props/same_content.py: `return files[name]` -> `return str(path)`  -> one whose picture really changed is kept: the
+  same test; or its `if not files.get(name): raise` dropped (a record with no hash read by today's bytes on disk)
+- carry.py: `if contents[0] != contents[1]:` -> `if False:`  -> the same test
 - finish_parts.py: `found[reached] = face_label[source[reached]]` -> `found[reached] = 0`  ->
   unvoted_faces_take_the_nearest_voted_label_along_the_surface
 - finish_parts.py: `host = np.flatnonzero(hosts & (face_label == finish))` -> `host = np.flatnonzero(hosts)`  ->
@@ -1262,6 +1268,70 @@ def test_a_proof_carries_only_when_it_names_every_changed_file_for_these_code_ve
         assert carry.proof_fault(StubRunner(proof), row, record).startswith("its proof does not say why")
         proof.write_text(json.dumps({**full, "code now": "another code"}))
         assert carry.proof_fault(StubRunner(proof), row, record) == "its proof is for other code versions"
+    finally:
+        shutil.rmtree(folder)
+    content_keeps_only_the_same_pictures()
+
+
+def props_inputs_output(store, concept, picture_sha, key):
+    """A props-inputs@hub output whose one row names `concept`, recorded under `key` as read from a picture of
+    `picture_sha`; its output."""
+    folder = pathlib.Path(tempfile.mkdtemp())
+    row = {"id": "desk", "scene": "hub", "view": "v1", "concept": concept, "drawn": None, "layer": "objects"}
+    (folder / "rows.json").write_text(json.dumps({"rows": [row], "not_in_inventory": []}))
+    (folder / "contract.json").write_text("{}")
+    output = store.put_tree(folder)
+    store.write_record("props-inputs@hub", key, {"output": output, "files": {"view v1": picture_sha},
+                                                 "finished": "2026-11-04T00:00"})
+    return output
+
+
+def content_case(then_concept, now_concept, now_sha):
+    """(changes_by_content of closeup@hub, its runner, keyed and record) in a store of its own: the accepted close-up
+    made from a props-inputs output naming `then_concept` (a picture read as "the concept"), its key now after one
+    naming `now_concept` read as `now_sha`; its code moved by closeup_row.py alone."""
+    store = a_store()
+    then = props_inputs_output(store, then_concept, text_hash("the concept"), "k-then")
+    now = props_inputs_output(store, now_concept, now_sha, "k-now")
+    record = {**a_record(), "node": "closeup@hub", "after": {"props-inputs": then}, "finished": "2026-11-04T00:00"}
+    store.write_record("closeup@hub", record["key"], record)
+    store.write_accept("closeup@hub", {"output": record["output"], "key": record["key"], "at": "2026-11-04T00:00"})
+
+    class Runner(StubRunner):
+        def changes_since(self, stage, place, keyed):
+            return (record, ["score/stages/props/closeup_row.py"]) if keyed["after"] == record["after"] else None
+    runner = Runner()
+    runner.store = store
+    keyed = {**record, "key": "n" * 64, "after": {"props-inputs": now}}
+    return carry.changes_by_content(runner, ROWS["closeup"], "hub", keyed), runner, keyed, record
+
+
+def content_keeps_only_the_same_pictures():
+    """A closeup whose props-inputs moved by path text alone (655e0465, #75: an absolute path into a run's frozen
+    home, now relative to PROPS_HOME) is kept, its record naming the content proof; one whose picture really
+    changed, or whose path resolves to no file, is not."""
+    (PROPS_HOME / "work").mkdir(parents=True, exist_ok=True)
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="carry-content-", dir=PROPS_HOME / "work"))
+    try:
+        picture = folder / "hub.png"
+        picture.write_bytes(b"the concept")
+        relative = str(picture.relative_to(PROPS_HOME))
+        frozen = str(PROPS_HOME / "frozen/20261031-021736-1.home" / relative)
+        (found, content, why), runner, keyed, record = content_case(frozen, relative, text_hash("the concept"))
+        assert why is None and found == (record, ["score/stages/props/closeup_row.py"]), why
+        assert content == {"props-inputs": {"from": record["after"]["props-inputs"],
+                                            "to": keyed["after"]["props-inputs"],
+                                            "rule": "score.stages.props.same_content.props_inputs"}}
+        proof = {"no-ops": {"score/stages/props/closeup_row.py": "reads the same pictures"}, "same content": content}
+        kept = carry.kept_by_content(runner, ROWS["closeup"], "hub", keyed, record, "no-op-n", proof)
+        assert runner.store.record("closeup@hub", keyed["key"]) == kept and kept["after"] == keyed["after"]
+        assert kept["carried"]["same content"] == content
+        assert content_case(frozen, relative, text_hash("another concept"))[0] == \
+            (None, None, "props-inputs's output holds other content (rows.json)")
+        why = content_case(frozen, "design/nowhere/hub.png", text_hash("the concept"))[0][2]
+        assert "resolves to no file" in why, why
+        why = content_case(frozen, relative, "")[0][2]  # the new record holds no hash: never read off the disk
+        assert "holds no hash" in why, why
     finally:
         shutil.rmtree(folder)
 
