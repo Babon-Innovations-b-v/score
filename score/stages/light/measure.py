@@ -15,6 +15,10 @@ import numpy as np
 from PIL import Image
 
 # The sky's pixels in the frame before: the top share of the picture, within this many levels of its commonest colour.
+# A colour cast is read on the mid-tones (lightness 0 to 255) and needs this many of them (set 2026-11-04, the light
+# audit's colour balance, before any look it judges was made).
+CAST_TONES = (25.0, 230.0)
+CAST_PIXELS = 500
 SKY_ROWS = 0.45
 SKY_NEAR = 14
 # Both channels of a sky's blue to red floored alike at one level, so a black sky reads as no hue (1), as a grey one
@@ -150,6 +154,24 @@ def sky_of(rgb, mask):
     return {"mean_rgb": [round(float(value), 1) for value in mean],
             "rise_to_horizon": round(float((light[low].mean() - light[high].mean()) / 255.0), 4),
             "blue_to_red": round(float(max(mean[2], HUE_FLOOR) / max(mean[0], HUE_FLOOR)), 4)}
+
+
+def surface_cast(rgb, sky=None):
+    """A picture's colour cast on its surfaces (all but `sky`, where the render met none): the mean colour of its
+    mid-tone pixels (lightness within CAST_TONES, 0 to 255, so black and blown pixels say nothing of a colour) scaled
+    to a mean of 128 levels, so only its balance of red, green and blue is left; None with under CAST_PIXELS of them."""
+    shown = np.ones(rgb.shape[:2], dtype=bool) if sky is None or sky.shape != rgb.shape[:2] else ~sky
+    light = lightness(rgb)
+    mid = shown & (light >= CAST_TONES[0]) & (light <= CAST_TONES[1])
+    if mid.sum() < CAST_PIXELS:
+        return None
+    mean = rgb[mid].mean(axis=0)
+    return [round(float(value), 1) for value in mean * 128.0 / max(float(mean.mean()), 1e-9)]
+
+
+def cast_gap(first, second):
+    """The largest of the three channels' differences between two casts (surface_cast), in levels."""
+    return round(float(np.abs(np.subtract(first, second)).max()), 1)
 
 
 def colour_gap(first, second):

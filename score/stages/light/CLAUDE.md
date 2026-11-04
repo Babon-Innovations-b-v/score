@@ -38,6 +38,14 @@ gates.
   hangar's floor in the ship's shadow, base's shaded walls), each blown lamp turned down, the floodlights last. A sun
   blowing a view past its concept is stepped down before the fill's sweep, only as far as that needs with the place
   and every view kept within (`mix.sun_down`; 2026-10-31: camp's sunlit shell, 2.2-4.3% blown in seven views).
+  A sun is the physics': never swept past `mix.SUN_MOST` (its physical strength), and a lamp-lit place (inside, its
+  concept's light showing no daylight: `light.lamp_lit`) has its suns at the sweep's floor while its lamps are swept;
+  the gate `light source` fails a sun past SUN_MOST and a lamp-lit place its own lamps give under
+  `mix.LAMP_SHARE_LEAST` of the light (2026-11-04, the light audit: hangar's sun at x19 in a night hangar, its
+  lamps 8%; airlock's, garage's, tube's and hub's lamps at the 1/32 floor). The gate `colour` holds the lit
+  surfaces' cast (`measure.surface_cast`: the mid-tones' balance, brightness taken out) within `CAST_MOST` levels of
+  the concept's (2026-11-04: the lab lit green by its screens, quarters' warm room cool). An inside place whose
+  views see sky has its sky judged too, against its sky rows' boxes on its concept (`row_skies`; camp's domes).
 - **The views come from the place's own scene record, never a copy** (#27, 2026-10-20: the demo's copies under
   `work/demo` were lost with the old disk and left eight ship places with no views): the light layer writes
   `views.json` from the record it reads (its accepted scene-record output where it has one), and the passes and the

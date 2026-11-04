@@ -31,6 +31,8 @@ holds, as three rows of the stage table.
     gates (light)  brightness      the place's brightness within BRIGHT_WITHIN of its concept's, each view within
                                    VIEW_WITHIN (mix.py has the rules)
                    lamps           no lamp on screen unlit, none blown out
+                   light source    no sun swept past its physical strength (mix.SUN_MOST); a lamp-lit place (inside,
+                                   its concept showing no daylight) lit at least mix.LAMP_SHARE_LEAST by its own lamps
                    sky elements    every element the sky calls for is in the layer: every body drawn with its face
                                    (its body-face-<body> row's), the day dome, the shafts
                    heads           floodlight heads facing the eye glow (halo, fill, beam, veil: the rules set on
@@ -39,9 +41,12 @@ holds, as three rows of the stage table.
                                    toward its sun (SHOWN_LEAST, LIT_LEAST, SUNWARD_LEVELS); where it stands and how
                                    big is the layer's sky bodies
                    sky             an outdoor place's sky within SKY_GAP_MOST levels of its concept's sky colour,
-                                   its blue to red within BLUE_TO_RED_WITHIN
+                                   its blue to red within BLUE_TO_RED_WITHIN; an inside place's too where its views
+                                   see sky, against its sky rows' boxes on its concept (row_skies; 2026-11-04: camp's
+                                   domes showed black space and no gate looked)
                    exposure        no view's surfaces more black or blown out than its concept (BLACK_OVER, BLOWN_OVER);
                                    its sky, where the render met no surface, left to the sky check
+                   colour          its surfaces' colour cast within CAST_MOST levels of its concept's (judge_colour)
                    stage_no_worse  the seed with the layer has no more placeholder or made-only faults than without
 
 The owner's plan for light is baked per-lamp layers mixed live (memory, project-sound-and-light-layers). This stage is
@@ -116,6 +121,13 @@ BLACK = 4.0 / 255.0
 BLOWN = 251.0 / 255.0
 BLACK_OVER = 0.05
 BLOWN_OVER = 0.02
+# A lit place's colour (2026-11-04, the light audit, set before any look it judges was made): the median over its views
+# of its surfaces' cast (measure.surface_cast: the mid-tones' balance of red, green and blue, brightness taken out)
+# within CAST_MOST levels, in its furthest channel, of its concept pictures' (their sky left out where the place is
+# outdoor). The audit's casts: lab lit green and red by its screens and indicators (green 1.12 against its concept's
+# neutral), quarters' warm orange room cool (blue to red 0.89 against 0.72), flat and stairwell far more orange (0.42
+# and 0.49 against about 1.0); every light gate judged brightness, black and blown alone.
+CAST_MOST = 12.0
 place_of = passes.place_of
 
 
@@ -381,13 +393,24 @@ def one_spot(groups, by_path):
     return found
 
 
-def strengths(place, passes_folder, lamps, layer_folder, record):
+def lamp_lit(light, record):
+    """Whether the place is lit by its own lamps as its concept shows it: an inside place (its record's) whose concept
+    (`light`, its reading's concept light) shows no daylight; None while its concept's light is not read."""
+    if not light:
+        return None
+    inside = bool(record.get("inside") or (record.get("environment") or {}).get("inside"))
+    return inside and not light["scene"]["daylight"]
+
+
+def strengths(place, passes_folder, lamps, layer_folder, record, light=None):
     """The sweep on the place's views (its passes, rendered on its light layer's views): (scales {group: scale},
     measures). Only a lamp those passes hold a group of is swept, in mix.py's order: the lamps; the suns (the fill
     with them) where the lamps cannot bring the place within its concept's brightness or their sweep stops at an end
     of its range; the suns stepped down while a view is more blown than its concept (mix.sun_down); the fill alone,
     the least that brings every view within and none more black or blown than its concept (mix.fill_sweep,
-    exposed_within); each blown lamp turned down."""
+    exposed_within); each blown lamp turned down. A sun is never swept past mix.SUN_MOST, and a lamp-lit place's
+    (lamp_lit: inside, its concept `light` showing no daylight) stands at the floor of mix.SCALES while its lamps are
+    swept (2026-11-04: hangar's sun at x19 in a night hangar)."""
     by_path = {lamp["path"]: lamp for lamp in lamps}
     groups = {group: path for group, path in groups_of(passes_folder).items() if path in by_path}
     rendered_views = view_passes(passes_folder, place)
@@ -397,12 +420,14 @@ def strengths(place, passes_folder, lamps, layer_folder, record):
     held = {group for passes_held, _ in views.values() for group in passes_held}
     swept = [group for group, path in groups.items()
              if not by_path[path]["shaft"] and not by_path[path].get("sun") and group in held]
-    scale = mix.sweep(views, swept, target)
-    scales = {group: (scale if group in swept else 1.0) for group in groups}
     suns = [group for group, path in groups.items() if by_path[path].get("sun") and group in held]
-    sun_scale = 1.0
+    lit_by_lamps = lamp_lit(light, record)
+    first = {group: float(mix.SCALES[0]) for group in suns} if lit_by_lamps and swept else {}
+    scale = mix.sweep(views, swept, target, first)
+    scales = {group: (scale if group in swept else first.get(group, 1.0)) for group in groups}
+    sun_scale = first[suns[0]] if first else 1.0
     if suns and (mix.pinned(scale) or not mix.within(views, scales, target)):  # the lamps cannot: the sky's light can
-        sun_scale = mix.sweep(views, suns, target, scales)
+        sun_scale = mix.sweep(views, suns, target, scales, mix.SUN_MOST)
         scales.update(dict.fromkeys(suns, sun_scale))
     fill = next((group for group in suns if by_path[groups[group]].get("fill")), None)
     concept = concept_extremes(place)
@@ -435,8 +460,13 @@ def strengths(place, passes_folder, lamps, layer_folder, record):
             lamp_found[groups[group]]["fault"] = entry["fault"]
     for group in sky_lit:
         lamp_found[groups[group]]["fault"] = mix.lamp_faults(mix.lamp_measures(views, scales, [group]), [])
+    real = [group for group in suns if group != fill]
+    share = mix.own_share(views, scales, swept)
     return scales, {"concept": round(target, 4), "swept_scale": scale, "swept": len(swept), "sun_scale": sun_scale,
                     "fill_scale": scales[fill] if fill else None,
+                    "source": {"lamp_lit": lit_by_lamps if swept else False, "lamp_share":
+                               None if share is None else round(share, 4),
+                               "sun_most": max((scales[group] for group in real), default=None)},
                     "before": {name: round(value, 4) for name, value in mix.brightness(views, {}).items()},
                     "after": {name: round(value, 4) for name, value in mix.brightness(views, scales).items()},
                     "lamps": dict(sorted(lamp_found.items(), key=lambda item: item[1]["group"]))}
@@ -512,7 +542,8 @@ def make_light(inputs, out, seed, params):
     layer_copied(layer_folder, out)
     found = json.loads((layer_folder / "lamps.json").read_text())
     record = passes.record_of(place, inputs)
-    scales, swept = strengths(place, passes_folder, found["lamps"], layer_folder, record)
+    light = sky.read(inputs["concept light"]) if "concept light" in inputs else None
+    scales, swept = strengths(place, passes_folder, found["lamps"], layer_folder, record, light)
     own = {lamp["path"] for lamp in found["lamps"]}
     by_group = {group: path for group, path in groups_of(passes_folder).items() if path in own}
     intensity = {lamp["path"]: lamp["intensity"] for lamp in found["lamps"]}
@@ -677,12 +708,36 @@ def concept_skies(place):
             "pictures": len(skies)}
 
 
-def sky_measures(place, out, passes_folder):
+def row_skies(place, inventory):
+    """The sky an inside place's concept shows through its openings: read on the boxes of its scene inventory's rows
+    anchored to the sky (a starry sky, a planet: `boxes`, the concept's pixels), as concept_skies reads one; None
+    where no such row has a box (its concept shows no sky to judge against)."""
+    rows = [row for row in (json.loads(pathlib.Path(inventory).read_text())["rows"] if inventory else [])
+            if row.get("anchor") == "sky" and row.get("boxes")]
+    pictures = concept_pictures(place)
+    if not rows or not designed(place) or not pictures:
+        return None
+    rgb = measure.picture(pictures[0])
+    mask = np.zeros(rgb.shape[:2], dtype=bool)
+    for row in rows:
+        for left, top, right, bottom in row["boxes"]:
+            mask[max(int(top), 0):int(bottom), max(int(left), 0):int(right)] = True
+    sky = measure.sky_of(rgb, mask)
+    return None if sky is None else {**sky, "pictures": 1, "from": "its sky rows' boxes"}
+
+
+def sees_sky(place, out, passes_folder):
+    """Whether any view's render met no surface over enough of its picture to read a sky (measure.sky_of's least)."""
+    return any(mask is not None and measure.sky_of(np.zeros((*mask.shape, 3)), mask) is not None
+               for mask in (sky_of(passes_folder, place, view) for view in rendered(out, place)))
+
+
+def sky_measures(place, out, passes_folder, concept=None):
     """An outdoor place's sky in every view, read where the render met no surface (its passes' `sky`), against its
-    concept pictures' (concept_skies). Never the top rows' commonest colour on a look: old_station's lit ground read
-    as its sky, 99.7 levels off its black one (2026-10-30). A view whose passes hold no mask (rendered before
-    2026-10-30) has no sky measured and says so (`masked` false)."""
-    concept = concept_skies(place)
+    concept pictures' (concept_skies; an inside place's `concept`, row_skies). Never the top rows' commonest colour on
+    a look: old_station's lit ground read as its sky, 99.7 levels off its black one (2026-10-30). A view whose passes
+    hold no mask (rendered before 2026-10-30) has no sky measured and says so (`masked` false)."""
+    concept = concept or concept_skies(place)
     found = []
     for view, path in sorted(rendered(out, place).items()):
         mask = sky_of(passes_folder, place, view)
@@ -706,8 +761,33 @@ def fault_measures(place, out, passes_folder, inputs):
         found["bodies"] = body_measures(place, out, passes_folder, balls, sun_way(out))
     if needs.outdoor(record, None):
         found["sky"] = sky_measures(place, out, passes_folder)
+    elif sees_sky(place, out, passes_folder):  # an inside place's sky through its glass and openings (2026-11-04: camp)
+        concept = row_skies(place, inputs.get("inventory"))
+        found["sky"] = sky_measures(place, out, passes_folder, concept) if concept else \
+            {"concept": None, "views": [], "inside": "its concept shows no sky (no sky row with a box)"}
     found["exposure"] = exposure_measures(place, out, passes_folder)
+    found["colour"] = colour_measures(place, out, passes_folder, needs.outdoor(record, None))
     return found
+
+
+def concept_cast(place, outdoor):
+    """The median cast (measure.surface_cast) of the place's concept pictures, their sky (measure.sky_pixels) left
+    out where the place stands outdoor (an inside concept's top rows are its ceiling); None with none read."""
+    casts = []
+    for path in concept_pictures(place):
+        rgb = measure.picture(path)
+        cast = measure.surface_cast(rgb, measure.sky_pixels(rgb) if outdoor else None)
+        if cast is not None:
+            casts.append(cast)
+    return [round(float(np.median([cast[channel] for cast in casts])), 1) for channel in range(3)] if casts else None
+
+
+def colour_measures(place, out, passes_folder, outdoor):
+    """Each view's surface cast at the measured strengths (its sky, where the render met no surface, left out) and its
+    concept pictures' (concept_cast)."""
+    return {"concept": concept_cast(place, outdoor),
+            "views": {view: measure.surface_cast(measure.picture(path), sky_of(passes_folder, place, view))
+                      for view, path in sorted(rendered(out, place).items())}}
 
 
 def extremes(luminance, sky=None):
@@ -825,6 +905,32 @@ def judge_brightness(output, inputs, evidence):
                    {"views_off": "lower"}, off)
 
 
+def judge_source(output, inputs, evidence):
+    """Where the place's light comes from (strengths' `source`): no sun swept past mix.SUN_MOST, its physical
+    strength; and a lamp-lit place (lamp_lit: inside, its concept showing no daylight) lit at least mix.LAMP_SHARE_LEAST
+    by its own lamps (mix.own_share), not by the sun through its openings or the fill (2026-11-04: hangar's lamps 8%
+    of its light, its sun x19; airlock's 0.5%). Unknown while its concept's light is not read or nothing is measured."""
+    found = measures_of(output)["brightness"].get("source")
+    if found is None:
+        return checks.Verdict("light source", checks.UNKNOWN, "the sweep measured no source (measured before "
+                                                               "2026-11-04)")
+    faults = []
+    if found["sun_most"] is not None and found["sun_most"] > mix.SUN_MOST + 1e-9:
+        faults.append(f"a sun swept to x{found['sun_most']:g}, past its physical strength (x{mix.SUN_MOST:g})")
+    if found["lamp_lit"] is None:
+        return checks.Verdict("light source", checks.UNKNOWN, "its concept's light is not read (python -m "
+                                                               "score.review.reading <place>)", findings=tuple(faults))
+    if found["lamp_lit"] and (found["lamp_share"] or 0.0) < mix.LAMP_SHARE_LEAST:
+        faults.append(f"its concept shows it lit by its lamps (inside, no daylight), but they give "
+                      f"{found['lamp_share'] or 0.0:.1%} of its light (at least {mix.LAMP_SHARE_LEAST:.0%})")
+    said = f"its lamps give {found['lamp_share']:.1%} of its light" if found["lamp_share"] is not None else \
+        "no lamp of its own measured"
+    return verdict("light source", not faults, "; ".join(faults) or f"{said}; " + (
+        "its concept shows it lamp-lit" if found["lamp_lit"] else "its concept shows daylight or it stands outside") +
+        (f"; its suns at most x{found['sun_most']:g}" if found["sun_most"] is not None else ""),
+        {"lamp_share": found["lamp_share"], "faults": len(faults)}, {"faults": "lower"}, faults)
+
+
 def judge_lamps(output, inputs, evidence):
     """No lamp on screen lights nothing, none is blown out at the measured strengths (mix.py's rules)."""
     lamps = {path: entry for path, entry in measures_of(output)["brightness"]["lamps"].items()
@@ -920,6 +1026,8 @@ def judge_sky(output, inputs, evidence):
     if "sky" not in found:
         return verdict("sky", True, "no open sky over this place", {})
     concept = found["sky"]["concept"]
+    if concept is None and found["sky"].get("inside"):
+        return verdict("sky", True, f"an inside place whose views see sky: {found['sky']['inside']}", {})
     if concept is None:
         return checks.Verdict("sky", checks.UNKNOWN, "no concept picture of the place shows its sky")
     views = [view for view in found["sky"]["views"] if view["after"] and "gap_to_concept" in view["after"]]
@@ -960,6 +1068,22 @@ def judge_exposure(output, inputs, evidence):
                    {"black": "lower", "blown": "lower", "views_off": "lower"}, off)
 
 
+def judge_colour(output, inputs, evidence):
+    """The place's lit surfaces take its concept's colour: the median of its views' casts within CAST_MOST levels of
+    its concept's cast in every channel (measure.cast_gap). Unknown with no concept cast or no view's."""
+    found = measures_of(output).get("colour") or {}
+    concept = found.get("concept")
+    casts = [cast for cast in (found.get("views") or {}).values() if cast is not None]
+    if concept is None or not casts:
+        return checks.Verdict("colour", checks.UNKNOWN, "no concept cast or no view's surfaces to read a cast on")
+    median = [round(float(np.median([cast[channel] for cast in casts])), 1) for channel in range(3)]
+    gap = measure.cast_gap(median, concept)
+    return verdict("colour", gap <= CAST_MOST, f"{len(casts)} views: the surfaces' cast {median} against its concept's "
+                   f"{concept}, {gap:.1f} levels apart in its furthest channel (at most {CAST_MOST})",
+                   {"cast_gap": gap}, {"cast_gap": "lower"},
+                   [] if gap <= CAST_MOST else [f"cast {median} against the concept's {concept}"])
+
+
 def judge_stage(output, inputs, evidence):
     """The seed with the light layer has no more placeholder or made-only faults than the seed alone."""
     found = measures_of(output)["stage_checks"]
@@ -984,7 +1108,7 @@ def light_files(place):
              **passes.place_files(place), "inventory": stage_inputs.inventory_pattern(place),
              # which lamps light a shaft (haze.shafted_kinds): the glowing rows each place's plan aims
              "row kinds": "{data}/checks/row-kinds.json", "lamp library": "{data}/library/lamps.json",
-             **aimed_files(place)}
+             **aimed_files(place), **concept_light.concept_light_input(place)}
     if designed(place):  # its picked concept
         found["concepts"] = "{home}/design/concepts/" + f"{place}.png"
     else:
@@ -1021,9 +1145,11 @@ PASSES_STAGE = graph.Stage("light-passes", "place", passes.make_passes, passes.P
                            beside=RECORD, neighbours=neighbours, applies=applies)
 LIGHT_STAGE = graph.Stage("light", "place", make_light, LIT,
                           (checks.Check("brightness", judge_brightness), checks.Check("lamps", judge_lamps),
+                           checks.Check("light source", judge_source),
                            checks.Check("sky elements", judge_sky_elements), checks.Check("heads", judge_heads),
                            checks.Check("bodies", judge_bodies), checks.Check("sky", judge_sky),
-                           checks.Check("exposure", judge_exposure), checks.Check("stage_no_worse", judge_stage)),
+                           checks.Check("exposure", judge_exposure), checks.Check("colour", judge_colour),
+                           checks.Check("stage_no_worse", judge_stage)),
                           files=light_files, after={"light-layer": ("light-layer", 1),
                                                     "light-passes": ("light-passes", 1), **RECORD, **passes.LAID},
                           beside=RECORD, neighbours=neighbours, applies=applies)
