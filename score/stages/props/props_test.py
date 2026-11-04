@@ -11,7 +11,8 @@ turns test_a_solid_sheet_s_wall_is_read_through_its_face_and_a_hollow_or_one_sid
 run_batch's error without its log's tail (`{tail}` dropped) turns
 test_a_failed_pixal3d_batch_stops_the_row_with_its_logs_end red; judge_likeness without `facing` (each row its best
 way's score only) turns test_routes_send_a_failed_prop_object_to_code_and_a_failed_code_build_to_a_builder red;
-write_textured_pair's BACK pair drawn from the best way again (`entry["way"] + 0`) turns
+write_textured_pair's BACK pair drawn from the best way again (`entry["way"] + 0`), or its model seen without the
+outline's turn (`entry.get("turn")` made `None`), turns
 test_a_designed_place_s_pair_is_the_model_in_its_finishes_from_its_way_and_the_way_facing_it red; whole_best_way held
 at the stated look-down alone (`downs = [stated]`) turns test_a_flat_row_s_model_is_held_at_the_look_down_its_close_up_shows
 red;
@@ -498,7 +499,8 @@ def test_a_flat_row_s_model_is_held_at_the_look_down_its_close_up_shows():
 def test_a_designed_place_s_pair_is_the_model_in_its_finishes_from_its_way_and_the_way_facing_it():
     """A keypad's slab has the same outline from its blank back as from its keys, so the outline may pick its back:
     the textured pair is drawn from that way and the one facing it (walkway's keypad, 0.07 from its back, 0.48 from
-    its keys), each against the close-up in its colours."""
+    its keys), each against the close-up in its colours. A code build is seen by its outline's turn there too: in
+    its own pose the stairwell's railing (outline 0.899) stood end-on as a post, DINOv2 0.051 (2026-11-02)."""
     import trimesh
     from PIL import Image
     tmp_path = pathlib.Path(tempfile.mkdtemp())
@@ -522,6 +524,21 @@ def test_a_designed_place_s_pair_is_the_model_in_its_finishes_from_its_way_and_t
     seen = [red(pair[0]) for pair in pairs.values()]
     assert seen[0] < 0.01 < 0.3 < seen[1], seen
     assert red(pairs["keypad"][1]) > 0.5  # the close-up in its colours, boxed
+    bar = trimesh.creation.box([1.0, 0.1, 0.1])  # a code build in its row's pose: lying along x
+    bar.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(
+        baseColorFactor=[220, 30, 30, 255]))
+    bar.export(tmp_path / "bar.glb")
+    stood = np.eye(4)
+    stood[:2, :2] = [[0.0, -1.0], [1.0, 0.0]]  # its outline's turn: stood up, as its picture draws it
+
+    def tall(path):  # the drawn object's height over its width in a boxed pair picture
+        rows, columns = np.where(np.asarray(Image.open(path).convert("L")) < 250)
+        return np.ptp(rows) / max(np.ptp(columns), 1)
+    bar_entry = {"model": str(tmp_path / "bar.glb"), "closeup": str(tmp_path / "cut.png"), "way": 0,
+                 "look_down": 0.0}
+    seen_turned = likeness_row.write_textured_pair({**bar_entry, "turn": stood.tolist()}, tmp_path / "turned", "bar")
+    seen_own = likeness_row.write_textured_pair(bar_entry, tmp_path / "own", "bar")
+    assert tall(seen_turned["bar"][0]) > 3 > 0.3 > tall(seen_own["bar"][0])
     shutil.rmtree(tmp_path)
 
 

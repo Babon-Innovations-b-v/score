@@ -276,13 +276,20 @@ def whole_best_way(model, closeup, size, turn=None):
     return {"way": best, "look_down": down, "outline": ways[down][best], "ways": ways[down]}
 
 
-def textured_view(path, way, down):
+def textured_view(path, way, down, turn=None):
     """(sRGB picture on white, mask) of a model with its own finishes (route_cast's texture colours and angle shade,
     on the processor, no Blender), seen from `way` of YAWS at `down` degrees as likeness.silhouette frames it: its
-    right is set by its yaw, so straight above is defined."""
+    right is set by its yaw, so straight above is defined. A code build is seen by `turn` (4 by 4, the outline's,
+    whole_best_way): seen in its own pose, the stairwell's railing (outline 0.899), the quarters' wall light (0.922)
+    and the street's lantern string stood end-on as a post against their crops, DINOv2 0.051 and 0.116 (env1,
+    2026-11-02)."""
     import math
+    import trimesh
     import score.stages.surfaces.route_cast as cast
     model = cast.loaded(path)
+    if turn is not None:
+        model.mesh = trimesh.Trimesh(np.asarray(model.mesh.vertices) @ np.asarray(turn, float)[:3, :3].T,
+                                     model.mesh.faces, process=False)
     yaw, pitch = math.radians(360.0 * way / likeness.candidate().YAWS), math.radians(down)
     eye = np.array([math.sin(yaw) * math.cos(pitch), math.sin(pitch), math.cos(yaw) * math.cos(pitch)])
     right = np.array([math.cos(yaw), 0.0, -math.sin(yaw)])
@@ -328,7 +335,7 @@ def write_textured_pair(entry, folder, row):
     for name, way in ((row, entry["way"]), (row + BACK, (entry["way"] + likeness.candidate().YAWS // 2)
                                             % likeness.candidate().YAWS)):
         made = folder / f"{name}-model.png"
-        boxed_colour(*textured_view(entry["model"], way, entry["look_down"])).save(made)
+        boxed_colour(*textured_view(entry["model"], way, entry["look_down"], entry.get("turn"))).save(made)
         pairs[name] = [str(made), str(drawn)]
     return pairs
 
@@ -366,6 +373,8 @@ def object_record(row, record, inputs, baked, parts, rows, square, cuts):
                                 else drawn_size(rows[row], model, list(rows.values()), inputs,
                                                 record["objects"][row].get("layer") == PEOPLE_LAYER), kind,
                                 route == "prop" and kind in square))
+    if turn is not None:  # the textured pair sees it by the outline's turn too (write_textured_pair)
+        found["turn"] = np.asarray(turn, float).round(6).tolist()
     # a code build's parts: None, unknown (nothing measures them since the code fallback's parts check went)
     lit = thin_built(inputs, row) and thin_straight.slender_light(rows[row])
     found["parts_missing"] = finishes_missing(record["objects"][row]["take"], parts, lit) if route == "prop" else None

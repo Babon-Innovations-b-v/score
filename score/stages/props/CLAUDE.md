@@ -34,7 +34,8 @@ gate passes it), else
   none, so it has no calibration row: it needs both `outline` and textured DINOv2 (owner, 2026-10-30): the model in
   its baked finishes, cast on the processor from the outline's best way and the way facing it (an outline cannot tell
   a slab's face from its back), against the close-up in its colours, the higher at `DESIGNED_LEAST`
-  (`write_textured_pair`, `facing`). Change a threshold only by measuring the accepted set again.
+  (`write_textured_pair`, `facing`); a code build is cast by its outline's turn (`turn`, thin_straight.view), never
+  its own pose (the stairwell's railing stood end-on as a post, 0.051, 2026-11-02). Change a threshold only by measuring the accepted set again.
 - **Thin straight things are built in code** (`thin_straight.py`; owner, 2026-10-25: "Yes, code-build thin straight
   things"): `pixal` sweeps a row slender by `gates/model.py`'s rule and named for a straight kind (a railing its posts at
   most `POST_GAP` apart under a top and a mid rail) or of a kind that glows (a stem lamp's post, a light
