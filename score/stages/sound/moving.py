@@ -86,10 +86,14 @@ def kind_of(entry, rows, kinds):
 
 
 def sounds_for(entry, rows, kinds, table):
-    """The table's named sounds for a moving thing by its row kind and its move: {"sounds", "note"}, or None (a part
-    that names no sound yet plays nothing)."""
+    """The table's named sounds for a moving thing by its row kind and its move, its row's own words first (the
+    table's `words` for its kind: the first entry whose words its row's name holds and that names the move, a hatch's bolts, never
+    an Earth door's): {"sounds", "note"}, or None (a part that names no sound yet plays nothing)."""
     kind, move = kind_of(entry, rows, kinds), move_of(entry)
-    found = table.get("kinds", {}).get(kind, {}).get(move)
+    row = row_of(entry, rows)
+    said = set(row_kinds.words((row or {}).get("name") or (row or {}).get("id")).split())
+    found = next((worded[move] for worded in table.get("words", {}).get(kind, []) if said & set(worded["words"])
+                  and move in worded), None) or table.get("kinds", {}).get(kind, {}).get(move)
     named = [sound for sound in (found or {}).get("sounds", []) if sound.get("name")]
     return {"sounds": named, "note": f"{kind} {move}: {found['from']}"} if named else None
 

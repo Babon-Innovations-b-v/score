@@ -38,6 +38,13 @@ gates; `takes.py` the paid part.
   places' events and 15 places' voices and stopped their lines). A part or voice naming no sound is silent with no gap
   and still fails. A new source gets its brief (`pick` with `prompts`) in `data/sound/sounds.json`, its
   category setting its loudness, and the stage makes it; never a file by hand.
+- **A source is heard as its scene is, and sounds as its own words say** (the audit of 2026-11-04: Hong Kong's doors
+  played airlock bolts, every person a sealed module's crew talk, objects sounded through vacuum). Where the bed is
+  heard through a suit, no object, motion or voice sound carried by air plays (`all_uses`, named in `unheard`; the
+  `heard` gate); a voice is chosen by how the scene is heard (`voices.json` `by_hearing`: helmet radio, open air,
+  an Earth room, a station module); a moving thing's sounds by its row's words first (`moving.json` `words`: a hatch's
+  bolts, an ordinary door's latch, a garage door's opener); a brief naming `heard_in` plays only where it was written
+  to be heard (the `suits` gate).
 - **Every old pick is retired** (owner, 2026-10-21: every old library sound withdrawn from score_lib, all remade
   fresh): `data/sound/sounds.json` keeps each brief and `catalogue.json` how each sound plays (bus, loop, reach), but no
   file, level or `chosen`; `licences.json` and `loudness.json` are empty. So every sound a scene plays is a brief this

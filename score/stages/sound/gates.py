@@ -1,6 +1,6 @@
 """The sound stage's gates, each read off the output's record and its files (measured again, never trusted from the
-record): sources, bed, level, likeness, no freesound, events and voices (the stage's docstring says what each passes
-on)."""
+record): sources, bed, level, likeness, no freesound, events, voices, heard and suits (the stage's docstring says what
+each passes on)."""
 import json
 import pathlib
 import sys
@@ -100,7 +100,7 @@ def judge_events(output, inputs, evidence):
     record = record_of(output)
     moves = needs.design_moves(inputs)
     found = needs.events([], moves.get("moves", []), moves.get("renamed", {}))
-    sounding = {use["on"] for use in record["uses"] if use["role"] == "motion"}
+    sounding = {use["on"] for use in [*record["uses"], *record.get("unheard", [])] if use["role"] == "motion"}
     silent = [f"{event['name']}: ({event['prims'][0]}) moves without a sound" for event in found
               if not sounding & set(event["prims"])]
     measures = {"events": len(found), "silent": len(silent)}
@@ -124,6 +124,52 @@ def judge_voices(output, inputs, evidence):
                               {"voiced": "higher"}, (f"{cast[0]}: no voice on any of {cast}",))
     return checks.Verdict("voices", checks.PASS, f"voices on {voiced}" if cast else "no one in the place",
                           measures, {"voiced": "higher"})
+
+
+# --- heard and suits ------------------------------------------------------------------------------------------------
+
+def brief_of(name, inputs):
+    """A sound's brief (its `pick` in data/sound/sounds.json), {} for one with none."""
+    return read_json(inputs["sounds"])["sounds"].get(name, {}).get("pick", {})
+
+
+def heard_by_suit(use, inputs):
+    """Whether a use reaches a person heard through a pressure suit: only a brief written to be heard that way
+    (sounds.json `heard_in` naming suit: a helmet radio), never an object's, a motion's or a voice's carried by air."""
+    return "suit" in brief_of(use["sound"], inputs).get("heard_in", {}).get("heard", ())
+
+
+def judge_heard(output, inputs, evidence):
+    """Pass when no object, motion or voice sound carried by air plays where the scene is heard through a suit
+    (beds.facts heard suit: in vacuum or near it only the suit's own bed, contact and its radio reach the ear)."""
+    facts = beds.of_place(place_of(inputs), inputs)["facts"]
+    if facts.get("heard") != "suit":
+        return checks.Verdict("heard", checks.PASS, f"heard {facts.get('heard')}: air carries its sounds")
+    loud = [f"{use['on']}: {use['sound']} ({use['role']}) is carried by air, and the scene is heard through a suit"
+            for use in record_of(output)["uses"] if use["role"] in ("object", "motion")
+            and not heard_by_suit(use, inputs)]
+    return checks.Verdict("heard", checks.FAIL if loud else checks.PASS,
+                          f"{len(loud)} air-borne sounds heard through a suit" if loud else
+                          "heard through a suit: only the suit's own sounds play", {"air-borne": len(loud)},
+                          {"air-borne": "lower"}, tuple(loud))
+
+
+def judge_suits(output, inputs, evidence):
+    """Pass when every use's brief was written for how the scene is heard: a brief naming `heard_in` (sounds.json)
+    plays only where the scene's hearing and its body's outside air are among those it names (a sealed station
+    module's crew talk never in a Hong Kong flat, airlock bolts never on Earth)."""
+    facts = beds.of_place(place_of(inputs), inputs)["facts"]
+    faults = []
+    for use in record_of(output)["uses"]:
+        written = brief_of(use["sound"], inputs).get("heard_in", {})
+        off = [f"{key} {facts.get(key)} (written for {', '.join(values)})" for key, values in written.items()
+               if facts.get(key) not in values]
+        if off:
+            faults.append(f"{use['on'] or 'the room'}: {use['sound']} heard here as {'; '.join(off)}")
+    return checks.Verdict("suits", checks.FAIL if faults else checks.PASS,
+                          f"{len(faults)} sounds written for another hearing" if faults else
+                          f"every sound fits how the scene is heard ({facts.get('heard')}, {facts.get('air')})",
+                          {"off": len(faults)}, {"off": "lower"}, tuple(faults))
 
 
 # --- level ----------------------------------------------------------------------------------------------------------

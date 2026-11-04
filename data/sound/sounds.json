@@ -1,5 +1,5 @@
 {
-	"is": "the sounds the world's data names (surfaces, rooms, things) and the picker's brief for every sound on a picking page: the catalogue (data/sound/catalogue.json) lays each entry here over its own, so a field here wins. 'pick' is the picker's alone: the category sets the loudness a take is brought to (tools/sound/loudness/), 'level' is how loud it is played in LUFS (its volume_db is set from it when a take is picked), 'where' is shown on the page, 'search' is what the sources are asked for. 'near' (metres, only where named) is how far out a placed sound plays at its full level before it falls off with distance, for a source far louder than a room's (a lift-off); any other falls off past 10 m, Godot's unit size (tools/usd/sound.py NEAR_METRES). A name with no file plays nothing until the owner picks one (tools/sound/picker/). Retired on 2026-10-21 (owner: every old library sound withdrawn, remade fresh): every pick (its file, its volume_db and the picker's `chosen`) went with the old sounds; each brief stays, so the sound row makes it fresh (one MOSS take) in the remake batch",
+	"is": "the sounds the world's data names (surfaces, rooms, things) and the picker's brief for every sound on a picking page: the catalogue (data/sound/catalogue.json) lays each entry here over its own, so a field here wins. 'pick' is the picker's alone: the category sets the loudness a take is brought to (tools/sound/loudness/), 'level' is how loud it is played in LUFS (its volume_db is set from it when a take is picked), 'where' is shown on the page, 'search' is what the sources are asked for. 'near' (metres, only where named) is how far out a placed sound plays at its full level before it falls off with distance, for a source far louder than a room's (a lift-off); any other falls off past 10 m, Godot's unit size (tools/usd/sound.py NEAR_METRES). A name with no file plays nothing until the owner picks one (tools/sound/picker/). Retired on 2026-10-21 (owner: every old library sound withdrawn, remade fresh): every pick (its file, its volume_db and the picker's `chosen`) went with the old sounds; each brief stays, so the sound row makes it fresh (one MOSS take) in the remake batch. `heard_in` (where named) is how a brief's take was written to be heard: the scene's hearing (room, open, suit) and its body's outside air (sealed, breathable), as beds.facts gives them; the sound row's `suits` gate fails a use of a brief in a scene it was not written for (crew_talk's sealed metal module in a Hong Kong flat), and its `heard` gate an object, motion or voice sound carried by air where the scene is heard through a suit",
 	"sounds": {
 		"habitat": {
 			"pick": {
@@ -158,7 +158,12 @@
 					"sci-fi door open",
 					"pneumatic door open",
 					"hydraulic hatch open"
-				]
+				],
+				"heard_in": {
+					"air": [
+						"sealed"
+					]
+				}
 			}
 		},
 		"door_slide_close": {
@@ -175,7 +180,12 @@
 					"sci-fi door close",
 					"pneumatic door close",
 					"heavy metal door close"
-				]
+				],
+				"heard_in": {
+					"air": [
+						"sealed"
+					]
+				}
 			}
 		},
 		"airlock_hatch_seal_clunk": {
@@ -192,7 +202,12 @@
 					"heavy hatch lock clunk",
 					"metal door latch heavy",
 					"vault door close"
-				]
+				],
+				"heard_in": {
+					"air": [
+						"sealed"
+					]
+				}
 			}
 		},
 		"console_hum": {
@@ -616,7 +631,12 @@
 				"prompts": [
 					"A spacecraft hatch unlatched and swung open: a heavy metal latch release clunk, a short air hiss and a hinge creak."
 				],
-				"seconds": 4
+				"seconds": 4,
+				"heard_in": {
+					"air": [
+						"sealed"
+					]
+				}
 			}
 		},
 		"airlock_pump_down": {
@@ -990,7 +1010,12 @@
 					"An electric vehicle standing still with its systems on: a soft inverter whine, a quiet cooling fan and a gentle electronic hum, steady, nothing sudden."
 				],
 				"seconds": 10,
-				"loop": true
+				"loop": true,
+				"heard_in": {
+					"heard": [
+						"room"
+					]
+				}
 			},
 			"bus": "effects",
 			"reach": 15.0
@@ -1005,7 +1030,12 @@
 					"The idle hum of a parked shuttle in a cavernous metal hangar: a low electrical drone from the hull and a ventilation fan, very steady, nothing sudden."
 				],
 				"seconds": 12,
-				"loop": true
+				"loop": true,
+				"heard_in": {
+					"heard": [
+						"room"
+					]
+				}
 			},
 			"bus": "effects",
 			"reach": 30.0
@@ -1021,7 +1051,12 @@
 					"Quiet working conversation between a few crew members in a cramped station module: low murmured remarks and brief replies, unhurried, words unclear, no laughter, no machinery."
 				],
 				"seconds": 12,
-				"loop": true
+				"loop": true,
+				"heard_in": {
+					"air": [
+						"sealed"
+					]
+				}
 			},
 			"bus": "effects",
 			"reach": 12.0
@@ -1041,6 +1076,158 @@
 			},
 			"bus": "effects",
 			"reach": 8.0
+		},
+		"door_latch_open": {
+			"pick": {
+				"page": "world1",
+				"category": "shot",
+				"where": "an ordinary hinged door opened by hand: a home's, a shop's, a stairwell's",
+				"prompts": [
+					"An ordinary indoor door opened by hand: the click of its latch and handle, then a soft creak of its hinges as it swings, short, in a quiet room, no voices.",
+					"A wooden door unlatched and pushed open: a metal handle click and a short hinge squeak, dry and close, nothing else."
+				],
+				"seconds": 3
+			}
+		},
+		"door_close_thud": {
+			"pick": {
+				"page": "world1",
+				"category": "shot",
+				"where": "an ordinary hinged door swinging shut",
+				"prompts": [
+					"An ordinary indoor door swung shut: a soft wooden thud and the click of its latch catching, short, no voices.",
+					"A door closing gently in a hallway: a dull thump of the leaf meeting its frame and a latch click, nothing else."
+				],
+				"seconds": 3
+			}
+		},
+		"garage_door_run": {
+			"pick": {
+				"page": "world1",
+				"category": "loop",
+				"where": "a garage, roller or shutter door rising or coming down on its opener",
+				"prompts": [
+					"A garage door opener running: a steady electric motor drone with a chain drive rattle and the door's panels rolling along their metal tracks, even, no voices.",
+					"A roller shutter door rolling up on its motor: a constant mechanical rumble with a light metallic clatter of the slats, steady, nothing else."
+				],
+				"seconds": 10,
+				"loop": true
+			},
+			"bus": "effects",
+			"reach": 15.0
+		},
+		"robot_arm_servo": {
+			"pick": {
+				"page": "world1",
+				"category": "loop",
+				"where": "a robot arm slewing about its base",
+				"prompts": [
+					"An industrial robot arm turning: the smooth rising and falling whine of electric servo motors and a soft gear hum, clean and mechanical, no voices.",
+					"A collaborative robot arm moving in a workshop: quiet servo whirs and a faint electronic hum as its joints turn, steady, nothing else."
+				],
+				"seconds": 6,
+				"loop": true
+			},
+			"bus": "effects",
+			"reach": 6.0
+		},
+		"fridge_hum": {
+			"pick": {
+				"page": "world1",
+				"category": "loop",
+				"level": -56.0,
+				"where": "a household refrigerator or freezer running",
+				"prompts": [
+					"A kitchen refrigerator running: a low steady compressor hum with a faint electrical buzz, constant and even, in a quiet room, no voices.",
+					"The constant drone of a fridge's compressor and its small fan, smooth and unchanging, nothing else."
+				],
+				"seconds": 15,
+				"loop": true
+			},
+			"bus": "effects",
+			"reach": 4.0
+		},
+		"coffee_maker_brew": {
+			"pick": {
+				"page": "world1",
+				"category": "loop",
+				"level": -54.0,
+				"where": "a coffee maker brewing",
+				"prompts": [
+					"A drip coffee maker brewing: gentle gurgling and bubbling of hot water, a soft hiss of steam and slow dripping into a glass pot, steady, no voices.",
+					"An electric coffee machine at work: quiet sputtering and percolating of water, light steam hiss, constant, nothing else."
+				],
+				"seconds": 12,
+				"loop": true
+			},
+			"bus": "effects",
+			"reach": 4.0
+		},
+		"room_talk": {
+			"pick": {
+				"page": "world1",
+				"category": "loop",
+				"level": -40.0,
+				"where": "people in an ordinary room on Earth talking now and then (a flat, a diner)",
+				"prompts": [
+					"Two or three adults in an ordinary furnished room talking quietly now and then in short calm sentences with pauses, words unclear, soft room sound, no music, no radio.",
+					"A few people chatting softly indoors at home: relaxed murmured remarks and brief replies, words unclear, unhurried, nothing else."
+				],
+				"seconds": 12,
+				"loop": true,
+				"heard_in": {
+					"heard": [
+						"room"
+					],
+					"air": [
+						"breathable"
+					]
+				}
+			},
+			"bus": "effects",
+			"reach": 12.0
+		},
+		"outdoor_chatter": {
+			"pick": {
+				"page": "world1",
+				"category": "loop",
+				"level": -40.0,
+				"where": "people out in the open air talking now and then (a street, a square)",
+				"prompts": [
+					"A few adults talking now and then outdoors on a city pavement: short casual remarks and replies in the open air, words unclear, light distant traffic, no music.",
+					"Passers-by chatting briefly in the open air of a street at night: murmured voices that come and go, words unclear, nothing else close."
+				],
+				"seconds": 12,
+				"loop": true,
+				"heard_in": {
+					"heard": [
+						"open"
+					]
+				}
+			},
+			"bus": "effects",
+			"reach": 15.0
+		},
+		"helmet_radio_talk": {
+			"pick": {
+				"page": "world1",
+				"category": "loop",
+				"level": -40.0,
+				"where": "people in pressure suits outside, heard over their helmet radios",
+				"prompts": [
+					"Two astronauts talking over their helmet radios: short clipped calm remarks through a band-limited radio with a soft click and static between, long pauses, words unclear, no music.",
+					"Suit radio chatter between two people working outside: brief radio calls and replies, narrow and crackly, close in the helmet, words unclear, nothing else."
+				],
+				"seconds": 12,
+				"loop": true,
+				"heard_in": {
+					"heard": [
+						"suit"
+					]
+				}
+			},
+			"bus": "effects",
+			"reach": 12.0
 		}
 	}
 }
