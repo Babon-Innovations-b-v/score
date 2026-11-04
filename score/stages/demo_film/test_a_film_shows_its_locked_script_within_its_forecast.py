@@ -740,61 +740,43 @@ def toy_rig():
 
 def test_a_peel_draws_the_clip_rigs_own_surface_and_the_records_own_push():
     """The bare mesh is the rig's points carried by its clip and skin weights (at the bind, the points themselves);
-    each foot's arrow stands on the ground under it (its bottom less its recorded height over the ground), its
-    length the record's push on that foot, so the same body's arrow on the Moon is a sixth of Earth's; a foot the
-    ground does not push has none.
+    every body the ground pushes gets an arrow from its centre of pressure along its push, METRES_PER_NEWTON long a
+    newton: a seated body's pelvis on its seat as its feet on the floor, so the same body's arrow on the Moon is a
+    sixth of Earth's; a body pushed PUSHED or less has none, and a record written before it held its touches is
+    refused. The arrows stand where the person stands (its spot and turn), fade in with the sim body's wipe and take
+    the film's own push colour.
     Break: score/stages/demo_film/peel.py: `@ np.linalg.inv(np.asarray(rig["bind"], dtype=float))` -> `` (in skinned)
-    Break: score/stages/demo_film/peel.py: `bottom[1] - height` -> `bottom[1]`"""
+    Break: score/stages/demo_film/peel.py: `arrows = pushes(frames, touching(frames))` ->
+        `arrows = pushes(frames, [body for body in touching(frames) if body.startswith("calcn")])`
+    Break: score/stages/demo_film/peel.py: `arrows[index, number] = [*centre, *(force * METRES_PER_NEWTON)]` ->
+        `arrows[index, number] = [*centre, 0.0, np.linalg.norm(force) * METRES_PER_NEWTON, 0.0]`
+    Break: score/stages/demo_film/peel.py: `begins = (len(PASSES) - 1) * third - wipe / 2` -> `begins = 0`"""
     import numpy as np
-    from score.stages.demo_film import peel
+    from score.stages import sim_body
+    from score.stages.demo_film import lettering, peel
     rig = toy_rig()
     assert np.allclose(peel.skinned(rig, "still")[0], rig["points"])
     assert np.allclose(peel.skinned(rig, "step")[0], rig["points"] + [0.0, 0.0, 1.0])
-    bottoms = np.array([[[0.0, 0.30, 0.0], [0.2, 0.40, 0.0]]])  # 0.25 over a 0.05 step; the other foot up
-    frame = {"feet": {"LeftFoot": [0.25, 750.0], "RightFoot": [0.4, 0.0]}}
-    earth = peel.pushes(bottoms, [frame])
-    moon = peel.pushes(bottoms, [{"feet": {"LeftFoot": [0.25, 125.0], "RightFoot": [None, 0.0]}}])
-    assert np.allclose(earth[0, 0], [0.0, 0.05, 0.0, 0.0, 0.75, 0.0]) and np.isnan(earth[0, 1]).all()
-    assert np.isclose(moon[0, 0, 4] * 6, earth[0, 0, 4]) and np.isnan(moon[0, 1]).all()
-
-
-def sim_layer(path):
-    """A sim body layer as score/stages/sim_body writes one: a guide SimBody whose segments are time-sampled Xforms,
-    each with geometry of its own under it (here a cube a segment), the hips 1 m over the foot, both 0.5 m on at 1."""
-    stage = Usd.Stage.CreateNew(str(path))
-    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
-    body = UsdGeom.Xform.Define(stage, "/toy/Characters/ann/SimBody")
-    UsdGeom.Imageable(body).CreatePurposeAttr(UsdGeom.Tokens.guide)
-    for name, height in (("Hips", 1.0), ("LeftFoot", 0.05)):
-        segment = UsdGeom.Xform.Define(stage, f"/toy/Characters/ann/SimBody/{name}")
-        moved = segment.AddTranslateOp()
-        for time, forward in ((0, 0.0), (1, 0.5)):
-            moved.Set(Gf.Vec3d(0.0, height, forward), time)
-        UsdGeom.Cube.Define(stage, f"/toy/Characters/ann/SimBody/{name}/bone").CreateSizeAttr(0.1)
-    stage.GetRootLayer().Save()
-    return path
-
-
-def test_a_sim_body_is_read_upright_from_its_layers_time_samples_and_moves_with_them(tmp_path):
-    """The sim pass draws the layer's own geometry under the person's SimBody (any geometry, a guide included) at its
-    own time samples, and the feet's arrows stand under that geometry: at the first sample the hips stand over the
-    foot, a sample later both have moved, never one frozen pose (owner, 2026-10-27); every pushed foot keeps its arrow.
-    Break: score/stages/demo_film/peel.py: `cache = UsdGeom.BBoxCache(Usd.TimeCode(time), purposes)` ->
-        `cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), purposes)`
-    Break: score/stages/demo_film/peel.py: `points_to_z(starts[shown])` -> `points_to_z(starts[shown, :1])`"""
-    import numpy as np
-    from score.stages.demo_film import peel
-    layer = sim_layer(tmp_path / "sim_bodies.usda")
-    found = peel.foot_bottoms(layer, peel.sim_root("toy", "ann"), ["Hips", "LeftFoot"], [0, 1])
-    assert found[0, 0, 1] - found[0, 1, 1] > 0.9  # upright: the hips over the foot (Y up)
-    assert np.allclose(found[1] - found[0], [[0.0, 0.0, 0.5], [0.0, 0.0, 0.5]])
-    with pytest.raises(ValueError, match="no prim of RightFoot"):
-        peel.foot_bottoms(layer, peel.sim_root("toy", "ann"), ["RightFoot"], [0])
-    rig = toy_rig()
-    rig["clip_walking"] = np.concatenate([rig["clip_still"], rig["clip_step"]])
-    frames = [{"feet": {"Hips": [None, 0.0], "LeftFoot": [0.0, 400.0]}}] * 2
-    drawn = peel.person_arrays({"at": [2.0, 0.0, 1.0], "turn": 30.0, "clip": "walking"}, rig, frames, found, [0, 1])
-    assert drawn["arrow_start"].shape == (2, 2, 3) and not np.isnan(drawn["arrow_start"][:, 1]).any()
+    seated = {"touches": {"pelvis": [0.0, 520.0, 30.0, 0.0, 0.45, 0.1], "calcn_r": [5.0, 140.0, 0.0, 0.1, 0.0, 0.5],
+                          "calcn_l": [0.0, 0.5, 0.0, -0.1, 0.0, 0.5]}}
+    rig["clip_sitting"] = np.concatenate([rig["clip_still"], rig["clip_still"]])
+    record = {"at": [2.0, 0.0, 1.0], "turn": 30.0, "clip": "sitting"}
+    drawn = peel.person_arrays(record, rig, [seated, seated], [0, 1])
+    where = sim_body.own_frame(record["at"], record["turn"])
+    assert drawn["arrow_start"].shape == (2, 2, 3)  # the seat's push and the planted foot's; a foot barely touching none
+    seat = where[:3, :3] @ np.array([0.0, 0.45, 0.1]) + where[:3, 3]
+    assert np.allclose(drawn["arrow_start"][1, 0], peel.points_to_z(seat))
+    assert np.allclose(drawn["arrow_vector"][1, 0], peel.points_to_z(where[:3, :3] @ np.array([0.0, 0.52, 0.03])))
+    bodies = peel.touching([seated])
+    moon = peel.pushes([{"touches": {"pelvis": [0.0, 520.0 / 6, 5.0, 0.0, 0.45, 0.1]}}], bodies)
+    assert np.isclose(moon[0, 0, 4] * 6, peel.pushes([seated], bodies)[0, 0, 4]) and np.isnan(moon[0, 1]).all()
+    with pytest.raises(ValueError, match="no `touches`"):
+        peel.touching([{"feet": {"calcn_r": [0.0, 700.0]}}])
+    fade = peel.arrow_fade(120)
+    assert fade[60] == 0.0 and fade[-1] == 1.0 and 0.0 < fade[80] < 1.0  # in with the sim body's wipe at 80
+    linear = np.array(peel.push_colour())
+    srgb = np.where(linear <= 0.0031308, linear * 12.92, 1.055 * linear ** (1 / 2.4) - 0.055)
+    assert np.allclose(srgb, np.array(lettering.token("film-push")[:3]) / 255.0, atol=2e-3)
 
 
 def test_a_peel_never_outlasts_its_record_and_wipes_up_at_each_third():

@@ -19,6 +19,20 @@ BALANCE = 100.0
 AT_STOP = 1e-4  # radians or metres: a joint this near an end of its range stands against it
 
 
+def touches(contacts, each):
+    """Each touching body's push and where it acts ({body: (force N, centre of pressure m)}, MuJoCo's frame): its
+    points' pushes (`each`, the solve's, a row a contact) summed, the centre their ground points under them weighed by
+    each push's size; a body the solve gives no push is left out."""
+    found = {}
+    for body in sorted({contact[0] for contact in contacts}):
+        mine = [number for number, contact in enumerate(contacts) if contact[0] == body]
+        sizes = np.linalg.norm(each[mine], axis=1)
+        if sizes.sum() > 0:
+            centre = sizes @ np.array([contacts[number][3] for number in mine]) / sizes.sum()
+            found[int(body)] = (each[mine].sum(axis=0), centre)
+    return found
+
+
 class Physics:
     """One person's MuJoCo model as Newton built it, and the frame by frame share of its movement's forces."""
 
@@ -62,7 +76,8 @@ class Physics:
         return np.array(found).T if found else np.zeros((model.nv, 0))
 
     def shared(self, needed):
-        """The needed forces shared out: each contact's push (N, MuJoCo's frame, by body), each muscle's activation
+        """The needed forces shared out: each contact's push (N, MuJoCo's frame, by body), each touching body's push
+        and its centre of pressure (`touches`), each muscle's activation
         and force (N, tension), the residual on the pelvis (force N and moment N m, MuJoCo's frame) and each leading
         joint's reserve and net moment (N m)."""
         model, data = self.model, self.data
@@ -81,7 +96,7 @@ class Physics:
         arms = moments[self.muscles].T  # nv x muscles
         contacts = self.contacts()
         columns = []
-        for _, along, edges in contacts:
+        for _, along, edges, _ in contacts:
             columns += [along.T @ edge for edge in edges]
         pushes = np.array(columns).T if columns else np.zeros((model.nv, 0))
         stops = self.stops()
@@ -96,10 +111,13 @@ class Physics:
         pushed, activations = solved[:count], solved[count + held:]
         left = wanted - system @ solved
         forces = np.zeros((model.nbody, 3))
-        edges = [(body, edge) for body, _, mine in contacts for edge in mine]
-        for (body, edge), weight in zip(edges, pushed):
+        each = np.zeros((len(contacts), 3))
+        edges = [(number, body, edge) for number, (body, _, mine, _) in enumerate(contacts) for edge in mine]
+        for (number, body, edge), weight in zip(edges, pushed):
             forces[body] += weight * edge
+            each[number] += weight * edge
         root = data.xmat[model.jnt_bodyid[0]].reshape(3, 3)
         net = mapped.T @ (needed - pushes @ pushed)
-        return {"pushes": forces, "activations": activations, "forces": -(gains * activations + biases),
+        return {"pushes": forces, "touches": touches(contacts, each), "activations": activations,
+                "forces": -(gains * activations + biases),
                 "residual": np.concatenate([left[:3], root @ left[3:6]]), "reserves": left[6:], "moments": net[6:]}

@@ -5,7 +5,7 @@
 Every person three ways on the job's camera path: `dressed` (its dressed body's glTF posed by the job's joint moves,
 its rest fitted to the clip rig's bind), `mesh` (its bare SOMA surface at the job's points, solid with its edges
 drawn), `sim` (the sim body layer's own geometry under the person's SimBody, imported with its time samples and shown
-at the record's frame, each foot's push an arrow), over the job's ground. Every array comes from the job, already in
+at the record's frame, each touching body's push an arrow from its centre of pressure), over the job's ground. Every array comes from the job, already in
 the place and Z up; nothing is worked out here but the fit and the drawing.
 Out: <out>/<pass>/<frame>.png.
 """
@@ -20,7 +20,15 @@ FLOOR = (0.32, 0.33, 0.35)
 CLAY = (0.72, 0.70, 0.67)
 EDGES = (0.05, 0.05, 0.06)
 SIM = (0.95, 0.42, 0.12)  # the sim body geometry with no colours of its own
-ARROW = (0.20, 0.85, 0.45)
+# The push arrows (owner, 2026-11-04: "visible but not obnoxious or ugly"): a slim shaft and a small head at a fixed
+# width on screen whatever the camera's distance, a little see-through and lit a little from within so they read in
+# shadow, in the job's colour (the film's --film-push token).
+SHAFT_PIXELS = 1.6  # the shaft's radius on screen
+HEAD_PIXELS = 4.5  # the head's radius on screen
+HEAD_LONG_PIXELS = 13.0  # the head's length on screen, never more than half the arrow
+ARROW_ALPHA = 0.72
+ARROW_GLOW = 0.6
+LIFT = 0.002  # metres: the arrow's foot off its ground beyond its own radius, so it never pokes through
 # The crowd's cheap body every dressed file carries beside the person's own (tools/characters/cast.py): never one
 # person's.
 FAR = "far"
@@ -192,7 +200,8 @@ def bare(person, arrays, into):
 
 def sim(person, arrays, into, look):
     """The person's sim body as its layer holds it (whatever geometry sits under its SimBody prim, guides included,
-    each transform keyed at its time samples), placed, and a push arrow a foot: [(arrow shaft, arrow head) a foot]."""
+    each transform keyed at its time samples), placed, and a push arrow a touching body: [(arrow shaft, arrow head)
+    a body]."""
     before = set(bpy.data.objects)
     bpy.ops.wm.usd_import(filepath=person["sim_layer"], prim_path_mask=person["sim_root"], import_guide=True,
                           import_render=True, import_proxy=False, set_frame_range=False, create_collection=False,
@@ -212,12 +221,14 @@ def sim(person, arrays, into, look):
                                       else look["sim"])
     arrows = []
     for _ in range(arrays["arrow_start"].shape[1]):
-        bpy.ops.mesh.primitive_cylinder_add(radius=0.03, depth=1.0)
+        bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=1.0, depth=1.0)  # scaled each frame (arrow_at)
         shaft = linked(bpy.context.object, into)
-        bpy.ops.mesh.primitive_cone_add(radius1=0.075, depth=0.13)
+        bpy.ops.mesh.primitive_cone_add(vertices=24, radius1=1.0, depth=1.0)
         head = linked(bpy.context.object, into)
         for part in (shaft, head):
             part.data.materials.append(look["arrow"])
+            part.data.polygons.foreach_set("use_smooth", [True] * len(part.data.polygons))
+            part.visible_shadow = False  # an overlay: it casts nothing on the body or its ground
         arrows.append((shaft, head))
     return arrows
 
@@ -232,20 +243,43 @@ def coloured():
     return made
 
 
-def arrow_at(parts, start, vector):
-    """The arrow from `start` along `vector`; hidden where the job has none (the ground does not push that foot)."""
+def pixel_metres(camera, at):
+    """How many metres one pixel spans at `at` on the camera's picture (its depth along the camera's aim)."""
+    scene = bpy.context.scene
+    aim = camera.rotation_euler.to_matrix() @ Vector((0.0, 0.0, -1.0))  # as `aimed` set it this frame
+    depth = max((Vector(at.tolist()) - camera.location).dot(aim), 0.1)
+    return depth * camera.data.sensor_width / (camera.data.lens * scene.render.resolution_x)
+
+
+def arrow_at(parts, start, vector, camera, fade):
+    """The arrow from `start` along `vector`, its tip at the push's length, its widths SHAFT_PIXELS and HEAD_PIXELS on
+    the camera's picture, its foot lifted its own radius and LIFT off the ground; hidden where the job has none (the
+    ground does not push that body) or before it fades in."""
     shaft, head = parts
-    shown = not np.isnan(start).any() and np.linalg.norm(vector) > 1e-4
+    shown = fade > 0 and not np.isnan(start).any() and np.linalg.norm(vector) > 1e-4
     for part in parts:
         part.hide_render = not shown
     if not shown:
         return
     direction = Vector(vector.tolist())
+    pixel = pixel_metres(camera, start + vector / 2)
+    radius = SHAFT_PIXELS * pixel
+    foot = Vector(start.tolist()) + direction.normalized() * (radius + LIFT)
+    length = max(direction.length - radius - LIFT, 1e-4)
+    head_long = min(HEAD_LONG_PIXELS * pixel, length / 2)
     turn = direction.to_track_quat("Z", "Y").to_euler()
-    shaft.location = Vector(start.tolist()) + direction / 2
-    shaft.rotation_euler, shaft.scale = turn, (1.0, 1.0, direction.length)
-    head.location = Vector(start.tolist()) + direction + direction.normalized() * 0.065
-    head.rotation_euler = turn
+    along = direction.normalized()
+    shaft.location = foot + along * (length - head_long) / 2
+    shaft.rotation_euler, shaft.scale = turn, (radius, radius, length - head_long)
+    head.location = foot + along * (length - head_long / 2)
+    head.rotation_euler, head.scale = turn, (HEAD_PIXELS * pixel, HEAD_PIXELS * pixel, head_long)
+
+
+def faded(made, fade):
+    """The arrows' material at `fade` of its look (0 to 1): its see-through and its glow both."""
+    shader = made.node_tree.nodes["Principled BSDF"]
+    shader.inputs["Alpha"].default_value = ARROW_ALPHA * fade
+    shader.inputs["Emission Strength"].default_value = ARROW_GLOW * fade
 
 
 def draw(job):
@@ -254,7 +288,8 @@ def draw(job):
     camera = surroundings(job)
     groups = {name: collection(name) for name in job["passes"]}
     # The sim body lets the push arrows under it show through.
-    look = {"sim": material("sim", SIM, alpha=0.55), "arrow": material("arrow", ARROW, glow=3.0),
+    look = {"sim": material("sim", SIM, alpha=0.55),
+            "arrow": material("arrow", tuple(job["arrows"]["colour"]), glow=ARROW_GLOW, alpha=ARROW_ALPHA),
             "coloured": coloured()}
     people = []
     for person in job["people"]:
@@ -267,12 +302,14 @@ def draw(job):
     for frame, source in enumerate(job["source"]):
         aimed(camera, job["camera"]["path"][frame])
         scene.frame_set(source)  # the sim body layer's time code: the record's frame, at its rate (renderer)
+        fade = job["arrows"]["fade"][frame]
+        faded(look["arrow"], fade)
         for person, arrays, armature, fit, mesh, arrows in people:
             posed(armature, fit, person["joints"], arrays["moves"][frame])
             mesh.vertices.foreach_set("co", arrays["points"][frame].astype(np.float32).ravel())
             mesh.update()
             for parts, start, vector in zip(arrows, arrays["arrow_start"][frame], arrays["arrow_vector"][frame]):
-                arrow_at(parts, start, vector)
+                arrow_at(parts, start, vector, camera, fade)
         for name in job["passes"]:
             for other, group in groups.items():
                 group.hide_render = other != name

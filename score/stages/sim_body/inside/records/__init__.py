@@ -1,5 +1,5 @@
 """What the run writes for one person (out.json's entry and <out>.npz's arrays, the contract the stage reads): each
-frame's record (`frames`: the body's and the clip's segment turns, the joints' moments, the ground's push, the feet,
+frame's record (`frames`: the body's and the clip's segment turns, the joints' moments, the ground's push, each touching body's push and centre of pressure, the feet,
 the residual and reserve, the muscles' activations and forces; the poses the skin plays are SOMA's own, the stage's)
 with the arrays drawn beside
 (each body's and segment's pose, the muscles' paths), the bone meshes (`bones_of`), the arrays by name (`arrays`),
@@ -100,6 +100,14 @@ def adjustment_record(moved_by, kept, shares, step, before, after, segments, fol
             "follows deg": [round(follows[0], 3), round(follows[1], 3)]}
 
 
+def touched(model, touches):
+    """Each touching body's push and its centre of pressure on its ground ({body name: [force xyz N, centre xyz m]},
+    the person's frame), from `Physics.shared`'s `touches`."""
+    return {mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, body): [*np.round(TO_OWN @ force, 3).tolist(),
+                                                                       *np.round(TO_OWN @ centre, 4).tolist()]
+            for body, (force, centre) in touches.items()}
+
+
 def frames(physics, path, velocities, accelerations, worlds, ground, riders, feet, drawn_ids):
     """Every frame's record and the drawn arrays beside it: its physics shared out (`Physics.shared`), its segments
     riding their bones (`riders`: segments, bodies, riding, parents), the feet (`feet`: {segment: its skin points}); returns
@@ -119,6 +127,7 @@ def frames(physics, path, velocities, accelerations, worlds, ground, riders, fee
             "torques": np.round(share["moments"], 3).tolist(),
             "ground": np.round(pushes.sum(axis=0), 3).tolist(),
             "lowest": rounded(lowest_over(model, data, physics.skin, ground)),
+            "touches": touched(model, share["touches"]),
             "feet": {segment: [rounded(lowest_over(model, data, physics.skin, ground, points)) if len(points) else None,
                                round(float(pushes[bodies[segment], 1]), 3)] for segment, points in feet.items()},
             "residual": np.round(np.concatenate([TO_OWN @ share["residual"][:3], TO_OWN @ share["residual"][3:]]),

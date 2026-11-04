@@ -1,6 +1,6 @@
 """muscles: a body standing still on a flat ground under gravity is carried by the ground: the static optimisation
-gives the ground's push its weight and leaves almost no residual on the pelvis, and the movement's needed force is
-its weight up. It runs in Newton's own Python (on a model Newton builds; score/stages/physics/inside/newton_env.sh,
+gives the ground's push its weight and leaves almost no residual on the pelvis, the movement's needed force is its
+weight up, and the touching body's push (`touches`) is that whole push, at the ground under it. It runs in Newton's own Python (on a model Newton builds; score/stages/physics/inside/newton_env.sh,
 built at $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted), 2026-10-28:
@@ -8,6 +8,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   nothing and the weight is left as residual.
 - needed's `found + model.dof_armature * qacc - data.qfrc_passive` made `-found + ...`: the movement asks for its
   weight down.
+2026-11-04:
+- touches' `centre = sizes @ ...` made `centre = np.zeros(3) + 1.0`: the push stands off the ground under the ball.
 
 Run: .venv/bin/python score/stages/sim_body/inside/muscles/test_a_standing_body_is_carried_by_the_ground.py
 """
@@ -67,6 +69,10 @@ def the_ground_carries_a_still_body():
     pushed = share["pushes"].sum(axis=0)
     if abs(pushed[2] - weight) > 0.01 * weight:
         problems.append(f"the ground pushes {pushed.round(3).tolist()} N, not {weight} N up")
+    touched = share["touches"]  # the ball's one body: the whole push, at the ground straight under its lowest point
+    if list(touched) != [1] or not np.allclose(touched[1][0], pushed) or not np.allclose(touched[1][1], 0.0,
+                                                                                         atol=1e-6):
+        problems.append(f"touches {touched}: not the whole push at the ground under the ball")
     residual = float(np.linalg.norm(share["residual"][:3]))
     return problems + ([] if residual < 0.01 * weight else [f"residual force {residual:.3f} N"])
 

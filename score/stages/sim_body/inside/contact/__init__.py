@@ -1,6 +1,6 @@
 """The body on the scene's ground: the colliders' surface points (`surface`), the person's drawn skin riding the
 body's bones (`Skin`: SOMA's mesh, linear blend over the segments each bone carries), its lowest point's height over
-the ground (`lowest_over`) and the skin points the ground pushes with their push directions (`pushes`: within GAP of
+the ground (`lowest_over`) and the skin points the ground pushes with their push directions and where (`pushes`: within GAP of
 the drawn triangle under them or into it, a friction pyramid under SLIDE_MOST, else sliding). Nothing here moves the
 body: it stands where the fit to SOMA puts it (#70)."""
 import mujoco
@@ -79,11 +79,13 @@ def lowest_over(model, data, skin, ground, points=None):
 
 
 def pushes(model, data, ground, up, skin):
-    """The points the ground pushes ([(body, point's Jacobian, the directions it may push along)], MuJoCo's frame):
+    """The points the ground pushes ([(body, point's Jacobian, the directions it may push along, the ground's point
+    under it)], MuJoCo's frame):
     the skin's points within GAP of the drawn ground under them (within the body's reach, `body_reach`: a roof over
     its head is never pushing ground), or into it, each pushed along its triangle's normal (`up`, the person's frame)
     with Coulomb's friction: a point slower than SLIDE_MOST sticks (a friction pyramid, FRICTION), a faster one slides
-    (the normal and FRICTION of it against its slip); booked on the body its heaviest segment rides."""
+    (the normal and FRICTION of it against its slip); booked on the body its heaviest segment rides, acting at the
+    ground straight under the point (its height there, `standing`: a seat's top under a seated body's skin)."""
     found = []
     carried = skin.by_segment(model, data)
     own = np.einsum("vs,vsi->vi", skin.weights, carried)
@@ -101,5 +103,6 @@ def pushes(model, data, ground, up, skin):
             second = np.cross(normal, first)
             edges = [normal + FRICTION * first, normal - FRICTION * first, normal + FRICTION * second,
                      normal - FRICTION * second]
-        found.append((skin.owners[point], along, edges))
+        under = TO_OWN.T @ np.array([own[point, 0], heights[point], own[point, 2]])
+        found.append((skin.owners[point], along, edges, under))
     return found

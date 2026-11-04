@@ -27,7 +27,7 @@ def balance(physics, qpos, qvel, qacc, origin):
     force on the whole body), the same weights."""
     model, data = physics.model, physics.data
     needed = about(model, data, physics.needed(qpos, qvel, qacc), origin)
-    columns = [about(model, data, along.T @ edge, origin) for _, along, edges in physics.contacts() for edge in edges]
+    columns = [about(model, data, along.T @ edge, origin) for _, along, edges, _ in physics.contacts() for edge in edges]
     pushes = np.array(columns).T if columns else np.zeros((6, 0))
     pushed = least(BALANCE * pushes, BALANCE * needed, np.full(pushes.shape[1], CONTACT_COST),
                    np.full(pushes.shape[1], np.inf))
