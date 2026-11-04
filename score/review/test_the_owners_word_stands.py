@@ -270,7 +270,8 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     reading.py: `{"text": LIGHT_ASKED.read_text().format(` made `{"text": WORDS.format(`, the file's words put back
     in reading.py as `WORDS` (the words in code again)
 - test_only_a_row_both_readers_put_inside_another_rows_thing_is_a_part_of_it:
-    reading_fixes.py: `INSIDE = 0.9` made `INSIDE = 0.5`
+    reading_fixes.py: `INSIDE = 0.9` made `INSIDE = 0.5`; `if len(named) == 1 and` made `if named and` (a sitter
+    on "a stool" anchored on one of two); `people_rows.seat_of(` made `bool(` (anchored on the table)
 - test_a_reading_holding_a_part_is_fixed_once_free_its_children_moved:
     reading_fixes.py: `rows = reading.reanchored([dict(row) for row in rows], {item["row"]: f"on:{item['into']}" for
     item in merged})` made `rows = [dict(row) for row in rows]`
@@ -2284,6 +2285,15 @@ def test_only_a_row_both_readers_put_inside_another_rows_thing_is_a_part_of_it()
     kept, merged = reading_fixes.parts_apart(rows, SIZE)
     assert [item["id"] for item in kept] == ["fridge", "chair", "person", "desk", "laptop"]
     assert merged == [{"name": "door", "row": "door", "into": "fridge"}]
+    # a row sitting on or at one seat another row is, anchored elsewhere, is anchored on it; at no seat, or two, it stays
+    sitters = [row("bench", "bench", None, []), row("table", "table", None, []),
+               row("stool_1", "stool", None, [], name="dining stool"), row("stool_2", "stool", None, [], name="stool"),
+               row("astronaut", "person", None, [], name="seated astronaut", where="sitting on bench 1"),
+               row("diner", "person", None, [], name="person sitting at a table"),
+               row("eater", "person", None, [], where="sitting at dining table"),
+               row("visitor", "person", None, [], where="sitting on a stool"),  # two stools: which, unread
+               row("pilot", "person", None, [], where="sitting on the bench", anchor="on:bench")]
+    assert reading_fixes.seats_named(sitters) == {"astronaut": "on:bench", "eater": "on:stool_1"}
 
 
 def test_a_reading_holding_a_part_is_fixed_once_free_its_children_moved(store, tmp_path):

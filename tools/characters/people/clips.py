@@ -65,6 +65,11 @@ SENTENCES = {
     # Oona in the dust beside Bram, and against the boot rock facing his cairn (#112, #109).
     "sitting": ("a person sitting on the ground with their knees drawn up, arms resting on their "
                 "knees, completely still", 5.0),
+    # A person on a seat (a chair, stool, bench, bunk or pilot seat their design anchors them on, people_rows.doing_of):
+    # the only sitting clip had them on the ground, knees drawn up, so 8 seated people of env1 sat on the floor
+    # (2026-11-04). The cast stands its feet on the floor under the seat and its seat carries the hips.
+    "seated": ("a person sitting upright on a chair, both feet flat on the floor, thighs level at seat height, hands "
+               "resting on their thighs, still", 5.0),
 }
 # Clips that play once rather than round and round: the build keeps them whole instead of cutting
 # them to a loop, and the game holds the last frame. The driver takes hold of the door once and
@@ -72,7 +77,7 @@ SENTENCES = {
 ONCE = {"lifting", "door"}
 # Clips where nobody is on their feet: the build leaves their legs as they are rather than bringing the feet in to a
 # standing stance (`stance.py`).
-OFF_THEIR_FEET = {"lying", "sitting"}
+OFF_THEIR_FEET = {"lying", "sitting", "seated"}
 
 
 # The name a clip carries in the game, where it differs from the file it was generated into.

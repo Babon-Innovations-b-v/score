@@ -2,7 +2,8 @@
 right-dome "door", Gemini's region of it the fridge's region and SAM 3's box of it the fridge's glass door; its
 close-ups failed every take in Batch 1 try 4): that row is a part of the other's thing, read as a thing of its own,
 and is merged into it, as reading.merged_rows merges two rows of one thing. Free, from the reading's own rows and
-boxes: no Gemini call, no SAM 3.
+boxes: no Gemini call, no SAM 3. So is a row whose words say it sits on or at a seat another row is (`seats_named`): it
+is anchored on that seat, so the cast seats it there (8 seated people sat on the floor, 2026-11-04).
 
 The fixed reading is a new reading of the same lock (reading.kept, written once): its rows without the parts, each
 child of one re-anchored on the thing it went into, `merged` naming them, `from` the reading it was fixed from, its
@@ -15,6 +16,7 @@ there re-keys them all; no stage imports this module.
 
     python -m score.review.reading_fixes [<place> ...]     # every locked place when none is named
 """
+import re
 import sys
 
 from score.review import concepts, reading
@@ -23,6 +25,8 @@ from score.store import Store, locked, stamp_key
 # A row's boxes lie inside another row's when this share of each is in one of its (`part_of`): the camp door's box
 # lies wholly in the fridge's; the lab's chairs, under the people sitting in them, about 60%.
 INSIDE = 0.9
+# What a row's words say it sits on or at (its name, then where it is): "sitting on bench 1", "sitting at dining table".
+SITS = re.compile(r"\bsitting (?:on|at) ([a-z_ ]+)")
 
 
 def part_of(row, other, size):
@@ -47,22 +51,48 @@ def parts_apart(rows, size):
     return kept, merged
 
 
+def words_of(text):
+    return set(re.split(r"[^a-z]+", text.lower())) - {"", "a", "an", "the", "of"}
+
+
+def seats_named(rows):
+    """{row id: "on:<seat>"} of each row whose words say it sits on or at a thing (SITS) that names exactly one other
+    row, a seat (its id's words name one: people_rows.seat_of), and that is not anchored on it already."""
+    from score.stages import people_rows
+    seats = [row for row in rows if people_rows.seat_of({"anchor": f"on:{row['id']}"})]
+    found = {}
+    for row in rows:
+        said = [match.group(1) for text in (row["name"], row.get("where") or "")
+                for match in [SITS.search(text.lower())] if match]
+        named = [seat["id"] for seat in seats if seat is not row and said
+                 and words_of(said[0]) & words_of(f"{seat['id']} {seat['name']}")]
+        if len(named) == 1 and row["anchor"] != f"on:{named[0]}":
+            found[row["id"]] = f"on:{named[0]}"
+    return found
+
+
 def to_fix(store, places):
-    """The places of `places` whose current reading holds a row that is a part of another's thing."""
+    """The places of `places` whose current reading holds a row that is a part of another's thing, or one sitting on
+    a seat it is not anchored on."""
     return [place for place in places if (found := reading.reading_of(store, place))
-            and parts_apart(found["inventory"]["rows"], found["size"])[1]]
+            and (parts_apart(found["inventory"]["rows"], found["size"])[1] or seats_named(found["inventory"]["rows"]))]
 
 
 def fixed_record(store, found, by):
-    """The new reading of `found` (the current one, its parts read over its rows) with its parts merged away."""
+    """The new reading of `found` (the current one, its parts read over its rows) with its parts merged away and each
+    row sitting on a seat anchored on it (`seated`)."""
     rows, merged = parts_apart(found["inventory"]["rows"], found["size"])
     rows = reading.reanchored([dict(row) for row in rows], {item["row"]: f"on:{item['into']}" for item in merged})
+    seated = seats_named(rows)
+    rows = [dict(row, anchor=seated.get(row["id"], row["anchor"])) for row in rows]
     parted = all("part" in row for row in rows) and reading.parts_current(store, found)
     return {**{key: value for key, value in found.items() if key != "parts_version"},
             **({"parts_version": reading.PARTS_VERSION} if parted else {}),
             "at": concepts.now(), "by": by, "from": f"{reading.AREA}/{found['place']}/{stamp_key(found['at'])}.json",
             "inventory": {**found["inventory"], "rows": rows}, "gaps": reading.gaps(rows),
-            "merged": found.get("merged", []) + merged, "euros": {"rows": 0.0, "boxes": 0.0, "total": 0.0},
+            "merged": found.get("merged", []) + merged,
+            "seated": found.get("seated", []) + [{"row": row, "anchor": anchor} for row, anchor in seated.items()],
+            "euros": {"rows": 0.0, "boxes": 0.0, "total": 0.0},
             "seconds": {"rows": 0.0, "boxes": 0.0, "card": 0.0}}
 
 

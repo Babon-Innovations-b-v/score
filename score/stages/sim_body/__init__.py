@@ -114,7 +114,8 @@ def files(place):
     (whose gravity the scene has)."""
     return {"sim inside": "{repo}/" + INSIDE_FOLDER, "sim env": "{repo}/" + ENV_SCRIPT,
             "physics": "{data}/physics/setting.json", "within": "{data}/places/within.json",
-            "seed": "{seeds}/usd-r3/{place}", **layer_base.files(place)}
+            "seed": "{seeds}/usd-r3/{place}", "surfaces": "{home}/design/surfaces/{place}.json",
+            **layer_base.files(place)}
 
 
 # --- the run -------------------------------------------------------------------------------------------------------

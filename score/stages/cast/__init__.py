@@ -14,8 +14,8 @@ shows, each placed in the place with a clip, and measured against the concept an
                        row makes, its count SAM 3's instances, else as many as its ground holds packed; a crowd row
                        with no plan item is named short)
              standing  everyone stands on something solid: the first solid under their knee within STAND_SLACK of
-                       their feet, not in water (a seated person sits on a seat the same way: no clip sits on a chair
-                       yet, so seated crew stand at their desks)
+                       their feet, not in water; a seated person (the "seated" clip, its anchor a seat: on_support) on
+                       its seat the same way, measured from its seat's top, and one whose anchor lays no seat fails
              clear     no person's body (knee to head, cast_check's BODY_RADIUS) runs into any solid of the place,
                        no two bodies overlap, and cast_check's own rules hold (nobody twice, walks clear)
              made      which looks have a usable dressed body of the SOMA-shell route (its dress row passed and stands
@@ -29,6 +29,7 @@ Only places whose design shows people (a row that acts: score/stages/design_laye
 """
 import json
 import pathlib
+import re
 import sys
 
 import numpy as np
@@ -59,6 +60,7 @@ def files(place):
     plan_views)."""
     return {"design": ("{data}/people/rows.json", people_rows.place_part(place)),
             "seed": "{seeds}/usd-r3/{place}", "design plan": "{home}/design/plans/{place}.json",
+            "surfaces": "{home}/design/surfaces/{place}.json",  # which bakes of other places it lays (layer_base.built)
             **layer_base.files(place),
             "places": "{data}/definitions/place.json", "cast rules": "{repo}/tools/characters/cast.py",
             "cast check": "{repo}/tools/characters/cast_check.py"}
@@ -115,6 +117,46 @@ def on_made_ground(record, height):
     return dict(record, people=[dict(person, at=raised(person["at"])) for person in record.get("people", [])])
 
 
+def on_support(record, found):
+    """The record with each person its design anchors on a laid item (`anchor` "on:<row>", people_rows.cast_record:
+    the item's solids `<scope>/<row>_<n>` of the stage the cast is measured on, its laid objects in it) put on it: a
+    seated one (the "seated" clip, people_rows.doing_of) on the nearest seat of that row not taken (measure.seat_top),
+    its feet on the seat's floor under its middle and its `seat` the seat's height over it, `seat_on` the solid (a row
+    that lays no seat it sits on leaves it `seat` None, named by the standing gate); any other raised onto the top of
+    the item under its spot (measure.top_under), never lowered. 8 seated people sat on the floor in a ground-sit, their
+    anchors lost and no seat in the solids (2026-11-04)."""
+    taken = set()
+
+    def items(anchor):
+        row = anchor.removeprefix("on:")
+        pattern = re.compile(rf"[^/]+/{re.escape(row)}_\d+")
+        return sorted(name for name in found if pattern.fullmatch(name))
+
+    def supported(person):
+        anchor = str(person.get("anchor") or "")
+        held = items(anchor) if anchor.startswith("on:") else []
+        if person["doing"] == "seated":
+            seats = [(name, seated) for name in held if name not in taken
+                     for seated in [measure.seat_top(found[name])] if seated]
+            if not seats:
+                return dict(person, seat=None, seat_on=None)
+            name, (at, height) = min(seats, key=lambda seat: np.hypot(seat[1][0][0] - person["at"][0],
+                                                                       seat[1][0][2] - person["at"][2]))
+            taken.add(name)
+            return dict(person, at=at, seat=height, seat_on=name)
+        tops = [top for name in held for top in [measure.top_under(found[name], person["at"])] if top is not None]
+        return dict(person, at=[person["at"][0], max(tops), person["at"][2]]) \
+            if tops and max(tops) > person["at"][1] else person
+
+    return dict(record, people=[supported(person) for person in record.get("people", [])])
+
+
+def seated_spot(single):
+    """Where a body is measured from: a seated one's seat top (its feet's spot raised by its `seat`), else its spot."""
+    at = single["at"]
+    return [at[0], at[1] + single["seat"], at[2]] if single.get("doing") == "seated" and single.get("seat") else at
+
+
 def made_ground(inputs, place):
     """The terrain row's made ground of the place (places/<place>.usdc, as the assembly's take_ground finds it), or
     None: a room's floor is its seed's or its scene record's."""
@@ -151,7 +193,8 @@ def dealt(record, inputs):
     cast_rules, _ = measure.characters()
     for single in cast_rules.characters_of(record):
         person = people.get(single["name"], {})
-        single = dict(single, look=person.get("look"), surface=person.get("surface"))
+        single = dict(single, look=person.get("look"), surface=person.get("surface"),
+                      **{key: person[key] for key in ("anchor", "seat", "seat_on") if key in person})
         look = look_of(single)
         found.append({**single, "look": "/".join(look) if look else None,
                       "made": made_row(look, single["surface"], single.get("variant") or 0, inputs)})
@@ -190,8 +233,8 @@ def asked_of(crowd, candidates):
 
 def members_of(record):
     """The names of the people stood round a spot: a design's every person (each dealt to a plan people spot in
-    turn), and cast.py's groups' members."""
-    return ({person["name"] for person in record.get("people", [])}
+    turn) but a seated one (on its seat, or named off one: on_support), and cast.py's groups' members."""
+    return ({person["name"] for person in record.get("people", []) if person["doing"] != "seated"}
             | {f"{group['name']}_{number}" for group in record.get("groups", []) for number in range(group["count"])})
 
 
@@ -203,18 +246,21 @@ def design_count(place, found):
 
 
 def make(inputs, out, seed, params):
-    """The place's cast dealt into its characters, its people and crowd stood on the place (spread.py; `cast.json`),
-    and every body measured on its seed's base layer with its scene record written in (its shell and stairs where the
-    seed lays none: layer_base.built) on its made ground (`measures.json`)."""
+    """The place's cast dealt into its characters, its people put on what their design anchors them on (on_support) and
+    with its crowd stood on the place (spread.py; `cast.json`), and every body measured on its seed's base layer with
+    its scene record written in (its shell and stairs where the seed lays none) and the surface line's bakes laid (its
+    objects: a seat carries a seated person; layer_base.built) on its made ground (`measures.json`)."""
     place = pathlib.Path(inputs["seed"]).name
     design = read_json(inputs["design"])
     record = on_made_ground(on_levels(people_rows.cast_record(place, design), read_json(inputs["design plan"])),
                             writer.ground_under(inputs, place))
-    singles = dealt(record, inputs)
-    crowd = crowd_of(record, singles, inputs)
     with layer_base.built(inputs) as folder:
         base = folder / "layers/base.usda"
-        found = measure.solids(base, place, made_ground(inputs, place)) if singles or crowd else {}
+        found = (measure.solids(base, place, made_ground(inputs, place))
+                 if record.get("people") or record.get("groups") or record.get("crowd") else {})
+    record = on_support(record, found)
+    singles = dealt(record, inputs)
+    crowd = crowd_of(record, singles, inputs)
     if found:
         members = members_of(record)
         singles, copies = spread.stand_every(singles, members, crowd["copies"] if crowd else [],
@@ -239,23 +285,28 @@ def stood_crowd(crowd, copies):
 
 
 def body_spots(singles, crowd):
-    """(name, spot, clip) of every body to measure: each person at their spot or every WALK_STEP along their walk,
-    and each crowd copy."""
+    """(name, spot, clip) of every body to measure: each person at their spot (a seated one's seat top: seated_spot)
+    or every WALK_STEP along their walk, and each crowd copy."""
     spots = [(single["name"], spot, single["doing"]) for single in singles
-             for spot in (measure.walk_spots(single["path"]) if single.get("path") else [single["at"]])]
+             for spot in (measure.walk_spots(single["path"]) if single.get("path") else [seated_spot(single)])]
     return spots + ([(f"{crowd['name']}_{number}", copy["at"], crowd["doing"][copy["clip"]])
                      for number, copy in enumerate(crowd["copies"])] if crowd else [])
 
 
 def measured(record, singles, crowd, found, base, place):
     """Every body's ground and clashes on the seed's base layer, the bodies that overlap, and the cast check's faults
-    against its things (nobody twice, walks clear; on the record's own spots)."""
+    against its things (nobody twice, walks clear; on the record's own spots). A seated body is measured from its seat
+    top, its own seat not counted as run into (measure.run_into) and its `seat` the solid it sits on (None: its
+    anchor laid it no seat)."""
     spots = body_spots(singles, crowd)
     if not spots:
         return {"bodies": [], "overlaps": [], "cast_check": []}
+    seats = {single["name"]: single.get("seat_on") for single in singles if single.get("doing") == "seated"}
     grounds = measure.ground_under([spot for _, spot, _ in spots], found)
-    clashes = measure.run_into([spot for _, spot, _ in spots], found, [measure.top_of(doing) for _, _, doing in spots])
-    bodies = [{"name": name, "at": [round(value, 3) for value in spot], "doing": doing, **ground, "into": into}
+    clashes = measure.run_into([spot for _, spot, _ in spots], found, [measure.top_of(doing) for _, _, doing in spots],
+                               [seats.get(name) for name, _, _ in spots])
+    bodies = [{"name": name, "at": [round(value, 3) for value in spot], "doing": doing, **ground, "into": into,
+               **({"seat": seats[name]} if name in seats else {})}
               for (name, spot, doing), ground, into in zip(spots, grounds, clashes)]
     return {"bodies": bodies, "overlaps": overlaps(singles, crowd),
             "cast_check": checked_cast(record, singles)}
@@ -274,8 +325,10 @@ def checked_cast(record, singles):
 
 
 def overlaps(singles, crowd):
-    """Pairs of standing bodies whose middles are nearer than two body widths on the same level."""
-    named = [(name, at) for name, at, _ in body_spots([single for single in singles if not single.get("path")], crowd)]
+    """Pairs of standing bodies whose middles are nearer than two body widths on the same level (by their feet: a seated
+    one's on its seat's floor)."""
+    named = [(name, at) for name, at, _ in body_spots([dict(single, seat=None) for single in singles
+                                                        if not single.get("path")], crowd)]
     if len(named) < 2:
         return []
     spots = np.array([at for _, at in named], dtype=float)
@@ -352,7 +405,9 @@ def verdict_of(name, faults, total, passed):
 
 
 def off_ground(body):
-    """What is wrong with where a body's feet are, or None."""
+    """What is wrong with where a body's feet are (a seated one's seat), or None."""
+    if "seat" in body and body["seat"] is None:
+        return "seated, but its anchor lays no seat it sits on"
     if body["gap"] is None:
         return f"nothing solid under their feet within {measure.LOOK_DOWN} m"
     if body["water"]:

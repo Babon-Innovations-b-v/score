@@ -20,6 +20,13 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
   has no ground, and `counted` names it short. Never hand-place a person to pass a gate:
   put the design right (`python -m score.stages.people_refresh` refreshes rows.json from the store and keeps each row's
   looks while its concept stands).
+- **A seated person sits on its seat** (`on_support`, 2026-11-04: 8 seated people sat on the floor in a ground-sit).
+  rows.json carries each row's reading `anchor`; a sitting row anchored `on:<seat>` (its id's words name one,
+  `people_rows.seat_of`) plays the `seated` clip and is put on the nearest seat of that row not taken, measured on the
+  laid objects (the cast and sim-body read the surface line's bakes, so `layer_base.built` lays them): its feet on the
+  seat's floor under its middle, `seat` its height (`measure.seat_top`), measured from the seat's top and clear of
+  all but its own seat; a row laying no seat it sits on is named by `standing`. Any other anchored person is raised
+  onto the top of its anchor's item under it, never lowered.
 - **A crowd keeps clear of its plan's views** (`plan_views`: the plan row's output, an `after`, its views as the
   scene record writes them), never a hand-written record's (data/scene's game shots) or kit: the cast reads only
   the design, the seed, the environment's eye height and the rules (2026-10-21). They are read only for a crowd with
