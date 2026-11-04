@@ -81,6 +81,48 @@ def by_columns(function, point, step):
     return np.stack(columns, axis=1)
 
 
+GATE_SHARES = (1 / 4, 1 / 8)  # of `tuning.STEP`: at STEP and STEP/2 C0_C1 y, mtp_l x, wrist_l x read 2.34, 2.03, 16.7 %, here 1.42, 1.07, 0.55 (#78)
+GATE_BAR = 0.02
+GATE_COSINE = 0.99
+
+
+def gate_steps(step):
+    """The two steps of the gate's central differences, the coarser first."""
+    return tuple(step * share for share in GATE_SHARES)
+
+
+def judged_columns(exact, sides, steps, held=None):
+    """The gate on level 1's exact columns (rows, columns): column k against its central differences, `sides[k]` the
+    rows (plus, minus) at each of `steps` (`gate_steps`). It passes within max(GATE_BAR, the two references' own gap)
+    of the nearer one, and the gate passes when every judged column does and the step cosine (the judged columns
+    against their nearer references) reaches GATE_COSINE. A column in `held` ({k: why}) is reported as held and
+    not judged, never as passed. Returns (one line a column, the verdict)."""
+    held = held or {}
+    lines, judged, best = [], [], []
+    for column in range(exact.shape[1]):
+        if column in held:
+            lines.append({"column": column, "held": held[column], "judged": False})
+            continue
+        references = [(plus - minus) / (2 * step) for (plus, minus), step in zip(sides[column], steps)]
+        top = max(max(float(np.abs(reference).max()) for reference in references), 1e-12)
+        gaps = [float(np.abs(exact[:, column] - reference).max() / top) for reference in references]
+        floor = float(np.abs(references[0] - references[1]).max() / top)
+        nearer = int(np.argmin(gaps))
+        lines.append({"column": column, "largest": top, "gaps": dict(zip(map(str, steps), gaps)), "floor": floor,
+                      "pass": bool(gaps[nearer] <= max(GATE_BAR, floor))})
+        judged.append(column)
+        best.append(references[nearer])
+    passed = sum(line.get("pass", False) for line in lines)
+    cosine = float("nan")
+    if judged:
+        mine, theirs = exact[:, judged], np.stack(best, axis=1)
+        cosine = float(np.sum(mine * theirs) / (np.linalg.norm(mine) * np.linalg.norm(theirs)))
+    verdict = {"judged": len(judged), "passed": passed, "held": {str(key): why for key, why in held.items()},
+               "step cosine": cosine, "GATE": "PASS" if judged and passed == len(judged) and cosine >= GATE_COSINE
+               else "FAIL"}
+    return lines, verdict
+
+
 def inner_motion(gradient, inner, outer, frames, pose_size, steps, tolerance):
     """dz/dtheta = -H^-1 dg/dtheta at the inner optimum `inner`, as H^-1 dg/dtheta (inner size, outer size), `steps`
     (inner step, outer step) the central differences' steps; `Unconverged` when the gradient there exceeds
