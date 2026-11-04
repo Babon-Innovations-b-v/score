@@ -14,9 +14,17 @@ then stored once more under the new key: the same output, its record and judgeme
 inputs, narrower key" with both keys, the commit and code that made it and the proof it rests on. The accepted output
 does not move (an accept names the output, not the key): a runner rule, never an accept by hand. Anything else is
 made as usual.
+
+A key follows content, never a path's text: an earlier output a key moved by carries when the reading row gives a
+content rule for that input (CONTENT_RULES: a framework module beside the row, its RULES {input stage: rule}) and the
+old and new outputs hand it the same content under it (`same_content`: closeup's props-inputs rows.json with each
+picture path resolved and replaced by the picture's sha256, #75; rough-model's plan, of which it reads the place
+alone). By hand: `carry --no-op FILE=WHY ... --only PREFIX [--write]` (a FILE the node's key does not read is
+never asked for); the record names the content proof ("same content").
 """
 import argparse
 import dataclasses
+import importlib
 import json
 import os
 import pathlib
@@ -28,6 +36,11 @@ from score.graph import Blocked, _code
 from score.store import PROPS_HOME, file_hash, listing_hash, text_hash
 
 REASON ="same inputs, narrower key"
+CONTENT_REASON = ("same content: every earlier output its key moved by holds what it read then, by its reader's content "
+                  "rule, and every other change since it was made is proved a no-op for it")
+# {reading row: the framework module whose RULES are its content rules, {input stage: rule(store, record) -> the
+# content that output hands this row}}: an earlier output that moved by path text alone keeps the row (#75).
+CONTENT_RULES = {"closeup": "score.stages.props.same_content", "rough-model": "score.stages.rough_model.same_content"}
 NARROWED = ("library",)
 SAME = ("contract", "expects", "params", "seed", "models", "after", "beside")
 TRACKED = {"library": "data/library"}
@@ -111,6 +124,43 @@ def proof_fault(runner, row, record):
     return None
 
 
+def content_rules(stage_name):
+    """{input stage: its content rule} the reading row gives (CONTENT_RULES); {} for a row that gives none."""
+    module = CONTENT_RULES.get(stage_name)
+    return importlib.import_module(module).RULES if module else {}
+
+
+def same_content(runner, stage, place, record, keyed):
+    """({input stage: {"from": its output then, "to": its output now, "rule": the rule}} for every earlier output the
+    key's after part moved by, None) when each holds the same content under the reading row's content rule; (None,
+    why) when one does not, or has no rule, or a picture it names resolves to no file."""
+    rules = content_rules(stage.name)
+    then, now = record.get("after", {}), keyed.get("after", {})
+    proof = {}
+    for before in sorted(set(then) | set(now)):
+        if then.get(before) == now.get(before):
+            continue
+        rule = rules.get(before)
+        if rule is None or before not in then or before not in now:
+            return None, f"{before}'s output moved, and {stage.name} gives no content rule for it"
+        node = graph.node_name(runner.stages[before], place)
+        contents = []
+        for output in (then[before], now[before]):
+            made = review.record_of(runner.store, node, output)
+            if made is None:
+                return None, f"{before}'s output {output[:12]} has no record"
+            try:
+                contents.append(rule(runner.store, made))
+            except ValueError as unresolved:
+                return None, f"{before}'s output {output[:12]}: {unresolved}"
+        if contents[0] != contents[1]:
+            differ = sorted(part for part in set(contents[0]) | set(contents[1])
+                            if contents[0].get(part) != contents[1].get(part))
+            return None, f"{before}'s output holds other content ({', '.join(differ)})"
+        proof[before] = {"from": then[before], "to": now[before], "rule": f"{rule.__module__}.{rule.__name__}"}
+    return proof, None
+
+
 def why_not(runner, row, place, record, keyed):
     """Why the accepted record does not carry to the new key, or None when it does."""
     if record.get("uncommitted", True) or not record.get("commit"):
@@ -120,6 +170,8 @@ def why_not(runner, row, place, record, keyed):
         if fault:
             return fault
     moved = [part for part in SAME if record.get(part) != keyed.get(part)]
+    if "after" in moved and same_content(runner, row, place, record, keyed)[0] is not None:
+        moved.remove("after")
     moved += [f"file {name}" for name in sorted(set(record["files"]) | set(keyed["files"]))
               if name not in NARROWED and record["files"].get(name) != keyed["files"].get(name)]
     if moved:
@@ -152,16 +204,59 @@ def carried(runner, row, place, keyed):
         return None
     node = graph.node_name(row, place)
     proved = record["code"] != wide_code(row)
-    new = {**record, "key": keyed["key"], "code": keyed["code"], "files": keyed["files"],
-           "carried": {"reason": REASON + (", its code change proved a no-op" if proved else ""),
+    content = same_content(runner, row, place, record, keyed)[0] if record.get("after") != keyed["after"] else None
+    new = {**record, "key": keyed["key"], "code": keyed["code"], "files": keyed["files"], "after": keyed["after"],
+           "carried": {"reason": REASON + (", its code change proved a no-op" if proved else "")
+                       + (", its moved inputs the same content" if content else ""),
                        "from key": record["key"], "to key": keyed["key"],
                        "made by": {"commit": record["commit"], "code": record["code"]},
                        "proof": runner.store.evidence_key(proof_check(wide_code(row)), record["output"])
-                       if proved else None}}
+                       if proved else None, **({"same content": content} if content else {})}}
     runner.store.write_record(node, keyed["key"], new)
+    copy_judgements(runner, node, record, keyed, new["carried"])
+    return new
+
+
+def copy_judgements(runner, node, record, keyed, carried_as):
+    """The judgements of the record's key written again under `keyed`, each naming the carry."""
     for judgement in runner.store.judgements(node, record["key"]):
         runner.store.write_judgement(node, keyed["key"], judgement["evidence"],
-                                     {**judgement, "key": keyed["key"], "carried": new["carried"]})
+                                     {**judgement, "key": keyed["key"], "carried": carried_as})
+
+
+def changes_by_content(runner, stage, place, keyed):
+    """((the accepted output's record, the repository files changed since its commit), the content proof, None) when
+    its key moved by earlier outputs of the same content (same_content) and otherwise only as changes_since allows
+    (its code and declared repository files, or nothing else); (None, None, why) otherwise."""
+    node = graph.node_name(stage, place)
+    record = review.record_of(runner.store, node, runner.store.accepted(node))
+    if record is None or record.get("uncommitted", True) or not record.get("commit") or \
+            record.get("after") == keyed.get("after"):
+        return None, None, "other key parts moved"
+    content, why = same_content(runner, stage, place, record, keyed)
+    if why:
+        return None, None, why
+    as_then = {**keyed, "after": record["after"]}
+    found = runner.changes_since(stage, place, as_then)
+    if found is not None:
+        return found, content, None
+    if all(record.get(part) == as_then.get(part) for part in ("code", "files", *SAME)):
+        return (record, []), content, None
+    return None, None, "other key parts moved"
+
+
+def kept_by_content(runner, stage, place, keyed, record, check, proof):
+    """The node's accepted output stored under `keyed` when the earlier outputs its key moved by hold the same content
+    and every other change is proved a no-op (`proof`, stored as evidence `check` on the output): its record and
+    judgements copied, the record naming both keys, what made it, the content proof and the no-ops. Its new record."""
+    node = graph.node_name(stage, place)
+    new = {**record, "key": keyed["key"], "code": keyed["code"], "files": keyed["files"], "after": keyed["after"],
+           "carried": {"reason": CONTENT_REASON, "from key": record["key"], "to key": keyed["key"],
+                       "made by": graph.made_by(record),
+                       "proof": runner.store.evidence_key(check, record["output"]),
+                       "same content": proof["same content"], "no-ops": proof["no-ops"]}}
+    runner.store.write_record(node, keyed["key"], new)
+    copy_judgements(runner, node, record, keyed, new["carried"])
     return new
 
 
@@ -225,10 +320,12 @@ def proved(runner, places, reasons, skip, write, since=None, only=None):
                 continue
             if runner.store.record(node, keyed["key"]) is not None:
                 continue
-            found = runner.changes_since(stage, place, keyed)
+            found, content, why = runner.changes_since(stage, place, keyed), None, "other key parts moved"
+            if found is None:
+                found, content, why = changes_by_content(runner, stage, place, keyed)
             unproved = None if found is None else [name for name in found[1] if name not in reasons]
             if node in skip or found is None or unproved:
-                why = ("its change is not a no-op for it" if node in skip else "other key parts moved"
+                why = ("its change is not a no-op for it" if node in skip else why
                        if found is None else f"{', '.join(unproved)} changed")
                 yield f"{node}: made again ({why})"
                 continue
@@ -238,15 +335,20 @@ def proved(runner, places, reasons, skip, write, since=None, only=None):
                 continue
             if write:
                 proof = {"from key": record["key"], "to key": keyed["key"],
-                         "no-ops": {name: reasons[name] for name in changed}}
+                         "no-ops": {name: reasons[name] for name in changed},
+                         **({"same content": content} if content else {})}
                 path = COMMITS / f"proof-{keyed['key']}.json"
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(json.dumps(proof, indent=1))
                 runner.store.put_evidence(f"no-op-{keyed['key']}", record["output"], path)
                 path.unlink()
-                if runner.kept_by_proof(stage, place, keyed) is None:
+                if content:
+                    kept_by_content(runner, stage, place, keyed, record, f"no-op-{keyed['key']}", proof)
+                elif runner.kept_by_proof(stage, place, keyed) is None:
                     raise RuntimeError(f"{node}: its proof was stored but the runner did not keep it")
-            yield f"{node}: {'kept' if write else 'keeps'} ({', '.join(changed)} a no-op)"
+            said = [f"{', '.join(changed)} a no-op"] if changed else []
+            said += [f"{before}'s output the same content" for before in content or {}]
+            yield f"{node}: {'kept' if write else 'keeps'} ({'; '.join(said)})"
 
 
 def main(argv=None):
