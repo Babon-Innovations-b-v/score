@@ -10,12 +10,16 @@ the weights RSWT moved over from the mean body (prop_rig.py), whose inpainted we
           cover only limb and finger segments, whose joints the laying already puts on the fitted skeleton's.
     bind  (the PC, the prop environment: plain geometry):
           ~/.farm-factory-props/env/bin/python prop_shell.py bind <fit rig.npz> <shell.npz> <out rig.npz> <shell.json>
+              [<parts.npz>]
           every look point bound to its closest body triangle: its weights SOMA's at that point (the triangle's corners'
           weights by the point's barycentric place), its offset along the body's normal recorded; the fit rig written
           again with those weights (the RSWT ones kept as `rswt_weights`). Hard parts and hair still ride one joint
           each, and so do the hands (prop_build.py's rigid_joint). shell.json: per part the offsets' most, mean and
           depth inside and their count per whole millimetre (`offsets_mm`, so a gate can pool parts), and the fit's
-          measures.
+          measures. Where the fitted body holds under REACH_SHARE of the look's soft points within REACH (a bulky
+          suit the fit's scale and shape numbers cannot fill), the look is bound instead to that body drawn onto the
+          suit's inside along its own normals (`drawn_to_suit`), recorded under shell.json's `suit`; a look the
+          fitted body already holds is bound exactly as before.
 """
 import json
 import pathlib
@@ -36,6 +40,19 @@ COEFF_STEP = 0.25
 SCALE_STEP = 0.01
 DAMPING = 1.0
 COVER_WEIGHT = 0.5
+# The shell's reach and the share of the soft points it holds, as the body gate judges them
+# (score/stages/people_bodies/bodies.py's OFFSET_MOST and SHELL_SHARE, named, not imported: the gate stays there).
+REACH = 0.05
+REACH_SHARE = 0.99
+# A bulky suit (2026-11-04: the spacesuit's fit ran to the largest scale and every shape number to its bound and still
+# stood 11 cm under the suit at the chest and 5 cm through it at the neck and hips, 91.3% of its soft points within
+# REACH): the fitted body drawn onto the suit's inside along its own normals, by at most SUIT_MOST (a padded suit's
+# thickness), in up to SUIT_ROUNDS rounds of SUIT_STEP of the way each, the best round kept. Measured on the
+# spacesuit's own look and parts over the astronaut's fitted SOMA-X body laid on its skeleton (2026-11-04): 99.8% of
+# its soft points within REACH, from 78%.
+SUIT_MOST = 0.10
+SUIT_ROUNDS = 40
+SUIT_STEP = 0.5
 
 
 def soma_layer():
@@ -161,19 +178,107 @@ def part_record(offsets, mine, rig):
             "offsets_mm": np.bincount(np.round(reach * 1000).astype(int)).tolist()}
 
 
-def bind(fit_path, shell_path, out, record_path):
-    """The look's points bound to the fitted body: SOMA's weights at each closest point; the rig and the record."""
+def bound(body, body_weights, points):
+    """Each point bound to its closest body triangle: SOMA's weights there (the corners' by the point's barycentric
+    place) and its offset along the body's normal, positive outside."""
     import trimesh
-    rig, shell = dict(np.load(fit_path)), np.load(shell_path)
-    body = trimesh.Trimesh(shell["points"], shell["faces"], process=False)
-    closest, distance, triangle = trimesh.proximity.closest_point(body, rig["points"])
+    closest, distance, triangle = trimesh.proximity.closest_point(body, points)
     corners = body.faces[triangle]
     places = trimesh.triangles.points_to_barycentric(body.vertices[corners], closest)
     places = np.clip(places, 0.0, None)
     places /= places.sum(axis=1, keepdims=True)
-    weights = np.einsum("pc,pcj->pj", places, shell["weights"][corners])
-    side = np.sign(np.einsum("ij,ij->i", rig["points"] - closest, body.face_normals[triangle]))
-    offsets = distance * np.where(side == 0, 1.0, side)
+    weights = np.einsum("pc,pcj->pj", places, body_weights[corners])
+    side = np.sign(np.einsum("ij,ij->i", points - closest, body.face_normals[triangle]))
+    return weights, distance * np.where(side == 0, 1.0, side)
+
+
+def soft_points(rig, parts):
+    """The look's points not on a part that rides one joint (prop_build.py's rule: a hard part but a belt or a
+    buckle, the hair, the bare hands), by the fit rig's own face parts (prop_build.face_parts' choice) and parts.npz's
+    names and roles."""
+    import prop_build
+    index = {int(part): number for number, part in enumerate(parts["parts"])}
+    rigid = {part for part, number in index.items()
+             if (str(parts["roles"][number]) == "hard" and not prop_build.worn_as_cloth(str(parts["names"][number])))
+             or str(parts["names"][number]) in prop_build.RIGID_NAMES or str(parts["roles"][number]) == "hair"}
+    part_of = np.zeros(len(rig["points"]), int)
+    part_of[rig["faces"].ravel()] = np.repeat(rig["part_of"] if "part_of" in rig else parts["part_of"], 3)
+    return ~np.isin(part_of, sorted(rigid))
+
+
+def held_share(offsets, soft):
+    """The share of the soft points within REACH of the body (the body gate's measure)."""
+    return float((np.abs(offsets[soft]) <= REACH).mean()) if soft.any() else 1.0
+
+
+def neighbour_mean(field, faces):
+    """Each vertex's value averaged with its edge neighbours' (one smoothing pass over the body's mesh)."""
+    edges = np.r_[faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]
+    edges = np.r_[edges, edges[:, ::-1]]
+    total, count = field.copy(), np.ones(len(field))
+    np.add.at(total, edges[:, 0], field[edges[:, 1]])
+    np.add.at(count, edges[:, 0], 1)
+    return total / count[:, None]
+
+
+def suit_rounds(points, faces, look_points, look_faces):
+    """The fitted body drawn onto the inside of a bulky suit, round by round: each round every body vertex steps along
+    its own normal, SUIT_STEP of the way to INSIDE_MARGIN under its nearest look surface and, averaged in, to the look
+    points nearest it (so a suit's ridge no body vertex is nearest to still pulls one out); the steps smoothed over
+    the body's mesh and the whole move held to SUIT_MOST. Only along the normal, so a point keeps the body's weights
+    of the place straight under it. Yields each round's drawn points and each vertex's move in metres."""
+    import trimesh
+    from scipy.spatial import cKDTree
+    look = trimesh.Trimesh(look_points, look_faces, process=False)
+    inside = look_points - look.vertex_normals * INSIDE_MARGIN
+    move = np.zeros_like(points)
+    for _ in range(SUIT_ROUNDS):
+        now = points + move
+        closest, _, triangle = trimesh.proximity.closest_point(look, now)
+        reach = closest - look.face_normals[triangle] * INSIDE_MARGIN - now
+        _, nearest = cKDTree(now).query(inside)
+        pulls, count = np.zeros_like(now), np.ones(len(now))
+        np.add.at(pulls, nearest, inside - now[nearest])
+        np.add.at(count, nearest, 1)
+        normals = trimesh.Trimesh(now, faces, process=False).vertex_normals
+        along = np.einsum("ij,ij->i", (reach + pulls) / count[:, None], normals)
+        move = move + neighbour_mean(SUIT_STEP * along[:, None] * normals, faces)
+        size = np.linalg.norm(move, axis=1, keepdims=True)
+        move *= np.minimum(1.0, SUIT_MOST / np.maximum(size, 1e-12))
+        yield points + move, np.linalg.norm(move, axis=1)
+
+
+def drawn_to_suit(shell, rig, soft):
+    """The round of `suit_rounds` that holds the most soft points within REACH (the rounds can overshoot a suit's
+    ridges, so the last is not taken blindly): its weights and offsets, and its measures."""
+    import trimesh
+    best = None
+    for drawn, moved in suit_rounds(shell["points"], shell["faces"], rig["points"], rig["faces"]):
+        weights, offsets = bound(trimesh.Trimesh(drawn, shell["faces"], process=False), shell["weights"],
+                                 rig["points"])
+        share = held_share(offsets, soft)
+        if best is None or share > best[0]:
+            best = (share, weights, offsets, moved)
+    share, weights, offsets, moved = best
+    return weights, offsets, {"held_share": round(share, 4), "moved_most_m": round(float(moved.max()), 4),
+                              "moved_mean_m": round(float(moved.mean()), 4)}
+
+
+def bind(fit_path, shell_path, out, record_path, parts_path=None):
+    """The look's points bound to the fitted body (`bound`); where the fitted body holds under REACH_SHARE of the soft
+    points within REACH (a bulky suit; parts.npz names which points are soft), bound instead to the body drawn onto
+    the suit's inside (`drawn_to_suit`), its measures recorded under `suit`; the rig and the record."""
+    import trimesh
+    rig, shell = dict(np.load(fit_path)), np.load(shell_path)
+    body = trimesh.Trimesh(shell["points"], shell["faces"], process=False)
+    weights, offsets = bound(body, shell["weights"], rig["points"])
+    suit = None
+    if parts_path is not None:
+        soft = soft_points(rig, np.load(parts_path))
+        fitted_share = held_share(offsets, soft)
+        if fitted_share < REACH_SHARE:
+            weights, offsets, drawn = drawn_to_suit(shell, rig, soft)
+            suit = {"fitted_held_share": round(fitted_share, 4), **drawn}
     rig["rswt_weights"], rig["weights"], rig["shell_offsets"] = rig["weights"], weights, offsets
     np.savez_compressed(out, **rig)
     faces_of = np.zeros(len(rig["points"]), int)
@@ -182,7 +287,8 @@ def bind(fit_path, shell_path, out, record_path):
     record = {"scale": float(shell["scale"]), "coefficients": shell["coefficients"].round(4).tolist(),
               "loss_start": float(shell["loss_start"]), "loss": float(shell["loss"]),
               "offset_most_m": round(float(np.abs(offsets).max()), 4),
-              "offset_mean_m": round(float(np.abs(offsets).mean()), 4), "parts": parts}
+              "offset_mean_m": round(float(np.abs(offsets).mean()), 4), "parts": parts,
+              **({} if suit is None else {"suit": suit})}
     pathlib.Path(record_path).write_text(json.dumps(record, indent=1))
     return record
 
@@ -192,7 +298,7 @@ def main():
     if step == "fit":
         print("shell fit:", fit(pathlib.Path(sys.argv[2]), pathlib.Path(sys.argv[3])), flush=True)
     elif step == "bind":
-        found = bind(*map(pathlib.Path, sys.argv[2:6]))
+        found = bind(*map(pathlib.Path, sys.argv[2:7]))
         print(f"shell bind: offsets most {found['offset_most_m']} m, mean {found['offset_mean_m']} m", flush=True)
     else:
         raise SystemExit(f"prop_shell.py: no step {step!r} (fit, bind)")
