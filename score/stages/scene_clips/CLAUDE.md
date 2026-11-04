@@ -18,6 +18,9 @@ cannot hold (with its evidence) and the price; `tools/characters/clips/scene_cli
   and the film read the clips as they read people-clips-made's.
 - **Never edit `tools/characters/maker/` or `people/` for it**: both are declared inputs of the paid people rows. The
   machine's program lives in `tools/characters/clips/`.
-- **Nothing reads its output yet**, so no other row's key moves.
+- **The sim body reads it for climbers only** (2026-11-04): a person the cast stands on a flight (`stairs`,
+  cast.on_stairs) walks from its first tread to its last, one tread a stance (`pace_of`: its run every
+  `STEP_FRAMES`), asked with the stairs' sentence (`STAIRS`); sim-body plays that clip for it (an optional read) and
+  every other walker's flat clip as before.
 - Tests: `test_a_walk_becomes_constraints_on_its_own_ground.py` (a toy place of steps and a wall, written outputs;
   Kimodo itself is not run there).

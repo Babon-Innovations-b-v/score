@@ -19,7 +19,9 @@ the step and the log's last line, before any copy.
 Breaks that turn each test red (each applied once and seen red, reverted, 2026-10-27):
 - a_straight_leg_walks_the_way_the_walker_faces: legs_of's `at[0] - math.sin(turn) * length` made
   `at[0] + math.sin(turn) * length` (the walker walks backwards).
-- the_route_climbs_the_steps: checked's `feet -= under["gap"]` dropped (every frame read from the start's feet).
+- the_route_climbs_the_steps: checked's `feet -= under["gap"]` dropped (every frame read from the start's feet);
+  pace_of's climber `float(single["stairs"]["run"]) * RATE / STEP_FRAMES` made the cast's pace (2026-11-04: its
+  feet land three treads apart, and its 1.5 m flight walks under two seconds).
 - each_foot_stands_on_the_ground_under_it: footfalls' `max(ground_at(...))` made `min(ground_at(...))`.
 - the_constraints_start_at_the_canonical_origin_heading_plus_z: canonical's `offset[:, 0] * sin + offset[:, 2] * cos`
   made `-offset[:, 0] * sin + offset[:, 2] * cos`.
@@ -100,11 +102,27 @@ def test_a_straight_leg_walks_the_way_the_walker_faces(plan):
 
 
 def test_the_route_climbs_the_steps(plan):
+    """A walker's route climbs the toy's steps; a climber (cast.on_stairs' `stairs`) walks its own flight of six
+    0.3 m treads 0.15 m apart from its first tread's middle to its last's, one tread a stance (its pace the run every
+    17.25 frames), each foot asked on the next tread up, with the stairs' own sentence."""
     route = np.asarray(plan["route"])
     for x, ground in zip(route[:, 0], route[:, 1]):
         if min(abs(x - start) for start, _ in STEPS) > 0.02:
             assert ground == pytest.approx(step_top(x), abs=1e-6)
     assert route[-1][1] == pytest.approx(0.45)
+    flight = {"Structure/floor": tris(box([-2.0, -0.2, -2.0], [0.0, 0.0, 2.0])),
+              "Structure/landing": tris(box([1.8, -0.2, -2.0], [4.0, 0.9, 2.0]))}
+    for step in range(6):
+        flight[f"Structure/step_{step}"] = tris(box([0.3 * step, -0.2, -2.0], [0.3 * (step + 1), 0.15 * (step + 1),
+                                                                                2.0]))
+    climber = {"name": "man", "doing": "walking", "at": [0.15, 0.15, 0.0], "turn": -90.0, "pace": 1.333,
+               "stairs": {"way": "up", "flight": "stair_1", "to": [1.65, 0.9, 0.0], "rise": 0.15, "run": 0.3}}
+    climb, why = scene_clips.plan_of(climber, flight)
+    assert why is None and climb["pace"] == pytest.approx(0.3 * 30 / 17.25), (why, climb and climb["pace"])
+    assert np.asarray(climb["route"])[-1] == pytest.approx([1.65, 0.9, 0.0], abs=0.01)
+    assert [fall["frame"] for fall in climb["footfalls"]] == [24, 41, 58, 76]
+    assert [fall["ground"] for fall in climb["footfalls"]] == pytest.approx([0.45, 0.6, 0.75, 0.9])
+    assert climb["sentence"] == scene_clips.STAIRS["up"] and climb["postprocess"] is False
 
 
 def test_each_foot_stands_on_the_ground_under_it(plan):
