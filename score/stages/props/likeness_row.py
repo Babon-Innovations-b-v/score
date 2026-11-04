@@ -67,6 +67,14 @@ DESIGNED_LEAST = 0.14
 TEXTURED_SIDE = 256
 PEOPLE_LAYER = "people"  # a person's object in the prop data (the people line's looks, a design's people)
 BACK = "@back"
+# A thin row's model strays from its swept fit (`swept_stray`) by at most this share of its silhouette: a clean sweep
+# along its centreline, its fittings within FITTING_SHARE of it, reads at most 0.023 (env1's 26 thin rows rebuilt,
+# 2026-11-04: the stairwell's conduit, the hub's cable bundle), the ball-built blobs the eyes-on review saw
+# (2026-11-02) 0.063 (the hub's cable bundle) to 0.406 (the stairwell's stair railing).
+SWEPT_LIMIT = 0.04
+# The silhouette's drawn width, in pixels, the swept fit is measured at (`swept_stray`), and its longest side at most.
+SWEPT_WIDTH = 48
+SWEPT_SIDE = 6144
 
 
 def files(place):
@@ -131,14 +139,15 @@ def finishes_missing(take, parts, lit=False):
             if finish["finish"] not in owned and not (lit and finish.get("family") in LIT_FAMILIES)]
 
 
-def model_checks(path, size, kind, square):
+def model_checks(path, size, kind, square, thin=False):
     """model.py's check at the row's size (y tall; its wide and deep sides on x and z as the model's own ground sides
     lie, longer to longer: the finish's stand lays a long model's longest ground side along z, glb_file.squared, and
     model.py fits the mesh to the laid size axis by axis, so a 4 m wall pipe's elbow laid crosswise read 0.6 mm thick),
     straight.py's for a square generated kind, and whether the mesh is closed. A slender row (model.py's own rule:
     thin_straight.slender) is laid as one scale, its longest side the row's, never fitted side by side: its box's two
     short sides are its thickness, not its reach, so a sagging string's 1 m sag fitted to its 8 by 0.01 by 0.01 box
-    read its 1 cm tube 0.0 m thick (2026-10-26); its proportions are the outline's to hold."""
+    read its 1 cm tube 0.0 m thick (2026-10-26); its proportions are the outline's to hold. A `thin` row's model
+    (thin_straight.thin_straight) is held to its swept fit (`swept_stray`)."""
     import trimesh
     with prop_data.tools("props/gates", "props/library", "props"):
         import model as model_gate
@@ -158,7 +167,59 @@ def model_checks(path, size, kind, square):
                                        and wall >= model_gate.least_wall(laid)})
     if square:
         found["straight"] = straight.straightness(mesh)
+    if thin:
+        stray = swept_stray(mesh)
+        found["swept"] = {"stray": round(stray, 4), "pass": stray <= SWEPT_LIMIT}
     return found
+
+
+def swept_stray(mesh):
+    """The share of a thin model's silhouette, seen across its plane (its two widest principal axes), that strays
+    from its swept fit: the silhouette's own skeleton runs (thin_straight.spine, knots joined, only spurs shorter
+    than half a width dropped) swept at one width a piece, its median; outside the fit grown to
+    thin_straight.FITTING_SHARE of it (an elbow, tee or clamp is a sweep's), plus inside it shrunk by as much but
+    not drawn, but within two widths of a free end (a cap is the builder's: flat, round or held across). Drawn so
+    its median width is SWEPT_WIDTH pixels, its longest side at most SWEPT_SIDE. A model made of
+    balls as wide as a ragged mask (a lumpy, hand-like blob: the stairwell's railing, the quarters' desk cables, the
+    street's lamp posts, 2026-11-02) strays; a straight or swept tube does not."""
+    from PIL import ImageDraw
+    from scipy import ndimage
+    from skimage.morphology import skeletonize
+    points = mesh.vertices - mesh.vertices.mean(0)
+    flat = points @ np.linalg.svd(points, full_matrices=False)[2][:2].T
+    flat -= flat.min(0)
+    side = 1024
+    while True:
+        per = side / max(float(np.ptp(flat, axis=0).max()), 1e-9)
+        picture = Image.new("L", tuple(int(value) + 9 for value in np.ptp(flat, axis=0) * per), 0)
+        draw = ImageDraw.Draw(picture)
+        for corners in flat[mesh.faces] * per + 4:
+            draw.polygon([tuple(corner) for corner in corners], fill=255)
+        silhouette = np.asarray(picture) > 0
+        edge = ndimage.distance_transform_edt(np.pad(silhouette, 1))[1:-1, 1:-1]
+        skeleton = skeletonize(silhouette)
+        width = 2 * float(np.median(edge[skeleton]))
+        if width >= SWEPT_WIDTH or side >= SWEPT_SIDE:
+            break
+        side = int(min(SWEPT_SIDE, side * SWEPT_WIDTH / max(width, 1.0)))
+    runs = thin_straight.spine(skeleton, edge, tolerance=1.0, spur=0.5)
+    lines = Image.new("I", picture.size, 0)
+    draw = ImageDraw.Draw(lines)
+    for number, (run, _) in enumerate(runs, 1):
+        draw.line([tuple(point) for point in run], fill=number, width=1)
+    drawn = np.asarray(lines)
+    off, (near_down, near_across) = ndimage.distance_transform_edt(drawn == 0, return_indices=True)
+    radius = np.concatenate([[0.0], [radius for _, radius in runs]])[drawn[near_down, near_across]]
+    ends = [tuple(np.round(end, 6)) for run, _ in runs for end in (run[0], run[-1])]
+    tips = Image.new("1", picture.size, 1)
+    draw = ImageDraw.Draw(tips)
+    for (run, width), end in zip([entry for entry in runs for _ in range(2)], ends):
+        if ends.count(end) == 1:  # a free end: its cap is the builder's (flat, round, held across), not a lump
+            draw.ellipse([end[0] - 2 * width, end[1] - 2 * width, end[0] + 2 * width, end[1] + 2 * width], fill=0)
+    along = np.asarray(tips, dtype=bool)
+    outside = silhouette & (off > radius * thin_straight.FITTING_SHARE + 1) & along
+    missing = ~silhouette & (off < radius / thin_straight.FITTING_SHARE - 1) & along
+    return float((outside.sum() + missing.sum()) / silhouette.sum())
 
 
 def sheet(kind, laid):
@@ -372,7 +433,9 @@ def object_record(row, record, inputs, baked, parts, rows, square, cuts):
                  **model_checks(model, rows[row]["size"] if "made" in found
                                 else drawn_size(rows[row], model, list(rows.values()), inputs,
                                                 record["objects"][row].get("layer") == PEOPLE_LAYER), kind,
-                                route == "prop" and kind in square))
+                                route == "prop" and kind in square,
+                                thin_built(inputs, row) or "name" in rows[row]
+                                and thin_straight.thin_straight(rows[row])))
     if turn is not None:  # the textured pair sees it by the outline's turn too (write_textured_pair)
         found["turn"] = np.asarray(turn, float).round(6).tolist()
     # a code build's parts: None, unknown (nothing measures them since the code fallback's parts check went)
@@ -447,6 +510,12 @@ def model_faults(row, entry):
     return [] if found["pass"] else [f"thinnest {found['thinnest']} m, spread {found['spread']}"]
 
 
+def swept_faults(row, entry):
+    if "swept" not in entry or entry["swept"]["pass"]:
+        return []
+    return [f"lumpy: strays {entry['swept']['stray']} of its silhouette from a swept fit, over {SWEPT_LIMIT}"]
+
+
 def lean_faults(row, entry):
     return [] if "straight" not in entry or entry["straight"]["pass"] else ["leans or warps"]
 
@@ -462,7 +531,7 @@ def scored(scores, least):
 
 
 FREE = {"outline": outline_faults, "close-up parts present": parts_faults, "thin and in proportion": model_faults,
-        "lean": lean_faults}
+        "lean": lean_faults, "swept clean": swept_faults}
 
 
 def object_faults(found, faults_of):

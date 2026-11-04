@@ -294,7 +294,7 @@ def build_faults(model, picture, place, name, row, folder, straight=False):
     take (likeness_row.object_record): `outline` at likeness.OUTLINE_LEAST on that picture as Pixal3D's cut makes it
     (a thin straight build's, `straight`, its mask as it is: likeness_row.straight_cut, seen by
     thin_straight.view), and `thin and in
-    proportion`; `close-up parts present` needs the finish route's parts, so the likeness row judges it. CPU only: no
+    proportion`, and a thin straight build's `swept clean`; `close-up parts present` needs the finish route's parts, so the likeness row judges it. CPU only: no
     renderer, no model, nothing rented."""
     import score.stages.props.likeness as likeness
     import score.stages.props.likeness_row as likeness_row
@@ -307,5 +307,6 @@ def build_faults(model, picture, place, name, row, folder, straight=False):
     else:
         way = likeness.best_way(model, cut, size)
     found = {**way,
-             **likeness_row.model_checks(model, row["size"], f"{place}_{name}", False)}
-    return likeness_row.outline_faults(name, found) + likeness_row.model_faults(name, found)
+             **likeness_row.model_checks(model, row["size"], f"{place}_{name}", False, straight)}
+    return (likeness_row.outline_faults(name, found) + likeness_row.model_faults(name, found)
+            + likeness_row.swept_faults(name, found))
