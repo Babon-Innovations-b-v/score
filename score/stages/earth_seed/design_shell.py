@@ -22,7 +22,8 @@ raised levels (the street, the square, the base: a plan that encloses nothing), 
            to its top across its box, along the box's longer side, a square box's between the ends its openings stand
            on (`vault_way`; builders' `tube_arc`), so the people under it fit
            (the tube's, round 33 of 2026-10-30); one rising otherwise (shed, pitched) a closed gable along its box's
-           longer side; no written roof, a flat one on the walls' height
+           longer side; no written roof, a flat one on the walls' height; a flat one with `openings` (each a
+           footprint of points: a hatch, the hangar's roof door) is the slab round them (cut_out), open over each
     level  (an open place: no room, and a plan that encloses nothing, `encloses`) each level standing off the ground by
            more than LEVEL_OFF: one up to STOREY high stands solid from the ground (a raised deck, a
            stage); a higher one a slab SLAB thick under its height (a balcony)
@@ -627,6 +628,12 @@ def roofs(plan, outline, high):
         top = float(entry.get("top") or eave)
         rising = top > eave + 1e-6
         domed, vaulted = entry.get("kind") == "dome", entry.get("kind") == "vault"
+        holes = roof_holes(entry)
+        if not rising and holes:  # a flat roof with its openings cut: the pieces round them
+            found.append((f"roof_{number}", [slab_piece(part, eave, eave + SLAB) for part in cut_out(points, holes)],
+                          f"the plan's flat roof, eave {eave:g} m: a slab {SLAB:g} m thick on it, its "
+                          f"{len(holes)} openings cut"))
+            continue
         piece = (dome_piece(points, eave, top) if domed else
                  {"builder": "vault" if vaulted else "gable", "points": [[float(x), float(y)] for x, y in points],
                   "eave": eave, "top": top}) \
@@ -641,6 +648,49 @@ def roofs(plan, outline, high):
                                                "a gable along its box's longer side") if rising else
                        f": a slab {SLAB:g} m thick on it")))
     return found
+
+
+def roof_holes(entry):
+    """[(west, north, east, south)] plan metres of each opening a written roof has (its `openings`, each a footprint
+    of points: a hatch, a skylight, the hangar's 27 by 55 m roof door the ship leaves by), its box."""
+    found = []
+    for opening in entry.get("openings") or []:
+        corners = np.asarray(opening.get("points") or [], float).reshape(-1, 2)
+        if len(corners) >= 3 and np.ptp(corners[:, 0]) > 0 and np.ptp(corners[:, 1]) > 0:
+            found.append((*corners.min(axis=0).tolist(), *corners.max(axis=0).tolist()))
+    return found
+
+
+def cut_out(points, holes):
+    """The outline (plan metres) less each hole's box, as outlines round them: to the west and east of a hole, and
+    north and south of it between the two; each clipped to the outline, none of no area."""
+    pieces = [[[float(x), float(y)] for x, y in points]]
+    for west, north, east, south in holes:
+        bands = ((None, None, west, None), (east, None, None, None), (west, None, east, north),
+                 (west, south, east, None))
+        pieces = [part for piece in pieces for band in bands
+                  if len(part := clipped(piece, *band)) >= 3 and abs(signed_area(part)) > 1e-9]
+    return pieces
+
+
+def clipped(points, west, north, east, south):
+    """An outline clipped to the box between these lines (plan metres; None: no line there), Sutherland and Hodgman's
+    way, one side at a time."""
+    for axis, bound, keep_low in ((0, west, False), (0, east, True), (1, north, False), (1, south, True)):
+        if bound is None or not points:
+            continue
+        kept = []
+        for index, here in enumerate(points):
+            before = points[index - 1]
+            within = (here[axis] <= bound) if keep_low else (here[axis] >= bound)
+            was = (before[axis] <= bound) if keep_low else (before[axis] >= bound)
+            if within != was:
+                share = (bound - before[axis]) / (here[axis] - before[axis])
+                kept.append([before[0] + share * (here[0] - before[0]), before[1] + share * (here[1] - before[1])])
+            if within:
+                kept.append(list(here))
+        points = kept
+    return points
 
 
 def dome_piece(points, eave, top):

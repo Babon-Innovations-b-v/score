@@ -209,7 +209,9 @@ def test_the_record_is_written_from_the_design():
         1)]` -> `if False]` (a glowing row with fewer lamps than its reading counts passes)
     Break: score/stages/scene_record/gates.py:
         `found.append(f"opening {number} leads to {to!r}, no place of the design nor a row of its inventory")`
-        -> `pass`"""
+        -> `pass`
+    Break: score/stages/scene_record/gates.py: unbuilt_rows' `if row_id not in named]` -> `if False]` (a shell row
+        the shell cannot build dropped without a word: the hangar's landing pad, 2026-11-04)"""
     from score.review import overhead
     from score.stages.scene_record import gates, writer
     with tempfile.TemporaryDirectory() as folder:
@@ -247,6 +249,13 @@ def test_the_record_is_written_from_the_design():
         verdict = gates.judge_plan_matched(output, inputs, {})
         assert verdict.answer == checks.FAIL and "glowing row ceiling_lamp has 0 lamps, its reading counts 1" in \
             verdict.findings, verdict.findings
+        path.write_text(json.dumps(record))
+        handin = json.loads(pathlib.Path(inputs["hand-in"]).read_text())
+        pathlib.Path(inputs["hand-in"]).write_text(json.dumps({**handin, "rows": [
+            *handin["rows"], {"id": "landing_pad", "part": "floor", "route": "plan"}]}))
+        verdict = gates.judge_plan_matched(output, inputs, {})
+        assert verdict.answer == checks.FAIL and verdict.findings == (
+            "shell row landing_pad (floor) is built by no piece of the shell",), verdict.findings
     nowhere = json.loads(json.dumps(WRITTEN))
     nowhere["openings"][0]["to"] = "moon_city"
     with tempfile.TemporaryDirectory() as folder:
