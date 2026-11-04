@@ -43,7 +43,8 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
     gates    on floor     no skin point of any body goes into its ground by more than SUNK_MOST, any frame
              lands        a foot (Foot, ToeBase) the ground pushes with at least CONTACT of the weight is within
                           LANDED of the ground under it (its lowest skin point's height over the drawn triangles),
-                          every such frame; a body no foot of which ever lands fails
+                          every such frame; a body no foot of which ever lands fails, but a seated one (SEATED),
+                          which fails when its ground never pushed CONTACT of its weight
              carries      over each run the ground's mean upward push is the body's weight within CARRIED
              follows      the mean angle between each SOMA segment's turn (riding its bone) and the clip's, over
                           segments and frames, at most FOLLOWED degrees; and RRA's move off the fitted path, every

@@ -122,8 +122,11 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   sliding (Coulomb: the normal and 0.5 of it against its slip), along that triangle's normal; no force anywhere else.
   No heightfield and no MuJoCo collision: a MuJoCo heightfield met with a margin gave contacts 3 to 5 cm deep with
   sideways normals under a foot 4 mm over its ground (2026-10-27). A riser the toe meets is not a contact: it shows as
-  residual. `on floor` fails a body over `SUNK_MOST` (3 mm) into its ground, `lands` a carrying foot over `LANDED` (5
-  mm) off it.
+  residual. Each segment carries its skin from its bone group's start (`landmarks.at_starts`), where `fit.riding`
+  stands it: the Hips' is the hip joints' middle, 8 cm under SOMA's Hips joint, and carried from the joint a seated
+  body's skin sat 4 to 5 cm into its floor (cockpit's pilot and quarters' two, 6.5 cm, 2026-11-03). `on floor` fails a
+  body over `SUNK_MOST` (3 mm) into its ground, `lands` a carrying foot over `LANDED` (5 mm) off it, or a body no foot
+  of which lands, but a seated one (`SEATED`, its seat carries it) fails only when its ground never carried it.
 - **One Newton environment**: `score/stages/physics/inside/newton_env.sh` (declared as `sim env`), built once at
   `$PROPS_HOME/envs/newton_env`; never a second env or a pip install of its own. mink, qpsolvers and daqp are pinned
   there for the fit (#70); the script is declared by physics-trial, settle and effects too, so a pin moves their keys.
