@@ -193,7 +193,12 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   4.67 deg, residual 3.99 N, 5.77 N m -> 4.47, 9.45 -> 3.43, 5.15 (within limits 84.0 -> 78.7 -> 87.3 %). No goal
   leaves both env1 people's turns and residual no worse: 1e2 barely moves the bones and raises the standing residual,
   1e3 moves them most and raises the seated residual on a few frames.
-- **A clip's first frame takes its skin rows from its fit without them** (`Frames.fitted`, 2026-11-01): the skin
+- **Every frame takes its skin rows from its own fit without them** (`Frames.fitted`, the first frame's since
+  2026-11-01, every frame's since 2026-11-04): from the frame before, the skin rows pulled a fast-swinging arm onto the
+  hips', Spine2's or chest's skin and held it there for many frames, inside the step limit, so nothing raised (the
+  mean body's running wrist 94 to 168 mm off SOMA's on 7 of its 11 scored frames, kimodo's 109 to 309 mm, rigwalk's
+  right arm from frame 60 on); re-solving the stage's own frames so, running's wrist 17 to 21 mm and kimodo's 15 to
+  18 mm, in about half the time (the skin rows start near their answer). The first frame's history: the skin
   pulls a bone point to the nearest skin, whichever part's, and counts it inside any part's. From the standing start
   env1's seated astronaut's hanging forearms stood in his thighs' skin: frame 0 ran 62 judged steps into a pose with
   the radii and scaphoids beside the thighs (their nearest skin LeftLeg/RightLeg), the arms, forearms and hands 23 to

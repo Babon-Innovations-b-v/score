@@ -31,9 +31,12 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-11-01) _frames.SkinTask's objective `pull` made `-pull`: the bones 183.8 mm outside held against 7.07 mm free,
   the held frames' cost (turns, markers and skin rows) 170.2 over the free 0.25
   (the_frames_hold_the_bones_inside_the_skin red).
-- (2026-11-01) _frames.Frames.fitted's first frame fitted without the skin dropped (`if skins is not None` made
-  `... and False`): from the standing start the skin holds the shin bone in the other part's box, 153.6 mm outside its
-  own skin, the knee 1.033 rad off its target (a_clips_first_frame_is_not_held_in_another_parts_skin red).
+- (2026-11-01) _frames.Frames.fitted's fit without the skin dropped (its `self.frame(qpos, frame_turns,
+  frame_points)` run only when `skins is None`): on the first frame, from the standing start the skin holds the shin
+  bone in the other part's box, 153.6 mm outside its own skin, the knee 1.033 rad off its target (a_frame_is_not_held_in_another_parts_skin red).
+- (2026-11-04) _frames.Frames.fitted's every frame fitted without the skin first made the first frame's only (the code
+  before 2026-11-04): the frame after the swing held in the other part's box, the bone 189.1 mm outside its own skin,
+  the knee 0.693 rad off (a_frame_is_not_held_in_another_parts_skin red).
 - (2026-11-01) _skin.unfolded's `<= FOLD_MOST` made `<= 2.0`: the overlapping cubes' frame is kept and its point reads
   1 m deep (a_skin_folding_into_itself_gives_no_rows red).
 - (2026-11-01) _skin.joined_faces' `| (parents[:, None] == joints[None, :]) | (joints[:, None] == parents[None, :])`
@@ -638,35 +641,58 @@ def the_frames_hold_the_bones_inside_the_skin():
     return problems + ([] if costs[0] < costs[1] else [f"the held frames' cost {costs[0]:.6f} over the free {costs[1]:.6f}"])
 
 
-def a_clips_first_frame_is_not_held_in_another_parts_skin():
-    """mink's frames on the toy whose skin also holds another part's (a box beside the shin bone where the standing
-    start puts it, DECOY_SHIFT off, as env1's seated thighs stood beside his hanging forearms): the knee still reaches
-    its bent target and the bone its own skin (within FOUND_MM), the first frame's skin rows starting from its fit
-    without them; from the standing start the skin pulled the bone into the other box and held it there."""
+def decoy_box(model, qpos):
+    """Another part's skin beside the toy's shin bone where `qpos` puts it, DECOY_SHIFT off ([8 x 3] corners)."""
     import mujoco
+    import numpy as np
+    data = mujoco.MjData(model)
+    data.qpos[:] = qpos
+    mujoco.mj_kinematics(model, data)
+    shin = model.body("shin_l").id
+    corners = np.array([[x, y, z] for x in (-DECOY_HALF, DECOY_HALF) for y in (-DECOY_HALF, DECOY_HALF)
+                        for z in (-0.37, -0.03)]) + [0.0, DECOY_SHIFT, 0.0]
+    return corners @ data.xmat[shin].reshape(3, 3).T + data.xpos[shin]
+
+
+def a_frame_is_not_held_in_another_parts_skin():
+    """mink's frames on the toy whose skin also holds another part's (a box beside the shin bone, DECOY_SHIFT off,
+    where the frame's start puts it: as env1's seated thighs stood beside his hanging forearms at the standing start,
+    and as the mean body's hips and chest stood beside a fast-swinging arm at the frame before's pose): the knee still
+    reaches its bent target and the bone its own skin (within FOUND_MM), on a clip's first frame (from the standing
+    start) and on a later frame after a swing (the knee -0.4 to -1.2 rad), each frame's skin rows starting from its
+    own fit without them; from the start the skin pulled the bone into the other box and held it there."""
     import numpy as np
     import fit
     from fit import _frames, _skin
+    problems = []
     with tempfile.TemporaryDirectory() as folder:
         fitting = toy_fitting(folder)
         truth = truth_of(fitting)
+        model = fitting.model
+        # the first frame: the decoy where the standing start puts the shin
         turns, points, angles = posed_targets(fitting, truth, POSES[2:3])
         own = shin_skins(fitting, truth, POSES[2:3])
         fitting.apply(truth)
-        model, data = fitting.model, mujoco.MjData(fitting.model)
-        data.qpos[:] = _frames.Frames(fitting).start(turns[0], points[0])
-        mujoco.mj_kinematics(model, data)
-        shin = model.body("shin_l").id
-        corners = np.array([[x, y, z] for x in (-DECOY_HALF, DECOY_HALF) for y in (-DECOY_HALF, DECOY_HALF)
-                            for z in (-0.37, -0.03)]) + [0.0, DECOY_SHIFT, 0.0]
-        decoy = corners @ data.xmat[shin].reshape(3, 3).T + data.xpos[shin]
-        both = _skin.PosedSkins(np.concatenate([own.verts[0], decoy])[None],
-                                np.concatenate([own.faces, np.array(CUBE_FACES) + len(corners)]))
-        held = fit.angles(fitting, turns, points, both)
-        depth = 1000 * float(np.sqrt(np.mean(bone_depths(model, held, own) ** 2)))
-    knee = abs(float(held[0, 8] - angles[0, 1]))
-    return [] if depth < FOUND_MM and knee < 0.01 else [
-        f"the bone {depth:.1f} mm outside its own skin, the knee {knee:.3f} rad off its target"]
+        decoy = decoy_box(model, _frames.Frames(fitting).start(turns[0], points[0]))
+        faces = np.concatenate([own.faces, np.array(CUBE_FACES) + 8])
+        held = fit.angles(fitting, turns, points, _skin.PosedSkins(np.concatenate([own.verts[0], decoy])[None], faces))
+        cases = [("the first frame", held[0], own.verts[0], angles[0])]
+        # a swing: frame 0 at POSES[0] in its own skin (its decoy far off), frame 1 at POSES[2], the decoy where
+        # frame 0's fit put the shin
+        turns, points, angles = posed_targets(fitting, truth, (POSES[0], POSES[2]))
+        own = shin_skins(fitting, truth, (POSES[0], POSES[2]))
+        fitting.apply(truth)
+        first = fit.angles(fitting, turns[:1], points[:1], _skin.PosedSkins(own.verts[:1], own.faces))
+        decoys = np.array([decoy_box(model, first[0]) + [0.0, 0.0, 10.0], decoy_box(model, first[0])])
+        held = fit.angles(fitting, turns, points, _skin.PosedSkins(np.concatenate([own.verts, decoys], axis=1), faces))
+        cases.append(("the frame after a swing", held[1], own.verts[1], angles[1]))
+        for name, qpos, verts, wanted in cases:
+            depth = 1000 * float(np.sqrt(np.mean(bone_depths(model, qpos[None], _skin.PosedSkins(verts[None], CUBE_FACES))
+                                                 ** 2)))
+            knee = abs(float(qpos[8] - wanted[1]))
+            if not (depth < FOUND_MM and knee < 0.01):
+                problems.append(f"{name}: the bone {depth:.1f} mm outside its own skin, the knee {knee:.3f} rad off")
+    return problems
 
 
 def pocket_head():
@@ -840,7 +866,7 @@ CHECKS = (an_end_read_in_the_skin_holds_its_bones_off_somas_joint, a_turn_is_jud
           every_recording_of_the_body_is_sampled, somas_targets_leave_the_solves_unchanged, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows,
           a_step_no_task_sees_ends_the_fit, level_2_ends_settled, a_step_the_cost_cannot_see_is_judged_by_its_gradient,
           the_frames_hold_the_bones_inside_the_skin,
-          a_clips_first_frame_is_not_held_in_another_parts_skin, the_heads_pockets_are_closed_for_the_inside_test, a_skin_folding_into_itself_gives_no_rows,
+          a_frame_is_not_held_in_another_parts_skin, the_heads_pockets_are_closed_for_the_inside_test, a_skin_folding_into_itself_gives_no_rows,
           the_depth_is_the_nearest_faces_where_the_query_flips)
 
 

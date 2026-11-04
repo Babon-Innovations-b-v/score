@@ -211,6 +211,29 @@ def _inertia(inertia, quat, scale, mass_share):
     return moments.sum() - moments
 
 
+BALANCE_MARGIN = 1e-5  # the share each body's largest principal inertia is kept under the sum of the other two
+BALANCE_MOST = 1e-4  # the most a balance may lower it (more is an inertia sizing broke, not a rounding)
+
+
+def balanced(spec):
+    """Every body's principal inertias kept off the triangle's edge: its largest at most (1 - BALANCE_MARGIN) of the
+    other two's sum. MyoFullBody's lumbar vertebrae sit exactly on it (lumbar2 0.0104155 = 0.00365967 + 0.00675583,
+    a zero second moment), sizing and weigh keep it there, and the 6 digits written tipped it to -1e-8 on some
+    people's scales; Newton's add_mjcf corrects only breaches beyond float32's eps times the sum, and SolverMuJoCo's
+    compile has no balanceinertia, so a clip failed at model build ('inertia must satisfy A + B >= C') by how its
+    scales rounded (2026-11-04). Raises when a body's largest is over the sum by more than BALANCE_MOST."""
+    for body in spec.bodies[1:]:
+        inertia = np.asarray(body.inertia, dtype=float).copy()
+        largest = int(np.argmax(inertia))
+        most = (inertia.sum() - inertia[largest]) * (1 - BALANCE_MARGIN)
+        if inertia[largest] <= most:
+            continue
+        if inertia[largest] > most * (1 + BALANCE_MOST):
+            raise RuntimeError(f"{body.name}'s inertia {inertia.tolist()} breaks A + B >= C beyond a rounding")
+        inertia[largest] = most
+        body.inertia = inertia
+
+
 def _slide_scale(scale, quat, axis):
     """How far a slide joint's travel stretches: its axis (in its body's frame, the body turned by `quat` in its
     parent) under its parent's `scale`."""
@@ -585,23 +608,30 @@ def kneecap_moves(model, rig, scale, kneecap, places):
 RANGE_CHECKS = 200  # the bends a refitted coupling is kept in its slide's range at, over the knee's range
 
 
+IN_RANGE_SLACK = 1e-9  # m: how far past its slide's range a refitted coupling may read at a check (the QP's rounding)
+
+
 def in_range(powers, wanted, kept, bent):
     """A coupling's polynomial (its powers of the bend at each sample, `powers`) nearest `wanted` by least squares,
     its value within `kept` (the slide's range) at RANGE_CHECKS bends over `bent` (the knee's range from its rest):
-    scipy's SLSQP from the plain least squares."""
-    from scipy.optimize import minimize
+    the exact convex quadratic program, by daqp (pinned with mink in newton_env.sh). scipy's SLSQP before 2026-11-04
+    failed at the optimum by numerical chance (status 8, 'Positive directional derivative for linesearch': patella_r's
+    slide 65 of 200 times under 1e-9 relative noise on `wanted`, the same 1.156 mm fit as the passes), which failed
+    the mean body's lunge and twist on one machine and not another."""
+    import qpsolvers
     checks = np.vander(np.linspace(*bent, RANGE_CHECKS), powers.shape[1], increasing=True)
-    start = np.linalg.lstsq(powers, wanted, rcond=None)[0]
     scale = float(np.abs(wanted).max()) or 1.0
-    solved = minimize(lambda coef: float(np.sum(np.square(powers @ coef - wanted))) / scale ** 2, start,
-                      jac=lambda coef: 2 * powers.T @ (powers @ coef - wanted) / scale ** 2, method="SLSQP",
-                      constraints=[{"type": "ineq", "fun": lambda coef: checks @ coef - kept[0], "jac": lambda _: checks},
-                                   {"type": "ineq", "fun": lambda coef: kept[1] - checks @ coef,
-                                    "jac": lambda _: -checks}],
-                      options={"ftol": 1e-14, "maxiter": 500})
-    if not solved.success:
-        raise RuntimeError(f"a kneecap's coupling found no polynomial in its slide's range: {solved.message}")
-    return solved.x
+    solved = qpsolvers.solve_qp(powers.T @ powers, -powers.T @ (wanted / scale), np.vstack([checks, -checks]),
+                                np.concatenate([np.full(RANGE_CHECKS, kept[1] / scale),
+                                                np.full(RANGE_CHECKS, -kept[0] / scale)]), solver="daqp")
+    if solved is None:
+        raise RuntimeError("a kneecap's coupling found no polynomial in its slide's range: daqp found no solution")
+    solved = solved * scale
+    values = checks @ solved
+    past = max(float(kept[0] - values.min()), float(values.max() - kept[1]))
+    if past > IN_RANGE_SLACK:
+        raise RuntimeError(f"a kneecap's coupling left its slide's range by {past:.3g} m")
+    return solved
 
 
 def kneecaps(spec, rig, scales):
