@@ -10,7 +10,10 @@ turns and reaches every pose as before, its ranges moved by them; each foot turn
 axis at the ankle, before the ankle's flexion, toes in for a positive turn on both sides, on `FEET`' ranges, and at
 no twist stands as it did; each finger's MCP flexion bends back to `KNUCKLES`' extension, its flexion and every other
 joint's range kept; each knee's shin turn (knee_angle_rotation3) leads on its published range, no longer set by the
-flexion, the knee's other couplings kept (`KNEE`). It runs in Newton's own Python
+flexion, the knee's other couplings kept (`KNEE`); the neck bends and flexes at its turn's place (`CERVICAL`); each
+axis' L3/L4 joint leads, the levels above it tied to it in the model's ratios, so every pose of the old ties is
+reached as before, L4/L5 still tied to lumbar5 (`LUMBAR`); and each joint of `RANGES` has its published range,
+both sides. It runs in Newton's own Python
 (score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there, as in `make
 tests`' sandbox home, it prints `skipped`.
 
@@ -34,6 +37,12 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-11-01) KNUCKLES' stems made every `mcp{finger}_{turn}` (abduction too): the abduction's range moves.
 - (2026-11-04) _knee's `spec.delete(equality)` made `pass`: the shin's turn stays tied to the flexion.
 - (2026-11-04) _knee's `equality.name1[:-2] == follower and` dropped: the knee's sideways turn loses its coupling too.
+- (2026-11-04) _lumbar's `spec.delete(own)` made `pass`: L3/L4 stays tied to flex_extension.
+- (2026-11-04) _lumbar's `float(tie.data[1]) / ratio` made `float(tie.data[1])`: the levels above L3/L4 bend at
+  the wrong share of it, off the old ties' poses.
+- (2026-11-04) _cervical's `pos=turn.pos` made `pos=[0.0, 0.0, 0.0]`: the neck bends at the neck body's origin, off
+  its turn's place.
+- (2026-11-04) _ranges' `joint.range = span` made `pass`: the hip's rotation and the toes keep their old ranges.
 
 Run: .venv/bin/python score/stages/sim_body/inside/myo/test_the_persons_file_builds_in_newton_as_mujoco_compiles_it.py
 """
@@ -250,11 +259,12 @@ def the_neck_thorax_and_girdle_move():
     """The written file's neck, head and torso carry `myo._movable`'s joints with their ranges, and the girdle's
     joint leads on GIRDLE's range, its phantom the one coupling left, at -1 on it."""
     import numpy as np
-    from myo._movable import GIRDLE, NECK, THORACIC
+    from myo._movable import CERVICAL, GIRDLE, NECK, THORACIC
     with tempfile.TemporaryDirectory() as folder:
         compiled = written(folder)[2]
     wanted = {joint["name"]: joint["range"] for joint in NECK.values()}
     wanted.update({name: span for name, _, span in THORACIC[3]})
+    wanted.update({name: span for name, _, span in CERVICAL[2]})
     wanted["sternoclavicular_r2_l"] = GIRDLE["sternoclavicular_r2"]
     names = [compiled.joint(joint).name for joint in range(compiled.njnt)]
     problems = [f"{name}: missing" for name in wanted if name not in names]
@@ -262,6 +272,10 @@ def the_neck_thorax_and_girdle_move():
                  if name in names and not np.allclose(compiled.joint(name).range, span)]
     tied = [(compiled.joint(int(compiled.eq_obj1id[at])).name, compiled.joint(int(compiled.eq_obj2id[at])).name,
              compiled.eq_data[at, :5].tolist()) for at in range(compiled.neq)]
+    turn = compiled.joint(NECK["neck"]["name"]).id
+    problems += [f"{name}: at {compiled.jnt_pos[compiled.joint(name).id]}, its turn at {compiled.jnt_pos[turn]}"
+                 for name, _, _ in CERVICAL[2] if name in names
+                 and not np.allclose(compiled.jnt_pos[compiled.joint(name).id], compiled.jnt_pos[turn])]
     return problems + ([] if tied == [("unrotscap_r2_l", "sternoclavicular_r2_l", [0.0, -1.0, 0.0, 0.0, 0.0])] else
                        [f"couplings {tied}"])
 
@@ -408,7 +422,48 @@ def the_knee_turns_the_shin_of_its_own():
                        if not np.allclose(laid.joint(f"knee_angle_rotation3_{side}").range, [-0.262788, 0.262788])]
 
 
-CHECKS = (the_knee_turns_the_shin_of_its_own, the_knuckles_bend_back, a_foot_twists_on_its_shin,
+SPINE = """<mujoco><compiler angle="radian"/><worldbody><body name="lumbar5">
+  <joint name="flex_extension" type="hinge" axis="0 0 1" range="-1.35 0.75"/><geom type="sphere" size="0.02" mass="1"/>
+  {levels}</body>{limbs}</worldbody><equality>{ties}</equality></mujoco>"""
+SPINE_LEVELS = (("lumbar4", "L4_L5", 0.185), ("lumbar3", "L3_L4", 0.204), ("lumbar2", "L2_L3", 0.231),
+                ("lumbar1", "L1_L2", 0.255))
+LIMB = """<body name="limb_{s}" pos="0 0 -1"><geom type="sphere" size="0.02" mass="1"/>
+  <joint name="hip_rotation_{s}" type="hinge" axis="0 1 0" range="-0.698132 0.698132"/>
+  <joint name="mtp_angle_{s}" type="hinge" axis="1 0 0" range="-0.523599 0.523599"/></body>"""
+
+
+def the_upper_lumbar_leads_and_ranges_are_human():
+    """A MyoFullBody-shaped lumbar spine (lumbar5's leader, each level above tied to it by its ratio) and two limbs:
+    L3/L4 leads, L4/L5 stays tied to lumbar5, L2/L3 and L1/L2 are tied to L3/L4 so that every pose of the old ties
+    stands as before; each limb's joint of `RANGES` has its range."""
+    import mujoco
+    import numpy as np
+    from myo._movable import RANGES, _lumbar, _ranges
+    levels = "".join(f'<body name="{body}" pos="0 0.05 0"><joint name="{level}_FE" type="hinge" axis="0 0 1"/>'
+                     f'<geom type="sphere" size="0.02" mass="1"/>' for body, level, _ in SPINE_LEVELS)
+    levels += "</body>" * len(SPINE_LEVELS)
+    ties = "".join(f'<joint joint1="{level}_FE" joint2="flex_extension" polycoef="0 {share} 0 0 0"/>'
+                   for _, level, share in SPINE_LEVELS)
+    text = SPINE.format(levels=levels, limbs="".join(LIMB.format(s=side) for side in "lr"), ties=ties)
+    spec = mujoco.MjSpec.from_string(text)
+    _lumbar(spec)
+    _ranges(spec)
+    laid = spec.compile()
+    tied = sorted((equality.name1, equality.name2) for equality in spec.equalities)
+    problems = [] if tied == [("L1_L2_FE", "L3_L4_FE"), ("L2_L3_FE", "L3_L4_FE"), ("L4_L5_FE", "flex_extension")] \
+        else [f"tied: {tied}"]
+    shares = dict((level, share) for _, level, share in SPINE_LEVELS)
+    for equality in spec.equalities:
+        lead = shares.get(equality.name2.removesuffix("_FE"), 1.0)
+        if not np.isclose(lead * equality.data[1], shares[equality.name1.removesuffix("_FE")]):
+            problems.append(f"{equality.name1}: {equality.data[1]} of {equality.name2}, off the old ties' pose")
+    return problems + [f"{stem}_{side}: range {laid.joint(f'{stem}_{side}').range} against {RANGES[stem]}"
+                       for stem in ("hip_rotation", "mtp_angle") for side in "lr"
+                       if not np.allclose(laid.joint(f"{stem}_{side}").range, RANGES[stem])]
+
+
+CHECKS = (the_upper_lumbar_leads_and_ranges_are_human, the_knee_turns_the_shin_of_its_own, the_knuckles_bend_back,
+          a_foot_twists_on_its_shin,
           a_rested_finger_reaches_every_pose_as_before,
           the_neck_thorax_and_girdle_move, the_constants_move_the_file, the_written_file_builds_as_it_compiles,
           every_muscle_keeps_its_published_parameters_in_newton)

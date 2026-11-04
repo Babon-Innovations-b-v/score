@@ -2,9 +2,11 @@
 frame body the segment rides), the feet, the trunk's lumbar leaders and what MyoFullBody lacks (pure: no MuJoCo, no
 Newton); `sided` and `sided_map` write a `{Side}`/`{side}` name out for both sides."""
 FEET = ("Foot", "ToeBase")
-LACKS = {"Spine1, Spine2": "one lumbar joint spread over its five levels by the model's couplings",
+LACKS = {"Spine1, Spine2": "two lumbar joints, each spread over its levels by the model's couplings: lumbar5's over "
+                           "L5/S1 and L4/L5, L3/L4's over L3/L4 to L1/L2 (myo._movable's LUMBAR)",
          "Chest": "the thoracic spine's motion lumped in one three-axis joint at T12/L1 (myo._movable)",
-         "Neck1, Neck2, Head": "the neck turns at C7/T1 and flexes at C0/C1 (MyoHead's own two joints), no side bending",
+         "Neck1, Neck2, Head": "the neck turns, flexes and bends sideways at C7/T1 (MyoHead's turn, myo._movable's "
+                                 "CERVICAL) and flexes at C0/C1; Neck2 rides Neck1's body",
          "{Side}Shin": "the knee is a hinge and the shin's turn on it (myo._movable's KNEE), no sideways bend of its own",
          "{Side}Foot": "the foot turns on the shin by three hinges (myo._movable's FEET): the ankle's flexion and twist "
                        "and the subtalar joint, on human ranges",
@@ -57,7 +59,7 @@ NO_TARGET = {"clavicle_{side}": "its two sternoclavicular dofs lead, placed by i
              "talus_{side}": "ankle_rotation_{side} and ankle_angle_{side}; the foot group's frame is the calcaneus "
                              "(subtalar)",
              "radius_{side}": "its pro_sup_{side} turn is SOMA's {Side}Hand twist",
-             "lumbar5": "its flex_extension, lat_bending and axial_rotation lead every lumbar level",
+             "lumbar5": "its flex_extension, lat_bending and axial_rotation lead L5/S1 and L4/L5",
              "sacrum": "rigid on the pelvis"}
 
 

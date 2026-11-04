@@ -33,6 +33,12 @@ several joints split into 1 g wrappers, Euler written out, the floor gone).
   flexion dropped (0.26 rad at 90 degrees, the range's end: seated the fitted shin stood 6 to 10 degrees from SOMA's
   Shin turn), the joint leading on the published model's own 15 degrees each way, inside a flexed knee's active 30
   medial and 40 lateral (Kapandji, cited beside it). The knee's other couplings stay.
+- **Its spine, neck and single ranges are a person's** (#70, 2026-11-04; each cited beside it): the levels above L4
+  (SOMA's Spine2) lead from L3/L4's own joints, the two above tied to them in the model's ratios (`LUMBAR`; White and
+  Panjabi's levels move each on its own), L3/L4 on the model's own range; the lower neck flexes (40 degrees, 9.8 of
+  extension: the whole neck with C0/C1's to Magee's 90 and 70) and bends sideways (45) at C7/T1, the neck turn's place
+  (`CERVICAL`); the hip's rotation to 45 each way, the elbow to 145, the wrist to 70 each way and 30 of ulnar deviation,
+  the toes to 40 each way (`RANGES`). The knee's 120 stays: its couplings are measured to 120 only.
 - **Its held fingers rest in SOMA's hand** (`_rested.py`, 2026-11-01): each finger and thumb body turned by its
   joints' rest turns (`calibration.FINGERS`), so the file's zero pose, where `fit` holds the fingers, is SOMA's
   template hand's shape; each joint's axis and anchor carried so every pose is reached as before, its range moved by
