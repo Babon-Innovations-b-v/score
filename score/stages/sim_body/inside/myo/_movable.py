@@ -4,8 +4,10 @@ three-axis thoracic joint where the torso meets lumbar1 (`THORACIC`), and the sh
 arm's elevation dropped, its clavicle and scapula joints given their own two-sided ranges (`GIRDLE`) and each phantom
 tied to the joint it undoes (`PHANTOMS`); its feet given the twist on the shin their hinges lack and the ankle's
 and subtalar joint's human ranges (`FEET`, 2026-11-01); its fingers' knuckles let bend back as a person's do
-(`KNUCKLES`, 2026-11-01); and its shin's turn on the femur let free of the knee's flexion (`KNEE`, 2026-11-04). A
-body or coupling the source does not have is left alone (a toy wheel in the tests)."""
+(`KNUCKLES`, 2026-11-01); its shin's turn on the femur let free of the knee's flexion (`KNEE`, 2026-11-04); its upper
+lumbar spine led of its own (`LUMBAR`), its lower neck let flex and bend sideways (`CERVICAL`) and its narrower single
+ranges widened to the published ones (`RANGES`, 2026-11-04). A body or coupling the source does not have is left
+alone (a toy wheel in the tests)."""
 import mujoco
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -76,17 +78,54 @@ FEET = {"twist": ("ankle_rotation", [-np.radians(20), np.radians(25)]),
 # each way, inside the flexed knee's), never widened; the knee's other couplings stay.
 KNEE = ("knee_angle_rotation3", "knee_angle")
 KNUCKLES = {"stems": tuple(f"mcp{finger}_flexion" for finger in "2345"), "extension": np.radians(45)}
+# The upper lumbar spine bends of its own (#70, 2026-11-04): MyoFullBody sets every lumbar level from one leader per
+# axis on lumbar5 (flex_extension, lat_bending, axial_rotation) in fixed ratios, so its lumbar4 (SOMA's Spine1) and
+# lumbar1 (SOMA's Spine2) can only bend in one proportion. A person's lumbar levels move each on its own range (White
+# and Panjabi, Clinical Biomechanics of the Spine, 2nd ed. 1990, the lumbar table of segmental ranges: flexion and
+# extension combined L1-L2 12, L2-L3 14, L3-L4 15, L4-L5 16, L5-S1 17 degrees, each with its own limits). The levels
+# above L4 (L3/L4, L2/L3, L1/L2: SOMA's Spine2) lead from L3/L4's joints, the two above it tied to them in the model's
+# own ratios; L3/L4 leads on the model's own range (never widened), L4/L5 stays tied to lumbar5's leaders.
+LUMBAR = ("L3_L4", ("L2_L3", "L1_L2"), ("FE", "LB", "AR"))
+# The lower neck bends (#70, 2026-11-04): MyoHead's neck turns only about its long axis at C7/T1 and flexes at C0/C1,
+# so SOMA's Neck1, riding the neck, can neither flex nor bend sideways on the chest. The cervical spine below C1 flexes,
+# extends and bends sideways at every level (White and Panjabi 1990, the cervical table: C1-C2 to C7-T1 lateral
+# bending 0 to 11 degrees a level). Its flexion and sideways bend are lumped at C7/T1 (the neck's own place, as the
+# thorax's are at T12/L1), on the neck's axes as the torso's (flexion about z, negative; side bending about x). Ranges:
+# with C0/C1's 49.8 of flexion and 60.2 of extension, the whole neck to Magee's 90 of flexion and 70 of extension
+# (Orthopedic Physical Assessment, 6th ed. 2014, ch. 3: flexion 80-90, extension 70, side flexion 20-45); side bending
+# 45 each way (Magee's upper end, the AAOS's 45: Joint Motion, Method of Measuring and Recording, 1965).
+CERVICAL = ("neck", "myohead", [("cervical_FE", [0.0, 0.0, 1.0], [-np.radians(40), np.radians(9.8)]),
+                                ("cervical_LB", [1.0, 0.0, 0.0], [-np.radians(45), np.radians(45)])])
+# Single ranges narrower than a person's, widened to the published one (#70, 2026-11-04), never past it, each side:
+# - hip_rotation +-40 to 45 each way: the AAOS average hip internal and external rotation (Greene and Heckman, The
+#   Clinical Measurement of Joint Motion, AAOS 1994; AAOS 1965: 45 and 45).
+# - elbow_flex 0-130 to 0-145: Kapandji's active elbow flexion (The Physiology of the Joints, vol. 1, the upper limb:
+#   145 active, 160 passive), inside the AAOS's 150.
+# - wrist flexion +-45 to +-70: MoBL-ARMS' own (Holzbaur et al. 2005), inside the AAOS's 80 of flexion and 70 of
+#   extension (Greene and Heckman 1994).
+# - wrist deviation (+: radial, its index finger turns to the thumb's side) -10 to 30 ulnar, the AAOS's 30 (Greene
+#   and Heckman 1994); the model's 25 radial kept (wider than the AAOS's 20: the published model stays reachable).
+# - mtp_angle (+: flexion; one hinge for all five toes on the metatarsal break) +-30 to +-40: the AAOS's lesser toes'
+#   metatarsophalangeal flexion 40 and extension 40 (AAOS 1965), inside the great toe's 45 and 70.
+# Not widened: knee_angle (0-120, the AAOS's 135): its five couplings (the tibia's slides and sideways turn, the
+# kneecap's) are the published model's curves measured to 120 degrees only, and reading them past it is no anatomy.
+RANGES = {"hip_rotation": [-np.radians(45), np.radians(45)], "elbow_flex": [0.0, np.radians(145)],
+          "flexion": [-np.radians(70), np.radians(70)], "deviation": [-np.radians(30), np.radians(25)],
+          "mtp_angle": [-np.radians(40), np.radians(40)]}
 
 
 def movable(spec):
-    """The spec's neck, thorax, shoulder girdle, feet, knuckles and knees made movable in place (the module's six
-    changes)."""
+    """The spec's neck, thorax, shoulder girdle, feet, knuckles, knees, upper lumbar spine, lower neck and narrow
+    ranges made movable in place (the module's nine changes)."""
     _neck(spec)
     _thoracic(spec)
     _girdle(spec)
     _feet(spec)
     _knuckles(spec)
     _knee(spec)
+    _lumbar(spec)
+    _cervical(spec)
+    _ranges(spec)
 
 
 def _neck(spec):
@@ -161,6 +200,47 @@ def _knee(spec):
     for equality in list(spec.equalities):
         if equality.name1[:-2] == follower and equality.name2[:-2] == leader:
             spec.delete(equality)
+
+
+def _lumbar(spec):
+    """Each axis' L3/L4 joint (`LUMBAR`) untied from lumbar5's leader, the levels above it tied to it in the model's
+    ratios; a model without them is left alone, one whose ties are not plain ratios refused."""
+    lead, above, axes = LUMBAR
+    ties = {equality.name1: equality for equality in spec.equalities if equality.type == mujoco.mjtEq.mjEQ_JOINT}
+    for axis in axes:
+        own = ties.get(f"{lead}_{axis}")
+        if own is None:
+            continue
+        followers = [ties[f"{level}_{axis}"] for level in above]
+        for tie in (own, *followers):
+            if tie.name2 != own.name2 or any(tie.data[at] for at in (0, 2, 3, 4)):
+                raise ValueError(f"{tie.name1}: not a plain ratio of {own.name2} ({tie.name2}, {tie.data[:5]})")
+        ratio = float(own.data[1])
+        spec.delete(own)
+        for tie in followers:
+            tie.name2 = f"{lead}_{axis}"
+            tie.data[:5] = [0.0, float(tie.data[1]) / ratio, 0.0, 0.0, 0.0]
+
+
+def _cervical(spec):
+    """The lower neck's flexion and side bending (`CERVICAL`) added on the neck at its turn's place, after it."""
+    body, kind, axes = CERVICAL
+    found = spec.body(body)
+    turn = spec.joint(NECK[body]["name"])
+    if found is None or turn is None:
+        return
+    for name, axis, span in axes:
+        found.add_joint(default=spec.find_default(kind), name=name, pos=turn.pos, axis=axis, range=span,
+                        limited=True)
+
+
+def _ranges(spec):
+    """Each side's joint of `RANGES` given its published range."""
+    for stem, span in RANGES.items():
+        for side in "lr":
+            joint = spec.joint(f"{stem}_{side}")
+            if joint is not None:
+                joint.range = span
 
 
 def _kept(joint):

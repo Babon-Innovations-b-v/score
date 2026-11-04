@@ -36,8 +36,8 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   2026-10-28, gave back about half of what it reduced). Nothing is applied to the body. How far it moved is each body's
   `adjusted` record (pelvis cm, each segment's degrees, the largest turn on any frame, mass %, torso centre of mass cm,
   the share kept, the least frame share, follows before and after); `follows` fails a frame over the per-frame cap.
-  The toes' ±30 degree stop is MyoSuite's own (myo_sim `myolegs_chain.xml` mtp_angle range ±0.523599, as Rajagopal
-  2016's): never widened here. A body still over the limits after it fails `residual`: a
+  The toes' stop is ±40 degrees (2026-11-04, `inside/myo/_movable.RANGES`: the AAOS's lesser toes' MTP range; MyoSuite's
+  own ±30, as Rajagopal 2016's, was narrower than a person's): never widened past the published range. A body still over the limits after it fails `residual`: a
   dropped sample, never a forced pass.
 - **The body is MyoFullBody, never a box body or a template of our own**: MuscleMimic's wheel (`MODEL`, pinned URL and
   sha256), fetched once to `$PROPS_HOME/models/<sha>` by `fetched`, never committed. Kept under MyoHub's Apache-2.0
@@ -88,8 +88,8 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   constants with the angles of frames spread over the clip. **Never use the owner's own
   method** (arXiv:2607.17639, under Babon's patent application NL4001444; SCORE is public MIT): no swing-twist split
   into calibrated axes, no per-joint calibration table of axes, weights and offsets, no regression of joint angles
-  against a reference. What MyoFullBody lacks (`LACKS`: the thorax one joint at T12/L1, a two-axis neck, one lumbar joint spread over five
-  levels, a hinge knee (the shin's turn on it free of the flexion since 2026-11-04), a foot on three hinges, its twist on the shin added 2026-11-01) is recorded in each body's model record; how closely it
+  against a reference. What MyoFullBody lacks (`LACKS`: the thorax one joint at T12/L1, the lower neck lumped at C7/T1, two lumbar joints spread over five
+  levels (`inside/myo/_movable.LUMBAR`, 2026-11-04), a hinge knee (the shin's turn on it free of the flexion since 2026-11-04), a foot on three hinges, its twist on the shin added 2026-11-01) is recorded in each body's model record; how closely it
   follows SOMA (each joint's mm, each group's degrees, at a range limit or not, before and after RRA) is its `fit`.
   The SOMA forearm rides the ulna, so its hand's twist is the forearm's pronation. The path is low-passed (zero-lag
   4th-order Butterworth at 6 Hz, Winter 2009) before it is differentiated.
