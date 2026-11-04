@@ -642,6 +642,7 @@ def test_sweep_frees_room_itself_and_asks_only_for_a_bigger_disk_priced(tmp_path
     monkeypatch.setattr(disk, "clean_kept", lambda home, runs_folder, say: {"dropped": 0, "refused": None})
     monkeypatch.setattr(disk, "offload_pixal", lambda home, runs_folder: {"freed": 0, "refused": None, "kept": {}})
     monkeypatch.setattr(disk, "bigger", lambda more, zone: f"{more} GB more, EUR 4.00 a month in {zone}")
+    monkeypatch.setattr(disk.offload, "open_bucket", lambda: disk.offload.FolderBucket(tmp_path / "bucket"))
     (home / "logs").mkdir()
     for name, days in (("old.log", disk.LOG_DAYS + 1), ("new.log", 1)):
         (home / "logs" / name).write_text(name)
@@ -658,12 +659,12 @@ def test_sweep_frees_room_itself_and_asks_only_for_a_bigger_disk_priced(tmp_path
     free["gb"] = 5.0
     done = disk.sweep(home, say=said.append)
     assert done["escalated"] and [step["step"] for step in done["steps"]][5:] == [
-        "relink-pixal", "old-logs", "store-gc", "offload-pixal"], done
+        "relink-pixal", "old-logs", "store-gc", "store-evict", "offload-pixal"], done
     assert not (home / "logs" / "old.log").exists() and (home / "logs" / "new.log").exists()
     assert named["orphan"] not in {path.name for path in blobs.iterdir()} and named["record"] in {
         path.name for path in blobs.iterdir()}
     assert done["bigger"] == "50 GB more, EUR 4.00 a month in fr-par-2" and done["fills"], done
-    assert sum(line.startswith("sweep ") for line in said) == 5 + 9, said  # a line a step, each with what it freed
+    assert sum(line.startswith("sweep ") for line in said) == 5 + 10, said  # a line a step, each with what it freed
     note = disk.warning(5.0, swept=home / "conductor" / "sweep.json")
     assert "could not reach it" in note and "50 GB more, EUR 4.00 a month" in note, note
     free["gb"] = 12.0  # it reached the floor: nothing is asked

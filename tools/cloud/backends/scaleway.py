@@ -620,6 +620,9 @@ def terminate(server_id, zone):
 REGION = "fr-par"
 REGISTRY_NAMESPACE = os.environ.get("SCORE_REGISTRY_NAMESPACE", f"score-{PROJECT_NAME}")
 BUCKET = os.environ.get("SCORE_STORE_BUCKET", f"score-{PROJECT_NAME}-cache")
+# The run store's blobs (#74, score/store/offload): a bucket of their own in REGION, Scaleway's default class there
+# (Multi-AZ, the owner's choice of 2026-11-02), versioning never turned on; made once by hand, never by the code.
+RUN_STORE_BUCKET = os.environ.get("SCORE_RUN_STORE_BUCKET", f"score-{PROJECT_NAME}-store")
 # The secret holding {"access_key", "secret_key"} of an IAM application that may use the project's object storage
 # and container registry and nothing else; made by make_runtime_key the first time it is missing.
 RUNTIME_KEY_SECRET = "score-cloud-runtime-key"

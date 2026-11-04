@@ -12,6 +12,7 @@
     python -m score.conductor score-lib status|pull  # library_checkout: score_lib's checkout against origin, one line
     python -m score.conductor offload-pixal      # disk.offload_pixal: takes into the library, freed once read back
     python -m score.conductor store-gc [--dry]   # disk.store_gc: with no run live, the blobs nothing names removed
+    python -m score.conductor store-evict [--dry]  # disk.store_evict: blobs into the store bucket, proven ones evicted
     python -m score.conductor sweep [--force]    # disk.sweep: the routine steps, every step under the warning line
 """
 import argparse
@@ -38,6 +39,7 @@ def main(argv=None):
     commands.add_parser("score-lib").add_argument("action", choices=("status", "pull"))
     commands.add_parser("offload-pixal")
     commands.add_parser("store-gc").add_argument("--dry", action="store_true", help="count only, remove nothing")
+    commands.add_parser("store-evict").add_argument("--dry", action="store_true", help="count only, send nothing")
     commands.add_parser("sweep").add_argument("--force", action="store_true",
                                               help="every step, even above the warning line")
     options = parser.parse_args(argv)
@@ -70,6 +72,8 @@ def main(argv=None):
         offload_pixal()
     elif options.command == "store-gc":
         store_gc(options.dry)
+    elif options.command == "store-evict":
+        store_evict(options.dry)
     elif options.command == "sweep":
         sweep(options.force)
     elif options.command == "size":
@@ -203,6 +207,26 @@ def store_gc(dry):
     kept = ", ".join(f"{count} {why}" for why, count in sorted(done["kept"].items())) or "none"
     print(f"store-gc: {'would remove' if dry else 'removed'} {done['removed']} blobs nothing names, "
           f"{done['freed_gb']} GB; kept: {kept}; {disk.free_gb():.1f} GB free", flush=True)
+
+
+def store_evict(dry):
+    """disk.store_evict in one summary line: blobs sent, already there and evicted (or counted with `dry`), GB, kept
+    and why, failures; exit 1 when refused or when a blob failed."""
+    from score.conductor import disk
+    try:
+        done = disk.store_evict(dry=dry, say=lambda line: None)
+    except disk.Unprovable as why:
+        done = {"refused": str(why)}
+    if done["refused"]:
+        print(f"store-evict: refused, nothing sent or evicted: {done['refused']}", flush=True)
+        sys.exit(1)
+    kept = ", ".join(f"{count} {why}" for why, count in sorted(done["kept"].items())) or "none"
+    failed = sum(done["failed"].values())
+    print(f"store-evict: {'would evict' if dry else 'evicted'} {done['evicted']} blobs, {done['freed_gb']} GB; sent "
+          f"{done['sent']}, there {done['there']}; kept: {kept}; failed {failed}"
+          f"{' (' + done['first_failure'] + ')' if failed else ''}; {disk.free_gb():.1f} GB free", flush=True)
+    if failed:
+        sys.exit(1)
 
 
 def sweep(force):

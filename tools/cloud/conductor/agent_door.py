@@ -24,6 +24,9 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 routine"); a line a step, still under the floor the bigger volume priced
     store-gc [--dry]                            python -m score.conductor store-gc: with no run live, the store's blobs
                                                 no file, link or listing names removed (--dry counts only)
+    store-evict [--dry]                         python -m score.conductor store-evict: with no run live, the store's
+                                                blobs sent to the store bucket, each one nothing here reads evicted
+                                                once the bucket answers with its size and sha256 (#74; --dry counts)
     clean-frozen                                python -m score.conductor clean-frozen: remove the frozen copies no
                                                 registered run needs and no process works in (2026-10-26: the
                                                 data disk full); refused while it cannot tell, never the store or design
@@ -149,7 +152,7 @@ sys.path.insert(0, str(REPO))
 from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
-VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], clean-frozen, clean-cache, clean-scratch, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, carry --no-op <file>=<why> ..., "
+VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], store-evict [--dry], clean-frozen, clean-cache, clean-scratch, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, carry --no-op <file>=<why> ..., "
          "run-log [--lines N], fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, decide-yes, decide <yes id>, "
          "stop-batch <reason>")
@@ -282,9 +285,9 @@ def decide(words, latch):
         if args:
             raise Refused(f"{verb} takes no arguments")
         return ["-m", "score.conductor", verb], {}
-    if verb == "store-gc":
+    if verb in ("store-gc", "store-evict"):
         if args not in ([], ["--dry"]):
-            raise Refused("store-gc or store-gc --dry")
+            raise Refused(f"{verb} or {verb} --dry")
         return ["-m", "score.conductor", verb, *args], {}
     if verb == "score-lib":
         if args not in (["status"], ["pull"]):
