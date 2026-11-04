@@ -68,8 +68,11 @@ own sound; paid and cleared by the runner like any paid row.
   (its dressed body posed by the sim body's clip, its rest fitted to the clip rig's bind), as its bare SOMA mesh and as
   its sim body (whatever geometry the sim body layer holds under the person's SimBody, bones, boxes or muscles with
   their own colours, imported by Blender with its time samples and shown at the record's frames, placed as the sim runs;
-  `--build` its person's own build; each foot's recorded push an arrow up from the ground under it, `METRES_PER_NEWTON`
-  long), over the scene's ground (`--ground`), joined by a wipe at each third. `--close` follows one walker alone,
+  `--build` its person's own build; each touching body's recorded push, the record's `touches` (feet, a seat under the
+  thighs, a bed under the back), an arrow from its centre of pressure along the push, `METRES_PER_NEWTON` long a
+  newton, none at `PUSHED` or less; the owner's look, 2026-11-04, "visible but not obnoxious or ugly": a slim shaft
+  and small head at a fixed width on screen, its foot lifted off its ground, a little see-through, in the film's
+  `--film-push` token, fading in with the sim body), over the scene's ground (`--ground`), joined by a wipe at each third. `--close` follows one walker alone,
   `close_walker`'s rule (the most relief in scene-clips' record). A shot never outlasts the sim body record. No row
   makes peel frames yet, so the environment film names the cut as one it cannot cut; making it a row (inside the
   assembled scene, on its own camera) is a change of its own.

@@ -104,7 +104,7 @@ def a_seat_carries_the_skin_on_it():
     found = pushed(0.45 + 0.054, seated())
     if len(found) != 1:
         return [f"on the seat: {len(found)} points pushed"]
-    body, along, edges = found[0]
+    body, along, edges, _ = found[0]
     problems = [] if body == 1 else [f"booked on body {body}"]
     return problems + ([] if np.allclose(np.mean(edges, axis=0), [0.0, 0.0, 1.0]) else [f"edges {edges}"])
 

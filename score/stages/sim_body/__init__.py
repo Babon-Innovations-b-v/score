@@ -33,7 +33,8 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
              body (`adjusted`); the skin plays SOMA's own clip. Written: sim_bodies.json (each body: its mass record, size, model
              record, the SOMA segments and the body each rides, the solids it may touch, measures and the gates'
              numbers), measures/<name>.json (per frame: the body's SOMA segments' turns and the clip's, joint
-             moments, ground force, lowest point over the ground, each foot's height over the ground and its push, the
+             moments, ground force, lowest point over the ground, each touching body's push and its centre of pressure on
+             the ground, each foot's height over the ground and its push, the
              residual, the largest reserve, each muscle's activation and force, and each SOMA segment's pose: the
              clip's own, never moved, scaled or grounded to the sim body (owner, 2026-10-28: SOMA is the truth),
              which the skin plays) and

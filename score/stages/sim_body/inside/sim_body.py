@@ -56,7 +56,9 @@ of each driven dof), "com height" (m, frame 0, over its ground), "frames":
 [{"angles": [[x, y, z] degrees, rotation vector, per SOMA segment but the first, against its parent, as the body's
 segment riding its bone turns], "targets": [...the clip's...], "torques": [N m per joint], "ground": [x, y, z] N
 (the ground's push), "lowest": m (the lowest skin
-point's height over the ground, null off it), "feet": {segment: [its lowest skin point's height over the ground
+point's height over the ground, null off it), "touches": {body: [the ground's push on it, xyz N, and its centre of
+pressure on the ground, xyz m]} (every body the ground pushes: feet, a seat under the thighs, a bed under the back),
+"feet": {segment: [its lowest skin point's height over the ground
 (null off it), the ground's upward push on it N]} (FEET), "residual": [force xyz N, moment xyz N m], "reserve": N m
 (the largest joint reserve), "activations": [0..1 per muscle], "forces": [N per muscle, tension]}],
 "adjusted": RRA's moves (`adjustment_record`)}}}, everything in the person's own frame (Y

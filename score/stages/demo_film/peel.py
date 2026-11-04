@@ -2,7 +2,8 @@
 model with clothes, to mesh, to sim body"): every person of a scene's cast drawn three times on one camera, clothed
 (its dressed body posed by the sim body's clip, its rest fitted to the clip rig's bind turned about up), as its bare
 SOMA mesh (the clip rig's surface skinned by the same clip) and as its sim body (whatever geometry the sim body layer
-holds under the person's SimBody, bones, boxes or muscles, at its own time samples; each foot's push an arrow), the
+holds under the person's SimBody, bones, boxes or muscles, at its own time samples; each touching body's push an
+arrow), the
 three joined by a wipe rising up the picture at each third of the shot; or, closer, the camera following one walker
 (`close_walker`).
 
@@ -17,10 +18,12 @@ that from its layer, lays it all out and draws it.
 
 Nothing is invented: the clothed pass is the dressed body's own surface and skin on the sim body's clip, the mesh
 pass the clip rig's own points and skin weights, the sim pass the sim body's own layer at its time codes (the
-record's frames) and its measures' push on each foot. A shot longer than the record is refused, never stretched
-or looped. Each foot's push is the record's own (its `feet`: the ground's upward push on the segment and its height
-over the ground), an arrow from the ground under it `METRES_PER_NEWTON` long, so a body's arrows on the Moon are a
-sixth of its arrows on Earth.
+record's frames) and its measures' push on each body the ground touches. A shot longer than the record is refused,
+never stretched or looped. Each push is the record's own (its `touches`: the ground's push on a body, summed over its
+skin points touching a floor, a seat, a bed or a ledge, and its centre of pressure there), an arrow from that centre
+along the push `METRES_PER_NEWTON` long a newton, so a body's arrows on the Moon are a sixth of its arrows on Earth;
+one of PUSHED or less is not drawn. The arrows are the film's `--film-push` colour (design/tokens/colours.css),
+slim at a fixed width on screen, a little see-through, and fade in with the sim body (`arrow_fade`).
 """
 import argparse
 import json
@@ -32,6 +35,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from score.stages import sim_body
+from score.stages.demo_film import lettering
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 BLENDER_SCRIPT = REPO / "score/stages/demo_film/blender/body_peel.py"
@@ -41,8 +45,9 @@ BLENDER = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm
 PASSES = ("dressed", "mesh", "sim")
 RATE = 24
 METRES_PER_NEWTON = 1.0 / 1000.0  # an arrow 1 m long is the push of 1,000 N
-PUSHED = 1.0  # newtons: a foot the ground pushes less than this carries nothing worth an arrow
+PUSHED = 1.0  # newtons: a body the ground pushes less than this carries nothing worth an arrow
 WIPE_SECONDS = 0.6
+FADE_SECONDS = 1.0  # the push arrows' fade in, from the start of the sim body's wipe
 WIDE_LENS, CLOSE_LENS = 40.0, 35.0  # mm
 CLOSE_METRES = 4.0  # the close-up's camera off its person's path: the whole body in view at CLOSE_LENS
 FOLLOW_SECONDS = 0.5  # the close-up's aim smoothed over this either side
@@ -74,44 +79,48 @@ def sim_root(place, name):
     return f"/{place}/Characters/{name}/SimBody"
 
 
-def foot_bottoms(layer, root, feet, times):
-    """Each foot's bottom (the middle of its drawn geometry's lowest face) at each of the layer's time codes
-    (times x feet x 3, the person's frame, Y up): whatever geometry sits under the foot's prim below `root`, read at
-    its own time samples, guides included."""
-    from pxr import Usd, UsdGeom
-    stage = Usd.Stage.Open(str(layer))
-    body = stage.GetPrimAtPath(root)
-    if not body:
-        raise ValueError(f"{layer}: no sim body at {root}")
-    named = {prim.GetName(): prim for prim in Usd.PrimRange(body)}
-    missing = [foot for foot in feet if foot not in named]
-    if missing:
-        raise ValueError(f"{layer}: no prim of {', '.join(missing)} under {root}")
-    purposes = [UsdGeom.Tokens.default_, UsdGeom.Tokens.guide, UsdGeom.Tokens.render, UsdGeom.Tokens.proxy]
-    found = np.empty((len(times), len(feet), 3))
-    for row, time in enumerate(times):
-        cache = UsdGeom.BBoxCache(Usd.TimeCode(time), purposes)
-        for column, foot in enumerate(feet):
-            box = cache.ComputeWorldBound(named[foot]).ComputeAlignedRange()
-            low, high = np.asarray(box.GetMin()), np.asarray(box.GetMax())
-            found[row, column] = [(low[0] + high[0]) / 2, low[1], (low[2] + high[2]) / 2]
-    return found
+def touching(frames):
+    """The bodies the ground pushes more than PUSHED on any of the record's frames (its `touches`: feet, a seat under
+    the thighs, a bed under the back), in their first frame's order; refused for a record written before it held
+    them."""
+    if any("touches" not in frame for frame in frames):
+        raise ValueError("the sim body record holds no `touches`: its sim body was run before they were written; run "
+                         "it again")
+    found = {}
+    for frame in frames:
+        for body, push in frame["touches"].items():
+            if np.linalg.norm(push[:3]) > PUSHED:
+                found.setdefault(body, None)
+    return list(found)
 
 
-def pushes(bottoms, frames):
-    """Each foot's push from the ground each record frame as an arrow (frames x feet x 6: start, vector; NaN where the
-    ground does not push it): from under the foot's bottom (`bottoms`, foot_bottoms), dropped by its recorded height
-    over the ground, up METRES_PER_NEWTON a newton of the recorded push (the record's `feet`)."""
-    feet = list(frames[0]["feet"])
-    arrows = np.full((len(frames), len(feet), 6), np.nan)
+def pushes(frames, bodies):
+    """Each touching body's push from the ground each record frame as an arrow (frames x bodies x 6: start, vector;
+    NaN where the ground pushes it PUSHED or less): from its centre of pressure on the ground along the push,
+    METRES_PER_NEWTON a newton (the record's `touches`, the person's frame)."""
+    arrows = np.full((len(frames), len(bodies), 6), np.nan)
     for index, frame in enumerate(frames):
-        for number, foot in enumerate(feet):
-            height, push = frame["feet"][foot]
-            if height is None or push <= PUSHED:
+        for number, body in enumerate(bodies):
+            if body not in frame["touches"]:
                 continue
-            bottom = bottoms[index, number]
-            arrows[index, number] = [bottom[0], bottom[1] - height, bottom[2], 0.0, push * METRES_PER_NEWTON, 0.0]
+            force, centre = np.asarray(frame["touches"][body][:3]), np.asarray(frame["touches"][body][3:])
+            if np.linalg.norm(force) > PUSHED:
+                arrows[index, number] = [*centre, *(force * METRES_PER_NEWTON)]
     return arrows
+
+
+def arrow_fade(count):
+    """How far the push arrows have faded in at each film frame of `count` (0 to 1): from the start of the wipe that
+    brings the sim body in, over FADE_SECONDS, so they come in with its layer."""
+    third, wipe = count / len(PASSES), WIPE_SECONDS * RATE
+    begins = (len(PASSES) - 1) * third - wipe / 2
+    return np.clip((np.arange(count) - begins) / (FADE_SECONDS * RATE), 0.0, 1.0).tolist()
+
+
+def push_colour():
+    """The push arrows' colour, the film's own `--film-push` token (lettering.token), as Blender's linear RGB."""
+    srgb = np.array(lettering.token("film-push")[:3]) / 255.0
+    return np.where(srgb <= 0.04045, srgb / 12.92, ((srgb + 0.055) / 1.055) ** 2.4).tolist()
 
 
 def to_z(matrices):
@@ -132,14 +141,14 @@ def source_frames(seconds, record_rate, record_frames):
     return found
 
 
-def person_arrays(record, rig, frames, bottoms, shown):
+def person_arrays(record, rig, frames, shown):
     """One person's arrays for Blender, every one in the place and Z up, at the film's frames `shown`: its bare
-    mesh's points and its feet's push arrows; and, in its own frame, each rig joint's move from its bind frame (which
+    mesh's points and its touching bodies' push arrows; and, in its own frame, each rig joint's move from its bind frame (which
     poses its dressed body) and the bind frames' places (which the dressed body's rest is fitted to). The sim body
     itself is the layer's, drawn by Blender at the same frames (its time codes)."""
     where = sim_body.own_frame(record["at"], record.get("turn", 0.0))
     mesh = skinned(rig, record["clip"]) @ where[:3, :3].T + where[:3, 3]
-    arrows = pushes(bottoms, frames)
+    arrows = pushes(frames, touching(frames))
     starts = arrows[..., :3] @ where[:3, :3].T + where[:3, 3]
     vectors = arrows[..., 3:] @ where[:3, :3].T
     moves = clip_worlds(rig, record["clip"]) @ np.linalg.inv(np.asarray(rig["bind"], dtype=float))
@@ -216,8 +225,7 @@ def job_of(folder, cast, sim, rig_path, dressed, seconds, size, samples, close=N
         frames = json.loads((sim / "measures" / f"{name}.json").read_text())
         shown = source_frames(seconds, record["rate"], len(frames))
         layer, root = sim / sim_body.LAYER, sim_root(record["place"], name)
-        bottoms = foot_bottoms(layer, root, list(frames[0]["feet"]), range(len(frames)))
-        arrays = person_arrays(record["bodies"][name], rig, frames, bottoms, shown)
+        arrays = person_arrays(record["bodies"][name], rig, frames, shown)
         np.savez(folder / f"{name}.npz", faces=np.asarray(rig["faces"]), **arrays)
         people.append({"name": name, "glb": str(dressed), "clip": record["bodies"][name]["clip"],
                        "joints": [str(joint) for joint in rig["names"]], "sim_layer": str(layer), "sim_root": root,
@@ -233,7 +241,7 @@ def job_of(folder, cast, sim, rig_path, dressed, seconds, size, samples, close=N
     job = {"out": str(folder), "size": list(size), "samples": samples, "record_rate": record["rate"],
            "source": shown, "passes": list(PASSES), "camera": {"lens": CLOSE_LENS if close else WIDE_LENS,
                                                                 "path": path},
-           "people": people, "ground": None}
+           "arrows": {"colour": push_colour(), "fade": arrow_fade(len(shown))}, "people": people, "ground": None}
     if ground is not None:
         np.save(folder / "ground.npy", points_to_z(np.asarray(ground, dtype=float)))
         job["ground"] = str(folder / "ground.npy")
