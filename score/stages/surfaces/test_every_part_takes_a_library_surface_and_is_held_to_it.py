@@ -119,6 +119,20 @@ tests it turned red:
   a_finish_a_little_out_of_order_keeps_it_by_a_nearer_surface_of_either
 - finish_parts.py: `if apart > COLOUR_DELTA_E and coloured_cover(finish, every):` -> `if False:`  ->
   a_coloured_see_through_finish_keeps_its_surface_against_its_highlights
+- finish_parts.py: `and meaning_kept(record, listed, every[name]))` -> `)`  ->
+  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
+- finish_parts.py: `and meaning_kept(finish, listed, spec)]` -> `]`  ->
+  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged,
+  a_coloured_see_through_finish_keeps_its_surface_against_its_highlights
+- finish_parts.py: `return in_named_colour(named, lab, recipe)` -> `return True`  ->
+  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged,
+  a_coloured_see_through_finish_keeps_its_surface_against_its_highlights
+- finish_parts.py: `return painted["recipe"] == listed["recipe"] and hue_kept(` -> `return True and hue_kept(`  ->
+  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
+- finish_parts.py: `if not look_kept(finish["finish"], ...):` -> `if False:`, and `and not in_named_colour(named,
+  largest[...])` -> `and False` -> a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
+- score/stages/__init__.py meaning_checked: `if row.name != "surfaces-parts":` -> `if True:`  ->
+  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
 - finish_ask.py: `entry = dict(entry, surface=names[codes.index(entry["surface"])])` -> `entry = dict(entry)`  ->
   a_finish_list_reply_is_parsed_to_library_names
 - route_views.py: `if record["seen_share"] < SEEN_LEAST * reachable:` -> `if record["seen_share"] < SEEN_LEAST:`  ->
@@ -1496,6 +1510,11 @@ def test_an_ask_is_made_once_a_timeout_reaches_the_row_and_only_a_refusal_is_ask
 
 
 def test_a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged():
+    """A finish off its colour takes the nearest surface of its family, or the room's kit surface, only where that
+    keeps the list's meaning (the audit of 2026-11-04): its recipe (a handrail never takes the floor's grating, rusted
+    steel never clean hull paint), its glow, and its hue (gold foil never silver, a blue decal never grey frame
+    paint); and the gate "kept the list's meaning" fails a finish moved off them and a take whose largest finish moved
+    off its row name's colour (the hangar's thick red cables as black_hose)."""
     navy, grey, black = [0.03, 0.06, 0.10], [0.35, 0.35, 0.35], [0.01, 0.01, 0.01]
     library = {"vinyl_seat": {"family": "plastic", "colour": navy},
                "grey_plastic": {"family": "plastic", "colour": grey},
@@ -1515,6 +1534,56 @@ def test_a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagge
         [{"finish": "grey steel", "parts": "body", "surface": "dark_panel", "fits": True, "colour": grey}],
         [light_grey], library)
     assert tinted[0]["surface"] == "dark_panel" and tinted[0]["by"] == "the list", tinted[0]
+    steel, rust, blue = [0.30, 0.30, 0.31], [0.25, 0.08, 0.03], [0.02, 0.06, 0.30]
+    every = {"bare_steel": {"family": "steel", "recipe": "bare_metal", "colour": steel},
+             "deck_grate": {"family": "steel", "recipe": "perforated_metal", "colour": steel},
+             "deck_plate": {"family": "steel", "recipe": "bare_metal", "colour": [0.31, 0.31, 0.32]},
+             "rusted_steel": {"family": "steel", "recipe": "rusted_metal", "colour": rust},
+             "hull_panel": {"family": "steel", "recipe": "painted_metal", "colour": [0.26, 0.10, 0.05]},
+             "blue_decal": {"family": "paint", "recipe": "painted_metal", "colour": blue},
+             "seam_paint": {"family": "paint", "recipe": "painted_metal", "colour": [0.05, 0.05, 0.05]},
+             "gold_foil": {"family": "foil", "recipe": "anodized", "colour": [0.60, 0.40, 0.05]},
+             "silver_foil": {"family": "foil", "recipe": "anodized", "colour": [0.20, 0.20, 0.20]}}
+    seen = {name: finish_parts.library_lab(spec) for name, spec in every.items()}
+    finishes = [{"finish": "steel handrail", "parts": "rails", "surface": "bare_steel", "fits": True},
+                {"finish": "rusted riveted steel", "parts": "tube", "surface": "rusted_steel", "fits": True},
+                {"finish": "blue decal", "parts": "decal", "surface": "blue_decal", "fits": True},
+                {"finish": "brushed steel", "parts": "frame", "surface": "bare_steel", "fits": True},
+                {"finish": "gold MLI foil", "parts": "module", "surface": "gold_foil", "fits": True}]
+    kit = ["deck_grate", "hull_panel", "seam_paint", "deck_plate"]
+    measured = [seen["deck_grate"], seen["hull_panel"], seen["seam_paint"], seen["deck_plate"],
+                seen["silver_foil"]]
+    found = finish_parts.checked_finishes({"kind": "walkway", "object": "walkway"}, finishes[:3], measured[:3],
+                                          {name: every[name] for name in every if name != "deck_plate"}, kit[:3])
+    assert [finish["surface"] for finish in found] == ["bare_steel", "rusted_steel", "blue_decal"], found
+    assert found[2]["by"] == "off its colour", found[2]  # seen near black: never the grey seam paint
+    plate, foil = (finish_parts.checked_finishes({"kind": "module", "object": "module"}, [finish], [colour], every,
+                                                 kit)[0] for finish, colour in zip(finishes[3:], measured[3:]))
+    assert plate["surface"] == "deck_plate" and plate["by"] == "the room's kit surface by colour", plate
+    assert foil["surface"] == "gold_foil" and foil["by"] == "off its colour", foil  # never silver_foil
+    lit = {"reactor_glow": {"family": "glass", "recipe": "glowing", "colour": [0.10, 0.45, 1.0]},
+           "side_glazing": {"family": "glass", "recipe": "glass", "colour": [0.005, 0.0225, 0.05]}}
+    tube = finish_parts.checked_finishes({"kind": "reactor", "object": "reactor"}, [
+        {"finish": "blue reactor tube", "parts": "tube", "surface": "reactor_glow", "fits": True}],
+        [finish_parts.library_lab(lit["side_glazing"])], lit)[0]
+    assert tube["surface"] == "reactor_glow" and tube["by"] == "its own colour", tube  # a glow never glass
+    record = {"object": "thick red cables", "finishes": finish_parts.looked(
+        [dict(finishes[0], surface="deck_grate", listed_surface="bare_steel", by="the room's kit surface by colour"),
+         dict(plate, listed_surface="bare_steel")], every),
+        "parts": [{"judge": "deck_grate", "words": "steel handrail", "share": 0.7},
+                  {"judge": "deck_plate", "words": "brushed steel", "share": 0.3}]}
+    faults = finish_parts.meaning_faults("walkway-t1", record)
+    assert len(faults) == 2 and "steel handrail" in faults[0] and "thick red cables" in faults[1], faults
+    folder = pathlib.Path(tempfile.mkdtemp())
+    (folder / "parts.json").write_text(json.dumps({"takes": {"walkway-t1": record}}))
+    assert route_parts.judge_meaning(folder, {}, None).answer == checks.FAIL
+    record["object"], record["finishes"] = "steel walkway", record["finishes"][1:]
+    assert finish_parts.meaning_faults("walkway-t1", record) == []
+    (folder / "parts.json").write_text(json.dumps({"takes": {"walkway-t1": record}}))
+    assert route_parts.judge_meaning(folder, {}, None).answer == checks.PASS
+    shutil.rmtree(folder)
+    parts = {stage.name: stage for stage in stages.STAGES}["surfaces-parts"]
+    assert "kept the list's meaning" in [check.name for check in parts.checks]
 
 
 def test_a_finish_keeps_the_close_ups_lightness_order_and_glass_keeps_its_own_colour():
@@ -1568,16 +1637,19 @@ def test_a_finish_a_little_out_of_order_keeps_it_by_a_nearer_surface_of_either()
 
 def test_a_coloured_see_through_finish_keeps_its_surface_against_its_highlights():
     """The beacon's red transparent dome measured pale pink on its brighter half: it keeps red_plastic, not the
-    nearer plastic_grey; an opaque grey plastic that far off still moves."""
+    nearer plastic_grey; an opaque grey plastic that far off still moves, an opaque red one is off its colour (never
+    grey: the audit of 2026-11-04)."""
     library = {"red_plastic": {"family": "plastic", "colour": [0.45, 0.02, 0.01]},
                "plastic_grey": {"family": "plastic", "colour": [0.33, 0.31, 0.27]}}
     pale = np.array([70.8, 21.2, 11.5])
     found = finish_parts.checked_finishes(
         {"kind": "beacon", "object": "beacon"},
         [{"finish": "Red transparent plastic", "parts": "lamp dome", "surface": "red_plastic"},
-         {"finish": "Red plastic", "parts": "knob", "surface": "red_plastic"}], [pale, pale], library)
+         {"finish": "Grey plastic", "parts": "knob", "surface": "red_plastic"},
+         {"finish": "Red plastic", "parts": "knob", "surface": "red_plastic"}], [pale, pale, pale], library)
     assert found[0]["surface"] == "red_plastic" and found[0]["by"] == "its own colour" and found[0]["cover"], found[0]
     assert found[1]["surface"] == "plastic_grey" and found[1]["by"] == "nearest of its family by colour", found[1]
+    assert found[2]["surface"] == "red_plastic" and found[2]["by"] == "off its colour", found[2]
 
 
 def test_a_finish_list_reply_is_parsed_to_library_names():

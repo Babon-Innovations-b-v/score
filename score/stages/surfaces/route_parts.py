@@ -166,13 +166,15 @@ def parts_take(folders, entry, finishes, surfaces):
     checked = finish_parts.checked_finishes(entry, finishes, colours, every, kit)
     if folders.get("code") and lit_take(entry, folders["code"]):
         checked = lit_finishes(checked, every)
+    checked = finish_parts.looked(checked, every)
     folders["out"].mkdir(parents=True)
     np.save(folders["out"] / "parts.npy", part_of.astype(np.int32))
     np.save(folders["out"] / "colours.npy", np.full((len(mesh.faces), 3), np.nan, dtype=np.float32))
     rows = finish_parts.part_rows(mesh, part_of, finish_of, checked)
     for row in rows:
         row["settings"] = route_settings.applied(checked[part_finish(mesh, part_of, finish_of, row["part"])])
-    return {"method": METHOD, "parts": rows, "judge_unknown": [], "finishes": checked, "colour_from": colour_from,
+    return {"method": METHOD, "object": entry.get("object"), "parts": rows, "judge_unknown": [], "finishes": checked,
+            "colour_from": colour_from,
             "measures": {"parts": len(rows), "off colour": sum(entry["by"] == "off its colour" for entry in checked)}}
 
 
@@ -210,3 +212,16 @@ def judge_parts(output, inputs, evidence):
     return gates.verdict("parts", failing, len(found["takes"]) + len(found["left_out"]), "takes", {
         "left_out": len(found["left_out"]),
         "off colour": sum(record["measures"]["off colour"] for record in found["takes"].values())})
+
+
+def judge_meaning(output, inputs, evidence):
+    """Gate "kept the list's meaning": no finish the colour check moved off its listed surface lost the list's recipe
+    (a glow kept a glow) or hue, and no take's largest finish so moved left the colour its row's name names
+    (finish_parts.meaning_faults). The paint's colour gate and the bake check hold a surface to the close-up's lit
+    colour, the same the re-pick matched, so a swap within dE 32 passed them by construction (the audit of
+    2026-11-04)."""
+    found = json.loads((output / "parts.json").read_text())["takes"]
+    failing = [fault for take, record in found.items() for fault in finish_parts.meaning_faults(take, record)]
+    moved = sum(finish["surface"] != finish.get("listed_surface", finish["surface"])
+                for record in found.values() for finish in record["finishes"])
+    return gates.verdict("kept the list's meaning", failing, len(found), "takes", {"moved": moved})
