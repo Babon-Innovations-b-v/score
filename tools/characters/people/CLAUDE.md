@@ -32,6 +32,11 @@ brought in to hip width (`stance.py`: Kimodo stands people twice as wide). Each 
 and each reason is in `body.py`'s header. Undoing one is fine; undoing one without reading why is how the walk ends
 up going through a wall again.
 
+In the rig (`../maker/prop_skeleton.py`, people-clips-made) a clip is Kimodo's own joints carried onto the bind, its
+turns taken off Kimodo's own rest skeleton, and a clip in `clips.OFF_THEIR_FEET` is rested on its skin: Kimodo grounds
+by the feet joints only (2026-11-04: posed through SOMA's zero-identity layer instead, the floor sit's feet stood 15 mm
+up and its seat 9 mm into the floor; Kimodo's own skin sits 23 to 27 mm in at the seat).
+
 ## The joins are measured
 
 Only the head and hands of the body are drawn, so a hand or boot that does not reach into its sleeve or
