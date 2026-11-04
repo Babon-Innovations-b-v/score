@@ -7,8 +7,9 @@ route asks each part with three seeds, lets most usable answers decide and gives
 answers; its rig fits the mean skeleton into the mesh at the mean bones' lengths, its weights come back on their own
 limbs, a tuck runs under its garment and a hard part rides one joint; the poke checks read a tuck under cloth as
 hidden, a hard part's stretch and cloth through cloth; and the people route keeps each region's points on their own
-limb, cuts the webs and closes them, keeps the made face until the owner decides, tucks the head under its collar
-and draws the body under a cut web only where cloth hides it.
+limb, cuts the webs and closes them, binds a bulky suit to its body drawn onto the suit's inside, keeps the made
+face until the owner decides, tucks the head under its collar and draws the body under a cut web only
+where cloth hides it.
 
 Nothing here loads a model or rents a machine: made-up meshes (tubes, grids, boxes), small spec and record files,
 and the machine handed a make faked at prop_person.on_characters. Two cases need the props environment
@@ -64,6 +65,9 @@ unless named):
 - test_a_band_takes_its_own_limbs_weights: tucks.limb_weights' pool made every garment point.
 - test_a_hard_part_rides_one_joint_and_the_cloth_by_it_follows: prop_build.rigid_joint's boot `side + "Foot"` made
   `side + "Shin"`.
+  Its shell case (2026-11-04, each seen red): prop_shell.bind's `if fitted_share < REACH_SHARE:` made `if False:`
+  (a bulky suit stays 12 cm off its body); soft_points' `~np.isin(part_of, sorted(rigid))` made all True (the hard
+  cap counted as cloth); suit_rounds' `SUIT_STEP * along` made `0 * along` (the body never drawn to the suit).
 - test_pokes_read_a_hard_parts_stretch: pokes.stretch's `max(worst, ...)` made `min(worst, ...)`.
 - test_piping_is_cut_down_the_outside_of_a_limb: piping.across_outer_line's outer half `> 0` made `< 0`.
 - test_a_flat_sheet_crosses_nothing: pokes.crossing_pairs' shared-corner filter and `usable &` both dropped (either
@@ -640,7 +644,34 @@ def test_a_band_takes_its_own_limbs_weights():
     assert found[0, 1] == 1.0
 
 
-def test_a_hard_part_rides_one_joint_and_the_cloth_by_it_follows():
+def shell_files(tmp_path, look_radius):
+    """A ball of a body (two joints' weights) and a look over it: a ball of cloth look_radius round, with a hard cap
+    on top, as prop_shell.bind reads them (fit rig, shell, parts)."""
+    body = trimesh.creation.icosphere(subdivisions=3, radius=0.2)
+    look = trimesh.creation.icosphere(subdivisions=3, radius=look_radius)
+    part_of = np.where(look.triangles_center[:, 1] > 0.9 * look_radius, 1, 0)
+    up = (body.vertices[:, 1] > 0)[:, None]
+    np.savez(tmp_path / "shell.npz", points=body.vertices, faces=body.faces, weights=np.hstack([~up, up]) * 1.0,
+             coefficients=np.zeros(2), scale=1.25, loss_start=0.1, loss=0.1)
+    np.savez(tmp_path / "rig.npz", points=look.vertices, faces=look.faces, part_of=part_of,
+             weights=np.ones((len(look.vertices), 2)) / 2, bind=np.stack([np.eye(4)] * 2), names=["Hips", "Chest"])
+    np.savez(tmp_path / "parts.npz", parts=[0, 1], names=["cloth", "helmet"], roles=["garment", "hard"],
+             part_of=part_of)
+    return [tmp_path / name for name in ("rig.npz", "shell.npz")], tmp_path / "parts.npz"
+
+
+def test_a_hard_part_rides_one_joint_and_the_cloth_by_it_follows(tmp_path):
+    import prop_shell
+    for look_radius, drawn in ((0.32, True), (0.22, False)):
+        (rig_path, shell_path), parts_path = shell_files(tmp_path, look_radius)
+        record = prop_shell.bind(rig_path, shell_path, tmp_path / "out.npz", tmp_path / "shell.json", parts_path)
+        bound = np.load(tmp_path / "out.npz")
+        soft = prop_shell.soft_points(dict(bound), np.load(parts_path))
+        assert soft.sum() < len(soft) and not soft[bound["points"][:, 1] > 0.99 * look_radius].any()
+        assert ("suit" in record) is drawn
+        assert prop_shell.held_share(bound["shell_offsets"], soft) >= prop_shell.REACH_SHARE
+        if drawn:
+            assert record["suit"]["fitted_held_share"] < 0.5 and record["suit"]["moved_most_m"] <= prop_shell.SUIT_MOST
     names = ["Hips", "LeftShin", "LeftFoot"]
     boot = np.array([[0.1, 0.05, 0.0], [0.1, 0.2, 0.0]])
     assert prop_build.rigid_joint("boot_l", boot, np.ones((2, 3)), names) == "LeftFoot"

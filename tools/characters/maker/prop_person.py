@@ -262,7 +262,8 @@ def identity(spec, outfit, who, held, dry_run):
 def shelled(spec, outfit, who, held, dry_run):
     """The look bound to SOMA-X's body fitted to its outside (prop_shell.py, owner 2026-10-12): the fit on a characters
     machine, the binding here; <candidate>/fit/rig.npz takes the body's weights (the RSWT ones kept in it),
-    fit/shell.npz and fit/shell.json the body and its offsets."""
+    fit/shell.npz and fit/shell.json the body and its offsets (the look's parts say which points are soft, so a bulky
+    suit's look is bound to the body drawn onto its inside)."""
     folder = folder_of(spec, outfit)
     make = make_place(folder, "shell")
     make_folder(make, dict(spec, name=f"{spec['name']}-{outfit}-shell", person=spec["name"]), ("shell",),
@@ -271,8 +272,9 @@ def shelled(spec, outfit, who, held, dry_run):
     if dry_run:
         return None
     shutil.copy2(make / "out" / "shell.npz", folder / "fit" / "shell.npz")
+    take = (folder / "take.txt").read_text().strip()
     local("prop_shell.py", "bind", folder / "fit" / "rig.npz", folder / "fit" / "shell.npz", folder / "fit" / "rig.npz",
-          folder / "fit" / "shell.json")
+          folder / "fit" / "shell.json", folder / "parts" / take / "parts.npz")
     return json.loads((folder / "fit" / "shell.json").read_text())
 
 
