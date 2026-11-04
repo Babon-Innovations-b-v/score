@@ -149,11 +149,14 @@ def mark(path, state, why=None):
 def noted(path, gauge):
     """A registered run's entry written again with `gauge()` ({running, buys}: the nodes it runs now, the paid rows it
     would buy) in it, so the checkout's update (tools/cloud/conductor/update.py) never waits behind a run that buys and
-    runs nothing; with no gauge only touched. Its last sign of life either way."""
-    if gauge is None:
-        os.utime(path)
-        return
-    written(pathlib.Path(path), {**json.loads(pathlib.Path(path).read_text()), **gauge()})
+    runs nothing, and its disk's free GB at its first beat and the lowest since (`disk_start`, `disk_lowest`: what a
+    run writes, read by score/conductor/disk.launch_refusal; 2026-11-04, checkout 17 started at 10.4 GB free and ran out
+    7 min in). Its last sign of life."""
+    entry = json.loads(pathlib.Path(path).read_text())
+    free = round(shutil.disk_usage(pathlib.Path(path).parent).free / 1024 ** 3, 2)
+    entry["disk_start"] = entry.get("disk_start", free)
+    entry["disk_lowest"] = min(entry.get("disk_lowest", free), free)
+    written(pathlib.Path(path), {**entry, **(gauge() if gauge else {})})
 
 
 @contextlib.contextmanager
