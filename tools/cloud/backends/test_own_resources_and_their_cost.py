@@ -41,6 +41,8 @@ The invariants, each with the break that turns its test red (each applied once a
   Break: `return not found.group(2) and int(found.group(1)) <= 24` -> `return True` in `serves` -> gpu-80gb is offered.
   Break: drop `| fcntl.LOCK_NB` handling (return the machine without the lock) in `claimed` -> a second claim gets it.
   Break: in `delete`, drop the `except BlockingIOError: ... return False` -> another claim's container is restarted.
+  Its object store is the Scaleway backend's (the library's blobs a handover from here puts in, env1 2026-11-04).
+  Break: `object_store` raises SystemExit again -> the handover from this PC exits before it runs.
 - Blender claims (SHARED) share the machine's RUNS_AT_ONCE turns across places: a claim takes the free turns, lets
   each go as its slot runs out of work, and a second place's claim takes them while the first still runs; an
   exclusive claim is kept out meanwhile and, once it asks, keeps new Blender claims out; the container is restarted
@@ -531,6 +533,9 @@ def test_this_pc_orders_nothing_costs_nothing_and_holds_one_claim(monkeypatch, t
     assert local.delete(first["id"], "this-pc") is True and restarted  # its own claim ends: the container restarted
     local.delete(local.take("pixal", "key")["id"], "this-pc")
     assert execs.count(local.INSTALLER_CACHES) == 1  # measured again only after LAYER_EVERY_SECONDS
+    import scaleway
+    monkeypatch.setattr(scaleway, "object_store", lambda: {"bucket": "the-library-bucket"})
+    assert local.object_store() == {"bucket": "the-library-bucket"}  # the library's blobs, where its secrets are
 
 
 def test_this_pc_shares_its_blender_turns_across_places_and_restarts_only_when_left_alone(monkeypatch, tmp_path):
