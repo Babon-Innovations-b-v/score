@@ -179,7 +179,40 @@ def sized_rows(store, place, record):
               "read_size": own_size(reading_size(row), laid.get(row["id"]), run_pieces(shown and shown["plan"], row),
                                     read.get("box"))}
              for row in rows for read in [read_row(record, row)]]
+    holding = holding_sizes(shown and shown["plan"], rows)
+    found = [{**row, "size": holding[row["id"]]["size"], "read_size": holding[row["id"]]["size"],
+              "holds": holding[row["id"]]["span"]} if row["id"] in holding else row for row in found]
     return [routed(row, own, beyond, shell | plan_arches(shown and shown["plan"], found)) for row in found]
+
+
+def holding_sizes(plan, rows):
+    """{row id: {"size": [wide, deep, tall], "span": [wide, deep]}} of each row whose plan item holds places (the plan's
+    `holds` naming the row: an outside shell, the hangar's spaceship holding its cockpit, galley, engine room...): its
+    size is its plan item's, wide and deep as laid (turned back for one facing east or west), tall its shape's
+    (`tall`), else its reading's, never the reading's alone: the ship was made at its reading's 8 by 24 by 4 m round
+    rooms its plan lays 13.7 by 46 m (2026-11-04). `span` is the box round the places it holds, which it must hold
+    (contract.faults)."""
+    by_id = {row["id"]: row for row in rows}
+    found = {}
+    for hold in (plan or {}).get("holds") or []:
+        row_id = hold.get("row")
+        if row_id not in by_id:
+            continue
+        span = found.get(row_id, {}).get("box") or [math.inf, math.inf, -math.inf, -math.inf]
+        x, y, wide, deep = (float(hold[key]) for key in ("x", "y", "w", "d"))
+        box = [min(span[0], x), min(span[1], y), max(span[2], x + wide), max(span[3], y + deep)]
+        found[row_id] = {"box": box, "span": [round(box[2] - box[0], 3), round(box[3] - box[1], 3)]}
+    for name, _, _, wide, deep, facing, *_ in (plan or {}).get("items") or []:
+        tied = ((plan.get("rows") or {}).get(name) or [None])[0]
+        if tied not in found or "size" in found[tied]:
+            continue
+        if facing in ("E", "W"):
+            wide, deep = deep, wide
+        tall = ((plan.get("shapes") or {}).get(name) or {}).get("tall") or (reading_size(by_id[tied]) or [None] * 3)[2]
+        if tall:
+            found[tied]["size"] = [round(float(wide), 3), round(float(deep), 3), round(float(tall), 3)]
+    return {row_id: {"size": entry["size"], "span": entry["span"]} for row_id, entry in found.items()
+            if "size" in entry}
 
 
 def plan_arches(plan, rows):
@@ -500,7 +533,8 @@ def group_of(place, record, row, key):
             "take": row.get("thing", "").partition(":")[2] or row["id"], "instances": row.get("count", 1),
             "route": row.get("route", "prop"), "shell": is_shell(row) or row.get("route") == "shell",
             "crop": crop_hash(record, row), "size": row.get("size"), "view": row.get("view"),
-            "box": row.get("box"), "reuse": row.get("reuse"), "shown": row.get("shown")}
+            "box": row.get("box"), "reuse": row.get("reuse"), "shown": row.get("shown"),
+            **({"holds": row["holds"]} if row.get("holds") else {})}
 
 
 def counts(groups_by_place):
