@@ -4,7 +4,8 @@
                   the game's class names): the record is made from the design, never transcribed
     plan-matched  the record is its plan's: where the record lays the room shell, every wall of the plan's outline
                   stands in it and every opening on a wall is cut through it (no wall piece fills the opening's middle
-                  between its sill and its head); every stair the plan draws is laid; every plan item of a glowing row
+                  between its sill and its head), and every row the hand-in gives the shell (route `plan`) is named
+                  on a piece of it (unbuilt_rows); every stair the plan draws is laid; every plan item of a glowing row
                   has its light over its footprint (one outlining the whole room on its wall's face); every glowing
                   row the plan lays has at least as many lamps as its reading counts things (count_faults)
     openings      every doorway leads somewhere: each door, gate or open doorway of the plan leads to a place of the
@@ -150,13 +151,26 @@ def count_faults(record, design, inputs):
             if row_id in tied and made.get(row_id, 0) < int(row.get("count") or 1)]
 
 
+def unbuilt_rows(record, handin):
+    """Each row the hand-in gives the plan's shell to lay (route `plan`, writer.plan_rows) that no structure piece of
+    the record is named for: a row the shell has no way to build, dropped without a word (the hangar's landing pad,
+    wall pillars, floor grates and hatch, the garage's ceiling beams its lamps hang on, 2026-11-04)."""
+    named = {entry.get("row") for entry in record.get("structure") or []}
+    return [f"shell row {row_id} ({part}) is built by no piece of the shell" for part, ids in
+            writer.plan_rows(handin).items() for row_id in ids if row_id not in named]
+
+
 def judge_plan_matched(output, inputs, evidence):
-    """Fail on a wall, opening, stair or lamp of the plan the record does not hold as the plan says."""
+    """Fail on a wall, opening, stair or lamp of the plan the record does not hold as the plan says, and on a row of
+    the shell's that no piece of it builds (unbuilt_rows)."""
     place, record = writer.record_in(output)
     design = design_of(inputs, place)
     shelled = writer.inside(design) and not design_shell.laid_for(design)
-    faults = (wall_faults(record, design) + opening_faults(record, design) if shelled else []) + \
-        stair_faults(record, design) + lamp_faults(record, design) + count_faults(record, design, inputs)
+    handin = pathlib.Path(inputs.get("hand-in") or "")
+    faults = (wall_faults(record, design) + opening_faults(record, design) +
+              (unbuilt_rows(record, json.loads(handin.read_text())) if handin.is_file() else [])
+              if shelled else []) + stair_faults(record, design) + lamp_faults(record, design) + \
+        count_faults(record, design, inputs)
     said = "its shell's walls and openings, " if shelled else \
         ("no shell of the record's (its base lays it), " if writer.inside(design) else "no shell (an open place), ")
     reason = "; ".join(faults[:3]) + (f" and {len(faults) - 3} more" if len(faults) > 3 else "") if faults else \

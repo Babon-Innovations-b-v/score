@@ -161,7 +161,9 @@ def test_a_room_shell_stands_round_its_plan():
     less the door's hole of 1.0 x 0.2 x 2.0 m; the room's middle the place's origin; the deck's top the floor itself
     (the lab's things all stood 0.042 m over its deck, laid by the retired kits' floor plates, motion@lab round 35).
     Break: score/stages/earth_seed/design_shell.py: `        if head < high:` -> `        if False:`
-    Break: score/stages/earth_seed/design_shell.py: `DECK_BELOW = 0.0` -> `DECK_BELOW = 0.042`"""
+    Break: score/stages/earth_seed/design_shell.py: `DECK_BELOW = 0.0` -> `DECK_BELOW = 0.042`
+    Break: score/stages/earth_seed/design_shell.py: `if not rising and holes:` -> `if False:` (the hangar's roof one
+        solid slab though its plan opens it 27 x 55 m for the ship, 2026-11-04)"""
     parts = {name: triangles for name, triangles, _ in design_shell.shell(ROOM)}
     assert sorted(parts) == ["deck_1", "roof_1", "wall_1", "wall_2", "wall_3", "wall_4"], sorted(parts)
     assert abs(volume(parts["deck_1"]) - 4.3 * 3.3 * 0.2) < 1e-6, volume(parts["deck_1"])
@@ -183,6 +185,14 @@ def test_a_room_shell_stands_round_its_plan():
     pitched = {name: triangles for name, triangles, _ in design_shell.shell(
         dict(ROOM, roofs=[{"kind": "pitched", "points": BOX, "eave": 2.5, "top": 3.5}]))}
     assert abs(volume(pitched["roof_1"]) - 4.3 * 3.3 * 1.0 / 2) < 1e-6, volume(pitched["roof_1"])
+    # a flat roof with a 2 x 1 m opening (the hangar's roof door): the slab round it, open over it
+    hatch = [[1.0, 1.0], [3.0, 1.0], [3.0, 2.0], [1.0, 2.0]]
+    opened = {name: triangles for name, triangles, _ in design_shell.shell(
+        dict(ROOM, roofs=[{"kind": "flat", "points": BOX, "eave": 2.5, "top": 2.5, "openings": [{"points": hatch}]}]))}
+    assert abs(volume(opened["roof_1"]) - (4.3 * 3.3 - 2.0) * 0.2) < 1e-6, volume(opened["roof_1"])
+    over = numpy.asarray(opened["roof_1"], float).mean(axis=1)
+    assert not ((over[:, 0] > 1.0 + 1e-6) & (over[:, 0] < 3.0 - 1e-6) & (over[:, 2] > 1.0 + 1e-6)
+                & (over[:, 2] < 2.0 - 1e-6)).any(), "the roof is closed over its opening"
 
 
 def test_every_wall_the_plan_writes_is_built_and_cut_where_its_opening_sits():

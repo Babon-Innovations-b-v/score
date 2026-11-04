@@ -21,7 +21,8 @@ the place's +0.00):
     openings  [{kind: door|window|opening|gate, at, wide, angle, swing: left|right|double|slide|none, sill, head, to}]
     levels    [{name, height, points}]            floor areas at their heights
     stairs    [{kind: stair|ramp, points, from, to, angle (the way up), steps}]
-    roofs     [{kind: flat|dome|pitched|vault|shed, points, eave, top}]
+    roofs     [{kind: flat|dome|pitched|vault|shed, points, eave, top, openings: [{points}]}]: each opening a hole
+              the earth seed's shell cuts (design_shell.cut_out: the hangar's roof door, 2026-11-04)
     terrain   {spots [[x, y, height]], contours [{height, points}]}
     shapes    {item name: {shape: rect|circle|polygon, points [[u, v]] in 0..1 of its box, tall, base}}
     section   {y}                                 where the section view cuts, west to east
@@ -102,7 +103,8 @@ Write the plan as one JSON object with these keys:
 - "stairs": every stair or ramp as drawn, {{"kind": "stair"|"ramp", "points": its footprint, "from": m, "to": m,
   "angle": the direction one walks up in degrees, "steps": a count}}.
 - "roofs": every roof as drawn, {{"kind": "flat"|"dome"|"pitched"|"vault"|"shed", "points": its footprint, "eave": m,
-  "top": m}}.
+  "top": m, "openings": [{{"points": its footprint}}, ...]}}: each opening in a roof (a hatch, a skylight, a door in
+  the roof that opens to the sky) as wide and deep as the facts or the drawing give it, [] for a roof with none.
 - "terrain": for ground outside, {{"spots": [[x, y, height m], ...], "contours": [{{"height": m, "points": [[x, y],
   ...]}}]}}: spot heights where the ground rises or falls and contour lines at an even step; {{}} for a place indoors.
 - "items": every row of the facts' rows that stands on the floor or the ground (its items' counts adding up to the
@@ -171,7 +173,7 @@ PLAN = shaped({
     "stairs": listed({"kind": chosen("stair", "ramp"), "points": POINTS, "from": NUMBER, "to": NUMBER,
                       "angle": NUMBER, "steps": {"type": "INTEGER"}}),
     "roofs": listed({"kind": chosen("flat", "dome", "pitched", "vault", "shed"), "points": POINTS, "eave": NUMBER,
-                     "top": NUMBER}),
+                     "top": NUMBER, "openings": listed({"points": POINTS})}),
     "terrain": shaped({"spots": POINTS, "contours": listed({"height": NUMBER, "points": POINTS})}, []),
     "items": listed({"row": STRING, "count": {"type": "INTEGER"}, "box_2d": POINT,
                      "shape": chosen("rect", "circle", "polygon"), "points": POINTS,
@@ -378,8 +380,11 @@ def stair_of(stair):
 def roof_of(roof):
     if not isinstance(roof, dict) or not points(roof.get("points")) or number(roof.get("eave")) is None:
         return None
+    openings = [{"points": points(opening["points"])} for opening in roof.get("openings") or []
+                if isinstance(opening, dict) and points(opening.get("points"))]
     return {"kind": roof.get("kind") if roof.get("kind") in ROOFS else "flat", "points": points(roof["points"]),
-            "eave": number(roof["eave"]), "top": number(roof.get("top"), number(roof["eave"]))}
+            "eave": number(roof["eave"]), "top": number(roof.get("top"), number(roof["eave"])),
+            **({"openings": openings} if openings else {})}
 
 
 def terrain_of(terrain):
@@ -625,7 +630,8 @@ def metred(answer, scale, origin):
                                                              "wide": run(entry.get("wide"), mean)}
                                   if isinstance(entry, dict) else entry),
             "levels": listed_as("levels", shaped), "stairs": listed_as("stairs", shaped),
-            "roofs": listed_as("roofs", shaped),
+            "roofs": listed_as("roofs", lambda entry: {**shaped(entry), "openings": [
+                shaped(opening) for opening in entry.get("openings") or []]} if isinstance(entry, dict) else entry),
             "terrain": {**terrain, "spots": spots, "contours": [shaped(line) for line in terrain.get("contours") or []]
                         if isinstance(terrain.get("contours"), list) else []},
             "items": listed_as("items", lambda entry: boxed(entry, ("x", "y", "wide", "deep"))),

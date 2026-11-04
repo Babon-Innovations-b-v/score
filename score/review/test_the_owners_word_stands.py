@@ -2723,7 +2723,8 @@ ANSWER = {
     "openings": [{"kind": "door", "at": [2.0, 3.0], "wide": 0.9, "angle": 0, "swing": "left", "head": 2.1,
                   "to": "yard"}],
     "levels": [{"name": "floor", "height": 0, "points": [[0, 0], [4, 0], [4, 3], [0, 3]]}],
-    "roofs": [{"kind": "pitched", "points": [[0, 0], [4, 0], [4, 3], [0, 3]], "eave": 2.5, "top": 3.4}],
+    "roofs": [{"kind": "pitched", "points": [[0, 0], [4, 0], [4, 3], [0, 3]], "eave": 2.5, "top": 3.4,
+               "openings": [{"points": [[1, 1], [2, 1], [2, 2], [1, 2]]}, {"points": [[1, 1]]}]}],
     "terrain": {},
     "structure": ["lamp_nowhere"],
     "items": [{"row": "bench", "x": 2.0, "y": 0.6, "wide": 2.0, "deep": 0.6, "shape": "rect", "facing": "S",
@@ -2772,6 +2773,8 @@ def cleared(cleared_for):
 
 
 def test_the_answer_is_a_plan_of_the_stage_tables_schema_and_each_failed_check_a_named_gap(store, data, gemini):
+    """Break: plan_writing.py: roof_of's `**({"openings": openings} if openings else {})` made `**{}` (a roof's
+    opening dropped: the hangar's roof door never cut, 2026-11-04)."""
     asked, ask = gemini
     picked(store, "shed")
     assert plans.current(store, "shed")["how"] == "derived"
@@ -2792,6 +2795,7 @@ def test_the_answer_is_a_plan_of_the_stage_tables_schema_and_each_failed_check_a
     # no filed plan names its doors (retired 2026-10-21): its doorway is the answer's opening, leading to the yard
     assert plan["doors"] == [] and [opening["to"] for opening in plan["openings"]] == ["yard"], plan["openings"]
     assert len(plan["walls"]) == 4 and plan["roofs"][0]["top"] == 3.4 and plan["section"] == {"y": 1.5}
+    assert [len(opening["points"]) for opening in plan["roofs"][0]["openings"]] == [4], plan["roofs"]  # a roof's hole
     words = [gap["words"] for gap in plan["gaps"]]
     assert {"item": "ghost", "why": "no such row"} in plan["dropped"] and {"item": "walls", "why": "1 off the schema"} \
         in plan["dropped"]  # kept apart: no gap of his
