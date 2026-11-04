@@ -40,6 +40,7 @@ from score.store import PROPS_HOME, running_under_agent
 GROW, SHRINK = "grow", "shrink"
 IDLE_MINUTES = 30  # idle this long, counted from the last busy pass or the boot (a grow is a boot), before a shrink
 BUSY = ("claims", "running", "waiting", "parked", "frozen", "working")
+PASS_HOLD = "sync-pass-"  # score/dashboard/__main__.py sync's hold, `<name>-<pid>`: it waits a shrink, never the clock
 GROW_WAIT = 3600  # seconds a waiting run waits for the grow's shutdown before it gives up (unresumable)
 WAIT_STEP = 5
 STATE = conductor.HOME / "size.json"
@@ -103,7 +104,11 @@ def processes_in(folder):
 
 def busy(runs_folder=None, parked=None, frozen_folder=None, holds_folder=None):
     """What keeps the machine at its size now: {claims, running, waiting, parked, frozen, working}, each a count
-    (working: the holds of score.conductor.holding, a sync pass, a request, a film preview, a reading, a free check)."""
+    (working: the holds of score.conductor.holding but the sync pass's, a request, a film preview, a reading, a free
+    check), with `passing` the sync passes holding now and `held` every hold's name and pid. A pass is no work that
+    keeps the batch size: passes run back to back for ever (each outlasts its 5-minute timer), so counted as busy they
+    kept the idle clock at 0 and the conductor at 16 cores all of 2026-11-04's morning; the shrink waits for one to end
+    (decide)."""
     runs_folder = pathlib.Path(runs_folder or runs.RUNS)
     with runs.claims_locked(runs_folder) as claims:
         live_claims = len(claims)
@@ -113,10 +118,12 @@ def busy(runs_folder=None, parked=None, frozen_folder=None, holds_folder=None):
     parked_folder = pathlib.Path(parked or PARKED)
     frozen_folder = pathlib.Path(frozen_folder or frozen.FOLDER)
     in_use = [copy for copy in sorted(frozen_folder.iterdir()) if processes_in(copy)] if frozen_folder.is_dir() else []
+    held = conductor.holds(holds_folder)
+    passing = [name for name in held if name.startswith(PASS_HOLD)]
     return {"claims": live_claims, "running": len(running), "waiting": len(waiting),
             "wanted": max((entry.get("jobs", 0) for entry in waiting), default=0),
             "parked": len(list(parked_folder.glob("*.json"))) if parked_folder.is_dir() else 0, "frozen": len(in_use),
-            "working": len(conductor.holds(holds_folder))}
+            "working": len(held) - len(passing), "passing": len(passing), "held": held}
 
 
 def is_busy(view):
@@ -138,10 +145,13 @@ def decide(view, cores, record, idle_since, now, latched):
     if cores <= int(record["idle_cores"]):
         return None, "at the idle size"
     if is_busy(view):
-        return None, "busy: " + ", ".join(f"{name} {view[name]}" for name in BUSY if view.get(name))
+        return None, "busy: " + ", ".join(f"{name} {view[name]}" for name in BUSY if view.get(name)) + (
+            f" ({', '.join(view['held'])})" if view.get("held") else "")
     idle = (now - idle_since) / 60
     if idle < IDLE_MINUTES:
         return None, f"idle {idle:.0f} of {IDLE_MINUTES} minutes"
+    if view.get("passing"):
+        return None, f"idle {idle:.0f} minutes; the shrink waits for the sync pass to end ({', '.join(view['held'])})"
     return SHRINK, f"idle {idle:.0f} minutes at the batch size"
 
 
