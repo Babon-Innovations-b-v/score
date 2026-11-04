@@ -73,7 +73,7 @@ from score import checks, contracts, review
 from score.adapters import models
 from score.graph import _code, stopped
 import score.store as score_store
-from score.store import durable, file_hash, listing_hash, text_hash, tree_files, tree_listing
+from score.store import durable, file_hash, listing_hash, offload, text_hash, tree_files, tree_listing
 
 GRAINS = ("world", "place")
 # What a place's files need on disk before they are worked out, each a function of the place (the stage table puts
@@ -1014,6 +1014,7 @@ class Runner:
     def __init__(self, stages, world, store, model_record=None):
         no_bytecode()
         durable.install()  # synced writes and quarantining reads, here and not in the store's module: in no row's key
+        offload.install()  # an evicted blob fetched back from the store bucket on its first read (#74), likewise
         self.stages = {stage.name: stage for stage in stages}
         self.world = world
         self.store = scoped(store)

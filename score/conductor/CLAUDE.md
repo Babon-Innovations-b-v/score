@@ -79,10 +79,14 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   PROPS_HOME): folders from its mount point when the home is not its top, deleted files still held open (by process),
   blocks kept for root, what du cannot read or see. `store-gc [--dry]` (the door's), only with no run live: each blob no
   file, link or (followed) listing blob names is removed, `collectable_why` the one guard; a blob linked elsewhere or
-  under a day old stays; refused when a file cannot be read. `sweep` (the door's; the sync pass's first step, so a
+  under a day old stays; refused when a file cannot be read. `store-evict [--dry]` (the door's, #74, 2026-11-04:
+  store/objects 138 GB, store-gc freeing 0), only with no run live: every blob sent to the store bucket
+  (`score/store/offload`), and a blob's local copy evicted only once the bucket answers with its size and sha256,
+  and only one with one link, named by nothing but output listings, in no listing of an output a node stands on
+  (current accepted, newest record) and no text naming blobs; `launch_refusal` names the GB it could free. `sweep` (the door's; the sync pass's first step, so a
   refused pass still sweeps; owner 2026-10-30: "this should be routine"): every pass clean-frozen, clean-cache
   making/, clean-kept; on a conductor under `WARN_GB` (20) every step, clean-cache whole, relink-pixal, logs past 30
-  days and tmp/ past a day, store-gc, offload-pixal, a line each with what it freed; still under the floor it names what
+  days and tmp/ past a day, store-gc, store-evict, offload-pixal, a line each with what it freed; still under the floor it names what
   fills the disk and prices the bigger volume (`conductor/sweep.json`, read by the Machine card's note): only then the
   owner. Never named blobs, paid caches (cloud/google-cache, drops), the design or a take kept nowhere else.
   Its own timer too (`score-sweep.timer`, every 10 min; 2026-10-31: at 0 GB free the update before each sync pass

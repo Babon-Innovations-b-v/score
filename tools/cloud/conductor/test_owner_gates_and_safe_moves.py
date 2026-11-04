@@ -293,7 +293,7 @@ def test_the_door_refuses_a_shell_a_paid_run_the_owners_commands_and_anything_un
                   "buy-yes --no-film 33 30 'yes' 'q?'", "batch-money --film", "batch-money --no-film x",
                   "batch-money 1", "disk /", "clean-frozen --all", "clean-cache --making-only", "relink-pixal x", "score-lib", "score-lib push",
                   "score-lib pull --force", "job-log",
-                  "batch-money 1", "disk /", "clean-frozen --all", "clean-cache --making-only", "relink-pixal x", "offload-pixal x", "sweep --force", "store-gc --all", "store-gc --dry x", "job-log",
+                  "batch-money 1", "disk /", "clean-frozen --all", "clean-cache --making-only", "relink-pixal x", "offload-pixal x", "sweep --force", "store-gc --all", "store-gc --dry x", "store-evict --all", "job-log",
                   "job-log a b", "job-log x.home/work/cloud/../../../store/k", "run-log 5", "run-log --lines",
                   "run-log --lines x", "run-log --lines 0", "fault", "fault a b", "fault ../store/k",
                   "fault 'motion@airlock/../../x'", "store-pull cloud", "store-push --delete",
@@ -364,8 +364,9 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
     for verb in ("disk", "sweep", "clean-frozen", "clean-cache", "relink-pixal", "offload-pixal"):  # 2026-10-26: the data disk full, the copies of ended runs on it
         code, why, argv, env = door(verb)
         assert code == 0 and argv == ["-m", "score.conductor", verb] and env["SCORE_FREE_ONLY"] == "1", (why, argv)
-    code, why, argv, env = door("store-gc --dry")  # 2026-10-30: the disk full, the store's blobs nothing names
-    assert code == 0 and argv == ["-m", "score.conductor", "store-gc", "--dry"] and env["SCORE_FREE_ONLY"] == "1", why
+    for verb in ("store-gc", "store-evict"):  # 2026-10-30: the disk full; 2026-11-04 (#74): blobs into the bucket
+        code, why, argv, env = door(f"{verb} --dry")
+        assert code == 0 and argv == ["-m", "score.conductor", verb, "--dry"] and env["SCORE_FREE_ONLY"] == "1", why
     for action in ("status", "pull"):  # 2026-10-28: score_lib's checkout, never pulled since boot.sh cloned it
         code, why, argv, _ = door(f"score-lib {action}")
         assert code == 0 and argv == ["-m", "score.conductor", "score-lib", action], (why, argv)
