@@ -35,7 +35,7 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - the_row_kinds_the_fitting_reads_are_among_its_files: files' `"row kinds"` entry dropped (a change to which rows
   swing would not re-key the settle row, whose grounded seed the assembly's fitting lays by it, 2026-10-30).
 - a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down (held.py): held_objects without its `row not in on_walls`
-  test.
+  test, or without its `name not in on_sides` test (2026-11-04: the pipe on its desk's side snapped down).
 - a_cloud_drop_runs_on_the_trials_card_in_its_python_once (tools/usd/drop.py): simulate's `machine.run(..., env=ENV)`
   without `env=ENV` (the drop sent to the card's Blender).
 
@@ -376,18 +376,23 @@ def a_pair_crossing_only_after_the_drop_still_breaks():
 
 def a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down():
     """A lamp on the roof row and a sign on a wall row are mounted, not held from under (airlock's ceiling lamps, 280
-    cm over the floor, 2026-10-30): never snapped; a cup on its desk still is."""
+    cm over the floor, 2026-10-30), and so is a pipe the scene record lays on its desk's side (relation `face`:
+    storage's pillar pipes, snapped one by one, the middle one left leaning 3.06 degrees, 2026-11-03): never
+    snapped; a cup on its desk still is."""
     from score.stages.settling import held
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         resting_test.made_models(folder)
         path = resting_test.laid_place(
             folder, [("roof", "box", (0, 3, 0)), ("left_wall", "box", (3, 1, 0)), ("desk", "box", (6, 0, 0)),
-                     ("lamp", "box", (0, 2, 0)), ("sign", "box", (3, 1, 1.5)), ("cup", "box", (6, 1, 0))],
+                     ("lamp", "box", (0, 2, 0)), ("sign", "box", (3, 1, 1.5)), ("cup", "box", (6, 1, 0)),
+                     ("pipe", "box", (6, 1, 1.5))],
             [("roof", "ceiling"), ("left_wall", "floor"), ("desk", "floor"), ("lamp", "on:roof"),
-             ("sign", "on:left_wall"), ("cup", "on:desk")])
+             ("sign", "on:left_wall"), ("cup", "on:desk"), ("pipe", "on:desk")])
         inventory = json.loads((folder / "inventory.json").read_text())
-        found = held.held_objects(Usd.Stage.Open(str(path)), PLACE, inventory, folder / "kit.json")
+        record = {"objects": [{"name": "pipe_1", "on": {"how": "face"}}, {"name": "cup_1", "on": {"how": "top"}}]}
+        found = held.held_objects(Usd.Stage.Open(str(path)), PLACE, inventory, folder / "kit.json",
+                                  held.faced(record))
         return [] if found == ["cup_1"] else [f"held to snap down: {found}, not the cup alone"]
 
 

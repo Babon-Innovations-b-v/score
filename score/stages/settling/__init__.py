@@ -360,12 +360,15 @@ def laid_over(root, seed, place, poses, path):
 
 
 def held_phase(root, path, inputs, inventory, poses, seed):
-    """Each held object at rest on its holders as they rest (held.held_rests), and its own glowing parts carried
-    with it: {name: pose}."""
+    """Each held object at rest on its holders as they rest (held.held_rests; one the scene record lays on its
+    holder's side left as laid), and its own glowing parts carried with it: {name: pose}."""
     from pxr import Usd
+    import score.stages.assembly.record as laid_record  # this form: as grounded_seed reads it
     place = place_of(inputs)
     laid_over(root, seed, place, poses, path)
-    held = snapped.held_rests(root, place, inventory, inputs["kit"])
+    record = pathlib.Path(root).parent / laid_record.RECORD  # the scene record grounded_seed wrote beside the stage
+    held = snapped.held_rests(root, place, inventory, inputs["kit"],
+                              json.loads(record.read_text()) if record.is_file() else None)
     rested = Usd.Stage.Open(str(root))
     entries = {name: {"before": pose["before"], "after": pose["after"],
                       "middle": settle.object_middle(rested, place, name)}

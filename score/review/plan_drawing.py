@@ -11,7 +11,6 @@ under the same standing allowance and its spend block. Kept in the store, writte
 import base64
 import hashlib
 import io
-import math
 import time
 import urllib.error
 
@@ -24,13 +23,14 @@ NEAR_BOTTOM = "The painting's near side is at the bottom of your picture and its
 FROM_SOUTH_EAST = ("The painting is seen from the south-east, a little from above; draw the plan north up, so the "
                    "painting's viewer stands off your picture's bottom-right corner.")
 OUTLINE = (" The second picture is the plan of the place holding it, top down and north up, this place the yellow box: "
-           "draw this place filling exactly that box's shape and proportions ({wide:g} m west to east, {deep:g} m "
-           "north to south: your picture is that shape), north up, its doors where the box's doors are, and every "
-           "part at its true size against it.")
+           "it shows where this place sits and where its doors are, not its shape (that plan is drawn from another "
+           "painting): draw this place at its own proportions as the painting shows them, north up, its doors on the "
+           "sides where the box's doors are, and every part at its true size against the others.")
 # a part the creator planned is drawn at the plan's own size (creator data wins; the owner, 2026-10-21)
 PLANNED_SIZE = " ({long:g} m long, {wide:.1f} m wide: draw it at exactly this size)"
-# the frames the drawing model draws in (Nano Banana Pro's aspect ratios), wide over deep
-FRAMES = ("1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9")
+# The frame every drawing is drawn in (Nano Banana Pro's aspect ratio), a held place's too: framed to its box on the
+# layer above's plan, the flat was drawn to the Square's thin 2.145 x 6.609 m strip of it (#72, 2026-11-03).
+FRAME = "1:1"
 OUTSIDE = ("From straight above every dome and round module is a flat circle, a box-shaped building the rectangle of "
            "its roof, a faceted hall its polygon, every tube or corridor a straight band of even width running between "
            "the two parts it joins.")
@@ -71,7 +71,7 @@ def wording_of(store, place):
     return WORDING.format(name=concepts.name_of(place), kind="floor plan" if inside else "roof plan",
                           seen=INSIDE if inside else OUTSIDE, parts=parts_of(store, place),
                           orientation=FROM_SOUTH_EAST if from_south_east(store, place) else NEAR_BOTTOM,
-                          outline=OUTLINE.format(wide=held["outline"][2], deep=held["outline"][3]) if held else "")
+                          outline=OUTLINE if held else "")
 
 
 def from_south_east(store, place):
@@ -79,17 +79,6 @@ def from_south_east(store, place):
     structure picture locks were drawn on until 2026-10-23 (`blockout`, the ship's rooms), retired since."""
     sha = concepts.picked(store, place)
     return bool(next((draw for draw in concepts.draws(store, place) if draw["sha"] == sha), {}).get("blockout"))
-
-
-def frame_of(store, place):
-    """The drawing's frame: the one of FRAMES nearest the place's box on the layer above's plan (the hangar's 32 x 64 m
-    a 9:16), so the drawing can keep its proportions; square when the layer above lays none (the painting's wide frame
-    is then not copied as it stands)."""
-    held = plans.holder_of(store, place)
-    if not held:
-        return "1:1"
-    wanted = math.log(held["outline"][2] / held["outline"][3])
-    return min(FRAMES, key=lambda frame: abs(math.log(int(frame.split(":")[0]) / int(frame.split(":")[1])) - wanted))
 
 
 def pictures_of(store, place):
@@ -118,8 +107,8 @@ def drawing_of(store, place, outline, wording):
                  and found.get("outline") == outline and found.get("wording") == wording), None)
 
 
-def called(wording, pictures, frame="1:1"):
-    """One Nano Banana Pro call in `frame` (frame_of; google_spend, on its ledger, never cached); (PNG bytes, euros,
+def called(wording, pictures, frame=FRAME):
+    """One Nano Banana Pro call in `frame` (FRAME; google_spend, on its ledger, never cached); (PNG bytes, euros,
     seconds)."""
     from PIL import Image
     pro, google_spend, secret_store = concepts.tools()
@@ -152,7 +141,7 @@ def drawn(store, place):
     found = drawing_of(store, place, outline, wording)
     if found:
         return found
-    png, euros, seconds = called(wording, pictures, frame_of(store, place))
+    png, euros, seconds = called(wording, pictures, FRAME)
     record = {"place": place, "concept": concepts.picked(store, place), "outline": outline,
               "sha": concepts.kept(store, png), "at": concepts.now(), "euros": euros, "seconds": seconds,
               "wording": wording}
