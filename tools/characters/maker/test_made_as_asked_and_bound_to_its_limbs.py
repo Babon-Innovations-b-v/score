@@ -39,8 +39,11 @@ unless named):
 - test_the_cloth_count_reads_the_routed_bodys_own_node_whatever_its_outfit: counts_by_clips' outfit node taken as the
   first skinned node, the far body's `!= "far"` dropped.
 - test_the_identity_is_read_off_the_takes_close_up: identity's steps `("identity",)` made `("identity", "route")`.
-- test_a_kimodo_clip_is_made_with_the_fixed_seed_and_records_it: people/clips.py kimodo_arguments' `"--seed",
-  str(CLIP_SEED)` made `"--seed", "0"`.
+- test_a_kimodo_clip_is_made_with_the_fixed_seed_and_rests_as_kimodo_moved_it: people/clips.py kimodo_arguments'
+  `"--seed", str(CLIP_SEED)` made `"--seed", "0"`. Its rig case (2026-11-04, each seen red): prop_skeleton.carried's
+  `@ rest[own, :3, :3].T` dropped (the clip turned through the wrong rest, the 15 mm lifted feet of the floor sit);
+  rest_off_their_feet's `if name in clips.OFF_THEIR_FEET` made `if True` (a walk raised off its feet's floor);
+  rested's `-float(...)` made `float(...)` (the sit pushed further into its floor).
 - test_the_route_is_the_bodys_binding_after_the_build: prop_person.route's steps `("identity", "route")` made
   `("route",)`.
 - test_the_route_step_rebuilds_the_built_body_on_the_base_under_it: prop_chain.route's skel_usd.py run dropped.
@@ -313,9 +316,11 @@ def test_the_identity_is_read_off_the_takes_close_up(tmp_path, monkeypatch):
     assert "identity" in prop_chain.STEPS
 
 
-def test_a_kimodo_clip_is_made_with_the_fixed_seed_and_records_it(tmp_path):
+def test_a_kimodo_clip_is_made_with_the_fixed_seed_and_rests_as_kimodo_moved_it(tmp_path):
     """#26: every clip is asked for with the one fixed seed, and its record beside it names the seed, so a lost clip
-    is made again the same."""
+    is made again the same; in the rig a clip plays Kimodo's own joints on the bind, whatever frames Kimodo's rest and
+    the bind turn from, and a clip nobody is on their feet in has its skin resting on the floor while a walk is left
+    where Kimodo grounded it (the owner's remake of the floor sit, 2026-11-04)."""
     ask = ("import json, sys; import clips; arguments = clips.kimodo_arguments('walking', sys.argv[1]); "
            "clips.write_record('walking', sys.argv[1]); "
            "print(json.dumps([arguments, clips.CLIP_SEED, clips.SENTENCES['walking'][0], clips.MODEL]))")
@@ -326,6 +331,42 @@ def test_a_kimodo_clip_is_made_with_the_fixed_seed_and_records_it(tmp_path):
     assert arguments[arguments.index("--seed") + 1] == str(seed), arguments
     record = json.loads((tmp_path / "walking.record.json").read_text())
     assert record == {"clip": "walking", "sentence": sentence, "seconds": 5.0, "model": model, "seed": seed}, record
+    import prop_skeleton
+    import played
+    names, parents = ["Root", "Hips", "LeftFoot", "RightFoot"], np.array([-1, 0, 1, 1])
+    places = np.array([[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.1, 0.08, 0.0], [-0.1, 0.08, 0.0]])
+
+    def frames_at(turns):
+        frames = np.tile(np.eye(4), (len(turns), 1, 1))
+        frames[:, :3, :3] = [trimesh.transformations.rotation_matrix(*turn)[:3, :3] for turn in turns]
+        frames[:, :3, 3] = places
+        return frames
+    bind = frames_at([(0.0, [0, 0, 1]), (2.1, [1, 1, 0]), (0.4, [0, 1, 1]), (-0.9, [1, 0, 1])])
+    rest = frames_at([(0.0, [0, 0, 1]), (-1.2, [0, 1, 0]), (2.5, [1, 0, 0]), (0.3, [1, 1, 1])])[1:]
+    rest_names = names[1:]
+
+    def kimodo(sway, drop):
+        """Kimodo's own output: world turns off its rest, each joint where its parent's turn carries its rest offset."""
+        count = 6
+        deltas = [trimesh.transformations.rotation_matrix(sway * step, [1, 0, 0])[:3, :3] for step in range(count)]
+        turns = np.stack([[delta @ rest[joint, :3, :3] for joint in range(3)] for delta in deltas])
+        root = np.tile([0.0, 1.0 - drop, 0.0], (count, 1))
+        posed = [[root[step], *[root[step] + deltas[step] @ (rest[joint, :3, 3] - rest[0, :3, 3])
+                                for joint in (1, 2)]] for step in range(count)]
+        return {"global_rot_mats": turns, "root_positions": root}, np.array(posed)
+    arrays = {"names": np.array(names), "parents": parents, "bind": bind,
+              "points": np.array([[0.1, 0.0, 0.05], [-0.1, 0.0, 0.05], [0.0, 0.9, 0.0]]),
+              "weights": np.array([[0, 0, 1.0, 0], [0, 0, 0, 1.0], [0, 1.0, 0, 0]])}
+    for clip, sway, drop in (("standing", 0.0, 0.0), ("walking", 0.02, 0.03), ("sitting", 0.05, 0.03)):
+        motion, posed = kimodo(sway, drop)
+        arrays[f"clip_{clip}"] = prop_skeleton.carried(motion, rest_names, rest, names, parents, bind)
+        world = played.chained(arrays[f"clip_{clip}"], parents)
+        assert np.allclose(world[:, 1:, :3, 3], posed, atol=1e-9), (clip, world[:, 1:, :3, 3] - posed)
+    walked = prop_skeleton.lowest_skin(arrays, "walking").min()
+    raised = prop_skeleton.rest_off_their_feet(arrays, ["standing", "walking", "sitting"])
+    assert list(raised) == ["sitting"] and raised["sitting"] > 0.02, raised
+    assert abs(prop_skeleton.lowest_skin(arrays, "sitting").min()) < 1e-9
+    assert prop_skeleton.lowest_skin(arrays, "walking").min() == walked < -0.02
 
 
 def test_the_route_is_the_bodys_binding_after_the_build(tmp_path, monkeypatch):

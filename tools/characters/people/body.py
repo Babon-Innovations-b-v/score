@@ -21,7 +21,6 @@ that match each other best and the small remaining drift is taken out along the 
 is ever close enough to see a knuckle, and a crowd of people each carrying fifty finger joints is
 paid for every frame. Their weight is merged into the wrist, so the hand is still a hand.
 """
-import functools
 import pathlib
 import sys
 
@@ -30,7 +29,6 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import glb  # noqa: E402
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
-from paths import MOTIONS  # noqa: E402
 from person import WHO  # noqa: E402
 from scipy.spatial.transform import Rotation  # noqa: E402
 
@@ -208,36 +206,6 @@ def smooth_normals(vertices, faces):
         np.add.at(normals, faces[:, corner], crossed)
     lengths = np.linalg.norm(normals, axis=1, keepdims=True)
     return normals / np.where(lengths > 0, lengths, 1.0)
-
-
-@functools.cache
-def feet_lift(layer):
-    """How far this build's clips must be raised to stand on the floor where the average body
-    does (#112): the motion model writes the hips' height for the average body, so a longer leg
-    sinks into the floor and a shorter one floats. Measured on the first standing frame."""
-    if layer.identity_model_type == "soma" or WHO["average_body"]:
-        return 0.0
-    raw = np.load(MOTIONS / "standing.npz")
-    rotations = torch.from_numpy(raw["local_rot_mats"][:1].astype(np.float32))
-    travel = torch.from_numpy(raw["root_positions"][:1].astype(np.float32))
-    average = build_layer(layer.lod)
-    lowest = [float(model.pose(rotations, transl=travel, pose2rot=False).vertices[..., 1].min())
-              for model in (average, layer)]
-    lift = lowest[0] - lowest[1]
-    print(f"feet lift for this build: {lift * 1000:+.1f} mm")
-    return lift
-
-
-def posed_by_the_model(layer, path):
-    """One generated clip as the body model poses it: a joint transform a frame, plus its mesh,
-    stood on the floor where the average body stands."""
-    raw = np.load(path)
-    rotations = torch.from_numpy(raw["local_rot_mats"].astype(np.float32))
-    travel = raw["root_positions"].astype(np.float32).copy()
-    travel[:, 1] += feet_lift(layer)
-    travel = torch.from_numpy(travel)
-    posed = layer.pose(rotations, transl=travel, pose2rot=False, return_transforms=True)
-    return posed.transforms.detach().numpy().astype(np.float64), posed.vertices.detach().numpy()
 
 
 def turns_of(local):
