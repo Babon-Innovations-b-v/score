@@ -286,23 +286,39 @@ def test_layer_says_what_made_its_crops(tmp_path):
 
 def test_look_finds_the_floor_again():
     """A point of the beds' top drawn by a look camera (projected here by the camera's own geometry) is taken back
-    onto it, and it falls inside the picture.
+    onto it, and it falls inside the picture; a look framing a plant laid far past the beds (a wide plant's reach)
+    steps back until that plant and every bed corner are in the picture (crops-look@greenhouse, 2026-11-03: at 6.5 m
+    its 2.3 m trays ran off the picture, 3 of 11 seen).
     Break: score/stages/crops/look.py: `rise = (size[1] / 2 - pixel[1]) / (size[0] / 2) * half_wide` -> `rise = (size[1]
-        / 2 - pixel[1]) / (size[1] / 2) * half_wide`"""
+        / 2 - pixel[1]) / (size[1] / 2) * half_wide`
+    Break: score/stages/crops/look.py: `points = [*bed_corners(beds), *framed]` -> `points = bed_corners(beds)`"""
     for view in look.views_of(BEDS):
         for point in ((-5.4, 0.46, 1.6), (-3.0, 0.46, -0.8), (-4.2, 0.46, 0.4)):
             pixel = projected(view, point, look.SIZE)
             back = look.on_floor(view, pixel, look.SIZE, 0.46)
             assert math.dist(back, (point[0], point[2])) < 1e-6, (view["name"], point, back)
             assert 0 <= pixel[0] < look.SIZE[0] and 0 <= pixel[1] < look.SIZE[1], (view["name"], point, pixel)
+    spots_record = {"spots": [{"kind": "greens", "at": [3.0, 0.46, 6.0], "size": 1.0}], "widths": {"greens": 2.3}}
+    framed = look.plant_reach(spots_record, {"greens": 0.4})
+    for view in look.views_of(BEDS, framed):
+        away = math.dist(view["eye"], view["aim"])
+        assert away > look.AWAY, (view["name"], away)
+        for point in [*framed, *look.bed_corners(BEDS)]:
+            pixel = projected(view, point, look.SIZE)
+            assert 0 <= pixel[0] < look.SIZE[0] and 0 <= pixel[1] < look.SIZE[1], (view["name"], point, pixel)
 
 
 def test_look_stage_takes_beds_named_with_spaces(tmp_path):
     """crops-look@greenhouse, try 4 of 2026-10-25: its beds are plan items named 'PLANTER BED 1', no prim name, so the
-    stage build raised before the card was rented. Each bed's prim is a valid identifier, its name kept.
+    stage build raised before the card was rented. Each bed's prim is a valid identifier, its name kept. Each bed is a
+    mesh of its own corners with no xform op (2026-11-03: Blender stood the scaled cubes up, their depth their height),
+    as wide, tall and deep as its plan box, its faces wound outward.
     Break: score/stages/crops/look.py: `prims = [Tf.MakeValidIdentifier(bed["name"]) for bed in beds]` -> `prims =
-        [bed["name"] for bed in beds]`"""
-    from pxr import Usd
+        [bed["name"] for bed in beds]`
+    Break: score/stages/crops/look.py: `float(bed["centre"][1]) + side_y * float(bed["size"][1]) / 2.0` ->
+        `float(bed["centre"][1]) + side_y * float(bed["size"][2]) / 2.0`
+    Break: score/stages/crops/look.py: `BOX_FACES = (0, 1, 3, 2,` -> `BOX_FACES = (0, 2, 3, 1,`"""
+    from pxr import Usd, UsdGeom
     folder = tmp_path
     crops = folder / "crops"
     (crops / "assets").mkdir(parents=True)
@@ -311,25 +327,43 @@ def test_look_stage_takes_beds_named_with_spaces(tmp_path):
     empty.GetRootLayer().Save()
     path = look.beds_stage("greenhouse", BEDS, crops, folder / "look")
     stage = Usd.Stage.Open(str(path))
-    named = sorted(prim.GetAttribute("score:name").Get() for prim in stage.Traverse() if prim.GetTypeName() == "Cube")
+    meshes = [prim for prim in stage.Traverse() if prim.GetTypeName() == "Mesh"]
+    named = sorted(prim.GetAttribute("score:name").Get() for prim in meshes)
     assert named == sorted(bed["name"] for bed in BEDS) and " " in named[0], named
+    by_name = {bed["name"]: bed for bed in BEDS}
+    for prim in meshes:
+        mesh = UsdGeom.Mesh(prim)
+        assert not mesh.GetOrderedXformOps(), prim.GetPath()
+        points = np.asarray(mesh.GetPointsAttr().Get(), dtype=float)
+        bed = by_name[prim.GetAttribute("score:name").Get()]
+        assert np.allclose(points.max(axis=0) - points.min(axis=0), bed["size"], atol=1e-5), (bed, points)
+        assert np.allclose((points.max(axis=0) + points.min(axis=0)) / 2, bed["centre"], atol=1e-5), (bed, points)
+        indices, middle = list(mesh.GetFaceVertexIndicesAttr().Get()), points.mean(axis=0)
+        for face in range(len(indices) // 4):
+            corner = points[indices[4 * face:4 * face + 4]]
+            normal = np.cross(corner[1] - corner[0], corner[2] - corner[0])
+            assert normal @ (corner.mean(axis=0) - middle) > 0, (prim.GetPath(), face)
 
 
 def test_look_counts_a_plant_the_kind_of_its_bed():
-    """A plant found by any kind's noun, twice, is one plant of the kind laid on the bed its foot stands on (the herb's
-    bed here, though one box was found as 'leafy bush').
+    """A plant found by any kind's noun, twice, is one plant of the kind laid on the bed it stands on (the herb's bed
+    here, though one box was found as 'leafy bush'): its box's middle taken back onto the level of its own middle, a
+    0.5 m tall herb's 0.25 m over the bed's top (taken onto the top it lands 0.36 m behind, off its 0.6 m bed).
     Break: score/stages/crops/look.py: `any(on_bed(spot, beds[name]) for name in shared[kind])` -> `any(on_bed(spot,
-        bed) for bed in beds.values())`"""
+        bed) for bed in beds.values())`
+    Break: score/stages/crops/look.py: `level = top + heights.get(kind, 0.0) * (statistics.median(sizes) if sizes else
+        1.0) / 2.0` -> `level = top`"""
     beds = {bed["name"]: bed for bed in BEDS}
     view = look.views_of(BEDS)[0]
-    foot_x, foot_y = projected(view, (-5.4, 0.46, 1.6), look.SIZE)
-    box = [foot_x - 20, foot_y - 60, foot_x + 20, foot_y]
+    middle_x, middle_y = projected(view, (-5.4, 0.46 + 0.25, 1.6), look.SIZE)
+    box = [middle_x - 20, middle_y - 60, middle_x + 20, middle_y + 60]
     instances = {f"{view['name']}/greens:leafy bush": [{"box": box, "score": 0.8}],
                  f"{view['name']}/herb:rosemary": [{"box": [value + 1 for value in box], "score": 0.7}]}
     shared = {kind: [] for kind in RECORD["kinds"]}
     shared["herb"] = ["PLANTER BED 0_0"]
     spots_record = {"spots": [], "widths": {kind: 0.2 for kind in RECORD["kinds"]}}
-    seen = look.seen_on_beds(RECORD, view, instances, beds, shared, spots_record)
+    heights = {kind: 0.5 for kind in RECORD["kinds"]}
+    seen = look.seen_on_beds(RECORD, view, instances, beds, shared, spots_record, heights)
     assert seen["herb"]["seen"] == 1 and seen["greens"]["seen"] == 0, seen
 
 
