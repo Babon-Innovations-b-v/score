@@ -32,12 +32,16 @@ from fit._card._measure import kept_skins  # noqa: E402
 from fit._skin import EVERY  # noqa: E402
 from fit._card._level2_wide import Wide  # noqa: E402
 from fit._constants import INSIDE, Problem, told  # noqa: E402
-from tuning._adjoint import arrow_hessian, scaled_rows, schur_solve, transposed_mixed  # noqa: E402
+from tuning._adjoint import (Unconverged, arrow_hessian, gradient_norm, scaled_rows, schur_solve,  # noqa: E402
+                            transposed_mixed)
 from tuning._adjoint._level2 import (goal_weights, level2_arrow, level2_body, sited_problem_at,  # noqa: E402
                                      turned_frame_sites)
 from tuning._adjoint._outer import picked_columns  # noqa: E402
 
 STEPS = (1e-4, 1e-3)  # as `_check_motion.py`
+PRODUCTS = 3e-2  # level 3 products' step (float32 noise, #78): mean_backward's turn rows 7 % off at 1e-3, 1 % at 1e-2;
+# kneel's L3_L4 column 13 % at 3e-3, 2-3 % at 1e-2 (two runs), 0.2-0.4 % at 3e-2
+TOLERANCE = float(__import__("os").environ.get("SCORE_ADJOINT_TOLERANCE", "1e-5"))  # as `_check_real.py`
 seeds_root, folder, root = (pathlib.Path(arg) for arg in sys.argv[2:5])
 cases = dict(given.split("=", 1) for given in sys.argv[5:] if not given.startswith("--"))
 table, weights = (json.loads((folder / name).read_text()) for name in ("table.json", "weights.json"))
@@ -227,6 +231,20 @@ class BodyLevel2:
                      lambda: schur_solve(blocks.transpose(0, 2, 1), couplings, corner, right))
 
 
+def relaid_ends(outer, names, constants, free, moves):
+    """`level3_body`'s `moved` (taped outer `outer` x level 2's `constants` moves): each group end's site offset (the
+    last of the `names` sites, `TapedSites(trusted=True, ends=)`'s layout) over the inside joints' slots (after the
+    `free` marks' 3 each), `moves` `_real.end_moves`'; the free marks move no end."""
+    ends = moves.shape[0]
+    if constants != 3 * free + moves.shape[2]:
+        raise ValueError(f"{constants} level 2 moves against {free} free marks and {moves.shape[2]} inside slots")
+    moved = np.zeros((outer, constants))
+    for end in range(ends):
+        row = 3 * (names - ends + end)
+        moved[row:row + 3, 3 * free:] = moves[end]
+    return moved
+
+
 def case_block(case, found, body):
     """One case's block (rows x every entry) saved to <root>/<case>.npz, its level 3 laid in <root>/<case>/ from the
     body's constants `found`; `body` the body's `BodyLevel2`, made on the first case (returned)."""
@@ -267,8 +285,14 @@ def case_block(case, found, body):
         body = BodyLevel2(names, sites.ends or 0, trusted, columns)
     body.same(names, sites.ends or 0, trusted, columns)
     level3 = level3_body("level3", sites, turns, pinned, lambda theta: trusted + columns @ theta, len(entries),
-                         len(rows), columns=columns, step=STEPS[1])  # float32 products: 1e-4 left 2-3 %, 1e-3 0.4-0.6 %
+                         len(rows), columns=columns, step=PRODUCTS,
+                         moved=relaid_ends(len(trusted), len(names), sites.constants.size,
+                                           len(_real.level2_free(fitting)), _real.end_moves(path, scales, segments,
+                                                                                             fitting.inside)))
     joined = np.concatenate([np.zeros(len(entries)), np.zeros(body.solved.size)])
+    norm = gradient_norm(level3.gradient, level3.inner, joined)
+    if norm > TOLERANCE:  # off its optimum H, g_theta and every column are another function's derivative (#78)
+        raise Unconverged(f"{case}: level 3's gradient {norm:.3g} at its solve over {TOLERANCE:.3g}")
     lifted, _ = factored_solve(level3, differenced_arrow(level3, joined, STEPS[0]), np.asarray(by_poses, dtype=float).T)
     direct = np.zeros((len(values), len(entries)))  # R_theta: the skins and turns read no entry of level 1 (no centre
     # moves them; an end's shift moves only its fit marker, and the table it is judged on is read from the centres)

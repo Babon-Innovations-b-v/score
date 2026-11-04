@@ -127,31 +127,41 @@ class Pinned:
         return kept
 
 
-def level3_body(name, sites, turns, pinned, placed, size, frames, columns=None, step=1e-4):
+def level3_body(name, sites, turns, pinned, placed, size, frames, columns=None, step=1e-4, moved=None):
     """Level 3 as a `Body` over the poses only (`turns`' chart, `pinned`'s held entries kept), its outer point
     (theta, c): theta level 1's `size` unknowns, `placed(theta)` the taped outer (`sites`' offsets), c level 2's moves
     (`sites` built with `constants=`), so `mixed` over it gives g_q,theta then g_q,c; the residuals and gradient read
-    the pose at `turns.full(pinned.whole(inner))`. With `columns` (placed's linear columns, taped outer x `size`) the
-    Body has `products`: w^T dg/d(theta, c) for each weight column w, d/dq of d cost / d(theta, c) along w (H's
-    symmetry), two taped outer gradients a column at the pose moved by `step` along w (normed), never one per theta."""
+    the pose at `turns.full(pinned.whole(inner))`. `moved` (taped outer x c, `_real.end_moves` laid out) moves the
+    taped outer with c too: the group ends laid again on the bodies level 2 moved (#78). With `columns` (placed's
+    linear columns, taped outer x `size`) the Body has `products`: w^T dg/d(theta, c) for each weight column w, d/dq
+    of d cost / d(theta, c) along w (H's symmetry), two taped outer gradients a column at the pose moved by `step`
+    along w (normed), never one per theta."""
     from tuning._adjoint import Body
 
     def joined(inner, outer):
         return np.concatenate([turns.full(pinned.whole(inner)), np.asarray(outer, dtype=float)[size:]])
 
+    def offsets(outer):
+        outer = np.asarray(outer, dtype=float)
+        laid = placed(outer[:size])
+        return laid if moved is None else laid + np.asarray(moved) @ outer[size:]
+
     def gradient(inner, outer):
-        found = sites.gradient(joined(inner, outer), placed(np.asarray(outer, dtype=float)[:size]))
+        found = sites.gradient(joined(inner, outer), offsets(outer))
         return pinned.gradient(inner, turns.pulled(pinned.whole(inner), found[:turns.full_pose.size]))
 
     def residuals(inner, outer):
-        return sites.residuals(joined(inner, outer), placed(np.asarray(outer, dtype=float)[:size]))
+        return sites.residuals(joined(inner, outer), offsets(outer))
 
     body = Body(name, residuals, gradient, turns.reduced(), frames, turns.per_copy - 1)
     if columns is not None:
         def outer_gradient(inner, outer):
-            point, theta = joined(inner, outer), placed(np.asarray(outer, dtype=float)[:size])
-            moves = sites.gradient(point, theta)[turns.full_pose.size:] if sites.constants is not None else []
-            return np.concatenate([np.asarray(columns).T @ sites.outer_gradient(point, theta), moves])
+            point, laid = joined(inner, outer), offsets(outer)
+            by_outer = sites.outer_gradient(point, laid)
+            moves = sites.gradient(point, laid)[turns.full_pose.size:] if sites.constants is not None else np.zeros(0)
+            if moved is not None:
+                moves = moves + np.asarray(moved).T @ by_outer
+            return np.concatenate([np.asarray(columns).T @ by_outer, moves])
 
         body.products = lambda inner, outer, weights: directional_rows(outer_gradient, inner, outer, weights, step)
     return body

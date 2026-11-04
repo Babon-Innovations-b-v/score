@@ -174,6 +174,16 @@ by_mixed = lifted.T @ mixed(chain.gradient, pose, np.zeros(2), step)
 products = chain.products(pose, np.zeros(2), lifted)
 print("PRODUCTS", np.abs(products - by_mixed).max() / np.abs(by_mixed).max())
 gaps.append(np.abs(products - by_mixed).max() / np.abs(by_mixed).max())
+# the ends laid again on level 2's moved bodies (#78): the third site's offset moves with the inside joint's move
+relay = np.zeros((9, 9))
+relay[6:9, 6:9] = np.random.default_rng(5).normal(size=(3, 3)) * 0.5
+relaid = level3_body("relaid", constant, Unturned(pose), Pinned(pose, np.zeros(4, dtype=bool)),
+                     lambda theta: outer + picks[:9] @ theta, 2, 1, columns=picks[:9], step=step, moved=relay)
+relaid_at = np.concatenate([np.zeros(2), moved_inner[4:]])
+by_relaid = lifted.T @ mixed(relaid.gradient, pose, relaid_at, step)
+assert np.abs(by_relaid[:, 2 + 6:]).max() > 1e-3, "the inside joint's columns are empty"
+print("RELAID", np.abs(relaid.products(pose, relaid_at, lifted) - by_relaid).max() / np.abs(by_relaid).max())
+gaps.append(np.abs(relaid.products(pose, relaid_at, lifted) - by_relaid).max() / np.abs(by_relaid).max())
 low, high = np.array([-0.05, -0.08, 0.0]), np.array([0.11, 0.08, 1.2])  # a box skin about the chain (MuJoCo's frame)
 box = [[(low, high)[corner >> 2 & 1][0], (low, high)[corner >> 1 & 1][1], (low, high)[corner & 1][2]] for corner in range(8)]
 box_faces = [[0, 1, 3], [0, 3, 2], [4, 6, 7], [4, 7, 5], [0, 4, 5], [0, 5, 1], [2, 3, 7], [2, 7, 6], [0, 2, 6], [0, 6, 4],
