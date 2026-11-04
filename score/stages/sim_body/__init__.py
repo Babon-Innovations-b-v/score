@@ -55,9 +55,16 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
                           RESIDUAL_MOMENT of it times the centre of mass' height, any frame (a trip, a float or a
                           movement no ground and muscles can make shows here: a dropped sample, never a forced pass)
 
+A climber (the cast's `stairs`, cast.on_stairs: a person its design stands on stairs, on its flight's first tread)
+plays its scene-made clip up or down its flight instead (scene-clips, an optional read: its rig.npz `clip_<clip>` and
+scene_clips.json entry, route_clip: its travel kept along its route and up its steps, only its Hips' height over the
+route's ground scaled by the build), so the ground pushes it on each tread; one with none taken is left out by name,
+never walked flat through its steps (2026-11-04).
+
 Not here: muscles driving a forward simulation (the movement is given; the muscles are the forces that would make it,
-with no activation dynamics), clips made for the ground (a flat-ground clip meets a step with its toe), a walker's cast
-path (the clip plays its own root path from the spot), the build's feet brought in (stance.narrowed).
+with no activation dynamics), clips made for the ground for any walker but a climber (a flat-ground clip meets a step
+with its toe), a walker's cast path (the clip plays its own root path from the spot), the build's feet brought in
+(stance.narrowed).
 """
 import hashlib
 import json
@@ -73,7 +80,7 @@ import numpy as np
 from score import checks, contracts
 from score.stages import layer_base
 from score.stages.sim_body._body import (BODY, RATE, body_row, clip_frames, mass_of, person_rig,  # noqa: F401
-                                         segments_of, standing_height)
+                                         route_clip, segments_of, standing_height)
 from score.stages.sim_body._gates import (EMPTY_CAST, FOLLOWED, LAYER, MOVE_MOST, NO_SINGLES,  # noqa: F401
                                           RECORD, RESIDUAL_FORCE, RESIDUAL_MOMENT, judge_carries, judge_follows,
                                           judge_lands, judge_on_floor, judge_residual, measured, output_faults)
@@ -104,6 +111,9 @@ ATTRIBUTION = ("MyoFullBody: MyoSuite and myo_sim (MyoHub, Apache-2.0), as Muscl
                "its arm and hand derived from MoBL-ARMS: Holzbaur, Murray and Delp 2005, "
                "doi:10.1007/s10439-005-3320-7, and Saul et al. 2015, doi:10.1080/10255842.2014.916698")
 CLIPS_ROW = "people-clips-made"
+# The scene-made clips (score/stages/scene_clips), an optional read: a climber (the cast's `stairs`) plays its own.
+SCENE_CLIPS_ROW = "scene-clips"
+SCENE_CLIPS = "scene_clips.json"  # its record (scene_clips.RECORD)
 # What a body's bone groups are calibrated on (#70: the static table, inside/calibration), the same for every person.
 CALIBRATED_ON = ("the static calibration table: SOMA's template bind against MyoFullBody's default pose (its couplings "
                  "applied), never fitted")
@@ -174,17 +184,24 @@ def make(inputs, out, seed, params):
     job, records, left_out = {"rate": RATE, "gravity": gravity, "people": []}, {}, []
     (out / "clips").mkdir(parents=True)
     builds, clips = {}, {}
+    scene = scene_clips_of(inputs)
     for single in cast["characters"]:
-        if f"clip_{single.get('doing')}" not in clips_rig:
-            left_out.append(f"{single['name']}: its clip {single.get('doing')!r} is not in the rig")
+        why = left_out_why(single, clips_rig, scene)
+        if why:
+            left_out.append(f"{single['name']}: {why}")
             continue
         row = body_row(single)
         if row not in builds:
             built = dict(np.load(pathlib.Path(inputs[row]) / "rig.npz")) if row in inputs else None
-            builds[row] = person_rig(clips_rig, built)
-        rig, size = builds[row]
+            builds[row] = (*person_rig(clips_rig, built), built)
+        rig, size, built = builds[row]
+        clip = single["doing"]
+        if single.get("stairs"):
+            plan, scene_rig = scene[single["name"]]
+            clip = plan["clip"]
+            rig = dict(rig, **{f"clip_{clip}": route_clip(clips_rig, built, scene_rig, plan)})
         kept = segments_of(rig)[0]
-        worlds = clip_frames(rig, single["doing"], kept)
+        worlds = clip_frames(rig, clip, kept)
         ground, under = ground_of(solids, worlds, own_frame(single["at"], single.get("turn", 0.0)))
         if not len(ground):
             left_out.append(f"{single['name']}: no solid of the place within {REACH} m of its clip's path to stand on")
@@ -199,7 +216,8 @@ def make(inputs, out, seed, params):
                                       "parents": np.asarray(rig["parents"]).tolist(),
                                       "bind": np.asarray(rig["bind"]).tolist()},
                               "segments": [str(rig["names"][joint]) for joint in kept], "targets": str(targets)})
-        records[single["name"]] = {"clip": single["doing"], "at": single["at"], "turn": single.get("turn", 0.0),
+        records[single["name"]] = {"clip": single["doing"], "played": clip, "at": single["at"],
+                                   "turn": single.get("turn", 0.0),
                                    "mass": mass, "ground": {"solids": under, "triangles": len(ground)},
                                    "calibrated on": CALIBRATED_ON,
                                    "size": {"of the rig": round(size, 4),
@@ -227,6 +245,30 @@ def make(inputs, out, seed, params):
                                           "rate": RATE, "model": {"wheel": MODEL[0].rpartition("/")[2],
                                                                   "attribution": ATTRIBUTION}, "bodies": records,
                                           "left out": left_out, **no_singles(cast)}, indent=1))
+
+
+def scene_clips_of(inputs):
+    """{walker: (its scene_clips.json entry, the scene-made clips' rig)} of the scene-clips output taken (an optional
+    read), {} with none taken or none made."""
+    if SCENE_CLIPS_ROW not in inputs:
+        return {}
+    folder = pathlib.Path(inputs[SCENE_CLIPS_ROW])
+    plans = json.loads((folder / SCENE_CLIPS).read_text())["clips"]
+    if not plans:
+        return {}
+    scene_rig = dict(np.load(folder / "rig.npz"))
+    return {plan["name"]: (plan, scene_rig) for plan in plans if f"clip_{plan['clip']}" in scene_rig}
+
+
+def left_out_why(single, clips_rig, scene):
+    """Why a character has no sim body, or None: its clip not in the rig, or a climber (the cast's `stairs`) with no
+    scene-made clip up its flight, which a flat clip would walk through (the stairwell's man and woman, 2026-11-04)."""
+    if f"clip_{single.get('doing')}" not in clips_rig:
+        return f"its clip {single.get('doing')!r} is not in the rig"
+    if single.get("stairs") and single["name"] not in scene:
+        return (f"no scene-made clip {single['stairs']['way']} its stairs ({single['stairs']['flight']}) taken from "
+                f"{SCENE_CLIPS_ROW}: a flat clip would walk through its steps")
+    return None
 
 
 def ran_elsewhere(job, out, classes):

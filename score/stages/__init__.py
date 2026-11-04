@@ -244,9 +244,11 @@ SIM_BODY = graph.Stage("sim-body", "place", sim_body.make, sim_body.CONTRACT, si
                        after={"cast": ("cast", 1), sim_body.CLIPS_ROW: (sim_body.CLIPS_ROW, 1),
                               "scene-record": ("scene-record", 1), "terrain": ("grounds", 2),
                               "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
+                              sim_body.SCENE_CLIPS_ROW: (sim_body.SCENE_CLIPS_ROW, 1),
                               **{name: ("people-body", 1) for name in BODY_ROWS}},
                        beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
-                       neighbours=assembly.claiming_places, optional=BODY_ROWS, applies=designed("people"))
+                       neighbours=assembly.claiming_places, optional=(*BODY_ROWS, sim_body.SCENE_CLIPS_ROW),
+                       applies=designed("people"))
 # Experimental (owner, 2026-10-27, "bring back"): each character's loose garment parts as cloth on Newton's VBD against
 # its sim body's moving segments (score/stages/people_cloth), its dressed and built bodies optional reads as the
 # characters layer's are, its cloth values the part's library recipe's (data/physics/cloth.json). Nothing reads it yet,

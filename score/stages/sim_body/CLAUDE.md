@@ -127,6 +127,10 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   body's skin sat 4 to 5 cm into its floor (cockpit's pilot and quarters' two, 6.5 cm, 2026-11-03). `on floor` fails a
   body over `SUNK_MOST` (3 mm) into its ground, `lands` a carrying foot over `LANDED` (5 mm) off it, or a body no foot
   of which lands, but a seated one (`SEATED`, its seat carries it) fails only when its ground never carried it.
+- **A climber plays its scene-made clip** (2026-11-04): a person the cast stands on a flight (`stairs`,
+  cast.on_stairs) plays scene-clips' clip of it up or down its treads (`route_clip`: travel kept on the route, only
+  the Hips' height over the route's ground scaled by the build), so its ground's push lands on each step; with none
+  taken it is left out by name (`left_out_why`), never walked flat through its steps.
 - **One Newton environment**: `score/stages/physics/inside/newton_env.sh` (declared as `sim env`), built once at
   `$PROPS_HOME/envs/newton_env`; never a second env or a pip install of its own. mink, qpsolvers and daqp are pinned
   there for the fit (#70); the script is declared by physics-trial, settle and effects too, so a pin moves their keys.
