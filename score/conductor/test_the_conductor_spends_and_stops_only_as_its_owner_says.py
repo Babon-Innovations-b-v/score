@@ -88,7 +88,7 @@ def test_a_grow_is_asked_for_a_waiting_run_once_no_run_is_live_and_no_latch_hold
     assert "free-only latch" in size.decide(waiting, 2, RECORD, 0, 100, True)[1]
 
 
-def test_a_shrink_comes_only_after_thirty_idle_minutes_at_the_batch_size(tmp_path):
+def test_a_shrink_comes_only_after_thirty_idle_minutes_at_the_batch_size(tmp_path, monkeypatch):
     now = 10_000_000
     assert size.decide(IDLE, 16, RECORD, now - 29 * 60, now, False)[0] is None
     assert size.decide(IDLE, 16, RECORD, now - 31 * 60, now, False)[0] == size.SHRINK
@@ -100,7 +100,23 @@ def test_a_shrink_comes_only_after_thirty_idle_minutes_at_the_batch_size(tmp_pat
     passing = {**IDLE, "passing": 1, "held": ["sync-pass-4242"]}
     assert not size.is_busy(passing)
     found = size.decide(passing, 16, RECORD, now - 31 * 60, now, False)
-    assert found[0] is None and "sync-pass-4242" in found[1], found
+    assert found[0] == size.DRAIN and "sync-pass-4242" in found[1], found
+    assert size.decide(passing, 16, RECORD, now - 29 * 60, now, False)[0] is None  # not idle long enough: no drain
+    # the drain mark stops new passes while fresh, and the size timer takes it back once a pass is no longer the hold
+    monkeypatch.setattr(conductor, "DRAINING", tmp_path / "draining.json")
+    monkeypatch.setattr(conductor, "machine", lambda path=None: RECORD)
+    monkeypatch.setattr(conductor, "cores", lambda: 16)
+    monkeypatch.setattr(runs, "boot_time", lambda: 0)
+    state = tmp_path / "size-state.json"
+    assert size.tick(say=lambda line: None, now=now, view=passing, state_path=state, asker=None)["action"] == size.DRAIN
+    assert size.draining(now + 60) and not size.draining(now + size.DRAIN_MINUTES * 60 + 1)
+    asked = []
+    size.tick(say=lambda line: None, now=now + 300, view={**passing, "passing": 0, "held": []}, state_path=state,
+              asker=lambda action: asked.append(action) or "ok")
+    assert asked == [size.SHRINK] and size.draining(now + 300)  # the mark stays until the machine is small
+    monkeypatch.setattr(conductor, "cores", lambda: 2)  # booted at the idle size: passes go on again
+    size.tick(say=lambda line: None, now=now + 600, view={**IDLE, "held": []}, state_path=state, asker=None)
+    assert not conductor.DRAINING.exists()
     assert size.decide({**passing, "passing": 0, "held": []}, 16, RECORD, now - 31 * 60, now, False)[0] == size.SHRINK
     with conductor.holding("sync-pass", tmp_path / "holds"), conductor.holding("reading", tmp_path / "holds"):
         view = size.busy(tmp_path / "runs", tmp_path / "parked", tmp_path / "frozen", tmp_path / "holds")
