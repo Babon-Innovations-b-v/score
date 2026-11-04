@@ -5,7 +5,8 @@ it) stands in for ssh, a folder for the conductor's home; nothing reaches the co
 
 Breaks (each applied once, seen red, reverted):
 - agent_door.py `PULLED`: add "cloud" -> the runner's ssh key comes down with the store.
-- agent_door.py `store_pull`: drop the `continue` after `kept += 1` -> a second pull sends every file again.
+- agent_door.py `store_pull`: drop the `continue` after `kept += 1` -> a second pull sends every file again; or
+  drop `name.startswith(STORE_OBJECTS)` -> a store object held here is sent again for its other mtime.
 - agent_door.py `store_missing`: name every path, not only those missing -> the push carries files the conductor
   holds (its own add-only refusal is the door's test).
 - this_pc.py `ENVIRONMENT`: drop "SCORE_FREE_ONLY": "1" -> a run here may buy (its runs are not free only).
@@ -28,7 +29,8 @@ Breaks (each applied once, seen red, reverted):
 - this_pc.py `run`: drop the `entry is None` test -> the steps rewrite the design a live run reads.
 - this_pc.py `resume`: drop `design_current(home, code, environment)` -> a resumed run reads the design as paused.
 - this_pc.py `pull`: drop the `OWN_DESIGN` skip -> the conductor's hand-in comes back over the one written here;
-  or drop the `BLOBS` skip -> a read-only blob held here, sent again for its other mtime, stops the pull.
+  or drop the `BLOBS` skip -> a read-only blob held here, sent again for its other mtime, stops the pull; or
+  `linked_anew` always True with no unlink -> a hard link over its own path stops the pull (seeking backwards).
 - agent_door.py `store_differs`: `file_sha(target) != sha` -> `False` -> a take remade here at the same size keeps
   the conductor's old bytes (2026-11-03: 22 places' palette rows due).
 - agent_door.py `replaced`: drop `os.link(target, keep)` -> the conductor's old file is lost, not kept.
@@ -38,6 +40,7 @@ Breaks (each applied once, seen red, reverted):
 - this_pc.py `disk`: `free < FREE_WARN_GB` -> `False` -> status says 76 GB free with no warning; or drop the MACHINE
   name filter -> postgres is listed as a SCORE container.
 """
+import io
 import os
 import pathlib
 import subprocess
@@ -79,6 +82,17 @@ def test_a_pull_brings_what_a_run_reads_and_no_key_or_ledger_and_again_only_what
     (home / "store/objects/blobs/aa").chmod(0o444)  # a blob is read-only here, and its mtime differs there
     os.utime(conductor / "store/objects/blobs/aa", (1, 1))
     assert this_pc.pull(home, door(conductor, "store-pull")) == (1, len("the hub, changed"))
+    sys.path.insert(0, str(HERE / "conductor"))
+    import agent_door
+    sent, _, kept = agent_door.store_pull(conductor, {"store/objects/blobs/aa": (0, 0)}, io.BytesIO())
+    assert kept == 1 and sent == 4  # the store object the PC names goes by name, whatever its size and mtime
+    # a listing linked to its blob there, already linked here: the stream's hard link is left as it is
+    for side in (conductor, home):
+        (side / "store/objects/records").mkdir(parents=True)
+        os.link(side / "store/objects/blobs/aa", side / "store/objects/records/k.json")
+    os.utime(conductor / "store/objects/blobs/aa", (2, 2))
+    this_pc.pull(home, door(conductor, "store-pull"))
+    assert (home / "store/objects/records/k.json").samefile(home / "store/objects/blobs/aa")
     assert (home / "design/plans/hub.json").read_text() == "the hub, changed"
 
 

@@ -208,6 +208,7 @@ DESIGN_FILE_BYTES = 4_000_000
 RUN_LOG_LINES, RUN_LOG_LINES_MAX = 200, 2000
 # The store's copy to and from the owner's PC (tools/cloud/this_pc.py): what a run reads, and the folders it adds to.
 STORE_PULL, STORE_MISSING, STORE_PUSH = "--store-pull", "--store-missing", "--store-push"
+STORE_OBJECTS = "store/objects/"  # written once by content and key: a pull sends one the PC names by name alone
 STORE_DIFFERS, STORE_REPLACE = "--store-differs", "--store-replace"
 REPLACEABLE = "work/pixal/"  # the one folder a push replaces in: the PC remakes takes there in place
 REPLACED = "work/pixal/replaced"  # where each replaced file is kept, under the push's time
@@ -593,13 +594,16 @@ def held(text):
 
 
 def store_pull(home, have, out):
-    """A tar stream into `out` of PULLED under `home`, without what `have` names at the same size and mtime (a link
-    named at all); (files sent, bytes, files the PC already held)."""
+    """A tar stream into `out` of PULLED under `home`, without what `have` names at the same size and mtime (a link,
+    or a store object, named at all: the store is written once by content and key, so the same name is the same bytes;
+    2026-11-04: a pull sent 138 GB of objects the PC held, their mtimes other); (files sent, bytes, files the PC
+    already held)."""
     home, sent, size, kept = pathlib.Path(home), 0, 0, 0
     with tarfile.open(fileobj=out, mode="w|") as archive:
         for path in walked(home, PULLED):
             name, status = path.relative_to(home).as_posix(), path.lstat()
-            if name in have and (path.is_symlink() or have[name] == (status.st_size, int(status.st_mtime))):
+            if name in have and (path.is_symlink() or name.startswith(STORE_OBJECTS)
+                                 or have[name] == (status.st_size, int(status.st_mtime))):
                 kept += 1
                 continue
             archive.add(path, arcname=name, recursive=False)

@@ -98,7 +98,7 @@ DESIGN_STEPS = ("score.review.plans_pass", "score.stages.complete.prepare")
 OWN_DESIGN = ("design/props/", "design/surfaces/")  # prepare's hand-ins (prop_data.DESIGN, surface_data.DESIGN)
 REPLACEABLE = "work/pixal"  # the takes, remade here in place; the one folder a push replaces in (agent_door.REPLACEABLE)
 SET_ASIDE = ("work/pixal/retaken/", "work/pixal/replaced/")  # a retake's and a replace's kept old files, never replaced
-BLOBS = "store/objects/blobs/"  # the store's content-named blobs: one held here is never pulled again
+BLOBS = "store/objects/"  # the store's objects, written once by content and key: one held here is never pulled again
 NO_PUSH = "no-push.json"  # under HOME: the newest run here that pushed nothing, with the reason it was given
 
 
@@ -121,8 +121,8 @@ def door_command(host, key, verb):
 
 def pull(home, command):
     """Copies PULLED down through the door's store-pull (`command`) into `home`, only what `home` lacks or holds
-    changed, never the hand-ins written here (OWN_DESIGN) and never a store blob `home` holds already: a blob is named
-    by its content, so the same name is the same bytes, and it is read-only here (2026-11-04: a blob sent again for
+    changed, never the hand-ins written here (OWN_DESIGN) and never a store object `home` holds already: an object is named
+    by its content or key, so the same name is the same bytes, and it is read-only here (2026-11-04: a blob sent again for
     its other mtime stopped the pull on PermissionError); (files, bytes)."""
     process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     process.stdin.write(manifest(home, PULLED).encode())
@@ -132,11 +132,25 @@ def pull(home, command):
         for member in archive:
             if member.name.startswith(OWN_DESIGN) or (member.name.startswith(BLOBS) and (home / member.name).exists()):
                 continue
+            if member.islnk() and not linked_anew(home, member):
+                continue
             archive.extract(member, home, filter="tar")
             files, size = files + 1, size + member.size
     if process.wait():
         raise SystemExit(f"store-pull failed (exit {process.returncode}) after {files} files")
     return files, size
+
+
+def linked_anew(home, member):
+    """Whether the hard link `member` is still to be made in `home`: False when its path is already its target there;
+    else its path is cleared first, since a link over a file there falls back to reading its target's data again, which
+    the one-pass stream cannot (2026-11-04: `seeking backwards is not allowed`, the pull stopped)."""
+    path, target = home / member.name, home / member.linkname
+    if path.exists() and target.exists() and path.samefile(target):
+        return False
+    if path.exists() or path.is_symlink():
+        path.unlink()
+    return True
 
 
 def push(home, missing_command, push_command):
