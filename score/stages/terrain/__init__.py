@@ -41,21 +41,6 @@ MADE_BY = {"made_by": "code fallback: the design's ground (design.py: the body's
                   "are joined over it by ground-join@<place> (join.py); where none was made this ground stands (#27)"}
 
 
-def ground_row(ground, inventories, plans):
-    """The row the ground is: of its first top scene's plan `structure` rows its scene inventory marks terrain, the
-    one a level of its plan at the floor's height is named for (the square's plaza, not its sea), else the first;
-    None when it has none."""
-    for top in sorted(ground["tops"]):
-        path = pathlib.Path(inventories) / f"{top}.json"
-        rows = {row["id"]: row for row in json.loads(path.read_text())["rows"]} if path.is_file() else {}
-        found = [row for row in plans[top].get("structure") or [] if (rows.get(row) or {}).get("terrain")]
-        floors = {str(level.get("name", "")).lower() for level in plans[top].get("levels") or []
-                  if abs(float(level.get("height") or 0.0)) < 1e-6}
-        if found:
-            return next((row for row in found if row.replace("_", " ") in floors), found[0])
-    return None
-
-
 def row_of(ground, row, inventories):
     """The ground row's entry in its top scenes' inventories ({"id"} alone when none holds it)."""
     for top in sorted(ground["tops"]):
@@ -132,7 +117,7 @@ def make(inputs, out, seed, params):
     plans, skies = design.kept(inputs["plans"]), design.kept(inputs["skies"])
     table = json.loads(pathlib.Path(inputs["reference"]).read_text())
     for name, ground in design.layout(plans, skies).items():
-        row = ground_row(ground, inputs["inventories"], plans)
+        row = design.ground_row(ground, inputs["inventories"], plans)
         make_ground(name, ground, row, recipe_of(ground, row, inputs["inventories"], skies, table), out, plans,
                     inputs["inventories"])
 

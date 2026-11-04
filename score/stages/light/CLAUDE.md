@@ -96,7 +96,13 @@ gates.
   assembly's own code (`assembly/grounded.take_bakes`, `record.take_ground`), never a copy. The rows read the bake,
   the paint and the ground as the assembly does (`passes.LAID`) and wait on them. Before, every design object waited
   on its bake: base drew nothing and rendered black, airlock was a bare shell its lamps needed x17 to light. A stage
-  drawing nothing outside its sky fails the layer's `drawn` gate before the paid render. A bake another place makes
+  drawing nothing outside its sky fails the layer's `drawn` gate before the paid render. The made ground is laid finished
+  (2026-11-04, the eyes review of env1: the rows laid it with its finish named missing and the campgrounds', base's,
+  square's and street's ground rendered a white sheet): bound to the surface its scene library gives its row by the
+  assembly's own code (`assembly/ground_finish.py`), the rows reading the place's surface library after and each
+  scene finishing its ground beside (`passes.read_beside`: base's for the airlock; a scene read only for that is
+  never rendered as shown, `shown_in`). The layer's `surfaced` gate (`bare.py`) fails, before the paid render, a
+  drawn ground, water or shell mesh with no library surface and an outdoor place whose sky holds nothing. A bake another place makes
   for this one (its surface data's `elsewhere`) is not read beside yet: no place claims one today.
 - **No per-place light file** (2026-10-21: `data/light/` is gone). A lamp is its glowing inventory row's (row kind,
   or its concept showing it glow, as the reading's concept light says: `{home}/design/light/<place>.json`,

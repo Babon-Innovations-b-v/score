@@ -33,8 +33,11 @@ VIEWS = "views.json"  # in the light layer's output: the views the place's light
 VIEW_TRANSFORM = "view-transform.npz"  # beside each job's looks: Blender's view transform as a table (light_passes)
 RECORD = "scene-record"  # the row writing a place's scene record: the node's own place's an after, a shown one's beside
 # What the assembly lays over the record (source), read as it reads them: the surface line's bake and paint, the made
-# ground; and the place's design surface data, which bakes of other places it lays (grounded.take_bakes).
-LAID = {"terrain": ("grounds", 2), "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)}
+# ground and the surface library finishing it (ground_finish); and the place's design surface data, which bakes of
+# other places it lays (grounded.take_bakes).
+LIBRARY = {"surface-library": ("surface-library", 1)}
+LAID = {"terrain": ("grounds", 2), "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
+        **LIBRARY}
 SURFACES = {"surfaces": "{home}/design/surfaces/{place}.json"}
 # Four to eight views of one stage on one or two rented cards, each set up once (the camp's first: EUR 0.18).
 EUROS = 2.0
@@ -74,9 +77,18 @@ def recorded(place):
 
 
 def shown_in(inputs):
-    """The places a node's inputs show: each other place whose scene record it reads beside (`scene-record@<name>`),
-    as the runner gave them from neighbours."""
-    return sorted(node.split("@", 1)[1] for node in inputs if node.startswith(f"{RECORD}@"))
+    """The places a node's inputs show: each other place whose scene record it reads beside (`scene-record@<name>`)
+    with its seed (`neighbour <name>`), as the runner gave them from neighbours; a scene read beside only for the
+    surface library finishing the made ground (read_beside) is not shown."""
+    return sorted(node.split("@", 1)[1] for node in inputs
+                  if node.startswith(f"{RECORD}@") and f"neighbour {node.split('@', 1)[1]}" in inputs)
+
+
+def read_beside(place):
+    """The places a light row reads beside: the ones it shows (neighbours) and the scenes whose surface library
+    finishes its made ground (ground_finish.ground_scenes: base's for the airlock)."""
+    import score.stages.assembly.ground_finish as ground_finish  # this form: the code version hashes it alone
+    return sorted({*neighbours(place), *ground_finish.ground_scenes(place)})
 
 
 def take(layer_folder, folder, place):
@@ -121,10 +133,12 @@ def source(place, inputs, folder):
     and its pictures, which the record's writer rewrites, written anew; its assets all written anew where a bake is
     laid over them) with the accepted scene record written over the seed's record prims (assembly/record.take_record),
     the surface line's bakes over its models and its waiting entries (assembly/grounded.take_bakes) and its made
-    ground (record.take_ground): the assembly's own code, so the lamps are measured on what ships (2026-10-29:
+    ground (record.take_ground) finished from the library (ground_finish.finish_ground: the light rows laid it
+    without, and every outdoor render showed a white sheet, 2026-11-04): the assembly's own code, so the lamps are measured on what ships (2026-10-29:
     light-passes@base drew nothing, every object waiting on its bake). The seed alone for a place with no
     scene-record row."""
     import score.stages.assembly.grounded as grounded  # this form: the code version hashes grounded.py's imports
+    import score.stages.assembly.ground_finish as ground_finish
     import score.stages.assembly.record as record
     seed = pathlib.Path(inputs["seed"])
     subprocess.run(["cp", "-al", str(seed), str(folder)], check=True)
@@ -141,6 +155,7 @@ def source(place, inputs, folder):
         grounded.take_bakes(inputs, folder, place)
     if "terrain" in inputs:
         record.take_ground(inputs["terrain"], place, folder / f"{place}.usda")
+        ground_finish.finish_ground(inputs, folder / f"{place}.usda", place)
     return folder
 
 
@@ -330,6 +345,12 @@ def passes_faults(folder):
 PASSES = contracts.Contract("light-passes", 1, passes_faults, {"length": "metre", "up axis": "Y"})
 
 
+def ground_files(place):
+    """The scene inventories the made ground's finish is read from (ground_finish.ground_files)."""
+    import score.stages.assembly.ground_finish as ground_finish
+    return ground_finish.ground_files(place)
+
+
 def place_files(name):
     """The files a place's light layer is written from besides its scene record (a stored output): its kit."""
     return {f"kit {name}": f"{{data}}/kit/{name}.json"}
@@ -340,7 +361,8 @@ def passes_files(place):
     shows (neighbours) with the files their light layers are written from (theirs alone, never a whole folder:
     another place's kit edited moves no render here), the scripts."""
     found = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json", **SURFACES,
-             "renderer": "{repo}/tools/blender/inside/usd_views.py", "passes script": "{repo}/" + SCRIPT}
+             "renderer": "{repo}/tools/blender/inside/usd_views.py", "passes script": "{repo}/" + SCRIPT,
+             **ground_files(place)}
     for name in neighbours(place):
         found[f"neighbour {name}"] = f"{{seeds}}/usd-r3/{name}"
         found.update(place_files(name))
