@@ -89,7 +89,9 @@ The facts (JSON; the rows' metres name the rows and give their heights, the draw
 
 Write the plan as one JSON object with these keys:
 - "outline": the place's footprint as drawn, [[x, y], ...] clockwise (a rectangle its 4 corners; a round or curved
-  place its curve in enough points), round every part of the place.
+  place its curve in enough points), round every part of the place. An open ground (a street, a plaza, a yard) is
+  outlined round its own ground alone, its road, pavements and plaza, edged by the fronts of the buildings along it:
+  never round a building's rooms, another place's ground or the white paper round the drawing.
 - "walls": every wall, straight {{"from": [x, y], "to": [x, y], "thick": units, "tall": m}} or curved {{"arc":
   {{"centre": [x, y], "radius": units, "start": degrees, "end": degrees}}, "thick": units, "tall": m}}: the outer walls
   of every building, module, dome and tube as drawn, inner walls where drawn. An open ground has none of its own.
@@ -736,7 +738,7 @@ def plan_from(answer, skeleton, inventory):
 
 def writings(store, place):
     """The place's writings, oldest first."""
-    return [store.read(key) for key in sorted(store.objects.keys(f"{AREA}/{place}/"))]
+    return [store.read(key) for key in sorted(concepts.keys_under(store, f"{AREA}/{place}/"))]
 
 
 def reading_at(store, place):
@@ -798,7 +800,7 @@ def spent(store, places):
 
 def typical(store, area, method=None):
     """The median euros of the calls kept under `area` (of `method` only, when given), None with none."""
-    found = [record["euros"] for record in (store.read(key) for key in store.objects.keys(f"{area}/"))
+    found = [record["euros"] for record in (store.read(key) for key in concepts.keys_under(store, f"{area}/"))
              if method is None or record.get("method") == method] if store else []
     return statistics.median(found) if found else None
 

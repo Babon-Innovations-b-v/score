@@ -133,12 +133,12 @@ def with_setting(record):
 
 def versions(store, world):
     """The versions kept, oldest first."""
-    return [with_setting(store.read(key)) for key in sorted(store.objects.keys(f"{AREA}/{world}/versions/"))]
+    return [with_setting(store.read(key)) for key in sorted(concepts.keys_under(store, f"{AREA}/{world}/versions/"))]
 
 
 def newest(store, world):
     """The newest version kept, None while none is."""
-    keys = sorted(store.objects.keys(f"{AREA}/{world}/versions/"))
+    keys = sorted(concepts.keys_under(store, f"{AREA}/{world}/versions/"))
     return with_setting(store.read(keys[-1])) if keys else None
 
 
@@ -375,7 +375,7 @@ def ask(store, world, request, by, reviser=None):
 
 def asks(store, world):
     """The interview's asks kept, oldest first."""
-    return [store.read(key) for key in sorted(store.objects.keys(f"{AREA}/{world}/asks/"))]
+    return [store.read(key) for key in sorted(concepts.keys_under(store, f"{AREA}/{world}/asks/"))]
 
 
 def main(argv):

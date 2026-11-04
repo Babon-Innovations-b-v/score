@@ -324,6 +324,9 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
 - test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_says_so:
     plan_drawing.py (2026-11-04, #72): OUTLINE's "not its shape" wording made "draw this place filling exactly that
     box's shape"
+    plan_drawing.py (2026-11-04): `outline=(OUTLINE + ("" if inside else OPEN))` made `outline=OUTLINE`, or ASKED's
+    open-ground outline sentence dropped
+    concepts.py (2026-11-04): keys_under's `root / prefix.rpartition("/")[0]` made `root / prefix`
 - test_the_answer_is_a_plan_of_the_stage_tables_schema_and_each_failed_check_a_named_gap:
     plan_writing.py (2026-11-04, #72): write_now's `if again else to_write(store, places)` made `to_write(...)` alone
 - test_a_footprint_answered_as_box_2d_is_measured_from_its_box:
@@ -2684,7 +2687,7 @@ def test_a_holder_with_no_outline_of_its_own_gets_one_round_its_inside_places_be
     assert plans.current(store, "yard")["plan"]["w"] == 6.6
 
 
-def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_says_so(store, data):
+def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_says_so(store, data, monkeypatch):
     """Owner, 2026-10-25 ("the framework should be able to solve [it] agnosticly"): a child scene's own plan is drawn
     from its own concept at its own scale, the holder's spot says where it sits; they agree before any paid work."""
     rows = [{"id": "barn", "name": "a barn", "anchor": "floor", "size": [8.0, 6.0, 5.0], "count": 1, "at": []},
@@ -2710,6 +2713,15 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     # the Square's thin strip of it)
     wording = plan_drawing.wording_of(store, "shed")
     assert "not its shape" in wording and "filling exactly" not in wording and plan_drawing.FRAME == "1:1"
+    # an open place held by another is drawn as its own ground alone, a room is not (the street drawn as its shops'
+    # rooms and the Square's corner, outlined as the whole frame, 2026-11-04)
+    for inside in (True, False):
+        monkeypatch.setattr(plan_drawing.concepts, "indoors", lambda store, place, inside=inside: inside)
+        assert (plan_drawing.OPEN in plan_drawing.wording_of(store, "shed")) is not inside
+    assert "never round a building's rooms" in plan_writing.ASKED
+    # a prefix walk gives the keys a whole-store walk gives, a part of a folder's name too
+    for prefix in ("concepts/", "concepts/sh", "plans/shed/", "nothing/"):
+        assert concepts.keys_under(store, prefix) == store.objects.keys(prefix)
 
 
 # --- plan writing and its free checks: each failure a named gap -------------------------------------------------------

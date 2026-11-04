@@ -41,7 +41,7 @@ def yes_key(place, at):
 
 def discussions(store, place):
     """Every discussion entry of `place`, oldest first."""
-    return [store.read(key) for key in sorted(store.objects.keys(f"{concepts.AREA}/{place}/discussions/"))]
+    return [store.read(key) for key in sorted(concepts.keys_under(store, f"{concepts.AREA}/{place}/discussions/"))]
 
 
 def open_thread(store, place, base):
