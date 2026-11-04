@@ -468,10 +468,31 @@ def test_the_dry_check_passes_every_step_in_one_line():
 # --- disk: the floor, what fills it, the copies no run needs ---------------------------------------------------------
 
 def test_no_run_starts_under_the_disk_floor_and_the_health_warns_there(tmp_path, monkeypatch):
-    """2026-10-26: 0.24 GB free of 91 GB and Batch 1 died with "No space left on device"."""
+    """2026-10-26: 0.24 GB free of 91 GB and Batch 1 died with "No space left on device"; 2026-11-04: checkout 17 began
+    at 10.4 GB free, over the 10 GB floor, and ran out 7 min in.
+    Break: disk.launch_refusal's `max(FLOOR_GB, round(written_most(runs_folder), 1))` -> `FLOOR_GB` (a run starts on
+    less room than the last one took), or graph/runs.noted's `min(entry.get("disk_lowest", free), free)` -> `free`."""
     assert disk.launch_refusal(tmp_path, floor=0) is None
     refused = disk.launch_refusal(tmp_path / "not-yet", floor=10 ** 6)
     assert refused.startswith("refused: ") and "GB floor" in refused
+    folder = tmp_path / "runs"
+    folder.mkdir()
+    entry = folder / "r1.json"
+    entry.write_text(json.dumps({"state": "running"}))
+    runs.noted(entry, None)
+    started = json.loads(entry.read_text())
+    assert started["disk_lowest"] == started["disk_start"] > 0, started
+    entry.write_text(json.dumps({**started, "disk_start": 30.0, "disk_lowest": 1.0}))
+    runs.noted(entry, None)
+    assert json.loads(entry.read_text())["disk_lowest"] == 1.0  # the lowest stays the lowest seen
+    assert disk.written_most(folder) == 29.0 * disk.WRITTEN_MARGIN
+    entry.unlink()
+    (folder / "r2.json").write_text(json.dumps({"disk_start": 10.4, "disk_lowest": 0.1}))  # ran the disk out
+    assert disk.written_most(folder) == (10.4 + disk.FLOOR_GB) * disk.WRITTEN_MARGIN
+    monkeypatch.setattr(disk, "free_gb", lambda path=None: 20.0)
+    assert "floor" in disk.launch_refusal(runs_folder=folder)  # 20 GB free, under the 25.5 measured
+    assert disk.launch_refusal(runs_folder=folder, floor=10) is None
+    monkeypatch.undo()
     monkeypatch.setattr(disk, "FLOOR_GB", 10 ** 6)
     found = health.read(properties)
     assert found["disk"]["floor_gb"] == 10 ** 6 and any(note.startswith("disk: ") for note in found["notes"])

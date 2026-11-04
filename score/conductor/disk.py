@@ -99,6 +99,8 @@ from score.graph import frozen, runs
 from score.store import PROPS_HOME, Store, file_hash, linked_read_only, partial_of
 
 FLOOR_GB = 10  # under this many GB free no run starts, and the Machine card warns
+WRITTEN_MARGIN = 1.25  # the most a run was measured to take off the disk, a quarter more, is what a new one needs free
+RAN_OUT_GB = 0.5  # a run whose lowest free fell under this ran the disk out: it needed more than it had
 YOUNG_SECONDS = 15 * 60  # a copy younger than this may be one a run is still making
 SHOWN = 20  # folders `disk` prints; the rest are in its file
 DEEP = ("store/cache", "work/pixal")  # measured three levels down: what fills them (2026-10-27: 37.5 and 20.5 GB)
@@ -142,9 +144,22 @@ def warning(free, floor=None, swept=None):
                    f"{last['fills']}; it needs a bigger data volume: {last['bigger']}")
 
 
-def launch_refusal(path=None, floor=None):
-    """Why `score run` must not start now (under `floor`, FLOOR_GB, GB free on PROPS_HOME's disk), or None."""
-    floor = FLOOR_GB if floor is None else floor
+def written_most(runs_folder=None):
+    """The most GB one registered run took off the disk (its entry's `disk_start` less `disk_lowest`, graph/runs.noted),
+    times WRITTEN_MARGIN; a run that ran the disk out (under RAN_OUT_GB left) counts as all it had and FLOOR_GB more."""
+    most = 0.0
+    for entry in pathlib.Path(runs_folder or PROPS_HOME / "runs").glob("*.json"):
+        with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
+            found = json.loads(entry.read_text())
+            start, lowest = float(found["disk_start"]), float(found["disk_lowest"])
+            most = max(most, start + FLOOR_GB if lowest < RAN_OUT_GB else start - lowest)
+    return most * WRITTEN_MARGIN
+
+
+def launch_refusal(path=None, floor=None, runs_folder=None):
+    """Why `score run` must not start now, or None: under `floor` GB free on PROPS_HOME's disk, FLOOR_GB or the most a
+    run was measured to write (written_most), whichever is more."""
+    floor = max(FLOOR_GB, round(written_most(runs_folder), 1)) if floor is None else floor
     free = free_gb(path)
     return None if free >= floor else (f"refused: {free:.1f} GB free on the data disk ({path or PROPS_HOME}), under "
                                        f"the {floor} GB floor a run needs; free room first (the door's disk and "
