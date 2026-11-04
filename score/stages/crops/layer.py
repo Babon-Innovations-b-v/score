@@ -7,18 +7,24 @@
              beds each, in the plan's order; on each bed a kind's plants at the concept's spacing (in plant widths, times the made
              model's width: the concept draws its plants larger than the plan's metres hold them, so its look is
              kept, not a density in plants a square metre), on a grid of the bed's cells, each moved within its
-             cell, turned and sized by the node's seed; layers/crops.usda holds /<place>/Crops/<kind>, a
+             cell, turned and sized by the node's seed; each plant fits its bed, kept in its proportions (owner,
+             2026-11-04, a greenhouse's 2.3 m planter tray on beds of 0.47 x 0.67 m: "Scale each plant to its bed"):
+             sized down where its reach (its footprint's farthest corner from its foot, so at any turn) passes the
+             bed's half side, the bed's spacing in metres sized with it, then each plant kept and moved within its
+             own cell, so none overhangs its bed or passes through a neighbour; layers/crops.usda holds /<place>/Crops/<kind>, a
              PointInstancer whose prototype references the kind's asset and carries the kind's inventory row
              (`score:row`, which the completion gate counts as laid) and says what made it (`score:kind` KIND, which
              the made-only check reads). spots.json keeps every plant (kind, bed,
-             spot, turn, size) and each kind's model width and spacing in metres. A kind whose model the bake did
+             spot, turn, size) and each kind's model width, footprint at size 1 and spacing in metres. A kind whose model the bake did
              not make and a batch gap its inputs carry names (the prop route left the take out: pixal, the finish
              route, the bake; score/stages/batch_gaps.py) is left out, its beds bare, and named in this output's
              batch-gaps.json with the gaps carried on, so `on beds` and `spacing` move its faults to it
              (stages.BATCH_GATES); a model missing with no gap naming it still raises.
-    gates    on beds    every plant stands on its bed, its centre at least EDGE inside the bed's edge, and every
-                        bed carries plants
-             spacing    each kind's spacing in plant widths as laid within LAID_WITHIN of the concept's
+    gates    on beds    every plant stands on its bed, its centre at least EDGE inside the bed's edge and its
+                        footprint, turned and sized as laid, within the bed and clear of every other plant's; and
+                        every bed carries plants
+             spacing    each kind's spacing in plant widths as laid (each plant's width times its size) within
+                        LAID_WITHIN of the concept's
 
 Experimental (PRD #6): the crops are laid as the locked concept grows them (its kinds' patches and spacing).
 """
@@ -35,11 +41,14 @@ from score.stages.props import prop_data
 
 LAYER = "layers/crops.usda"
 # A plant's centre this far inside its bed's edge, metres; each moved at most this share of its cell from the cell's
-# middle; turned anywhere round; sized within SIZE_SPREAD either way.
+# middle; turned anywhere round; sized within SIZE_SPREAD either way; footprints this far over (metres) a fault.
 EDGE = 0.03
 JITTER = 0.25
 SIZE_SPREAD = 0.12
 LAID_WITHIN = 0.25
+TOUCH = 1e-6
+# spots are kept to 0.1 mm: a plant keeps this much more room, so the rounding never takes it past its cell
+ROUNDING = 1e-4
 KIND = "crop"
 
 
@@ -74,17 +83,41 @@ def bed_count(bed, spacing):
     return max(1, round(float(bed["size"][0]) * float(bed["size"][2]) / spacing ** 2))
 
 
-def bed_spots(bed, count, generator):
-    """`count` plants on one bed, on a grid of its cells, each moved within its cell; [(x, z)]."""
+def reach_of(footprint):
+    """How far a plant reaches across the floor from its foot at size 1, at any turn: its footprint's farthest
+    corner; `footprint` [low x, high x, low z, high z] round its foot."""
+    low_x, high_x, low_z, high_z = footprint
+    return max(math.hypot(corner_x, corner_z) for corner_x in (low_x, high_x) for corner_z in (low_z, high_z))
+
+
+def bed_scale(bed, reach):
+    """The size a plant of `reach` is laid at on a bed: 1, or less where its reach passes the bed's half side."""
+    return min(1.0, min(float(bed["size"][0]), float(bed["size"][2])) / 2.0 / reach)
+
+
+def moved(half, room, generator):
+    """A plant's offset from its cell's middle: at most JITTER of the cell, never past the `room` it has."""
+    return generator.uniform(-1.0, 1.0) * max(0.0, min(JITTER * 2.0 * half, room))
+
+
+def bed_spots(bed, count, reach, scale, generator):
+    """`count` plants on one bed, on a grid of its cells, each sized round `scale` (never past what its cell holds
+    at any turn) and moved within its cell as far as its reach leaves room; [(x, z, size)]."""
     width, depth = float(bed["size"][0]), float(bed["size"][2])
     columns = math.ceil(math.sqrt(count * width / depth))
     rows = math.ceil(count / columns)
-    cell_x, cell_z = width / columns, depth / rows
+    half_x, half_z = width / columns / 2.0, depth / rows / 2.0
     low_x = float(bed["centre"][0]) - width / 2.0
     low_z = float(bed["centre"][2]) - depth / 2.0
     cells = [(column, row) for row in range(rows) for column in range(columns)][:count]
-    return [(low_x + (column + 0.5 + generator.uniform(-JITTER, JITTER)) * cell_x,
-             low_z + (row + 0.5 + generator.uniform(-JITTER, JITTER)) * cell_z) for column, row in cells]
+    found = []
+    for column, row in cells:
+        size = min(scale * (1.0 + generator.uniform(-SIZE_SPREAD, SIZE_SPREAD)),
+                   (min(half_x, half_z) - ROUNDING) / reach)
+        kept = max(reach * size, EDGE) + ROUNDING
+        found.append((low_x + (2 * column + 1) * half_x + moved(half_x, half_x - kept, generator),
+                      low_z + (2 * row + 1) * half_z + moved(half_z, half_z - kept, generator), size))
+    return found
 
 
 def layer_files(place):
@@ -102,20 +135,23 @@ def model_of(entry):
     return f"{entry['row']}_1"
 
 
-def laid_spots(beds, shared, spacings, seed):
+def laid_spots(beds, shared, spacings, footprints, seed):
     """Every plant: {kind, bed, at (x, top of the bed, z), turn (degrees), size (a factor)}, each kind's `spacings`
-    metres apart on its beds."""
+    metres apart on its beds at size 1, both sized to each bed its `footprints` (at size 1) would pass (bed_scale)."""
     generator = random.Random(seed)
     named = {bed["name"]: bed for bed in beds}
     spots = []
     for kind, bed_names in shared.items():
+        reach = reach_of(footprints[kind])
         for name in bed_names:
             bed = named[name]
             top = float(bed["centre"][1]) + float(bed["size"][1]) / 2.0
-            for spot_x, spot_z in bed_spots(bed, bed_count(bed, spacings[kind]), generator):
+            scale = bed_scale(bed, reach)
+            for spot_x, spot_z, size in bed_spots(bed, bed_count(bed, spacings[kind] * scale), reach, scale,
+                                                  generator):
                 spots.append({"kind": kind, "bed": name, "at": [round(spot_x, 4), round(top, 4), round(spot_z, 4)],
                               "turn": round(generator.uniform(0.0, 360.0), 2),
-                              "size": round(1.0 + generator.uniform(-SIZE_SPREAD, SIZE_SPREAD), 4)})
+                              "size": round(size, 6)})
     return spots
 
 
@@ -144,7 +180,8 @@ def bare_gaps(record, left, shared):
 
 def write_assets(record, bake, paint, out):
     """Each kind's baked model as an asset under out/assets (export.write_asset, as the assembly takes a bake);
-    {kind: {model, lowest (its lowest y), width (its widest across the floor)}}."""
+    {kind: {model, lowest (its lowest y), width (its widest across the floor), footprint ([low x, high x, low z,
+    high z] round its foot)}}."""
     import export
     import library
     from pxr import Usd, UsdGeom
@@ -164,7 +201,8 @@ def write_assets(record, bake, paint, out):
             stage.GetDefaultPrim()).ComputeAlignedRange()
         low, high = bounds.GetMin(), bounds.GetMax()
         found[kind] = {"model": model, "lowest": float(low[1]),
-                       "width": max(float(high[0] - low[0]), float(high[2] - low[2]))}
+                       "width": max(float(high[0] - low[0]), float(high[2] - low[2])),
+                       "footprint": [float(low[0]), float(high[0]), float(low[2]), float(high[2])]}
     return found
 
 
@@ -214,13 +252,14 @@ def make_layer(inputs, out, seed, params):
     beds = crop_data.beds_in(inputs, record)
     shared = shared_by_bed(record, beds, {kind: measured[kind]["share"] for kind in record["kinds"]})
     spacings = {kind: measured[kind]["spacing"] * assets[kind]["width"] for kind in laid["kinds"]}
-    spots = laid_spots(beds, {kind: shared[kind] for kind in laid["kinds"]}, spacings, seed)
+    footprints = {kind: entry["footprint"] for kind, entry in assets.items()}
+    spots = laid_spots(beds, {kind: shared[kind] for kind in laid["kinds"]}, spacings, footprints, seed)
     (out / "layers").mkdir(exist_ok=True)
     write_layer(record["place"], laid, assets, spots, out / LAYER)
     batch_gaps.write(out, [*carried, *bare_gaps(record, left, shared)])
     (out / "spots.json").write_text(json.dumps({"beds": shared, "spots": spots, "spacings": spacings,
-                                                "widths": {kind: entry["width"] for kind, entry in assets.items()}},
-                                               indent=1))
+                                                "widths": {kind: entry["width"] for kind, entry in assets.items()},
+                                                "footprints": footprints}, indent=1))
 
 
 def layer_faults(folder):
@@ -228,10 +267,60 @@ def layer_faults(folder):
     return [] if present else [f"no {LAYER} or spots.json"]
 
 
+def corners_of(spot, footprint):
+    """A laid plant's footprint across the floor: its four corners [(x, z)], turned about the up axis (the layer's
+    quaternion: x' = x cos + z sin, z' = z cos - x sin) and sized, at its spot."""
+    turn = math.radians(spot["turn"])
+    size = float(spot["size"])
+    low_x, high_x, low_z, high_z = footprint
+    return [(spot["at"][0] + size * (corner_x * math.cos(turn) + corner_z * math.sin(turn)),
+             spot["at"][2] + size * (corner_z * math.cos(turn) - corner_x * math.sin(turn)))
+            for corner_x, corner_z in ((low_x, low_z), (high_x, low_z), (high_x, high_z), (low_x, high_z))]
+
+
+def overhang(corners, bed):
+    """How far, metres, a footprint's farthest corner passes its bed's edge (0 or less: within it)."""
+    return max(max(abs(corner_x - bed["centre"][0]) - bed["size"][0] / 2.0,
+                   abs(corner_z - bed["centre"][2]) - bed["size"][2] / 2.0) for corner_x, corner_z in corners)
+
+
+def pass_through(first, second):
+    """Whether two footprints (convex, corners in order) overlap by more than TOUCH on every axis of their sides."""
+    for shape in (first, second):
+        for (start_x, start_z), (end_x, end_z) in zip(shape, shape[1:] + shape[:1]):
+            axis = (start_z - end_z, end_x - start_x)
+            length = math.hypot(*axis)
+            if length == 0:
+                continue
+            ones = [(corner_x * axis[0] + corner_z * axis[1]) / length for corner_x, corner_z in first]
+            others = [(corner_x * axis[0] + corner_z * axis[1]) / length for corner_x, corner_z in second]
+            if min(max(ones), max(others)) - max(min(ones), min(others)) <= TOUCH:
+                return False
+    return True
+
+
+def crossings(spots, footprints):
+    """[(plant, plant)] of every two laid plants whose footprints pass through each other."""
+    shapes = [corners_of(spot, footprints[spot["kind"]]) for spot in spots]
+    lows = [min(corner[0] for corner in shape) for shape in shapes]
+    highs = [max(corner[0] for corner in shape) for shape in shapes]
+    order = sorted(range(len(spots)), key=lambda number: lows[number])
+    found = []
+    for place, number in enumerate(order):
+        for other in order[place + 1:]:
+            if lows[other] > highs[number]:
+                break
+            if pass_through(shapes[number], shapes[other]):
+                found.append((min(number, other), max(number, other)))
+    return found
+
+
 def judge_on_beds(output, inputs, evidence):
-    """Every plant stands on its bed, EDGE inside its edge, and every bed carries plants."""
+    """Every plant stands on its bed, EDGE inside its edge, its footprint within the bed and through no other plant's;
+    and every bed carries plants."""
     beds = {bed["name"]: bed for bed in crop_data.beds_in(inputs, crop_data.read(inputs))}
-    spots = json.loads((output / "spots.json").read_text())["spots"]
+    laid_record = json.loads((output / "spots.json").read_text())
+    spots, footprints = laid_record["spots"], laid_record["footprints"]
     failing = []
     for number, spot in enumerate(spots):
         bed = beds.get(spot["bed"])
@@ -243,6 +332,11 @@ def judge_on_beds(output, inputs, evidence):
         if max(off_x, off_z) > 0:
             failing.append(f"plant {number} ({spot['kind']}): {max(off_x, off_z) + EDGE:.3f} m off {spot['bed']}'s "
                            "edge")
+        over = overhang(corners_of(spot, footprints[spot["kind"]]), bed)
+        if over > TOUCH:
+            failing.append(f"plant {number} ({spot['kind']}): overhangs {spot['bed']} by {over:.3f} m")
+    failing += [f"plants {number} ({spots[number]['kind']}) and {other} ({spots[other]['kind']}): pass through each "
+                "other" for number, other in crossings(spots, footprints)]
     bare = sorted(set(beds) - {spot["bed"] for spot in spots})
     failing += [f"{name}: no plants" for name in bare]
     return checks.Verdict("on beds", checks.FAIL if failing else checks.PASS,
@@ -252,15 +346,17 @@ def judge_on_beds(output, inputs, evidence):
 
 
 def laid_spacings(spots, widths):
-    """{kind: the median distance from a plant to its nearest neighbour of its kind over the kind's model width}."""
+    """{kind: the median over its plants of the distance to the nearest neighbour of its kind over the plant's laid
+    width (the kind's model width times its size)}."""
     found = {}
     for kind in sorted({spot["kind"] for spot in spots}):
-        points = [(spot["at"][0], spot["at"][2]) for spot in spots if spot["kind"] == kind]
+        own = [spot for spot in spots if spot["kind"] == kind]
+        points = [(spot["at"][0], spot["at"][2]) for spot in own]
         if len(points) < 2:
             continue
         nearest = [min(math.dist(point, other) for number, other in enumerate(points) if number != index)
-                   for index, point in enumerate(points)]
-        found[kind] = statistics.median(nearest) / widths[kind]
+                   / (widths[kind] * float(own[index]["size"])) for index, point in enumerate(points)]
+        found[kind] = statistics.median(nearest)
     return found
 
 

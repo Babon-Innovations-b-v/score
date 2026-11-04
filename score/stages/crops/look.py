@@ -248,7 +248,8 @@ def seen_on_beds(record, view, instances, beds, shared, spots_record, heights):
     bed it stands on: the render's beds are laid by the layer, so where a plant stands says what it is, and the nouns
     only find plants (on the 2026-10-13 render SAM 3's 'rosemary' and 'small shrub' found none of the herbs that its
     'leafy bush' found). Each plant's middle is taken back onto the level of a kind's middle (the beds' top plus half
-    its laid height, `heights` at size 1 times its plants' median size) for that kind's beds."""
+    its laid height, `heights` at size 1 times its plants' median size) for that kind's beds; its spacing is in its
+    laid width, its model's width times the same median size (the layer sizes a plant to its bed)."""
     top = max(float(bed["centre"][1]) + float(bed["size"][1]) / 2.0 for bed in beds.values())
     plants = view_plants(view, instances)
     found = {}
@@ -258,8 +259,9 @@ def seen_on_beds(record, view, instances, beds, shared, spots_record, heights):
         spots = [on_floor(view, middle(plant["box"]), SIZE, level) for plant in plants]
         points = [spot for spot in spots if spot and any(on_bed(spot, beds[name]) for name in shared[kind])]
         width = spots_record["widths"].get(kind)  # none for a kind the layer left out (a batch gap)
-        spacing = (statistics.median(concept.nearest_distances(points)) / width
-                   if len(points) >= 2 and width else None)
+        laid_width = width * (statistics.median(sizes) if sizes else 1.0) if width else None
+        spacing = (statistics.median(concept.nearest_distances(points)) / laid_width
+                   if len(points) >= 2 and laid_width else None)
         found[kind] = {"seen": len(points), "laid": sum(spot["kind"] == kind for spot in spots_record["spots"]),
                        "spacing": round(spacing, 3) if spacing else None}
     return found
