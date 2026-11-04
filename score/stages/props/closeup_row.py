@@ -25,6 +25,7 @@ import dataclasses
 import io
 import json
 import os
+import pathlib
 import shutil
 
 from PIL import Image
@@ -75,16 +76,40 @@ def make_inputs(inputs, out, seed, params):
     objects = prop_data.kept(prop_data.record_at(inputs["props"])["objects"], params)
     rows = inventory_rows(json.loads(inputs["inventory"].read_text()), objects)
     for row in rows:
-        row["concept"] = str(inputs[f"view {row['view']}"]) if row["view"] else None
+        row["concept"] = home_relative(inputs[f"view {row['view']}"]) if row["view"] else None
         entry = objects[row["id"]]
         # only an object whose prop data names a close-up has one drawn: an object named like one of the row's tools
         # (the square's `stage` took "close-up stage", the tool's folder, 2026-10-24) has none
         named = inputs.get(f"close-up {row['id']}") if entry.get("closeup") else None
-        row["drawn"] = str(named) if named else None
+        row["drawn"] = home_relative(named) if named else None
         row.update(route=entry["route"], take=entry.get("take"), layer=layer_of(entry),
                    failures=entry.get("failures", {}))
     missing = sorted(set(objects) - {row["id"] for row in rows})
     (out / "rows.json").write_text(json.dumps({"rows": rows, "not_in_inventory": missing}, indent=1))
+
+
+def home_relative(path):
+    """A picture's path as rows.json keeps it: relative to PROPS_HOME where it lies under it, else as it is. A run's
+    PROPS_HOME is its frozen copy's own home (score/graph/frozen.py), removed when the run ends, so an absolute path
+    there left every later close-up on a file that is gone (checkout 18, 2026-11-04, #75)."""
+    from score.store import PROPS_HOME
+
+    try:
+        return str(pathlib.Path(path).relative_to(PROPS_HOME))
+    except ValueError:
+        return str(path)
+
+
+def at_home(rows):
+    """The rows with their concept and drawn close-up found again under this run's PROPS_HOME (home_relative's
+    inverse; an absolute path stays as it is)."""
+    from score.store import PROPS_HOME
+
+    for row in rows:
+        for name in ("concept", "drawn"):
+            if row.get(name):
+                row[name] = str(PROPS_HOME / row[name])
+    return rows
 
 
 def inputs_faults(folder):
@@ -266,7 +291,7 @@ def judged_take(rows, out, take, wanted, found):
 
 def make_closeups(inputs, out, seed, params):
     """closeups/<id>.png for every object (drawn ones as they are, the rest by Pro) and closeups.json."""
-    rows = json.loads((inputs["props-inputs"] / "rows.json").read_text())["rows"]
+    rows = at_home(json.loads((inputs["props-inputs"] / "rows.json").read_text())["rows"])
     (out / "closeups").mkdir(parents=True)
     unreadable = {row["id"]: taken_or_why(row, out) for row in rows if row["drawn"]}
     unreadable = {row: why for row, why in unreadable.items() if why}

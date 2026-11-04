@@ -21,6 +21,7 @@ import dataclasses
 import fnmatch
 import functools
 import glob
+import hashlib
 import json
 import pathlib
 
@@ -935,10 +936,24 @@ def retake_asides(take, pixal):
             if aside.is_dir() and aside.name[len(take) + 2:].isdigit()]
 
 
-def retake_pending(take, pixal):
+def retake_pending(take, pixal, handed=None):
     """True while a take is set aside and its retake is not made yet: the library's copy of it is the rejected one, so
-    takes_back leaves it out (it would put the rejected files back under the batch)."""
-    return any(not (aside / RETAKE_MADE).exists() for aside in retake_asides(take, pixal))
+    takes_back leaves it out (it would put the rejected files back under the batch). A retake is made once its folder
+    has the mark, or once `handed`, the library's newest record of the take (pixal_takes.newest_record), holds a raw
+    model other than the one set aside (retake_handed): 2026-10-29's four retakes were made and handed to the library,
+    their marks never written, so takes_back left them out on the cloud machine and the finish route found no raw take
+    there (checkout 18, 2026-11-04)."""
+    return any(not (aside / RETAKE_MADE).exists() and not retake_handed(take, aside, handed)
+               for aside in retake_asides(take, pixal))
+
+
+def retake_handed(take, aside, handed):
+    """Whether the library's record `handed` holds a raw model of the take other than the one in `aside`, by its size,
+    then its sha256; False with no record, or no raw model in it or in the aside."""
+    raw, entry = aside / f"{take}.glb", ((handed or {}).get("files") or {}).get(f"{take}.glb")
+    if not entry or not raw.is_file():
+        return False
+    return entry.get("bytes") != raw.stat().st_size or entry.get("sha256") != hashlib.sha256(raw.read_bytes()).hexdigest()
 
 
 def set_aside(retake, objects, pixal):
@@ -1127,7 +1142,7 @@ def takes_back(place):
     finally:
         sys.path[:] = kept
     for take in surfaces.data.takes(place) if place else ():
-        if not retake_pending(take, PROPS_HOME / "work" / "pixal"):
+        if not retake_pending(take, PROPS_HOME / "work" / "pixal", pixal_takes.newest_record(take)):
             pixal_takes.take_back(take, PROPS_HOME / "work" / "pixal")
 
 
