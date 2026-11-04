@@ -267,7 +267,8 @@ def test_the_runner_accepts_by_itself_only_what_passed_and_got_no_worse():
     assert runner.stale("count@hangar") == ["clean@hangar"] and runner.stale("count@station") == []
     assert runner.status(PLACES)["count@hangar"].endswith("its accepted output is stale: clean@hangar moved")
     found = runner.run(PLACES)
-    assert found["clean@hangar"] == "fresh" and found["count@hangar"].startswith("blocked: clean@hangar's output")
+    # made once again after his reject (again_parts); the same bytes come back, still rejected, so count stays blocked
+    assert found["clean@hangar"] == "made: pass" and found["count@hangar"].startswith("blocked: clean@hangar's output")
 
 
 def make_takes(inputs, out, seed, params):
@@ -277,9 +278,11 @@ def make_takes(inputs, out, seed, params):
 def test_a_reject_naming_takes_gives_a_row_that_retakes_a_key_that_remakes_them():
     """Owner, 2026-10-28 (a failing object remade once, free): his reject of an output naming takes (review.reject
     `takes`) keys a row that retakes anew, its params' retake those takes, attempt 1, after the key he rejected, and
-    the new output is made and accepted; a later reject naming no takes keys nothing new, and a row that does not
-    retake keys as before.
-    Break: score/graph/__init__.py: '        if stage.retakes:  # only' -> '        if False:  # only'"""
+    the new output is made and accepted; a later reject naming no takes keys nothing new; a row that does not
+    retake is keyed once more after his reject (an again part, attempt 1, after the rejected key; 2026-11-04), its
+    output made and accepted, and a second reject keys nothing new.
+    Break: score/graph/__init__.py: '        if stage.retakes:  # only' -> '        if False:  # only'; or
+    again_parts' `return parts, text_hash(...)` -> `return parts, key` (a rejected record still reads as fresh)."""
     takes = graph.Stage("takes", "place", make_takes, TEXT, PASSES, retakes=True)
     world, store = a_world({"hangar": "a ship"}), a_store()
     runner = a_runner(world, store, (takes,))
@@ -295,7 +298,11 @@ def test_a_reject_naming_takes_gives_a_row_that_retakes_a_key_that_remakes_them(
     review.reject(store, "takes@hangar", retaken, "owner", "no")
     assert a_runner(world, store, (takes,)).key(takes, "hangar")["key"] == keyed["key"]
     plain = dataclasses.replace(takes, retakes=False)
-    assert a_runner(world, store, (plain,)).key(plain, "hangar")["key"] == first
+    runner = a_runner(world, store, (plain,))
+    again = runner.key(plain, "hangar")
+    assert again["again"]["after"] == first and again["key"] != first, again  # he rejected `first`'s output
+    assert runner.run(["hangar"])["takes@hangar"] == "made: pass"  # made again: its bytes the rejected ones, kept out
+    assert a_runner(world, store, (plain,)).key(plain, "hangar")["key"] == again["key"]  # never a third make
 
 
 def test_a_bought_batch_accepts_a_passing_worse_output_and_writes_the_drop_down_for_review():

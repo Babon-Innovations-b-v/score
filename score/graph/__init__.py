@@ -1204,6 +1204,8 @@ class Runner:
         key = text_hash(json.dumps(parts, sort_keys=True))
         if stage.retakes:  # only such a row's key may gain a retake part, and only once he rejected takes of it
             parts, key = self.retake_parts(node_name(stage, place), parts, key)
+        else:  # only a key whose output he rejected gains an again part: no other node's key moves
+            parts, key = self.again_parts(stage, node_name(stage, place), parts, key)
         note = self.store.read(f"{REMAKES}{node_name(stage, place)}/{key}.json")
         if note and note["then"] == "remake":  # only then a remake part: no other node's key moves
             failed = ", ".join(sorted(note["failed"]))
@@ -1225,6 +1227,18 @@ class Runner:
             key = text_hash(json.dumps(parts, sort_keys=True))
             record = self.store.record(node, key)
         return parts, key
+
+    def again_parts(self, stage, node, parts, key):
+        """(parts, key) made once more when the owner rejected the output this key's record holds (a row that does not
+        retake): an `again` part and a fresh seed, attempt 1, after the key he rejected, so the next run makes it again,
+        cleared like any make (a paid one within its stop line); a rejected again is left to him, never a third make
+        (2026-11-04: props-inputs@lab and @workshop, rejected, kept coming back "fresh" at the same key)."""
+        record = self.store.record(node, key)
+        if not record or not self.store.rejected(node, record["output"]):
+            return parts, key
+        parts = {**parts, "seed": node_seed(self.world.seed, f"{stage.name}#again", parts["place"]),
+                 "again": {"attempt": 1, "after": key, "why": f"the owner rejected {record['output'][:12]}"}}
+        return parts, text_hash(json.dumps(parts, sort_keys=True))
 
     def retaken(self, node, output):
         """The sorted takes the owner's newest reject of `output` names to remake, while it stands; [] otherwise."""
