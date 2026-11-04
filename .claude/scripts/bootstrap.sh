@@ -119,8 +119,14 @@ seed_gltfpack() {
   say "gltfpack: $GLTFPACK_PIN in the npm cache"
 }
 
+# --- 6. One ssh-agent for every shell, and GitHub's port 443 when 22 is refused --
+ssh_agent() {
+  bash "$REPO/.claude/scripts/ssh-agent.sh"
+}
+
 link_memory
 use_repo_hooks
+ssh_agent
 build_python
 seed_gltfpack
 check_gh

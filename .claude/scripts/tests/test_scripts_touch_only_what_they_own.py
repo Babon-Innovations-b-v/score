@@ -1,6 +1,7 @@
 """The harness scripts change only what they own: board-status only this repo's card, setup-github only this repo's
 labels, board and config (nothing on a dry run), worktree-reap only a dead session's clean merged worktree,
-bootstrap only its own links and flags, and sandbox-home and conftest.py keep every test off the real home while
+bootstrap only its own links and flags, ssh-agent.sh only its agent socket, its ~/.bashrc block and its
+~/.ssh/config lines (GitHub's port 443 only when port 22 is refused), and sandbox-home and conftest.py keep every test off the real home while
 removing everything a test leaves.
 
 Every script is driven from outside as a copy in a scratch git repo (each finds its repo from its own path); `gh`
@@ -36,7 +37,9 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_every_plain_script_test_refuses_first_without_a_sandbox_home (a wording check guarding the owner's rule that
   no test touches the real home, 2026-10-18): refuse_outside_sandbox's `if refusal:` made `if False:`.
 - test_bootstrap_links_memory_without_losing_any: bootstrap moves the old memory folder aside without copying it.
-- test_bootstrap_sets_the_hooks_and_builds_the_runtime_python_once: bootstrap's runtime build ignores PROPS_HOME.
+- test_bootstrap_sets_the_hooks_and_builds_the_runtime_python_once: bootstrap's runtime build ignores PROPS_HOME; or
+  ssh-agent.sh's `elif github_answers git@github.com` branch dropped (a box whose port 22 works gets the 443
+  fallback); or its `grep -qF 'ssh/agent/agent.sock'` made `false` (a re-run writes the ~/.bashrc block twice).
 
 Run: PROPS_HOME=$(mktemp -d) python3 -m pytest .claude/scripts/tests/
 """
@@ -547,6 +550,22 @@ def test_every_plain_script_test_refuses_first_without_a_sandbox_home(tmp_path):
 
 # bootstrap.sh, against a scratch HOME.
 
+def write_ssh_tools(folder):
+    """Stand-ins for ssh-agent, ssh-add, ssh-keygen and ssh: the agent is a file at its socket, its keys a file beside
+    it; ssh logs its call and answers as GitHub does, port 22 as FAKE_SSH_22 says, port 443 always."""
+    write_tool(folder, "ssh-agent", '#!/bin/sh\n[ "$1" = -a ] && : > "$2"\n')
+    write_tool(folder, "ssh-add", '#!/bin/sh\n[ -e "$SSH_AUTH_SOCK" ] || exit 2\n'
+               'if [ "$1" = -l ]; then [ -s "$SSH_AUTH_SOCK.keys" ] && cat "$SSH_AUTH_SOCK.keys" && exit 0; '
+               'echo "The agent has no identities."; exit 1; fi\n'
+               'echo "256 SHA256:fake $1 (ED25519)" >> "$SSH_AUTH_SOCK.keys"\n')
+    write_tool(folder, "ssh-keygen", '#!/bin/sh\necho "256 SHA256:fake tester (ED25519)"\n')
+    write_tool(folder, "ssh", '#!/bin/sh\necho "ssh $*" >> "$TOOL_LOG"\n'
+               'case "$*" in *"-p 443"*) ok=ok ;; *) ok="$FAKE_SSH_22" ;; esac\n'
+               '[ "$ok" = ok ] || { echo "git@github.com: Permission denied (publickey)." >&2; exit 255; }\n'
+               'echo "Hi tester! You\'ve successfully authenticated, but GitHub does not provide shell access." >&2\n'
+               'exit 1\n')
+
+
 @pytest.fixture
 def machine(tmp_path, scratch_repo):
     """A scratch HOME and the env to run the scripts in."""
@@ -558,6 +577,7 @@ def machine(tmp_path, scratch_repo):
                '[ -n "$UV_PROJECT_ENVIRONMENT" ] && mkdir -p "$UV_PROJECT_ENVIRONMENT/bin" '
                '&& printf "#!/bin/sh\\n" > "$UV_PROJECT_ENVIRONMENT/bin/python" '
                '&& chmod +x "$UV_PROJECT_ENVIRONMENT/bin/python"\nexit 0\n')
+    write_ssh_tools(tmp_path / "bin")
     env = {key: value for key, value in os.environ.items()
            if key not in ("CLAUDE_CONFIG_DIR", "PROPS_HOME")}
     env.update(HOME=str(home), PATH=f"{tmp_path / 'bin'}:{os.environ['PATH']}", TOOL_LOG=str(tmp_path / "tools.log"))
@@ -594,3 +614,24 @@ def test_bootstrap_sets_the_hooks_and_builds_the_runtime_python_once(scratch_rep
     syncs = [line for line in (tmp_path / "tools.log").read_text().splitlines() if line.startswith("uv ")]
     assert syncs == ["uv sync -q --frozen env=", f"uv sync -q --frozen --no-dev --project {scratch_repo} env={runtime}",
                      "uv sync -q --frozen env="]
+    assert "ssh-agent: no ~/.ssh/id_ed25519" in run.stdout  # no key: nothing of ~/.ssh is touched
+    assert not (machine[0] / ".ssh").exists() and not (machine[0] / ".bashrc").exists()
+    # ssh-agent.sh with a key, on two scratch homes: one whose port 22 GitHub refuses, one where it works
+    for port_22, home in (("refused", tmp_path / "home22refused"), ("ok", tmp_path / "home22ok")):
+        (home / ".ssh").mkdir(parents=True)
+        (home / ".ssh" / "id_ed25519").write_text("key")
+        (home / ".ssh" / "id_ed25519.pub").write_text("ssh-ed25519 AAAA tester")
+        env.update(HOME=str(home), FAKE_SSH_22=port_22)
+        first, again = shell(scratch_repo, env, "ssh-agent.sh"), shell(scratch_repo, env, "ssh-agent.sh")
+        assert first.returncode == 0 and again.returncode == 0, first.stderr + again.stderr
+        assert "ssh-agent: key loaded" in first.stdout and "ssh-agent: key already loaded" in again.stdout
+        assert (home / ".ssh" / "agent" / "agent.sock").exists()
+        assert (home / ".bashrc").read_text().count('SSH_AUTH_SOCK="$HOME/.ssh/agent/agent.sock"') == 1
+        config = (home / ".ssh" / "config").read_text()
+        assert config.count("AddKeysToAgent yes") == 1
+        fallback = "Host github.com\n  HostName ssh.github.com\n  Port 443\n  User git\n"
+        assert config.count(fallback) == (1 if port_22 == "refused" else 0), config
+    probes = [line for line in (tmp_path / "tools.log").read_text().splitlines() if line.startswith("ssh -T")]
+    probe = "ssh -T -n -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8"
+    assert probes == [f"{probe} git@github.com", f"{probe} -p 443 git@ssh.github.com",  # 22 refused: 443 tried, kept
+                      f"{probe} git@github.com", f"{probe} git@github.com"]  # 22 works: 443 never tried
