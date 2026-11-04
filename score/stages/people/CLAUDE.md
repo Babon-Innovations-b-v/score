@@ -66,7 +66,9 @@ each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
   `test_looks_dressed_from_the_library_and_judged_by_measure.py`.
 - **The concept decides the clothes** (owner, 2026-10-13), per person row and from the design alone
   (`../people_clothes.py`, each row's `dress` in `data/people/rows.json`, written by the people rows' refresh): of the
-  people place's library fabrics, those whose name shares a word with the row's name as read, the nearest by dE to
+  people line's own scene library's fabrics (surface-library@people, `people_refresh.line_fabrics`; a refresh on
+  a library with no fabric is refused, `NoFabrics`: the retired repository library chose no row's clothes until
+  2026-11-04), those whose name shares a word with the row's name as read, the nearest by dE to
   the row's torso measured on the locked concept, used only within dE 32 (lightness never chooses on its own, the
   concepts are dim and warm-lit). A person of that row wears it on every fabric surface but a print through the dress
   row `people-dress-<look>-in-<surface>`; a row naming no fabric, or none that near, wears its look's own paint (the

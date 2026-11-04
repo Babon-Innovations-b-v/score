@@ -12,24 +12,6 @@
     "body": "people-body-astronaut-made builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
    }
   },
-  "astronaut_spacesuit-made": {
-   "route": "prop",
-   "take": "astronaut_spacesuit-made-s1",
-   "layer": "people",
-   "failures": {
-    "parts": "split a second time by people-look-parts-astronaut_spacesuit-made (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
-    "body": "people-body-astronaut_spacesuit-made builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
-   }
-  },
-  "astronaut_suit-made": {
-   "route": "prop",
-   "take": "astronaut_suit-made-s1",
-   "layer": "people",
-   "failures": {
-    "parts": "split a second time by people-look-parts-astronaut_suit-made (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
-    "body": "people-body-astronaut_suit-made builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
-   }
-  },
   "officer-made": {
    "route": "prop",
    "take": "officer-made-s1",
@@ -93,15 +75,6 @@
     "body": "people-body-man_stair-made builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
    }
   },
-  "person_spacesuit-made": {
-   "route": "prop",
-   "take": "person_spacesuit-made-s1",
-   "layer": "people",
-   "failures": {
-    "parts": "split a second time by people-look-parts-person_spacesuit-made (SAM 2.1, GeoSAM2, the judge's materials) for the garments the route binds by limb, beside the loop's finish-route split",
-    "body": "people-body-person_spacesuit-made builds from the raw Pixal3D take, not the loop's baked model handed on in made.json"
-   }
-  },
   "woman_stair-made": {
    "route": "prop",
    "take": "woman_stair-made-s1",
@@ -116,12 +89,9 @@
  "approved": {
   "by": "the creator's pick",
   "places": [
-   "base",
    "cockpit",
    "garage",
-   "greenhouse",
    "hangar",
-   "lab",
    "square",
    "stairwell",
    "tube",

@@ -24,6 +24,21 @@ def concept_picture(store, sha):
     return np.asarray(Image.open(io.BytesIO(store.objects.read_bytes(key))).convert("RGB"))
 
 
+def line_fabrics(store):
+    """people_clothes.fabrics_of the people line's own scene library (its accepted finish-route-palette@people and
+    surface-library@people, as a dress row reads them: dress.library_surfaces); NoFabrics when the line has none
+    accepted."""
+    from score.stages import people_clothes
+    from score.stages.people import dress
+    rows = ("finish-route-palette", "surface-library")
+    accepted = {row: store.accepted(f"{row}@{LINE}") for row in rows}
+    if not all(accepted.values()):
+        missing = ", ".join(f"{row}@{LINE}" for row in rows if not accepted[row])
+        raise people_clothes.NoFabrics(f"no accepted {missing}: no row's clothes can be chosen")
+    return people_clothes.fabrics_of(dress.library_surfaces({f"{row}@{LINE}": store.checkout(output)
+                                                             for row, output in accepted.items()}))
+
+
 def refresh(store):
     """rows.json from every place's current reading and plan (a place with none is left out; the places are those
     whose scene inventory the design keeps, plans.KEPT_INVENTORY); written."""
@@ -31,9 +46,10 @@ def refresh(store):
     from score.stages.complete.prepare import groups
     places = sorted(path.stem for path in plans.KEPT_INVENTORY.glob("*.json") if path.stem != LINE)
     inventories, _ = groups.current(store, places)
+    fabrics = line_fabrics(store)  # NoFabrics, before anything is written, when the line has none
     old = read() if ROWS.exists() else {"places": {}}
     found = {place: refreshed_place(place, inventory, (plans.current(store, place) or {}).get("plan"),
-                                    old["places"].get(place),
+                                    old["places"].get(place), fabrics,
                                     concept_picture(store, inventory["concept_pick"]["sha256"]))
              for place, inventory in sorted(inventories.items())}
     record = {"why": old.get("why", ""), "places": found}

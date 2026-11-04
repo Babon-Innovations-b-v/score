@@ -84,6 +84,14 @@ SITTING = ("sitting", "seated")
 SEAT_WORDS = {"chair", "stool", "seat", "bench", "bed", "bunk", "sofa", "couch", "armchair", "pew", "saddle"}
 COLOUR_WORDS = {"white", "black", "grey", "gray", "blue", "red", "green", "yellow", "orange", "brown", "purple",
                 "pink", "beige", "navy", "dark", "light", "pale", "bright"}
+# A garment that says who wears it (owner, 2026-10-22: one body a look, by what its people are and wear): a person in
+# a spacesuit is an astronaut, so the lab's "person in spacesuit" is the astronaut look, not a look of its own that no
+# batch dresses (audit 2026-11-04: astronaut_suit, astronaut_spacesuit and person_spacesuit, 10 people, never laid).
+WORN_BY = {"spacesuit": "astronaut"}
+# The garments a who already wears, which name no other look ("astronaut in white suit" is the astronaut look; the
+# suit's colour is its dress, people_clothes.py); and the words for anyone, which a garment's wearer replaces.
+IMPLIED = {"astronaut": {"suit", "spacesuit", "helmet"}}
+ANYONE = {"person", "man", "woman"}
 PLURALS = {"people": "person", "men": "man", "women": "woman", "children": "child"}
 FUNCTION_WORDS = {"the", "and", "with", "his", "her", "their", "its", "from", "into", "onto", "over", "down", "for",
                   "who", "one", "two", "some", "many"}
@@ -287,17 +295,26 @@ def named(row):
     return "player" in words_of(row["name"]) or bool(re.search(r"\b[A-Z][a-z]+", row["name"]))
 
 
-def look_of(place, row, crowd=False):
+def look_of(place, row, crowd=False, folded=True):
     """A row's look by what its people are and wear: its name's words before where it stands or what it holds
-    (CLAUSE_WORDS), its pose and colour words left out, a crowd's crowd words too; `<words>-made`. A named person
-    is its own, `<place>_<row>-made`."""
+    (CLAUSE_WORDS), its pose and colour words left out, a crowd's crowd words too, a garment read as who wears it
+    (worn_by; not when `folded` is False: the look its words alone name); `<words>-made`. A named person is its own,
+    `<place>_<row>-made`."""
     if named(row):
         return f"{place}_{row['id']}-{OUTFIT}"
     said = re.findall(r"[a-z]+", row["name"].lower())
     said = said[:next((number for number, word in enumerate(said) if word in CLAUSE_WORDS), len(said))]
     words = [PLURALS.get(word, word) for word in word_list(" ".join(said)) if word not in POSE_WORDS | COLOUR_WORDS]
     words = [word for word in dict.fromkeys(words) if not (crowd and word in CROWD_WORDS)]
-    return f"{'_'.join(words) or ('crowd' if crowd else 'person')}-{OUTFIT}"
+    return f"{'_'.join(worn_by(words) if folded else words) or ('crowd' if crowd else 'person')}-{OUTFIT}"
+
+
+def worn_by(words):
+    """A look's words with each garment that says who wears it (WORN_BY) put as its wearer in place of the words for
+    anyone (ANYONE), and every garment its who already wears (IMPLIED) left out."""
+    wearers = [WORN_BY[word] for word in words if word in WORN_BY]
+    words = list(dict.fromkeys(wearers + [word for word in words if not (wearers and word in ANYONE)]))
+    return [word for word in words if not any(word in IMPLIED.get(who, ()) for who in words)]
 
 
 def look_words(look, entry):
@@ -366,16 +383,16 @@ def concept_share(row, picture):
     return round(max(box[3] - box[1] for box in boxes) / picture[1], 4)
 
 
-def refreshed_place(place, inventory, plan, old, picture=None, fabrics=None):
+def refreshed_place(place, inventory, plan, old, fabrics, picture=None):
     """One place's entry from its current reading (`inventory`, groups.current's) and plan, keeping `old`'s hand-made
     choices (a row's recorded with its `why`) where it was read from the same concept; each row's dress read off its
-    words and the concept (`picture` H x W x 3, 0..255, or None; `fabrics` {fabric: CIELAB}, people_clothes.fabrics()
-    by default). A people row the plan says the painting shows beyond the place (its `beyond`: through a window, past
-    its edge, far off) is left out: it belongs to the place it stands in, never stood here (the stairwell's and the
+    words and the concept (`picture` H x W x 3, 0..255, or None) among `fabrics` ({fabric: CIELAB}, the people line's
+    own: people_refresh.line_fabrics(store); never a default, which read the retired repository library and chose none).
+    A people row the plan says the painting shows beyond the place (its `beyond`: through a window, past its edge, far
+    off) is left out: it belongs to the place it stands in, never stood here (the stairwell's and the
     street's crowds are the square's, seen in the background: Batch 1, 2026-10-25). groups.current routes it so
     (route "skyline"), unless it stands on a row laid here (groups.stood_beyond: the stairwell's man on its stairs)."""
     from score.stages import people_clothes
-    fabrics = people_clothes.fabrics() if fabrics is None else fabrics
     concept = inventory["concept_pick"]["sha256"]
     kept = old["rows"] if old and old["concept"] == concept else {}
     rows = {}
@@ -412,16 +429,20 @@ def build_of(fields):
 
 def mapping_rows(found):
     """{look: (place, row, fields, concept)} of the row that draws each look: of the rows that map it, the largest
-    (its `share` of its concept's frame) of those whose people stand one person's size, the first (places and rows in
+    (its `share` of its concept's frame) of those whose people stand one person's size, of those a row whose words
+    alone name the look before one read into it by its garment (look_of's worn_by: the lab's "person in spacesuit", its
+    tallest box a bare-headed bust, wears the astronaut look and does not draw it), the first (places and rows in
     order) on a tie; a look's spec, size and close-up all come from it."""
-    def rank(fields):
+    def rank(place, row, fields, look):
         standing = person_sized(fields.get("size")) and doing_of(fields) not in SITTING
-        return standing, fields.get("share") or 0.0
+        said = look_of(place, {"id": row, "name": fields.get("name") or "", "noun": fields.get("noun") or ""},
+                       "crowd" in fields, folded=False) == look
+        return standing, said, fields.get("share") or 0.0
     mapped = {}
     for place, entry in sorted(found["places"].items()):
         for row, fields in sorted(entry["rows"].items()):
             for look in dict.fromkeys(fields.get("looks", []) + ([fields["crowd"]] if fields.get("crowd") else [])):
-                if look not in mapped or rank(fields) > rank(mapped[look][2]):
+                if look not in mapped or rank(place, row, fields, look) > rank(*mapped[look][:3], look):
                     mapped[look] = (place, row, fields, entry["concept"])
     return mapped
 
