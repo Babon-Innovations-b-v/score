@@ -33,6 +33,15 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `driven.lay_sim_body`: the Turned transform not set  -> the sim body test (the sim body mirrored off the skin).
 - `driven.judge_on_its_sim_body`: `> FEET_WITHIN` read as `> 1.0`  -> the feet-leave test.
 - tools/characters/cast_check.py `repeated_people`: `len(names) > 1` read as `> 9`  -> the variants test.
+- `measure.seat_top`: `SEAT_LOW <=` dropped (the crate's floor face a seat)  -> the toy place test (the second
+  seated person seated on the crate).
+- `cast.on_support`: `taken.add(name)` dropped  -> the toy place test (two people on one stool).
+- `cast.on_support`: a seated person's `at=at` dropped  -> the toy place test (seated on the floor at its spot).
+- `cast.on_support`: `max(tops) > person["at"][1]` read as `True`  -> the toy place test (one over it lowered).
+- `measure.run_into`: `- {seat}` dropped  -> the toy place test (the seated body runs into its own stool's back).
+- `cast.off_ground`: the no-seat branch dropped  -> the toy place test (a seated one with no seat stands).
+- `people_rows.doing_of`: `"seated" if seat_of(row) else` dropped  -> the toy place test (a stool's sitter sits on
+  the ground); `people_rows.cast_record`: `"anchor"` dropped  -> the toy place test (nobody supported).
 """
 import json
 import pathlib
@@ -77,7 +86,52 @@ def off_the_crate(spot):
     return (dx * dx + dz * dz) ** 0.5
 
 
+def seat_place(folder):
+    """base.usda of place `camp`: the toy floor, a 1 m crate `crate_1` from 0 to 1 and a 0.4 m stool `stool_1_1` at
+    3 to 3.4, its seat 0.45 high, its back a board 0.05 thick up to 0.9 along its far side."""
+    stage = Usd.Stage.CreateNew(str(folder / "seats.usda"))
+    UsdGeom.Xform.Define(stage, "/camp")
+    mesh(stage, "/camp/Ground/floor", [(-5, 0, -5), (5, 0, -5), (5, 0, 5), (-5, 0, 5)], [(0, 1, 2, 3)])
+    box = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
+    mesh(stage, "/camp/Objects/crate_1", [(x, y, z) for x in (0, 1) for y in (0, 1) for z in (0, 1)], box)
+    mesh(stage, "/camp/Objects/stool_1_1", [(x, y, z) for x in (3, 3.4) for y in (0, 0.45) for z in (3, 3.4)]
+         + [(x, y, z) for x in (3, 3.4) for y in (0.45, 0.9) for z in (3.35, 3.4)],
+         box + [tuple(index + 8 for index in face) for face in box])
+    stage.Save()
+    return measure.solids(folder / "seats.usda", "camp")
+
+
 def test_a_person_dealt_into_a_thing_is_stood_clear_round_it_or_left_out(tmp_path):
+    """Also: a seated person (its design anchors it on a seat) sits on the nearest seat of its anchor's row not taken,
+    its feet on the seat's floor under its middle, measured from its seat's top and clear of all but its own seat; one
+    whose row lays no seat it sits on is named; a standing one is raised onto the top of its anchor under it."""
+    seats = seat_place(tmp_path)
+    assert measure.seat_top(seats["Objects/stool_1_1"]) == ([3.2, 0.0, 3.2], 0.45)
+    assert measure.seat_top(seats["Objects/crate_1"]) is None  # its top 1 m up: no seat
+    from score.stages import people_rows
+    row = {"name": "astronaut", "where": "sitting at dining table", "anchor": "on:stool_1", "looks": ["astro-made"] * 2}
+    assert people_rows.doing_of(row) == "seated" and people_rows.doing_of(dict(row, anchor="on:floor")) == "sitting"
+    design = {"places": {"camp": {"concept": "a" * 64, "spots": [[0.0, 0.0, -3.0]], "middle": [0.0, 0.0, 0.0],
+                                  "rows": {"sitter": row, "unlaid": dict(row, anchor="on:chair", looks=["astro-made"]),
+                                           "climber": dict(row, anchor="on:crate", where="standing",
+                                                           looks=["astro-made"])}}}}
+    record = cast.on_support(people_rows.cast_record("camp", design), seats)
+    people = {person["name"]: person for person in record["people"]}
+    assert (people["sitter_1"]["at"], people["sitter_1"]["seat"], people["sitter_1"]["seat_on"]) == (
+        [3.2, 0.0, 3.2], 0.45, "Objects/stool_1_1"), people["sitter_1"]
+    assert people["sitter_2"]["seat"] is None and people["unlaid"]["seat"] is None  # the stool taken; no chair laid
+    assert people["unlaid"]["doing"] == "seated" and people["climber"]["at"] == [0.0, 0.0, -3.0]  # off the crate
+    over = cast.on_support({"people": [dict(people["climber"], at=[0.5, 0.0, 0.5])]}, seats)["people"][0]
+    assert over["at"] == [0.5, 1.0, 0.5]
+    high = cast.on_support({"people": [dict(people["climber"], at=[0.5, 2.0, 0.5])]}, seats)["people"][0]
+    assert high["at"] == [0.5, 2.0, 0.5]  # never lowered
+    spot = cast.seated_spot(people["sitter_1"])
+    assert spot == [3.2, 0.45, 3.2] and measure.ground_under([spot], seats)[0]["gap"] == 0.0
+    top = measure.top_of("seated")
+    assert measure.run_into([spot], seats, [top], ["Objects/stool_1_1"]) == [[]]
+    assert measure.run_into([spot], seats, [top]) == [["Objects/stool_1_1"]]  # its back, its own
+    assert "no seat" in cast.off_ground({"gap": 0.0, "on": "Ground/floor", "water": False, "seat": None})
+    assert cast.off_ground({"gap": 0.0, "on": "Objects/stool_1_1", "water": False, "seat": "Objects/stool_1_1"}) is None
     found = toy_place(tmp_path)
     assert set(found) == {"Ground/floor", "Objects/crate"}
     assert measure.run_into([[0.5, 0.0, 0.5], [3.0, 0.0, 3.0]], found) == [["Objects/crate"], []]

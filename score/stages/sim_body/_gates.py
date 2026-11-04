@@ -22,7 +22,7 @@ CARRIED = 0.05  # share of the weight
 # The clips a body does seated (people_rows.doing_of): its seat carries it, not its feet, so `lands` asks that the
 # ground carried it, not that a foot did (#70, 2026-11-04: every seated body failed "no foot landed" with its ground
 # carrying its weight within 0.3%).
-SEATED = ("sitting",)
+SEATED = ("sitting", "seated")
 FOLLOWED = 5.0  # degrees
 # The residual's limits, the body's weight standing in for the net external force (none is measured here): the force
 # at most 2% of it (owner, 2026-10-28, from 5%: AddBiomechanics' published residual forces are "smaller than 2% of peak

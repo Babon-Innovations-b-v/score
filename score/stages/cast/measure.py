@@ -17,8 +17,13 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 CHARACTERS = REPO / "tools/characters"
 # tools/characters/cast_check.py's body sizes (test_people_stand_clear_or_are_named.py checks they agree), metres.
 BODY_RADIUS, KNEE, HEAD = 0.25, 0.3, 1.7
-# A body's top by its clip where it is not a head's height (top_of).
-TOPS = {"sitting": 1.0, "lying": None}
+# A body's top by its clip where it is not a head's height (top_of): a seated one's over its seat, whose spot is measured
+# at its seat's top (cast.seated_spot).
+TOPS = {"sitting": 1.0, "seated": 0.9, "lying": None}
+# A seat (a laid item a seated person's anchor names) carries them on the first surface of it a ray meets looking down
+# from SEAT_REACH over its foot (its lowest point, the floor its feet stand on) at its middle, at least SEAT_LOW over
+# that floor: a chair's seat, never the top of its back; a bunk bed's bottom bunk, never its top one.
+SEAT_LOW, SEAT_REACH = 0.2, 0.75
 # Scopes that hold nothing a person stands on or walks into.
 NOT_SOLID = ("Sky", "Lights", "Characters", "Sound", "Environment", "Library")
 WATER = "Water"
@@ -99,6 +104,28 @@ def mesh_of(tris):
     return trimesh.Trimesh(vertices=tris.reshape(-1, 3), faces=np.arange(len(tris) * 3).reshape(-1, 3), process=False)
 
 
+def seat_top(tris):
+    """([x, floor, z] of a seat's middle across the ground on its floor, its seat's height over that floor) of one laid
+    item's triangles, or None when none of its surfaces lies SEAT_LOW to SEAT_REACH over its floor under its middle."""
+    points = np.asarray(tris, dtype=float).reshape(-1, 3)
+    low, high = points.min(axis=0), points.max(axis=0)
+    middle = (low + high) / 2
+    origin = [[middle[0], low[1] + SEAT_REACH, middle[2]]]
+    hits, _, _ = mesh_of(np.asarray(tris, dtype=float)).ray.intersects_location(origin, [[0.0, -1.0, 0.0]],
+                                                                               multiple_hits=True)
+    heights = [float(hit[1] - low[1]) for hit in hits if SEAT_LOW <= hit[1] - low[1] <= SEAT_REACH]
+    return ([round(float(middle[0]), 3), round(float(low[1]), 3), round(float(middle[2]), 3)],
+            round(max(heights), 3)) if heights else None
+
+
+def top_under(tris, spot):
+    """The height of the first of a laid item's triangles a ray meets down from HEAD over `spot` (x, feet, z), or None
+    where the item lies under none of it."""
+    hits, _, _ = mesh_of(np.asarray(tris, dtype=float)).ray.intersects_location(
+        [[spot[0], spot[1] + HEAD, spot[2]]], [[0.0, -1.0, 0.0]], multiple_hits=False)
+    return round(float(hits[0][1]), 3) if len(hits) else None
+
+
 def ground_under(spots, found):
     """For each spot (x, feet, z): the gap from the feet down to the first solid a ray from the knee meets (metres;
     negative when the feet are under it, None when nothing is within LOOK_DOWN), what it is, and whether water is
@@ -143,28 +170,29 @@ def body(top):
 
 
 def top_of(doing):
-    """How high a body reaches doing a clip, metres: a head's height, a seated one's on the ground (the clips'
-    sitting has the knees drawn up), or None for one lying, whose body lies along the ground in a way this
-    upright body does not stand for."""
+    """How high a body reaches doing a clip, metres: a head's height, a sitting one's on the ground (the clips'
+    sitting has the knees drawn up), a seated one's over its seat, or None for one lying, whose body lies along the
+    ground in a way this upright body does not stand for."""
     return TOPS.get(doing, HEAD)
 
 
-def run_into(spots, found, tops=None):
+def run_into(spots, found, tops=None, own=None):
     """For each spot (x, feet, z): the solids its body (to its top, HEAD by default) runs into, by name; None for a
-    body whose top is None (not measured)."""
+    body whose top is None (not measured). A seated body's own seat (`own`, a name or None a spot) leans on its back
+    and arms by design and is not counted; every other solid is."""
     manager = trimesh.collision.CollisionManager()
     for name, tris in found.items():
         manager.add_object(name, mesh_of(tris))
     shapes = {}
     clashes = []
-    for (x, feet, z), top in zip(spots, tops or [HEAD] * len(spots)):
+    for (x, feet, z), top, seat in zip(spots, tops or [HEAD] * len(spots), own or [None] * len(spots)):
         if top is None:
             clashes.append(None)
             continue
         matrix = trimesh.transformations.translation_matrix([x, feet, z])
         person = shapes.setdefault(top, body(top))
         hit, names = manager.in_collision_single(person, transform=matrix, return_names=True)
-        clashes.append(sorted(names) if hit else [])
+        clashes.append(sorted(set(names) - {seat}) if hit else [])
     return clashes
 
 

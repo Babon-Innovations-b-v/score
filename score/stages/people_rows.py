@@ -4,6 +4,7 @@ concept, score/review/reading.py) mapped to a look on the shared people line, ke
     {"places": {<place>: {"concept": <the picked draw's sha256 the reading was read from>,
                           "spots": [[x, y, z], ...] (the plan's people spots in the place's frame), "middle": [x, y, z],
                           "rows": {<row>: {"name", "noun", "count", "size" [wide, deep, tall] metres, "where",
+                                           "anchor" (what its reading stands it on: "floor", "on:<row>", ...),
                                            "share" (its tallest box's share of the concept's frame height, or null),
                                            "looks": [<look>, ... one a person]  |  "crowd": <far look>,
                                            "ground": [[left, near, wide, long], ...] (a crowd's: the plan items
@@ -75,6 +76,12 @@ CLAUSE_WORDS = {"on", "at", "by", "near", "under", "behind", "beside", "next", "
                 "against", "around", "along", "across", "holding", "carrying", "pushing", "pulling", "looking", "from"}
 # How a person stands (its clip, doing_of) and its colours (its dress, people_clothes.py) vary a look; they make none.
 POSE_WORDS = {"seated", "sitting", "standing", "walking", "kneeling", "lying", "distant", "far"}
+# The clips a person sits in (doing_of): "sitting" on the ground, knees drawn up; "seated" on a seat, feet on the floor.
+SITTING = ("sitting", "seated")
+# The words of an anchor's row id that name a seat (a row anchored `on:<id>` sits on it: doing_of): camp's dining
+# stool and office chair, the cockpit's pilot seat, the quarters' bunk bed and chair (8 people sat on the floor in a
+# ground-sit, 2026-11-04, their anchors lost in rows.json).
+SEAT_WORDS = {"chair", "stool", "seat", "bench", "bed", "bunk", "sofa", "couch", "armchair", "pew", "saddle"}
 COLOUR_WORDS = {"white", "black", "grey", "gray", "blue", "red", "green", "yellow", "orange", "brown", "purple",
                 "pink", "beige", "navy", "dark", "light", "pale", "bright"}
 PLURALS = {"people": "person", "men": "man", "women": "woman", "children": "child"}
@@ -100,11 +107,19 @@ def place_part(place):
 
 
 def doing_of(row):
-    """A person's clip by the row's words: sitting, walking, else standing."""
+    """A person's clip by the row's words: sitting (seated on a seat its anchor `on:<id>` names, seat_of), walking,
+    else standing."""
     words = f"{row.get('name', '')} {row.get('where', '')}".lower()
     if "sitting" in words or "seated" in words:
-        return "sitting"
+        return "seated" if seat_of(row) else "sitting"
     return "walking" if "walking" in words else "standing"
+
+
+def seat_of(row):
+    """The row id a row's anchor puts it on when that row is a seat (its id's words name one: SEAT_WORDS), or None."""
+    anchor = str(row.get("anchor") or "")
+    held = anchor.removeprefix("on:") if anchor.startswith("on:") else ""
+    return held if SEAT_WORDS & set(re.split(r"[^a-z]+", held.lower())) else None
 
 
 def surface_of(fields):
@@ -118,7 +133,7 @@ def persons(place, found=None):
     row `-v<n>`)."""
     entry = place_entry(place, found) or {"rows": {}}
     found = [{"name": row if len(fields["looks"]) == 1 else f"{row}_{number}", "row": row, "look": look,
-              "doing": doing_of(fields), "surface": surface_of(fields)}
+              "doing": doing_of(fields), "surface": surface_of(fields), "anchor": fields.get("anchor")}
              for row, fields in sorted(entry["rows"].items()) if "looks" in fields
              for number, look in enumerate(fields["looks"], 1)]
     counted = {}
@@ -177,7 +192,7 @@ def cast_record(place, found=None):
         character, outfit = split_look(person["look"])
         people.append({"name": person["name"], "character": character, "look": f"{character}_{outfit}",
                        "doing": person["doing"], "surface": person["surface"], "variant": person["variant"],
-                       "at": spots[number % len(spots)],
+                       "anchor": person["anchor"], "at": spots[number % len(spots)],
                        "facing_to": entry.get("middle", [0.0, 0.0, 1.0]),
                        "why": f"row {person['row']} of the picked design's scene inventory"})
     record = {"place": place, "from": f"the picked design (concept {entry['concept'][:8]}): data/people/rows.json",
@@ -367,7 +382,7 @@ def refreshed_place(place, inventory, plan, old, picture=None, fabrics=None):
     for row in inventory["rows"]:
         if row["route"] != "people":
             continue
-        copied = {**{key: row.get(key) for key in ("name", "noun", "count", "size", "where")},
+        copied = {**{key: row.get(key) for key in ("name", "noun", "count", "size", "where", "anchor")},
                   "share": concept_share(row, inventory.get("picture") or inventory.get("size"))}
         held = kept.get(row["id"], {})
         chosen = {key: held[key] for key in CHOSEN if key in held} if "why" in held else {}
@@ -391,7 +406,7 @@ def build_of(fields):
     """A person row's build from its metres: its shoulders (the wider side of its footprint, the narrower when it
     sits) against SLIM and BROAD."""
     wide, deep = fields["size"][:2]
-    shoulders = min(wide, deep) if doing_of(fields) == "sitting" else max(wide, deep)
+    shoulders = min(wide, deep) if doing_of(fields) in SITTING else max(wide, deep)
     return "slim" if shoulders < SLIM else "broad" if shoulders > BROAD else "average"
 
 
@@ -400,7 +415,7 @@ def mapping_rows(found):
     (its `share` of its concept's frame) of those whose people stand one person's size, the first (places and rows in
     order) on a tie; a look's spec, size and close-up all come from it."""
     def rank(fields):
-        standing = person_sized(fields.get("size")) and doing_of(fields) != "sitting"
+        standing = person_sized(fields.get("size")) and doing_of(fields) not in SITTING
         return standing, fields.get("share") or 0.0
     mapped = {}
     for place, entry in sorted(found["places"].items()):

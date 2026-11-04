@@ -19,11 +19,11 @@ from score.checks import FAIL, PASS, UNKNOWN, Check, Verdict
 REPO = pathlib.Path(__file__).resolve().parents[3]
 MAKER = REPO / "tools/characters/maker"
 ROW = "people-clips-made"
-# The clips the places' people do (people_rows.doing_of: standing, walking, sitting) and one working clip (bench, a
-# person at a workbench using both hands), which the people benchmark judges (#26). A cast's clip outside these is
-# no clip of its body, and people-clips fails that cast by name.
-CLIPS = ("standing", "walking", "bench", "sitting")
-# Not measured: four Kimodo clips and the rig on one L4 with its set-up (about 14 minutes) and the chain's minutes,
+# The clips the places' people do (people_rows.doing_of: standing, walking, sitting, seated) and one working clip
+# (bench, a person at a workbench using both hands), which the people benchmark judges (#26). A cast's clip outside
+# these is no clip of its body, and people-clips fails that cast by name.
+CLIPS = ("standing", "walking", "bench", "sitting", "seated")
+# Not measured: five Kimodo clips and the rig on one L4 with its set-up (about 14 minutes) and the chain's minutes,
 # about 40 minutes at EUR 0.79 an hour, rounded up.
 EUROS = 0.6
 

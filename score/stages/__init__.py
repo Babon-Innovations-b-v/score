@@ -221,24 +221,30 @@ SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, sc
 # Experimental (design 5, 2026-10-12) until the owner reviews it: the cast of each place whose design shows people,
 # placed and measured against its locked design's people (data/people/rows.json, #26) and its seed's geometry with
 # its scene record written in, on its made ground (a place whose shell or stairs the scene record lays, or whose floor
-# is the terrain's, has none in its seed alone: Batch 1, 2026-10-25).
+# is the terrain's, has none in its seed alone: Batch 1, 2026-10-25), the surface line's bakes laid as for motion (its
+# objects: a seat carries a seated person; without them 8 seated people sat on the floor, 2026-11-04).
 # Its `made` gate reads the looks' dress rows as optional inputs: a look whose dressed body stands usable is made.
 DRESS_ROWS = tuple(row.name for row in people.ROWS if row.name.startswith(f"{characters_layer.DRESS}-"))
 CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cast.files,
                    after={"plan": ("place-plan", 2), "scene-record": ("scene-record", 1), "terrain": ("grounds", 2),
+                          "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
                           **{name: ("people-dress", 1) for name in DRESS_ROWS}},
-                   optional=DRESS_ROWS, applies=designed("people"))
+                   beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
+                   neighbours=assembly.claiming_places, optional=DRESS_ROWS, applies=designed("people"))
 # Experimental (#65, PRD #56): each character of the place's accepted cast as a musculoskeletal body (MyoFullBody,
 # sized to the person's build from the rig its clips play, people-clips-made) doing its clip exactly on the scene's own
-# ground (the stage the cast is measured on, its scene record on its made ground), its physics from Newton and MuJoCo:
+# ground (the stage the cast is measured on, its scene record and laid objects on its made ground), its physics from
+# Newton and MuJoCo:
 # ground forces, joint moments, muscle activations and forces, the residual measured (score/stages/sim_body).
 # people-cloth and the characters layer read it: its people move by it.
 BODY_ROWS = tuple(row.name for row in people.ROWS if row.name.startswith(f"{sim_body.BODY}-"))
 SIM_BODY = graph.Stage("sim-body", "place", sim_body.make, sim_body.CONTRACT, sim_body.CHECKS, files=sim_body.files,
                        after={"cast": ("cast", 1), sim_body.CLIPS_ROW: (sim_body.CLIPS_ROW, 1),
                               "scene-record": ("scene-record", 1), "terrain": ("grounds", 2),
+                              "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
                               **{name: ("people-body", 1) for name in BODY_ROWS}},
-                       optional=BODY_ROWS, applies=designed("people"))
+                       beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
+                       neighbours=assembly.claiming_places, optional=BODY_ROWS, applies=designed("people"))
 # Experimental (owner, 2026-10-27, "bring back"): each character's loose garment parts as cloth on Newton's VBD against
 # its sim body's moving segments (score/stages/people_cloth), its dressed and built bodies optional reads as the
 # characters layer's are, its cloth values the part's library recipe's (data/physics/cloth.json). Nothing reads it yet,
