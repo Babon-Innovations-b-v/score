@@ -3,7 +3,8 @@ shows, each placed in the place with a clip, and measured against the concept an
 
     make     the place's cast from its picked design (data/people/rows.json, score/stages/people_rows.py: its scene
              inventory's people rows, each person a look of the shared people line, at the plan's people spots in
-             turn and stood clear round them; a crowd one far look in its palettes, #26), never the old game records
+             turn and stood clear round them, one its words stand on stairs on its flight's first tread: on_stairs;
+             a crowd one far look in its palettes, #26), never the old game records
              or the lost concept pictures, dealt by cast.py's own rules, each with its
              spot, clip, look and whether it is made: its look's dress row (people-dress-<look>, `-in-<surface>`
              where its design row wears a fabric of its own, `-v<n>` the person's variant) stands usable, read as an optional input; `cast.json`. Then every
@@ -47,6 +48,8 @@ from score.stages.scene_record import writer  # noqa: E402
 
 # How far feet may stand off what is under them, metres: the floor's own unevenness, not a float or a sink.
 STAND_SLACK = 0.05
+# The words that stand a person on stairs (stairs_of): the stairwell's "man walking up stairs" (2026-11-04).
+STAIR_WORDS = {"stairs", "stair", "staircase", "staircases", "stairway", "stairways"}
 # Faults named on the review page, at most this many a gate (a crowd's thousands are counted, not listed).
 NAMED = 20
 
@@ -101,6 +104,70 @@ def on_levels(record, plan):
         return [at[0], at[1] + min(heights), at[2]] if heights else at
 
     return dict(record, people=[dict(person, at=raised(person["at"])) for person in record.get("people", [])])
+
+
+def stairs_of(row):
+    """Which way a person the row's words stand on stairs walks them (STAIR_WORDS in its name or where): "down" when
+    they say down, else "up"; None for a row on no stairs."""
+    words = set(re.findall(r"[a-z]+", f"{row.get('name', '')} {row.get('where', '')}".lower()))
+    if not words & STAIR_WORDS:
+        return None
+    return "down" if "down" in words else "up"
+
+
+def with_stairs(record, place, design):
+    """The record with each person's `stairs`: the way its design row stands it on stairs (stairs_of), or None."""
+    rows = (people_rows.place_entry(place, design) or {"rows": {}})["rows"]
+    ways = {person["name"]: stairs_of(rows[person["row"]]) for person in people_rows.persons(place, design)}
+    return dict(record, people=[dict(person, stairs=ways.get(person["name"])) for person in record.get("people", [])])
+
+
+def flights_of(plan):
+    """Each stair flight the plan draws as the scene record lays it (writer.stair: in the place's frame, its `foot`
+    the low end)."""
+    return [writer.stair(number, entry, plan) for number, entry in enumerate(plan.get("stairs") or [], 1)
+            if len(entry.get("points") or []) >= 3 and entry.get("kind", "stair") == "stair"]
+
+
+def tread(flight, step):
+    """The middle of a flight's tread `step` (0 the lowest) on its top (x, y, z): tools/usd/builders.py stairs' step
+    boxes, each a run along the flight and a rise over the one before."""
+    foot, top = np.asarray(flight["foot"], dtype=float), np.asarray(flight["top"], dtype=float)
+    share = (step + 0.5) / flight["steps"]
+    return [round(float(foot[0] + (top[0] - foot[0]) * share), 4),
+            round(float(foot[1] + (top[1] - foot[1]) * (step + 1) / flight["steps"]), 4),
+            round(float(foot[2] + (top[2] - foot[2]) * share), 4)]
+
+
+def off_flight(at, flight):
+    """How far a spot (x, y, z) lies from a flight's line, foot to top, metres."""
+    foot, top, at = (np.asarray(point, dtype=float) for point in (flight["foot"], flight["top"], at))
+    share = np.clip(np.dot(at - foot, top - foot) / max(float(np.dot(top - foot, top - foot)), 1e-12), 0.0, 1.0)
+    return float(np.linalg.norm(at - (foot + (top - foot) * share)))
+
+
+def on_stairs(record, plan):
+    """The record with each person its design stands on stairs (stairs_of: `stairs`, the way it walks them) on the plan's flight nearest its spot (its line, foot to top, in the place's frame and over its height, the
+    spot raised to its level first: on_levels; the stairwell's man up its middle flight off the 3 m landing beside it,
+    the woman down its bottom one, 2026-11-04): at the middle of its first tread the way it walks (the lowest walking
+    up, the highest walking down), facing its last, and `stairs` its walk: the way, the flight, the last tread's middle
+    (`to`) and each step's rise and run (metres), which the scene-made clip walks (score/stages/scene_clips). A plan
+    with no flight leaves it where it stands."""
+    flights = flights_of(plan)
+
+    def stood(person):
+        if not person.get("stairs") or not flights:
+            return person
+        flight = min(flights, key=lambda flight: off_flight(person["at"], flight))
+        lowest, highest = tread(flight, 0), tread(flight, flight["steps"] - 1)
+        start, end = (lowest, highest) if person["stairs"] == "up" else (highest, lowest)
+        foot, top = np.asarray(flight["foot"], dtype=float), np.asarray(flight["top"], dtype=float)
+        walk = {"way": person["stairs"], "flight": flight["name"], "to": end,
+                "rise": round(float(top[1] - foot[1]) / flight["steps"], 4),
+                "run": round(float(np.hypot(*(top - foot)[[0, 2]])) / flight["steps"], 4)}
+        return dict(person, at=start, facing_to=end, stairs=walk)
+
+    return dict(record, people=[stood(person) for person in record.get("people", [])])
 
 
 def on_made_ground(record, height):
@@ -193,7 +260,7 @@ def dealt(record, inputs):
     cast_rules, _ = measure.characters()
     for single in cast_rules.characters_of(record):
         person = people.get(single["name"], {})
-        single = dict(single, look=person.get("look"), surface=person.get("surface"),
+        single = dict(single, look=person.get("look"), surface=person.get("surface"), stairs=person.get("stairs"),
                       **{key: person[key] for key in ("anchor", "seat", "seat_on") if key in person})
         look = look_of(single)
         found.append({**single, "look": "/".join(look) if look else None,
@@ -238,6 +305,12 @@ def members_of(record):
             | {f"{group['name']}_{number}" for group in record.get("groups", []) for number in range(group["count"])})
 
 
+def climbers_of(record):
+    """The people stood on a flight's tread (on_stairs): never nudged round onto level ground, which a tread's
+    footprint over its steps never is (measure.level_under); the gates judge them where they stand."""
+    return {person["name"] for person in record.get("people", []) if isinstance(person.get("stairs"), dict)}
+
+
 def design_count(place, found):
     """The people the picked design shows (its scene inventory's people rows' counts); with a crowd row at least
     those (`capped`: the crowd's copies stand on top, short_of judges their count)."""
@@ -252,8 +325,9 @@ def make(inputs, out, seed, params):
     objects: a seat carries a seated person; layer_base.built) on its made ground (`measures.json`)."""
     place = pathlib.Path(inputs["seed"]).name
     design = read_json(inputs["design"])
-    record = on_made_ground(on_levels(people_rows.cast_record(place, design), read_json(inputs["design plan"])),
-                            writer.ground_under(inputs, place))
+    plan = read_json(inputs["design plan"])
+    record = on_stairs(on_made_ground(on_levels(with_stairs(people_rows.cast_record(place, design), place, design),
+                                                plan), writer.ground_under(inputs, place)), plan)
     with layer_base.built(inputs) as folder:
         base = folder / "layers/base.usda"
         found = (measure.solids(base, place, made_ground(inputs, place))
@@ -262,7 +336,7 @@ def make(inputs, out, seed, params):
     singles = dealt(record, inputs)
     crowd = crowd_of(record, singles, inputs)
     if found:
-        members = members_of(record)
+        members = members_of(record) - climbers_of(record)
         singles, copies = spread.stand_every(singles, members, crowd["copies"] if crowd else [],
                                              crowd["asked"] or 0 if crowd else 0, found)
         left_out = sorted(members - {single["name"] for single in singles})

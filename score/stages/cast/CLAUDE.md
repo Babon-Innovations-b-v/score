@@ -31,6 +31,10 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
   scene record writes them), never a hand-written record's (data/scene's game shots) or kit: the cast reads only
   the design, the seed, the environment's eye height and the rules (2026-10-21). They are read only for a crowd with
   ground; a plan spot looking at no plan item (the camp's, at its kit's objects) is refused by name.
+- **A person its design stands on stairs walks its flight** (`stairs_of`, `on_stairs`, 2026-11-04): put
+  on the plan's flight nearest its spot over its height (writer.stair's, as the scene record lays it), on its first
+  tread the way it walks, facing its last, with `stairs` (its way, flight, last tread, rise and run) for the
+  scene-made clip; never nudged onto level ground (`climbers_of`), judged where it stands.
 - **Measured on the geometry, never on a box.** Bodies are cast_check's cylinders tested against the triangles of
   the seed's base layer (FCL); a point instancer's prototypes are left out (they stand only where it copies them).
 - **Do not import tools/characters at load.** Its `cast_check` on the path or in `sys.modules` joins the assembly's

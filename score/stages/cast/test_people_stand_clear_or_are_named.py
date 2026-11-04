@@ -23,6 +23,10 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `spread.far_enough`: `< FAR_SHARE` read as `<= 1.0`  -> the views test (the copy before the door kept).
 - `cast.plan_views`: the `unaimed` refusal dropped  -> the unaimed-spot test.
 - `cast.on_levels`: `at[1] + min(heights)` read as `at[1]`  -> the levels test.
+- `cast.off_flight`: the spot's height left out (`at - foot` over x and z only)  -> the levels test (the man, on his
+  3 m landing, goes onto the flight under him, nearer across the floor).
+- `cast.stairs_of`: `"down" if "down" in words` read as `"up"`  -> the levels test.
+- `cast.on_stairs`: `(lowest, highest) if ... == "up"` read as `(highest, lowest)`  -> the levels test.
 - `cast.on_made_ground`: `ground > at[1]` read as `False`  -> the made ground rise test (the one under it found
   nothing under it).
 - `layer.make`: `if row is None or row not in inputs:` read as `if row is None:`  -> the layer test (it reaches for
@@ -303,12 +307,42 @@ def test_a_plan_spot_aimed_off_its_items_stops_only_a_crowd_with_ground(tmp_path
 
 
 def test_a_spot_on_a_raised_level_stands_at_its_height():
-    """The stairwell's walkway people on its 3 m landing (Batch 1, 2026-10-25); one outside every level stays down."""
+    """The stairwell's walkway people on its 3 m landing (Batch 1, 2026-10-25); one outside every level stays down.
+    A person its design stands on stairs goes onto the flight nearest its spot over its height (2026-11-04: the
+    stairwell's man walking up, on its 3 m landing, onto the flight up from it, not the one nearer across the floor
+    under him; the woman walking down, on the floor, onto the one from 0 to 1.5 m, its foot its low end though the
+    plan draws it from 1.5 m), on its
+    first tread the way it walks, facing its last; nobody else moves. Which way it walks is read off its row's words
+    (up, down, or no stairs at all)."""
     plan = {"w": 4.0, "d": 4.0, "frame": {"anchor": {"plan": [0.0, 0.0], "place": [10.0, 0.0, -5.0]}},
             "levels": [{"height": 3.0, "points": [[0.0, 0.0], [2.0, 0.0], [2.0, 2.0], [0.0, 2.0]]}]}
     record = {"people": [{"name": "up", "at": [11.0, 0.0, -4.0]}, {"name": "down", "at": [13.0, 0.0, -2.0]}]}
     assert [person["at"] for person in cast.on_levels(record, plan)["people"]] == [[11.0, 3.0, -4.0],
                                                                                   [13.0, 0.0, -2.0]]
+    assert [cast.stairs_of(row) for row in (
+        {"name": "man walking up stairs", "where": "middle flight of stairs"},
+        {"name": "woman walking down stairs", "where": "bottom flight of stairs"},
+        {"name": "person in uniform", "where": "by the console"})] == ["up", "down", None]
+    design = {"places": {"well": {"concept": "c", "rows": {
+        "man": {"name": "man walking up stairs", "looks": ["man-made"]},
+        "pair": {"name": "people standing", "looks": ["person-made", "person-made"]}}}}}
+    dealt = cast.with_stairs({"people": [{"name": "man"}, {"name": "pair_1"}]}, "well", design)["people"]
+    assert [person["stairs"] for person in dealt] == ["up", None], dealt
+    stairs = {**plan, "stairs": [
+        {"kind": "stair", "points": [[2.0, 0.0], [3.0, 0.0], [3.0, 2.0], [2.0, 2.0]], "from": 3.0, "to": 4.5,
+         "angle": 270.0, "steps": 3},
+        {"kind": "stair", "points": [[1.6, 2.0], [2.6, 2.0], [2.6, 4.0], [1.6, 4.0]], "from": 1.5, "to": 0.0,
+         "angle": 90.0, "steps": 3}]}
+    record = {"people": [{"name": "man", "at": [11.9, 0.0, -3.05], "stairs": "up", "facing_to": [0.0, 0.0, 0.0]},
+                         {"name": "woman", "at": [13.0, 0.0, -2.0], "stairs": "down", "facing_to": [0.0, 0.0, 0.0]},
+                         {"name": "still", "at": [13.0, 0.0, -2.0], "stairs": None}]}
+    man, woman, still = cast.on_stairs(cast.on_levels(record, stairs), stairs)["people"]
+    assert (man["at"], man["facing_to"], man["stairs"]["flight"]) == ([12.5, 3.5, -3.3333], [12.5, 4.5, -4.6667],
+                                                                      "stair_1"), man
+    assert (woman["at"], woman["facing_to"], woman["stairs"]["to"]) == ([12.1, 1.5, -2.6667], [12.1, 0.5, -1.3333],
+                                                                        [12.1, 0.5, -1.3333]), woman
+    assert (woman["stairs"]["way"], woman["stairs"]["rise"], woman["stairs"]["run"]) == ("down", 0.5, 0.6667), woman
+    assert still == record["people"][2] and cast.climbers_of(cast.on_stairs(record, stairs)) == {"man", "woman"}
 
 
 def test_a_look_is_made_only_by_its_own_usable_dress_row():
