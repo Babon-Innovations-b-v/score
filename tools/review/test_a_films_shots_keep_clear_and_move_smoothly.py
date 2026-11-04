@@ -5,7 +5,7 @@ far as is clear, at eye height, every step clear, and keeps looking that way; a 
 keeps to its recorded floor, glides at one speed between its eased ends and rounds its corners; a camera held far over
 every floor, or one that says stand, stands; a standing shot turns in place;
 the frames run at consecutive moments of the stage's time; a shot starts where it keeps the clearance from walls and
-people, or is left out; an earlier take's clear shots are kept; and a frame's ink lines drawn alone are laid over its
+people (never inside a solid), or is left out; an earlier take's clear shots are kept; and a frame's ink lines drawn alone are laid over its
 look. No Blender, no cloud.
 
 Each test's break (applied once, seen red, reverted), in tools/review/demo.py, by the test's key words:
@@ -20,7 +20,9 @@ Each test's break (applied once, seen red, reverted), in tools/review/demo.py, b
 - says stand, stands: shot_move walks a camera that says stand.
 - near level: levelled clamps nothing.
 - consecutive moments: shot_times starts every shot at the same moment.
-- keeps the clearance: clear_spot returns the camera's own eye, clear or not.
+- keeps the clearance: clear_spot returns the camera's own eye, clear or not; or (2026-11-04) camera_paths.clearances
+  measures an eye inside a closed mesh by its walls (`0.0 if inside_solid(...) else` dropped: the crate's camera stays
+  in it).
 - among people: clear_spot moves a held camera a metre down.
 - earlier take kept: kept_shots keeps a shot that comes near a wall.
 - spare camera: film_shots never tries a spare camera.
@@ -204,12 +206,16 @@ def test_the_frames_run_at_consecutive_moments_of_the_stages_time():
 def test_a_shot_starts_where_it_keeps_the_clearance():
     scenes = rooms()[1]
     """A camera 0.1 m from a wall starts its shot from the nearest spot that keeps the clearance, and every frame of
-    its walk keeps it."""
+    its walk keeps it; one standing inside the crate (a closed mesh) is moved out of it, or left out."""
     view = camera("by-the-wall", [-3.9, 1.6, 2.0], [-3.9, 1.2, -2.0])
     move = demo.shot_move(scenes, view, [[-4.0, -3.0], [4.0, 3.0]], seed=0)
     eyes = np.array([frame["eye"] for frame in demo.shot_frames(move, view, 0, 30)])
     walls, _ = camera_paths.clearances(scenes, eyes)
     assert move["moved"] > 0.1 and walls.min() >= camera_paths.CLEARANCE - camera_paths.KEPT_TO, (move, walls.min())
+    crate = camera("in-the-crate", [-2.0, 0.5, 0.0], [-1.0, 0.5, 0.0])  # the 1 m crate at x = -2, its middle
+    move = demo.shot_move(scenes, crate, None, seed=0)
+    assert move is None or (move["moved"] > 0.5 and camera_paths.clearances(scenes, move["eye"])[0][0] >=
+                            camera_paths.CLEARANCE - camera_paths.KEPT_TO), move
 
 
 def test_a_camera_among_people_is_moved_out_or_left_out():

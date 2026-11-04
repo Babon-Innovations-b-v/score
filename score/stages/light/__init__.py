@@ -24,6 +24,10 @@ holds, as three rows of the stage table.
                                        (unlit_why): an unlit place is a gap before the paid render
                          drawn         the stage it lights draws something outside its sky (an empty one renders
                                        black under any light)
+                         views clear   every view's eye outside every solid and clear of every mesh, its
+                                       picture not filled by a surface within a metre (camera_paths.view_faults);
+                                       the layer's views.json is the record's turned or moved that least, or left
+                                       out with why (cleared_views)
                          sky elements  as below, before anything is rendered
                          sky bodies    the sky's bodies, lights and backdrops where overhead.py has them at the
                                        scene's site at its scene time (sky.faults on the layer's geometry)
@@ -156,9 +160,28 @@ def make_layer(inputs, out, seed, params):
     if fill_wanted(light):
         found["lamps"].append(layer.write_fill(out, stage, place, light["scene"]["unseen_colour"], inside, record,
                                                inputs["lamp library"]))
+    views = cleared_views(passes.record_views(record), stage / f"{place}.usda")
     shutil.rmtree(out / "source")
     layer.lamps_file(found, out)
-    (out / passes.VIEWS).write_text(json.dumps(passes.record_views(record), indent=1))
+    (out / passes.VIEWS).write_text(json.dumps(views, indent=1))
+
+
+def cleared_views(views, root):
+    """The record's views ({"size", "views"}, passes.record_views) on the place's stage at `root` as the assembly lays
+    it, each standing in free air (camera_paths.cleared_view: its eye outside every solid and clear of every mesh, its
+    picture not filled by a surface within a metre), turned or moved the least that does it; one nothing within reach
+    clears is left out with why (`left_out`). The scene record places its views on the plan's footprints, never the
+    made models (2026-11-02: flat's spot-2 all wardrobe, street's views in its police car)."""
+    import camera_paths  # on sys.path through layer.py
+    scenes = camera_paths.place_scenes(root)
+    kept, left = [], []
+    for view in views["views"]:
+        cleared, why = camera_paths.cleared_view(scenes, view, views["size"])
+        if cleared is None:
+            left.append({"name": view["name"], "eye": view["eye"], "why": why})
+        else:
+            kept.append(cleared)
+    return {**views, "views": kept, **({"left_out": left} if left else {})}
 
 
 def sun_lamps(place, out, stage):
@@ -264,6 +287,28 @@ def judge_drawn(output, inputs, evidence):
     why = f"the stage draws nothing to light ({waiting} record entries waiting on their models)"
     return verdict("drawn", drawn > 0, why if not drawn else f"{drawn} drawn prims to light, {waiting} waiting",
                    {"drawn": drawn, "waiting": waiting}, findings=[why] if not drawn else ())
+
+
+def judge_views_clear(output, inputs, evidence):
+    """Every view the passes will be rendered on stands in free air on the stage the layer lights (passes.source):
+    its eye outside every solid and CLEARANCE from every mesh, its middle meeting no surface within LOOK_CLEAR and at
+    most NEAR_MOST of its picture doing so (camera_paths.view_faults), before light-passes is bought (2026-11-02: 12
+    of 26 places' views looked into a wardrobe, a police car, a slab or a blob); the views left out named."""
+    import tempfile
+    import camera_paths  # on sys.path through layer.py
+    place = json.loads((output / "lamps.json").read_text())["place"]
+    held = json.loads((output / passes.VIEWS).read_text())
+    (PROPS_HOME / "store/cache").mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=PROPS_HOME / "store/cache") as folder:
+        stage = passes.source(place, inputs, pathlib.Path(folder) / "source")
+        scenes = camera_paths.place_scenes(stage / f"{place}.usda")
+        faults = [f"{view['name']}: {fault}" for view in held["views"]
+                  for fault in camera_paths.view_faults(scenes, view, held["size"])]
+    left = [f"{view['name']} left out: {view['why']}" for view in held.get("left_out", [])]
+    return verdict("views clear", not faults, "; ".join(faults[:3]) or
+                   f"{len(held['views'])} views in free air, {len(left)} left out",
+                   {"faults": len(faults), "views": len(held["views"]), "left_out": len(left)},
+                   {"faults": "lower", "left_out": "lower"}, faults + left)
 
 
 def missing_elements(found):
@@ -1135,7 +1180,7 @@ LIT = contracts.Contract("light", 1, light_faults, {"length": "metre", "up axis"
 RECORD = {passes.RECORD: ("scene-record", 1)}  # the place's own as an after, each shown place's beside
 LAYER_STAGE = graph.Stage("light-layer", "place", make_layer, LAYERED,
                           (checks.Check("lamps placed", judge_placed), checks.Check("lit", judge_lit),
-                           checks.Check("drawn", judge_drawn),
+                           checks.Check("drawn", judge_drawn), checks.Check("views clear", judge_views_clear),
                            checks.Check("sky elements", judge_layer_sky), checks.Check("sky bodies", judge_sky_bodies)),
                           files=layer_files, after={**RECORD, **passes.LAID}, applies=applies)
 PASSES_STAGE = graph.Stage("light-passes", "place", passes.make_passes, passes.PASSES,

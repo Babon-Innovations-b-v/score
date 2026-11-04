@@ -29,6 +29,12 @@ gates.
   palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
   picture-made model keeps its geometry and gets its finish replaced. The library check
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
+- **Views stand in free air on what is made** (2026-11-04). The scene record places its views on the plan's
+  footprints; the made models stand at their built sizes, so its views looked into flat's wardrobe, street's police
+  car, square's and base's blobs (2026-11-02). The layer's views.json is the record's views cleared on the stage it
+  lights (`cleared_views`, `camera_paths.cleared_view`: turned, else moved out, else left out with why in
+  `left_out`), and its `views clear` gate measures each again (`camera_paths.view_faults`) before light-passes is
+  bought. Never loosen LOOK_CLEAR or NEAR_MOST to pass a place: move the view.
 - **Strengths are measured, never the game's numbers.** One render gives every lamp's light alone; light is linear in
   a lamp's strength, so the look at any strengths is mixed from the passes through the view's own tone curve (fitted on
   the render's look against its light). The sweep's scale brings the place's brightness to its concept's; a blown-out

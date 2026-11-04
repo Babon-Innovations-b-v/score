@@ -4,7 +4,9 @@ line meets the wall) goes through the doorway and nowhere else, at eye height, c
 the same path, in the review walk's format; a loop through both rooms closes on itself; a place's characters, one
 alone and a crowd's instances, stand in the way as boxes where they stand, and one who walks where they stand at each
 moment; a thing the stage moves stands in the way where it is at each moment, its particles and its people aside;
-and an eye's clearance is its true distance from walls and people.
+and an eye's clearance is its true distance from walls and people; a still view (a look the light is rendered on)
+stands in free air, outside every solid with its picture not filled by a near surface, or is turned or moved till it
+does, or left out.
 
 Breaks that turn each test red (each applied once and seen red, 2026-10-27):
 - a_path_between_rooms_goes_through_the_doorway: camera_paths.leg's
@@ -19,6 +21,10 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
   the particles counted as moving things).
 - clearance_is_measured_on_every_side: camera_paths.mesh_tree's `[np.asarray(mesh.area_faces) > FLAT_AREA]` made
   `[np.asarray(mesh.area_faces) >= 0]` (a triangle with no area kept in FCL's tree).
+- clearance_is_measured_on_every_side (its still views, 2026-11-04): camera_paths.inside_solid's `> 0` made `< 0` (the
+  eye in the crate stands outside it); view_faults' `near > NEAR_MOST` made `near > 1.0` (the view off the wall
+  passes); cleared_view's `if not view_faults(scenes, tried, size)` made `if True` (a blocked view kept as it is); its sort
+  key `tried[0]` made `tried[1]` (every turn where it stands before any move: the wall's view turned along the wall).
 
 Run: .venv/bin/python tools/usd/test_a_walk_goes_through_doorways_clear_of_everything.py
 """
@@ -243,6 +249,41 @@ def clearance_is_measured_on_every_side():
         problems.append(f"edges starting 0.1 m and running 0.2 m from a wall are clear: {clear}")
     if not camera_paths.edges_clear(scenes, [-3.6, 1.6, -2.0], [-3.6, 1.6, 2.0], camera_paths.CLEARANCE)[0]:
         problems.append("an edge 0.4 m from the wall is not clear")
+    return problems + still_views_stand_in_free_air(scenes)
+
+
+def still_views_stand_in_free_air(scenes):
+    """A still view across the west room sees it; one with its eye in the crate (a 1 m box at x = -2) is inside a
+    solid, one 0.5 m off the west wall facing it sees a surface; each is cleared the least: the wall's stepped back still looking its
+    way (two steps of MOVE_STEP beat six of TURN_STEP along the wall), the crate's moved out of it, and then sees the room; one shut in a closet is left out with why."""
+    def view(eye, aim):
+        return {"name": "view", "eye": eye, "aim": aim, "up": [0.0, 1.0, 0.0], "fov": 80}
+    size, problems = (960, 540), []
+    room = view([-3.5, 1.6, 2.5], [-1.0, 1.0, -1.0])
+    crate = view([-2.0, 0.5, 0.0], [-1.0, 0.5, 0.0])
+    wall = view([-3.5, 1.6, 0.0], [-5.0, 1.6, 0.0])
+    if camera_paths.view_faults(scenes, room, size):
+        problems.append(f"a view across the room is faulted: {camera_paths.view_faults(scenes, room, size)}")
+    if camera_paths.view_faults(scenes, crate, size) != ["its eye stands inside a solid"]:
+        problems.append(f"a view from inside the crate reads {camera_paths.view_faults(scenes, crate, size)}")
+    if not any("of its picture" in fault for fault in camera_paths.view_faults(scenes, wall, size)):
+        problems.append(f"a view 0.5 m off a wall reads {camera_paths.view_faults(scenes, wall, size)}")
+    backed, _ = camera_paths.cleared_view(scenes, wall, size)  # two steps back beat six steps of turn along the wall
+    if backed is None or not np.allclose(backed["eye"], [-3.0, 1.6, 0.0], atol=1e-3) or \
+            not np.allclose(np.subtract(backed["aim"], backed["eye"]), [-1.5, 0.0, 0.0], atol=1e-3) or \
+            camera_paths.view_faults(scenes, backed, size):
+        problems.append(f"the wall's view is not stepped back 0.5 m still looking at it: {backed}")
+    moved, _ = camera_paths.cleared_view(scenes, crate, size)
+    if moved is None or camera_paths.inside_solid(scenes["still"], moved["eye"]) or \
+            camera_paths.view_faults(scenes, moved, size):
+        problems.append(f"the crate's view is not moved out clear: {moved}")
+    box = trimesh.creation.box(extents=(0.8, 0.8, 0.8))
+    closet = trimesh.Trimesh(box.vertices, box.faces[:, ::-1], process=False)  # seen from inside: faces inward
+    shut, why = camera_paths.cleared_view(dict(scenes, still=closet, blocking=closet, boxes=np.zeros((0, 8, 3)),
+                                               tree=camera_paths.mesh_tree(closet)),
+                                          view([0.0, 0.0, 0.0], [1.0, 0.0, 0.0]), size)
+    if shut is not None or not why:
+        problems.append(f"a view shut in a closet 0.8 m across is kept: {shut}")
     return problems
 
 
