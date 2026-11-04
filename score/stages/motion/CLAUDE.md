@@ -26,9 +26,15 @@ stage (`../layer_base.py`). `__init__.py`'s docstring has the make and the gates
   agnostic"). Every object of a scene inventory row whose kind moves (CONTEXT.md "row kind", `../row_kinds.py`)
   moves by its kind's rule in `data/checks/row-kinds.json`: a door swings a right angle on its own left edge and
   shuts again, a crane slews about its middle, a fan spins a whole number of turns a round, each at the middle of its
-  motion kind's cited speeds (`data/checks/motion.json`); a vehicle or a lift stands with the rule's reason; a rule
-  with `needs` moves only where the scene holds what it serves (a door swings only where somebody passes: a row that
-  `walks`), else it stands with `still_without`. The record is written into the output (`moves.json`) and the gates
+  motion kind's cited speeds (`data/checks/motion.json`); a vehicle or a lift stands with the rule's reason. The
+  row's own words choose its rule (`from_design.rule_of`): a sliding door slides, a garage or roller door rises, a
+  double door splits, an open one stands posed open. A door (`needs` "passes") moves only for a walker of the
+  accepted cast (the cast row's `cast.json`, an `after`) whose route comes within a metre of it, opened by its
+  arrival and shut once it is past, played once; with nobody passing it stands with `still_without` (the audit of
+  2026-11-04: 22 doors swung on a 2 s / 10 s clock with nobody there; `passed` and `rests` fail that now). A move no
+  writer makes (a rocket's launch, a flag's cloth, a body of water, a double door's leaves) is `unmade` and fails
+  `covered`, as does every row no stage makes (`row_kinds.uncovered`: a moving word in its noun, a screen's picture),
+  never a still. The record is written into the output (`moves.json`) and the gates
   read it there; `designed` fails a moving thing on no inventory row's object and a moving row with no object on
   the stage. A moving row a carried batch gap names (by its id or its take, the row's `thing`: the bake's gap
   names the take only) is still failed by name, recorded in `left_out` and given a gap of its own in the output's

@@ -34,6 +34,8 @@ A rigid record:
       | "slide" | "turn" | "climb" | "light" as a motion record's (tools/usd/motion.py)
         "from"                               the measure, source or game line the moving thing's numbers came from
      }],
+     "posed": [<a move with no moves, started "open">]   a thing standing still where its design stands it open
+                                             (an open door): written open at the layer's start and never moved
      "still": {<prim>: <why it stands still>}}   a thing of a moving kind that rightly does not move here
 
 Each moving thing is written as an `over` with xform ops before the base's own: a path's `translate:path` and
@@ -348,7 +350,7 @@ def write_layer(place, motions, moves, source, out, ground=None):
     layer.framesPerSecond = rate
     layer.startTimeCode = 0.0
     layer.endTimeCode = seconds * rate
-    every = [*(motions or {}).get("motions", []), *(moves or {}).get("moves", [])]
+    every = [*(motions or {}).get("motions", []), *(moves or {}).get("moves", []), *(moves or {}).get("posed", [])]
     stage = working_stage(place, source, layer, moving_prims(every))
     moved = []
     for entry in every:

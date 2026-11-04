@@ -67,7 +67,7 @@ design.
   records for the airlock, garage, hangar, greenhouse and habitat are ported into this schema (2026-10-12) and the
   branch is gone.
 - `test_effects_ride_their_design.py` makes a small kitchen stage itself, makes its effects from its design (the
-  stove's and the kettle's steam at their measured spots), passes every gate and fails `designed` on a row with no
-  object; a drilling rig on Mars lays its pile as a surface (Newton's run stood in for by a cone, the scene's ask by
+  pot's on the stove and the kettle's steam at their measured spots, none off a bare hob or a pot on a chair),
+  passes every gate, fails `subject` on steam written onto the bare hob and `designed` on a row with no object; a drilling rig on Mars lays its pile as a surface (Newton's run stood in for by a cone, the scene's ask by
   a stand-in answer) and fails `footage` on one too flat; an ask left unanswered stops the row; every kind is made
   by its matter's method.

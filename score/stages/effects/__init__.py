@@ -32,6 +32,9 @@ into its stage.
                        interiors there are when anything stands outside
              designed  every emitter rides an object of a row of the scene's inventory, and every row whose kind emits
                        has an object on the stage to carry it
+             subject   every emitter rides the thing its effect was measured on (effects.json `subject`): a row of
+                       one of its kinds, standing on a row of one of its `on` kinds where it names them (a simmering
+                       pot's steam on a pot on a hob, never on a bare hob)
 
 A record where nothing rides or follows a moving prim passes `attached` only when it says why (`rides_nothing`).
 The stage is the place's seed with its accepted scene record (and motion models) taken as the assembly takes them
@@ -782,7 +785,32 @@ def judge_designed(output, inputs, evidence):
                           tuple(faults))
 
 
+def judge_subject(output, inputs, evidence):
+    """Pass when every emitter rides the thing its effect kind was measured on (effects.json `subject`)."""
+    record, design = record_of(inputs), read_json(inputs["design"])
+    kinds, effects = row_kinds.table(inputs["row kinds"]), read_json(inputs["effect kinds"])["kinds"]
+    rows = {row["id"]: row for row in design.get("rows", [])}
+    faults = []
+    for entry in record["effects"]:
+        subject, row = effects[entry["kind"]].get("subject", {}), rows.get(entry["row"], {})
+        kind = row_kinds.kind_of(row, kinds) if row else None
+        anchor = str(row.get("anchor") or "")
+        holder = rows.get(anchor.removeprefix("on:")) if anchor.startswith("on:") else None
+        under = row_kinds.kind_of(holder, kinds) if holder else None
+        if kind not in subject.get("kinds", ()):
+            measured = " or ".join(subject.get("kinds", ["subject it names"]))
+            faults.append(f"{entry['name']}: {entry['kind']} was measured on a {measured}, and it rides a "
+                          f"{kind or 'row of no kind'} ({entry['row']})")
+        elif subject.get("on") and under not in subject["on"]:
+            faults.append(f"{entry['name']}: {entry['kind']} was measured on a {kind} standing on a "
+                          f"{' or '.join(subject['on'])}, and {entry['row']} stands on {under or 'none'}")
+    reason = (f"{len(faults)} emitters ride something their effect was not measured on" if faults else
+              f"{len(record['effects'])} emitters each ride what their effect was measured on")
+    return checks.Verdict("subject", checks.FAIL if faults else checks.PASS, reason,
+                          {"emitters": len(record["effects"])}, {}, tuple(faults))
+
+
 LAYER = contracts.Contract("effects-layer", 1, layer_faults, {"length": "metre", "up axis": "Y", "time": "second"})
 CHECKS = tuple(checks.Check(name, judged_on_design(judge)) for name, judge in (
     ("attached", judge_attached), ("footage", judge_footage), ("light", judge_light), ("outside", judge_outside),
-    ("designed", judge_designed)))
+    ("designed", judge_designed), ("subject", judge_subject)))

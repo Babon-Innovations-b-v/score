@@ -84,12 +84,21 @@ DESIGNED = [("wall_1", (2.2, 0.0, 1.0), (-0.5, 0.0, -0.1), (0.5, 2.5, 0.1)),
             ("astronaut_1", (0.0, 0.0, -4.0), (-0.25, 0.0, -0.15), (0.25, 1.8, 0.15))]
 
 
-def toy_inputs(folder, rows=ROWS, extra=()):
+# The cast's walker: along x = 3 from z = 5 to z = -3 at 1.333 m a second, through the door's doorway (its box x 2.55
+# to 3.45 at z 0.95 to 1.05); within a metre of the box from z 2.05 to -0.05, 2.21 to 3.79 s into its walk.
+WALKER = {"name": "astronaut_1", "doing": "walking", "at": [3.0, 0.0, 5.0], "turn": 0.0, "pace": 1.333,
+          "path": [[3.0, 0.0, 5.0], [3.0, 0.0, -3.0]]}
+SEATED = {"name": "astronaut_1", "doing": "sitting", "at": [0.0, 0.0, -4.0], "turn": 0.0, "path": None}
+
+
+def toy_inputs(folder, rows=ROWS, extra=(), cast=(WALKER,)):
     folder = pathlib.Path(folder)
     (folder / "inventory.json").write_text(json.dumps({"rows": rows}))
     seed = a_seed(folder, {"floor": ((-6.0, -0.1, -6.0), (6.0, 0.0, 6.0))}, [*DESIGNED, *extra])
+    (folder / "cast").mkdir(exist_ok=True)
+    (folder / "cast/cast.json").write_text(json.dumps({"characters": list(cast)}))
     return {"design": folder / "inventory.json", "row kinds": REPO / "data/checks/row-kinds.json",
-            "kinds": REPO / "data/checks/motion.json", "seed": seed}
+            "kinds": REPO / "data/checks/motion.json", "seed": seed, "cast": folder / "cast"}
 
 
 def made(inputs, folder):
@@ -115,33 +124,79 @@ def middle_at(output, inputs, prim, seconds):
 
 
 def test_the_door_swings_the_fan_turns_the_rover_stands_and_every_gate_passes(tmp_path):
-    """The hatch kind's cited range is 15 to 53 degrees a second: the door swings at its middle, 34. The ceiling fan's
-    is 400 to 1080: the middle 740 is 41.1 turns in the 20 s round, so 41 turns, 738 a second. Shut, the leaf's middle
-    stands at its own spot (3, 1, 1); its hinge is its left edge, (2.55, 1, 1); a quarter turn about the upright there
-    (rotateY +90: x to -z) carries the middle 0.45 m from +x of the hinge to -z of it: (2.55, 1, 0.55).
+    """The hatch kind's cited range is 15 to 53 degrees a second: the door swings at its middle, 34, so 90 degrees
+    take 2.647 s. The cast's walker comes within a metre of it from 2.21 to 3.79 s: it opens from 0 (2.21 - 2.647 is
+    before the start), stands open at 3 s, shuts from 3.7 s (its route read every 0.1 s), played once (no loop). The ceiling fan's is 400 to 1080:
+    the middle 740 is 41.1 turns in the 20 s round, so 41 turns, 738 a second. Shut, the leaf's middle stands at its
+    own spot (3, 1, 1); its hinge is its left edge, (2.55, 1, 1); a quarter turn about the upright there (rotateY +90:
+    x to -z) carries the middle 0.45 m from +x of the hinge to -z of it: (2.55, 1, 0.55).
     Break: score/stages/motion/from_design.py: `turns = max(1, round(middle_speed(motion_kind, "angular") * ROUND /
-        360.0))` -> `turns = middle_speed(motion_kind, "angular") * ROUND / 360.0`"""
+        360.0))` -> `turns = middle_speed(motion_kind, "angular") * ROUND / 360.0`
+    Break: score/stages/motion/from_design.py: `opens = max(free, enter - travel)` -> `opens = max(free, enter)`"""
     inputs = toy_inputs(tmp_path)
     out, record = made(inputs, tmp_path)
     found = {check.name: check.judge(out, inputs, None) for check in motion.CHECKS}
     door = f"/{PLACE}/Objects/door_1"
-    shut, opened = middle_at(out, inputs, door, 0.0), middle_at(out, inputs, door, 8.0)
+    shut, opened = middle_at(out, inputs, door, 8.0), middle_at(out, inputs, door, 3.0)
     assert all(verdict.answer == checks.PASS for verdict in found.values()), {
         name: (verdict.reason, verdict.findings) for name, verdict in found.items() if verdict.answer != checks.PASS}
     moves = {entry["name"]: entry for entry in record["moves"]}
     assert sorted(moves) == ["door_1", "fan_1"] and list(record["still"]) == [f"/{PLACE}/Objects/rover_1"]
     assert moves["door_1"]["swing"]["speed"] == 34.0 and moves["door_1"]["swing"]["angle"] == 90.0
+    assert moves["door_1"]["swing"]["moves"] == [[0.0, "open"], [3.7, "shut"]] and not moves["door_1"]["loop"], \
+        moves["door_1"]["swing"]
     assert moves["fan_1"]["spin"]["speed"] == 738.0
     assert np.allclose(shut, (3.0, 1.0, 1.0), atol=1e-6), shut
     assert np.allclose(opened, (2.55, 1.0, 0.55), atol=1e-4), opened
 
 
-def test_with_nobody_in_the_scene_the_door_stands_shut(tmp_path):
-    """No astronaut row: nobody passes through the door, so it stands shut with its rule's reason; the fan still turns.
-    Break: score/stages/motion/from_design.py: `elif not served(rule, inventory, kinds):` -> `elif False:`"""
-    _, record = made(toy_inputs(tmp_path, [row for row in ROWS if row["id"] != "astronaut"]), tmp_path)
+OPEN_DOOR = ("open_door_1", (-4.0, 0.0, 0.0), (-0.45, 0.0, -0.05), (0.45, 2.0, 0.05))
+SLIDING_DOOR = ("sliding_door_1", (-4.0, 0.0, 4.0), (-0.6, 0.0, -0.05), (0.6, 2.1, 0.05))
+WORDED = [{"id": "open_door", "name": "open apartment door", "noun": "door"},
+          {"id": "sliding_door", "name": "sliding door", "noun": "door"}]
+
+
+def test_with_nobody_walking_through_the_doors_stand_as_their_words_say(tmp_path):
+    """Fault (the audit of 2026-11-04, 22 doors in 12 places): every door swung open at 2 s and shut at 10 s each
+    20 s round wherever the inventory held any person, with nobody walking through. The astronaut sits, so no walker
+    passes: the door stands shut with its rule's reason, the open apartment door stands posed open (its row's words),
+    the sliding door stands shut, and `passed` and `rests` pass. The old fixed clock (a swing open at 2 s, shut at 10
+    s, every round) written into the record fails `passed`, with no walker near; the sliding door written as a swing
+    fails `rests`; no cast at all leaves every door standing.
+    Break: score/stages/motion/from_design.py: `elif not served(rule, inventory, kinds) or spans == []:`
+        -> `elif not served(rule, inventory, kinds):`
+    Break: score/stages/motion/__init__.py: `if not any(enter <= end and leave >= begin for enter, leave in near):`
+        -> `if False:`
+    Break: score/stages/motion/__init__.py: `if said & set(NOT_ONE_LEAF) and path in swings:` -> `if False:`
+    Break: score/stages/motion/from_design.py: `return dict(rule, rests="open") if said & set(base.get("open_words",
+        ())) else rule` -> `return rule`"""
+    inputs = toy_inputs(tmp_path, ROWS + WORDED, (OPEN_DOOR, SLIDING_DOOR), cast=(SEATED,))
+    out, record = made(inputs, tmp_path)
     assert sorted(entry["name"] for entry in record["moves"]) == ["fan_1"]
     assert record["still"][f"/{PLACE}/Objects/door_1"].startswith("nobody passes through it")
+    assert record["still"][f"/{PLACE}/Objects/sliding_door_1"].startswith("nobody passes through it")
+    assert [entry["name"] for entry in record["posed"]] == ["open_door_1"], record["posed"]
+    assert record["still"][f"/{PLACE}/Objects/open_door_1"].startswith("it stands open")
+    assert middle_at(out, inputs, f"/{PLACE}/Objects/open_door_1", 5.0)[2] < -0.4  # turned off its wall line
+    for name in ("passed", "rests", "moving area", "covered"):
+        verdict = judge(name, out, inputs)
+        assert verdict.answer == checks.PASS, (name, verdict.reason, verdict.findings)
+    clock = {"name": "door_1", "prim": f"/{PLACE}/Objects/door_1", "row": "door", "kind": "hatch", "on": "rail",
+             "start": 0.0, "length": 20.0, "loop": True,
+             "swing": {"about": {"side": [-1.0, 0.0, 0.0]}, "angle": 90.0, "speed": 34.0, "starts": "shut",
+                       "moves": [[2.0, "open"], [10.0, "shut"]]}}
+    slid = dict(clock, name="sliding_door_1", prim=f"/{PLACE}/Objects/sliding_door_1", row="sliding_door")
+    (out / motion.RECORD).write_text(json.dumps(dict(record, moves=[*record["moves"], clock, slid])))
+    verdict = judge("passed", out, inputs)
+    assert verdict.answer == checks.FAIL and verdict.findings[0].startswith(
+        "door_1: off its rest from 2.0 to 12.6 s, and no walker"), verdict.findings
+    verdict = judge("rests", out, inputs)
+    assert verdict.answer == checks.FAIL and any("sliding_door_1: its row says sliding, yet it swings" in line
+                                                 for line in verdict.findings), verdict.findings
+    (tmp_path / "alone").mkdir()
+    alone = toy_inputs(tmp_path / "alone", cast=())
+    _, record = made(alone, tmp_path / "alone")
+    assert sorted(entry["name"] for entry in record["moves"]) == ["fan_1"]
 
 
 def test_the_make_never_reads_its_seed_so_a_failure_is_noted_never_remade(tmp_path):
@@ -268,19 +323,38 @@ POST = ("wall_2", (3.0, 0.0, 0.4), (-0.2, 0.0, -0.2), (0.2, 1.0, 0.2))
 MIRROR = ("wall_3", (3.0, 0.0, 1.6), (-0.2, 0.0, -0.2), (0.2, 1.0, 0.2))
 
 
+# A wall behind the sliding door along its whole travel either way, and a post 0.3 m past its +x end; a second walker
+# along x = -4 from z = 0 to 6 passes it from 2.2 s to its walk's end at 4.5 s.
+BEHIND = ("wall_4", (-3.6, 0.0, 4.15), (-2.4, 0.0, -0.1), (2.4, 2.5, 0.1))
+PAST = ("wall_5", (-2.9, 0.0, 3.9), (-0.2, 0.0, -0.1), (0.2, 1.0, 0.1))
+SLIDER = {"name": "astronaut_2", "doing": "walking", "at": [-4.0, 0.0, 0.0], "turn": 0.0, "pace": 1.333,
+          "path": [[-4.0, 0.0, 0.0], [-4.0, 0.0, 6.0]]}
+
+
 def test_a_door_that_strikes_its_rule_s_way_is_fitted_to_swing_the_other_way(tmp_path):
     """The post in its rule's way: swung -90 instead, said fitted, clear passes; a quarter turn the other way (rotateY
-    -90: x to +z) carries the middle 0.45 m from +x of the hinge to +z of it: (2.55, 1, 1.45).
-    Break: score/stages/motion/__init__.py: `kept.append(turned_to(first[prim], left[prim].pop(0)))` -> `still[prim] =
-        "struck"`"""
-    inputs = toy_inputs(tmp_path, extra=(POST,))
+    -90: x to +z) carries the middle 0.45 m from +x of the hinge to +z of it: (2.55, 1, 1.45). Fault (the audit of
+    2026-11-04): a sliding door swung as one hinged leaf. The sliding door slides its own 1.2 m width along its wall
+    at its kind's middle 0.29 m a second (4.138 s) for the walker passing it (within a metre from 2.2 to 3.7 s), so it
+    opens from 0 and shuts as soon as it is open; its rule's way (+x) strikes the post, so it slides -x, said fitted:
+    its middle at x -4.58 at 2 s; every gate passes.
+    Break: score/stages/motion/__init__.py: `kept.append(fit(first[prim], left[prim].pop(0)))` -> `still[prim] =
+        "struck"`
+    Break: score/stages/motion/from_design.py: `variant = next((entry["motion"] for entry in kinds[row["row_kind"]]
+        .get("variants", []) if said & set(entry["words"])), {})` -> `variant = {}`"""
+    inputs = toy_inputs(tmp_path, ROWS + WORDED[1:], extra=(POST, SLIDING_DOOR, BEHIND, PAST), cast=(WALKER, SLIDER))
     out, record = made(inputs, tmp_path)
-    clear = judge("clear", out, inputs)
-    opened = middle_at(out, inputs, f"/{PLACE}/Objects/door_1", 8.0)
-    door = next(entry for entry in record["moves"] if entry["name"] == "door_1")
-    assert door["swing"]["angle"] == -90.0 and "fitted by the clear gate" in door["from"], door
-    assert clear.answer == checks.PASS, (clear.reason, clear.findings)
+    found = {check.name: check.judge(out, inputs, None) for check in motion.CHECKS}
+    opened = middle_at(out, inputs, f"/{PLACE}/Objects/door_1", 3.0)
+    slid = middle_at(out, inputs, f"/{PLACE}/Objects/sliding_door_1", 2.0)
+    moves = {entry["name"]: entry for entry in record["moves"]}
+    assert moves["door_1"]["swing"]["angle"] == -90.0 and "fitted by the clear gate" in moves["door_1"]["from"]
+    assert moves["sliding_door_1"]["slide"]["by"] == [-1.2, 0.0, 0.0], moves["sliding_door_1"]["slide"]
+    assert all(verdict.answer == checks.PASS for verdict in found.values()), {
+        name: (verdict.reason, verdict.findings) for name, verdict in found.items() if verdict.answer != checks.PASS}
     assert np.allclose(opened, (2.55, 1.0, 1.45), atol=1e-4), opened
+    assert moves["sliding_door_1"]["slide"]["moves"] == [[0.0, "open"], [4.138, "shut"]]
+    assert np.allclose(slid, (-4.58, 1.05, 4.0), atol=1e-4), slid
 
 
 def test_a_door_that_strikes_every_way_stands_with_its_strike(tmp_path):
@@ -309,12 +383,23 @@ def test_a_hatch_lying_flat_stands(tmp_path):
 
 
 def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
-    """A rocket named as an old record's moving kind, on no moving row, is not asked for (3 moving kinds: door, fan,
-    rover); the design's door taken out of the record (neither moved nor standing with a reason) fails by name.
+    """A ship named as an old record's moving kind, on a craft row that stands with its written reason, is not asked
+    for (3 moving kinds: door, fan, rover); the design's door taken out of the record (neither moved nor standing with
+    a reason) fails by name. Fault (the audit of 2026-11-04): a row no kind moves was invisible to every gate (the
+    launching rocket, flags, a body of water, 102 screens). A launching rocket (its launch no writer makes), a wind
+    turbine (a moving word no kind moves) and a screen (a `does` no stage reads) each fail `covered` by name, and a
+    design holding only the turbine has the motion row, so the fault is judged.
     Break: score/stages/motion/__init__.py: `if path not in moved and path not in still and path.rsplit("/", 1)[-1] not
-        in still]` -> `if False]`"""
-    rocket = ("rocket_1", (-4.0, 0.0, 0.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))
-    inputs = toy_inputs(tmp_path, ROWS + [{"id": "rocket", "name": "rocket", "noun": "rocket"}], extra=(rocket,))
+        in still]` -> `if False]`
+    Break: score/stages/motion/from_design.py: `unmade.append(f"{path}: {rule['move']}, which no writer makes:
+        {rule['why']}")` -> `still[path] = rule["why"]`
+    Break: score/stages/row_kinds.py: `if heard and not done & {"moves", "loose"} and not (kind and
+        kinds[kind].get("stands")):` -> `if False:`
+    Break: score/stages/design_layers.py: `return found | {"motion"} if row_kinds.uncovered(inventory, kinds) else
+        found` -> `return found`"""
+    from score.stages import design_layers
+    ship = ("ship_1", (-4.0, 0.0, 0.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))
+    inputs = toy_inputs(tmp_path, ROWS + [{"id": "ship", "name": "ship", "noun": "ship"}], extra=(ship,))
     out, record = made(inputs, tmp_path)
     kept = judge("covered", out, inputs)
     (out / motion.RECORD).write_text(json.dumps(dict(record, moves=[entry for entry in record["moves"]
@@ -322,6 +407,19 @@ def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
     dropped = judge("covered", out, inputs)
     assert kept.answer == checks.PASS and kept.measures["moving kinds"] == 3, (kept.reason, kept.findings)
     assert dropped.answer == checks.FAIL and dropped.findings == (f"/{PLACE}/Objects/door_1 (door)",), dropped.findings
+    unmade = [{"id": "rocket", "name": "launching rocket", "noun": "rocket"},
+              {"id": "turbine", "name": "wind turbine", "noun": "turbine"},
+              {"id": "screen", "name": "wall screen", "noun": "screen"}]
+    rocket = ("rocket_1", (-4.0, 0.0, -4.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))
+    (tmp_path / "unmade").mkdir()
+    inputs = toy_inputs(tmp_path / "unmade", ROWS + unmade, extra=(rocket,))
+    out, record = made(inputs, tmp_path / "unmade")
+    verdict = judge("covered", out, inputs)
+    assert verdict.answer == checks.FAIL, verdict.reason
+    assert [line.split(":", 2)[:2] for line in verdict.findings] == [
+        [f"/{PLACE}/Objects/rocket_1", " launch, which no writer makes"], ["turbine", " \"wind turbine\" names a moving thing (turbine), and its kind (none) gives it no move and no written reason to stand (data/checks/row-kinds.json)"],
+        ["screen", " its kind screen shows, and no stage makes that (row-kinds.json `read_by`)"]], verdict.findings
+    assert "motion" in design_layers.kinds_of({"rows": [unmade[1]]})
 
 
 def test_a_swing_is_tried_its_rule_s_way_and_the_other_down_to_sixty_degrees():

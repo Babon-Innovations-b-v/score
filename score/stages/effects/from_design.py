@@ -3,7 +3,10 @@ agnostic"): every object of every scene inventory row whose kind emits (score/st
 effect its kind emits, from the library of measured effects (data/checks/effects.json), riding the object at the spot
 its effect names on the object's own box, made and drawn by the one rule for what the effect is made of (its
 `matter`'s method: Newton for grains, the baked particles for a cloud or a flame). Its footage checks are the effect's own, measured on that emitter; what
-emits and stands nowhere on the stage is named in `missing`.
+emits and stands nowhere on the stage is named in `missing`. A kind with `on` (a pot) emits only where its row stands
+on a row of one of those kinds (a cooker): a pot on a shelf, or a bare hob, lets out no steam, named in `quiet`.
+
+    held_on(row, rows, kinds)   whether a row stands where its kind emits (its `on`, or anywhere for a kind with none)
 
     record(place, inventory, kinds, effects, stage)   the effects record tools/usd/effects.py writes, from the design
 """
@@ -44,10 +47,27 @@ def checks_of(spec, name):
     return [dict(check, name=f"{name}: {check['name']}", emitters=[name], anchor=name) for check in spec["checks"]]
 
 
+def held_on(row, rows, kinds):
+    """Whether a row stands where its kind emits: on (its anchor `on:<row>`) a row of one of its kind's `on` kinds;
+    anywhere for a kind with no `on`."""
+    wanted = kinds[row["row_kind"]].get("on")
+    if not wanted:
+        return True
+    anchor = str(row.get("anchor") or "")
+    holder = rows.get(anchor.removeprefix("on:")) if anchor.startswith("on:") else None
+    return holder is not None and row_kinds.kind_of(holder, kinds) in wanted
+
+
 def record(place, inventory, kinds, effects, stage):
-    """The scene's effects record from its design: {place, about, effects, no_light, footage, missing}."""
-    entries, found_checks, sources, lights, missing = [], [], {}, set(), []
+    """The scene's effects record from its design: {place, about, effects, no_light, footage, missing, quiet}."""
+    entries, found_checks, sources, lights, missing, quiet = [], [], {}, set(), [], []
+    rows = {row["id"]: row for row in inventory.get("rows", [])}
     for row in row_kinds.rows_that(inventory, "emits", kinds):
+        if not held_on(row, rows, kinds):
+            quiet.append(f"{row['id']}: a {row['row_kind']} emits only standing on a "
+                         f"{' or '.join(kinds[row['row_kind']]['on'])} (data/checks/row-kinds.json `on`), and it "
+                         f"stands on {row.get('anchor') or 'nothing named'}")
+            continue
         paths = row_kinds.objects_of(stage, place, row["id"])
         for effect in kinds[row["row_kind"]]["effects"]:
             spec = effects["kinds"][effect]
@@ -67,4 +87,4 @@ def record(place, inventory, kinds, effects, stage):
             "effects": entries, "no_light": "; ".join(sorted(lights)) or None,
             "footage": {"how": effects["how"], "licence": effects["licence"], "sources": sources,
                         "checks": found_checks},
-            "missing": missing}
+            "missing": missing, "quiet": quiet}

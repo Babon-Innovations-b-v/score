@@ -29,14 +29,23 @@ move, so two places that show each other never load each other round.
                        keeps touching what it is mounted on (within TOUCH); in the air it stays AIR_LEAST over all
              covered   every object of an inventory row whose kind moves moves in the layer, or the record says
                        why it stands still (`still`); a prim named like an old record's moving kind
-                       (data/checks/motion.json `prims`) that no moving row has is not asked for
+                       (data/checks/motion.json `prims`) that no moving row has is not asked for; a move no
+                       writer makes (the record's `unmade`: a rocket's launch, a flag's cloth) fails, and so does
+                       every row no stage makes (row_kinds.uncovered: a moving word in its noun whose kind gives no
+                       move nor a written reason to stand, or a `does` no stage reads, a screen's picture)
+             passed    a door (a row whose rule needs a passer) is off its rest only while a walker of the accepted
+                       cast (the cast row's cast.json) stands within from_design.NEAR of it, read off the walkers'
+                       routes: never on a clock with nobody there (the M3 diagnosis)
+             rests     a door stands and moves as its row's words say: open where they say open (and never moves),
+                       shut at the start otherwise, and never a single swung leaf where they say sliding, garage,
+                       roller, shutter or double
              designed  every move and every still thing is an object of a row of the scene's inventory, and every
                        row whose kind moves has an object on the stage
              follows, steps, moving area
                        the motion check (check.py, #23): each move keeps to its record's intended motion at any speed,
                        never jumps from one frame to the next, and what moves is exactly what the records move
 
-Only scenes whose design has a row that moves have the row (applies); the assembly takes the accepted layer in place of
+Only scenes whose design has a row that moves, or a row no stage makes (row_kinds.uncovered), have the row (applies); the assembly takes the accepted layer in place of
 the seed's motion layer.
 """
 import fnmatch
@@ -84,6 +93,9 @@ MOVING_SCOPES = ("Objects", "Fixtures", "Structure")
 
 
 RECORD = "moves.json"
+CAST = "cast.json"
+# The words of a door's row that rule out a single leaf swung on one edge (from_design.rule_of's variants).
+NOT_ONE_LEAF = ("sliding", "slide", "garage", "roller", "shutter", "roll-up", "double")
 
 
 def files(place):
@@ -159,10 +171,16 @@ def make(inputs, out, seed, params):
         planned = from_design.plan_gaps(read_json(inputs["plan"])) if "plan" in inputs else []
         record = fitted(from_design.record(place_of(inputs), read_json(inputs["design"]),
                                            row_kinds.table(inputs["row kinds"]), kinds_of(inputs),
-                                           layer_base.opened(source), [*carried, *planned]), inputs, source)
+                                           layer_base.opened(source), [*carried, *planned], cast_of(inputs)),
+                        inputs, source)
         (out / RECORD).write_text(json.dumps(record, indent=1))
         batch_gaps.write(out, [*carried, *from_design.left_gaps(record)])
         write_motion(dict(inputs, moves=out / RECORD), out, source)
+
+
+def cast_of(inputs):
+    """The place's accepted cast record (the cast row's cast.json, an `after`), None for a place with no people."""
+    return read_json(pathlib.Path(inputs["cast"]) / CAST) if "cast" in inputs else None
 
 
 def write_motion(inputs, out, source):
@@ -413,12 +431,19 @@ def turned_to(move, angle):
                            f"{FIT_LEAST:g} degrees up to its rule's either way that keeps clear"})
 
 
+def slid_back(move, sign):
+    """A slide shifted the other way along its line, saying it was fitted."""
+    return dict(move, slide=dict(move["slide"], by=[-value for value in move["slide"]["by"]]),
+                **{"from": f"{move['from']}; fitted by the clear gate: slid the other way along its line, its "
+                           "rule's way striking"})
+
+
 def fitted(record, inputs, source):
     """The record with each move that strikes fitted (a hatch opens as far as `clear` allows): a swing tried the other
-    way, then FIT_STEP less, down to FIT_LEAST degrees; a move that strikes at every angle tried stands, its strike
-    the reason."""
+    way, then FIT_STEP less, down to FIT_LEAST degrees, a slide the other way along its line; a move that strikes at
+    every way tried stands, its strike the reason."""
     first = {move["prim"]: move for move in record["moves"]}
-    left = {prim: swing_angles(move["swing"]["angle"])[1:] if "swing" in move else []
+    left = {prim: swing_angles(move["swing"]["angle"])[1:] if "swing" in move else [-1.0] if "slide" in move else []
             for prim, move in first.items()}
     moves, still = list(record["moves"]), dict(record["still"])
     while True:
@@ -431,7 +456,8 @@ def fitted(record, inputs, source):
             if prim not in struck:
                 kept.append(move)
             elif left[prim]:
-                kept.append(turned_to(first[prim], left[prim].pop(0)))
+                fit = turned_to if "swing" in first[prim] else slid_back
+                kept.append(fit(first[prim], left[prim].pop(0)))
             else:
                 still[prim] = f"it strikes at every way it was tried, so it stands: {struck[prim]}"
         moves = kept
@@ -647,20 +673,114 @@ def judge_covered(output, inputs, evidence):
     record = read_json(inputs["moves"])
     still, removed = record.get("still", {}), record.get("removed", {})
     wanted = moving_row_prims(stage, place, inputs)
+    unmade = {line.split(":", 1)[0] for line in record.get("unmade", [])}
     unmoved = [f"{path} ({kind})" for path, kind in sorted(wanted.items())
-               if path not in moved and path not in still and path.rsplit("/", 1)[-1] not in still]
+               if path not in moved and path not in still and path.rsplit("/", 1)[-1] not in still
+               and path not in unmade]
     gone = [line.split(":", 1)[0] for line in gone_of(output)]
     missing = unmoved + [f"{name}: the game's motion has no prim in the place's stage and the record does not say "
                          "the concept removed it" for name in gone if name not in removed]
+    missing += list(record.get("unmade", [])) + row_kinds.uncovered(read_json(inputs["design"]),
+                                                                  row_kinds.table(inputs["row kinds"]),
+                                                                  row_kinds.coverage(inputs["row kinds"]))
     measures = {"moving kinds": len(wanted), "moved": len([path for path in wanted if path in moved]),
                 "still with a reason": len(wanted) - len(unmoved) - len([path for path in wanted if path in moved]),
                 "removed by the concept": len([name for name in gone if name in removed])}
-    reason = (f"{len(missing)} prims of a moving kind or game motions neither move nor say why" if missing else
+    reason = (f"{len(missing)} prims of a moving kind, rows of a moving thing or game motions neither move (by a "
+              "writer that makes their move) nor say why" if missing else
               f"all {len(wanted)} prims of a moving kind move ({measures['moved']}) or say why not")
     said = [f"{name}: {why}" for name, why in still.items()]
     said += [f"{name}: removed by the concept: {removed[name]}" for name in gone if name in removed]
     return checks.Verdict("covered", checks.FAIL if missing else checks.PASS, reason, measures, {},
                           tuple(missing) or tuple(said))
+
+
+# --- passed and rests ----------------------------------------------------------------------------------------------
+
+def door_rows(inputs):
+    """The inventory's rows whose motion rule needs a passer, each with its rule as its words choose it."""
+    kinds = row_kinds.table(inputs["row kinds"])
+    return [(row, from_design.rule_of(row, kinds)) for row in row_kinds.rows_that(read_json(inputs["design"]),
+                                                                                    "moves", kinds)
+            if from_design.rule_of(row, kinds).get("needs") == "passes"]
+
+
+def open_spans(entry, seconds):
+    """The spans [(from, to)] seconds a move stands off its rest over the layer's seconds: each open move to the end
+    of the shut after it, round after round for a loop."""
+    move = entry.get("swing") or entry.get("slide") or {}
+    travel = (abs(float(move["angle"])) if "angle" in move else float(np.linalg.norm(move.get("by", [0.0])))) / \
+        float(move.get("speed") or 1.0)
+    starts = [float(at) for at, toward in move.get("moves", []) if toward == "open"]
+    ends = [float(at) + travel for at, toward in move.get("moves", []) if toward == "shut"]
+    spans = list(zip(starts, ends))
+    if entry.get("loop"):
+        length = float(entry["length"])
+        spans = [(begin + turn * length, end + turn * length)
+                 for turn in range(int(round(seconds / length))) for begin, end in spans]
+    return spans
+
+
+def judge_passed(output, inputs, evidence):
+    """Pass when every door that moves (a row whose rule needs a passer) moves only while a walker of the accepted
+    cast stands within from_design.NEAR of it at rest: each span it stands off its rest holds a moment a walker is
+    that near, read off the cast's routes (from_design.routes), never off the record's own words."""
+    stage, place = composed(output, inputs), place_of(inputs)
+    walkers = from_design.routes(cast_of(inputs))
+    paths = {path for row, _ in door_rows(inputs) for path in row_kinds.objects_of(stage, place, row["id"])}
+    doors = [entry for entry in bodies(inputs, output) if entry["prim"] in paths]
+    if not doors:
+        return checks.Verdict("passed", checks.PASS, "no door of the place moves")
+    faults, rest = [], layer_base.opened(source_of(inputs))  # as the make read it, no motion layer over it
+    for entry in doors:
+        near = from_design.crossings(rest, entry["prim"], walkers)
+        for begin, end in open_spans(entry, seconds_of(output)):
+            if not any(enter <= end and leave >= begin for enter, leave in near):
+                faults.append(f"{entry['name']}: off its rest from {begin:.1f} to {end:.1f} s, and no walker of "
+                              f"the cast comes within {from_design.NEAR:g} m of it then")
+    reason = (f"{len(faults)} door moves with nobody passing" if faults else
+              f"{len(doors)} moving doors each move only while a walker passes through")
+    return checks.Verdict("passed", checks.FAIL if faults else checks.PASS, reason, {"doors": len(doors)}, {},
+                          tuple(faults))
+
+
+def swing_at(stage, path, code):
+    """How far a prim's swing stands it off its rest at a time code, degrees (0 for one with no swing)."""
+    from pxr import Usd
+    prim = stage.GetPrimAtPath(path)
+    turned = prim.GetAttribute("xformOp:rotateY:swing")
+    if turned and turned.HasAuthoredValue():
+        return abs(float(turned.Get(Usd.TimeCode(code))))
+    return 0.0
+
+
+def judge_rests(output, inputs, evidence):
+    """Pass when every door stands and moves as its row's words say: one whose name says open stands open at the
+    layer's start and does not move, one that says closed (or nothing) stands shut there, and one whose name says
+    sliding, garage, roller, shutter or double never swings as a single leaf."""
+    stage, place = composed(output, inputs), place_of(inputs)
+    record = read_json(inputs["moves"])
+    swings = {entry["prim"] for entry in [*record.get("moves", []), *record.get("posed", [])] if "swing" in entry}
+    moving = {entry["prim"] for entry in record.get("moves", [])}
+    posed = {entry["prim"] for entry in record.get("posed", [])}
+    faults, judged = [], 0
+    for row, rule in door_rows(inputs):
+        said = set(row_kinds.words(row.get("name") or row["id"]).split())
+        opened = bool(said & set(rule.get("open_words", ())))
+        for path in row_kinds.objects_of(stage, place, row["id"]):
+            judged += 1
+            off = swing_at(stage, path, 0.0) > 1e-6 or path in posed
+            if opened and (not off or path in moving):
+                faults.append(f"{path}: its row says open (\"{row.get('name')}\"), yet it stands shut or moves")
+            if not opened and off:
+                faults.append(f"{path}: its row does not say open (\"{row.get('name')}\"), yet it starts open")
+            if said & set(NOT_ONE_LEAF) and path in swings:
+                faults.append(f"{path}: its row says {', '.join(sorted(said & set(NOT_ONE_LEAF)))}, yet it swings "
+                              "as one leaf")
+    reason = (f"{len(faults)} doors stand or move against their row's words" if faults else
+              f"{judged} doors stand and move as their rows' words say")
+    return checks.Verdict("rests", checks.FAIL if faults else checks.PASS, reason, {"doors": judged}, {},
+                          tuple(faults))
 
 
 # --- the motion check (check.py) ------------------------------------------------------------------------------------
@@ -708,6 +828,7 @@ def judge_designed(output, inputs, evidence):
 LAYER = contracts.Contract("motion-layer", 2, layer_faults, {"length": "metre", "up axis": "Y", "time": "second"})
 CHECKS = (checks.Check("clear", on_built(judge_clear)), checks.Check("speeds", on_built(judge_speeds)),
           checks.Check("loops", on_built(judge_loops)), checks.Check("grounded", on_built(judge_grounded)),
-          checks.Check("covered", on_built(judge_covered)), checks.Check("follows", on_built(judge_follows)),
+          checks.Check("covered", on_built(judge_covered)), checks.Check("passed", on_built(judge_passed)),
+          checks.Check("rests", on_built(judge_rests)), checks.Check("follows", on_built(judge_follows)),
           checks.Check("steps", on_built(judge_steps)), checks.Check("moving area", on_built(judge_moving_area)),
           checks.Check("designed", on_built(judge_designed)))

@@ -46,9 +46,13 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 PLACE = "toy"
 # The toy kitchen's objects: (name, low corner, high corner of the model's own box, where it stands).
 OBJECTS = (("stove_1", (-0.4, 0.0, -0.3), (0.4, 0.9, 0.3), (2.0, 0.0, 1.0)),
+           ("pot_1", (-0.1, 0.0, -0.1), (0.1, 0.15, 0.1), (2.0, 0.9, 1.0)),
+           ("hob_1", (-0.3, 0.0, -0.3), (0.3, 0.9, 0.3), (-3.0, 0.0, 1.0)),
            ("kettle_1", (-0.1, 0.0, -0.08), (0.1, 0.25, 0.08), (-1.0, 0.9, 0.0)),
            ("chair_1", (-0.25, 0.0, -0.25), (0.25, 0.9, 0.25), (0.0, 0.0, 2.0)))
 INVENTORY = {"rows": [{"id": "stove", "name": "stove", "noun": "stove"},
+                      {"id": "pot", "name": "cooking pot", "noun": "pot", "anchor": "on:stove"},
+                      {"id": "hob", "name": "bare hob", "noun": "hob"},
                       {"id": "kettle", "name": "kettle", "noun": "kettle"},
                       {"id": "chair", "name": "chair", "noun": "chair"},
                       {"id": "wall", "name": "back wall", "noun": "wall"}]}
@@ -146,6 +150,13 @@ def answers(inputs, folder):
 
 
 def test_the_stove_and_the_kettle_carry_their_steam_at_their_spots_and_pass(tmp_path):
+    """Fault (the audit of 2026-11-04): steam rose off four bare hobs, steam_rise being measured on a simmering pot. The
+    pot on the stove carries the steam on the middle of its top; the bare hob carries none (named quiet); steam
+    written onto the bare hob fails `subject`.
+    Break: score/stages/effects/from_design.py: `if not held_on(row, rows, kinds):` -> `if False:`
+    Break: score/stages/effects/__init__.py: `elif subject.get("on") and under not in subject["on"]:` -> `elif False:`
+    Break: score/stages/effects/__init__.py: `if kind not in subject.get("kinds", ()):` -> `if False:`
+    """
     from pxr import Usd, UsdGeom
     out, found = answers(toy_inputs(tmp_path), tmp_path)
     record = json.loads((out / "record.json").read_text())
@@ -153,17 +164,31 @@ def test_the_stove_and_the_kettle_carry_their_steam_at_their_spots_and_pass(tmp_
     stage.GetRootLayer().subLayerPaths.append(str(out / "layers/effects.usda"))
     where = {name: UsdGeom.Xformable(stage.GetPrimAtPath(f"/{PLACE}/Objects/{name.split('_')[0]}_1/{name}"))
              .ComputeLocalToWorldTransform(Usd.TimeCode.Default()).ExtractTranslation()
-             for name in ("stove_1_steam_rise", "kettle_1_steam_jet")}
+             for name in ("pot_1_steam_rise", "kettle_1_steam_jet")}
     assert all(verdict.answer == checks.PASS for verdict in found.values()), {
         name: (verdict.reason, verdict.findings) for name, verdict in found.items()}
-    assert {entry["name"]: entry["row"] for entry in record["effects"]} == {"stove_1_steam_rise": "stove",
+    assert {entry["name"]: entry["row"] for entry in record["effects"]} == {"pot_1_steam_rise": "pot",
                                                                             "kettle_1_steam_jet": "kettle"}
-    # the stove's steam on the middle of its top: (2.0, 0.0 + 0.9, 1.0); the kettle's spout at the front of its box,
+    assert [line.split(":")[0] for line in record["quiet"]] == [], record["quiet"]
+    # the pot's steam on the middle of its top: (2.0, 0.9 + 0.15, 1.0); the kettle's spout at the front of its box,
     # six tenths of the way up from its middle: (-1.0, 0.9 + 0.125 + 0.6 * 0.125, 0.0 + 0.08)
-    assert max(abs(a - b) for a, b in zip(where["stove_1_steam_rise"], (2.0, 0.9, 1.0))) < 1e-6, where
+    assert max(abs(a - b) for a, b in zip(where["pot_1_steam_rise"], (2.0, 1.05, 1.0))) < 1e-6, where
     assert max(abs(a - b) for a, b in zip(where["kettle_1_steam_jet"], (-1.0, 1.1, 0.08))) < 1e-6, where
     # every footage check is measured on its own emitter
     assert {check["anchor"] for check in record["footage"]["checks"]} == set(where), record["footage"]["checks"]
+    shelved = {"rows": [dict(row, anchor="on:chair") if row["id"] == "pot" else row for row in INVENTORY["rows"]]}
+    (tmp_path / "shelved").mkdir()
+    inputs = toy_inputs(tmp_path / "shelved", inventory=shelved)
+    out, _ = answers(inputs, tmp_path / "shelved")
+    quiet = json.loads((out / "record.json").read_text())["quiet"]
+    assert [line.split(":")[0] for line in quiet] == ["pot"], quiet
+    steam = next(entry for entry in record["effects"] if entry["row"] == "pot")
+    forged = dict(record, effects=[*record["effects"], dict(steam, row="hob", name="hob_1_steam_rise")])
+    (out / "record.json").write_text(json.dumps(forged))
+    verdict = next(check for check in effects.CHECKS if check.name == "subject").judge(out, inputs, None)
+    assert verdict.answer == checks.FAIL and verdict.findings == (
+        "pot_1_steam_rise: steam_rise was measured on a pot standing on a cooker, and pot stands on loose",
+        "hob_1_steam_rise: steam_rise was measured on a pot, and it rides a cooker (hob)"), verdict.findings
 
 
 def test_a_row_that_emits_with_no_object_on_the_stage_fails_designed(tmp_path):
