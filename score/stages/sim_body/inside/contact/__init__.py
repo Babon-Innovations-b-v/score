@@ -69,15 +69,12 @@ class Chains:
         self.roots = np.asarray(model.body_rootid)
 
 
-def pushes_all(model, states, ground, up, skin, chains):
-    """`pushes` of every state at once (`states`: `batched.Card.evaluate`'s dict of each state's xpos, xmat, cdof,
-    subtree_com and qvel), the skin carried, its ground under it (every state's points in one `standing`, each with
-    its state's reach) and every touching point's Jacobian for all states together (`mj_jac`'s sum over the point's
-    body's dofs, `Chains`): a list of each state's pushes, the same tuples, and each skin point's height over its
-    ground (states x points, nan where it has none: `lowests`')."""
-    count = len(states["qvel"])
-    if not len(skin.points):  # no skin: nothing to push
-        return [[] for _ in range(count)], np.zeros((count, 0))
+def on_ground_all(model, states, ground, skin):
+    """`pushes_all`'s and `touching_all`'s skin of every state (`states`: `batched.Card.evaluate`'s xpos and xmat)
+    carried and stood on its ground: the weights' (point, segment) pairs, their shares and bodies, each pair's point
+    as its segment carries it (states x pairs x 3) and each skin point's (states x points x 3, the person's frame),
+    and each point's ground height and triangle (states x points, nan and -1 where none is)."""
+    count = len(states["xpos"])
     weights = skin.weights
     points, segments = np.nonzero(weights)
     shares = weights[points, segments]
@@ -95,10 +92,24 @@ def pushes_all(model, states, ground, up, skin, chains):
     for axis in range(3):
         own[:, :, axis] = np.array([np.bincount(points, shares * carried[state, :, axis], len(skin.points))
                                     for state in range(count)])
-    cdof = states["cdof"].reshape(count, model.nv, 6)
-    com = states["subtree_com"].reshape(count, -1, 3)
     reach = np.repeat([body_reach(mine) for mine in own], own.shape[1])  # each state's own reach, point by point
     every_height, every_triangle = (values.reshape(count, -1) for values in standing(own.reshape(-1, 3), ground, reach))
+    return points, segments, shares, bodies, carried, own, every_height, every_triangle
+
+
+def pushes_all(model, states, ground, up, skin, chains):
+    """`pushes` of every state at once (`states`: `batched.Card.evaluate`'s dict of each state's xpos, xmat, cdof,
+    subtree_com and qvel), the skin carried, its ground under it (every state's points in one `standing`, each with
+    its state's reach) and every touching point's Jacobian for all states together (`mj_jac`'s sum over the point's
+    body's dofs, `Chains`): a list of each state's pushes, the same tuples, and each skin point's height over its
+    ground (states x points, nan where it has none: `lowests`')."""
+    count = len(states["qvel"])
+    if not len(skin.points):  # no skin: nothing to push
+        return [[] for _ in range(count)], np.zeros((count, 0))
+    points, segments, shares, bodies, carried, own, every_height, every_triangle = on_ground_all(model, states, ground,
+                                                                                                skin)
+    cdof = states["cdof"].reshape(count, model.nv, 6)
+    com = states["subtree_com"].reshape(count, -1, 3)
     found = []
     for state in range(count):
         mine, heights, triangles = own[state], every_height[state], every_triangle[state]
@@ -116,6 +127,37 @@ def pushes_all(model, states, ground, up, skin, chains):
                              [mine[point, 0], heights[point], mine[point, 2]])
                       for number, point in enumerate(touching)])
     return found, own[:, :, 1] - every_height
+
+
+def touching_all(model, states, ground, up, skin):
+    """Each state's touching skin points as the balance of the pelvis reads them (`states`: `batched.Card.evaluate`'s
+    xpos, xmat, cvel and subtree_com, and qvel), `pushes_all`'s points without their Jacobians: [(each point's place
+    blended over its segments, MuJoCo's frame (points x 3), its weights' sum (points), its push directions
+    (`pyramids`, points x 4 x 3) and how many it has)] a state. A push e at the point gives the root the wrench
+    (sum e, place x e - sum origin x e); a point's speed is its segments' points' on their bodies (MuJoCo's cvel:
+    the body's turn and the speed at its tree's centre of mass), blended, as `pushes`' Jacobian times the speeds."""
+    count = len(states["xpos"])
+    if not len(skin.points):  # no skin: nothing to push
+        return [(np.zeros((0, 3)), np.zeros(0), np.zeros((0, 4, 3)), np.zeros(0, int)) for _ in range(count)]
+    points, _, shares, bodies, carried, own, every_height, every_triangle = on_ground_all(model, states, ground, skin)
+    summed = np.bincount(points, shares, len(skin.points))
+    cvel = states["cvel"].reshape(count, -1, 6)
+    com = states["subtree_com"].reshape(count, -1, 3)
+    roots = np.asarray(model.body_rootid)[bodies]
+    found = []
+    for state in range(count):
+        over = own[state, :, 1] - np.nan_to_num(every_height[state], nan=np.inf)
+        touching = np.flatnonzero(over <= GAP)
+        pairs = np.flatnonzero(np.isin(points, touching))
+        at = carried[state, pairs] @ TO_OWN  # MuJoCo's frame
+        speed = cvel[state, bodies[pairs]]
+        speed = speed[:, 3:] + np.cross(speed[:, :3], at - com[state, roots[pairs]])
+        local = np.searchsorted(touching, points[pairs])
+        moving = np.zeros((len(touching), 3))
+        np.add.at(moving, local, shares[pairs, None] * speed)
+        edges, counts = pyramids(up[every_triangle[state, touching]], moving, over[touching])
+        found.append((own[state, touching] @ TO_OWN, summed[touching], edges, counts))
+    return found
 
 
 def surface(model, data, geoms):
@@ -153,11 +195,12 @@ def lowests(model, data, skin, ground, parts):
 
 
 def closeness(over):
-    """How near a skin point `over` metres above its ground is (0 at GAP, 1 on or into it): the length of its push
-    directions, so the solve's cost of its push grows as it nears GAP (a push of x newtons along them costs x over its
-    closeness) and a point coming within GAP takes its share of the load from nothing, never all at once (2026-11-05,
-    #70: points crossing GAP whole moved a foot's centre of pressure 3 to 6 cm a frame)."""
-    return float(np.clip((GAP - over) / GAP, 0.0, 1.0))
+    """How near each skin point `over` metres above its ground is (one height or an array of them; 0 at GAP, 1 on or
+    into it): the length of its push directions, so the solve's cost of its push grows as it nears GAP (a push of x
+    newtons along them costs x over its closeness) and a point coming within GAP takes its share of the load from
+    nothing, never all at once (2026-11-05, #70: points crossing GAP whole moved a foot's centre of pressure 3 to 6 cm
+    a frame)."""
+    return np.clip((GAP - np.asarray(over, float)) / GAP, 0.0, 1.0)
 
 
 def pushes(model, data, ground, up, skin):
@@ -196,3 +239,23 @@ def pushed(skin, point, along, up, qvel, over, under):
         edges = [normal + FRICTION * first, normal - FRICTION * first, normal + FRICTION * second,
                  normal - FRICTION * second]
     return skin.owners[point], along, [closeness(over) * edge for edge in edges], TO_OWN.T @ np.asarray(under, float)
+
+
+def pyramids(ups, moving, overs):
+    """Each touching point's push directions (points x 4 x 3, MuJoCo's frame) and how many of them it has (points),
+    `pushed`'s rule for many points at once (the contact test holds the two equal): along its triangle's upward
+    normal (`ups`, the person's frame) with Coulomb's friction, a point slower than SLIDE_MOST (`moving`, its speed,
+    MuJoCo's frame) a friction pyramid (four), a faster one the normal and FRICTION of it against its slip (one, the
+    first), each as long as the point is near (`closeness` of its height `overs`)."""
+    normals = ups @ TO_OWN  # TO_OWN.T applied to each normal
+    slip = moving - np.einsum("ij,ij->i", moving, normals)[:, None] * normals
+    slips = np.linalg.norm(slip, axis=1)
+    sliding = (np.linalg.norm(moving, axis=1) > SLIDE_MOST) & (slips > 0)
+    side = np.where(np.abs(normals[:, :1]) < 0.9, [[1.0, 0.0, 0.0]], [[0.0, 1.0, 0.0]])
+    first = np.cross(normals, side)
+    first /= np.linalg.norm(first, axis=1, keepdims=True)
+    second = np.cross(normals, first)
+    edges = np.stack([normals + FRICTION * first, normals - FRICTION * first, normals + FRICTION * second,
+                      normals - FRICTION * second], axis=1)
+    edges[sliding, 0] = normals[sliding] - FRICTION * slip[sliding] / slips[sliding, None]
+    return edges * closeness(overs)[:, None, None], np.where(sliding, 1, 4)

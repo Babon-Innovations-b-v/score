@@ -1,14 +1,15 @@
 """RRA's linear part: what a state asks of the body (the needed wrench at the pelvis and the lumbar's needed moments),
-what the ground's pushes alone leave of it (the residual), each frame's state, the dofs RRA moves, a path moved by
-them, and the residual's and lumbar's change with each frame's move, linearised."""
+what the ground's pushes alone leave of it (the residual, every frame's columns at once), each frame's state, the
+dofs RRA moves, a path moved by them, and the residual's and lumbar's change with each frame's move, linearised."""
 import mujoco
 import numpy as np
 
 from batched import root_pose
 from bone_groups import TRUNK
+from contact import touching_all
 from model import limited, rates
 from muscles import BALANCE, CONTACT_COST
-from solvers import least, stencils
+from solvers import stencils
 
 RRA_STEP = 1e-5  # the central differences' step (m, rad)
 # On the card (MuJoCo Warp, float32) the steps its rounding allows: a place's 1e-3 (its rounding, about 1e-6 of a
@@ -25,30 +26,6 @@ def about(model, data, generalised, origin):
     force = generalised[:3]
     moment = data.xmat[root].reshape(3, 3) @ generalised[3:6] + np.cross(data.xpos[root] - origin, force)
     return np.concatenate([force, moment])
-
-
-def balance(physics, qpos, qvel, qacc, origin):
-    """The wrench the movement needs at the pelvis (about `origin`), the ground's pushes' wrenches (6 x pushes) and
-    what the pushes cannot give of it: the pelvis' rows of `Physics.shared` alone (muscles and joint stops put no net
-    force on the whole body), the same weights."""
-    return balanced(physics, physics.needed(qpos, qvel, qacc), origin)
-
-
-def balanced(physics, generalised, origin):
-    """`balance` of the state laid in `physics.data`, its needed generalised forces `generalised`."""
-    needed, pushes, asked = balance_asked(physics, generalised, origin)
-    return needed, needed - pushes @ least(*asked)
-
-
-def balance_asked(physics, generalised, origin):
-    """`balanced`'s least squares unsolved: the needed wrench, the pushes' wrenches and the least squares' system,
-    wanted, costs and bounds."""
-    model, data = physics.model, physics.data
-    needed = about(model, data, generalised, origin)
-    columns = [about(model, data, along.T @ edge, origin) for _, along, edges, _ in physics.contacts() for edge in edges]
-    pushes = np.array(columns).T if columns else np.zeros((6, 0))
-    return needed, pushes, (BALANCE * pushes, BALANCE * needed, np.full(pushes.shape[1], CONTACT_COST),
-                            np.full(pushes.shape[1], np.inf))
 
 
 def demands(physics, qpos, qvel, qacc, origin, trunk):
@@ -153,13 +130,48 @@ def frame_states(physics, path, rate):
 
 
 def residuals(physics, states):
-    """Each frame's residual after the ground's pushes alone (`balance`; frames x 6), every frame's state and least
-    squares at once on the card (`Physics.each`, `Physics.least_each`)."""
-    path, velocities, accelerations, origins = zip(*states)
-    asked = [balance_asked(physics, needed, origin)
-             for needed, origin in zip(physics.each(path, velocities, accelerations), origins)]
-    solved = physics.least_each([one[2] for one in asked])
-    return np.array([needed - pushes @ pushed for (needed, pushes, _), pushed in zip(asked, solved)])
+    """Each frame's residual after the ground's pushes alone (frames x 6): the wrench the movement needs at the
+    pelvis (about its origin) less what the touching points' pushes (`contact.touching_all`) give of it at best, the
+    pelvis' rows of `Physics.shared` alone (muscles and joint stops put no net force on the whole body): a push e at
+    a point p, its weights summing to s, gives (s e, (p - s origin) x e), every frame's columns at once; every
+    frame's state on the card at once where there is one (`posed`), the least squares too (`Physics.least_each`)."""
+    path, velocities, accelerations, origins = (np.array(values) for values in zip(*states))
+    found = posed(physics, path, velocities, accelerations)
+    turns, places = root_pose(physics.model, found)
+    force = found["needed"][:, :3]
+    needed = np.concatenate([force, np.einsum("nij,nj->ni", turns, found["needed"][:, 3:6]) +
+                             np.cross(places - origins, force)], axis=1)
+    pushes = [wrenches(*touching, origin) for touching, origin in
+              zip(touching_all(physics.model, found, physics.ground, physics.up, physics.skin), origins)]
+    solved = physics.least_each([(BALANCE * one, BALANCE * wanted, np.full(one.shape[1], CONTACT_COST),
+                                  np.full(one.shape[1], np.inf)) for one, wanted in zip(pushes, needed)])
+    return np.array([wanted - one @ pushed for wanted, one, pushed in zip(needed, pushes, solved)])
+
+
+def wrenches(places, summed, edges, counts, origin):
+    """The pushes' wrenches on the root about `origin` (6 x pushes, `pushes`' order: point by point, its edges in
+    turn), from `contact.touching_all`'s points (places, their weights' sums, push directions and counts)."""
+    used = np.arange(edges.shape[1])[None, :] < counts[:, None]
+    force = (summed[:, None, None] * edges)[used]
+    moment = np.cross((places - summed[:, None] * origin)[:, None, :], edges)[used]
+    return np.concatenate([force, moment], axis=1).T
+
+
+def posed(physics, path, velocities, accelerations):
+    """Each state's needed generalised forces and the bodies' poses and speeds `residuals` reads (`evaluate`'s dict:
+    needed, xpos, xmat, cvel, subtree_com, qvel), every state at once on the card, else frame by frame on MuJoCo's
+    C (`Physics.needed`)."""
+    names = ("xpos", "xmat", "cvel", "subtree_com")
+    if physics.card is not None:
+        return physics.card.evaluate(path, velocities, accelerations, names)
+    found = {name: [] for name in ("needed", *names)}
+    for qpos, qvel, qacc in zip(path, velocities, accelerations):
+        found["needed"].append(physics.needed(qpos, qvel, qacc))
+        for name in names:
+            found[name].append(getattr(physics.data, name).copy())
+    found = {name: np.array(values) for name, values in found.items()}
+    found["qvel"] = np.asarray(velocities, float)
+    return found
 
 
 def linearised(physics, states, adjusted, rate, scale):

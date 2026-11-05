@@ -5,6 +5,8 @@ pelvis' and trunk's path moved so the ground's pushes explain the movement, each
 where they stood by the legs (`reduced`, `Footing`: mink, as the fit); the result kept within the clip's `follows` limit
 (`within_follows`) and the per-frame cap as measured (`within_frames`). Nothing is applied to the body; how far it
 moved is the body's `adjusted` record (`records.adjustment_record`, from `turned_off` and `off_clip`)."""
+import hashlib
+
 import mujoco
 import numpy as np
 
@@ -55,6 +57,19 @@ def reweighed(physics, path, residuals, home, made):
     return share, recommended
 
 
+def residuals_kept(physics, states, kept):
+    """`residuals` of `states` at the body's masses, inertias and torso centre of mass as they stand, worked out once
+    and kept in `kept` ({key: residuals}): `reduced` asks them of one path again (a step's cost, then the next round's
+    model step on the step taken, at the masses its cost was measured with)."""
+    model = physics.model
+    key = hashlib.sha256(b"".join(np.ascontiguousarray(part).tobytes() for state in states for part in state) +
+                         model.body_mass.tobytes() + model.body_inertia.tobytes() + model.body_ipos.tobytes())
+    key = key.hexdigest()
+    if key not in kept:
+        kept[key] = residuals(physics, states)
+    return kept[key]
+
+
 def reduced(physics, path, rate, limits, most, land, fitted, riders):
     """OpenSim's residual reduction (RRA: Delp et al. 2007, IEEE TBME 54(11):1940-50, doi:10.1109/TBME.2007.901024;
     opensim-core's RRATool, Apache-2.0) on the fitted path, in our own stack: RRA_ROUNDS times, the model step
@@ -65,8 +80,9 @@ def reduced(physics, path, rate, limits, most, land, fitted, riders):
     they stood by the legs (`land`: `Footing.footed`), and bounded inside the solve by the owner's per-frame cap
     (`cap_rows`: every segment's turn within `most[1]` and the pelvis within `most[0]` of the fitted path, all rounds
     together; `within_balls`), taken only when it lowers that cost as measured (halved up to RRA_HALVINGS times, else
-    the rounds end). Nothing is applied to the body: only its path and masses change. Returns the path, the move (frames
-    x adjusted) and the record."""
+    the rounds end; a path's residuals at the masses as they stand worked out once, `residuals_kept`, and the step's
+    cost before it the one its solve read). Nothing is applied to the body: only its path and masses change. Returns
+    the path, the move (frames x adjusted) and the record."""
     model = physics.model
     adjusted = adjusted_leads(physics)
     count, width = len(path), len(adjusted)
@@ -78,17 +94,22 @@ def reduced(physics, path, rate, limits, most, land, fitted, riders):
     home = model.body_ipos[body_index(model, "torso")].copy()
     made = (model.body_mass.copy(), model.body_inertia.copy())
 
+    kept = {}  # each path's residuals at the masses as they stand (`residuals_kept`)
+
     def asked(states):  # the residuals, and the trunk's moments beyond the fitted path's: a residual moved into the
         # lumbar is a reserve, counted as one (RRA's own objective weighs the joints' actuators beside the residuals)
-        return np.concatenate([residuals(physics, states), trunk_moments(physics, states, adjusted[6:]) - fitted_trunk],
-                              axis=1).reshape(-1) / scale
+        return np.concatenate([residuals_kept(physics, states, kept),
+                               trunk_moments(physics, states, adjusted[6:]) - fitted_trunk], axis=1).reshape(-1) / scale
 
     def cost(moves, states):
-        return float(np.sum(asked(states) ** 2) + np.sum((track * moves) ** 2))
+        return costed(moves, asked(states))
+
+    def costed(moves, left):
+        return float(np.sum(left ** 2) + np.sum((track * moves) ** 2))
 
     for _ in range(RRA_ROUNDS):
         states = frame_states(physics, current, rate)
-        mass, wanted = reweighed(physics, current, residuals(physics, states), home, made)
+        mass, wanted = reweighed(physics, current, residuals_kept(physics, states, kept), home, made)
         recommended.append(wanted)
         fitted_trunk = trunk_moments(physics, frame_states(physics, path, rate), adjusted[6:])
         states = frame_states(physics, current, rate)
@@ -99,7 +120,7 @@ def reduced(physics, path, rate, limits, most, land, fitted, riders):
         solved, _ = (within_balls if physics.card is None else within_balls_card)(np.concatenate([system, track[:, None] * smooth]),
                                  np.concatenate([-left, -track * total]), rows, values.reshape(-1))
         step = smooth @ solved
-        best = cost(total, states)
+        best = costed(total, left)
         for _ in range(RRA_HALVINGS + 1):
             walked = land(moved(physics, path, (total + step).reshape(count, width), adjusted))
             if cost(total + step, frame_states(physics, walked, rate)) < best:
