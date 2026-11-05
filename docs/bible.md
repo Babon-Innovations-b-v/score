@@ -373,8 +373,11 @@ branch names a scene or a world.
   solves the person constants (landmark offsets and the joints inside bone groups; the lengths are SOMA's). Level 3,
   per frame, solves the pose only (mink with MuJoCo's couplings held and the joints in range). It is judged on
   following SOMA (joint positions, segment turns on a frozen copy of main's calibration, bones inside the skin by
-  region), never on landmark distances; the path low-passed at 6 Hz (zero-lag Butterworth, Winter 2009) before it is differentiated; SOMA
-  is never moved, scaled or grounded, nor is the sim body. Newton builds the
+  region), never on landmark distances; the path low-passed at 6 Hz (zero-lag Butterworth, Winter 2009) before it is differentiated; SOMA's
+  shape and pose are never changed, only its height over the floor (each clip's standing soles stood on it, smooth;
+  owner, 2026-11-05, on grounding the clips: "yes allow it, but take a good look at kimodo itself before, as im
+  pretty sure all these tools are in there alr"; Kimodo's own post-processing grounds its clips on its own skeleton,
+  not on the body that plays them), and the sim body is never moved onto its ground. Newton builds the
   MuJoCo model (SolverMuJoCo on MuJoCo's CPU backend, in `physics/inside/newton_env.sh`, on this machine) and its
   physics is that movement's, frame by frame: the inverse dynamics, the ground's push at every collider point within
   3 cm of the scene's own drawn ground (its triangles, under the gravity of the body the scene stands on), and one

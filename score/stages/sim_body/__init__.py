@@ -36,7 +36,8 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
              moments, ground force, lowest point over the ground, each touching body's push and its centre of pressure on
              the ground, each foot's height over the ground and its push, the
              residual, the largest reserve, each muscle's activation and force, and each SOMA segment's pose: the
-             clip's own, never moved, scaled or grounded to the sim body (owner, 2026-10-28: SOMA is the truth),
+             clip's own as played, its shape and pose never changed, only its height over the floor (owner, 2026-10-28: SOMA is
+             the truth; 2026-11-05: grounding allowed),
              which the skin plays) and
              layers/sim_bodies.usda (each body under its character's prim, /<place>/Characters/<name>/SimBody, in
              the Turned frame: an Xform a SOMA segment riding its bone, every bone's mesh under the segment it rides or
