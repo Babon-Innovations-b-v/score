@@ -1,7 +1,9 @@
 """muscles: a body standing still on a flat ground under gravity is carried by the ground: the static optimisation
 gives the ground's push its weight and leaves almost no residual on the pelvis, the movement's needed force is its
 weight up, and the touching part's push (`touches`, the ball's body by its name) is that whole push, at the ground under
-it. It runs in Newton's own Python (on a model Newton builds; score/stages/physics/inside/newton_env.sh,
+it; and the static optimisation is well-posed: a muscle has no moment on the root's free joint, so the card's float32
+rounding there (1e-3, MuJoCo's C 1e-11) moves no activation, and a 1e-6 nudge of the moments moves them by about 1e-6.
+It runs in Newton's own Python (on a model Newton builds; score/stages/physics/inside/newton_env.sh,
 built at $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted), 2026-10-28:
@@ -14,6 +16,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 2026-11-05:
 - touches' `normals = np.divide(normals, lengths, ...)` dropped: the push along its normals reads 3.2 times the push
   (the pyramid's four edges, each `closeness` 0.8 long 1 mm over, summed).
+- problem's `arms[root dofs] = 0.0` made `pass`: the muscles' columns stand on the root's rows, and given the card's
+  1e-3 of moment there the airborne leg's holding muscle goes from 0.150 to 0.0, pulled to cancel the pelvis'
+  residual it cannot touch (2026-11-05, #70: the jump's frame 30, mean 0.115 on MuJoCo's C, 0.206 on the card).
 
 Run: .venv/bin/python score/stages/sim_body/inside/muscles/test_a_standing_body_is_carried_by_the_ground.py
 """
@@ -37,6 +42,38 @@ BODY = """<mujoco model="block">
   </worldbody>
 </mujoco>
 """
+
+LEG = """<mujoco model="leg">
+  <compiler angle="radian"/>
+  <worldbody>
+    <body name="pelvis" pos="0 0 2">
+      <freejoint name="root"/>
+      <geom type="box" size="0.1 0.1 0.05" mass="10"/>
+      <site name="front" pos="0.05 0 0"/>
+      <site name="back" pos="-0.05 0 0"/>
+      <body name="thigh" pos="0 0 -0.05">
+        <joint name="hip" type="hinge" axis="0 1 0" range="-1 1" limited="true"/>
+        <geom type="capsule" fromto="0 0 0 0 0 -0.4" size="0.05" mass="5"/>
+        <site name="shin front" pos="0.05 0 -0.1"/>
+        <site name="shin back" pos="-0.05 0 -0.1"/>
+      </body>
+    </body>
+  </worldbody>
+  <tendon>
+    <spatial name="flexor"><site site="front"/><site site="shin front"/></spatial>
+    <spatial name="extensor"><site site="back"/><site site="shin back"/></spatial>
+  </tendon>
+  <actuator>
+    <general name="flexor" tendon="flexor" lengthrange="0.05 0.2" ctrlrange="0 1" ctrllimited="true"
+      dyntype="muscle" gaintype="muscle" biastype="muscle" dynprm="0.01 0.04"
+      gainprm="0.75 1.05 500 1 0 2 10 1.5 1.4" biasprm="0.75 1.05 500 1 0 2 10 1.5 1.4"/>
+    <general name="extensor" tendon="extensor" lengthrange="0.05 0.2" ctrlrange="0 1" ctrllimited="true"
+      dyntype="muscle" gaintype="muscle" biastype="muscle" dynprm="0.01 0.04"
+      gainprm="0.75 1.05 500 1 0 2 10 1.5 1.4" biasprm="0.75 1.05 500 1 0 2 10 1.5 1.4"/>
+  </actuator>
+</mujoco>
+"""
+ROUNDING = 1e-3  # the card's float32 rounding of a moment arm, at its largest (2026-11-05, #70)
 
 
 def ball_skin(found):
@@ -84,7 +121,59 @@ def the_ground_carries_a_still_body():
     return problems + ([] if residual < 0.01 * weight else [f"residual force {residual:.3f} N"])
 
 
-CHECKS = (the_ground_carries_a_still_body,)
+def rounding_moves_no_activation():
+    """A body 2 m up (the ground pushes nothing), its hip held bent by two muscles across it: the problem's muscle
+    columns are 0 on the root's six rows; with every muscle's moment on the root given the card's rounding (ROUNDING
+    of its largest), the activations move under 1e-9; with every moment nudged by 1e-6 of itself, under 1e-5."""
+    import model as built_model
+    import mujoco
+    import muscles
+    import numpy as np
+    from solvers import least
+    with tempfile.TemporaryDirectory() as folder:
+        path = pathlib.Path(folder) / "leg.xml"
+        path.write_text(LEG)
+        found = built_model.built(path, GRAVITY)
+    physics = muscles.Physics(found, np.zeros((0, 3, 3)), None)
+    physics.contacts = lambda: []  # 2 m over any ground: nothing touches
+    qpos, still = found.qpos0.copy(), np.zeros(found.nv)
+    qpos[7] = 0.5
+    hip = found.jnt_dofadr[1]
+    dense = mujoco.mju_sparse2dense
+
+    def solved(change):
+        """The activations with the problem's dense moments (muscles x dofs) changed by `change` as it reads them."""
+        def read(moments, *sparse):
+            dense(moments, *sparse)
+            change(moments)
+        needed = physics.needed(qpos, still, still)
+        muscles.mujoco.mju_sparse2dense = read
+        try:
+            problem = physics.problem(needed)
+        finally:
+            muscles.mujoco.mju_sparse2dense = dense
+        return problem, least(*problem["asked"])[problem["count"] + problem["held"]:]
+
+    plain, before = solved(lambda moments: None)
+    problems = [] if np.all(plain["system"][:6, plain["count"] + plain["held"]:] == 0.0) else \
+        [f"muscle columns on the root {plain['system'][:6]}"]
+    if not 0.0 < before.max() < 1.0:
+        problems.append(f"no muscle holds the hip within its range: activations {before}")
+
+    def rounded(moments):
+        moments[:, :6] += ROUNDING * np.abs(moments[:, hip]).max()
+
+    off_root = solved(rounded)[1]
+    if np.abs(off_root - before).max() > 1e-9:
+        problems.append(f"the card's rounding on the root moves the activations {before} to {off_root}")
+    nudge = np.random.default_rng(0)
+    nudged = solved(lambda moments: moments.__imul__(1 + 1e-6 * nudge.standard_normal(moments.shape)))[1]
+    if np.abs(nudged - before).max() > 1e-5:
+        problems.append(f"a 1e-6 nudge of the moments moves the activations {before} to {nudged}")
+    return problems
+
+
+CHECKS = (the_ground_carries_a_still_body, rounding_moves_no_activation)
 
 
 def in_newton():
