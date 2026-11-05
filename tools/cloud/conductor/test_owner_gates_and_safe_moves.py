@@ -591,6 +591,15 @@ def test_the_doors_run_log_and_fault_read_only_the_launchs_home(tmp_path):
     said = agent_door.run_log(log, home, 5)
     assert said.splitlines()[1:] == [f"line {number}" for number in range(295, 300)], said
     assert agent_door.fault(log, "motion@airlock", home).endswith("motion@airlock: Traceback: no skeleton"), log
+    # the warm pool's collector log, the newest changed, read too (2026-11-05: a pool held no machine, nothing said why)
+    # Break: in agent_door.pool_log, take found[:1] (the oldest pool's log)
+    with pytest.raises(agent_door.Refused):
+        agent_door.pool_log(log, home, 5)
+    for run, said_last in (("old", "old pool"), ("new", "pool: a heartbeat failed")):
+        (home / "cloud" / "pools" / run).mkdir(parents=True)
+        (home / "cloud" / "pools" / run / "collector.log").write_text(f"rented\n{said_last}\n")
+        time.sleep(0.01)
+    assert agent_door.pool_log(log, home, 1).splitlines()[1:] == ["pool: a heartbeat failed"]
     shutil.rmtree(frozen)  # the run ended and its home went: both are read where they lie
     assert agent_door.run_log(log, home, 5) == said
     assert "no skeleton" in agent_door.fault(log, "motion@airlock", home)
