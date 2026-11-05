@@ -165,14 +165,48 @@ def leftovers(frozen_folder, stopping, holds_folder=None):
     """The pids still working in the copy of a run no longer live, found as clean-frozen and the carry find them
     (disk.working: a working folder in it, SCORE_FROZEN naming it, its path on the command line; frozen.users read
     only the first, 2026-11-05: two processes held a stopped free run's copy and every carry refused as 'a run is
-    live' while stop-batch found none), never one of a run being stopped now (`stopping`: it ends its own) nor the
-    process holding a sync pass (conductor.holding's sync-pass-<pid>, whose own steps are its to end)."""
+    live' while stop-batch found none), never one of a run being stopped now (`stopping`: it ends its own), nor one a
+    run is still starting in (starting: it has not registered yet), nor the process holding a sync pass
+    (conductor.holding's sync-pass-<pid>, whose own steps are its to end)."""
     from score.conductor import disk
     folder = pathlib.Path(frozen_folder or frozen.FOLDER)
     passes = {int(name.rpartition("-")[2]) for name in conductor.holds(holds_folder)
               if name.startswith(size.PASS_HOLD) and name.rpartition("-")[2].isdigit()}
-    return sorted({pid for copy, pids in disk.working(folder).items() if copy not in stopping
-                   for pid in pids if pid not in passes})
+    busy = disk.working(folder)
+    spared = set(stopping) | starting(folder, busy)
+    return sorted({pid for copy, pids in busy.items() if copy not in spared for pid in pids if pid not in passes})
+
+
+def starting(folder, busy):
+    """The copies in `busy` ({copy name: [pid]}) a `score run` is still starting in, so in no registry yet: made under
+    disk.YOUNG_SECONDS ago, and a process in it started with the owner's mark (SCORE_FROZEN_OWNER=1, SCORE_FROZEN naming
+    it: frozen.enter's, or the detached run it hands the copy on to). 2026-11-05: stop-batch ended three detached free
+    runs 2.1 minutes in, each still working out its claim. A run's own children start without the mark, so a gone
+    run's are still left over."""
+    from score.conductor import disk
+    folder = pathlib.Path(folder)
+    return {name for name, pids in busy.items()
+            if young(folder, name, disk.YOUNG_SECONDS) and any(owns(folder, name, pid) for pid in pids)}
+
+
+def young(folder, name, seconds):
+    """Whether the copy `name` (or its home) under `folder` changed under `seconds` ago; False when neither is there."""
+    from score.conductor import disk
+    try:
+        return disk.age(folder, name) < seconds
+    except ValueError:  # neither the copy nor its home is there: a copy removed under its processes
+        return False
+
+
+def owns(folder, name, pid):
+    """Whether the process `pid` started with the owner's mark for the copy `name` under `folder`."""
+    from score.conductor import disk
+    try:
+        words = disk.said_by(pathlib.Path(f"/proc/{pid}")).decode(errors="replace").split("\0")
+    except FileNotFoundError:
+        return False  # it ended meanwhile
+    named = {disk.copy_named(folder, word.partition("=")[2]) for word in words if word.startswith(f"{frozen.FROZEN}=")}
+    return f"{frozen.OWNER}=1" in words and name in named
 
 
 def allow_paid(asked_by, words):
