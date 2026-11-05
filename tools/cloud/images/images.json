@@ -738,6 +738,15 @@
    }
   }
  },
+ "newton": {
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-newton:1-b5c732be78a1@sha256:d0d86b12400d1bfb8d705baf8bfeeb61bee002d737811f6f71ae4e49508e9e85",
+  "tag": "1-b5c732be78a1",
+  "digest": "sha256:d0d86b12400d1bfb8d705baf8bfeeb61bee002d737811f6f71ae4e49508e9e85",
+  "platforms": "linux/amd64",
+  "size_mb": 467.0,
+  "build_minutes": 1.0,
+  "built": "2026-11-05T16:18:24Z"
+ },
  "parts": {
   "image": "rg.fr-par.scw.cloud/score-farm-factory/score-parts:1-fb2768bdbc18@sha256:444abb720c58cfab2f144091328e950a16fecd62f3f8ddaceaa7f4541767846b",
   "tag": "1-fb2768bdbc18",
