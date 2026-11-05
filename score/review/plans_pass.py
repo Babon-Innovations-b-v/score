@@ -248,13 +248,15 @@ def unsettled(plan, inventory, parts=True):
     relation solver parts things the fixes left in each other (relation_solver.parted)."""
     return (placing_more(plan, inventory) or bool(spaced_people(plan, inventory)[1]) or bool(brought_inside(plan)[1])
             or bool(unstood(plan, inventory)) or bool(plan_fixes.doors_kept(copy.deepcopy(plan), inventory))
+            or bool(plan_fixes.kept_inside(copy.deepcopy(plan), inventory))
             or (parts and bool(relation_solver.parted(plan, inventory)[1])))
 
 
 def settled_again(store, place, plan, inventory, ask, parts=True):
     """(the plan fixed again, the Correct calls made): plan_fixes.settled when it is `placing_more`, else as written
     (no Correct asked again for overlaps alone); then, when it `parts`, the things still in each other parted by the
-    relation solver, and no person left standing in anything (`spaced_people`), their fixes added and its gaps
+    relation solver, no person left standing in anything (`spaced_people`) and nothing past its own outline
+    (plan_fixes.kept_inside), their fixes added and its gaps
     checked again, each left saying why."""
     calls = []
     if placing_more(plan, inventory):
@@ -268,8 +270,9 @@ def settled_again(store, place, plan, inventory, ask, parts=True):
     answer, inside = brought_inside(answer)
     answer = copy.deepcopy(answer)
     doors = plan_fixes.doors_kept(answer, inventory)  # its doorways the design's door rows (a fix added 2026-11-04)
-    if more or spaced or stood or inside or doors:
-        plan = {**answer, "fixes": [*plan.get("fixes", []), *more, *spaced, *stood, *inside, *doors]}
+    within = plan_fixes.kept_inside(answer, inventory)  # nothing past its own outline (a fix added 2026-11-05)
+    if more or spaced or stood or inside or doors or within:
+        plan = {**answer, "fixes": [*plan.get("fixes", []), *more, *spaced, *stood, *inside, *doors, *within]}
         plan["gaps"] = plan_fixes.why_left(plan_fixes.open_gaps(plan, inventory))
     return plan, calls
 
