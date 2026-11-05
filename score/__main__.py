@@ -922,7 +922,7 @@ def selected_price(runner, buy):
     from score.adapters import compute
     takes = compute.retake_takes(runner, buy.node)  # a retake is priced for its own takes (compute.planned_forecast)
     with runner.selection(runner.stages[buy.node.partition("@")[0]]):
-        return buy_price(buy, counting_store(runner.store), runner.world.roots["data"], len(takes) if takes else None)
+        return buy_price(buy, counting_store(runner.store), runner.world.roots.get("data"), len(takes) if takes else None)
 
 
 def buy_price(buy, store, data, units=None):
