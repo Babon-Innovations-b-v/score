@@ -9,7 +9,7 @@ across its forefoot as SOMA's metatarsal heads stand apart across it over the mo
 inertia under an uneven scale the scaled box's (all worked out by hand from the boxes); and a kneecap standing 15 mm
 proud of a toy thigh moved inside it at every bend of its knee, its slide kept in its range (`knee_toy`); the mean
 body's lunge patella_r slide coupling (`SLIDE_WANTED`) refitted in its range under 1e-9 relative noise on every try,
-alike; and a body on its inertia's triangle edge (MyoFullBody's lumbar2) kept off it through a float32 round trip. It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh,
+alike; a toy neck placed by its centre on a scaled toy torso, that centre where the torso's scale puts it; and a body on its inertia's triangle edge (MyoFullBody's lumbar2) kept off it through a float32 round trip. It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh,
 built at $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted):
@@ -39,6 +39,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-11-04) in_range's daqp QP put back as scipy's SLSQP (the code before 2026-11-04): it raises 'Positive
   directional derivative for linesearch' on some of the noisy tries.
 - (2026-11-04) balanced's `inertia[largest] = most` dropped: lumbar2's A + B - C stays at 0 after float32.
+- (2026-11-05) joint_placed's `parent_scale * in_parent` made `in_parent`: the neck's centre stays the source's place on
+  a shrunk torso (the mean body's cervical bones 35 mm over its T1 at rest).
 
 Run: .venv/bin/python score/stages/sim_body/inside/sizing/test_a_sized_group_is_somas_length_and_weight.py
 """
@@ -433,7 +435,27 @@ def a_body_on_its_inertias_edge_is_kept_off_it():
     return problems
 
 
-CHECKS = (every_group_is_somas_length_mass_and_centre, a_mesh_is_filled_once_and_sizes_alike,
+def a_joint_placed_body_keeps_its_centre_where_its_parent_puts_it():
+    """A toy neck (JOINT_PLACED) on a toy torso, its origin 1 cm off the torso's and its centre C7/T1 on the torso at
+    MyoFullBody's point: with the torso scaled 0.8 and the neck 1.25, the neck's place puts its centre (its own frame's
+    point scaled by its own scale) where the torso's scale puts it (worked out by hand: 0.8 c - 1.25 (c - origin))."""
+    import mujoco
+    import numpy as np
+    import sizing
+    from landmarks import CENTRES
+    spec = mujoco.MjSpec()
+    torso = spec.worldbody.add_body(name="torso", pos=[0, 0, 0])
+    torso.add_geom(size=[0.05, 0, 0])
+    neck = torso.add_body(name="neck", pos=[0.01, 0, 0])
+    neck.add_geom(size=[0.03, 0, 0], pos=[0, 0.45, 0])
+    centre = np.asarray(CENTRES["C7_T1"][1], dtype=float)
+    scales = {"torso": np.full(3, 0.8), "neck": np.full(3, 1.25)}
+    wanted = 0.8 * centre - 1.25 * (centre - [0.01, 0, 0])
+    found = sizing.joint_placed(spec.compile(), scales)["neck"]
+    return [] if np.allclose(found, wanted, atol=1e-9) else [f"the neck placed at {found.round(5).tolist()}, not {wanted.round(5).tolist()}"]
+
+
+CHECKS = (every_group_is_somas_length_mass_and_centre, a_joint_placed_body_keeps_its_centre_where_its_parent_puts_it, a_mesh_is_filled_once_and_sizes_alike,
           a_limb_is_as_wide_as_its_girth_asks, a_box_stretched_unevenly_has_the_stretched_boxs_inertia,
           a_kneecap_lies_inside_somas_skin_over_the_knees_range,
           a_couplings_refit_holds_its_range_under_rounding_noise, a_body_on_its_inertias_edge_is_kept_off_it)

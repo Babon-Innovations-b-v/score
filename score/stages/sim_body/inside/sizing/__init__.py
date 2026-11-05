@@ -20,7 +20,7 @@
 A body's scale is three, one per axis of its own frame: its group's length scale along the axis nearest the group's
 stretch at the default pose (`long_axes`), its width scale across (the same as the length's outside GIRTH_GROUPS); a
 body of no group takes its parent's. A body's place in its parent scales with its parent, but OWN_PLACED's with its
-own. Positions, geoms, sites, joint anchors, meshes, inertias and a slide joint's coupling and range scale with it
+own and JOINT_PLACED's about the centre it turns about on its parent (`joint_placed`). Positions, geoms, sites, joint anchors, meshes, inertias and a slide joint's coupling and range scale with it
 (`sized`; a shape's or an inertia's axes, and a slide's, by the stretch along each, `_stretched`); each muscle's path length at the zero pose is read for
 OpenSim's muscle scaling (`path_lengths`). The masses' centres stand at SOMA's own joints (`soma_point`,
 `myo_point`): where a group's mass sits is not its length."""
@@ -37,6 +37,12 @@ WRAPPER_KG = 0.001  # a split body's wrapper (MuJoCo's boundmass for MyoFullBody
 # Bodies placed in their parent by their own scale: the torso, welded on lumbar1 with its origin 8.9 cm below
 # lumbar1's (inside its own bone, the source model): by lumbar1's scale a longer lumbar stretch moved T12/L1 down.
 OWN_PLACED = {"torso"}
+# Bodies placed in their parent by the centre they turn about on it (#70, 2026-11-05; the owner: "the neck is
+# dettached"): {body: that centre}. The centre stays where its parent's scale puts it, the body's own bones scaled about
+# it by the body's own scale (`joint_placed`). The neck's origin is MyoHead's, at the torso's 40 cm under its own bones:
+# placed by its parent's scale, the torso's 0.917 on the mean body dropped C7/T1 33 mm under the neck's 0.998, its
+# cervical bones stood 35 mm over the torso's top at rest and the neck's length scale was never asked to reach SOMA's.
+JOINT_PLACED = {"neck": "C7_T1"}
 SCALE_RANGE = (0.5, 2.0)  # a bone group's scale's bounds
 # More SOMA bone lines a group's volume is given by, beyond its stretch: the hips' line for the pelvis.
 MORE_LINES = {"Hips": (("LeftLeg", "RightLeg"),)}
@@ -118,7 +124,10 @@ def posed_lengths(model, scales, table=None):
     above = np.array([even] + [scales.get(name[model.body_parentid[body]], even) for body in range(1, model.nbody)])
     placed = np.array([even] + [scales[name[body]] if name[body] in OWN_PLACED else above[body]
                                 for body in range(1, model.nbody)])
+    anchored = joint_placed(model, scales)
     model.body_pos[:] = kept[0] * placed
+    for body, place in anchored.items():
+        model.body_pos[_body_id(model, body)] = place
     model.jnt_pos[:] = kept[1] * np.array([scales.get(name[model.jnt_bodyid[joint]], even)
                                           for joint in range(model.njnt)])
     for equality in range(model.neq):
@@ -247,6 +256,29 @@ def _body_id(model, name):
     return mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, name)
 
 
+def joint_placed(model, scales):
+    """{body: its place in its parent} for JOINT_PLACED's bodies of the source `model`: pos' = above (pos + R q) -
+    R (scale q), q its centre in its own frame at the model's rest, R its turn in its parent, `above` its parent's
+    scale and `scale` its own (`scales`), so the centre scales with the parent and the body's own bones about it."""
+    data = mujoco.MjData(model)
+    mujoco.mj_kinematics(model, data)
+    found = {}
+    for name, centre in JOINT_PLACED.items():
+        body = _body_id(model, name)
+        if body < 0:  # a model without it (a toy)
+            continue
+        parent = model.body_parentid[body]
+        point = sum(weight * (data.xpos[_body_id(model, holder)] + data.xmat[_body_id(model, holder)].reshape(3, 3) @ np.asarray(local))
+                    for holder, local, weight in myo_parts(centre))
+        own, above = data.xmat[body].reshape(3, 3), data.xmat[parent].reshape(3, 3)
+        turn = above.T @ own
+        in_body = own.T @ (point - data.xpos[body])
+        in_parent = above.T @ (point - data.xpos[parent])
+        parent_scale = np.asarray(scales.get(mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, parent), np.ones(3)))
+        found[name] = parent_scale * in_parent - turn @ (np.asarray(scales[name]) * in_body)
+    return found
+
+
 def sized(spec, model, scales, kg, wrappers):
     """The spec sized body by body (see the module's docstring), its mass brought to `kg` with `wrappers` wrapper
     bodies' mass left for them, in the model's own proportions."""
@@ -254,10 +286,11 @@ def sized(spec, model, scales, kg, wrappers):
     grown = sum(model.body_mass[_body_id(model, body.name)] * np.prod(scales[body.name]) for body in spec.bodies[1:])
     share = (kg - wrappers * WRAPPER_KG) / grown
     meshes = {mesh.name: mesh for mesh in spec.meshes}
+    placed = joint_placed(model, scales)
     for body in spec.bodies[1:]:
         scale = np.asarray(scales[body.name], dtype=float)
         above = np.asarray(scales.get(body.parent.name, scale) if body.parent.name != "world" else np.ones(3))
-        body.pos = np.asarray(body.pos) * (scale if body.name in OWN_PLACED else above)
+        body.pos = placed[body.name] if body.name in placed else np.asarray(body.pos) * (scale if body.name in OWN_PLACED else above)
         index = _body_id(model, body.name)
         mass = model.body_mass[index] * np.prod(scale) * share
         body.explicitinertial = True
