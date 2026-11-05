@@ -21,8 +21,7 @@ his Buy button makes (flow.start, every refusal of his click), once.
     buy(yes id)                           his Buy under that yes, refused when: no quoted yes, used already (one yes
                                           launches at most one checkout: grants/buy-used/<id>.json, written once
                                           before the checkout, so a checkout refused after that needs a new yes),
-                                          the basket differs from the one he approved, its high above his high, a
-                                          yes naming a try's stop rather than a batch total (flow.yes_refusals), or
+                                          a yes naming a try's stop rather than a batch total (flow.yes_refusals), or
                                           nothing left of his total (flow.batch_budget, where the line is written:
                                           the line is the batch's start plus his total, and a try that needs more
                                           than is left stops at it, owner 2026-10-27), this
@@ -30,7 +29,11 @@ his Buy button makes (flow.start, every refusal of his click), once.
                                           active; then flow.start as his click, by "<owner>, approved in chat at
                                           <time>", the yes on the checkout (Checkout.chat_yes); again under a yes
                                           that launched one, a retry of its batch held to the batch's budget
-                                          (flow.batch_budget: launched while any of it is left), no new ask
+                                          (flow.batch_budget: launched while any of it is left), no new ask; a
+                                          basket changed since the yes (fewer, more or other items, other
+                                          versions) or a higher high is bought under it, no new ask: a Buy holds
+                                          till his batch total or the goal (owner, 2026-11-05: "A BUY IS TILL THE
+                                          END OF THE BUDGET OR UNTIL THE END GOAL ENV1 DONE IS COMPELTED")
 
 Reached from the agents' door (tools/cloud/conductor/agent_door.py `buy-yes`, `buy`). Agents never invent a yes: it is
 written only from the answer the session's question tool got from him. A barrier, not a lock: every yes quotes who
@@ -160,14 +163,6 @@ def yes_found(store, yes_id):
     return yes
 
 
-def basket_refusals(yes, now_basket):
-    """Why the basket now is not the one he approved, in words."""
-    if now_basket["items"] != yes["basket"]["items"]:
-        return [f"the basket changed since he approved it at {yes['at']} (then {len(yes['basket']['items'])} items, "
-                f"now {len(now_basket['items'])}, or another version of one): a changed basket needs a new yes"]
-    return []
-
-
 def latch_refusals():
     """Why paid work is off here, in words: the owner's kill switch latch, or this process free only."""
     if conductor.free_only():
@@ -206,8 +201,7 @@ def buy(yes_id, store=None):
     yes = yes_found(store, yes_id)
     now_basket = current_basket()
     totals = basket_totals(now_basket, yes.get("leave_out", ()))  # flow.start checks it again, under its lock
-    refused = (([] if yes.get("retry") else basket_refusals(yes, now_basket)) + flow.yes_refusals(yes, totals)
-               + latch_refusals() + pin_refusals(health.code()) + run_refusals())
+    refused = flow.yes_refusals(yes, totals) + latch_refusals() + pin_refusals(health.code()) + run_refusals()
     if refused:
         raise Refused("; ".join(refused))
     if not yes.get("retry"):

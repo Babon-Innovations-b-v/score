@@ -38,6 +38,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - flow.batch_groups: the Benchmarks group -> `if False:` -> test_the_benchmarks_are_one_item_on_the_buy_screen_...
 - api/routes.books_figure: `user.username` -> "someone" -> test_the_google_figure_button_writes_the_owners_figure_...
 - flow.by_of: `return user.username` -> test_a_buy_approved_in_chat_launches_his_checkout_once
+- chat_yes.buy: the basket check put back (yes basket != basket now -> refused) -> test_a_buy_approved_in_chat_launches_...
 - flow.yes_refusals: the stop check -> `if False:` -> test_a_buy_approved_in_chat_is_refused_outside_what_he_approved
 - flow.batch_budget: a yes's `if used + need > total:` -> `if False:` -> test_a_batch_budget_counts_from_an_older_...
 - flow.batch_budget: a retry's `return start, before` -> `before + need` -> test_a_batch_has_one_budget_across_its_tries
@@ -556,14 +557,19 @@ def a_yes(total=33.0, high=30.0):
     return chat_yes.record(total, high, "Yes, buy it", QUESTION)
 
 
-def test_a_buy_approved_in_chat_launches_his_checkout_once(chat, monkeypatch):
+def test_a_buy_approved_in_chat_launches_his_checkout_once(chat, settings, monkeypatch):
     monkeypatch.setattr(FakeBackend, "log_folder", None)
-    yes = a_yes()
-    assert [item["id"] for item in yes["basket"]["items"]] == ["alpha-pieces", "beta-pieces"] and yes["by"] == "joey"
+    chat.items = a_basket(settings, ["closeup@alpha"])
+    yes = a_yes(high=15.0)
+    assert [item["id"] for item in yes["basket"]["items"]] == ["alpha-pieces"] and yes["by"] == "joey"
+    # a basket changed since the yes (more items, its high EUR 30 above his 15) is bought under it, no new ask
+    # (owner, 2026-11-05: "A BUY IS TILL THE END OF THE BUDGET OR UNTIL THE END GOAL ENV1 DONE IS COMPELTED")
+    chat.items = a_basket(settings, ["closeup@alpha", "closeup@beta"])
     record, said = chat_buy(yes["id"])
     assert record is not None and record.state == "launched", said
+    assert [item["id"] for item in record.items] == ["alpha-pieces", "beta-pieces"]
     line = stop_line(chat)
-    assert line["euros"] == 100.0 + 10.0 + 33.0  # as his click: spent, in flight, the batch's high plus 10%
+    assert line["euros"] == 100.0 + 10.0 + 33.0  # the batch's start (spent, in flight) plus the total he approved
     assert line["by"] == record.by == f"joey, approved in chat at {yes['at']}"
     assert record.chat_yes["answer"] == "Yes, buy it" and record.chat_yes["question"] == QUESTION
     assert len(launches()) == 1 and all(os.getenv(name) == "1" for name in AGENT_MARKERS)  # back once launched
@@ -588,7 +594,6 @@ def test_a_buy_approved_in_chat_is_refused_outside_what_he_approved(chat, settin
     assert "above EUR 0" in str(pytest.raises(chat_yes.Refused, a_yes, total="nan").value)
     pytest.raises(chat_yes.Refused, chat_yes.record, 33, 30, "", QUESTION)
     refused("20261025T000000Z", "no quoted Buy yes")
-    refused(a_yes(high=29.99)["id"], "its high is EUR 30.00, above the EUR 29.99")
     older = {**a_yes(), "id": "20261025T000001Z", "stop_euros": 33.0}  # a try's stop, before batch totals
     older.pop("batch_total_euros")
     web.buy_yes_written(chat.store, older)
@@ -608,9 +613,6 @@ def test_a_buy_approved_in_chat_is_refused_outside_what_he_approved(chat, settin
     assert runs.claim("abc", ["closeup@alpha"], os.getpid(), folder=tmp_path / "runs") is None
     refused(a_yes()["id"], "a run is active")
     runs.unclaim(os.getpid(), folder=tmp_path / "runs")
-    changed = a_yes()["id"]
-    chat.items = a_basket(settings, ["closeup@alpha"])
-    refused(changed, "the basket changed since he approved it")
     assert not Checkout.objects.exists() and not launches() and stop_line(chat) is None
     # without the film (owner, 2026-11-03): its stages' rows are taken out of the items, so neither priced nor bought
     price = {"likely": 1.0, "high": 2.0}

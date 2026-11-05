@@ -1304,8 +1304,7 @@ def test_a_reject_made_in_chat_carries_the_takes_he_named_to_remake_into_his_rej
 
 
 def test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question(world, settings):
-    """Another accept since the question, or the film's script edited since, refuses it like a changed basket refuses
-    a Buy, nothing marked used; a go is carried by its run and never applied here."""
+    """Another accept since the question, or the film's script edited since, refuses it, nothing marked used; a go is carried by its run and never applied here."""
     from score.dashboard.films import script
     from score.dashboard.sync import chat_decisions
     from score.review import web
