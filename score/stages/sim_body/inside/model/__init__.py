@@ -12,7 +12,10 @@ from scipy.signal import butter, filtfilt
 from solvers import CUTOFF
 
 DEVICE = "cpu"  # MuJoCo's CPU backend: bit for bit, and MuJoCo Warp's deterministic mode breaks over 60 dofs (#60)
-CARD = "cuda:0"  # with a CUDA card the model is also put on it, MuJoCo Warp (not its deterministic mode), `on_card`
+# With a CUDA card the model is also put on it, MuJoCo Warp, `on_card`: Newton's solver not in its deterministic mode
+# (its inertia solve is wrong over 60 dofs, #60, and its bound sizes MyoFullBody's records past Warp's limit); the
+# stages `batched.Card` reads run in Warp's run-to-run mode on their own (`batched.deterministic`).
+CARD = "cuda:0"
 ON_CARD = {}  # {id(MuJoCo model): (it, MuJoCo Warp's model of it)}, the models `built` put on the card
 # MuJoCo's frame (Z up, the model's own: facing -y, left +x) into the person's (Y up, facing +z).
 TO_OWN = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]])

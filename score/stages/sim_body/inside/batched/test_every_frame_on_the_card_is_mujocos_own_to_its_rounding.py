@@ -7,7 +7,10 @@ each body's place within 1e-6 m and turn within 1e-6, the tendon's path points (
 it) within 1e-6 m; after RRA's model step moves a mass the card's needed forces follow it (`Card.sync`); and RRA's
 sensitivities on the card (`rra.sensitivities`, CARD_STEPS) within 1e-3 of the largest of MuJoCo's C ones at RRA_STEP;
 and every frame's least squares at once (`least_all`) is `solvers.least`'s (`least_squares_alike`), and RRA's capped move with its products on the card (`within_balls_card`) is
-`solvers.within_balls`' (`balls_alike`). The card's run is
+`solvers.within_balls`' (`balls_alike`). Run to run (`repeats`): the card's states evaluated again, three worlds a
+launch, are the same bits; and on Warp's processor device (card or none) the toy's `Card.evaluate`, its own `stages`
+in Warp's run-to-run mode, gives every value it reads bit for bit as MuJoCo Warp's whole `fwd_position`,
+`fwd_velocity` and `rne` with the accelerations, twice. The card's run is
 the processor's within CARD_TOLERANCES (`batched.apart`, measured on #70's clips): a record moved within each reads
 equal, past one reads apart by its name (`the_judge_tells_a_moved_record`, run with or without a card). Without a card
 it prints that it was not run. It runs in Newton's own Python (score/stages/physics/inside/newton_env.sh, built at
@@ -24,6 +27,10 @@ Breaks (each applied once, seen red, reverted), 2026-11-05:
 - within_balls_card's `- rho * shifted` dropped: the balls' own offsets left out of the target.
 - apart's `if not off <= tolerance` made `if off > 10 * tolerance`: a record moved twice a tolerance reads equal.
 - apart's residual moment check dropped: a residual moment moved past its tolerance reads equal.
+Breaks, 2026-11-06 (on the processor, the card hidden):
+- stages' `mjw.passive(...)` dropped: the passive forces, and so the needed forces, are not MuJoCo Warp's.
+- stages' `rne(..., flg_acc=True)` made `flg_acc=False`: the needed forces leave out the accelerations'.
+- stages' `_tendon_velocity` launch dropped: the damped tendon's pull reads no speed.
 
 Run: .venv/bin/python score/stages/sim_body/inside/batched/test_every_frame_on_the_card_is_mujocos_own_to_its_rounding.py
 """
@@ -104,7 +111,7 @@ def every_frame_on_the_card_is_mujocos_own():
     import warp
     if not warp.is_cuda_available():
         print("batched: no CUDA card, the card's checks not run")
-        return the_judge_tells_a_moved_record()
+        return repeats_on_the_processor() + the_judge_tells_a_moved_record()
     with tempfile.TemporaryDirectory() as folder:
         path = pathlib.Path(folder) / "arm.xml"
         path.write_text(ARM)
@@ -177,8 +184,53 @@ def every_frame_on_the_card_is_mujocos_own():
         wanted = np.array([frame[kind] for frame in on_cpu])
         within(f"sensitivity to {name}", np.array([frame[kind] for frame in on_card]), wanted,
                1e-3 * np.abs(wanted).max())
-    problems += least_squares_alike() + balls_alike()
-    return problems + the_judge_tells_a_moved_record()
+    problems += least_squares_alike() + balls_alike() + repeats(physics.card, qpos, qvel, qacc)
+    return problems + repeats_on_the_processor() + the_judge_tells_a_moved_record()
+
+
+def repeats(card, qpos, qvel, qacc):
+    """`card.evaluate` of the states twice, the second three worlds a launch: every value read the same bits."""
+    import numpy as np
+    first = card.evaluate(qpos, qvel, qacc)
+    kept, card.chunk = card.chunk, 3
+    try:
+        second = card.evaluate(qpos, qvel, qacc)
+    finally:
+        card.chunk = kept
+    return [f"{name} not the same bits again" for name in first if not np.array_equal(first[name], second[name])]
+
+
+def repeats_on_the_processor():
+    """On Warp's processor device, the toy's `Card.evaluate` (its `stages`, in Warp's run-to-run mode) twice, each
+    value it reads the same bits as MuJoCo Warp's whole `fwd_position` (no factorising), `fwd_velocity` and `rne`
+    with the accelerations on the same states, its tendon damped so the tendon's speed is read."""
+    import mujoco
+    import mujoco_warp
+    import numpy as np
+    import warp
+    from batched import COPIED, Card
+    found = mujoco.MjModel.from_xml_string(ARM)
+    found.tendon_damping[0] = 2.0
+    qpos, qvel, qacc = states(found)
+    with warp.ScopedDevice("cpu"):
+        card = Card(found, mujoco_warp.put_model(found))
+        found_once = card.evaluate(qpos, qvel, qacc)
+        problems = repeats(card, qpos, qvel, qacc)
+        whole = mujoco_warp.make_data(found, nworld=len(qpos), nconmax=1, njmax=1)
+        whole.qpos.assign(qpos.astype(np.float32))
+        whole.qvel.assign(qvel.astype(np.float32))
+        whole.qacc.assign(qacc.astype(np.float32))
+        mujoco_warp.fwd_position(card.mjw_model, whole, factorize=False)
+        mujoco_warp.fwd_velocity(card.mjw_model, whole)
+        mujoco_warp.rne(card.mjw_model, whole, flg_acc=True)
+    wanted = {name: getattr(whole, name).numpy() for name in COPIED}
+    wanted["needed"] = (whole.qfrc_bias.numpy().astype(float) + found.dof_armature * qacc
+                        - whole.qfrc_passive.numpy().astype(float))
+    for name, values in wanted.items():
+        got = np.asarray(found_once[name])
+        if not np.array_equal(got, np.asarray(values).astype(got.dtype)):
+            problems.append(f"{name} on the processor not MuJoCo Warp's whole stages' bits")
+    return [f"processor: {problem}" for problem in problems]
 
 
 def entry(frames=4, weight=700.0):

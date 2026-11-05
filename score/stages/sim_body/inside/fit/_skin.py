@@ -421,7 +421,7 @@ def bones_outside(model, path, worlds, segments, rig):
             apart.append(float(out.mean()))
             continue
         shares.setdefault("all", []).append(float(out.mean()))
-        for label in set(labels):
+        for label in sorted(set(labels)):  # sorted: a set of strings orders by the process's hash seed
             shares.setdefault(label, []).append(float(out[labels == label].mean()))
     return ({label: round(100 * float(np.mean(found)), 2) for label, found in shares.items()},
             {"frames": len(apart), "all": round(100 * float(np.mean(apart)), 2) if apart else 0.0,
