@@ -510,8 +510,8 @@
    },
    "basis": "warm work time",
    "forecast": {
-    "rule": "prop_takes",
-    "source": "one a model, each once: the takes of the place's prop objects (data/props/<place>.json) not made in WORK/pixal, and the missing rows of the place's gaps (score/stages/complete/gaps) whose node is this stage's there, by their take"
+    "rule": "pixal_takes",
+    "source": "one a row, each once: each prop object (data/props/<place>.json) pixal rents for: a take not finished in WORK/pixal (its three files and its slimmed model) nor held whole by the library (takes_back puts those back), a thin straight row not built in code from its cut box (its SAM 3 mask card; thin_straight), and the missing rows of the place's gaps (score/stages/complete/gaps) whose node is this stage's there, by their take; a mask card or a finish only at its measured figure in takes, at least one; none is EUR 0"
    }
   },
   "closeup": {

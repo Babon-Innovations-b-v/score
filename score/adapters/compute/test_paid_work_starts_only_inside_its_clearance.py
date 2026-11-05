@@ -506,12 +506,12 @@ def test_each_count_rule_counts_the_units_an_output_made():
 
 
 def test_a_count_of_zero_is_free_only_where_its_rule_counts_zero():
-    """A place whose sound takes all stand made counts 0 takes: EUR 0 and no time (COUNTED_ZERO); any other rule's
+    """A place whose sound takes all stand made counts 0 takes: EUR 0 and no time (COUNTED_ZERO, pixal's takes too); any other rule's
     0 is nothing counted, so no price (unknown, never free)."""
     sound = compute.forecast_price("sound@airlock", 0)
     assert (sound["likely_euros"], sound["high_euros"], sound["units"]) == (0.0, 0.0, 0), sound
     assert compute.unit_minutes("sound", 0) == {"likely_minutes": 0.0, "high_minutes": 0.0, "cards": 0}
-    assert compute.forecast_price("pixal@airlock", 0) is None and compute.forecast_price("sound@airlock", None) is None
+    assert compute.forecast_price("closeup@airlock", 0) is None and compute.forecast_price("sound@airlock", None) is None
 
 
 def test_the_owners_google_month_is_refused_in_an_agents_process():

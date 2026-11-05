@@ -71,8 +71,9 @@ TICKET = "SCORE_SPEND_TICKET"
 # Each paid stage's measured cost of one unit of its work, with the ledger lines it rests on (tools/costs/per_unit.py).
 PER_UNIT = REPO / "data/costs/per-unit.json"
 # The forecast rules whose 0 is a count, not an unknown: the sound takes still to make (every take a place plays
-# stands made, or another place's line makes it first), so its make reads cached takes at EUR 0 (#10).
-COUNTED_ZERO = ("sound_takes",)
+# stands made, or another place's line makes it first), so its make reads cached takes at EUR 0 (#10); and the takes
+# pixal sends to Pixal3D (every take made, held by the library or built in code), so its make sends none at EUR 0.
+COUNTED_ZERO = ("sound_takes", "pixal_takes")
 # The folder of the store the ticket's clearance is in, set beside the ticket (a trial store's, compare.py's).
 STORE = "SCORE_SPEND_STORE"
 # The `score run` a clearance was made under (score/__main__.py): its reservations end with it, even when stopped.
@@ -282,7 +283,12 @@ def run_forecast(node, euros, store=None, units=None):
     high times its units (unit_price, on `store`) with no minutes, else its measured per-unit high times the `units`
     its forecast rule counted (forecast_price, as the run's plan prices it, so a stop line set on the plan rests on
     the same measured figures) with their unit minutes, else the stage's own estimate `euros` with no minutes;
-    Refused with none. The runner's numbers, never an agent's: the owner, 2026-10-18."""
+    Refused with none. Where its rule counts exactly what this make sends (counts_sent: pixal's takes to Pixal3D),
+    those `units` first: neither a whole run of another make nor every take the last make counted says what this
+    one sends (a re-keyed pixal@<place> with every take made reserved its whole runs, 2026-11-05). The runner's
+    numbers, never an agent's: the owner, 2026-10-18."""
+    if counts_sent(node, units) and forecast_price(node, units) is not None:
+        return planned_run(node, euros, units)
     books = ledger()
     import preflight  # beside ledger.py
     run = preflight.node_run(books.entries(), node.partition("@")[0])
@@ -325,6 +331,15 @@ def forecast_price(node, units):
             "high_euros": round(entry["high_euros"] * units * share, 4), "unit": entry["unit"], "units": units,
             "unit_likely_euros": entry["likely_euros"], "unit_high_euros": entry["high_euros"], "runs": entry["runs"],
             "unit_source": entry["forecast"]["source"], "bill_share": round(share, 4)}
+
+
+def counts_sent(node, units):
+    """Whether `units` were counted by the node's own stage's forecast rule and that rule counts exactly the units
+    the make sends (COUNTED_ZERO's, whose 0 is a count)."""
+    stage = node.partition("@")[0]
+    entry = per_unit(stage)
+    return (units is not None and entry is not None and entry["stage"] == stage
+            and (entry.get("forecast") or {}).get("rule") in COUNTED_ZERO)
 
 
 def counted(entry, units):

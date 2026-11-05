@@ -1150,10 +1150,8 @@ UNSEEDED = ("likeness", "surfaces-check", "complete", "ground-fit", "light", "mo
 STAGES = tuple(dataclasses.replace(row, seeded=False) if row.name in UNSEEDED else row for row in STAGES)
 
 
-def takes_back(place):
-    """Every Pixal3D take the place's surface data paints that offload-pixal freed, put back in work/pixal from the
-    library (tools/library/pixal_takes.py) before any row's files are read: here, in the framework's table, so no
-    reader's code version moves. A take set aside for its retake is left out until its retake is made (retake_pending)."""
+def pixal_takes_tool():
+    """tools/library/pixal_takes.py, imported from its folder."""
     import sys
     kept = list(sys.path)
     sys.path.insert(0, str(REPO / "tools" / "library"))
@@ -1161,9 +1159,35 @@ def takes_back(place):
         import pixal_takes
     finally:
         sys.path[:] = kept
+    return pixal_takes
+
+
+def takes_back(place):
+    """Every Pixal3D take the place's surface data paints that offload-pixal freed, put back in work/pixal from the
+    library (tools/library/pixal_takes.py) before any row's files are read: here, in the framework's table, so no
+    reader's code version moves. A take set aside for its retake is left out until its retake is made (retake_pending)."""
+    pixal_takes = pixal_takes_tool()
     for take in surfaces.data.takes(place) if place else ():
         if not retake_pending(take, PROPS_HOME / "work" / "pixal", pixal_takes.newest_record(take)):
             pixal_takes.take_back(take, PROPS_HOME / "work" / "pixal")
+
+
+def held_back(take, faces):
+    """Whether takes_back would put the take back in work/pixal finished, read only: the library's record lists every
+    file the make needs of a finished take (its raw and final models, a file of its camera folder and its slimmed
+    <take>-<faces>.glb, pixal_row.finished; a partial record leaves the make to send or finish it) and the take is
+    not set aside for its retake (retake_pending). `faces` None (no bake entry): not held. Only for a take of the
+    place's surface data, the ones takes_back walks."""
+    record = pixal_takes_tool().newest_record(take)
+    if record is None or faces is None:
+        return False
+    names = set(record.get("files") or {})
+    whole = ({f"{take}.glb", f"{take}-final.glb", f"{take}-{faces}.glb"} <= names
+             and any(name.startswith(f"{take}.svviews/") for name in names))
+    pixal = PROPS_HOME / "work" / "pixal"
+    if all((pixal / name).exists() for name in (f"{take}.glb", f"{take}-final.glb", f"{take}.svviews")):
+        return False  # take_back puts nothing back once these three are here: a missing slimmed file is finished anew
+    return whole and not retake_pending(take, pixal, record)
 
 
 graph.PLACE_READS.append(takes_back)
