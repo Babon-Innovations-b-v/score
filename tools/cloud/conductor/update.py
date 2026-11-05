@@ -290,7 +290,41 @@ def moved(repo, sync_url, uv, opener, proc, token, home, sync_unit):
         synced = ", .venv synced"
     synced += props_env(repo, home, uv, lock_changed(repo, old, commit))
     synced += units_installed(repo, old, commit)
+    synced += claude_installed(repo)
     return f"update: {old[:12]} -> {commit[:12]}, {why}{synced}"
+
+
+def claude_pin(repo):
+    """The Claude Code version boot.sh pins (CLAUDE_PIN), None when it names none or the checkout has no boot.sh."""
+    boot = repo / "tools" / "cloud" / "conductor" / "boot.sh"
+    if not boot.is_file():
+        return None
+    for line in boot.read_text().splitlines():
+        if line.startswith("CLAUDE_PIN="):
+            return line.split("=", 1)[1].strip().strip('"').rpartition("@")[2]
+    return None
+
+
+def claude_installed(repo, cli=None):
+    """boot.sh's claude part, then claude_login.py link, when the move left the pinned Claude Code not installed
+    (owner, 2026-11-05: nothing runs boot.sh between boots, so a live conductor would never get it); what the line
+    adds, a failed install said with its exit and last line."""
+    version = claude_pin(repo)
+    cli = cli or pathlib.Path.home() / ".local" / "lib" / "claude-code" / "bin" / "claude"
+    if version is None:
+        return ""
+    if cli.is_file():
+        said = subprocess.run([str(cli), "--version"], capture_output=True, text=True).stdout.strip()
+        if said == f"{version} (Claude Code)":
+            return ""
+    conductor = repo / "tools" / "cloud" / "conductor"
+    done = subprocess.run(["bash", str(conductor / "boot.sh"), "claude"], capture_output=True, text=True)
+    if done.returncode != 0:
+        return f", Claude Code NOT installed (boot.sh claude exit {done.returncode}: " \
+               f"{(done.stderr.strip().splitlines() or ['no output'])[-1]})"
+    linked = subprocess.run(["/usr/bin/python3", "-I", str(conductor / "claude_login.py"), "link"],
+                            capture_output=True, text=True)
+    return f", Claude Code {version} installed ({(linked.stdout.strip() or linked.stderr.strip())[:200]})"
 
 
 def units_installed(repo, old, new):
