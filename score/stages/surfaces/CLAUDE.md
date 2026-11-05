@@ -286,16 +286,17 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   seen over 10 L* lighter, baked over 3 darker; the light moves L* but keeps the order), and a part baked over 32
   from its close-up colour (kept at 32: the close-up's light lifts right surfaces 15 to 30 L*, so a tighter number
   fails right blacks; compare a model's surfaces with each other instead).
-- **The bake's texture layout is checked** (`uv_layout.py`, gate "texture layout sound", `bake_check.judge_layout`;
-  #92, after marso-skills' Apache-2.0 `audit_uv.py` and `measure_uv_quality.py`, rewritten in numpy over the baked
-  .gltf): per model, its surface outside the picture, mirrored, stretched over `STRETCH` one way, under
-  `DENSITY_FALL` of its median texels a metre, in charts under `THIN_TEXELS` wide, and its texels written by two
-  faces, each failing over `LEAST` (1%, the check's PART_LEAST; outside on any share), by model and measure; a batch
-  gate (`stages.BATCH_GATES`), so a failing model is a gap of its take. Measured 2026-11-05 on env1's 439 baked
-  models: 31 fail, 15 by shared texels (smart_project's folds on lumpy takes, the faces sharing a texel 6 to 13% of
-  the model's size apart), 17 by sub-texel charts on small pictures. The back-face fault (`inside/bake.py`
-  HIDDEN_SHARE, a face toward the kit's back packed at a twentieth of the density) is ruled out: every caller passes
-  `backs_hidden=False`, and no model's density facing any axis is under 0.7 of another's (doors included).
+- **The bake's texture layout is checked** (`uv_layout.py`, gate "texture layout sound", `uv_layout.judge_layout`,
+  recorded by `route_check.layout_measured`, never in `bake_check.py`, which the people's dress reads; #92, after
+  marso-skills' Apache-2.0 `audit_uv.py` and `measure_uv_quality.py`, rewritten in numpy over the baked .gltf): per
+  model, its surface outside the picture, mirrored, stretched over `STRETCH` one way, under `DENSITY_FALL` of its
+  median texels a metre, in charts under `THIN_TEXELS` wide, and its texels written by two faces, each failing over
+  `LEAST` (1%, the check's PART_LEAST; outside on any share), by model and measure; a batch gate
+  (`stages.BATCH_GATES`), so a failing model is a gap of its take. Measured 2026-11-05 on env1's 439 baked models: 31
+  fail, 15 by shared texels (smart_project's folds on lumpy takes, the faces sharing a texel 6 to 13% of the model's
+  size apart), 17 by sub-texel charts on small pictures. The back-face fault (`inside/bake.py` HIDDEN_SHARE, a face
+  toward the kit's back packed at a twentieth of the density) is ruled out: every caller passes `backs_hidden=False`,
+  and no model's density facing any axis is under 0.7 of another's (doors included).
 - **A base that slopes as one piece is brought down level** in the paint (`place_line.flattened_base`, after the legs):
   each footprint quadrant of the bottom quarter over 1% of the size up comes down its whole gap at its lowest point,
   spread by inverse squared distance and faded over the band; over 15% is a model fault, refused. Then an underside
