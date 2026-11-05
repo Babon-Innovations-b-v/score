@@ -335,7 +335,8 @@ def test_a_stop_ends_every_process_left_in_the_copy_of_a_run_gone_and_leaves_a_s
     no registry yet.
     Break: kill.leftovers -> frozen.users only (the two by name stay), or drop its `pid not in passes` (the sync pass
     is ended), or drop kill.starting (the starting run is ended) or its young or owner test (the old copy's owner, or
-    the gone copy's unmarked processes, stay)."""
+    the gone copy's unmarked processes, stay), or drop `+ starting_runs(frozen_folder)` in stop_everything (a starting
+    run goes on past the stop)."""
     (home / "runs").mkdir()
     gone, stopping = home / "frozen" / "20261026-081445-1", home / "frozen" / "20261026-091445-2"
     gone.mkdir(parents=True)
@@ -367,8 +368,11 @@ def test_a_stop_ends_every_process_left_in_the_copy_of_a_run_gone_and_leaves_a_s
                                       close_pools=lambda: [], latched=False, frozen_folder=home / "frozen")
         assert sorted(entry["pid"] for entry in report["leftovers"]) == sorted(process.pid for process in left)
         assert all(process.wait(5) == -15 for process in left)
-        assert report["runs"] == [run.pid] and node.poll() is None  # the stopping run ends its own (remove_owned)
-        assert begin.poll() is None  # a run still starting in its new copy, not registered yet, is no leftover
+        assert node.poll() is None  # the stopping run ends its own (remove_owned)
+        # a run still starting in its new copy, not registered yet, is stopped as a run, never swept as a leftover
+        # (2026-11-05: checkout 25, starting at a stop-batch, was spared and went on for hours)
+        assert sorted(report["runs"]) == sorted([run.pid, begin.pid]) and begin.wait(5) == -15
+        assert begin.pid not in [entry["pid"] for entry in report["leftovers"]]
         assert passing.poll() is None  # a sync pass's own process is its own to end
         assert all(entry["command"] for entry in report["leftovers"])  # each named, so we learn what they were
     finally:

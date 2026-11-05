@@ -133,7 +133,7 @@ def stop_everything(asked_by, words, folder=None, parked=None, release=None, rep
     conductor.RESIZING.unlink(missing_ok=True)  # the SIGTERMs below are the owner's stop, never a resize's
     live, working = live_runs(folder), frozen.users(frozen_folder)
     stopping = {working[pid] for pid in live if pid in working}  # each ends its own copy's processes (remove_owned)
-    for pid in live:
+    for pid in live + starting_runs(frozen_folder):
         try:
             os.kill(pid, signal.SIGTERM)
             report["runs"].append(pid)
@@ -175,6 +175,16 @@ def leftovers(frozen_folder, stopping, holds_folder=None):
     busy = disk.working(folder)
     spared = set(stopping) | starting(folder, busy)
     return sorted({pid for copy, pids in busy.items() if copy not in spared for pid in pids if pid not in passes})
+
+
+def starting_runs(frozen_folder=None):
+    """The pids of each `score run` still starting (starting: in no registry yet), its own owner-marked processes: a
+    stop stops it as it does a live run, and it ends its own copy (2026-11-05: Batch 1's checkout 25 was 7 minutes
+    into its start at a stop-batch, which found "runs": [] and spared it as starting; it went on for hours)."""
+    from score.conductor import disk
+    folder = pathlib.Path(frozen_folder or frozen.FOLDER)
+    busy = disk.working(folder)
+    return sorted({pid for name in starting(folder, busy) for pid in busy[name] if owns(folder, name, pid)})
 
 
 def starting(folder, busy):
