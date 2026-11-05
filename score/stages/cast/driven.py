@@ -18,6 +18,11 @@ unmoved by it.
               score:motion say why
     gate      on its sim body   each driven person's foot joints (FEET) stay within FEET_WITHIN of its sim body's
                                 foot segments in every simulated frame, measured on the laid layer
+              bodies            fails naming every person (or crowd variant) layer.py left out for want of a body:
+                                the cast names no look, or its look has no accepted dressed body (the owner's GAP
+                                rule, 2026-11-05: a place with a person with no body fails, so a body never made
+                                cannot pass silently); a crowd with no copy stood is the cast's counted gate's. Here,
+                                not in layer.py's `laid`, which the cast, scene-record and scene-clips rows import.
 """
 import json
 import pathlib
@@ -258,4 +263,24 @@ def judge_on_its_sim_body(output, inputs, evidence):
                           {"worst foot m": "lower"}, tuple(faults) + tuple(kept))
 
 
-CHECKS = (*layer.CHECKS, checks.Check("on its sim body", judge_on_its_sim_body))
+# The reasons layer.py's make and laid_crowd name a person left out for want of a body (bodiless).
+NO_BODY = ("no accepted body of its look", "the cast names no look", "no variant of its look has an accepted body")
+
+
+def bodiless(look):
+    """Whether a characters.json entry is a person (or crowd variant) left out for want of a body, not a crowd with
+    no copy stood."""
+    return look.get("missing", "").startswith(NO_BODY)
+
+
+def judge_bodies(output, inputs, evidence):
+    """Fail on every person with no body of its look, named (the owner's GAP rule); pass when each has one."""
+    looks = json.loads((pathlib.Path(output) / layer.RECORD).read_text())["looks"]
+    without = tuple(f"{name} ({look['look']}): {look['missing']}" for name, look in looks.items() if bodiless(look))
+    reason = (f"{len(without)} of {len(looks)} people have no body of their look: " + "; ".join(without[:3])
+              if without else f"each of {len(looks)} people has a body of its look")
+    return checks.Verdict("bodies", checks.FAIL if without else checks.PASS, reason, {"no body": len(without)},
+                          {"no body": "lower"}, without)
+
+
+CHECKS = (*layer.CHECKS, checks.Check("on its sim body", judge_on_its_sim_body), checks.Check("bodies", judge_bodies))
