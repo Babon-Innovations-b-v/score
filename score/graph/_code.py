@@ -354,14 +354,19 @@ def relative(path):
 def holds(commit):
     """True when this checkout's HEAD is `commit` or comes after it, or when no branch holds `commit` any more (a local
     commit rebased onto main before its push: its change is on main under another commit, and nothing could ever
-    hold it; terrain's hangar seat, 2026-10-13); False for a commit it lacks or one only a newer main holds."""
+    hold it; terrain's hangar seat, 2026-10-13), or when this repository knows no such commit at all (a local commit
+    never pushed and rebased away: the conductor fetches main to follow its pin, so a commit it still lacks is one no
+    one can pull; plan@quarters and @flat, made at a fixer's 8258bf71 before its rebase landed as 9d1b15aa, stopped
+    their lines with "pull main" for good, 2026-11-05); False for one only a newer branch holds."""
     if subprocess.run(["git", "-C", str(REPO), "merge-base", "--is-ancestor", commit, "HEAD"],
                       capture_output=True).returncode == 0:
         return True
     known = subprocess.run(["git", "-C", str(REPO), "cat-file", "-e", f"{commit}^{{commit}}"], capture_output=True)
+    if known.returncode != 0:
+        return True
     branches = subprocess.run(["git", "-C", str(REPO), "for-each-ref", "--contains", commit, "refs/heads",
                                "refs/remotes"], capture_output=True, text=True)
-    return known.returncode == 0 and branches.returncode == 0 and not branches.stdout.strip()
+    return branches.returncode == 0 and not branches.stdout.strip()
 
 
 def changed_since(commit, relatives):
