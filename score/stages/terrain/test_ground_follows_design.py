@@ -284,3 +284,10 @@ def test_the_ground_runs_under_a_room_s_floor():
     lowered = outside.under_floor(points, room)
     assert np.allclose(lowered[:, 1], [-0.2, -0.2, -0.2, 0.0, 0.0]), lowered
     assert np.allclose(outside.under_floor(points, {**room, "inside": False, "walls": []}), points)
+    # a deck cut open over a stair's hatch is several pieces: each lowers the ground under it, the hatch none (2026-11-05:
+    # terrain stopped, "too many values to unpack", once the hangar's deck got its hatch)
+    stair = {"points": [[1.5, 1.0], [2.5, 1.0], [2.5, 2.0], [1.5, 2.0]], "from": -3.0, "to": 0.0}
+    cut = outside.under_floor(points, {**room, "stairs": [stair]})
+    spared = np.isclose(cut[:, 1], 0.0) & np.isclose(lowered[:, 1], -0.2)
+    assert np.all(np.isclose(cut[:, 1], -0.2) <= np.isclose(lowered[:, 1], -0.2)) and spared.sum() == 1, cut
+    assert np.isclose(cut[:, 1], -0.2).sum() == 2, cut
