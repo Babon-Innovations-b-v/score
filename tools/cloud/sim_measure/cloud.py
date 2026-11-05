@@ -11,8 +11,10 @@ Spending: as level 1's, it rents only inside a cleared run (SCORE_SPEND_TICKET, 
 SETUP_MINUTES, and the go scripts are stopped level1.STOP_EARLY minutes before the job's end so the folders come back.
 
 A measure folder: scripts/go.sh, which skips what its own done markers say is made, runs its jobs `xargs -P ${LANES}`
-wide in `${PY}` (both set on the machine) through the card queue (tools/cloud/backends/card_queue.py) and
-`systemd-run --user --scope`, with PYTHONPATH this repo.
+wide in `${PY}` through the card queue (`${REPO}/tools/cloud/backends/card_queue.py`) and `systemd-run --user
+--scope`, with PYTHONPATH `${REPO}` (PY, REPO and LANES set on the machine). A folder's script that names a repo
+checkout's path itself is refused before anything is rented (`hard_coded`; 2026-11-04: a go.sh naming the main
+checkout's card queue ran from a worktree, whose path alone went up, and every job died in its first second).
 - Carried up, at the same absolute paths: the folders, every --carry path (what the go scripts read outside their
   folders), every path a job*.json under those names (level1.named_paths: the targets, the model folders), and this
   repo's REPO_CARRIED (the score package for PYTHONPATH, the card queue, level 1's on_machine.py, which this one runs
@@ -53,6 +55,20 @@ def carried(folders, carries):
     return [*given, *sorted(outside), *(blender_cloud.REPO / part for part in REPO_CARRIED)]
 
 
+def checkouts():
+    """This repo's path and, when it is a worktree under .claude/worktrees, its main checkout's."""
+    repo = blender_cloud.REPO
+    main = repo.parents[2] if repo.parent.name == "worktrees" and repo.parents[1].name == ".claude" else repo
+    return {repo, main}
+
+
+def hard_coded(folders):
+    """The folders' scripts that name a repo checkout's path instead of ${REPO}."""
+    roots = sorted(str(root) for root in checkouts())
+    return [script for folder in folders for script in sorted((folder / "scripts").rglob("*")) if script.is_file()
+            and any(root in script.read_text(errors="replace") for root in roots)]
+
+
 def job(folders, carries, minutes, bring_every):
     """The one job for blender_cloud.py: on_machine.py in the Newton env over the folders in order."""
     arguments = [*folders, "--minutes", minutes - level1.STOP_EARLY, "--repo", blender_cloud.REPO]
@@ -78,6 +94,10 @@ def main():
     lacking = [str(folder) for folder in folders if not (folder / "scripts" / "go.sh").is_file()]
     if lacking:
         raise SystemExit(f"no scripts/go.sh in {', '.join(lacking)}")
+    written = hard_coded(folders)
+    if written:
+        raise SystemExit(f"a repo path written in {', '.join(map(str, written))}: name it from ${{REPO}}, set on the "
+                         "machine to the carried repo")
     folder = folders[0] / "cloud"
     folder.mkdir(exist_ok=True)
     path = folder / f"{level1.time.strftime('%Y%m%d-%H%M%S')}.json"

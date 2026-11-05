@@ -8,6 +8,8 @@ machine instead of this PC (owner, 2026-11-04: every sim body run in the cloud, 
   (newton_env.sh) and classes; on the machine level 1's `on_machine.py` (carried up from the repo) gives the card
   queue, the systemd-run stand-in and the stop. Never rent from here.
 - **Paid.** Every call rents a card machine and runs only under a cleared run or the owner's override.
-- **A go.sh takes `${PY}` and `${LANES}`** from the machine (this PC's defaults beside them) and skips its done jobs, so
-  a folder resumes where the PC or a cut-off job left it.
+- **A go.sh takes `${PY}`, `${REPO}` and `${LANES}`** from the machine (this PC's defaults beside them) and skips its
+  done jobs, so a folder resumes where the PC or a cut-off job left it. Every repo path in it (the card queue,
+  PYTHONPATH) is named from `${REPO}`, the carried repo, never written: `cloud.py` refuses a folder's script that
+  writes a checkout's path (2026-11-04: a go.sh naming the main checkout ran from a worktree, every job dead at once).
 - Test: `test_a_measure_job_carries_its_folders_and_runs_each_go_in_turn_until_its_minutes.py` (nothing rented).

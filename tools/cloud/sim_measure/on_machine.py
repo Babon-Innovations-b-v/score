@@ -5,8 +5,9 @@ no desktop, and the systemd-run stand-in where root has no user manager.
 
     <newton python> on_machine.py <folder> [<folder> ...] --minutes M --repo <repo>
 
-- Each go.sh is given PY (this Python) and LANES (this machine's cores over THREADS, the threads each of its jobs
-  takes), and its output goes to <folder>/machine.log and onto this process's output.
+- Each go.sh is given PY (this Python), REPO (--repo, the carried repo, wherever it landed: the card queue and
+  PYTHONPATH are named from it, never a written path) and LANES (this machine's cores over THREADS, the threads each
+  of its jobs takes), and its output goes to <folder>/machine.log and onto this process's output.
 - A go.sh's own exit code is said and the next folder runs: its jobs' done markers say what was made, and a job
   that failed here fails the same way on this PC (a model that will not compile).
 - At --minutes the running go.sh is stopped with its process group (level 1's `stop`) and no later folder starts; this
@@ -31,11 +32,11 @@ def level1_machine(repo):
     return module
 
 
-def environment(level1):
-    """The go scripts' environment on this machine."""
+def environment(level1, repo):
+    """The go scripts' environment on this machine, `repo` the carried repo's path."""
     return {**os.environ, "PATH": level1.scope_path(), "SCORE_CARD_BUDGET_GB": str(level1.card_gb()),
             "SCORE_CARD_DESKTOP_GB": "0", "SCORE_CARD_QUEUE": str(level1.QUEUE), "PY": sys.executable,
-            "LANES": str(max(1, (os.cpu_count() or THREADS) // THREADS)), "PYTHONUNBUFFERED": "1"}
+            "REPO": str(repo), "LANES": str(max(1, (os.cpu_count() or THREADS) // THREADS)), "PYTHONUNBUFFERED": "1"}
 
 
 def main():
@@ -46,7 +47,7 @@ def main():
     given = parser.parse_args()
     ends = time.time() + given.minutes * 60
     level1 = level1_machine(given.repo)
-    found = environment(level1)
+    found = environment(level1, given.repo)
     current = [None]
     for number in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
         signal.signal(number, lambda *_: (current[0] and level1.stop(current[0]),
