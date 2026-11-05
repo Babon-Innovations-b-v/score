@@ -45,6 +45,10 @@ PINNED_FILES = ("requirements.txt", "Dockerfile", "models.json")
 # folder so the resolve check sees it as chosen; the image installs its pins without resolving (uv pip sync).
 OVERRIDES = "overrides.txt"
 RECORD = "record.json"
+# The parent image a proof built first when images.json's was stale (its runtime or folder moved), so the kind is
+# built on and proved with the parent it will run on; `publish` writes it beside the kind.
+PARENT = "base"
+PARENT_RECORD = "parent.json"
 PROOF = "proof"
 WHO = "score runner, images world"
 WAIT_MINUTES = 90
@@ -280,11 +284,15 @@ def make_proof(kind):
         working = out / "images.json"
         shutil.copy2(IMAGES_JSON, working)
         pointed_at(build, prove, working)
-        build.build([kind], WHO, False)
+        parent = build.stale([PARENT], build.saved(), False) if build.has_parent(kind) else []
+        build.build([*parent, kind], WHO, False)
         plan = local_plan(inputs["folder"], out)
         (out / PLAN).write_text(json.dumps(plan, indent=1))
         prove.save_results(proved(plan, prove))
-        (out / RECORD).write_text(json.dumps(json.loads(working.read_text())[kind], indent=1))
+        written = json.loads(working.read_text())
+        (out / RECORD).write_text(json.dumps(written[kind], indent=1))
+        if parent:
+            (out / PARENT_RECORD).write_text(json.dumps(written[PARENT], indent=1))
         working.unlink()
     return make
 
@@ -477,11 +485,14 @@ STAGES = tuple(stage for kind in proved_kinds() for stage in kind_stages(kind))
 
 
 def publish(runner, kind, images_json=IMAGES_JSON):
-    """Write the kind's accepted proof record into images.json; the record. Blocked unless the proof passed and
-    stands accepted on its current inputs."""
+    """Write the kind's accepted proof record into images.json, with the parent it built and ran on when it built one;
+    the record. Blocked unless the proof passed and stands accepted on its current inputs."""
     output = runner.usable(f"image-proof-{kind}", None, (PROVED.schema, PROVED.version))
     record = runner.store.read_file(output, RECORD)
     built = json.loads(pathlib.Path(images_json).read_text())
     built[kind] = record
+    parent = runner.store.read_file(output, PARENT_RECORD)
+    if parent:
+        built[PARENT] = parent
     pathlib.Path(images_json).write_text(json.dumps(dict(sorted(built.items())), indent=1) + "\n")
     return record
