@@ -90,12 +90,13 @@ def under_floor(points, plan):
         return points
     corner, east, south = design.place_plan.frame_of(plan)
     points = np.array(points, dtype=float)
-    for _, (piece,), _ in design_shell.decks(plan, design_shell.outline_of(plan)):
-        if piece["high"] > shell_parts.LEVEL_OFF:
-            continue
-        outline = np.array([(corner + east * x + south * y)[[0, 2]] for x, y in piece["points"]])
-        inside = within(points[:, [0, 2]], outline)
-        points[inside, 1] = np.minimum(points[inside, 1], float(corner[1]) + piece["low"])
+    for _, pieces, _ in design_shell.decks(plan, design_shell.outline_of(plan)):
+        for piece in pieces:  # a deck cut open over its hatches is several pieces (design_shell.hatches, 2026-11-05)
+            if piece["high"] > shell_parts.LEVEL_OFF:
+                continue
+            outline = np.array([(corner + east * x + south * y)[[0, 2]] for x, y in piece["points"]])
+            inside = within(points[:, [0, 2]], outline)
+            points[inside, 1] = np.minimum(points[inside, 1], float(corner[1]) + piece["low"])
     return points
 
 
