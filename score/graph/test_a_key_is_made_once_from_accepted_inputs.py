@@ -1640,7 +1640,8 @@ def make_note(inputs, out, seed, params):
 
 def test_a_run_never_accepts_over_an_output_a_newer_commit_made_under_another_key(monkeypatch):
     """2026-10-12: a runner in an older worktree accepted terrain's old output over the newer accepted one.
-    Break: score/graph/__init__.py: '        if not records or any(record["key"] == key for record in records):' -> '        if True:'"""
+    Break: score/graph/__init__.py: '        if not records or any(record["key"] == key for record in records):' -> '        if True:';
+    or score/graph/_code.py holds: drop `if known.returncode != 0: return True` (a rebased-away commit blocks for good)."""
     data, world = a_world_of(["hangar"])
     (data / "hangar" / "note.txt").write_text("new")
     note = graph.Stage("note", "place", make_note, TEXT, MET, files={"note": "{data}/{place}/note.txt"})
@@ -1655,6 +1656,13 @@ def test_a_run_never_accepts_over_an_output_a_newer_commit_made_under_another_ke
     assert runner.store.accepted("note@hangar") == newer
     (data / "hangar" / "note.txt").write_text("newest")  # this checkout holds the accepted one's commit
     assert runner.run_node(note, "hangar") == ACCEPTED and runner.store.accepted("note@hangar") != newer
+    # 2026-11-05: a commit this repository knows nothing of (a local commit rebased away before its push) never
+    # blocks a row for good; one only another branch holds still does (a newer main not pulled yet)
+    assert graph._code.holds("f" * 40)
+    ahead = subprocess.run(["git", "-C", str(REPO), "rev-parse", "origin/main"], capture_output=True, text=True)
+    behind = subprocess.run(["git", "-C", str(REPO), "merge-base", "--is-ancestor", ahead.stdout.strip(), "HEAD"])
+    if ahead.returncode == 0 and behind.returncode != 0:
+        assert not graph._code.holds(ahead.stdout.strip())
 
 
 def make_writing_into_its_input(inputs, out, seed, params):
