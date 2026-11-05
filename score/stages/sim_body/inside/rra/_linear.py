@@ -154,11 +154,11 @@ def frame_states(physics, path, rate):
 
 def residuals(physics, states):
     """Each frame's residual after the ground's pushes alone (`balance`; frames x 6), every frame's state and least
-    squares at once on the card (`Physics.each`, `Physics.solved_all`)."""
+    squares at once on the card (`Physics.each`, `Physics.least_each`)."""
     path, velocities, accelerations, origins = zip(*states)
     asked = [balance_asked(physics, needed, origin)
              for needed, origin in zip(physics.each(path, velocities, accelerations), origins)]
-    solved = physics.solved_all([{"asked": one[2]} for one in asked])
+    solved = physics.least_each([one[2] for one in asked])
     return np.array([needed - pushes @ pushed for (needed, pushes, _), pushed in zip(asked, solved)])
 
 

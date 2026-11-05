@@ -7,7 +7,7 @@ accelerations, so every frame's needed forces, kinematics, tendon and muscle pat
 come in one launch a stage (`evaluate`, chunks of CHUNK worlds); `load` lays one state into the CPU's `MjData`, so the
 frame's own reads (the skin riding its bones, `mj_jac`, the muscle curves, the drawn paths) read it as they read
 MuJoCo's C. `sync` puts the model's masses, inertias and centres of mass on the card again after RRA's model step.
-`_least.least_all`: `solvers.least` for every frame's static optimisation (and RRA's balance) at once, float64, the
+`_least.least_all`: `solvers.least` for every frame's static optimisation stage (`muscles.staged`, and RRA's balance) at once, float64, the
 same projected Newton steps. `apart` and `CARD_TOLERANCES`: how far a person's record on the card may lie from the same
 run on the processor, the measure that proves a move to the card.
 

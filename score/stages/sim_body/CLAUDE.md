@@ -10,8 +10,10 @@ its steps the modules beside it (`inside/CLAUDE.md`).
 - **The movement is the clip's, the physics the body's** (owner, 2026-10-27: "we have kimodo for the actual movement;
   and myobody plus mujoco and newton for the physics"). The body, root included, follows the clip, moved only by RRA's
   capped adjustment (below); nothing is stepped. Per frame: inverse dynamics on the MuJoCo model Newton builds, the ground's contacts, the joints' range
-  stops and the muscles share the needed forces (one bounded least squares, least squared activation, the pelvis'
-  six balance rows `BALANCE` times a joint's), and what they cannot give is the pelvis' residual and the joints'
+  stops and the muscles share the needed forces, in OpenSim's two stages (owner, 2026-11-05: "Yes, push first"): the
+  ground reaction force first, from the pelvis' six balance rows alone (RRA's balance, shared over the touching points
+  at `SHARE_COST`), then the joints' stops and the muscles with it fixed (least squared activation; one least squares
+  of all three was ill-posed: a 1e-6 nudge of the contacts moved an activation by up to 0.79), and what they cannot give is the pelvis' residual and the joints'
   reserves: measured, recorded, gated (`residual`, Hicks et al. 2015), **never applied**.
   Never bring back a helper or any force that holds the body up or on its path: a trip or a float must show as a
   residual that fails. Limits: force 2% of the weight (owner, 2026-10-28, from 5%; Werling et al. 2023's
