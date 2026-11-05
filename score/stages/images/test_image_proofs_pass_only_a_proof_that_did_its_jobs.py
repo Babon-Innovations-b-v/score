@@ -2,7 +2,8 @@
 (images/__init__.py): each kind with a plan has its free pins row and its paid proof row on an environment with no
 places and none on environment 1's table; loose pins fail `pins hashed`; the moss takes pass only at their length,
 heard, and scoring no more than CLAP_SLACK under the build before; the walking clip fails standing still; `jobs ran`
-fails a planned job that never reached its first result; `publish` refuses a proof that does not stand accepted.
+fails a planned job that never reached its first result; `publish` refuses a proof that does not stand accepted, and
+writes an accepted one with the parent image it built and ran on.
 Synthetic takes and clips in a temp folder; no cloud.
 
 Breaks that turn it red (each applied once and seen red, then reverted):
@@ -12,6 +13,7 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `smoke_faults`: the pins' comparison or the fall's range left out  -> the walking clip test (its newton smoke part).
 - `judge_jobs_ran`: `"first_result" not in ...marks` read as `False`  -> the jobs test.
 - `publish`: `runner.usable(...)` read as `runner.store.records(...)`, any record  -> the publish test.
+- `publish`: the `built[PARENT] = parent` write left out  -> the publish test.
 """
 import json
 import pathlib
@@ -128,4 +130,10 @@ def test_publish_refuses_a_proof_not_accepted(tmp_path):
     with pytest.raises(graph.Blocked):
         images.publish(runner, "moss", tmp_path / "images.json")
     assert json.loads((tmp_path / "images.json").read_text()) == {}  # nothing written
+    records = {images.RECORD: {"tag": "1-kid"}, images.PARENT_RECORD: {"tag": "1-new-base"}}
+    runner.usable = lambda *_: "accepted"
+    runner.store.read_file = lambda output, name: records.get(name) if output == "accepted" else None
+    images.publish(runner, "moss", tmp_path / "images.json")
+    assert json.loads((tmp_path / "images.json").read_text()) == {"base": {"tag": "1-new-base"},
+                                                                  "moss": {"tag": "1-kid"}}
 
