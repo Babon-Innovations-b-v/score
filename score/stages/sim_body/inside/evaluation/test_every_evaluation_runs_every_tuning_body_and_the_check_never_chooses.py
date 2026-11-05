@@ -34,7 +34,10 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
 - (2026-11-01) batched_angles' `if evaluation.SKIN_ROWS` dropped, or fitted_case not passing `evaluation.SKIN_ROWS`
   to fit.targets: level 1's level 3 holds the skin rows, whose jumps between minima its gradient cannot follow (and
   poses SOMA's skin and its fold test for nothing, 2026-11-03); sim_body.clip_angles passing `None` for its skins:
-  the stage's people lose their skin rows.
+  the stage's people lose their skin rows; sim_body.fitted_person not handing its clip's targets to level 2 and
+  level 3: the stage poses SOMA's skin on every frame twice (#70, about 11 s a clip); sim_body.warp_cache's
+  `os.access` test made `True`, or its WARP_CACHE_PATH test dropped: a run writes Warp's modules where no node cache
+  is, or over the folder its job named.
 - (2026-11-03) _case.recorded's `if found not in RECORDED` dropped: every clip of a body makes level 2's targets of
   all its recordings again (88 % of a seed build); fitted_case not handing `written` its clip's points: written
   makes the clip's targets a second time (level_1s_level_3_holds_no_skin_rows red).
@@ -385,7 +388,8 @@ def widths(extra):
 
 def test_level_1s_level_3_holds_no_skin_rows_and_the_stages_does():
     """Level 1's evaluation solves level 3 without the skin rows (`evaluation.SKIN_ROWS`) and poses no skin for them;
-    its level 2 targets are made once a recording, not once a clip; the stage holds the skin rows."""
+    its level 2 targets are made once a recording, not once a clip; the stage holds the skin rows, makes its
+    clip's targets once and keeps Warp's modules in a node's cache."""
     if importlib.util.find_spec("mujoco") is None:  # sim_body and _card_batch import fit, which needs Newton's own Python
         print("skipped: level 3's paths need MuJoCo (Newton's own Python, score/stages/physics/inside/newton_env.sh)")
         return
@@ -432,6 +436,26 @@ def test_level_1s_level_3_holds_no_skin_rows_and_the_stages_does():
     assert len(levels_2) == 2 and levels_2[0] is not levels_2[1] and len(levels_2[1]) == 2
     assert all(mine is theirs for mine, theirs in zip(*levels_2)), "level 2's targets made again for a later clip"
     assert all(points is targets[1] for points in given), "a clip's targets made again for its measures"
+
+    # the stage's person: its clip's targets made once, level 2's one recording and level 3's skin rows alike
+    made, set_up = [], []
+    kept = (sim_body.fit.targets, sim_body.fit.angles, sim_body.person_set_up, sim_body.Size, sim_body.followed_record)
+    try:
+        sim_body.fit.targets = lambda *args, skins=True: made.append(skins) or targets
+        sim_body.fit.angles = lambda fitting, turns, points, given=None: given
+        sim_body.Size = lambda rig: None
+        sim_body.person_set_up = lambda *args: set_up.append(args[6]) or ({}, None, Fitting())
+        sim_body.followed_record = lambda record, *args: record
+        _, _, _, angles = sim_body.fitted_person({}, {"segments": ["pelvis"]}, None, None, None)
+    finally:
+        (sim_body.fit.targets, sim_body.fit.angles, sim_body.person_set_up, sim_body.Size,
+         sim_body.followed_record) = kept
+    assert made == [True] and set_up[0][0] is targets and angles is skins, (made, set_up)
+    # Warp's compiled modules in a node's cache where there is one, never over a folder already named
+    with tempfile.TemporaryDirectory() as node:
+        assert sim_body.warp_cache({"SCORE_CACHE": node}) == {"WARP_CACHE_PATH": f"{node}/warp"}
+        assert sim_body.warp_cache({"SCORE_CACHE": node, "WARP_CACHE_PATH": "/w"}) == {}
+        assert sim_body.warp_cache({"SCORE_CACHE": f"{node}/none"}) == {}
 
 
 if __name__ == "__main__":
