@@ -20,17 +20,20 @@ move, so two places that show each other never load each other round.
                        through by its design, with why (a door sunk through a floor the floor plate does not cut)
              speeds    each moving thing of a kind with a cited speed range (data/checks/motion.json) keeps to it: its peak
                        speed at most the top, its median moving speed at least the bottom (metres a second of its
-                       middle, or degrees a second of its turn); a kind the game times is the game's
+                       middle, or degrees a second of its turn); a climb of a kind with a cited `push` (a rocket)
+                       keeps to it: its acceleration measured off the stage plus the pull its record climbs against
+                       within the kind's push; a kind the game times is the game's
              loops     every looping motion stands at the end of each round exactly where it started (its hull within
                        SEAM_MOST), takes no bigger step at a seam than anywhere else in its round, and the layer's
                        seconds hold a whole number of each moving thing's rounds, so the layer itself loops
              grounded  each moving thing stays on what it moves on: on water or ground every corner of its footprint has
                        that surface under it and it keeps its rest height over it (within HEIGHT_MOST); on a rail it
-                       keeps touching what it is mounted on (within TOUCH); in the air it stays AIR_LEAST over all
+                       keeps touching what it is mounted on (within TOUCH); in the air it stays AIR_LEAST over all,
+                       a climb from the moment it has risen AIR_LEAST (a rocket lifting off its pad)
              covered   every object of an inventory row whose kind moves moves in the layer, or the record says
                        why it stands still (`still`); a prim named like an old record's moving kind
                        (data/checks/motion.json `prims`) that no moving row has is not asked for; a move no
-                       writer makes (the record's `unmade`: a rocket's launch, a flag's cloth) fails, and so does
+                       writer makes (the record's `unmade`: a rocket's exhaust, a flag's cloth in the air) fails, and so does
                        every row no stage makes (row_kinds.uncovered: a moving word in its noun whose kind gives no
                        move nor a written reason to stand, or a `does` no stage reads, a screen's picture)
              passed    a door (a row whose rule needs a passer) is off its rest only while a walker of the accepted
@@ -99,9 +102,11 @@ NOT_ONE_LEAF = ("sliding", "slide", "garage", "roller", "shutter", "roll-up", "d
 
 
 def files(place):
-    """What the stage reads: the scene's design inventory, the row-kind rules, the moving kinds and their speeds, and
-    its seed stage with its kit and its design's surface data (which bakes of other places it lays, as the settle)."""
+    """What the stage reads: the scene's design inventory, the row-kind rules, the moving kinds and their speeds, its
+    sky inputs and the reference bodies (the body its site stands on: a launch's pull, a flag's air), and its seed
+    stage with its kit and its design's surface data (which bakes of other places it lays, as the settle)."""
     return {**row_kinds.DESIGNED, "kinds": "{data}/checks/motion.json", "seed": "{seeds}/usd-r3/{place}",
+            "sky": "{home}/design/sky/{place}.json", "bodies": "{data}/physics/bodies.json",
             "surfaces": "{home}/design/surfaces/{place}.json", **layer_base.files(place)}
 
 
@@ -171,11 +176,17 @@ def make(inputs, out, seed, params):
         planned = from_design.plan_gaps(read_json(inputs["plan"])) if "plan" in inputs else []
         record = fitted(from_design.record(place_of(inputs), read_json(inputs["design"]),
                                            row_kinds.table(inputs["row kinds"]), kinds_of(inputs),
-                                           layer_base.opened(source), [*carried, *planned], cast_of(inputs)),
+                                           layer_base.opened(source), [*carried, *planned], cast_of(inputs),
+                                           body_of(inputs)),
                         inputs, source)
         (out / RECORD).write_text(json.dumps(record, indent=1))
         batch_gaps.write(out, [*carried, *from_design.left_gaps(record)])
         write_motion(dict(inputs, moves=out / RECORD), out, source)
+
+
+def body_of(inputs):
+    """The body the scene's site stands on (from_design.body_of), None for inputs with no sky."""
+    return from_design.body_of(read_json(inputs["sky"]), read_json(inputs["bodies"])) if "sky" in inputs else None
 
 
 def cast_of(inputs):
@@ -483,6 +494,27 @@ def measured_speeds(shape, rule, rate, seconds):
     return np.linalg.norm(np.diff(middles, axis=0), axis=1) / STEP
 
 
+def push_faults(entry, kind, rule, shape, timing, body, measures):
+    """A climb's faults against its kind's cited push: its acceleration read off the stage (twice its height risen
+    over the square of the time since lift, at the layer's end) plus the pull of the body the scene stands on
+    (body_of), never the record's own word for it. `timing` is (time codes a second, the layer's seconds)."""
+    rate, seconds = timing
+    if "climb" not in entry:
+        return [f"{entry['name']} ({kind}): its kind is judged by its push, and it does not climb"]
+    if body is None:
+        return [f"{entry['name']} ({kind}): it climbs, and the scene has no sky inputs to give its body's pull"]
+    lift = float(entry.get("start", 0.0)) + float(entry["climb"]["lift"])
+    if seconds - lift <= 0:
+        return [f"{entry['name']} ({kind}): it lifts at {lift:g} s, past the layer's {seconds:g} s"]
+    risen = float(shape.in_world(shape.middle[None, :], seconds * rate)[0][1] -
+                  shape.in_world(shape.middle[None, :], lift * rate)[0][1])
+    push = 2.0 * risen / (seconds - lift) ** 2 + float(body["gravity"])
+    low, high = rule["push"]
+    measures[f"{entry['name']} push"] = round(push, 3)
+    return [] if low <= push <= high * 1.001 else [
+        f"{entry['name']} ({kind}): climbs at a push of {push:.2f} m/s/s; its kind keeps {low} to {high}"]
+
+
 def judge_speeds(output, inputs, evidence):
     """Pass when each moving thing of a kind with a cited range keeps to it."""
     stage, kinds = composed(output, inputs), kinds_of(inputs)
@@ -501,6 +533,10 @@ def judge_speeds(output, inputs, evidence):
             faults.append(f"{entry['name']}: the game times it, yet its kind {kind} is not one the game times")
             continue
         judged += 1
+        if "push" in rule:
+            faults += push_faults(entry, kind, rule, shaped(stage, entry["prim"]), (rate, seconds), body_of(inputs),
+                                  measures)
+            continue
         speeds = measured_speeds(shaped(stage, entry["prim"]), rule, rate, seconds)
         low, high = rule["angular" if "angular" in rule else "linear"]
         unit = "deg/s" if "angular" in rule else "m/s"
@@ -617,13 +653,24 @@ def rail_faults(entry, shape, stills, others, rate, seconds):
 
 
 def air_faults(entry, shape, meshes, rate, seconds):
-    for moment in np.arange(0.0, seconds + 1e-9, 1.0):
+    """A thing in the air's faults: under AIR_LEAST over the ground at a whole second, a climb's from the moment it
+    has risen that far (climbed_from), read from the first whole second after."""
+    for moment in np.arange(np.ceil(climbed_from(entry)), seconds + 1e-9, 1.0):
         corners = shape.in_world(footprint(shape), moment * rate)
         heights = space.heights_under(meshes, corners[:, [0, 2]], moment * rate)
         lowest = float(shape.in_world(shape.corners, moment * rate)[:, 1].min())
         if not np.isnan(heights).all() and lowest - np.nanmax(heights) < AIR_LEAST:
             return [f"{entry['name']}: {lowest - np.nanmax(heights):.2f} m over the ground at {moment:.0f} s"]
     return []
+
+
+def climbed_from(entry):
+    """When a climb has risen AIR_LEAST off where it stands, seconds; 0 for anything else in the air."""
+    if "climb" not in entry:
+        return 0.0
+    climb = entry["climb"]
+    net = float(climb["push"]) - float(climb["pull"])
+    return float(entry.get("start", 0.0)) + float(climb["lift"]) + (np.sqrt(2.0 * AIR_LEAST / net) if net > 0 else 0)
 
 
 def judge_grounded(output, inputs, evidence):

@@ -31,8 +31,13 @@ stage (`../layer_base.py`). `__init__.py`'s docstring has the make and the gates
   double door splits, an open one stands posed open. A door (`needs` "passes") moves only for a walker of the
   accepted cast (the cast row's `cast.json`, an `after`) whose route comes within a metre of it, opened by its
   arrival and shut once it is past, played once; with nobody passing it stands with `still_without` (the audit of
-  2026-11-04: 22 doors swung on a 2 s / 10 s clock with nobody there; `passed` and `rests` fail that now). A move no
-  writer makes (a rocket's launch, a flag's cloth, a body of water, a double door's leaves) is `unmade` and fails
+  2026-11-04: 22 doors swung on a 2 s / 10 s clock with nobody there; `passed` and `rests` fail that now). A rocket
+  launches (`launch`): from the layer's start it climbs straight up (`climb`) at the middle of its kind's cited push
+  (thrust over liftoff mass, Saturn V to Falcon 9) less the pull of the body its site stands on (the scene's sky
+  inputs, `{home}/design/sky/<place>.json`), and `speeds` reads its acceleration off the stage plus that body's pull
+  against the push; its exhaust stays `unmade` until an effect kind makes it. A flag on a body with no air (under
+  `natural_grounds.WIND_KPA`: the Moon) hangs still with that reason. A move no
+  writer makes (a rocket's exhaust, a flag's cloth in the air, a body of water, a double door's leaves) is `unmade` and fails
   `covered`, as does every row no stage makes (`row_kinds.uncovered`: a moving word in its noun, a screen's picture),
   never a still. The record is written into the output (`moves.json`) and the gates
   read it there; `designed` fails a moving thing on no inventory row's object and a moving row with no object on
