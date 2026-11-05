@@ -11,6 +11,15 @@ NOT_SEGMENTS = ("Root", "HeadEnd", "LeftToeEnd", "RightToeEnd")
 # https://doi.org/10.1016/S0140-6736(17)32129-3. Height times this is #64's rule for a body with no stated weight.
 BMI = {"male": 24.5, "female": 24.8}
 BODY = "people-body"  # a look's built body row: its rig.npz is the person's own build (prop_rig.py)
+# A clip's standing feet stood on the bind's floor (`stood`, #70, 2026-11-05: the mean body's pickup, Kimodo's own,
+# floated its skin 5 to 7 mm over its floor on frames 15 to 30, past the contact's 5 mm, so the ground pushed nothing
+# and its 630 N of weight sat on the pelvis' residual). Each foot's joints (with its toes and their end), a foot
+# standing when its sole moves slower than STANCE_SPEED along the floor under STANCE_HIGH over it.
+FEET = (("LeftFoot", "LeftToeBase", "LeftToeEnd"), ("RightFoot", "RightToeBase", "RightToeEnd"))
+STANCE_SPEED = 0.2  # m/s
+STANCE_HIGH = 0.03  # m
+SOLE = 0.01  # m: a foot's sole is its skin within this of its lowest point
+STOOD_HZ = 3.0  # the stood move's smoothness, half the path's 6 Hz low pass (inside/fit, Winter 2009)
 
 
 def segments_of(rig):
@@ -75,6 +84,57 @@ def route_clip(rig, built, scene_rig, plan):
     return local
 
 
+def soles(rig, local):
+    """Each foot's sole over the bind's floor on every frame of `local` (the clip against its parents) on `rig`'s bind,
+    surface and weights: (its lowest skin point's height, m; its sole's speed along the floor, m/s, the slower of the
+    steps into and out of the frame), each frames x feet, and the lowest of the skin no foot carries (m, frames); a
+    foot is the skin its FEET joints carry most."""
+    names = [str(name) for name in rig["names"]]
+    skinning = played.chained(np.asarray(local, dtype=float), rig["parents"]) @ np.linalg.inv(np.asarray(rig["bind"]))
+    weights, points = np.asarray(rig["weights"], dtype=float), np.asarray(rig["points"], dtype=float)
+    heights, speeds, feet = [], [], np.zeros(len(points), dtype=bool)
+    for foot in FEET:
+        mine = np.flatnonzero(np.isin(weights.argmax(axis=1), [names.index(name) for name in foot if name in names]))
+        if not len(mine):
+            continue
+        feet[mine] = True
+        placed = np.einsum("pj,fjab,pb->fpa", weights[mine], skinning[..., :3, :], np.c_[points[mine], np.ones(len(mine))])
+        lowest = placed[..., 1].min(axis=1)
+        sole = placed[..., 1] <= lowest[:, None] + SOLE
+        centre = np.einsum("fp,fpa->fa", sole, placed[..., [0, 2]]) / sole.sum(axis=1, keepdims=True)
+        step = np.linalg.norm(np.diff(centre, axis=0), axis=1) * RATE if len(centre) > 1 else np.zeros(0)
+        speed = np.minimum(np.r_[step[:1], step], np.r_[step, step[-1:]]) if len(step) else np.zeros(1)
+        heights.append(lowest)
+        speeds.append(speed)
+    rest = np.flatnonzero(~feet)
+    others = (np.einsum("pj,fjab,pb->fpa", weights[rest], skinning[..., 1:2, :], np.c_[points[rest], np.ones(len(rest))])
+              [..., 0].min(axis=1) if len(rest) else np.full(len(local), np.inf))
+    return np.array(heights).T.reshape(len(local), -1), np.array(speeds).T.reshape(len(local), -1), others
+
+
+def stood(rig, local):
+    """`local` with its travelling joint moved up or down frame by frame so its standing feet's soles rest on the
+    bind's floor (y = 0): on every frame a foot stands (`soles` under STANCE_SPEED and STANCE_HIGH, and no other skin
+    under it: a body sitting or kneeling on its floor is carried there, never pushed into it) the lowest
+    standing sole is brought to it, a frame no foot stands on (a jump's flight) taking the move straight between its
+    neighbours' (the first's or the last's beyond them), the whole smoothed (Whittaker's smoother: the move's squared
+    second differences weighed so it passes up to STOOD_HZ), so it never leaves what its standing frames ask.
+    A frame's own rotations are never changed; a clip on which no foot stands is as it came."""
+    heights, speeds, others = soles(rig, local)
+    standing = (speeds < STANCE_SPEED) & (heights < STANCE_HIGH) & (heights <= others[:, None])
+    on = standing.any(axis=1)
+    if not on.any():
+        return np.asarray(local, dtype=float)
+    frames = np.arange(len(local))
+    bridged = np.interp(frames, frames[on], np.where(standing, heights, np.inf).min(axis=1)[on])
+    bend = np.diff(np.eye(len(local)), 2, axis=0)
+    smooth = (2.0 * np.sin(np.pi * STOOD_HZ / RATE)) ** -4
+    move = np.linalg.solve(np.eye(len(local)) + smooth * bend.T @ bend, bridged)
+    moved = np.array(local, dtype=float)
+    moved[:, played.TRAVELLING_JOINT, 1, 3] -= move
+    return moved
+
+
 def person_rig(rig, built):
     """The clips rig at a person's own build, as the people build plays its clips (`tools.characters.played`, the
     people route's one definition: prop_build.py's clip_world and floor_lift): the built body's bind and surface
@@ -82,11 +142,13 @@ def person_rig(rig, built):
     Hips' height over the rig's, every clip lifted so the standing clip's first frame puts the feet where the bind
     does; and that size. With no build, the rig's own bind is the build, size 1: its clips were posed on SOMA's
     zero-identity body, 7 cm shorter than the template its bind and surface are, and their own offsets floated its
-    skin 26 to 57 mm over its ground (#70)."""
+    skin 26 to 57 mm over its ground (#70). Each clip's standing feet then stand on the bind's floor (`stood`):
+    Kimodo's own clips float and sink theirs."""
     built, size, lift = played_build(rig, built)
     found = dict(rig, bind=np.asarray(built["bind"]), points=np.asarray(built["source_points"]))
     for key in [key for key in rig if key.startswith("clip_")]:
-        found[key] = played.clip_local(rig, key[len("clip_"):], built["offsets"], rig["parents"], size, lift)
+        found[key] = stood(found, played.clip_local(rig, key[len("clip_"):], built["offsets"], rig["parents"], size,
+                                                    lift))
     return found, size
 
 
