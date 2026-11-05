@@ -6,7 +6,7 @@ against the move's intended motion in its record. "Nothing passes through anythi
                  match allowing any speed: every frame within FOLLOW_MOST of the curve, never going back along it
                  more than FOLLOW_MOST, and over its round covering the whole curve (a closed path once round, an
                  open one from its first point to its last); a swing, spin or turn only turns about the upright (its
-                 up within TILT_MOST degrees), a swing as far as its record's angle (within ANGLE_MOST); a slide or
+                 up within TILT_MOST degrees), or about its record's own `axis` (a parted build's lid or wheel), a swing as far as its record's angle (within ANGLE_MOST); a slide or
                  climb only shifts, along one line (within LINE_MOST degrees), never turning
     steps        no frame's step (the farthest a corner of its box moves from one frame to the next) is a jump: over
                  JUMP_LEAST metres and over JUMP_RATIO times the move's 90th percentile moving step
@@ -55,9 +55,13 @@ def turned_from(rest, matrix):
     return rotation(rest).T @ rotation(matrix)
 
 
-def tilt_of(turn):
-    """How far a rotation tips the upright, degrees."""
-    return float(np.degrees(np.arccos(np.clip(np.array([0.0, 1.0, 0.0]) @ turn @ np.array([0.0, 1.0, 0.0]), -1, 1))))
+AXES = {"x": np.array([1.0, 0.0, 0.0]), "y": np.array([0.0, 1.0, 0.0]), "z": np.array([0.0, 0.0, 1.0])}
+
+
+def tilt_of(turn, axis="y"):
+    """How far a rotation tips the line it should turn about (the upright, or the parent frame's `axis`), degrees."""
+    line = AXES[axis]
+    return float(np.degrees(np.arccos(np.clip(line @ turn @ line, -1, 1))))
 
 
 def angle_of(turn):
@@ -97,10 +101,13 @@ def path_faults(entry, spots, curve, along):
 
 
 def turn_faults(entry, kind, poses, rest):
-    """A turn's faults: tipping off the upright, or a swing short of (or past) its record's angle."""
+    """A turn's faults: tipping off its line (the upright, or its record's `axis`), or a swing short of (or past) its
+    record's angle."""
+    axis = (entry.get(kind) or {}).get("axis", "y")
     turns = [turned_from(rest, pose) for pose in poses]
-    tilt = max(tilt_of(turn) for turn in turns)
-    faults = [f"{entry['name']}: tips {tilt:.1f} degrees off the upright as it turns"] if tilt > TILT_MOST else []
+    tilt = max(tilt_of(turn, axis) for turn in turns)
+    line = "the upright" if axis == "y" else f"its {axis} axis"
+    faults = [f"{entry['name']}: tips {tilt:.1f} degrees off {line} as it turns"] if tilt > TILT_MOST else []
     if kind == "swing":
         reached, wanted = max(angle_of(turn) for turn in turns), abs(float(entry["swing"]["angle"]))
         if abs(reached - wanted) > ANGLE_MOST:

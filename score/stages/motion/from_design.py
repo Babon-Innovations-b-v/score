@@ -22,14 +22,20 @@ rule says (data/checks/row-kinds.json `motion`), at the speed its motion kind's 
     words   the row's own words choose its rule (rule_of): its kind's first `variants` entry whose words its name
             holds (a sliding door slides, a garage door rises, a double door splits), and one of `open_words` stands
             it open (posed: written open and still), never swung shut from a shut start
-    unmade  a move no writer makes (a rocket's launch, a flag's cloth, a double door's two leaves): named in the
-            record's `unmade`, which the motion row's `covered` fails, never written down as a still
+    unmade  a move no writer makes (a rocket's launch, a flag's cloth, a one-piece double door's two leaves): named in
+            the record's `unmade`, which the motion row's `covered` fails, never written down as a still
+    parts   an object built with its parts apart (score/stages/props/moving_parts, #19) carries its pivots in its
+            parts' names (`<part>__hinge_<axis>[n]`: parts_of): a swinging or splitting row swings each hinged part
+            about its own pivot and axis instead of the whole (a double door's two leaves, each on its outer edge;
+            a hatch's lid on its level hinge, so a lying hatch opens), its rule's angle the way its name says; its
+            still parts (a frame) and its spinning parts (a parked rover's wheels) stand with the object
 
     record(place, inventory, kinds, motion_kinds, stage, carried)   the rigid record tools/usd/motion_layer.py writes
     plan_gaps(plan)     the accepted plan's `placed` gaps as gaps a moving row with no object is left out by
     left_gaps(record)   the batch gap of each moving row a carried batch gap or a plan gap left with no object
 """
 import math
+import re
 
 import numpy as np
 
@@ -78,9 +84,16 @@ def passing_moves(spans, travel):
     for enter, leave in spans:
         opens = max(free, enter - travel)
         shuts = max(leave, opens + travel)
-        moves += [[round(opens, 3), "open"], [round(shuts, 3), "shut"]]
+        moves += [[at_least(opens), "open"], [at_least(shuts), "shut"]]
         free = shuts + travel
     return moves
+
+
+def at_least(seconds):
+    """A moment to the millisecond, never before it: a shut rounded down would start before its opening ends (a lid
+    whose walker leaves before it is all the way open: shut at 2.647 of 2.6471 s)."""
+    near = round(seconds, 3)
+    return round(near + 0.001, 3) if near < seconds - 1e-9 else near
 
 
 def merged(spans, travel):
@@ -94,12 +107,63 @@ def merged(spans, travel):
     return joined
 
 
+# A part's joint in its name (score/stages/props/moving_parts.joint_name): `<part>__<joint>_<axis>[n]`.
+PART = re.compile(r"^(?P<part>[A-Za-z0-9_]+?)__(?P<joint>hinge|spin)_(?P<axis>[xyz])(?P<way>n?)$")
+
+
+def parts_of(stage, path):
+    """[(path, joint, axis, sign)] of every jointed part under an object, in path order (parts module docstring)."""
+    from pxr import Usd
+    found = []
+    for prim in Usd.PrimRange(stage.GetPrimAtPath(path)):
+        named = PART.match(prim.GetName())
+        if named:
+            found.append((str(prim.GetPath()), named["joint"], named["axis"], -1 if named["way"] else 1))
+    return found
+
+
+def object_path(path):
+    """The object a jointed part is of: its path with its parts' names (PART) cut off; any other path as it is."""
+    kept = path.split("/")
+    while len(kept) > 2 and PART.match(kept[-1]):
+        kept.pop()
+    return "/".join(kept)
+
+
+def part_swing(path, part, row, rule, motion_kind, stage, walkers, posed=False):
+    """A hinged part's swing about its own pivot and axis, its rule's angle the way its name says, timed for the
+    walkers who pass that part (as a whole door's swing is)."""
+    part_path, _, axis, sign = part
+    spans = crossings(stage, part_path, walkers) if rule.get("needs") == "passes" and not posed else None
+    if spans == []:
+        return None
+    hinged = dict(rule, angle=float(rule["angle"]) * sign)
+    move = swing(part_path, row, hinged, motion_kind, stage, posed=posed,
+                 spans=None if spans is None else merged(spans, abs(float(rule["angle"])) /
+                                                         middle_speed(motion_kind, "angular")))
+    move["swing"].update(about={"pivot": True}, axis=axis)
+    move["name"] = f"{path.rsplit('/', 1)[-1]}.{part_path.rsplit('/', 1)[-1].split('__', 1)[0]}"
+    move["from"] = f"{move['from']}; its part {move['name']} on its own pivot about {axis} (a parted build)"
+    return move
+
+
+def hinged(stage, path):
+    """The object's hinged parts (parts_of)."""
+    return [part for part in parts_of(stage, path) if part[1] == "hinge"]
+
+
+def parted_moves(path, row, rule, motion_kind, stage, walkers, posed=False):
+    """Every hinged part's swing (part_swing), less those no walker passes."""
+    return [move for move in (part_swing(path, part, row, rule, motion_kind, stage, walkers, posed)
+                              for part in hinged(stage, path)) if move is not None]
+
+
 def swing(path, row, rule, motion_kind, stage=None, spans=None, posed=False):
     """A swing about the point `hinge` names on the object's own box: open at OPENS and shut again at SHUTS, or for
     each crossing (timed); posed, written open and still."""
     speed = middle_speed(motion_kind, "angular")
     angle = float(rule["angle"])
-    moves, length, loop, why = timed(rule, angle / speed, spans) if not posed else ([], ROUND, False, "")
+    moves, length, loop, why = timed(rule, abs(angle) / speed, spans) if not posed else ([], ROUND, False, "")
     return {"name": path.rsplit("/", 1)[-1], "prim": path, "row": row, "kind": rule["kind"], "on": "rail",
             "start": 0.0, "length": length, "loop": loop,
             "swing": {"about": {"side": rule["hinge"]}, "angle": angle, "speed": speed,
@@ -262,6 +326,10 @@ def record(place, inventory, kinds, motion_kinds, stage, carried=(), cast=None):
             if gaps_naming(row, carried):
                 left_out[row["id"]] = gaps_naming(row, carried)
         for path in paths:
+            if rule["move"] in ("swing", "split") and hinged(stage, path):
+                parted(path, row, rule, motion_kinds[rule["kind"]], stage, walkers, inventory, kinds,
+                       (moves, posed, still))
+                continue
             made = WRITERS.get(rule["move"])
             spans = crossings(stage, path, walkers) if rule.get("needs") == "passes" else None
             if rule["move"] == "still":
@@ -284,6 +352,22 @@ def record(place, inventory, kinds, motion_kinds, stage, carried=(), cast=None):
                      "(data/checks/row-kinds.json), a door opened only for a walker of the cast passing through.",
             "seconds": max([ROUND, *(float(move["length"]) for move in moves)]), "moves": moves, "posed": posed,
             "still": still, "unmade": unmade, "missing": missing, "left_out": left_out}
+
+
+def parted(path, row, rule, motion_kind, stage, walkers, inventory, kinds, into):
+    """A parted object's hinged parts posed open, swung (parted_moves), or the object standing with its rule's
+    reason, into the record's (moves, posed, still)."""
+    moves, posed, still = into
+    hinge_rule = dict(rule, angle=float(rule.get("angle", 90.0)))
+    if rule.get("rests") == "open":
+        posed += parted_moves(path, row["id"], hinge_rule, motion_kind, stage, walkers, posed=True)
+        still[path] = f"it stands open, as its row's words say (\"{row.get('name')}\")"
+        return
+    found = parted_moves(path, row["id"], hinge_rule, motion_kind, stage, walkers) \
+        if served(rule, inventory, kinds) else []
+    if not found:
+        still[path] = rule["still_without"]
+    moves += found
 
 
 def merged_for(rule, motion_kinds, stage, path, spans):

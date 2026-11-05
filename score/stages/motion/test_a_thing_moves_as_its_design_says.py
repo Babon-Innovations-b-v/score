@@ -371,15 +371,86 @@ def test_a_door_that_strikes_every_way_stands_with_its_strike(tmp_path):
     assert clear.answer == checks.PASS, (clear.reason, clear.findings)
 
 
-def test_a_hatch_lying_flat_stands(tmp_path):
-    """A floor hatch 0.6 m across and 0.1 m tall would turn about a level line: it stands, said so.
+def parted(folder, name, at, row, turn=0.0):
+    """A parted build (score/stages/props/moving_parts) on the toy's base layer as the route lays it: an object Xform
+    at `at` turned `turn` degrees about up, each node of its model an Xform of its own name at its node's origin
+    holding its mesh."""
+    from score.stages.props import moving_parts
+    scene, _ = moving_parts.build(row, from_design.row_kinds.table())
+    stage = Usd.Stage.Open(str(pathlib.Path(folder) / "seeds" / PLACE / "layers/base.usda"))
+    xform = UsdGeom.Xform.Define(stage, f"/{PLACE}/Objects/{name}")
+    xform.AddTranslateOp().Set(Gf.Vec3d(*at))
+    xform.AddRotateYOp().Set(turn)
+    for node in scene.graph.nodes_geometry:
+        placed, geometry = scene.graph[node]
+        mesh = scene.geometry[geometry]
+        part = UsdGeom.Xform.Define(stage, f"/{PLACE}/Objects/{name}/{node}")
+        part.AddTranslateOp().Set(Gf.Vec3d(*(float(value) for value in placed[:3, 3])))
+        drawn = UsdGeom.Mesh.Define(stage, f"/{PLACE}/Objects/{name}/{node}/mesh")
+        drawn.GetPointsAttr().Set([Gf.Vec3f(*(float(value) for value in point)) for point in mesh.vertices])
+        drawn.GetFaceVertexCountsAttr().Set([3] * len(mesh.faces))
+        drawn.GetFaceVertexIndicesAttr().Set([int(index) for index in mesh.faces.flatten()])
+    stage.GetRootLayer().Save()
+
+
+def test_a_hatch_lying_flat_stands_and_a_parted_build_moves_its_parts(tmp_path):
+    """A floor hatch 0.6 m across and 0.1 m tall would turn about a level line: it stands, said so. Built with its
+    parts apart (#19, score/stages/props/moving_parts), a double door 1.6 m wide turned a quarter about up at (3, 0,
+    -2), across the walker's route, swings its two leaves on their own pivots (its outer edges) the opposite ways, so
+    both open to its own +x (the world's -z), for the walker passing it from 4.5 s (within a metre of a leaf, read
+    every 0.1 s) and shut after it; the door itself never swings as one leaf, and every gate passes over it; an open
+    floor hatch so built stands posed open, its lid turned up 90 degrees on its level hinge (its middle 0.2 m up),
+    and a shut one on the walker's route (at (3, 0, 3.5)) lifts its lid on that hinge as the walker comes and lowers
+    it after, turning about its own x axis only.
     Break: score/stages/motion/from_design.py: `elif rule["move"] == "swing" and not upright(stage, path):` -> `elif
-        False:`"""
+        False:`
+    Break: score/stages/motion/from_design.py: `if rule["move"] in ("swing", "split") and hinged(stage, path):` ->
+        `if False:` (the double door is unmade, covered fails)
+    Break: tools/usd/motion_layer.py: `return own_pivot(stage, move)` -> `return own_side(stage, move, [0.0, 0.0,
+        0.0])` (a leaf turns about its middle)
+    Break: score/stages/motion/check.py: `tilt = max(tilt_of(turn, axis) for turn in turns)` -> `tilt =
+        max(tilt_of(turn) for turn in turns)` (follows fails the lid's level hinge as tipping off the
+        upright)
+    Break: score/stages/motion/__init__.py: `moved = {path for path in moving_row_prims(stage, place, inputs) if
+        under(path, moving)} | moving` -> `moved = moving`
+    Break: score/stages/motion/from_design.py: `moves += [[at_least(opens), "open"], [at_least(shuts), "shut"]]` ->
+        `moves += [[round(opens, 3), "open"], [round(shuts, 3), "shut"]]` (the walked lid's shut rounds to before its
+        opening ends, and its layer is refused)"""
     flat = ("hatch_1", (-1.0, 0.0, -1.0), (-0.3, 0.0, -0.3), (0.3, 0.1, 0.3))
     _, record = made(toy_inputs(tmp_path, ROWS + [{"id": "hatch", "name": "floor hatch", "noun": "hatch"}],
                                 extra=(flat,)), tmp_path)
     assert sorted(entry["name"] for entry in record["moves"]) == ["door_1", "fan_1"]
     assert record["still"][f"/{PLACE}/Objects/hatch_1"] == from_design.LYING
+    folder = tmp_path / "parted"
+    folder.mkdir()
+    double = {"id": "double_door", "name": "double door", "noun": "door", "size": [1.6, 0.1, 2.1]}
+    lid = {"id": "open_hatch", "name": "open floor hatch", "noun": "hatch", "size": [0.6, 0.6, 0.1]}
+    walked = {"id": "floor_hatch", "name": "floor hatch", "noun": "hatch", "size": [0.6, 0.6, 0.1]}
+    inputs = toy_inputs(folder, ROWS + [double, lid, walked])
+    parted(folder, "double_door_1", (3.0, 0.0, -2.0), double, turn=90.0)
+    parted(folder, "open_hatch_1", (-1.0, 0.0, -1.0), lid)
+    parted(folder, "floor_hatch_1", (3.0, 0.0, 3.5), walked)
+    out, record = made(inputs, folder)
+    found = {check.name: check.judge(out, inputs, None) for check in motion.CHECKS}
+    moves = {entry["name"]: entry for entry in record["moves"]}
+    door = f"/{PLACE}/Objects/double_door_1"
+    assert sorted(moves) == ["door_1", "double_door_1.leaf_left", "double_door_1.leaf_right", "fan_1",
+                             "floor_hatch_1.lid"], sorted(moves)
+    assert (moves["floor_hatch_1.lid"]["swing"]["axis"], moves["floor_hatch_1.lid"]["swing"]["angle"]) == ("x", -90.0)
+    left, right = moves["double_door_1.leaf_left"]["swing"], moves["double_door_1.leaf_right"]["swing"]
+    assert (left["angle"], right["angle"], left["axis"], left["about"]) == (90.0, -90.0, "y", {"pivot": True})
+    assert left["moves"] == [[1.853, "open"], [6.1, "shut"]], left["moves"]  # 4.5 less 90 / 34; the walk ends at 6.1
+    shut = middle_at(out, inputs, f"{door}/leaf_left__hinge_y", 0.0)
+    opened = middle_at(out, inputs, f"{door}/leaf_left__hinge_y", 5.0)
+    other = middle_at(out, inputs, f"{door}/leaf_right__hinge_yn", 5.0)
+    assert opened[2] < shut[2] - 0.3 and other[2] < shut[2] - 0.3, (shut, opened, other)  # both open to -z
+    assert [entry["name"] for entry in record["posed"]] == ["open_hatch_1.lid"], record["posed"]
+    raised = middle_at(out, inputs, f"/{PLACE}/Objects/open_hatch_1/lid__hinge_xn", 5.0)
+    lifted = middle_at(out, inputs, f"/{PLACE}/Objects/floor_hatch_1/lid__hinge_xn", 2.0)
+    down = middle_at(out, inputs, f"/{PLACE}/Objects/floor_hatch_1/lid__hinge_xn", 15.0)
+    assert raised[1] > 0.2 and lifted[1] > 0.2 and down[1] < 0.1, (raised, lifted, down)
+    assert all(verdict.answer == checks.PASS for verdict in found.values()), {
+        name: (verdict.reason, verdict.findings) for name, verdict in found.items() if verdict.answer != checks.PASS}
 
 
 def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
