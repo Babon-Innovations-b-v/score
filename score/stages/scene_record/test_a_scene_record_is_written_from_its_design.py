@@ -72,6 +72,18 @@ def test_a_plan_maps_and_faults_fail():
     Break: score/stages/scene_record/plan.py: `return within([x + reach, y + reach,` -> `return True or within([x + reach, y + reach,`
     Break: score/stages/scene_record/plan.py: `if across > EDGE and along > EDGE:` -> `if False:`
     Break: score/stages/scene_record/plan.py: `if leading > back:` -> `if False:`
+    A place held several times stands once a hold, each instance by itself (#72, the base's tubes): a tube held
+    turned and stretched meets the hub's door and the lab's at its two ends, its own leads renamed by its hold; a
+    door naming the tube and not its instance, a hold another size than its plan laid in it, and a turn of 45 degrees
+    fail by name.
+    Break: score/stages/scene_record/plan.py: `return middle + np.array([cos * across - sin * along, sin * across + cos * along])` ->
+        `return middle + np.array([across, along])`
+    Break: score/stages/scene_record/plan.py: `found[name_of(hold)] = (hold, as_held(hold, read(path)))` ->
+        `found[name_of(hold)] = (hold, read(path))`
+    Break: score/stages/scene_record/plan.py: `if opening.get("kind") in DOORWAYS and to in instances and to not in held:` -> `if False:`
+    Break: score/stages/scene_record/plan.py: `if abs(wide - hold["w"]) > EDGE or abs(deep - hold["d"]) > EDGE:` -> `if False:`
+    Break: score/stages/scene_record/writer.py: `own = np.asarray(met[0]["door"]["at"], float) + unturned(hold, there - met[0]["spot"])` ->
+        `own = np.asarray(met[0]["door"]["at"], float)`
     Two doors on one wall lead each by its own lead, `<side>:<along>` over its side's (the walkway's galley and
     quarters doors, 2026-11-05), and the openings gate finds each its doorway nearest along.
     Break: score/stages/scene_record/plan.py: `return leads.get(f"{side}:{float(at):g}") or leads.get(` ->
@@ -99,6 +111,44 @@ def test_a_plan_maps_and_faults_fail():
     held = {"hub": (holds[0], {"openings": [door, door]}), "tube": (holds[1], {"openings": [{**door, "to": "hub"}]})}
     assert plan.once_faults(held) == ["tube is held once, but 2 doors of its siblings lead to it and 1 of its own "
                                       "lead back"]
+    with tempfile.TemporaryDirectory() as folder:
+        plans, out = pathlib.Path(folder) / "plans", pathlib.Path(folder) / "out"
+        plans.mkdir(), out.mkdir()
+        (out / "plan.json").write_text(json.dumps({"place": "base"}))
+        # the tube's plan: 2 x 4 m, its north end to the hub, its south end to the greenhouse; held turned 90 degrees
+        # (north to east) and stretched to 6 m, its hub end leading to the lab (east, x 16) and its greenhouse end to
+        # the hub (west, x 10), both at y 5
+        tube = {"w": 2.0, "d": 4.0, "shape": "tube", "openings": [{"kind": "opening", "at": [1.0, 0.0], "to": "hub"},
+                                                                  {"kind": "opening", "at": [1.0, 4.0], "to": "greenhouse"}]}
+        hub = {"w": 10.0, "d": 10.0, "openings": [{"kind": "door", "at": [10.0, 5.0], "to": "tube#1"}]}
+        lab = {"w": 4.0, "d": 4.0, "openings": [{"kind": "door", "at": [0.0, 2.0], "to": "tube#1"}]}
+        instance = {"place": "tube", "instance": "tube#1", "turn": 90, "leads": {"hub": "lab", "greenhouse": "hub"},
+                    "x": 10.0, "y": 4.0, "w": 6.0, "d": 2.0}
+        base = {"w": 20.0, "d": 10.0, "holds": [{"place": "hub", "x": 0.0, "y": 0.0, "w": 10.0, "d": 10.0}, instance,
+                                                {"place": "lab", "x": 16.0, "y": 3.0, "w": 4.0, "d": 4.0}]}
+        for name, own in (("tube", tube), ("hub", hub), ("lab", lab), ("base", base)):
+            (plans / f"{name}.json").write_text(json.dumps(own))
+        found = plan.judge_held(out, {"plans": plans}, None)
+        assert found.answer == checks.PASS, found.findings
+        assert plan.on_holder(instance, tube, [1.0, 0.0]).tolist() == [16.0, 5.0]
+        # the hub's record stands the instance its place's stage, its middle 3 m east of the hub's door, stretched
+        stood = gates.writer.sibling("hub", hub, base, "tube#1", plans)
+        assert (stood["name"], stood["stage"], stood["instance"], stood["at"], stood["scale"]) == (
+            "tube_1", "tube", "tube#1", [8.0, 0.0, 0.0], [1.0, 1.0, 1.5]), stood
+        hub["openings"].append({"kind": "door", "at": [5.0, 10.0], "to": "tube"})
+        (plans / "hub.json").write_text(json.dumps(hub))
+        base["holds"][1] = {**instance, "d": 3.0}
+        (plans / "base.json").write_text(json.dumps(base))
+        assert plan.judge_held(out, {"plans": plans}, None).findings[:2] == (  # then its doors, 0.5 m off
+            "tube#1's hold is 6 x 3 m, its plan laid in it 6 x 2 m (turned 90)",
+            "hub's door to tube at [5.0, 10.0] names no instance of it (tube#1)")
+        base["holds"][1] = {**instance, "turn": 45}
+        (plans / "base.json").write_text(json.dumps(base))
+        try:
+            plan.judge_held(out, {"plans": plans}, None)
+            raise AssertionError("a hold turned 45 degrees was judged")
+        except ValueError as refused:
+            assert "turns 45 degrees" in str(refused)
     walled = {**SHED, "doors": [["E", 1.5, 0.9, "DOOR to the galley 0.9 x 2.0 m"], ["E", 4.5, 0.9, "DOOR to the yard"]],
               "leads": {"E": {"to": "sealed", "why": "shut"}, "E:4.5": {"to": "yard", "why": "the yard's door"}},
               "openings": [{"kind": "door", "at": [8.0, 4.5], "wide": 0.9, "sill": 0.0, "to": "yard"},

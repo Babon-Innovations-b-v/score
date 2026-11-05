@@ -1878,9 +1878,16 @@ def test_opening_the_yard_opens_the_whole_tree_each_child_at_its_hold(tmp_path):
     hut 2.5 m up (the square's flat under its stairwell door, 2026-11-04), and the gate holds it there.
     Break: score/stages/assembly/scene_tree.py: `matrix[:3, :3] = turn.T` -> `matrix[:3, :3] = turn`
     Break: score/stages/assembly/scene_tree.py:
-        `shift = corner + east * across + south * along + up * level - turn @ child_corner`
-        -> `shift = corner + east * across + south * along + up * level`
-    Break: score/stages/assembly/scene_tree.py: `+ up * level` -> ``"""
+        `shift = corner + east * start[0] + south * start[1] + up * level - turn @ child_corner`
+        -> `shift = corner + east * start[0] + south * start[1] + up * level`
+    Break: score/stages/assembly/scene_tree.py: `+ up * level` -> ``
+    The yard holding the hut twice (#72: a place held several times stands once a hold), its second instance turned 90 degrees
+    at (2, 7) 3 x 4 m: its crate at plan (2, 1) of the hut is (4, 9) on the yard, (-6, 0, 3), under /yard/Scenes/hut_2,
+    the hut's one tree copied once; the gate passes it.
+    Break: score/stages/scene_record/plan.py: `cos, sin = round(math.cos(turn)), round(math.sin(turn))` ->
+        `cos, sin = 1, 0`
+    Break: score/stages/assembly/scene_tree.py: `standing = sorted(child for child, hold in laid.items() if hold["place"] in children)` ->
+        `standing = sorted(child for child in laid if child in children)`"""
     yard, inputs = the_yard(tmp_path)
     stage = opened(yard / "yard.usda")
     assert crate_at(stage, "/yard/Scenes/shed/Objects/crate_1") == [-7.0, 0.0, -2.0]
@@ -1899,11 +1906,22 @@ def test_opening_the_yard_opens_the_whole_tree_each_child_at_its_hold(tmp_path):
     assert crate_at(stage, "/yard/Scenes/shed/Objects/crate_1") == [-7.0, 0.0, -2.0]
     verdict = scene_tree.judge_children(raised, inputs, None)
     assert verdict.answer == checks.PASS, verdict.findings
+    twice = {**YARD, "holds": [{**YARD["holds"][1], "instance": "hut#1"},
+                               {"place": "hut", "instance": "hut#2", "turn": 90, "x": 2.0, "y": 7.0, "w": 3.0, "d": 4.0}]}
+    root = tmp_path / "twice"
+    hut, _ = tree_of(root, "hut", a_scene(root / "made", "hut", (-1.0, 0.0, 2.0)), HUT, {})
+    yard, inputs = tree_of(root, "yard", a_scene(root / "made", "yard", (0.0, 0.0, 0.0)), twice, {"hut": (hut, HUT)})
+    stage = opened(yard / "yard.usda")
+    assert crate_at(stage, "/yard/Scenes/hut_1/Objects/crate_1") == [2.0, 0.0, 0.0]
+    assert crate_at(stage, "/yard/Scenes/hut_2/Objects/crate_1") == [-6.0, 0.0, 3.0]
+    assert sorted(path.name for path in (yard / "scenes").iterdir()) == ["hut"]
+    verdict = scene_tree.judge_children(yard, inputs, None)
+    assert verdict.answer == checks.PASS and verdict.measures["children"] == 2, verdict.findings
 
 
 def test_a_child_laid_out_and_not_stood_fails_by_name(tmp_path):
     """The yard's plan lays out the hut; a run with no hut read stands the shed alone and fails on the hut.
-    Break: score/stages/assembly/scene_tree.py: `children = sorted(set(holds(plan)) | read | standing)` -> `children =
+    Break: score/stages/assembly/scene_tree.py: `children = sorted(set(laid) | read | standing)` -> `children =
         sorted(read | standing)`"""
     yard, inputs = the_yard(tmp_path, children=("shed",))
     verdict = scene_tree.judge_children(yard, inputs, None)
@@ -1914,11 +1932,11 @@ def test_a_child_laid_out_and_not_stood_fails_by_name(tmp_path):
 
 def test_a_child_whose_plan_is_not_its_hold_s_size_fails(tmp_path):
     """A hut planned 5 m wide in a 4 m hold fails on its size.
-    Break: score/stages/assembly/scene_tree.py: `if abs(child_plan["w"] - hold["w"]) > SIZED` -> `if False`"""
+    Break: score/stages/assembly/scene_tree.py: `if abs(wide - hold["w"]) > SIZED` -> `if False`"""
     yard, inputs = the_yard(tmp_path, hut_plan={**HUT, "w": 5.0})
     verdict = scene_tree.judge_children(yard, inputs, None)
     assert verdict.answer == checks.FAIL
-    assert "/yard/Scenes/hut: its plan is 5.0 x 3.0 m, its hold 4.0 x 3.0 m" in verdict.findings
+    assert "/yard/Scenes/hut: its plan laid in its hold is 5 x 3 m, its hold 4.0 x 3.0 m" in verdict.findings
 
 
 def test_a_child_standing_where_the_plan_lays_out_nothing_fails(tmp_path):

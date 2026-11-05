@@ -214,8 +214,9 @@ def lead_faults(record, design, inputs):
     places = {path.stem for path in pathlib.Path(inputs["plans"]).glob("*.json")}
     rows = {row["id"] for row in json.loads(pathlib.Path(inputs["inventory"]).read_text())["rows"]}
     _, holder = writer.holder_of(record["place"], inputs["plans"])
-    held = {hold["place"] for hold in (holder or {}).get("holds") or []}
-    stood = {entry["name"] for entry in record["places"]}
+    held = {writer.place_plan.name_of(hold) for hold in (holder or {}).get("holds") or []}
+    places |= held  # an instance of a place held several times (tube#3) is a place of the design
+    stood = {entry.get("instance", entry["name"]) for entry in record["places"]}
     found = []
     for number, opening in enumerate(design.get("openings") or [], 1):
         to = opening.get("to")
@@ -242,25 +243,30 @@ def pair_faults(record, design, inputs):
     record stands it: none leads back, or the nearest is off along the floor or in height."""
     found = []
     plans = pathlib.Path(inputs["plans"])
+    _, holder = writer.holder_of(record["place"], inputs["plans"])
+    holds = {writer.place_plan.name_of(hold): hold for hold in (holder or {}).get("holds") or []}
+    own = writer.place_plan.hold_of(holder, record["place"]) if holder else None
     for entry in record["places"]:
-        path = plans / f"{entry['name']}.json"
-        doors = writer.place_plan.doors_to(design, entry["name"])
+        name = entry.get("instance", entry["name"])
+        path = plans / f"{entry['stage']}.json"
+        doors = writer.place_plan.doors_to(design, name)
         if not doors or not path.is_file():
             continue
-        other = json.loads(path.read_text())
-        axes = writer.axes_in(design, other)
+        other_hold = holds.get(name) or {}
+        other = writer.place_plan.as_held(other_hold, json.loads(path.read_text()))
+        axes = writer.axes_in(design, other, own, other_hold) * np.asarray(entry.get("scale") or [1.0] * 3)[:, None]
         back = [door_spot(other, door, entry["at"], axes) for door in writer.place_plan.doors_to(other, record["place"])]
         for door in doors:
             spot = door_spot(design, door)
-            said = f"the door to {entry['name']} at {door['at']}"
+            said = f"the door to {name} at {door['at']}"
             if not back:
-                found.append(f"{said}: no door of {entry['name']} leads back")
+                found.append(f"{said}: no door of {name} leads back")
                 continue
             nearest = min(back, key=lambda there: float(np.linalg.norm((there - spot)[[0, 2]])))
             along, up = float(np.linalg.norm((nearest - spot)[[0, 2]])), abs(float(nearest[1] - spot[1]))
             if along > writer.place_plan.DOORS_MET or up > writer.place_plan.LEVEL_MET:
                 found.append(f"{said} opens {along:.2f} m along the floor and {up:.2f} m in height from "
-                             f"{entry['name']}'s nearest door back, as the record stands it")
+                             f"{name}'s nearest door back, as the record stands it")
     return found
 
 

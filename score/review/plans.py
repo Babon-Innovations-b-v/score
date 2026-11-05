@@ -42,6 +42,7 @@ import sys
 
 from score.review import concepts
 from score.review.plan_checks import WALLS_ITEM, anchor_of, whole
+from score.stages.scene_record.plan import as_held, laid_size, name_of
 from score.store import PROPS_HOME, stamp_key
 
 AREA = "plans"
@@ -687,6 +688,13 @@ def own_size(store, place):
     return (found["w"], found["d"]) if found and found.get("w") else None
 
 
+def laid_own_size(store, hold):
+    """(w, d) `hold`'s place's own plan covers laid in it (scene_record.plan.laid_size: turned, a tube stretched along
+    its run to the hold's length); None while it has none."""
+    found = own_plan(store, hold["place"])
+    return laid_size(hold, found) if found and found.get("w") else None
+
+
 def overlap(box, other):
     """Whether two [x, y, w, d] boxes share floor (more than a millimetre each way)."""
     return (min(box[0] + box[2], other[0] + other[2]) - max(box[0], other[0]) > 0.001
@@ -718,8 +726,8 @@ def hold_fitted(plan, hold, size):
     fitted = room_at(hold, size)
     new = [fitted["x"], fitted["y"], fitted["w"], fitted["d"]]
     at = [round(value, 2) for value in middle]
-    gaps = [{"kind": "held", "item": hold["place"], "row": hold.get("row"), "at": at,
-             "words": f"{hold['place'].replace('_', ' ')}'s spot was {old[2]:g} x {old[3]:g} m, its own plan "
+    gaps = [{"kind": "held", "item": name_of(hold), "row": hold.get("row"), "at": at,
+             "words": f"{name_of(hold).replace('_', ' ')}'s spot was {old[2]:g} x {old[3]:g} m, its own plan "
                       f"{size[0]:g} x {size[1]:g} m: the spot takes its plan's size, its middle kept"}]
     for number, item in enumerate(plan.get("items", [])):
         box = item[1:5]
@@ -727,8 +735,8 @@ def hold_fitted(plan, hold, size):
                 or not overlap(box, new):
             continue
         plan["items"][number] = [item[0], *pushed_out(box, new), *item[5:]]
-        gaps.append({"kind": "held", "item": item[0], "with": hold["place"], "at": at,
-                     "words": f"{item[0].lower()} stood where {hold['place'].replace('_', ' ')} now sits: moved off it"})
+        gaps.append({"kind": "held", "item": item[0], "with": name_of(hold), "at": at,
+                     "words": f"{item[0].lower()} stood where {name_of(hold).replace('_', ' ')} now sits: moved off it"})
     return fitted, gaps
 
 
@@ -741,19 +749,19 @@ def holds_fitted(store, shown):
     plan = copy.deepcopy(shown["plan"])
     gaps, holds, resized = [gap for gap in plan.get("gaps", []) if gap.get("kind") != "held"], [], set()
     for hold in plan["holds"]:
-        size = own_size(store, hold["place"])
+        size = laid_own_size(store, hold)
         if size and (abs(size[0] - hold["w"]) > 0.001 or abs(size[1] - hold["d"]) > 0.001):
             hold, moved = hold_fitted(plan, hold, size)
             gaps += moved
-            resized.add(hold["place"])
+            resized.add(name_of(hold))
         holds.append(hold)
-    holds, met = doors_met(plan, holds, {hold["place"]: own_plan(store, hold["place"]) for hold in holds})
+    holds, met = doors_met(plan, holds, {name_of(hold): own_plan(store, hold["place"]) for hold in holds})
     gaps += met
     resized |= {gap["item"] for gap in met if gap.get("met")}
     # a sibling spot is another child's own: never moved here, named
-    gaps += [{"kind": "held", "item": hold["place"], "with": other["place"], "at": [hold["x"], hold["y"]],
-              "words": f"{hold['place'].replace('_', ' ')} at its plan's size overlaps {other['place']}"}
-             for hold in holds if hold["place"] in resized for other in holds
+    gaps += [{"kind": "held", "item": name_of(hold), "with": name_of(other), "at": [hold["x"], hold["y"]],
+              "words": f"{name_of(hold).replace('_', ' ')} at its plan's size overlaps {name_of(other)}"}
+             for hold in holds if name_of(hold) in resized for other in holds
              if other is not hold and overlap(*([spot["x"], spot["y"], spot["w"], spot["d"]] for spot in (hold, other)))]
     return {**shown, "plan": {**plan, "holds": holds, "gaps": gaps}}
 
@@ -770,10 +778,11 @@ def doors_met(plan, holds, own):
     so the two meet, the gaps saying so): the nearest such pair first, its `mover_of` moved by the gap between the two
     doors and then the shortest way off the sibling's box (each door stands on its own wall's line), each place moved
     once, never onto another hold; the floor items its new box covers pushed off it (`hold_fitted`'s way). `own`:
-    {place: its own plan}. The Square's stairwell, fitted to its 7.42 x 4.06 m plan, opened its door to the flat 10.4
+    {held name (an instance its own): its place's own plan}, each read as its hold stands it (its `leads`). The Square's stairwell, fitted to its 7.42 x 4.06 m plan, opened its door to the flat 10.4
     m from the flat's door back (2026-11-05)."""
     from score.stages.scene_record.plan import DOORS_MET, paired
-    by_place = {hold["place"]: dict(hold) for hold in holds}
+    by_place = {name_of(hold): dict(hold) for hold in holds}
+    own = {name: as_held(by_place[name], found) for name, found in own.items() if found and name in by_place}
     moved, gaps = set(), []
     pairs = sorted((pair["gap"], name, other, pair) for name in by_place for other in by_place
                    if name != other and own.get(name) and own.get(other)
@@ -810,7 +819,7 @@ def doors_met(plan, holds, own):
             plan["items"][number] = [item[0], *pushed_out(item[1:5], box), *item[5:]]
             gaps.append({"kind": "held", "item": item[0], "with": mover, "at": at,
                          "words": f"{item[0].lower()} stood where {mover.replace('_', ' ')} now sits: moved off it"})
-    return [by_place[hold["place"]] for hold in holds], gaps
+    return [by_place[name_of(hold)] for hold in holds], gaps
 
 
 # --- his edits --------------------------------------------------------------------------------------------------
@@ -885,7 +894,30 @@ def checked_hold(hold, ids):
              **{key: number(hold[key], f"{place} {key}", -BIGGEST if key in "xy" else 0.5) for key in "xywd"}}
     name = str(hold.get("name") or "").strip()[:80]
     things = [checked_thing(thing, place) for thing in hold.get("things") or []]
-    return {**found, **({"name": name} if name else {}), **({"things": things} if things else {})}
+    return {**found, **({"name": name} if name else {}), **({"things": things} if things else {}),
+            **checked_instance(hold, place)}
+
+
+def checked_instance(hold, place):
+    """A hold's instance, turn and leads as given (scene_record.plan: a place held several times, each instance
+    `<place>#<n>` with what its doorways lead to there; any hold turned 0, 90, 180 or 270 degrees), each only when
+    given; Refused otherwise."""
+    found = {}
+    if hold.get("instance") is not None:
+        instance = str(hold["instance"]).strip().lower()
+        if not re.fullmatch(re.escape(place) + r"#\d{1,3}", instance):
+            raise Refused(f"{instance!r} is no instance of {place} ({place}#<number>)")
+        found["instance"] = instance
+    if hold.get("turn"):
+        turn = number(hold["turn"], f"{place} turn", 0.0, 270.0)
+        if turn not in (90.0, 180.0, 270.0):
+            raise Refused(f"{place} turns {turn:g} degrees: a hold turns 0, 90, 180 or 270")
+        found["turn"] = int(turn)
+    if hold.get("leads"):
+        if not isinstance(hold["leads"], dict):
+            raise Refused(f"{place}'s leads are no {{its own lead: this hold's}}")
+        found["leads"] = {checked_names([own])[0]: checked_names([there])[0] for own, there in hold["leads"].items()}
+    return found
 
 
 def checked_thing(thing, place):

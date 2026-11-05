@@ -98,7 +98,12 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   its plan's box (a passage excepted, a thing on its wall's line allowed half its thickness), and on a holder's plan
   a hold off its own item for its row (10% in size, 0.5 m in middle), two holds overlapping, a place held once more
   doors lead to than lead back, and a door of a held place meeting no door of the sibling it leads to on the
-  holder's plan.
+  holder's plan. A place held several times (#72: a tube on each of the base's links) is held once per
+  `instance` (`tube#3`), each with its own `leads` (what the place's doorways lead to there) and any hold a `turn`
+  (0, 90, 180, 270); a tube (`shape: tube`) is stretched along its run to its hold's length (`plan.on_holder`,
+  `laid_size`, read alike by plans.holds_fitted, the scene tree and terrain). `held` judges each instance by itself and
+  fails a hold another size than its plan laid in it and a door naming a place held only as instances; a neighbour
+  that is an instance stands its place's stage, named `tube_3`, with its `instance` and `scale`.
 - **Wall, roof and seat laying** (2026-11-04 audit): a wall object's x way is its wall's run turned by its `side`, so
   its front faces `out`; it stands at its relation's `height` (holders' mount height) where the plan gives no base; a
   `ceiling` relation marked `to roof` lays its top `ROOF_CLEAR` under the roof's underside at its spot; a relation's

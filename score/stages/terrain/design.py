@@ -111,13 +111,17 @@ def tangent(top, plan_points):
     return middle + np.outer(points[:, 0], east) + np.outer(points[:, 1], south)
 
 
-def place_entry(top, plan, offset):
+def place_entry(top, plan, hold):
     """A place's frame in the world: its origin and axes (columns: its x, y, z) and its floor's height in its frame,
-    its plan laid at `offset` (plan metres) on its top's plan."""
+    its plan laid in `hold` on its top's plan as the scene tree lays it (scene_record.plan.on_holder: turned, its
+    middle on the hold's; the top itself at its own corner, {x: 0, y: 0})."""
     corner, east_p, south_p = place_plan.frame_of(plan)
-    origin_plan = np.array([-float(corner @ east_p), -float(corner @ south_p)]) + np.asarray(offset, dtype=float)
+    origin_plan = place_plan.on_holder(hold, plan, (-float(corner @ east_p), -float(corner @ south_p)))
+    turn = math.radians(place_plan.turn_of(hold))
+    cos, sin = round(math.cos(turn)), round(math.sin(turn))
     east, south, up = (np.asarray(top[key], dtype=float) for key in ("east", "south", "up"))
-    axes = np.column_stack([east * east_p[0] + south * south_p[0], up, east * east_p[2] + south * south_p[2]])
+    turned = [(cos * east_p[axis] - sin * south_p[axis], sin * east_p[axis] + cos * south_p[axis]) for axis in (0, 2)]
+    axes = np.column_stack([east * turned[0][0] + south * turned[0][1], up, east * turned[1][0] + south * turned[1][1]])
     origin = tangent(top, [origin_plan])[0] - up * float(corner[1])
     corners = np.array([corner + east_p * x + south_p * y for x in (0.0, float(plan["w"]))
                         for y in (0.0, float(plan["d"]))])[:, [0, 2]]
@@ -142,10 +146,13 @@ def layout(plans, skies):
                                                            "radius": entry["radius"], "tops": {}, "places": {},
                                                            "sources": []})
         ground["tops"][top] = entry
-        held = [(top, plan, [0.0, 0.0])] + [(hold["place"], plans[hold["place"]], [hold["x"], hold["y"]])
-                                            for hold in plan.get("holds") or [] if hold.get("place") in plans]
-        for name, own, offset in held:
-            ground["places"][name] = {**place_entry(entry, own, offset), "top": top}
+        # each place once, at its own hold (an instance of a place held several times is its scene tree's)
+        held = [(top, plan, {"x": 0.0, "y": 0.0})] + [
+            (place, plans[place], place_plan.hold_of(plan, place))
+            for place in dict.fromkeys(hold.get("place") for hold in plan.get("holds") or []) if place in plans]
+        for name, own, hold in held:
+            offset = [hold["x"], hold["y"]]
+            ground["places"][name] = {**place_entry(entry, own, hold), "top": top}
             spots = (own.get("terrain") or {}).get("spots") or []
             if spots:
                 ground["sources"].append({"place": name, "top": top, "offset": offset,

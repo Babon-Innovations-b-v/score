@@ -2706,7 +2706,12 @@ def test_a_holder_with_no_outline_of_its_own_gets_one_round_its_inside_places_be
 
 def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_says_so(store, data, monkeypatch):
     """Owner, 2026-10-25 ("the framework should be able to solve [it] agnosticly"): a child scene's own plan is drawn
-    from its own concept at its own scale, the holder's spot says where it sits; they agree before any paid work."""
+    from its own concept at its own scale, the holder's spot says where it sits; they agree before any paid work.
+    Break: score/review/plans.py: `return laid_size(hold, found) if found and found.get("w") else None` ->
+        `return (found["w"], found["d"]) if found and found.get("w") else None`
+    Break: score/review/plans.py: `by_place = {name_of(hold): dict(hold) for hold in holds}` ->
+        `by_place = {hold["place"]: dict(hold) for hold in holds}`
+    Break: score/review/plans.py: `if turn not in (90.0, 180.0, 270.0):` -> `if False:`"""
     rows = [{"id": "barn", "name": "a barn", "anchor": "floor", "size": [8.0, 6.0, 5.0], "count": 1, "at": []},
             {"id": "cart", "name": "a cart", "anchor": "floor", "size": [1.0, 1.0, 1.0], "count": 1, "at": []}]
     picked(store, "yard", rows)
@@ -2727,6 +2732,15 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     assert fitted["items"][0][1:5] == [13.0, 7.0, 1.0, 1.0]  # pushed north off the shed, the shortest way
     assert [gap["item"] for gap in fitted["gaps"] if gap["kind"] == "held"] == ["shed", "CART 1"]
     assert plans.moved_draws(store, "shed") == set()  # its own size is no move of its room
+    # a hold turned 90 degrees takes its plan's size turned (#72: the base's hangar, drawn wide, its plan long), and a
+    # place held several times keeps each instance its own (the base's tubes); an instance names its place, a hold
+    # turns only by quarters
+    assert plans.laid_own_size(store, {"place": "shed", "turn": 90, "x": 0.0, "y": 0.0, "w": 1.0, "d": 1.0}) == (10.0, 4.0)
+    assert plans.checked_instance({"instance": "Tube#3", "turn": 90, "leads": {"hub": "lab"}}, "tube") == {
+        "instance": "tube#3", "turn": 90, "leads": {"hub": "lab"}}
+    for wrong, said in (({"instance": "hub#1"}, "no instance of tube"), ({"turn": 45}, "turns 45 degrees")):
+        with pytest.raises(plans.Refused, match=said):
+            plans.checked_instance(wrong, "tube")
     # its drawing is asked at its own proportions in a square frame, never its spot's shape (#72: the flat drawn to
     # the Square's thin strip of it)
     wording = plan_drawing.wording_of(store, "shed")
@@ -2789,6 +2803,9 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     assert met[0] == holds[0] and (met[1]["x"], met[1]["y"]) == (6.0, 16.464), met
     assert [gap["item"] for gap in said] == ["stairwell", "LANTERN 1"] and square["items"][0][1] == 5.0, said
     assert plans.doors_met(square, [dict(holds[0]), {**holds[1], "row": "core"}], own)[1] == []
+    tubes = [{"place": "stairwell", "instance": f"stairwell#{number}", "row": "core", "x": 10.0 * number, "y": 0.0,
+              "w": 7.4, "d": 4.0} for number in (1, 2)]
+    assert plans.doors_met(square, tubes, {hold["instance"]: own["stairwell"] for hold in tubes})[0] == tubes
     # his edit's things past its own outline are brought inside it when it is shown (the hangar's 2026-10-21 edit kept
     # a 55.7 m writing's spots and crates past its 32 x 64 m), each fix said; the edit itself is kept as he made it
     edit = {**plans.current(store, "yard")["plan"], "w": 30.0, "d": 30.0, "holds": [],

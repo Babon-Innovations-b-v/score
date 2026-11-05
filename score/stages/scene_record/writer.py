@@ -675,19 +675,41 @@ def leads_of(plan, design):
 
 
 def origin_on_holder(design, hold):
-    """The place's frame origin as a point of its holder's plan (its own plan laid unturned in its hold's box, middle
-    on middle: place_plan.on_holder) and its plan's floor in its frame."""
+    """The place's frame origin as a point of its holder's plan (its own plan laid in its hold, middle on middle:
+    place_plan.on_holder) and its plan's floor in its frame."""
     corner, east, south = place_plan.frame_of(design)
     return place_plan.on_holder(hold, design, (-float(corner @ east), -float(corner @ south))), float(corner[1])
 
 
-def axes_in(design, other):
-    """The other place's frame axes (rows: across, up, along) in this place's frame, both plans laid unturned on
-    their holder's plan."""
+def unturned(hold, way):
+    """A way [x, y] on the holder's plan as a way on the place's own plan, its hold's turn undone."""
+    turn = math.radians(place_plan.turn_of(hold))
+    cos, sin = round(math.cos(turn)), round(math.sin(turn))
+    return np.array([cos * way[0] + sin * way[1], -sin * way[0] + cos * way[1]])
+
+
+def axes_in(design, other, hold=None, other_hold=None):
+    """The other place's frame axes (rows: across, up, along) in this place's frame, both plans laid on their
+    holder's plan as their holds turn them (none: unturned)."""
     _, east, south = place_plan.frame_of(design)
     _, other_east, other_south = place_plan.frame_of(other)
-    return np.array([east * float(axis @ other_east) + south * float(axis @ other_south) + np.array([0.0, axis[1], 0.0])
-                     for axis in np.eye(3)])
+    found = []
+    for axis in np.eye(3):
+        way = [float(axis @ other_east), float(axis @ other_south)]  # on the other's plan
+        on_holder = unturned({"turn": -place_plan.turn_of(other_hold or {}) % 360}, way)
+        own = unturned(hold or {}, on_holder)
+        found.append(east * own[0] + south * own[1] + np.array([0.0, axis[1], 0.0]))
+    return np.array(found)
+
+
+def stretched(other, other_hold):
+    """A stretched place's scale in its own frame (scene.write_places' `scale`): its run (its plan's south) the
+    hold's length over its own; None when it is laid at its own length."""
+    stretch = place_plan.stretch_of(other_hold, other)
+    if abs(stretch - 1.0) < 1e-6:
+        return None
+    _, _, south = place_plan.frame_of(other)
+    return [round(1.0 + (stretch - 1.0) * abs(float(value)), 6) for value in south]
 
 
 def quaternion(axes):
@@ -698,33 +720,43 @@ def quaternion(axes):
 
 
 def sibling(place, design, holder, name, plans, why=None):
-    """A place the holder's plan holds beside this one, stood in this place's frame where its door leading back meets
-    this place's door to it, else where the holder holds it; each at its floor's height (place_plan.levels)."""
-    holds = {hold["place"]: hold for hold in holder.get("holds") or []}
-    other = read(pathlib.Path(plans) / f"{name}.json")
+    """A place the holder's plan holds beside this one (`name`: a place, or an instance of one held several times),
+    stood in this place's frame where its door leading back meets this place's door to it, else where the holder
+    holds it; each at its floor's height (place_plan.levels)."""
+    holds = {place_plan.name_of(hold): hold for hold in holder.get("holds") or []}
+    own = place_plan.hold_of(holder, place)
+    other = place_plan.as_held(holds[name], read(pathlib.Path(plans) / f"{holds[name]['place']}.json"))
     level = place_plan.levels(holder, plans)
-    return stood(place, design, holds[place], name, other, holds[name],
+    return stood(place, design, own, name, other, holds[name],
                  why or f"a door of {place} leads to {name}: where its door back meets it, both as high as the "
-                        "holder's plan stands them (holds, levels)", level.get(place, 0.0), level.get(name, 0.0))
+                        "holder's plan stands them (holds, levels)", level.get(place_plan.name_of(own), 0.0),
+                 level.get(name, 0.0))
 
 
 def stood(place, design, hold, name, other, other_hold, why, level=0.0, other_level=0.0):
-    """Another place stood in this place's frame, both plans laid unturned on the holder's plan, this one in `hold`
-    with its floor `level` over the holder's, the other in `other_hold` at `other_level` (the holder itself at its
-    own plan's corner, at 0): moved along the floor so the nearest door of it leading back meets this place's door to
-    it (place_plan.paired: the base's airlock opened 21.8 m off the hub's door, 2026-11-04), the hold the first guess."""
-    here, floor = origin_on_holder(design, hold)
+    """Another place stood in this place's frame, both plans laid on the holder's plan as their holds lay them
+    (place_plan.on_holder: turned, a tube stretched), this one in `hold` with its floor `level` over the holder's,
+    the other in `other_hold` at `other_level` (the holder itself at its own plan's corner, at 0): moved along the
+    floor so the nearest door of it leading back meets this place's door to it (place_plan.paired: the base's airlock
+    opened 21.8 m off the hub's door, 2026-11-04), the hold the first guess. An instance (`tube#3`) stands its
+    place's stage, stretched as its hold says (`scale`)."""
     there, other_floor = origin_on_holder(other, other_hold)
+    _, floor = origin_on_holder(design, hold)
     met = [pair for pair in place_plan.paired(design, hold, place, other, other_hold, name) if pair["back"]]
-    if met:
+    if met:  # from this place's door, along the holder's plan to the other's origin as its door back meets it
         there = there + met[0]["spot"] - met[0]["there"]
-    _, east, south = place_plan.frame_of(design)
-    offset = there - here
-    at = east * offset[0] + south * offset[1]
-    return {"name": name, "stage": name, "at": [round(float(at[0]), 4),
-                                                round(floor - other_floor + other_level - level, 4),
-                                                round(float(at[2]), 4)],
-            "rotation": quaternion(axes_in(design, other)), "from": why}
+        own = np.asarray(met[0]["door"]["at"], float) + unturned(hold, there - met[0]["spot"])
+    else:
+        here, _ = origin_on_holder(design, hold)
+        corner, east, south = place_plan.frame_of(design)
+        own = np.array([-float(corner @ east), -float(corner @ south)]) + unturned(hold, there - here)
+    at = place_plan.placed(design, *own)
+    scale = stretched(other, other_hold)
+    return {"name": name.replace(place_plan.INSTANCE, "_"), "stage": other_hold.get("place", name),
+            **({"instance": name} if other_hold.get("instance") else {}),
+            "at": [round(float(at[0]), 4), round(floor - other_floor + other_level - level, 4), round(float(at[2]), 4)],
+            "rotation": quaternion(axes_in(design, other, hold, other_hold)), **({"scale": scale} if scale else {}),
+            "from": why}
 
 
 def places_of(place, plan, design, plans, handin=None):
@@ -734,9 +766,9 @@ def places_of(place, plan, design, plans, handin=None):
     holder_name, holder = holder_of(place, plans)
     if holder is None:
         return []
-    held = {hold["place"] for hold in holder.get("holds") or []}
+    held = {place_plan.name_of(hold): hold["place"] for hold in holder.get("holds") or []}
     found = [sibling(place, design, holder, name, plans) for name in leads_of(plan, design)
-             if name in held and name != place and (pathlib.Path(plans) / f"{name}.json").is_file()]
+             if name in held and name != place and (pathlib.Path(plans) / f"{held[name]}.json").is_file()]
     return found + shown_places(place, design, holder_name, holder, plans, handin or {}, {entry["name"]
                                                                                           for entry in found})
 
@@ -744,7 +776,7 @@ def places_of(place, plan, design, plans, handin=None):
 def shown_places(place, design, holder_name, holder, plans, handin, stood_already):
     """The places of the scene the hand-in's backdrop rows are shown from (`shown`), not stood already: its holder
     at its own plan's corner, a place the holder holds beside this one where it holds it."""
-    held = {hold["place"]: hold for hold in holder.get("holds") or []}
+    held = {place_plan.name_of(hold): hold for hold in holder.get("holds") or []}
     rows = {}
     for row in handin.get("rows", []):
         if row.get("shown"):
@@ -754,9 +786,10 @@ def shown_places(place, design, holder_name, holder, plans, handin, stood_alread
         why = f"{place} shows {', '.join(ids)} beyond it, made in {name} (its backdrop rows' `shown`)"
         if name in stood_already or name == place:
             continue
+        own = place_plan.hold_of(holder, place)
         if name == holder_name:
-            found.append(stood(place, design, held[place], name, holder, {"x": 0.0, "y": 0.0}, why,
-                               place_plan.levels(holder, plans).get(place, 0.0)))
+            found.append(stood(place, design, own, name, holder, {"x": 0.0, "y": 0.0}, why,
+                               place_plan.levels(holder, plans).get(place_plan.name_of(own), 0.0)))
         elif name in held and (pathlib.Path(plans) / f"{name}.json").is_file():
             found.append(sibling(place, design, holder, name, plans, why))
     return found
