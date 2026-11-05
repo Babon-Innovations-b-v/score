@@ -2717,8 +2717,13 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     where only their boxes do (#72: the base's tubes off the hub's diagonal facets).
     Break: score/review/plans.py: `return outlines_overlap(laid_outline(hold, plan), laid_outline(other, other_plan))` ->
         `return outlines_overlap(laid_outline(hold), laid_outline(other, other_plan))`
-    A free redrawing under the owner's standing word on design fixes is kept as an edit with its reason, and shown;
-    one giving a field no drawing has, or no reason, is refused.
+    The free checks judge two holds' tiling by their drawn outlines too (the item of the hold's row on its box).
+    Break: score/review/plan_checks.py: `boxes = [hold_outline(plan, hold) for hold in holds]` ->
+        `boxes = [hold_outline({}, hold) for hold in holds]`
+    A free redrawing under the owner's standing word on design fixes is kept as an edit with its reason, and shown with
+    what it lays past its outline brought inside; one giving a field no drawing has, or no reason, is refused.
+    Break: score/review/plans.py: `if shown is None or shown["how"] not in ("edited", "revised", "redrawn"):` ->
+        `if shown is None or shown["how"] not in ("edited", "revised"):`
     Break: score/review/plans.py: `if unknown:` -> `if False:`
     Break: score/review/plans.py: `if not (asked or {}).get("words") or not asked.get("at") or not asked.get("reason"):` ->
         `if False:`"""
@@ -2760,6 +2765,17 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     corner = {"place": "cart", "x": -1.0, "y": -1.0, "w": 2.0, "d": 2.0}
     assert not plans.laid_overlap(turned, plans.own_plan(store, "shed"), corner, None)
     assert plans.laid_overlap(turned, None, corner, None)
+    band = {"w": 20.0, "d": 20.0, "items": [["HUB", 0.0, 0.0, 10.0, 10.0, None, "item"],
+                                            ["TUBE", 8.0, 8.0, 4.0, 4.0, None, "item"]],
+            "rows": {"HUB": ["hub_row"], "TUBE": ["tube_row"]},
+            "shapes": {"TUBE": {"shape": "polygon", "points": [[0.75, 0.0], [1.0, 0.25], [0.25, 1.0], [0.0, 0.75]]}},
+            "holds": [{"place": "hub", "row": "hub_row", "x": 0.0, "y": 0.0, "w": 10.0, "d": 10.0},
+                      {"place": "tube", "row": "tube_row", "x": 8.0, "y": 8.0, "w": 4.0, "d": 4.0}]}
+    grid = plan_checks.Grid(band)
+    outline = grid.covered(plan_checks.outline_of(band))
+    assert plan_checks.hold_gaps(band, grid, outline) == []
+    assert [gap["words"] for gap in plan_checks.hold_gaps({**band, "shapes": {}}, grid, outline)] == [
+        "hub and tube overlap"]
     # its drawing is asked at its own proportions in a square frame, never its spot's shape (#72: the flat drawn to
     # the Square's thin strip of it)
     wording = plan_drawing.wording_of(store, "shed")
@@ -2840,11 +2856,13 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
                                  ({"w": 5.0}, {**asked, "reason": ""}, "its reason")):
         with pytest.raises(plans.Refused, match=said):
             plans.redrawn(store, "shed", changes, "an agent", given)
-    record = plans.redrawn(store, "shed", {"w": 5.0, "openings": [door([0.0, 2.0], "yard")]}, "an agent", asked)
+    record = plans.redrawn(store, "shed", {"w": 5.0, "openings": [door([0.0, 2.0], "yard")], "people": [[7.0, 2.0]]},
+                           "an agent", asked)
     assert record["how"] == "redrawn" and record["asked"]["reason"] == "its section" and record["changed"] == [
-        "openings", "w"]
-    shown = plans.current(store, "shed")
+        "openings", "people", "w"]
+    shown = plans.current(store, "shed")  # what it lays past its outline brought inside, as his edit's is
     assert (shown["how"], shown["plan"]["w"], shown["plan"]["d"]) == ("redrawn", 5.0, 10.0), shown["how"]
+    assert shown["plan"]["people"][0][0] < 5.0 and record["plan"]["people"] == [[7.0, 2.0]], shown["plan"]["people"]
 
 
 # --- plan writing and its free checks: each failure a named gap -------------------------------------------------------
