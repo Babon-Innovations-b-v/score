@@ -20,7 +20,8 @@ finish, as a machine runner's `left`. The machine runners
 stay the default: nothing here runs unless the runner asks for it under SCORE_CLOUD=k8s.
 
 One difference from the machine runners: the runtime brings a job's outputs back only when its command succeeded, and
-a declared output the command did not make fails the job.
+a declared output the command did not make fails the job. A run whose watch fails or that is stopped (submitter.py
+books its rows first) still brings back what its done jobs made before the error goes on.
 """
 import os
 import pathlib
@@ -110,7 +111,17 @@ def run(kind, jobs, who, classes=None, image=None, parallel=None, name=None):
         job_id = str(number)
         specs[job_id], backs[job_id] = spec_of(helper, store, run_name, job_id, kind, image, classes, job)
         helper.write_job(store, run_name, job_id, specs[job_id])
-    submitter.submit(run_name, specs, store, wait_scale_down=False, who=who, parallel=parallel)
+    try:
+        submitter.submit(run_name, specs, store, wait_scale_down=False, who=who, parallel=parallel)
+    except BaseException:  # a watch that failed or a stop: what finished still comes back, then the error goes on
+        bring_back(helper, store, run_name, specs, backs)
+        raise
+    return bring_back(helper, store, run_name, specs, backs)
+
+
+def bring_back(helper, store, run_name, specs, backs):
+    """The outputs of every done job of the run put where the runner wants them; the numbers of the jobs not done,
+    each one's failure said."""
     failed = []
     for job_id in specs:
         if helper.state(store, run_name, job_id) == "done":

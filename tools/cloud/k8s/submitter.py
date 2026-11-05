@@ -21,9 +21,20 @@ that comes back in stock is still taken. Classes in LATE are added only after LA
 allowed, the autoscaler keeps retrying the backed-off pools on its own (5 min, doubling to 30), and a Job whose
 deadline passes while it never ran is made again: the run never settles for one card, it waits for any.
 
+A class the cluster has no pool for is taken, when none of a job's classes has one, by the nearest pool that holds
+it (`nearest_pools`: the smallest processor class with at least its cores and memory, or card class with as many
+cards of at least its memory), so settling's cpu-4c-32gb and the paint's 32- and 16-core classes run on a tenant
+cluster's bigger processor pool instead of being refused.
+
 Robustness. A Job's pod is retried by Kubernetes up to attempt_limit (backoffLimit); the runtime writes done.json
 last and exits at once if it exists, so a Job made again (a lost node, a widened class, a restarted submitter)
 redoes only unfinished work. The submitter finds a run's Jobs by label, so running it again on the same run resumes.
+A look at the cluster that fails (kubectl, the provider's node list) is tried again POLL_RETRIES times, a poll
+apart; past that, and on SIGTERM (a stopped `score run`, stop-batch), the run's rows are booked from what was last
+seen, its nodes still up taken as gone IDLE_ESTIMATE_MINUTES on (marked estimated), before the error goes on: a
+watch that dies never loses a row (#95: run pixal-20261105-155442-3550649's EUR 0.27 went unbooked when its poll
+failed). On SIGTERM the run's Jobs are deleted first, every generation (`stop_jobs`); `stop_score_jobs` does the same
+for every run of score in the score-jobs namespace, for stop-batch.
 
 Cost. Nothing is submitted outside a run the runner cleared or the owner's override names
 (score.adapters.compute, `require_cleared`). Each pool's max size is what the batch cap (ledger.BATCH_EUROS) pays
@@ -35,12 +46,15 @@ run's jobs with their wait until the pod ran.
 """
 import argparse
 import collections
+import contextlib
 import datetime
 import importlib.util
 import json
 import os
 import pathlib
+import signal
 import sys
+import threading
 import time
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -58,6 +72,12 @@ import provider  # noqa: E402
 from score.adapters import compute  # noqa: E402
 
 POLL_SECONDS = 20
+# How many times a failed look at the cluster is tried again, a poll apart, before the run is booked and the error
+# goes on (#95: about 5 min of a control plane or a provider API that does not answer).
+POLL_RETRIES = 15
+# The namespace stop-batch clears of score's Jobs: the tenant cluster's (clusters/tenant.py), never another.
+SCORE_JOBS_NAMESPACE = "score-jobs"
+RUN_LABEL = "score.dev/run"
 # How long a class may be tried with a pod still waiting and no word from the autoscaler before the next class is
 # allowed: the upstream autoscaler gives up on a node that has not joined after 15 min (max-node-provision-time).
 NODE_MINUTES = 15
@@ -76,6 +96,11 @@ ZONE_LABEL = "topology.kubernetes.io/zone"
 
 def say(line):
     print(time.strftime("%H:%M:%S ") + line, flush=True)
+
+
+class Stopped(SystemExit):
+    """A stop signal reached a cluster submit: its Jobs are deleted and its rows booked, then the process exits with
+    128 + the signal's number."""
 
 
 def runtime():
@@ -138,8 +163,42 @@ def class_order(kind, spec, pool_classes):
               if name not in capacity.NEVER.get(kind, ())]
     order = [name for name in wanted if name in pool_classes]
     if not order:
-        raise SystemExit(f"the cluster has no pool for any class of the job kind '{kind}' ({', '.join(wanted)})")
+        order = nearest_pools(wanted, [name for name in pool_classes if name not in capacity.NEVER.get(kind, ())])
+        if order:
+            say(f"{kind}: the cluster has no pool for {', '.join(wanted)}; taking the nearest that holds it: "
+                f"{', '.join(order)}")
+    if not order:
+        raise SystemExit(f"the cluster has no pool for any class of the job kind '{kind}' ({', '.join(wanted)}), "
+                         "nor one that holds it")
     return order, set(capacity.late_for(kind)) & set(order)
+
+
+def class_size(name):
+    """A class's size, smallest first among its own sort: (cores, memory) of a processor class, (card memory, cores)
+    of a card class."""
+    found = provider.CPU.match(name)
+    if found:
+        return int(found.group(1)), int(found.group(2))
+    found = provider.GPU.match(name)
+    return int(found.group(1)), int(found.group(3) or 0)
+
+
+def holds(pooled, wanted):
+    """Whether a machine of class `pooled` holds a job asked on `wanted`: both processor classes and `pooled` with at
+    least its cores and memory, or both with as many cards and `pooled`'s at least as big (and its cores, if named)."""
+    if provider.cards(pooled) != provider.cards(wanted):
+        return False
+    return all(have >= need for have, need in zip(class_size(pooled), class_size(wanted)))
+
+
+def nearest_pools(wanted, pool_classes):
+    """For each class of `wanted` in order, the smallest of `pool_classes` that holds it (holds), each once."""
+    order = []
+    for name in wanted:
+        fits = sorted((class_size(pooled), pooled) for pooled in pool_classes if holds(pooled, name))
+        if fits and fits[0][1] not in order:
+            order.append(fits[0][1])
+    return order
 
 
 def job_cards(spec, order):
@@ -430,6 +489,65 @@ def prepare(kubectl, cluster):
     say("pool caps: " + ", ".join(f"{name} {cap}" for name, cap in sorted(caps.items())))
 
 
+def stop_jobs(kubectl, run_id):
+    """Delete every Job of the run, each generation (its label), in the jobs' namespace."""
+    kubectl.run("delete", "jobs", "-n", manifests.NAMESPACE, "-l", f"{RUN_LABEL}={manifests.label_value(run_id)}",
+                "--ignore-not-found", "--wait=false", "--cascade=background")
+
+
+def stop_score_jobs(kubectl=None, cluster=None):
+    """stop-batch's part on the cluster: delete every Job of score's (labelled with a run) in the score-jobs namespace,
+    and nothing else; the cluster's answer. Refused when the cluster module puts the jobs elsewhere."""
+    cluster = cluster or cluster_module()
+    if manifests.NAMESPACE != SCORE_JOBS_NAMESPACE:
+        raise SystemExit(f"the cluster's jobs are in {manifests.NAMESPACE}; stop-batch clears {SCORE_JOBS_NAMESPACE} "
+                         "only")
+    kubectl = kubectl or cluster_kubectl(cluster)
+    return kubectl.run("delete", "jobs", "-n", SCORE_JOBS_NAMESPACE, "-l", RUN_LABEL, "--ignore-not-found",
+                       "--wait=false", "--cascade=background").strip()
+
+
+@contextlib.contextmanager
+def stopped_on_signal():
+    """SIGTERM raises Stopped in the block, once, and not while the run's rows are being booked (the yielded list
+    holds True then): a stop then is said and remembered, and Stopped is raised once the rows are written
+    (`booking`). The handler before is put back after; outside the main thread nothing is set."""
+    if threading.current_thread() is not threading.main_thread():
+        yield []
+        return
+    booking, stopping = [], []
+
+    def stop(number, _frame):
+        if stopping or booking:
+            say("a stop while the run's rows are booked: they are written first")
+            stopping.append(number)
+            return
+        stopping.append(number)
+        raise Stopped(128 + number)
+    before = signal.signal(signal.SIGTERM, stop)
+    try:
+        yield booking
+    finally:
+        signal.signal(signal.SIGTERM, before)
+    if stopping and booking:
+        raise Stopped(128 + stopping[0])
+
+
+def retried(step, run, retries=POLL_RETRIES):
+    """`step(run)`, tried again a poll apart up to `retries` times when it fails; a stop is never retried."""
+    for attempt in range(retries + 1):
+        try:
+            return step(run)
+        except Stopped:
+            raise
+        except (Exception, SystemExit) as error:  # noqa: BLE001 - kubectl or the provider: tried again, then raised
+            if attempt == retries:
+                raise
+            say(f"the look at the cluster failed ({attempt + 1} of {retries + 1}): {type(error).__name__}: {error}; "
+                f"again in {POLL_SECONDS} s")
+            time.sleep(POLL_SECONDS)
+
+
 def poll(run):
     """One look at the cluster: each job's state, the kinds to widen, the nodes."""
     jobs, pods, no_grow = run.read()
@@ -443,6 +561,15 @@ def poll(run):
         run.update_job(job_id, found, pods.get(manifests.label_value(job_id), []))
     run.widen(pods, no_grow)
     run.watch_nodes()
+
+
+def look(run, parallel):
+    """One turn of the run's loop: a poll, the next jobs put on, the batch cap checked."""
+    poll(run)
+    submit_more(run, parallel)
+    why = over_limits(run)
+    if why:
+        stop_run(run, why)
 
 
 def submit_more(run, parallel=None):
@@ -474,22 +601,81 @@ def submit(run_id, specs, store, kubectl=None, cluster=None, wait_scale_down=Tru
         return []
     prepare(kubectl, cluster)
     run = Run(run_id, specs, kubectl, cluster)
-    run.resume()
-    submit_more(run, parallel)
-    say(f"{len(specs)} jobs for run {run_id}" + (f", {parallel} at a time" if parallel else ""))
+    with stopped_on_signal() as booking:
+        try:
+            watch(run, parallel, wait_scale_down)
+        except Stopped:
+            booking.append(True)
+            say("stopped by a signal: deleting the run's Jobs and booking its rows")
+            stop_after_signal(run)
+            book(run, store, helper, who)
+            raise
+        except BaseException as error:
+            booking.append(True)
+            say(f"the run's watch ended ({type(error).__name__}: {error}): booking its rows from what was last seen")
+            lost_watch(run)
+            book(run, store, helper, who)
+            raise
+        booking.append(True)
+        return book(run, store, helper, who)
+
+
+def watch(run, parallel, wait_scale_down):
+    """The run on the cluster to its end: its Jobs taken up and put on, a look every POLL_SECONDS (each retried) while
+    any is unfinished, then its nodes' end waited for or estimated (from what was last seen when the cluster cannot
+    be read)."""
+    retried(Run.resume, run)
+    retried(lambda found: submit_more(found, parallel), run)
+    say(f"{len(run.specs)} jobs for run {run.run_id}" + (f", {parallel} at a time" if parallel else ""))
     while run.unfinished():
         time.sleep(POLL_SECONDS)
-        poll(run)
-        submit_more(run, parallel)
-        why = over_limits(run)
-        if why:
-            stop_run(run, why)
-    if wait_scale_down:
-        wait_for_scale_down(run)
-    else:
+        retried(lambda found: look(found, parallel), run)
+    try:
+        if wait_scale_down:
+            wait_for_scale_down(run)
+        else:
+            estimate_scale_down(run)
+    except Stopped:
+        raise
+    except (Exception, SystemExit) as error:  # noqa: BLE001 - every job has ended: booked from the last look
+        say(f"the run's nodes could not be read at its end ({type(error).__name__}: {error}); booked as last seen")
+        last_seen_scale_down(run)
+
+
+def stop_after_signal(run):
+    """A stopped run: every Job of it deleted (said, not raised, when kubectl fails: the rows are booked still), its
+    jobs not done marked stopped, its nodes taken as gone after the autoscaler's idle time from one more look, else
+    from what was last seen."""
+    try:
+        stop_jobs(run.kubectl, run.run_id)
+    except (Exception, SystemExit) as error:  # noqa: BLE001 - the rows are booked whatever kubectl said
+        say(f"the run's Jobs could not be deleted ({type(error).__name__}: {error}); delete them by the label "
+            f"{RUN_LABEL}={manifests.label_value(run.run_id)}")
+    for job_id in run.unfinished():
+        run.jobs[job_id]["state"] = "stopped"
+    try:
         estimate_scale_down(run)
-    timings = {job_id: helper.done(store, run_id, job_id) for job_id, record in run.jobs.items()
-               if record["state"] == "done"}
+    except (Exception, SystemExit) as error:  # noqa: BLE001 - booked from the last look instead
+        say(f"the run's nodes could not be read ({type(error).__name__}: {error}); booked as last seen")
+        last_seen_scale_down(run)
+
+
+def lost_watch(run):
+    """A run whose watch failed past its retries: its jobs not done marked unwatched, its nodes as last seen."""
+    for job_id in run.unfinished():
+        run.jobs[job_id]["state"] = "unwatched"
+    last_seen_scale_down(run)
+
+
+def book(run, store, helper, who):
+    """Write the run's ledger rows (one a kind) with the runtime's timings of its done jobs, and say them; the rows. A
+    store that cannot be read leaves the timings out, said, never the rows."""
+    try:
+        timings = {job_id: helper.done(store, run.run_id, job_id) for job_id, record in run.jobs.items()
+                   if record["state"] == "done"}
+    except Exception as error:  # noqa: BLE001 - the rows are booked without the timings
+        say(f"the done jobs' timings could not be read ({type(error).__name__}: {error}); booked without them")
+        timings = {}
     entries = [dict(entry, who=who) if who else entry for entry in ledger_entries(run, timings)]
     for entry in entries:
         ledger.record(entry)
@@ -512,6 +698,11 @@ def estimate_scale_down(run):
     """Take each of the run's nodes still up as gone IDLE_ESTIMATE_MINUTES from now (the autoscaler's measured
     scale-down), marked estimated."""
     run.watch_nodes()
+    last_seen_scale_down(run)
+
+
+def last_seen_scale_down(run):
+    """estimate_scale_down from the nodes as last seen, with no look at the cluster."""
     gone = time.time() + IDLE_ESTIMATE_MINUTES * 60
     for seen in run.our_nodes().values():
         if seen["deleted"] is None:

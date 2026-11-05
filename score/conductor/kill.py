@@ -12,7 +12,10 @@ live run (each claim in runs/active.json, and every running entry whose process 
 registers itself `stopped` and is never resumed unasked, and passes the stop to its group, so each batch deletes its
 own machines; then every waiting run is marked stopped and its process ended; then every open warm pool is closed and
 its collector ended (pool.close_all), so none orders a card in place of the ones released next; then every parked
-machine, a pool's idle cards with them, is deleted through park.py's release (its ledger line with it); then every
+machine, a pool's idle cards with them, is deleted through park.py's release (its ledger line with it); then, when
+this box sends work to a Kubernetes cluster (SCORE_CLOUD=k8s or SCORE_K8S_PROVIDER set), every Job of score's in the
+score-jobs namespace is deleted (tools/cloud/k8s/submitter.py stop_score_jobs: only Jobs labelled with a score run,
+only that namespace; a stopped cluster submit deletes its own and books its rows on the SIGTERM above); then every
 process still working in the frozen copy of a run that is no longer live is ended (leftovers: 2026-10-26, six
 processes of a stopped benchmark run worked on in its copy for an hour, held the checkout from score-update, and a
 second stop found no run to stop); a run just signalled ends its own copy's processes as it removes it
@@ -86,6 +89,20 @@ def pools_closer():
     return pool.close_all
 
 
+def cluster_configured():
+    """Whether this box sends work to a Kubernetes cluster: SCORE_CLOUD=k8s, or a cluster provider named."""
+    return os.environ.get("SCORE_CLOUD") == "k8s" or bool(os.environ.get("SCORE_K8S_PROVIDER"))
+
+
+def cluster_stopper():
+    """tools/cloud/k8s/submitter.py's stop_score_jobs, imported from the cloud tools."""
+    folder = str(CLOUD_TOOLS / "k8s")
+    if folder not in sys.path:
+        sys.path.insert(0, folder)
+    import submitter
+    return submitter.stop_score_jobs
+
+
 def open_pools(folder):
     """Whether any run's warm pool is still open (a plan and no closed mark)."""
     folder = pathlib.Path(folder)
@@ -121,10 +138,11 @@ def agent_stop_batch(words):
 
 
 def stop_everything(asked_by, words, folder=None, parked=None, release=None, report_folder=None, pools=None,
-                    close_pools=None, latched=True, frozen_folder=None):
+                    close_pools=None, latched=True, frozen_folder=None, stop_cluster=None):
     """The kill switch's work, with no barrier of its own (stop_all's is the agents' refusal): the latch (unless not
-    `latched`: Stop this batch), every live run, every waiting run, every open warm pool, every parked machine, every
-    process left in the copy of a run gone; its report."""
+    `latched`: Stop this batch), every live run, every waiting run, every open warm pool, every parked machine, score's
+    cluster Jobs (`stop_cluster`, else submitter's when a cluster is configured), every process left in the copy of a
+    run gone; its report."""
     folder = pathlib.Path(folder or runs.RUNS)
     at = now()
     report = {"at": at, "by": asked_by, "words": words,
@@ -156,6 +174,12 @@ def stop_everything(asked_by, words, folder=None, parked=None, release=None, rep
             report["parked"].append(record["id"])
         except Exception as error:  # noqa: BLE001 - each machine is tried; the report names what failed
             report["errors"].append(f"parked {record['id']}: {type(error).__name__}: {error}")
+    stop_cluster = stop_cluster or (cluster_stopper() if cluster_configured() else None)
+    if stop_cluster:
+        try:
+            report["cluster_jobs"] = stop_cluster()
+        except (Exception, SystemExit) as error:  # noqa: BLE001 - the rest is stopped; the report names it
+            report["errors"].append(f"cluster jobs: {type(error).__name__}: {error}")
     report["leftovers"] = frozen.end(leftovers(frozen_folder, stopping))
     keep(report, f"{'kill' if latched else 'batch-stop'}-{at.replace(':', '')}.json", report_folder)
     return report

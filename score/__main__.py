@@ -602,11 +602,14 @@ def as_run(runner, drive, opening=None):
 def card_rows(runner, places, whole, options):
     """[(node, line, cards, on processors)] of the run's planned paid rows priced on machines (selected_price's
     `cards`), each on the pool's processor machines when the ledger knows its stage as renders and bakes
-    (pool.processor_able)."""
+    (pool.processor_able); a row whose kind goes to the Kubernetes cluster (pool.on_cluster, SCORE_CLOUD_KINDS) is
+    left out, so the pool holds no machine for it."""
     pool = cloud_tool("pool")
     entries = cloud_tool("ledger").entries()
     rows = []
     for buy in rebuy.buys(runner, runner.line_nodes(places, whole, options.stage)):
+        if pool.on_cluster(buy.node.partition("@")[0], entries):
+            continue
         cards = selected_price(runner, buy).get("cards") or 0
         if cards:
             rows.append((buy.node, buy.node.partition("@")[2] or buy.node, cards,
