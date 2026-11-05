@@ -329,6 +329,82 @@ def test_score_price_gaps_writes_its_record_whole_and_says_it_in_one_line():
         cli.gaps_record, score.store.PROPS_HOME = kept
 
 
+def test_pixal_is_priced_at_the_takes_it_sends_to_pixal3d_and_none_is_free():
+    """pixal's rule (pixal_takes) counts every row pixal@<place> rents for: none for a take finished in WORK/pixal (its
+    three files and its slimmed <take>-<faces>.glb), one whose library record lists every file of it finished
+    (stages.held_back), a thin straight row built in code from its cut box and a gap's missing row the prop data
+    routes (its take made). With those alone, score plan's price (planned_units into run_price) and the clearance's
+    forecast (run_forecast, over an accepted make that counted 8 takes) are EUR 0, never the stage's EUR 20 or the 8
+    takes; two takes missing, a gap's row routed nowhere yet, a take missing only its slimmed file, a take whose
+    library record lacks its slimmed file and an unbuilt thin row (its mask card at the measured straight-masks
+    high, 2 takes, plus the Pixal3D take and finish the make sends when its mask cuts nothing: 4) are 6 rows, 9 units;
+    the take missing only its slimmed file counts though its library record is whole (take_back puts nothing back
+    once its three files are there).
+    Red when: compute.COUNTED_ZERO drops pixal_takes (0 is no count and the accepted 8 price it), run_forecast puts
+    the measured runs or the last accept's count before the forecast (counts_sent), price.pixal_takes counts a
+    finished, wholly held or code-built take or a routed gap row, it prices an unbuilt thin row 0 (it rents a mask
+    card), it reads a take missing only its slimmed file as finished (pixal_row.made, not finished), unit_weight
+    prices the mask card below its measured figure, stages.held_back counts a partial library record as held or
+    drops its three-files-present return (a whole record of a take take_back never puts back), the unbuilt thin row
+    drops its `+ 1 + unit_weight(FINISH_STAGE)`, or it counts fewer than the rows to rent (one dropped)."""
+    import score.stages as stages
+    from score.stages.props import pixal_row, thin_straight
+    numbers = json.loads(json.dumps(PER_UNIT))
+    numbers["stages"]["pixal"]["forecast"]["rule"] = "pixal_takes"
+    numbers["stages"]["straight-masks"] = {"stage": "straight-masks", "unit": "mask card", "also": [],
+                                           "likely_euros": 0.3, "high_euros": 0.6, "runs": 2}
+    pixal = pixal_row.take_files("-")[0].parent
+    for take in ("a", "slim"):
+        for path in pixal_row.take_files(take):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("made")
+    (pixal / "a-900.glb").write_text("slimmed")
+    pipe = {"id": "pipe", "name": "pipe", "size": [3, 0.1, 0.1], "box": [0, 0, 10, 10]}
+    (pixal / "c.svviews").mkdir()
+    (pixal / "c.svviews" / thin_straight.MARK).write_text(json.dumps({"box": thin_straight.cut_box(pipe)}))
+    whole = ["b.glb", "b-final.glb", "b-900.glb", "b.svviews/input.png"]
+    records = {"b": whole, "part": [name.replace("b", "part", 1) for name in whole if name != "b-900.glb"],
+               "slim": [name.replace("b", "slim", 1) for name in whole]}  # whole, yet take_back puts nothing back
+
+    class Library:
+        @staticmethod
+        def newest_record(take):
+            return {"files": dict.fromkeys(records[take], {})} if take in records else None
+
+    present = {"made": {"route": "prop", "take": "a"}, "held": {"route": "prop", "take": "b"},
+               "pipe": {"route": "prop", "take": "c"}}
+    missing = {"crate": {"route": "prop", "take": "crate-p1"}, "lamp": {"route": "prop", "take": "lamp-p1"},
+               "slim": {"route": "prop", "take": "slim"}, "part": {"route": "prop", "take": "part"},
+               "duct": {"route": "prop", "take": "duct-p1"}}
+    takes = ("a", "b", "c", "slim", "part", "crate-p1", "lamp-p1", "duct-p1")
+    bake = {"models": {take: take for take in takes}, "entries": {take: {"faces": 900} for take in takes}}
+    kept, stages.pixal_takes_tool = stages.pixal_takes_tool, lambda: Library
+    prices = {}
+    try:
+        with per_unit(numbers):
+            for name, props, findings in (
+                    ("present", present, [gap(1, "pixal@hangar", row="made")]),
+                    ("missing", {**present, **missing}, [gap(1, "pixal@hangar", row="made"),
+                                                         gap(2, "pixal@hangar", row="barrel")])):
+                runner, root = a_place(props=props, findings=findings)
+                data = runner.world.roots["data"]
+                (data / "surfaces/hangar.json").write_text(json.dumps({"takes": dict.fromkeys(takes, {}),
+                                                                      "bake": bake}))
+                (data / "inventory").mkdir()
+                (data / "inventory/hangar.json").write_text(json.dumps({"rows": [
+                    pipe, {**pipe, "id": "duct"},
+                    {"id": "crate", "name": "crate", "size": [1, 1, 1], "box": [0, 0, 10, 10]}]}))
+                store = Accepted({str(number): number for number in range(8)})
+                units = price.planned_units("pixal@hangar", data, store, root)
+                plan = compute.run_price("pixal@hangar", 20.0, store, units=units)
+                cleared = compute.run_forecast("pixal@hangar", 20.0, store, units)
+                prices[name] = (units, plan["likely_euros"], plan["high_euros"], plan["basis"], cleared["euros"])
+    finally:
+        stages.pixal_takes_tool = kept
+    assert prices == {"present": (0, 0.0, 0.0, "per unit × forecast", 0.0),
+                      "missing": (9, 1.8, 4.5, "per unit × forecast", 4.5)}, prices
+
+
 if __name__ == "__main__":
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[4] / "conftest.py"))["refuse_outside_sandbox"]()

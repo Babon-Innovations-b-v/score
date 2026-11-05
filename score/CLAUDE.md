@@ -245,7 +245,9 @@ stage as each stage is built; nothing moves before.
   benchmark grant) has room for its forecast with every open reservation (no month's ceiling: owner, 2026-10-20),
   cleared under one lock so two lines never both spend the last euros; kept
   in the store; then `tools/cloud/runtime/submit.write_job`; `require_cleared` at every rent point; the forecast a
-  node is cleared at is its stage's measured runs, else its stage's measured per-unit high times the units its
+  node is cleared at is, where its stage's forecast rule counts exactly what the make sends (`counts_sent`,
+  `COUNTED_ZERO`'s rules: pixal's `pixal_takes`, every row it rents for (a take not finished nor held whole by the
+  library, a thin row's mask card), 0 of them EUR 0; the sound's takes), that high times those units first, else its stage's measured runs, else its stage's measured per-unit high times the units its
   accepted output made (`unit_price`, `data/costs/per-unit.json` from `tools/costs/per_unit.py`), else that high
   times the units its forecast rule counts (`gaps/price.planned_units`, as the run's plan priced it), else its
   estimate; `run_price` (`score price`, the cockpit's): when its caller counted a node's units before the make by its

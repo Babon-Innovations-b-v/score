@@ -35,7 +35,8 @@ The record:
 
 A node is priced once, however many gaps share it. A Blocked node or a missing input is something to make, so it is
 in the chain and priced; nothing is skipped. A lost input read by several places (its id names the thing) counts
-once. A count of 0 or a rule whose source is missing is no count (a guess), never a free make.
+once. A count of 0 or a rule whose source is missing is no count (a guess), never a free make, but the 0 of a
+rule whose 0 is a count (compute.COUNTED_ZERO: pixal's takes with none to send, the sound's) is EUR 0.
 """
 import hashlib
 import json
@@ -52,7 +53,12 @@ MISSING = "missing"
 # The code work whose make, once it lands, is Pixal3D's, a model a gap: (its work line's pattern, its label), priced
 # at pixal's measured per unit after that work (code_work).
 PIXAL_WORK = ((r"^Pixal3D take lost", "pixal: the lost Pixal3D takes made again"),)
-TAKE_RULES = ("prop_takes", "models")  # the forecast rules counting a place's takes (a designed place's: design_takes)
+# The forecast rules counting a place's takes (a designed place's: design_takes); pixal_takes counts what pixal sends
+# to Pixal3D from WORK/pixal and the library at a designed place too, never the takes prepare priced.
+TAKE_RULES = ("prop_takes", "models")
+# The measured per-unit stages (PER_UNIT) of what pixal rents beside its takes, each priced in takes (unit_weight):
+# a thin straight row's SAM 3 mask card and a raw take's finish. Neither is measured on its own yet.
+MASK_STAGE, FINISH_STAGE = "straight-masks", "pixal-finish"
 ROUTE_END = "likeness"  # the prop route's last row (score/stages/props): a model's route runs up to its likeness gate
 BILL_SHARE = compute.BILL_SHARE  # the runner's (compute.bill_share); prop_batch.py prices its card steps by it too
 
@@ -68,13 +74,27 @@ def current(written, store):
     return all(store.accepted(node) == output for node, output in written.get("outputs", {}).items())
 
 
-def prop_objects(data, place):
-    """{row: entry} of the place's prop objects (its design's hand-in, prop_data.DESIGN, else `data`'s props); none
-    without one."""
+def prop_record(data, place):
+    """The place's prop data (its design's hand-in, prop_data.DESIGN, else `data`'s props), or None without one."""
     from score.stages.props import prop_data
     found = [path for path in (prop_data.DESIGN / f"{place}.json", pathlib.Path(data) / "props" / f"{place}.json")
              if path.is_file()]
-    return prop_data.prop_objects(prop_data.record_at(found[0])) if found else {}
+    return prop_data.record_at(found[0]) if found else None
+
+
+def prop_objects(data, place):
+    """{row: entry} of the place's prop objects (prop_record's); none without one."""
+    from score.stages.props import prop_data
+    record = prop_record(data, place)
+    return prop_data.prop_objects(record) if record else {}
+
+
+def routed_rows(data, place):
+    """The rows the place's prop data gives a route, any route: its objects' and its hand-in takes' rows (a shell
+    piece laid from the plan, the ground, the sky)."""
+    record = prop_record(data, place) or {}
+    return set(record.get("objects", {})) | {row for take in record.get("takes", {}).values()
+                                             for row in take.get("rows", [])}
 
 
 def take_of(objects, gap):
@@ -94,6 +114,78 @@ def pixal_models(found, data, place):
     return unmade | {take_of(objects, gap) for gap in found if gap["rule"] == MISSING and gap.get("node") == node}
 
 
+def inventory_rows(data, place):
+    """{id: row} of the place's scene inventory (its design's hand-in, prop_data.DESIGN, else `data`'s inventory), as
+    the pixal row reads it (prop_data.inventory_pattern); none without one."""
+    from score.stages.props import prop_data
+    found = [path for path in (prop_data.DESIGN / f"{place}.json", pathlib.Path(data) / "inventory" / f"{place}.json")
+             if path.is_file()]
+    return {row["id"]: row for row in prop_data.record_at(found[0]).get("rows", [])} if found else {}
+
+
+def pixal_takes(found, data, place):
+    """{take: units} of what pixal@<place> is forecast to rent (PER_UNIT's pixal_takes), each row once: a prop object's
+    take not finished in WORK/pixal (pixal_row.finished: its three files and its slimmed <take>-<faces>.glb; a raw
+    take only finished rents the finish's machine, finish_all) that the library does not hold whole (stages.held_back:
+    what takes_back puts back finished before the row reads is there), or a code build the make unbuilds and sends; a
+    thin straight row (thin_straight.coded's) not built yet, built as a flat sheet or cut from another box than its
+    cut box (thin_straight.cut_as_built), which rents a SAM 3 mask card and may still go to Pixal3D (code_builds); and
+    the model of each missing row of `found` (the place's gaps) whose node is pixal's there that the prop data routes
+    nowhere yet (a new prop object, by its row): a gap of a routed row is its route's (a shell piece, the ground or
+    the sky is never Pixal3D's). A take sent is 1 unit; a mask card or a finish only is its measured figure in takes
+    (unit_weight), never 0. A take finished, or held whole, and a code build cut as built are none."""
+    from score import stages
+    from score.stages.props import flat_sheet, pixal_row, thin_straight
+    objects, rows = prop_objects(data, place), inventory_rows(data, place)
+    coded = thin_straight.coded({row: rows[row] for row in objects if row in rows})
+    painted, surfaces = surface_takes(data, place), surface_path(data, place)
+    pixal = pixal_row.take_files("-")[0].parent
+    sent = {}
+    for row, entry in objects.items():
+        take = entry["take"]
+        thin_built = thin_straight.code_built(take, pixal) and not flat_sheet.built(take, pixal)
+        if row in coded:
+            if not (thin_built and thin_straight.cut_as_built(take, rows[row], pixal)):
+                # its mask card, and the Pixal3D take and its finish the make sends when the mask cuts no thin
+                # thing (code_builds leaves it out of `built`): reserved whole, never the mask alone
+                sent[take] = unit_weight(MASK_STAGE) + 1 + unit_weight(FINISH_STAGE)
+            continue
+        faces = take_faces(surfaces, take)
+        if thin_built:  # a code build the rule no longer takes: unbuilt, then sent (make_pixal)
+            sent[take] = 1
+        elif faces is None or not (pixal_row.finished(take, faces)
+                                   or (take in painted and stages.held_back(take, faces))):
+            sent[take] = unit_weight(FINISH_STAGE) if pixal_row.raw_made(take) else 1
+    node = fill.node_of(fill.FILLERS[fill.ROUTE][0], place)
+    routed = routed_rows(data, place)
+    for gap in found:
+        if gap["rule"] == MISSING and gap.get("node") == node and (gap.get("row") or gap["id"]) not in routed:
+            sent.setdefault(take_of(objects, gap), 1)
+    return sent
+
+
+def unit_weight(stage):
+    """The units, in pixal's measured takes, of one unit of `stage`'s work the make rents beside its takes (a thin
+    row's SAM 3 mask card, a raw take's finish): its own measured high over the take's, rounded up, at least 1 (the
+    higher of the two is the safer); 1 while `stage` has no measured figure of its own."""
+    entry, take = compute.per_unit(stage), compute.per_unit("pixal")
+    if entry is None or entry["stage"] != stage or take is None or not take["high_euros"]:
+        return 1
+    return max(1, math.ceil(entry["high_euros"] / take["high_euros"]))
+
+
+def take_faces(surfaces, take):
+    """The triangles the take is finished to (pixal_row.faces_of), or None with no surface data or no bake entry of
+    it (its slimmed file has no name, so the take counts as not finished)."""
+    from score.stages.props import pixal_row
+    if surfaces is None:
+        return None
+    try:
+        return pixal_row.faces_of(surfaces, take)
+    except KeyError:
+        return None
+
+
 def selected_takes(takes, data, place):
     """The `takes` the runner's object filter keeps (graph.selected, set while a selecting stage is priced: a take
     named, or the prop object whose take it is), all of them without one."""
@@ -104,12 +196,18 @@ def selected_takes(takes, data, place):
     return {take for take in takes if take in named}
 
 
-def surface_takes(data, place):
-    """The takes the place's surface data lists (its design's, surface_data.DESIGN, else `data`'s), by name."""
+def surface_path(data, place):
+    """The place's surface data (its design's, surface_data.DESIGN, else `data`'s), or None without one."""
     from score.stages.surfaces import surface_data
     found = [path for path in (surface_data.DESIGN / f"{place}.json", pathlib.Path(data) / "surfaces" / f"{place}.json")
              if path.is_file()]
-    return set(json.loads(found[0].read_text()).get("takes") or {}) if found else set()
+    return found[0] if found else None
+
+
+def surface_takes(data, place):
+    """The takes the place's surface data lists (surface_path's), by name."""
+    path = surface_path(data, place)
+    return set(json.loads(path.read_text()).get("takes") or {}) if path else set()
 
 
 def light_jobs(data, place):
@@ -151,6 +249,9 @@ def rule_units(rule, found, data, place):
         return None  # the other rules count a place's own models or views
     if rule == "prop_takes":
         return len(selected_takes(pixal_models(found, data, place), data, place))
+    if rule == "pixal_takes":
+        sent = pixal_takes(found, data, place)
+        return sum(sent[take] for take in selected_takes(set(sent), data, place))
     if rule == "models":
         return len(selected_takes(surface_takes(data, place) | pixal_models(found, data, place), data, place))
     if rule == "light_jobs":

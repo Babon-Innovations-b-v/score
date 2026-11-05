@@ -69,6 +69,12 @@ FORECASTS = {
     "prop_takes": "one a model, each once: the takes of the place's prop objects (data/props/<place>.json) not made "
                   "in WORK/pixal, and the missing rows of the place's gaps (score/stages/complete/gaps) whose node "
                   "is this stage's there, by their take",
+    "pixal_takes": "one a row, each once: each prop object (data/props/<place>.json) pixal rents for: a take not "
+                   "finished in WORK/pixal (its three files and its slimmed model) nor held whole by the library "
+                   "(takes_back puts those back), a thin straight row not built in code from its cut box (its SAM 3 "
+                   "mask card; thin_straight), and the missing rows of the place's gaps (score/stages/complete/gaps) "
+                   "whose node is this stage's there, by their take; a mask card or a finish only at its measured "
+                   "figure in takes, at least one; none is EUR 0",
     "models": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast "
               "to make at the place (prop_takes)",
     "light_jobs": "score/stages/light/passes.py pass_jobs: the views of the place's own scene record: its accepted "
@@ -85,7 +91,7 @@ CLOSEUPS_15 = "paper/evidence/cloud/forecast-2026-10-15.txt"
 # lines until 2026-10-20: their ledger lines still measure it).
 SPECS = {
     "pixal": {"unit": "model", "cloud": {"kind": "pixal"}, "per_line": "models_done",
-              "count": {"json_keys": "takes.json"}, "also": ["crops-pixal"], "forecast": "prop_takes",
+              "count": {"json_keys": "takes.json"}, "also": ["crops-pixal"], "forecast": "pixal_takes",
               "then": {"kind": "blender"}},
     "closeup": {"unit": "close-up picture (Nano Banana Pro)", "google": "pro",
                 "count": {"json_field": ["closeups.json", "pro_pictures"]}, "also": ["crops-closeup"],

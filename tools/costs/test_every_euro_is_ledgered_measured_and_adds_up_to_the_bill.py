@@ -553,7 +553,7 @@ def test_the_file_holds_measured_stages_only_with_median_high_and_runs():
     assert found["pixal"]["likely_euros"] == 0.3 and found["pixal"]["runs"] == 2
     assert 0.3 < found["pixal"]["high_euros"] <= 0.5 and found["pixal"]["count"] == {"json_keys": "takes.json"}
     assert found["closeup"]["runs"] == 2 and "surfaces-maps" not in found and "surfaces-bake" not in found
-    assert found["pixal"]["forecast"]["rule"] == "prop_takes" and "per_model" not in found["pixal"]["forecast"]
+    assert found["pixal"]["forecast"]["rule"] == "pixal_takes" and "per_model" not in found["pixal"]["forecast"]
     assert found["closeup"]["forecast"]["per_model"] == round(297 / 217, 4)  # a picture a row, a retry a rejected one
 
 
@@ -583,7 +583,7 @@ def test_rules_only_writes_the_rules_and_keeps_the_measured_numbers():
     per_unit.main(["--rules-only", "--out", str(out)])
     found = json.loads(out.read_text())
     assert found["read"] == ["x"] and found["stages"]["settle"]["likely_euros"] == 0.1
-    assert found["stages"]["pixal"]["forecast"]["rule"] == "prop_takes"
+    assert found["stages"]["pixal"]["forecast"]["rule"] == "pixal_takes"
     assert found["stages"]["pixal"]["basis"] == "warm work time"  # a WARM stage priced by the owner's method
     assert found["stages"]["settle"]["forecast"]["rule"] == "one"
     assert set(per_unit.RECORDED) <= set(found["stages"])  # the recorded stages written again
