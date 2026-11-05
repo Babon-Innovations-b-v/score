@@ -324,9 +324,12 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   (`card_euros`, read by the measurements), and its first booking closes its rent's started line. The pool's idle time is the run's own cost, to be counted in
   its high estimate, its stop line and a benchmark grant's balance, never cut by a smaller pool or a cheaper class
   (quality is never a cost lever). Every `score run` with card rows opens its pool before it drives
-  (`score/__main__.py` `opened_pool`): sized by `pool_sizes` (`pool.counts_for`: the most cards one row of a line is
-  priced on, summed over the `--jobs` lines holding most, cards and processor machines together, at most
-  `MOST_CARDS`, all L4; another class is asked for by its claim) and held just in time by the run's heartbeat (owner,
+  (`score/__main__.py` `opened_pool`): sized by `pool_sizes` (`pool.reach`: the most cards one row of a line is
+  priced on, summed over the `--jobs` lines holding most, its card rows and its processor rows each counted alone, so
+  the reserved size and its clearance hold the most `resize` may raise it to, cards and processors (fault of
+  2026-11-05, Batch 1 checkout 29: counted together, processor lines took the jobs, the pool reserved EUR 30.64 for
+  3 processor machines and no card, and each L4 its card rows asked for later let a warm processor machine go); at
+  most `MOST_CARDS`, all L4; another class is asked for by its claim) and held just in time by the run's heartbeat (owner,
   2026-10-25: "cant u just do the start up earlier then when u need them again"): each machine, card or processor,
   only for the rows whose first job is due within its class's lead (`pool.leads`: the median minutes its class's last
   30 pool machines took to answer, and `LEAD_MARGIN_MINUTES`), on a forecast of each row's due time (`due_rows`,

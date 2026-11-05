@@ -51,7 +51,8 @@ park.py and spread.py are the pool's own call sites):
 - test_a_stopped_takers_card_stays_on_the_pool_until_its_delete_went_through: in park.py `park`, the delete and
   `pool.left` swapped.
 - test_a_release_deletes_the_cards_side_by_side: in `at_once`, the threads -> one call after another.
-- test_a_pool_holds_what_its_jobs_can_run_at_once: in `counts_for`, `[:max(0, jobs)]` -> ``.
+- test_a_pool_holds_what_its_jobs_can_run_at_once: in `counts_for`, `[:max(0, jobs)]` -> ``; or in `reach`,
+  `[row for row in rows if not row[2]]` -> `rows`.
 - test_the_collector_stops_once_and_lets_its_release_finish: in `stop_on_signals`, `signal.signal(each,
   signal.SIG_IGN)` -> `pass`.
 - test_a_zombie_holds_nothing: in `process_alive`, `!= "Z"` -> `!= "?"`.
@@ -192,8 +193,9 @@ OFFERS = [provider.Offer(CARD_PRICE, 1, "card-type", zone, CARD_PRICE, "gpu-24gb
           for zone in ("zone-a", "zone-b")]
 
 
-def fresh(stock, sizes=None, run_id=None, euros=None):
-    """A sandbox with no parked cards, an empty ledger and a pool opened for a run of this process."""
+def fresh(stock, sizes=None, run_id=None, euros=None, reserved=None):
+    """A sandbox with no parked cards, an empty ledger and a pool opened for a run of this process (`reserved`: the
+    most it may be raised to, its `sizes` when not given)."""
     calls = Cloud(stock)
     calls.install()
     batch.STOPPING.clear()
@@ -203,7 +205,7 @@ def fresh(stock, sizes=None, run_id=None, euros=None):
     run_id = run_id or f"run-{time.time_ns()}"
     PATCHES[0].setenv("SCORE_RUN_ID", run_id)
     PATCHES[0].setenv("SCORE_RUN_PID", str(os.getpid()))
-    pool.start(run_id, sizes or {"gpu-24gb": 2}, time.time() + 3600, euros=euros)
+    pool.start(run_id, sizes or {"gpu-24gb": 2}, time.time() + 3600, euros=euros, reserved=reserved)
     return calls, run_id
 
 
@@ -625,6 +627,24 @@ def test_a_pool_holds_what_its_jobs_can_run_at_once():
     assert pool.counts_for([("hub", 2, False), ("hub", 5, False), ("hub", 1, True)], 8) == (5, 1)  # a line's most
     assert pool.counts_for([("hub", 2, False), ("lab", 3, True)], 1) == (0, 3)
     assert pool.counts_for([], 8) == (0, 0)
+    # Fault of 2026-11-05 (Batch 1, checkout 29): opened with only processor rows due, its card rows later, the
+    # pool's reserved size (and clearance) held no card, and each L4 asked for let a warm processor machine go.
+    due_later = [("bake-0", 1, True), ("bake-1", 1, True), ("place-0", 1, False)]
+    assert pool.counts_for(due_later, 2) == (0, 2) and pool.reach(due_later, 2) == (1, 2)
+    reserved = {"gpu-24gb": 1, PROCESSOR: 2}
+    patch(cloud, "offers", lambda classes: [offer for offer in OFFERS + PROCESSOR_OFFERS
+                                            if offer.machine_class in classes])
+    assert [sizes for sizes, _ in pool.shrinking(reserved, 1)] == [reserved, {"gpu-24gb": 1, PROCESSOR: 1},
+                                                                   {"gpu-24gb": 1}]  # not fitting: shrunk as ever
+    calls, run_id = fresh(stock=10, sizes=pool.sized(reserved, 0, 2), reserved=reserved,
+                          euros=pool.holding_euros(reserved, 1))
+    patch(cloud, "offers", lambda classes: [offer for offer in OFFERS + PROCESSOR_OFFERS
+                                            if offer.machine_class in classes])
+    assert grow(run_id) == 2
+    pool.resize(run_id, 1, 2)  # the card row comes due
+    assert grow(run_id) == 1 and not calls.deleted
+    assert sorted(card["class"] for card in pool.members(run_id)) == sorted(["gpu-24gb", PROCESSOR, PROCESSOR])
+    pool.release(run_id)
 
 
 def test_the_collector_stops_once_and_lets_its_release_finish():

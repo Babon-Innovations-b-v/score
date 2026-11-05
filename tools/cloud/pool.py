@@ -164,6 +164,18 @@ def counts_for(rows, jobs):
             sum(count for (_, on_processors), count in held if on_processors))
 
 
+def reach(rows, jobs):
+    """(cards, processor machines) the most a run's pool may be raised to over the whole run (its reserved size,
+    what its clearance holds): counts_for of its card rows alone and of its processor rows alone, as the rows due at
+    one time (resize: counts_for of those) may be all cards or all processors. Fault of 2026-11-05 (Batch 1,
+    checkout 29): sized on counts_for of every row at once, its processor lines took the jobs, the pool reserved
+    EUR 30.64 for 3 processor machines and no card, and each L4 its card rows asked for later let a warm processor
+    machine go."""
+    cards, _ = counts_for([row for row in rows if not row[2]], jobs)
+    _, processors = counts_for([row for row in rows if row[2]], jobs)
+    return cards, processors
+
+
 def processor_able(stage, entries):
     """Whether `stage`'s measured batches (ledger `entries` under its tickets) were all of a kind a processor machine
     runs as well as a card (capacity.PROCESSOR_KINDS); False for a stage with none."""
