@@ -113,7 +113,14 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   the bind does. Measured on the two walkers: ankles 118 to 121 mm at their lowest before, 70 to 72 mm after
   (Kimodo's own skeleton: 68 to 70); the skin's lowest point -20 to 9 mm. The rig file's own mix (its clips' offsets
   are not its bind's) is prop_skeleton.py's to fix at its next paid re-make (the owner's call); never read its clips
-  raw: play them through `person_rig`.
+  raw: play them through `person_rig`. Kimodo's own clips float and sink their standing feet too (2026-11-05: the
+  mean body's pickup, raw on its own offsets as played, rose its feet 9 mm on frames 15 to 30, the skin 5 to 7 mm
+  over its floor, past `GAP`: 0 N pushed, 630 N on the pelvis' residual; its squat sank its skin 28 mm), so
+  `person_rig` stands each clip's standing feet on the bind's floor (`_body.stood`: the travelling joint moved up or
+  down, the lowest standing sole brought to y = 0, smooth to `STOOD_HZ`, a flight bridged). It is the clip as the
+  stage plays it, its poses included: the drawn person and the sim body stand alike; never the sim body moved onto
+  its ground. A walk's two feet stand at different heights at the change of foot, which no move of the whole body
+  meets: it gets closer, not within `GAP`. `route_clip`'s treads are not stood.
 - **Its frame is the skin's**: the person's spot and turn, then the dressed body's Turned (`TURNED`, 180 degrees about
   up, prop_build.py's root node), so the ground it walks is the ground under the skin's feet (`own_frame`). MuJoCo's
   frame is Z up; `TO_OWN` turns everything back to the person's Y up.

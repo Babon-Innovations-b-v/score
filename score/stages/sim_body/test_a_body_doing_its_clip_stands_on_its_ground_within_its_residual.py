@@ -7,7 +7,8 @@ the BMI of the stated sex (NCD-RisC 2016: a 1.80 m woman 80.35 kg), else the mea
 body 1.1 times the rig plays its clips 1.1 times as far. A clip whose offsets are shorter than its rig's bind (as
 people-clips-made's are: posed on SOMA's zero-identity body, 7 cm shorter than the template its bind is, #70) is played
 on the bind's own bones and lifted so its standing frame's feet are where the bind's are, every clip by the same lift,
-as the people build plays it (`tools.characters.played`, prop_build.py's arithmetic): its feet stand on its ground. A clip's frames chain
+as the people build plays it (`tools.characters.played`, prop_build.py's arithmetic): its feet stand on its ground; a
+clip floating its still foot 7 mm mid-clip stands it on its ground on every frame, a jump keeps its flight. A clip's frames chain
 down the tree (a root turned 90 degrees about up carries a child 1 m along x to -1 m along z). The model's wheel is
 unpacked only when its sha256 is the pinned one. On runs written here (no engine): a good run passes every gate, a body
 5 cm into its ground fails `on floor`, a landed foot 5 cm off its ground fails `lands` and so does a body no foot of
@@ -36,6 +37,10 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground, 2026-10-29 (#70's float): person_rig's no-build case
   made `return rig, 1.0` (the clip's own offsets, 5 cm short, played raw: the standing foot 2 cm over its ground); its
   lift handed to played as 0.0 (the foot 3 cm under its ground; 2026-10-29, the lift now `played.floor_lift`).
+- a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground, 2026-11-05 (#70, the pickup's float): person_rig's
+  `stood(found, ...)` dropped (the floating foot 7 mm over its ground); stood's `heights < STANCE_HIGH` dropped (the
+  jump's flight pulled 10 cm down onto its ground); stood's `heights <= others[:, None]` dropped (the sitting column's
+  foot pulled 2 cm down, its other skin pushed under its floor).
 - the_clip_chains_down_the_tree: played.chained's `world[:, parents[joint]] @ local[:, joint]` made
   `local[:, joint] @ world[:, parents[joint]]` (2026-10-29: clip_frames chains through it).
 - the_model_is_unpacked_only_as_pinned: fetched's sha256 check dropped.
@@ -151,7 +156,9 @@ def test_a_body_is_built_at_its_persons_own_size():
 def test_a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground():
     """The toy's clips posed on a body 5 cm shorter in the leg than its bind (the foot 0.45 m under the Hips, the bind's
     0.5 m) at the Hips' height 0.47 m: played with no build, the foot hangs 0.5 m under the Hips, the standing frame's
-    foot on its ground (y = 0, the bind's), and the walking clip lifted by the same 3 cm (raw, its foot 2 cm up)."""
+    foot on its ground (y = 0, the bind's), and the walking clip lifted by the same 3 cm (raw, its foot 2 cm up); a
+    clip whose still foot floats 7 mm over a second stands it within 1 mm of its ground, a jump keeps its 10 cm flight
+    and one whose other skin lies under its foot keeps its foot where it was."""
     rig = toy_rig()
     rig["clip_standing"][:, 1, 1, 3] = 0.47
     rig["clip_standing"][:, 2, 1, 3] = -0.45
@@ -164,6 +171,24 @@ def test_a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground():
     walking = sim_body.clip_frames(played, "walking", [1, 2])
     assert walking[:, 0, 1, 3] == pytest.approx(0.5) and walking[:, 1, 1, 3] == pytest.approx(0.0, abs=1e-9)
     assert walking[:, 0, 0, 3] == pytest.approx(np.linspace(0.0, 1.0, 10))  # its travel along the ground as it was
+    # a clip floating its still foot up to 7 mm mid-clip (as Kimodo's pickup floats its skin) stands it on its
+    # ground on every frame; one whose foot leaves its ground 10 cm (a jump's flight) keeps its flight
+    rig["clip_floating"] = np.repeat(rig["clip_standing"][:1], 30, axis=0)  # a second, as the pickup's float
+    rig["clip_floating"][:, 1, 1, 3] += 0.007 * np.sin(np.linspace(0.0, np.pi, 30)) ** 2
+    rig["clip_jumping"] = np.array(rig["clip_standing"])
+    rig["clip_jumping"][4:6, 1, 1, 3] += 0.1
+    played = sim_body.person_rig(rig, None)[0]
+    floating = sim_body.clip_frames(played, "floating", [1, 2])
+    assert np.abs(floating[:, 1, 1, 3]).max() < 0.001
+    jumping = sim_body.clip_frames(played, "jumping", [1, 2])
+    assert jumping[:, 1, 1, 3] == pytest.approx([0.0] * 4 + [0.1] * 2 + [0.0] * 4, abs=1e-6)
+    # one whose other skin lies under its foot (the column upside down, its foot 2 cm up: a body sitting on its floor)
+    # is carried there, its foot left where it was
+    rig["clip_sitting"] = np.array(rig["clip_standing"])
+    rig["clip_sitting"][:, 1, :3, :3] = np.diag([1.0, -1.0, -1.0])
+    rig["clip_sitting"][:, 1, 1, 3] = -0.48 - 0.03  # less the 3 cm lift the standing clip gives every clip
+    sitting = sim_body.clip_frames(sim_body.person_rig(rig, None)[0], "sitting", [1, 2])
+    assert sitting[:, 1, 1, 3] == pytest.approx(0.02, abs=1e-6) and sitting[:, 0, 1, 3] == pytest.approx(-0.48)
 
 
 def test_the_clip_chains_down_the_tree():
@@ -376,9 +401,10 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
     assert list(muscles.GetCurveVertexCountsAttr().Get(5)) == [2]
     assert tuple(UsdGeom.PrimvarsAPI(muscles).GetPrimvar("displayColor").Get(5)[0]) == pytest.approx(
         sim_body.ACTIVE, abs=1e-6)
-    # SOMA's joints leave the stage unchanged: every frame's poses are the clip's own segment frames, bit for bit
+    # SOMA's joints leave the stage unchanged: every frame's poses are the clip's own segment frames as the stage
+    # plays it (person_rig: its standing feet stood on its floor), bit for bit
     from scipy.spatial.transform import Rotation
-    clip = sim_body.clip_frames(rig, "standing", [1, 2])
+    clip = sim_body.clip_frames(sim_body.person_rig(rig, None)[0], "standing", [1, 2])
     measures = json.loads((out / "measures/ann.json").read_text())
     for frame, worlds in zip(measures, clip):
         for pose, world in zip(frame["poses"], worlds):
