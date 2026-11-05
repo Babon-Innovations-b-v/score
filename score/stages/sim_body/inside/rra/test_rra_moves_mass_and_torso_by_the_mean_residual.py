@@ -38,6 +38,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   `labels == label` made all vertices: region b's half read as a quarter (2026-11-05).
 - rra._cap.smoothed_off's `smoothed(offsets, rate)` dropped: the shake kept; its offsets taken off the zero pose
   instead of `before`: the walk itself low-passed (2026-11-05).
+- rra._linear.wrenches' `places - summed[:, None] * origin` made `places - origin`, and its `summed[:, None, None] *
+  edges` made `edges`: the blended point's columns off its Jacobian's; residuals_kept's key without the masses: moved
+  masses read the kept residuals (2026-11-06).
 
 Run: .venv/bin/python score/stages/sim_body/inside/rra/test_rra_moves_mass_and_torso_by_the_mean_residual.py
 """
@@ -411,12 +414,84 @@ def only_the_move_off_the_fitted_path_is_low_passed():
     return problems + ([] if np.allclose(same, path, atol=1e-12) else ["an unmoved path changed"])
 
 
+def the_balance_is_the_pushes_wrenches_kept_per_path():
+    """On the toy, its skin's points 2 mm over the ground under its pelvis (one blended 0.5 on the pelvis and 0.3 on
+    the torso), three states (still, turned and moving, sliding at 2 m/s) on MuJoCo's C: `residuals`' columns (each
+    push e at a point p of weights summing to s as (s e, (p - s origin) x e)) are `about` of the push's generalised
+    force through its point's Jacobian (`pushes`) to 1e-12, and its residuals the least squares of those columns to
+    1e-6 N (the least squares stops at SOLVE_TOLERANCE: 4e-9 N apart here); `residuals_kept` gives a path's residuals once at the same masses, and at moved masses works them out
+    again, bit for bit `residuals`'."""
+    import mujoco
+    import numpy as np
+    import contact
+    import model
+    import rra
+    import solvers
+    from muscles import BALANCE, CONTACT_COST
+    from rra import _linear
+    physics = toy_physics()
+    physics.card = None  # MuJoCo's C, the reference; on a card the same code reads the card's states
+    found, data = physics.model, physics.data
+    data.qpos[:] = found.qpos0
+    mujoco.mj_kinematics(found, data)
+    pelvis, torso = model.body_index(found, "pelvis"), model.body_index(found, "torso")
+    under = np.array([[x, 0.902, z] for x in (-0.14, 0.0, 0.14) for z in (-0.09, 0.09)] + [[0.05, 0.903, 0.0]])
+    weights = np.zeros((len(under), 2))
+    weights[:, 0] = 1.0
+    weights[-1] = [0.5, 0.3]
+    physics.skin = contact.Skin(under, weights, [model.own_pose(found, data, body) for body in (pelvis, torso)],
+                                [pelvis, torso], [np.eye(4)] * 2)
+    physics.ground = np.array([[[-5.0, 0.9, -5.0], [5.0, 0.9, 5.0], [5.0, 0.9, -5.0]],
+                               [[-5.0, 0.9, -5.0], [-5.0, 0.9, 5.0], [5.0, 0.9, 5.0]]])
+    physics.up = __import__("ground").normals(physics.ground)
+    states = []
+    for turn, speed in ((0.0, 0.0), (0.05, 0.3), (0.0, 2.0)):
+        qpos = found.qpos0.copy()
+        mujoco.mju_axisAngle2Quat(qpos[3:7], np.array([1.0, 0.0, 0.0]), turn)
+        qpos[7] = 0.2
+        qvel, qacc = np.zeros(found.nv), np.zeros(found.nv)
+        qvel[[0, 3, 6]], qacc[[0, 2, 6]] = [speed, 0.4, -0.5], [0.5, 1.0, 2.0]
+        data.qpos[:] = qpos
+        mujoco.mj_kinematics(found, data)
+        states.append((qpos, qvel, qacc, data.xpos[pelvis].copy()))
+    problems, wanted = [], []
+    touching = contact.touching_all(found, _linear.posed(physics, *[np.array(values) for values in
+                                                                     list(zip(*states))[:3]]), physics.ground,
+                                    physics.up, physics.skin)
+    for (qpos, qvel, qacc, origin), mine in zip(states, touching):
+        needed = _linear.about(found, data, physics.needed(qpos, qvel, qacc), origin)
+        columns = np.array([_linear.about(found, data, along.T @ edge, origin)
+                            for _, along, edges, _ in physics.contacts() for edge in edges]).T
+        new = _linear.wrenches(*mine, origin)
+        if columns.shape != new.shape or not np.allclose(new, columns, rtol=0.0, atol=1e-12):
+            problems.append(f"columns {new.shape} off the Jacobians' {columns.shape}")
+            continue
+        pushed = solvers.least(BALANCE * columns, BALANCE * needed, np.full(columns.shape[1], CONTACT_COST),
+                               np.full(columns.shape[1], np.inf))
+        wanted.append(needed - columns @ pushed)
+    if any(sum(counts) == 0 for *_, counts in touching) or touching[2][3].min() != 1:
+        problems.append("a state with nothing pushed, or the sliding one not sliding")
+    got = rra.residuals(physics, states)
+    if not problems and not np.allclose(got, wanted, rtol=0.0, atol=1e-6):
+        problems.append(f"residuals {np.abs(got - np.array(wanted)).max()} N off the Jacobians'")
+    kept = {}
+    first = rra.residuals_kept(physics, states, kept)
+    problems += [] if rra.residuals_kept(physics, states, kept) is first and len(kept) == 1 else [
+        "a path's residuals worked out twice at the same masses"]
+    found.body_mass[:] *= 1.01
+    moved = rra.residuals_kept(physics, states, kept)
+    problems += [] if len(kept) == 2 and np.array_equal(moved, rra.residuals(physics, states)) and not np.array_equal(
+        moved, first) else ["moved masses read the kept residuals"]
+    return problems
+
+
 CHECKS = (the_mass_follows_the_mean_upward_residual, a_floating_body_keeps_its_mass_within_the_bound,
           the_torso_moves_under_the_mean_moment_within_its_cap, the_feet_stay_where_they_stood_when_the_pelvis_moves,
           a_leg_past_its_stop_is_left_where_it_stood, a_legs_free_direction_is_held_where_the_frame_stood,
           a_foot_frame_that_does_not_converge_fails, the_cards_footing_equals_minks,
           a_turn_between_two_paths_is_its_angle, the_frame_shares_are_smooth_and_never_above_the_lowered,
-          a_move_that_puts_bones_out_of_the_skin_is_seen_by_region, only_the_move_off_the_fitted_path_is_low_passed)
+          a_move_that_puts_bones_out_of_the_skin_is_seen_by_region, only_the_move_off_the_fitted_path_is_low_passed,
+          the_balance_is_the_pushes_wrenches_kept_per_path)
 
 
 def in_newton():

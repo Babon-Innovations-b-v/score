@@ -2,7 +2,7 @@
 of the drawn ground, whichever drawn surface that is (a seat as a floor), inside a friction pyramid when slow and
 sliding against its slip when fast, a point blended over two bodies moving with both by its weights, its push's
 directions as long as it is near, so a point's push fades to nothing at GAP (worked by hand); every state's pushes at
-once (`pushes_all`, the card's) are each state's own.
+once (`pushes_all`, the card's) are each state's own, and so are the balance's touching points (`touching_all`).
 It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh, built at
 $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
@@ -19,6 +19,10 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - Chains' `dof = model.dof_parentid[dof]` made `dof -= 1`: a chain runs through dofs that are not the body's.
 - pushes' `closeness(over[point]) * edge` made `edge`: the point 4 mm over is pushed as freely as one on the ground,
   so a point crossing GAP takes its whole share at once (a foot's centre of pressure 3 to 6 cm a frame).
+2026-11-06:
+- touching_all's `speed[:, 3:] + np.cross(...)` made `speed[:, 3:]`: the rolling ball's lowest point read at its
+  centre's 1 m/s, so it sticks on a pyramid where its push slides.
+- pyramids' `edges[sliding, 0] = ...` dropped: a sliding point keeps its pyramid's first edge.
 
 Run: .venv/bin/python score/stages/sim_body/inside/contact/test_only_a_point_within_gap_is_pushed.py
 """
@@ -158,9 +162,12 @@ def a_blended_point_moves_by_its_weights():
 
 
 def every_state_at_once_is_each_states_own():
-    """`pushes_all` on five states of the ball (4 and 6 mm over, 1 mm into the ground, sliding at 2 m/s, turned 0.4 rad and spinning), its
+    """`pushes_all` on six states of the ball (4 and 6 mm over, 1 mm into the ground, sliding at 2 m/s, turned 0.4 rad
+    and spinning, rolling back at 10 rad/s while moving 1 m/s so its lowest point slides at 1.5), its
     skin half on the ball and half on the still world for some points: each state's pushes are `pushes`' on that state
-    alone (bodies, Jacobians to 1e-12, edges, the ground's points), its lowest point `lowests`'; and on three states of two sibling pads on their
+    alone (bodies, Jacobians to 1e-12, edges, the ground's points), its lowest point `lowests`', and `touching_all`'s
+    points (the balance's: no Jacobians, each point's speed from the bodies' `cvel`) are the same points, edges and
+    places to 1e-12; and on three states of two sibling pads on their
     own hinges under a ball, a pad's skin blended with the still world (a point's chain is its own body's dofs, never
     its sibling's)."""
     import mujoco
@@ -170,8 +177,9 @@ def every_state_at_once_is_each_states_own():
     model, data = ball_at(0.054)
     skin = skin_of(model, data, ((1, 0.5), (0, 0.5)))
     skin.weights[::2] = [1.0, 0.0]  # every other point on the ball alone
-    states, wanted = {"xpos": [], "xmat": [], "cdof": [], "subtree_com": [], "qvel": []}, []
-    for height, speed, turn in ((0.054, 0.0, 0.0), (0.056, 0.0, 0.0), (0.053, 2.0, 0.0), (0.0535, 0.5, 0.4), (0.049, 0.0, 0.0)):
+    states, wanted = {"xpos": [], "xmat": [], "cdof": [], "cvel": [], "subtree_com": [], "qvel": []}, []
+    for height, speed, turn in ((0.054, 0.0, 0.0), (0.056, 0.0, 0.0), (0.053, 2.0, 0.0), (0.0535, 0.5, 0.4), (0.049, 0.0, 0.0),
+                                (0.05, 1.0, -10.0)):  # the last rolling back: its lowest point 1.5 m/s, sliding
         data.qpos[:] = model.qpos0
         data.qpos[2] = height
         mujoco.mju_axisAngle2Quat(data.qpos[3:7], np.array([0.0, 1.0, 0.0]), turn)
@@ -202,9 +210,20 @@ def every_state_at_once_is_each_states_own():
                                      contact.Chains(model))
     pad_found, _ = contact.pushes_all(pads, arrays(pad_states), flat(), grounds.normals(flat()), pad_skin,
                                       contact.Chains(pads))
+    touching = contact.touching_all(model, arrays(states), flat(), grounds.normals(flat()), skin)
+    touching += contact.touching_all(pads, arrays(pad_states), flat(), grounds.normals(flat()), pad_skin)
     found += pad_found
     wanted += pad_wanted
     problems = []
+    for state, ((places, summed, edges, counts), theirs) in enumerate(zip(touching, wanted)):
+        if len(places) != len(theirs):
+            problems.append(f"state {state}: {len(places)} points touching, pushed {len(theirs)}")
+            continue
+        for place, weight, edge, count, other in zip(places, summed, edges, counts, theirs):
+            if count != len(other[2]) or not np.allclose(edge[:count], other[2], atol=1e-12) or not np.allclose(
+                    place[:2], other[3][:2], atol=1e-12) or not np.isclose(weight, 1.0, atol=1e-12):
+                problems.append(f"state {state}: a touching point differs from its push")
+                break
     for state, height in enumerate((0.054, 0.056, 0.053, 0.0535, 0.049)):
         data.qpos[:] = model.qpos0
         data.qpos[2] = height
