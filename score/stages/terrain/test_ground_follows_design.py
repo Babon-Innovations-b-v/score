@@ -9,7 +9,8 @@ sqrt(2 r h), the dip acos(r / (r + h)), the spot heights the plan gives).
 
 Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - outside.reach: `sqrt(2.0 * radius * HORIZON_EYE)` -> `sqrt(radius * HORIZON_EYE)`.
-- design.layout: a held scene's offset `[hold["x"], hold["y"]]` -> `[0.0, 0.0]` (the shed off its hold).
+- design.own_points: `@ found[:, :2].T + found[:, 2]` dropped (a held scene's spots read off its hold, unturned:
+  #72, the base's modules turned to meet their tubes).
 - gates.spot_faults: drop `or off > SPOT_WITHIN` (a ground without its spots passes).
 - gates.curve_faults: `wanted = 0.0` (the body's curve no longer wanted).
 - fit.measure_standing: `gap > FEET` -> `gap > 1.0` (a hanging crate not floating); the rough check `if False`.
@@ -75,6 +76,12 @@ def test_a_designs_ground_stands_its_scenes_on_the_true_sphere_with_its_spots(tm
     assert abs(design.ground_points(ground, "site", [spot])[0, 1] - 2.0) < 0.01
     shed = design.ground_points(ground, "shed", [[0.0, 0.0]])[0]  # the shed's middle: site plan (8, 7)
     assert abs(shed[1] - design.ground_points(ground, "site", [[-12.0, -13.0]])[0, 1]) < 1e-6, shed
+    # a held scene turned 90 degrees reads its own plan's spots through its hold's turn (the base's modules, #72)
+    turned = {"place": "shed", "turn": 90, "x": 4.0, "y": 4.0, "w": 6.0, "d": 8.0}
+    source = {"to_own": design.to_own(turned, SHED)}
+    point = design.place_plan.on_holder(turned, SHED, [1.0, 2.0])
+    assert np.allclose(point, [8.0, 5.0]) and np.allclose(design.own_points(source, [point]), [[1.0, 2.0]])
+    assert np.allclose(design.on_top(source, [[1.0, 2.0]]), [point])
     out = root / "out"
     terrain.make({key: str(value) for key, value in inputs.items()}, out, 0, {})
     assert terrain.grounds_faults(out) == [] and sorted(path.name for path in (out / "moon/places").iterdir()) == \

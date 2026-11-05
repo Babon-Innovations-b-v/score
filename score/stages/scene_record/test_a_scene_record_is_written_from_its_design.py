@@ -70,12 +70,23 @@ def test_a_plan_maps_and_faults_fail():
     Break: score/stages/scene_record/plan.py: `if not within([float(spot[0]), float(spot[1]), 0.0, 0.0], outer):` ->
         `if False:`
     Break: score/stages/scene_record/plan.py: `return within([x + reach, y + reach,` -> `return True or within([x + reach, y + reach,`
-    Break: score/stages/scene_record/plan.py: `if across > EDGE and along > EDGE:` -> `if False:`
+    Break: score/stages/scene_record/plan.py: `if depth > EDGE:` -> `if False:`
     Break: score/stages/scene_record/plan.py: `if leading > back:` -> `if False:`
     A place held several times stands once a hold, each instance by itself (#72, the base's tubes): a tube held
     turned and stretched meets the hub's door and the lab's at its two ends, its own leads renamed by its hold; a
-    door naming the tube and not its instance, a hold another size than its plan laid in it, and a turn of 45 degrees
-    fail by name.
+    door naming the tube and not its instance, a hold another size than its plan laid in it, and a turn of 360 degrees
+    fail by name. A hold turns any angle the concept needs (the base's tubes off the hub's diagonal facets): a tube
+    turned 315 degrees from the hub's corner door to the lab's, its box over the hub's box and the lab's but its
+    outline over neither (overlaps judged on outlines), the hub's two doors to `tube` each named by its spot; the lab,
+    every door of it on a floor 1 m over its lower one, sunk 1 m so its door meets the tube's.
+    Break: score/stages/scene_record/plan.py: `laid = [laid_outline(hold, (held.get(name_of(hold)) or (None, None))[1]) for hold in holds]` ->
+        `laid = [laid_outline(hold) for hold in holds]`
+    Break: score/stages/scene_record/plan.py: `return round(math.cos(turn), 12), round(math.sin(turn), 12)` ->
+        `return round(math.cos(turn)), round(math.sin(turn))`
+    Break: score/stages/scene_record/plan.py: `return f"{opening.get('to')}@{float(opening['at'][0]):g},{float(opening['at'][1]):g}"` ->
+        `return None`
+    Break: score/stages/scene_record/plan.py: `sunk = {name: -sunk_by(plan) for name, (_, plan) in held.items()}` ->
+        `sunk = {name: 0.0 for name in held}`
     Break: score/stages/scene_record/plan.py: `return middle + np.array([cos * across - sin * along, sin * across + cos * along])` ->
         `return middle + np.array([across, along])`
     Break: score/stages/scene_record/plan.py: `found[name_of(hold)] = (hold, as_held(hold, read(path)))` ->
@@ -106,7 +117,7 @@ def test_a_plan_maps_and_faults_fail():
             "shed's item 'PIPE' [-5.0, 3.0, 10.0, 0.1] lies outside its 8.0 x 6.0 m plan"), found.findings
     holds = [{"place": "hub", "x": 0.0, "y": 0.0, "w": 10.0, "d": 10.0}, {"place": "tube", "x": 9.0, "y": 2.0, "w": 4.0,
                                                                           "d": 4.0}]
-    assert plan.overlap_faults({"holds": holds}) == ["the holds of hub and tube overlap by 1.0 x 4.0 m"]
+    assert plan.overlap_faults({"holds": holds}) == ["the outlines of hub and tube overlap, 0.97 m thick"]
     door = {"kind": "door", "at": [0.0, 0.0], "to": "tube"}
     held = {"hub": (holds[0], {"openings": [door, door]}), "tube": (holds[1], {"openings": [{**door, "to": "hub"}]})}
     assert plan.once_faults(held) == ["tube is held once, but 2 doors of its siblings lead to it and 1 of its own "
@@ -142,13 +153,33 @@ def test_a_plan_maps_and_faults_fail():
         assert plan.judge_held(out, {"plans": plans}, None).findings[:2] == (  # then its doors, 0.5 m off
             "tube#1's hold is 6 x 3 m, its plan laid in it 6 x 2 m (turned 90)",
             "hub's door to tube at [5.0, 10.0] names no instance of it (tube#1)")
-        base["holds"][1] = {**instance, "turn": 45}
+        base["holds"][1] = {**instance, "turn": 360}
         (plans / "base.json").write_text(json.dumps(base))
         try:
             plan.judge_held(out, {"plans": plans}, None)
-            raise AssertionError("a hold turned 45 degrees was judged")
+            raise AssertionError("a hold turned 360 degrees was judged")
         except ValueError as refused:
-            assert "turns 45 degrees" in str(refused)
+            assert "turns 360 degrees" in str(refused)
+        # the tube turned 315 degrees (its run south-east) from the hub's corner door (10, 10) 4 m to the lab's door at
+        # its corner; its box is 4.24 m square round its middle (11.41, 11.41)
+        hub = {"w": 10.0, "d": 10.0, "openings": [{"kind": "door", "at": [10.0, 10.0], "to": "tube"},
+                                                  {"kind": "door", "at": [0.0, 5.0], "to": "tube"}]}
+        lab = {"w": 4.0, "d": 4.0, "levels": [{"height": 0.0}, {"height": 1.0}],
+               "openings": [{"kind": "door", "at": [0.0, 0.0], "sill": 1.0, "to": "tube"}]}
+        side = 6.0 / math.sqrt(2.0)
+        instance = {"place": "tube", "instance": "tube#1", "turn": 315, "leads": {"greenhouse": "lab"},
+                    "x": 10.0 + 2.0 ** 0.5 - side / 2, "y": 10.0 + 2.0 ** 0.5 - side / 2, "w": side, "d": side}
+        corner = 10.0 + 4.0 / math.sqrt(2.0)
+        base = {"w": 20.0, "d": 20.0, "holds": [
+            {"place": "hub", "x": 0.0, "y": 0.0, "w": 10.0, "d": 10.0, "leads": {"tube@10,10": "tube#1", "tube@0,5": "outside"}},
+            instance, {"place": "lab", "x": corner, "y": corner, "w": 4.0, "d": 4.0, "leads": {"tube": "tube#1"}}]}
+        for name, own in (("hub", hub), ("lab", lab), ("base", base)):
+            (plans / f"{name}.json").write_text(json.dumps(own))
+        assert np.allclose(plan.on_holder(instance, tube, [1.0, 4.0]), [corner, corner])
+        assert len(plan.overlap_faults(base)) == 2  # by their boxes the tube overlaps both
+        assert plan.levels_of(plan.held_plans(base, plans)) == {"hub": 0.0, "tube#1": 0.0, "lab": -1.0}
+        found = plan.judge_held(out, {"plans": plans}, None)
+        assert found.answer == checks.PASS, found.findings
     walled = {**SHED, "doors": [["E", 1.5, 0.9, "DOOR to the galley 0.9 x 2.0 m"], ["E", 4.5, 0.9, "DOOR to the yard"]],
               "leads": {"E": {"to": "sealed", "why": "shut"}, "E:4.5": {"to": "yard", "why": "the yard's door"}},
               "openings": [{"kind": "door", "at": [8.0, 4.5], "wide": 0.9, "sill": 0.0, "to": "yard"},

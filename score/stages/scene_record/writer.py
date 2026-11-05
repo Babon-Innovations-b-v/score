@@ -683,8 +683,7 @@ def origin_on_holder(design, hold):
 
 def unturned(hold, way):
     """A way [x, y] on the holder's plan as a way on the place's own plan, its hold's turn undone."""
-    turn = math.radians(place_plan.turn_of(hold))
-    cos, sin = round(math.cos(turn)), round(math.sin(turn))
+    cos, sin = place_plan.turning(hold)
     return np.array([cos * way[0] + sin * way[1], -sin * way[0] + cos * way[1]])
 
 

@@ -42,7 +42,7 @@ import sys
 
 from score.review import concepts
 from score.review.plan_checks import WALLS_ITEM, anchor_of, whole
-from score.stages.scene_record.plan import as_held, laid_size, name_of
+from score.stages.scene_record.plan import INSTANCE, as_held, laid_outline, laid_size, name_of, outlines_overlap
 from score.store import PROPS_HOME, stamp_key
 
 AREA = "plans"
@@ -755,14 +755,16 @@ def holds_fitted(store, shown):
             gaps += moved
             resized.add(name_of(hold))
         holds.append(hold)
-    holds, met = doors_met(plan, holds, {name_of(hold): own_plan(store, hold["place"]) for hold in holds})
+    owns = {name_of(hold): own_plan(store, hold["place"]) for hold in holds}
+    holds, met = doors_met(plan, holds, owns)
     gaps += met
     resized |= {gap["item"] for gap in met if gap.get("met")}
-    # a sibling spot is another child's own: never moved here, named
+    # a sibling spot is another child's own: never moved here, named; by their outlines as laid (turned)
     gaps += [{"kind": "held", "item": name_of(hold), "with": name_of(other), "at": [hold["x"], hold["y"]],
               "words": f"{name_of(hold).replace('_', ' ')} at its plan's size overlaps {name_of(other)}"}
              for hold in holds if name_of(hold) in resized for other in holds
-             if other is not hold and overlap(*([spot["x"], spot["y"], spot["w"], spot["d"]] for spot in (hold, other)))]
+             if other is not hold and outlines_overlap(laid_outline(hold, owns.get(name_of(hold))),
+                                                       laid_outline(other, owns.get(name_of(other))))]
     return {**shown, "plan": {**plan, "holds": holds, "gaps": gaps}}
 
 
@@ -771,6 +773,12 @@ def mover_of(name, other, by_place):
     row holds the other where it is drawn), else the smaller; None when both stand in an item of a row."""
     free = [place for place in (name, other) if not by_place[place].get("row")]
     return min(free, key=lambda place: by_place[place]["w"] * by_place[place]["d"]) if free else None
+
+
+def laid_overlap(hold, plan, other, other_plan):
+    """Whether two holds' outlines overlap as their plans lay in them (scene_record.plan.laid_outline, outlines_overlap:
+    turned, never their boxes); a hold whose plan is None its box."""
+    return outlines_overlap(laid_outline(hold, plan), laid_outline(other, other_plan))
 
 
 def doors_met(plan, holds, own):
@@ -800,9 +808,9 @@ def doors_met(plan, holds, own):
         hold = by_place[mover]
         box = [round(hold["x"] + float(step[0]), 3), round(hold["y"] + float(step[1]), 3), hold["w"], hold["d"]]
         sibling = [by_place[still][key] for key in ("x", "y", "w", "d")]
-        if overlap(box, sibling):
+        if laid_overlap({**hold, "x": box[0], "y": box[1]}, own.get(mover), by_place[still], own.get(still)):
             box = pushed_out(box, sibling)
-        if any(overlap(box, [spot[key] for key in ("x", "y", "w", "d")])
+        if any(laid_overlap({**hold, "x": box[0], "y": box[1]}, own.get(mover), spot, own.get(place))
                for place, spot in by_place.items() if place != mover):
             continue
         old = [hold["x"], hold["y"], hold["w"], hold["d"]]
@@ -900,8 +908,9 @@ def checked_hold(hold, ids):
 
 def checked_instance(hold, place):
     """A hold's instance, turn and leads as given (scene_record.plan: a place held several times, each instance
-    `<place>#<n>` with what its doorways lead to there; any hold turned 0, 90, 180 or 270 degrees), each only when
-    given; Refused otherwise."""
+    `<place>#<n>` with what its doorways lead to there, by its lead or by one door's lead and spot (`tube@15.834,2.341`:
+    one of several doors to one place), to a place or an instance; any hold turned from 0 up to 360 degrees), each
+    only when given; Refused otherwise."""
     found = {}
     if hold.get("instance") is not None:
         instance = str(hold["instance"]).strip().lower()
@@ -909,15 +918,27 @@ def checked_instance(hold, place):
             raise Refused(f"{instance!r} is no instance of {place} ({place}#<number>)")
         found["instance"] = instance
     if hold.get("turn"):
-        turn = number(hold["turn"], f"{place} turn", 0.0, 270.0)
-        if turn not in (90.0, 180.0, 270.0):
-            raise Refused(f"{place} turns {turn:g} degrees: a hold turns 0, 90, 180 or 270")
-        found["turn"] = int(turn)
+        turn = number(hold["turn"], f"{place} turn", 0.0, 360.0)
+        if turn >= 360.0:
+            raise Refused(f"{place} turns {turn:g} degrees: a hold turns from 0 up to 360")
+        found["turn"] = int(turn) if turn == int(turn) else turn
     if hold.get("leads"):
         if not isinstance(hold["leads"], dict):
             raise Refused(f"{place}'s leads are no {{its own lead: this hold's}}")
-        found["leads"] = {checked_names([own])[0]: checked_names([there])[0] for own, there in hold["leads"].items()}
+        found["leads"] = {checked_lead(own, f"{place}'s lead"): checked_lead(there, f"{place}'s lead", own=False)
+                          for own, there in hold["leads"].items()}
     return found
+
+
+def checked_lead(lead, what, own=True):
+    """A lead in a hold's `leads` as given: a place name, or an instance of one (`tube#3`), or (its own side only) a
+    place name and one door's spot (`tube@15.834,2.341`); Refused otherwise."""
+    lead = str(lead).strip().lower()
+    name, mark, rest = lead.partition("@" if own else INSTANCE)
+    spot = r"-?\d+(\.\d+)?,-?\d+(\.\d+)?" if own else r"\d{1,3}"
+    if mark and not re.fullmatch(spot, rest):
+        raise Refused(f"{what} {lead!r} is no place, instance or door of one")
+    return checked_names([name])[0] + mark + rest
 
 
 def checked_thing(thing, place):
@@ -958,6 +979,52 @@ def edited(store, place, plan, by, how="edited", calls=None, asked=None):
     record = kept_record(store, place, "edits", {
         "place": place, "plan": plan, "concept": pick_of(store, place), "by": by,
         "at": concepts.now(), "how": how, "calls": calls or [], **({"asked": asked} if asked else {})})
+    if design_done(store, place):
+        kept_for_stage(store, place, record["plan"])
+    return record
+
+
+# What a free redrawing of a plan may give (`redrawn`): its drawing's fields; anything else is kept as shown.
+REDRAWN = ("title", "w", "d", "height", "outline", "walls", "openings", "doors", "leads", "levels", "roofs", "stairs",
+           "items", "rows", "shapes", "people", "holds", "notes", "length")
+OPENING_KINDS = ("door", "gate", "opening", "window")
+
+
+def redrawn(store, place, changes, by, asked):
+    """A free redrawing of `place`'s plan under the owner's standing word that design fixes following his rules are
+    ours (#72: the base laid out as its concept, its hub's, greenhouse's, lab's, workshop's and hangar's doors where
+    its tubes meet them, the tube drawn as its 3.2 m section): `changes`, fields of REDRAWN, laid over the plan shown
+    now (`shown_plan`), its holds and items checked as his edit's are, its openings each a doorway or window on a spot,
+    its free checks run again; kept as an edit (how: redrawn) with `asked` ({words, at, reason}); the record. Refused
+    on any other field, a size or spot that is no number, or with no plan shown yet."""
+    shown = shown_plan(store, place)
+    if shown is None:
+        raise Refused(f"{place} has no plan shown yet to redraw")
+    unknown = sorted(set(changes) - set(REDRAWN))
+    if unknown:
+        raise Refused(f"a redrawing gives {', '.join(REDRAWN)}, not {', '.join(unknown)}")
+    if not (asked or {}).get("words") or not asked.get("at") or not asked.get("reason"):
+        raise Refused("a redrawing says whose word it stands on, when, and its reason")
+    plan = {**copy.deepcopy(shown["plan"]), **copy.deepcopy(changes)}
+    for key in ("w", "d", "length"):
+        if key in changes:
+            plan[key] = number(changes[key], f"{place} {key}", 0.1)
+    if "items" in changes:
+        plan["items"] = checked_items(changes["items"])
+    for opening in plan.get("openings") or []:
+        if opening.get("kind") not in OPENING_KINDS or len(opening.get("at") or []) != 2:
+            raise Refused(f"{place}'s opening {opening!r} is no doorway or window on a spot")
+        opening["at"] = [number(value, f"{place} opening spot", -BIGGEST) for value in opening["at"]]
+    if "holds" in changes:
+        ids = {row["id"] for row in inventory_of(store, place).get("rows", [])}
+        plan["holds"] = [checked_hold(hold, ids) for hold in changes["holds"]]
+    if "shapes" in plan:  # a written plan: its free checks run again on the redrawing
+        from score.review import plan_checks
+        plan["gaps"] = [gap for gap in plan.get("gaps", []) if gap["kind"] not in plan_checks.KINDS] + \
+            plan_checks.checked(plan, inventory_of(store, place), plan.get("structure", []))
+    record = kept_record(store, place, "edits", {
+        "place": place, "plan": plan, "concept": pick_of(store, place), "by": by, "at": concepts.now(),
+        "how": "redrawn", "calls": [], "asked": asked, "changed": sorted(changes)})
     if design_done(store, place):
         kept_for_stage(store, place, record["plan"])
     return record

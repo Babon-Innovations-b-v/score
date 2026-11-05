@@ -1884,8 +1884,10 @@ def test_opening_the_yard_opens_the_whole_tree_each_child_at_its_hold(tmp_path):
     The yard holding the hut twice (#72: a place held several times stands once a hold), its second instance turned 90 degrees
     at (2, 7) 3 x 4 m: its crate at plan (2, 1) of the hut is (4, 9) on the yard, (-6, 0, 3), under /yard/Scenes/hut_2,
     the hut's one tree copied once; the gate passes it.
-    Break: score/stages/scene_record/plan.py: `cos, sin = round(math.cos(turn)), round(math.sin(turn))` ->
-        `cos, sin = 1, 0`
+    A third instance turned 45 degrees (#72: the base's tubes off the hub's diagonal facets) in its 4.95 m box at (14, 0):
+    its crate at plan (2, 1) is (16.83, 2.12) on the yard, (6.83, 0, -3.88).
+    Break: score/stages/scene_record/plan.py: `return round(math.cos(turn), 12), round(math.sin(turn), 12)` ->
+        `return round(math.cos(turn)), round(math.sin(turn))`
     Break: score/stages/assembly/scene_tree.py: `standing = sorted(child for child, hold in laid.items() if hold["place"] in children)` ->
         `standing = sorted(child for child in laid if child in children)`"""
     yard, inputs = the_yard(tmp_path)
@@ -1907,16 +1909,19 @@ def test_opening_the_yard_opens_the_whole_tree_each_child_at_its_hold(tmp_path):
     verdict = scene_tree.judge_children(raised, inputs, None)
     assert verdict.answer == checks.PASS, verdict.findings
     twice = {**YARD, "holds": [{**YARD["holds"][1], "instance": "hut#1"},
-                               {"place": "hut", "instance": "hut#2", "turn": 90, "x": 2.0, "y": 7.0, "w": 3.0, "d": 4.0}]}
+                               {"place": "hut", "instance": "hut#2", "turn": 90, "x": 2.0, "y": 7.0, "w": 3.0, "d": 4.0},
+                               {"place": "hut", "instance": "hut#3", "turn": 45, "x": 14.0, "y": 0.0, "w": 4.949747,
+                                "d": 4.949747}]}
     root = tmp_path / "twice"
     hut, _ = tree_of(root, "hut", a_scene(root / "made", "hut", (-1.0, 0.0, 2.0)), HUT, {})
     yard, inputs = tree_of(root, "yard", a_scene(root / "made", "yard", (0.0, 0.0, 0.0)), twice, {"hut": (hut, HUT)})
     stage = opened(yard / "yard.usda")
     assert crate_at(stage, "/yard/Scenes/hut_1/Objects/crate_1") == [2.0, 0.0, 0.0]
     assert crate_at(stage, "/yard/Scenes/hut_2/Objects/crate_1") == [-6.0, 0.0, 3.0]
+    assert crate_at(stage, "/yard/Scenes/hut_3/Objects/crate_1") == [6.8284, 0.0, -3.8787]
     assert sorted(path.name for path in (yard / "scenes").iterdir()) == ["hut"]
     verdict = scene_tree.judge_children(yard, inputs, None)
-    assert verdict.answer == checks.PASS and verdict.measures["children"] == 2, verdict.findings
+    assert verdict.answer == checks.PASS and verdict.measures["children"] == 3, verdict.findings
 
 
 def test_a_child_laid_out_and_not_stood_fails_by_name(tmp_path):

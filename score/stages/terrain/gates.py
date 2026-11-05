@@ -159,8 +159,9 @@ def spot_in_frame(ground, place, x, y):
     entry = ground["places"][place]
     origin, axes = np.asarray(entry["origin"], dtype=float), np.asarray(entry["axes"], dtype=float)
     top = ground["tops"][entry["top"]]
-    hold = next((source["offset"] for source in ground["sources"] if source["place"] == place), [0.0, 0.0])
-    world = design.tangent(top, [[x + hold[0], y + hold[1]]])[0]
+    source = next((source for source in ground["sources"] if source["place"] == place),
+                  {"to_own": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]})
+    world = design.tangent(top, design.on_top(source, [[x, y]]))[0]
     return ((world - origin) @ axes)[[0, 2]]
 
 

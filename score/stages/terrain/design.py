@@ -64,7 +64,7 @@ def holder_of(place, plans):
     for name, plan in sorted(plans.items()):
         for hold in plan.get("holds") or []:
             if hold.get("place") == place and name != place:
-                return name, hold
+                return name, place_plan.hold_of(plan, place)
     return None, None
 
 
@@ -117,8 +117,7 @@ def place_entry(top, plan, hold):
     middle on the hold's; the top itself at its own corner, {x: 0, y: 0})."""
     corner, east_p, south_p = place_plan.frame_of(plan)
     origin_plan = place_plan.on_holder(hold, plan, (-float(corner @ east_p), -float(corner @ south_p)))
-    turn = math.radians(place_plan.turn_of(hold))
-    cos, sin = round(math.cos(turn)), round(math.sin(turn))
+    cos, sin = place_plan.turning(hold)
     east, south, up = (np.asarray(top[key], dtype=float) for key in ("east", "south", "up"))
     turned = [(cos * east_p[axis] - sin * south_p[axis], sin * east_p[axis] + cos * south_p[axis]) for axis in (0, 2)]
     axes = np.column_stack([east * turned[0][0] + south * turned[0][1], up, east * turned[1][0] + south * turned[1][1]])
@@ -127,6 +126,26 @@ def place_entry(top, plan, hold):
                         for y in (0.0, float(plan["d"]))])[:, [0, 2]]
     return {"origin": origin.tolist(), "axes": axes.tolist(), "floor": float(corner[1]),
             "box": [corners.min(axis=0).round(4).tolist(), corners.max(axis=0).round(4).tolist()]}
+
+
+def to_own(hold, plan):
+    """The map from its top's plan to a place's own plan points (scene_record.plan.own_from_holder: its hold's turn
+    and stretch undone; none for the top itself, held at its own corner)."""
+    if not hold or "w" not in hold:
+        return [[1.0, 0.0, -float((hold or {}).get("x", 0.0))], [0.0, 1.0, -float((hold or {}).get("y", 0.0))]]
+    return place_plan.own_from_holder(hold, plan)
+
+
+def own_points(source, points):
+    """Points [[x, y]] of its top's plan as points of the source's place's own plan (`to_own`)."""
+    found = np.asarray(source["to_own"], dtype=float)
+    return np.atleast_2d(np.asarray(points, dtype=float)) @ found[:, :2].T + found[:, 2]
+
+
+def on_top(source, points):
+    """Points [[x, y]] of the source's place's own plan as points of its top's plan (`own_points` undone)."""
+    found = np.asarray(source["to_own"], dtype=float)
+    return (np.atleast_2d(np.asarray(points, dtype=float)) - found[:, 2]) @ np.linalg.inv(found[:, :2]).T
 
 
 def layout(plans, skies):
@@ -151,11 +170,10 @@ def layout(plans, skies):
             (place, plans[place], place_plan.hold_of(plan, place))
             for place in dict.fromkeys(hold.get("place") for hold in plan.get("holds") or []) if place in plans]
         for name, own, hold in held:
-            offset = [hold["x"], hold["y"]]
             ground["places"][name] = {**place_entry(entry, own, hold), "top": top}
             spots = (own.get("terrain") or {}).get("spots") or []
             if spots:
-                ground["sources"].append({"place": name, "top": top, "offset": offset,
+                ground["sources"].append({"place": name, "top": top, "to_own": to_own(hold, own),
                                           "middle": [float(own["w"]) / 2, float(own["d"]) / 2],
                                           "spots": [[float(value) for value in spot[:3]] for spot in spots]})
     return found
@@ -300,7 +318,7 @@ def waters(ground, plans, inventories, reach):
             span = water_span(plan, inventory, row)
             shore = shore_of(plan, inventory, span, horizon) if span else horizon
             region = water_region(plan, points, span, shore)
-            source = {"place": place, "top": entry["top"], "offset": [hold["x"], hold["y"]] if hold else [0.0, 0.0],
+            source = {"place": place, "top": entry["top"], "to_own": to_own(hold, plan),
                       "middle": [float(plan["w"]) / 2, float(plan["d"]) / 2]}
             found.append((source, seabed(region, level), level, row))
             laid.append({"place": place, "row": row["id"], "level": level, "shore": round(shore, 1) if span else None,
@@ -373,7 +391,6 @@ def far_reliefs(ground, plans, inventories, reach):
         inventory = read(path) if path.is_file() else {}
         plan, picture = plans[place], inventory.get("picture")
         hold = holder_of(place, plans)[1]
-        offset = [hold["x"], hold["y"]] if hold else [0.0, 0.0]
         for row in inventory.get("rows", []):
             if not (picture and far_row(row, set(plan.get("beyond") or [])) and (row.get("boxes") or row.get("box"))):
                 continue
@@ -381,7 +398,7 @@ def far_reliefs(ground, plans, inventories, reach):
             middle = [float(plan["w"]) / 2, float(plan["d"]) / 2]
             seed = int(hashlib.sha256(f"{place}/{row['id']}".encode()).hexdigest()[:8], 16)
             span = water_span(plan, inventory, row)
-            found.append(({"place": place, "top": entry["top"], "offset": offset, "middle": middle},
+            found.append(({"place": place, "top": entry["top"], "to_own": to_own(hold, plan), "middle": middle},
                           far_ring(middle, distance, height, broad, seed, span)))
             made.append({"place": place, "row": row["id"], "distance": round(distance, 1), "height": round(height, 1),
                          "broad": round(broad, 1),
@@ -396,9 +413,8 @@ def relief_at(ground, world, shaped=None):
     for source, relief in shaped if shaped is not None else reliefs(ground):
         top = ground["tops"][source["top"]]
         middle, east, south = (np.asarray(top[key], dtype=float) for key in ("middle", "east", "south"))
-        plan = np.column_stack([(world - middle) @ east, (world - middle) @ south]) + np.asarray(top["half"]) - \
-            np.asarray(source["offset"])
-        total += relief(plan)
+        on_top = np.column_stack([(world - middle) @ east, (world - middle) @ south]) + np.asarray(top["half"])
+        total += relief(own_points(source, on_top))
     return total
 
 
