@@ -186,6 +186,24 @@ def newest_edit(store, place):
     return found[-1] if found and found[-1].get("plan") is not None else None  # none: replaced by its writing
 
 
+def own_edit(store, place):
+    """His newest own edit of `place`'s plan on its current pick, a redrawing (a design fix under his standing word,
+    `redrawn`) left out, else None."""
+    pick = pick_of(store, place)
+    found = [record for record in records(store, place, "edits")
+             if pick and record["concept"] == pick and record.get("how") != "redrawn"]
+    return found[-1] if found and found[-1].get("plan") is not None else None  # none: replaced by its writing
+
+
+def own_room(store, place):
+    """`place`'s hold on the layer above's plan as his own edits and its writing lay it, no redrawing over them
+    (own_edit), None while that lays none out."""
+    holder = tree(store)["within"].get(place)
+    edit = own_edit(store, holder) if holder else None
+    plan = edit["plan"] if edit else (made_plan(store, holder) or {}).get("plan") if holder else None
+    return next((hold for hold in (plan or {}).get("holds", []) if hold["place"] == place), None)
+
+
 def edit_replaced(store, place, by, asked):
     """His edit of `place`'s plan on its current pick replaced by its writing, on his yes (`asked`: {words, question,
     at} of it): an edit record with no plan, so the writing is shown again; the record. Refused with no edit."""
@@ -235,7 +253,9 @@ def room_of(store, place):
 def moved_draws(store, place):
     """The shas of `place`'s draws drawn on another room than the layer above's plan gives it now (moved, resized,
     reshaped, merged: owner 2026-10-21, "all below would become need for redrawn"): each draw's recorded room against
-    today's, a Redraw with notes by its base's."""
+    today's, a Redraw with notes by its base's. His locked draw moves by his own edit only: a redrawing of the plan
+    above (a design fix under his standing word, #72: holds turned, fitted, given doors) never unlocks it (2026-11-05:
+    the base's and the square's redrawings put every held place's lock out of date and no place inside was approved)."""
     draws = concepts.draws(store, place)
     by_sha = {}
     for draw in draws:  # the first draw of a sha: a redraw can come back as its base's picture
@@ -243,10 +263,12 @@ def moved_draws(store, place):
     shown, room = above_plan(store, place)
     since = shown and shown["at"]
     holder = tree(store)["within"].get(place)
-    edit = newest_edit(store, holder) if holder else None
+    edit = own_edit(store, holder) if holder else None
     locked = concepts.picked(store, place)
-    # his lock made on the plan above shown now: he locked it on that room, nothing has moved it since
-    locked_since = locked and since and concepts.records(store, place, "picks")[-1].get("at", "") >= since
+    # his lock made on the plan above as he left it (his own edit, else the plan shown now): he locked it on that room,
+    # nothing of his has moved it since
+    his_since = edit["at"] if edit else since
+    locked_since = locked and his_since and concepts.records(store, place, "picks")[-1].get("at", "") >= his_since
     size = own_size(store, place) if any(draw.get("room", room) != room for draw in draws) else None
 
     def moved(draw, seen=(), mine=False):
@@ -257,7 +279,8 @@ def moved_draws(store, place):
             return base is not None and base is not draw and draw["base"] not in seen and moved(
                 base, (*seen, draw["base"]), mine)
         if "room" in draw:  # a spot taking the place's own plan's size (holds_fitted) is no move
-            return room_at(draw["room"], size) != room_at(room, size)
+            drawn = room_at(draw["room"], size)
+            return drawn != room_at(room, size) and not (mine and drawn == room_at(own_room(store, place), size))
         # shortcut: a draw from before rooms were recorded counts as moved by any plan of the layer above made after
         # it, whether or not that plan moved this room, his locked one by his own edit only (a plan written again
         # never moves a locked scene's room); drop once no such draw is in use
