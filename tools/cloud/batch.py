@@ -316,10 +316,17 @@ def tag_value(tags, key):
     return None
 
 
-def is_leftover(tags, now):
-    """Whether a machine was left by a run that is over: past its deadline, or its process gone."""
+def past_deadline(tags, now):
+    """Whether a machine's tagged deadline has passed (or it names none)."""
     deadline = tag_value(tags, "deadline")
-    if deadline is None or float(deadline) < now:
+    return deadline is None or float(deadline) < now
+
+
+def is_leftover(tags, now):
+    """Whether a machine was left by a run that is over: past its deadline, or its process gone. A parked machine is
+    the sweep's to leave (sweep: park.parked_ids): on 2026-11-05 the sweep a Blender call runs as it starts deleted
+    all three of Batch 1's warm pool machines minutes after they were parked, judged by their expirer's pid."""
+    if past_deadline(tags, now):
         return True
     pid = tag_value(tags, "pid")
     return tag_value(tags, "host") == socket.gethostname() and not (pid and process_alive(int(pid)))
@@ -327,9 +334,15 @@ def is_leftover(tags, now):
 
 def sweep(account):
     """Delete every machine a finished or crashed run left in the account; the count deleted."""
+    import park
+
     deleted, running = 0, 0
+    held = park.parked_ids()
     for server_id, zone, name, tags in cloud.ours(account):
-        if is_leftover(tags, time.time()):
+        if server_id in held and not past_deadline(tags, time.time()):
+            say(f"{name} in {zone} is parked; left alone")  # its expirer releases it, not a sweep (2026-11-05)
+            running += 1
+        elif is_leftover(tags, time.time()):
             say(f"deleting {name} in {zone}, left by an earlier run")
             deleted += cloud.delete(server_id, zone)
         else:

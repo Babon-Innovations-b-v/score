@@ -380,12 +380,27 @@ def test_taking_a_parked_machine_needs_a_cleared_run(calls, monkeypatch):
     assert (park.PARKED / "c4.json").exists()  # still there for a cleared run
 
 
-def test_a_sweep_leaves_a_parked_machine_alone_until_its_time():
+def test_a_sweep_leaves_a_parked_machine_alone_until_its_time(calls, monkeypatch):
+    """2026-11-05: a Blender call's sweep deleted Batch 1's three warm pool machines minutes after they were parked,
+    judged by their expirer's pid. Break: in batch.sweep, drop the `server_id in held` branch."""
     until = time.time() + 30 * 60
     tags = batch.run_tags(os.getpid(), until)
     assert not batch.is_leftover(tags, time.time())
     assert batch.is_leftover(tags, until + 1)
-    assert batch.is_leftover(batch.run_tags(999999999, until), time.time())  # its expirer gone
+    gone = batch.run_tags(999999999, until)
+    assert batch.is_leftover(gone, time.time())  # its expirer gone
+    # another host's sweep (the owner's PC, which holds no parked record of the conductor's) keeps it by its deadline
+    elsewhere = [tag.replace(f"host={batch.socket.gethostname()}", "host=another-machine") for tag in gone]
+    assert not batch.is_leftover(elsewhere, time.time()) and batch.is_leftover(elsewhere, until + 1)
+    parked(card("p1"))
+    swept = []
+    monkeypatch.setattr(batch.cloud, "ours", lambda account: [("p1", "zone-a", "p1", gone),
+                                                               ("old", "zone-a", "old", gone)])
+    monkeypatch.setattr(batch.cloud, "delete", lambda server_id, zone: swept.append(server_id) or True)
+    monkeypatch.setattr(batch, "sweep_what_machines_left", lambda account: None)
+    assert batch.sweep("account") == 1 and swept == ["old"]  # the parked one stays, whatever its expirer's pid
+    monkeypatch.setattr(batch.cloud, "ours", lambda account: [("p1", "zone-a", "p1", batch.run_tags(1, until - 3600))])
+    assert batch.sweep("account") == 1 and swept == ["old", "p1"]  # past its own deadline it goes
 
 
 def test_a_run_at_its_cap_leaves_another_runs_parked_machine_listed(calls, monkeypatch):

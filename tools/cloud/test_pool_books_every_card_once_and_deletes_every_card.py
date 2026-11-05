@@ -278,6 +278,19 @@ def test_a_dead_card_is_struck_off_and_replaced():
     batch.delete_machine(card)
     assert calls.deleted == [card["id"]] and len(pool.members(run_id)) == 1
     assert grow(run_id) == 1 and len(pool.members(run_id)) == 2 and len(calls.rented) == 3
+    # an idle card deleted under the pool (2026-11-05): its failing beat finds it gone, strikes it off, and the
+    # collector rents in its place. Break: in pool.beat, drop the `reads(...) is None` branch.
+    idle = park.pool_records(run_id)[0]
+    beaten = batch.heartbeat
+    batch.heartbeat = lambda folder, host: (_ for _ in ()).throw(subprocess.CalledProcessError(255, ["ssh"]))
+    pool.cloud.server_record = lambda server_id, zone: None
+    try:
+        pool.beat(run_id)
+    finally:
+        batch.heartbeat = beaten
+        del pool.cloud.server_record
+    assert idle["id"] not in {record["id"] for record in park.pool_records(run_id)}
+    assert idle["id"] not in {member["id"] for member in pool.members(run_id)} and grow(run_id) >= 1
 
 
 def test_a_card_whose_taker_died_is_deleted_and_replaced():
