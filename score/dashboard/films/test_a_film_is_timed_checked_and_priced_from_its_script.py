@@ -33,6 +33,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - default.walks: no still from a designed eye (`facts["eyes"]` unread) -> test_an_environments_default_film_is_...
 - script.design_faults: each of its checks (record, rooms_faults, finished stage, eye, apart_faults) -> `if False:` ->
   test_an_environments_default_film_is_the_owners_structure_...
+- default.refreshed: zoom_refreshed, shot_refreshed or tops_shot skipped (as it is) -> test_an_environments_default_film_...
 - script.default_name: the saved scripts read before the starters -> test_the_film_step_opens_on_the_environments_...
 - preview/make.beat_offset: rounded to 1 place -> test_the_bed_starts_where_its_beats_fall_on_the_cuts_...
 - preview/scenes.LIT_DEGREES = -90 -> test_a_scale_zoom_arrives_where_its_site_is_lit_...
@@ -350,8 +351,9 @@ def test_environment_1_demo_is_its_complete_default():
     animation = next(segment for segment in film["segments"] if segment["cut"] == "setting-animation")
     assert animation["seconds"] * animation["days_per_second"] >= 300  # Earth goes most of the way round the Sun
     cuts = [segment["cut"] for segment in film["segments"]]
-    assert all(cuts[number + 1] == "walk-through" for number, cut in enumerate(cuts) if cut == "scale-zoom")
-    walks = {segment["shows"]["place"] for segment in film["segments"] if segment["cut"] == "walk-through"}
+    # every zoom followed by a shot of its scene: a walk, or a still where its plan names its eye (the Square's)
+    assert all(cuts[number + 1] in ("walk-through", "hero-still") for number, cut in enumerate(cuts) if cut == "scale-zoom")
+    walks = {segment["shows"]["place"] for segment in film["segments"] if segment["cut"] in ("walk-through", "hero-still")}
     assert set(next(segment for segment in film["segments"] if segment["cut"] == "scale-zoom")["legs"][-1]["rooms"]) < walks
     peels = {}
     for segment in film["segments"]:
@@ -472,6 +474,20 @@ def test_an_environments_default_film_is_the_owners_structure_filled_from_its_ow
         'segment 13: "Pier, 56.7 m from The Port" says 56.7 m, the design 80 m',
         "segment 14: Pier is designed seen from its deck eye at 4 m, not a Walk-through walked",
         "Camp (a top scene) has no shot of its finished stage"]
+    # the frozen script said again from the design now (default.refreshed): its design-derived words and shots
+    # follow the design, the top scene with no shot of its own walked after its zoom, everything else as it was
+    redone = default.refreshed(frozen, {**facts, "eyes": eyed["eyes"]})
+    assert script.design_faults(redone, eyed) == []
+    assert len(redone["segments"]) == len(frozen["segments"]) + 1 and redone["segments"][8]["line"] == "Outside"
+    assert redone["segments"][6]["captions"][-1]["text"] == "Inside: Dock, Hold; Outside: Bar"
+    assert [(shot["cut"], shot["seconds"]) for shot in redone["segments"][12:14]] == [
+        ("scale-zoom", frozen["segments"][12]["seconds"]), ("hero-still", 7.0)]
+    assert redone["segments"][12]["captions"][0]["text"] == "Pier, 80 m from The Port"
+    camp = [shot["cut"] for shot in redone["segments"] if shot["shows"].get("place") == "camp"]
+    assert camp[:2] == ["scale-zoom", "walk-through"] and redone["target_seconds"] >= script.total_seconds(redone)
+    kept = [shot for shot in redone["segments"] if not (shot["shows"].get("place"), shot["cut"]) == ("camp", "walk-through")]
+    assert [shot for number, shot in enumerate(kept) if number not in (6, 8, 12, 13)] == [
+        shot for number, shot in enumerate(frozen["segments"]) if number not in (6, 8, 12, 13)]
     # a shell with a plan of its own is walked, and a plan naming its eye is filmed as a still from there
     planned = default.facts_of("world7", "Environment 7", SETTING, PLAN, within, {"port": "The Port"},
                                {"tess": "tess_dust"}, {}, {"port": {}, "pier": {

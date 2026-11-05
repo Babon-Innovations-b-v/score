@@ -60,6 +60,7 @@ LOW_GRAVITY_NOTE = "Motion made for Earth gravity; movement in lower gravity is 
 # level one of its own levels.
 EYE = re.compile(r"(?:^|;)\s*([a-z][a-z ]*?) eye (\d+(?:\.\d+)?) m\b")
 STILL_SECONDS = 7.0  # a still from a designed eye holds as long as a walk would
+AWAY = re.compile(r"^(.+), (.+ km) away$")  # a journey's "Across the physics" words: "Earth, 401,000 km away"
 
 
 def titled(word):
@@ -281,6 +282,86 @@ def design_of(facts):
             "names": {place: name for stop in stops for place, name in ([stop["place"], stop["name"]], *stop["walks"])},
             "apart": [[stop["name"], before["name"], stop["metres"]] for before, stop in zip(stops, stops[1:])
                       if stop.get("metres")]}
+
+
+def refreshed(given, facts):
+    """`given` (a script of the environment, the owner's starter or his saved copy) with what it says of the design
+    said again from the design as it stands now (`facts`), as `built` would say it: each walk or still of a scene a
+    still from its designed eye, else a walk said Inside or Outside by its record; each scale zoom's metres, distances
+    and rooms words; a top scene with no shot of its finished stage its shot after its zoom (`tops_shot`), the target
+    raised to the film's length where that passes it (rounded up to 5 s, as `built`). Everything else stays as it is:
+    its own words, lengths and order."""
+    stops = {stop["place"]: stop for stop in facts["stops"]}
+    design = design_of(facts)
+    segments = tops_shot([shot_refreshed(shown, facts) if shown.get("cut") in ("walk-through", "hero-still")
+                          else zoom_refreshed(shown, facts, stops, design) if shown.get("cut") == "scale-zoom"
+                          else shown for shown in given.get("segments", [])], facts, design)
+    made = {**given, "segments": segments}
+    length = script.total_seconds(made)
+    return {**made, "target_seconds": max(given.get("target_seconds") or 0, 5 * math.ceil(length / 5))}
+
+
+def tops_shot(segments, facts, design):
+    """`segments` with each top scene that has no shot of its finished stage (script.FINISHED_CUTS) shot right after
+    its scale zoom, as `built` follows a zoom with the scene itself (`walks`: a still from its eye, else a walk); one
+    with no zoom of its own left as it is."""
+    shown = {(segment.get("shows") or {}).get("place") for segment in segments
+             if segment.get("cut") in script.FINISHED_CUTS}
+    missing = {top for top in design["tops"] if top not in shown}
+    found = []
+    for segment in segments:
+        found.append(segment)
+        place = (segment.get("shows") or {}).get("place")
+        if segment.get("cut") == "scale-zoom" and place in missing:
+            found += walks({"walks": [[place, design["names"].get(place, place)]]}, facts)
+            missing.discard(place)
+    return found
+
+
+def shot_refreshed(shown, facts):
+    """One walk or still of a scene as the design films it now: a still from the eye its plan names (`still`), else a
+    walk (a still from an eye the plan no longer names walked again), said by its record; its words and transition
+    kept."""
+    place = (shown.get("shows") or {}).get("place")
+    eye = facts["eyes"].get(place)
+    if eye:
+        return shown if shown.get("cut") == "hero-still" and shown.get("eye") == eye else {
+            **still(place, shown.get("text") or place, eye), "transition": shown.get("transition", "cross-fade")}
+    line = {True: "Inside", False: "Outside"}.get(facts["inside"].get(place))
+    if shown.get("cut") == "hero-still" and "eye" in shown:
+        return {**walk(place, shown.get("text") or place, line or "Scene"),
+                "transition": shown.get("transition", "cross-fade")}
+    return {**shown, "line": line} if line and shown.get("line") in script.PLACE_LINES else shown
+
+
+def zoom_refreshed(shown, facts, stops, design):
+    """One scale zoom's captions as the design says them now: "X, N m from Y" the design's metres, "B, D away" the
+    distance its stop's sky gives, and its rooms words regrouped by each room's record (the caption's own names)."""
+    metres = {(name, before): value for name, before, value in design["apart"]}
+    rooms = [room for leg in shown.get("legs") or [] if leg.get("layer") == "room" for room in leg.get("rooms", [])]
+    km = stops.get((shown.get("shows") or {}).get("place"), {}).get("km")
+    captions = []
+    for said in shown.get("captions") or []:
+        text = said.get("text", "")
+        apart, away = script.APART.match(text), AWAY.match(text)
+        if apart and (apart.group(1), apart.group(3)) in metres:
+            text = f"{apart.group(1)}, {metres[(apart.group(1), apart.group(3))]:g} m from {apart.group(3)}"
+        elif away and km:
+            text = f"{away.group(1)}, {distance_words(km)} away"
+        elif rooms:
+            text = rooms_regrouped(text, rooms, facts["inside"])
+        captions.append({**said, "text": text})
+    return {**shown, "captions": captions}
+
+
+def rooms_regrouped(text, rooms, inside):
+    """A rooms caption ("Inside: a, b; Outside: c", its names the leg's `rooms` in order) said again by each room's
+    record (`rooms_words`); any other caption as it is."""
+    parts = [part.partition(": ") for part in text.split("; ")]
+    if not all(said in (*script.PLACE_LINES, "Held") and sep for said, sep, _ in parts):
+        return text
+    listed = [name for _, _, names in parts for name in names.split(", ")]
+    return rooms_words(list(zip(rooms, listed)), inside) if len(listed) == len(rooms) else text
 
 
 def shown_places(facts):
