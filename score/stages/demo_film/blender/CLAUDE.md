@@ -12,5 +12,6 @@ next frame's for motion blur (its docstring). The shutter and the next camera ar
   body's evaluation, which no ledger has priced).
 - `film_frames.py`: never run here: it needs `bpy`. Checked with the `bpy` module of the cloud's Blender version, never
   a local render.
-- `body_peel.py` is the other way round: a layer peel's three passes, run on this machine by `../peel.py` (`blender
-  -b`), no paid job runs it; no demo-film row declares it.
+- `body_peel.py`: a layer or place peel's three passes, the frames its job's `frames` names (a slice of the shot,
+  `../peel.py` sliced). Run on rented cards by the body-peel and place-peel rows (`../peel_rows.py`, which declare it),
+  or free on this machine by `../peel.py`'s command line (`blender -b`); no demo-film row declares it.

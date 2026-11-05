@@ -11,7 +11,7 @@ A place peel's job (`"kind": "place"`, peel.place_job) draws a place three ways 
 `finished` (its stage imported as it is, its lights and finishes its own), `bare` (the same models, every finish
 replaced by one plain clay) and `physics` (the job's collision shapes, its moving bodies apart, the drawn models
 hidden, the stage's lights kept).
-Out: <out>/<pass>/<frame>.png.
+Out: <out>/<pass>/<frame>.png, the frames the job's `frames` names (dealt), numbered in the whole shot.
 """
 import json
 import math
@@ -288,6 +288,13 @@ def faded(made, fade):
     shader.inputs["Emission Strength"].default_value = ARROW_GLOW * fade
 
 
+def dealt(job):
+    """(film frame, its source time code) of the frames this job draws: its `frames` [first, end) of the shot where
+    the shot was dealt over several cards (peel.sliced), else every one."""
+    first, end = job.get("frames", [0, len(job["source"])])
+    return [(frame, job["source"][frame]) for frame in range(first, end)]
+
+
 def draw(job):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     renderer(job)
@@ -305,7 +312,7 @@ def draw(job):
         arrows = sim(person, arrays, groups["sim"], look)
         people.append((person, arrays, armature, fit, mesh, arrows))
     scene = bpy.context.scene
-    for frame, source in enumerate(job["source"]):
+    for frame, source in dealt(job):
         aimed(camera, job["camera"]["path"][frame])
         scene.frame_set(source)  # the sim body layer's time code: the record's frame, at its rate (renderer)
         fade = job["arrows"]["fade"][frame]
@@ -373,7 +380,7 @@ def draw_place(job):
     scene.collection.objects.link(camera)
     scene.camera = camera
     clay = material("clay", CLAY)
-    for frame, source in enumerate(job["source"]):
+    for frame, source in dealt(job):
         aimed(camera, job["camera"]["path"][frame])
         scene.frame_set(source)
         for name in job["passes"]:

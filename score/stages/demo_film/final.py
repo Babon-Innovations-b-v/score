@@ -10,12 +10,15 @@ data/films/ and his unlocked edits are read by nothing here.
                scale zooms), its free preview's record and each such segment's take
                (`$SCORE_DASHBOARD_HOME/films/previews/<film>.json`, `<film>-takes/<NNN>.mp4`)
     beside     demo-film@<place> and demo-film-extra@<place> for each place a script's walk-through or hero still
-               shows (shown_places), each where that row applies
+               shows (shown_places), body-peel@<place> and place-peel@<place> for each place it peels
+               (peeled_places), each where that row applies
 
 A script is cut only after the creator's yes, his lock: with none locked the node stands Blocked, and the free
 preview is the FILM page's (score/dashboard/films). Before anything is cut every segment must say its `seconds` (a
 final cut holds no default that could move under it) and be a cut this row makes (MADE: title and text cards, a
-place's walk-through from its accepted film, a hero still from its film's first frame, and a recorded segment from
+place's walk-through from its accepted film, a hero still from its film's first frame, a layer or place peel from its
+place's accepted peel (the body-peel and place-peel rows: its `close` shot where the segment names one, under the
+segment's first caption as a lower third, over the script's bed), and a recorded segment from
 its take in the free preview: the cockpit's own page or the setting as the preview drew it, recorded from the very
 segment the lock holds, else Blocked until the preview is rendered again), its walk-through's sound its place's own;
 anything else is named and the node Blocked: those cuts need frames no row makes yet (exploded, isolate, layer focus
@@ -59,9 +62,10 @@ OWN, EXTRA = "demo-film", "demo-film-extra"
 WORDS, WALK, STILL = ("title", "text"), "walk-through", "hero-still"
 # The cuts the free preview records (the cockpit's own pages, the setting drawn from its physics), cut from its takes.
 RECORDED = ("screen-take", "setting-animation", "scale-zoom")
-MADE = (*WORDS, WALK, STILL, *RECORDED)
-PEEL = "body-peel"  # a layer peel (peel.py): no row makes its frames yet
-PLACE_PEEL = "place-peel"  # a place peel (peel.py's place job): no row makes its frames yet
+PEEL = "body-peel"  # a layer peel: the body-peel row's (peel_rows.py)
+PLACE_PEEL = "place-peel"  # a place peel: the place-peel row's (peel_rows.py)
+PEELS = (PEEL, PLACE_PEEL)
+MADE = (*WORDS, WALK, STILL, *RECORDED, *PEELS)
 PREVIEWS = "films/previews"
 # The free preview's grade (score/dashboard/films/preview/make.py GRADE), so the final looks as the preview did.
 GRADE = "curves=master='0/0 0.25/0.23 0.5/0.5 0.75/0.77 1/1'"  # no vignette (owner 2026-10-21)
@@ -191,6 +195,42 @@ def shown(script):
 def shown_places(place=None):
     """The places every script's films show, sorted: the node's beside reads."""
     return sorted({segment["shows"]["place"] for script in scripts().values() for _, segment in shown(script)})
+
+
+def peeled_places(place=None):
+    """The places every script peels (a layer or place peel), sorted: the node's beside reads of the peel rows."""
+    return sorted({segment["shows"]["place"] for script in scripts().values() for _, segment in peeled(script)})
+
+
+def peeled(script):
+    """[(segment number from 1, segment)] of the script's layer and place peels of a place."""
+    return [(number, segment) for number, segment in enumerate(script.get("segments", []), 1)
+            if segment.get("cut") in PEELS and (segment.get("shows") or {}).get("place")]
+
+
+def peel_node(segment):
+    """(the node whose output holds the segment's peel, the shot inside it: `close` where the segment names one)."""
+    return f"{segment['cut']}@{segment['shows']['place']}", "close" if segment.get("close") else "wide"
+
+
+def peels(script, inputs):
+    """{segment number: its peel.mp4} for every peel the script shows, read from the node's beside checkouts;
+    Blocked naming each the node does not hold or that is shorter than its segment."""
+    _, showcase, _ = cut_tools()
+    found, missing = {}, []
+    for number, segment in peeled(script):
+        node, shot = peel_node(segment)
+        clip = pathlib.Path(inputs[node]) / shot / "peel.mp4" if node in inputs else None
+        if clip is None or not clip.exists():
+            missing.append(f"segment {number}: no accepted peel {node}/{shot}")
+        elif showcase.length(clip) < segment["seconds"] - 1e-3:
+            missing.append(f"segment {number}: {node}/{shot} shows {showcase.length(clip):.2f} s, the segment wants "
+                           f"{segment['seconds']:g}")
+        else:
+            found[number] = clip
+    if missing:
+        raise graph.Blocked("; ".join(missing))
+    return found
 
 
 def film_node(segment):
@@ -355,13 +395,20 @@ def under_layer(video, layer, seconds, out):
     still.unlink()
 
 
+def words_of(segment):
+    """(line, text) of a segment's lower third: its own, else its first caption's (a peel's)."""
+    caption = (segment.get("captions") or [{}])[0]
+    return segment.get("line") or caption.get("line") or "", segment.get("text") or caption.get("text") or ""
+
+
 def picture_clip(segment, source, out, parts):
     """One segment's picture with its sound: a walk-through of its film under a lower third (its own sound), else a
-    silent clip (a hero still from its film's first frame, a recorded take, or a card); whether it carries sound."""
+    silent clip (a hero still from its film's first frame, a peel under a lower third, a recorded take, or a card);
+    whether it carries sound."""
     demo, showcase, _ = cut_tools()
     from PIL import Image
     seconds = float(segment["seconds"])
-    layer = lettering.lower_third((showcase.W, showcase.H), segment.get("line") or "", segment.get("text") or "")
+    layer = lettering.lower_third((showcase.W, showcase.H), *words_of(segment))
     if segment["cut"] == WALK:
         showcase.result_clip(source, seconds, layer, out)
         return True
@@ -370,6 +417,11 @@ def picture_clip(segment, source, out, parts):
         demo.ffmpeg("-ss", f"{demo.TITLE_SECONDS:.3f}", "-i", source, "-frames:v", "1", first)
         showcase.still_clip(Image.open(first).convert("RGB"), seconds, held)
         under_layer(held, layer, seconds, out)
+    elif segment["cut"] in PEELS:
+        scaled = parts / f"{out.stem}-peel.mp4"
+        demo.ffmpeg("-i", source, "-t", f"{seconds:.3f}", "-vf", f"scale={showcase.W}:{showcase.H}:flags=lanczos",
+                    "-an", *demo.encode(scaled))
+        under_layer(scaled, layer, seconds, out)
     elif segment["cut"] in RECORDED:
         demo.ffmpeg("-i", source, "-t", f"{seconds:.3f}", "-vf", f"scale={showcase.W}:{showcase.H}:flags=lanczos",
                     "-an", *demo.encode(out))
@@ -439,8 +491,8 @@ def gains(script, films):
 
 def cut_one(script, films, out, recorded_takes=None, bed=None):
     """One script's film and its timeline in `out`, from its segments' films ({segment number: film.mp4}), its
-    recorded segments' takes ({segment number: take.mp4}) and its `bed` (a card's and take's sound; else the nearest
-    film's)."""
+    recorded segments' takes and its peels ({segment number: take.mp4 or peel.mp4}) and its `bed` (a card's, take's
+    and peel's sound; else the nearest film's)."""
     _, showcase, _ = cut_tools()
     parts = out / ".parts"
     parts.mkdir(parents=True, exist_ok=True)
@@ -456,7 +508,8 @@ def cut_one(script, films, out, recorded_takes=None, bed=None):
                  (lambda seconds, path, near=near: showcase.bed_track(near, seconds, path)))
         lengths.append(segment_clip(segment, source, clip, parts, sound))
         clips.append(clip)
-        node = film_node(segment)[0] if number in films else None
+        node = film_node(segment)[0] if number in films else (
+            peel_node(segment)[0] if segment["cut"] in PEELS else None)
         timeline.append({"segment": number, "cut": segment["cut"], "place": (segment.get("shows") or {}).get("place"),
                          "film": node, "start": round(clock, 3), "seconds": lengths[-1],
                          "exposure_gain": exposure.get(number, 1.0)})
@@ -480,7 +533,8 @@ def make(inputs, out, seed, params):
     if faults:
         raise graph.Blocked("; ".join(faults))
     films = {film: sources(script, inputs) for film, script in sorted(named.items())}  # every film found first
-    recorded_takes = {film: takes(film, script, inputs) for film, script in sorted(named.items())}
+    recorded_takes = {film: {**takes(film, script, inputs), **peels(script, inputs)}
+                      for film, script in sorted(named.items())}
     for film, script in sorted(named.items()):
         bed = inputs.get(f"bed {film}")
         cut_one(script, films[film], pathlib.Path(out) / film, recorded_takes[film], pathlib.Path(bed) if bed else None)

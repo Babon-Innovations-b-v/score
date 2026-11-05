@@ -51,13 +51,15 @@ own sound; paid and cleared by the runner like any paid row.
 - **The environment's own film** (`final.py`, the environment-film row, #28): one environment node, free (a local
   ffmpeg cut), reading every film script the creator locked on the cockpit's Film step
   (`$SCORE_DASHBOARD_HOME/films/locked/<film>.json`, the environment's `dashboard` root; a new lock moves its key)
-  and, beside it, the place films they show (demo-film, demo-film-extra), so the runner plans and prices it with
-  them. Blocked while none is locked (the lock is his yes; the starters in `data/films/` are read by nothing here
+  and, beside it, the place films they show (demo-film, demo-film-extra) and the peels (body-peel, place-peel), so
+  the runner plans and prices it with them. Blocked while none is locked (the lock is his yes; the starters in `data/films/` are read by nothing here
   but needs.py's film gaps); every segment names its `seconds` and is a cut it makes (title, text, walk-through, hero still),
   a screen take, physics animation or scale zoom cut from the free preview's take of that very segment
   (`<film>-takes/` beside the preview; one recorded from another script is Blocked until the preview is rendered
-  again), else the node is Blocked naming each segment (exploded, isolate, layer cuts, step cards, before and after
-  need frames no row makes yet). Cards and lower thirds are in the cockpit's type (`lettering.py`), the films are
+  again), a layer or place peel from its place's accepted peel (body-peel, place-peel, read beside: its `close` shot
+  where the segment names one, under its first caption as a lower third, over the script's bed; `final.peels`, Blocked
+  naming a missing one), else the node is Blocked naming each segment (exploded, isolate, layer cuts, step cards,
+  before and after need frames no row makes yet). Cards and lower thirds are in the cockpit's type (`lettering.py`), the films are
   matched in exposure, the whole graded as the preview is (`GRADE`), cards and takes over the script's bed. The whole film's sound is moved by one gain to `TARGET_LUFS`; its gate holds the pace
   (`PLACE_SECONDS` a place, `SHOT_SECONDS` a walk-through) and the loudness. Its needs (`needs.py`) are the gaps
   check's film gaps: a film a script shows that no locked script shows waits on his lock.
@@ -73,9 +75,8 @@ own sound; paid and cleared by the runner like any paid row.
   newton, none at `PUSHED` or less; the owner's look, 2026-11-04, "visible but not obnoxious or ugly": a slim shaft
   and small head at a fixed width on screen, its foot lifted off its ground, a little see-through, in the film's
   `--film-push` token, fading in with the sim body), over the scene's ground (`--ground`), joined by a wipe at each third. `--close` follows one walker alone,
-  `close_walker`'s rule (the most relief in scene-clips' record). A shot never outlasts the sim body record. No row
-  makes peel frames yet, so the environment film names the cut as one it cannot cut; making it a row (inside the
-  assembled scene, on its own camera) is a change of its own.
+  `close_walker`'s rule (the most relief in scene-clips' record). A shot never outlasts the sim body record. The
+  command line draws one free on this machine's card for a look; the film's are the body-peel row's (below).
 - **A place peel** (the script's `place-peel` cut, CONTEXT.md "place peel"; owner, 2026-11-05: "every scene needs the
   peel", and asked whether that meant adding people or peeling the place itself: "2", the place itself) is the same
   renderer's other job (`peel.place_job`, `--stage <finished stage output> [--physics <physics-layer output>]`; drawn by
@@ -83,11 +84,30 @@ own sound; paid and cleared by the runner like any paid row.
   neighbours or assembly output imported as it is), `bare` (the same models under one plain clay) and `physics` (every
   prim the stage collides with, `colliders.collides`, shaped as its approximation makes it, from the physics-layer
   output where the place has one, its moving bodies in the sim colour), joined by the same wipes. Its frames come only
-  from those rows' outputs; no row draws it yet, so the environment film names it as a cut it cannot cut. A locked
+  from those rows' outputs; the film's are the place-peel row's (below). A locked
   script that walks through a place with a kept design and no people (designed, peopled) and shows no place peel of it
   is Blocked naming it (`plan_faults`), so every walked scene has one peel.
+- **The peel rows** (`peel_rows.py`, body-peel@place and place-peel@place, paid; owner 2026-11-05: every scene peeled
+  in the film): a place a locked script peels has the row, keyed on those scripts (`script <name>`), never one peeled
+  by none. body-peel reads the cast, sim-body, the clips rig (people-clips-made), scene-clips (optional: a climber's
+  clip, the close-up's walker), each person's look's people-dress (optional; a person whose dressed body is not taken
+  refuses the row by name) and people-body (optional, as sim-body reads it), and the finished stage for the ground
+  its sim bodies stood on (`peel.ground_of`: the solids the sim body record names, as that stage holds them; a solid
+  it does not hold refuses the row). place-peel reads the finished stage once complete passes or fails only on its
+  accepted gaps (as demo-film) and the place's physics-layer where it has one. Each shot the scripts ask (`wide`,
+  `close` where a segment names it; the longest segment's seconds) is peel.py's job, its frames dealt over the cards
+  the forecast sizes (`peel.sliced`: each slice its own frames into its own folder, jobs never sharing an output) in
+  one blender_cloud.py call on `CLASSES` cards, joined here into `<shot>/peel.mp4` (silent) and `peel.json`. Forecast
+  from measured units: a render a pass, each a measured demo film frame (demo.FRAME_MINUTES, LIKELY_EUROS over its
+  192 frames), high at FOG_FRAME_MINUTES for a pass drawing a fogged, volumed or glassed stage, else FRAME_SPREAD
+  times; cleared at its high, refused past its clearance before anything is rented; each job's deadline its frames at
+  that high, a failed job a gap. Its jobs lie inside the make's folder, so a job made before at the same content is
+  kept (tools/cloud/kept.py). Gate `peel`: each shot's video at its size and seconds, no black stretch (no sound of
+  its own; a still stretch is no fault). A crowd-only place (no single characters) has no sim body to peel: its
+  body-peel fails by name.
 - **Stills come from the films.** K5, K6 and K8 take frames of the places' films (a film starts at its
   segment's `start`, else the stage's start); the demo-stills row, which rendered a view no film showed, was retired
   on 2026-10-22 (it had no definitions and so no node).
 - Run: `python -m score run world1 --place <place> --stage demo-film --detach` (a film the creator said yes to starts by
-  itself once its place passes complete, or fails it only on its accepted gaps, in any environment run). Test: `test_a_film_shows_its_locked_script_within_its_forecast.py` (no Blender, no spend; one small local ffmpeg cut).
+  itself once its place passes complete, or fails it only on its accepted gaps, in any environment run). Test: `test_a_film_shows_its_locked_script_within_its_forecast.py` (no Blender, no spend; small local ffmpeg cuts,
+  a place peel made with its cards' part drawn here).
