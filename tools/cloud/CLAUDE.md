@@ -464,7 +464,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `level1/`, owner 2026-11-02): a long one names `bring_every` (its outputs also brought back every that many minutes
   while it runs) and a call that needs a class Blender never takes names its own `--kind` (`sim-body-l1`, capacity.py:
   `gpu-80gb-x2-48c` first, a card class naming its least cores). The `newton` job image
-  (`images/newton/`, the env script's pins resolved and hashed) serves the cluster path; no runner sends it yet.
+  (`images/newton/`, the env script's pins resolved and hashed) serves the cluster path: under SCORE_CLOUD=k8s `blender_cloud.py` runs a job naming newton_env.sh in it
+  through `newton-run` (`ENV_IMAGES`), the settle's drop among them; level 1 has no cluster path yet.
 - **A path a job names reaches the same place up there as here** (`inputs.link_named`, for a job's inputs and its
   outputs): every link on its way (a frozen run's `<copy>.home/store`, a take's `work/pixal` file link) is made a link
   on the machine, never a folder of file links; a job whose script ended well and brought none of its outputs back is
