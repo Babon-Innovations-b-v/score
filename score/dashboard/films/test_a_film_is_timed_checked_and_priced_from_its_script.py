@@ -24,6 +24,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - pages/films.bought_since: `return ""` -> test_a_lock_is_kept_where_the_film_row_reads_it_and_stands_...
 - script.films_node: `return False` -> test_buy_leaves_out_the_film_rows_until_a_film_script_is_locked
 - default.sim_bodies: the CLIPS_TRUE_ON scenes not put first -> test_every_scene_whose_design_has_people_is_peeled_...
+- default.sim_bodies: `entry[0] in walked and entry[0] not in people` -> `False` -> test_every_scene_whose_design_...,
+  test_environment_1_demo_is_its_complete_default
 - default.walks: Outside and Inside swapped -> test_an_environments_default_film_is_the_owners_structure_...
 - default.walks: a held scene said "Inside" whatever its record says -> test_an_environments_default_film_is_...
 - default.stops_of: a shell walked never, its plan or not (`planned` dropped) -> test_an_environments_default_film_...
@@ -336,7 +338,9 @@ def test_the_film_page_plays_its_rendered_preview_and_seeks_in_it(world, tmp_pat
 def test_environment_1_demo_is_its_complete_default():
     """env1_demo is environment 1's default film, complete (owner, 2026-10-21): every segment names a real scene, the
     physics animation long enough to see an orbit, every zoom followed by a walk through its scenes (owner, 2026-10-24:
-    "scale zoom after scale zoom and no walkthroughs in between"), inside its target."""
+    "scale zoom after scale zoom and no walkthroughs in between"), inside its target; every scene it walks through
+    peeled one way (owner, 2026-11-05: "every scene needs the peel"; asked whether that meant adding people or peeling
+    the place itself: "2"): a layer peel where its design has people, else a place peel."""
     film, origin = script.read(settings.SCORE_REPO, "/nonexistent", "env1_demo")
     assert origin == "starter" and film["default"] is True
     # the docking airlock: a scene added in the app on his kept Hangar plan, which the test's store does not hold
@@ -348,6 +352,11 @@ def test_environment_1_demo_is_its_complete_default():
     assert all(cuts[number + 1] == "walk-through" for number, cut in enumerate(cuts) if cut == "scale-zoom")
     walks = {segment["shows"]["place"] for segment in film["segments"] if segment["cut"] == "walk-through"}
     assert set(next(segment for segment in film["segments"] if segment["cut"] == "scale-zoom")["legs"][-1]["rooms"]) < walks
+    peels = {}
+    for segment in film["segments"]:
+        if segment["cut"] in ("body-peel", "place-peel"):
+            peels.setdefault(segment["shows"]["place"], set()).add(segment["cut"])
+    assert all(len(peels.get(place, ())) == 1 for place in walks) and "place-peel" in peels["hub"]
 
 
 def locking(client, film, body):
@@ -428,15 +437,20 @@ def test_an_environments_default_film_is_the_owners_structure_filled_from_its_ow
     assert [stop["place"] for stop in facts["stops"]] == ["port", "pier", "camp"]
     film = default.built("world7-film", facts)
     assert script.faults(film, {"port", "pier", "camp", "dock", "bar", "hold", "deck", "bunk", "tent"}) == []
-    assert [segment["cut"] for segment in film["segments"]] == [
+    # no scene has people: each walked one's place itself peeled last, after its card (owner, 2026-11-05)
+    peels = film["segments"][-9:]
+    assert [segment["shows"].get("place") for segment in peels] == [
+        None, "dock", "bar", "hold", "deck", "bunk", "pier", "camp", "tent"] and peels[0]["text"] == "Physics bodies"
+    walked = film["segments"][:-9]
+    assert [segment["cut"] for segment in walked] == [
         "title", "screen-take", "setting-animation", "screen-take", "screen-take", "screen-take", "scale-zoom",
         *["walk-through"] * 5, "scale-zoom", "walk-through", "scale-zoom", "walk-through", "walk-through"]
-    assert [segment["shows"]["place"] for segment in film["segments"][7:]] == [
+    assert [segment["shows"]["place"] for segment in walked[7:]] == [
         "dock", "bar", "hold", "deck", "bunk", "pier", "pier", "camp", "camp", "tent"]
-    assert [segment["line"] for segment in film["segments"][-4::2]] == ["Outside", "Outside"]
-    assert film["segments"][-1]["line"] == "Inside"
-    assert [segment["line"] for segment in film["segments"][7:9]] == ["Inside", "Outside"]  # dock, bar: their records
-    assert film["segments"][6]["captions"][-1]["text"] == "Inside: Dock, Hold; Outside: Bar"
+    assert [segment["line"] for segment in walked[-4::2]] == ["Outside", "Outside"]
+    assert walked[-1]["line"] == "Inside"
+    assert [segment["line"] for segment in walked[7:9]] == ["Inside", "Outside"]  # dock, bar: their records
+    assert walked[6]["captions"][-1]["text"] == "Inside: Dock, Hold; Outside: Bar"
     design = default.design_of(facts)
     assert script.design_faults(film, design) == []
     # a film that froze what has moved since: a record now outside said inside, a top scene with no shot of its own,
@@ -462,7 +476,8 @@ def test_an_environments_default_film_is_the_owners_structure_filled_from_its_ow
                                    "height": "deck eye 4 m; mast 9 m", "levels": [{"name": "deck"}]}}, inside)
     shots = default.built("world7-film", planned)["segments"]
     assert [(shot["cut"], shot["line"]) for shot in shots if shot["shows"].get("place") in ("port", "pier")
-            and shot["cut"] != "scale-zoom"] == [("walk-through", "Outside"), ("hero-still", "Seen from the deck")]
+            and shot["cut"] not in ("scale-zoom", "place-peel")] == [("walk-through", "Outside"),
+                                                                     ("hero-still", "Seen from the deck")]
     assert script.design_faults({"segments": shots}, default.design_of(planned)) == []
     assert default.designed_eye({"height": "balcony eye 10.6 m", "levels": [{"name": "plaza"}]}) is None
     assert script.total_seconds(film) <= film["target_seconds"] < script.total_seconds(film) + 5
@@ -472,7 +487,7 @@ def test_an_environments_default_film_is_the_owners_structure_filled_from_its_ow
     zoom = film["segments"][6]
     assert zoom["legs"][-1]["rooms"] == ["dock", "bar", "hold"] and zoom["legs"][3]["into"] == "dock"
     assert zoom["surfaces"] == {"tess": "tess_dust", "ground": "tess_dust"} and "kepler" in zoom["waiting"]
-    pier, camp = film["segments"][-5], film["segments"][-3]
+    pier, camp = walked[-5], walked[-3]
     assert [leg["layer"] for leg in pier["legs"]] == ["site", "place"] and pier["legs"][0]["from_place"] == "port"
     assert "Pier, 80 m from The Port" in json.dumps(pier) and pier["pip"]["concept"] == "pier"
     assert [leg["layer"] for leg in camp["legs"]] == ["world", "setting", "world", "site", "place", "room"]
@@ -502,6 +517,14 @@ def test_every_scene_whose_design_has_people_is_peeled_earth_first_the_rest_note
         "segment 1: a layer peel follows only a walker, not 'sitter'"]
     assert all(segment["seconds"] == default.PEEL_SECONDS for segment in part[1:])
     assert default.sim_bodies(shown, {}) == []
+    walked = {"base", "hub", "square"}  # the base walked with no people: its place itself peeled (owner, 2026-11-05)
+    tail = default.sim_bodies(shown, {"hub": False, "square": False}, walked)[3:]
+    assert [(segment["cut"], segment.get("text"), segment["shows"].get("place")) for segment in tail] == [
+        ("text", "Physics bodies", None), ("place-peel", None, "base")]
+    assert tail[1]["captions"][0] == {"from": 0.3, "to": 4.7, "line": "Moon · Base",
+                                      "text": "Base: finished, bare models, physics bodies"}
+    assert tail[1]["waiting"] and script.faults(a_script(tail), {"base"}) == []
+    assert [segment["cut"] for segment in default.sim_bodies(shown, {}, {"hub"})] == ["text", "place-peel"]
     peeled = render.items(a_script(part), {})[1]
     assert peeled["how"] == render.NEW and peeled["euros"] is None  # no row draws a peel yet: not measured
     rows = json.loads((pathlib.Path(__file__).resolve().parents[3] / "data/people/rows.json").read_text())
@@ -514,7 +537,8 @@ def test_every_scene_whose_design_has_people_is_peeled_earth_first_the_rest_note
     facts = default.facts_of("world7", "Environment 7", SETTING, PLAN, within, {"port": "The Port"},
                              {"tess": "tess_dust"}, people)
     film = default.built("world7-film", facts)
-    assert [(segment["shows"].get("place"), segment.get("close")) for segment in film["segments"][-4:]] == [
+    peeled = [segment for segment in film["segments"] if segment["cut"] != "place-peel"][:-1]  # less its card
+    assert [(segment["shows"].get("place"), segment.get("close")) for segment in peeled[-4:]] == [
         (None, None), ("bar", None), ("tent", None), ("tent", "walker")]
 
 

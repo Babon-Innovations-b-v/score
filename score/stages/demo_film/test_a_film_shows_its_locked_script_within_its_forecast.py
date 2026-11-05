@@ -820,8 +820,11 @@ def test_a_close_up_follows_the_walker_on_the_most_uneven_ground():
 def test_a_locked_script_peels_every_place_whose_design_shows_people(tmp_path, monkeypatch):
     """A script must show a layer peel of every place whose design shows people (the designs' own layers), else the
     environment film is Blocked naming each, so the script cannot drift from the designs (owner, 2026-10-27); every
-    kept design is the row's input, so a design that gains people moves its key.
+    kept design is the row's input, so a design that gains people moves its key; and a place peel of every other
+    place with a design that it walks through (owner, 2026-11-05: "every scene needs the peel"; asked whether that
+    meant adding people or peeling the place itself: "2").
     Break: score/stages/demo_film/final.py: `if place not in peeled]` -> `if False]`
+    Break: score/stages/demo_film/final.py: `sorted(unpeopled - placed)` -> `[]`
     Break: score/stages/demo_film/final.py: `if design_layers.has_layer(place, "people")]` -> `]`"""
     from score.stages import design_layers
     monkeypatch.setattr(design_layers, "KEPT", tmp_path)
@@ -834,3 +837,11 @@ def test_a_locked_script_peels_every_place_whose_design_shows_people(tmp_path, m
     faults = final.plan_faults(dict(a_script([*WALKS, peel])), final.peopled())
     assert "the design of stairwell shows people and no layer peel shows them" in faults
     assert not any("design of lab" in fault for fault in faults)
+    walked = [{"cut": "walk-through", "shows": {"place": place}, "seconds": 7.0} for place in ("lab", "hangar")]
+    faults = final.plan_faults(dict(a_script([*walked, peel])), final.peopled(), final.designed())
+    assert "hangar is walked through and no place peel shows it" in faults and "segment 3: no row makes body-peel " \
+        "frames yet" in faults
+    placed = {"cut": "place-peel", "shows": {"place": "hangar"}, "seconds": 5.0}
+    faults = final.plan_faults(dict(a_script([*walked, peel, placed])), final.peopled(), final.designed())
+    assert not any("walked through" in fault for fault in faults) and "segment 4: no row makes place-peel frames " \
+        "yet" in faults

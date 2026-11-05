@@ -76,6 +76,16 @@ own sound; paid and cleared by the runner like any paid row.
   `close_walker`'s rule (the most relief in scene-clips' record). A shot never outlasts the sim body record. No row
   makes peel frames yet, so the environment film names the cut as one it cannot cut; making it a row (inside the
   assembled scene, on its own camera) is a change of its own.
+- **A place peel** (the script's `place-peel` cut, CONTEXT.md "place peel"; owner, 2026-11-05: "every scene needs the
+  peel", and asked whether that meant adding people or peeling the place itself: "2", the place itself) is the same
+  renderer's other job (`peel.place_job`, `--stage <finished stage output> [--physics <physics-layer output>]`; drawn by
+  `blender/body_peel.py`'s `draw_place`): a place on its scene record's first camera, standing, `finished` (its
+  neighbours or assembly output imported as it is), `bare` (the same models under one plain clay) and `physics` (every
+  prim the stage collides with, `colliders.collides`, shaped as its approximation makes it, from the physics-layer
+  output where the place has one, its moving bodies in the sim colour), joined by the same wipes. Its frames come only
+  from those rows' outputs; no row draws it yet, so the environment film names it as a cut it cannot cut. A locked
+  script that walks through a place with a kept design and no people (designed, peopled) and shows no place peel of it
+  is Blocked naming it (`plan_faults`), so every walked scene has one peel.
 - **Stills come from the films.** K5, K6 and K8 take frames of the places' films (a film starts at its
   segment's `start`, else the stage's start); the demo-stills row, which rendered a view no film showed, was retired
   on 2026-10-22 (it had no definitions and so no node).

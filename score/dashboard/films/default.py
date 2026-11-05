@@ -37,7 +37,10 @@ to mesh, to sim body"; no picking: every scene the film shows whose design has p
 peel of all its people at once and, where one walks, a close-up peel following the walker on the most uneven ground
 (the render's rule, `score/stages/demo_film/peel.close_walker`), the scenes on the body the clips' motion is true on
 first (Earth: the numbers of bodies), then the rest in the order the film shows them, each carrying the note that its
-motion was made for Earth.
+motion was made for Earth. Then every other scene the film walks through, peeled itself (owner, 2026-11-05: "every
+scene needs the peel"; asked whether that meant adding people or peeling the place itself: "2", the place itself): a
+place peel of each walked scene whose design has no people, the same view finished, as its bare models and as the
+bodies its physics uses, so every walked scene has one peel.
 """
 import math
 import re
@@ -303,18 +306,36 @@ def peel(place, name, body, close=False):
     return {**made, "close": "walker"} if close else made
 
 
-def sim_bodies(shown, people):
-    """The sim bodies part: a card, then a layer peel of every shown scene whose design has people (`people`), those
+def place_peel(place, name, body):
+    """One scene's place peel (owner, 2026-11-05: "every scene needs the peel"): the same view finished, then its
+    bare models, then the bodies its physics uses."""
+    return {**segment("place-peel", {"place": place}, PEEL_SECONDS,
+                      [caption(0.3, PEEL_SECONDS - 0.3, f"{titled(body)} · {name}",
+                               f"{name}: finished, bare models, physics bodies")]),
+            "sound": "place", "waiting": "the finished scene and a row drawing its peel: until then the preview "
+                                         "shows its name"}
+
+
+def sim_bodies(shown, people, walked=()):
+    """The peels part: a card, then a layer peel of every shown scene whose design has people (`people`), those
     on CLIPS_TRUE_ON first, the rest in the order shown, each with a close-up after it where one of its people
-    walks (`people`: {place: walks}); none when no scene has people."""
+    walks (`people`: {place: walks}); then a card and a place peel of every walked scene (`walked`) without people,
+    in the order shown; none of either part where it has no scene."""
     peeled = [entry for entry in shown if entry[0] in people]
     ordered = [entry for entry in peeled if entry[2] == CLIPS_TRUE_ON] + \
               [entry for entry in peeled if entry[2] != CLIPS_TRUE_ON]
-    if not ordered:
-        return []
+    bare = [entry for entry in shown if entry[0] in walked and entry[0] not in people]
     card = segment("text", {}, 4.0, [], text="Sim bodies", line="Every person of the design, a body on Newton")
-    return [card, *(shot for entry in ordered for shot in
-                    (peel(*entry), *([peel(*entry, close=True)] if people[entry[0]] else [])))]
+    places = segment("text", {}, 4.0, [], text="Physics bodies",
+                     line="Every other scene: finished, bare models, the bodies its physics uses")
+    return [*([card] if ordered else []), *(shot for entry in ordered for shot in
+                                            (peel(*entry), *([peel(*entry, close=True)] if people[entry[0]] else []))),
+            *([places] if bare else []), *(place_peel(*entry) for entry in bare)]
+
+
+def walked_places(facts):
+    """Every scene the film walks through (each top scene's walks)."""
+    return {place for stop in facts["stops"] for place, _ in stop["walks"]}
 
 
 def row_walks(row):
@@ -352,7 +373,7 @@ def built(film, facts):
                    "environment 1, filled in from this environment's scenes)",
             "segments": [title, setting_take(facts), animation, concept_take(facts), review_take(facts),
                          plan_take(facts), zoom(facts), *walks(facts["stops"][0], facts), *journey(facts),
-                         *sim_bodies(shown_places(facts), facts["people"])]}
+                         *sim_bodies(shown_places(facts), facts["people"], walked_places(facts))]}
     return {**made, "target_seconds": 5 * math.ceil(script.total_seconds(made) / 5)}
 
 

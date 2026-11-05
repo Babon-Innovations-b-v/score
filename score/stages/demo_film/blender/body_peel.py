@@ -7,9 +7,14 @@ its rest fitted to the clip rig's bind), `mesh` (its bare SOMA surface at the jo
 drawn), `sim` (the sim body layer's own geometry under the person's SimBody, imported with its time samples and shown
 at the record's frame, each touching body's push an arrow from its centre of pressure), over the job's ground. Every array comes from the job, already in
 the place and Z up; nothing is worked out here but the fit and the drawing.
+A place peel's job (`"kind": "place"`, peel.place_job) draws a place three ways on its one standing camera:
+`finished` (its stage imported as it is, its lights and finishes its own), `bare` (the same models, every finish
+replaced by one plain clay) and `physics` (the job's collision shapes, its moving bodies apart, the drawn models
+hidden, the stage's lights kept).
 Out: <out>/<pass>/<frame>.png.
 """
 import json
+import math
 import sys
 
 import bpy
@@ -20,6 +25,7 @@ FLOOR = (0.32, 0.33, 0.35)
 CLAY = (0.72, 0.70, 0.67)
 EDGES = (0.05, 0.05, 0.06)
 SIM = (0.95, 0.42, 0.12)  # the sim body geometry with no colours of its own
+STATIC = (0.36, 0.52, 0.70)  # a place's still colliders (its moving bodies are SIM)
 # The push arrows (owner, 2026-11-04: "visible but not obnoxious or ugly"): a slim shaft and a small head at a fixed
 # width on screen whatever the camera's distance, a little see-through and lit a little from within so they read in
 # shadow, in the job's colour (the film's --film-push token).
@@ -317,5 +323,72 @@ def draw(job):
             bpy.ops.render.render(write_still=True)
 
 
+def shapes(job, into):
+    """The place's collision shapes (the job's physics.npz: static and moving triangles, Z up), solid, their edges
+    drawn: [the objects]."""
+    arrays = dict(np.load(job["physics"]))
+    made = []
+    for kind, colour in (("static", STATIC), ("moving", SIM)):
+        triangles = arrays[kind]
+        if not len(triangles):
+            continue
+        mesh = bpy.data.meshes.new(f"physics_{kind}")
+        mesh.from_pydata(triangles.reshape(-1, 3).tolist(), [], np.arange(len(triangles) * 3).reshape(-1, 3).tolist())
+        mesh.materials.append(material(f"physics_{kind}", colour))
+        made.append(linked(bpy.data.objects.new(f"physics_{kind}", mesh), into))
+        edges = linked(bpy.data.objects.new(f"physics_{kind}_edges", mesh), into)
+        wire = edges.modifiers.new("edges", "WIREFRAME")
+        wire.thickness, wire.use_replace, wire.material_offset = 0.004, True, 1
+        mesh.materials.append(material("edges", EDGES))
+        made.append(edges)
+    return made
+
+
+def place_stage(job, into):
+    """The place's finished stage imported as it is (no guides: its hulls are the physics pass's), its lights and
+    world its own: [its drawn objects]."""
+    before = set(bpy.data.objects)
+    result = bpy.ops.wm.usd_import(filepath=job["stage"], import_guide=False, import_proxy=False, import_lights=True,
+                                   create_world_material=True, set_frame_range=False)
+    if "FINISHED" not in result:
+        raise RuntimeError(f"Blender did not import {job['stage']}: {result}")
+    made = [obj for obj in bpy.data.objects if obj not in before]
+    for obj in made:
+        linked(obj, into)
+    return [obj for obj in made if obj.type != "LIGHT"]
+
+
+def draw_place(job):
+    """A place peel's three passes on its standing camera, at each film frame's stage time code."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    renderer(job)
+    scene = bpy.context.scene
+    drawn = place_stage(job, collection("finished"))
+    bodies = shapes(job, collection("physics"))
+    if scene.world is None:
+        scene.world = bpy.data.worlds.new("world")
+    camera = bpy.data.objects.new("camera", bpy.data.cameras.new("camera"))
+    camera.data.sensor_fit = "HORIZONTAL"
+    camera.data.angle = math.radians(job["camera"]["fov"])
+    scene.collection.objects.link(camera)
+    scene.camera = camera
+    clay = material("clay", CLAY)
+    for frame, source in enumerate(job["source"]):
+        aimed(camera, job["camera"]["path"][frame])
+        scene.frame_set(source)
+        for name in job["passes"]:
+            for obj in drawn:
+                obj.hide_render = name == "physics"
+            for obj in bodies:
+                obj.hide_render = name != "physics"
+            bpy.context.view_layer.material_override = clay if name == "bare" else None
+            scene.render.filepath = f"{job['out']}/{name}/{frame:04d}.png"
+            bpy.ops.render.render(write_still=True)
+
+
 if __name__ == "__main__":
-    draw(json.loads(open(sys.argv[sys.argv.index("--") + 1]).read()))
+    given = json.loads(open(sys.argv[sys.argv.index("--") + 1]).read())
+    if given.get("kind") == "place":
+        draw_place(given)
+    else:
+        draw(given)

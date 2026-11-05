@@ -7,9 +7,19 @@ arrow), the
 three joined by a wipe rising up the picture at each third of the shot; or, closer, the camera following one walker
 (`close_walker`).
 
+A place peel (the script's `place-peel` cut; owner, 2026-11-05: "every scene needs the peel", and asked whether that
+meant adding people or peeling the place itself: "2", the place itself) is the same renderer's other job (`place_job`):
+a place without people on its scene record's first camera, standing, three ways: `finished` (its finished stage as
+its rows made it: the neighbours output, else the assembly, every finish its own library surface), `bare` (the same
+models with no finish, one plain clay) and `physics` (the bodies its physics uses, `physics_bodies`: every prim the
+stage collides with, `colliders.collides`, as its approximation makes it, from the physics-layer output where the place
+has one, its moving bodies apart), joined by the same wipes.
+
     python -m score.stages.demo_film.peel <job folder> --cast <cast.json> --sim <sim-body output> --rig <rig.npz>
         --dressed <body.glb> [--seconds 5] [--size 1280 720] [--samples 64] [--close [--clips <scene_clips.json>]]
         [--ground <triangles.npy>] [--build <people-body rig.npz>]
+    python -m score.stages.demo_film.peel <job folder> --stage <finished stage folder>
+        [--physics <physics-layer output>] [--seconds 5] [--size 1280 720] [--samples 64]
 
 Free and local: the frames are drawn by `blender/body_peel.py` in this machine's Blender (tools/blender/session.py's
 set-up, `-b` on its card), never a paid row; no row makes a peel's frames yet (the environment film names the cut as
@@ -30,19 +40,26 @@ import json
 import os
 import pathlib
 import subprocess
+import sys
 
 import numpy as np
+import trimesh
 from PIL import Image, ImageDraw
+from pxr import Usd, UsdGeom, UsdPhysics
 
-from score.stages import sim_body
+from score.stages import demo_film, sim_body
 from score.stages.demo_film import lettering
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO / "tools/usd"))
+import colliders  # noqa: E402
 BLENDER_SCRIPT = REPO / "score/stages/demo_film/blender/body_peel.py"
 # The Blender tools/blender/session.py sets up on this machine (its newest version).
 BLENDER = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props")) / \
     "blender-mcp/blender-5.2.2/blender"
 PASSES = ("dressed", "mesh", "sim")
+PLACE_PASSES = ("finished", "bare", "physics")
+NOT_SOLID = ("Sky",)  # the physics layer's own: the sky is drawn, never collided with (tools/usd/physics.py)
 RATE = 24
 METRES_PER_NEWTON = 1.0 / 1000.0  # an arrow 1 m long is the push of 1,000 N
 PUSHED = 1.0  # newtons: a body the ground pushes less than this carries nothing worth an arrow
@@ -273,12 +290,97 @@ def wiped(pictures, frame, count):
     return picture
 
 
-def joined(folder, count):
+def triangles_of(mesh, time):
+    """A mesh prim's triangles in the stage's frame (n x 3 x 3, Y up), its faces fanned."""
+    points = np.asarray(mesh.GetPointsAttr().Get(time), dtype=float)
+    counts = np.asarray(mesh.GetFaceVertexCountsAttr().Get(time), dtype=int)
+    indices = np.asarray(mesh.GetFaceVertexIndicesAttr().Get(time), dtype=int)
+    matrix = np.asarray(mesh.ComputeLocalToWorldTransform(time), dtype=float)
+    placed = points @ matrix[:3, :3] + matrix[3, :3]  # USD's row vectors
+    found, start = [], 0
+    for count in counts:
+        found += [[indices[start], indices[start + corner], indices[start + corner + 1]]
+                  for corner in range(1, count - 1)]
+        start += count
+    return placed[np.asarray(found, dtype=int).reshape(-1, 3)]
+
+
+def collider_shape(prim, triangles):
+    """The shape a collider collides by (UsdPhysics' approximation): a convex hull round it, its box, or its own
+    triangles (none or a mesh simplification: the triangles the simplification starts from)."""
+    approximation = UsdPhysics.MeshCollisionAPI(prim).GetApproximationAttr().Get() \
+        if prim.HasAPI(UsdPhysics.MeshCollisionAPI) else None
+    if approximation == UsdPhysics.Tokens.convexHull:
+        hull = trimesh.convex.convex_hull(triangles.reshape(-1, 3))
+        return np.asarray(hull.vertices)[np.asarray(hull.faces)]
+    if approximation == UsdPhysics.Tokens.boundingCube:
+        box = trimesh.creation.box(bounds=[triangles.reshape(-1, 3).min(axis=0), triangles.reshape(-1, 3).max(axis=0)])
+        return np.asarray(box.vertices)[np.asarray(box.faces)]
+    return triangles
+
+
+def moving(prim):
+    """Whether the collider moves in the physics: it or an object above it is a rigid body."""
+    while prim and prim.IsValid():
+        if prim.HasAPI(UsdPhysics.RigidBodyAPI):
+            return True
+        prim = prim.GetParent()
+    return False
+
+
+def physics_bodies(stage_path):
+    """The bodies a place's physics uses, from its stage (Z up): every mesh prim the stage collides with
+    (colliders.collides), but the sky's, as its approximation makes it; ({"static", "moving"}: n x 3 x 3 triangles
+    each, the names of the colliders no mesh draws)."""
+    stage = Usd.Stage.Open(str(stage_path))
+    time = Usd.TimeCode(stage.GetStartTimeCode()) if stage.HasAuthoredTimeCodeRange() else Usd.TimeCode.Default()
+    found, unshaped = {"static": [], "moving": []}, []
+    for prim in stage.Traverse():
+        if not colliders.collides(prim) or any(part in NOT_SOLID for part in prim.GetPath().pathString.split("/")):
+            continue
+        if not prim.IsA(UsdGeom.Mesh):
+            unshaped.append(prim.GetPath().pathString)  # a primitive's own shape (the ground's far ball)
+            continue
+        triangles = triangles_of(UsdGeom.Mesh(prim), time)
+        if len(triangles):
+            found["moving" if moving(prim) else "static"].append(collider_shape(prim, triangles))
+    return ({kind: points_to_z(np.concatenate(shapes)) if shapes else np.zeros((0, 3, 3))
+             for kind, shapes in found.items()}, unshaped)
+
+
+def stage_root(folder):
+    """A stage output's root stage file (its one top .usda, named for its place)."""
+    return pathlib.Path(folder) / f"{demo_film.place_of(folder)}.usda"
+
+
+def place_job(folder, stage, physics, seconds, size, samples):
+    """Write a place peel's Blender job into `folder` and return its path: the finished stage (`stage`, a stage
+    output folder) on its scene record's first camera, standing, its bodies from `physics` (the place's physics-layer
+    output, else the finished stage itself), `seconds` long at RATE, each film frame the stage's time code at its
+    own rate."""
+    record = json.loads((pathlib.Path(stage) / "scene.json").read_text())
+    view = demo_film.film_view(record, demo_film.first_camera(record), {})
+    bodies, unshaped = physics_bodies(stage_root(physics or stage))
+    np.savez(folder / "physics.npz", **bodies)
+    opened = Usd.Stage.Open(str(stage_root(stage)))
+    start, rate = opened.GetStartTimeCode(), opened.GetTimeCodesPerSecond()
+    count = round(seconds * RATE)
+    spot = {"eye": points_to_z(np.asarray(view["eye"], dtype=float)).tolist(),
+            "aim": points_to_z(np.asarray(view["aim"], dtype=float)).tolist()}
+    job = {"kind": "place", "out": str(folder), "size": list(size), "samples": samples, "record_rate": RATE,
+           "stage": str(stage_root(stage)), "physics": str(folder / "physics.npz"), "unshaped": unshaped,
+           "source": [round(start + frame * rate / RATE) for frame in range(count)], "passes": list(PLACE_PASSES),
+           "camera": {"fov": float(view.get("fov", 75.0)), "path": [spot] * count}}
+    (folder / "job.json").write_text(json.dumps(job, indent=1))
+    return folder / "job.json"
+
+
+def joined(folder, count, passes=PASSES):
     """The shot's frames, the passes joined by their wipes, into folder/peel/<frame>.png."""
     out = folder / "peel"
     out.mkdir(exist_ok=True)
     for frame in range(count):
-        pictures = [Image.open(folder / name / f"{frame:04d}.png").convert("RGB") for name in PASSES]
+        pictures = [Image.open(folder / name / f"{frame:04d}.png").convert("RGB") for name in passes]
         wiped(pictures, frame, count).save(out / f"{frame:04d}.png")
     return out
 
@@ -292,10 +394,12 @@ def drawn(job):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("folder", type=pathlib.Path)
-    parser.add_argument("--cast", type=pathlib.Path, required=True)
-    parser.add_argument("--sim", type=pathlib.Path, required=True)
-    parser.add_argument("--rig", type=pathlib.Path, required=True)
-    parser.add_argument("--dressed", type=pathlib.Path, required=True)
+    parser.add_argument("--cast", type=pathlib.Path)
+    parser.add_argument("--sim", type=pathlib.Path)
+    parser.add_argument("--rig", type=pathlib.Path)
+    parser.add_argument("--dressed", type=pathlib.Path)
+    parser.add_argument("--stage", type=pathlib.Path, help="a place peel: the place's finished stage output folder")
+    parser.add_argument("--physics", type=pathlib.Path, help="a place peel: the place's physics-layer output folder")
     parser.add_argument("--seconds", type=float, default=5.0)
     parser.add_argument("--size", type=int, nargs=2, default=(1280, 720))
     parser.add_argument("--samples", type=int, default=64)
@@ -305,6 +409,14 @@ def main():
     parser.add_argument("--build", type=pathlib.Path, help="the person's built body rig (people-body's rig.npz)")
     arguments = parser.parse_args()
     arguments.folder.mkdir(parents=True, exist_ok=True)
+    count = round(arguments.seconds * RATE)
+    if arguments.stage:
+        drawn(place_job(arguments.folder, arguments.stage, arguments.physics, arguments.seconds, arguments.size,
+                        arguments.samples))
+        print(f"place peel: {count} frames in {joined(arguments.folder, count, PLACE_PASSES)}")
+        return
+    if not all((arguments.cast, arguments.sim, arguments.rig, arguments.dressed)):
+        parser.error("a layer peel needs --cast, --sim, --rig and --dressed; a place peel --stage")
     cast = json.loads(arguments.cast.read_text())
     close = close_walker(cast, json.loads(arguments.clips.read_text()) if arguments.clips else None) \
         if arguments.close else None
