@@ -11,8 +11,8 @@ click makes on the store's machine (applying.apply, so every check of his click 
                         spend's euros and purpose, and a Google month's euros
     apply(yes id, store)
                         his decision under that yes, once: refused when there is no quoted yes, it was used already
-                        (grants/decide-used/<id>.json, written before it is applied, so a refused one needs a new
-                        yes), it is a go (carried by its run, never applied here), or its target changed since the
+                        (grants/decide-used/<id>.json, written before it is applied; a refused or failed apply hands
+                        it back, grants/decide-returned/<id>/<n>.json, so the same yes applies after a fix), it is a go (carried by its run, never applied here), or its target changed since the
                         question (another output accepted, another concept locked, the film's script edited, the
                         month's books written since); then the cockpit's own request kind (request_of) by his name
 
@@ -223,5 +223,19 @@ def apply(yes_id, store=None):
             timespec="seconds"), "request": {"kind": request["kind"], "user": request["user"]}})
     except FileExistsError:
         raise Refused(f"the yes {yes_id} was used already: one yes, one decision; ask him again") from None
-    with web.as_owner_deciding(store, yes_id):
-        return applying.apply(request, source)
+    try:
+        with web.as_owner_deciding(store, yes_id):
+            applied = applying.apply(request, source)
+    except Exception as error:
+        handed_back(store, yes_id, f"{type(error).__name__}: {error}")
+        raise
+    if applied.state == "refused":
+        handed_back(store, yes_id, applied.detail)
+    return applied
+
+
+def handed_back(store, yes_id, why):
+    """Hand the yes back after its apply was refused or failed, nothing decided, so it may be applied after a fix."""
+    from score.review import web
+    web.decision_yes_returned(store, yes_id, {"at": datetime.datetime.now(datetime.timezone.utc).isoformat(
+        timespec="seconds"), "why": str(why)[:2000]})

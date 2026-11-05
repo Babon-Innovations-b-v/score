@@ -27,7 +27,7 @@ Reads the Claude Code PreToolUse payload on stdin and blocks an agent from:
    or writes a script outside the framework, holding a call to ``concept_pick(``, ``film_locked(``,
    ``spend_override(``, ``google_month(`` (``owners_`` and ``write_`` too), ``set_books_figure(``, ``concepts.pick(``,
    ``script.lock(``, ``chat_decisions.apply(``, ``applying.apply(``, ``as_owner_deciding(``, ``as_owner_under(``,
-   ``markers_lifted(``, ``decision_yes_spent(`` or ``buy_yes_spent(`` (a code file outside the framework and
+   ``markers_lifted(``, ``decision_yes_spent(``, ``decision_yes_returned(`` or ``buy_yes_spent(`` (a code file outside the framework and
    ``score/dashboard/`` too); a
    hand write into the store's concept ``picks/`` or the cockpit's ``films/locked/`` (rule 4); and the apply command
    (``python -m score.dashboard decide``, ``this_pc.py decide``, the agents' door's ``decide``) without the id of his
@@ -73,7 +73,7 @@ _OWNER_CALL = re.compile(r"\b(accept|reject|spend|waive|write_once|write_accept|
 # only as `decide <yes id>`, never by calling what that command calls.
 _LOCK_CALL = re.compile(r"\b(concept_pick|film_locked|spend_override|(owners_|write_)?google_month|set_books_figure|"
                         r"as_owner_deciding|as_owner_under|markers_lifted|"
-                        r"decision_yes_spent|buy_yes_spent)\s*\(|\b(concepts\.pick|script\.lock|chat_decisions\.apply|"
+                        r"decision_yes_spent|decision_yes_returned|buy_yes_spent)\s*\(|\b(concepts\.pick|script\.lock|chat_decisions\.apply|"
                         r"applying\.apply)\s*\(")
 _DASHBOARD = re.compile(r"(^|/)score/dashboard/")
 # The apply command of a decision he made in chat, by the cockpit's command, this PC's or the agents' door; its id.

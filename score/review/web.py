@@ -64,6 +64,10 @@ from score.store import AGENT_MARKERS, RUNNER
 
 BUY_YESES, BUY_USED = "grants/buy", "grants/buy-used"
 DECISION_YESES, DECISION_USED = "grants/decide", "grants/decide-used"
+# A refused apply hands its yes back (2026-11-05: a film lock the cockpit refused, its script's captions out of date,
+# left the owner's yes used, so the same yes could not be applied after the fix): one record an attempt, so the yes is
+# used while its attempts outnumber what was handed back.
+DECISION_RETURNED = "grants/decide-returned"
 # A run the owner started himself, by his go recorded in a session (owner, 2026-10-27, his "sure"): it names the go's
 # id, and the runner treats it as a bought batch for the in-batch accept (review.IN_BATCH).
 OWNERS_GO = "SCORE_OWNERS_GO"
@@ -187,14 +191,37 @@ def decision_yes(store, yes_id):
     return store.read(f"{DECISION_YESES}/{yes_id}.json")
 
 
+def decision_attempts(store, yes_id):
+    """(the attempts made under the yes `yes_id`, those handed back after a refused apply)."""
+    first = int(store.objects.exists(f"{DECISION_USED}/{yes_id}.json"))
+    later = len(list(store.objects.keys(f"{DECISION_USED}/{yes_id}/")))
+    return first + later, len(list(store.objects.keys(f"{DECISION_RETURNED}/{yes_id}/")))
+
+
 def decision_yes_used(store, yes_id):
-    """Whether the yes `yes_id` was applied already (or spent on a decision that was refused)."""
-    return store.objects.exists(f"{DECISION_USED}/{yes_id}.json")
+    """Whether the yes `yes_id` is used: applied, or being applied now (an attempt not handed back)."""
+    made, handed_back = decision_attempts(store, yes_id)
+    return made > handed_back
 
 
 def decision_yes_spent(store, yes_id, record):
-    """Mark the decision yes `yes_id` used, once; FileExistsError when it was already."""
-    store.write_once(f"{DECISION_USED}/{yes_id}.json", record)
+    """Mark the decision yes `yes_id` used for one attempt, once each (the first at DECISION_USED/<id>.json, a later
+    one after a refused apply handed it back at DECISION_USED/<id>/<n>.json); FileExistsError when it is used now."""
+    made, handed_back = decision_attempts(store, yes_id)
+    if made > handed_back:
+        raise FileExistsError(f"{DECISION_USED}/{yes_id}")
+    store.write_once(f"{DECISION_USED}/{yes_id}.json" if made == 0 else f"{DECISION_USED}/{yes_id}/{made + 1}.json",
+                     record)
+
+
+def decision_yes_returned(store, yes_id, record):
+    """Hand the yes `yes_id` back after its apply was refused, nothing decided: the attempt it is used for now gets a
+    record of why (DECISION_RETURNED/<id>/<n>.json), so the same yes may be applied again; FileExistsError when it is
+    not used now."""
+    made, handed_back = decision_attempts(store, yes_id)
+    if made <= handed_back:
+        raise FileExistsError(f"{DECISION_RETURNED}/{yes_id}: not used now")
+    store.write_once(f"{DECISION_RETURNED}/{yes_id}/{made}.json", record)
 
 
 @contextlib.contextmanager

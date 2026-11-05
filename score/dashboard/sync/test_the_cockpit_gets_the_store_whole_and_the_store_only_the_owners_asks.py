@@ -1322,8 +1322,20 @@ def test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_qu
                                                             film["id"]).value)
     assert script.locked(settings.SCORE_HOME, "chat-film") is None
     film = chat_decisions.record("lock-film", "chat-film", "Yes, lock it", "Lock chat-film as shown?")
+    # an apply the cockpit refuses hands the yes back, so the same yes applies after the fix; applied, it is used
+    # (2026-11-05: a film lock refused for its captions left the owner's yes used). Break: in chat_decisions.apply,
+    # drop `handed_back(store, yes_id, applied.detail)`
+    real = applying.apply
+    applying.apply = lambda request, source: applying.Applied("refused", "its captions name another design")
+    try:
+        assert chat_decisions.apply(film["id"]).state == "refused"
+    finally:
+        applying.apply = real
+    assert not web.decision_yes_used(world.store, film["id"]) and script.locked(settings.SCORE_HOME, "chat-film") is None
     assert chat_decisions.apply(film["id"]).state == "done"
     assert script.locked(settings.SCORE_HOME, "chat-film")["title"] == "Chat, edited"
+    assert web.decision_yes_used(world.store, film["id"])
+    assert "used already" in str(pytest.raises(chat_decisions.Refused, chat_decisions.apply, film["id"]).value)
     go = chat_decisions.record("go", "world1", "sure", "Let the run accept passing results on its own?")
     assert web.owners_go(world.store, go["id"], "world1") == go and web.owners_go(world.store, go["id"], "w2") is None
     assert web.owners_go(world.store, yes["id"], "world1") is None  # only a go
