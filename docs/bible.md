@@ -550,7 +550,7 @@ the Google month's month, this one only, its euros and the month's books as they
 <YYYY-MM> --euros E`, applied as his "Enter it in the books"), and `decide <yes id>` applies it once (`grants/decide-used/<id>.json`, written
 first) as the request his click makes, through `sync/applying.apply` with his name and the agent markers lifted in that
 process only (`score.review.web.as_owner_deciding`), so every check of his click runs; it is refused when its target
-changed since the question, like a changed basket refuses a Buy (`score/dashboard/sync/chat_decisions.py`). Both are
+changed since the question (`score/dashboard/sync/chat_decisions.py`). Both are
 verbs of the agents' door, and of `tools/cloud/this_pc.py` against a run's own home on his PC (its records reach the
 conductor with that run's push). The accept guard still blocks an agent's own accept, reject, waive, lock or spend, and the
 apply command without a recorded yes's id. His go for a run (`decide-yes go <environment>`) is carried by the run

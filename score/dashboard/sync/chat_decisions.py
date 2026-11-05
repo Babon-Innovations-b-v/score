@@ -14,8 +14,7 @@ click makes on the store's machine (applying.apply, so every check of his click 
                         (grants/decide-used/<id>.json, written before it is applied, so a refused one needs a new
                         yes), it is a go (carried by its run, never applied here), or its target changed since the
                         question (another output accepted, another concept locked, the film's script edited, the
-                        month's books written since), like a
-                        changed basket refuses a Buy; then the cockpit's own request kind (request_of) by his name
+                        month's books written since); then the cockpit's own request kind (request_of) by his name
 
 Decisions and what each names: an accept or a reject names a node and one output, with the node's accepted output
 then; a waiver a node, one output and its check; lock-concept a place and one draw's sha, with its lock then;

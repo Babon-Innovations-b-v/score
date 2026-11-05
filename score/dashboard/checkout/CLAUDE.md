@@ -33,9 +33,11 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
   answer and question, this try's high and the batch total he approved (`--batch-total`, owner 2026-10-26: "the
   stop should be a total of the batch, not per try"; asked with the door's `batch-money` figures, `chat_yes.figures`)
   and the Buy screen's basket (grants/buy/<id>.json, written by score.review.web); `buy <id>` runs `flow.start` as
-  his click, once (grants/buy-used/<id>.json written before it), refused on another basket, a high above his, a yes
+  his click, once (grants/buy-used/<id>.json written before it), refused on a yes
   naming a try's stop (`flow.yes_refusals`, again in `write_line`), nothing left of his total (`flow.batch_budget`),
-  code off the pin, the latch or a live run. A try whose stop needs more than is left still launches, the line at
+  code off the pin, the latch or a live run; a changed basket (fewer, more or other items, other versions) or a
+  higher high is never a refusal (owner, 2026-11-05: "A BUY IS TILL THE END OF THE BUDGET OR UNTIL THE END GOAL
+  ENV1 DONE IS COMPELTED"): only a higher batch total needs a new yes. A try whose stop needs more than is left still launches, the line at
   his total, and stops there (owner, 2026-10-27: "not just stop when u got to the limit, like ur supposed to"); the
   checkout's words, the door's `batch-money` (`may_stop`) and the Buy page say it may stop before every step is made. The checkout's `by` and `chat_yes` name the yes; the monitor and Buy page show it.
   `buy <id>` again under a yes that launched a checkout is a retry of its batch (`chat-<id>-retry-N`), no new ask,

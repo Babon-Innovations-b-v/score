@@ -176,18 +176,16 @@ def snapshot(items):
 
 def yes_refusals(yes, totals):
     """Why his Buy approved in a session (`yes`, checkout/chat_yes.py) does not cover a basket at `totals`, in words:
-    its high above the high he approved, or a yes recorded as one try's stop before batch totals; none without a yes.
-    A try whose stop is above the batch total is no refusal: the line is the total and the guard stops the try there
-    (owner, 2026-10-27: "not just stop when u got to the limit, like ur supposed to"); whether the batch has room
-    left is batch_budget's, where the spend is read."""
+    a yes recorded as one try's stop before batch totals; none without a yes. A try whose high or stop is above what
+    he was asked is no refusal, nor is a changed basket: a Buy holds till the batch total or the goal (owner,
+    2026-11-05: "A BUY IS TILL THE END OF THE BUDGET OR UNTIL THE END GOAL ENV1 DONE IS COMPELTED"); the line is the
+    total and the guard stops the try there (owner, 2026-10-27: "not just stop when u got to the limit, like ur
+    supposed to"); whether the batch has room left is batch_budget's, where the spend is read."""
     if not yes or yes.get("retry"):  # a retry under a used yes is held to the batch's budget (batch_budget)
         return []
     if yes.get("batch_total_euros") is None:
         return [f"the yes {yes.get('id')} names a try's stop, not the batch total (owner, 2026-10-26: \"the stop "
                 "should be a total of the batch, not per try\"): ask him again with batch-money's figures"]
-    if round(totals["high_euros"], 2) > round(yes["high_euros"], 2):
-        return [f"its high is EUR {totals['high_euros']:.2f}, above the EUR {yes['high_euros']:.2f} he approved in "
-                "chat: a higher price needs a new yes"]
     return []
 
 
