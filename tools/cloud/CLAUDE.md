@@ -18,8 +18,10 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `scene.py` (its steps as one job) with the sam image, `judge.py` with the judge image, `pictures.py` (klein and
   Qwen-Image-Edit) with the pictures image, `moss_sound.py` with the moss image, and `batch.py` (Pixal3D) with the
   pixal image, its takes grouped as many to a job as a 24 GB card runs at once and finished here as today.
-  `characters.py` stays on machines: its person chain runs every step's environment on one machine, while an
-  image holds one (characters-motion), so it needs the chain cut by image first. The machine
+  `characters.py` sends only its clip makes (people-clips-made, scene-clips: the steps `characters.CLUSTER_STEPS`)
+  to the cluster, one job a make in the characters-motion image, which holds the motion environment alone; a look's
+  shell, build and route need the person chain's other environments, so a make with one of those steps is refused
+  there and runs on machines. The machine
   runners stay the default; switch none of them over by default.
 - **Provider-neutral.** Runners rent through `provider.py` by capability class (`gpu-24gb`,
   `gpu-80gb-x2`, `cpu-32c-128gb`) and never name a provider, machine type, zone or price; those live in
