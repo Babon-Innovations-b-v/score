@@ -20,6 +20,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - contact.pushes' `closeness(over[point]) * edge` made `edge`: a forefoot crossing GAP takes its whole share at once;
   steadied, a foot's push still jumps 2.5% of the weight and its centre 6.4 mm a frame (6.2% and 15.8 mm unsteadied).
 
+- records.paths_of's `at[kept]` made `at`, contact.lowests' `heights[points]` made `heights`, local_turns'
+  `above.transpose(0, 2, 1)` made `above`: each a one-pass piece no longer equal to the item-by-item one (2026-11-05).
+
 Run: .venv/bin/python score/stages/sim_body/inside/records/test_a_record_keeps_poses_meshes_and_moves_as_worked_by_hand.py
 """
 import os
@@ -48,7 +51,7 @@ def a_pose_and_a_turn_read_as_worked_by_hand():
     from scipy.spatial.transform import Rotation
     parent = placed(Rotation.from_euler("z", 90, degrees=True).as_matrix(), [1.0, 2.0, 3.0])
     child = parent @ placed(Rotation.from_euler("x", 30, degrees=True).as_matrix(), [0.0, 0.0, 0.0])
-    pose = records.segment_pose(parent)
+    pose = records.segment_poses([parent])[0]
     half = np.sqrt(0.5)
     problems = [] if np.allclose(pose, [1.0, 2.0, 3.0, 0.0, 0.0, half, half]) else [f"pose {pose}"]
     turns = records.local_turns([parent, child], [-1, 0])
@@ -91,6 +94,85 @@ def the_arrays_are_named_for_the_person():
     wanted = {"walker/bones": (2, 1, 7), "walker/segments": (2, 1, 7), "walker/paths": (4, 3),
               "walker/counts": (2, 1), "walker/mesh/femur_l/points": (3, 3), "walker/mesh/femur_l/faces": (1, 3)}
     return [] if shapes == wanted else [f"arrays {shapes}"]
+
+
+PULLEYED = """<mujoco model="pulleyed">
+  <worldbody>
+    <body name="fixed"><geom size="0.05"/><site name="one"/><site name="two" pos="0 0 0.1"/></body>
+    <body name="free" pos="0.1 0.2 0.3"><freejoint/><geom size="0.05"/><site name="three"/>
+      <site name="four" pos="0.1 0 0"/></body>
+  </worldbody>
+  <tendon>
+    <spatial name="plain"><site site="one"/><site site="three"/></spatial>
+    <spatial name="pulleyed"><site site="one"/><site site="three"/><pulley divisor="2"/><site site="two"/>
+      <site site="four"/></spatial>
+  </tendon>
+</mujoco>
+"""
+
+
+def the_one_pass_pieces_equal_the_item_by_item_ones():
+    """The record's one-pass pieces give bit for bit what one item at a time gave before them (#70, 2026-11-05): the
+    muscles' paths gathered at once (a pulley's break left out, the tendons in the order asked) against each tendon's
+    own slice, the poses and turns in one rotation call against one call each, and the skin's lowest points placed
+    once against the skin placed again for each foot."""
+    import mujoco
+    import numpy as np
+    import contact
+    import records
+    import model as built_model
+    from ground import body_reach, heights_over
+    from scipy.spatial.transform import Rotation
+    problems = []
+    pulleyed = mujoco.MjModel.from_xml_string(PULLEYED)
+    data = mujoco.MjData(pulleyed)
+    data.qpos[3:7] = Rotation.from_euler("xyz", [20, 30, 40], degrees=True).as_quat(scalar_first=True)
+    mujoco.mj_forward(pulleyed, data)
+    eaches = []
+    for tendon in (1, 0):
+        span = slice(data.ten_wrapadr[tendon], data.ten_wrapadr[tendon] + data.ten_wrapnum[tendon])
+        eaches.append(data.wrap_xpos.reshape(-1, 3)[span][data.wrap_obj.reshape(-1)[span] != -2])
+    points, counts = records.paths_of(data, [1, 0])
+    if not (np.array_equal(points, np.concatenate(eaches)) and counts.tolist() == [len(each) for each in eaches]
+            and counts.tolist() == [4, 2]):
+        problems.append(f"paths {counts.tolist()}, not {[len(each) for each in eaches]}")
+    worlds = np.tile(np.eye(4), (5, 1, 1))
+    worlds[:, :3, :3] = Rotation.random(5, random_state=7).as_matrix()
+    worlds[:, :3, 3] = np.arange(15.0).reshape(5, 3)
+    parents = [-1, 0, 1, 1, 3]
+    each = [[*world[:3, 3], *Rotation.from_matrix(world[:3, :3]).as_quat()] for world in worlds]
+    if not np.array_equal(records.segment_poses(worlds), np.array(each)):
+        problems.append("poses differ from one call each")
+    each = [Rotation.from_matrix(worlds[parent][:3, :3].T @ worlds[index][:3, :3]).as_rotvec(degrees=True)
+            for index, parent in enumerate(parents) if parent >= 0]
+    if not np.array_equal(records.local_turns(worlds, parents), np.array(each)):
+        problems.append("turns differ from one call each")
+    with tempfile.TemporaryDirectory() as folder:
+        path = pathlib.Path(folder) / "stander.xml"
+        path.write_text(STANDER)
+        stander = built_model.built(path, 9.81)
+    data = mujoco.MjData(stander)
+    mujoco.mj_kinematics(stander, data)
+    bodies = [built_model.body_index(stander, body) for body in FEET.values()]
+    rng = np.random.default_rng(8)
+    skin_points = rng.uniform([-0.2, -0.01, -0.2], [0.2, 0.3, 0.2], (200, 3))
+    weights = rng.dirichlet(np.ones(len(bodies)), 200)
+    skin = contact.Skin(skin_points, weights, [built_model.own_pose(stander, data, body) for body in bodies], bodies,
+                        [np.eye(4)] * len(bodies))
+    ground = np.array([[[-0.1, 0.0, -0.5], [0.5, 0.01, 0.5], [0.5, 0.0, -0.5]],
+                       [[-0.1, 0.0, -0.5], [-0.1, 0.02, 0.5], [0.5, 0.01, 0.5]]])  # off the skin's left part
+    parts = {"some": np.arange(0, 200, 3), "none": np.zeros(0, int), "off": np.flatnonzero(skin_points[:, 0] < -0.15)}
+    placed = skin.placed(stander, data)
+
+    def lowest(heights):
+        return None if np.isnan(heights).all() else float(np.nanmin(heights))
+    wanted = (lowest(heights_over(placed, ground, body_reach(placed))),
+              {part: lowest(heights_over(placed[mine], ground, body_reach(placed))) if len(mine) else None
+               for part, mine in parts.items()})
+    found = contact.lowests(stander, data, skin, ground, parts)
+    if found != wanted or wanted[1]["off"] is not None or wanted[1]["some"] is None:
+        problems.append(f"lowests {found}, not {wanted}")
+    return problems
 
 
 STANDER = """<mujoco model="stander">
@@ -175,7 +257,7 @@ def a_quiet_stance_pushes_its_weight_steadily_under_each_foot():
 
 CHECKS = (a_pose_and_a_turn_read_as_worked_by_hand, near_vertices_merge_and_flat_faces_go,
           the_adjusted_record_reads_in_its_units, the_arrays_are_named_for_the_person,
-          a_quiet_stance_pushes_its_weight_steadily_under_each_foot)
+          a_quiet_stance_pushes_its_weight_steadily_under_each_foot, the_one_pass_pieces_equal_the_item_by_item_ones)
 
 
 def in_newton():

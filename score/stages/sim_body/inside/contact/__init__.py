@@ -1,6 +1,6 @@
 """The body on the scene's ground: the colliders' surface points (`surface`), the person's drawn skin riding the
 body's bones (`Skin`: SOMA's mesh, linear blend over the segments each bone carries), its lowest point's height over
-the ground (`lowest_over`) and the skin points the ground pushes with their push directions and where (`pushes`: within GAP of
+the ground, the whole skin's and each part's (`lowests`) and the skin points the ground pushes with their push directions and where (`pushes`: within GAP of
 the drawn triangle under them or into it, a friction pyramid under SLIDE_MOST, else sliding). Nothing here moves the
 body: it stands where the fit to SOMA puts it (#70)."""
 import mujoco
@@ -70,12 +70,19 @@ def surface(model, data, geoms):
     return np.concatenate(found)
 
 
-def lowest_over(model, data, skin, ground, points=None):
-    """The lowest of the skin's points (`points`, else all) over the ground within the body's reach (metres); None
-    when none is over any of it."""
-    placed = skin.placed(model, data)
-    heights = heights_over(placed if points is None else placed[points], ground, body_reach(placed))
+def _lowest(heights):
+    """The least of some heights (metres); None when none is over any ground (all nan, or none at all)."""
     return None if np.isnan(heights).all() else float(np.nanmin(heights))
+
+
+def lowests(model, data, skin, ground, parts):
+    """The lowest of the skin's points over the ground within the body's reach (metres), and of each part's points
+    ({part: its points' indices}); None where none is over any of it. The skin is placed and its heights found once
+    for all of them (#70: a point's height is its own, so a part's are the whole skin's at its points)."""
+    placed = skin.placed(model, data)
+    heights = heights_over(placed, ground, body_reach(placed))
+    return _lowest(heights), {part: _lowest(heights[points]) if len(points) else None
+                              for part, points in parts.items()}
 
 
 def closeness(over):
