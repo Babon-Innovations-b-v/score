@@ -15,6 +15,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   line takes the batch's older, larger budget -> test_a_batch_has_one_budget_across_its_tries
 - flow.start: drop `items = left_out(...)` -> a Buy without the film buys the left-out rows ->
   test_a_buy_approved_in_chat_is_refused_outside_what_he_approved
+- chat_yes.buy: drop `flow.basket_made()` -> a Buy in chat buys the basket an older pass saved and the run "would
+  also buy" the row the runner's plan grew by -> test_a_buy_approved_in_chat_launches_his_checkout_once
 - flow.BUFFER = 1.10 -> 1.0 -> test_the_checkout_plans_the_batch_once_writes_the_line_and_launches_one_run
 - flow.refusals: `if actions.running_launch():` -> `if False:` -> test_a_press_while_a_batch_runs_is_refused_...
 - guard.polled: drop "refused" from the states it reads -> test_a_checkout_whose_run_the_runner_refused_shows_...
@@ -537,6 +539,8 @@ def chat(shop, settings, monkeypatch, tmp_path):
     monkeypatch.setattr(runs, "RUNS", tmp_path / "runs")
     from score.dashboard.state import screens
     monkeypatch.setattr(screens, "approved_places", lambda world: ["alpha", "beta"])
+    # the runner's plan now: the basket a Buy makes again
+    monkeypatch.setattr(FakeBackend, "plan_buys", ["closeup@alpha", "closeup@beta"])
     monkeypatch.delenv("SCORE_FREE_ONLY", raising=False)
     for name in AGENT_MARKERS:
         monkeypatch.setenv(name, "1")
@@ -562,12 +566,15 @@ def test_a_buy_approved_in_chat_launches_his_checkout_once(chat, settings, monke
     chat.items = a_basket(settings, ["closeup@alpha"])
     yes = a_yes(high=15.0)
     assert [item["id"] for item in yes["basket"]["items"]] == ["alpha-pieces"] and yes["by"] == "joey"
-    # a basket changed since the yes (more items, its high EUR 30 above his 15) is bought under it, no new ask
-    # (owner, 2026-11-05: "A BUY IS TILL THE END OF THE BUDGET OR UNTIL THE END GOAL ENV1 DONE IS COMPELTED")
-    chat.items = a_basket(settings, ["closeup@alpha", "closeup@beta"])
+    # the runner's plan grew by a row since the saved basket (free work moved it due, 2026-11-05): the Buy makes the
+    # basket again from the plan now and buys it under his yes, its high EUR 30 above his 15, no new ask and no
+    # "would also buy" (owner, 2026-11-05: "A BUY IS TILL THE END OF THE BUDGET OR UNTIL THE END GOAL ENV1 DONE IS
+    # COMPELTED")
+    assert [item["id"] for item in records.items(settings.SCORE_HOME / "proposals")] == ["alpha-pieces"]
     record, said = chat_buy(yes["id"])
     assert record is not None and record.state == "launched", said
     assert [item["id"] for item in record.items] == ["alpha-pieces", "beta-pieces"]
+    assert launches()[0][1].stages == ("closeup@alpha", "closeup@beta")
     line = stop_line(chat)
     assert line["euros"] == 100.0 + 10.0 + 33.0  # the batch's start (spent, in flight) plus the total he approved
     assert line["by"] == record.by == f"joey, approved in chat at {yes['at']}"
