@@ -1,8 +1,9 @@
-"""The person's MyoFullBody as Newton builds it (SolverMuJoCo's MuJoCo model, MuJoCo's CPU backend; nothing stepped)
+"""The person's MyoFullBody as Newton builds it (SolverMuJoCo's MuJoCo model, on MuJoCo Warp with a card; nothing stepped)
 and what every later step reads off it: a body by its name (`body_index`), MuJoCo's joint couplings (`Couplings`),
 the joints kept in range (`limited`), a body's pose in the person's frame (`own_pose`, TO_OWN), the default pose
 (`default_pose`), each SOMA segment riding its bone along a path (`posed_path`), the path low-passed (`filtered`) and
-its velocities and accelerations (`rates`), and a path of MuJoCo's own compile carried onto it (`carried`)."""
+its velocities and accelerations (`rates`), a path of MuJoCo's own compile carried onto it (`carried`), and the MuJoCo
+Warp model Newton put on the card (`on_card`)."""
 import mujoco
 import newton
 import numpy as np
@@ -11,6 +12,8 @@ from scipy.signal import butter, filtfilt
 from solvers import CUTOFF
 
 DEVICE = "cpu"  # MuJoCo's CPU backend: bit for bit, and MuJoCo Warp's deterministic mode breaks over 60 dofs (#60)
+CARD = "cuda:0"  # with a CUDA card the model is also put on it, MuJoCo Warp (not its deterministic mode), `on_card`
+ON_CARD = {}  # {id(MuJoCo model): (it, MuJoCo Warp's model of it)}, the models `built` put on the card
 # MuJoCo's frame (Z up, the model's own: facing -y, left +x) into the person's (Y up, facing +z).
 TO_OWN = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, -1.0, 0.0]])
 
@@ -54,14 +57,27 @@ def carried(source, target, path):
 
 
 def built(path, gravity):
-    """MuJoCo's model of the person's body as Newton builds it (SolverMuJoCo, MuJoCo's CPU backend): no drives,
-    nothing stepped."""
+    """MuJoCo's model of the person's body as Newton builds it (SolverMuJoCo): no drives, nothing stepped. With a CUDA
+    card Newton builds it there, its SolverMuJoCo on MuJoCo Warp, and the MuJoCo Warp model it puts on the card is kept
+    (`on_card`) for every frame's state at once (`batched`); the MuJoCo model it compiles on the way is the same either
+    way, MuJoCo's C (float64) for every frame's own reads. Without one, MuJoCo's CPU backend."""
+    import warp
     builder = newton.ModelBuilder(up_axis=newton.Axis.Z, gravity=(0.0, 0.0, -gravity))
     newton.solvers.SolverMuJoCo.register_custom_attributes(builder)
     # Bone meshes are drawn from MuJoCo's own model of the file; Newton is given the colliders, wraps and joints.
     builder.add_mjcf(str(path), convert_mjc_equality_constraints=False, parse_meshes=False)
-    return newton.solvers.SolverMuJoCo(builder.finalize(device=DEVICE), use_mujoco_cpu=True,
-                                       use_mujoco_contacts=False, integrator="euler").mj_model
+    card = warp.is_cuda_available()
+    solver = newton.solvers.SolverMuJoCo(builder.finalize(device=CARD if card else DEVICE), use_mujoco_cpu=not card,
+                                         use_mujoco_contacts=False, integrator="euler")
+    if card:
+        ON_CARD[id(solver.mj_model)] = (solver.mj_model, solver.mjw_model)
+    return solver.mj_model
+
+
+def on_card(model):
+    """MuJoCo Warp's model of a model `built` put on the card, else None."""
+    kept = ON_CARD.get(id(model))
+    return kept[1] if kept is not None and kept[0] is model else None
 
 
 class Couplings:

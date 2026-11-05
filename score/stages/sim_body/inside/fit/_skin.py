@@ -435,10 +435,11 @@ class FrameSkins:
     bones out of the skin the fitted path kept them in is lowered on that frame (#70, 2026-11-05)."""
 
     def __init__(self, model, rig, segments, worlds):
-        faces = warp.array(envelope(rig).ravel(), dtype=int, device="cpu")
+        self.device = card_device()  # every frame's marks at once on the card where there is one (#70, 2026-11-05)
+        faces = warp.array(envelope(rig).ravel(), dtype=int, device=self.device)
         self.model, self.data, self.bones = model, mujoco.MjData(model), bone_meshes(model)
         self.meshes = [warp.Mesh(points=warp.array(skin(rig, segments, world).astype(np.float32), dtype=warp.vec3,
-                                                   device="cpu"), indices=faces, support_winding_number=True)
+                                                   device=self.device), indices=faces, support_winding_number=True)
                        for world in np.asarray(worlds, dtype=float)]
         self.labels = np.array([scored(region(name)) for _, kept, name in self.bones for _ in kept])
 
@@ -450,11 +451,12 @@ class FrameSkins:
             self.data.qpos[:] = qpos
             mujoco.mj_kinematics(self.model, self.data)
             points.append(bone_points(self.model, self.data, self.bones)[0])
-        signs, depths = (warp.zeros((len(points), len(points[0])), dtype=float, device="cpu") for _ in range(2))
-        warp.launch(marks_kernel, dim=signs.shape, device="cpu",
-                    inputs=[warp.array([mesh.id for mesh in self.meshes], dtype=warp.uint64, device="cpu"),
-                            warp.array(np.asarray(points, dtype=np.float32), dtype=warp.vec3, device="cpu"), signs,
-                            depths])
+        signs, depths = (warp.zeros((len(points), len(points[0])), dtype=float, device=self.device)
+                         for _ in range(2))
+        warp.launch(marks_kernel, dim=signs.shape, device=self.device,
+                    inputs=[warp.array([mesh.id for mesh in self.meshes], dtype=warp.uint64, device=self.device),
+                            warp.array(np.asarray(points, dtype=np.float32), dtype=warp.vec3, device=self.device),
+                            signs, depths])
         return signs.numpy() >= 0
 
 

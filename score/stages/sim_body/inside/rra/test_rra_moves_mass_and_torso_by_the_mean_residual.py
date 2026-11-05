@@ -26,6 +26,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   the fitted path carries past its stop is pulled in with no move (camp, 2026-11-03).
 - Footing.footed's `self.hold.set_target(qpos)` made `self.hold.set_target(still)`: the shin's turn and the ankle's
   twist go back to where `before` stood them, a direction no foot sees moved (2026-11-04).
+- Footing.footed's `found[unstopped] = self._mink(...)` dropped: a frame the card did not stop is kept half solved
+  (2026-11-05).
 - FreeHold._free's `turns[rank:]` made `turns[:rank]` (the directions the feet see held instead): the feet 15 mm off
   (2026-11-04).
 
@@ -175,6 +177,80 @@ def a_legs_free_direction_is_held_where_the_frame_stood():
     problems = [] if off[0] < 1e-5 and np.degrees(off[1]) < 1e-3 else [f"feet off {off.tolist()}"]
     return problems + ([] if np.allclose(put[0][pair], [0.1, -0.1], atol=1e-6) else
                        [f"the turn and the twist moved to {put[0][pair].tolist()}"])
+
+
+def the_cards_footing_equals_minks():
+    """On a CUDA card, `Footing` given the person's file solves every frame at once on the card
+    (`_footed_card.CardFooting`): on the legs toy with the shin's turn and the foot's twist (a free direction), Newton's
+    build of it, three frames (the pelvis 2 cm forward and 1 cm down; 1 cm down with the knee 0.05 rad past its stop;
+    the turn and twist at 0.1 and -0.1 rad, 1 cm down), its feet within 0.01 mm and 0.001 degrees of where mink's
+    put them (the knee held at its stop leaves both 0.1 mm off on the second), every coordinate within 1e-4 rad (or
+    m) of mink's, the knee no further past its stop than it stood, and the frozen
+    pelvis bit for bit the frame's; frames the card does not stop (one step allowed) are mink's.
+    Without a card it prints that it was not run."""
+    import numpy as np
+    import fit
+    import model
+    import rra
+    if not fit.on_card():
+        print("the card's footing: no CUDA card, not run")
+        return []
+    wrapper = '<inertial pos="0 0 0" mass="0.001" diaginertia="1e-6 1e-6 1e-6"/>'  # one joint a body, as Newton needs
+    shin = ('          <geom type="capsule" fromto="0 0 0 0 0 -0.4" size="0.04" mass="3"/>\n'
+            '          <body name="foot_l" pos="0 0 -0.4">\n'
+            '            <joint name="ankle_l" type="hinge" axis="0 1 0" range="-1 1"/>\n'
+            '            <geom type="box" pos="0.05 0 -0.03" size="0.1 0.04 0.03" mass="1"/>\n'
+            '          </body>\n')
+    free = (f'          {wrapper}\n'
+            '          <body name="shin_turn_l">\n'
+            '          <joint name="knee_angle_rotation3_l" type="hinge" axis="0 0 1" range="-0.26 0.26"/>\n'
+            '          <geom type="capsule" fromto="0 0 0 0 0 -0.4" size="0.04" mass="3"/>\n'
+            '          <body name="foot_twist_l" pos="0 0 -0.4">\n'
+            '            <joint name="ankle_rotation_l" type="hinge" axis="0 0 1" range="-0.35 0.44"/>\n'
+            f'            {wrapper}\n'
+            '          <body name="foot_l">\n'
+            '            <joint name="ankle_l" type="hinge" axis="0 1 0" range="-1 1"/>\n'
+            '            <geom type="box" pos="0.05 0 -0.03" size="0.1 0.04 0.03" mass="1"/>\n'
+            '          </body>\n          </body>\n          </body>\n')
+    if shin not in LEGS:
+        return ["the legs toy's left shin is not as this check splits it"]
+    legs = LEGS.replace(shin, free)
+    with tempfile.TemporaryDirectory() as folder:
+        path = pathlib.Path(folder) / "legs.xml"
+        path.write_text(legs)
+        found = model.built(path, GRAVITY)
+        feet = [model.body_index(found, f"foot_{side}") for side in "lr"]
+        card = rra.Footing(found, model.Couplings(found), feet, path)
+        mink = rra.Footing(found, model.Couplings(found), feet)
+        if card.card is None:
+            return ["a card and a file, but Footing did not take the card"]
+        def coordinate(name):  # Newton names a joint by its path
+            joints = [joint for joint in range(found.njnt) if (found.joint(joint).name or "").endswith(name)]
+            return found.jnt_qposadr[joints[0]]
+
+        standing = found.qpos0.copy()
+        for name, angle in (("hip", -0.3), ("knee", 0.6), ("ankle", -0.3)):
+            for side in "lr":
+                standing[coordinate(f"{name}_{side}")] = angle
+        before = np.tile(standing, (3, 1))
+        knee = coordinate("knee_l")
+        before[1, knee] = -0.05
+        moved = before.copy()
+        moved[0, 0] += 0.02
+        moved[:, 2] -= 0.01
+        pair = [coordinate("knee_angle_rotation3_l"), coordinate("ankle_rotation_l")]
+        moved[2, pair] = 0.1, -0.1
+        put, reference = card.footed(moved, before), mink.footed(moved, before)
+        card.card.most_steps = 1  # no row stops: every frame handed to mink, the reference
+        handed = card.footed(moved, before)
+    off = card.off(put, before) - card.off(reference, before)
+    problems = [] if off[:, 0].max() < 1e-5 and np.degrees(off[:, 1].max()) < 1e-3 else [f"feet off {off.tolist()}"]
+    apart = np.abs(put - reference).max()
+    problems += [] if apart < 1e-4 else [f"the card's frames {apart} off mink's"]
+    problems += [] if put[1, knee] >= -0.05 - 1e-6 else [f"knee {put[1, knee]} past where it stood (-0.05)"]
+    problems += [] if np.array_equal(handed, reference) else ["frames the card did not stop not mink's"]
+    return problems + ([] if np.array_equal(put[:, [0, 1, 3, 4, 5, 6]], moved[:, [0, 1, 3, 4, 5, 6]]) else
+                       ["the frozen pelvis moved"])
 
 
 def a_foot_frame_that_does_not_converge_fails():
@@ -338,7 +414,7 @@ def only_the_move_off_the_fitted_path_is_low_passed():
 CHECKS = (the_mass_follows_the_mean_upward_residual, a_floating_body_keeps_its_mass_within_the_bound,
           the_torso_moves_under_the_mean_moment_within_its_cap, the_feet_stay_where_they_stood_when_the_pelvis_moves,
           a_leg_past_its_stop_is_left_where_it_stood, a_legs_free_direction_is_held_where_the_frame_stood,
-          a_foot_frame_that_does_not_converge_fails,
+          a_foot_frame_that_does_not_converge_fails, the_cards_footing_equals_minks,
           a_turn_between_two_paths_is_its_angle, the_frame_shares_are_smooth_and_never_above_the_lowered,
           a_move_that_puts_bones_out_of_the_skin_is_seen_by_region, only_the_move_off_the_fitted_path_is_low_passed)
 

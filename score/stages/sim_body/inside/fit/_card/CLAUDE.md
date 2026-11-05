@@ -198,3 +198,8 @@ before that.
   Schur step still settles (the control hides it), so the step is checked itself. On the real bodies the card's own
   solve ends "stalled" (lambda past LAMBDA_MOST at the float64 floor, free gradient a few 1e-10) and the polish
   settles it. Proved on all 19 tuning bodies and level 1's gate columns, the default since 2026-11-03 (`../CLAUDE.md`).
+- `_solve.solved` takes two more things for `rra`'s footing (2026-11-05, #70): `hold`, rows held off the Jacobian with
+  no step control (its `normal(slopes, reduced, qpos)`, given the reduced Jacobian and the pose; the skin's `extra` now
+  takes them too and reads only the slopes), and `bounds`, each row's own ranges in the step's active set (`_step._kept`)
+  and the projection (`_project._projected`), in place of the reduction's and the projection's one set. Neither given,
+  every kernel reads as before (level 3 unchanged: the card's tests pass as they did).

@@ -15,6 +15,13 @@ squares it replaced, 40 fixed steps with ranges by clipping, went 2026-10-29: on
   in at no move, the hip turned 18 degrees to keep the foot, so `within_frames` found those frames 3.55 times the cap
   with every share at 0 and failed the run. The cap and the follows limit are unchanged.
 - Its test runs in Newton's own Python by subprocess and prints `skipped` where no env is built.
+- On a CUDA card (2026-11-05, #70) `Footing` given the person's file solves every frame at once there
+  (`_footed_card.CardFooting`: the fit's level-3 card loop, `fit._card._solve.solved`, with Footing's own tasks, each
+  row's own ranges and `Held`, the card's FreeHold: Gram-Schmidt on the tasks' reduced Jacobian); its float32 legs'
+  joints come back with the frame's own frozen coordinates and the followers set again in float64. mink stays the
+  reference and the solve without a card; the test's toy holds the two within 1e-4. RRA's residuals, the trunk's
+  moments and the linearisation's sensitivities (`sensitivities`, `CARD_STEPS`) take every frame's state at once on
+  the card (`batched`).
 - `Footing` holds each leg's free directions where the frame stands them (`FreeHold`, 2026-11-04, #70): the null
   space of the feet's and the pelvis' height's weighted Jacobian over the moving leads, so it moves no foot. A leg has
   more joints than its foot's six directions (the ankle's twist; the knee's shin turn freed from the flexion), and at

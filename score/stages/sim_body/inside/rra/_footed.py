@@ -29,9 +29,11 @@ ROOT_HEIGHT = 2  # the free root's vertical dof (MuJoCo's frame is Z up)
 
 class Footing:
     """mink's tasks, limits and constraints holding `feet` (body ids) on a model and its `couplings`; `footed` gives a
-    path with its feet put back."""
+    path with its feet put back. Given the person's file (`path`) and a CUDA card (`fit.on_card`), every frame is
+    solved at once on the card with the same tasks (`_footed_card.CardFooting`); mink stays the reference and the
+    solve where there is no card."""
 
-    def __init__(self, model, couplings, feet):
+    def __init__(self, model, couplings, feet, path=None):
         self.model, self.feet = model, list(feet)
         ancestors = set()
         for body in self.feet:
@@ -57,6 +59,11 @@ class Footing:
         self.hold = FreeHold(model, couplings, sorted(legs), self.tasks + [self.height])
         self.configuration = mink.Configuration(model)
         self.data = mujoco.MjData(model)
+        self.card = None
+        if path is not None and fit.on_card():
+            from rra._footed_card import CardFooting
+            self.card = CardFooting(model, path, couplings, self.feet, sorted(legs), frozen,
+                                    (1.0, FOOTED_HEIGHT, FOOTED_HOLD))
 
     def footed(self, path, before):
         """`path` with each foot body put back where it stands in `before`, place and turn, frame by frame, by the
@@ -67,6 +74,15 @@ class Footing:
         past a stop), within where `before` stands there: never further out, and never pulled in when nothing moved (2026-11-03: camp's walking astronaut's knee
         0.38 degrees past its 0 stop, pulled in at no move, turned the hip 18 degrees to keep the foot, past the cap
         before any of RRA's move)."""
+        if self.card is not None:
+            found, unstopped = self.card.footed(path, before)
+            if len(unstopped):  # the frames the card did not stop: mink's, the reference
+                found[unstopped] = self._mink(np.asarray(path)[unstopped], np.asarray(before)[unstopped])
+            return found
+        return self._mink(path, before)
+
+    def _mink(self, path, before):
+        """`footed` by mink, frame by frame."""
         found = []
         limit, (lower, upper) = self.limits[0], self.ranges
         for qpos, still in zip(path, before):
