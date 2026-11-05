@@ -1,5 +1,5 @@
 {
- "about": "What the motion stage (score/stages/motion) reads as data: the moving kinds, which prims of a place's stage are of each kind (their names, a row's objects `<row>_<n>` or a scene record's fixture), and the speed range a moving thing of that kind keeps, each read off a cited source. `linear` is metres a second of the moving thing's middle, `angular` degrees a second of its turn; the `speeds` gate takes the peak against the top and the median moving speed against the bottom. A kind with no range (`game`) moves only at the game's own timing (data/motion), whose `from` is its source. Every prim of a moving kind moves in the place's motion layer, or its place's rigid record says in `still` why it does not.",
+ "about": "What the motion stage (score/stages/motion) reads as data: the moving kinds, which prims of a place's stage are of each kind (their names, a row's objects `<row>_<n>` or a scene record's fixture), and the speed range a moving thing of that kind keeps, each read off a cited source. `linear` is metres a second of the moving thing's middle, `angular` degrees a second of its turn; the `speeds` gate takes the peak against the top and the median moving speed against the bottom. `push` is metres a second a second a climbing thing's engines give it (thrust over its liftoff mass): its climb's measured acceleration plus its body's pull keeps to it. A kind with no range (`game`) moves only at the game's own timing (data/motion), whose `from` is its source. Every prim of a moving kind moves in the place's motion layer, or its place's rigid record says in `still` why it does not.",
  "kinds": {
   "ferry": {
    "prims": ["far_ferry"],
@@ -116,8 +116,11 @@
   },
   "rocket": {
    "prims": ["rocket", "far_rocket"],
-   "game": true,
-   "sources": ["the game's launch climb (data/motion/launch.json, its `from`)"]
+   "push": [11.13, 13.84],
+   "sources": [
+    "Wikipedia, Saturn V (en.wikipedia.org/wiki/Saturn_V), read 2026-11-05: 'Fully fueled, the Saturn V had a mass of 2,822,171 to 2,965,241 kg'; the S-IC 'provided 33,000 kN (7,500,000 lbf) of thrust at sea level' (33,000 kN over 2,965,241 kg: 11.13 m/s/s, the bottom)",
+    "Wikipedia, Falcon 9 (en.wikipedia.org/wiki/Falcon_9), read 2026-11-05: Block 5 liftoff mass '549 t', first-stage thrust '7,600 kN' (13.84 m/s/s, the top)"
+   ]
   },
   "robot": {
    "prims": ["robot_p1"],

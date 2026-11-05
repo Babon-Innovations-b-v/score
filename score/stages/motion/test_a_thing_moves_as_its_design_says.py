@@ -4,7 +4,8 @@ left edge and shuts again, the fan turns a whole number of times a round, the ro
 reason, and every gate passes; with nobody in the scene the door stands shut; two seeds make the same moves, so
 the row is unseeded; a moving row with no object fails `designed`, left out by name where a batch gap or the accepted plan's
 gap names it; a door whose swing strikes is swung the other
-way, else stands with its strike; a hatch lying flat stands. The check (check.py, #23), on a cart driven round a closed path, a door swung on its hinge and a hatch slid
+way, else stands with its strike; a hatch lying flat stands; a rocket climbs off the Moon at its push less its
+body's pull and stands where its push would not lift it, and a flag on an airless body hangs still. The check (check.py, #23), on a cart driven round a closed path, a door swung on its hinge and a hatch slid
 down: each passes, and one known fault each fails by name. Expected spots are worked out by hand below.
 
 Each test names the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
@@ -91,14 +92,22 @@ WALKER = {"name": "astronaut_1", "doing": "walking", "at": [3.0, 0.0, 5.0], "tur
 SEATED = {"name": "astronaut_1", "doing": "sitting", "at": [0.0, 0.0, -4.0], "turn": 0.0, "path": None}
 
 
-def toy_inputs(folder, rows=ROWS, extra=(), cast=(WALKER,)):
+def a_sky(on, gravity):
+    """A scene's sky inputs (score/review/scene_sky.py) whose site stands on one body of the reference table."""
+    return {"place": PLACE, "site": {"on": on}, "setting": {"bodies": [{"body": on, "name": on.title(),
+                                                                         "reference": on, "gravity": gravity}]}}
+
+
+def toy_inputs(folder, rows=ROWS, extra=(), cast=(WALKER,), sky=a_sky("earth", 9.82)):
     folder = pathlib.Path(folder)
     (folder / "inventory.json").write_text(json.dumps({"rows": rows}))
+    (folder / "sky.json").write_text(json.dumps(sky))
     seed = a_seed(folder, {"floor": ((-6.0, -0.1, -6.0), (6.0, 0.0, 6.0))}, [*DESIGNED, *extra])
     (folder / "cast").mkdir(exist_ok=True)
     (folder / "cast/cast.json").write_text(json.dumps({"characters": list(cast)}))
     return {"design": folder / "inventory.json", "row kinds": REPO / "data/checks/row-kinds.json",
-            "kinds": REPO / "data/checks/motion.json", "seed": seed, "cast": folder / "cast"}
+            "kinds": REPO / "data/checks/motion.json", "seed": seed, "cast": folder / "cast",
+            "sky": folder / "sky.json", "bodies": REPO / "data/physics/bodies.json"}
 
 
 def made(inputs, folder):
@@ -457,9 +466,14 @@ def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
     """A ship named as an old record's moving kind, on a craft row that stands with its written reason, is not asked
     for (3 moving kinds: door, fan, rover); the design's door taken out of the record (neither moved nor standing with
     a reason) fails by name. Fault (the audit of 2026-11-04): a row no kind moves was invisible to every gate (the
-    launching rocket, flags, a body of water, 102 screens). A launching rocket (its launch no writer makes), a wind
-    turbine (a moving word no kind moves) and a screen (a `does` no stage reads) each fail `covered` by name, and a
-    design holding only the turbine has the motion row, so the fault is judged.
+    launching rocket, flags, a body of water, 102 screens). A launching rocket in the sky over Earth climbs straight
+    up at the middle of its kind's cited push, (11.13 + 13.84) / 2 = 12.485 m/s/s, less Earth's 9.82: 2.665 m/s/s,
+    so 0.5 * 2.665 * 20^2 = 533 m risen in the 20 s round, and `speeds`, `grounded` and the check pass it; its
+    exhaust (no effect kind makes it), a wind turbine (a moving word no kind moves) and a screen (a `does` no stage
+    reads) each fail `covered` by name, and a design holding only the turbine has the motion row, so the fault is
+    judged. A launch written with no pull taken off climbs at the whole 12.485 m/s/s, which with Earth's pull is a
+    push of 22.3, over the kind's: `speeds` fails it. On the Moon (3e-13 kPa of air, the reference table's) the flag hangs still with its reason and the
+    rocket (12.485 over 1.624) climbs off its pad on the floor, `grounded` reading it once it has risen half a metre; under a body pulling 15 m/s/s it stands, its push not lifting it.
     Break: score/stages/motion/__init__.py: `if path not in moved and path not in still and path.rsplit("/", 1)[-1] not
         in still]` -> `if False]`
     Break: score/stages/motion/from_design.py: `unmade.append(f"{path}: {rule['move']}, which no writer makes:
@@ -467,7 +481,17 @@ def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
     Break: score/stages/row_kinds.py: `if heard and not done & {"moves", "loose"} and not (kind and
         kinds[kind].get("stands")):` -> `if False:`
     Break: score/stages/design_layers.py: `return found | {"motion"} if row_kinds.uncovered(inventory, kinds) else
-        found` -> `return found`"""
+        found` -> `return found`
+    Break: score/stages/motion/from_design.py: `"climb": {"lift": 0.0, "push": round(push, 4), "pull":
+        float(body["gravity"])},` -> `"climb": {"lift": 0.0, "push": round(push, 4), "pull": 0.0},`
+    Break: score/stages/motion/__init__.py: `push = 2.0 * risen / (seconds - lift) ** 2 + float(body["gravity"])` ->
+        `push = 2.0 * risen / (seconds - lift) ** 2 + float(entry["climb"]["pull"])`
+    Break: score/stages/motion/from_design.py: `return [f"{path}: exhaust, {rule['exhaust']}"] if rule.get("exhaust")
+        else []` -> `return []`
+    Break: score/stages/motion/from_design.py: `elif rule.get("airless") and airless(body):` -> `elif False:`
+    Break: score/stages/motion/__init__.py: `for moment in np.arange(np.ceil(climbed_from(entry)), seconds + 1e-9,
+        1.0):` ->
+        `for moment in np.arange(0.0, seconds + 1e-9, 1.0):`"""
     from score.stages import design_layers
     ship = ("ship_1", (-4.0, 0.0, 0.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))
     inputs = toy_inputs(tmp_path, ROWS + [{"id": "ship", "name": "ship", "noun": "ship"}], extra=(ship,))
@@ -481,16 +505,47 @@ def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
     unmade = [{"id": "rocket", "name": "launching rocket", "noun": "rocket"},
               {"id": "turbine", "name": "wind turbine", "noun": "turbine"},
               {"id": "screen", "name": "wall screen", "noun": "screen"}]
-    rocket = ("rocket_1", (-4.0, 0.0, -4.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))
+    rocket = ("rocket_1", (-4.0, 10.0, -4.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))  # in the sky, as the reading anchors it
     (tmp_path / "unmade").mkdir()
     inputs = toy_inputs(tmp_path / "unmade", ROWS + unmade, extra=(rocket,))
     out, record = made(inputs, tmp_path / "unmade")
     verdict = judge("covered", out, inputs)
+    launch = next(entry for entry in record["moves"] if entry["name"] == "rocket_1")
+    risen = middle_at(out, inputs, f"/{PLACE}/Objects/rocket_1", 20.0) - middle_at(out, inputs,
+                                                                                  f"/{PLACE}/Objects/rocket_1", 0.0)
+    assert launch["climb"] == {"lift": 0.0, "push": 12.485, "pull": 9.82} and not launch["loop"], launch
+    assert np.allclose(risen, [0.0, 533.0, 0.0], atol=0.01), risen
+    for name in ("speeds", "grounded", "follows", "steps"):
+        assert judge(name, out, inputs).answer == checks.PASS, (name, judge(name, out, inputs).findings)
+    assert abs(judge("speeds", out, inputs).measures["rocket_1 push"] - 12.485) < 0.01
     assert verdict.answer == checks.FAIL, verdict.reason
     assert [line.split(":", 2)[:2] for line in verdict.findings] == [
-        [f"/{PLACE}/Objects/rocket_1", " launch, which no writer makes"], ["turbine", " \"wind turbine\" names a moving thing (turbine), and its kind (none) gives it no move and no written reason to stand (data/checks/row-kinds.json)"],
+        [f"/{PLACE}/Objects/rocket_1", " exhaust, its exhaust's flame and smoke under it, which no effect kind makes "
+         "yet (data/checks/effects.json measures no rocket exhaust on footage)"], ["turbine", " \"wind turbine\" names a moving thing (turbine), and its kind (none) gives it no move and no written reason to stand (data/checks/row-kinds.json)"],
         ["screen", " its kind screen shows, and no stage makes that (row-kinds.json `read_by`)"]], verdict.findings
     assert "motion" in design_layers.kinds_of({"rows": [unmade[1]]})
+    unpulled = dict(record, moves=[dict(entry, climb=dict(entry["climb"], pull=0.0)) if "climb" in entry else entry
+                                   for entry in record["moves"]])
+    (tmp_path / "unpulled").mkdir()
+    (tmp_path / "unpulled" / motion.RECORD).write_text(json.dumps(unpulled))
+    motion.write_motion(dict(inputs, moves=tmp_path / "unpulled" / motion.RECORD), tmp_path / "unpulled",
+                        inputs["seed"])
+    shutil.copy(out / "moved.json", tmp_path / "unpulled" / "moved.json")
+    assert judge("speeds", tmp_path / "unpulled", inputs).answer == checks.FAIL
+    flag = [{"id": "flag", "name": "flag", "noun": "flag"}, unmade[0]]
+    for name, sky in (("moon", a_sky("moon", 1.624)), ("heavy", a_sky("heavy", 15.0))):
+        (tmp_path / name).mkdir()
+        pad = ("rocket_1", (-4.0, 0.0, -4.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))
+        flagged = toy_inputs(tmp_path / name, ROWS + flag, extra=(pad, ("flag_1", (4.0, 0.0, -4.0),
+                                                                       (-0.5, 0.0, -0.05), (0.5, 1.0, 0.05))), sky=sky)
+        lifted, found = made(flagged, tmp_path / name)
+        moved = [entry["name"] for entry in found["moves"]]
+        if name == "moon":
+            assert found["still"].get(f"/{PLACE}/Objects/flag_1", "").startswith(
+                "it hangs still: no air stands on its body to wave it (Moon: 3e-13 kPa)"), found["still"]
+            assert "rocket_1" in moved and judge("grounded", lifted, flagged).answer == checks.PASS
+        else:
+            assert "rocket_1" not in moved and "does not lift it off" in found["still"][f"/{PLACE}/Objects/rocket_1"]
 
 
 def test_a_swing_is_tried_its_rule_s_way_and_the_other_down_to_sixty_degrees():

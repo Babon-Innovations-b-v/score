@@ -22,15 +22,25 @@ rule says (data/checks/row-kinds.json `motion`), at the speed its motion kind's 
     words   the row's own words choose its rule (rule_of): its kind's first `variants` entry whose words its name
             holds (a sliding door slides, a garage door rises, a double door splits), and one of `open_words` stands
             it open (posed: written open and still), never swung shut from a shut start
-    unmade  a move no writer makes (a rocket's launch, a flag's cloth, a one-piece double door's two leaves): named in
-            the record's `unmade`, which the motion row's `covered` fails, never written down as a still
+    launch  a rocket's lift-off: standing at the layer's start, then climbing straight up (tools/usd/motion.py's
+            climb) at the middle of its kind's cited `push` less its body's pull (the scene's sky inputs: the gravity
+            of the body its site stands on); a push that would not lift it off that body stands it, with why. What
+            the rule's `exhaust` names (its flame and smoke) is the effects stage's, and stays `unmade` until an
+            effect kind makes it
+    airless a flag's rule `airless`: where the body its site stands on holds under natural_grounds.WIND_KPA of air
+            (the Moon), nothing waves it, so it hangs still with that reason
+    unmade  a move no writer makes (a flag's cloth in the air, a body of water's ripple, a one-piece double door's
+            two leaves): named in the record's `unmade`, which the motion row's `covered` fails, never written down
+            as a still
     parts   an object built with its parts apart (score/stages/props/moving_parts, #19) carries its pivots in its
             parts' names (`<part>__hinge_<axis>[n]`: parts_of): a swinging or splitting row swings each hinged part
             about its own pivot and axis instead of the whole (a double door's two leaves, each on its outer edge;
             a hatch's lid on its level hinge, so a lying hatch opens), its rule's angle the way its name says; its
             still parts (a frame) and its spinning parts (a parked rover's wheels) stand with the object
 
-    record(place, inventory, kinds, motion_kinds, stage, carried)   the rigid record tools/usd/motion_layer.py writes
+    body_of(sky, bodies)    the body a scene's site stands on: {name, gravity, air_kpa}
+    record(place, inventory, kinds, motion_kinds, stage, carried, cast, body)   the rigid record
+                        tools/usd/motion_layer.py writes
     plan_gaps(plan)     the accepted plan's `placed` gaps as gaps a moving row with no object is left out by
     left_gaps(record)   the batch gap of each moving row a carried batch gap or a plan gap left with no object
 """
@@ -220,7 +230,39 @@ def spin(path, row, rule, motion_kind, stage=None, spans=None, posed=False):
                     f"whole number nearest the middle of the {rule['kind']} kind's cited range ({MOTION_KINDS})"}
 
 
-WRITERS = {"swing": swing, "spin": spin, "slide": slide}
+def launch(path, row, rule, motion_kind, stage=None, spans=None, posed=False, body=None):
+    """A lift-off where the thing stands: from the layer's start, straight up at the middle of its kind's cited push
+    less its body's pull, played once over one round."""
+    push = middle_speed(motion_kind, "push")
+    return {"name": path.rsplit("/", 1)[-1], "prim": path, "row": row, "kind": rule["kind"], "on": "air",
+            "start": 0.0, "length": ROUND, "loop": False,
+            "climb": {"lift": 0.0, "push": round(push, 4), "pull": float(body["gravity"])},
+            "from": f"{rule['why']}; {push:g} m/s/s, the middle of the {rule['kind']} kind's cited push "
+                    f"({MOTION_KINDS}), less {body['name']}'s pull of {float(body['gravity']):g} m/s/s"}
+
+
+WRITERS = {"swing": swing, "spin": spin, "slide": slide, "launch": launch}
+
+
+def body_of(sky, bodies):
+    """The body a scene's site stands on (its sky inputs, score/review/scene_sky.py): {name, gravity m/s/s, air_kpa
+    (its surface pressure, the setting's own, else the reference table's; None when neither gives one)}; a plot's
+    gravity with no air known."""
+    from score.stages import natural_grounds
+    on = sky["site"]["on"]
+    setting = sky["setting"]
+    found = next((body for body in setting.get("bodies", []) if body["body"] == on), None)
+    if found is None:
+        plot = next(entry for entry in setting.get("plots", []) if entry.get("plot", entry.get("name")) == on)
+        return {"name": plot.get("name", on), "gravity": float(plot["gravity"]), "air_kpa": None}
+    return {"name": found.get("name", on), "gravity": float(found["gravity"]),
+            "air_kpa": natural_grounds.pressure_kpa(found, bodies)}
+
+
+def airless(body):
+    """Whether no air stands on the body to move a thing (under natural_grounds.WIND_KPA); False when unknown."""
+    from score.stages import natural_grounds
+    return bool(body) and body["air_kpa"] is not None and float(body["air_kpa"]) < natural_grounds.WIND_KPA
 
 
 def upright(stage, path):
@@ -312,8 +354,9 @@ def gaps_naming(row, carried):
     return [entry["name"] for entry in carried if names & set(entry["objects"])]
 
 
-def record(place, inventory, kinds, motion_kinds, stage, carried=(), cast=None):
-    """The scene's rigid record from its design and its accepted cast (cast.json, None for a scene with no people):
+def record(place, inventory, kinds, motion_kinds, stage, carried=(), cast=None, body=None):
+    """The scene's rigid record from its design, its accepted cast (cast.json, None for a scene with no people) and
+    the body its site stands on (body_of; None where the scene has no sky inputs, so nothing launches):
     {place, about, seconds, moves, posed, still, unmade, missing, left_out}; a moving row with no object is missing,
     and left out ({row: [gap names]}) where a carried batch gap names it."""
     moves, posed, still, unmade, missing, left_out = [], [], {}, [], [], {}
@@ -334,6 +377,10 @@ def record(place, inventory, kinds, motion_kinds, stage, carried=(), cast=None):
             spans = crossings(stage, path, walkers) if rule.get("needs") == "passes" else None
             if rule["move"] == "still":
                 still[path] = rule["why"]
+            elif rule.get("airless") and airless(body):
+                still[path] = f"{rule['airless']} ({body['name']}: {float(body['air_kpa']):.3g} kPa)"
+            elif rule["move"] == "launch":
+                unmade += launched(path, row, rule, motion_kinds[rule["kind"]], body, moves, still)
             elif rule["move"] == "swing" and not upright(stage, path):
                 still[path] = LYING
             elif rule.get("rests") == "open" and made:
@@ -368,6 +415,19 @@ def parted(path, row, rule, motion_kind, stage, walkers, inventory, kinds, into)
     if not found:
         still[path] = rule["still_without"]
     moves += found
+
+
+def launched(path, row, rule, motion_kind, body, moves, still):
+    """A launch's move added to `moves`, or its standing to `still` where its push would not lift it off its body;
+    the unmade lines of what it leaves to another stage (its rule's `exhaust`), or of a launch with no body known."""
+    if body is None:
+        return [f"{path}: launch, with no body known to climb from (the scene has no sky inputs)"]
+    if middle_speed(motion_kind, "push") <= float(body["gravity"]):
+        still[path] = (f"its push of {middle_speed(motion_kind, 'push'):g} m/s/s does not lift it off "
+                       f"{body['name']}'s pull of {float(body['gravity']):g}")
+        return []
+    moves.append(launch(path, row, rule, motion_kind, body=body))
+    return [f"{path}: exhaust, {rule['exhaust']}"] if rule.get("exhaust") else []
 
 
 def merged_for(rule, motion_kinds, stage, path, spans):
