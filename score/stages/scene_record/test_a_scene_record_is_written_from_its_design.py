@@ -22,7 +22,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
 from score import checks  # noqa: E402
-from score.stages.scene_record import plan  # noqa: E402
+from score.stages.scene_record import gates, plan  # noqa: E402
 
 SHED = {"title": "SHED", "w": 8.0, "d": 6.0, "corner": 1.0, "height": "walls 3 m, dome rising 1 m",
         "doors": [["N", 4.0, 1.2, "HATCH N, 1.2 x 2.1 m"], ["S", 4.0, 2.0, "BIG DOOR, 2 x 3 m"]],
@@ -71,7 +71,13 @@ def test_a_plan_maps_and_faults_fail():
         `if False:`
     Break: score/stages/scene_record/plan.py: `return within([x + reach, y + reach,` -> `return True or within([x + reach, y + reach,`
     Break: score/stages/scene_record/plan.py: `if across > EDGE and along > EDGE:` -> `if False:`
-    Break: score/stages/scene_record/plan.py: `if leading > back:` -> `if False:`"""
+    Break: score/stages/scene_record/plan.py: `if leading > back:` -> `if False:`
+    Two doors on one wall lead each by its own lead, `<side>:<along>` over its side's (the walkway's galley and
+    quarters doors, 2026-11-05), and the openings gate finds each its doorway nearest along.
+    Break: score/stages/scene_record/plan.py: `return leads.get(f"{side}:{float(at):g}") or leads.get(` ->
+        `return leads.get(`
+    Break: score/stages/scene_record/gates.py: `key=lambda pair: abs(float(pair[1]["at"][0 if where in ("N", "S") else 1]) - float(along)))` ->
+        `key=lambda pair: 0.0)`"""
     with tempfile.TemporaryDirectory() as folder:
         out, inputs = made(folder, SHED)
         found = plan.judge_mapped(out, inputs, None)
@@ -93,6 +99,12 @@ def test_a_plan_maps_and_faults_fail():
     held = {"hub": (holds[0], {"openings": [door, door]}), "tube": (holds[1], {"openings": [{**door, "to": "hub"}]})}
     assert plan.once_faults(held) == ["tube is held once, but 2 doors of its siblings lead to it and 1 of its own "
                                       "lead back"]
+    walled = {**SHED, "doors": [["E", 1.5, 0.9, "DOOR to the galley 0.9 x 2.0 m"], ["E", 4.5, 0.9, "DOOR to the yard"]],
+              "leads": {"E": {"to": "sealed", "why": "shut"}, "E:4.5": {"to": "yard", "why": "the yard's door"}},
+              "openings": [{"kind": "door", "at": [8.0, 4.5], "wide": 0.9, "sill": 0.0, "to": "yard"},
+                           {"kind": "door", "at": [8.0, 1.5], "wide": 0.9, "sill": 0.0, "to": "sealed"}]}
+    assert [door["leads"] for door in plan.doors_of(walled, INVENTORY)] == ["sealed", "yard"]
+    assert gates.door_faults(walled) == []
     for change, said in ((lambda record: record["rows"].pop("BENCH"), "BENCH"),
                          (lambda record: record["leads"].pop("S"), "door S"),
                          (lambda record: record["leads"].update(N={"to": "sealed", "why": "test"}), "leaves it open")):

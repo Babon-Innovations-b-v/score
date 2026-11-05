@@ -295,8 +295,9 @@ def bearing_of(design, point):
 
 def door_rows(design):
     """[(how it is placed: a side N/E/S/W, a bearing in degrees or another word (a tube's `near`), metres, words, sill
-    or None, its lead)] of the plan's door rows ([side, along, metres, words, sill], [bearing, metres, words],
-    [word, metres, words]), each its lead under its key, its key and sill (`W@9`)."""
+    or None, its lead, its along its side or None)] of the plan's door rows ([side, along, metres, words, sill], [bearing, metres, words],
+    [word, metres, words]), each its lead under its side and along (`E:9`), else its key and sill (`W@9`), else its
+    key."""
     leads, found = design.get("leads") or {}, []
     for door in design.get("doors") or []:
         if not isinstance(door, list) or len(door) < 3:
@@ -305,8 +306,9 @@ def door_rows(design):
         metres, words = (door[2], door[3] if len(door) > 3 else "") if sided else (door[1], door[2])
         sill = float(door[4]) if sided and len(door) > 4 and door[4] is not None else None
         key = door[0] if isinstance(door[0], str) else f"{float(door[0]):g}"
-        lead = (leads.get(f"{key}@{sill:g}") if sill is not None else None) or leads.get(key) or {}
-        found.append((door[0], float(metres), str(words), sill, lead.get("to")))
+        lead = (leads.get(f"{key}:{float(door[1]):g}") if sided else None) or (
+            leads.get(f"{key}@{sill:g}") if sill is not None else None) or leads.get(key) or {}
+        found.append((door[0], float(metres), str(words), sill, lead.get("to"), door[1] if sided else None))
     return found
 
 
@@ -319,10 +321,11 @@ def door_faults(design):
     found, doors = [], door_rows(design)
     left = [(number, opening) for number, opening in enumerate(design.get("openings") or [], 1)
             if opening.get("kind") in DOORWAYS]
-    for where, metres, words, sill, lead in doors:
-        if where in holders.FACES:
-            fits = [pair for pair in left if side_of(design, pair[1]["at"]) == where and
-                    (sill is None or abs(float(pair[1].get("sill") or 0.0) - sill) <= TOLERANCE)]
+    for where, metres, words, sill, lead, along in doors:
+        if where in holders.FACES:  # the nearest its along first (a wall with two doors)
+            fits = sorted([pair for pair in left if side_of(design, pair[1]["at"]) == where and
+                           (sill is None or abs(float(pair[1].get("sill") or 0.0) - sill) <= TOLERANCE)],
+                          key=lambda pair: abs(float(pair[1]["at"][0 if where in ("N", "S") else 1]) - float(along)))
         elif isinstance(where, (int, float)):
             fits = sorted([pair for pair in left if abs((bearing_of(design, pair[1]["at"]) - float(where) + 180.0)
                                                          % 360.0 - 180.0) <= BEARING_REACH],

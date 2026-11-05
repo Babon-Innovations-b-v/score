@@ -3141,6 +3141,10 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     Break: score/review/plan_fixes.py: `opening.update(wide=metres, **({"to": lead} if lead is not None else {}))` ->
         `pass`
     Break: score/review/plan_fixes.py: `left.remove(spare)` -> `pass` (the moved doorway kept on its drawn wall)
+    Break: score/review/plan_fixes.py: `lead = (leads.get(f"{key}:{float(door[1]):g}") if sided else None) or (` ->
+        `lead = (None) or (` (two doors on one wall lead where its side's one lead does)
+    Break: score/review/plan_fixes.py: `float(pair[1]["at"][0 if place in ("N", "S") else 1]) - float(along)))` ->
+        `0.0))` (a wall's first doorway taken by its first door row, wherever along it stands)
     Break: score/review/plan_checks.py: `for item in plan.get("items", []):  # every row tied to an item` loop ->
         placed_items' floor rows alone"""
     inventory = {"picture": [1000, 1000], "rows": ROWS}
@@ -3166,6 +3170,15 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     assert [(opening["at"], opening["wide"], opening["to"]) for opening in doored["openings"]] == [
         ([5.0, 0.0], 1.0, "yard"), ([0.0, 3.0], 0.9, "sealed"), ([10.0, 5.0], 1.0, None)], doored["openings"]
     assert len(said) == 2 and plan_fixes.doors_kept(doored, {}) == [], said  # and none again once kept
+    # the walkway's east wall (2026-11-05): its galley door shut, its quarters door leading there by its own lead, each
+    # row taking the doorway nearest where it stands along the wall
+    walled = {"w": 2.0, "d": 12.0, "doors": [["E", 3.0, 0.9, "DOOR to the galley"], ["E", 9.0, 0.9, "DOOR to the quarters"]],
+              "leads": {"E": {"to": "sealed"}, "E:9": {"to": "quarters"}},
+              "openings": [{"kind": "door", "at": [2.0, 9.2], "wide": 0.9, "sill": 0.0, "to": "sealed"},
+                           {"kind": "door", "at": [2.0, 3.1], "wide": 0.9, "sill": 0.0, "to": "sealed"}]}
+    plan_fixes.doors_kept(walled, {})
+    assert [(opening["at"], opening["to"]) for opening in walled["openings"]] == [
+        ([2.0, 9.2], "quarters"), ([2.0, 3.1], "sealed")], walled["openings"]
     wall_row = {"rows": [{"id": "pipe", "anchor": "wall", "count": 3, "size": [0.2, 3.0, 0.2]}]}
     assert [gap["words"] for gap in plan_checks.count_gaps(doored, wall_row, set())] == [
         "pipe: 3 in the concept, 1 on the plan"]
