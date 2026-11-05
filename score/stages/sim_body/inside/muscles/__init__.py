@@ -164,6 +164,10 @@ class Physics:
                                                 model.actuator_acc0[actuator], model.actuator_biasprm[actuator, :9]))
         gains, biases = np.array(gains), np.array(biases)
         arms = moments[self.muscles].T  # nv x muscles
+        # A muscle pulls between two of the body's own bodies: no net force or moment on the whole body, so none on
+        # the root's free joint. MuJoCo's C gives 1e-11 there, the card's float32 1e-3, and the pelvis' residual,
+        # BALANCE^2 dearer, then drove the activations off that rounding (2026-11-05, #70: a frame's mean 0.05 to 0.21).
+        arms[model.jnt_dofadr[0]:model.jnt_dofadr[0] + 6] = 0.0
         contacts = self.contacts()
         columns = []
         for _, along, edges, _ in contacts:
