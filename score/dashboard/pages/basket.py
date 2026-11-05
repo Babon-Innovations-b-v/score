@@ -428,14 +428,15 @@ def checked_out(user, key, seen):
     return flow.start(user, key, True, seen)[1]
 
 
-def batch_items(items, which):
+def batch_items(items, which, approved=None):
     """[{id, version}] of the basket items one yes buys: the Benchmarks item alone (`which` "benchmarks"), else the
-    batch: every item a run on main buys now at the places whose design the creator approved (screens.now_items),
-    each as shown now."""
+    batch: every item a run on main buys now at the places whose design the creator approved (screens.now_items; the
+    places `approved`, else those prepare's design record names, as the Buy screen shows them), each as shown now."""
     if which == "benchmarks":
         chosen = [item for item in items if item["id"] == benchmarks.ID]
     else:
-        chosen = screens.now_items(items, screens.approved_places(state.source().world_state()))
+        places = screens.approved_places(state.source().world_state()) if approved is None else approved
+        chosen = screens.now_items(items, places)
     return [{"id": item["id"], "version": item["version"]} for item in chosen]
 
 

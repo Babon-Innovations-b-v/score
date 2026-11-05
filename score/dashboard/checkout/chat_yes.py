@@ -27,7 +27,9 @@ his Buy button makes (flow.start, every refusal of his click), once.
                                           than is left stops at it, owner 2026-10-27), this
                                           machine's code off the cockpit's pin, paid work latched off, or a run
                                           active; then flow.start as his click on the basket made again from the
-                                          runner's plan now (flow.basket_made), by "<owner>, approved in chat at
+                                          runner's plan now (flow.basket_made) at the places approved now
+                                          (approved_now: prepare's design rule run at launch, refused with its
+                                          cause when it fails), by "<owner>, approved in chat at
                                           <time>", the yes on the checkout (Checkout.chat_yes); again under a yes
                                           that launched one, a retry of its batch held to the batch's budget
                                           (flow.batch_budget: launched while any of it is left), no new ask; a
@@ -81,12 +83,25 @@ def euros_of(value, what):
     return round(figure, 2)
 
 
-def current_basket():
-    """{commit, made_at, items}: the basket as the Buy screen's button buys it now (basket.batch_items "now")."""
+def current_basket(approved=None):
+    """{commit, made_at, items}: the basket as the Buy screen's button buys it now (basket.batch_items "now"), at the
+    places `approved` (None: those prepare's design record names)."""
     root = basket.basket_root()
     found = records.index(root)
     return {"commit": found.get("commit"), "made_at": found.get("made_at"),
-            "items": sorted(basket.batch_items(records.items(root), "now"), key=lambda item: item["id"])}
+            "items": sorted(basket.batch_items(records.items(root), "now", approved), key=lambda item: item["id"])}
+
+
+def approved_now(source=None):
+    """The places whose design stands approved now, by prepare's own rule (prepare/design.designs) over the store and
+    the code running, never the record a sync pass saved (2026-11-05: a fix to the design rule left 14 places of base
+    and square unapproved there until the next pass); Refused with its cause when it cannot be worked out."""
+    from score.stages.complete.prepare import design  # the store's machine only: hosted never imports the stages
+    source = source or state.source()
+    try:
+        return design.designs(source.store, source.data, source.places())["approved"]
+    except Exception as failed:
+        raise Refused(f"the approved places could not be worked out now: {type(failed).__name__}: {failed}") from failed
 
 
 def record(total, high, answer, question, store=None, leave_out=()):
@@ -200,11 +215,12 @@ def buy(yes_id, store=None):
     from score.review import web
     store = store or state.source().store
     yes = yes_found(store, yes_id)
+    approved = approved_now()  # the design's approval now, as the basket below is the runner's plan now
     try:
         flow.basket_made()  # what the runner's plan buys now at the approved places, never an older pass's basket
     except flow.Refused as refused:
         raise Refused(str(refused)) from refused
-    now_basket = current_basket()
+    now_basket = current_basket(approved)
     totals = basket_totals(now_basket, yes.get("leave_out", ()))  # flow.start checks it again, under its lock
     refused = flow.yes_refusals(yes, totals) + latch_refusals() + pin_refusals(health.code()) + run_refusals()
     if refused:

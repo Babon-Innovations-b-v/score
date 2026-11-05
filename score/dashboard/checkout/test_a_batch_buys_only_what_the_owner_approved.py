@@ -40,6 +40,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - flow.batch_groups: the Benchmarks group -> `if False:` -> test_the_benchmarks_are_one_item_on_the_buy_screen_...
 - api/routes.books_figure: `user.username` -> "someone" -> test_the_google_figure_button_writes_the_owners_figure_...
 - flow.by_of: `return user.username` -> test_a_buy_approved_in_chat_launches_his_checkout_once
+- chat_yes.buy: `current_basket(approved)` -> `current_basket()` -> a Buy in chat buys at the places prepare's saved
+  design record approves and the run "would also buy" beta's row -> test_a_buy_approved_in_chat_launches_...
+- chat_yes.approved_now: its `except` dropped -> a design that cannot be worked out is no refusal in words ->
+  test_a_buy_approved_in_chat_is_refused_outside_what_he_approved
 - chat_yes.buy: the basket check put back (yes basket != basket now -> refused) -> test_a_buy_approved_in_chat_launches_...
 - flow.yes_refusals: the stop check -> `if False:` -> test_a_buy_approved_in_chat_is_refused_outside_what_he_approved
 - flow.batch_budget: a yes's `if used + need > total:` -> `if False:` -> test_a_batch_budget_counts_from_an_older_...
@@ -539,6 +543,8 @@ def chat(shop, settings, monkeypatch, tmp_path):
     monkeypatch.setattr(runs, "RUNS", tmp_path / "runs")
     from score.dashboard.state import screens
     monkeypatch.setattr(screens, "approved_places", lambda world: ["alpha", "beta"])
+    from score.stages.complete.prepare import design  # the design's approval now, as a Buy in chat works it out
+    monkeypatch.setattr(design, "designs", lambda store, data, places: {"places": {}, "approved": ["alpha", "beta"]})
     # the runner's plan now: the basket a Buy makes again
     monkeypatch.setattr(FakeBackend, "plan_buys", ["closeup@alpha", "closeup@beta"])
     monkeypatch.delenv("SCORE_FREE_ONLY", raising=False)
@@ -571,6 +577,10 @@ def test_a_buy_approved_in_chat_launches_his_checkout_once(chat, settings, monke
     # "would also buy" (owner, 2026-11-05: "A BUY IS TILL THE END OF THE BUDGET OR UNTIL THE END GOAL ENV1 DONE IS
     # COMPELTED")
     assert [item["id"] for item in records.items(settings.SCORE_HOME / "proposals")] == ["alpha-pieces"]
+    # prepare's saved design record names beta unapproved (a fix to the design rule since its pass, 2026-11-05); the
+    # design now approves it, so the Buy buys beta's row too, never "would also buy" it
+    from score.dashboard.state import screens
+    monkeypatch.setattr(screens, "approved_places", lambda world: ["alpha"])
     record, said = chat_buy(yes["id"])
     assert record is not None and record.state == "launched", said
     assert [item["id"] for item in record.items] == ["alpha-pieces", "beta-pieces"]
@@ -620,6 +630,14 @@ def test_a_buy_approved_in_chat_is_refused_outside_what_he_approved(chat, settin
     assert runs.claim("abc", ["closeup@alpha"], os.getpid(), folder=tmp_path / "runs") is None
     refused(a_yes()["id"], "a run is active")
     runs.unclaim(os.getpid(), folder=tmp_path / "runs")
+    from score.stages.complete.prepare import design
+
+    def unworkable(store, data, places):
+        raise OSError("the store's plans could not be read")
+
+    with monkeypatch.context() as patched:  # the design's approval now cannot be worked out: refused with its cause
+        patched.setattr(design, "designs", unworkable)
+        refused(a_yes()["id"], "the approved places could not be worked out now: OSError: the store's plans")
     assert not Checkout.objects.exists() and not launches() and stop_line(chat) is None
     # without the film (owner, 2026-11-03): its stages' rows are taken out of the items, so neither priced nor bought
     price = {"likely": 1.0, "high": 2.0}
