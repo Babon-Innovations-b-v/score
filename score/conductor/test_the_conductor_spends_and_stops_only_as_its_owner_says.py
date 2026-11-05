@@ -809,6 +809,16 @@ def test_relink_pixal_links_only_old_takes_the_store_holds_and_removes_nothing(t
     look.unlink()
     os.link(blob, look)  # linked before the rule: every sweep pass copies it back, the disk low or not
     assert disk.laid_plain(home) == {"copied": 1} and look.stat().st_nlink == 1
+    # a code build's take files too (2026-11-05: linked, every pixal row's rebuild was refused on input.png)
+    # Break: in disk.py `laid_by_a_row`, drop "or code_built(path, pixal)".
+    (pixal / "pipe_1.svviews").mkdir()
+    (pixal / "pipe_1.svviews/code.json").write_text("{}")
+    built = [pixal / "pipe_1.svviews/input.png", pixal / "pipe_1-final.glb", pixal / "pipe_1-2000.glb"]
+    for path in built:
+        os.link(blob, path)
+    assert disk.laid_plain(home)["copied"] == 3 and all(os.access(path, os.W_OK) for path in built)
+    assert disk.relink_pixal(home)["copied"] == 0 and (pixal / "pipe_1.svviews/input.png").stat().st_nlink == 1
+    assert not disk.code_built(pixal / "t.glb", pixal)
     assert "laid-plain" in [name for name, _ in disk.steps(home, home / "runs", print, False)]
 
 

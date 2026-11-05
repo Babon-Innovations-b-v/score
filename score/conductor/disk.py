@@ -549,8 +549,30 @@ LAID = re.compile(r"^[A-Za-z0-9_]+-made-s\d+")
 
 
 def laid_by_a_row(path, pixal):
-    """Whether the work/pixal file at `path` is a people look's take file, which a row copies over (LAID)."""
-    return bool(LAID.match(path.relative_to(pixal).parts[0]))
+    """Whether the work/pixal file at `path` is one a row writes again in place: a people look's take file, which a
+    row copies over (LAID), or a code build's (code_built)."""
+    return bool(LAID.match(path.relative_to(pixal).parts[0])) or code_built(path, pixal)
+
+
+# A code build's take files (score/stages/props/thin_straight.py `rebuilt`: every run of the Pixal3D row makes each
+# build again from its own crop, writing its input.png, raw, slimmed and final models and code.json in place): kept
+# plain copies, never links. 2026-11-05: linked to their read-only blobs, every place's pixal row stopped on
+# input.png, Permission denied, in Batch 1's try.
+CODE_MARK = "code.json"  # thin_straight.MARK, spelled here so no stage module is imported
+TAKE_FILE = re.compile(r"^(?P<take>.+?)(?:-final|-\d+)?\.glb$")
+
+
+def code_built(path, pixal):
+    """Whether the work/pixal file at `path` belongs to a take built in code: its take's .svviews holds CODE_MARK."""
+    top = path.relative_to(pixal).parts[0]
+    if top.endswith(".svviews"):
+        take = top[:-len(".svviews")]
+    else:
+        named = TAKE_FILE.match(top)
+        if named is None:
+            return False
+        take = named["take"]
+    return (pixal / f"{take}.svviews" / CODE_MARK).is_file()
 
 
 def relink_pixal(home=None, now=None):
