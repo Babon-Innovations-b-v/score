@@ -331,8 +331,11 @@ def test_a_stop_ends_every_process_left_in_the_copy_of_a_run_gone_and_leaves_a_s
     """2026-10-26: after Stop this batch six processes of the stopped run worked on in its frozen copy for an hour and
     held the checkout; a second stop found no run and ended none. 2026-11-05: two processes naming a stopped free run's copy
     by SCORE_FROZEN or command line, not their working folder, held every carry off; stop-batch found none.
+    2026-11-05 too: stop-batch ended three detached free runs 2.1 minutes in, each still working out its claim, so in
+    no registry yet.
     Break: kill.leftovers -> frozen.users only (the two by name stay), or drop its `pid not in passes` (the sync pass
-    is ended)."""
+    is ended), or drop kill.starting (the starting run is ended) or its young or owner test (the old copy's owner, or
+    the gone copy's unmarked processes, stay)."""
     (home / "runs").mkdir()
     gone, stopping = home / "frozen" / "20261026-081445-1", home / "frozen" / "20261026-091445-2"
     gone.mkdir(parents=True)
@@ -340,8 +343,15 @@ def test_a_stop_ends_every_process_left_in_the_copy_of_a_run_gone_and_leaves_a_s
     stopping.mkdir()
     named = [*SLEEP, f"{gone}/score/run.py"]  # the copy as an argument of its own, as a run names it
     env = {**os.environ, "SCORE_FROZEN": str(gone)}
+    begun, old = home / "frozen" / "20261105-101500-3", home / "frozen" / "20261105-081500-4"
+    begun.mkdir(), old.mkdir()
+    past = time.time() - disk.YOUNG_SECONDS - 60
+    os.utime(old, (past, past))  # an owner past the grace: a run gone, not starting
+    owner = {"SCORE_FROZEN_OWNER": "1"}
     left = [subprocess.Popen(SLEEP, cwd=gone), subprocess.Popen(SLEEP, cwd=f"{gone}.home"),
-            subprocess.Popen(named, cwd=home), subprocess.Popen(SLEEP, cwd=home, env=env)]  # 2026-11-05: by name only
+            subprocess.Popen(named, cwd=home), subprocess.Popen(SLEEP, cwd=home, env=env),  # 2026-11-05: by name only
+            subprocess.Popen(SLEEP, cwd=old, env={**os.environ, **owner, "SCORE_FROZEN": str(old)})]
+    begin = subprocess.Popen(SLEEP, cwd=home, env={**os.environ, **owner, "SCORE_FROZEN": str(begun)})
     monkeypatch.setattr(conductor, "HOLDS", home / "holds")
     passing = subprocess.Popen([sys.executable, "-c", f"import sys, time; sys.path.insert(0, {str(REPO)!r}); "
                                 f"from score import conductor; h = conductor.holding('sync-pass', "
@@ -358,10 +368,11 @@ def test_a_stop_ends_every_process_left_in_the_copy_of_a_run_gone_and_leaves_a_s
         assert sorted(entry["pid"] for entry in report["leftovers"]) == sorted(process.pid for process in left)
         assert all(process.wait(5) == -15 for process in left)
         assert report["runs"] == [run.pid] and node.poll() is None  # the stopping run ends its own (remove_owned)
+        assert begin.poll() is None  # a run still starting in its new copy, not registered yet, is no leftover
         assert passing.poll() is None  # a sync pass's own process is its own to end
         assert all(entry["command"] for entry in report["leftovers"])  # each named, so we learn what they were
     finally:
-        for process in (*left, run, node, passing):
+        for process in (*left, run, node, passing, begin):
             process.kill()
             process.wait()
 
