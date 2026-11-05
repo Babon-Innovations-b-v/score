@@ -557,7 +557,7 @@ def kneecap_moves(model, rig, scale, kneecap, places):
     inside test, `fit._skin.marks`) until none is outside (KNEECAP_PASSES at most). A kneecap inside is not moved."""
     from scipy.spatial.transform import Rotation
 
-    from fit._skin import envelope, marks, skin  # the measure's own skin and inside test (fit imports no sizing)
+    from fit._skin import closed_mesh, envelope, marks_in, skin  # the measure's own skin and inside test (fit imports no sizing)
     from landmarks import marker
     hinge, _, shin, tibia, talus, femur_marks, tibia_marks = places
     names = [str(joint) for joint in rig["names"]]
@@ -595,9 +595,9 @@ def kneecap_moves(model, rig, scale, kneecap, places):
         posed = skin(rig, names, worlds)
         front = Rotation.from_rotvec(axis * flexed / 2).as_matrix() @ forward
         front /= np.linalg.norm(front)
-        points, back = verts @ turn.T + shift, 0.0
+        points, back, mesh = verts @ turn.T + shift, 0.0, closed_mesh(posed, faces)  # one mesh for the bend's passes
         for _ in range(KNEECAP_PASSES):
-            out, depths = marks(points - back * (turn @ front), posed, faces)
+            out, depths = marks_in(points - back * (turn @ front), mesh)
             if not out.any():
                 break
             back += float(depths[out].max())

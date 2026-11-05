@@ -71,23 +71,38 @@ table, at its start joint's centre, `fit.riding`), `<name>/paths` (every muscle'
 `<name>/counts` (frames x muscles: each
 path's point count) and `<name>/mesh/<body>/points|faces` (each bone in its body's frame)."""
 import json
+import os
 import pathlib
 import sys
 
-import mujoco
-import newton
-import numpy as np
 
-import fit
-import myo
-from bone_groups import FEET, groups
-from contact import Skin
-from landmarks import at_starts
-from model import TO_OWN, body_index, built, carried, filtered, posed_path, rates
-from muscles import Physics, parts_of
-from records import adjustment_record, arrays, bones_of, com_height, entry, frames
-from rra import Footing, off_clip, reduced, within_follows, within_frames
-from sizing import Size
+def warp_cache(environ):
+    """The variables that keep Warp's compiled modules in a cluster node's cache (the job runtime's `SCORE_CACHE`,
+    else /cache: tools/cloud/runtime/weights.CACHE, a node's folder every pod on it mounts) when there is one and
+    nothing names Warp's own: a node compiles a sim body's modules once, not every clip's pod (#70: 75 s of them on
+    a first run, 0.2 s read back). Elsewhere Warp's own default, kept on the machine, stands."""
+    cache = pathlib.Path(environ.get("SCORE_CACHE", "/cache"))
+    if "WARP_CACHE_PATH" in environ or not os.access(cache, os.W_OK):
+        return {}
+    return {"WARP_CACHE_PATH": str(cache / "warp")}
+
+
+os.environ.update(warp_cache(os.environ))  # before Warp is imported: it reads the folder once, at its start
+
+import mujoco  # noqa: E402
+import newton  # noqa: E402
+import numpy as np  # noqa: E402
+
+import fit  # noqa: E402
+import myo  # noqa: E402
+from bone_groups import FEET, groups  # noqa: E402
+from contact import Skin  # noqa: E402
+from landmarks import at_starts  # noqa: E402
+from model import TO_OWN, body_index, built, carried, filtered, posed_path, rates  # noqa: E402
+from muscles import Physics, parts_of  # noqa: E402
+from records import adjustment_record, arrays, bones_of, com_height, entry, frames  # noqa: E402
+from rra import Footing, off_clip, reduced, within_follows, within_frames  # noqa: E402
+from sizing import Size  # noqa: E402
 
 
 def arguments():
@@ -128,11 +143,12 @@ def constants_set_up(job, person, rig, worlds, path, size, scales, made=None, fo
     return record, scales, fitting
 
 
-def clip_angles(fitting, rig, segments, worlds):
+def clip_angles(fitting, rig, segments, worlds, made=None):
     """The clip's fitted path on `fitting` (qpos of MuJoCo's own compile of the file: the pose alone per frame, the
     constants held), by `fit.angles`, the bones held inside SOMA's posed skin (the stage's; level 1's evaluation runs
-    without them: `evaluation.SKIN_ROWS`, `evaluation._case.fitted_case`)."""
-    turns, points, skins = fit.targets(rig, segments, worlds, fit.followed(segments))
+    without them: `evaluation.SKIN_ROWS`, `evaluation._case.fitted_case`). `made`: the clip's `fit.targets`, when the
+    caller made them already (`fitted_person`)."""
+    turns, points, skins = made or fit.targets(rig, segments, worlds, fit.followed(segments))
     return fit.angles(fitting, turns, points, skins)
 
 
@@ -144,9 +160,13 @@ def followed_record(record, fitting, angles, worlds, segments, scales, rig):
 
 def fitted_person(job, person, rig, worlds, path):
     """The person's file at `path` with the fit's constants, its record (the fit and its following of SOMA in it),
-    each body's scale, the fitted model and the clip's fitted path: set up, angles, record."""
-    record, scales, fitting = person_set_up(job, person, rig, worlds, path, Size(rig))
-    angles = clip_angles(fitting, rig, person["segments"], worlds)
+    each body's scale, the fitted model and the clip's fitted path: set up, angles, record. The clip's targets are
+    made once: with no `recordings` the clip is level 2's one recording too (#70: SOMA's skin was posed on every frame
+    twice, about 11 s a clip)."""
+    clip = fit.targets(rig, person["segments"], worlds, fit.followed(person["segments"]))
+    made = None if person.get("recordings") else [clip]
+    record, scales, fitting = person_set_up(job, person, rig, worlds, path, Size(rig), made)
+    angles = clip_angles(fitting, rig, person["segments"], worlds, clip)
     record = followed_record(record, fitting, angles, worlds, person["segments"], scales, rig)
     return record, scales, fitting.model, angles
 
