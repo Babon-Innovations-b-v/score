@@ -20,7 +20,13 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   room whose plan says its kit holds its walls, laid by earth-seed); an open place has none. Every stair or ramp the
   plan draws is a flight of `stairs`; the walls cut each opening a door or window row of the hand-in fills at its
   plan item (`design_shell.cut_for`); each plan item of an arched structure row of the hand-in
-  (`design_shell.arched`: a tube's ribs) an `arch` at the row's size, painted as a wall, named its row. Each entry's surface is the scene's surface library's for its kind
+  (`design_shell.arched`: a tube's ribs) an `arch` at the row's size, painted as a wall, named its row. The shell's own structural rows of the hand-in are its pieces too (`design_shell.row_pieces`,
+  `writer.row_entries`, 2026-11-05): pillars spaced round the walls, beams under the roof, a pad or grate at its plan
+  item, each `<row>_<n>` named its row and left out of the rows named on deck, wall and roof pieces; a deck is cut
+  open over each flight going down from it (`design_shell.hatches`), and an opening row no plan item of its own cuts
+  is named by its id's words on a free piece at a cut (`writer.name_open_cuts`: a roof's opening on a roof cut round
+  its openings, a floor hatch on the flight down through it, any other on the lintel over a plan opening), else on
+  none, for `gates.unbuilt_rows` to fail. Each entry's surface is the scene's surface library's for its kind
   (surface-library@<place>, an `after`; `design_shell.PART_KINDS`, as earth-seed paints), else none and its
   `surface_missing` says why; tools/usd/scene.py names that on the mesh and binds nothing (no fixed surface name).
 - **Objects from the plan's items** (2026-10-25: the record laid none, so no designed place's model was placed): one
