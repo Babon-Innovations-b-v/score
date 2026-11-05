@@ -39,6 +39,7 @@ import pictures  # noqa: E402
 import secret_store  # noqa: E402
 import spread  # noqa: E402
 from paths import REPO  # noqa: E402
+import provider  # noqa: E402
 from provider import cloud  # noqa: E402
 
 KIND = "characters"
@@ -74,6 +75,16 @@ STEP_NEED = {**{step: CLIP_NEED for step in CLIP_STEPS},
 # A make with no steps holds the machine for the look's shell, build and route (prop_person.machine_held).
 HELD_STEPS = {"shell", "build", "identity", "route"}
 ENCODER = "TEXT_ENCODER_DEVICE=cpu"
+# Under SCORE_CLOUD=k8s a make runs in the characters-motion image, which holds the motion environment alone (Kimodo,
+# SOMA-X, SAM3DBody-cpp): only makes whose every step runs there go to the cluster, the clip makes (people-clips-made,
+# scene-clips); a look's shell, build and route stay on machines.
+IMAGE = "characters-motion"
+CLUSTER_STEPS = CLIP_STEPS
+CLUSTER_CODE = ("tools/characters",)
+# The models the clip steps read up there (images/characters-motion/models.json): Kimodo, its Llama 3 text encoder
+# with its LLM2Vec adapters, and SOMA-X's assets.
+CLUSTER_MODELS = ("kimodo-soma-rp-v1.1", "llm2vec-llama3-mntp", "llm2vec-llama3-mntp-supervised",
+                  "llama3-8b-instruct", "soma-x-assets")
 
 
 def price(makes, account, classes, minutes=None):
@@ -216,6 +227,43 @@ def record(run, makes):
     return entry
 
 
+def cluster_job(make):
+    """One make as the cluster runs it in the characters-motion image: its in/ up at the machine path, its program in
+    the motion environment with its log in out/chain.log (as the machine's chain.log comes back), out/ back."""
+    spec = json.loads((make / "in" / "spec.json").read_text())
+    steps = set(spec.get("steps") or HELD_STEPS)
+    if not steps <= CLUSTER_STEPS:
+        raise SystemExit(f"{make.name}: steps {', '.join(sorted(steps - CLUSTER_STEPS))} need environments the "
+                         f"{IMAGE} image does not hold; run it on machines (SCORE_CLOUD unset)")
+    place = REMOTE / make.name
+    program = shlex.join(["characters-run", "/root/envs/motion/bin/python",
+                          f"tools/characters/{program_of(make)}", str(place)])
+    log = place / "out" / "chain.log"
+    line = f"mkdir -p {place}/out && {program} > {log} 2>&1; code=$?; tail -n 40 {log}; exit $code"
+    return {"command": ["bash", "-c", line], "code": list(CLUSTER_CODE),
+            "inputs": [{"local": str(make / "in"), "path": str(place / "in")}],
+            "outputs": [{"path": str(place / "out"), "local": str(make / "out")}],
+            "models": list(CLUSTER_MODELS), "minutes": PERSON_MINUTES}
+
+
+def main_on_cluster(options, makes):
+    """main() under SCORE_CLOUD=k8s: each make one job of one cluster run on the kind's classes in its order
+    (capacity.py), or the classes asked for; a make that failed is a gap, as on machines."""
+    sys.path.insert(0, str(HERE / "k8s"))
+    import cluster_jobs
+
+    if options.hold:
+        raise SystemExit("--hold keeps a machine for ssh work; the cluster has none to hold")
+    jobs = [cluster_job(make) for make in makes]
+    if options.dry_run:
+        batch.say(f"{len(jobs)} characters jobs for the cluster")
+        return
+    classes = options.classes.split(",") if options.classes else None
+    left = cluster_jobs.run(KIND, jobs, options.who, classes, image=IMAGE)
+    for number in left:
+        batch.say(f"{makes[number].name} failed on the cluster, a gap")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("makes", nargs="+", type=pathlib.Path, help="make folders, each holding in/spec.json")
@@ -231,6 +279,9 @@ def main():
         if not (make / "in" / "spec.json").exists():
             raise SystemExit(f"{make} holds no in/spec.json (tools/characters/maker/make.py writes it)")
         program_of(make)
+    if provider.on_cluster():
+        main_on_cluster(options, makes)
+        return
     classes = options.classes.split(",") if options.classes else None
     account = cloud.account()
     batch.sweep(account)
