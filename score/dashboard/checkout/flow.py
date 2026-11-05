@@ -132,6 +132,19 @@ def stale_basket(index, checkout, changed):
     return found
 
 
+def basket_made(chosen=None):
+    """The basket made again from the runner's own plan now (proposals/make.py, plan only: free, no place assembled,
+    as each sync pass makes it), so a Buy under his yes in chat buys what a run here buys at launch, not the basket an
+    older pass saved (2026-11-05: free work after that pass moved more rows due and the run "would also buy" them);
+    its index. Refused, in words, when the runner could not plan."""
+    from score.dashboard.proposals import make
+    try:
+        return make.make(settings.SCORE_HOME, settings.SCORE_PROPS_HOME / "store", chosen=chosen or guard.backend(),
+                         plan_only=True)
+    except RuntimeError as failed:
+        raise Refused(f"the basket could not be made again from the runner's plan now: {failed}") from failed
+
+
 def basket_refusals():
     """stale_basket of this cockpit's basket against its store; none while hosted (place_refusals says that)."""
     if settings.SCORE_MODE != settings.LOCAL:

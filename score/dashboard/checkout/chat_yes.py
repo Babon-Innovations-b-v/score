@@ -26,7 +26,8 @@ his Buy button makes (flow.start, every refusal of his click), once.
                                           the line is the batch's start plus his total, and a try that needs more
                                           than is left stops at it, owner 2026-10-27), this
                                           machine's code off the cockpit's pin, paid work latched off, or a run
-                                          active; then flow.start as his click, by "<owner>, approved in chat at
+                                          active; then flow.start as his click on the basket made again from the
+                                          runner's plan now (flow.basket_made), by "<owner>, approved in chat at
                                           <time>", the yes on the checkout (Checkout.chat_yes); again under a yes
                                           that launched one, a retry of its batch held to the batch's budget
                                           (flow.batch_budget: launched while any of it is left), no new ask; a
@@ -199,6 +200,10 @@ def buy(yes_id, store=None):
     from score.review import web
     store = store or state.source().store
     yes = yes_found(store, yes_id)
+    try:
+        flow.basket_made()  # what the runner's plan buys now at the approved places, never an older pass's basket
+    except flow.Refused as refused:
+        raise Refused(str(refused)) from refused
     now_basket = current_basket()
     totals = basket_totals(now_basket, yes.get("leave_out", ()))  # flow.start checks it again, under its lock
     refused = flow.yes_refusals(yes, totals) + latch_refusals() + pin_refusals(health.code()) + run_refusals()

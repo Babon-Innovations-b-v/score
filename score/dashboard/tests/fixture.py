@@ -251,7 +251,8 @@ class FakeBackend:
                         for place in group.places})
         bought = self.plan_buys if self.plan_buys is not None else [node for node in named
                                                                      if node.startswith("closeup@")]
-        buys = [{"node": node, "euros": self.euros, "why": "never ran", "again": False} for node in bought]
+        buys = [{"node": node, "euros": self.euros, "why": "never ran", "again": False, "price": dict(self.price_of)}
+                for node in bought]
         return GroupPlan(missing=list(self.missing), buys=buys, refusal=self.refusal,
                          to_run={node: "to run: never ran" for node in named}, blocked={})
 
