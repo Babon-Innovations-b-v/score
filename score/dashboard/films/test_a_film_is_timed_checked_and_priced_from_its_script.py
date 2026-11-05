@@ -26,6 +26,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - default.sim_bodies: the CLIPS_TRUE_ON scenes not put first -> test_every_scene_whose_design_has_people_is_peeled_...
 - default.sim_bodies: `entry[0] in walked and entry[0] not in people` -> `False` -> test_every_scene_whose_design_...,
   test_environment_1_demo_is_its_complete_default
+- default.people_of: a crowd-only place's `else None` dropped (its walks given) -> test_every_scene_whose_design_...
 - default.walks: Outside and Inside swapped -> test_an_environments_default_film_is_the_owners_structure_...
 - default.walks: a held scene said "Inside" whatever its record says -> test_an_environments_default_film_is_...
 - default.stops_of: a shell walked never, its plan or not (`planned` dropped) -> test_an_environments_default_film_...
@@ -357,6 +358,7 @@ def test_environment_1_demo_is_its_complete_default():
         if segment["cut"] in ("body-peel", "place-peel"):
             peels.setdefault(segment["shows"]["place"], set()).add(segment["cut"])
     assert all(len(peels.get(place, ())) == 1 for place in walks) and "place-peel" in peels["hub"]
+    assert peels["square"] == {"place-peel"}  # its cast a crowd alone: no sim body to peel (data/people/rows.json)
 
 
 def locking(client, film, body):
@@ -525,6 +527,9 @@ def test_every_scene_whose_design_has_people_is_peeled_earth_first_the_rest_note
                                       "text": "Base: finished, bare models, physics bodies"}
     assert tail[1]["waiting"] and script.faults(a_script(tail), {"base"}) == []
     assert [segment["cut"] for segment in default.sim_bodies(shown, {}, {"hub"})] == ["text", "place-peel"]
+    crowd = default.sim_bodies(shown, {"square": None, "street": False})  # a crowd alone: its place peeled, walked or not
+    assert [(segment["cut"], segment["shows"].get("place")) for segment in crowd] == [
+        ("text", None), ("body-peel", "street"), ("text", None), ("place-peel", "square")]
     peeled = render.items(a_script(part), {})[1]
     assert peeled["how"] == render.NEW and peeled["euros"] is None  # no row draws a peel yet: not measured
     rows = json.loads((pathlib.Path(__file__).resolve().parents[3] / "data/people/rows.json").read_text())
@@ -532,8 +537,9 @@ def test_every_scene_whose_design_has_people_is_peeled_earth_first_the_rest_note
         people_rows.doing_of(row) == "walking" for entry in rows["places"].values() for row in entry["rows"].values()]
     within = {"dock": "port", "bar": "port", "bunk": "deck", "hold": "port", "deck": "port", "tent": "camp"}
     people = default.people_of({"places": {"tent": {"rows": {"a": {"where": "walking"}}}, "bar": {"rows": {"b": {}}},
-                                           "deck": {"rows": {}}}})
-    assert people == {"bar": False, "tent": True}
+                                           "deck": {"rows": {}}, "plaza": {"rows": {"c": {"crowd": "far"}}}}})
+    assert people == {"bar": False, "plaza": None, "tent": True}
+    people.pop("plaza")
     facts = default.facts_of("world7", "Environment 7", SETTING, PLAN, within, {"port": "The Port"},
                              {"tess": "tess_dust"}, people)
     film = default.built("world7-film", facts)

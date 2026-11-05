@@ -46,7 +46,8 @@ Rules:
   child (owner, 2026-10-24: "scale zoom after scale zoom and no walkthroughs in between"), so two zooms follow each
   other only where a site has nothing to walk; the env1_demo starter the same. Last, the sim bodies part
   (`default.sim_bodies`, owner 2026-10-27): a layer peel of every shown scene whose design has people
-  (`data/people/rows.json`), and a close-up peel after it where one walks, Earth's first (the clips' motion is true
+  (`data/people/rows.json`) and whose cast gives sim bodies (a cast of a crowd alone has none, the sim body row's
+  rule: such a scene, the Square, gets a place peel instead), and a close-up peel after it where one walks, Earth's first (the clips' motion is true
   there), every other carrying `LOW_GRAVITY_NOTE` (env1_demo's from the kept designs' people rows,
   `design_layers`; the environment film refuses a lock missing one), then a place peel of every other scene it walks
   through (`default.place_peel`, owner 2026-11-05: "every scene needs the peel"; asked whether that meant adding

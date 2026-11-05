@@ -5,8 +5,8 @@ accepted films; one environment node, free (a local cut with ffmpeg, no card), s
 the films it reads (the paid demo-film and demo-film-extra rows). A new lock moves its key; the starters in
 data/films/ and his unlocked edits are read by nothing here.
 
-    files      every locked film script, the cut's tools and type (lettering.py), each script's sound bed (a
-               library sound, `bed`) and, for a script with recorded segments (screen takes, physics animations,
+    files      every locked film script, the people rows (whose cast is a crowd alone: crowd_only), the cut's tools
+               and type (lettering.py), each script's sound bed (a library sound, `bed`) and, for a script with recorded segments (screen takes, physics animations,
                scale zooms), its free preview's record and each such segment's take
                (`$SCORE_DASHBOARD_HOME/films/previews/<film>.json`, `<film>-takes/<NNN>.mp4`)
     beside     demo-film@<place> and demo-film-extra@<place> for each place a script's walk-through or hero still
@@ -48,7 +48,7 @@ import shutil
 import sys
 
 from score import checks, contracts, graph
-from score.stages import demo_film, design_layers
+from score.stages import demo_film, design_layers, people_rows
 from score.stages.demo_film import lettering
 from score.store import PROPS_HOME
 
@@ -97,6 +97,7 @@ def files(place=None):
                                                             "score/stages/demo_film/lettering.py")}
     found = {**tools, **lettering.FILES}
     found.update({f"design {place}": design_layers.PATTERN.replace("{place}", place) for place in designed()})
+    found["people rows"] = "{data}/people/rows.json"  # whose cast is a crowd alone (crowd_only)
     for film, script in scripts().items():
         found[f"script {film}"] = "{dashboard}/" + f"{LOCKED}/{film}.json"
         found.update(recorded_files(film, script))
@@ -254,25 +255,40 @@ def designed():
 
 
 def peopled():
-    """Every place whose design shows people (design_layers.has_layer)."""
-    return [place for place in designed() if design_layers.has_layer(place, "people")]
+    """Every place whose design shows people (design_layers.has_layer) and whose cast gives sim bodies."""
+    return [place for place in designed() if design_layers.has_layer(place, "people") and not crowd_only(place)]
 
 
-def plan_faults(script, people=(), designs=()):
+def crowded():
+    """Every place whose design shows people and whose cast is a crowd alone: no sim body, so a place peel."""
+    return [place for place in designed() if design_layers.has_layer(place, "people") and crowd_only(place)]
+
+
+def crowd_only(place):
+    """Whether the place's people rows are a crowd and no single person: the cast that gives no sim body
+    (score/stages/sim_body's rule: a crowd has none, no_singles)."""
+    rows = (people_rows.place_entry(place) or {}).get("rows") or {}
+    return bool(rows) and all("crowd" in fields for fields in rows.values())
+
+
+def plan_faults(script, people=(), designs=(), crowds=()):
     """What keeps a script from being cut by this row, in words: a segment without its `seconds`, a cut this row does
     not make, a walk-through whose sound is not its place's own, a script that shows no place's film (its cards'
     sound and backdrop come from the films), a place of `people` (peopled: its design shows people) no layer peel
     shows (owner, 2026-10-27: every scene with people peeled, so a script never drifts from the designs), a place
     of `designs` (designed: it has a kept design) walked through with no peel, a place peel where `people` holds it
     not (owner, 2026-11-05: "every scene needs the peel"; asked whether that meant adding people or peeling the place
-    itself: "2", the place itself)."""
+    itself: "2", the place itself), and a place of `crowds` (crowded: its cast a crowd alone, no sim body) shown by a
+    layer peel or by no place peel."""
     found = [] if shown(script) or script.get("bed") else ["it shows no place's film and names no bed"]
     segments = script.get("segments", [])
     peeled, walked, placed = ({(segment.get("shows") or {}).get("place") for segment in segments
                                if segment.get("cut") == cut} for cut in (PEEL, WALK, PLACE_PEEL))
     found += [f"the design of {place} shows people and no layer peel shows them" for place in people
               if place not in peeled]
-    unpeopled = walked & set(designs) - set(people)
+    found += [f"the cast of {place} is a crowd with no sim body and {'a layer' if place in peeled else 'no place'} "
+              "peel shows it" for place in crowds if place in peeled or place not in placed]
+    unpeopled = walked & set(designs) - set(people) - set(crowds)
     found += [f"{place} is walked through and no place peel shows it" for place in sorted(unpeopled - placed)]
     for number, segment in enumerate(script.get("segments", []), 1):
         cut = segment.get("cut")
@@ -527,9 +543,9 @@ def make(inputs, out, seed, params):
     """Every script's film, each in a folder of its name (module docstring)."""
     named = named_scripts(inputs)
     require_yes(named)
-    people, designs = peopled(), designed()
+    people, designs, crowds = peopled(), designed(), crowded()
     faults = [f"{film}: {fault}" for film, script in sorted(named.items())
-              for fault in plan_faults(script, people, designs)]
+              for fault in plan_faults(script, people, designs, crowds)]
     if faults:
         raise graph.Blocked("; ".join(faults))
     films = {film: sources(script, inputs) for film, script in sorted(named.items())}  # every film found first

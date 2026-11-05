@@ -86,7 +86,8 @@ own sound; paid and cleared by the runner like any paid row.
   output where the place has one, its moving bodies in the sim colour), joined by the same wipes. Its frames come only
   from those rows' outputs; the film's are the place-peel row's (below). A locked
   script that walks through a place with a kept design and no people (designed, peopled) and shows no place peel of it
-  is Blocked naming it (`plan_faults`), so every walked scene has one peel.
+  is Blocked naming it (`plan_faults`), so every walked scene has one peel; so is one that layer peels a place whose
+  cast is a crowd alone (`crowded`, `crowd_only`: no sim body, the sim body row's rule) or shows it no place peel.
 - **The peel rows** (`peel_rows.py`, body-peel@place and place-peel@place, paid; owner 2026-11-05: every scene peeled
   in the film): a place a locked script peels has the row, keyed on those scripts (`script <name>`), never one peeled
   by none. body-peel reads the cast, sim-body, the clips rig (people-clips-made), scene-clips (optional: a climber's
@@ -104,7 +105,7 @@ own sound; paid and cleared by the runner like any paid row.
   that high, a failed job a gap. Its jobs lie inside the make's folder, so a job made before at the same content is
   kept (tools/cloud/kept.py). Gate `peel`: each shot's video at its size and seconds, no black stretch (no sound of
   its own; a still stretch is no fault). A crowd-only place (no single characters) has no sim body to peel: its
-  body-peel fails by name.
+  body-peel fails by name, so the scripts give it a place peel (the Square, `default.sim_bodies`).
 - **Stills come from the films.** K5, K6 and K8 take frames of the places' films (a film starts at its
   segment's `start`, else the stage's start); the demo-stills row, which rendered a view no film showed, was retired
   on 2026-10-22 (it had no definitions and so no node).
