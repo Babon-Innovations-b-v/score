@@ -63,6 +63,12 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   through `/usr/local/bin/score-secret-reader` (`secret_reader.sh`: the project id found by its name,
   `SCORE_SECRETS_PROJECT`); the file-shaped ones (`score-lib-deploy-key`, optional `google-billing-reader`) only on tmpfs at
   `/run/user/1100/score` (`secrets.sh`, `score-secrets.timer`), gcloud's config with them.
+- **Claude Code** (owner's yes, 2026-11-05: the finish route's `claude -p` rows run here): boot.sh's user part
+  (`install_claude`, also `boot.sh claude`) installs `CLAUDE_PIN` with npm into `~/.local/lib/claude-code`, off the
+  PATH; `claude_login.py link` (secrets.sh, every boot and hour) links `~/.local/bin/claude` to `claude_login.py` only
+  while that CLI is there and `claude-code-oauth-token` reads, else the adapter's NotHere stands; run as `claude`, it
+  reads the login by name through the secret reader at each call and execs the CLI with it in
+  `CLAUDE_CODE_OAUTH_TOKEN` alone, never a file, log or argument. FRAMEWORK (`score/graph/_code.py`): no row re-keys.
 - **The agents' door** (`agent_door.sh` -> `agent_door.py`): the forced command of the agents' authorized_keys
   line. It runs only status, plan, price, resume --dry, a detached free-only run (`score run ... --free`: every free row for real, paid rows left for the Buy), logs (`score.conductor logs`: the run
   logs, fault reports, unit journals and the boot logs /var/log/score-boot-{system,user}.log, secrets left out), health (read only), disk (free room, the biggest folders and the whole data disk accounted for, read only), sweep (the data disk's routine sweep, every step under its warning line, `score/conductor/disk.py`), store-gc [--dry] (with no run live, the store's blobs nothing names), store-evict [--dry] (with no run live, blobs into the store bucket, the proven ones nothing here reads evicted, #74), clean-frozen (removes the frozen copies no run needs, `score/conductor/disk.py`), relink-pixal (work/pixal's files the store holds made links to its blobs), offload-pixal (with no run live, work/pixal's takes into score_lib, freed once read back whole), score-lib status | pull (score_lib's checkout after a fetch against its origin, the newest push its reflog holds; pull fast-forwards only, refused on local changes or commits, `score/conductor/library_checkout.py`), checkouts, gaps <node> (a node's batch gaps, read only), job-log <path> (a cloud job's log under a frozen home's

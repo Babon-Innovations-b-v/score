@@ -68,6 +68,11 @@ The health record (health_push.py) errs on busy:
 - secret_reader.sh finds the secrets project by name; secrets.sh writes the file-shaped secrets whole at 600 in a 700
   folder, an empty read never replaces a good one, an absent optional billing reader leaves a note, a failed read
   fails. Break: drop the empty check in secrets.sh.
+- Claude Code's login (claude_login.py, from secrets.sh): with no claude-code-oauth-token, no `claude` on the PATH, so
+  the adapter's NotHere fires; with the pinned CLI and the secret, `claude` reaches it with the login in
+  CLAUDE_CODE_OAUTH_TOKEN and no API key, the login in no file and no log line; a `claude` not ours is never removed;
+  boot.sh does not reinstall a CLI at its pin. Break: in `environment`, drop `TOKEN_ENV: value`. Break: in `link`,
+  `and token() is not None` -> `` (the link stays without the secret, NotHere never fires).
 
 The checkout moves (update.py):
 - It follows the cockpit's pin, refuses a pin off main, follows origin/main forward only while the cockpit has none,
@@ -827,6 +832,8 @@ def boot_root(folder, installed=True):
                                       "echo \"uv $*\" >> \"$SHIM_LOG\"\n")
         executable(bin_folder / "scw", "#!/bin/sh\necho 'Version          2.65.1'\n")
         executable(bin_folder / "node", "#!/bin/sh\necho v24.21.0\n")
+        executable(root / "home" / "score" / ".local" / "lib" / "claude-code" / "bin" / "claude",
+                   "#!/bin/sh\necho '2.1.318 (Claude Code)'\n")
         (root / "opt" / "google-cloud-sdk").mkdir(parents=True)
         (root / "opt" / "google-cloud-sdk" / "VERSION").write_text("588.0.0")
     home = root / "home" / "score"
@@ -900,6 +907,8 @@ def test_boot_runs_against_a_temp_root_and_again_the_same(short_path):
     assert waits in (units / "score-health.service").read_text().splitlines()
     assert "npm cache add gltfpack@0.22.0" in calls  # score_lib's web copies run gltfpack offline from the cache
     assert "apt-get remove -y -q nodejs" in calls  # Ubuntu's old node is never found before the pinned one
+    assert "Claude Code 2.1.318 already installed" in done.stdout  # the pinned CLI there is not installed again
+    assert not any(call.startswith("npm install") for call in calls)
 
     # after the move (machine.json), every boot syncs the prop environment the rows' PROPS_PYTHON runs in
     (mountpoint / "machine.json").write_text("{}")
@@ -1023,7 +1032,7 @@ def test_the_secret_reader_finds_the_secrets_project_by_name(tmp_path):
     assert refused.returncode != 0 and "found 0" in refused.stderr
 
 
-def test_secrets_go_whole_and_private_to_the_runtime_folder_and_an_empty_read_replaces_nothing(tmp_path):
+def test_secrets_go_whole_and_private_to_the_runtime_folder_and_an_empty_read_replaces_nothing(tmp_path, monkeypatch):
     runtime = tmp_path / "run"
     runtime.mkdir()
     gcloud = executable(tmp_path / "gcloud", f"#!/bin/sh\necho \"$CLOUDSDK_CONFIG $*\" > {tmp_path}/gcloud.log\n")
@@ -1057,6 +1066,51 @@ def test_secrets_go_whole_and_private_to_the_runtime_folder_and_an_empty_read_re
         tmp_path / "failing", "#!/bin/sh\n[ \"$1\" = --if-present ] && exit 1\nprintf 'value of %s' \"$1\"\n"))
     refused = secrets()
     assert refused.returncode != 0 and "reading google-billing-reader failed" in refused.stderr
+
+    # Claude Code's login (claude_login.py, run by secrets.sh): no secret -> no `claude` and the adapter's NotHere;
+    # the CLI and the secret -> `claude` asks with the login in the CLI's environment alone, written nowhere.
+    from score.adapters.models import claude_code
+    login = "sk-ant-oat01-" + "q" * 40
+    bin_folder, cli = tmp_path / "bin", tmp_path / "lib" / "claude"
+    executable(cli, "#!/bin/sh\ncat > /dev/null\nseen=false; [ \"$CLAUDE_CODE_OAUTH_TOKEN\" = %s ] && seen=true\n"
+                    "[ -z \"$ANTHROPIC_API_KEY\" ] || seen=false\nprintf '{\"type\":\"result\",\"is_error\":false,"
+                    "\"structured_output\":{\"login\":%%s,\"model\":\"%%s\"}}\\n' \"$seen\" \"$3\"\n" % login)
+    held = executable(tmp_path / "held", "#!/bin/sh\n[ \"$1\" = --if-present ] && shift\n"
+                                        f"[ \"$1\" = claude-code-oauth-token ] && printf {login} && exit 0\n"
+                                        "printf 'value of %s' \"$1\"\n")
+    env.update(SCORE_GCLOUD=str(gcloud), SCORE_LOGIN_PYTHON=sys.executable, SCORE_CLAUDE_CLI=str(cli),
+               SCORE_CLAUDE_LINK=str(bin_folder / "claude"), SCORE_SECRET_READER=str(tmp_path / "absent"))
+    monkeypatch.setattr(claude_code, "LEDGER", tmp_path / "home" / "claude-ledger.jsonl")
+    monkeypatch.setattr(claude_code, "CACHE", tmp_path / "home" / "claude-cache")
+    monkeypatch.setenv("PATH", str(bin_folder))
+    monkeypatch.setenv("SCORE_CLAUDE_CLI", str(cli))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "an-api-key")
+    body = {"contents": [{"parts": [{"text": "which login?"}]}], "generationConfig": {"responseSchema": {
+        "type": "OBJECT", "properties": {"login": {"type": "BOOLEAN"}, "model": {"type": "STRING"}}}}}
+    said = []
+    for reader, linked in ((tmp_path / "absent", False), (held, True), (tmp_path / "absent", False)):
+        env["SCORE_SECRET_READER"] = str(reader)
+        done = secrets()
+        assert done.returncode == 0, done.stderr
+        said.append(done.stdout + done.stderr)
+        assert (bin_folder / "claude").is_symlink() is linked
+        if not linked:
+            with pytest.raises(claude_code.NotHere, match="runs on this PC"):
+                claude_code.asked({"one": body}, caller="finish-route-palette")
+    monkeypatch.setenv("SCORE_SECRET_READER", str(held))
+    env["SCORE_SECRET_READER"] = str(held)
+    assert secrets().returncode == 0
+    answers = claude_code.asked({"one": body}, caller="finish-route-palette")
+    assert json.loads(answers["one"]) == {"login": True, "model": "claude-opus-5-5"}, answers
+    written = [path.read_bytes() for path in tmp_path.rglob("*")
+               if path.is_file() and not path.is_symlink() and path not in (held, cli)]  # the two stand-ins hold it
+    assert len(written) > 3 and (tmp_path / "home" / "claude-ledger.jsonl").exists()
+    assert not any(login.encode() in text for text in written), "the login was written to a file"
+    assert not any(login in text for text in said), "the login reached a log line"
+    (bin_folder / "claude").unlink()
+    executable(bin_folder / "claude", "#!/bin/sh\n")  # a claude that is not ours is never removed
+    env["SCORE_SECRET_READER"] = str(tmp_path / "absent")
+    assert secrets().returncode == 0 and (bin_folder / "claude").read_text() == "#!/bin/sh\n"
 
 
 # ==== the checkout moves only when safe =============================================================================
