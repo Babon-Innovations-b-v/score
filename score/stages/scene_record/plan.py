@@ -43,6 +43,13 @@ plan's frame anchors, person spots and items lie inside its own box; a plan hold
 middle of its own item for the hold's row (rooms several to one item inside it), no two holds overlap, no place held
 once is led to by more doors than it has leading back, and every door of a held place to a held sibling meets one of
 the sibling's leading back on the holder's plan (`levels`: a place stands as high as a sibling's door to it says).
+
+A place may be held several times (#72: the base's seven tubes, one tube scene stood on each link): each such hold
+names its `instance` (`tube#3`), what each of the place's doorways leads to there (`leads`: {its own lead: this
+instance's}, the tube's hub and greenhouse ends the habitat's and the hub's) and its `turn` (0, 90, 180 or 270 degrees
+clockwise on the holder's plan; any hold may turn); a plan that stretches (`shape: tube`, its run along its d: tube.json's
+"stood and stretched") takes its hold's length along its run. The gate judges each instance by itself: its doors and
+leads, its size and middle against its own item, its overlaps.
 """
 import json
 import math
@@ -377,12 +384,70 @@ def doors_to(plan, name):
             if opening.get("kind") in DOORWAYS and opening.get("to") == name]
 
 
+TURNS = (0, 90, 180, 270)
+INSTANCE = "#"  # an instance's name: its place, this mark, its number (tube#3)
+
+
+def name_of(hold):
+    """The name a hold stands under on its holder: its `instance`, else its place."""
+    return hold.get("instance") or hold["place"]
+
+
+def place_of(name):
+    """The place an instance's name (`tube#3`) or a place's name stands for."""
+    return str(name).partition(INSTANCE)[0]
+
+
+def turn_of(hold):
+    """A hold's turn in degrees clockwise on its holder's plan (TURNS), 0 when it names none; refused otherwise."""
+    turn = float(hold.get("turn") or 0)
+    if turn not in TURNS:
+        raise ValueError(f"{name_of(hold)}'s hold turns {turn:g} degrees, none of {TURNS}")
+    return int(turn)
+
+
+def stretches(plan):
+    """Whether a plan is stood stretched to its hold's length along its run (its d): a walkway tube (`shape: tube`,
+    tube.json: "every other tube is this stage stood and stretched")."""
+    return plan.get("shape") == "tube"
+
+
+def stretch_of(hold, plan):
+    """How many times its own d a stretching plan's run is laid in `hold` (its length along the hold's turned run), 1
+    for any other plan or a hold with no box (the holder itself)."""
+    if not stretches(plan) or "w" not in hold:
+        return 1.0
+    return float(hold["w"] if turn_of(hold) in (90, 270) else hold["d"]) / float(plan["d"])
+
+
+def laid_size(hold, plan):
+    """(w, d) a plan covers on its holder's plan laid in `hold`: stretched along its run, turned."""
+    wide, deep = float(plan["w"]), float(plan["d"]) * stretch_of(hold, plan)
+    return (deep, wide) if turn_of(hold) in (90, 270) else (wide, deep)
+
+
 def on_holder(hold, plan, point):
-    """A point of a held place's plan on its holder's plan: its plan laid unturned in its hold, middle on middle (the
-    scene tree's child_matrix); the holder itself is held at its own corner (no w or d)."""
-    across = hold["x"] + (hold.get("w", plan["w"]) - plan["w"]) / 2
-    along = hold["y"] + (hold.get("d", plan["d"]) - plan["d"]) / 2
-    return np.array([across + float(point[0]), along + float(point[1])])
+    """A point of a held place's plan on its holder's plan: its plan stretched along its run (`stretch_of`), turned by
+    the hold's turn and laid in its hold, middle on middle (the scene tree's child_matrix); the holder itself is held
+    at its own corner (no w or d)."""
+    stretch = stretch_of(hold, plan)
+    wide, deep = laid_size(hold, plan)
+    across = float(point[0]) - float(plan["w"]) / 2
+    along = (float(point[1]) - float(plan["d"]) / 2) * stretch
+    turn = math.radians(turn_of(hold))
+    cos, sin = round(math.cos(turn)), round(math.sin(turn))
+    middle = np.array([hold["x"] + hold.get("w", wide) / 2, hold["y"] + hold.get("d", deep) / 2])
+    return middle + np.array([cos * across - sin * along, sin * across + cos * along])
+
+
+def as_held(hold, plan):
+    """`plan` as its hold stands it: each doorway leading where the hold's `leads` say this instance's lead (a tube's
+    ends the two places it joins), the rest as its own plan says."""
+    renamed = hold.get("leads") or {}
+    if not renamed:
+        return plan
+    return {**plan, "openings": [{**opening, "to": renamed.get(opening.get("to"), opening.get("to"))}
+                                 for opening in plan.get("openings") or []]}
 
 
 def paired(plan, hold, name, other, other_hold, other_name):
@@ -399,13 +464,23 @@ def paired(plan, hold, name, other, other_hold, other_name):
 
 
 def held_plans(holder, plans):
-    """{held place: (its hold, its kept plan)} of each place the holder's plan holds that has a plan in `plans`."""
+    """{held name (`name_of`): (its hold, its kept plan as the hold stands it)} of each place the holder's plan holds
+    that has a plan in `plans`, each instance its own."""
     found = {}
     for hold in holder.get("holds") or []:
         path = pathlib.Path(plans) / f"{hold['place']}.json"
         if path.is_file():
-            found[hold["place"]] = (hold, read(path))
+            found[name_of(hold)] = (hold, as_held(hold, read(path)))
     return found
+
+
+def hold_of(holder, place):
+    """`place`'s own hold on the holder's plan: the one holding it once, else its instance that renames none of its
+    leads (the one its own plan's leads say: tube.json's west tube), else its first; None when it holds none."""
+    holds = [hold for hold in holder.get("holds") or [] if hold["place"] == place]
+    own = [hold for hold in holds if not hold.get("instance") or not any(
+        old != new for old, new in (hold.get("leads") or {}).items())]
+    return (own or holds or [None])[0]
 
 
 def sill(door):
@@ -583,6 +658,36 @@ def once_faults(held):
     return found
 
 
+def laid_faults(held):
+    """Each hold another size than its place's plan laid in it (`laid_size`: turned, a tube stretched along its run),
+    off by more than EDGE: the scene tree would stand it past its hold (the hangar's 32 x 64 m plan held unturned in
+    a box drawn wide)."""
+    found = []
+    for name, (hold, plan) in sorted(held.items()):
+        wide, deep = laid_size(hold, plan)
+        if abs(wide - hold["w"]) > EDGE or abs(deep - hold["d"]) > EDGE:
+            found.append(f"{name}'s hold is {hold['w']:g} x {hold['d']:g} m, its plan laid in it "
+                         f"{wide:g} x {deep:g} m (turned {turn_of(hold)})")
+    return found
+
+
+def unnamed_faults(held):
+    """Each door of a held place leading to a place the holder holds only as instances by the place's own name: it
+    meets no one of them (the hub's four doors to `tube` once the base held a tube on each link)."""
+    instances = {}
+    for name, (hold, _) in held.items():
+        if hold.get("instance"):
+            instances.setdefault(hold["place"], []).append(name)
+    found = []
+    for name, (_, plan) in sorted(held.items()):
+        for opening in plan.get("openings") or []:
+            to = opening.get("to")
+            if opening.get("kind") in DOORWAYS and to in instances and to not in held:
+                found.append(f"{name}'s door to {to} at {opening['at']} names no instance of it "
+                             f"({', '.join(sorted(instances[to]))})")
+    return found
+
+
 def overlap_faults(holder):
     """Each two holds of the holder's plan whose boxes overlap (more than EDGE both ways)."""
     holds = holder.get("holds") or []
@@ -592,7 +697,7 @@ def overlap_faults(holder):
             across = min(one["x"] + one["w"], two["x"] + two["w"]) - max(one["x"], two["x"])
             along = min(one["y"] + one["d"], two["y"] + two["d"]) - max(one["y"], two["y"])
             if across > EDGE and along > EDGE:
-                found.append(f"the holds of {one['place']} and {two['place']} overlap by {across:.1f} x {along:.1f} m")
+                found.append(f"the holds of {name_of(one)} and {name_of(two)} overlap by {across:.1f} x {along:.1f} m")
     return found
 
 
@@ -605,7 +710,7 @@ def within(box, outer):
 def hold_faults(holder):
     """Each hold that disagrees with the holder's own item for its row: no item of the row; one place a row holds
     another size (HOLD_SIZED) or middle (HOLD_MIDDLE) than its nearest item; rooms several to an item (the ship's in
-    its hull) outside it."""
+    its hull) outside it. An instance is one place to one item, its own nearest (the base's tubes, one a link)."""
     rows = holder.get("rows") or {}
     holds = holder.get("holds") or []
     found = []
@@ -616,20 +721,20 @@ def hold_faults(holder):
                  if hold["row"] in (rows.get(item[0]) or [])]
         box = [hold["x"], hold["y"], hold["w"], hold["d"]]
         if not items:
-            found.append(f"{hold['place']} is held in row {hold['row']}, which no item of the plan draws")
+            found.append(f"{name_of(hold)} is held in row {hold['row']}, which no item of the plan draws")
             continue
         nearest = min(items, key=lambda item: math.dist((item[0] + item[2] / 2, item[1] + item[3] / 2),
                                                         (box[0] + box[2] / 2, box[1] + box[3] / 2)))
         sharing = sum(1 for other in holds if other.get("row") == hold["row"])
-        if sharing > len(items):
+        if sharing > len(items) and not hold.get("instance"):
             if not within(box, nearest):
-                found.append(f"{hold['place']}'s hold {box} stands outside its {hold['row']} item {nearest}")
+                found.append(f"{name_of(hold)}'s hold {box} stands outside its {hold['row']} item {nearest}")
             continue
         middle = math.dist((nearest[0] + nearest[2] / 2, nearest[1] + nearest[3] / 2),
                            (box[0] + box[2] / 2, box[1] + box[3] / 2))
         sized = all(abs(own - its) <= HOLD_SIZED * its for own, its in ((box[2], nearest[2]), (box[3], nearest[3])))
         if not sized or middle > HOLD_MIDDLE:
-            found.append(f"{hold['place']}'s hold is {box[2]:.1f} x {box[3]:.1f} m, its {hold['row']} item "
+            found.append(f"{name_of(hold)}'s hold is {box[2]:.1f} x {box[3]:.1f} m, its {hold['row']} item "
                          f"{nearest[2]:.1f} x {nearest[3]:.1f} m, their middles {middle:.1f} m apart")
     return found
 
@@ -664,12 +769,14 @@ def item_inside(item, outer):
 def judge_held(output, inputs, evidence):
     """Fail on a plan that does not hold what it says where it says (module docstring): its frame anchors, person
     spots and items outside its own box; and, holding places, a hold another size or spot than its item, two holds
-    overlapping, a place held once that several doors lead to, a door to a held sibling meeting none leading back."""
+    overlapping, a place held once that several doors lead to, a hold another size than its plan laid in it, a door
+    naming a place held only as instances, a door to a held sibling meeting none leading back (each instance by
+    itself)."""
     place = read(pathlib.Path(output) / "plan.json")["place"]
     design = read(pathlib.Path(inputs["plans"]) / f"{place}.json")
     held = held_plans(design, inputs["plans"])
     faults = inside_faults(design, place) + hold_faults(design) + overlap_faults(design) + once_faults(held) + \
-        door_faults_held(held, levels_of(held))
+        laid_faults(held) + unnamed_faults(held) + door_faults_held(held, levels_of(held))
     reason = "; ".join(faults[:3]) + (f" and {len(faults) - 3} more" if len(faults) > 3 else "") if faults else \
         (f"its plan holds its things inside it and its {len(held)} held places where their doors meet" if held
          else "its plan holds its things inside it")
