@@ -94,8 +94,12 @@ QUOTA_PAGE = 100
 # 245,140 GB-hours, EUR 15.80 for 3,160 address-hours).
 DISK_EUROS_A_GB_HOUR = 0.00013
 ADDRESS_EUROS_AN_HOUR = 0.005
-# How many times, 10 s apart, a delete waits out a machine that is still shutting down.
+# How many times, 10 s apart, a delete waits out a machine that is still shutting down or still being made.
 STOPPING_TRIES = 12
+# The terminate's refusals that pass once the machine is out of its state (2026-11-05: a delete of a machine the zone
+# was still making, "Cannot modify the SBS volumes of an instance in the state SessionState.PROVISION", ended
+# surfaces-bake@camp's whole call).
+NOT_YET = ("invalid state 'stopping'", "in the state SessionState.PROVISION")
 # How many times, 10 s apart, a failed delete reads the machine again to see whether another run deleted it.
 GONE_TRIES = 3
 # Seconds a refused order's new loose address or disk must stay loose before it is deleted: another order's own
@@ -596,7 +600,7 @@ def terminate(server_id, zone):
     for _ in range(STOPPING_TRIES):
         done = subprocess.run(["scw", "instance", "server", "terminate", server_id, f"zone={zone}",
                                "with-ip=true", "with-block=true"], capture_output=True, text=True)
-        if "invalid state 'stopping'" not in done.stderr:
+        if not any(words in done.stderr for words in NOT_YET):
             break
         time.sleep(10)
     if done.returncode == 0:
