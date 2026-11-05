@@ -41,7 +41,7 @@ def check_gates():
     from surface_gates import guarded
     return tuple(guarded(name, judge) for name, judge in (
         ("baked matches its surfaces", bake_check.judge_lit), ("triangles within budget", bake_check.judge_triangles),
-        ("stands level", bake_check.judge_stance)))
+        ("stands level", bake_check.judge_stance), ("texture layout sound", bake_check.judge_layout)))
 
 
 def take_of(inputs):

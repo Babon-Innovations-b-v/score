@@ -1,8 +1,8 @@
 """The framework's check of a place's baked models (row surfaces-check@<place>, after place_line.py's paint and bake):
 every part's baked base colour lies on its library surface (CIE76 under BAKE_DELTA_E) and near its colour in the
 close-up (under CLOSE_UP_DELTA_E), a model's surfaces do not collapse into one look its close-up does not have, no
-near-black blotch, every map there, triangles within the bake job's budget. A module of its own, so a change to the check moves the check
-row's key alone, never the paint's or the paid bake's.
+near-black blotch, every map there, triangles within the bake job's budget, its texture layout sound (uv_layout.py).
+A module of its own, so a change to the check moves the check row's key alone, never the paint's or the paid bake's.
 """
 import dataclasses
 import json
@@ -265,6 +265,10 @@ def check_model(name, entry, labelled, made, materials, dirt=0.0, wear=0.0):
     if "base_color" in record["missing_maps"]:
         return record
     picture_colours, rows, columns, sizes = baked_gltf.base_colours(geometry, maps)
+    import uv_layout
+    record["layout"] = uv_layout.layout_record(uv_layout.measure(geometry, [
+        tuple(int(value) for value in sizes[np.flatnonzero(geometry["maps"] == number)[0]])
+        for number in range(len(maps))]))
     colour = labels.lab(picture_colours)
     corners = geometry["positions"][geometry["triangles"]]
     areas = 0.5 * np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1)
@@ -593,6 +597,19 @@ def judge_triangles(output, inputs, evidence):
                if record["triangles"] > record["budget"]]
     return gates.verdict("triangles within budget", failing, len(found), "models",
                          {"triangles": sum(record["triangles"] for record in found.values())})
+
+
+def judge_layout(output, inputs, evidence):
+    """Every baked model's texture layout sound (uv_layout, #92): no surface outside its picture, mirrored, sharing
+    texels, stretched, given a fraction of its model's texture detail or in charts too thin to hold a colour, past
+    each measure's limit (uv_layout.LIMITS), named by model and measure."""
+    import uv_layout
+    found = json.loads((pathlib.Path(output) / "checks.json").read_text())
+    measured = {model: record["layout"] for model, record in found.items() if "layout" in record}
+    if not measured:
+        return gates.unknown("texture layout sound", "no baked model's texture layout was measured")
+    failing = [f"{model}: {fault}" for model, layout in measured.items() for fault in uv_layout.faults(layout)]
+    return gates.verdict("texture layout sound", failing, len(measured), "layout faults over the models")
 
 
 STEPS = {"check": check_step}
