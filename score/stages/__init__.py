@@ -38,6 +38,7 @@ import score.stages.batch_gaps as batch_gaps
 import score.stages.cast.driven as characters_driven
 import score.stages.cast.layer as characters_layer
 import score.stages.demo_film.final as demo_film_final
+import score.stages.demo_film.peel_rows as peel_rows
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import held_apart, neighbours
 from score.stages.assembly import scene_tree
@@ -495,12 +496,35 @@ DEMO_FILM_EXTRA = dataclasses.replace(DEMO_FILM, name="demo-film-extra", make=de
                                       applies=demo_film.applies_extra)
 
 
+# The film's peels (owner, 2026-10-27 and 2026-11-05: "every scene needs the peel"), drawn on rented cards from the
+# place's own rows (score/stages/demo_film/peel_rows.py), only for the places a locked film script peels, paid and
+# cleared at their forecast's high: a layer peel from its people's dressed bodies, clips rig and sim bodies over the
+# ground they stood on in the finished stage; a place peel from its finished stage and its physics layer.
+BODY_PEEL = graph.Stage("body-peel", "place", peel_rows.make_body, peel_rows.BODY_CONTRACT, peel_rows.CHECKS,
+                        files=peel_rows.body_files,
+                        after={"cast": ("cast", 1), "sim-body": ("sim-body", 2),
+                               sim_body.CLIPS_ROW: (sim_body.CLIPS_ROW, 1),
+                               sim_body.SCENE_CLIPS_ROW: (sim_body.SCENE_CLIPS_ROW, 1),
+                               **{name: ("people-dress", 1) for name in DRESS_ROWS},
+                               **{name: ("people-body", 1) for name in BODY_ROWS},
+                               "assembly": ("openusd-stage", 1), "neighbours": ("openusd-stage", 1)},
+                        optional=(*DRESS_ROWS, *BODY_ROWS, sim_body.SCENE_CLIPS_ROW),
+                        paid=True, euros=demo_film.EUROS, forecast=peel_rows.body_forecast,
+                        applies=peel_rows.applies_body)
+PLACE_PEEL = graph.Stage("place-peel", "place", peel_rows.make_place, peel_rows.PLACE_CONTRACT, peel_rows.CHECKS,
+                         files=peel_rows.place_files,
+                         after={"assembly": ("openusd-stage", 1), "neighbours": ("openusd-stage", 1),
+                                "complete": ("place-manifest", 1), "physics-layer": ("physics-layer", 1)},
+                         paid=True, euros=demo_film.EUROS, forecast=peel_rows.place_forecast,
+                         applies=peel_rows.applies_place, gapped=("complete",))
+
+
 def filmed_places(place=None):
-    """The places the locked scripts' films show (demo_film_final.shown_places) that are places of the batch
-    (`places`): a part of another scene's outside (the launch) or a merged scene has no film row, so the environment's
-    film never waits on one; a segment showing it is named missing by the cut (final.sources). Here in the table, as
-    it lists the environment's places."""
-    shown = demo_film_final.shown_places(place)
+    """The places the locked scripts' films show or peel (demo_film_final.shown_places, peeled_places) that are
+    places of the batch (`places`): a part of another scene's outside (the launch) or a merged scene has no film row,
+    so the environment's film never waits on one; a segment showing it is named missing by the cut (final.sources,
+    final.peels). Here in the table, as it lists the environment's places."""
+    shown = sorted({*demo_film_final.shown_places(place), *demo_film_final.peeled_places(place)})
     batch = set(places(world1())) if shown else set()
     return [other for other in shown if other in batch]
 
@@ -509,13 +533,14 @@ def filmed_places(place=None):
 # it shows, read beside: an environment node the runner plans and prices with the paid films it reads, free itself.
 ENVIRONMENT_FILM = graph.Stage("environment-film", "world", demo_film_final.make, demo_film_final.CONTRACT,
                                demo_film_final.CHECKS, files=demo_film_final.files,
-                               beside={"demo-film": ("demo-film", 1), "demo-film-extra": ("demo-film-extra", 1)},
+                               beside={"demo-film": ("demo-film", 1), "demo-film-extra": ("demo-film-extra", 1),
+                                       "body-peel": ("body-peel", 1), "place-peel": ("place-peel", 1)},
                                neighbours=filmed_places)
 
 
 STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
           SCENE_TREE,
-          COMPLETE, DEMO_FILM, DEMO_FILM_EXTRA, ENVIRONMENT_FILM,
+          COMPLETE, DEMO_FILM, DEMO_FILM_EXTRA, BODY_PEEL, PLACE_PEEL, ENVIRONMENT_FILM,
           GROUND_FIT, PHYSICS_LAYER,
           PHYSICS_TRIAL,
           # The place's plan (its scene record first: the cockpit groups the plan by its first reader, the base), then

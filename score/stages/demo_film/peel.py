@@ -21,10 +21,11 @@ has one, its moving bodies apart), joined by the same wipes.
     python -m score.stages.demo_film.peel <job folder> --stage <finished stage folder>
         [--physics <physics-layer output>] [--seconds 5] [--size 1280 720] [--samples 64]
 
-Free and local: the frames are drawn by `blender/body_peel.py` in this machine's Blender (tools/blender/session.py's
-set-up, `-b` on its card), never a paid row; no row makes a peel's frames yet (the environment film names the cut as
-one no row makes). Everything but the sim body's own geometry is worked out here in numpy; the Blender side imports
-that from its layer, lays it all out and draws it.
+The film's peels are the body-peel and place-peel rows' (`peel_rows.py`): the same jobs (job_of, place_job),
+their frames dealt over rented cards (`sliced`) and drawn there by `blender/body_peel.py`, joined here. This command
+line draws one in this machine's Blender (tools/blender/session.py's set-up, `-b` on its card), free, for a look
+before a batch. Everything but the sim body's own geometry is worked out here in numpy; the Blender side imports that
+from its layer, lays it all out and draws it.
 
 Nothing is invented: the clothed pass is the dressed body's own surface and skin on the sim body's clip, the mesh
 pass the clip rig's own points and skin weights, the sim pass the sim body's own layer at its time codes (the
@@ -69,6 +70,7 @@ WIDE_LENS, CLOSE_LENS = 40.0, 35.0  # mm
 CLOSE_METRES = 4.0  # the close-up's camera off its person's path: the whole body in view at CLOSE_LENS
 FOLLOW_SECONDS = 0.5  # the close-up's aim smoothed over this either side
 EDGE = (255, 196, 64)  # the wipe's edge line
+LEVEL = 0.7  # a ground triangle's normal against up (cosine): floors, treads, seats and beds, never a wall
 # The person's own frame is Y up (OpenUSD); Blender's is Z up: x stays, y becomes z, z becomes -y.
 Y_TO_Z = np.array([[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, -1.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]])
 
@@ -226,32 +228,31 @@ def close_walker(cast, clips=None):
     return max(walkers, key=lambda name: (relief.get(name, -1.0), -walkers.index(name)))
 
 
-def job_of(folder, cast, sim, rig_path, dressed, seconds, size, samples, close=None, ground=None, build=None):
+def job_of(folder, cast, sim, person_of, seconds, size, samples, close=None, ground=None):
     """Write the Blender job (job.json and one npz a person) into `folder` and return its path: the wide shot of
     everyone, or, `close` naming one of them, the close-up following that person alone (no one else between it and
-    the camera). `ground`: the scene's ground under them (n x 3 x 3 triangles, the place's frame, Y up; else a flat
-    floor at 0). `build`: the person's built body rig (people-body's rig.npz), which the sim body was built at
-    (sim_body.person_rig); else the clips rig on its own bind (sim_body.person_rig's no-build case)."""
+    the camera). `person_of(single, body)`: a cast person and its sim body record's entry give (its rig at its own
+    build, sim_body.person_rig, holding the clip it played; its dressed body's .glb; that clip's name). `ground`: the
+    scene's ground under them (n x 3 x 3 triangles, the place's frame, Y up; else a flat floor at 0), drawn where it
+    is underfoot (`underfoot`)."""
     record = json.loads((sim / "sim_bodies.json").read_text())
-    rig = sim_body.person_rig(dict(np.load(rig_path)), build)[0]
-    people, shown = [], None
+    people, shown, shapes = [], None, {}
     for single in cast["characters"]:
         name = single["name"]
         if name not in record["bodies"] or close not in (None, name):
             continue  # the sim body stage left it out and said why in its record, or the close-up follows another
+        rig, dressed, clip = person_of(single, record["bodies"][name])
         frames = json.loads((sim / "measures" / f"{name}.json").read_text())
         shown = source_frames(seconds, record["rate"], len(frames))
         layer, root = sim / sim_body.LAYER, sim_root(record["place"], name)
-        arrays = person_arrays(record["bodies"][name], rig, frames, shown)
+        arrays = person_arrays(dict(record["bodies"][name], clip=clip), rig, frames, shown)
         np.savez(folder / f"{name}.npz", faces=np.asarray(rig["faces"]), **arrays)
-        people.append({"name": name, "glb": str(dressed), "clip": record["bodies"][name]["clip"],
+        people.append({"name": name, "glb": str(dressed), "clip": clip,
                        "joints": [str(joint) for joint in rig["names"]], "sim_layer": str(layer), "sim_root": root,
-                       "arrays": str(folder / f"{name}.npz"), "placed": arrays["placed"].tolist(),
-                       "_points": arrays["points"]})
+                       "arrays": str(folder / f"{name}.npz"), "placed": arrays["placed"].tolist()})
+        shapes[name] = {"points": arrays["points"], "placed": arrays["placed"]}
     if not people:
         raise ValueError(f"{sim}: no sim body of the cast to peel")
-    shapes = {person["name"]: {"points": person.pop("_points"), "placed": np.asarray(person["placed"])}
-              for person in people}
     if close is not None and close not in shapes:
         raise ValueError(f"{sim}: no sim body of {close} to follow")
     path = following(shapes[close]) if close else framing(list(shapes.values()), len(shown))
@@ -260,10 +261,51 @@ def job_of(folder, cast, sim, rig_path, dressed, seconds, size, samples, close=N
                                                                 "path": path},
            "arrows": {"colour": push_colour(), "fade": arrow_fade(len(shown))}, "people": people, "ground": None}
     if ground is not None:
-        np.save(folder / "ground.npy", points_to_z(np.asarray(ground, dtype=float)))
+        np.save(folder / "ground.npy", underfoot(points_to_z(np.asarray(ground, dtype=float)), list(shapes.values())))
         job["ground"] = str(folder / "ground.npy")
     (folder / "job.json").write_text(json.dumps(job, indent=1))
     return folder / "job.json"
+
+
+def underfoot(triangles, people):
+    """The ground's triangles (Z up) a body stands, sits or lies on and the camera sees past: the level ones
+    (their normal within LEVEL of up, either winding) wholly below the people's highest point; never a wall, nor a
+    roof over their heads."""
+    if not len(triangles):
+        return triangles
+    normals = np.cross(triangles[:, 1] - triangles[:, 0], triangles[:, 2] - triangles[:, 0])
+    lengths = np.linalg.norm(normals, axis=1)
+    level = np.abs(normals[:, 2]) >= LEVEL * np.maximum(lengths, 1e-12)
+    top = max(float(person["points"][..., 2].max()) for person in people)
+    return triangles[level & (lengths > 0) & (triangles[:, :, 2].max(axis=1) < top)]
+
+
+def ground_of(stage_folder, record):
+    """The ground the sim bodies stood on (n x 3 x 3 triangles, the place's frame, Y up), from the place's finished
+    stage: every solid the sim body record names under its bodies (`ground.solids`, cast/measure.solids' names) as
+    that stage holds it; refused naming a solid the stage does not hold."""
+    from score.stages.cast import measure
+    found = measure.solids(stage_root(stage_folder), record["place"])
+    named = sorted({solid for body in record["bodies"].values() for solid in body["ground"]["solids"]})
+    missing = [solid for solid in named if solid not in found]
+    if missing:
+        raise ValueError(f"{stage_folder}: the sim bodies stood on {', '.join(missing)}, which the stage does not hold")
+    return np.concatenate([found[solid] for solid in named]) if named else None
+
+
+def sliced(job_path, parts, drawn):
+    """The job dealt into `parts` jobs of consecutive film frames (each its `frames` [first, end) of the whole), each
+    drawing into a folder of its own under `drawn` (jobs never share an output folder): the slices' job files, written
+    beside the job."""
+    job = json.loads(pathlib.Path(job_path).read_text())
+    count = len(job["source"])
+    edges = np.linspace(0, count, min(parts, count) + 1).round().astype(int)
+    written = []
+    for number, (first, end) in enumerate(zip(edges[:-1], edges[1:])):
+        path = pathlib.Path(job_path).with_name(f"job-{number}.json")
+        path.write_text(json.dumps(dict(job, frames=[int(first), int(end)], out=str(drawn / str(number))), indent=1))
+        written.append(path)
+    return written
 
 
 def stage_of(frame, count):
@@ -375,12 +417,15 @@ def place_job(folder, stage, physics, seconds, size, samples):
     return folder / "job.json"
 
 
-def joined(folder, count, passes=PASSES):
-    """The shot's frames, the passes joined by their wipes, into folder/peel/<frame>.png."""
+def joined(folder, count, passes=PASSES, drawn_in=None):
+    """The shot's frames, the passes joined by their wipes, into folder/peel/<frame>.png; each pass's frame from
+    whichever of `drawn_in` (the slices' folders, else `folder`) drew it."""
     out = folder / "peel"
     out.mkdir(exist_ok=True)
+    places = list(drawn_in or [folder])
     for frame in range(count):
-        pictures = [Image.open(folder / name / f"{frame:04d}.png").convert("RGB") for name in passes]
+        pictures = [Image.open(next(found for found in (place / name / f"{frame:04d}.png" for place in places)
+                                    if found.exists())).convert("RGB") for name in passes]
         wiped(pictures, frame, count).save(out / f"{frame:04d}.png")
     return out
 
@@ -420,10 +465,11 @@ def main():
     cast = json.loads(arguments.cast.read_text())
     close = close_walker(cast, json.loads(arguments.clips.read_text()) if arguments.clips else None) \
         if arguments.close else None
-    job = job_of(arguments.folder, cast, arguments.sim, arguments.rig, arguments.dressed, arguments.seconds,
-                 arguments.size, arguments.samples, close,
-                 np.load(arguments.ground) if arguments.ground else None,
-                 dict(np.load(arguments.build)) if arguments.build else None)
+    rig = sim_body.person_rig(dict(np.load(arguments.rig)), dict(np.load(arguments.build)) if arguments.build
+                              else None)[0]
+    job = job_of(arguments.folder, cast, arguments.sim, lambda single, body: (rig, arguments.dressed, body["clip"]),
+                 arguments.seconds, arguments.size, arguments.samples, close,
+                 np.load(arguments.ground) if arguments.ground else None)
     drawn(job)
     out = joined(arguments.folder, round(arguments.seconds * RATE))
     print(f"peel: {round(arguments.seconds * RATE)} frames in {out}")

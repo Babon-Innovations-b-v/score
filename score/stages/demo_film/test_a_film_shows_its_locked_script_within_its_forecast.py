@@ -647,23 +647,44 @@ def a_film(folder, tone, volume):
     return folder
 
 
+def a_peel(folder, shot="wide"):
+    """A peel as the peel rows keep one: 5 s at 1280x720, silent, in its shot's folder."""
+    (folder / shot).mkdir(parents=True)
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+                    "testsrc2=size=1280x720:rate=24:duration=5", "-pix_fmt", "yuv420p",
+                    str(folder / shot / "peel.mp4")],
+                   check=True)
+    return folder
+
+
 def test_a_cut_runs_at_one_loudness_and_its_gate_holds_the_pacing(tmp_path, monkeypatch):
-    """Two place films at very different loudness cut into one 15 s film (2 + 7 + 7 less two half-second
-    transitions), each segment from its own film; the whole at TARGET_LUFS passes; a place cut at 3.5 s fails.
-    Break: score/stages/demo_film/final.py: `gain = TARGET_LUFS - loudness` -> `gain = 0.0`"""
+    """Two place films at very different loudness and two peels cut into one 24 s film (2 + 7 + 7 + 5 + 5 less four
+    half-second transitions), each segment from its own film or peel (a peel its row's, read beside, and Blocked by
+    name while it is missing); the whole at TARGET_LUFS passes; a place cut at 3.5 s fails.
+    Break: score/stages/demo_film/final.py: `gain = TARGET_LUFS - loudness` -> `gain = 0.0`
+    Break: score/stages/demo_film/final.py: `return f"{segment['cut']}@{segment['shows']['place']}", "close" if
+        segment.get("close") else "wide"` -> `return f"demo-film@{segment['shows']['place']}", "wide"`"""
     from score.stages import design_layers
     monkeypatch.setattr(design_layers, "KEPT", tmp_path / "designs")  # no kept design shows people: no peel owed
     script = tmp_path / "toy.json"
-    script.write_text(json.dumps(a_script(WALKS)))
+    peels = [{"cut": "body-peel", "shows": {"place": "alpha"}, "sound": "place", "seconds": 5.0,
+              "captions": [{"from": 0.3, "to": 4.7, "line": "Alpha", "text": "clothed, bare mesh, sim body"}]},
+             {"cut": "place-peel", "shows": {"place": "beta"}, "sound": "place", "seconds": 5.0}]
+    script.write_text(json.dumps(a_script([*WALKS, *peels])))
     inputs = {"script toy": script, "demo-film@alpha": a_film(tmp_path / "alpha", 330, 0.05),
-              "demo-film@beta": a_film(tmp_path / "beta", 440, 0.6)}
+              "demo-film@beta": a_film(tmp_path / "beta", 440, 0.6),
+              "place-peel@beta": a_peel(tmp_path / "beta-peel")}
+    with pytest.raises(graph.Blocked, match="segment 4: no accepted peel body-peel@alpha/wide"):
+        final.peels(a_script([*WALKS, *peels]), inputs)
+    inputs["body-peel@alpha"] = a_peel(tmp_path / "alpha-peel")
     out = tmp_path / "out"
     out.mkdir()
     final.make(inputs, out, 0, {})
     assert final.output_faults(out) == []
     timeline = json.loads((out / "toy" / "timeline.json").read_text())
-    assert [segment["film"] for segment in timeline["segments"]] == [None, "demo-film@alpha", "demo-film@beta"]
-    assert timeline["seconds"] == 15.0
+    assert [segment["film"] for segment in timeline["segments"]] == [None, "demo-film@alpha", "demo-film@beta",
+                                                                    "body-peel@alpha", "place-peel@beta"]
+    assert timeline["seconds"] == 24.0
     verdict = final.judge(out, inputs, {})
     assert verdict.answer == checks.PASS, verdict
     timeline["segments"][1]["seconds"] = 3.5  # the 18 Oct cut's pace, written into the record
@@ -779,12 +800,30 @@ def test_a_peel_draws_the_clip_rigs_own_surface_and_the_records_own_push():
     assert np.allclose(srgb, np.array(lettering.token("film-push")[:3]) / 255.0, atol=2e-3)
 
 
-def test_a_peel_never_outlasts_its_record_and_wipes_up_at_each_third():
+def test_a_peel_never_outlasts_its_record_and_wipes_up_at_each_third(tmp_path, monkeypatch):
     """A shot is the record's own frames, refused when longer; it shows clothed, mesh and sim body in thirds, each
-    next one rising from the bottom over the wipe; the environment's film names it as a cut no row makes yet.
+    next one rising from the bottom over the wipe. The peels are rows (peel_rows.py): only a place a locked script
+    peels has one, keyed on that script; its shots are the scripts' (a close-up where a segment names one, the
+    longest segment's seconds); its forecast prices each pass's frame as a measured film frame, a fogged stage's
+    passes high, its high never under its cards' own time; its frames are dealt over the forecast's cards, each
+    slice its own frames into its own folder, all of them joined; a body peel's ground is what is underfoot (level,
+    below their heads: no wall, no roof); a place peel is made from its finished stage and judged on its film, and the
+    environment's film names it as a cut a row makes.
     Break: score/stages/demo_film/peel.py: `if found[-1] >= record_frames:` -> `if False:`
-    Break: score/stages/demo_film/peel.py: `edge = round(tall * (1 - share))` -> `edge = round(tall * share)`"""
-    from score.stages.demo_film import peel
+    Break: score/stages/demo_film/peel.py: `edge = round(tall * (1 - share))` -> `edge = round(tall * share)`
+    Break: score/stages/demo_film/peel.py: `edges = np.linspace(0, count, min(parts, count) + 1).round().astype(int)`
+        -> `edges = np.array([0, count // parts])`
+    Break: score/stages/demo_film/peel_rows.py: `high = sum(demo_film.FOG_FRAME_MINUTES if slowed else likely *
+        demo_film.FRAME_SPREAD for slowed in slow_passes)` -> `high = likely * demo_film.FRAME_SPREAD`
+    Break: score/stages/demo_film/peel_rows.py: `"high_euros": round(max(per_render * frames * high / likely, card_high *
+        card_euros_a_minute()), 2),` -> `"high_euros": round(per_render * frames * high / likely, 2),`
+    Break: score/stages/demo_film/peel_rows.py: `shot = CLOSE if cut == final.PEEL and segment.get("close") else
+        WIDE` -> `shot = WIDE`
+    Break: score/stages/demo_film/final.py: `MADE = (*WORDS, WALK, STILL, *RECORDED, *PEELS)` -> `MADE = (*WORDS,
+        WALK, STILL, *RECORDED)`
+    Break: score/stages/demo_film/peel.py: `return triangles[level & (lengths > 0) & (triangles[:, :, 2].max(axis=1)
+        < top)]` -> `return triangles[level & (lengths > 0)]`"""
+    from score.stages.demo_film import peel, peel_rows
     assert peel.source_frames(5.0, 30.0, 150)[-1] == 149
     with pytest.raises(ValueError, match="outlasts"):
         peel.source_frames(5.5, 30.0, 150)
@@ -796,8 +835,61 @@ def test_a_peel_never_outlasts_its_record_and_wipes_up_at_each_third():
     pictures = [Image.new("RGB", SMALL, colour) for colour in ((255, 0, 0), (0, 255, 0), (0, 0, 255))]
     frame = peel.wiped(pictures, 36, count)  # a fifth of the way up: the mesh below, the clothed above
     assert frame.getpixel((5, SMALL[1] - 2)) == (0, 255, 0) and frame.getpixel((5, SMALL[1] // 2)) == (255, 0, 0)
-    peeled = a_script([{"cut": "body-peel", "shows": {"place": "alpha"}, "seconds": 5.0}])
-    assert "segment 1: no row makes body-peel frames yet" in final.plan_faults(peeled)
+    peeled = a_script([{"cut": "body-peel", "shows": {"place": "alpha"}, "seconds": 5.0},
+                       {"cut": "body-peel", "shows": {"place": "alpha"}, "seconds": 4.0, "close": "walker"},
+                       {"cut": "place-peel", "shows": {"place": "beta"}, "seconds": 5.0}])
+    assert not any("no row makes" in fault for fault in final.plan_faults(peeled))
+    import numpy as np
+    floor, roof = [[0, 0, 0], [1, 0, 0], [0, 1, 0]], [[0, 0, 2.5], [0, 1, 2.5], [1, 0, 2.5]]
+    wall = [[0, 0, 0], [1, 0, 0], [0, 0, 2]]
+    person = {"points": np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 1.8]]])}
+    assert peel.underfoot(np.array([floor, roof, wall], dtype=float), [person]).tolist() == [floor]
+    locked_in(tmp_path / "home", monkeypatch, ("toy", peeled))
+    assert peel_rows.applies_body("alpha") and not peel_rows.applies_body("beta") and peel_rows.applies_place("beta")
+    assert final.peeled_places() == ["alpha", "beta"]
+    assert peel_rows.body_files("alpha")["script toy"] == "{dashboard}/films/locked/toy.json"
+    assert "script toy" not in peel_rows.place_files("alpha")
+    assert all((REPO / path).exists() for path in peel_rows.TOOLS)
+    (tmp_path / "toy.json").write_text(json.dumps(peeled))
+    inputs = {"script toy": tmp_path / "toy.json"}
+    assert peel_rows.shots_of(inputs, "alpha", final.PEEL) == {"wide": 5.0, "close": 4.0}
+    assert peel_rows.shots_of(inputs, "beta", final.PLACE_PEEL) == {"wide": 5.0}
+    demo, _ = demo_film.film_tools()
+    plain = peel_rows.forecast({"wide": 5.0}, [False, False, False])
+    fogged = peel_rows.forecast({"wide": 5.0}, [True, True, False])
+    assert plain["frames"] == 120 and plain["renders"] == 360
+    assert plain["card_minutes"] == round(360 * demo.FRAME_MINUTES)
+    assert plain["euros"] == round(demo_film.LIKELY_EUROS * 360 / 192, 2)
+    assert fogged["high_frame_minutes"] == 2 * demo_film.FOG_FRAME_MINUTES + demo.FRAME_MINUTES * demo_film.FRAME_SPREAD
+    assert fogged["high_euros"] > 5 * plain["high_euros"]
+    cards = plain["jobs"] * (8 + demo_film.JOB_LEAD_MINUTES) + 120 * plain["high_frame_minutes"]
+    assert plain["high_euros"] >= round(cards * peel_rows.card_euros_a_minute(), 2) > plain["euros"]
+    stage = tmp_path / "stage"
+    stage.mkdir()
+    (stage / "hall.usda").write_text(PLAIN)
+    (stage / "scene.json").write_text(json.dumps({"views": [{"name": "door", "eye": [0, 1.6, 4], "aim": [0, 1.6, 0]}]}))
+    small = dict(final.scripts()["toy"], segments=[{"cut": "place-peel", "shows": {"place": "hall"}, "seconds": 1.0}])
+    (tmp_path / "toy.json").write_text(json.dumps(small))
+    monkeypatch.setattr(demo_film, "SIZE", SMALL)
+    monkeypatch.setattr(peel_rows, "forecast", lambda shots, passes, slow=None: dict(plain, jobs=3))
+
+    def drawn_here(cloud, node, out):  # the cards' part, drawn here: each slice its own frames, in its own folder
+        for path in cloud:
+            job = json.loads(pathlib.Path(json.loads(path.read_text())["args"][0]).read_text())
+            for frame in range(*job["frames"]):
+                for number, name in enumerate(job["passes"]):
+                    (pathlib.Path(job["out"]) / name).mkdir(parents=True, exist_ok=True)
+                    Image.new("RGB", SMALL, (60 * number, 90, 30 + frame)).save(
+                        pathlib.Path(job["out"]) / name / f"{frame:04d}.png")
+    monkeypatch.setattr(peel_rows, "render", drawn_here)
+    out = tmp_path / "peeled"
+    out.mkdir()
+    peel_rows.make_place({"assembly": stage, "script toy": tmp_path / "toy.json"}, out, 0, {})
+    record = json.loads((out / "peel.json").read_text())
+    assert record["shots"]["wide"]["frames"] == 24 and peel_rows.output_faults(out) == []
+    verdict = peel_rows.judge(out, {}, {})
+    assert verdict.answer == checks.PASS, verdict
+    assert not (out / ".work").exists()
 
 
 def test_a_close_up_follows_the_walker_on_the_most_uneven_ground():
@@ -839,9 +931,8 @@ def test_a_locked_script_peels_every_place_whose_design_shows_people(tmp_path, m
     assert not any("design of lab" in fault for fault in faults)
     walked = [{"cut": "walk-through", "shows": {"place": place}, "seconds": 7.0} for place in ("lab", "hangar")]
     faults = final.plan_faults(dict(a_script([*walked, peel])), final.peopled(), final.designed())
-    assert "hangar is walked through and no place peel shows it" in faults and "segment 3: no row makes body-peel " \
-        "frames yet" in faults
+    assert "hangar is walked through and no place peel shows it" in faults
+    assert not any("no row makes" in fault for fault in faults)
     placed = {"cut": "place-peel", "shows": {"place": "hangar"}, "seconds": 5.0}
     faults = final.plan_faults(dict(a_script([*walked, peel, placed])), final.peopled(), final.designed())
-    assert not any("walked through" in fault for fault in faults) and "segment 4: no row makes place-peel frames " \
-        "yet" in faults
+    assert not any("walked through" in fault or "no row makes" in fault for fault in faults)
