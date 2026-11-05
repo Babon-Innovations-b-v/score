@@ -46,7 +46,8 @@ ledger's kind): blender unless given, which never takes an H100 (capacity.NEVER)
 (tools/cloud/level1, `sim-body-l1`) names its own.
 
 Under SCORE_CLOUD=k8s the same calls run each job as a Kubernetes Job of the blender image on the cluster
-(tools/cloud/k8s/cluster_jobs.py), inputs and outputs at the same paths; the machines stay the default.
+(tools/cloud/k8s/cluster_jobs.py), inputs and outputs at the same paths, and a job naming newton_env.sh as its env in
+the newton image (ENV_IMAGES); the machines stay the default.
 """
 import argparse
 import contextlib
@@ -550,16 +551,37 @@ def run_elsewhere(script, arguments, inputs, outputs, classes, who, minutes=10):
 CLUSTER_KERNELS = "blender-5.0.1"
 
 
+# A job naming an `env` script runs on the cluster in the image that holds that script's Python, through the image's
+# run wrapper, instead of building it: newton_env.sh's pins are the newton image's (tools/cloud/images/newton/).
+ENV_IMAGES = {"score/stages/physics/inside/newton_env.sh": ("newton", "newton-run")}
+
+
+def cluster_image(job):
+    """The image a job runs in on the cluster: Blender's, or the one holding its `env` script's Python."""
+    if not job.get("env"):
+        return "blender"
+    if job["env"] not in ENV_IMAGES:
+        raise SystemExit(f"no job image holds the Python of {job['env']}; it runs on machines only")
+    return ENV_IMAGES[job["env"]][0]
+
+
+def cluster_line(job):
+    """The script's command on the cluster: in the image's Blender, or in its env image's run wrapper."""
+    if not job.get("env"):
+        return script_line(job, ".", "/opt/blender/blender")
+    return shlex.join([ENV_IMAGES[job["env"]][1], job["script"], *map(str, job.get("args", ()))])
+
+
 def cluster_job(job, classes):
-    """One job as the cluster runs it: the script in the image's Blender from the job's code, its output folders
-    made first, Cycles on the card on card classes (with the image's kernel cache), on the cores otherwise."""
+    """One job as the cluster runs it: the script from the job's code, its output folders made first; a Blender
+    script with Cycles on the card on card classes (with the image's kernel cache), on the cores otherwise."""
     card = any(provider.cards(name) for name in classes)
     parents = sorted({str(pathlib.Path(local).resolve().parent) for local in job.get("outputs", ())})
-    line = (f"mkdir -p {shlex.join(parents)} && " if parents else "") + script_line(job, ".", "/opt/blender/blender")
+    line = (f"mkdir -p {shlex.join(parents)} && " if parents else "") + cluster_line(job)
     found = {"command": ["sh", "-c", line], "code": shipped([job]), "inputs": list(job.get("inputs", ())),
              "outputs": list(job.get("outputs", ())), "minutes": float(job.get("minutes", 10)),
              "env": {"FARM_CYCLES_GPU" if card else "FARM_CYCLES_CPU": "1"}}
-    if card:
+    if card and not job.get("env"):
         found["kernel_cache"] = CLUSTER_KERNELS
     return found
 
@@ -572,9 +594,14 @@ def cluster_jobs_module():
 
 
 def run_on_cluster(jobs, classes, who):
-    """The jobs on the cluster as one run; the numbers of those that failed."""
-    return cluster_jobs_module().run(KIND, [cluster_job(job, classes) for job in jobs], who, classes,
-                                     image="blender")
+    """The jobs on the cluster, one run an image; the numbers of those that failed."""
+    failed = []
+    for image in sorted({cluster_image(job) for job in jobs}):
+        numbers = [number for number, job in enumerate(jobs) if cluster_image(job) == image]
+        left = cluster_jobs_module().run(KIND, [cluster_job(jobs[number], classes) for number in numbers], who,
+                                         classes, image=image)
+        failed += [numbers[index] for index in left]
+    return sorted(failed)
 
 
 def serve_on_cluster(queue, classes, who, idle_minutes):

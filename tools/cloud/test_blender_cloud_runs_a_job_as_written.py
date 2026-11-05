@@ -19,7 +19,9 @@ No machine is rented: each test reads the command, job or offers the module buil
   or in `serve`, drop the `except BaseException` (a job ended by anything but its script's exit leaves no .failed,
   and the fault says only "ended before 1.json ran": settle@hangar, 2026-11-03).
 - test_a_cluster_job_keeps_the_paths_and_the_engine_follows_the_class: in `cluster_job`, `card = any(provider.cards(name)
-  for name in classes)` -> `card = True`.
+  for name in classes)` -> `card = True`; or in `cluster_line`, `if not job.get("env"):` -> `if True:` (a Newton drop
+  run in the blender image, which has no Newton); or in `run_on_cluster`, `numbers[index]` -> `index` (a failed
+  drop reported as another job).
 - test_the_runner_python_follows_props_home: `CLOUD_PYTHON = HOME / "env/bin/python"` -> `CLOUD_PYTHON =
   pathlib.Path.home() / ".farm-factory-props/env/bin/python"`.
 - test_one_class_is_fixed_at_price_time_and_no_stock_keeps_the_first: in batch.py `one_class_in_stock`, `next(iter(stocked
@@ -191,7 +193,7 @@ def test_a_failed_held_job_raises_with_the_end_of_its_logs(tmp_path, monkeypatch
     assert kept.startswith("the job ended: SystemExit: stopped by signal 15") and "Blender: settling" in kept, kept
 
 
-def test_a_cluster_job_keeps_the_paths_and_the_engine_follows_the_class():
+def test_a_cluster_job_keeps_the_paths_and_the_engine_follows_the_class(monkeypatch):
     """Under SCORE_CLOUD=k8s: the same arguments, the script from the job's code, its output folders made first."""
     job = {"script": "tools/blender/inside/settle_stage.py", "args": ["/w/stage.usda", "/w/out/x.json"],
            "inputs": ["/w/stage.usda"], "outputs": ["/w/out/x.json"], "minutes": 4}
@@ -205,6 +207,17 @@ def test_a_cluster_job_keeps_the_paths_and_the_engine_follows_the_class():
     processor = blender_cloud.cluster_job(job, ["cpu-32c-128gb"])
     assert processor["env"] == {"FARM_CYCLES_CPU": "1"} and "kernel_cache" not in processor
     assert (card["inputs"], card["outputs"], card["minutes"]) == (job["inputs"], job["outputs"], 4)
+    drop = dict(job, script="score/stages/settling/inside/settle_drop.py", env="score/stages/physics/inside/newton_env.sh")
+    newton = blender_cloud.cluster_job(drop, ["gpu-24gb"])
+    words = shlex.split(newton["command"][2])
+    assert words[3:] == ["&&", "newton-run", drop["script"], *drop["args"]] and "kernel_cache" not in newton
+    assert blender_cloud.cluster_image(drop) == "newton" and blender_cloud.cluster_image(job) == "blender"
+    sent = []
+    failing = {"newton": [0], "blender": []}
+    monkeypatch.setattr(blender_cloud, "cluster_jobs_module", lambda: type("Jobs", (), {"run": staticmethod(
+        lambda kind, jobs, who, classes, image: sent.append((image, len(jobs))) or failing[image])}))
+    assert blender_cloud.run_on_cluster([job, drop, job], ["gpu-24gb"], "test") == [1]
+    assert sorted(sent) == [("blender", 2), ("newton", 1)]
 
 
 def runner_python_under(props_home):
