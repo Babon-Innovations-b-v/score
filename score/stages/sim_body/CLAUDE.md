@@ -98,8 +98,11 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   follows SOMA (each joint's mm, each group's degrees, at a range limit or not, before and after RRA) is its `fit`.
   The SOMA forearm rides the ulna, so its hand's twist is the forearm's pronation. The path is low-passed (zero-lag
   4th-order Butterworth at 6 Hz, Winter 2009) before it is differentiated.
-- **Its feet are where SOMA's are** (#70: SOMA is the truth, never moved, scaled or grounded): MyoFullBody's root
-  follows the markers on SOMA's skin and nothing moves it onto the ground; the ground pushes whatever point of the person's
+- **Its feet are where SOMA's are** (#70: SOMA is the truth: its shape and pose are never changed, only its height
+  over the floor; owner, 2026-11-05, on grounding the clips: "yes allow it, but take a good look at kimodo itself
+  before, as im pretty sure all these tools are in there alr"; Kimodo's post-processing, on for every clip made on
+  flat ground, holds the pickup's, squat's and walk's standing toe joints within 2 mm of 20 mm on Kimodo's own
+  skeleton, not on the body that plays them, whose legs are not Kimodo's, so `person_rig` stands them, below): MyoFullBody's root follows the markers on SOMA's skin and nothing moves it onto the ground; the ground pushes whatever point of the person's
   skin the fit puts within `GAP` of it. Before 2026-10-28 the fit held standing feet on the ground (`stances`,
   `on_ground`, `unslipped`, `landed`) and moved the path once onto it (`grounded`); those went with the old fit.
   Measured 2026-10-28: the two test walkers' SOMA skin stood 26 to 57 mm over their ground (its lowest point, every
@@ -157,10 +160,10 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   SCORE_SIM_BODY_CLASSES set (capability classes, comma separated) on a rented machine instead (`ran_elsewhere`, the
   machine path with the env script built there), which, the row being free, rents only under the owner's spend yes.
 - **Its readers** (contract version 2): the characters layer (`../cast/driven.py`) plays each person's skeleton from
-  `measures/<name>.json`'s `poses`, which are the clip's own segment frames, written by the stage itself, never
-  moved, scaled or grounded to the sim body (owner, 2026-10-28: SOMA is the truth; the stage's test checks them bit
-  for bit), and references `layers/sim_bodies.usda`; its gate measures the skin's feet against the layer's
-  `SimBody/<segment>` Xforms, which ride the body's bones (`fit.riding`: the calibration table's turn, at the
+  `measures/<name>.json`'s `poses`, which are the clip's own segment frames, written by the stage itself, its shape
+  and pose never changed, only its height over the floor (`_body.stood`; owner, 2026-10-28: SOMA is the truth;
+  2026-11-05: grounding allowed; the stage's test checks them bit for bit), and references `layers/sim_bodies.usda`;
+  its gate measures the skin's feet against the layer's `SimBody/<segment>` Xforms, which ride the body's bones (`fit.riding`: the calibration table's turn, at the
   group's start joint), so it reads how far the musculoskeletal body's feet are from the clip's. People-cloth reads
   `poses` and imports `segments_of`. The film's
   layer peel (`../demo_film/peel.py`) draws whatever geometry is under each SimBody and finds each `feet` key's prim by
