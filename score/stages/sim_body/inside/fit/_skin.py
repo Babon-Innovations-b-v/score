@@ -487,9 +487,143 @@ class PosedSkins:
 
 
 def posed_skins(rig, segments, worlds):
-    """SOMA's skin on every frame of `worlds` (`skin`, linear blend) in MuJoCo's frame, each kept when `unfolded`."""
-    own = np.stack([skin(rig, segments, world) for world in np.asarray(worlds, dtype=float)])
-    return PosedSkins(own @ TO_OWN, envelope(rig), [unfolded(posed, rig) for posed in own])
+    """SOMA's skin on every frame of `worlds` (`skin`, linear blend) in MuJoCo's frame, each kept when `unfolded`: on
+    the card when Warp sees one, every frame at once (`card_skins`, `card_folded`), else frame by frame on the CPU, the
+    reference the card's equals within float64's rounding (#70, 2026-11-05: 19 to 23 s a clip on the CPU)."""
+    device = card_device()
+    if device == "cpu":
+        own = np.stack([skin(rig, segments, world) for world in np.asarray(worlds, dtype=float)])
+        return PosedSkins(own @ TO_OWN, envelope(rig), [unfolded(posed, rig) for posed in own])
+    own = card_skins(rig, segments, worlds, device)
+    return PosedSkins(own.numpy() @ TO_OWN, envelope(rig), card_folded(own, rig, device) <= FOLD_MOST)
+
+
+@warp.kernel
+def _blended(moves: warp.array2d(dtype=warp.mat44d), weights: warp.array2d(dtype=warp.float64),
+             points: warp.array(dtype=warp.vec3d), posed: warp.array2d(dtype=warp.vec3d)):
+    """Per (frame, vertex): `skin`'s linear blend, each segment's move of the vertex weighed by its weight."""
+    frame, vert = warp.tid()
+    total = warp.vec3d()
+    for segment in range(weights.shape[1]):
+        move = moves[frame, segment]
+        point = points[vert]
+        moved = warp.vec3d(move[0, 0] * point[0] + move[0, 1] * point[1] + move[0, 2] * point[2] + move[0, 3],
+                           move[1, 0] * point[0] + move[1, 1] * point[1] + move[1, 2] * point[2] + move[1, 3],
+                           move[2, 0] * point[0] + move[2, 1] * point[1] + move[2, 2] * point[2] + move[2, 3])
+        total = total + weights[vert, segment] * moved
+    posed[frame, vert] = total
+
+
+def card_skins(rig, segments, worlds, device):
+    """`skin` of every frame of `worlds` at once on `device` (frames x points, Warp's vec3d): float64, as the CPU's."""
+    names = [str(joint) for joint in rig["names"]]
+    joints = [names.index(segment) for segment in segments]
+    moves = np.asarray(worlds, dtype=float) @ np.linalg.inv(np.asarray(rig["bind"], dtype=float)[joints])
+    weights = np.ascontiguousarray(np.asarray(rig["weights"], dtype=float)[:, joints])
+    points = np.asarray(rig["points"], dtype=float)
+    posed = warp.zeros((len(moves), len(points)), dtype=warp.vec3d, device=device)
+    warp.launch(_blended, dim=posed.shape, device=device,
+                inputs=[warp.array(np.ascontiguousarray(moves), dtype=warp.mat44d, device=device),
+                        warp.array(weights, dtype=warp.float64, device=device),
+                        warp.array(points, dtype=warp.vec3d, device=device), posed])
+    return posed
+
+
+@warp.kernel
+def _inward(posed: warp.array2d(dtype=warp.vec3d), faces: warp.array(dtype=warp.int32),
+            ring_starts: warp.array(dtype=warp.int32), ring_faces: warp.array(dtype=warp.int32),
+            areas: warp.array2d(dtype=warp.float64), inward: warp.array2d(dtype=warp.vec3d),
+            inward32: warp.array2d(dtype=warp.vec3), posed32: warp.array2d(dtype=warp.vec3), fold_in: warp.float64):
+    """Per (frame, vertex): `doubled`'s area (its faces' crossed sides summed, their length) and its point FOLD_IN in
+    along its normal, float64 and float32, and the vertex in float32 for the frame's mesh."""
+    frame, vert = warp.tid()
+    summed = warp.vec3d()
+    for slot in range(ring_starts[vert], ring_starts[vert + 1]):
+        face = ring_faces[slot]
+        first = posed[frame, faces[3 * face]]
+        summed = summed + warp.cross(posed[frame, faces[3 * face + 1]] - first, posed[frame, faces[3 * face + 2]] - first)
+    area = warp.length(summed)
+    point = posed[frame, vert] - fold_in * (summed / warp.max(area, warp.float64(1.0e-30)))
+    areas[frame, vert] = area
+    inward[frame, vert] = point
+    inward32[frame, vert] = warp.vec3(warp.float32(point[0]), warp.float32(point[1]), warp.float32(point[2]))
+    here = posed[frame, vert]
+    posed32[frame, vert] = warp.vec3(warp.float32(here[0]), warp.float32(here[1]), warp.float32(here[2]))
+
+
+@warp.kernel
+def _doubled_frames(meshes: warp.array(dtype=warp.uint64), points: warp.array2d(dtype=warp.vec3),
+                    found: warp.array2d(dtype=warp.int32)):
+    """`_doubled` on every frame's mesh at once: 1 where a point winds 1.5 or more."""
+    frame, point = warp.tid()
+    query = warp.mesh_query_point_sign_winding_number(meshes[frame], points[frame, point], 1.0e6, 2.0, 1.5)
+    found[frame, point] = warp.where(query.sign < 0.0, 1, 0)
+
+
+@warp.kernel
+def _joined_winding(posed: warp.array2d(dtype=warp.vec3d), inward: warp.array2d(dtype=warp.vec3d),
+                    faces: warp.array(dtype=warp.int32), frames: warp.array(dtype=warp.int32),
+                    verts: warp.array(dtype=warp.int32), owners: warp.array(dtype=warp.int32),
+                    starts: warp.array(dtype=warp.int32), joined: warp.array(dtype=warp.int32),
+                    windings: warp.array(dtype=warp.float64)):
+    """Per doubled (frame, vertex): `winding` of its inward point on its owner's `joined_faces`, exact in float64, times
+    4 pi (the host divides, as `winding` does)."""
+    pair = warp.tid()
+    frame = frames[pair]
+    point = inward[frame, verts[pair]]
+    owner = owners[verts[pair]]
+    total = warp.float64(0.0)
+    for slot in range(starts[owner], starts[owner + 1]):
+        face = joined[slot]
+        first = posed[frame, faces[3 * face]] - point
+        second = posed[frame, faces[3 * face + 1]] - point
+        third = posed[frame, faces[3 * face + 2]] - point
+        lengths = warp.vec3d(warp.length(first), warp.length(second), warp.length(third))
+        turned = warp.dot(first, warp.cross(second, third))
+        under = (lengths[0] * lengths[1] * lengths[2] + warp.dot(first, second) * lengths[2]
+                 + warp.dot(second, third) * lengths[0] + warp.dot(third, first) * lengths[1])
+        total = total + warp.float64(2.0) * warp.atan2(turned, under)
+    windings[pair] = total
+
+
+def card_folded(posed, rig, device):
+    """`folded` of every frame of `posed` (`card_skins`) at once on `device`: each frame's posed skin as a mesh built
+    as the CPU builds it (SAH, so the winding number's approximation reads the same tree), its doubled vertices, then
+    their exact winding on their segment's joined faces. Returns each frame's share, float64."""
+    faces = np.asarray(rig["faces"], dtype=np.int32)
+    frames, count = posed.shape
+    starts, ringed = rings(faces, count)
+    flat = warp.array(faces.ravel(), dtype=warp.int32, device=device)
+    areas = warp.zeros((frames, count), dtype=warp.float64, device=device)
+    inward = warp.zeros((frames, count), dtype=warp.vec3d, device=device)
+    inward32, posed32 = (warp.zeros((frames, count), dtype=warp.vec3, device=device) for _ in range(2))
+    warp.launch(_inward, dim=(frames, count), device=device,
+                inputs=[posed, flat, warp.array(starts, dtype=warp.int32, device=device),
+                        warp.array(ringed, dtype=warp.int32, device=device), areas, inward, inward32, posed32,
+                        FOLD_IN])
+    indices = warp.array(faces.ravel(), dtype=int, device=device)
+    meshes = [warp.Mesh(points=posed32[frame], indices=indices, support_winding_number=True, bvh_constructor="sah")
+              for frame in range(frames)]
+    found = warp.zeros((frames, count), dtype=warp.int32, device=device)
+    warp.launch(_doubled_frames, dim=(frames, count), device=device,
+                inputs=[warp.array(np.array([mesh.id for mesh in meshes], dtype=np.uint64), dtype=warp.uint64,
+                                   device=device), inward32, found])
+    pair_frames, pair_verts = np.nonzero(found.numpy())
+    area = areas.numpy()
+    folds = np.zeros((frames, count), dtype=bool)
+    if len(pair_frames):
+        owner, joined = joined_faces(rig)
+        lists = [np.flatnonzero(mask).astype(np.int32) for mask in joined]
+        windings = warp.zeros(len(pair_frames), dtype=warp.float64, device=device)
+        warp.launch(_joined_winding, dim=len(pair_frames), device=device,
+                    inputs=[posed, inward, flat, warp.array(pair_frames.astype(np.int32), dtype=warp.int32, device=device),
+                            warp.array(pair_verts.astype(np.int32), dtype=warp.int32, device=device),
+                            warp.array(owner.astype(np.int32), dtype=warp.int32, device=device),
+                            warp.array(np.cumsum([0, *map(len, lists)]).astype(np.int32), dtype=warp.int32,
+                                       device=device),
+                            warp.array(np.concatenate(lists), dtype=warp.int32, device=device), windings])
+        folds[pair_frames, pair_verts] = windings.numpy() / (4 * np.pi) >= FOLD_OWN
+    return (area * folds).sum(axis=1) / area.sum(axis=1)
 
 
 def bone_bodies(model):

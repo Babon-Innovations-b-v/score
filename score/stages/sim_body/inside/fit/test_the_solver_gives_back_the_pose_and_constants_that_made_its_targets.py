@@ -45,6 +45,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   joined to every other: the sibling cubes fold 0.5 (a_skin_folding_into_itself_gives_no_rows red).
 - (2026-11-01) _skin.apart_kernel's `if kept[mesh] != 0:` made `... or True`: the folded frame's point reads 1 m deep
   (a_skin_folding_into_itself_gives_no_rows red).
+- (2026-11-05) _skin._blended's `weights[vert, segment] * moved` made `moved`: the card's skin metres off the CPU's;
+  card_folded's `>= FOLD_OWN` made `> 2.0`: no frame folds on the card (a_skin_folding_into_itself_gives_no_rows red).
 - (2026-11-01) PosedSkins.__getitem__ dropping `self.kept[frames]`: indexed skins read every frame kept.
 - (2026-11-01) _skin.envelope's `for verts in pockets(rig):` made `pockets(rig)[:0]`, no pocket closed: the point in
   the cube's mouth reads outside the envelope (the_heads_pockets_are_closed_for_the_inside_test red).
@@ -170,6 +172,9 @@ CUBE_FACES = [[0, 1, 3], [0, 3, 2], [4, 6, 7], [4, 7, 5], [0, 4, 5], [0, 5, 1], 
 # DECOY_SHIFT along the shin's y off it (the bone 1.5 cm outside it); FOUND_MM the bone's depth outside its own skin
 # once held (2026-11-01: 0.07 mm from the fit without the skin, 154 mm from the standing start).
 DECOY_HALF, DECOY_SHIFT, FOUND_MM = 0.03, 0.06, 1.0
+# The card's posed skins against the CPU's (`card_posed_as_the_cpu`): float64 both, the card's sums in another order
+# and fused (2026-11-05, mean's pickup on Warp's CPU device: the vertices within 6.7e-16 m, the shares 1.0e-17).
+CARD_SKIN_M, CARD_SHARE = 1e-12, 1e-12
 MOST_RADIANS = 1e-4
 SETTLED_GRADIENT = 1e-10  # the free gradient level 2 ends at, absolute (2026-10-30: scipy's trf/lsmr alone left 2.5e-7)
 # The marker's move is pulled to its link by one row at its own weight against the five frames' (found 2026-10-29: 7.1 mm
@@ -813,7 +818,10 @@ def a_skin_folding_into_itself_gives_no_rows():
     as one mesh, each its own segment, standing apart the `_skin.folded` share is 0 and the frame kept; overlapping by
     half (half of each cube's corners inside the other) as parent and child it folds over 0.4 and is not kept, as two
     siblings it folds 0 and is kept; `PosedSkins` carries which through indexing and joining, and a point 1 m outside
-    reads 1 m off the kept frame's skin (`SkinMeshes.apart`) and 0 off the folded one's."""
+    reads 1 m off the kept frame's skin (`SkinMeshes.apart`) and 0 off the folded one's. Posed every frame at once on
+    the card (`card_skins`, `card_folded`; Warp's CPU device with no card), the same rig blended (a corner riding both
+    cubes) and turned on three frames gives the CPU's `skin` to CARD_SKIN_M and its `folded` shares to CARD_SHARE, so
+    the same frames kept, the folding one among them."""
     import numpy as np
     from fit import _skin
     corners = np.array([[x, y, z] for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)], dtype=float)
@@ -830,7 +838,36 @@ def a_skin_folding_into_itself_gives_no_rows():
         f"kept frames {list(posed.kept)}"]
     offsets, _ = _skin.SkinMeshes(posed, "cpu").apart(np.array([[0.0, 2.0, 0.0]] * 2), np.array([0, 1]))
     depths = np.linalg.norm(offsets, axis=1)
-    return problems + ([] if np.allclose(depths, [1.0, 0.0], atol=1e-6) else [f"depths off the frames {depths}"])
+    problems += [] if np.allclose(depths, [1.0, 0.0], atol=1e-6) else [f"depths off the frames {depths}"]
+    return problems + card_posed_as_the_cpu(apart, joined)
+
+
+def card_posed_as_the_cpu(points, rig):
+    """`a_skin_folding_into_itself_gives_no_rows`' card half: the two cubes (`points`, `rig`'s faces and parents) as a
+    rig of Root, Hips and Head, one corner riding both, posed on three frames (apart; the Head 4 m back, folding into
+    its parent; both turned), every frame at once on `_skin.card_device()` against the CPU's frame by frame."""
+    import numpy as np
+    from scipy.spatial.transform import Rotation
+    from fit import _skin
+    weights = np.zeros((16, 3))
+    weights[:, 1:] = rig["weights"][:, 1:]
+    weights[0, 1:] = 0.7, 0.3
+    posing = {**rig, "points": points, "weights": weights, "names": np.array(["Root", "Hips", "Head"]),
+              "bind": np.tile(np.eye(4), (3, 1, 1))}
+    worlds = np.tile(np.eye(4), (3, 2, 1, 1))
+    worlds[1:, 1, 0, 3] = -4.0
+    worlds[2, 0, :3, :3] = Rotation.from_euler("z", 20, degrees=True).as_matrix()
+    worlds[2, 1, :3, :3] = Rotation.from_euler("xz", [15, 35], degrees=True).as_matrix()
+    segments, device = ["Hips", "Head"], _skin.card_device()
+    cpu = np.stack([_skin.skin(posing, segments, world) for world in worlds])
+    shares = np.array([_skin.folded(verts, posing) for verts in cpu])
+    card = _skin.card_skins(posing, segments, worlds, device)
+    found = _skin.card_folded(card, posing, device)
+    gap = float(np.abs(card.numpy() - cpu).max())
+    problems = [] if gap < CARD_SKIN_M else [f"card skin {gap:.2e} m off the CPU's on {device}"]
+    problems += [] if np.abs(found - shares).max() < CARD_SHARE else [f"card folded {found} against the CPU's {shares}"]
+    kept = list(_skin.posed_skins(posing, segments, worlds).kept)
+    return problems + ([] if kept == list(shares <= _skin.FOLD_MOST) and not kept[1] else [f"kept frames {kept}"])
 
 
 def level_2_ends_settled():
