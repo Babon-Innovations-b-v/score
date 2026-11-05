@@ -21,7 +21,9 @@ the gates.
   the ground, a balcony a slab); the scene record lays every other enclosed place's shell from the same pieces and
   every stair and ramp (scene_record.writer), and each arched structure row's band at its plan items
   (`arched`, `arches`: a rib, arch or hoop, thin across; owner, 2026-10-26: the framework may build structure pieces
-  as the earth seed builds shells). Each wall cuts the plan's openings and those its door and window rows fill at
+  as the earth seed builds shells), and each structural row's own pieces (`row_pieces`: pillars round the walls,
+  beams under the roof, a pad or grate at its plan item; a deck cut open over a flight going down from it, `hatches`).
+  Each wall cuts the plan's openings and those its door and window rows fill at
   their plan items (`cut_for`, `row_openings`: the earth seed's from the design inventory, the scene record's from
   the hand-in; the library holds no door or window, so their models come by the prop route), and those the place's
   relations cut for a door or window the plan's openings do not hold (`relation_cuts`, score/review/holders; read by

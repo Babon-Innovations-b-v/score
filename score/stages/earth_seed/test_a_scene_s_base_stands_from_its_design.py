@@ -163,7 +163,17 @@ def test_a_room_shell_stands_round_its_plan():
     Break: score/stages/earth_seed/design_shell.py: `        if head < high:` -> `        if False:`
     Break: score/stages/earth_seed/design_shell.py: `DECK_BELOW = 0.0` -> `DECK_BELOW = 0.042`
     Break: score/stages/earth_seed/design_shell.py: `if not rising and holes:` -> `if False:` (the hangar's roof one
-        solid slab though its plan opens it 27 x 55 m for the ship, 2026-11-04)"""
+        solid slab though its plan opens it 27 x 55 m for the ship, 2026-11-04)
+    A flight down from the floor has the deck cut open over it, and the shell builds its own structural rows' pieces
+    (pillars along the walls, beams under the roof, grates at their item), each worked by hand below.
+    Break: score/stages/earth_seed/design_shell.py: `if abs(high - height) <= 1e-3 and low < height - 1e-3 and` ->
+        `if False and`
+    Break: score/stages/earth_seed/design_shell.py: `blocked = sorted((begin - half, finish + half) for begin, finish,
+        *_ in cuts)` -> `blocked = []`
+    Break: score/stages/earth_seed/design_shell.py: `across = 0 if high[0] - low[0] <= high[1] - low[1] else 1` ->
+        `across = 0`
+    Break: score/stages/earth_seed/design_shell.py: `size, count = sized(row), max(int(row.get("count") or 1),
+        len(items))` -> `size, count = sized(row), len(items)`"""
     parts = {name: triangles for name, triangles, _ in design_shell.shell(ROOM)}
     assert sorted(parts) == ["deck_1", "roof_1", "wall_1", "wall_2", "wall_3", "wall_4"], sorted(parts)
     assert abs(volume(parts["deck_1"]) - 4.3 * 3.3 * 0.2) < 1e-6, volume(parts["deck_1"])
@@ -193,6 +203,37 @@ def test_a_room_shell_stands_round_its_plan():
     over = numpy.asarray(opened["roof_1"], float).mean(axis=1)
     assert not ((over[:, 0] > 1.0 + 1e-6) & (over[:, 0] < 3.0 - 1e-6) & (over[:, 2] > 1.0 + 1e-6)
                 & (over[:, 2] < 2.0 - 1e-6)).any(), "the roof is closed over its opening"
+    # a flight from the floor down 1 m on a 1 x 1 m footprint: the deck is cut open over it (the hangar's floor hatch)
+    down = dict(ROOM, stairs=[{"kind": "stair", "points": [[1.0, 1.0], [2.0, 1.0], [2.0, 2.0], [1.0, 2.0]],
+                               "from": 0.0, "to": -1.0, "steps": 5}])
+    hatched = {name: triangles for name, triangles, _ in design_shell.shell(down)}
+    assert abs(volume(hatched["deck_1"]) - (4.3 * 3.3 - 1.0) * 0.2) < 1e-6, volume(hatched["deck_1"])
+    # the shell's own rows (the hangar's pillars, pad and grates, the garage's beams, 2026-11-05): 4 pillars 0.4 x 0.3 m
+    # spaced 3.5 m round the 14 m outline from 1.75 m, the first slid off the door (cut 1.5 to 2.5 m) to end 0.2 m
+    # before it, its back on the north wall's inside face at y -0.15, 2.5 m high (its 3 m capped at the wall's top);
+    # 2 beams 0.2 x 0.3 m across the 3 m side at x 1 and 3, wall face to wall face, under the 2.5 m eave; a grate row
+    # of 2 on one 2 x 1 m item split along it, 0.02 m thick.
+    rows = [{"id": "wall_pillars", "part": "structure", "name": "wall pillars", "size": [0.4, 0.3, 3.0], "count": 4},
+            {"id": "ceiling_beam", "part": "structure", "name": "ceiling beam", "size": [5.0, 0.2, 0.3], "count": 2},
+            {"id": "floor_grates", "part": "floor", "name": "floor grates", "count": 2},
+            {"id": "floor_plates", "part": "floor", "name": "floor plates", "size": [4.0, 3.0, 0.1]}]
+    built = {name: (row_id, piece, kind) for row_id, name, piece, _, kind in design_shell.row_pieces(
+        dict(ROOM, items=[["GRATES", 1.0, 1.0, 2.0, 1.0, None, "item"], ["WALLS", 0.0, 0.0, 4.0, 3.0, None, "item"]],
+             rows={"GRATES": ["floor_grates"], "WALLS": ["floor_plates", "wall_pillars", "ceiling_beam"]},
+             shapes={"GRATES": {"shape": "rect", "tall": 0.0, "base": 0.0}}), rows)}
+    assert sorted(built) == ["ceiling_beam_1", "ceiling_beam_2", "floor_grates_1", "floor_grates_2", "wall_pillars_1",
+                             "wall_pillars_2", "wall_pillars_3", "wall_pillars_4"], sorted(built)
+    pillar = built["wall_pillars_1"][1]
+    assert numpy.allclose(pillar["points"], [[1.1, -0.15], [1.5, -0.15], [1.5, 0.15], [1.1, 0.15]]) and \
+        (pillar["low"], pillar["high"]) == (0.0, 2.5) and built["wall_pillars_1"][2] == "wall", pillar
+    beam = built["ceiling_beam_1"][1]
+    assert numpy.allclose(beam["points"], [[0.9, -0.15], [0.9, 3.15], [1.1, 3.15], [1.1, -0.15]]) and \
+        numpy.allclose([beam["low"], beam["high"]], [2.2, 2.5]), beam
+    assert numpy.allclose(built["ceiling_beam_2"][1]["points"][0], [2.9, -0.15]), built["ceiling_beam_2"]
+    grates = [built[f"floor_grates_{number}"][1] for number in (1, 2)]
+    assert [numpy.asarray(grate["points"])[:, 0].tolist() for grate in grates] == [[1.0, 2.0, 2.0, 1.0],
+                                                                                [2.0, 3.0, 3.0, 2.0]] and \
+        all((grate["low"], grate["high"]) == (0.0, design_shell.FLUSH) for grate in grates), grates
 
 
 def test_every_wall_the_plan_writes_is_built_and_cut_where_its_opening_sits():

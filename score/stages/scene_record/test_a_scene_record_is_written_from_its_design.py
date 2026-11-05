@@ -698,8 +698,35 @@ def test_an_opening_row_names_its_own_cut_and_a_thing_on_a_low_deck_stands_on_it
         `return f"wall_{index + 1}" if over[0] == 0`, and the next `over[-1] + 1` -> `over[0] + 1`
     Break: score/stages/scene_record/writer.py: `height = base or deck_height(design, spot)` -> `height = base`
     Break: score/stages/scene_record/writer.py: `0.0 < float(level.get("height") or 0.0) <= design_shell.SLAB +
-        DECK_BELOW and` -> `0.0 < float(level.get("height") or 0.0) and`"""
+        DECK_BELOW and` -> `0.0 < float(level.get("height") or 0.0) and`
+    An opening row with no plan item of its own (2026-11-05) is named by its words on a free piece at an opening the
+    shell cuts: the lab's corridor openings on the lintel over the plan's own door (wall_1_3), the hangar's floor
+    hatch on the flight going down through its deck's hatch (stair_2), its roof opening on a roof cut round its
+    openings, and on nothing while its roof has none; the shell's own pillars stand in the place's frame, named
+    their row, painted (here named missing: no library), and none where the earth seed lays the shell.
+    Break: score/stages/scene_record/writer.py: `if words & FLOOR_WORDS:` -> `if False:`
+    Break: score/stages/scene_record/writer.py: `name_open_cuts(design, shelled + flights, (rows or {}).get("opening",
+        []))` -> `pass`
+    Break: score/stages/scene_record/writer.py: `if not inside(design) or design_shell.laid_for(design):` ->
+        `if not inside(design):`"""
     from score.stages.scene_record import writer
+    down = {**WRITTEN, "stairs": [*WRITTEN["stairs"], {"kind": "stair", "points": [[1.0, 4.0], [2.0, 4.0], [2.0, 5.0],
+                                                                                  [1.0, 5.0]],
+                                                        "from": 0.0, "to": -1.0, "angle": 90.0, "steps": 5}]}
+    openings = {"opening": ["corridor_opening", "floor_hatch", "roof_opening"]}
+    named = {entry.get("row"): entry["name"] for entry in writer.structure({"place": "shed"}, down, None, openings)}
+    assert (named.get("corridor_opening"), named.get("floor_hatch"), "roof_opening" in named) == \
+        ("wall_1_3", "stair_2", False), named
+    holed = {**down, "roofs": [{**WRITTEN["roofs"][0], "openings": [{"points": [[5, 1], [7, 1], [7, 2], [5, 2]]}]}]}
+    named = {entry.get("row"): entry["name"] for entry in writer.structure({"place": "shed"}, holed, None, openings)}
+    assert named.get("roof_opening") == "roof_1", named
+    pillars = {"rows": [{"id": "posts", "route": "plan", "part": "structure", "name": "posts", "size": [0.2, 0.2, 2.0],
+                         "count": 2}]}
+    own = writer.row_entries(WRITTEN, "shed", None, pillars)
+    assert [(entry["name"], entry["row"], entry["plain"], entry["surface"]) for entry in own] == [
+        ("posts_1", "posts", "shell", None), ("posts_2", "posts", "shell", None)] and \
+        all(entry["surface_missing"] for entry in own), own
+    assert writer.row_entries({**WRITTEN, "shell": "kit", "inside": True}, "shed", None, pillars) == []
     design = {**WRITTEN, "items": [*WRITTEN["items"], ["DOORWAY 1", 3.4, 0.0, 1.2, 0.2, None, "item"],
                                    ["CRATE 1", 6.0, 4.0, 1.0, 1.0, None, "item"],
                                    ["BOX 1", 1.0, 4.0, 1.0, 1.0, None, "item"]],

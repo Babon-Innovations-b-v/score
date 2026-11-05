@@ -9,7 +9,8 @@ raised levels (the street, the square, the base: a plan that encloses nothing), 
            inside (`inside`; a plan that says neither is a room when it writes walls: a scene added in the app, the
            docking airlock); an open place (`inside` false) has no room to close
     deck   (a room) each level of the plan (else its outline at the floor) a slab SLAB thick, its top DECK_BELOW under
-           the level, out to the walls (BACKING past the plan's line)
+           the level, out to the walls (BACKING past the plan's line), cut open over each flight the plan draws
+           going down from it (`hatches`: a floor hatch with its stairs)
     wall   (a room) round the outline (the plan's `outline`, else its box w x d), each edge a slab of its written wall's
            thickness (else THICK) standing BACKING behind the plan's inside line, from the deck's foot to its written
            height (else the height words' ceiling, else STOREY), raised to a roof's eave over it; and every written wall
@@ -47,6 +48,14 @@ An arched structure row (`arched`: a rib, an arch or a hoop of the place, a band
 the shell's too, laid by the scene record at each plan item tied to it as a builders' `arch` at the row's size
 (scene_record.writer `arch_entry`; the owner, 2026-10-26, lets the framework build structure pieces as the earth seed
 builds shells; Batch 1's retry: the tube's ribs, its box the whole picture, framed no close-up).
+
+    pieces of rows (`row_pieces`, laid by the scene record like the arches; 2026-11-05: the hangar's landing pad,
+           wall pillars and floor grates and the garage's ceiling beams were built by nothing) a structure row the
+           shell builds from the plan and its walls: an upright one (a pillar, column or post) its count spaced evenly
+           round the outline's walls, its back on each wall's inside face, clear of corners and openings (`pillars`);
+           a spanning one (a beam, girder, rafter, truss or joist) across the outline's shorter side wall face to wall
+           face, spaced along the longer, its top at the roof's eave (`beams`); a floor row tied to plan items of its
+           own (a pad, a grate) a slab at each, its count shared over them, at least FLUSH thick (`floor_pieces`)
 """
 import hashlib
 import json
@@ -87,6 +96,11 @@ ARCHED = frozenset(("rib", "arch", "hoop"))
 OPENING_KINDS = frozenset(("door", "window", "gate", "hatch", "shutter"))
 # An arched row is a band: its deep under this share of its wide and of its tall.
 BAND_SHARE = 0.25
+# The kinds of a structure row the shell stands along its walls (pillars) and spans under its roof (beams), by a word
+# of its id, name or noun, a plural's s dropped (row_pieces).
+UPRIGHT = frozenset(("pillar", "column", "post"))
+SPANNING = frozenset(("beam", "girder", "rafter", "truss", "joist"))
+FLUSH = 0.02  # metres a floor piece the plan gives no height stands over the floor (a grate laid in it)
 # The scene library's kinds each part takes its surface from, the first it names a variant for: one answer with the
 # paint's (palette_library.SHELL_KINDS), so a prop's finish can take the shell's own surface.
 PART_KINDS = palette_library.SHELL_KINDS
@@ -610,9 +624,29 @@ def decks(plan, outline):
     for number, level in enumerate(levels, 1):
         points = grown(outline_of({"outline": level["points"]}))
         top = float(level["height"]) - DECK_BELOW
-        found.append((f"deck_{number}", [slab_piece(points, top - SLAB, top)],
+        holes = [box for _, box in hatches(plan, level)]
+        found.append((f"deck_{number}", [slab_piece(part, top - SLAB, top) for part in
+                                         (cut_out(points, holes) if holes else [points])],
                       f"the plan's level {level.get('name', number)!r} at {float(level['height']):g} m: its deck "
-                      f"{SLAB:g} m thick, {DECK_BELOW:g} m under it, out to the walls {BACKING:g} m behind its line"))
+                      f"{SLAB:g} m thick, {DECK_BELOW:g} m under it, out to the walls {BACKING:g} m behind its line" +
+                      (f", {len(holes)} hatches cut over the flights going down from it" if holes else "")))
+    return found
+
+
+def hatches(plan, level):
+    """[(stair index, (west, north, east, south))] of each stair or ramp the plan draws going down from a level: its
+    top at the level's height, its foot under it, its footprint's middle on the level; the box is the hatch its deck
+    is cut open over (the hangar's open floor hatch with stairs down, 2026-11-05: its flight stood inside the solid
+    deck)."""
+    height, outline, found = float(level.get("height") or 0.0), level.get("points") or [], []
+    for index, entry in enumerate(plan.get("stairs") or []):
+        corners = np.asarray(entry.get("points") or [], float).reshape(-1, 2)
+        if len(corners) < 3 or not (np.ptp(corners[:, 0]) > 0 and np.ptp(corners[:, 1]) > 0):
+            continue
+        low, high = sorted((float(entry.get("from") or 0.0), float(entry.get("to") or 0.0)))
+        middle = list((corners.min(axis=0) + corners.max(axis=0)) / 2)
+        if abs(high - height) <= 1e-3 and low < height - 1e-3 and inside(middle, outline):
+            found.append((index, (*corners.min(axis=0).tolist(), *corners.max(axis=0).tolist())))
     return found
 
 
@@ -778,6 +812,163 @@ def arches(plan, rows):
     tied, shapes = plan.get("rows") or {}, plan.get("shapes") or {}
     return [(by_id[row_id], item, shapes.get(item[0]) or {}) for item in plan.get("items") or []
             if len(item) <= 6 or item[6] == "item" for row_id in tied.get(item[0]) or [] if row_id in by_id]
+
+
+# --- the shell's own pieces: pillars, beams, pads and grates -------------------------------------------------------
+
+def row_words(row):
+    """The words of a row's id, name and noun, lower case, a plural's s dropped."""
+    return {word.removesuffix("s") for word in
+            re.findall(r"[a-z]+", f"{row.get('id')} {row.get('name')} {row.get('noun')}".replace("_", " ").lower())}
+
+
+def sized(row):
+    """The row's size [wide, deep, tall] when it has three lengths over nothing, else None."""
+    size = row.get("size") or []
+    return [float(side) for side in size] if len(size) == 3 and \
+        all(isinstance(side, (int, float)) and side > 0 for side in size) else None
+
+
+def row_pieces(plan, rows):
+    """[(row id, name, piece, what it was made from, the part kind it is painted as)] of each structural row of the
+    shell's (rows: the hand-in's rows the plan's shell lays) that the shell builds as pieces of its own (module
+    docstring, `pieces of rows`): an upright structure row along the walls (pillars), a spanning one under the roof
+    (beams), a floor row at its own plan items (a pad, a grate); each piece `<row>_<n>`."""
+    found = []
+    for row in rows:
+        words, framed = row_words(row), row.get("part") == "structure" and not arched(row)
+        if framed and words & UPRIGHT:
+            made, kind = pillars(plan, row), "wall"
+        elif framed and words & SPANNING:
+            made, kind = beams(plan, row), "wall"
+        elif row.get("part") == "floor":
+            made, kind = floor_pieces(plan, row), "deck"
+        else:
+            continue
+        found += [(row["id"], f"{row['id']}_{number}", piece, said, kind)
+                  for number, (piece, said) in enumerate(made, 1)]
+    return found
+
+
+def clear_spot(want, length, half, cuts):
+    """The point along an edge of `length` nearest `want` where a piece `half` wide each side stands clear of the
+    edge's ends and of every opening cut in it (cuts: (from, to, ...)), else None: no room on the edge."""
+    blocked = sorted((begin - half, finish + half) for begin, finish, *_ in cuts)
+    free, low = [], half
+    for begin, finish in blocked:
+        if begin > low:
+            free.append((low, min(begin, length - half)))
+        low = max(low, finish)
+    if length - half > low:
+        free.append((low, length - half))
+    spans = [(begin, finish) for begin, finish in free if finish >= begin]
+    return min((min(max(want, begin), finish) for begin, finish in spans), key=lambda at: abs(at - want)) \
+        if spans else None
+
+
+def pillars(plan, row):
+    """[(piece, from)] of an upright row's pillars (its count, else one), spaced evenly round the outline's walls from
+    half a space past its first corner, each slid along its wall clear of its corners and openings (clear_spot), its
+    back against the wall's inside face (BACKING out from the plan's line), its section the row's wide along the wall
+    and deep into the room, standing from the floor to the row's tall, never past its wall's top; none for a row of no
+    size or a wall with no room left."""
+    size = sized(row)
+    if size is None:
+        return []
+    wide, deep, tall = size
+    outline, eave, openings = outline_of(plan), lowest_eave(plan), openings_of(plan)
+    edges = [(np.asarray(start, float), np.asarray(outline[(index + 1) % len(outline)], float))
+             for index, start in enumerate(outline)]
+    lengths = [float(np.linalg.norm(end - start)) for start, end in edges]
+    count, total = int(row.get("count") or 1), sum(lengths)
+    found = []
+    for number in range(count):
+        reach, index = (number + 0.5) * total / count, 0
+        while index < len(edges) - 1 and reach > lengths[index]:
+            reach, index = reach - lengths[index], index + 1
+        (start, end), entry = edges[index], written_wall(plan, list(edges[index][0]), list(edges[index][1]))
+        thick = float(entry.get("thick") or THICK)
+        at = clear_spot(reach, lengths[index], wide / 2, on_edge(openings, start, end, thick))
+        if at is None:
+            continue
+        along, normal = (end - start) / lengths[index], outward(start, end)
+        foot = [start + along * (at - wide / 2), start + along * (at + wide / 2)]
+        points = [foot[0] + normal * BACKING, foot[1] + normal * BACKING, foot[1] + normal * (BACKING - deep),
+                  foot[0] + normal * (BACKING - deep)]
+        high = min(tall, wall_height(plan, entry, eave))
+        found.append((slab_piece(points, -DECK_BELOW, -DECK_BELOW + high),
+                      f"inventory row {row['id']}'s pillar {number + 1} of {count}: against wall {index + 1}, "
+                      f"{at:g} m along it, {wide:g} by {deep:g} m, {high:g} m high (design_shell.pillars)"))
+    return found
+
+
+def chord(points, across, at):
+    """(low, high) along axis `across` (0: x, 1: y) where the line through `at` on the other axis meets an outline,
+    else None."""
+    other, found = 1 - across, []
+    for one, two in zip(points, points[1:] + points[:1]):
+        if (one[other] - at) * (two[other] - at) <= 0 and one[other] != two[other]:
+            share = (at - one[other]) / (two[other] - one[other])
+            found.append(one[across] + share * (two[across] - one[across]))
+    return (min(found), max(found)) if len(found) >= 2 else None
+
+
+def beams(plan, row):
+    """[(piece, from)] of a spanning row's beams (its count, else one) under the roof: each across the outline's box's
+    shorter side from wall face to wall face (the outline's chord there, BACKING past each end), spaced evenly along
+    its longer side, its top at the roof's lowest eave (else the walls' height), the row's deep wide and its tall
+    deep; none for a row of no size."""
+    size = sized(row)
+    if size is None:
+        return []
+    _, wide, tall = size
+    outline = outline_of(plan)
+    corners = np.asarray(outline, float)
+    low, high = corners.min(axis=0), corners.max(axis=0)
+    across = 0 if high[0] - low[0] <= high[1] - low[1] else 1
+    other, count = 1 - across, int(row.get("count") or 1)
+    eave = lowest_eave(plan)
+    top = eave if eave is not None else (measured_ceiling(plan) or STOREY)
+    found = []
+    for number in range(count):
+        at = float(low[other] + (number + 0.5) * (high[other] - low[other]) / count)
+        span = chord(outline, across, at)
+        if span is None:
+            continue
+        begin, finish = span[0] - BACKING, span[1] + BACKING
+        corner = [[begin, at - wide / 2], [finish, at - wide / 2], [finish, at + wide / 2], [begin, at + wide / 2]]
+        points = [point if across == 0 else point[::-1] for point in corner]
+        found.append((slab_piece(points, top - tall, top),
+                      f"inventory row {row['id']}'s beam {number + 1} of {count}: across the room "
+                      f"{'east' if across == 0 else 'south'}ward {finish - begin:g} m at {at:g} m, {wide:g} m wide, "
+                      f"{tall:g} m deep under {top:g} m (design_shell.beams)"))
+    return found
+
+
+def floor_pieces(plan, row):
+    """[(piece, from)] of a floor row at each plan item of its own (an item with a shape: a pad, a grate; one only
+    on the walls item is the deck's): the row's count shared over its items in order, each item's box split along its
+    longer side into its share, from its shape's base to its tall (else the row's), at least FLUSH thick."""
+    tied, shapes = plan.get("rows") or {}, plan.get("shapes") or {}
+    items = [item for item in plan.get("items") or [] if (len(item) <= 6 or item[6] == "item")
+             and row["id"] in (tied.get(item[0]) or []) and shapes.get(item[0])]
+    if not items:
+        return []
+    size, count = sized(row), max(int(row.get("count") or 1), len(items))
+    found = []
+    for index, item in enumerate(items):
+        share = count // len(items) + (1 if index < count % len(items) else 0)
+        x, y, wide, deep = (float(value) for value in item[1:5])
+        shape = shapes[item[0]]
+        base = float(shape.get("base") or 0.0)
+        thick = max(float(shape.get("tall") or (size[2] if size else 0.0)), FLUSH)
+        for part in range(share):
+            west, north, east, south = (x + wide * part / share, y, x + wide * (part + 1) / share, y + deep) \
+                if wide >= deep else (x, y + deep * part / share, x + wide, y + deep * (part + 1) / share)
+            found.append((slab_piece([[west, north], [east, north], [east, south], [west, south]], base, base + thick),
+                          f"plan item {item[0]!r}, inventory row {row['id']}: piece {part + 1} of {share} on it, "
+                          f"{thick:g} m thick at {base:g} m (design_shell.floor_pieces)"))
+    return found
 
 
 # --- the scene's surfaces -----------------------------------------------------------------------------------------

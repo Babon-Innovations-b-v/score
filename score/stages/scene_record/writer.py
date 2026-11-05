@@ -104,6 +104,9 @@ LAID_ROUTES = ("prop", "shell")
 # The part of the place each piece of the shell is (design_shell.part_kind), as a reading's row says its part: a row
 # the plan lays itself (route `plan`) is named on a piece of its part, an opening on the piece over its cut (shell).
 SHELL_PARTS = {"deck": "floor", "wall": "wall", "roof": "roof"}
+# The words of an opening row's id that name a roof's opening and a floor's (open_cuts); any other is a wall's.
+ROOF_WORDS = frozenset(("roof", "ceiling", "skylight"))
+FLOOR_WORDS = frozenset(("floor", "hatch"))
 # An item's way (x across) in plan metres by its facing (None as north): turned east or west it lies across.
 FACING_WAY = {None: (1.0, 0.0), "N": (1.0, 0.0), "S": (-1.0, 0.0), "E": (0.0, 1.0), "W": (0.0, -1.0)}
 
@@ -261,9 +264,59 @@ def structure(plan, design, library=None, rows=None):
     content, None while not made)."""
     shelled = shell(design, plan["place"], library, rows) if inside(design) and not design_shell.laid_for(design) \
         else []
-    return shelled + [painted(stair(number, entry, design), "stair", plan["place"], library)
-                      for number, entry in enumerate(design.get("stairs") or [], 1)
-                      if len(entry.get("points") or []) >= 3]
+    flights = [painted(stair(number, entry, design), "stair", plan["place"], library)
+               for number, entry in enumerate(design.get("stairs") or [], 1)
+               if len(entry.get("points") or []) >= 3]
+    if shelled:
+        name_open_cuts(design, shelled + flights, (rows or {}).get("opening", []))
+    return shelled + flights
+
+
+def open_cuts(design, words):
+    """The names of the shell's pieces at the openings it cuts that an opening row of these words (its id's) may be
+    named on, in order: a roof's (roof, ceiling, skylight) the first piece of each roof cut round its openings; a
+    floor's (floor, hatch) each flight going down through a hatch its deck is cut over (design_shell.hatches); any
+    other the lintel over each of the plan's own wall openings (cut_piece)."""
+    if words & ROOF_WORDS:
+        return [f"roof_{number}" for number, entry in enumerate(
+            [entry for entry in design.get("roofs") or [] if len(entry.get("points") or []) >= 3], 1)
+            if design_shell.roof_holes(entry)]
+    if words & FLOOR_WORDS:
+        levels = [level for level in design.get("levels") or [] if len(level.get("points") or []) >= 3] or \
+            [{"height": 0.0, "points": design_shell.outline_of(design)}]
+        return [f"{entry.get('kind', 'stair')}_{index + 1}" for level in levels
+                for index, _ in design_shell.hatches(design, level)
+                for entry in [(design.get("stairs") or [])[index]]]
+    return [name for name in (cut_piece(design, opening["at"]) for opening in design_shell.openings_of(design))
+            if name]
+
+
+def name_open_cuts(design, entries, row_ids):
+    """Name each opening row no plan item of its own cuts a wall for (shell's opening_pieces left it unnamed) on the
+    first free piece at an opening the shell cuts that its words fit (open_cuts): the lab's corridor openings on the
+    lintels over its doors, the hangar's floor hatch on the flight down through its deck's hatch (2026-11-05); a row
+    no such piece fits stays unnamed, for the plan-matched gate (gates.unbuilt_rows) to fail."""
+    by_name = {entry["name"]: entry for entry in entries}
+    named = {entry.get("row") for entry in entries}
+    for row_id in row_ids:
+        if row_id in named:
+            continue
+        words = {word.removesuffix("s") for word in row_id.lower().split("_")}
+        free = [name for name in open_cuts(design, words) if name in by_name and "row" not in by_name[name]]
+        if free:
+            by_name[free[0]]["row"] = row_id
+            named.add(row_id)
+
+
+def row_entries(design, place, library, handin):
+    """The pieces the shell builds of its own structural rows (design_shell.row_pieces: pillars along the walls, beams
+    under the roof, pads and grates at their plan items), each named its row, painted from the scene's library as its
+    part kind; none for a place whose shell the record does not lay."""
+    if not inside(design) or design_shell.laid_for(design):
+        return []
+    rows = [row for row in handin.get("rows", []) if row.get("route") == "plan"]
+    return [dict(painted(shell_entry(name, 0, piece, design, said), kind, place, library), row=row_id)
+            for row_id, name, piece, said, kind in design_shell.row_pieces(design, rows)]
 
 
 def arch_entry(row, item, shape, design, number):
@@ -1194,13 +1247,16 @@ def record_of(plan, design, inputs):
     relations, stale = relations_input(inputs, place)
     design = design_shell.cut_for(design, handin.get("rows", []), relations)
     far_laid = far_objects(design, handin, inputs.get("inventory"))
+    own = row_entries(design, place, library_of(inputs), handin)
     record = {"place": place,
               "about": f"{plan['title']}, written by SCORE's scene-record stage from its design: its locked plan, "
                        "its scene inventory's row kinds, the library's lamp and the environment concept's physics at "
                        "its site. Frame: the plan's (x east, z south, y up over its floor).",
               "floor": plan["floor"], "inside": inside(design),
-              "structure": structure(plan, design, library_of(inputs), plan_rows(handin)) +
-              arch_entries(design, plan["place"], library_of(inputs), handin),
+              "structure": structure(plan, design, library_of(inputs), {
+                  part: [row_id for row_id in ids if row_id not in {entry["row"] for entry in own}]
+                  for part, ids in plan_rows(handin).items()}) +
+              arch_entries(design, plan["place"], library_of(inputs), handin) + own,
               "objects": design_objects(design, handin, relations) + far_laid[0],
               "lights": lights(design, inputs, relations), "environment": environment(design, read(inputs["sky"]), read(inputs["dust"])),
               "doorways": plan.get("doorways", []), "places": places_of(place, plan, design, inputs["plans"], handin)}
