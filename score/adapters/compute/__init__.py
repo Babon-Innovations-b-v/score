@@ -840,7 +840,7 @@ def reading_clearance(store, places, euros, node=READING):
             "store": str(store.cache.parent)}
 
 
-def pool_clearance(runner, run_id, choices, hours, beside=0.0, covered=0.0):
+def pool_clearance(runner, run_id, choices, hours, beside=0.0, covered=0.0, likely=None):
     """Clear run `run_id`'s warm pool (tools/cloud/pool.py) at the largest of `choices` ([(sizes, euros)],
     largest first: pool.shrinking) whose holding cost, every machine warm for `hours` (the most its own lines, the
     machines' rent and idle time, can bill), fits with `beside` (the high of the run's own rows, cleared later against
@@ -852,23 +852,28 @@ def pool_clearance(runner, run_id, choices, hours, beside=0.0, covered=0.0):
     high of the rows sized on the pool's machines (counted in `beside` already), whose card time those machines bill:
     the pool reserves only its holding beyond them (pool_reserve), so the pool's whole holding, the most its machines
     bill, stays inside what is reserved (fault, 2026-10-24: counted twice, a EUR 396 stop opened 5 of 10 machines).
-    The clearance keeps the whole `holding`, what the pool's stand-ins must fit in."""
+    The clearance keeps the whole `holding`, what the pool's stand-ins must fit in. `likely`: (beside, covered) at the
+    rows' likely euros; under a stop line (no grant) whose room the rows' high alone passes, a try that may stop at
+    its line (owner, 2026-10-27: it launches past its high and stops at the line), the pool is sized beside those
+    when no size fits beside the high, the line unchanged (score session for the owner, 2026-11-05: option (b), the
+    pool's idle hours fuel in the same total; every row still cleared at its high against the line), the
+    clearance's `beside` saying which."""
     grant_id = os.environ.get(GRANT)
     covering = covering_store(runner.store)
     reservations = covering.cache.parent / "reservations.json"
     with clearing(reservations):
         held = open_reservations(reservations)
         over = books_refusal() or ("" if choices else "no pool to clear")
-        for sizes, holding in ([] if over else choices):
-            euros = pool_reserve(holding, covered)
-            over = (grant_refusal(covering, grant_id, euros + beside, held) if grant_id else
-                    stop_refusal(runner, POOL, euros + beside, held))
-            if not over:
-                break
+        by = "high"
+        if not over:
+            sizes, holding, euros, over = fitting_pool(runner, covering, grant_id, choices, beside, covered, held)
+            if over and likely and not grant_id and stop_refusal(runner, POOL, beside, held):  # may stop at its line
+                sizes, holding, euros, over = fitting_pool(runner, covering, grant_id, choices, *likely, held)
+                by = "likely"
         if over:
             raise Refused(f"{POOL} of run {run_id}: {over}")
         cleared = {"node": POOL, "key": run_id, "euros": round(euros, 4), "holding": round(holding, 4),
-                   "minutes": hours * 60,
+                   "beside": by, "minutes": hours * 60,
                    "high_minutes": hours * 60, "measured": False, "estimate": round(euros, 4), "by": RUNNER,
                    "at": graph.now(), **({"grant": grant_id} if grant_id else {})}
         if grant_id:
@@ -877,6 +882,19 @@ def pool_clearance(runner, run_id, choices, hours, beside=0.0, covered=0.0):
         keep_reservations(reservations, {**held, cleared["at"]: {**cleared, "run": run_id}})
     return {"node": POOL, "key": run_id, "clearance": cleared, "reservations": str(reservations),
             "store": str(runner.store.cache.parent), "sizes": sizes}
+
+
+def fitting_pool(runner, covering, grant_id, choices, beside, covered, held):
+    """(sizes, holding, euros reserved, None) of the largest of `choices` whose reserve (pool_reserve of its holding
+    less `covered`) fits with `beside` under the grant's balance or the world's stop line with every run in `held`;
+    the smallest's refusal in place of None when none fits."""
+    for sizes, holding in choices:
+        euros = pool_reserve(holding, covered)
+        over = (grant_refusal(covering, grant_id, euros + beside, held) if grant_id else
+                stop_refusal(runner, POOL, euros + beside, held))
+        if not over:
+            break
+    return sizes, holding, euros, over
 
 
 def extend_pool(runner, ticket, holding, hours):
