@@ -61,7 +61,10 @@ as an argument list, never through a shell, and only when it is one of these:
     run-log [--lines N]                         the newest launch's own run log (the log its handles record, under
                                                 $PROPS_HOME/logs or a frozen home's logs), its last N lines (default
                                                 RUN_LOG_LINES, at most RUN_LOG_LINES_MAX), secrets left out, read only
-    fault <node>                                the fault report <home>/store/faults/<node>.txt of the newest launch's
+    pool-log [--lines N]                        the newest changed warm pool collector log (cloud/pools/<run>/
+                                                collector.log) of the newest launch's home, its last N lines, secrets
+                                                left out, read only (2026-11-05)
+    fault <node>                               the fault report <home>/store/faults/<node>.txt of the newest launch's
                                                 home (its frozen copy while it lives), secrets left out, read only
                                                 (2026-10-27: motion@airlock's fault report out of reach)
     predicted                                   the prepared batch's takes (work/checks/prepare/remake.json) that are
@@ -159,7 +162,7 @@ from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
 VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], store-evict [--dry], clean-frozen, clean-cache, clean-scratch, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, carry --no-op <file>=<why> ..., "
-         "run-log [--lines N], fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
+         "run-log [--lines N], pool-log [--lines N], fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, buy-log, decide-yes, decide <yes id>, "
          "stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
@@ -210,6 +213,7 @@ JOB_LOG = "--job-log"  # this file's own read of a cloud job's log (the job-log 
 JOB_LOG_CHARACTERS = 40000
 RUN_LOG = "--run-log"  # this file's own read of the newest launch's run log (the run-log verb runs it)
 FAULT = "--fault"  # this file's own read of a fault report of the newest launch (the fault verb runs it)
+POOL_LOG = "--pool-log"  # this file's own read of the newest launch's warm pool collector log (the pool-log verb)
 DESIGN_FILE = "--design-file"  # this file's own read of one design file (the design-file verb runs it)
 ROUTE_LOG = "--route-log"  # this file's own read of a people route's log (the route-log verb runs it)
 CARRY = "--carry"  # this file's own carry, refused while a run is live (the carry verb runs it)
@@ -319,6 +323,11 @@ def decide(words, latch):
             raise Refused("run-log [--lines N], N a whole number of lines")
         lines = min(int(args[1]) if args else RUN_LOG_LINES, RUN_LOG_LINES_MAX)
         return [str(pathlib.Path(__file__).resolve()), RUN_LOG, str(lines)], {}
+    if verb == "pool-log":
+        if args and (len(args) != 2 or args[0] != "--lines" or not args[1].isdigit() or int(args[1]) < 1):
+            raise Refused("pool-log [--lines N], N a whole number of lines")
+        lines = min(int(args[1]) if args else RUN_LOG_LINES, RUN_LOG_LINES_MAX)
+        return [str(pathlib.Path(__file__).resolve()), POOL_LOG, str(lines)], {}
     if verb == "carry":
         return [str(pathlib.Path(__file__).resolve()), CARRY, *carry_args(args)], {}
     if verb == "route-log":
@@ -517,8 +526,25 @@ def fault(log, node, props_home):
     return "\n".join([f"{found}:", *text])
 
 
+def pool_log(log, props_home, lines):
+    """The last `lines` lines of the warm pool collector log (cloud/pools/<run>/collector.log) newest changed in the
+    home of the launch whose run log is `log`, else in props_home's, secrets left out (2026-11-05: Batch 1's pool held
+    no machine for 10 min, its collector's heartbeats failing, and nothing an agent could read said why); Refused for
+    none."""
+    _, owner = launch_home(log, props_home)
+    folders = [owner / "cloud" / "pools", pathlib.Path(props_home) / "cloud" / "pools"]
+    found = sorted((path for folder in folders if folder.is_dir() for path in folder.glob("*/collector.log")),
+                   key=lambda path: path.stat().st_mtime)
+    read = read_inside(found[-1:], folders) if found else None
+    if read is None:
+        raise Refused(f"no pool collector log under {folders[0]}")
+    path, text = read
+    return "\n".join([f"{path} (the last {lines} of {len(text)} lines):", *text[-lines:]])
+
+
 def own_read(argv, props_home):
-    """The text of one of this file's own reads (job-log, run-log, fault, design-file), as the door's verb asked it."""
+    """The text of one of this file's own reads (job-log, run-log, pool-log, fault, design-file), as the door's verb
+    asked it."""
     if argv[0] == DESIGN_FILE:
         return design_file(argv[1], props_home)
     if argv[0] == ROUTE_LOG:
@@ -527,6 +553,8 @@ def own_read(argv, props_home):
         return job_log(argv[1], props_home)
     if argv[0] == RUN_LOG:
         return run_log(newest_launch_log(), props_home, int(argv[1]))
+    if argv[0] == POOL_LOG:
+        return pool_log(newest_launch_log(), props_home, int(argv[1]))
     return fault(newest_launch_log(), argv[1], props_home)
 
 
@@ -881,7 +909,7 @@ def main():
         except Refused as refused:
             print(f"score-agent-door: refused: {refused}", file=sys.stderr)
             return REFUSED_EXIT
-    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [FAULT], [DESIGN_FILE], [ROUTE_LOG]):
+    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [POOL_LOG], [FAULT], [DESIGN_FILE], [ROUTE_LOG]):
         from score.store import PROPS_HOME
         try:
             print(own_read(sys.argv[1:], PROPS_HOME))
