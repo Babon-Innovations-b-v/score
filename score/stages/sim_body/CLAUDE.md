@@ -120,6 +120,12 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   inside's `GAP` of the triangle under it or into it, whichever drawn surface that is (a seat, a bed, a ledge as a floor), one moving slower
   than `SLIDE_MOST` (1.2 m/s) inside a friction 0.5 pyramid (Karatsidis et al., arXiv:1801.01668), a faster one
   sliding (Coulomb: the normal and 0.5 of it against its slip), along that triangle's normal; no force anywhere else.
+  A point's push fades in as it comes within `GAP` (`contact.closeness`: its push directions 1 long on or into the
+  ground, 0 at `GAP`), so no point crossing it takes its whole share at once. The record's `touches` are one push a
+  foot (its calcaneus and toes together) and one a part otherwise, each with its centre of pressure on its ground,
+  low-passed over each span it touches as the path is (`records.steadied`); measured against the weight, the ground
+  and the frame before in out.json's `pushes` (2026-11-05: the heel's and the toes' pushes apart, centres moving 3 to
+  6 cm a frame standing).
   No heightfield and no MuJoCo collision: a MuJoCo heightfield met with a margin gave contacts 3 to 5 cm deep with
   sideways normals under a foot 4 mm over its ground (2026-10-27). A riser the toe meets is not a contact: it shows as
   residual. Each segment carries its skin from its bone group's start (`landmarks.at_starts`), where `fit.riding`

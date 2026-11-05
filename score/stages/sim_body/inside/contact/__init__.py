@@ -78,19 +78,29 @@ def lowest_over(model, data, skin, ground, points=None):
     return None if np.isnan(heights).all() else float(np.nanmin(heights))
 
 
+def closeness(over):
+    """How near a skin point `over` metres above its ground is (0 at GAP, 1 on or into it): the length of its push
+    directions, so the solve's cost of its push grows as it nears GAP (a push of x newtons along them costs x over its
+    closeness) and a point coming within GAP takes its share of the load from nothing, never all at once (2026-11-05,
+    #70: points crossing GAP whole moved a foot's centre of pressure 3 to 6 cm a frame)."""
+    return float(np.clip((GAP - over) / GAP, 0.0, 1.0))
+
+
 def pushes(model, data, ground, up, skin):
-    """The points the ground pushes ([(body, point's Jacobian, the directions it may push along, the ground's point
-    under it)], MuJoCo's frame):
+    """The points the ground pushes ([(body, point's Jacobian, the directions it may push along, each `closeness`
+    long, the ground's point under it)], MuJoCo's frame):
     the skin's points within GAP of the drawn ground under them (within the body's reach, `body_reach`: a roof over
     its head is never pushing ground), or into it, each pushed along its triangle's normal (`up`, the person's frame)
     with Coulomb's friction: a point slower than SLIDE_MOST sticks (a friction pyramid, FRICTION), a faster one slides
     (the normal and FRICTION of it against its slip); booked on the body its heaviest segment rides, acting at the
-    ground straight under the point (its height there, `standing`: a seat's top under a seated body's skin)."""
+    ground straight under the point (its height there, `standing`: a seat's top under a seated body's skin). Each
+    point's directions are as long as it is near (`closeness`), so a point's push fades to nothing at GAP."""
     found = []
     carried = skin.by_segment(model, data)
     own = np.einsum("vs,vsi->vi", skin.weights, carried)
     heights, triangles = standing(own, ground, body_reach(own))
-    for point in np.flatnonzero(own[:, 1] - np.nan_to_num(heights, nan=np.inf) <= GAP):
+    over = own[:, 1] - np.nan_to_num(heights, nan=np.inf)
+    for point in np.flatnonzero(over <= GAP):
         along = skin.jacobian(model, data, carried, point)
         normal = TO_OWN.T @ up[triangles[point]]
         moving = along @ data.qvel
@@ -104,5 +114,5 @@ def pushes(model, data, ground, up, skin):
             edges = [normal + FRICTION * first, normal - FRICTION * first, normal + FRICTION * second,
                      normal - FRICTION * second]
         under = TO_OWN.T @ np.array([own[point, 0], heights[point], own[point, 2]])
-        found.append((skin.owners[point], along, edges, under))
+        found.append((skin.owners[point], along, [closeness(over[point]) * edge for edge in edges], under))
     return found
