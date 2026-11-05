@@ -117,6 +117,22 @@ gltfpack_cache() {
   say "$GLTFPACK_PIN in user $SCORE_USER's npm cache"
 }
 
+# Claude Code, the finish route's `claude -p` (score/adapters/models/claude_code.py), pinned to the PC's version, in
+# user score's ~/.local/lib/claude-code off the PATH: score-secrets.service (claude_login.py link) puts `claude` on
+# the PATH only while the login secret claude-code-oauth-token is held (owner, 2026-11-05).
+CLAUDE_PIN="@anthropic-ai/claude-code@2.1.318"
+install_claude() {
+  local prefix="$HOME/.local/lib/claude-code" version="${CLAUDE_PIN##*@}" said
+  if [ -x "$prefix/bin/claude" ] && [ "$("$prefix/bin/claude" --version 2> /dev/null)" = "$version (Claude Code)" ]; then
+    say "Claude Code $version already installed"
+    return
+  fi
+  PATH="$BIN:$PATH" npm install -g -q --no-fund --no-audit --prefix "$prefix" "$CLAUDE_PIN" > /dev/null
+  said="$("$prefix/bin/claude" --version 2>&1 || true)"
+  [ "$said" = "$version (Claude Code)" ] || { echo "boot: $CLAUDE_PIN does not run: ${said:0:300}" >&2; exit 1; }
+  say "Claude Code $version at $prefix (off the PATH)"
+}
+
 ensure_user() {
   if ! id -u "$SCORE_USER" > /dev/null 2>&1; then
     useradd --uid "$SCORE_UID" --create-home --shell /bin/bash "$SCORE_USER"
@@ -371,6 +387,7 @@ user_part() {
   props_env "$repo"
   chromium_browser
   gltfpack_cache
+  install_claude
   install_units "$repo"
   if [ ! -f "$HOME/.config/scw/config.yaml" ]; then
     say "no ~/.config/scw/config.yaml yet: machine.py up pipes it, then runs this part again"
@@ -387,5 +404,6 @@ case "${1:-}" in
   user) user_part ;;
   env) props_env "$HOME/projects/score" ;;
   units) install_units "$(cd "$HERE/../../.." && pwd)" ;;
-  *) echo "usage: boot.sh system|user|env|units" >&2; exit 2 ;;
+  claude) install_claude ;;
+  *) echo "usage: boot.sh system|user|env|units|claude" >&2; exit 2 ;;
 esac

@@ -7,6 +7,8 @@
 #                             project holds no such secret, google-billing-reader.note here says so (score.conductor
 #                             health carries every *.note here to the Machine card), the books' Google read-back stays
 #                             unread, and nothing fails.
+# Then claude_login.py link: `claude` on the PATH while the pinned CLI is installed and the secret
+# claude-code-oauth-token reads (the login itself is read again at each call, never written here).
 # Each is read by name through the secret reader and lands in one rename, so a reader never sees half a file.
 set -eu
 dir="${XDG_RUNTIME_DIR:?score-secrets: no XDG_RUNTIME_DIR}/score"
@@ -46,3 +48,4 @@ else
   echo "no google-billing-reader secret: Google's bill is not read on this machine (optional; add the secret to read it)" > "$note"
   echo "score-secrets: score-lib-deploy-key written to $dir; no google-billing-reader secret, skipped"
 fi
+"${SCORE_LOGIN_PYTHON:-/usr/bin/python3}" -I "$(dirname "$0")/claude_login.py" link
