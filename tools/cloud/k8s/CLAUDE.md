@@ -13,7 +13,11 @@ runners in `tools/cloud/` stay as they are.
   over classes, the ledger rows. `submitter.py run <run id>`, `idle`, `down`.
 - `clusters/<provider>.py` is the only provider code: make, cap and delete the cluster and its pools, list its
   nodes with their billed times, prices, the month's bill. Scaleway Kapsule is the first (its docstring holds the
-  facts read from Scaleway's docs and CLI).
+  facts read from Scaleway's docs and CLI). `clusters/tenant.py` is a Kapsule cluster someone else runs, score a
+  tenant in it (`SCORE_K8S_PROVIDER=scaleway/tenant`: Scaleway's backend, that cluster module): its jobs' namespace
+  (`score-jobs`), its own taint on score's pools tolerated, the pools' maxes and the GPU operator its owner's, never
+  changed; the box gives its kubeconfig context, cluster and project names (SCORE_K8S_CONTEXT, SCORE_K8S_CLUSTER,
+  SCORE_K8S_PROJECT).
 
 ## Rules
 
