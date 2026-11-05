@@ -1154,7 +1154,8 @@ def design_objects(design, handin, relations=None):
     row on the ground the plan lays only against its edge (floor_fit.past_edge) stands past it (past_edge_spot), never
     centred on its edge strip over the floor (2026-10-26: the square's 30 m buildings on 2 to 7 m strips). An item's
     relation (`relations`, score/review/holders: in an opening, against a wall, on, within or against a holder) is
-    carried as the object's `on`, which the assembly lays it by at its built size (assembly/made_waiting.fitted)."""
+    carried as the object's `on`, which the assembly lays it by at its built size (assembly/made_waiting.fitted), and
+    how it rests there as its `rests` (leaning, attached: holders.rests), which the settle leans it or holds it by."""
     by_id = {row["id"]: row for row in handin.get("rows", [])}
     models, shapes, tied = models_of(handin), design.get("shapes") or {}, design.get("rows") or {}
     items = {}
@@ -1190,7 +1191,8 @@ def design_objects(design, handin, relations=None):
                               **({"beside": {"holder item": relation["beside"], "holder row": relation["holder row"]}}
                                  if relation and relation.get("beside") else {}),
                               **({"under roof": True} if relation and relation.get("to roof") and sized(
-                                  {"size": size}) else {})})
+                                  {"size": size}) else {}),
+                              **({"rests": relation["rests"]} if relation and relation.get("rests") else {})})
                 laid_at.setdefault(item[0], []).append(found[-1]["name"])
     return holder_names(found, laid_at, arch_names(design, handin))
 

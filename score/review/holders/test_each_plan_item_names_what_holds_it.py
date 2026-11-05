@@ -449,7 +449,17 @@ def test_a_wall_lamp_stands_on_its_wall_s_room_side():
     315 to 45 degrees (radius 5 about (10, 6)) is held on the piece the shell builds there: from 0 to 15 degrees, 1.31 m.
     Break: score/review/holders/__init__.py walls_of: `for first, second in design_shell.written_lines(wall)]` ->
         `for first, second in zip(*[[[10 + 5 * numpy.cos(turn), 6 + 5 * numpy.sin(turn)] for turn in
-        numpy.radians(numpy.linspace(315, 45, 25))][index:] for index in (0, 1)])]` (the old 24 pieces)"""
+        numpy.radians(numpy.linspace(315, 45, 25))][index:] for index in (0, 1)])]` (the old 24 pieces)
+    #94: a board the reading puts on the floor 'leaning against the left wall' is held against that wall at no mount
+    height, its foot on the floor, resting leaning; a small sign 'attached to the left wall' keeps its eye mount and
+    rests attached; a plank 'leaning against the crate' on the crate stands against its side, never on its top.
+    Break: score/review/holders/__init__.py: `if leaning_on_floor(row, plan):` -> `if False:`
+    Break: score/review/holders/__init__.py: `mount = None if rests(row) == LEANING else mount_height(item, row,
+        plan)` -> `mount = mount_height(item, row, plan)`
+    Break: score/review/holders/__init__.py: `said = "side" if rests(row) == LEANING else placement(row,
+        holder_row)` -> `said = placement(row, holder_row)`
+    Break: score/review/holders/__init__.py: `found.append({"item": name, "row": row_id, **got, **rests_entry(row)})`
+        -> `found.append({"item": name, "row": row_id, **got})` (the second, the held rows')"""
     turn = numpy.radians(7.5)
     middle = [10.0 + 4.6 * numpy.cos(turn), 6.0 + 4.6 * numpy.sin(turn)]
     round_plan = plan_of([["PANEL 1", middle[0] - 0.1, middle[1] - 0.1, 0.2, 0.2, None, "item"]], {"PANEL 1": ["panel"]},
@@ -469,6 +479,25 @@ def test_a_wall_lamp_stands_on_its_wall_s_room_side():
     lamp = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["wall_lamp"]
     assert lamp["how"] == "wall" and lamp["wall"]["to"] == [0.0, 12.0] and lamp["side"] == -1, lamp
     assert lamp["spot"] == [0.0, 6.0], lamp
+    rows += [{"id": "board", "noun": "board", "anchor": "floor", "where": "left, leaning against the left wall",
+              "size": [0.4, 0.05, 0.6]},
+             {"id": "sign", "noun": "sign", "anchor": "on:left_wall", "where": "left wall, attached to the left wall",
+              "size": [0.4, 0.05, 0.3]},
+             {"id": "crate", "noun": "crate", "anchor": "floor", "size": [1.0, 1.0, 1.0], "box": [400, 300, 600, 500]},
+             {"id": "plank", "noun": "plank", "anchor": "on:crate", "where": "centre, leaning against the crate",
+              "size": [0.3, 0.05, 0.8], "box": [450, 200, 550, 300]}]
+    plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"],
+                    ["BOARD 1", 1.0, 5.0, 0.4, 0.1, None, "item"], ["CRATE 1", 9.5, 5.5, 1.0, 1.0, None, "item"],
+                    ["PLANK 1", 9.8, 5.7, 0.3, 0.1, None, "item"]],
+                   {plan_checks.WALLS_ITEM: ["left_wall", "wall_lamp", "sign"], "BOARD 1": ["board"],
+                    "CRATE 1": ["crate"], "PLANK 1": ["plank"]}, structure=["left_wall"], walls=plan["walls"])
+    found = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
+    board, sign, plank = found["board"], found["sign"], found["plank"]
+    assert (board["how"], board["rests"], board["wall"]["to"]) == ("wall", "leaning", [0.0, 12.0]), board
+    assert "height" not in board, board
+    assert (sign["how"], sign["rests"], sign["height"]) == ("wall", "attached", 1.35), sign
+    assert (plank["how"], plank["holder"], plank["rests"]) == ("face", "CRATE 1", "leaning"), plank
+    assert "rests" not in found["wall_lamp"], found["wall_lamp"]
 
 
 def test_a_thing_drawn_past_its_wall_stands_in_the_room_and_a_tunnel_outside():

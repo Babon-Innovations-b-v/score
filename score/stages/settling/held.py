@@ -26,6 +26,12 @@ RISE_MOST = 0.03
 SPOT_STEP = 0.05
 # A mesh of more triangles than this is cut to the reach of what is snapped against it (near).
 NEAR_FACES = 20000
+# A leaning thing (#94, its scene record entry's `rests`): leaned this many degrees from upright, its top toward its
+# holder, then slid against it and let down onto the floor (leaning_rests); it falls past LEAN_FALLS degrees.
+LEAN = 12.0
+LEAN_FALLS = 30.0
+# How far a leaning thing is stood off its holder before it is slid back against it, metres past its lean's reach.
+LEAN_OFF = 0.1
 
 
 def faced(record):
@@ -111,14 +117,117 @@ def held_rests(stage_path, place, inventory, kit_path, record=None):
     return poses
 
 
-def near(mesh, meshes):
-    """What of `meshes` lies within DRIFT_MOST of the mesh across and along and not wholly over it: each a whole mesh,
+def leaning(record):
+    """{name: the way out of its holder into the room, [x, z]} of each object the scene `record` says rests leaning
+    against its holder (its `rests`, its `on`'s `out`: on a wall's or a holder's face); one with no such way (nothing
+    to lean on: a plan with no wall) is named with None, for the gate to fail as falling."""
+    return {entry["name"]: (entry.get("on") or {}).get("out") for entry in record.get("objects") or []
+            if entry.get("rests") == "leaning"}
+
+
+def leaning_rests(stage_path, place, ways):
+    """Where each leaning object (`ways`: {name: its holder's way out, [x, z]}, leaning) rests on its foot against
+    its holder: {name: {"before", "after", "rested", "said"}}. Turned LEAN degrees about its foot's middle, its top
+    toward the holder, stood LEAN_OFF past its lean's reach out from it, slid back until it meets it and let down onto
+    the floor (snap.py's runs), twice, so its top rests on the holder and its foot on the floor. One with no way, or
+    with nothing to slide against or stand on, keeps its laid pose, not rested."""
+    stage = Usd.Stage.Open(str(stage_path))
+    laid = snap.read_place(stage_path)
+    poses = {}
+    for name, out in sorted(ways.items()):
+        before = settle.laid_matrix(stage, place, name)
+        if not out or name not in laid["objects"]:
+            poses[name] = {"before": before, "after": before, "rested": False,
+                           "said": "leaning on nothing: its relation gives no holder's face; left as laid"}
+            continue
+        mesh = laid["objects"][name]
+        way = np.array([float(out[0]), 0.0, float(out[1])])
+        way /= max(float(np.linalg.norm(way)), 1e-9)
+        tall = float(mesh.bounds[1][1] - mesh.bounds[0][1])
+        reach = tall * math.sin(math.radians(LEAN)) + LEAN_OFF
+        obstacles = snap.Obstacles(near(mesh, snap.obstacles_of(laid, name), reach + DRIFT_MOST))
+        motion = leaned_motion(mesh, way, reach)
+        try:
+            motion = against_and_down(mesh, motion, way, obstacles)
+        except ValueError as error:
+            poses[name] = {"before": before, "after": before, "rested": False, "said": f"{error}; left as laid"}
+            continue
+        poses[name] = {"before": before, "after": motion @ before, "rested": True,
+                       "said": f"leaned {LEAN:g} degrees on its foot against its holder"}
+    return poses
+
+
+def leaned_motion(mesh, way, reach):
+    """The motion (4 x 4, the stage's frame) that turns a mesh LEAN degrees about its foot's middle, its top toward
+    -`way` (its holder), and stands it `reach` out along `way` and as high over where its foot was: clear of the
+    holder and the floor it is then slid and let down onto."""
+    axis = np.cross(way, [0.0, 1.0, 0.0])
+    turn = Rotation.from_rotvec(axis / np.linalg.norm(axis) * math.radians(LEAN)).as_matrix()
+    foot = mesh.bounds.mean(axis=0)
+    foot[1] = mesh.bounds[0][1]
+    motion = np.eye(4)
+    motion[:3, :3] = turn
+    motion[:3, 3] = foot - turn @ foot + way * reach + [0.0, reach, 0.0]
+    return motion
+
+
+def against_and_down(mesh, motion, way, obstacles):
+    """The motion after which the mesh, moved by `motion`, is slid along -`way` until it meets what is there (its
+    holder) and let straight down onto what is under it, twice (its top slides down a holder that is not upright);
+    ValueError when nothing is there to meet or stand on."""
+    moved = mesh.copy()
+    moved.apply_transform(motion)
+    for _ in range(2):
+        run = snap.free_run(moved, obstacles, -way)
+        if not np.isfinite(run):
+            raise ValueError("nothing to lean against along its holder's way")
+        shift = -way * (run - snap.CLEARANCE)
+        shift = shift + snap.drop_offset(snap.shifted(moved, shift), obstacles)
+        moved.apply_translation(shift)
+        motion = snap.moved_matrix(motion, shift)
+    return motion
+
+
+def leaning_faults(stage_path, place, ways):
+    """How each leaning object (`ways`, leaning) fails to rest on its foot against its holder as the stage lays it:
+    ["<name>: falls ..." or "<name>: floats ..."]. It falls when it has no holder's way, when nothing lies within
+    resting.TOLERANCE of it toward its holder, or when its own up leans past LEAN_FALLS; it floats when its foot is
+    over resting.TOLERANCE above what is under it."""
+    laid = snap.read_place(stage_path)
+    faults = []
+    for name, out in sorted(ways.items()):
+        if name not in laid["objects"]:
+            faults.append(f"{name}: falls: it is not laid")
+            continue
+        if not out:
+            faults.append(f"{name}: falls: it leans on nothing, its relation giving no holder's face")
+            continue
+        mesh = laid["objects"][name]
+        way = np.array([float(out[0]), 0.0, float(out[1])])
+        way /= max(float(np.linalg.norm(way)), 1e-9)
+        obstacles = snap.Obstacles(near(mesh, snap.obstacles_of(laid, name), DRIFT_MOST))
+        up = laid["matrices"][name][:3, 1]
+        tilt = math.degrees(math.acos(min(1.0, abs(float(up[1])) / max(float(np.linalg.norm(up)), 1e-9))))
+        gap, foot = snap.free_run(mesh, obstacles, -way), snap.free_run(mesh, obstacles, snap.DOWN)
+        if tilt > LEAN_FALLS:
+            faults.append(f"{name}: falls: it lies {tilt:.0f} degrees over (past {LEAN_FALLS:g})")
+        elif gap > resting.TOLERANCE:
+            faults.append(f"{name}: falls: nothing holds its top, its holder "
+                          + ("out of reach" if not np.isfinite(gap) else f"{gap * 100:.1f} cm off"))
+        if foot > resting.TOLERANCE:
+            faults.append(f"{name}: floats: its foot " + ("over nothing" if not np.isfinite(foot)
+                                                          else f"{foot * 100:.1f} cm over what is under it"))
+    return faults
+
+
+def near(mesh, meshes, reach=DRIFT_MOST):
+    """What of `meshes` lies within `reach` of the mesh across and along and not wholly over it: each a whole mesh,
     or the part of its triangles in reach (the ground's fine patch, 150 m across, is cut to it). A held object is
     snapped against these only: the hangar's 1,657 objects built into one scene for each of its held ones took over a
     quarter of an hour."""
     low, high = mesh.bounds
-    low = low - [DRIFT_MOST, np.inf, DRIFT_MOST]
-    high = high + [DRIFT_MOST, 0.0, DRIFT_MOST]
+    low = low - [reach, np.inf, reach]
+    high = high + [reach, 0.0, reach]
     found = {}
     for name, other in meshes.items():
         other_low, other_high = other.bounds

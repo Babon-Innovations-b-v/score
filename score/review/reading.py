@@ -161,7 +161,10 @@ are no rows: skip them. Each row with:
   and a thing standing on another row its own size, not its parent's;{outline}
 - "anchor": "floor", "wall", "ceiling", "roof", "ground", "sky" (a planet, a moon, a backdrop), or "on:<id>" for a
   thing standing on, hung on or fixed to another row (a radio on a desk, a lamp on a mast);
-- "where": where in the picture it stands, in a few words ("left wall, by the door", "centre, under the crane");
+- "where": where in the picture it stands, in a few words ("left wall, by the door", "centre, under the crane"),
+  saying "leaning against" what it leans on for a thing whose foot stands on the floor and whose top rests against a
+  wall or another row (a board leaning against the wall), and "attached to" its anchor for a thing fixed to it so it
+  would stay put were that turned upside down (a ramp attached to its lander, a lamp bolted to its mast);
 - "region": the box round every one of it in the first picture, [ymin, xmin, ymax, xmax] on a 0 to 1000 scale.
 Only what this picture shows; nothing hidden, nothing added for the game. No text besides the JSON."""
 # The rows answer's schema (ASKED's row): the API holds the answer to it (ai.google.dev structured output).

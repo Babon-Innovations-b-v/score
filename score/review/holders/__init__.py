@@ -41,6 +41,12 @@ Each plan item of a row that stands on, against or in something gets one relatio
            the walls item at its `spot` (a stair row at the plan's stair along its way up, else where its concept box
            projects), a thing on a staircase along the plan's stairs' sides (`pieces`)
 
+Each relation of a row whose reading's `where` says how it rests on what holds it carries `rests` (#94; rests):
+`leaning`, its foot on the floor and its top against its holder (a board leaning against a wall: never on its
+holder's top or within it, never at a mount height, and one the reading anchors on the floor against the nearest wall
+of a plan with walls), which the settle leans there and fails where it falls or floats; `attached`, fixed to its
+holder so it would stay put were that turned over (a ramp attached to its lander), which the settle holds as laid.
+
 A row whose things the concept shows on several rows of its named holder's footing (hub's 38 monitors on four consoles,
 the reading naming one bank: one anchor a row) has each item held by the nearest of them on the plan (seen_holders):
 the anchors stay the reading's, so the hand-in, the close-ups and Pixal3D keep their keys. A row whose holder the plan
@@ -105,6 +111,11 @@ SEAT_WORDS = {"chair", "chairs", "stool", "stools", "seat", "seats", "bench", "b
 BESIDE_WORDS = {"at", "by", "front", "beside", "next", "around"}
 PERSON_WORDS = {"person", "people", "man", "woman", "worker", "crew"}  # a seat's sitter is never what it stands at
 SEAT_GAP = 0.1
+# Where words that say how a row rests on what holds it (#94, rests): leaning, its foot on the floor and its top
+# against its holder; attached, fixed to it, so it would stay put were its holder turned upside down.
+LEANING, ATTACHED = "leaning", "attached"
+LEAN_WORDS = {"leaning", "leans", "leant", "leaned", "propped"}
+ATTACH_WORDS = {"attached", "bolted", "welded", "clamped", "screwed", "strapped", "fastened", "affixed"}
 
 
 def plan_sha(text):
@@ -117,6 +128,25 @@ def middle(item):
 
 def where_words(row):
     return set(re.findall(r"[a-z]+", str(row.get("where") or "").lower()))
+
+
+def rests(row):
+    """How a row rests on what holds it, as its where words say (LEAN_WORDS, ATTACH_WORDS): LEANING, ATTACHED, or
+    None for one standing on, hung on or set against it as the other relations lay it."""
+    words = where_words(row)
+    return LEANING if words & LEAN_WORDS else ATTACHED if words & ATTACH_WORDS else None
+
+
+def rests_entry(row):
+    """{"rests": how} of a row that says how it rests (rests), else {}."""
+    how = rests(row)
+    return {"rests": how} if how else {}
+
+
+def leaning_on_floor(row, plan):
+    """Whether a row read on the floor leans against a wall (its where words, a plan with walls): held against the
+    nearest wall, its foot on the floor, never laid upright in the room's middle."""
+    return (row.get("anchor") or "floor") in plan_checks.FLOOR_ANCHORS and rests(row) == LEANING and bool(walls_of(plan))
 
 
 def spans(row):
@@ -391,7 +421,7 @@ def held(item, row, holder_row, holder_items, items, turn, room=None):
     lays it inside, else against the face the concept shows it on, the plan's side toward it, its facing, its
     holder's, or S."""
     nearest = min(holder_items, key=lambda name: float(numpy.linalg.norm(middle(items[name]) - middle(item))))
-    said = placement(row, holder_row)
+    said = "side" if rests(row) == LEANING else placement(row, holder_row)  # a leaning thing stands against a side
     if said in ("under", "shelf"):
         return {"how": "within", "holder": nearest, **({"under": True} if said == "under" else {}),
                 "why": f"{'under' if said == 'under' else 'on the shelves of'} {holder_row['id']}: its reading says "
@@ -399,7 +429,7 @@ def held(item, row, holder_row, holder_items, items, turn, room=None):
     if said != "side" and on_top(row, holder_row) and fits_over(row, holder_row, room) \
             and not design_shell.fills_opening(row):
         return {"how": "top", "holder": nearest, "why": f"on {holder_row['id']}'s top in the concept"}
-    if inside(item, items[nearest]):
+    if rests(row) != LEANING and inside(item, items[nearest]):
         return {"how": "within", "holder": nearest, "why": f"within {holder_row['id']}: the plan lays it inside"}
     for face, why in ((seen_side(row, holder_row, turn), "side the concept shows it on"),
                       (side_toward(item, items[nearest]), "side toward it on the plan"),
@@ -518,7 +548,7 @@ def on_wall(item, row, plan, inventory, pieces=1):
     side = off_line(spot, wall)[1]
     if off_line(spot, wall)[0] < 1e-6 or (placed and past_outline(spot, row, plan)):  # the side toward the plan's middle
         side = off_line(numpy.array([float(plan["w"]) / 2, float(plan["d"]) / 2]), wall)[1]
-    mount = mount_height(item, row, plan)
+    mount = None if rests(row) == LEANING else mount_height(item, row, plan)  # a leaning thing's foot is on the floor
     found = {"how": "wall", "wall": {key: wall[key] for key in ("from", "to", "thick")}, "side": side,
              "spot": [round(float(value), 3) for value in spot],
              "why": f"against the wall nearest {why} long enough for it" + (f"; {mount[1]}" if mount else ""),
@@ -1388,20 +1418,22 @@ def relations(plan, inventory, sha=None, kinds=None):
             seated = beside_holder(item, row, rows, laid, items)
             if seated and pieces_at(seated[1], seated[0], plan, tied) == 1:  # one holder there, not a run of them
                 found.append({"item": name, "row": row_id, "how": "floor", "beside": seated[1],
-                              "holder row": seated[0]["id"],
+                              "holder row": seated[0]["id"], **rests_entry(row),
                               "why": f"before {seated[0]['id']}: its words say it stands {row.get('where')!r}"})
                 continue
+            if leaning_on_floor(row, plan):
+                row = {**row, "anchor": "wall"}  # against the nearest wall, its foot on the floor
             if (row.get("anchor") or "floor") in plan_checks.FLOOR_ANCHORS:
                 got = (at_edge(row, plan, inventory, turn) if item[0] == plan_checks.WALLS_ITEM else None) or (
                     {"how": "floor", **spot} if (spot := floor_spot(item, row, plan, inventory, taken_stairs)) else
                     None) or up_to_level(item, row, plan)
                 if got:
-                    found.append({"item": name, "row": row_id, **got})
+                    found.append({"item": name, "row": row_id, **got, **rests_entry(row)})
                 continue
             got, why = relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, kinds,
                                 pieces_at(name, row, plan, tied))
             if got:
-                found.append({"item": name, "row": row_id, **got})
+                found.append({"item": name, "row": row_id, **got, **rests_entry(row)})
             elif why:
                 unheld.append({"item": name, "row": row_id, "why": why})
     room_walls(found, items, rows, plan, turn, inventory, tied)

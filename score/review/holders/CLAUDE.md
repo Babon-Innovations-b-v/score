@@ -47,3 +47,7 @@ ceiling) and how each is read.
 - **The assembly lays by it** at built sizes (`score/stages/assembly/fitting.py`), and the plan page shows what it laid
   (`dashboard/state/local.laid_on_plan`). A relation it cannot state is `unheld` with why, never guessed.
 - Test: `test_each_plan_item_names_what_holds_it.py`.
+- **Leaning and attached (#94)**: a row whose reading's `where` says "leaning against" or "attached to" (`rests`,
+  LEAN_WORDS, ATTACH_WORDS) has `rests` on each of its relations, carried to the scene record's objects for the
+  settle; a leaning one stands against a side (never on a top, within, or at a mount height), and one read on the
+  floor leans against the nearest wall where the plan has walls.
