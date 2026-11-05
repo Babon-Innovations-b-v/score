@@ -328,23 +328,28 @@ def side_spot(plan, side, along, metres):
 
 def door_of(plan, door):
     """(how it is placed, metres, words, sill, along, lead) of a plan door row: [side, along, metres, words, sill],
-    [bearing, metres, words] or [word, metres, words] (a tube's `near`), its lead under its key, else its key and
-    sill (`W@9`)."""
+    [bearing, metres, words] or [word, metres, words] (a tube's `near`), its lead under its side and along (`E:9`: a
+    wall with doors to two places, the walkway's to the galley and the quarters), else its key and sill (`W@9`), else
+    its key."""
     sided = door[0] in SIDE_WAYS
     metres, words = (door[2], door[3] if len(door) > 3 else "") if sided else (door[1], door[2])
     sill = float(door[4]) if sided and len(door) > 4 and door[4] is not None else None
     key = door[0] if isinstance(door[0], str) else f"{float(door[0]):g}"
     leads = plan.get("leads") or {}
-    lead = (leads.get(f"{key}@{sill:g}") if sill is not None else None) or leads.get(key) or {}
+    lead = (leads.get(f"{key}:{float(door[1]):g}") if sided else None) or (
+        leads.get(f"{key}@{sill:g}") if sill is not None else None) or leads.get(key) or {}
     return door[0], float(metres), str(words), sill, door[1] if sided else None, lead.get("to")
 
 
-def doorway_for(plan, place, metres, sill, lead, left):
-    """The doorway of `left` [(index, opening)] a door row is: on its side at its sill, at its bearing, else leading
-    where it leads; None."""
+def doorway_for(plan, place, metres, sill, lead, left, along=None):
+    """The doorway of `left` [(index, opening)] a door row is: on its side at its sill, the nearest its `along` (a wall
+    with two doors: the walkway's to the galley and the quarters), at its bearing, else leading where it leads;
+    None."""
     if place in SIDE_WAYS:
-        fits = [pair for pair in left if toward(plan, pair[1]["at"]) == place and
-                (sill is None or abs(float(pair[1].get("sill") or 0.0) - sill) <= 0.05)]
+        fits = sorted([pair for pair in left if toward(plan, pair[1]["at"]) == place and
+                       (sill is None or abs(float(pair[1].get("sill") or 0.0) - sill) <= 0.05)],
+                      key=lambda pair: 0.0 if along is None else abs(
+                          float(pair[1]["at"][0 if place in ("N", "S") else 1]) - float(along)))
     elif isinstance(place, (int, float)):
         fits = sorted([pair for pair in left if off_bearing(plan, pair[1]["at"], place) <= BEARING_REACH],
                       key=lambda pair: off_bearing(plan, pair[1]["at"], place))
@@ -367,7 +372,7 @@ def doors_kept(plan, inventory):
     left = [(number, opening) for number, opening in enumerate(openings) if opening.get("kind") in DOORWAY_KINDS]
     unmet = []
     for place, metres, words, sill, along, lead in doors:
-        found = doorway_for(plan, place, metres, sill, lead, left)
+        found = doorway_for(plan, place, metres, sill, lead, left, along)
         if found is None:
             unmet.append((place, metres, words, sill, along, lead))
             continue

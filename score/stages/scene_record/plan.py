@@ -141,10 +141,12 @@ def outward(plan, side):
     return np.round({"N": -south, "S": south, "E": east, "W": -east}[side], 6).tolist()
 
 
-def lead_of(plan, side, level):
-    """A door's lead: the plan's `leads` by `<side>@<level>` (a wall with doors at several levels), else by side."""
+def lead_of(plan, side, level, at):
+    """A door's lead: the plan's `leads` by `<side>:<along>` (a wall with doors to two places, `at` along it: the
+    walkway's to the galley and the quarters), else by `<side>@<level>` (a wall with doors at several levels), else
+    by side."""
     leads = plan.get("leads", {})
-    return leads.get(f"{side}@{level:g}", leads.get(side, {}))
+    return leads.get(f"{side}:{float(at):g}") or leads.get(f"{side}@{level:g}", leads.get(side, {}))
 
 
 def leaf_tall(inventory, kind):
@@ -162,7 +164,7 @@ def doors_of(plan, inventory):
     found = []
     for side, at, wide, what, *level in plan["doors"]:
         level = float(level[0]) if level else 0.0
-        lead = lead_of(plan, side, level)
+        lead = lead_of(plan, side, level, at)
         sized = SIZE.search(what)
         kind = layout.get("doors", {}).get(SIDES[side])
         tall = float(sized.group(2)) if sized else leaf_tall(inventory, kind) if kind else None
