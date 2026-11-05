@@ -347,7 +347,11 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   (`pool.shrinking`, one machine fewer at a time from the class with the most, a processor class before a card on a
   tie, so a small pool keeps one processor machine beside its cards; fault of 2026-10-23: three 48-core processor
   machines held 4 h passed a EUR 20 grant), and with no room for one machine opens none, its rows
-  renting their own: never a failed run. `pool.release(run)` (from `score run`'s release, first thing, so
+  renting their own: never a failed run. A try that may stop at its line (its rows' high alone passes the stop line's
+  room, no grant) sizes the pool beside its rows' likely instead when no size fits beside the high (`pool_clearance`'s
+  `likely`, the clearance's `beside` "likely", the run's log "sized beside the rows' likely"; score session for the
+  owner, 2026-11-05, option (b): "the stop line holds the batch at the approved EUR 600 ... and the pool's idle hours
+  are fuel in that same total"), the line unchanged and every row still cleared at its high against it. `pool.release(run)` (from `score run`'s release, first thing, so
   also on a failed run, its stop line and Stop everything; the collector's own end when the pool's end passes or the run's
   process is gone) closes it and ends the collector: idle cards deleted at
   once, held ones by their takers; then the pool's clearance ends and a grant draws what its cards billed. A stop

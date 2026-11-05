@@ -48,7 +48,8 @@ Each test's break (applied once, seen red, reverted), in score/adapters/compute/
 - grant's google month: grant_benchmark never writes the Google month.
 - grant holds its balance: settle_grant draws the hold's reserve instead of the real spend.
 - pool on a grant: pool_clearance asks no grant_refusal under a grant (`None if grant_id`).
-- pool beyond the rows: pool_reserve returns the whole holding.
+- pool beyond the rows: pool_reserve returns the whole holding; pool beside the likely: pool_clearance's
+  `stop_refusal(runner, POOL, beside, held)` (the rows' high alone) becomes `True`, or its `*likely` `beside, covered`.
 - pool held longer: extend_pool replaces the reservation's euros instead of adding.
 - heartbeat: score/__main__.py extend_pool extends whenever a plan exists.
 - pool longer under a grant: extend_pool takes no further hold on the grant.
@@ -988,10 +989,25 @@ def test_a_warm_pool_reserves_only_its_holding_beyond_the_rows_whose_machine_tim
     assert opened["clearance"]["euros"] + 360.40 >= 72.0 + (360.40 - 300.0)
     assert "pass the EUR 396.46 stop" in refused(lambda: clear_render(runner, 400.0)())
     compute.release(opened)
-    tight = compute.pool_clearance(runner, "run-tight", choices, 4, beside=360.40, covered=20.0)
+    tight = compute.pool_clearance(runner, "run-tight", choices, 4, beside=360.40, covered=20.0, likely=(40.0, 30.0))
     assert tight["sizes"] == half and tight["clearance"]["euros"] == 16.0  # 52 + 360.40 passes; 16 + 360.40 fits
+    assert tight["clearance"]["beside"] == "high"  # the rows' high fits beside a pool: as before, the likely unread
     compute.release(tight)
     assert compute.pool_reserve(72.0, 300.0) == 0.0 and compute.pool_reserve(72.0, 20.0) == 52.0
+    # 2026-11-05: rows' high EUR 400 alone passes the line, a try that may stop at it: the pool sized beside the
+    # rows' likely, the line unchanged, and a row at its high still refused against the pool's reservation
+    stopping = compute.pool_clearance(runner, "run-stop", choices, 4, beside=400.0, covered=300.0, likely=(40.0, 30.0))
+    assert stopping["sizes"] == full and stopping["clearance"]["beside"] == "likely"
+    assert stopping["clearance"]["euros"] == 42.0 and 42.0 + 40.0 <= 396.46
+    assert "pass the EUR 396.46 stop" in refused(lambda: clear_render(runner, 360.0)())  # 42 + 360 passes
+    compute.release(stopping)
+    shrunk = compute.pool_clearance(runner, "run-shrunk", choices, 4, beside=400.0, likely=(340.0, 0.0))
+    assert shrunk["sizes"] == half  # 72 + 340 passes, 36 + 340 fits
+    compute.release(shrunk)
+    assert "pass the EUR 396.46 stop" in refused(  # not even one machine beside the likely: no pool
+        lambda: compute.pool_clearance(runner, "run-none", choices, 4, beside=400.0, likely=(395.0, 0.0)))
+    assert "pass the EUR 396.46 stop" in refused(  # the high fits alone, no pool beside it: no pool, as before
+        lambda: compute.pool_clearance(runner, "run-fits", choices, 4, beside=395.0, likely=(40.0, 0.0)))
 
 
 def test_a_warm_pool_held_longer_clears_the_more_in_its_one_reservation():

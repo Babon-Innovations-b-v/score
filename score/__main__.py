@@ -780,10 +780,11 @@ def planned_prices(runner, places, whole, options):
             for buy in rebuy.buys(runner, runner.line_nodes(places, whole, options.stage))}
 
 
-def rows_high(prices, pooled=False):
+def rows_high(prices, pooled=False, field="high_euros"):
     """The rows' high euros (a not-measured row at its estimate, as its clearance holds it), what the pool leaves room
-    for; `pooled`: only the rows pool_sizes sizes the pool on (a `cards` count), whose machine time the pool bills."""
-    return sum(price.get("high_euros") or price.get("guess_euros") or 0.0 for price in prices
+    for; `pooled`: only the rows pool_sizes sizes the pool on (a `cards` count), whose machine time the pool bills;
+    `field` "likely_euros" their likely instead (a try that may stop at its line: compute.pool_clearance's `likely`)."""
+    return sum(price.get(field) or price.get("guess_euros") or 0.0 for price in prices
                if price.get("cards") or not pooled)
 
 
@@ -806,12 +807,17 @@ def opened_pool(runner, places, whole, options):
     pool, hours, run_id = cloud_tool("pool"), compute.ledger().BATCH_HOURS, os.environ[RUN_ID]
     prices = planned_prices(runner, places, whole, options)
     try:
+        likely = (rows_high(prices.values(), field="likely_euros"),
+                  rows_high(prices.values(), pooled=True, field="likely_euros"))
         ticket = compute.pool_clearance(runner, run_id, pool.shrinking(sizes, hours), hours,
-                                        rows_high(prices.values()), rows_high(prices.values(), pooled=True))
+                                        rows_high(prices.values()), rows_high(prices.values(), pooled=True), likely)
     except compute.Refused as refused:
         print(f"score run: no warm pool, its rows rent their own machines: {refused}", flush=True)
         return None
-    if ticket["sizes"] != sizes:
+    if ticket["clearance"]["beside"] == "likely":
+        print(f"score run: warm pool of {ticket['sizes']}, sized beside the rows' likely EUR {likely[0]:.2f}: this try "
+              "may stop at the line", flush=True)
+    elif ticket["sizes"] != sizes:
         print(f"score run: warm pool of {ticket['sizes']} (planned {sizes}), what the run's money holds beside its "
               "rows", flush=True)
     sizes = ticket["sizes"]
