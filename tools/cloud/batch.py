@@ -488,15 +488,23 @@ def stock_wait_minutes(rounds):
 
 def parked_within(run, offers, number, kind, disk_gb, seconds):
     """A machine of `kind` parked within `seconds` (looked for every park.PARKED_POLL_SECONDS), taken for `run`; None
-    when none came or a signal came."""
+    when none came or a signal came. The run is marked waiting the whole time (preflight.mark_waiting), so its
+    runaway watch leaves a wait for stock out of its minutes as it does a warm pool's (2026-11-05: people-clips-made,
+    with no pool, waited 25 min for an L4, worked 13 and was stopped at twice its forecast)."""
     import park
+    import preflight
 
     give_up = time.time() + seconds
-    while not STOPPING.wait(min(park.PARKED_POLL_SECONDS, max(0.0, give_up - time.time()))):
-        machine = park_taken(run, offers, number, kind, disk_gb)
-        if machine is not None or time.time() >= give_up:
-            return machine
-    return None
+    try:
+        preflight.mark_waiting()
+        while not STOPPING.wait(min(park.PARKED_POLL_SECONDS, max(0.0, give_up - time.time()))):
+            preflight.mark_waiting()
+            machine = park_taken(run, offers, number, kind, disk_gb)
+            if machine is not None or time.time() >= give_up:
+                return machine
+        return None
+    finally:
+        preflight.unmark_waiting()
 
 
 def park_taken(run, offers, number, kind, disk_gb):
