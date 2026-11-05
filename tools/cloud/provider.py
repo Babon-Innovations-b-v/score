@@ -81,12 +81,24 @@ def on_cluster():
     return os.environ.get("SCORE_CLOUD") == CLUSTER
 
 
+def cluster_provider():
+    """SCORE_K8S_PROVIDER as (backend, cluster module): `scaleway` is both; `scaleway/tenant` is Scaleway's backend
+    with the cluster module `tenant` (a cluster someone else runs, k8s/clusters/tenant.py)."""
+    backend, _, cluster = os.environ.get("SCORE_K8S_PROVIDER", "scaleway").partition("/")
+    return backend, cluster or backend
+
+
+def cluster_name():
+    """The cluster module SCORE_K8S_PROVIDER names (k8s/clusters/<name>.py)."""
+    return cluster_provider()[1]
+
+
 def load(name=None):
-    """The backend module named `name`, else SCORE_CLOUD's (with SCORE_CLOUD=k8s, the cluster's provider,
-    SCORE_K8S_PROVIDER), else Scaleway."""
+    """The backend module named `name`, else SCORE_CLOUD's (with SCORE_CLOUD=k8s, the cluster's provider's backend,
+    SCORE_K8S_PROVIDER before any slash), else Scaleway."""
     chosen = name or os.environ.get("SCORE_CLOUD", "scaleway")
     if chosen == CLUSTER:
-        chosen = os.environ.get("SCORE_K8S_PROVIDER", "scaleway")
+        chosen = cluster_provider()[0]
     return importlib.import_module(chosen)
 
 

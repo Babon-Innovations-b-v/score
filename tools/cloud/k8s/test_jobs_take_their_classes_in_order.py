@@ -8,9 +8,11 @@ invariant with the break that turns it red (each applied once and seen red):
 - The class order is capacity's (the cheapest card per job first; no H100 for a bake, even in the blender image),
   narrowed to the cluster's pools. Break: drop the capacity.NEVER filter in `class_order`.
   Break: `job_kind` returns the spec's `kind` only.
-- A Job requires its allowed classes and prefers them in order, tolerates the job path's taints, asks for cards only
-  on card classes, mounts the node's weights cache, retries `attempt_limit - 1` times and has a Kubernetes name.
-  Break: equal weights in `affinity`. Break: `backoffLimit` = attempt_limit. Break: no `.lower()` in `name_part`.
+- A Job requires its allowed classes and prefers them in order, tolerates the job path's taints and the cluster
+  module's, asks for cards only on card classes, sets limits past any node (a namespace's default limits refused
+  jobs asking more memory than them), mounts the node's weights cache, retries `attempt_limit - 1` times and has a Kubernetes name.
+  Break: equal weights in `affinity`. Break: `limits = {}` in `resources`. Break: drop `*extra` in `tolerations`.
+  Break: `cluster_provider` returns the whole SCORE_K8S_PROVIDER as the backend. Break: `backoffLimit` = attempt_limit. Break: no `.lower()` in `name_part`.
   Break: `job_name` keeps the start of a long name.
 - Widening: only after the autoscaler said "cannot grow" for the grace time, or no node came for NODE_MINUTES; a
   "cannot grow" followed by a scale-up does not count; a late class waits LATE_MINUTES; the earlier classes are kept;
@@ -76,10 +78,14 @@ def test_a_job_takes_only_its_classes_preferred_in_order_with_its_cards_and_cach
     assert weights["gpu-80gb"] > weights["gpu-48gb"]
     assert {toleration["key"] for toleration in pod["tolerations"]} == {"nvidia.com/gpu", "score.dev/class"}
     container = pod["containers"][0]
-    assert container["resources"]["limits"] == {"nvidia.com/gpu": "1"} and container["args"] == ["run-1", "take_7"]
+    assert container["resources"]["limits"] == dict(manifests.NO_LIMIT, **{"nvidia.com/gpu": "1"})
+    assert container["args"] == ["run-1", "take_7"]
     assert {"name": "cache", "mountPath": "/cache"} in container["volumeMounts"]
     assert pod["volumes"][0]["hostPath"]["path"] == "/var/lib/score-cache"
     assert pod["restartPolicy"] == "Never" and job["spec"]["backoffLimit"] == 2  # three attempts in all
+    tenant = {"key": "tenant", "operator": "Equal", "value": "score", "effect": "NoSchedule"}
+    assert tenant in manifests.job(SPEC, "run-1", "take_7", ["gpu-24gb"], 1, 0, [tenant])["spec"]["template"][
+        "spec"]["tolerations"]  # a tenant cluster's own taint on score's pools
     processor = manifests.job(dict(SPEC, kind="blender"), "run-1", "settle", ["cpu-32c-128gb"], 0)
     assert "nvidia.com/gpu" not in processor["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]
 
@@ -376,6 +382,8 @@ def test_score_cloud_k8s_keeps_the_providers_backend(monkeypatch):
     monkeypatch.setenv("SCORE_CLOUD", "k8s")
     monkeypatch.delenv("SCORE_K8S_PROVIDER", raising=False)
     assert submit.provider.on_cluster() and submit.provider.load().NAME == "scaleway"
+    monkeypatch.setenv("SCORE_K8S_PROVIDER", "scaleway/tenant")  # Scaleway's backend, a tenant cluster
+    assert submit.provider.load().NAME == "scaleway" and submit.provider.cluster_name() == "tenant"
     monkeypatch.setenv("SCORE_CLOUD", "scaleway")
     assert not submit.provider.on_cluster() and submit.provider.load().NAME == "scaleway"
 

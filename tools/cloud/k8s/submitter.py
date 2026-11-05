@@ -100,13 +100,21 @@ def run_specs(store, run_id):
 # The provider's cluster module (clusters/<name>.py).
 
 def cluster_module(name=None):
-    """The cluster module of SCORE_K8S_PROVIDER (default scaleway), loaded by path: its file shares its name with
-    the provider's backend."""
-    name = name or os.environ.get("SCORE_K8S_PROVIDER", "scaleway")
+    """The cluster module of SCORE_K8S_PROVIDER (default scaleway; `<backend>/<cluster>` names a cluster module apart
+    from its backend, as `scaleway/tenant`), loaded by path: its file may share its name with the provider's backend.
+    A module naming its NAMESPACE puts the jobs there."""
+    name = name or provider.cluster_name()
     spec = importlib.util.spec_from_file_location(f"cluster_{name}", HERE / "clusters" / f"{name}.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    manifests.use_namespace(getattr(module, "NAMESPACE", manifests.NAMESPACE))
     return module
+
+
+def cluster_kubectl(cluster):
+    """kubectl at the cluster's kubeconfig (KUBECONFIG when set) and its context, when the module names one."""
+    chosen = getattr(cluster, "context", None)
+    return Kubectl(os.environ.get("KUBECONFIG") or str(cluster.KUBECONFIG), chosen() if chosen else None)
 
 
 # The order of classes.
@@ -260,7 +268,7 @@ class Run:
         spec = self.specs[job_id]
         classes = self.allowed(job_id)
         self.kubectl.apply([manifests.job(spec, self.run_id, job_id, classes, job_cards(spec, classes),
-                                          self.jobs[job_id]["generation"])])
+                                          self.jobs[job_id]["generation"], getattr(self.cluster, "TOLERATIONS", ()))])
         self.jobs[job_id]["submitted"] = time.time()
 
     def remake(self, job_id):
@@ -414,7 +422,8 @@ def prepare(kubectl, cluster):
     """Make the namespace and the Secrets, and cap the pools from the batch cap; refused outside a cleared run
     (compute.require_cleared raises Refused)."""
     compute.require_cleared("the cluster's pools")
-    kubectl.apply([manifests.namespace()])
+    if not getattr(cluster, "NAMESPACE_GIVEN", False):
+        kubectl.apply([manifests.namespace()])
     kubectl.apply([manifests.store_secret(provider.cloud.object_store()),
                    manifests.registry_secret(provider.cloud.registry())])
     caps = cluster.cap_pools(ledger.BATCH_EUROS, ledger.BATCH_HOURS)
@@ -455,7 +464,7 @@ def submit(run_id, specs, store, kubectl=None, cluster=None, wait_scale_down=Tru
     IDLE_ESTIMATE_MINUTES, marked estimated; `who` is the session asking, kept in the ledger; `parallel` holds the
     run to that many jobs on the cluster at once (submit_more)."""
     cluster = cluster or cluster_module()
-    kubectl = kubectl or Kubectl(os.environ.get("KUBECONFIG") or str(cluster.KUBECONFIG))
+    kubectl = kubectl or cluster_kubectl(cluster)
     helper = runtime()
     finished = [job_id for job_id in specs if helper.state(store, run_id, job_id) == "done"]
     if finished:
