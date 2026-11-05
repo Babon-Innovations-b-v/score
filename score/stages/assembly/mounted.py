@@ -23,3 +23,13 @@ def mounted(rows):
         pieces.update(more)
         found.update(more)
     return found
+
+
+def resting_as_laid(record):
+    """{row id: "fixed"} of the scene `record`'s rows an object of which rests leaning or attached (its `rests`,
+    holders.rests, #94): judged as standing as the settle lays it (the triage's `fixed` support, a `support` the row
+    is given), never dropped, snapped down onto its holder or judged on its feet. An attached one stays put as laid; a
+    leaning one is leaned on its foot against its holder by the settle (settling/held.leaning_rests), which judges it
+    there itself (held.leaning_faults)."""
+    return {entry["row"]: "fixed" for entry in record.get("objects") or []
+            if entry.get("rests") in ("leaning", "attached")}

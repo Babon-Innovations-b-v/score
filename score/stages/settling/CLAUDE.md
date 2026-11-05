@@ -36,6 +36,12 @@ edit there moves its ~90 rows anyway (2026-10-27); never call them.
   assembly's resting gate is the final judge. One stacked on a
   loose support the layer leaves unrested is left as laid with it (`kept_with_their_supports`): its rest was found
   on the support where the drop left it (settle@airlock's sandbags_18, 52 cm down a ramp kept as laid, 2026-10-30).
+- **Leaning and attached (#94)**: a row the scene record says rests `leaning` or `attached` (its objects' `rests`,
+  holders.rests) is given the `fixed` support for the drop, the snap and the triage (assembly/mounted.resting_as_laid,
+  the assembly's resting check reads the same): an attached one stays as laid; a leaning one is leaned `LEAN` degrees
+  on its foot against its holder's face (held.leaning_rests, its `on`'s `out`), and the `rested` gate measures it on
+  the layered stage and fails it where it falls (leans on nothing, its top off its holder, past `LEAN_FALLS`) or floats
+  (held.leaning_faults, leaning_wrong).
 - **Held on a wall or ceiling row is mounted** (`holders.holder_kind`): never snapped down; its laid pose stands. A
   structure row (a door's window) on a mounted row, never through a shell row, is mounted with it (`assembly/mounted.py`).
 - **Spend.** A drop is bought only when something loose is to be stood up or unstacked or the triage finds a fault on

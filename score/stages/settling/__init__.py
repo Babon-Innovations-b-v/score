@@ -106,15 +106,41 @@ def with_anchors(inventory):
     return {**inventory, "rows": [{**row, "anchor": row.get("anchor") or ""} for row in inventory["rows"]]}
 
 
+def as_they_rest(inventory, record):
+    """The inventory (with_anchors) with each row the scene `record` says rests leaning or attached given the
+    `fixed` support (assembly/mounted.resting_as_laid, as the assembly's resting check reads it): never dropped or
+    snapped down, never judged on its feet; the settle leans a leaning one itself (leaning_phase)."""
+    from score.stages.assembly.mounted import resting_as_laid
+    given = resting_as_laid(record or {})
+    return {**inventory, "rows": [{**row, "support": given[row["id"]]} if row["id"] in given and not row.get("support")
+                                  else row for row in with_anchors(inventory)["rows"]]}
+
+
+def scene_record(root):
+    """The scene record grounded_seed wrote beside the stage at `root`, None where it wrote none."""
+    import score.stages.assembly.record as laid_record  # this form: as grounded_seed reads it
+    path = pathlib.Path(root).parent / laid_record.RECORD
+    return read_json(path) if path.is_file() else None
+
+
+def rested_inputs(inputs, root, inventory):
+    """The inputs with their inventory the one the settle judges by (as_they_rest), written beside `root`."""
+    path = pathlib.Path(root).parent / "rested-inventory.json"
+    path.write_text(json.dumps(inventory))
+    return {**inputs, "inventory": str(path)}
+
+
 def make(inputs, out, seed, params):
     """Drop the place's loose objects on its made ground and lay where each comes to rest. The grounded seed is put
     together in the output's own folder and taken out again once the drop is read."""
     from pxr import Usd
     place = place_of(inputs)
-    inventory = with_anchors(read_json(inputs["inventory"]))
     scratch = out / "scratch"
     try:
         root = grounded_seed(inputs, scratch)
+        record = scene_record(root)
+        inventory = as_they_rest(read_json(inputs["inventory"]), record)
+        inputs = rested_inputs(inputs, root, inventory)
         seed = laid_stage(root)  # the poses as laid, which no settle layer moves
         stage = Usd.Stage.Open(str(root))
         loose, ignore, starts, under = settle.drop_job(stage, place, inventory, upright=True, kit_path=inputs["kit"])
@@ -138,6 +164,8 @@ def make(inputs, out, seed, params):
         laid_over(root, seed, place, poses, scratch / "dropped.usda")
         poses = merged(poses, fixed_phase(root, found, place), seed, place)  # before the held: they lie on these
         poses = merged(poses, held_phase(root, scratch / "fixed.usda", inputs, inventory, poses, seed), seed, place)
+        ways = snapped.leaning(record or {})
+        poses = merged(poses, leaning_phase(root, scratch / "leant.usda", place, ways, poses, seed), seed, place)
         laid_over(root, seed, place, poses, scratch / "held.usda")
         rested = judged(root, inputs)
         poses = merged(poses, fixed_phase(root, rested, place, ("floor",)), seed, place)  # a hull's hollow on the drop
@@ -156,6 +184,7 @@ def make(inputs, out, seed, params):
         shutil.rmtree(scratch, ignore_errors=True)
     (out / RECORD).write_text(json.dumps({
         "place": place, "overlaps": overlaps, "laid inside each other": as_laid, "one hull": unsplit,
+        **({"leaning": ways} if ways else {}),
         "objects": {name: {"rested": pose["rested"], "said": pose["said"], "matrix": pose["after"].tolist()}
                     for name, pose in sorted(poses.items())}}, indent=1))
 
@@ -381,6 +410,15 @@ def held_phase(root, path, inputs, inventory, poses, seed):
     return held
 
 
+def leaning_phase(root, path, place, ways, poses, seed):
+    """Each leaning object (`ways`, held.leaning) rested on its foot against its holder over the poses so far
+    (held.leaning_rests): {name: pose}; none without one."""
+    if not ways:
+        return {}
+    laid_over(root, seed, place, poses, path)
+    return snapped.leaning_rests(root, place, ways)
+
+
 def fixed_phase(root, found, place, supports=("fixed",)):
     """Each object of these supports the triage (`found`) finds floating, let down onto what is under it
     (held.fixed_let_down): {name: pose}. A fixed one as laid; after the drop a loose one too, which the drop rests on
@@ -433,6 +471,7 @@ def judge_rested(output, inputs, evidence):
                if any(record["objects"].get(name, {}).get("rested") for name in (first, second))]  # not both kept
     faults += [f"{name}: {entry['said']} (its layout's fault: back to the assembly's parting)"
                for name, entry in sorted(record["objects"].items()) if laid_wrong(entry)]
+    faults += leaning_wrong(output, inputs, record)
     unrested = [(name, entry) for name, entry in sorted(record["objects"].items())
                 if not entry["rested"] and "still moving" not in entry["said"] and not laid_wrong(entry)]
     kept = [f"{name}: {entry['said']}" for name, entry in unrested if not for_the_paint(entry)]
@@ -445,6 +484,20 @@ def judge_rested(output, inputs, evidence):
     return checks.Verdict("rested", checks.FAIL if faults else checks.PASS, reason,
                           {"broken": len(faults), "kept": len(kept)}, {"broken": "lower", "kept": "lower"},
                           tuple(faults) + tuple(kept) + tuple(for_paint))
+
+
+def leaning_wrong(output, inputs, record):
+    """Each leaning object (the record's `leaning`, held.leaning) that falls or floats as the settle layer lays it
+    over the seed on its made ground (held.leaning_faults, measured there, never read off the record's words): one
+    that leans on nothing, lies past held.LEAN_FALLS, meets nothing toward its holder or stands its foot off the
+    floor (#94)."""
+    ways = record.get("leaning") or {}
+    if not ways:
+        return []
+    SCRATCH.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=SCRATCH) as scratch:  # on disk: a seed copy is too big for /tmp
+        root = rested_root(output, inputs, pathlib.Path(scratch))
+        return snapped.leaning_faults(root, place_of(inputs), ways)
 
 
 def laid_wrong(entry):
@@ -474,9 +527,10 @@ def judge_resting(output, inputs, evidence):
     found = {}
     for state, layered in (("before", False), ("after", True)):
         with tempfile.TemporaryDirectory(dir=SCRATCH) as scratch:  # on disk: a seed copy is too big for /tmp
-            found[state] = triage.triage(rested_root(output, inputs, pathlib.Path(scratch), layered),
-                                         rules_file=inputs["resting rules"], kit_file=inputs["kit"],
-                                         inventory_file=inputs["inventory"])
+            root = rested_root(output, inputs, pathlib.Path(scratch), layered)
+            rested = rested_inputs(inputs, root, as_they_rest(read_json(inputs["inventory"]), scene_record(root)))
+            found[state] = triage.triage(root, rules_file=inputs["resting rules"], kit_file=inputs["kit"],
+                                         inventory_file=rested["inventory"])
     real = {state: [fault for fault in found[state]["faults"] if fault["real"]
                     and not (fault["object"].rsplit("/", 1)[-1] in for_paint and fault["kind"] in FOR_THE_PAINT)]
             for state in found}

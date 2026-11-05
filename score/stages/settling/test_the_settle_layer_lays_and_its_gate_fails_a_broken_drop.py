@@ -38,6 +38,13 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   swing would not re-key the settle row, whose grounded seed the assembly's fitting lays by it, 2026-10-30).
 - a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down (held.py): held_objects without its `row not in on_walls`
   test, or without its `name not in on_sides` test (2026-11-04: the pipe on its desk's side snapped down).
+- a_leaning_thing_rests_on_its_foot_against_its_holder_and_the_gate_fails_one_that_falls_or_floats (#94, held.py):
+  leaning_rests' `motion = against_and_down(mesh, motion, way, obstacles)` dropped (left turned in the air: floats,
+  its top off the wall); leaning_faults' `elif gap > resting.TOLERANCE:` made `elif False:` (the board stood off its
+  wall passes) and its `if foot > resting.TOLERANCE:` made `if False:` (the raised board passes); in
+  settling/__init__.py judge_rested's `faults += leaning_wrong(output, inputs, record)` dropped (the gate passes the
+  floating board); and assembly/mounted.py resting_as_laid's `if entry.get("rests") in ("leaning", "attached")` made
+  `if False` (the leaning and attached rows dropped and snapped as loose and held ones).
 - a_cloud_drop_runs_on_the_trials_card_in_its_python_once (tools/usd/drop.py): simulate's `machine.run(..., env=ENV)`
   without `env=ENV` (the drop sent to the card's Blender).
 
@@ -410,6 +417,65 @@ def a_lamp_held_on_a_ceiling_or_wall_row_is_not_snapped_down():
         return [] if found == ["cup_1"] else [f"held to snap down: {found}, not the cup alone"]
 
 
+def a_leaning_thing_rests_on_its_foot_against_its_holder_and_the_gate_fails_one_that_falls_or_floats():
+    """#94: a 1 m board laid upright 5 cm off a 2 m wall, its record saying it leans against it (out +x), is leaned
+    on its foot against the wall: the gate's measure finds it neither falling nor floating there; as laid (its top
+    5 cm off the wall) it falls, raised 20 cm it floats, and with no holder's face it falls; the rested gate fails the
+    floating one. A leaning or attached row stands as the settle lays it (the `fixed` support), never dropped or
+    snapped; a row resting as the others lay it keeps its own."""
+    from score.stages.settling import held
+    problems = []
+    rows = {"objects": [{"name": "board_1", "row": "board", "rests": "leaning", "on": {"how": "wall", "out": [1, 0]}},
+                        {"name": "ramp_1", "row": "ramp", "rests": "attached"}, {"name": "crate_1", "row": "crate"}]}
+    inventory = settle.as_they_rest({"rows": [{"id": "board"}, {"id": "ramp", "anchor": "on:lander"},
+                                              {"id": "crate"}]}, rows)
+    supports = {row["id"]: row.get("support") for row in inventory["rows"]}
+    if supports != {"board": "fixed", "ramp": "fixed", "crate": None}:
+        problems.append(f"supports as they rest: {supports}")
+    ways = held.leaning(rows)
+    if ways != {"board_1": [1, 0]}:
+        problems.append(f"leaning: {ways}")
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        path = resting_test.laid_place(folder, [("wall", "box", (0, 0, 0)), ("wall", "box", (0, 1, 0)),
+                                                ("board", "box", (1.05, 0, 0))], [("wall", "floor"),
+                                                                                    ("board", "floor")])
+        seed = settle.laid_stage(path)
+        as_laid = held.leaning_faults(path, PLACE, ways)
+        if not any(fault.startswith("board_1: falls") for fault in as_laid):
+            problems.append(f"the board 5 cm off its wall does not fall: {as_laid}")
+        if not any("falls" in fault for fault in held.leaning_faults(path, PLACE, {"board_1": None})):
+            problems.append("the board leaning on nothing does not fall")
+        poses = held.leaning_rests(path, PLACE, ways)
+        if not poses["board_1"]["rested"]:
+            problems.append(f"the board is not leaned: {poses['board_1']['said']}")
+        settle.laid_over(path, seed, PLACE, poses, folder / "leant.usda")
+        leant = held.leaning_faults(path, PLACE, ways)
+        if leant:
+            problems.append(f"the leaned board: {leant}")
+        tilt = np.degrees(np.arccos(laid(Usd.Stage.Open(str(path)), "board_1")[1, 1]))
+        if abs(tilt - held.LEAN) > 0.5:
+            problems.append(f"the board leans {tilt:.1f} degrees, not {held.LEAN}")
+        raised = {"board_1": {**poses["board_1"], "after": poses["board_1"]["after"].copy()}}
+        raised["board_1"]["after"][1, 3] += 0.2
+        settle.laid_over(path, seed, PLACE, raised, folder / "raised.usda")
+        floating = held.leaning_faults(path, PLACE, ways)
+        if not any(fault.startswith("board_1: floats") for fault in floating):
+            problems.append(f"the board 20 cm up does not float: {floating}")
+        (folder / settle.RECORD).write_text(json.dumps({"place": PLACE, "overlaps": [], "leaning": ways, "objects": {
+            "board_1": {"rested": True, "said": "leaned"}}}))
+        rested_root = settle.rested_root
+        settle.rested_root = lambda output, inputs, scratch, layered=True: path  # the raised stage, as laid over
+        try:
+            verdict = settle.judge_rested(folder, {"seed": str(folder / PLACE)}, None)
+        finally:
+            settle.rested_root = rested_root
+        if verdict.answer != checks.FAIL or not any("floats" in finding for finding in verdict.findings):
+            problems.append(f"the gate let the floating board pass: {verdict}")
+    return problems
+
+
 def the_row_kinds_the_fitting_reads_are_among_its_files():
     # the grounded seed is laid by the assembly's fitting, which reads which rows swing from the row kinds' table
     from score.stages import row_kinds
@@ -452,7 +518,8 @@ def a_structure_row_on_a_mounted_row_is_mounted_with_it():
     return [] if found == wanted else [f"mounted: {found}"]
 
 
-CHECKS = (the_row_kinds_the_fitting_reads_are_among_its_files, a_pair_crossing_as_laid_is_kept_not_broken,
+CHECKS = (a_leaning_thing_rests_on_its_foot_against_its_holder_and_the_gate_fails_one_that_falls_or_floats,
+          the_row_kinds_the_fitting_reads_are_among_its_files, a_pair_crossing_as_laid_is_kept_not_broken,
           a_row_on_a_wall_or_ceiling_row_is_mounted_there,
           a_structure_row_on_a_mounted_row_is_mounted_with_it, one_stacked_on_a_support_left_as_laid_is_left_as_laid,
           a_pair_crossing_only_after_the_drop_still_breaks,
