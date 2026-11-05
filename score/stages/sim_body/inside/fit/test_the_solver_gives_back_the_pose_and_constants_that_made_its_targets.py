@@ -115,6 +115,10 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   not the person's (Y up), the bones held off sideways.
 - (2026-11-05) FrameSkins.outside's meshes `[mesh.id for mesh in self.meshes]` made the first frame's for every frame:
   each frame's bones judged against one frame's skin (a_frames_skin_marks_the_bones_out_of_it_frame_by_frame red).
+- (2026-11-05) _frames.SkinTask.set_skin's `self.seen = {}` dropped: a new skin at the same pose reads the last
+  skin's measure (a_pose_measured_once_gives_the_same_fit red).
+- (2026-11-05) _frames.SkinTask._apart's key `placed.tobytes()` made `placed.round(2).tobytes()`: nearby poses read
+  one another's measure, the angles off measuring every ask (a_pose_measured_once_gives_the_same_fit red).
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/test_the_solver_gives_back_the_pose_and_constants_that_made_its_targets.py
 """
@@ -649,6 +653,50 @@ def the_frames_hold_the_bones_inside_the_skin():
     return problems + ([] if costs[0] < costs[1] else [f"the held frames' cost {costs[0]:.6f} over the free {costs[1]:.6f}"])
 
 
+def a_pose_measured_once_gives_the_same_fit():
+    """mink's frames on the toy held in the skin with each pose's skin measure kept (`_frames.SEEN`) give the same
+    angles, bit for bit, as with every ask measured again (SEEN 0), in under half the closest-point launches; and a new
+    skin set at the same pose is measured again, never read off the last skin's."""
+    import numpy as np
+    import fit
+    from fit import _frames, _skin
+    calls, measure = [0], _skin.SkinMeshes.apart
+
+    def counted(meshes, points, frames):
+        calls[0] += 1
+        return measure(meshes, points, frames)
+
+    found, problems, saved = [], [], _frames.SEEN
+    _skin.SkinMeshes.apart = counted
+    try:
+        with tempfile.TemporaryDirectory() as folder:
+            fitting = toy_fitting(folder)
+            truth = truth_of(fitting)
+            turns, points, _ = posed_targets(fitting, truth, POSES[:-1])
+            skins = shin_skins(fitting, truth, POSES[:-1])
+            fitting.apply(truth)
+            for seen in (0, saved):
+                _frames.SEEN, calls[0] = seen, 0
+                found.append((fit.angles(fitting, turns, points, skins), calls[0]))
+            task, configuration = _frames.SkinTask(fitting.model), _frames.mink.Configuration(fitting.model)
+            configuration.update(found[1][0][0])
+            task.set_skin(skins[0:1])
+            first = task.compute_error(configuration)
+            task.set_skin(skins[1:2])
+            second = task.compute_error(configuration)
+    finally:
+        _skin.SkinMeshes.apart = measure
+        _frames.SEEN = saved
+    (again, every), (kept, fewer) = found
+    if again.tobytes() != kept.tobytes():
+        problems.append(f"the kept measure's angles {np.abs(again - kept).max():.3g} rad off measuring every ask")
+    if not fewer < 0.5 * every:
+        problems.append(f"{fewer} closest-point launches kept against {every} measuring every ask")
+    if np.array_equal(first, second):
+        problems.append("a new skin at the same pose read off the last skin's measure")
+    return problems
+
+
 def decoy_box(model, qpos):
     """Another part's skin beside the toy's shin bone where `qpos` puts it, DECOY_SHIFT off ([8 x 3] corners)."""
     import mujoco
@@ -925,7 +973,7 @@ CHECKS = (an_end_read_in_the_skin_holds_its_bones_off_somas_joint, a_turn_is_jud
           the_place_goal_sums_to_the_marker_goal, the_solver_gives_back_the_angles_and_the_constants,
           every_recording_of_the_body_is_sampled, somas_targets_leave_the_solves_unchanged, a_hip_past_its_range_stops_at_its_end_and_its_follower_follows,
           a_step_no_task_sees_ends_the_fit, level_2_ends_settled, a_step_the_cost_cannot_see_is_judged_by_its_gradient,
-          the_frames_hold_the_bones_inside_the_skin,
+          the_frames_hold_the_bones_inside_the_skin, a_pose_measured_once_gives_the_same_fit,
           a_frame_is_not_held_in_another_parts_skin, the_heads_pockets_are_closed_for_the_inside_test, a_skin_folding_into_itself_gives_no_rows,
           the_depth_is_the_nearest_faces_where_the_query_flips, a_frames_skin_marks_the_bones_out_of_it_frame_by_frame)
 
