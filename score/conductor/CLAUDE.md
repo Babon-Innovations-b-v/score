@@ -55,7 +55,9 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   `relink-pixal` (the door's, 2026-10-28: 16 GB free, work/pixal 20.5 GB), safe with a run live: each work/pixal
   file whose bytes the store holds as a blob (the store's sha256) and untouched for 15 min is made a hard link to that
   read-only blob, renamed over it; it removes nothing, so a take kept nowhere else stays whole. A take so linked is
-  read-only: a re-finish that writes it in place is refused, never reaching the store.
+  read-only: a re-finish that writes it in place is refused, never reaching the store. A take a row writes again in
+  place (`laid_by_a_row`: a people look's, or a code build's, its .svviews holding code.json, which every Pixal3D row
+  rebuilds; 2026-11-05) is kept a plain copy, and every sweep pass copies a linked one back (`laid_plain`).
   `clean-kept` (2026-10-29; the sync pass runs it), only with no run live (clean-cache's refusal): each kept job and
   per-take call (`tools/cloud/kept.py`, kept past its output so a re-keyed row makes only what changed) that no
   current key could ask for is dropped: its node gone from the table, its row code (`Runner.making_code`) moved, its
