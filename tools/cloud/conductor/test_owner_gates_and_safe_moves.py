@@ -1225,6 +1225,18 @@ def test_a_move_that_changes_the_units_installs_them_without_a_boot(world):
     with cockpit({"ok": True, "commit": later}) as url:
         line = world.move(url)
     assert world.at() == later and "units" not in line and log.read_text().split() == ["units"], line
+    # The pinned Claude Code (owner, 2026-11-05) installed by the move when it is not there, not again once it is.
+    # Break: in update.py `claude_installed`, return "" always (a live conductor never gets Claude Code).
+    pinned = commit(world.origin, "tools/cloud/conductor/boot.sh",
+                    f'CLAUDE_PIN="@anthropic-ai/claude-code@9.9.9"\necho "$1" >> {log}\n')
+    with cockpit({"ok": True, "commit": pinned}) as url:
+        line = world.move(url)
+    assert world.at() == pinned and ", Claude Code 9.9.9 installed" in line, line
+    assert log.read_text().split() == ["units", "claude"]
+    cli = world.folder / "claude-cli"
+    cli.write_text('#!/bin/sh\necho "9.9.9 (Claude Code)"\n')
+    cli.chmod(0o755)
+    assert update.claude_installed(world.checkout, cli) == "" and log.read_text().split() == ["units", "claude"]
 
 
 def test_after_the_move_a_lock_move_or_a_missing_prop_environment_syncs_it(world):
