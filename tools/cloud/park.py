@@ -512,6 +512,12 @@ def expire(server_id, zone, token, until, poll=PARKED_POLL_SECONDS):
         time.sleep(min(poll, left))
 
 
+def parked_ids():
+    """The ids of every machine parked now (a record under PARKED), any run's or pool's."""
+    with locked():
+        return {path.stem for path in PARKED.glob("*.json")}
+
+
 def listed(server_id, token):
     """Whether the machine is parked under `token` now."""
     path = PARKED / f"{server_id}.json"

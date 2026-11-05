@@ -795,6 +795,13 @@ def beat(run_id):
         try:
             batch.heartbeat(pathlib.Path(record["folder"]), record["host"])
         except subprocess.CalledProcessError as error:
+            reads = getattr(cloud, "server_record", None)  # a backend that cannot say leaves the record beaten
+            if reads is not None and reads(record["id"], record["zone"]) is None:
+                # gone (2026-11-05: deleted under the pool, its record beaten for half an hour and nothing rented in
+                # its place): released, so it is struck off and the collector rents another
+                batch.say(f"pool: {record['id']} is gone; struck off, another rented in its place")
+                park.release(record["id"], record["zone"], record["token"])
+                continue
             batch.say(f"pool: a heartbeat of {record['id']} failed ({error.returncode}); trying again")
 
 
