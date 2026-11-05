@@ -137,7 +137,7 @@ def constants_set_up(job, person, rig, worlds, path, size, scales, made=None, fo
     segments = person["segments"]
     held = fit.followed(segments)
     if found is None:
-        made = made or [fit.targets(rig, segments, clip, held) for clip in recordings(person, worlds)]
+        made = made or [fit.targets(rig, segments, clip, held, skins=False) for clip in recordings(person, worlds)]
         found = fit.constants(fit.fitting(path, scales, held, segments), made)
     record, scales = myo.person_file(job["model"], size, person["kg"], path, found)
     fitting = fit.fitting(path, scales, held, segments, found["marks"])
