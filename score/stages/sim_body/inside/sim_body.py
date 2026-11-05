@@ -39,10 +39,10 @@ here moves, scales or grounds SOMA.
   squares at once there, MuJoCo Warp on the model Newton's SolverMuJoCo puts on it: `batched`; else MuJoCo's CPU
   backend, frame by frame; nothing is stepped): the generalised forces the movement needs (inverse dynamics, armature and passive forces in), the ground's
   contacts (each point of the person's skin, riding the bones, within GAP of the drawn triangle under it or into it, along the triangle's
-  normal: a friction pyramid, FRICTION, under SLIDE_MOST, else sliding, its friction against its slip), and one
-  bounded least squares (`shared`) that gives the forces to the ground, to a joint at an end of its range (`stops`)
-  and to the muscles (activations 0 to 1 on each muscle's force-length-velocity, its passive force in), least squared
-  activation first, the pelvis' six balance rows BALANCE times dearer than a joint's; what they cannot give is left
+  normal: a friction pyramid, FRICTION, under SLIDE_MOST, else sliding, its friction against its slip), and the static
+  optimisation (`shared`) in OpenSim's two stages: the ground reaction force first, from the pelvis' six balance rows
+  alone, then the forces to a joint at an end of its range (`stops`) and to the muscles (activations 0 to 1 on each
+  muscle's force-length-velocity, its passive force in) with it fixed, least squared activation; what they cannot give is left
   over: the residual on the pelvis (force and moment, OpenSim's residual actuators) and each joint's reserve. Neither
   is applied to anything: they are measures of how physically possible the movement is.
 

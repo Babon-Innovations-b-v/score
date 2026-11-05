@@ -1,9 +1,10 @@
 """The physics of one person's movement, frame by frame, on the MuJoCo model Newton builds (nothing stepped):
 `Physics.needed` the generalised forces the movement needs (inverse dynamics, armature and passive forces in),
-`Physics.stops` the joints at an end of their range, and `Physics.shared` the static optimisation, one bounded least
-squares that gives the forces to the ground's pushes (`contact.pushes`), the joints' stops and the muscles' activations
-(least squared activation first, the pelvis' six balance rows BALANCE times dearer than a joint's); what they cannot
-give is the pelvis' residual and each joint's reserve, measured and never applied."""
+`Physics.stops` the joints at an end of their range, and `Physics.shared` the static optimisation in OpenSim's two
+stages (`staged`): the ground reaction force first, from the pelvis' six balance rows alone (RRA's balance on the
+ground's contacts, `contact.pushes`, then that balance shared over the touching points), then the muscles' activations
+and the joints' stops with that ground reaction force fixed (least squared activation); what they cannot give is the
+pelvis' residual and each joint's reserve, measured and never applied."""
 import mujoco
 import numpy as np
 
@@ -15,9 +16,22 @@ from model import Couplings, on_card
 from solvers import least
 
 CONTACT_COST = 1e-3  # the solve's weight of a newton of contact force (or N m of a joint's stop) against an activation
-# The solve's weight of the pelvis' residual (a newton or N m) against a joint's reserve (N m): the ground must balance
-# the whole body first, so a movement it cannot carry shows as residual, and one the muscles cannot make as reserves.
+# The weight of the pelvis' residual (a newton or N m) against a joint's reserve (N m) and in RRA's balance: the ground
+# must balance the whole body first, so a movement it cannot carry shows as residual, and one the muscles cannot make as
+# reserves.
 BALANCE = 100.0
+# The weight of a newton of contact force when the balance's wrench is shared over the touching points (`staged`'s
+# second step), against the balance's rows, and the times it is asked again for what the last sharing left of the
+# balance (iterated Tikhonov): the balance alone, its contacts at CONTACT_COST, sits on the edge of the contacts' cone
+# whenever the body cannot be balanced, where the points carrying it are near dependent (a flat floor's friction
+# pyramids), and a 1e-6 nudge of the contact columns moved its ground reaction force by up to 2.4 kN and an
+# activation by 0.74 (2026-11-05, #70: the pickup's dumped frames). Shared at this weight in two rounds, on every dumped
+# ground frame of the pickup, jump and env1's standing person, a 1e-6 nudge of the contact columns moves an activation
+# by at most 5e-3, 3e-3 and 5e-5 (medians 7e-5, 1e-5, 6e-7; one problem, at most 1.0, 0.65 and 0.08), and the pelvis'
+# residual force grows by at most 0.35, 1.8 and 0.07 N; at 0.01 the force crowded onto a few points again (0.02), at
+# 0.1 in one round the residual grew by 7.9 N.
+SHARE_COST = 0.03
+SHARE_ROUNDS = 2
 AT_STOP = 1e-4  # radians or metres: a joint this near an end of its range stands against it
 
 
@@ -137,19 +151,24 @@ class Physics:
         and force (N, tension), the residual on the pelvis (force N and moment N m, MuJoCo's frame) and each leading
         joint's reserve and net moment (N m)."""
         problem = self.problem(needed)
-        return self.share_of(problem, least(*problem["asked"]))
+        return self.share_of(problem, self.solved_all([problem], card=False)[0])
 
     def solved_all(self, problems, card=True):
-        """Each `problem`'s least squares solved: every one at once on the card (`batched.least_all`) when the model
-        is there and `card`, else one by one (`solvers.least`)."""
-        asked = [problem["asked"] for problem in problems]
+        """Each `problem`'s static optimisation solved in its two stages (`staged`), each stage's least squares every
+        frame's at once (`least_each`)."""
+        return staged(problems, lambda asked: self.least_each(asked, card))
+
+    def least_each(self, asked, card=True):
+        """Each least squares of `asked` (system, wanted, costs, highest) solved: every one at once on the card
+        (`batched.least_all`) when the model is there and `card`, else one by one (`solvers.least`)."""
         if not asked:
             return []
         return least_all(*zip(*asked)) if self.card is not None and card else [least(*one) for one in asked]
 
     def problem(self, needed):
-        """The static optimisation of the state laid in `data` (`shared`'s), unsolved: its least squares' system,
-        wanted, costs and bounds (`asked`) and what `share_of` reads of the state."""
+        """The static optimisation of the state laid in `data` (`shared`'s), unsolved: its system (the pelvis' six rows
+        first, then the leading joints'; the contacts' columns, the stops', the muscles'), wanted, costs and bounds,
+        which `staged` solves, and what `share_of` reads of the state."""
         model, data = self.model, self.data
         mapped = self.couplings.map(data.qpos)
         moments = np.zeros((model.nu, model.nv))
@@ -178,10 +197,8 @@ class Physics:
         system = mapped.T @ np.concatenate([pushes, stops, arms * gains], axis=1)
         count, held = pushes.shape[1], stops.shape[1]
         costs = np.concatenate([np.full(count + held, CONTACT_COST), np.ones(len(self.muscles))])
-        rows = np.ones(len(wanted))
-        rows[:6] = BALANCE  # the pelvis' six rows: the whole body's balance, kept before any joint's
         highest = np.concatenate([np.full(count + held, np.inf), np.ones(len(self.muscles))])
-        return {"asked": (system * rows[:, None], wanted * rows, costs, highest), "system": system, "wanted": wanted,
+        return {"costs": costs, "highest": highest, "system": system, "wanted": wanted,
                 "count": count, "held": held, "contacts": contacts, "gains": gains, "biases": biases,
                 "pushes": pushes, "mapped": mapped, "needed": needed,
                 "root": data.xmat[model.jnt_bodyid[0]].reshape(3, 3).copy()}
@@ -202,3 +219,43 @@ class Physics:
                 "forces": -(problem["gains"] * activations + problem["biases"]),
                 "residual": np.concatenate([left[:3], problem["root"] @ left[3:6]]), "reserves": left[6:],
                 "moments": net[6:]}
+
+
+def balance_asked(problem):
+    """`staged`'s first step: the contacts' forces that best give the pelvis' six rows (RRA's balance: its rows
+    BALANCE, each newton CONTACT_COST); its least squares' system, wanted, costs and bounds."""
+    count = problem["count"]
+    pelvis = problem["system"][:6, :count]
+    return BALANCE * pelvis, BALANCE * problem["wanted"][:6], np.full(count, CONTACT_COST), np.full(count, np.inf)
+
+
+def share_asked(problem, wanted):
+    """`staged`'s second step: the wrench `wanted` on the pelvis' six rows (BALANCE times theirs) shared over the
+    touching points at SHARE_COST a newton: the frame's ground reaction force."""
+    count = problem["count"]
+    return BALANCE * problem["system"][:6, :count], wanted, np.full(count, SHARE_COST), np.full(count, np.inf)
+
+
+def joints_asked(problem, ground):
+    """`staged`'s third step: the joints' stops and the muscles' activations giving the leading joints' rows with the
+    ground reaction force `ground` (the contacts' forces) fixed; costs and bounds the problem's."""
+    count = problem["count"]
+    system = problem["system"][6:]
+    return (system[:, count:], problem["wanted"][6:] - system[:, :count] @ ground, problem["costs"][count:],
+            problem["highest"][count:])
+
+
+def staged(problems, solve):
+    """Each `problem`'s static optimisation as OpenSim's (Hicks et al. 2015): the ground reaction force first, from the
+    pelvis' rows alone (`balance_asked`, then `share_asked`), then the stops and muscles with it fixed (`joints_asked`),
+    least squared activation; `solve` solves a list of least squares (system, wanted, costs, highest) at once. Each
+    problem's x: the contacts' forces, the stops', the activations. Solved as one problem the contacts' columns, at
+    CONTACT_COST, made it ill-posed: a 1e-6 nudge of them moved an activation by up to 0.79 (2026-11-05, #70)."""
+    pelvis = [BALANCE * problem["system"][:6, :problem["count"]] for problem in problems]
+    balanced = [rows @ found for rows, found in zip(pelvis, solve([balance_asked(problem) for problem in problems]))]
+    wanted = balanced
+    for _ in range(SHARE_ROUNDS):  # each round asks again for what the last one's sharing left of the balance
+        ground = solve([share_asked(problem, one) for problem, one in zip(problems, wanted)])
+        wanted = [one + target - rows @ found for one, target, rows, found in zip(wanted, balanced, pelvis, ground)]
+    rest = solve([joints_asked(problem, found) for problem, found in zip(problems, ground)])
+    return [np.concatenate([found, other]) for found, other in zip(ground, rest)]
