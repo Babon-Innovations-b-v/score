@@ -1,6 +1,7 @@
 """muscles: a body standing still on a flat ground under gravity is carried by the ground: the static optimisation
 gives the ground's push its weight and leaves almost no residual on the pelvis, the movement's needed force is its
-weight up, and the touching body's push (`touches`) is that whole push, at the ground under it. It runs in Newton's own Python (on a model Newton builds; score/stages/physics/inside/newton_env.sh,
+weight up, and the touching part's push (`touches`, the ball's body by its name) is that whole push, at the ground under
+it. It runs in Newton's own Python (on a model Newton builds; score/stages/physics/inside/newton_env.sh,
 built at $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted), 2026-10-28:
@@ -10,6 +11,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   weight down.
 2026-11-04:
 - touches' `centre = sizes @ ...` made `centre = np.zeros(3) + 1.0`: the push stands off the ground under the ball.
+2026-11-05:
+- touches' `normals = np.divide(normals, lengths, ...)` dropped: the push along its normals reads 3.2 times the push
+  (the pyramid's four edges, each `closeness` 0.8 long 1 mm over, summed).
 
 Run: .venv/bin/python score/stages/sim_body/inside/muscles/test_a_standing_body_is_carried_by_the_ground.py
 """
@@ -52,6 +56,7 @@ def the_ground_carries_a_still_body():
     """A 10 kg ball standing 1 mm over a flat ground, still: the movement needs 98.1 N up at the pelvis, the ground's
     push sums to it within 1% and the pelvis' residual force is under 1% of it."""
     import model as built_model
+    import mujoco
     import muscles
     import numpy as np
     with tempfile.TemporaryDirectory() as folder:
@@ -70,8 +75,10 @@ def the_ground_carries_a_still_body():
     if abs(pushed[2] - weight) > 0.01 * weight:
         problems.append(f"the ground pushes {pushed.round(3).tolist()} N, not {weight} N up")
     touched = share["touches"]  # the ball's one body: the whole push, at the ground straight under its lowest point
-    if list(touched) != [1] or not np.allclose(touched[1][0], pushed) or not np.allclose(touched[1][1], 0.0,
-                                                                                         atol=1e-6):
+    ball = touched.get(mujoco.mj_id2name(found, mujoco.mjtObj.mjOBJ_BODY, 1))
+    if len(touched) != 1 or ball is None or not np.allclose(ball[0], pushed) or not np.allclose(ball[1], 0.0,
+                                                                                               atol=1e-6) or not \
+            np.isclose(ball[2], pushed[2], rtol=1e-6):
         problems.append(f"touches {touched}: not the whole push at the ground under the ball")
     residual = float(np.linalg.norm(share["residual"][:3]))
     return problems + ([] if residual < 0.01 * weight else [f"residual force {residual:.3f} N"])

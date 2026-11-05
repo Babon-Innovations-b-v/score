@@ -1,6 +1,7 @@
 """contact: the ground pushes the person's skin (`Skin`, carried by the body's bones) only where it comes within GAP
 of the drawn ground, whichever drawn surface that is (a seat as a floor), inside a friction pyramid when slow and
-sliding against its slip when fast, a point blended over two bodies moving with both by its weights (worked by hand).
+sliding against its slip when fast, a point blended over two bodies moving with both by its weights, its push's
+directions as long as it is near, so a point's push fades to nothing at GAP (worked by hand).
 It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh, built at
 $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
@@ -12,6 +13,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   the skin): the ball's 3 cm collider stands 24 mm over its seat inside its 5 cm skin, and nothing is pushed.
 - Skin.jacobian's `found += self.weights[point, segment] * along` made `found += along`: the half-and-half point
   moves as fast as the ball.
+2026-11-05:
+- pushes' `closeness(over[point]) * edge` made `edge`: the point 4 mm over is pushed as freely as one on the ground,
+  so a point crossing GAP takes its whole share at once (a foot's centre of pressure 3 to 6 cm a frame).
 
 Run: .venv/bin/python score/stages/sim_body/inside/contact/test_only_a_point_within_gap_is_pushed.py
 """
@@ -87,35 +91,37 @@ def pushed(height, ground, speed=0.0):
 
 def only_a_point_within_gap_is_pushed():
     """The ball's skin (5 cm) with its bottom 4 mm over the ground: its one lowest point is pushed, along the four
-    edges of the friction pyramid (normal up, plus or minus FRICTION across); 6 mm over it, nothing is pushed."""
+    edges of the friction pyramid (normal up, plus or minus FRICTION across), each a fifth long (1 mm left of GAP's
+    5); 6 mm over it, nothing is pushed."""
     import numpy as np
     near, far = pushed(0.054, flat()), pushed(0.056, flat())
     problems = [] if len(near) == 1 and len(near[0][2]) == 4 else [f"4 mm over: {len(near)} points pushed"]
     if near and not np.allclose(sorted(np.round(edge, 9).tolist() for edge in near[0][2]),
-                                sorted([[0.0, 0.5, 1.0], [0.0, -0.5, 1.0], [0.5, 0.0, 1.0], [-0.5, 0.0, 1.0]])):
+                                sorted([[0.0, 0.1, 0.2], [0.0, -0.1, 0.2], [0.1, 0.0, 0.2], [-0.1, 0.0, 0.2]])):
         problems.append(f"4 mm over: edges {[edge.tolist() for edge in near[0][2]]}")
     return problems + ([] if not far else [f"6 mm over: {len(far)} points pushed"])
 
 
 def a_seat_carries_the_skin_on_it():
     """The ball's skin 4 mm over a seat 0.45 m up (its collider 24 mm over it): the seat pushes its one lowest point,
-    straight up (MuJoCo's z), booked on the ball; the floor under the seat pushes nothing."""
+    straight up (MuJoCo's z, a fifth long: 1 mm left of GAP), booked on the ball; the floor under the seat pushes
+    nothing."""
     import numpy as np
     found = pushed(0.45 + 0.054, seated())
     if len(found) != 1:
         return [f"on the seat: {len(found)} points pushed"]
     body, along, edges, _ = found[0]
     problems = [] if body == 1 else [f"booked on body {body}"]
-    return problems + ([] if np.allclose(np.mean(edges, axis=0), [0.0, 0.0, 1.0]) else [f"edges {edges}"])
+    return problems + ([] if np.allclose(np.mean(edges, axis=0), [0.0, 0.0, 0.2]) else [f"edges {edges}"])
 
 
 def a_fast_point_slides_against_its_slip():
     """The same ball moving 2 m/s along x (over SLIDE_MOST, 1.2 m/s): one edge, the normal and FRICTION of it
-    against the slip, (-0.5, 0, 1)."""
+    against the slip, (-0.5, 0, 1), a fifth long (4 mm over)."""
     import numpy as np
     found = pushed(0.054, flat(), 2.0)
     edges = found[0][2] if found else []
-    return [] if len(edges) == 1 and np.allclose(edges[0], [-0.5, 0.0, 1.0]) else [f"sliding edges {edges}"]
+    return [] if len(edges) == 1 and np.allclose(edges[0], [-0.1, 0.0, 0.2]) else [f"sliding edges {edges}"]
 
 
 def a_blended_point_moves_by_its_weights():

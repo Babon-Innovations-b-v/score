@@ -7,6 +7,7 @@ give is the pelvis' residual and each joint's reserve, measured and never applie
 import mujoco
 import numpy as np
 
+from bone_groups import FEET
 from contact import pushes
 from ground import normals
 from model import Couplings
@@ -19,25 +20,42 @@ BALANCE = 100.0
 AT_STOP = 1e-4  # radians or metres: a joint this near an end of its range stands against it
 
 
-def touches(contacts, each):
-    """Each touching body's push and where it acts ({body: (force N, centre of pressure m)}, MuJoCo's frame): its
-    points' pushes (`each`, the solve's, a row a contact) summed, the centre their ground points under them weighed by
-    each push's size; a body the solve gives no push is left out."""
+def parts_of(model, bodies):
+    """The part each body's push is booked on ({body: name}): a foot is one part, its toes' body under its foot's
+    name (`bodies`: {segment: body}, the FEET segments among them), every other body its own MuJoCo name."""
+    found = {body: mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, body) for body in range(model.nbody)}
+    for segment, body in bodies.items():
+        if segment.endswith(FEET):
+            found[body] = segment.removesuffix("ToeBase").removesuffix("Foot") + "Foot"
+    return found
+
+
+def touches(contacts, each, parts):
+    """Each touching part's push and where it acts ({part: (force N, centre of pressure m, normal push N, the ground
+    points under its touching skin m)}, MuJoCo's frame): its points' pushes (`each`, the solve's, a row a contact)
+    summed over the part (`parts`: a foot's calcaneus and toes together, `parts_of`), the centre their ground points
+    under them weighed by each push along its contact's normal (its edges' sum: a friction pyramid's four edges sum
+    to four times the normal); a part the solve pushes nothing along its normals is left out."""
     found = {}
-    for body in sorted({contact[0] for contact in contacts}):
-        mine = [number for number, contact in enumerate(contacts) if contact[0] == body]
-        sizes = np.linalg.norm(each[mine], axis=1)
+    for part in sorted({parts[contact[0]] for contact in contacts}):
+        mine = [number for number, contact in enumerate(contacts) if parts[contact[0]] == part]
+        normals = np.array([np.sum(contacts[number][2], axis=0) for number in mine])
+        lengths = np.linalg.norm(normals, axis=1, keepdims=True)  # 0 for a point at GAP, `contact.closeness`
+        normals = np.divide(normals, lengths, out=np.zeros_like(normals), where=lengths > 0)
+        sizes = np.einsum("ij,ij->i", each[mine], normals)
         if sizes.sum() > 0:
-            centre = sizes @ np.array([contacts[number][3] for number in mine]) / sizes.sum()
-            found[int(body)] = (each[mine].sum(axis=0), centre)
+            under = np.array([contacts[number][3] for number in mine])
+            found[part] = (each[mine].sum(axis=0), sizes @ under / sizes.sum(), float(sizes.sum()), under)
     return found
 
 
 class Physics:
     """One person's MuJoCo model as Newton built it, and the frame by frame share of its movement's forces."""
 
-    def __init__(self, model, ground, skin):
+    def __init__(self, model, ground, skin, parts=None):
+        """`parts` the part each body's push is booked on (`parts_of`; by default every body its own name)."""
         self.model, self.data = model, mujoco.MjData(model)
+        self.parts = parts_of(model, {}) if parts is None else parts
         self.couplings = Couplings(model)
         self.ground, self.up = ground, normals(ground)
         self.skin = skin  # the person's drawn surface the ground pushes (`contact.Skin`)
@@ -77,7 +95,7 @@ class Physics:
 
     def shared(self, needed):
         """The needed forces shared out: each contact's push (N, MuJoCo's frame, by body), each touching body's push
-        and its centre of pressure (`touches`), each muscle's activation
+        and its centre of pressure (`touches`: a foot one part), each muscle's activation
         and force (N, tension), the residual on the pelvis (force N and moment N m, MuJoCo's frame) and each leading
         joint's reserve and net moment (N m)."""
         model, data = self.model, self.data
@@ -118,6 +136,6 @@ class Physics:
             each[number] += weight * edge
         root = data.xmat[model.jnt_bodyid[0]].reshape(3, 3)
         net = mapped.T @ (needed - pushes @ pushed)
-        return {"pushes": forces, "touches": touches(contacts, each), "activations": activations,
+        return {"pushes": forces, "touches": touches(contacts, each, self.parts), "activations": activations,
                 "forces": -(gains * activations + biases),
                 "residual": np.concatenate([left[:3], root @ left[3:6]]), "reserves": left[6:], "moments": net[6:]}

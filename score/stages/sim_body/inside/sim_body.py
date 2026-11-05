@@ -56,12 +56,15 @@ of each driven dof), "com height" (m, frame 0, over its ground), "frames":
 [{"angles": [[x, y, z] degrees, rotation vector, per SOMA segment but the first, against its parent, as the body's
 segment riding its bone turns], "targets": [...the clip's...], "torques": [N m per joint], "ground": [x, y, z] N
 (the ground's push), "lowest": m (the lowest skin
-point's height over the ground, null off it), "touches": {body: [the ground's push on it, xyz N, and its centre of
-pressure on the ground, xyz m]} (every body the ground pushes: feet, a seat under the thighs, a bed under the back),
+point's height over the ground, null off it), "touches": {part: [the ground's push on it, xyz N, and its centre of
+pressure on the ground, xyz m]} (every part the ground pushes: each foot, its calcaneus and toes as one, by its Foot
+segment's name, a seat under a thigh, a bed under the back, by its body's; low-passed over each span it touches, as the
+path is: `records.steadied`),
 "feet": {segment: [its lowest skin point's height over the ground
 (null off it), the ground's upward push on it N]} (FEET), "residual": [force xyz N, moment xyz N m], "reserve": N m
 (the largest joint reserve), "activations": [0..1 per muscle], "forces": [N per muscle, tension]}],
-"adjusted": RRA's moves (`adjustment_record`)}}}, everything in the person's own frame (Y
+"adjusted": RRA's moves (`adjustment_record`), "pushes": the pushes' measures against the physics
+(`records.push_measures`)}}}, everything in the person's own frame (Y
 up); and beside it <out>.npz, per person: `<name>/bones` (each body's pose every frame, frames x bodies x 7),
 `<name>/segments` (each SOMA segment riding its bone every frame, frames x segments x 7: turned by the calibration
 table, at its start joint's centre, `fit.riding`), `<name>/paths` (every muscle's path points, all frames end to end),
@@ -81,7 +84,7 @@ from bone_groups import FEET, groups
 from contact import Skin
 from landmarks import at_starts
 from model import TO_OWN, body_index, built, carried, filtered, posed_path, rates
-from muscles import Physics
+from muscles import Physics, parts_of
 from records import adjustment_record, arrays, bones_of, com_height, entry, frames
 from rra import Footing, off_clip, reduced, within_follows, within_frames
 from sizing import Size
@@ -172,7 +175,7 @@ def run_person(job, person, out_path):
     bodies = {segment: body_index(model, rides[segment]) for segment in segments}
     riding = fit.riding(model, scales, segments)
     skin = skin_of(rig, segments, bodies, riding)
-    physics = Physics(model, ground, skin)
+    physics = Physics(model, ground, skin, parts_of(model, bodies))
     feet = {segment: np.flatnonzero(skin.owners == bodies[segment]) for segment in segments if segment.endswith(FEET)}
     qpath = filtered(model, physics.couplings, carried(own, model, angles), job["rate"])
     names = [str(name) for name in person["rig"]["names"]]
@@ -215,11 +218,11 @@ def run_person(job, person, out_path):
     meshes = bones_of(own_model)
     drawn = sorted(meshes)
     drawn_ids = [body_index(model, name) for name in drawn]
-    records, bones, posed, paths, counts = frames(physics, qpath, velocities, accelerations, worlds, ground, riders,
-                                                  feet, drawn_ids)
+    records, bones, posed, paths, counts, pushed = frames(physics, qpath, velocities, accelerations, worlds, ground,
+                                                          riders, feet, drawn_ids, job["rate"])
     mine = arrays(person["name"], bones, posed, paths, counts, meshes)
     return entry(model, record, (muscles, joints, drawn), rides, qpath[0], ground, job["gravity"], adjustment,
-                 records), mine
+                 records, pushed), mine
 
 
 def run(job_path, out_path):

@@ -1,11 +1,13 @@
 """What the run writes for one person (out.json's entry and <out>.npz's arrays, the contract the stage reads): each
-frame's record (`frames`: the body's and the clip's segment turns, the joints' moments, the ground's push, each touching body's push and centre of pressure, the feet,
+frame's record (`frames`: the body's and the clip's segment turns, the joints' moments, the ground's push, each touching part's push and centre of pressure (a foot one part, steadied over the clip: `steadied`), the feet,
 the residual and reserve, the muscles' activations and forces; the poses the skin plays are SOMA's own, the stage's)
 with the arrays drawn beside
 (each body's and segment's pose, the muscles' paths), the bone meshes (`bones_of`), the arrays by name (`arrays`),
-the person's entry (`entry`) and RRA's `adjusted` record (`adjustment_record`)."""
+the person's entry (`entry`, its pushes' measures `push_measures`, judged for a quiet stance by `push_faults`) and RRA's
+`adjusted` record (`adjustment_record`)."""
 import mujoco
 import numpy as np
+from scipy.spatial import ConvexHull, QhullError
 from scipy.spatial.transform import Rotation
 
 from bone_groups import LACKS
@@ -13,8 +15,18 @@ from contact import lowest_over
 from ground import heights_over
 from model import TO_OWN, own_pose
 from rra import RRA_ROUNDS, turned_off
+from solvers import smoothed
 
 BONE_CELL = 0.005  # metres: the drawn bones' vertices merged within this
+QUIET = 0.02  # a frame whose movement needs its weight up within 2% of it is quiet stance (`push_measures`)
+# A quiet stance's pushes (`push_faults`): their sum within 5% of the weight, each centre of pressure on its ground
+# within 1 mm and within 1 cm of the ground under its touching skin, a part's push changing at most 2% of the weight
+# a frame and its centre at most 5 mm a frame while the same parts touch.
+QUIET_OFF = 5.0  # % of the weight
+OFF_GROUND = 1.0  # mm
+OUTSIDE = 10.0  # mm
+QUIET_JUMP = 2.0  # % of the weight a frame
+QUIET_SHIFT = 5.0  # mm a frame
 
 
 def segment_pose(world):
@@ -100,34 +112,114 @@ def adjustment_record(moved_by, kept, shares, step, before, after, segments, fol
             "follows deg": [round(follows[0], 3), round(follows[1], 3)]}
 
 
-def touched(model, touches):
-    """Each touching body's push and its centre of pressure on its ground ({body name: [force xyz N, centre xyz m]},
-    the person's frame), from `Physics.shared`'s `touches`."""
-    return {mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, body): [*np.round(TO_OWN @ force, 3).tolist(),
-                                                                       *np.round(TO_OWN @ centre, 4).tolist()]
-            for body, (force, centre) in touches.items()}
+def touched(touches):
+    """Each touching part's push, centre of pressure, push along its normals and its touching skin's ground points
+    ({part: (force xyz N, centre xyz m, N, points m)}, the person's frame), from `Physics.shared`'s `touches`."""
+    return {part: (TO_OWN @ force, TO_OWN @ centre, size, under @ TO_OWN.T)
+            for part, (force, centre, size, under) in touches.items()}
 
 
-def frames(physics, path, velocities, accelerations, worlds, ground, riders, feet, drawn_ids):
+def runs(on):
+    """The spans of frames on end ([(start, end)], end past the last) where `on` holds."""
+    edges = np.flatnonzero(np.diff(np.concatenate([[0], np.asarray(on, int), [0]])))
+    return list(zip(edges[::2], edges[1::2]))
+
+
+def steadied(raw, rate, ground):
+    """Each frame's touching parts' pushes and centres of pressure ([{part: [force xyz N, centre xyz m]}], the
+    person's frame) from the solve's (`raw`, `touched`'s a frame), low-passed as the path is (`solvers.smoothed`)
+    over each span of frames the part touches: its force, its push along its normals and that push's moment about
+    the origin, the centre their quotient, set on its ground. A part has a push only on a frame it touches (the solve
+    shares the load between a foot's points afresh each frame: their centre moved 3 to 6 cm a frame standing,
+    2026-11-05, #70)."""
+    found = [{} for _ in raw]
+    for part in sorted({part for touches in raw for part in touches}):
+        for start, end in runs([part in touches for touches in raw]):
+            span = [raw[frame][part] for frame in range(start, end)]
+            forces = smoothed(np.array([force for force, _, _, _ in span]), rate)
+            sizes = smoothed(np.array([size for _, _, size, _ in span]), rate)
+            moments = smoothed(np.array([size * centre for _, centre, size, _ in span]), rate)
+            for offset in np.flatnonzero(sizes > 0):
+                centre = moments[offset] / sizes[offset]
+                centre[1] -= np.nan_to_num(heights_over(centre[None], ground)[0])
+                found[start + offset][part] = [*np.round(forces[offset], 3).tolist(), *np.round(centre, 4).tolist()]
+    return found
+
+
+def outside(centre, points):
+    """How far a centre of pressure lies outside its touching skin's ground points, across the ground (x, z; m): 0
+    within their hull, else to its nearest edge (to the nearest point where they span no area)."""
+    flat, at = points[:, [0, 2]], np.asarray(centre)[[0, 2]]
+    try:
+        hull = ConvexHull(flat)
+    except (QhullError, ValueError):
+        return float(np.linalg.norm(flat - at, axis=1).min())
+    if (hull.equations[:, :2] @ at + hull.equations[:, 2] <= 1e-12).all():
+        return 0.0
+    corners = flat[hull.vertices]
+    ends = np.roll(corners, -1, axis=0)
+    along = np.clip(np.einsum("ij,ij->i", at - corners, ends - corners) / np.einsum("ij,ij->i", ends - corners,
+                                                                                      ends - corners), 0.0, 1.0)
+    return float(np.linalg.norm(corners + along[:, None] * (ends - corners) - at, axis=1).min())
+
+
+def push_measures(steady, raw, needs, weight, ground):
+    """How the record's pushes (`steady`, `steadied`'s) stand against the physics (out.json's `pushes`): on the quiet
+    stance frames (`needs`, the movement's needed force on the pelvis, the person's frame, within QUIET of the
+    weight up) their sum's largest miss of the weight (%), its frames, and each part's largest change from one quiet
+    frame to the next while the same parts touch (% of the weight, mm); on every frame each centre's largest height
+    off its ground and distance outside its touching skin's ground points (`raw`'s; mm)."""
+    quiet = [frame for frame, need in enumerate(needs) if np.linalg.norm(need - [0.0, weight, 0.0]) <= QUIET * weight]
+    sums = [sum(push[1] for push in steady[frame].values()) for frame in quiet]
+    jumps, shifts = [0.0], [0.0]
+    for frame, after in zip(quiet, quiet[1:]):
+        if after == frame + 1 and steady[frame].keys() == steady[after].keys():
+            for part, push in steady[after].items():
+                jumps.append(np.linalg.norm(np.subtract(push[:3], steady[frame][part][:3])))
+                shifts.append(np.linalg.norm(np.subtract(push[3:], steady[frame][part][3:])))
+    centres = [(push[3:], raw[frame][part][3]) for frame, touches in enumerate(steady) for part, push in touches.items()]
+    heights = heights_over(np.array([centre for centre, _ in centres]), ground) if centres else np.zeros(0)
+    return {"quiet frames": len(quiet),
+            "quiet off weight %": round(100 * max((abs(found - weight) for found in sums), default=0.0) / weight, 2),
+            "quiet jump % weight": round(100 * float(max(jumps)) / weight, 2),
+            "quiet centre jump mm": round(1000 * float(max(shifts)), 2),
+            "centre off ground mm": round(1000 * float(np.nanmax(np.abs(heights), initial=0.0)), 3),
+            "centre outside mm": round(1000 * max((outside(centre, points) for centre, points in centres),
+                                                  default=0.0), 2)}
+
+
+def push_faults(measures):
+    """What a quiet stance's push record breaks (`push_measures`'s, against QUIET_OFF, OFF_GROUND, OUTSIDE,
+    QUIET_JUMP and QUIET_SHIFT): [] when nothing."""
+    limits = {"quiet off weight %": QUIET_OFF, "centre off ground mm": OFF_GROUND, "centre outside mm": OUTSIDE,
+              "quiet jump % weight": QUIET_JUMP, "quiet centre jump mm": QUIET_SHIFT}
+    return [f"{name} {measures[name]} over {most}" for name, most in limits.items() if measures[name] > most]
+
+
+def frames(physics, path, velocities, accelerations, worlds, ground, riders, feet, drawn_ids, rate):
     """Every frame's record and the drawn arrays beside it: its physics shared out (`Physics.shared`), its segments
-    riding their bones (`riders`: segments, bodies, riding, parents), the feet (`feet`: {segment: its skin points}); returns
-    the records, each drawn body's poses, each segment's, the muscles' paths and their point counts. The poses the
-    skin plays are SOMA's own, written by the stage (#70: SOMA is the truth, never moved)."""
+    riding their bones (`riders`: segments, bodies, riding, parents), the feet (`feet`: {segment: its skin points}), its
+    touching parts' pushes steadied over the clip (`steadied`, at the clip's `rate`); returns the records, each drawn
+    body's poses, each segment's, the muscles' paths, their point counts and the pushes' measures (`push_measures`).
+    The poses the skin plays are SOMA's own, written by the stage (#70: SOMA is the truth, never moved)."""
     model = physics.model
     segment_names, bodies, riding, parents = riders
-    found, bones, segments, paths, counts = [], [], [], [], []
+    found, bones, segments, paths, counts, raw, needs = [], [], [], [], [], [], []
     for frame in range(len(path)):
-        share = physics.shared(physics.needed(path[frame], velocities[frame], accelerations[frame]))
+        needed = physics.needed(path[frame], velocities[frame], accelerations[frame])
+        share = physics.shared(needed)
         data = physics.data
         posed = [own_pose(model, data, bodies[segment]) @ riding[segment] for segment in segment_names]
         pushes = share["pushes"] @ TO_OWN.T
+        raw.append(touched(share["touches"]))
+        needs.append(TO_OWN @ needed[:3])
         found.append({
             "angles": np.round(local_turns(posed, parents), 3).tolist(),  # the body's segments' turns
             "targets": np.round(local_turns(worlds[frame], parents), 3).tolist(),
             "torques": np.round(share["moments"], 3).tolist(),
             "ground": np.round(pushes.sum(axis=0), 3).tolist(),
             "lowest": rounded(lowest_over(model, data, physics.skin, ground)),
-            "touches": touched(model, share["touches"]),
+            "touches": None,  # steadied over the clip below
             "feet": {segment: [rounded(lowest_over(model, data, physics.skin, ground, points)) if len(points) else None,
                                round(float(pushes[bodies[segment], 1]), 3)] for segment, points in feet.items()},
             "residual": np.round(np.concatenate([TO_OWN @ share["residual"][:3], TO_OWN @ share["residual"][3:]]),
@@ -140,7 +232,11 @@ def frames(physics, path, velocities, accelerations, worlds, ground, riders, fee
         mine = [_path_of(data, tendon) for tendon in model.actuator_trnid[physics.muscles, 0]]
         counts.append([len(points) for points in mine])
         paths.append(np.concatenate(mine) @ TO_OWN.T)
-    return found, bones, segments, paths, counts
+    steady = steadied(raw, rate, ground)
+    for record, touches in zip(found, steady):
+        record["touches"] = touches
+    weight = float(sum(model.body_mass) * np.linalg.norm(model.opt.gravity))
+    return found, bones, segments, paths, counts, push_measures(steady, raw, needs, weight, ground)
 
 
 def arrays(name, bones, segments, paths, counts, meshes):
@@ -156,14 +252,15 @@ def arrays(name, bones, segments, paths, counts, meshes):
     return found
 
 
-def entry(model, record, names, rides, qpos, ground, gravity, adjustment, records):
+def entry(model, record, names, rides, qpos, ground, gravity, adjustment, records, pushed):
     """One person's out.json entry: its model record with what MyoFullBody lacks, its muscles, joints, drawn bones
     and the body each segment rides (`names`: those four), the centre of mass' height at `qpos` over the ground, its
-    mass and weight, RRA's `adjusted` record and every frame's record."""
+    mass and weight, RRA's `adjusted` record, every frame's record and its pushes' measures (`pushed`,
+    `push_measures`)."""
     muscles, joints, drawn = names
     weight = sum(model.body_mass) * gravity
     return {"model": {**record, "lacks": {key: value for key, value in LACKS.items()}},
             "muscles": muscles, "joints": joints, "bones": drawn, "rides": rides,
             "com height": round(com_height(model, qpos, ground), 4),
             "kg": round(float(sum(model.body_mass)), 3),
-            "weight N": round(float(weight), 2), "adjusted": adjustment, "frames": records}
+            "weight N": round(float(weight), 2), "adjusted": adjustment, "pushes": pushed, "frames": records}
