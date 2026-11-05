@@ -18,6 +18,8 @@ Breaks, each seen red once (2026-11-04):
   worktree, whose path alone is carried, and every job dies in its first second (2026-11-04).
 - (2026-11-05) `in_stock_order`'s `key` dropped -> a scarce H100 asked first is fixed for the call and its jobs wait
   for stock while an L40S and an L4 stand free.
+- (2026-11-05) `uncarried`'s `path.exists()` test made `False` -> a go.sh reading clips never carried goes up, and the
+  job ends at once with 0 of 6.
 """
 import json
 import os
@@ -86,3 +88,8 @@ def test_a_measure_job_carries_its_folders_and_runs_each_go_in_turn_until_its_mi
              Offer(machine_class="gpu-48gb", stock_word="available"), Offer(machine_class="gpu-24gb", stock_word="available")]
     asked = ["gpu-80gb-x2-48c", "gpu-80gb-x2", "gpu-80gb", "gpu-48gb", "gpu-24gb"]
     assert cloud.in_stock_order(asked, found) == ["gpu-48gb", "gpu-24gb", "gpu-80gb-x2-48c", "gpu-80gb-x2", "gpu-80gb"]
+
+    outside = tmp_path / "clips"
+    outside.mkdir()
+    (first / "scripts" / "go.sh").write_text(f"#!/bin/bash\nPY=${{PY:-{outside}}}\nls {outside}\n")
+    assert cloud.uncarried([first], []) == [str(outside)] and cloud.uncarried([first], [outside]) == []

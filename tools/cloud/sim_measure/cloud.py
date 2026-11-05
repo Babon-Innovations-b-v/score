@@ -24,6 +24,7 @@ checkout's card queue ran from a worktree, whose path alone went up, and every j
 import argparse
 import importlib.util
 import pathlib
+import re
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -81,6 +82,17 @@ def in_stock_order(classes, found):
     return sorted(classes, key=lambda name: rank[name])
 
 
+def uncarried(folders, carries):
+    """The paths the folders' scripts name that exist here but would not go up: under none of the folders or carries
+    (2026-11-05: a measure's go.sh read the mean body's clips, never carried, and the job ended at once with 0 of 6)."""
+    given = [*folders, *carries]
+    named = {pathlib.Path(word.rstrip(";,)}'\"")) for folder in folders
+             for script in sorted((folder / "scripts").rglob("*")) if script.is_file()
+             for word in re.findall(r"(?<!:-)/(?:home|tmp)/[^\s\"'$]+", script.read_text(errors="replace"))}
+    return sorted(str(path) for path in named
+                  if path.exists() and not any(path.is_relative_to(root) for root in given))
+
+
 def job(folders, carries, minutes, bring_every):
     """The one job for blender_cloud.py: on_machine.py in the Newton env over the folders in order."""
     arguments = [*folders, "--minutes", minutes - level1.STOP_EARLY, "--repo", blender_cloud.REPO]
@@ -110,6 +122,9 @@ def main():
     if written:
         raise SystemExit(f"a repo path written in {', '.join(map(str, written))}: name it from ${{REPO}}, set on the "
                          "machine to the carried repo")
+    left = uncarried(folders, [carry.resolve() for carry in options.carry])
+    if left:
+        raise SystemExit(f"the scripts read {', '.join(left)}, which would not go up: --carry it")
     folder = folders[0] / "cloud"
     folder.mkdir(exist_ok=True)
     path = folder / f"{level1.time.strftime('%Y%m%d-%H%M%S')}.json"
