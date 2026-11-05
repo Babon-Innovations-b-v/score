@@ -392,6 +392,18 @@ def test_the_wait_for_stock_doubles_up_to_half_an_hour_and_never_past_the_deadli
     assert batch.claim_rounds(run, "account", [], 1, "pixal", 60, None) == {"machine": 1}
     assert [round(wait / 60) for wait in waits[:3]] == [3, 6, 12]
     assert 19 * 60 < waits[3] <= 20 * 60 and len(waits) == 4  # the fourth (24 min) cut to the 20 min left
+    # the wait for stock is marked as one, so the runaway watch leaves it out (2026-11-05, people-clips-made); break:
+    # in `parked_within`, drop both `preflight.mark_waiting()` calls
+    monkeypatch.undo()
+    import park
+    import preflight
+    marks = []
+    monkeypatch.setattr(preflight, "mark_waiting", lambda: marks.append("waiting"))
+    monkeypatch.setattr(preflight, "unmark_waiting", lambda: marks.append("done"))
+    monkeypatch.setattr(park, "PARKED_POLL_SECONDS", 0.01)
+    monkeypatch.setattr(batch, "park_taken", lambda *arguments: None)
+    assert batch.parked_within(run, [], 1, "pixal", 60, 0.05) is None
+    assert marks[0] == "waiting" and marks[-1] == "done" and marks.count("waiting") >= 2, marks
 
 
 def test_a_runs_rent_fees_are_its_machines_disk_and_address_lines_failed_rents_included(monkeypatch, tmp_path):
