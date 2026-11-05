@@ -1,8 +1,8 @@
 # score/stages/sim_body/inside/contact/
 
 The body on the scene's ground: `Skin` (the person's drawn surface, SOMA's mesh, each point the blend of the
-segments its weights name, each segment riding its bone: the contact surface, a seat's as a floor's), `lowest_over`
-and `pushes` (the skin points the ground pushes: within `GAP` of the drawn triangle under them or into it, a friction
+segments its weights name, each segment riding its bone: the contact surface, a seat's as a floor's), `lowests`
+(the whole skin's lowest point over its ground and each part's, placed once) and `pushes` (the skin points the ground pushes: within `GAP` of the drawn triangle under them or into it, a friction
 pyramid under `SLIDE_MOST`, else sliding against the slip, each acting at the ground under it: the record's `touches`, each part's push and centre
 of pressure, `muscles.touches`), each point's push directions `closeness` long (1 on or into the ground, 0 at `GAP`),
 so a point's push fades in as it comes within `GAP` and the solve never hands a point crossing it its whole share at

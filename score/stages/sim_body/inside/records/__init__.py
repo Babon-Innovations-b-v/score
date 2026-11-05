@@ -11,7 +11,7 @@ from scipy.spatial import ConvexHull, QhullError
 from scipy.spatial.transform import Rotation
 
 from bone_groups import LACKS
-from contact import lowest_over
+from contact import lowests
 from ground import heights_over
 from model import TO_OWN, own_pose
 from rra import RRA_ROUNDS, turned_off
@@ -29,26 +29,35 @@ QUIET_JUMP = 2.0  # % of the weight a frame
 QUIET_SHIFT = 5.0  # mm a frame
 
 
-def segment_pose(world):
-    """A 4 x 4 as [x, y, z, qx, qy, qz, qw]."""
-    return [*world[:3, 3], *Rotation.from_matrix(world[:3, :3]).as_quat()]
+def segment_poses(worlds):
+    """Each of several 4 x 4s as [x, y, z, qx, qy, qz, qw] (n x 7), in one rotation call (#70: one call a pose)."""
+    worlds = np.asarray(worlds)
+    return np.concatenate([worlds[:, :3, 3], Rotation.from_matrix(worlds[:, :3, :3]).as_quat()], axis=1)
 
 
 def local_turns(worlds, parents):
-    """Each segment but the first against its parent, as rotation vectors in degrees."""
-    return [Rotation.from_matrix(worlds[parent][:3, :3].T @ worlds[index][:3, :3]).as_rotvec(degrees=True)
-            for index, parent in enumerate(parents) if parent >= 0]
+    """Each segment but the first against its parent, as rotation vectors in degrees (n x 3, one rotation call)."""
+    worlds = np.asarray(worlds)
+    children = [index for index, parent in enumerate(parents) if parent >= 0]
+    if not children:
+        return np.zeros((0, 3))
+    above = worlds[[parents[index] for index in children], :3, :3]
+    return Rotation.from_matrix(np.matmul(above.transpose(0, 2, 1), worlds[children, :3, :3])).as_rotvec(degrees=True)
 
 
 def rounded(value):
     return None if value is None else round(value, 5)
 
 
-def _path_of(data, tendon):
-    """A tendon's path points now (MuJoCo's frame): its wrap points, a pulley's (a break between branches, at the
-    origin) left out."""
-    span = slice(data.ten_wrapadr[tendon], data.ten_wrapadr[tendon] + data.ten_wrapnum[tendon])
-    return data.wrap_xpos.reshape(-1, 3)[span][data.wrap_obj.reshape(-1)[span] != -2]
+def paths_of(data, tendons):
+    """The tendons' path points now, end to end in `tendons`' order (MuJoCo's frame), and each one's count: its wrap
+    points, a pulley's (a break between branches, at the origin) left out; one gather for them all."""
+    tendons = np.asarray(tendons, dtype=int)
+    starts, sizes = data.ten_wrapadr[tendons], data.ten_wrapnum[tendons]
+    owner = np.repeat(np.arange(len(tendons)), sizes)
+    at = np.repeat(starts - np.cumsum(sizes) + sizes, sizes) + np.arange(sizes.sum())
+    kept = data.wrap_obj.reshape(-1)[at] != -2
+    return data.wrap_xpos.reshape(-1, 3)[at[kept]], np.bincount(owner[kept], minlength=len(tendons))
 
 
 def merged(points, faces):
@@ -213,25 +222,26 @@ def frames(physics, path, velocities, accelerations, worlds, ground, riders, fee
         pushes = share["pushes"] @ TO_OWN.T
         raw.append(touched(share["touches"]))
         needs.append(TO_OWN @ needed[:3])
+        lowest, lowest_feet = lowests(model, data, physics.skin, ground, feet)
         found.append({
             "angles": np.round(local_turns(posed, parents), 3).tolist(),  # the body's segments' turns
             "targets": np.round(local_turns(worlds[frame], parents), 3).tolist(),
             "torques": np.round(share["moments"], 3).tolist(),
             "ground": np.round(pushes.sum(axis=0), 3).tolist(),
-            "lowest": rounded(lowest_over(model, data, physics.skin, ground)),
+            "lowest": rounded(lowest),
             "touches": None,  # steadied over the clip below
-            "feet": {segment: [rounded(lowest_over(model, data, physics.skin, ground, points)) if len(points) else None,
-                               round(float(pushes[bodies[segment], 1]), 3)] for segment, points in feet.items()},
+            "feet": {segment: [rounded(lowest_feet[segment]), round(float(pushes[bodies[segment], 1]), 3)]
+                     for segment in feet},
             "residual": np.round(np.concatenate([TO_OWN @ share["residual"][:3], TO_OWN @ share["residual"][3:]]),
                                  3).tolist(),
             "reserve": round(float(np.abs(share["reserves"]).max(initial=0.0)), 3),
             "activations": np.round(share["activations"], 4).tolist(),
             "forces": np.round(share["forces"], 2).tolist()})
-        segments.append([segment_pose(world) for world in posed])
-        bones.append([segment_pose(own_pose(model, data, body)) for body in drawn_ids])
-        mine = [_path_of(data, tendon) for tendon in model.actuator_trnid[physics.muscles, 0]]
-        counts.append([len(points) for points in mine])
-        paths.append(np.concatenate(mine) @ TO_OWN.T)
+        segments.append(segment_poses(posed))
+        bones.append(segment_poses([own_pose(model, data, body) for body in drawn_ids]))
+        mine, many = paths_of(data, model.actuator_trnid[physics.muscles, 0])
+        counts.append(many)
+        paths.append(mine @ TO_OWN.T)
     steady = steadied(raw, rate, ground)
     for record, touches in zip(found, steady):
         record["touches"] = touches
