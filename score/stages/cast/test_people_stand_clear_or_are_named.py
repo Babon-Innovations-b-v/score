@@ -1,5 +1,5 @@
 """The cast stands every person and crowd copy on something solid, clear of every solid and of each other, or leaves
-them out by name; a look with no usable dressed body is an accepted gap named down the line, never a stand-in
+them out by name; a look with no usable dressed body fails the characters layer by name, never a stand-in
 (cast/__init__.py, measure.py, spread.py, layer.py); a person whose place's sim body ran plays its simulated motion,
 its feet on its sim body's, and one without keeps its clip, named (driven.py).
 
@@ -18,6 +18,7 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `cast.overlaps`: `< measure.KNEE` read as `< 100`  -> the overlap test (bodies on two levels overlap).
 - `cast.off_ground`: `> STAND_SLACK` read as `> 1.0`  -> the standing test.
 - `cast.short_of`: the packed `not crowd["copies"]` branch dropped  -> the packed crowd test.
+- `driven.bodiless`: `.startswith(NO_BODY)` read as `False` (a person with no body passes)  -> the no dressed body test.
 - `cast.made_row`: `row if row in inputs else None` read as `row`  -> the made test (a look with no dress row made).
 - `spread.on_ground`: `not grounds or` read as `True or`  -> the grounds test (spots between the two grounds).
 - `spread.far_enough`: `< FAR_SHARE` read as `<= 1.0`  -> the views test (the copy before the door kept).
@@ -374,8 +375,9 @@ def test_a_look_is_made_only_by_its_own_usable_dress_row():
 
 
 def test_a_person_with_no_dressed_body_is_left_out_and_named_never_laid_in_a_stand_in(tmp_path):
-    """The characters layer with no dress row given: nobody laid, each named, the gate passing with the gaps as
-    findings, and complete's people check (tools/usd/contents.py) failing each by name."""
+    """The characters layer with no dress row given: nobody laid, each named, its bodies gate failing with each person
+    with no body as a finding (the owner's GAP rule), and complete's people check (tools/usd/contents.py) failing each
+    by name."""
     (tmp_path / "cast").mkdir()
     bram = {"name": "bram", "character": "bram", "look": "bram/work", "at": [1.0, 0.0, 2.0], "turn": 90.0,
             "doing": "standing", "start": 0.0}
@@ -391,6 +393,9 @@ def test_a_person_with_no_dressed_body_is_left_out_and_named_never_laid_in_a_sta
     assert not stage.GetPrimAtPath("/hub/Characters").GetChildren()
     verdict = layer.judge_laid(out, inputs, None)
     assert verdict.answer == checks.PASS and verdict.measures["missing"] == 2, verdict
+    bodies = driven.judge_bodies(out, inputs, None)
+    assert bodies.answer == checks.FAIL and bodies.measures["no body"] == 2, bodies
+    assert bodies.findings[0] == "bram (bram/work): no accepted body of its look (people-dress-bram-work)"
     assert verdict.findings[0] == "bram (bram/work): no accepted body of its look (people-dress-bram-work)"
     sys.path.insert(0, str(REPO / "tools/usd"))
     import contents

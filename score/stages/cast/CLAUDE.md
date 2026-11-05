@@ -54,8 +54,10 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
 - **The characters layer** (`layer.py`, row `characters-layer@<place>`) lays each person of the accepted cast in
   their own look's accepted dressed body (`people-dress-<look>`); a person whose cast names no look, or whose look has
   no usable body (its dress rows are optional reads, `Stage.optional`), is left out, named in `characters.json`,
-  and the row passes with the gaps as findings, so the place assembles and complete's people check fails each gap
-  by name (overseer, 2026-10-13). Never lay a stand-in body.
+  and the row fails its `bodies` gate naming each person with no body (`driven.judge_bodies`; the owner's GAP rule,
+  2026-11-05: a place with a person with no body fails, so a body never made cannot pass silently; it replaced the
+  overseer's pass-with-findings of 2026-10-13; in driven.py, not layer.py's `laid`, which the cast, scene-record and
+  scene-clips rows import); a crowd with no copy stood is the cast's `counted` gate's. Never lay a stand-in body.
 - **A person moves by its sim body** (`driven.py`, #65, PRD #56): where the place's `sim-body` row stands (an
   optional read of the characters layer, with `people-clips-made`'s rig), each person's skeleton plays its sim body's
   joints and root path and the sim body is laid beside it; one without keeps its clip, named. Gate `on its sim body`:
