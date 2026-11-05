@@ -18,6 +18,10 @@ render that never passes) and a store of its own; the machine's score_lib checko
     traced                    unknown with no library, pass on the good fixture, fail naming the photo on the bad one
     the report's shape        the shared example is on the contract, field for field (both repositories read it)
     a slow library            a run past its timeout is a transient error (tried again by the runner)
+    no frozen copy named      inside a run's frozen copy, the library's command (a library row's, the handover
+                              process's) and handed.spawn's process name no copy in words or environment, and a child
+                              the command left running ends with its row (2026-11-05: on the conductor they kept the
+                              copy busy, so every carry, clean-cache and clean-frozen refused)
     the defaults              the environment wins over the defaults; the cloud's store only when no blob folder is set
     the real table            the two rows read every row of their grain but straight-masks, the showcase renders
                               optional, both free, and no row reads them (owner, 2026-10-22: no paid preview)
@@ -41,15 +45,24 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   handed.hand_waiting: no record_failure; handed.drain: hand once (`while` -> `if`, no second look after the lock);
   handed.covered: count an unpushed report; web.hand_accept: say started without starting (every accept handed,
   2026-11-02).
+- backend.run: words or environment not through `outside`/`outside_frozen`; no `ended(process.pid)` after the command;
+  handed.spawn: the environment only its SCORE_FROZEN marks dropped (the run's PYTHONPATH kept) (no frozen copy
+  named, 2026-11-05).
+- backend.passed_on: its `os.killpg(group, number)` dropped, or `return {}` always (a run's stop never reaches the command in
+  its own session: review of 2026-11-05).
 """
 import json
 import os
 import pathlib
+import signal
+import subprocess
 import sys
+import time
 
 import pytest
 
 from score import checks, contracts, graph
+from score.conductor import disk
 from score.stages import library
 from score.review import web
 from score.stages.library import backend, checks as library_checks, demos, handed, handover, invariant, pictures, sweep
@@ -373,13 +386,83 @@ def test_the_shared_example_report_is_on_the_contract():
     assert handover.report_faults(dict(example, covered=[{"node": "x"}])), "a covered row without its keys passed"
 
 
-def test_a_slow_library_is_a_transient_error(tmp_path, monkeypatch):
+def test_a_slow_library_is_a_transient_error_and_no_handover_leaves_a_process_naming_a_frozen_copy(
+        tmp_path, monkeypatch):
+    # a run's frozen copy and its home, as graph/frozen.py lays them out, and the run's environment naming them
+    home, copy = tmp_path / "home", tmp_path / "home/frozen/run-1"
+    (home / "frozen/run-1.home/store/objects").mkdir(parents=True)
+    copy.mkdir()
+    monkeypatch.setenv("SCORE_FROZEN", str(copy))
+    monkeypatch.setenv("PROPS_HOME", f"{copy}.home")
+    monkeypatch.setenv("PYTHONPATH", f"{copy}/score/stages/props/ledger_tag{os.pathsep}/elsewhere")
+    seen = tmp_path / "seen.json"
+    (tmp_path / "lingers.py").write_text(  # the library's command leaving a child running, its words and environment
+        "import json, os, subprocess, sys\n"
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+        f"open({str(seen)!r}, 'w').write(json.dumps({{'words': sys.argv, 'environment': dict(os.environ), "
+        "'child': child.pid}))\n")
+    backend.run([sys.executable, str(tmp_path / "lingers.py"), "--repo", str(copy), "--out",
+                 f"{copy}.home/store/cache/making/k"], {"SCORE_LIB_ROOT": str(tmp_path)},
+                f"{copy}.home/store/objects", str(copy))
+    said = json.loads(seen.read_text())
+    assert copies_named(home, said["words"], said["environment"]) == [], said  # neither words nor environment
+    assert said["words"][said["words"].index("--repo") + 1] == str(backend.main_checkout())
+    assert said["environment"]["PROPS_HOME"] == str(home)
+    deadline = time.monotonic() + 5
+    while running(said["child"]) and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert not running(said["child"]), "a child of the handover outlived its row"
+    assert disk.working(home / "frozen") == {}  # the conductor's own count: nothing works in the copy
+
     (tmp_path / "slow.py").write_text("import time; time.sleep(5)")
     monkeypatch.setattr(backend, "TIMEOUT", 1)
     with pytest.raises(TimeoutError) as raised:
         backend.run([sys.executable, str(tmp_path / "slow.py")], {"SCORE_LIB_ROOT": str(tmp_path)}, tmp_path,
                     tmp_path)
     assert graph.transient(raised.value)
+
+    # the run's stop reaches the command in its own session: passed on to its group, then handled as before
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"], start_new_session=True)
+    heard = []
+    before = signal.signal(signal.SIGTERM, lambda number, frame: heard.append(number))
+    try:
+        passed = backend.passed_on(child.pid)
+        os.kill(os.getpid(), signal.SIGTERM)
+        assert child.wait(5) == -signal.SIGTERM and heard == [signal.SIGTERM], (child.poll(), heard)
+        for number, handler in passed.items():
+            signal.signal(number, handler)
+    finally:
+        signal.signal(signal.SIGTERM, before)
+        child.kill()
+
+
+    # the detached handover process a run's accept starts (handed.spawn) names no frozen copy either
+    started, checkout = [], backend.main_checkout()
+    monkeypatch.setattr(backend, "main_checkout", lambda: checkout)
+    monkeypatch.setattr(handed.subprocess, "Popen", lambda words, **given: started.append((words, given)))
+    handed.spawn(Store.in_folder(home / "store"), {"world": WORLD, "commit": "c" * 40, "route": "r"})
+    (words, given), = started
+    assert copies_named(home, words, given["env"]) == [], given["env"]
+
+
+def copies_named(home, words, environment):
+    """The words and variables (NAME=value) that name a copy under `home`/frozen, as the conductor reads them
+    (disk.working: a whole word, a variable's value, each path of a path list)."""
+    found = []
+    for word in words + [f"{name}={value}" for name, value in environment.items()]:
+        value = word.partition("=")[2] if "=" in word and not word.startswith("/") else word
+        if any(disk.copy_named(home / "frozen", part) for part in value.split(os.pathsep) if part):
+            found.append(word)
+    return found
+
+
+def running(pid):
+    """Whether the process `pid` still runs (a zombie waiting to be reaped has ended)."""
+    stat = pathlib.Path(f"/proc/{pid}/stat")
+    try:
+        return stat.read_text().rsplit(") ", 1)[1][0] != "Z"
+    except FileNotFoundError:
+        return False
 
 
 def test_the_environment_wins_over_the_defaults_and_the_cloud_store_only_without_a_blob_folder(monkeypatch):

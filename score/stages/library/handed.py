@@ -41,7 +41,6 @@ from score.stages.library import backend, handover
 FOLDER = "library-handed"
 WORLD_FOLDER = "_world"
 FAILED, AGAIN, LOCK, NEXT = "failed.json", ".again", ".lock", "next"
-FROZEN_VARIABLES = ("SCORE_FROZEN", "SCORE_FROZEN_OWNER", "SCORE_FROZEN_CHANGES")
 LIBRARY_ROWS = (library.PLACE_ROW, library.WORLD_ROW)
 
 
@@ -191,22 +190,16 @@ def drain(store, world, job_of, nodes_of_now, say=print):
             return
 
 
-def main_checkout():
-    """The repository's main checkout: the one every worktree and a run's frozen copy share their objects with."""
-    common = subprocess.run(["git", "-C", str(library.REPO), "rev-parse", "--path-format=absolute",
-                             "--git-common-dir"], capture_output=True, text=True, check=True).stdout.strip()
-    return pathlib.Path(common).parent
-
-
 def spawn(store, job):
     """Start the handover process for `job` ({world, commit, route}), detached, from the main checkout on the real
-    home; its output in `<store root>/logs/library-handed-<world>.log`."""
-    checkout = main_checkout()
+    home, nothing in its environment naming a run's frozen copy (backend.outside_frozen: a run's ledger tagging on
+    PYTHONPATH named it, 2026-11-05); its output in `<store root>/logs/library-handed-<world>.log`."""
+    checkout = backend.main_checkout()
     python = checkout / ".venv/bin/python"
     words = [str(python if python.exists() else sys.executable), "-m", "score.stages.library.handed",
              "--world", job["world"]]
     words += [word for option in ("commit", "route") if job.get(option) for word in (f"--{option}", job[option])]
-    environment = {name: value for name, value in os.environ.items() if name not in FROZEN_VARIABLES}
+    environment = backend.outside_frozen(dict(os.environ), checkout)
     environment["PROPS_HOME"] = str(store_root(store).parent)
     log = store_root(store) / "logs" / f"library-handed-{job['world']}.log"
     log.parent.mkdir(parents=True, exist_ok=True)
