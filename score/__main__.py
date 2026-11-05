@@ -618,13 +618,13 @@ def card_rows(runner, places, whole, options):
 
 
 def pool_sizes(rows, jobs):
-    """{class: cards} of the run's warm card pool from its card rows (card_rows): what at most `jobs` of them can hold
-    at once (pool.counts_for), all of the cheapest class every kind but the judge and the 20B picture model holds
+    """{class: cards} of the run's warm card pool from its card rows (card_rows): the most at most `jobs` of them can
+    hold at once over the run, its cards and its processor machines each (pool.reach), all of the cheapest class every kind but the judge and the 20B picture model holds
     (capacity.SPEED_ORDER's first); a row of another class asks for one when it claims (pool.want). The renders and
     bakes are sized the same way on the pool's processor machines instead (pool.with_processors), which they take
     before its cards (park.processor_first: faster for them, 2026-10-23). {} for a run with no card row."""
     pool = cloud_tool("pool")
-    cards, processors = pool.counts_for([(line, count, on) for _, line, count, on in rows], jobs)
+    cards, processors = pool.reach([(line, count, on) for _, line, count, on in rows], jobs)
     if not cards and not processors:
         return {}
     return pool.with_processors({cloud_tool("capacity").SPEED_ORDER[0]: cards} if cards else {}, processors)
