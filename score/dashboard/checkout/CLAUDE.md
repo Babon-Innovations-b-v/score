@@ -40,7 +40,7 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
   ENV1 DONE IS COMPELTED"): only a higher batch total needs a new yes. `buy <id>` first makes the basket again
   from the runner's plan now (`flow.basket_made`, make.py plan only, free, as a sync pass does), so it buys what the
   plan buys at the approved places (`screens.now_items`' filters, `--no-film`'s `left_out`), never an older pass's
-  basket the run "would also buy" beyond (2026-11-05); his click still buys the items he chose. A try whose stop needs more than is left still launches, the line at
+  basket the run "would also buy" beyond (2026-11-05), and at the places approved now (`chat_yes.approved_now`: prepare's own `design.designs` run at launch over the store and the code running, never its saved design record, which a fix to the design rule leaves stale until the next pass; refused with its cause, the yes unused, when it fails); his click still buys the items he chose. A try whose stop needs more than is left still launches, the line at
   his total, and stops there (owner, 2026-10-27: "not just stop when u got to the limit, like ur supposed to"); the
   checkout's words, the door's `batch-money` (`may_stop`) and the Buy page say it may stop before every step is made. The checkout's `by` and `chat_yes` name the yes; the monitor and Buy page show it.
   `buy <id>` again under a yes that launched a checkout is a retry of its batch (`chat-<id>-retry-N`), no new ask,
