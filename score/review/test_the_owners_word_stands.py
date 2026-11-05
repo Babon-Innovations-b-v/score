@@ -289,7 +289,10 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     plans.py: `return room_at(draw["room"], size) != room_at(room, size)` made `return False`
 - test_rewriting_a_parent_keeps_its_locked_childrens_rooms_and_only_his_edit_moves_them_or_hides:
     plans.py: `return {"plan": locked_rooms_kept(store, place, plan), "how": "written"` made `return {"plan": plan,
-    "how": "written"`
+    "how": "written"`; plans.py `own_edit`: `and record.get("how") != "redrawn"` dropped (a redrawing unlocks a lock
+    drawn before rooms were recorded); `moved`: `and not (mine and drawn == room_at(own_room(store, place), size))`
+    dropped (a redrawing unlocks a lock on a recorded room); `his_since = edit["at"] if edit else since` made
+    `his_since = since` (a redrawing after his lock unlocks it)
 - test_a_scene_he_added_in_the_app_is_a_place_once_its_design_is_done:
     plans.py: `return shown is not None and shown["how"] != "derived"` made `return shown is not None`
 - test_a_parent_scene_with_no_data_of_its_own_is_a_place_once_its_design_is_done:
@@ -2513,9 +2516,17 @@ def test_rewriting_a_parent_keeps_its_locked_childrens_rooms_and_only_his_edit_m
                               "method": plan_writing.METHOD, "by": "test", "at": concepts.now(), "plan": moved})
     assert plans.current(store, "yard")["how"] == "written" and plans.room_of(store, "shed") == room
     assert not concepts.plan_changed(store, "shed")
+    # nor does a free redrawing (a design fix under his standing word, #72) that moves and turns the room: 2026-11-05,
+    # the base's and the square's redrawings put every held place's lock out of date
+    asked = {"words": "design fixes following his rules are ours", "at": "2026-11-05T03:00", "reason": "its doors"}
+    turned = {**room, "x": room["x"] + 1.0, "turn": 45}
+    plans.redrawn(store, "yard", {"holds": [turned]}, "an agent", asked)
+    assert plans.room_of(store, "shed")["turn"] == 45 and not concepts.plan_changed(store, "shed")
     store.write_once("concepts/shed/draws/0.json", {"place": "shed", "sha": "d" * 64, "at": "2026-10-01T00:00"})
     concepts.pick(store, "shed", "d" * 64, "joey")  # locked on a draw from before rooms were recorded
     assert not concepts.plan_changed(store, "shed")  # a writing since moves no locked room
+    plans.redrawn(store, "yard", {"holds": [{**turned, "y": room["y"] + 1.0}]}, "an agent", asked)
+    assert not concepts.plan_changed(store, "shed")  # nor a redrawing since
     plans.edited(store, "yard", {**plan, "holds": [{**room, "w": 6.0}]}, "joey")
     assert concepts.plan_changed(store, "shed")  # his edit does
     plan_writing.kept(store, {"place": "yard", "concept": PICK, "reading": plan_writing.reading_at(store, "yard"),
@@ -2523,6 +2534,9 @@ def test_rewriting_a_parent_keeps_its_locked_childrens_rooms_and_only_his_edit_m
     shown = plans.current(store, "yard")
     assert shown["how"] == "edited" and shown["plan"]["holds"][0]["w"] == 6.0  # his edit over a newer writing
     assert shown["plan"]["gaps"][-1]["kind"] == "edited"
+    concepts.pick(store, "shed", "d" * 64, "joey")  # locked again on his edit's room
+    plans.redrawn(store, "yard", {"holds": [{**room, "w": 6.0, "turn": 90}]}, "an agent", asked)
+    assert not concepts.plan_changed(store, "shed")  # a redrawing after his lock moves it no more
 
 
 def test_a_scene_he_added_in_the_app_is_a_place_once_its_design_is_done(store, data, tmp_path):
