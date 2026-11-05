@@ -309,7 +309,8 @@ def bake_checked(row):
                                checks=(guarded("baked matches its surfaces", bake_check.judge_lit),
                                        guarded("triangles within budget", bake_check.judge_triangles),
                                        guarded("stands level", bake_check.judge_stance),
-                                       guarded("stands square", bake_check.judge_square)),
+                                       guarded("stands square", bake_check.judge_square),
+                                       guarded("texture layout sound", bake_check.judge_layout)),
                                files=check_files)
 
 
@@ -608,7 +609,8 @@ BATCH_GATES = {"pixal": ("takes",), "finish-route-list": ("library first",),
                # the bake's own gates, held after it: a take or model they fail is named a gap by the row's make
                # (route_paint.py, route_check.py)
                "surfaces-paint": ("one surface a part", "colour against the close-up", "feet in one plane"),
-               "surfaces-check": ("baked matches its surfaces", "triangles within budget", "stands level"),
+               "surfaces-check": ("baked matches its surfaces", "triangles within budget", "stands level",
+                                  "texture layout sound"),
                "finish-route-recheck": ("library surface fits",), "likeness": ALL, "complete": ALL,
                "sound": ("likeness", "events", "voices"), "crops-layer": ("on beds", "spacing"),
                "crops-look": ("density",), "motion": ("designed",)}

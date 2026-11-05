@@ -60,7 +60,14 @@ tests it turned red:
 - bake_check.py: `order = np.argsort(colour, axis=0)` -> `order = np.repeat(np.argsort(colour[:, 0])[:, None],
   colour.shape[1], axis=1)`  -> a_part_s_baked_colour_is_its_area_s_median_on_each_channel
 - bake_check.py: `owners[chosen] = np.where(found >= 0, chosen[np.maximum(found, 0)], chosen)` -> `owners[chosen] =
-  chosen`  -> a_triangle_under_a_texel_is_named_by_where_the_bake_wrote_its_texel
+  chosen`  -> a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
+- uv_layout.py: `return -0.5 * (` -> `return 0.5 * (`  ->
+  a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
+- uv_layout.py: `return shares, int((counts > 1).sum()), int((counts > 0).sum())` -> `return shares, 0, 1`  ->
+  a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
+- uv_layout.py: `keys = np.concatenate([geometry["positions"], geometry["uvs"]], axis=1)` -> `keys =
+  np.arange(len(geometry["positions"]))[:, None]`  ->
+  a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
 - bake_check.py: `surface = ray_surfaces(geometry, laid, codes, entry["size"], sampled)` -> `surface =
   np.full(len(middles), -1)`  -> a_baked_triangle_beside_a_thin_post_is_named_by_the_bake_s_ray_not_the_nearest_part
 - bake_check.py: `found.append(round(float(chosen[:, 1].min() - low[1]), 3))` -> `found.append(0.0)`  ->
@@ -940,10 +947,13 @@ def test_a_part_s_baked_colour_is_its_area_s_median_on_each_channel():
     assert bake_check.area_median(colour, np.array([0.0] * 43 + [1.0] * 29 + [0.0] * 28)).tolist() == grey
 
 
-def test_a_triangle_under_a_texel_is_named_by_where_the_bake_wrote_its_texel():
+def test_a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model():
     """The flat's bowl stack, bake of 2026-10-13: its glass rims' triangles lie under a texel each, so the texel the
     check samples for one was baked from the centre's point on a neighbour (enamel), and its glass failed at dE 66.6
-    while the bake was right. The check names the sampled texel by the ray from that point, as the bake did."""
+    while the bake was right. The check names the sampled texel by the ray from that point, as the bake did. And the
+    layout the bake wrote (#92, uv_layout.py): a mirrored, overlapping, stretched, sparse (a twentieth of the density,
+    the old hidden share), out-of-picture or too-thin square fails "texture layout sound" by its model, a sound pair
+    passes, a model with no layout measured is unknown."""
     enamel = trimesh.creation.box(bounds=[[-1.0, 0.0, -0.05], [0.0, 1.0, 0.05]])
     glass = trimesh.creation.box(bounds=[[0.0, 0.0, -0.05], [1.0, 1.0, 0.05]])
     # one large triangle over the enamel covering texel (0, 0)'s centre in a 2 x 2 texture, one sliver over the glass
@@ -965,6 +975,57 @@ def test_a_triangle_under_a_texel_is_named_by_where_the_bake_wrote_its_texel():
         names, texel_named, _ = bake_check.baked_surfaces(geometry, folder, entry, (points, owners))
     assert [names[index] for index in middle_named] == ["enamel_white", "glass"], middle_named
     assert [names[index] for index in texel_named] == ["enamel_white", "enamel_white"], texel_named
+    # #92: the texture layout the bake wrote, each fault on 1 m squares in a 1024 x 1024 picture, named by its model
+    import uv_layout
+
+    def squares(*layouts):
+        """One 1 m square a layout (its four corners' texture coordinates, glTF's v down), side by side in x."""
+        corners = [[[x + left, 0.0, z] for x, z in ((0, 0), (1, 0), (1, 1), (0, 1))]
+                   for left, _ in zip(itertools.count(2), layouts)]
+        return {"positions": np.array(corners, dtype=float).reshape(-1, 3),
+                "uvs": np.array(layouts, dtype=float).reshape(-1, 2),
+                "triangles": np.array([[base + 0, base + 1, base + 2] if half == 0 else [base + 0, base + 2, base + 3]
+                                       for base in range(0, 4 * len(layouts), 4) for half in (0, 1)]),
+                "maps": np.zeros(2 * len(layouts), dtype=int)}
+
+    def laid(low_u, low_v, wide, tall):
+        # the bake's own winding: x along u, z up the picture
+        return [[low_u, low_v + tall], [low_u + wide, low_v + tall], [low_u + wide, low_v], [low_u, low_v]]
+    sound = [laid(0.1, 0.1, 0.3, 0.3), laid(0.1, 0.5, 0.3, 0.3)]
+    cases = {"sound": [*sound, laid(0.5, 0.1, 0.3, 0.3)],
+             "mirrored": [*sound, [corner for corner in reversed(laid(0.5, 0.1, 0.3, 0.3))]],
+             "overlap": [*sound, laid(0.2, 0.2, 0.3, 0.3)],
+             "stretched": [*sound, laid(0.5, 0.1, 0.4, 0.4 / (2 * uv_layout.STRETCH))],
+             # the bake's old hidden share: a face given a twentieth of the density (bake.py HIDDEN_SHARE)
+             "sparse": [*sound, laid(0.5, 0.1, 0.3 * 0.05, 0.3 * 0.05)],
+             "outside": [*sound, laid(0.8, 0.1, 0.3, 0.3)]}
+    records = {name: uv_layout.layout_record(uv_layout.measure(squares(*layout), [(1024, 1024)]))
+               for name, layout in cases.items()}
+    assert uv_layout.faults(records["sound"]) == [] and records["sound"]["median_texels_per_m"] > 300, records["sound"]
+    for name in ("mirrored", "overlap", "stretched", "sparse", "outside"):
+        named = uv_layout.faults(records[name])
+        assert len(named) == 1 and named[0].startswith(uv_layout.WORDS[name]), (name, named, records[name])
+    thin = uv_layout.layout_record(uv_layout.measure(squares(*sound, laid(0.5, 0.5, 0.0005, 0.0005)), [(1024, 1024)]))
+    assert thin["thin"] == round(1 / 3, 4) and [fault for fault in uv_layout.faults(thin) if fault.startswith(
+        uv_layout.WORDS["thin"])], thin
+    # a split corner at a hard normal edge (the same position and texture coordinate twice) is one chart, not two
+    split = squares(laid(0.1, 0.1, 0.5, 0.5))
+    split["positions"] = np.concatenate([split["positions"], split["positions"][[0, 2]]])
+    split["uvs"] = np.concatenate([split["uvs"], split["uvs"][[0, 2]]])
+    split["triangles"][1] = [4, 5, 3]
+    # (its width the square's 2 * 512^2 / (4 * 512) texels, a lone half's 150)
+    assert np.allclose(uv_layout.measure(split, [(1024, 1024)])["width"], 256.0)
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        (folder / "checks.json").write_text(json.dumps({name: {"layout": record} for name, record in records.items()}))
+        verdict = bake_check.judge_layout(folder, {}, None)
+        (folder / "checks.json").write_text(json.dumps({"crate": {"missing_maps": ["base_color"]}}))
+        unmeasured = bake_check.judge_layout(folder, {}, None)
+    assert verdict.answer == "fail" and sorted(finding.split(":")[0] for finding in verdict.findings) == [
+        "mirrored", "outside", "overlap", "sparse", "stretched"], verdict.findings
+    assert unmeasured.answer == "unknown", unmeasured
+    assert "texture layout sound" in [check.name for check in stages.bake_checked(
+        {row.name: row for row in surfaces.ROWS}["surfaces-check"]).checks]
 
 
 def test_a_baked_triangle_beside_a_thin_post_is_named_by_the_bake_s_ray_not_the_nearest_part():
