@@ -15,7 +15,8 @@ current key asks for; `disk` accounts for the whole data disk, store-gc removes 
 with no run live, and the sweep frees room itself, asking the owner only for a bigger disk, priced.
 
 Break that turns it red: in size.decide grow while a run is live (drop the claims/running wait); in kill.stop_everything
-release the parked machines before closing the pools; or in logs drop the secret-shape test (an AIza key reaches the
+release the parked machines before closing the pools, or drop its `stop_cluster` call (score's cluster Jobs left
+running); or in logs drop the secret-shape test (an AIza key reaches the
 tails); or in disk.kept drop the registered-run test (a waiting run's copy is removed).
 """
 import datetime
@@ -317,7 +318,8 @@ def test_stop_this_batch_stops_its_run_and_machines_and_leaves_paid_work_allowed
     try:
         report = kill.stop_everything("owner", "this batch", folder=home / "runs", parked=home / "parked",
                                       release=lambda *machine: released.append(machine),
-                                      close_pools=lambda: ["run-1"], latched=False)
+                                      close_pools=lambda: ["run-1"], latched=False,
+                                      stop_cluster=lambda: 'job.batch "score-r-a-g0" deleted')
         live.wait(10)
     finally:
         live.kill()
@@ -325,6 +327,7 @@ def test_stop_this_batch_stops_its_run_and_machines_and_leaves_paid_work_allowed
     assert report["runs"] == [live.pid] and released == [("m1", "fr-par-2", "t1")] and report["pools"] == ["run-1"]
     assert report["free_only"] is None and not conductor.free_only()
     assert list(conductor.HOME.glob("batch-stop-*.json")) and not list(conductor.HOME.glob("kill-*.json"))
+    assert report["cluster_jobs"] == 'job.batch "score-r-a-g0" deleted'  # score's cluster Jobs too (#95)
 
 
 def test_a_stop_ends_every_process_left_in_the_copy_of_a_run_gone_and_leaves_a_stopping_runs_to_it(home, monkeypatch):

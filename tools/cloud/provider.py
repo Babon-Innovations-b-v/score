@@ -74,11 +74,35 @@ def card_gb(machine_class):
 # SCORE_CLOUD=k8s sends the runners' work to a Kubernetes cluster (tools/cloud/k8s/) instead of renting machines;
 # the cluster's provider, whose backend still gives the registry, the store, prices and secrets, is SCORE_K8S_PROVIDER.
 CLUSTER = "k8s"
+# SCORE_CLOUD_KINDS="pixal,blender,library,settle,characters" narrows SCORE_CLOUD=k8s to those job kinds (#76): every
+# other kind rents machines from the cluster provider's backend as before. Unset, every kind goes to the cluster.
+CLUSTER_KINDS = "SCORE_CLOUD_KINDS"
+# The job kind of a runner started as its own script, for a runner that names none (its file is a declared input of
+# paid rows, so it is not edited to pass one): the script's name, as capacity.py and the ledger know its kind.
+RUNNER_KINDS = {"batch.py": "pixal", "blender_cloud.py": "blender", "library_bake.py": "library",
+                "characters.py": "characters", "parts.py": "parts", "meshparts.py": "meshparts",
+                "pictures.py": "pictures", "scene.py": "scene", "segment.py": "segment", "judge.py": "judge",
+                "moss_sound.py": "moss-sound"}
 
 
-def on_cluster():
-    """Whether the runners send their work to the Kubernetes cluster (SCORE_CLOUD=k8s) instead of rented machines."""
-    return os.environ.get("SCORE_CLOUD") == CLUSTER
+def cluster_kinds():
+    """The job kinds SCORE_CLOUD_KINDS sends to the cluster, or None when it is unset (every kind)."""
+    named = os.environ.get(CLUSTER_KINDS)
+    if named is None:
+        return None
+    return {kind.strip() for kind in named.split(",") if kind.strip()}
+
+
+def on_cluster(kind=None):
+    """Whether the runners send the work of job kind `kind` (else this process's runner's, RUNNER_KINDS) to the
+    Kubernetes cluster (SCORE_CLOUD=k8s, and the kind among SCORE_CLOUD_KINDS when that is set) instead of rented
+    machines. A kind that cannot be told stays on machines once SCORE_CLOUD_KINDS is set."""
+    if os.environ.get("SCORE_CLOUD") != CLUSTER:
+        return False
+    kinds = cluster_kinds()
+    if kinds is None:
+        return True
+    return (kind or RUNNER_KINDS.get(pathlib.Path(sys.argv[0] if sys.argv else "").name)) in kinds
 
 
 def cluster_provider():

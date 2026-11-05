@@ -171,6 +171,14 @@ def processor_able(stage, entries):
     return bool(kinds) and kinds <= set(capacity.PROCESSOR_KINDS)
 
 
+def on_cluster(stage, entries):
+    """Whether `stage`'s work goes to the Kubernetes cluster (provider.on_cluster, SCORE_CLOUD_KINDS), so no warm pool
+    machine is sized for it: the stage named as a kind there (settle), or every kind its measured batches (ledger
+    `entries` under its tickets) were of; False for a stage with none measured that is not named."""
+    kinds = preflight.batch_kinds(preflight.stage_entries(entries, stage))
+    return provider.on_cluster(stage) or (bool(kinds) and all(provider.on_cluster(kind) for kind in kinds))
+
+
 def processor_class(found=None):
     """The pool's processor class: the first of capacity.PROCESSORS with an offer in stock (the backend offers only
     a type and zone with quota), else the first offered at all; None when the backend offers none. `found`: the

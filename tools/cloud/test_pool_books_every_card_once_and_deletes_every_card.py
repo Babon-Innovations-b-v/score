@@ -902,6 +902,14 @@ def test_a_render_stages_high_minutes_hold_on_a_processor_machine_under_the_pool
     entries = [ledger_line(stage, kind, n) for stage, kind in (("look", "blender"), ("model", "pixal")) for n in range(3)]
     assert pool.processor_able("look", entries) and not pool.processor_able("model", entries)
     assert not pool.processor_able("unbought", entries)
+    # a stage whose kind goes to the cluster is sized on no pool machine (#76): by its measured kind, or its own name
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("SCORE_CLOUD", "k8s")
+        patch.setenv("SCORE_CLOUD_KINDS", "pixal,settle")
+        assert pool.on_cluster("model", entries) and pool.on_cluster("settle", entries)
+        assert not pool.on_cluster("look", entries) and not pool.on_cluster("unbought", entries)
+        patch.delenv("SCORE_CLOUD")
+        assert not pool.on_cluster("model", entries)
     calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})
     card_only = preflight.node_run(entries, "look")["high_minutes"]
     pool.release(run_id)

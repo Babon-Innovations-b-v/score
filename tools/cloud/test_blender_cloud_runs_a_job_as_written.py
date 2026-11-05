@@ -21,13 +21,14 @@ No machine is rented: each test reads the command, job or offers the module buil
 - test_a_cluster_job_keeps_the_paths_and_the_engine_follows_the_class: in `cluster_job`, `card = any(provider.cards(name)
   for name in classes)` -> `card = True`; or in `cluster_line`, `if not job.get("env"):` -> `if True:` (a Newton drop
   run in the blender image, which has no Newton); or in `run_on_cluster`, `numbers[index]` -> `index` (a failed
-  drop reported as another job).
+  drop reported as another job); or in `cluster_kind`, `return kind` for every call (settling's drops not their own
+  kind for SCORE_CLOUD_KINDS); or in `cloud_python`, `provider.on_cluster()` (the kind dropped).
 - test_the_runner_python_follows_props_home: `CLOUD_PYTHON = HOME / "env/bin/python"` -> `CLOUD_PYTHON =
   pathlib.Path.home() / ".farm-factory-props/env/bin/python"`.
 - test_one_class_is_fixed_at_price_time_and_no_stock_keeps_the_first: in batch.py `one_class_in_stock`, `next(iter(stocked
   + sold), None)` -> `next(iter(sold), None)` (the first class asked though another is in stock).
 - test_a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks: in `one_job`, `    kept.keep(job, system(), **keeping)`
-  -> `    pass`.
+  -> `    pass` (`kept.keep(job, system(False), **keeping)`).
 - test_a_job_that_brought_none_of_its_outputs_back_failed: in `one_job`, `if
   job.get("outputs") and not came:` -> `if False:`; or in `run_job`, drop `inputs.link_named(log_folder, host,
   job.get("outputs", ()))`.
@@ -218,6 +219,13 @@ def test_a_cluster_job_keeps_the_paths_and_the_engine_follows_the_class(monkeypa
         lambda kind, jobs, who, classes, image: sent.append((image, len(jobs))) or failing[image])}))
     assert blender_cloud.run_on_cluster([job, drop, job], ["gpu-24gb"], "test") == [1]
     assert sorted(sent) == [("blender", 2), ("newton", 1)]
+    # SCORE_CLOUD_KINDS (#76): settling's drops are their own kind; other Blender jobs are blender's
+    render = dict(job, script="tools/blender/inside/render_views.py")
+    assert blender_cloud.cluster_kind([job]) == "settle" and blender_cloud.cluster_kind([job, render]) == "blender"
+    monkeypatch.setenv("SCORE_CLOUD", "k8s")
+    monkeypatch.setenv("SCORE_CLOUD_KINDS", "settle")
+    assert blender_cloud.cloud_python("settle") != blender_cloud.CLOUD_PYTHON  # the repo's Python, with boto3
+    assert blender_cloud.cloud_python() == blender_cloud.CLOUD_PYTHON  # other Blender jobs stay on machines
 
 
 def runner_python_under(props_home):
@@ -261,7 +269,7 @@ def test_a_rerun_of_a_cut_off_run_buys_only_the_jobs_it_lacks(tmp_path, monkeypa
     jobs = [{"script": "tools/blender/inside/usd_views.py", "args": [str(number)], "inputs": [],
              "outputs": [str(making / f"shot{number}.png")], "minutes": 1} for number in range(2)]
     monkeypatch.setenv(kept.CODE, "turntable row code")
-    monkeypatch.setattr(blender_cloud, "system", lambda: "this test's machine")
+    monkeypatch.setattr(blender_cloud, "system", lambda cluster=None: "this test's machine")
     monkeypatch.setenv(kept.STORE, str(tmp_path / "store"))
     monkeypatch.setenv(kept.MAKING, str(making))
     monkeypatch.setattr(blender_cloud.batch, "say", lambda line: None)
@@ -285,7 +293,7 @@ def test_a_job_that_brought_none_of_its_outputs_back_failed(tmp_path, monkeypatc
     job = {"script": "score/stages/surfaces/inside/paint_bake.py", "args": [], "inputs": [],
            "outputs": [str(making / "labelled" / "crate"), str(making / "made")], "minutes": 1}
     monkeypatch.setenv(kept.CODE, "surfaces-bake row code")
-    monkeypatch.setattr(blender_cloud, "system", lambda: "this test's machine")
+    monkeypatch.setattr(blender_cloud, "system", lambda cluster=None: "this test's machine")
     monkeypatch.setenv(kept.STORE, str(tmp_path / "store"))
     monkeypatch.setenv(kept.MAKING, str(making))
     said, linked = [], []
@@ -322,7 +330,7 @@ def test_jobs_side_by_side_on_one_machine_bring_their_outputs_back_one_at_a_time
             bringing[0] -= 1
         return set()
     monkeypatch.setattr(blender_cloud, "bring_back", bring_back)
-    monkeypatch.setattr(blender_cloud, "system", lambda: "this test's machine")
+    monkeypatch.setattr(blender_cloud, "system", lambda cluster=None: "this test's machine")
     job = {"script": "score/stages/surfaces/inside/paint_bake.py", "args": [], "inputs": [],
            "outputs": [str(tmp_path / "made")], "minutes": 1}
     slots = [threading.Thread(target=blender_cloud.run_job, args=(tmp_path, "this-pc", number, job, True))
@@ -347,7 +355,7 @@ def test_a_job_keeps_only_the_files_its_copy_back_wrote(tmp_path, monkeypatch):
     monkeypatch.setenv(kept.MAKING, str(making))
     monkeypatch.setenv(kept.CODE, "surfaces-bake row code")
     monkeypatch.setenv(kept.STORE, str(tmp_path / "store"))
-    monkeypatch.setattr(blender_cloud, "system", lambda: "this test's machine")
+    monkeypatch.setattr(blender_cloud, "system", lambda cluster=None: "this test's machine")
     for name in ("say", "remote"):
         monkeypatch.setattr(blender_cloud.batch, name, lambda *args, **keywords: None)
     monkeypatch.setattr(blender_cloud, "send_inputs", lambda *args: None)
@@ -386,7 +394,7 @@ def test_jobs_writing_into_one_output_are_refused_by_name_before_any_runs(tmp_pa
         paths.append(tmp_path / f"job{number}.json")
         paths[-1].write_text(json.dumps(job))
     monkeypatch.setattr(sys, "argv", ["blender_cloud.py", *map(str, paths), "--who", "test"])
-    monkeypatch.setattr(blender_cloud, "still_to_run", lambda jobs: pytest.fail("kept jobs put back"))
+    monkeypatch.setattr(blender_cloud, "still_to_run", lambda jobs, cluster=None: pytest.fail("kept jobs put back"))
     with pytest.raises(SystemExit, match="both write into"):
         blender_cloud.main()
 
@@ -423,7 +431,7 @@ def test_a_job_whose_pictures_sum_past_this_pcs_machine_is_refused_by_name_befor
                                   "alone_cap": staticmethod(lambda: "3g"),
                                   "account": staticmethod(lambda: pytest.fail("priced a job too big for this PC"))})
     monkeypatch.setattr(blender_cloud, "cloud", machine)
-    monkeypatch.setattr(blender_cloud, "still_to_run", lambda jobs: jobs)
+    monkeypatch.setattr(blender_cloud, "still_to_run", lambda jobs, cluster=None: jobs)
     monkeypatch.setattr(blender_cloud, "TAKE_MARKS", tmp_path / "marks")
     assert blender_cloud.too_big_here([small]) is None
     assert blender_cloud.alone_need([small, big]) == {"memory_gb": blender_cloud.predicted_bytes(big) / 2**30,

@@ -33,6 +33,15 @@ runners in `tools/cloud/` stay as they are.
   the bakes 24 GB first). So a Job is allowed on its kind's classes one at a time, widened by the submitter when the
   autoscaler says it cannot grow them (`NotTriggerScaleUp` with a backoff or max-size reason) or no node came in
   15 min, and keeps the classes it had. Nothing else is installed in the cluster.
+- **Per kind** (#76): `SCORE_CLOUD_KINDS="pixal,blender,library,settle,characters"` narrows SCORE_CLOUD=k8s to
+  those job kinds (`provider.on_cluster(kind)`; a runner that names none is known by its script, `RUNNER_KINDS`;
+  settling's drops are `settle`, `blender_cloud.cluster_kind`); every other kind rents machines as before, and the
+  warm pool is sized only for rows whose kind stays on machines (`pool.on_cluster`). A job none of whose classes has a
+  pool takes the nearest pool that holds it (`submitter.nearest_pools`), never a class its kind may not take.
+- **Never a lost row** (#95): a failed look at the cluster is tried `POLL_RETRIES` (15) more times a poll apart, then
+  the run's rows are booked from what was last seen and the door brings back what finished before the error goes
+  on; a SIGTERM deletes the run's Jobs (every generation, by its label), books its rows and exits 143. stop-batch
+  (`score/conductor/kill.py`) also deletes every Job labelled with a score run in `score-jobs`, never elsewhere.
 - **Idempotent jobs.** The runtime writes `done.json` last and exits 0 when it exists; the submitter remakes a Job
   freely (new generation) and resumes a run from its labels.
 - **Money.** No month's ceiling (owner, 2026-10-20); each pool's max size is what the batch cap pays for

@@ -442,24 +442,25 @@ def one_job(machine, share, card):
         raise spread.JobFailed(f"job {number} ({job['script']}, {log}): its script ended well but none of its "
                                "outputs came back")
     with BRINGING.setdefault(host, threading.Lock()):
-        kept.keep(job, system(), **keeping)
+        kept.keep(job, system(False), **keeping)
 
 
 @functools.cache
-def system():
+def system(cluster=None):
     """What this call's jobs run on, in each kept job's content (kept.py): the machine image (this PC's container
-    image by its id, a cloud's images by name, the cluster's Blender image by its digest) and the Blender set-up."""
-    if provider.on_cluster():
+    image by its id, a cloud's images by name, the cluster's Blender image by its digest) and the Blender set-up.
+    `cluster`: whether they run on the cluster (default: whether Blender jobs go there, provider.on_cluster)."""
+    if provider.on_cluster(KIND) if cluster is None else cluster:
         image = json.dumps(json.loads((HERE / "images/images.json").read_text())[KIND], sort_keys=True)
     else:
         image = cloud.image_identity()
     return f"{image}\n{(HERE / 'library_setup.sh').read_text()}"
 
 
-def still_to_run(jobs):
+def still_to_run(jobs, cluster=None):
     """The jobs no earlier run finished with the same content; each it did is put back in place (kept.py) and not
-    bought again."""
-    waiting = kept.missing(jobs, system())
+    bought again. `cluster` as system's."""
+    waiting = kept.missing(jobs, system(cluster))
     if len(waiting) < len(jobs):
         batch.say(f"{len(jobs) - len(waiting)} of {len(jobs)} Blender jobs finished earlier with the same inputs, code "
                   "and system: put back, not bought again")
@@ -479,12 +480,23 @@ def run_spread(run, account, found, count, jobs, kind=KIND):
 CLOUD_PYTHON = HOME / "env/bin/python"
 
 
-def cloud_python():
-    """The Python a call of this file runs in: the machine runner's, or under SCORE_CLOUD=k8s the repo's own
-    environment, which has boto3 for the object store."""
+def cloud_python(kind=KIND):
+    """The Python a call of this file for job kind `kind` runs in: the machine runner's, or when that kind goes to the
+    cluster (provider.on_cluster) the repo's own environment, which has boto3 for the object store."""
     from paths import VENV_PYTHON
 
-    return VENV_PYTHON if provider.on_cluster() else CLOUD_PYTHON
+    return VENV_PYTHON if provider.on_cluster(kind) else CLOUD_PYTHON
+
+
+# Settling's drops (tools/usd/settle.py) are Blender jobs of their own kind for SCORE_CLOUD_KINDS: `settle` sends them
+# to the cluster apart from the other Blender jobs.
+SETTLE_SCRIPT = "tools/blender/inside/settle_stage.py"
+
+
+def cluster_kind(jobs, kind=KIND):
+    """The kind SCORE_CLOUD_KINDS knows a call's jobs by: `settle` for a call of settling's drops alone, else `kind`."""
+    scripts = {job.get("script") for job in jobs}
+    return "settle" if scripts == {SETTLE_SCRIPT} else kind
 
 
 def job_of(script, arguments, inputs, outputs, minutes, env=None):
@@ -507,7 +519,7 @@ class Machine:
 
     def __enter__(self):
         self.queue.mkdir(parents=True)
-        self.process = subprocess.Popen([str(cloud_python()), str(HERE / "blender_cloud.py"), "--serve",
+        self.process = subprocess.Popen([str(cloud_python(kind)), str(HERE / "blender_cloud.py"), "--serve",
                                          str(self.queue),
                                          "--who", self.who, "--classes", ",".join(self.classes),
                                          "--minutes", str(self.minutes), "--kind", self.kind])
@@ -539,8 +551,9 @@ def run_elsewhere(script, arguments, inputs, outputs, classes, who, minutes=10):
     folder = batch.BATCHES / "requests"
     folder.mkdir(parents=True, exist_ok=True)
     job_path = folder / f"{time.strftime('%Y%m%d-%H%M%S')}-{os.getpid()}-{threading.get_ident()}.json"
-    job_path.write_text(json.dumps(job_of(script, arguments, inputs, outputs, minutes), indent=1))
-    command = [str(cloud_python()), str(HERE / "blender_cloud.py"), str(job_path), "--who", who,
+    job = job_of(script, arguments, inputs, outputs, minutes)
+    job_path.write_text(json.dumps(job, indent=1))
+    command = [str(cloud_python(cluster_kind([job]))), str(HERE / "blender_cloud.py"), str(job_path), "--who", who,
                "--classes", ",".join(classes)]
     if subprocess.run(command).returncode != 0:
         raise RuntimeError(f"the cloud Blender run failed: {shlex.join(command)}")
@@ -636,7 +649,7 @@ def main_on_cluster(options, jobs, classes):
     left = run_on_cluster(jobs, classes, options.who)
     for number, job in enumerate(jobs):
         if number not in left:
-            kept.keep(job, system())
+            kept.keep(job, system(True))
     if left:
         raise SystemExit(f"Blender jobs {', '.join(map(str, left))} failed on the cluster")
 
@@ -661,17 +674,18 @@ def main():
     jobs = [json.loads(path.read_text()) for path in options.jobs] or [{"minutes": options.minutes}]
     if options.detach:
         detached.relaunch(sys.argv, "blender-cloud", [output for job in jobs for output in job.get("outputs", [])])
+    cluster = provider.on_cluster(cluster_kind(jobs, options.kind))
     if options.jobs:
         if shared_outputs(jobs):
             raise SystemExit(shared_outputs(jobs))
-        jobs = still_to_run(jobs)
+        jobs = still_to_run(jobs, cluster)
         if not jobs:
             return
         refused = too_big_here(jobs)
         if refused:
             raise SystemExit(refused)
     classes = options.classes.split(",") if options.classes else DEFAULT_CLASSES
-    if provider.on_cluster():
+    if cluster:
         main_on_cluster(options, jobs, classes)
         return
     account = cloud.account()

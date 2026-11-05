@@ -6,8 +6,10 @@ kubectl, the provider and the cluster module are stubbed and the store is a fold
 invariant with the break that turns it red (each applied once and seen red):
 
 - The class order is capacity's (the cheapest card per job first; no H100 for a bake, even in the blender image),
-  narrowed to the cluster's pools. Break: drop the capacity.NEVER filter in `class_order`.
-  Break: `job_kind` returns the spec's `kind` only.
+  narrowed to the cluster's pools; a job none of whose classes has a pool takes the nearest pool that holds it
+  (settling's 4 cores on the 32-core pool), never one its kind may not take. Break: drop the capacity.NEVER filter
+  in `class_order`. Break: `job_kind` returns the spec's `kind` only. Break: raise at once when `order` is empty in
+  `class_order`. Break: `fits[-1]` in `nearest_pools`. Break: drop the NEVER filter of `nearest_pools`'s pools.
 - A Job requires its allowed classes and prefers them in order, tolerates the job path's taints and the cluster
   module's, asks for cards only on card classes, sets limits past any node (a namespace's default limits refused
   jobs asking more memory than them), mounts the node's weights cache, retries `attempt_limit - 1` times and has a Kubernetes name.
@@ -28,14 +30,27 @@ invariant with the break that turns it red (each applied once and seen red):
 - Billing: a warm node counts from the run's start; an unused node made during the run is the run's; a node made
   before it, or hosting another run, is not; a node without zone labels takes the provider's record.
   Break: `created = seen["created"]` in `node_machines`.
+- Never a lost row (#95): a look at the cluster that fails is tried POLL_RETRIES times more, then the run's row is
+  booked from what was last seen (its node marked estimated) and the error goes on; a SIGTERM deletes every Job of
+  the run, books its row with the unfinished jobs stopped and exits 143; either way the door still brings back what
+  the done jobs made. Break: call `look` without `retried` in `watch`. Break: drop `book` from either except in
+  `submit`. Break: drop `stop_jobs` in `stop_after_signal`. Break: drop `bring_back` before `raise` in
+  `cluster_jobs.run`. stop-batch's `stop_score_jobs` deletes only Jobs labelled with a run, only in score-jobs, and
+  refuses another namespace. Break: drop the namespace check in `stop_score_jobs`.
+- SCORE_CLOUD_KINDS narrows SCORE_CLOUD=k8s to its kinds; a runner naming none is known by its script's name.
+  Break: `return True` in place of the kinds check in `provider.on_cluster`.
 - The Secrets hold the store and registry values by name; the GPU operator is pointed at the registry's copies
   (the manager with no pull secret of its own) and a mirrored cluster is left alone.
   Break: give the manager `imagePullSecrets` in `policy_patch`.
 """
 import base64
 import json
+import os
 import pathlib
+import signal
+import subprocess
 import sys
+import time
 
 import pytest
 
@@ -62,6 +77,15 @@ def test_the_class_order_is_capacitys_narrowed_to_the_pools():
     run = submit.Run("r1", {"bake": spec}, FakeKubectl([]), PoolCluster())
     assert list(run.kinds) == ["library"] and run.orders["bake"] == (["gpu-24gb", "gpu-48gb"], set())
     assert submit.job_cards({}, ["gpu-24gb", "gpu-48gb"]) == 1 and submit.job_cards({}, ["cpu-32c-128gb"]) == 0
+    # no pool for any of a job's classes: the nearest pool that holds it (#76: settle's 4 cores, the paint's 16 and 32)
+    assert submit.class_order("blender", {"classes": ["cpu-4c-32gb"]}, POOLS)[0] == ["cpu-32c-128gb"]
+    assert submit.class_order("blender", {"classes": ["cpu-32c-64gb", "cpu-16c-64gb"]}, POOLS | {"cpu-64c-256gb"})[
+        0] == ["cpu-32c-128gb"]
+    assert submit.class_order("pixal", {"classes": ["gpu-24gb-x2"]}, POOLS)[0] == ["gpu-80gb-x2"]
+    with pytest.raises(SystemExit, match="nor one that holds it"):
+        submit.class_order("blender", {"classes": ["gpu-24gb-x2"]}, POOLS)  # only an H100 pair: never Blender
+    with pytest.raises(SystemExit, match="nor one that holds it"):
+        submit.class_order("blender", {"classes": ["cpu-64c-256gb"]}, POOLS)
 
 
 SPEC = {"kind": "pixal", "image": "registry.example/score/score-pixal:1-abc@sha256:00", "minutes": 30,
@@ -328,6 +352,16 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
         [str(stage / "place.usda"), str(stage / "textures/wall.png"), str(single)])
     assert out_file.read_text() == "made by 0" and (out_folder / "part" / "a.txt").read_text() == "made by 0"
 
+    def watch_lost(run, specs, store, wait_scale_down=True, who=None, parallel=None):
+        """Job 0 finished, then the watch failed (#95)."""
+        submit_run(run, specs, store, wait_scale_down, who, parallel)
+        raise RuntimeError("the control plane did not answer")
+    monkeypatch.setattr(cluster_jobs.submitter, "submit", watch_lost)
+    out_file.unlink()
+    with pytest.raises(RuntimeError, match="did not answer"):
+        cluster_jobs.run("blender", jobs, who="test", classes=["gpu-24gb"])
+    assert out_file.read_text() == "made by 0"  # what finished still came back
+
 
 # ==== billing =======================================================================================================
 
@@ -336,7 +370,7 @@ class PricedCluster(PoolCluster):
         return 0.013125, 1
 
 
-def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch):
+def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tmp_path):
     spec = {"kind": "judge", "image": "image", "minutes": 5}
     run = submit.Run("r1", {"ask": spec}, FakeKubectl([]), PricedCluster())
     run.started = 10_000.0
@@ -358,6 +392,73 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch):
     run.nodes["side-by-side"] = dict(run.nodes["first"], hosted=True)
     assert sorted((machine["node"], machine["unused"]) for machine in submit.node_machines(run, "judge")) == [
         ("first", False), ("second", True)]
+
+    # never a lost row (#95): a look that keeps failing is retried, then the row is booked from the last look
+    def unreachable():
+        raise subprocess.CalledProcessError(1, ["kubectl"], stderr="kubectl get jobs,pods: connection refused")
+    booked, error, _deleted, looks = a_watched_run(tmp_path, monkeypatch, unreachable)
+    assert isinstance(error, subprocess.CalledProcessError) and len(looks) == 1 + submit.POLL_RETRIES + 1
+    entry, = booked
+    assert entry["batch"] == "r-lost" and entry["who"] == "test" and entry["jobs"]["ask"]["state"] == "unwatched"
+    assert [row["node"] for row in entry["machines"]] == ["n1"] and entry["machines"][0]["end_estimated"]
+
+    # a stop: the run's Jobs deleted (every generation, by its label), its row booked, the process ends 143
+    booked, error, deleted, looks = a_watched_run(tmp_path / "stop", monkeypatch,
+                                                  lambda: os.kill(os.getpid(), signal.SIGTERM))
+    assert isinstance(error, submit.Stopped) and error.code == 128 + signal.SIGTERM and len(looks) == 2
+    assert ("delete", "jobs", "-n", manifests.NAMESPACE, "-l", "score.dev/run=r-lost", "--ignore-not-found",
+            "--wait=false", "--cascade=background") in deleted
+    entry, = booked
+    assert entry["jobs"]["ask"]["state"] == "stopped" and [row["node"] for row in entry["machines"]] == ["n1"]
+
+    # stop-batch: score's Jobs in score-jobs only
+    class Recording(LiveKubectl):
+        def run(self, *arguments):
+            self.deleted.append(arguments)
+            return "job.batch \"score-r-a-g0\" deleted\n"
+    kubectl = Recording()
+    monkeypatch.setattr(manifests, "NAMESPACE", "score-jobs")
+    assert submit.stop_score_jobs(kubectl, PoolCluster()) == 'job.batch "score-r-a-g0" deleted'
+    assert kubectl.deleted == [("delete", "jobs", "-n", "score-jobs", "-l", "score.dev/run", "--ignore-not-found",
+                                "--wait=false", "--cascade=background")]
+    monkeypatch.setattr(manifests, "NAMESPACE", "score")
+    with pytest.raises(SystemExit, match="score-jobs only"):
+        submit.stop_score_jobs(Recording(), PoolCluster())
+
+
+def a_watched_run(tmp_path, monkeypatch, failing_look):
+    """submit() of one job over stubs, its first look putting the job on a node and `failing_look` after: the rows
+    booked, the error it raised, the kubectl deletes and the looks made."""
+    (tmp_path / "store").mkdir(parents=True)
+    helper = Helper(tmp_path / "store")
+    booked, looks = [], []
+    monkeypatch.setattr(submit, "runtime", lambda: helper)
+    monkeypatch.setattr(submit, "prepare", lambda kubectl, cluster: None)
+    monkeypatch.setattr(submit.ledger, "record", booked.append)
+    monkeypatch.setattr(submit.time, "sleep", lambda seconds: None)
+
+    def look(run, parallel):
+        looks.append(run)
+        if len(looks) == 1:
+            run.jobs["ask"].update(node="n1", ran=time.time())
+            run.nodes["n1"] = {"class": "gpu-80gb", "type": "H100-1-80G", "zone": "fr-par-2", "cards": 1,
+                               "created": time.time(), "ready": time.time(), "deleted": None, "jobs": set()}
+            return
+        failing_look()
+    monkeypatch.setattr(submit, "look", look)
+
+    class DeletingKubectl(LiveKubectl):
+        def run(self, *arguments):
+            self.deleted.append(arguments)
+            return ""
+    kubectl = DeletingKubectl()
+    before = signal.getsignal(signal.SIGTERM)
+    spec = {"kind": "judge", "image": "image", "minutes": 5, "command": ["true"]}
+    helper.write_job(helper.store, "r-lost", "ask", spec)
+    with pytest.raises(BaseException) as raised:
+        submit.submit("r-lost", {"ask": spec}, helper.store, kubectl=kubectl, cluster=PricedCluster(), who="test")
+    assert signal.getsignal(signal.SIGTERM) is before  # the handler before is put back
+    return booked, raised.value, kubectl.deleted, looks
 
 
 def test_a_node_without_zone_labels_takes_the_providers_record():
@@ -386,6 +487,20 @@ def test_score_cloud_k8s_keeps_the_providers_backend(monkeypatch):
     assert submit.provider.load().NAME == "scaleway" and submit.provider.cluster_name() == "tenant"
     monkeypatch.setenv("SCORE_CLOUD", "scaleway")
     assert not submit.provider.on_cluster() and submit.provider.load().NAME == "scaleway"
+    # SCORE_CLOUD_KINDS narrows the cluster to its kinds (#76); every other kind rents machines from the same backend
+    monkeypatch.setenv("SCORE_CLOUD_KINDS", "pixal,blender,library,settle,characters")
+    assert not submit.provider.on_cluster("pixal")  # SCORE_CLOUD is not k8s
+    monkeypatch.setenv("SCORE_CLOUD", "k8s")
+    assert submit.provider.on_cluster("pixal") and submit.provider.on_cluster("settle")
+    assert not submit.provider.on_cluster("judge") and submit.provider.load().NAME == "scaleway"
+    monkeypatch.setattr(submit.sys, "argv", ["/repo/tools/cloud/library_bake.py", "job.json"])
+    assert submit.provider.on_cluster()  # a runner naming no kind: its script's
+    monkeypatch.setattr(submit.sys, "argv", ["/repo/tools/cloud/judge.py"])
+    assert not submit.provider.on_cluster()
+    monkeypatch.setattr(submit.sys, "argv", ["-c"])
+    assert not submit.provider.on_cluster()  # a kind that cannot be told stays on machines
+    monkeypatch.delenv("SCORE_CLOUD_KINDS")
+    assert submit.provider.on_cluster("judge")  # unset: every kind
 
 
 # ==== secrets and the GPU operator ==================================================================================
