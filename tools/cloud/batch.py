@@ -1386,11 +1386,11 @@ def run_on_cluster(models, options, parallel=None):
     fleet = Fleet(models, folder, size, time.time(), options.who, not options.no_finish)
     try:
         cluster_jobs.run("pixal", work, options.who, options.classes.split(","), parallel=parallel)
-    finally:  # a run cut off (its watch failed, a stop) still finishes the models it brought back
         for number, group in enumerate(groups):
             for take in group:
                 if (folder / f"group{number}" / "out" / f"{take.name}.glb").exists():
                     fleet.arrived(folder / f"group{number}", take.name)
+    finally:
         fleet.finishers.shutdown(wait=True)
     say_what_failed(fleet, folder)
 
@@ -1431,7 +1431,7 @@ def main():
         from_the_inventory(models, options.inventory)
     if taken(models):
         raise SystemExit(f"raw models already here, pick new names: {', '.join(taken(models))}")
-    if provider.on_cluster("pixal"):
+    if provider.on_cluster():
         if not options.dry_run:
             run_on_cluster(models, options)
         return
