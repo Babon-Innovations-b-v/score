@@ -99,11 +99,16 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   a hold off its own item for its row (10% in size, 0.5 m in middle), two holds overlapping, a place held once more
   doors lead to than lead back, and a door of a held place meeting no door of the sibling it leads to on the
   holder's plan. A place held several times (#72: a tube on each of the base's links) is held once per
-  `instance` (`tube#3`), each with its own `leads` (what the place's doorways lead to there) and any hold a `turn`
-  (0, 90, 180, 270); a tube (`shape: tube`) is stretched along its run to its hold's length (`plan.on_holder`,
-  `laid_size`, read alike by plans.holds_fitted, the scene tree and terrain). `held` judges each instance by itself and
-  fails a hold another size than its plan laid in it and a door naming a place held only as instances; a neighbour
-  that is an instance stands its place's stage, named `tube_3`, with its `instance` and `scale`.
+  `instance` (`tube#3`), each with its own `leads` (what the place's doorways lead to there, by lead or by one door's
+  lead and spot, `tube@15.834,2.341`: the hub's five doors to `tube`) and any hold a `turn` (any angle from 0 up to
+  360: the tubes off the hub's diagonal facets); a tube (`shape: tube`) is stretched along its run to its hold's
+  length, the hold its box round it turned (`plan.on_holder`, `laid_size`, read alike by plans.holds_fitted, the scene
+  tree and terrain, whose spots are read through it: `own_from_holder`). Overlaps and rooms inside an item are judged on
+  the held plans' outlines as laid (`laid_outline`, `outlines_overlap`), never their boxes. A place whose every door
+  stands on a raised floor over a lower one is sunk so its doors meet the holder's floor (`sunk_by`: the greenhouse's
+  garden). `held` judges each instance by itself and fails a hold another size than its plan laid in it and a door
+  naming a place held only as instances; a neighbour that is an instance stands its place's stage, named `tube_3`,
+  with its `instance` and `scale`.
 - **Wall, roof and seat laying** (2026-11-04 audit): a wall object's x way is its wall's run turned by its `side`, so
   its front faces `out`; it stands at its relation's `height` (holders' mount height) where the plan gives no base; a
   `ceiling` relation marked `to roof` lays its top `ROOF_CLEAR` under the roof's underside at its spot; a relation's

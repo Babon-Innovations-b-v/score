@@ -2711,7 +2711,17 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
         `return (found["w"], found["d"]) if found and found.get("w") else None`
     Break: score/review/plans.py: `by_place = {name_of(hold): dict(hold) for hold in holds}` ->
         `by_place = {hold["place"]: dict(hold) for hold in holds}`
-    Break: score/review/plans.py: `if turn not in (90.0, 180.0, 270.0):` -> `if False:`"""
+    Break: score/review/plans.py: `if turn >= 360.0:` -> `if False:`
+    Break: score/review/plans.py: `if mark and not re.fullmatch(spot, rest):` -> `if False:`
+    A hold turned 45 degrees takes its plan's box turned, and two holds overlap only where their outlines do, never
+    where only their boxes do (#72: the base's tubes off the hub's diagonal facets).
+    Break: score/review/plans.py: `return outlines_overlap(laid_outline(hold, plan), laid_outline(other, other_plan))` ->
+        `return outlines_overlap(laid_outline(hold), laid_outline(other, other_plan))`
+    A free redrawing under the owner's standing word on design fixes is kept as an edit with its reason, and shown;
+    one giving a field no drawing has, or no reason, is refused.
+    Break: score/review/plans.py: `if unknown:` -> `if False:`
+    Break: score/review/plans.py: `if not (asked or {}).get("words") or not asked.get("at") or not asked.get("reason"):` ->
+        `if False:`"""
     rows = [{"id": "barn", "name": "a barn", "anchor": "floor", "size": [8.0, 6.0, 5.0], "count": 1, "at": []},
             {"id": "cart", "name": "a cart", "anchor": "floor", "size": [1.0, 1.0, 1.0], "count": 1, "at": []}]
     picked(store, "yard", rows)
@@ -2734,13 +2744,22 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     assert plans.moved_draws(store, "shed") == set()  # its own size is no move of its room
     # a hold turned 90 degrees takes its plan's size turned (#72: the base's hangar, drawn wide, its plan long), and a
     # place held several times keeps each instance its own (the base's tubes); an instance names its place, a hold
-    # turns only by quarters
+    # turns from 0 up to 360 degrees, a lead names a place, an instance or one door of several by its spot
     assert plans.laid_own_size(store, {"place": "shed", "turn": 90, "x": 0.0, "y": 0.0, "w": 1.0, "d": 1.0}) == (10.0, 4.0)
+    turned = {"place": "shed", "turn": 45, "x": 0.0, "y": 0.0, "w": 9.899495, "d": 9.899495}
+    assert plans.laid_own_size(store, turned) == (9.899495, 9.899495)
     assert plans.checked_instance({"instance": "Tube#3", "turn": 90, "leads": {"hub": "lab"}}, "tube") == {
         "instance": "tube#3", "turn": 90, "leads": {"hub": "lab"}}
-    for wrong, said in (({"instance": "hub#1"}, "no instance of tube"), ({"turn": 45}, "turns 45 degrees")):
+    assert plans.checked_instance({"turn": 332.33, "leads": {"tube@15.8335,2.3405": "tube#5"}}, "hub") == {
+        "turn": 332.33, "leads": {"tube@15.8335,2.3405": "tube#5"}}
+    for wrong, said in (({"instance": "hub#1"}, "no instance of tube"), ({"turn": 360}, "from 0 up to 360"),
+                        ({"leads": {"tube@north": "hub"}}, "no place, instance or door")):
         with pytest.raises(plans.Refused, match=said):
             plans.checked_instance(wrong, "tube")
+    # the shed turned 45 degrees in its 9.9 m box leaves the box's corners empty: a spot in one overlaps its box only
+    corner = {"place": "cart", "x": -1.0, "y": -1.0, "w": 2.0, "d": 2.0}
+    assert not plans.laid_overlap(turned, plans.own_plan(store, "shed"), corner, None)
+    assert plans.laid_overlap(turned, None, corner, None)
     # its drawing is asked at its own proportions in a square frame, never its spot's shape (#72: the flat drawn to
     # the Square's thin strip of it)
     wording = plan_drawing.wording_of(store, "shed")
@@ -2814,6 +2833,18 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     shown = plans.current(store, "yard")["plan"]
     assert shown["items"][0][1:5] == [29.0, 20.0, 1.0, 1.0] and 29.0 <= shown["people"][0][0] < 30.0, shown["people"]
     assert len(shown["fixes"]) == len(edit.get("fixes", [])) + 2 and plans.newest_edit(store, "yard")["plan"]["items"][0][1] == 29.8
+    # a free redrawing under his standing word on design fixes (#72: the base's tube drawn as its 3.2 m section): kept
+    # as an edit with its reason, shown; a field no drawing has, or no reason, refused
+    asked = {"words": "design fixes following his rules are ours", "at": "2026-11-05T03:00", "reason": "its section"}
+    for changes, given, said in (({"concept": {}}, asked, "not concept"),
+                                 ({"w": 5.0}, {**asked, "reason": ""}, "its reason")):
+        with pytest.raises(plans.Refused, match=said):
+            plans.redrawn(store, "shed", changes, "an agent", given)
+    record = plans.redrawn(store, "shed", {"w": 5.0, "openings": [door([0.0, 2.0], "yard")]}, "an agent", asked)
+    assert record["how"] == "redrawn" and record["asked"]["reason"] == "its section" and record["changed"] == [
+        "openings", "w"]
+    shown = plans.current(store, "shed")
+    assert (shown["how"], shown["plan"]["w"], shown["plan"]["d"]) == ("redrawn", 5.0, 10.0), shown["how"]
 
 
 # --- plan writing and its free checks: each failure a named gap -------------------------------------------------------
