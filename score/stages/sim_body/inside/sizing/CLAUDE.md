@@ -44,6 +44,12 @@ body by body; `path_lengths` reads each muscle's path for OpenSim's muscle scali
   within 1 mm of its range's end from 88 deg on.
 - The torso is placed in lumbar1 by its own scale (`OWN_PLACED`): its origin sits 8.9 cm below lumbar1's, so by its
   parent's scale a longer lumbar stretch moved T12/L1 down and no scale fit Spine2 (measured 2026-10-28).
+- **The neck hangs on C7/T1** (`JOINT_PLACED`, `joint_placed`; #70, 2026-11-05, the owner: "the neck is
+  dettached"): MyoHead's neck body has its origin at the torso's, 40 cm under its own bones, so placed by its parent's
+  scale the torso's 0.917 (the mean body) dropped C7/T1 33 mm under where the neck's 0.998 kept its cervical bones:
+  they stood 34 mm over T1 at rest and the neck's length scale was never asked to reach SOMA's. Placed so its C7/T1
+  stays where the torso's scale puts it, the neck's own scale stretches its bones from C7/T1 to C0/C1 (the mean body's
+  neck 1.33; at rest its nearest bone 3.2 mm from T1's, a disc).
 - A body under `FRAME_KG` is a frame, not a bone (MyoFullBody's phantoms carry 1 g and inertias of several kg m2):
   `weigh` leaves it as sized: counted in, the shoulder's and upper arm's own inertias summed 3.7 and 7.7 kg m2
   against SOMA's 0.03 and 0.05 (measured 2026-10-28).
