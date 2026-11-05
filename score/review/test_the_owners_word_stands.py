@@ -271,10 +271,14 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     in reading.py as `WORDS` (the words in code again)
 - test_only_a_row_both_readers_put_inside_another_rows_thing_is_a_part_of_it:
     reading_fixes.py: `INSIDE = 0.9` made `INSIDE = 0.5`; `if len(named) == 1 and` made `if named and` (a sitter
-    on "a stool" anchored on one of two); `people_rows.seat_of(` made `bool(` (anchored on the table)
+    on "a stool" anchored on one of two); `people_rows.seat_of(` made `bool(` (anchored on the table);
+    `if row["id"] in people and said and not people_rows.seat_of(row)` made `if row["id"] in people and said` (a
+    stool added under the pilot already seated); `and not any(` made `and not all(` (a third stool beside the two named);
+    `round(tall * SEAT_SHARE * BACKED.get(seat, 1.0), 3)` made `round(tall, 3)` (a bench as tall as its sitter)
 - test_a_reading_holding_a_part_is_fixed_once_free_its_children_moved:
     reading_fixes.py: `rows = reading.reanchored([dict(row) for row in rows], {item["row"]: f"on:{item['into']}" for
-    item in merged})` made `rows = [dict(row) for row in rows]`
+    item in merged})` made `rows = [dict(row) for row in rows]`; `rows, added = seats_added(rows)` made `added = {}`
+    (the crew left on the floor, no bench)
 - test_no_plan_before_the_inventory_counts_then_each_item_tied_to_its_row:
     plans.py: `tied[name] = [row_id, *riders.get(row_id, [])]` made `tied[name] = [row_id]`
 - test_his_edit_is_kept_as_his_own_and_checked:
@@ -2299,6 +2303,9 @@ DOOR = row("door", "door", [210, 820, 340, 870], [[825, 220, 860, 330]], part="o
 HANDLE = row("handle", "handle", [250, 830, 260, 840], [[830, 250, 840, 260]], anchor="on:door", part="object")
 
 
+CREW = row("crew", "person", [100, 500, 300, 600], [[500, 100, 600, 300]], where="sitting on a bench", part="object")
+
+
 def test_only_a_row_both_readers_put_inside_another_rows_thing_is_a_part_of_it():
     rows = [FRIDGE, DOOR,
             row("chair", "chair", [500, 500, 700, 700], [[500, 500, 700, 700]]),  # a person sits in it: 60% inside
@@ -2317,19 +2324,35 @@ def test_only_a_row_both_readers_put_inside_another_rows_thing_is_a_part_of_it()
                row("visitor", "person", None, [], where="sitting on a stool"),  # two stools: which, unread
                row("pilot", "person", None, [], where="sitting on the bench", anchor="on:bench")]
     assert reading_fixes.seats_named(sitters) == {"astronaut": "on:bench", "eater": "on:stool_1"}
+    # a person sitting on or at a seat no row holds gets that seat added under it, sized from it, and sits on it; one
+    # whose seat a row holds (one or two), one on the floor, and one already on a seat get none
+    assert reading_fixes.seats_missing(sitters) == {"diner": "chair"}
+    alone = [row("floor_plates", "floor", None, []),
+             row("crew", "astronaut", [400, 400, 600, 500], [[400, 400, 500, 600]], name="seated astronaut",
+                 where="sitting on bench", anchor="on:floor_plates", size=[0.6, 0.6, 1.4]),
+             row("kid", "person", None, [], where="sitting on the floor"), row("pilot_seat", "seat", None, []),
+             row("pilot", "person", None, [], where="sitting on a stool", anchor="on:pilot_seat")]
+    seated, added = reading_fixes.seats_added(alone)
+    assert added == {"crew": "on:crew_bench"} and [item["id"] for item in seated] == [
+        "floor_plates", "crew", "crew_bench", "kid", "pilot_seat", "pilot"]
+    bench = seated[2]
+    assert (bench["anchor"], bench["size"], bench["region"], bench["seat_for"]) == (
+        "on:floor_plates", [0.6, 0.6, 0.49], [500.0, 400, 600, 500], "crew") and bench["added"]["reason"]
+    assert reading_fixes.seats_missing(seated) == {} and reading_fixes.parts_apart(seated, SIZE)[1] == []
 
 
 def test_a_reading_holding_a_part_is_fixed_once_free_its_children_moved(store, tmp_path):
     sha = picked_place(store, tmp_path)
     reading.kept(store, {"place": "wreck", "concept": sha, "at": "2026-01-01T08:00:00+00:00", "by": "joey",
                          "method": reading.METHOD, "parts_version": reading.PARTS_VERSION, "size": list(SIZE),
-                         "inventory": {"rows": [FRIDGE, DOOR, HANDLE]}, "gaps": [], "skipped": [], "merged": [],
+                         "inventory": {"rows": [FRIDGE, DOOR, HANDLE, CREW]}, "gaps": [], "skipped": [], "merged": [],
                          "euros": {"rows": 0.03, "boxes": 0.1, "total": 0.13}, "seconds": {}})
     assert reading_fixes.to_fix(store, ["wreck"]) == ["wreck"]
     [record] = reading_fixes.fix(store, ["wreck"], "test")
     assert reading.reading_of(store, "wreck") == record and record["from"].startswith("inventory-readings/wreck/")
     assert [(item["id"], item["anchor"]) for item in record["inventory"]["rows"]] == [
-        ("fridge", "floor"), ("handle", "on:fridge")]
+        ("fridge", "floor"), ("handle", "on:fridge"), ("crew", "on:crew_bench"), ("crew_bench", "floor")]
+    assert record["seated"] == [{"row": "crew", "anchor": "on:crew_bench"}]
     assert record["merged"] == [{"name": "door", "row": "door", "into": "fridge"}]
     assert record["euros"]["total"] == 0.0 and record["parts_version"] == reading.PARTS_VERSION
     assert reading_fixes.to_fix(store, ["wreck"]) == [] and reading_fixes.fix(store, ["wreck"], "test") == []
