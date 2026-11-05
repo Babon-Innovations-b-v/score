@@ -20,6 +20,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "runtime"))
 
 import store as stores  # noqa: E402
 
+# The jobs' namespace: `score` on a cluster of score's own; a tenant cluster's module names its own (use_namespace).
 NAMESPACE = "score"
 CLASS_LABEL = "score.dev/class"
 STORE_SECRET = "score-store"
@@ -36,6 +37,9 @@ WAIT_MINUTES = 60
 # What a pod asks for besides its cards, by the kind of node: enough to place it, never a limit on what it uses. A
 # processor job takes most of a 32-core node.
 REQUESTS = {"gpu": {"cpu": "3", "memory": "20Gi"}, "cpu": {"cpu": "24", "memory": "96Gi"}}
+# Limits past any node, so a namespace's default limits (a LimitRange) never cap a job below its requests or what it
+# uses: a pod whose memory request passes a default limit is refused.
+NO_LIMIT = {"cpu": "256", "memory": "2Ti"}
 # A finished Job and its pod are kept an hour for the submitter and for logs, then removed by Kubernetes.
 KEEP_SECONDS = 3600
 SHM_LIMIT = "16Gi"
@@ -82,17 +86,24 @@ def affinity(classes):
                              "preferredDuringSchedulingIgnoredDuringExecution": preferred}}
 
 
-def tolerations():
-    """The taints of the job path's pools: the card taint and the processor pools' class taint."""
+def use_namespace(name):
+    """Put every object made from now on in the namespace `name` (the cluster module's NAMESPACE)."""
+    global NAMESPACE
+    NAMESPACE = name
+
+
+def tolerations(extra=()):
+    """The taints of the job path's pools: the card taint and the processor pools' class taint, and any the cluster
+    module names (a tenant cluster's own taint on score's pools)."""
     return [{"key": GPU_RESOURCE, "operator": "Exists", "effect": "NoSchedule"},
-            {"key": CLASS_LABEL, "operator": "Exists", "effect": "NoSchedule"}]
+            {"key": CLASS_LABEL, "operator": "Exists", "effect": "NoSchedule"}, *extra]
 
 
 def resources(spec, cards):
     """What the pod asks for: its cards (none on a processor class), and the CPU and memory to place it."""
     requests = dict(REQUESTS["gpu" if cards else "cpu"])
     requests.update({key: str(spec[key]) for key in ("cpu", "memory") if spec.get(key)})
-    limits = {}
+    limits = dict(NO_LIMIT)
     if cards:
         requests[GPU_RESOURCE] = str(cards)
         limits[GPU_RESOURCE] = str(cards)
@@ -110,10 +121,11 @@ def container(spec, run_id, job_id, cards):
             "volumeMounts": [{"name": "cache", "mountPath": CACHE_MOUNT}, {"name": "shm", "mountPath": "/dev/shm"}]}
 
 
-def job(spec, run_id, job_id, classes, cards, generation=0):
-    """The Kubernetes Job of one job spec, allowed on `classes` (in the order to prefer them), asking for `cards`."""
+def job(spec, run_id, job_id, classes, cards, generation=0, extra_tolerations=()):
+    """The Kubernetes Job of one job spec, allowed on `classes` (in the order to prefer them), asking for `cards`,
+    tolerating the cluster module's own taints besides the job path's."""
     tags = labels(run_id, job_id, spec["kind"])
-    pod = {"restartPolicy": "Never", "affinity": affinity(classes), "tolerations": tolerations(),
+    pod = {"restartPolicy": "Never", "affinity": affinity(classes), "tolerations": tolerations(extra_tolerations),
            "imagePullSecrets": [{"name": REGISTRY_SECRET}],
            "topologySpreadConstraints": [{"maxSkew": 1, "topologyKey": "topology.kubernetes.io/zone",
                                           "whenUnsatisfiable": "ScheduleAnyway",

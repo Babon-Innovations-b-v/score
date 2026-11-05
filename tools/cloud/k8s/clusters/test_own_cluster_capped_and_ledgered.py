@@ -6,6 +6,9 @@ turns it red (each applied once and seen red):
 
 - `down` deletes only the cluster whose own record names our project; two of one name stop the module.
   Break: drop `and item.get("project_id") == project` in `cluster`. Break: drop the `len(found) > 1` refusal.
+- A tenant cluster (`tenant.py`) is never deleted, its pools never resized; only its pools tainted for score and
+  labelled with a class are score's, and only their nodes. Break: `cap_pools` sets the max as scaleway's does.
+  Break: drop `tainted_for_score(pool) and` in `score_pools`.
 - `up` makes nothing outside a cleared run (the cluster and its system pool bill by the hour).
   Break: drop `compute.require_cleared(...)` in `up`.
 - A cluster or pool order writes its `order-started` line before it is sent (review of C1, 2026-10-17).
@@ -27,6 +30,9 @@ HERE = pathlib.Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("cluster_scaleway", HERE / "scaleway.py")
 cluster = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cluster)
+spec = importlib.util.spec_from_file_location("cluster_tenant", HERE / "tenant.py")
+tenant = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(tenant)
 
 OURS = "11111111-0000-0000-0000-000000000000"
 OTHER = "22222222-0000-0000-0000-000000000000"
@@ -54,6 +60,33 @@ def test_down_deletes_only_this_projects_cluster_and_two_of_one_name_stop(monkey
     assert cluster.down() is True
     assert [call for call in calls if call[:3] == ("k8s", "cluster", "delete")] == [
         ("k8s", "cluster", "delete", "c-ours", "with-additional-resources=true")]
+
+    # A tenant cluster is its owner's: never deleted, its pools' maxes never changed, only its tainted and labelled
+    # pools score's, its nodes only theirs.
+    with pytest.raises(SystemExit):
+        tenant.down()
+    tainted = [{"key": "tenant", "value": "score", "effect": "NoSchedule"}]
+    pools = [{"id": "p1", "name": "score-l4", "node_type": "l4_1_24g", "zone": "fr-par-2", "max_size": 10,
+              "taints": tainted, "labels": {"score.dev/class": "gpu-24gb"}},
+             {"id": "p2", "name": "unlabelled", "node_type": "l4_1_24g", "zone": "fr-par-2", "taints": tainted},
+             {"id": "p3", "name": "theirs", "node_type": "l4_1_24g", "zone": "fr-par-2",
+              "labels": {"score.dev/class": "gpu-24gb"}}]
+    asked = []
+
+    def tenant_scw(*arguments):
+        asked.append(arguments)
+        if arguments[:3] == ("k8s", "pool", "list"):
+            return pools
+        if arguments[:3] == ("k8s", "node", "list"):
+            return [{"name": f"n-{pool['id']}", "pool_id": pool["id"], "status": "ready",
+                     "created_at": "2026-11-05T10:00:00Z"} for pool in pools]
+        return None
+    monkeypatch.setattr(tenant, "scw", tenant_scw)
+    monkeypatch.setattr(tenant, "cluster", lambda: {"id": "c-tenant"})
+    monkeypatch.setattr(tenant, "price", lambda machine_type, zone: (0.0135, 1))
+    assert tenant.cap_pools(100, 4) == {"score-l4": 10} and tenant.idle() == {"score-l4": 10}
+    assert [node["name"] for node in tenant.nodes()] == ["n-p1"]
+    assert not any("update" in call or "delete" in call for call in asked)
 
     twins = [{"id": f"c{number}", "name": cluster.CLUSTER_NAME, "project_id": OURS} for number in range(2)]
     monkeypatch.setattr(cluster, "scw", fake_scw(twins, []))

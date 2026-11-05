@@ -7,13 +7,15 @@ import manifests
 
 
 class Kubectl:
-    """kubectl against one kubeconfig; every call fails loudly."""
+    """kubectl against one kubeconfig (and one of its contexts, when it holds several clusters); every call fails
+    loudly."""
 
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, config, context=None):
+        self.config, self.context = config, context
 
     def run(self, *arguments, stdin=None):
-        done = subprocess.run(["kubectl", "--kubeconfig", self.config, *arguments], input=stdin, check=True,
+        chosen = ["--context", self.context] if self.context else []
+        done = subprocess.run(["kubectl", "--kubeconfig", self.config, *chosen, *arguments], input=stdin, check=True,
                               capture_output=True, text=True)
         return done.stdout
 
