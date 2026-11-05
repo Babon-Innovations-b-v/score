@@ -31,7 +31,7 @@ from score.stages import (animals, assembly, cast, complete, crops, demo_film, d
                           gaps, images, library, light, motion, people, people_cloth, physics, scene_record, settling,
                           scene_clips, shapes_first, shell_split, sim_body, sound,
                           surface_tiles, surfaces, terrain, video_clips)
-from score.stages.surfaces import bake_check, body_faces, carry, claude_asks, library_reads, route_check
+from score.stages.surfaces import bake_check, body_faces, carry, claude_asks, library_reads, route_check, uv_layout
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
 import score.stages.scene_record.writer  # noqa: F401
 import score.stages.batch_gaps as batch_gaps
@@ -310,7 +310,7 @@ def bake_checked(row):
                                        guarded("triangles within budget", bake_check.judge_triangles),
                                        guarded("stands level", bake_check.judge_stance),
                                        guarded("stands square", bake_check.judge_square),
-                                       guarded("texture layout sound", bake_check.judge_layout)),
+                                       guarded("texture layout sound", uv_layout.judge_layout)),
                                files=check_files)
 
 

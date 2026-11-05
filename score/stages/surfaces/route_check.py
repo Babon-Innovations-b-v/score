@@ -20,6 +20,7 @@ if str(HERE) not in sys.path:
 import bake_check  # noqa: E402
 import palette_library  # noqa: E402
 import prop_env  # noqa: E402
+import uv_layout  # noqa: E402
 
 
 ROW = "surfaces-check"
@@ -41,7 +42,7 @@ def check_gates():
     from surface_gates import guarded
     return tuple(guarded(name, judge) for name, judge in (
         ("baked matches its surfaces", bake_check.judge_lit), ("triangles within budget", bake_check.judge_triangles),
-        ("stands level", bake_check.judge_stance), ("texture layout sound", bake_check.judge_layout)))
+        ("stands level", bake_check.judge_stance), ("texture layout sound", uv_layout.judge_layout)))
 
 
 def take_of(inputs):
@@ -66,17 +67,29 @@ def own_wear_checked(check_model):
     return checked
 
 
+def layout_measured(check_model):
+    """bake_check.check_model with the model's texture layout recorded (uv_layout.layout_of, #92) once its base colour
+    map is there."""
+    def checked(name, entry, labelled, made, materials, dirt=0.0, wear=0.0):
+        record = check_model(name, entry, labelled, made, materials, dirt, wear)
+        if "base_color" not in record["missing_maps"]:
+            record["layout"] = uv_layout.layout_of(made / f"{name}.gltf")
+        return record
+    return checked
+
+
 def check_step(inputs, out):
     """bake_check.check_step with the scene palette in place of data/definitions/place.json, in this step's own
     process: its surfaces the library's as the scene palette gives them (palette_library.specs) under the bake's
-    specs, its wear and dirt the scene palette's (read from its design), each finish's own wear honoured."""
+    specs, its wear and dirt the scene palette's (read from its design), each finish's own wear honoured, each
+    model's texture layout measured (layout_measured)."""
     import library
     palette = palette_library.read(inputs)
     baked = json.loads((inputs["bake"] / "specs.json").read_text())
     library.by_library = lambda name: {**palette_library.specs(palette), **baked}
     library.resolved = lambda name: {}
     library.wear_of = lambda name: palette_library.wear(palette)
-    bake_check.check_model = own_wear_checked(bake_check.check_model)
+    bake_check.check_model = layout_measured(own_wear_checked(bake_check.check_model))
     bake_check.check_step(inputs, out)
 
 

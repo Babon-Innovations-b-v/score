@@ -1018,9 +1018,9 @@ def test_a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_m
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         (folder / "checks.json").write_text(json.dumps({name: {"layout": record} for name, record in records.items()}))
-        verdict = bake_check.judge_layout(folder, {}, None)
+        verdict = uv_layout.judge_layout(folder, {}, None)
         (folder / "checks.json").write_text(json.dumps({"crate": {"missing_maps": ["base_color"]}}))
-        unmeasured = bake_check.judge_layout(folder, {}, None)
+        unmeasured = uv_layout.judge_layout(folder, {}, None)
     assert verdict.answer == "fail" and sorted(finding.split(":")[0] for finding in verdict.findings) == [
         "mirrored", "outside", "overlap", "sparse", "stretched"], verdict.findings
     assert unmeasured.answer == "unknown", unmeasured

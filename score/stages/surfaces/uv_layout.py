@@ -1,7 +1,9 @@
 """A baked model's texture layout measured (#92): per map, the triangles whose texture coordinates lie outside the
 picture, are mirrored, share texels with another triangle (overlap), are stretched one way, get far less texture
 detail than the model's own (a face given a fraction of the density), and the charts too thin to hold a colour.
-bake_check.check_model records it, bake_check.judge_layout fails a model by name.
+route_check.py records it on each baked model (layout_of), judge_layout fails a model by name: here, not in
+bake_check.py, which the people's dress (people/baked_body.py) and other lines read, so the gate moves the check
+row's key alone.
 
 The method follows marso-skills' Apache-2.0 texture scripts (github.com/mxr-software/marso-skills, commit dc632e34,
 skills/blender/marso-blender-texture/scripts/audit_uv.py and measure_uv_quality.py: the winding test, the per-triangle
@@ -9,11 +11,39 @@ Jacobian's anisotropy, density as resolution * sqrt(UV area / surface area), cha
 across the exported normal splits, chart width as 2 * area / perimeter), rewritten here in numpy over the baked
 .gltf (baked_gltf.geometry) rather than inside Blender. Overlap is counted where the bake writes, texel centres of
 the map's base colour picture lying on two triangles or more, not as polygon intersections."""
+import json
+import pathlib
+
 import numpy as np
 
 # A triangle under a ten-thousandth of a texel, or with no surface, measures nothing.
 DEGENERATE_TEXELS = 1e-4
 DEGENERATE_M2 = 1e-14
+
+
+def layout_of(gltf):
+    """A baked .gltf's texture layout (layout_record), each map measured against its base colour picture's size."""
+    from PIL import Image
+    import bake_check
+    geometry, maps = bake_check.gltf_model(gltf)
+    sizes = []
+    for roles in maps:
+        with Image.open(roles["base_color"]) as picture:
+            sizes.append(tuple(int(value) for value in picture.size))
+    return layout_record(measure(geometry, sizes))
+
+
+def judge_layout(output, inputs, evidence):
+    """Every baked model's texture layout sound (#92): no surface outside its picture, mirrored, sharing texels,
+    stretched, given a fraction of its model's texture detail or in charts too thin to hold a colour, past each
+    measure's limit (LIMITS), named by model and measure."""
+    import surface_gates as gates
+    found = json.loads((pathlib.Path(output) / "checks.json").read_text())
+    measured = {model: record["layout"] for model, record in found.items() if "layout" in record}
+    if not measured:
+        return gates.unknown("texture layout sound", "no baked model's texture layout was measured")
+    failing = [f"{model}: {fault}" for model, layout in measured.items() for fault in faults(layout)]
+    return gates.verdict("texture layout sound", failing, len(measured), "layout faults over the models")
 
 
 def measure(geometry, sizes):
