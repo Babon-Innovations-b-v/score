@@ -1205,6 +1205,12 @@ def write_now(store, places, by, clear=None, ask=None, again=False):
 
 
 def kept(store, record):
+    """Keep one writing; the record. One carrying `asked` (an agent's design change under the owner's standing word,
+    #72) is no writing: it is kept as an edit (plans.redrawn, refused there without its reason), since a later fix
+    pass re-fixes a place from its writing and would undo it (the doors of 2026-11-05)."""
+    if record.get("asked"):
+        return plans.redrawn(store, record["place"], {key: record["plan"][key] for key in plans.REDRAWN
+                                                      if key in record["plan"]}, record["by"], record["asked"])
     store.write_once(f"{AREA}/{record['place']}/{stamp_key(record['at'])}.json", record)
     return record
 

@@ -2726,7 +2726,10 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
         `if shown is None or shown["how"] not in ("edited", "revised"):`
     Break: score/review/plans.py: `if unknown:` -> `if False:`
     Break: score/review/plans.py: `if not (asked or {}).get("words") or not asked.get("at") or not asked.get("reason"):` ->
-        `if False:`"""
+        `if False:`
+    An agent's design change kept through the writing route under that word is kept as an edit, so no later fix pass
+    of the writing undoes it (#72: the doors of 2026-11-05).
+    Break: score/review/plan_writing.py: `if record.get("asked"):` -> `if False:`"""
     rows = [{"id": "barn", "name": "a barn", "anchor": "floor", "size": [8.0, 6.0, 5.0], "count": 1, "at": []},
             {"id": "cart", "name": "a cart", "anchor": "floor", "size": [1.0, 1.0, 1.0], "count": 1, "at": []}]
     picked(store, "yard", rows)
@@ -2863,6 +2866,12 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     shown = plans.current(store, "shed")  # what it lays past its outline brought inside, as his edit's is
     assert (shown["how"], shown["plan"]["w"], shown["plan"]["d"]) == ("redrawn", 5.0, 10.0), shown["how"]
     assert shown["plan"]["people"][0][0] < 5.0 and record["plan"]["people"] == [[7.0, 2.0]], shown["plan"]["people"]
+    # the same change kept through the writing route under that word is an edit too, never a writing a fix pass redoes
+    writing = plan_writing.written_of(store, "shed")
+    kept = plan_writing.kept(store, {"place": "shed", "plan": {**record["plan"], "w": 4.5}, "by": "an agent",
+                                     "at": concepts.now(), "asked": asked})
+    assert kept["how"] == "redrawn" and plans.current(store, "shed")["plan"]["w"] == 4.5, kept["how"]
+    assert plan_writing.written_of(store, "shed") == writing
 
 
 # --- plan writing and its free checks: each failure a named gap -------------------------------------------------------
