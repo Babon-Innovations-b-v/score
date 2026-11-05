@@ -40,9 +40,12 @@ import pathlib
 import re
 import sys
 
+import numpy as np
+
 from score.review import concepts
-from score.review.plan_checks import WALLS_ITEM, anchor_of, whole
-from score.stages.scene_record.plan import INSTANCE, as_held, laid_outline, laid_size, name_of, outlines_overlap
+from score.review.plan_checks import HOLD_DRAWN, WALLS_ITEM, anchor_of, whole
+from score.stages.scene_record.plan import (INSTANCE, as_held, laid_outline, laid_size, name_of, on_holder,
+                                         outline_of, outlines_overlap, overlap_depth)
 from score.store import PROPS_HOME, stamp_key
 
 AREA = "plans"
@@ -741,13 +744,36 @@ def room_at(hold, size):
             "w": size[0], "d": size[1]}
 
 
+def drawn_item(plan, hold, box):
+    """The number of `plan`'s item of `hold`'s row drawn on `box` [x, y, w, d] (each side within HOLD_DRAWN: the
+    holder's drawing of the held place), else None."""
+    for number, item in enumerate(plan.get("items", [])):
+        if hold.get("row") in (plan.get("rows", {}).get(item[0]) or []) and all(
+                abs(float(drawn) - float(held)) <= HOLD_DRAWN for drawn, held in zip(item[1:5], box)):
+            return number
+    return None
+
+
+def item_redrawn(plan, hold, old, new):
+    """`plan` with the item of `hold`'s row drawn on box `old` drawn on `new` instead, so the item and its hold stay
+    one (scene_record.plan.hold_faults: the base's airlock fitted from its 18.5 m module item to its 7 m plan, the
+    item left at 18.5 m, 2026-11-05); True when one was."""
+    number = drawn_item(plan, hold, old)
+    if number is None:
+        return False
+    plan["items"][number] = [plan["items"][number][0], *new, *plan["items"][number][5:]]
+    return True
+
+
 def hold_fitted(plan, hold, size):
-    """(the hold at `size`, its middle kept; gaps): each floor item of `plan` the new box covers and the old did not
-    pushed off it in place, each change named."""
+    """(the hold at `size`, its middle kept; gaps): its row's item drawn on its box redrawn on the new one
+    (`item_redrawn`), each other floor item of `plan` the new box covers and the old did not pushed off it in place,
+    each change named."""
     old = [hold["x"], hold["y"], hold["w"], hold["d"]]
     middle = [old[0] + old[2] / 2, old[1] + old[3] / 2]
     fitted = room_at(hold, size)
     new = [fitted["x"], fitted["y"], fitted["w"], fitted["d"]]
+    item_redrawn(plan, hold, old, new)
     at = [round(value, 2) for value in middle]
     gaps = [{"kind": "held", "item": name_of(hold), "row": hold.get("row"), "at": at,
              "words": f"{name_of(hold).replace('_', ' ')}'s spot was {old[2]:g} x {old[3]:g} m, its own plan "
@@ -779,7 +805,7 @@ def holds_fitted(store, shown):
             resized.add(name_of(hold))
         holds.append(hold)
     owns = {name_of(hold): own_plan(store, hold["place"]) for hold in holds}
-    holds, met = doors_met(plan, holds, owns)
+    holds, met = doors_met(plan, holds, owns, resized)
     gaps += met
     resized |= {gap["item"] for gap in met if gap.get("met")}
     # a sibling spot is another child's own: never moved here, named; by their outlines as laid (turned)
@@ -791,10 +817,12 @@ def holds_fitted(store, shown):
     return {**shown, "plan": {**plan, "holds": holds, "gaps": gaps}}
 
 
-def mover_of(name, other, by_place):
+def mover_of(name, other, by_place, fitted=()):
     """Which of two held places moves so their doors meet: the one on the holder's own floor (no row: an item of a
-    row holds the other where it is drawn), else the smaller; None when both stand in an item of a row."""
-    free = [place for place in (name, other) if not by_place[place].get("row")]
+    row holds the other where it is drawn) or fitted to its own plan's size (`fitted`: no longer as drawn, its item
+    moving with it; the base's airlock, its 18.5 m module item fitted to its 7 m plan, its door left 4 m off its
+    tube's), else the smaller; None when both stand in an item of a row as drawn."""
+    free = [place for place in (name, other) if not by_place[place].get("row") or place in fitted]
     return min(free, key=lambda place: by_place[place]["w"] * by_place[place]["d"]) if free else None
 
 
@@ -804,11 +832,45 @@ def laid_overlap(hold, plan, other, other_plan):
     return outlines_overlap(laid_outline(hold, plan), laid_outline(other, other_plan))
 
 
-def doors_met(plan, holds, own):
+def inward(plan, at):
+    """The unit way into `plan` (its own frame) across the outline edge nearest the point `at`: a door's wall's."""
+    points = [np.asarray(point, float) for point in outline_of(plan)]
+    spot = np.asarray(at, float)
+
+    def off(edge):
+        start, end = edge
+        run = end - start
+        share = min(max(float(np.dot(spot - start, run) / max(float(np.dot(run, run)), 1e-12)), 0.0), 1.0)
+        return float(np.linalg.norm(spot - (start + run * share)))
+    start, end = min(zip(points, points[1:] + points[:1]), key=off)
+    normal = np.array([end[1] - start[1], start[0] - end[0]]) / max(float(np.linalg.norm(end - start)), 1e-12)
+    return normal if np.dot(np.mean(points, axis=0) - (start + end) / 2, normal) >= 0 else -normal
+
+
+def backed_off(hold, plan, at, other, other_plan):
+    """[x, y, w, d] of `hold` moved back off `other` by the floor their outlines share (`overlap_depth`), the way into
+    its own plan across the wall of its door at `at` (the base's airlock, its door 6 cm in from its wall's line, met on
+    its turned tube's end: never off the tube's box, which a turned tube only half fills), else None when that leaves
+    them overlapping or `hold` has no plan."""
+    if plan is None:
+        return None
+    one, two = laid_outline(hold, plan), laid_outline(other, other_plan)
+    depth = min(overlap_depth(one, two), overlap_depth(two, one))
+    way = on_holder(hold, plan, np.asarray(at, float) + inward(plan, at)) - on_holder(hold, plan, at)
+    way = way / max(float(np.linalg.norm(way)), 1e-12) * depth
+    box = {**hold, "x": round(hold["x"] + float(way[0]), 3), "y": round(hold["y"] + float(way[1]), 3)}
+    return None if laid_overlap(box, plan, other, other_plan) else [box["x"], box["y"], hold["w"], hold["d"]]
+
+
+def doors_met(plan, holds, own, fitted=()):
     """(`holds` with each held place whose door to a held sibling opens apart from the sibling's door leading back moved
     so the two meet, the gaps saying so): the nearest such pair first, its `mover_of` moved by the gap between the two
-    doors and then the shortest way off the sibling's box (each door stands on its own wall's line), each place moved
-    once, never onto another hold; the floor items its new box covers pushed off it (`hold_fitted`'s way). `own`:
+    doors and then, where their outlines still overlap, back off the sibling the way into its own plan across its door's
+    wall (`backed_off`), else the shortest way off the sibling's box (each door stands on its own wall's line), each
+    place moved once, never onto another hold; its row's item drawn on its box moved with it (`item_redrawn`), the
+    other floor items its new box covers pushed off it (`hold_fitted`'s way), never a hold's own drawn item, which
+    moves only with its hold (the base's tube#3, its 45-degree item's box under the airlock's met door); `fitted` the
+    held names fitted to their own plans' size. `own`:
     {held name (an instance its own): its place's own plan}, each read as its hold stands it (its `leads`). The Square's stairwell, fitted to its 7.42 x 4.06 m plan, opened its door to the flat 10.4
     m from the flat's door back (2026-11-05)."""
     from score.stages.scene_record.plan import DOORS_MET, paired
@@ -823,7 +885,7 @@ def doors_met(plan, holds, own):
         if name in moved or other in moved:
             continue
         pair = paired(own[name], by_place[name], name, own[other], by_place[other], other)[0]
-        mover = mover_of(name, other, by_place)
+        mover = mover_of(name, other, by_place, fitted)
         if mover is None or pair["gap"] <= DOORS_MET:
             continue
         still = other if mover == name else name
@@ -832,19 +894,23 @@ def doors_met(plan, holds, own):
         box = [round(hold["x"] + float(step[0]), 3), round(hold["y"] + float(step[1]), 3), hold["w"], hold["d"]]
         sibling = [by_place[still][key] for key in ("x", "y", "w", "d")]
         if laid_overlap({**hold, "x": box[0], "y": box[1]}, own.get(mover), by_place[still], own.get(still)):
-            box = pushed_out(box, sibling)
+            door = pair["door"] if mover == name else pair["back"]
+            box = backed_off({**hold, "x": box[0], "y": box[1]}, own.get(mover), door["at"], by_place[still],
+                             own.get(still)) or pushed_out(box, sibling)
         if any(laid_overlap({**hold, "x": box[0], "y": box[1]}, own.get(mover), spot, own.get(place))
                for place, spot in by_place.items() if place != mover):
             continue
         old = [hold["x"], hold["y"], hold["w"], hold["d"]]
         by_place[mover] = {**hold, "x": box[0], "y": box[1]}
         moved.add(mover)
+        item_redrawn(plan, hold, old, box)
         at = [round(old[0] + old[2] / 2, 2), round(old[1] + old[3] / 2, 2)]
         gaps.append({"kind": "held", "item": mover, "with": still, "at": at, "met": True,
                      "words": f"{mover.replace('_', ' ')}'s spot moved {math.dist(old[:2], box[:2]):.1f} m so its "
                               f"door to {still.replace('_', ' ')} meets {still.replace('_', ' ')}'s door back"})
+        drawn = {drawn_item(plan, spot, [spot[key] for key in ("x", "y", "w", "d")]) for spot in by_place.values()}
         for number, item in enumerate(plan.get("items", [])):
-            if item[6] != "item" or hold.get("row") in plan.get("rows", {}).get(item[0], []) \
+            if item[6] != "item" or hold.get("row") in plan.get("rows", {}).get(item[0], []) or number in drawn \
                     or overlap(item[1:5], old) or not overlap(item[1:5], box):
                 continue
             plan["items"][number] = [item[0], *pushed_out(item[1:5], box), *item[5:]]

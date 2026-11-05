@@ -438,6 +438,7 @@ from score.adapters import compute
 from score.review import (concepts, discuss, environment_concept, environment_concept as ec, environment_plan,
                           overhead, plan_checks, plan_drawing, plan_fixes, plan_writing, plans, plans_pass, reading,
                           reading_fixes, scene_sky, setting, standing, web)
+from score.stages.scene_record import plan as record_plan
 from score.store import RUNNER, Store, runtime_store
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -2763,7 +2764,14 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
         `if shown is None or shown["how"] not in ("edited", "revised"):`
     Break: score/review/plans.py: `if unknown:` -> `if False:`
     Break: score/review/plans.py: `if not (asked or {}).get("words") or not asked.get("at") or not asked.get("reason"):` ->
-        `if False:`"""
+        `if False:`
+    A hold fitted to its plan's size takes its row's drawn item with it and moves, its item too, so its door meets its
+    sibling's, backed off along its door's wall, a sibling's own drawn item left (the base's airlock and tube#3).
+    Break: score/review/plans.py: hold_fitted's `item_redrawn(plan, hold, old, new)` dropped
+    Break: score/review/plans.py: mover_of's `or place in fitted` dropped
+    Break: score/review/plans.py: doors_met's `box = backed_off(...) or pushed_out(box, sibling)` made
+        `box = pushed_out(box, sibling)`
+    Break: score/review/plans.py: doors_met's `or number in drawn` dropped"""
     rows = [{"id": "barn", "name": "a barn", "anchor": "floor", "size": [8.0, 6.0, 5.0], "count": 1, "at": []},
             {"id": "cart", "name": "a cart", "anchor": "floor", "size": [1.0, 1.0, 1.0], "count": 1, "at": []}]
     picked(store, "yard", rows)
@@ -2878,6 +2886,24 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     tubes = [{"place": "stairwell", "instance": f"stairwell#{number}", "row": "core", "x": 10.0 * number, "y": 0.0,
               "w": 7.4, "d": 4.0} for number in (1, 2)]
     assert plans.doors_met(square, tubes, {hold["instance"]: own["stairwell"] for hold in tubes})[0] == tubes
+    # a hold fitted to its plan's size takes its row's drawn item with it, and, no longer as drawn, moves so its door
+    # meets its turned link's end, backed off along its door's wall, the link's own item left where it is drawn (the
+    # base's airlock: fitted from its 18.5 m module item to its 7 m plan, item left, its door 4 m off tube#3's, 2026-11-05)
+    own = {"lock": {"w": 4.0, "d": 4.0, "openings": [door([2.0, 0.08], "link")]},
+           "link": {"w": 2.0, "d": 6.0, "openings": [door([1.0, 6.0], "lock")]}}
+    linked = {"items": [["MODULE 1", 0.0, 8.0, 10.0, 10.0, None, "item"],
+                        ["LINK 1", 6.0, 3.0, 5.656854, 5.656854, None, "item"]],
+              "rows": {"MODULE 1": ["module"], "LINK 1": ["link"]}}
+    lock = {"place": "lock", "row": "module", "x": 0.0, "y": 8.0, "w": 10.0, "d": 10.0, "turn": 45}
+    link = {"place": "link", "row": "link", "x": 6.0, "y": 3.0, "w": 5.656854, "d": 5.656854, "turn": 45}
+    fit, _ = plans.hold_fitted(linked, lock, plans.laid_size(lock, own["lock"]))
+    assert linked["items"][0][1:5] == [fit["x"], fit["y"], fit["w"], fit["d"]], linked["items"]
+    assert plans.doors_met(copy.deepcopy(linked), [fit, link], own)[0][0] == fit  # as drawn: left for the gate
+    met, said = plans.doors_met(linked, [fit, link], own, {"lock"})
+    pair = record_plan.paired(own["lock"], met[0], "lock", own["link"], met[1], "link")[0]
+    assert pair["gap"] <= record_plan.DOORS_MET and not plans.laid_overlap(met[0], own["lock"], met[1], own["link"])
+    assert [gap["item"] for gap in said] == ["lock"] and linked["items"][1][1:5] == [6.0, 3.0, 5.656854, 5.656854]
+    assert record_plan.hold_faults({**linked, "holds": met}) == [], linked["items"]
     # his edit's things past its own outline are brought inside it when it is shown (the hangar's 2026-10-21 edit kept
     # a 55.7 m writing's spots and crates past its 32 x 64 m), each fix said; the edit itself is kept as he made it
     edit = {**plans.current(store, "yard")["plan"], "w": 30.0, "d": 30.0, "holds": [],
