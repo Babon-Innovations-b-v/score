@@ -156,9 +156,23 @@ def stop_everything(asked_by, words, folder=None, parked=None, release=None, rep
             report["parked"].append(record["id"])
         except Exception as error:  # noqa: BLE001 - each machine is tried; the report names what failed
             report["errors"].append(f"parked {record['id']}: {type(error).__name__}: {error}")
-    report["leftovers"] = frozen.end([pid for pid, copy in frozen.users(frozen_folder).items() if copy not in stopping])
+    report["leftovers"] = frozen.end(leftovers(frozen_folder, stopping))
     keep(report, f"{'kill' if latched else 'batch-stop'}-{at.replace(':', '')}.json", report_folder)
     return report
+
+
+def leftovers(frozen_folder, stopping, holds_folder=None):
+    """The pids still working in the copy of a run no longer live, found as clean-frozen and the carry find them
+    (disk.working: a working folder in it, SCORE_FROZEN naming it, its path on the command line; frozen.users read
+    only the first, 2026-11-05: two processes held a stopped free run's copy and every carry refused as 'a run is
+    live' while stop-batch found none), never one of a run being stopped now (`stopping`: it ends its own) nor the
+    process holding a sync pass (conductor.holding's sync-pass-<pid>, whose own steps are its to end)."""
+    from score.conductor import disk
+    folder = pathlib.Path(frozen_folder or frozen.FOLDER)
+    passes = {int(name.rpartition("-")[2]) for name in conductor.holds(holds_folder)
+              if name.startswith(size.PASS_HOLD) and name.rpartition("-")[2].isdigit()}
+    return sorted({pid for copy, pids in disk.working(folder).items() if copy not in stopping
+                   for pid in pids if pid not in passes})
 
 
 def allow_paid(asked_by, words):

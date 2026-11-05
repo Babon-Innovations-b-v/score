@@ -327,15 +327,28 @@ def test_stop_this_batch_stops_its_run_and_machines_and_leaves_paid_work_allowed
     assert list(conductor.HOME.glob("batch-stop-*.json")) and not list(conductor.HOME.glob("kill-*.json"))
 
 
-def test_a_stop_ends_every_process_left_in_the_copy_of_a_run_gone_and_leaves_a_stopping_runs_to_it(home):
+def test_a_stop_ends_every_process_left_in_the_copy_of_a_run_gone_and_leaves_a_stopping_runs_to_it(home, monkeypatch):
     """2026-10-26: after Stop this batch six processes of the stopped run worked on in its frozen copy for an hour and
-    held the checkout; a second stop found no run and ended none."""
+    held the checkout; a second stop found no run and ended none. 2026-11-05: two processes naming a stopped free run's copy
+    by SCORE_FROZEN or command line, not their working folder, held every carry off; stop-batch found none.
+    Break: kill.leftovers -> frozen.users only (the two by name stay), or drop its `pid not in passes` (the sync pass
+    is ended)."""
     (home / "runs").mkdir()
     gone, stopping = home / "frozen" / "20261026-081445-1", home / "frozen" / "20261026-091445-2"
     gone.mkdir(parents=True)
     (home / "frozen" / "20261026-081445-1.home").mkdir()
     stopping.mkdir()
-    left = [subprocess.Popen(SLEEP, cwd=gone), subprocess.Popen(SLEEP, cwd=f"{gone}.home")]
+    named = [*SLEEP, f"{gone}/score/run.py"]  # the copy as an argument of its own, as a run names it
+    env = {**os.environ, "SCORE_FROZEN": str(gone)}
+    left = [subprocess.Popen(SLEEP, cwd=gone), subprocess.Popen(SLEEP, cwd=f"{gone}.home"),
+            subprocess.Popen(named, cwd=home), subprocess.Popen(SLEEP, cwd=home, env=env)]  # 2026-11-05: by name only
+    monkeypatch.setattr(conductor, "HOLDS", home / "holds")
+    passing = subprocess.Popen([sys.executable, "-c", f"import sys, time; sys.path.insert(0, {str(REPO)!r}); "
+                                f"from score import conductor; h = conductor.holding('sync-pass', "
+                                f"__import__('pathlib').Path({str(home / 'holds')!r})); h.__enter__(); "
+                                f"print('held', flush=True); time.sleep(60)"], cwd=home, env=env, stdout=subprocess.PIPE,
+                               text=True)
+    assert passing.stdout.readline().strip() == "held"
     run, node = subprocess.Popen(SLEEP, cwd=stopping), subprocess.Popen(SLEEP, cwd=stopping)
     runs.claim("c0ffee", ["draw@hangar"], run.pid, folder=home / "runs")
     time.sleep(0.3)  # the children are in their folders before the stop looks
@@ -345,8 +358,10 @@ def test_a_stop_ends_every_process_left_in_the_copy_of_a_run_gone_and_leaves_a_s
         assert sorted(entry["pid"] for entry in report["leftovers"]) == sorted(process.pid for process in left)
         assert all(process.wait(5) == -15 for process in left)
         assert report["runs"] == [run.pid] and node.poll() is None  # the stopping run ends its own (remove_owned)
+        assert passing.poll() is None  # a sync pass's own process is its own to end
+        assert all(entry["command"] for entry in report["leftovers"])  # each named, so we learn what they were
     finally:
-        for process in (*left, run, node):
+        for process in (*left, run, node, passing):
             process.kill()
             process.wait()
 
