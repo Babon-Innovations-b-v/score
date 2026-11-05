@@ -1,6 +1,7 @@
 # score/stages/sim_body/inside/model/
 
-The person's MyoFullBody as Newton builds it (`built`: SolverMuJoCo's MuJoCo model, MuJoCo's CPU backend, `DEVICE`;
+The person's MyoFullBody as Newton builds it (`built`: SolverMuJoCo's MuJoCo model; with a CUDA card Newton builds it there and the MuJoCo Warp model its
+SolverMuJoCo puts on the card is kept, `on_card`, for `batched`; else MuJoCo's CPU backend, `DEVICE`;
 no meshes given to Newton, nothing stepped) and what every later step reads off it: `body_index` (a body by the
 MyoFullBody name, Newton naming it by its path), `Couplings` (MuJoCo's joint couplings: the leading dofs and each
 follower's polynomial), `limited`, `own_pose` and `TO_OWN` (MuJoCo's Z up to the person's Y up), `default_pose`

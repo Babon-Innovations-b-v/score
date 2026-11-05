@@ -162,13 +162,17 @@ def _wide_residuals(optimizer, forward, joint_q, body_q, wide):
 
 
 def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STEPS, set_places=None, row_set=None,
-           skin=None):
+           skin=None, hold=None, bounds=None, marked=False):
     """Every row's pose fitted from joint_q [rows, coords] (Newton's layout): (qpos [rows, coords] in MuJoCo's
     layout, steps [rows]). optimizer is the batch's IKOptimizerLM (Newton's IKSolver(...)._impl), seeds [rows,
     coords] MuJoCo's layout (the frozen coordinates' values). set_places [sets, joints, 7] and row_set [rows] (host
     arrays) give each row its set's joint places, row_set its set's coupling polys too (the reduction's and the
     projection's [sets, couplings, 5]; rows = set x frame); neither, the model's own. `skin`: the rows' bones in their
-    posed skins (`_skin_step.SkinRows`), else none."""
+    posed skins (`_skin_step.SkinRows`), else none. `hold`: rows held off the Jacobian with no step control, its
+    `normal(slopes, reduced, qpos)` their (J^T J, J^T r, squared sum) in the reduced dofs (`rra`'s held leg
+    directions); `bounds`: each row's own ranges, (reduced lower, reduced upper [rows, size], lower, upper [rows,
+    coords]) card arrays, in place of the reduction's and the projection's (`rra`'s footing). `marked`: a row still
+    going at `most_steps` is given steps -1 instead of NotConverged raised, for the caller to solve it otherwise."""
     device = joint_q.device
     coords = optimizer.model.joint_coord_count
     if joint_q.shape[1] != coords or seeds.shape[1] != coords:
@@ -196,7 +200,10 @@ def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STE
     steps = wp.zeros(rows, dtype=wp.int32, device=device)
     taken = wp.zeros(1, dtype=wp.int32, device=device)
 
-    held_off = None if skin is None else (lambda slopes: skin.normal(optimizer.joint_S_s, slopes))
+    held_off = None if skin is None else (lambda slopes, *_: skin.normal(optimizer.joint_S_s, slopes))
+    if hold is not None:
+        held_off = hold.normal
+    step_bounds, own_bounds = (None, None) if bounds is None else (bounds[:2], bounds[2:])
     unread = wp.zeros(1, dtype=wp.float64, device=device)  # the stop rule's skin sums when there is none (flag 0)
     skin_sums = (skin.cost, skin.change, 1) if skin is not None else (unread, unread, 0)
     judged, lam = wp.ones(rows, dtype=wp.int32, device=device), wp.zeros(rows, dtype=wp.float32, device=device)
@@ -220,10 +227,10 @@ def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STE
         wp.launch(_narrowed, dim=wide.shape, inputs=[wide], outputs=[narrow], device=device)
         wp.launch(_to_mujoco, dim=(rows, coords), inputs=[current], outputs=[qpos], device=device)
         full, norms = damped_step(reduction, jacobian, narrow, qpos, active, sets_of, held_off,
-                                  None if skin is None else lam)
+                                  None if skin is None else lam, step_bounds)
         optimizer._integrate_dq(current, dq_in=full, joint_q_out=following, joint_qd_out=velocity)
         wp.launch(_to_mujoco, dim=(rows, coords), inputs=[following], outputs=[qpos], device=device)
-        project(projection, qpos, seeds, sets_of)
+        project(projection, qpos, seeds, sets_of, own_bounds)
         wp.launch(_to_newton, dim=(rows, coords), inputs=[qpos], outputs=[current], device=device)
         wp.launch(_stopped, dim=rows, inputs=[wide, before, norms, history, taken, active, *skin_sums, judged, lam,
                                               steps], device=device)
@@ -241,8 +248,11 @@ def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STE
             wp.capture_launch(graph)
         if done % 10 == 9 and not active.numpy().any():
             break
-    if active.numpy().any():
-        raise NotConverged(f"{int(active.numpy().sum())} rows did not stop in {most_steps} steps")
+    going = active.numpy()
+    if going.any() and not marked:
+        raise NotConverged(f"{int(going.sum())} rows did not stop in {most_steps} steps")
+    if going.any():
+        steps.assign(np.where(going != 0, -1, steps.numpy()).astype(np.int32))
     wp.launch(_to_mujoco, dim=(rows, coords), inputs=[current if skin is None else kept_q], outputs=[qpos],
               device=device)
     return qpos, steps

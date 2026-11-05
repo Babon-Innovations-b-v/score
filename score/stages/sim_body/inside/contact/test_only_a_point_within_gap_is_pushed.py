@@ -1,7 +1,8 @@
 """contact: the ground pushes the person's skin (`Skin`, carried by the body's bones) only where it comes within GAP
 of the drawn ground, whichever drawn surface that is (a seat as a floor), inside a friction pyramid when slow and
 sliding against its slip when fast, a point blended over two bodies moving with both by its weights, its push's
-directions as long as it is near, so a point's push fades to nothing at GAP (worked by hand).
+directions as long as it is near, so a point's push fades to nothing at GAP (worked by hand); every state's pushes at
+once (`pushes_all`, the card's) are each state's own.
 It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh, built at
 $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
@@ -14,6 +15,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - Skin.jacobian's `found += self.weights[point, segment] * along` made `found += along`: the half-and-half point
   moves as fast as the ball.
 2026-11-05:
+- pushes_all's `motion *= chains.moves[...]` dropped: a point on the world is moved by the ball's dofs.
+- Chains' `dof = model.dof_parentid[dof]` made `dof -= 1`: a chain runs through dofs that are not the body's.
 - pushes' `closeness(over[point]) * edge` made `edge`: the point 4 mm over is pushed as freely as one on the ground,
   so a point crossing GAP takes its whole share at once (a foot's centre of pressure 3 to 6 cm a frame).
 
@@ -37,6 +40,23 @@ BALL = """<mujoco model="ball">
 """
 
 
+PADS = """<mujoco model="pads">
+  <worldbody>
+    <body name="ball" pos="0 0 0.3">
+      <freejoint/>
+      <geom type="sphere" size="0.03" mass="1"/>
+      <body name="left" pos="0.1 0 -0.2">
+        <joint name="left_hinge" type="hinge" axis="0 1 0"/>
+        <geom type="sphere" size="0.02" mass="0.2"/>
+      </body>
+      <body name="right" pos="-0.1 0 -0.25">
+        <joint name="right_hinge" type="hinge" axis="1 0 0"/>
+        <geom type="sphere" size="0.02" mass="0.2"/>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>
+"""
 SKIN = 0.05  # the ball's skin's radius (m), its collider 3 cm inside it
 
 
@@ -137,8 +157,75 @@ def a_blended_point_moves_by_its_weights():
     return [] if np.allclose(found, 0.5 * whole) else [f"Jacobian {found.round(3).tolist()}, not half the ball's"]
 
 
+def every_state_at_once_is_each_states_own():
+    """`pushes_all` on five states of the ball (4 and 6 mm over, 1 mm into the ground, sliding at 2 m/s, turned 0.4 rad and spinning), its
+    skin half on the ball and half on the still world for some points: each state's pushes are `pushes`' on that state
+    alone (bodies, Jacobians to 1e-12, edges, the ground's points), its lowest point `lowests`'; and on three states of two sibling pads on their
+    own hinges under a ball, a pad's skin blended with the still world (a point's chain is its own body's dofs, never
+    its sibling's)."""
+    import mujoco
+    import numpy as np
+    import contact
+    import ground as grounds
+    model, data = ball_at(0.054)
+    skin = skin_of(model, data, ((1, 0.5), (0, 0.5)))
+    skin.weights[::2] = [1.0, 0.0]  # every other point on the ball alone
+    states, wanted = {"xpos": [], "xmat": [], "cdof": [], "subtree_com": [], "qvel": []}, []
+    for height, speed, turn in ((0.054, 0.0, 0.0), (0.056, 0.0, 0.0), (0.053, 2.0, 0.0), (0.0535, 0.5, 0.4), (0.049, 0.0, 0.0)):
+        data.qpos[:] = model.qpos0
+        data.qpos[2] = height
+        mujoco.mju_axisAngle2Quat(data.qpos[3:7], np.array([0.0, 1.0, 0.0]), turn)
+        data.qvel[:] = [speed, 0.0, 0.0, 0.0, turn, 0.3]
+        mujoco.mj_forward(model, data)
+        for name in states:
+            states[name].append(getattr(data, name).copy())
+        wanted.append(contact.pushes(model, data, flat(), grounds.normals(flat()), skin))
+    pads = mujoco.MjModel.from_xml_string(PADS)  # two sibling pads, each on its own hinge: a chain is its own
+    own = mujoco.MjData(pads)
+    own.qpos[2] = 0.3 - 0.25 - 0.002  # the right pad's centre 2 mm under its ground, its skin 1 mm round it
+    mujoco.mj_forward(pads, own)
+    import model as built_model
+    centre = built_model.TO_OWN @ own.xpos[3]
+    directions = np.array([[0.0, -1.0, 0.0], [0.6, -0.8, 0.0], [0.0, -0.8, 0.6], [-0.6, -0.8, 0.0]])
+    pad_skin = contact.Skin(centre + 0.001 * directions, np.tile([0.7, 0.3], (4, 1)),
+                            [built_model.own_pose(pads, own, body) for body in (3, 0)], [3, 0], [np.eye(4)] * 2)
+    pad_states, pad_wanted = {name: [] for name in states}, []
+    for turn in (0.0, 0.2, -0.3):
+        own.qpos[7:] = 0.5 * turn, turn
+        own.qvel[:] = [0.1, 0.0, -0.05, 0.2, turn, 0.1, 1.0, -0.5]
+        mujoco.mj_forward(pads, own)
+        for name in pad_states:
+            pad_states[name].append(getattr(own, name).copy())
+        pad_wanted.append(contact.pushes(pads, own, flat(), grounds.normals(flat()), pad_skin))
+    arrays = lambda found: {name: np.array(values) for name, values in found.items()}  # noqa: E731
+    found, over = contact.pushes_all(model, arrays(states), flat(), grounds.normals(flat()), skin,
+                                     contact.Chains(model))
+    pad_found, _ = contact.pushes_all(pads, arrays(pad_states), flat(), grounds.normals(flat()), pad_skin,
+                                      contact.Chains(pads))
+    found += pad_found
+    wanted += pad_wanted
+    problems = []
+    for state, height in enumerate((0.054, 0.056, 0.053, 0.0535, 0.049)):
+        data.qpos[:] = model.qpos0
+        data.qpos[2] = height
+        mujoco.mj_forward(model, data)  # its turn left out: the lowest point's height does not turn with it here
+        lowest, _ = contact.lowests(model, data, skin, flat(), {})
+        if state in (0, 1, 4) and abs(np.nanmin(over[state]) - lowest) > 1e-12:
+            problems.append(f"state {state}: lowest {np.nanmin(over[state])} against lowests'")
+    for state, (mine, theirs) in enumerate(zip(found, wanted)):
+        if len(mine) != len(theirs):
+            problems.append(f"state {state}: {len(mine)} points pushed, alone {len(theirs)}")
+            continue
+        for one, other in zip(mine, theirs):
+            if one[0] != other[0] or not np.allclose(one[1], other[1], atol=1e-12) or not np.allclose(
+                    one[2], other[2], atol=1e-12) or not np.allclose(one[3], other[3], atol=1e-12):
+                problems.append(f"state {state}: a point's push differs from its state's alone")
+                break
+    return problems + ([] if sum(len(theirs) for theirs in wanted) >= 3 else ["too few points pushed to tell"])
+
+
 CHECKS = (only_a_point_within_gap_is_pushed, a_seat_carries_the_skin_on_it, a_fast_point_slides_against_its_slip,
-          a_blended_point_moves_by_its_weights)
+          a_blended_point_moves_by_its_weights, every_state_at_once_is_each_states_own)
 
 
 def in_newton():

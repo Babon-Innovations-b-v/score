@@ -7,10 +7,11 @@ give is the pelvis' residual and each joint's reserve, measured and never applie
 import mujoco
 import numpy as np
 
+from batched import Card, least_all, same_layout
 from bone_groups import FEET
-from contact import pushes
+from contact import Chains, lowest_of, lowests, pushes, pushes_all
 from ground import normals
-from model import Couplings
+from model import Couplings, on_card
 from solvers import least
 
 CONTACT_COST = 1e-3  # the solve's weight of a newton of contact force (or N m of a joint's stop) against an activation
@@ -60,6 +61,40 @@ class Physics:
         self.ground, self.up = ground, normals(ground)
         self.skin = skin  # the person's drawn surface the ground pushes (`contact.Skin`)
         self.muscles = np.flatnonzero(model.actuator_dyntype == mujoco.mjtDyn.mjDYN_MUSCLE)
+        card = on_card(model)
+        if card is not None and not same_layout(model, card):
+            raise ValueError("MuJoCo Warp's model of the body is not the CPU model's layout: the card reads another")
+        self.card = Card(model, card) if card is not None else None
+        self.chains = Chains(model) if self.card is not None else None
+        self.laid = None  # the state `each` laid in `data`: its contacts, worked out with every state's at once
+        self.laid_over = None  # ... and its skin points' heights over their ground
+
+    def each(self, path, velocities, accelerations, contacts=True):
+        """Each state's needed forces (`needed`), its state laid in `data` before it is given (for `contacts`,
+        `stops`, `shared` and every other read of the frame): with the model on the card every state at once
+        (`batched.Card`), else frame by frame on MuJoCo's C; `contacts` False when the caller reads none (the
+        ground's pushes worked out for nothing)."""
+        if self.card is None:
+            for qpos, qvel, qacc in zip(path, velocities, accelerations):
+                yield self.needed(qpos, qvel, qacc)
+            return
+        found = self.card.evaluate(path, velocities, accelerations)
+        touching, over = pushes_all(self.model, found, self.ground, self.up, self.skin, self.chains) if contacts else \
+            (None, None)
+        try:
+            for row in range(len(found["needed"])):
+                self.laid, self.laid_over = (touching[row], over[row]) if contacts else (None, None)
+                yield self.card.load(found, row, self.data)
+        finally:
+            self.laid, self.laid_over = None, None
+
+    def lowests(self, parts):
+        """The lowest of the skin's points over its ground now, and of each part's ({part: its points' indices}),
+        `contact.lowests`' (inside `each` on the card, read off every state's ground worked out at once)."""
+        if self.laid_over is None:
+            return lowests(self.model, self.data, self.skin, self.ground, parts)
+        return lowest_of(self.laid_over), {part: lowest_of(self.laid_over[points]) if len(points) else None
+                                           for part, points in parts.items()}
 
     def needed(self, qpos, qvel, qacc):
         """The state set, and the generalised forces the movement needs beyond the passive ones (nv)."""
@@ -72,7 +107,10 @@ class Physics:
         return found + model.dof_armature * qacc - data.qfrc_passive
 
     def contacts(self):
-        """The points the ground pushes now (`contact.pushes` on this person's skin and ground)."""
+        """The points the ground pushes now (`contact.pushes` on this person's skin and ground; inside `each` on the
+        card, the laid state's, worked out with every state's at once: `contact.pushes_all`)."""
+        if self.laid is not None:
+            return self.laid
         return pushes(self.model, self.data, self.ground, self.up, self.skin)
 
     def stops(self):
@@ -98,6 +136,20 @@ class Physics:
         and its centre of pressure (`touches`: a foot one part), each muscle's activation
         and force (N, tension), the residual on the pelvis (force N and moment N m, MuJoCo's frame) and each leading
         joint's reserve and net moment (N m)."""
+        problem = self.problem(needed)
+        return self.share_of(problem, least(*problem["asked"]))
+
+    def solved_all(self, problems, card=True):
+        """Each `problem`'s least squares solved: every one at once on the card (`batched.least_all`) when the model
+        is there and `card`, else one by one (`solvers.least`)."""
+        asked = [problem["asked"] for problem in problems]
+        if not asked:
+            return []
+        return least_all(*zip(*asked)) if self.card is not None and card else [least(*one) for one in asked]
+
+    def problem(self, needed):
+        """The static optimisation of the state laid in `data` (`shared`'s), unsolved: its least squares' system,
+        wanted, costs and bounds (`asked`) and what `share_of` reads of the state."""
         model, data = self.model, self.data
         mapped = self.couplings.map(data.qpos)
         moments = np.zeros((model.nu, model.nv))
@@ -124,18 +176,25 @@ class Physics:
         costs = np.concatenate([np.full(count + held, CONTACT_COST), np.ones(len(self.muscles))])
         rows = np.ones(len(wanted))
         rows[:6] = BALANCE  # the pelvis' six rows: the whole body's balance, kept before any joint's
-        solved = least(system * rows[:, None], wanted * rows, costs, np.concatenate([np.full(count + held, np.inf),
-                                                                                    np.ones(len(self.muscles))]))
+        highest = np.concatenate([np.full(count + held, np.inf), np.ones(len(self.muscles))])
+        return {"asked": (system * rows[:, None], wanted * rows, costs, highest), "system": system, "wanted": wanted,
+                "count": count, "held": held, "contacts": contacts, "gains": gains, "biases": biases,
+                "pushes": pushes, "mapped": mapped, "needed": needed,
+                "root": data.xmat[model.jnt_bodyid[0]].reshape(3, 3).copy()}
+
+    def share_of(self, problem, solved):
+        """`shared`'s record of a `problem` solved as `solved` (the least squares' x)."""
+        model, contacts, count, held = self.model, problem["contacts"], problem["count"], problem["held"]
         pushed, activations = solved[:count], solved[count + held:]
-        left = wanted - system @ solved
+        left = problem["wanted"] - problem["system"] @ solved
         forces = np.zeros((model.nbody, 3))
         each = np.zeros((len(contacts), 3))
         edges = [(number, body, edge) for number, (body, _, mine, _) in enumerate(contacts) for edge in mine]
         for (number, body, edge), weight in zip(edges, pushed):
             forces[body] += weight * edge
             each[number] += weight * edge
-        root = data.xmat[model.jnt_bodyid[0]].reshape(3, 3)
-        net = mapped.T @ (needed - pushes @ pushed)
+        net = problem["mapped"].T @ (problem["needed"] - problem["pushes"] @ pushed)
         return {"pushes": forces, "touches": touches(contacts, each, self.parts), "activations": activations,
-                "forces": -(gains * activations + biases),
-                "residual": np.concatenate([left[:3], root @ left[3:6]]), "reserves": left[6:], "moments": net[6:]}
+                "forces": -(problem["gains"] * activations + problem["biases"]),
+                "residual": np.concatenate([left[:3], problem["root"] @ left[3:6]]), "reserves": left[6:],
+                "moments": net[6:]}

@@ -35,8 +35,9 @@ here moves, scales or grounds SOMA.
   pelvis' and trunk's path moved so the ground's pushes explain the movement, each frame's move capped, the feet kept
   where they stood by the legs (`Footing`: mink, as the fit); the result kept within the clip's `follows` limit
   (`within_follows`). Nothing is applied to the body; how far it moved is the body's `adjusted` record.
-- The physics, frame by frame, on the MuJoCo model Newton builds (SolverMuJoCo on MuJoCo's CPU backend; nothing is
-  stepped): the generalised forces the movement needs (inverse dynamics, armature and passive forces in), the ground's
+- The physics of every frame, on the MuJoCo model Newton builds (with a CUDA card every frame's state and least
+  squares at once there, MuJoCo Warp on the model Newton's SolverMuJoCo puts on it: `batched`; else MuJoCo's CPU
+  backend, frame by frame; nothing is stepped): the generalised forces the movement needs (inverse dynamics, armature and passive forces in), the ground's
   contacts (each point of the person's skin, riding the bones, within GAP of the drawn triangle under it or into it, along the triangle's
   normal: a friction pyramid, FRICTION, under SLIDE_MOST, else sliding, its friction against its slip), and one
   bounded least squares (`shared`) that gives the forces to the ground, to a joint at an end of its range (`stops`)
@@ -92,6 +93,7 @@ os.environ.update(warp_cache(os.environ))  # before Warp is imported: it reads t
 import mujoco  # noqa: E402
 import newton  # noqa: E402
 import numpy as np  # noqa: E402
+import warp  # noqa: E402
 
 import fit  # noqa: E402
 import myo  # noqa: E402
@@ -206,7 +208,7 @@ def run_person(job, person, out_path):
     limits = (job["residual"]["force"] * weight, job["residual"]["moment"] * weight * com_height(model, qpath[0], ground))
     most = (job["adjust"]["move most m"], np.radians(job["adjust"]["turn most deg"]))
 
-    footing = Footing(model, physics.couplings, [bodies[segment] for segment in feet])
+    footing = Footing(model, physics.couplings, [bodies[segment] for segment in feet], path)
 
     def land(path):
         return footing.footed(path, qpath)
@@ -254,8 +256,9 @@ def run(job_path, out_path):
         people[person["name"]], mine = run_person(job, person, out_path)
         arrays_found.update(mine)
     np.savez_compressed(out_path.with_suffix(".npz"), **arrays_found)
+    where = "every frame at once on MuJoCo Warp, cuda" if warp.is_cuda_available() else "CPU"
     out_path.write_text(json.dumps({"engine": f"newton {newton.__version__} SolverMuJoCo's model (MuJoCo "
-                                              f"{mujoco.__version__}, CPU), inverse dynamics with contact and static "
+                                              f"{mujoco.__version__}, {where}), inverse dynamics with contact and static "
                                               "optimisation; nothing stepped", "rate": job["rate"], "people": people}))
 
 

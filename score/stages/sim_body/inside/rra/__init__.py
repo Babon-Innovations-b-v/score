@@ -12,7 +12,8 @@ from model import body_index
 from rra._cap import (SKIN_SLACK, cap_rows, held_share, off_clip, skin_excess, smoothed_off, turned_off,  # noqa: F401
                       within_follows, within_frames)
 from rra._footed import Footing  # noqa: F401
-from rra._linear import adjusted_leads, frame_states, linearised, moved, residuals, trunk_moments  # noqa: F401
+from rra._linear import adjusted_leads, frame_states, linearised, moved, residuals, sensitivities, trunk_moments  # noqa: F401
+from batched import within_balls_card
 from solvers import filter_matrix, within_balls
 
 # The residual reduction's rounds (RRA is run again on its own output), the weight of a move the size of its cap
@@ -95,7 +96,7 @@ def reduced(physics, path, rate, limits, most, land, fitted, riders):
         system = linearised(physics, states, adjusted, rate, scale) @ smooth
         rows, values = cap_rows(physics, path, total.reshape(count, width), land, fitted, riders, most)
         rows = np.einsum("fbcw,fwk->fbck", rows, smooth.reshape(count, width, -1)).reshape(-1, smooth.shape[1])
-        solved, _ = within_balls(np.concatenate([system, track[:, None] * smooth]),
+        solved, _ = (within_balls if physics.card is None else within_balls_card)(np.concatenate([system, track[:, None] * smooth]),
                                  np.concatenate([-left, -track * total]), rows, values.reshape(-1))
         step = smooth @ solved
         best = cost(total, states)

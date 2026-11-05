@@ -11,7 +11,6 @@ from scipy.spatial import ConvexHull, QhullError
 from scipy.spatial.transform import Rotation
 
 from bone_groups import LACKS
-from contact import lowests
 from ground import heights_over
 from model import TO_OWN, own_pose
 from rra import RRA_ROUNDS, turned_off
@@ -206,42 +205,50 @@ def push_faults(measures):
 
 
 def frames(physics, path, velocities, accelerations, worlds, ground, riders, feet, drawn_ids, rate):
-    """Every frame's record and the drawn arrays beside it: its physics shared out (`Physics.shared`), its segments
+    """Every frame's record and the drawn arrays beside it: its physics shared out (`Physics.problem`, every frame's
+    least squares at once, `Physics.solved_all`, and `Physics.share_of`: `Physics.shared` frame by frame), its segments
     riding their bones (`riders`: segments, bodies, riding, parents), the feet (`feet`: {segment: its skin points}), its
     touching parts' pushes steadied over the clip (`steadied`, at the clip's `rate`); returns the records, each drawn
     body's poses, each segment's, the muscles' paths, their point counts and the pushes' measures (`push_measures`).
     The poses the skin plays are SOMA's own, written by the stage (#70: SOMA is the truth, never moved)."""
     model = physics.model
     segment_names, bodies, riding, parents = riders
-    found, bones, segments, paths, counts, raw, needs = [], [], [], [], [], [], []
-    for frame in range(len(path)):
-        needed = physics.needed(path[frame], velocities[frame], accelerations[frame])
-        share = physics.shared(needed)
+    found, bones, segments, paths, counts, raw, needs, problems, posed_all, lowest = [], [], [], [], [], [], [], [], \
+        [], []
+    for needed in physics.each(path, velocities, accelerations):  # each frame's state: what it reads of it
+        problems.append(physics.problem(needed))
         data = physics.data
         posed = [own_pose(model, data, bodies[segment]) @ riding[segment] for segment in segment_names]
+        posed_all.append(posed)
+        lowest.append(physics.lowests(feet))
+        segments.append(segment_poses(posed))
+        bones.append(segment_poses([own_pose(model, data, body) for body in drawn_ids]))
+        mine, many = paths_of(data, model.actuator_trnid[physics.muscles, 0])
+        counts.append(many)
+        paths.append(mine @ TO_OWN.T)
+    # the frames' static optimisation by `least` on the processor: on the card (`batched.least_all`) the clips' muscles
+    # came out 24% more active (pickup, jump; 2026-11-05, #70), the cause not found yet; RRA's balance agrees on it
+    shared = physics.solved_all(problems, card=False)
+    for frame, (problem, solved) in enumerate(zip(problems, shared)):  # every frame's share
+        share = physics.share_of(problem, solved)
+        needed, posed, (low, feet_low) = problem["needed"], posed_all[frame], lowest[frame]
         pushes = share["pushes"] @ TO_OWN.T
         raw.append(touched(share["touches"]))
         needs.append(TO_OWN @ needed[:3])
-        lowest, lowest_feet = lowests(model, data, physics.skin, ground, feet)
         found.append({
             "angles": np.round(local_turns(posed, parents), 3).tolist(),  # the body's segments' turns
             "targets": np.round(local_turns(worlds[frame], parents), 3).tolist(),
             "torques": np.round(share["moments"], 3).tolist(),
             "ground": np.round(pushes.sum(axis=0), 3).tolist(),
-            "lowest": rounded(lowest),
+            "lowest": rounded(low),
             "touches": None,  # steadied over the clip below
-            "feet": {segment: [rounded(lowest_feet[segment]), round(float(pushes[bodies[segment], 1]), 3)]
+            "feet": {segment: [rounded(feet_low[segment]), round(float(pushes[bodies[segment], 1]), 3)]
                      for segment in feet},
             "residual": np.round(np.concatenate([TO_OWN @ share["residual"][:3], TO_OWN @ share["residual"][3:]]),
                                  3).tolist(),
             "reserve": round(float(np.abs(share["reserves"]).max(initial=0.0)), 3),
             "activations": np.round(share["activations"], 4).tolist(),
             "forces": np.round(share["forces"], 2).tolist()})
-        segments.append(segment_poses(posed))
-        bones.append(segment_poses([own_pose(model, data, body) for body in drawn_ids]))
-        mine, many = paths_of(data, model.actuator_trnid[physics.muscles, 0])
-        counts.append(many)
-        paths.append(mine @ TO_OWN.T)
     steady = steadied(raw, rate, ground)
     for record, touches in zip(found, steady):
         record["touches"] = touches
