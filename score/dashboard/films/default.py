@@ -317,14 +317,15 @@ def place_peel(place, name, body):
 
 
 def sim_bodies(shown, people, walked=()):
-    """The peels part: a card, then a layer peel of every shown scene whose design has people (`people`), those
-    on CLIPS_TRUE_ON first, the rest in the order shown, each with a close-up after it where one of its people
-    walks (`people`: {place: walks}); then a card and a place peel of every walked scene (`walked`) without people,
-    in the order shown; none of either part where it has no scene."""
-    peeled = [entry for entry in shown if entry[0] in people]
+    """The peels part: a card, then a layer peel of every shown scene whose design has people and whose cast gives
+    sim bodies, those on CLIPS_TRUE_ON first, the rest in the order shown, each with a close-up after it where one of
+    its people walks (`people`: {place: walks, None where its cast is a crowd alone: no sim body}); then a card and a
+    place peel of every other walked scene (`walked`) and every crowd-only one, in the order shown; none of either
+    part where it has no scene."""
+    peeled = [entry for entry in shown if people.get(entry[0]) is not None]
     ordered = [entry for entry in peeled if entry[2] == CLIPS_TRUE_ON] + \
               [entry for entry in peeled if entry[2] != CLIPS_TRUE_ON]
-    bare = [entry for entry in shown if entry[0] in walked and entry[0] not in people]
+    bare = [entry for entry in shown if (entry[0] in walked or entry[0] in people) and people.get(entry[0]) is None]
     card = segment("text", {}, 4.0, [], text="Sim bodies", line="Every person of the design, a body on Newton")
     places = segment("text", {}, 4.0, [], text="Physics bodies",
                      line="Every other scene: finished, bare models, the bodies its physics uses")
@@ -347,8 +348,10 @@ def row_walks(row):
 
 def people_of(rows):
     """{place: whether one of its people walks} of every place whose design shows people, from
-    data/people/rows.json's content."""
+    data/people/rows.json's content; None for a place whose rows are a crowd alone, whose cast gives no sim body
+    (score/stages/sim_body's rule: a crowd has none, no_singles)."""
     return {place: any(row_walks(row) for row in entry["rows"].values())
+            if any("crowd" not in row for row in entry["rows"].values()) else None
             for place, entry in sorted(rows.get("places", {}).items()) if entry.get("rows")}
 
 

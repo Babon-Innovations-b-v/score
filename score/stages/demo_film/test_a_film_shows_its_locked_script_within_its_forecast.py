@@ -917,13 +917,26 @@ def test_a_locked_script_peels_every_place_whose_design_shows_people(tmp_path, m
     meant adding people or peeling the place itself: "2").
     Break: score/stages/demo_film/final.py: `if place not in peeled]` -> `if False]`
     Break: score/stages/demo_film/final.py: `sorted(unpeopled - placed)` -> `[]`
-    Break: score/stages/demo_film/final.py: `if design_layers.has_layer(place, "people")]` -> `]`"""
-    from score.stages import design_layers
+    Break: score/stages/demo_film/final.py: `if design_layers.has_layer(place, "people")]` -> `]`
+    Break: score/stages/demo_film/final.py: `all("crowd" in fields` -> `any("crowd" in fields`
+    Break: score/stages/demo_film/final.py: `for place in crowds if place in peeled or place not in placed]` -> `if False]`
+    And a place whose cast is a crowd alone (no sim body) is place peeled, never layer peeled."""
+    from score.stages import design_layers, people_rows
     monkeypatch.setattr(design_layers, "KEPT", tmp_path)
-    for place in ("lab", "stairwell", "hangar"):
+    for place in ("lab", "stairwell", "hangar", "square"):
         (tmp_path / f"{place}.json").write_text("{}")
     monkeypatch.setattr(design_layers, "has_layer", lambda place, kind: kind == "people" and place != "hangar")
-    assert final.peopled() == ["lab", "stairwell"]
+    rows = {"square": {"rows": {"crowd": {"crowd": "far"}}},
+            "lab": {"rows": {"crowd": {"crowd": "far"}, "ann": {"looks": ["ann_coat"]}}}}
+    monkeypatch.setattr(people_rows, "place_entry", lambda place, found=None: rows.get(place))
+    assert final.peopled() == ["lab", "stairwell"] and final.crowded() == ["square"]
+    crowd = {"cut": "body-peel", "shows": {"place": "square"}, "seconds": 5.0}
+    faults = final.plan_faults(dict(a_script([*WALKS, crowd])), final.peopled(), final.designed(), final.crowded())
+    assert "the cast of square is a crowd with no sim body and a layer peel shows it" in faults
+    faults = final.plan_faults(dict(a_script(WALKS)), (), (), final.crowded())
+    assert faults == ["the cast of square is a crowd with no sim body and no place peel shows it"]  # walked or not
+    faults = final.plan_faults(dict(a_script([*WALKS, dict(crowd, cut="place-peel")])), (), (), final.crowded())
+    assert not any("square" in fault for fault in faults)
     assert {"design lab", "design stairwell", "design hangar"} <= set(final.files())
     peel = {"cut": "body-peel", "shows": {"place": "lab"}, "seconds": 5.0}
     faults = final.plan_faults(dict(a_script([*WALKS, peel])), final.peopled())
