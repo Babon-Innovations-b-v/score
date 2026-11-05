@@ -59,6 +59,13 @@ stage (`../layer_base.py`). `__init__.py`'s docstring has the make and the gates
   door's edges in its wall's track) is the record's `through` ({motion: {prim pattern: why}}), shown in `clear`'s
   findings; a rule that needs one says so in `data/checks/row-kinds.json`, never in a record for one scene. A thing standing in a
   track by layout (the garage's pressure gauge in the big door's way) is a fault of the place, not a pass-through.
+- **A parted build moves its parts on their pivots** (#19, `score/stages/props/moving_parts`): an object whose parts
+  are named with a joint (`<part>__hinge_<axis>[n]`, `from_design.parts_of`) swings each hinged part about its own
+  origin and axis instead of the whole: a double door's two leaves (so `split` is made, not unmade), a hatch's lid on
+  its level hinge (so a lying hatch opens, never LYING), posed open where its words say open, timed by the walkers
+  passing that part. `covered`, `passed`, `rests` and `designed` read a part's move as its object's
+  (`under`, `from_design.object_path`); `follows` holds a turn to its own `axis`. A parked vehicle's wheels (`spin`
+  parts) stand with it until a vehicle drives.
 - **Swings are fitted by the gate** (`fitted`, in the make): a swing that strikes is tried the other way, then
   `FIT_STEP` degrees less either way down to `FIT_LEAST` (60), the first that `clear` passes kept and said in its
   `from`; one that strikes every way stands with the strike as its `still` reason, so a door against a wall or a

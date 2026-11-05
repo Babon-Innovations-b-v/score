@@ -26,11 +26,15 @@ A rigid record:
                                              a hinged leaf or a slewing crane: turning about the upright line through
                                              the middle of the prim `about` (a hinge; the prim itself for a slew),
                                              or a point on the leaf's own box (`about` {"side": [x, y, z]}: from
-                                             its middle, each axis a share of its half size), `angle` degrees
+                                             its middle, each axis a share of its half size), or a part's own
+                                             pivot (`about` {"pivot": true}: its origin, where a parted build lays
+                                             it), turning about its parent frame's `axis` ("x", "y" or "z"; "y",
+                                             the upright, by default), `angle` degrees
                                              open (its sign the way round), at `speed` degrees a second, toward
                                              each end at its moment as a slide moves
-      | "spin": {"speed", "about"}         a fan: turning steadily about the upright line through the middle of
-                                             `about` (the prim itself by default) at `speed` degrees a second
+      | "spin": {"speed", "about", "axis"} a fan: turning steadily about the upright line (or `axis`) through the
+                                             middle of `about` (the prim itself by default; {"pivot": true} its own
+                                             origin) at `speed` degrees a second
       | "slide" | "turn" | "climb" | "light" as a motion record's (tools/usd/motion.py)
         "from"                               the measure, source or game line the moving thing's numbers came from
      }],
@@ -40,7 +44,7 @@ A rigid record:
 
 Each moving thing is written as an `over` with xform ops before the base's own: a path's `translate:path` and
 `rotateY:path` round the prim's rest spot (`!invert!translate:rest`), a swing's `rotateY:swing` round its hinge
-(`translate:hinge` and its inverse), a spin's `rotateY:spin` round its middle (`translate:spin`). Every sample is a
+(`translate:hinge` and its inverse), a spin's `rotateY:spin` (`rotateX`/`rotateZ` about another `axis`) round its middle (`translate:spin`). Every sample is a
 time code of the stage's own rate.
 """
 import argparse
@@ -221,8 +225,10 @@ def write_path(stage, move, rate, seconds, ground=None):
 
 def hinge_spot(stage, move, about):
     """The middle of the `about` prim where the base stands it, or (`about` {"side": [x, y, z]}) the point on the
-    moving thing's own box that far from its middle, each axis a share of its half size, in the moving thing's
-    parent frame."""
+    moving thing's own box that far from its middle, each axis a share of its half size, or (`about` {"pivot":
+    true}) the moving thing's own origin, in the moving thing's parent frame."""
+    if isinstance(about, dict) and about.get("pivot"):
+        return own_pivot(stage, move)
     if isinstance(about, dict):
         return own_side(stage, move, about["side"])
     place = move["prim"].split("/")[1]
@@ -232,6 +238,23 @@ def hinge_spot(stage, move, about):
     box = UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"]).ComputeWorldBound(found)
     middle = np.asarray(box.ComputeAlignedRange().GetMidpoint(), dtype=np.float64)
     return np.append(middle, 1.0) @ parent_inverse(stage, move["prim"])
+
+
+def own_pivot(stage, move):
+    """The moving prim's own origin where the base stands it, in its parent frame (a parted build's part: its node's
+    origin is its pivot, score/stages/props/moving_parts)."""
+    prim = stage.GetPrimAtPath(move["prim"])
+    if not prim:
+        raise ValueError(f"{move['name']}: the stage has no prim {move['prim']}")
+    local = np.asarray(UsdGeom.Xformable(prim).GetLocalTransformation(Usd.TimeCode.Default()), dtype=np.float64)
+    return np.append(local[3, :3], 1.0)
+
+
+def turn_op(kind, axis):
+    """The xform op turning a move of `kind` about its parent frame's `axis` ("x", "y" or "z")."""
+    if axis not in ("x", "y", "z"):
+        raise ValueError(f"a {kind} turns about x, y or z, not {axis!r}")
+    return f"xformOp:rotate{axis.upper()}:{kind}"
 
 
 def own_side(stage, move, side):
@@ -249,15 +272,17 @@ def own_side(stage, move, side):
 
 
 def write_swing(stage, move, rate, seconds):
-    """A leaf turned about the upright line through its hinge, toward each end at its moment at its speed."""
+    """A leaf turned about the upright line (or its `axis`) through its hinge, toward each end at its moment at its
+    speed."""
     swing = move["swing"]
     hinge = hinge_spot(stage, move, swing["about"])[:3]
     keys = motion.slide_keys({"by": [abs(float(swing["angle"])), 0.0, 0.0], "speed": float(swing["speed"]),
                               "starts": swing.get("starts", motion.SHUT), "moves": swing["moves"]})
     prim = stage.OverridePrim(move["prim"])
     prim.CreateAttribute("xformOp:translate:hinge", Sdf.ValueTypeNames.Double3).Set(Gf.Vec3d(*hinge))
-    turned = prim.CreateAttribute("xformOp:rotateY:swing", Sdf.ValueTypeNames.Double)
-    prepend_ops(stage, move["prim"], ["xformOp:translate:hinge", "xformOp:rotateY:swing",
+    op = turn_op("swing", swing.get("axis", "y"))
+    turned = prim.CreateAttribute(op, Sdf.ValueTypeNames.Double)
+    prepend_ops(stage, move["prim"], ["xformOp:translate:hinge", op,
                                        "!invert!xformOp:translate:hinge"])
     for moment, share in motion.rounds(keys, move, seconds):
         turned.Set(float(swing["angle"]) * share, motion.code(moment, rate))
@@ -271,8 +296,9 @@ def write_spin(stage, move, rate, seconds):
     start = float(move.get("start", 0.0))
     prim = stage.OverridePrim(move["prim"])
     prim.CreateAttribute("xformOp:translate:spin", Sdf.ValueTypeNames.Double3).Set(Gf.Vec3d(*hinge))
-    turned = prim.CreateAttribute("xformOp:rotateY:spin", Sdf.ValueTypeNames.Double)
-    prepend_ops(stage, move["prim"], ["xformOp:translate:spin", "xformOp:rotateY:spin",
+    op = turn_op("spin", spin.get("axis", "y"))
+    turned = prim.CreateAttribute(op, Sdf.ValueTypeNames.Double)
+    prepend_ops(stage, move["prim"], ["xformOp:translate:spin", op,
                                        "!invert!xformOp:translate:spin"])
     turned.Set(0.0, motion.code(start, rate))
     turned.Set(float(spin["speed"]) * (seconds - start), motion.code(seconds, rate))

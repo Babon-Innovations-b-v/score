@@ -424,9 +424,10 @@ def struck_moves(record, inputs, source):
 
 
 def turned_to(move, angle):
-    """A swing turned `angle` degrees (signed: the rule's way or the other), saying it was fitted."""
+    """A swing turned `angle` degrees (signed: its own way or the other; a parted build's part's own way may be the
+    negative one), saying it was fitted."""
     way = "its rule's way" if angle > 0 else "the other way"
-    return dict(move, swing=dict(move["swing"], angle=angle),
+    return dict(move, swing=dict(move["swing"], angle=angle * float(np.sign(move["swing"]["angle"]) or 1.0)),
                 **{"from": f"{move['from']}; fitted by the clear gate: {abs(angle):g} degrees {way}, the first of "
                            f"{FIT_LEAST:g} degrees up to its rule's either way that keeps clear"})
 
@@ -666,10 +667,17 @@ def moving_row_prims(stage, place, inputs):
             for path in row_kinds.objects_of(stage, place, row["id"])}
 
 
+def under(path, prims):
+    """Whether one of the prims is the path or a part under it (a parted build's moving part)."""
+    return any(prim == path or prim.startswith(path + "/") for prim in prims)
+
+
 def judge_covered(output, inputs, evidence):
-    """Pass when every object of a row whose kind moves moves in the layer or its standing still is written down."""
+    """Pass when every object of a row whose kind moves moves in the layer (itself, or a part of it) or its standing
+    still is written down."""
     stage, place = composed(output, inputs), place_of(inputs)
-    moved = {entry["prim"] for entry in bodies(inputs, output)}
+    moving = {entry["prim"] for entry in bodies(inputs, output)}
+    moved = {path for path in moving_row_prims(stage, place, inputs) if under(path, moving)} | moving
     record = read_json(inputs["moves"])
     still, removed = record.get("still", {}), record.get("removed", {})
     wanted = moving_row_prims(stage, place, inputs)
@@ -728,7 +736,7 @@ def judge_passed(output, inputs, evidence):
     stage, place = composed(output, inputs), place_of(inputs)
     walkers = from_design.routes(cast_of(inputs))
     paths = {path for row, _ in door_rows(inputs) for path in row_kinds.objects_of(stage, place, row["id"])}
-    doors = [entry for entry in bodies(inputs, output) if entry["prim"] in paths]
+    doors = [entry for entry in bodies(inputs, output) if any(under(path, [entry["prim"]]) for path in paths)]
     if not doors:
         return checks.Verdict("passed", checks.PASS, "no door of the place moves")
     faults, rest = [], layer_base.opened(source_of(inputs))  # as the make read it, no motion layer over it
@@ -745,13 +753,13 @@ def judge_passed(output, inputs, evidence):
 
 
 def swing_at(stage, path, code):
-    """How far a prim's swing stands it off its rest at a time code, degrees (0 for one with no swing)."""
+    """How far a prim's swing, or the farthest of its parts' (a parted build), stands it off its rest at a time code,
+    degrees (0 for one with no swing)."""
     from pxr import Usd
-    prim = stage.GetPrimAtPath(path)
-    turned = prim.GetAttribute("xformOp:rotateY:swing")
-    if turned and turned.HasAuthoredValue():
-        return abs(float(turned.Get(Usd.TimeCode(code))))
-    return 0.0
+    turned = [prim.GetAttribute(f"xformOp:rotate{axis}:swing") for prim in Usd.PrimRange(stage.GetPrimAtPath(path))
+              for axis in "XYZ"]
+    return max([abs(float(attribute.Get(Usd.TimeCode(code)))) for attribute in turned
+                if attribute and attribute.HasAuthoredValue()] or [0.0])
 
 
 def judge_rests(output, inputs, evidence):
@@ -769,8 +777,8 @@ def judge_rests(output, inputs, evidence):
         opened = bool(said & set(rule.get("open_words", ())))
         for path in row_kinds.objects_of(stage, place, row["id"]):
             judged += 1
-            off = swing_at(stage, path, 0.0) > 1e-6 or path in posed
-            if opened and (not off or path in moving):
+            off = swing_at(stage, path, 0.0) > 1e-6 or under(path, posed)
+            if opened and (not off or under(path, moving)):
                 faults.append(f"{path}: its row says open (\"{row.get('name')}\"), yet it stands shut or moves")
             if not opened and off:
                 faults.append(f"{path}: its row does not say open (\"{row.get('name')}\"), yet it starts open")
@@ -812,10 +820,12 @@ def layer_faults(folder):
 
 
 def judge_designed(output, inputs, evidence):
-    """Pass when every move and every still thing of the record is an object of a row of the scene's inventory, and
+    """Pass when every move (a jointed part's by its object) and every still thing of the record is an object of a row
+    of the scene's inventory, and
     every row whose kind moves has an object on the stage (the record's `missing`)."""
     record = read_json(inputs["moves"])
-    named = [entry["prim"] for entry in record.get("moves", [])] + list(record.get("still", {}))
+    named = [from_design.object_path(entry["prim"]) for entry in record.get("moves", [])] + \
+        list(record.get("still", {}))
     faults = [f"{path}: no object of a row of the scene's inventory"
               for path in row_kinds.strangers(named, read_json(inputs["design"]))]
     faults += list(record.get("missing", []))
