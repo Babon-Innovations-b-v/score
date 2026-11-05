@@ -16,6 +16,20 @@ run on the processor, the measure that proves a move to the card.
   quadratic and linear dependence), never RRA_STEP's 1e-5, which float32's rounding swamps.
 - Collision and constraints are disabled on the card's model: nothing here reads them (the ground's pushes are
   `contact`'s, on the drawn skin).
+- **Run to run the same bits** (#70, 2026-11-06: two runs of main a2148f79 on one L4 parted frame by frame by 0.52 of
+  an activation, 2.3 N m of residual moment; the fit itself repeated): MuJoCo Warp sums with atomic adds (a body's
+  children into it, a tendon's segments into its length and Jacobian, the passive forces, the moment rows' places),
+  and a card adds them in any order. `evaluate` runs `stages` (MuJoCo Warp's own stages, only what it reads: no
+  inertia, tendon armature or tendon bias, one `rne`) under `deterministic`: `smooth` and `passive`, and the kernels
+  MuJoCo Warp makes as it goes, in Warp's RUN_TO_RUN mode (each add recorded, then summed in thread order).
+  Newton's own deterministic option is not used: its record bound for MyoFullBody (9,453 a thread, from its
+  constraint rows) puts a 1024-world launch past Warp's 2^31 records; `records_bound` is the tendons' (CHAIN_WALKS
+  of a wrap's chains, 184 on MyoFullBody), `chunk_worlds` the worlds a launch whose records fit RECORDS_MOST (389 on
+  MyoFullBody). Too few records and Warp stops the launch with an overflow; it never sums wrong silently. Warp's
+  mode does nothing on the processor (its records are CUDA's only): there `stages` is MuJoCo Warp's whole stages'
+  bits (the test), and the card's repeat is proved on the card (the test's `repeats`, and two runs of a clip).
+  Every other kernel of the run already sums in a fixed order: `least_all`'s tile sums, `within_balls_card`, the
+  card's IK (Newton's analytic LM, no atomics) and `fit._card`'s own kernels.
 - Without a card everything runs as before on MuJoCo's C (`Physics.each`, `Physics.solved_all`, `rra.sensitivities`):
   that path is the reference the card is measured against.
 - Measured 2026-11-05 (L4, one lane; pickup, jump, env1 standing against origin/main 290737b2, itself deterministic:
@@ -34,4 +48,4 @@ run on the processor, the measure that proves a move to the card.
   (2026-11-05): two runs of the same steps then part by rounding, so the test's least squares are ones it settles,
   and the clips' records are judged by `apart`.
 - Test: `test_every_frame_on_the_card_is_mujocos_own_to_its_rounding.py` (Newton's Python and a CUDA card; the judge's
-  check runs without one).
+  check and the processor's run-to-run check run without one).

@@ -7,13 +7,28 @@ in one launch a stage. MuJoCo Warp is float32: what it gives is MuJoCo's C (floa
 each value (the stage test's tolerances measure it on the clips). `load` lays one state into a CPU `MjData`, so the
 frame's own reads (the skin riding its bones, a point's Jacobian, the muscles' gains, their paths) read it as they read
 MuJoCo's C. The model's masses, inertias and centres of mass are put on the card again whenever RRA's model step moves
-them (`sync`). Collision and constraints are left out on the card (disabled on its model): nothing here reads them."""
+them (`sync`). Collision and constraints are left out on the card (disabled on its model): nothing here reads them.
+Run to run the card gives the same bits (#70, 2026-11-06: two runs of main on one L4 parted by 0.52 of an activation):
+MuJoCo Warp's sums (a parent's share of its children, a tendon's length and Jacobian, the passive forces, the moment
+rows' places) are atomic adds, whose order a card does not keep, so its kernels run in Warp's run-to-run mode
+(`deterministic`: each add recorded, then summed in thread order), only the stages read here (not the inertia, its
+tendon armature, the tendons' bias, nor the bias forces before `rne` with the accelerations), and as many worlds a
+launch as its records fit in (`chunk_worlds`)."""
+import contextlib
+
 import numpy as np
 
 from batched._balls import within_balls_card
 from batched._least import least_all
 
-CHUNK = 1024  # worlds a launch
+CHUNK = 1024  # worlds a launch, at most
+# Records a run-to-run launch may keep for one array (each an 8-byte key and its value, sorted after the kernel):
+# 2^27, about 1.6 GB, a part of an L4's 24 GB the person's IK and least squares leave free.
+RECORDS_MOST = 1 << 27
+# Body chains MuJoCo Warp's `_spatial_geom_tendon` walks for one wrap at most (four of its six `_accumulate_jac_chain`
+# calls, a wrapped side's two segments of two ends; an unwrapped side's two), each adding at most its tendon's Jacobian
+# nonzeros once: the most records one thread leaves on the tendons' Jacobian. Too few, and Warp stops the launch.
+CHAIN_WALKS = 4
 COPIED = ("xpos", "xquat", "xipos", "subtree_com", "cdof", "actuator_length", "actuator_velocity", "moment_rownnz",
           "moment_rowadr", "moment_colind", "actuator_moment", "ten_wrapadr", "ten_wrapnum", "wrap_obj", "wrap_xpos",
           "qfrc_passive", "xmat", "ximat")
@@ -31,6 +46,8 @@ class Card:
         self.mjw_model.opt.disableflags = flags
         self.data = {}
         self.synced = None
+        self.records = records_bound(model)
+        self.chunk = chunk_worlds(model, self.records)
 
     def sync(self):
         """The model's masses, inertias and centres of mass on the card as they stand on the CPU's model."""
@@ -53,22 +70,22 @@ class Card:
         `names` of it): a dict of host arrays, one row a state, float64."""
         self.sync()
         qpos, qvel, qacc = (np.atleast_2d(np.asarray(values, dtype=float)) for values in (qpos, qvel, qacc))
-        parts = [self._chunk(qpos[start:start + CHUNK], qvel[start:start + CHUNK], qacc[start:start + CHUNK], names)
-                 for start in range(0, len(qpos), CHUNK)]
+        step = self.chunk
+        with deterministic(self.records):
+            parts = [self._chunk(qpos[start:start + step], qvel[start:start + step], qacc[start:start + step], names)
+                     for start in range(0, len(qpos), step)]
         found = {name: np.concatenate([part[name] for part in parts]) for name in parts[0]}
         found["qpos"], found["qvel"], found["qacc"] = qpos, qvel, qacc
         return found
 
     def _chunk(self, qpos, qvel, qacc, names):
-        """`evaluate` on at most CHUNK states: one Data of exactly that many worlds."""
-        mjw, model = self.mjw, self.model
+        """`evaluate` on at most `chunk` states: one Data of exactly that many worlds."""
+        model = self.model
         data = self._data(len(qpos))
         data.qpos.assign(qpos.astype(np.float32))
         data.qvel.assign(qvel.astype(np.float32))
         data.qacc.assign(qacc.astype(np.float32))
-        mjw.fwd_position(self.mjw_model, data, factorize=False)
-        mjw.fwd_velocity(self.mjw_model, data)
-        mjw.rne(self.mjw_model, data, flg_acc=True)
+        stages(self.mjw, self.mjw_model, data)
         found = {name: getattr(data, name).numpy() for name in set(names) | {"qfrc_passive"}}
         found = {name: values.astype(float) if values.dtype.kind == "f" else values for name, values in found.items()}
         found["needed"] = data.qfrc_bias.numpy().astype(float) + model.dof_armature * qacc - found["qfrc_passive"]
@@ -133,6 +150,65 @@ def apart(base, card):
     return misses
 
 
+def stages(mjw, mjw_model, data):
+    """MuJoCo Warp's position and velocity stages and the inverse dynamics with the accelerations, only what `evaluate`
+    reads: `fwd_position` without the inertia (`crb`, `tendon_armature`; nothing reads it, `factorize` off) and
+    `fwd_velocity` without its own `rne` and the tendons' bias (`rne` with the accelerations writes the bias forces
+    again, and the tendons' bias went with them), so no kernel whose records outgrow `records_bound` runs."""
+    import warp as wp
+    from mujoco_warp._src import forward
+    mjw.fwd_kinematics(mjw_model, data)
+    mjw.transmission(mjw_model, data)
+    wp.launch(forward._actuator_velocity, dim=(data.nworld, mjw_model.nactuator),
+              inputs=[data.qvel, data.moment_rownnz, data.moment_rowadr, data.moment_colind, data.actuator_moment],
+              outputs=[data.actuator_velocity], block_dim=mjw_model.block_dim.actuator_velocity)
+    wp.launch(forward._tendon_velocity, dim=(data.nworld, mjw_model.ntendon),
+              inputs=[mjw_model.ten_J_rownnz, mjw_model.ten_J_rowadr, mjw_model.ten_J_colind, data.qvel, data.ten_J],
+              outputs=[data.ten_velocity])
+    mjw.com_vel(mjw_model, data)
+    mjw.passive(mjw_model, data)
+    mjw.rne(mjw_model, data, flg_acc=True)
+
+
+def records_bound(model):
+    """The most records one thread of `stages` leaves on one array in Warp's run-to-run mode: a tendon wrap's body
+    chains (CHAIN_WALKS of them, each at most its tendon's Jacobian nonzeros); every other sum there is one record a
+    thread, which Warp counts itself."""
+    return max(1, CHAIN_WALKS * int(np.max(model.ten_J_rownnz, initial=0)))
+
+
+def chunk_worlds(model, records):
+    """Worlds a launch so its widest summing kernel (a world's bodies, wraps or actuators, `records` each) keeps at most
+    RECORDS_MOST records an array; at most CHUNK, at least one."""
+    return int(min(CHUNK, max(1, RECORDS_MOST // (records * max(model.nbody, model.nwrap, model.nu, 1)))))
+
+
+@contextlib.contextmanager
+def deterministic(records):
+    """MuJoCo Warp's summing modules (`smooth`, `passive`) and the kernels it makes as it goes in Warp's run-to-run
+    mode, `records` the most a thread keeps in `smooth` (`records_bound`). Its made kernels are made again the first
+    time the modes change (their cache's key leaves the mode out), as Newton's SolverMuJoCo does; Warp's mode is put
+    back after."""
+    import warp as wp
+    from mujoco_warp._src import passive, smooth, warp_util
+    mode = wp.DeterministicMode.RUN_TO_RUN
+    changed = False
+    for module, most in ((smooth, records), (passive, 0)):
+        wanted = {"deterministic": mode, "deterministic_max_records": most}
+        held = wp.get_module_options(module=module)
+        if any(held.get(name) != value for name, value in wanted.items()):
+            wp.set_module_options(wanted, module=module)
+            changed = True
+    if changed:
+        warp_util._KERNEL_CACHE.clear()
+    before = wp.config.deterministic, wp.config.deterministic_max_records
+    wp.config.deterministic, wp.config.deterministic_max_records = mode, records
+    try:
+        yield
+    finally:
+        wp.config.deterministic, wp.config.deterministic_max_records = before
+
+
 def root_pose(model, found):
     """The root body's turn (states x 3 x 3) and place (states x 3) in `evaluate`'s `found`."""
     root = model.jnt_bodyid[0]
@@ -145,4 +221,5 @@ def same_layout(model, mjw_model):
                                                                              "nu", "nJmom"))
 
 
-__all__ = ["CARD_TOLERANCES", "Card", "apart", "least_all", "root_pose", "same_layout", "within_balls_card"]
+__all__ = ["CARD_TOLERANCES", "Card", "apart", "chunk_worlds", "deterministic", "least_all", "records_bound",
+           "root_pose", "same_layout", "stages", "within_balls_card"]
