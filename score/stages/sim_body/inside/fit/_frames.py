@@ -23,6 +23,10 @@ DAMPING = 1e-9
 # the turns' goal's 1. OpenSim's IK weighs its goals equally, so 1: the turns stay the main term (#70) unless level 1's
 # least squares over many bodies, judged on following SOMA, finds otherwise; never set by hand to pass a score
 MARKER_GOAL = 2.1169
+# poses whose skin measure a `SkinTask` keeps (#70 speed, 2026-11-05): a judged step asks its error twice and its QP
+# objective once at one pose, and a turned-back one asks again at the kept pose, ~3.3 closest-point launches a step
+# (pickup: 5,438 for 1,660 skin steps, 35 s of level 3's 50 on an L4); the kept pose and the trial are the two asked
+SEEN = 2
 
 
 class NotConverged(RuntimeError):
@@ -118,17 +122,29 @@ class SkinTask(mink.Task):
     def __init__(self, model):
         self.points = BonePoints(model)
         super().__init__(cost=np.ones(self.points.count), gain=1.0, lm_damping=LM_DAMPING)
-        self.meshes, self.device = None, card_device()
+        self.meshes, self.device, self.seen = None, card_device(), {}
 
     def set_skin(self, skin):
         """The frame's posed skin (`_skin.PosedSkins` of one frame) as the target."""
-        self.meshes = SkinMeshes(skin, self.device)
+        self.meshes, self.seen = SkinMeshes(skin, self.device), {}
 
     def _apart(self, configuration):
-        """The points (world), their offsets off the skin and those offsets' projectors at `configuration`."""
+        """The points (world), their offsets off the skin and those offsets' projectors at `configuration`: measured
+        once for points of the same bytes among the last SEEN (the kernel is deterministic, so the same answer)."""
         placed = self.points.placed(configuration.data)
-        apart, bends = self.meshes.apart(placed, np.zeros(len(placed), dtype=np.int32))
-        return placed, apart, bends
+        key = placed.tobytes()
+        if key not in self.seen:
+            measured = self.meshes.apart(placed, np.zeros(len(placed), dtype=np.int32))
+            for array in measured:
+                array.flags.writeable = False
+            if not SEEN:
+                return (placed, *measured)
+            while len(self.seen) >= SEEN:
+                self.seen.pop(next(iter(self.seen)))  # the longest not asked
+        else:
+            measured = self.seen.pop(key)  # asked again: the last asked, so the newest kept
+        self.seen[key] = measured
+        return (placed, *measured)
 
     def compute_error(self, configuration):
         return self.points.depths(self._apart(configuration)[1])

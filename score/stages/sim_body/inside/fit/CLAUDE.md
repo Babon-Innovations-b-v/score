@@ -176,6 +176,12 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   depth's max(0, d) kink cycling one coordinate's rows) and it traded the person's constants for skin, inside joints
   moved 40 to 52 mm; its sampled frames are posed without the skin too (`card_paths`). Never bring them back without
   a polish that settles on them and constants that stay the person's.
+- **A pose's skin is measured once** (#70 speed, 2026-11-05): mink's judged step asks `SkinTask`'s error twice and
+  its QP objective once at one pose, and a turned-back step asks again at the kept pose (pickup: 5,438
+  closest-point launches for about 1,660 skin steps, 35 s of level 3's 50 on an L4). `SkinTask._apart` keeps the
+  last `SEEN` (2) poses' measures by the bone points' bytes, cleared by `set_skin`; the kernel is deterministic, so
+  the angles are the same bit for bit (toy: 71 launches to 22, test). Frames cannot share one launch: each frame's
+  fit without the skin starts from the frame before's fit with it, so lockstep frames would change the solve.
 - **The skin goal, swept** (mean's 15 clips, l1g's point, the fold rule on, 2026-11-01; scratch
   `/tmp/skinl23/runs/s5_*`). Skin rows in levels 2 and 3: level 2's polish does not settle (goal 1e2: 8.4e-9 after 80
   rounds, the stall rule ending it at round 84 when given 160; 1e3: 3.2e-7; 1e4: 1.1e-3; env1 seated at 1e2: 1.5e-7
