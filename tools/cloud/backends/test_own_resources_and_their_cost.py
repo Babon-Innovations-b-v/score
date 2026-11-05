@@ -480,6 +480,14 @@ def test_a_leftover_another_sweep_deleted_is_gone_and_a_machine_that_stays_raise
     assert deleting(monkeypatch, still_there=False) == (False, [])
     answer, written = deleting(monkeypatch, still_there=True)
     assert isinstance(answer, RuntimeError) and "does not respect constraint" in str(answer) and not written
+    # a machine the zone is still making refuses its terminate until it is made: waited out, then deleted (2026-11-05,
+    # surfaces-bake@camp). Break: drop the PROVISION words from NOT_YET.
+    answers = iter([subprocess.CompletedProcess([], 1, "", "precondition failed: , Cannot modify the SBS volumes of an "
+                                                "instance in the state SessionState.PROVISION"),
+                    subprocess.CompletedProcess([], 0, "", "")])
+    monkeypatch.setattr(scaleway.subprocess, "run", lambda *arguments, **options: next(answers))
+    monkeypatch.setattr(scaleway.time, "sleep", lambda seconds: None)
+    assert scaleway.terminate("srv-1", "fr-par-2") is True
 
 
 def test_deleting_an_address_or_disk_already_gone_is_done_and_another_failure_raises(monkeypatch):
