@@ -401,11 +401,26 @@ def reach_gaps(plan, inventory, grid, outline):
              "words": f"{what} cannot be reached on foot"} for what, found in seeds.items() if main not in found]
 
 
+HOLD_DRAWN = 0.05  # metres an item may stand off a hold's box and still be the hold's drawn outline
+
+
+def hold_outline(plan, hold):
+    """A hold's outline on the plan: the polygon of the item of its row drawn on its box (a turned place's outline,
+    the item's shape: the base's tubes and turned modules, #72), else its box."""
+    spot = [hold["x"], hold["y"], hold["w"], hold["d"]]
+    for item, _, shape in placed_items(plan):
+        if hold.get("row") in (plan.get("rows", {}).get(item[0]) or []) and all(
+                abs(float(drawn) - float(held)) <= HOLD_DRAWN for drawn, held in zip(item[1:5], spot)):
+            return polygon_of(item, shape)
+    return [[spot[0], spot[1]], [spot[0] + spot[2], spot[1]], [spot[0] + spot[2], spot[1] + spot[3]],
+            [spot[0], spot[1] + spot[3]]]
+
+
 def hold_gaps(plan, grid, outline):
-    """A gap for each inside place lying outside the outline or overlapping another."""
+    """A gap for each inside place lying outside the outline or overlapping another, each by its drawn outline
+    (`hold_outline`: turned, never its box)."""
     holds = plan.get("holds", [])
-    boxes = [[[hold["x"], hold["y"]], [hold["x"] + hold["w"], hold["y"]], [hold["x"] + hold["w"], hold["y"] + hold["d"]],
-              [hold["x"], hold["y"] + hold["d"]]] for hold in holds]
+    boxes = [hold_outline(plan, hold) for hold in holds]
     masks = [grid.covered(box) for box in boxes]
     gaps = [{"kind": "tiling", "item": hold["place"], "row": hold.get("row"), "at": middle_of(box),
              "words": f"{said_name(hold['place'])} sticks out of the place"}
