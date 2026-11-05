@@ -48,7 +48,11 @@ Rules:
   (`default.sim_bodies`, owner 2026-10-27): a layer peel of every shown scene whose design has people
   (`data/people/rows.json`), and a close-up peel after it where one walks, Earth's first (the clips' motion is true
   there), every other carrying `LOW_GRAVITY_NOTE` (env1_demo's from the kept designs' people rows,
-  `design_layers`; the environment film refuses a lock missing one). Its words and shots follow the design, never
+  `design_layers`; the environment film refuses a lock missing one), then a place peel of every other scene it walks
+  through (`default.place_peel`, owner 2026-11-05: "every scene needs the peel"; asked whether that meant adding
+  people or peeling the place itself: "2"): the same view finished, its bare models and its physics bodies, so every
+  walked scene has one peel; env1_demo's made by the same `sim_bodies`, and the environment film refuses a lock
+  missing one; the FILM page plays it like a layer peel, its `waiting` note on until a row draws it. Its words and shots follow the design, never
   the tree (audit, 2026-11-04): a walk is said Inside or Outside by its scene record's `inside` (`WorldState.
   scene_inside`), the rooms leg the same; a shell with a plan of its own (the Base) is walked like any top scene; a
   scene whose plan names its eye ("balcony eye 10.6 m", `default.designed_eye`) is a still from there, never walked;

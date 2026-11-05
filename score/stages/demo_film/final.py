@@ -61,6 +61,7 @@ WORDS, WALK, STILL = ("title", "text"), "walk-through", "hero-still"
 RECORDED = ("screen-take", "setting-animation", "scale-zoom")
 MADE = (*WORDS, WALK, STILL, *RECORDED)
 PEEL = "body-peel"  # a layer peel (peel.py): no row makes its frames yet
+PLACE_PEEL = "place-peel"  # a place peel (peel.py's place job): no row makes its frames yet
 PREVIEWS = "films/previews"
 # The free preview's grade (score/dashboard/films/preview/make.py GRADE), so the final looks as the preview did.
 GRADE = "curves=master='0/0 0.25/0.23 0.5/0.5 0.75/0.77 1/1'"  # no vignette (owner 2026-10-21)
@@ -217,16 +218,22 @@ def peopled():
     return [place for place in designed() if design_layers.has_layer(place, "people")]
 
 
-def plan_faults(script, people=()):
+def plan_faults(script, people=(), designs=()):
     """What keeps a script from being cut by this row, in words: a segment without its `seconds`, a cut this row does
     not make, a walk-through whose sound is not its place's own, a script that shows no place's film (its cards'
     sound and backdrop come from the films), a place of `people` (peopled: its design shows people) no layer peel
-    shows (owner, 2026-10-27: every scene with people peeled, so a script never drifts from the designs)."""
+    shows (owner, 2026-10-27: every scene with people peeled, so a script never drifts from the designs), a place
+    of `designs` (designed: it has a kept design) walked through with no peel, a place peel where `people` holds it
+    not (owner, 2026-11-05: "every scene needs the peel"; asked whether that meant adding people or peeling the place
+    itself: "2", the place itself)."""
     found = [] if shown(script) or script.get("bed") else ["it shows no place's film and names no bed"]
-    peeled = {(segment.get("shows") or {}).get("place") for segment in script.get("segments", [])
-              if segment.get("cut") == PEEL}
+    segments = script.get("segments", [])
+    peeled, walked, placed = ({(segment.get("shows") or {}).get("place") for segment in segments
+                               if segment.get("cut") == cut} for cut in (PEEL, WALK, PLACE_PEEL))
     found += [f"the design of {place} shows people and no layer peel shows them" for place in people
               if place not in peeled]
+    unpeopled = walked & set(designs) - set(people)
+    found += [f"{place} is walked through and no place peel shows it" for place in sorted(unpeopled - placed)]
     for number, segment in enumerate(script.get("segments", []), 1):
         cut = segment.get("cut")
         if not isinstance(segment.get("seconds"), (int, float)):
@@ -467,8 +474,9 @@ def make(inputs, out, seed, params):
     """Every script's film, each in a folder of its name (module docstring)."""
     named = named_scripts(inputs)
     require_yes(named)
-    people = peopled()
-    faults = [f"{film}: {fault}" for film, script in sorted(named.items()) for fault in plan_faults(script, people)]
+    people, designs = peopled(), designed()
+    faults = [f"{film}: {fault}" for film, script in sorted(named.items())
+              for fault in plan_faults(script, people, designs)]
     if faults:
         raise graph.Blocked("; ".join(faults))
     films = {film: sources(script, inputs) for film, script in sorted(named.items())}  # every film found first
