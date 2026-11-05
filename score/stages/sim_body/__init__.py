@@ -54,6 +54,8 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
                           force taken as the body's weight: its force at most RESIDUAL_FORCE of it and its moment at most
                           RESIDUAL_MOMENT of it times the centre of mass' height, any frame (a trip, a float or a
                           movement no ground and muscles can make shows here: a dropped sample, never a forced pass)
+             smooth       the body's SOMA segments' turns against their parents shake no more than the clip's own:
+                          the root mean square of their angular jerk (`jerk`) at most the clip's
 
 A climber (the cast's `stairs`, cast.on_stairs: a person its design stands on stairs, on its flight's first tread)
 plays its scene-made clip up or down its flight instead (scene-clips, an optional read: its rig.npz `clip_<clip>` and
@@ -83,7 +85,8 @@ from score.stages.sim_body._body import (BODY, RATE, body_row, clip_frames, mass
                                          route_clip, segments_of, standing_height)
 from score.stages.sim_body._gates import (EMPTY_CAST, FOLLOWED, LAYER, MOVE_MOST, NO_SINGLES,  # noqa: F401
                                           RECORD, RESIDUAL_FORCE, RESIDUAL_MOMENT, judge_carries, judge_follows,
-                                          judge_lands, judge_on_floor, judge_residual, measured, output_faults)
+                                          judge_lands, judge_on_floor, judge_residual, judge_smooth, measured,
+                                          output_faults)
 from score.stages.sim_body._ground import REACH, ground_of, own_frame, solids_of
 from score.stages.sim_body._layer import ACTIVE, write_layer  # noqa: F401
 
@@ -297,6 +300,7 @@ def soma_pose(world):
 CONTRACT = contracts.Contract("sim-body", 2, output_faults, {"length": "metre", "up axis": "Y"})
 CHECKS = (checks.Check("on floor", judge_on_floor), checks.Check("lands", judge_lands),
           checks.Check("carries", judge_carries),
-          checks.Check("follows", judge_follows), checks.Check("residual", judge_residual))
+          checks.Check("follows", judge_follows), checks.Check("residual", judge_residual),
+          checks.Check("smooth", judge_smooth))
 
 

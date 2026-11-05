@@ -3,8 +3,10 @@ mass it was made with over every round together (the unbounded change recorded a
 centre of mass under the mean residual moment, at most COM_MOST from where it was made; the feet stay where they stood
 when the pelvis moves (`Footing`, mink), a leg's direction no foot task sees held where the frame stood
 (`FreeHold`), and a frame that does not converge fails loudly; as worked out by hand (to 1e-6: Newton keeps gravity
-in float32); and a segment's turn between two posed paths is measured in degrees. It runs in Newton's own Python
-(on a model Newton builds; score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none
+in float32); a segment's turn between two posed paths is measured in degrees; RRA's frame shares are held smooth
+and never above what the frame check lowered them to, a move putting bones out of SOMA's skin is seen region by region
+against the fitted path, and only the move off the fitted path is low-passed (#70, 2026-11-05). It runs in Newton's
+own Python (on a model Newton builds; score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none
 built there, as in `make tests`' sandbox home, it prints `skipped`.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted), 2026-10-28:
@@ -26,6 +28,14 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   twist go back to where `before` stood them, a direction no foot sees moved (2026-11-04).
 - FreeHold._free's `turns[rank:]` made `turns[:rank]` (the directions the feet see held instead): the feet 15 mm off
   (2026-11-04).
+
+- rra._cap.held_share's `np.convolve(padded, ...)` made `smoothed(lowered, rate)` with `np.minimum(lowered, ...)`
+  (the rule before): the dip's whole 0.7 kept as one step; its erosion's `2 * radius + 1` made `1`: the average
+  rises above the lowered share beside the dip (2026-11-05).
+- rra._cap.skin_excess' `- fitted[...]` dropped: a region already out on the fitted path counts as put out; its
+  `labels == label` made all vertices: region b's half read as a quarter (2026-11-05).
+- rra._cap.smoothed_off's `smoothed(offsets, rate)` dropped: the shake kept; its offsets taken off the zero pose
+  instead of `before`: the walk itself low-passed (2026-11-05).
 
 Run: .venv/bin/python score/stages/sim_body/inside/rra/test_rra_moves_mass_and_torso_by_the_mean_residual.py
 """
@@ -274,11 +284,63 @@ def a_turn_between_two_paths_is_its_angle():
     return [] if np.allclose(found, [[10.0, 0.0]]) else [f"turns {found}"]
 
 
+def the_frame_shares_are_smooth_and_never_above_the_lowered():
+    """At 30 frames a second, a share of 1 lowered to 0.3 on one frame and to 0.6 on another (as the frame check
+    lowers it): held, it is nowhere above the lowered share and its largest step between frames is under a third of the
+    lowered share's 0.7 (the min of the lowered share and its low-pass kept that step whole)."""
+    import numpy as np
+    import rra
+    lowered = np.ones(90)
+    lowered[30], lowered[60] = 0.3, 0.6
+    held = rra.held_share(lowered, 30.0)
+    problems = [] if np.all(held <= lowered + 1e-12) else [f"held above lowered by {float((held - lowered).max())}"]
+    step = float(np.abs(np.diff(held)).max())
+    return problems + ([] if step < 0.7 / 3 else [f"a step of {step} between frames"])
+
+
+def a_move_that_puts_bones_out_of_the_skin_is_seen_by_region():
+    """Two regions of two bone vertices each, one of region a's out on the fitted path and kept out; the found path
+    puts one of region b's out on its second frame: no rise on the first, half of b on the second (a's none)."""
+    import numpy as np
+    import rra
+    labels = np.array(["a", "a", "b", "b"])
+    fitted = np.zeros((2, 4), dtype=bool)
+    fitted[:, 0] = True
+    found = fitted.copy()
+    found[1, 3] = True
+    rises = rra.skin_excess(found, fitted, labels)
+    return [] if np.allclose(rises, [0.0, 0.5]) else [f"rises {rises.tolist()}"]
+
+
+def only_the_move_off_the_fitted_path_is_low_passed():
+    """The legs toy's fitted path walking 1 m/s along x for 60 frames at 30 a second, a found path 1 cm further along
+    with a 1 mm shake every other frame: the smoothed path keeps the walk and the centimetre (within 0.2 mm mid-clip)
+    and its shake is under a tenth of a millimetre; a found path equal to the fitted one comes back unchanged."""
+    import types
+    import numpy as np
+    import model
+    import rra
+    footing, standing = legs_footing()
+    physics = types.SimpleNamespace(model=footing.model, couplings=model.Couplings(footing.model))
+    path = np.tile(standing, (60, 1))
+    path[:, 0] += np.arange(60) / 30.0
+    found = path.copy()
+    found[:, 0] += 0.01 + 0.001 * (-1) ** np.arange(60)
+    smooth = rra.smoothed_off(physics, path, found, 30.0)
+    off = smooth[:, 0] - path[:, 0]
+    problems = [] if np.abs(off[10:50] - 0.01).max() < 2e-4 else [f"the move kept as {off[10:50].tolist()}"]
+    shake = float(np.abs(np.diff(off[10:50], n=2)).max())
+    problems += [] if shake < 1e-4 else [f"a shake of {shake} m left"]
+    same = rra.smoothed_off(physics, path, path, 30.0)
+    return problems + ([] if np.allclose(same, path, atol=1e-12) else ["an unmoved path changed"])
+
+
 CHECKS = (the_mass_follows_the_mean_upward_residual, a_floating_body_keeps_its_mass_within_the_bound,
           the_torso_moves_under_the_mean_moment_within_its_cap, the_feet_stay_where_they_stood_when_the_pelvis_moves,
           a_leg_past_its_stop_is_left_where_it_stood, a_legs_free_direction_is_held_where_the_frame_stood,
           a_foot_frame_that_does_not_converge_fails,
-          a_turn_between_two_paths_is_its_angle)
+          a_turn_between_two_paths_is_its_angle, the_frame_shares_are_smooth_and_never_above_the_lowered,
+          a_move_that_puts_bones_out_of_the_skin_is_seen_by_region, only_the_move_off_the_fitted_path_is_low_passed)
 
 
 def in_newton():

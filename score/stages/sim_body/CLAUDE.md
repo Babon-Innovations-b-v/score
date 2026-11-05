@@ -31,11 +31,16 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   the lumbar's reserves, 2026-10-28), taken only when the measured residual, lumbar and move cost falls (halved up to `RRA_HALVINGS` times, else the rounds end), the feet kept where they stood by the legs (`Footing`, mink as the fit, its largest
   miss recorded as `feet held mm, deg`: a pelvis moved with its feet lifted them off the ground, 600 N of residual, 2026-10-28), and the result kept within the clip's
   `follows` limit (`within_follows`: the whole move, else a quarter less, down to none), then checked on every frame against the
-  cap as measured (`within_frames`: a frame the linearisation left over has its share of the move lowered, the shares
-  eroded and low-passed; the least share is recorded; scaling the whole move down after the solve, as before
+  cap as measured (`within_frames`: a frame the linearisation left over has its share of the move lowered, and a frame
+  whose move puts a region's bones over `SKIN_SLACK` further out of SOMA's skin than the fitted path holds them has it
+  halved (`fit.FrameSkins`; 2026-11-05, #70: the trunk RRA turns carries the arms and head, and the pickup's hands
+  stood 37.7% outside against the fit's 1.6%), the shares held smooth (`held_share`: eroded, then a Hann average, never
+  above the lowered share), the move off the fitted path low-passed and the feet kept again (`smoothed_off`: the share's
+  corners and the leg solve shook the shins up to 30 times the clip's jerk, 2026-11-05); the least share is recorded; scaling the whole move down after the solve, as before
   2026-10-28, gave back about half of what it reduced). Nothing is applied to the body. How far it moved is each body's
   `adjusted` record (pelvis cm, each segment's degrees, the largest turn on any frame, mass %, torso centre of mass cm,
-  the share kept, the least frame share, follows before and after); `follows` fails a frame over the per-frame cap.
+  the share kept, the least frame share, follows before and after); `follows` fails a frame over the per-frame cap,
+  and `smooth` a body whose segments' turns shake more than its clip's (the root mean square angular jerk, `jerk`).
   The toes' stop is ±40 degrees (2026-11-04, `inside/myo/_movable.RANGES`: the AAOS's lesser toes' MTP range; MyoSuite's
   own ±30, as Rajagopal 2016's, was narrower than a person's): never widened past the published range. A body still over the limits after it fails `residual`: a
   dropped sample, never a forced pass.

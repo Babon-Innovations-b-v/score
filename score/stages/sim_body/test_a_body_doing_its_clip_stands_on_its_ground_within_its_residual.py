@@ -13,7 +13,8 @@ unpacked only when its sha256 is the pinned one. On runs written here (no engine
 5 cm into its ground fails `on floor`, a landed foot 5 cm off its ground fails `lands` and so does a body no foot of
 which lands, unless it sits and its ground carries it (a seated body its ground never carries fails), a ground that pushes 10% under the weight fails `carries`, a segment 10 degrees off the clip fails
 `follows` and so does RRA's move of a segment 6 degrees or the pelvis 2.5 cm off the fitted path in one frame, a
-residual force over 2% of the weight or a moment over 1% of it times the centre's height fails `residual`. The make on
+residual force over 2% of the weight or a moment over 1% of it times the centre's height fails `residual`, a body
+shaking a degree each frame round its clip's swing fails `smooth` and one moving as its clip does passes. The make on
 the toy, over a toy seed whose ground is one raised square, its engine run stood in by a written one, hands each body
 the ground's triangles in its own frame (its spot and turn, then the dressed body's Turned), leaves out by name a body
 no solid is near, names the clip the rig lacks and the crowd, weighs each body by the scene's gravity, and writes the
@@ -44,7 +45,10 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   dropped; its moment check dropped; RESIDUAL_FORCE 0.02 made 0.05 (2026-10-28); judge_follows' per-frame turn
   check dropped; its pelvis check dropped (2026-10-28); landing_fault's seated `return None if ... else` made
   `return None` (a seated body its ground never carried passes), and `body.get("clip") in SEATED` made `False` (a
-  seated body its seat carries fails "no foot landed"; 2026-11-04).
+  seated body its seat carries fails "no foot landed"; 2026-11-04); judge_smooth's `> ...["clip jerk deg"]` made
+  `> 1e9` (a body shaking 1 degree every other frame round its clip's swing passes), and measured's clip jerk of
+  `frame["targets"]` made `frame["angles"]` (the body judged against itself)
+  (2026-11-05).
 - the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-10-28: make's `adjusted=entry["adjusted"]`
   dropped (the RRA adjustment not recorded); make's job `"adjust"` dropped (the run gets no cap).
 - the_make_stands_each_body_on_its_own_ground_under_its_character: ground_of's `np.linalg.inv(frame)` made `frame`;
@@ -211,7 +215,7 @@ def judged(tmp_path, run, turn=3.0, pelvis=1.5, clip="walking"):
 def test_a_good_run_passes_and_each_gate_fails_its_break(tmp_path):
     good, measures = judged(tmp_path, frames(40))
     assert good == {"on floor": checks.PASS, "lands": checks.PASS, "carries": checks.PASS, "follows": checks.PASS,
-                    "residual": checks.PASS}
+                    "residual": checks.PASS, "smooth": checks.PASS}
     assert (measures["largest torque Nm"], measures["largest residual N"], measures["largest muscle force N"]) == (
         3.0, 1.0, 300.0)
     assert measures["frames within residual limits"] == 1.0
@@ -229,6 +233,15 @@ def test_a_good_run_passes_and_each_gate_fails_its_break(tmp_path):
     over, measures = judged(tmp_path, frames(40, residual=(0.0, 2.5, 0.0)))  # over 2% of 100 N
     assert over["residual"] == checks.FAIL and measures["frames within residual limits"] == 0.0
     assert judged(tmp_path, frames(40, moment=(1.1, 0.0, 0.0)))[0]["residual"] == checks.FAIL  # over 1 N m
+    swing = [[[30 * np.sin(frame / 6), 0.0, 0.0]] * 2 for frame in range(40)]  # the clip's smooth swing about x
+    shaken = frames(40)
+    for frame, (turns, wanted) in enumerate(zip(shaken, swing)):  # the body follows it 1 degree off every other frame
+        turns.update(targets=wanted, angles=[[wanted[0][0] + (-1) ** frame, 0.0, 0.0]] * 2)
+    rough, measures = judged(tmp_path, shaken)
+    assert rough["smooth"] == checks.FAIL and measures["jerk deg"] > measures["clip jerk deg"] > 0
+    for turns in shaken:  # the body moving as its clip does: no rougher
+        turns["angles"] = turns["targets"]
+    assert judged(tmp_path, shaken)[0]["smooth"] == checks.PASS
 
 
 def toy_seed(folder):

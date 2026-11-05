@@ -418,6 +418,36 @@ def bones_outside(model, path, worlds, segments, rig):
              "no unfolded frame": not shares})
 
 
+class FrameSkins:
+    """SOMA's skin posed on each frame of `worlds` (`skin`, the head's pockets closed: `envelope`), each a winding
+    mesh built once, against which `outside` marks a path's kept bone vertices on the same frames, every frame at
+    once; `labels` is each vertex's scored region. RRA's frame check (`rra.within_frames`) reads it: a move that puts
+    bones out of the skin the fitted path kept them in is lowered on that frame (#70, 2026-11-05)."""
+
+    def __init__(self, model, rig, segments, worlds):
+        faces = warp.array(envelope(rig).ravel(), dtype=int, device="cpu")
+        self.model, self.data, self.bones = model, mujoco.MjData(model), bone_meshes(model)
+        self.meshes = [warp.Mesh(points=warp.array(skin(rig, segments, world).astype(np.float32), dtype=warp.vec3,
+                                                   device="cpu"), indices=faces, support_winding_number=True)
+                       for world in np.asarray(worlds, dtype=float)]
+        self.labels = np.array([scored(region(name)) for _, kept, name in self.bones for _ in kept])
+
+    def outside(self, path):
+        """Whether each kept bone vertex lies outside its frame's skin on `path` (MuJoCo's qpos on `model`, one a
+        frame of `worlds`): frames x vertices."""
+        points = []
+        for qpos in path:
+            self.data.qpos[:] = qpos
+            mujoco.mj_kinematics(self.model, self.data)
+            points.append(bone_points(self.model, self.data, self.bones)[0])
+        signs, depths = (warp.zeros((len(points), len(points[0])), dtype=float, device="cpu") for _ in range(2))
+        warp.launch(marks_kernel, dim=signs.shape, device="cpu",
+                    inputs=[warp.array([mesh.id for mesh in self.meshes], dtype=warp.uint64, device="cpu"),
+                            warp.array(np.asarray(points, dtype=np.float32), dtype=warp.vec3, device="cpu"), signs,
+                            depths])
+        return signs.numpy() >= 0
+
+
 class PosedSkins:
     """SOMA's skin posed on each frame in MuJoCo's frame (`verts` frames x points x 3, float32), its `faces` and which
     frames are `kept` (`unfolded`; all when not given): the target level 3 holds the bones inside, a frame not
