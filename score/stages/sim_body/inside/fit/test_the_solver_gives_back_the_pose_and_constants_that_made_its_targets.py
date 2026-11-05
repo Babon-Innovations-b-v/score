@@ -17,7 +17,8 @@ pinned there; score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/en
 as in `make tests`' sandbox home, it prints `skipped`.
 
 Level 1's skin residual (fit._skin.marks, depth_mm) is a bone point's distance to the skin's closest point when
-outside, 0 inside, by the winding test; the region's root mean square.
+outside, 0 inside, by the winding test; the region's root mean square. RRA's frame check (`FrameSkins`) marks each
+frame's bone vertices against that frame's own posed skin.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted):
 - (2026-11-01) _skin.apart_of's ring `face = ring_faces[slot]` made `face = found.face` (the float32 query's face
@@ -110,6 +111,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   shift's way twice over, not off it (an_end_read_in_the_skin_holds_its_bones_off_somas_joint red).
 - (2026-11-01) shifted_end's `turn.T @ (TO_OWN.T @ shift)` made `turn.T @ shift`: the shift taken in MuJoCo's frame,
   not the person's (Y up), the bones held off sideways.
+- (2026-11-05) FrameSkins.outside's meshes `[mesh.id for mesh in self.meshes]` made the first frame's for every frame:
+  each frame's bones judged against one frame's skin (a_frames_skin_marks_the_bones_out_of_it_frame_by_frame red).
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/test_the_solver_gives_back_the_pose_and_constants_that_made_its_targets.py
 """
@@ -715,6 +718,26 @@ def pocket_head():
             "names": np.array(["Head"])}
 
 
+def a_frames_skin_marks_the_bones_out_of_it_frame_by_frame():
+    """`FrameSkins` (RRA's frame check): a 1 cm bone on a femur at the origin, a 10 cm cube of skin on its first frame
+    round it and on its second 1 m along x: every bone vertex inside on the first frame and outside on the second, each
+    labelled thigh."""
+    import mujoco
+    import numpy as np
+    from fit import _skin
+    model = mujoco.MjModel.from_xml_string(
+        '<mujoco><asset><mesh name="bone" vertex="0 0 0 0.01 0 0 0 0.01 0 0 0 0.01"/></asset><worldbody>'
+        '<body name="femur_r"><freejoint/><geom type="mesh" mesh="bone"/></body></worldbody></mujoco>')
+    rig = pocket_head()
+    rig["bind"] = np.eye(4)[None]
+    worlds = np.tile(np.eye(4), (2, 1, 1, 1))
+    worlds[1, 0, 0, 3] = 1.0
+    skins = _skin.FrameSkins(model, rig, ["Head"], worlds)
+    out = skins.outside(np.tile(model.qpos0, (2, 1)))
+    problems = [] if out.shape[1] == 4 and not out[0].any() and out[1].all() else [f"outside {out.tolist()}"]
+    return problems + ([] if list(skins.labels) == ["thigh"] * 4 else [f"labels {list(skins.labels)}"])
+
+
 def the_heads_pockets_are_closed_for_the_inside_test():
     """SOMA's head holds pockets (the mouth's slit, the eye sockets, nostrils, ears) a closed face covers: on a head
     mesh with a mouth-like pocket, a point in the pocket reads outside the skin as it is and inside its `envelope`
@@ -867,7 +890,7 @@ CHECKS = (an_end_read_in_the_skin_holds_its_bones_off_somas_joint, a_turn_is_jud
           a_step_no_task_sees_ends_the_fit, level_2_ends_settled, a_step_the_cost_cannot_see_is_judged_by_its_gradient,
           the_frames_hold_the_bones_inside_the_skin,
           a_frame_is_not_held_in_another_parts_skin, the_heads_pockets_are_closed_for_the_inside_test, a_skin_folding_into_itself_gives_no_rows,
-          the_depth_is_the_nearest_faces_where_the_query_flips)
+          the_depth_is_the_nearest_faces_where_the_query_flips, a_frames_skin_marks_the_bones_out_of_it_frame_by_frame)
 
 
 def in_newton():

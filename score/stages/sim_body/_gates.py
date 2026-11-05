@@ -36,6 +36,10 @@ RESIDUAL_MOMENT = 0.01
 # `within_frames`, gated by `follows`), and the adjusted path kept within FOLLOWED of the clip on the mean (the owner,
 # 2026-10-28: "never more"). MOVE_MOST is ours: no published limit names a pelvis move.
 MOVE_MOST = 0.02  # metres
+# A sim body moves no rougher than its clip (#70, 2026-11-05, the owner on the pickup: "the sim body for sure needs a
+# buttersmooth filter"): its segments' turns against their parents shake no more than the clip's own, by the root mean
+# square of their angular jerk (`jerk`); the run low-passes its path at 6 Hz (Winter 2009), so a smooth run sits under
+# its clip, and RRA's per-frame shares and leg solve, before 2026-11-05, took the pickup to 11 times its clip's.
 # A cast of a crowd only has nothing to simulate: its record says so and every gate passes on no bodies (#70).
 NO_SINGLES = "no single characters in the cast; crowds are left out by design"
 # A cast of neither singles nor a crowd is an upstream fault, never a pass (#70: lab's and stairwell's people lost).
@@ -49,6 +53,21 @@ def angle_between(one, other):
     return np.degrees(turn.magnitude())
 
 
+def jerk(turns):
+    """The root mean square angular jerk (degrees a frame cubed) of per-frame turns given as rotation vectors in
+    degrees (frames x segments x 3): each segment's turn from one frame to the next, differenced twice; 0 under four
+    frames."""
+    from scipy.spatial.transform import Rotation
+    turns = np.asarray(turns, dtype=float)
+    if len(turns) < 4:
+        return 0.0
+    count, segments = turns.shape[:2]
+    matrices = Rotation.from_rotvec(np.radians(turns.reshape(-1, 3))).as_matrix().reshape(count, segments, 3, 3)
+    steps = Rotation.from_matrix((matrices[1:] @ np.swapaxes(matrices[:-1], -1, -2)).reshape(-1, 3, 3))
+    shakes = np.diff(steps.as_rotvec().reshape(count - 1, segments, 3), n=2, axis=0)
+    return float(np.degrees(np.sqrt(np.mean(np.sum(shakes ** 2, axis=-1)))))
+
+
 def landings(frames, weight):
     """Each landed foot's height over its ground (metres), frame by frame: a foot the ground pushes up with at least
     CONTACT of the weight."""
@@ -60,7 +79,8 @@ def measured(entry, gravity):
     """A run's gate numbers: its deepest point into its ground, each landed foot's height off it, the mean upward push
     over its weight, the mean and worst angle off the clip, the largest move RRA made off the fitted path on any frame
     (a segment's turn, the pelvis' place), the largest joint moment and reserve, the residual's
-    largest force and moment against their limits, and the muscles' activations and forces."""
+    largest force and moment against their limits, the muscles' activations and forces, and how much the body's turns
+    and the clip's shake (`jerk`)."""
     frames, weight = entry["frames"], entry["kg"] * gravity
     off = np.array([angle_between(frame["angles"], frame["targets"]) for frame in frames])
     push = np.mean([frame["ground"][1] for frame in frames])
@@ -78,6 +98,8 @@ def measured(entry, gravity):
             "weight N": round(weight, 2), "mean push N": round(float(push), 2),
             "push over weight": round(float(push / weight), 4),
             "mean off clip deg": round(float(off.mean()), 3), "worst off clip deg": round(float(off.max()), 3),
+            "jerk deg": round(jerk([frame["angles"] for frame in frames]), 4),
+            "clip jerk deg": round(jerk([frame["targets"] for frame in frames]), 4),
             "largest adjusted turn deg": entry["adjusted"]["largest turn deg"],
             "largest pelvis move cm": entry["adjusted"]["pelvis cm"][1],
             "largest torque Nm": round(float(max(np.abs(frame["torques"]).max() for frame in frames)), 2),
@@ -157,6 +179,16 @@ def judge_follows(output, inputs, evidence):
                           f"a frame")
     return verdict("follows", faults, f"{len(bodies)} bodies, each within {FOLLOWED} degrees of its clip on the mean "
                    f"and RRA's move within {FOLLOWED} degrees and {100 * MOVE_MOST:.0f} cm on every frame",
+                   {"bodies": len(bodies)})
+
+
+def judge_smooth(output, inputs, evidence):
+    """Fail a body whose turns shake more than its clip's (`jerk`: the root mean square angular jerk)."""
+    bodies = bodies_of(output)
+    faults = [f"{name}: its turns shake {body['measures']['jerk deg']:.3f} degrees a frame cubed, its clip's "
+              f"{body['measures']['clip jerk deg']:.3f}" for name, body in bodies.items()
+              if body["measures"]["jerk deg"] > body["measures"]["clip jerk deg"]]
+    return verdict("smooth", faults, f"{len(bodies)} bodies, each moving no rougher than its clip",
                    {"bodies": len(bodies)})
 
 

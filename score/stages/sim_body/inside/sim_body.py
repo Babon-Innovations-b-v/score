@@ -194,7 +194,11 @@ def run_person(job, person, out_path):
     riders = (segments, bodies, riding, parents)
     adjusted, moves, step = reduced(physics, qpath, job["rate"], limits, most, land, fitted_poses, riders)
     adjusted, kept = within_follows(physics, qpath, adjusted, moves, land, worlds, riders, job["adjust"]["follows deg"])
-    adjusted, shares = within_frames(physics, qpath, kept * moves, land, fitted_poses, riders, most, job["rate"])
+    own_model = mujoco.MjModel.from_xml_path(str(path))  # MuJoCo's own compile: its meshes and muscle names
+    # its bones measured on MuJoCo's own compile (Newton is given no meshes); its qpos is Newton's in the same order
+    skins = fit.FrameSkins(own_model, rig, segments, worlds)
+    adjusted, shares = within_frames(physics, qpath, kept * moves, land, fitted_poses, riders, most, job["rate"],
+                                     skins)
     adjusted_poses = posed_path(model, adjusted, segments, bodies, riding)
     adjustment = adjustment_record((adjusted[:, :3] - qpath[:, :3]) @ TO_OWN.T, kept, shares, step, fitted_poses,
                                    adjusted_poses, segments,
@@ -204,8 +208,6 @@ def run_person(job, person, out_path):
     adjustment["feet held mm, deg"] = [round(1000 * float(feet_off[:, 0].max()), 3),
                                        round(float(np.degrees(feet_off[:, 1].max())), 3)]
     qpath = adjusted
-    own_model = mujoco.MjModel.from_xml_path(str(path))  # MuJoCo's own compile: its meshes and muscle names
-    # its bones measured on MuJoCo's own compile (Newton is given no meshes); its qpos is Newton's in the same order
     record["fit"]["following, the path the physics takes"] = fit.following(own_model, qpath, worlds, segments, scales,
                                                                            rig)
     velocities, accelerations = rates(model, qpath, job["rate"])

@@ -20,3 +20,8 @@ squares it replaced, 40 fixed steps with ranges by clipping, went 2026-10-29: on
   more joints than its foot's six directions (the ankle's twist; the knee's shin turn freed from the flexion), and at
   the fit's damping a step along a direction no foot sees was unbounded: env1's seated astronaut's left leg, its
   subtalar on its stop, cycled for good and failed the run (`fit.NotConverged`).
+- `within_frames` keeps the move's bones inside SOMA's skin as the fitted path holds them, frame by frame and region by
+  region (`fit.FrameSkins`, `skin_excess`, `SKIN_SLACK`), its shares smooth (`held_share`) and the move off the fitted
+  path low-passed with the feet kept again (`smoothed_off`) (2026-11-05, #70): the freed joints' pickup kept 0.75 of a
+  move that turned the arms and head with the trunk, its hands 37.7% outside the skin, its shins 30 times the clip's
+  jerk.

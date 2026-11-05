@@ -27,7 +27,7 @@ from fit._constants import Problem, staged
 from fit._follow import following, riding
 from fit._frames import LM_DAMPING, Frames, NotConverged, solved
 from fit._model import Fitting, end_site, filed, followers_free, shifted_end
-from fit._skin import card_device, posed_skins
+from fit._skin import FrameSkins, card_device, posed_skins
 from landmarks import HELD, LANDMARKS, MIDDLE_CENTRES, marker, myo_parts, posed, soma_joints, solver_marks, trust
 from landmarks._table import CENTRES
 from model import TO_OWN
@@ -48,7 +48,8 @@ METHOD = ("one solver (#70): mink 1.3.0 per frame (the bone groups' turns on the
           "least_squares over the person's constants (the markers' moves off their links and the joints inside the "
           "bone groups; the lengths SOMA's, from the sizing) with the angles of frames spread over all the body's "
           "recordings, once per body; then mink on every frame, the pose alone")
-__all__ = ["Fitting", "end_site", "Frames", "NotConverged", "LM_DAMPING", "solved", "followers_free", "following", "riding",
+__all__ = ["Fitting", "FrameSkins",
+           "end_site", "Frames", "NotConverged", "LM_DAMPING", "solved", "followers_free", "following", "riding",
            "followed", "group_ends", "targets", "fitting", "sampled", "constants", "constants_record", "angles"]
 
 
