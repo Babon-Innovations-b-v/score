@@ -16,6 +16,8 @@ Breaks, each seen red once (2026-11-04):
   /tools/..., absent on the machine.
 - (2026-11-05) `hard_coded`'s `roots` made `[]` -> a go.sh naming the main checkout's card queue goes up from a
   worktree, whose path alone is carried, and every job dies in its first second (2026-11-04).
+- (2026-11-05) `in_stock_order`'s `key` dropped -> a scarce H100 asked first is fixed for the call and its jobs wait
+  for stock while an L40S and an L4 stand free.
 """
 import json
 import os
@@ -78,3 +80,9 @@ def test_a_measure_job_carries_its_folders_and_runs_each_go_in_turn_until_its_mi
     assert python == sys.executable and carried == str(repo) and int(lanes) == max(1, (os.cpu_count() or 4) // 4)
     assert (budget, desktop) == ("77.6", "0")
     assert "go.sh exit 1" in ended.stdout and "stopped at the job's minutes" in ended.stdout
+
+    from types import SimpleNamespace as Offer
+    found = [Offer(machine_class="gpu-80gb-x2-48c", stock_word="scarce"), Offer(machine_class="gpu-80gb", stock_word="shortage"),
+             Offer(machine_class="gpu-48gb", stock_word="available"), Offer(machine_class="gpu-24gb", stock_word="available")]
+    asked = ["gpu-80gb-x2-48c", "gpu-80gb-x2", "gpu-80gb", "gpu-48gb", "gpu-24gb"]
+    assert cloud.in_stock_order(asked, found) == ["gpu-48gb", "gpu-24gb", "gpu-80gb-x2-48c", "gpu-80gb-x2", "gpu-80gb"]

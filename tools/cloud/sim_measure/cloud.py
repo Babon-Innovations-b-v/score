@@ -69,6 +69,18 @@ def hard_coded(folders):
             and any(root in script.read_text(errors="replace") for root in roots)]
 
 
+STOCK_RANK = {"available": 0, "parked": 0, "scarce": 1}  # any other word (shortage): last
+
+
+def in_stock_order(classes, found):
+    """`classes` with those a zone sells as available first, then scarce, then the rest, each group in the order
+    given: blender_cloud fixes one class for the call (batch.one_class_in_stock), and a scarce H100 picked first waited
+    hours with the L4 free (2026-11-05)."""
+    rank = {name: min((STOCK_RANK.get(offer.stock_word, 2) for offer in found if offer.machine_class == name),
+                      default=2) for name in classes}
+    return sorted(classes, key=lambda name: rank[name])
+
+
 def job(folders, carries, minutes, bring_every):
     """The one job for blender_cloud.py: on_machine.py in the Newton env over the folders in order."""
     arguments = [*folders, "--minutes", minutes - level1.STOP_EARLY, "--repo", blender_cloud.REPO]
@@ -103,8 +115,10 @@ def main():
     path = folder / f"{level1.time.strftime('%Y%m%d-%H%M%S')}.json"
     path.write_text(level1.json.dumps(job(folders, [carry.resolve() for carry in options.carry], options.minutes,
                                           options.bring_every), indent=1))
+    asked = options.classes.split(",")
+    classes = in_stock_order(asked, blender_cloud.batch.offers(asked))
     command = [str(blender_cloud.cloud_python()), str(blender_cloud.HERE / "blender_cloud.py"), str(path), "--who",
-               options.who, "--classes", options.classes, "--kind", level1.KIND,
+               options.who, "--classes", ",".join(classes), "--kind", level1.KIND,
                *(["--dry-run"] if options.dry_run else [])]
     sys.exit(level1.subprocess.run(command).returncode)
 
