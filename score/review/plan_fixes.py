@@ -401,16 +401,126 @@ def doors_kept(plan, inventory):
     return fixes
 
 
+# --- what lies past its own outline (the plan row's gate `held`, scene_record/plan.inside_faults) ---------------------
+
+INSIDE_STEP = 0.025  # metres between the offsets tried when a thing is moved inside its outline
+INSIDE_SLACK = 0.001  # metres a moved thing's corners are tested inside the outline by (an edge point is not inside)
+
+
+def offsets(reach):
+    """The offsets [dx, dy] of INSIDE_STEP within `reach` metres, nearest first."""
+    steps = numpy.arange(-math.ceil(reach / INSIDE_STEP), math.ceil(reach / INSIDE_STEP) + 1) * INSIDE_STEP
+    found = numpy.stack(numpy.meshgrid(steps, steps), axis=-1).reshape(-1, 2)
+    found = found[numpy.hypot(found[:, 0], found[:, 1]) <= reach + 1e-9]
+    return found[numpy.argsort(numpy.hypot(found[:, 0], found[:, 1]), kind="stable")]
+
+
+def moved_inside(box, outer, outline, reach):
+    """`box` [x, y, w, d] moved the least distance that lays it wholly inside `outline`, its size counted: clamped into
+    the plan's box `outer` [0, 0, w, d] first (the least move there), then the nearest offset of INSIDE_STEP from it
+    that lies inside the outline too (a round or cut-cornered one); None when no move within `reach` metres does."""
+    wide, deep = box[2:]
+    x = min(max(box[0], outer[0]), outer[0] + outer[2] - wide)
+    y = min(max(box[1], outer[1]), outer[1] + outer[3] - deep)
+    corners = numpy.array([[x + INSIDE_SLACK, y + INSIDE_SLACK], [x + wide - INSIDE_SLACK, y + INSIDE_SLACK],
+                           [x + wide - INSIDE_SLACK, y + deep - INSIDE_SLACK], [x + INSIDE_SLACK, y + deep - INSIDE_SLACK]])
+    for chunk in numpy.array_split(offsets(reach), max(1, int(reach / INSIDE_STEP) // 20)):
+        laid = (corners[None, :, :] + chunk[:, None, :]).reshape(-1, 2)
+        fits = plan_checks.inside(laid, outline).reshape(len(chunk), 4).all(axis=1)
+        if fits.any():
+            step = chunk[numpy.argmax(fits)]
+            return [round(x + float(step[0]), 3), round(y + float(step[1]), 3), wide, deep]
+    return None
+
+
+def frame_inside(plan):
+    """The fixes said of a frame whose anchor or toward lies outside the plan's own box, the frame dropped (the plan
+    then stands unturned, its middle on the place's floor: scene_record/plan.frame_of): it was set in another plan's
+    metres. The Square's writing of 2026-10-21 took the retired 120 x 110 m creator plan (data/plans/square.json, gone
+    in eb01c402) as its skeleton, and plan_writing.measured gave it the drawing's 28.989 m box but kept that plan's
+    frame, its anchor at [60, 3] and its toward at [60, 47.05]; today's skeleton (plans.base_plan) has none."""
+    from score.stages.scene_record.plan import EDGE
+    frame = plan.get("frame") or {}
+    off = [key for key in ("anchor", "toward") if (frame.get(key) or {}).get("plan") is not None
+           and not (-EDGE <= float(frame[key]["plan"][0]) <= plan["w"] + EDGE
+                    and -EDGE <= float(frame[key]["plan"][1]) <= plan["d"] + EDGE)]
+    if not off:
+        return []
+    plan.pop("frame")
+    return [f"its frame's {' and '.join(f'{key} {frame[key]['plan']}' for key in off)} lay outside its "
+            f"{plan['w']:g} x {plan['d']:g} m plan, set in another plan's metres: dropped, the plan stands unturned"]
+
+
+def items_inside(plan):
+    """The fixes said of each item the plan row's gate finds past the plan's own box (scene_record/plan.item_inside; a
+    passage drawn past it stands outside by design), moved the least distance that lays it wholly inside its outline,
+    its size counted: a run longer than the box's side clipped to it first (the garage's 10 m pipes drawn 5 m past its
+    west wall, the hub's monitors past its east wall, 2026-11-04). One no move lays inside is left, the gate names it."""
+    from score.stages.scene_record.plan import PASSAGE_WORDS, item_inside
+    outer = [0.0, 0.0, float(plan["w"]), float(plan["d"])]
+    outline = plan_checks.outline_of(plan)
+    fixes = []
+    for item in plan.get("items") or []:
+        if set(re.findall(r"[a-z]+", str(item[0]).lower())) & PASSAGE_WORDS or item_inside(item, outer):
+            continue
+        box = [float(value) for value in item[1:5]]
+        clipped = [min(box[2], outer[2]), min(box[3], outer[3])]
+        moved = moved_inside([*box[:2], *clipped], outer, outline, math.hypot(outer[2], outer[3]))
+        if moved is None:
+            continue
+        said = (f"clipped from {box[2]:g} x {box[3]:g} m to {clipped[0]:g} x {clipped[1]:g} m and "
+                if clipped != box[2:] else "")
+        item[1:5] = moved
+        fixes.append(f"{plan_checks.said_name(item[0])}: {said}moved {math.dist(box[:2], moved[:2]):.2f} m inside "
+                     f"the plan's outline")
+    return fixes
+
+
+def people_inside(plan, inventory):
+    """The fixes said of each person spot the plan row's gate finds past the plan's own box, moved to the nearest floor
+    inside its outline where its footprint lies wholly inside and stands in nothing (standing.nearest_free): the
+    galley's third spot at x 5.72 in its 4.64 m, the garage's eighth at y 14.29 in its 12.66 m (2026-11-04). A spot
+    of a row beyond or afar stands out there on purpose; one with no such floor is left, the gate names it."""
+    from score.review import standing
+    from score.stages.scene_record.plan import EDGE
+    spots = plan.get("people") or []
+    rows = {row["id"]: row for row in inventory.get("rows", [])}
+    left_out = plan_checks.beyond(plan, inventory) | plan_checks.afar(inventory)
+    grid = plan_checks.Grid(plan)
+    inside = grid.covered(plan_checks.outline_of(plan))
+    sizes, fixes = standing.footprints(plan, inventory), []
+    for number, (spot, size) in enumerate(zip(spots, sizes)):
+        row = spot[3] if len(spot) >= 4 and isinstance(spot[3], str) and spot[3] in rows else None
+        if row in left_out or (-EDGE <= float(spot[0]) <= plan["w"] + EDGE and -EDGE <= float(spot[1]) <= plan["d"] + EDGE):
+            continue
+        walls_things = standing.blocked(plan, inventory, grid, plan_checks.anchor_of(rows[row]) if row else None)
+        others = [(other, other_size) for other, other_size in zip(spots, sizes) if other is not spot]
+        free = standing.nearest_free(spot, size, walls_things | ~inside, grid, inside, others)
+        if free is None:
+            continue
+        spots[number] = [*free, *spot[2:]]
+        fixes.append(f"{plan_checks.said_name(row or 'a standing spot')}: its spot {spot[:2]} moved "
+                     f"{math.dist(spot[:2], free):.2f} m inside the plan's outline")
+    return fixes
+
+
+def kept_inside(plan, inventory):
+    """The fixes said of what the plan lays past its own outline brought inside it (the plan row's gate `held`): a frame
+    in another plan's metres dropped (`frame_inside`), each item moved in (`items_inside`), then each person spot
+    (`people_inside`, clear of the items as moved)."""
+    return frame_inside(plan) + items_inside(plan) + people_inside(plan, inventory)
+
+
 def fixed(plan, inventory):
     """(the plan with every free fix made, the fixes said): rows at the concept's foot brought in from beyond, people
     stood, runs split, missing things placed, facings turned, overlaps parted, in that order (each later one on the
-    earlier's plan)."""
+    earlier's plan), then what lies past its own outline brought inside it."""
     plan = copy.deepcopy(plan)
     fixes = brought_in(plan, inventory)
     project = projector(plan, inventory)
     fixes += stood_people(plan, inventory, project) + split_runs(plan, inventory, project)
     fixes += placed_missing(plan, inventory, project) + faced(plan, inventory) + nudged(plan, inventory)
-    fixes += doors_kept(plan, inventory)
+    fixes += doors_kept(plan, inventory) + kept_inside(plan, inventory)
     return plan, fixes
 
 

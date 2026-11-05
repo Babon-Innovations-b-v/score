@@ -339,6 +339,10 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     plans_pass.py (2026-11-05, #87): laid_again's `stairs, levels = plan_writing.flights_laid(answer)` made `stairs,
     levels = answer.get("stairs") or [], answer.get("levels") or []`
     plans.py (2026-11-05, #72): newest_edit's `and found[-1].get("plan") is not None` dropped
+    plans.py (2026-11-05, #72): doors_met's `step = (pair["there"] - pair["spot"]) * (1 if mover == name else -1)` made
+    `* (1 if mover != name else -1)`, or `if overlap(box, sibling): box = pushed_out(box, sibling)` dropped, or mover_of's `if not
+    by_place[place].get("row")` made `if True`
+    plans.py (2026-11-05, #72): current's `edit_inside(store, place, ...)` dropped (the edit shown as made)
 - test_the_answer_is_a_plan_of_the_stage_tables_schema_and_each_failed_check_a_named_gap:
     plan_writing.py (2026-11-04, #72): write_now's `if again else to_write(store, places)` made `to_write(...)` alone
 - test_a_footprint_answered_as_box_2d_is_measured_from_its_box:
@@ -406,6 +410,7 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     plans_pass.py: `if not (plans.KEPT / f"{place}.json").is_file()` made `if True`
 """
 import contextlib
+import copy
 import datetime
 import hashlib
 import io
@@ -2709,6 +2714,7 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     plan["w"] = plan["d"] = 30.0
     plan["holds"] = [{"place": "shed", "row": None, "x": 10.0, "y": 10.0, "w": 6.0, "d": 6.0}]
     plan["items"] = [["CART 1", 13.0, 7.5, 1.0, 1.0, None, "item"]]  # clear of the spot, not of the shed's own size
+    written(store, "yard", {**plan, "items": [], "holds": []})  # its own 30 x 30 m, which his edit keeps
     plans.edited(store, "yard", plan, "joey")
     held = plans.current(store, "yard")["plan"]
     assert held["holds"][0]["w"] == 6.0 and not [gap for gap in held["gaps"] if gap["kind"] == "held"]
@@ -2770,6 +2776,27 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     plans.edit_replaced(store, "yard", "an agent, on his yes", {"words": "Replace my edit", "question": "Replace?",
                                                                  "at": "2026-11-04T14:15"})
     assert plans.newest_edit(store, "yard") is None and plans.current(store, "yard")["how"] != "edited"
+    # two held places whose doors to each other open apart meet: the one on the holder's own floor moved by the gap
+    # and off its sibling's box (the Square's stairwell opened its door to the flat 10.4 m from the flat's, 2026-11-05);
+    # one held in a row's item stays where it is drawn, and two such are left for the gate to name
+    door = lambda at, to: {"kind": "door", "at": at, "wide": 0.9, "to": to}  # noqa: E731
+    own = {"flat": {"w": 6.0, "d": 5.0, "openings": [door([5.925, 1.344], "stairwell")]},
+           "stairwell": {"w": 7.4, "d": 4.0, "openings": [door([0.0, 0.88], "flat")]}}
+    holds = [{"place": "flat", "row": "left_building", "x": 0.0, "y": 16.0, "w": 6.0, "d": 5.0},
+             {"place": "stairwell", "row": None, "x": 10.0, "y": 24.0, "w": 7.4, "d": 4.0}]
+    square = {"items": [["LANTERN 1", 6.5, 17.5, 1.0, 1.0, None, "item"]], "rows": {}}
+    met, said = plans.doors_met(square, holds, own)
+    assert met[0] == holds[0] and (met[1]["x"], met[1]["y"]) == (6.0, 16.464), met
+    assert [gap["item"] for gap in said] == ["stairwell", "LANTERN 1"] and square["items"][0][1] == 5.0, said
+    assert plans.doors_met(square, [dict(holds[0]), {**holds[1], "row": "core"}], own)[1] == []
+    # his edit's things past its own outline are brought inside it when it is shown (the hangar's 2026-10-21 edit kept
+    # a 55.7 m writing's spots and crates past its 32 x 64 m), each fix said; the edit itself is kept as he made it
+    edit = {**plans.current(store, "yard")["plan"], "w": 30.0, "d": 30.0, "holds": [],
+            "items": [["CART 1", 29.8, 20.0, 1.0, 1.0, None, "item"]], "people": [[34.0, 10.0]]}
+    plans.edited(store, "yard", edit, "joey")
+    shown = plans.current(store, "yard")["plan"]
+    assert shown["items"][0][1:5] == [29.0, 20.0, 1.0, 1.0] and 29.0 <= shown["people"][0][0] < 30.0, shown["people"]
+    assert len(shown["fixes"]) == len(edit.get("fixes", [])) + 2 and plans.newest_edit(store, "yard")["plan"]["items"][0][1] == 29.8
 
 
 # --- plan writing and its free checks: each failure a named gap -------------------------------------------------------
@@ -3236,7 +3263,12 @@ def test_a_people_row_a_writing_never_stood_is_stood_and_brought_in_free():
     Break: score/review/plans_pass.py: `return [row["id"] for row in plan_checks.person_rows(inventory) if row["id"] not
         in have]` -> `return []`
     Break: score/review/plans_pass.py `stood_again`: `+ spread_people(answer, inventory)` dropped -> the hangar's
-        workers stand on no spot."""
+        workers stand on no spot.
+    Break: score/review/plan_fixes.py `items_inside`: `clipped = [min(box[2], outer[2]), min(box[3], outer[3])]` ->
+        `clipped = box[2:]`, or `moved_inside`'s clamp dropped (`x, y = box[:2]`) -> the facade is left past the wall.
+    Break: score/review/plan_fixes.py `people_inside`: `walls_things | ~inside` -> `walls_things` (its footprint past
+        the outline), or `frame_inside`'s `plan.pop("frame")` dropped.
+    Break: score/review/plans_pass.py `unsettled`: the `plan_fixes.kept_inside` line dropped."""
     inventory = {"rows": [{"id": "person_man", "noun": "man", "name": "man walking up stairs", "count": 1}]}
     plan = {"w": 10.0, "d": 10.0, "outline": [[0, 0], [10, 0], [10, 10], [0, 10]], "people": [[1.5, 3.0]],
             "items": [["PERSON MAN 1", 3.0, 3.0, 0.6, 0.6, None, "item"]], "rows": {"PERSON MAN 1": ["person_man"]},
@@ -3260,6 +3292,21 @@ def test_a_people_row_a_writing_never_stood_is_stood_and_brought_in_free():
     assert all(0 < spot[0] < 32 and 0 < spot[1] < 64 and not (5.75 < spot[0] < 12.25 and 13.85 < spot[1] < 20.15)
                for spot in spots), spots
     assert len({tuple(spot[:2]) for spot in spots}) == 4 and not plans_pass.unstood(spread, workers), spots
+    # what the plan lays past its own outline is brought inside it, free, and plans keep fixes it again: an item moved
+    # the least way, a run longer than the side clipped first, a person spot to the nearest free floor with its
+    # footprint inside, a frame set in another plan's metres dropped (2026-11-05: the garage's 10 m pipes 5 m past its
+    # wall, the galley's spot at x 5.72 in 4.64 m, the Square's frame anchor at [60, 3] in its 29 m)
+    garage = {"w": 12.0, "d": 12.0, "outline": [[0, 0], [12, 0], [12, 12], [0, 12]], "fixes": [],
+              "items": [["PIPE 1", -5.0, 1.5, 10.0, 0.1, None, "item"], ["FACADE 1", -3.01, 11.8, 14.0, 0.6, None, "item"],
+                        ["GLASS TUNNEL 1", -4.0, 5.0, 4.0, 2.0, None, "item"], ["CRATE 1", 4.0, 4.0, 1.0, 1.0, None, "item"]],
+              "rows": {}, "people": [[7.0, 14.3]], "frame": {"anchor": {"plan": [60.0, 3.0], "place": [0, 0, 0]}}}
+    assert plans_pass.unsettled(garage, {"rows": []}, parts=False)
+    inside = copy.deepcopy(garage)
+    fixes = plan_fixes.kept_inside(inside, {"rows": []})
+    assert [item[1:5] for item in inside["items"]] == [[0.0, 1.5, 10.0, 0.1], [0.0, 11.4, 12.0, 0.6],
+                                                       [-4.0, 5.0, 4.0, 2.0], [4.0, 4.0, 1.0, 1.0]], inside["items"]
+    assert "frame" not in inside and 11.0 <= inside["people"][0][1] <= 11.8 and len(fixes) == 4, (inside, fixes)
+    assert "clipped from 14 x 0.6 m to 12 x 0.6 m" in fixes[2] and plan_fixes.kept_inside(inside, {"rows": []}) == []
 
 
 # --- the sync pass's plans keep (plans_pass.py): the narrow walk, one moment, a re-fix in its own process --------
