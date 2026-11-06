@@ -33,6 +33,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   sizes it, 2026-10-29) -> test_a_take_is_sized_by_its_reading_and_routed_...
 - groups.one_each: the floor's fit dropped (the stairwell's 12 m conduit kept whole on its 7.42 m floor, failing
   `fits the plan`) -> test_a_take_is_sized_by_its_reading_and_routed_...
+- groups.sized_rows: `walled or ` dropped from "size", or groups.round_walls' `row.get("part") in KITS or ` dropped (a
+  ceiling hung off its walls cut to a strip), or its `abs(side - wall) <= thick` -> `True` (2026-11-06: the cockpit's
+  five red pipes read at its room's 9.414 by 9.8 m footprint, each made that long on its 8.94 m wall), or
+  groups.walls_piece's `max(lengths)` -> `math.inf` -> test_a_take_is_sized_by_its_reading_and_routed_...
 - groups.own_size: `return piece` (no box_shows_whole: the square's stage screen cut to 4.8 by 6 m) or
   box_shows_whole -> `return True` (the railing's box kept at 50 m) -> test_a_take_is_sized_by_its_reading_and_routed_...
 - groups.shown_from: `source = None` -> test_a_backdrop_row_a_place_of_its_scene_makes_is_shown_from_there_...
@@ -60,6 +64,7 @@ import math
 import pathlib
 import sys
 import tempfile
+from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[4]))
 
@@ -529,6 +534,26 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
     assert groups.run_pieces(conduits, conduit) == 4
     assert groups.row_size(conduit["size"], [7.421, 4.058, 12.0], 4) == [3.0, 0.1, 12.0]
     assert groups.run_pieces({**rugs, "w": 5.0, "d": 4.0}, rug) is None  # a rug that fits its floor: still one of it
+    cockpit = {"w": 9.414, "d": 9.8, "items": [["RED PIPES 1", 0, 0, 9.414, 9.8, None, "item"]],
+               "rows": {"RED PIPES 1": ["red_pipes"]}, "shapes": {"RED PIPES 1": {"shape": "polygon"}}}
+    room = [{**a_read_row("wall_panels", "code", "panels", part="wall"), "size": [9.414, 9.8, 3.5]},
+            {**a_read_row("red_pipes", "code", "pipes", 5, part="structure"), "anchor": "on:wall_panels",
+             "size": [9.414, 9.8, 0.2]},  # the cockpit's reading, 2026-11-06: five pipes read at the room's footprint
+            {**a_read_row("ceiling_panels", "code", "panels", part="roof"), "anchor": "on:wall_panels",
+             "size": [9.414, 9.8, 0.1]},  # a ceiling hung off its walls covers the room: no run
+            {**a_read_row("rug", "code", "rug"), "size": [9.414, 9.8, 0.02]}]  # on the floor: no run round walls
+    from score.review import plans
+    with mock.patch.object(plans, "current", lambda store, place: {"plan": cockpit}):
+        sized = {row["id"]: row for row in groups.sized_rows(None, "cockpit", {
+            "place": "cockpit", "concept": "c" * 64, "inventory": {"rows": room}})}
+    assert sized["red_pipes"]["size"] == sized["red_pipes"]["read_size"] == [0.2, 7.686, 0.2], sized["red_pipes"]
+    assert [sized[row]["size"] for row in ("ceiling_panels", "rug")] == [[9.414, 9.8, 0.1], [9.414, 9.8, 0.02]]
+    engineroom = {"w": 9.328, "d": 10.9, "walls": [{"from": [0, 0], "to": [7.347, 0]}, {"from": [7.347, 0],
+                                                                                        "to": [7.347, 2.0]}]}
+    pipe = {"id": "pipe", "anchor": "wall", "part": "object", "size": [9.328, 10.9, 0.2]}  # 10.9 m on 7.35 m walls
+    assert groups.walls_piece(pipe, [pipe], engineroom, 1) == [0.2, 7.347, 0.2]  # no longer than its longest wall
+    assert groups.walls_piece({**pipe, "size": [9.328, 10.9, 3.0]}, [pipe], engineroom, 3) is None  # no thin run
+    assert groups.walls_piece({**pipe, "size": [6.0, 10.9, 0.2]}, [pipe], engineroom, 3) is None  # not its room's
     door = [1.2, 0.2, 2.1]  # four doors read, one 1.16 m item laid: the door a little wider than its footprint
     assert groups.row_size(door, [1.159, 0.706, 2.1], 4) == door
     assert groups.own_size(door, [1.159, 0.706, 2.1], 4) == door

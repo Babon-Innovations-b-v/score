@@ -167,7 +167,8 @@ def sized_rows(store, place, record):
     none): the close-up's request and shape check hold the object to its own size (owner, 2026-10-24). A row the
     reading and the plan give no size has none (a gap: its take waits on "no size"). A shell piece whose part the
     place's plan lays itself (plan_parts), that it names its own shell (plan_structure), or that is arched structure
-    at its plan items (plan_arches), has route "plan"."""
+    at its plan items (plan_arches), has route "plan". A row whose reading measured its room's footprint, a run round
+    its walls (walls_piece), is sized and drawn at one piece of that run."""
     from score.review import plans
     rows = record["inventory"]["rows"]
     laid = plan_sizes(store, place, rows)
@@ -175,11 +176,10 @@ def sized_rows(store, place, record):
     own = plan_parts(shown and shown["plan"])
     shell = plan_structure(shown and shown["plan"], own)
     beyond = beyond_of(shown and shown["plan"], rows, record.get("size"))
-    found = [{**read, "size": row_size(reading_size(row), laid.get(row["id"]), run_pieces(shown and shown["plan"], row),
-                                       read.get("box")),
-              "read_size": own_size(reading_size(row), laid.get(row["id"]), run_pieces(shown and shown["plan"], row),
-                                    read.get("box"))}
-             for row in rows for read in [read_row(record, row)]]
+    found = [{**read, "size": walled or row_size(reading_size(row), laid.get(row["id"]), pieces, read.get("box")),
+              "read_size": walled or own_size(reading_size(row), laid.get(row["id"]), pieces, read.get("box"))}
+             for row in rows for read in [read_row(record, row)] for pieces in [run_pieces(shown and shown["plan"], row)]
+             for walled in [walls_piece(row, rows, shown and shown["plan"], pieces or row.get("count") or 1)]]
     holding = holding_sizes(shown and shown["plan"], rows)
     found = [{**row, "size": holding[row["id"]]["size"], "read_size": holding[row["id"]]["size"],
               "holds": holding[row["id"]]["span"]} if row["id"] in holding else row for row in found]
@@ -354,6 +354,44 @@ def overruns(size, laid, pieces):
     1.16 m item were cut to 0.3 m)."""
     short, long = sorted(size[:2])
     return short < RUN_SLENDER * long and long * (1 - 1 / pieces) >= max(laid[:2])
+
+
+def round_walls(row, rows, plan):
+    """Whether a reading measured a run round its room's walls, not one object: a row held on a wall (anchored
+    `wall`, or on a row whose part is a wall) that is no floor, wall or roof itself (a ceiling hung off a wall covers
+    the room), its footprint's sides each the plan's room's (`w` and `d`, either way round) within its own thickness
+    (its smallest side), that thickness under RUN_SLENDER of the room's short side. 2026-11-06: the cockpit's five red
+    pipes read 9.414 by 9.8 m by 0.2 m on its wall panels, its room's footprint, were each made 9.8 m long and held on
+    its 8.94 m back wall, the engine room's three pipes 10.9 m on its 7.35 m walls; overruns sees only a line."""
+    own, anchor = reading_size(row), str(row.get("anchor") or "")
+    held = anchor == "wall" or any(other["id"] == anchor.partition("on:")[2] and other.get("part") == "wall"
+                                   for other in rows)
+    if own is None or not held or row.get("part") in KITS or not (plan or {}).get("w") or not plan.get("d"):
+        return False
+    thick, room = min(own), sorted((float(plan["w"]), float(plan["d"])))
+    return thick < RUN_SLENDER * room[0] and all(
+        abs(side - wall) <= thick for side, wall in zip(sorted(own[:2]), room))
+
+
+def wall_lengths(plan):
+    """The lengths of a plan's walls (its `walls`, else its outline's edges, else its box's four sides), metres."""
+    if plan.get("walls"):
+        return [math.dist(wall["from"], wall["to"]) for wall in plan["walls"]]
+    points = plan.get("outline") or [[0.0, 0.0], [plan["w"], 0.0], [plan["w"], plan["d"]], [0.0, plan["d"]]]
+    return [math.dist(start, end) for start, end in zip(points, points[1:] + points[:1])]
+
+
+def walls_piece(row, rows, plan, pieces):
+    """One of the `pieces` of a run a reading row measured round its room's walls (round_walls; `rows` the
+    reading's): as long as the walls round the room over its pieces, no longer than its longest wall (each piece
+    fits a wall), its across and tall the reading's thickness, long along its reading's longer ground side; None for
+    any other row."""
+    if not round_walls(row, rows, plan):
+        return None
+    own = reading_size(row)
+    lengths, thick = wall_lengths(plan), round(min(own), 3)
+    long = round(min(sum(lengths) / pieces, max(lengths)), 3)
+    return [long, thick, thick] if own[0] >= own[1] else [thick, long, thick]
 
 
 def run_piece(own, laid, pieces):

@@ -1366,6 +1366,47 @@ def part_at_spot(entries, row, plan, height):
         entry["why"] += "; stood over its row's others at its spot on its wall, too long to pack along it"
 
 
+def parted_on_floor(found, items, plan, inventory):
+    """Floor relations of one row's items at one spot at one height (their middles within ONE_SPOT, one shape base:
+    the scene record would lay them in one another) each after the first given its own `spot`: its item's box moved
+    the shortest way clear of its row's others there (floor_room), inside the outline and onto no other floor thing;
+    one with no such room keeps its spot. 2026-11-06: the engine room's railings 3 and 4, drawn on one box."""
+    shapes, groups = plan.get("shapes") or {}, {}
+    for entry in found:
+        if entry.get("how") == "floor" and "spot" not in entry and "pieces" not in entry and entry["item"] in items:
+            base = float((shapes.get(entry["item"]) or {}).get("base") or 0.0)
+            groups.setdefault((entry["row"], round(base, 3)), []).append(entry)
+    floor = [item[1:5] for item, *_ in plan_checks.blocking(plan, inventory)]
+    for entries in groups.values():
+        settled = []  # the boxes [x, y, w, d] of the group's items laid so far
+        for entry in entries:
+            box = [float(value) for value in items[entry["item"]][1:5]]
+            still = [other for other in settled if math.dist(middle([None, *other]), middle([None, *box])) < ONE_SPOT]
+            step = floor_room(box, still, plan, [other for other in floor if other != box] + settled) if still else None
+            if step is not None:
+                box = [box[0] + step[0], box[1] + step[1], box[2], box[3]]
+                entry["spot"] = [round(float(value), 3) for value in middle([None, *box])]
+                entry["why"] += "; parted from its row's other at its spot, where the floor has room"
+            settled.append(box)
+
+
+def floor_room(box, still, plan, others):
+    """The shortest step [dx, dy] that lays `box` ([x, y, w, d]) beside one of the `still` boxes, PIECE_GAP clear,
+    inside the plan's outline and overlapping none of `others`; None when there is none."""
+    outline = plan_checks.outline_of(plan)
+    steps = [step for other in still for step in (
+        [other[0] + other[2] - box[0] + PIECE_GAP, 0.0], [other[0] - box[0] - box[2] - PIECE_GAP, 0.0],
+        [0.0, other[1] + other[3] - box[1] + PIECE_GAP], [0.0, other[1] - box[1] - box[3] - PIECE_GAP])]
+    for step in sorted(steps, key=lambda step: abs(step[0]) + abs(step[1])):
+        x, y, wide, deep = box[0] + step[0], box[1] + step[1], box[2], box[3]
+        corners = numpy.array([[x, y], [x + wide, y], [x + wide, y + deep], [x, y + deep]])
+        if plan_checks.inside(corners, outline).all() and not any(
+                x < rest[0] + rest[2] and rest[0] < x + wide and y < rest[1] + rest[3] and rest[1] < y + deep
+                for rest in others):
+            return step
+    return None
+
+
 def beside_holder(item, row, rows, laid, items):
     """(holder row, its plan item) a seat stands before: a seat row (SEAT_WORDS) whose where words say it stands at,
     by, before or around (BESIDE_WORDS) a row its other words name (a word of what that row is, plural or not) laid
@@ -1491,6 +1532,7 @@ def relations(plan, inventory, sha=None, kinds=None):
     crowded = spread(found) + face_spread(found, items, rows, plan, inventory, kinds)
     spread_pieces(found, items, rows, plan, inventory, tied)
     parted_on_wall(found, rows, plan)
+    parted_on_floor(found, items, plan, inventory)
     seats_beside(found, items, rows, plan, tied)
     rails_along(found, plan)
     for entry in found:
