@@ -544,14 +544,17 @@ def stop_jobs(kubectl, run_id):
 
 
 def stop_score_jobs(kubectl=None, cluster=None):
-    """stop-batch's part on the cluster: delete every Job of score's (labelled with a run) in the score-jobs namespace,
-    and nothing else; the cluster's answer. Refused when the cluster module puts the jobs elsewhere."""
+    """stop-batch's part on the cluster: delete every Job of score's (labelled with a run) in the score-jobs namespace
+    that this box launched (manifests.BOX_LABEL), and nothing else: another box's runs share the namespace (2026-11-06:
+    the conductor's stop deleted a sim body run this PC had launched); the cluster's answer. Refused when the cluster
+    module puts the jobs elsewhere."""
     cluster = cluster or cluster_module()
     if manifests.NAMESPACE != SCORE_JOBS_NAMESPACE:
         raise SystemExit(f"the cluster's jobs are in {manifests.NAMESPACE}; stop-batch clears {SCORE_JOBS_NAMESPACE} "
                          "only")
     kubectl = kubectl or cluster_kubectl(cluster)
-    return kubectl.run("delete", "jobs", "-n", SCORE_JOBS_NAMESPACE, "-l", RUN_LABEL, "--ignore-not-found",
+    return kubectl.run("delete", "jobs", "-n", SCORE_JOBS_NAMESPACE, "-l",
+                       f"{RUN_LABEL},{manifests.BOX_LABEL}={manifests.box()}", "--ignore-not-found",
                        "--wait=false", "--cascade=background").strip()
 
 

@@ -12,8 +12,10 @@ loss redoes only what was unfinished.
 """
 import base64
 import json
+import os
 import pathlib
 import re
+import socket
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "runtime"))
@@ -69,10 +71,18 @@ def job_name(run_id, job_id, generation):
     return name if len(name) <= NAME_LIMIT else "score-" + name[-(NAME_LIMIT - 6):].lstrip("-")
 
 
+BOX_LABEL = "score.dev/box"  # the box that launched the Job: a stop there ends its own runs' Jobs, no other box's
+
+
+def box():
+    """This box's name as a label value (SCORE_K8S_BOX, else its host name)."""
+    return label_value(os.environ.get("SCORE_K8S_BOX") or socket.gethostname())
+
+
 def labels(run_id, job_id, kind):
-    """The labels every object of a job carries, so the submitter finds them by run."""
+    """The labels every object of a job carries, so the submitter finds them by run and a box's stop by box."""
     return {"app.kubernetes.io/part-of": "score", "score.dev/run": label_value(run_id),
-            "score.dev/job": label_value(job_id), "score.dev/kind": label_value(kind)}
+            "score.dev/job": label_value(job_id), "score.dev/kind": label_value(kind), BOX_LABEL: box()}
 
 
 def deadline_seconds(spec):
@@ -157,7 +167,8 @@ def warm_hold(run_id, node, hostname, minutes, stamp, extra_tolerations=()):
     stop-batch deletes it with the run's Jobs."""
     name = f"score-warm-{name_part(node)}-{int(stamp)}"
     name = name if len(name) <= NAME_LIMIT else "score-warm-" + name[-(NAME_LIMIT - 11):].lstrip("-")
-    tags = {"app.kubernetes.io/part-of": "score", "score.dev/run": label_value(run_id), WARM_LABEL: "hold"}
+    tags = {"app.kubernetes.io/part-of": "score", "score.dev/run": label_value(run_id), WARM_LABEL: "hold",
+            BOX_LABEL: box()}
     pod = {"restartPolicy": "Never", "terminationGracePeriodSeconds": 0,
            "nodeSelector": {HOSTNAME_LABEL: hostname}, "tolerations": tolerations(extra_tolerations),
            "containers": [{"name": "hold", "image": HOLD_IMAGE, "resources": {

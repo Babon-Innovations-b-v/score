@@ -526,8 +526,15 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tm
     kubectl = Recording()
     monkeypatch.setattr(manifests, "NAMESPACE", "score-jobs")
     assert submit.stop_score_jobs(kubectl, PoolCluster()) == 'job.batch "score-r-a-g0" deleted'
-    assert kubectl.deleted == [("delete", "jobs", "-n", "score-jobs", "-l", "score.dev/run", "--ignore-not-found",
-                                "--wait=false", "--cascade=background")]
+    # only this box's: another box's runs share score-jobs (2026-11-06: the conductor's stop ended a sim body run this
+    # PC had launched). Break: in submitter.stop_score_jobs, select by RUN_LABEL alone; or drop BOX_LABEL from labels
+    monkeypatch.setenv("SCORE_K8S_BOX", "conductor")
+    kubectl.deleted.clear()
+    assert submit.stop_score_jobs(kubectl, PoolCluster()) == 'job.batch "score-r-a-g0" deleted'
+    assert kubectl.deleted == [("delete", "jobs", "-n", "score-jobs", "-l", "score.dev/run,score.dev/box=conductor",
+                                "--ignore-not-found", "--wait=false", "--cascade=background")]
+    assert manifests.labels("r", "a", "pixal")[manifests.BOX_LABEL] == "conductor"
+    assert manifests.warm_hold("r", "node-1", "host-1", 10, 0)["metadata"]["labels"][manifests.BOX_LABEL] == "conductor"
     monkeypatch.setattr(manifests, "NAMESPACE", "score")
     with pytest.raises(SystemExit, match="score-jobs only"):
         submit.stop_score_jobs(Recording(), PoolCluster())
