@@ -51,6 +51,16 @@ ceiling) and how each is read.
 - **The assembly lays by it** at built sizes (`score/stages/assembly/fitting.py`), and the plan page shows what it laid
   (`dashboard/state/local.laid_on_plan`). A relation it cannot state is `unheld` with why, never guessed.
 - Test: `test_each_plan_item_names_what_holds_it.py`.
+- **Nothing on the floor floats** (2026-11-06, laid-as-designed's floor part): a floor row whose words say it stands
+  round a holder row (`AROUND_WORDS`: engineroom's railings "around engines") is laid round that row's items' sides,
+  one a side, the least crowded first (`around_holders`, `side_crowding`), at the holder's foot; a floor row whose words
+  say it hangs over the floor (`HUNG_WORDS`: square's lantern strings "above plaza") laid over half its height up is
+  `hung` between the two standing things nearest its ends that reach its top (`hung_between`), the gate's
+  `hung_faults` checking they stand; a floor item its plan stands over half its height up on nothing (no level,
+  flight or other thing's top under its box; people hold nothing; its own row's only where it piles) gets the
+  `height` of what is under it (`stood_under`: square's stage screen at its deck's 3.3 m behind it, street's and
+  engineroom's things the old plan fix piled), which the scene record lays it at. The relations file keys the
+  surfaces bake (`route_bake.bake_files`): a change here re-keys that place's bake.
 - **Leaning and attached (#94)**: a row whose reading's `where` says "leaning against" or "attached to" (`rests`,
   LEAN_WORDS, ATTACH_WORDS) has `rests` on each of its relations, carried to the scene record's objects for the
   settle; a leaning one stands against a side (never on a top, within, or at a mount height), and one read on the

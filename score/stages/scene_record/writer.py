@@ -1034,7 +1034,9 @@ def related(design, relation, spot, way, base, size, piece=0):
     walls item); past the plan's edge, its face on the edge's line and its body out past it, facing in (a street's
     facade); on, within or against its holder as it was (at its piece's spot where the relation gives `spots`: street's
     three restaurant doors spread their width and room apart), its holder's objects named after (holder_names); on
-    the floor at the relation's spot where it gives one (a stair at the plan's stair); a ramp at its spot, run up its
+    the floor at the relation's spot where it gives one (a stair at the plan's stair, a railing round its engine),
+    at its `height` where it gives one (on what stands under it, never over nothing); hung between its holders
+    (`hung`) where its plan lays it; a ramp at its spot, run up its
     way, its `on` the level's edge, the way up and the level's top in the place's frame. None `on` on the floor, the
     ceiling or past an edge."""
     if "pieces" in relation:
@@ -1081,6 +1083,7 @@ def related(design, relation, spot, way, base, size, piece=0):
         return np.asarray(relation["spot"], float) + out * depth / 2, np.array([out[1], -out[0]]), base, None
     if relation.get("spot"):
         spot, way = np.asarray(relation["spot"], float), np.asarray(relation.get("way") or way, float)
+    base = float(relation.get("height", base))  # what stands under it (holders.stood_under, around_holders)
     if how == "ceiling" and relation.get("to roof") and isinstance(size, list) and len(size) == 3:
         base = roof_under(design, spot) - float(size[2]) - ROOF_CLEAR  # its top at the roof's underside over it
     return spot, way, base, None
