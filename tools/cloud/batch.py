@@ -1205,6 +1205,25 @@ def stop_on_signals():
         signal.signal(number, leave)
     if os.environ.get("SCORE_RUN_ID"):
         threading.Thread(target=stop_when_orphaned, args=(os.getppid(),), daemon=True).start()
+    stacks_on_ask()
+
+
+STACKS = "stacks"  # beside the home's logs: <pid>.txt, every thread's Python stack written at a SIGUSR1
+
+
+def stacks_on_ask():
+    """At a SIGUSR1, every thread's Python stack written to <home>/logs/stacks/<pid>.txt (the agents' door's stack
+    verb sends it and reads the file), the process going on (2026-11-06: fifteen bake calls ran at 90% of a core for
+    over half an hour, and nothing could say where). A home whose logs cannot be written leaves it unset, said."""
+    import faulthandler
+    folder = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props")) / "logs" / STACKS
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        dump = open(folder / f"{os.getpid()}.txt", "w")  # noqa: SIM115 - held open for the process's life
+    except OSError as error:
+        say(f"no stack dump on SIGUSR1 ({error})")
+        return
+    faulthandler.register(signal.SIGUSR1, file=dump, all_threads=True)
 
 
 def stop_when_orphaned(parent):
