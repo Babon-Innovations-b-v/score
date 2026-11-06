@@ -836,6 +836,13 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     Break: score/stages/scene_record/gates.py: `if len(held) < 2:` -> `if False:`
     Break: score/stages/scene_record/gates.py: `hung_faults(objects, design, sizes, relations, standing)` -> `[]`
     Break: score/stages/scene_record/writer.py: `base = float(relation.get("height", base))` -> `pass`
+    2026-11-06 (hangar's 32 m pipes at 10 m in one another on its left and front walls, passing every gate): a second
+    lamp on the west wall 0.1 m along from the first fails, inside it; one just its length and 0.02 m along, touching,
+    passes, and so does one 0.1 m along stood its tall and a gap over it.
+    Break: score/stages/scene_record/gates.py: `for depth in [holders.boxes_meet(box, other)] if depth >
+        holders.WALL_TOUCH]` -> `for depth in [holders.boxes_meet(box, other)] if False]`
+    Break: score/review/holders/__init__.py: `return min(ground, min(first[6], second[6]) - max(first[5], second[5]))`
+        -> `return ground` (the lamp stood over the first fails)
     #94: the garage door its relation says rests leaning carries `rests` leaning for the settle to lean it by; the
     door, resting as the others lay it, carries none.
     Break: score/stages/scene_record/writer.py: `**({"rests": relation["rests"]} if relation and relation.get("rests")
@@ -887,6 +894,7 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
 
     def faults(laid, kinds=by_id, plan=design):
         return (gates.spot_faults(laid) + gates.held_wall_faults(laid, plan, sizes, kinds) +
+                gates.wall_overlap_faults(laid, plan, sizes) +
                 gates.roof_faults(laid, plan, sizes, relations, {**kinds, "hung": {"anchor": "ceiling"}}) +
                 gates.seat_faults(laid, sizes, {**kinds, "chair": {"id": "chair", "noun": "chair",
                                                                    "where": "at the module"}}, plan) +
@@ -899,6 +907,12 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     lowered = [{**entry, "at": [entry["at"][0], entry["at"][1] - 1.0, entry["at"][2]]} if entry["row"] == "hung"
                else entry for entry in objects]
     assert faults(lowered) == ["hung_1's top stands 1.99 m up, its roof's underside 3.00 m over it"], faults(lowered)
+
+    def along(by, up=0.0):  # a second lamp `by` metres along the west wall from the first, `up` metres over it
+        return {**lamp, "name": "lamp_9", "at": [lamp["at"][0], lamp["at"][1] + up, lamp["at"][2] + by]}
+    assert faults(objects + [along(0.1)]) == [
+        "lamp_1 and lamp_9 on the walls stand 0.20 m inside each other at their built sizes"], faults(objects + [along(0.1)])
+    assert faults(objects + [along(0.32)]) == [] and faults(objects + [along(0.1, 0.35)]) == []
     away = [{**entry, "at": [1.0, 0.0, -0.5]} if entry["row"] == "chair" else entry for entry in objects]
     assert faults(away) == ["chair_1 stands 1.20 m from MODULE 1, its words 'at the module'"], faults(away)
 

@@ -636,7 +636,16 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     Break: score/review/holders/__init__.py: `spanning = kind == "wall" and spans(row)` -> `spanning = False`
     Break: score/review/holders/__init__.py: `return round(EYE_MOUNT - tall / 2, 3)` -> `return None`
     Break: score/review/holders/__init__.py: `seats_beside(found, items, rows, plan, tied)` -> `pass`
-    Break: score/review/holders/__init__.py: `rails_along(found, plan)` -> `pass`"""
+    Break: score/review/holders/__init__.py: `rails_along(found, plan)` -> `pass`
+    2026-11-06 (hangar's eight 32 m pipes at 10 m in one another, four on its 64 m left wall): three 8 m ducts on
+    three items 4 m apart along the 20 m front wall, 2 m up: the second slides along it clear of the first, the third,
+    with no room left along it, stands its tall and PIECE_GAP over its height, under the wall's top (the ducts stood
+    at one spot above clear the 6 m pipe at 1.4 m on their wall, the middle one two steps up); a wall thing on the
+    floor is never stood up.
+    Break: score/review/holders/__init__.py: `apart_on_walls(found, rows, plan)` -> `pass`
+    Break: score/review/holders/__init__.py: `if (spot := slid_clear(context, row, plan, height, laid)) is not None:`
+        -> `if False:`
+    Break: score/review/holders/__init__.py: `if height <= 0.0:` -> `if False:`"""
     rows = [{"id": "left_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
             {"id": "string_lights", "noun": "lights", "anchor": "on:left_wall", "size": [3.0, 0.05, 0.05]},
             {"id": "wall_light", "noun": "light", "anchor": "on:left_wall", "size": [1.0, 0.1, 0.1]}]
@@ -682,7 +691,7 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     rails = [by_item[f"RAIL {number}"]["pieces"][0]["spot"] for number in (1, 2, 3)]
     assert len({tuple(spot) for spot in rails}) == 3, rails
     ducts = [by_item[f"DUCT {number}"] for number in (1, 2, 3)]
-    assert sorted(duct["height"] for duct in ducts) == [1.15, 1.4, 1.65], ducts
+    assert sorted(duct["height"] for duct in ducts) == [1.15, 1.65, 1.9], ducts  # 1.4 m is the 6 m pipe's there
     assert {(tuple(duct["spot"]), tuple(duct["wall"]["to"])) for duct in ducts} == {((10.0, 0.4), (20.0, 0.0))}, ducts
     clocks = [by_item[f"CLOCK {number}"] for number in (1, 2)]
     assert sorted(clock["spot"] for clock in clocks) == [[14.475, 12.0], [15.525, 12.0]], clocks
@@ -727,6 +736,14 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     plan = plan_of([["PIPES 1", 0.5, 0.5, 3.9, 0.2, None, "item"]], {"PIPES 1": ["pipes"]}, walls=bent)
     pipes = by_item_of(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["PIPES 1"]
     assert pipes["wall"]["to"] == [10.0, 11.0] and all(flat(piece, bent[2:]) for piece in pipes["pieces"]), pipes
+    rows = [{"id": "duct", "noun": "duct", "anchor": "wall", "size": [8.0, 0.2, 0.2]}]
+    plan = plan_of([[f"DUCT {number}", 1.0 + 4.0 * number, 0.2, 8.0, 0.2, None, "item"] for number in (0, 1, 2)],
+                   {f"DUCT {number}": ["duct"] for number in (0, 1, 2)}, walls=ROOM_WALLS,
+                   shapes={f"DUCT {number}": {"base": 2.0} for number in (0, 1, 2)})
+    ducts = by_item_of(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
+    assert [(ducts[f"DUCT {number}"]["spot"], ducts[f"DUCT {number}"].get("height")) for number in (0, 1, 2)] == [
+        ([5.0, 0.3], None), ([13.05, 0.0], None), ([13.0, 0.3], 2.25)], ducts
+    assert holders.wall_band(rows[0], 0.0, 0.2, ROOM_WALLS[0], plan) == (0.0, 0.0)
     rows = [{"id": "front_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
             {"id": "shop_door", "noun": "door", "anchor": "on:front_wall", "size": [1.0, 0.1, 2.1]}]
     plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"],
