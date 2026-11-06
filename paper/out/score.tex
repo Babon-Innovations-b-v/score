@@ -328,26 +328,27 @@ person stands on a person spot of its scene's plan.
 musculoskeletal twin that follows its movement exactly while Newton and
 MuJoCo supply the physics. The body is MyoFullBody {[}40{]}, whose arm
 and hand derive from the MoBL-ARMS model {[}41{]}, {[}42{]}, with 416
-muscles, 86 bones and 95 independent joints, 36 more joints being
-coupled to others. Its bone groups are sized to the person's SOMA body,
-and its masses are spread by SOMA's segment volumes. One solver then
-fits it to the clip: the person's constants once, and every frame's
-joint angles against each SOMA segment's rotation, 84 of SCORE's 102
-anatomical landmarks on the SOMA skin and SOMA's joints at the ends of
-each bone group, with MyoFullBody's joint couplings held exactly and a
-cost that keeps the bones inside the skin. SOMA is never moved or
-reshaped, except that each clip's standing feet are put on the floor by
-raising or lowering the whole clip. For every frame, inverse dynamics on
-the scene's own ground then gives the forces the movement needs, split
-in the two stages of OpenSim's static optimisation {[}43{]}: the ground
-reaction force first, from the pelvis' balance alone and shared over the
-points of skin touching the ground, then the muscle activations with
-that force fixed. A residual reduction in the manner of OpenSim's RRA
-adjusts the pelvis, trunk and masses within a per-frame cap, and
-whatever force remains at the pelvis is recorded as the residual and
-never applied. Solving contact and muscles together was ill-posed, with
-a nudge of 1e-6 to the contact columns moving an activation by up to
-1.0; in two stages the same nudge moves one by at most 5e-3.
+muscles, 86 bones and 131 joints, of which 36 are tied by equalities (34
+coupled to other joints, two held fixed), leaving 95 free. Its bone
+groups are sized to the person's SOMA body, and its masses are spread by
+SOMA's segment volumes. One solver then fits it to the clip: the
+person's constants once, and every frame's joint angles against each
+SOMA segment's rotation, 84 of SCORE's 102 anatomical landmarks on the
+SOMA skin and SOMA's joints at the ends of each bone group, with
+MyoFullBody's joint couplings held exactly and a cost that keeps the
+bones inside the skin. SOMA is never moved or reshaped, except that each
+clip's standing feet are put on the floor by raising or lowering the
+whole clip. For every frame, inverse dynamics on the scene's own ground
+then gives the forces the movement needs, split in the two stages of
+OpenSim's static optimisation {[}43{]}: the ground reaction force first,
+from the pelvis' balance alone and shared over the points of skin
+touching the ground, then the muscle activations with that force fixed.
+A residual reduction in the manner of OpenSim's RRA adjusts the pelvis,
+trunk and masses within a per-frame cap, and whatever force remains at
+the pelvis is recorded as the residual and never applied. Solving
+contact and muscles together was ill-posed, with a nudge of 1e-6 to the
+contact columns moving an activation by up to 1.0; in two stages the
+same nudge moves one by at most 5e-3.
 
 On main, a sim body follows SOMA closely: on a 6 s jump 1.37 percent of
 the bone lies outside the skin, the median joint-centre error is 7.0 mm
