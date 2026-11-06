@@ -525,7 +525,22 @@ def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path, monkeypatch
     config.write_text("{}")
     box = {"SCORE_K8S_PROVIDER": "scaleway/tenant", "SCORE_K8S_CONTEXT": "c", "SCORE_K8S_CLUSTER": "k",
            "SCORE_K8S_PROJECT": "p", "SCORE_K8S_KUBECONFIG": str(config), "PATH": str(tmp_path)}
-    assert agent_door.cluster_check(box).startswith("the tenant cluster answers: namespace/score-jobs")
+    real_status = agent_door.tenant_status
+    monkeypatch.setattr(agent_door, "tenant_status", lambda environment: "tenant: 2 class pools")
+    assert agent_door.cluster_check(box) == (f"the tenant cluster answers: namespace/score-jobs through {config}\n"
+                                             "tenant: 2 class pools")
+    # the tenant module's status (its scw reads, which the cost watch makes) is part of the check. Break: in
+    # agent_door.tenant_status, drop the `done.returncode != 0` refusal
+    assert real_status({}, [sys.executable, "-c", "print('pools ok')"]) == "pools ok"
+    with pytest.raises(agent_door.Refused, match="status failed.*403"):
+        real_status({}, [sys.executable, "-c", "import sys; sys.exit('scw: 403 forbidden')"])
+    # the settings secrets.sh wrote to the tmpfs: SCORE_K8S_* only, and the login's path. Break: in
+    # agent_door.cluster_values, drop the `name.startswith("SCORE_K8S_")` filter
+    (tmp_path / "k8s.env").write_text("SCORE_K8S_CONTEXT=c\nPATH=/evil\nSCORE_K8S_KUBECONFIG=/elsewhere\n")
+    assert agent_door.cluster_values(tmp_path) == {"SCORE_K8S_CONTEXT": "c"}
+    (tmp_path / "k8s-kubeconfig").write_text("{}")
+    assert agent_door.cluster_values(tmp_path) == {"SCORE_K8S_CONTEXT": "c",
+                                                   "SCORE_K8S_KUBECONFIG": str(tmp_path / "k8s-kubeconfig")}
     assert agent_door.buy_options(["--phase", "models", "--cluster", "pixal,blender"])
     assert not agent_door.buy_options(["--cluster", "pixal", "--cluster", "blender"])
     shown = [sys.executable, "-c", "import os; print(os.environ.get('SCORE_CLOUD'), os.environ.get('SCORE_CLOUD_KINDS'))"]
@@ -919,6 +934,7 @@ def boot_root(folder, installed=True):
         executable(bin_folder / "uv", "#!/bin/sh\n[ \"$1\" = --version ] && echo 'uv 0.12.23' && exit 0\n"
                                       "echo \"uv $*\" >> \"$SHIM_LOG\"\n")
         executable(bin_folder / "scw", "#!/bin/sh\necho 'Version          2.65.1'\n")
+        executable(bin_folder / "kubectl", "#!/bin/sh\necho 'Client Version: v1.37.1'\n")
         executable(bin_folder / "node", "#!/bin/sh\necho v24.21.0\n")
         executable(root / "home" / "score" / ".local" / "lib" / "claude-code" / "bin" / "claude",
                    "#!/bin/sh\necho '2.1.318 (Claude Code)'\n")
@@ -1136,7 +1152,9 @@ def test_secrets_go_whole_and_private_to_the_runtime_folder_and_an_empty_read_re
     key = folder / "score-lib-deploy-key"
     assert key.read_text() == "value of score-lib-deploy-key\n" and stat.S_IMODE(key.stat().st_mode) == 0o600
     assert (folder / "google-billing-reader.json").read_text() == "value of google-billing-reader\n"
-    assert sorted(path.name for path in folder.iterdir()) == ["google-billing-reader.json", "score-lib-deploy-key"]
+    assert sorted(path.name for path in folder.iterdir()) == ["google-billing-reader.json", "k8s-kubeconfig", "k8s.env",
+                                                              "score-lib-deploy-key"]
+    assert (folder / "k8s.env").read_text() == "value of score-k8s-settings\n"  # the tenant cluster's, optional
     assert (tmp_path / "gcloud.log").read_text().startswith(f"{folder}/gcloud auth activate-service-account")
 
     env["SCORE_SECRET_READER"] = str(executable(tmp_path / "empty", "#!/bin/sh\n"))

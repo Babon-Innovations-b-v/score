@@ -48,4 +48,14 @@ else
   echo "no google-billing-reader secret: Google's bill is not read on this machine (optional; add the secret to read it)" > "$note"
   echo "score-secrets: score-lib-deploy-key written to $dir; no google-billing-reader secret, skipped"
 fi
+# The tenant cluster (optional; owner's yes, 2026-11-06): score-k8s-kubeconfig, a service account's login scoped to
+# score's namespaces (never an admin's), and score-k8s-settings, the SCORE_K8S_* lines naming its context, cluster and
+# project, which the agents' door reads beside the env file (agent_door CLUSTER_FILES). Without them the door's
+# cluster-check says so and nothing else changes.
+if write_secret score-k8s-kubeconfig k8s-kubeconfig optional && write_secret score-k8s-settings k8s.env optional; then
+  echo "score-secrets: the tenant cluster's login and settings written to $dir"
+else
+  rm -f "$dir/k8s-kubeconfig" "$dir/k8s.env"
+  echo "score-secrets: no tenant cluster secrets, skipped"
+fi
 "${SCORE_LOGIN_PYTHON:-/usr/bin/python3}" -I "$(dirname "$0")/claude_login.py" link
