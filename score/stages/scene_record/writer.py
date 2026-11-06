@@ -462,7 +462,7 @@ def lights(design, inputs, relations=None):
     its lamps on the wall its relation (`relations`, score/review/holders) holds it on (item_lamps)."""
     inventory = read(inputs["inventory"])
     glowing, shown = glowing_rows(inputs)
-    rows_of, library, holding = design.get("rows") or {}, library_lamps(), relations_of(relations)
+    rows_of, library, holding = item_rows(design), library_lamps(), relations_of(relations)
     shapes, laid = design.get("shapes") or {}, {}
     for item in design.get("items") or []:
         if len(item) > 6 and item[6] == "zone":
@@ -855,6 +855,17 @@ def models_of(handin):
     return {row: f"{first}_1" for first, entry in handin.get("objects", {}).items() for row in entry["rows"]}
 
 
+def item_rows(design):
+    """{plan item: the rows it lays}: each item's rows in the plan, but the walls item (WALLS_ITEM: the rows the plan
+    places nowhere) none the plan also places on an item of its own, which lays it there (2026-11-06: a plan's fixes
+    gave a walls row its own item and left it on the walls item too, and the record laid camp's airlock door, its dome
+    windows and flat's balcony doors twice)."""
+    tied = design.get("rows") or {}
+    placed = {row for item in design.get("items") or [] if item[0] != WALLS_ITEM and
+              not (len(item) > 6 and item[6] == "zone") for row in tied.get(item[0]) or []}
+    return {name: [row for row in rows if name != WALLS_ITEM or row not in placed] for name, rows in tied.items()}
+
+
 def plan_rows(handin):
     """{shell part: [row id]} of the rows the plan's shell lays itself (route `plan`), in the hand-in's order."""
     found = {}
@@ -1157,7 +1168,7 @@ def design_objects(design, handin, relations=None):
     carried as the object's `on`, which the assembly lays it by at its built size (assembly/made_waiting.fitted), and
     how it rests there as its `rests` (leaning, attached: holders.rests), which the settle leans it or holds it by."""
     by_id = {row["id"]: row for row in handin.get("rows", [])}
-    models, shapes, tied = models_of(handin), design.get("shapes") or {}, design.get("rows") or {}
+    models, shapes, tied = models_of(handin), design.get("shapes") or {}, item_rows(design)
     items = {}
     for item in design.get("items") or []:
         if len(item) > 6 and item[6] != "item":
