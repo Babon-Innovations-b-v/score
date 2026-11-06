@@ -6,6 +6,10 @@ it runs this file with the checkout's interpreter. The asked command (SSH_ORIGIN
 as an argument list, never through a shell, and only when it is one of these:
 
     status|plan|price [args]                    python -m score status|plan|price ...
+    preflight <environment> [--phase <name>] [args]
+                                                python -m score preflight ...: a phase's free check before it is
+                                                queued (plan, imports, warm pool, stock), read only (owner,
+                                                2026-11-06: "u check if nothing will fail before it")
     resume --dry                                python -m score resume --dry
     run <environment> [args] --detach           python -m score run ... --detach --free, with SCORE_FREE_ONLY=1:
                                                 a free-only run, every free row for real, paid rows left for the Buy;
@@ -170,7 +174,7 @@ sys.path.insert(0, str(REPO))
 from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
-VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], store-evict [--dry], clean-frozen, clean-cache, clean-scratch, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, carry --no-op <file>=<why> ..., "
+VERBS = ("status, plan, price, preflight <environment> [--phase P], resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], store-evict [--dry], clean-frozen, clean-cache, clean-scratch, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, carry --no-op <file>=<why> ..., "
          "run-log [--lines N], pool-log [--lines N], ps, node-log <node>, stack <pid>, fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id> [--phase <phase>], buy-log, decide-yes, decide <yes id>, "
          "stop-batch <reason>")
@@ -293,6 +297,10 @@ def decide(words, latch):
     verb, args = words[0], words[1:]
     if verb in ("status", "plan", "price"):
         return ["-m", "score", verb, *args], {}
+    if verb == "preflight":
+        if not args or args[0].startswith("-"):
+            raise Refused("preflight names an environment first")
+        return ["-m", "score", "preflight", *args], {}
     if verb == "resume":
         if args != ["--dry"]:
             raise Refused("resume only as resume --dry: starting runs again is the boot's job")

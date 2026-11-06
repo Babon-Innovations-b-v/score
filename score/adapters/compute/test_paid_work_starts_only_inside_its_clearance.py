@@ -994,6 +994,14 @@ def test_a_warm_pool_reserves_only_its_holding_beyond_the_rows_whose_machine_tim
     assert tight["clearance"]["beside"] == "high"  # the rows' high fits beside a pool: as before, the likely unread
     compute.release(tight)
     assert compute.pool_reserve(72.0, 300.0) == 0.0 and compute.pool_reserve(72.0, 20.0) == 52.0
+    # a phase's preflight works the same choice out dry, reserving and telling nothing (2026-11-06). Break: in
+    # compute.pool_fits, `chosen_pool(choices, beside, covered, likely,` -> `chosen_pool(choices, beside, covered, None,`
+    reservations = compute.covering_store(runner.store).cache.parent / "reservations.json"
+    before = reservations.read_text()
+    assert compute.pool_fits(runner, choices, 360.40, 20.0, (40.0, 30.0)) == (half, "high", None)
+    assert compute.pool_fits(runner, choices, 400.0, 300.0, (40.0, 30.0)) == (full, "likely", None)
+    sizes, by, over = compute.pool_fits(runner, choices, 400.0, 0.0, (395.0, 0.0))
+    assert sizes is None and "pass the EUR 396.46 stop" in over and reservations.read_text() == before
     # 2026-11-05: rows' high EUR 400 alone passes the line, a try that may stop at it: the pool sized beside the
     # rows' likely, the line unchanged, and a row at its high still refused against the pool's reservation
     stopping = compute.pool_clearance(runner, "run-stop", choices, 4, beside=400.0, covered=300.0, likely=(40.0, 30.0))
