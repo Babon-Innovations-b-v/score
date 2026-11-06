@@ -591,6 +591,11 @@ def test_the_doors_run_log_and_fault_read_only_the_launchs_home(tmp_path):
     said = agent_door.run_log(log, home, 5)
     assert said.splitlines()[1:] == [f"line {number}" for number in range(295, 300)], said
     assert agent_door.fault(log, "motion@airlock", home).endswith("motion@airlock: Traceback: no skeleton"), log
+    (home / "store" / "logs").mkdir()
+    (home / "store" / "logs" / "surfaces-bake@hub.log").write_text("[cloud] waiting for a warm pool card\n")
+    assert agent_door.node_log(log, "surfaces-bake@hub", home).endswith("waiting for a warm pool card")
+    with pytest.raises(agent_door.Refused):
+        agent_door.node_log(log, "../k", home)
     # the warm pool's collector log, the newest changed, read too (2026-11-05: a pool held no machine, nothing said why)
     # Break: in agent_door.pool_log, take found[:1] (the oldest pool's log)
     with pytest.raises(agent_door.Refused):
