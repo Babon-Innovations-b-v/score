@@ -5,7 +5,7 @@ The sim body run that goes in Newton's own Python (`score/stages/physics/inside/
 meshes, muscle paths). Never import any of it from the score venv: Newton pins its own MuJoCo and Warp. Its rules (the
 clip's movement followed exactly, residuals measured and never applied, every frame at once on the card where there
 is one (`batched`), the ground its drawn triangles) are the parent overlay's. A person takes 6.5 to 9 minutes on this PC's CPU for 136 to 150 frames (the
-person's file written twice, the fit, RRA, and one bounded least squares a frame; measured 2026-10-28 on the two test
+person's file written twice (sized once since 2026-11-06), the fit, RRA, and one bounded least squares a frame; measured 2026-10-28 on the two test
 walkers, two side by side while this PC was busy); people run one after another in one process.
 
 - **`sim_body.py` is the run only** (#70: "1400 line script, yuck"): it orders the steps, each a module beside it

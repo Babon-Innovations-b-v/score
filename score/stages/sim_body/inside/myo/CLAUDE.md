@@ -4,7 +4,10 @@ MyoFullBody made ready for Newton and sized to one person: `person_file` writes 
 wheel (`SOURCE`), with the fit's constants when given (each joint inside a bone group moved, `inside_moved`; the markers'
 moves stay in the fit; the lengths are the sizing's: the run
 writes the file twice, sized, then fitted), and returns its record (scales, muscle length scale, kg) and each body's
-scale. Its sizing is `sizing`'s; #60's import
+scale. The run sizes a person once (`sized_body`, a `Sized`: the sized spec before and after the kneecaps'
+fit) and writes both files from it (`written`, 2026-11-06, #70): the kneecaps' fit is the sizing's unless a constant
+moves a body it reads (each kneecap's, tibia's and talus' own and every body above them), then fitted again on the
+moved body; each file as `person_file`'s own sizing writes it (its test holds them equal). Its sizing is `sizing`'s; #60's import
 fixes are `_fixes.py` (names without '-' or spaces, every muscle's full gain, bias and dynamics parameters, a body with
 several joints split into 1 g wrappers, Euler written out, the floor gone).
 

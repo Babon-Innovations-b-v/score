@@ -3,7 +3,8 @@ joints, a muscle whose class gives its parameters, names with '-'), sized to a t
 compiles in MuJoCo and builds in Newton with the
 same joints, one joint a body, no '-' in a name, no floor, the person's mass, and every muscle's gain and bias in
 Newton's model the published model's (#60's import fixes); with the fit's constants given, an inside joint's
-body sits moved by its found move; the neck and head carry MyoHead's two joints, the torso the thoracic three, and the
+body sits moved by its found move, and one sizing (`sized_body`) writes each file as a sizing of its own would, the
+kneecaps fitted again only for a move of a body they read; the neck and head carry MyoHead's two joints, the torso the thoracic three, and the
 girdle's coupling to the arm's elevation is gone, its joint on its own range, and its phantom follows it at -1
 (`myo._movable`); a finger body laid at its joints' rest turns (`myo._rested`) stands at zero where it stood at those
 turns and reaches every pose as before, its ranges moved by them; each foot turns on its shin about the shin's long
@@ -43,6 +44,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-11-04) _cervical's `pos=turn.pos` made `pos=[0.0, 0.0, 0.0]`: the neck bends at the neck body's origin, off
   its turn's place.
 - (2026-11-04) _ranges' `joint.range = span` made `pass`: the hip's rotation and the toes keep their old ranges.
+- (2026-11-06) Sized.spec's `if any(...)` made `if False`: the talus' move keeps the sizing's kneecaps unfitted.
+- (2026-11-06) Sized.spec's `self.kneed.copy()` made `self.kneed`: the first file's spec is written on again, the
+  lunate's record differs.
 
 Run: .venv/bin/python score/stages/sim_body/inside/myo/test_the_persons_file_builds_in_newton_as_mujoco_compiles_it.py
 """
@@ -237,6 +241,47 @@ def the_constants_move_the_file():
         return model.body_pos[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, name)]
     return [] if np.allclose(place(fitted, "talus_l"), place(plain, "talus_l") + [0.0, 0.0, 0.01]) else [
         f"talus at {place(fitted, 'talus_l')} against {place(plain, 'talus_l')}"]
+
+
+def one_sizing_writes_each_file_as_its_own_would():
+    """One sized toy (`myo.sized_body`) written without constants, then with the left talus moved (a body the
+    kneecaps' fit reads: fitted again) and with the left lunate moved (one it does not: the sizing's kept): each file's
+    text and record as `person_file` writes it from a sizing of its own, and the kneecaps fitted once more only for
+    the talus."""
+    import myo
+    import sizing
+    from landmarks._table import LANDMARKS
+    cases = (None, {"joints": {"talus_l": [0.0, 0.0, 0.01]}}, {"joints": {"lunate_l": [0.01, 0.0, 0.0]}})
+    kept, fitting, problems = dict(LANDMARKS), myo.kneecaps, []
+    fitted = []
+    with tempfile.TemporaryDirectory() as folder:
+        source = pathlib.Path(folder) / myo.SOURCE
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text(toy_body())
+        path = pathlib.Path(folder) / "person.xml"
+        try:
+            rig, table = toy_rig()
+            LANDMARKS.clear()
+            LANDMARKS.update(table)
+            alone = []
+            for constants in cases:
+                record, _ = myo.person_file(folder, sizing.Size(rig, TABLE), KG, path, constants)
+                alone.append((path.read_text(), record))
+            myo.kneecaps = lambda *args: fitted.append(args) or fitting(*args)
+            body = myo.sized_body(folder, sizing.Size(rig, TABLE), KG)
+            for constants, (text, record) in zip(cases, alone):
+                before = len(fitted)
+                again, _ = myo.written(body, path, constants)
+                problems += [] if path.read_text() == text else [f"{constants}: the file differs"]
+                problems += [] if again == record else [f"{constants}: the record differs"]
+                wanted = 1 if constants and "talus_l" in constants["joints"] else 0
+                problems += [] if len(fitted) - before == wanted else [
+                    f"{constants}: the kneecaps fitted {len(fitted) - before} times, not {wanted}"]
+        finally:
+            myo.kneecaps = fitting
+            LANDMARKS.clear()
+            LANDMARKS.update(kept)
+    return problems
 
 
 def every_muscle_keeps_its_published_parameters_in_newton():
@@ -466,7 +511,7 @@ CHECKS = (the_upper_lumbar_leads_and_ranges_are_human, the_knee_turns_the_shin_o
           a_foot_twists_on_its_shin,
           a_rested_finger_reaches_every_pose_as_before,
           the_neck_thorax_and_girdle_move, the_constants_move_the_file, the_written_file_builds_as_it_compiles,
-          every_muscle_keeps_its_published_parameters_in_newton)
+          every_muscle_keeps_its_published_parameters_in_newton, one_sizing_writes_each_file_as_its_own_would)
 
 
 def in_newton():

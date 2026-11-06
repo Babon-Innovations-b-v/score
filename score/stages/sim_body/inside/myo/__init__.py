@@ -15,14 +15,15 @@ model with:
 import pathlib
 
 import mujoco
+import numpy as np
 
 import resting
 from calibration import fingers
 from myo._fixes import full_muscles, multi_joint_bodies, renamed, split
 from myo._movable import movable
 from myo._rested import rested
-from sizing import (WRAPPER_KG, assumed, balanced, hip_width, kept_bodies, kneecaps, path_lengths, sized,
-                    ungrouped_kg)
+from sizing import (KNEECAPS, WRAPPER_KG, assumed, balanced, hip_width, kept_bodies, kneecaps, path_lengths,
+                    sized, ungrouped_kg)
 
 SOURCE = "musclemimic_models/model/body/myofullbody.xml"
 
@@ -44,36 +45,90 @@ def _fresh(source):
     return spec
 
 
+def _filed(name):
+    """A body's name as the person's file names it (myo._fixes.renamed's)."""
+    return name.replace("-", "_").replace(" ", "_")
+
+
 def inside_moved(spec, joints):
     """Each joint inside a bone group moved in its parent by the fit's found move ({body as the person's file names
     it: [3] m}; #70's level 2), on the sized places."""
     for body in spec.bodies:
-        filed = body.name.replace("-", "_").replace(" ", "_")  # myo._fixes.renamed's
+        filed = _filed(body.name)
         if filed in joints:
             body.pos = body.pos + joints[filed]
+
+
+def _kneecap_reads(spec):
+    """The bodies `sizing.kneecaps` reads the places of (each kneecap's, tibia's and talus' own and every body above
+    them), as the person's file names them."""
+    found = set()
+    for kneecap, places in KNEECAPS.items():
+        for name in (kneecap, places[3], places[4]):
+            body = spec.body(name)
+            while body is not None and body.name != "world":
+                found.add(_filed(body.name))
+                body = body.parent
+    return found
+
+
+class Sized:
+    """One person's MyoFullBody sized (`sized_body`), before the fit's constants: what `written` makes every file of
+    that person from, so a second file (the fitted one) is not sized again (#70: about 1.5 s a person on this PC's
+    CPU, the kneecaps' fit most of it)."""
+
+    def __init__(self, folder, size, kg):
+        self.folder, self.size, self.kg = folder, size, kg
+        source = f"{folder}/{SOURCE}"
+        self.model = _source_model(folder)
+        self.scales = size.scales(self.model)
+        spec = _fresh(source)
+        self.wrappers = multi_joint_bodies(spec)
+        sized(spec, self.model, self.scales, kg, self.wrappers)
+        hip_width(spec, size.rig)
+        self.unmoved = spec.copy()  # before the kneecaps: a constant moving a body they read starts here
+        self.reads = _kneecap_reads(spec)
+        self.kneecap_moved = kneecaps(spec, size.rig, self.scales)
+        self.kneed = spec
+        self.rest = path_lengths(_fresh(source).compile())  # the published model's paths at the same rest
+
+    def spec(self, joints):
+        """A new spec of the sized body with the inside joints moved by `joints` (`inside_moved`) and its kneecaps
+        fitted, and their record: the kneecaps' fit kept from the sizing when no joint they read moves (adding a
+        zero move changes no place), else fitted again on the moved body, as `person_file` always did."""
+        if any(np.any(np.asarray(move) != 0.0) for name, move in joints.items() if name in self.reads):
+            spec = self.unmoved.copy()
+            inside_moved(spec, joints)
+            return spec, kneecaps(spec, self.size.rig, self.scales)
+        spec = self.kneed.copy()
+        inside_moved(spec, joints)
+        return spec, self.kneecap_moved
+
+
+def sized_body(folder, size, kg):
+    """The person's MyoFullBody sized by `size` (a `sizing.Size` of the person's SOMA) to `kg` (`Sized`)."""
+    return Sized(folder, size, kg)
 
 
 def person_file(folder, size, kg, path, constants=None):
     """One person's MyoFullBody, written at `path`, sized by `size` (a `sizing.Size` of the person's SOMA) and, when
     given, the fit's `constants` ({"joints": each inside joint's move, `inside_moved`}; the lengths are the sizing's,
-    the fit scales nothing), and (its record,
-    each body's scale): the record holds each group's scale and its length against SOMA's, the inertia scale per
-    group, its muscles' length scale, its total mass and what is assumed."""
-    source = f"{folder}/{SOURCE}"
-    model = _source_model(folder)
-    scales = size.scales(model)
-    spec = _fresh(source)
-    wrappers = multi_joint_bodies(spec)
-    sized(spec, model, scales, kg, wrappers)
-    hip_width(spec, size.rig)
-    if constants:
-        inside_moved(spec, constants.get("joints", {}))
-    kneecap_moved = kneecaps(spec, size.rig, scales)
+    the fit scales nothing): `written` on a new `sized_body`."""
+    return written(sized_body(folder, size, kg), path, constants)
+
+
+def written(body, path, constants=None):
+    """The person's file of `body` (`Sized`) written at `path` with the fit's `constants` when given ({"joints": each
+    inside joint's move, `inside_moved`}), and (its record, each body's scale): the record holds each group's scale
+    and its length against SOMA's, the inertia scale per group, its muscles' length scale, its total mass and what is
+    assumed."""
+    size, kg, model, scales, wrappers = body.size, body.kg, body.model, body.scales, body.wrappers
+    spec, kneecap_moved = body.spec(constants.get("joints", {}) if constants else {})
     grown = spec.compile()
     factors = size.weigh(spec, grown, scales, kg - wrappers * WRAPPER_KG - ungrouped_kg(grown, size.table))
     balanced(spec)
     grown = spec.compile()
-    stretch = path_lengths(grown) / path_lengths(_fresh(source).compile())  # both at the same rest
+    stretch = path_lengths(grown) / body.rest  # both at the same rest
     for actuator in spec.actuators:
         index = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, actuator.name)
         actuator.lengthrange = model.actuator_lengthrange[index] * stretch[index]

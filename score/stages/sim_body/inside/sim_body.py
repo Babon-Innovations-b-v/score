@@ -124,22 +124,25 @@ def person_set_up(job, person, rig, worlds, path, size, made=None):
     """The person's file at `path` (MyoFullBody sized by `size`, `sizing.Size` of the person's rig) with the fit's
     constants (the person constants, solved once from all the body's `recordings`), its record (the fit's method and
     constants in it), each body's scale and the `Fitting` its clips' angles are solved on. `made`: the recordings'
-    targets, when the caller made them already (`constants_set_up`)."""
-    _, scales = myo.person_file(job["model"], size, person["kg"], path)
-    return constants_set_up(job, person, rig, worlds, path, size, scales, made)
+    targets, when the caller made them already (`constants_set_up`). The body is sized once (`myo.sized_body`): the
+    fitted file is the sized one with the constants put in (#70: sized twice, about 1.5 s a person on this PC)."""
+    body = myo.sized_body(job["model"], size, person["kg"])
+    _, scales = myo.written(body, path)
+    return constants_set_up(job, person, rig, worlds, path, size, scales, made, body=body)
 
 
-def constants_set_up(job, person, rig, worlds, path, size, scales, made=None, found=None):
+def constants_set_up(job, person, rig, worlds, path, size, scales, made=None, found=None, body=None):
     """`person_set_up` from the sized file without constants already at `path` (its scales `scales`): the constants
     solved on it, the file written again with them, its record, each body's scale and the `Fitting`. `made`: the
     recordings' `fit.targets` in order, when the caller made them already; `found`: the constants, when the caller
-    solved them already (`fit.constants_across`, every set of a body at once)."""
+    solved them already (`fit.constants_across`, every set of a body at once); `body`: the sized body
+    (`myo.sized_body`) the file was written from, else sized again."""
     segments = person["segments"]
     held = fit.followed(segments)
     if found is None:
         made = made or [fit.targets(rig, segments, clip, held, skins=False) for clip in recordings(person, worlds)]
         found = fit.constants(fit.fitting(path, scales, held, segments), made)
-    record, scales = myo.person_file(job["model"], size, person["kg"], path, found)
+    record, scales = myo.written(body or myo.sized_body(job["model"], size, person["kg"]), path, found)
     fitting = fit.fitting(path, scales, held, segments, found["marks"])
     record["fit"] = {"method": fit.METHOD, "constants": fit.constants_record(found)}
     return record, scales, fitting
