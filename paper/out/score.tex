@@ -95,7 +95,7 @@
 \title{SCORE: Synthesising Complete, Owned, Responsive Environments for
 Simulation}
 \author{J.P. Kardolus, Babon Innovations B.V., Utrecht, The Netherlands}
-\date{Working draft, 27 October 2026}
+\date{Working draft, 6 November 2026}
 
 \begin{document}
 \maketitle
@@ -297,10 +297,10 @@ reproduced bitwise-identical results over six runs of that test scene,
 cannot handle scenes with many loose bodies, because its buffers exceed
 the 32-bit limit, so the trial and the settle run without it. Two runs
 of a 25-body test scene then agree within 5e-7 m for every body except
-one that falls off the edge of the floor. The settle moves to Newton in
-the same way, so that one engine steps both what comes to rest and what
-is tested, and one effect is simulated in Newton as a first case for the
-effects layer.
+one that falls off the edge of the floor. The settle has run in Newton
+in the same way since 27 October, so one engine steps both what comes to
+rest and what is tested; one effect is to be simulated in Newton as a
+first case for the effects layer.
 
 \textbf{Light, motion, effects and sound.} The sky is computed from the
 physical setting in the EC, never drawn, with each celestial body at its
@@ -324,27 +324,61 @@ the model as its skeletal rig and animated with motion clips from Kimodo
 the points of its non-rigid parts lie within 5 cm of the body. Each
 person stands on a person spot of its scene's plan.
 
-\textbf{Sim bodies.} Each character also receives a sim body, its
-physical twin in Newton, so that the people in an environment are
-physically simulated as well as animated. The minimal body is an
-articulated rigid-body model built directly from SOMA's 23 segments,
-with a ball joint at each SOMA joint frame. It is driven by the
-character's SOMA segment rotations without scaling or per-person setup,
-its mass is distributed according to its segment volumes, and it stands
-on a SCORE floor so that its ground reaction forces arise from contact.
-Muscles are added as a minimal first step. Built this way, the body
-follows SOMA's rotations to within 6.9e-9 m, and in Newton it matches
-plain MuJoCo to within 3.4e-8 after 200 steps.
+\textbf{Sim bodies.} Each character also receives a sim body, a
+musculoskeletal twin that follows its movement exactly while Newton and
+MuJoCo supply the physics. The body is MyoFullBody {[}40{]}, whose arm
+and hand derive from the MoBL-ARMS model {[}41{]}, {[}42{]}, with 416
+muscles, 86 bones and 95 independent joints, 36 more joints being
+coupled to others. Its bone groups are sized to the person's SOMA body,
+and its masses are spread by SOMA's segment volumes. One solver then
+fits it to the clip: the person's constants once, and every frame's
+joint angles against each SOMA segment's rotation, 84 of SCORE's 102
+anatomical landmarks on the SOMA skin and SOMA's joints at the ends of
+each bone group, with MyoFullBody's joint couplings held exactly and a
+cost that keeps the bones inside the skin. SOMA is never moved or
+reshaped, except that each clip's standing feet are put on the floor by
+raising or lowering the whole clip. For every frame, inverse dynamics on
+the scene's own ground then gives the forces the movement needs, split
+in the two stages of OpenSim's static optimisation {[}43{]}: the ground
+reaction force first, from the pelvis' balance alone and shared over the
+points of skin touching the ground, then the muscle activations with
+that force fixed. A residual reduction in the manner of OpenSim's RRA
+adjusts the pelvis, trunk and masses within a per-frame cap, and
+whatever force remains at the pelvis is recorded as the residual and
+never applied. Solving contact and muscles together was ill-posed, with
+a nudge of 1e-6 to the contact columns moving an activation by up to
+1.0; in two stages the same nudge moves one by at most 5e-3.
+
+On main, a sim body follows SOMA closely: on a 6 s jump 1.37 percent of
+the bone lies outside the skin, the median joint-centre error is 7.0 mm
+and the median segment rotation error 4.4 degrees, and on a standing
+clip 1.14 percent and 7.4 mm. All of it runs on one GPU. Physics, the
+residual reduction and its foot holds run every frame at once on the
+card with MuJoCo Warp, as do the per-frame pose fit and the posing of
+the SOMA skin, and the card's pose fit equals the CPU reference (mink)
+within 0.01 degrees and 0.01 mm on every frame. A 6 s jump (180 frames
+at 30 fps) now takes 120 s on one NVIDIA L4 and a 5 s standing clip 89
+s, against 830 s and 412 s a day earlier, plus about 3 min for a fresh
+card's first kernel compile. The card's stages run in Warp's
+deterministic mode, so two runs give the same result bit for bit.
+
+The standing feet of a walk or a lunge still stand at different heights,
+because a person's legs differ from those of the skeleton the motion
+generator moved. Running Kimodo's own foot-contact correction on the
+person's legs, with the generator's own contact labels, removes the
+frames on which the ground carries nothing (5 to 0 on each clip) and
+lowers the largest residual force from 782 N to 57 N on the walk and
+from 531 N to 227 N on the lunge; it is being brought into the stage.
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: Newton for the settle, one effect and the sim body.} The
-settle and the physics trial on one engine, with the resting and physics
-gates per scene against the Bullet settle; the one effect stepped on
-Newton; and a sim body walking on a SCORE floor, its joint angles and
-ground forces against OpenCap's LabValidation motion capture and force
-plates {[}40{]}. It waits on these three stages being built and run on a
-cloud card.
+\textbf{Gap: Newton for the scenes, one effect and the sim body
+validated.} The resting and physics gates per scene of environment 1
+with the settle and the trial on Newton; the one effect stepped on
+Newton; and a sim body's joint angles, ground reaction forces and joint
+moments against OpenCap's LabValidation motion capture and force plates
+{[}44{]}. It waits on environment 1's batch, the effect's stage and a
+validation run.
 
 \end{minipage}}\end{center}
 
@@ -358,6 +392,17 @@ from claiming that a scene is done while its gate fails, because agents
 judging their own scenes agree with a measured geometry score only 45.8
 percent of the time {[}18{]}. The films of a complete scene are rendered
 from scripts the creator has locked.
+
+\textbf{Buying in phases.} A paid run, a Buy, runs as phases (models,
+surfaces, people, light and sound, assembly, film) rather than in one
+pass. Before a phase is queued, a free preflight plans it, imports its
+code in a fresh process and runs one node of each paid stage up to the
+point where it would rent a machine; once queued, its code and inputs
+are fixed. Each output that passes its checks is locked, so a later code
+change never makes it again, and a failing one gets one retry before it
+becomes a gap. Paid jobs rent cloud machines or run on a shared
+Kubernetes cluster, chosen per kind of job; the image-to-3D, Blender,
+Newton settle and motion-clip jobs have run there.
 
 \section{Evidence: environment 1}\label{evidence-environment-1}
 
@@ -408,36 +453,28 @@ batch, time, euros and the creator's verdict. It waits on environment
 \textbf{Disclosure.} The creator's locks, picks, accepts and waivers are
 his own actions in the cockpit, and everything between them is
 automatic. Coding agents wrote most of the framework's code under the
-author's direction, and 2,413 of its 2,436 commits list a coding agent
+author's direction, and 3,281 of its 3,306 commits list a coding agent
 as co-author. Manual fixes to a scene are recorded as the creator's
 edits.
 
 \section{Future work: people true to the
 person}\label{future-work-people-true-to-the-person}
 
-The current sim body is a starting point. This section describes goals,
-not results.
+This section describes goals, not results.
 
-\textbf{Bodies true to the person.} The sim body is to become a
-musculoskeletal model of the individual person rather than a scaled
-generic template, including older people and people with a curved spine.
-MyoSuite's MyoFullBody {[}41{]}, a full-body model with 416 muscles
-whose arm and hand derive from the MoBL-ARMS model {[}42{]}, {[}43{]},
-is the starting point. Each segment of the SOMA body is fitted to the
-group of bones that spans the same part of the body, from the same joint
-to the same joint, so that the joints within a group, such as the
-vertebrae of the spine, share its rotation within their ranges of
-motion. Virtual markers on bony landmarks of the SOMA mesh add the shape
-of this person's skeleton, and segment masses are derived from the
-volumes of the SOMA body. Every input that SOMA does not provide is
-marked as assumed and given a plausible range. MyoFullBody already runs
-in Newton, but it still drifts 1.5 cm from plain MuJoCo after 300 steps,
-so Newton must first be validated for such bodies. The joint angles, and
-then the net joint moments and ground reaction forces, are to be
-validated against OpenCap's LabValidation data.
+\textbf{Bodies true to the person.} The sim body is sized to the person
+but still built on one generic model, and it is to become a
+musculoskeletal model of the individual person, including older people
+and people with a curved spine. Its joint ranges and couplings are to
+become the person's own, read from that person's movement and starting
+from the published healthy ranges, with any widening flagged for review.
+Every input that SOMA does not provide, such as muscle strength and bone
+shape, is marked as assumed and given a plausible range. The joint
+angles, and then the net joint moments and ground reaction forces, are
+to be validated against OpenCap's LabValidation data.
 
 \textbf{Scenes from motion.} Motion comes from the SOMA ecosystem:
-estimated from video with GEM-X {[}44{]}, or generated from text and
+estimated from video with GEM-X {[}45{]}, or generated from text and
 constraints with Kimodo {[}39{]}, in practically unlimited quantity. The
 terrain a movement implies becomes a SCORE scene, so the movement keeps
 its setting without the source video or anything that identifies a
@@ -449,7 +486,7 @@ neither the ground nor the muscles can supply remains at the pelvis as
 the residual. The residual is recorded and never applied to the body, so
 it measures how dynamically consistent the movement is, and only
 movements with a small residual are kept. Biomechanics uses the same
-residual to assess recorded motion {[}45{]}, {[}46{]}, and PhysibleMDM
+residual to assess recorded motion {[}43{]}, {[}46{]}, and PhysibleMDM
 {[}47{]} minimises an inverse-dynamics residual to make generated motion
 feasible for a torque-driven robot. We apply the criterion to generated
 motion in a muscle-driven body.
@@ -501,16 +538,17 @@ close-ups and read and plan every scene, and may change or be withdrawn.
 The design step, the layers derived from row kinds, the finish route,
 the shapes-first loop and the scene tree have not yet carried a scene
 through a batch. The edit layer is so far only a reserved slot. The
-settle, the effects and the sim body do not yet run in Newton as stages,
-and no game engine or robot simulator has yet opened the result. Next
-come environment 1's batch with its four demonstrations, an engine
-adapter, the edit layer carried across assemblies, further environments,
-open models replacing the closed ones, and the data loop, in which
-residual-filtered generated movement trains muscle-driven controllers
-whose value a comparison with motion capture has yet to show. SCORE
-synthesises an environment as studios build one, scene by scene and
-layer by layer, in a form a simulator steps as written, and an accepted
-environment will show whether the approach holds.
+effects do not yet run in Newton, the sim body has not been validated
+against measured forces, and no game engine or robot simulator has yet
+opened the result. Next come environment 1's batch with its four
+demonstrations, an engine adapter, the edit layer carried across
+assemblies, further environments, open models replacing the closed ones,
+and the data loop, in which residual-filtered generated movement trains
+muscle-driven controllers whose value a comparison with motion capture
+has yet to show. SCORE synthesises an environment as studios build one,
+scene by scene and layer by layer, in a form a simulator steps as
+written, and an accepted environment will show whether the approach
+holds.
 
 \section*{References}\label{references}
 \addcontentsline{toc}{section}{References}
@@ -758,21 +796,15 @@ preprint arXiv:2602.15989}, 2026.}
 \emph{et al.}}, {``{Kimodo}: Scaling controllable human motion
 generation,''} \emph{arXiv preprint arXiv:2603.15546}, 2026.}
 
-\bibitem[\citeproctext]{ref-uhlrich2023opencap}
-\CSLLeftMargin{{[}40{]} }%
-\CSLRightInline{S. D. Uhlrich \emph{et al.}, {``{OpenCap}: Human
-movement dynamics from smartphone videos,''} \emph{PLOS Computational
-Biology}, vol. 19, no. 10, p. e1011462, 2023.}
-
 \bibitem[\citeproctext]{ref-caggiano2022myosuite}
-\CSLLeftMargin{{[}41{]} }%
+\CSLLeftMargin{{[}40{]} }%
 \CSLRightInline{V. Caggiano, H. Wang, G. Durandau, M. Sartori, and V.
 Kumar, {``{MyoSuite}: A contact-rich simulation suite for
 musculoskeletal motor control,''} \emph{arXiv preprint
 arXiv:2205.13600}, 2022.}
 
 \bibitem[\citeproctext]{ref-holzbaur2005upper}
-\CSLLeftMargin{{[}42{]} }%
+\CSLLeftMargin{{[}41{]} }%
 \CSLRightInline{K. R. S. Holzbaur, W. M. Murray, and S. L. Delp, {``A
 model of the upper extremity for simulating musculoskeletal surgery and
 analyzing neuromuscular control,''} \emph{Annals of Biomedical
@@ -780,25 +812,31 @@ Engineering}, vol. 33, no. 6, pp. 829--840, 2005, doi:
 \href{https://doi.org/10.1007/s10439-005-3320-7}{10.1007/s10439-005-3320-7}.}
 
 \bibitem[\citeproctext]{ref-saul2015benchmarking}
-\CSLLeftMargin{{[}43{]} }%
+\CSLLeftMargin{{[}42{]} }%
 \CSLRightInline{K. R. Saul \emph{et al.}, {``Benchmarking of dynamic
 simulation predictions in two software platforms using an upper limb
 musculoskeletal model,''} \emph{Computer Methods in Biomechanics and
 Biomedical Engineering}, vol. 18, no. 13, pp. 1445--1458, 2015, doi:
 \href{https://doi.org/10.1080/10255842.2014.916698}{10.1080/10255842.2014.916698}.}
 
-\bibitem[\citeproctext]{ref-gemx}
-\CSLLeftMargin{{[}44{]} }%
-\CSLRightInline{NVIDIA, {``{GEM-X}: Monocular whole-body {3D} human pose
-estimation using the {SOMA} body model.''} 2026. Available:
-\url{https://github.com/NVlabs/GEM-X}}
-
 \bibitem[\citeproctext]{ref-delp2007opensim}
-\CSLLeftMargin{{[}45{]} }%
+\CSLLeftMargin{{[}43{]} }%
 \CSLRightInline{S. L. Delp \emph{et al.}, {``{OpenSim}: Open-source
 software to create and analyze dynamic simulations of movement,''}
 \emph{IEEE Transactions on Biomedical Engineering}, vol. 54, no. 11, pp.
 1940--1950, 2007.}
+
+\bibitem[\citeproctext]{ref-uhlrich2023opencap}
+\CSLLeftMargin{{[}44{]} }%
+\CSLRightInline{S. D. Uhlrich \emph{et al.}, {``{OpenCap}: Human
+movement dynamics from smartphone videos,''} \emph{PLOS Computational
+Biology}, vol. 19, no. 10, p. e1011462, 2023.}
+
+\bibitem[\citeproctext]{ref-gemx}
+\CSLLeftMargin{{[}45{]} }%
+\CSLRightInline{NVIDIA, {``{GEM-X}: Monocular whole-body {3D} human pose
+estimation using the {SOMA} body model.''} 2026. Available:
+\url{https://github.com/NVlabs/GEM-X}}
 
 \bibitem[\citeproctext]{ref-werling2023addbiomechanics}
 \CSLLeftMargin{{[}46{]} }%

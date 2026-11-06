@@ -269,14 +269,6 @@ Davis Rempe, Mathis Petrovich, Ye~Yuan, Haotian Zhang, Xue~Bin Peng, et~al.
 \newblock {Kimodo}: Scaling controllable human motion generation.
 \newblock \emph{arXiv preprint arXiv:2603.15546}, 2026.
 
-\bibitem[Uhlrich et~al.(2023)Uhlrich, Falisse, Kidzi{\'n}ski, Muccini, Ko,
-  Chaudhari, Hicks, and Delp]{uhlrich2023opencap}
-Scott~D. Uhlrich, Antoine Falisse, {\L}ukasz Kidzi{\'n}ski, Julie Muccini,
-  Michael Ko, Akshay~S. Chaudhari, Jennifer~L. Hicks, and Scott~L. Delp.
-\newblock {OpenCap}: Human movement dynamics from smartphone videos.
-\newblock \emph{PLOS Computational Biology}, 19\penalty0 (10):\penalty0
-  e1011462, 2023.
-
 \bibitem[Caggiano et~al.(2022)Caggiano, Wang, Durandau, Sartori, and
   Kumar]{caggiano2022myosuite}
 Vittorio Caggiano, Huawei Wang, Guillaume Durandau, Massimo Sartori, and Vikash
@@ -303,13 +295,6 @@ Katherine~R. Saul, Xiao Hu, Craig~M. Goehler, Meghan~E. Vidt, Melissa Daly,
   18\penalty0 (13):\penalty0 1445--1458, 2015.
 \newblock \doi{10.1080/10255842.2014.916698}.
 
-\bibitem[{NVIDIA}(2026)]{gemx}
-{NVIDIA}.
-\newblock {GEM-X}: Monocular whole-body {3D} human pose estimation using the
-  {SOMA} body model, 2026.
-\newblock URL \url{https://github.com/NVlabs/GEM-X}.
-\newblock Apache-2.0.
-
 \bibitem[Delp et~al.(2007)Delp, Anderson, Arnold, Loan, Habib, John,
   Guendelman, and Thelen]{delp2007opensim}
 Scott~L. Delp, Frank~C. Anderson, Allison~S. Arnold, Peter Loan, Ayman Habib,
@@ -318,6 +303,21 @@ Scott~L. Delp, Frank~C. Anderson, Allison~S. Arnold, Peter Loan, Ayman Habib,
   simulations of movement.
 \newblock \emph{IEEE Transactions on Biomedical Engineering}, 54\penalty0
   (11):\penalty0 1940--1950, 2007.
+
+\bibitem[Uhlrich et~al.(2023)Uhlrich, Falisse, Kidzi{\'n}ski, Muccini, Ko,
+  Chaudhari, Hicks, and Delp]{uhlrich2023opencap}
+Scott~D. Uhlrich, Antoine Falisse, {\L}ukasz Kidzi{\'n}ski, Julie Muccini,
+  Michael Ko, Akshay~S. Chaudhari, Jennifer~L. Hicks, and Scott~L. Delp.
+\newblock {OpenCap}: Human movement dynamics from smartphone videos.
+\newblock \emph{PLOS Computational Biology}, 19\penalty0 (10):\penalty0
+  e1011462, 2023.
+
+\bibitem[{NVIDIA}(2026)]{gemx}
+{NVIDIA}.
+\newblock {GEM-X}: Monocular whole-body {3D} human pose estimation using the
+  {SOMA} body model, 2026.
+\newblock URL \url{https://github.com/NVlabs/GEM-X}.
+\newblock Apache-2.0.
 
 \bibitem[Werling et~al.(2023)Werling, Bianco, Raitor, Stingel, Hicks, Collins,
   Delp, and Liu]{werling2023addbiomechanics}
