@@ -3829,6 +3829,11 @@ def make_hashing(inputs, out, seed, params):
     time.sleep(60)
 
 
+def make_through_the_client(inputs, out, seed, params):
+    """Starts the renting client (graph.CONTAINER_CLIENTS) as surfaces-bake does: its paid point."""
+    subprocess.run([sys.executable, "tools/cloud/blender_cloud.py", "run", "job.json"], check=True)
+
+
 def a_buying_runner(render=RENDER):
     data = pathlib.Path(tempfile.mkdtemp())
     (data / "hangar.txt").write_text("a hall")
@@ -4047,18 +4052,34 @@ def test_score_run_refuses_before_it_starts_records_a_given_reason_and_plans_on_
                            "pixal@base": "blocked: closeup@base has not run on its current inputs"}}
     assert command.preflight_plan(planned)[1] == [
         "failing: plan@square: plan@square answered fail: held: the stairwell's doors"]
+    # a re-buy is said, never failed: a Buy names its reason (2026-11-06: surfaces and people failed on it). Break:
+    # in __main__.preflight_plan, put back `failed.append(planned["refusal"])`
+    planned = {"missing": [], "refusal": "refused: this run would buy accepted outputs again for about EUR 47.00",
+               "buys": [{"node": "bake@base", "euros": 47.0, "again": True,
+                         "price": {"likely_euros": 40.0, "high_euros": 47.0}}],
+               "price": {"likely_euros": 40.0, "high_euros": 47.0}, "blocked": {}}
+    said, failed = command.preflight_plan(planned)
+    assert failed == [] and "bought again about EUR 47.00" in said, (said, failed)
+    # a bare name its package put on sys.path is imported through that package (route_views met its own circular
+    # import alone). Break: in __main__.import_failure, pass `module` for `dotted_name(module)`
+    from score.stages.surfaces import route_views  # noqa: F401 - loads the bare `route_views` too
+    assert command.dotted_name("route_views") == "score.stages.surfaces.route_views"
+    assert command.dotted_name("json") == "json" and command.import_failure("route_views") is None
     monkeypatch.setattr(command, "phase_modules", lambda runner, names: [])
     monkeypatch.setattr(books, "books_refusal", lambda: None)
     monkeypatch.setattr(command, "DRY_SECONDS", 2)
     offers[0].stock_word = "available"
     found = {}
-    for make in (make_missing_jobs, make_copy, make_to_the_rent, make_hashing):
+    for make in (make_missing_jobs, make_copy, make_to_the_rent, make_hashing, make_through_the_client):
         runner = a_buying_runner(dataclasses.replace(RENDER, make=make))
         assert runner.run_node(runner.stages["draw"], "hangar").endswith("accepted automatically")
         found[make.__name__] = command.preflight(runner, ["hangar"], True, options)
     summary, failed = found["make_to_the_rent"]
     assert failed == [] and "1 of 1 paid nodes dry-run to their paid point" in summary, (summary, failed)
     assert found["make_copy"][1] == [], found  # finished with nothing to rent (its jobs kept): no failure
+    # the renting client is its paid point, not Blender here (2026-11-06: surfaces-bake@airlock). Break: in
+    # __main__.DryPopen, drop the `client_named` lines
+    assert found["make_through_the_client"][1] == [], found
     assert [failed[0].split(" (its log ")[0] for _, failed in [found["make_missing_jobs"], found["make_hashing"]]] == [
         "dry run: render@hangar: FileNotFoundError: no jobs file at render-jobs.json",
         "dry run: render@hangar: its dry run passed its 2 s box before reaching a paid point"], found

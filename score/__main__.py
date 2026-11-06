@@ -1008,20 +1008,22 @@ ANSWERED = re.compile(r"answered (fail|unknown)")
 
 
 def preflight_plan(planned):
-    """(what the plan buys, [failure lines]) of a run's plan (plan_json): each input it is missing, its refusal, each
-    node blocked by an output that answered fail or unknown (ANSWERED), and a paid buy with no price at all; a buy
-    priced only by its estimate is said as a guess, never a failure."""
+    """(what the plan buys, [failure lines]) of a run's plan (plan_json): each input it is missing, each node blocked
+    by an output that answered fail or unknown (ANSWERED), and a paid buy with no price at all; a buy priced only by
+    its estimate is said as a guess, and outputs bought again are said with their estimate, never a failure: the
+    re-buy refusal is the only other one a plan gives, and a Buy always names its reason (flow.launch: the owner's
+    checkout), so it never stops one (2026-11-06: surfaces and people failed on it)."""
     failed = [f"missing input: {name}" for name in planned["missing"]]
-    if planned["refusal"] and not planned["missing"]:
-        failed.append(planned["refusal"])
     failed += [f"failing: {node}: {why}" for node, why in sorted((planned.get("blocked") or {}).items())
                if ANSWERED.search(why)]
     guesses = [buy["node"] for buy in planned["buys"] if buy["price"].get("likely_euros") is None]
     failed += [f"no price: {buy['node']} has neither a measured price nor an estimate" for buy in planned["buys"]
                if buy["price"].get("high_euros") is None and buy["price"].get("guess_euros") is None]
     price = planned["price"]
+    again = sum(buy["euros"] or 0.0 for buy in planned["buys"] if buy["again"])
     said = (f"{len(planned['buys'])} buys, likely EUR {price['likely_euros']:.2f}, high EUR {price['high_euros']:.2f}"
-            + (f", guesses only: {', '.join(guesses)} (EUR {price['guessed_euros']:.2f})" if guesses else ""))
+            + (f", guesses only: {', '.join(guesses)} (EUR {price['guessed_euros']:.2f})" if guesses else "")
+            + (f", bought again about EUR {again:.2f} (a Buy names its reason)" if again else ""))
     return said, failed
 
 
@@ -1033,10 +1035,26 @@ def phase_modules(runner, names):
                    for each in (function, inspect.unwrap(function))} - {None, "__main__"})
 
 
+def dotted_name(module):
+    """`module`'s name as its package imports it: a module loaded by its bare name off a folder its package put on
+    sys.path (score/stages/surfaces: route_views) is named through that package (score.stages.surfaces.route_views),
+    so its fresh import runs the package first, in the order a run does; imported alone a bare name met its own
+    circular import (2026-11-06: route_views, scene_library)."""
+    path = getattr(sys.modules.get(module), "__file__", None)
+    if "." in module or not path or pathlib.Path(path).stem == "__init__":  # a package is named as it is
+        return module
+    folder, parts = pathlib.Path(path).resolve().parent, [pathlib.Path(path).stem]
+    while (folder / "__init__.py").exists():
+        parts.insert(0, folder.name)
+        folder = folder.parent
+    return ".".join(parts)
+
+
 def import_failure(module):
     """Why `module` does not import in a fresh Python process from this checkout (the last line of its error), or
-    None when it does."""
-    done = subprocess.run([sys.executable, "-c", "import importlib, sys; importlib.import_module(sys.argv[1])", module],
+    None when it does; by its dotted name (dotted_name)."""
+    done = subprocess.run([sys.executable, "-c", "import importlib, sys; importlib.import_module(sys.argv[1])",
+                           dotted_name(module)],
                           cwd=REPO, capture_output=True, text=True, timeout=IMPORT_SECONDS,
                           env={**os.environ, "PYTHONPATH": os.pathsep.join(entry for entry in sys.path if entry)})
     if done.returncode == 0:
@@ -1080,11 +1098,31 @@ class LocalWork(Exception):
     """A dry make started a heavy program (restore.HEAVY_PROGRAMS: Blender) on this machine instead of renting."""
 
 
+class RentReached(Exception):
+    """A dry make started a container client (graph.CONTAINER_CLIENTS: blender_cloud.py), which rents: its paid
+    point, never started in a dry run."""
+
+
+def client_named(arguments):
+    """The container client (graph.CONTAINER_CLIENTS) a Popen call's arguments name, else None."""
+    if isinstance(arguments, (str, bytes)):
+        words = os.fsdecode(arguments).split()
+    else:
+        words = [arguments] if isinstance(arguments, os.PathLike) else list(arguments)
+    names = [pathlib.PurePath(os.fsdecode(word)).name for word in words if isinstance(word, (str, bytes, os.PathLike))]
+    return next((name for name in names if name in graph.CONTAINER_CLIENTS), None)
+
+
 class DryPopen(subprocess.Popen):
-    """subprocess.Popen that refuses a heavy program in a dry make (LocalWork)."""
+    """subprocess.Popen that stops a dry make at a container client (RentReached: blender_cloud.py rents, so its name
+    beginning "blender" is no Blender here; 2026-11-06, surfaces-bake@airlock failed so) and refuses any other heavy
+    program (LocalWork)."""
 
     def __init__(self, arguments, *rest, **options):
         from score.store.restore import heavy_program
+        client = client_named(arguments)
+        if client:
+            raise RentReached(f"it rents through {client}")
         program = heavy_program(arguments, options.get("executable"))
         if program:
             raise LocalWork(f"it starts {program} on this machine instead of renting")
@@ -1102,6 +1140,8 @@ def dry_failure(error, log):
     local = [each for each in chain if isinstance(each, LocalWork)]
     if local:
         return str(local[0])
+    if any(isinstance(each, RentReached) for each in chain):
+        return None
     if any(word in text for word in PAID_POINT for text in [*map(str, chain), log]):
         return None
     lines = str(error).strip().splitlines()
