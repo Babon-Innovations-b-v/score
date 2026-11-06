@@ -2440,19 +2440,18 @@ class Runner:
                 say(heartbeat_line(len(done), len(running), len(waiting), gauges))
                 beat_at = time.monotonic() + HEARTBEAT
             beat_in = max(0.0, beat_at - time.monotonic()) if gauges else None  # no beats: wait for a node alone
-            if held or (full and on_this_pc()):  # read the memory, and the nodes waiting on a claim, again
+            if held or full:  # read the memory, and the nodes waiting on a claim, again
                 beat_in = MEMORY_POLL if beat_in is None else min(beat_in, MEMORY_POLL)
             finished = FORK_WAIT(list(running), timeout=beat_in)  # concluded at the next turn's start
         return {node_name(stage, place): done[node_name(stage, place)] for stage, place in chosen
                 if node_name(stage, place) in done}
 
     def claim_waiting(self, running):
-        """{stage name: how many of its `running` nodes only wait on a claim of the container (CLAIM_WAITERS)}, on this
-        PC; none elsewhere. The drive excuses at most WAITERS_EXCUSED of them a --jobs slot and starts no other node of
-        such a stage until its waiter got a turn, one a pass while it has none, so one queued waiter takes each turn
-        that frees and the slots go to other stages' ready nodes."""
-        if not on_this_pc():
-            return collections.Counter()
+        """{stage name: how many of its `running` nodes only wait on a claim (CLAIM_WAITERS)}: of this PC's container,
+        or of a warm pool machine anywhere (tools/cloud/pool.py marks it; 2026-11-06, checkout 36 on the conductor:
+        15 of 16 slots held by bake clients waiting on 3 pool machines). The drive excuses at most WAITERS_EXCUSED of
+        them a --jobs slot and starts no other node of such a stage until its waiter got a turn, one a pass while it
+        has none, so one queued waiter takes each turn that frees and the slots go to other stages' ready nodes."""
         alive = {process.pid: stage.name for stage, _, process in running.values() if process.is_alive()}
         return collections.Counter(alive[pid] for pid in CLAIM_WAITERS(list(alive))) if alive else collections.Counter()
 

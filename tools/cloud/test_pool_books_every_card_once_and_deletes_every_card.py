@@ -97,6 +97,7 @@ park.py and spread.py are the pool's own call sites):
 import json
 import os
 import pathlib
+import tempfile
 import signal
 import subprocess
 import sys
@@ -461,16 +462,22 @@ def test_a_claim_waiting_on_the_pool_past_its_runs_deadline_still_gets_the_card_
     run = a_run("waits")
     run.deadline = time.time() + 0.3
     patch(pool, "POLL_SECONDS", 0.05)
+    patch(pool, "WAITING", pathlib.Path(tempfile.mkdtemp()))
+    patch(pool, "HOLDING", set())  # this process holds no card yet
     got = []
     waiting = threading.Thread(target=lambda: got.append(
         batch.claim(run, "account", OFFERS, 1, KINDS[0], wanted=lambda: True)))
     waiting.start()
     time.sleep(0.8)  # past the run's own deadline, no card yet
     assert waiting.is_alive() and not got
+    # waiting, holding no card, its process is marked so its node holds no job slot (2026-11-06, checkout 36); with
+    # its card, not. Break: in pool.claim, drop `mark_waiting(not HOLDING)`; or in held_by, drop `HOLDING.add(...)`
+    assert (pool.WAITING / str(os.getpid())).exists()
     calls.stock = 1
     assert grow(run_id) == 1
     waiting.join(5)
     assert got and got[0] is not None and got[0]["pool"] == run_id
+    assert not (pool.WAITING / str(os.getpid())).exists() and got[0]["id"] in pool.HOLDING
     assert run.deadline - time.time() > 0.15  # its time left when it began waiting, counted from the card
     pool.release(run_id)
 
@@ -903,7 +910,9 @@ def test_the_pool_holds_a_few_processor_machines_of_the_biggest_class_offered():
              provider.Offer(1, 0, "t", "z", 1, "cpu-32c-64gb", 0, "available")]
     assert pool.processor_class(found) == "cpu-32c-64gb"  # the biggest in stock (no 64-core offer: no quota)
     assert pool.processor_class(found[:1]) == "cpu-48c-96gb"  # none in stock: the biggest offered, waited for
-    assert pool.with_processors({"gpu-24gb": 4}, 5, found) == {"gpu-24gb": 4, "cpu-32c-64gb": pool.MOST_PROCESSORS}
+    assert pool.with_processors({"gpu-24gb": 4}, 5, found) == {"gpu-24gb": 4, "cpu-32c-64gb": 5}
+    assert pool.with_processors({"gpu-24gb": 4}, 50, found)["cpu-32c-64gb"] == min(
+        pool.MOST_PROCESSORS, pool.capacity.max_machines("cpu-32c-64gb"))  # held to the cap and the class quota
     assert pool.with_processors({"gpu-24gb": 4}, 1, found) == {"gpu-24gb": 4, "cpu-32c-64gb": 1}
     assert pool.with_processors({"gpu-24gb": 4}, 0, found) == {"gpu-24gb": 4}
     assert pool.with_processors({"gpu-24gb": 4}, 2, []) == {"gpu-24gb": 4}
