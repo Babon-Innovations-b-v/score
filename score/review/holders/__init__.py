@@ -20,9 +20,9 @@ Each plan item of a row that stands on, against or in something gets one relatio
     in     in a door or window opening of the plan (`opening`: its at, wide, sill, head, and the wall it stands on): a
            row that fills an opening (design_shell.fills_opening), anchored on a wall or on structure; each opening
            holds one, the nearest to the item's spot, of the row's kind (a window a window's, a door a door's); with
-           none left, one cut for it (`cut`) where its spot meets the nearest wall; each piece its own (`pieces`): an
-           item's where the scene record lays it, the walls item's at its concept boxes' projections, else spread
-           along the longest wall
+           none left, one cut for it (`cut`) where its spot meets the nearest wall with room beside its openings; each
+           piece its own (`pieces`): an item's where the scene record lays it, the walls item's at its concept boxes'
+           projections, else spread along the longest wall
     edge   past the plan's edge (`edge`, `spot` the edge's middle): a wall row the plan writer left on the walls item
            where the plan draws no wall (street's facades), on the side of the view its concept box stands; what is on
            it stands against its face toward the place
@@ -546,7 +546,8 @@ def mount_height(item, row, plan):
 def on_wall(item, row, plan, inventory, pieces=1):
     """A relation against the nearest wall to the item's spot (the concept's for the walls item) whose length holds
     the row's pieces at their built length (run_needed: hangar's 30 m cranes went on a 2.12 m door-jamb stub and were
-    shrunk to 53%), else the longest wall, named `short`; its mount height where the plan gives none (mount_height);
+    shrunk to 53%; several each flat along one straight run of its chain, holds_flat), else the longest wall, named
+    `short`; its mount height where the plan gives none (mount_height);
     or None."""
     walls = walls_of(plan)
     if not walls:
@@ -560,7 +561,7 @@ def on_wall(item, row, plan, inventory, pieces=1):
         why = "its plan spot" if placed else "where its concept box projects onto the plan"
     need, bend = run_needed(row, pieces), CORNER_BEND if pieces > 1 else ROUND_BEND
     fitting = ([wall for wall in walls if wall_length(wall) >= need] if pieces == 1 else []) or [
-        wall for wall in walls if chain_length(chain_of(wall, walls, bend)) >= need]
+        wall for wall in walls if holds_flat(chain_of(wall, walls, bend), row, pieces)]
     wall = min(fitting, key=lambda wall: off_line(spot, wall)[0]) if fitting else max(walls, key=wall_length)
     side = off_line(spot, wall)[1]
     if off_line(spot, wall)[0] < 1e-6 or (placed and past_outline(spot, row, plan)):  # the side toward the plan's middle
@@ -686,17 +687,25 @@ def wall_part(wall):
     return {key: wall[key] for key in ("from", "to", "thick")} if wall else None
 
 
-def cut_in(spot, row, item, plan):
-    """A relation in an opening cut for the row (`cut`) where its spot meets the nearest wall, kept OPENING_ROOM and
-    the wall's thickness inside its ends (camp's dome windows were cut on their walls' corners): the row's width,
-    from its item's base (a window from WINDOW_SILL) to its top; None where the plan draws no wall."""
+def cut_in(spot, row, item, plan, standing=()):
+    """A relation in an opening cut for the row (`cut`) where its spot meets the nearest wall with room for it beside
+    the openings the relations `standing` already put on it (has_room; 2026-11-06: street's second 3 m roller shutter
+    cut on the 4.61 m wall its restaurant door and window stood in, 7.5 m of openings), else the nearest (one with
+    none on it taken as it is, a short one keeping it at its middle: camp's dome facets), kept
+    OPENING_ROOM and the wall's thickness inside its ends (camp's dome windows were cut on their walls' corners): the
+    row's width, from its item's base (a window from WINDOW_SILL) to its top; None where the plan draws no wall."""
     walls = walls_of(plan)
     if not walls:
         return None
-    wall = min(walls, key=lambda wall: off_line(spot, wall)[0])
+    size = row.get("size") or [1.0, 0.1, design_shell.DOOR_HEAD]
+    on_walls = wall_openings(standing)
+    by_near = sorted(walls, key=lambda wall: off_line(spot, wall)[0])
+    wall = by_near[0]
+    if wall_key(wall) in on_walls and not has_room(wall, on_walls, float(size[0])):
+        wall = next((wall for wall in by_near if has_room(wall, on_walls, float(size[0]))), wall)
+    moved = wall is not by_near[0]
     base = float(((plan.get("shapes") or {}).get(item[0]) or {}).get("base") or 0.0)
     sill = base or (WINDOW_SILL if kind_word(row) == "window" else 0.0)
-    size = row.get("size") or [1.0, 0.1, design_shell.DOOR_HEAD]
     start, end = numpy.asarray(wall["from"], float), numpy.asarray(wall["to"], float)
     length = float(numpy.linalg.norm(end - start))
     run = (end - start) / max(length, 1e-9)
@@ -705,8 +714,17 @@ def cut_in(spot, row, item, plan):
     return {"how": "in", "opening": {"at": [round(float(value), 3) for value in at],
                                      "wide": float(size[0]), "sill": sill, "head": round(sill + float(size[2]), 3),
                                      "cut": True},
-            "wall": wall_part(wall), "why": "in an opening cut for it where it meets the nearest wall: the plan has no "
+            "wall": wall_part(wall), "why": f"in an opening cut for it where it meets the nearest wall"
+                                            f"{' with room beside its openings' if moved else ''}: the plan has no "
                                             f"free {kind_word(row)} opening"}
+
+
+def has_room(wall, on_walls, wide):
+    """Whether a wall holds an opening `wide` beside those on it ({wall's (from, to): (wall, [(row, opening)])}, as
+    wall_openings), all at their widths OPENING_ROOM apart and OPENING_ROOM and its thickness inside its ends."""
+    wides = [float(opening["wide"]) for _, opening in on_walls.get(wall_key(wall), (None, []))[1]] + [wide]
+    ends = 2 * (OPENING_ROOM + float(wall.get("thick") or 0.0))
+    return sum(wides) + OPENING_ROOM * (len(wides) - 1) + ends <= wall_length(wall) + 1e-9
 
 
 def kept_along(along, length, keep):
@@ -950,12 +968,15 @@ def piece_spots(item, row, plan, inventory):
     return [start + (end - start) * (number + 1) / (count + 1) for number in range(count)]
 
 
-def in_opening(item, row, plan, inventory, taken):
+def in_opening(item, row, plan, inventory, taken, standing=()):
     """A door or window in an opening: each of its pieces (piece_spots) in the plan's nearest free opening, else in
     one cut for it on its nearest wall; one relation, or `pieces` one each; None where the plan draws no wall and no
     opening is left."""
-    found = [in_plan_opening(spot, row, plan, taken) or (cut_in(spot, row, item, plan) if spot is not None else None)
-             for spot in piece_spots(item, row, plan, inventory)]
+    found = []
+    for spot in piece_spots(item, row, plan, inventory):
+        found.append(in_plan_opening(spot, row, plan, taken) or (
+            cut_in(spot, row, item, plan, [*standing, *({"row": row["id"], **piece} for piece in found if piece)])
+            if spot is not None else None))
     if not all(found):
         return None
     return found[0] if len(found) == 1 else {"how": "in", "pieces": found, "why": "each piece in its opening"}
@@ -1104,9 +1125,9 @@ def stair_sides(plan, count):
     return found
 
 
-def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, kinds, pieces=1):
+def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, kinds, pieces=1, standing=()):
     """One item's relation (module docstring) for its row (laying `pieces` there), or (None, why) when nothing holds
-    it."""
+    it; `standing` the relations found before it (where its openings' walls have room)."""
     anchor = row.get("anchor") or "floor"
     holder = rows.get(anchor[3:]) if anchor.startswith("on:") else None
     if anchor.startswith("on:") and holder is None:
@@ -1163,7 +1184,7 @@ def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, 
     if kind != "wall":
         return None, (f"its holder {holder['id']} is neither laid on the plan nor a wall, floor or roof"
                       if holder is not None else None)
-    found = in_opening(item, row, plan, inventory, taken) if design_shell.fills_opening(row) else None
+    found = in_opening(item, row, plan, inventory, taken, standing) if design_shell.fills_opening(row) else None
     found = found or on_wall(item, row, plan, inventory, pieces)
     return (found, None) if found else (None, "it stands on a wall, and the plan draws none")
 
@@ -1266,8 +1287,10 @@ def wall_pieces(entry, item, row, count, walls, bend=CORNER_BEND):
     """Each piece of a wall relation laying `count` pieces (its item's own spots, along its long middle line as the
     scene record spreads them; the walls item's all at the relation's spot) as a wall relation of its own: brought
     onto its wall's chain of walls (chain_of: round a corner, a round wall's facets), packed their built length apart
-    (packed), its wall the chord of the chain it covers, so each piece has a face as long as it is (2026-11-04
-    audit: the workshop's 25 tools at one spot on a 0.96 m wall)."""
+    (packed), each flat along one straight run of the chain, never bent round a corner (flat_alongs), its wall the
+    chord of the run it covers, so each piece has a face as long as it is (2026-11-04 audit: the workshop's 25 tools
+    at one spot on a 0.96 m wall; 2026-11-06: hangar's second 32 m pipe of LARGE PIPES 1 laid as a 31 m diagonal
+    across its left and front walls' corner, galley's cabinets and hub's panels round theirs)."""
     wall = entry["wall"]
     chain = chain_of(wall, walls, bend)
     length, long = chain_length(chain), max(built_long(row), PIECE_GAP)
@@ -1280,8 +1303,9 @@ def wall_pieces(entry, item, row, count, walls, bend=CORNER_BEND):
         first, last = numpy.asarray(line, float)
         spots = [first + (last - first) * (number + 0.5) / count for number in range(count)]
     alongs = [chain_along(chain, spot) for spot in spots]
+    runs, clear = straight_runs(chain), built_deep(row) + PIECE_GAP
     found = []
-    for along in packed(alongs, length, long):
+    for along in flat_alongs(packed(alongs, length, long), runs, long, clear):
         (low, _), (high, _) = chain_point(chain, max(along - long / 2, 0.0)), chain_point(chain, along + long / 2)
         middle_point, way = (low + high) / 2, (high - low) / max(float(numpy.linalg.norm(high - low)), 1e-9)
         low, high = middle_point - way * long / 2, middle_point + way * long / 2  # the chord as long as the piece
@@ -1292,6 +1316,72 @@ def wall_pieces(entry, item, row, count, walls, bend=CORNER_BEND):
                       **({"height": entry["height"]} if "height" in entry else {}),
                       "why": entry["why"] + "; packed along its walls with its row's other pieces"})
     return found
+
+
+def built_deep(row):
+    """The row's built depth off what holds it: its size's shorter ground side, 0 for a row with no size."""
+    size = row.get("size")
+    return min(float(size[0]), float(size[1])) if isinstance(size, list) and len(size) == 3 else 0.0
+
+
+def straight_runs(chain):
+    """[(start, end)] metres down a chain of the runs a straight piece lies flat along: its legs, joined where they
+    meet no sharper than ROUND_BEND degrees (a round wall's facets), broken at each corner."""
+    legs = numpy.diff(chain, axis=0)
+    lengths = numpy.linalg.norm(legs, axis=1)
+    runs, reach = [[0.0, float(lengths[0])]], float(lengths[0])
+    for came, leg, length in zip(legs, legs[1:], lengths[1:]):
+        turn = math.degrees(math.acos(float(numpy.clip((came @ leg) / max(float(numpy.linalg.norm(came)) *
+                                                                            float(length), 1e-9), -1.0, 1.0))))
+        if turn > ROUND_BEND:
+            runs.append([reach, reach])
+        reach += float(length)
+        runs[-1][1] = reach
+    return [tuple(run) for run in runs]
+
+
+def onto_runs(middles, runs, long, clear, bounded=True):
+    """Middles of pieces `long` long, from `middles` (in order) each moved on the least that lays it flat inside one
+    run, PIECE_GAP past the one before, and `clear` past a corner the one before ends within `clear` of (the two
+    would meet in the corner's room); the last run unbounded unless `bounded`. None where one fits no run."""
+    placed, half = [], long / 2
+    for along in middles:
+        if placed:
+            along = max(along, placed[-1] + long + PIECE_GAP)
+        for number, (low, high) in enumerate(runs):
+            high = high if bounded or number < len(runs) - 1 else math.inf
+            spot = max(along, low + half)
+            if placed and placed[-1] + half < low and placed[-1] + half > low - clear - 1e-9:
+                spot = max(spot, low + clear + half)
+            if spot + half <= high + 1e-9:
+                placed.append(spot)
+                break
+        else:
+            return None
+    return placed
+
+
+def holds_flat(chain, row, count):
+    """Whether a chain of walls holds `count` of the row's pieces each flat along one of its straight runs."""
+    long = max(built_long(row), PIECE_GAP)
+    return onto_runs([0.0] * count, straight_runs(chain), long, built_deep(row) + PIECE_GAP) is not None
+
+
+def flat_alongs(alongs, runs, long, clear):
+    """Middles of pieces `long` long laid flat on a chain's straight runs (straight_runs) nearest `alongs`: a piece
+    not fitting before a corner starts on the next run, and those then past the chain's end are pulled back the same
+    way from it; where the runs cannot hold them all flat, those that fit and the rest at the end of the longest run
+    (its relation named `short` by on_wall)."""
+    total = runs[-1][1]
+    forward = onto_runs(sorted(alongs), runs, long, clear, bounded=False)
+    if forward[-1] + long / 2 <= total + 1e-9:
+        return forward
+    mirrored = [(total - high, total - low) for low, high in reversed(runs)]
+    back = onto_runs([total - along for along in reversed(forward)], mirrored, long, clear)
+    if back is not None:
+        return [total - along for along in reversed(back)]
+    low, high = max(runs, key=lambda run: run[1] - run[0])
+    return [along if along + long / 2 <= total + 1e-9 else max(low, high - long) + long / 2 for along in forward]
 
 
 def chain_along(chain, spot):
@@ -1544,7 +1634,7 @@ def relations(plan, inventory, sha=None, kinds=None):
                     found.append({"item": name, "row": row_id, **got, **rests_entry(row)})
                 continue
             got, why = relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, kinds,
-                                pieces_at(name, row, plan, tied))
+                                pieces_at(name, row, plan, tied), found)
             if got:
                 found.append({"item": name, "row": row_id, **got, **rests_entry(row)})
             elif why:

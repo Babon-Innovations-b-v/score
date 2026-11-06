@@ -98,8 +98,9 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   the floor and `LEVEL_MET` in height; every view of an inside place inside its outline; each doorway its plan's
   door row: on its side, sill or bearing, its metres within `DOOR_SHARE`, at least `PASSABLE`, leading where its lead
   does), `laid-as-designed` (2026-11-04 audit, faults every check had passed: no two pieces of one row at one spot; a
-  wall-held object's front out into the room, its built length within its wall's face, off the floor where its words
-  say high or it is a light; a thing hung from the roof its top at the roof's underside over it, `writer.roof_under`;
+  wall-held object's front out into the room, its built length within its wall's face, never bent round a corner of
+  its walls (`bent_faults`: its ends on two straight runs, 2026-11-06: hangar's pipe, galley's cabinets), off the
+  floor where its words say high or it is a light; a thing hung from the roof its top at the roof's underside over it, `writer.roof_under`;
   a seat its words put at, by or before a holder within `SEAT_REACH` of its built side; a thing its relation stands
   on the floor more than half its built height over it with nothing under its footprint, `floor_faults`: no floor,
   deck, level or flight there, and no standing object's top, never its own row's unless its row piles,

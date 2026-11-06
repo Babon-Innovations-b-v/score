@@ -824,6 +824,11 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
         spots)] + [` -> `and False] + [`
     Break: score/stages/scene_record/gates.py: `min(max(height, float(stair["from"])), float(stair["to"]))` ->
         `float(stair["from"])`
+    2026-11-06 (hangar's second 32 m pipe laid as a chord across its left and front walls' corner, passing every
+    gate): a wall thing whose face runs from one wall round their corner onto the other fails; one flat along a wall
+    passes, and so does a chord over two walls meeting 20 degrees apart (a round wall's facets).
+    Break: score/stages/scene_record/gates.py: `if at[0] != at[1]:` -> `if False:`
+    Break: score/review/holders/__init__.py: `if turn > ROUND_BEND:` -> `if False:` (the chord over facets fails)
     #94: the garage door its relation says rests leaning carries `rests` leaning for the settle to lean it by; the
     door, resting as the others lay it, carries none.
     Break: score/stages/scene_record/writer.py: `**({"rests": relation["rests"]} if relation and relation.get("rests")
@@ -903,6 +908,17 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     raised = {**design, "levels": [{"height": 1.0, "points": [[14.0, 14.0], [18.0, 14.0], [18.0, 18.0], [14.0, 18.0]]}],
               "stairs": [{"points": [[14.0, 1.0], [18.0, 1.0], [18.0, 3.0], [14.0, 3.0]], "from": 0.0, "to": 2.0}]}
     assert faults(objects + [crate(1, 16.0, 16.0, 1.0), crate(2, 16.0, 2.0, 1.0)], plan=raised) == []
+    walled = {**design, "walls": [{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2},
+                                  {"from": [0.0, 0.0], "to": [0.0, 20.0], "thick": 0.2},
+                                  {"from": [10.0, 20.0], "to": [15.0, 20.0], "thick": 0.2},
+                                  {"from": [15.0, 20.0], "to": [19.698, 21.71], "thick": 0.2}]}
+
+    def on_wall(name, first, second):  # a wall thing whose face runs from plan `first` to `second`
+        return {"name": name, "on": {"how": "wall", "span": [[first[0] - 10.0, first[1] - 10.0],
+                                                             [second[0] - 10.0, second[1] - 10.0]]}}
+    assert gates.bent_faults([on_wall("flat_1", (0.1, 2.0), (0.1, 6.0)), on_wall("chord_1", (12.0, 19.9), (18.0, 21.0)),
+                              on_wall("bent_1", (0.1, 4.0), (4.0, 0.1))], walled) == [
+        "bent_1 is laid round a corner of its walls, its ends on two of their straight runs"]
     assert found["suit"]["on"]["hangs"] is True and found["suit"]["on"]["holder"] == ["module_1"], found["suit"]
     (tmp_path / "plans").mkdir()
     (tmp_path / "plans/hut.json").write_text(json.dumps(design))
