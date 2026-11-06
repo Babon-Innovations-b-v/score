@@ -217,13 +217,18 @@ def shell(design, place, library, rows=None):
     """The room shell's entries (design_shell.pieces) stood in the place's frame, each painted from the scene's
     library by its part's kind; each of the shell's own rows (`rows`: {part: [row id]}) named (`row`, its score:row)
     on the first piece of its part no other row names, an opening's on the piece over the cut its plan item makes
-    (opening_pieces; none where no wall is cut at it: hangar's floor hatch named no lintel, 2026-10-30)."""
+    (opening_pieces; none where no wall is cut at it: hangar's floor hatch named no lintel, 2026-10-30), else at a cut
+    its words fit (name_open_cuts)."""
     found = [painted(shell_entry(name, number, piece, design, said), design_shell.part_kind(name), place, library)
              for name, parts, said in design_shell.pieces(design) for number, piece in enumerate(parts)]
     by_name = {entry["name"]: entry for entry in found}
     for row_id in (rows or {}).get("opening", []):
         for name in opening_pieces(design, row_id):
             by_name[name].setdefault("row", row_id)
+    # an opening row its plan item cuts no wall for named on its cut first, before a free row takes that piece (the
+    # hangar's roof panels took roof_1, its roof opening left on none, 2026-11-06); a floor hatch's flight is named
+    # in `structure`, once the flights are laid
+    name_open_cuts(design, found, (rows or {}).get("opening", []))
     free = {part: list(ids) for part, ids in (rows or {}).items() if part != "opening"}
     for entry in found:
         if "row" in entry:
