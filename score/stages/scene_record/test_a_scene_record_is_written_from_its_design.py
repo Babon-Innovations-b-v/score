@@ -100,7 +100,11 @@ def test_a_plan_maps_and_faults_fail():
     Break: score/stages/scene_record/plan.py: `return leads.get(f"{side}:{float(at):g}") or leads.get(` ->
         `return leads.get(`
     Break: score/stages/scene_record/gates.py: `key=lambda pair: abs(float(pair[1]["at"][0 if where in ("N", "S") else 1]) - float(along)))` ->
-        `key=lambda pair: 0.0)`"""
+        `key=lambda pair: 0.0)`
+    A record's doorways lead where its own hold leads them, and its neighbours' doors lead back to its hold's name
+    (2026-11-06: the base's tube, the airlock).
+    Break: score/stages/scene_record/writer.py held_design: `return (place_plan.as_held(own, design), place_plan.name_of(own)) if own else (design, place)` ->
+        `return design, place`"""
     with tempfile.TemporaryDirectory() as folder:
         out, inputs = made(folder, SHED)
         found = plan.judge_mapped(out, inputs, None)
@@ -180,6 +184,16 @@ def test_a_plan_maps_and_faults_fail():
         assert plan.levels_of(plan.held_plans(base, plans)) == {"hub": 0.0, "tube#1": 0.0, "lab": -1.0}
         found = plan.judge_held(out, {"plans": plans}, None)
         assert found.answer == checks.PASS, found.findings
+        # each record leads its doorways where its own hold leads them, its neighbours' doors leading back to that
+        # hold's name: the tube stands the hub and the lab, the lab and the hub each tube#1, every door met (2026-11-06:
+        # the base's tube met no door of the greenhouse or the hub back, which lead to its instance, and the airlock
+        # stood the hub, which its hold leads past it to tube#3)
+        (pathlib.Path(folder) / "inventory.json").write_text(json.dumps({"rows": []}))
+        given = {"plans": plans, "inventory": pathlib.Path(folder) / "inventory.json"}
+        for name, own, neighbours in (("tube", tube, {"hub", "lab"}), ("lab", lab, {"tube#1"}), ("hub", hub, {"tube#1"})):
+            record = {"place": name, "places": gates.writer.places_of(name, {"doors": []}, own, plans)}
+            assert {entry.get("instance", entry["name"]) for entry in record["places"]} == neighbours, record["places"]
+            assert gates.pair_faults(record, own, given) == gates.lead_faults(record, own, given) == [], name
     walled = {**SHED, "doors": [["E", 1.5, 0.9, "DOOR to the galley 0.9 x 2.0 m"], ["E", 4.5, 0.9, "DOOR to the yard"]],
               "leads": {"E": {"to": "sealed", "why": "shut"}, "E:4.5": {"to": "yard", "why": "the yard's door"}},
               "openings": [{"kind": "door", "at": [8.0, 4.5], "wide": 0.9, "sill": 0.0, "to": "yard"},

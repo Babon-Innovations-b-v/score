@@ -708,14 +708,16 @@ def doors_led(store, place, shown):
 
 def edit_inside(store, place, shown):
     """`shown` with what his edit (or a redrawing, `redrawn`) lays past its own outline brought inside it
-    (plan_fixes.kept_inside, each fix added to its `fixes`), as holds_fitted fits his edit's holds: no writing carries a
-    fix over his edit (the hangar's edit of 2026-10-21 kept the 55.7 m writing's person spots and pipes past its 32 x
-    64 m; its redrawing of 2026-11-05 too); a writing is fixed as a writing (plans_pass)."""
+    (plan_fixes.kept_inside) and each doorway its own door rows say its row's width (plan_fixes.doors_sized, where it
+    stands kept), each fix added to its `fixes`, as holds_fitted fits his edit's holds: no writing carries a fix over
+    his edit (the hangar's edit of 2026-10-21 kept the 55.7 m writing's person spots and pipes past its 32 x 64 m; its
+    redrawing of 2026-11-05 too; habitat's edit its writing's 0.237 m hatches); a writing is fixed as a writing
+    (plans_pass)."""
     if shown is None or shown["how"] not in ("edited", "revised", "redrawn"):
         return shown
     from score.review import plan_fixes
     plan = copy.deepcopy(shown["plan"])
-    fixes = plan_fixes.kept_inside(plan, inventory_of(store, place))
+    fixes = plan_fixes.kept_inside(plan, inventory_of(store, place)) + plan_fixes.doors_sized(plan)
     return {**shown, "plan": {**plan, "fixes": [*plan.get("fixes", []), *fixes]}} if fixes else shown
 
 

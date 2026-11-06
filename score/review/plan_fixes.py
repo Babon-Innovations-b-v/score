@@ -406,6 +406,28 @@ def doors_kept(plan, inventory):
     return fixes
 
 
+def doors_sized(plan):
+    """Each doorway of an edit that a door row of it is (doorway_for, as doors_kept matches them) made its row's
+    metres wide, where it stands and where it leads kept as the edit draws them: none moved, cut or dropped, which only
+    a writing's doors_kept does (2026-11-06: habitat's edit of 2026-10-25 kept its writing's 0.237 m hatches for its
+    own 2.2 m rows, the base's redrawn greenhouse a 1.305 m one, so scene-record@habitat and @greenhouse failed
+    `openings`); the fixes said."""
+    doors = [door_of(plan, door) for door in plan.get("doors") or [] if isinstance(door, list) and len(door) >= 3]
+    left = [(number, opening) for number, opening in enumerate(plan.get("openings") or [])
+            if opening.get("kind") in DOORWAY_KINDS]
+    fixes = []
+    for place, metres, words, sill, along, lead in doors:
+        found = doorway_for(plan, place, metres, sill, lead, left, along)
+        if found is None:
+            continue
+        left.remove(found)
+        if abs(float(found[1]["wide"]) - metres) > 1e-6:
+            fixes.append(f"{words}: its doorway at {found[1]['at']} {float(found[1]['wide']):g} m wide made its door "
+                         f"row's {metres:g} m")
+            found[1]["wide"] = metres
+    return fixes
+
+
 # --- what lies past its own outline (the plan row's gate `held`, scene_record/plan.inside_faults) ---------------------
 
 INSIDE_STEP = 0.025  # metres between the offsets tried when a thing is moved inside its outline

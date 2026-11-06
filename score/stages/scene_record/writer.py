@@ -721,10 +721,22 @@ def holder_of(place, plans):
     return None, None
 
 
-def leads_of(plan, design):
-    """Every place a door (the plan row's `leads`) or an opening (the kept plan's `to`) of the place leads to."""
-    found = {door["leads"] for door in plan["doors"]} | {opening.get("to") for opening in design.get("openings") or []}
+def leads_of(plan, design, hold=None):
+    """Every place a door (the plan row's `leads`) or an opening (the kept plan's `to`) of the place leads to, each
+    door's lead where its `hold` leads it (place_plan.as_held)."""
+    renamed = (hold or {}).get("leads") or {}
+    found = {renamed.get(door["leads"], door["leads"]) for door in plan["doors"]} | {
+        opening.get("to") for opening in design.get("openings") or []}
     return sorted(name for name in found if name and name not in NOT_PLACES)
+
+
+def held_design(place, design, holder):
+    """(the place's plan as its own hold on its holder stands it, the name that hold stands under): its doorways
+    leading where its hold leads them (place_plan.as_held: the base's airlock door to the hub, led to tube#3), and the
+    name its neighbours' doors lead back to (the tube's own hold, tube#4, the one the greenhouse's and the hub's doors
+    lead to; 2026-11-06: the tube's two ends met no door back, the airlock's none)."""
+    own = place_plan.hold_of(holder, place)
+    return (place_plan.as_held(own, design), place_plan.name_of(own)) if own else (design, place)
 
 
 def origin_on_holder(design, hold):
@@ -794,7 +806,8 @@ def stood(place, design, hold, name, other, other_hold, why, level=0.0, other_le
     place's stage, stretched as its hold says (`scale`)."""
     there, other_floor = origin_on_holder(other, other_hold)
     _, floor = origin_on_holder(design, hold)
-    met = [pair for pair in place_plan.paired(design, hold, place, other, other_hold, name) if pair["back"]]
+    met = [pair for pair in place_plan.paired(design, hold, place_plan.name_of(hold), other, other_hold, name)
+           if pair["back"]]
     if met:  # from this place's door, along the holder's plan to the other's origin as its door back meets it
         there = there + met[0]["spot"] - met[0]["there"]
         own = np.asarray(met[0]["door"]["at"], float) + unturned(hold, there - met[0]["spot"])
@@ -819,7 +832,9 @@ def places_of(place, plan, design, plans, handin=None):
     if holder is None:
         return []
     held = {place_plan.name_of(hold): hold["place"] for hold in holder.get("holds") or []}
-    found = [sibling(place, design, holder, name, plans) for name in leads_of(plan, design)
+    led, _ = held_design(place, design, holder)
+    found = [sibling(place, led, holder, name, plans)
+             for name in leads_of(plan, led, place_plan.hold_of(holder, place))
              if name in held and name != place and (pathlib.Path(plans) / f"{held[name]}.json").is_file()]
     return found + shown_places(place, design, holder_name, holder, plans, handin or {}, {entry["name"]
                                                                                           for entry in found})
