@@ -32,6 +32,8 @@ Each plan item of a row that stands on, against or in something gets one relatio
            at the longest wall's middle; an item outlining the whole room (outlines_room: its middle says nothing)
            on the wall its holder's id names as the viewer sees it (left_wall), else, the concept not placing it, the
            middle of the nearest wall no other such item holds; such items sharing a spot on one wall spread along it;
+           any row's items at one spot on one wall at one height packed along it, else stood one over another up it
+           (parted_on_wall);
            a placed item stands on the room's side, drawn past the outline or not, but a passage (a tunnel, a tube)
            meets its wall from outside (past_outline)
     ramp   a ramp row on the floor where the plan draws a raised level (airlock's porch deck): up to the nearest such
@@ -1174,6 +1176,8 @@ def packed(alongs, length, long):
     return [first + number * pitch for number in range(len(alongs))]
 
 
+# Wall things of one row nearer than this, metres, stand at one spot (scene_record/gates.SAME_SPOT): parted.
+ONE_SPOT = 0.02
 # Two walls meet in a chain where their ends lie within this of each other, metres; a run of one piece goes round a
 # meeting no sharper than ROUND_BEND degrees (a round wall's facets), a run of several round a corner up to
 # CORNER_BEND (never doubling back along a wall's other face).
@@ -1315,6 +1319,53 @@ def spread_pieces(found, items, rows, plan, inventory, tied):
                                for spot in floor_pieces(entry, row, count, plan, inventory)]
 
 
+def wall_height(entry, plan):
+    """Metres over the floor a wall relation's object stands at: its mount `height`, else its plan item's base."""
+    return float(entry.get("height", ((plan.get("shapes") or {}).get(entry["item"]) or {}).get("base") or 0.0))
+
+
+def parted_on_wall(found, rows, plan):
+    """Wall relations of one row's items at one spot on one wall at one height (within ONE_SPOT: the scene record would
+    lay them in one another) each given its own place: packed along the wall their built length and PIECE_GAP apart
+    where it holds them so (packed), else stood one over another up it round their height, their tall and PIECE_GAP
+    apart, inside the room's height. 2026-11-06: garage's pipes 3 to 5, three 10 m pipes the plan's fixes moved to one
+    corner of its 11.9 m wall, stood at one spot."""
+    groups = {}
+    for entry in found:
+        if entry.get("how") == "wall" and "pieces" not in entry:
+            key = (entry["row"], wall_key(entry["wall"]), entry["side"], round(wall_height(entry, plan), 3))
+            groups.setdefault(key, []).append(entry)
+    for (row_id, _, _, height), entries in groups.items():
+        spots = []  # [[entry]] of each spot, the first entry's spot
+        for entry in entries:
+            near = next((laid for laid in spots if math.dist(laid[0]["spot"], entry["spot"]) < ONE_SPOT), None)
+            near.append(entry) if near else spots.append([entry])
+        for together in spots:
+            if len(together) > 1:
+                part_at_spot(together, rows[row_id], plan, height)
+
+
+def part_at_spot(entries, row, plan, height):
+    """Wall relations of one row at one spot given each its own: packed along its wall, else stood up it."""
+    wall, long = entries[0]["wall"], max(built_long(row), PIECE_GAP)
+    start, end = numpy.asarray(wall["from"], float), numpy.asarray(wall["to"], float)
+    length = wall_length(wall)
+    run = (end - start) / max(length, 1e-9)
+    if run_needed(row, len(entries)) <= length:
+        alongs = [float((numpy.asarray(entry["spot"], float) - start) @ run) for entry in entries]
+        for entry, along in zip(entries, packed(alongs, length, long)):
+            entry["spot"] = [round(float(value), 3) for value in start + run * along]
+            entry["why"] += "; packed along its wall with its row's others at its spot"
+        return
+    tall = float(row["size"][2]) if isinstance(row.get("size"), list) and len(row["size"]) == 3 else 0.0
+    pitch, room = tall + PIECE_GAP, room_height(plan) or design_shell.STOREY
+    heights = [height + (number - (len(entries) - 1) / 2) * pitch for number in range(len(entries))]
+    lift = max(-heights[0], min(0.0, room - tall - heights[-1]))
+    for entry, stood in zip(entries, heights):
+        entry["height"] = round(stood + lift, 3)
+        entry["why"] += "; stood over its row's others at its spot on its wall, too long to pack along it"
+
+
 def beside_holder(item, row, rows, laid, items):
     """(holder row, its plan item) a seat stands before: a seat row (SEAT_WORDS) whose where words say it stands at,
     by, before or around (BESIDE_WORDS) a row its other words name (a word of what that row is, plural or not) laid
@@ -1439,6 +1490,7 @@ def relations(plan, inventory, sha=None, kinds=None):
     room_walls(found, items, rows, plan, turn, inventory, tied)
     crowded = spread(found) + face_spread(found, items, rows, plan, inventory, kinds)
     spread_pieces(found, items, rows, plan, inventory, tied)
+    parted_on_wall(found, rows, plan)
     seats_beside(found, items, rows, plan, tied)
     rails_along(found, plan)
     for entry in found:
