@@ -25,6 +25,10 @@ dependencies = [
     "boto3>=1.43.110",
     "usd-validation-nvidia[usd]==1.22.0",
     "coacd==1.0.14",
+    # Kimodo's own foot correction (tools/characters/played `contacted`, #70): its MotionCorrection C++ as prebuilt
+    # manylinux wheels in vendor/kimodo/wheels (build.sh there), so no box compiles it. Its torch requirement is its
+    # unused Python wrapper's: never installed (override-dependencies below).
+    "motion-correction",
 ]
 
 [dependency-groups]
@@ -35,3 +39,12 @@ dashboard = ["django>=5.2,<5.3", "fastapi>=0.115", "uvicorn>=0.34", "pydantic>=2
 
 [tool.uv]
 package = false
+# motion-correction's setup.py asks for torch for its motion_postprocess wrapper, which nothing here imports: a marker
+# no supported Python matches keeps it out of the lock and the venv.
+override-dependencies = ["torch; python_version < '3'"]
+
+[tool.uv.sources]
+motion-correction = [
+    { path = "vendor/kimodo/wheels/motion_correction-1.0.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", marker = "python_version == '3.11'" },
+    { path = "vendor/kimodo/wheels/motion_correction-1.0.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", marker = "python_version == '3.12'" },
+]

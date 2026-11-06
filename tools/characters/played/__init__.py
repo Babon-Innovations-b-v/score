@@ -81,6 +81,9 @@ CONTACT_CHANNELS = {6: (0, 1, 3, 4), 4: (0, 1, 2, 3)}
 # post_process_motion's own settings (kimodo/postprocess.py defaults).
 CONTACT_THRESHOLD = 0.5
 ROOT_MARGIN = 0.04
+# Kimodo's skeleton ends at the toe base and its toe pin turns the foot alone, so a foot pitched onto its toes carries
+# its toes down with it; `toward_flat` bends a toe back toward lying flat (the sim body's `toes_lifted` uses it).
+TOES = (("LeftToeBase", "LeftToeEnd"), ("RightToeBase", "RightToeEnd"))
 
 
 def kimodo_joints(names, parents):
@@ -147,14 +150,63 @@ def from_kimodo(local, bind, joints, parents, kimodo, hips):
     return moved
 
 
+def toward_flat(local, names, parents, bind, toe, share):
+    """`local` with the toe `toe` (its base and end joints, as TOES gives them) bent on every frame `share` (0 to 1,
+    one or one a frame) of the least way from its turn to flat: flat its turn the bind's, turned only about the upright
+    as the clip turns it (the twist about the upright of its turn from the bind), so its sole lies as the bind's
+    does."""
+    moved = np.array(local, dtype=float)
+    bind = np.asarray(bind)
+    base, end = (names.index(name) for name in toe)
+    if parents[end] != base:
+        raise ValueError(f"the rig's {names[end]} hangs from {names[parents[end]]}, not from {names[base]}")
+    world = chained(moved, parents)
+    own = world[:, base, :3, :3]
+    turn = own @ bind[base, :3, :3].T
+    angle = np.arctan2(turn[:, 0, 2] - turn[:, 2, 0], turn[:, 0, 0] + turn[:, 2, 2])
+    flat = turned_about(np.tile([0.0, 1.0, 0.0], (len(moved), 1)), angle) @ bind[base, :3, :3]
+    axis, whole = turn_vector(flat @ np.swapaxes(own, 1, 2))
+    bent = turned_about(axis, np.broadcast_to(np.asarray(share, dtype=float), whole.shape) * whole) @ own
+    moved[:, base, :3, :3] = np.swapaxes(world[:, parents[base], :3, :3], 1, 2) @ bent
+    return moved
+
+
+def turned_about(axes, angles):
+    """Turns (n x 3 x 3) of `angles` (n, radians) about the unit `axes` (n x 3)."""
+    axes = np.asarray(axes, dtype=float)
+    cross = np.zeros((len(axes), 3, 3))
+    cross[:, 0, 1], cross[:, 0, 2], cross[:, 1, 2] = -axes[:, 2], axes[:, 1], -axes[:, 0]
+    cross -= np.swapaxes(cross, 1, 2)
+    sine, cosine = np.sin(angles)[:, None, None], np.cos(angles)[:, None, None]
+    return np.eye(3) + sine * cross + (1.0 - cosine) * cross @ cross
+
+
+def turn_vector(turns):
+    """Each turn's (n x 3 x 3) unit axis (n x 3; any, for no turn) and angle (n, radians, 0 to pi)."""
+    cosine = np.clip((np.trace(turns, axis1=1, axis2=2) - 1.0) / 2.0, -1.0, 1.0)
+    angle = np.arccos(cosine)
+    skew = np.stack([turns[:, 2, 1] - turns[:, 1, 2], turns[:, 0, 2] - turns[:, 2, 0], turns[:, 1, 0] - turns[:, 0, 1]],
+                    axis=1)
+    length = np.linalg.norm(skew, axis=1)
+    axis = np.where(length[:, None] > 1e-12, skew / np.maximum(length, 1e-12)[:, None], [1.0, 0.0, 0.0])
+    return axis, angle
+
+
 def contacted(local, names, parents, bind, contacts):
     """`local` (a clip against its parents on a build, its feet stood) with Kimodo's own foot correction run on the
     build's bones (MotionCorrection's correct_motion, as post_process_motion calls it, no constraints): on Kimodo's
     contact frames each foot's ankle held from sinking under, and its toe put at, its height at the build's bind, the
     feet held from skating; `contacts` Kimodo's foot_contacts for the clip. The rig's floor is the bind's own, never
-    Kimodo's lowest toe plus 2 cm. Needs Kimodo's motion_correction (vendor/kimodo/MotionCorrection, built)."""
-    import motion_correction  # Kimodo's compiled correction: vendor/kimodo/MotionCorrection
+    Kimodo's lowest toe plus 2 cm. Needs Kimodo's motion_correction (vendor/kimodo/MotionCorrection, its prebuilt wheel
+    installed by `uv sync`), refused by name without it."""
     from scipy.spatial.transform import Rotation
+
+    try:
+        import motion_correction  # Kimodo's compiled correction: vendor/kimodo/MotionCorrection
+    except ModuleNotFoundError as missing:
+        raise RuntimeError("Kimodo's foot correction needs motion_correction, its prebuilt wheel from vendor/kimodo/wheels "
+                           "installed by `uv sync` (pyproject's motion-correction)") \
+            from missing
 
     names = [str(name) for name in names]
     contacts = foot_contacts(contacts)
