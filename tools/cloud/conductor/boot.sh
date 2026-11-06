@@ -34,7 +34,7 @@ REPO_URL=https://github.com/Babon-Innovations-b-v/score
 LIB_URL=git@github.com:Babon-Innovations-b-v/score_lib.git
 # rsync and ssh: the cloud runners' copies to and from rented machines (batch.copy); ffmpeg: the sound rows' loudness;
 # node and npm come from NODE_URL below, not apt (Ubuntu's is older than the film preview's Playwright takes).
-APT_PACKAGES=(git sqlite3 ca-certificates curl bzip2 python3 rsync openssh-client ffmpeg)
+APT_PACKAGES=(git sqlite3 ca-certificates curl bzip2 python3 rsync openssh-client ffmpeg g++ make cmake)
 BIN="$ROOT/usr/local/bin"
 
 RESTIC_VERSION=0.19.1
