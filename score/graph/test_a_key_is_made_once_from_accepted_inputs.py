@@ -1029,13 +1029,17 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
     wired to another function (B), another Python, H edited, a file read only through H (J) edited or deleted make A
     again. A second narrowing (G moved too) is kept as well, still naming what made it. Nothing moved, A and G
     reworded only (comments, blank lines, layout, docstrings) keep it, the record naming them; a docstring changed in
-    a file that reads `__doc__`, or a type hint, makes A again.
-    Break: score/graph/__init__.py: '        return (record, reworded) if _code.unchanged(dropped, file_hash) else None' -> '        return (record, reworded)'"""
+    a file that reads `__doc__`, or a type hint, makes A again. A's phase locked (Runner.lock_phase): its own file
+    edited keeps it, the record "kept by the phase lock of <time>", status naming the lock and A kept by it; its
+    {seeds} file changed (an input) makes A again; unlocked, its own file edited makes A again (case 1).
+    Break: score/graph/__init__.py: '        return (record, reworded) if _code.unchanged(dropped, file_hash) else None' -> '        return (record, reworded)'
+    Break: score/graph/__init__.py: '        if not all(self.code_file(stage, name, place) for name in keyed["files"]' -> '        if False and not all(self.code_file(stage, name, place) for name in keyed["files"]'"""
     for case, change, kept in ((0, None, True), (1, "own file", False), (2, "seeds", False),
                                (3, "make swapped", False), (4, "python", False), (5, "helper edited", False),
                                (6, "read through helper edited", False), (7, "second narrowing", True),
                                (8, "read through helper deleted", False), (9, "words only", True),
-                               (10, "read docstring changed", False), (11, "type hint", False)):
+                               (10, "read docstring changed", False), (11, "type hint", False),
+                               (12, "own file, phase locked", True), (13, "seeds, phase locked", False)):
         seeds = pathlib.Path(tempfile.mkdtemp())
         (seeds / "hangar.txt").write_text("a seed")
         world = graph.Environment("toy", 7, {"seeds": str(seeds)})
@@ -1048,6 +1052,12 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
             first = a_runner(world, store, (stage,)).run(["hangar"])["narrow@hangar"]
             assert first == "made: pass, accepted automatically", first
             old = store.records("narrow@hangar")[0]
+            lock = None
+            if (change or "").endswith(", phase locked"):
+                lock = a_runner(world, store, (stage,)).lock_phase("props", [(stage, "hangar")])
+                assert lock["nodes"] == {"narrow@hangar": {"output": old["output"], "key": old["key"],
+                                                           "commit": old["commit"]}} and lock["n"] == 1, lock
+                change = change.removesuffix(", phase locked")
             if change not in ("words only", "read docstring changed", "type hint"):
                 _code.FRAMEWORK.add(repo / f"narrow_h{case}.py")
             edits = {"own file": (f"narrow_a{case}.py", stage_source(case) + "EXTRA = 1\n"),
@@ -1081,7 +1091,14 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
             assert done.startswith("fresh" if kept else "made: pass"), (change, done)
             record = store.record("narrow@hangar", keyed["key"])
             made_by = {"commit": old["commit"], "code": old["code"]}
-            if change == "words only":
+            if lock:
+                assert runner.phase_lock_lines()[0].endswith(
+                    f"1 nodes locked, {int(kept)} kept by it" + (": narrow@hangar" if kept else "")), change
+            if lock and kept:
+                assert record["output"] == old["output"] and record["carried"] == {
+                    "reason": graph.PHASE_REASON.format(at=lock["at"]), "phase": "props", "lock": 1,
+                    "from key": old["key"], "to key": keyed["key"], "made by": made_by}
+            elif change == "words only":
                 assert record["output"] == old["output"] and record["carried"] == {
                     "reason": graph.WORDS_REASON, "from key": old["key"], "to key": keyed["key"], "made by": made_by,
                     "words only": [f"narrow_a{case}.py", f"narrow_g{case}.py"]}

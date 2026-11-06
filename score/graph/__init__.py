@@ -58,6 +58,7 @@ import multiprocessing.connection
 import os
 import pathlib
 import platform
+import re
 import shutil
 import signal
 import subprocess
@@ -394,6 +395,14 @@ NARROWING_REASON = "same reads: every file its key reads today reads as it did w
 WORDS_REASON = "same meaning: every file its key reads today reads as when it was made, or differs only in words"
 # The key parts a narrowing carry needs the same: all but the code version and the declared files' hashes.
 NARROWING_SAME = ("contract", "expects", "params", "seed", "models", "after", "beside")
+# A phase's lock (CONTEXT.md "phase", the owner's design of 2026-11-06): its accepted outputs, never made again by
+# a later code change. phase-locks/<environment>/<phase>/<n>.json, written once by `score lock-phase` (the runner's
+# bookkeeping, no accept, reject, waiver or spend); a locked node is kept over a key that moved only by code.
+PHASE_LOCKS = "phase-locks/"
+PHASE_REASON = "kept by the phase lock of {at}"
+PHASE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
+# The key parts a phase lock keeps the same: all but the code version and the repository's code files.
+PHASE_SAME = NARROWING_SAME
 
 
 def made_by(record):
@@ -1524,6 +1533,8 @@ class Runner:
             record = self.kept_by_narrowing(stage, place, keyed)
         if keeps and record is None:  # its accepted output, kept when a stored proof says every change is a no-op
             record = self.kept_by_proof(stage, place, keyed)
+        if keeps and record is None:  # its accepted output, kept when its phase is locked and only code moved its key
+            record = self.kept_by_phase_lock(stage, place, keyed)
         made = record is None
         if made:
             try:
@@ -1769,6 +1780,106 @@ class Runner:
             self.store.write_judgement(node, keyed["key"], judgement["evidence"],
                                        {**judgement, "key": keyed["key"], "carried": new["carried"]})
         return new
+
+    def phase_locks(self):
+        """Every phase lock of this run's environment (PHASE_LOCKS), oldest first."""
+        prefix = f"{PHASE_LOCKS}{self.world.name}/"
+        return sorted((self.store.read(key) for key in self.store.objects.keys(prefix)), key=lambda lock: lock["at"])
+
+    def locked_standing(self, stage, place):
+        """The node's entry in a phase lock ({"output", "key", "commit"}) when it stands accepted now: a record on
+        its current key whose output is its accepted output. None otherwise (blocked, not made, not accepted)."""
+        node = node_name(stage, place)
+        try:
+            keyed = self.key(stage, place)
+        except Blocked:
+            return None
+        record = self.store.record(node, keyed["key"])
+        if record is None or self.store.accepted(node) != record["output"]:
+            return None
+        return {"output": record["output"], "key": keyed["key"], "commit": record.get("commit")}
+
+    def lock_phase(self, phase, nodes):
+        """Lock one phase of this environment: each of `nodes` ((stage, place)) standing accepted now, its accepted
+        output and the key it stands under, with the commit and time, written once as the phase's next lock
+        (PHASE_LOCKS/<environment>/<phase>/<n>.json). The lock written; ValueError on a phase name that is no path
+        part or when no node stands, FileExistsError when another lock took that n first. Not an owner decision: no
+        accept, reject, waiver or spend is written."""
+        if not PHASE_NAME.fullmatch(phase):
+            raise ValueError(f"{phase!r}: a phase is named by letters, digits, '.', '_' and '-'")
+        with self.still():
+            found = {node_name(stage, place): self.locked_standing(stage, place) for stage, place in nodes}
+        locked = {node: entry for node, entry in sorted(found.items()) if entry is not None}
+        if not locked:
+            raise ValueError(f"phase {phase}: none of its {len(found)} nodes stands accepted, nothing to lock")
+        prefix = f"{PHASE_LOCKS}{self.world.name}/{phase}/"
+        number = len(list(self.store.objects.keys(prefix))) + 1
+        lock = {"environment": self.world.name, "phase": phase, "n": number, "at": now(), "by": score_store.RUNNER,
+                "commit": _code.git_commit(), "nodes": locked,
+                "not standing": sorted(node for node, entry in found.items() if entry is None)}
+        self.store.write_once(f"{prefix}{number}.json", lock)
+        return lock
+
+    def code_file(self, stage, name, place):
+        """True when a declared file is one of the repository's code files: under the repository, not its data."""
+        path = self.file_path(stage, name, place).resolve()
+        return path.is_relative_to(_code.REPO) and not path.is_relative_to(_code.REPO / "data")
+
+    def phase_locked(self, stage, place, keyed):
+        """(the newest phase lock holding the node's accepted output, the record it was locked under) when only code
+        moved the node's key since: every key part but the code version the same as that record's (its inputs'
+        accepted outputs above all), and each declared file that moved one of the repository's code files. None
+        otherwise (the runner then makes the node)."""
+        node = node_name(stage, place)
+        accepted = self.store.accepted(node)
+        locks = [lock for lock in self.phase_locks() if lock["nodes"].get(node, {}).get("output") == accepted]
+        if accepted is None or not locks:
+            return None
+        record = self.store.record(node, locks[-1]["nodes"][node]["key"])
+        if record is None or record["output"] != accepted:
+            return None
+        if any(record.get(part) != keyed.get(part) for part in PHASE_SAME) or \
+                set(record["files"]) != set(keyed["files"]):
+            return None
+        if not all(self.code_file(stage, name, place) for name in keyed["files"]
+                   if record["files"][name] != keyed["files"][name]):
+            return None
+        return locks[-1], record
+
+    def kept_by_phase_lock(self, stage, place, keyed):
+        """The node's accepted output stored under `keyed` when its phase is locked and only code moved its key
+        (phase_locked): its record and judgements copied, the record saying "kept by the phase lock of <time>" with
+        the phase, the lock's number, both keys and what made it. Its new record, or None (the runner then makes the
+        node)."""
+        found = self.phase_locked(stage, place, keyed)
+        if found is None:
+            return None
+        lock, record = found
+        node = node_name(stage, place)
+        new = {**record, "key": keyed["key"], "code": keyed["code"], "files": keyed["files"],
+               "carried": {"reason": PHASE_REASON.format(at=lock["at"]), "phase": lock["phase"], "lock": lock["n"],
+                           "from key": record["key"], "to key": keyed["key"], "made by": made_by(record)}}
+        try:
+            self.store.write_record(node, keyed["key"], new)
+        except FileExistsError:  # another run kept it first
+            return self.store.record(node, keyed["key"])
+        for judgement in self.store.judgements(node, record["key"]):
+            self.store.write_judgement(node, keyed["key"], judgement["evidence"],
+                                       {**judgement, "key": keyed["key"], "carried": new["carried"]})
+        return new
+
+    def phase_lock_lines(self):
+        """One line a phase lock of this environment: its phase, number, time and commit, how many nodes it holds and
+        each node kept by it (a record carried by that lock)."""
+        lines = []
+        for lock in self.phase_locks():
+            kept = sorted(node for node in lock["nodes"] if any(
+                record.get("carried", {}).get("phase") == lock["phase"] and record["carried"].get("lock") == lock["n"]
+                for record in self.store.records(node)))
+            lines.append(f"phase {lock['phase']} locked (lock {lock['n']}, {lock['at']}, commit "
+                         f"{(lock['commit'].get('commit') or 'unknown')[:8]}): {len(lock['nodes'])} nodes locked, "
+                         f"{len(kept)} kept by it" + (f": {', '.join(kept)}" if kept else ""))
+        return lines
 
     def newer_accepted(self, node, key):
         """Why this run must not accept over the node's accepted output: it was made under another key by a commit
