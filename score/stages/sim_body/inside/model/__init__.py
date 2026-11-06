@@ -4,6 +4,8 @@ the joints kept in range (`limited`), a body's pose in the person's frame (`own_
 (`default_pose`), each SOMA segment riding its bone along a path (`posed_path`), the path low-passed (`filtered`) and
 its velocities and accelerations (`rates`), a path of MuJoCo's own compile carried onto it (`carried`), and the MuJoCo
 Warp model Newton put on the card (`on_card`)."""
+import contextlib
+
 import mujoco
 import newton
 import numpy as np
@@ -59,19 +61,59 @@ def carried(source, target, path):
     return found
 
 
+# Every call that adds, attaches or deletes a body in a spec: `listed_once` forgets its kept list at each.
+CHANGES_BODIES = ((mujoco.MjSpec, "attach"), (mujoco.MjSpec, "delete"), (mujoco.MjsBody, "add_body"),
+                  (mujoco.MjsBody, "attach_frame"), (mujoco.MjsFrame, "add_body"), (mujoco.MjsFrame, "attach_body"),
+                  (mujoco.MjsSite, "attach_body"))
+
+
+@contextlib.contextmanager
+def listed_once():
+    """Inside it, a spec's `bodies` is listed once and kept until a body is added, attached or deleted
+    (CHANGES_BODIES): Newton's SolverMuJoCo names each excluded body pair by `spec.bodies[...]`, a new list of
+    every body at each read (MjSpec's own), twice a pair, and MyoFullBody's bodies without colliders exclude nearly
+    every pair (#70: about 4 of the 4.3 s of its build on this PC's CPU). The same list, so the same model."""
+    kept = {}
+    listing = mujoco.MjSpec.bodies
+    originals = [(owner, name, getattr(owner, name)) for owner, name in CHANGES_BODIES]
+
+    def bodies(spec):
+        found = kept.get(id(spec))
+        if found is None or found[0] is not spec:
+            found = kept[id(spec)] = (spec, listing.fget(spec))
+        return found[1]
+
+    def forgetting(call):
+        def changed(*args, **kwargs):
+            kept.clear()
+            return call(*args, **kwargs)
+        return changed
+    mujoco.MjSpec.bodies = property(bodies)
+    for owner, name, call in originals:
+        setattr(owner, name, forgetting(call))
+    try:
+        yield
+    finally:
+        mujoco.MjSpec.bodies = listing
+        for owner, name, call in originals:
+            setattr(owner, name, call)
+
+
 def built(path, gravity):
     """MuJoCo's model of the person's body as Newton builds it (SolverMuJoCo): no drives, nothing stepped. With a CUDA
     card Newton builds it there, its SolverMuJoCo on MuJoCo Warp, and the MuJoCo Warp model it puts on the card is kept
     (`on_card`) for every frame's state at once (`batched`); the MuJoCo model it compiles on the way is the same either
-    way, MuJoCo's C (float64) for every frame's own reads. Without one, MuJoCo's CPU backend."""
+    way, MuJoCo's C (float64) for every frame's own reads. Without one, MuJoCo's CPU backend. Its spec's bodies are
+    listed once (`listed_once`)."""
     import warp
     builder = newton.ModelBuilder(up_axis=newton.Axis.Z, gravity=(0.0, 0.0, -gravity))
     newton.solvers.SolverMuJoCo.register_custom_attributes(builder)
     # Bone meshes are drawn from MuJoCo's own model of the file; Newton is given the colliders, wraps and joints.
     builder.add_mjcf(str(path), convert_mjc_equality_constraints=False, parse_meshes=False)
     card = warp.is_cuda_available()
-    solver = newton.solvers.SolverMuJoCo(builder.finalize(device=CARD if card else DEVICE), use_mujoco_cpu=not card,
-                                         use_mujoco_contacts=False, integrator="euler")
+    with listed_once():
+        solver = newton.solvers.SolverMuJoCo(builder.finalize(device=CARD if card else DEVICE),
+                                             use_mujoco_cpu=not card, use_mujoco_contacts=False, integrator="euler")
     if card:
         ON_CARD[id(solver.mj_model)] = (solver.mj_model, solver.mjw_model)
     return solver.mj_model
