@@ -1008,6 +1008,14 @@ def test_a_warm_pool_reserves_only_its_holding_beyond_the_rows_whose_machine_tim
         lambda: compute.pool_clearance(runner, "run-none", choices, 4, beside=400.0, likely=(395.0, 0.0)))
     assert "pass the EUR 396.46 stop" in refused(  # the high fits alone, no pool beside it: no pool, as before
         lambda: compute.pool_clearance(runner, "run-fits", choices, 4, beside=395.0, likely=(40.0, 0.0)))
+    # the likely counts a not-measured row at nothing, the high at its estimate (2026-11-06, checkout 33: its
+    # estimates in the likely too, EUR 430 against a likely EUR 99.07, and no pool fit). Break: in score/__main__.py
+    # rows_high, `if guessed else 0.0` -> `if True else 0.0`
+    from score.__main__ import rows_high
+    prices = [{"likely_euros": 2.0, "high_euros": 5.0, "cards": 1}, {"likely_euros": None, "high_euros": None,
+                                                                     "guess_euros": 90.0}]
+    assert rows_high(prices) == 95.0 and rows_high(prices, field="likely_euros") == 2.0
+    assert rows_high(prices, pooled=True, field="likely_euros") == 2.0
 
 
 def test_a_warm_pool_held_longer_clears_the_more_in_its_one_reservation():

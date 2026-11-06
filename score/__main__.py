@@ -786,8 +786,11 @@ def planned_prices(runner, places, whole, options):
 def rows_high(prices, pooled=False, field="high_euros"):
     """The rows' high euros (a not-measured row at its estimate, as its clearance holds it), what the pool leaves room
     for; `pooled`: only the rows pool_sizes sizes the pool on (a `cards` count), whose machine time the pool bills;
-    `field` "likely_euros" their likely instead (a try that may stop at its line: compute.pool_clearance's `likely`)."""
-    return sum(price.get(field) or price.get("guess_euros") or 0.0 for price in prices
+    `field` "likely_euros" their likely instead (a try that may stop at its line: compute.pool_clearance's `likely`),
+    a not-measured row then at nothing, as the Buy's likely counts it (2026-11-06, Batch 1's checkout 33: its
+    estimates counted in the likely too, EUR 430 against the batch-money likely EUR 99.07, and no pool fit)."""
+    guessed = field == "high_euros"
+    return sum(price.get(field) or (price.get("guess_euros") if guessed else 0.0) or 0.0 for price in prices
                if price.get("cards") or not pooled)
 
 
