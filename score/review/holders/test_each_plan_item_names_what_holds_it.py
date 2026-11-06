@@ -556,6 +556,13 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     a quarter under the room's top; a chair 'at the desk' stands before the desk's built side, SEAT_GAP clear, facing
     it (it stood at its plan box, 3 times the desk's size); three railings of a stair share its two sides, never one
     spot.
+    2026-11-06 (laid-as-designed@garage): three 8 m ducts on three items at one spot on the 20 m wall stand one over
+    another round their mount height, their tall and PIECE_GAP apart (garage's 10 m pipes 3 to 5 stood at one spot);
+    two 1 m clocks at one spot are packed along their wall instead, at one height.
+    Break: score/review/holders/__init__.py: `parted_on_wall(found, rows, plan)` -> `pass`
+    Break: score/review/holders/__init__.py: `if run_needed(row, len(entries)) <= length:` -> `if True:`
+    Break: score/review/holders/__init__.py: `entry["spot"] = [round(float(value), 3) for value in start + run *
+        along]` -> `pass`
     Break: score/review/holders/__init__.py: `entry["pieces"] = wall_pieces(entry, items[entry["item"]], row, count,
         walls_of(plan))` -> `pass`
     Break: score/review/holders/__init__.py: `fitting = ([wall for wall in walls if wall_length(wall) >= need] if
@@ -581,11 +588,15 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
             {"id": "desk", "noun": "desk", "anchor": "floor", "size": [2.0, 0.8, 0.8]},
             {"id": "chair", "noun": "chair", "anchor": "floor", "where": "at the desk", "size": [0.6, 0.6, 1.0]},
             {"id": "staircase", "noun": "staircase", "anchor": "floor"},
-            {"id": "railing", "noun": "railing", "anchor": "on:staircase", "size": [3.0, 0.1, 1.0]}]
+            {"id": "railing", "noun": "railing", "anchor": "on:staircase", "size": [3.0, 0.1, 1.0]},
+            {"id": "duct", "noun": "duct", "anchor": "wall", "size": [8.0, 0.2, 0.2]},
+            {"id": "clock", "noun": "clock", "anchor": "wall", "size": [1.0, 0.1, 0.3]}]
     items = [["TOOLS 1", 0.2, 5.0, 0.5, 2.0, None, "item"], ["PIPE 1", 10.3, 0.5, 0.5, 1.0, None, "item"],
              ["CRANE 1", 1.0, 1.0, 18.0, 2.0, None, "item"], ["LAMP 1", 19.5, 6.0, 0.5, 0.5, None, "item"],
              ["DESK 1", 8.0, 5.0, 6.0, 3.0, "S", "item"], ["CHAIR 1", 10.5, 9.0, 1.0, 1.0, None, "item"],
-             *[[f"RAIL {number}", 2.0, 8.0, 1.0, 3.0, None, "item"] for number in (1, 2, 3)]]
+             *[[f"RAIL {number}", 2.0, 8.0, 1.0, 3.0, None, "item"] for number in (1, 2, 3)],
+             *[[f"DUCT {number}", 6.0, 0.3, 8.0, 0.2, None, "item"] for number in (1, 2, 3)],
+             *[[f"CLOCK {number}", 14.5, 11.5, 1.0, 0.2, None, "item"] for number in (1, 2)]]
     plan = plan_of(items, {item[0]: [item[0].split()[0].lower().replace("rail", "railing")] for item in items},
                    walls=[*ROOM_WALLS, {"from": [10.0, 0.0], "to": [10.0, 2.0], "thick": 0.2}],
                    stairs=[{"points": [[2.0, 8.0], [3.0, 8.0], [3.0, 11.0], [2.0, 11.0]], "angle": 90.0}])
@@ -604,6 +615,12 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     assert (by_item["CHAIR 1"]["beside"], seat["spot"], seat["way"]) == ("DESK 1", [11.0, 7.3], [1.0, 0.0]), seat
     rails = [by_item[f"RAIL {number}"]["pieces"][0]["spot"] for number in (1, 2, 3)]
     assert len({tuple(spot) for spot in rails}) == 3, rails
+    ducts = [by_item[f"DUCT {number}"] for number in (1, 2, 3)]
+    assert sorted(duct["height"] for duct in ducts) == [1.15, 1.4, 1.65], ducts
+    assert {(tuple(duct["spot"]), tuple(duct["wall"]["to"])) for duct in ducts} == {((10.0, 0.4), (20.0, 0.0))}, ducts
+    clocks = [by_item[f"CLOCK {number}"] for number in (1, 2)]
+    assert sorted(clock["spot"] for clock in clocks) == [[14.475, 12.0], [15.525, 12.0]], clocks
+    assert {clock["height"] for clock in clocks} == {1.35}, clocks
 
 
 def test_the_relations_are_kept_beside_the_plan_with_its_sha(tmp_path, monkeypatch):
