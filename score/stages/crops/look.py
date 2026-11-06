@@ -9,7 +9,8 @@ on its plot, and its plants counted with SAM 3 the way the concept's were: the c
              view's camera onto the level of its kind's middle (the beds' top plus half the kind's made height),
              and counted the kind of the bed it stands on;
              seen.json per view and kind: plants seen on the kind's beds and their spacing in plant widths
-             (the median distance to the nearest seen neighbour over the made model's width)
+             (seen_spacing: the median over its seen plants of the distance to the nearest seen plant on its own
+             bed, a plant seen alone on its bed its bed's side, over its laid width on that bed)
     gates    seen      every kind seen on its beds: at least SEEN_LEAST of its laid plants, in the view that sees it
                        best
              density   every kind's seen spacing within SEEN_WITHIN of the concept's: the plants read as the
@@ -248,8 +249,9 @@ def seen_on_beds(record, view, instances, beds, shared, spots_record, heights):
     bed it stands on: the render's beds are laid by the layer, so where a plant stands says what it is, and the nouns
     only find plants (on the 2026-10-13 render SAM 3's 'rosemary' and 'small shrub' found none of the herbs that its
     'leafy bush' found). Each plant's middle is taken back onto the level of a kind's middle (the beds' top plus half
-    its laid height, `heights` at size 1 times its plants' median size) for that kind's beds; its spacing is in its
-    laid width, its model's width times the same median size (the layer sizes a plant to its bed)."""
+    its laid height, `heights` at size 1 times its plants' median size) for that kind's beds; its spacing is
+    seen_spacing, in its laid width on each bed, its model's width times its plants' median size there (the layer
+    sizes a plant to its bed)."""
     top = max(float(bed["centre"][1]) + float(bed["size"][1]) / 2.0 for bed in beds.values())
     plants = view_plants(view, instances)
     found = {}
@@ -257,14 +259,44 @@ def seen_on_beds(record, view, instances, beds, shared, spots_record, heights):
         sizes = [float(spot["size"]) for spot in spots_record["spots"] if spot["kind"] == kind]
         level = top + heights.get(kind, 0.0) * (statistics.median(sizes) if sizes else 1.0) / 2.0
         spots = [on_floor(view, middle(plant["box"]), SIZE, level) for plant in plants]
-        points = [spot for spot in spots if spot and any(on_bed(spot, beds[name]) for name in shared[kind])]
+        points = [(spot, bed_under(spot, shared[kind], beds)) for spot in spots if spot]
+        points = [(spot, name) for spot, name in points if name]
         width = spots_record["widths"].get(kind)  # none for a kind the layer left out (a batch gap)
-        laid_width = width * (statistics.median(sizes) if sizes else 1.0) if width else None
-        spacing = (statistics.median(concept.nearest_distances(points)) / laid_width
-                   if len(points) >= 2 and laid_width else None)
+        spacing = (seen_spacing(points, beds, laid_widths(kind, width, shared[kind], spots_record["spots"]))
+                   if len(points) >= 2 and width else None)
         found[kind] = {"seen": len(points), "laid": sum(spot["kind"] == kind for spot in spots_record["spots"]),
                        "spacing": round(spacing, 3) if spacing else None}
     return found
+
+
+def bed_under(spot, names, beds):
+    """The first of the bed names `names` whose bed a floor point stands on, else None."""
+    return next((name for name in names if on_bed(spot, beds[name])), None)
+
+
+def laid_widths(kind, width, names, spots):
+    """{bed name: a kind's laid width there}: its model `width` times the median size of its plants laid on that bed
+    (of all its plants on a bed the layer laid none of it on)."""
+    sizes = [float(spot["size"]) for spot in spots if spot["kind"] == kind]
+    found = {}
+    for name in names:
+        own = [float(spot["size"]) for spot in spots if spot["kind"] == kind and spot["bed"] == name] or sizes
+        found[name] = width * (statistics.median(own) if own else 1.0)
+    return found
+
+
+def seen_spacing(points, beds, widths):
+    """The median over seen plants, `points` [(floor point, its bed's name)], of each one's spacing in its laid width
+    on its bed (`widths`, laid_widths): the distance to the nearest seen plant on its own bed (how far apart the beds
+    stand is the plan's); a plant seen alone on its bed, its bed's side (the square root of its area)."""
+    each = []
+    for index, (spot, name) in enumerate(points):
+        others = [other for number, (other, other_name) in enumerate(points) if number != index and other_name == name]
+        bed = beds[name]
+        apart = (min(math.dist(spot, other) for other in others) if others
+                 else math.sqrt(float(bed["size"][0]) * float(bed["size"][2])))
+        each.append(apart / widths[name])
+    return statistics.median(each)
 
 
 def on_bed(spot, bed):

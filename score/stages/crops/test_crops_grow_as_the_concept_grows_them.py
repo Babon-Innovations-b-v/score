@@ -409,7 +409,13 @@ def test_look_counts_a_plant_the_kind_of_its_bed():
     Break: score/stages/crops/look.py: `any(on_bed(spot, beds[name]) for name in shared[kind])` -> `any(on_bed(spot,
         bed) for bed in beds.values())`
     Break: score/stages/crops/look.py: `level = top + heights.get(kind, 0.0) * (statistics.median(sizes) if sizes else
-        1.0) / 2.0` -> `level = top`"""
+        1.0) / 2.0` -> `level = top`
+    Greenhouse, 2026-11-06: a tray a bed, `density` would read each lone tray's spacing to the next bed's (about 5
+    widths against the concept's 1.45) in one laid width for trays sized 0.15 to 0.5; now a seen plant's spacing is
+    to the nearest seen plant on its own bed, a lone one's its bed's side, each in its laid width on its bed.
+    Break: score/stages/crops/look.py: `if number != index and other_name == name]` -> `if number != index]`
+    Break: score/stages/crops/look.py: `if spot["kind"] == kind and spot["bed"] == name] or sizes` -> `if
+        spot["kind"] == kind] or sizes`"""
     beds = {bed["name"]: bed for bed in BEDS}
     view = look.views_of(BEDS)[0]
     middle_x, middle_y = projected(view, (-5.4, 0.46 + 0.25, 1.6), look.SIZE)
@@ -422,6 +428,25 @@ def test_look_counts_a_plant_the_kind_of_its_bed():
     heights = {kind: 0.5 for kind in RECORD["kinds"]}
     seen = look.seen_on_beds(RECORD, view, instances, beds, shared, spots_record, heights)
     assert seen["herb"]["seen"] == 1 and seen["greens"]["seen"] == 0, seen
+    tray = [-1.15, 1.15, -0.4, 0.4]
+    wide = {"name": "wide", "row": "planter_bed", "centre": [0.0, 0.43, 0.0], "size": [2.05, 0.06, 1.685]}
+    small = {"name": "small", "row": "planter_bed", "centre": [2.68, 0.43, 0.0], "size": [0.473, 0.06, 0.674]}
+    lone = layer.laid_spots([wide, small], {"greens": ["wide", "small"]}, {"greens": 1.45 * 2.3}, {"greens": tray}, 7)
+    shared = {kind: [] for kind in RECORD["kinds"]}
+    shared["greens"] = ["wide", "small"]
+    spots_record = {"spots": lone, "widths": {"greens": 2.3}}
+    widths = look.laid_widths("greens", 2.3, shared["greens"], lone)
+    assert abs(widths["wide"] - 2.3 * lone[0]["size"]) < 1e-9, widths  # each bed's own tray size, not the kind's
+    level = 0.46 + 0.4 * (lone[0]["size"] + lone[1]["size"]) / 4.0  # the beds' top plus half the trays' median height
+    view = look.views_of([wide, small], look.plant_reach(spots_record, {"greens": 0.4}))[0]
+    boxes = [[pixel - 8 for pixel in projected(view, (spot["at"][0], level, spot["at"][2]), look.SIZE)]
+             + [pixel + 8 for pixel in projected(view, (spot["at"][0], level, spot["at"][2]), look.SIZE)]
+             for spot in lone]
+    instances = {f"{view['name']}/greens:leafy bush": [{"box": [box[0], box[1], box[2], box[3]], "score": 0.9}
+                                                        for box in boxes]}
+    seen = look.seen_on_beds(RECORD, view, instances, {"wide": wide, "small": small}, shared, spots_record,
+                             {kind: 0.4 for kind in RECORD["kinds"]})["greens"]
+    assert seen["seen"] == 2 and abs(seen["spacing"] - 1.45) <= look.SEEN_WITHIN * 1.45, seen
 
 
 def boxed_inputs(folder, gemini=()):
