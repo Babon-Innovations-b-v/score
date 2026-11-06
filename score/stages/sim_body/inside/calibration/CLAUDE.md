@@ -44,6 +44,15 @@ each group's anatomical axes (`aligned`, `frame`, `REFERENCES`); `turn(group)` g
   Hands (2.1 degrees, 14.7 to 13.8 %, the left's error 0.15 to 0.17), Legs (0.3 degrees, their error up 0.02), Chest
   and Neck1 (more outside at rest). All together: bones outside 15.12 to 13.84 %, turns 4.99 to 4.66 degrees, joints
   10.78 to 12.07 mm (the shins' turn moves the knee and ankle centres).
+- **The head's row is laid on its landmarks** (`LAID_GROUPS`, `_measure.laid_measured`; 2026-11-06, #70, the owner:
+  "nose isnt at nose, chin isnt at chin"): its turn about the body's z and C0_C1's shift in the middle plane solved so
+  the skull's seven landmarks (vertex, forehead, opisthocranion, both sides, the face's nasion and menton) meet SOMA's
+  template skin; their links then written as SOMA's skin off the laid bone points. The skin read (above) had turned
+  it 9.8 degrees chin up and held it 6 mm up and 8 mm forward (`END_SHIFTS`): SOMA's oral cavity stood open (the
+  pockets reached only the lips' slit, `fit._skin.POCKET_REACH`), so the teeth inside it read outside. At rest: nasion
+  31 -> 0, menton 30 -> 0 mm off their links; skull and jaw outside 0.0 % with the cavity closed. On the fit (CPU, a
+  frame in 15): nasion 20.5 -> 3.9, menton 23.4 -> 3.1, vertex 19.4 -> 2.2 mm standing; pickup and jump 21 to 24 ->
+  5 to 8; the head outside 5.6 -> 0.6 % standing. C0_C1's shift is now the lay's (0.4 mm up, 0.5 forward).
 - A stretch's ends are always MyoFullBody's joint centres (`myo_parts`), a reference's points the landmarks' bone
   points: until 2026-10-29 the landmark `sternoclavicular_{side}` (7 mm off the clavicle's origin) shadowed the
   centre of that name, turning the shoulders' rows about 2 degrees; measured again, they are main's. Level 1's

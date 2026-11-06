@@ -28,7 +28,12 @@ REGIONS = {"shoulder": ("clavicle", "scapula", "humerus"), "forearm": ("ulna", "
            "head": ("head", "skull", "jaw", "mandible"), "thigh": ("femur", "patella"), "shin": ("tibia", "fibula"),
            "foot": ("talus", "calcn", "toes")}
 HAND = ("fingers", "metacarpals", "carpals")  # the hand's parts, scored together as "hand"
-POCKET_REACH = 0.03  # m: a face whose outward normal meets the skin again this near is a pocket's wall
+# m: a face whose outward normal meets the skin again this near is a pocket's wall. 0.08 since 2026-11-06 (#70): at 0.03
+# the mouth was its lips' slit alone (64 vertices, 7 mm tall) and SOMA's oral cavity behind it (to 103 mm deep) stood
+# open, so the teeth, anatomically inside it, read outside; the head's inside read and level 3's skin rows held the
+# skull 25 mm high and 10 degrees chin up to keep them out. From 0.08 to 0.10 the mouth is one pocket of 158 vertices
+# and the eyes, nostrils and ears as at 0.06.
+POCKET_REACH = 0.08
 POCKET_SEGMENT = "Head"  # the segment whose pockets a closed face covers (lips, eyelids and eyes, nostrils, ears)
 # The bones-in-skin goal of level 3 against the turns' 1 (`_frames.weights`): its rows sum to SKIN_GOAL times the
 # mean over the kept bone vertices of their squared depth outside (m), each goal over its own count as OpenSim weighs
@@ -257,8 +262,8 @@ def outside(points, verts, faces):
 def pockets(rig):
     """The head's pockets in SOMA's mesh at its bind ([vertex indices] each): connected faces whose outward normal meets
     the mesh again within POCKET_REACH (a pocket's walls face each other), most of whose vertices ride POCKET_SEGMENT
-    by their largest skin weight. On the template (2026-11-01): the mouth (a slit 46 mm wide, 13 mm deep), each eye
-    socket (26 x 19 x 22 mm), nostril and ear; the webs between fingers and toes face each other too, but no head."""
+    by their largest skin weight. On the template (2026-11-06): the mouth (its lips' slit and the oral cavity behind
+    it, 71 x 71 x 103 mm, 158 vertices), each eye socket (28 x 21 x 24 mm), nostril and ear; the webs between fingers and toes face each other too, but no head."""
     from scipy.sparse import coo_matrix
     from scipy.sparse.csgraph import connected_components
     points, faces = np.asarray(rig["points"], dtype=np.float64), np.asarray(rig["faces"], dtype=np.int32)

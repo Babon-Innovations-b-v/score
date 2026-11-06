@@ -25,9 +25,10 @@ TIP_SHARE = 0.02
 # drop the foot's bones through the sole); and the skull's, whose SOMA skin rides Head alone (weight 1.000 at every
 # corner: no slide), so its link is the scalp's depth on the template (#70, 2026-11-04: freed, level 2 moved them 10 to
 # 22 mm forward and down on env1 and the skull sat that far back and low inside SOMA's head, head outside 10.9 / 25.5 %
-# standing / seated; held, 7.0 / 19.2 %).
+# standing / seated; held, 7.0 / 19.2 %). The face's nasion and menton too (2026-11-06): the skull is laid by all seven
+# (`calibration.LAID_GROUPS`), their links SOMA's skin off the laid bone points on the template.
 HELD = tuple(f"{name}_{side}" for name in ("heel_plantar", "MT_plantar") for side in "lr") + (
-    "head_vertex", "forehead", "opisthocranion", "head_side_l", "head_side_r")
+    "head_vertex", "forehead", "opisthocranion", "head_side_l", "head_side_r", "nasion", "menton")
 # MyoFullBody centres that are the middle of two others (the measure's).
 MIDDLE_CENTRES = {"hipmid": ("hip_l", "hip_r"), "mid_cervical": ("C7_T1", "C0_C1")}
 # SOMA's group ends that are the middle of two rig joints.
