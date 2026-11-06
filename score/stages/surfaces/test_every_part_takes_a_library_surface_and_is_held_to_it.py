@@ -113,10 +113,13 @@ tests it turned red:
   finish[standing])` -> `stray = ~standing & ~np.isclose(area, piece_area[piece[face_of]])`  ->
   a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named
 - finish_parts.py: `standing = (area >= least) | fragmented_largest(area, finish, least)` -> `standing = area >= least`,
-  or fragmented_largest `return first & (area < least) & (total[finish] >= least)` -> `return first & (area < least)`
-  -> a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named
-- finish_parts.py: `own = np.where(np.isin(face_label, details), part_of.max() + 1 + island, part_of)` -> `own =
-  part_of`  -> islands_of_a_detail_finish_sharing_a_part_are_no_stray
+  or fragmented_largest `return (first | (area >= crumb)) & (area < least) & (total[finish] >= least)` -> `return
+  (first | (area >= crumb)) & (area < least)`, or `(first | (area >= crumb))` -> `first` (the hub's right console's
+  screens painted as its steel)  -> a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named
+- finish_parts.py: `own = np.where(np.isin(face_label, details) | loose, part_of.max() + 1 + island, part_of)` -> `own =
+  part_of`  -> islands_of_a_detail_finish_sharing_a_part_are_no_stray; `np.isin(face_label, details) | loose` ->
+  `np.isin(face_label, details)` (a screen holding a loose bit read as a blotch)  ->
+  a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named
 - finish_parts.py: `areas[seen & (face_label == label)].sum()` -> `areas[seen].sum()`  ->
   agreement_counts_against_the_maps
 - finish_parts.py: `own = finish.get("colour") and finish["surface"] == finish.get("listed_surface", finish["surface"])`
@@ -1475,7 +1478,8 @@ def test_cleaning_never_removes_a_finish_whole():
 def test_a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named():
     """astronaut-made-s1, 2026-10-23: the walk left jagged islands of the dark joints over its fabric (stray 0.054).
     A stray joins the finish it borders; a finish with no island of its own size keeps its islands, unless they cover
-    that size together (the cooktop's specks, #36): then its largest island stands for it and the rest are strays. A
+    that size together (the cooktop's specks, #36): then its largest island and each island over ISLAND_LEAST (a
+    screen of the hub's right console) stand for it and the rest are strays. A
     whole piece keeps its finish, and a small piece of mixed finishes joins its largest island."""
     import patchy  # on the path finish_parts gives
     sphere = trimesh.creation.icosphere(subdivisions=4)
@@ -1500,16 +1504,38 @@ def test_a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named():
     after = finish_parts.patchiness(mesh, found, found, body)
     assert after["stray"] < before["stray"] and after["pass"], (before, after)
     specks = np.zeros(len(mesh.faces), dtype=bool)  # camp kitchen_counter_2's cooktop (#36): finish 2 in specks only,
-    for spot in sphere.vertices[::40][:30]:  # each under STRAY_ISLAND, over it together
+    spots = []  # each under STRAY_ISLAND, over it together; apart, so no two join into one island
+    for spot in sphere.vertices[::40]:
+        spots += [spot] if all(np.linalg.norm(spot - other) > 0.2 for other in spots) else []
+    for spot in spots[:30]:
         specks |= on_sphere & (np.linalg.norm(middles - spot, axis=1) < 0.06) & (label == 0)
     speckled = np.where(specks, 2, label)
-    speck_islands = np.unique(patchy.islands(speckled, mesh.face_adjacency)[speckled == 2])
+    speck_of = patchy.islands(speckled, mesh.face_adjacency)
+    speck_islands = np.unique(speck_of[speckled == 2])
     assert len(speck_islands) > 10 and mesh.area_faces[specks].sum() / mesh.area > patchy.STRAY_ISLAND
+    assert all(mesh.area_faces[speck_of == speck].sum() / mesh.area < finish_parts.ISLAND_LEAST
+               for speck in speck_islands)  # specks, each under a part's least
     smoothed = finish_parts.without_strays(mesh, speckled)
     left = np.unique(patchy.islands(smoothed, mesh.face_adjacency)[smoothed == 2])
     assert len(left) == 1 and (smoothed == 2).sum() < specks.sum(), len(left)  # its largest island stands for it
     assert finish_parts.patchiness(mesh, smoothed, smoothed, body)["pass"]
-    portholes = on_sphere & (label == 0) & ((np.linalg.norm(middles - (0, -0.99, 0.1), axis=1) < 0.05)
+    screens = np.zeros(len(mesh.faces), dtype=bool)  # the hub's right console (likeness@hub, 2026-11-06): finish 2
+    for spot in ((-0.7, 0.7, 0.1), (0.7, 0.7, -0.1), (-0.7, -0.7, 0.1), (0.7, -0.7, -0.1)):  # in four screens, each
+        screens |= on_sphere & (np.linalg.norm(middles - np.array(spot) / np.linalg.norm(spot), axis=1) < 0.12)
+    screened = np.where(screens, 2, np.where(specks, 2, label))  # an island over ISLAND_LEAST, under STRAY_ISLAND
+    screen_of = patchy.islands(screened, mesh.face_adjacency)
+    shares = [mesh.area_faces[screen_of == screen].sum() / mesh.area for screen in np.unique(screen_of[screens])]
+    assert len(shares) == 4 and all(finish_parts.ISLAND_LEAST <= share < patchy.STRAY_ISLAND for share in shares)
+    kept = finish_parts.without_strays(mesh, screened)
+    apart = specks & ~np.isin(screen_of, screen_of[screens])  # specks no screen's island holds
+    assert (kept[screens] == 2).all() and apart.any() and (kept[apart] != 2).all()  # every screen stands, no speck
+    part_of, finish_of = finish_parts.merged_islands(mesh, kept)
+    unboxed = finish_parts.patchiness(mesh, finish_of, part_of, body)
+    assert unboxed["pass"]
+    part_of, finish_of = finish_parts.merged_islands(mesh, np.where(on_sphere, kept, 2))  # a loose bit of screen,
+    assert len(np.unique(part_of[~on_sphere | screens])) < 5  # taken into a screen's part: that screen is no blotch
+    assert finish_parts.patchiness(mesh, finish_of, part_of, body)["stray"] == unboxed["stray"]  # (base's glazing)
+    portholes =on_sphere & (label == 0) & ((np.linalg.norm(middles - (0, -0.99, 0.1), axis=1) < 0.05)
                                             | (np.linalg.norm(middles - (-0.99, 0, 0.1), axis=1) < 0.05))
     assert mesh.area_faces[portholes].sum() / mesh.area < patchy.STRAY_ISLAND  # two islands, small together too
     assert (finish_parts.without_strays(mesh, np.where(portholes, 3, label))[portholes] == 3).all()
