@@ -679,7 +679,9 @@ def doors_led(store, place, shown):
     doorway back to `place`, leading nowhere (`to` None, each said in its `fixes`): the sibling's own plan says where
     its doors lead, and held once the two can never meet (the Square's street, written again on 2026-11-05 with an
     opening to the stairwell, whose own plan's street gate leads outside since its edit of that morning: plan@square's
-    held gate). A doorway a lead of the place names (a fixed door) is left for the gate to show."""
+    held gate). A doorway is judged where its own hold leads it (`as_held`: the base's airlock door to the hub led to
+    tube#3, whose door meets it, 2026-11-06). A doorway a lead of the place names (a fixed door) is left for the gate
+    to show."""
     from score.stages.scene_record.plan import DOORWAYS, doors_to
     holder = tree(store)["within"].get(place) if shown and shown["how"] == "written" else None
     holding = current(store, holder) if holder else None
@@ -690,9 +692,10 @@ def doors_led(store, place, shown):
         return shown
     plan, fixes = copy.deepcopy(shown["plan"]), []
     named = {lead.get("to") for lead in (plan.get("leads") or {}).values()}
-    for opening in plan.get("openings") or []:
-        sibling = opening.get("to")
-        if opening.get("kind") not in DOORWAYS or sibling == place or sibling not in once_held or sibling in named:
+    led = as_held(once_held[place], plan).get("openings") or []
+    for opening, sibling in zip(plan.get("openings") or [], [opening.get("to") for opening in led]):
+        if opening.get("kind") not in DOORWAYS or sibling == place or sibling not in once_held or \
+                {sibling, opening.get("to")} & named:
             continue
         found = own_plan(store, sibling)
         if found is None or doors_to(as_held(once_held[sibling], found), place):
