@@ -138,7 +138,7 @@ def agent_stop_batch(words):
 
 
 def stop_everything(asked_by, words, folder=None, parked=None, release=None, report_folder=None, pools=None,
-                    close_pools=None, latched=True, frozen_folder=None, stop_cluster=None):
+                    close_pools=None, latched=True, frozen_folder=None, stop_cluster=None, checkout=None):
     """The kill switch's work, with no barrier of its own (stop_all's is the agents' refusal): the latch (unless not
     `latched`: Stop this batch), every live run, every waiting run, every open warm pool, every parked machine, score's
     cluster Jobs (`stop_cluster`, else submitter's when a cluster is configured), every process left in the copy of a
@@ -151,7 +151,7 @@ def stop_everything(asked_by, words, folder=None, parked=None, release=None, rep
     conductor.RESIZING.unlink(missing_ok=True)  # the SIGTERMs below are the owner's stop, never a resize's
     live, working = live_runs(folder), frozen.users(frozen_folder)
     stopping = {working[pid] for pid in live if pid in working}  # each ends its own copy's processes (remove_owned)
-    for pid in live + starting_runs(frozen_folder):
+    for pid in live + starting_runs(frozen_folder) + checkout_starting(checkout):
         try:
             os.kill(pid, signal.SIGTERM)
             report["runs"].append(pid)
@@ -199,6 +199,20 @@ def leftovers(frozen_folder, stopping, holds_folder=None):
     busy = disk.working(folder)
     spared = set(stopping) | starting(folder, busy)
     return sorted({pid for copy, pids in busy.items() if copy not in spared for pid in pids if pid not in passes})
+
+
+CHECKOUT = pathlib.Path(__file__).resolve().parents[2]  # the checkout a `score` command starts from
+
+
+def checkout_starting(checkout=None):
+    """The pids of each `score run` or `score resume` still starting from the checkout itself, before it makes its
+    frozen copy (tools/cloud/conductor/update.py's `starting`, the one rule the checkout's update waits on): a stop
+    stops it as a run (2026-11-06: a sync pass's plan run spent 54 min there and held the conductor off the pin)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("conductor_update", CHECKOUT / "tools/cloud/conductor/update.py")
+    update = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(update)
+    return update.starting(pathlib.Path(checkout or CHECKOUT))
 
 
 def starting_runs(frozen_folder=None):
