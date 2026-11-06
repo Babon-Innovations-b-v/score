@@ -99,7 +99,9 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   wall-held object's front out into the room, its built length within its wall's face, off the floor where its words
   say high or it is a light; a thing hung from the roof its top at the roof's underside over it, `writer.roof_under`;
   a seat its words put at, by or before a holder within `SEAT_REACH` of its built side); `plan-matched` also holds
-  each laid row to its scene inventory's count unless the plan's `dropped` or notes say why (`row_count_faults`).
+  each laid row to its scene inventory's count unless the plan's `dropped` or notes say why, or it is laid as often
+  as the plan's doorways lead to its child scene's instances (`row_count_faults`, `led_instances`: base's seven
+  tubes, 2026-11-06).
   Whether the made ground fits round the doorways is ground-fit's. The plan row's `held` (`plan.judge_held`, the
   audit of 2026-11-04: holds and door leads were never reconciled) fails a frame anchor, person spot or item outside
   its plan's box (a passage excepted, a thing on its wall's line allowed half its thickness), and on a holder's plan
