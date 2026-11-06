@@ -21,8 +21,11 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `characters.py` sends only its clip makes (people-clips-made, scene-clips: the steps `characters.CLUSTER_STEPS`)
   to the cluster, one job a make in the characters-motion image, which holds the motion environment alone; a look's
   shell, build and route need the person chain's other environments, so a make with one of those steps is refused
-  there and runs on machines. The machine
-  runners stay the default; switch none of them over by default.
+  there and runs on machines. `SCORE_CLOUD_KINDS` narrows the switch to its job kinds (`provider.on_cluster(kind)`,
+  `k8s/CLAUDE.md`), every other kind renting machines, and the warm pool is sized only for the kinds left on machines.
+  Proven on the tenant cluster (#76, 2026-11-05): pixal, blender and library, Newton's settle and the characters
+  clips; its namespace's card quota is 24 GPUs. The machine runners stay the default; switch none of them over by
+  default.
 - **Provider-neutral.** Runners rent through `provider.py` by capability class (`gpu-24gb`,
   `gpu-80gb-x2`, `cpu-32c-128gb`) and never name a provider, machine type, zone or price; those live in
   the backend (`backends/`, Scaleway today, chosen by `SCORE_CLOUD`). Secrets come through
@@ -572,8 +575,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 The container path for every model step (job cloud-k8s, 2026-10-09): one pinned image per job kind, weights from a
 cache instead of a fresh download on every machine, and a job spec that Kubernetes or a hand with docker runs the
 same way. The machine runners in `tools/cloud/` stay the default; this path is chosen by `SCORE_CLOUD=k8s`.
-**Experimental: not used for environment 1** (no environment was built through it; 06cf411's image pins are read only by this
-path); it proves itself when a stage's paid node runs through it end to end. `k8s/submitter.py` and the cluster's
+Opt-in by kind (`SCORE_CLOUD_KINDS`): pixal, blender and library, settle and the characters clips are proven on the
+tenant cluster's L4 pool (#76, 2026-11-05); every other kind proves itself when a stage's paid node runs through it
+end to end. `k8s/submitter.py` and the cluster's
 `up` (`k8s/clusters/scaleway.py`) refuse outside a cleared run, as the machine path does
 (`score.adapters.compute.require_cleared`).
 
