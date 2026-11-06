@@ -40,6 +40,9 @@ Break (applied once, seen red, reverted), 2026-11-06 (the hands at their joints)
 - END_SHIFTS' wrist_l made level 1's `(-0.001684, 0.018127, -0.007317)`: the hand held 18 mm up the forearm, every
   fingertip bone 20 to 22 mm short of SOMA's ("wrist_l: shifted 19.6 mm off SOMA's Hand joint").
 
+Break (applied once, seen red, reverted), 2026-11-06 (the shins back on their line):
+- INSIDE_GROUPS given "LeftShin" and "RightShin" again: "LeftShin: a leg group's row read in the skin".
+
 Run: .venv/bin/python score/stages/sim_body/inside/calibration/test_the_calibration_lays_each_bone_along_its_segment.py
 """
 import pathlib
@@ -179,7 +182,16 @@ def a_wrists_end_holds_the_hand_at_its_joint():
             if end.startswith("wrist_") and np.linalg.norm(shift) > WRIST_SHIFT_MOST]
 
 
-CHECKS = (a_wrists_end_holds_the_hand_at_its_joint, a_middle_end_shifts_in_the_middle_plane, both_hands_rest_their_fingers_alike, a_hanging_bone_is_laid_along_its_segment, the_table_keeps_both_sides_and_the_middle,
+def the_legs_rows_are_their_landmark_lines():
+    """No leg group (thigh, shin, foot, toes) is read in the skin (`INSIDE_GROUPS`): each lies on the line between
+    its two end joints, the ends the fit holds on SOMA's rig joints. A skin-read shin row stood 5.5 degrees off its
+    knee to ankle line, its ankle 25 mm forward of SOMA's on the mean body (#70, 2026-11-06)."""
+    legs = [group for group in calibration.INSIDE_GROUPS
+            if group.removeprefix("Left").removeprefix("Right") in ("Leg", "Shin", "Foot", "ToeBase")]
+    return [f"{group}: a leg group's row read in the skin" for group in legs]
+
+
+CHECKS = (a_wrists_end_holds_the_hand_at_its_joint, the_legs_rows_are_their_landmark_lines, a_middle_end_shifts_in_the_middle_plane, both_hands_rest_their_fingers_alike, a_hanging_bone_is_laid_along_its_segment, the_table_keeps_both_sides_and_the_middle,
           each_twist_is_read_from_the_same_landmarks_on_both_models, the_rows_read_in_the_skin_stay_and_turn_both_sides_alike)
 
 

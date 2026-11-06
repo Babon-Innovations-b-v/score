@@ -52,7 +52,7 @@ LONG_LINES = {"Spine1": (("Spine1", "Chest"), ("L5_S1", "T12_L1")), "Spine2": ((
 # MuscleMimic 1.0.6, SOMA's template rig of people-clips-make; the shoulders again that day, their start the
 # sternoclavicular centre, no longer the landmark of that name; the hands again on 2026-11-01, MC5_head moved onto the
 # little finger's knuckle: the hand turned 14.9 degrees about its long axis). INSIDE_GROUPS' rows read in the skin on
-# 2026-11-01 (`_measure.table_rows`): Head 6.6 degrees off its line, Shins 5.5, ForeArms 0.1, Hips 0.2. The lumbar
+# 2026-11-01 (`_measure.table_rows`): Head 6.6 degrees off its line, Shins 5.5 (on their line since 2026-11-06), ForeArms 0.1, Hips 0.2. The lumbar
 # pair, feet and toes printed again on 2026-11-04 (`HINGED`, `LONG_LINES`, the MT heads line): Spine1 13.5 and Spine2
 # 8.3 degrees off their rows before, the toes 13.5, the feet 2.2.
 TABLE = {
@@ -73,8 +73,8 @@ TABLE = {
     "RightHand": (-0.0999123, 0.0829961, 0.720768, -0.680899),
     "LeftLeg": (-0.70709, 0.707102, 0.00266821, 0.00488039),
     "RightLeg": (0.707102, 0.70709, 0.00483335, -0.00262117),
-    "LeftShin": (-0.674394, 0.737872, 0.0240203, 0.0126529),
-    "RightShin": (0.737871, 0.674394, 0.0126778, -0.0240475),
+    "LeftShin": (-0.698192, 0.715865, -0.005736, -0.005594),
+    "RightShin": (0.715866, 0.698193, -0.005569, 0.00571),
     "LeftFoot": (0.987227, -0.157876, -0.00776399, -0.0199309),
     "RightFoot": (0.157878, 0.987222, 0.0201725, -0.00782707),
     "LeftToeBase": (0.999263, -0.0345712, -0.0128052, 0.0106455),
@@ -143,8 +143,12 @@ def turn(group):
 # turns check on the mean body's 15 clips) instead of the landmark lines (#70). Each side named, both sides alike.
 # Level 1's worker reads the other rows again from its centres (`remeasured`); these stay as written.
 # The feet left it on 2026-11-04: their row is their hinge's line (`HINGED`), whose shared turn a read in the skin
-# would break.
-INSIDE_GROUPS = ("Hips", "LeftForeArm", "RightForeArm", "LeftShin", "RightShin")
+# would break. The shins left it on 2026-11-06 (#70, the owner: "the shin being slightly to much forward and out of the
+# skin"): their skin-read row stood 5.5 degrees off their knee to ankle line, so a shin laid from SOMA's knee put its
+# ankle 25 mm forward of SOMA's ankle joint and its malleoli 22 to 26 mm in front of SOMA's (mean body's bind), and the
+# knee's end read in the skin with it (0.004, 0.006, -0.024) lay on the read's 24 mm reach, holding the tibia's top
+# 24 mm behind SOMA's knee. On its line (`_measure.measured`, the template rig of l1n), every leg row is its line's.
+INSIDE_GROUPS = ("Hips", "LeftForeArm", "RightForeArm")
 
 # The groups whose row is laid on their landmarks at rest (`_measure.laid_measured`: the head's turn about its body's z
 # and its C0_C1's shift solved so its landmarks' markers, the face's nasion and menton among them, meet SOMA's template
@@ -172,9 +176,16 @@ END_SHIFTS = {"L5_S1": (0.0, 6e-06, 1e-05), "T12_L1": (0.0, 0.00403, -0.007995),
               "elbow_l": (-7.3e-05, 2.2e-05, 0.002024), "elbow_r": (7.3e-05, 2.2e-05, 0.002024),
               "wrist_l": (0.0, 0.0, 0.0), "wrist_r": (0.0, 0.0, 0.0),
               "hip_l": (7.6e-05, 0.000168, -0.000406), "hip_r": (-7.6e-05, 0.000168, -0.000406),
-              "knee_l": (0.004014, 0.00507, -0.024513), "knee_r": (-0.004014, 0.00507, -0.024513),
-              "ankle_l": (-0.000965, -0.005988, 0.001467), "ankle_r": (0.000965, -0.005988, 0.001467),
-              "mtp_l": (-0.020954, 0.004796, -0.017998), "mtp_r": (0.020954, 0.004796, -0.017998)}
+              "knee_l": (-0.002, 0.004, -0.006), "knee_r": (0.002, 0.004, -0.006),
+              "ankle_l": (0.0, -0.006, 0.002), "ankle_r": (0.0, -0.006, 0.002),
+              "mtp_l": (-0.006, 0.002, -0.012), "mtp_r": (0.006, 0.002, -0.012)}
+# The leg's three ends (knee, ankle, mtp) are their reads with the shins on their line (2026-11-06, #70, the left's
+# read mirrored; END_READS), not level 1's l1n values, which were tuned on the skin-read shin row: knee (4, 5, -24.5)
+# mm, ankle (-1, -6, 1.5), mtp (-21, 4.8, -18). With them the calcaneus sat 11 to 15 mm off its place on the talus
+# (back and up: the heel high and out of the skin's back) and the talus 7 mm forward of SOMA's ankle. Measured on the
+# mean body's pickup and jump and env1's standing (18 frames each, level 3 by mink): knee joint 13 to 17 -> 4 mm, ankle
+# 7 to 9 -> 1.4 to 2.9, the calcaneus' move 12 to 15 -> 6 to 7 mm, the calcaneus' bones outside 7.5 to 10 -> 4 to 7.5 %,
+# the tibia's 2.5 to 5 -> 2 to 4.4 %; the toes' 5 to 12 -> 12 to 15 %. Level 1's to tune again from here.
 # Every group's start end's shift read the same way (`_measure.end_shift_measured` of the group it starts, SOMA's
 # template rig, MyoFullBody sized to it at its default pose; #70, 2026-11-02 and 11-03): level 1's starts for its
 # segment end unknowns (`tuning._ends.mirrored_starts`, a pair's mean mirrored, a middle's sideways part dropped:
@@ -186,9 +197,9 @@ END_READS = {"L5_S1": (0.0, 0.0, 0.0), "L3_L4": (0.0, 0.0, 0.0), "T12_L1": (0.01
              "elbow_l": (0.0, 0.0, 0.002), "elbow_r": (0.0, 0.0, 0.002),
              "wrist_l": (-0.002, 0.006, -0.002), "wrist_r": (0.002, 0.006, -0.002),
              "hip_l": (0.0, 0.0, 0.0), "hip_r": (0.0, 0.0, 0.0),
-             "knee_l": (0.004, 0.006, -0.024), "knee_r": (-0.004, 0.004, -0.024),
-             "ankle_l": (0.0, -0.008, 0.002), "ankle_r": (0.002, -0.004, 0.002),
-             "mtp_l": (-0.02, 0.004, -0.016), "mtp_r": (0.022, 0.006, -0.02)}
+             "knee_l": (-0.002, 0.004, -0.006), "knee_r": (0.002, 0.004, -0.006),
+             "ankle_l": (0.0, -0.006, 0.002), "ankle_r": (0.0, -0.006, 0.002),
+             "mtp_l": (-0.006, 0.002, -0.012), "mtp_r": (0.006, 0.002, -0.012)}
 
 MIRROR = np.diag([-1.0, -1.0, 1.0])  # a right body is its left one mirrored in z: R_right = R_left @ MIRROR
 
