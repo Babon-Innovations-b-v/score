@@ -19,13 +19,16 @@ Break (applied once, seen red, reverted), 2026-11-01:
 
 Breaks (each applied once, seen red, reverted), 2026-11-01 (the rows read in the skin):
 - remeasured's `TABLE[group] if group in INSIDE_GROUPS else tuple(quaternion)` made `tuple(quaternion)`: level 1's
-  re-read replaced the skin-read rows ("Head: its skin-read row was replaced").
+  re-read replaced the skin-read rows ("Head: its skin-read row was replaced"). Since 2026-11-06 the head's row is laid
+  on its landmarks (LAID_GROUPS): `INSIDE_GROUPS + LAID_GROUPS` made `INSIDE_GROUPS` gives "Head: its kept row was
+  replaced".
 - turned's `MIRROR @ np.asarray(rotvec)` for a right group made `np.asarray(rotvec)`: the right side turned unmirrored
   ("RightShin's turn is not LeftShin's, mirrored").
 
 Break (applied once, seen red, reverted), 2026-11-01 (the head's end read in the skin):
 - END_SHIFTS' C0_C1 `(0.0, 0.006, 0.008)` made `(0.004, 0.006, 0.008)` (since 2026-11-04 level 1's `(0.0, 0.006094,
-  0.008121)`, the same break): the head held off its joint sideways
+  0.008121)`, since 2026-11-06 the landmark lay's `(0.0, 0.000417, 0.000517)`, the same break): the head held off its
+  joint sideways
   ("C0_C1: a middle end shifted sideways").
 
 Breaks (each applied once, seen red, reverted), 2026-11-04 (the hinges' rows):
@@ -109,17 +112,19 @@ def each_twist_is_read_from_the_same_landmarks_on_both_models():
 
 
 def the_rows_read_in_the_skin_stay_and_turn_both_sides_alike():
-    """`remeasured` takes a landmark-line row read again for every group but INSIDE_GROUPS', whose row stays;
+    """`remeasured` takes a landmark-line row read again for every group but INSIDE_GROUPS' and LAID_GROUPS', whose
+    row stays (the head's among them, laid on its landmarks);
     `turned` turns a right group by its left one's rotvec mirrored (its move off its row is the left one's, mirrored),
     so the pair keeps the table's mirror, and a middle
     group turned about its body's z alone keeps the sideways axis."""
     problems = []
     lines = {group: (0.0, 0.0, 0.0, 1.0) for group in calibration.TABLE}
     kept = calibration.remeasured(lines)
-    problems += [f"{group}: its skin-read row was replaced" for group in calibration.INSIDE_GROUPS
-                 if kept[group] != calibration.TABLE[group]]
+    own = calibration.INSIDE_GROUPS + calibration.LAID_GROUPS
+    problems += [] if "Head" in calibration.LAID_GROUPS else ["Head: its row is not laid on its landmarks"]
+    problems += [f"{group}: its kept row was replaced" for group in own if kept[group] != calibration.TABLE[group]]
     problems += [f"{group}: its landmark-line row was not taken" for group in calibration.TABLE
-                 if group not in calibration.INSIDE_GROUPS and kept[group] != lines[group]]
+                 if group not in own and kept[group] != lines[group]]
     rotvec = np.radians([3.0, -5.0, 7.0])
     left = Rotation.from_quat(calibration.turned("LeftShin", rotvec)).as_matrix()
     right = Rotation.from_quat(calibration.turned("RightShin", rotvec)).as_matrix()

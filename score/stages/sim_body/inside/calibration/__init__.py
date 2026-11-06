@@ -62,7 +62,7 @@ TABLE = {
     "Chest": (0.683552, 0.729902, 0.000118136, -0.000455094),
     "Neck1": (0.770799, 0.637077, -0.000728835, -0.00110972),
     "Neck2": (0.770799, 0.637077, -0.000728836, -0.00110972),
-    "Head": (0.743314, 0.668942, 0.000138584, -0.000408699),
+    "Head": (0.6876, 0.72609, 0.000171, -0.000396),
     "LeftShoulder": (-0.446904, -0.498353, 0.576873, 0.468122),
     "RightShoulder": (0.498428, -0.446843, -0.46818, 0.576809),
     "LeftArm": (-0.00349838, 0.0330295, 0.698869, 0.714478),
@@ -135,7 +135,14 @@ def turn(group):
 # Level 1's worker reads the other rows again from its centres (`remeasured`); these stay as written.
 # The feet left it on 2026-11-04: their row is their hinge's line (`HINGED`), whose shared turn a read in the skin
 # would break.
-INSIDE_GROUPS = ("Head", "Hips", "LeftForeArm", "RightForeArm", "LeftShin", "RightShin")
+INSIDE_GROUPS = ("Hips", "LeftForeArm", "RightForeArm", "LeftShin", "RightShin")
+
+# The groups whose row is laid on their landmarks at rest (`_measure.laid_measured`: the head's turn about its body's z
+# and its C0_C1's shift solved so its landmarks' markers, the face's nasion and menton among them, meet SOMA's template
+# skin; #70, 2026-11-06). Read in the skin before (INSIDE_GROUPS), the least depth outside turned the skull 9.8 degrees
+# chin up against SOMA's face: its nasion, chin and menton stood 31, 34 and 30 mm off SOMA's at rest, 25 mm high and
+# the same on every clip (the owner: "nose isnt at nose, chin isnt at chin").
+LAID_GROUPS = ("Head",)
 
 # A group end's shift read in SOMA's skin (`_measure.end_shift_measured`; m, the person's frame, Y up): the marker at
 # that MyoFullBody centre is moved by -shift (`fit.end_marker`), so SOMA's rig joint holds the group's bones that far off
@@ -146,7 +153,7 @@ INSIDE_GROUPS = ("Head", "Hips", "LeftForeArm", "RightForeArm", "LeftShin", "Rig
 # region average of bones outside SOMA's skin 3.97 -> 3.55 % on env1 standing, 10.85 -> 9.73 % seated, 6.41 -> 6.04 %
 # on the mean body's 15 clips. Static like the table: never per person.
 END_SHIFTS = {"L5_S1": (0.0, 6e-06, 1e-05), "T12_L1": (0.0, 0.00403, -0.007995), "C7_T1": (0.0, -0.00197, 0.006004),
-              "mid_cervical": (0.0, 0.000142, 6e-05), "C0_C1": (0.0, 0.006094, 0.008121),
+              "mid_cervical": (0.0, 0.000142, 6e-05), "C0_C1": (0.0, 0.000417, 0.000517),
               "sternoclavicular_l": (1.2e-05, -3e-05, 0.00013), "sternoclavicular_r": (-1.2e-05, -3e-05, 0.00013),
               "glenohumeral_l": (-7.2e-05, 3.7e-05, 1e-06), "glenohumeral_r": (7.2e-05, 3.7e-05, 1e-06),
               "elbow_l": (-7.3e-05, 2.2e-05, 0.002024), "elbow_r": (7.3e-05, 2.2e-05, 0.002024),
@@ -160,7 +167,7 @@ END_SHIFTS = {"L5_S1": (0.0, 6e-06, 1e-05), "T12_L1": (0.0, 0.00403, -0.007995),
 # segment end unknowns (`tuning._ends.mirrored_starts`, a pair's mean mirrored, a middle's sideways part dropped:
 # T12_L1 read 10 mm sideways), never read by the stage. Neck2 starts no bones of its own (mid_cervical: none read).
 END_READS = {"L5_S1": (0.0, 0.0, 0.0), "L3_L4": (0.0, 0.0, 0.0), "T12_L1": (0.01, 0.004, -0.008),
-             "C7_T1": (0.0, -0.002, 0.006), "C0_C1": (0.0, 0.006, 0.008),
+             "C7_T1": (0.0, -0.002, 0.006), "C0_C1": (0.0, 0.0, 0.001),
              "sternoclavicular_l": (0.0, 0.0, 0.0), "sternoclavicular_r": (0.0, 0.0, 0.0),
              "glenohumeral_l": (0.0, 0.0, 0.0), "glenohumeral_r": (0.0, 0.0, 0.0),
              "elbow_l": (0.0, 0.0, 0.002), "elbow_r": (0.0, 0.0, 0.002),
@@ -175,8 +182,8 @@ MIRROR = np.diag([-1.0, -1.0, 1.0])  # a right body is its left one mirrored in 
 
 def remeasured(measured):
     """TABLE with `measured`'s rows ({group: quaternion}, the landmark lines read again) for every group but
-    INSIDE_GROUPS', whose rows are read in the skin and kept."""
-    return {group: TABLE[group] if group in INSIDE_GROUPS else tuple(quaternion)
+    INSIDE_GROUPS' and LAID_GROUPS', whose rows are read in the skin or laid on their landmarks and kept."""
+    return {group: TABLE[group] if group in INSIDE_GROUPS + LAID_GROUPS else tuple(quaternion)
             for group, quaternion in {**TABLE, **measured}.items()}
 
 

@@ -305,9 +305,59 @@ def _depth_inside(mesh, points):
     return depths.numpy().astype(float)
 
 
+# A face landmark's assumed soft tissue over its bone point when the head is laid (m, along the body's outward axis):
+# typical adult depths, only a start for the lay; the links written are then SOMA's skin off the laid bone point.
+FACE_TISSUE = {"nasion": ((1.0, 0.0, 0.0), 0.0065), "menton": ((0.0, -1.0, 0.0), 0.0075)}
+
+
+def laid_measured(folder, rig_path, kg=70.0):
+    """The head laid on SOMA's template by its landmarks (`calibration.LAID_GROUPS`): MyoFullBody sized to it at its
+    default pose, the skull's turn about its body's z (TABLE's row turned, the sideways axis kept) and its C0_C1's
+    shift in the middle plane solved by least squares so each head landmark's marker (its bone point scaled, then its
+    link; a FACE_TISSUE landmark its assumed depth instead) meets its SOMA point at the bind. Returns (R_cal quaternion,
+    C0_C1's shift m, {landmark: its link, SOMA's point off the laid bone point in the body's frame})."""
+    import tempfile
+
+    from scipy.optimize import least_squares
+    from scipy.spatial.transform import Rotation
+
+    import myo
+    from fit._follow import centre
+    from sizing import Size
+    rig = dict(np.load(rig_path))
+    path = pathlib.Path(tempfile.mkdtemp()) / "template.xml"
+    _, scales = myo.person_file(folder, Size(rig), kg, path)
+    model = mujoco.MjModel.from_xml_path(str(path))
+    data = default_pose(model, Couplings(model))
+    (start, _), (myo_start, _), frame_body, _ = groups()["Head"]
+    body = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, frame_body)
+    axes = TO_OWN @ data.xmat[body].reshape(3, 3)
+    origin = axes.T @ (TO_OWN @ (centre(model, data, myo_start, scales) - data.xpos[body]))  # C0_C1, body frame
+    names = [str(joint) for joint in rig["names"]]
+    segment_turn, joint = rig["bind"][names.index("Head"), :3, :3], soma_point(start, rig)
+    marks = [name for name, row in LANDMARKS.items() if row[3] == frame_body]
+    bones = {name: np.asarray(LANDMARKS[name][4]) * scales[frame_body] - origin for name in marks}
+    links = {name: np.asarray(FACE_TISSUE[name][0]) * FACE_TISSUE[name][1] if name in FACE_TISSUE
+             else np.asarray(LANDMARKS[name][5], dtype=float) for name in marks}
+    skin = on_skin(rig["points"], rig["faces"], marks)
+
+    def placed(unknowns, name, link):
+        turn = segment_turn @ Rotation.from_quat(calibration.turned("Head", [0.0, 0.0, unknowns[0]])).as_matrix()
+        return joint + np.array([0.0, unknowns[1], unknowns[2]]) + turn @ (bones[name] + link)
+
+    def gaps(unknowns):
+        return np.concatenate([skin[name] - placed(unknowns, name, links[name]) for name in marks])
+    solved = least_squares(gaps, np.zeros(3), x_scale=0.01).x
+    turn = segment_turn @ Rotation.from_quat(calibration.turned("Head", [0.0, 0.0, solved[0]])).as_matrix()
+    return (calibration.turned("Head", [0.0, 0.0, solved[0]]), (0.0, float(solved[1]), float(solved[2])),
+            {name: turn.T @ (skin[name] - placed(solved, name, np.zeros(3))) for name in marks})
+
+
 def table_rows(folder, rig_path):
-    """{group: R_cal quaternion}: the landmark lines' rows, INSIDE_GROUPS' read in the skin."""
+    """{group: R_cal quaternion}: the landmark lines' rows, INSIDE_GROUPS' read in the skin, LAID_GROUPS' (the head)
+    laid on its landmarks (`laid_measured`)."""
     inside = inside_measured(folder, rig_path, calibration.INSIDE_GROUPS)
+    inside.update({group: (laid_measured(folder, rig_path)[0],) for group in calibration.LAID_GROUPS})
     return {group: inside[group][0] if group in inside else quaternion
             for group, quaternion in measured(folder, rig_path).items()}
 
@@ -317,4 +367,4 @@ if __name__ == "__main__":
         print(f'    "{group}": ({", ".join(f"{value:.6g}" for value in quaternion)}),')
     for stem, turn in fingers_measured(*sys.argv[1:3]).items():
         print(f'    "{stem}": {turn},')
-    print(f'    "C0_C1": {end_shift_measured(*sys.argv[1:3])},')
+    print(f'    "C0_C1": {laid_measured(*sys.argv[1:3])[1]},')

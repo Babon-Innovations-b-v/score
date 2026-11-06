@@ -50,6 +50,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-11-01) PosedSkins.__getitem__ dropping `self.kept[frames]`: indexed skins read every frame kept.
 - (2026-11-01) _skin.envelope's `for verts in pockets(rig):` made `pockets(rig)[:0]`, no pocket closed: the point in
   the cube's mouth reads outside the envelope (the_heads_pockets_are_closed_for_the_inside_test red).
+- (2026-11-06) _skin.POCKET_REACH `0.08` made `0.03` (before): the 6 cm cavity stays open, its point reads outside
+  (the_heads_pockets_are_closed_for_the_inside_test red).
 - (2026-11-01) `_card/_measure.turn_errors`' default `table=cpu.judged_turn` made `frozen_turn`, or
   `evaluation._measure.judged_turn` returning `frozen_turn`: level 1 scores the turns on main's frozen table while
   the stage's follows targets ride the table read again from the moved centres.
@@ -957,11 +959,11 @@ def a_frame_is_not_held_in_another_parts_skin():
     return problems
 
 
-def pocket_head():
-    """A head-weighted closed mesh: a 10 cm cube whose +x face holds a pocket 2 cm wide and 2 cm deep (a mouth), its
-    faces outward; as a rig ({"points", "faces", "weights", "names"})."""
+def pocket_head(gap=0.01, deep=0.02):
+    """A head-weighted closed mesh: a 10 cm cube whose +x face holds a pocket 2 `gap` wide and `deep` deep (a mouth's
+    slit by default), its faces outward; as a rig ({"points", "faces", "weights", "names"})."""
     import numpy as np
-    half, gap, deep = 0.05, 0.01, 0.02
+    half = 0.05
     corners = [[x, y, z] for x in (-half, half) for y in (-half, half) for z in (-half, half)]
     rim = [[half, y, z] for y, z in ((-gap, -gap), (gap, -gap), (gap, gap), (-gap, gap))]
     bottom = [[half - deep, y, z] for y, z in ((-gap, -gap), (gap, -gap), (gap, gap), (-gap, gap))]
@@ -998,9 +1000,10 @@ def a_frames_skin_marks_the_bones_out_of_it_frame_by_frame():
 
 
 def the_heads_pockets_are_closed_for_the_inside_test():
-    """SOMA's head holds pockets (the mouth's slit, the eye sockets, nostrils, ears) a closed face covers: on a head
-    mesh with a mouth-like pocket, a point in the pocket reads outside the skin as it is and inside its `envelope`
-    (`_skin.pockets` finds the one pocket), a point in the head inside both, one beside the head outside both."""
+    """SOMA's head holds pockets (the mouth's slit and the oral cavity behind it, the eye sockets, nostrils, ears) a
+    closed face covers: on a head mesh with a mouth-like pocket, a point in the pocket reads outside the skin as it is
+    and inside its `envelope` (`_skin.pockets` finds the one pocket), a point in the head inside both, one beside the
+    head outside both; in a cavity 6 cm wide and deep (SOMA's mouth, to 103 mm deep) a point reads inside the envelope."""
     import numpy as np
     from fit import _skin
     rig = pocket_head()
@@ -1009,7 +1012,10 @@ def the_heads_pockets_are_closed_for_the_inside_test():
     closed = _skin.marks(points, rig["points"], _skin.envelope(rig))[0]
     problems = [] if list(plain) == [True, False, True] else [f"the pocket mesh's sides as it is: {list(plain)}"]
     problems += [] if len(_skin.pockets(rig)) == 1 else [f"{len(_skin.pockets(rig))} pockets found, not 1"]
-    return problems + ([] if list(closed) == [False, False, True] else [f"the envelope's sides: {list(closed)}"])
+    problems += [] if list(closed) == [False, False, True] else [f"the envelope's sides: {list(closed)}"]
+    cavity = pocket_head(gap=0.03, deep=0.06)  # an oral cavity behind the lips: walls 6 cm apart, 6 cm deep
+    held = _skin.marks(np.array([[0.02, 0.0, 0.0]]), cavity["points"], _skin.envelope(cavity))[0]
+    return problems + ([] if not held.any() else ["a point in the 6 cm cavity reads outside the envelope"])
 
 
 def nearest_on_faces(points, verts, faces):
