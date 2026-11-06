@@ -46,15 +46,24 @@ runners in `tools/cloud/` stay as they are.
   freely (new generation) and resumes a run from its labels.
 - **Money.** No month's ceiling (owner, 2026-10-20); each pool's max size is what the batch cap pays for
   `BATCH_HOURS`; the live cost of a run's nodes is checked every poll against the batch cap. Empty nodes go after
-  5 min (the cluster's autoscaler settings). `down` deletes the cluster; check its own project id first, and never
-  touch another project's cluster.
+  the cluster's autoscaler's minutes (5 on score's own cluster, 2 on the tenant's), past a warm hold's. `down`
+  deletes the cluster; check its own project id first, and never touch another project's cluster.
 - **Secrets only by name.** The store and registry credentials come from the provider at submit time and go to the
   cluster through kubectl's stdin; no kubeconfig, key or id is committed (the kubeconfig lives under
   `~/.farm-factory-props/cloud/`).
-- **Warm nodes.** A run puts all its jobs on the cluster at once, so its nodes stay busy while any of its jobs
-  wait; a node is removed 5 min after its last pod (measured 5.5 to 6.5 min). A runner that sends a run's stages
-  one after another keeps its nodes if the next stage comes within those 5 min; a pod on a warm node starts in
-  about 1 s, against about 5 min from zero.
+- **Warm nodes** (owner, 2026-11-06: "why dont machine keep kept warm while there is a queu"). A run puts its jobs on
+  the cluster as its `parallel` allows, so its nodes stay busy while any of its jobs wait. Once every job is on the
+  cluster, each idle node a job of the run ran on is kept `submitter.WARM_MINUTES` (10) by a warm hold
+  (`manifests.warm_hold`, `submitter.hold_idle`): a pause pod pinned to the node by hostname with the autoscaler's
+  `safe-to-evict: "false"`, no card asked (the next job's pod lands beside it at once, its node cache, GEM-X's
+  environment among it, still there), ended by its Job's own deadline, so no floor outlives its minutes whatever
+  happens to the submitter, and pinned by hostname, so it never makes a node. Its minutes are the run's (billed to
+  the hold's end; a later run that takes the node counts it from its own start); a stop (SIGTERM, the batch cap,
+  stop-batch) deletes the holds with the run's Jobs. Not a pool minimum and not a longer scale-down: the tenant
+  cluster's autoscaler settings are cluster-wide and its owner's (scale-down after 2 min unneeded, read 2026-11-06),
+  and a raised pool minimum would stay up unpaid-for after a crash. A pod on a warm node starts in about 1 s,
+  against about 5 min from zero (3 min for the node, about 2 for GEM-X's environment). A warm card costs its price
+  a minute: an L4 EUR 0.13 per 10 min, an L40S 0.25, an H100 0.48.
 - **Kapsule or Kosmos.** Both control planes are free. Kapsule reaches one region's zones (fr-par-1, fr-par-2);
   Kosmos (`SCORE_K8S_TYPE=multicloud`) also reaches pl-waw-2, which on 2026-10-09 gave the only processor machine
   after 20 min of fr-par being out of stock. Kosmos nodes lack the zone and instance-type labels and wait about

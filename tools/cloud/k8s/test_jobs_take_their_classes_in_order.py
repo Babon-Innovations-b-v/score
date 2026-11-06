@@ -30,6 +30,12 @@ invariant with the break that turns it red (each applied once and seen red):
 - Billing: a warm node counts from the run's start; an unused node made during the run is the run's; a node made
   before it, or hosting another run, is not; a node without zone labels takes the provider's record.
   Break: `created = seen["created"]` in `node_machines`.
+- Warm nodes: once every job of the run is on the cluster, each idle node a job ran on gets one warm hold an idle
+  spell (a pause pod pinned to it, not evictable by the autoscaler, no card asked, ended by its own deadline), billed
+  to the hold's end; a stop drops the holds. Break: drop the `submitted is None` return in `hold_idle`. Break: drop
+  the `held_at` check in `hold_idle`. Break: drop the safe-to-evict annotation in `manifests.warm_hold`. Break: count
+  a hold pod as busy in `note_hosts`. Break: `gone = now + ...` in `last_seen_scale_down`. Break: drop `drop_holds`
+  in `stop_run`.
 - Never a lost row (#95): a look at the cluster that fails is tried POLL_RETRIES times more, then the run's row is
   booked from what was last seen (its node marked estimated) and the error goes on; a SIGTERM deletes every Job of
   the run, books its row with the unfinished jobs stopped and exits 143; either way the door still brings back what
@@ -392,6 +398,80 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tm
     run.nodes["side-by-side"] = dict(run.nodes["first"], hosted=True)
     assert sorted((machine["node"], machine["unused"]) for machine in submit.node_machines(run, "judge")) == [
         ("first", False), ("second", True)]
+
+    # warm nodes (owner, 2026-11-06): once every job is on the cluster, an idle node a job ran on is held WARM_MINUTES
+    # by a pause pod the autoscaler may not evict, asking no card; once an idle spell; billed to its hold's end
+    clock = [50_000.0]
+    monkeypatch.setattr(submit.time, "time", lambda: clock[0])
+
+    class NodesKubectl(LiveKubectl):
+        def __init__(self):
+            super().__init__()
+            self.nodes, self.all_pods, self.ran = [], [], []
+
+        def json(self, *arguments):
+            if arguments[1] == "nodes":
+                return {"items": self.nodes}
+            if arguments[1] == "pods":
+                return {"items": self.all_pods}
+            return super().json(*arguments)
+
+        def run(self, *arguments):
+            self.ran.append(arguments)
+            return ""
+
+    class NodedCluster(PricedCluster):
+        TOLERATIONS = [{"key": "tenant", "operator": "Equal", "value": "score", "effect": "NoSchedule"}]
+
+        def nodes(self):
+            return []
+    kubectl = NodesKubectl()
+    kubectl.nodes = [{"metadata": {"name": name, "creationTimestamp": "2026-11-06T10:00:00Z",
+                                   "labels": {"score.dev/class": "gpu-24gb", "kubernetes.io/hostname": f"host-{name}"}},
+                      "status": {"conditions": []}} for name in ("l4-a", "l4-b")]
+    run = submit.Run("r-warm", {"one": spec, "two": spec}, kubectl, NodedCluster())
+    run.jobs["one"].update(node="l4-a", ran=49_000.0, state="done", submitted=48_000.0)
+    job_pod = lambda node, phase: {"metadata": {"labels": {"score.dev/job": "two"}}, "spec": {"nodeName": node},
+                                   "status": {"phase": phase}}
+    kubectl.all_pods = [job_pod("l4-a", "Succeeded"), job_pod("l4-b", "Running")]
+    run.watch_nodes()
+    submit.hold_idle(run)
+    assert kubectl.jobs == {}  # a job still to put on takes the idle node: no hold
+    run.jobs["two"].update(node="l4-b", ran=49_500.0, submitted=49_400.0)
+    submit.hold_idle(run)
+    hold, = kubectl.jobs.values()  # l4-a idle, l4-b busy with job two
+    pod = hold["spec"]["template"]
+    assert pod["metadata"]["annotations"] == {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}
+    assert pod["spec"]["nodeSelector"] == {"kubernetes.io/hostname": "host-l4-a"}
+    assert "nvidia.com/gpu" not in pod["spec"]["containers"][0]["resources"]["requests"]  # the next job's card free
+    assert NodedCluster.TOLERATIONS[0] in pod["spec"]["tolerations"]
+    assert hold["spec"]["activeDeadlineSeconds"] == submit.WARM_MINUTES * 60  # it ends by itself
+    assert hold["metadata"]["labels"]["score.dev/run"] == "r-warm" and len(hold["metadata"]["name"]) <= 63
+    clock[0] += 60
+    run.watch_nodes()
+    submit.hold_idle(run)
+    assert len(kubectl.jobs) == 1  # one hold an idle spell
+    kubectl.all_pods = [job_pod("l4-a", "Running"), job_pod("l4-b", "Succeeded")]
+    clock[0] += 60
+    run.watch_nodes()
+    submit.hold_idle(run)
+    assert len(kubectl.jobs) == 2  # l4-b idle now; l4-a busy again
+    kubectl.all_pods = [job_pod("l4-a", "Succeeded"), job_pod("l4-b", "Succeeded"),
+                        {"metadata": {"labels": {"score.dev/warm": "hold"}}, "spec": {"nodeName": "l4-b"},
+                         "status": {"phase": "Running"}}]
+    clock[0] += 60
+    run.watch_nodes()
+    submit.hold_idle(run)
+    assert len(kubectl.jobs) == 3 and not run.nodes["l4-b"]["busy"]  # a hold is no job: l4-a held again
+    submit.last_seen_scale_down(run)
+    assert run.nodes["l4-a"]["deleted"] == clock[0] + (submit.WARM_MINUTES + submit.IDLE_ESTIMATE_MINUTES) * 60
+    run.nodes["l4-a"]["deleted"] = None
+    submit.stop_run(run, "the batch cap")
+    assert kubectl.ran == [("delete", "jobs", "-n", manifests.NAMESPACE, "-l", "score.dev/run=r-warm,score.dev/warm",
+                            "--ignore-not-found", "--wait=false", "--cascade=background")]
+    submit.last_seen_scale_down(run)
+    assert run.nodes["l4-a"]["deleted"] == clock[0] + submit.IDLE_ESTIMATE_MINUTES * 60  # a stop ends the holds
+    monkeypatch.undo()
 
     # never a lost row (#95): a look that keeps failing is retried, then the row is booked from the last look
     def unreachable():

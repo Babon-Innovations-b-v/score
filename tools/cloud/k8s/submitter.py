@@ -39,8 +39,9 @@ for every run of score in the score-jobs namespace, for stop-batch.
 Cost. Nothing is submitted outside a run the runner cleared or the owner's override names
 (score.adapters.compute, `require_cleared`). Each pool's max size is what the batch cap (ledger.BATCH_EUROS) pays
 for ledger.BATCH_HOURS a node, and the live cost of the run's nodes is checked every poll against the batch cap: past
-it, the waiting Jobs are deleted and every pool is capped to zero. Empty nodes go after the autoscaler's scale-down time (the cluster module sets it), so an idle cluster costs
-only its small system pool; `down` deletes the whole cluster. At the end the submitter waits for the run's nodes to
+it, the waiting Jobs are deleted and every pool is capped to zero. Empty nodes go after the autoscaler's scale-down
+time (the cluster module sets it), past a warm hold's WARM_MINUTES once the run's queue is empty (hold_idle), so an
+idle cluster costs only its small system pool; `down` deletes the whole cluster. At the end the submitter waits for the run's nodes to
 go, then writes one ledger row a node (ledger.machines_record: its class, type, zone, minutes and euros) and the
 run's jobs with their wait until the pod ran.
 """
@@ -90,6 +91,12 @@ SCALE_DOWN_WAIT_MINUTES = 20
 # When a runner does not wait for that, a node still up is taken as gone this long after the run: the autoscaler's
 # 5 min of idleness and its delete (5.5 to 6.5 min measured, 2026-10-09).
 IDLE_ESTIMATE_MINUTES = 6.5
+# How long a node a job of the run ran on is kept after it goes idle, once every job of the run is on the cluster
+# (owner, 2026-11-06: "why dont machine keep kept warm while there is a queu"): the tenant cluster's autoscaler removes
+# an empty node after 2 min, and a fresh card node costs ~3 min to come up and a GEM-X job ~2 min to rebuild its
+# environment there, so a run's tail and the run that follows it within these minutes take warm nodes
+# (manifests.warm_hold, ended by its own deadline).
+WARM_MINUTES = 10
 INSTANCE_LABEL = "node.kubernetes.io/instance-type"
 ZONE_LABEL = "topology.kubernetes.io/zone"
 
@@ -415,6 +422,7 @@ class Run:
                 "type": (meta["labels"].get(INSTANCE_LABEL) or provider_record.get("type", "?")).upper(),
                 "zone": meta["labels"].get(ZONE_LABEL) or provider_record.get("zone", "?"),
                 "created": provider_record.get("created") or parse_time(meta["creationTimestamp"]),
+                "hostname": meta["labels"].get(manifests.HOSTNAME_LABEL, meta["name"]),
                 "ready": None, "deleted": None, "jobs": set()})
             ready = [condition for condition in node["status"].get("conditions", [])
                      if condition["type"] == "Ready" and condition["status"] == "True"]
@@ -429,11 +437,20 @@ class Run:
 
     def note_hosts(self):
         """Mark the nodes any job pod of any run has been placed on, so a node another run used is not taken for one
-        the autoscaler made for this run in vain."""
+        the autoscaler made for this run in vain; and each node's last time a job pod (a warm hold is none) was
+        live on it, and whether one is now."""
+        now = time.time()
+        for seen in self.nodes.values():
+            seen["busy"] = False
         for pod in self.kubectl.json("get", "pods", "-n", manifests.NAMESPACE)["items"]:
             name = pod["spec"].get("nodeName")
-            if name in self.nodes:
-                self.nodes[name]["hosted"] = True
+            if name not in self.nodes:
+                continue
+            seen = self.nodes[name]
+            seen["hosted"] = True
+            held = manifests.WARM_LABEL in pod["metadata"].get("labels", {})
+            if not held and pod.get("status", {}).get("phase") not in ("Succeeded", "Failed"):
+                seen["busy"], seen["busy_last"] = True, now
 
     def used_nodes(self):
         """The nodes a job of this run ran on."""
@@ -460,6 +477,33 @@ class Run:
         return [job_id for job_id, record in self.jobs.items() if record["state"] == "waiting"]
 
 
+def hold_idle(run):
+    """Keep each node a job of the run ran on for WARM_MINUTES once it is idle, when every job of the run is on the
+    cluster (before that, the run's next job takes the node): one warm hold a node an idle spell, the run's to pay."""
+    if any(record["submitted"] is None for record in run.jobs.values()):
+        return
+    now = time.time()
+    for name in sorted(run.used_nodes()):
+        seen = run.nodes.get(name)
+        if seen is None or seen["deleted"] is not None or seen.get("busy"):
+            continue
+        if seen.get("held_at", -1) >= seen.get("busy_last", 0):
+            continue  # held already since it was last busy
+        run.kubectl.apply([manifests.warm_hold(run.run_id, name, seen.get("hostname", name), WARM_MINUTES, now,
+                                               getattr(run.cluster, "TOLERATIONS", ()))])
+        seen["held_at"], seen["warm_until"] = now, now + WARM_MINUTES * 60
+        say(f"{name} kept warm {WARM_MINUTES} min for the next job")
+
+
+def drop_holds(run):
+    """Delete the run's warm holds, so its idle nodes go at the autoscaler's own time."""
+    run.kubectl.run("delete", "jobs", "-n", manifests.NAMESPACE, "-l",
+                    f"{RUN_LABEL}={manifests.label_value(run.run_id)},{manifests.WARM_LABEL}", "--ignore-not-found",
+                    "--wait=false", "--cascade=background")
+    for seen in run.nodes.values():
+        seen.pop("warm_until", None)
+
+
 def over_limits(run):
     """Why the run must stop now (the batch cap), or None."""
     live = run.live_euros()
@@ -474,6 +518,7 @@ def stop_run(run, why):
     for job_id in run.unfinished():
         run.kubectl.delete_job(manifests.job_name(run.run_id, job_id, run.jobs[job_id]["generation"]))
         run.jobs[job_id]["state"] = "stopped"
+    drop_holds(run)
     run.cluster.cap_pools(0, 1)
 
 
@@ -570,6 +615,8 @@ def look(run, parallel):
     why = over_limits(run)
     if why:
         stop_run(run, why)
+    else:
+        hold_idle(run)
 
 
 def submit_more(run, parallel=None):
@@ -653,6 +700,8 @@ def stop_after_signal(run):
             f"{RUN_LABEL}={manifests.label_value(run.run_id)}")
     for job_id in run.unfinished():
         run.jobs[job_id]["state"] = "stopped"
+    for seen in run.nodes.values():
+        seen.pop("warm_until", None)  # its holds went with its Jobs
     try:
         estimate_scale_down(run)
     except (Exception, SystemExit) as error:  # noqa: BLE001 - booked from the last look instead
@@ -702,10 +751,12 @@ def estimate_scale_down(run):
 
 
 def last_seen_scale_down(run):
-    """estimate_scale_down from the nodes as last seen, with no look at the cluster."""
-    gone = time.time() + IDLE_ESTIMATE_MINUTES * 60
+    """estimate_scale_down from the nodes as last seen, with no look at the cluster: a node kept warm goes once its
+    hold ends (a later run that takes it counts it again from its own start: an overcount, never an undercount)."""
+    now = time.time()
     for seen in run.our_nodes().values():
         if seen["deleted"] is None:
+            gone = max(now, seen.get("warm_until") or 0) + IDLE_ESTIMATE_MINUTES * 60
             seen["deleted"], seen["estimated"] = gone, True
 
 
