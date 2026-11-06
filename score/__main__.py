@@ -1,7 +1,7 @@
 """SCORE's one command: the runner drives an environment's lines to their end, with no agent in the loop.
 
-    .venv/bin/python -m score run <environment> [--place P ...] [--stage S ...] [--jobs N] [--detach] [--rebuy-reason R]
-        [--uncommitted] [--oversubscribe] [--free]
+    .venv/bin/python -m score run <environment> [--place P ...] [--stage S ...] [--phase F] [--jobs N] [--detach]
+        [--rebuy-reason R] [--uncommitted] [--oversubscribe] [--free]
     .venv/bin/python -m score status [<environment>] [--place P ...] [--stage S ...]                   # every line's state
     .venv/bin/python -m score images publish <kind>   # an accepted image proof's record into images.json
     .venv/bin/python -m score plan <environment> [--place P ...] [--stage S ...] [--rebuy-reason R] [--jobs N] --json
@@ -29,7 +29,9 @@ a process of its own and at most --jobs at once (default score.graph.JOBS; --job
 node's thread pools and its children's capped at this PC's cores shared out among the jobs (OMP_NUM_THREADS and the
 others in score.graph.THREAD_VARIABLES, and the OpenBLAS pools already loaded), so a lone node at the default --jobs
 still gets only its share (--jobs 1 gives it every core); more jobs than cores is refused unless given --oversubscribe;
-with --stage, only those stages and the ones they read (a line's other rows, a paid surface row say, are left alone). It
+with --stage, only those stages and the ones they read (a line's other rows, a paid surface row say, are left alone);
+--phase (run, status and plan) adds every stage of that phase of the environment's table (score/stages/phases) to
+--stage, refused for an unknown phase or one holding no stage of the table. It
 starts
 each node the moment the nodes it reads stand accepted, gathers a gate's missing evidence itself (a paid step cleared by
 the runner, waited on by the runner), and stops a line whose node fails, errors or is blocked, with a plain fault report
@@ -122,7 +124,7 @@ sys.path.insert(0, str(REPO))
 
 from score import conductor, graph, stages  # noqa: E402
 from score.graph import _code, frozen, rebuy, runs, stopped  # noqa: E402
-from score.stages import moved  # noqa: E402
+from score.stages import moved, phases  # noqa: E402
 from score.store import Store  # noqa: E402
 
 DETACH = "--detach"
@@ -217,12 +219,26 @@ def parse(argv):
     for command in (run, status, plan):
         command.add_argument("--place", action="append", help="one place's line (repeat it); default: every place")
         command.add_argument("--stage", action="append", help="only this stage and what it reads (repeat it)")
+        command.add_argument("--phase", choices=phases.NAMES,
+                             help="every stage of this phase and what they read, as --stage (score/stages/phases)")
         command.add_argument("--object", action="append",
                              help="only this object of a place, in the stages that select (repeat it)")
     options = parser.parse_args(argv)
     if getattr(options, "jobs", 0) is None:
         options.jobs = conductor.default_jobs(graph.JOBS)
     return options
+
+
+def phase_stages(options, table):
+    """options.stage with every stage of the phase options.phase among `table`'s stage names added, in their order
+    (score/stages/phases); options.stage as given without a phase. Exits naming the phase when it holds no stage of
+    the table, so a phase is never read as the whole environment."""
+    if not getattr(options, "phase", None):
+        return options.stage
+    held = phases.stages_of(options.phase, list(table))
+    if not held:
+        sys.exit(f"score: the phase {options.phase} holds no stage of this environment's table")
+    return [*(options.stage or []), *[name for name in held if name not in (options.stage or [])]]
 
 
 def jobs_count(text):
@@ -1453,6 +1469,7 @@ def main(argv=None):
         slices.apply_shim()  # in the runs' slice, a step's own systemd-run scope stays in it
     runner = stages.runner(world=stages.WORLDS[options.world]())
     runner.objects = frozenset(options.object) if options.object else None
+    options.stage = phase_stages(options, runner.stages)
     if options.command == "run":
         options.free = runner.free_only = options.free or os.environ.get(conductor.FREE_ONLY) == "1"
         from score.adapters import compute

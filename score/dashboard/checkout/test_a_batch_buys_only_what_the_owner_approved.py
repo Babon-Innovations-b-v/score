@@ -15,6 +15,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   line takes the batch's older, larger budget -> test_a_batch_has_one_budget_across_its_tries
 - flow.start: drop `items = left_out(...)` -> a Buy without the film buys the left-out rows ->
   test_a_buy_approved_in_chat_is_refused_outside_what_he_approved
+- flow.start: `phase_kept(left_out(...), ...)` -> `left_out(...)` -> a Buy by phase runs the other phase's
+  pixal@alpha too -> test_a_buy_approved_in_chat_is_refused_outside_what_he_approved
 - chat_yes.buy: drop `flow.basket_made()` -> a Buy in chat buys the basket an older pass saved and the run "would
   also buy" the row the runner's plan grew by -> test_a_buy_approved_in_chat_launches_his_checkout_once
 - flow.BUFFER = 1.10 -> 1.0 -> test_the_checkout_plans_the_batch_once_writes_the_line_and_launches_one_run
@@ -650,6 +652,24 @@ def test_a_buy_approved_in_chat_is_refused_outside_what_he_approved(chat, settin
         chat_yes.current_basket(), nothing_left["leave_out"])["high_euros"] == 0
     record, said = chat_buy(nothing_left["id"])
     assert not launches() and (record is None or record.state != "launched"), said
+    # by phase (owner, 2026-11-06, CONTEXT.md "phase"): only that phase's nodes of the basket, under the same yes and
+    # batch total, the checkout naming the phase; an unknown phase refused before the yes is spent
+    from score.stages import phases
+    assert flow.phase_kept(items, "film") == [{"id": "a", "nodes": {"demo-film@a": price}},
+                                              {"id": "f", "nodes": {"demo-film-extra@b": price}}]
+    assert flow.phase_kept(items, None) == items
+    chat.items = a_basket(settings, ["closeup@alpha", "pixal@alpha"])  # the basket of two phases' rows
+    monkeypatch.setattr(flow, "basket_made", lambda: None)
+    monkeypatch.setattr(FakeBackend, "plan_buys", None)  # the run's plan buys the close-ups its --stage names
+    monkeypatch.setattr(phases, "PHASES", (("models", ("closeup",)), ("surfaces", ("pixal",))))
+    monkeypatch.setattr(phases, "NAMES", ("models", "surfaces"))
+    yes = a_yes()
+    with pytest.raises(chat_yes.Refused, match="lighting is no phase"):
+        chat_yes.buy(yes["id"], phase="lighting")
+    assert not web.buy_yes_used(chat.store, yes["id"])
+    record, said = chat_yes.buy(yes["id"], phase="models")
+    assert record is not None and record.state == "launched", said
+    assert launches()[-1][1].stages == ("closeup@alpha",) and record.chat_yes["phase"] == "models", launches()
 
 
 def test_a_batch_has_one_budget_across_its_tries(chat, monkeypatch, tmp_path):

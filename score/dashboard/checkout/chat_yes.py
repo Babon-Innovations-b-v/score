@@ -18,7 +18,9 @@ his Buy button makes (flow.start, every refusal of his click), once.
                                           Buy screen buys now; kept once in the store, grants/buy/<id>.json
                                           (score.review.web). `leave_out` (NO_FILM, the door's --no-film) the stages
                                           whose rows that Buy neither buys nor makes, priced without them
-    buy(yes id)                           his Buy under that yes, refused when: no quoted yes, used already (one yes
+    buy(yes id, phase)                    with a phase (score/stages/phases), only that phase's rows of the basket
+                                          (flow.phase_kept) under the same yes and batch total, the checkout's
+                                          chat_yes naming it; his Buy under that yes, refused when: no quoted yes, used already (one yes
                                           launches at most one checkout: grants/buy-used/<id>.json, written once
                                           before the checkout, so a checkout refused after that needs a new yes),
                                           a yes naming a try's stop rather than a batch total (flow.yes_refusals), or
@@ -124,11 +126,11 @@ def record(total, high, answer, question, store=None, leave_out=()):
         "by": settings.SCORE_OWNER, "basket": approved, "leave_out": list(leave_out)})
 
 
-def basket_totals(now_basket, leave_out=()):
+def basket_totals(now_basket, leave_out=(), phase=None):
     """pricing.totals of the basket `now_basket` (current_basket) at the runner's prices now, the rows of the stages
-    `leave_out` taken out (flow.left_out)."""
+    `leave_out` taken out (flow.left_out), only the phase `phase`'s rows kept when given (flow.phase_kept)."""
     items, _ = flow.bought_items(now_basket["items"])
-    items = flow.left_out(items, leave_out)
+    items = flow.phase_kept(flow.left_out(items, leave_out), phase)
     return pricing.totals(pricing.basket_prices(flow.snapshot(items)))
 
 
@@ -209,19 +211,31 @@ def run_refusals(folder=None):
     return [f"a run is active (pid {', '.join(active)}): wait for it to end"] if active else []
 
 
-def buy(yes_id, store=None):
+def known_phase(phase):
+    """`phase` when it is a phase of score/stages/phases; Refused naming the phases otherwise."""
+    from score.stages import phases
+    if phase not in phases.NAMES:
+        raise Refused(f"{phase} is no phase: one of {', '.join(phases.NAMES)}")
+    return phase
+
+
+def buy(yes_id, store=None, phase=None):
     """His Buy under the yes `yes_id`, once: every check of the module docstring, the yes marked used, then flow.start
-    as his click, in this thread; (Checkout or None, words). Refused before the yes is marked used, nothing written."""
+    as his click, in this thread; (Checkout or None, words). With `phase` (score/stages/phases, the door's `--phase`)
+    only that phase's rows of the basket are bought (flow.phase_kept), under the same yes and batch total, the
+    checkout's chat_yes naming it. Refused before the yes is marked used, nothing written."""
     from score.review import web
     store = store or state.source().store
     yes = yes_found(store, yes_id)
+    if phase:
+        yes = {**yes, "phase": known_phase(phase)}
     approved = approved_now()  # the design's approval now, as the basket below is the runner's plan now
     try:
         flow.basket_made()  # what the runner's plan buys now at the approved places, never an older pass's basket
     except flow.Refused as refused:
         raise Refused(str(refused)) from refused
     now_basket = current_basket(approved)
-    totals = basket_totals(now_basket, yes.get("leave_out", ()))  # flow.start checks it again, under its lock
+    totals = basket_totals(now_basket, yes.get("leave_out", ()), phase)  # flow.start checks it again, under its lock
     refused = flow.yes_refusals(yes, totals) + latch_refusals() + pin_refusals(health.code()) + run_refusals()
     if refused:
         raise Refused("; ".join(refused))
