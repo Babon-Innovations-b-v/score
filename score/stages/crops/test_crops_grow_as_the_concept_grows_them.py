@@ -194,6 +194,10 @@ def test_layer_gates(tmp_path):
     a plant moved off its bed fails `on beds`. Greenhouse, 2026-11-04: one 2.3 m planter tray was laid on every bed
     of 0.47 x 0.67 m, overhanging it and passing through its neighbours; now each plant is sized to its bed, in its
     proportions, and `on beds` fails a plant whose turned footprint overhangs its bed or passes through another's.
+    Greenhouse, 2026-11-06: a tray a bed, `spacing` read each lone tray to the next bed's (3.43 widths, the plan's
+    distance, against the concept's 1.45), and a lone tray on a wide bed was laid in the first of two cells, at half
+    the size its bed holds; now a plant's spacing is to its nearest neighbour on its own bed, a lone plant's its bed's
+    side, and a bed never has more columns than plants.
     Break: score/stages/crops/layer.py: `elif abs(got - wanted) > LAID_WITHIN * wanted:` -> `elif False:`
     Break: score/stages/crops/layer.py: `if max(off_x, off_z) > 0:` -> `if False:`
     Break: score/stages/crops/layer.py: `return min(1.0, min(float(bed["size"][0]), float(bed["size"][2])) / 2.0 /
@@ -201,7 +205,11 @@ def test_layer_gates(tmp_path):
     Break: score/stages/crops/layer.py: `if over > TOUCH:` -> `if False:`
     Break: score/stages/crops/layer.py: `for number, other in crossings(spots, footprints)]` -> `for number, other in
         []]`
-    Break: score/stages/crops/layer.py: `/ (widths[kind] * float(own[index]["size"]))` -> `/ widths[kind]`"""
+    Break: score/stages/crops/layer.py: `laid_width = width * float(spot["size"])` -> `laid_width = width`
+    Break: score/stages/crops/layer.py: `if other is not spot and other["bed"] == spot["bed"]]` -> `if other is not
+        spot]`
+    Break: score/stages/crops/layer.py: `columns = min(count, math.ceil(math.sqrt(count * width / depth)))` -> `columns
+        = math.ceil(math.sqrt(count * width / depth))`"""
     folder = tmp_path
     inputs, beds, shared, spots = laid_on_greenhouse(folder, 1.5)
     assert sum(len(names) for names in shared.values()) == len(beds) == 25, shared
@@ -229,6 +237,12 @@ def test_layer_gates(tmp_path):
     along = layer.laid_spots([long_bed], {"greens": ["long"]}, {"greens": 1.45 * 2.3}, {"greens": tray}, 7)
     assert len(along) == 3 and all(layer.overhang(layer.corners_of(spot, tray), long_bed) <= 0 for spot in along), \
         along  # the bed's spacing sized with its trays, so a long bed holds a row of them at the concept's spacing
+    wide = {"name": "wide", "row": "planter_bed", "centre": [0.0, 0.43, 0.0], "size": [2.05, 0.06, 1.685]}
+    small = {"name": "small", "row": "planter_bed", "centre": [2.68, 0.43, 0.0], "size": [0.473, 0.06, 0.674]}
+    lone = layer.laid_spots([wide, small], {"greens": ["wide", "small"]}, {"greens": 1.45 * 2.3}, {"greens": tray}, 7)
+    assert [spot["bed"] for spot in lone] == ["wide", "small"] and lone[0]["size"] > 0.6, lone  # its whole bed's size
+    laid = layer.laid_spacings(lone, {"greens": 2.3}, {"wide": wide, "small": small})["greens"]
+    assert abs(laid - 1.45) <= layer.LAID_WITHIN * 1.45, laid  # each tray as far apart as its own bed gives it
     record = json.loads((folder / "spots.json").read_text())
     record["spots"][0]["size"] *= 1.5  # centre still on its bed, the tray past its edge
     (folder / "spots.json").write_text(json.dumps(record))

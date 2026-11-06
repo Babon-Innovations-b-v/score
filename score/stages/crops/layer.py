@@ -23,7 +23,8 @@
     gates    on beds    every plant stands on its bed, its centre at least EDGE inside the bed's edge and its
                         footprint, turned and sized as laid, within the bed and clear of every other plant's; and
                         every bed carries plants
-             spacing    each kind's spacing in plant widths as laid (each plant's width times its size) within
+             spacing    each kind's spacing in plant widths as laid (each plant's width times its size: to its
+                        nearest neighbour on its own bed, a plant alone on its bed its bed's side) within
                         LAID_WITHIN of the concept's
 
 Experimental (PRD #6): the crops are laid as the locked concept grows them (its kinds' patches and spacing).
@@ -104,7 +105,8 @@ def bed_spots(bed, count, reach, scale, generator):
     """`count` plants on one bed, on a grid of its cells, each sized round `scale` (never past what its cell holds
     at any turn) and moved within its cell as far as its reach leaves room; [(x, z, size)]."""
     width, depth = float(bed["size"][0]), float(bed["size"][2])
-    columns = math.ceil(math.sqrt(count * width / depth))
+    # never more columns than plants: a lone plant on a long bed takes the whole bed, not the first of two cells
+    columns = min(count, math.ceil(math.sqrt(count * width / depth)))
     rows = math.ceil(count / columns)
     half_x, half_z = width / columns / 2.0, depth / rows / 2.0
     low_x = float(bed["centre"][0]) - width / 2.0
@@ -345,18 +347,31 @@ def judge_on_beds(output, inputs, evidence):
                           {"faults": "lower"}, tuple(failing[:40]))
 
 
-def laid_spacings(spots, widths):
-    """{kind: the median over its plants of the distance to the nearest neighbour of its kind over the plant's laid
-    width (the kind's model width times its size)}."""
+def laid_spacing(spot, own, width, bed):
+    """One laid plant's spacing in its laid widths (`width`, its kind's model width, times its size): the distance to
+    the nearest plant of its kind on its own bed, the spacing the layer laid it at (how far apart the beds stand is
+    the plan's); a plant alone on its bed, the side of the cell it was laid in, its bed's (the square root of its
+    area)."""
+    laid_width = width * float(spot["size"])
+    others = [other for other in own if other is not spot and other["bed"] == spot["bed"]]
+    if not others:  # alone; on no bed of the plan (`on beds` fails it), no cell to read
+        return None if bed is None else math.sqrt(float(bed["size"][0]) * float(bed["size"][2])) / laid_width
+    point = (spot["at"][0], spot["at"][2])
+    return min(math.dist(point, (other["at"][0], other["at"][2])) for other in others) / laid_width
+
+
+def laid_spacings(spots, widths, beds):
+    """{kind: the median over its plants of each one's laid_spacing}, `beds` {name: bed}; a kind of under two plants
+    has none."""
     found = {}
     for kind in sorted({spot["kind"] for spot in spots}):
         own = [spot for spot in spots if spot["kind"] == kind]
-        points = [(spot["at"][0], spot["at"][2]) for spot in own]
-        if len(points) < 2:
+        if len(own) < 2:
             continue
-        nearest = [min(math.dist(point, other) for number, other in enumerate(points) if number != index)
-                   / (widths[kind] * float(own[index]["size"])) for index, point in enumerate(points)]
-        found[kind] = statistics.median(nearest)
+        each = [laid_spacing(spot, own, widths[kind], beds.get(spot["bed"])) for spot in own]
+        read = [value for value in each if value is not None]
+        if read:
+            found[kind] = statistics.median(read)
     return found
 
 
@@ -365,7 +380,8 @@ def judge_spacing(output, inputs, evidence):
     record = crop_data.read(inputs)
     measured = json.loads((pathlib.Path(inputs["crops-concept"]) / "concept.json").read_text())["kinds"]
     laid_record = json.loads((output / "spots.json").read_text())
-    laid = laid_spacings(laid_record["spots"], laid_record["widths"])
+    beds = {bed["name"]: bed for bed in crop_data.beds_in(inputs, record)}
+    laid = laid_spacings(laid_record["spots"], laid_record["widths"], beds)
     failing = []
     for kind in record["kinds"]:
         wanted, got = measured[kind]["spacing"], laid.get(kind)
