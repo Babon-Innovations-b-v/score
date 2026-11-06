@@ -27,8 +27,10 @@ Environment 1 is the evidence. Its first run was not accepted and its store was 
 batch makes the demonstrations: every layer of one environment, physics that holds, the same environment in a
 game engine, a robot simulator and a film render, and an edit that stays cheap.
 
-**Next.** Every character gets a sim body on Newton, driven by its SOMA segment rotations and standing on a
-SCORE floor, starting minimal. Beyond that: bodies true to the person, motion from the SOMA ecosystem turned
+**Sim bodies (experimental).** Every character gets a musculoskeletal sim body (MyoFullBody, 416 muscles) fitted to
+its SOMA body and standing on the scene's own floor: Newton and MuJoCo Warp work out each frame's joint moments,
+ground reaction force per foot and muscle activations on a rented card, 89 to 120 s for a 6 s clip on one L4, the same result
+bit for bit every run. **Next.** Beyond that: bodies true to the person, motion from the SOMA ecosystem turned
 into scenes without video or identifying information, trained models (brains) that drive a sim body in invented
 worlds, and a data loop in which simulation data trains better models. The paper's last sections say what is
 done and what is a goal.

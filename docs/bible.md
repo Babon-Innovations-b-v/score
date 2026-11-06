@@ -262,10 +262,28 @@ lock, reading and plan, parent before child, then the film.
    it once the run has no card work left and the cockpit's cards-warm figure are still to do
    (`tools/cloud/CLAUDE.md`).
 5. The runner drives every scene's line side by side. A paid node runs once under its clearance; its failure is a
-   batch gap, carried down the line and listed by the completion gate, never a retry (`architecture/failure`; the
-   close-up's bounded retries within its own step are the one exception). A node
+   batch gap, carried down the line and listed by the completion gate, never a retry inside the run (`architecture/failure`; the
+   close-up's bounded retries within its own step are the one exception; a phase's one retry is its next try, below). A node
    that stops stops only its readers.
 6. The run's outcome reaches the cockpit; the stop is written back at what was spent.
+
+**A Buy runs as phases, never as one shot** (owner, 2026-11-06: "stop treating the buy like a one shot ... lets start
+treating it as phases"; CONTEXT.md "phase", issue #21). Environment 1's phases are models, surfaces, people,
+light-sound, assembly and film (`score/stages/phases`: every stage in exactly one, none reading a stage of a later
+one). A phase is:
+
+1. **Checked first** by `python -m score preflight <environment> --phase <name>`, free and read only: its plan (no
+   missing input or refusal, each buy priced), its stages' make and check modules imported, one node of each paid
+   stage dry-run up to its paid point and never past it, its warm pool against the stop line and a machine of each
+   pool class in stock. Nothing is queued while a step is expected to fail.
+2. **Queued with its code fixed**: `score run --phase <name>`, or in a session `buy <yes id> --phase <name>`
+   (`checkout/flow.phase_kept`), under the batch's one budget.
+3. **Locked where it passed** (`python -m score lock-phase`, `Runner.lock_phase`, written under `phase-locks/`): a
+   locked output keeps its key over a later code change, so no code edit makes it again; a moved input or data file
+   still does.
+4. **One retry, then a gap**: what failed is tried once more; failing again it is a batch gap, carried down the line.
+
+A phase starts from the locked outputs of the phases it reads, so phases whose inputs stand run side by side.
 
 **One scene's line** (stage rows in `score/stages`, each with its overlay):
 
@@ -359,34 +377,49 @@ branch names a scene or a world.
   hair and clothes differ and no body is made again. `cast_check.py`'s nobody-twice holds for everyone, copies of one
   row included. A library with too few surfaces to tell variant n from a lower one is refused before the bake as a
   named library gap, never repeated quietly.
-  **Each person is also a sim body** (`score/stages/sim_body`, row `sim-body@<place>`, free, experimental, #65; PRD
-  #56): a musculoskeletal body, MyoFullBody (MyoSuite's, as MuscleMimic's pinned wheel publishes it: its bones, 123
-  joints, 416 muscles and their tendons; fetched by sha256, never committed), sized to the person's own build by bone
-  group (each group's stretch SOMA's joint distance, each muscle's length range with its path; masses from SOMA's
-  segment volumes), its mass the stated weight, else height squared times the reference BMI of its sex (NCD-RisC
-  2016: 24.5 men, 24.8 women, the mean of both unstated), marked estimated (#64). The movement is the clip's (or
-  Kimodo's), and SOMA is the truth (#70): one solver of three levels fits MyoFullBody to it, never the reverse,
-  against the bone groups' turns through the static calibration table (the main term), the SOMA skin's bony
-  landmarks and SOMA's rig joint at every group end that has one. Level 1, over many SOMA bodies, tunes the landmark
-  set's places and weights and the global weights (scipy's least squares; every round runs levels 2 and 3 on every
-  tuning body), then is checked on bodies not in the tuning (within 10 %). Level 2, per body from all its frames,
-  solves the person constants (landmark offsets and the joints inside bone groups; the lengths are SOMA's). Level 3,
-  per frame, solves the pose only (mink with MuJoCo's couplings held and the joints in range). It is judged on
-  following SOMA (joint positions, segment turns on a frozen copy of main's calibration, bones inside the skin by
-  region), never on landmark distances; the path low-passed at 6 Hz (zero-lag Butterworth, Winter 2009) before it is differentiated; SOMA's
-  shape and pose are never changed, only its height over the floor (each clip's standing soles stood on it, smooth;
-  owner, 2026-11-05, on grounding the clips: "yes allow it, but take a good look at kimodo itself before, as im
-  pretty sure all these tools are in there alr"; Kimodo's own post-processing grounds its clips on its own skeleton,
-  not on the body that plays them), and the sim body is never moved onto its ground. Newton builds the
-  MuJoCo model (SolverMuJoCo on MuJoCo's CPU backend, in `physics/inside/newton_env.sh`, on this machine) and its
-  physics is that movement's, frame by frame: the inverse dynamics, the ground's push at every collider point within
-  3 cm of the scene's own drawn ground (its triangles, under the gravity of the body the scene stands on), and one
-  bounded least squares sharing the needed forces between those contacts, the joints' range stops and the muscles
-  (static optimisation, least squared activation, passive forces in, the whole body's balance kept first); what neither can give is the pelvis' residual and the joints' reserves,
-  measured and never applied. Per frame it writes the SOMA segments' turns and the clip's, joint moments, the ground's
-  push and each foot's, the residual, each muscle's activation and force and each SOMA segment's pose riding its bone
-  (`measures/<name>.json`), and each body as its bones (meshes, every frame) and muscles (lines coloured by
-  activation) under its character's prim (`layers/sim_bodies.usda`).
+  **Each person is also a sim body** (`score/stages/sim_body`, its overlay; row `sim-body@<place>`, experimental, #65;
+  PRD #56; #70): a musculoskeletal body, MyoFullBody (MyoSuite's, as MuscleMimic's pinned wheel publishes it: 86
+  bones, 123 joints, 416 muscles and their tendons; fetched by sha256, never committed), sized once to the person's
+  own build by bone group (each group's stretch SOMA's, each muscle's length range with its path; masses from SOMA's
+  segment volumes at Dempster's densities), its mass the stated weight, else height squared times the reference BMI
+  of its sex (NCD-RisC 2016: 24.5 men, 24.8 women, the mean of both unstated), marked estimated (#64). The movement
+  is the clip's (Kimodo's), and SOMA is the truth: one solver of three levels fits MyoFullBody to it, never the
+  reverse, against every SOMA segment's turn through the static calibration table (the main term, as OpenSense
+  tracks orientations), 102 anatomical landmarks on SOMA's skin (`inside/landmarks`, each weighed by its trust) and
+  36 joint centres. Level 1, over many SOMA bodies, tunes the landmark set's places and weights and the global
+  weights, checked on bodies not in the tuning. Level 2, per body from its sampled frames, solves the person's
+  constants (landmark offsets and the joints inside bone groups). Level 3 solves every frame's pose (MuJoCo's
+  couplings held, the joints in range, the bones kept inside SOMA's posed skin as a weighed goal): on the card every
+  frame at once, equal to mink, the reference without a card, within 0.01 degrees and 0.01 mm on every frame
+  (2026-11-06). A hard skin lock (no bone ever outside the skin, as a constraint) was tried and dropped: its fit never
+  finished in 2.5 hours. It is judged on following SOMA (joint positions, segment turns on a frozen copy of main's
+  calibration, bones inside the skin by region), never on landmark distances; on main about 1.4% of bone stands
+  outside the skin, the median joint error is 7 mm and the segments follow SOMA within about 4 degrees (#70). The
+  path is low-passed at 6 Hz (zero-lag Butterworth, Winter 2009) before it is differentiated. SOMA's shape and pose
+  are never changed, only its height over the floor: each clip's standing soles are stood on the floor by height
+  alone, smooth (owner, 2026-11-05, on grounding the clips: "yes allow it, but take a good look at kimodo itself
+  before, as im pretty sure all these tools are in there alr"), then Kimodo's own foot-contact correction runs on the
+  person's own legs on Kimodo's contact frames, its toes bent back toward flat where the toe pin sank them
+  (`tools/characters/played`, 958efe16, c816a009): on contact frames the soles stay within about 2 mm of the floor
+  (mean body, walk, lunge, pickup, standing), and the sim body is never moved onto its ground.
+  Newton builds the MuJoCo model (in `physics/inside/newton_env.sh`) and its physics is that movement's: the inverse
+  dynamics, the ground reaction force on every point of the person's drawn skin within 5 mm of the scene's own drawn
+  ground or into it (its triangles, a friction pyramid, under the gravity of the body the scene stands on), and
+  OpenSim's two-stage static optimisation (owner, 2026-11-05: "Yes, push first"): the ground reaction force per foot
+  first, from the pelvis' six balance rows, then the joints' range stops and the muscles with it fixed (least squared
+  activation, passive forces in). What neither can give is the pelvis' residual and the joints' reserves, measured
+  and never applied. RRA (OpenSim's residual reduction) then nudges the pelvis' and trunk's path and the segment
+  masses within the owner's per-frame cap. Per frame it writes the SOMA segments' turns and the clip's, joint
+  moments, the ground reaction force of each foot with its centre of pressure, the residual, each muscle's
+  activation and force and each SOMA segment's pose riding its bone (`measures/<name>.json`), and each body as its
+  bones (meshes, every frame) and muscles (lines coloured by activation) under its character's prim
+  (`layers/sim_bodies.usda`).
+  **It runs on a rented card** (owner, 2026-11-06), a paid row of kind `sim-body` on the warm pool's L4s, a place's
+  clips batched a card. On the card run MuJoCo Warp's stages for every frame at once, RRA, its `Footing` and its
+  residuals, the level 3 pose and SOMA's posed skin, in Warp's deterministic mode, so every run gives the same result
+  bit for bit (e0c46164). A 6 s clip (180 frames at 30 fps) takes 89 s standing to 120 s jumping on one L4, plus
+  about 3 minutes for a fresh card's first compile (#70, 2026-11-06; 412 s and 830 s on 2026-11-05). Without a card
+  the same steps run on MuJoCo's C, the reference the card is measured against (tests only, `SCORE_SIM_BODY_LOCAL=1`).
   **The person moves with it** (`score/stages/cast/driven.py`, in the characters layer the assembly takes): its
   skeleton plays a SkelAnimation of its own from the record's poses (since the musculoskeletal body, the clip's own
   segment frames: the movement is the clip's), Hips on that path (its height times the body's size against the rig's, plus the clip's lift); Root, HeadEnd and the
@@ -394,9 +427,10 @@ branch names a scene or a world.
   referenced beside it as a guide, in the skeleton's frame, from the same start. A person the sim did not run, one
   held still and the crowd keep their clip, said why (`characters.json`, `score:motion`). Gated on `on its sim body`
   (each foot joint within 5 cm of the sim body's foot, riding its calcaneus, in every frame). The sim body is gated on `on floor`
-  (2 cm), `lands`, `carries` (the ground's mean push within 5% of the weight), `follows` (5 degrees mean off the clip)
-  and `residual` (Hicks et al. 2015: at most 5% of the weight, and a moment at most 1% of it times the centre of mass'
-  height). Not yet: muscles driving a forward simulation, a walker's cast path, a person's own SOMA shape.
+  (at most 3 mm into its ground), `lands` (a carrying foot within 5 mm), `carries` (the ground reaction force's mean
+  within 5% of the weight), `follows` (5 degrees off the clip), `smooth` (no rougher than its clip) and `residual`
+  (at most 2% of the weight, owner 2026-10-28, and a moment at most 1% of it times the centre of mass' height, Hicks
+  et al. 2015). Not yet: muscles driving a forward simulation, a walker's cast path, a person's own SOMA shape.
   **A person's loose cloth is simulated on its sim body** (`score/stages/people_cloth`, row `people-cloth@<place>`,
   free, experimental). The owner retired Newton cloth for people on 2026-10-10 (the GarmentCode drapes: patterns sewn
   and settled on a still body, then baked, whose silhouettes failed the reference and whose coat blew up; the SOMA
@@ -584,7 +618,10 @@ what proves it.
 - **The render-and-compare** (`tools/usd/compare.py`) and **the style measure** (`tools/review/style.py`): candidate
   checks no gate reads. Proven when each ranks the owner's flagged models worst.
 - **The films' past-fade ink rule** (`film_checks.py --ink-past-fade`): off by default.
-- **The Kubernetes path** (`tools/cloud/k8s`, `SCORE_CLOUD=k8s`): opt-in, unused.
+- **The Kubernetes path** (`tools/cloud/k8s`, `SCORE_CLOUD=k8s`): opt-in, one kind at a time (`SCORE_CLOUD_KINDS`).
+  pixal, blender and library, Newton's settle and the characters clips are proven on a tenant cluster's L4 pool (#76,
+  2026-11-05; its namespace's quota 24 cards), a submit never loses a row and a stop deletes the run's jobs
+  (e75c213d). Every other kind rents machines; each is proven when a stage's paid node runs through it end to end.
 - **The images environment** (`score/stages/images`, `python -m score run images`): rebuilds and proves the job
   images; moss and characters-motion proven through it, the rest not yet.
 - **Shapes first's later steps**: `rough-model` runs after a plan, but no plan is drawn to its rough model yet;
@@ -614,7 +651,8 @@ framework better than it found it.
 
 **Inside a batch.** A paid step runs once. Its failure is a batch gap (`score/stages/batch_gaps.py`): the take is
 named with its failed check, left out of the rest of its scene's line and listed by the completion gate; it is never
-retried, waited out or sent to a bigger card class, and fixing it is a new batch (ADR-0005). The one exception, the owner's
+retried, waited out or sent to a bigger card class, and fixing it is a new batch (ADR-0005). A Buy run as phases (`architecture/lifecycles`) gives a
+failed node of a phase one more try in that phase's next run, under the same budget; failing again it stays a gap. The one exception, the owner's
 (2026-10-24, 2026-10-25): a close-up picture the shape check rejects is drawn again up to three times inside its own
 step (`tools/props/closeup/stage.py` `PRO_TAKES`), each retry priced in the Buy; a row whose every take fails is the gap. A warm pool card that
 dies is not the step's failure: its unfinished job goes back on the pool's queue once for the next card. A free node that fails on

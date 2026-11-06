@@ -98,14 +98,17 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   against a reference. What MyoFullBody lacks (`LACKS`: the thorax one joint at T12/L1, the lower neck lumped at C7/T1, two lumbar joints spread over five
   levels (`inside/myo/_movable.LUMBAR`, 2026-11-04), a hinge knee (the shin's turn on it free of the flexion since 2026-11-04), a foot on three hinges, its twist on the shin added 2026-11-01) is recorded in each body's model record; how closely it
   follows SOMA (each joint's mm, each group's degrees, at a range limit or not, before and after RRA) is its `fit`.
+  On main (#70, 2026-11-06) about 1.4% of bone stands outside the skin, the median joint error is 7 mm and the
+  segments follow SOMA within about 4 degrees; the bones are kept inside the skin as a weighed goal, never a hard
+  lock (one never finished its fit in 2.5 h).
   The SOMA forearm rides the ulna, so its hand's twist is the forearm's pronation. The path is low-passed (zero-lag
   4th-order Butterworth at 6 Hz, Winter 2009) before it is differentiated.
 - **Its feet are where SOMA's are** (#70: SOMA is the truth: its shape and pose are never changed, only its height
   over the floor; owner, 2026-11-05, on grounding the clips: "yes allow it, but take a good look at kimodo itself
   before, as im pretty sure all these tools are in there alr"; Kimodo's post-processing, on for every clip made on
   flat ground, holds the pickup's, squat's and walk's standing toe joints within 2 mm of 20 mm on Kimodo's own
-  skeleton, not on the body that plays them, whose legs are not Kimodo's, so `person_rig` stands them, below): MyoFullBody's root follows the markers on SOMA's skin and nothing moves it onto the ground; the ground pushes whatever point of the person's
-  skin the fit puts within `GAP` of it. Before 2026-10-28 the fit held standing feet on the ground (`stances`,
+  skeleton, not on the body that plays them, whose legs are not Kimodo's, so `person_rig` stands them, below): MyoFullBody's root follows the markers on SOMA's skin and nothing moves it onto the ground; the ground reaction force acts on whatever point
+  of the person's skin the fit puts within `GAP` of it. Before 2026-10-28 the fit held standing feet on the ground (`stances`,
   `on_ground`, `unslipped`, `landed`) and moved the path once onto it (`grounded`); those went with the old fit.
   Measured 2026-10-28: the two test walkers' SOMA skin stood 26 to 57 mm over their ground (its lowest point, every
   10th frame), so the sim body following it stood 10 to 13 mm over it on the median, its feet seldom pushed, and
@@ -141,15 +144,15 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   frame is Z up; `TO_OWN` turns everything back to the person's Y up.
 - **It stands on the scene's own ground**: the stage the cast is measured on (`layer_base.built` with the scene
   record, `cast/measure.solids` on the terrain row's made ground), the solids within `REACH` of each clip's path,
-  their drawn triangles themselves: the ground pushes only a point of the person's drawn skin touching it (SOMA's mesh carried by the
+  their drawn triangles themselves: the ground reaction force acts only on a point of the person's drawn skin touching it (SOMA's mesh carried by the
   bones each segment rides, `inside/contact` `Skin`; MyoFullBody's colliders are not the contact since 2026-11-01:
   they stood 16 to 27 mm inside a seated astronaut's skin, so his floor carried 0 N of his 121 N), within the
   inside's `GAP` of the triangle under it or into it, whichever drawn surface that is (a seat, a bed, a ledge as a floor), one moving slower
   than `SLIDE_MOST` (1.2 m/s) inside a friction 0.5 pyramid (Karatsidis et al., arXiv:1801.01668), a faster one
   sliding (Coulomb: the normal and 0.5 of it against its slip), along that triangle's normal; no force anywhere else.
-  A point's push fades in as it comes within `GAP` (`contact.closeness`: its push directions 1 long on or into the
-  ground, 0 at `GAP`), so no point crossing it takes its whole share at once. The record's `touches` are one push a
-  foot (its calcaneus and toes together) and one a part otherwise, each with its centre of pressure on its ground,
+  A point's force fades in as it comes within `GAP` (`contact.closeness`: its force directions 1 long on or into the
+  ground, 0 at `GAP`), so no point crossing it takes its whole share at once. The record's `touches` are one ground
+  reaction force a foot (its calcaneus and toes together) and one a part otherwise, each with its centre of pressure on its ground,
   low-passed over each span it touches as the path is (`records.steadied`); measured against the weight, the ground
   and the frame before in out.json's `pushes` (2026-11-05: the heel's and the toes' pushes apart, centres moving 3 to
   6 cm a frame standing).
@@ -169,8 +172,13 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   there for the fit (#70); the script is declared by physics-trial, settle and effects too, so a pin moves their keys.
   Newton is given no meshes (`parse_meshes=False`: its mesh loading needs trimesh, which the env does not hold); the
   drawn bones come from MuJoCo's own compile of the file. With a CUDA card every frame's physics runs there at once
-  (MuJoCo Warp on the model Newton's SolverMuJoCo puts there, `inside/batched`; 2026-11-05), else on MuJoCo's CPU
-  backend.
+  (MuJoCo Warp on the model Newton's SolverMuJoCo puts there, `inside/batched`; 2026-11-05), and so do RRA (its
+  `Footing`, residuals and capped move), level 3's pose (`fit.LEVEL3_CARD`, equal to mink within 0.01 degrees and
+  0.01 mm on every frame) and SOMA's posed skin; the person is sized once and the record built in one pass. MuJoCo
+  Warp's stages run in Warp's deterministic mode, so a run repeats bit for bit (e0c46164). Measured on main, one L4
+  (#70, 2026-11-06): a 6 s clip (180 frames at 30 fps) 89 s standing to 120 s jumping, plus about 3 min for a fresh
+  card's first compile, against 412 s and 830 s on 2026-11-05. Without a card the same steps run on MuJoCo's C,
+  the reference the card is measured against.
 - **A paid row, on a card in the cloud** (owner, 2026-11-06: every sim body run in the cloud, on a card; the
   conductor at load 98 on 16 cores ran env1's places itself while the warm pool's cards sat idle). Under its run's
   clearance `ran_elsewhere` rents through the machine path (blender_cloud's `Machine`, kind `sim-body`: capacity.py
