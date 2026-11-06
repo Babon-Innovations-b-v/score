@@ -505,6 +505,34 @@ def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path, monkeypatch
                                   "models,surfaces", "sim-body,body-peel")
     assert said.startswith("buy 20261106T000000Z --phase models,surfaces --leave-out sim-body,body-peel:"), said
     assert "20261106T000000Z-models+surfaces.log" in said, said
+    # the cluster fallback (2026-11-06): cluster-check names every gap, and a Buy with --cluster is refused until it
+    # passes, then its run carries SCORE_CLOUD=k8s and the kinds. Break: in agent_door.buy_started, drop
+    # `cluster_check(os.environ)`; or drop `env={**os.environ, **extra}`
+    with pytest.raises(agent_door.Refused) as gaps:
+        agent_door.cluster_check({"PATH": "", "SCORE_K8S_KUBECONFIG": str(tmp_path / "none")}, kubectl="")
+    for word in ("SCORE_K8S_CONTEXT", "SCORE_K8S_PROVIDER", "no kubectl", "no kubeconfig"):
+        assert word in str(gaps.value), gaps.value
+    kubectl = tmp_path / "kubectl"
+    kubectl.write_text("#!/bin/sh\necho namespace/score-jobs\n")
+    kubectl.chmod(0o755)
+    config = tmp_path / "kubeconfig"
+    config.write_text("{}")
+    box = {"SCORE_K8S_PROVIDER": "scaleway/tenant", "SCORE_K8S_CONTEXT": "c", "SCORE_K8S_CLUSTER": "k",
+           "SCORE_K8S_PROJECT": "p", "SCORE_K8S_KUBECONFIG": str(config), "PATH": str(tmp_path)}
+    assert agent_door.cluster_check(box).startswith("the tenant cluster answers: namespace/score-jobs")
+    assert agent_door.buy_options(["--phase", "models", "--cluster", "pixal,blender"])
+    assert not agent_door.buy_options(["--cluster", "pixal", "--cluster", "blender"])
+    shown = [sys.executable, "-c", "import os; print(os.environ.get('SCORE_CLOUD'), os.environ.get('SCORE_CLOUD_KINDS'))"]
+    for name in [name for name in box if name.startswith("SCORE_K8S")]:
+        monkeypatch.delenv(name, raising=False)
+    with pytest.raises(agent_door.Refused, match="out of reach"):
+        agent_door.buy_started("20261106T000001Z", tmp_path, shown, cluster="pixal,blender")
+    for name, value in box.items():
+        monkeypatch.setenv(name, value)
+    said = agent_door.buy_started("20261106T000002Z", tmp_path, shown, "models", cluster="pixal,blender")
+    assert said.startswith("buy 20261106T000002Z --phase models --cluster pixal,blender:"), said
+    time.sleep(0.5)
+    assert agent_door.buy_log(tmp_path).endswith("k8s pixal,blender\n")
     # carry (2026-11-03) never runs with a run live
     monkeypatch.setattr(agent_door, "replace_refusal", lambda home: "a run is live (r1)")
     with pytest.raises(agent_door.Refused, match="a run is live"):

@@ -73,7 +73,11 @@ as an argument list, never through a shell, and only when it is one of these:
     node-log <node>                             a node's own log of the newest launch, its tail, as it runs, secrets
                                                 left out, read only (2026-11-06)
     stack <pid>                                 a run's process's every Python thread stack (SIGUSR1, its own dump
-                                                file), the process going on (2026-11-06)
+                                                file), the process going on; refused for one that does not catch
+                                                SIGUSR1, which it would end (2026-11-06)
+    cluster-check                               whether this box reaches the tenant cluster: the env file's
+                                                SCORE_K8S_* settings, kubectl, the kubeconfig and the jobs'
+                                                namespace through its context, read only (2026-11-06)
     fault <node>                               the fault report <home>/store/faults/<node>.txt of the newest launch's
                                                 home (its frozen copy while it lives), secrets left out, read only
                                                 (2026-10-27: motion@airlock's fault report out of reach)
@@ -103,7 +107,11 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 a session of its own, the door answering at once with its log
                                                 (2026-11-04: a Buy pricing on 2 cores outlived its caller's ssh);
                                                 with --phase only that phase's rows of the basket, the same yes and
-                                                batch total (score/stages/phases; owner, 2026-11-06)
+                                                batch total (score/stages/phases; owner, 2026-11-06), several as a
+                                                comma list; --leave-out <stage>,... stages it neither buys nor
+                                                makes; --cluster <kind>,... its run sends those job kinds to the
+                                                tenant cluster (SCORE_CLOUD=k8s, SCORE_CLOUD_KINDS), refused unless
+                                                cluster-check passes
     buy-log                                     the tail of the newest Buy's log the door started: its checkout
                                                 line and its result
     decide-yes <decision> <target> [--output H] [--check C] [--sha S] [--reason R] [--worse-reason W] [--euros E]
@@ -175,7 +183,7 @@ from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
 VERBS = ("status, plan, price, preflight <environment> [--phase P], resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], store-evict [--dry], clean-frozen, clean-cache, clean-scratch, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, carry --no-op <file>=<why> ..., "
-         "run-log [--lines N], pool-log [--lines N], ps, node-log <node>, stack <pid>, fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
+         "run-log [--lines N], pool-log [--lines N], ps, node-log <node>, stack <pid>, cluster-check, fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id> [--phase <phase>], buy-log, decide-yes, decide <yes id>, "
          "stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
@@ -231,6 +239,10 @@ FAULT = "--fault"  # this file's own read of a fault report of the newest launch
 POOL_LOG = "--pool-log"  # this file's own read of the newest launch's warm pool collector log (the pool-log verb)
 PROCESSES = "--ps"  # this file's own read of the busiest processes (the ps verb runs it)
 STACK = "--stack"  # this file's own ask of a run's process for its Python stacks (the stack verb runs it)
+CLUSTER_CHECK = "--cluster-check"  # this file's own look at the tenant cluster (the cluster-check verb runs it)
+CLUSTER_SETTINGS = ("SCORE_K8S_CONTEXT", "SCORE_K8S_CLUSTER", "SCORE_K8S_PROJECT")  # the box's, never the repo's
+CLUSTER_PROVIDER = "scaleway/tenant"
+CLUSTER_SECONDS = 60
 NODE_LOG = "--node-log"  # this file's own read of a node's own log of the newest launch (the node-log verb runs it)
 PS_LINES = 40
 DESIGN_FILE = "--design-file"  # this file's own read of one design file (the design-file verb runs it)
@@ -369,6 +381,10 @@ def decide(words, latch):
         if len(args) != 1 or not args[0].isdigit():
             raise Refused("stack <pid>, one process of a run")
         return [str(pathlib.Path(__file__).resolve()), STACK, args[0]], {}
+    if verb == "cluster-check":
+        if args:
+            raise Refused("cluster-check takes nothing")
+        return [str(pathlib.Path(__file__).resolve()), CLUSTER_CHECK], {}
     if verb == "node-log":
         if len(args) != 1 or not NODE.match(args[0]):
             raise Refused("node-log <node>, one node name such as surfaces-bake@hub")
@@ -400,8 +416,8 @@ def decide(words, latch):
         return ["-m", "score.dashboard", "buy-yes", *args], {}
     if verb == "buy":
         if not args or not GRANT_ID.match(args[0]) or not buy_options(args[1:]):
-            raise Refused("buy <yes id> [--phase <phase>[,<phase>...]] [--leave-out <stage>[,<stage>...]], the id "
-                          "buy-yes printed")
+            raise Refused("buy <yes id> [--phase <phase>[,<phase>...]] [--leave-out <stage>[,<stage>...]] "
+                          "[--cluster <kind>[,<kind>...]], the id buy-yes printed")
         if latch:
             raise Refused("the owner's free-only latch is set: no Buy")
         return [str(pathlib.Path(__file__).resolve()), BUY, *args], {"SCORE_FREE_ONLY": None}
@@ -650,6 +666,8 @@ def own_read(argv, props_home):
         return processes()
     if argv[0] == STACK:
         return stack(int(argv[1]), props_home)
+    if argv[0] == CLUSTER_CHECK:
+        return cluster_check(os.environ)
     if argv[0] == NODE_LOG:
         return node_log(newest_launch_log(), argv[1], props_home)
     return fault(newest_launch_log(), argv[1], props_home)
@@ -698,10 +716,11 @@ def carried(args, home):
 
 
 def buy_options(rest):
-    """Whether the options after a Buy's yes id are each --phase or --leave-out once with a comma list of names."""
+    """Whether the options after a Buy's yes id are each --phase, --leave-out or --cluster once with a comma list of
+    names."""
     seen = set()
     while rest:
-        if len(rest) < 2 or rest[0] not in ("--phase", "--leave-out") or rest[0] in seen or \
+        if len(rest) < 2 or rest[0] not in ("--phase", "--leave-out", "--cluster") or rest[0] in seen or \
                 not STAGE_LIST.match(rest[1]):
             return False
         seen.add(rest[0])
@@ -709,11 +728,43 @@ def buy_options(rest):
     return True
 
 
-def buy_started(yes, home, command=None, phase=None, leave_out=None):
+def cluster_check(environment, kubectl=None):
+    """What this box reaches of the tenant cluster (k8s/clusters/tenant.py, SCORE_K8S_PROVIDER=scaleway/tenant): its
+    settings in `environment` (the env file's), kubectl, the kubeconfig and the jobs' namespace read through its
+    context, read only; a line saying so, else Refused naming every gap (2026-11-06: the Buy's cluster fallback,
+    the conductor held none of them)."""
+    found = shutil.which("kubectl", path=environment.get("PATH")) if kubectl is None else kubectl
+    config = pathlib.Path(environment.get("SCORE_K8S_KUBECONFIG") or pathlib.Path.home() / ".kube" / "config")
+    gaps = [f"{name} is not set in the env file" for name in CLUSTER_SETTINGS if not environment.get(name)]
+    if environment.get("SCORE_K8S_PROVIDER") != CLUSTER_PROVIDER:
+        gaps.append(f"SCORE_K8S_PROVIDER is not {CLUSTER_PROVIDER}")
+    gaps += [] if found else ["no kubectl on this box"]
+    gaps += [] if config.is_file() else [f"no kubeconfig at {config}"]
+    if gaps:
+        raise Refused("the tenant cluster is out of reach: " + "; ".join(gaps))
+    namespace = environment.get("SCORE_K8S_NAMESPACE", "score-jobs")
+    try:
+        done = subprocess.run([found, "--kubeconfig", str(config), "--context", environment["SCORE_K8S_CONTEXT"],
+                               "get", "namespace", namespace, "-o", "name"], capture_output=True, text=True,
+                              timeout=CLUSTER_SECONDS)
+    except subprocess.TimeoutExpired:
+        raise Refused(f"the tenant cluster did not answer within {CLUSTER_SECONDS} s") from None
+    if done.returncode != 0:
+        lines = (done.stderr or done.stdout).strip().splitlines()
+        raise Refused(f"the tenant cluster refused: {lines[-1] if lines else f'exit {done.returncode}'}")
+    return f"the tenant cluster answers: {done.stdout.strip()} through {config}"
+
+
+def buy_started(yes, home, command=None, phase=None, leave_out=None, cluster=None):
     """`python -m score.dashboard buy <yes> [--phase <phase>]` started in a session of its own, its words in a log
     under home/BUY_LOGS named with the phase, and the door's answer at once: the log's path (2026-11-04: a Buy priced
     on the idle conductor's 2 cores held the ssh past its caller's 15 minutes, the ssh dropped and the Buy was cut
-    off, no checkout written)."""
+    off, no checkout written). With `cluster` (a comma list of job kinds) its run sends those kinds to the tenant
+    cluster (SCORE_CLOUD=k8s, SCORE_CLOUD_KINDS, tools/cloud/k8s), refused unless cluster_check passes."""
+    extra = {}
+    if cluster:
+        cluster_check(os.environ)
+        extra = {"SCORE_CLOUD": "k8s", "SCORE_CLOUD_KINDS": cluster}
     folder = pathlib.Path(home) / BUY_LOGS
     folder.mkdir(parents=True, exist_ok=True)
     named = f"{yes}-{phase.replace(',', '+')}" if phase else yes
@@ -721,7 +772,9 @@ def buy_started(yes, home, command=None, phase=None, leave_out=None):
     asked = [yes, *(["--phase", phase] if phase else []), *(["--leave-out", leave_out] if leave_out else [])]
     with log.open("w") as written:
         subprocess.Popen(command or [sys.executable, "-m", "score.dashboard", "buy", *asked], cwd=REPO,
-                         stdin=subprocess.DEVNULL, stdout=written, stderr=subprocess.STDOUT, start_new_session=True)
+                         stdin=subprocess.DEVNULL, stdout=written, stderr=subprocess.STDOUT, start_new_session=True,
+                         env={**os.environ, **extra})
+    asked += ["--cluster", cluster] if cluster else []
     return f"buy {' '.join(asked)}: started in its own session; its checkout and result in {log} (the door's buy-log)"
 
 
@@ -1023,7 +1076,7 @@ def main():
         try:
             options = dict(zip(sys.argv[3::2], sys.argv[4::2]))
             print(buy_started(sys.argv[2], PROPS_HOME, phase=options.get("--phase"),
-                              leave_out=options.get("--leave-out"))
+                              leave_out=options.get("--leave-out"), cluster=options.get("--cluster"))
                   if sys.argv[1] == BUY else buy_log(PROPS_HOME))
         except Refused as refused:
             print(f"score-agent-door: refused: {refused}", file=sys.stderr)
@@ -1036,7 +1089,7 @@ def main():
         except Refused as refused:
             print(f"score-agent-door: refused: {refused}", file=sys.stderr)
             return REFUSED_EXIT
-    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [POOL_LOG], [PROCESSES], [NODE_LOG], [STACK], [FAULT], [DESIGN_FILE], [ROUTE_LOG]):
+    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [POOL_LOG], [PROCESSES], [NODE_LOG], [STACK], [CLUSTER_CHECK], [FAULT], [DESIGN_FILE], [ROUTE_LOG]):
         from score.store import PROPS_HOME
         try:
             print(own_read(sys.argv[1:], PROPS_HOME))
