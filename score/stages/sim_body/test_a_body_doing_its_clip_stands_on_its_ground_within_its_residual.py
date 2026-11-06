@@ -45,6 +45,9 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   `played.contacted(found[key], ...)` handed the unstood `played.clip_local(...)` (the correction given the floating
   foot); contacts_of's `"foot_contacts" in saved.files` check dropped (a motion without contacts refused); make's
   `contacts` not handed to person_rig (no clip corrected).
+- a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground, 2026-11-06 (#70, the toes Kimodo's toe pin sank):
+  person_rig's `toes_lifted(found, ...)` dropped (the corrected clip's toes left under); toes_lifted's
+  `moved[low] = played.toward_flat(...)` dropped (the tipped foot's toes 1 cm under); its share made 0 (the same).
 - the_clip_chains_down_the_tree: played.chained's `world[:, parents[joint]] @ local[:, joint]` made
   `local[:, joint] @ world[:, parents[joint]]` (2026-10-29: clip_frames chains through it).
 - the_model_is_unpacked_only_as_pinned: fetched's sha256 check dropped.
@@ -114,6 +117,31 @@ def toy_rig():
     still[0] = bind[0]
     return {"names": names, "parents": parents, "bind": bind, "points": np.asarray(column.vertices),
             "faces": np.asarray(column.faces), "weights": weights, "clip_standing": np.repeat(still[None], 10, axis=0)}
+
+
+def toe_rig():
+    """A foot on y = 0: Root, Hips 0.5 m up, LeftFoot 0.08 m up, LeftToeBase 0.12 m ahead of it 0.02 m up, LeftToeEnd;
+    its skin a heel block (LeftFoot's) and a toe block ahead of the toe base (LeftToeBase's), both down to y = 0; its
+    clip `tipped`, two frames: the foot pitched 30 degrees onto its toes with the toe base on its bind's height, then
+    the bind's pose."""
+    names = np.array(["Root", "Hips", "LeftFoot", "LeftToeBase", "LeftToeEnd"])
+    parents = np.array([-1, 0, 1, 2, 3])
+    bind = np.tile(np.eye(4), (5, 1, 1))
+    bind[1:, :3, 3] = [[0.0, 0.5, 0.0], [0.0, 0.08, 0.0], [0.0, 0.02, 0.12], [0.0, 0.006, 0.17]]
+    heel = trimesh.creation.box(extents=(0.08, 0.06, 0.14), transform=trimesh.transformations.translation_matrix(
+        (0.0, 0.03, 0.03))).vertices
+    toes = trimesh.creation.box(extents=(0.08, 0.02, 0.06), transform=trimesh.transformations.translation_matrix(
+        (0.0, 0.01, 0.15))).vertices
+    weights = np.zeros((len(heel) + len(toes), 5))
+    weights[:len(heel), 2], weights[len(heel):, 3] = 1.0, 1.0
+    still = np.linalg.inv(bind[parents.clip(0)]) @ bind
+    still[0] = bind[0]
+    clip = np.repeat(still[None], 2, axis=0)
+    angle = np.radians(30.0)
+    clip[0, 2, :3, :3] = [[1.0, 0.0, 0.0], [0.0, np.cos(angle), -np.sin(angle)], [0.0, np.sin(angle), np.cos(angle)]]
+    clip[0, 2, 1, 3] = 0.02 - 0.5 - (clip[0, 2, :3, :3] @ [0.0, -0.06, 0.12])[1]  # the toe base on its bind's height
+    return {"names": names, "parents": parents, "bind": bind, "points": np.r_[heel, toes], "weights": weights,
+            "clip_tipped": clip}
 
 
 def test_the_root_and_end_sites_go_to_their_carrier():
@@ -197,7 +225,7 @@ def test_a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground(tmp_path, m
     sitting = sim_body.clip_frames(sim_body.person_rig(rig, None)[0], "sitting", [1, 2])
     assert sitting[:, 1, 1, 3] == pytest.approx(0.02, abs=1e-6) and sitting[:, 0, 1, 3] == pytest.approx(-0.48)
     # a clip whose Kimodo motion carries its foot contacts (people-clips-made's motions/) gets Kimodo's own foot
-    # correction after it is stood, and only it (MotionCorrection is not built here: its numbers are on #70)
+    # correction after it is stood, and only it (MotionCorrection is not run here: its numbers are on #70)
     (tmp_path / "motions").mkdir()
     np.savez(tmp_path / "motions" / "floating.npz", foot_contacts=np.ones((30, 6), dtype=bool))
     np.savez(tmp_path / "motions" / "jumping.npz", root_positions=np.zeros((10, 3)))
@@ -206,11 +234,26 @@ def test_a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground(tmp_path, m
     handed = {}
     monkeypatch.setattr(sim_body._body.played, "contacted",
                         lambda local, names, parents, bind, given: handed.setdefault("floating", local) + 0.5)
+    lifted = []
+    monkeypatch.setattr(sim_body._body, "toes_lifted", lambda rig, local: lifted.append(local) or local)
     corrected = sim_body.person_rig(rig, None, contacts)[0]
+    assert len(lifted) == 1 and lifted[0] == pytest.approx(handed["floating"] + 0.5)  # its toes lifted after
     assert np.abs(sim_body.clip_frames({**corrected, "clip_floating": handed["floating"]}, "floating",
                                        [1, 2])[:, 1, 1, 3]).max() < 0.001  # handed the stood clip
     assert corrected["clip_floating"] == pytest.approx(handed["floating"] + 0.5)
     assert corrected["clip_jumping"] == pytest.approx(played["clip_jumping"])
+    # Kimodo's toe pin turns the foot alone: a foot pitched 30 degrees onto its toes, the toe base on its bind's
+    # height, has its toes' skin under its floor; their toes are bent up the least that puts it back on the floor,
+    # the toe base not moved, and a frame whose foot is on its floor is left as it is
+    monkeypatch.undo()
+    foot = toe_rig()
+    lifted = sim_body._body.toes_lifted(foot, foot["clip_tipped"])
+    lowest = sim_body._body.foot_lowest(foot, foot["clip_tipped"], sim_body._body.FEET[0])
+    assert lowest[0] < -0.01 and lowest[1] == pytest.approx(0.0, abs=1e-9)
+    lowest = sim_body._body.foot_lowest(foot, lifted, sim_body._body.FEET[0])
+    assert -sim_body._body.TOE_FLOOR <= lowest[0] < 0.003 and lifted[1] == pytest.approx(foot["clip_tipped"][1])
+    assert sim_body._body.played.chained(lifted, foot["parents"])[0, 3, :3, 3] == pytest.approx(
+        sim_body._body.played.chained(foot["clip_tipped"], foot["parents"])[0, 3, :3, 3])
 
 
 def test_the_clip_chains_down_the_tree():

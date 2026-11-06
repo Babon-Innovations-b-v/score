@@ -21,6 +21,11 @@ FEET = (("LeftFoot", "LeftToeBase", "LeftToeEnd"), ("RightFoot", "RightToeBase",
 STANCE_SPEED = 0.2  # m/s
 STANCE_HIGH = 0.03  # m
 SOLE = 0.01  # m: a foot's sole is its skin within this of its lowest point
+# A toe's bend toward flat tried in this many shares, the least that lifts its foot's skin to the floor taken (#70,
+# 2026-11-06: Kimodo's toe pin turns the foot alone, so a foot pitched onto its toes put its toes under the floor, the
+# lunge's back foot to -14 mm, the kneeling one to -20).
+TOE_STEPS = 32
+TOE_FLOOR = 1e-4  # m: a foot's skin this little under its floor is on it
 STOOD_HZ = 3.0  # the stood move's smoothness, half the path's 6 Hz low pass (inside/fit, Winter 2009)
 
 
@@ -137,6 +142,42 @@ def stood(rig, local):
     return moved
 
 
+def foot_lowest(rig, local, foot):
+    """The lowest point (m, frames) of the skin the FEET entry `foot`'s joints carry most, over `local` on `rig`."""
+    names = [str(name) for name in rig["names"]]
+    weights = np.asarray(rig["weights"], dtype=float)
+    mine = np.flatnonzero(np.isin(weights.argmax(axis=1), [names.index(name) for name in foot if name in names]))
+    carried = np.flatnonzero(weights[mine].any(axis=0))
+    skinning = (played.chained(np.asarray(local, dtype=float), rig["parents"])[:, carried]
+                @ np.linalg.inv(np.asarray(rig["bind"])[carried]))
+    points = np.c_[np.asarray(rig["points"], dtype=float)[mine], np.ones(len(mine))]
+    return np.einsum("pj,fjb,pb->fp", weights[mine][:, carried], skinning[..., 1, :], points).min(axis=1)
+
+
+def toes_lifted(rig, local):
+    """`local` with each foot's toe, on every frame its foot's skin is under the bind's floor, bent the least share
+    (of TOE_STEPS) of the way toward flat (`played.toward_flat`) that brings that skin up to the floor (within
+    TOE_FLOOR), or the share that lifts it most when none does; a frame whose foot is not under, and a foot the rig
+    has no toe or skin of, is left as it is."""
+    names = [str(name) for name in rig["names"]]
+    weights = np.asarray(rig["weights"])
+    moved = np.array(local, dtype=float)
+    for foot in FEET:
+        if not all(name in names for name in foot) or not np.isin(
+                weights.argmax(axis=1), [names.index(name) for name in foot]).any():
+            continue
+        low = np.flatnonzero(foot_lowest(rig, moved, foot) < -TOE_FLOOR)
+        if not len(low):
+            continue
+        steps = np.linspace(0.0, 1.0, TOE_STEPS + 1)
+        heights = np.stack([foot_lowest(rig, played.toward_flat(moved[low], names, rig["parents"], rig["bind"],
+                                                                foot[1:], step), foot) for step in steps], axis=1)
+        enough = heights >= -TOE_FLOOR
+        share = steps[np.where(enough.any(axis=1), enough.argmax(axis=1), heights.argmax(axis=1))]
+        moved[low] = played.toward_flat(moved[low], names, rig["parents"], rig["bind"], foot[1:], share)
+    return moved
+
+
 def person_rig(rig, built, contacts=None):
     """The clips rig at a person's own build, as the people build plays its clips (`tools.characters.played`, the
     people route's one definition: prop_build.py's clip_world and floor_lift): the built body's bind and surface
@@ -147,14 +188,16 @@ def person_rig(rig, built, contacts=None):
     skin 26 to 57 mm over its ground (#70). Each clip's standing feet then stand on the bind's floor (`stood`):
     Kimodo's own clips float and sink theirs. Then a clip with Kimodo's foot contacts in `contacts` ({clip: its
     foot_contacts}, `contacts_of`) has Kimodo's own foot correction run on the build's bones (`played.contacted`):
-    its feet on their contact frames held at the bind's own ankle and toe heights, so a longer leg meets the floor."""
+    its feet on their contact frames held at the bind's own ankle and toe heights, so a longer leg meets the floor;
+    and the toes its toe pin carried under the floor with a foot pitched onto them bent back up (`toes_lifted`)."""
     built, size, lift = played_build(rig, built)
     found = dict(rig, bind=np.asarray(built["bind"]), points=np.asarray(built["source_points"]))
     for key in [key for key in rig if key.startswith("clip_")]:
         clip = key[len("clip_"):]
         found[key] = stood(found, played.clip_local(rig, clip, built["offsets"], rig["parents"], size, lift))
         if clip in (contacts or {}):
-            found[key] = played.contacted(found[key], rig["names"], rig["parents"], found["bind"], contacts[clip])
+            found[key] = toes_lifted(found, played.contacted(found[key], rig["names"], rig["parents"], found["bind"],
+                                                             contacts[clip]))
     return found, size
 
 

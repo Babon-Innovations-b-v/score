@@ -6,6 +6,9 @@ resolution-markers = [
     "python_full_version < '3.12'",
 ]
 
+[manifest]
+overrides = [{ name = "torch", marker = "python_full_version < '3'" }]
+
 [[package]]
 name = "annotated-doc"
 version = "0.0.5"
@@ -546,6 +549,46 @@ wheels = [
 ]
 
 [[package]]
+name = "motion-correction"
+version = "1.0.0"
+source = { path = "vendor/kimodo/wheels/motion_correction-1.0.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" }
+resolution-markers = [
+    "python_full_version < '3.12'",
+]
+dependencies = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" } },
+]
+wheels = [
+    { filename = "motion_correction-1.0.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:11a155be3c75beffee9f545d631af773a9fe499f0efed54660647e7235fc63aa" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "numpy", specifier = ">=1.19.0" },
+    { name = "torch", specifier = ">=1.10.0" },
+]
+
+[[package]]
+name = "motion-correction"
+version = "1.0.0"
+source = { path = "vendor/kimodo/wheels/motion_correction-1.0.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" }
+resolution-markers = [
+    "python_full_version >= '3.12'",
+]
+dependencies = [
+    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" } },
+]
+wheels = [
+    { filename = "motion_correction-1.0.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:22b126fdab4f981cb3cd1e762e6c394e24a31fa9ee45e14b9160dbdcfe0ff6dc" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "numpy", specifier = ">=1.19.0" },
+    { name = "torch", specifier = ">=1.10.0" },
+]
+
+[[package]]
 name = "networkx"
 version = "3.6.1"
 source = { registry = "https://pypi.org/simple" }
@@ -999,6 +1042,8 @@ dependencies = [
     { name = "fast-simplification" },
     { name = "fonttools" },
     { name = "matplotlib" },
+    { name = "motion-correction", version = "1.0.0", source = { path = "vendor/kimodo/wheels/motion_correction-1.0.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" }, marker = "python_full_version < '3.12'" },
+    { name = "motion-correction", version = "1.0.0", source = { path = "vendor/kimodo/wheels/motion_correction-1.0.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" }, marker = "python_full_version >= '3.12'" },
     { name = "networkx", version = "3.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "networkx", version = "3.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -1037,6 +1082,9 @@ requires-dist = [
     { name = "fast-simplification", specifier = ">=0.2" },
     { name = "fonttools", specifier = ">=4.65" },
     { name = "matplotlib", specifier = ">=3.11" },
+    { name = "motion-correction", marker = "python_full_version < '3.11' or python_full_version >= '3.13'" },
+    { name = "motion-correction", marker = "python_full_version == '3.11.*'", path = "vendor/kimodo/wheels/motion_correction-1.0.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
+    { name = "motion-correction", marker = "python_full_version == '3.12.*'", path = "vendor/kimodo/wheels/motion_correction-1.0.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
     { name = "networkx", specifier = ">=3.6" },
     { name = "numpy", specifier = ">=2.4" },
     { name = "pillow", specifier = ">=12.3" },

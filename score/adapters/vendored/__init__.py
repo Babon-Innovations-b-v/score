@@ -44,9 +44,12 @@ TOOLS = {
     "kimodo": {
         "use": WIRED, "image": "characters-motion", "names": ("kimodo", "Kimodo"),
         "callers": ("tools/cloud/characters.py", "tools/characters/maker/chain.py",
-                    "tools/characters/people/clips.py", "tools/cloud/images/characters-motion/Dockerfile"),
-        "stages": ("people_bodies",),
-        "why": "every person's and animal's motion clips, on the characters-motion image"},
+                    "tools/characters/people/clips.py", "tools/cloud/images/characters-motion/Dockerfile",
+                    "tools/characters/played/__init__.py", "pyproject.toml"),
+        "stages": ("people_bodies", "sim_body"),
+        "why": "every person's and animal's motion clips, on the characters-motion image; its MotionCorrection C++ "
+               "(Kimodo's foot correction) installed into the score venv by `uv sync` from its prebuilt wheels "
+               "(vendor/kimodo/wheels, pyproject's motion-correction) for the sim body's clips"},
     "sam3dbody-cpp": {
         "use": WIRED, "image": "characters-motion", "names": ("sam3dbody-cpp",),
         "callers": ("tools/characters/maker/body_picture.py", "tools/cloud/characters.py",
