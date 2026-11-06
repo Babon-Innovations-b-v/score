@@ -427,7 +427,9 @@ def meaning_faults(take, record):
     """The gate "kept the list's meaning" on one take's parts.json record: each finish moved off its listed surface
     whose painted look loses the listed one's recipe or hue (look_kept), and a take whose largest painted part's
     finish moved to a surface not the colour its row's name names (`object`: the hangar's thick red cables as
-    black_hose)."""
+    black_hose), unless a finish of its own words names that colour (colour_claimed): that finish is what the row's
+    colour describes and look_kept holds it there (2026-11-06: base's 'green plants' take is a greenhouse dome, its
+    frame 52% of the area and its leaves, 'green plants inside the dome', 0.3%)."""
     faults = []
     for finish in record["finishes"]:
         if (finish["surface"] == finish.get("listed_surface", finish["surface"]) or "looks" not in finish
@@ -440,11 +442,17 @@ def meaning_faults(take, record):
     largest = largest_finish(record)
     named = colour_words(record.get("object") or "")
     if (largest is not None and named and "looks" in largest and largest.get("by") not in MEANING_EXEMPT
+            and not colour_claimed(named, record["finishes"])
             and largest["surface"] != largest.get("listed_surface", largest["surface"])
             and not in_named_colour(named, largest["looks"]["painted"]["lab"], largest["looks"]["painted"]["recipe"])):
         faults.append(f"{take}: its row '{record['object']}' names {', '.join(named)}, its largest finish "
                       f"{largest['finish']} paints {largest['surface']} {largest['looks']['painted']}")
     return faults
+
+
+def colour_claimed(named, finishes):
+    """True when one of `finishes` names one of the `named` colours in its own words (its finish or its parts)."""
+    return any(set(named) & set(colour_words(f"{finish['finish']} {finish.get('parts') or ''}")) for finish in finishes)
 
 
 def largest_finish(record):
