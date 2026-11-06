@@ -670,7 +670,37 @@ def once(what, store, key, make, shared=False):
 def current(store, place):
     """{plan, how, at, by} of the plan shown: his newest edit made on the current pick (how: edited or revised), else
     the plan made without him (`made_plan`: written, else derived); None while its inventory does not count."""
-    return once("plan", store, place, lambda: holds_fitted(store, edit_inside(store, place, shown_plan(store, place))))
+    return once("plan", store, place, lambda: holds_fitted(store, doors_led(store, place, edit_inside(
+        store, place, shown_plan(store, place)))))
+
+
+def doors_led(store, place, shown):
+    """`shown` (a writing, never his edit) with each doorway to a sibling its holder holds once, whose own plan leads no
+    doorway back to `place`, leading nowhere (`to` None, each said in its `fixes`): the sibling's own plan says where
+    its doors lead, and held once the two can never meet (the Square's street, written again on 2026-11-05 with an
+    opening to the stairwell, whose own plan's street gate leads outside since its edit of that morning: plan@square's
+    held gate). A doorway a lead of the place names (a fixed door) is left for the gate to show."""
+    from score.stages.scene_record.plan import DOORWAYS, doors_to
+    holder = tree(store)["within"].get(place) if shown and shown["how"] == "written" else None
+    holding = current(store, holder) if holder else None
+    holds = (holding or {"plan": {}})["plan"].get("holds") or []
+    once_held = {hold["place"]: hold for hold in holds
+                 if not hold.get("instance") and [found["place"] for found in holds].count(hold["place"]) == 1}
+    if place not in once_held:
+        return shown
+    plan, fixes = copy.deepcopy(shown["plan"]), []
+    named = {lead.get("to") for lead in (plan.get("leads") or {}).values()}
+    for opening in plan.get("openings") or []:
+        sibling = opening.get("to")
+        if opening.get("kind") not in DOORWAYS or sibling == place or sibling not in once_held or sibling in named:
+            continue
+        found = own_plan(store, sibling)
+        if found is None or doors_to(as_held(once_held[sibling], found), place):
+            continue
+        opening["to"] = None
+        fixes.append(f"the {opening['kind']} at {opening['at']} to {sibling} leads nowhere: no door of {sibling}'s "
+                     f"own plan leads back to {place}")
+    return {**shown, "plan": {**plan, "fixes": [*plan.get("fixes", []), *fixes]}} if fixes else shown
 
 
 def edit_inside(store, place, shown):
