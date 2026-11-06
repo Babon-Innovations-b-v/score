@@ -61,7 +61,31 @@ import sys
 
 from score import conductor, graph
 from score.adapters.compute import guard
-from score.store import PROPS_HOME, RUNNER, Store, locked, running_under_agent, stamp_key
+from score.store import PROPS_HOME, RUNNER, Store, locked, running_under_agent, runtime_store, stamp_key
+
+WHOLE_WALK = runtime_store.FolderStore.keys  # the folder store's own listing: every file under its root
+
+
+def narrowed_keys(folders, prefix):
+    """FolderStore.keys walking only the folder the prefix lies in, the same keys as the whole walk (which follows
+    no link to a folder, so a link on the prefix's way walks the whole store as before): require_cleared listed one
+    node's clearances by walking every blob, and 16 bake clients waiting on the warm pool did so in a loop, each at a
+    whole core (2026-11-06, checkout 35, the conductor's 16 cores held)."""
+    parts = pathlib.PurePosixPath(prefix.rpartition("/")[0]).parts
+    way = [folders.root.joinpath(*parts[:depth]) for depth in range(1, len(parts) + 1)]
+    if any(step.is_symlink() for step in way):
+        return WHOLE_WALK(folders, prefix)
+    folder = way[-1] if way else folders.root
+    if not folder.is_dir():
+        return []
+    found = (str(path.relative_to(folders.root)) for path in folder.rglob("*")
+             if path.is_file() and not path.name.endswith(".partial"))
+    return sorted(key for key in found if key.startswith(prefix))
+
+
+# Every process that clears or rents (the runner, the cloud clients' rent points) lists the store this way; in the
+# framework here, so no row's key moves (an edit of score/store/__init__.py re-keyed 44 paid rows, 2026-10-17).
+runtime_store.FolderStore.keys = narrowed_keys
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/cloud/runtime"))

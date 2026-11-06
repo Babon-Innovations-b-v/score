@@ -1163,6 +1163,19 @@ def test_an_unquoted_or_too_dear_grant_clears_nothing():
     runner.store.write_once("grants/benchmark/dear.json", {**forged, "id": "dear", "answer": "Yes", "euros": 50.0})
     assert "not a quoted benchmark grant" in refused(lambda: as_benchmark("dear", "run-a", clear))
     assert runner.store.objects.keys("clearances/") == []
+    # the store's listing walks only the prefix's folder and answers as the whole walk did, a link on the way walked
+    # whole (2026-11-06: 16 bake clients walked every blob for one node's clearances). Break: in
+    # compute.narrowed_keys, `folder = way[-1] if way else folders.root` -> `folder = folders.root.parent`
+    root = pathlib.Path(tempfile.mkdtemp())
+    for key in ("clearances/n/k/a.json", "clearances/n/k/b.json", "clearances/n/kk/c.json", "accepts/x.json",
+                "real/d.json", "blobs/e.partial"):
+        (root / key).parent.mkdir(parents=True, exist_ok=True)
+        (root / key).write_text("{}")
+    (root / "link").symlink_to(root / "real")
+    folders = compute.runtime_store.FolderStore(root)
+    for prefix in ("clearances/n/k/", "clearances/n/k", "clearances/", "", "link/", "missing/x/", "blobs/"):
+        assert compute.narrowed_keys(folders, prefix) == compute.WHOLE_WALK(folders, prefix), prefix
+    assert folders.keys("clearances/n/k/") == ["clearances/n/k/a.json", "clearances/n/k/b.json"]
 
 
 def test_a_grant_used_up_under_the_single_use_rule_holds_its_balance_once_restored():
