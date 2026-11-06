@@ -503,6 +503,29 @@ def bent_faults(objects, design):
     return found
 
 
+def wall_overlap_faults(objects, design, sizes):
+    """Each two wall-held objects, of any rows, whose built boxes as the assembly lays them (holders.wall_box: along
+    their wall's face from their spot, kept inside its ends, their depth out from it, their tall up from their foot)
+    stand more than holders.WALL_TOUCH inside each other, round a corner too (2026-11-06: hangar's 32 m pipes, four on its
+    64 m left wall and two on its front wall, at 10 m in one another)."""
+    boxes = []
+    for entry in objects:
+        on, size = entry.get("on") or {}, sizes.get(entry["row"])
+        if on.get("how") != "wall" or not size:
+            continue
+        start, end = (np.asarray(point, float) for point in on["span"])
+        run = (end - start) / max(float(np.linalg.norm(end - start)), 1e-9)
+        out = np.asarray(on["out"], float)
+        side = 1 if float(np.array([-run[1], run[0]]) @ out) >= 0.0 else -1
+        foot = plan_of_place(design, entry["at"])[1]
+        boxes.append((entry["name"], holders.wall_box((start, end), side, [entry["at"][0], entry["at"][2]],
+                                                      2 * reach_along(entry, size, run),
+                                                      2 * reach_along(entry, size, out), foot, foot + size[2])))
+    return [f"{first} and {second} on the walls stand {depth:.2f} m inside each other at their built sizes"
+            for number, (first, box) in enumerate(boxes) for second, other in boxes[number + 1:]
+            for depth in [holders.boxes_meet(box, other)] if depth > holders.WALL_TOUCH]
+
+
 def roof_faults(objects, design, sizes, relations, rows):
     """Each object held under the roof (a `ceiling` relation) whose row hangs from it (holders.under_roof: anchored
     ceiling or roof, or its words say so) whose top is off the roof's underside over it by more than TOLERANCE."""
@@ -646,8 +669,8 @@ def spot_in(spot, entry, size, design):
 
 
 def judge_laid_as_designed(output, inputs, evidence):
-    """Fail on pieces of one row at one spot, a wall thing facing its wall, longer than its wall, bent round a corner
-    or on the floor where its words say high, a thing hung from the roof off its underside, a seat away from what it stands at, or a thing
+    """Fail on pieces of one row at one spot, a wall thing facing its wall, longer than its wall, bent round a corner,
+    inside another wall thing or on the floor where its words say high, a thing hung from the roof off its underside, a seat away from what it stands at, or a thing
     on the floor standing over it with nothing under it."""
     place, record = writer.record_in(output)
     design = design_of(inputs, place)
@@ -656,8 +679,8 @@ def judge_laid_as_designed(output, inputs, evidence):
     sizes, objects = sizes_of(handin), [entry for entry in record.get("objects", []) if entry.get("kind") == "object"]
     relations, _ = writer.relations_input(inputs, place)
     faults = spot_faults(objects) + held_wall_faults(objects, design, sizes, rows) + bent_faults(objects, design) + \
-        roof_faults(objects, design, sizes, relations, rows) + seat_faults(objects, sizes, rows, design) + \
-        floor_faults(objects, design, sizes, relations, rows)
+        wall_overlap_faults(objects, design, sizes) + roof_faults(objects, design, sizes, relations, rows) + \
+        seat_faults(objects, sizes, rows, design) + floor_faults(objects, design, sizes, relations, rows)
     reason = "; ".join(faults[:3]) + (f" and {len(faults) - 3} more" if len(faults) > 3 else "") if faults else \
         f"its {len(objects)} objects stand as the design lays them"
     return checks.Verdict("laid-as-designed", checks.FAIL if faults else checks.PASS, reason,
