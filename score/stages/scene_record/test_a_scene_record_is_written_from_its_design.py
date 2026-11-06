@@ -746,7 +746,10 @@ def test_an_opening_row_names_its_own_cut_and_a_thing_on_a_low_deck_stands_on_it
     Break: score/stages/scene_record/writer.py: `name_open_cuts(design, shelled + flights, (rows or {}).get("opening",
         []))` -> `pass`
     Break: score/stages/scene_record/writer.py: `if not inside(design) or design_shell.laid_for(design):` ->
-        `if not inside(design):`"""
+        `if not inside(design):`
+    A roof with both its panels row and an opening names the opening on its cut (hangar's roof_opening, 2026-11-06).
+    Break: score/stages/scene_record/writer.py shell: `name_open_cuts(design, found, (rows or {}).get("opening", []))`
+        -> `pass`"""
     from score.stages.scene_record import writer
     down = {**WRITTEN, "stairs": [*WRITTEN["stairs"], {"kind": "stair", "points": [[1.0, 4.0], [2.0, 4.0], [2.0, 5.0],
                                                                                   [1.0, 5.0]],
@@ -757,6 +760,9 @@ def test_an_opening_row_names_its_own_cut_and_a_thing_on_a_low_deck_stands_on_it
         ("wall_1_3", "stair_2", False), named
     holed = {**down, "roofs": [{**WRITTEN["roofs"][0], "openings": [{"points": [[5, 1], [7, 1], [7, 2], [5, 2]]}]}]}
     named = {entry.get("row"): entry["name"] for entry in writer.structure({"place": "shed"}, holed, None, openings)}
+    assert named.get("roof_opening") == "roof_1", named
+    paneled = {**openings, "roof": ["roof_panels"]}  # the roof's own panels row takes no piece its opening is named on
+    named = {entry.get("row"): entry["name"] for entry in writer.structure({"place": "shed"}, holed, None, paneled)}
     assert named.get("roof_opening") == "roof_1", named
     pillars = {"rows": [{"id": "posts", "route": "plan", "part": "structure", "name": "posts", "size": [0.2, 0.2, 2.0],
                          "count": 2}]}
