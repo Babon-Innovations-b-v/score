@@ -31,6 +31,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - benchmarks.plan_gap: the missing check -> `if False:` -> test_a_benchmark_whose_inputs_do_not_stand_is_a_gap_...
 - groups.row_size: `if laid:` (the plan's item sizes the model), or `if laid and laid != made:` (his edited item
   sizes it, 2026-10-29) -> test_a_take_is_sized_by_its_reading_and_routed_...
+- groups.one_each: the floor's fit dropped (the stairwell's 12 m conduit kept whole on its 7.42 m floor, failing
+  `fits the plan`) -> test_a_take_is_sized_by_its_reading_and_routed_...
 - groups.own_size: `return piece` (no box_shows_whole: the square's stage screen cut to 4.8 by 6 m) or
   box_shows_whole -> `return True` (the railing's box kept at 50 m) -> test_a_take_is_sized_by_its_reading_and_routed_...
 - groups.shown_from: `source = None` -> test_a_backdrop_row_a_place_of_its_scene_makes_is_shown_from_there_...
@@ -520,6 +522,13 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
     rug = {"id": "rug", "count": 3, "size": [2.0, 1.5, 0.02]}  # one rug an item, a little over it: one of it, no run
     assert groups.run_pieces(rugs, rug) is None and groups.row_size(rug["size"], [1.433, 1.444, 0.02]) == rug["size"]
     assert groups.run_pieces(rugs, {**rug, "size": [9.0, 0.1, 0.1]}) == 3  # longer than its items end to end: a run
+    conduits = {"w": 7.421, "d": 4.058, "items": [["CONDUIT 1", 0, 0, 7.421, 4.058, "S", "item"]] + [
+        [f"CONDUIT {n}", 0, y, 7.421, 0.1, None, "item"] for n, y in ((2, 3.958), (3, 2.772), (4, 2.792))],
+        "rows": {f"CONDUIT {n}": ["conduit_pipes"] for n in (1, 2, 3, 4)}}  # the stairwell's plan, 2026-11-06
+    conduit = {"id": "conduit_pipes", "count": 4, "size": [12.0, 0.1, 12.0]}  # 12 m on a 7.42 m floor: the whole run
+    assert groups.run_pieces(conduits, conduit) == 4
+    assert groups.row_size(conduit["size"], [7.421, 4.058, 12.0], 4) == [3.0, 0.1, 12.0]
+    assert groups.run_pieces({**rugs, "w": 5.0, "d": 4.0}, rug) is None  # a rug that fits its floor: still one of it
     door = [1.2, 0.2, 2.1]  # four doors read, one 1.16 m item laid: the door a little wider than its footprint
     assert groups.row_size(door, [1.159, 0.706, 2.1], 4) == door
     assert groups.own_size(door, [1.159, 0.706, 2.1], 4) == door
