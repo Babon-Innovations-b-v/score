@@ -3814,6 +3814,21 @@ RENDER = graph.Stage("render", "place", make_copy, TEXT, PASSES, after={"draw": 
 BAKE = graph.Stage("bake", "place", make_copy, TEXT, PASSES, after={"render": READS}, paid=True, euros=3.0)
 
 
+def make_missing_jobs(inputs, out, seed, params):
+    raise FileNotFoundError("no jobs file at render-jobs.json")
+
+
+def make_to_the_rent(inputs, out, seed, params):
+    """A runner of its own that stops at its rent point as compute.require_cleared does under SCORE_FREE_ONLY=1."""
+    subprocess.run([sys.executable, "-c", "import os, sys; sys.exit('a gpu-24gb in nowhere: refused, this process "
+                    "runs free only (SCORE_FREE_ONLY=1)' if os.environ.get('SCORE_FREE_ONLY') == '1' else 0)"],
+                   check=True)
+
+
+def make_hashing(inputs, out, seed, params):
+    time.sleep(60)
+
+
 def a_buying_runner(render=RENDER):
     data = pathlib.Path(tempfile.mkdtemp())
     (data / "hangar.txt").write_text("a hall")
@@ -3965,9 +3980,13 @@ def test_score_run_refuses_before_it_starts_records_a_given_reason_and_plans_on_
     is 60. `score preflight` (a phase's free check before it is queued, owner 2026-11-06) is clean on this plan, its
     stages' modules importing in fresh processes and its pool fitting with its class in stock; a missing input, a
     module that does not import, a pool that does not fit (the month's books unknown) and a class out of stock each
-    fail by name, and it exits 1 with them.
+    fail by name, and it exits 1 with them. Each paid stage it buys has a node dry-run, its make run free only up to
+    its paid point: one whose make reaches its rent (a runner of its own stopping there) passes; one whose make raises
+    first, one whose make finishes (its paid work would run on this machine) and one past its time box each fail by
+    the node's name and the cause.
     Break: score/__main__.py: '    refused = rebuy.refusal(bought, options.rebuy_reason)' -> '    refused = None'
-    Break: score/__main__.py: '    failed = plan_failed + import_failed + pool_failed + stock_failed' -> '    failed = plan_failed'"""
+    Break: score/__main__.py: '    failed = plan_failed + import_failed + dry_failed + pool_failed + stock_failed' -> '    failed = plan_failed + import_failed + pool_failed + stock_failed'
+    Break: score/__main__.py: '    if time.monotonic() < deadline:' -> '    if True:'"""
     from score import __main__ as command
     books = compute.ledger()
     monkeypatch.setattr(books, "LEDGER", pathlib.Path(tempfile.mkdtemp()) / "ledger.jsonl")
@@ -4021,3 +4040,27 @@ def test_score_run_refuses_before_it_starts_records_a_given_reason_and_plans_on_
     assert lines[1].startswith("missing input: draw@hangar: brief (") and "hangar.txt" in lines[1], lines
     assert lines[2].startswith("does not import: score.no_such_module: ModuleNotFoundError"), lines
     assert lines[3:] == ["pool: no warm pool fits: the month's books are not known", "out of stock: gpu-24gb"], lines
+    # a node blocked by an output that answered fail is named; one waiting on a row not made yet is not (2026-11-06:
+    # env1's three blockers went unnamed). Break: in __main__.preflight_plan, drop the `ANSWERED` failures
+    planned = {"missing": [], "refusal": None, "buys": [], "price": {"likely_euros": 0.0, "high_euros": 0.0},
+               "blocked": {"plan@square": "plan@square answered fail: held: the stairwell's doors",
+                           "pixal@base": "blocked: closeup@base has not run on its current inputs"}}
+    assert command.preflight_plan(planned)[1] == [
+        "failing: plan@square: plan@square answered fail: held: the stairwell's doors"]
+    monkeypatch.setattr(command, "phase_modules", lambda runner, names: [])
+    monkeypatch.setattr(books, "books_refusal", lambda: None)
+    monkeypatch.setattr(command, "DRY_SECONDS", 2)
+    offers[0].stock_word = "available"
+    found = {}
+    for make in (make_missing_jobs, make_copy, make_to_the_rent, make_hashing):
+        runner = a_buying_runner(dataclasses.replace(RENDER, make=make))
+        assert runner.run_node(runner.stages["draw"], "hangar").endswith("accepted automatically")
+        found[make.__name__] = command.preflight(runner, ["hangar"], True, options)
+    summary, failed = found["make_to_the_rent"]
+    assert failed == [] and "1 of 1 paid nodes dry-run to their paid point" in summary, (summary, failed)
+    assert [failed[0].split(" (its log ")[0] for _, failed in [found["make_missing_jobs"], found["make_copy"],
+                                                               found["make_hashing"]]] == [
+        "dry run: render@hangar: FileNotFoundError: no jobs file at render-jobs.json",
+        "dry run: render@hangar: its make finished without reaching a paid point: its paid work would run on this "
+        "machine",
+        "dry run: render@hangar: its dry run passed its 2 s box before reaching a paid point"], found

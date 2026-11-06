@@ -912,18 +912,22 @@ def fitting_pool(choices, beside, covered, refusal):
     return sizes, holding, euros, over
 
 
-def pool_fits(runner, choices, beside=0.0, covered=0.0, likely=None):
+def pool_fits(runner, choices, beside=0.0, covered=0.0, likely=None, room=None):
     """pool_clearance worked out dry, reserving, holding and telling nothing (a phase's preflight): (sizes, "high" or
     "likely", None) of the pool it would clear, or (None, None, why) when even the smallest has no room or the
     month's books refuse paid work (ledger.books_refusal as it stands, no read-back). Against the world's stop line
-    with every open reservation (stop_room); a benchmark grant is not read here (its read settles its balance)."""
+    with every open reservation (stop_room), or `room` euros when given: what the phase's Buy will leave under its
+    yes's batch total (2026-11-06: checked against the line an ended batch had written back at its spend, no pool fit
+    by EUR 3.15); a benchmark grant is not read here (its read settles its balance)."""
     covering = covering_store(runner.store)
     held = open_reservations(covering.cache.parent / "reservations.json")
     over = conductor.project_refusal() or ledger().books_refusal() or ("" if choices else "no pool to clear")
     if over:
         return None, None, over
-    sizes, _, _, over, by = chosen_pool(choices, beside, covered, likely,
-                                        lambda forecast: stop_room(runner, covering, forecast, held)[2])
+    refusal = ((lambda forecast: stop_room(runner, covering, forecast, held)[2]) if room is None else
+               (lambda forecast: None if forecast <= room else
+                f"EUR {forecast:.2f} passes the EUR {room:.2f} the phase's Buy leaves under its batch total"))
+    sizes, _, _, over, by = chosen_pool(choices, beside, covered, likely, refusal)
     return (None, None, over) if over else (sizes, by, None)
 
 

@@ -18,9 +18,10 @@ running nothing: the missing inputs, the nodes it would make and why, the paid r
 and the re-buy refusal (the dashboard's launch basket reads it, score/dashboard); each buy's `price` and the run's
 (`price`: likely and high euros and minutes) are `price`'s numbers, so the basket and the clearance read the same.
 `preflight` checks a phase before it is queued (owner, 2026-11-06), free and read only: its plan (no missing input,
-no refusal, every buy priced or said as a guess), every stage module of it importing in a fresh process, its warm pool
-fitting under the stop line as the run would clear it (compute.pool_fits, nothing reserved) and a machine of each class
-that pool rents in stock now; one summary line and one line a failure, exit 1 with any. The phase is --stage's list
+no refusal, every buy priced or said as a guess), every stage module of it importing in a fresh process, one node of
+each paid stage it buys dry-run up to its paid point and never past it (preflight_dry), its warm pool fitting under the
+stop line as the run would clear it (compute.pool_fits, nothing reserved) and a machine of each class that pool rents
+in stock now; one summary line and one line a failure, exit 1 with any. The phase is --stage's list
 until the stage table has phases (--phase).
 `spend` reads the month's spend as the runner's clearance counts it, and its `paid_refused` says why paid work is
 refused while the month's books are unknown (tools/cloud/ledger.py books_refusal; both ledgers were lost on
@@ -113,12 +114,16 @@ import importlib.util
 import inspect
 import json
 import math
+import multiprocessing
+import multiprocessing.connection
 import os
 import pathlib
+import re
 import signal
 import socket
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import traceback
@@ -181,6 +186,13 @@ POOL_EMPTY_SAY_SECONDS = 600
 POOL_EMPTY = {}
 # The longest one stage module's import may take in the preflight's fresh process.
 IMPORT_SECONDS = 120
+# The longest a paid node's dry make may take before it reaches its paid point, and how many run at once (owner and
+# score, 2026-11-06: a runner hashing for 30 min before it would rent showed only at launch); one past its box is the
+# fault itself.
+DRY_SECONDS, DRY_AT_ONCE = 600, 4
+# What a make reaching a paid point with no ticket under SCORE_FREE_ONLY=1 raises or prints, in its own process or a
+# runner it started (ledger.refuse_free_only, compute.require_cleared): the dry make got as far as renting.
+PAID_POINT = ("this process runs free only (SCORE_FREE_ONLY=1)", "nothing rents outside a cleared run")
 
 
 ENVIRONMENT_HELP = ("the environment's id, one of %(choices)s (stored ids keep the old word: world1 is environment 1)")
@@ -229,6 +241,8 @@ def parse(argv):
     check = commands.add_parser("preflight")
     check.add_argument("world", metavar="environment", choices=sorted(stages.WORLDS), help=ENVIRONMENT_HELP)
     check.add_argument("--rebuy-reason", help="the reason its run would be given")
+    check.add_argument("--room", type=float, help="the euros the phase's Buy leaves under its yes's batch total "
+                       "(the door's batch-money left): the pool is fitted against it, not the stop line as it stands")
     check.add_argument("--jobs", type=int, help=f"nodes at once, as for run (default {graph.JOBS})")
     lock_phase = commands.add_parser("lock-phase", help="lock a phase's accepted outputs: a later code change keeps "
                                      "them (the runner's bookkeeping, no owner decision)")
@@ -959,7 +973,7 @@ def plan_json(runner, places, whole, options):
 def preflight(runner, places, whole, options):
     """A phase's free check before it is queued (owner, 2026-11-06: "u check if nothing will fail before it"), running,
     renting and reserving nothing: (summary, [failure lines]) of its plan (preflight_plan), its stages' modules
-    (preflight_imports), its warm pool against the stop line (preflight_pool) and the stock of each class that pool
+    (preflight_imports), one node of each paid stage it buys made up to its paid point (preflight_dry), its warm pool against the stop line (preflight_pool) and the stock of each class that pool
     rents (preflight_stock). The phase is `options.stage`, its stage names (every stage when None), as `score plan
     --stage` narrows: the seam a phase table's row fills (phase_stages). A stage name the table does not hold fails
     alone, nothing else read: a phase of no stages would pass empty."""
@@ -969,13 +983,16 @@ def preflight(runner, places, whole, options):
     with runner.still():  # each key, read and plan worked out once
         planned = plan_json(runner, places, whole, options)
         sizes = pool_sizes(card_rows(runner, places, whole, options), options.jobs)
+        chosen, waiting = dry_nodes(runner, planned)
     priced, plan_failed = preflight_plan(planned)
     modules, import_failed = preflight_imports(phase_modules(runner, options.stage))
-    pooled, pool_failed = preflight_pool(runner, sizes, [buy["price"] for buy in planned["buys"]])
+    dried, dry_failed = preflight_dry(runner, chosen, waiting)
+    pooled, pool_failed = preflight_pool(runner, sizes, [buy["price"] for buy in planned["buys"]],
+                                         getattr(options, "room", None))
     stock_failed = preflight_stock(sizes) if sizes and not cloud_tool("provider").on_cluster() else []
-    failed = plan_failed + import_failed + pool_failed + stock_failed
+    failed = plan_failed + import_failed + dry_failed + pool_failed + stock_failed
     summary = (f"preflight {runner.world.name} {','.join(options.stage or ['every stage'])}: "
-               f"{'clean' if not failed else f'{len(failed)} failing'}; {priced}; {modules}; {pooled}")
+               f"{'clean' if not failed else f'{len(failed)} failing'}; {priced}; {modules}; {dried}; {pooled}")
     return summary, failed
 
 
@@ -984,12 +1001,21 @@ def unknown_stages(runner, names):
     return [f"no such stage: {name}" for name in names or [] if name not in runner.stages]
 
 
+# A blocked node whose own output, or one it reads, answered fail or unknown at its gates (2026-11-06: the models
+# preflight named none of env1's three blockers, plan@square's doors among them); one only waiting on a row not
+# made yet is no failure.
+ANSWERED = re.compile(r"answered (fail|unknown)")
+
+
 def preflight_plan(planned):
-    """(what the plan buys, [failure lines]) of a run's plan (plan_json): each input it is missing, its refusal, and
-    a paid buy with no price at all; a buy priced only by its estimate is said as a guess, never a failure."""
+    """(what the plan buys, [failure lines]) of a run's plan (plan_json): each input it is missing, its refusal, each
+    node blocked by an output that answered fail or unknown (ANSWERED), and a paid buy with no price at all; a buy
+    priced only by its estimate is said as a guess, never a failure."""
     failed = [f"missing input: {name}" for name in planned["missing"]]
     if planned["refusal"] and not planned["missing"]:
         failed.append(planned["refusal"])
+    failed += [f"failing: {node}: {why}" for node, why in sorted((planned.get("blocked") or {}).items())
+               if ANSWERED.search(why)]
     guesses = [buy["node"] for buy in planned["buys"] if buy["price"].get("likely_euros") is None]
     failed += [f"no price: {buy['node']} has neither a measured price nor an estimate" for buy in planned["buys"]
                if buy["price"].get("high_euros") is None and buy["price"].get("guess_euros") is None]
@@ -1027,15 +1053,143 @@ def preflight_imports(modules):
     return f"{len(modules) - len(failed)} of {len(modules)} modules import", failed
 
 
-def preflight_pool(runner, sizes, prices):
+def dry_nodes(runner, planned):
+    """([(stage, place, keyed)], [stage names]) of the paid stages a run's plan (plan_json) buys, a cached Google ask
+    at EUR 0 left out: of each in table order, its first node in the plan's order whose key works out (its inputs
+    stand), to dry-run (preflight_dry); and the stages whose every bought node waits on a row not made yet."""
+    bought = {}
+    for buy in planned["buys"]:
+        if buy["euros"]:
+            name, _, place = buy["node"].partition("@")
+            bought.setdefault(name, []).append(place or None)
+    chosen, waiting = [], []
+    for name, stage in runner.stages.items():
+        found = None
+        for place in bought.get(name, []):
+            with contextlib.suppress(graph.Blocked):
+                found = (stage, place, runner.key(stage, place))
+                break
+        if found:
+            chosen.append(found)
+        elif name in bought:
+            waiting.append(name)
+    return chosen, waiting
+
+
+class LocalWork(Exception):
+    """A dry make started a heavy program (restore.HEAVY_PROGRAMS: Blender) on this machine instead of renting."""
+
+
+class DryPopen(subprocess.Popen):
+    """subprocess.Popen that refuses a heavy program in a dry make (LocalWork)."""
+
+    def __init__(self, arguments, *rest, **options):
+        from score.store.restore import heavy_program
+        program = heavy_program(arguments, options.get("executable"))
+        if program:
+            raise LocalWork(f"it starts {program} on this machine instead of renting")
+        super().__init__(arguments, *rest, **options)
+
+
+def dry_failure(error, log):
+    """Why a dry make that raised `error` failed, or None when it reached its paid point (PAID_POINT, in the error,
+    its causes or the `log` text of what it and its runners printed); a heavy program started here (LocalWork) is a
+    failure even so."""
+    chain, seen = [], error
+    while seen is not None and seen not in chain:
+        chain.append(seen)
+        seen = seen.__cause__ or seen.__context__
+    local = [each for each in chain if isinstance(each, LocalWork)]
+    if local:
+        return str(local[0])
+    if any(word in text for word in PAID_POINT for text in [*map(str, chain), log]):
+        return None
+    lines = str(error).strip().splitlines()
+    return f"{type(error).__name__}: {lines[-1] if lines else 'no message'}"
+
+
+def dry_make(runner, stage, place, keyed, log, answer):
+    """In a forked process leading its own group: the node's make into a scratch folder, free only
+    (SCORE_FREE_ONLY=1, no spend ticket, never this PC's card for its machine work, no Blender here: DryPopen), its
+    output and its runners' to `log`; sends on `answer` None when it reached its paid point, else why not
+    (dry_failure, or a make that finished: its paid work would run on this machine)."""
+    os.setsid()
+    stream = open(log, "w", buffering=1)  # noqa: SIM115 - this process's own output until it ends
+    os.dup2(stream.fileno(), 1)
+    os.dup2(stream.fileno(), 2)
+    sys.stdout = sys.stderr = stream
+    os.environ[conductor.FREE_ONLY] = "1"
+    from score.adapters import compute
+    os.environ.pop(compute.TICKET, None)
+    if graph.on_this_pc():
+        os.environ.pop(graph.THIS_PC[0])
+    subprocess.Popen = DryPopen
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="score-dry-"))
+    try:
+        inputs = runner.input_paths(stage, place, keyed)
+        with graph.making_in(folder, runner.making_code(stage, place, keyed)):
+            stage.make(inputs, folder, keyed["seed"], keyed["params"])
+        why = "its make finished without reaching a paid point: its paid work would run on this machine"
+    except BaseException as error:  # noqa: BLE001 - every way it ends is the answer, a SystemExit too
+        traceback.print_exc()
+        stream.flush()
+        why = dry_failure(error, pathlib.Path(log).read_text(errors="replace"))
+    finally:
+        graph.gone(folder)
+    answer.send(why)
+    stream.flush()
+
+
+def dry_ended(child, receive, deadline):
+    """(whether a dry make's `child` is done, why it failed or None), killed with its group once past `deadline`."""
+    if child.exitcode is not None:
+        return True, receive.recv() if receive.poll() else f"its dry run ended with exit {child.exitcode}, no answer"
+    if time.monotonic() < deadline:
+        return False, None
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(child.pid, signal.SIGKILL)
+    child.kill()
+    child.join()
+    return True, f"its dry run passed its {DRY_SECONDS} s box before reaching a paid point"
+
+
+def preflight_dry(runner, chosen, waiting):
+    """(what was dry-run, [failure lines]) of the `chosen` nodes (dry_nodes), each make run up to its paid point and
+    never past it in a forked process (dry_make), DRY_AT_ONCE side by side, each failing past DRY_SECONDS, its log on
+    the runner's `preflight` desk. The stages `waiting` are said, never failed."""
+    context, queue, running, failed = multiprocessing.get_context("fork"), list(chosen), {}, []
+    while queue or running:
+        while queue and len(running) < DRY_AT_ONCE:
+            stage, place, keyed = queue.pop(0)
+            node = graph.node_name(stage, place)
+            log = runner.desk("preflight", node, ".log")
+            log.parent.mkdir(parents=True, exist_ok=True)
+            receive, send = context.Pipe(duplex=False)
+            child = context.Process(target=dry_make, args=(runner, stage, place, keyed, str(log), send))
+            child.start()
+            send.close()
+            running[child] = (node, log, receive, time.monotonic() + DRY_SECONDS)
+        multiprocessing.connection.wait([child.sentinel for child in running], timeout=1)
+        for child, (node, log, receive, deadline) in list(running.items()):
+            done, why = dry_ended(child, receive, deadline)
+            if done:
+                del running[child]
+                failed += [f"dry run: {node}: {why} (its log {log})"] if why else []
+    said = f"{len(chosen) - len(failed)} of {len(chosen)} paid nodes dry-run to their paid point (one a paid stage)"
+    return said + (f", waiting on rows not made yet: {', '.join(waiting)}" if waiting else ""), failed
+
+
+def preflight_pool(runner, sizes, prices, room=None):
     """(what the phase's warm pool would be, [failure lines]): the pool of `sizes` ({class: cards}, pool_sizes)
-    worked out dry against the stop line beside the phase's buys' `prices`, as the run clears it
-    (compute.pool_fits); none failing for a phase with no card rows or one on the cluster."""
+    worked out dry against the stop line, or the `room` euros the phase's Buy leaves when given, beside the phase's
+    buys' `prices`, as the run clears it (compute.pool_fits); none failing for a phase with no card rows or one on the
+    cluster."""
     from score.adapters import compute
     if not sizes or cloud_tool("provider").on_cluster():
         return "no warm pool", []
     hours = compute.ledger().BATCH_HOURS
-    fits, by, over = compute.pool_fits(runner, cloud_tool("pool").shrinking(sizes, hours), *pool_money(prices))
+    fits, by, over = compute.pool_fits(runner, cloud_tool("pool").shrinking(sizes, hours), *pool_money(prices),
+                                       room=room)
     if over:
         return f"warm pool of {sizes} does not fit", [f"pool: no warm pool fits: {over}"]
     return f"warm pool of {fits} fits beside the rows' {by}", []
