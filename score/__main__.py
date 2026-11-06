@@ -231,6 +231,14 @@ def parse(argv):
     check.add_argument("--phase", help="the phase whose stages are checked (the stage table's phases)")
     check.add_argument("--rebuy-reason", help="the reason its run would be given")
     check.add_argument("--jobs", type=int, help=f"nodes at once, as for run (default {graph.JOBS})")
+    lock_phase = commands.add_parser("lock-phase", help="lock a phase's accepted outputs: a later code change keeps "
+                                     "them (the runner's bookkeeping, no owner decision)")
+    lock_phase.add_argument("world", metavar="environment", choices=sorted(stages.WORLDS), help=ENVIRONMENT_HELP)
+    lock_phase.add_argument("phase", help="the phase's name (close-ups, props, ...)")
+    lock_phase.add_argument("--node", action="append", help="one node of the phase (repeat it)")
+    lock_phase.add_argument("--stage", action="append", help="one stage of the phase, at every place (repeat it)")
+    lock_phase.add_argument("--place", action="append", help="one place (repeat it); default: every place")
+    lock_phase.add_argument("--object", action="append", help="only this object, in the stages that select")
     for command in (run, status, plan, check):
         command.add_argument("--place", action="append", help="one place's line (repeat it); default: every place")
         command.add_argument("--stage", action="append", help="only this stage and what it reads (repeat it)")
@@ -1391,6 +1399,22 @@ def closing_lines(runner, places, whole, options):
     return lines
 
 
+def phase_locked_line(runner, places, options):
+    """`score lock-phase`: the phase's nodes (its --stage stages and --node nodes, at the places) locked as they
+    stand accepted now (Runner.lock_phase), as one line; exits plainly when none is named or none stands."""
+    named = set(options.stage or ()) | set(options.node or ())
+    if not named:
+        sys.exit("score lock-phase: give the phase's --stage or --node (repeat them)")
+    nodes = [(stage, place) for stage, place in runner.nodes(places)
+             if stage.name in named or graph.node_name(stage, place) in named]
+    try:
+        lock = runner.lock_phase(options.phase, nodes)
+    except (ValueError, FileExistsError) as refused:
+        sys.exit(f"score lock-phase: {refused}")
+    return (f"phase {lock['phase']} locked (lock {lock['n']}, {lock['at']}): {len(lock['nodes'])} nodes, "
+            f"{len(lock['not standing'])} not standing accepted, left out")
+
+
 def exit_status(found, lines):
     """A finished run's exit status: ok only when every line is done (main exits 0 then), else stopped; with how many
     rows ran and how many were not run because their line stopped."""
@@ -1624,6 +1648,9 @@ def main(argv=None):
     if options.command == "preflight":
         preflight_command(runner, places, whole, options)
         return
+    if options.command == "lock-phase":
+        print(phase_locked_line(runner, places, options))
+        return
     if options.command == "run":
         if options.free:
             print("score run: free-only run: every free row whose inputs stand runs, paid rows are left for the Buy; "
@@ -1644,6 +1671,8 @@ def main(argv=None):
             print(json.dumps(status_json(options.world, runner.lines(places, whole, options.stage))))
             return
         closing_lines(runner, places, whole, options)
+        for line in runner.phase_lock_lines():
+            print(line)
         if whole and stages.library.WORLD_ROW in runner.stages:
             print(stages.library.completion_line(runner.world.name,
                                                  stages.library.world_completion(runner, places)))
