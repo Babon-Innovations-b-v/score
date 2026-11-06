@@ -1,0 +1,5 @@
+{
+ "about": "The screens stage's rules (score/stages/screens, #88): `words` name a screen among a screen row's lit parts (a lit surface whose library name holds one is a display part; with none, the largest lit surface is), and `read_by` names the stage that makes what a row kind does where data/checks/row-kinds.json leaves it null: the motion row's `covered` reads it over row-kinds.json's own `read_by` (score/stages/motion), so no row that reads row-kinds.json moves with this stage.",
+ "words": ["screen", "screens", "display", "monitor", "crt", "terminal", "readout", "tv", "billboard"],
+ "read_by": {"shows": "screens"}
+}

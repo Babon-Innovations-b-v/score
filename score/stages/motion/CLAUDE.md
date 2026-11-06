@@ -38,7 +38,8 @@ stage (`../layer_base.py`). `__init__.py`'s docstring has the make and the gates
   against the push; its exhaust stays `unmade` until an effect kind makes it. A flag on a body with no air (under
   `natural_grounds.WIND_KPA`: the Moon) hangs still with that reason. A move no
   writer makes (a rocket's exhaust, a flag's cloth in the air, a body of water, a double door's leaves) is `unmade` and fails
-  `covered`, as does every row no stage makes (`row_kinds.uncovered`: a moving word in its noun, a screen's picture),
+  `covered`, as does every row no stage makes (`row_kinds.uncovered`: a moving word in its noun; a screen's picture is
+  the screens stage's, `data/checks/screens.json` `read_by`, #88),
   never a still. The record is written into the output (`moves.json`) and the gates
   read it there; `designed` fails a moving thing on no inventory row's object and a moving row with no object on
   the stage. A moving row a carried batch gap names (by its id or its take, the row's `thing`: the bake's gap
