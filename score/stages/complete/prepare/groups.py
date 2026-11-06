@@ -21,6 +21,7 @@ import re
 
 from score.review.plan_checks import AFAR, WALLS_ITEM, afar, at_foot, gemini_box
 from score.stages.complete.prepare import contract
+from score.stages.shapes_first import floor_fit
 
 SHELL = ("kit: wall", "kit: floor", "kit: ceiling", "kit: under floor")
 # A row's route by the part of the place its reading says it is (score/review/reading.py PARTS, never a list of nouns:
@@ -333,8 +334,13 @@ def one_each(plan, names, shapes, own):
     """Whether a row's several items (`names`, their `shapes`) each lay one of it, its reading's metres (`own`) one
     object's (score/review/reading.py: "of one of it"): no item counts several, and its long side is within their long
     sides end to end, so it never measured a run longer than all of them (2026-10-26: habitat's 10 rugs of 2 m, each
-    laid in its own 1.4 m item, were cut to 0.2 m strips, its 6 curtains and square's flags and street's palms so too)."""
+    laid in its own 1.4 m item, were cut to 0.2 m strips, its 6 curtains and square's flags and street's palms so too).
+    One whose footprint fits the plan's floor no way round is never one of it: its reading measured the whole run
+    (2026-11-06: the stairwell's four conduit pipes, read 12 m along its 7.42 by 4.06 m floor, were kept at 12 m since
+    four 7.42 m items hold 12 m end to end, and `fits the plan` failed them)."""
     if len(names) < 2 or own is None or any(shape.get("count", 1) > 1 for shape in shapes):
+        return False
+    if plan.get("w") and plan.get("d") and not floor_fit.fits(own, plan["w"], plan["d"]):
         return False
     long_sides = {name: max(wide, deep) for name, _, _, wide, deep, *_ in plan["items"]}
     return max(own[:2]) <= sum(long_sides[name] for name in names)
