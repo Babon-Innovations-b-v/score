@@ -2776,7 +2776,10 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     a sibling's door meets, or a lead of its own names, stays (the Square's street to the stairwell, 2026-11-06).
     Break: score/review/plans.py: doors_led's `opening["to"] = None` dropped
     Break: score/review/plans.py: doors_led's `or doors_to(as_held(once_held[sibling], found), place)` dropped
-    Break: score/review/plans.py: doors_led's `or sibling in named` dropped"""
+    Break: score/review/plans.py: doors_led's `{sibling, opening.get("to")} & named` made `set()`
+    A doorway its own hold leads elsewhere is judged there (the base's airlock door to the hub, led to tube#3).
+    Break: score/review/plans.py: doors_led's `led = as_held(once_held[place], plan).get("openings") or []` made
+        `led = plan.get("openings") or []`"""
     rows = [{"id": "barn", "name": "a barn", "anchor": "floor", "size": [8.0, 6.0, 5.0], "count": 1, "at": []},
             {"id": "cart", "name": "a cart", "anchor": "floor", "size": [1.0, 1.0, 1.0], "count": 1, "at": []}]
     picked(store, "yard", rows)
@@ -2950,6 +2953,13 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     written(store, "barn", {**barn, "leads": {"W": {"to": "shed"}}})  # a fixed door: left for the gate to show
     assert [opening["to"] for opening in plans.current(store, "barn")["plan"]["openings"]] == ["shed", "yard"]
     written(store, "barn", barn)
+    holds = plans.current(store, "yard")["plan"]["holds"]
+    plans.edited(store, "yard", {**edit, "holds": [holds[0], {**holds[1], "leads": {"shed": "pipe#1"}}, {
+        "place": "pipe", "row": None, "x": 5.0, "y": 0.0, "w": 5.0, "d": 2.0, "instance": "pipe#1"}]}, "joey")
+    # its hold leads it to pipe#1: judged there, never by shed's own plan (the base's airlock door to the hub, led to
+    # tube#3: plan@base's held gate, 2026-11-06)
+    assert [opening["to"] for opening in plans.current(store, "barn")["plan"]["openings"]] == ["shed", "yard"]
+    plans.edited(store, "yard", {**edit, "holds": holds}, "joey")
     plans.redrawn(store, "shed", {"openings": [door([5.0, 1.0], "barn")]}, "an agent", asked)
     assert [opening["to"] for opening in plans.current(store, "barn")["plan"]["openings"]] == ["shed", "yard"]
 
