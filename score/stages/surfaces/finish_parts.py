@@ -107,7 +107,7 @@ def without_strays(mesh, face_label):
         face_of[island] = np.arange(len(island))
         finish = label[face_of]
         least = patchy.STRAY_ISLAND * areas.sum()
-        standing = (area >= least) | fragmented_largest(area, finish, least)
+        standing = (area >= least) | fragmented_largest(area, finish, least, ISLAND_LEAST * areas.sum())
         stray = ~standing & ~np.isclose(area, piece_area[piece[face_of]]) & np.isin(finish, finish[standing])
         across = np.r_[pairs, pairs[:, ::-1]]
         # voted by larger islands only: two strays never swap, and a small piece's strays join its largest island
@@ -119,19 +119,22 @@ def without_strays(mesh, face_label):
         label = np.where((votes.sum(1) > 0)[island], votes.argmax(1)[island], label)
 
 
-def fragmented_largest(area, finish, least):
-    """Per island (its `area`, its `finish`), whether it is the largest island of a fragmented finish: one whose
-    islands are each under `least` but cover at least `least` together. That much paint is no small detail, and kept
-    as islands it is patchy paint: camp kitchen_counter_2's black glass cooktop, 2233 islands the largest 0.92% of the
+def fragmented_largest(area, finish, least, crumb):
+    """Per island (its `area`, its `finish`), whether it stands for a fragmented finish: one whose islands are each
+    under `least` but cover at least `least` together. That much paint in specks is no small detail, and kept as
+    islands it is patchy paint: camp kitchen_counter_2's black glass cooktop, 2233 islands the largest 0.92% of the
     area, stray 0.068, and lab_table_1's flask glass, 18 islands, stray 0.035 (#36, 2026-10-31). Its largest island
-    stands for it and the rest are strays."""
+    stands for it, and so does every island of at least `crumb` (ISLAND_LEAST of the area: merged_islands makes each
+    such island a part of its own, so patchy never counts it stray); the rest are strays. Keeping only the largest
+    painted 11 of the hub's right control console's 12 green screens as its rusted steel (9 islands of 0.22 to 0.75%,
+    3.4% together), and DINOv2 read it 0.116 against its close-up (likeness@hub, 2026-11-06)."""
     import numpy as np
     count = int(finish.max()) + 1
     total = np.bincount(finish, weights=area, minlength=count)
     order = np.lexsort((-np.arange(len(area)), area, finish))  # per finish, its largest island (the first on a tie) last
     first = np.zeros(len(area), dtype=bool)
     first[order[np.r_[finish[order][1:] != finish[order][:-1], True]]] = True
-    return first & (area < least) & (total[finish] >= least)
+    return (first | (area >= crumb)) & (area < least) & (total[finish] >= least)
 
 
 # A small detail finish (detail_finish): its family, or these words in its finish or parts. merged_islands gathers a
@@ -152,12 +155,20 @@ def patchiness(mesh, face_label, part_of, finishes):
     """patchy.py's numbers and pass of a split take, each part its own region as the paint judges its painted parts
     (place_line.paint_take): a finish's edge along a part's is the paint the views show. Each island of a detail
     finish (detail_finish) is a part of its own, as a lone fitting is, so details sharing a part are no stray;
-    blotches of any other finish still are."""
+    blotches of any other finish still are. So is each island that is a whole piece of the shape (patchy's own
+    exemption): merged_islands takes a loose bit into the nearest larger island of its finish, and that island, its
+    part no longer its alone, read as a blotch (base's connecting tube, its glazing's 25 panes of 0.2 to 1% each
+    holding 51 loose glass bits, stray 0.121, once fragmented_largest kept every pane; 2026-11-06)."""
     import numpy as np
     import patchy
     details = [index for index, finish in enumerate(finishes) if detail_finish(finish)]
     island = patchy.islands(face_label, mesh.face_adjacency)
-    own = np.where(np.isin(face_label, details), part_of.max() + 1 + island, part_of)
+    piece = patchy.components(len(face_label), mesh.face_adjacency)
+    island_area = np.bincount(island, weights=mesh.area_faces)
+    piece_of = np.zeros(len(island_area), dtype=int)
+    piece_of[island] = piece
+    loose = np.isclose(island_area, np.bincount(piece, weights=mesh.area_faces)[piece_of])[island]
+    own = np.where(np.isin(face_label, details) | loose, part_of.max() + 1 + island, part_of)
     return patchy.score(mesh, face_label, own, own)
 
 
