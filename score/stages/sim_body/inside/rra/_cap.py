@@ -34,16 +34,18 @@ def cap_rows(physics, path, total, land, fitted, riders, most):
     place off the fitted path (`most[0]`), as rows on that frame's move scaled to radius one (frames x balls x 3 x
     adjusted) and their values now (frames x balls x 3); balls that are another's or never move left out (every
     segment riding the chest turns as it does; the held feet do not). A segment's change with the move is measured
-    through `land` (the legs follow the feet), by forward differences."""
+    through `land` (the legs follow the feet), by forward differences: the path moved by `total` and by each column's
+    nudge of it moved, landed and posed as one stacked path (`land` takes whole copies of the clip; on the card every
+    copy's frames in one solve)."""
     model, adjusted = physics.model, adjusted_leads(physics)
     count, width = total.shape
-    now = turns_off(model, land(moved(physics, path, total, adjusted)), fitted, riders)
+    tried = np.stack([total] + [total + CAP_STEP * np.eye(width)[column] for column in range(width)])
+    found = turns_off(model, land(moved(physics, path, tried, adjusted)), np.concatenate([fitted] * len(tried)),
+                      riders).reshape(len(tried), count, -1, 3)
+    now = found[0]
     turning = np.zeros((count, now.shape[1], 3, width))
     for column in range(width):
-        nudge = np.zeros(width)
-        nudge[column] = CAP_STEP
-        ahead = turns_off(model, land(moved(physics, path, total + nudge, adjusted)), fitted, riders)
-        turning[..., column] = (ahead - now) / (CAP_STEP * most[1])
+        turning[..., column] = (found[1 + column] - now) / (CAP_STEP * most[1])
     kept = []
     for ball in range(now.shape[1]):
         mine = np.concatenate([turning[:, ball].reshape(count, -1), now[:, ball] / most[1]], axis=1)

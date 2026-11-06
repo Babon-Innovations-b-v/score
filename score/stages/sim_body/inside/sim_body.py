@@ -214,7 +214,11 @@ def run_person(job, person, out_path):
     footing = Footing(model, physics.couplings, [bodies[segment] for segment in feet], path)
 
     def land(path):
-        return footing.footed(path, qpath)
+        """`path`'s feet put back where they stand on the fitted path: the clip's frames, or whole copies of them
+        stacked (`rra.cap_rows`' nudged paths), each copy against the clip's."""
+        if len(path) % len(qpath):
+            raise ValueError(f"{len(path)} frames to land: not whole copies of the clip's {len(qpath)}")
+        return footing.footed(path, np.concatenate([qpath] * (len(path) // len(qpath))))
 
     riders = (segments, bodies, riding, parents)
     adjusted, moves, step = reduced(physics, qpath, job["rate"], limits, most, land, fitted_poses, riders)

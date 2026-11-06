@@ -64,29 +64,35 @@ def sensitivity(physics, qpos, qvel, qacc, origin, adjusted):
 
 def sensitivities(physics, states, adjusted):
     """Each frame's `sensitivity` (frames x 3 matrices): on the card every frame's every nudged state at once
-    (`batched.Card`, CARD_STEPS), else frame by frame."""
+    (`batched.Card`, CARD_STEPS), each state's couplings' map the frame's own where its leaders stand as the frame's
+    (a speed's or an acceleration's nudge, a root's place), else frame by frame."""
     if physics.card is None:
         return [sensitivity(physics, *state, adjusted) for state in states]
     model, couplings, trunk = physics.model, physics.couplings, adjusted[6:]
     width = len(adjusted)
-    nudged, origins = [], []
+    leaders = [model.jnt_qposadr[leader] for _, leader, _ in couplings.followers if leader >= 0]
+    nudged, origins, maps = [], [], []
     for qpos, qvel, qacc, origin in states:
         mapped = couplings.map(qpos)
         for lead in adjusted:
             for sign in (1.0, -1.0):
                 placed = qpos.copy()
                 mujoco.mj_integratePos(model, placed, sign * CARD_STEPS[0] * mapped[:, lead], 1.0)
-                nudged += [(couplings.apply(placed), qvel, qacc),
+                placed = couplings.apply(placed)
+                nudged += [(placed, qvel, qacc),
                            (qpos, qvel + sign * CARD_STEPS[1] * mapped[:, lead], qacc),
                            (qpos, qvel, qacc + sign * CARD_STEPS[2] * mapped[:, lead])]
                 origins += [origin] * 3
+                # the map reads only the leaders' coordinates: a nudge that leaves them (the root's) keeps the frame's
+                same = placed[leaders].tobytes() == qpos[leaders].tobytes()
+                maps += [mapped if same else couplings.map(placed), mapped, mapped]
     qpos, qvel, qacc = (np.array(values) for values in zip(*nudged))
     found = physics.card.evaluate(qpos, qvel, qacc, ("xpos", "xmat"))
     turns, places = root_pose(model, found)
     origins = np.array(origins)
     force = found["needed"][:, :3]
     moment = np.einsum("nij,nj->ni", turns, found["needed"][:, 3:6]) + np.cross(places - origins, force)
-    leads = np.array([(couplings.map(state).T @ needed)[trunk] for state, needed in zip(qpos, found["needed"])])
+    leads = np.array([(mapped.T @ needed)[trunk] for mapped, needed in zip(maps, found["needed"])])
     asked = np.concatenate([force, moment, leads], axis=1).reshape(len(states), width, 2, 3, -1)
     steps = np.array(CARD_STEPS)[:, None]
     differences = (asked[:, :, 0] - asked[:, :, 1]) / (2 * steps)  # frames x adjusted x kind x asked
@@ -105,15 +111,20 @@ def adjusted_leads(physics):
 
 
 def moved(physics, path, adjustment, adjusted):
-    """`path` with each frame's adjustment (frames x adjusted, the leading dofs' own units: metres, radians) added."""
+    """`path` with each frame's adjustment (frames x adjusted, the leading dofs' own units: metres, radians) added; or
+    several adjustments of it (copies x frames x adjusted), each copy's path stacked (copies * frames), each frame's
+    couplings' map worked out once for every copy (`cap_rows`' nudges)."""
     model, couplings = physics.model, physics.couplings
+    adjustment = np.asarray(adjustment, dtype=float)
+    maps = [couplings.map(qpos) for qpos in path]
     found = []
-    for qpos, change in zip(path, adjustment):
-        leads = np.zeros(len(couplings.leads))
-        leads[adjusted] = change
-        qpos = qpos.copy()
-        mujoco.mj_integratePos(model, qpos, couplings.map(qpos) @ leads, 1.0)
-        found.append(limited(model, qpos, couplings))
+    for copy in adjustment.reshape(-1, len(path), adjustment.shape[-1]):
+        for qpos, mapped, change in zip(path, maps, copy):
+            leads = np.zeros(len(couplings.leads))
+            leads[adjusted] = change
+            qpos = qpos.copy()
+            mujoco.mj_integratePos(model, qpos, mapped @ leads, 1.0)
+            found.append(limited(model, qpos, couplings))
     return np.array(found)
 
 
