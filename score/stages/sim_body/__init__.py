@@ -106,15 +106,16 @@ LOCAL = "SCORE_SIM_BODY_LOCAL"
 KIND = "sim-body"
 CLASSES = ("gpu-24gb", "gpu-48gb", "gpu-80gb")
 WHO = "score runner, sim-body row"
-# Its price, from measured minutes on an L4 (gpu-24gb): a clip 3.8 min (the mean, the speed work's code: a jump 4.8 and
-# 4.2, a standing 3.1 and 3.1) and 4.8 at the high (the slowest), the card's first clip 3.0 min more for its kernels'
+# Its price, from measured minutes on an L4 (gpu-24gb): a clip 1.8 min (the mean, main 7ce7ce50's code warm: a jump
+# 2.0, a standing 1.5, "fair footing-batch (#70)" base runs, 2026-11-06 ~06:00) and 2.5 at the high (the slowest
+# clip's 2.0 with a quarter more), the card's first clip 3.0 min more for its kernels'
 # compile (a jump 7.2 cold against 4.1 warm) ("fair card-frames (#70)", ledger 2026-11-06T01:00:15Z, its
 # progress.txt); a card's start and blender_cloud's set-up 1.3 min (0.37 and 0.94 to 0.97, the ledger's sim-body-l1
 # lines, 2026-11-05/06), SETUP_MINUTES (8) at the high as blender_cloud prices it; newton_env.sh built on a fresh
 # card 1.0 min (0.9 to 0.95, uv's download to its import line, the job logs of 2026-11-05).
 CARD = "L4-1-24G"  # the machine type CLASSES' first rents, as the saved bill prices it (per_unit.hourly)
-CLIP_MINUTES = 3.8
-CLIP_HIGH_MINUTES = 4.8
+CLIP_MINUTES = 1.8
+CLIP_HIGH_MINUTES = 2.5
 COMPILE_MINUTES = 3.0
 SET_UP_MINUTES = 1.3
 ENV_MINUTES = 1.0

@@ -168,7 +168,7 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   parked card, so the next place builds nothing), the env script built there. A place's clips go in batches of
   `PER_MACHINE` (`batched`: what one card's job holds under the owner's 4 h), each its own card side by side, and come
   back as one run. Its forecast (`forecast`, `priced`) is its cast's singles on those cards at measured minutes (a clip
-  3.8 min likely, 4.8 high, the card's first compile 3.0, set-up and Newton's env; the constants say where each was
+  1.8 min likely, 2.5 high, the card's first compile 3.0, set-up and Newton's env; the constants say where each was
   measured), at the saved bill's L4 price. Never on this PC: only `SCORE_SIM_BODY_LOCAL=1` (tests) runs it here.
 - **Its readers** (contract version 2): the characters layer (`../cast/driven.py`) plays each person's skeleton from
   `measures/<name>.json`'s `poses`, which are the clip's own segment frames, written by the stage itself, its shape
