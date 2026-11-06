@@ -584,8 +584,8 @@ def floor_faults(objects, design, sizes, relations, rows):
     footprint (ground_under) and the top of every other object under it that stands itself (any held one, one on
     the floor, one on such: a pile of one on another stands only while its foot does), never one of its own row's
     unless its row piles (holders.piles: sandbags on sandbags, never a railing on a railing). Less is the plan's base
-    estimate, which the settle lets down. 2026-11-06: the engine room's railings 5 to 8, which the plan's fixes piled
-    1 to 4 m over one another, passed every gate."""
+    estimate, which the settle lets down; and each one hung between holders held by them (hung_faults). 2026-11-06:
+    the engine room's railings 5 to 8, which the plan's fixes piled 1 to 4 m over one another, passed every gate."""
     on_floor = {(entry["item"], entry["row"]) for entry in (relations or {}).get("relations", [])
                 if entry.get("how") == "floor"}
     checked = {}  # name: (entry, its built size, its footprint, its foot's height) of each object on the floor
@@ -608,7 +608,32 @@ def floor_faults(objects, design, sizes, relations, rows):
         loose -= stood
         standing += [checked[name][0] for name in stood]
     return [f"{name} stands {checked[name][3]:.2f} m over the floor with nothing under it, its row on the floor"
-            for name in sorted(loose, key=lambda name: [entry["name"] for entry in objects].index(name))]
+            for name in sorted(loose, key=lambda name: [entry["name"] for entry in objects].index(name))] + \
+        hung_faults(objects, design, sizes, relations, standing)
+
+
+def hung_faults(objects, design, sizes, relations, standing):
+    """Each object its relation hangs between holders (holders' `hung`) whose holder items lay fewer than two
+    standing objects (floor_faults' `standing`) reaching its foot's height, within TOLERANCE: nothing holds it up."""
+    hung = {(entry["item"], entry["row"]): entry["holders"] for entry in (relations or {}).get("relations", [])
+            if entry.get("how") == "hung"}
+    tops = {}  # plan item: [top of each standing object laid at it]
+    for entry in standing:
+        named = re.match(r"plan item '(.+?)'", entry.get("from", ""))
+        if named:
+            tops.setdefault(named.group(1), []).append(plan_of_place(design, entry["at"])[1] + sizes[entry["row"]][2])
+    found = []
+    for entry in objects:
+        named = re.match(r"plan item '(.+?)'", entry.get("from", ""))
+        holding = hung.get((named.group(1), entry["row"])) if named else None
+        if holding is None:
+            continue
+        height = plan_of_place(design, entry["at"])[1]
+        held = [name for name in holding if any(top >= height - TOLERANCE for top in tops.get(name, []))]
+        if len(held) < 2:
+            found.append(f"{entry['name']} hangs {height:.2f} m over the floor between {' and '.join(holding)}, "
+                         f"{len(held)} of them standing that high")
+    return found
 
 
 def spot_in(spot, entry, size, design):

@@ -597,6 +597,11 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     own has no walls-item relation, which the record never lays, so its item takes the plan's door opening at it
     (street's restaurant doors and shutters: openings on the walls item crowded their wall, its own kept at one
     spot). Only a row whose words say it piles piles (PILE_WORDS, plan_fixes' own).
+    2026-11-06 (laid-as-designed's floor part): railings "around engines", four drawn on one box and piled 0 to 3 m
+    by the plan's fixes, stand round the two engines' sides on the floor, each its own spot (around_holders); a lantern
+    string "above plaza" 6 m up hangs between the two towers that reach it (hung_between), and with no towers stays
+    on the floor; a screen the plan stands at its deck's 3.3 m just behind it stands on the floor, one on the deck
+    keeps the deck's height, and a crowd under it holds nothing up (stood_under).
     Break: score/review/holders/__init__.py: `return counts[names.index(name)]` -> `return counts[0] if
         len(names) == 1 else int((shapes.get(name) or {}).get("count") or 1)`
     Break: score/review/holders/__init__.py: `if row is None or name not in tied.get(row_id, []):` -> `if row is None:`
@@ -604,6 +609,12 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     Break: score/review/holders/__init__.py: `PILE_WORDS = {"pile", ` -> `PILE_WORDS = {`
     Break: score/review/holders/__init__.py: `parted_on_wall(found, rows, plan)` -> `pass`
     Break: score/review/holders/__init__.py: `parted_on_floor(found, items, plan, inventory)` -> `pass`
+    Break: score/review/holders/__init__.py: `    around_holders(found, items, rows, plan, tied)` -> `    pass`
+    Break: score/review/holders/__init__.py: `    hung_between(found, items, rows, plan)` -> `    pass`
+    Break: score/review/holders/__init__.py: `    stood_under(found, items, rows, plan)` -> `    pass`
+    Break: score/review/holders/__init__.py: `if (row_id != row["id"] or piles(row)) and row_id not in people` ->
+        `if (row_id != row["id"] or piles(row))`
+    Break: score/review/holders/__init__.py: `"height": round(base, 3)})` -> `})`
     Break: score/review/holders/__init__.py: `for rest in others):` -> `for rest in []):`
     Break: score/review/holders/__init__.py: `if run_needed(row, len(entries)) <= length:` -> `if True:`
     Break: score/review/holders/__init__.py: `entry["spot"] = [round(float(value), 3) for value in start + run *
@@ -730,6 +741,47 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     assert holders.piles({"id": "sandbags", "size_words": "knee high pile"}) and not holders.piles(
         {"id": "railing", "where": "around engines", "size_words": "waist high"})
     assert holders.PILE_WORDS == plan_fixes.PILE_WORDS
+    rows = [{"id": "grating", "noun": "grating", "part": "floor", "anchor": "floor"},
+            {"id": "engine", "noun": "engine", "anchor": "on:grating", "size": [3.0, 1.5, 1.5]},
+            {"id": "railing", "noun": "railing", "anchor": "on:grating", "where": "around engines",
+             "size": [3.5, 0.4, 1.0]}]
+    railings = {f"RAILING {number}": ["railing"] for number in range(1, 5)}
+    plan = plan_of([["ENGINE 1", 3.0, 4.0, 3.0, 1.5, "N", "item"], ["ENGINE 2", 13.0, 4.0, 3.0, 1.5, "N", "item"],
+                    *[[name, 6.0, 6.0, 3.5, 0.4, None, "item"] for name in railings]],
+                   {"ENGINE 1": ["engine"], "ENGINE 2": ["engine"], **railings})
+    plan["shapes"] = {f"RAILING {number}": {"base": float(number - 1), "tall": 1.0} for number in range(1, 5)}
+    found = by_item_of(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
+    laid = [found[name] for name in railings]
+    assert len({tuple(entry["spot"]) for entry in laid}) == 4 and {entry["height"] for entry in laid} == {0.0}, laid
+    for entry in laid:  # each beside one engine's side, 0.2 m (its depth's half) and PIECE_GAP off it
+        engine = numpy.array([4.5, 4.75]) if entry["spot"][0] < 10 else numpy.array([14.5, 4.75])
+        off = numpy.abs(numpy.subtract(entry["spot"], engine))
+        assert round(float(off.max()), 3) in (1.5 + 0.25, 0.75 + 0.25) and "round engine" in entry["why"], entry
+    rows = [{"id": "plaza", "noun": "plaza", "part": "ground", "anchor": "ground"},
+            {"id": "tower", "noun": "tower", "anchor": "on:plaza", "size": [2.0, 2.0, 18.0]},
+            {"id": "crowd", "noun": "crowd", "anchor": "on:plaza", "size": [0.5, 0.3, 1.8]},
+            {"id": "lantern_string", "noun": "lanterns", "anchor": "on:plaza", "where": "above plaza",
+             "size": [16.0, 0.5, 0.5]},
+            {"id": "stage_screen", "noun": "screen", "anchor": "on:plaza", "where": "stage back",
+             "size": [8.0, 0.5, 6.0]}]
+    items = [["TOWER 1", 0.0, 4.0, 2.0, 2.0, None, "item"], ["TOWER 2", 18.0, 4.0, 2.0, 2.0, None, "item"],
+             ["CROWD 1", 0.0, 0.0, 20.0, 12.0, None, "item"], ["LANTERN STRING 1", 2.0, 5.0, 16.0, 0.5, None, "item"],
+             ["STAGE SCREEN 1", 6.0, 8.0, 8.0, 0.5, None, "item"],
+             ["STAGE SCREEN 2", 6.0, 10.0, 8.0, 0.5, None, "item"]]
+    tied = {"TOWER 1": ["tower"], "TOWER 2": ["tower"], "CROWD 1": ["crowd"], "LANTERN STRING 1": ["lantern_string"],
+            "STAGE SCREEN 1": ["stage_screen"], "STAGE SCREEN 2": ["stage_screen"]}
+    square = plan_of(items, tied, levels=[{"height": 3.3, "points": [[5.0, 9.0], [15.0, 9.0], [15.0, 12.0],
+                                                                      [5.0, 12.0]]}])
+    square["shapes"] = {"LANTERN STRING 1": {"base": 6.0, "tall": 0.5}, "STAGE SCREEN 1": {"base": 3.3, "tall": 6.0},
+                        "STAGE SCREEN 2": {"base": 3.3, "tall": 6.0}, "TOWER 1": {"tall": 18.0},
+                        "TOWER 2": {"tall": 18.0}, "CROWD 1": {"tall": 1.8}}
+    found = by_item_of(holders.relations(square, {"rows": rows, "picture": PICTURE}))
+    assert (found["LANTERN STRING 1"]["how"], found["LANTERN STRING 1"]["holders"]) == (
+        "hung", ["TOWER 1", "TOWER 2"]), found["LANTERN STRING 1"]
+    assert found["STAGE SCREEN 1"]["height"] == 0.0 and "height" not in found["STAGE SCREEN 2"], found
+    square["items"] = items[2:]
+    found = by_item_of(holders.relations(square, {"rows": rows, "picture": PICTURE}))
+    assert found["LANTERN STRING 1"]["how"] == "floor", found["LANTERN STRING 1"]
 
 
 def test_the_relations_are_kept_beside_the_plan_with_its_sha(tmp_path, monkeypatch):

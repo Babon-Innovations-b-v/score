@@ -41,7 +41,11 @@ Each plan item of a row that stands on, against or in something gets one relatio
            (`way`), its high end on the edge's line and its middle at `spot` (up_to_level)
     floor / ceiling  on the place's own floor or under its roof, nothing to lay against; one the plan writer left on
            the walls item at its `spot` (a stair row at the plan's stair along its way up, else where its concept box
-           projects), a thing on a staircase along the plan's stairs' sides (`pieces`)
+           projects), a thing on a staircase along the plan's stairs' sides (`pieces`); one its words say stands round
+           a holder row (railings "around engines") at its own `spot` round that row's item's sides, `way` along it
+           (around_holders); one its plan stands up on nothing at the `height` of what is under it (stood_under)
+    hung   over the floor between the two standing things nearest its ends that reach its top (`holders`, `holder
+           rows`): a floor row whose words say it hangs over it (lantern strings "above plaza", hung_between)
 
 Each relation of a row whose reading's `where` says how it rests on what holds it carries `rests` (#94; rests):
 `leaning`, its foot on the floor and its top against its holder (a board leaning against a wall: never on its
@@ -121,6 +125,14 @@ ATTACH_WORDS = {"attached", "bolted", "welded", "clamped", "screwed", "strapped"
 # A row's words that say its things pile on one another (airlock's sandbags, "knee high pile"): only such a row's things
 # stand on their own row's (plan_fixes.PILE_WORDS, held equal by the test; the scene record's laid-as-designed gate).
 PILE_WORDS = {"pile", "piles", "piled", "stack", "stacks", "stacked", "heap", "heaps", "heaped"}
+# A floor row's where words that say its things stand round a holder row its other words name (engineroom's railings
+# "around engines"): laid as pieces round that holder's built outline (around_holders), never at one spot or stacked.
+AROUND_WORDS = {"around", "surrounding", "encircling"}
+# A floor row's where words that say its things hang over the floor (square's lantern strings "above plaza"): hung
+# between the two standing things nearest its ends that reach its height (hung_between).
+HUNG_WORDS = {"above", "overhead", "strung", "hung"}
+# A plan base within this many metres of a stand (the floor, a level, a flight, another thing's top) stands on it.
+STAND_REACH = 0.05
 
 
 def plan_sha(text):
@@ -1602,6 +1614,192 @@ def seats_beside(found, items, rows, plan, tied):
             entry["pieces"] = [entry["pieces"][number] for number in sorted(entry["pieces"])]
 
 
+def shape_of(name, plan):
+    return (plan.get("shapes") or {}).get(name) or {}
+
+
+def tall_of(name, row, plan):
+    """An item's built height: its row's read tall (what its model is made at), else its shape's tall, else 0."""
+    size = row.get("size")
+    return float(size[2]) if isinstance(size, list) and len(size) == 3 else \
+        float(shape_of(name, plan).get("tall") or 0.0)
+
+
+def named_holders(row, rows, tied):
+    """The rows laid on the plan as items of their own whose kind words a row's where words name (engines for
+    "around engines"), plural or not, never the row itself or a seat's sitter."""
+    stems = {word.rstrip("s") for word in where_words(row) - AROUND_WORDS - BESIDE_WORDS - PLACE_WORDS}
+    return [other for other in rows.values() if other is not row and other["id"] in tied
+            and any(name != plan_checks.WALLS_ITEM for name in tied[other["id"]])
+            and not kind_words(other) & PERSON_WORDS and {word.rstrip("s") for word in kind_words(other)} & stems]
+
+
+def around_holders(found, items, rows, plan, tied):
+    """The floor relations of a row whose where words say its things stand round a holder row (AROUND_WORDS,
+    named_holders) laid round that row's items' built outlines (holder_sides), one a side: each piece, in turn, on
+    the side not yet taken where it stands least past the outline, in other things standing on the floor or in its
+    row's pieces laid already (side_crowding: the engine room's railing on its engine's end stood in the next
+    engine), else of the holder with fewest, else the nearest; past every side taken, more a side spread along it
+    their built length and PIECE_GAP apart; each PIECE_GAP clear of the holder's side, along it, at the holder's foot
+    (`height`). 2026-11-06: the engine room's eight railings "around engines" stood four on one box, piled 1 to 4 m
+    up by the plan's fixes."""
+    groups = {}
+    for entry in found:
+        row = rows.get(entry["row"])
+        if entry.get("how") == "floor" and "pieces" not in entry and not entry.get("beside") and row \
+                and where_words(row) & AROUND_WORDS and not kind_words(row) & SEAT_WORDS \
+                and entry["item"] in items and entry["item"] != plan_checks.WALLS_ITEM:
+            groups.setdefault(entry["row"], []).append(entry)
+    for row_id, entries in groups.items():
+        row = rows[row_id]
+        holding = [(other, name) for other in named_holders(row, rows, tied) for name in tied[other["id"]]
+                   if name != plan_checks.WALLS_ITEM and name in items]
+        if not holding:
+            continue
+        size = row.get("size")
+        depth = min(float(size[0]), float(size[1])) if isinstance(size, list) and len(size) == 3 else 0.0
+        long, people = built_long(row), plan_checks.people({"rows": list(rows.values())})
+        laid_boxes, chosen = [], {}  # [x, y, w, d] of the pieces laid so far; {(holder, side): [entries]}
+        for entry in entries:  # each on the free side standing least in things, then of the holder with fewest, nearest
+            spot = middle(items[entry["item"]])
+            free = [(other, name, side) for other, name in holding for side in FACES if (name, side) not in chosen] or \
+                [(other, name, side) for other, name in holding for side in FACES]
+            other, name, side = min(free, key=lambda slot: (
+                round(side_crowding(holder_sides(items[slot[1]], slot[0])[slot[2]], middle(items[slot[1]]), depth,
+                                    long, slot[1], row_id, items, rows, plan, people, laid_boxes), 3),
+                sum(len(taken) for (held, _), taken in chosen.items() if held == slot[1]),
+                round(float(numpy.linalg.norm(middle(items[slot[1]]) - spot)), 3)))
+            chosen.setdefault((name, side), []).append((entry, other))
+            laid_boxes.append(piece_box(holder_sides(items[name], other)[side], middle(items[name]), depth, long))
+        for (name, side), laid in chosen.items():
+            centre, base = middle(items[name]), float(shape_of(name, plan).get("base") or 0.0)
+            out, reach, _ = holder_sides(items[name], laid[0][1])[side]
+            along = numpy.array([-out[1], out[0]])
+            for slot, (entry, other) in enumerate(laid):
+                spot = centre + out * (reach + PIECE_GAP + depth / 2) + along * (slot - (len(laid) - 1) / 2) * \
+                    (long + PIECE_GAP)
+                entry.update({"spot": [round(float(value), 3) for value in spot],
+                              "way": [round(float(out[1]), 6) + 0.0, round(float(-out[0]), 6) + 0.0],
+                              "height": round(base, 3)})
+                entry["why"] = (f"on the place's floor round {other['id']}'s {name} on its {side} side, "
+                                f"{PIECE_GAP:g} m clear: its words say it stands {row.get('where')!r}")
+
+
+def piece_box(side, centre, depth, long):
+    """The box [x, y, w, d] of a piece `long` by `depth` laid along a holder's `side` (holder_sides' (out, reach,
+    length)), PIECE_GAP clear of it."""
+    out, reach, _ = side
+    spot = centre + out * (reach + PIECE_GAP + depth / 2)
+    half = numpy.abs(out) * depth / 2 + numpy.abs([out[1], out[0]]) * long / 2
+    return [float(spot[0] - half[0]), float(spot[1] - half[1]), float(2 * half[0]), float(2 * half[1])]
+
+
+def side_crowding(side, centre, depth, long, holder, row_id, items, rows, plan, people, laid):
+    """Square metres a piece laid along a holder's `side` (piece_box) would stand past the plan's outline, in other
+    things standing on the floor (on_floor, its base within STAND_REACH; not the holder's own row's, no person) or in
+    the boxes of its row's pieces `laid` already."""
+    box = piece_box(side, centre, depth, long)
+    grid = numpy.array([[box[0] + box[2] * along, box[1] + box[3] * across]
+                        for along in numpy.linspace(0, 1, 5) for across in numpy.linspace(0, 1, 5)])
+    past = float((~plan_checks.inside(grid, plan_checks.outline_of(plan))).mean()) * box[2] * box[3]
+    tied = plan.get("rows") or {}
+    others = [[float(value) for value in other[1:5]] for name, other in items.items()
+              if name not in (holder, plan_checks.WALLS_ITEM) and float(shape_of(name, plan).get("base") or 0.0)
+              <= STAND_REACH for row_id_there in (tied.get(name) or [])[:1]
+              if row_id_there in rows and on_floor(rows[row_id_there], rows) and row_id_there not in {row_id} | people]
+    return past + sum(max(0.0, min(box[0] + box[2], other[0] + other[2]) - max(box[0], other[0])) *
+                      max(0.0, min(box[1] + box[3], other[1] + other[3]) - max(box[1], other[1]))
+                      for other in others + laid)
+
+
+def on_floor(row, rows):
+    """Whether a row stands on the floor, no shell part itself (PARTS): anchored on the floor or the ground, or on a
+    row that is a floor (holder_kind); never a door in its wall, a box on its shelf, a pipe on a wall."""
+    anchor = row.get("anchor") or "floor"
+    holder = rows.get(anchor[3:]) if anchor.startswith("on:") else None
+    return row.get("part") not in PARTS and (anchor in plan_checks.FLOOR_ANCHORS or
+                                             (holder is not None and holder_kind(holder) == "floor"))
+
+
+def box_reach(point, box):
+    """Metres from a plan point to a box [x, y, w, d] (0 inside it)."""
+    return math.hypot(max(box[0] - point[0], 0.0, point[0] - box[0] - box[2]),
+                      max(box[1] - point[1], 0.0, point[1] - box[1] - box[3]))
+
+
+def hung_between(found, items, rows, plan):
+    """Each floor relation of a row whose where words say it hangs over the floor (HUNG_WORDS) laid by its plan over
+    more than half its height up made `hung` between the two things standing on the floor that reach its top
+    nearest its long side's two ends (`holders`, their `holder rows`), what holds it there; one with no two such
+    things stays on the floor, for laid-as-designed to fail. 2026-11-06: the square's lantern strings 6 m over its
+    plaza with nothing under them. People (plan_checks.people) hold nothing."""
+    people = plan_checks.people({"rows": list(rows.values())})
+    hung = [entry for entry in found if entry.get("how") == "floor" and "pieces" not in entry
+            and entry["item"] in items and entry["item"] != plan_checks.WALLS_ITEM
+            and where_words(rows.get(entry["row"]) or {}) & HUNG_WORDS]
+    for entry in hung:
+        item, row = items[entry["item"]], rows[entry["row"]]
+        base, tall = float(shape_of(item[0], plan).get("base") or 0.0), tall_of(item[0], row, plan)
+        if base <= max(STAND_REACH, tall / 2):
+            continue
+        standing = [(name, other) for name, other in items.items() if name not in (item[0], plan_checks.WALLS_ITEM)
+                    for row_id in (plan.get("rows") or {}).get(name) or [] if row_id in rows and row_id != row["id"]
+                    if row_id not in people
+                    if float(shape_of(name, plan).get("base") or 0.0) <= STAND_REACH
+                    and tall_of(name, rows[row_id], plan) >= base + tall - STAND_REACH]
+        x, y, wide, deep = (float(value) for value in item[1:5])
+        ends = [(x, y + deep / 2), (x + wide, y + deep / 2)] if wide >= deep else \
+            [(x + wide / 2, y), (x + wide / 2, y + deep)]
+        held = []
+        for end in ends:
+            left = [(name, other) for name, other in standing if name not in held]
+            if left:
+                held.append(min(left, key=lambda pair: box_reach(end, [float(value) for value in pair[1][1:5]]))[0])
+        if len(held) == 2:
+            entry.update({"how": "hung", "holders": held,
+                          "holder rows": [(plan.get("rows") or {})[name][0] for name in held],
+                          "why": f"hung {base:g} m over the place's floor between {held[0]} and {held[1]}: its words "
+                                 f"say it hangs {row.get('where')!r}"})
+
+
+def stood_under(found, items, rows, plan):
+    """Each floor relation of an item its plan stands more than half its height (and STAND_REACH) up on nothing, no
+    level, flight or other thing's top under its box within STAND_REACH (its own row's only where that row piles),
+    given the `height` of the highest stand under it below its base: the floor's, a level's whose outline holds its
+    box, a flight's, a thing's top. 2026-11-06: the square's stage screen drawn at its deck's 3.3 m just behind it;
+    the street's barriers and the engine room's railings, piled on their own row by the plan's fixes, 1 to 4 m up.
+    People (plan_checks.people) hold nothing up: the square's screens stood on its 1.8 m crowd's box."""
+    people = plan_checks.people({"rows": list(rows.values())})
+    for entry in found:
+        if entry.get("how") != "floor" or "pieces" in entry or "height" in entry or entry["item"] not in items \
+                or entry["item"] == plan_checks.WALLS_ITEM or entry["row"] not in rows:
+            continue
+        item, row = items[entry["item"]], rows[entry["row"]]
+        base, tall = float(shape_of(item[0], plan).get("base") or 0.0), tall_of(item[0], row, plan)
+        if base <= max(STAND_REACH, tall / 2):
+            continue
+        box = [float(value) for value in item[1:5]]
+        spots = [[box[0] + box[2] * along, box[1] + box[3] * across] for along in (0.0, 0.5, 1.0)
+                 for across in (0.0, 0.5, 1.0)]
+        stands = [0.0] + [float(level["height"]) for level in plan.get("levels") or []
+                          if len(level.get("points") or []) >= 3
+                          and any(design_shell.inside(spot, level["points"]) for spot in spots)] + [
+            min(max(base, float(stair["from"])), float(stair["to"])) for stair in plan.get("stairs") or []
+            if len(stair.get("points") or []) >= 3 and "from" in stair and "to" in stair
+            and any(design_shell.inside(spot, stair["points"]) for spot in spots)] + [
+            float(shape_of(name, plan).get("base") or 0.0) + tall_of(name, rows.get(row_id) or {}, plan)
+            for name, other in items.items() if name not in (item[0], plan_checks.WALLS_ITEM)
+            for row_id in ((plan.get("rows") or {}).get(name) or [])[:1]
+            if (row_id != row["id"] or piles(row)) and row_id not in people
+            and box[0] < other[1] + other[3] and other[1] < box[0] + box[2]
+            and box[1] < other[2] + other[4] and other[2] < box[1] + box[3]]
+        if any(abs(base - stand) <= STAND_REACH for stand in stands):
+            continue
+        entry["height"] = round(max(stand for stand in stands if stand < base), 3)
+        entry["why"] += (f"; standing on what is under it, {entry['height']:g} m up: its plan's {base:g} m stands "
+                         "on nothing")
+
+
 def relations(plan, inventory, sha=None, kinds=None):
     """The place's relations (module docstring): one a plan item's row that stands on, against or in something;
     `kinds` the row-kind rules (score/stages/row_kinds.py's table by default)."""
@@ -1646,6 +1844,9 @@ def relations(plan, inventory, sha=None, kinds=None):
     parted_on_floor(found, items, plan, inventory)
     seats_beside(found, items, rows, plan, tied)
     rails_along(found, plan)
+    around_holders(found, items, rows, plan, tied)
+    hung_between(found, items, rows, plan)
+    stood_under(found, items, rows, plan)
     for entry in found:
         entry.pop(LINE, None)
     for _, openings in wall_openings(found).values():

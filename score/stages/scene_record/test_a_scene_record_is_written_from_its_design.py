@@ -829,6 +829,13 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     passes, and so does a chord over two walls meeting 20 degrees apart (a round wall's facets).
     Break: score/stages/scene_record/gates.py: `if at[0] != at[1]:` -> `if False:`
     Break: score/review/holders/__init__.py: `if turn > ROUND_BEND:` -> `if False:` (the chord over facets fails)
+    2026-11-06 (the square's lantern strings 6 m over its plaza): a thing hung between holders (holders' `hung`)
+    passes while both of them stand as high as it hangs, and fails hung over the top of one; a floor relation's
+    `height` (holders.stood_under: the square's stage screen stood at its deck's 3.3 m behind it) is where the
+    record stands its object, over its plan base.
+    Break: score/stages/scene_record/gates.py: `if len(held) < 2:` -> `if False:`
+    Break: score/stages/scene_record/gates.py: `hung_faults(objects, design, sizes, relations, standing)` -> `[]`
+    Break: score/stages/scene_record/writer.py: `base = float(relation.get("height", base))` -> `pass`
     #94: the garage door its relation says rests leaning carries `rests` leaning for the settle to lean it by; the
     door, resting as the others lay it, carries none.
     Break: score/stages/scene_record/writer.py: `**({"rests": relation["rests"]} if relation and relation.get("rests")
@@ -919,6 +926,16 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     assert gates.bent_faults([on_wall("flat_1", (0.1, 2.0), (0.1, 6.0)), on_wall("chord_1", (12.0, 19.9), (18.0, 21.0)),
                               on_wall("bent_1", (0.1, 4.0), (4.0, 0.1))], walled) == [
         "bent_1 is laid round a corner of its walls, its ends on two of their straight runs"]
+    strung = {"relations": [{"item": "CRATE 3", "row": "crate", "how": "hung", "holders": ["MODULE 1", "CRATE 4"],
+                              "why": "hung between them"}, {"item": "CRATE 4", "row": "crate", "how": "floor",
+                                                           "why": "on the place's floor"}]}
+    assert gates.floor_faults(objects + [crate(3, 15.0, 15.0, 0.5), crate(4, 16.0, 2.0, 0.0)], design, sizes, strung,
+                              by_id) == []
+    assert gates.floor_faults(objects + [crate(3, 15.0, 15.0, 3.0), crate(4, 16.0, 2.0, 0.0)], design, sizes, strung,
+                              by_id) == ["crate_3 hangs 3.00 m over the floor between MODULE 1 and CRATE 4, 1 of them "
+                                         "standing that high"]
+    assert writer.related(design, {"how": "floor", "height": 0.0, "why": "on what is under it"}, [1.0, 1.0],
+                          [1.0, 0.0], 3.3, [1.0, 1.0, 1.0])[2] == 0.0
     assert found["suit"]["on"]["hangs"] is True and found["suit"]["on"]["holder"] == ["module_1"], found["suit"]
     (tmp_path / "plans").mkdir()
     (tmp_path / "plans/hut.json").write_text(json.dumps(design))
