@@ -311,7 +311,9 @@ def test_the_record_is_written_from_the_design():
         to 0 m stands its foot at its high end, which the builder lays as a flat block, its treads underneath)
     And (2026-11-04 audit) a doorway is its door row's: one drawn 0.3 m wide for the 1.2 m hatch row, or leading
     elsewhere than its lead, fails `openings` by name; a row laid another number of times than its scene inventory
-    counts, the plan giving no reason, fails `plan-matched`.
+    counts, the plan giving no reason, fails `plan-matched`. A row the plan also leaves on its walls item, once its
+    fixes placed it on an item of its own, is laid once, at its own item (camp's airlock door, 2026-11-06).
+    Break: score/stages/scene_record/writer.py item_rows: `if name != WALLS_ITEM or row not in placed]` -> `]`
     Break: score/stages/scene_record/gates.py: `if abs(wide - metres) > DOOR_SHARE * metres or wide < PASSABLE:` ->
         `if False:`
     Break: score/stages/scene_record/gates.py: `if lead is not None and opening.get("to") != lead:` -> `if False:`
@@ -384,6 +386,15 @@ def test_the_record_is_written_from_the_design():
             {**INVENTORY["rows"][0], "count": 2}, LAMP_ROW]}))  # the plan re-counted the benches, saying no reason
         verdict = gates.judge_plan_matched(output, inputs, {})
         assert verdict.findings == ("row bench: 2 in the scene inventory, 1 laid, and the plan says no reason",), verdict
+    walled = {**WRITTEN, "items": [*WRITTEN["items"], [writer.WALLS_ITEM, 0.0, 0.0, 8.0, 6.0, None, "item"]],
+              "rows": {**WRITTEN["rows"], writer.WALLS_ITEM: ["bench", "ceiling_lamp"]}}  # camp's door, 2026-11-06
+    with tempfile.TemporaryDirectory() as folder:
+        output, inputs = written(folder, walled)
+        place, record = writer.record_in(output)
+        laid = [entry["name"] for entry in record["objects"] if entry["row"] in ("bench", "ceiling_lamp")]
+        assert laid == ["bench_1", "ceiling_lamp_1"] and len(record["lights"]) == 1, (laid, record["lights"])
+        verdict = gates.judge_plan_matched(output, inputs, {})
+        assert verdict.answer == checks.PASS, verdict.findings
     off = {**SITE, "holds": [SITE["holds"][0], {**SITE["holds"][1], "x": 2.0}]}  # the yard held 2 m off its gate
     raised = {**YARD, "openings": [{**YARD["openings"][0], "sill": 3.0}]}  # the yard's gate 3 m up: the shed 3 m up
     for yard, site, at in ((YARD, off, [0.0, 0.0, -9.0]), (raised, SITE, [0.0, -3.0, -9.0])):
