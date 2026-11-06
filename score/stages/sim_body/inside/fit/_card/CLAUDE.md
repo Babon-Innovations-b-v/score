@@ -26,6 +26,14 @@ before that.
   level-1 sets in one batch), analytic; equal to the built-in ones row by row (test file, six-link chain, 1e-6).
 - `_forward.py` (`Forward`, `frames`): every row's link frames in float64 (free, revolute, prismatic, fixed; Newton's
   eval_fk maths), for the residuals; `_objective.wide_residuals` gives both objectives' residuals in float64 on them.
+  Its joint places and axes are Newton's, which add_mjcf builds in float32: on mean's jump (2026-11-06) its float64
+  frames of mink's pose stood up to 7.3 um off MuJoCo's at the left hand (0.25 um a body, jumps at the welded
+  bimanual attachment's six-digit turn), so a fit on them minimises another model. `Exact` (`frames` takes either) lays
+  the same link frames from MuJoCo's compiled model in float64 (`_level2_wide._kinematics`, mj_kinematics' steps, one
+  set) and `Exact.drive(optimizer)` has Newton's analytic Jacobian read the same (its FK's link frames these in
+  float32, each hinge's twist (anchor x axis, axis) and slide's from MuJoCo's anchors and axes; the free root's
+  Newton's own, exact at its identity place): `_solve.solved(exact=)`, `_clip.Clip.angles(exact=True)`, which level 3
+  (`_level3`) uses; level 1's `_sets`, `evaluation._card_batch` and `rra._footed_card` still read Newton's places.
 - `_solve.py` (`solved`, `NotConverged`): the loop (Newton's analytic Jacobian in float32, the residuals and the stop
   rule's cost in float64 (`_forward`), the damped step, Newton's integrate, the projection; root quaternion order
   converted on the card), a row stopping when its reduced step is under 1e-6 or its cost moved under 1e-10 of itself
@@ -214,4 +222,20 @@ before that.
   `level_3_on_the_card_is_minks_frames`, 17 frames in the shin's skin): 2 sweeps (17 then 16 rows), angles 1.5e-5
   deg, sites 0.0002 mm, bone depths 0.00014 mm off mink's. The toy has one minimum a frame, so the recurrence's
   history (elv_angle's flat valley, float32 Jacobians) is the real bodies' measure (fair-level3-card), not its.
-  `_clip.DEVICE` is cuda:0 and `_solve` captures CUDA graphs, so none of it runs on Warp's CPU device.
+  On mean's jump and env1's standing (fair-level3-card, L4, 2026-11-06) the sweeps on Newton's places stopped
+  0.0059 to 0.0073 deg off mink in the shoulder girdle (sternoclavicular_r2/r3 with their unrotscap followers at -1:
+  the arm keeps its turn, the clavicle moves only its place, a weak direction), sites 0.020 to 0.024 mm, 6 frames a
+  clip over the gate, every frame's girdle biased ~0.002 deg; not the recurrence (mink from the card's frame before
+  lands on its own answer to 1e-13 deg), not the stop rule (stops off, the card sat on the same cost for 100 steps),
+  but the model: the card's own float64 cost was lower at its answer than at mink's (Newton's float32-built places).
+  On MuJoCo's frames for the residuals alone the bad frames re-solved from mink's frame before land within 0.00015
+  deg and 0.0005 mm of mink, but the whole jump on them still left frame 133 0.0249 mm off: seeded from the first
+  sweep's frame 132 (under 1e-4 rad from its last, so final) the float32 Jacobian on Newton's places found no step
+  that lowered the cost and stopped (LAM_MOST); with the Jacobian on MuJoCo's geometry too (`drive`) from the same
+  seed 0.00016 mm. Whole clips on Warp's CPU device (`_clip.DEVICE` set to cpu by hand; the module's default is
+  cuda:0 and `_solve` captures CUDA graphs only on a card), 2 sweeps each: jump (180 frames) joints 0.00043 deg,
+  sites 0.00089 mm, bone depths 0.00018 mm, the same 22,467 points outside; standing (150) 0.00016 deg, 0.00055 mm,
+  0.00019 mm, 19,221 outside: every frame within the gate (scratch l3fix).
+  The test (`level_3_on_the_card_reads_minks_own_model_at_the_shoulder`, a toy girdle with MyoFullBody's own places)
+  checks the frames equal mj_kinematics' to 1e-12, the hinge twists MuJoCo's to 1e-6, and that every level 3 solve
+  reads both.

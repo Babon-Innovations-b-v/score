@@ -10,6 +10,7 @@ import numpy as np
 import warp as wp
 from scipy.spatial.transform import Rotation
 
+from ._forward import Exact
 from ._objective import PlacePerProblem, TurnPerProblem
 from ._project import Projection
 from ._seeds import newton_order
@@ -110,6 +111,7 @@ class Clip:
         self.reduction = reduction_of(mjm, limited, frozen)
         self.projection = projection_of(mjm, limited, frozen)
         self._bones = None
+        self._exact = None
 
     def bones(self):
         """The model's bone points for the skin's rows (`_skin_step.BoneSkin`), made once; None without bone meshes."""
@@ -147,13 +149,21 @@ class Clip:
                                jacobian_mode=ik.IKJacobianType.ANALYTIC)._impl
         return made
 
-    def angles(self, turns, points, seeds, skins=None):
+    def exact(self):
+        """The residuals' link frames from MuJoCo's own float64 model (`_forward.Exact`), made once."""
+        if self._exact is None:
+            self._exact = Exact(self.model, self.mjm)
+        return self._exact
+
+    def angles(self, turns, points, seeds, skins=None, exact=False):
         """Every frame's angles (frames x nq, MuJoCo's layout) and steps, each frame from its own seed [frames, nq]:
         `turns` frames x groups x 3 x 3, `points` frames x markers x 3, `skins` each frame's posed skin
-        (`fit._skin.PosedSkins`; None: no skin rows)."""
+        (`fit._skin.PosedSkins`; None: no skin rows); `exact`: the residuals on MuJoCo's float64 frames (`exact()`,
+        level 3's, mink's own model), else on Newton's float32-built joint places."""
         seeds = np.asarray(seeds, dtype=float)
         return solved_in_chunks(self.optimizer_for(np.asarray(turns), np.asarray(points)), self.reduction,
-                                self.projection, newton_order(seeds), seeds, skin=self.skin_of(skins))
+                                self.projection, newton_order(seeds), seeds, skin=self.skin_of(skins),
+                                exact=self.exact() if exact else None)
 
 
 MAPPED = 1e-5  # m, the plan's site tolerance: Newton's float32 sites at rest off MuJoCo's (heavy: 0.0073 mm)

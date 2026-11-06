@@ -63,6 +63,13 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   (level_3_on_the_card_is_minks_frames red). The toy has one minimum a frame, so a sweep seeded from each frame's own
   last answer, or a chain from the start every time, stays green: the recurrence's history is the real bodies'
   measure (the shoulder's flat elevation-plane valley), not this check's.
+- (2026-11-06) _card._level3.sweep's fit without the skin `exact=True` dropped (Newton's float32-built joint places
+  read again): "2 of level 3's solves read Newton's joint places"; _forward.Exact's body places rounded to float32:
+  the card's frames 9.35e-09 off MuJoCo's; _solve.solved's `exact.drive(optimizer)` dropped: "0 of level 3's 4
+  solves on MuJoCo's twists"; _forward._subspace's hinge `cross(anchor, axis)` made `cross(axis, anchor)`: the twists
+  2.51 off, the card 62.97 deg off mink (level_3_on_the_card_reads_minks_own_model_at_the_shoulder red). The toy's
+  angles and sites stay within the gate either way (sites 0.0002 mm on Newton's places, 0.0003 on MuJoCo's): its
+  chain is too short for float32's rounding to reach 0.01 mm, mean's jump showed 0.024 mm.
 - (2026-10-28) Fitting's site `Rotation.from_matrix(calibration.T)` made `Rotation.from_matrix(calibration)`: the turned
   thigh's target is met by a wrong pose.
 - (2026-10-28) limited_model's `found.jnt_limited[self.followers] = 0` dropped: the follower's own range stops its
@@ -759,6 +766,143 @@ def level_3_on_the_card_is_minks_frames():
     return problems + ([] if _level3.STRIDE < len(poses) else ["the seeding chain holds every frame"])
 
 
+# A toy shoulder girdle as MyoFullBody's (its own six-digit places and turns): the clavicle's leader hinge and its
+# unrotscap follower at -1 a body further out about the same axis, so the arm keeps its turn and the clavicle moves only
+# its place, the girdle's weak direction; a thorax, an arm, a forearm and a hand beyond.
+SHOULDER = """<mujoco model="shoulder">
+  <compiler angle="radian"/>
+  <worldbody>
+    <body name="thorax" pos="0 0 1.2">
+      <freejoint name="root"/><geom type="box" size="0.12 0.08 0.2" mass="20"/>
+      <body name="attachment" pos="0.0173133 0.328944 0.000413982" quat="0.500398 -0.5 0.499602 0.5">
+        <geom type="sphere" size="0.02" mass="0.1"/>
+        <body name="clavicle" pos="0.0409701 -0.0165714 0.0233532" quat="0.500398 0.5 -0.5 -0.499602">
+          <joint name="clavicle_r2" axis="0.0153 0.989299 -0.1451" range="-0.75 0.349066"/>
+          <geom type="capsule" fromto="0 0 0 -0.0154411 0.0176525 0.145429" size="0.01" mass="0.2"/>
+          <body name="phantom" pos="-0.0154411 0.0176525 0.145429">
+            <joint name="unrot_r2" axis="0.0153 0.989299 -0.1451" range="-0.349066 0.75"/>
+            <geom type="sphere" size="0.01" mass="0.01"/>
+            <body name="humerus" pos="-0.00955 -0.034 0.009">
+              <joint name="elevation" axis="-0.0581 0.226 0.9724" range="-1.5 2.5"/>
+              <geom type="capsule" fromto="0 0 0 0.00574177 -0.272512 0.0115777" size="0.03" mass="2"/>
+              <body name="forearm" pos="0.00574177 -0.272512 0.0115777">
+                <joint name="elbow" axis="0.226047 0.022269 0.973862" range="0 2.6"/>
+                <geom type="capsule" fromto="0 0 0 0.0173589 -0.233584 -0.0241096" size="0.02" mass="1"/>
+                <body name="hand" pos="0.0173589 -0.233584 -0.0241096">
+                  <geom type="box" size="0.04 0.08 0.015" mass="0.4"/>
+                </body></body></body></body></body></body>
+    </body></worldbody>
+  <equality><joint joint1="unrot_r2" joint2="clavicle_r2" polycoef="0 -1 0 0 0"/></equality>
+</mujoco>
+"""
+SHOULDER_MARKS = {"thorax": [(0.1, 0.05, 0.15), (-0.1, 0.05, 0.15), (0.0, -0.08, -0.1)],
+                  "humerus": [(0.02, -0.05, 0.0), (0.0, -0.2, 0.03)],
+                  "forearm": [(0.03, -0.1, 0.0), (0.0, -0.22, -0.02)],
+                  "hand": [(0.03, -0.07, 0.0), (-0.03, -0.07, 0.0)]}
+SHOULDER_FRAMES, SHOULDER_NUDGE = 9, 0.004  # the clip's frames; its markers nudged off (m), as no skin fits exactly
+FRAMES_EXACT = 1e-12  # m and rad: level 3's card frames against MuJoCo's own mj_kinematics (float64 both)
+TWIST_EXACT = 1e-6  # its hinges' twists (float32, Newton's analytic Jacobian's) against MuJoCo's anchors and axes
+
+
+def shoulder_clip(fitting):
+    """The toy shoulder's clip: (turns, points, qpos) of SHOULDER_FRAMES poses, the root walking and turning, the
+    clavicle on its coupling, the arm rising and the elbow bending; the markers nudged SHOULDER_NUDGE off."""
+    import mujoco
+    import numpy as np
+    from scipy.spatial.transform import Rotation
+    model, data = fitting.model, mujoco.MjData(fitting.model)
+    at = {name: int(model.jnt_qposadr[model.joint(name).id])
+          for name in ("clavicle_r2", "unrot_r2", "elevation", "elbow")}
+    nudge, turns, points, poses = np.random.default_rng(7), [], [], []
+    for frame in range(SHOULDER_FRAMES):
+        share = frame / (SHOULDER_FRAMES - 1)
+        qpos = model.qpos0.copy()
+        qpos[:3] = 0.3 * share, 0.05 * share, 1.2
+        qpos[3:7] = Rotation.from_euler("z", 0.4 * share).as_quat(scalar_first=True)
+        qpos[at["clavicle_r2"]], qpos[at["unrot_r2"]] = -0.2 + 0.3 * share, 0.2 - 0.3 * share
+        qpos[at["elevation"]], qpos[at["elbow"]] = 0.3 + 1.2 * share, 0.2 + 1.5 * share
+        data.qpos[:] = qpos
+        mujoco.mj_kinematics(model, data)
+        turns.append([data.site_xmat[site].reshape(3, 3) for site in fitting.frame_sites])
+        points.append(data.site_xpos[fitting.mark_sites] + nudge.normal(0, SHOULDER_NUDGE, (len(fitting.marks), 3)))
+        poses.append(qpos)
+    return np.array(turns), np.array(points), np.array(poses)
+
+
+def level_3_on_the_card_reads_minks_own_model_at_the_shoulder():
+    """Level 3 on the card at a coupled shoulder girdle (SHOULDER): the residuals' and the skin's link frames are
+    MuJoCo's own float64 (`_card._forward.Exact`, mj_kinematics on the compiled model) within FRAMES_EXACT at every
+    pose, its Jacobian's hinge twists MuJoCo's anchors and axes within TWIST_EXACT, every solve `_card._level3` makes
+    reads both (never Newton's float32-built joint places, `_forward.Forward`:
+    on mean's jump they stood 7.3 um off at a hand and the card stopped 0.0073 deg off mink in the girdle, sites
+    0.024 mm, 2026-11-06), and its answer is mink's within LEVEL3_DEG and LEVEL3_MM on every frame, the follower on
+    its leader by the coupling."""
+    import mujoco
+    import numpy as np
+    import warp as wp
+    from scipy.spatial.transform import Rotation
+    import fit
+    from fit import Fitting
+    from fit._card import _clip, _forward, _level3, _solve
+    from fit._card._seeds import newton_order
+    if not fit.on_card():
+        return []
+    with tempfile.TemporaryDirectory() as folder:
+        path = pathlib.Path(folder) / "shoulder.xml"
+        path.write_text(SHOULDER)
+        marks = [(f"{body}{number}", body, np.array(point)) for body, points in SHOULDER_MARKS.items()
+                 for number, point in enumerate(points)]
+        fitting = Fitting(path, [(body, body, np.eye(3)) for body in SHOULDER_MARKS], marks)
+        turns, points, poses = shoulder_clip(fitting)
+        clip = _clip.for_fitting(fitting, path)
+        model, data = fitting.model, mujoco.MjData(fitting.model)
+        body_q = wp.empty((len(poses), clip.model.body_count), dtype=wp.transformd, device=clip.model.device)
+        _forward.frames(clip.exact(), wp.array(newton_order(poses).astype(np.float32), dtype=wp.float32,
+                                               device=clip.model.device), body_q)
+        laid, gaps = body_q.numpy(), []
+        for row, qpos in enumerate(poses.astype(np.float32).astype(float)):
+            data.qpos[:] = qpos
+            mujoco.mj_kinematics(model, data)
+            for label, link in clip.body.items():
+                body = model.body(label).id
+                turned = Rotation.from_quat(laid[row, link, 3:7]).as_matrix() - data.xmat[body].reshape(3, 3)
+                placed = np.abs(laid[row, link, :3] - data.xpos[body]).max()
+                gaps.append(max(float(placed), float(np.abs(turned).max())))
+        optimizer = clip.exact().drive(clip.optimizer_for(turns[-1:], points[-1:])(0, 1))
+        context = optimizer._ctx_solver(wp.array(newton_order(poses[-1:]).astype(np.float32), dtype=wp.float32,
+                                                 device=clip.model.device))
+        optimizer._residuals_analytic(context)
+        optimizer._jacobian_at(context)
+        twists, joints = optimizer.joint_S_s.numpy()[0], clip.exact().dof_joint.numpy()
+        data.qpos[:] = poses[-1].astype(np.float32).astype(float)
+        mujoco.mj_kinematics(model, data)
+        hinges = [np.concatenate([np.cross(data.xanchor[joint], data.xaxis[joint]), data.xaxis[joint]])
+                  for joint in joints if joint >= 0]
+        twisted = float(np.abs(twists[joints >= 0] - np.array(hinges)).max())
+        mink = fit.angles(fitting, turns, points)
+        kept, read, drive, driven = _solve.Forward, [], _forward.Exact.drive, []
+        _solve.Forward = lambda *args, **kwargs: read.append(args) or kept(*args, **kwargs)
+        _forward.Exact.drive = lambda self, optimizer: driven.append(optimizer) or drive(self, optimizer)
+        try:
+            card, sweeps = _level3.angles(clip, turns, points, None, fit.Frames(fitting).start(turns[0], points[0]))
+        finally:
+            _solve.Forward, _forward.Exact.drive = kept, drive
+        sites = list(fitting.frame_sites) + list(fitting.place_sites)
+        apart = 1000 * float(np.linalg.norm(toy_sites(model, card)[:, sites] - toy_sites(model, mink)[:, sites],
+                                            axis=-1).max())
+        degrees = float(np.degrees(np.abs(card[:, 7:] - mink[:, 7:]).max()))
+        lead, follow = (int(model.jnt_qposadr[model.joint(name).id]) for name in ("clavicle_r2", "unrot_r2"))
+        coupled = float(np.abs(card[:, follow] + card[:, lead]).max())
+    problems = [] if max(gaps) <= FRAMES_EXACT else [f"the card's frames {max(gaps):.2e} off MuJoCo's"]
+    problems += [] if not read else [f"{len(read)} of level 3's solves read Newton's joint places"]
+    problems += [] if twisted <= TWIST_EXACT else [f"the card's hinge twists {twisted:.2e} off MuJoCo's"]
+    solves = len(range(0, SHOULDER_FRAMES, _level3.STRIDE)) + sweeps  # the chain, then a sweep a solve (no skin)
+    problems += [] if len(driven) == solves else [f"{len(driven)} of level 3's {solves} solves on MuJoCo's twists"]
+    problems += [] if degrees <= LEVEL3_DEG else [f"the card's angles {degrees:.5f} deg off mink's"]
+    problems += [] if apart <= LEVEL3_MM else [f"the card's sites {apart:.5f} mm off mink's"]
+    return problems + ([] if coupled <= 1e-6 else [f"the follower {coupled:.2e} rad off its leader's coupling"])
+
+
 def decoy_box(model, qpos):
     """Another part's skin beside the toy's shin bone where `qpos` puts it, DECOY_SHIFT off ([8 x 3] corners)."""
     import mujoco
@@ -1038,7 +1182,7 @@ CHECKS = (an_end_read_in_the_skin_holds_its_bones_off_somas_joint, a_turn_is_jud
           the_frames_hold_the_bones_inside_the_skin, a_pose_measured_once_gives_the_same_fit,
           a_frame_is_not_held_in_another_parts_skin, the_heads_pockets_are_closed_for_the_inside_test, a_skin_folding_into_itself_gives_no_rows,
           the_depth_is_the_nearest_faces_where_the_query_flips, a_frames_skin_marks_the_bones_out_of_it_frame_by_frame,
-          level_3_on_the_card_is_minks_frames)
+          level_3_on_the_card_is_minks_frames, level_3_on_the_card_reads_minks_own_model_at_the_shoulder)
 
 
 def in_newton():

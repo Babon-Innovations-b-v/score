@@ -9,7 +9,9 @@ SETTLED_TURN / SETTLED_PLACE between the sweep that seeded it and the one after 
 that tolerance); the first frame not final is final after the next sweep by construction (its seed final), so the
 sweeps end in at most one per frame, the later ones over the frames not final only. The first sweep's seeds are a
 chain without the skin every STRIDE-th frame (each from the one before, one row a solve), each frame from the chain's
-frame at or before it: never a cold rest pose, which may land in another minimum."""
+frame at or before it: never a cold rest pose, which may land in another minimum. Every solve's residuals are on
+MuJoCo's own float64 frames (`Clip.angles(exact=True)`, `_forward.Exact`): on Newton's float32-built joint places the
+card minimised another model and stopped up to 0.0073 deg off mink in the shoulder girdle (mean's jump, 2026-11-06)."""
 import numpy as np
 
 STRIDE = 5  # the first sweep's seeding chain: every STRIDE-th frame, each from the one before
@@ -24,7 +26,8 @@ def chained(clip, turns, points, start, stride=STRIDE):
     before (the first from `start`), every frame given the chain's frame at or before it."""
     qpos, found = np.asarray(start, dtype=float), []
     for frame in range(0, len(turns), stride):
-        qpos = clip.angles(turns[frame:frame + 1], points[frame:frame + 1], qpos[None])[0][0].astype(float)
+        qpos = clip.angles(turns[frame:frame + 1], points[frame:frame + 1], qpos[None],
+                           exact=True)[0][0].astype(float)
         found.append(qpos)
     return np.array(found)[np.arange(len(turns)) // stride]
 
@@ -39,10 +42,10 @@ def settled(now, before):
 def sweep(clip, turns, points, skins, seeds):
     """One sweep over some frames: each fitted without the skin from its seed, then with the skin (`skins` their
     posed skins, or None) from that. Returns their answers [frames, nq]."""
-    free = clip.angles(turns, points, seeds)[0].astype(float)
+    free = clip.angles(turns, points, seeds, exact=True)[0].astype(float)
     if skins is None:
         return free
-    return clip.angles(turns, points, free, skins)[0].astype(float)
+    return clip.angles(turns, points, free, skins, exact=True)[0].astype(float)
 
 
 def angles(clip, turns, points, skins, start):
