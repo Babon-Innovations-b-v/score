@@ -477,6 +477,32 @@ def held_wall_faults(objects, design, sizes, rows):
     return found
 
 
+# A wall thing's face is judged this share in from each of its ends (where it lies on one wall even at a corner).
+END_IN = 0.1
+
+
+def bent_faults(objects, design):
+    """Each wall-held object whose face's two ends lie on different straight runs of the chain of plan walls under it
+    (holders.straight_runs: a corner between them turning more than holders.ROUND_BEND degrees): a straight thing laid
+    as a chord across a corner (2026-11-06: hangar's second 32 m pipe of LARGE PIPES 1 across its left and front
+    walls, galley's upper cabinets round theirs). A chord over a round wall's facets, one run, passes."""
+    walls, found = holders.walls_of(design), []
+    for entry in objects:
+        on = entry.get("on") or {}
+        if on.get("how") != "wall" or not walls:
+            continue
+        start, end = (plan_of_place(design, [point[0], 0.0, point[1]])[0] for point in on["span"])
+        ends = (start + (end - start) * END_IN, end - (end - start) * END_IN)
+        wall = min(walls, key=lambda wall: holders.off_line(ends[0], wall)[0])
+        chain = holders.chain_of(wall, walls, holders.CORNER_BEND)
+        runs = holders.straight_runs(chain)
+        at = [next(number for number, (low, high) in enumerate(runs) if holders.chain_along(chain, spot) <= high + 1e-9)
+              for spot in ends]
+        if at[0] != at[1]:
+            found.append(f"{entry['name']} is laid round a corner of its walls, its ends on two of their straight runs")
+    return found
+
+
 def roof_faults(objects, design, sizes, relations, rows):
     """Each object held under the roof (a `ceiling` relation) whose row hangs from it (holders.under_roof: anchored
     ceiling or roof, or its words say so) whose top is off the roof's underside over it by more than TOLERANCE."""
@@ -595,8 +621,8 @@ def spot_in(spot, entry, size, design):
 
 
 def judge_laid_as_designed(output, inputs, evidence):
-    """Fail on pieces of one row at one spot, a wall thing facing its wall, longer than its wall or on the floor where
-    its words say high, a thing hung from the roof off its underside, a seat away from what it stands at, or a thing
+    """Fail on pieces of one row at one spot, a wall thing facing its wall, longer than its wall, bent round a corner
+    or on the floor where its words say high, a thing hung from the roof off its underside, a seat away from what it stands at, or a thing
     on the floor standing over it with nothing under it."""
     place, record = writer.record_in(output)
     design = design_of(inputs, place)
@@ -604,7 +630,7 @@ def judge_laid_as_designed(output, inputs, evidence):
     rows = {row["id"]: row for row in json.loads(pathlib.Path(inputs["inventory"]).read_text()).get("rows", [])}
     sizes, objects = sizes_of(handin), [entry for entry in record.get("objects", []) if entry.get("kind") == "object"]
     relations, _ = writer.relations_input(inputs, place)
-    faults = spot_faults(objects) + held_wall_faults(objects, design, sizes, rows) + \
+    faults = spot_faults(objects) + held_wall_faults(objects, design, sizes, rows) + bent_faults(objects, design) + \
         roof_faults(objects, design, sizes, relations, rows) + seat_faults(objects, sizes, rows, design) + \
         floor_faults(objects, design, sizes, relations, rows)
     reason = "; ".join(faults[:3]) + (f" and {len(faults) - 3} more" if len(faults) > 3 else "") if faults else \

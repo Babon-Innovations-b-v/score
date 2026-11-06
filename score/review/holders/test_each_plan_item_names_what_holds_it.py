@@ -294,6 +294,15 @@ def test_openings_are_cut_at_their_built_widths_spread_apart_on_their_wall():
     they are spread apart in their order along the wall, 0.2 m between them and 0.2 m plus the wall's 0.2 m inside its
     end: the door at 20 - 0.4 - 0.5 = 19.1, the window 0.2 m before it at 17.4. A 4 m wall cannot hold two 2 m doors
     so: both stay as the plan draws them, the wall named crowded.
+    2026-11-06 (street's 3 m roller shutter cut on the 4.61 m wall its restaurant door already stood in): in a 4.6 x 6
+    m room a 3 m shutter with no plan opening left, nearest the front wall the 1.5 m door's plan opening is on, is cut
+    on the nearest wall with room beside its openings, the 6 m east wall, and no wall is crowded; a 0.5 m window
+    nearest an empty 0.6 m stub is still cut on the stub, at its middle (camp's dome facets).
+    Break: score/review/holders/__init__.py: `if wall_key(wall) in on_walls and not has_room(wall, on_walls,
+        float(size[0])):` -> `if False:`
+    Break: score/review/holders/__init__.py: `if wall_key(wall) in on_walls and not has_room(` -> `if not has_room(`
+    Break: score/review/holders/__init__.py: `cut_in(spot, row, item, plan, [*standing, *({"row": row["id"], **piece}
+        for piece in found if piece)])` -> `cut_in(spot, row, item, plan)`
     Break: score/review/holders/__init__.py: `if wide <= float(opening["wide"]):` -> `if True:`
     Break: score/review/holders/__init__.py: `crowded = spread(found)` -> `crowded = []`
     Break: score/review/holders/__init__.py: `return lefts if lefts and lefts[0] >= room - 1e-9 else None` ->
@@ -321,6 +330,23 @@ def test_openings_are_cut_at_their_built_widths_spread_apart_on_their_wall():
     found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
     assert sorted(entry["opening"]["wide"] for entry in found["relations"]) == [0.3, 0.3], found["relations"]
     assert [sorted(entry["rows"]) for entry in found["crowded"]] == [["back_door", "door"]], found.get("crowded")
+    rows = [{"id": "door", "noun": "door", "anchor": "wall", "size": [1.0, 0.1, 2.1]},
+            {"id": "shutter", "noun": "shutter", "anchor": "wall", "size": [3.0, 0.1, 3.0]}]
+    small = [{"from": [0.0, 0.0], "to": [4.6, 0.0], "thick": 0.1}, {"from": [4.6, 0.0], "to": [4.6, 6.0], "thick": 0.1},
+             {"from": [4.6, 6.0], "to": [0.0, 6.0], "thick": 0.1}, {"from": [0.0, 6.0], "to": [0.0, 0.0], "thick": 0.1}]
+    plan = plan_of([["DOOR 1", 1.8, 0.0, 1.0, 0.1, None, "item"], ["SHUTTER 1", 2.5, 0.3, 3.0, 0.1, None, "item"]],
+                   {"DOOR 1": ["door"], "SHUTTER 1": ["shutter"]}, walls=small,
+                   openings=[{"kind": "door", "at": [2.3, 0.0], "wide": 1.5, "sill": 0.0, "head": 2.2}])
+    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
+    assert by_row(found)["door"]["opening"]["at"] == [2.3, 0.0], by_row(found)["door"]
+    assert (by_row(found)["shutter"]["wall"]["from"], by_row(found)["shutter"]["wall"]["to"]) == (
+        [4.6, 0.0], [4.6, 6.0]) and "crowded" not in found, found
+    rows = [{"id": "window", "noun": "window", "anchor": "wall", "size": [0.5, 0.1, 0.5]}]
+    plan = plan_of([["WINDOW 1", 5.0, 0.3, 0.5, 0.1, None, "item"]], {"WINDOW 1": ["window"]},
+                   walls=[{"from": [5.0, 0.0], "to": [5.6, 0.0], "thick": 0.1},
+                          {"from": [0.0, 3.0], "to": [12.0, 3.0], "thick": 0.1}])
+    window = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["window"]
+    assert (window["wall"]["from"], window["opening"]["at"]) == ([5.0, 0.0], [5.3, 0.0]), window
 
 
 def test_a_street_facade_stands_past_its_edge_and_its_units_on_its_face():
@@ -586,6 +612,16 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
         walls_of(plan))` -> `pass`
     Break: score/review/holders/__init__.py: `fitting = ([wall for wall in walls if wall_length(wall) >= need] if
         pieces == 1 else [])` -> `fitting = (walls if pieces == 1 else [])`
+    2026-11-06 (hangar's second 32 m pipe of LARGE PIPES 1 laid as a diagonal chord across its corner, galley's
+    cabinets and hub's panels round theirs): three 3.5 m cabinets on one item by the front wall of a 4.6 x 6 m room
+    each lie flat along one wall, a piece not fitting before a corner starting past it; two 3.9 m pipes by an L of two
+    4 m walls, which holds them only bent or in each other's corner room, go on the 10 m wall further off instead.
+    Break: score/review/holders/__init__.py: `for along in flat_alongs(packed(alongs, length, long), runs, long,
+        clear):` -> `for along in packed(alongs, length, long):`
+    Break: score/review/holders/__init__.py: `if turn > ROUND_BEND:` -> `if False:`
+    Break: score/review/holders/__init__.py: `spot = max(spot, low + clear + half)` -> `pass`
+    Break: score/review/holders/__init__.py: `wall for wall in walls if holds_flat(chain_of(wall, walls, bend), row,
+        pieces)]` -> `wall for wall in walls if chain_length(chain_of(wall, walls, bend)) >= need]`
     Break: score/review/holders/__init__.py: `spanning = kind == "wall" and spans(row)` -> `spanning = False`
     Break: score/review/holders/__init__.py: `return round(EYE_MOUNT - tall / 2, 3)` -> `return None`
     Break: score/review/holders/__init__.py: `seats_beside(found, items, rows, plan, tied)` -> `pass`
@@ -662,6 +698,24 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     first = pipes["PIPES 1"]["pieces"]
     assert len(first) == 2 and abs(first[0]["spot"][1] - first[1]["spot"][1]) >= 4.0, first
     assert "pieces" not in pipes["PIPES 2"], pipes
+
+    def flat(piece, walls):  # its face lies along one wall, inside its ends
+        ends = [numpy.asarray(piece["wall"][key], float) for key in ("from", "to")]
+        return any(all(holders.off_line(end, wall)[0] < 1e-3 and numpy.linalg.norm(holders.on_line(end, wall) - end)
+                       < 1e-3 for end in ends) for wall in walls)
+    small = [{"from": [0.0, 0.0], "to": [4.6, 0.0], "thick": 0.1}, {"from": [4.6, 0.0], "to": [4.6, 6.0], "thick": 0.1},
+             {"from": [4.6, 6.0], "to": [0.0, 6.0], "thick": 0.1}, {"from": [0.0, 6.0], "to": [0.0, 0.0], "thick": 0.1}]
+    rows = [{"id": "cabinets", "noun": "cabinets", "anchor": "wall", "size": [3.5, 0.4, 0.6], "count": 3}]
+    plan = plan_of([["CABINETS 1", 1.0, 0.5, 3.5, 0.4, None, "item"]], {"CABINETS 1": ["cabinets"]}, walls=small)
+    cabinets = by_item_of(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["CABINETS 1"]["pieces"]
+    assert len(cabinets) == 3 and all(flat(piece, small) for piece in cabinets), cabinets
+    assert len({(tuple(piece["wall"]["from"]), tuple(piece["wall"]["to"])) for piece in cabinets}) == 3, cabinets
+    bent = [{"from": [0.0, 4.0], "to": [0.0, 0.0], "thick": 0.1}, {"from": [0.0, 0.0], "to": [4.0, 0.0], "thick": 0.1},
+            {"from": [0.0, 11.0], "to": [10.0, 11.0], "thick": 0.1}]
+    rows = [{"id": "pipes", "noun": "pipes", "anchor": "wall", "size": [3.9, 0.2, 0.2], "count": 2}]
+    plan = plan_of([["PIPES 1", 0.5, 0.5, 3.9, 0.2, None, "item"]], {"PIPES 1": ["pipes"]}, walls=bent)
+    pipes = by_item_of(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["PIPES 1"]
+    assert pipes["wall"]["to"] == [10.0, 11.0] and all(flat(piece, bent[2:]) for piece in pipes["pieces"]), pipes
     rows = [{"id": "front_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
             {"id": "shop_door", "noun": "door", "anchor": "on:front_wall", "size": [1.0, 0.1, 2.1]}]
     plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"],
