@@ -64,6 +64,8 @@ as an argument list, never through a shell, and only when it is one of these:
     pool-log [--lines N]                        the newest changed warm pool collector log (cloud/pools/<run>/
                                                 collector.log) of the newest launch's home, its last N lines, secrets
                                                 left out, read only (2026-11-05)
+    ps                                          the busiest processes by processor share, their command lines cut,
+                                                secrets left out, read only (2026-11-06)
     fault <node>                               the fault report <home>/store/faults/<node>.txt of the newest launch's
                                                 home (its frozen copy while it lives), secrets left out, read only
                                                 (2026-10-27: motion@airlock's fault report out of reach)
@@ -162,7 +164,7 @@ from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
 VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], store-evict [--dry], clean-frozen, clean-cache, clean-scratch, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, carry --no-op <file>=<why> ..., "
-         "run-log [--lines N], pool-log [--lines N], fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
+         "run-log [--lines N], pool-log [--lines N], ps, fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, buy-log, decide-yes, decide <yes id>, "
          "stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
@@ -214,6 +216,8 @@ JOB_LOG_CHARACTERS = 40000
 RUN_LOG = "--run-log"  # this file's own read of the newest launch's run log (the run-log verb runs it)
 FAULT = "--fault"  # this file's own read of a fault report of the newest launch (the fault verb runs it)
 POOL_LOG = "--pool-log"  # this file's own read of the newest launch's warm pool collector log (the pool-log verb)
+PROCESSES = "--ps"  # this file's own read of the busiest processes (the ps verb runs it)
+PS_LINES = 40
 DESIGN_FILE = "--design-file"  # this file's own read of one design file (the design-file verb runs it)
 ROUTE_LOG = "--route-log"  # this file's own read of a people route's log (the route-log verb runs it)
 CARRY = "--carry"  # this file's own carry, refused while a run is live (the carry verb runs it)
@@ -328,6 +332,10 @@ def decide(words, latch):
             raise Refused("pool-log [--lines N], N a whole number of lines")
         lines = min(int(args[1]) if args else RUN_LOG_LINES, RUN_LOG_LINES_MAX)
         return [str(pathlib.Path(__file__).resolve()), POOL_LOG, str(lines)], {}
+    if verb == "ps":
+        if args:
+            raise Refused("ps takes no arguments")
+        return [str(pathlib.Path(__file__).resolve()), PROCESSES], {}
     if verb == "carry":
         return [str(pathlib.Path(__file__).resolve()), CARRY, *carry_args(args)], {}
     if verb == "route-log":
@@ -555,7 +563,21 @@ def own_read(argv, props_home):
         return run_log(newest_launch_log(), props_home, int(argv[1]))
     if argv[0] == POOL_LOG:
         return pool_log(newest_launch_log(), props_home, int(argv[1]))
+    if argv[0] == PROCESSES:
+        return processes()
     return fault(newest_launch_log(), argv[1], props_home)
+
+
+def processes(lines=PS_LINES):
+    """The busiest `lines` processes by processor share (ps: pid, %cpu, %mem, minutes, its command line cut to 200),
+    each line a secret names or shows left out (score.conductor.logs.clean), read only (2026-11-06: every place's
+    sim-body row ran Newton on the conductor's processor, load 98 on 16 cores, and nothing an agent could read said
+    which rows)."""
+    from score.conductor.logs import clean
+    done = subprocess.run(["ps", "-eo", "pid,pcpu,pmem,etimes,args", "--sort=-pcpu", "--no-headers"],
+                          capture_output=True, text=True, check=True)
+    rows = [line.strip()[:240] for line in done.stdout.splitlines()[:lines]]
+    return "\n".join(["pid %cpu %mem seconds command", *clean(rows)])
 
 
 def carry_args(args):
@@ -909,7 +931,7 @@ def main():
         except Refused as refused:
             print(f"score-agent-door: refused: {refused}", file=sys.stderr)
             return REFUSED_EXIT
-    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [POOL_LOG], [FAULT], [DESIGN_FILE], [ROUTE_LOG]):
+    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [POOL_LOG], [PROCESSES], [FAULT], [DESIGN_FILE], [ROUTE_LOG]):
         from score.store import PROPS_HOME
         try:
             print(own_read(sys.argv[1:], PROPS_HOME))
