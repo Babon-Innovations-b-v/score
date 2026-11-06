@@ -298,6 +298,7 @@ def test_the_door_refuses_a_shell_a_paid_run_the_owners_commands_and_anything_un
                   "cat /home/score/.config/scw/config.yaml", "health --write", "gaps", "gaps a b",
                   "gaps ../x", "gaps 'closeup@hub;id'", "predicted x", "buy", "buy a b", "buy 'y 1'",
                   "buy a --phase", "buy a --phase 'x y'", "buy a --stage models", "buy a --phase models x",
+                  "buy a --leave-out", "buy a --phase models --phase surfaces", "buy a --leave-out 'sim body'",
                   "buy-yes 30 33 'yes'", "buy-yes 33 30 'yes' 'q?'", "buy-yes --stop 33 30 'yes' 'q?'",
                   "buy-yes --no-film 33 30 'yes' 'q?'", "batch-money --film", "batch-money --no-film x",
                   "batch-money 1", "disk /", "clean-frozen --all", "clean-cache --making-only", "relink-pixal x", "score-lib", "score-lib push",
@@ -309,7 +310,8 @@ def test_the_door_refuses_a_shell_a_paid_run_the_owners_commands_and_anything_un
                   "store-push --missing x", "preflight", "preflight --phase props"):
         code, why, argv, _ = door(asked)
         assert code == 126 and argv is None and "refused" in why, (asked, code, why)
-    for asked in ("benchmark g1 world1 --detach", "buy 20261025T1700000000", "buy 20261025T1700000000 --phase models"):
+    for asked in ("benchmark g1 world1 --detach", "buy 20261025T1700000000", "buy 20261025T1700000000 --phase models",
+                  "buy 20261025T1700000000 --phase models,surfaces --leave-out sim-body,body-peel"):
         code, why, argv, _ = door(asked, "SCORE_FREE_ONLY=1\n")
         assert code == 126 and argv is None and "latch" in why, asked
 
@@ -499,6 +501,10 @@ def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path, monkeypatch
     assert agent_door.buy_log(tmp_path).endswith("checkout 18: launched\n")
     said = agent_door.buy_started("20261106T000000Z", tmp_path, [sys.executable, "-c", "print('phase')"], "models")
     assert said.startswith("buy 20261106T000000Z --phase models:") and "20261106T000000Z-models.log" in said, said
+    said = agent_door.buy_started("20261106T000000Z", tmp_path, [sys.executable, "-c", "print('phases')"],
+                                  "models,surfaces", "sim-body,body-peel")
+    assert said.startswith("buy 20261106T000000Z --phase models,surfaces --leave-out sim-body,body-peel:"), said
+    assert "20261106T000000Z-models+surfaces.log" in said, said
     # carry (2026-11-03) never runs with a run live
     monkeypatch.setattr(agent_door, "replace_refusal", lambda home: "a run is live (r1)")
     with pytest.raises(agent_door.Refused, match="a run is live"):

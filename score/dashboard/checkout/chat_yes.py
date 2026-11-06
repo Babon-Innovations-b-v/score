@@ -212,14 +212,26 @@ def run_refusals(folder=None):
 
 
 def known_phase(phase):
-    """`phase` when it is a phase of score/stages/phases; Refused naming the phases otherwise."""
+    """`phase` (one phase, or several as a comma list) when each is a phase of score/stages/phases; Refused naming
+    the phases otherwise."""
     from score.stages import phases
-    if phase not in phases.NAMES:
-        raise Refused(f"{phase} is no phase: one of {', '.join(phases.NAMES)}")
+    unknown = [name for name in phase.split(",") if name not in phases.NAMES]
+    if unknown:
+        raise Refused(f"{', '.join(unknown)} is no phase: one of {', '.join(phases.NAMES)}")
     return phase
 
 
-def buy(yes_id, store=None, phase=None):
+def known_stages(names):
+    """The stage names `names` (a comma list) to leave out of a Buy, each a stage of the table; Refused otherwise."""
+    from score import stages
+    table = {stage.name for stage in stages.STAGES}
+    unknown = [name for name in names.split(",") if name not in table]
+    if unknown:
+        raise Refused(f"{', '.join(unknown)} is no stage of the table")
+    return names.split(",")
+
+
+def buy(yes_id, store=None, phase=None, leave_out=None):
     """His Buy under the yes `yes_id`, once: every check of the module docstring, the yes marked used, then flow.start
     as his click, in this thread; (Checkout or None, words). With `phase` (score/stages/phases, the door's `--phase`)
     only that phase's rows of the basket are bought (flow.phase_kept), under the same yes and batch total, the
@@ -229,6 +241,8 @@ def buy(yes_id, store=None, phase=None):
     yes = yes_found(store, yes_id)
     if phase:
         yes = {**yes, "phase": known_phase(phase)}
+    if leave_out:  # stages this Buy leaves out beside the yes's own (2026-11-06: sim-body until its fixes land)
+        yes = {**yes, "leave_out": [*yes.get("leave_out", ()), *known_stages(leave_out)]}
     approved = approved_now()  # the design's approval now, as the basket below is the runner's plan now
     try:
         flow.basket_made()  # what the runner's plan buys now at the approved places, never an older pass's basket

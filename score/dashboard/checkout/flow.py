@@ -87,11 +87,13 @@ def left_out(items, stages):
 
 def phase_kept(items, phase):
     """The `items` with only the nodes of the phase `phase`'s stages kept (score/stages/phases; a Buy by phase, the
-    door's `buy <yes id> --phase`, CONTEXT.md "phase"), an item left with none dropped; every item without a phase."""
+    door's `buy <yes id> --phase`, CONTEXT.md "phase"; several phases a comma list, their queues side by side in one
+    run: owner, 2026-11-06), an item left with none dropped; every item without a phase."""
     if not phase:
         return items
     from score.stages import phases
-    return nodes_kept(items, lambda stage: phases.phase_of(stage) == phase)
+    chosen = set(phase.split(","))
+    return nodes_kept(items, lambda stage: phases.phase_of(stage) in chosen)
 
 
 def nodes_kept(items, keeps):

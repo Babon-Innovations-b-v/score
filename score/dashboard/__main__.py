@@ -88,7 +88,9 @@ def parse(argv):
         yes.add_argument(name)
     bought = commands.add_parser("buy", help="his Buy under a yes from buy-yes, once (checkout/chat_yes.py)")
     bought.add_argument("yes")
-    bought.add_argument("--phase", help="only that phase's rows of the basket (score/stages/phases)")
+    bought.add_argument("--phase", help="only that phase's rows of the basket (score/stages/phases); several as a "
+                                        "comma list")
+    bought.add_argument("--leave-out", help="stages (a comma list) this Buy neither buys nor makes, beside the yes's")
     decide_yes = commands.add_parser("decide-yes", help="the owner's decision made in a session, quoted "
                                                         "(sync/chat_decisions.py)")
     decide_yes.add_argument("decision", help="accept, reject, waive, lock-concept, lock-film, go, spend or "
@@ -179,7 +181,7 @@ def buy(options):
     from score.dashboard.checkout import chat_yes
     migrate()
     try:
-        record, said = chat_yes.buy(options.yes, phase=options.phase)
+        record, said = chat_yes.buy(options.yes, phase=options.phase, leave_out=options.leave_out)
     except chat_yes.Refused as refused:
         sys.exit(f"buy {options.yes}{phase_words(options.phase)}: refused: {refused}")
     print(f"buy {options.yes}{phase_words(options.phase)}: {said}")

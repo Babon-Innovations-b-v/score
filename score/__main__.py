@@ -1129,7 +1129,9 @@ def dry_make(runner, stage, place, keyed, log, answer):
         inputs = runner.input_paths(stage, place, keyed)
         with graph.making_in(folder, runner.making_code(stage, place, keyed)):
             stage.make(inputs, folder, keyed["seed"], keyed["params"])
-        why = "its make finished without reaching a paid point: its paid work would run on this machine"
+        # finished with nothing to rent: its jobs were kept (tools/cloud/kept.py) or it had none; a heavy program
+        # started here is DryPopen's own failure (2026-11-06: straight-masks@base, its masks kept, failed as local work)
+        why = None
     except BaseException as error:  # noqa: BLE001 - every way it ends is the answer, a SystemExit too
         traceback.print_exc()
         stream.flush()
