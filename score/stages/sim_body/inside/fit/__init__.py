@@ -246,7 +246,7 @@ def constants_on(fit, turns, points, path):
 # level 3 on the card, every frame at once (`_card._level3`: mink's recurrence in sweeps), when Warp sees a card; off
 # until it equals mink on the measured clips (0.01 deg, 0.01 mm every frame, the bones outside unchanged), mink the
 # reference
-LEVEL3_CARD = False
+LEVEL3_CARD = True  # measured equal to mink on every frame of jump and standing on an L4, fit.angles 30 to 15 s (#70, 2026-11-06)
 
 
 def angles(fit, turns, points, skins=None):
