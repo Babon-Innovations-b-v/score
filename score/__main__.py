@@ -1849,10 +1849,11 @@ def main(argv=None):
         if waited_for_size(runner, places, whole, options, sys.argv[1:] if argv is None else argv):
             return
         checked_threads(options)
-        chosen = claim(runner, places, whole, options)
-        options.paid_rows = 0  # a free-only run buys nothing: no re-buy list or reason
-        if not options.free:
-            options.paid_rows = len(checked_buys(runner, places, whole, options))
+        with runner.still():  # the claim's and the buys' keys worked out once, in one pass (both write no store)
+            chosen = claim(runner, places, whole, options)
+            options.paid_rows = 0  # a free-only run buys nothing: no re-buy list or reason
+            if not options.free:
+                options.paid_rows = len(checked_buys(runner, places, whole, options))
     if getattr(options, "detach", False):
         detach(sys.argv)
         return
