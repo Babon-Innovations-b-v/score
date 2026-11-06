@@ -66,6 +66,8 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 left out, read only (2026-11-05)
     ps                                          the busiest processes by processor share, their command lines cut,
                                                 secrets left out, read only (2026-11-06)
+    node-log <node>                             a node's own log of the newest launch, its tail, as it runs, secrets
+                                                left out, read only (2026-11-06)
     fault <node>                               the fault report <home>/store/faults/<node>.txt of the newest launch's
                                                 home (its frozen copy while it lives), secrets left out, read only
                                                 (2026-10-27: motion@airlock's fault report out of reach)
@@ -164,7 +166,7 @@ from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
 VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], store-evict [--dry], clean-frozen, clean-cache, clean-scratch, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, carry --no-op <file>=<why> ..., "
-         "run-log [--lines N], pool-log [--lines N], ps, fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
+         "run-log [--lines N], pool-log [--lines N], ps, node-log <node>, fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, buy-log, decide-yes, decide <yes id>, "
          "stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
@@ -217,6 +219,7 @@ RUN_LOG = "--run-log"  # this file's own read of the newest launch's run log (th
 FAULT = "--fault"  # this file's own read of a fault report of the newest launch (the fault verb runs it)
 POOL_LOG = "--pool-log"  # this file's own read of the newest launch's warm pool collector log (the pool-log verb)
 PROCESSES = "--ps"  # this file's own read of the busiest processes (the ps verb runs it)
+NODE_LOG = "--node-log"  # this file's own read of a node's own log of the newest launch (the node-log verb runs it)
 PS_LINES = 40
 DESIGN_FILE = "--design-file"  # this file's own read of one design file (the design-file verb runs it)
 ROUTE_LOG = "--route-log"  # this file's own read of a people route's log (the route-log verb runs it)
@@ -346,6 +349,10 @@ def decide(words, latch):
         if len(args) != 1 or not DESIGN_FILE_PATH.fullmatch(args[0]):
             raise Refused("design-file design/props|plans|surfaces/<name>.json, one design file")
         return [str(pathlib.Path(__file__).resolve()), DESIGN_FILE, args[0]], {}
+    if verb == "node-log":
+        if len(args) != 1 or not NODE.match(args[0]):
+            raise Refused("node-log <node>, one node name such as surfaces-bake@hub")
+        return [str(pathlib.Path(__file__).resolve()), NODE_LOG, args[0]], {}
     if verb == "fault":
         if len(args) != 1 or not NODE.match(args[0]):
             raise Refused("fault <node>, one node name such as motion@airlock")
@@ -534,6 +541,21 @@ def fault(log, node, props_home):
     return "\n".join([f"{found}:", *text])
 
 
+def node_log(log, node, props_home, lines=RUN_LOG_LINES):
+    """The last `lines` lines of a node's own log (<home>/store/logs/<node>.log) of the launch whose run log is `log`,
+    written as it runs, so a node that has not failed is read too (2026-11-06: fifteen Blender calls at 90% of a core
+    for ten minutes, and only a fault report could be read); secrets left out; Refused for a bad name or no log."""
+    if not NODE.match(node):
+        raise Refused(f"{node!r} is not a node name")
+    _, owner = launch_home(log, props_home)
+    folders = (owner / "store" / "logs", pathlib.Path(props_home) / "store" / "logs")
+    read = read_inside([folder / f"{node}.log" for folder in folders], folders)
+    if read is None:
+        raise Refused(f"no log for {node} at {folders[0]}")
+    found, text = read
+    return "\n".join([f"{found} (the last {lines} of {len(text)} lines):", *text[-lines:]])
+
+
 def pool_log(log, props_home, lines):
     """The last `lines` lines of the warm pool collector log (cloud/pools/<run>/collector.log) newest changed in the
     home of the launch whose run log is `log`, else in props_home's, secrets left out (2026-11-05: Batch 1's pool held
@@ -565,6 +587,8 @@ def own_read(argv, props_home):
         return pool_log(newest_launch_log(), props_home, int(argv[1]))
     if argv[0] == PROCESSES:
         return processes()
+    if argv[0] == NODE_LOG:
+        return node_log(newest_launch_log(), argv[1], props_home)
     return fault(newest_launch_log(), argv[1], props_home)
 
 
@@ -576,7 +600,7 @@ def processes(lines=PS_LINES):
     from score.conductor.logs import clean
     done = subprocess.run(["ps", "-eo", "pid,pcpu,pmem,etimes,args", "--sort=-pcpu", "--no-headers"],
                           capture_output=True, text=True, check=True)
-    rows = [line.strip()[:240] for line in done.stdout.splitlines()[:lines]]
+    rows = [line.strip()[:600] for line in done.stdout.splitlines()[:lines]]
     return "\n".join(["pid %cpu %mem seconds command", *clean(rows)])
 
 
@@ -931,7 +955,7 @@ def main():
         except Refused as refused:
             print(f"score-agent-door: refused: {refused}", file=sys.stderr)
             return REFUSED_EXIT
-    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [POOL_LOG], [PROCESSES], [FAULT], [DESIGN_FILE], [ROUTE_LOG]):
+    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [POOL_LOG], [PROCESSES], [NODE_LOG], [FAULT], [DESIGN_FILE], [ROUTE_LOG]):
         from score.store import PROPS_HOME
         try:
             print(own_read(sys.argv[1:], PROPS_HOME))
