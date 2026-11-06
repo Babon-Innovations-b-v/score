@@ -814,6 +814,16 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
         at one spot")` -> `pass`
     Break: score/stages/scene_record/gates.py: `if abs(height + size[2] - under) > TOLERANCE:` -> `if False:`
     Break: score/stages/scene_record/gates.py: `if not -TOLERANCE <= gap <= SEAT_REACH:` -> `if False:`
+    2026-11-06 (the engine room's railings piled 1 to 4 m over one another, passing every gate): a crate its relation
+    stands on the floor passes on the floor, on the module's 6 m top, on a 1 m deck under it and half way up a flight
+    rising 0 to 2 m, and fails 1 m up over nothing, and 1 m up on a crate of its own row, unless its row piles.
+    Break: score/stages/scene_record/gates.py: `and not ground_under(spots, height, design)}` -> `and False}`
+    Break: score/stages/scene_record/gates.py: `(other["row"] != checked[name][0]["row"] or` -> `(True or`
+    Break: score/stages/scene_record/gates.py: `holders.piles(rows.get(other["row"]) or {})))}` -> `False))}`
+    Break: score/stages/scene_record/gates.py: `and any(design_shell.inside(spot, level["points"]) for spot in
+        spots)] + [` -> `and False] + [`
+    Break: score/stages/scene_record/gates.py: `min(max(height, float(stair["from"])), float(stair["to"]))` ->
+        `float(stair["from"])`
     #94: the garage door its relation says rests leaning carries `rests` leaning for the settle to lean it by; the
     door, resting as the others lay it, carries none.
     Break: score/stages/scene_record/writer.py: `**({"rests": relation["rests"]} if relation and relation.get("rests")
@@ -831,8 +841,10 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     rows = [{"id": name, "anchor": "floor", "route": "prop", "size": size}
             for name, size in (("door", [1.2, 0.1, 2.1]), ("lamp", [0.3, 0.2, 0.3]), ("module", [6.0, 6.0, 6.0]),
                                ("garage_door", [3.0, 0.2, 3.0]), ("suit", [0.5, 0.4, 1.8]), ("hung", [0.4, 0.4, 0.5]),
-                               ("chair", [0.6, 0.6, 1.0]))]
+                               ("chair", [0.6, 0.6, 1.0]), ("crate", [1.0, 1.0, 1.0]))]
     relations = {"relations": [
+        *[{"item": f"CRATE {number}", "row": "crate", "how": "floor", "why": "on the place's floor"}
+          for number in (1, 2)],
         {"item": "ON THE WALLS AND CEILING", "row": "door", "how": "in", "why": "in the plan's door opening 1",
          "opening": {"at": [5.0, 0.0], "wide": 1.4, "sill": 0.0, "head": 2.2},
          "wall": {"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2}},
@@ -861,11 +873,12 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     objects = [entry for entry in found.values() if entry["kind"] == "object"]
     sizes, by_id = {row["id"]: row["size"] for row in rows}, {row["id"]: row for row in rows}
 
-    def faults(laid):
-        return (gates.spot_faults(laid) + gates.held_wall_faults(laid, design, sizes, by_id) +
-                gates.roof_faults(laid, design, sizes, relations, {**by_id, "hung": {"anchor": "ceiling"}}) +
-                gates.seat_faults(laid, sizes, {**by_id, "chair": {"id": "chair", "noun": "chair",
-                                                                   "where": "at the module"}}, design))
+    def faults(laid, kinds=by_id, plan=design):
+        return (gates.spot_faults(laid) + gates.held_wall_faults(laid, plan, sizes, kinds) +
+                gates.roof_faults(laid, plan, sizes, relations, {**kinds, "hung": {"anchor": "ceiling"}}) +
+                gates.seat_faults(laid, sizes, {**kinds, "chair": {"id": "chair", "noun": "chair",
+                                                                   "where": "at the module"}}, plan) +
+                gates.floor_faults(laid, plan, sizes, relations, kinds))
     assert faults(objects) == [], faults(objects)
     turned = [{**entry, "rotation": writer.yaw_turn(design, (0.0, -1.0), None)} if entry is lamp else entry
               for entry in objects]
@@ -876,6 +889,20 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     assert faults(lowered) == ["hung_1's top stands 1.99 m up, its roof's underside 3.00 m over it"], faults(lowered)
     away = [{**entry, "at": [1.0, 0.0, -0.5]} if entry["row"] == "chair" else entry for entry in objects]
     assert faults(away) == ["chair_1 stands 1.20 m from MODULE 1, its words 'at the module'"], faults(away)
+
+    def crate(number, x, y, height):  # a crate at plan (x, y), `height` over the floor
+        return {"name": f"crate_{number}", "row": "crate", "kind": "object", "at": [x - 10.0, height, y - 10.0],
+                "rotation": writer.yaw_turn(design, (1.0, 0.0), [1.0, 1.0, 1.0]),
+                "from": f"plan item 'CRATE {number}', inventory row crate: piece {number} of the row"}
+    over = "stands 1.00 m over the floor with nothing under it, its row on the floor"
+    assert faults(objects + [crate(1, 15.0, 15.0, 0.0), crate(2, 11.0, 5.0, 6.0)]) == []  # floor, the module's top
+    assert faults(objects + [crate(1, 15.0, 15.0, 1.0)]) == [f"crate_1 {over}"]
+    stacked = objects + [crate(1, 15.0, 15.0, 0.0), crate(2, 15.0, 15.0, 1.0)]
+    assert faults(stacked) == [f"crate_2 {over}"], faults(stacked)
+    assert faults(stacked, {**by_id, "crate": {"id": "crate", "size_words": "a stack of crates"}}) == []
+    raised = {**design, "levels": [{"height": 1.0, "points": [[14.0, 14.0], [18.0, 14.0], [18.0, 18.0], [14.0, 18.0]]}],
+              "stairs": [{"points": [[14.0, 1.0], [18.0, 1.0], [18.0, 3.0], [14.0, 3.0]], "from": 0.0, "to": 2.0}]}
+    assert faults(objects + [crate(1, 16.0, 16.0, 1.0), crate(2, 16.0, 2.0, 1.0)], plan=raised) == []
     assert found["suit"]["on"]["hangs"] is True and found["suit"]["on"]["holder"] == ["module_1"], found["suit"]
     (tmp_path / "plans").mkdir()
     (tmp_path / "plans/hut.json").write_text(json.dumps(design))

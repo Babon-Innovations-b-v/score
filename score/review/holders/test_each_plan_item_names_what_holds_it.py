@@ -17,7 +17,7 @@ import numpy
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
-from score.review import holders, plan_checks  # noqa: E402
+from score.review import holders, plan_checks, plan_fixes  # noqa: E402
 
 PICTURE = [1000, 600]
 
@@ -565,6 +565,17 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     two 1 m clocks at one spot are packed along their wall instead, at one height. Two railings on the floor drawn on
     one box (engineroom's railings 3 and 4) are parted: the second beside the first, PIECE_GAP clear, the shortest way
     with floor room (crates stand in front of and behind it); two on one box filling the room keep their spot.
+    2026-11-06 (laid-as-designed@hangar, @street): a row of 3 pipes on 2 wall items lays its third at its first item,
+    as the scene record does (writer.pieces_of), so that item's relation gives each of its 2 pieces its own spot
+    (hangar's 8 pipes on 7 items: its first laid 2 at its one spot); a door row on the walls item and on an item of its
+    own has no walls-item relation, which the record never lays, so its item takes the plan's door opening at it
+    (street's restaurant doors and shutters: openings on the walls item crowded their wall, its own kept at one
+    spot). Only a row whose words say it piles piles (PILE_WORDS, plan_fixes' own).
+    Break: score/review/holders/__init__.py: `return counts[names.index(name)]` -> `return counts[0] if
+        len(names) == 1 else int((shapes.get(name) or {}).get("count") or 1)`
+    Break: score/review/holders/__init__.py: `if row is None or name not in tied.get(row_id, []):` -> `if row is None:`
+    Break: score/review/holders/__init__.py: `names.remove(plan_checks.WALLS_ITEM)` -> `pass`
+    Break: score/review/holders/__init__.py: `PILE_WORDS = {"pile", ` -> `PILE_WORDS = {`
     Break: score/review/holders/__init__.py: `parted_on_wall(found, rows, plan)` -> `pass`
     Break: score/review/holders/__init__.py: `parted_on_floor(found, items, plan, inventory)` -> `pass`
     Break: score/review/holders/__init__.py: `for rest in others):` -> `for rest in []):`
@@ -643,6 +654,28 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
                    {"RAILING 1": ["railing"], "RAILING 2": ["railing"]}, structure=["floor_grating"])
     railings = by_item_of(holders.relations(plan, {"rows": rows[:2], "picture": PICTURE}))
     assert "spot" not in railings["RAILING 2"], railings  # no floor room beside it: kept as drawn
+    rows = [{"id": "pipes", "noun": "pipes", "anchor": "wall", "where": "left wall", "size": [4.0, 0.2, 0.2],
+             "count": 3}]
+    plan = plan_of([["PIPES 1", 0.2, 1.0, 0.4, 4.0, None, "item"], ["PIPES 2", 0.2, 7.0, 0.4, 4.0, None, "item"]],
+                   {"PIPES 2": ["pipes"], "PIPES 1": ["pipes"]}, walls=ROOM_WALLS)
+    pipes = by_item_of(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
+    first = pipes["PIPES 1"]["pieces"]
+    assert len(first) == 2 and abs(first[0]["spot"][1] - first[1]["spot"][1]) >= 4.0, first
+    assert "pieces" not in pipes["PIPES 2"], pipes
+    rows = [{"id": "front_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
+            {"id": "shop_door", "noun": "door", "anchor": "on:front_wall", "size": [1.0, 0.1, 2.1]}]
+    plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"],
+                    ["SHOP DOOR 1", 14.5, 0.0, 1.0, 0.2, None, "item"]],
+                   {plan_checks.WALLS_ITEM: ["front_wall", "shop_door"], "SHOP DOOR 1": ["shop_door"]},
+                   structure=["front_wall"], walls=ROOM_WALLS,
+                   openings=[{"kind": "door", "at": [3.0, 0.0], "wide": 1.0, "sill": 0.0, "head": 2.1},
+                             {"kind": "door", "at": [15.0, 0.0], "wide": 1.0, "sill": 0.0, "head": 2.1}])
+    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})["relations"]
+    assert [(entry["item"], entry["opening"]["at"]) for entry in found if entry["row"] == "shop_door"] == [
+        ("SHOP DOOR 1", [15.0, 0.0])], found
+    assert holders.piles({"id": "sandbags", "size_words": "knee high pile"}) and not holders.piles(
+        {"id": "railing", "where": "around engines", "size_words": "waist high"})
+    assert holders.PILE_WORDS == plan_fixes.PILE_WORDS
 
 
 def test_the_relations_are_kept_beside_the_plan_with_its_sha(tmp_path, monkeypatch):

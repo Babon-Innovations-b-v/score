@@ -526,9 +526,78 @@ def seat_faults(objects, sizes, rows, design):
     return found
 
 
+# A laid object's built footprint is judged at this many spots along each of its sides (its middle among them).
+FOOT_SPOTS = 5
+
+
+def footprint(entry, size, design):
+    """Plan spots over a laid object's built footprint, turned as it is laid: FOOT_SPOTS along and across it, edges
+    and middle (a stair's railing stands on its flight's edge, its corners past the flight's ends)."""
+    x = x_axis(entry["rotation"])
+    middle, z = np.array([entry["at"][0], entry["at"][2]]), np.array([-x[1], x[0]])
+    shares = np.linspace(-0.5, 0.5, FOOT_SPOTS)
+    return [plan_of_place(design, [point[0], entry["at"][1], point[1]])[0] for point in
+            [middle + x * size[0] * along + z * size[1] * across for along in shares for across in shares]]
+
+
+def ground_under(spots, height, design):
+    """Whether a foot `height` over the floor at plan `spots` stands on the floor, a deck under one (writer's
+    deck_height), a level whose outline holds one, or a flight of stairs over one between its foot and top, within
+    TOLERANCE."""
+    stands = [0.0] + [writer.deck_height(design, spot) for spot in spots] + [
+        float(level["height"]) for level in design.get("levels") or [] if len(level.get("points") or []) >= 3
+        and any(design_shell.inside(spot, level["points"]) for spot in spots)] + [
+        min(max(height, float(stair["from"])), float(stair["to"])) for stair in design.get("stairs") or []
+        if len(stair.get("points") or []) >= 3 and any(design_shell.inside(spot, stair["points"]) for spot in spots)]
+    return any(abs(height - stand) <= TOLERANCE for stand in stands)
+
+
+def floor_faults(objects, design, sizes, relations, rows):
+    """Each object its relation stands on the place's floor (holders' `floor`) laid over it with nothing under it:
+    its foot more than half its built height (and TOLERANCE) over the floor, every deck, level and flight under its
+    footprint (ground_under) and the top of every other object under it that stands itself (any held one, one on
+    the floor, one on such: a pile of one on another stands only while its foot does), never one of its own row's
+    unless its row piles (holders.piles: sandbags on sandbags, never a railing on a railing). Less is the plan's base
+    estimate, which the settle lets down. 2026-11-06: the engine room's railings 5 to 8, which the plan's fixes piled
+    1 to 4 m over one another, passed every gate."""
+    on_floor = {(entry["item"], entry["row"]) for entry in (relations or {}).get("relations", [])
+                if entry.get("how") == "floor"}
+    checked = {}  # name: (entry, its built size, its footprint, its foot's height) of each object on the floor
+    for entry in objects:
+        named, size = re.match(r"plan item '(.+?)'", entry.get("from", "")), sizes.get(entry["row"])
+        if named and size and (named.group(1), entry["row"]) in on_floor:
+            checked[entry["name"]] = (entry, size, footprint(entry, size, design),
+                                      plan_of_place(design, entry["at"])[1])
+    loose = {name for name, (_, size, spots, height) in checked.items()
+             if height > max(OFF_FLOOR, size[2] / 2) and not ground_under(spots, height, design)}
+    standing = [entry for entry in objects if entry["name"] not in loose and sizes.get(entry["row"])]
+    while True:  # a loose one stands on the top of one standing under it
+        stood = {name for name in loose if any(
+            abs(plan_of_place(design, other["at"])[1] + sizes[other["row"]][2] - checked[name][3]) <= TOLERANCE and
+            any(spot_in(spot, other, sizes[other["row"]], design) for spot in checked[name][2])
+            for other in standing if other["name"] != name and (other["row"] != checked[name][0]["row"] or
+                                                                holders.piles(rows.get(other["row"]) or {})))}
+        if not stood:
+            break
+        loose -= stood
+        standing += [checked[name][0] for name in stood]
+    return [f"{name} stands {checked[name][3]:.2f} m over the floor with nothing under it, its row on the floor"
+            for name in sorted(loose, key=lambda name: [entry["name"] for entry in objects].index(name))]
+
+
+def spot_in(spot, entry, size, design):
+    """Whether a plan spot lies in a laid object's built footprint (within TOLERANCE)."""
+    x = plan_turn(design, x_axis(entry["rotation"]))
+    x = x / max(float(np.linalg.norm(x)), 1e-9)
+    off = np.asarray(spot, float) - plan_of_place(design, entry["at"])[0]
+    return abs(float(off @ x)) <= size[0] / 2 + TOLERANCE and \
+        abs(float(off @ np.array([-x[1], x[0]]))) <= size[1] / 2 + TOLERANCE
+
+
 def judge_laid_as_designed(output, inputs, evidence):
     """Fail on pieces of one row at one spot, a wall thing facing its wall, longer than its wall or on the floor where
-    its words say high, a thing hung from the roof off its underside, or a seat away from what it stands at."""
+    its words say high, a thing hung from the roof off its underside, a seat away from what it stands at, or a thing
+    on the floor standing over it with nothing under it."""
     place, record = writer.record_in(output)
     design = design_of(inputs, place)
     handin = json.loads(pathlib.Path(inputs["hand-in"]).read_text())
@@ -536,7 +605,8 @@ def judge_laid_as_designed(output, inputs, evidence):
     sizes, objects = sizes_of(handin), [entry for entry in record.get("objects", []) if entry.get("kind") == "object"]
     relations, _ = writer.relations_input(inputs, place)
     faults = spot_faults(objects) + held_wall_faults(objects, design, sizes, rows) + \
-        roof_faults(objects, design, sizes, relations, rows) + seat_faults(objects, sizes, rows, design)
+        roof_faults(objects, design, sizes, relations, rows) + seat_faults(objects, sizes, rows, design) + \
+        floor_faults(objects, design, sizes, relations, rows)
     reason = "; ".join(faults[:3]) + (f" and {len(faults) - 3} more" if len(faults) > 3 else "") if faults else \
         f"its {len(objects)} objects stand as the design lays them"
     return checks.Verdict("laid-as-designed", checks.FAIL if faults else checks.PASS, reason,

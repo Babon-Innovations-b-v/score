@@ -118,6 +118,9 @@ SEAT_GAP = 0.1
 LEANING, ATTACHED = "leaning", "attached"
 LEAN_WORDS = {"leaning", "leans", "leant", "leaned", "propped"}
 ATTACH_WORDS = {"attached", "bolted", "welded", "clamped", "screwed", "strapped", "fastened", "affixed"}
+# A row's words that say its things pile on one another (airlock's sandbags, "knee high pile"): only such a row's things
+# stand on their own row's (plan_fixes.PILE_WORDS, held equal by the test; the scene record's laid-as-designed gate).
+PILE_WORDS = {"pile", "piles", "piled", "stack", "stacks", "stacked", "heap", "heaps", "heaped"}
 
 
 def plan_sha(text):
@@ -164,6 +167,12 @@ def under_roof(row):
     return (row.get("anchor") or "") in ("ceiling", "roof") or bool(where_words(row) & ROOF_WORDS)
 
 
+def piles(row):
+    """Whether a row's things pile on one another: a PILE_WORDS word in its id, name, noun, where or size words."""
+    return bool(PILE_WORDS & set(re.findall(r"[a-z]+", " ".join(
+        str(row.get(key) or "") for key in ("id", "name", "noun", "where", "size_words")).replace("_", " ").lower())))
+
+
 def words_of(row):
     return set(re.findall(r"[a-z]+", f"{row['id']} {row.get('name', '')} {row.get('noun', '')}".replace("_", " ").lower()))
 
@@ -179,12 +188,18 @@ def holder_kind(row):
 
 
 def items_of(plan):
-    """{plan item name: item} of the plan's things, and {row id: [its item names]}."""
+    """{plan item name: item} of the plan's things, and {row id: [its item names, in the plan's order]}: the walls
+    item (WALLS_ITEM) none of a row the plan also places on an item of its own, which the scene record lays it at
+    alone (its writer.item_rows; 2026-11-06: street's restaurant doors and shutters were given openings on the walls
+    item too, which the record never lays, and their wall too crowded to part their own)."""
     items = {item[0]: item for item in plan.get("items") or [] if len(item) > 6 and item[6] == "item"}
-    rows = {}
-    for name, ids in (plan.get("rows") or {}).items():
-        for row_id in ids if name in items else []:
+    tied, rows = plan.get("rows") or {}, {}
+    for name in items:
+        for row_id in tied.get(name) or []:
             rows.setdefault(row_id, []).append(name)
+    for names in rows.values():
+        if plan_checks.WALLS_ITEM in names and len(names) > 1:
+            names.remove(plan_checks.WALLS_ITEM)
     return items, rows
 
 
@@ -1158,10 +1173,16 @@ def plan_items(plan):
 
 
 def pieces_at(name, row, plan, tied):
-    """How many pieces the scene record lays at a plan item of the row (its writer.pieces_of): its shape's count; the
-    row's own count on its only item."""
-    count = int(((plan.get("shapes") or {}).get(name) or {}).get("count") or 1)
-    return max(count, int(row.get("count") or 1)) if len(tied.get(row["id"]) or []) == 1 else count
+    """How many pieces the scene record lays at a plan item of the row (its writer.pieces_of): its shape's count, and
+    what the row's items fall short of its own count laid one more an item in turn from the first in the plan's order
+    (2026-11-06: hangar's 8 pipes on 7 items, its first laying 2, both at its one wall spot)."""
+    shapes, names = plan.get("shapes") or {}, tied.get(row["id"]) or []
+    if name not in names:
+        return int((shapes.get(name) or {}).get("count") or 1)
+    counts = [int((shapes.get(each) or {}).get("count") or 1) for each in names]
+    for turn in range(max(int(row.get("count") or 1) - sum(counts), 0)):
+        counts[turn % len(counts)] += 1
+    return counts[names.index(name)]
 
 
 def packed(alongs, length, long):
@@ -1505,7 +1526,7 @@ def relations(plan, inventory, sha=None, kinds=None):
     for name, item in items.items():
         for row_id in (plan.get("rows") or {}).get(name) or []:
             row = rows.get(row_id)
-            if row is None:
+            if row is None or name not in tied.get(row_id, []):  # a walls row placed on an item of its own
                 continue
             seated = beside_holder(item, row, rows, laid, items)
             if seated and pieces_at(seated[1], seated[0], plan, tied) == 1:  # one holder there, not a run of them
