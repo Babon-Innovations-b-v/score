@@ -35,7 +35,8 @@ move, so two places that show each other never load each other round.
                        (data/checks/motion.json `prims`) that no moving row has is not asked for; a move no
                        writer makes (the record's `unmade`: a rocket's exhaust, a flag's cloth in the air) fails, and so does
                        every row no stage makes (row_kinds.uncovered: a moving word in its noun whose kind gives no
-                       move nor a written reason to stand, or a `does` no stage reads, a screen's picture)
+                       move nor a written reason to stand, or a `does` no stage reads; a screen's picture is
+                       the screens stage's, data/checks/screens.json `read_by`)
              passed    a door (a row whose rule needs a passer) is off its rest only while a walker of the accepted
                        cast (the cast row's cast.json) stands within from_design.NEAR of it, read off the walkers'
                        routes: never on a clock with nobody there (the M3 diagnosis)
@@ -107,11 +108,19 @@ def files(place):
     stage with its kit and its design's surface data (which bakes of other places it lays, as the settle)."""
     return {**row_kinds.DESIGNED, "kinds": "{data}/checks/motion.json", "seed": "{seeds}/usd-r3/{place}",
             "sky": "{home}/design/sky/{place}.json", "bodies": "{data}/physics/bodies.json",
-            "surfaces": "{home}/design/surfaces/{place}.json", **layer_base.files(place)}
+            "surfaces": "{home}/design/surfaces/{place}.json", "screens": "{data}/checks/screens.json",
+            **layer_base.files(place)}
 
 
 def read_json(path):
     return json.loads(pathlib.Path(path).read_text())
+
+
+def coverage(inputs):
+    """The row-kind table's coverage words with the stages that make what row-kinds.json leaves unmade named over
+    its `read_by` (data/checks/screens.json: a screen's picture is the screens stage's, #88)."""
+    found = row_kinds.coverage(inputs["row kinds"])
+    return dict(found, read_by={**found["read_by"], **read_json(inputs["screens"])["read_by"]})
 
 
 def place_of(inputs):
@@ -737,7 +746,7 @@ def judge_covered(output, inputs, evidence):
                          "the concept removed it" for name in gone if name not in removed]
     missing += list(record.get("unmade", [])) + row_kinds.uncovered(read_json(inputs["design"]),
                                                                   row_kinds.table(inputs["row kinds"]),
-                                                                  row_kinds.coverage(inputs["row kinds"]))
+                                                                  coverage(inputs))
     measures = {"moving kinds": len(wanted), "moved": len([path for path in wanted if path in moved]),
                 "still with a reason": len(wanted) - len(unmoved) - len([path for path in wanted if path in moved]),
                 "removed by the concept": len([name for name in gone if name in removed])}

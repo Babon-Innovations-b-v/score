@@ -106,6 +106,7 @@ def toy_inputs(folder, rows=ROWS, extra=(), cast=(WALKER,), sky=a_sky("earth", 9
     (folder / "cast").mkdir(exist_ok=True)
     (folder / "cast/cast.json").write_text(json.dumps({"characters": list(cast)}))
     return {"design": folder / "inventory.json", "row kinds": REPO / "data/checks/row-kinds.json",
+            "screens": REPO / "data/checks/screens.json",
             "kinds": REPO / "data/checks/motion.json", "seed": seed, "cast": folder / "cast",
             "sky": folder / "sky.json", "bodies": REPO / "data/physics/bodies.json"}
 
@@ -469,9 +470,9 @@ def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
     launching rocket, flags, a body of water, 102 screens). A launching rocket in the sky over Earth climbs straight
     up at the middle of its kind's cited push, (11.13 + 13.84) / 2 = 12.485 m/s/s, less Earth's 9.82: 2.665 m/s/s,
     so 0.5 * 2.665 * 20^2 = 533 m risen in the 20 s round, and `speeds`, `grounded` and the check pass it; its
-    exhaust (no effect kind makes it), a wind turbine (a moving word no kind moves) and a screen (a `does` no stage
-    reads) each fail `covered` by name, and a design holding only the turbine has the motion row, so the fault is
-    judged. A launch written with no pull taken off climbs at the whole 12.485 m/s/s, which with Earth's pull is a
+    exhaust (no effect kind makes it) and a wind turbine (a moving word no kind moves) each fail `covered` by name,
+    and a design holding only the turbine has the motion row, so the fault is judged; a screen is not among them, its
+    picture the screens stage's (data/checks/screens.json `read_by` over row-kinds.json's null, #88). A launch written with no pull taken off climbs at the whole 12.485 m/s/s, which with Earth's pull is a
     push of 22.3, over the kind's: `speeds` fails it. On the Moon (3e-13 kPa of air, the reference table's) the flag hangs still with its reason and the
     rocket (12.485 over 1.624) climbs off its pad on the floor, `grounded` reading it once it has risen half a metre; under a body pulling 15 m/s/s it stands, its push not lifting it.
     Break: score/stages/motion/__init__.py: `if path not in moved and path not in still and path.rsplit("/", 1)[-1] not
@@ -482,6 +483,8 @@ def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
         kinds[kind].get("stands")):` -> `if False:`
     Break: score/stages/design_layers.py: `return found | {"motion"} if row_kinds.uncovered(inventory, kinds) else
         found` -> `return found`
+    Break: score/stages/motion/__init__.py: in coverage, `**read_json(inputs["screens"])["read_by"]` dropped (the
+        screen fails `covered` again)
     Break: score/stages/motion/from_design.py: `"climb": {"lift": 0.0, "push": round(push, 4), "pull":
         float(body["gravity"])},` -> `"climb": {"lift": 0.0, "push": round(push, 4), "pull": 0.0},`
     Break: score/stages/motion/__init__.py: `push = 2.0 * risen / (seconds - lift) ** 2 + float(body["gravity"])` ->
@@ -521,8 +524,7 @@ def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
     assert verdict.answer == checks.FAIL, verdict.reason
     assert [line.split(":", 2)[:2] for line in verdict.findings] == [
         [f"/{PLACE}/Objects/rocket_1", " exhaust, its exhaust's flame and smoke under it, which no effect kind makes "
-         "yet (data/checks/effects.json measures no rocket exhaust on footage)"], ["turbine", " \"wind turbine\" names a moving thing (turbine), and its kind (none) gives it no move and no written reason to stand (data/checks/row-kinds.json)"],
-        ["screen", " its kind screen shows, and no stage makes that (row-kinds.json `read_by`)"]], verdict.findings
+         "yet (data/checks/effects.json measures no rocket exhaust on footage)"], ["turbine", " \"wind turbine\" names a moving thing (turbine), and its kind (none) gives it no move and no written reason to stand (data/checks/row-kinds.json)"]], verdict.findings
     assert "motion" in design_layers.kinds_of({"rows": [unmade[1]]})
     unpulled = dict(record, moves=[dict(entry, climb=dict(entry["climb"], pull=0.0)) if "climb" in entry else entry
                                    for entry in record["moves"]])

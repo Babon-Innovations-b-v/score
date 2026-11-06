@@ -29,7 +29,7 @@ from score import checks, contracts, graph
 from score.checks import grain
 from score.stages import (animals, assembly, cast, complete, crops, demo_film, design_layers, earth_seed, effects,
                           gaps, images, library, light, motion, people, people_cloth, physics, scene_record, settling,
-                          scene_clips, shapes_first, shell_split, sim_body, sound,
+                          scene_clips, screens, shapes_first, shell_split, sim_body, sound,
                           surface_tiles, surfaces, terrain, video_clips)
 from score.stages.surfaces import bake_check, body_faces, carry, claude_asks, library_reads, route_check, uv_layout
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
@@ -125,13 +125,16 @@ def assembly_neighbours(place):
 
 # The place's final assembly: its seed with every accepted layer it reads in place of the seed's part (assembly.READS,
 # joined in `layered` for each layer stage the table holds), its layers gate unknown while one it needs is missing.
-# Its held gate takes held_apart's face rule here, in the table, so no maker hashing the assembly's package moves.
-ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE,
+# Its held gate takes held_apart's face rule here, in the table, so no maker hashing the assembly's package moves; its
+# make lays each screen row's picture over its baked asset after it (screens.assembled, #88), wrapped here for the same
+# reason.
+ASSEMBLY = graph.Stage("assembly", "place", screens.assembled(assembly.make_from_seed), contracts.OPENUSD_STAGE,
                        tuple(dataclasses.replace(check, judge=held_apart.judge_held) if check.name == "held" else check
                              for check in assembly.CHECKS),
                        files=assembly.files, gatherers=assembly.GATHERERS,
                        after={"terrain": ("grounds", 2),
-                              "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
+                              "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
+                              "screens": ("screens", 1)},
                        beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
                                "surface-library": ("surface-library", 1)},
                        neighbours=assembly_neighbours)
@@ -540,7 +543,16 @@ ENVIRONMENT_FILM = graph.Stage("environment-film", "world", demo_film_final.make
                                neighbours=filmed_places)
 
 
-STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
+# Each screen row's picture (score/stages/screens, #88, free): its take's display parts given the library's screen
+# picture over its bake, which the assembly lays over the baked asset; nothing before the assembly reads it.
+SCREENS = graph.Stage("screens", "place", screens.make, screens.CONTRACT, screens.CHECKS, files=screens.files,
+                      after={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
+                             "finish-route-palette": ("finish-route-palette", 1),
+                             "surface-library": ("surface-library", 1)},
+                      applies=screens.applies)
+
+
+STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, SCREENS, ASSEMBLY, NEIGHBOURS,
           SCENE_TREE,
           COMPLETE, DEMO_FILM, DEMO_FILM_EXTRA, BODY_PEEL, PLACE_PEEL, ENVIRONMENT_FILM,
           GROUND_FIT, PHYSICS_LAYER,
@@ -640,7 +652,7 @@ BATCH_GATES = {"pixal": ("takes",), "finish-route-list": ("library first",),
                                   "texture layout sound"),
                "finish-route-recheck": ("library surface fits",), "likeness": ALL, "complete": ALL,
                "sound": ("likeness", "events", "voices"), "crops-layer": ("on beds", "spacing"),
-               "crops-look": ("density",), "motion": ("designed",)}
+               "crops-look": ("density",), "motion": ("designed",), "screens": ("pictured",)}
 
 
 def with_gap_files(files, row=None):
