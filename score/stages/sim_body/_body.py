@@ -1,5 +1,7 @@
 """The sim body stage's body: a person's rig at its own build (`person_rig`, its clips played as the people build
 plays them: `tools.characters.played`), its segments, its clips' frames and its mass by #64's rule."""
+import pathlib
+
 import numpy as np
 
 from tools.characters import played
@@ -135,7 +137,7 @@ def stood(rig, local):
     return moved
 
 
-def person_rig(rig, built):
+def person_rig(rig, built, contacts=None):
     """The clips rig at a person's own build, as the people build plays its clips (`tools.characters.played`, the
     people route's one definition: prop_build.py's clip_world and floor_lift): the built body's bind and surface
     (rig.npz's moved mean surface), every clip's joint offsets the built ones and its travel (Hips) scaled by the built
@@ -143,13 +145,30 @@ def person_rig(rig, built):
     does; and that size. With no build, the rig's own bind is the build, size 1: its clips were posed on SOMA's
     zero-identity body, 7 cm shorter than the template its bind and surface are, and their own offsets floated its
     skin 26 to 57 mm over its ground (#70). Each clip's standing feet then stand on the bind's floor (`stood`):
-    Kimodo's own clips float and sink theirs."""
+    Kimodo's own clips float and sink theirs. Then a clip with Kimodo's foot contacts in `contacts` ({clip: its
+    foot_contacts}, `contacts_of`) has Kimodo's own foot correction run on the build's bones (`played.contacted`):
+    its feet on their contact frames held at the bind's own ankle and toe heights, so a longer leg meets the floor."""
     built, size, lift = played_build(rig, built)
     found = dict(rig, bind=np.asarray(built["bind"]), points=np.asarray(built["source_points"]))
     for key in [key for key in rig if key.startswith("clip_")]:
-        found[key] = stood(found, played.clip_local(rig, key[len("clip_"):], built["offsets"], rig["parents"], size,
-                                                    lift))
+        clip = key[len("clip_"):]
+        found[key] = stood(found, played.clip_local(rig, clip, built["offsets"], rig["parents"], size, lift))
+        if clip in (contacts or {}):
+            found[key] = played.contacted(found[key], rig["names"], rig["parents"], found["bind"], contacts[clip])
     return found, size
+
+
+def contacts_of(folder, rig):
+    """{clip: Kimodo's foot_contacts} of the rig's clips whose Kimodo motion (people-clips-made's
+    `motions/<clip>.npz`, Kimodo's own output) under `folder` carries them."""
+    found = {}
+    for clip in [key[len("clip_"):] for key in rig if key.startswith("clip_")]:
+        motion = pathlib.Path(folder) / "motions" / f"{clip}.npz"
+        if motion.exists():
+            with np.load(motion) as saved:
+                if "foot_contacts" in saved.files:
+                    found[clip] = saved["foot_contacts"]
+    return found
 
 
 def standing_height(rig):

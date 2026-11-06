@@ -9,7 +9,16 @@ Breaks (each applied once, seen red, reverted), 2026-10-29:
 - clip_local's `*= scale` dropped: a build 1.1 times the rig travels as far as the rig.
 - chained's `world[:, parents[joint]] @ local[:, joint]` made `local[:, joint] @ world[:, parents[joint]]`: a turned
   hip carries its leg the wrong way.
+Kimodo's own foot correction (`contacted`, #70, 2026-11-06): its skeleton is Kimodo's somaskel30 joint by joint (read
+from vendor/kimodo's definitions.py), a SCORE rig maps onto it with its Root and end sites left out, a leg hung from
+the wrong joint is refused, and a clip carried to Kimodo's motion and back is itself (MotionCorrection is not built in
+the score venv: the correction's numbers are on #70). Breaks, each applied once and seen red, reverted:
+- kimodo_joints' parent check dropped: a RightFoot hung from the LeftShin passes.
+- to_kimodo's `np.swapaxes(turns[:, parent], 1, 2) @` dropped: the clip comes back turned.
+- to_kimodo's rest `bind[parents[own], :3, :3] @` dropped: the rest's ankle is not where the bind's is.
+- foot_contacts' `CONTACT_CHANNELS[6]` made `(0, 1, 2, 3)`: the left toe end read as the right heel.
 """
+import ast
 import pathlib
 
 import numpy as np
@@ -44,6 +53,30 @@ def toy():
     return {"bind": bind, "clip_standing": placed(short, hips=0.97), "clip_walking": placed(short, np.pi / 2, hips=0.97)}
 
 
+def turned(rng, count):
+    """`count` random turns (count x 3 x 3)."""
+    found, _ = np.linalg.qr(rng.normal(size=(count, 3, 3)))
+    return found * np.sign(np.linalg.det(found))[:, None, None]
+
+
+def kimodo_shaped():
+    """A SCORE-shaped rig of Kimodo's joints (its Root, HeadEnd and toe ends besides, its jaw, eyes and hand ends
+    not): names, parents, a bind of random turns, and a 4-frame clip of random turns on its offsets."""
+    rng = np.random.default_rng(3)
+    joints = [("Root", None)] + [(name, parent or "Root") for name, parent in played.KIMODO_SKELETON
+                                 if name not in played.KIMODO_ONLY]
+    joints += [("HeadEnd", "Head"), ("LeftToeEnd", "LeftToeBase"), ("RightToeEnd", "RightToeBase")]
+    names = [name for name, _ in joints]
+    parents = np.array([-1 if parent is None else names.index(parent) for _, parent in joints])
+    bind = np.tile(np.eye(4), (len(names), 1, 1))
+    bind[:, :3, :3] = turned(rng, len(names))
+    bind[:, :3, 3] = rng.normal(size=(len(names), 3))
+    local = np.tile(np.eye(4), (4, len(names), 1, 1))
+    local[..., :3, :3] = turned(rng, 4 * len(names)).reshape(4, len(names), 3, 3)
+    local[..., :3, 3] = rng.normal(size=(len(names), 3))
+    return names, parents, bind, local
+
+
 def test_the_standing_feet_stand_where_the_bind_puts_them():
     rig = toy()
     bones = {"offsets": BIND_OFFSETS, "parents": PARENTS, "bind": rig["bind"]}
@@ -51,6 +84,36 @@ def test_the_standing_feet_stand_where_the_bind_puts_them():
     world = played.clip_world(rig, "standing", BIND_OFFSETS, PARENTS, 1.0, lift)
     assert world[0, [3, 4], 1, 3] == pytest.approx(rig["bind"][[3, 4], 1, 3])
     assert lift == pytest.approx(0.03)
+    # Kimodo's own correction runs on the build's bones: its skeleton is Kimodo's own, a rig maps onto it joint by
+    # joint, and a clip carried to Kimodo's motion and back is itself, the rest's feet where the bind puts them
+    source = (pathlib.Path(__file__).resolve().parents[3] / "vendor/kimodo/kimodo/skeleton/definitions.py").read_text()
+    tree = next(node for node in ast.walk(ast.parse(source)) if isinstance(node, ast.ClassDef)
+                and node.name == "SOMASkeleton30")
+    kimodo = next(node.value for node in tree.body if isinstance(node, ast.Assign)
+                  and node.targets[0].id == "bone_order_names_with_parents")
+    assert played.KIMODO_SKELETON == tuple(ast.literal_eval(kimodo))
+    names, parents, bind, local = kimodo_shaped()
+    joints = played.kimodo_joints(names, parents)
+    assert [names[own] for own, _ in joints][:3] == ["Hips", "Spine1", "Spine2"] and len(joints) == 23
+    wrong = parents.copy()
+    wrong[names.index("RightFoot")] = names.index("LeftShin")
+    with pytest.raises(ValueError, match="RightFoot hangs from LeftShin"):
+        played.kimodo_joints(names, wrong)
+    motion, hips, rest = played.to_kimodo(local, bind, joints, parents)
+    back = played.from_kimodo(local, bind, joints, parents, motion, hips)
+    assert back == pytest.approx(local, abs=1e-9)
+    at_bind = np.array(local[:1])
+    for joint, parent in enumerate(parents):
+        above = np.eye(4) if parent < 0 else bind[parent]
+        at_bind[0, joint, :3, :3] = above[:3, :3].T @ bind[joint, :3, :3]
+    at_bind[0, 0] = bind[0]
+    at_bind[0, names.index("Hips"), :3, 3] = np.linalg.inv(bind[0])[:3] @ np.r_[bind[names.index("Hips"), :3, 3], 1]
+    ankle = played.chained(at_bind, parents)[0, names.index("LeftFoot"), :3, 3]
+    assert rest[[names[own] for own, _ in joints].index("LeftFoot")] == pytest.approx(ankle)
+    six = np.zeros((2, 6))
+    six[:, 2] = 1.0  # the left toe end, which the correction does not hold
+    six[:, 3] = 1.0  # the right heel
+    assert played.foot_contacts(six).tolist() == [[0.0, 0.0, 1.0, 0.0]] * 2
 
 
 def test_a_turned_hip_carries_its_leg_on_the_build_bones():

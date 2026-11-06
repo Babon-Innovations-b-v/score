@@ -125,7 +125,12 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   down, the lowest standing sole brought to y = 0, smooth to `STOOD_HZ`, a flight bridged). It is the clip as the
   stage plays it, its poses included: the drawn person and the sim body stand alike; never the sim body moved onto
   its ground. A walk's two feet stand at different heights at the change of foot, which no move of the whole body
-  meets: it gets closer, not within `GAP`. `route_clip`'s treads are not stood.
+  meets: it gets closer, not within `GAP`. Then Kimodo's own foot correction (2026-11-06, `played.contacted`, on a
+  clip whose people-clips-made `motions/<clip>.npz` carries Kimodo's foot_contacts, `contacts_of`) holds each foot on
+  Kimodo's contact frames at the build's own bind ankle and toe heights; the root is not moved. Measured on the mean
+  body (Kimodo's contact frames, sole p5/median/p95 mm): walk L -1.2/0.0/10.0 to -1.4/0.1/0.7, R -0.8/0.2/14.8 to
+  -1.2/0.2/0.6; a lunge's back foot, heel flagged in contact while pitched, sinks to -11.2/-3.0/0.7 from
+  -0.3/16.7/33.0. `route_clip`'s treads are not stood.
 - **Its frame is the skin's**: the person's spot and turn, then the dressed body's Turned (`TURNED`, 180 degrees about
   up, prop_build.py's root node), so the ground it walks is the ground under the skin's feet (`own_frame`). MuJoCo's
   frame is Z up; `TO_OWN` turns everything back to the person's Y up.

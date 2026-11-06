@@ -84,8 +84,8 @@ import numpy as np
 
 from score import checks, contracts
 from score.stages import layer_base
-from score.stages.sim_body._body import (BODY, RATE, body_row, clip_frames, mass_of, person_rig,  # noqa: F401
-                                         route_clip, segments_of, standing_height)
+from score.stages.sim_body._body import (BODY, RATE, body_row, clip_frames, contacts_of, mass_of,  # noqa: F401
+                                         person_rig, route_clip, segments_of, standing_height)
 from score.stages.sim_body._gates import (EMPTY_CAST, FOLLOWED, LAYER, MOVE_MOST, NO_SINGLES,  # noqa: F401
                                           RECORD, RESIDUAL_FORCE, RESIDUAL_MOMENT, judge_carries, judge_follows,
                                           judge_lands, judge_on_floor, judge_residual, judge_smooth, measured,
@@ -208,6 +208,7 @@ def make(inputs, out, seed, params):
     cast = json.loads((pathlib.Path(inputs["cast"]) / "cast.json").read_text())
     place = cast["place"]
     clips_rig = dict(np.load(pathlib.Path(inputs[CLIPS_ROW]) / "rig.npz"))
+    contacts = contacts_of(inputs[CLIPS_ROW], clips_rig)  # Kimodo's own foot contacts, its motions' (person_rig)
     body, gravity = gravity_of(place, inputs)
     solids = solids_of(inputs, place)
     job, records, left_out = {"rate": RATE, "gravity": gravity, "people": []}, {}, []
@@ -222,7 +223,7 @@ def make(inputs, out, seed, params):
         row = body_row(single)
         if row not in builds:
             built = dict(np.load(pathlib.Path(inputs[row]) / "rig.npz")) if row in inputs else None
-            builds[row] = (*person_rig(clips_rig, built), built)
+            builds[row] = (*person_rig(clips_rig, built, contacts), built)
         rig, size, built = builds[row]
         clip = single["doing"]
         if single.get("stairs"):
