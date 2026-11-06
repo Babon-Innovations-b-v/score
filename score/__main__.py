@@ -11,11 +11,17 @@
     .venv/bin/python -m score price <environment> --node N [--node N ...] --json   # each paid node's likely and high price
     .venv/bin/python -m score moved [--pre-push]      # the paid rows this tree would buy again, every environment
     .venv/bin/python -m score resume [--dry]          # start again the runs a reboot cut off (score/graph/runs.py)
+    .venv/bin/python -m score preflight <environment> [--phase P] [--stage S ...] [--place P]  # a phase's free check
 
 `status --json` prints the same lines as one JSON object. `plan` works out what `run` would do with the same arguments,
 running nothing: the missing inputs, the nodes it would make and why, the paid rows it would buy with their estimates
 and the re-buy refusal (the dashboard's launch basket reads it, score/dashboard); each buy's `price` and the run's
 (`price`: likely and high euros and minutes) are `price`'s numbers, so the basket and the clearance read the same.
+`preflight` checks a phase before it is queued (owner, 2026-11-06), free and read only: its plan (no missing input,
+no refusal, every buy priced or said as a guess), every stage module of it importing in a fresh process, its warm pool
+fitting under the stop line as the run would clear it (compute.pool_fits, nothing reserved) and a machine of each class
+that pool rents in stock now; one summary line and one line a failure, exit 1 with any. The phase is --stage's list
+until the stage table has phases (--phase).
 `spend` reads the month's spend as the runner's clearance counts it, and its `paid_refused` says why paid work is
 refused while the month's books are unknown (tools/cloud/ledger.py books_refusal; both ledgers were lost on
 2026-10-19): `--read-back` writes the Scaleway bill and Google's (its billing export, SCORE_GOOGLE_BILLING_TABLE)
@@ -100,9 +106,11 @@ never changes a run's inputs mid-run; the copy goes once the run, and every mach
 """
 import argparse
 import atexit
+import concurrent.futures
 import contextlib
 import datetime
 import importlib.util
+import inspect
 import json
 import math
 import os
@@ -171,6 +179,8 @@ EXTEND_BEFORE_SECONDS = 3600
 POOL_EMPTY_SAY_SECONDS = 600
 # When the pool was first seen with no machine while rows are due on it, and when that was last said.
 POOL_EMPTY = {}
+# The longest one stage module's import may take in the preflight's fresh process.
+IMPORT_SECONDS = 120
 
 
 ENVIRONMENT_HELP = ("the environment's id, one of %(choices)s (stored ids keep the old word: world1 is environment 1)")
@@ -216,7 +226,12 @@ def parse(argv):
     commands.add_parser("moved").add_argument("--pre-push", action="store_true",
                                               help="git's push lines on stdin: refuse the paid rows a push moves")
     commands.add_parser("resume").add_argument("--dry", action="store_true", help="only list the runs it would start")
-    for command in (run, status, plan):
+    check = commands.add_parser("preflight")
+    check.add_argument("world", metavar="environment", choices=sorted(stages.WORLDS), help=ENVIRONMENT_HELP)
+    check.add_argument("--phase", help="the phase whose stages are checked (the stage table's phases)")
+    check.add_argument("--rebuy-reason", help="the reason its run would be given")
+    check.add_argument("--jobs", type=int, help=f"nodes at once, as for run (default {graph.JOBS})")
+    for command in (run, status, plan, check):
         command.add_argument("--place", action="append", help="one place's line (repeat it); default: every place")
         command.add_argument("--stage", action="append", help="only this stage and what it reads (repeat it)")
         command.add_argument("--phase", choices=phases.NAMES,
@@ -810,6 +825,14 @@ def rows_high(prices, pooled=False, field="high_euros"):
                if price.get("cards") or not pooled)
 
 
+def pool_money(prices):
+    """(beside, covered, likely) the warm pool is cleared beside (compute.pool_clearance): the rows' high, the high
+    of the rows sized on its machines, and both at the rows' likely."""
+    prices = list(prices)
+    return (rows_high(prices), rows_high(prices, pooled=True),
+            (rows_high(prices, field="likely_euros"), rows_high(prices, pooled=True, field="likely_euros")))
+
+
 def opened_pool(runner, places, whole, options):
     """Open the run's warm card pool (pool.start, its collector renting beside the run; owner, 2026-10-23: "the buy run
     can just start as soon as one is warm, in the background u just try collecting more till 10") of pool_sizes,
@@ -829,10 +852,8 @@ def opened_pool(runner, places, whole, options):
     pool, hours, run_id = cloud_tool("pool"), compute.ledger().BATCH_HOURS, os.environ[RUN_ID]
     prices = planned_prices(runner, places, whole, options)
     try:
-        likely = (rows_high(prices.values(), field="likely_euros"),
-                  rows_high(prices.values(), pooled=True, field="likely_euros"))
-        ticket = compute.pool_clearance(runner, run_id, pool.shrinking(sizes, hours), hours,
-                                        rows_high(prices.values()), rows_high(prices.values(), pooled=True), likely)
+        beside, covered, likely = pool_money(prices.values())
+        ticket = compute.pool_clearance(runner, run_id, pool.shrinking(sizes, hours), hours, beside, covered, likely)
     except compute.Refused as refused:
         print(f"score run: no warm pool, its rows rent their own machines: {refused}", flush=True)
         return None
@@ -926,6 +947,125 @@ def plan_json(runner, places, whole, options):
                          for buy in found["buys"]]
     return {"world": runner.world.name, "places": places, "stages": options.stage or [], **found,
             "price": plan_price([buy["price"] for buy in found["buys"]], options.jobs)}
+
+
+def preflight(runner, places, whole, options):
+    """A phase's free check before it is queued (owner, 2026-11-06: "u check if nothing will fail before it"), running,
+    renting and reserving nothing: (summary, [failure lines]) of its plan (preflight_plan), its stages' modules
+    (preflight_imports), its warm pool against the stop line (preflight_pool) and the stock of each class that pool
+    rents (preflight_stock). The phase is `options.stage`, its stage names (every stage when None), as `score plan
+    --stage` narrows: the seam a phase table's row fills (phase_stages). A stage name the table does not hold fails
+    alone, nothing else read: a phase of no stages would pass empty."""
+    unknown = unknown_stages(runner, options.stage)
+    if unknown:
+        return f"preflight {runner.world.name}: {len(unknown)} failing; the phase names stages the table lacks", unknown
+    with runner.still():  # each key, read and plan worked out once
+        planned = plan_json(runner, places, whole, options)
+        sizes = pool_sizes(card_rows(runner, places, whole, options), options.jobs)
+    priced, plan_failed = preflight_plan(planned)
+    modules, import_failed = preflight_imports(phase_modules(runner, options.stage))
+    pooled, pool_failed = preflight_pool(runner, sizes, [buy["price"] for buy in planned["buys"]])
+    stock_failed = preflight_stock(sizes) if sizes and not cloud_tool("provider").on_cluster() else []
+    failed = plan_failed + import_failed + pool_failed + stock_failed
+    summary = (f"preflight {runner.world.name} {','.join(options.stage or ['every stage'])}: "
+               f"{'clean' if not failed else f'{len(failed)} failing'}; {priced}; {modules}; {pooled}")
+    return summary, failed
+
+
+def unknown_stages(runner, names):
+    """[failure lines] for each of `names` that is no stage of the runner's table."""
+    return [f"no such stage: {name}" for name in names or [] if name not in runner.stages]
+
+
+def preflight_plan(planned):
+    """(what the plan buys, [failure lines]) of a run's plan (plan_json): each input it is missing, its refusal, and
+    a paid buy with no price at all; a buy priced only by its estimate is said as a guess, never a failure."""
+    failed = [f"missing input: {name}" for name in planned["missing"]]
+    if planned["refusal"] and not planned["missing"]:
+        failed.append(planned["refusal"])
+    guesses = [buy["node"] for buy in planned["buys"] if buy["price"].get("likely_euros") is None]
+    failed += [f"no price: {buy['node']} has neither a measured price nor an estimate" for buy in planned["buys"]
+               if buy["price"].get("high_euros") is None and buy["price"].get("guess_euros") is None]
+    price = planned["price"]
+    said = (f"{len(planned['buys'])} buys, likely EUR {price['likely_euros']:.2f}, high EUR {price['high_euros']:.2f}"
+            + (f", guesses only: {', '.join(guesses)} (EUR {price['guessed_euros']:.2f})" if guesses else ""))
+    return said, failed
+
+
+def phase_modules(runner, names):
+    """The modules of the named stages' makes and checks (every stage when `names` is None), sorted."""
+    chosen = [stage for name, stage in runner.stages.items() if names is None or name in names]
+    functions = [function for stage in chosen for function in (stage.make, *(check.judge for check in stage.checks))]
+    return sorted({getattr(each, "__module__", None) for function in functions
+                   for each in (function, inspect.unwrap(function))} - {None, "__main__"})
+
+
+def import_failure(module):
+    """Why `module` does not import in a fresh Python process from this checkout (the last line of its error), or
+    None when it does."""
+    done = subprocess.run([sys.executable, "-c", "import importlib, sys; importlib.import_module(sys.argv[1])", module],
+                          cwd=REPO, capture_output=True, text=True, timeout=IMPORT_SECONDS,
+                          env={**os.environ, "PYTHONPATH": os.pathsep.join(entry for entry in sys.path if entry)})
+    if done.returncode == 0:
+        return None
+    lines = (done.stderr or done.stdout).strip().splitlines()
+    return lines[-1] if lines else f"exit {done.returncode}"
+
+
+def preflight_imports(modules):
+    """(how many import, [failure lines]) of `modules`, each imported in a fresh process of its own, side by side."""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count() or 1) as pool:
+        found = dict(zip(modules, pool.map(import_failure, modules)))
+    failed = [f"does not import: {module}: {why}" for module, why in found.items() if why]
+    return f"{len(modules) - len(failed)} of {len(modules)} modules import", failed
+
+
+def preflight_pool(runner, sizes, prices):
+    """(what the phase's warm pool would be, [failure lines]): the pool of `sizes` ({class: cards}, pool_sizes)
+    worked out dry against the stop line beside the phase's buys' `prices`, as the run clears it
+    (compute.pool_fits); none failing for a phase with no card rows or one on the cluster."""
+    from score.adapters import compute
+    if not sizes or cloud_tool("provider").on_cluster():
+        return "no warm pool", []
+    hours = compute.ledger().BATCH_HOURS
+    fits, by, over = compute.pool_fits(runner, cloud_tool("pool").shrinking(sizes, hours), *pool_money(prices))
+    if over:
+        return f"warm pool of {sizes} does not fit", [f"pool: no warm pool fits: {over}"]
+    return f"warm pool of {fits} fits beside the rows' {by}", []
+
+
+def preflight_stock(sizes):
+    """[failure lines] for each class of `sizes` with no offer in stock now (the backend's stock word not shortage,
+    as a claim reads it: batch.one_class_in_stock), a free read."""
+    try:
+        found = cloud_tool("provider").cloud.offers(sorted(sizes))
+    except (Exception, SystemExit) as error:  # noqa: BLE001 - said as the check's failure, never a pass
+        return [f"stock: the offers could not be read: {error}"]
+    return [f"out of stock: {name}" for name in sorted(sizes)
+            if not any(offer.machine_class == name and offer.stock_word != "shortage" for offer in found)]
+
+
+def phase_stages(name):
+    """The stage names of phase `name` from the stage table's phases (score.stages PHASES); exits while the table
+    has none, or names no such phase."""
+    phases = getattr(stages, "PHASES", None)
+    if phases is None:
+        sys.exit("score preflight: no phase table yet (score.stages PHASES); name the phase's stages with --stage")
+    if name not in phases:
+        sys.exit(f"score preflight: no phase {name}; one of {', '.join(phases)}")
+    return list(phases[name])
+
+
+def preflight_command(runner, places, whole, options):
+    """Print the preflight's summary and one line a failure; exit 1 with any."""
+    if options.phase:
+        options.stage = [*(options.stage or []), *phase_stages(options.phase)]
+    summary, failed = preflight(runner, places, whole, options)
+    print(summary, flush=True)
+    for line in failed:
+        print(line, flush=True)
+    if failed:
+        sys.exit(1)
 
 
 def counting_store(store):
@@ -1480,6 +1620,9 @@ def main(argv=None):
     places, whole = options.place or stages.places(runner.world, runner.store), not options.place
     if options.command == "plan":
         print(json.dumps(plan_json(runner, places, whole, options)))
+        return
+    if options.command == "preflight":
+        preflight_command(runner, places, whole, options)
         return
     if options.command == "run":
         if options.free:

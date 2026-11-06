@@ -306,7 +306,7 @@ def test_the_door_refuses_a_shell_a_paid_run_the_owners_commands_and_anything_un
                   "job-log a b", "job-log x.home/work/cloud/../../../store/k", "run-log 5", "run-log --lines",
                   "run-log --lines x", "run-log --lines 0", "fault", "fault a b", "fault ../store/k",
                   "fault 'motion@airlock/../../x'", "store-pull cloud", "store-push --delete",
-                  "store-push --missing x"):
+                  "store-push --missing x", "preflight", "preflight --phase props"):
         code, why, argv, _ = door(asked)
         assert code == 126 and argv is None and "refused" in why, (asked, code, why)
     for asked in ("benchmark g1 world1 --detach", "buy 20261025T1700000000", "buy 20261025T1700000000 --phase models"):
@@ -368,6 +368,9 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
     assert code == 0 and argv[1:] == ["--buy-log"], (why, argv)
     code, why, argv, _ = door("resume --dry")
     assert code == 0 and argv == ["-m", "score", "resume", "--dry"]
+    code, why, argv, env = door("preflight world1 --phase props")  # 2026-11-06: a phase checked free before it is queued
+    assert code == 0 and argv == ["-m", "score", "preflight", "world1", "--phase", "props"], (why, argv)
+    assert env["SCORE_FREE_ONLY"] == "1"
     code, why, argv, _ = door("logs --lines 5")
     assert code == 0 and argv == ["-m", "score.conductor", "logs", "--lines", "5"], (why, argv)
     code, why, argv, _ = door("gaps closeup@hub")

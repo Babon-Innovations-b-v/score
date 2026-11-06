@@ -3945,8 +3945,12 @@ def test_score_run_refuses_before_it_starts_records_a_given_reason_and_plans_on_
     """`score run` lists and refuses a EUR 7 re-buy with no reason, writing nothing; given one, the ledger holds it.
     `score plan --json` keeps each estimate as the guess when unmeasured; with every row's minutes measured, the run's
     time is its longest row or its minutes over --jobs, whichever is longer (C3): 10+20+30 over 2 jobs is 30, over 1
-    is 60.
-    Break: score/__main__.py: '    refused = rebuy.refusal(bought, options.rebuy_reason)' -> '    refused = None'"""
+    is 60. `score preflight` (a phase's free check before it is queued, owner 2026-11-06) is clean on this plan, its
+    stages' modules importing in fresh processes and its pool fitting with its class in stock; a missing input, a
+    module that does not import, a pool that does not fit (the month's books unknown) and a class out of stock each
+    fail by name, and it exits 1 with them.
+    Break: score/__main__.py: '    refused = rebuy.refusal(bought, options.rebuy_reason)' -> '    refused = None'
+    Break: score/__main__.py: '    failed = plan_failed + import_failed + pool_failed + stock_failed' -> '    failed = plan_failed'"""
     from score import __main__ as command
     books = compute.ledger()
     monkeypatch.setattr(books, "LEDGER", pathlib.Path(tempfile.mkdtemp()) / "ledger.jsonl")
@@ -3974,3 +3978,29 @@ def test_score_run_refuses_before_it_starts_records_a_given_reason_and_plans_on_
                                             "likely_minutes": 30.0, "high_minutes": 60.0, "measured": 3, "rows": 3,
                                             "jobs": 2}
     assert command.plan_price(timed, 1)["likely_minutes"] == 60.0
+    monkeypatch.setattr(books, "books_refusal", lambda: None)
+    offers = [types.SimpleNamespace(machine_class="gpu-24gb", stock_word="available")]
+    tools = {"provider": types.SimpleNamespace(on_cluster=lambda: False,
+                                               cloud=types.SimpleNamespace(offers=lambda classes: offers)),
+             "pool": types.SimpleNamespace(shrinking=lambda sizes, hours: [(sizes, 3.6)])}
+    monkeypatch.setattr(command, "cloud_tool", tools.get)
+    monkeypatch.setattr(command, "card_rows", lambda *args: [("render@hangar", "hangar", 1, False)])
+    monkeypatch.setattr(command, "pool_sizes", lambda rows, jobs: {"gpu-24gb": len(rows)})
+    options.stage = ["render"]
+    assert command.phase_modules(runner, ["render"]) == [__name__]
+    assert command.preflight(runner, ["hangar"], True, argparse.Namespace(stage=["render", "concept"]))[1] == [
+        "no such stage: concept"]
+    summary, failed = command.preflight(runner, ["hangar"], True, options)
+    assert failed == [] and "clean" in summary and "guesses only: render@hangar" in summary, (summary, failed)
+    assert "1 of 1 modules import" in summary and "warm pool of {'gpu-24gb': 1} fits" in summary, summary
+    (runner.world.roots["data"] / "hangar.txt").unlink()
+    monkeypatch.setattr(command, "phase_modules", lambda runner, names: ["json", "score.no_such_module"])
+    monkeypatch.setattr(books, "books_refusal", lambda: "the month's books are not known")
+    offers[0].stock_word = "shortage"
+    with contextlib.redirect_stdout(io.StringIO()) as printed, pytest.raises(SystemExit) as stopped:
+        command.preflight_command(runner, ["hangar"], True, argparse.Namespace(**vars(options), phase=None))
+    lines = printed.getvalue().splitlines()
+    assert stopped.value.code == 1 and "4 failing" in lines[0] and "1 of 2 modules import" in lines[0], lines
+    assert lines[1].startswith("missing input: draw@hangar: brief (") and "hangar.txt" in lines[1], lines
+    assert lines[2].startswith("does not import: score.no_such_module: ModuleNotFoundError"), lines
+    assert lines[3:] == ["pool: no warm pool fits: the month's books are not known", "out of stock: gpu-24gb"], lines

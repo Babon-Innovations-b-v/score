@@ -702,20 +702,26 @@ def stop_refusal(runner, node, forecast, held):
     or None when it has; the owner's outbox told once per line. Under the framework's store (a trial's own store
     too) a world with no line is refused: the owner sets its money figure before any paid job starts."""
     covering = covering_store(runner.store)
-    line = guard.current(covering, runner.world.name)
-    if line is None:
-        if not covering.is_framework_store():
-            return None  # a test's own store
-        return (f"world {runner.world.name} has no stop line: the owner sets one before any paid job starts "
-                f"(python -m score.review stop {runner.world.name} <euros> --reason \"...\")")
-    spent = guard.spent_since(line["baseline"], months_since(line["baseline"], books_now()))
-    flight = guard.in_flight({**open_overrides(covering), **held}, ledger().entries())
-    why = guard.refusal(line, spent, flight, forecast)
-    if why:
+    line, spent, why = stop_room(runner, covering, forecast, held)
+    if why and line:
         guard.tell_owner(covering.cache.parent, f"{line['world']} stop of {line['at']}",
                          f"paid work held at EUR {spent:.2f} of the EUR {line['euros']:.2f} stop; {node} would have "
                          f"needed EUR {forecast:.2f} more. Free work goes on.")
     return why
+
+
+def stop_room(runner, covering, forecast, held):
+    """(the world's stop line or None, its spend since the line, why it has no room for a job at `forecast` euros
+    with every run in `held` still to come or None), read only: stop_refusal's reading, telling no one."""
+    line = guard.current(covering, runner.world.name)
+    if line is None:
+        if not covering.is_framework_store():
+            return None, 0.0, None  # a test's own store
+        return None, 0.0, (f"world {runner.world.name} has no stop line: the owner sets one before any paid job starts "
+                           f"(python -m score.review stop {runner.world.name} <euros> --reason \"...\")")
+    spent = guard.spent_since(line["baseline"], months_since(line["baseline"], books_now()))
+    flight = guard.in_flight({**open_overrides(covering), **held}, ledger().entries())
+    return line, spent, guard.refusal(line, spent, flight, forecast)
 
 
 def clearing(reservations):
@@ -864,12 +870,11 @@ def pool_clearance(runner, run_id, choices, hours, beside=0.0, covered=0.0, like
     with clearing(reservations):
         held = open_reservations(reservations)
         over = books_refusal() or ("" if choices else "no pool to clear")
-        by = "high"
         if not over:
-            sizes, holding, euros, over = fitting_pool(runner, covering, grant_id, choices, beside, covered, held)
-            if over and likely and not grant_id and stop_refusal(runner, POOL, beside, held):  # may stop at its line
-                sizes, holding, euros, over = fitting_pool(runner, covering, grant_id, choices, *likely, held)
-                by = "likely"
+            sizes, holding, euros, over, by = chosen_pool(
+                choices, beside, covered, None if grant_id else likely,
+                lambda forecast: (grant_refusal(covering, grant_id, forecast, held) if grant_id else
+                                  stop_refusal(runner, POOL, forecast, held)))
         if over:
             raise Refused(f"{POOL} of run {run_id}: {over}")
         cleared = {"node": POOL, "key": run_id, "euros": round(euros, 4), "holding": round(holding, 4),
@@ -884,17 +889,42 @@ def pool_clearance(runner, run_id, choices, hours, beside=0.0, covered=0.0, like
             "store": str(runner.store.cache.parent), "sizes": sizes}
 
 
-def fitting_pool(runner, covering, grant_id, choices, beside, covered, held):
+def chosen_pool(choices, beside, covered, likely, refusal):
+    """(sizes, holding, euros reserved, None, "high") of the largest of `choices` that fits beside the rows' high
+    (fitting_pool); when none does and the rows' high alone has no room (a try that may stop at its line), the largest
+    that fits beside `likely` ((beside, covered) at the rows' likely; None under a grant), "likely" then; the
+    smallest's refusal in place of None when none fits. `refusal(euros)`: why that much has no room, or None."""
+    sizes, holding, euros, over = fitting_pool(choices, beside, covered, refusal)
+    if over and likely and refusal(beside):  # may stop at its line
+        return (*fitting_pool(choices, *likely, refusal), "likely")
+    return sizes, holding, euros, over, "high"
+
+
+def fitting_pool(choices, beside, covered, refusal):
     """(sizes, holding, euros reserved, None) of the largest of `choices` whose reserve (pool_reserve of its holding
-    less `covered`) fits with `beside` under the grant's balance or the world's stop line with every run in `held`;
-    the smallest's refusal in place of None when none fits."""
+    less `covered`) fits with `beside` (`refusal` of the sum None: the grant's balance or the world's stop line with
+    every run held); the smallest's refusal in place of None when none fits."""
     for sizes, holding in choices:
         euros = pool_reserve(holding, covered)
-        over = (grant_refusal(covering, grant_id, euros + beside, held) if grant_id else
-                stop_refusal(runner, POOL, euros + beside, held))
+        over = refusal(euros + beside)
         if not over:
             break
     return sizes, holding, euros, over
+
+
+def pool_fits(runner, choices, beside=0.0, covered=0.0, likely=None):
+    """pool_clearance worked out dry, reserving, holding and telling nothing (a phase's preflight): (sizes, "high" or
+    "likely", None) of the pool it would clear, or (None, None, why) when even the smallest has no room or the
+    month's books refuse paid work (ledger.books_refusal as it stands, no read-back). Against the world's stop line
+    with every open reservation (stop_room); a benchmark grant is not read here (its read settles its balance)."""
+    covering = covering_store(runner.store)
+    held = open_reservations(covering.cache.parent / "reservations.json")
+    over = conductor.project_refusal() or ledger().books_refusal() or ("" if choices else "no pool to clear")
+    if over:
+        return None, None, over
+    sizes, _, _, over, by = chosen_pool(choices, beside, covered, likely,
+                                        lambda forecast: stop_room(runner, covering, forecast, held)[2])
+    return (None, None, over) if over else (sizes, by, None)
 
 
 def extend_pool(runner, ticket, holding, hours):
