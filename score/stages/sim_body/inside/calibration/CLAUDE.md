@@ -5,14 +5,18 @@ turn R_cal between SOMA's segment frame and MyoFullBody's group frame (R_body = 
 the two models' rest poses (SOMA's template bind against MyoFullBody's default pose, couplings applied) by aligning
 each group's anatomical axes (`aligned`, `frame`, `REFERENCES`); `turn(group)` gives it as a matrix.
 
-- `FINGERS` (2026-11-01): the held fingers' rest turns, one per joint for both hands, so MyoFullBody's hand at rest
+- `FINGERS` (2026-11-01, read again 2026-11-06): the held fingers' rest turns, one per joint for both hands, so MyoFullBody's hand at rest
   is SOMA's template hand's shape (SOMA's hand is one rigid shape; MyoFullBody's published zero has the fingers straight
   and the thumb opposed, 67.6 % of the finger bones' vertices outside the template's skin, the thumb 25 to 45 mm;
   24.7 % with them, the thumb inside). `_measure.fingers_measured` reads them on the table as it stands (paste TABLE
   first): each finger bone vertex as deep in SOMA's skin as the joints' ranges let it, both hands one solve, each hand
-  moved as one body (not kept) to where its palm stands least outside, as the fit holds it (read again so,
-  2026-11-01: mean's hand 9.43 -> 5.42 %, all 6.95 -> 6.59 %, turns 4.603 -> 4.587 degrees; env1 13.48 -> 13.43 and
-  13.82 -> 13.82 %; at SOMA's Hand joint before); laid in the person's file by `myo._rested`. The finger knuckles bend back 45 degrees (`myo._movable.KNUCKLES`, read again 2026-11-01), so the index
+  laid at SOMA's Hand joint, where the fit holds it (2026-11-01 to 11-06 each hand was moved as one body to where its
+  palm stood least outside: the turns fit a hand off the joint, the thumb, index and little finger stood out at it, the
+  wrist's end shift read 18 mm up the forearm to bury them and every fingertip bone stood 20 to 22 mm short of SOMA's;
+  read again 2026-11-06 on the mean body's rig, the wrist's shift zero, the fingertips 6.5 to 13.4 mm off SOMA's in
+  the fit, the little's 2.5 to 3.5, numbers beside FINGERS); laid in the person's file by `myo._rested`.
+  The wrists' end shift stays zero: read with the new fingers it is 6.6 mm, 1.1 % more of the hand inside for 3 mm
+  less reach on every fingertip. The finger knuckles bend back 45 degrees (`myo._movable.KNUCKLES`, read again 2026-11-01), so the index
   can reach SOMA's, which stands dorsal of where MyoFullBody's metacarpal puts it. Static like the table: never per person or per clip.
 - Never fit it, never per person or per clip: it would absorb a person's posture (a curved spine) and erase it
   (owner, 2026-10-28). It is the geometry every retargeting tool uses, not fitted to reference data.

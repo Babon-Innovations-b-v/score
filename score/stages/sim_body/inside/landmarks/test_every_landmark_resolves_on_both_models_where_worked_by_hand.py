@@ -2,8 +2,8 @@
 barycentric weights, on a SOMA segment; a MyoFullBody body of that segment's bone group), each left landmark is its
 right one mirrored; a landmark is its face's barycentric point on a person's mesh, and on the clip's skin its corners'
 skinned moves' (each corner its joints' weighted moves from the bind); a SOMA joint end is its joint, the hip joints'
-middle or the hand's tip, and a segment's frame stands at its start; a knuckle's skin point stands within KNUCKLE_SKIN of its bone point (all worked out by
-hand; pure: the score venv runs it).
+middle or the hand's tip, and a segment's frame stands at its start; a knuckle's skin point stands within KNUCKLE_SKIN of its bone point,
+a fingertip's within FINGERTIP_SKIN (all worked out by hand; pure: the score venv runs it).
 
 Breaks (each applied once, seen red, reverted):
 - (2026-10-28) on_skin's `np.asarray(row[1]) @ points[faces[row[0]]]` made `points[faces[row[0]]].mean(axis=0)`:
@@ -22,6 +22,8 @@ Breaks (each applied once, seen red, reverted):
 - (2026-11-04) HELD's `"head_side_l"` made `"head_side"`: a held name that is no landmark, so nothing is held there.
 - (2026-11-04) at_starts' `frame[:3, 3] = soma_point(start, rig)` dropped: the Hips' frame stands at its own joint,
   8 cm over the hip joints' middle where fit.riding stands it, and a seated skin sinks into its seat.
+- (2026-11-06) _table's thumb_tip_l row made the study's (face 2750, link (0.00155, 0.00787, -0.04418)): its skin
+  point 26 mm off the thumb's tip, 45 mm off its bone ("thumb_tip_l: link 44.9 mm").
 
 Run: .venv/bin/python score/stages/sim_body/inside/landmarks/test_every_landmark_resolves_on_both_models_where_worked_by_hand.py
 """
@@ -151,7 +153,20 @@ def a_knuckles_skin_point_is_over_its_bone():
             if name.startswith("MC") and "_head_" in name and np.linalg.norm(row[5]) > KNUCKLE_SKIN]
 
 
-CHECKS = (a_knuckles_skin_point_is_over_its_bone, every_landmark_resolves_on_both_models, a_landmark_is_its_faces_barycentric_point,
+# A fingertip's pulp past the distal phalanx's tip: at most this thick on SOMA's template (the tips' links measured on
+# it 2026-11-06, the hand at SOMA's Hand joint with the fingers at `calibration.FINGERS`: 5.6 to 8.7 mm). The study's
+# thumb and little finger tips stood 26 and 24 mm off their fingers' ends (the skin nearest a bone tip of MyoFullBody's
+# straight fingers and opposed thumb), the index's and middle's on their pads, 6 to 9 mm short of the ends.
+FINGERTIP_SKIN = 0.010
+
+
+def a_fingertips_skin_point_is_past_its_bone():
+    """Each fingertip's link (its skin point off its bone point) is at most FINGERTIP_SKIN long."""
+    return [f"{name}: link {1000 * np.linalg.norm(row[5]):.1f} mm" for name, row in landmarks.LANDMARKS.items()
+            if name.split("_")[1:2] == ["tip"] and row[2].endswith("Hand") and np.linalg.norm(row[5]) > FINGERTIP_SKIN]
+
+
+CHECKS = (a_knuckles_skin_point_is_over_its_bone, a_fingertips_skin_point_is_past_its_bone, every_landmark_resolves_on_both_models, a_landmark_is_its_faces_barycentric_point,
           a_skinned_landmark_is_its_corners_blended_moves, a_stretch_end_is_a_joint_the_hips_middle_or_the_hands_tip,
           each_left_point_is_its_right_ones_mirror)
 

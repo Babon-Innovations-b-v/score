@@ -2,7 +2,7 @@
 the two models' symmetry: a middle group turns no body sideways, a right group is its left one with the body's half
 turn about its z (MyoFullBody's right bodies are its left ones mirrored in z; measured on the table within 0.03
 degrees, 2026-10-28); the held fingers' rest turns are written alike for both hands, each a finger or thumb joint
-of MyoFullBody's. Pure: the score venv runs it.
+of MyoFullBody's; the wrists' end holds the hand at SOMA's Hand joint. Pure: the score venv runs it.
 
 Breaks (each applied once, seen red, reverted), 2026-10-28:
 - aligned's `soma_turn.T @ frame(...)` made `frame(...)` (the segment's own turn dropped).
@@ -35,6 +35,10 @@ Breaks (each applied once, seen red, reverted), 2026-11-04 (the hinges' rows):
 - hinged's `along - (along @ across) * across` made `along` (the long axis not made square): "hinged does not keep its
   reference exact (x, y, z)".
 - REFERENCES' `{Side}Foot` made `("own x", "own x")`: "{Side}ToeBase: a hinge group's reference is not its pair's".
+
+Break (applied once, seen red, reverted), 2026-11-06 (the hands at their joints):
+- END_SHIFTS' wrist_l made level 1's `(-0.001684, 0.018127, -0.007317)`: the hand held 18 mm up the forearm, every
+  fingertip bone 20 to 22 mm short of SOMA's ("wrist_l: shifted 19.6 mm off SOMA's Hand joint").
 
 Run: .venv/bin/python score/stages/sim_body/inside/calibration/test_the_calibration_lays_each_bone_along_its_segment.py
 """
@@ -163,7 +167,19 @@ def a_middle_end_shifts_in_the_middle_plane():
             if end not in known or (not end.endswith(("_l", "_r")) and shift[0] != 0.0)]
 
 
-CHECKS = (a_middle_end_shifts_in_the_middle_plane, both_hands_rest_their_fingers_alike, a_hanging_bone_is_laid_along_its_segment, the_table_keeps_both_sides_and_the_middle,
+# How far a wrist's end may hold the hand off SOMA's Hand joint (#70, 2026-11-06): the rule centre stands 4.5 mm off
+# the joint on the template; the shift that buries the fingers moves every fingertip bone that far short of SOMA's.
+WRIST_SHIFT_MOST = 0.002
+
+
+def a_wrists_end_holds_the_hand_at_its_joint():
+    """Each wrist's end shift (`END_SHIFTS`) is at most WRIST_SHIFT_MOST long."""
+    return [f"{end}: shifted {1000 * np.linalg.norm(shift):.1f} mm off SOMA's Hand joint"
+            for end, shift in calibration.END_SHIFTS.items()
+            if end.startswith("wrist_") and np.linalg.norm(shift) > WRIST_SHIFT_MOST]
+
+
+CHECKS = (a_wrists_end_holds_the_hand_at_its_joint, a_middle_end_shifts_in_the_middle_plane, both_hands_rest_their_fingers_alike, a_hanging_bone_is_laid_along_its_segment, the_table_keeps_both_sides_and_the_middle,
           each_twist_is_read_from_the_same_landmarks_on_both_models, the_rows_read_in_the_skin_stay_and_turn_both_sides_alike)
 
 

@@ -84,8 +84,8 @@ TABLE = {
 # The held fingers' rest turns (radians, each joint by its name without its side, both sides alike): MyoFullBody's
 # finger and thumb joints turned so its hand at rest has SOMA's template hand's shape (SOMA has no finger joints, its
 # hand one rigid shape; MyoFullBody's fingers are held where they stand, `fit`), each finger bone as deep in SOMA's
-# skin as its joints' ranges let it with the hand laid by TABLE and moved as one body to where its palm stands least
-# outside, as the fit holds it (`_measure.fingers_measured`); laid in the person's file by `myo._rested`. Never per
+# skin as its joints' ranges let it with the hand laid by TABLE at SOMA's Hand joint, as the fit holds it
+# (`_measure.fingers_measured`); laid in the person's file by `myo._rested`. Never per
 # person or per clip. Printed by `_measure.py` on 2026-11-01 (the hands' turns of that day): on the template, 67.6 %
 # of the finger bones' vertices outside SOMA's skin at the published zero pose, 24.7 % at the first read (the hand at
 # SOMA's Hand joint; the thumb 25 to 45 mm out before, inside after; the index stays out: SOMA's stands dorsal of where
@@ -94,27 +94,36 @@ TABLE = {
 # 15 clips the hand 9.43 -> 5.42 % outside (forearm 2.87 -> 4.27, shoulder 2.07 -> 1.51), all 6.95 -> 6.59 %, the turns
 # 4.603 -> 4.587 degrees, joints 14.14 -> 13.43 mm; env1 standing all 13.48 -> 13.43 %, seated 13.82 -> 13.82 %.
 # Read again on 2026-11-01 with the finger knuckles bending back 45 degrees (`myo._movable.KNUCKLES`).
+# Read again on 2026-11-06 (#70, the owner: "hands just about missing the finger tips") on the mean body's rig with
+# TABLE as it stands and the hand no longer moved as one body: read for a hand moved off the joint, the 11-01 turns left
+# the thumb, index and little finger out at SOMA's Hand joint (19.4 % of the hand's bone vertices), so the wrist's end
+# shift read 18 mm up the forearm to bury them and every fingertip bone stood 20 to 22 mm short of SOMA's fingertip;
+# with these the hand stands 1.5 % outside at the joint unshifted, the tips 4.6 to 9.0 mm inside SOMA's (thumb to
+# little finger; the little's 3.7 past). The fit on 12 frames of the mean body's pickup and jump and env1's standing
+# (mink, this PC's processor): the thumb to ring fingertips 19.4 to 28.9 mm off SOMA's -> 6.5 to 13.4,
+# the little's 10.8 to 13.1 -> 2.5 to 3.5, the wrists 16.8 to 19.5 mm off
+# SOMA's Hand joint -> 4.0 to 4.4, the hand 1.76 / 1.66 / 0.94 % outside -> 1.10 / 1.08 / 1.03.
 FINGERS = {
-    "cmc_abduction": -0.4006,
-    "cmc_flexion": 0.0716,
-    "ip_flexion": -0.0375,
-    "mcp2_abduction": -0.0243,
-    "mcp2_flexion": -0.1546,
-    "mcp3_abduction": -0.0796,
-    "mcp3_flexion": -0.0362,
-    "mcp4_abduction": -0.0079,
-    "mcp4_flexion": -0.0191,
-    "mcp5_abduction": -0.0935,
-    "mcp5_flexion": -0.0308,
-    "md2_flexion": 0.1346,
-    "md3_flexion": 0.2285,
-    "md4_flexion": 0.3048,
-    "md5_flexion": 0.1148,
-    "mp_flexion": 0.088,
-    "pm2_flexion": 0.0794,
-    "pm3_flexion": 0.0477,
-    "pm4_flexion": 0.0581,
-    "pm5_flexion": 0.1177,
+    "cmc_abduction": -0.39,
+    "cmc_flexion": 0.4976,
+    "ip_flexion": -0.0759,
+    "mcp2_abduction": 0.0428,
+    "mcp2_flexion": -0.4287,
+    "mcp3_abduction": -0.0606,
+    "mcp3_flexion": -0.2007,
+    "mcp4_abduction": -0.0175,
+    "mcp4_flexion": -0.1252,
+    "mcp5_abduction": -0.1793,
+    "mcp5_flexion": -0.1193,
+    "md2_flexion": 0.1374,
+    "md3_flexion": 0.1268,
+    "md4_flexion": 0.1785,
+    "md5_flexion": 0.0286,
+    "mp_flexion": -0.2805,
+    "pm2_flexion": 0.5017,
+    "pm3_flexion": 0.3977,
+    "pm4_flexion": 0.3817,
+    "pm5_flexion": 0.3606,
 }
 
 
@@ -151,13 +160,17 @@ LAID_GROUPS = ("Head",)
 # standing 6.7 -> 3.0 %, seated 5.4 -> 2.7 %, the turns within 0.01 degree. Since 2026-11-04 every end's shift is level
 # 1's (run l1n, its 21 tuned ends to the micrometre, an end it left at zero not written; END_READS its starts): the
 # region average of bones outside SOMA's skin 3.97 -> 3.55 % on env1 standing, 10.85 -> 9.73 % seated, 6.41 -> 6.04 %
-# on the mean body's 15 clips. Static like the table: never per person.
+# on the mean body's 15 clips. The wrists' unshifted since 2026-11-06 (#70): level 1's 18 mm up the forearm buried the
+# stale FINGERS' thumb and index and held every fingertip bone 20 to 22 mm short of SOMA's; read again with the fingers
+# of that day it is 6.6 mm, which keeps 1.1 % more of the hand's bones inside at the cost of 3 mm of every fingertip's
+# reach, so the wrist stays at SOMA's Hand joint (the rule centre stands 4.5 mm off it on the template). Static like the
+# table: never per person.
 END_SHIFTS = {"L5_S1": (0.0, 6e-06, 1e-05), "T12_L1": (0.0, 0.00403, -0.007995), "C7_T1": (0.0, -0.00197, 0.006004),
               "mid_cervical": (0.0, 0.000142, 6e-05), "C0_C1": (0.0, 0.000417, 0.000517),
               "sternoclavicular_l": (1.2e-05, -3e-05, 0.00013), "sternoclavicular_r": (-1.2e-05, -3e-05, 0.00013),
               "glenohumeral_l": (-7.2e-05, 3.7e-05, 1e-06), "glenohumeral_r": (7.2e-05, 3.7e-05, 1e-06),
               "elbow_l": (-7.3e-05, 2.2e-05, 0.002024), "elbow_r": (7.3e-05, 2.2e-05, 0.002024),
-              "wrist_l": (-0.001684, 0.018127, -0.007317), "wrist_r": (0.001684, 0.018127, -0.007317),
+              "wrist_l": (0.0, 0.0, 0.0), "wrist_r": (0.0, 0.0, 0.0),
               "hip_l": (7.6e-05, 0.000168, -0.000406), "hip_r": (-7.6e-05, 0.000168, -0.000406),
               "knee_l": (0.004014, 0.00507, -0.024513), "knee_r": (-0.004014, 0.00507, -0.024513),
               "ankle_l": (-0.000965, -0.005988, 0.001467), "ankle_r": (0.000965, -0.005988, 0.001467),
@@ -171,7 +184,7 @@ END_READS = {"L5_S1": (0.0, 0.0, 0.0), "L3_L4": (0.0, 0.0, 0.0), "T12_L1": (0.01
              "sternoclavicular_l": (0.0, 0.0, 0.0), "sternoclavicular_r": (0.0, 0.0, 0.0),
              "glenohumeral_l": (0.0, 0.0, 0.0), "glenohumeral_r": (0.0, 0.0, 0.0),
              "elbow_l": (0.0, 0.0, 0.002), "elbow_r": (0.0, 0.0, 0.002),
-             "wrist_l": (-0.002, 0.018, -0.008), "wrist_r": (0.002, 0.018, -0.008),
+             "wrist_l": (-0.002, 0.006, -0.002), "wrist_r": (0.002, 0.006, -0.002),
              "hip_l": (0.0, 0.0, 0.0), "hip_r": (0.0, 0.0, 0.0),
              "knee_l": (0.004, 0.006, -0.024), "knee_r": (-0.004, 0.004, -0.024),
              "ankle_l": (0.0, -0.008, 0.002), "ankle_r": (0.002, -0.004, 0.002),
