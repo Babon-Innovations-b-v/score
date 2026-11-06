@@ -88,7 +88,9 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   as high as a sibling's door to it stands (`plan.levels`: the square's flat 9 m up under its stairwell door; the
   scene tree raises a child the same way), and each place of its scene a backdrop row of its hand-in is `shown` from
   (prepare's groups.shown_from: the holder at its own plan's corner, a place it holds beside where it holds it).
-  A top place has none (its children are its scene tree's).
+  A top place has none (its children are its scene tree's). Each doorway leads where the place's own hold leads it
+  (`writer.held_design`: the airlock's door to the hub led to tube#3), its neighbours' doors leading back to that
+  hold's name (the tube's own hold, tube#4), as the `openings` gate judges them (2026-11-06).
 - **Gates**: `game-free` (no game file or name: a date of the year 2099 is a scene time, not the game), `plan-matched`
   (every wall of the outline in the shell, every opening cut through it, every stair laid, every lamp over its
   item), `openings` (each doorway leads to a place of the design, outside, sealed, a row of the inventory or into its

@@ -232,8 +232,9 @@ def lead_faults(record, design, inputs):
     held = {writer.place_plan.name_of(hold) for hold in (holder or {}).get("holds") or []}
     places |= held  # an instance of a place held several times (tube#3) is a place of the design
     stood = {entry.get("instance", entry["name"]) for entry in record["places"]}
+    led = writer.held_design(record["place"], design, holder)[0] if holder else design
     found = []
-    for number, opening in enumerate(design.get("openings") or [], 1):
+    for number, opening in enumerate(led.get("openings") or [], 1):
         to = opening.get("to")
         if opening.get("kind") not in DOORWAYS or to is None or to in writer.NOT_PLACES or to in rows:
             continue
@@ -261,16 +262,17 @@ def pair_faults(record, design, inputs):
     _, holder = writer.holder_of(record["place"], inputs["plans"])
     holds = {writer.place_plan.name_of(hold): hold for hold in (holder or {}).get("holds") or []}
     own = writer.place_plan.hold_of(holder, record["place"]) if holder else None
+    led, me = writer.held_design(record["place"], design, holder) if holder else (design, record["place"])
     for entry in record["places"]:
         name = entry.get("instance", entry["name"])
         path = plans / f"{entry['stage']}.json"
-        doors = writer.place_plan.doors_to(design, name)
+        doors = writer.place_plan.doors_to(led, name)
         if not doors or not path.is_file():
             continue
         other_hold = holds.get(name) or {}
         other = writer.place_plan.as_held(other_hold, json.loads(path.read_text()))
         axes = writer.axes_in(design, other, own, other_hold) * np.asarray(entry.get("scale") or [1.0] * 3)[:, None]
-        back = [door_spot(other, door, entry["at"], axes) for door in writer.place_plan.doors_to(other, record["place"])]
+        back = [door_spot(other, door, entry["at"], axes) for door in writer.place_plan.doors_to(other, me)]
         for door in doors:
             spot = door_spot(design, door)
             said = f"the door to {name} at {door['at']}"

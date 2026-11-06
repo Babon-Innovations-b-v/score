@@ -350,6 +350,8 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     `* (1 if mover != name else -1)`, or `if overlap(box, sibling): box = pushed_out(box, sibling)` dropped, or mover_of's `if not
     by_place[place].get("row")` made `if True`
     plans.py (2026-11-05, #72): current's `edit_inside(store, place, ...)` dropped (the edit shown as made)
+    plan_fixes.py (2026-11-06): doors_sized's `found[1]["wide"] = metres` made `pass` (an edit's 0.237 m hatch shown
+    for its 2.2 m row)
 - test_the_answer_is_a_plan_of_the_stage_tables_schema_and_each_failed_check_a_named_gap:
     plan_writing.py (2026-11-04, #72): write_now's `if again else to_write(store, places)` made `to_write(...)` alone
 - test_a_footprint_answered_as_box_2d_is_measured_from_its_box:
@@ -2927,12 +2929,17 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
                                  ({"w": 5.0}, {**asked, "reason": ""}, "its reason")):
         with pytest.raises(plans.Refused, match=said):
             plans.redrawn(store, "shed", changes, "an agent", given)
-    record = plans.redrawn(store, "shed", {"w": 5.0, "openings": [door([0.0, 2.0], "yard")], "people": [[7.0, 2.0]]},
-                           "an agent", asked)
+    record = plans.redrawn(store, "shed", {"w": 5.0, "openings": [door([0.0, 2.0], "yard")], "people": [[7.0, 2.0]],
+                                           "doors": [["W", 2.0, 2.2, "HATCH W 2.2 x 2.66 m"]],
+                                           "leads": {"W": {"to": "yard", "why": "the yard"}}}, "an agent", asked)
     assert record["how"] == "redrawn" and record["asked"]["reason"] == "its section" and record["changed"] == [
-        "openings", "people", "w"]
+        "doors", "leads", "openings", "people", "w"]
     shown = plans.current(store, "shed")  # what it lays past its outline brought inside, as his edit's is
     assert (shown["how"], shown["plan"]["w"], shown["plan"]["d"]) == ("redrawn", 5.0, 10.0), shown["how"]
+    # and each doorway its own door rows say shown at its row's width where it is drawn, the edit kept as made (habitat's
+    # edit of 2026-10-25 kept its writing's 0.237 m hatches for its 2.2 m rows, the greenhouse's redrawing a 1.305 m one)
+    assert [(opening["at"], opening["wide"]) for opening in shown["plan"]["openings"]] == [([0.0, 2.0], 2.2)] and \
+        record["plan"]["openings"][0]["wide"] == 0.9, shown["plan"]["openings"]
     assert shown["plan"]["people"][0][0] < 5.0 and record["plan"]["people"] == [[7.0, 2.0]], shown["plan"]["people"]
     # a writing's doorway to a sibling held once whose own plan leads none back leads nowhere, said; one the sibling's
     # door meets, or a lead of its own names, stays (the Square's street, written again with an opening to the
