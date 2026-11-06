@@ -320,11 +320,12 @@ def waited_for_size(runner, places, whole, options, argv):
     from score.conductor import size
     if not size.waits(options.jobs, options.oversubscribe):
         return False
-    nodes = runner.line_nodes(places, whole, options.stage)
-    run_commit(runner, nodes, options)
-    missing = runner.missing_inputs(nodes)
-    refused = (("refused: these inputs are missing:\n  " + "\n  ".join(missing)) if missing
-               else None if options.free else rebuy.refusal(rebuy.buys(runner, nodes), options.rebuy_reason))
+    with runner.still():  # each node's files and key worked out once (checked_buys)
+        nodes = runner.line_nodes(places, whole, options.stage)
+        run_commit(runner, nodes, options)
+        missing = runner.missing_inputs(nodes)
+        refused = (("refused: these inputs are missing:\n  " + "\n  ".join(missing)) if missing
+                   else None if options.free else rebuy.refusal(rebuy.buys(runner, nodes), options.rebuy_reason))
     if refused:
         sys.exit(refused)
     if options.detach:
@@ -932,12 +933,16 @@ def checked_threads(options):
 def checked_buys(runner, places, whole, options):
     """Print the paid rows the run would buy; exit when its re-buys pass the limit with no reason. The run itself (not
     the call that detaches it) writes a given reason to the cloud ledger. A run missing an input it could never make
-    itself (Runner.missing_inputs) is refused first, each file named: free checks before paid."""
-    missing = runner.missing_inputs(runner.line_nodes(places, whole, options.stage))
+    itself (Runner.missing_inputs) is refused first, each file named: free checks before paid. Both are worked out
+    in one still pass (it writes nothing), each node's files and key once (outside one, every key listed each node's
+    files again per path, a git subprocess per take each time: 54 min of a detached run's start, 2026-11-06)."""
+    with runner.still():
+        nodes = runner.line_nodes(places, whole, options.stage)
+        missing = runner.missing_inputs(nodes)
+        bought = None if missing else rebuy.buys(runner, nodes)
     if missing:
         sys.exit("refused: these inputs are missing, so the rows that read them would stop the run after it paid for "
                  "others:\n  " + "\n  ".join(missing))
-    bought = rebuy.buys(runner, runner.line_nodes(places, whole, options.stage))
     print(rebuy.listing(bought), flush=True)
     refused = rebuy.refusal(bought, options.rebuy_reason)
     if refused:
