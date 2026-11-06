@@ -23,7 +23,9 @@ invariant with the break that turns it red (each applied once and seen red):
   Break: count every NotTriggerScaleUp in `no_grow_times`. Break: `record["state"] = "failed"` for every expired Job.
   Break: drop the `late` check in `may_widen`.
 - Nothing goes on the cluster outside a cleared run (design of 2026-10-11, section 6).
-  Break: drop `compute.require_cleared` in `prepare`.
+  Break: drop `compute.require_cleared` in `prepare`. Under the owner's override a run is stopped once its nodes
+  cost what is left of his euros less 10% (ledger.batch_cap). Break: `over_limits` compares with
+  `ledger.BATCH_EUROS`.
 - A run holds to its `parallel` jobs at once. Break: drop the `parallel` return in `submit_more`.
 - Inputs go up at their paths (a folder as one key a file), outputs come back where the runner wants them, a job
   that did not finish is reported by its number. Break: report every job as failed in `cluster_jobs.run`.
@@ -298,6 +300,31 @@ def test_nothing_goes_on_the_cluster_outside_a_cleared_run(monkeypatch):
     with pytest.raises(submit.compute.Refused, match="nothing rents outside a cleared run"):
         submit.prepare(kubectl, cluster)
     assert cluster.caps == [] and kubectl.applied == []
+
+    # under the owner's override a run is stopped at what is left of his euros less 10%, read again each look
+    # (labval-motor-20261106, 2026-11-06: EUR 2.47 left, and only the EUR 60 batch cap was checked)
+    room = {"name": "labval", "euros": 40.0, "spent": 37.53, "left": 2.47}
+    monkeypatch.setenv(submit.compute.TICKET, "override labval")
+    monkeypatch.setattr(submit.compute, "override_room", lambda store=None: room)
+    monkeypatch.setattr(submit, "poll", lambda run: None)
+
+    class StoppingKubectl(LiveKubectl):
+        def run(self, *arguments):
+            return ""
+    run = submit.Run("r1", {"bake": {"kind": "judge", "image": "image", "minutes": 5}}, StoppingKubectl(),
+                     PoolCluster())
+    run.make("bake")
+    live = [2.0]
+    run.live_euros = lambda: live[0]
+    submit.look(run, None)
+    assert run.unfinished() == ["bake"] and run.cluster.caps == []  # EUR 2.00 fits EUR 2.25 (2.47 less 10%)
+    live[0] = 2.3
+    submit.look(run, None)
+    assert run.unfinished() == [] and run.jobs["bake"]["state"] == "stopped" and run.kubectl.deleted
+    assert run.cluster.caps == [(0, 1)]  # its pools capped to nothing, as at the batch cap
+    assert "labval" in submit.over_limits(run)
+    room["left"] = 100.0
+    assert submit.over_limits(run) is None  # more left than the batch cap: the EUR 60 cap stands
 
 
 # ==== the runners' door =============================================================================================

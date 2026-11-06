@@ -58,6 +58,7 @@ import json
 import os
 import pathlib
 import sys
+import time
 
 from score import conductor, graph
 from score.adapters.compute import guard
@@ -1098,20 +1099,65 @@ def require_books(what):
         raise Refused(str(unknown)) from unknown
 
 
-def require_cleared(what, store=None):
+def ticket_store(store=None):
+    """The store a rent point reads its ticket's clearance or yes from: `store`, else the one SCORE_STORE names (the
+    runner's), else the framework's."""
+    return store or (Store.in_folder(os.environ[STORE]) if os.environ.get(STORE) else Store.default())
+
+
+def override_spent(name):
+    """What the cloud ledger holds under the owner's override `name` (its lines' ticket "override <name>"), the money
+    guard's own measure of a ticket's spend (guard.ledgered): every line's euros, and each of its machines still open
+    (ledger.open_rents) at its price up to its deadline, the most it can cost before its watchdog deletes it."""
+    books = ledger()
+    ticket, lines = f"{OVERRIDE} {name}", books.entries()
+    booked = sum(line.get("euros", 0.0) for line in lines if line.get("ticket") == ticket)
+    later = float("inf")  # an open machine counted to its deadline, not to now
+    return booked + sum(books.open_euros(line, later) for line in books.open_rents(lines, time.time())
+                        if line.get("ticket") == ticket)
+
+
+def override_room(store=None):
+    """{name, euros, spent, left} of the owner's override SCORE_SPEND_TICKET names ("override <name>"): his yes's
+    euros, what is booked under it (override_spent) and what is left; None outside one (a runner's ticket, none, or a
+    name with no yes, which require_cleared refuses). A yes that names no euros has nothing left."""
+    named = os.environ.get(TICKET, "").split()
+    if len(named) != 2 or named[0] != OVERRIDE:
+        return None
+    yes = ticket_store(store).spend_yes(OVERRIDE, named[1])
+    if yes is None:
+        return None
+    euros, spent = float(yes.get("euros") or 0.0), override_spent(named[1])
+    return {"name": named[1], "euros": euros, "spent": round(spent, 2), "left": round(euros - spent, 2)}
+
+
+def override_refusal(room, high):
+    """Why a run at a `high` estimate of euros may not start under the override `room` (override_room), or None: what
+    is booked under it plus the high plus GRANT_BUFFER must fit his euros, as a benchmark grant's balance (owner,
+    2026-10-22), and a run with no estimate needs something left."""
+    if room["left"] > 0 and high * GRANT_BUFFER <= room["left"]:
+        return None
+    return (f"override {room['name']}: EUR {room['spent']:.2f} of its EUR {room['euros']:.2f} booked, EUR "
+            f"{room['left']:.2f} left, and this run's high of EUR {high:.2f} plus 10% would pass it. Nothing was "
+            "started; more needs the owner's yes under a new name")
+
+
+def require_cleared(what, store=None, high=0.0):
     """The runner's clearance (or the owner's override yes) for the run SCORE_SPEND_TICKET names; Refused when the
     variable is missing or names neither, or names a runner clearance whose run has ended (its reservation released
-    or expired: an old ticket reused would start paid work no stop check and no in-flight sum ever saw). `what` says
-    what was about to be rented. Every paid point asks this first (batch.rent, park, the cluster, the Google and World
-    Labs callers), so it also refuses while the month's books are unknown, and raises ledger.FreeOnly in a process
-    that runs free only (require_books)."""
+    or expired: an old ticket reused would start paid work no stop check and no in-flight sum ever saw), or an
+    override whose euros what is booked under it and the run's `high` estimate would pass (override_refusal;
+    labval-motor-20261106, 2026-11-06: EUR 37.53 of 40 booked and nothing checked the next run against it). `what`
+    says what was about to be rented. Every paid point asks this first (batch.rent, park, the cluster, the Google and
+    World Labs callers), so it also refuses while the month's books are unknown, and raises ledger.FreeOnly in a
+    process that runs free only (require_books)."""
     named = os.environ.get(TICKET, "").split()
     if len(named) != 2:
         raise Refused(f"{what}: nothing rents outside a cleared run. Run it through the runner (score.adapters "
                       f"compute or engines), or the owner's override (his yes under the node {OVERRIDE}, named "
                       f"here as {TICKET}=\"{OVERRIDE} <name>\")")
     node, key = named
-    store = store or (Store.in_folder(os.environ[STORE]) if os.environ.get(STORE) else Store.default())
+    store = ticket_store(store)
     cleared = store.clearances(node, key)
     found = cleared or [store.spend_yes(node, key)]
     if found[-1] is None:
@@ -1119,5 +1165,9 @@ def require_cleared(what, store=None):
     if cleared and not reservation_open(store, cleared):
         raise Refused(f"{what}: {TICKET} names {node} {key[:12]}, whose cleared run has ended; a new run is cleared "
                       "by the runner afresh")
+    room = None if cleared else override_room(store)
+    why = room and override_refusal(room, high)
+    if why:
+        raise Refused(f"{what}: {why}")
     require_books(what)
     return found[-1]
