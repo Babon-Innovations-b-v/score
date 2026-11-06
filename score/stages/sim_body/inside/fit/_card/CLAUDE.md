@@ -203,3 +203,15 @@ before that.
   takes them too and reads only the slopes), and `bounds`, each row's own ranges in the step's active set (`_step._kept`)
   and the projection (`_project._projected`), in place of the reduction's and the projection's one set. Neither given,
   every kernel reads as before (level 3 unchanged: the card's tests pass as they did).
+- `_level3.py` (`angles`, 2026-11-06, #70 speed): level 3 every frame at once behind `fit.LEVEL3_CARD` (off; mink
+  stays the reference, `fit.card_angles` the card's way on its own). mink's frames are a recurrence (each frame's fit
+  without the skin from the frame before's fit with it, then the skin's from that), so it is solved in sweeps: every
+  frame not yet final one row, seeded from the frame before's last answer (the first from `Frames.start`), its fit
+  without the skin then with it (`_clip.Clip.angles`); a frame is final once the frame before is final and moved
+  under SETTLED_TURN (1e-4 rad) / SETTLED_PLACE (2e-6 m) between sweeps, and the first frame not final is final after
+  the next sweep by construction, so at most one sweep a frame, the later ones over the frames not final only. The
+  first sweep's seeds: a chain without the skin every STRIDE-th (5) frame, one row a solve. Toy (fit's test file,
+  `level_3_on_the_card_is_minks_frames`, 17 frames in the shin's skin): 2 sweeps (17 then 16 rows), angles 1.5e-5
+  deg, sites 0.0002 mm, bone depths 0.00014 mm off mink's. The toy has one minimum a frame, so the recurrence's
+  history (elv_angle's flat valley, float32 Jacobians) is the real bodies' measure (fair-level3-card), not its.
+  `_clip.DEVICE` is cuda:0 and `_solve` captures CUDA graphs, so none of it runs on Warp's CPU device.

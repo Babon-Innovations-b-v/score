@@ -12,7 +12,8 @@ group's start, `group_ends`), weighed as OpenSim's IK weighs its goals; SOMA's j
   idea only): the whole body placed and posed by mink at the sizing's lengths (`_frames`), then the poses with the
   markers' moves and the joints inside the groups, scipy's bounded `least_squares` over those constants and the
   frames' angles together, warm from mink's (`_constants`).
-- `angles`: mink on every frame of the clip, on the person's file written with the found constants.
+- `angles`: mink on every frame of the clip, on the person's file written with the found constants (`LEVEL3_CARD`:
+  every frame at once on the card, `_card._level3`).
 - `following` and `riding` (`_follow`): the judgement (joint mm, group degrees, at a range limit or not) and where each
   SOMA segment rides its group's frame body.
 Nothing here moves, scales or grounds SOMA: the run writes no SOMA pose, and MyoFullBody's root follows the markers on
@@ -242,10 +243,26 @@ def constants_on(fit, turns, points, path):
             "followed": list(fit.groups)}
 
 
+# level 3 on the card, every frame at once (`_card._level3`: mink's recurrence in sweeps), when Warp sees a card; off
+# until it equals mink on the measured clips (0.01 deg, 0.01 mm every frame, the bones outside unchanged), mink the
+# reference
+LEVEL3_CARD = False
+
+
 def angles(fit, turns, points, skins=None):
     """Every frame's joint angles on `fit` (frames x nq of its model; MuJoCo's own compile): the pose alone, the
-    person's constants laid on `fit` held fixed, the bones held inside `skins` (each frame's posed skin) when given."""
+    person's constants laid on `fit` held fixed, the bones held inside `skins` (each frame's posed skin) when given.
+    By mink frame after frame (`Frames.fitted`), or with LEVEL3_CARD on a card by `card_angles`."""
+    if LEVEL3_CARD and on_card():
+        return card_angles(fit, turns, points, skins)[0]
     return Frames(fit).fitted(turns, points, skins=skins)
+
+
+def card_angles(fit, turns, points, skins=None):
+    """`angles` on the card, every frame at once (`_card._level3.angles`, from mink's own start): (angles, sweeps)."""
+    from ._card import _clip, _level3
+    return _level3.angles(_clip.for_fitting(fit, fit.path), turns, points, skins,
+                          Frames(fit).start(turns[0], points[0]))
 
 
 def constants_record(found):
