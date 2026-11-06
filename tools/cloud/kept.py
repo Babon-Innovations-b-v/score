@@ -103,12 +103,51 @@ def written(text, folders):
 
 
 def file_hash(path, folders):
-    """The sha256 of a file's bytes with the attempt's folders written as their stand-ins, once a file version."""
+    """The sha256 of a file's bytes with the attempt's folders written as their stand-ins, once a file version: in
+    this process (HASHES), and across processes and runs beside the kept jobs (hashed_before), so the calls of a Buy
+    never hash the same file again (2026-11-06: fifteen bake calls each hashed their place's inputs whole, at 90% of a
+    core for ten minutes, before claiming anything)."""
     stat = path.stat()
     key = (path, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns, stat.st_ino, folders)
-    if key not in HASHES:
-        HASHES[key] = hashlib.sha256(written(path.read_bytes(), folders)).hexdigest()
+    if key in HASHES:
+        return HASHES[key]
+    record = kept_root() / "hashes" / digest(repr((str(path), *key[1:5])))
+    root = os.path.commonpath([folder for folder, _ in folders]) if folders else ""
+    facts = hashed_before(record)
+    if facts and root and any(root == clean or root.startswith(clean.rstrip("/") + "/") for clean in facts["clean"]):
+        HASHES[key] = facts["raw"]  # none of the folders is in its bytes: its hash is its raw bytes' own
+        return HASHES[key]
+    data = path.read_bytes()
+    raw = hashlib.sha256(data).hexdigest()
+    clean = [root] if root and root.encode() not in data else []
+    remember(record, {"raw": raw, "clean": sorted({*((facts or {}).get("clean") or ()), *clean})})
+    HASHES[key] = raw if clean else hashlib.sha256(written(data, folders)).hexdigest()
     return HASHES[key]
+
+
+def hashed_before(record):
+    """What another process learned of a file version (file_hash): {raw: the sha256 of its bytes, clean: the folders
+    its bytes do not mention}, or None when there is none or it is not one."""
+    try:
+        found = json.loads(record.read_text())
+    except (OSError, ValueError):
+        return None
+    if not isinstance(found, dict) or not isinstance(found.get("raw"), str) or len(found["raw"]) != 64 or \
+            not isinstance(found.get("clean"), list):
+        return None
+    return found
+
+
+def remember(record, facts):
+    """Write what was learned of a file version for other processes and runs (renamed into place whole, so no reader
+    sees half). A record that cannot be written is said, never a failed job: the hash just computed stands."""
+    try:
+        record.parent.mkdir(parents=True, exist_ok=True)
+        partial = record.with_name(f".{record.name}.{os.getpid()}")
+        partial.write_text(json.dumps(facts))
+        partial.replace(record)
+    except OSError as error:
+        print(f"kept: a file's hash was not remembered ({error})", file=sys.stderr)
 
 
 def left_to_code(path):
