@@ -21,7 +21,8 @@
     .venv/bin/python -m score.dashboard buy-yes --batch-total <euros> <high euros> <answer> <question>
         # the owner's Buy approved in a session: the batch total he approved, this try's high, his answer and the
         # question quoted (checkout/chat_yes.py); its id
-    .venv/bin/python -m score.dashboard buy <yes id>   # his Buy under that yes, once, as his click (checkout/chat_yes.py)
+    .venv/bin/python -m score.dashboard buy <yes id> [--phase F]   # his Buy under that yes, once, as his click
+        # (checkout/chat_yes.py); with --phase only that phase's rows of the basket (score/stages/phases)
 """
 import argparse
 import json
@@ -85,7 +86,9 @@ def parse(argv):
                                                             "bought nor made")
     for name in ("high", "answer", "question"):
         yes.add_argument(name)
-    commands.add_parser("buy", help="his Buy under a yes from buy-yes, once (checkout/chat_yes.py)").add_argument("yes")
+    bought = commands.add_parser("buy", help="his Buy under a yes from buy-yes, once (checkout/chat_yes.py)")
+    bought.add_argument("yes")
+    bought.add_argument("--phase", help="only that phase's rows of the basket (score/stages/phases)")
     decide_yes = commands.add_parser("decide-yes", help="the owner's decision made in a session, quoted "
                                                         "(sync/chat_decisions.py)")
     decide_yes.add_argument("decision", help="accept, reject, waive, lock-concept, lock-film, go, spend or "
@@ -176,12 +179,17 @@ def buy(options):
     from score.dashboard.checkout import chat_yes
     migrate()
     try:
-        record, said = chat_yes.buy(options.yes)
+        record, said = chat_yes.buy(options.yes, phase=options.phase)
     except chat_yes.Refused as refused:
-        sys.exit(f"buy {options.yes}: refused: {refused}")
-    print(f"buy {options.yes}: {said}")
+        sys.exit(f"buy {options.yes}{phase_words(options.phase)}: refused: {refused}")
+    print(f"buy {options.yes}{phase_words(options.phase)}: {said}")
     if record is None or record.state not in ("launched", "done"):
         sys.exit(1)
+
+
+def phase_words(phase):
+    """How a Buy's lines name its phase: " (phase <name>)", nothing without one."""
+    return f" (phase {phase})" if phase else ""
 
 
 def migrate():

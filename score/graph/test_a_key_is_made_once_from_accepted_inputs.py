@@ -873,10 +873,12 @@ GATHER = graph.Stage("gather", "world", make_show, TEXT, PASSES, beside={"clean"
                      neighbours=lambda place: ["hangar"])
 
 
-def test_a_run_holds_the_nodes_it_names_and_what_they_read_place_by_place():
+def test_a_run_holds_the_nodes_it_names_and_what_they_read_place_by_place(monkeypatch):
     """#26: `--place people --stage <body>` keeps an environment row named with the place, where before it was left
-    out; an environment stage not named stays out; one node named by itself is a run of its own.
-    Break: score/graph/__init__.py: '                                      if stage.grain == "place" or node_name(stage, place) in named]' -> '                                      if stage.grain == "place"]'"""
+    out; an environment stage not named stays out; one node named by itself is a run of its own. `--phase` (#21) is
+    --stage with every stage of that phase, never the whole environment, and an unknown phase is refused.
+    Break: score/graph/__init__.py: '                                      if stage.grain == "place" or node_name(stage, place) in named]' -> '                                      if stage.grain == "place"]'
+    Break: score/__main__.py: '    held = phases.stages_of(options.phase, list(table))' -> '    held = []'"""
     world, store, _ = ready_world()
     runner = a_runner(world, store, (CLEAN, COUNT, GATHER))
     names = {graph.node_name(*node) for node in runner.line_nodes(["hangar"], whole=False, only=["gather"])}
@@ -885,6 +887,21 @@ def test_a_run_holds_the_nodes_it_names_and_what_they_read_place_by_place():
     assert names == {"clean@hangar", "count@hangar"}, names
     names = {graph.node_name(*node) for node in runner.line_nodes(list(PLACES), whole=False, only=["count@station"])}
     assert names == {"clean@station", "count@station"}, names
+    from score import __main__ as command
+    from score.stages import phases
+    monkeypatch.setattr(phases, "PHASES", (("early", ("clean",)), ("late", ("count", "gather"))))
+    monkeypatch.setattr(phases, "NAMES", ("early", "late"))
+    late = command.phase_stages(argparse.Namespace(phase="late", stage=None), runner.stages)
+    assert late == ["count", "gather"], late
+    names = {graph.node_name(*node) for node in runner.line_nodes(["hangar"], whole=False, only=late)}
+    assert names == {"clean@hangar", "count@hangar", "gather"}, names
+    assert command.phase_stages(argparse.Namespace(phase=None, stage=["count"]), runner.stages) == ["count"]
+    with pytest.raises(SystemExit, match="holds no stage"):
+        command.phase_stages(argparse.Namespace(phase="early", stage=None), {"count": COUNT})
+    printed = io.StringIO()
+    with contextlib.redirect_stderr(printed), pytest.raises(SystemExit):
+        command.parse(["run", "world1", "--phase", "lighting"])
+    assert "invalid choice: 'lighting'" in printed.getvalue(), printed.getvalue()
 
 
 # --- an accepted output kept under a moved key: bytecode alone, a no-op proof, a narrower key, words only ----------

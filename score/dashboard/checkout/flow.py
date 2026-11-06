@@ -82,9 +82,23 @@ def left_out(items, stages):
     """The `items` with the nodes of `stages` taken out of each (a Buy approved without the demo films, chat_yes
     NO_FILM; owner, 2026-11-03: Batch 1 bought with the film left out), an item left with none dropped. The run names
     only the nodes kept (batch_groups), so a left-out row is neither bought nor made."""
+    return nodes_kept(items, lambda stage: stage not in stages)
+
+
+def phase_kept(items, phase):
+    """The `items` with only the nodes of the phase `phase`'s stages kept (score/stages/phases; a Buy by phase, the
+    door's `buy <yes id> --phase`, CONTEXT.md "phase"), an item left with none dropped; every item without a phase."""
+    if not phase:
+        return items
+    from score.stages import phases
+    return nodes_kept(items, lambda stage: phases.phase_of(stage) == phase)
+
+
+def nodes_kept(items, keeps):
+    """The `items` with only the nodes whose stage `keeps(stage)` holds, an item left with none dropped."""
     found = []
     for item in items:
-        nodes = {node: price for node, price in item["nodes"].items() if node.partition("@")[0] not in stages}
+        nodes = {node: price for node, price in item["nodes"].items() if keeps(node.partition("@")[0])}
         if nodes:
             found.append({**item, "nodes": nodes})
     return found
@@ -217,7 +231,7 @@ def start(user, key, confirmed, seen, at_once=False, yes=None):
         if found is not None:
             return found, f"checkout {found.pk} was already made with this key: {found.state}"
         items, changed = bought_items(seen)
-        items = left_out(items, (yes or {}).get("leave_out", ()))
+        items = phase_kept(left_out(items, (yes or {}).get("leave_out", ())), (yes or {}).get("phase"))
         bought = snapshot(items)
         totals = pricing.totals(pricing.basket_prices(bought))
         refused = refusals(user, seen, items, changed, confirmed) + yes_refusals(yes, totals)
