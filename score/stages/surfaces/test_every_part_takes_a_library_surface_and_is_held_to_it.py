@@ -116,9 +116,10 @@ tests it turned red:
   or fragmented_largest `return (first | (area >= crumb)) & (area < least) & (total[finish] >= least)` -> `return
   (first | (area >= crumb)) & (area < least)`, or `(first | (area >= crumb))` -> `first` (the hub's right console's
   screens painted as its steel)  -> a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named
-- finish_parts.py: `own = np.where(np.isin(face_label, details) | loose, part_of.max() + 1 + island, part_of)` -> `own =
-  part_of`  -> islands_of_a_detail_finish_sharing_a_part_are_no_stray; `np.isin(face_label, details) | loose` ->
-  `np.isin(face_label, details)` (a screen holding a loose bit read as a blotch)  ->
+- finish_parts.py: `own = np.where(details | kept, part_of.max() + 1 + island, part_of)` -> `own = part_of`  ->
+  islands_of_a_detail_finish_sharing_a_part_are_no_stray; `details | kept` -> `details` (a screen holding a loose
+  bit or a crumb read as a blotch), or `stray = found["stray"] + taken_crumbs(...)` -> `stray = found["stray"]` (the
+  crumb a screen's part took in no stray)  ->
   a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named
 - finish_parts.py: `areas[seen & (face_label == label)].sum()` -> `areas[seen].sum()`  ->
   agreement_counts_against_the_maps
@@ -1535,6 +1536,10 @@ def test_a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named():
     part_of, finish_of = finish_parts.merged_islands(mesh, np.where(on_sphere, kept, 2))  # a loose bit of screen,
     assert len(np.unique(part_of[~on_sphere | screens])) < 5  # taken into a screen's part: that screen is no blotch
     assert finish_parts.patchiness(mesh, finish_of, part_of, body)["stray"] == unboxed["stray"]  # (base's glazing)
+    crumb = on_sphere & (np.linalg.norm(middles - (0, 0, 1), axis=1) < 0.06)  # a crumb of screen in the paint, taken
+    part_of, finish_of = finish_parts.merged_islands(mesh, np.where(crumb, 2, kept))  # into a screen's part too
+    crumbed = finish_parts.patchiness(mesh, finish_of, part_of, body)  # (old_station's tape and foil crumbs)
+    assert len(np.unique(part_of[crumb | screens])) <= 4 and 0 < crumbed["stray"] < min(shares), (crumbed, shares)
     portholes =on_sphere & (label == 0) & ((np.linalg.norm(middles - (0, -0.99, 0.1), axis=1) < 0.05)
                                             | (np.linalg.norm(middles - (-0.99, 0, 0.1), axis=1) < 0.05))
     assert mesh.area_faces[portholes].sum() / mesh.area < patchy.STRAY_ISLAND  # two islands, small together too
