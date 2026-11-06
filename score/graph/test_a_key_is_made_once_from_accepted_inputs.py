@@ -4014,6 +4014,15 @@ def test_score_run_refuses_before_it_starts_records_a_given_reason_and_plans_on_
     assert "re-buy reason: the owner changed the hall's brief" in printed.getvalue()
     line = json.loads(books.LEDGER.read_text())
     assert line["reason"] == options.rebuy_reason and line["rebuys"] == {"render@hangar": 4.0, "bake@hangar": 3.0}
+    # the run's start works its buys out in one still pass, each node's files and key once (2026-11-06: outside one a
+    # detached run's start listed a node's files again per path, a git subprocess per take each time). Break: in
+    # __main__.checked_buys, drop `with runner.still():`
+    stilled, real_buys = [], command.rebuy.buys
+    with monkeypatch.context() as patch, contextlib.redirect_stdout(io.StringIO()):
+        patch.setattr(command.rebuy, "buys", lambda runner, nodes: stilled.append(runner.remembered is not None)
+                      or real_buys(runner, nodes))
+        command.checked_buys(runner, ["hangar"], True, argparse.Namespace(**{**vars(options), "detach": True}))
+    assert stilled == [True], stilled
     timed = [{"likely_euros": 1.0, "high_euros": 2.0, "likely_minutes": minutes, "high_minutes": 2 * minutes,
               "runs": 3} for minutes in (10.0, 20.0, 30.0)]
     assert command.plan_price(timed, 2) == {"likely_euros": 3.0, "high_euros": 6.0, "guessed_euros": 0, "guessed": 0,
