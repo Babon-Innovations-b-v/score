@@ -172,15 +172,24 @@ def test_a_changed_input_script_code_or_system_runs_again(monkeypatch, tmp_path)
     kept.HASHES.clear()
     fourth = attempt(monkeypatch, tmp_path, "fourth", code="row code 2")  # another making folder: another call
     other = {**bake(fourth, "crate", models), "script": str(script)}
-    read = pathlib.Path.read_bytes
-    monkeypatch.setattr(pathlib.Path, "read_bytes", lambda path: (_ for _ in ()).throw(AssertionError(f"read {path}"))
-                        if path.name == "crate.glb" else read(path))
+    through = kept.read_through
+    monkeypatch.setattr(kept, "read_through", lambda path, word: (_ for _ in ()).throw(AssertionError(f"read {path}"))
+                        if path.name == "crate.glb" else through(path, word))
     assert kept.missing([other], SYSTEM) == []
-    monkeypatch.setattr(pathlib.Path, "read_bytes", read)
+    monkeypatch.setattr(kept, "read_through", through)
     (models / "crate.glb").write_text("crate model, fixed again")
     assert kept.missing([other], SYSTEM) == [other]  # a changed file is a new version, hashed anew
     (models / "crate.glb").write_text(f"crate model naming {tmp_path}")  # one naming the folders is hashed with them
     assert kept.missing([other], SYSTEM) == [other]
+    # read in chunks, never whole, and a word across two chunks is still found. Break: in kept.read_through, drop
+    # `tail +` (a word cut by a chunk's end is missed)
+    monkeypatch.setattr(kept, "CHUNK", 4)
+    (tmp_path / "split.bin").write_bytes(b"abcdROOTxyz")
+    assert kept.read_through(tmp_path / "split.bin", b"ROOT") == (
+        __import__("hashlib").sha256(b"abcdROOTxyz").hexdigest(), True)
+    (tmp_path / "split.bin").write_bytes(b"abcROOTxyz")  # the word across chunks: abcR|OOTx
+    assert kept.read_through(tmp_path / "split.bin", b"ROOT")[1]
+    assert not kept.read_through(tmp_path / "split.bin", b"NOPE")[1]
 
 
 def test_the_rows_python_is_left_to_its_code_and_its_data_is_not(monkeypatch, tmp_path):

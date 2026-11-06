@@ -117,12 +117,27 @@ def file_hash(path, folders):
     if facts and root and any(root == clean or root.startswith(clean.rstrip("/") + "/") for clean in facts["clean"]):
         HASHES[key] = facts["raw"]  # none of the folders is in its bytes: its hash is its raw bytes' own
         return HASHES[key]
-    data = path.read_bytes()
-    raw = hashlib.sha256(data).hexdigest()
-    clean = [root] if root and root.encode() not in data else []
+    raw, mentions = read_through(path, root.encode() if root else b"")
+    clean = [root] if root and not mentions else []
     remember(record, {"raw": raw, "clean": sorted({*((facts or {}).get("clean") or ()), *clean})})
-    HASHES[key] = raw if clean else hashlib.sha256(written(data, folders)).hexdigest()
+    HASHES[key] = raw if clean else hashlib.sha256(written(path.read_bytes(), folders)).hexdigest()
     return HASHES[key]
+
+
+CHUNK = 8 * 1024 * 1024  # bytes read at a time to hash a file (2026-11-06: read whole, a bake call held 4 GB)
+
+
+def read_through(path, word):
+    """(the sha256 of a file's bytes, whether they hold `word`), read CHUNK bytes at a time, never whole; a match
+    across two chunks is found by keeping the last len(word) - 1 bytes of each."""
+    digest_of, found, tail = hashlib.sha256(), False, b""
+    with path.open("rb") as stream:
+        while chunk := stream.read(CHUNK):
+            digest_of.update(chunk)
+            if word and not found:
+                found = word in tail + chunk
+                tail = (tail + chunk)[-(len(word) - 1):] if len(word) > 1 else b""
+    return digest_of.hexdigest(), found
 
 
 def hashed_before(record):
