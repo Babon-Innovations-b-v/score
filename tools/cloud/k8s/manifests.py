@@ -44,6 +44,12 @@ NO_LIMIT = {"cpu": "256", "memory": "2Ti"}
 KEEP_SECONDS = 3600
 SHM_LIMIT = "16Gi"
 NAME_LIMIT = 63
+# A warm hold (warm_hold): the label that tells it from a job, the pod that holds, the node it is pinned to, and the
+# cluster autoscaler's annotation that keeps a node with such a pod from being scaled down.
+WARM_LABEL = "score.dev/warm"
+HOLD_IMAGE = "registry.k8s.io/pause:3.10"
+HOSTNAME_LABEL = "kubernetes.io/hostname"
+NOT_EVICTABLE = "cluster-autoscaler.kubernetes.io/safe-to-evict"
 
 
 def name_part(text):
@@ -141,6 +147,27 @@ def job(spec, run_id, job_id, classes, cards, generation=0, extra_tolerations=()
             "spec": {"backoffLimit": max(0, int(spec.get("attempt_limit", 3)) - 1),
                      "activeDeadlineSeconds": deadline_seconds(spec), "ttlSecondsAfterFinished": KEEP_SECONDS,
                      "template": {"metadata": {"labels": tags}, "spec": pod}}}
+
+
+def warm_hold(run_id, node, hostname, minutes, stamp, extra_tolerations=()):
+    """The Job that keeps one idle node of the run for `minutes` (the submitter's warm floor): a pause pod pinned to
+    the node by its hostname, which the cluster autoscaler may not evict (safe-to-evict false), so the node is not
+    scaled away; it asks for no card, so the next job's pod lands beside it, and it ends by its own deadline, so a
+    floor never outlives its minutes, whatever becomes of the submitter. Labelled with the run, so stopping the run or
+    stop-batch deletes it with the run's Jobs."""
+    name = f"score-warm-{name_part(node)}-{int(stamp)}"
+    name = name if len(name) <= NAME_LIMIT else "score-warm-" + name[-(NAME_LIMIT - 11):].lstrip("-")
+    tags = {"app.kubernetes.io/part-of": "score", "score.dev/run": label_value(run_id), WARM_LABEL: "hold"}
+    pod = {"restartPolicy": "Never", "terminationGracePeriodSeconds": 0,
+           "nodeSelector": {HOSTNAME_LABEL: hostname}, "tolerations": tolerations(extra_tolerations),
+           "containers": [{"name": "hold", "image": HOLD_IMAGE, "resources": {
+               "requests": {"cpu": "10m", "memory": "16Mi"}, "limits": {"cpu": "50m", "memory": "32Mi"}}}]}
+    return {"apiVersion": "batch/v1", "kind": "Job",
+            "metadata": {"name": name, "namespace": NAMESPACE, "labels": tags,
+                         "annotations": {"score.dev/run-id": run_id, "score.dev/node": node}},
+            "spec": {"backoffLimit": 0, "activeDeadlineSeconds": int(minutes * 60), "ttlSecondsAfterFinished": 60,
+                     "template": {"metadata": {"labels": tags, "annotations": {NOT_EVICTABLE: "false"}},
+                                  "spec": pod}}}
 
 
 def namespace():
