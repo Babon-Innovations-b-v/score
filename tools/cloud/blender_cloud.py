@@ -519,7 +519,7 @@ class Machine:
 
     def __enter__(self):
         self.queue.mkdir(parents=True)
-        self.process = subprocess.Popen([str(cloud_python(kind)), str(HERE / "blender_cloud.py"), "--serve",
+        self.process = subprocess.Popen([str(cloud_python(self.kind)), str(HERE / "blender_cloud.py"), "--serve",
                                          str(self.queue),
                                          "--who", self.who, "--classes", ",".join(self.classes),
                                          "--minutes", str(self.minutes), "--kind", self.kind])

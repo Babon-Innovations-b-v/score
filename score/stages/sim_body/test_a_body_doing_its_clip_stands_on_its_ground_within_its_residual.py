@@ -67,9 +67,12 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   `"calibrated on": CALIBRATED_ON` made `"the rig's standing clip"`.
 - the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-11-04: left_out_why's climber check dropped
   (the climber walks the flat clip through its steps).
-- the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-11-02: ran's `if os.environ.get(CLOUD_CLASSES)`
-  made `if False` (SCORE_SIM_BODY_CLASSES set, the run stays on this PC); ran_elsewhere's targets' folders dropped
+- the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-11-02: on_card's targets' folders dropped
   from its inputs (the machine has no targets).
+- the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-11-06 (every sim body run on a card): ran's
+  `os.environ.get(LOCAL) == "1"` made `True` (the run on this PC); on_card's `kind=KIND` dropped (rented as a Blender
+  job); batched's `PER_MACHINE` made 1 (a card a clip); ran_elsewhere's people merge kept the first card's alone;
+  card_minutes' high `clips * CLIP_HIGH_MINUTES` made `clips * CLIP_MINUTES` (the high reserved at the likely).
 - a_cast_of_no_singles_passes_with_its_reason_and_a_missing_clip_fails, 2026-10-30 (#70): output_faults'
   `"no bodies" not in` check dropped (the crowd-only cast failed again); no_singles' `cast["characters"]` made `True`.
 - a_cast_of_no_singles_passes_with_its_reason_and_a_missing_clip_fails, 2026-10-30 (#70): no_singles'
@@ -364,32 +367,59 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
     assert record["bodies"]["ann"]["adjusted"] == {"pelvis cm": [0.5, 1.2], "largest turn deg": 3.0, "mass %": -1.0}
     assert "Holzbaur" in record["model"]["attribution"] and "Apache-2.0" in record["model"]["attribution"]
     monkeypatch.undo()  # the real ran again
-    held = []  # with SCORE_SIM_BODY_CLASSES the run goes to a rented machine of them, its files at their paths
+    held = []  # the run goes to rented cards of kind sim-body, its clips batched, its files at their paths
 
     class Machine:
-        def __init__(self, classes, who, minutes):
-            held.append((classes, minutes))
+        def __init__(self, classes, who, minutes, kind):
+            held.append((classes, minutes, kind))
 
         def __enter__(self):
             return self
 
         def run(self, script, arguments, inputs, outputs, minutes, env):
-            held.append((script, arguments, inputs, outputs, env))
-            json.dump({"engine": "rented", "people": {}}, outputs[0].open("w"))
-            np.savez(outputs[1], none=0)
+            names = [person["name"] for person in json.loads(arguments[0].read_text())["people"]]
+            held.append((script, arguments, inputs, outputs, env, names))
+            json.dump({"engine": "rented", "rate": 30, "people": {name: {"of": name} for name in names}},
+                      outputs[0].open("w"))
+            np.savez(outputs[1], **{f"{name}_bones": np.ones(1) for name in names})
 
         def __exit__(self, *_):
             pass
     monkeypatch.setattr(sim_body.subprocess, "run", lambda *_, **__: pytest.fail("ran on this PC"))
-    monkeypatch.setattr("score.adapters.engines.machine_runner", lambda: types.SimpleNamespace(Machine=Machine))
-    monkeypatch.setenv(sim_body.CLOUD_CLASSES, "cpu-48c-96gb,cpu-32c-128gb")
+    monkeypatch.setattr("score.adapters.engines.machine_runner",
+                        lambda: types.SimpleNamespace(Machine=Machine, SETUP_MINUTES=8))
+    monkeypatch.setattr(sim_body, "PER_MACHINE", 2)  # three clips: two on one card, one on another
     job = tmp_path / "job.json"
-    job.write_text(json.dumps({"model": "/models/88b0", "people": [{"targets": str(tmp_path / "clips/ann.npz")}]}))
-    assert sim_body.ran(job, tmp_path / "run.json") == ({"engine": "rented", "people": {}}, {"none": 0})
-    assert held == [(["cpu-48c-96gb", "cpu-32c-128gb"], sim_body.CLOUD_MINUTES),
-                    (sim_body.REPO / sim_body.INSIDE, [job, tmp_path / "run.json"],
-                     [job, tmp_path / "clips", "/models/88b0"], [tmp_path / "run.json", tmp_path / "run.npz"],
-                     sim_body.REPO / sim_body.ENV_SCRIPT)]
+    job.write_text(json.dumps({"model": "/models/88b0", "rate": 30, "people": [
+        {"name": name, "targets": str(tmp_path / f"clips/{name}.npz")} for name in ("ann", "bob", "cid")]}))
+    found, arrays = sim_body.ran(job, tmp_path / "run.json")
+    assert found == {"engine": "rented", "rate": 30, "people": {"ann": {"of": "ann"}, "bob": {"of": "bob"},
+                                                                "cid": {"of": "cid"}}}
+    assert sorted(arrays) == ["ann_bones", "bob_bones", "cid_bones"]
+    cards = sorted((entry for entry in held if len(entry) == 6), key=lambda entry: entry[5])
+    assert [entry[5] for entry in cards] == [["ann", "bob"], ["cid"]]
+    assert sorted(entry for entry in held if len(entry) == 3) == [
+        (list(sim_body.CLASSES), sim_body.card_minutes(1)[1], "sim-body"),
+        (list(sim_body.CLASSES), sim_body.card_minutes(2)[1], "sim-body")]
+    first = tmp_path / "job-0.json"
+    assert cards[0][:5] == (sim_body.REPO / sim_body.INSIDE, [first, tmp_path / "run-0.json"],
+                            [first, tmp_path / "clips", "/models/88b0"],
+                            [tmp_path / "run-0.json", tmp_path / "run-0.npz"], sim_body.REPO / sim_body.ENV_SCRIPT)
+    assert sorted(path.name for path in tmp_path.glob("*-[0-9].*")) == []  # the parts gone, one run left
+    # priced from measured minutes: the row's estimate is seven clips' high on one card, no clip is free, and the
+    # forecast reads its cast's singles
+    monkeypatch.undo()
+    from score.adapters import engines
+    engines.machine_runner()  # tools/cloud on the path: the kind's classes are capacity's, an L4 first, parked clean
+    import capacity
+    import park
+    assert capacity.order_for(sim_body.KIND)[0] == sim_body.CLASSES[0] == "gpu-24gb"
+    assert set(sim_body.CLASSES) <= set(capacity.classes_for(sim_body.KIND)) and sim_body.KIND in park.CLEANUPS
+    assert park.CLEANUPS[sim_body.KIND]({"paths": {"/home/x/job.json", "/root/lib/envs"}}) == "rm -rf /home/x/job.json"
+    assert sim_body.priced(7)["euros"] == sim_body.EUROS and sim_body.priced(7)["cards"] == 1
+    assert sim_body.priced(0)["euros"] == 0.0
+    assert sim_body.priced(sim_body.PER_MACHINE + 1)["cards"] == 2
+    assert sim_body.forecast({"cast": str(tmp_path / "cast")}) == sim_body.priced(4)
     stage = Usd.Stage.Open(str(out / sim_body.LAYER))
     root = "/toy/Characters/ann/SimBody"
     cache = UsdGeom.XformCache(5)

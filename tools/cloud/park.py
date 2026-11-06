@@ -129,6 +129,11 @@ CLEANUPS = {
     # caches stay, outside /root/venv (fault, 2026-10-24: each sound row threw its warm pool card away).
     "prove": lambda _machine: ("docker ps -q | xargs -r docker kill >/dev/null 2>&1; "
                                "rm -rf /root/smoke /root/.docker/config.json"),
+    # The sim body row (score/stages/sim_body, blender_cloud's Machine of kind sim-body): its jobs' inputs and outputs
+    # at their paths, as blender_cloud.cleanup takes them; Blender, the shipped repo and Newton's env
+    # (/root/lib/envs/newton_env) stay, so the next place's sim body on the card builds nothing.
+    "sim-body": lambda machine: "rm -rf " + shlex.join(sorted(
+        path for path in machine.get("paths", ()) if path != "/" and not path.startswith("/root"))),
 }
 # Run on a taken machine: every set-up mark but the newest goes, so a kind whose environment a later set-up of another
 # kind replaced (most share /root/venv) sets up again, while the last set-up's own mark stays good.

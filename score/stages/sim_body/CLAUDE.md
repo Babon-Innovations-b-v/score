@@ -160,9 +160,16 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   Newton is given no meshes (`parse_meshes=False`: its mesh loading needs trimesh, which the env does not hold); the
   drawn bones come from MuJoCo's own compile of the file. With a CUDA card every frame's physics runs there at once
   (MuJoCo Warp on the model Newton's SolverMuJoCo puts there, `inside/batched`; 2026-11-05), else on MuJoCo's CPU
-  backend; run on this machine (free); with
-  SCORE_SIM_BODY_CLASSES set (capability classes, comma separated) on a rented machine instead (`ran_elsewhere`, the
-  machine path with the env script built there), which, the row being free, rents only under the owner's spend yes.
+  backend.
+- **A paid row, on a card in the cloud** (owner, 2026-11-06: every sim body run in the cloud, on a card; the
+  conductor at load 98 on 16 cores ran env1's places itself while the warm pool's cards sat idle). Under its run's
+  clearance `ran_elsewhere` rents through the machine path (blender_cloud's `Machine`, kind `sim-body`: capacity.py
+  KINDS and KIND_ORDER, an L4 first, which the run's warm pool holds; park.CLEANUPS keeps Blender and Newton's env on a
+  parked card, so the next place builds nothing), the env script built there. A place's clips go in batches of
+  `PER_MACHINE` (`batched`: what one card's job holds under the owner's 4 h), each its own card side by side, and come
+  back as one run. Its forecast (`forecast`, `priced`) is its cast's singles on those cards at measured minutes (a clip
+  3.8 min likely, 4.8 high, the card's first compile 3.0, set-up and Newton's env; the constants say where each was
+  measured), at the saved bill's L4 price. Never on this PC: only `SCORE_SIM_BODY_LOCAL=1` (tests) runs it here.
 - **Its readers** (contract version 2): the characters layer (`../cast/driven.py`) plays each person's skeleton from
   `measures/<name>.json`'s `poses`, which are the clip's own segment frames, written by the stage itself, its shape
   and pose never changed, only its height over the floor (`_body.stood`; owner, 2026-10-28: SOMA is the truth;
