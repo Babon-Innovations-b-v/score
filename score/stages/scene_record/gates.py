@@ -154,11 +154,25 @@ def count_faults(record, design, inputs):
             if row_id in tied and made.get(row_id, 0) < int(row.get("count") or 1)]
 
 
+def led_instances(design):
+    """{row: how many of its child scene's instances on the plan (holds with an `instance`) a doorway of another hold
+    leads to}: each a room the scene tree needs where its modules' doors meet it (2026-11-06: base's seven
+    connecting tubes, one per link the concept shows, for six its reading counted)."""
+    holds = design.get("holds") or []
+    led = {lead for hold in holds for lead in (hold.get("leads") or {}).values()}
+    counted = {}
+    for hold in holds:
+        if hold.get("instance") in led:
+            counted[hold["row"]] = counted.get(hold["row"], 0) + 1
+    return counted
+
+
 def row_count_faults(record, design, inputs):
     """Each row the record lays (a prop or shell row of the hand-in, not far, nor the place's structure, a person or
     seen beyond it) whose objects number other than its scene inventory counts, with no reason in the plan's
-    `dropped` or notes naming it (2026-11-04 audit: the plan writer re-counted about 25 rows, hangar's crates 14 to
-    7, and the record matched the plan, so nothing caught it)."""
+    `dropped` or notes naming it, nor as many instances of its child scene the plan's doorways lead to
+    (led_instances) (2026-11-04 audit: the plan writer re-counted about 25 rows, hangar's crates 14 to 7, and the
+    record matched the plan, so nothing caught it)."""
     handin = json.loads(pathlib.Path(inputs["hand-in"]).read_text())
     inventory = json.loads(pathlib.Path(inputs["inventory"]).read_text())
     laid = {row["id"] for row in handin.get("rows", []) if row.get("route", "prop") in writer.LAID_ROUTES
@@ -171,10 +185,11 @@ def row_count_faults(record, design, inputs):
     for entry in record.get("objects", []):
         if entry.get("kind") == "object":
             counted[entry["row"]] = counted.get(entry["row"], 0) + 1
+    led = led_instances(design)
     return [f"row {row['id']}: {int(row.get('count') or 1)} in the scene inventory, {counted.get(row['id'], 0)} laid, "
             "and the plan says no reason" for row in inventory.get("rows", [])
             if row["id"] in laid - left and counted.get(row["id"], 0) != int(row.get("count") or 1)
-            and row["id"] not in said]
+            and row["id"] not in said and counted.get(row["id"], 0) != led.get(row["id"])]
 
 
 def unbuilt_rows(record, handin):

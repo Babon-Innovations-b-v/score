@@ -311,9 +311,14 @@ def test_the_record_is_written_from_the_design():
         to 0 m stands its foot at its high end, which the builder lays as a flat block, its treads underneath)
     And (2026-11-04 audit) a doorway is its door row's: one drawn 0.3 m wide for the 1.2 m hatch row, or leading
     elsewhere than its lead, fails `openings` by name; a row laid another number of times than its scene inventory
-    counts, the plan giving no reason, fails `plan-matched`. A row the plan also leaves on its walls item, once its
+    counts, the plan giving no reason, fails `plan-matched`; laid as often as the plan's doorways lead to its child
+    scene's instances (base's seven tubes, 2026-11-06) it passes. A row the plan also leaves on its walls item, once its
     fixes placed it on an item of its own, is laid once, at its own item (camp's airlock door, 2026-11-06).
     Break: score/stages/scene_record/writer.py item_rows: `if name != WALLS_ITEM or row not in placed]` -> `]`
+    Break: score/stages/scene_record/gates.py: `and row["id"] not in said and counted.get(row["id"], 0) !=
+        led.get(row["id"])]` -> `and row["id"] not in said]` (the instances the doorways lead to are no reason)
+    Break: score/stages/scene_record/gates.py: led_instances' `if hold.get("instance") in led:` -> `if
+        hold.get("instance"):` (an instance no doorway leads to counts as a reason)
     Break: score/stages/scene_record/gates.py: `if abs(wide - metres) > DOOR_SHARE * metres or wide < PASSABLE:` ->
         `if False:`
     Break: score/stages/scene_record/gates.py: `if lead is not None and opening.get("to") != lead:` -> `if False:`
@@ -386,6 +391,14 @@ def test_the_record_is_written_from_the_design():
             {**INVENTORY["rows"][0], "count": 2}, LAMP_ROW]}))  # the plan re-counted the benches, saying no reason
         verdict = gates.judge_plan_matched(output, inputs, {})
         assert verdict.findings == ("row bench: 2 in the scene inventory, 1 laid, and the plan says no reason",), verdict
+        kept = pathlib.Path(inputs["plans"]) / "shed.json"
+        held = {**json.loads(kept.read_text()), "holds": [{"place": "bench", "row": "bench", "instance": "bench#1"}]}
+        kept.write_text(json.dumps(held))  # a child scene's instance no doorway leads to: no reason
+        assert gates.judge_plan_matched(output, inputs, {}).findings == verdict.findings
+        kept.write_text(json.dumps({**held, "holds": held["holds"] + [
+            {"place": "yard", "row": "yard", "leads": {"bench": "bench#1"}}]}))  # its one instance the yard's door meets
+        verdict = gates.judge_plan_matched(output, inputs, {})
+        assert verdict.answer == checks.PASS, verdict.findings
     walled = {**WRITTEN, "items": [*WRITTEN["items"], [writer.WALLS_ITEM, 0.0, 0.0, 8.0, 6.0, None, "item"]],
               "rows": {**WRITTEN["rows"], writer.WALLS_ITEM: ["bench", "ceiling_lamp"]}}  # camp's door, 2026-11-06
     with tempfile.TemporaryDirectory() as folder:
