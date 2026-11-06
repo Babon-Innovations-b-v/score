@@ -5,7 +5,9 @@ when the pelvis moves (`Footing`, mink), a leg's direction no foot task sees hel
 (`FreeHold`), and a frame that does not converge fails loudly; as worked out by hand (to 1e-6: Newton keeps gravity
 in float32); a segment's turn between two posed paths is measured in degrees; RRA's frame shares are held smooth
 and never above what the frame check lowered them to, a move putting bones out of SOMA's skin is seen region by region
-against the fitted path, and only the move off the fitted path is low-passed (#70, 2026-11-05). It runs in Newton's
+against the fitted path, and only the move off the fitted path is low-passed (#70, 2026-11-05); the caps' rows of
+every nudge landed as one stacked path, and the card's sensitivities with a frame's couplings' map kept where its
+leaders stand, are each nudge's own bits (2026-11-06). It runs in Newton's
 own Python (on a model Newton builds; score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none
 built there, as in `make tests`' sandbox home, it prints `skipped`.
 
@@ -41,6 +43,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - rra._linear.wrenches' `places - summed[:, None] * origin` made `places - origin`, and its `summed[:, None, None] *
   edges` made `edges`: the blended point's columns off its Jacobian's; residuals_kept's key without the masses: moved
   masses read the kept residuals (2026-11-06).
+- rra._linear.sensitivities' `mapped if same else couplings.map(placed)` made `mapped`: a lumbar nudge's trunk rows
+  read the frame's map, not its own; rra._cap.cap_rows' `found[1 + column]` made `found[column]`: a stacked nudge read
+  as its neighbour's (2026-11-06).
 
 Run: .venv/bin/python score/stages/sim_body/inside/rra/test_rra_moves_mass_and_torso_by_the_mean_residual.py
 """
@@ -414,6 +419,107 @@ def only_the_move_off_the_fitted_path_is_low_passed():
     return problems + ([] if np.allclose(same, path, atol=1e-12) else ["an unmoved path changed"])
 
 
+TRUNK_LEGS = LEGS.replace("""      <body name="thigh_l\"""", """      <body name="torso" pos="0 0 0.1">
+        <joint name="flex_extension" type="hinge" axis="0 1 0" range="-1 1"/>
+        <joint name="lat_bending" type="hinge" axis="1 0 0" range="-1 1"/>
+        <joint name="axial_rotation" type="hinge" axis="0 0 1" range="-1 1"/>
+        <geom type="box" pos="0 0 0.15" size="0.1 0.12 0.15" mass="10"/>
+        <body name="chest" pos="0 0 0.3">
+          <joint name="follower" type="hinge" axis="0 1 0" range="-1 1"/>
+          <geom type="box" pos="0 0 0.1" size="0.1 0.12 0.1" mass="6"/>
+        </body>
+      </body>
+      <body name="thigh_l\"""", 1).replace("</worldbody>", """</worldbody>
+  <equality><joint joint1="follower" joint2="flex_extension" polycoef="0 0.5 0.3 0 0"/></equality>""")
+
+
+class CpuCard:
+    """A stand-in for `batched.Card` on MuJoCo's C: `evaluate`'s needed forces (mj_inverse) and root poses, the states
+    it was given kept."""
+
+    def __init__(self, found):
+        import mujoco
+        self.model, self.data = found, mujoco.MjData(found)
+
+    def evaluate(self, qpos, qvel, qacc, names):
+        import mujoco
+        import numpy as np
+        found = {"needed": [], "xpos": [], "xmat": []}
+        for state in zip(qpos, qvel, qacc):
+            self.data.qpos[:], self.data.qvel[:], self.data.qacc[:] = state
+            mujoco.mj_inverse(self.model, self.data)
+            found["needed"].append(self.data.qfrc_inverse.copy())
+            found["xpos"].append(self.data.xpos.copy())
+            found["xmat"].append(self.data.xmat.copy())
+        self.given, self.needed = np.array(qpos), np.array(found["needed"])
+        return {name: np.array(values) for name, values in found.items()}
+
+
+def the_linearisation_is_each_nudge_measured_alone():
+    """On a toy with a trunk, a chest following its flexion and two legs (four frames, a small move), mink's Footing:
+    `cap_rows` with every nudged path moved, landed and posed as one stacked path gives the rows and values, bit for
+    bit, that one path a nudge gives; and on a card (MuJoCo's C standing in) `sensitivities`' trunk rows are, bit for
+    bit, each nudged state's own couplings' map: the frame's kept only where the leaders stand as the frame's."""
+    import types
+    import mujoco
+    import numpy as np
+    import model
+    import rra
+    from rra import _cap, _linear
+    found = mujoco.MjModel.from_xml_string(TRUNK_LEGS)
+    couplings = model.Couplings(found)
+    physics = types.SimpleNamespace(model=found, data=mujoco.MjData(found), couplings=couplings, card=None)
+    standing = found.qpos0.copy()
+    for side in "lr":
+        for joint, angle in (("hip", -0.3), ("knee", 0.6), ("ankle", -0.3)):
+            standing[found.jnt_qposadr[found.joint(f"{joint}_{side}").id]] = angle
+    path = np.tile(standing, (4, 1))
+    path[:, found.jnt_qposadr[found.joint("flex_extension").id]] = [0.1, 0.12, 0.15, 0.17]
+    path[:, 0] += np.arange(4) * 0.01
+    path = np.array([couplings.apply(qpos) for qpos in path])
+    feet = [model.body_index(found, f"foot_{side}") for side in "lr"]
+    footing = rra.Footing(found, couplings, feet)
+
+    def land(moved):
+        return footing.footed(moved, np.concatenate([path] * (len(moved) // len(path))))
+
+    segments = ["pelvis", "torso", "chest", "thigh_l", "shin_l", "thigh_r", "shin_r"]
+    riders = (segments, {name: model.body_index(found, name) for name in segments},
+              {name: np.eye(4) for name in segments})
+    fitted = model.posed_path(found, path, *riders)
+    most = (0.02, np.radians(5.0))
+    adjusted = _linear.adjusted_leads(physics)
+    total = 0.004 * np.sin(np.arange(4 * len(adjusted)) + 1.0).reshape(4, len(adjusted))
+    rows, values = rra.cap_rows(physics, path, total, land, fitted, riders, most)
+    now = _cap.turns_off(found, land(_linear.moved(physics, path, total, adjusted)), fitted, riders)
+    turning = np.zeros((4, now.shape[1], 3, len(adjusted)))
+    for column in range(len(adjusted)):
+        nudge = np.zeros(len(adjusted))
+        nudge[column] = _cap.CAP_STEP
+        ahead = _cap.turns_off(found, land(_linear.moved(physics, path, total + nudge, adjusted)), fitted, riders)
+        turning[..., column] = (ahead - now) / (_cap.CAP_STEP * most[1])
+    kept = []
+    for ball in range(now.shape[1]):
+        mine = np.concatenate([turning[:, ball].reshape(4, -1), now[:, ball] / most[1]], axis=1)
+        if np.abs(mine).max() > _cap.CAP_STEP and not any(np.allclose(mine, other, atol=_cap.CAP_STEP)
+                                                          for other in kept):
+            kept.append(mine)
+    width = len(adjusted)
+    alone = (np.stack([mine[:, :3 * width].reshape(4, 3, width) for mine in kept], axis=1),
+             np.stack([mine[:, 3 * width:] for mine in kept], axis=1))
+    problems = [] if len(kept) > 1 and np.array_equal(rows[:, :-2], alone[0]) and np.array_equal(
+        values[:, :-2], alone[1]) else [f"the stacked nudges' {rows.shape[1] - 2} balls not one path's bits each"]
+    physics.card = CpuCard(found)
+    states = _linear.frame_states(physics, path, 30.0)
+    sensitive = rra.sensitivities(physics, states, adjusted)
+    asked = np.array([(couplings.map(qpos).T @ needed)[adjusted[6:]] for qpos, needed in
+                      zip(physics.card.given, physics.card.needed)]).reshape(4, len(adjusted), 2, 3, -1)
+    wanted = (asked[:, :, 0] - asked[:, :, 1]) / (2 * np.array(_linear.CARD_STEPS)[:, None])
+    off = [frame for frame in range(4) for kind in range(3)
+           if not np.array_equal(sensitive[frame][kind][6:], wanted[frame, :, kind].T)]
+    return problems + ([f"the trunk's rows on frames {sorted(set(off))} not their states' own maps"] if off else [])
+
+
 def the_balance_is_the_pushes_wrenches_kept_per_path():
     """On the toy, its skin's points 2 mm over the ground under its pelvis (one blended 0.5 on the pelvis and 0.3 on
     the torso), three states (still, turned and moving, sliding at 2 m/s) on MuJoCo's C: `residuals`' columns (each
@@ -491,7 +597,7 @@ CHECKS = (the_mass_follows_the_mean_upward_residual, a_floating_body_keeps_its_m
           a_foot_frame_that_does_not_converge_fails, the_cards_footing_equals_minks,
           a_turn_between_two_paths_is_its_angle, the_frame_shares_are_smooth_and_never_above_the_lowered,
           a_move_that_puts_bones_out_of_the_skin_is_seen_by_region, only_the_move_off_the_fitted_path_is_low_passed,
-          the_balance_is_the_pushes_wrenches_kept_per_path)
+          the_balance_is_the_pushes_wrenches_kept_per_path, the_linearisation_is_each_nudge_measured_alone)
 
 
 def in_newton():

@@ -32,3 +32,8 @@ squares it replaced, 40 fixed steps with ranges by clipping, went 2026-10-29: on
   path low-passed with the feet kept again (`smoothed_off`) (2026-11-05, #70): the freed joints' pickup kept 0.75 of a
   move that turned the arms and head with the trunk, its hands 37.7% outside the skin, its shins 30 times the clip's
   jerk.
+- `cap_rows` moves, lands and poses the path moved by `total` and each column's nudge of it as one stacked path
+  (`moved` takes copies x frames, each frame's couplings' map once; the run's `land` takes whole copies of the clip,
+  each against the fitted path), so on the card every nudge's legs are one solve, not one a column; `sensitivities`
+  keeps a frame's couplings' map for a nudged state whose leaders stand as the frame's (2026-11-06, #70: the two
+  together 19 s in 3 calls of the jump's 135 s). Bit for bit the column-by-column answer: each row's solve is its own.
