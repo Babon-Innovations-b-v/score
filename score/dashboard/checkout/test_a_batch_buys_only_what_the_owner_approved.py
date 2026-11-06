@@ -658,6 +658,16 @@ def test_a_buy_approved_in_chat_is_refused_outside_what_he_approved(chat, settin
     assert flow.phase_kept(items, "film") == [{"id": "a", "nodes": {"demo-film@a": price}},
                                               {"id": "f", "nodes": {"demo-film-extra@b": price}}]
     assert flow.phase_kept(items, None) == items
+    # several phases at once, their queues side by side in one run (owner, 2026-11-06), and stages left out: an
+    # unknown one refused. Break: in flow.phase_kept, `in chosen` -> `== phase`
+    def kept(phase):
+        return {node for item in flow.phase_kept(items, phase) for node in item["nodes"]}
+    assert kept("film,models") == kept("film") | kept("models") and kept("film") and kept("models")
+    assert chat_yes.known_stages("closeup,pixal") == ["closeup", "pixal"]
+    with pytest.raises(chat_yes.Refused):
+        chat_yes.known_stages("closeup,no-such-stage")
+    with pytest.raises(chat_yes.Refused):
+        chat_yes.known_phase("models,no-such-phase")
     chat.items = a_basket(settings, ["closeup@alpha", "pixal@alpha"])  # the basket of two phases' rows
     monkeypatch.setattr(flow, "basket_made", lambda: None)
     monkeypatch.setattr(FakeBackend, "plan_buys", None)  # the run's plan buys the close-ups its --stage names

@@ -4058,9 +4058,7 @@ def test_score_run_refuses_before_it_starts_records_a_given_reason_and_plans_on_
         found[make.__name__] = command.preflight(runner, ["hangar"], True, options)
     summary, failed = found["make_to_the_rent"]
     assert failed == [] and "1 of 1 paid nodes dry-run to their paid point" in summary, (summary, failed)
-    assert [failed[0].split(" (its log ")[0] for _, failed in [found["make_missing_jobs"], found["make_copy"],
-                                                               found["make_hashing"]]] == [
+    assert found["make_copy"][1] == [], found  # finished with nothing to rent (its jobs kept): no failure
+    assert [failed[0].split(" (its log ")[0] for _, failed in [found["make_missing_jobs"], found["make_hashing"]]] == [
         "dry run: render@hangar: FileNotFoundError: no jobs file at render-jobs.json",
-        "dry run: render@hangar: its make finished without reaching a paid point: its paid work would run on this "
-        "machine",
         "dry run: render@hangar: its dry run passed its 2 s box before reaching a paid point"], found

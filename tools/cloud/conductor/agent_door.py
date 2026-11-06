@@ -219,7 +219,8 @@ NODE = re.compile(r"^[a-z0-9][a-z0-9_.-]*(@[a-z0-9_.-]+)?$")
 # A grant id is score.store.stamp_key of its UTC time, "+0000" and all (20261026T074845.442617+0000): without the
 # plus the door refused every grant the session had written (2026-10-26).
 GRANT_ID = re.compile(r"^[A-Za-z0-9._:+-]+$")
-PHASE = re.compile(r"^[a-z][a-z-]*$")  # a phase's name (score/stages/phases); the Buy refuses one that is no phase
+PHASE = re.compile(r"^[a-z][a-z-]*$")
+STAGE_LIST = re.compile(r"^[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*$")  # a Buy's phases or stages to leave out  # a phase's name (score/stages/phases); the Buy refuses one that is no phase
 GRANT_CODE = ("import sys; from score.adapters.compute import grant_benchmark; "
               "print(grant_benchmark(answer=sys.argv[2], question=sys.argv[3], euros=sys.argv[1])['id'])")
 REFUSED_EXIT = 126
@@ -398,9 +399,9 @@ def decide(words, latch):
                           "answered>")
         return ["-m", "score.dashboard", "buy-yes", *args], {}
     if verb == "buy":
-        phased = len(args) == 3 and args[1] == "--phase" and PHASE.match(args[2])
-        if len(args) not in (1, 3) or not GRANT_ID.match(args[0]) or (len(args) == 3 and not phased):
-            raise Refused("buy <yes id> [--phase <phase>], the id buy-yes printed")
+        if not args or not GRANT_ID.match(args[0]) or not buy_options(args[1:]):
+            raise Refused("buy <yes id> [--phase <phase>[,<phase>...]] [--leave-out <stage>[,<stage>...]], the id "
+                          "buy-yes printed")
         if latch:
             raise Refused("the owner's free-only latch is set: no Buy")
         return [str(pathlib.Path(__file__).resolve()), BUY, *args], {"SCORE_FREE_ONLY": None}
@@ -683,16 +684,28 @@ def carried(args, home):
     return carry.main(args)
 
 
-def buy_started(yes, home, command=None, phase=None):
+def buy_options(rest):
+    """Whether the options after a Buy's yes id are each --phase or --leave-out once with a comma list of names."""
+    seen = set()
+    while rest:
+        if len(rest) < 2 or rest[0] not in ("--phase", "--leave-out") or rest[0] in seen or \
+                not STAGE_LIST.match(rest[1]):
+            return False
+        seen.add(rest[0])
+        rest = rest[2:]
+    return True
+
+
+def buy_started(yes, home, command=None, phase=None, leave_out=None):
     """`python -m score.dashboard buy <yes> [--phase <phase>]` started in a session of its own, its words in a log
     under home/BUY_LOGS named with the phase, and the door's answer at once: the log's path (2026-11-04: a Buy priced
     on the idle conductor's 2 cores held the ssh past its caller's 15 minutes, the ssh dropped and the Buy was cut
     off, no checkout written)."""
     folder = pathlib.Path(home) / BUY_LOGS
     folder.mkdir(parents=True, exist_ok=True)
-    named = f"{yes}-{phase}" if phase else yes
+    named = f"{yes}-{phase.replace(',', '+')}" if phase else yes
     log = folder / f"buy-{time.strftime('%Y%m%d-%H%M%S')}-{named}.log"
-    asked = [yes, "--phase", phase] if phase else [yes]
+    asked = [yes, *(["--phase", phase] if phase else []), *(["--leave-out", leave_out] if leave_out else [])]
     with log.open("w") as written:
         subprocess.Popen(command or [sys.executable, "-m", "score.dashboard", "buy", *asked], cwd=REPO,
                          stdin=subprocess.DEVNULL, stdout=written, stderr=subprocess.STDOUT, start_new_session=True)
@@ -995,7 +1008,9 @@ def main():
     if sys.argv[1:2] in ([BUY], [BUY_LOG]):
         from score.store import PROPS_HOME
         try:
-            print(buy_started(sys.argv[2], PROPS_HOME, phase=sys.argv[4] if sys.argv[3:4] == ["--phase"] else None)
+            options = dict(zip(sys.argv[3::2], sys.argv[4::2]))
+            print(buy_started(sys.argv[2], PROPS_HOME, phase=options.get("--phase"),
+                              leave_out=options.get("--leave-out"))
                   if sys.argv[1] == BUY else buy_log(PROPS_HOME))
         except Refused as refused:
             print(f"score-agent-door: refused: {refused}", file=sys.stderr)
