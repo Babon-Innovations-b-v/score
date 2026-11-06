@@ -247,6 +247,7 @@ CLUSTER_CHECK = "--cluster-check"  # this file's own look at the tenant cluster 
 CLUSTER_SETTINGS = ("SCORE_K8S_CONTEXT", "SCORE_K8S_CLUSTER", "SCORE_K8S_PROJECT")  # the box's, never the repo's
 CLUSTER_PROVIDER = "scaleway/tenant"
 CLUSTER_SECONDS = 60
+CLUSTER_FILES = pathlib.Path(f"/run/user/{os.getuid()}/score")  # secrets.sh's tmpfs: k8s.env, k8s-kubeconfig
 NODE_LOG = "--node-log"  # this file's own read of a node's own log of the newest launch (the node-log verb runs it)
 PS_LINES = 40
 DESIGN_FILE = "--design-file"  # this file's own read of one design file (the design-file verb runs it)
@@ -282,6 +283,17 @@ def words_of(asked):
         return shlex.split(asked)
     except ValueError as error:
         raise Refused(f"could not read the command ({error})") from None
+
+
+def cluster_values(folder=None):
+    """The tenant cluster's settings secrets.sh wrote to this user's tmpfs (k8s.env: SCORE_K8S_* lines only, any
+    other name left out) and, when its login is there, SCORE_K8S_KUBECONFIG naming it; {} without them."""
+    folder = pathlib.Path(folder or CLUSTER_FILES)
+    found = {name: value for name, value in env_file_values(folder / "k8s.env").items()
+             if name.startswith("SCORE_K8S_") and name != "SCORE_K8S_KUBECONFIG"}
+    if found and (folder / "k8s-kubeconfig").is_file():
+        found["SCORE_K8S_KUBECONFIG"] = str(folder / "k8s-kubeconfig")
+    return found
 
 
 def env_file_values(path):
@@ -763,7 +775,24 @@ def cluster_check(environment, kubectl=None):
     if done.returncode != 0:
         lines = (done.stderr or done.stdout).strip().splitlines()
         raise Refused(f"the tenant cluster refused: {lines[-1] if lines else f'exit {done.returncode}'}")
-    return f"the tenant cluster answers: {done.stdout.strip()} through {config}"
+    said = f"the tenant cluster answers: {done.stdout.strip()} through {config}"
+    return said + "\n" + tenant_status(environment)
+
+
+def tenant_status(environment, command=None):
+    """The tenant module's status (k8s/clusters/tenant.py: the cluster, score's class pools and their nodes, read by
+    scw in the cluster's own project, which the submitter's cost watch reads each poll); Refused naming its last line
+    when it fails (2026-11-06: the conductor's scw key may not reach that project)."""
+    try:
+        done = subprocess.run(command or [sys.executable, str(REPO / "tools/cloud/k8s/clusters/tenant.py"), "status"],
+                              capture_output=True, text=True, timeout=CLUSTER_SECONDS, env={**os.environ, **environment})
+    except subprocess.TimeoutExpired:
+        raise Refused(f"the tenant module's status did not end within {CLUSTER_SECONDS} s") from None
+    if done.returncode != 0:
+        lines = (done.stderr or done.stdout).strip().splitlines()
+        raise Refused(f"kubectl reaches the cluster, but the tenant module's status failed (the cost watch reads it): "
+                      f"{lines[-1] if lines else f'exit {done.returncode}'}")
+    return done.stdout.strip()
 
 
 def buy_started(yes, home, command=None, phase=None, leave_out=None, cluster=None):
@@ -1109,7 +1138,7 @@ def main():
             return REFUSED_EXIT
         return 0
     try:
-        values = env_file_values(ENV_FILE)
+        values = {**env_file_values(ENV_FILE), **cluster_values()}
         argv, extra = decide(words_of(os.environ.get("SSH_ORIGINAL_COMMAND")), latched(values))
     except Refused as refused:
         print(f"score-agent-door: refused: {refused}", file=sys.stderr)

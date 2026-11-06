@@ -62,7 +62,12 @@ makes, the rights of the two keys, and what is still unchecked until the first `
 - **Secrets**: one credential on disk, `/home/score/.config/scw/config.yaml` (mode 600). Everything else by name
   through `/usr/local/bin/score-secret-reader` (`secret_reader.sh`: the project id found by its name,
   `SCORE_SECRETS_PROJECT`); the file-shaped ones (`score-lib-deploy-key`, optional `google-billing-reader`) only on tmpfs at
-  `/run/user/1100/score` (`secrets.sh`, `score-secrets.timer`), gcloud's config with them.
+  `/run/user/1100/score` (`secrets.sh`, `score-secrets.timer`), gcloud's config with them. The tenant cluster (owner's
+  yes, 2026-11-06), optional: `score-k8s-kubeconfig`, the login of a service account on babon's cluster scoped to
+  score's namespaces (score, score-jobs: jobs, pods, logs, events, secrets; nodes read; never an admin's login), and
+  `score-k8s-settings`, its SCORE_K8S_* lines, land there as `k8s-kubeconfig` and `k8s.env`; the door adds those
+  lines (SCORE_K8S_* only) and the login's path to every command's environment (`agent_door.cluster_values`), boot.sh
+  installs a pinned kubectl, and `cluster-check` says whether the cluster answers.
 - **Claude Code** (owner's yes, 2026-11-05: the finish route's `claude -p` rows run here): boot.sh's user part
   (`install_claude`, also `boot.sh claude`) installs `CLAUDE_PIN` with npm into `~/.local/lib/claude-code`, off the
   PATH; `claude_login.py link` (secrets.sh, every boot and hour) links `~/.local/bin/claude` to `claude_login.py` only

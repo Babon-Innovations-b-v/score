@@ -46,6 +46,10 @@ UV_SHA256=9167d72b3319674b6303c4cbe071854bba13ebdf3d76b1a7cbdc175471fb66d6
 SCW_VERSION=2.65.1
 SCW_URL="https://github.com/scaleway/scaleway-cli/releases/download/v$SCW_VERSION/scaleway-cli_${SCW_VERSION}_linux_amd64"
 SCW_SHA256=b9ced8bc52c27baba76136a24e65a5e0abd53e9499edf02226513977d45da503
+# kubectl for the tenant cluster (tools/cloud/k8s; owner's yes, 2026-11-06), its SHA-256 from dl.k8s.io's own .sha256
+KUBECTL_VERSION=1.37.1
+KUBECTL_URL="https://dl.k8s.io/release/v$KUBECTL_VERSION/bin/linux/amd64/kubectl"
+KUBECTL_SHA256=65691ff77eb6fa44c908b77a1082c9f092c3b9733b5cefabec0d1104890e21a8
 # Node.js (node, npm, npx in /usr/local/bin): the 3D web copies' gltfpack and the film preview's recorder, whose
 # playwright@1.62.1 takes node >=20 (its package.json engines). An LTS line; the checksum from the release's SHASUMS256.txt.
 NODE_VERSION=24.21.0
@@ -214,6 +218,19 @@ install_scw() {
   say "scw $SCW_VERSION installed"
 }
 
+install_kubectl() {
+  local work
+  if [ -x "$BIN/kubectl" ] && "$BIN/kubectl" version --client 2> /dev/null | grep -q "v$KUBECTL_VERSION\$"; then
+    say "kubectl $KUBECTL_VERSION already installed"
+    return
+  fi
+  work="$(mktemp -d)"
+  download_checked "$KUBECTL_URL" "$KUBECTL_SHA256" "$work" kubectl
+  install_binary "$work/kubectl" "$BIN/kubectl"
+  rm -rf "$work"
+  say "kubectl $KUBECTL_VERSION installed"
+}
+
 install_node() {
   local work lib="$ROOT/usr/local/lib/nodejs" name
   if [ -x "$BIN/node" ] && [ "$("$BIN/node" --version 2> /dev/null)" = "v$NODE_VERSION" ]; then
@@ -288,6 +305,7 @@ system_part() {
   install_restic
   install_uv
   install_scw
+  install_kubectl
   install_node
   chromium_libraries
   install_gcloud
