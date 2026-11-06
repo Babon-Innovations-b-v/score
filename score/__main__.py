@@ -228,7 +228,6 @@ def parse(argv):
     commands.add_parser("resume").add_argument("--dry", action="store_true", help="only list the runs it would start")
     check = commands.add_parser("preflight")
     check.add_argument("world", metavar="environment", choices=sorted(stages.WORLDS), help=ENVIRONMENT_HELP)
-    check.add_argument("--phase", help="the phase whose stages are checked (the stage table's phases)")
     check.add_argument("--rebuy-reason", help="the reason its run would be given")
     check.add_argument("--jobs", type=int, help=f"nodes at once, as for run (default {graph.JOBS})")
     lock_phase = commands.add_parser("lock-phase", help="lock a phase's accepted outputs: a later code change keeps "
@@ -1053,21 +1052,8 @@ def preflight_stock(sizes):
             if not any(offer.machine_class == name and offer.stock_word != "shortage" for offer in found)]
 
 
-def phase_stages(name):
-    """The stage names of phase `name` from the stage table's phases (score.stages PHASES); exits while the table
-    has none, or names no such phase."""
-    phases = getattr(stages, "PHASES", None)
-    if phases is None:
-        sys.exit("score preflight: no phase table yet (score.stages PHASES); name the phase's stages with --stage")
-    if name not in phases:
-        sys.exit(f"score preflight: no phase {name}; one of {', '.join(phases)}")
-    return list(phases[name])
-
-
 def preflight_command(runner, places, whole, options):
     """Print the preflight's summary and one line a failure; exit 1 with any."""
-    if options.phase:
-        options.stage = [*(options.stage or []), *phase_stages(options.phase)]
     summary, failed = preflight(runner, places, whole, options)
     print(summary, flush=True)
     for line in failed:
