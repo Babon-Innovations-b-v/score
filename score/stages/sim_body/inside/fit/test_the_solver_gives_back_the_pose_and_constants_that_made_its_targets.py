@@ -57,6 +57,12 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   solve raises "Invalid device identifier: cuda:0" (the conductor's fault; the_solver_gives_back_the_angles_and_the_
   constants (no card) red). constants_on's `wide=card` made `wide=True` stays green: level 2's card solve
   (`_card._level2_lm`, `_level2_wide`) runs on Warp's default device, the CPU with no card.
+- (2026-11-06) _card._level3.angles' settle rule `still[final - 1 - frames[0]]` made `True` (every frame final
+  after one sweep, its seed the chain's, not the frame before's answer): 1 sweep over 17 frames; the skin pass
+  dropped from `_level3.sweep` (`return free`): angles 0.502 deg, sites 10.1 mm, bones 10.0 mm off mink's
+  (level_3_on_the_card_is_minks_frames red). The toy has one minimum a frame, so a sweep seeded from each frame's own
+  last answer, or a chain from the start every time, stays green: the recurrence's history is the real bodies'
+  measure (the shoulder's flat elevation-plane valley), not this check's.
 - (2026-10-28) Fitting's site `Rotation.from_matrix(calibration.T)` made `Rotation.from_matrix(calibration)`: the turned
   thigh's target is met by a wrong pose.
 - (2026-10-28) limited_model's `found.jnt_limited[self.followers] = 0` dropped: the follower's own range stops its
@@ -180,6 +186,9 @@ DECOY_HALF, DECOY_SHIFT, FOUND_MM = 0.03, 0.06, 1.0
 # and fused (2026-11-05, mean's pickup on Warp's CPU device: the vertices within 6.7e-16 m, the shares 1.0e-17).
 CARD_SKIN_M, CARD_SHARE = 1e-12, 1e-12
 MOST_RADIANS = 1e-4
+# level 3 on the card against mink's frames (`level_3_on_the_card_is_minks_frames`): the plan's gate on a clip of
+# LEVEL3_FRAMES frames
+LEVEL3_FRAMES, LEVEL3_DEG, LEVEL3_MM = 17, 0.01, 0.01
 SETTLED_GRADIENT = 1e-10  # the free gradient level 2 ends at, absolute (2026-10-30: scipy's trf/lsmr alone left 2.5e-7)
 # The marker's move is pulled to its link by one row at its own weight against the five frames' (found 2026-10-29: 7.1 mm
 # of the true 10 mm, 10.0 with the pull dropped): along the true move at least MOVE_SHARE of it and no more than all of
@@ -697,6 +706,59 @@ def a_pose_measured_once_gives_the_same_fit():
     return problems
 
 
+def toy_sites(model, path):
+    """Every frame's sites (frames x sites x 3, m) on the toy at `path`'s angles."""
+    import mujoco
+    import numpy as np
+    data, found = mujoco.MjData(model), []
+    for qpos in path:
+        data.qpos[:] = qpos
+        mujoco.mj_kinematics(model, data)
+        found.append(data.site_xpos.copy())
+    return np.array(found)
+
+
+def level_3_on_the_card_is_minks_frames():
+    """Level 3 on the card, every frame at once (`fit.LEVEL3_CARD`, `_card._level3`'s sweeps of mink's recurrence),
+    on the toy held in its shin's skin over a clip of LEVEL3_FRAMES frames between POSES' first five: every frame's
+    angles within LEVEL3_DEG of mink's (`Frames.fitted`), its sites within LEVEL3_MM, its bone points' depth outside
+    the skin within LEVEL3_MM, in more than one sweep and fewer than one a frame; with the switch off, mink's own."""
+    import numpy as np
+    import fit
+    from fit._card import _level3
+    if not fit.on_card():
+        return []
+    with tempfile.TemporaryDirectory() as folder:
+        fitting = toy_fitting(folder)
+        truth = truth_of(fitting)
+        rows = np.array([[*place, *joints] for place, *joints in POSES[:-1]])
+        between = np.linspace(0, len(rows) - 1, LEVEL3_FRAMES)
+        flat = np.stack([np.interp(between, range(len(rows)), column) for column in rows.T], axis=1)
+        poses = [(tuple(row[:3]), *row[3:]) for row in flat]
+        turns, points, _ = posed_targets(fitting, truth, poses)
+        skins = shin_skins(fitting, truth, poses)
+        fitting.apply(truth)
+        mink = fit.angles(fitting, turns, points, skins)
+        card, sweeps = fit.card_angles(fitting, turns, points, skins)
+        kept, fit.LEVEL3_CARD = fit.LEVEL3_CARD, True
+        try:
+            switched = fit.angles(fitting, turns, points, skins)
+        finally:
+            fit.LEVEL3_CARD = kept
+        off = fit.angles(fitting, turns, points, skins)
+        model = fitting.model
+        degrees = float(np.degrees(np.abs(card[:, 7:] - mink[:, 7:]).max()))
+        sites = 1000 * float(np.linalg.norm(toy_sites(model, card) - toy_sites(model, mink), axis=-1).max())
+        depths = 1000 * float(np.abs(bone_depths(model, card, skins) - bone_depths(model, mink, skins)).max())
+    problems = [] if degrees <= LEVEL3_DEG else [f"the card's angles {degrees:.5f} deg off mink's"]
+    problems += [] if sites <= LEVEL3_MM else [f"the card's sites {sites:.5f} mm off mink's"]
+    problems += [] if depths <= LEVEL3_MM else [f"the card's bones {depths:.5f} mm deeper or shallower than mink's"]
+    problems += [] if 1 < sweeps < len(poses) else [f"{sweeps} sweeps over {len(poses)} frames"]
+    problems += [] if np.array_equal(switched, card) else ["the switch on does not give the card's angles"]
+    problems += [] if off.tobytes() == mink.tobytes() else ["the switch off does not give mink's angles"]
+    return problems + ([] if _level3.STRIDE < len(poses) else ["the seeding chain holds every frame"])
+
+
 def decoy_box(model, qpos):
     """Another part's skin beside the toy's shin bone where `qpos` puts it, DECOY_SHIFT off ([8 x 3] corners)."""
     import mujoco
@@ -975,7 +1037,8 @@ CHECKS = (an_end_read_in_the_skin_holds_its_bones_off_somas_joint, a_turn_is_jud
           a_step_no_task_sees_ends_the_fit, level_2_ends_settled, a_step_the_cost_cannot_see_is_judged_by_its_gradient,
           the_frames_hold_the_bones_inside_the_skin, a_pose_measured_once_gives_the_same_fit,
           a_frame_is_not_held_in_another_parts_skin, the_heads_pockets_are_closed_for_the_inside_test, a_skin_folding_into_itself_gives_no_rows,
-          the_depth_is_the_nearest_faces_where_the_query_flips, a_frames_skin_marks_the_bones_out_of_it_frame_by_frame)
+          the_depth_is_the_nearest_faces_where_the_query_flips, a_frames_skin_marks_the_bones_out_of_it_frame_by_frame,
+          level_3_on_the_card_is_minks_frames)
 
 
 def in_newton():

@@ -115,7 +115,7 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
   "Invalid device identifier: cuda:0"): when Warp sees no CUDA device (`on_card`) the stage's level 2 poses its sampled
   frames by mink (`posed_paths` -> `mink_paths`, each recording from its own start) and solves its constants by
   scipy's `least_squares` on the host's exact Jacobian (`staged(..., Problem.exact, wide=False)`); level 3 is mink
-  either way and the skin measures take Warp's CPU device (`_skin.card_device`). With a card nothing changes. On env1's
+  (`fit.LEVEL3_CARD` off; on, with a card, `_card/_level3`'s sweeps, every frame at once) and the skin measures take Warp's CPU device (`_skin.card_device`). With a card nothing changes. On env1's
   person_centre (CUDA hidden against the card through the card queue, both side by side on this PC, 20 and 16 min)
   every bones-outside share and every turn measure of both followings equal to the record's rounding, the markers'
   moves and inside joints too (0.0 mm apart); level 2's evaluations 22 against 21. Level 2's card solve
