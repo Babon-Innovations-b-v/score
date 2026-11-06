@@ -581,6 +581,30 @@ def test_score_cloud_k8s_keeps_the_providers_backend(monkeypatch):
     assert not submit.provider.on_cluster()  # a kind that cannot be told stays on machines
     monkeypatch.delenv("SCORE_CLOUD_KINDS")
     assert submit.provider.on_cluster("judge")  # unset: every kind
+    # a tenant box that cannot read the cluster's project with scw (the conductor, 2026-11-06): its pools as
+    # SCORE_K8S_POOLS gives them, its nodes through kubectl, never scw. Break: in tenant.nodes, read
+    # `scw("k8s", "node", "list", ...)` again; or in tenant.class_pools, drop the `given is not None` branch
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("tenant_under_test", pathlib.Path(__file__).parent / "clusters/tenant.py")
+    tenant = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(tenant)
+    monkeypatch.setattr(tenant, "scw", lambda *words: pytest.fail(f"scw asked: {words}"))
+    monkeypatch.setattr(tenant, "price", lambda machine_type, zone: (0.01, 1))
+    monkeypatch.setenv(tenant.POOLS, json.dumps([{"name": "score-l4", "class": "gpu-24gb", "type": "L4-1-24G",
+                                                  "zone": "fr-par-2", "max": 10}]))
+    assert tenant.class_pools() == [{"name": "score-l4", "id": "score-l4", "class": "gpu-24gb", "type": "L4-1-24G",
+                                     "zone": "fr-par-2", "max": 10, "euros_a_minute": 0.01, "unit_minutes": 1}]
+    taint = {"key": "tenant", "value": "score", "effect": "NoSchedule"}
+    listed = {"items": [
+        {"metadata": {"name": "n1", "creationTimestamp": "2026-11-06T10:00:00Z",
+                      "labels": {tenant.CLASS_LABEL: "gpu-24gb", tenant.POOL_LABEL: "score-l4",
+                                 tenant.INSTANCE_LABEL: "l4-1-24g", tenant.ZONE_LABEL: "fr-par-2"}},
+         "spec": {"taints": [taint]}, "status": {"conditions": [{"type": "Ready", "status": "True"}]}},
+        {"metadata": {"name": "babons", "creationTimestamp": "2026-11-06T10:00:00Z",
+                      "labels": {tenant.CLASS_LABEL: "gpu-24gb"}}, "spec": {}, "status": {}}]}
+    monkeypatch.setattr(tenant, "kubectl", lambda *words: json.dumps(listed))
+    assert tenant.nodes() == [{"name": "n1", "pool": "score-l4", "type": "L4-1-24G", "zone": "fr-par-2",
+                               "status": "ready", "created": 1793959200.0}]  # an untainted node is not score's
 
 
 # ==== secrets and the GPU operator ==================================================================================
