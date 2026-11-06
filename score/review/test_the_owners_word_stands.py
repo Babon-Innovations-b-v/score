@@ -2771,7 +2771,12 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     Break: score/review/plans.py: mover_of's `or place in fitted` dropped
     Break: score/review/plans.py: doors_met's `box = backed_off(...) or pushed_out(box, sibling)` made
         `box = pushed_out(box, sibling)`
-    Break: score/review/plans.py: doors_met's `or number in drawn` dropped"""
+    Break: score/review/plans.py: doors_met's `or number in drawn` dropped
+    A writing's doorway to a sibling held once whose own plan leads no doorway back leads nowhere, said in its fixes; one
+    a sibling's door meets, or a lead of its own names, stays (the Square's street to the stairwell, 2026-11-06).
+    Break: score/review/plans.py: doors_led's `opening["to"] = None` dropped
+    Break: score/review/plans.py: doors_led's `or doors_to(as_held(once_held[sibling], found), place)` dropped
+    Break: score/review/plans.py: doors_led's `or sibling in named` dropped"""
     rows = [{"id": "barn", "name": "a barn", "anchor": "floor", "size": [8.0, 6.0, 5.0], "count": 1, "at": []},
             {"id": "cart", "name": "a cart", "anchor": "floor", "size": [1.0, 1.0, 1.0], "count": 1, "at": []}]
     picked(store, "yard", rows)
@@ -2926,6 +2931,27 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     shown = plans.current(store, "shed")  # what it lays past its outline brought inside, as his edit's is
     assert (shown["how"], shown["plan"]["w"], shown["plan"]["d"]) == ("redrawn", 5.0, 10.0), shown["how"]
     assert shown["plan"]["people"][0][0] < 5.0 and record["plan"]["people"] == [[7.0, 2.0]], shown["plan"]["people"]
+    # a writing's doorway to a sibling held once whose own plan leads none back leads nowhere, said; one the sibling's
+    # door meets, or a lead of its own names, stays (the Square's street, written again with an opening to the
+    # stairwell, whose own street gate leads outside since its edit: plan@square's held gate, 2026-11-06)
+    (data / "places/within.json").write_text(json.dumps({"within": {"shed": {"within": "yard"},
+                                                                    "barn": {"within": "yard"}}, "shells": {}}))
+    plans.edited(store, "yard", {**edit, "holds": [
+        {"place": "shed", "row": None, "x": 0.0, "y": 0.0, "w": 5.0, "d": 10.0},
+        {"place": "barn", "row": None, "x": 10.0, "y": 0.0, "w": 4.0, "d": 4.0}]}, "joey")
+    picked(store, "barn", rows[1:])
+    barn = {**plans.current(store, "barn")["plan"], "w": 4.0, "d": 4.0, "leads": {},
+            "openings": [door([0.0, 1.0], "shed"), door([4.0, 1.0], "yard")]}
+    written(store, "barn", barn)
+    shown = plans.current(store, "barn")["plan"]
+    assert [opening["to"] for opening in shown["openings"]] == [None, "yard"], shown["openings"]
+    assert shown["fixes"][-1] == "the door at [0.0, 1.0] to shed leads nowhere: no door of shed's own plan leads back " \
+                                 "to barn", shown.get("fixes")
+    written(store, "barn", {**barn, "leads": {"W": {"to": "shed"}}})  # a fixed door: left for the gate to show
+    assert [opening["to"] for opening in plans.current(store, "barn")["plan"]["openings"]] == ["shed", "yard"]
+    written(store, "barn", barn)
+    plans.redrawn(store, "shed", {"openings": [door([5.0, 1.0], "barn")]}, "an agent", asked)
+    assert [opening["to"] for opening in plans.current(store, "barn")["plan"]["openings"]] == ["shed", "yard"]
 
 
 # --- plan writing and its free checks: each failure a named gap -------------------------------------------------------
