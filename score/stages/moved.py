@@ -47,7 +47,7 @@ from score.graph import _code
 from score.graph import rebuy
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
-SNAPSHOT = """import json, pathlib, sys
+SNAPSHOT = """import contextlib, json, pathlib, sys
 sys.path.insert(0, ".")
 from score import graph, stages
 from score.graph import _code
@@ -58,24 +58,26 @@ if not places:  # every place row would declare nothing, so none could move by a
     sys.exit(f"moved: the home {stages.PROPS_HOME} holds no place: run it with PROPS_HOME the run's home")
 repo = pathlib.Path(".").resolve()
 found = {}
-for row in stages.STAGES:
-    declared = {}
-    for place in ([None] if row.grain == "world" else places):
-        if row.applies and place is not None and not row.applies(place):
-            continue
-        try:
-            names = runner.files_of(row, place)
-        except Exception:  # a row whose files cannot be listed for a place (its data missing) declares none there
-            continue
-        keys = {}
-        for name, pattern in names.items():
-            path = runner.file_path(row, name, place).resolve()
-            if path.is_relative_to(repo):
-                keys[path.relative_to(repo).as_posix()] = ("missing" if not path.exists() else
-                    text_hash(pattern[1](path)) if isinstance(pattern, tuple) else graph.source_hash(path))
-        declared[str(place)] = keys
-    found[row.name] = {"paid": bool(row.paid), "declared": declared,
-                       "code": listing_hash(_code.code_version(graph.code_functions(row), file_hash))}
+with getattr(runner, "still", contextlib.nullcontext)():  # each node's files worked out once a run, not once a path
+    # (files_of outside a pass listed them again for every file_path: 19 min, nearly all of it subprocesses, 2026-11-06)
+    for row in stages.STAGES:
+        declared = {}
+        for place in ([None] if row.grain == "world" else places):
+            if row.applies and place is not None and not row.applies(place):
+                continue
+            try:
+                names = runner.files_of(row, place)
+            except Exception:  # a row whose files cannot be listed for a place (its data missing) declares none there
+                continue
+            keys = {}
+            for name, pattern in names.items():
+                path = runner.file_path(row, name, place).resolve()
+                if path.is_relative_to(repo):
+                    keys[path.relative_to(repo).as_posix()] = ("missing" if not path.exists() else
+                        text_hash(pattern[1](path)) if isinstance(pattern, tuple) else graph.source_hash(path))
+            declared[str(place)] = keys
+        found[row.name] = {"paid": bool(row.paid), "declared": declared,
+                           "code": listing_hash(_code.code_version(graph.code_functions(row), file_hash))}
 print(json.dumps(found))"""
 
 
