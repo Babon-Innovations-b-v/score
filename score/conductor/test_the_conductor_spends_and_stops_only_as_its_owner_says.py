@@ -356,6 +356,11 @@ def test_a_stop_ends_every_process_left_in_the_copy_of_a_run_gone_and_leaves_a_s
             subprocess.Popen(named, cwd=home), subprocess.Popen(SLEEP, cwd=home, env=env),  # 2026-11-05: by name only
             subprocess.Popen(SLEEP, cwd=old, env={**os.environ, **owner, "SCORE_FROZEN": str(old)})]
     begin = subprocess.Popen(SLEEP, cwd=home, env={**os.environ, **owner, "SCORE_FROZEN": str(begun)})
+    # a `score run` still starting from the checkout, before any copy (2026-11-06: 54 min, the pin held). Break: in
+    # kill.stop_everything, drop `+ checkout_starting(checkout)`
+    checkout = home / "checkout"
+    checkout.mkdir()
+    starting_here = subprocess.Popen([*SLEEP, "-m", "score", "run", "world1"], cwd=checkout)
     monkeypatch.setattr(conductor, "HOLDS", home / "holds")
     passing = subprocess.Popen([sys.executable, "-c", f"import sys, time; sys.path.insert(0, {str(REPO)!r}); "
                                 f"from score import conductor; h = conductor.holding('sync-pass', "
@@ -368,18 +373,20 @@ def test_a_stop_ends_every_process_left_in_the_copy_of_a_run_gone_and_leaves_a_s
     time.sleep(0.3)  # the children are in their folders before the stop looks
     try:
         report = kill.stop_everything("agent", "the batch", folder=home / "runs", parked=home / "empty",
-                                      close_pools=lambda: [], latched=False, frozen_folder=home / "frozen")
+                                      close_pools=lambda: [], latched=False, frozen_folder=home / "frozen",
+                                      checkout=checkout)
         assert sorted(entry["pid"] for entry in report["leftovers"]) == sorted(process.pid for process in left)
         assert all(process.wait(5) == -15 for process in left)
         assert node.poll() is None  # the stopping run ends its own (remove_owned)
         # a run still starting in its new copy, not registered yet, is stopped as a run, never swept as a leftover
         # (2026-11-05: checkout 25, starting at a stop-batch, was spared and went on for hours)
-        assert sorted(report["runs"]) == sorted([run.pid, begin.pid]) and begin.wait(5) == -15
+        assert sorted(report["runs"]) == sorted([run.pid, begin.pid, starting_here.pid]) and begin.wait(5) == -15
+        assert starting_here.wait(5) == -15
         assert begin.pid not in [entry["pid"] for entry in report["leftovers"]]
         assert passing.poll() is None  # a sync pass's own process is its own to end
         assert all(entry["command"] for entry in report["leftovers"])  # each named, so we learn what they were
     finally:
-        for process in (*left, run, node, passing, begin):
+        for process in (*left, run, node, passing, begin, starting_here):
             process.kill()
             process.wait()
 
