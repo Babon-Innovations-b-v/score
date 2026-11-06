@@ -1582,11 +1582,14 @@ def closing_lines(runner, places, whole, options):
 
 
 def phase_locked_line(runner, places, options):
-    """`score lock-phase`: the phase's nodes (its --stage stages and --node nodes, at the places) locked as they
-    stand accepted now (Runner.lock_phase), as one line; exits plainly when none is named or none stands."""
+    """`score lock-phase`: the phase's nodes (its --stage stages and --node nodes, at the places; none named, every
+    stage the phase table gives the phase, stages.phases) locked as they stand accepted now (Runner.lock_phase), as
+    one line; exits plainly when none is named or none stands."""
     named = set(options.stage or ()) | set(options.node or ())
+    if not named and options.phase in phases.NAMES:
+        named = set(phases.stages_of(options.phase, list(runner.stages)))
     if not named:
-        sys.exit("score lock-phase: give the phase's --stage or --node (repeat them)")
+        sys.exit("score lock-phase: give the phase's --stage or --node (repeat them), or a phase of the table")
     nodes = [(stage, place) for stage, place in runner.nodes(places)
              if stage.name in named or graph.node_name(stage, place) in named]
     try:

@@ -4065,6 +4065,15 @@ def test_score_run_refuses_before_it_starts_records_a_given_reason_and_plans_on_
     from score.stages.surfaces import route_views  # noqa: F401 - loads the bare `route_views` too
     assert command.dotted_name("route_views") == "score.stages.surfaces.route_views"
     assert command.dotted_name("json") == "json" and command.import_failure("route_views") is None
+    # lock-phase with no --stage locks the phase table's stages of that phase (2026-11-06: the door locks a phase by
+    # name). Break: in __main__.phase_locked_line, drop the `phases.stages_of` line
+    table = {name: types.SimpleNamespace(name=name, grain="place") for name in ("pixal", "brief")}
+    locked = {}
+    fake = types.SimpleNamespace(stages=table, nodes=lambda places: [(stage, "hangar") for stage in table.values()],
+                                 lock_phase=lambda phase, nodes: locked.update(phase=phase, nodes=nodes) or {
+                                     "phase": phase, "n": 1, "at": "now", "nodes": {}, "not standing": []})
+    command.phase_locked_line(fake, ["hangar"], argparse.Namespace(phase="models", stage=None, node=None))
+    assert locked == {"phase": "models", "nodes": [(table["pixal"], "hangar")]}, locked
     monkeypatch.setattr(command, "phase_modules", lambda runner, names: [])
     monkeypatch.setattr(books, "books_refusal", lambda: None)
     monkeypatch.setattr(command, "DRY_SECONDS", 2)

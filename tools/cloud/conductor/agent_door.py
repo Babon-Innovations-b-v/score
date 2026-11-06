@@ -75,6 +75,10 @@ as an argument list, never through a shell, and only when it is one of these:
     stack <pid>                                 a run's process's every Python thread stack (SIGUSR1, its own dump
                                                 file), the process going on; refused for one that does not catch
                                                 SIGUSR1, which it would end (2026-11-06)
+    lock-phase <environment> <phase> [--place P] python -m score lock-phase: the phase's stages (score/stages/phases)
+                                                standing accepted now, at those places, locked, so a later code
+                                                change keeps them (Runner.lock_phase; the runner's bookkeeping, no
+                                                owner decision; 2026-11-06)
     cluster-check                               whether this box reaches the tenant cluster: the env file's
                                                 SCORE_K8S_* settings, kubectl, the kubeconfig and the jobs'
                                                 namespace through its context, read only (2026-11-06)
@@ -183,7 +187,7 @@ from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
 VERBS = ("status, plan, price, preflight <environment> [--phase P], resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], store-evict [--dry], clean-frozen, clean-cache, clean-scratch, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, carry --no-op <file>=<why> ..., "
-         "run-log [--lines N], pool-log [--lines N], ps, node-log <node>, stack <pid>, cluster-check, fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
+         "run-log [--lines N], pool-log [--lines N], ps, node-log <node>, stack <pid>, cluster-check, lock-phase <environment> <phase> [--place P], fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id> [--phase <phase>], buy-log, decide-yes, decide <yes id>, "
          "stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
@@ -314,6 +318,13 @@ def decide(words, latch):
         if not args or args[0].startswith("-"):
             raise Refused("preflight names an environment first")
         return ["-m", "score", "preflight", *args], {}
+    if verb == "lock-phase":
+        if len(args) < 2 or not PHASE.match(args[1]) or args[0].startswith("-") or \
+                any(flag != "--place" or not NODE.match(place) for flag, place in zip(args[2::2], args[3::2])) or \
+                len(args) % 2:
+            raise Refused("lock-phase <environment> <phase> [--place <place> ...]: a phase of the table, its stages "
+                          "standing accepted now locked")
+        return ["-m", "score", "lock-phase", *args], {}
     if verb == "resume":
         if args != ["--dry"]:
             raise Refused("resume only as resume --dry: starting runs again is the boot's job")
