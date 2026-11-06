@@ -10,6 +10,8 @@ Each test's break (applied once, seen red, reverted), in score/adapters/compute/
 - needs its estimate: run_forecast's `if euros is None:` becomes `if False:`.
 - measured high: run_forecast's measured euros take `run["euros"]` (the median) for `run["high_euros"]`.
 - rent point outside a run: require_cleared's `if found[-1] is None:` becomes `if False:`.
+- override's balance: override_refusal leaves out GRANT_BUFFER; or override_spent counts no open machine; or
+  tools/cloud/ledger.py batch_cap returns BATCH_EUROS under an override.
 - judge timeout: judge_timeout ignores SCORE_JUDGE_TIMEOUT.
 - priced on measured runs: run_price's likely euros take `run["high_euros"]`.
 - per unit counted: per_unit drops `or stage in entry["also"]`.
@@ -213,9 +215,13 @@ def test_a_measured_stage_is_cleared_at_its_measured_high_not_its_hand_estimate(
     assert a_job(runner, euros=None)[1]()  # measured runs stand in for a missing estimate
 
 
-def test_a_rent_point_refuses_outside_a_cleared_run_or_the_owners_override():
+def test_a_rent_point_refuses_outside_a_cleared_run_or_the_owners_override(monkeypatch):
     """Fault (design of 2026-10-11, section 6): blender_cloud.py, detached.py, the runners and demo.py rented with no
-    gate, so a run that skipped the runner could spend. Every rent point now asks require_cleared first."""
+    gate, so a run that skipped the runner could spend. Every rent point now asks require_cleared first. Fault
+    (labval-motor-20261106, 2026-11-06): an override's euros were never held against what was booked under it, so
+    a run with EUR 2.47 left could spend EUR 5; now a run under one clears only while what its lines booked (its
+    open machines to their deadlines) and the run's high plus 10% fit, and a batch under it may spend only what is
+    left less 10% (ledger.batch_cap, the machines' deadline and the cluster's stop)."""
     month_spent(0)
     runner = a_runner("a hall")
     os.environ.pop(compute.TICKET, None)
@@ -232,6 +238,26 @@ def test_a_rent_point_refuses_outside_a_cleared_run_or_the_owners_override():
     runner.store.write_spend_yes(compute.OVERRIDE, "repaint-six", {"euros": 3.0, "at": graph.now()})
     with compute.spending({"node": compute.OVERRIDE, "key": "repaint-six"}):
         assert compute.require_cleared("a batch", runner.store)["euros"] == 3.0
+    began = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    BOOKS.entries = lambda: [  # EUR 2 booked, a machine open 30 min at EUR 0.01 a minute, another ticket's EUR 9
+        {"started": began, "ticket": "override repaint-six", "batch": "sim-1", "euros": 2.0},
+        {"started": began, "ticket": "override repaint-six", "kind": BOOKS.RENT_STARTED, "batch": "rent-m1",
+         "run": "sim-2", "name": "m1", "price": 0.01, "deadline": BOOKS.moment(began) + 1800, "euros": 0.0},
+        {"started": began, "ticket": "run-7 surfaces-paint", "batch": "paint", "euros": 9.0}]
+    monkeypatch.setenv(compute.STORE, str(runner.store.cache.parent))
+    with compute.spending({"node": compute.OVERRIDE, "key": "repaint-six"}):
+        assert compute.override_room() == {"name": "repaint-six", "euros": 3.0, "spent": 2.3, "left": 0.7}
+        assert compute.require_cleared("a batch", runner.store, high=0.6)["euros"] == 3.0  # 0.66 fits 0.70
+        assert "EUR 0.70 left" in refused(lambda: compute.require_cleared("a batch", runner.store, high=0.65))
+        cap, words = BOOKS.batch_cap()
+        assert round(cap, 4) == round(0.7 / 1.1, 4) and "repaint-six" in words
+        assert round(BOOKS.minutes_allowed(0.01), 1) == 63.6  # its machines' watchdogs delete them at EUR 0.64
+        assert "repaint-six" in BOOKS.refusal(65, 0.01)
+    BOOKS.entries = lambda: [{"started": began, "ticket": "override repaint-six", "batch": "sim-1", "euros": 3.0}]
+    with compute.spending({"node": compute.OVERRIDE, "key": "repaint-six"}):
+        assert "EUR 0.00 left" in refused(lambda: compute.require_cleared("a batch", runner.store))
+        assert BOOKS.minutes_allowed(0.01) == 0.0
+    assert BOOKS.batch_cap()[0] == BOOKS.BATCH_EUROS  # outside an override the batch cap stands
 
 
 def test_the_judge_timeout_is_an_operational_setting_outside_every_key():

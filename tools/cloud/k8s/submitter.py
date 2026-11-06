@@ -37,7 +37,8 @@ failed). On SIGTERM the run's Jobs are deleted first, every generation (`stop_jo
 for every run of score in the score-jobs namespace, for stop-batch.
 
 Cost. Nothing is submitted outside a run the runner cleared or the owner's override names
-(score.adapters.compute, `require_cleared`). Each pool's max size is what the batch cap (ledger.BATCH_EUROS) pays
+(score.adapters.compute, `require_cleared`). Each pool's max size is what the batch cap (ledger.batch_cap: the EUR
+60 cap, under the owner's override what is left of his euros less 10%) pays
 for ledger.BATCH_HOURS a node, and the live cost of the run's nodes is checked every poll against the batch cap: past
 it, the waiting Jobs are deleted and every pool is capped to zero. Empty nodes go after the autoscaler's scale-down
 time (the cluster module sets it), past a warm hold's WARM_MINUTES once the run's queue is empty (hold_idle), so an
@@ -505,10 +506,12 @@ def drop_holds(run):
 
 
 def over_limits(run):
-    """Why the run must stop now (the batch cap), or None."""
+    """Why the run must stop now (ledger.batch_cap: the batch cap, or under the owner's override what is left of his
+    euros, read again each look), or None."""
     live = run.live_euros()
-    if live >= ledger.BATCH_EUROS:
-        return f"the run's nodes have cost €{live:.2f}, at the €{ledger.BATCH_EUROS:.0f} batch cap"
+    cap, words = ledger.batch_cap()
+    if live >= cap:
+        return f"the run's nodes have cost €{live:.2f}, at {words}"
     return None
 
 
@@ -530,7 +533,7 @@ def prepare(kubectl, cluster):
         kubectl.apply([manifests.namespace()])
     kubectl.apply([manifests.store_secret(provider.cloud.object_store()),
                    manifests.registry_secret(provider.cloud.registry())])
-    caps = cluster.cap_pools(ledger.BATCH_EUROS, ledger.BATCH_HOURS)
+    caps = cluster.cap_pools(ledger.batch_cap()[0], ledger.BATCH_HOURS)
     say("pool caps: " + ", ".join(f"{name} {cap}" for name, cap in sorted(caps.items())))
 
 

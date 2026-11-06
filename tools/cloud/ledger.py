@@ -290,10 +290,26 @@ def rent_fees(names):
                if line.get("kind") == "disk-and-address" and line.get("name") in names)
 
 
+def batch_cap():
+    """(euros, words): the most a batch may spend and what sets it. The batch cap, BATCH_EUROS; under the owner's
+    override (SCORE_SPEND_TICKET="override <name>") never more than what is left of his euros less 10%
+    (compute.override_room, GRANT_BUFFER), so the batch with its tail fits them (labval-motor-20261106, 2026-11-06:
+    EUR 2.47 left and nothing held a run to it)."""
+    if not os.environ.get("SCORE_SPEND_TICKET", "").startswith("override "):
+        return BATCH_EUROS, f"the €{BATCH_EUROS:.0f} batch cap"
+    from score.adapters import compute
+    room = compute.override_room()
+    left = None if room is None else max(0.0, room["left"] / compute.GRANT_BUFFER)
+    if left is None or left >= BATCH_EUROS:
+        return BATCH_EUROS, f"the €{BATCH_EUROS:.0f} batch cap"
+    return left, (f"override {room['name']}'s €{left:.2f} left (€{room['spent']:.2f} of its €{room['euros']:.2f} "
+                  "booked, less 10%)")
+
+
 def minutes_allowed(euros_per_minute):
-    """The most minutes a batch may run: the time limit and the batch cap (none on a machine that costs nothing,
-    this PC's card: backends/local.py)."""
-    by_money = BATCH_EUROS / euros_per_minute if euros_per_minute else BATCH_HOURS * 60.0
+    """The most minutes a batch may run: the time limit and the batch cap (batch_cap; none on a machine that costs
+    nothing, this PC's card: backends/local.py). Its machines' watchdogs delete them then."""
+    by_money = batch_cap()[0] / euros_per_minute if euros_per_minute else BATCH_HOURS * 60.0
     return max(0.0, min(BATCH_HOURS * 60.0, by_money))
 
 
@@ -303,6 +319,7 @@ def refusal(estimated_minutes, euros_per_minute):
         return (f"the batch would take about {estimated_minutes:.0f} min, over the "
                 f"{BATCH_HOURS} h limit; split it")
     euros = cost(estimated_minutes, euros_per_minute)
-    if euros > BATCH_EUROS:
-        return f"the batch would cost about €{euros:.2f}, over the €{BATCH_EUROS:.0f} cap"
+    cap, words = batch_cap()
+    if euros > cap:
+        return f"the batch would cost about €{euros:.2f}, over {words}"
     return None

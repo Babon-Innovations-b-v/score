@@ -78,7 +78,7 @@ The break that turns each red (applied once, seen red, reverted):
 
 - test_each_runner_says_and_returns_its_estimate: in batch.py `priced`, `ledger.cost(minutes, dearest) * count` ->
   `ledger.cost(minutes, dearest)`; or `dearest = max(` -> `dearest = min(`.
-- test_every_runner_refuses_a_batch_past_the_owners_limits: in ledger.py `refusal`, `if euros > BATCH_EUROS:` -> `if
+- test_every_runner_refuses_a_batch_past_the_owners_limits: in ledger.py `refusal`, `if euros > cap:` -> `if
   False:`.
 - test_no_runner_refuses_on_the_months_total: in batch.py `priced`, `refused = ledger.refusal(minutes, dearest *
   count)` -> `refused = ledger.refusal(minutes, dearest * count) or (spent > 1000 and "the month")`.
@@ -165,11 +165,19 @@ def refusal_of(call, *arguments):
     return None
 
 
-def test_a_batch_past_the_owners_limits_is_refused_and_the_dearest_cards_left_out():
+def test_a_batch_past_the_owners_limits_is_refused_and_the_dearest_cards_left_out(monkeypatch):
     assert ledger.refusal(90, L4) is None
     assert "4 h" in ledger.refusal(241, L4)
     assert "€60" in ledger.refusal(210, 0.3)  # EUR 63
     assert ledger.minutes_allowed(L4) == 240 and round(ledger.minutes_allowed(0.3)) == 200
+    # under the owner's override with EUR 2.47 left (labval-motor-20261106) a batch may spend 2.47 less 10%
+    monkeypatch.setenv(compute.TICKET, "override labval")
+    monkeypatch.setattr(compute, "override_room", lambda store=None: {"name": "labval", "euros": 40.0,
+                                                                      "spent": 37.53, "left": 2.47})
+    assert "override labval" in ledger.refusal(30, 0.1)  # EUR 3
+    assert ledger.refusal(20, 0.1) is None  # EUR 2, inside 2.25
+    assert round(ledger.minutes_allowed(0.1), 1) == 22.5  # the watchdog's deadline
+    monkeypatch.undo()
     assert ledger.cost(1.2, L4) == 2 * L4  # billed by the started minute
     found = [provider.Offer(L4, 1, "L4", "zone-a", L4, "gpu-24gb", 0, "scarce"),
              provider.Offer(0.047775, 2, "H100", "zone-b", 0.047775, "gpu-80gb", 0, "shortage")]
