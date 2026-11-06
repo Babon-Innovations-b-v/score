@@ -89,12 +89,14 @@ DEEP = 0.010  # metres: deeper than any finger's flesh holds its bone, so every 
 
 def fingers_measured(folder, rig_path, kg=70.0):
     """{joint stem: rest turn}: MyoFullBody sized to SOMA's template (its file at FINGERS as they stand), each hand laid
-    on the template's bind by `calibration.turn` at its Hand joint, then moved as one rigid body (a turn and a shift
-    each, not kept) to where its carpals and metacarpals stand least outside SOMA's skin, as the fit holds the hand;
-    with it the finger and thumb joints of both hands (one turn a stem, both sides alike) solved by scipy's bounded
-    `least_squares` within their ranges so each finger bone vertex (`_skin.bone_meshes`' kept ones) stands DEEP inside
-    SOMA's skin (the shortfall its residual: the bones as deep in the flesh as they go); the found turns added to
-    FINGERS'."""
+    on the template's bind by `calibration.turn` at its Hand joint, where the fit holds it (the wrist's end unshifted,
+    END_SHIFTS), never moved (#70, 2026-11-06: moved as one body to where its palm stood least outside, the fingers were
+    read for a hand that is not where the fit holds it; their thumb and index then stood out at the joint, the wrist's
+    end shift read 18 mm up the forearm to bury them and every fingertip bone stood 20 to 22 mm short of SOMA's); the
+    finger and thumb joints of both hands (one turn a stem, both sides alike) solved by scipy's bounded `least_squares`
+    within their ranges so each finger bone vertex (`_skin.bone_meshes`' kept ones) stands DEEP inside SOMA's skin
+    (the shortfall its residual: the bones as deep in the flesh as they go) and the carpals and metacarpals inside it;
+    the found turns added to FINGERS'."""
     import tempfile
 
     from scipy.optimize import least_squares
@@ -116,30 +118,21 @@ def fingers_measured(folder, rig_path, kg=70.0):
     data, meshes = mujoco.MjData(model), _skin.bone_meshes(model)
     rest = default_pose(model, Couplings(model)).qpos.copy()
 
-    def shortfall(unknowns):
-        turns, places = unknowns[:len(stems)], unknowns[len(stems):].reshape(len(hands), 6)
+    def shortfall(turns):
         found = []
-        for hand, place in zip(hands, places):
+        for hand in hands:
             data.qpos[:] = rest
             data.qpos[[hand["address"][stem] for stem in stems]] = turns
             mujoco.mj_kinematics(model, data)
             points, bones = _skin.bone_points(model, data, meshes)
-            laid = _placed(_laid(points, data, hand), hand["start"], place)
+            laid = _laid(points, data, hand)
             fingers, palm = np.isin(bones, hand["fingers"]), np.isin(bones, hand["palm"])
             found += [DEEP - _depth_inside(mesh, laid[fingers]), -_depth_inside(mesh, laid[palm])]
         return np.maximum(0.0, np.concatenate(found))
-    start = np.concatenate([np.clip(np.zeros(len(stems)), lower + 0.02, upper - 0.02), np.zeros(6 * len(hands))])
-    free = np.full(6 * len(hands), np.inf)
-    solved = least_squares(shortfall, start, bounds=(np.concatenate([lower, -free]), np.concatenate([upper, free])),
+    solved = least_squares(shortfall, np.clip(np.zeros(len(stems)), lower + 0.02, upper - 0.02), bounds=(lower, upper),
                            diff_step=1e-3, x_scale=0.1)
     return {stem: round(calibration.FINGERS.get(stem, 0.0) + float(turn), 4)
             for stem, turn in zip(stems, solved.x[:len(stems)])}
-
-
-def _placed(points, start, place):
-    """Points turned about `start` by place[:3] (a rotvec) and shifted by place[3:] (m): a hand moved as one body."""
-    from scipy.spatial.transform import Rotation
-    return start + place[3:] + (points - start) @ Rotation.from_rotvec(place[:3]).as_matrix().T
 
 
 def inside_measured(folder, rig_path, groups_of, kg=70.0):

@@ -23,6 +23,13 @@ Every point by its anatomical definition; never a licensed dataset's marker list
   about the hand's long axis. MC2, MC3 and MC5's links measured again on the template with the new table (the study's
   way: skin point less the carried bone point, body frame); MC2's face kept (13 mm radial of the index's line: the
   knuckle's radial side; moved too, the template's finger bones fit worse, 41.6 % outside against 24.7 %).
+- The fingertips (measure-only) moved onto SOMA's fingertips (2026-11-06; thumb 2750 to 3169, index 3807 to 3957,
+  middle 4005 to 4103, little 3540 to 4127, the right's 4503 on): each finger's vertex furthest from SOMA's Hand joint
+  on the mean body's bind (its finger's skin past 105 mm from the joint, one connected part a finger). The study's,
+  the skin nearest MyoFullBody's straight fingers' and opposed thumb's bone tips, stood 26 mm (thumb) and 24 mm
+  (little) off their fingers' ends, the index's and middle's on their pads 6 to 9 mm short. Their links measured again
+  the study's way with the hand at SOMA's Hand joint and `calibration.FINGERS` of that day: 5.6 to 8.7 mm (the
+  study's 2.1 to 44.9); the knuckles' measured so came within 1.2 mm of their rows.
 - The marker starting points embed the template's soft tissue; the solver fits where each marker sits on its bone.
 - Rule centres against SOMA's joints on the template (study, 2026-10-29): knee 2.1 mm, ankle 15.9, elbow 11.0, wrist
   4.5, mtp 27.3, hip 21.4, glenohumeral 21.8; the rule's bias between the two models 2 to 8 mm but the hip's 31.6.
