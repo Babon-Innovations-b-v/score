@@ -608,6 +608,22 @@ def test_the_doors_run_log_and_fault_read_only_the_launchs_home(tmp_path):
     # the busiest processes, read only (2026-11-06: sim-body rows ground the conductor's processor, unseen)
     seen = agent_door.processes(5).splitlines()
     assert seen[0].startswith("pid %cpu") and 1 < len(seen) <= 6
+    # a run's process tells where it is: SIGUSR1, its stacks to its dump file (2026-11-06: bake calls spun unseen)
+    # Break: in tools/cloud/batch.py stop_on_signals, drop `stacks_on_ask()`
+    copy = home / "frozen" / "20261106-050000-1"
+    copy.mkdir(parents=True)
+    spin = subprocess.Popen([sys.executable, "-c", f"import sys, time; sys.path.insert(0, {str(REPO / 'tools/cloud')!r}); "
+                             "import batch; batch.stop_on_signals(); print('armed', flush=True)\n"
+                             "def hashing_inputs():\n    time.sleep(30)\nhashing_inputs()", str(copy)],
+                            env={**os.environ, "PROPS_HOME": str(home)}, stdout=subprocess.PIPE, text=True)
+    try:
+        assert spin.stdout.readline().strip() == "armed"
+        assert "hashing_inputs" in agent_door.stack(spin.pid, home, wait=1.0)
+        with pytest.raises(agent_door.Refused):
+            agent_door.stack(os.getpid(), home)  # no run's process
+    finally:
+        spin.kill()
+        spin.wait()
     shutil.rmtree(frozen)  # the run ended and its home went: both are read where they lie
     assert agent_door.run_log(log, home, 5) == said
     assert "no skeleton" in agent_door.fault(log, "motion@airlock", home)

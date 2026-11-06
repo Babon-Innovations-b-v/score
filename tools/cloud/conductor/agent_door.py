@@ -68,6 +68,8 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 secrets left out, read only (2026-11-06)
     node-log <node>                             a node's own log of the newest launch, its tail, as it runs, secrets
                                                 left out, read only (2026-11-06)
+    stack <pid>                                 a run's process's every Python thread stack (SIGUSR1, its own dump
+                                                file), the process going on (2026-11-06)
     fault <node>                               the fault report <home>/store/faults/<node>.txt of the newest launch's
                                                 home (its frozen copy while it lives), secrets left out, read only
                                                 (2026-10-27: motion@airlock's fault report out of reach)
@@ -150,6 +152,7 @@ as_owner_under), and `decide` likewise for the one decision his yes covers (as_o
 import datetime
 import hashlib
 import os
+import signal
 import pathlib
 import re
 import shlex
@@ -166,7 +169,7 @@ from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
 VERBS = ("status, plan, price, resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], store-evict [--dry], clean-frozen, clean-cache, clean-scratch, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, carry --no-op <file>=<why> ..., "
-         "run-log [--lines N], pool-log [--lines N], ps, node-log <node>, fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
+         "run-log [--lines N], pool-log [--lines N], ps, node-log <node>, stack <pid>, fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id>, buy-log, decide-yes, decide <yes id>, "
          "stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
@@ -219,6 +222,7 @@ RUN_LOG = "--run-log"  # this file's own read of the newest launch's run log (th
 FAULT = "--fault"  # this file's own read of a fault report of the newest launch (the fault verb runs it)
 POOL_LOG = "--pool-log"  # this file's own read of the newest launch's warm pool collector log (the pool-log verb)
 PROCESSES = "--ps"  # this file's own read of the busiest processes (the ps verb runs it)
+STACK = "--stack"  # this file's own ask of a run's process for its Python stacks (the stack verb runs it)
 NODE_LOG = "--node-log"  # this file's own read of a node's own log of the newest launch (the node-log verb runs it)
 PS_LINES = 40
 DESIGN_FILE = "--design-file"  # this file's own read of one design file (the design-file verb runs it)
@@ -349,6 +353,10 @@ def decide(words, latch):
         if len(args) != 1 or not DESIGN_FILE_PATH.fullmatch(args[0]):
             raise Refused("design-file design/props|plans|surfaces/<name>.json, one design file")
         return [str(pathlib.Path(__file__).resolve()), DESIGN_FILE, args[0]], {}
+    if verb == "stack":
+        if len(args) != 1 or not args[0].isdigit():
+            raise Refused("stack <pid>, one process of a run")
+        return [str(pathlib.Path(__file__).resolve()), STACK, args[0]], {}
     if verb == "node-log":
         if len(args) != 1 or not NODE.match(args[0]):
             raise Refused("node-log <node>, one node name such as surfaces-bake@hub")
@@ -541,6 +549,33 @@ def fault(log, node, props_home):
     return "\n".join([f"{found}:", *text])
 
 
+def stack(pid, props_home, wait=2.0):
+    """Every Python thread's stack of a run's process `pid` (one whose command line names a frozen copy under
+    props_home/frozen): a SIGUSR1, which tools/cloud/batch.py's stacks_on_ask turns into <home>/logs/stacks/<pid>.txt,
+    then that file read, secrets left out; the process goes on. Refused for any other process, or one that wrote
+    none (2026-11-06: bake calls spun for half an hour, nowhere to see where)."""
+    from score.conductor.logs import clean
+    frozen = str(pathlib.Path(props_home) / "frozen")
+    try:
+        command = pathlib.Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")
+    except OSError:
+        raise Refused(f"no process {pid}") from None
+    if frozen not in command:
+        raise Refused(f"{pid} is no run's process (its command names no frozen copy)")
+    folders = [pathlib.Path(props_home) / "logs" / "stacks",
+               *sorted(pathlib.Path(frozen).glob("*.home/logs/stacks"))]
+    before = {folder: (folder / f"{pid}.txt").stat().st_size if (folder / f"{pid}.txt").is_file() else 0
+              for folder in folders}
+    os.kill(pid, signal.SIGUSR1)
+    time.sleep(wait)
+    for folder in folders:
+        path = folder / f"{pid}.txt"
+        if path.is_file() and path.stat().st_size > before[folder]:
+            text = path.read_text(errors="replace")[before[folder]:]
+            return "\n".join([f"{path} ({command[:300]}):", *clean(text.splitlines())])
+    raise Refused(f"{pid} wrote no stack (started before the stack dump, or not a batch runner)")
+
+
 def node_log(log, node, props_home, lines=RUN_LOG_LINES):
     """The last `lines` lines of a node's own log (<home>/store/logs/<node>.log) of the launch whose run log is `log`,
     written as it runs, so a node that has not failed is read too (2026-11-06: fifteen Blender calls at 90% of a core
@@ -587,6 +622,8 @@ def own_read(argv, props_home):
         return pool_log(newest_launch_log(), props_home, int(argv[1]))
     if argv[0] == PROCESSES:
         return processes()
+    if argv[0] == STACK:
+        return stack(int(argv[1]), props_home)
     if argv[0] == NODE_LOG:
         return node_log(newest_launch_log(), argv[1], props_home)
     return fault(newest_launch_log(), argv[1], props_home)
@@ -955,7 +992,7 @@ def main():
         except Refused as refused:
             print(f"score-agent-door: refused: {refused}", file=sys.stderr)
             return REFUSED_EXIT
-    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [POOL_LOG], [PROCESSES], [NODE_LOG], [FAULT], [DESIGN_FILE], [ROUTE_LOG]):
+    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [POOL_LOG], [PROCESSES], [NODE_LOG], [STACK], [FAULT], [DESIGN_FILE], [ROUTE_LOG]):
         from score.store import PROPS_HOME
         try:
             print(own_read(sys.argv[1:], PROPS_HOME))
