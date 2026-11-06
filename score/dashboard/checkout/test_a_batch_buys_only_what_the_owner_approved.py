@@ -871,6 +871,11 @@ def test_the_local_backends_command_line_and_environment(monkeypatch, settings):
     assert "SCORE_DASHBOARD_SECRET_KEY" not in seen["env"] and "SCORE_SYNC_TOKEN" not in seen["env"]
     assert not set(localrun.RUN_TAGS) & set(seen["env"])
     assert seen["cwd"] == settings.SCORE_REPO
+    # a Buy's own caps reach its run as SCORE_MAX_MACHINES (the door's buy --max-machines, 2026-11-06). Break: in
+    # localrun.run_env, drop the LAUNCH_CAPS lines
+    monkeypatch.setenv(localrun.LAUNCH_CAPS, "cpu-64c-128gb=10")
+    assert localrun.run_env()["SCORE_MAX_MACHINES"] == "cpu-64c-128gb=10"
+    assert localrun.LAUNCH_CAPS not in localrun.run_env()
     assert handle.pid == 4242 and handle.log == "/tmp/x.log" and handle.refused is None
 
 
