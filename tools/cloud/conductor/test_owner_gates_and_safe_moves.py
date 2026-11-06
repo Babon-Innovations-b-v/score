@@ -600,6 +600,9 @@ def test_the_doors_run_log_and_fault_read_only_the_launchs_home(tmp_path):
         (home / "cloud" / "pools" / run / "collector.log").write_text(f"rented\n{said_last}\n")
         time.sleep(0.01)
     assert agent_door.pool_log(log, home, 1).splitlines()[1:] == ["pool: a heartbeat failed"]
+    # the busiest processes, read only (2026-11-06: sim-body rows ground the conductor's processor, unseen)
+    seen = agent_door.processes(5).splitlines()
+    assert seen[0].startswith("pid %cpu") and 1 < len(seen) <= 6
     shutil.rmtree(frozen)  # the run ended and its home went: both are read where they lie
     assert agent_door.run_log(log, home, 5) == said
     assert "no skeleton" in agent_door.fault(log, "motion@airlock", home)
