@@ -239,6 +239,8 @@ CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cas
 # ground (the stage the cast is measured on, its scene record and laid objects on its made ground), its physics from
 # Newton and MuJoCo:
 # ground forces, joint moments, muscle activations and forces, the residual measured (score/stages/sim_body).
+# A paid row (owner, 2026-11-06: every sim body run in the cloud, on a card): its clips on rented cards of kind
+# sim-body, a warm pool card first, cleared at its forecast (sim_body.forecast: its cast's clips at measured minutes).
 # people-cloth and the characters layer read it: its people move by it.
 BODY_ROWS = tuple(row.name for row in people.ROWS if row.name.startswith(f"{sim_body.BODY}-"))
 SIM_BODY = graph.Stage("sim-body", "place", sim_body.make, sim_body.CONTRACT, sim_body.CHECKS, files=sim_body.files,
@@ -249,7 +251,7 @@ SIM_BODY = graph.Stage("sim-body", "place", sim_body.make, sim_body.CONTRACT, si
                               **{name: ("people-body", 1) for name in BODY_ROWS}},
                        beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                        neighbours=assembly.claiming_places, optional=(*BODY_ROWS, sim_body.SCENE_CLIPS_ROW),
-                       applies=designed("people"))
+                       paid=True, euros=sim_body.EUROS, forecast=sim_body.forecast, applies=designed("people"))
 # Experimental (owner, 2026-10-27, "bring back"): each character's loose garment parts as cloth on Newton's VBD against
 # its sim body's moving segments (score/stages/people_cloth), its dressed and built bodies optional reads as the
 # characters layer's are, its cloth values the part's library recipe's (data/physics/cloth.json). Nothing reads it yet,

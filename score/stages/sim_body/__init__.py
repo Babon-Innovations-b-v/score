@@ -20,9 +20,10 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
              turn, then the dressed body's Turned: own_frame); a body with none is left out by name. The movement is
              its clip's (`doing`, the rig's clip_<doing>), followed exactly, root included (the owner, 2026-10-27);
              Newton and MuJoCo give its physics (inside/sim_body.py, in Newton's own Python,
-             score/stages/physics/inside/newton_env.sh, on this machine, or on a rented machine of the capability
-             classes SCORE_SIM_BODY_CLASSES names (comma separated; the machine path, newton_env.sh built there; a free
-             row, so it rents only under the owner's spend yes, `override`), under the gravity of the body the scene
+             score/stages/physics/inside/newton_env.sh, on a rented card (a paid row, under its run's clearance: the
+             machine path, kind KIND, newton_env.sh built there, a warm pool card first; its clips batched onto one
+             card where they fit, `batched`; never on this PC but under SCORE_SIM_BODY_LOCAL=1 for tests), under
+             the gravity of the body the scene
              stands on, physics/design.py ground): the model's joint angles fitted to the clip's segment turns and its
              skin's bony landmarks (one solver: mink per frame, scipy's least_squares over the constants), the
              forces that movement needs, shared between the ground's contacts and the muscles (activations and
@@ -69,6 +70,7 @@ with no activation dynamics), clips made for the ground for any walker but a cli
 with its toe), a walker's cast path (the clip plays its own root path from the spot), the build's feet brought in
 (stance.narrowed).
 """
+import concurrent.futures
 import hashlib
 import json
 import os
@@ -97,11 +99,33 @@ INSIDE_FOLDER = "score/stages/sim_body/inside"  # the run and every module it im
 ENV_SCRIPT = "score/stages/physics/inside/newton_env.sh"
 HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
 ENV = HOME / "envs/newton_env"
-# The run on a rented machine of these capability classes instead of this PC when set (ran_elsewhere), and about how
-# long a person's run takes there (6.5 to 9 min on this PC, 2026-11-02).
-CLOUD_CLASSES = "SCORE_SIM_BODY_CLASSES"
-CLOUD_MINUTES = 15
+# Every sim body run is in the cloud, on a card (owner, 2026-11-06): a paid row, on a rented card of KIND in its
+# order (capacity.py KINDS and KIND_ORDER: an L4 first, which the run's warm pool holds; park.CLEANUPS its clean-up);
+# on this PC only under LOCAL=1, for tests.
+LOCAL = "SCORE_SIM_BODY_LOCAL"
+KIND = "sim-body"
+CLASSES = ("gpu-24gb", "gpu-48gb", "gpu-80gb")
 WHO = "score runner, sim-body row"
+# Its price, from measured minutes on an L4 (gpu-24gb): a clip 3.8 min (the mean, the speed work's code: a jump 4.8 and
+# 4.2, a standing 3.1 and 3.1) and 4.8 at the high (the slowest), the card's first clip 3.0 min more for its kernels'
+# compile (a jump 7.2 cold against 4.1 warm) ("fair card-frames (#70)", ledger 2026-11-06T01:00:15Z, its
+# progress.txt); a card's start and blender_cloud's set-up 1.3 min (0.37 and 0.94 to 0.97, the ledger's sim-body-l1
+# lines, 2026-11-05/06), SETUP_MINUTES (8) at the high as blender_cloud prices it; newton_env.sh built on a fresh
+# card 1.0 min (0.9 to 0.95, uv's download to its import line, the job logs of 2026-11-05).
+CARD = "L4-1-24G"  # the machine type CLASSES' first rents, as the saved bill prices it (per_unit.hourly)
+CLIP_MINUTES = 3.8
+CLIP_HIGH_MINUTES = 4.8
+COMPILE_MINUTES = 3.0
+SET_UP_MINUTES = 1.3
+ENV_MINUTES = 1.0
+RENT_FEE = 0.005  # euros a machine (its disk and address, the ledger's rent_fees)
+# The most a card's job holds: the owner's 4 h a batch less blender_cloud's SETUP_MINUTES and a little (as level 1's
+# BATCH_MINUTES); a place's clips over that go to more cards side by side.
+MACHINE_MINUTES = 230
+PER_MACHINE = int((MACHINE_MINUTES - ENV_MINUTES - COMPILE_MINUTES) // CLIP_HIGH_MINUTES)
+# The row's estimate (Stage.euros) where its forecast is not read: priced(7)'s high, a place of seven clips (env1's
+# street) on one card, 45.6 card minutes at the high.
+EUROS = 0.60
 # MyoFullBody as MuscleMimic publishes it (Apache-2.0; its NOTICE: MyoSuite and myo_sim, Apache-2.0, from OpenSim's
 # Rajagopal 2016, lumbar spine and hand models, MIT, and MoBL-ARMS, whose model definition was released for
 # non-commercial use only): fetched by its pinned wheel and sha256, never kept in this repository.
@@ -154,13 +178,13 @@ def fetched():
 
 
 def ran(job, out):
-    """inside/sim_body.py run on `job` in Newton's own Python (built once by the env script), on this machine or, when
-    CLOUD_CLASSES is set, on a rented one (ran_elsewhere): its record and its arrays (bones, muscle paths)."""
-    if os.environ.get(CLOUD_CLASSES):
-        ran_elsewhere(job, out, os.environ[CLOUD_CLASSES].split(","))
-    else:
+    """inside/sim_body.py run on `job` in Newton's own Python (built once by the env script) on rented cards
+    (ran_elsewhere), or on this machine under LOCAL=1 alone (tests): its record and its arrays (bones, muscle paths)."""
+    if os.environ.get(LOCAL) == "1":
         subprocess.run(["bash", str(REPO / ENV_SCRIPT), str(ENV)], check=True, stdout=subprocess.DEVNULL)
         subprocess.run([str(ENV / "bin/python"), str(REPO / INSIDE), str(job), str(out)], check=True)
+    else:
+        ran_elsewhere(job, out)
     found = json.loads(out.read_text())
     arrays = dict(np.load(out.with_suffix(".npz")))
     out.unlink()
@@ -275,16 +299,78 @@ def left_out_why(single, clips_rig, scene):
     return None
 
 
-def ran_elsewhere(job, out, classes):
-    """inside/sim_body.py run on a rented machine of `classes` through the machine path (blender_cloud's Machine, the
-    env script built there): the job, its people's targets and the model carried up at their paths, `out` and its
-    arrays brought back."""
+def ran_elsewhere(job, out):
+    """inside/sim_body.py run on rented cards through the machine path (blender_cloud's Machine of KIND, the env
+    script built there; a warm pool card first): the job's people batched onto as few cards as hold them (batched),
+    each batch its own job on its own card, side by side; `out` and its arrays written as one run of them all."""
+    given = json.loads(job.read_text())
+    parts = []
+    for number, people in enumerate(batched(given["people"])):
+        part = job.with_name(f"{job.stem}-{number}.json")
+        part.write_text(json.dumps({**given, "people": people}))
+        parts.append((part, out.with_name(f"{out.stem}-{number}.json")))
+    with concurrent.futures.ThreadPoolExecutor(max(1, len(parts))) as cards:
+        list(cards.map(lambda part: on_card(*part), parts))
+    runs, arrays = [], {}
+    for part, part_out in parts:
+        runs.append(json.loads(part_out.read_text()))
+        arrays.update(np.load(part_out.with_suffix(".npz")))
+        for written in (part, part_out, part_out.with_suffix(".npz")):
+            written.unlink()
+    np.savez_compressed(out.with_suffix(".npz"), **arrays)
+    out.write_text(json.dumps({**(runs[0] if runs else {"engine": None, "rate": given.get("rate")}),
+                               "people": {name: entry for run in runs for name, entry in run["people"].items()}}))
+
+
+def batched(people):
+    """The people in batches of at most PER_MACHINE, in their order: as many clips as one card's job holds."""
+    return [people[start:start + PER_MACHINE] for start in range(0, len(people), PER_MACHINE)]
+
+
+def on_card(job, out):
+    """One batch's job on one rented card of KIND (blender_cloud's Machine): the job, its people's targets and the
+    model carried up at their paths, `out` and its arrays brought back."""
     from score.adapters import engines
     given = json.loads(job.read_text())
     inputs = [job, *sorted({pathlib.Path(person["targets"]).parent for person in given["people"]}), given["model"]]
-    minutes = CLOUD_MINUTES * len(given["people"])
-    with engines.machine_runner().Machine(classes, WHO, minutes) as machine:
+    minutes = card_minutes(len(given["people"]))[1]
+    with engines.machine_runner().Machine(list(CLASSES), WHO, minutes, kind=KIND) as machine:
         machine.run(REPO / INSIDE, [job, out], inputs, [out, out.with_suffix(".npz")], minutes, env=REPO / ENV_SCRIPT)
+
+
+def card_minutes(clips):
+    """(likely, high) minutes one card's job of `clips` clips takes: Newton's env built, its kernels' first compile,
+    each clip at the measured minutes (set-up apart)."""
+    return (ENV_MINUTES + COMPILE_MINUTES + clips * CLIP_MINUTES,
+            ENV_MINUTES + COMPILE_MINUTES + clips * CLIP_HIGH_MINUTES)
+
+
+def priced(clips):
+    """The row's forecast for `clips` clips ({euros (its high), likely_euros, minutes, high_minutes, measured, cards}):
+    the cards they are batched onto, side by side, each its start and set-up and its job (card_minutes); the minutes
+    the longest card's, the euros every card's at CARD's saved bill price and its rent fee. No clip rents nothing."""
+    if not clips:
+        return {"euros": 0.0, "likely_euros": 0.0, "minutes": 0.0, "high_minutes": 0.0, "measured": 0, "cards": 0}
+    import sys
+    from score.adapters import engines
+    sys.path.insert(0, str(REPO / "tools/costs"))
+    import per_unit
+    set_up_high = engines.machine_runner().SETUP_MINUTES
+    sizes = [len(part) for part in batched(list(range(clips)))]
+    likely = [SET_UP_MINUTES + card_minutes(size)[0] for size in sizes]
+    high = [set_up_high + card_minutes(size)[1] for size in sizes]
+    a_minute = per_unit.hourly(CARD) / 60.0
+    return {"euros": round(sum(high) * a_minute + RENT_FEE * len(sizes), 2),
+            "likely_euros": round(sum(likely) * a_minute + RENT_FEE * len(sizes), 2),
+            "minutes": round(max(likely), 2), "high_minutes": round(max(high), 2), "measured": 0,
+            "cards": len(sizes)}
+
+
+def forecast(inputs):
+    """What the row's clearance reserves (graph.Stage.forecast): priced on its cast's singles, each a clip (the most
+    the make sends: one it leaves out sends none)."""
+    cast = json.loads((pathlib.Path(inputs["cast"]) / "cast.json").read_text())
+    return priced(len(cast["characters"]))
 
 
 def no_singles(cast):

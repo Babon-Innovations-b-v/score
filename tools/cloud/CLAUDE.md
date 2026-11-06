@@ -463,7 +463,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   the machine lock) is for checks of seconds only. An agent starts a cloud Blender call with `--detach` under `run_in_background`
   (`detached.py`: progress to a log, one result line at the end) and never polls it in the foreground.
 - **Newton jobs take the same path** (`"env": "score/stages/physics/inside/newton_env.sh"`, built on the machine in a
-  few minutes; the physics trial, the sim body stage under SCORE_SIM_BODY_CLASSES, and sim body's level 1,
+  few minutes; the physics trial, the sim body stage (a paid row, kind `sim-body`), and sim body's level 1,
   `level1/`, owner 2026-11-02): a long one names `bring_every` (its outputs also brought back every that many minutes
   while it runs) and a call that needs a class Blender never takes names its own `--kind` (`sim-body-l1`, capacity.py:
   `gpu-80gb-x2-48c` first, a card class naming its least cores). The `newton` job image
