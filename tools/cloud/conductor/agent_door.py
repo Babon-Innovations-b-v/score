@@ -562,6 +562,17 @@ def fault(log, node, props_home):
     return "\n".join([f"{found}:", *text])
 
 
+def catches(pid, number):
+    """Whether process `pid` has a handler of its own for signal `number` (its SigCgt mask in /proc): sent to one
+    without, SIGUSR1's default ends it (2026-11-06: the stack verb ended checkout 34's score run, exit -10)."""
+    try:
+        status = pathlib.Path(f"/proc/{pid}/status").read_text()
+    except OSError:
+        return False
+    mask = next((line.split()[1] for line in status.splitlines() if line.startswith("SigCgt:")), "0")
+    return bool(int(mask, 16) >> (int(number) - 1) & 1)
+
+
 def stack(pid, props_home, wait=2.0):
     """Every Python thread's stack of a run's process `pid` (one whose command line names a frozen copy under
     props_home/frozen): a SIGUSR1, which tools/cloud/batch.py's stacks_on_ask turns into <home>/logs/stacks/<pid>.txt,
@@ -575,6 +586,8 @@ def stack(pid, props_home, wait=2.0):
         raise Refused(f"no process {pid}") from None
     if frozen not in command:
         raise Refused(f"{pid} is no run's process (its command names no frozen copy)")
+    if not catches(pid, signal.SIGUSR1):
+        raise Refused(f"{pid} does not catch SIGUSR1, which would end it: only a batch runner dumps its stacks")
     folders = [pathlib.Path(props_home) / "logs" / "stacks",
                *sorted(pathlib.Path(frozen).glob("*.home/logs/stacks"))]
     before = {folder: (folder / f"{pid}.txt").stat().st_size if (folder / f"{pid}.txt").is_file() else 0

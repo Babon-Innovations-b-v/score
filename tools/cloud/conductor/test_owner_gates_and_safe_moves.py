@@ -633,6 +633,15 @@ def test_the_doors_run_log_and_fault_read_only_the_launchs_home(tmp_path):
         assert "hashing_inputs" in agent_door.stack(spin.pid, home, wait=1.0)
         with pytest.raises(agent_door.Refused):
             agent_door.stack(os.getpid(), home)  # no run's process
+        # a run's process with no SIGUSR1 handler is refused and lives on (2026-11-06: the verb ended a score run).
+        # Break: in agent_door.stack, drop the `catches` refusal
+        bare = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)", str(copy)])
+        time.sleep(0.5)
+        with pytest.raises(agent_door.Refused, match="does not catch SIGUSR1"):
+            agent_door.stack(bare.pid, home, wait=0.2)
+        assert bare.poll() is None
+        bare.kill()
+        bare.wait()
     finally:
         spin.kill()
         spin.wait()
