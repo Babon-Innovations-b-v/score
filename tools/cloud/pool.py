@@ -46,6 +46,7 @@ import capacity
 import ledger
 import preflight
 import provider
+from paths import HOME
 from provider import cloud
 
 POOLS = batch.CLOUD / "pools"
@@ -60,7 +61,13 @@ LEAD_MACHINES = 30
 MOST_CARDS = 10
 # The most processor machines a pool holds beside its cards, for the run's renders and bakes (owner, 2026-10-23: "the
 # warm pool holds a few processor machines beside the cards"); capacity.PROCESSOR_KINDS take them as well as cards.
-MOST_PROCESSORS = 3
+# 8 since 2026-11-06 (score for the owner, checkout 36: 26 places' bakes queued on 3, every other phase behind them).
+MOST_PROCESSORS = 8
+# The runner's folder of claims that wait for a machine and hold none (score/graph WAITING_CLAIMS, this PC's container
+# claims' too): a file named by each such process's pid, touched at each ask, so its node holds no --jobs slot.
+WAITING = HOME / "cloud" / "this-pc.waiting"
+# The pool machines this process holds now (held_by), so a claim marks its process waiting only while it holds none.
+HOLDING = set()
 # What a fresh pool card's kind is until a claim of a real kind takes it: no set-up of any kind on it.
 KIND = "pool"
 # How often a waiting claim looks for a warm card, and the collector for work.
@@ -487,10 +494,24 @@ def claim(run, offers, number, kind, disk_gb, wanted=None):
                 batch.say(f"waiting for a warm pool card for {kind}")
                 told = True
             preflight.mark_waiting()  # the runaway watch leaves the wait out of the run's minutes
+            mark_waiting(not HOLDING)
             batch.STOPPING.wait(POLL_SECONDS)
         return None
     finally:
         preflight.unmark_waiting()
+        mark_waiting(False)
+
+
+def mark_waiting(waits):
+    """This process's mark in WAITING: touched while a claim of it `waits` holding no pool machine, else removed, so
+    the runner's drive gives its node no --jobs slot while it only waits (score/graph CLAIM_WAITERS; 2026-11-06,
+    checkout 36: 15 of 16 slots held by bake clients waiting on 3 machines)."""
+    mark = WAITING / str(os.getpid())
+    if waits:
+        mark.parent.mkdir(parents=True, exist_ok=True)
+        mark.touch()
+    else:
+        mark.unlink(missing_ok=True)
 
 
 def paused(run, left):
@@ -529,7 +550,12 @@ def joined(run_id, machine):
 
 
 def held_by(run_id, server_id, holder):
-    """Write which process uses the card now (None: back in the pool)."""
+    """Write which process uses the card now (None: back in the pool); this process's own holding kept in HOLDING."""
+    if holder == os.getpid():
+        HOLDING.add(server_id)
+        mark_waiting(False)
+    elif holder is None:
+        HOLDING.discard(server_id)
     with locked(run_id) as folder:
         path = folder / "cards" / f"{server_id}.json"
         if path.exists():

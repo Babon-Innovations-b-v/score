@@ -2090,14 +2090,15 @@ def test_on_this_pc_a_client_stages_node_is_read_while_it_runs_even_with_no_clie
     assert not read
 
 
-def test_on_this_pc_a_node_waiting_on_a_container_claim_holds_no_job_slot_and_its_stage_starts_no_other(
+def test_a_node_waiting_on_a_claim_holds_no_job_slot_and_its_stage_starts_no_other(
         monkeypatch, tmp_path):
     """2026-10-29: all 8 job slots held by surfaces-bake rows, 3 running a take and 5 waiting for one, about 60 ready
     rows of other stages kept out; then the slots the waiters freed went to yet more waiting bake rows. Three slow
     `late` nodes, every running one waiting on a claim, and three slow `other` nodes that claim nothing, at --jobs 1:
-    on this PC a waiting late node holds no slot, so an other node runs beside it (two at once), and while it waits no
-    second late node starts (one at once); off this PC one node at a time. A fresh mark of a process in a node's tree
-    makes it a waiter, a stale one does not.
+    a waiting late node holds no slot, so an other node runs beside it (two at once), and while it waits no second late
+    node starts (one at once); off this PC the same, since a claim waiting on a warm pool machine marks itself too
+    (2026-11-06, checkout 36 on the conductor: 15 of 16 slots held by bake clients waiting on 3 pool machines). A fresh
+    mark of a process in a node's tree makes it a waiter, a stale one does not.
     Break: score/graph/__init__.py: 'if busy + len(ready) >= jobs or queued[stage.name] or (' ->
     'if busy + len(ready) >= jobs or (' -> two late nodes at once on this PC."""
     briefs = {"hangar": "a ship", "station": "a hub", "dock": "a pier"}
@@ -2133,8 +2134,8 @@ def test_on_this_pc_a_node_waiting_on_a_container_claim_holds_no_job_slot_and_it
         return tuple(most)
     monkeypatch.setenv(*graph.THIS_PC)
     assert most_at_once(a_runner(a_world(briefs), a_store(), (late, other))) == (2, 1)
-    monkeypatch.setenv(graph.THIS_PC[0], "scaleway")
-    assert most_at_once(a_runner(a_world(briefs), a_store(), (late, other))) == (1, 1)
+    monkeypatch.setenv(graph.THIS_PC[0], "scaleway")  # off this PC the same: a warm pool's waiting claim marks too
+    assert most_at_once(a_runner(a_world(briefs), a_store(), (late, other))) == (2, 1)
     monkeypatch.setattr(graph, "WAITING_CLAIMS", tmp_path)
     (tmp_path / str(os.getpid())).touch()
     assert graph.claim_waiters([os.getppid()]) == {os.getppid()}
