@@ -232,6 +232,7 @@ NODE = re.compile(r"^[a-z0-9][a-z0-9_.-]*(@[a-z0-9_.-]+)?$")
 # plus the door refused every grant the session had written (2026-10-26).
 GRANT_ID = re.compile(r"^[A-Za-z0-9._:+-]+$")
 PHASE = re.compile(r"^[a-z][a-z-]*$")
+CAPS = re.compile(r"^[a-z0-9-]+=[0-9]{1,3}(,[a-z0-9-]+=[0-9]{1,3})*$")  # a Buy's machine caps, capacity's form
 STAGE_LIST = re.compile(r"^[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*$")  # a Buy's phases or stages to leave out  # a phase's name (score/stages/phases); the Buy refuses one that is no phase
 GRANT_CODE = ("import sys; from score.adapters.compute import grant_benchmark; "
               "print(grant_benchmark(answer=sys.argv[2], question=sys.argv[3], euros=sys.argv[1])['id'])")
@@ -440,7 +441,7 @@ def decide(words, latch):
     if verb == "buy":
         if not args or not GRANT_ID.match(args[0]) or not buy_options(args[1:]):
             raise Refused("buy <yes id> [--phase <phase>[,<phase>...]] [--leave-out <stage>[,<stage>...]] "
-                          "[--cluster <kind>[,<kind>...]], the id buy-yes printed")
+                          "[--cluster <kind>[,<kind>...]] [--max-machines <class>=<n>[,...]], the id buy-yes printed")
         if latch:
             raise Refused("the owner's free-only latch is set: no Buy")
         return [str(pathlib.Path(__file__).resolve()), BUY, *args], {"SCORE_FREE_ONLY": None}
@@ -739,12 +740,12 @@ def carried(args, home):
 
 
 def buy_options(rest):
-    """Whether the options after a Buy's yes id are each --phase, --leave-out or --cluster once with a comma list of
-    names."""
+    """Whether the options after a Buy's yes id are each --phase, --leave-out, --cluster or --max-machines once with
+    a comma list (of names; --max-machines of <class>=<n>)."""
     seen = set()
     while rest:
-        if len(rest) < 2 or rest[0] not in ("--phase", "--leave-out", "--cluster") or rest[0] in seen or \
-                not STAGE_LIST.match(rest[1]):
+        if len(rest) < 2 or rest[0] not in ("--phase", "--leave-out", "--cluster", "--max-machines") or \
+                rest[0] in seen or not (CAPS if rest[0] == "--max-machines" else STAGE_LIST).match(rest[1]):
             return False
         seen.add(rest[0])
         rest = rest[2:]
@@ -795,7 +796,7 @@ def tenant_status(environment, command=None):
     return done.stdout.strip()
 
 
-def buy_started(yes, home, command=None, phase=None, leave_out=None, cluster=None):
+def buy_started(yes, home, command=None, phase=None, leave_out=None, cluster=None, max_machines=None):
     """`python -m score.dashboard buy <yes> [--phase <phase>]` started in a session of its own, its words in a log
     under home/BUY_LOGS named with the phase, and the door's answer at once: the log's path (2026-11-04: a Buy priced
     on the idle conductor's 2 cores held the ssh past its caller's 15 minutes, the ssh dropped and the Buy was cut
@@ -805,6 +806,8 @@ def buy_started(yes, home, command=None, phase=None, leave_out=None, cluster=Non
     if cluster:
         cluster_check(os.environ)
         extra = {"SCORE_CLOUD": "k8s", "SCORE_CLOUD_KINDS": cluster}
+    if max_machines:  # the run's caps, capacity.caps' form (score.dashboard.launch.localrun LAUNCH_CAPS)
+        extra["SCORE_LAUNCH_MAX_MACHINES"] = max_machines
     folder = pathlib.Path(home) / BUY_LOGS
     folder.mkdir(parents=True, exist_ok=True)
     named = f"{yes}-{phase.replace(',', '+')}" if phase else yes
@@ -814,7 +817,7 @@ def buy_started(yes, home, command=None, phase=None, leave_out=None, cluster=Non
         subprocess.Popen(command or [sys.executable, "-m", "score.dashboard", "buy", *asked], cwd=REPO,
                          stdin=subprocess.DEVNULL, stdout=written, stderr=subprocess.STDOUT, start_new_session=True,
                          env={**os.environ, **extra})
-    asked += ["--cluster", cluster] if cluster else []
+    asked += [*(["--cluster", cluster] if cluster else []), *(["--max-machines", max_machines] if max_machines else [])]
     return f"buy {' '.join(asked)}: started in its own session; its checkout and result in {log} (the door's buy-log)"
 
 
@@ -1116,7 +1119,8 @@ def main():
         try:
             options = dict(zip(sys.argv[3::2], sys.argv[4::2]))
             print(buy_started(sys.argv[2], PROPS_HOME, phase=options.get("--phase"),
-                              leave_out=options.get("--leave-out"), cluster=options.get("--cluster"))
+                              leave_out=options.get("--leave-out"), cluster=options.get("--cluster"),
+                              max_machines=options.get("--max-machines"))
                   if sys.argv[1] == BUY else buy_log(PROPS_HOME))
         except Refused as refused:
             print(f"score-agent-door: refused: {refused}", file=sys.stderr)

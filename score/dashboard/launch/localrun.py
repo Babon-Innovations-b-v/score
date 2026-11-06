@@ -23,6 +23,9 @@ SECRETS = ("SCORE_DASHBOARD_SECRET_KEY", "SCORE_SYNC_TOKEN")
 # One run's own tags, never inherited by a launch: a benchmark grant would clear the owner's batch against the grant
 # instead of his stop line, a machine cap would shrink it, a run id would fold it into another run's machine count.
 RUN_TAGS = ("SCORE_BENCHMARK_GRANT", "SCORE_MAX_MACHINES", "SCORE_RUN_ID", "SCORE_RUN_PID")
+# A Buy's own machine caps, named for its launch alone (the agents' door's buy --max-machines, 2026-11-06): the run
+# gets them as SCORE_MAX_MACHINES, which no other process's environment can hand it.
+LAUNCH_CAPS = "SCORE_LAUNCH_MAX_MACHINES"
 TAIL_LINES = 40
 BENCHMARKS = "score.stages.complete.prepare.benchmarks"  # the Benchmarks item's batch, a subprocess like `score`
 
@@ -50,8 +53,12 @@ def plan_command(group):
 
 
 def run_env():
-    """The runner's environment: the dashboard's secrets and any run's own tags left out."""
-    return {name: value for name, value in os.environ.items() if name not in SECRETS + RUN_TAGS}
+    """The runner's environment: the dashboard's secrets and any run's own tags left out; a Buy's own machine caps
+    (LAUNCH_CAPS) given as the run's SCORE_MAX_MACHINES."""
+    found = {name: value for name, value in os.environ.items() if name not in (*SECRETS, *RUN_TAGS, LAUNCH_CAPS)}
+    if os.environ.get(LAUNCH_CAPS):
+        found["SCORE_MAX_MACHINES"] = os.environ[LAUNCH_CAPS]
+    return found
 
 
 def last_json(text):
