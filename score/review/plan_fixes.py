@@ -165,19 +165,30 @@ def split_runs(plan, inventory, project):
     return fixes
 
 
-def piled(plan, row_id, box, tall):
-    """The base a new thing of `row_id` with footprint `box` [x, y, w, d] stands at: on the highest thing of its row
-    whose footprint it crosses (a pile: airlock's sandbags crossed by 5 to 25 cm, 2026-10-30), else 0. `tall` is the
-    row's, for a thing whose shape gives none."""
+# A row's words that say its things pile on one another (holders.PILE_WORDS, held equal by the test).
+PILE_WORDS = {"pile", "piles", "piled", "stack", "stacks", "stacked", "heap", "heaps", "heaped"}
+
+
+def piles(row):
+    """Whether a row's things pile on one another: a PILE_WORDS word in its id, name, noun, where or size words."""
+    return bool(PILE_WORDS & set(re.findall(r"[a-z]+", " ".join(
+        str(row.get(key) or "") for key in ("id", "name", "noun", "where", "size_words")).replace("_", " ").lower())))
+
+
+def piled(plan, row, box, tall):
+    """The base a new thing of `row` with footprint `box` [x, y, w, d] stands at: for a row whose things pile (piles:
+    airlock's sandbags, "knee high pile", crossed by 5 to 25 cm, 2026-10-30) on the highest thing of its row whose
+    footprint it crosses, else 0, on the floor, the overlap left to nudged (2026-11-06: the engine room's railings 5
+    to 8 piled 1 to 4 m over one another). `tall` is the row's, for a thing whose shape gives none."""
     return max([float((shape or {}).get("base") or 0.0) + float((shape or {}).get("tall") or tall)
-                for item, row, shape in plan_checks.placed_items(plan) if row == row_id and overlapping(box, item[1:5])],
-               default=0.0)
+                for item, row_id, shape in plan_checks.placed_items(plan)
+                if row_id == row["id"] and overlapping(box, item[1:5])], default=0.0) if piles(row) else 0.0
 
 
 def placed_missing(plan, inventory, project):
     """Each row on the floor placed fewer times than the concept counts given its missing things where its boxes
-    project, those nearest a thing already laid taken as that one's; a thing whose footprint crosses one of its row's
-    piled on it (piled), never standing in it; the fixes said."""
+    project, those nearest a thing already laid taken as that one's; a thing of a row that piles whose footprint
+    crosses one of its row's piled on it (piled), never standing in it; the fixes said."""
     if project is None:
         return []
     fixes, short = [], {gap["row"] for gap in plan_checks.count_gaps(plan, inventory, set(plan.get("structure", [])))}
@@ -197,7 +208,7 @@ def placed_missing(plan, inventory, project):
         size = [float(row["size"][0]), float(row["size"][1])]
         added = []
         for spot in spots[:missing]:
-            base = piled(plan, row["id"], [spot[0] - size[0] / 2, spot[1] - size[1] / 2, *size],
+            base = piled(plan, row, [spot[0] - size[0] / 2, spot[1] - size[1] / 2, *size],
                          float(row["size"][2]) if len(row["size"]) > 2 else 0.0)
             added.append(added_item(plan, row["id"], spot, size, like))
             if base:

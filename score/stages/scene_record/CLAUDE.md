@@ -100,7 +100,10 @@ The scene-record stage (experimental, PRD #6): a place's scene record made by SC
   does), `laid-as-designed` (2026-11-04 audit, faults every check had passed: no two pieces of one row at one spot; a
   wall-held object's front out into the room, its built length within its wall's face, off the floor where its words
   say high or it is a light; a thing hung from the roof its top at the roof's underside over it, `writer.roof_under`;
-  a seat its words put at, by or before a holder within `SEAT_REACH` of its built side); `plan-matched` also holds
+  a seat its words put at, by or before a holder within `SEAT_REACH` of its built side; a thing its relation stands
+  on the floor more than half its built height over it with nothing under its footprint, `floor_faults`: no floor,
+  deck, level or flight there, and no standing object's top, never its own row's unless its row piles,
+  `holders.piles`: 2026-11-06, the engine room's railings piled 1 to 4 m up); `plan-matched` also holds
   each laid row to its scene inventory's count unless the plan's `dropped` or notes say why, or it is laid as often
   as the plan's doorways lead to its child scene's instances (`row_count_faults`, `led_instances`: base's seven
   tubes, 2026-11-06).

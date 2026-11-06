@@ -3360,17 +3360,22 @@ def test_a_missing_thing_crossing_one_of_its_row_is_piled_on_it():
     """2026-10-30: placed_missing laid each missing copy at full size with no neighbour check, so airlock's sandbags
     stood in each other by 5 to 25 cm. A sack laid at plan (3.3, 2.3) and two missing ones projecting to (3.5, 2.3)
     and (6.3, 2.3): the first crosses it and is piled on it (base its 0.2 m tall), the second stands on the floor.
-    Break: score/review/plan_fixes.py: `            if base:` -> `            if False:`"""
-    sack = {"id": "sack", "count": 3, "size": [0.6, 0.4, 0.2],
-            "boxes": [[300, 200, 360, 230], [320, 200, 380, 230], [600, 200, 660, 230]]}
-    inventory = {"picture": [1000, 1000], "rows": [*ROWS, sack]}
-    plan = stand_in_plan()
-    plan["items"].append(["SACK 1", 3.0, 2.1, 0.6, 0.4, None, "item"])
-    plan["rows"]["SACK 1"] = ["sack"]
-    plan_fixes.placed_missing(plan, inventory, plan_fixes.projector(plan, inventory))
-    sacks = {item[0]: [item[1], item[2], plan["shapes"][item[0]].get("base")] for item in plan["items"]
-             if item[0].startswith("SACK") and item[0] != "SACK 1"}
-    assert sacks == {"SACK 2": [3.2, 2.1, 0.2], "SACK 3": [6.0, 2.1, None]}, sacks
+    2026-11-06: the engine room's railings 5 to 8 were piled 1 to 4 m over one another the same way, floating; only a
+    row whose words say its things pile ("a knee high pile") piles, so railings laid alike all stand on the floor.
+    Break: score/review/plan_fixes.py: `            if base:` -> `            if False:`
+    Break: score/review/plan_fixes.py: `default=0.0) if piles(row) else 0.0` -> `default=0.0)`"""
+    for row_id, words, piled in (("sack", "a knee high pile", 0.2), ("railing", "waist high", None)):
+        sack = {"id": row_id, "count": 3, "size": [0.6, 0.4, 0.2], "size_words": words,
+                "boxes": [[300, 200, 360, 230], [320, 200, 380, 230], [600, 200, 660, 230]]}
+        inventory = {"picture": [1000, 1000], "rows": [*ROWS, sack]}
+        plan = stand_in_plan()
+        name = row_id.upper()
+        plan["items"].append([f"{name} 1", 3.0, 2.1, 0.6, 0.4, None, "item"])
+        plan["rows"][f"{name} 1"] = [row_id]
+        plan_fixes.placed_missing(plan, inventory, plan_fixes.projector(plan, inventory))
+        sacks = {item[0]: [item[1], item[2], plan["shapes"][item[0]].get("base")] for item in plan["items"]
+                 if item[0].startswith(name) and item[0] != f"{name} 1"}
+        assert sacks == {f"{name} 2": [3.2, 2.1, piled], f"{name} 3": [6.0, 2.1, None]}, sacks
 
 
 def test_a_box_of_things_drawn_apart_is_split_round_its_spread():
