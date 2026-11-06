@@ -125,8 +125,8 @@ RENT_FEE = 0.005  # euros a machine (its disk and address, the ledger's rent_fee
 MACHINE_MINUTES = 230
 PER_MACHINE = int((MACHINE_MINUTES - ENV_MINUTES - COMPILE_MINUTES) // CLIP_HIGH_MINUTES)
 # The row's estimate (Stage.euros) where its forecast is not read: priced(7)'s high, a place of seven clips (env1's
-# street) on one card, 45.6 card minutes at the high.
-EUROS = 0.60
+# street) on one card, 29.5 card minutes at the high.
+EUROS = 0.39
 # MyoFullBody as MuscleMimic publishes it (Apache-2.0; its NOTICE: MyoSuite and myo_sim, Apache-2.0, from OpenSim's
 # Rajagopal 2016, lumbar spine and hand models, MIT, and MoBL-ARMS, whose model definition was released for
 # non-commercial use only): fetched by its pinned wheel and sha256, never kept in this repository.
