@@ -155,21 +155,44 @@ def patchiness(mesh, face_label, part_of, finishes):
     """patchy.py's numbers and pass of a split take, each part its own region as the paint judges its painted parts
     (place_line.paint_take): a finish's edge along a part's is the paint the views show. Each island of a detail
     finish (detail_finish) is a part of its own, as a lone fitting is, so details sharing a part are no stray;
-    blotches of any other finish still are. So is each island that is a whole piece of the shape (patchy's own
-    exemption): merged_islands takes a loose bit into the nearest larger island of its finish, and that island, its
+    blotches of any other finish still are. So is each island merged_islands kept as a part (at least ISLAND_LEAST of
+    the area, the one such island of its part): taken in, a loose glass bit or a tape crumb made its island, its
     part no longer its alone, read as a blotch (base's connecting tube, its glazing's 25 panes of 0.2 to 1% each
-    holding 51 loose glass bits, stray 0.121, once fragmented_largest kept every pane; 2026-11-06)."""
+    holding 51 loose glass bits, stray 0.121; old_station's central hub, its tape and foil islands holding crumbs,
+    0.034; once fragmented_largest kept every such island, 2026-11-06). The crumbs it took in are still judged in the
+    part they joined (taken_crumbs)."""
     import numpy as np
     import patchy
-    details = [index for index, finish in enumerate(finishes) if detail_finish(finish)]
+    details = np.isin(face_label, [index for index, finish in enumerate(finishes) if detail_finish(finish)])
     island = patchy.islands(face_label, mesh.face_adjacency)
-    piece = patchy.components(len(face_label), mesh.face_adjacency)
-    island_area = np.bincount(island, weights=mesh.area_faces)
+    kept = (np.bincount(island, weights=mesh.area_faces) >= ISLAND_LEAST * mesh.area)[island] & ~details
+    holds = np.unique(np.stack([part_of[kept], island[kept]], 1), axis=0)[:, 0]  # each kept island's part
+    kept &= (np.bincount(holds, minlength=part_of.max() + 1) == 1)[part_of]  # the one kept island of its part
+    own = np.where(details | kept, part_of.max() + 1 + island, part_of)
+    found = patchy.score(mesh, face_label, own, own)
+    stray = found["stray"] + taken_crumbs(mesh, island, kept, part_of, own)
+    faults = [fault for fault in found["faults"] if not fault.startswith("stray")]
+    faults = ([f"stray {stray:.3f} > {patchy.STRAY_LIMIT}"] if stray > patchy.STRAY_LIMIT else []) + faults
+    return dict(found, stray=round(stray, 4), faults=faults, **{"pass": not faults})
+
+
+def taken_crumbs(mesh, island, kept, part_of, own):
+    """The share of the area in crumbs (islands under ISLAND_LEAST) merged_islands took into a kept island's part
+    that patchiness's own parts leave whole (each alone in what was that part once the island has its own) but that
+    part_of, the part they joined, does not: still strays, never a part of their own; a whole piece stays patchy's."""
+    import numpy as np
+    import patchy
+    hosted = np.isin(part_of, np.unique(part_of[kept])) & ~kept & (own == part_of)
+    areas = mesh.area_faces
+    island_area = np.bincount(island, weights=areas)
+    piece = patchy.components(len(island), mesh.face_adjacency)
     piece_of = np.zeros(len(island_area), dtype=int)
     piece_of[island] = piece
-    loose = np.isclose(island_area, np.bincount(piece, weights=mesh.area_faces)[piece_of])[island]
-    own = np.where(np.isin(face_label, details) | loose, part_of.max() + 1 + island, part_of)
-    return patchy.score(mesh, face_label, own, own)
+    loose = np.isclose(island_area, np.bincount(piece, weights=areas)[piece_of])
+    counted = np.zeros(len(island_area), dtype=bool)
+    counted[np.unique(island[hosted])] = True
+    counted &= patchy.whole_parts(island, own) & ~patchy.whole_parts(island, part_of) & ~loose
+    return float(island_area[counted].sum() / areas.sum())
 
 
 def kept_finishes(before, after, areas):
