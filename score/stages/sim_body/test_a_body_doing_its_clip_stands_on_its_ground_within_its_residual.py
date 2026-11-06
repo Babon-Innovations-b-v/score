@@ -41,6 +41,10 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   `stood(found, ...)` dropped (the floating foot 7 mm over its ground); stood's `heights < STANCE_HIGH` dropped (the
   jump's flight pulled 10 cm down onto its ground); stood's `heights <= others[:, None]` dropped (the sitting column's
   foot pulled 2 cm down, its other skin pushed under its floor).
+- a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground, 2026-11-06 (#70, Kimodo's own contacts): person_rig's
+  `played.contacted(found[key], ...)` handed the unstood `played.clip_local(...)` (the correction given the floating
+  foot); contacts_of's `"foot_contacts" in saved.files` check dropped (a motion without contacts refused); make's
+  `contacts` not handed to person_rig (no clip corrected).
 - the_clip_chains_down_the_tree: played.chained's `world[:, parents[joint]] @ local[:, joint]` made
   `local[:, joint] @ world[:, parents[joint]]` (2026-10-29: clip_frames chains through it).
 - the_model_is_unpacked_only_as_pinned: fetched's sha256 check dropped.
@@ -156,7 +160,7 @@ def test_a_body_is_built_at_its_persons_own_size():
     assert world[:, 1, 1, 3] == pytest.approx(ground)  # its foot on the route's ground
 
 
-def test_a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground():
+def test_a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground(tmp_path, monkeypatch):
     """The toy's clips posed on a body 5 cm shorter in the leg than its bind (the foot 0.45 m under the Hips, the bind's
     0.5 m) at the Hips' height 0.47 m: played with no build, the foot hangs 0.5 m under the Hips, the standing frame's
     foot on its ground (y = 0, the bind's), and the walking clip lifted by the same 3 cm (raw, its foot 2 cm up); a
@@ -192,6 +196,21 @@ def test_a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground():
     rig["clip_sitting"][:, 1, 1, 3] = -0.48 - 0.03  # less the 3 cm lift the standing clip gives every clip
     sitting = sim_body.clip_frames(sim_body.person_rig(rig, None)[0], "sitting", [1, 2])
     assert sitting[:, 1, 1, 3] == pytest.approx(0.02, abs=1e-6) and sitting[:, 0, 1, 3] == pytest.approx(-0.48)
+    # a clip whose Kimodo motion carries its foot contacts (people-clips-made's motions/) gets Kimodo's own foot
+    # correction after it is stood, and only it (MotionCorrection is not built here: its numbers are on #70)
+    (tmp_path / "motions").mkdir()
+    np.savez(tmp_path / "motions" / "floating.npz", foot_contacts=np.ones((30, 6), dtype=bool))
+    np.savez(tmp_path / "motions" / "jumping.npz", root_positions=np.zeros((10, 3)))
+    contacts = sim_body.contacts_of(tmp_path, rig)
+    assert list(contacts) == ["floating"] and contacts["floating"].shape == (30, 6)
+    handed = {}
+    monkeypatch.setattr(sim_body._body.played, "contacted",
+                        lambda local, names, parents, bind, given: handed.setdefault("floating", local) + 0.5)
+    corrected = sim_body.person_rig(rig, None, contacts)[0]
+    assert np.abs(sim_body.clip_frames({**corrected, "clip_floating": handed["floating"]}, "floating",
+                                       [1, 2])[:, 1, 1, 3]).max() < 0.001  # handed the stood clip
+    assert corrected["clip_floating"] == pytest.approx(handed["floating"] + 0.5)
+    assert corrected["clip_jumping"] == pytest.approx(played["clip_jumping"])
 
 
 def test_the_clip_chains_down_the_tree():
@@ -323,6 +342,11 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
     rig["clip_standing"][:, 2] = rig["clip_standing"][:, 2] @ bent  # its standing shin bent off the bind
     (tmp_path / "clips").mkdir()
     np.savez(tmp_path / "clips/rig.npz", **rig)
+    (tmp_path / "clips/motions").mkdir()  # Kimodo's own foot contacts beside the rig, as people-clips-made keeps them
+    np.savez(tmp_path / "clips/motions/standing.npz", foot_contacts=np.ones((20, 6), dtype=bool))
+    corrected = []
+    monkeypatch.setattr(sim_body._body.played, "contacted",
+                        lambda local, names, parents, bind, given: corrected.append(len(given)) or local)
     toy_seed(tmp_path / "seed")
     (tmp_path / "cast").mkdir()
     cast = {"place": "toy", "crowd": {"name": "crowd"}, "characters": [
@@ -357,6 +381,7 @@ def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_pat
     sim_body.make({"cast": str(tmp_path / "cast"), sim_body.CLIPS_ROW: str(tmp_path / "clips"),
                    "seed": str(tmp_path / "seed")}, out, 0, {})
     record = json.loads((out / sim_body.RECORD).read_text())
+    assert corrected == [20]  # the one build's standing clip given Kimodo's correction on its contacts
     ann = record["bodies"]["ann"]
     assert ann["measures"]["weight N"] == pytest.approx(81.0) and ann["segments"] == {"Hips": "pelvis",
                                                                                       "LeftFoot": "tibia_l"}
