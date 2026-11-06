@@ -166,6 +166,21 @@ def test_a_changed_input_script_code_or_system_runs_again(monkeypatch, tmp_path)
     third = attempt(monkeypatch, tmp_path, "third", code="row code 2")
     recoded = {**bake(third, "crate", models), "script": str(script)}
     assert kept.missing([recoded], SYSTEM) == [recoded]  # the row's code changed
+    # another process hashes no file version again: its hash is read from beside the kept jobs (2026-11-06: fifteen
+    # bake calls hashed their inputs whole for ten minutes). Break: in kept.file_hash, drop `hashed_before(record) or`
+    assert kept.keep(recoded, SYSTEM, brought=baked(recoded, "the third run"))
+    kept.HASHES.clear()
+    fourth = attempt(monkeypatch, tmp_path, "fourth", code="row code 2")  # another making folder: another call
+    other = {**bake(fourth, "crate", models), "script": str(script)}
+    read = pathlib.Path.read_bytes
+    monkeypatch.setattr(pathlib.Path, "read_bytes", lambda path: (_ for _ in ()).throw(AssertionError(f"read {path}"))
+                        if path.name == "crate.glb" else read(path))
+    assert kept.missing([other], SYSTEM) == []
+    monkeypatch.setattr(pathlib.Path, "read_bytes", read)
+    (models / "crate.glb").write_text("crate model, fixed again")
+    assert kept.missing([other], SYSTEM) == [other]  # a changed file is a new version, hashed anew
+    (models / "crate.glb").write_text(f"crate model naming {tmp_path}")  # one naming the folders is hashed with them
+    assert kept.missing([other], SYSTEM) == [other]
 
 
 def test_the_rows_python_is_left_to_its_code_and_its_data_is_not(monkeypatch, tmp_path):
