@@ -22,6 +22,7 @@ turns it red (each applied once and seen red):
 - A change asked while the cluster applies the last one is asked again. Break: re-raise on "transient state".
 """
 import importlib.util
+import json
 import pathlib
 
 import pytest
@@ -85,6 +86,13 @@ def test_down_deletes_only_this_projects_cluster_and_two_of_one_name_stop(monkey
     monkeypatch.setattr(tenant, "cluster", lambda: {"id": "c-tenant"})
     monkeypatch.setattr(tenant, "price", lambda machine_type, zone: (0.0135, 1))
     assert tenant.cap_pools(100, 4) == {"score-l4": 10} and tenant.idle() == {"score-l4": 10}
+    # its nodes through kubectl (2026-11-06: the conductor's scw cannot read the cluster's project), only the ones
+    # tainted for score. Break: in tenant.nodes, drop the `tainted_for_score(spec)` filter
+    listed = {"items": [{"metadata": {"name": name, "creationTimestamp": "2026-11-05T10:00:00Z",
+                                      "labels": {"score.dev/class": "gpu-24gb", tenant.POOL_LABEL: pool}},
+                         "spec": {"taints": taints}, "status": {"conditions": [{"type": "Ready", "status": "True"}]}}
+                        for name, pool, taints in (("n-p1", "score-l4", tainted), ("n-p3", "theirs", []))]}
+    monkeypatch.setattr(tenant, "kubectl", lambda *words: json.dumps(listed))
     assert [node["name"] for node in tenant.nodes()] == ["n-p1"]
     assert not any("update" in call or "delete" in call for call in asked)
 
