@@ -379,7 +379,9 @@ branch names a scene or a world.
   named library gap, never repeated quietly.
   **Each person is also a sim body** (`score/stages/sim_body`, its overlay; row `sim-body@<place>`, experimental, #65;
   PRD #56; #70): a musculoskeletal body, MyoFullBody (MyoSuite's, as MuscleMimic's pinned wheel publishes it: 86
-  bones, 123 joints, 416 muscles and their tendons; fetched by sha256, never committed), sized once to the person's
+  bones, 416 muscles and their tendons; fetched by sha256, never committed; made movable by `inside/myo/_movable.py`,
+  which adds 9 joints to the source's 122: 131 joints besides the free root, of which 36 are tied by equalities, 34
+  coupled to other joints and 2 held fixed, leaving 95 free), sized once to the person's
   own build by bone group (each group's stretch SOMA's, each muscle's length range with its path; masses from SOMA's
   segment volumes at Dempster's densities), its mass the stated weight, else height squared times the reference BMI
   of its sex (NCD-RisC 2016: 24.5 men, 24.8 women, the mean of both unstated), marked estimated (#64). The movement
