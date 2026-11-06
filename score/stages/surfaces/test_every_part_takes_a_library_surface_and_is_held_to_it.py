@@ -1645,7 +1645,8 @@ def test_a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagge
     keeps the list's meaning (the audit of 2026-11-04): its recipe (a handrail never takes the floor's grating, rusted
     steel never clean hull paint), its glow, and its hue (gold foil never silver, a blue decal never grey frame
     paint); and the gate "kept the list's meaning" fails a finish moved off them and a take whose largest finish moved
-    off its row name's colour (the hangar's thick red cables as black_hose)."""
+    off its row name's colour (the hangar's thick red cables as black_hose), unless another finish's own words name
+    that colour (base's 'green plants' dome, its frame the largest part, its leaves 'green plants inside the dome')."""
     navy, grey, black = [0.03, 0.06, 0.10], [0.35, 0.35, 0.35], [0.01, 0.01, 0.01]
     library = {"vinyl_seat": {"family": "plastic", "colour": navy},
                "grey_plastic": {"family": "plastic", "colour": grey},
@@ -1705,6 +1706,10 @@ def test_a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagge
                   {"judge": "deck_plate", "words": "brushed steel", "share": 0.3}]}
     faults = finish_parts.meaning_faults("walkway-t1", record)
     assert len(faults) == 2 and "steel handrail" in faults[0] and "thick red cables" in faults[1], faults
+    claimed = dict(record, finishes=[*record["finishes"], {
+        "finish": "cable sheath", "parts": "the red cables on the floor", "surface": "seam_paint"}])
+    faults = finish_parts.meaning_faults("walkway-t1", claimed)
+    assert len(faults) == 1 and "steel handrail" in faults[0], faults
     folder = pathlib.Path(tempfile.mkdtemp())
     (folder / "parts.json").write_text(json.dumps({"takes": {"walkway-t1": record}}))
     assert route_parts.judge_meaning(folder, {}, None).answer == checks.FAIL
