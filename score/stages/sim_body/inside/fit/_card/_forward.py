@@ -4,7 +4,13 @@ float32 noise is what held the shoulder's elevation plane 0.02 deg off mink's fl
 The same maths as Newton's eval_single_articulation_fk for the joints a person model has: free (position, then
 the turn x, y, z, w), revolute about its axis, prismatic along it, fixed; a joint's parent link is laid before it (MJCF order).
 Each row reads its joint places (joint_X_p) from its set's row of a [sets, joints] array (level 3 across sets: rows =
-set x frame, each set's inside-joint moves its own places); one set by default, the model's own."""
+set x frame, each set's inside-joint moves its own places); one set by default, the model's own.
+
+`Exact` gives the same link frames from MuJoCo's own compiled model in float64 instead (`_level2_wide._kinematics`,
+mj_kinematics' steps): Newton's add_mjcf builds its joint places and axes in float32, so its float64 frames of the same
+pose stood up to 7.3 um off MuJoCo's at a hand (mean's jump, 2026-11-06), and level 3's card fit, minimising on
+them, stopped 0.002 to 0.007 deg off mink's in the shoulder girdle's weak direction (sites 0.024 mm)."""
+import mujoco
 import numpy as np
 import warp as wp
 from newton import JointType
@@ -81,8 +87,145 @@ class Forward:
         self.joint_axis = wp.array(model.joint_axis.numpy().astype(np.float64), dtype=wp.vec3d, device=device)
 
 
+@wp.kernel(enable_backward=False)
+def _wide_qpos(joint_q: wp.array2d[wp.float32], qpos: wp.array2d[wp.float64]):
+    """Newton's coordinates (the free root's turn x, y, z, w at 3) as MuJoCo's qpos (w, x, y, z) in float64."""
+    row, coord = wp.tid()
+    source = coord
+    if coord == 3:
+        source = 6
+    elif coord > 3 and coord < 7:
+        source = coord - 1
+    qpos[row, coord] = wp.float64(joint_q[row, source])
+
+
+@wp.kernel(enable_backward=False)
+def _links(xpos: wp.array2d[wp.vec3d], xquat: wp.array2d[wp.quatd], body_of: wp.array[wp.int32],
+           body_q: wp.array2d[wp.transformd]):
+    """Each Newton link's frame: its MuJoCo body's."""
+    row, link = wp.tid()
+    body = body_of[link]
+    body_q[row, link] = wp.transformd(xpos[row, body], xquat[row, body])
+
+
+@wp.kernel(enable_backward=False)
+def _narrowed_links(wide: wp.array2d[wp.transformd], body_q: wp.array2d[wp.transform]):
+    """The link frames in float32 (Newton's analytic Jacobian reads its own float32 layout)."""
+    row, link = wp.tid()
+    frame = wide[row, link]
+    place, turn = wp.transform_get_translation(frame), wp.transform_get_rotation(frame)
+    body_q[row, link] = wp.transform(wp.vec3(wp.float32(place[0]), wp.float32(place[1]), wp.float32(place[2])),
+                                     wp.quat(wp.float32(turn[0]), wp.float32(turn[1]), wp.float32(turn[2]),
+                                             wp.float32(turn[3])))
+
+
+@wp.kernel(enable_backward=False)
+def _subspace(xanchor: wp.array2d[wp.vec3d], xaxis: wp.array2d[wp.vec3d], dof_joint: wp.array[wp.int32],
+              dof_turns: wp.array[wp.int32], joint_s: wp.array2d[wp.spatial_vector]):
+    """Each hinge or slide dof's world twist (Newton's (linear, angular) layout) from MuJoCo's float64 anchor and axis:
+    a hinge (anchor x axis, axis), a slide (axis, 0); the free root's dofs (dof_joint -1) left as Newton made them."""
+    row, dof = wp.tid()
+    joint = dof_joint[dof]
+    if joint < 0:
+        return
+    axis = xaxis[row, joint]
+    if dof_turns[dof] != 0:
+        moved = wp.cross(xanchor[row, joint], axis)
+        joint_s[row, dof] = wp.spatial_vector(wp.float32(moved[0]), wp.float32(moved[1]), wp.float32(moved[2]),
+                                              wp.float32(axis[0]), wp.float32(axis[1]), wp.float32(axis[2]))
+    else:
+        joint_s[row, dof] = wp.spatial_vector(wp.float32(axis[0]), wp.float32(axis[1]), wp.float32(axis[2]),
+                                              wp.float32(0.0), wp.float32(0.0), wp.float32(0.0))
+
+
+class Exact:
+    """`Forward`'s link frames made from MuJoCo's compiled model `mjm` (float64 geometry, mj_kinematics' steps) for
+    Newton's model of the same file `model` (its links by body name, its coordinates MuJoCo's with the free root's turn
+    reordered); one set only. `drive(optimizer)` has Newton's IKOptimizerLM read the same geometry in its analytic
+    Jacobian (its link frames and its hinges' and slides' twists, float32 only at the end)."""
+
+    def __init__(self, model, mjm):
+        if int(mjm.jnt_type[0]) != int(mujoco.mjtJoint.mjJNT_FREE) or model.joint_coord_count != mjm.nq:
+            raise ValueError("MuJoCo's frames need a free root first and Newton's coordinates MuJoCo's")
+        from ._level2_wide import BALL
+        if np.any(mjm.jnt_type == BALL):
+            raise ValueError("a ball joint: the frames hold free, hinge and slide joints")
+        device = model.device
+        array = lambda values, kind: wp.array(np.ascontiguousarray(values), dtype=kind, device=device)  # noqa: E731
+        self.bodies, self.nbody, self.njnt, self.nq = model.body_count, mjm.nbody, max(mjm.njnt, 1), mjm.nq
+        self.body_of = array([mjm.body(label.split("/")[-1]).id for label in model.body_label], wp.int32)
+        self.qpos0 = array(mjm.qpos0.astype(float), wp.float64)
+        self.tree = [array(mjm.body_parentid.astype(np.int32), wp.int32),
+                     array(mjm.body_jntadr.astype(np.int32), wp.int32),
+                     array(mjm.body_jntnum.astype(np.int32), wp.int32),
+                     array(mjm.body_pos.astype(float), wp.vec3d), array(mjm.body_quat.astype(float), wp.vec4d),
+                     array(mjm.jnt_type.astype(np.int32), wp.int32), array(mjm.jnt_qposadr.astype(np.int32), wp.int32),
+                     array(mjm.jnt_pos.astype(float), wp.vec3d), array(mjm.jnt_axis.astype(float), wp.vec3d)]
+        hinge, slide = int(mujoco.mjtJoint.mjJNT_HINGE), int(mujoco.mjtJoint.mjJNT_SLIDE)
+        dof_joint = np.full(model.joint_dof_count, -1, dtype=np.int32)
+        dof_turns = np.zeros(model.joint_dof_count, dtype=np.int32)
+        kinds, children, starts = model.joint_type.numpy(), model.joint_child.numpy(), model.joint_qd_start.numpy()
+        for joint, (kind, child) in enumerate(zip(kinds, children)):
+            dofs = int(starts[joint + 1] - starts[joint])
+            if int(kind) in (FREE, FIXED) or dofs == 0:
+                continue
+            body = mjm.body(model.body_label[child].split("/")[-1]).id
+            own = int(mjm.body_jntadr[body])
+            if int(kind) not in (REVOLUTE, PRISMATIC) or dofs != 1 or int(mjm.body_jntnum[body]) != 1 or \
+                    int(mjm.jnt_type[own]) != (hinge if int(kind) == REVOLUTE else slide):
+                raise ValueError(f"Newton's joint {joint} into {mjm.body(body).name} is not its body's one MuJoCo"
+                                 " joint")
+            dof_joint[starts[joint]], dof_turns[starts[joint]] = own, int(int(kind) == REVOLUTE)
+        self.dof_joint, self.dof_turns = array(dof_joint, wp.int32), array(dof_turns, wp.int32)
+        self.device, self.held, self.wide = device, None, None
+
+    def frames(self, joint_q, body_q):
+        """body_q [rows, bodies] transformd: every row's link frames from joint_q [rows, coords] (Newton's layout)."""
+        from ._level2_wide import _kinematics
+        rows, device = joint_q.shape[0], self.device
+        if self.held is None or self.held[0].shape[0] != rows:
+            self.held = (wp.zeros((rows, self.nq), dtype=wp.float64, device=device),
+                         wp.zeros((rows, self.nbody), dtype=wp.vec3d, device=device),
+                         wp.zeros((rows, self.nbody), dtype=wp.quatd, device=device),
+                         wp.zeros((rows, self.njnt), dtype=wp.vec3d, device=device),
+                         wp.zeros((rows, self.njnt), dtype=wp.vec3d, device=device))
+        qpos, xpos, xquat, xanchor, xaxis = self.held
+        wp.launch(_wide_qpos, dim=qpos.shape, inputs=[joint_q], outputs=[qpos], device=device)
+        wp.launch(_kinematics, dim=rows, inputs=[qpos, self.qpos0, *self.tree], outputs=[xpos, xquat, xanchor, xaxis],
+                  device=device)
+        wp.launch(_links, dim=(rows, self.bodies), inputs=[xpos, xquat, self.body_of], outputs=[body_q], device=device)
+
+    def drive(self, optimizer):
+        """Have `optimizer` (Newton's IKOptimizerLM) read MuJoCo's geometry in its analytic Jacobian: its FK's link
+        frames these frames in float32 (`_fk_two_pass`), its hinges' and slides' twists from MuJoCo's anchors and axes
+        (`_compute_motion_subspace`; the free root's its own, exact: its joint place is the identity). Instance
+        overrides, as `_per_row.rowwise`'s."""
+        own_fk, own_subspace = optimizer._fk_two_pass, optimizer._compute_motion_subspace
+
+        def fk_two_pass(model, joint_q, body_q, X_local, n_batch):
+            own_fk(model, joint_q, body_q, X_local, n_batch)
+            if self.wide is None or self.wide.shape[0] != n_batch:
+                self.wide = wp.zeros((n_batch, self.bodies), dtype=wp.transformd, device=self.device)
+            self.frames(joint_q, self.wide)
+            wp.launch(_narrowed_links, dim=self.wide.shape, inputs=[self.wide], outputs=[body_q], device=self.device)
+
+        def motion_subspace(*, joint_q_in, body_q, joint_S_s_out):
+            own_subspace(joint_q_in=joint_q_in, body_q=body_q, joint_S_s_out=joint_S_s_out)
+            _, _, _, xanchor, xaxis = self.held
+            wp.launch(_subspace, dim=joint_S_s_out.shape, inputs=[xanchor, xaxis, self.dof_joint, self.dof_turns],
+                      outputs=[joint_S_s_out], device=self.device)
+
+        optimizer._fk_two_pass = fk_two_pass
+        optimizer._compute_motion_subspace = motion_subspace
+        return optimizer
+
+
 def frames(forward, joint_q, body_q):
-    """body_q [rows, bodies] transformd: every row's link frames from joint_q [rows, coords] (Newton's layout)."""
+    """body_q [rows, bodies] transformd: every row's link frames from joint_q [rows, coords] (Newton's layout), by
+    `forward` (a `Forward`, or an `Exact`: MuJoCo's own geometry)."""
+    if isinstance(forward, Exact):
+        forward.frames(joint_q, body_q)
+        return
     rows = joint_q.shape[0]
     if forward.row_set is None:
         forward.row_set = wp.zeros(rows, dtype=wp.int32, device=joint_q.device)

@@ -162,7 +162,7 @@ def _wide_residuals(optimizer, forward, joint_q, body_q, wide):
 
 
 def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STEPS, set_places=None, row_set=None,
-           skin=None, hold=None, bounds=None, marked=False):
+           skin=None, hold=None, bounds=None, marked=False, exact=None):
     """Every row's pose fitted from joint_q [rows, coords] (Newton's layout): (qpos [rows, coords] in MuJoCo's
     layout, steps [rows]). optimizer is the batch's IKOptimizerLM (Newton's IKSolver(...)._impl), seeds [rows,
     coords] MuJoCo's layout (the frozen coordinates' values). set_places [sets, joints, 7] and row_set [rows] (host
@@ -172,7 +172,9 @@ def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STE
     `normal(slopes, reduced, qpos)` their (J^T J, J^T r, squared sum) in the reduced dofs (`rra`'s held leg
     directions); `bounds`: each row's own ranges, (reduced lower, reduced upper [rows, size], lower, upper [rows,
     coords]) card arrays, in place of the reduction's and the projection's (`rra`'s footing). `marked`: a row still
-    going at `most_steps` is given steps -1 instead of NotConverged raised, for the caller to solve it otherwise."""
+    going at `most_steps` is given steps -1 instead of NotConverged raised, for the caller to solve it otherwise.
+    `exact`: the residuals', the skin's and the Jacobian's link frames and twists from MuJoCo's own float64 geometry
+    (`_forward.Exact`, its `drive`) instead of Newton's float32-built joint places (one set only)."""
     device = joint_q.device
     coords = optimizer.model.joint_coord_count
     if joint_q.shape[1] != coords or seeds.shape[1] != coords:
@@ -191,7 +193,11 @@ def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STE
     velocity = wp.zeros((rows, optimizer.model.joint_dof_count), dtype=wp.float32, device=device)
     qpos = wp.empty_like(current)
     history = wp.zeros((rows, 3), dtype=wp.float64, device=device)
-    forward = Forward(optimizer.model, set_places, row_set)
+    if exact is not None and set_places is not None:
+        raise ValueError("MuJoCo's frames hold one set: no set places")
+    forward = exact if exact is not None else Forward(optimizer.model, set_places, row_set)
+    if exact is not None:
+        exact.drive(optimizer)
     body_q = wp.empty((rows, forward.bodies), dtype=wp.transformd, device=device)
     wide = wp.zeros((rows, optimizer.n_residuals), dtype=wp.float64, device=device)
     before = wp.zeros_like(wide)
@@ -259,12 +265,12 @@ def solved(optimizer, reduction, projection, joint_q, seeds, most_steps=MOST_STE
 
 
 def solved_in_chunks(optimizer_for, reduction, projection, joint_q, seeds, chunk_rows=CHUNK_ROWS, set_places=None,
-                     row_set=None, skin=None):
+                     row_set=None, skin=None, exact=None):
     """`solved` over joint_q's rows CHUNK_ROWS at a time: (qpos [rows, coords] in MuJoCo's layout, steps [rows]) as
     host arrays. optimizer_for(start, stop) gives the IKOptimizerLM for rows start:stop (one IKSolver a chunk: its
     buffers are per row); joint_q and seeds are host arrays [rows, coords]; set_places and row_set as `solved`'s;
     `skin` (bones, skins): the clip's `_skin_step.BoneSkin` and each row's posed skin (`fit._skin.PosedSkins`), the
-    chunks then at most SKIN_CHUNK_ROWS rows (a distinct skin a mesh on the card)."""
+    chunks then at most SKIN_CHUNK_ROWS rows (a distinct skin a mesh on the card); `exact` as `solved`'s."""
     found, steps = [], []
     if skin is not None:
         chunk_rows = min(chunk_rows, SKIN_CHUNK_ROWS)
@@ -276,7 +282,8 @@ def solved_in_chunks(optimizer_for, reduction, projection, joint_q, seeds, chunk
                                         device=device)
         rows = None if skin is None else skin[0].rows(skin[1][start:stop], device)
         qpos, made = solved(optimizer, reduction, projection, chunk(joint_q), chunk(seeds), set_places=set_places,
-                            row_set=None if row_set is None else np.asarray(row_set)[start:stop], skin=rows)
+                            row_set=None if row_set is None else np.asarray(row_set)[start:stop], skin=rows,
+                            exact=exact)
         found.append(qpos.numpy())
         steps.append(made.numpy())
     return np.concatenate(found), np.concatenate(steps)
