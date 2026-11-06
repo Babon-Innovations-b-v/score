@@ -31,6 +31,10 @@ def by_row(found):
     return {entry["row"]: entry for entry in found["relations"]}
 
 
+def by_item_of(found):
+    return {entry["item"]: entry for entry in found["relations"]}
+
+
 def test_base_s_garage_door_stands_against_its_module_s_front():
     """Base (2026-10-29): the plan lays the garage door to its module's west, but the concept shows its box within the
     module's across, its foot near the module's: against the module's side toward the viewer, S (the viewer looks
@@ -558,8 +562,12 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     spot.
     2026-11-06 (laid-as-designed@garage): three 8 m ducts on three items at one spot on the 20 m wall stand one over
     another round their mount height, their tall and PIECE_GAP apart (garage's 10 m pipes 3 to 5 stood at one spot);
-    two 1 m clocks at one spot are packed along their wall instead, at one height.
+    two 1 m clocks at one spot are packed along their wall instead, at one height. Two railings on the floor drawn on
+    one box (engineroom's railings 3 and 4) are parted: the second beside the first, PIECE_GAP clear, the shortest way
+    with floor room (crates stand in front of and behind it); two on one box filling the room keep their spot.
     Break: score/review/holders/__init__.py: `parted_on_wall(found, rows, plan)` -> `pass`
+    Break: score/review/holders/__init__.py: `parted_on_floor(found, items, plan, inventory)` -> `pass`
+    Break: score/review/holders/__init__.py: `for rest in others):` -> `for rest in []):`
     Break: score/review/holders/__init__.py: `if run_needed(row, len(entries)) <= length:` -> `if True:`
     Break: score/review/holders/__init__.py: `entry["spot"] = [round(float(value), 3) for value in start + run *
         along]` -> `pass`
@@ -621,6 +629,20 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     clocks = [by_item[f"CLOCK {number}"] for number in (1, 2)]
     assert sorted(clock["spot"] for clock in clocks) == [[14.475, 12.0], [15.525, 12.0]], clocks
     assert {clock["height"] for clock in clocks} == {1.35}, clocks
+    rows = [{"id": "floor_grating", "noun": "grating", "part": "floor", "anchor": "floor"},
+            {"id": "railing", "noun": "railing", "anchor": "on:floor_grating", "size": [3.0, 2.0, 1.0], "count": 2},
+            {"id": "crate", "noun": "crate", "anchor": "floor", "size": [1.0, 1.0, 1.0]}]
+    items = [["RAILING 1", 4.0, 4.0, 3.0, 2.0, None, "item"], ["RAILING 2", 4.0, 4.0, 3.0, 2.0, None, "item"],
+             ["CRATE 1", 5.0, 6.5, 1.0, 1.0, None, "item"], ["CRATE 2", 5.0, 1.0, 1.0, 1.0, None, "item"]]
+    plan = plan_of(items, {"RAILING 1": ["railing"], "RAILING 2": ["railing"], "CRATE 1": ["crate"],
+                           "CRATE 2": ["crate"]}, structure=["floor_grating"])
+    railings = by_item_of(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
+    assert "spot" not in railings["RAILING 1"] and railings["RAILING 2"]["spot"] == [8.55, 5.0], railings
+    plan = plan_of([["RAILING 1", 0.0, 0.0, 20.0, 12.0, None, "item"], ["RAILING 2", 0.0, 0.0, 20.0, 12.0, None,
+                                                                         "item"]],
+                   {"RAILING 1": ["railing"], "RAILING 2": ["railing"]}, structure=["floor_grating"])
+    railings = by_item_of(holders.relations(plan, {"rows": rows[:2], "picture": PICTURE}))
+    assert "spot" not in railings["RAILING 2"], railings  # no floor room beside it: kept as drawn
 
 
 def test_the_relations_are_kept_beside_the_plan_with_its_sha(tmp_path, monkeypatch):

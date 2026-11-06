@@ -32,7 +32,7 @@ ceiling) and how each is read.
   `short`; an item laying several pieces gives each its own wall relation (`pieces`, `wall_pieces`, packed their
   length and `PIECE_GAP` apart), one row's items at one spot on one wall at one height packed along it where it
   holds them, else stood one over another up it, their tall and `PIECE_GAP` apart (`parted_on_wall`: garage's three
-  10 m pipes at one spot, 2026-11-06), a walls-item floor row's pieces where their concept boxes project; a wall thing the
+  10 m pipes at one spot, 2026-11-06), one row's floor items at one spot at one height each after the first moved the shortest way clear of the others, inside the outline and onto no other floor thing, kept where there is no room (`parted_on_floor`: engineroom's railings 3 and 4 on one box, 2026-11-06), a walls-item floor row's pieces where their concept boxes project; a wall thing the
   plan gives no base its mount `height` (`mount_height`: high words or a light, else a small thing at `EYE_MOUNT`); a
   wall row whose words say it spans the room under the roof (`spans`) is held by the ceiling, and a ceiling row hung
   from it (`under_roof`) is marked `to roof`; a seat its words put at, by or around a holder row (`beside_holder`)
