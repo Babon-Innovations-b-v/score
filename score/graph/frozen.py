@@ -261,10 +261,12 @@ def signalled(pid, number):
         pass
 
 
-def resumed_env(worktree):
-    """The environment `score resume` restarts a registered run with: a run from a frozen copy owns that copy again."""
+def resumed_env(worktree, settings=None):
+    """The environment `score resume` restarts a registered run with: its launch's own `settings` (runs.launch_settings,
+    kept in its entry: its cluster, caps and go) over resume's own, and a run from a frozen copy owns that copy again."""
     worktree = pathlib.Path(worktree)
+    base = {**os.environ, **(settings or {})}
     if worktree.parent != FOLDER:
-        return dict(os.environ)
+        return base
     own = {"PROPS_HOME": str(home_of(worktree))} if home_of(worktree).is_dir() else {}
-    return {**os.environ, FROZEN: str(worktree), OWNER: "1", **own}
+    return {**base, FROZEN: str(worktree), OWNER: "1", **own}

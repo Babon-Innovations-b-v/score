@@ -105,12 +105,27 @@ def boot_time():
     return int(line.split()[1])
 
 
+# The settings a launch gives its run in its environment, kept in its entry so a resume starts it with them
+# (2026-11-07: Launch 33, resumed after its grow with the boot unit's environment, lost its cluster and its caps).
+LAUNCH_SETTINGS = ("SCORE_CLOUD", "SCORE_K8S_", "SCORE_MAX_MACHINES", "SCORE_OWNERS_GO", "SCORE_BENCHMARK_GRANT",
+                   "SCORE_SPEND_TICKET", "SCORE_FREE_ONLY")
+
+
+def launch_settings(environment=None):
+    """{name: value} of the launch's own settings in `environment` (this process's by default): LAUNCH_SETTINGS'
+    names and the names they begin."""
+    environment = os.environ if environment is None else environment
+    return {name: value for name, value in environment.items() if name.startswith(LAUNCH_SETTINGS)}
+
+
 def new_entry(argv, worktree=REPO):
-    """This process's run (`argv`: score's own arguments, --detach left out) as a running entry, not written yet."""
+    """This process's run (`argv`: score's own arguments, --detach left out) as a running entry, not written yet,
+    with the launch's own settings (launch_settings) for a resume."""
     started = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     return {"id": f"{started.replace(':', '').replace('-', '')[:15]}-{os.getpid()}",
             "argv": [word for word in argv if word != DETACH], "commit": commit_of(worktree),
-            "worktree": str(worktree), "pid": os.getpid(), "boot": boot_id(), "started": started, "state": RUNNING}
+            "worktree": str(worktree), "pid": os.getpid(), "boot": boot_id(), "started": started, "state": RUNNING,
+            "settings": launch_settings()}
 
 
 def entry_path(entry, folder=None):
@@ -283,7 +298,8 @@ def restart(path, entry, say):
         say(f"skipped {describe(entry)}: {why}")
         return
     done = subprocess.run(restart_command(entry), cwd=entry["worktree"], stdin=subprocess.DEVNULL,
-                          capture_output=True, text=True, env=frozen.resumed_env(entry["worktree"]))
+                          capture_output=True, text=True,
+                          env=frozen.resumed_env(entry["worktree"], entry.get("settings")))
     if done.returncode != 0:
         why = f"its restart failed: exit={done.returncode} {done.stderr.strip()[-400:]}"
         mark(path, UNRESUMABLE, why)
