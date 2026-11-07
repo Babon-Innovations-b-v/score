@@ -25,7 +25,8 @@ ProcessLookupError catch (a process ending mid-read crashes store-evict); or in 
 SECRET_NAME test (the sync token's value lands in a drive Job's spec); or in score/__main__.py default_jobs drop the cluster
 record's jobs (a price on the cluster worked out on the node's cores); or in cluster.pod_view read an unanswered
 cluster as no units (a dead cluster shows the conductor fine); or in cluster.pod_log drop `or own_namespace()` (a
-home whose record names another namespace reads the logs of `score`'s pods).
+home whose record names another namespace reads the logs of `score`'s pods); or in cluster.drive_job write `echo $$`
+(Kubernetes hands the shell `echo $`, and a detached run on the cluster waits for a pid that never comes).
 """
 import datetime
 import io
@@ -496,6 +497,7 @@ def test_a_detached_run_is_its_own_scope_in_the_slice_and_off_a_conductor_in_non
     box, = pod["containers"]
     assert box["command"][-8:] == ["/py", "stopped.py", "--", "/py", "-m", "score", "run", "world1"]
     assert box["workingDir"] == "/home/score/.farm-factory-props/frozen/abc"
+    assert box["command"][2].replace("$$", "$").startswith("echo $$ >")  # as Kubernetes expands it: the shell's pid
     carried = {variable["name"]: variable.get("value") for variable in box["env"]}
     assert carried["SCORE_FREE_ONLY"] == "1" and carried["PATH"] == "/usr/bin" and carried["HOME"] == "/home/score"
     assert not {"SCORE_SYNC_TOKEN", "SCORE_LIB_KEY", "KUBERNETES_SERVICE_HOST"} & set(carried)
