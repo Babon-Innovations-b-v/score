@@ -24,6 +24,7 @@ import glob
 import hashlib
 import json
 import pathlib
+import tempfile
 
 from score import checks, contracts, graph
 from score.checks import grain
@@ -47,7 +48,7 @@ import score.stages.props.prop_data as prop_data
 import score.stages.shapes_first.floor_fit as floor_fit
 from score.stages.terrain import fit as ground_fit
 from score.review import concepts, plans
-from score.store import PROPS_HOME, Store
+from score.store import PROPS_HOME, Store, tree_hash
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 
@@ -182,7 +183,28 @@ def creator_plan(files):
         if (PROPS_HOME / "design" / "concepts" / f"{place}.png").is_file():
             found = {**found, "concept": "{home}/design/concepts/{place}.png"}
         return found
+    declared.carries = plan_remade_same
     return declared
+
+
+def plan_remade_same(runner, stage, place, keyed):
+    """True when the plan row made again on its new key, into a scratch folder, gives its accepted output, so the nodes
+    reading it key as before (rebuy counts it KEPT; the run makes it, free, to that same output). Its key reads every
+    kept plan (a door leads to another place's door, a holder reads the plans it holds), so one plan redrawn moves
+    every place's plan key: the square's and stairwell's redrawings of 2026-11-07 listed 81 paid re-buys, closeup and
+    Pixal3D at every place, where a remake gives 24 places' plans byte for byte. False when nothing is accepted or the
+    make fails (the run then makes it and says why). Here, in the table, so no row's code version moves."""
+    accepted = runner.store.accepted(graph.node_name(stage, place))
+    if accepted is None:
+        return False
+    with tempfile.TemporaryDirectory() as folder:
+        out = pathlib.Path(folder)
+        try:
+            stage.make(runner.input_paths(stage, place, keyed), out, keyed["seed"], keyed["params"])
+        except Exception:  # a prediction only: the run makes this node and says its error there
+            return False
+        contracts.stamp(stage.contract, out)
+        return tree_hash(out) == accepted
 
 
 def plan_written(place):
