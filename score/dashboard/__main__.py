@@ -29,6 +29,7 @@ import json
 import os
 import pathlib
 import sys
+import time
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "score.dashboard.site.settings")
 
@@ -179,15 +180,38 @@ def batch_money(no_film=False):
 
 
 def buy(options):
+    from score import conductor
+    from score.conductor import size
     from score.dashboard.checkout import chat_yes
+    waits = size.buy_waits()
+    if waits:
+        grown_first(options, waits)
+        return
     migrate()
     try:
-        record, said = chat_yes.buy(options.yes, phase=options.phase, leave_out=options.leave_out)
+        with conductor.holding("buy"):  # the batch size is held while it prices and launches, never shrunk under it
+            record, said = chat_yes.buy(options.yes, phase=options.phase, leave_out=options.leave_out)
     except chat_yes.Refused as refused:
         sys.exit(f"buy {options.yes}{phase_words(options.phase)}: refused: {refused}")
     print(f"buy {options.yes}{phase_words(options.phase)}: {said}")
     if record is None or record.state not in ("launched", "done"):
         sys.exit(1)
+
+
+def grown_first(options, waits):
+    """A Buy on the idle conductor (size.buy_waits): its own command recorded to start again at the boot on the batch
+    size (size.ask_grow_for, with its launch settings: the cluster's, the caps) and the grow asked; one line."""
+    from score import conductor
+    from score.conductor import size
+    from score.graph import runs
+    from score.store import PROPS_HOME
+    asked = [options.yes, *(["--phase", options.phase] if options.phase else []),
+             *(["--leave-out", options.leave_out] if options.leave_out else [])]
+    log = PROPS_HOME / "logs" / "buys" / f"buy-{time.strftime('%Y%m%d-%H%M%S')}-{options.yes}-grown.log"
+    path = size.ask_grow_for([sys.executable, "-m", "score.dashboard", "buy", *asked], runs.launch_settings(), log,
+                             conductor.machine()["batch_cores"])
+    print(f"buy {options.yes}{phase_words(options.phase)}: {waits}: asked for the grow (recorded as {path.name}); "
+          f"it starts again at the boot on the batch size, its words in {log}")
 
 
 def phase_words(phase):

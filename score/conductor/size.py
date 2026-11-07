@@ -22,6 +22,12 @@ machine, no frozen copy a process still uses (a run's releaser waits out its par
 that saw the machine busy, or from the boot, so a boot or a grow has IDLE_MINUTES of grace. The idle size holds a
 pass (the pass the 2026-10-25 shrink left ran 40 minutes on 2 cores and 16 GB without running out of memory): a pass
 is never a reason to grow, only to wait.
+
+A Buy asks for the batch size before it prices (buy_waits, ask_grow_for; 2026-11-07: a Buy's pricing ran over an
+hour on the idle size's 2 cores beside a sync pass and a backup, and every Buy ends at the batch size anyway): on a
+conductor below the batch size it records its own command and launch settings under ASKED, counted as a waiting run
+of the batch size's cores, and ends; `score resume` at the boot on the batch size starts each recorded command again
+in a session of its own (started_asked), one older than ASKED_HOURS dropped unstarted, said.
 """
 import contextlib
 import datetime
@@ -53,6 +59,8 @@ HEADER = "X-Score-Size-Token"  # tools/cloud/conductor/size_function/handler.py 
 READER = "SCORE_SECRET_READER"
 PARKED = PROPS_HOME / "cloud" / "parked"  # tools/cloud/park.py PARKED
 POOLS = PROPS_HOME / "cloud" / "pools"  # tools/cloud/pool.py POOLS
+ASKED = conductor.HOME / "grow-asked"  # one file a command waiting for the batch size before it starts (ask_grow_for)
+ASKED_HOURS = 2  # a recorded command older than this at the boot is dropped, not started
 
 
 def waits(jobs, oversubscribe, agent=None):
@@ -105,10 +113,10 @@ def processes_in(folder):
     return found
 
 
-def busy(runs_folder=None, parked=None, frozen_folder=None, holds_folder=None):
+def busy(runs_folder=None, parked=None, frozen_folder=None, holds_folder=None, asked_folder=None):
     """What keeps the machine at its size now: {claims, running, waiting, parked, frozen, working}, each a count
     (working: the holds of score.conductor.holding but the sync pass's, a request, a film preview, a reading, a free
-    check), with `passing` the sync passes holding now and `held` every hold's name and pid. A pass is no work that
+    check; waiting: the runs waiting for size and the commands recorded by ask_grow_for), with `passing` the sync passes holding now and `held` every hold's name and pid. A pass is no work that
     keeps the batch size: passes run back to back for ever (each outlasts its 5-minute timer), so counted as busy they
     kept the idle clock at 0 and the conductor at 16 cores all of 2026-11-04's morning; the shrink waits for one to end
     (decide)."""
@@ -123,6 +131,7 @@ def busy(runs_folder=None, parked=None, frozen_folder=None, holds_folder=None):
     in_use = [copy for copy in sorted(frozen_folder.iterdir()) if processes_in(copy)] if frozen_folder.is_dir() else []
     held = conductor.holds(holds_folder)
     passing = [name for name in held if name.startswith(PASS_HOLD)]
+    waiting += [entry for _, entry in asked_grows(asked_folder)]
     return {"claims": live_claims, "running": len(running), "waiting": len(waiting),
             "wanted": max((entry.get("jobs", 0) for entry in waiting), default=0),
             "parked": len(list(parked_folder.glob("*.json"))) if parked_folder.is_dir() else 0, "frozen": len(in_use),
@@ -282,6 +291,60 @@ def wait_for_grow(argv, jobs, say=print, wait=GROW_WAIT, step=WAIT_STEP, folder=
     say(f"score run: the machine was not grown within {wait // 60} minutes; marked unresumable")
     frozen.OWNED["handed_on"] = False  # nothing resumes it: its copy goes with it
     sys.exit(1)
+
+
+def buy_waits(record=None, cores=None):
+    """Why a Buy on this machine asks for the batch size before it prices, or None: on a conductor (machine.json's
+    `record`) with fewer `cores` than its batch size."""
+    record = conductor.machine() if record is None else record
+    cores = conductor.cores() if cores is None else cores
+    if not record or cores >= int(record.get("batch_cores", 0)):
+        return None
+    return f"{cores} cores: a Buy prices on the batch size ({record.get('batch_type')}, {record['batch_cores']} cores)"
+
+
+def ask_grow_for(argv, settings, log, jobs, folder=None, poke=None):
+    """Record `argv` (a whole command) with its launch `settings` and its `log`'s path as waiting for `jobs` cores
+    (busy counts it as a waiting run, so the size timer grows the machine) and ask for the grow at once (`poke`,
+    start_size_service by default); the record's path."""
+    folder = pathlib.Path(folder or ASKED)
+    path = folder / f"{time.strftime('%Y%m%dT%H%M%S')}-{os.getpid()}.json"
+    keep_state({"argv": list(argv), "settings": dict(settings), "log": str(log), "jobs": int(jobs),
+                "at": time.time()}, path)
+    (poke or start_size_service)()
+    return path
+
+
+def asked_grows(folder=None):
+    """[(path, entry)] of every command recorded by ask_grow_for, oldest first."""
+    folder = pathlib.Path(folder or ASKED)
+    return [(path, json.loads(path.read_text())) for path in sorted(folder.glob("*.json"))] if folder.is_dir() else []
+
+
+def started_asked(say=print, folder=None, cores=None, now=None, start=subprocess.Popen):
+    """At a boot: start every recorded command (ask_grow_for) this machine's `cores` hold, in a session of its own
+    with its settings, its words to its log, and remove its record; one older than ASKED_HOURS is removed unstarted;
+    one asking for more cores is left. The number started."""
+    cores = conductor.cores() if cores is None else cores
+    now = time.time() if now is None else now
+    started = 0
+    for path, entry in asked_grows(folder):
+        if now - entry["at"] > ASKED_HOURS * 3600:
+            path.unlink()
+            say(f"dropped {' '.join(entry['argv'])}: recorded over {ASKED_HOURS} h ago, not started")
+            continue
+        if entry["jobs"] > cores:
+            say(f"left {' '.join(entry['argv'])}: it waits for {entry['jobs']} cores, this machine has {cores}")
+            continue
+        log = pathlib.Path(entry["log"])
+        log.parent.mkdir(parents=True, exist_ok=True)
+        with log.open("a") as written:
+            start(entry["argv"], stdin=subprocess.DEVNULL, stdout=written, stderr=subprocess.STDOUT,
+                  start_new_session=True, env={**os.environ, **entry["settings"]})
+        path.unlink()
+        started += 1
+        say(f"started {' '.join(entry['argv'])} on the batch size; its words in {log}")
+    return started
 
 
 def stop_waiting(path, say=print):
