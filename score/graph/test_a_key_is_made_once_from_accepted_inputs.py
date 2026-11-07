@@ -77,6 +77,21 @@ def store_writes_land_unsynced(monkeypatch):
     monkeypatch.setattr(durable, "synced", lambda path: os.close(os.open(path, os.O_RDONLY)))
 
 
+@pytest.fixture(scope="module", autouse=True)
+def the_import_path_a_runs_table_leaves():
+    """The import path as this file's imports leave it before any code version: the stages' folders (a run's table
+    import), the cluster door's and the cloud tools' (tools/cloud/batch). Tests here import them and work the path
+    out again (search_folders), and each new path parsed every file behind every stage again (live_imports keys on
+    it): five times over the file, a third of its time on 2 CPUs."""
+    from score import __main__ as command
+    from score.graph import pod
+    from score.stages import physics  # noqa: F401
+    from score.stages.surfaces import route_list, scene_palette  # noqa: F401
+    pod.cluster_door()
+    command.cloud_tool("batch")
+    _code.search_folders.cache_clear()
+
+
 CHECKOUT = {}  # this checkout's commit and whether it has changes, as _code.git_commit read them once
 
 
@@ -110,6 +125,42 @@ def nodes_print_to_their_file_descriptors(monkeypatch):
         sys.stdout, sys.stderr = sys.__stdout__, sys.__stderr__
         node_process(self, *arguments)
     monkeypatch.setattr(graph.Runner, "node_process", on_descriptors)
+
+
+# The environment this file started in: the runs of a waiting part (run_ahead) take it, never a test's patched one.
+ENVIRON = {**os.environ, "OPENBLAS_NUM_THREADS": "1"}
+WAITING_PARTS = {}  # a test's name: its waiting part (run_ahead)
+AHEAD = {}  # a test's name: the future of its waiting part, started as the file started
+
+
+def run_ahead(test):
+    """Mark a function as `test`'s waiting part: runs of processes of their own (a `score run` in miniature, a script)
+    that the test signals and waits on, reading and patching nothing of this process. It starts with the file, one
+    part after another beside the other tests, and gives the test what it saw; the test checks it (ahead)."""
+    def marked(part):
+        WAITING_PARTS[test] = part
+        return part
+    return marked
+
+
+@pytest.fixture(scope="module", autouse=True)
+def waiting_parts_run_ahead(request):
+    """The waiting parts (run_ahead) of the tests this session runs, started at once one after another in a thread
+    of their own: most of their time is a grace, a delete or a process's start waited out, which the tests before
+    them use (in the cluster gate they were 21 s of the file's 89)."""
+    chosen = {item.name for item in request.session.items}
+    with concurrent.futures.ThreadPoolExecutor(1) as pool:
+        AHEAD.update({test: pool.submit(part) for test, part in WAITING_PARTS.items() if test in chosen})
+        yield
+        for future in AHEAD.values():
+            future.cancel()
+        AHEAD.clear()
+
+
+def ahead(test):
+    """What `test`'s waiting part saw: as started ahead (waiting_parts_run_ahead), or run now."""
+    future = AHEAD.pop(test, None)
+    return future.result() if future else WAITING_PARTS[test]()
 
 
 # --- the toy table (score/graph/_toys.py): its worlds, store and runner ---------------------------------------------
@@ -1913,9 +1964,10 @@ def test_two_runs_of_one_key_at_once_make_it_once_and_a_lock_held_too_long_makes
     """2026-10-12: two runs made people-segvigen at once; the second paid again, then failed on the first's record.
     A record or judgement another run stored first is taken as made; a lock held past its wait blocks.
     Break: score/graph/__init__.py: '            with self.held(node_name(stage, place), keyed["key"]):' -> '            with contextlib.nullcontext():'"""
+    monkeypatch.setattr(graph, "LOCK_POLL", 0.05)  # the second run takes the lock once the first lets it go
     data, world = a_world_of(["hangar"])
     store = tempfile.mkdtemp()
-    slow = graph.Stage("slow", "place", made_slowly(data), TEXT, MET)
+    slow = graph.Stage("slow", "place", made_slowly(data, 0.5), TEXT, MET)  # both runs fork at once: they overlap
     runners = [graph.Runner((slow,), world, Store.in_folder(store), model_record=lambda kind: {}) for _ in range(2)]
     started = [drive_in_a_process(runner, ["hangar"]) for runner in runners]
     found = [receiving.recv() for _, receiving in started]
@@ -1936,7 +1988,6 @@ def test_two_runs_of_one_key_at_once_make_it_once_and_a_lock_held_too_long_makes
     runner = graph.Runner((graph.Stage("slow", "place", made_slowly(data, 0), TEXT, MET),), world, a_store(),
                           model_record=lambda kind: {})
     monkeypatch.setattr(graph, "LOCK_WAIT", 0.2)
-    monkeypatch.setattr(graph, "LOCK_POLL", 0.05)
     with runner.held("slow@hangar", runner.key(runner.stages["slow"], "hangar")["key"]):  # another run holds it
         did = runner.run_node(runner.stages["slow"], "hangar")
     assert did.startswith("blocked: slow@hangar: another run has held its lock") and "pid" in did, did
@@ -2332,6 +2383,11 @@ def make_late(inputs, out, seed, params):
     (out / "mark.txt").write_text("marked")
 
 
+def make_briefly(inputs, out, seed, params):
+    time.sleep(0.2)  # the drive takes many turns meanwhile
+    (out / "mark.txt").write_text("marked")
+
+
 def make_queued(inputs, out, seed, params):
     """Its process's queue priority and place, as the drive handed them (Runner.node_process)."""
     (out / "clean.txt").write_text(f"{os.environ.get('SCORE_QUEUE_PRIORITY')} {os.environ.get('SCORE_QUEUE_PLACE')}")
@@ -2354,7 +2410,7 @@ def make_slow(inputs, out, seed, params):
 
 def make_big(inputs, out, seed, params):
     held = bytearray(BIG)  # zero-filled: every page touched, so its VmHWM counts it
-    time.sleep(0.6)  # the drive reads it meanwhile, its next node waiting on the --jobs slot
+    time.sleep(0.4)  # the drive reads it meanwhile, its next node waiting on the --jobs slot
     (out / "mark.txt").write_text(f"marked {len(held)}")
 
 
@@ -2365,7 +2421,7 @@ def test_on_this_pc_a_client_stages_node_is_read_while_it_runs_even_with_no_clie
     """Round 28, 2026-10-30: settle nodes held 12 and 8 GB in their own trees for minutes, client-trees.json kept 3.6
     GB: the drive took a node for a container client only while a blender_cloud.py ran under it, and settle's 12 GB
     is its own work outside its drop (a kept drop runs none). A `client` stage whose nodes once ran a client (1 MB
-    kept), two nodes at --jobs 1 on this PC, each node's real process holding 300 MB for 0.6 s and running no client:
+    kept), two nodes at --jobs 1 on this PC, each node's real process holding 300 MB for 0.4 s and running no client:
     the drive's readings of the node's real tree raise the kept peak past 300 MB, and the container is never read
     for them (round 29, 2026-10-30: such a settle node reserved the container's whole room beside its own tree).
     Break: score/graph/__init__.py: 'if on_this_pc() and (stage.name in clients or CONTAINED(process.pid))}' ->
@@ -2389,8 +2445,8 @@ def test_on_this_pc_a_client_stages_node_is_read_while_it_runs_even_with_no_clie
 def test_a_node_waiting_on_a_claim_holds_no_job_slot_and_its_stage_starts_no_other(
         monkeypatch, tmp_path):
     """2026-10-29: all 8 job slots held by surfaces-bake rows, 3 running a take and 5 waiting for one, about 60 ready
-    rows of other stages kept out; then the slots the waiters freed went to yet more waiting bake rows. Three slow
-    `late` nodes, every running one waiting on a claim, and three slow `other` nodes that claim nothing, at --jobs 1:
+    rows of other stages kept out; then the slots the waiters freed went to yet more waiting bake rows. Two slow
+    `late` nodes, every running one waiting on a claim, and two slow `other` nodes that claim nothing, at --jobs 1:
     a waiting late node holds no slot, so an other node runs beside it (two at once), and while it waits no second late
     node starts (one at once); off this PC the same, since a claim waiting on a warm pool machine marks itself too
     (2026-11-06, checkout 36 on the conductor: 15 of 16 slots held by bake clients waiting on 3 pool machines). A fresh
@@ -2410,9 +2466,9 @@ def test_a_node_waiting_on_a_claim_holds_no_job_slot_and_its_stage_starts_no_oth
     Break: score/graph/__init__.py: 'min(cluster_waiting, remote_excused())' -> 'min(cluster_waiting, REMOTE_EXCUSED)'
     (pod waiters counted as slots past 16) -> 12 cpu nodes beside the 20. Break: 'order.get(node, 0)' -> '0'.
     Break: score/graph/__init__.py: 'pod_expect([stage for stage, _ in waiting])' -> 'pass'."""
-    briefs = {"hangar": "a ship", "station": "a hub", "dock": "a pier"}
-    late = graph.Stage("late", "place", make_late, TEXT, PASSES)
-    other = graph.Stage("other", "place", make_late, TEXT, PASSES)
+    briefs = {"hangar": "a ship", "station": "a hub"}
+    late = graph.Stage("late", "place", make_briefly, TEXT, PASSES)
+    other = graph.Stage("other", "place", make_briefly, TEXT, PASSES)
     faked(monkeypatch, [100 * FLOOR])
     monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
     monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
@@ -2503,7 +2559,7 @@ def test_a_node_waiting_on_a_claim_holds_no_job_slot_and_its_stage_starts_no_oth
     reads = {"b@x": ["a@x"], "c@x": ["b@x"], "d@x": ["a@x", "b@x"], "e@y": ["z"]}
     assert pod.downstream(reads, ["a@x", "b@x", "z", "c@x"]) == {"a@x": 3, "b@x": 2, "z": 1, "c@x": 0}
     queued = graph.Stage("clean", "place", make_queued, TEXT, PASSES, files={"brief": "{data}/{place}/brief.txt"})
-    tail = graph.Stage("tail", "place", make_late, TEXT, PASSES, after={"count": READS})
+    tail = graph.Stage("tail", "place", make_briefly, TEXT, PASSES, after={"count": READS})
     monkeypatch.setattr(graph, "pod_dispatching", lambda: True)
     monkeypatch.setattr(graph, "FORK_WAIT", wait)
     monkeypatch.setattr(pod, "IMAGE_OF", {"count": "runner"})
@@ -2585,7 +2641,7 @@ def test_on_this_pc_a_container_clients_next_node_is_expected_at_its_own_tree_no
     was expected at its stage's 8 GB peak on top of the container's reserve, which already counts that idle turn. A
     `client` stage whose nodes ran a container client, its kept peak 2 floors, 1.5 floors available once the first
     node started: on this PC the second node is expected at what the first's own tree held, so it starts at once;
-    off this PC it waits for the room (here a 2 s deadline).
+    off this PC it waits for the room (here a 1.2 s deadline).
     Break: score/graph/__init__.py: '    return clients[stage] if stage in clients else peaks.get(' ->
     '    return peaks.get(' -> the second node waits for the deadline on this PC.
     Break: score/graph/__init__.py: 'clients = self.keep_client_tree(stage.name, tree)' ->
@@ -2595,13 +2651,13 @@ def test_on_this_pc_a_container_clients_next_node_is_expected_at_its_own_tree_no
     monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
     monkeypatch.setattr(graph, "CONTAINED", lambda pid: False)  # the running ones charged their stage peak
     monkeypatch.setattr(graph, "ran_container_client", lambda root: True)
-    client = graph.Stage("client", "place", make_late, TEXT, PASSES)
+    client = graph.Stage("client", "place", make_briefly, TEXT, PASSES)
 
     def second_start(this_pc):
         monkeypatch.setenv(*graph.THIS_PC) if this_pc else monkeypatch.setenv(graph.THIS_PC[0], "scaleway")
         runner = a_runner(a_world({"hangar": "a ship", "station": "a hub"}), a_store(), (client,))
         runner.keep_peak("client", 2 * FLOOR)
-        started, start, until = [], runner.start, time.monotonic() + 2
+        started, start, until = [], runner.start, time.monotonic() + 1.2
         runner.start = lambda stage, place, threads, given=None, priority=0: started.append(time.monotonic()) or start(stage, place, threads, given, priority)
         monkeypatch.setattr(graph, "AVAILABLE", lambda: 100 * FLOOR if not started else
                             2.5 * FLOOR if time.monotonic() < until else 100 * FLOOR)
@@ -2853,8 +2909,11 @@ def test_an_input_is_hashed_again_once_it_changed_and_never_kept_while_it_just_c
     monkeypatch.setattr(graph.time, "time_ns", lambda: later)  # its ctime (now) settled too
     first = graph.source_hash(folder)
     assert graph.source_hash(folder) == first and len(read) == 1, read
-    (folder / "a.json").write_text("bbbb")
-    os.utime(folder / "a.json", ns=(settled, settled))  # the same size and mtime: only its ctime moved
+    kept = os.stat(folder / "a.json").st_ctime_ns
+    while os.stat(folder / "a.json").st_ctime_ns == kept:  # a file's times tick with the kernel's coarse clock: a
+        time.sleep(0.001)  # rewrite in the same tick as the faked-settled write keeps its ctime (a real kept file
+        (folder / "a.json").write_text("bbbb")  # settled SETTLED_NS before any rewrite)
+        os.utime(folder / "a.json", ns=(settled, settled))  # the same size and mtime: only its ctime moved
     second = graph.source_hash(folder)
     assert second != first and second == graph.listing_hash({"a.json": hashed(folder / "a.json")})
     monkeypatch.undo()
@@ -2900,7 +2959,7 @@ def test_a_detached_run_returns_at_once_and_its_log_always_ends_with_its_result_
     """Fault (2026-10-12): a run whose group was sent SIGTERM ended its log with no line; review of C10: a run another
     run's registration refused after detaching ends with the refusal as its line.
     Break: score/graph/stopped.py: '    if code != REFUSED:\n        return line' -> '    if True:\n        return line'"""
-    _, went_on = detached(["import time; time.sleep(1); print('the run went on')"])  # the three side by side
+    _, went_on = detached(["import time; time.sleep(0.2); print('the run went on')"])  # the three side by side
     refused, refused_log = detached(["import sys; print('refused: run pid 7 holds the store', file=sys.stderr); "
                                      f"sys.exit({stopped.REFUSED})"])
     printed, log = detached(["import time; print('working', flush=True); time.sleep(60)"])
@@ -2919,11 +2978,17 @@ def test_a_run_started_as_a_script_imports_the_tools_library():
     """Benchmark 2026-10-22: `python score/__main__.py` put score/ first on the path, so `import library` found
     score/library and earth-seed failed on it.
     Break: score/__main__.py: 'sys.path[:] = [entry for entry in sys.path if pathlib.Path(entry or ".").resolve() != REPO / "score"]' -> 'pass'"""
+    done = ahead("test_a_run_started_as_a_script_imports_the_tools_library")
+    assert done.stdout.strip().endswith("tools/props/library/library.py"), done.stdout + done.stderr[-2000:]
+
+
+@run_ahead("test_a_run_started_as_a_script_imports_the_tools_library")
+def a_script_run():
+    """score/__main__.py run as a script, then `import library`: the process."""
     probe = ("import runpy, sys; runpy.run_path(sys.argv[1], run_name='probe'); import library; "
              "print(library.__file__)")
-    done = subprocess.run([sys.executable, "-c", probe, str(REPO / "score/__main__.py")], cwd=REPO / "score",
-                          capture_output=True, text=True, timeout=110)
-    assert done.stdout.strip().endswith("tools/props/library/library.py"), done.stdout + done.stderr[-2000:]
+    return subprocess.run([sys.executable, "-c", probe, str(REPO / "score/__main__.py")], cwd=REPO / "score",
+                          capture_output=True, text=True, timeout=110, env=ENVIRON)
 
 
 # A run in miniature takes score/__main__ for its run machinery alone: score.stages stands as its bare package (its
@@ -2985,14 +3050,29 @@ def alive(pid):
 
 def a_run_home(prefix):
     folder = pathlib.Path(tempfile.mkdtemp(prefix=prefix))
-    return folder, {**os.environ, "PROPS_HOME": str(folder), "PROPS_WORK": str(folder / "work")}
+    return folder, {**ENVIRON, "PROPS_HOME": str(folder), "PROPS_WORK": str(folder / "work")}
 
 
 def test_a_stopped_or_failed_run_ends_every_process_it_started_and_releases_only_its_reservations():
     """Fault (2026-10-17): runs stopped from outside left their nodes and batches running, renting on; review of C7:
     a drive that raised left its reservations held. The one process deaf to SIGTERM gets SIGKILL after the grace.
     Break: score/__main__.py: '        release_once_ended(runner, run_id, mark, pool_ticket[0] if pool_ticket else None)' -> '        pass'"""
-    failed_folder, environment = a_run_home("failed-run-")  # side by side with the stopped run (the file's time budget)
+    seen = ahead("test_a_stopped_or_failed_run_ends_every_process_it_started_and_releases_only_its_reservations")
+    assert seen["alive at the stop"], seen
+    assert not seen["alive after"], seen["alive after"]
+    output = seen["output"]
+    assert seen["exit"] == 143 and "score run: stopped by signal 15" in output, (seen["exit"], output)
+    assert "SIGKILL to 1 processes" in output, output
+    assert seen["held"] == ["other"], seen["held"]
+    failed = seen["failed output"]
+    assert seen["failed exit"] == 1 and "the drive fell over" in failed, (seen["failed exit"], failed)
+    assert seen["failed held"] == ["other"], seen["failed held"]
+
+
+@run_ahead("test_a_stopped_or_failed_run_ends_every_process_it_started_and_releases_only_its_reservations")
+def a_stopped_and_a_failed_run():
+    """A STOPPED_RUN that fails and one sent SIGTERM once its processes run, side by side: what each showed."""
+    failed_folder, environment = a_run_home("failed-run-")
     failing = subprocess.Popen([sys.executable, "-c", STOPPED_RUN, str(REPO), str(failed_folder), "fails"],
                                env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                                start_new_session=True)
@@ -3001,20 +3081,20 @@ def test_a_stopped_or_failed_run_ends_every_process_it_started_and_releases_only
                            stdout=subprocess.PIPE, text=True, start_new_session=True)
     wait_for(folder / "pids.json", "pids")
     started = json.loads((folder / "pids.json").read_text())
-    assert all(map(alive, started["pids"])), started
+    seen = {"alive at the stop": all(map(alive, started["pids"]))}
     stopped_at = time.time()
     run.send_signal(signal.SIGTERM)  # to the run's pid alone, not its group
-    output, _ = run.communicate(timeout=60)
+    seen["output"], _ = run.communicate(timeout=60)
     while any(map(alive, started["pids"])) and time.time() < stopped_at + 35:
         time.sleep(0.2)
-    assert not any(map(alive, started["pids"])), [pid for pid in started["pids"] if alive(pid)]
-    assert run.returncode == 143 and "score run: stopped by signal 15" in output, (run.returncode, output)
-    assert "SIGKILL to 1 processes" in output, output
-    assert [held["run"] for held in json.loads((folder / "reservations.json").read_text()).values()] == ["other"]
-    _, failed = failing.communicate(timeout=60)
-    assert failing.returncode == 1 and "the drive fell over" in failed, (failing.returncode, failed)
-    assert [held["run"] for held in json.loads((failed_folder / "reservations.json").read_text()).values()] == [
-        "other"]
+    seen["alive after"] = [pid for pid in started["pids"] if alive(pid)]
+    seen["exit"] = run.returncode
+    seen["held"] = [held["run"] for held in json.loads((folder / "reservations.json").read_text()).values()]
+    _, seen["failed output"] = failing.communicate(timeout=60)
+    seen["failed exit"] = failing.returncode
+    seen["failed held"] = [held["run"] for held in
+                           json.loads((failed_folder / "reservations.json").read_text()).values()]
+    return seen
 
 
 # A cloud batch holding three machines, each deleted through batch.delete_machine taking argv[3] seconds; it writes
@@ -3112,6 +3192,18 @@ def test_a_stopped_runs_cloud_batch_gets_one_stop_and_deletes_every_machine():
     main thread was busy in long code showed no stop and got the second signal too; the SIGKILL after the grace cut a
     batch's deletes short.
     Break: score/__main__.py: '    spared = cloud_side(group)' -> '    spared = set()'"""
+    by_group, busy, (deleted, output) = ahead("test_a_stopped_runs_cloud_batch_gets_one_stop_and_deletes_every_machine")
+    for number, deleted_by_group in by_group.items():
+        assert deleted_by_group == THREE, number
+    assert busy == THREE
+    assert deleted == THREE and "SIGKILL" not in output, (deleted, output)
+
+
+@run_ahead("test_a_stopped_runs_cloud_batch_gets_one_stop_and_deletes_every_machine")
+def group_runs_stopped():
+    """GROUP_RUNs stopped by a signal to their group (SIGINT, SIGHUP, SIGTERM), one while its node's main thread is
+    busy, one by SIGTERM to the run alone: the machines each deleted, by signal; the busy one's; the lone one's and its
+    output."""
     def stopped_by_its_group(number):
         run, folder = group_run(30, 0.3)
         os.killpg(run.pid, number)
@@ -3133,29 +3225,37 @@ def test_a_stopped_runs_cloud_batch_gets_one_stop_and_deletes_every_machine():
         by_group = {number: pool.submit(stopped_by_its_group, number)
                     for number in (signal.SIGINT, signal.SIGHUP, signal.SIGTERM)}
         busy, alone = pool.submit(stopped_while_busy), pool.submit(stopped_alone)
-        for number, deleted in by_group.items():
-            assert deleted.result() == THREE, number
-        assert busy.result() == THREE
-        deleted, output = alone.result()
-    assert deleted == THREE and "SIGKILL" not in output, (deleted, output)
+        return {number: deleted.result() for number, deleted in by_group.items()}, busy.result(), alone.result()
 
 
 def test_a_stopped_run_holds_its_reservations_until_its_cloud_tools_have_ended():
     """Review of C7 (2026-10-17): a stopped run released its reservations as it exited, while the cloud tools it
     spared were still deleting machines that billed.
     Break: score/__main__.py: '    if not ending and not cloud_tool("park").parked_by(run_id):' -> '    if True:'"""
-    run, folder = group_run(1, 0.8)
+    seen = ahead("test_a_stopped_run_holds_its_reservations_until_its_cloud_tools_have_ended")
+    assert seen["deleted as it ended"] < 3  # the run ended first
+    assert seen["held as it ended"] == 1
+    assert seen["deleted"] == THREE
+    assert seen["held"] == {}
+    assert not seen["runs"], seen["runs"]
+
+
+@run_ahead("test_a_stopped_run_holds_its_reservations_until_its_cloud_tools_have_ended")
+def a_group_run_stopped_alone():
+    """A GROUP_RUN of 1 s grace whose 3 deletes take 1.2 s each (beside other tests: room for a slow start), sent
+    SIGTERM alone: its deletes and reservations as it ended, and once its reservations were released (30 s at most)."""
+    run, folder = group_run(1, 1.2)
     run.send_signal(signal.SIGTERM)
     run.wait(timeout=60)
     deletes = folder / "deletes.txt"
-    assert len(deletes.read_text().split() if deletes.exists() else []) < 3  # the run ended first
-    assert len(json.loads((folder / "reservations.json").read_text())) == 1
+    seen = {"deleted as it ended": len(deletes.read_text().split() if deletes.exists() else []),
+            "held as it ended": len(json.loads((folder / "reservations.json").read_text()))}
     deadline = time.time() + 30
     while time.time() < deadline and json.loads((folder / "reservations.json").read_text()):
         time.sleep(0.1)
-    assert deletes.read_text().split() == THREE
-    assert json.loads((folder / "reservations.json").read_text()) == {}
-    assert not list(folder.rglob("runs/*")), list(folder.rglob("runs/*"))
+    seen.update(deleted=deletes.read_text().split(), held=json.loads((folder / "reservations.json").read_text()),
+                runs=list(folder.rglob("runs/*")))
+    return seen
 
 
 # A shell pipeline's later stage (`... | score run`) in a session of its own, a pseudo-terminal its controlling
@@ -3196,14 +3296,19 @@ def test_a_run_late_in_a_shell_pipeline_keeps_the_terminal_and_gives_it_back_whe
     """Review of C7 (2026-10-17): leading a group of its own took a pipeline's later stage out of the terminal's
     foreground group (Ctrl-C no longer reached it), and the terminal was never given back.
     Break: score/__main__.py: '    if held_before is not None:\n        hand_terminal(terminal, os.getpgrp())' -> '    if False:\n        hand_terminal(terminal, os.getpgrp())'"""
+    for case, done in ahead("test_a_run_late_in_a_shell_pipeline_keeps_the_terminal_and_gives_it_back_when_it_ends"):
+        assert done.returncode == 0, (case, done.returncode, done.stderr)
+
+
+@run_ahead("test_a_run_late_in_a_shell_pipeline_keeps_the_terminal_and_gives_it_back_when_it_ends")
+def pipelines_run():
+    """PIPELINE_RUN's two cases, each in a session and a pseudo-terminal of its own, side by side: (case, process)."""
     def piped(case):
         folder, environment = a_run_home("pipeline-")
         return subprocess.run([sys.executable, "-c", PIPELINE_RUN, str(REPO), case], capture_output=True, text=True,
                               timeout=60, start_new_session=True, env=environment)
-    # each case in a session and a pseudo-terminal of its own: they run side by side (the file's time budget)
     with concurrent.futures.ThreadPoolExecutor(2) as pool:
-        for case, done in zip(("becomes", "ends"), pool.map(piped, ("becomes", "ends"))):
-            assert done.returncode == 0, (case, done.returncode, done.stderr)
+        return list(zip(("becomes", "ends"), pool.map(piped, ("becomes", "ends"))))
 
 
 def slow_runner(seconds):
@@ -3216,20 +3321,20 @@ def slow_runner(seconds):
 
 def test_a_long_node_has_heartbeats_and_a_gauge_that_fails_is_said_without_ending_the_drive(monkeypatch):
     """Fault (2026-10-16): runs failed or sat idle quietly. Review (C8): a gauge that raised ended the drive; a stage's
-    own drive (no gauges) says no beat. The 2-minute beat and 3-minute node scaled to 0.2 s and 1 s.
+    own drive (no gauges) says no beat. The 2-minute beat and 3-minute node scaled to 0.1 s and 0.5 s.
     Break: score/graph/__init__.py: '            beat_in = max(0.0, beat_at - time.monotonic()) if gauges else None' -> '            beat_in = None'"""
-    monkeypatch.setattr(graph, "HEARTBEAT", 0.2)
+    monkeypatch.setattr(graph, "HEARTBEAT", 0.1)
     said = []
-    assert slow_runner(1).drive(["hangar"], say=said.append, gauges=lambda: "EUR 0.00 so far") == {
+    assert slow_runner(0.5).drive(["hangar"], say=said.append, gauges=lambda: "EUR 0.00 so far") == {
         "slow@hangar": ACCEPTED}
     beats = [line for line in said[:said.index(f"slow@hangar: {ACCEPTED}")] if line.startswith("heartbeat ")]
     assert len(beats) >= 3 and beats[0].endswith(": rows done 0, running 1, queued 0; EUR 0.00 so far"), said
     said = []
-    assert slow_runner(0.6).drive(["hangar"], say=said.append, gauges=lambda: 1 / 0) == {"slow@hangar": ACCEPTED}
+    assert slow_runner(0.3).drive(["hangar"], say=said.append, gauges=lambda: 1 / 0) == {"slow@hangar": ACCEPTED}
     beats = [line for line in said if line.startswith("heartbeat ")]
     assert beats and beats[0].endswith("; gauges unreadable: ZeroDivisionError: division by zero"), said
     said = []
-    slow_runner(0.4).drive(["hangar"], say=said.append)
+    slow_runner(0.2).drive(["hangar"], say=said.append)
     assert not [line for line in said if line.startswith(("heartbeat ", "exit:"))], said
 
 
@@ -3549,16 +3654,10 @@ def an_entry(folder, name, **fields):
 STARTS = '#!/bin/sh\necho "detached: started in $(pwd) with $*"; echo started >> "$PWD/starts"\n'
 
 
-def test_resume_starts_only_a_run_an_earlier_boot_cut_off_from_its_own_unchanged_worktree(monkeypatch):
-    """C9: PC reboots lost runs; review: resume ran whatever a worktree had checked out days later, a run the owner
-    stopped, one OOM-killed long before. Listed by `score resume --dry` (marking none): the cut-off run; skipped: one
-    whose worktree moved on. Started detached from its own worktree and marked resumed, never twice; one moved on,
-    changed, gone, silent over 12 h before the boot or whose restart fails is marked unresumable with why.
-    Break: score/graph/runs.py: '    if not entry.get("commit") or head != entry["commit"]:' -> '    if not entry.get("commit"):'
-    On the cluster's home (#76) a run its drive pod's cut left `running` at this boot is started again once, a second
-    cut from the same frozen copy is unresumable, a live one is left, and off the cluster's home none is taken.
-    Break: in runs.cut_at_this_boot, drop `and not size.entry_alive(entry)` (a live drive started twice).
-    Break: in runs.restart_cut, drop the `cut_before` refusal (a run cut by its memory resumed for ever)."""
+@run_ahead("test_resume_starts_only_a_run_an_earlier_boot_cut_off_from_its_own_unchanged_worktree")
+def a_dry_resume():
+    """`score resume --dry` in a home of its own over six runs' entries, two of a worktree of their own: the home,
+    the worktree, its commit and the process."""
     home = pathlib.Path(tempfile.mkdtemp())
     worktree, commit = a_worktree()
     (home / "runs").mkdir()
@@ -3569,7 +3668,22 @@ def test_resume_starts_only_a_run_an_earlier_boot_cut_off_from_its_own_unchanged
     an_entry(home / "runs", "this-boot", boot=runs.boot_id())
     an_entry(home / "runs", "before-boots-were-kept", boot=None)
     done = subprocess.run([sys.executable, "-m", "score", "resume", "--dry"], cwd=REPO, capture_output=True,
-                          text=True, env={**os.environ, "PROPS_HOME": str(home)})
+                          text=True, env={**ENVIRON, "PROPS_HOME": str(home)})
+    return home, worktree, commit, done
+
+
+def test_resume_starts_only_a_run_an_earlier_boot_cut_off_from_its_own_unchanged_worktree(monkeypatch):
+    """C9: PC reboots lost runs; review: resume ran whatever a worktree had checked out days later, a run the owner
+    stopped, one OOM-killed long before. Listed by `score resume --dry` (marking none): the cut-off run; skipped: one
+    whose worktree moved on. Started detached from its own worktree and marked resumed, never twice; one moved on,
+    changed, gone, silent over 12 h before the boot or whose restart fails is marked unresumable with why.
+    Break: score/graph/runs.py: '    if not entry.get("commit") or head != entry["commit"]:' -> '    if not entry.get("commit"):'
+    On the cluster's home (#76) a run its drive pod's cut left `running` at this boot is started again once, a second
+    cut from the same frozen copy is unresumable, a live one is left, and off the cluster's home none is taken.
+    Break: in runs.cut_at_this_boot, drop `and not size.entry_alive(entry)` (a live drive started twice).
+    Break: in runs.restart_cut, drop the `cut_before` refusal (a run cut by its memory resumed for ever)."""
+    home, worktree, commit, done = ahead(
+        "test_resume_starts_only_a_run_an_earlier_boot_cut_off_from_its_own_unchanged_worktree")
     assert done.returncode == 0, done.stderr
     assert done.stdout.strip().splitlines() == [
         f"would resume cut-off: worktree={worktree} commit={commit[:12]} argv=run world1 --place hangar",
@@ -4188,14 +4302,15 @@ def test_a_pass_of_the_drive_works_out_each_key_once():
     once a path through every node they read; passes took over an hour and the pool billed. A ladder (each rung reads
     the two below) read as optional by a top row: no key in the drive's process worked out outside a pass, nor twice
     in one.
-    Break: score/graph/__init__.py: '            with self.still():  # each key worked out once a pass' -> '            with contextlib.nullcontext():  # each key worked out once a pass'"""
+    Break: score/graph/__init__.py: '            with self.still():  # each key and plan worked out once a pass' ->
+    '            with contextlib.nullcontext():  # each key and plan worked out once a pass'"""
     data, world = a_world_of(["hangar"])
     (data / "hangar" / "brief.txt").write_text("a rung")
     rungs = [graph.Stage("rung0", "place", make_look, TEXT, PASSES, files={"brief": "{data}/{place}/brief.txt"})]
-    for number in range(1, 12):
+    for number in range(1, 7):
         rungs.append(graph.Stage(f"rung{number}", "place", make_rung, TEXT, PASSES,
                                  after={f"rung{below}": READS for below in (number - 1, number - 2) if below >= 0}))
-    top = graph.Stage("top", "place", make_cast, TEXT, PASSES, after={"rung11": READS}, optional=("rung11",))
+    top = graph.Stage("top", "place", make_cast, TEXT, PASSES, after={"rung6": READS}, optional=("rung6",))
     runner = a_runner(world, a_store(), (*rungs, top))
     drive_pid, worked, passes = os.getpid(), [], []
     work = runner.worked_out_key
