@@ -28,6 +28,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tarfile
 import tempfile
 import threading
 import time
@@ -182,12 +183,108 @@ def make_logged_count(inputs, out, seed, params):
 LOGGED = (dataclasses.replace(CLEAN, make=make_logged_clean), dataclasses.replace(COUNT, make=make_logged_count))
 
 
+def make_peek(inputs, out, seed, params):
+    record = Store.default().record("clean@hangar", "any")  # a store read its key does not declare
+    (out / "peek.txt").write_text(str(record))
+
+
+PEEK = graph.Stage("peek", "place", make_peek, TEXT, PASSES, after={"clean": READS})
+POD_TABLE = (CLEAN, COUNT, PEEK)
+
+
+def code_tar(folder):
+    """This tree's score/, tools/ and uv.lock as a pod's code archive (the working files, as a frozen commit of an
+    uncommitted tree archives them)."""
+    listed = subprocess.run(["git", "-C", str(REPO), "ls-files", "-z", "--cached", "--others", "--exclude-standard",
+                             "score", "tools", "uv.lock"], capture_output=True, check=True).stdout.decode()
+    tar = folder / "code.tar"
+    with tarfile.open(tar, "w") as archive:
+        for name in filter(None, listed.split("\0")):
+            if (REPO / name).is_file():
+                archive.add(REPO / name, arcname=name)
+    return tar
+
+
+def in_a_pod(runner, stage, place, keyed, tree, bucket_root, folder, away=None):
+    """The node's job pushed and made by `python -m score.graph.pod run` from `tree`, in an empty home, the file
+    `away` removed once pushed (the pod places it); its manifest."""
+    from score.graph import pod
+    from score.store import offload
+    job = pod.job_of(runner, stage, place, keyed, tree.name, f"{__name__}:POD_TABLE")
+    pod.pushed(runner, job, offload.FolderBucket(bucket_root), known=folder / "pushed")
+    if away:
+        away.unlink()
+    work = pathlib.Path(tempfile.mkdtemp(dir=folder))
+    (work / "job.json").write_text(json.dumps(job))
+    environ = {name: value for name, value in os.environ.items() if name != "SCORE_UV_LOCK"}
+    subprocess.run([sys.executable, "-m", "score.graph.pod", "run", str(work / "job.json"), str(work / "manifest.json"),
+                    "--cache", str(folder / "cache")], cwd=tree, check=True, capture_output=True,
+                   env={**environ, "PROPS_HOME": str(work / "home"), "SCORE_POD_BUCKET": f"folder:{bucket_root}"})
+    return json.loads((work / "manifest.json").read_text())
+
+
+def without_times(record):
+    return {name: value for name, value in record.items()
+            if name not in ("started", "finished", "minutes", "machine", "pod", "commit", "uncommitted")}
+
+
+def a_pod_makes_what_the_runner_makes(monkeypatch):
+    """A node made in a pod (score/graph/pod.py) gives Runner.make's output and record; a blob the bucket does not
+    answer for refuses the manifest and stores nothing; a tree, lock or code version not the key's refuses and the
+    node is made here; an undeclared store read is named; of two manifests for one key the first record stands."""
+    from score.graph import pod
+    from score.store import offload
+    folder = pathlib.Path(tempfile.mkdtemp())
+    bucket_root = folder / "bucket"
+    world, store = a_world({"hangar": "a ship in a hall", "station": "a hub", "dock": "a dock"}), a_store()
+    runner = a_runner(world, store, (CLEAN,))
+    runner.run(PLACES)
+    for place in PLACES:
+        give_evidence(store, runner, place, 10)
+    runner.run(PLACES)
+    twin = Store.in_folder(tempfile.mkdtemp())
+    shutil.copytree(store.objects.root, twin.objects.root, dirs_exist_ok=True)
+    runner, local = a_runner(world, store, POD_TABLE), a_runner(world, twin, POD_TABLE)
+    offload.install(lambda: offload.FolderBucket(bucket_root))
+    tree = pod.unpack(code_tar(folder), folder / "cache")
+    assert pod.tree_refusal({"code": "0" * 64}).startswith("code: ")
+    monkeypatch.setenv("SCORE_UV_LOCK", "0" * 64)
+    assert pod.tree_refusal({"code": _code.REPO.name}).startswith("lock: ")
+    monkeypatch.delenv("SCORE_UV_LOCK")
+    for stage, place in ((COUNT, "hangar"), (CLEAN, "dock")):
+        keyed, away = runner.key(stage, place), world.roots["data"] / place / "brief.txt"
+        written = away.read_bytes()
+        manifest = in_a_pod(runner, stage, place, keyed, tree, bucket_root, folder, away if stage is CLEAN else None)
+        assert "listing" in manifest, {name: manifest.get(name) for name in ("refused", "undeclared", "error", "broken")}
+        assert away.read_bytes() == written  # the pod placed the declared brief from the bucket
+        wrong = {**manifest, "sizes": {sha: size + 1 for sha, size in manifest["sizes"].items()}}
+        with pytest.raises(RuntimeError, match=pod.NOT_PROVEN):
+            pod.collect(runner, stage, place, keyed, wrong)
+        assert store.record(graph.node_name(stage, place), keyed["key"]) is None
+        made, there = pod.collect(runner, stage, place, keyed, manifest), local.make(stage, place, keyed)
+        assert without_times(made) == without_times(there) and "pod" in made
+        node, judged = graph.node_name(stage, place), local.judge(stage, place, there)
+        assert store.judgement(node, keyed["key"], judged["evidence"])["verdicts"] == judged["verdicts"]
+        assert pod.collect(runner, stage, place, keyed, manifest) == made and len(store.records(node)) == 1
+        name = "count.txt" if stage is COUNT else "clean.txt"
+        assert (store.checkout(made["output"]) / name).read_text() == (twin.checkout(there["output"]) / name).read_text()
+    keyed = runner.key(COUNT, "station")
+    refused = in_a_pod(runner, COUNT, "station", {**keyed, "code": "0" * 64}, tree, bucket_root, folder)
+    assert refused["refused"].startswith("code version: "), refused
+    assert "pod" not in pod.collect(runner, COUNT, "station", keyed, refused)  # made here instead
+    peeked = in_a_pod(runner, PEEK, "hangar", runner.key(PEEK, "hangar"), tree, bucket_root, folder)
+    assert peeked.get("undeclared") == ["records/clean@hangar/any.json"], peeked
+
+
 # --- keys: made once, judged again on new evidence, made again only where a change reaches ----------------------------
 
-def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches():
+def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatch):
     """Nothing changed makes nothing; a brief changed remakes its clean alone (the station's line stays fresh, the
     accepted output stays until the new one passes); a brief that cleans to the same text makes nothing after it.
-    Break: score/graph/__init__.py: '"files": self.file_keys(stage, place),' -> '"files": {},'"""
+    A key made in a pod is the same record (a_pod_makes_what_the_runner_makes).
+    Break: score/graph/__init__.py: '"files": self.file_keys(stage, place),' -> '"files": {},'
+    Break: score/graph/pod.py: '    proven(bucket or offload.bucket_now(), manifest, node)\n' -> '' (the pod's
+    manifest stored without its blobs proven)."""
     world, store = a_world({"hangar": "a ship in a hall", "station": "a hub"}), a_store()
     runner = a_runner(world, store, LOGGED)
     runner.run(PLACES)
@@ -208,6 +305,7 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches():
     found = a_runner(world, store, LOGGED).run(PLACES)
     assert found["clean@station"] == "made: pass" and found["count@station"] == "fresh" and MADE == ["clean"]
     assert len(store.records("clean@station")) == 2  # both finish records kept
+    a_pod_makes_what_the_runner_makes(monkeypatch)
 
 
 def test_the_shared_loop_s_wiring_keys_no_row_that_reads_one_of_its_steps():
