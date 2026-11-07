@@ -683,7 +683,12 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     2026-11-07 (settle@storage): two 3 m pipes drawn by one 3.2 m wall 2.6 m up, a ceiling light hung by it: the second
     stands under the first, never up into the light (storage's second wall pipe stood up into its ceiling light).
     Break: score/review/holders/__init__.py: `laid = [(box, math.inf) for box in hung_boxes(found, rows, plan)]` ->
-        `laid = []`"""
+        `laid = []`
+    2026-11-07 (laid-as-designed@habitat: pipe_12 and pipe_17 stand at one spot): a 3 m pipe with no room on its own
+    wall, moved to a 3 m inner wall where one of its row already stands at the spot it would take, on the wall's other
+    face, takes another spot or height (habitat's pipes 12 and 17 stood back to back in one inner wall stretch's middle).
+    Break: score/review/holders/__init__.py: `row_id == context["row"] and math.dist(spot, context["spot"]) <
+        ONE_SPOT` -> `False and math.dist(spot, context["spot"]) < ONE_SPOT`"""
     rows = [{"id": "left_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
             {"id": "string_lights", "noun": "lights", "anchor": "on:left_wall", "size": [3.0, 0.05, 0.05]},
             {"id": "wall_light", "noun": "light", "anchor": "on:left_wall", "size": [1.0, 0.1, 0.1]}]
@@ -916,6 +921,15 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     square["items"] = items[2:]
     found = by_item_of(holders.relations(square, {"rows": rows, "picture": PICTURE}))
     assert found["LANTERN STRING 1"]["how"] == "floor", found["LANTERN STRING 1"]
+    own, inner = ({"from": [5.0, 4.0], "to": [6.0, 4.0], "thick": 0.1, "tall": 2.8},
+                  {"from": [5.0, 5.0], "to": [8.0, 5.0], "thick": 0.1, "tall": 2.8})
+    pipe = {"id": "pipe", "noun": "pipe", "anchor": "wall", "size": [3.0, 0.2, 0.2]}
+    context = {"item": "PIPE 2", "row": "pipe", "how": "wall", "wall": own, "side": 1, "spot": [5.5, 4.0]}
+    walled = plan_of([], {}, walls=[own, inner])
+    moved, height = holders.walled_clear(context, pipe, walled, 1.0, [])
+    assert (moved["spot"], height) == ([5.5, 5.0], 1.0), moved
+    moved, height = holders.walled_clear(context, pipe, walled, 1.0, [], [("pipe", [5.5, 5.0], 1.0)])
+    assert moved["spot"] != [5.5, 5.0] or abs(height - 1.0) >= holders.ONE_SPOT, (moved, height)
 
 
 def test_the_relations_are_kept_beside_the_plan_with_its_sha(tmp_path, monkeypatch):

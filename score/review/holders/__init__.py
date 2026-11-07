@@ -1584,13 +1584,17 @@ def wall_band(row, height, tall, wall, plan):
     return min(min(height, HIGH_LEAST) if high else PIECE_GAP, top), top
 
 
-def meets_laid(context, row, plan, height, laid):
-    """Whether a wall thing (relation_box of `context` at `height`) meets any box in `laid` by more than WALL_TOUCH."""
+def meets_laid(context, row, plan, height, laid, taken=()):
+    """Whether a wall thing (relation_box of `context` at `height`) meets any box in `laid` by more than WALL_TOUCH, or
+    stands where one of its row's laid before it stands (`taken`, [(row id, plan spot, height)]: within ONE_SPOT on
+    its wall's line and in height, either face of the wall: the scene record lays both at that one spot)."""
     box = relation_box(context, row, plan, height)
-    return any(boxes_meet(box, other) > WALL_TOUCH for other in laid)
+    return any(boxes_meet(box, other) > WALL_TOUCH for other in laid) or any(
+        row_id == context["row"] and math.dist(spot, context["spot"]) < ONE_SPOT and abs(stood - height) < ONE_SPOT
+        for row_id, spot, stood in taken)
 
 
-def slid_clear(context, row, plan, height, laid):
+def slid_clear(context, row, plan, height, laid, taken=()):
     """The plan spot on its wall's line nearest its own where a wall thing meets none of `laid` (meets_laid): just
     past either end of one of them along its wall, kept inside the wall's ends; None where there is none."""
     wall = context["wall"]
@@ -1602,10 +1606,10 @@ def slid_clear(context, row, plan, height, laid):
     tries = sorted({min(max(float((other[0] - start) @ run) + way * (wall_reach(other, run) + half + PIECE_GAP), half),
                         length - half) for other in laid for way in (1, -1)}, key=lambda spot: abs(spot - along))
     return next(([round(float(value), 3) for value in start + run * spot] for spot in tries if not meets_laid(
-        {**context, "spot": list(start + run * spot)}, row, plan, height, laid)), None)
+        {**context, "spot": list(start + run * spot)}, row, plan, height, laid, taken)), None)
 
 
-def stood_clear(context, row, plan, height, laid):
+def stood_clear(context, row, plan, height, laid, taken=()):
     """The height nearest its own, its tall and PIECE_GAP a step up or down, inside its band (wall_band: its row's,
     under its wall's top), where a wall
     thing meets none of `laid` (meets_laid); None where there is none."""
@@ -1614,7 +1618,7 @@ def stood_clear(context, row, plan, height, laid):
     steps = range(1, int(max(high - low, 0.0) / (tall + PIECE_GAP)) + 2)
     tries = [round(height + way * step * (tall + PIECE_GAP), 3) for step in steps for way in (1, -1)]
     return next((stood for stood in tries if low - 1e-9 <= stood <= high + 1e-9 and
-                 not meets_laid(context, row, plan, stood, laid)), None)
+                 not meets_laid(context, row, plan, stood, laid, taken)), None)
 
 
 def onto_wall(context, wall, plan):
@@ -1666,12 +1670,14 @@ def run_chords(plan, long):
     return found
 
 
-def walled_clear(context, row, plan, height, laid):
+def walled_clear(context, row, plan, height, laid, taken=()):
     """(relation fields, height) of a wall thing that finds no room on its own wall (slid_clear, stood_clear) moved
     to the nearest other place on the walls with room for it: another plan wall long enough for it, where it stands
     there, else slid along it, else stood up or down it, or a stretch of a run of walls (run_chords: round a round
     wall's facets) where it stands or is stood; None where the walls have no room. 2026-11-07: habitat's 18 pipes each
-    took the wall nearest its plan spot, three on one 3.9 m wall, without counting what was already on it."""
+    took the wall nearest its plan spot, three on one 3.9 m wall, without counting what was already on it. A spot one of
+    its row's holds on the wall's other face (`taken`, meets_laid) is no room: habitat's pipes 12 and 17, moved to one
+    stretch of its inner wall, stood back to back at its middle, one spot in the scene record."""
     own, spot, long = wall_key(context["wall"]), numpy.asarray(context["spot"], float), built_long(row)
     tries = [(off_line(spot, wall)[0], True, wall) for wall in walls_of(plan)
              if wall_key(wall) != own and wall_length(wall) >= long] + [
@@ -1682,11 +1688,11 @@ def walled_clear(context, row, plan, height, laid):
         if not drawn:  # a stretch as long as the thing: it stands in its middle
             moved["spot"] = [round((float(first) + float(second)) / 2, 3)
                              for first, second in zip(wall["from"], wall["to"])]
-        if not meets_laid(moved, row, plan, height, laid):
+        if not meets_laid(moved, row, plan, height, laid, taken):
             return moved, height
-        if drawn and (slid := slid_clear(moved, row, plan, height, laid)) is not None:
+        if drawn and (slid := slid_clear(moved, row, plan, height, laid, taken)) is not None:
             return {**moved, "spot": slid}, height
-        if (stood := stood_clear(moved, row, plan, height, laid)) is not None:
+        if (stood := stood_clear(moved, row, plan, height, laid, taken)) is not None:
             return moved, stood
     return None
 
@@ -1743,7 +1749,7 @@ def laid_apart(found, rows, plan, first=()):
     """apart_on_walls' one go, the relations in `first` laid before the rest (each list in found's order), clear of
     the things hung from the roof (hung_boxes, never moved: laid as longer than any); the relations left meeting a
     smaller wall thing, of a row longer than it, with nowhere to go."""
-    structure, stuck = set(plan.get("structure") or []), []
+    structure, stuck, taken = set(plan.get("structure") or []), [], []  # taken: (row id, spot, height) laid
     laid = [(box, math.inf) for box in hung_boxes(found, rows, plan)]  # laid: (box, row long)
     ahead = {id(entry) for entry in first}
     order = [entry for entry in found if id(entry) in ahead] + [entry for entry in found if id(entry) not in ahead]
@@ -1761,14 +1767,14 @@ def laid_apart(found, rows, plan, first=()):
                 piece["height"] = height = round(top, 3)
                 piece["why"] += "; brought down to stand under its wall's top"
             boxes = [box for box, _ in laid]
-            if meets_laid(context, row, plan, height, boxes) and not passage(row):
-                if (spot := slid_clear(context, row, plan, height, boxes)) is not None:
+            if meets_laid(context, row, plan, height, boxes, taken) and not passage(row):
+                if (spot := slid_clear(context, row, plan, height, boxes, taken)) is not None:
                     piece["spot"] = context["spot"] = spot
                     piece["why"] += "; slid along its wall clear of the wall things laid before it"
-                elif (stood := stood_clear(context, row, plan, height, boxes)) is not None:
+                elif (stood := stood_clear(context, row, plan, height, boxes, taken)) is not None:
                     piece["height"] = height = stood
                     piece["why"] += "; stood clear of the wall things laid before it at its spot"
-                elif (moved := walled_clear(context, row, plan, height, boxes)) is not None:
+                elif (moved := walled_clear(context, row, plan, height, boxes, taken)) is not None:
                     (context, height), was = moved, context["wall"]
                     piece.update({key: context[key] for key in ("wall", "side", "spot")})
                     piece.pop("short", None)
@@ -1781,6 +1787,7 @@ def laid_apart(found, rows, plan, first=()):
                         for box, long in laid):
                     stuck.append(entry)
             laid.append((relation_box(context, row, plan, height), built_long(row)))
+            taken.append((entry["row"], context["spot"], height))
     return stuck
 
 
