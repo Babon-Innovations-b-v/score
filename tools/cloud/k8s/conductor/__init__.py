@@ -19,7 +19,7 @@ The shape (namespace `score` in babon's cluster, zone fr-par-2, beside the card 
   copy's user names a pid that every other writer reads and signals as on the VM (the sweep's clean-frozen and the
   kill switch read and end them), never a pid of another pod's namespace.
 - **The conductor** (StatefulSet `score-conductor`, one pod): the container `conductor` runs the VM's always-on units
-  (`units.py`: the listener, health, update, secrets, sweep, resume at start); the container `door` is the agents'
+  (`units.py`: the listener, health, update, secrets, sweep, resume at start and every 5 minutes); the container `door` is the agents'
   door as a service (port `DOOR_PORT`, `tools/cloud/conductor/door_service.py`), reached only by `kubectl
   port-forward` to this pod: the NetworkPolicy refuses every other way in.
 - **CronJobs**: the sync pass (`score-sync`, every 5 min, Forbid: one pass at a time, the update first as the VM's
@@ -63,10 +63,12 @@ REPO = f"{HOME}/projects/score"
 ENV_FILE = f"{HOME}/.config/score/dashboard.env"
 SCW_SECRET = "score-conductor-scw"
 REGISTRY_SECRET = "score-registry"  # the job images' pull Secret (k8s/manifests.registry_secret), made at the cutover
-SCW_PATH = f"{HOME}/.config/scw"
+CONFIG = f"{HOME}/.config"
+SCW_PATH = f"{CONFIG}/scw"
 RUNTIME_DIR = "/run/user/1100"  # user score's XDG_RUNTIME_DIR on the VM
 DOOR_PORT = 8780
 DOOR_AGENT = "score-door-agent"
+HEALTH_WRITTEN = "SCORE_HEALTH_WRITTEN"  # score.conductor health prints the written health.json (the door's)
 PYTHON = f"{REPO}/.venv/bin/python"
 # The env file's NAME=value lines in a shell's environment, as the VM's units have it (EnvironmentFile): the door reads
 # its token through the secret reader, which names its project from there.
@@ -107,14 +109,17 @@ def volumes():
     return [{"name": "store", "persistentVolumeClaim": {"claimName": CLAIM}},
             {"name": "scw-secret", "secret": {"secretName": SCW_SECRET, "defaultMode": 0o400}},
             {"name": "scw", "emptyDir": {"medium": "Memory", "sizeLimit": "1Mi"}},
-            {"name": "tmp", "emptyDir": {}},
+            {"name": "tmp", "emptyDir": {}}, {"name": "config", "emptyDir": {"sizeLimit": "64Mi"}},
             {"name": "run", "emptyDir": {"medium": "Memory", "sizeLimit": "64Mi"}}]
 
 
 def mounts(read_only=False):
     """The store volume's folders at their VM paths, the scw config, a scratch /tmp, the secrets' tmpfs (secrets.sh
-    writes the file-shaped secrets under $XDG_RUNTIME_DIR/score, memory only, as on the VM)."""
-    return [*({"name": "store", "subPath": folder, "mountPath": path, "readOnly": read_only}
+    writes the file-shaped secrets under $XDG_RUNTIME_DIR/score, memory only, as on the VM), and ~/.config as an
+    emptyDir of the pods' group under them (the rehearsal of 2026-11-07: the runtime made it root's for the nested
+    mounts, and matplotlib found no folder it could write)."""
+    return [{"name": "config", "mountPath": CONFIG},  # ~/.config user score's, never the runtime's root-owned folder
+            *({"name": "store", "subPath": folder, "mountPath": path, "readOnly": read_only}
               for folder, path in MOUNTS),
             {"name": "scw", "mountPath": SCW_PATH, "readOnly": True}, {"name": "tmp", "mountPath": "/tmp"},
             {"name": "run", "mountPath": RUNTIME_DIR}]
@@ -175,6 +180,9 @@ def statefulset(image):
     door = container("door", image, ["/bin/sh", "-c", f'{ENV_LOADED} exec {PYTHON} -I '
                                      f'{REPO}/tools/cloud/conductor/door_service.py --port {DOOR_PORT}'], DOOR)
     door["ports"] = [{"name": "door", "containerPort": DOOR_PORT}]
+    # The door's health is the conductor container's own, as its health unit wrote it (score.conductor health): read
+    # in the door's container it would be that container's 1 CPU and 2 GiB (the rehearsal of 2026-11-07).
+    door["env"].append({"name": HEALTH_WRITTEN, "value": "1"})
     door["readinessProbe"] = {"periodSeconds": 20, "exec": {"command": [  # it listens on the pod's loopback only
         "/usr/bin/python3", "-c", f"import socket; socket.create_connection(('127.0.0.1', {DOOR_PORT}), 5)"]}}
     units = container("conductor", image, ["/usr/local/bin/score-conductor-start"], CONDUCTOR)

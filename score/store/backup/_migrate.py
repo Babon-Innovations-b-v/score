@@ -9,6 +9,16 @@
     PC:        migrate --pc-test-home    restores only the environment data the test sandbox links (work/, design/)
                                          into an empty PC home, read-only, so `make tests` keeps working on the PC
 
+The conductor's move from its VM into babon's cluster (#76 step 7) goes the same way, its words the owner's go in a
+session quoted (SCORE_MOVE_WORDS, which the agents' door's move-out sets; owner, 2026-11-07: "no u can do the
+conductor move asap"):
+    VM:        migrate --from-vm         refuses while one of the VM's score units is active or a run is alive, or
+                                         in a home that is not the VM conductor's; backs it up tagged vm-final, the
+                                         manifest inside
+    cluster:   migrate --onto-cluster    refuses a home that is not empty; restores the newest vm-final snapshot,
+                                         compares the manifest and stops on any difference; writes
+                                         conductor/cluster.json, which makes the home the cluster's
+
 Every mode is the owner's own: refused in an agent's process (the store's AGENT_MARKERS), unless the process names his
 recorded yes to the switch, open for the move (conductor_yes.move_allowed: SCORE_CONDUCTOR_YES).
 """
@@ -24,6 +34,15 @@ from score.store import running_under_agent, whole_file
 from score.store.backup import _core, _manifest
 
 PC_FINAL = "pc-final"
+VM_FINAL = "vm-final"
+MOVE_WORDS = "SCORE_MOVE_WORDS"  # the owner's go to the conductor's move into the cluster, quoted
+# The VM conductor's score units (tools/cloud/conductor/units, the sync's and listener's): none may run while its home
+# is copied for the cluster.
+VM_UNITS = ("score-sync.timer", "score-sync.service", "score-listen.service", "score-resume.service",
+            "score-update.timer", "score-update.service", "score-size.timer", "score-size.service",
+            "score-sweep.timer", "score-sweep.service", "score-backup.timer", "score-backup.service",
+            "score-backup-check.timer", "score-backup-check.service", "score-health.timer", "score-health.service")
+CLUSTER_RECORD = "conductor/cluster.json"  # score.conductor.cluster.RECORD under the home
 # The PC's units that act as the store's machine: none may run while its home is copied.
 PC_UNITS = ("score-sync.service", "score-sync.timer", "score-listen.service", "score-resume.service")
 RUNNING_STATES = ("active", "activating", "reloading", "deactivating")
@@ -106,6 +125,69 @@ def onto_refusal(home):
     if record and not pathlib.Path(record).is_file():
         return f"no conductor sizes record at {record} (machine.py up pipes it): the move would make no conductor"
     return agent_refusal() or _core.emptiness_refusal(home)
+
+
+def move_refusal():
+    """Why the conductor's move into the cluster may not run in this process, or None: an agent's process runs it only
+    with the owner's go quoted (MOVE_WORDS)."""
+    if running_under_agent() and not os.environ.get(MOVE_WORDS, "").strip():
+        return (f"the conductor's move is the owner's: refused in an agent's process without his go quoted "
+                f"({MOVE_WORDS}, which the agents' door's move-out sets)")
+    return None
+
+
+def vm_refusal(home):
+    """Why the VM conductor's home may not be copied for the cluster now, or None."""
+    refused = move_refusal()
+    if refused:
+        return refused
+    if not (pathlib.Path(home) / _core.MACHINE).exists():
+        return f"{home} holds no {_core.MACHINE}: it is no conductor's home"
+    if (pathlib.Path(home) / CLUSTER_RECORD).exists():
+        return f"{home} holds {CLUSTER_RECORD}: it is the cluster's home already"
+    units = active_units(VM_UNITS)
+    if units:
+        return f"{', '.join(units)} still active: stop them first (systemctl --user stop ...)"
+    alive = live_runs(home)
+    if alive:
+        return f"runs still alive (pid {', '.join(sorted(alive))}): let them end or stop them first"
+    return None
+
+
+def from_vm(restic, home):
+    """Back the VM conductor's home up tagged vm-final with its manifest inside (once vm_refusal gave none);
+    {snapshot, files, bytes, detail}."""
+    restic.ensure()
+    return _core.snapshot(restic, home, [VM_FINAL], carry_manifest=True)
+
+
+def cluster_refusal(home):
+    """Why the move may not land in the cluster's `home`, or None."""
+    return move_refusal() or _core.emptiness_refusal(home)
+
+
+def onto_cluster(restic, home):
+    """Restore the newest vm-final snapshot into the cluster's empty home, check it against the VM's manifest and
+    write conductor/cluster.json (the namespace SCORE_CLUSTER_NAMESPACE names, default score); {snapshot, files,
+    bytes, detail}. Mismatch on any difference, and then no cluster record is written."""
+    snapshot_id = restic.newest(VM_FINAL)
+    summary, expected = _core.restore(restic, snapshot_id, home)
+    if expected is None:
+        raise Refused(f"snapshot {snapshot_id} carries no manifest: it is no vm-final made by migrate --from-vm")
+    found = _manifest.manifest(home)
+    save_manifest(home, VM_FINAL, expected)
+    save_manifest(home, "cluster", found)
+    differences = _manifest.differences(expected, found)
+    if differences:
+        raise Mismatch(differences)
+    record = {"namespace": os.environ.get("SCORE_CLUSTER_NAMESPACE", "score"), "from": snapshot_id,
+              "since": _core.utc_now().isoformat(timespec="seconds")}
+    path = pathlib.Path(home) / CLUSTER_RECORD
+    path.parent.mkdir(parents=True, exist_ok=True)
+    whole_file(path, json.dumps(record, indent=1).encode()).replace(path)
+    return {"snapshot": snapshot_id, "files": summary["total_files"], "bytes": summary["total_bytes"],
+            "detail": {"cluster": record, "files_checked": len(found["files"]),
+                       "store_objects": found["store"]["objects"]}}
 
 
 def save_manifest(home, name, record):

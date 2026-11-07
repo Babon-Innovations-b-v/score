@@ -1,6 +1,7 @@
 """The conductor's commands (score/conductor/__init__.py has the package's map).
 
-    python -m score.conductor health [--write]   # the health as JSON, or written to $PROPS_HOME/health.json
+    python -m score.conductor health [--write]   # the health as JSON, or written to $PROPS_HOME/health.json; under
+                                                 # SCORE_HEALTH_WRITTEN (the cluster's door) the written one
     python -m score.conductor size               # one pass of the size timer: grow, shrink or nothing
     python -m score.conductor dry                # the free end-to-end check: one line, its detail in a file
     python -m score.conductor logs [--lines N]   # logs.tails: run logs, fault reports, unit journals, boot logs, as text
@@ -17,6 +18,7 @@
 """
 import argparse
 import json
+import os
 import sys
 
 from score import conductor
@@ -46,6 +48,9 @@ def main(argv=None):
     conductor.apply_free_only()
     if options.command == "health":
         from score.conductor import health
+        if not options.write and os.environ.get("SCORE_HEALTH_WRITTEN") and conductor.HEALTH.is_file():
+            print(conductor.HEALTH.read_text())  # the cluster's door: the conductor container's own, written each minute
+            return 0
         found = health.read()
         print(f"health: written {health.write(found)}" if options.write else json.dumps(found, indent=1))
     elif options.command == "logs":

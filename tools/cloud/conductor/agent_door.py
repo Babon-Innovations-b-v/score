@@ -54,6 +54,12 @@ as an argument list, never through a shell, and only when it is one of these:
     checkouts                                  the cockpit's newest checkouts, launches and requests, read only
     stop-batch <reason>                         score.conductor.kill.agent_stop_batch: stop the batch's runs, pools
                                                 and parked machines, no latch (owner, 2026-10-25)
+    move-out <the owner's go, quoted>           the VM conductor's move into babon's cluster (#76 step 7; owner,
+                                                2026-11-07: "no u can do the conductor move asap"): refused while a
+                                                run is live or waiting, a paid machine parked or work held; then the
+                                                free-only latch (his words), every score unit stopped (a boot starts
+                                                them again: the rollback) and the last backup, tagged vm-final with
+                                                its manifest (score.store.backup migrate --from-vm)
     gaps <node>                                 the batch gaps the node's accepted output names (batch-gaps.json):
                                                 each gap's name, check and faults, and its batch.log and
                                                 finish.log lines saying why a model was not made, read only
@@ -191,7 +197,7 @@ ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/sc
 VERBS = ("status, plan, price, preflight <environment> [--phase P], resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], store-evict [--dry], clean-frozen, clean-cache, clean-scratch, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, carry --no-op <file>=<why> ..., "
          "run-log [--lines N], pool-log [--lines N], ps, node-log <node>, stack <pid>, running, outbox, cluster-check, lock-phase <environment> <phase> [--place P], fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id> [--phase <phase>], buy-log, decide-yes, decide <yes id>, "
-         "stop-batch <reason>")
+         "stop-batch <reason>, move-out <the owner's go>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
 # applied launched nothing and nothing outside said why).
 # Stop this batch from an agent (owner, 2026-10-25: "this is also something u should just do urself"): its runs,
@@ -261,6 +267,8 @@ ROUTE_LOG = "--route-log"  # this file's own read of a people route's log (the r
 CARRY = "--carry"  # this file's own carry, refused while a run is live (the carry verb runs it)
 BUY = "--buy"  # this file's own start of a Buy in a session of its own (the buy verb runs it)
 BUY_LOG = "--buy-log"  # this file's own read of the newest Buy's log (the buy-log verb runs it)
+MOVE_OUT = "--move-out"  # this file's own move of the VM conductor's home into the cluster (the move-out verb runs it)
+MOVE_UNIT_SECONDS = 180  # the VM's units' stop, at most
 BUY_LOGS = "logs/buys"  # under PROPS_HOME: one log a Buy the door started
 CARRY_FLAGS = ("--no-op", "--skip", "--only", "--since")  # carry's options that take a value
 CANDIDATES = pathlib.Path.home() / ".farm-factory-motion" / "candidates"  # the people routes' work folders
@@ -486,6 +494,10 @@ def decide(words, latch):
         if len(args) != 1 or not args[0].strip():
             raise Refused("stop-batch <reason>, one quoted reason")
         return ["-c", STOP_CODE, args[0]], {}
+    if verb == "move-out":
+        if len(args) != 1 or not args[0].strip():
+            raise Refused("move-out <the owner's go, quoted>, one quoted argument")
+        return [str(pathlib.Path(__file__).resolve()), MOVE_OUT, args[0]], {}
     raise Refused(f"{verb} is not a door command; name one of: {VERBS}")
 
 
@@ -1179,7 +1191,49 @@ def store_move(flag, home):
     return f"store-push: added {added} files ({size / 1e9:.2f} GB), kept {kept} already there"
 
 
+def move_out_refusal(view):
+    """Why the VM's home may not move now (size.busy's view), or None: a live or waiting run, a parked paid machine
+    or work a hold names would be cut by the stop (a sync pass's hold is not: the stop ends the pass)."""
+    if view["claims"] or view["running"] or view["waiting"]:
+        return f"runs live or waiting ({view['claims']} claims, {view['running']} running, {view['waiting']} waiting)"
+    if view["parked"]:
+        return f"{view['parked']} paid machines parked: stop-batch first"
+    if view["working"]:
+        return f"work held: {', '.join(name for name in view['held'] if not name.startswith('sync-pass'))}"
+    return None
+
+
+def move_out(words, home, run=subprocess.run, view=None, latch=None):
+    """The VM conductor's move into the cluster, once nothing would be cut: the free-only latch with the owner's words,
+    every score unit stopped, then the last backup tagged vm-final (migrate --from-vm, which refuses on its own while a
+    unit or a run is still alive); its exit code. A failed stop or backup is said and leaves the latch set."""
+    from score.conductor import kill, size
+    from score.store.backup import _migrate
+    refused = move_out_refusal(size.busy() if view is None else view)
+    if refused:
+        raise Refused(f"move-out: {refused}")
+    print(f"move-out: latched {(latch or kill.latch)('the conductor move into the cluster', words, kill.now())}",
+          file=sys.stderr, flush=True)
+    stopped = run(["systemctl", "--user", "stop", *_migrate.VM_UNITS], capture_output=True, text=True,
+                  timeout=MOVE_UNIT_SECONDS)
+    if stopped.returncode != 0:
+        print(f"move-out: the units' stop failed (exit {stopped.returncode}): {stopped.stderr.strip()[-400:]}",
+              file=sys.stderr, flush=True)
+        return stopped.returncode
+    print(f"move-out: stopped {', '.join(_migrate.VM_UNITS)}", file=sys.stderr, flush=True)
+    backup = run([str(REPO / ".venv" / "bin" / "python"), "-m", "score.store.backup", "migrate", "--from-vm"],
+                 cwd=str(REPO), env={**os.environ, _migrate.MOVE_WORDS: words})
+    return backup.returncode
+
+
 def main():
+    if sys.argv[1:2] == [MOVE_OUT]:
+        from score.store import PROPS_HOME
+        try:
+            return move_out(sys.argv[2], PROPS_HOME)
+        except Refused as refused:
+            print(f"score-agent-door: refused: {refused}", file=sys.stderr)
+            return REFUSED_EXIT
     if sys.argv[1:2] in ([STORE_PULL], [STORE_MISSING], [STORE_PUSH], [STORE_DIFFERS], [STORE_REPLACE]):
         from score.store import PROPS_HOME
         try:
