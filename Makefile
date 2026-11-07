@@ -1,7 +1,7 @@
 # The project's commands. No CI runs these here: the whole suite runs on every push to main in the cluster's gate, one
 # pod per module group (`make test-groups`, `make test-group GROUP=<group>`); read its answer with `make gate-result`.
 
-.PHONY: paper check env tests test-groups test-group gate-result
+.PHONY: paper check env tests test-groups test-group test-budget gate-result
 
 # The scaffold's tests are pytest tests; pytest runs the paper's unittest check too.
 PYTEST ?= uv run -q --with pytest pytest
@@ -23,8 +23,12 @@ MEMORY_CAP ?= systemd-run --user --scope -q -p MemoryMax=16G
 # The files run side by side, at most JOBS at once (JOBS=1: one after another), each its own sandbox and memory cap;
 # a file's line prints as it ends, a failure's tail with it in one write.
 JOBS ?= 6
-# One test file's time budget (owner, 2026-10-21: a slow test file is a failure, docs/bible.md workflow/module-standard).
-TEST_SECONDS ?= 120
+# The time budgets (docs/bible.md workflow/module-standard), the one place every gate reads them from: one test file at
+# most TEST_SECONDS (owner, 2026-11-07: "we have a one test max of 60 sec"), the whole suite in the cluster's gate, push
+# to verdict, at most SUITE_SECONDS (owner, 2026-11-07: "a max of 10 min for the full suit"). `make test-budget` prints
+# both for the cluster's gate; `make gate-result` marks a verdict that came later than SUITE_SECONDS after its push.
+TEST_SECONDS ?= 60
+SUITE_SECONDS = 600
 
 # One file (its path the first argument), in the shell xargs starts: its line, and its path added to $$FAILED.
 define ONE_TEST
@@ -59,19 +63,27 @@ GROUP_OF = awk -F/ -v most=$(GROUP_FILES) '{n = NF - 1; if ($$n == "tests") n--;
 test-groups:
 	@echo rule; printf '%s\n' $(ALL_TESTS) | $(GROUP_OF)
 
+test-budget:
+	@echo "file $(TEST_SECONDS)"; echo "suite $(SUITE_SECONDS)"
+
 test-group:
 	@if [ "$(GROUP)" = rule ]; then $(MAKE) --no-print-directory env && $(PYTHON) $(CURDIR)/tools/test_rule/check.py; exit $$?; fi; \
 	files=$$(printf '%s\n' $(ALL_TESTS) | $(GROUP_OF) | awk -v group="$(GROUP)" '$$1 == group {print $$2}' | paste -sd ' '); \
 	if [ -z "$$files" ]; then echo "no test group '$(GROUP)' (make test-groups lists them)"; exit 2; fi; \
 	$(MAKE) --no-print-directory tests TESTS="$$files"
 
-# The cluster gate's answer for one commit (SHA, default the newest on main): its commit status `cluster/gate` and, when
+# The cluster gate's answer for one commit (SHA, default the newest on main): its commit status `cluster/gate`, the time
+# from its push to main (GitHub's activity record) to that answer, `OVER` when that is more than SUITE_SECONDS, and, when
 # it failed, the failing files' tails it posted on the commit. Needs gh logged in.
 SHA ?= main
 REPO_SLUG = $(shell python3 -c "import json; print(json.load(open('.claude/project.json'))['repo'])")
 gate-result:
 	@sha=$$(gh api repos/$(REPO_SLUG)/commits/$(SHA) --jq .sha) && \
-	gh api repos/$(REPO_SLUG)/commits/$$sha/statuses --jq '[.[] | select(.context == "cluster/gate")][0] // {state: "none", description: "no gate answer yet"} | "\(.state)  \(.description)"' | sed "s/^/$${sha%????????????????????????????}  /" && \
+	answer=$$(gh api repos/$(REPO_SLUG)/commits/$$sha/statuses --jq '[.[] | select(.context == "cluster/gate")][0] // {state: "none", description: "no gate answer yet", created_at: ""} | "\(.created_at)\t\(.state)  \(.description)"') && \
+	pushed=$$(gh api "repos/$(REPO_SLUG)/activity?ref=refs/heads/main&per_page=100" --jq "[.[] | select(.after == \"$$sha\")][0].timestamp // empty") && \
+	took=""; if [ -n "$$pushed" ] && [ -n "$${answer%%	*}" ]; then seconds=$$(( $$(date -d "$${answer%%	*}" +%s) - $$(date -d "$$pushed" +%s) )); \
+	took="  push to verdict $$((seconds / 60))m$$(printf %02d $$((seconds % 60)))s"; [ $$seconds -le $(SUITE_SECONDS) ] || took="$$took OVER the $(SUITE_SECONDS) s suite budget"; fi; \
+	echo "$${sha%????????????????????????????}  $${answer#*	}$$took" && \
 	gh api repos/$(REPO_SLUG)/commits/$$sha/comments --jq '[.[] | select(.body | startswith("cluster/gate"))][-1].body // empty'
 
 # Rebuild the paper's PDF and LaTeX from paper/source/score.md (pandoc + xelatex or tectonic).

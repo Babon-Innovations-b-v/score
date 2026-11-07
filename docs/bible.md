@@ -742,8 +742,8 @@ GitHub Actions; every command runs locally.
 - `make tests`: every `tools/**/*_test.py` and `score/**/*_test.py` (plain scripts, or pytest when a file has `test_`
   functions and no `__main__`), `JOBS` files side by side (default 6), each under a 16 GB memory cap, in a sandbox home
   (`.claude/scripts/sandbox-home.py`: a fresh `PROPS_HOME` linking the real home's environment data, the real home
-  read-only; the root `conftest.py` refuses any other home). A file over `TEST_SECONDS` (120) fails: the 2-minute
-  budget is a hard rule (`workflow/module-standard`). `TESTS="..."` runs only the files named. First the test rule's
+  read-only; the root `conftest.py` refuses any other home). A file over `TEST_SECONDS` (60) fails with its time: the
+  60-second budget is a hard rule (`workflow/module-standard`). `TESTS="..."` runs only the files named. First the test rule's
   guard (`tools/test_rule/check.py`, `workflow/module-standard`) over every module, or the named files' modules.
 - `make check`: the gate. `.claude/scripts/gate-scope.py` prints `MODE none` for a change that touches only documents
   and working notes, else `full`; unknown paths, a change to the gate itself, `--full` or `GATE_FULL=1` run everything.
@@ -795,7 +795,9 @@ returns data to its parent.
   new work on an owned area waits or goes to that agent.
 - An agent runs its one module's test locally only when it is quick, pushes and stops. The full suite runs in the
   cluster's gate on every push to main, one pod per module group (`make test-groups`, `make test-group GROUP=<g>`),
-  each file still under its 2 minutes; read its answer with `make gate-result` (`SHA=<sha>` for an older commit). It
+  each file under its `TEST_SECONDS` (60), the whole suite from push to verdict under `SUITE_SECONDS` (600, 10 minutes,
+  cold nodes included; the gate marks a run over it red with its time); read its answer and its push-to-verdict time
+  with `make gate-result` (`SHA=<sha>` for an older commit). It
   never re-runs whole suites on this PC, never waits on the hosted rebuild or a sync, and never releases.
 - Work that repeats per scene (readings, plan writings, fixes, checks) runs one process per scene side by side.
 - Never wait in the foreground: anything that takes minutes runs in the background (root `CLAUDE.md`).
@@ -855,9 +857,13 @@ The house standard for a module, so a reader can predict the shape of code they 
   in the flat tool folders (`tools/cloud`, `tools/props`, `tools/review`, `tools/usd`) each tool script is a module and
   a top-level test belongs to the script its docstring names first. Its dated allowlist holds only the modules a sweep
   was still reworking on 2026-10-26, and only shrinks.
-- **A test file runs in under 2 minutes (hard rule, owner 2026-10-21).** A small fixture world built once per file,
-  never the real store or home, no machine, no network, no whole-store walk, no sleeps. `make tests` fails a file at
-  `TEST_SECONDS` (120).
+- **A test file runs in at most 60 seconds, the whole suite in at most 10 minutes (hard rule, owner 2026-10-21; 60 s and
+  10 min 2026-11-07: "we have a one test max of 60 sec", "a max of 10 min for the full suit").** A small fixture world
+  built once per file, never the real store or home, no machine, no network, no whole-store walk, no sleeps; independent
+  cases side by side, no needless subprocess imports. `make tests` (and so the push gate and the cluster's gate) fails a
+  file at `TEST_SECONDS` (60, in the Makefile, the one constant they all read) with its time; the cluster's gate reads
+  `SUITE_SECONDS` (600) from `make test-budget` and marks a commit whose verdict comes later than that after its push
+  red with its time. Speed never comes from a dropped or loosened check, nor from a second test file or function.
 - **Failures propagate.** A failure the caller can act on raises a typed error; one nothing can act on crashes loudly.
   Swallowing is neither.
 - **A paid step's failure is a gap**, never a retry (`architecture/failure`). A retry is a mend only on a free step or
