@@ -408,6 +408,9 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
   2026-10-30): plans_pass.py `unnumbered`: `elif row and placed[row["id"]] < int(row.get("count", 1) or 1):` made
     `elif row:` (a copy by row kept); `elif row or any(standing.in_each_other(...) ...):` made `elif row:` (the
     copies by position kept); `spots.append([*spot[:3], row["id"]])` made `spots.append(spot)` (no row given back);
+    plans_pass.py (spaced_people) `standing.blocked(plan, shell_floored(plan, inventory), grid, sits_on)` made
+    `standing.blocked(plan, inventory, grid, sits_on)` (the spot in the crate on the shell's deck kept, seen red
+    2026-11-07);
     standing.py `in_each_other`: `< (size[0] + other_size[0]) / 2` made
     `< (size[0] + other_size[0]) / 2 + 0.2` (the near spot moved); standing.py `stands_in`:
     `bool((walls_things & under(grid, spot, size)).any()) or` dropped (the spot in the wall kept); plans_pass.py
@@ -3688,6 +3691,11 @@ def test_a_correct_s_copy_of_a_person_is_dropped_and_only_a_person_standing_in_s
         assert still["people"] == [[0.2, 3.0]] and said == [], said
     finally:
         standing.nearest_free = found
+    # a floor thing on a floor of the shell (a row of the plan's structure) is stood in too (2026-11-07: greenhouse's
+    # astronaut_2 kept in its grow light frame on its lower floor, and the cast left it out)
+    on_deck = {"rows": [*inventory["rows"][:2], {**inventory["rows"][2], "anchor": "on:deck"}]}
+    shelled, said = plans_pass.spaced_people({**plan, "structure": ["deck"], "people": [[4.5, 1.5]]}, on_deck)
+    assert said and not (3.75 < shelled["people"][0][0] < 5.25 and 0.75 < shelled["people"][0][1] < 2.25), shelled
     kept, before = [], (plan_writing.written_of, plans.inventory_of, plan_writing.kept)
     with tempfile.TemporaryDirectory() as folder:
         store = Store.in_folder(folder)
