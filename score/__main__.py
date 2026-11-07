@@ -261,7 +261,7 @@ def parse(argv):
                              help="only this object of a place, in the stages that select (repeat it)")
     options = parser.parse_args(argv)
     if getattr(options, "jobs", 0) is None:
-        options.jobs = conductor.default_jobs(graph.JOBS)
+        options.jobs = default_jobs()
     return options
 
 
@@ -275,6 +275,15 @@ def phase_stages(options, table):
     if not held:
         sys.exit(f"score: the phase {options.phase} holds no stage of this environment's table")
     return [*(options.stage or []), *[name for name in held if name not in (options.stage or [])]]
+
+
+def default_jobs():
+    """--jobs when not given: on the cluster's home the jobs its drive pod is given (score/conductor/cluster.py: its
+    price and its pod agree, whatever node answers), else the conductor's (every core on one) or graph.JOBS. Here, not
+    in score.conductor, whose module is in rows' code versions."""
+    from score.conductor import cluster
+    found = cluster.record()
+    return cluster.jobs(found) if found is not None else conductor.default_jobs(graph.JOBS)
 
 
 def jobs_count(text):
@@ -1848,8 +1857,9 @@ def main(argv=None):
     if options.command == "run" and frozen.claim():
         atexit.register(frozen.remove_owned)  # a run refused or raising before its drive ends here
     if options.command == "run":
-        from score.conductor import slices
+        from score.conductor import cluster, slices
         slices.apply_shim()  # in the runs' slice, a step's own systemd-run scope stays in it
+        cluster.guard_pod_memory(graph)  # in a pod, the memory guard reads the pod's own limit, not the node's
     runner = stages.runner(world=stages.WORLDS[options.world]())
     runner.objects = frozenset(options.object) if options.object else None
     options.stage = phase_stages(options, runner.stages)
