@@ -2715,7 +2715,8 @@ def test_a_correction_runs_only_inside_his_yes_and_keeps_the_answer_as_his_edit(
 
     assert web.plan_revise(store, "shed", request, 0.05, "joey", run=run) == {"how": "revised"}
     assert asked[0][1] == 2 and "stand by the bench" in asked[0][0]
-    assert plans.current(store, "shed")["plan"]["people"] == [[1.0, 1.0]]
+    assert plans.newest_edit(store, "shed")["plan"]["people"] == [[1.0, 1.0]]  # kept as answered, shown out of the wall
+    assert math.dist(plans.current(store, "shed")["plan"]["people"][0], [1.0, 1.0]) < 0.1
     with pytest.raises(review.Refused, match="not today's measured price"):
         web.plan_revise(store, "shed", request, 0.04, "joey", run=run)
 
@@ -2768,6 +2769,8 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     Break: score/review/plans.py: `if shown is None or shown["how"] not in ("edited", "revised", "redrawn"):` ->
         `if shown is None or shown["how"] not in ("edited", "revised"):`
     Break: score/review/plans.py: `if unknown:` -> `if False:`
+    Break: score/review/plans.py: edit_inside's `plan, moved = people_moved_out(plan, inventory or {"rows": []})` dropped
+        (greenhouse's redrawn astronaut_2 kept in its grow light frame, 2026-11-08)
     Break: score/review/plans.py: `if not (asked or {}).get("words") or not asked.get("at") or not asked.get("reason"):` ->
         `if False:`
     A hold fitted to its plan's size takes its row's drawn item with it and moves, its item too, so its door meets its
@@ -2951,6 +2954,18 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     assert [(opening["at"], opening["wide"]) for opening in shown["plan"]["openings"]] == [([0.0, 2.0], 2.2)] and \
         record["plan"]["openings"][0]["wide"] == 0.9, shown["plan"]["openings"]
     assert shown["plan"]["people"][0][0] < 5.0 and record["plan"]["people"] == [[7.0, 2.0]], shown["plan"]["people"]
+    # and a person spot standing in a thing on a floor of its shell moved out of it, the thing kept where drawn
+    # (greenhouse's redrawing of 2026-11-05 kept astronaut_2 in its grow light frame on its lower floor, 2026-11-08)
+    framed = [{"id": "frame", "anchor": "on:deck", "size": [2.0, 2.0, 2.0], "count": 1, "at": []},
+              {"id": "astronaut", "noun": "astronaut", "count": 1, "size": [0.6, 0.6, 1.8], "at": []}]
+    picked(store, "bay", framed)
+    redrawn = {**plans.current(store, "bay")["plan"], "w": 6.0, "d": 6.0, "structure": ["deck"], "holds": [],
+               "items": [["FRAME 1", 2.0, 2.0, 2.0, 2.0, None, "item"]], "people": [[3.0, 3.0, 0.0, "astronaut"]]}
+    written(store, "bay", {**redrawn, "people": []})
+    plans.edited(store, "bay", redrawn, "joey")
+    shown = plans.current(store, "bay")["plan"]
+    assert not (1.75 < shown["people"][0][0] < 4.25 and 1.75 < shown["people"][0][1] < 4.25) and shown["items"][0][1:5] == [
+        2.0, 2.0, 2.0, 2.0] and plans.newest_edit(store, "bay")["plan"]["people"][0][:2] == [3.0, 3.0], shown["people"]
     # a writing's doorway to a sibling held once whose own plan leads none back leads nowhere, said; one the sibling's
     # door meets, or a lead of its own names, stays (the Square's street, written again with an opening to the
     # stairwell, whose own street gate leads outside since its edit: plan@square's held gate, 2026-11-06)
