@@ -670,8 +670,35 @@ def once(what, store, key, make, shared=False):
 def current(store, place):
     """{plan, how, at, by} of the plan shown: his newest edit made on the current pick (how: edited or revised), else
     the plan made without him (`made_plan`: written, else derived); None while its inventory does not count."""
-    return once("plan", store, place, lambda: holds_fitted(store, doors_led(store, place, edit_inside(
-        store, place, shown_plan(store, place)))))
+    return once("plan", store, place, lambda: holds_fitted(store, doors_led(store, place, doors_known(
+        store, place, edit_inside(store, place, shown_plan(store, place))))))
+
+
+def doors_known(store, place, shown):
+    """`shown` (a writing, never his edit) with each doorway leading to a name that is no place of the design (one of
+    the tree, an instance its holder holds, or a place with a plan of its own), no row of its scene inventory and
+    neither outside nor sealed, leading nowhere (`to` None, each said in its `fixes`): the writer named a room the
+    design has none of (the Square's street, written on 2026-11-05 with a door to 'restaurant', its restaurant only
+    its sign, window, doors and table, plan@street's openings gate, 2026-11-07)."""
+    from score.stages.scene_record.plan import DOORWAYS, LEADS
+    if not shown or shown["how"] != "written":
+        return shown
+    laid = tree(store)
+    places = {*laid["within"], *laid["within"].values(), *laid["shells"]}
+    holder = laid["within"].get(place)
+    holding = current(store, holder) if holder else None
+    places |= {name_of(hold) for hold in (holding or {"plan": {}})["plan"].get("holds") or []}
+    rows = {row["id"] for row in (inventory_of(store, place) or {}).get("rows", [])}
+    plan, fixes = copy.deepcopy(shown["plan"]), []
+    for opening in plan.get("openings") or []:
+        to = opening.get("to")
+        if opening.get("kind") not in DOORWAYS or to is None or to in LEADS or to in rows or to in places or \
+                own_plan(store, to) is not None:
+            continue
+        opening["to"] = None
+        fixes.append(f"the {opening['kind']} at {opening['at']} to {to!r} leads nowhere: no place of the design nor a "
+                     "row of its inventory")
+    return {**shown, "plan": {**plan, "fixes": [*plan.get("fixes", []), *fixes]}} if fixes else shown
 
 
 def doors_led(store, place, shown):
