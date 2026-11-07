@@ -100,16 +100,9 @@ def tainted_for_score(pool):
                for taint in pool.get("taints") or [])
 
 
-def job_class(name):
-    """Whether a class label names a capability class jobs run on (provider.py's gpu-... or cpu-...): score's own
-    pools beside its job pools carry the same label with another value (2026-11-07: the conductor's own pool, labelled
-    `conductor`, made every look at the cluster fail and stopped checkout 44's cluster rows)."""
-    return bool(name) and bool(provider.GPU.match(name) or provider.CPU.match(name))
-
-
 def score_pools(pools):
     """The pools that are score's job classes: tainted for score and labelled with a capability class."""
-    return [pool for pool in pools if tainted_for_score(pool) and job_class((pool.get("labels") or {}).get(CLASS_LABEL))]
+    return [pool for pool in pools if tainted_for_score(pool) and provider.capability_class((pool.get("labels") or {}).get(CLASS_LABEL))]
 
 
 def pools(cluster_id):
@@ -181,7 +174,7 @@ def nodes():
     for node in json.loads(kubectl("get", "nodes", "-l", CLASS_LABEL, "-o", "json"))["items"]:
         meta, spec = node["metadata"], node.get("spec") or {}
         labels = meta.get("labels") or {}
-        if not tainted_for_score(spec) or not job_class(labels.get(CLASS_LABEL)):
+        if not tainted_for_score(spec) or not provider.capability_class(labels.get(CLASS_LABEL)):
             continue
         if not (labels.get(POOL_LABEL) and labels.get(INSTANCE_LABEL) and labels.get(ZONE_LABEL)):
             pools = pools or class_pools()

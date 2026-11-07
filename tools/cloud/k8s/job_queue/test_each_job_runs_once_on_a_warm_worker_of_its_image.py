@@ -16,7 +16,9 @@ red (each applied once, seen red, reverted):
 - each job is assigned once across a queue restart, and a job whose worker died without its done.json once more, one
   generation on. Break: skip `read_assignments` in `Queue.__init__`.
 - 3 looks at the cluster a tick and at most one apply. Break: one `apply` a new worker in `Queue.grow`.
-- a node two workers share is counted once, and booked once when gone. Break: sum node cost per run (or per pod) in `Queue.count_money`.
+- a node two workers share is counted once, and booked once when gone, a node whose `score.dev/class` names no
+  capability class (the conductor's) booked with no class, never a crash (break: read the label raw in
+  `Queue.count_money`). Break: sum node cost per run (or per pod) in `Queue.count_money`.
 - at the stop line nothing more is made and only this box's Jobs are deleted. Break: delete without the box selector
   in `Queue.stop`.
 - a client's wait returns the run's state once over, and raises Stale once the queue's beat is stale; a run its
@@ -342,7 +344,8 @@ def test_each_job_runs_once_on_a_warm_worker_of_its_image(tmp_path, monkeypatch)
     counted = process.Queue(FakeKube(clock), stores.FolderStore(tmp_path / "other"), Cluster(), tmp_path / "q2", BOX,
                             clock)
     pods = [{"kind": "Pod", "metadata": {"labels": {}}, "spec": {"nodeName": "shared"}}] * 2
-    nodes = [{"metadata": {"name": "shared", "creationTimestamp": time_text(now[0]), "labels": {}}}]
+    nodes = [{"metadata": {"name": "shared", "creationTimestamp": time_text(now[0]),
+                           "labels": {"score.dev/class": "conductor"}}}]
     assert counted.count_money(pods, nodes, now[0] + 600) == pytest.approx(10 * PRICE)
     assert counted.count_money([], [], now[0] + 900) == pytest.approx(10 * PRICE)  # gone: booked, once
     rows = [json.loads(line) for line in (tmp_path / "ledger.jsonl").read_text().splitlines()]

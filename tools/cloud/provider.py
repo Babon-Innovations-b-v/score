@@ -55,6 +55,13 @@ GPU = re.compile(r"gpu-(\d+)gb(?:-x(\d+))?(?:-(\d+)c)?$")
 CPU = re.compile(r"cpu-(\d+)c-(\d+)gb$")
 
 
+def capability_class(label):
+    """A node's or pool's `score.dev/class` label as a capability class, else None: a cluster reader takes only
+    these, since a pool of score's beside its job pools may carry the key with another value (2026-11-07: the
+    conductor's pool, labelled `conductor`, made every look at the cluster fail)."""
+    return label if label and (GPU.match(label) or CPU.match(label)) else None
+
+
 def cards(machine_class):
     """How many cards a machine of the class has; 0 for a processor machine."""
     found = GPU.match(machine_class)

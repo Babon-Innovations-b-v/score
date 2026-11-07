@@ -493,7 +493,7 @@ class Run:
         listed = self.kubectl.json("get", "nodes")["items"]
         for node in listed:
             meta = node["metadata"]
-            machine_class = meta["labels"].get(manifests.CLASS_LABEL)
+            machine_class = provider.capability_class(meta["labels"].get(manifests.CLASS_LABEL))
             if not machine_class:
                 continue
             provider_record = billed.get(meta["name"], {})

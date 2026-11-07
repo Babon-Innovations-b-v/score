@@ -9,7 +9,8 @@ turns it red (each applied once and seen red):
 - A tenant cluster (`tenant.py`) is never deleted, its pools never resized; only its pools tainted for score and
   labelled with a class are score's, and only their nodes. Break: `cap_pools` sets the max as scaleway's does.
   Break: drop `tainted_for_score(pool) and` in `score_pools`. A pool or node of score's labelled with no capability
-  class (the conductor's own) is no job pool. Break: drop the `job_class` test in `score_pools` or `nodes`.
+  class (the conductor's own) is no job pool. Break: drop the `provider.capability_class` test in `score_pools` or `nodes`. Scaleway's `class_pools` lists no
+  pool so labelled either. Break: read the label raw in `class_pools`.
 - `up` makes nothing outside a cleared run (the cluster and its system pool bill by the hour).
   Break: drop `compute.require_cleared(...)` in `up`.
 - A cluster or pool order writes its `order-started` line before it is sent (review of C1, 2026-10-17).
@@ -161,6 +162,7 @@ def test_a_pools_cap_is_what_the_euros_left_pay_for_within_the_node_limit(monkey
     assert cluster.affordable_nodes(10, l4, 4) == 3  # 10 / 3.15, rounded down
     assert cluster.affordable_nodes(1e6, l4, 4) == cluster.POOL_MAX
 
+    class_pools = cluster.class_pools
     pools = [{"name": f"p{number}", "id": f"id{number}", "max": 20 if number == 0 else 0, "euros_a_minute": 0.013}
              for number in range(8)]
     calls = []
@@ -178,6 +180,16 @@ def test_a_pools_cap_is_what_the_euros_left_pay_for_within_the_node_limit(monkey
     assert set(caps.values()) == {18}  # (152 nodes less the system pool's one) // 8 pools: 151 // 8
     updates = [call[3] for call in calls if call[:3] == ("k8s", "pool", "update")]
     assert updates[0] == "id0"  # the one that shrinks, 20 -> 18, first
+    # A pool whose class key names no capability class (the conductor's) is no class pool.
+    listed = [{"name": "score-l4", "id": "l4", "node_type": "L4-1-24G", "zone": "fr-par-2",
+               "labels": {"score.dev/class": "gpu-24gb"}},
+              {"name": "score-conductor", "id": "c", "node_type": "POP2-HM-16C-128G", "zone": "fr-par-2",
+               "labels": {"score.dev/class": "conductor"}}]
+    monkeypatch.setattr(cluster, "pools", lambda cluster_id: listed)
+    monkeypatch.setattr(cluster, "owned_cluster", lambda project: {"id": "k"})
+    monkeypatch.setattr(cluster.backend, "account", lambda: OURS)
+    monkeypatch.setattr(cluster, "price", lambda machine_type, zone: (0.013, 60))
+    assert [pool["class"] for pool in class_pools()] == ["gpu-24gb"]
 
 
 def test_pools_scale_from_zero_tainted_by_kind_in_the_clusters_region(monkeypatch):

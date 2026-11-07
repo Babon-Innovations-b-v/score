@@ -32,6 +32,9 @@ runners in `tools/cloud/` stay as they are.
 - **Nothing provider-specific outside `clusters/`.** A cluster any provider runs works if its class pools label
   their nodes `score.dev/class=<class>`, taint card nodes `nvidia.com/gpu=present:NoSchedule` (processor pools
   `score.dev/class=<class>:NoSchedule`), scale from zero with the cluster autoscaler, and expose `nvidia.com/gpu`.
+  `score.dev/class` holds capability classes only: score's other pools carry another key (the conductor's,
+  `score.dev/role=conductor`, babon's pool config), and every reader takes the label through
+  `provider.capability_class`, so a stray value is no class node, never a crash (2026-11-07).
 - **The class order is capacity.py's** (`KINDS`, `KIND_ORDER`, `LATE`), read at submit time, never copied.
 - **Why plain Jobs and not Kueue.** Kueue's flavor order falls through on *quota*, not on a pool that cannot get a
   node; noticing a stock-out needs its ProvisioningRequest check, which needs an autoscaler started with

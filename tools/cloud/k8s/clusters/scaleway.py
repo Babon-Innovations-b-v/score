@@ -300,7 +300,7 @@ def class_pools():
     """The cluster's class pools: name, id, class, machine type, zone, its max size and its price."""
     found = []
     for pool in pools(owned_cluster(backend.account())["id"]):
-        machine_class = (pool.get("labels") or {}).get(CLASS_LABEL)
+        machine_class = provider.capability_class((pool.get("labels") or {}).get(CLASS_LABEL))
         if not machine_class:
             continue
         per_minute, unit_minutes = price(pool["node_type"], pool["zone"])
