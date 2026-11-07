@@ -926,6 +926,41 @@
    }
   }
  },
+ "runner": {
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-runner:1-679a8729e359@sha256:b0621a7c2b6a8517ec522c7414168283528e2b7b2d5cb79a336e241759c0c760",
+  "tag": "1-679a8729e359",
+  "digest": "sha256:b0621a7c2b6a8517ec522c7414168283528e2b7b2d5cb79a336e241759c0c760",
+  "platforms": "linux/amd64",
+  "size_mb": 544.8,
+  "build_minutes": 0.7,
+  "built": "2026-11-07T17:38:20Z",
+  "proof": {
+   "none": {
+    "type": "POP2-16C-64G",
+    "class": "cpu-16c-64gb",
+    "zone": "nl-ams-2",
+    "answered_minutes": 0.41,
+    "docker_setup_minutes": 0.32,
+    "image": "rg.fr-par.scw.cloud/score-farm-factory/score-runner:1-679a8729e359@sha256:b0621a7c2b6a8517ec522c7414168283528e2b7b2d5cb79a336e241759c0c760",
+    "pull_seconds": 13.1,
+    "jobs": {
+     "versions": {
+      "container_seconds": 10.2,
+      "marks": {
+       "weights_ready": 0.8,
+       "inputs_ready": 0.8,
+       "first_result": 7.2,
+       "uploaded": 7.3
+      },
+      "card": "none",
+      "kernel_cache": null,
+      "env": {},
+      "cache": "a"
+     }
+    }
+   }
+  }
+ },
  "sam": {
   "image": "rg.fr-par.scw.cloud/score-farm-factory/score-sam:1-9c6c91ac634e@sha256:7d7bf82a9f668b37c5771ee9be503ac794ded084ef3816f83b622be82e9a905d",
   "tag": "1-9c6c91ac634e",
