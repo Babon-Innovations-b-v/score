@@ -278,6 +278,8 @@ Breaks (each applied once, seen red, reverted), in score/stages/moved.py and .cl
 - `tree_is_at`: the `git status --porcelain` check dropped  ->
   test_pre_push_checks_the_pushed_commit_against_mains_not_a_changed_tree.
 - the hook's `= true ] || exit 0` read as `|| true`  -> test_the_hook_is_off_until_the_owner_turns_it_on.
+- the hook's `[ ! -d "$home/store/objects" ]` dropped, or its candidate loop's `break` dropped (this PC's run home
+  read over a default home holding a store)  -> test_the_hook_is_off_until_the_owner_turns_it_on.
 - the hook's `[ "$remote_ref" = refs/heads/main ] &&` dropped  ->
   test_the_hook_passes_deletions_tags_and_other_branches_at_once.
 - the hook's `rm -rf "$checkout"` dropped  -> test_the_hook_refuses_and_leaves_nothing_when_no_worktree_can_be_made.
@@ -2347,7 +2349,7 @@ HOOK = REPO / ".claude/hooks/local/pre-push-moved"
 
 RECORDER = """import json, os, pathlib, sys
 pathlib.Path(os.environ["HOOK_RECORD"]).write_text(json.dumps({"cwd": os.getcwd(), "argv": sys.argv[1:],
-    "stdin": sys.stdin.read(), "python": sys.executable}))
+    "stdin": sys.stdin.read(), "python": sys.executable, "home": os.environ.get("PROPS_HOME")}))
 sys.exit(int(os.environ.get("HOOK_EXIT", "0")))  # stands in for: score moved --pre-push
 """
 
@@ -2381,13 +2383,17 @@ def hook_repo(command_text=RECORDER):
 
 
 def hook(where, push_lines, exit_with=0, temp=None, env=None):
-    """Run .claude/hooks/local/pre-push-moved in `where` (with `env` added to its environment); (its exit code, its output, the
-    recorder's record or None)."""
+    """Run .claude/hooks/local/pre-push-moved in `where` (with `env` added to its environment, a None value taken out
+    of it; PROPS_HOME a home holding a store unless `env` names one); (its exit code, its output, the recorder's record
+    or None)."""
     record = pathlib.Path(tempfile.mkdtemp()) / "record.json"
+    home = pathlib.Path(tempfile.mkdtemp())
+    (home / "store/objects").mkdir(parents=True)
+    environment = {**os.environ, "PROPS_HOME": str(home), "HOOK_RECORD": str(record), "HOOK_EXIT": str(exit_with),
+                   **({"TMPDIR": str(temp)} if temp else {}), **(env or {})}
     ran = subprocess.run(["bash", str(HOOK), "origin", "toy"], cwd=where, input="\n".join(push_lines) + "\n",
                          capture_output=True, text=True,
-                         env={**os.environ, "HOOK_RECORD": str(record), "HOOK_EXIT": str(exit_with),
-                              **({"TMPDIR": str(temp)} if temp else {}), **(env or {})})
+                         env={name: value for name, value in environment.items() if value is not None})
     return ran.returncode, ran.stdout + ran.stderr, json.loads(record.read_text()) if record.exists() else None
 
 
@@ -2401,6 +2407,18 @@ def test_the_hook_is_off_until_the_owner_turns_it_on():
     assert code == 0 and record["cwd"] == str(repo) and record["argv"] == ["moved", "--pre-push"]
     assert record["stdin"] == line + "\n"
     assert hook(repo, [line], exit_with=3)[0] == 3
+    bare = pathlib.Path(tempfile.mkdtemp())  # a home with no store: nothing to read places from, said, not checked
+    code, printed, record = hook(repo, [line], env={"PROPS_HOME": str(bare)})
+    assert code == 0 and "no home with a store" in printed and record is None, printed
+    pulled = pathlib.Path(tempfile.mkdtemp())  # no PROPS_HOME, no default home: this PC's run home is read
+    (pulled / "store/objects").mkdir(parents=True)
+    code, printed, record = hook(repo, [line], env={"PROPS_HOME": None, "HOME": str(bare),
+                                                    "SCORE_THIS_PC_HOME": str(pulled)})
+    assert code == 0 and record["home"] == str(pulled), printed
+    (bare / ".farm-factory-props/store/objects").mkdir(parents=True)  # the default home, once it holds a store, first
+    code, printed, record = hook(repo, [line], env={"PROPS_HOME": None, "HOME": str(bare),
+                                                    "SCORE_THIS_PC_HOME": str(pulled)})
+    assert code == 0 and record["home"] == str(bare / ".farm-factory-props"), printed
 
 
 def test_the_hook_passes_deletions_tags_and_other_branches_at_once():
