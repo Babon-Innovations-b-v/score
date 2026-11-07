@@ -135,53 +135,13 @@ def unnumbered(plan, inventory):
     return spots, fixes
 
 
-def shell_floored(plan, inventory):
-    """The inventory with each row standing on a floor of the place's shell (anchored on a row of the plan's
-    structure) read as on the floor, so a person spot stands clear of it too: the greenhouse's grow light frame and
-    planter beds on its lower floor blocked no spot, and the cast left astronaut_2 out of the frame (2026-11-07)."""
-    shell = {f"on:{row}" for row in plan.get("structure") or []}
-    return {**inventory, "rows": [dict(row, anchor="floor") if row.get("anchor") in shell else row
-                                  for row in inventory.get("rows", [])]}
-
-
 def spaced_people(plan, inventory):
     """(the plan with no person standing in a wall, a thing or another person, the fixes said): a Correct's echo of a
-    stood spot dropped and each other numbered spot given its row back (`unnumbered`), then in order each spot whose footprint overlaps a
-    wall, a floor thing or a spot kept before it moved to the nearest floor inside the outline where it overlaps none;
-    every other spot kept as placed. Spots of rows beyond or afar stand out there on purpose; a spot with no such
-    floor is left."""
+    stood spot dropped and each other numbered spot given its row back (`unnumbered`), then each spot standing in
+    something moved out of it (plans.people_moved_out)."""
     spots, fixes = unnumbered(plan, inventory)
-    plan = {**plan, "people": spots}
-    if not spots:
-        return plan, fixes
-    grid = plan_checks.Grid(plan)
-    outline = grid.covered(plan_checks.outline_of(plan))
-    rows = {row["id"]: row for row in inventory.get("rows", [])}
-    left_out = plan_checks.beyond(plan, inventory) | plan_checks.afar(inventory)
-    sizes, walls_things, kept = standing.footprints(plan, inventory), {}, []
-    for spot, size in zip(spots, sizes):
-        row = spot[3] if len(spot) >= 4 and isinstance(spot[3], str) and spot[3] in rows else None
-        sits_on = plan_checks.anchor_of(rows[row]) if row else None
-        if sits_on not in walls_things:
-            walls_things[sits_on] = standing.blocked(plan, shell_floored(plan, inventory), grid, sits_on)
-        others = list(zip(kept, sizes))
-        free = None if row in left_out or not standing.stands_in(spot, size, walls_things[sits_on], grid, others) \
-            else standing.nearest_free(spot, size, walls_things[sits_on], grid, outline, others)
-        if free is not None and math.dist(spot[:2], free) < STILL_M:  # its own cell: no move (2026-11-03, below)
-            free = None
-        kept.append(spot if free is None else [*free, *spot[2:]])
-        if free is not None:
-            fixes.append(f"{plan_checks.said_name(row or 'a standing spot')}: moved "
-                         f"{math.dist(spot[:2], free):.2f} m out of what it stood in")
-    return {**plan, "people": kept}, fixes
-
-
-# A spot the free search hands back where it already stands is no move: nearest_free gives a cell centre rounded to the
-# millimetre, and the rounding can bring the footprint's edge a hair over the next cell, so stands_in said "in a wall"
-# again on every pass and lab's and workshop's plans were rewritten each sync pass with one more "moved 0.00 m" fix
-# (2026-11-03: terrain reads every plan, so the whole environment's lines counted as re-bought, EUR 1,102). Here, not in
-# standing.py, which the scene record reads.
-STILL_M = 0.001
+    plan, moved = plans.people_moved_out({**plan, "people": spots}, inventory)
+    return plan, fixes + moved
 
 
 def brought_inside(plan):
