@@ -56,6 +56,7 @@ import pathlib
 import sys
 
 import numpy as np
+import pytest
 from PIL import Image
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -66,6 +67,14 @@ import score.stages.props.likeness as likeness  # noqa: E402
 import score.stages.props.pixal_row as pixal_row  # noqa: E402
 import score.stages.props.prop_data as prop_data  # noqa: E402
 import score.stages.props.thin_straight as thin_straight  # noqa: E402
+
+@pytest.fixture(autouse=True, scope="module")
+def one_openblas_thread():
+    """The builds' OpenBLAS pool held at one thread: sized to every core of the host, its threads spun idle beside the
+    builds, which on a gate pod of two CPUs cost the file a tenth of its time (75 s against 67 s)."""
+    import score.graph as graph
+    graph.resize_loaded_openblas(1)
+
 
 PIPE = {"id": "pipe", "name": "wall pipe", "noun": "pipe", "size": [4.0, 0.1, 0.1], "view": "v1",
         "box": [40, 93, 560, 106]}
@@ -366,6 +375,16 @@ def held(tmp_path, row, lines, width=9, parts=None):
                                        straight=True)
 
 
+def side_by_side(tmp_path, cases):
+    """`held` of each case (row, lines, width, parts), each in a forked process of its own, the answers in the cases'
+    order: each build writes only its own row's folder, and side by side the file keeps its time budget."""
+    import concurrent.futures
+    import multiprocessing
+    with concurrent.futures.ProcessPoolExecutor(len(cases), mp_context=multiprocessing.get_context("fork")) as pool:
+        made = [pool.submit(held, tmp_path, row, lines, width, parts) for row, lines, width, parts in cases]
+        return [each.result() for each in made]
+
+
 def test_a_straight_thing_slanted_by_the_concept_s_view_passes_as_prepare_predicts(tmp_path):
     """The concept draws a straight thing at its camera's slant: it is built along its mask's centreline laid along
     its row, level or upright (thin_straight.axis_turn: a rail drawn steep was laid 38 to 60 degrees off level, round
@@ -375,8 +394,9 @@ def test_a_straight_thing_slanted_by_the_concept_s_view_passes_as_prepare_predic
     the box's."""
     import trimesh
     lying = {"id": "lying", "name": "wall pipe", "noun": "pipe", "size": [0.1, 0.1, 3.0], "view": "v1"}
-    for row, line in ((POST, [(250, 190), (350, 10)]), (PIPE, [(60, 160), (540, 40)]), (lying, [(60, 120), (540, 90)])):
-        found, faults = held(tmp_path, row, [line])
+    shapes = ((POST, [(250, 190), (350, 10)]), (PIPE, [(60, 160), (540, 40)]), (lying, [(60, 120), (540, 90)]))
+    built = side_by_side(tmp_path, [(row, [line], 9, None) for row, line in shapes])
+    for (row, _), (found, faults) in zip(shapes, built):
         assert found["outline"] >= likeness.OUTLINE_LEAST and found["code"]["profile"] == "path", (row["id"], found)
         assert not any(fault.startswith("outline") for fault in faults), faults
         made = trimesh.load(tmp_path / row["id"] / "pixal" / "take-final.glb", force="mesh")
@@ -400,9 +420,10 @@ def test_a_band_is_its_drawn_width_across_its_picture_and_at_most_its_row_s_thin
     pillar = {"id": "pillar", "name": "support pillar", "noun": "pillar", "size": [0.6, 0.6, 3.0], "view": "v1"}
     rail = {"id": "rail", "name": "ceiling rail", "noun": "rail", "size": [3.0, 0.1, 0.1], "view": "v1"}
     conduit = {"id": "conduit", "name": "conduit pipes", "noun": "conduit", "size": [12.0, 3.0, 0.1], "view": "v1"}
-    for row, line, width in ((pillar, [(300, 190), (300, 10)], 9), (rail, [(60, 100), (540, 100)], 40),
-                             (conduit, [(20, 100), (580, 100)], 13)):
-        found, faults = held(tmp_path, row, [line], width)
+    shapes = ((pillar, [(300, 190), (300, 10)], 9), (rail, [(60, 100), (540, 100)], 40),
+              (conduit, [(20, 100), (580, 100)], 13))
+    built = side_by_side(tmp_path, [(row, [line], width, None) for row, line, width in shapes])
+    for (row, _, _), (found, faults) in zip(shapes, built):
         assert found["outline"] >= likeness.OUTLINE_LEAST, (row["id"], found["outline"])
         assert not any(fault.startswith("outline") for fault in faults), faults
     made = trimesh.load(tmp_path / "conduit/pixal/take-final.glb", force="mesh")
@@ -458,8 +479,9 @@ def test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s
                          [[(40, 80), (560, 80)], [(40, 120), (560, 120)]]),
               "ladder": ({"name": "metal railing", "noun": "railing", "size": [4.2, 0.1, 1.2]},
                          [[(40, 30), (560, 30)], [(40, 170), (560, 170)], *posts])}
-    for name, (row, lines) in shapes.items():
-        found, faults = held(tmp_path, {"id": name, "view": "v1", **row}, lines)
+    built = side_by_side(tmp_path, [({"id": name, "view": "v1", **row}, lines, 9, None)
+                                     for name, (row, lines) in shapes.items()])
+    for (name, (row, lines)), (found, faults) in zip(shapes.items(), built):
         assert found["code"]["profile"] == "path", name
         assert found["outline"] >= likeness.OUTLINE_LEAST and not faults, (name, found["outline"], faults)
         made = trimesh.load(tmp_path / name / "pixal" / "take-final.glb", force="mesh")
@@ -523,8 +545,9 @@ def test_a_thin_run_is_held_to_its_path_s_own_size_never_crushed_to_its_box(tmp_
                        [[(40, 40), (40, 170), (560, 170)]], 0.05),
               "bundle": ({"name": "power cables", "noun": "cables", "size": [6.0, 0.08, 0.08], "anchor": "wall"},
                          [[(40, 70), (560, 70)], [(40, 100), (560, 100)], [(40, 130), (560, 130)]], 0.08)}
-    for name, (row, lines, tube) in shapes.items():
-        found, faults = held(tmp_path, {"id": name, "view": "v1", **row}, lines)
+    built = side_by_side(tmp_path, [({"id": name, "view": "v1", **row}, lines, 9, None)
+                                     for name, (row, lines, _) in shapes.items()])
+    for (name, (row, lines, tube)), (found, faults) in zip(shapes.items(), built):
         assert found["code"]["profile"] == "path" and not faults, (name, faults)
         assert found["outline"] >= likeness.OUTLINE_LEAST and found["model_check"]["pass"], (name, found)
         made = trimesh.load(tmp_path / name / "pixal" / "take-final.glb", force="mesh")
@@ -577,8 +600,9 @@ def test_a_path_is_built_in_its_picture_s_plane_facing_the_outline_s_view(tmp_pa
                            "anchor": "on:upper_floor"}, [arc, *posts]),
               "cables": ({"name": "power cables", "noun": "cables", "size": [10.0, 0.1, 0.1], "anchor": "ground"},
                          [[(x, 110 + 60 * np.sin(x / 90)) for x in range(20, 581, 10)]])}
-    for name, (row, lines) in shapes.items():
-        found, faults = held(tmp_path, {"id": name, "view": "v1", **row}, lines)
+    built = side_by_side(tmp_path, [({"id": name, "view": "v1", **row}, lines, 9, None)
+                                     for name, (row, lines) in shapes.items()])
+    for (name, (row, lines)), (found, faults) in zip(shapes.items(), built):
         assert found["outline"] >= likeness.OUTLINE_LEAST and not faults, (name, found["outline"], faults)
         made = trimesh.load(tmp_path / name / "pixal" / "take-final.glb", force="mesh")
         plane = made.extents
@@ -600,10 +624,11 @@ def test_a_code_built_light_is_not_held_to_the_lamp_its_route_leaves_to_the_ligh
         {"finish": "dark steel", "family": "steel"}, {"finish": "bright white glowing lamp face", "family": "glass"},
         {"finish": "red paint band", "family": "paint"}]}}}
     lamp = {"id": "lamp", "view": "v1", "name": "street lamp", "noun": "lamp", "size": [0.3, 0.3, 6.0]}
-    assert held(tmp_path, lamp, [[(300, 10), (300, 190)]], parts=parts)[0]["parts_missing"] == ["red paint band"]
     pipe = {"id": "pipe", "view": "v1", "name": "wall pipe", "noun": "pipe", "size": [6.0, 0.3, 0.3]}
-    assert held(tmp_path, pipe, [[(10, 100), (590, 100)]], parts=parts)[0]["parts_missing"] == [
-        "bright white glowing lamp face", "red paint band"]
+    (lit, _), (plain, _) = side_by_side(tmp_path, [(lamp, [[(300, 10), (300, 190)]], 9, parts),
+                                                   (pipe, [[(10, 100), (590, 100)]], 9, parts)])
+    assert lit["parts_missing"] == ["red paint band"]
+    assert plain["parts_missing"] == ["bright white glowing lamp face", "red paint band"]
 
 
 def test_the_masks_row_cuts_only_the_kept_thin_straight_rows_by_their_own_mask(tmp_path, monkeypatch):

@@ -1232,7 +1232,8 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
             stage = graph.Stage("narrow", "place", module.make, TEXT, SEEN, files={"seeds": "{seeds}/{place}.txt"})
             if change == "read docstring changed":
                 (repo / f"narrow_g{case}.py").write_text('"""also """\nWORD = __doc__\n')
-                subprocess.run(["git", "-C", str(repo), "commit", "-qam", "a usage text"], check=True)
+                subprocess.run(["git", "-C", str(repo), "-c", "user.name=test", "-c", "user.email=test@test", "commit",
+                                "-qam", "a usage text"], check=True)
             first = a_runner(world, store, (stage,)).run(["hangar"])["narrow@hangar"]
             assert first == "made: pass, accepted automatically", first
             old = store.records("narrow@hangar")[0]
