@@ -14,6 +14,8 @@ Breaks, each seen red once (2026-11-02):
 - on_machine's `start_new_session=True` dropped -> the stop kills only level 1, not its workers (the toy's sleeper lives).
 - on_machine's `"SCORE_CARD_BUDGET_GB": str(card_gb())` dropped -> the card queue caps an 80 GB card at this PC's 13.5.
 - on_machine's `scope_path()` returning PATH as it is -> a worker under systemd-run fails where root has no user manager.
+- (2026-11-06) on_machine's `except FileNotFoundError` dropped -> in a cluster's pod, which has no systemd-run, the
+  machine set-up dies before any go.sh runs.
 - on_machine's `return 0` after the stop made `return child.returncode` -> a batch that ran its time reads as failed.
 - `job`'s outputs without `seeds` -> seeds built on the machine never come back; every batch builds them again.
 - on_machine's `if not seeded(run, seeds):` made `if False:` -> level 1 starts on an empty seeds root.
@@ -106,7 +108,7 @@ def stand_ins(folder):
     return f"{folder}:{os.environ['PATH']}"
 
 
-def test_a_rented_batch_carries_the_run_stops_in_time_and_resumes_from_its_checkpoint(tmp_path):
+def test_a_rented_batch_carries_the_run_stops_in_time_and_resumes_from_its_checkpoint(tmp_path, monkeypatch):
     run, seeds, data, model = toy_run(tmp_path, processes=True)
     job = cloud.job(run, seeds, 230, 3, 20)
     assert set(job["inputs"]) == {str(run / name) for name in ("cases.json", "checkpoint.jsonl", "split.json", "src", "table.json")} \
@@ -148,6 +150,12 @@ def test_a_rented_batch_carries_the_run_stops_in_time_and_resumes_from_its_check
     log = (run / "level1.log").read_text()
     assert "eval 1: tuning score 1.0" in log and "paused" in log
     assert len((run / "checkpoint.jsonl").read_text().splitlines()) == 3
+    on_machine = types.ModuleType("level1_on_machine")  # a pod: no systemd-run on PATH at all
+    exec((cloud.LAUNCHER).read_text(), on_machine.__dict__)
+    (tmp_path / "bare").mkdir()
+    monkeypatch.setattr(on_machine, "SHIM", tmp_path / "shim")
+    monkeypatch.setenv("PATH", str(tmp_path / "bare"))
+    assert on_machine.scope_path() == f"{tmp_path / 'shim'}:{tmp_path / 'bare'}"
 
     # the slice: the PC store's marks of the seeds given to the machine, its pieces put back, the first make standing
     stored = cloud.stored_module()

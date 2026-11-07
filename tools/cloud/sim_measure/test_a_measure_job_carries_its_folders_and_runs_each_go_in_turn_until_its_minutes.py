@@ -20,8 +20,11 @@ Breaks, each seen red once (2026-11-04):
   for stock while an L40S and an L4 stand free.
 - (2026-11-05) `uncarried`'s `path.exists()` test made `False` -> a go.sh reading clips never carried goes up, and the
   job ends at once with 0 of 6.
+- (2026-11-06) on_machine's `with_python3` returning `path` as it is -> on a machine with no python3 (the
+  cluster's newton image) every go.sh job's card queue exits 127 at once.
 """
 import json
+import types
 import os
 import pathlib
 import subprocess
@@ -51,7 +54,7 @@ def stand_ins(folder):
     return f"{folder}:{os.environ['PATH']}"
 
 
-def test_a_measure_job_carries_its_folders_and_runs_each_go_in_turn_until_its_minutes(tmp_path):
+def test_a_measure_job_carries_its_folders_and_runs_each_go_in_turn_until_its_minutes(tmp_path, monkeypatch):
     first, second, data, model, written = (tmp_path / name for name in ("first", "second", "data", "models/88b0",
                                                                          "written"))
     repo = cloud.blender_cloud.REPO
@@ -93,3 +96,11 @@ def test_a_measure_job_carries_its_folders_and_runs_each_go_in_turn_until_its_mi
     outside.mkdir()
     (first / "scripts" / "go.sh").write_text(f"#!/bin/bash\nPY=${{PY:-{outside}}}\nls {outside}\n")
     assert cloud.uncarried([first], []) == [str(outside)] and cloud.uncarried([first], [outside]) == []
+
+    on_machine = types.ModuleType("measure_on_machine")  # a machine whose PATH holds no python3
+    exec(cloud.LAUNCHER.read_text(), on_machine.__dict__)
+    monkeypatch.setattr(on_machine, "PYTHON3", tmp_path / "python3-shim")
+    (tmp_path / "bare").mkdir()
+    found = on_machine.with_python3(str(tmp_path / "bare"))
+    assert found == f"{tmp_path / 'python3-shim'}:{tmp_path / 'bare'}"
+    assert (tmp_path / "python3-shim" / "python3").resolve() == pathlib.Path(sys.executable).resolve()

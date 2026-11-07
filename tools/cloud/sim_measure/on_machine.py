@@ -17,11 +17,13 @@ import argparse
 import importlib.util
 import os
 import pathlib
+import shutil
 import signal
 import sys
 import time
 
 THREADS = 4  # each measure job's OMP_NUM_THREADS (the go scripts' LIMIT)
+PYTHON3 = pathlib.Path.home() / "python3-shim"  # python3 for the go scripts where the machine has none
 
 
 def level1_machine(repo):
@@ -32,9 +34,21 @@ def level1_machine(repo):
     return module
 
 
+def with_python3(path):
+    """`path` with a python3 (this Python) first when it holds none: a go.sh runs the card queue as `python3`, and the
+    cluster's newton image has only its own Python (2026-11-06: every job of a measure exited 127 at once)."""
+    if shutil.which("python3", path=path):
+        return path
+    PYTHON3.mkdir(parents=True, exist_ok=True)
+    link = PYTHON3 / "python3"
+    if not link.is_symlink():
+        link.symlink_to(sys.executable)
+    return f"{PYTHON3}:{path}"
+
+
 def environment(level1, repo):
     """The go scripts' environment on this machine, `repo` the carried repo's path."""
-    return {**os.environ, "PATH": level1.scope_path(), "SCORE_CARD_BUDGET_GB": str(level1.card_gb()),
+    return {**os.environ, "PATH": with_python3(level1.scope_path()), "SCORE_CARD_BUDGET_GB": str(level1.card_gb()),
             "SCORE_CARD_DESKTOP_GB": "0", "SCORE_CARD_QUEUE": str(level1.QUEUE), "PY": sys.executable,
             "REPO": str(repo), "LANES": str(max(1, (os.cpu_count() or THREADS) // THREADS)), "PYTHONUNBUFFERED": "1"}
 

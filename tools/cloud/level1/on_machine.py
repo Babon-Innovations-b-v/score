@@ -74,14 +74,19 @@ def card_gb():
 
 
 def scope_path():
-    """PATH with the systemd-run stand-in first when `systemd-run --user --scope` does not work here, else as it is."""
-    tried = subprocess.run(["systemd-run", "--user", "--scope", "-q", "true"], capture_output=True)
-    if tried.returncode == 0:
+    """PATH with the systemd-run stand-in first when `systemd-run --user --scope` does not work here (or there is no
+    systemd-run, as in a cluster's pod), else as it is."""
+    try:
+        tried = subprocess.run(["systemd-run", "--user", "--scope", "-q", "true"], capture_output=True)
+        why = tried.stderr.decode(errors="replace").strip()
+    except FileNotFoundError:
+        tried, why = None, "no systemd-run"
+    if tried is not None and tried.returncode == 0:
         return os.environ["PATH"]
     SHIM.mkdir(parents=True, exist_ok=True)
     (SHIM / "systemd-run").write_text(SHIM_SCRIPT)
     (SHIM / "systemd-run").chmod(0o755)
-    print(f"systemd-run --user --scope does not work here ({tried.stderr.decode(errors='replace').strip()}): "
+    print(f"systemd-run --user --scope does not work here ({why}): "
           "the workers run without their memory scope", flush=True)
     return f"{SHIM}:{os.environ['PATH']}"
 

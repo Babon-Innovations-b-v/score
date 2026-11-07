@@ -98,6 +98,9 @@ KINDS = {
     "sim-body-l1": ("gpu-80gb-x2-48c", "gpu-80gb-x2", "gpu-80gb"),
     # The sim body row (score/stages/sim_body): a place's clips in Newton on one card, about 4 min a clip on an L4.
     "sim-body": SINGLE_CARD,
+    # GEM-X Body Motion on LabValidation's videos (tools/cloud/gemx, #98): its DINOv3 ViT-H/16+ pose backbone and
+    # ViTPose loaded stage by stage, any single card; one card's jobs one at a time until a batch measured more.
+    "gemx": SINGLE_CARD,
 }
 # Kinds that take their offers in an order of their own, the cheapest per job first, measured in October 2026
 # (`capacity.py report`, euros a job): Pixal3D L4 0.137, L40S 0.147, H100 0.161, two-H100 0.472 (an H100 is about three
