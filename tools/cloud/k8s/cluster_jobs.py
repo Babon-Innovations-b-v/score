@@ -29,6 +29,9 @@ run enqueued with its stop line (the queue's euros so far and the batch cap), th
 fresh at submit time is started for later runs and this run goes on today's path (`submitter.submit`); a queue that
 goes stale while the run waits (`job_queue.Stale`) gives the run back: it is cancelled there, so a restarted queue never
 assigns it, and its jobs not done are adopted by `submitter.submit`, which resumes from their Jobs' labels.
+A run on processor classes the queue found not to be had (`job_queue.unhad`), or whose queued jobs it gave back
+(`elsewhere`), raises Elsewhere, its done jobs' outputs brought back first: its runner sends that work to rented
+machines instead of waiting (blender_cloud runs itself again off the cluster; a pod make is made here).
 """
 import os
 import pathlib
@@ -43,6 +46,15 @@ import submitter  # noqa: E402
 
 REPO = HERE.parents[2]
 ATTEMPTS = 2
+
+
+class Elsewhere(RuntimeError):
+    """Processor work the cluster cannot place now (job_queue.unhad, or jobs the queue gave back): `jobs` the numbers
+    of the run's jobs its runner sends to rented machines."""
+
+    def __init__(self, message, jobs):
+        super().__init__(message)
+        self.jobs = jobs
 
 
 def run_id(kind):
@@ -170,20 +182,30 @@ def run(kind, jobs, who, classes=None, image=None, parallel=None, name=None):
     image = image or kind
     classes = classes or submitter.kind_classes(kind)
     run_name = name or run_id(kind)
+    if queued() and job_queue.unhad(classes):
+        raise Elsewhere(f"classes {', '.join(classes)} cannot be had on the cluster now (the box's queue)",
+                        list(range(len(jobs))))
     specs, backs = {}, {}
     for number, job in enumerate(jobs):
         job_id = str(number)
         specs[job_id], backs[job_id] = spec_of(helper, store, run_name, job_id, kind, image, classes, job)
         helper.write_job(store, run_name, job_id, specs[job_id])
+    state = None
     try:
         if queued():
-            through_queue(helper, store, run_name, image, classes, specs, who, parallel)
+            state = through_queue(helper, store, run_name, image, classes, specs, who, parallel)
         else:
             submitter.submit(run_name, specs, store, wait_scale_down=False, who=who, parallel=parallel)
     except BaseException:  # a watch that failed or a stop: what finished still comes back, then the error goes on
         bring_back(helper, store, run_name, specs, backs)
         raise
-    return bring_back(helper, store, run_name, specs, backs)
+    failed = bring_back(helper, store, run_name, specs, backs)
+    given_back = sorted(int(job_id) for job_id, record in ((state or {}).get("jobs") or {}).items()
+                        if record.get("state") == job_queue.ELSEWHERE)
+    if given_back:
+        raise Elsewhere(f"run {run_name}: classes {', '.join(classes)} had no node in the queue's start window",
+                        given_back)
+    return failed
 
 
 def queued():
@@ -192,8 +214,9 @@ def queued():
 
 
 def through_queue(helper, store, run_name, image, classes, specs, who, parallel):
-    """The run on the box's queue to its end; on today's path (submitter.submit) when the queue is not fresh, the queue
-    started for later runs; its jobs not done adopted by submitter.submit when the queue went stale while it waited."""
+    """The run on the box's queue to its end, its state as the queue left it (None off the queue); on today's path
+    (submitter.submit) when the queue is not fresh, the queue started for later runs; its jobs not done adopted by
+    submitter.submit when the queue went stale while it waited."""
     if not job_queue.fresh():
         job_queue.start()
         submitter.say("the box's queue is not running (one is started for later runs): this run goes on by itself")
@@ -205,7 +228,7 @@ def through_queue(helper, store, run_name, image, classes, specs, who, parallel)
     job_queue.enqueue(run_name, image, first["image"], classes, specs,
                       stop_line=job_queue.spent() + submitter.ledger.batch_cap()[0], who=who)
     try:
-        job_queue.wait(run_name)
+        return job_queue.wait(run_name)
     except job_queue.Stale as stale:
         job_queue.cancel(run_name)
         left = {job_id: spec for job_id, spec in specs.items() if helper.state(store, run_name, job_id) != "done"}

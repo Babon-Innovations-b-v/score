@@ -30,6 +30,17 @@ red (each applied once, seen red, reverted):
   `serve` returns after its first job (a worker that exits after one job).
 - a run is handed to the queue only when it is cleared: an uncleared one is refused and no inbox file is written.
   Break: drop `require_cleared` in `job_queue.enqueue`.
+The tube rehearsal's faults (2026-11-07, issue #76):
+- one bad inbox entry (card and processor classes mixed) is refused, its run over and failed, and the queue goes on.
+  Break: `except (Exception, SystemExit)` -> `except ZeroDivisionError` in `Queue.take_inbox`.
+- a chain whose worker is pending on classes not to be had widens while it waits. Break: drop
+  `self.widen_pending(listed, now)` in `Queue.grow`.
+- processor classes still without a node a start window after the last widening send the chain's queued jobs back
+  for rented machines (`elsewhere`, `job_queue.unhad`); card work stays. Break: drop `self.send_elsewhere(listed, now)`
+  in `Queue.grow`.
+- a finished worker's pod, kept with its Job, holds no node, so the node is booked after its idle tail. Break: drop
+  the phase test from `hosting` in `Queue.count_money`.
+- the queue ends only once every node is booked. Break: drop `queue.nodes` from `active` in `serve`.
 """
 import datetime
 import importlib.util
@@ -80,7 +91,7 @@ class FakeKube:
         foreign = {"kind": "Job", "metadata": {"name": "score-other", "labels": {manifests.BOX_LABEL: "box-b",
                                                                     "app.kubernetes.io/part-of": "score"}}}
         self.jobs["score-other"] = foreign
-        self.made = 0
+        self.made, self.stock = 0, None  # stock: the classes a node can be had of (None: every class)
 
     def json(self, *arguments):
         self.calls.append(arguments[:2])
@@ -109,9 +120,16 @@ class FakeKube:
             cards = workers.cards_of(job["spec"]["template"]["spec"])
             node = self.free_node() if self.cards_used() + cards <= CARDS else None
             worker = job["metadata"]["labels"][workers.WORKER_LABEL]
+            classes = set(job["metadata"]["annotations"]["score.dev/classes"].split(","))
+            if self.stock is not None and not classes & self.stock:
+                node = None  # none of its classes can be had: unscheduled
             self.pods[worker] = {"kind": "Pod", "job": job["metadata"]["name"], "cards": cards,
                                  "metadata": {"labels": job["spec"]["template"]["metadata"]["labels"]},
-                                 "spec": {"nodeName": node}, "status": {"phase": "Running" if node else "Pending"}}
+                                 "spec": {"nodeName": node}, "status": {"phase": "Running" if node else "Pending",
+                                                                        "conditions": [] if node else [{
+                                                                            "type": "PodScheduled", "status": "False",
+                                                                            "lastTransitionTime": time_text(
+                                                                                self.clock())}]}}
 
     def free_node(self):
         for name in self.nodes:
@@ -344,3 +362,75 @@ def test_each_job_runs_once_on_a_warm_worker_of_its_image(tmp_path, monkeypatch)
     assert list(stopping_kube.jobs) == ["score-other"]
     stops = [index for index, call in enumerate(stopping_kube.calls) if call == ("delete", "jobs")]
     assert len(stops) == 1 and ("apply",) not in stopping_kube.calls[stops[0]:]
+
+    # One bad inbox entry is refused, its run over and failed, and the queue goes on with the next.
+    bad_root, bad_kube = tmp_path / "q4", FakeKube(clock)
+    job_queue.enqueue("bad", "runner", IMAGES["blender"], ["gpu-24gb", "cpu-32c-64gb"],
+                      {"j0": {"kind": "runner"}}, root=bad_root)
+    job_queue.enqueue("good", "blender", IMAGES["blender"], ["gpu-24gb"], {"j0": {"kind": "blender"}}, root=bad_root)
+    after_bad = process.Queue(bad_kube, stores.FolderStore(tmp_path / "bad"), Cluster(), bad_root, BOX, clock)
+    after_bad.tick(now[0])
+    refused = json.loads((bad_root / "state" / "bad.json").read_text())
+    assert refused["over"] and "mix card and processor" in refused["refused"] and \
+        refused["jobs"] == {"j0": {"state": "failed"}}
+    assert "good" in after_bad.runs and not list(bad_root.glob("inbox/*.json")) and bad_kube.made == 1
+
+    # A chain whose worker is pending on classes that cannot be had widens while it waits: the pending worker deleted,
+    # one made again on the wider classes.
+    wide_kube = FakeKube(clock)
+    wide_kube.stock = set()  # no class of it can be had
+    wide_root = tmp_path / "q5"
+    job_queue.enqueue("wide", "runner", IMAGES["blender"], ["cpu-64c-128gb", "cpu-32c-64gb"],
+                      {"j0": {"kind": "runner", "cards": 0}}, root=wide_root)
+    widening = process.Queue(wide_kube, stores.FolderStore(tmp_path / "wide"), Cluster(), wide_root, BOX, clock)
+    for _ in range(int(submitter.NODE_MINUTES * 60 / process.QUEUE_TICK) + 3):
+        widening.tick(now[0])
+        now[0] += process.QUEUE_TICK
+    made_on = [job["metadata"]["annotations"]["score.dev/classes"] for job in wide_kube.jobs.values()
+               if workers.WORKER_LABEL in job["metadata"]["labels"]]
+    assert made_on == ["cpu-64c-128gb,cpu-32c-64gb"] and wide_kube.made == 2, (made_on, wide_kube.made)
+
+    # Processor classes still without a node a start window after the last widening: the chain's queued jobs given
+    # back for rented machines, its pending worker deleted, the classes noted, a new run of them not waited on.
+    # Card work stays on the cluster.
+    job_queue.enqueue("cards", "blender", IMAGES["blender"], ["gpu-24gb"], {"j0": {"kind": "blender"}},
+                      root=wide_root)
+    for _ in range(int(submitter.NODE_MINUTES * 60 / process.QUEUE_TICK) + 3):
+        widening.tick(now[0])
+        now[0] += process.QUEUE_TICK
+    gave_back = json.loads((wide_root / "state" / "wide.json").read_text())
+    assert gave_back["over"] and gave_back["jobs"]["j0"]["state"] == job_queue.ELSEWHERE, gave_back
+    assert not [job for job in wide_kube.jobs.values() if workers.WORKER_LABEL in job["metadata"]["labels"]
+                and job["metadata"]["labels"][workers.IMAGE_LABEL] == "runner"]
+    assert job_queue.unhad(["cpu-64c-128gb", "cpu-32c-64gb"], root=wide_root, now=now[0])
+    assert not job_queue.unhad(["cpu-64c-128gb", "cpu-32c-64gb"], root=wide_root,
+                               now=now[0] + job_queue.UNHAD_MINUTES * 60)
+    assert not job_queue.unhad(["gpu-24gb"], root=wide_root, now=now[0]) and "cards" in widening.runs
+
+    # A finished worker's pod (kept with its Job) holds no node: the node is booked after its idle tail.
+    tail = submitter.IDLE_ESTIMATE_MINUTES * 60
+    finished = process.Queue(FakeKube(clock), stores.FolderStore(tmp_path / "fin"), Cluster(), tmp_path / "q6", BOX,
+                             clock)
+    on_node = {"kind": "Pod", "metadata": {"labels": {}}, "spec": {"nodeName": "kept"}, "status": {"phase": "Running"}}
+    kept_node = [{"metadata": {"name": "kept", "creationTimestamp": time_text(now[0]), "labels": {}}}]
+    finished.count_money([on_node], kept_node, now[0] + 600)
+    for at in (600, 600 + tail):
+        finished.count_money([{**on_node, "status": {"phase": "Succeeded"}}], kept_node, now[0] + at)
+    assert not finished.nodes and finished.booked == pytest.approx(-(-(600 + tail) // 60) * PRICE)  # whole minutes
+
+    # The queue ends only once its nodes are booked.
+    class Unbooked:
+        runs, ticks = {}, 0
+
+        def __init__(self):
+            self.nodes = {"kept": {}}
+
+        def tick(self):
+            self.ticks += 1
+            if self.ticks == 3:
+                self.nodes.clear()
+            return {}
+    monkeypatch.setattr(process.time, "sleep", lambda seconds: None)
+    unbooked = Unbooked()
+    process.serve(unbooked, idle_exit=0)
+    assert unbooked.ticks == 3

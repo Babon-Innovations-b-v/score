@@ -6,6 +6,7 @@ warm workers of their image (`__main__.py`), and the wait for them.
     fresh()                                     # whether the queue's beat is newer than QUEUE_STALE_SECONDS
     cancel(run)                                 # cancel/<run>: a run its client took back, never assigned again
     spent()                                     # the box's euros so far as the queue counts them (money.json)
+    unhad(classes)                              # whether the queue found these processor classes not to be had
     start()                                     # start the queue process when it is not fresh (detached)
 
 The queue's control files are small and live under `$PROPS_HOME/cloud/queue/`: `beat` (touched every tick), `lock`
@@ -31,6 +32,9 @@ QUEUE = HOME / "cloud" / "queue"
 QUEUE_STALE_SECONDS = 60
 QUEUE_TAKEOVER_SECONDS = 180  # a waiting client whose queue is this stale takes its run back (S6: adopt or local)
 POLL_SECONDS = 5
+UNHAD = "unhad.json"  # {class: when the queue last found no node of it in its start window}
+UNHAD_MINUTES = 60  # a class not had is tried on the cluster again after this
+ELSEWHERE = "elsewhere"  # a job's state when the queue gave it back for rented machines
 
 
 class Stale(RuntimeError):
@@ -107,6 +111,14 @@ def spent(root=None):
     """The box's euros so far as the queue counts them (its money.json; 0 before its first tick), the base of a run's
     stop line."""
     return float((read_json(root_of(root) / "money.json") or {}).get("euros", 0.0))
+
+
+def unhad(classes, root=None, now=None):
+    """Whether every one of `classes` was found not to be had on the cluster within UNHAD_MINUTES (`unhad.json`,
+    written by the queue's send_elsewhere), so a run of them goes to rented machines without waiting."""
+    found = read_json(root_of(root) / UNHAD) or {}
+    moment = now or time.time()
+    return bool(classes) and all(moment - found.get(name, float("-inf")) < UNHAD_MINUTES * 60 for name in classes)
 
 
 def wait(run, root=None, poll=POLL_SECONDS, clock=time.time, sleep=time.sleep):

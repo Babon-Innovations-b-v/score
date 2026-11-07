@@ -38,7 +38,7 @@ import workers  # noqa: E402
 
 QUEUE_TICK = 10
 QUEUE_IDLE_EXIT_SECONDS = 600  # the process ends once it has had no open run and no worker this long
-OVER = ("done", "failed", "stopped")
+OVER = ("done", "failed", "stopped", client.ELSEWHERE)
 
 
 def say(line):
@@ -107,10 +107,24 @@ class Queue:
             entry = client.read_json(path)
             if entry is None:
                 continue
-            if entry["run"] not in self.runs:
-                self.runs[entry["run"]] = self.intake(entry)
-                self.write_state(entry["run"])
+            try:
+                if entry["run"] not in self.runs:
+                    self.runs[entry["run"]] = self.intake(entry)
+                    self.write_state(entry["run"])
+            except (Exception, SystemExit) as error:  # noqa: BLE001  one bad entry refused, not the queue
+                self.refuse_entry(path, entry, error)
             path.unlink(missing_ok=True)
+
+    def refuse_entry(self, path, entry, error):
+        """A run the queue cannot take (its inbox entry raised: card and processor classes mixed, tube rehearsal
+        2026-11-07, when the process exited and the box's queue with it): its state written over, each job failed and
+        why, so its client's wait returns and its runner makes or blocks those nodes; the queue goes on."""
+        why = f"refused by the queue: {type(error).__name__}: {error}"
+        say(f"{path.name}: {why}")
+        run = str(entry.get("run") or path.stem) if isinstance(entry, dict) else path.stem
+        specs = entry.get("specs") if isinstance(entry, dict) and isinstance(entry.get("specs"), dict) else {}
+        client.write_whole(self.root / "state" / f"{run}.json", {
+            "run": run, "over": True, "refused": why, "jobs": {job_id: {"state": "failed"} for job_id in specs}})
 
     def take_cancels(self):
         """Each run its client took back (`cancel/<run>`, job_queue.cancel): its inbox file dropped and, when it is
@@ -234,9 +248,52 @@ class Queue:
                     worker["phase"] = "Failed"
         return order[:widening["step"]]
 
+    def widen_pending(self, listed, now):
+        """Each open chain with a worker pending asks its widening every tick (classes_of), not only when a new worker
+        is made: a pending worker is its jobs' spare, so no new worker came and a worker on a class out of stock
+        waited for good (tube rehearsal 2026-11-07, 17 min on cpu-64c-128gb)."""
+        open_chains = {tuple(state["chain"]) for state in self.runs.values()}
+        pending = {worker["chain"] for worker in listed.values()
+                   if worker["phase"] == "Pending" and worker["id"] not in self.told_go}
+        for chain in sorted(pending & open_chains):
+            self.classes_of(chain, listed, now)
+
+    def send_elsewhere(self, listed, now):
+        """A chain of processor classes alone, widened to its last class, whose pending workers still got no node in
+        a further NODE_MINUTES (its start window): its classes noted as not to be had (`unhad.json`, job_queue.unhad),
+        its pending workers deleted and its queued jobs given back as `elsewhere`, so their runners send that
+        processor work to rented machines instead of waiting (owner's coordinator, 2026-11-07: the big CPU classes in
+        shortage in every Paris zone, in stock in nl-ams-2, pl-waw-1 and pl-waw-3). Card work stays here."""
+        for chain, widening in list(self.widening.items()):
+            runs = [state for state in self.runs.values() if tuple(state["chain"]) == chain]
+            order = runs[0]["classes"] if runs else []
+            if not order or any(submitter.provider.cards(name) for name in order) or widening["step"] < len(order):
+                continue
+            pending = [worker for worker in listed.values() if worker["chain"] == chain
+                       and worker["phase"] == "Pending" and worker["pod"]]
+            waiting = [(submitter.unscheduled_since(worker["pod"]), None) for worker in pending
+                       if submitter.unscheduled_since(worker["pod"]) is not None]
+            if not submitter.wants_widening(widening, waiting, now):
+                continue
+            say(f"{', '.join(order)}: no node in {submitter.NODE_MINUTES} min; the chain's work goes to rented machines")
+            client.write_whole(self.root / client.UNHAD, {**(client.read_json(self.root / client.UNHAD) or {}),
+                                                          **dict.fromkeys(order, now)})
+            for worker in pending:
+                self.kubectl.delete_job(worker["job"])
+                worker["phase"] = "Failed"
+            for state in runs:
+                for record in state["jobs"].values():
+                    if record["state"] == "queued":
+                        record["state"] = client.ELSEWHERE
+                state["over"] = all(record["state"] in OVER for record in state["jobs"].values())
+            del self.widening[chain]
+
     def grow(self, listed, beats, room, now):
         """Make workers for the queued jobs no idle or starting worker will take, in admission's order, while a new
-        worker's pod fits the quota's room (less this tick's own) and this box's share: one apply."""
+        worker's pod fits the quota's room (less this tick's own) and this box's share: one apply. A chain whose
+        pending workers show its classes cannot be had is widened first (widen_pending)."""
+        self.widen_pending(listed, now)
+        self.send_elsewhere(listed, now)
         live = [worker for worker in listed.values() if not workers.gone(worker) and worker["id"] not in self.told_go]
         use = {}
         for worker in live:
@@ -267,9 +324,11 @@ class Queue:
 
     def count_money(self, items, nodes, now):
         """The box's euros: each node a pod of the box is or was on, counted once, from its creation (or from when the
-        box first saw it, for a node up before the queue) to now, or once no pod of the box is on it to its removal (at
-        most the autoscaler's idle tail); a node gone, or past that tail, is booked."""
-        hosting = {item["spec"].get("nodeName") for item in items if item.get("kind") == "Pod"}
+        box first saw it, for a node up before the queue) to now, or once no live pod of the box is on it (a finished
+        worker's pod is kept with its Job for KEEP_SECONDS, never hosting) to its removal (at most the autoscaler's
+        idle tail); a node gone, or past that tail, is booked."""
+        hosting = {item["spec"].get("nodeName") for item in items if item.get("kind") == "Pod"
+                   and item.get("status", {}).get("phase") not in ("Succeeded", "Failed")}  # a finished pod holds no node
         listed = {node["metadata"]["name"]: node for node in nodes}
         for name in hosting & set(listed):
             meta = listed[name]["metadata"]
@@ -368,11 +427,13 @@ class Queue:
 
 
 def serve(queue, idle_exit=QUEUE_IDLE_EXIT_SECONDS):
-    """Tick until the queue has had no open run and no worker for `idle_exit` seconds."""
+    """Tick until the queue has had no open run, no worker and no node left to book (its idle tail counted to the
+    ledger; tube rehearsal 2026-11-07: the queue ended first and an L4 node's EUR 0.21 never reached it) for
+    `idle_exit` seconds."""
     quiet_since = None
     while True:
         listed = queue.tick()
-        active = queue.runs or any(not workers.gone(worker) for worker in listed.values())
+        active = queue.runs or queue.nodes or any(not workers.gone(worker) for worker in listed.values())
         quiet_since = None if active else (quiet_since or time.time())
         if quiet_since and time.time() - quiet_since >= idle_exit:
             say("no run and no worker; the queue ends")
