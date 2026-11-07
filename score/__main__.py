@@ -294,6 +294,10 @@ def detach(argv):
                str(Store.default().cache.parent / "faults"), "--", sys.executable,
                *[word for word in argv if word != DETACH]]
     owned = frozen.OWNED["path"] is not None
+    if detached_as_pod(command, log, frozen.owner_env() if owned else dict(os.environ)):
+        if owned:  # the run's pod drives from this frozen copy, on the same volume, and removes it when it ends
+            frozen.hand_on()
+        return
     with open(log, "a") as result:  # detached.py prints its result line here, after the run's own output
         process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=result, stderr=subprocess.STDOUT,
                                    start_new_session=True, env=frozen.owner_env() if owned else None)
@@ -301,6 +305,20 @@ def detach(argv):
         frozen.hand_on()
     print("score run: detached; it registers on the store itself and may still be refused: its result line says")
     print(f"detached: started pid={process.pid} log={log}", flush=True)  # the cockpit reads it: launch/localrun
+
+
+def detached_as_pod(command, log, environment):
+    """On the cluster's home (score/conductor/cluster.py), start the detached run as a Job of its own from this
+    folder (its frozen copy) in place of a scope; whether it did. Elsewhere nothing."""
+    from score.conductor import cluster
+    found = cluster.record()
+    if found is None:
+        return False
+    name, pid = cluster.detach(found, command, log, os.getcwd(), environment, Store.default().cache.parent)
+    print(f"score run: detached as pod {name}; it registers on the store itself and may still be refused: its result "
+          "line says")
+    print(f"detached: started pid={pid} log={log}", flush=True)  # the cockpit reads it: launch/localrun
+    return True
 
 
 def run_scope(log):

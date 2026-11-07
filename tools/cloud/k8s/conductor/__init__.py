@@ -15,7 +15,9 @@ The shape (namespace `score` in babon's cluster, zone fr-par-2, beside the card 
 - **One node** (`NODE_ROLE`: babon's pool `score-conductor-z2`, POP2-HM-16C-128G, min 1 max 1, tainted
   `tenant=score`): every pod that writes the store is placed beside the conductor's pod by pod affinity on the
   hostname, so one kernel and one file system hold the store's locks, links and fsync as on the VM. No network file
-  system.
+  system. Each such pod shares the node's process ids (`hostPID`): a run's registry entry, a hold's or a frozen
+  copy's user names a pid that every other writer reads and signals as on the VM (the sweep's clean-frozen and the
+  kill switch read and end them), never a pid of another pod's namespace.
 - **The conductor** (StatefulSet `score-conductor`, one pod): the container `conductor` runs the VM's always-on units
   (`units.py`: the listener, health, update, secrets, sweep, resume at start); the container `door` is the agents'
   door as a service (port `DOOR_PORT`, `tools/cloud/conductor/door_service.py`), reached only by `kubectl
@@ -145,7 +147,7 @@ def container(name, image, command, resources, read_only=False):
 
 
 def pod_spec(containers, affinity, restart="Always"):
-    return {"serviceAccountName": NAME, "securityContext": security(), "affinity": affinity,
+    return {"serviceAccountName": NAME, "securityContext": security(), "affinity": affinity, "hostPID": True,
             "tolerations": [TOLERATION], "volumes": volumes(), "containers": containers, "restartPolicy": restart,
             "terminationGracePeriodSeconds": 120}
 
