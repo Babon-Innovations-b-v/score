@@ -11,7 +11,8 @@ the folder and its outputs' `to` relative to the proof) has two world nodes:
                          and hashed; the pins resolve (uv, for the Dockerfile's Python and package indexes);
                          the images module's test passes; models.json (the models and their licences) and the
                          Dockerfile's instructions are those of the build images.json holds (the folder at the commit
-                         that first named its tag), so only the packages moved.
+                         that first named its tag), so only the packages moved; a kind's first build passes
+                         this gate only with no models (the runner's, 2026-11-07), else its models wait on him.
     image-proof-<kind>   (PAID, the plan's `euros`, cleared against the stop) reads the accepted pins:
                          images/build.py builds and pushes the image, images/prove.py runs the plan's jobs in it on
                          a rented card, both writing into a copy of images.json inside the output, never the
@@ -234,6 +235,10 @@ def judge_only_packages(kind):
     """The check that the kind's models, licences and Dockerfile instructions are the published build's."""
     def judge(output, inputs, evidence):
         tag = published_tag(kind, inputs["published"])
+        if not tag and json.loads((output / "models.json").read_text()) == []:
+            return checks.Verdict("only packages moved", checks.PASS,
+                                  f"{kind}'s first build, with no models: no published build and no licence to differ "
+                                  "from", {"moved": 0})
         commit = tag_commit(tag) if tag else None
         if commit is None:
             return checks.Verdict("only packages moved", checks.UNKNOWN,
