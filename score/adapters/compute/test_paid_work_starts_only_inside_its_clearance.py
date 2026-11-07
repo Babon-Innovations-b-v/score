@@ -170,7 +170,8 @@ def test_a_node_whose_prerequisite_failed_or_is_not_accepted_is_refused():
     rejected = a_runner("a hall")
     output = rejected.store.accepted("brief@hangar")
     review.reject(rejected.store, "brief@hangar", output, "owner", "the wrong hall")
-    assert "is not accepted" in refused(a_job(rejected)[1])
+    # a rejected output's key moves on to an `again` key (graph.Runner.again_parts), so it must be made again first
+    assert "brief@hangar has not run on its current inputs" in refused(a_job(rejected)[1])
 
 
 def test_a_cleared_run_is_submitted_without_a_typed_yes():
@@ -1231,5 +1232,9 @@ if __name__ == "__main__":
     no_cloud_and_books_open(pytest.MonkeyPatch())  # this process only: never undone
     for name, test in list(globals().items()):
         if name.startswith("test_"):
-            test()
+            patch = pytest.MonkeyPatch()  # a test that takes pytest's monkeypatch gets its own, undone after it
+            try:
+                test(*[patch for _ in test.__code__.co_varnames[:test.__code__.co_argcount]])
+            finally:
+                patch.undo()
             print("ok", name)

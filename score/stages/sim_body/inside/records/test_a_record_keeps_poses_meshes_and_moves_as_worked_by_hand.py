@@ -271,10 +271,10 @@ def in_newton():
 
 
 if __name__ == "__main__":
-    if os.environ.get(IN_ENV):
-        sys.exit(in_newton())
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[5] / "conftest.py"))["refuse_outside_sandbox"]()
+    if os.environ.get(IN_ENV):
+        sys.exit(in_newton())
     env = pathlib.Path(os.environ["PROPS_HOME"]) / "envs/newton_env"
     if not list(env.glob(".built-*")):
         print(f"skipped: no Newton env built at {env} (score/stages/physics/inside/newton_env.sh)")

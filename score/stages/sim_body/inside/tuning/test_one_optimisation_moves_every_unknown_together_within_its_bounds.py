@@ -371,6 +371,8 @@ def test_the_objective_is_the_skin_and_the_turns_each_over_its_start_and_the_end
     assert len(tuning.prior(unknowns, entries)) == sum(kind in ("link", "end") for _, kind, _, _ in entries)
 
 if __name__ == "__main__":
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[5] / "conftest.py"))["refuse_outside_sandbox"]()
     for test in [value for name, value in sorted(globals().items()) if name.startswith("test_")]:
         test()
     print("ok")
