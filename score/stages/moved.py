@@ -53,13 +53,14 @@ from score import graph, stages
 from score.graph import _code
 from score.store import file_hash, listing_hash, text_hash
 runner = stages.runner(world=stages.WORLDS["world1"]())
-places = stages.places(runner.world)
-if not places:  # every place row would declare nothing, so none could move by a declared file (2026-10-28)
-    sys.exit(f"moved: the home {stages.PROPS_HOME} holds no place: run it with PROPS_HOME the run's home")
 repo = pathlib.Path(".").resolve()
 found = {}
 with getattr(runner, "still", contextlib.nullcontext)():  # each node's files worked out once a run, not once a path
-    # (files_of outside a pass listed them again for every file_path: 19 min, nearly all of it subprocesses, 2026-11-06)
+    # (files_of outside a pass listed them again for every file_path: 19 min, nearly all of it subprocesses, 2026-11-06),
+    # the places too (listed outside it, each place's plan was made again for every question, 2026-11-07)
+    places = stages.places(runner.world)
+    if not places:  # every place row would declare nothing, so none could move by a declared file (2026-10-28)
+        sys.exit(f"moved: the home {stages.PROPS_HOME} holds no place: run it with PROPS_HOME the run's home")
     for row in stages.STAGES:
         declared = {}
         for place in ([None] if row.grain == "world" else places):
@@ -81,15 +82,16 @@ with getattr(runner, "still", contextlib.nullcontext)():  # each node's files wo
 print(json.dumps(found))"""
 
 
-REBUYS = """import json, sys
+REBUYS = """import contextlib, json, sys
 sys.path.insert(0, ".")
 from score import stages
 from score.graph import rebuy
 found = {}
 for name, make in sorted(stages.WORLDS.items()):
     runner = stages.runner(world=make())
-    nodes = runner.line_nodes(stages.places(runner.world), True)
-    found[name] = [buy.node for buy in rebuy.buys(runner, nodes) if buy.again]
+    with getattr(runner, "still", contextlib.nullcontext)():  # places and line nodes listed once (2026-11-07)
+        nodes = runner.line_nodes(stages.places(runner.world), True)
+        found[name] = [buy.node for buy in rebuy.buys(runner, nodes) if buy.again]
 print(json.dumps(found))"""
 TRAILER = "Moved-rows"
 MOVED_EXIT = 3

@@ -16,6 +16,7 @@ bytes, before anything reads or hashes it. Nothing here makes or changes a take:
 (score/graph/_code.py FRAMEWORK). The library is reached as library_files.py reaches it (its own command, its entry
 records read only for each file's sha256).
 """
+import functools
 import json
 import os
 import pathlib
@@ -54,9 +55,21 @@ def take_names(take, folder):
     return sorted(names)
 
 
+@functools.cache
+def default_root():
+    """library_files' default SCORE_LIB_ROOT, worked out once a process: a git subprocess each time, and the moved
+    check asked it for every take of every place, 15,720 times (26 of its 161 s, 2026-11-07)."""
+    return library_files.defaults().get("SCORE_LIB_ROOT")
+
+
+def library_root():
+    """SCORE_LIB_ROOT as library_files.settings() gives it: the environment's, else the default."""
+    return os.environ["SCORE_LIB_ROOT"] if "SCORE_LIB_ROOT" in os.environ else default_root()
+
+
 def newest_record(take):
     """The newest `take` entry the library's checkout holds for the take (its title the take's name), or None."""
-    root, entry = library_files.settings().get("SCORE_LIB_ROOT"), take_id(take)
+    root, entry = library_root(), take_id(take)
     if not root or entry is None:
         return None
     folder = pathlib.Path(root) / "entries" / KIND / entry
