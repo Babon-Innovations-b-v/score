@@ -13,6 +13,8 @@ runners in `tools/cloud/` stay as they are.
   is fresh (else today's path, a queue started for later runs; a queue gone stale mid-wait gives the run back to
   `submitter.submit`); they chain on warm workers of their image, admitted by priority within the quota and the box's
   share (its overlay).
+- `conductor/` is the conductor itself in the cluster (#76, its overlay): the store's volume, the StatefulSet, the
+  CronJobs and the door's rights, as manifests checked by a server-side dry run.
 - `kube.py` is kubectl (objects through stdin); `gpu_operator.py` points NVIDIA's GPU operator at the registry.
 - `manifests.py` makes the plain manifests (JSON for kubectl): one Job a job, the store Secret, the pull Secret.
 - `submitter.py` is the queue and the watcher: Secrets at submit time, pool caps from the month's euros, Jobs, widening
