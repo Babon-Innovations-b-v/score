@@ -222,12 +222,17 @@ def job_state(job):
     return "active" if status.get("active") or status.get("succeeded") else "inactive"
 
 
-def pod_view(namespace="score", answer=None):
+def own_namespace():
+    """The namespace of this home's cluster record (its pods and CronJobs), DEFAULTS' when the home has none."""
+    return (record() or DEFAULTS)["namespace"]
+
+
+def pod_view(namespace=None, answer=None):
     """{units: {sync, listen, resume, backup: active, failed or inactive}, last_sync: {at, ok} or None} of the
     conductor's pods and CronJobs as the cluster answers, health's own shapes (health.UNITS, health.last_sync): listen
     and resume the conductor pod's containers ready (resume is a unit of that pod, units.py), sync and backup their
     CronJob's newest Job; every unit failed when the cluster does not answer, never read as fine."""
-    found = answer if answer is not None else kubectl_json(namespace, "get", "pods,jobs", "-l",
+    found = answer if answer is not None else kubectl_json(namespace or own_namespace(), "get", "pods,jobs", "-l",
                                                            "app.kubernetes.io/name=score-conductor")
     if found is None:
         return {"units": dict.fromkeys(("sync", "listen", "resume", "backup"), "failed"), "last_sync": None}
@@ -246,11 +251,11 @@ def pod_view(namespace="score", answer=None):
                       "backup": job_state(newest_job(items, "backup"))}, "last_sync": last_sync}
 
 
-def pod_log(unit, limit_lines, namespace="score", run=subprocess.run):
+def pod_log(unit, limit_lines, namespace=None, run=subprocess.run):
     """A unit's log tail from the cluster in place of its journal: the newest Job's pod for a CronJob's unit
     (score-sync, score-backup), else the conductor pod's `conductor` container (units.py's log, every unit's lines);
     why not, when kubectl cannot read it."""
-    name = unit.removesuffix(".service")
+    name, namespace = unit.removesuffix(".service"), namespace or own_namespace()
     target = ["pod/score-conductor-0", "-c", "conductor"]
     if name in ("score-sync", "score-backup"):
         listed = kubectl_json(namespace, "get", "jobs", "-l", "app.kubernetes.io/name=score-conductor") or {}
