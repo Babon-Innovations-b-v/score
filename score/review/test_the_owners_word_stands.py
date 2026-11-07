@@ -2781,7 +2781,11 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     Break: score/review/plans.py: doors_led's `{sibling, opening.get("to")} & named` made `set()`
     A doorway its own hold leads elsewhere is judged there (the base's airlock door to the hub, led to tube#3).
     Break: score/review/plans.py: doors_led's `led = as_held(once_held[place], plan).get("openings") or []` made
-        `led = plan.get("openings") or []`"""
+        `led = plan.get("openings") or []`
+    A writing's doorway to a name that is no place of the design nor a row of its inventory leads nowhere, said; one to
+    a row, a place or sealed stays (the Square's street's door to 'restaurant', 2026-11-07).
+    Break: score/review/plans.py: doors_known's `opening["to"] = None` dropped
+    Break: score/review/plans.py: doors_known's `or to in rows` dropped"""
     rows = [{"id": "barn", "name": "a barn", "anchor": "floor", "size": [8.0, 6.0, 5.0], "count": 1, "at": []},
             {"id": "cart", "name": "a cart", "anchor": "floor", "size": [1.0, 1.0, 1.0], "count": 1, "at": []}]
     picked(store, "yard", rows)
@@ -2957,6 +2961,15 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     assert [opening["to"] for opening in shown["openings"]] == [None, "yard"], shown["openings"]
     assert shown["fixes"][-1] == "the door at [0.0, 1.0] to shed leads nowhere: no door of shed's own plan leads back " \
                                  "to barn", shown.get("fixes")
+    # a writing's doorway to a name that is no place of the design nor a row of its inventory leads nowhere, said; one
+    # to a row of its inventory, a place of the tree or sealed stays (the street's door to 'restaurant', 2026-11-07)
+    written(store, "barn", {**barn, "openings": [*barn["openings"], door([2.0, 0.0], "kitchen"),
+                                                 door([2.0, 4.0], "cart"), door([1.0, 4.0], "sealed")]})
+    shown = plans.current(store, "barn")["plan"]
+    assert [opening["to"] for opening in shown["openings"]] == [None, "yard", None, "cart", "sealed"], \
+        shown["openings"]
+    assert "the door at [2.0, 0.0] to 'kitchen' leads nowhere: no place of the design nor a row of its inventory" in \
+        shown["fixes"], shown.get("fixes")
     written(store, "barn", {**barn, "leads": {"W": {"to": "shed"}}})  # a fixed door: left for the gate to show
     assert [opening["to"] for opening in plans.current(store, "barn")["plan"]["openings"]] == ["shed", "yard"]
     written(store, "barn", barn)
