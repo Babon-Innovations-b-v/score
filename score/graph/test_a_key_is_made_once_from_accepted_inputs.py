@@ -1263,15 +1263,18 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
     reworded only (comments, blank lines, layout, docstrings) keep it, the record naming them; a docstring changed in
     a file that reads `__doc__`, or a type hint, makes A again. A's phase locked (Runner.lock_phase): its own file
     edited keeps it, the record "kept by the phase lock of <time>", status naming the lock and A kept by it; its
-    {seeds} file changed (an input) makes A again; unlocked, its own file edited makes A again (case 1).
+    {seeds} file changed (an input) makes A again; unlocked, its own file edited makes A again (case 1); locked, its
+  own file edited while its gate now fails the locked output (a gate's code changed since the lock) makes A again.
     Break: score/graph/__init__.py: '        return (record, reworded) if _code.unchanged(dropped, file_hash) else None' -> '        return (record, reworded)'
-    Break: score/graph/__init__.py: '        if not all(self.code_file(stage, name, place) for name in keyed["files"]' -> '        if False and not all(self.code_file(stage, name, place) for name in keyed["files"]'"""
+    Break: score/graph/__init__.py: '        if not all(self.code_file(stage, name, place) for name in keyed["files"]' -> '        if False and not all(self.code_file(stage, name, place) for name in keyed["files"]'
+    Break: score/graph/__init__.py: '        if self.fails_today(stage, place, record):' -> '        if False:'"""
     for case, change, kept in ((0, None, True), (1, "own file", False), (2, "seeds", False),
                                (3, "make swapped", False), (4, "python", False), (5, "helper edited", False),
                                (6, "read through helper edited", False), (7, "second narrowing", True),
                                (8, "read through helper deleted", False), (9, "words only", True),
                                (10, "read docstring changed", False), (11, "type hint", False),
-                               (12, "own file, phase locked", True), (13, "seeds, phase locked", False)):
+                               (12, "own file, phase locked", True), (13, "seeds, phase locked", False),
+                               (14, "own file, phase locked, gate fails", False)):
         seeds = pathlib.Path(tempfile.mkdtemp())
         (seeds / "hangar.txt").write_text("a seed")
         world = graph.Environment("toy", 7, {"seeds": str(seeds)})
@@ -1286,6 +1289,8 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
             assert first == "made: pass, accepted automatically", first
             old = store.records("narrow@hangar")[0]
             lock = None
+            gate_fails = (change or "").endswith(", gate fails")
+            change = (change or "").removesuffix(", gate fails") or None
             if (change or "").endswith(", phase locked"):
                 lock = a_runner(world, store, (stage,)).lock_phase("props", [(stage, "hangar")])
                 assert lock["nodes"] == {"narrow@hangar": {"output": old["output"], "key": old["key"],
@@ -1310,6 +1315,9 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                 (seeds / "hangar.txt").write_text("another seed")
             if change == "make swapped":
                 stage = dataclasses.replace(stage, make=importlib.import_module(f"narrow_b{case}").make)
+            if gate_fails:  # the gate judges the locked output otherwise today
+                stage = dataclasses.replace(stage, checks=(checks.Check(
+                    "seen", lambda output, inputs, evidence: checks.Verdict("seen", checks.FAIL, "rusted")),))
             python = _code.sys
             if change == "python":
                 _code.sys = types.SimpleNamespace(version_info=types.SimpleNamespace(major=3, minor=99), path=sys.path)
@@ -1321,7 +1329,7 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                 done = runner.run(["hangar"])["narrow@hangar"]
             finally:
                 _code.sys = python
-            assert done.startswith("fresh" if kept else "made: pass"), (change, done)
+            assert done.startswith("fresh" if kept else "made: fail" if gate_fails else "made: pass"), (change, done)
             record = store.record("narrow@hangar", keyed["key"])
             made_by = {"commit": old["commit"], "code": old["code"]}
             if lock:
