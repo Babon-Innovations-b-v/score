@@ -157,7 +157,8 @@ def statefulset(image):
     door = container("door", image, [PYTHON, "-I", f"{REPO}/tools/cloud/conductor/door_service.py",
                                      "--port", str(DOOR_PORT)], DOOR)
     door["ports"] = [{"name": "door", "containerPort": DOOR_PORT}]
-    door["readinessProbe"] = {"tcpSocket": {"port": DOOR_PORT}, "periodSeconds": 20}
+    door["readinessProbe"] = {"periodSeconds": 20, "exec": {"command": [  # it listens on the pod's loopback only
+        "/usr/bin/python3", "-c", f"import socket; socket.create_connection(('127.0.0.1', {DOOR_PORT}), 5)"]}}
     units = container("conductor", image, ["/usr/local/bin/score-conductor-start"], CONDUCTOR)
     pod_labels = {**labels("conductor"), WRITER_LABEL: "true"}
     return {"apiVersion": "apps/v1", "kind": "StatefulSet", "metadata": meta(NAME, "conductor"),

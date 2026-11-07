@@ -90,6 +90,8 @@ The checkout moves (update.py):
 - score_lib's checkout beside it gets the machine's committer when git knows no user.email there, even when nothing
   moves, and an identity it has stays (2026-10-28: every library commit on the conductor failed for want of one).
   Break: in `library_identified`, `.returncode == 0` -> `.returncode == 1` (no identity given; one there overwritten).
+- The pod's door service (door_service.py, #76 step 4) answers with the ssh door's own refusals and allowed commands
+  and runs nothing without its token. Break: in door_service.Handler.do_POST drop the `compare_digest` refusal.
 """
 import base64
 import contextlib
@@ -108,6 +110,7 @@ import sys
 import threading
 import time
 import types
+import urllib.error
 
 import pytest
 
@@ -116,6 +119,7 @@ REPO = HERE.parents[2]
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(REPO))
 
+import door_service  # noqa: E402
 import health_push  # noqa: E402
 import machine  # noqa: E402
 import update  # noqa: E402
@@ -272,8 +276,9 @@ def door(tmp_path):
     (checkout / "score").symlink_to(REPO / "score")
     executable(checkout / ".venv" / "bin" / "python", RECORDER.format(python=sys.executable))
 
-    def through(asked, env_file_text=""):
-        record = tmp_path / "record"
+    record = tmp_path / "record"
+
+    def environment(asked, env_file_text):
         shutil.rmtree(record, ignore_errors=True)
         record.mkdir()
         env_file = tmp_path / "dashboard.env"
@@ -282,12 +287,30 @@ def door(tmp_path):
         env.update({"SCORE_DOOR_REPO": str(checkout), "SCORE_DOOR_ENV": str(env_file), "DOOR_RECORD": str(record),
                     "SSH_ORIGINAL_COMMAND": asked, "SCORE_BENCHMARK_GRANT": "smuggled",
                     "SCORE_OWNERS_GO": "smuggled"})
-        done = subprocess.run(["sh", str(HERE / "agent_door.sh")], env=env, capture_output=True, text=True,
-                              timeout=60)
+        return env
+
+    def recorded():
         argv = (record / "argv").read_text().splitlines() if (record / "argv").exists() else None
-        recorded = dict(line.split("=", 1) for line in (record / "env").read_text().splitlines() if "=" in line) \
+        found = dict(line.split("=", 1) for line in (record / "env").read_text().splitlines() if "=" in line) \
             if (record / "env").exists() else {}
-        return done.returncode, done.stderr, argv, recorded
+        return argv, found
+
+    def through(asked, env_file_text=""):
+        done = subprocess.run(["sh", str(HERE / "agent_door.sh")], env=environment(asked, env_file_text),
+                              capture_output=True, text=True, timeout=60)
+        return (done.returncode, done.stderr, *recorded())
+
+    def through_service(asked, env_file_text="", token="door-token"):
+        """The same door through door_service.py (the pod's, #76 step 4): one request with that token."""
+        server = door_service.serve("door-token", 0, environment=environment(asked, env_file_text))
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            code, _, err = door_service.send(f"http://127.0.0.1:{server.server_address[1]}/", token, asked)
+        finally:
+            server.shutdown()
+            server.server_close()
+        return (code, err.decode(), *recorded())
+    through.service = through_service
     return through
 
 
@@ -312,6 +335,17 @@ def test_the_door_refuses_a_shell_a_paid_run_the_owners_commands_and_anything_un
                   "lock-phase world1 models --place", "lock-phase world1 models --place '../x'", "cluster-check x"):
         code, why, argv, _ = door(asked)
         assert code == 126 and argv is None and "refused" in why, (asked, code, why)
+    # The pod's door service (#76 step 4) runs the same door: the same refusals, the same allowed command marked as an
+    # agent's, and nothing at all without its token.
+    for asked in ("bash", "run world1", "cat /home/score/.config/scw/config.yaml", "store-push --delete"):
+        assert door.service(asked) == door(asked), asked
+    code, why, argv, recorded = door.service("status")
+    assert code == 0 and argv is not None and "status" in argv and all(recorded.get(name) for name in AGENT_MARKERS)
+    with pytest.raises(urllib.error.HTTPError) as refused:
+        door.service("status", token="wrong")
+    assert refused.value.code == 403
+    with pytest.raises(SystemExit):
+        door_service.serve("", 0)  # no token read: the door stays shut
     for asked in ("benchmark g1 world1 --detach", "buy 20261025T1700000000", "buy 20261025T1700000000 --phase models",
                   "buy 20261025T1700000000 --phase models,surfaces --leave-out sim-body,body-peel"):
         code, why, argv, _ = door(asked, "SCORE_FREE_ONLY=1\n")
@@ -326,6 +360,17 @@ def test_the_doors_decisions_record_his_quoted_yes_then_apply_it_by_its_id_and_a
                   "run world1 --detach --go", "run world1 --detach --go 'g 1'"):
         code, why, argv, _ = door(asked)
         assert code == 126 and argv is None and "refused" in why, (asked, code, why)
+    # The pod's door service (#76 step 4) runs the same door: the same refusals, the same allowed command marked as an
+    # agent's, and nothing at all without its token.
+    for asked in ("bash", "run world1", "cat /home/score/.config/scw/config.yaml", "store-push --delete"):
+        assert door.service(asked) == door(asked), asked
+    code, why, argv, recorded = door.service("status")
+    assert code == 0 and argv is not None and "status" in argv and all(recorded.get(name) for name in AGENT_MARKERS)
+    with pytest.raises(urllib.error.HTTPError) as refused:
+        door.service("status", token="wrong")
+    assert refused.value.code == 403
+    with pytest.raises(SystemExit):
+        door_service.serve("", 0)  # no token read: the door stays shut
     code, why, argv, env = door("decide-yes accept closeup@hub --output abc 'Yes, accept it' 'Accept closeup@hub abc?'")
     assert code == 0 and argv == ["-m", "score.dashboard", "decide-yes", "accept", "closeup@hub", "--output", "abc",
                                   "Yes, accept it", "Accept closeup@hub abc?"], (why, argv)
