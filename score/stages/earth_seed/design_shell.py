@@ -9,22 +9,25 @@ raised levels (the street, the square, the base: a plan that encloses nothing), 
            inside (`inside`; a plan that says neither is a room when it writes walls: a scene added in the app, the
            docking airlock); an open place (`inside` false) has no room to close
     deck   (a room) each level of the plan (else its outline at the floor) a slab SLAB thick, its top DECK_BELOW under
-           the level, out to the walls (BACKING past the plan's line), cut open over each flight the plan draws
+           the level, out to the walls' room faces (to_walls), cut open over each flight the plan draws
            going down from it (`hatches`: a floor hatch with its stairs)
     wall   (a room) round the outline (the plan's `outline`, else its box w x d), each edge a slab of its written wall's
-           thickness (else THICK) standing BACKING behind the plan's inside line, from the deck's foot to its written
+           thickness on that wall's line (edge_wall, face_reach: the plan draws its outline round its walls' outer
+           faces and each wall on its middle line, as holders lays a wall thing on its face; 2026-11-07: storage's
+           walls stood 0.31 m behind the faces its wall lights were laid on), an edge with no written wall a slab
+           THICK thick standing BACKING behind the outline, from the deck's foot to its written
            height (else the height words' ceiling, else STOREY), raised to a roof's eave over it; and every written wall
            the outline does not stand on (an inner wall, an arc in ARC_STEP pieces) centred on its line, as thick and
            high; each opening on a wall (a door, window, gate or opening: a written plan's `openings`, else a data
            plan's `doors`) cut from its sill to its head
-    roof   (a room) each written roof over its points out to the walls: a flat one a slab on its eave; a dome a
-           sphere's cap over the circle round its box's middle (builders' `dome`), so the people the concept stands
-           under it fit (the greenhouse's upper walk, Batch 1 of 2026-10-27); a vault a circle's arc from its eave
-           to its top across its box, along the box's longer side, a square box's between the ends its openings stand
-           on (`vault_way`; builders' `tube_arc`), so the people under it fit
-           (the tube's, round 33 of 2026-10-30); one rising otherwise (shed, pitched) a closed gable along its box's
-           longer side; no written roof, a flat one on the walls' height; a flat one with `openings` (each a
-           footprint of points: a hatch, the hangar's roof door) is the slab round them (cut_out), open over each
+    roof   (a room) each written roof over its points out to the walls' room faces (to_walls): a flat one a slab on
+           its eave; a dome a sphere's cap over the circle round its box's middle (builders' `dome`), so the people
+           the concept stands under it fit (the greenhouse's upper walk, Batch 1 of 2026-10-27); a vault a circle's
+           arc from its eave to its top across its box, along the box's longer side, a square box's between the ends
+           its openings stand on (`vault_way`; builders' `tube_arc`), so the people under it fit (the tube's,
+           round 33 of 2026-10-30); one rising otherwise (shed, pitched) a closed gable along its box's longer side;
+           no written roof, a flat one on the walls' height; a flat one with `openings` (each a footprint of points:
+           a hatch, the hangar's roof door) is the slab round them (cut_out), open over each
     level  (an open place: no room, and a plan that encloses nothing, `encloses`) each level standing off the ground by
            more than LEVEL_OFF: one up to STOREY high stands solid from the ground (a raised deck, a
            stage); a higher one a slab SLAB thick under its height (a balcony)
@@ -71,8 +74,9 @@ from score.store import PROPS_HOME
 
 KEPT_RELATIONS = PROPS_HOME / "design" / "relations"  # holders.KEPT, held equal by the scene record's test
 
-# The scene record's backing shell (scene_record.writer BACKING, DECK_BELOW; held equal by the test): the shell stands
-# this far behind the plan's inside line and the deck's top this far under the floor: none, the deck is the floor
+# The scene record's backing shell (scene_record.writer BACKING, DECK_BELOW; held equal by the test): a wall the plan
+# does not write stands this far behind its outline's edge and the deck's top this far under the floor: none, the deck
+# is the floor
 # (the retired kits laid 0.04 m floor plates on it; with none, every thing laid at the floor stood 0.042 m over it).
 # Both take each part's surface from the scene's library (PART_KINDS).
 BACKING = 0.15
@@ -87,6 +91,7 @@ ARC_STEP = 15.0  # degrees of a written arc wall each straight piece of it spans
 # A written wall runs along the outline (on_outline) where every point of it stands within OUTLINE_REACH metres of an
 # outline edge turned within ALONG_TURN degrees of it: a round wall drawn round a polygon outline.
 OUTLINE_REACH, ALONG_TURN = 1.0, 45.0
+COVERS = 0.5  # share of an outline edge a written straight wall along it covers to be the edge's wall (written_wall)
 CEILING = re.compile(r"\bceiling[^0-9;,]*?(\d+(?:\.\d+)?) ?m\b")
 DOOR_SIZE = re.compile(r"\d+(?:\.\d+)? ?x ?(\d+(?:\.\d+)?) ?m")  # a data door's words "(0.9 x 2.0 m)": its height
 ROOT = "Shell"
@@ -272,15 +277,49 @@ def measured_ceiling(plan):
 
 
 def written_wall(plan, start, end):
-    """The written wall (`walls`: {from, to, thick, tall}) standing on the outline's edge from `start` to `end`, else
-    {}."""
-    for entry in plan.get("walls") or []:
-        if not isinstance(entry, dict) or "from" not in entry:
-            continue
-        ends = [list(map(float, entry["from"])), list(map(float, entry["to"]))]
-        if all(np.allclose(one, two, atol=0.01) for one, two in zip(sorted(ends), sorted([start, end]))):
-            return entry
-    return {}
+    """The written straight wall (`walls`: {from, to, thick, tall}) the outline's edge from `start` to `end` stands
+    for: of those running along it (along_edge), the one covering most of it, the nearest its line of those
+    covering as much, when it covers at least COVERS of it (camp's dome wall along 9% of its site's edge is the
+    dome's); else {}. The plan draws its outline round its walls' outer faces and each wall on its middle
+    line, so a wall stands inside its edge by half its thickness (storage's 0.168 m walls 0.08 m in from its outline),
+    and on it where the plan draws a wall as its edge."""
+    covers = [(round(along_edge(entry, start, end), 3), -abs(face_reach(entry, start, end)), number)
+              for number, entry in enumerate(plan.get("walls") or [])
+              if isinstance(entry, dict) and "from" in entry and "to" in entry]
+    covered, _, number = max(covers, default=(0.0, 0.0, None))
+    return plan["walls"][number] if covered >= COVERS * float(np.linalg.norm(np.subtract(end, start))) - 1e-3 and \
+        covered > 1e-6 else {}
+
+
+def along_edge(entry, start, end):
+    """Metres of the edge from `start` to `end` a straight written wall covers where it runs along it (turned within
+    ALONG_TURN of it, its ends within its thickness and ON_WALL of the edge's line, as an opening is on it: on_edge),
+    else 0. A wall further in is another part's (airlock's room wall 0.75 m in from its porch's edge)."""
+    start, end = np.asarray(start, float), np.asarray(end, float)
+    first, second = np.asarray(entry["from"], float), np.asarray(entry["to"], float)
+    length, run = float(np.linalg.norm(end - start)), second - first
+    if length < 1e-6 or float(np.linalg.norm(run)) < 1e-6:
+        return 0.0
+    way = (end - start) / length
+    if abs(float(way @ run)) < np.cos(np.radians(ALONG_TURN)) * float(np.linalg.norm(run)):
+        return 0.0
+    normal = outward(start, end)
+    if max(abs(float((point - start) @ normal)) for point in (first, second)) > float(entry.get("thick") or THICK) + \
+            ON_WALL:
+        return 0.0
+    low, high = sorted(float((point - start) @ way) for point in (first, second))
+    return max(0.0, min(high, length) - max(low, 0.0))
+
+
+def face_reach(entry, start, end):
+    """Metres out from the outline's edge (`start` to `end`) to the room face of the wall built on it: its written
+    wall's (`entry`, written_wall) middle line, out along the edge's outward normal, less half its thickness; with
+    none, BACKING."""
+    if not entry:
+        return BACKING
+    normal, start = outward(start, end), np.asarray(start, float)
+    middle = (np.asarray(entry["from"], float) + np.asarray(entry["to"], float)) / 2
+    return float((middle - start) @ normal) - float(entry.get("thick") or THICK) / 2
 
 
 def openings_of(plan):
@@ -515,12 +554,38 @@ def offset_corner(point, normal_in, normal_out, reach_in, reach_out):
     return first + way_in * ((gap[0] * way_out[1] - gap[1] * way_out[0]) / across)
 
 
-def grown(points, reach=BACKING):
-    """An outline (clockwise on a map) pushed out by `reach` on every side, its corners mitred."""
+def grown(points, reaches):
+    """An outline (clockwise on a map) with each edge pushed out by its reach (`reaches`, one an edge), its corners
+    mitred."""
     count = len(points)
     normals = [outward(points[index], points[(index + 1) % count]) for index in range(count)]
-    return [list(offset_corner(points[index], normals[index - 1], normals[index], reach, reach))
+    return [list(offset_corner(points[index], normals[index - 1], normals[index], reaches[index - 1], reaches[index]))
             for index in range(count)]
+
+
+def to_walls(plan, points):
+    """An outline (a level's, a roof's; clockwise on a map) grown out to the walls (grown): each edge lying along an
+    edge of the plan's outline, between that edge and ON_WALL past its wall's room face (face_reach), out to that
+    face; any other BACKING out, as a wall the plan does not write stands."""
+    outline = outline_of(plan)
+    edges = [(outline[index], outline[(index + 1) % len(outline)]) for index in range(len(outline))]
+    faces = [face_reach(written_wall(plan, start, end), start, end) for start, end in edges]
+    reaches = []
+    for index, start in enumerate(points):
+        end = points[(index + 1) % len(points)]
+        reach, middle, normal = BACKING, (np.asarray(start, float) + np.asarray(end, float)) / 2, outward(start, end)
+        for (first, second), face in zip(edges, faces):
+            if np.linalg.norm(np.subtract(second, first)) < 1e-6 or float(normal @ outward(first, second)) < \
+                    np.cos(np.radians(ALONG_TURN)):
+                continue
+            out = float((middle - np.asarray(first, float)) @ outward(first, second))
+            way = (np.asarray(second, float) - np.asarray(first, float))
+            share = float((middle - np.asarray(first, float)) @ way) / float(way @ way)
+            if 0.0 <= share <= 1.0 and min(face, 0.0) - ON_WALL <= out <= BACKING:
+                reach = face - out
+                break
+        reaches.append(reach)
+    return grown(points, reaches)
 
 
 def spans(length, cuts, low, high):
@@ -558,11 +623,12 @@ def walls(plan, outline, roof_eave):
     count, openings = len(outline), openings_of(plan)
     entries = [written_wall(plan, outline[index], outline[(index + 1) % count]) for index in range(count)]
     thick = [float(entry.get("thick") or THICK) for entry in entries]
+    reach = [face_reach(entries[index], outline[index], outline[(index + 1) % count]) for index in range(count)]
     normals = [outward(outline[index], outline[(index + 1) % count]) for index in range(count)]
-    inner = [offset_corner(outline[index], normals[index - 1], normals[index], BACKING, BACKING)
+    inner = [offset_corner(outline[index], normals[index - 1], normals[index], reach[index - 1], reach[index])
              for index in range(count)]
-    outer = [offset_corner(outline[index], normals[index - 1], normals[index], BACKING + thick[index - 1],
-                           BACKING + thick[index]) for index in range(count)]
+    outer = [offset_corner(outline[index], normals[index - 1], normals[index], reach[index - 1] + thick[index - 1],
+                           reach[index] + thick[index]) for index in range(count)]
     found = []
     for index in range(count):
         after = (index + 1) % count
@@ -575,13 +641,13 @@ def walls(plan, outline, roof_eave):
         high = wall_height(plan, entries[index], roof_eave)
         parts = []
         for begin, finish, bottom, top in spans(length, cuts, -DECK_BELOW - SLAB, high):
-            near = [inner[index] if begin <= 1e-9 else start + along * begin + normals[index] * BACKING,
-                    inner[after] if finish >= length - 1e-9 else start + along * finish + normals[index] * BACKING]
+            near = [inner[index] if begin <= 1e-9 else start + along * begin + normals[index] * reach[index],
+                    inner[after] if finish >= length - 1e-9 else start + along * finish + normals[index] * reach[index]]
             far = [outer[index] if begin <= 1e-9 else near[0] + normals[index] * thick[index],
                    outer[after] if finish >= length - 1e-9 else near[1] + normals[index] * thick[index]]
             parts.append(slab_piece([list(near[0]), list(near[1]), list(far[1]), list(far[0])], bottom, top))
-        said = (f"the plan's wall {index + 1} from {outline[index]} to {outline[after]}, {thick[index]:g} m thick "
-                f"{BACKING:g} m behind its inside line, {high:g} m high" +
+        said = (f"the plan's wall {index + 1} from {outline[index]} to {outline[after]}, {thick[index]:g} m thick, "
+                f"its room face {reach[index]:.3g} m out from that line, {high:g} m high" +
                 (f", {len(cuts)} openings cut" if cuts else ""))
         found.append((f"wall_{index + 1}", parts, said))
     return found + inner_pieces(plan, len(outline), openings, roof_eave)
@@ -622,13 +688,13 @@ def decks(plan, outline):
         [{"name": "floor", "height": 0.0, "points": outline}]
     found = []
     for number, level in enumerate(levels, 1):
-        points = grown(outline_of({"outline": level["points"]}))
+        points = to_walls(plan, outline_of({"outline": level["points"]}))
         top = float(level["height"]) - DECK_BELOW
         holes = [box for _, box in hatches(plan, level)]
         found.append((f"deck_{number}", [slab_piece(part, top - SLAB, top) for part in
                                          (cut_out(points, holes) if holes else [points])],
                       f"the plan's level {level.get('name', number)!r} at {float(level['height']):g} m: its deck "
-                      f"{SLAB:g} m thick, {DECK_BELOW:g} m under it, out to the walls {BACKING:g} m behind its line" +
+                      f"{SLAB:g} m thick, {DECK_BELOW:g} m under it, out to the walls' room faces" +
                       (f", {len(holes)} hatches cut over the flights going down from it" if holes else "")))
     return found
 
@@ -654,11 +720,11 @@ def roofs(plan, outline, high):
     """[(name, pieces, from)] of each written roof (module docstring), else a flat one on the walls' `high`."""
     written = [entry for entry in plan.get("roofs") or [] if len(entry.get("points") or []) >= 3]
     if not written:
-        return [("roof_1", [slab_piece(grown(outline), high, high + SLAB)],
+        return [("roof_1", [slab_piece(to_walls(plan, outline), high, high + SLAB)],
                  f"no written roof: flat on the walls' {high:g} m")]
     found = []
     for number, entry in enumerate(written, 1):
-        points, eave = grown(outline_of({"outline": entry["points"]})), float(entry["eave"])
+        points, eave = to_walls(plan, outline_of({"outline": entry["points"]})), float(entry["eave"])
         top = float(entry.get("top") or eave)
         rising = top > eave + 1e-6
         domed, vaulted = entry.get("kind") == "dome", entry.get("kind") == "vault"
@@ -869,7 +935,7 @@ def clear_spot(want, length, half, cuts):
 def pillars(plan, row):
     """[(piece, from)] of an upright row's pillars (its count, else one), spaced evenly round the outline's walls from
     half a space past its first corner, each slid along its wall clear of its corners and openings (clear_spot), its
-    back against the wall's inside face (BACKING out from the plan's line), its section the row's wide along the wall
+    back against the wall's room face (face_reach), its section the row's wide along the wall
     and deep into the room, standing from the floor to the row's tall, never past its wall's top; none for a row of no
     size or a wall with no room left."""
     size = sized(row)
@@ -893,8 +959,9 @@ def pillars(plan, row):
             continue
         along, normal = (end - start) / lengths[index], outward(start, end)
         foot = [start + along * (at - wide / 2), start + along * (at + wide / 2)]
-        points = [foot[0] + normal * BACKING, foot[1] + normal * BACKING, foot[1] + normal * (BACKING - deep),
-                  foot[0] + normal * (BACKING - deep)]
+        face = face_reach(entry, start, end)
+        points = [foot[0] + normal * face, foot[1] + normal * face, foot[1] + normal * (face - deep),
+                  foot[0] + normal * (face - deep)]
         high = min(tall, wall_height(plan, entry, eave))
         found.append((slab_piece(points, -DECK_BELOW, -DECK_BELOW + high),
                       f"inventory row {row['id']}'s pillar {number + 1} of {count}: against wall {index + 1}, "
@@ -915,7 +982,8 @@ def chord(points, across, at):
 
 def beams(plan, row):
     """[(piece, from)] of a spanning row's beams (its count, else one) under the roof: each across the outline's box's
-    shorter side from wall face to wall face (the outline's chord there, BACKING past each end), spaced evenly along
+    shorter side from wall face to wall face (the chord there of the outline grown to its walls' room faces,
+    to_walls), spaced evenly along
     its longer side, its top at the roof's lowest eave (else the walls' height), the row's deep wide and its tall
     deep; none for a row of no size."""
     size = sized(row)
@@ -923,7 +991,7 @@ def beams(plan, row):
         return []
     _, wide, tall = size
     outline = outline_of(plan)
-    corners = np.asarray(outline, float)
+    corners, faces = np.asarray(outline, float), to_walls(plan, outline)
     low, high = corners.min(axis=0), corners.max(axis=0)
     across = 0 if high[0] - low[0] <= high[1] - low[1] else 1
     other, count = 1 - across, int(row.get("count") or 1)
@@ -932,10 +1000,10 @@ def beams(plan, row):
     found = []
     for number in range(count):
         at = float(low[other] + (number + 0.5) * (high[other] - low[other]) / count)
-        span = chord(outline, across, at)
+        span = chord(faces, across, at)
         if span is None:
             continue
-        begin, finish = span[0] - BACKING, span[1] + BACKING
+        begin, finish = span
         corner = [[begin, at - wide / 2], [finish, at - wide / 2], [finish, at + wide / 2], [begin, at + wide / 2]]
         points = [point if across == 0 else point[::-1] for point in corner]
         found.append((slab_piece(points, top - tall, top),

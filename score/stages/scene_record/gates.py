@@ -87,10 +87,11 @@ def opening_faults(record, design):
         if not on:
             continue
         start, end = np.asarray(on[0][0], float), np.asarray(on[0][1], float)
-        thick = float(design_shell.written_wall(design, list(on[0][0]), list(on[0][1])).get("thick") or
-                      design_shell.THICK)
-        normal = design_shell.outward(start, end)
-        middle = np.asarray(opening["at"], float) + normal * (design_shell.BACKING + thick / 2)
+        entry = design_shell.written_wall(design, list(on[0][0]), list(on[0][1]))
+        thick = float(entry.get("thick") or design_shell.THICK)
+        normal, run = design_shell.outward(start, end), (end - start) / np.linalg.norm(end - start)
+        along = start + run * float((np.asarray(opening["at"], float) - start) @ run)  # the opening on the edge's line
+        middle = along + normal * (design_shell.face_reach(entry, start, end) + thick / 2)  # in its built wall
         sill = float(opening.get("sill") or 0.0)
         head = float(opening.get("head") or design_shell.DOOR_HEAD)
         (point,), floor = writer.in_frame(design, [middle], (sill + head) / 2)

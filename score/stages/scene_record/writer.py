@@ -9,7 +9,7 @@ builds it unchanged; it lands as record/<place>.json in the output.
     inside       the plan encloses the place (walls or roofs drawn) on no ground of its own (no terrain spots)
     structure    an inside place's room shell from its plan (earth_seed/design_shell.pieces: each level's deck, the
                  outline's walls with every opening cut, the roofs), stood in the place's frame as builders' `slab`,
-                 `gable`, `dome` and `tube_arc` (a vault) entries BACKING behind the plan's inside line; none where
+                 `gable`, `dome` and `tube_arc` (a vault) entries, each wall on its written line; none where
                  the place's base already lays it (design_shell.laid_for: a room whose plan says its kit holds its walls); and each stair or ramp the
                  plan draws as a flight of steps; an `arch` at each plan item of an arched structure row of the
                  hand-in (design_shell.arched: a tube's ribs), at the row's size, named its row; each entry's surface the scene's surface library's for its kind
@@ -69,8 +69,8 @@ from score.stages.scene_record import plan as place_plan
 import score.stages.shapes_first.floor_fit as floor_fit
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-# The shell's backing: it stands this far behind the plan's inside line, its deck this far under the floor
-# (design_shell's, which lays the same shell in a kit room's base).
+# The shell's backing: a wall the plan does not write stands this far behind its outline's edge, its deck this far
+# under the floor (design_shell's, which lays the same shell in a kit room's base).
 BACKING = design_shell.BACKING
 DECK_BELOW = design_shell.DECK_BELOW
 # A part's surface is the scene's surface library's for its kind (design_shell.PART_KINDS), else none and named

@@ -156,10 +156,19 @@ def volume(triangles):
 
 
 def test_a_room_shell_stands_round_its_plan():
-    """Worked by hand: the deck and the roof each 4.3 x 3.3 x 0.2 m (the room grown 0.15 m to the walls' inside);
-    the walls a ring 0.15 to 0.35 m out (4.7 x 3.7 less 4.3 x 3.3 = 3.2 m2) from the deck's foot (-0.2 m) to 2.5 m,
-    less the door's hole of 1.0 x 0.2 x 2.0 m; the room's middle the place's origin; the deck's top the floor itself
-    (the lab's things all stood 0.042 m over its deck, laid by the retired kits' floor plates, motion@lab round 35).
+    """Worked by hand: the walls each on its written line, 0.1 m either side of the outline (4.2 x 3.2 less 3.8 x 2.8
+    = 2.8 m2) from the deck's foot (-0.2 m) to 2.5 m, less the door's hole of 1.0 x 0.2 x 2.0 m; the deck and the roof
+    each 3.8 x 2.8 x 0.2 m (out to the walls' room faces); the room's middle the place's origin; the deck's top the
+    floor itself (the lab's things all stood 0.042 m over its deck, laid by the retired kits' floor plates, motion@lab
+    round 35). Each wall's room face is its written wall's, where holders lays a wall thing: a plan drawing its walls
+    inside its outline (storage's 0.168 m walls 0.08 m in) has them built there, not 0.15 m behind its outline
+    (2026-11-07: storage's wall lights stood 0.31 m off its built walls, hanging free), a wall 0.75 m in (airlock's
+    room wall along its porch's edge) is not its edge's, and an edge no written wall stands for keeps one 0.15 m
+    behind it.
+    Break: score/stages/earth_seed/design_shell.py: `    if not entry:
+        return BACKING` -> `    if True:
+        return BACKING`
+    Break: score/stages/earth_seed/design_shell.py: `            ON_WALL:` -> `            ON_WALL + 1.0:`
     Break: score/stages/earth_seed/design_shell.py: `        if head < high:` -> `        if False:`
     Break: score/stages/earth_seed/design_shell.py: `DECK_BELOW = 0.0` -> `DECK_BELOW = 0.042`
     Break: score/stages/earth_seed/design_shell.py: `if not rising and holes:` -> `if False:` (the hangar's roof one
@@ -176,30 +185,44 @@ def test_a_room_shell_stands_round_its_plan():
         len(items))` -> `size, count = sized(row), len(items)`"""
     parts = {name: triangles for name, triangles, _ in design_shell.shell(ROOM)}
     assert sorted(parts) == ["deck_1", "roof_1", "wall_1", "wall_2", "wall_3", "wall_4"], sorted(parts)
-    assert abs(volume(parts["deck_1"]) - 4.3 * 3.3 * 0.2) < 1e-6, volume(parts["deck_1"])
-    assert abs(volume(parts["roof_1"]) - 4.3 * 3.3 * 0.2) < 1e-6, volume(parts["roof_1"])
+    assert abs(volume(parts["deck_1"]) - 3.8 * 2.8 * 0.2) < 1e-6, volume(parts["deck_1"])
+    assert abs(volume(parts["roof_1"]) - 3.8 * 2.8 * 0.2) < 1e-6, volume(parts["roof_1"])
     walls = sum(volume(parts[f"wall_{number}"]) for number in range(1, 5))
-    assert abs(walls - ((4.7 * 3.7 - 4.3 * 3.3) * (2.5 + 0.2) - 1.0 * 0.2 * 2.0)) < 1e-6, walls
+    assert abs(walls - ((4.2 * 3.2 - 3.8 * 2.8) * (2.5 + 0.2) - 1.0 * 0.2 * 2.0)) < 1e-6, walls
+    # the plan's walls drawn on lines 0.1 m inside its outline (its outer faces), as plan writing draws them: built
+    # from the outline to 0.2 m in, the deck up to their room faces (3.6 x 2.6 m)
+    inset = [[0.1, 0.1], [3.9, 0.1], [3.9, 2.9], [0.1, 2.9]]
+    drawn = dict(ROOM, walls=[{"from": one, "to": two, "thick": 0.2, "tall": 2.5}
+                              for one, two in zip(inset, inset[1:] + inset[:1])])
+    inside = {name: triangles for name, triangles, _ in design_shell.shell(drawn)}
+    faces = numpy.asarray([corner for number in range(1, 5) for triangle in inside[f"wall_{number}"]
+                           for corner in triangle], float)[:, [0, 2]]
+    assert numpy.allclose([faces.min(axis=0), faces.max(axis=0)], [[0.0, 0.0], [4.0, 3.0]]), faces
+    assert abs(volume(inside["deck_1"]) - 3.6 * 2.6 * 0.2) < 1e-6, volume(inside["deck_1"])
+    # a written wall 0.75 m in along one edge is another part's: that edge's wall stands 0.15 m behind it
+    far = dict(ROOM, walls=[{"from": [0.0, 0.75], "to": [4.0, 0.75], "thick": 0.1, "tall": 2.5}])
+    assert design_shell.written_wall(far, BOX[0], BOX[1]) == {} and \
+        design_shell.face_reach({}, BOX[0], BOX[1]) == design_shell.BACKING
     north = numpy.asarray(parts["wall_1"], float).mean(axis=1)  # [x, up, y] of each face's middle
     in_door = (north[:, 0] > 1.5 + 1e-6) & (north[:, 0] < 2.5 - 1e-6) & \
         (north[:, 1] > 1e-6) & (north[:, 1] < 2.0 - 1e-6)
     assert not in_door.any(), north[in_door]
     points = numpy.vstack([design_shell.placed(triangles, ROOM) for triangles in parts.values()])
-    assert numpy.allclose(points.min(axis=0), [-2.35, -0.2, -1.85]) and \
-        numpy.allclose(points.max(axis=0), [2.35, 2.7, 1.85]), (points.min(axis=0), points.max(axis=0))
+    assert numpy.allclose(points.min(axis=0), [-2.1, -0.2, -1.6]) and \
+        numpy.allclose(points.max(axis=0), [2.1, 2.7, 1.6]), (points.min(axis=0), points.max(axis=0))
     assert abs(numpy.asarray(parts["deck_1"], float)[..., 1].max()) < 1e-9, "the deck's top is the floor"
     from score.stages.scene_record import writer
     assert (design_shell.BACKING, design_shell.DECK_BELOW) == (writer.BACKING, writer.DECK_BELOW)
     assert design_shell.footprint(ROOM) == [[-2.0, -1.5], [2.0, 1.5]]
-    # a pitched roof rising 1 m: a closed gable over the 4.3 x 3.3 m grown box, half its box's volume
+    # a pitched roof rising 1 m: a closed gable over the 3.8 x 2.8 m box to the walls, half its box's volume
     pitched = {name: triangles for name, triangles, _ in design_shell.shell(
         dict(ROOM, roofs=[{"kind": "pitched", "points": BOX, "eave": 2.5, "top": 3.5}]))}
-    assert abs(volume(pitched["roof_1"]) - 4.3 * 3.3 * 1.0 / 2) < 1e-6, volume(pitched["roof_1"])
+    assert abs(volume(pitched["roof_1"]) - 3.8 * 2.8 * 1.0 / 2) < 1e-6, volume(pitched["roof_1"])
     # a flat roof with a 2 x 1 m opening (the hangar's roof door): the slab round it, open over it
     hatch = [[1.0, 1.0], [3.0, 1.0], [3.0, 2.0], [1.0, 2.0]]
     opened = {name: triangles for name, triangles, _ in design_shell.shell(
         dict(ROOM, roofs=[{"kind": "flat", "points": BOX, "eave": 2.5, "top": 2.5, "openings": [{"points": hatch}]}]))}
-    assert abs(volume(opened["roof_1"]) - (4.3 * 3.3 - 2.0) * 0.2) < 1e-6, volume(opened["roof_1"])
+    assert abs(volume(opened["roof_1"]) - (3.8 * 2.8 - 2.0) * 0.2) < 1e-6, volume(opened["roof_1"])
     over = numpy.asarray(opened["roof_1"], float).mean(axis=1)
     assert not ((over[:, 0] > 1.0 + 1e-6) & (over[:, 0] < 3.0 - 1e-6) & (over[:, 2] > 1.0 + 1e-6)
                 & (over[:, 2] < 2.0 - 1e-6)).any(), "the roof is closed over its opening"
@@ -207,10 +230,10 @@ def test_a_room_shell_stands_round_its_plan():
     down = dict(ROOM, stairs=[{"kind": "stair", "points": [[1.0, 1.0], [2.0, 1.0], [2.0, 2.0], [1.0, 2.0]],
                                "from": 0.0, "to": -1.0, "steps": 5}])
     hatched = {name: triangles for name, triangles, _ in design_shell.shell(down)}
-    assert abs(volume(hatched["deck_1"]) - (4.3 * 3.3 - 1.0) * 0.2) < 1e-6, volume(hatched["deck_1"])
+    assert abs(volume(hatched["deck_1"]) - (3.8 * 2.8 - 1.0) * 0.2) < 1e-6, volume(hatched["deck_1"])
     # the shell's own rows (the hangar's pillars, pad and grates, the garage's beams, 2026-11-05): 4 pillars 0.4 x 0.3 m
     # spaced 3.5 m round the 14 m outline from 1.75 m, the first slid off the door (cut 1.5 to 2.5 m) to end 0.2 m
-    # before it, its back on the north wall's inside face at y -0.15, 2.5 m high (its 3 m capped at the wall's top);
+    # before it, its back on the north wall's room face at y 0.1, 2.5 m high (its 3 m capped at the wall's top);
     # 2 beams 0.2 x 0.3 m across the 3 m side at x 1 and 3, wall face to wall face, under the 2.5 m eave; a grate row
     # of 2 on one 2 x 1 m item split along it, 0.02 m thick.
     rows = [{"id": "wall_pillars", "part": "structure", "name": "wall pillars", "size": [0.4, 0.3, 3.0], "count": 4},
@@ -224,12 +247,12 @@ def test_a_room_shell_stands_round_its_plan():
     assert sorted(built) == ["ceiling_beam_1", "ceiling_beam_2", "floor_grates_1", "floor_grates_2", "wall_pillars_1",
                              "wall_pillars_2", "wall_pillars_3", "wall_pillars_4"], sorted(built)
     pillar = built["wall_pillars_1"][1]
-    assert numpy.allclose(pillar["points"], [[1.1, -0.15], [1.5, -0.15], [1.5, 0.15], [1.1, 0.15]]) and \
+    assert numpy.allclose(pillar["points"], [[1.1, 0.1], [1.5, 0.1], [1.5, 0.4], [1.1, 0.4]]) and \
         (pillar["low"], pillar["high"]) == (0.0, 2.5) and built["wall_pillars_1"][2] == "wall", pillar
     beam = built["ceiling_beam_1"][1]
-    assert numpy.allclose(beam["points"], [[0.9, -0.15], [0.9, 3.15], [1.1, 3.15], [1.1, -0.15]]) and \
+    assert numpy.allclose(beam["points"], [[0.9, 0.1], [0.9, 2.9], [1.1, 2.9], [1.1, 0.1]]) and \
         numpy.allclose([beam["low"], beam["high"]], [2.2, 2.5]), beam
-    assert numpy.allclose(built["ceiling_beam_2"][1]["points"][0], [2.9, -0.15]), built["ceiling_beam_2"]
+    assert numpy.allclose(built["ceiling_beam_2"][1]["points"][0], [2.9, 0.1]), built["ceiling_beam_2"]
     grates = [built[f"floor_grates_{number}"][1] for number in (1, 2)]
     assert [numpy.asarray(grate["points"])[:, 0].tolist() for grate in grates] == [[1.0, 2.0, 2.0, 1.0],
                                                                                 [2.0, 3.0, 3.0, 2.0]] and \
@@ -285,13 +308,14 @@ def test_a_door_in_a_round_wall_s_gap_has_its_wall_built_round_it():
 def test_a_dome_roof_stands_as_a_dome():
     """Batch 1 of 2026-10-27: the greenhouse's glass dome stood as a gable along its box's longer side, so over its
     3 m walk two of the five astronauts its concept stands there ran into the roof and the cast left them out. A dome
-    is a sphere's cap over the circle round the grown box's middle (2.15 x 1.65 m to a corner, so 2.7102 m), rising
+    is a sphere's cap over the circle round the grown box's middle (its walls unwritten, so 0.15 m out: 2.15 x 1.65 m to
+    a corner, so 2.7102 m), rising
     from its eave to its top, as tools/usd/builders' `dome` draws it from the scene record's entry.
     Break: score/stages/earth_seed/design_shell.py: `domed = entry.get("kind") == "dome"` -> `domed = False`"""
     sys.path.insert(0, str(REPO / "tools" / "usd"))
     import builders
     from score.stages.scene_record import writer
-    domed = dict(ROOM, roofs=[{"kind": "dome", "points": BOX, "eave": 2.5, "top": 4.0}])
+    domed = dict(ROOM, walls=[], roofs=[{"kind": "dome", "points": BOX, "eave": 2.5, "top": 4.0}])  # walls unwritten
     name, (piece,), said = design_shell.roofs(domed, design_shell.outline_of(domed), 2.5)[0]
     assert piece["builder"] == "dome" and "a dome" in said, (piece, said)
     assert numpy.allclose(piece["centre"], [2.0, 1.5]) and abs(piece["radius"] - (2.15 ** 2 + 1.65 ** 2) ** 0.5) < 1e-9
@@ -317,7 +341,7 @@ def test_a_vault_roof_stands_as_an_arc():
     import scene
     from score.stages.scene_record import writer
     for box, across in ((BOX, 2), ([[y, x] for x, y in BOX], 0)):
-        vaulted = dict(ROOM, outline=box, roofs=[{"kind": "vault", "points": box, "eave": 0.0, "top": 2.0}])
+        vaulted = dict(ROOM, outline=box, walls=[], roofs=[{"kind": "vault", "points": box, "eave": 0.0, "top": 2.0}])
         name, (piece,), said = design_shell.roofs(vaulted, design_shell.outline_of(vaulted), 0.0)[0]
         assert piece["builder"] == "vault" and "arc" in said, (piece, said)
         roof = numpy.asarray({part: tris for part, tris, _ in design_shell.shell(vaulted)}["roof_1"]).reshape(-1, 3)
@@ -347,7 +371,7 @@ def test_a_square_vault_runs_between_its_doorways():
     square = [[0.0, 0.0], [4.0, 0.0], [4.0, 4.0], [0.0, 4.0]]
     doors = {"north and south": [[2.0, 0.0], [2.0, 4.0]], "west and east": [[0.0, 2.0], [4.0, 2.0]]}
     for (ends, (one, two)), lengthwise, crown_at in zip(doors.items(), (False, True), ([2.0, 0.3], [0.3, 2.0])):
-        vaulted = dict(ROOM, w=4.0, d=4.0, outline=square,
+        vaulted = dict(ROOM, w=4.0, d=4.0, outline=square, walls=[],
                        openings=[{"kind": "door", "at": at, "wide": 1.0, "sill": 0.0, "head": 2.0, "to": "hangar"}
                                  for at in (one, two)],
                        roofs=[{"kind": "vault", "points": square, "eave": 0.0, "top": 2.0}])
