@@ -55,6 +55,31 @@ sys.path.insert(0, str(HERE))
 import this_pc  # noqa: E402
 
 
+STAND_INS = {
+    # this PC's card as nvidia-smi answers a memory query: MiB used, MiB of its 16 GB
+    "nvidia-smi": "print('1834, 16376')",
+    # a docker whose daemon is not up: the container is said not running (a test that asks more stands in `asked`)
+    "docker": "import sys; sys.exit('Cannot connect to the Docker daemon')",
+    # a key pair at -f's path, as ssh-keygen writes it (the real one exits 255 for a uid with no passwd entry)
+    "ssh-keygen": ("import pathlib, sys; key = pathlib.Path(sys.argv[sys.argv.index('-f') + 1]); "
+                   "key.write_text('stand-in private key\\n'); key.chmod(0o600); "
+                   "key.with_name(key.name + '.pub').write_text('ssh-ed25519 AAAA score-this-pc\\n')"),
+}
+
+
+@pytest.fixture(autouse=True)
+def tools_on_path(tmp_path, monkeypatch):
+    """nvidia-smi, docker and ssh-keygen as stand-ins first on PATH, so the checks run the same on a box without the card or
+    with a uid ssh-keygen refuses (the cluster gate's)."""
+    stand_ins = tmp_path / "stand-in-bin"
+    stand_ins.mkdir()
+    for name, body in STAND_INS.items():
+        (stand_ins / name).write_text(f"#!{sys.executable}\n{body}\n")
+        (stand_ins / name).chmod(0o755)
+    monkeypatch.setenv("PATH", f"{stand_ins}{os.pathsep}{os.environ['PATH']}")
+    return stand_ins
+
+
 def door(conductor, verb):
     """The door's command for `verb` against the folder `conductor`, as sshd would run it."""
     return ["env", f"SSH_ORIGINAL_COMMAND={verb}", f"PROPS_HOME={conductor}", "SCORE_DOOR_ENV=/nonexistent",
