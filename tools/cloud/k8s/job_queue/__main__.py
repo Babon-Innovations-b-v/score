@@ -245,7 +245,7 @@ class Queue:
                                          self.classes_of(job["chain"], listed, now), job["cards"], self.tolerations))
             room = admission.less(room, demand)
         if made:
-            self.kubectl.apply(made)
+            self.kubectl.apply([workers.configmap(), *made])  # the loop they mount comes in the same apply
         return made
 
     # Money.

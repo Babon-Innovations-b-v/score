@@ -13,8 +13,11 @@ it yet (S6 sends `cluster_jobs.run` through it, S8 the runner's pod makes), so w
   kind, image, commit) and band (or the next larger), the same place's worker first; room is the quota's less this
   tick's creations and this box's share (`SCORE_K8S_SHARES`, as `gpu=24,cpu=400`).
 - `workers.py`: the worker Job (labels `score.dev/box`, `run=queue-<box>`, `image`, `band`, `worker`, `code`),
-  what a listing says of each worker, and the drives' `expected/<pid>.json`. The loop inside the pod is S5's
-  `worker.py` and its ConfigMap.
+  what a listing says of each worker, the drives' `expected/<pid>.json`, and the ConfigMap that mounts the loop
+  (`score-worker-<sha12 of worker.py>`, applied with the workers it serves).
+- `worker.py` is the loop inside a worker's pod (standard library only at its top, since it is mounted alone):
+  `score-job <run> <job>` once an assignment, its beat before, during and after each job, ended by go or after
+  `IDLE_EXIT_SECONDS` with nothing assigned. It owns the store keys (`assignment_key`, `beat_key`).
 
 ## Rules
 
