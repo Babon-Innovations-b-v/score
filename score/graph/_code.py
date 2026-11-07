@@ -31,7 +31,7 @@ FRAMEWORK = {REPO / name for name in ("score/__main__.py", "score/graph/__init__
                                       "tools/cloud/batch.py",
                                       "tools/cloud/capacity.py", "tools/cloud/park.py",
                                       "tools/cloud/pool.py", "tools/cloud/spread.py",
-                                      "tools/cloud/provider.py", "tools/cloud/backends",
+                                      "tools/cloud/provider.py", "tools/cloud/backends", "tools/cloud/k8s",
                                       "tools/cloud/preflight.py", "tools/cloud/kept.py",
                                       "tools/cloud/self_delete.py", "tools/cloud/secret_store.py",
                                       "tools/cloud/conductor/claude_login.py",
