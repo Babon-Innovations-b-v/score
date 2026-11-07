@@ -3265,7 +3265,10 @@ def test_a_run_stopped_by_sigterm_ends_with_its_exit_line(run_registry):
                                    runner.line_nodes(["hangar"], False))
     process = graph.FORK.Process(target=driving)
     process.start()
-    time.sleep(1)
+    deadline = time.monotonic() + 30  # stopped mid-drive: once registered and its node started, never at a guess
+    while time.monotonic() < deadline and not (list(run_registry.glob("*.json")) and any(
+            parent == process.pid for parent, _ in graph.process_table().values())):
+        time.sleep(0.05)
     os.kill(process.pid, signal.SIGTERM)
     process.join(30)
     lines = said.read_text().splitlines()
