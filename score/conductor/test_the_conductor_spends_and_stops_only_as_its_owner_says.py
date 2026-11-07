@@ -17,7 +17,8 @@ with no run live, and the sweep frees room itself, asking the owner only for a b
 Break that turns it red: in size.decide grow while a run is live (drop the claims/running wait); in kill.stop_everything
 release the parked machines before closing the pools, or drop its `stop_cluster` call (score's cluster Jobs left
 running); or in logs drop the secret-shape test (an AIza key reaches the
-tails); or in disk.kept drop the registered-run test (a waiting run's copy is removed).
+tails); or in disk.kept drop the registered-run test (a waiting run's copy is removed); or in disk.said_by drop the
+ProcessLookupError catch (a process ending mid-read crashes store-evict).
 """
 import datetime
 import io
@@ -588,6 +589,18 @@ def test_disk_names_the_biggest_folders_in_one_line_and_a_file(tmp_path, monkeyp
     _, biggest = disk.report(home, home / "conductor" / "disk.json")
     assert any(line.endswith(f"  {deep}") for line in biggest[biggest.index(next(
         line for line in biggest if line.startswith("inside "))):]), biggest  # three levels inside store/cache
+
+    class Gone:  # a process that ended between the /proc listing and its read
+        name = "4242"
+
+        def __truediv__(self, part):
+            return self
+
+        def read_bytes(self):
+            raise ProcessLookupError(3, "No such process")
+
+    with pytest.raises(FileNotFoundError):  # read as ended, so working() skips it (store-evict crashed, 2026-11-07)
+        disk.said_by(Gone())
 
 
 def test_disk_accounts_for_the_whole_data_disk(tmp_path, monkeypatch):
