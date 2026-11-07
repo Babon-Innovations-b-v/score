@@ -44,8 +44,6 @@ break that turns each red (applied once, seen red, reverted):
   of {kind}")`.
 - test_a_sweep_leaves_a_parked_machine_alone_until_its_time: in batch.py `run_tags`, `f"deadline={deadline:.0f}"` ->
   `"deadline=0"`.
-- test_a_cloud_tool_ending_on_a_job_too_big_for_this_pcs_card_says_so_by_its_exit_code: in `ended_cloud_only`,
-  `os._exit(batch.compute.CLOUD_ONLY_EXIT)` -> `pass`.
 - test_a_run_at_its_cap_leaves_another_runs_parked_machine_listed: in `adopt`, `if not
   capacity.reserve_run_slot(len(live_of(run))):` -> `if False:`.
 - test_each_kinds_clean_up_removes_its_runs_files_and_keeps_its_set_up: `CLEANUPS["pixal"]`'s `rm -rf in out queue
@@ -55,7 +53,9 @@ break that turns each red (applied once, seen red, reverted):
   "take"): return here(...)` -> the claim asks a clearance and finds nothing parked; or in `park`, drop `if
   machine.get("here"): return False` -> the PC's machine is listed as parked; or in `here`, `f"{own_set_up(kind)};
   {cleanup_of(machine)}"` -> `own_set_up(kind)` (a last claim's `closed` ends the next worker at once); or in `park`,
-  drop the `ends_with(...)` call -> the claim's files stay in the container (2026-11-03: 476 GB in their layers).
+  drop the `ends_with(...)` call -> the claim's files stay in the container (2026-11-03: 476 GB in their layers); or in
+  `ended_cloud_only`, `os._exit(batch.compute.CLOUD_ONLY_EXIT)` -> `pass` (a tool ending on a job too big for this
+  PC's card ends as 1, not CLOUD_ONLY_EXIT).
 - test_each_kind_on_this_pcs_card_keeps_its_own_set_up: in `own_set_up`, drop `if [ -e {KINDS}/{kind}/venv ]; then mv
   {KINDS}/{kind}/venv venv; fi && ` (a kind's venv never comes back); or `ALL_MARKS` -> `"rm -f /root/.*-setup-*"`
   (moss' set-up wipes the other kinds' marks there).
@@ -89,6 +89,7 @@ CARD_PRICE = 0.8 / 60  # euros a minute of a card, billed by the minute
 OFFERS = [provider.Offer(HOUR_PRICE, 0, "cpu-type", "zone-a", HOUR_PRICE, "cpu-32c-128gb", 0, "available")]
 CARD_OFFERS = [provider.Offer(CARD_PRICE, 1, "card-type", "zone-a", CARD_PRICE, "gpu-24gb", 0, "available")]
 CLEAN = "rm -rf /root/lib/out"
+POPEN = subprocess.Popen  # the real one, for a test that runs a tool's process under `calls`
 
 
 class Calls:
@@ -471,7 +472,7 @@ def test_a_pixal_fleet_takes_a_parked_card_before_it_orders_one(calls, monkeypat
     assert tended == ["c-pixal"]
 
 
-def test_this_pcs_card_is_taken_free_one_claim_at_a_time_and_never_parked(calls, monkeypatch):
+def test_this_pcs_card_is_taken_free_one_claim_at_a_time_and_never_parked(calls, monkeypatch, tmp_path):
     held = []
 
     def take(kind, public_key, need=None):
@@ -501,6 +502,19 @@ def test_this_pcs_card_is_taken_free_one_claim_at_a_time_and_never_parked(calls,
     assert calls.deleted == ["score-this-pc:1"] and not list(park.PARKED.glob("*.json"))
     assert ended == [("score-this-pc:1", CLEAN)]  # its run's files go from the container at its end
     assert ledger.machine_row({**taken, "deleted": taken["adopted"] + 600})["euros"] == 0.0
+    # a cloud tool ending on a job too big for this PC's card says so by its exit code (2026-11-02, round 45: `here`
+    # refused meshparts' 24 GB inside the tool's own process and the row saw only a CalledProcessError); one that ends
+    # on anything else ends as Python ends it
+    monkeypatch.setattr(subprocess, "Popen", POPEN)  # a real process, not `calls`' recorded expirer
+    for raised, code in (("park.batch.compute.CloudOnly('a meshparts job needs about 24 GB of card')",
+                          batch.compute.CLOUD_ONLY_EXIT), ("ValueError('not a card')", 1)):
+        program = (f"import atexit, sys\nsys.path.insert(0, {str(pathlib.Path(__file__).resolve().parent)!r})\n"
+                   "import park\natexit.register(lambda: print('exit handlers ran', flush=True))\n"
+                   f"raise {raised}\n")
+        finished = subprocess.run([sys.executable, "-c", program], capture_output=True, text=True, cwd=tmp_path)
+        assert finished.returncode == code, (finished.returncode, finished.stderr[-2000:])
+        named = raised.split("(")[0].split(".")[-1]
+        assert "exit handlers ran" in finished.stdout and named in finished.stderr, finished
 
 
 def test_a_claim_waiting_in_this_pcs_card_queue_keeps_its_minutes(calls, monkeypatch):
@@ -570,18 +584,3 @@ def test_each_kind_on_this_pcs_card_keeps_its_own_set_up(tmp_path):
     (rented / ".pixal-setup-aaaa").touch()
     on_the_machine(park.CLEANUPS["moss-sound"]({}), rented)  # a rented card's kinds share /root/venv: every mark goes
     assert not list(rented.iterdir())
-
-
-def test_a_cloud_tool_ending_on_a_job_too_big_for_this_pcs_card_says_so_by_its_exit_code(tmp_path):
-    """2026-11-02, round 45: `here` refused meshparts' 24 GB inside the cloud tool's own process and the row saw only
-    a CalledProcessError. A tool's process that ends on a compute.CloudOnly runs its exit handlers and ends with
-    compute.CLOUD_ONLY_EXIT; one that ends on anything else ends as Python ends it."""
-    import subprocess
-    for raised, code in (("park.batch.compute.CloudOnly('a meshparts job needs about 24 GB of card')",
-                          batch.compute.CLOUD_ONLY_EXIT), ("ValueError('not a card')", 1)):
-        program = (f"import atexit, sys\nsys.path.insert(0, {str(pathlib.Path(__file__).resolve().parent)!r})\n"
-                   "import park\natexit.register(lambda: print('exit handlers ran', flush=True))\n"
-                   f"raise {raised}\n")
-        ended = subprocess.run([sys.executable, "-c", program], capture_output=True, text=True, cwd=tmp_path)
-        assert ended.returncode == code, (ended.returncode, ended.stderr[-2000:])
-        assert "exit handlers ran" in ended.stdout and raised.split("(")[0].split(".")[-1] in ended.stderr, ended

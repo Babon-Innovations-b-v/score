@@ -771,6 +771,10 @@ def test_the_owners_stop_command_writes_the_line_the_next_clearance_reads():
 
 
 def test_spend_counts_from_the_worlds_start_across_months():
+    """Spend counts from the world's start across months, and a month's book that fell since the baseline counts 0.
+    2026-11-02: credits given back on October's Google bill after the batch's baseline made its Google growth
+    EUR -838.93, Batch 1 read EUR -635.25 spent and the guard's room grew past its budget. A month's book that fell
+    since the baseline counts 0, never less; one that grew counts its growth, as before."""
     later = {"bill": 30.0, "ledger": 25.0, "google": 2.0}
     months = {"2026-10": {"bill": None, "ledger": 300.0, "google": 5.0}, "2026-11": later}
     start = {"month": "2026-10", "bill": 120.0, "ledger": 100.0, "google": 1.0}
@@ -778,11 +782,7 @@ def test_spend_counts_from_the_worlds_start_across_months():
     # its parts, which the cockpit names: the bill over the ledger is cloud less ledger
     assert guard.spent_parts(start, months) == {"cloud": 230.0, "ledger": 225.0, "google": 6.0}
 
-
-def test_credits_given_back_never_count_as_negative_spend():
-    """2026-11-02: credits given back on October's Google bill after the batch's baseline made its Google growth
-    EUR -838.93, Batch 1 read EUR -635.25 spent and the guard's room grew past its budget. A month's book that fell
-    since the baseline counts 0, never less; one that grew counts its growth, as before."""
+    # credits given back never count as negative spend
     start = {"month": "2026-10", "bill": 120.0, "ledger": 100.0, "google": 900.0}
     months = {"2026-10": {"bill": 150.0, "ledger": 140.0, "google": 61.07}, "2026-11": {"bill": 10.0, "ledger": 8.0,
                                                                                        "google": 3.5}}
