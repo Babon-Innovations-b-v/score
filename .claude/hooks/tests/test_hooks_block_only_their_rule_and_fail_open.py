@@ -31,11 +31,10 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_issue_guard_lets_complete_issues_and_ordinary_git_pass: `_is_gh_issue_create` returns `"create" in` the
   joined tokens (a substring match, not adjacent tokens).
 - test_issue_guard_wants_an_area_once_the_project_has_areas: `_areas` returns [] at once.
-- test_issue_guard_refuses_a_second_root_for_a_subject_with_an_open_one: `_open_roots` returns [] at once.
-- test_issue_guard_holds_the_projects_body_rules: `_check_dead_paths` returns at once.
-- test_issue_guard_refuses_a_second_issue_for_open_work: `_check_duplicate` returns at once.
-- test_issue_guard_caps_each_issue_types_body: `_check_size` returns at once; or `_check_edit_size`
-  returns at once (an edit then grows an over-cap body unchecked).
+- test_issue_guard_refuses_a_second_root_or_issue_for_open_work: `_open_roots` returns [] at once; or
+  `_check_duplicate` returns at once.
+- test_issue_guard_holds_the_projects_body_rules: `_check_dead_paths` returns at once; or `_check_size` returns at
+  once; or `_check_edit_size` returns at once (an edit then grows an over-cap body unchecked).
 - test_md_guard_blocks_a_new_md_without_a_yes: the `tee` pattern taken out of `_SHELL_TARGETS`.
 - test_md_guard_allows_the_standing_exceptions: `_approved` returns an empty set at once; or
   `_user_asked_for_markdown` returns False at once (the user's yes is never heard).
@@ -427,8 +426,9 @@ def test_issue_guard_wants_an_area_once_the_project_has_areas(tmp_path):
     assert run(guard, bash(FULL_ISSUE + " --label team:dev"))[0] == ALLOW
 
 
-def test_issue_guard_refuses_a_second_root_for_a_subject_with_an_open_one(tmp_path):
-    """An open root's subject is its own title's words and its children's; a standing backlog PRD is never one."""
+def test_issue_guard_refuses_a_second_root_or_issue_for_open_work(tmp_path):
+    """An open root's subject is its own title's words and its children's; a standing backlog PRD is never one; a new
+    sub-issue sharing three subject words with an open one is refused unless its Duplicate check names it."""
     roots = tmp_path / "roots.json"
     roots.write_text(json.dumps([
         {"number": 7, "title": "Render farm queue", "parent": None, "labels": ["PRD"]},
@@ -443,9 +443,27 @@ def test_issue_guard_refuses_a_second_root_for_a_subject_with_an_open_one(tmp_pa
                env=env)[0] == ALLOW
     assert run(guard, bash(prd.format(title="Shader library", check="none")), env=env)[0] == ALLOW
 
+    # A new sub-issue whose title shares three subject words with an open one is refused, unless named.
+    guard = issue_guard_copy(tmp_path / "work", [])
+    open_issues = tmp_path / "open.json"
+    open_issues.write_text(json.dumps([
+        {"number": 41, "title": "Rename the wire field treatment_path to label", "labels": ["bug"], "parent": None},
+        {"number": 40, "title": "Rename everything", "labels": ["PRD"], "parent": None}]))
+    env = {**os.environ, "ISSUE_GUARD_ROOTS": str(open_issues)}
+
+    def create(title, body="x"):
+        return run(guard, {"tool_name": "mcp__github__create_issue", "tool_input": {
+            "title": title, "labels": ["bug"], "assignees": ["someone"], "body": body}}, env=env)
+
+    code, said, _ = create("Rename wire field treatment_path everywhere")
+    assert code == BLOCK and "#41" in said, said
+    assert create("Rename wire field treatment_path everywhere", "## Duplicate check\n#41 is the API half.")[0] == ALLOW
+    assert create("Fix the hero image on mobile")[0] == ALLOW
+
 
 def test_issue_guard_holds_the_projects_body_rules(tmp_path):
-    """Cited paths under a listed prefix must exist; an area with a required first line must carry it."""
+    """Cited paths under a listed prefix must exist; an area with a required first line must carry it; each issue type's
+    body and a comment keep under their cap."""
     guard = issue_guard_copy(tmp_path, ["sales", "dev"], cited_paths_must_exist=["business/"],
                              area_first_line={"sales": {"label": "Business case", "example": "**Business case:** x"}})
     (tmp_path / "business").mkdir()
@@ -458,13 +476,10 @@ def test_issue_guard_holds_the_projects_body_rules(tmp_path):
     assert code == BLOCK and "**Business case:**" in said, said
     assert run(guard, bash(issue.format(area="sales", body="**Business case:** x\nSell it.")))[0] == ALLOW
 
-
-
-def test_issue_guard_caps_each_issue_types_body(tmp_path):
-    """A sub-issue, a PRD and a vision PRD each have a maximum body, a comment has its own; an edit may shrink an
-    over-cap body but never grow it, and a first `<!-- Budget: -->` line lifts the cap."""
+    # A sub-issue, a PRD and a vision PRD each have a maximum body, a comment has its own; an edit may shrink an
+    # over-cap body but never grow it, and a first `<!-- Budget: -->` line lifts the cap.
     caps = {"sub_issue": 300, "prd": 600, "vision_prd": 1000, "comment": 250}
-    guard = issue_guard_copy(tmp_path, [], issue_body_caps=caps)
+    guard = issue_guard_copy(tmp_path / "caps", [], issue_body_caps=caps)
 
     def create(labels, body):
         return run(guard, {"tool_name": "mcp__github__create_issue", "tool_input": {
@@ -495,25 +510,6 @@ def test_issue_guard_caps_each_issue_types_body(tmp_path):
     shrunk = {**edit, "tool_input": {**edit["tool_input"], "body": current["body"][:-50]}}
     assert run(guard, grown, env=env)[0] == BLOCK
     assert run(guard, shrunk, env=env)[0] == ALLOW
-
-
-def test_issue_guard_refuses_a_second_issue_for_open_work(tmp_path):
-    """A new sub-issue whose title shares three subject words with an open one is refused, unless named."""
-    guard = issue_guard_copy(tmp_path, [])
-    open_issues = tmp_path / "open.json"
-    open_issues.write_text(json.dumps([
-        {"number": 41, "title": "Rename the wire field treatment_path to label", "labels": ["bug"], "parent": None},
-        {"number": 40, "title": "Rename everything", "labels": ["PRD"], "parent": None}]))
-    env = {**os.environ, "ISSUE_GUARD_ROOTS": str(open_issues)}
-
-    def create(title, body="x"):
-        return run(guard, {"tool_name": "mcp__github__create_issue", "tool_input": {
-            "title": title, "labels": ["bug"], "assignees": ["someone"], "body": body}}, env=env)
-
-    code, said, _ = create("Rename wire field treatment_path everywhere")
-    assert code == BLOCK and "#41" in said, said
-    assert create("Rename wire field treatment_path everywhere", "## Duplicate check\n#41 is the API half.")[0] == ALLOW
-    assert create("Fix the hero image on mobile")[0] == ALLOW
 
 # md_guard: a new .md inside the repo needs the user's yes.
 
