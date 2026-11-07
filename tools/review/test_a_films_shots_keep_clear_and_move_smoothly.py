@@ -31,6 +31,7 @@ Each test's break (applied once, seen red, reverted), in tools/review/demo.py, b
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python tools/review/test_a_films_shots_keep_clear_and_move_smoothly.py
 """
+import copy
 import json
 import pathlib
 import sys
@@ -61,11 +62,58 @@ def rooms():
     return WORLD[0]
 
 
-def two_shot_film(stage, scenes):
-    """A film of two cameras in the left room: (moves, shots) as film_shots plans them."""
-    record = {"views": [camera("a", [-3, 1.6, 2], [-3, 1.2, -2]), camera("b", [-1, 1.6, 0], [-3, 1.2, 0])],
-              "inside": True, "floor": [[-4.0, -3.0], [4.0, 3.0]]}
-    return demo.film_shots(record, stage, scenes, demo.shot_cameras(record), {})
+FLOOR = [[-4.0, -3.0], [4.0, 3.0]]
+TWO_CAMERAS = {"views": [camera("a", [-3, 1.6, 2], [-3, 1.2, -2]), camera("b", [-1, 1.6, 0], [-3, 1.2, 0])],
+               "inside": True, "floor": FLOOR}
+THROUGH_THE_WALL = camera("through-the-wall", [-3.0, 1.6, 2.0], [3.0, 1.2, 2.0])
+BY_THE_WALL = camera("by-the-wall", [-3.9, 1.6, 2.0], [-3.9, 1.2, -2.0])
+IN_THE_CRATE = camera("in-the-crate", [-2.0, 0.5, 0.0], [-1.0, 0.5, 0.0])  # the 1 m crate at x = -2, its middle
+PLANNED = {}  # the file's slow plans (RRT* walks, seconds each), made once, side by side
+
+
+def plan(name):
+    """One of the file's slow plans, by name, on the rooms: the two-camera film (film_shots) with an earlier take of
+    it, or one camera's move."""
+    stage, scenes = rooms()
+    if name == "two-shot film":
+        film = demo.film_shots(TWO_CAMERAS, stage, scenes, demo.shot_cameras(TWO_CAMERAS), {})
+        return {"film": film, **earlier_take(stage, scenes, *film)}
+    view, room = {"through the wall": (THROUGH_THE_WALL, FLOOR), "by the wall": (BY_THE_WALL, FLOOR),
+                  "in the crate": (IN_THE_CRATE, None)}[name]
+    return demo.shot_move(scenes, view, room, seed=0)
+
+
+def planned(name):
+    """`name`'s plan (plan): every one made once, each in a forked process of its own on the rooms made before the
+    fork, two at a time (the gate's two CPUs; one after another they took most of this file's 60 s budget); each
+    caller gets its own copy."""
+    if not PLANNED:
+        import concurrent.futures
+        import multiprocessing
+        rooms()
+        names = ("two-shot film", "through the wall", "by the wall", "in the crate")
+        with concurrent.futures.ProcessPoolExecutor(2, mp_context=multiprocessing.get_context("fork")) as pool:
+            PLANNED.update(zip(names, pool.map(plan, names)))
+    return copy.deepcopy(PLANNED[name])
+
+
+def earlier_take(stage, scenes, moves, shots):
+    """The two-camera film planned again with an earlier take of it whose second shot comes too near a wall: the
+    take's folder, the shots kept of it (kept_shots) and the film planned with them."""
+    with tempfile.TemporaryDirectory() as temporary:
+        keep = pathlib.Path(temporary)
+        (keep / "views").mkdir()
+        views = [view for shot, _ in shots for view in shot]
+        near = [dict(view, eye=[-3.9, 1.6, 2.0]) if demo.shot_of(view) == "shot1" else view for view in views]
+        (keep / "views" / "rooms.json").write_text(json.dumps({"views": near, "moves": moves}))
+        kept = demo.kept_shots(keep, "rooms", scenes, stage)
+    _, again = demo.film_shots(TWO_CAMERAS, stage, scenes, demo.shot_cameras(TWO_CAMERAS), kept)
+    return {"take": str(keep), "kept": kept, "again": again}
+
+
+def two_shot_film():
+    """A film of two cameras in the left room: (moves, shots) as film_shots plans them on the file's rooms."""
+    return planned("two-shot film")["film"]
 
 
 def test_cameras_leave_out_a_roof_look_and_spread_over_the_list():
@@ -84,8 +132,8 @@ def test_a_walk_through_the_wall_goes_only_as_far_as_is_clear():
     scenes = rooms()[1]
     """A camera in the left room looking at the right one through the wall between them walks half the way, not into
     the wall; its eyes stay at eye height, every step is clear, and it keeps looking towards the right room."""
-    view = camera("through-the-wall", [-3.0, 1.6, 2.0], [3.0, 1.2, 2.0])
-    move = demo.shot_move(scenes, view, [[-4.0, -3.0], [4.0, 3.0]], seed=0)
+    view = THROUGH_THE_WALL
+    move = planned("through the wall")
     frames = demo.shot_frames(move, view, 0, 30)
     eyes = np.array([frame["eye"] for frame in frames])
     assert move["move"] == "walk" and len(frames) == 30, move
@@ -192,9 +240,8 @@ def test_a_view_is_held_near_level():
 
 
 def test_the_frames_run_at_consecutive_moments_of_the_stages_time():
-    stage, scenes = rooms()
     """A film's shots follow one another at consecutive moments of the stage's time, and each records its move."""
-    moves, shots = two_shot_film(stage, scenes)
+    moves, shots = two_shot_film()
     views = [view for shot, _ in shots for view in shot]
     per_shot = round(demo.SHOT_SECONDS * demo.RATE)
     assert len(views) == 2 * per_shot and [move["camera"] for move in moves] == ["a", "b"], moves
@@ -207,13 +254,12 @@ def test_a_shot_starts_where_it_keeps_the_clearance():
     scenes = rooms()[1]
     """A camera 0.1 m from a wall starts its shot from the nearest spot that keeps the clearance, and every frame of
     its walk keeps it; one standing inside the crate (a closed mesh) is moved out of it, or left out."""
-    view = camera("by-the-wall", [-3.9, 1.6, 2.0], [-3.9, 1.2, -2.0])
-    move = demo.shot_move(scenes, view, [[-4.0, -3.0], [4.0, 3.0]], seed=0)
+    view = BY_THE_WALL
+    move = planned("by the wall")
     eyes = np.array([frame["eye"] for frame in demo.shot_frames(move, view, 0, 30)])
     walls, _ = camera_paths.clearances(scenes, eyes)
     assert move["moved"] > 0.1 and walls.min() >= camera_paths.CLEARANCE - camera_paths.KEPT_TO, (move, walls.min())
-    crate = camera("in-the-crate", [-2.0, 0.5, 0.0], [-1.0, 0.5, 0.0])  # the 1 m crate at x = -2, its middle
-    move = demo.shot_move(scenes, crate, None, seed=0)
+    move = planned("in the crate")
     assert move is None or (move["moved"] > 0.5 and camera_paths.clearances(scenes, move["eye"])[0][0] >=
                             camera_paths.CLEARANCE - camera_paths.KEPT_TO), move
 
@@ -235,21 +281,12 @@ def test_a_camera_among_people_is_moved_out_or_left_out():
 
 
 def test_an_earlier_takes_clear_shots_are_kept_and_a_near_one_planned_anew():
-    stage, scenes = rooms()
-    moves, shots = two_shot_film(stage, scenes)
+    _, shots = two_shot_film()
     """With an earlier take, a shot whose every frame stands clear is kept as it was (its move marked with the take);
-    one that comes nearer a wall than the clearance is planned anew."""
-    with tempfile.TemporaryDirectory() as temporary:
-        keep = pathlib.Path(temporary)
-        (keep / "views").mkdir()
-        views = [view for shot, _ in shots for view in shot]
-        near = [dict(view, eye=[-3.9, 1.6, 2.0]) if demo.shot_of(view) == "shot1" else view for view in views]
-        (keep / "views" / "rooms.json").write_text(json.dumps({"views": near, "moves": moves}))
-        kept = demo.kept_shots(keep, "rooms", scenes, stage)
-    assert list(kept) == [0] and kept[0][0]["kept"] == str(keep) and kept[0][1] == shots[0][0], list(kept)
-    record = {"views": [camera("a", [-3, 1.6, 2], [-3, 1.2, -2]), camera("b", [-1, 1.6, 0], [-3, 1.2, 0])],
-              "inside": True, "floor": [[-4.0, -3.0], [4.0, 3.0]]}
-    _, again = demo.film_shots(record, stage, scenes, demo.shot_cameras(record), kept)
+    one that comes nearer a wall than the clearance is planned anew (earlier_take, planned with the film)."""
+    taken = planned("two-shot film")
+    kept, again = taken["kept"], taken["again"]
+    assert list(kept) == [0] and kept[0][0]["kept"] == taken["take"] and kept[0][1] == shots[0][0], list(kept)
     assert [fresh for _, fresh in again] == [False, True] and again[0][0] == shots[0][0], again[0][0][:1]
 
 

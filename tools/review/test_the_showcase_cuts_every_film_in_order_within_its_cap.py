@@ -141,12 +141,19 @@ def test_the_world_video_shows_the_hero_first_and_names_a_missing_film():
         raise AssertionError("a missing film was cut")
     except SystemExit as stop:
         assert "street" in str(stop), stop
-    showcase.world(folder / "out", folder / "fig.jpg", films, assets, draft=True)
+    kept = showcase.OPENING_SECONDS, showcase.STEP_SECONDS
+    # A shorter opening and cards (each still longer than its move in, MOVE_SECONDS): the chain's frames are drawn one
+    # by one at the video's size, and its 16.5 s at the real lengths took 24 of this file's 60 s budget alone.
+    showcase.OPENING_SECONDS, showcase.STEP_SECONDS = 1.5, 2.0
+    try:
+        showcase.world(folder / "out", folder / "fig.jpg", films, assets, draft=True)
+        expected = showcase.total(showcase.timeline(
+            2, [(name, 5.5 - showcase.demo.TITLE_SECONDS) for name in ("flat", "stairwell")], 0))
+    finally:
+        showcase.OPENING_SECONDS, showcase.STEP_SECONDS = kept
     record = json.loads((folder / "out/world1.json").read_text())
     assert [film["film"] for film in record["films"]] == ["flat", "stairwell"] and record["missing"] == ["street"]
     assert record["steps"] == ["Concept", "Pieces"], record
-    shown = [(film["film"], 5.5 - showcase.demo.TITLE_SECONDS) for film in record["films"]]
-    expected = showcase.total(showcase.timeline(2, shown, 0))
     measured = showcase.length(folder / "out/world1.mp4")
     assert abs(measured - expected) < 0.2, (measured, expected)
     quiet = subprocess.run(["ffmpeg", "-v", "info", "-i", str(folder / "out/world1.mp4"), "-ss", "0.5", "-af",
