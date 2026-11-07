@@ -593,12 +593,15 @@ def test_md_guard_allows_the_standing_exceptions(md_repo, tmp_path):
     long_session = typed_transcript(repo, ["a line of chat " * 50] * 60000 + ["write a md file for it"])
     for payload in (dict(md_bash(repo, "ls docs; git status"), transcript_path=str(unread)),
                     md_write(repo, "docs/report.md", long_session)):
-        timings = []
+        timings, starts = [], []
         for _ in range(3):
             started = time.monotonic()
             assert run(guard, payload, timeout=10)[0] == ALLOW, payload
             timings.append(time.monotonic() - started)
-        assert min(timings) < 0.1, (payload, timings)
+            started = time.monotonic()  # the same interpreter doing nothing, on the box as loaded now: its start-up
+            subprocess.run([sys.executable, "-c", ""], check=True)  # is the box's, not the guard's (the gate's pods
+            starts.append(time.monotonic() - started)  # run 6 files side by side: a bare start took 0.1 s there)
+        assert min(timings) - min(starts) < 0.1, (payload, timings, starts)
 
 
 # commit_guard: a session may not waive the commit guards, nor commit in the shared checkout while another session
