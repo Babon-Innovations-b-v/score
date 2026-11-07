@@ -3,8 +3,7 @@ joints, a muscle whose class gives its parameters, names with '-'), sized to a t
 compiles in MuJoCo and builds in Newton with the
 same joints, one joint a body, no '-' in a name, no floor, the person's mass, and every muscle's gain and bias in
 Newton's model the published model's (#60's import fixes); with the fit's constants given, an inside joint's
-body sits moved by its found move, and one sizing (`sized_body`) writes each file as a sizing of its own would, the
-kneecaps fitted again only for a move of a body they read; the neck and head carry MyoHead's two joints, the torso the thoracic three, and the
+body sits moved by its found move, and one sizing (`sized_body`) writes each file as a sizing of its own would; the neck and head carry MyoHead's two joints, the torso the thoracic three, and the
 girdle's coupling to the arm's elevation is gone, its joint on its own range, and its phantom follows it at -1
 (`myo._movable`); a finger body laid at its joints' rest turns (`myo._rested`) stands at zero where it stood at those
 turns and reaches every pose as before, its ranges moved by them; each foot turns on its shin about the shin's long
@@ -13,7 +12,9 @@ no twist stands as it did; each finger's MCP flexion bends back to `KNUCKLES`' e
 joint's range kept; each knee's shin turn (knee_angle_rotation3) leads on its published range, no longer set by the
 flexion, the knee's other couplings kept (`KNEE`); the neck bends and flexes at its turn's place (`CERVICAL`); each
 axis' L3/L4 joint leads, the levels above it tied to it in the model's ratios, so every pose of the old ties is
-reached as before, L4/L5 still tied to lumbar5 (`LUMBAR`); and each joint of `RANGES` has its published range,
+reached as before, L4/L5 still tied to lumbar5 (`LUMBAR`); the torso's lumbar wrap and its side site stand on
+their vertebra where they stood, its tendon as long at the zero pose, the torso's other geoms left (`LUMBAR_WRAPS`);
+and each joint of `RANGES` has its published range,
 both sides. It runs in Newton's own Python
 (score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none built there, as in `make
 tests`' sandbox home, it prints `skipped`.
@@ -44,8 +45,10 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-11-04) _cervical's `pos=turn.pos` made `pos=[0.0, 0.0, 0.0]`: the neck bends at the neck body's origin, off
   its turn's place.
 - (2026-11-04) _ranges' `joint.range = span` made `pass`: the hip's rotation and the toes keep their old ranges.
-- (2026-11-06) Sized.spec's `if any(...)` made `if False`: the talus' move keeps the sizing's kneecaps unfitted.
-- (2026-11-06) Sized.spec's `self.kneed.copy()` made `self.kneed`: the first file's spec is written on again, the
+- (2026-11-07) _lumbar_wraps' `_laid_on(...)` made `pass`: the cylinder stays on the torso.
+- (2026-11-07) _laid_on's `_turn(at.quat).apply(place)` made `place`: the cylinder lands off its place, the tendon
+  longer.
+- (2026-11-06) Sized.spec's `self.sized.copy()` made `self.sized`: the first file's spec is written on again, the
   lunate's record differs.
 
 Run: .venv/bin/python score/stages/sim_body/inside/myo/test_the_persons_file_builds_in_newton_as_mujoco_compiles_it.py
@@ -244,16 +247,13 @@ def the_constants_move_the_file():
 
 
 def one_sizing_writes_each_file_as_its_own_would():
-    """One sized toy (`myo.sized_body`) written without constants, then with the left talus moved (a body the
-    kneecaps' fit reads: fitted again) and with the left lunate moved (one it does not: the sizing's kept): each file's
-    text and record as `person_file` writes it from a sizing of its own, and the kneecaps fitted once more only for
-    the talus."""
+    """One sized toy (`myo.sized_body`) written without constants, then with the left talus moved and with the left
+    lunate moved: each file's text and record as `person_file` writes it from a sizing of its own."""
     import myo
     import sizing
     from landmarks._table import LANDMARKS
     cases = (None, {"joints": {"talus_l": [0.0, 0.0, 0.01]}}, {"joints": {"lunate_l": [0.01, 0.0, 0.0]}})
-    kept, fitting, problems = dict(LANDMARKS), myo.kneecaps, []
-    fitted = []
+    kept, problems = dict(LANDMARKS), []
     with tempfile.TemporaryDirectory() as folder:
         source = pathlib.Path(folder) / myo.SOURCE
         source.parent.mkdir(parents=True, exist_ok=True)
@@ -267,18 +267,12 @@ def one_sizing_writes_each_file_as_its_own_would():
             for constants in cases:
                 record, _ = myo.person_file(folder, sizing.Size(rig, TABLE), KG, path, constants)
                 alone.append((path.read_text(), record))
-            myo.kneecaps = lambda *args: fitted.append(args) or fitting(*args)
             body = myo.sized_body(folder, sizing.Size(rig, TABLE), KG)
             for constants, (text, record) in zip(cases, alone):
-                before = len(fitted)
                 again, _ = myo.written(body, path, constants)
                 problems += [] if path.read_text() == text else [f"{constants}: the file differs"]
                 problems += [] if again == record else [f"{constants}: the record differs"]
-                wanted = 1 if constants and "talus_l" in constants["joints"] else 0
-                problems += [] if len(fitted) - before == wanted else [
-                    f"{constants}: the kneecaps fitted {len(fitted) - before} times, not {wanted}"]
         finally:
-            myo.kneecaps = fitting
             LANDMARKS.clear()
             LANDMARKS.update(kept)
     return problems
@@ -480,7 +474,8 @@ LIMB = """<body name="limb_{s}" pos="0 0 -1"><geom type="sphere" size="0.02" mas
 def the_upper_lumbar_leads_and_ranges_are_human():
     """A MyoFullBody-shaped lumbar spine (lumbar5's leader, each level above tied to it by its ratio) and two limbs:
     L3/L4 leads, L4/L5 stays tied to lumbar5, L2/L3 and L1/L2 are tied to L3/L4 so that every pose of the old ties
-    stands as before; each limb's joint of `RANGES` has its range."""
+    stands as before; each limb's joint of `RANGES` has its range; the lumbar wrap rides its vertebra
+    (`lumbar_wrap_problems`)."""
     import mujoco
     import numpy as np
     from myo._movable import RANGES, _lumbar, _ranges
@@ -502,12 +497,69 @@ def the_upper_lumbar_leads_and_ranges_are_human():
         lead = shares.get(equality.name2.removesuffix("_FE"), 1.0)
         if not np.isclose(lead * equality.data[1], shares[equality.name1.removesuffix("_FE")]):
             problems.append(f"{equality.name1}: {equality.data[1]} of {equality.name2}, off the old ties' pose")
+    problems += lumbar_wrap_problems()
     return problems + [f"{stem}_{side}: range {laid.joint(f'{stem}_{side}').range} against {RANGES[stem]}"
                        for stem in ("hip_rotation", "mtp_angle") for side in "lr"
                        if not np.allclose(laid.joint(f"{stem}_{side}").range, RANGES[stem])]
 
 
-CHECKS = (the_upper_lumbar_leads_and_ranges_are_human, the_knee_turns_the_shin_of_its_own, the_knuckles_bend_back,
+WRAPPED = """<mujoco><compiler angle="radian"/><default><default class="wrap"><geom contype="0" conaffinity="0"
+  group="3"/></default></default><worldbody><body name="sacrum"><geom type="sphere" size="0.02" mass="1"/>
+  <site name="low" pos="0.05 -0.1 0"/>
+  <body name="lumbar2" pos="0 0.1 0" quat="0.98 0.1 0.15 0"><joint name="L2_L3_FE" axis="0 0 1"/>
+    <geom type="sphere" size="0.02" mass="1"/><site name="high" pos="0.06 0.05 0"/>
+    <body name="lumbar1" pos="0.01 0.08 0" quat="0.97 0 0.1 0.2"><joint name="L1_L2_FE" axis="0 0 1"/>
+      <geom type="sphere" size="0.02" mass="1"/>
+      <body name="torso" pos="0.0025 -0.089 0" quat="0.96 0.2 0 0.1">
+        <geom name="ribs" type="sphere" size="0.05" mass="1"/>
+        <geom name="back_cylinder_l" class="wrap" type="cylinder" size="0.08 0.1" pos="-0.11 0.04 0.01"
+          quat="0.9 0.1 0.3 0.2"/>
+        <site name="back_cylinder_l_IL_L2_r_1_sidesite" pos="-0.04 -0.07 -0.12"/>
+      </body></body></body></body></worldbody>
+  <tendon><spatial name="IL"><site site="low"/>
+    <geom geom="back_cylinder_l" sidesite="back_cylinder_l_IL_L2_r_1_sidesite"/>
+    <site site="high"/></spatial></tendon></mujoco>"""
+
+
+def lumbar_wrap_problems():
+    """A torso on lumbar1 on lumbar2 carrying a wrap cylinder, its side site and a geom of its own, a tendon from the
+    sacrum to lumbar2 wrapped on it: after `_lumbar_wraps` the cylinder and its side site are lumbar2's, standing where
+    they stood at the zero pose (the tendon as long), the cylinder its size and class, the torso's own geom kept."""
+    import mujoco
+    import numpy as np
+    from myo._movable import LUMBAR_WRAPS, _lumbar_wraps
+    before = mujoco.MjModel.from_xml_string(WRAPPED)
+    spec = mujoco.MjSpec.from_string(WRAPPED)
+    _lumbar_wraps(spec)
+    after = spec.compile()
+    datas = [mujoco.MjData(model) for model in (before, after)]
+    for model, data in zip((before, after), datas):
+        mujoco.mj_forward(model, data)
+    problems = []
+    for kind, name in ((mujoco.mjtObj.mjOBJ_GEOM, "back_cylinder_l"),
+                       (mujoco.mjtObj.mjOBJ_SITE, "back_cylinder_l_IL_L2_r_1_sidesite")):
+        ids = [mujoco.mj_name2id(model, kind, name) for model in (before, after)]
+        geom = kind == mujoco.mjtObj.mjOBJ_GEOM
+        owner = (after.geom_bodyid if geom else after.site_bodyid)[ids[1]]
+        if after.body(owner).name != LUMBAR_WRAPS["back_cylinder_l"]:
+            problems.append(f"{name}: on {after.body(owner).name}")
+        places = [(data.geom_xpos if geom else data.site_xpos)[at] for data, at in zip(datas, ids)]
+        turns = [(data.geom_xmat if geom else data.site_xmat)[at] for data, at in zip(datas, ids)]
+        if not (np.allclose(*places, atol=1e-9) and np.allclose(*turns, atol=1e-9)):
+            problems.append(f"{name}: at {places[1]} against {places[0]}")
+    cylinder = after.geom("back_cylinder_l")
+    if not (np.allclose(cylinder.size, before.geom("back_cylinder_l").size) and cylinder.contype[0] == 0
+            and cylinder.group[0] == 3):
+        problems.append(f"back_cylinder_l: size {cylinder.size}, contype {cylinder.contype}, group {cylinder.group}")
+    if after.body(after.geom("ribs").bodyid[0]).name != "torso":
+        problems.append("ribs: moved off the torso")
+    if not np.isclose(datas[0].ten_length[0], datas[1].ten_length[0], atol=1e-9):
+        problems.append(f"IL: {datas[1].ten_length[0]} against {datas[0].ten_length[0]}")
+    return problems
+
+
+CHECKS = (the_upper_lumbar_leads_and_ranges_are_human,
+          the_knee_turns_the_shin_of_its_own, the_knuckles_bend_back,
           a_foot_twists_on_its_shin,
           a_rested_finger_reaches_every_pose_as_before,
           the_neck_thorax_and_girdle_move, the_constants_move_the_file, the_written_file_builds_as_it_compiles,

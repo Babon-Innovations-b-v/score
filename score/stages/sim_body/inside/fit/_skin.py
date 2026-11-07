@@ -21,6 +21,10 @@ from model import TO_OWN
 
 EVERY = 10  # frames between the skin measures
 VERTS = 80  # bone vertices kept per mesh
+# The kneecap is not held in the skin (#98, 2026-11-07): it rides the quadriceps' tendon where MyoFullBody's couplings
+# put it (sizing), and SOMA's linear-blend skin caves up to 17 mm in at the front of a bent knee; held there, the fit
+# turned the knee to keep it in (LabValidation's training subjects: leg angle MAE 7.00 to 7.23 degrees).
+KNEECAP = "patella"
 REGIONS = {"shoulder": ("clavicle", "scapula", "humerus"), "forearm": ("ulna", "radius"),
            "fingers": ("ph_", "thumb"), "metacarpals": ("mc",),
            "carpals": ("lunate", "scaphoid", "pisiform", "triquetrum", "capitate", "trapezium", "trapezoid", "hamate"),
@@ -194,10 +198,10 @@ def scored(part):
 
 
 def bone_meshes(model):
-    """[(geom, vertex indices kept, its body's name)] of every bone mesh."""
+    """[(geom, vertex indices kept, its body's name)] of every bone mesh but the kneecaps' (KNEECAP)."""
     found = []
     for geom in range(model.ngeom):
-        if model.geom_type[geom] == mujoco.mjtGeom.mjGEOM_MESH:
+        if model.geom_type[geom] == mujoco.mjtGeom.mjGEOM_MESH and KNEECAP not in model.body(model.geom_bodyid[geom]).name:
             count = int(model.mesh_vertnum[model.geom_dataid[geom]])
             kept = np.linspace(0, count - 1, VERTS).astype(int) if count > VERTS else np.arange(count)
             found.append((geom, kept, model.body(model.geom_bodyid[geom]).name))

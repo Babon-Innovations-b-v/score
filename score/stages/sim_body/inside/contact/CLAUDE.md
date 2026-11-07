@@ -14,3 +14,13 @@ to 27 mm inside his skin, which sat 10 mm into his floor, so the floor carried 0
   fit's holds (`stances`, `on_ground`, `unslipped`, `landed`) and `grounded` (the path moved so its lowest point
   stood on the ground) went with it on 2026-10-28.
 - Its test runs in Newton's own Python (MuJoCo pinned there) by subprocess and prints `skipped` where no env is built.
+- **The skin is laid on SOMA's** (#98, 2026-11-07, `Skin.registered`): each segment's riding moved by the one rigid
+  turn and shift (Kabsch over its points and REGISTERED_FRAMES frames of the fitted path) that best lays its carried
+  skin on SOMA's. Carried from MyoFullBody's ankle, a foot's skin stood 5 to 11 mm over SOMA's and turned 4 to 6
+  degrees on LabValidation; laid, within about 1 mm. Nothing moves the body: only where its skin rides its bones.
+- **A foot the video shows standing is pushed from its sole** (#98, `Skin.credited`, the job's targets' `stance`,
+  frames x 2: tools/labval's GEM-X static contact or the stage's own stance): on those frames its points are measured
+  from its lowest point (at most STANCE_HIGH, 5 cm, tuned on subjects 2 to 5's plates) instead of the ground, on `pushes`, `pushes_all` and
+  `touching_all` alike (a state's credit is its frame's, states being whole copies of the clip). A clip without a
+  stance (env1's) is pushed as before. LabValidation, 12 trials: stance carried 0.28 to 0.87 of the plates' frames,
+  per-foot vertical force RMSE 50 to 28% of the weight, the pelvis' residual force 74 to 6% (medians).

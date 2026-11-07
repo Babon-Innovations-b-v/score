@@ -201,7 +201,7 @@ def inside_joints(newton_model, fitting):
     several MuJoCo joints into one)."""
     labels = [label.split("/")[-1] for label in newton_model.body_label]
     into = {labels[child]: joint for joint, child in enumerate(newton_model.joint_child.numpy())}
-    return np.array([into[fitting.model.body(int(body)).name] for body in fitting.inside])
+    return np.array([into[fitting.model.body(int(body)).name] for body in fitting.inside], dtype=int)
 
 
 def set_places(places, joints, held, moves):

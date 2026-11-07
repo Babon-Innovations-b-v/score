@@ -33,6 +33,13 @@ each group's anatomical axes (`aligned`, `frame`, `REFERENCES`); `turn(group)` g
   degrees no joint reaches with the old rows; with these 0.5, 0.9 and 2.6. The feet left `INSIDE_GROUPS`. The elbow
   stays on its line: hinged too, its forearm's 12.2 degrees went to 0.5 at rest, but the bones then lie along
   MyoFullBody's carrying angle, 12 degrees off SOMA's forearm (env1 standing: forearm bones outside 1.9 -> 12.6 %).
+- **The feet are levelled** (`LEVELLED`, `levelled`; 2026-11-06, #98: "a foot the floor carries lies flat"): after
+  their hinge's rows, each foot's row is turned about its hinge line (exact, so the toes still share it) until SOMA's
+  bind foot, which stands flat on its floor, is MyoFullBody's calcaneus standing flat at its default pose (its long
+  axis rising as the default's). On the landmark lines alone it was the calcaneus 3.0 degrees toes-down (the two
+  feet's shapes differ: the ankle to mtp line's rise over the sole is each model's own; the sole's own line, heel pad
+  to MT pad, moved it 0.3), so LabValidation's squats stood the sim body's calcaneus 4.4 degrees toes-down at the
+  table where SOMA's sole lay flat, and 7.5 after the fit. Static, read at rest: never per person or per clip.
 - `INSIDE_GROUPS` (2026-11-01, #70; the owner and the coordinator: the Head's row by its skull and jaw in SOMA's
   head, then every group where it helps): their rows are read by `_measure.inside_measured`, the group's bone vertices
   laid at rest with their start centre (`myo_parts`, scaled) at SOMA's start joint, then turned and shifted rigidly to

@@ -134,6 +134,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   skin's measure (a_pose_measured_once_gives_the_same_fit red).
 - (2026-11-05) _frames.SkinTask._apart's key `placed.tobytes()` made `placed.round(2).tobytes()`: nearby poses read
   one another's measure, the angles off measuring every ask (a_pose_measured_once_gives_the_same_fit red).
+- (2026-11-07) bone_meshes' `and KNEECAP not in ...` dropped: the kneecap's 4 vertices held in the skin too
+  (a_frames_skin_marks_the_bones_out_of_it_frame_by_frame red).
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/test_the_solver_gives_back_the_pose_and_constants_that_made_its_targets.py
 """
@@ -982,13 +984,14 @@ def pocket_head(gap=0.01, deep=0.02):
 def a_frames_skin_marks_the_bones_out_of_it_frame_by_frame():
     """`FrameSkins` (RRA's frame check): a 1 cm bone on a femur at the origin, a 10 cm cube of skin on its first frame
     round it and on its second 1 m along x: every bone vertex inside on the first frame and outside on the second, each
-    labelled thigh."""
+    labelled thigh; a kneecap on it (patella_r) is not among the bones held in the skin."""
     import mujoco
     import numpy as np
     from fit import _skin
     model = mujoco.MjModel.from_xml_string(
         '<mujoco><asset><mesh name="bone" vertex="0 0 0 0.01 0 0 0 0.01 0 0 0 0.01"/></asset><worldbody>'
-        '<body name="femur_r"><freejoint/><geom type="mesh" mesh="bone"/></body></worldbody></mujoco>')
+        '<body name="femur_r"><freejoint/><geom type="mesh" mesh="bone"/><body name="patella_r" pos="0 0 0.05">'
+        '<geom type="mesh" mesh="bone"/></body></body></worldbody></mujoco>')
     rig = pocket_head()
     rig["bind"] = np.eye(4)[None]
     worlds = np.tile(np.eye(4), (2, 1, 1, 1))

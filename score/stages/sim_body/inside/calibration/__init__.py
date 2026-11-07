@@ -14,7 +14,8 @@ and knee axes, which left the upper arm turned about 9 degrees on every body): t
 and forearm (the ulna's flexion axis: SOMA's forearm does not pronate), the femur's for the thigh, the malleoli for
 the shin, MC5 head to MC2 head for the hand, MT1 head to MT5 head for the foot and toes (since 2026-11-04); the
 person's own x (left) for the trunk, own y (up) for the shoulder. The toes' hinge's two groups (`HINGED`) keep the reference
-exact and square their long axis to it; the lumbar pair takes the whole lumbar's line (`LONG_LINES`).
+exact and square their long axis to it; the lumbar pair takes the whole lumbar's line (`LONG_LINES`); the feet are
+then levelled about their hinge so a flat rest foot is a flat rest foot (`LEVELLED`).
 
 Against taking SOMA's rest as MyoFullBody's default literally, it differs by the two rests' posture (measured
 2026-10-28): the arms 48 degrees (SOMA's A-pose), toes 26, shin 12.6, shoulder 12, Spine2 12, Spine1 9.6, head 6.7,
@@ -48,13 +49,21 @@ HINGED = ("{Side}Foot", "{Side}ToeBase")
 # levels by fixed shares (`LACKS`), so its rest curvature between the levels is not a turn any joint makes: each level
 # on its own line left Spine1 a fixed 15 degrees and Spine2 18 off SOMA's in flexion, every frame.
 LONG_LINES = {"Spine1": (("Spine1", "Chest"), ("L5_S1", "T12_L1")), "Spine2": (("Spine1", "Chest"), ("L5_S1", "T12_L1"))}
+# The feet's rows turned about their hinge line (their reference, which the toes share, so the hinge stays exact) until
+# SOMA's bind foot, which stands flat on its floor, is MyoFullBody's calcaneus standing flat on its floor at its default
+# pose: the long axis rising as the default's does (`levelled`; #98, 2026-11-06: "a foot the floor carries lies flat").
+# On the landmark lines alone SOMA's flat bind foot was a calcaneus 3.0 degrees toes-down (the two models' feet differ
+# in shape: the lines' rise over the sole is each model's own), so the sim body's feet stood toes-down on every frame:
+# LabValidation's squats 4.4 degrees at the table alone, standing, where SOMA's sole lay flat.
+LEVELLED = ("{Side}Foot",)
 # R_cal per bone group as a quaternion (x, y, z, w), printed by `_measure.py` on 2026-10-29 (MyoFullBody of
 # MuscleMimic 1.0.6, SOMA's template rig of people-clips-make; the shoulders again that day, their start the
 # sternoclavicular centre, no longer the landmark of that name; the hands again on 2026-11-01, MC5_head moved onto the
 # little finger's knuckle: the hand turned 14.9 degrees about its long axis). INSIDE_GROUPS' rows read in the skin on
 # 2026-11-01 (`_measure.table_rows`): Head 6.6 degrees off its line, Shins 5.5 (on their line since 2026-11-06), ForeArms 0.1, Hips 0.2. The lumbar
 # pair, feet and toes printed again on 2026-11-04 (`HINGED`, `LONG_LINES`, the MT heads line): Spine1 13.5 and Spine2
-# 8.3 degrees off their rows before, the toes 13.5, the feet 2.2.
+# 8.3 degrees off their rows before, the toes 13.5, the feet 2.2. The feet levelled on 2026-11-06 (`LEVELLED`): 3.0
+# degrees about their hinge.
 TABLE = {
     "Hips": (0.664729, 0.747084, 0.000268241, -0.000291347),
     "Spine1": (0.675027, 0.737792, 0.00121172, 0.000810537),
@@ -75,8 +84,8 @@ TABLE = {
     "RightLeg": (0.707102, 0.70709, 0.00483335, -0.00262117),
     "LeftShin": (-0.698192, 0.715865, -0.005736, -0.005594),
     "RightShin": (0.715866, 0.698193, -0.005569, 0.00571),
-    "LeftFoot": (0.987227, -0.157876, -0.00776399, -0.0199309),
-    "RightFoot": (0.157878, 0.987222, 0.0201725, -0.00782707),
+    "LeftFoot": (0.98282, -0.182204, -0.00590453, -0.0288245),
+    "RightFoot": (0.182209, 0.982812, 0.0290654, -0.00597333),
     "LeftToeBase": (0.999263, -0.0345712, -0.0128052, 0.0106455),
     "RightToeBase": (0.0345713, 0.999265, -0.0104016, -0.0128581),
 }
@@ -234,6 +243,26 @@ def hinged(long, reference):
     along = np.asarray(long, dtype=float) - (np.asarray(long, dtype=float) @ across) * across
     along = along / np.linalg.norm(along)
     return np.column_stack([along, np.cross(across, along), across])
+
+
+def levelled(row, segment_turn, body_turn, hinge):
+    """R_cal `row` (3 x 3) turned about `hinge` (the reference line, in the body's frame) so that the body turned by it
+    at SOMA's rest (`segment_turn` R_cal) has its long axis (its own x) rising as the body at its default pose
+    (`body_turn`, both in one shared frame, y up) does; the least such turn within 30 degrees."""
+    from scipy.optimize import brentq
+
+    hinge = np.asarray(hinge, dtype=float) / np.linalg.norm(hinge)
+    rise = body_turn[1, 0]
+
+    def miss(angle):
+        return (segment_turn @ row @ Rotation.from_rotvec(angle * hinge).as_matrix())[1, 0] - rise
+
+    angles = np.radians(np.linspace(-30.0, 30.0, 121))
+    signs = np.sign([miss(angle) for angle in angles])
+    roots = [brentq(miss, angles[index], angles[index + 1]) for index in np.flatnonzero(signs[:-1] * signs[1:] <= 0)]
+    if not roots:
+        raise ValueError("no turn about the hinge within 30 degrees levels the foot")
+    return row @ Rotation.from_rotvec(min(roots, key=abs) * hinge).as_matrix()
 
 
 def aligned(soma, myo, axes=frame):

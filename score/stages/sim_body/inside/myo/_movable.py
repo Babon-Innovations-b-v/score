@@ -1,6 +1,7 @@
 """MyoFullBody made movable above the lower back (#70, the owner: "MyoFullBody should be fully movable"), on the spec
 of the pinned source, the download untouched: the neck's two joints the source leaves commented out (`NECK`), one
-three-axis thoracic joint where the torso meets lumbar1 (`THORACIC`), and the shoulder girdle's couplings to the
+three-axis thoracic joint where the torso meets lumbar1 (`THORACIC`; the wraps only lumbar muscles use laid on
+their vertebra, `LUMBAR_WRAPS`), and the shoulder girdle's couplings to the
 arm's elevation dropped, its clavicle and scapula joints given their own two-sided ranges (`GIRDLE`) and each phantom
 tied to the joint it undoes (`PHANTOMS`); its feet given the twist on the shin their hinges lack and the ankle's
 and subtalar joint's human ranges (`FEET`, 2026-11-01); its fingers' knuckles let bend back as a person's do
@@ -24,6 +25,16 @@ THORACIC = ("torso", "myotorso", [-0.01368, 0.11893, 0.00045],
             [("thoracic_FE", [0.0, 0.0, 1.0], [-np.radians(45), np.radians(45)]),
              ("thoracic_LB", [1.0, 0.0, 0.0], [-np.radians(40), np.radians(40)]),
              ("thoracic_AR", [0.0, 1.0, 0.0], [-np.radians(50), np.radians(50)])])
+# The torso's wrap geoms that only lumbar muscles wrap, and the vertebra each is laid on (#98, 2026-11-07). The source
+# welds the torso to lumbar1 and ties the lumbar levels to one leader, so back_cylinder_l, on the torso, kept its place
+# to its muscles, the iliocostalis lumborum IL_L2 to IL_L4 (sacrum to lumbar2-4, none across T12/L1), their sites
+# 13 to 26 mm off its surface. With THORACIC's joint, the lumbar levels led of their own (LUMBAR), the torso's own
+# scale and the fit's moves of lumbar1 (34 mm on subject2), the sites came within 3 mm and the cylinder's side site
+# turned past them: IL_L2 wrapped the cylinder's far side, 0.14 to 0.83 m (four times its length range's top) on 200
+# of subject2_squats1_Cam1's 240 frames, and an IL path stood over 1.5 times its range's top on 418 frames of 12 of
+# measure-footflat2's 76 trials. On lumbar1 it still did (subject2_walking1_Cam1: 21 of 47 frames); on lumbar2, the
+# highest vertebra the muscles join, on none of the frames of 26 of those trials (every third).
+LUMBAR_WRAPS = {"back_cylinder_l": "lumbar2"}
 # The girdle's couplings to shoulder_elv dropped (myoarm_bimanual_assets.xml: the clavicle's two turns, the scapula's
 # three, and the phantom that undoes each), so the clavicle and the scapula lead, each on its own range; each phantom
 # (unrotscap, unrothum: MoBL-ARMS' undo of the girdle's turn, Holzbaur et al. 2005) is tied at -1 to the joint it
@@ -115,10 +126,11 @@ RANGES = {"hip_rotation": [-np.radians(45), np.radians(45)], "elbow_flex": [0.0,
 
 
 def movable(spec):
-    """The spec's neck, thorax, shoulder girdle, feet, knuckles, knees, upper lumbar spine, lower neck and narrow
-    ranges made movable in place (the module's nine changes)."""
+    """The spec's neck, thorax (its lumbar wraps kept on the lumbar spine), shoulder girdle, feet, knuckles, knees,
+    upper lumbar spine, lower neck and narrow ranges made movable in place (the module's ten changes)."""
     _neck(spec)
     _thoracic(spec)
+    _lumbar_wraps(spec)
     _girdle(spec)
     _feet(spec)
     _knuckles(spec)
@@ -144,6 +156,50 @@ def _thoracic(spec):
         return
     for name, axis, span in axes:
         found.add_joint(default=spec.find_default(kind), name=name, pos=place, axis=axis, range=span, limited=True)
+
+
+def _lumbar_wraps(spec):
+    """`LUMBAR_WRAPS` and their side sites laid from the torso on their vertebrae (`_laid_on`)."""
+    torso = spec.body(THORACIC[0])
+    if torso is None:
+        return
+    for geom in [geom for geom in torso.geoms if geom.name in LUMBAR_WRAPS]:
+        sides = [site for site in torso.sites
+                 if site.name.startswith(f"{geom.name}_") and site.name.endswith("_sidesite")]
+        for element in (geom, *sides):
+            _laid_on(spec, torso, element, LUMBAR_WRAPS[geom.name])
+
+
+# An element's fields `_laid_on` does not copy: its identity and place (set apart), and the methods.
+NOT_COPIED = {"id", "parent", "name", "signature", "info", "frame", "compiler", "plugin", "classname", "alt", "pos",
+              "quat", "fromto", "userdata"}
+
+
+def _quaternion(turn):
+    """A scipy rotation as MuJoCo's [w, x, y, z]."""
+    return np.roll(turn.as_quat(), 1)
+
+
+def _turn(quat):
+    """MuJoCo's [w, x, y, z] as a scipy rotation."""
+    return Rotation.from_quat(np.roll(np.asarray(quat, dtype=float), -1))
+
+
+def _laid_on(spec, body, element, below):
+    """A geom or site of `body` moved onto `below`, a body it hangs from, where it stands at the zero pose (its fields
+    kept, its name the same, so a tendon's wrap reads it as before)."""
+    place, turn, at = np.asarray(element.pos, dtype=float), _turn(element.quat), body
+    while at.name != below:
+        place, turn, at = np.asarray(at.pos) + _turn(at.quat).apply(place), _turn(at.quat) * turn, at.parent
+    adder = at.add_geom if isinstance(element, mujoco.MjsGeom) else at.add_site
+    made = adder(default=element.classname)
+    for field in dir(element):
+        if not field.startswith("_") and field not in NOT_COPIED and not callable(getattr(element, field)):
+            setattr(made, field, getattr(element, field))
+    made.pos, made.quat = place, _quaternion(turn)
+    name = element.name
+    spec.delete(element)
+    made.name = name
 
 
 def _girdle(spec):

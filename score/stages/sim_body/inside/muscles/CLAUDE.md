@@ -16,3 +16,7 @@ parent overlay).
   gives every frame's needed forces with its state laid in `data`, on the card at once when the model is there
   (`batched.Card`), else frame by frame on MuJoCo's C (2026-11-05, #70).
 - Its test runs in Newton's own Python by subprocess and prints `skipped` where no env is built.
+- A knee's free turn (`LIGAMENTS`: knee_angle_rotation3, freed of the flexion by myo._movable's KNEE) is carried by
+  its ligaments and condyles, two-sided columns at CONTACT_COST beside the stops (`ligaments`; #98, 2026-11-07):
+  MyoFullBody's vasti reach it 0.3 to 0.5 cm off its axis, and its few newton metres, left to the muscles, set the
+  vasti's split (subject2_squats1's deepest frame: vastus intermedius 1.0, lateralis 0).

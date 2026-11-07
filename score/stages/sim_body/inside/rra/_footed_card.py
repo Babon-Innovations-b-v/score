@@ -5,7 +5,8 @@ mink's tasks of `_footed.Footing`: each foot body's place and turn (weight 1, as
 (FOOTED_HEIGHT; its place and turn frozen but its height, so its height alone), every leading dof but the legs' and
 the root's height frozen, the couplings exact, the legs' leading joints within their ranges or within where `before`
 stands them (each row's own bounds), and a leg's free directions held where the frame stands them (`Held`, the card's
-`FreeHold`: the projector onto the null space of the tasks' reduced Jacobian, by Gram-Schmidt on the card). What the
+`FreeHold`: the projector onto the null space of the tasks' reduced Jacobian at the frame's own pose, by
+Gram-Schmidt on the card), each step judged as mink's are (`_footed.FOOTED_LAM_FIRST`). What the
 card gives back is float32: the frozen coordinates are the frame's own float64 ones and the followers set again from
 their leaders in float64 (`Couplings.apply`), so only the legs' leading joints carry the card's rounding. A frame
 the card does not stop in MOST_STEPS (its float32 pose cycling at its floor: 9 of the jump's 180 frames on one call,
@@ -21,6 +22,7 @@ from fit._card._project import Projection
 from fit._card._seeds import newton_order
 from fit._card._solve import MOST_STEPS, solved
 from fit._card._step import Reduction
+from rra._footed import FOOTED_LAM_FIRST
 
 DEVICE = "cuda:0"
 BIG = 1e30  # a bound that never holds
@@ -32,7 +34,12 @@ HOLD_RANK = 1e-5
 # a move capped at 2 cm and 5 degrees: its float32 step ran off (a near-singular leg's Cholesky, 2026-11-05: the
 # standing clip's rows at 1e30), and the frame goes to mink
 LEAP = 0.5  # rad or m
-FK_MATCHED = 1e-5  # m: Newton's body places off MuJoCo's at the first frame, else the card's model is not the file's
+# m: Newton's body places off MuJoCo's at the first frame, else the card's model is not the file's. Newton's float32
+# forward kinematics of the right file stands MyoFullBody's bodies 0.0087 mm off MuJoCo's float64 at any pose and
+# place (#98, 2026-11-07: LabValidation's subject11_DJ5_Cam0 on an L4, its lumbar wrappers; 0.0086 to 0.0111 mm on 80
+# poses of subject9's file on Warp's CPU, the root at the origin or 4 m out), so 1e-5 refused the right model
+# (subject9_DJAsym3_Cam1, 0.0107 mm); a wrong file stands a body off by its sizing, millimetres
+FK_MATCHED = 1e-4
 LIMITED_TYPES = (int(mujoco.mjtJoint.mjJNT_SLIDE), int(mujoco.mjtJoint.mjJNT_HINGE))
 
 
@@ -86,9 +93,41 @@ def _held(reduced: wp.array3d[wp.float32], qpos: wp.array2d[wp.float32], target:
         gradient[row, first] = wp.float32(weight * pulled)
 
 
+@wp.kernel(enable_backward=False)
+def _pulled(qpos: wp.array2d[wp.float32], target: wp.array2d[wp.float32], free_coord: wp.array[wp.int32],
+            hessian: wp.array3d[wp.float32], gradient: wp.array2d[wp.float32]):
+    """One row's hold J^T r = weight P (q - target) by the projector `_held` found at the solve's first pose (its
+    `hessian`, weight P)."""
+    row, first = wp.tid()
+    pulled = wp.float64(0.0)
+    for second in range(hessian.shape[2]):
+        offset = wp.float64(qpos[row, free_coord[second]]) - wp.float64(target[row, free_coord[second]])
+        pulled += wp.float64(hessian[row, first, second]) * offset
+    gradient[row, first] = wp.float32(pulled)
+
+
+@wp.kernel(enable_backward=False)
+def _held_cost(qpos: wp.array2d[wp.float32], target: wp.array2d[wp.float32], free_coord: wp.array[wp.int32],
+               hessian: wp.array3d[wp.float32], cost: wp.array[wp.float64]):
+    """One row's hold cost at `qpos`, |r|^2 = weight (q - target)^T P (q - target) by the solve's projector (`hessian`,
+    weight P; zero at the solve's first pose, the target, whatever the buffer holds then)."""
+    row = wp.tid()
+    total = wp.float64(0.0)
+    for first in range(hessian.shape[1]):
+        ahead = wp.float64(qpos[row, free_coord[first]]) - wp.float64(target[row, free_coord[first]])
+        for second in range(hessian.shape[2]):
+            offset = wp.float64(qpos[row, free_coord[second]]) - wp.float64(target[row, free_coord[second]])
+            total += ahead * wp.float64(hessian[row, first, second]) * offset
+    cost[row] = total
+
+
 class Held:
     """The hold's rows for `solved` (its `hold`): each row's free directions held at `target` (the rows' poses,
-    MuJoCo's layout), weight FOOTED_HOLD squared, none of it in the damping (mink's FreeHold has no LM damping)."""
+    MuJoCo's layout), weight FOOTED_HOLD squared, none of it in the damping (mink's FreeHold has no LM damping). The
+    directions are the solve's first pose's (`begin` before each solve; the first step's `normal` finds them, the
+    later ones only pull along them), as `_footed.FreeHold` fixes its own at the frame's pose: found again at every
+    step, a straight leg's bend leaves the feet's rank and comes back a hair off it, held on one step and let go on
+    the next (#98, 2026-11-07)."""
 
     def __init__(self, rows, residuals, free_coord, weight, target):
         size = free_coord.shape[0]
@@ -97,13 +136,32 @@ class Held:
         self.hessian = wp.zeros((rows, size, size), dtype=wp.float32, device=DEVICE)
         self.gradient = wp.zeros((rows, size), dtype=wp.float32, device=DEVICE)
         self.squared = wp.zeros(rows, dtype=wp.float32, device=DEVICE)
+        self.measured = wp.zeros(rows, dtype=wp.float64, device=DEVICE)
+        self.found = False
+
+    def begin(self):
+        """A new solve: its first step finds the directions again, at its first pose."""
+        self.found = False
 
     def normal(self, slopes, reduced, qpos):
-        """(J^T J, J^T r, 0) of the hold at `qpos` with the tasks' reduced Jacobian `reduced`."""
-        wp.launch(_held, dim=reduced.shape[0], inputs=[reduced, qpos, self.target, self.free_coord,
-                                                       wp.float64(self.weight), self.basis],
-                  outputs=[self.hessian, self.gradient], device=DEVICE)
+        """(J^T J, J^T r, 0) of the hold at `qpos`, its directions found from the tasks' reduced Jacobian `reduced`
+        on the solve's first step and kept for the rest."""
+        if not self.found:
+            wp.launch(_held, dim=reduced.shape[0], inputs=[reduced, qpos, self.target, self.free_coord,
+                                                           wp.float64(self.weight), self.basis],
+                      outputs=[self.hessian, self.gradient], device=DEVICE)
+            self.found = True
+        else:
+            wp.launch(_pulled, dim=self.gradient.shape, inputs=[qpos, self.target, self.free_coord, self.hessian],
+                      outputs=[self.gradient], device=DEVICE)
         return self.hessian, self.gradient, self.squared
+
+    def cost(self, qpos):
+        """Each row's hold cost at `qpos` (MuJoCo's layout), float64: its part of the judged steps' cost, as mink's
+        FreeHold is one of the judged tasks (`fit.judged_solve`)."""
+        wp.launch(_held_cost, dim=qpos.shape[0], inputs=[qpos, self.target, self.free_coord, self.hessian],
+                  outputs=[self.measured], device=DEVICE)
+        return self.measured
 
 
 def newton_bodies(model, built):
@@ -264,8 +322,10 @@ class CardFooting:
         height.assign(found_heights.astype(np.float32))
         seeds.assign(np.asarray(path, dtype=np.float32))
         joint_q = wp.array(newton_order(path).astype(np.float32), dtype=wp.float32, device=DEVICE)
+        hold.begin()
         qpos, steps = solved(optimizer, self.reduction, self.projection, joint_q, seeds, self.most_steps, hold=hold,
-                             bounds=self._bounds(np.asarray(before, dtype=float)), marked=True)
+                             bounds=self._bounds(np.asarray(before, dtype=float)), marked=True,
+                             judged_from=FOOTED_LAM_FIRST)
         found = qpos.numpy().astype(float)
         moved = np.abs(found[:, self.moving_coord] - np.asarray(path, dtype=float)[:, self.moving_coord])
         unstopped = (steps.numpy() < 0) | ~np.isfinite(moved).all(axis=1) | (moved.max(axis=1) > LEAP)

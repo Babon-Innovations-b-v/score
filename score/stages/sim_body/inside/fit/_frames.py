@@ -38,12 +38,15 @@ def weighted_errors(configuration, tasks):
     return np.concatenate([task.cost * task.compute_error(configuration) for task in tasks])
 
 
-def solved(configuration, tasks, limits, constraints, refresh=None):
+def solved(configuration, tasks, limits, constraints, refresh=None, judged_from=None, gain=None):
     """mink's steps on `configuration` (from where it stands) until a step is under STEP_DONE, its own norm or the
     change it makes to the tasks' and constraints' weighted errors (a step along a direction no task sees, a gimbal's
     two cancelling joints at the shoulder's zero elevation, never ends by its own norm: #70's arms_raise): its qpos;
-    `refresh`, when given, sets the targets again before each step. With a `SkinTask` the steps are judged
-    (`judged_solve`). Not converged in MOST_STEPS raises NotConverged."""
+    `refresh`, when given, sets the targets again before each step. With a `SkinTask`, or given `judged_from` (the
+    judged steps' first added damping, lowered on every kept step: `judged_solve`'s `decaying`, with its `gain`), the
+    steps are judged (`judged_solve`). Not converged in MOST_STEPS raises NotConverged."""
+    if judged_from is not None:
+        return judged_solve(configuration, tasks, limits, constraints, refresh, judged_from, decaying=True, gain=gain)
     if any(isinstance(task, SkinTask) for task in tasks):
         return judged_solve(configuration, tasks, limits, constraints, refresh)
     seen = tasks + [constraint for constraint in constraints if isinstance(constraint, mink.EqualityConstraintTask)]
@@ -64,13 +67,17 @@ def solved(configuration, tasks, limits, constraints, refresh=None):
 LAM_FIRST, LAM_RAISE, LAM_MOST = 1e-3, 10.0, 1e8  # the judged steps' added damping (`fit._card._solve`'s)
 
 
-def judged_solve(configuration, tasks, limits, constraints, refresh=None):
+def judged_solve(configuration, tasks, limits, constraints, refresh=None, first=LAM_FIRST, decaying=False,
+                 gain=None):
     """`solved` with each step judged, Levenberg-Marquardt's control (the skin's depth bends where its closest point
     jumps: plain steps cycled for good, #70 2026-11-01): a step whose tasks' weighted cost is not under the kept pose's
-    is turned back and the added damping (on mink's `damping`) raised LAM_RAISE times from LAM_FIRST, a kept one lowers
-    it (to 0 under LAM_FIRST) and ends the fit when it, or its change to the weighted errors, is under STEP_DONE; a
-    turned-back fit ends on a step under STEP_DONE or past LAM_MOST (no step lowers its cost). The card's
-    (`fit._card._solve`) the same rule."""
+    is turned back and the added damping (on mink's `damping`) raised LAM_RAISE times from `first` (LAM_FIRST), a
+    kept one lowers it (to 0 under `first`; `decaying`, LAM_RAISE times, never put back to 0: Levenberg-Marquardt's own
+    rule) and ends the fit when it, or its change to the weighted errors, is under STEP_DONE, or, given `gain` and
+    taken at no more than `first`, it lowered the cost by under `gain` of it (a target no pose reaches leaves the cost
+    large, and Gauss-Newton's steps along what the reached targets see only weakly go on for good); a turned-back fit
+    ends on a step under STEP_DONE or past LAM_MOST (no step lowers its cost). The card's (`fit._card._solve`) the same
+    rule."""
     seen = tasks + [constraint for constraint in constraints if isinstance(constraint, mink.EqualityConstraintTask)]
     kept, lam, cost = configuration.q.copy(), 0.0, np.inf
     before = weighted_errors(configuration, seen)
@@ -81,15 +88,16 @@ def judged_solve(configuration, tasks, limits, constraints, refresh=None):
         trial = float(np.sum(weighted_errors(configuration, tasks) ** 2))
         if trial < cost:
             moved = np.linalg.norm(errors - before) if np.isfinite(cost) else np.inf
+            flat = gain is not None and lam <= first and cost - trial < gain * trial
             kept, cost, before = configuration.q.copy(), trial, errors
-            lam = lam / LAM_RAISE if lam > LAM_FIRST else 0.0
-            if moved < STEP_DONE:
+            lam = lam / LAM_RAISE if decaying or lam > first else 0.0
+            if moved < STEP_DONE or flat:
                 return kept
         else:
             configuration.update(kept)
             if refresh is not None:
                 refresh()
-            lam = max(lam * LAM_RAISE, LAM_FIRST)
+            lam = max(lam * LAM_RAISE, first)
             if lam > LAM_MOST:
                 return kept
         velocity = mink.solve_ik(configuration, tasks, 1.0, SOLVER, damping=DAMPING + lam, limits=limits,

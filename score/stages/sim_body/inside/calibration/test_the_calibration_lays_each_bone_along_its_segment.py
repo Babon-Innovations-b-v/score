@@ -2,7 +2,8 @@
 the two models' symmetry: a middle group turns no body sideways, a right group is its left one with the body's half
 turn about its z (MyoFullBody's right bodies are its left ones mirrored in z; measured on the table within 0.03
 degrees, 2026-10-28); the held fingers' rest turns are written alike for both hands, each a finger or thumb joint
-of MyoFullBody's; the wrists' end holds the hand at SOMA's Hand joint. Pure: the score venv runs it.
+of MyoFullBody's; the wrists' end holds the hand at SOMA's Hand joint; a levelled foot's row rises as MyoFullBody's
+default foot about its hinge. Pure: the score venv runs it.
 
 Breaks (each applied once, seen red, reverted), 2026-10-28:
 - aligned's `soma_turn.T @ frame(...)` made `frame(...)` (the segment's own turn dropped).
@@ -42,6 +43,13 @@ Break (applied once, seen red, reverted), 2026-11-06 (the hands at their joints)
 
 Break (applied once, seen red, reverted), 2026-11-06 (the shins back on their line):
 - INSIDE_GROUPS given "LeftShin" and "RightShin" again: "LeftShin: a leg group's row read in the skin".
+
+Breaks (each applied once, seen red, reverted), 2026-11-06 (#98, the feet levelled):
+- levelled's `row @ Rotation.from_rotvec(... * hinge)` made `Rotation.from_rotvec(... * hinge).as_matrix() @ row`
+  (turned about the hinge in the segment's frame, not the body's): "the levelled foot's long axis rises 2.339
+  degrees, not 2" and "levelling moved the hinge's line".
+- levelled's `- rise` dropped from its miss: "the levelled foot's long axis rises 0.000 degrees, not 2"; LEVELLED made ():
+  "the groups levelled are (), not the feet".
 
 Run: .venv/bin/python score/stages/sim_body/inside/calibration/test_the_calibration_lays_each_bone_along_its_segment.py
 """
@@ -185,10 +193,30 @@ def a_wrists_end_holds_the_hand_at_its_joint():
 def the_legs_rows_are_their_landmark_lines():
     """No leg group (thigh, shin, foot, toes) is read in the skin (`INSIDE_GROUPS`): each lies on the line between
     its two end joints, the ends the fit holds on SOMA's rig joints. A skin-read shin row stood 5.5 degrees off its
-    knee to ankle line, its ankle 25 mm forward of SOMA's on the mean body (#70, 2026-11-06)."""
+    knee to ankle line, its ankle 25 mm forward of SOMA's on the mean body (#70, 2026-11-06). A foot's row levelled
+    rises as its default about its hinge (`levelled_foot_problems`)."""
     legs = [group for group in calibration.INSIDE_GROUPS
             if group.removeprefix("Left").removeprefix("Right") in ("Leg", "Shin", "Foot", "ToeBase")]
-    return [f"{group}: a leg group's row read in the skin" for group in legs]
+    return [f"{group}: a leg group's row read in the skin" for group in legs] + levelled_foot_problems()
+
+
+def levelled_foot_problems():
+    """A foot's row levelled (`calibration.levelled`, #98): a row turning the body 10 degrees toes-out and 5
+    toes-down, a hinge 20 degrees off the across axis (the MT heads' oblique line), SOMA's rest frame the identity and
+    the default body's long axis rising 2 degrees: it comes back turned about that hinge in the body's frame alone (the
+    hinge's line laid where the row laid it) so the long axis rises 2 degrees; and the feet are the groups levelled."""
+    hinge = np.array([np.sin(np.radians(20.0)), 0.0, np.cos(np.radians(20.0))])
+    row = Rotation.from_euler("yz", [10.0, -5.0], degrees=True).as_matrix()
+    default = Rotation.from_euler("z", 2.0, degrees=True).as_matrix()
+    flat = calibration.levelled(row, np.eye(3), default, hinge)
+    problems = []
+    if abs(flat[1, 0] - default[1, 0]) > 1e-9:
+        problems.append(f"the levelled foot's long axis rises {np.degrees(np.arcsin(flat[1, 0])):.3f} degrees, not 2")
+    if np.abs(flat @ hinge - row @ hinge).max() > 1e-9:
+        problems.append("levelling moved the hinge's line")
+    if calibration.LEVELLED != ("{Side}Foot",):
+        problems.append(f"the groups levelled are {calibration.LEVELLED}, not the feet")
+    return problems
 
 
 CHECKS = (a_wrists_end_holds_the_hand_at_its_joint, the_legs_rows_are_their_landmark_lines, a_middle_end_shifts_in_the_middle_plane, both_hands_rest_their_fingers_alike, a_hanging_bone_is_laid_along_its_segment, the_table_keeps_both_sides_and_the_middle,

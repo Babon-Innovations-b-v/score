@@ -85,7 +85,8 @@ import numpy as np
 from score import checks, contracts
 from score.stages import layer_base
 from score.stages.sim_body._body import (BODY, RATE, body_row, clip_frames, contacts_of, mass_of,  # noqa: F401
-                                         person_rig, route_clip, segments_of, standing_height)
+                                         person_rig, route_clip, segments_of, soles, stances, standing_height,
+                                         stood, stood_smoothed)
 from score.stages.sim_body._gates import (EMPTY_CAST, FOLLOWED, LAYER, MOVE_MOST, NO_SINGLES,  # noqa: F401
                                           RECORD, RESIDUAL_FORCE, RESIDUAL_MOMENT, judge_carries, judge_follows,
                                           judge_lands, judge_on_floor, judge_residual, judge_smooth, measured,

@@ -2,7 +2,7 @@
 points over its lowest point, with HEADROOM free over it, at the height worked out by hand, and every triangle's
 normal points up (pure numpy: the score venv runs it).
 
-Breaks (each applied once, seen red, reverted), 2026-10-28, 2026-10-30 and 2026-10-31:
+Breaks (each applied once, seen red, reverted), 2026-10-28, 2026-10-30, 2026-10-31 and 2026-11-07:
 - standing's `free = (above - heights >= HEADROOM) & ...` made `>= 0`: a point 1.1 m over a floor, over a counter
   top at 1.0 m with a cupboard 0.5 m over it, stands on the counter top, under the cupboard.
 - standing's `top = which != np.append(which[1:], -1)` made the first of each point (the lowest, as before
@@ -13,6 +13,9 @@ Breaks (each applied once, seen red, reverted), 2026-10-28, 2026-10-30 and 2026-
 - standing's `reach = points[:, 1] + REACH_UP if reach is None else ...` made to ignore `reach` (each point its own
   reach, as 75903a1a left it, 2026-10-31): a 1.76 m body under a roof at 1.84 m reads 0.24 m into its ground, its
   head grounded on the roof (tube's person_mid_left_2, greenhouse's astronauts 1, 4 and 5).
+- body_reach's `max(..., float(np.median(points[:, 1])))` dropped (its lowest point plus REACH_UP alone, as before
+  2026-11-07): a body seated on a 0.40 m seat, its feet on the floor, has no ground under its seat (nan), the seat
+  past its reach and the floor under it covered (#98's sit-to-stand chair).
 - REACH_UP made 0.4: it no longer agrees with the cast's KNEE.
 - normals' `found *= np.sign(found[:, 1:2]) + (found[:, 1:2] == 0)` dropped: a triangle wound the other way points
   down.
@@ -73,14 +76,30 @@ def a_point_on_a_deck_stands_on_the_deck():
 def a_body_under_a_roof_stands_on_its_floor():
     """A floor at 0 and a single-sided roof at 1.84 m: a 1.76 m body standing on the floor (points from its feet to its
     head) reads 0 m over its ground, its head not grounded on the roof 0.08 m over it; the same body on a deck at
-    2.958 m stands on the deck, and one on the floor under the deck on the floor."""
+    2.958 m stands on the deck, and one on the floor under the deck on the floor. A seated body sits on its seat
+    (`seated_reach_problems`)."""
     body = np.array([[0.5, height, 0.5] for height in np.linspace(0.0, 1.76, 12)])
     roofed = np.array(square(0.0) + square(1.84, -1.0, 1.0))
     decked = np.array(square(0.0) + square(2.958, -1.0, 1.0))
     found = {name: np.nanmin(ground.heights_over(points, under, ground.body_reach(points)))
              for name, points, under in (("under the roof", body, roofed), ("on the deck", body + [0, 2.958, 0], decked),
                                          ("under the deck", body, decked))}
-    return [f"{name}: {over} over its ground, not 0" for name, over in found.items() if abs(over) > 1e-9]
+    return [f"{name}: {over} over its ground, not 0" for name, over in found.items() if abs(over) > 1e-9] + \
+        seated_reach_problems()
+
+
+def seated_reach_problems():
+    """A floor at 0 and a chair's seat 0.40 m up under a seated body's thighs, its feet on the floor before it and its
+    trunk up to 1.3 m: its thighs stand 0 m over the seat, its feet 0 m over the floor."""
+    feet = [[0.5, height, 0.0] for height in np.linspace(0.0, 0.4, 5)]
+    thighs = [[x, 0.4, 0.0] for x in np.linspace(-0.3, 0.1, 5)]
+    trunk = [[-0.3, height, 0.0] for height in np.linspace(0.5, 1.3, 9)]
+    body = np.array(feet + thighs + trunk)
+    seated = np.array(square(0.0) + square(0.4, -0.4, 0.2))
+    over = ground.heights_over(body, seated, ground.body_reach(body))
+    return [f"{name}: {found} over its ground, not 0" for name, found in
+            (("the thighs", np.nanmax(np.abs(over[5:10])) if not np.isnan(over[5:10]).any() else np.nan),
+             ("the feet", over[0])) if not abs(found) < 1e-9]
 
 
 def reach_up_is_the_casts_knee():
