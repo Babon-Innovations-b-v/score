@@ -8,7 +8,8 @@ turns it red (each applied once and seen red):
   Break: drop `and item.get("project_id") == project` in `cluster`. Break: drop the `len(found) > 1` refusal.
 - A tenant cluster (`tenant.py`) is never deleted, its pools never resized; only its pools tainted for score and
   labelled with a class are score's, and only their nodes. Break: `cap_pools` sets the max as scaleway's does.
-  Break: drop `tainted_for_score(pool) and` in `score_pools`.
+  Break: drop `tainted_for_score(pool) and` in `score_pools`. A pool or node of score's labelled with no capability
+  class (the conductor's own) is no job pool. Break: drop the `job_class` test in `score_pools` or `nodes`.
 - `up` makes nothing outside a cleared run (the cluster and its system pool bill by the hour).
   Break: drop `compute.require_cleared(...)` in `up`.
 - A cluster or pool order writes its `order-started` line before it is sent (review of C1, 2026-10-17).
@@ -71,7 +72,9 @@ def test_down_deletes_only_this_projects_cluster_and_two_of_one_name_stop(monkey
               "taints": tainted, "labels": {"score.dev/class": "gpu-24gb"}},
              {"id": "p2", "name": "unlabelled", "node_type": "l4_1_24g", "zone": "fr-par-2", "taints": tainted},
              {"id": "p3", "name": "theirs", "node_type": "l4_1_24g", "zone": "fr-par-2",
-              "labels": {"score.dev/class": "gpu-24gb"}}]
+              "labels": {"score.dev/class": "gpu-24gb"}},
+             {"id": "p4", "name": "score-conductor", "node_type": "pop2_hm_16c_128g", "zone": "fr-par-2",
+              "taints": tainted, "labels": {"score.dev/class": "conductor"}}]
     asked = []
 
     def tenant_scw(*arguments):
@@ -92,6 +95,9 @@ def test_down_deletes_only_this_projects_cluster_and_two_of_one_name_stop(monkey
                                       "labels": {"score.dev/class": "gpu-24gb", tenant.POOL_LABEL: pool}},
                          "spec": {"taints": taints}, "status": {"conditions": [{"type": "Ready", "status": "True"}]}}
                         for name, pool, taints in (("n-p1", "score-l4", tainted), ("n-p3", "theirs", []))]}
+    listed["items"].append({"metadata": {"name": "n-p4", "creationTimestamp": "2026-11-05T10:00:00Z",
+                                         "labels": {"score.dev/class": "conductor", tenant.POOL_LABEL: "score-conductor"}},
+                            "spec": {"taints": tainted}, "status": {"conditions": []}})
     monkeypatch.setattr(tenant, "kubectl", lambda *words: json.dumps(listed))
     assert [node["name"] for node in tenant.nodes()] == ["n-p1"]
     assert not any("update" in call or "delete" in call for call in asked)
