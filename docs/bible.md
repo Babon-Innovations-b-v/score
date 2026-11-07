@@ -819,7 +819,8 @@ state is a label (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-hu
 `main` only (ADR-0001), so a push is the ship. Before pushing an edit to anything a stage hashes, run `python -m score
 moved`: it lists every paid row the diff would buy again; a commit that moves one on purpose names it in a
 `Moved-rows: <node> ...: <reason>` trailer (`.claude/hooks/local/pre-push-moved` refuses an unnamed move once the owner sets
-`git config score.movedCheck true`).
+`git config score.movedCheck true`). A push to main is refused when the test rule, a touched module's
+test or the re-buy check fails (`.claude/hooks/local/pre-push`).
 
 **Commits.** Imperative and scoped, `module: description`; a subject that needs "and" is two commits.
 

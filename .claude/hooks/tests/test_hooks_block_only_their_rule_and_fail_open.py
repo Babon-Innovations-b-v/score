@@ -44,7 +44,12 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_commit_guard_refuses_a_session_waiving_a_guard: `bypass_in` returns None at once.
 - test_commit_guard_refuses_the_shared_checkout_while_a_worktree_is_live: `live_session_worktrees` returns [] at once.
 - test_commit_guard_reads_only_gits_subcommand_as_a_commit: `is_git_commit` returns `"commit" in tokens` (any word).
-- test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file: `blocks` returns False at once.
+- test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file: `blocks` returns False at once. Its push-gate
+  half (.claude/hooks/local/pre-push, in a scratch clone): `gate`'s `if rule.returncode != 0` block dropped (a grown
+  debt file pushes); `run_tests` returns True at once, or `touched_tests` returns ([], []) (a failing touched test
+  pushes); `touched_tests`'s `cluster` made [] (a GPU module is run, not left to the cluster gate); `main` returns 0
+  instead of handing the push lines to pre-push-moved; `main`'s `GIT_HOOK_ENV` pop dropped (the clean push's test
+  file, a git-driving one here, then runs against the pushing repository's GIT_DIR).
 - test_torn_commit_guard_refuses_conflict_markers_and_a_broken_sourced_shell_contract: `sourced_shell_dirs` returns
   [] at once.
 - test_leftover_guard_says_once_that_a_worktree_holds_uncommitted_work: `session_worktree` returns None at once.
@@ -687,6 +692,55 @@ def stage(repo, path, text):
     git(repo, "add", path)
 
 
+# The push gate (.claude/hooks/local/pre-push): no push leaves main red, run in a clone of this checkout.
+
+GATE_FILES = (".claude/hooks/local/pre-push", "tools/test_rule/check.py", "Makefile", ".claude/scripts/sandbox-home.py")
+HOLDS_TEST = '''"""A held value stays held, in its own repository. Break: holds.py's VALUE made 2 turns it red."""
+import pathlib
+import subprocess
+
+
+def test_value_holds():
+    here = pathlib.Path(__file__).resolve().parent
+    assert (here / "holds.py").read_text() == "VALUE = 1\\n"
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=here, capture_output=True, text=True).stdout
+    assert pathlib.Path(top.strip()) == here.parents[1], top
+'''
+
+
+def gate_clone(folder, moved_marker):
+    """A clone of this checkout with this tree's gate files, a module `tools/zz_gate` whose test passes, its
+    pre-push-moved a stand-in writing its stdin to `moved_marker`, all committed; (clone, its base commit)."""
+    git(folder.parent, "clone", "-q", "--shared", str(REPO), str(folder))
+    for name in GATE_FILES:
+        shutil.copy(REPO / name, folder / name)
+    moved = folder / ".claude/hooks/local/pre-push-moved"
+    moved.write_text(f"#!/usr/bin/env bash\ncat > {moved_marker}\n")
+    moved.chmod(0o755)
+    (folder / "tools/zz_gate").mkdir()
+    (folder / "tools/zz_gate/holds.py").write_text("VALUE = 1\n")
+    (folder / "tools/zz_gate/test_a_held_value_stays_held.py").write_text(HOLDS_TEST)
+    own = REPO / ".venv"
+    common = pathlib.Path(git(REPO, "rev-parse", "--path-format=absolute", "--git-common-dir")).parent / ".venv"
+    (folder / ".venv").symlink_to(own if own.exists() else common)
+    git(folder, "add", "-A")
+    git(folder, "commit", "-q", "-m", "base")
+    return folder, git(folder, "rev-parse", "HEAD")
+
+
+def push(clone, base, files):
+    """(exit code, stderr, stdout) of the gate on a push to main of one commit on `base` writing these files."""
+    git(clone, "reset", "-q", "--hard", base)
+    for path, text in files.items():
+        (clone / path).parent.mkdir(parents=True, exist_ok=True)
+        (clone / path).write_text(text)
+    git(clone, "add", "-A")
+    git(clone, "commit", "-q", "-m", "pushed")
+    line = f"refs/heads/main {git(clone, 'rev-parse', 'HEAD')} refs/heads/main {base}\n"
+    as_git_runs_it = dict(GIT_ENV, GIT_DIR=str(clone / ".git"))  # a test's own scratch git must not inherit it
+    return run(clone / ".claude/hooks/local/pre-push", line, env=as_git_runs_it, cwd=clone, timeout=110)
+
+
 def test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file(tmp_path):
     repo = torn_repo(tmp_path / "repo")
     (repo / "fixtures").mkdir()
@@ -702,6 +756,20 @@ def test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file(tmp_path
     stage(repo, "tests/test_kept.py", "from lib import module_kept\n")
     code, said = torn(repo)
     assert code == 0 and "note" in said, said
+    # The push gate: a grown debt file and a failing touched test are refused, a clean push goes on to the moved check.
+    marker = tmp_path / "moved.txt"
+    clone, base = gate_clone(tmp_path / "clone", marker)
+    debt = "paper/build/test_paper_build_matches_its_source.py"
+    grown = (clone / debt).read_text() + "\n\ndef test_grown():\n    pass\n"
+    code, said, out = push(clone, base, {debt: grown})
+    assert code == 1 and "may not grow" in out and "test rule" in said and not marker.exists(), (said, out)
+    code, said, out = push(clone, base, {"tools/zz_gate/holds.py": "VALUE = 2\n"})
+    assert code == 1 and "touched module's test failed" in said and not marker.exists(), (said, out)
+    inside = "score/stages/sim_body/inside/rra/note.txt"
+    code, said, out = push(clone, base, {"tools/zz_gate/notes.txt": "x\n", inside: "x\n"})
+    assert code == 0 and "passed in" in out and "1 test file" in out, (said, out)
+    assert "test_rra_moves_mass_and_torso_by_the_mean_residual.py left to the cluster gate" in out, out
+    assert marker.read_text().startswith("refs/heads/main "), marker.read_text()
 
 
 def test_torn_commit_guard_refuses_conflict_markers_and_a_broken_sourced_shell_contract(tmp_path):
