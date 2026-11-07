@@ -107,13 +107,17 @@ def with_anchors(inventory):
 
 
 def as_they_rest(inventory, record):
-    """The inventory (with_anchors) with each row the scene `record` says rests leaning or attached given the
-    `fixed` support (assembly/mounted.resting_as_laid, as the assembly's resting check reads it): never dropped or
-    snapped down, never judged on its feet; the settle leans a leaning one itself (leaning_phase)."""
-    from score.stages.assembly.mounted import resting_as_laid
-    given = resting_as_laid(record or {})
+    """The inventory (with_anchors) with each row on a wall or ceiling row given that support (assembly/mounted.
+    mounted: judged by touching, never as standing on what is under it) and each the scene `record` says rests
+    leaning or attached the `fixed` support (mounted.resting_as_laid), as the assembly's resting check reads both:
+    never dropped or snapped down, never judged on its feet; the settle leans a leaning one itself (leaning_phase).
+    2026-11-07: settle@storage judged its wall lights 2.5 m up the left wall as floating and its wall pipes as
+    standing on nothing, the assembly as mounted."""
+    from score.stages.assembly.mounted import mounted, resting_as_laid
+    rows = with_anchors(inventory)["rows"]
+    given = {**mounted({row["id"]: row for row in rows}), **resting_as_laid(record or {})}
     return {**inventory, "rows": [{**row, "support": given[row["id"]]} if row["id"] in given and not row.get("support")
-                                  else row for row in with_anchors(inventory)["rows"]]}
+                                  else row for row in rows]}
 
 
 def scene_record(root):

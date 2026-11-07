@@ -382,7 +382,12 @@ def test_things_on_one_face_that_meet_at_their_built_widths_are_spread_along_it(
     Break: score/review/holders/__init__.py: `return first["band"][0] < second["band"][1] - 1e-9 and second["band"][0]
         < first["band"][1] - 1e-9` -> `return True`
     Break: score/review/holders/__init__.py: `return lefts if clear and lefts[0] >= -half + OPENING_ROOM - 1e-9 else
-        None` -> `return lefts`"""
+        None` -> `return lefts`
+    2026-11-07 (settle@storage): three pipes the plan draws on a 0.3 m pillar's N, S and E sides, the concept showing
+    them on its S side, too short for the three: each turned to the side the plan draws it on, none crowded (storage's
+    pillar pipes laid in one another on one side).
+    Break: score/review/holders/__init__.py: `if not [turned for _, entries in crowded for turned in
+        [turned_toward(entries, items)] if turned]:` -> `if True:`"""
     def facade_plan(long):
         rows = [{"id": "left_building_facade", "noun": "building facade", "part": "wall", "anchor": "ground",
                  "size": [3.0, long, 20.0], "box": [0, 0, 300, 600]},
@@ -407,6 +412,17 @@ def test_things_on_one_face_that_meet_at_their_built_widths_are_spread_along_it(
     found = facade_plan(6.0)
     assert all("spots" not in entry for entry in found["relations"]), found["relations"]
     assert [(entry["face"], entry["rows"]) for entry in found["crowded"]] == [("E", ["air_conditioner_unit", "shutter", "window"])], found
+    rows = [{"id": "pillar", "noun": "pillar", "anchor": "floor", "size": [0.3, 0.3, 3.0], "box": [500, 100, 600, 560]},
+            {"id": "pillar_pipe", "noun": "pipe", "anchor": "on:pillar", "size": [0.13, 0.1, 3.0],
+             "box": [530, 100, 570, 560]}]
+    plan = plan_of([["PILLAR 1", 8.0, 5.0, 0.3, 0.3, None, "item"],
+                    ["PILLAR PIPE 1", 8.1, 4.9, 0.1, 0.1, None, "item"],
+                    ["PILLAR PIPE 2", 8.1, 5.3, 0.1, 0.1, None, "item"],
+                    ["PILLAR PIPE 3", 8.3, 5.1, 0.1, 0.1, None, "item"]],
+                   {"PILLAR 1": ["pillar"], **{f"PILLAR PIPE {number}": ["pillar_pipe"] for number in (1, 2, 3)}})
+    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
+    faces = [by_item_of(found)[f"PILLAR PIPE {number}"]["face"] for number in (1, 2, 3)]
+    assert faces == ["N", "S", "E"] and "crowded" not in found, (faces, found.get("crowded"))
 
 
 def test_things_drawn_past_their_holder_s_built_end_are_spread_inside_it():
@@ -663,7 +679,11 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
         passage(rows[entry["row"]])):` -> `for entry in order:`
     Break: score/review/holders/__init__.py: `top = max(wall_top(wall, plan) - tall, 0.0)` -> `top = wall_top(wall,
         plan) - tall`
-    Break: score/review/holders/__init__.py: `first += stuck` -> `return`"""
+    Break: score/review/holders/__init__.py: `first += stuck` -> `return`
+    2026-11-07 (settle@storage): two 3 m pipes drawn by one 3.2 m wall 2.6 m up, a ceiling light hung by it: the second
+    stands under the first, never up into the light (storage's second wall pipe stood up into its ceiling light).
+    Break: score/review/holders/__init__.py: `laid = [(box, math.inf) for box in hung_boxes(found, rows, plan)]` ->
+        `laid = []`"""
     rows = [{"id": "left_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
             {"id": "string_lights", "noun": "lights", "anchor": "on:left_wall", "size": [3.0, 0.05, 0.05]},
             {"id": "wall_light", "noun": "light", "anchor": "on:left_wall", "size": [1.0, 0.1, 0.1]}]
@@ -825,6 +845,22 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     laid = by_item_of(found)
     assert laid["BOARD 1"]["spot"] == [1.6, 0.05] and laid["LAMP 1"]["wall"]["to"] == [0.0, 1.0], laid
     assert clear(found, rows, plan), found  # the board, stuck behind the lamps, laid first: the lamps part round it
+    rows = [{"id": "pipe_thick", "noun": "pipe", "anchor": "wall", "size": [3.0, 0.15, 0.15]},
+            {"id": "ceiling_light", "noun": "light", "anchor": "ceiling", "size": [0.8, 0.3, 0.1]}]
+    plan = plan_of([["PIPE THICK 1", 0.25, 0.1, 3.0, 0.15, None, "item"],
+                    ["PIPE THICK 2", 0.1, 0.2, 3.0, 0.15, None, "item"],
+                    ["CEILING LIGHT 1", 2.0, 0.1, 0.8, 0.3, "S", "item"]],
+                   {"PIPE THICK 1": ["pipe_thick"], "PIPE THICK 2": ["pipe_thick"],
+                    "CEILING LIGHT 1": ["ceiling_light"]}, walls=narrow, w=3.2, d=1.0,
+                   outline=[[0.0, 0.0], [3.2, 0.0], [3.2, 1.0], [0.0, 1.0]],
+                   shapes={f"PIPE THICK {number}": {"base": 2.6} for number in (1, 2)})
+    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
+    laid, by_id = by_item_of(found), {row["id"]: row for row in rows}
+    hung = holders.hung_boxes(found["relations"], by_id, plan)
+    assert len(hung) == 1 and abs(hung[0][6] - 2.99) < 1e-6, hung  # under the walls' 3 m: no roof drawn
+    assert laid["PIPE THICK 2"]["height"] == 2.4, laid["PIPE THICK 2"]  # 2.8 m would meet the light hung at 2.89 m
+    assert all(holders.boxes_meet(holders.relation_box(laid[item], by_id["pipe_thick"], plan), hung[0])
+               <= holders.WALL_TOUCH for item in ("PIPE THICK 1", "PIPE THICK 2")), laid
     rows = [{"id": "front_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
             {"id": "shop_door", "noun": "door", "anchor": "on:front_wall", "size": [1.0, 0.1, 2.1]}]
     plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"],

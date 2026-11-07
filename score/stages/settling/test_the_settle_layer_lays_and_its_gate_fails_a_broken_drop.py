@@ -44,7 +44,9 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   wall passes) and its `if foot > resting.TOLERANCE:` made `if False:` (the raised board passes); in
   settling/__init__.py judge_rested's `faults += leaning_wrong(output, inputs, record)` dropped (the gate passes the
   floating board); and assembly/mounted.py resting_as_laid's `if entry.get("rests") in ("leaning", "attached")` made
-  `if False` (the leaning and attached rows dropped and snapped as loose and held ones).
+  `if False` (the leaning and attached rows dropped and snapped as loose and held ones); and as_they_rest's
+  `**mounted(...)` dropped (a lamp on a wall row judged standing on what is under it: settle@storage's wall lights
+  floating 2.5 m, 2026-11-07).
 - a_cloud_drop_runs_on_the_trials_card_in_its_python_once (tools/usd/drop.py): simulate's `machine.run(..., env=ENV)`
   without `env=ENV` (the drop sent to the card's Blender).
 
@@ -428,9 +430,10 @@ def a_leaning_thing_rests_on_its_foot_against_its_holder_and_the_gate_fails_one_
     rows = {"objects": [{"name": "board_1", "row": "board", "rests": "leaning", "on": {"how": "wall", "out": [1, 0]}},
                         {"name": "ramp_1", "row": "ramp", "rests": "attached"}, {"name": "crate_1", "row": "crate"}]}
     inventory = settle.as_they_rest({"rows": [{"id": "board"}, {"id": "ramp", "anchor": "on:lander"},
-                                              {"id": "crate"}]}, rows)
+                                              {"id": "crate"}, {"id": "left_wall", "part": "wall"},
+                                              {"id": "lamp", "anchor": "on:left_wall"}]}, rows)
     supports = {row["id"]: row.get("support") for row in inventory["rows"]}
-    if supports != {"board": "fixed", "ramp": "fixed", "crate": None}:
+    if supports != {"board": "fixed", "ramp": "fixed", "crate": None, "left_wall": None, "lamp": "wall"}:
         problems.append(f"supports as they rest: {supports}")
     ways = held.leaning(rows)
     if ways != {"board_1": [1, 0]}:
