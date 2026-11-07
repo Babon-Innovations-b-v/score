@@ -372,10 +372,14 @@ def said_by(process):
         said = (process / "cmdline").read_bytes()
     except PermissionError as error:
         raise Unprovable(f"process {process.name} cannot be read ({error}): it may work in a copy") from None
+    except ProcessLookupError:  # it ended between the listing and the read: as its folder gone (callers skip it)
+        raise FileNotFoundError(f"process {process.name} ended") from None
     try:
         return said + b"\0" + (process / "environ").read_bytes()
     except PermissionError:
         return said
+    except ProcessLookupError:
+        raise FileNotFoundError(f"process {process.name} ended") from None
 
 
 def copy_named(folder, word):
