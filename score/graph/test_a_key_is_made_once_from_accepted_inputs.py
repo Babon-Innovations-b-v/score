@@ -1221,6 +1221,13 @@ def make(inputs, out, seed, params):
 OTHER_SOURCE = """def make(inputs, out, seed, params):
     (out / "made.txt").write_text("TOTALLY DIFFERENT " + inputs["seeds"].read_text())
 """
+GATE_SOURCE = """from score import checks
+
+
+def judge(output, inputs, evidence):
+    rusted = (inputs["seeds"].parent / "rusted").exists()  # read by no key: what a gate may see change under a lock
+    return checks.Verdict("seen", checks.FAIL if rusted else checks.PASS, "rusted" if rusted else "it was made")
+"""
 
 
 def stage_source(case):
@@ -1230,14 +1237,15 @@ def stage_source(case):
 @contextlib.contextmanager
 def a_repo_of_its_own(case):
     """A committed git repository taken as the repository while the block runs: `narrow_a<case>` imports
-    `narrow_h<case>` (which imports `narrow_j<case>`) and `narrow_g<case>`; `narrow_b<case>` has a make of its own; a
-    FRAMEWORK of none. Yields (its folder, the stage module)."""
+    `narrow_h<case>` (which imports `narrow_j<case>`) and `narrow_g<case>`; `narrow_b<case>` has a make of its own,
+    `narrow_k<case>` a gate; a FRAMEWORK of none. Yields (its folder, the stage module)."""
     repo = pathlib.Path(tempfile.mkdtemp(prefix="narrow_repo_")).resolve()
     (repo / f"narrow_h{case}.py").write_text(f'import narrow_j{case}\nWORD = "kept " + narrow_j{case}.WORD\n')
     (repo / f"narrow_j{case}.py").write_text('WORD = "joined "\n')
     (repo / f"narrow_g{case}.py").write_text('WORD = "also "\n')
     (repo / f"narrow_a{case}.py").write_text(stage_source(case))
     (repo / f"narrow_b{case}.py").write_text(OTHER_SOURCE)
+    (repo / f"narrow_k{case}.py").write_text(GATE_SOURCE)
     (repo / "score" / "graph").mkdir(parents=True)
     (repo / "score" / "graph" / "_code.py").write_text("FRAMEWORK = {REPO / name for name in ()}\n")
     (repo / ".gitignore").write_text("__pycache__/\n")
@@ -1263,21 +1271,29 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
     reworded only (comments, blank lines, layout, docstrings) keep it, the record naming them; a docstring changed in
     a file that reads `__doc__`, or a type hint, makes A again. A's phase locked (Runner.lock_phase): its own file
     edited keeps it, the record "kept by the phase lock of <time>", status naming the lock and A kept by it; its
-    {seeds} file changed (an input) makes A again; unlocked, its own file edited makes A again (case 1).
+    {seeds} file changed (an input) makes A again; unlocked, its own file edited makes A again (case 1). Locked, with
+    its gate in a file of its own (K): its own file edited while that unchanged gate would fail it today keeps it (a
+    gate not changed since the lock is not judged again: checkout 47, 2026-11-07, pixal and closeup bought again);
+    K edited so the gate fails the locked output makes A again (2026-11-07, 796d7a76's paint gate, hub's console).
     Break: score/graph/__init__.py: '        return (record, reworded) if _code.unchanged(dropped, file_hash) else None' -> '        return (record, reworded)'
-    Break: score/graph/__init__.py: '        if not all(self.code_file(stage, name, place) for name in keyed["files"]' -> '        if False and not all(self.code_file(stage, name, place) for name in keyed["files"]'"""
+    Break: score/graph/__init__.py: '        if not all(self.code_file(stage, name, place) for name in keyed["files"]' -> '        if False and not all(self.code_file(stage, name, place) for name in keyed["files"]'
+    Break: score/graph/__init__.py: '        if self.gates_moved(stage, locks[-1]) and self.fails_today(stage, place, record):' -> '        if self.fails_today(stage, place, record):'
+    Break: score/graph/__init__.py: '        if self.gates_moved(stage, locks[-1]) and self.fails_today(stage, place, record):' -> '        if False:'"""
     for case, change, kept in ((0, None, True), (1, "own file", False), (2, "seeds", False),
                                (3, "make swapped", False), (4, "python", False), (5, "helper edited", False),
                                (6, "read through helper edited", False), (7, "second narrowing", True),
                                (8, "read through helper deleted", False), (9, "words only", True),
                                (10, "read docstring changed", False), (11, "type hint", False),
-                               (12, "own file, phase locked", True), (13, "seeds, phase locked", False)):
+                               (12, "own file, phase locked", True), (13, "seeds, phase locked", False),
+                               (14, "own file, gate fails, phase locked", True),
+                               (15, "gate edited, phase locked", False)):
         seeds = pathlib.Path(tempfile.mkdtemp())
         (seeds / "hangar.txt").write_text("a seed")
         world = graph.Environment("toy", 7, {"seeds": str(seeds)})
         store = a_store()
         with a_repo_of_its_own(case) as (repo, module):
-            stage = graph.Stage("narrow", "place", module.make, TEXT, SEEN, files={"seeds": "{seeds}/{place}.txt"})
+            gate = (checks.Check("seen", importlib.import_module(f"narrow_k{case}").judge),) if case >= 14 else SEEN
+            stage = graph.Stage("narrow", "place", module.make, TEXT, gate, files={"seeds": "{seeds}/{place}.txt"})
             if change == "read docstring changed":
                 (repo / f"narrow_g{case}.py").write_text('"""also """\nWORD = __doc__\n')
                 subprocess.run(["git", "-C", str(repo), "-c", "user.name=test", "-c", "user.email=test@test", "commit",
@@ -1291,6 +1307,9 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                 assert lock["nodes"] == {"narrow@hangar": {"output": old["output"], "key": old["key"],
                                                            "commit": old["commit"]}} and lock["n"] == 1, lock
                 change = change.removesuffix(", phase locked")
+            if change == "own file, gate fails":  # the gate's code as at the lock, failing the locked output today
+                (seeds / "rusted").write_text("rust")
+                change = "own file"
             if change not in ("words only", "read docstring changed", "type hint"):
                 _code.FRAMEWORK.add(repo / f"narrow_h{case}.py")
             edits = {"own file": (f"narrow_a{case}.py", stage_source(case) + "EXTRA = 1\n"),
@@ -1299,6 +1318,7 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                      "read docstring changed": (f"narrow_g{case}.py", '"""other """\nWORD = __doc__\n'),
                      "type hint": (f"narrow_g{case}.py", 'WORD: str = "also "\n'),
                      "helper edited": (f"narrow_h{case}.py", 'WORD = "another word "\n'),
+                     "gate edited": (f"narrow_k{case}.py", GATE_SOURCE.replace("checks.FAIL if rusted", "checks.FAIL if True")),
                      "read through helper edited": (f"narrow_j{case}.py", 'WORD = "another word "\n')}
             if change in edits:
                 (repo / edits[change][0]).write_text(edits[change][1])
@@ -1310,6 +1330,9 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                 (seeds / "hangar.txt").write_text("another seed")
             if change == "make swapped":
                 stage = dataclasses.replace(stage, make=importlib.import_module(f"narrow_b{case}").make)
+            if change == "gate edited":  # the judge as its file reads now
+                stage = dataclasses.replace(stage, checks=(checks.Check("seen", importlib.reload(
+                    importlib.import_module(f"narrow_k{case}")).judge),))
             python = _code.sys
             if change == "python":
                 _code.sys = types.SimpleNamespace(version_info=types.SimpleNamespace(major=3, minor=99), path=sys.path)
@@ -1321,7 +1344,8 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                 done = runner.run(["hangar"])["narrow@hangar"]
             finally:
                 _code.sys = python
-            assert done.startswith("fresh" if kept else "made: pass"), (change, done)
+            assert done.startswith("fresh" if kept else "made: fail" if change == "gate edited" else "made: pass"), (
+                change, done)
             record = store.record("narrow@hangar", keyed["key"])
             made_by = {"commit": old["commit"], "code": old["code"]}
             if lock:

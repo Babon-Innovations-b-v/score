@@ -149,7 +149,9 @@ stage as each stage is built; nothing moves before.
   `phase-locks/<world>/<phase>/<n>.json`, the runner's bookkeeping, no owner decision; with no --stage or --node, every stage the phase table gives that phase; the door's `lock-phase`) keeps a locked output under a
   key moved only by code (`Runner.kept_by_phase_lock`, "kept by the phase lock of <time>": every key part but the code
   version and the repository's code files as at the lock, its inputs' accepted outputs above all; a moved input or data
-  file makes it again); `status` prints each lock and the nodes kept by it. `python -m score moved` lists the paid rows a tree would buy again;
+  file makes it again; a stage whose gate code changed since the lock's commit, `Runner.gates_moved`, judges the locked
+  output again and makes it when those gates fail it beyond its accepted and batch gaps, `fails_today`; a gate unchanged
+  since the lock is never judged again there); `status` prints each lock and the nodes kept by it. `python -m score moved` lists the paid rows a tree would buy again;
   `.claude/hooks/local/pre-push-moved` refuses a push whose commit moves a paid row's key (`score.stages.moved`: code,
   table part, declared files; about a minute) without a `Moved-rows:` reason (the push gate,
   .claude/hooks/local/pre-push, hands it every push to main while `git config score.movedCheck true`, which
