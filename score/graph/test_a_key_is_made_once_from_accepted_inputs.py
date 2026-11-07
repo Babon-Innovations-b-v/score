@@ -2069,6 +2069,11 @@ def make_late(inputs, out, seed, params):
     (out / "mark.txt").write_text("marked")
 
 
+def make_slow(inputs, out, seed, params):
+    time.sleep(3)  # a remote node's jobs on the cluster: the cpu nodes start meanwhile
+    (out / "mark.txt").write_text("marked")
+
+
 def make_big(inputs, out, seed, params):
     held = bytearray(BIG)  # zero-filled: every page touched, so its VmHWM counts it
     time.sleep(0.6)  # the drive reads it meanwhile, its next node waiting on the --jobs slot
@@ -2113,7 +2118,13 @@ def test_a_node_waiting_on_a_claim_holds_no_job_slot_and_its_stage_starts_no_oth
     (2026-11-06, checkout 36 on the conductor: 15 of 16 slots held by bake clients waiting on 3 pool machines). A fresh
     mark of a process in a node's tree makes it a waiter, a stale one does not.
     Break: score/graph/__init__.py: 'if busy + len(ready) >= jobs or queued[stage.name] or (' ->
-    'if busy + len(ready) >= jobs or (' -> two late nodes at once on this PC."""
+    'if busy + len(ready) >= jobs or (' -> two late nodes at once on this PC.
+    #76, 2026-11-07: the slots were held by nodes whose jobs were on the cluster, no score pod Running. A node waiting
+    on a cluster run (submitter.watch's mark in CLUSTER_WAITING) holds no slot either, up to REMOTE_EXCUSED (48) apart
+    from the claims' five: at --jobs 16, 20 `remote` nodes all waiting on the cluster and 4 `cpu` nodes beside them run
+    at once; 60 cluster waiters excuse 48; a waiter whose mark is gone (its run returned) holds its slot again.
+    Break: score/graph/__init__.py: 'min(claim_waiting, WAITERS_EXCUSED) - min(cluster_waiting, REMOTE_EXCUSED)' ->
+    'min(claim_waiting + cluster_waiting, WAITERS_EXCUSED)' -> at most one cpu node beside the 20 remote ones."""
     briefs = {"hangar": "a ship", "station": "a hub", "dock": "a pier"}
     late = graph.Stage("late", "place", make_late, TEXT, PASSES)
     other = graph.Stage("other", "place", make_late, TEXT, PASSES)
@@ -2154,6 +2165,42 @@ def test_a_node_waiting_on_a_claim_holds_no_job_slot_and_its_stage_starts_no_oth
     assert graph.claim_waiters([os.getppid()]) == {os.getppid()}
     os.utime(tmp_path / str(os.getpid()), (0, time.time() - graph.WAIT_FRESH_SECONDS - 1))
     assert graph.claim_waiters([os.getppid()]) == set()
+
+    # cluster waits: 20 remote nodes waiting on the cluster and 4 cpu nodes, --jobs 16
+    places = {f"place{number}": f"a place {number}" for number in range(20)}
+    remote = graph.Stage("remote", "place", make_slow, TEXT, PASSES)
+    cpu = graph.Stage("cpu", "place", make_slow, TEXT, PASSES)
+    monkeypatch.setattr(graph, "CLAIM_WAITERS", lambda pids: set())
+    monkeypatch.setattr(graph, "CLUSTER_WAITERS", lambda pids: {pid for pid in pids if stage_of.get(pid) == "remote"})
+    runner = a_runner(a_world(places), a_store(), (remote, cpu))
+    beside, start, both = [0], runner.start, {}
+
+    def counted_start(stage, place, threads):
+        begun = start(stage, place, threads)
+        for pipe, (_, _, process) in begun.items():
+            stage_of[process.pid], both[pipe] = stage.name, stage.name
+        if list(both.values()).count("remote") == len(places):
+            beside[0] = max(beside[0], list(both.values()).count("cpu"))
+        return begun
+
+    def counted_wait(connections, timeout=None):
+        finished = wait(connections, timeout=timeout)
+        for connection in finished:
+            both.pop(connection)
+        return finished
+    runner.start = counted_start
+    monkeypatch.setattr(graph, "FORK_WAIT", counted_wait)
+    four = [f"cpu@{place}" for place in list(places)[:4]]
+    found = runner.drive(tuple(places), say=quiet, jobs=16, whole=False, only=["remote", *four])
+    assert set(found.values()) == {ACCEPTED} and len(found) == 24, found
+    assert beside[0] == 4, beside
+    assert graph.slots_held(70, 0, 60) == 22 and graph.slots_held(70, 8, 60) == 17
+    monkeypatch.setattr(graph, "CLUSTER_WAITING", tmp_path / "cluster")
+    (tmp_path / "cluster").mkdir()
+    (tmp_path / "cluster" / str(os.getpid())).touch()
+    assert graph.cluster_waiters([os.getppid()]) == {os.getppid()}
+    (tmp_path / "cluster" / str(os.getpid())).unlink()  # its run returned: it holds its slot again
+    assert graph.cluster_waiters([os.getppid()]) == set()
 
 
 def test_a_ready_node_too_large_for_memory_waits_alone_and_the_ones_after_it_that_fit_start(monkeypatch):

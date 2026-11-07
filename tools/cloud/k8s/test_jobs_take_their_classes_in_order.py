@@ -43,8 +43,10 @@ invariant with the break that turns it red (each applied once and seen red):
   the run, books its row with the unfinished jobs stopped and exits 143; either way the door still brings back what
   the done jobs made. Break: call `look` without `retried` in `watch`. Break: drop `book` from either except in
   `submit`. Break: drop `stop_jobs` in `stop_after_signal`. Break: drop `bring_back` before `raise` in
-  `cluster_jobs.run`. stop-batch's `stop_score_jobs` deletes only Jobs labelled with a run, only in score-jobs, and
-  refuses another namespace. Break: drop the namespace check in `stop_score_jobs`.
+  `cluster_jobs.run`. While it watches, the process is marked in CLUSTER_WAITING (its node holds no --jobs slot,
+  score/graph), the mark gone after an error or a stop. Break: drop the `finally` unlink in `watch`. stop-batch's
+  `stop_score_jobs` deletes only Jobs labelled with a run, only in score-jobs, and refuses another namespace.
+  Break: drop the namespace check in `stop_score_jobs`.
 - SCORE_CLOUD_KINDS narrows SCORE_CLOUD=k8s to its kinds; a runner naming none is known by its script's name.
   Break: `return True` in place of the kinds check in `provider.on_cluster`.
   The warm pool's collector refuses to rent, saying why, while the run's launch (its registry entry, or one it was
@@ -554,8 +556,11 @@ def a_watched_run(tmp_path, monkeypatch, failing_look):
     monkeypatch.setattr(submit.ledger, "record", booked.append)
     monkeypatch.setattr(submit.time, "sleep", lambda seconds: None)
 
+    monkeypatch.setattr(submit, "CLUSTER_WAITING", tmp_path / "waiting")
+    mark = tmp_path / "waiting" / str(os.getpid())
+
     def look(run, parallel):
-        looks.append(run)
+        looks.append(mark.exists())  # the node holds no --jobs slot while it waits (score/graph CLUSTER_WAITERS)
         if len(looks) == 1:
             run.jobs["ask"].update(node="n1", ran=time.time())
             run.nodes["n1"] = {"class": "gpu-80gb", "type": "H100-1-80G", "zone": "fr-par-2", "cards": 1,
@@ -575,6 +580,7 @@ def a_watched_run(tmp_path, monkeypatch, failing_look):
     with pytest.raises(BaseException) as raised:
         submit.submit("r-lost", {"ask": spec}, helper.store, kubectl=kubectl, cluster=PricedCluster(), who="test")
     assert signal.getsignal(signal.SIGTERM) is before  # the handler before is put back
+    assert all(looks) and not mark.exists()  # marked at every look, the mark gone after the error
     return booked, raised.value, kubectl.deleted, looks
 
 
