@@ -338,7 +338,8 @@ class Queue:
                 self.nodes[name] = {"created": created if created >= self.started else now,
                                     "type": (labels.get(submitter.INSTANCE_LABEL) or "?").upper(),
                                     "zone": labels.get(submitter.ZONE_LABEL) or "?",
-                                    "class": labels.get(manifests.CLASS_LABEL), "jobs": []}
+                                    "class": submitter.provider.capability_class(labels.get(manifests.CLASS_LABEL)),
+                                    "jobs": []}
         tail = submitter.IDLE_ESTIMATE_MINUTES * 60  # an empty node's last minutes before the autoscaler takes it
         for name, seen in list(self.nodes.items()):
             if name in hosting:

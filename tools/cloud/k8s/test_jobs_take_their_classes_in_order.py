@@ -40,7 +40,9 @@ invariant with the break that turns it red (each applied once and seen red):
   the command's arguments give, since the pod holds no link, each output's folder made there first. Break:
   `.resolve()` the path up there in `placed`. Break: return `command` unchanged in `with_output_folders`.
 - Billing: a warm node counts from the run's start; an unused node made during the run is the run's; a node made
-  before it, or hosting another run, is not; a node without zone labels takes the provider's record.
+  before it, or hosting another run, is not; a node without zone labels takes the provider's record;
+  a node whose `score.dev/class` names no capability class (the conductor's) is no class node, never a crash.
+  Break: read the label raw in `watch_nodes` (`provider.cards('conductor')` raises).
   Break: `created = seen["created"]` in `node_machines`. Runs side by side book each node at their part, whole
   between them: a node shared by the time each run's pods held it (a gap to the run that held it last, before any
   hold to the first), an unused node by the pods that waited for its class when it came up; a run whose pods came
@@ -785,10 +787,13 @@ def test_a_node_without_zone_labels_takes_the_providers_record():
                          "labels": {"score.dev/class": "cpu-32c-128gb"}},
             "status": {"conditions": [{"type": "Ready", "status": "True",
                                        "lastTransitionTime": "2026-10-09T14:50:13Z"}]}}
-    run = submit.Run("r1", {}, NodeKubectl([node]), BilledCluster())
-    run.watch_nodes()
+    conductor = {"metadata": {"name": "conductor-node", "creationTimestamp": "2026-11-07T10:00:00Z",
+                              "labels": {"score.dev/class": "conductor"}}, "status": {"conditions": []}}
+    run = submit.Run("r1", {}, NodeKubectl([node, conductor]), BilledCluster())
+    run.watch_nodes()  # the conductor's node, its class key no capability class, is no class node and no crash
     seen = run.nodes["kosmos-node"]
     assert (seen["type"], seen["zone"], seen["created"]) == ("POP2-32C-128G", "pl-waw-2", 100.0)
+    assert "conductor-node" not in run.nodes
 
 
 def test_score_cloud_k8s_keeps_the_providers_backend(monkeypatch, tmp_path):
