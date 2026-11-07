@@ -39,7 +39,8 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_bootstrap_links_memory_without_losing_any: bootstrap moves the old memory folder aside without copying it.
 - test_bootstrap_sets_the_hooks_and_builds_the_runtime_python_once: bootstrap's runtime build ignores PROPS_HOME; or
   ssh-agent.sh's `elif github_answers git@github.com` branch dropped (a box whose port 22 works gets the 443
-  fallback); or its `grep -qF 'ssh/agent/agent.sock'` made `false` (a re-run writes the ~/.bashrc block twice).
+  fallback); or its `grep -qF 'ssh/agent/agent.sock'` made `false` (a re-run writes the ~/.bashrc block twice); or
+  use_repo_hooks' `config score.movedCheck true` dropped (the push gate's re-buy check stays off).
 
 Run: PROPS_HOME=$(mktemp -d) python3 -m pytest .claude/scripts/tests/
 """
@@ -608,6 +609,7 @@ def test_bootstrap_sets_the_hooks_and_builds_the_runtime_python_once(scratch_rep
     run = shell(scratch_repo, env, "bootstrap.sh")
     assert run.returncode == 0, run.stderr
     assert git(scratch_repo, "config", "core.hooksPath") == ".claude/hooks"
+    assert git(scratch_repo, "config", "score.movedCheck") == "true"
     assert "gh: installed but not logged in. Run: gh auth login" in run.stdout
     assert (runtime / "bin" / "python").exists()
     assert f"runtime python: already at {runtime}" in shell(scratch_repo, env, "bootstrap.sh").stdout

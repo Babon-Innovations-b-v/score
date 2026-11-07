@@ -80,10 +80,12 @@ check_restic() {
 # --- 3. Use the repo's own git hooks ---------------------------------------
 # .claude/hooks holds the shared git hooks; each runs its .claude/hooks/local/ counterpart when there is one. Relative,
 # so each worktree runs its own copy. The local pre-commit refuses a commit that leaves the paper's PDF and LaTeX older
-# than its Markdown draft.
+# than its Markdown draft. The local pre-push runs the re-buy check (score moved --pre-push) too: on here, so a push that
+# moves a paid row with an accepted output needs its Moved-rows trailer.
 use_repo_hooks() {
   git -C "$REPO" config core.hooksPath .claude/hooks
-  say "git hooks: .claude/hooks"
+  git -C "$REPO" config score.movedCheck true
+  say "git hooks: .claude/hooks, the re-buy check on"
 }
 
 # --- 4. The framework's Python, from uv.lock -------------------------------

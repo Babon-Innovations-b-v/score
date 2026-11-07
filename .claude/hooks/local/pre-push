@@ -141,6 +141,9 @@ def checked(repo, base, tip):
         print(f"push gate: refused, no worktree of {tip[:12]} could be made", file=sys.stderr)
         return False
     try:
+        # the framework's environment in the copy, as in every checkout (a test that runs the checkout's own
+        # .venv/bin/python, this_pc.py's, failed there for want of it, 2026-11-07)
+        (pathlib.Path(checkout) / ".venv").symlink_to(python.parent.parent)
         return gate(pathlib.Path(checkout), base, tip, python)
     finally:
         git("-C", repo, "worktree", "remove", "--force", checkout)

@@ -79,8 +79,8 @@ environment's places, each with its price and why, and the total (score/stages/m
 (.claude/hooks/local/pre-push-moved, the push lines on stdin, run in a checkout of the commit pushed to main) it refuses the paid
 rows that commit would buy again and main's commit would not, unless a pushed commit's "Moved-rows: <node> ...:
 <reason>" trailer names each; rows main already buys again print as a warning, and when main's commit cannot be
-worked out every moved row counts as the push's. The hook runs only once the owner sets
-`git config score.movedCheck true`.
+worked out every moved row counts as the push's. The hook runs while `git config score.movedCheck true`
+(.claude/scripts/bootstrap.sh sets it), reading the places from PROPS_HOME or the first home holding a store.
 
 One commit per store (score/graph/runs.py): `run` refuses while a live run from another commit holds the store (naming
 it, its commit and its worktree), or one at the same commit would make some of the same nodes (one not standing

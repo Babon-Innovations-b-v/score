@@ -49,7 +49,8 @@ The break that turns each test red (applied once each, seen red, reverted):
   debt file pushes); `run_tests` returns True at once, or `touched_tests` returns ([], []) (a failing touched test
   pushes); `touched_tests`'s `cluster` made [] (a GPU module is run, not left to the cluster gate); `main` returns 0
   instead of handing the push lines to pre-push-moved; `main`'s `GIT_HOOK_ENV` pop dropped (the clean push's test
-  file, a git-driving one here, then runs against the pushing repository's GIT_DIR).
+  file, a git-driving one here, then runs against the pushing repository's GIT_DIR); `checked`'s `.venv` link
+  dropped (the push from a clone moved off it, checked in a copy, has no environment for its test).
 - test_torn_commit_guard_refuses_conflict_markers_and_a_broken_sourced_shell_contract: `sourced_shell_dirs` returns
   [] at once.
 - test_leftover_guard_says_once_that_a_worktree_holds_uncommitted_work: `session_worktree` returns None at once.
@@ -698,7 +699,8 @@ def stage(repo, path, text):
 # The push gate (.claude/hooks/local/pre-push): no push leaves main red, run in a clone of this checkout.
 
 GATE_FILES = (".claude/hooks/local/pre-push", "tools/test_rule/check.py", "Makefile", ".claude/scripts/sandbox-home.py")
-HOLDS_TEST = '''"""A held value stays held, in its own repository. Break: holds.py's VALUE made 2 turns it red."""
+HOLDS_TEST = '''"""A held value stays held, in its own repository with the framework's environment. Break: holds.py's VALUE
+made 2 turns it red."""
 import pathlib
 import subprocess
 
@@ -708,6 +710,7 @@ def test_value_holds():
     assert (here / "holds.py").read_text() == "VALUE = 1\\n"
     top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=here, capture_output=True, text=True).stdout
     assert pathlib.Path(top.strip()) == here.parents[1], top
+    assert (here.parents[1] / ".venv/bin/python").exists()
 '''
 
 
@@ -731,8 +734,9 @@ def gate_clone(folder, moved_marker):
     return folder, git(folder, "rev-parse", "HEAD")
 
 
-def push(clone, base, files):
-    """(exit code, stderr, stdout) of the gate on a push to main of one commit on `base` writing these files."""
+def push(clone, base, files, away=False):
+    """(exit code, stderr, stdout) of the gate on a push to main of one commit on `base` writing these files; `away`
+    puts the clone back on `base` first, so the commit pushed is not the one checked out."""
     git(clone, "reset", "-q", "--hard", base)
     for path, text in files.items():
         (clone / path).parent.mkdir(parents=True, exist_ok=True)
@@ -740,6 +744,8 @@ def push(clone, base, files):
     git(clone, "add", "-A")
     git(clone, "commit", "-q", "-m", "pushed")
     line = f"refs/heads/main {git(clone, 'rev-parse', 'HEAD')} refs/heads/main {base}\n"
+    if away:
+        git(clone, "reset", "-q", "--hard", base)
     as_git_runs_it = dict(GIT_ENV, GIT_DIR=str(clone / ".git"))  # a test's own scratch git must not inherit it
     return run(clone / ".claude/hooks/local/pre-push", line, env=as_git_runs_it, cwd=clone, timeout=110)
 
@@ -773,6 +779,9 @@ def test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file(tmp_path
     assert code == 0 and "passed in" in out and "1 test file" in out, (said, out)
     assert "test_rra_moves_mass_and_torso_by_the_mean_residual.py left to the cluster gate" in out, out
     assert marker.read_text().startswith("refs/heads/main "), marker.read_text()
+    marker.unlink()  # the clone moved off the pushed commit: the gate checks it in a copy of its own
+    code, said, out = push(clone, base, {"tools/zz_gate/notes.txt": "y\n"}, away=True)
+    assert code == 0 and "1 test file" in out and marker.exists(), (said, out)
 
 
 def test_torn_commit_guard_refuses_conflict_markers_and_a_broken_sourced_shell_contract(tmp_path):
