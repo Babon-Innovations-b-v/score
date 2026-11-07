@@ -69,6 +69,7 @@ The break that turns each test red (applied once each, seen red, reverted):
 Run: PROPS_HOME=$(mktemp -d) python3 -m pytest .claude/hooks/tests/
 """
 
+import concurrent.futures
 import json
 import os
 import pathlib
@@ -96,6 +97,26 @@ def run(script, payload, env=None, cwd=None, timeout=None):
                           timeout=timeout,
                           input=payload if isinstance(payload, str) else json.dumps(payload))
     return done.returncode, done.stderr, done.stdout
+
+
+def run_side_by_side(script, payloads, env=None, cwd=None):
+    """run(script, payload, env, cwd) for each payload, the hook processes side by side; their answers in order."""
+    with concurrent.futures.ThreadPoolExecutor(min(len(payloads), 8)) as pool:
+        return list(pool.map(lambda payload: run(script, payload, env=env, cwd=cwd), payloads))
+
+
+@pytest.fixture(scope="module")
+def asked(tmp_path_factory):
+    """asked(group, script, payloads, payload) -> run(script(folder), payload): the first case of a group asks the
+    hook every payload of its group side by side, each case then judges its own answer. `script` makes the hook's
+    path from a scratch folder of the group's own."""
+    answers = {}
+
+    def answer(group, script, payloads, payload):
+        if group not in answers:
+            answers[group] = run_side_by_side(script(tmp_path_factory.mktemp(group)), payloads)
+        return answers[group][payloads.index(payload)]
+    return answer
 
 
 def hook_copy(folder, name, config=None):
@@ -203,14 +224,14 @@ GRANT_QUESTION = ("Confirm this standing rule: in a Claude Code session, I may a
 
 
 @pytest.mark.parametrize("payload", OWNER_ACTIONS, ids=range(len(OWNER_ACTIONS)))
-def test_accept_guard_blocks_the_owners_actions(payload):
-    code, said, _ = run(hook("accept_guard.py"), payload)
+def test_accept_guard_blocks_the_owners_actions(asked, payload):
+    code, said, _ = asked("owners", lambda folder: hook("accept_guard.py"), OWNER_ACTIONS, payload)
     assert code == BLOCK and "only the owner accepts or rejects" in said, payload
 
 
 @pytest.mark.parametrize("payload", READ_AND_RUN, ids=range(len(READ_AND_RUN)))
-def test_accept_guard_allows_reading_running_and_the_framework(payload):
-    assert run(hook("accept_guard.py"), payload)[0] == ALLOW, payload
+def test_accept_guard_allows_reading_running_and_the_framework(asked, payload):
+    assert asked("reading", lambda folder: hook("accept_guard.py"), READ_AND_RUN, payload)[0] == ALLOW, payload
 
 
 def test_accept_guard_lets_a_benchmark_grant_pass():
@@ -273,16 +294,16 @@ CHAT_ROUTE = [
 
 
 @pytest.mark.parametrize("payload", OWN_LOCKS_AND_STEPS, ids=range(len(OWN_LOCKS_AND_STEPS)))
-def test_accept_guard_blocks_an_agents_own_locks_and_a_decision_without_his_yes(payload):
+def test_accept_guard_blocks_an_agents_own_locks_and_a_decision_without_his_yes(asked, payload):
     """The owner's decisions in chat (owner, 2026-10-27): an agent's own lock, a call into the chat route's steps,
     or the apply without a recorded yes's id stays blocked."""
-    code, said, _ = run(hook("accept_guard.py"), payload)
+    code, said, _ = asked("locks", lambda folder: hook("accept_guard.py"), OWN_LOCKS_AND_STEPS, payload)
     assert code == BLOCK and "only the owner accepts or rejects" in said, payload
 
 
 @pytest.mark.parametrize("payload", CHAT_ROUTE, ids=range(len(CHAT_ROUTE)))
-def test_accept_guard_lets_his_decision_through_only_as_decide_with_its_yes_id(payload):
-    assert run(hook("accept_guard.py"), payload)[0] == ALLOW, payload
+def test_accept_guard_lets_his_decision_through_only_as_decide_with_its_yes_id(asked, payload):
+    assert asked("chat", lambda folder: hook("accept_guard.py"), CHAT_ROUTE, payload)[0] == ALLOW, payload
 
 
 # completion_guard: a stop may not claim a place it worked on is done while the place's gate does not pass.
@@ -324,8 +345,8 @@ def false_claims(folder):
 
 
 def test_completion_guard_refuses_a_false_done_claim(tmp_path, known_place):
-    for payload in false_claims(tmp_path):
-        code, said, _ = run(hook("completion_guard.py"), payload, env=known_place)
+    payloads = false_claims(tmp_path)
+    for payload, (code, said, _) in zip(payloads, run_side_by_side(hook("completion_guard.py"), payloads, known_place)):
         assert code == BLOCK and PLACE in said and "unknown" in said, (payload, said)
 
 
@@ -343,8 +364,9 @@ def test_completion_guard_lets_an_honest_stop_end(tmp_path, known_place):
         transcript(tmp_path / "i", "Each place's shots wait for its complete check, and the film comes after all "
                                    "places."),  # a done-word beside "all places", no claim (2026-10-27)
     ]
-    for path in honest:
-        assert run(hook("completion_guard.py"), {"transcript_path": path}, env=known_place)[0] == ALLOW, path
+    answers = run_side_by_side(hook("completion_guard.py"), [{"transcript_path": path} for path in honest], known_place)
+    for path, (code, _, _) in zip(honest, answers):
+        assert code == ALLOW, path
     no_scene = dict(known_place, SCORE_GUARD_WITHIN=str(tmp_path / "none.json"))  # an empty scene list matched all
     claim = transcript(tmp_path / "h", f"The {PLACE} is complete now.")
     assert run(hook("completion_guard.py"), {"transcript_path": claim}, env=no_scene)[0] == ALLOW
@@ -418,25 +440,28 @@ COMPLETE_OR_ORDINARY = [
 
 
 @pytest.mark.parametrize("payload,reason", BARE_OR_DESTRUCTIVE, ids=range(len(BARE_OR_DESTRUCTIVE)))
-def test_issue_guard_blocks_bare_issues_and_destructive_git(tmp_path, payload, reason):
-    code, said, _ = run(issue_guard_copy(tmp_path, []), payload)
+def test_issue_guard_blocks_bare_issues_and_destructive_git(asked, payload, reason):
+    code, said, _ = asked("bare", lambda folder: issue_guard_copy(folder, []),
+                          [blocked for blocked, _ in BARE_OR_DESTRUCTIVE], payload)
     assert code == BLOCK and reason in said, said
 
 
 @pytest.mark.parametrize("payload", COMPLETE_OR_ORDINARY, ids=range(len(COMPLETE_OR_ORDINARY)))
-def test_issue_guard_lets_complete_issues_and_ordinary_git_pass(tmp_path, payload):
-    assert run(issue_guard_copy(tmp_path, []), payload)[0] == ALLOW
+def test_issue_guard_lets_complete_issues_and_ordinary_git_pass(asked, payload):
+    assert asked("complete", lambda folder: issue_guard_copy(folder, []), COMPLETE_OR_ORDINARY, payload)[0] == ALLOW
 
 
 def test_issue_guard_wants_an_area_once_the_project_has_areas(tmp_path):
-    guard = issue_guard_copy(tmp_path / "a", ["dev", "art"])
-    code, said, _ = run(guard, bash(FULL_ISSUE))
-    assert code == BLOCK and "area:<x>" in said
-    assert run(guard, bash(FULL_ISSUE + " --label area:dev"))[0] == ALLOW
-    guard = issue_guard_copy(tmp_path / "b", ["dev"], area_label_prefix="team:")  # the project names its prefix
-    code, said, _ = run(guard, bash(FULL_ISSUE + " --label area:dev"))
-    assert code == BLOCK and "team:<x>" in said
-    assert run(guard, bash(FULL_ISSUE + " --label team:dev"))[0] == ALLOW
+    plain = issue_guard_copy(tmp_path / "a", ["dev", "art"])
+    named = issue_guard_copy(tmp_path / "b", ["dev"], area_label_prefix="team:")  # the project names its prefix
+    asks = [(plain, FULL_ISSUE), (plain, FULL_ISSUE + " --label area:dev"), (named, FULL_ISSUE + " --label area:dev"),
+            (named, FULL_ISSUE + " --label team:dev")]
+    with concurrent.futures.ThreadPoolExecutor(len(asks)) as pool:
+        answers = list(pool.map(lambda ask: run(ask[0], bash(ask[1])), asks))
+    assert answers[0][0] == BLOCK and "area:<x>" in answers[0][1]
+    assert answers[1][0] == ALLOW
+    assert answers[2][0] == BLOCK and "team:<x>" in answers[2][1]
+    assert answers[3][0] == ALLOW
 
 
 def test_issue_guard_refuses_a_second_root_or_issue_for_open_work(tmp_path):
@@ -450,11 +475,12 @@ def test_issue_guard_refuses_a_second_root_or_issue_for_open_work(tmp_path):
     guard = issue_guard_copy(tmp_path / "repo", [], backlog_prd=36)
     env = dict(os.environ, ISSUE_GUARD_ROOTS=str(roots))
     prd = 'gh issue create --title "{title}" --label PRD --assignee someone --body "## Root check\n{check}"'
-    code, said, _ = run(guard, bash(prd.format(title="Lighting rig for night scenes", check="none")), env=env)
+    (code, said, _), named, backlog = run_side_by_side(guard, [
+        bash(prd.format(title="Lighting rig for night scenes", check="none")),
+        bash(prd.format(title="Lighting rig for night scenes", check="#7 is the farm, not lights")),
+        bash(prd.format(title="Shader library", check="none"))], env=env)
     assert code == BLOCK and "#7 Render farm queue" in said and "lighting" in said, said
-    assert run(guard, bash(prd.format(title="Lighting rig for night scenes", check="#7 is the farm, not lights")),
-               env=env)[0] == ALLOW
-    assert run(guard, bash(prd.format(title="Shader library", check="none")), env=env)[0] == ALLOW
+    assert named[0] == ALLOW and backlog[0] == ALLOW
 
     # A new sub-issue whose title shares three subject words with an open one is refused, unless named.
     guard = issue_guard_copy(tmp_path / "work", [])
@@ -465,13 +491,15 @@ def test_issue_guard_refuses_a_second_root_or_issue_for_open_work(tmp_path):
     env = {**os.environ, "ISSUE_GUARD_ROOTS": str(open_issues)}
 
     def create(title, body="x"):
-        return run(guard, {"tool_name": "mcp__github__create_issue", "tool_input": {
-            "title": title, "labels": ["bug"], "assignees": ["someone"], "body": body}}, env=env)
+        return {"tool_name": "mcp__github__create_issue", "tool_input": {
+            "title": title, "labels": ["bug"], "assignees": ["someone"], "body": body}}
 
-    code, said, _ = create("Rename wire field treatment_path everywhere")
+    (code, said, _), named, other = run_side_by_side(guard, [
+        create("Rename wire field treatment_path everywhere"),
+        create("Rename wire field treatment_path everywhere", "## Duplicate check\n#41 is the API half."),
+        create("Fix the hero image on mobile")], env=env)
     assert code == BLOCK and "#41" in said, said
-    assert create("Rename wire field treatment_path everywhere", "## Duplicate check\n#41 is the API half.")[0] == ALLOW
-    assert create("Fix the hero image on mobile")[0] == ALLOW
+    assert named[0] == ALLOW and other[0] == ALLOW
 
 
 def test_issue_guard_holds_the_projects_body_rules(tmp_path):
@@ -482,12 +510,13 @@ def test_issue_guard_holds_the_projects_body_rules(tmp_path):
     (tmp_path / "business").mkdir()
     (tmp_path / "business" / "real.md").write_text("# real\n")
     issue = FULL_ISSUE + " --label area:{area} --body '{body}'"
-    code, said, _ = run(guard, bash(issue.format(area="dev", body="See business/gone/plan.md")))
-    assert code == BLOCK and "business/gone/plan.md" in said, said
-    assert run(guard, bash(issue.format(area="dev", body="See business/real.md")))[0] == ALLOW
-    code, said, _ = run(guard, bash(issue.format(area="sales", body="Sell it.")))
-    assert code == BLOCK and "**Business case:**" in said, said
-    assert run(guard, bash(issue.format(area="sales", body="**Business case:** x\nSell it.")))[0] == ALLOW
+    gone, real, bare, cased = run_side_by_side(guard, [bash(issue.format(area=area, body=body)) for area, body in (
+        ("dev", "See business/gone/plan.md"), ("dev", "See business/real.md"), ("sales", "Sell it."),
+        ("sales", "**Business case:** x\nSell it."))])
+    assert gone[0] == BLOCK and "business/gone/plan.md" in gone[1], gone
+    assert real[0] == ALLOW
+    assert bare[0] == BLOCK and "**Business case:**" in bare[1], bare
+    assert cased[0] == ALLOW
 
     # A sub-issue, a PRD and a vision PRD each have a maximum body, a comment has its own; an edit may shrink an
     # over-cap body but never grow it, and a first `<!-- Budget: -->` line lifts the cap.
@@ -495,21 +524,20 @@ def test_issue_guard_holds_the_projects_body_rules(tmp_path):
     guard = issue_guard_copy(tmp_path / "caps", [], issue_body_caps=caps)
 
     def create(labels, body):
-        return run(guard, {"tool_name": "mcp__github__create_issue", "tool_input": {
-            "title": "a size probe", "labels": labels, "assignees": ["someone"], "body": body}})
+        return {"tool_name": "mcp__github__create_issue", "tool_input": {
+            "title": "a size probe", "labels": labels, "assignees": ["someone"], "body": body}}
 
     root = "## Root check\nNo open root covers this.\n"
-    code, said, _ = create(["bug"], "x" * 301)
-    assert code == BLOCK and "300" in said, said
-    assert create(["bug"], "x" * 300)[0] == ALLOW
-    assert create(["bug"], "<!-- Budget: a long spec -->\n" + "x" * 900)[0] == ALLOW
-    assert create(["PRD"], root + "x" * 600)[0] == BLOCK
-    assert create(["PRD", "vision"], root + "x" * 600)[0] == ALLOW
-
     comment = {"tool_name": "mcp__github__add_issue_comment", "tool_input": {"issue_number": 7}}
-    assert run(guard, {**comment, "tool_input": {**comment["tool_input"], "body": "y" * 251}})[0] == BLOCK
-    assert run(guard, {**comment, "tool_input": {**comment["tool_input"], "body": "y" * 250}})[0] == ALLOW
-    assert run(guard, bash("gh issue comment 7 --body " + "y" * 251))[0] == BLOCK
+    (code, said, _), *answers = run_side_by_side(guard, [
+        create(["bug"], "x" * 301), create(["bug"], "x" * 300),
+        create(["bug"], "<!-- Budget: a long spec -->\n" + "x" * 900), create(["PRD"], root + "x" * 600),
+        create(["PRD", "vision"], root + "x" * 600),
+        {**comment, "tool_input": {**comment["tool_input"], "body": "y" * 251}},
+        {**comment, "tool_input": {**comment["tool_input"], "body": "y" * 250}},
+        bash("gh issue comment 7 --body " + "y" * 251)])
+    assert code == BLOCK and "300" in said, said
+    assert [answer[0] for answer in answers] == [ALLOW, ALLOW, BLOCK, ALLOW, BLOCK, ALLOW, BLOCK]
 
     stand_in = tmp_path / "bin"
     stand_in.mkdir()
@@ -521,8 +549,7 @@ def test_issue_guard_holds_the_projects_body_rules(tmp_path):
     edit = {"tool_name": "mcp__github__update_issue", "tool_input": {"issue_number": 7}}
     grown = {**edit, "tool_input": {**edit["tool_input"], "body": current["body"] + "more"}}
     shrunk = {**edit, "tool_input": {**edit["tool_input"], "body": current["body"][:-50]}}
-    assert run(guard, grown, env=env)[0] == BLOCK
-    assert run(guard, shrunk, env=env)[0] == ALLOW
+    assert [answer[0] for answer in run_side_by_side(guard, [grown, shrunk], env=env)] == [BLOCK, ALLOW]
 
 # md_guard: a new .md inside the repo needs the user's yes.
 
@@ -562,36 +589,42 @@ def test_md_guard_blocks_a_new_md_without_a_yes(md_repo, tmp_path):
     guard, repo = md_repo
     never = typed_transcript(tmp_path, ["hello", "run the validation", {"result": "wrote notes.md"}])
     stale = typed_transcript(repo, ["make a md file for it"] + [f"step {at}" for at in range(20)])
-    for payload in (md_write(repo, "docs/never-asked-for.md"), md_write(repo, "docs/no-words.md"),
-                    md_write(repo, "docs/never-asked-for.md", never),  # a tool result naming .md is not the person
-                    md_bash(repo, "echo hi > notes.md"), md_bash(repo, "echo hi | tee -a docs/summary.md"),
-                    md_bash(repo, "touch docs/new.md"), md_bash(repo, "cp docs/existing.md docs/copy.md"),
-                    md_bash(repo, "cd docs && echo x > new.md"), md_bash(repo, f"OUT={repo}/docs; echo x > $OUT/n.md"),
-                    md_write(repo, "docs/report.md", stale)):  # the yes is 21 typed messages back
-        code, said, _ = run(guard, payload)
+    payloads = (md_write(repo, "docs/never-asked-for.md"), md_write(repo, "docs/no-words.md"),
+                md_write(repo, "docs/never-asked-for.md", never),  # a tool result naming .md is not the person
+                md_bash(repo, "echo hi > notes.md"), md_bash(repo, "echo hi | tee -a docs/summary.md"),
+                md_bash(repo, "touch docs/new.md"), md_bash(repo, "cp docs/existing.md docs/copy.md"),
+                md_bash(repo, "cd docs && echo x > new.md"), md_bash(repo, f"OUT={repo}/docs; echo x > $OUT/n.md"),
+                md_write(repo, "docs/report.md", stale))  # the yes is 21 typed messages back
+    for payload, (code, said, _) in zip(payloads, run_side_by_side(guard, payloads)):
         assert code == BLOCK and "go-ahead" in said, payload
 
 
 def test_md_guard_allows_the_standing_exceptions(md_repo, tmp_path):
     guard, repo = md_repo
     asked = typed_transcript(tmp_path, ["hello", "can you make a report, u can make a md file for it"])
-    for payload in (md_write(repo, "docs/asked-for.md"),  # listed with the user's words
-                    md_write(repo, "docs/report.md", asked),  # the user asked for one in their last messages
-                    md_write(repo, ".claude/memory/some-note.md"),  # private memory
-                    md_write(repo, "tools/new/CLAUDE.md"),  # a directory's overlay
-                    md_write(repo, "docs/existing.md"),  # an edit
-                    md_write(repo, "notes.txt"),
-                    md_bash(repo, "mv docs/existing.md docs/renamed.md"),  # a rename keeps the count
-                    md_bash(repo, f"echo x > {tmp_path}/outside.md"),  # outside the repo
-                    md_bash(repo, f"cd {tmp_path} && echo x > page.md"),
-                    md_bash(repo, "echo x > $UNKNOWN_SOMEWHERE/page.md")):  # unknowable: fail open
-        assert run(guard, payload)[0] == ALLOW, payload
+    payloads = (md_write(repo, "docs/asked-for.md"),  # listed with the user's words
+                md_write(repo, "docs/report.md", asked),  # the user asked for one in their last messages
+                md_write(repo, ".claude/memory/some-note.md"),  # private memory
+                md_write(repo, "tools/new/CLAUDE.md"),  # a directory's overlay
+                md_write(repo, "docs/existing.md"),  # an edit
+                md_write(repo, "notes.txt"),
+                md_bash(repo, "mv docs/existing.md docs/renamed.md"),  # a rename keeps the count
+                md_bash(repo, f"echo x > {tmp_path}/outside.md"),  # outside the repo
+                md_bash(repo, f"cd {tmp_path} && echo x > page.md"),
+                md_bash(repo, "echo x > $UNKNOWN_SOMEWHERE/page.md"))  # unknowable: fail open
+    for payload, (code, _, _) in zip(payloads, run_side_by_side(guard, payloads)):
+        assert code == ALLOW, payload
     # A call that creates no .md answers without reading the transcript (a pipe nobody writes: a read never ends), and
     # a new .md reads only the transcript's end for the yes: a long session's runs to hundreds of MB, read whole it
     # took seconds a call, so the harness timed the guard out (failing open) 341 times.
     unread = tmp_path / "unread.jsonl"
     os.mkfifo(unread)
     long_session = typed_transcript(repo, ["a line of chat " * 50] * 60000 + ["write a md file for it"])
+    # Each is timed against the same guard on a call it answers from the call alone (a listed path, no transcript), on
+    # the box as loaded now: the guard's own start-up is the box's, and on the gate's pods (2 slower cores, files side
+    # by side) a bare interpreter start took 0.07 s and the guard's 0.2 s, so only what the call's transcript adds is
+    # judged against the 100 ms.
+    alone = md_write(repo, "docs/asked-for.md")
     for payload in (dict(md_bash(repo, "ls docs; git status"), transcript_path=str(unread)),
                     md_write(repo, "docs/report.md", long_session)):
         timings, starts = [], []
@@ -599,9 +632,9 @@ def test_md_guard_allows_the_standing_exceptions(md_repo, tmp_path):
             started = time.monotonic()
             assert run(guard, payload, timeout=10)[0] == ALLOW, payload
             timings.append(time.monotonic() - started)
-            started = time.monotonic()  # the same interpreter doing nothing, on the box as loaded now: its start-up
-            subprocess.run([sys.executable, "-c", ""], check=True)  # is the box's, not the guard's (the gate's pods
-            starts.append(time.monotonic() - started)  # run 6 files side by side: a bare start took 0.1 s there)
+            started = time.monotonic()
+            assert run(guard, alone, timeout=10)[0] == ALLOW
+            starts.append(time.monotonic() - started)
         assert min(timings) - min(starts) < 0.1, (payload, timings, starts)
 
 
@@ -636,11 +669,12 @@ WAIVERS = ["git commit --no-verify -m x", "git commit -n -m x", "TORN_GUARD=0 gi
 
 def test_commit_guard_refuses_a_session_waiving_a_guard(tmp_path):
     guard = hook_copy(tmp_path, "commit_guard.py")
-    for command in WAIVERS:
-        code, said, _ = run(guard, dict(bash(command), cwd=str(tmp_path)))
+    allowed = ('git commit -m "never use --no-verify or TORN_GUARD=0"', "git status", "ls -n")
+    answers = run_side_by_side(guard, [dict(bash(command), cwd=str(tmp_path)) for command in WAIVERS + list(allowed)])
+    for command, (code, said, _) in zip(WAIVERS, answers):
         assert code == BLOCK and "routes around" in said, (command, said)
-    for command in ('git commit -m "never use --no-verify or TORN_GUARD=0"', "git status", "ls -n"):
-        assert run(guard, dict(bash(command), cwd=str(tmp_path)))[0] == ALLOW, command
+    for command, (code, _, _) in zip(allowed, answers[len(WAIVERS):]):
+        assert code == ALLOW, command
 
 
 def test_commit_guard_refuses_the_shared_checkout_while_a_worktree_is_live(tmp_path):
@@ -651,16 +685,22 @@ def test_commit_guard_refuses_the_shared_checkout_while_a_worktree_is_live(tmp_p
     commit = bash("git commit -m x")
     assert run(guard, dict(commit, cwd=str(repo)), env=GIT_ENV)[0] == ALLOW  # nobody else is live
     git(repo, "worktree", "lock", "--reason", f"claude session pid {os.getpid()}", str(worktree))
-    code, said, _ = run(guard, dict(commit, cwd=str(repo)), env=GIT_ENV)
-    assert code == BLOCK and "w1" in said, said
-    assert run(guard, dict(commit, cwd=str(worktree)), env=GIT_ENV)[0] == ALLOW  # inside a worktree
-    assert run(guard, dict(commit, cwd=str(repo)), env=dict(GIT_ENV, WORKTREE_GUARD="0"))[0] == ALLOW
-    assert run(guard, dict(bash(f"git -C {tmp_path} commit -m x"), cwd=str(repo)), env=GIT_ENV)[0] == ALLOW
-    for elsewhere in (f"cd {worktree}; git commit -m x", f"cd {worktree} && git commit -m x"):
-        assert run(guard, dict(bash(elsewhere), cwd=str(repo)), env=GIT_ENV)[0] == ALLOW, elsewhere
     # `~` reaches the guard unexpanded; it names the home directory as the shell would.
-    for elsewhere in ("git -C ~/repo/.claude/worktrees/w1 commit -m x", "cd ~/repo/.claude/worktrees/w1 && git commit -m x"):
-        assert run(guard, dict(bash(elsewhere), cwd=str(repo)), env=dict(GIT_ENV, HOME=str(tmp_path)))[0] == ALLOW, elsewhere
+    home = dict(GIT_ENV, HOME=str(tmp_path))
+    asks = [(dict(commit, cwd=str(repo)), GIT_ENV),
+            (dict(commit, cwd=str(worktree)), GIT_ENV),  # inside a worktree
+            (dict(commit, cwd=str(repo)), dict(GIT_ENV, WORKTREE_GUARD="0")),
+            (dict(bash(f"git -C {tmp_path} commit -m x"), cwd=str(repo)), GIT_ENV),
+            *((dict(bash(elsewhere), cwd=str(repo)), GIT_ENV)
+              for elsewhere in (f"cd {worktree}; git commit -m x", f"cd {worktree} && git commit -m x")),
+            *((dict(bash(elsewhere), cwd=str(repo)), home)
+              for elsewhere in ("git -C ~/repo/.claude/worktrees/w1 commit -m x",
+                                "cd ~/repo/.claude/worktrees/w1 && git commit -m x"))]
+    with concurrent.futures.ThreadPoolExecutor(len(asks)) as pool:
+        (code, said, _), *answers = pool.map(lambda ask: run(guard, ask[0], env=ask[1]), asks)
+    assert code == BLOCK and "w1" in said, said
+    for (payload, _), answer in zip(asks[1:], answers):
+        assert answer[0] == ALLOW, payload
 
 
 
@@ -670,11 +710,12 @@ def test_commit_guard_reads_only_gits_subcommand_as_a_commit(tmp_path):
     worktree = repo / ".claude" / "worktrees" / "w1"
     git(repo, "worktree", "add", "-q", "-b", "w1", str(worktree))
     git(repo, "worktree", "lock", "--reason", f"claude session pid {os.getpid()}", str(worktree))
-    for command in ("git -c user.name=x commit -m x", "/usr/bin/git commit -m x", "git status; git commit -m x"):
-        assert run(guard, dict(bash(command), cwd=str(repo)), env=GIT_ENV)[0] == BLOCK, command
-    for command in ("git log --grep commit", 'gh issue comment 1 --body "git log shows the commit"',
-                    "git status && echo commit"):
-        assert run(guard, dict(bash(command), cwd=str(repo)), env=GIT_ENV)[0] == ALLOW, command
+    commits = ("git -c user.name=x commit -m x", "/usr/bin/git commit -m x", "git status; git commit -m x")
+    others = ("git log --grep commit", 'gh issue comment 1 --body "git log shows the commit"',
+              "git status && echo commit")
+    answers = run_side_by_side(guard, [dict(bash(command), cwd=str(repo)) for command in commits + others], env=GIT_ENV)
+    for command, (code, _, _) in zip(commits + others, answers):
+        assert code == (BLOCK if command in commits else ALLOW), command
 
 # torn_commit_guard: a commit may not need what it leaves behind.
 
@@ -766,21 +807,31 @@ def test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file(tmp_path
     code, said = torn(repo)
     assert code == 0 and "note" in said, said
     # The push gate: a grown debt file and a failing touched test are refused, a clean push goes on to the moved check.
-    marker = tmp_path / "moved.txt"
-    clone, base = gate_clone(tmp_path / "clone", marker)
+    # The four pushes are independent, each in a clone of its own with its own marker, so they run side by side.
     debt = "paper/build/test_paper_build_matches_its_source.py"
-    grown = (clone / debt).read_text() + "\n\ndef test_grown():\n    pass\n"
-    code, said, out = push(clone, base, {debt: grown})
-    assert code == 1 and "may not grow" in out and "test rule" in said and not marker.exists(), (said, out)
-    code, said, out = push(clone, base, {"tools/zz_gate/holds.py": "VALUE = 2\n"})
-    assert code == 1 and "touched module's test failed" in said and not marker.exists(), (said, out)
     inside = "score/stages/sim_body/inside/rra/note.txt"
-    code, said, out = push(clone, base, {"tools/zz_gate/notes.txt": "x\n", inside: "x\n"})
+    pushes = {"grown": (lambda clone: {debt: (clone / debt).read_text() + "\n\ndef test_grown():\n    pass\n"}, False),
+              "failing": (lambda clone: {"tools/zz_gate/holds.py": "VALUE = 2\n"}, False),
+              "clean": (lambda clone: {"tools/zz_gate/notes.txt": "x\n", inside: "x\n"}, False),
+              # the clone moved off the pushed commit: the gate checks it in a copy of its own
+              "away": (lambda clone: {"tools/zz_gate/notes.txt": "y\n"}, True)}
+
+    def pushed(name):
+        marker = tmp_path / f"moved-{name}.txt"
+        clone, base = gate_clone(tmp_path / f"clone-{name}", marker)
+        files, away = pushes[name]
+        return (*push(clone, base, files(clone), away=away), marker)
+    with concurrent.futures.ThreadPoolExecutor(len(pushes)) as pool:
+        answers = dict(zip(pushes, pool.map(pushed, pushes)))
+    code, said, out, marker = answers["grown"]
+    assert code == 1 and "may not grow" in out and "test rule" in said and not marker.exists(), (said, out)
+    code, said, out, marker = answers["failing"]
+    assert code == 1 and "touched module's test failed" in said and not marker.exists(), (said, out)
+    code, said, out, marker = answers["clean"]
     assert code == 0 and "passed in" in out and "1 test file" in out, (said, out)
     assert "test_rra_moves_mass_and_torso_by_the_mean_residual.py left to the cluster gate" in out, out
     assert marker.read_text().startswith("refs/heads/main "), marker.read_text()
-    marker.unlink()  # the clone moved off the pushed commit: the gate checks it in a copy of its own
-    code, said, out = push(clone, base, {"tools/zz_gate/notes.txt": "y\n"}, away=True)
+    code, said, out, marker = answers["away"]
     assert code == 0 and "1 test file" in out and marker.exists(), (said, out)
 
 
@@ -939,15 +990,18 @@ def test_output_cap_spills_a_long_output_whole_and_summarises_it(tmp_path):
 
 def test_output_cap_leaves_what_the_agent_asked_for_alone(tmp_path):
     log = long_log()
-    for command in ("sed -n '1,400p' route.py", "git log -p | head -500", "grep -c x big.log",
-                    "awk 'NR>=10 && NR<=400' f", "cd /x; sed -n 1,300p a.py; echo ===; tail -n 200 b.py",
-                    "FULL_OUTPUT=1 make tests", "cat tools/props/library/CLAUDE.md",
-                    "ls x; cat .claude/skills/grill/SKILL.md", "ls y && cat a/CLAUDE.md 2>/dev/null | head -150"):
-        assert capped(cap_bash(command, log), tmp_path) is None, command
-    for payload in (cap_bash("ls", "a\nb\n"), cap_bash("cat a.png", log, isImage=True),
-                    cap_bash("make tests", log, backgroundTaskId="b1"),
-                    {"tool_name": "Read", "tool_input": {}, "tool_response": {"stdout": log}}):
-        assert capped(payload, tmp_path) is None
+    commands = ("sed -n '1,400p' route.py", "git log -p | head -500", "grep -c x big.log",
+                "awk 'NR>=10 && NR<=400' f", "cd /x; sed -n 1,300p a.py; echo ===; tail -n 200 b.py",
+                "FULL_OUTPUT=1 make tests", "cat tools/props/library/CLAUDE.md",
+                "ls x; cat .claude/skills/grill/SKILL.md", "ls y && cat a/CLAUDE.md 2>/dev/null | head -150")
+    payloads = [cap_bash(command, log) for command in commands] + [
+        cap_bash("ls", "a\nb\n"), cap_bash("cat a.png", log, isImage=True),
+        cap_bash("make tests", log, backgroundTaskId="b1"),
+        {"tool_name": "Read", "tool_input": {}, "tool_response": {"stdout": log}}]
+    with concurrent.futures.ThreadPoolExecutor(8) as pool:
+        answers = list(pool.map(lambda payload: capped(payload, tmp_path), payloads))
+    for payload, answer in zip(payloads, answers):
+        assert answer is None, payload["tool_input"]
     assert not (tmp_path / "s1").exists()  # nothing spilled for what was left alone
     assert capped(cap_bash("sed -n 1,20p a.py; cat big.log", log), tmp_path) is not None  # one stage not narrowed
 
@@ -969,11 +1023,6 @@ WAIT_CONFIG = {"wait_guard": {"foreground_runs": [
     {"run": PYTHON_RUN + r"settle\.py\b.*--cloud\b", "unless": None, "what": "a cloud Blender run"},
     {"run": PYTHON_RUN + r"review/page\.py\b.*--cloud\b", "unless": r"--no-render\b", "what": "a cloud Blender run"},
 ], "way_out": "Add --detach."}}
-
-
-@pytest.fixture
-def wait_guard(tmp_path):
-    return hook_copy(tmp_path, "wait_guard.py", WAIT_CONFIG)
 
 
 FOREGROUND_WAITS = [
@@ -1018,15 +1067,17 @@ SHORT_OR_BACKGROUND = [
 
 
 @pytest.mark.parametrize("command,reason", FOREGROUND_WAITS, ids=range(len(FOREGROUND_WAITS)))
-def test_wait_guard_blocks_foreground_waits(wait_guard, command, reason):
-    code, said, _ = run(wait_guard, bash(command))
+def test_wait_guard_blocks_foreground_waits(asked, command, reason):
+    code, said, _ = asked("waits", lambda folder: hook_copy(folder, "wait_guard.py", WAIT_CONFIG),
+                          [bash(waiting) for waiting, _ in FOREGROUND_WAITS], bash(command))
     assert code == BLOCK and reason in said and "run_in_background" in said, said
     assert "Add --detach." in said or "cloud" not in reason
 
 
 @pytest.mark.parametrize("payload", SHORT_OR_BACKGROUND, ids=range(len(SHORT_OR_BACKGROUND)))
-def test_wait_guard_allows_short_waits_reads_and_background_runs(wait_guard, payload):
-    assert run(wait_guard, payload)[0] == ALLOW, payload
+def test_wait_guard_allows_short_waits_reads_and_background_runs(asked, payload):
+    assert asked("short", lambda folder: hook_copy(folder, "wait_guard.py", WAIT_CONFIG), SHORT_OR_BACKGROUND,
+                 payload)[0] == ALLOW, payload
 
 
 # every hook: a payload it cannot read never wedges a tool call (never exit 2; md_guard exits 1 on a tool_input that
@@ -1045,8 +1096,8 @@ def test_every_guard_fails_open_on_garbage(name, tmp_path):
                {"tool_name": "Bash", "tool_input": {"command": "x"}, "tool_response": "text"}]
     script = hook_copy(tmp_path / "scratch", name) if name in SHARED_HOOKS else hook(name)
     env = dict(GIT_ENV, OUTPUT_CAP_DIR=str(tmp_path), CLAUDE_PROJECT_DIR=str(tmp_path / "scratch"))
-    for payload in garbage:
-        code, _, out = run(script, payload, env=env, cwd=tmp_path / "scratch" if name in SHARED_HOOKS else None)
+    answers = run_side_by_side(script, garbage, env=env, cwd=tmp_path / "scratch" if name in SHARED_HOOKS else None)
+    for payload, (code, _, out) in zip(garbage, answers):
         assert code != BLOCK and out.strip() == "", payload
     blocker = tmp_path / "file"  # output_cap's spill folder is a file: the output stays whole
     blocker.write_text("")
