@@ -53,6 +53,7 @@ LOCK_VARIABLE = "SCORE_UV_LOCK"  # set by the runner image: the sha256 of the uv
 IMAGE_VARIABLE = "SCORE_POD_IMAGE"  # set by the worker: the image digest the pod runs, for the record
 NOT_PROVEN = "pod output not proven"
 FETCHES = 16  # input blobs fetched at once (one at a time a pod fetched about 15 MB/s, rehearsal 2026-11-07)
+DESIGN = "design"  # the home's locked designs, which the stage table reads to say what each row declares
 
 
 class Undeclared(LookupError):
@@ -64,8 +65,8 @@ class Undeclared(LookupError):
 def job_of(runner, stage, place, keyed, code, table):
     """The job a pod makes the node from: its whole key, the code's sha256, the stage table (`module:attribute`), the
     repository's folders this process's code versions search (`_code.search_folders`: the stages' imports put them on
-    the path, and the pod's code versions must search the same), the environment, every input's listing and every
-    declared file's path and listing. A paid stage is refused."""
+    the path, and the pod's code versions must search the same), the environment, every input's listing, every
+    declared file's path and listing, and the home's designs (`designs`). A paid stage is refused."""
     if stage.paid:
         raise ValueError(f"{graph.node_name(stage, place)}: a paid stage is never made in a pod")
     files = {}
@@ -83,7 +84,17 @@ def job_of(runner, stage, place, keyed, code, table):
             "world": {"name": runner.world.name, "seed": runner.world.seed,
                       "roots": {root: str(path) for root, path in runner.world.roots.items()}},
             "listings": {name: runner.store.listing(output) for name, output in inputs.items()},
-            "files": files}
+            "files": files, "design": designs()}
+
+
+def designs():
+    """{path under the home's design folder: its sha256} of each JSON there: the locked designs the stage table reads
+    to say what a row declares and reads (a designed place's surfaces, an earth place's seed from its plans), which no
+    key names. Without them a pod's table declares another row (light-layer@tube, 2026-11-07: its seed a lost
+    file)."""
+    folder = score_store.PROPS_HOME / DESIGN
+    return {path.relative_to(folder).as_posix(): file_hash(path) for path in sorted(folder.rglob("*.json"))
+            if path.is_file()}
 
 
 def blob_sources(runner, job):
@@ -94,6 +105,8 @@ def blob_sources(runner, job):
         root = pathlib.Path(declared["path"])
         for relative, sha in declared["listing"].items():
             found[sha] = root / relative if declared["folder"] else root
+    for relative, sha in job["design"].items():
+        found[sha] = score_store.PROPS_HOME / DESIGN / relative
     return found
 
 
@@ -259,6 +272,21 @@ def prefetched(cache, shas):
             pass
 
 
+def placed_designs(job, cache):
+    """The job's designs written under this home's design folder (fetched side by side first), before the stage table
+    is read; why not, when the bucket lacks one (the conductor did not push it), else None."""
+    folder = score_store.PROPS_HOME / DESIGN
+    try:
+        prefetched(cache, sorted(set(job["design"].values())))
+        for relative, sha in job["design"].items():
+            target = folder / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(cached_blob(cache, sha), target)
+    except FileNotFoundError as missing:
+        return f"designs: {missing}"
+    return None
+
+
 def placed_inputs(store, job, cache):
     """Each input's listing and blobs into the sandbox store (blobs hard-linked from the cache, fetched side by side
     first), each declared file that is not at its path already put there; the store keys the job names."""
@@ -290,13 +318,15 @@ def placed_inputs(store, job, cache):
 @contextlib.contextmanager
 def sandboxed(root, allowed, reads):
     """Every FolderStore under `root` refuses a key not in `allowed` (Undeclared, the key added to `reads`) and every
-    listing of keys, while the block runs."""
+    listing of keys, while the block runs. A write of a new blob (Store.put_blob, offload.writing: a kept take's files,
+    tools/cloud/kept.py's call) reads nothing and is let through (finish-route-views@tube, 2026-11-07: its first take
+    kept was named an undeclared read)."""
     folder_store = score_store.runtime_store.FolderStore
     plain = {name: getattr(folder_store, name) for name in ("path", "exists", "keys")}
     root = pathlib.Path(root).resolve()
 
     def guarded(store, key):
-        if key not in allowed and pathlib.Path(store.root).resolve().is_relative_to(root):
+        if key not in allowed and not offload.writing() and pathlib.Path(store.root).resolve().is_relative_to(root):
             reads.append(key)
             raise Undeclared(f"{key}: the pod's job does not name it")
 
@@ -374,10 +404,11 @@ def made_listing(runner, stage, job, cache, bucket):
 
 
 def sent(out, bucket):
-    """The output folder's listing and blob sizes, each blob put into the bucket (a 412: the same bytes there)."""
+    """The output folder's listing and blob sizes, each blob put into the bucket once (a 412: the same bytes there;
+    files of the same bytes are one blob)."""
     listing = tree_listing(out)
     files = score_store.tree_files(out)
-    for name, sha in listing.items():
+    for sha, name in {sha: name for name, sha in listing.items()}.items():
         offload.push(files[name], sha, bucket)
     return {"listing": listing, "sizes": {sha: files[name].stat().st_size for name, sha in listing.items()}}
 
@@ -402,10 +433,15 @@ def run(job_path, manifest_path, cache):
     answer = {"refused": why} if why else None
     if answer is None:
         try:
-            runner, stage = sandbox_runner(job)
             bucket = pod_bucket()
             offload.install(lambda: bucket)
-            answer = made_listing(runner, stage, job, cache, bucket)
+            why = placed_designs(job, cache)
+            if why:
+                answer = {"refused": why}
+            else:
+                runner, stage = sandbox_runner(job)
+                offload.install(lambda: bucket)  # the runner installed the backend's bucket: the pod's again
+                answer = made_listing(runner, stage, job, cache, bucket)
         except Exception:  # noqa: BLE001 - the make's failure is the manifest's answer, the conductor raises it
             answer = {"error": traceback.format_exc()}
     peak = (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss

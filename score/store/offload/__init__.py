@@ -39,6 +39,7 @@ import re
 import shutil
 import sys
 import threading
+import time
 
 from score.store import file_hash, locked, partial_of, runtime_store
 from score.store.durable import landed, synced, whole_file
@@ -48,6 +49,8 @@ EVICTED = "evicted"  # beside the objects: store/evicted/<sha256>, one mark an e
 SHA_FIELD = "sha256"  # the object metadata naming the bytes' sha256
 FETCH_TRIES = 2  # a fetched blob whose sha256 does not match is fetched once more, then BlobMismatch
 WORKERS = 16  # uploads and answers at once
+PUSH_TRIES = 5  # a push the bucket's connection drops is sent again, each wait PUSH_PAUSE doubled (see push)
+PUSH_PAUSE = 1.0  # seconds before the first try again
 PLAIN_PATH = runtime_store.FolderStore.path  # FolderStore's own, before install
 SHA = re.compile(r"[0-9a-f]{64}")
 WRITING = threading.local()  # .depth > 0 inside a put_blob of this thread: its misses are a write's, never asked
@@ -216,10 +219,27 @@ def blob_key(sha):
 
 def push(path, sha, bucket):
     """One local blob into the bucket: "sent", or "there" (412: the same bytes were there already). A local copy whose
-    bytes do not hash to `sha` is never sent: ValueError."""
+    bytes do not hash to `sha` is never sent: ValueError. A put whose connection the bucket drops is sent again, up to
+    PUSH_TRIES times (the store bucket closed about one request in four while a pod sent surfaces-paint@tube's 362
+    files, three in a row more than once, 2026-11-07); the last error raised."""
     if file_hash(path) != sha:
         raise ValueError(f"{path}: its bytes do not hash to its name; not sent")
-    return "sent" if bucket.put_new(path, blob_key(sha), sha) else "there"
+    for tried in range(PUSH_TRIES):
+        try:
+            return "sent" if bucket.put_new(path, blob_key(sha), sha) else "there"
+        except Exception as error:
+            if tried == PUSH_TRIES - 1 or not dropped(error):
+                raise
+        time.sleep(PUSH_PAUSE * 2 ** tried)
+
+
+def dropped(error):
+    """True for a connection the bucket closed or lost (botocore's HTTP client and connection errors, or the
+    standard library's): a put that may be sent again. A put sent whole before the drop answers 412 the next time."""
+    import botocore.exceptions
+
+    return isinstance(error, (ConnectionError, botocore.exceptions.HTTPClientError,
+                              botocore.exceptions.ConnectionError))
 
 
 def proven(bucket, sha, size):
