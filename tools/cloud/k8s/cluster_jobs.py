@@ -49,19 +49,75 @@ def placed(entry, local_key, remote_key):
     return pathlib.Path(entry).resolve(), str(pathlib.Path(entry).resolve())
 
 
-def upload_inputs(store, prefix, inputs):
-    """Upload a job's inputs (a folder as one key a file) under `prefix`; the job's input entries."""
+def framework_store():
+    """The framework's store on this machine (score.store's Store.default): the listings a checkout's files are read
+    from by sha256."""
+    if str(REPO) not in sys.path:
+        sys.path.insert(0, str(REPO))
+    from score.store import Store
+
+    return Store.default()
+
+
+def checkout_files(kept, local):
+    """{relative path: sha256} of an input inside one of the store's checkouts, read from its output's listing (no
+    file read, the checkout need not be on disk); None for any other input."""
+    checkouts = (kept.cache / "checkouts").resolve()
+    if not local.is_relative_to(checkouts) or local == checkouts:
+        return None
+    output, *inside = local.relative_to(checkouts).parts
+    if not kept.objects.exists(f"outputs/{output}.json"):
+        return None
+    under = "/".join(inside)
+    listing = kept.listing(output)
+    if under in listing:
+        return {"": listing[under]}
+    return {name[len(under) + 1:] if under else name: sha for name, sha in listing.items()
+            if not under or name.startswith(under + "/")}
+
+
+def hashed_files(local):
+    """{relative path: sha256} of an input outside the store, each file hashed ("" for a plain file)."""
+    from score.store import file_hash
+
+    if local.is_file():
+        return {"": file_hash(local)}
+    return {str(found.relative_to(local)): file_hash(found) for found in sorted(local.rglob("*")) if found.is_file()}
+
+
+def send_input(store, kept, sha, file):
+    """One input's bytes in the job store under inputs/<sha256>, once for every run (asked first): from this machine
+    when it holds them (the store's blob, else `file`), else copied inside the object storage from the store bucket
+    (an evicted blob, never fetched back here); its key."""
+    key = f"inputs/{sha}"
+    if store.exists(key):
+        return key
+    blob = kept.objects.root / "blobs" / sha
+    source = blob if blob.is_file() else file if file.is_file() else None
+    if source is None:
+        from score.store import offload
+
+        offload.copy_blob(sha, store, key)
+    else:
+        store.upload(source, key)
+    return key
+
+
+def upload_inputs(store, inputs, kept=None):
+    """A job's inputs (a folder as one key a file) in the job store, each file keyed by its sha256 so a file goes up
+    once whichever runs read it; the job's input entries. A file of a store checkout takes its sha256 from the output's
+    listing and its bytes from the store's blob (`kept`, the framework's store by default)."""
+    kept = kept or framework_store()
     entries = []
-    for number, entry in enumerate(inputs):
+    for entry in inputs:
         local, remote = placed(entry, "local", "path")
-        files = [local] if local.is_file() else sorted(found for found in local.rglob("*") if found.is_file())
+        listed = checkout_files(kept, local)
+        files = listed if listed is not None else hashed_files(local) if local.exists() else {}
         if not files:
             raise SystemExit(f"the input {local} is missing or empty")
-        for file in files:
-            relative = "" if file == local else str(file.relative_to(local))
-            key = f"{prefix}in/{number}/{relative or local.name}"
-            store.upload(file, key)
-            entries.append({"key": key, "path": str(pathlib.PurePosixPath(remote) / relative) if relative else remote})
+        for relative, sha in files.items():
+            entries.append({"key": send_input(store, kept, sha, local / relative if relative else local),
+                            "path": str(pathlib.PurePosixPath(remote) / relative) if relative else remote})
     return entries
 
 
@@ -80,7 +136,7 @@ def spec_of(helper, store, run, job_id, kind, image, classes, job):
     outputs, back = output_entries(helper, run, job_id, job.get("outputs", ()))
     spec = {"kind": image, "capacity_kind": kind, "image": helper.image(image), "classes": list(classes),
             "code": helper.upload_code(store, job.get("code", []), kind=image, repo=REPO),
-            "inputs": upload_inputs(store, helper.jobs.prefix(run, job_id), job.get("inputs", ())),
+            "inputs": upload_inputs(store, job.get("inputs", ())),
             "outputs": outputs, "command": job["command"], "env": job.get("env", {}),
             "models": job.get("models", []), "minutes": job.get("minutes", 30),
             "attempt_limit": job.get("attempt_limit", ATTEMPTS)}

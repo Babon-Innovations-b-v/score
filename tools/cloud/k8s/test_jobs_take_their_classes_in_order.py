@@ -30,7 +30,11 @@ invariant with the break that turns it red (each applied once and seen red):
   only while the namespace's quota has room for its pod: 2 cards left and 5 card jobs make 2 and hold 3, which go on
   once room comes; a quota's FailedCreate is no word to widen. Break: drop the `fits` check in `submit_more`.
 - Inputs go up at their paths (a folder as one key a file), outputs come back where the runner wants them, a job
-  that did not finish is reported by its number. Break: report every job as failed in `cluster_jobs.run`.
+  that did not finish is reported by its number. Break: report every job as failed in `cluster_jobs.run`. Each
+  input file is keyed by its sha256 (a checkout's from its listing) and goes up once: a second run of one input
+  uploads nothing; an input whose store blob is evicted is copied inside the object storage (one copy), never
+  fetched back here. Break: drop the `store.exists` ask in `send_input` (each
+  run sends again). Break: `fetched` then upload in place of `offload.copy_blob` in `send_input`.
 - Billing: a warm node counts from the run's start; an unused node made during the run is the run's; a node made
   before it, or hosting another run, is not; a node without zone labels takes the provider's record.
   Break: `created = seen["created"]` in `node_machines`.
@@ -75,6 +79,7 @@ import cluster_jobs  # noqa: E402
 import gpu_operator  # noqa: E402
 import manifests  # noqa: E402
 import submitter as submit  # noqa: E402
+from score.store import Store, offload  # noqa: E402
 
 POOLS = {"gpu-24gb", "gpu-48gb", "gpu-80gb", "gpu-80gb-x2", "cpu-32c-128gb"}
 
@@ -384,10 +389,35 @@ class Helper:
         return f"registry.example/score-{kind}:1@sha256:00"
 
 
+class CountedCopies(offload.FolderBucket):
+    """The store bucket as a folder, counting the copies made inside it into a job store."""
+
+    copies = 0
+
+    def copy_into(self, key, target, target_key):
+        CountedCopies.copies += 1
+        super().copy_into(key, target, target_key)
+
+
 def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_wants_them(tmp_path, monkeypatch):
     helper = Helper(tmp_path / "store")
     monkeypatch.setattr(cluster_jobs.submitter, "runtime", lambda: helper)
-    seen = {}
+    seen, uploads, fetches = {}, [], []
+    real_upload = helper.store.upload
+    monkeypatch.setattr(helper.store, "upload", lambda source, key: (uploads.append(key), real_upload(source, key)))
+    kept = Store.in_folder(tmp_path / "home")  # the framework's store: one output whose only blob is evicted
+    made = tmp_path / "made"
+    made.mkdir()
+    (made / "lamp.usda").write_text("lamp")
+    output = kept.put_tree(made)
+    sha = kept.listing(output)["lamp.usda"]
+    bucket = CountedCopies(tmp_path / "bucket")
+    offload.push(kept.objects.root / "blobs" / sha, sha, bucket)
+    offload.evict(kept.objects.root, sha, 4)
+    monkeypatch.setattr(cluster_jobs, "framework_store", lambda: kept)
+    monkeypatch.setitem(offload.OPENER, "bucket", bucket)
+    real_fetched = offload.fetched
+    monkeypatch.setattr(offload, "fetched", lambda *args: (fetches.append(args), real_fetched(*args))[1])
 
     def submit_run(run, specs, store, wait_scale_down=True, who=None, parallel=None):
         """What the cluster would leave: each output and done.json, except job 1, which fails."""
@@ -411,7 +441,8 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
     single = tmp_path / "in" / "job.json"
     single.write_text("{}")
     out_file, out_folder = tmp_path / "out" / "result.json", tmp_path / "out" / "folder"
-    jobs = [{"command": ["true"], "code": ["tools/cloud/k8s"], "inputs": [str(stage), str(single)],
+    evicted = {"local": str(kept.cache / "checkouts" / output), "path": "/work/in/lamp"}  # no checkout on disk
+    jobs = [{"command": ["true"], "code": ["tools/cloud/k8s"], "inputs": [str(stage), str(single), evicted],
              "outputs": [str(out_file), str(out_folder)], "minutes": 3, "kernel_cache": "blender-5.0.1"},
             {"command": ["false"], "code": ["tools/cloud/k8s"], "inputs": [], "outputs": [], "minutes": 3}]
     assert cluster_jobs.run("blender", jobs, who="test", classes=["gpu-24gb"]) == [1]
@@ -420,7 +451,10 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
     assert spec["image"].startswith("registry.example/score-blender") and spec["classes"] == ["gpu-24gb"]
     assert spec["kernel_cache"] == "blender-5.0.1" and spec["minutes"] == 3
     assert sorted(entry["path"] for entry in spec["inputs"]) == sorted(
-        [str(stage / "place.usda"), str(stage / "textures/wall.png"), str(single)])
+        [str(stage / "place.usda"), str(stage / "textures/wall.png"), str(single), "/work/in/lamp/lamp.usda"])
+    assert all(entry["key"].startswith("inputs/") for entry in spec["inputs"]) and len(uploads) == 3
+    assert helper.store.read_bytes(f"inputs/{sha}") == b"lamp"  # copied inside the object storage
+    assert CountedCopies.copies == 1 and not fetches and not (kept.objects.root / "blobs" / sha).exists()
     assert out_file.read_text() == "made by 0" and (out_folder / "part" / "a.txt").read_text() == "made by 0"
 
     def watch_lost(run, specs, store, wait_scale_down=True, who=None, parallel=None):
@@ -432,6 +466,7 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
     with pytest.raises(RuntimeError, match="did not answer"):
         cluster_jobs.run("blender", jobs, who="test", classes=["gpu-24gb"])
     assert out_file.read_text() == "made by 0"  # what finished still came back
+    assert len(uploads) == 3 and CountedCopies.copies == 1  # the second run of the same inputs sent nothing
 
 
 # ==== billing =======================================================================================================

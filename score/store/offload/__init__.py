@@ -7,6 +7,7 @@ blobs (store/objects/blobs/<sha256>, about 99.8% of the bytes) move; every other
     pushed = offload.push(path, sha, bucket)   # one blob into the bucket ("sent" or "there": a 412, the same bytes)
     offload.proven(bucket, sha, size)          # True only when the bucket answers with this size and this sha256
     offload.evict(objects_root, sha, size)     # its mark written, then its local copy removed (the caller proved it)
+    offload.copy_blob(sha, target, key)        # a blob copied inside the object storage into a job store, never here
 
 The bucket is one of its own in fr-par (the backend's RUN_STORE_BUCKET, `score-<project>-store`; Scaleway's default
 class there is Multi-AZ, versioning never turned on), reached with the runtime key read by name
@@ -127,6 +128,11 @@ class Bucket:
             multipart_threshold=runtime_store.RANGE_SIZE, multipart_chunksize=runtime_store.RANGE_SIZE,
             max_concurrency=runtime_store.RANGES_AT_ONCE))
 
+    def copy_into(self, key, target, target_key):
+        """The object at `key` copied into `target` (a runtime_store.BucketStore) under `target_key` by the object
+        storage itself (a managed copy, in parts when large): its bytes never pass through this machine."""
+        self.client.copy({"Bucket": self.name, "Key": key}, target.bucket, target_key)
+
     def listed(self, prefix):
         """Every key under `prefix` the bucket lists: a hint for what to skip sending, never a proof."""
         found = set()
@@ -173,6 +179,10 @@ class FolderBucket:
 
     def fetch(self, key, destination):
         shutil.copyfile(self.root / key, destination)
+
+    def copy_into(self, key, target, target_key):
+        target.path(target_key).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(self.root / key, target.path(target_key))
 
     def listed(self, prefix):
         folder = self.root / prefix
@@ -234,6 +244,12 @@ def evict(objects_root, sha, size):
     landed(whole_file(mark, json.dumps({"size": size, "at": at}).encode()), mark)
     blob.unlink()
     synced(blob.parent)
+
+
+def copy_blob(sha, target, key):
+    """A blob the store bucket holds copied into `target`, a job store (the cluster's cache bucket), under `key`, by
+    the object storage itself: an evicted blob reaches a job without landing on this machine's disk (#76)."""
+    bucket_now().copy_into(blob_key(sha), target, key)
 
 
 # --- fetch on demand: install() -------------------------------------------------------------------------------------
