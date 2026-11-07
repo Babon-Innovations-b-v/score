@@ -7,7 +7,8 @@ Each test's break (applied once, seen red, reverted), in score/store/backup/:
 - passes over lost+found: _core.excludes drops EMPTY_ENOUGH.
 - live database whole: _core.excludes leaves the live database and its side files in.
 - refused before machine.json: backup's machine.json check becomes `if False:`.
-- the move names the machine: _migrate.write_identity drops the sizes record.
+- the move names the machine: _migrate.write_identity drops the sizes record. Break: _migrate.vm_refusal's `if units:`
+  becomes `if False:` (the VM's home copied while its sync runs); move_refusal's MOVE_WORDS check dropped.
 - each difference named: _manifest.differences never reports a changed file.
 - a file not back stops the move: _migrate.onto_conductor's Mismatch check becomes `if False:`.
 - a unit active: _migrate.pc_refusal's `if units:` becomes `if False:`.
@@ -168,6 +169,28 @@ def test_the_move_lands_the_pc_home_whole_and_names_the_machine(setting, monkeyp
     assert {name: identity[name] for name in sizes} == sizes  # what makes it a conductor (score.conductor.machine)
     assert backups.compare(backups.read_manifest(pc), backups.read_manifest(conductor)) == []
     assert rows(conductor / "dashboard" / "dashboard.sqlite3") == COMMITTED_ROWS
+    # The conductor's move from its VM into the cluster (#76 step 7): refused while a VM unit runs and in an agent's
+    # process without the owner's go quoted; with it, the cluster's empty home gets the VM's home whole and its record.
+    from score.store.backup import _migrate
+    cluster = setting / "cluster"
+    (cluster / "lost+found").mkdir(parents=True)
+    write(setting / "states", "active\n" + "inactive\n" * (len(_migrate.VM_UNITS) - 1))
+    with pytest.raises(backups.Refused, match="score-sync.timer still active"):
+        backups.migrate("from-vm", conductor)
+    write(setting / "states", "inactive\n" * len(_migrate.VM_UNITS))
+    monkeypatch.setenv(AGENT_MARKERS[0], "1")
+    with pytest.raises(backups.Refused, match="owner's"):
+        backups.migrate("from-vm", conductor)
+    monkeypatch.setenv(_migrate.MOVE_WORDS, "no u can do the conductor move asap")
+    out = backups.migrate("from-vm", conductor)
+    with pytest.raises(backups.Refused, match="not empty"):
+        backups.migrate("onto-cluster", pc)
+    landed = backups.migrate("onto-cluster", cluster)
+    assert landed["snapshot"] == out["snapshot"] != moved["snapshot"]  # the newest vm-final, never the pc-final
+    assert json.loads((cluster / _migrate.CLUSTER_RECORD).read_text())["namespace"] == "score"
+    assert backups.compare(backups.read_manifest(conductor), backups.read_manifest(cluster)) == []
+    with pytest.raises(backups.Refused, match="cluster's home already"):
+        backups.migrate("from-vm", cluster)
 
 
 @needs_restic

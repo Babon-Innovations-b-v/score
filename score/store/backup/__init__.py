@@ -7,6 +7,7 @@ conductor an s3: bucket in another region than the machine), and the one-time mo
     python -m score.store.backup restore --to <dir>   # a restore drill into an empty scratch folder
     python -m score.store.backup manifest [<home>]    # the home's manifest (_manifest.py)
     python -m score.store.backup migrate --from-pc | --onto-conductor | --pc-test-home   # the move (_migrate.py)
+    python -m score.store.backup migrate --from-vm | --onto-cluster   # the conductor's move into the cluster
 
 A backup holds $PROPS_HOME minus what can be rebuilt (_core.REBUILT) and partial writes; each SQLite database under
 dashboard/ is held as its consistent copy (_staging). The password is the secret `score-backup-restic-password`, read
@@ -14,7 +15,7 @@ by name through SCORE_SECRET_READER into restic's environment only (_restic). A 
 home holds machine.json (written by the move), so a fresh conductor's timer never backs up an empty home. Every
 command prints one summary line and writes its record to $PROPS_HOME/logs/backup-<UTC stamp>.json:
 {at, kind, ok, snapshot, files, bytes, seconds, error, detail}, kind one of backup, forget, check, check-data, restore,
-manifest, migrate-from-pc, migrate-onto-conductor, migrate-pc-test-home.
+manifest, migrate-from-pc, migrate-onto-conductor, migrate-pc-test-home, migrate-from-vm, migrate-onto-cluster.
 """
 import datetime
 import json
@@ -25,7 +26,8 @@ from score.store.backup import _core, _manifest, _migrate
 from score.store.backup._migrate import Mismatch, Refused
 from score.store.backup._restic import Restic, ResticFailed
 
-KEEP = ("--keep-last", "48", "--keep-daily", "30", "--keep-weekly", "12", "--keep-tag", _migrate.PC_FINAL)
+KEEP = ("--keep-last", "48", "--keep-daily", "30", "--keep-weekly", "12", "--keep-tag", _migrate.PC_FINAL,
+        "--keep-tag", _migrate.VM_FINAL)
 READ_SUBSET = "5%"
 READ_EVERY = datetime.timedelta(days=7)
 
@@ -43,7 +45,7 @@ def backup(home=PROPS_HOME, restic=None):
 
 
 def forget(restic=None):
-    """Drop the snapshots past the policy (48 last, 30 daily, 12 weekly; pc-final always kept) and prune;
+    """Drop the snapshots past the policy (48 last, 30 daily, 12 weekly; pc-final and vm-final always kept) and prune;
     {detail: kept, removed}."""
     restic = restic or Restic()
     said = restic.checked("forget", *KEEP, "--prune", "--json").splitlines()
@@ -106,7 +108,9 @@ def manifest(home=PROPS_HOME, log_home=PROPS_HOME):
 # Each step of the move: (why it may not run now, or None; the step).
 MIGRATIONS = {"from-pc": (_migrate.pc_refusal, _migrate.from_pc),
               "onto-conductor": (_migrate.onto_refusal, _migrate.onto_conductor),
-              "pc-test-home": (_migrate.onto_refusal, _migrate.pc_test_home)}
+              "pc-test-home": (_migrate.onto_refusal, _migrate.pc_test_home),
+              "from-vm": (_migrate.vm_refusal, _migrate.from_vm),
+              "onto-cluster": (_migrate.cluster_refusal, _migrate.onto_cluster)}
 
 
 def migrate(mode, home=PROPS_HOME, restic=None):

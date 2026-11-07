@@ -13,7 +13,7 @@ the cutover applies them, step 7).
 - **The VM's paths.** The volume's folders mount where the VM has them (`MOUNTS`): no record's path changes, a frozen
   copy (a git worktree of `~/projects/score`) reads the same in every pod.
 - **The units.** `units.py` runs the VM's always-on units in the conductor container (listener, health, update,
-  secrets, sweep, resume once); sync, backup and the backup check are CronJobs (Forbid). Image:
+  secrets, sweep, resume at the start and every 5 minutes: a drive pod cut at this boot leaves its run `running`, started again once, `score/graph/runs.cut_at_this_boot`); sync, backup and the backup check are CronJobs (Forbid). Image:
   `tools/cloud/images/conductor/` (the runner image plus restic, scw, kubectl, the secret reader and
   `score-conductor-start`).
 - **The agents** reach only the door: ServiceAccount `score-door-agent` may get and port-forward to `score-conductor-0`

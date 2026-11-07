@@ -1,5 +1,5 @@
 """The VM's always-on units as one process in the conductor's pod (a pod has no systemd): the listener kept running,
-each timer's commands at its interval, resume once at the start. The sync pass and the backups are CronJobs beside
+each timer's commands at its interval, resume at the start and every RESUME_SECONDS. The sync pass and the backups are CronJobs beside
 it (`__init__.CRONJOBS`), so a pass never blocks a timer here.
 
     python3 -I tools/cloud/k8s/conductor/units.py      # the conductor container's last step (score-conductor-start)
@@ -23,13 +23,16 @@ PY = f"{REPO}/.venv/bin/python"
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_ENV_FILE", HOME / ".config/score/dashboard.env"))
 LATCH = pathlib.Path(os.environ.get("PROPS_HOME", HOME / ".farm-factory-props")) / "conductor" / "free-only"
 RESTART_SECONDS = 30
+# Resume at the start and every few minutes after: a drive pod cut at this boot (its memory limit, a SIGKILL) leaves
+# its run `running`, and resume starts it again once (score/graph/runs.cut_at_this_boot; the rehearsal of 2026-11-07).
+RESUME_SECONDS = 300
 TICK_SECONDS = 5
 TOKEN = 'SCORE_SYNC_TOKEN="$("$SCORE_SECRET_READER" score-cockpit-sync-token)" && [ -n "$SCORE_SYNC_TOKEN" ] && ' \
         "export SCORE_SYNC_TOKEN && exec "
 # (unit, seconds between starts or None for the always-on one, the first start's delay, its commands)
 UNITS = (
     ("listen", None, 0, (f"{TOKEN}{PY} -m score.dashboard listen",)),
-    ("resume", 0, 0, (f"{PY} -m score resume",)),
+    ("resume", RESUME_SECONDS, 0, (f"{PY} -m score resume",)),
     ("health", 60, 60, (f"{PY} -m score.conductor health --write",
                         f"/usr/bin/python3 -I {REPO}/tools/cloud/conductor/health_push.py")),
     ("update", 300, 180, (f"/usr/bin/python3 -I {REPO}/tools/cloud/conductor/update.py --repo {REPO}",)),

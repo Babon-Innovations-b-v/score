@@ -3549,12 +3549,16 @@ def an_entry(folder, name, **fields):
 STARTS = '#!/bin/sh\necho "detached: started in $(pwd) with $*"; echo started >> "$PWD/starts"\n'
 
 
-def test_resume_starts_only_a_run_an_earlier_boot_cut_off_from_its_own_unchanged_worktree():
+def test_resume_starts_only_a_run_an_earlier_boot_cut_off_from_its_own_unchanged_worktree(monkeypatch):
     """C9: PC reboots lost runs; review: resume ran whatever a worktree had checked out days later, a run the owner
     stopped, one OOM-killed long before. Listed by `score resume --dry` (marking none): the cut-off run; skipped: one
     whose worktree moved on. Started detached from its own worktree and marked resumed, never twice; one moved on,
     changed, gone, silent over 12 h before the boot or whose restart fails is marked unresumable with why.
-    Break: score/graph/runs.py: '    if not entry.get("commit") or head != entry["commit"]:' -> '    if not entry.get("commit"):'"""
+    Break: score/graph/runs.py: '    if not entry.get("commit") or head != entry["commit"]:' -> '    if not entry.get("commit"):'
+    On the cluster's home (#76) a run its drive pod's cut left `running` at this boot is started again once, a second
+    cut from the same frozen copy is unresumable, a live one is left, and off the cluster's home none is taken.
+    Break: in runs.cut_at_this_boot, drop `and not size.entry_alive(entry)` (a live drive started twice).
+    Break: in runs.restart_cut, drop the `cut_before` refusal (a run cut by its memory resumed for ever)."""
     home = pathlib.Path(tempfile.mkdtemp())
     worktree, commit = a_worktree()
     (home / "runs").mkdir()
@@ -3605,6 +3609,27 @@ def test_resume_starts_only_a_run_an_earlier_boot_cut_off_from_its_own_unchanged
         assert why in whys[name], (name, whys[name])
     assert runs.stranded(folder) == {}  # never tried again
     assert sorted(line.split(":")[0] for line in runs.unresumable(folder)) == sorted(whys)
+    from score.conductor import cluster
+    cut_folder = pathlib.Path(tempfile.mkdtemp())
+    worktree, commit = a_worktree(STARTS)
+    gone = {"worktree": str(worktree), "commit": commit, "boot": runs.boot_id(), "pid": 2 ** 22 + 11}
+    an_entry(cut_folder, "cut-on-the-vm", **gone)
+    assert runs.resume(False, said.append, folder=cut_folder, swept=()) == 0  # off the cluster's home: never taken
+    monkeypatch.setattr(cluster, "RECORD", cut_folder / "cluster.json")
+    (cut_folder / "cluster.json").write_text('{"namespace": "score"}')
+    (cut_folder / "cut-on-the-vm.json").unlink()
+    an_entry(cut_folder, "cut-pod", **gone)
+    an_entry(cut_folder, "live-pod", worktree=str(worktree), commit=commit, boot=runs.boot_id(), pid=os.getpid(),
+             started=datetime.datetime.now(datetime.timezone.utc).isoformat())
+    assert runs.resume(False, said.append, folder=cut_folder, swept=()) == 1
+    states = {path.stem: entry for path, entry in runs.entries(cut_folder).items()}
+    assert states["cut-pod"]["state"] == runs.RESUMED and states["cut-pod"]["cut"], said[-1]
+    assert states["live-pod"]["state"] == runs.RUNNING and (worktree / "starts").read_text().count("started") == 1
+    an_entry(cut_folder, "cut-again", **gone)
+    runs.resume(False, said.append, folder=cut_folder, swept=())
+    again = runs.entries(cut_folder)[cut_folder / "cut-again.json"]
+    assert again["state"] == runs.UNRESUMABLE and "cut again" in again["why"], again
+    assert (worktree / "starts").read_text().count("started") == 1
 
 
 def test_two_resumes_at_once_start_a_run_once_and_a_resume_clears_an_earlier_boots_partial_writes():

@@ -21,6 +21,8 @@ Spending and moving are the owner's (machine.py, agent_door.sh, prepare.sh):
   Break: drop `--free` from the door's `run` rewrite in agent_door.py.
   Break: drop `env.pop("SCORE_BENCHMARK_GRANT")` in the door's `environment` -> a smuggled grant passes.
   Break: drop the latch refusal of a benchmark.
+  Break: in agent_door.move_out, drop `if stopped.returncode != 0:` -> the VM's home backed up while its units run.
+  Break: `return None` at the top of `move_out_refusal` -> a live run cut by the move.
 - The owner's decisions in chat go through the door as decide-yes and decide <yes id> alone, and a run's go only
   as `--go <id>` (owner, 2026-10-27). Break: drop `env.pop("SCORE_OWNERS_GO")` in `environment` -> a smuggled go
   passes. Break: drop the `GRANT_ID.match` refusal of `decide` -> `decide 'y 1'` runs.
@@ -332,7 +334,8 @@ def test_the_door_refuses_a_shell_a_paid_run_the_owners_commands_and_anything_un
                   "fault 'motion@airlock/../../x'", "store-pull cloud", "store-push --delete",
                   "store-push --missing x", "preflight", "preflight --phase props", "lock-phase world1",
                   "lock-phase --place a models", "lock-phase world1 models --stage pixal",
-                  "lock-phase world1 models --place", "lock-phase world1 models --place '../x'", "cluster-check x"):
+                  "lock-phase world1 models --place", "lock-phase world1 models --place '../x'", "cluster-check x",
+                  "move-out", "move-out a b", "move-out ' '"):
         code, why, argv, _ = door(asked)
         assert code == 126 and argv is None and "refused" in why, (asked, code, why)
     # The pod's door service (#76 step 4) runs the same door: the same refusals, the same allowed command marked as an
@@ -449,6 +452,35 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
     code, why, argv, env = door("stop-batch 'the run holds 13 idle machines'")
     assert code == 0 and argv[0] == "-c" and argv[2:] == ["the run holds 13 idle machines"], (why, argv)
     assert all(env.get(marker) == "1" for marker in AGENT_MARKERS)
+    code, why, argv, env = door("move-out 'no u can do the conductor move asap'")
+    assert code == 0 and argv[1:] == ["--move-out", "no u can do the conductor move asap"], (why, argv)
+    assert argv[0].endswith("agent_door.py") and all(env.get(marker) == "1" for marker in AGENT_MARKERS)
+    # move-out itself (#76 step 7): nothing while a run or a parked machine would be cut; else the latch, the VM's
+    # units stopped, then the vm-final backup with his words; a failed stop backs nothing up.
+    import agent_door
+    from score.store.backup import _migrate
+    idle = {"claims": 0, "running": 0, "waiting": 0, "parked": 0, "working": 0, "held": ["sync-pass-1"]}
+    for busy in ({"claims": 1}, {"running": 1}, {"waiting": 1}, {"parked": 2}, {"working": 1, "held": ["film-9"]}):
+        calls = []
+        with pytest.raises(agent_door.Refused):
+            agent_door.move_out("go", pathlib.Path("/nowhere"), run=lambda *a, **k: calls.append(a), view={**idle, **busy},
+                                latch=lambda *a: calls.append(a))
+        assert calls == [], busy
+    calls, latched = [], []
+
+    def ran(argv, **options):
+        calls.append((argv, options.get("env", {}).get(_migrate.MOVE_WORDS)))
+        return types.SimpleNamespace(returncode=0, stderr="")
+    assert agent_door.move_out("his go", pathlib.Path("/nowhere"), run=ran, view=idle,
+                               latch=lambda *a: latched.append(a) or "latch") == 0
+    assert latched and latched[0][1] == "his go"
+    assert calls[0][0] == ["systemctl", "--user", "stop", *_migrate.VM_UNITS]
+    assert calls[1][0][-2:] == ["migrate", "--from-vm"] and calls[1][1] == "his go"
+    calls.clear()
+    assert agent_door.move_out("his go", pathlib.Path("/nowhere"), view=idle, latch=lambda *a: "latch",
+                               run=lambda argv, **o: calls.append(argv) or types.SimpleNamespace(returncode=5,
+                                                                                                  stderr="no bus")) == 5
+    assert len(calls) == 1  # the stop failed: no backup
     for asked, flag in (("store-pull", "--store-pull"), ("store-push --missing", "--store-missing"),
                         ("store-push", "--store-push"), ("store-push --differs", "--store-differs"),
                         ("store-push --replace", "--store-replace")):

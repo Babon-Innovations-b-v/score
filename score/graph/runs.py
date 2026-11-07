@@ -15,7 +15,10 @@ since this boot, is never started twice; it holds a lock while it runs, so two r
 it removes the .partial files an earlier boot's writes left in the store. It starts a run only from the code that
 registered it: its worktree still there, at the entry's commit, with nothing uncommitted. And only a run alive shortly
 before this boot: a driving run touches its entry every HEARTBEAT seconds, and one silent for over RESUME_WINDOW
-before this boot began died some other way (an OOM kill, a SIGKILL) and is never started again unasked. A run's
+before this boot began died some other way (an OOM kill, a SIGKILL) and is never started again unasked. On the
+cluster's home (score.conductor.cluster's record) a run whose drive pod was cut at this boot, its process gone and its
+entry still `running`, is started again once (cut_at_this_boot; the conductor's pod runs resume every few minutes,
+tools/cloud/k8s/conductor/units.py), and a second cut from the same frozen copy is unresumable. A run's
 worktree is its frozen copy (graph/frozen.py), which it starts again in and owns again. The systemd
 user unit `tools/cloud/conductor/units/score-resume.service` runs `score resume` at boot (the conductor's boot
 installs it; on the PC, installing it is the owner's step).
@@ -251,6 +254,41 @@ def stranded(folder=RUNS):
             if entry.get("state") in (RUNNING, WAITING) and entry.get("boot") not in (None, this_boot)}
 
 
+def cut_at_this_boot(folder=RUNS, cluster_record=None):
+    """On the cluster's home only (score.conductor.cluster's record): {path: entry} of every run its drive pod's end
+    cut off at this boot, its process gone with no signal handler run (an out-of-memory kill, a SIGKILL, the pod's node
+    process killed): still `running`, registered at this boot. On the VM or the PC a run killed so is never started
+    again unasked (the module's docstring); in the cluster a drive pod's own memory limit ends that run only, and
+    resume takes it up from the store (#76's plan, the rehearsal of 2026-11-07)."""
+    from score.conductor import cluster, size  # size reads this module
+    if (cluster.record() if cluster_record is None else cluster_record) is None:
+        return {}
+    this_boot = boot_id()
+    return {path: entry for path, entry in entries(folder).items()
+            if entry.get("state") == RUNNING and entry.get("boot") == this_boot and not size.entry_alive(entry)}
+
+
+def cut_before(entry, folder=RUNS):
+    """Whether a run was already started again once from this run's frozen copy after a cut: a second cut is the
+    same fault again (its memory, say), so it is never started a third time."""
+    return any(other.get("state") == RESUMED and other.get("cut") and other.get("worktree") == entry.get("worktree")
+               for other in entries(folder).values())
+
+
+def restart_cut(path, entry, say, folder=RUNS):
+    """Start a run a cut drive pod left once (cut_at_this_boot), marked `cut` on its entry; one cut before is
+    marked unresumable."""
+    if cut_before(entry, folder):
+        mark(path, UNRESUMABLE, "its drive was cut again after a resume: the same fault twice, never started a "
+                                "third time unasked")
+        say(f"skipped {describe(entry)}: cut again after a resume")
+        return
+    restart(path, entry, say)
+    after = json.loads(pathlib.Path(path).read_text())
+    if after.get("state") == RESUMED:
+        written(pathlib.Path(path), {**after, "cut": True})
+
+
 def still_waiting(entry):
     """Why a waiting run stays waiting at this boot (the machine has fewer cores than it asks for), or None."""
     if entry.get("state") == WAITING and entry.get("jobs", 0) > (os.cpu_count() or 1):
@@ -347,13 +385,14 @@ def resume(dry, say, folder=RUNS, swept=None):
     an earlier boot left under `swept` (the store's roots by default); the number of runs found."""
     folder = pathlib.Path(folder)
     with locked(folder / ".resume.lock"):
-        found = stranded(folder)
+        cut = cut_at_this_boot(folder)
+        found = {**stranded(folder), **cut}
         for path, entry in found.items():
             if still_waiting(entry):
                 say(f"left {describe(entry)}: {still_waiting(entry)}")
                 continue
             if not dry:
-                restart(path, entry, say)
+                (restart_cut(path, entry, say, folder) if path in cut else restart(path, entry, say))
                 continue
             why = refusal(path, entry)
             say(f"would skip {describe(entry)}: {why}" if why else f"would resume {describe(entry)}")
