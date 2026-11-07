@@ -39,6 +39,8 @@ invariant with the break that turns it red (each applied once and seen red):
   through a link (a frozen run's `<copy>.home/store`) lands up there and comes back at the path as named, the path
   the command's arguments give, since the pod holds no link, each output's folder made there first. Break:
   `.resolve()` the path up there in `placed`. Break: return `command` unchanged in `with_output_folders`.
+  A named run resumed with fewer jobs brings each job its own outputs (2026-11-06: 148 of 720 GEM-X videos came
+  back as another video's). Break: `ids = [str(number) for number in range(len(jobs))]` in `keyed_jobs.run`.
 - Billing: a warm node counts from the run's start; an unused node made during the run is the run's; a node made
   before it, or hosting another run, is not; a node without zone labels takes the provider's record;
   a node whose `score.dev/class` names no capability class (the conductor's) is no class node, never a crash.
@@ -90,6 +92,7 @@ import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import cluster_jobs  # noqa: E402
+import keyed_jobs  # noqa: E402
 import gpu_operator  # noqa: E402
 import manifests  # noqa: E402
 import submitter as submit  # noqa: E402
@@ -471,6 +474,8 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
     (stage / "textures" / "wall.png").write_text("png")
     single = tmp_path / "in" / "job.json"
     single.write_text("{}")
+    linked = tmp_path / "in" / "linked"  # a home whose folder links to another, as a frozen home's models do
+    linked.symlink_to(stage / "textures")
     out_file, out_folder = tmp_path / "out" / "result.json", tmp_path / "out" / "folder"
     making = tmp_path / "frozen.home" / "making"  # a frozen run's home: its store a link to the store
     making.parent.mkdir()
@@ -478,7 +483,7 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
     making.symlink_to(tmp_path / "in" / "making")
     (making / "views.json").write_text("{}")  # a fresh scratch file the make wrote, named by the command
     evicted = {"local": str(kept.cache / "checkouts" / output), "path": "/work/in/lamp"}  # no checkout on disk
-    jobs = [{"command": ["true"], "code": ["tools/cloud/k8s"], "inputs": [str(stage), str(single), evicted,
+    jobs = [{"command": ["true"], "code": ["tools/cloud/k8s"], "inputs": [str(stage), str(single), str(linked), evicted,
                                                                    str(making / "views.json")],
              "outputs": [str(out_file), str(out_folder), str(making / "folder")], "minutes": 3, "kernel_cache": "blender-5.0.1"},
             {"command": ["false"], "code": ["tools/cloud/k8s"], "inputs": [], "outputs": [], "minutes": 3}]
@@ -488,8 +493,8 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
     assert spec["image"].startswith("registry.example/score-blender") and spec["classes"] == ["gpu-24gb"]
     assert spec["kernel_cache"] == "blender-5.0.1" and spec["minutes"] == 3
     assert sorted(entry["path"] for entry in spec["inputs"]) == sorted(
-        [str(stage / "place.usda"), str(stage / "textures/wall.png"), str(single), "/work/in/lamp/lamp.usda",
-         str(making / "views.json")])
+        [str(stage / "place.usda"), str(stage / "textures/wall.png"), str(single), str(linked / "wall.png"),
+         "/work/in/lamp/lamp.usda", str(making / "views.json")])
     assert spec["outputs"][2]["path"] == str(making / "folder")  # its folder made as named before the command:
     made_first = spec["command"][2].split(" && ")[0].split()
     assert made_first[:2] == ["mkdir", "-p"] and str(making) in made_first and spec["command"][4:] == ["true"]
@@ -538,6 +543,23 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
     assert cluster_jobs.run("blender", jobs, who="test", classes=["gpu-24gb"], name="taken-run") == [1]
     assert sorted(seen["specs"]) == ["1"] and seen["run"] == "taken-run" and (root / "cancel" / "taken-run").exists()
     assert out_file.read_text() == "made by 0" and len(started) == 1  # job 0's outputs, made on the queue
+
+    def resumable(run, specs, store, wait_scale_down=True, who=None, parallel=None):
+        """A named run: a job whose done.json is there is not run again; each job writes its own command."""
+        for job_id, spec in specs.items():
+            prefix = f"runs/{run}/{job_id}/"
+            command = spec["command"][-1]  # the job's own, after its output folders are made
+            if not store.exists(prefix + "done.json") and command != "fails":
+                store.write_bytes(spec["outputs"][0]["key"], command.encode())
+                store.write_bytes(prefix + "done.json", json.dumps({"outputs": [spec["outputs"][0]["key"]]}).encode())
+    monkeypatch.setattr(cluster_jobs.submitter, "submit", resumable)
+    videos = {name: tmp_path / "keyed" / name for name in ("a", "b")}
+    keyed = lambda name, command: {"command": [command], "code": [], "inputs": [], "outputs": [str(videos[name])],
+                                   "minutes": 3}
+    assert keyed_jobs.run("gemx", "base", [keyed("a", "made a"), keyed("b", "fails")], "test", ["gpu-24gb"],
+                          name="resumed") == [1]
+    assert keyed_jobs.run("gemx", "base", [keyed("b", "made b")], "test", ["gpu-24gb"], name="resumed") == []
+    assert videos["b"].read_text() == "made b"  # its own job, never the earlier run's first
 
 
 # ==== billing =======================================================================================================

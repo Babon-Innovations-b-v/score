@@ -15,6 +15,9 @@ runners in `tools/cloud/` stay as they are.
   share (its overlay).
 - `conductor/` is the conductor itself in the cluster (#76, its overlay): the store's volume, the StatefulSet, the
   CronJobs and the door's rights, as manifests checked by a server-side dry run.
+- `keyed_jobs.py` is cluster_jobs for many jobs that share big inputs or read inputs already in the job store: shared
+  inputs go up once (by sha256, as every input), a `{"key", "path"}` input is taken from the store as it is
+  (LabValidation's GEM-X and sim body runs, `../gemx/cluster.py`, `tools/labval/cluster.py`).
 - `kube.py` is kubectl (objects through stdin); `gpu_operator.py` points NVIDIA's GPU operator at the registry.
 - `manifests.py` makes the plain manifests (JSON for kubectl): one Job a job, the store Secret, the pull Secret.
 - `submitter.py` is the queue and the watcher: Secrets at submit time, pool caps from the month's euros, Jobs, widening
