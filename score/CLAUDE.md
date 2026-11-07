@@ -159,7 +159,13 @@ stage as each stage is built; nothing moves before.
   `python -m score.graph.pod run` (refused when its tree, uv.lock, code version, models or placed files are not the
   key's; a store key the job does not name is `Undeclared`, a new blob it writes is not), and the conductor's
   `collect` (each blob proven in the bucket before the record; refused or undeclared: made here). The pod writes only
-  blobs and its manifest. Nothing dispatches to it yet.
+  blobs and its manifest. `Runner.make` sends a node there when `pod.dispatches` (SCORE_K8S_POD and SCORE_K8S_QUEUE,
+  the box's queue fresh, the runner image published, a free stage without gatherers in `POD_STAGES`, which grows one
+  stage a commit after its rehearsal matched): `make_remote` runs it as a runner job through the queue
+  (`cluster_jobs.run`) and collects it; one the cluster did not make is made here (`make_here`). Such a waiter holds no
+  --jobs slot up to `IN_FLIGHT` (400) under the queue, its peak kept as `<stage>@pod`; the drive hands each node its
+  key (re-checked under its lock: `moved_since`), its queue priority (`pod.downstream`) and writes `expected/` for the
+  queue's workers.
 - **`review/`** the review page of one output from its own record (who accepted it, and how the owner rejects it);
   `accept_automatically` (the runner's; "worse than accepted" is `review.regressions`: a measure is worse only by its
   `TOLERANCES` step, the smallest change a viewer could see, one more for a count; a failing check still fails; his

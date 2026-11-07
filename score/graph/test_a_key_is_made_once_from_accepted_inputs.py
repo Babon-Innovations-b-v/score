@@ -248,16 +248,20 @@ def a_pod_job(runner, stage, place, keyed, tree, bucket_root, folder, away=None)
 def in_pods(jobs, tree, bucket_root, folder):
     """Each job made by `python -m score.graph.pod run` from `tree`, each in an empty home of its own, the pods side by
     side (each works its code version out cold, about a second: the file's time budget); their manifests in order."""
-    environ = {name: value for name, value in os.environ.items() if name != "SCORE_UV_LOCK"}
-
     def made(job):
-        subprocess.run([sys.executable, "-m", "score.graph.pod", "run", str(job), str(job.parent / "manifest.json"),
-                        "--cache", str(folder / "cache")], cwd=tree, check=True, capture_output=True,
-                       env={**environ, "PROPS_HOME": str(job.parent / "home"),
-                            "SCORE_POD_BUCKET": f"folder:{bucket_root}"})
+        pod_process(job, job.parent / "manifest.json", tree, bucket_root, folder)
         return json.loads((job.parent / "manifest.json").read_text())
     with concurrent.futures.ThreadPoolExecutor(len(jobs)) as pool:
         return list(pool.map(made, jobs))
+
+
+def pod_process(job, manifest, tree, bucket_root, folder):
+    """`python -m score.graph.pod run` of the job at `job` from `tree`, in an empty home, its manifest to `manifest`."""
+    home = pathlib.Path(tempfile.mkdtemp(dir=folder)) / "home"
+    environ = {name: value for name, value in os.environ.items() if name != "SCORE_UV_LOCK"}
+    subprocess.run([sys.executable, "-m", "score.graph.pod", "run", str(job), str(manifest),
+                    "--cache", str(folder / "cache")], cwd=tree, check=True, capture_output=True,
+                   env={**environ, "PROPS_HOME": str(home), "SCORE_POD_BUCKET": f"folder:{bucket_root}"})
 
 
 def without_times(record):
@@ -329,6 +333,33 @@ def a_pod_makes_what_the_runner_makes(monkeypatch):
     plan.unlink()
     assert fetched_side_by_side(pod, offload, folder, bucket_root) > 1
 
+    # Runner.make of a stage made in pods (pod.dispatches): its job run on the cluster (cluster_jobs.run, here the
+    # worker's part played in a subprocess) and collected; a job that did not finish is made here.
+    cluster_jobs, sent = pod.cluster_door()[0], []
+
+    class Named(offload.FolderBucket):
+        name = "store"
+
+    def ran_here(kind, jobs, who, classes=None, image=None, **_):
+        inputs = {entry["path"]: entry["local"] for entry in jobs[0]["inputs"]}
+        sent.append((kind, image, jobs[0]["env"], jobs[0]["cards"], classes))
+        pod_process(inputs["/work/in/job.json"], jobs[0]["outputs"][0]["local"],
+                    pod.unpack(inputs["/work/in/code.tar"], folder / "cache"), bucket_root, folder)
+        return []
+    offload.install(lambda: Named(bucket_root))
+    monkeypatch.setattr(cluster_jobs, "run", ran_here)
+    monkeypatch.setattr(pod, "dispatches", lambda stage: True)
+    monkeypatch.setattr(pod, "TABLE", f"{__name__}:POD_TABLE")
+    monkeypatch.setattr(pod, "code_archive", lambda: folder / "code.tar")
+    monkeypatch.setenv(pod.CLASSES_VARIABLE, "cpu-32c-64gb")
+    keyed = runner.key(KEPT, "station")
+    made, there = runner.make(KEPT, "station", keyed), local.make_here(KEPT, "station", keyed)
+    assert without_times(made) == without_times(there) and "pod" in made, made
+    assert sent == [("runner", "runner", {pod.STORE_VARIABLE: "store"}, 0, ["cpu-32c-64gb"])], sent
+    monkeypatch.setattr(cluster_jobs, "run", lambda *arguments, **named: [0])
+    keyed = runner.key(PEEK, "station")
+    assert "pod" not in runner.make(PEEK, "station", keyed) and store.record("peek@station", keyed["key"])
+
 
 def fetched_side_by_side(pod, offload, folder, bucket_root):
     """32 blobs prefetched into an empty cache from a bucket that takes 50 ms a fetch; the most fetches at once."""
@@ -369,7 +400,9 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     Break: score/graph/pod.py: 'and not offload.writing() and' -> 'and' (a kept take's new blob named an undeclared
     read, finish-route-views@tube 2026-11-07).
     Break: score/graph/pod.py: '"design": designs()}' -> '"design": {}}' (the pod's table, without the home's
-    designs, declares a seed nothing makes, light-layer@tube 2026-11-07)."""
+    designs, declares a seed nothing makes, light-layer@tube 2026-11-07).
+    Break: score/graph/__init__.py: '        if pod.dispatches(stage):' -> '        if False:' (Runner.make never sends
+    a pod stage's node to the cluster, #76 S8)."""
     world, store = a_world({"hangar": "a ship in a hall", "station": "a hub"}), a_store()
     runner = a_runner(world, store, LOGGED)
     runner.run(PLACES)
@@ -2025,7 +2058,7 @@ def test_the_drive_waits_while_memory_is_short_and_never_starts_more_than_its_jo
     taken = faked(monkeypatch, [2 * FLOOR - 1] * 3 + [100 * FLOOR])
     monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
     started, start = [], runner.start
-    runner.start = lambda stage, place, threads, given=None: started.append(taken[-1]) or start(stage, place, threads, given)
+    runner.start = lambda stage, place, threads, given=None, priority=0: started.append(taken[-1]) or start(stage, place, threads, given, priority)
     monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
     said = []
     found = runner.drive(PLACES, say=said.append, jobs=4)
@@ -2036,8 +2069,8 @@ def test_the_drive_waits_while_memory_is_short_and_never_starts_more_than_its_jo
     faked(monkeypatch, [100 * FLOOR])
     running, most, start, wait = [], [0], runner.start, graph.FORK_WAIT
 
-    def counted_start(stage, place, threads, given=None):
-        begun = start(stage, place, threads, given)
+    def counted_start(stage, place, threads, given=None, priority=0):
+        begun = start(stage, place, threads, given, priority)
         running.extend(begun)
         most[0] = max(most[0], len(running))
         return begun
@@ -2066,8 +2099,8 @@ def test_a_node_past_its_start_still_holds_room_for_its_stages_peak_and_each_pea
     monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
     running, most, start, wait = {}, [0], runner.start, graph.FORK_WAIT
 
-    def counted_start(stage, place, threads, given=None):
-        begun = start(stage, place, threads, given)
+    def counted_start(stage, place, threads, given=None, priority=0):
+        begun = start(stage, place, threads, given, priority)
         running.update(dict.fromkeys(begun, stage.name))
         most[0] = max(most[0], list(running.values()).count("clean"))
         return begun
@@ -2279,6 +2312,11 @@ def make_late(inputs, out, seed, params):
     (out / "mark.txt").write_text("marked")
 
 
+def make_queued(inputs, out, seed, params):
+    """Its process's queue priority and place, as the drive handed them (Runner.node_process)."""
+    (out / "clean.txt").write_text(f"{os.environ.get('SCORE_QUEUE_PRIORITY')} {os.environ.get('SCORE_QUEUE_PLACE')}")
+
+
 def make_slow(inputs, out, seed, params):
     time.sleep(3)  # a remote node's jobs on the cluster: the cpu nodes start meanwhile
     (out / "mark.txt").write_text("marked")
@@ -2333,8 +2371,14 @@ def test_a_node_waiting_on_a_claim_holds_no_job_slot_and_its_stage_starts_no_oth
     on a cluster run (submitter.watch's mark in CLUSTER_WAITING) holds no slot either, up to REMOTE_EXCUSED (48) apart
     from the claims' five: at --jobs 16, 20 `remote` nodes all waiting on the cluster and 4 `cpu` nodes beside them run
     at once; 60 cluster waiters excuse 48; a waiter whose mark is gone (its run returned) holds its slot again.
-    Break: score/graph/__init__.py: 'min(claim_waiting, WAITERS_EXCUSED) - min(cluster_waiting, REMOTE_EXCUSED)' ->
-    'min(claim_waiting + cluster_waiting, WAITERS_EXCUSED)' -> at most one cpu node beside the 20 remote ones."""
+    Break: score/graph/__init__.py: 'min(claim_waiting, WAITERS_EXCUSED) - min(cluster_waiting, remote_excused())' ->
+    'min(claim_waiting + cluster_waiting, WAITERS_EXCUSED)' -> at most one cpu node beside the 20 remote ones.
+    #76 build spec S8: under the box's queue up to IN_FLIGHT waiters hold no slot (60 remote nodes and 16 cpu nodes
+    at once at --jobs 16); a node's queue priority is the count of waiting nodes that read it, through any others,
+    handed to its process; the drive writes its expected work by image kind for the queue, and removes it at its end.
+    Break: score/graph/__init__.py: 'min(cluster_waiting, remote_excused())' -> 'min(cluster_waiting, REMOTE_EXCUSED)'
+    (pod waiters counted as slots past 48) -> 4 cpu nodes beside the 60. Break: 'order.get(node, 0)' -> '0'.
+    Break: score/graph/__init__.py: 'pod_expect([stage for stage, _ in waiting])' -> 'pass'."""
     briefs = {"hangar": "a ship", "station": "a hub", "dock": "a pier"}
     late = graph.Stage("late", "place", make_late, TEXT, PASSES)
     other = graph.Stage("other", "place", make_late, TEXT, PASSES)
@@ -2348,8 +2392,8 @@ def test_a_node_waiting_on_a_claim_holds_no_job_slot_and_its_stage_starts_no_oth
     def most_at_once(runner):
         running, most, start = {}, [0, 0], runner.start
 
-        def counted_start(stage, place, threads, given=None):
-            begun = start(stage, place, threads, given)
+        def counted_start(stage, place, threads, given=None, priority=0):
+            begun = start(stage, place, threads, given, priority)
             for pipe, (_, _, process) in begun.items():
                 stage_of[process.pid], running[pipe] = stage.name, stage.name
             most[0] = max(most[0], len(running))
@@ -2377,34 +2421,65 @@ def test_a_node_waiting_on_a_claim_holds_no_job_slot_and_its_stage_starts_no_oth
     assert graph.claim_waiters([os.getppid()]) == set()
 
     # cluster waits: 20 remote nodes waiting on the cluster and 4 cpu nodes, --jobs 16
-    places = {f"place{number}": f"a place {number}" for number in range(20)}
     remote = graph.Stage("remote", "place", make_slow, TEXT, PASSES)
     cpu = graph.Stage("cpu", "place", make_slow, TEXT, PASSES)
     monkeypatch.setattr(graph, "CLAIM_WAITERS", lambda pids: set())
     monkeypatch.setattr(graph, "CLUSTER_WAITERS", lambda pids: {pid for pid in pids if stage_of.get(pid) == "remote"})
-    runner = a_runner(a_world(places), a_store(), (remote, cpu))
-    beside, start, both = [0], runner.start, {}
 
-    def counted_start(stage, place, threads, given=None):
-        begun = start(stage, place, threads, given)
-        for pipe, (_, _, process) in begun.items():
-            stage_of[process.pid], both[pipe] = stage.name, stage.name
-        if list(both.values()).count("remote") == len(places):
-            beside[0] = max(beside[0], list(both.values()).count("cpu"))
-        return begun
+    def cpus_beside(remotes, cpus):
+        """How many cpu nodes ran beside `remotes` remote nodes all waiting on the cluster, at --jobs 16."""
+        places = {f"place{number}": f"a place {number}" for number in range(remotes)}
+        runner = a_runner(a_world(places), a_store(), (remote, cpu))
+        beside, start, both = [0], runner.start, {}
 
-    def counted_wait(connections, timeout=None):
-        finished = wait(connections, timeout=timeout)
-        for connection in finished:
-            both.pop(connection)
-        return finished
-    runner.start = counted_start
-    monkeypatch.setattr(graph, "FORK_WAIT", counted_wait)
-    four = [f"cpu@{place}" for place in list(places)[:4]]
-    found = runner.drive(tuple(places), say=quiet, jobs=16, whole=False, only=["remote", *four])
-    assert set(found.values()) == {ACCEPTED} and len(found) == 24, found
-    assert beside[0] == 4, beside
+        def counted_start(stage, place, threads, given=None, priority=0):
+            begun = start(stage, place, threads, given, priority)
+            for pipe, (_, _, process) in begun.items():
+                stage_of[process.pid], both[pipe] = stage.name, stage.name
+            if list(both.values()).count("remote") == len(places):
+                beside[0] = max(beside[0], list(both.values()).count("cpu"))
+            return begun
+
+        def counted_wait(connections, timeout=None):
+            finished = wait(connections, timeout=timeout)
+            for connection in finished:
+                both.pop(connection)
+            return finished
+        runner.start = counted_start
+        monkeypatch.setattr(graph, "FORK_WAIT", counted_wait)
+        some = [f"cpu@{place}" for place in list(places)[:cpus]]
+        found = runner.drive(tuple(places), say=quiet, jobs=16, whole=False, only=["remote", *some])
+        assert set(found.values()) == {ACCEPTED} and len(found) == remotes + cpus, found
+        return beside[0]
+    assert cpus_beside(20, 4) == 4
     assert graph.slots_held(70, 0, 60) == 22 and graph.slots_held(70, 8, 60) == 17
+    # #76 S8: under the box's queue (SCORE_K8S_QUEUE) it admits within the quota, so up to IN_FLIGHT (400) waiters,
+    # pod makes among them, hold no slot: 60 remote nodes, past REMOTE_EXCUSED's 48, and 16 cpu nodes beside them.
+    monkeypatch.setenv("SCORE_K8S_QUEUE", "1")
+    assert cpus_beside(60, 16) == 16
+    assert graph.slots_held(216, 0, 200) == 16 and graph.slots_held(500, 0, 450) == 100
+    monkeypatch.delenv("SCORE_K8S_QUEUE")
+    # A node's queue priority is how many waiting nodes read it, through any number of others (pod.downstream), handed
+    # to its process (SCORE_QUEUE_PRIORITY, SCORE_QUEUE_PLACE); the drive writes what it expects for the queue's
+    # workers, {image kind: waiting nodes} (pod.expect), gone once it ends.
+    from score.graph import pod
+    reads = {"b@x": ["a@x"], "c@x": ["b@x"], "d@x": ["a@x", "b@x"], "e@y": ["z"]}
+    assert pod.downstream(reads, ["a@x", "b@x", "z", "c@x"]) == {"a@x": 3, "b@x": 2, "z": 1, "c@x": 0}
+    queued = graph.Stage("clean", "place", make_queued, TEXT, PASSES, files={"brief": "{data}/{place}/brief.txt"})
+    tail = graph.Stage("tail", "place", make_late, TEXT, PASSES, after={"count": READS})
+    monkeypatch.setattr(graph, "pod_dispatching", lambda: True)
+    monkeypatch.setattr(graph, "FORK_WAIT", wait)
+    monkeypatch.setattr(pod, "IMAGE_OF", {"count": "runner"})
+    monkeypatch.setattr(pod, "QUEUE_FOLDER", tmp_path / "queue")
+    expected, real_expect = [], pod.expect
+    monkeypatch.setattr(pod, "expect", lambda waiting: expected.append(
+        json.loads(path.read_text()) if (path := real_expect(waiting)).exists() else None))
+    store = a_store()
+    found = a_runner(a_world({"hangar": "a ship", "station": "a hub"}), store, (queued, COUNT, tail)).drive(
+        ("hangar", "station"), say=quiet, jobs=4)
+    assert set(found.values()) == {ACCEPTED}, found
+    assert accepted_text(store, "clean@hangar", "clean.txt") == "2 hangar", accepted_text(store, "clean@hangar", "clean.txt")
+    assert expected[0] == {"runner": 2} and not list((tmp_path / "queue" / "expected").iterdir())
     monkeypatch.setattr(graph, "CLUSTER_WAITING", tmp_path / "cluster")
     (tmp_path / "cluster").mkdir()
     (tmp_path / "cluster" / str(os.getpid())).touch()
@@ -2439,7 +2514,7 @@ def test_a_ready_node_too_large_for_memory_waits_alone_and_the_ones_after_it_tha
     for stage, peak in (("big", 3 * FLOOR), ("late", int(0.1 * FLOOR)), ("small", int(0.1 * FLOOR))):
         runner.keep_peak(stage, peak)
     started, start, until = [], runner.start, time.monotonic() + 3
-    runner.start = lambda stage, place, threads, given=None: started.append(stage.name) or start(stage, place, threads, given)
+    runner.start = lambda stage, place, threads, given=None, priority=0: started.append(stage.name) or start(stage, place, threads, given, priority)
     monkeypatch.setattr(graph, "AVAILABLE", lambda: 2.5 * FLOOR if started.count("small") < 2 and
                         time.monotonic() < until else 100 * FLOOR)
     found = runner.drive(PLACES, say=quiet, jobs=4)
@@ -2490,7 +2565,7 @@ def test_on_this_pc_a_container_clients_next_node_is_expected_at_its_own_tree_no
         runner = a_runner(a_world({"hangar": "a ship", "station": "a hub"}), a_store(), (client,))
         runner.keep_peak("client", 2 * FLOOR)
         started, start, until = [], runner.start, time.monotonic() + 3
-        runner.start = lambda stage, place, threads, given=None: started.append(time.monotonic()) or start(stage, place, threads, given)
+        runner.start = lambda stage, place, threads, given=None, priority=0: started.append(time.monotonic()) or start(stage, place, threads, given, priority)
         monkeypatch.setattr(graph, "AVAILABLE", lambda: 100 * FLOOR if not started else
                             2.5 * FLOOR if time.monotonic() < until else 100 * FLOOR)
         found = runner.drive(("hangar", "station"), say=quiet, jobs=1)

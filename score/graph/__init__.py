@@ -49,6 +49,7 @@ import contextlib
 import contextvars
 import datetime
 import fcntl
+import functools
 import hashlib
 import inspect
 import json
@@ -845,12 +846,46 @@ WAITERS_EXCUSED = 5
 CLUSTER_WAITING = score_store.PROPS_HOME / "cloud" / "cluster.waiting"
 CLUSTER_FRESH_SECONDS = 120
 REMOTE_EXCUSED = 48
+# Under the box's queue (SCORE_K8S_QUEUE, #76 build spec S8) the queue admits within the quota, so up to IN_FLIGHT
+# (SCORE_K8S_IN_FLIGHT) nodes waiting on it, pod makes among them, hold no slot: hundreds in flight.
+IN_FLIGHT = 400
+
+
+def remote_excused():
+    """How many nodes waiting on the cluster are excused a slot: IN_FLIGHT (or SCORE_K8S_IN_FLIGHT) under the box's
+    queue, else REMOTE_EXCUSED."""
+    if os.environ.get("SCORE_K8S_QUEUE", "") in ("", "0"):
+        return REMOTE_EXCUSED
+    return int(os.environ.get("SCORE_K8S_IN_FLIGHT") or IN_FLIGHT)
+
+
+POD_PEAK = "@pod"  # a stage's peaks kept under its name and this, for its nodes that wait on a pod make
+
+
+def pod_dispatching():
+    """Whether the drive sends pod stages to the cluster now (score/graph/pod.py `dispatching`), read without its
+    cluster code unless pod makes are switched on."""
+    from score.graph import pod  # here: pod imports this module
+    return pod.switched_on() and pod.dispatching(start=True)
+
+
+def pod_expect(stages):
+    """This drive's expected work for the queue's workers, from its waiting nodes' `stages` (pod.expect)."""
+    from score.graph import pod  # here: pod imports this module
+    pod.expect(stages)
+
+
+def peak_name(stage, remote):
+    """The name a node's peak is kept under: its stage's, or for a node that waits on a pod make (`remote` and its
+    stage eligible) the stage's with POD_PEAK, so hundreds of waiters are not each expected at the make's peak."""
+    from score.graph import pod  # here: pod imports this module
+    return stage.name + POD_PEAK if remote and pod.eligible(stage) else stage.name
 
 
 def slots_held(running, claim_waiting, cluster_waiting):
     """The --jobs slots `running` nodes hold, `claim_waiting` of them waiting on a claim and `cluster_waiting` on the
-    cluster: each kind of waiter excused up to its own limit (WAITERS_EXCUSED, REMOTE_EXCUSED)."""
-    return running - min(claim_waiting, WAITERS_EXCUSED) - min(cluster_waiting, REMOTE_EXCUSED)
+    cluster: each kind of waiter excused up to its own limit (WAITERS_EXCUSED, remote_excused)."""
+    return running - min(claim_waiting, WAITERS_EXCUSED) - min(cluster_waiting, remote_excused())
 
 
 def claim_waiters(pids, folder=None, fresh=WAIT_FRESH_SECONDS):
@@ -1396,7 +1431,17 @@ class Runner:
 
     def make(self, stage, place, keyed):
         """Make the node's output, store it and write its finish record; the record (another run's, when one stored
-        this key first: it is taken as made)."""
+        this key first: it is taken as made). A node of a stage made in pods (score/graph/pod.py `dispatches`) is
+        made by a runner worker on the cluster and collected here; one the cluster did not make is made here."""
+        from score.graph import pod  # here: pod imports this module
+        if pod.dispatches(stage):
+            made = pod.make_remote(self, stage, place, keyed)
+            if made is not None:
+                return made
+        return self.make_here(stage, place, keyed)
+
+    def make_here(self, stage, place, keyed):
+        """Make the node's output in this process, store it and write its finish record; the record (`make`)."""
         node = node_name(stage, place)
         inputs = self.input_paths(stage, place, keyed)
         cleared = self.spending(stage, node, inputs)
@@ -2201,25 +2246,28 @@ class Runner:
                       *(f"    - {finding}" for finding in verdict["findings"])]
         return lines + [""]
 
-    def start(self, stage, place, threads, given=None):
+    def start(self, stage, place, threads, given=None, priority=0):
         """Start one node in a process of its own (forked: its output goes to its own log), its thread pools and its
-        children's capped at `threads`, handed the drive's key `given` (re-checked under its lock, run_node); {its
-        result pipe: (stage, place, process)}."""
+        children's capped at `threads`, handed the drive's key `given` (re-checked under its lock, run_node) and its
+        queue priority (the waiting nodes that read it, pod.downstream); {its result pipe: (stage, place, process)}."""
         receiving, sending = FORK.Pipe(duplex=False)
         sys.stdout.flush()
         sys.stderr.flush()
-        process = FORK.Process(target=self.node_process, args=(stage, place, sending, os.getpid(), threads, given),
+        process = FORK.Process(target=self.node_process,
+                               args=(stage, place, sending, os.getpid(), threads, given, priority),
                                name=node_name(stage, place))
         process.start()
         self.began[node_name(stage, place)] = time.time()
         sending.close()
         return {receiving: (stage, place, process)}
 
-    def node_process(self, stage, place, sending, runner_pid, threads, given=None):
+    def node_process(self, stage, place, sending, runner_pid, threads, given=None, priority=0):
         """In the node's own process: drive it, its thread pools capped at `threads`, send back what it did and end
         the process at once: a thread its make left running (a library's pool, a read that never returns) would
         otherwise hold the process at its exit, and the drive's join with it, after the node is done. Its runner's
-        death ends it (watch_runner). A SIGUSR1 writes its stacks to its own file (stacks_on_ask)."""
+        death ends it (watch_runner). A SIGUSR1 writes its stacks to its own file (stacks_on_ask). Its cluster runs
+        go to the box's queue at its `priority`, its place's turn (SCORE_QUEUE_PRIORITY, SCORE_QUEUE_PLACE)."""
+        os.environ.update(SCORE_QUEUE_PRIORITY=str(priority), SCORE_QUEUE_PLACE=place or "")
         stacks_on_ask()
         threading.Thread(target=watch_runner, args=(runner_pid,), daemon=True).start()
         high = [0, False]  # the most this node's process tree held, and whether it ran a container client
@@ -2333,7 +2381,7 @@ class Runner:
         room, jobs = reading
         return container_reserve(room, jobs, self.keep_takes(jobs, time.time()))
 
-    def coming(self, running, peaks, seen, clients, grown=frozenset()):
+    def coming(self, running, peaks, seen, clients, grown=frozenset(), named=None):
         """[(each running node's stage peak, what its process tree holds now)] (on this PC a node running a container
         client its own tree's kept peak, client_reserve of `clients` and `grown`, and the container once:
         container_growth), the
@@ -2361,8 +2409,9 @@ class Runner:
             if process.pid in users and high > client_peak(stage.name, peaks, clients):  # a lower bound, until it ends
                 clients.update(self.keep_client_tree(stage.name, high))
             mine = process.pid in users and (reading is not None or process.pid not in calling)
-            found.append((client_reserve(stage.name, peaks, clients, grown) if mine
-                          else peaks.get(stage.name, memory_floor()), held[process.pid]))
+            name = named(stage) if named else stage.name  # a pod node's waiter peak (peak_name)
+            found.append((client_reserve(name, peaks, clients, grown) if mine
+                          else peaks.get(name, memory_floor()), held[process.pid]))
         if reading is not None:  # the container, once, whichever of its users holds the claim
             found.append((self.container_growth(reading), 0))
         return found
@@ -2410,6 +2459,7 @@ class Runner:
         clients = self.client_trees() if on_this_pc() else {}
         grown = self.client_grown() if on_this_pc() else set()  # its stages' trees real sizes: client_reserve
         self.driving = (0, time.monotonic())
+        remote = False  # this pass sends pod stages to the cluster: its expected work is written for the queue
         while waiting or running:
             if time.monotonic() - known_at >= HEARTBEAT:
                 known, known_at = {}, time.monotonic()
@@ -2418,6 +2468,8 @@ class Runner:
             finished = [*finished, *(FORK_WAIT(others, timeout=0) if others else [])]
             held = False  # a ready node waits for memory; the nodes after it that fit still start
             ready = []  # started once the pass is over: a forked node must not inherit its remembered keys
+            remote = pod_dispatching()  # this pass sends pod stages to the cluster (score/graph/pod.py)
+            named = functools.partial(peak_name, remote=remote)  # a pod node's peak is its waiter's, kept apart
             with self.still():  # each key and plan worked out once a pass (Batch 1, 2026-10-25: a pass took 12 min)
                 ended = set()
                 for receiving in finished:
@@ -2429,7 +2481,7 @@ class Runner:
                         clients = self.keep_client_tree(stage.name, tree)
                         if "made: " in did:
                             grown = self.keep_grown(stage.name)
-                    peaks = self.measured(stage, did, tree, contained, peaks)
+                    peaks = self.measured(stage, did, tree, contained, peaks, named(stage))
                     done[node], stands = self.conclude(stage, place, did)
                     if stands:
                         stood.add(node)
@@ -2441,7 +2493,7 @@ class Runner:
                     say(f"{node}: {done[node]}")
                 finished = []
                 forget(known, ended)
-                coming = self.coming(running, peaks, seen, clients, grown)  # what the running nodes may still take
+                coming = self.coming(running, peaks, seen, clients, grown, named)  # what the running nodes may take
                 queued = self.claim_waiting(running)  # the stages whose running nodes wait on a claim, how many
                 busy, full = slots_held(len(running), sum(queued.values()), self.cluster_waiting(running)), False
                 claimers.update(queued)  # stages seen waiting on a claim this run
@@ -2470,9 +2522,9 @@ class Runner:
                         # a container client's take is in the container's reserve already (container_growth: its
                         # idle slots at a take peak), so only its own tree is expected; counting its stage peak too
                         # held a third bake back beside two with a turn free and 37 GB available (2026-10-29)
-                        expected = client_reserve(stage.name, peaks, clients, grown)
+                        expected = client_reserve(named(stage), peaks, clients, grown)
                         refused = never_fits(expected)
-                        if refused and stage.name not in peaks:  # a guess, not a measure (2026-11-03: the conductor
+                        if refused and named(stage) not in peaks:  # a guess, not a measure (2026-11-03: the conductor
                             # refused plan rows of 0.16 GB at the 6 GB default): it runs alone, and is measured then
                             if running or ready:
                                 held = True
@@ -2490,8 +2542,12 @@ class Runner:
                         ready.append((stage, place))
                         coming.append((expected, 0))
                 given = {node_name(stage, place): self.drive_key(stage, place) for stage, place in ready}
+                order = self.queue_order(known, ready, remote, waiting)
+                if remote:  # what this drive still expects, for the queue's workers
+                    pod_expect([stage for stage, _ in waiting])
             for stage, place in ready:
-                running.update(self.start(stage, place, threads, given[node_name(stage, place)]))
+                node = node_name(stage, place)
+                running.update(self.start(stage, place, threads, given[node], order.get(node, 0)))
             self.driving = (len(running), time.monotonic())
             if held and not told:
                 say(f"memory: {AVAILABLE() / 2**30:.1f} GB available, {len(running)} running; ready nodes wait for "
@@ -2509,8 +2565,21 @@ class Runner:
             if held or full:  # read the memory, and the nodes waiting on a claim, again
                 beat_in = MEMORY_POLL if beat_in is None else min(beat_in, MEMORY_POLL)
             finished = FORK_WAIT(list(running), timeout=beat_in)  # concluded at the next turn's start
+        if remote:  # nothing more is expected of this drive
+            pod_expect([])
         return {node_name(stage, place): done[node_name(stage, place)] for stage, place in chosen
                 if node_name(stage, place) in done}
+
+    def queue_order(self, known, ready, remote, waiting):
+        """{ready node: its queue priority, how many `waiting` nodes read it directly or through others
+        (pod.downstream, from what `known` holds of each node's reads)} when this pass sends pod stages to the cluster
+        (`remote`); else {}."""
+        if not remote:
+            return {}
+        from score.graph import pod  # here: pod imports this module
+        names = {node_name(stage, place) for stage, place in waiting}
+        reads = {node: answers["earlier"] for node, answers in known.items() if node in names and "earlier" in answers}
+        return pod.downstream(reads, [node_name(stage, place) for stage, place in ready])
 
     def drive_key(self, stage, place):
         """A ready node's key from the drive's pass (its earlier keys remembered there), handed to its process so it
@@ -2535,15 +2604,16 @@ class Runner:
         alive = [process.pid for _, _, process in running.values() if process.is_alive()]
         return len(CLUSTER_WAITERS(alive)) if alive else 0
 
-    def measured(self, stage, did, peak, contained, peaks):
+    def measured(self, stage, did, peak, contained, peaks, name=None):
         """The stage peaks kept once a node of `stage` ended, having done `did` with its tree holding at most `peak`
         bytes: raised to it when the node made its output or held more than its stage's peak; a node whose tree ran a
         container client (`contained`, CONTAINER_CLIENTS) counts as holding the default at least."""
         peak = max(peak, memory_floor()) if contained else peak
         # a node that made nothing (its output found made) measured none of its stage's work, so it never brings a
         # stage under its default (2026-10-28: quick ones kept finish-route-views low, 7 real ones started)
-        if "made: " in did or peak > peaks.get(stage.name, memory_floor()):
-            return self.keep_peak(stage.name, peak)
+        name = name or stage.name  # a pod node's under its waiter's name (peak_name)
+        if "made: " in did or peak > peaks.get(name, memory_floor()):
+            return self.keep_peak(name, peak)
         return peaks
 
     def left_for_buy(self, stage, place):
