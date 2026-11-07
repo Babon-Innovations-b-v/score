@@ -16,7 +16,7 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
 - (2026-11-01) side_score's `if score is not None` filter dropped: a clip with no unfolded skin frame (every frame
   folded, l1h's tuning score nan) fails the sum; case_score's `None if share is None` dropped: None / 10 raises;
   side_score's `if not scores: raise` dropped: a side with no scored clip divides by zero
-  (a_clip_with_no_unfolded_skin_frame_is_left_out_of_the_score_and_counted red).
+  (an_evaluation_runs_every_tuning_body red).
 - measured's rest.json write dropped: the worker never sees the group ends' centres (2026-10-29).
 - blocked's second `run_all` over `again` dropped: a block the card refused once fails the whole step (2026-10-31).
 - measured reading `m.json` for `SOLVED`: the solver is handed the rounded copy (2026-10-29).
@@ -40,10 +40,10 @@ Breaks that turn a test red (each seen red once, 2026-10-29):
   is, or over the folder its job named.
 - (2026-11-03) _case.recorded's `if found not in RECORDED` dropped: every clip of a body makes level 2's targets of
   all its recordings again (88 % of a seed build); fitted_case not handing `written` its clip's points: written
-  makes the clip's targets a second time (level_1s_level_3_holds_no_skin_rows red).
+  makes the clip's targets a second time (a_clips_targets_are_made_once red).
 - (2026-11-01) run_all's `refused` made `False` (a body started without its card share), or its give_back on a
   process's end dropped (the share held past it), or `shares.waited +=` dropped (a card wait counted as level 1's
-  time): a_card_process_runs_only_while_it_holds_its_share red; measured_many or blocked not passing `shares` to
+  time): an_evaluation_runs_every_tuning_body red; measured_many or blocked not passing `shares` to
   run_all: their toy shares' takes never asked (every_set_of_a_jacobian and the_exact_jacobian
   red: no share taken).
 - (2026-11-02) level1.py's `most=given.processes` dropped from any card call: --processes 19 (a rented machine
@@ -127,8 +127,7 @@ def test_an_evaluation_runs_every_tuning_body_once_two_at_most_at_once():
                                               "joints median mm": 1.0, "clips with no unfolded frame": []}
         assert all(value["joints mm"][0] == 1.0000004 for value in found.values())  # the solver's, unrounded
 
-
-def test_a_clip_with_no_unfolded_skin_frame_is_left_out_of_the_score_and_counted():
+    # a clip with no unfolded skin frame is left out of the score and counted
     def clip(share):
         return {"bones outside all %": share, "per group rms deg": {"LeftLeg": 5.0}, "turns deg": [5.0],
                 "joints mm": [1.0]}
@@ -139,24 +138,11 @@ def test_a_clip_with_no_unfolded_skin_frame_is_left_out_of_the_score_and_counted
     try:
         evaluation.side_score({"heavy_sidestep": clip(None)})
     except ValueError:
-        return
-    raise AssertionError("a side with no clip scored gave a score")
+        pass
+    else:
+        raise AssertionError("a side with no clip scored gave a score")
 
-
-class FreeShares:
-    """A toy CardShares whose card always has room (the real queue is the card share test's, in its own folder)."""
-    def __init__(self):
-        self.waited, self.taken, self.given = 0.0, [], []
-
-    def take(self, body):
-        self.taken.append(body)
-        return body
-
-    def give_back(self, handle):
-        self.given.append(handle)
-
-
-def test_a_card_process_runs_only_while_it_holds_its_share_and_its_wait_is_not_level_1s_time():
+    # a card process runs only while it holds its own card share, and its wait is not level 1's time
     queue = evaluation.card_queue()
     with tempfile.TemporaryDirectory() as folder:
         queue.QUEUE, queue.SAMPLER = pathlib.Path(folder) / "queue", ["true"]
@@ -182,6 +168,19 @@ def test_a_card_process_runs_only_while_it_holds_its_share_and_its_wait_is_not_l
     assert held_at_launch[1] == ("slim", ["sim-body-l1 sets slim"])  # tall's given back when its process ended
     assert left == [] and len(measured) == 2  # each share given back at its process's end, measured
     assert 2.0 <= shares.waited <= time.time() - began, shares.waited  # the wait counted, the run itself not
+
+
+class FreeShares:
+    """A toy CardShares whose card always has room (the real queue is the card share test's, in its own folder)."""
+    def __init__(self):
+        self.waited, self.taken, self.given = 0.0, [], []
+
+    def take(self, body):
+        self.taken.append(body)
+        return body
+
+    def give_back(self, handle):
+        self.given.append(handle)
 
 
 def toy_sets_launch(calls, root, fail_once=()):
@@ -320,6 +319,72 @@ def test_a_clips_targets_are_made_once_per_landmark_set_and_never_written_in_pla
     assert len(calls) == 2 and again["tall_kimodo"] is first["tall_kimodo"] and moved["tall_kimodo"] is not first["tall_kimodo"]
     assert not first["tall_kimodo"][1].flags.writeable and not first["tall_kimodo"][2].verts.flags.writeable
 
+    # level 1's evaluation solves level 3 without the skin rows (`evaluation.SKIN_ROWS`) and poses no skin for them;
+    # its level 2 targets are made once a recording, not once a clip; the stage holds the skin rows, makes its
+    # clip's targets once and keeps Warp's modules in a node's cache
+    import sim_body
+    from evaluation import _card_batch, _case
+    from fit._skin import PosedSkins
+    skins = PosedSkins(np.zeros((2, 3, 3)), [[0, 1, 2]])
+    targets = (np.zeros((2, 1, 3, 3)), np.zeros((2, 4, 3)), skins)
+    seen, posed, levels_2, given = [], [], [], []
+
+    class Clip:
+        def angles(self, turns, points, seeds, given=None):
+            seen.append(given)
+            return np.zeros((len(seeds), 2)), None
+
+    class Fitting:
+        model = None
+
+    _card_batch.batched_angles(Clip(), ["a"], {"a": np.zeros((2, 2))}, {"a": targets})
+    folder = pathlib.Path(tempfile.mkdtemp())
+    recordings = [str(folder / f"{clip}.npz") for clip in ("a", "b")]
+    for found in recordings:
+        np.savez(found, world=np.zeros((2, 1, 4, 4)))
+    kept = (sim_body.fit.targets, sim_body.fit.angles, sim_body.person_set_up, sim_body.Size, _case.case_of,
+            _case.written)
+    try:
+        _case.RECORDED.clear()
+        sim_body.fit.targets = lambda *args, skins=True: posed.append(skins) or (targets if skins else (*targets[:2], None))
+        sim_body.fit.angles = lambda fitting, turns, points, given=None: seen.append(given)
+        sim_body.clip_angles(None, None, ["pelvis"], None)
+        sim_body.Size = lambda rig: None
+        sim_body.person_set_up = lambda *args: levels_2.append(args[6]) or (None, None, Fitting())
+        _case.case_of = lambda *args: ({}, {"name": "a", "segments": ["pelvis"], "recordings": recordings}, None, None)
+        _case.written = lambda *args: given.append(args[6])
+        for _ in range(2):  # two clips of one body
+            _case.fitted_case(pathlib.Path("job.json"), folder / "out", recordings)
+    finally:
+        (sim_body.fit.targets, sim_body.fit.angles, sim_body.person_set_up, sim_body.Size, _case.case_of,
+         _case.written) = kept
+        shutil.rmtree(folder)
+    assert evaluation.SKIN_ROWS is False
+    assert seen[0] is None and seen[1] is skins and seen[2] is None and seen[3] is None, seen
+    assert posed == [True, False, False, False, False], posed  # the stage's clip; clip, two recordings; clip
+    assert len(levels_2) == 2 and levels_2[0] is not levels_2[1] and len(levels_2[1]) == 2
+    assert all(mine is theirs for mine, theirs in zip(*levels_2)), "level 2's targets made again for a later clip"
+    assert all(points is targets[1] for points in given), "a clip's targets made again for its measures"
+
+    # the stage's person: its clip's targets made once, level 2's one recording and level 3's skin rows alike
+    made, set_up = [], []
+    kept = (sim_body.fit.targets, sim_body.fit.angles, sim_body.person_set_up, sim_body.Size, sim_body.followed_record)
+    try:
+        sim_body.fit.targets = lambda *args, skins=True: made.append(skins) or targets
+        sim_body.fit.angles = lambda fitting, turns, points, given=None: given
+        sim_body.Size = lambda rig: None
+        sim_body.person_set_up = lambda *args: set_up.append(args[6]) or ({}, None, Fitting())
+        sim_body.followed_record = lambda record, *args: record
+        _, _, _, angles = sim_body.fitted_person({}, {"segments": ["pelvis"]}, None, None, None)
+    finally:
+        (sim_body.fit.targets, sim_body.fit.angles, sim_body.person_set_up, sim_body.Size,
+         sim_body.followed_record) = kept
+    assert made == [True] and set_up[0][0] is targets and angles is skins, (made, set_up)
+    # Warp's compiled modules in a node's cache where there is one, never over a folder already named
+    with tempfile.TemporaryDirectory() as node:
+        assert sim_body.warp_cache({"SCORE_CACHE": node}) == {"WARP_CACHE_PATH": f"{node}/warp"}
+        assert sim_body.warp_cache({"SCORE_CACHE": node, "WARP_CACHE_PATH": "/w"}) == {}
+        assert sim_body.warp_cache({"SCORE_CACHE": f"{node}/none"}) == {}
 
 
 def test_the_exact_jacobian_stacks_each_cases_own_block_in_whole_order_then_the_priors_columns():
@@ -384,78 +449,6 @@ def widths(extra):
             for (module, name), value in before.items():
                 setattr(module, name, value)
     return seen
-
-
-def test_level_1s_level_3_holds_no_skin_rows_and_the_stages_does():
-    """Level 1's evaluation solves level 3 without the skin rows (`evaluation.SKIN_ROWS`) and poses no skin for them;
-    its level 2 targets are made once a recording, not once a clip; the stage holds the skin rows, makes its
-    clip's targets once and keeps Warp's modules in a node's cache."""
-    if importlib.util.find_spec("mujoco") is None:  # sim_body and _card_batch import fit, which needs Newton's own Python
-        print("skipped: level 3's paths need MuJoCo (Newton's own Python, score/stages/physics/inside/newton_env.sh)")
-        return
-    import sim_body
-    from evaluation import _card_batch, _case
-    from fit._skin import PosedSkins
-    skins = PosedSkins(np.zeros((2, 3, 3)), [[0, 1, 2]])
-    targets = (np.zeros((2, 1, 3, 3)), np.zeros((2, 4, 3)), skins)
-    seen, posed, levels_2, given = [], [], [], []
-
-    class Clip:
-        def angles(self, turns, points, seeds, given=None):
-            seen.append(given)
-            return np.zeros((len(seeds), 2)), None
-
-    class Fitting:
-        model = None
-
-    _card_batch.batched_angles(Clip(), ["a"], {"a": np.zeros((2, 2))}, {"a": targets})
-    folder = pathlib.Path(tempfile.mkdtemp())
-    recordings = [str(folder / f"{clip}.npz") for clip in ("a", "b")]
-    for found in recordings:
-        np.savez(found, world=np.zeros((2, 1, 4, 4)))
-    kept = (sim_body.fit.targets, sim_body.fit.angles, sim_body.person_set_up, sim_body.Size, _case.case_of,
-            _case.written)
-    try:
-        _case.RECORDED.clear()
-        sim_body.fit.targets = lambda *args, skins=True: posed.append(skins) or (targets if skins else (*targets[:2], None))
-        sim_body.fit.angles = lambda fitting, turns, points, given=None: seen.append(given)
-        sim_body.clip_angles(None, None, ["pelvis"], None)
-        sim_body.Size = lambda rig: None
-        sim_body.person_set_up = lambda *args: levels_2.append(args[6]) or (None, None, Fitting())
-        _case.case_of = lambda *args: ({}, {"name": "a", "segments": ["pelvis"], "recordings": recordings}, None, None)
-        _case.written = lambda *args: given.append(args[6])
-        for _ in range(2):  # two clips of one body
-            _case.fitted_case(pathlib.Path("job.json"), folder / "out", recordings)
-    finally:
-        (sim_body.fit.targets, sim_body.fit.angles, sim_body.person_set_up, sim_body.Size, _case.case_of,
-         _case.written) = kept
-        shutil.rmtree(folder)
-    assert evaluation.SKIN_ROWS is False
-    assert seen[0] is None and seen[1] is skins and seen[2] is None and seen[3] is None, seen
-    assert posed == [True, False, False, False, False], posed  # the stage's clip; clip, two recordings; clip
-    assert len(levels_2) == 2 and levels_2[0] is not levels_2[1] and len(levels_2[1]) == 2
-    assert all(mine is theirs for mine, theirs in zip(*levels_2)), "level 2's targets made again for a later clip"
-    assert all(points is targets[1] for points in given), "a clip's targets made again for its measures"
-
-    # the stage's person: its clip's targets made once, level 2's one recording and level 3's skin rows alike
-    made, set_up = [], []
-    kept = (sim_body.fit.targets, sim_body.fit.angles, sim_body.person_set_up, sim_body.Size, sim_body.followed_record)
-    try:
-        sim_body.fit.targets = lambda *args, skins=True: made.append(skins) or targets
-        sim_body.fit.angles = lambda fitting, turns, points, given=None: given
-        sim_body.Size = lambda rig: None
-        sim_body.person_set_up = lambda *args: set_up.append(args[6]) or ({}, None, Fitting())
-        sim_body.followed_record = lambda record, *args: record
-        _, _, _, angles = sim_body.fitted_person({}, {"segments": ["pelvis"]}, None, None, None)
-    finally:
-        (sim_body.fit.targets, sim_body.fit.angles, sim_body.person_set_up, sim_body.Size,
-         sim_body.followed_record) = kept
-    assert made == [True] and set_up[0][0] is targets and angles is skins, (made, set_up)
-    # Warp's compiled modules in a node's cache where there is one, never over a folder already named
-    with tempfile.TemporaryDirectory() as node:
-        assert sim_body.warp_cache({"SCORE_CACHE": node}) == {"WARP_CACHE_PATH": f"{node}/warp"}
-        assert sim_body.warp_cache({"SCORE_CACHE": node, "WARP_CACHE_PATH": "/w"}) == {}
-        assert sim_body.warp_cache({"SCORE_CACHE": f"{node}/none"}) == {}
 
 
 if __name__ == "__main__":

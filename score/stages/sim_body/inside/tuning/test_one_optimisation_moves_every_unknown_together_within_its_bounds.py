@@ -38,10 +38,10 @@ Breaks (each applied once, seen red, reverted):
 - (2026-11-01) evaluated's `if np.all(np.isfinite(found))` dropped: a refused trial is checkpointed at an infinite cost.
 - (2026-11-01) whole's pattern made from the first case's labels again (`sparsity(entries, labels(first[names[0]]),
   len(names))`): a first clip with no unfolded skin frame (no rows) leaves the pattern no skin rows, the solve
-  breaks its Jacobian (IndexError: the pattern 5 rows, the residuals 14) (a_clip_with_no_unfolded_skin_frame_has_no_rows
+  breaks its Jacobian (IndexError: the pattern 5 rows, the residuals 14) (a_trial_point_no_body_converged_on
   red).
 - (2026-11-01) solved's `- paused()` dropped: the seconds level 1's evaluations waited for their card shares count
-  against its --hours (seconds_waited_for_the_card red).
+  against its --hours (the_unknowns_are_solved_together red).
 - (2026-10-30) _differences.hybrid's `merged[:, chosen] = differenced[:, chosen]` dropped: the hybrid keeps the
   exact Jacobian's chosen (centre) columns in place of their differences.
 - (2026-11-03) weights' `* means[kind]` dropped: a term is not over its own start value, the turns outweigh the skin.
@@ -132,11 +132,7 @@ def test_the_unknowns_are_solved_together_and_resumed_from_the_best():
         lower, upper = tuning.bounds(ENTRIES)
         assert (result.x >= lower).all() and (result.x <= upper).all()
 
-
-def test_seconds_waited_for_the_card_are_not_counted_against_the_time_limit():
-    target = np.linspace(-1.0, 1.0, len(ENTRIES))
-    coupling = np.eye(len(ENTRIES)) + 0.3 * np.ones((len(ENTRIES), len(ENTRIES)))
-    pattern = np.ones((len(ENTRIES), len(ENTRIES)), dtype=np.int8)
+    # seconds waited for the card are not counted against the time limit
     waited = [0.0]
 
     def waiting(unknowns):  # every evaluation waits 0.1 s for its card share
@@ -262,9 +258,7 @@ def test_a_trial_point_no_body_converged_on_is_refused_and_the_solve_goes_on():
     assert len(calls) > 2 and np.isfinite(result.cost) and np.all(np.isfinite(costs))
     assert result.cost < 0.5 * costs[0]  # the solve went on past the refused trial
 
-
-def test_a_clip_with_no_unfolded_skin_frame_has_no_rows_and_the_others_are_solved():
-    target = np.linspace(-0.5, 0.5, len(ENTRIES))
+    # a clip with no unfolded skin frame has no rows and the others are solved
     empty = {"per group deg": {}, "per joint mm": {}, "per group rms deg": {}, "per joint rms mm": {}}
 
     def evaluate(unknowns):  # "a_folded" sorts first: every skin frame of it folds, so it has no skin depths
