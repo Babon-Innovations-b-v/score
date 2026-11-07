@@ -1101,6 +1101,7 @@ class Runner:
         self.store = scoped(store)
         self.model_record = model_record or models.record
         self.code_versions = {}
+        self.gate_versions = {}  # {(stage, lock commit): whether its gate code moved since} (gates_moved)
         self.remembered = None  # inside `still`: {(what, node): its value or its Blocked}
         self.kept_as = {}  # rebuy.buys only: {node: its accepted output} the drive keeps, re-keyed (rebuy.KEPT)
         self.foreseen = {}  # rebuy.buys only: {node: {file: JSON}} of a free node's remake in a scratch folder
@@ -1935,8 +1936,12 @@ class Runner:
     def phase_locked(self, stage, place, keyed):
         """(the newest phase lock holding the node's accepted output, the record it was locked under) when only code
         moved the node's key since: every key part but the code version the same as that record's (its inputs'
-        accepted outputs above all), and each declared file that moved one of the repository's code files. None
-        otherwise (the runner then makes the node)."""
+        accepted outputs above all), each declared file that moved one of the repository's code files, and, where the
+        stage's gate code changed since the lock (gates_moved), the locked output not failing those gates as they judge
+        today (fails_today: a changed gate catches what the old one let through; 2026-11-07, 796d7a76's paint gate and
+        hub's rusted console, held by the surfaces lock). A gate whose code is as at the lock is not judged again: its
+        locked output stands as judged (checkout 47, 2026-11-07: judged again with no gate changed, pixal at 17 places
+        and closeup at 9 were listed to buy again). None otherwise (the runner then makes the node)."""
         node = node_name(stage, place)
         accepted = self.store.accepted(node)
         locks = [lock for lock in self.phase_locks() if lock["nodes"].get(node, {}).get("output") == accepted]
@@ -1951,7 +1956,37 @@ class Runner:
         if not all(self.code_file(stage, name, place) for name in keyed["files"]
                    if record["files"][name] != keyed["files"][name]):
             return None
+        if self.gates_moved(stage, locks[-1]) and self.fails_today(stage, place, record):
+            return None
         return locks[-1], record
+
+    def gates_moved(self, stage, lock):
+        """Whether the stage's gate code (its checks' judges and every repository file they import) differs from what
+        it was at the lock's commit: a judge's file not in that tree counts as moved; a commit git does not know is
+        not (nothing proves a change, and unknown makes no locked row again). Worked out once a stage and lock."""
+        commit = (lock.get("commit") or {}).get("commit")
+        asked = (stage.name, commit)
+        if asked not in self.gate_versions:
+            judges = [check.judge for check in stage.checks]
+            then = _code.code_version_at(commit, judges) if commit else None
+            known = commit is not None and _code.blobs_at(commit) is not None
+            self.gate_versions[asked] = known and then != _code.code_version(judges, file_hash)
+        return self.gate_versions[asked]
+
+    def fails_today(self, stage, place, record):
+        """Whether the stage's gates, judged now on the record's output and its evidence, fail it (nothing written): a
+        fail beyond the accepted gaps and the record key's waivers; unknown is no fail (missing evidence never makes a
+        locked row again)."""
+        output = self.store.checkout(record["output"])
+        inputs = self.input_paths(stage, place, record)
+        verdicts = [checks.judge(check, output, inputs, self.store.evidence_file(check.name, record["output"]))
+                    for check in stage.checks]
+        if checks.overall(verdicts) != checks.FAIL:
+            return False
+        card = checks.scorecard(verdicts)
+        waived = self.store.waivers(node_name(stage, place), record["key"])
+        failing = [name for name, verdict in card.items() if verdict["answer"] == checks.FAIL and name not in waived]
+        return bool(failing) and not review.fails_only_on_gaps(card, waived)
 
     def kept_by_phase_lock(self, stage, place, keyed):
         """The node's accepted output stored under `keyed` when its phase is locked and only code moved its key
