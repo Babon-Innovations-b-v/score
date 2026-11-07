@@ -339,13 +339,14 @@ if sys.argv[3] == "rents":
 (folder / "ready").write_text("ready")
 time.sleep(60)
 """
-# Another process of the run asking for a slot at once, and again once a slot given 1 s ago has lapsed.
+# Another process of the run asking for a slot at once, and again once a slot given 1 s ago has lapsed. The 1 s
+# window is set after the first ask: set before it, a start-up slower than 1 s (a loaded gate pod) saw the slot lapsed.
 SLOT_ASKER = """
 import sys, time
 sys.path.insert(0, sys.argv[1])
 import capacity
-capacity.RESERVE_SECONDS = 1.0
 first = capacity.reserve_run_slot(0)
+capacity.RESERVE_SECONDS = 1.0
 time.sleep(2.5)
 print(first, capacity.reserve_run_slot(0))
 """
