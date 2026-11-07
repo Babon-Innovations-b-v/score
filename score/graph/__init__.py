@@ -1974,19 +1974,19 @@ class Runner:
         return self.gate_versions[asked]
 
     def fails_today(self, stage, place, record):
-        """Whether the stage's gates, judged now on the record's output and its evidence, fail it (nothing written): a
-        fail beyond the accepted gaps and the record key's waivers; unknown is no fail (missing evidence never makes a
-        locked row again)."""
+        """Whether the stage's gates, judged now on the record's output and its evidence, block it (nothing written): a
+        fail or an unknown beyond the accepted gaps and the record key's waivers, as the runner's accept counts them.
+        Asked only of a moved gate (gates_moved), where unknown is a gate that cannot judge the old output (2026-11-07:
+        796d7a76's paint gate reads the baked colours the paint's make now measures, and hub's locked paint, made
+        before, answered unknown and was kept)."""
         output = self.store.checkout(record["output"])
         inputs = self.input_paths(stage, place, record)
-        verdicts = [checks.judge(check, output, inputs, self.store.evidence_file(check.name, record["output"]))
-                    for check in stage.checks]
-        if checks.overall(verdicts) != checks.FAIL:
-            return False
-        card = checks.scorecard(verdicts)
+        card = checks.scorecard([checks.judge(check, output, inputs,
+                                              self.store.evidence_file(check.name, record["output"]))
+                                 for check in stage.checks])
         waived = self.store.waivers(node_name(stage, place), record["key"])
-        failing = [name for name, verdict in card.items() if verdict["answer"] == checks.FAIL and name not in waived]
-        return bool(failing) and not review.fails_only_on_gaps(card, waived)
+        blocking = [name for name, verdict in card.items() if checks.blocks(verdict["answer"]) and name not in waived]
+        return bool(blocking) and not review.fails_only_on_gaps(card, waived)
 
     def kept_by_phase_lock(self, stage, place, keyed):
         """The node's accepted output stored under `keyed` when its phase is locked and only code moved its key

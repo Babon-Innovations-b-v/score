@@ -1274,11 +1274,13 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
     {seeds} file changed (an input) makes A again; unlocked, its own file edited makes A again (case 1). Locked, with
     its gate in a file of its own (K): its own file edited while that unchanged gate would fail it today keeps it (a
     gate not changed since the lock is not judged again: checkout 47, 2026-11-07, pixal and closeup bought again);
-    K edited so the gate fails the locked output makes A again (2026-11-07, 796d7a76's paint gate, hub's console).
+    K edited so the gate fails the locked output, or cannot tell (unknown), makes A again (2026-11-07, 796d7a76's paint
+    gate, hub's console: unknown on the paint made before it).
     Break: score/graph/__init__.py: '        return (record, reworded) if _code.unchanged(dropped, file_hash) else None' -> '        return (record, reworded)'
     Break: score/graph/__init__.py: '        if not all(self.code_file(stage, name, place) for name in keyed["files"]' -> '        if False and not all(self.code_file(stage, name, place) for name in keyed["files"]'
     Break: score/graph/__init__.py: '        if self.gates_moved(stage, locks[-1]) and self.fails_today(stage, place, record):' -> '        if self.fails_today(stage, place, record):'
-    Break: score/graph/__init__.py: '        if self.gates_moved(stage, locks[-1]) and self.fails_today(stage, place, record):' -> '        if False:'"""
+    Break: score/graph/__init__.py: '        if self.gates_moved(stage, locks[-1]) and self.fails_today(stage, place, record):' -> '        if False:'
+    Break: score/graph/__init__.py: 'if checks.blocks(verdict["answer"]) and name not in waived]' -> 'if verdict["answer"] == checks.FAIL and name not in waived]'"""
     for case, change, kept in ((0, None, True), (1, "own file", False), (2, "seeds", False),
                                (3, "make swapped", False), (4, "python", False), (5, "helper edited", False),
                                (6, "read through helper edited", False), (7, "second narrowing", True),
@@ -1286,7 +1288,8 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                                (10, "read docstring changed", False), (11, "type hint", False),
                                (12, "own file, phase locked", True), (13, "seeds, phase locked", False),
                                (14, "own file, gate fails, phase locked", True),
-                               (15, "gate edited, phase locked", False)):
+                               (15, "gate edited, phase locked", False),
+                               (16, "gate edited to unknown, phase locked", False)):
         seeds = pathlib.Path(tempfile.mkdtemp())
         (seeds / "hangar.txt").write_text("a seed")
         world = graph.Environment("toy", 7, {"seeds": str(seeds)})
@@ -1319,6 +1322,8 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                      "type hint": (f"narrow_g{case}.py", 'WORD: str = "also "\n'),
                      "helper edited": (f"narrow_h{case}.py", 'WORD = "another word "\n'),
                      "gate edited": (f"narrow_k{case}.py", GATE_SOURCE.replace("checks.FAIL if rusted", "checks.FAIL if True")),
+                     "gate edited to unknown": (f"narrow_k{case}.py", GATE_SOURCE.replace(
+                         "checks.FAIL if rusted", "checks.UNKNOWN if True")),
                      "read through helper edited": (f"narrow_j{case}.py", 'WORD = "another word "\n')}
             if change in edits:
                 (repo / edits[change][0]).write_text(edits[change][1])
@@ -1330,7 +1335,7 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                 (seeds / "hangar.txt").write_text("another seed")
             if change == "make swapped":
                 stage = dataclasses.replace(stage, make=importlib.import_module(f"narrow_b{case}").make)
-            if change == "gate edited":  # the judge as its file reads now
+            if (change or "").startswith("gate edited"):  # the judge as its file reads now
                 stage = dataclasses.replace(stage, checks=(checks.Check("seen", importlib.reload(
                     importlib.import_module(f"narrow_k{case}")).judge),))
             python = _code.sys
@@ -1344,8 +1349,8 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                 done = runner.run(["hangar"])["narrow@hangar"]
             finally:
                 _code.sys = python
-            assert done.startswith("fresh" if kept else "made: fail" if change == "gate edited" else "made: pass"), (
-                change, done)
+            assert done.startswith("fresh" if kept else "made: fail" if change == "gate edited" else "made: unknown"
+                                   if change == "gate edited to unknown" else "made: pass"), (change, done)
             record = store.record("narrow@hangar", keyed["key"])
             made_by = {"commit": old["commit"], "code": old["code"]}
             if lock:
