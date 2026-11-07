@@ -106,6 +106,10 @@ WARM_MINUTES = 10
 # are on the cluster (#76: the slots were held by cluster waits, no score pod Running).
 CLUSTER_WAITING = HOME / "cloud" / "cluster.waiting"
 INSTANCE_LABEL = "node.kubernetes.io/instance-type"
+# How long before a node came up a pod placed elsewhere may still have been the one the autoscaler grew it for: a
+# Kapsule card node joins 2 to 4 min after its scale-up (2026-10-09), so a pod placed on another node up to this long
+# before shares the unused node it caused.
+SCALE_UP_LEAD_MINUTES = 5
 ZONE_LABEL = "topology.kubernetes.io/zone"
 
 
@@ -268,6 +272,73 @@ def unscheduled_since(pod):
         if condition["type"] == "PodScheduled" and condition["status"] == "False":
             return parse_time(condition.get("lastTransitionTime")) or time.time()
     return None
+
+
+def pod_key(pod, node, index):
+    """A pod's name among the pods listed (its uid, else its name, else where it was in the list)."""
+    meta = pod.get("metadata", {})
+    return meta.get("uid") or meta.get("name") or f"{node}:{index}"
+
+
+def pod_start(pod, now):
+    """When the pod took its node: the kubelet's start of it, else its scheduling, else now."""
+    status = pod.get("status", {})
+    return parse_time(status.get("startTime")) or scheduled_at(pod) or now
+
+
+def pod_end(pod, now):
+    """When the pod let its node go: its containers' last finish once it ended, else now (it holds it still)."""
+    status = pod.get("status", {})
+    if status.get("phase") not in ("Succeeded", "Failed"):
+        return now
+    finished = [parse_time((entry.get("state", {}).get("terminated") or {}).get("finishedAt"))
+                for entry in status.get("containerStatuses") or []]
+    return max([moment for moment in finished if moment] or [now])
+
+
+def scheduled_at(pod):
+    """When the pod was placed on a node, or None while it is not."""
+    for condition in pod.get("status", {}).get("conditions") or []:
+        if condition["type"] == "PodScheduled" and condition["status"] == "True":
+            return parse_time(condition.get("lastTransitionTime"))
+    return None
+
+
+def pod_classes(pod):
+    """The classes a pod may take (its required node affinity), none for a pod pinned to one node (a warm hold)."""
+    terms = (pod.get("spec", {}).get("affinity", {}).get("nodeAffinity", {})
+             .get("requiredDuringSchedulingIgnoredDuringExecution", {}).get("nodeSelectorTerms", []))
+    return {value for term in terms for expression in term.get("matchExpressions", [])
+            if expression.get("key") == manifests.CLASS_LABEL for value in expression.get("values", [])}
+
+
+def gap_holder(holds, moment):
+    """The run a moment no pod held the node belongs to: the one whose pod held it last before (its idle tail, its
+    warm hold's gaps), else, before any pod, the one whose pod held it first (its start-up)."""
+    before = [hold for hold in holds if hold["end"] <= moment]
+    if before:
+        return max(before, key=lambda hold: (hold["end"], hold["run"]))["run"]
+    return min(holds, key=lambda hold: (hold["start"], hold["run"]))["run"]
+
+
+def held_share(holds, mine, start, end):
+    """The part of a node's [start, end] the run `mine` pays, from the times its pods and other runs' held the node
+    (`holds`, {run, start, end} each): a moment several runs' pods held it is split between them evenly, a moment none
+    held it goes to `gap_holder`. Every moment goes to some run, so the runs that shared a node book it whole between
+    them, none of them more than its own part. A window with no length yet (the node's clock ahead of this one) is
+    the whole of each run that held it: it costs nothing, and the run keeps the node."""
+    if end <= start:
+        return 1.0 if any(hold["run"] == mine for hold in holds) else 0.0
+    cuts = sorted({start, end, *(moment for hold in holds for moment in (hold["start"], hold["end"])
+                                 if start < moment < end)})
+    paid = 0.0
+    for left, right in zip(cuts, cuts[1:]):
+        holding = {hold["run"] for hold in holds if hold["start"] <= left and hold["end"] >= right}
+        if not holding:
+            holding = {gap_holder(holds, left)}
+        if mine in holding:
+            paid += (right - left) / len(holding)
+    return paid / (end - start)
 
 
 def no_grow_times(events):
@@ -446,40 +517,87 @@ class Run:
 
     def note_hosts(self):
         """Mark the nodes any job pod of any run has been placed on, so a node another run used is not taken for one
-        the autoscaler made for this run in vain; and each node's last time a job pod (a warm hold is none) was
-        live on it, and whether one is now."""
+        the autoscaler made for this run in vain; each node's pods, by run, with the time each held it (a warm hold
+        is its run's); each node's last time a job pod (a warm hold is none) was live on it, and whether one is now;
+        and, for a node no pod is on yet, the pods that were waiting for its class when it came up."""
         now = time.time()
         for seen in self.nodes.values():
             seen["busy"] = False
-        for pod in self.kubectl.json("get", "pods", "-n", manifests.NAMESPACE)["items"]:
+        pods = self.kubectl.json("get", "pods", "-n", manifests.NAMESPACE)["items"]
+        for index, pod in enumerate(pods):
             name = pod["spec"].get("nodeName")
             if name not in self.nodes:
                 continue
             seen = self.nodes[name]
             seen["hosted"] = True
-            held = manifests.WARM_LABEL in pod["metadata"].get("labels", {})
+            key = pod_key(pod, name, index)
+            labels = pod["metadata"].get("labels", {})
+            known = seen.setdefault("holds", {}).get(key)
+            seen["holds"][key] = {"run": labels.get(RUN_LABEL) or key,
+                                  "start": min(pod_start(pod, now), known["start"]) if known else pod_start(pod, now),
+                                  "end": pod_end(pod, now)}
+            held = manifests.WARM_LABEL in labels
             if not held and pod.get("status", {}).get("phase") not in ("Succeeded", "Failed"):
                 seen["busy"], seen["busy_last"] = True, now
+        self.note_waiting(pods)
+
+    def note_waiting(self, pods):
+        """For each node no pod is on yet, the pods (by run) that may have made the autoscaler grow it: those that may
+        take its class, made before it came up and not placed on a node until SCALE_UP_LEAD_MINUTES before; kept
+        across looks, so a pod gone since still counts."""
+        for seen in self.nodes.values():
+            if seen.get("hosted") or not seen["created"]:
+                continue
+            for index, pod in enumerate(pods):
+                labels = pod["metadata"].get("labels", {})
+                made = parse_time(pod["metadata"].get("creationTimestamp"))
+                placed = scheduled_at(pod)
+                if (manifests.WARM_LABEL in labels or seen["class"] not in pod_classes(pod) or made is None
+                        or made > seen["created"]
+                        or (placed is not None and placed < seen["created"] - SCALE_UP_LEAD_MINUTES * 60)):
+                    continue
+                key = pod_key(pod, "waiting", index)
+                seen.setdefault("waiting", {})[key] = labels.get(RUN_LABEL) or key
 
     def used_nodes(self):
         """The nodes a job of this run ran on."""
         return {record["node"] for record in self.jobs.values() if record["node"]}
 
+    def share(self, name, seen):
+        """The part of the node's minutes since the run's start (from its creation when later) this run pays.
+        A node pods were on: split by the time each run's pods held it (held_share; a job of this run seen on it
+        holds it from when it ran, should its pod have gone between looks). A node no pod was on: the run's part of
+        the pods that were waiting for it when it came up (note_waiting; the autoscaler grows a node for a waiting
+        pod, and a faster node may take the pod first: a second L4 came up unused on 2026-10-09), so runs side by
+        side book it whole between them, not each of them whole (2026-11-07: a settle run of one job booked the 23
+        nodes the cluster grew for 20 runs' pods, EUR 2.90). One made during the run with no waiting pod seen is
+        the run's whole: an overcount, never an undercount."""
+        mine = manifests.label_value(self.run_id)
+        holds = list(seen.get("holds", {}).values())
+        holds += [{"run": mine, "start": record["ran"] or self.started, "end": record["ran"] or self.started}
+                  for record in self.jobs.values() if record["node"] == name]
+        if holds:
+            start = max(seen["created"] or self.started, self.started)
+            return held_share(holds, mine, start, max(seen["deleted"] or time.time(), start))
+        if seen.get("hosted"):
+            return 0.0
+        waiting = list(seen.get("waiting", {}).values())
+        if waiting:
+            return waiting.count(mine) / len(waiting)
+        return 1.0 if (seen["created"] or 0) >= self.started else 0.0
+
     def our_nodes(self):
-        """The nodes this run pays for: those its jobs ran on, and those the autoscaler made during the run that ran
-        none of them and no other run's either (it grows a node for each waiting pod, and a faster node may take the
-        pod first: a second L4 came up unused on 2026-10-09). An unused node is counted by each run that saw it come
-        up; with runs side by side that overcounts, never undercounts."""
-        used = self.used_nodes()
-        return {name: seen for name, seen in self.nodes.items()
-                if name in used or ((seen["created"] or 0) >= self.started and not seen.get("hosted"))}
+        """The nodes this run pays a part of (`share`)."""
+        return {name: seen for name, seen in self.nodes.items() if self.share(name, seen) > 0}
 
     def live_euros(self):
-        """What the run's nodes have cost so far."""
+        """What the run's part of its nodes has cost so far."""
         total = 0.0
-        for seen in self.our_nodes().values():
+        for name, seen in self.our_nodes().items():
             per_minute, unit = self.cluster.price(seen["type"], seen["zone"])
-            total += ledger.cost(((seen["deleted"] or time.time()) - seen["created"]) / 60, per_minute, unit)
+            start = max(seen["created"] or self.started, self.started)
+            total += ledger.cost(((seen["deleted"] or time.time()) - start) / 60, per_minute,
+                                 unit) * self.share(name, seen)
         return total
 
     def unfinished(self):
@@ -893,7 +1011,7 @@ def node_machines(run, kind):
                          "ready": max(seen["ready"], created) if seen["ready"] else None,
                          "deleted": seen["deleted"] or time.time(), "price": per_minute,
                          "unit_minutes": unit, "class": seen["class"], "node": name, "unused": name not in used,
-                         "estimated": seen.get("estimated", False)})
+                         "estimated": seen.get("estimated", False), "share": run.share(name, seen)})
     return machines
 
 

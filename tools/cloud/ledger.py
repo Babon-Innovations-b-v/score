@@ -246,10 +246,12 @@ def machine_row(machine):
     # A machine taken parked from another run (park.py) is this run's from when it was taken, and costs it only what
     # it adds past the hours that run already paid.
     began = machine.get("adopted") or machine["created"]
-    minutes = (ended - began) / 60
+    # A node runs side by side shared is booked by each at its part (k8s/submitter.py Run.share).
+    share = machine.get("share", 1.0)
+    minutes = (ended - began) / 60 * share
     unit_minutes = machine.get("unit_minutes", 1)
     euros = (cost((ended - machine["created"]) / 60, machine["price"], unit_minutes)
-             - machine.get("paid_minutes", 0.0) * machine["price"])
+             - machine.get("paid_minutes", 0.0) * machine["price"]) * share
     # Its class beside its type, so `capacity.py report` gives each kind's time per class (a render or bake on a warm
     # pool's processor machine: capacity.PROCESSOR_TIMES, measured per class).
     row = {"type": machine["type"], "class": machine.get("class"), "zone": machine["zone"],
@@ -259,7 +261,7 @@ def machine_row(machine):
            "work_minutes": (ended - ready) / 60 if ready else 0.0, "minutes": minutes, "euros": max(0.0, euros)}
     if ready and machine.get("set_up"):
         row["setup_minutes"] = (machine["set_up"] - ready) / 60
-    row.update({key: machine[key] for key in ("peak_gb", "made", "unit_seconds", "adopted", "parked")
+    row.update({key: machine[key] for key in ("peak_gb", "made", "unit_seconds", "adopted", "parked", "share")
                 if machine.get(key) is not None})
     if machine.get("pool"):  # its pool books every minute of it (pool.hold); the measurements read card_euros
         row["card_euros"], row["euros"] = row["euros"], 0.0
