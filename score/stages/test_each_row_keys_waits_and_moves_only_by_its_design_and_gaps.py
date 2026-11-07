@@ -44,6 +44,10 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
   test_the_plan_row_maps_a_place_with_no_kit.
 - `plan_remade_same`: always True (`return True`)  -> test_the_plan_row_maps_a_place_with_no_kit (its own plan redrawn
   still carries).
+- `part_moved`: the part compared whole (`old, new = store.listing(then), listing`)  ->
+  test_terrain_s_code_version_moves_with_its_own_code_only (hub's light passes made again); `part_standing`: a moved
+  read with no part rule let through (`any(...)` dropped)  -> the same test (scene-record moved, still kept);
+  score/graph/rebuy.py `to_make`: the foreseen reads not let through (`foreseen = []`)  -> the same test (rebuy's hub).
 - the surfaces-check row's `"stance rules"` file dropped  -> test_the_check_reads_every_input_check_step_reads.
 - `earth_seeded.declared`: the seed-read filter dropped (`return dict(found)`)  ->
   test_the_cast_crowds_from_its_plan_never_a_hand_written_record.
@@ -308,7 +312,7 @@ sys.path.insert(0, str(REPO))
 from pxr import Usd, UsdGeom  # noqa: E402
 from score import checks, contracts, graph, review, stages  # noqa: E402
 from score.adapters import compute  # noqa: E402
-from score.graph import _code  # noqa: E402
+from score.graph import _code, rebuy  # noqa: E402
 from score.stages import (batch_gaps, design_layers, gaps, layer_base, moved, natural_grounds,  # noqa: E402
                           people_refresh, people_rows, row_kinds)
 from score.stages.surfaces import route_views  # noqa: E402
@@ -344,7 +348,11 @@ def terrain_code_after_editing(edited):
 
 def test_terrain_s_code_version_moves_with_its_own_code_only():
     """Another line's edits to the runner, the stage table or another stage's module leave terrain's key alone (they
-    re-made terrain under the effects line, 2026-10-12); its own module and what it imports move it."""
+    re-made terrain under the effects line, 2026-10-12); its own module and what it imports move it. And terrain made
+    again elsewhere than a place's own layer moves none of that place's readers: its light passes keep their accepted
+    output (made, or foreseen by rebuy before terrain is made), and its sound keeps over a motion whose moves.json
+    stands; a place whose layer changed, or a read with no part rule moved, is made again (the square redrawn listed
+    every place's light passes and sound, 2026-11-07)."""
     before = terrain_code_after_editing("nothing")
     for unrelated in ("score/stages/__init__.py", "score/graph/__init__.py", "score/review/__init__.py",
                       "score/adapters/compute/__init__.py", "score/stages/effects/__init__.py",
@@ -353,6 +361,33 @@ def test_terrain_s_code_version_moves_with_its_own_code_only():
     for own in ("score/stages/terrain/__init__.py", "score/stages/terrain/design.py",
                 "score/stages/terrain/outside.py"):
         assert terrain_code_after_editing(own) != before, own
+    rows = {row.name: row for row in stages.STAGES}
+    listings = {"T0": {"moon/ground.json": "g0", "moon/places/hub.usdc": "h", "moon/places/base.usdc": "b0"},
+                "T1": {"moon/ground.json": "g1", "moon/places/hub.usdc": "h", "moon/places/base.usdc": "b1"},
+                "M0": {"moves.json": "m", "layer.usda": "l0"}, "M1": {"moves.json": "m", "layer.usda": "l1"}}
+    own = {"code": "c", "contract": "s", "expects": {}, "params": {}, "seed": 1, "files": {}, "models": {}}
+    record = {**own, "key": "k0", "output": "out", "after": {"terrain": "T0", "scene-record": "S0", "motion": "M0"}}
+    store = types.SimpleNamespace(accepted=lambda node: "out", records=lambda node: [record], listing=listings.get)
+
+    def key(stage, place):
+        if stage.name != "terrain":
+            raise graph.Blocked("terrain is not made on its key yet")
+        return {"key": "KT"}
+    runner = types.SimpleNamespace(store=store, stages=rows, key=key, own_parts=lambda stage, place: own)
+    passes = rows["light-passes"]
+    for moved_after, place, kept in (({"terrain": "T1"}, "hub", True), ({"terrain": "T1"}, "base", False),
+                                     ({"terrain": "T1", "scene-record": "S1"}, "hub", False)):
+        keyed = {**own, "key": "k1", "after": {**record["after"], **moved_after}}
+        assert passes.files.carries(runner, passes, place, keyed) is kept, (moved_after, place)
+    assert rows["sound"].files.carries(runner, rows["sound"], "hub", {**own, "after": {**record["after"],
+                                                                                        "motion": "M1"}})
+    assert not rows["ground-fit"].files.__dict__.get("carries")  # it reads its body's whole ground.json
+    stages.FORESIGHTS["terrain", "KT"] = listings["T1"]
+    try:
+        assert rebuy.to_make(runner, passes, "hub", ["terrain"], {"terrain": True}) is rebuy.KEPT
+        assert rebuy.to_make(runner, passes, "base", ["terrain"], {"terrain": True}) == {}
+    finally:
+        del stages.FORESIGHTS["terrain", "KT"]
 
 
 def test_the_earth_rows_key_on_the_surface_data_reader_not_the_surface_line():

@@ -32,7 +32,10 @@ standing on it. `__init__.py`'s and `fit.py`'s docstrings have the makes and the
 - **Each place's layer** (`places/<place>.usdc`, `outside.py`): the ground in its own frame under `/<place>/Outside`,
   `near` (its plan's box grown by NEAR_MARGIN, 0.5 m apart) and `far` (out past the horizon an eye 12 m up sees, at
   least 1.5 km), static colliders, each only the points its triangles use; stamped a whole asset
-  (`tools/usd/whole_layer.py`). No over of an old `Ground`, `Terrain` or `Water`: no base drawn from a design has one,
+  (`tools/usd/whole_layer.py`). Every place row reading terrain but ground-fit reads this layer alone, so it keeps its
+  accepted output while its place's layer is byte for byte as then (`stages.READ_PARTS`, `part_carried`; rebuy makes
+  terrain again in a scratch folder to see it first): never read another file of the output from such a row
+  without adding it to its part. No over of an old `Ground`, `Terrain` or `Water`: no base drawn from a design has one,
   and an over of nothing dangles (the USD check).
 - **The ground runs under a room's floor** (`outside.under_floor`): in a place whose shell lays a deck, the fine
   patch's points under a deck at the floor lie at the deck's foot, never level with its top (2026-10-31: with the

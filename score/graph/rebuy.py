@@ -110,7 +110,9 @@ def to_make(runner, stage, place, pending, remade):
     except Blocked:  # it reads a node not made on its current inputs yet, or one that blocks it
         if not pending:
             return None
-    if any(remade[name] for name in pending):
+    foreseen = [name for name in pending if remade[name] and hasattr(stage.files, "foreseen") and
+                stage.files.foreseen(runner, stage, place, name)]  # made again, it holds the part this node reads
+    if any(remade[name] for name in pending if name not in foreseen):
         return {}
     try:
         own = runner.own_parts(stage, place)
@@ -120,7 +122,7 @@ def to_make(runner, stage, place, pending, remade):
     if record is None:
         return {**own, "after": {}}
     if all(record.get(part) == own[part] for part in OWN_PARTS):
-        return None
+        return KEPT if foreseen else None  # the runner keeps it by the part it reads (stages.part_carried)
     return {**own, "after": record["after"], **({"beside": record["beside"]} if "beside" in record else {})}
 
 
@@ -196,7 +198,8 @@ def buys(runner, nodes):
             asked_again = uncached_euros(runner, node) if cached else 0.0  # a redrawn answer may change its output
             remade[node] = not cached or asked_again > 0
             if stage.paid:
-                moving = [name for name in pending if remade[name]]
+                moving = [name for name in pending if remade[name] and not (
+                    hasattr(stage.files, "foreseen") and stage.files.foreseen(runner, stage, place, name))]
                 why = (f"reads {', '.join(moving)}" if not parts
                        else ", ".join(runner.stale_reasons(stage, place, parts)))
                 found.append(Buy(node, asked_again if cached else float(stage.euros or 0),
