@@ -1464,13 +1464,20 @@ def make_leaving_a_thread(inputs, out, seed, params):
     (out / "made.txt").write_text("made")
 
 
+def make_asking_its_stacks(inputs, out, seed, params):
+    os.kill(os.getpid(), signal.SIGUSR1)  # as the agents' door's stack verb asks
+    (out / "made.txt").write_text(str(os.getpid()))
+
+
 def hung(signal_number, frame):
     raise RuntimeError("the drive did not end")  # not an OSError: a wait swallows those
 
 
-def test_a_node_that_leaves_a_thread_running_does_not_hold_up_the_drive():
-    """Fault (2026-10-12): two `score run`s did all their work and never exited.
-    Break: score/graph/__init__.py: '        sys.stderr.flush()\n        os._exit(0)' -> '        sys.stderr.flush()\n        sys.exit(0)'"""
+def test_a_node_that_leaves_a_thread_running_does_not_hold_up_the_drive(tmp_path, monkeypatch):
+    """Fault (2026-10-12): two `score run`s did all their work and never exited. And a node's process answers a
+    SIGUSR1 with its stacks in <home>/logs/stacks/<its pid>.txt, going on (2026-11-07: a forked node had no dump).
+    Break: score/graph/__init__.py: '        sys.stderr.flush()\n        os._exit(0)' -> '        sys.stderr.flush()\n        sys.exit(0)'
+    Break: score/graph/__init__.py: '        stacks_on_ask()\n        threading' -> '        threading'"""
     runner = a_runner(a_world_of(["hangar"])[1], a_store(), (graph.Stage("maps", "place", make_leaving_a_thread,
                                                                          TEXT, MET),))
     signal.signal(signal.SIGALRM, hung)
@@ -1479,6 +1486,12 @@ def test_a_node_that_leaves_a_thread_running_does_not_hold_up_the_drive():
         assert runner.drive(["hangar"], say=quiet) == {"maps@hangar": ACCEPTED}
     finally:
         signal.alarm(0)
+    monkeypatch.setenv("PROPS_HOME", str(tmp_path))
+    runner = a_runner(a_world_of(["hangar"])[1], a_store(), (graph.Stage("maps", "place", make_asking_its_stacks,
+                                                                         TEXT, MET),))
+    assert runner.drive(["hangar"], say=quiet) == {"maps@hangar": ACCEPTED}
+    pid = accepted_text(runner.store, "maps@hangar", "made.txt")
+    assert "make_asking_its_stacks" in (tmp_path / "logs" / "stacks" / f"{pid}.txt").read_text()
 
 
 CHILD_THREADS = "import os; print(os.environ['OMP_NUM_THREADS'], os.environ['NUMBA_NUM_THREADS'])"
