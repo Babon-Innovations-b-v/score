@@ -369,7 +369,7 @@ def test_the_record_is_written_from_the_design():
             assert verdict.answer == checks.PASS, (verdict.check, verdict.reason, verdict.findings)
         path = output / "record/shed.json"
         filled = {**record, "structure": record["structure"] + [
-            {"name": "plug", "builder": "slab", "points": [[-0.8, -3.5], [0.8, -3.5], [0.8, -3.0], [-0.8, -3.0]],
+            {"name": "plug", "builder": "slab", "points": [[-0.8, -3.1], [0.8, -3.1], [0.8, -2.9], [-0.8, -2.9]],
              "low": 0.0, "high": 3.0}]}
         path.write_text(json.dumps(filled))
         verdict = gates.judge_plan_matched(output, inputs, {})
