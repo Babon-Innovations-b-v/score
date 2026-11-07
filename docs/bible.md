@@ -793,9 +793,10 @@ returns data to its parent.
 
 - One agent per area at a time (the concept code, the plan code, the cockpit pages, the reading each have one owner);
   new work on an owned area waits or goes to that agent.
-- An agent runs only the tests of the modules it touched, pushes and stops. It never re-runs whole suites after a
-  rebase, never waits on the hosted rebuild or a sync, and never releases. A whole-suite run happens once on main after
-  a group lands.
+- An agent runs its one module's test locally only when it is quick, pushes and stops. The full suite runs in the
+  cluster's gate on every push to main, one pod per module group (`make test-groups`, `make test-group GROUP=<g>`),
+  each file still under its 2 minutes; read its answer with `make gate-result` (`SHA=<sha>` for an older commit). It
+  never re-runs whole suites on this PC, never waits on the hosted rebuild or a sync, and never releases.
 - Work that repeats per scene (readings, plan writings, fixes, checks) runs one process per scene side by side.
 - Never wait in the foreground: anything that takes minutes runs in the background (root `CLAUDE.md`).
 - An agent ends its turn to wait only on work the harness tracks: a command it started with `run_in_background`, or
@@ -814,7 +815,7 @@ his words quoted and the time, like a benchmark grant. Locks, accepts, rejects, 
 `Not started`, `In Progress`, `Review`, `Done`), set with `.claude/scripts/board-status.py <issue> "<column>"`; triage
 state is a label (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`).
 
-**Before you push.** The tests of what you touched and `python3 docs/adr/tools/check_index.py`. The repo works on
+**Before you push.** The test of the module you touched when it is quick, and `python3 docs/adr/tools/check_index.py`; the cluster's gate runs the whole suite on the push (`make gate-result` reads it). The repo works on
 `main` only (ADR-0001), so a push is the ship. Before pushing an edit to anything a stage hashes, run `python -m score
 moved`: it lists every paid row the diff would buy again; a commit that moves one on purpose names it in a
 `Moved-rows: <node> ...: <reason>` trailer (`.claude/hooks/local/pre-push-moved` refuses an unnamed move once the owner sets

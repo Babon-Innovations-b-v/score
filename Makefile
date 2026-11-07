@@ -1,6 +1,7 @@
-# The project's commands. No CI runs these: they run locally, before a push.
+# The project's commands. No CI runs these here: the whole suite runs on every push to main in the cluster's gate, one
+# pod per module group (`make test-groups`, `make test-group GROUP=<group>`); read its answer with `make gate-result`.
 
-.PHONY: paper check env tests
+.PHONY: paper check env tests test-groups test-group gate-result
 
 # The scaffold's tests are pytest tests; pytest runs the paper's unittest check too.
 PYTEST ?= uv run -q --with pytest pytest
@@ -45,6 +46,31 @@ tests: env
 	printf '%s\n' $(TESTS) | xargs -P $(JOBS) -n 1 sh -c "$$ONE_TEST" one; \
 	failed=$$(paste -sd ' ' $$FAILED); rm -f $$FAILED; \
 	if [ -n "$$failed" ]; then echo "failed: $$failed"; exit 1; fi
+
+# The whole suite as module groups, for the cluster's gate (one pod a group, each pod its group's files side by side):
+# every test file `tests` runs plus the harness's and the paper's, grouped by their module's first two path parts (a
+# `tests/` folder counting as its parent), and `rule`, the test rule's guard over every module. `make test-groups` prints
+# `<group> <file>` per file and `rule` alone; `make test-group GROUP=<group>` runs that group exactly as `make tests
+# TESTS=<its files>` runs them (the guard over its modules first, each file in its sandbox at TEST_SECONDS).
+ALL_TESTS = $(TESTS) $(shell git ls-files '.claude/*/tests/test_*.py' 'paper/*/test_*.py')
+GROUP_OF = awk -F/ '{n = NF - 1; if ($$n == "tests") n--; if (n > 2) n = 2; group = $$1; for (i = 2; i <= n; i++) group = group "/" $$i; print group, $$0}'
+test-groups:
+	@echo rule; printf '%s\n' $(ALL_TESTS) | $(GROUP_OF)
+
+test-group:
+	@if [ "$(GROUP)" = rule ]; then $(MAKE) --no-print-directory env && $(PYTHON) $(CURDIR)/tools/test_rule/check.py; exit $$?; fi; \
+	files=$$(printf '%s\n' $(ALL_TESTS) | $(GROUP_OF) | awk -v group="$(GROUP)" '$$1 == group {print $$2}' | paste -sd ' '); \
+	if [ -z "$$files" ]; then echo "no test group '$(GROUP)' (make test-groups lists them)"; exit 2; fi; \
+	$(MAKE) --no-print-directory tests TESTS="$$files"
+
+# The cluster gate's answer for one commit (SHA, default the newest on main): its commit status `cluster/gate` and, when
+# it failed, the failing files' tails it posted on the commit. Needs gh logged in.
+SHA ?= main
+REPO_SLUG = $(shell python3 -c "import json; print(json.load(open('.claude/project.json'))['repo'])")
+gate-result:
+	@sha=$$(gh api repos/$(REPO_SLUG)/commits/$(SHA) --jq .sha) && \
+	gh api repos/$(REPO_SLUG)/commits/$$sha/statuses --jq '[.[] | select(.context == "cluster/gate")][0] // {state: "none", description: "no gate answer yet"} | "\(.state)  \(.description)"' | sed "s/^/$${sha%????????????????????????????}  /" && \
+	gh api repos/$(REPO_SLUG)/commits/$$sha/comments --jq '[.[] | select(.body | startswith("cluster/gate"))][-1].body // empty'
 
 # Rebuild the paper's PDF and LaTeX from paper/source/score.md (pandoc + xelatex or tectonic).
 paper:
