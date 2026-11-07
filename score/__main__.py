@@ -1821,6 +1821,8 @@ def main(argv=None):
     if options.command == "resume":
         runs.resume(options.dry, say=lambda line: print(line, flush=True))
         if not options.dry:
+            from score.conductor import size
+            size.started_asked(say=lambda line: print(line, flush=True))  # a Buy that asked for the batch size first
             copies_swept(say=lambda line: print(line, flush=True))
         return
     if options.command == "run" and not frozen.inside():

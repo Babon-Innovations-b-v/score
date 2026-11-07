@@ -107,8 +107,8 @@ def boot_time():
 
 # The settings a launch gives its run in its environment, kept in its entry so a resume starts it with them
 # (2026-11-07: Launch 33, resumed after its grow with the boot unit's environment, lost its cluster and its caps).
-LAUNCH_SETTINGS = ("SCORE_CLOUD", "SCORE_K8S_", "SCORE_MAX_MACHINES", "SCORE_OWNERS_GO", "SCORE_BENCHMARK_GRANT",
-                   "SCORE_SPEND_TICKET", "SCORE_FREE_ONLY")
+LAUNCH_SETTINGS = ("SCORE_CLOUD", "SCORE_K8S_", "SCORE_MAX_MACHINES", "SCORE_LAUNCH_", "SCORE_OWNERS_GO",
+                   "SCORE_BENCHMARK_GRANT", "SCORE_SPEND_TICKET", "SCORE_FREE_ONLY")
 
 
 def launch_settings(environment=None):

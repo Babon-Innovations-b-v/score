@@ -1,6 +1,7 @@
 """score.conductor's invariant: the conductor spends and stops only as its owner says. It grows only for the owner's
 run that asks for more cores than it has (never an agent's, never under the kill switch's latch, never while a run is
-live) and shrinks only after 30 idle minutes with nothing busy (a claim, a waiting run, a parked machine, a frozen copy
+live), and for a Buy on the idle size before it prices (its command started again at the boot on the batch size, with
+its launch settings; one recorded over two hours before is dropped) and shrinks only after 30 idle minutes with nothing busy (a claim, a waiting run, a parked machine, a frozen copy
 in use, a hold); its ask carries the token read by name and only grow or shrink, and a failed ask takes its resize
 mark back. Its own bill never enters the batch's spend, and every paid point refuses while the batch project is the
 conductor's. Only the owner's process pulls the kill switch, which stops every run (and the processes left in a gone
@@ -14,7 +15,8 @@ makes the checkouts' copies links to the stored blobs even with a run live; clea
 current key asks for; `disk` accounts for the whole data disk, store-gc removes only the blobs nothing names and only
 with no run live, and the sweep frees room itself, asking the owner only for a bigger disk, priced.
 
-Break that turns it red: in size.decide grow while a run is live (drop the claims/running wait); in kill.stop_everything
+Break that turns it red: in size.decide grow while a run is live (drop the claims/running wait); in size.busy
+leave out the commands ask_grow_for recorded (a Buy on the idle size never grows it); in kill.stop_everything
 release the parked machines before closing the pools, or drop its `stop_cluster` call (score's cluster Jobs left
 running); or in logs drop the secret-shape test (an AIza key reaches the
 tails); or in disk.kept drop the registered-run test (a waiting run's copy is removed); or in disk.said_by drop the
@@ -82,12 +84,31 @@ def test_a_run_waits_for_size_only_on_a_conductor_for_the_owner_within_the_batch
     assert conductor.default_jobs(8) == 16
 
 
-def test_a_grow_is_asked_for_a_waiting_run_once_no_run_is_live_and_no_latch_holds():
+def test_a_grow_is_asked_for_a_waiting_run_once_no_run_is_live_and_no_latch_holds(tmp_path):
     waiting = {**IDLE, "waiting": 1, "wanted": 16}
     assert size.decide(waiting, 2, RECORD, 0, 100, False)[0] == size.GROW
     assert size.decide({**waiting, "claims": 1}, 2, RECORD, 0, 100, False)[0] is None
     assert size.decide({**waiting, "running": 1}, 2, RECORD, 0, 100, False)[0] is None
     assert "free-only latch" in size.decide(waiting, 2, RECORD, 0, 100, True)[1]
+    # a Buy on the idle size asks for the batch size before it prices, and starts again at the boot on it
+    assert size.buy_waits(RECORD, 2).startswith("2 cores: a Buy prices on the batch size")
+    assert size.buy_waits(RECORD, 16) is None and size.buy_waits(None, 2) is None
+    asked, pokes = tmp_path / "asked", []
+    size.ask_grow_for(["buy", "y1", "--phase", "models"], {"SCORE_CLOUD": "k8s"}, tmp_path / "buy.log", 16, asked,
+                      lambda: pokes.append(1))
+    view = size.busy(tmp_path / "runs", tmp_path / "parked", tmp_path / "frozen", tmp_path / "holds", asked)
+    assert pokes == [1] and (view["waiting"], view["wanted"]) == (1, 16)
+    assert size.decide(view, 2, RECORD, 0, 100, False)[0] == size.GROW
+    started, words = [], []
+    assert size.started_asked(words.append, asked, cores=2, start=lambda *a, **k: started.append(a)) == 0
+    assert not started and size.asked_grows(asked)  # still waits on the idle size
+    assert size.started_asked(words.append, asked, cores=16,
+                              start=lambda argv, **k: started.append((argv, k["env"]["SCORE_CLOUD"]))) == 1
+    assert started == [(["buy", "y1", "--phase", "models"], "k8s")] and not size.asked_grows(asked)
+    size.ask_grow_for(["buy", "y2"], {}, tmp_path / "buy.log", 16, asked, lambda: None)
+    late = size.asked_grows(asked)[0][1]["at"] + size.ASKED_HOURS * 3600 + 1
+    assert size.started_asked(words.append, asked, cores=16, now=late, start=lambda *a, **k: 1 / 0) == 0
+    assert not size.asked_grows(asked) and "not started" in words[-1]
 
 
 def test_a_shrink_comes_only_after_thirty_idle_minutes_at_the_batch_size(tmp_path, monkeypatch):
