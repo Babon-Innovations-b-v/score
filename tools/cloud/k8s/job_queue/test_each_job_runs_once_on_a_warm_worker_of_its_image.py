@@ -19,7 +19,12 @@ red (each applied once, seen red, reverted):
 - a node two workers share is counted once, and booked once when gone. Break: sum node cost per run (or per pod) in `Queue.count_money`.
 - at the stop line nothing more is made and only this box's Jobs are deleted. Break: delete without the box selector
   in `Queue.stop`.
-- a client's wait returns the run's state once over, and raises Stale once the queue's beat is stale.
+- a client's wait returns the run's state once over, and raises Stale once the queue's beat is stale; a run its
+  client took back (`job_queue.cancel`, cluster_jobs adopting it) is never assigned again, from the inbox or open.
+  Break: drop `self.take_cancels()` in `Queue.take_inbox`.
+- a worker's band comes back from its lower-case label as admission names it, so a processor job finds its worker
+  (the B rehearsal of 2026-11-07 needed it). Break: `band_named(...)` -> `meta["labels"].get(BAND_LABEL)` in
+  `workers.listed`.
 - the worker loop (worker.py, mounted from the ConfigMap applied with the workers) runs each assignment's job once,
   its beat naming the job while it runs, and ends on go or after IDLE_EXIT_SECONDS with nothing assigned. Break:
   `serve` returns after its first job (a worker that exits after one job).
@@ -302,6 +307,18 @@ def test_each_job_runs_once_on_a_warm_worker_of_its_image(tmp_path, monkeypatch)
     with pytest.raises(job_queue.Stale):
         job_queue.wait("r7", root=root, clock=lambda: float(next(late)), sleep=lambda seconds: None)
     assert not list((tmp_path / "waiting").iterdir())
+    # A run its client took back (job_queue.cancel) is never assigned: not from the inbox, not once open.
+    process.Queue(kube, store, Cluster(), root, BOX, clock).take_inbox()  # r7 open there
+    job_queue.enqueue("r10", "blender", IMAGES["blender"], ["gpu-24gb"], {"j0": {"kind": "blender"}}, root=root)
+    job_queue.cancel("r7", root=root)
+    job_queue.cancel("r10", root=root)
+    back = process.Queue(kube, store, Cluster(), root, BOX, clock)
+    back.take_inbox()
+    assert not [job for job in back.queued() if job["run"] in ("r7", "r10")] and "r10" not in back.runs
+    assert back.runs["r7"]["over"] and back.runs["r7"]["jobs"]["j0"]["state"] == "stopped"
+    # A worker's band comes back from its label as admission names it (a label is lower case).
+    made = workers.manifest(BOX, "wm", ("runner", IMAGES["blender"], "abc"), "M", ["cpu-32c-128gb"], 0)
+    assert workers.listed([made])["wm"]["band"] == "M" and admission.serves(workers.listed([made])["wm"]["band"], "S")
 
     # A node two workers share is counted once.
     counted = process.Queue(FakeKube(clock), stores.FolderStore(tmp_path / "other"), Cluster(), tmp_path / "q2", BOX,

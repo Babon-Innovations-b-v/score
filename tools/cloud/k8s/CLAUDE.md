@@ -9,8 +9,10 @@ runners in `tools/cloud/` stay as they are.
   `library_bake.py` use it; a runner whose image lands next does the same in a `main_on_cluster` of its own.
   Each input file goes to the job store once, as `inputs/<sha256>` (asked first; a store checkout's sha256 from its
   listing); a blob evicted from the conductor is copied there inside the object storage (`offload.copy_blob`).
-- `job_queue/` is the box's one queue (#76, behind SCORE_K8S_QUEUE, not wired yet): runs handed to it chain on warm
-  workers of their image, admitted by priority within the quota and the box's share (its overlay).
+- `job_queue/` is the box's one queue (#76, behind SCORE_K8S_QUEUE): `cluster_jobs.run` hands its runs to it when it
+  is fresh (else today's path, a queue started for later runs; a queue gone stale mid-wait gives the run back to
+  `submitter.submit`); they chain on warm workers of their image, admitted by priority within the quota and the box's
+  share (its overlay).
 - `kube.py` is kubectl (objects through stdin); `gpu_operator.py` points NVIDIA's GPU operator at the registry.
 - `manifests.py` makes the plain manifests (JSON for kubectl): one Job a job, the store Secret, the pull Secret.
 - `submitter.py` is the queue and the watcher: Secrets at submit time, pool caps from the month's euros, Jobs, widening

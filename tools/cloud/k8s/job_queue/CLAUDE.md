@@ -1,11 +1,12 @@
 # tools/cloud/k8s/job_queue/
 
 The box's one job queue (#76, build spec step S4; owner, 2026-11-07: "make every score job a cluster job ... jobs that
-need the same env setup, get chained in a qeue, and idle time is minimized"). Behind `SCORE_K8S_QUEUE`: nothing calls
-it yet (S6 sends `cluster_jobs.run` through it, S8 the runner's pod makes), so with it unset every path is today's.
+need the same env setup, get chained in a qeue, and idle time is minimized"). Behind `SCORE_K8S_QUEUE`: `cluster_jobs.run`
+sends its runs through it (S6; S8 the runner's pod makes), so with it unset every path is today's.
 
 - `__init__.py` is the client: `enqueue` (inbox file written whole), `wait` (state file; the CLUSTER_WAITING mark;
-  `Stale` after `QUEUE_TAKEOVER_SECONDS`), `fresh`, `start` (the process through `detached.py`, one a box by its lock).
+  `Stale` after `QUEUE_TAKEOVER_SECONDS`), `cancel` (a run its client took back, never assigned again), `spent` (the
+  box's euros, a stop line's base), `fresh`, `start` (the process through `detached.py`, one a box by its lock).
 - `__main__.py` is the process (`Queue.tick`): three looks at the cluster a tick (the box's Jobs and pods, the nodes,
   the quota's room) and at most one apply; runs from `state/`, assignments from the job store, so a restart assigns
   nothing twice.

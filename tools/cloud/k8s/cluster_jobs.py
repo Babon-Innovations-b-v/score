@@ -22,6 +22,13 @@ stay the default: nothing here runs unless the runner asks for it under SCORE_CL
 One difference from the machine runners: the runtime brings a job's outputs back only when its command succeeded, and
 a declared output the command did not make fails the job. A run whose watch fails or that is stopped (submitter.py
 books its rows first) still brings back what its done jobs made before the error goes on.
+
+Under SCORE_K8S_QUEUE (#76, build spec step S6) a run goes to the box's queue (`job_queue/`), which chains it on warm
+workers of its image beside every other run of the box: the namespace and Secrets made (`submitter.prepare`), the
+run enqueued with its stop line (the queue's euros so far and the batch cap), then waited on. A queue that is not
+fresh at submit time is started for later runs and this run goes on today's path (`submitter.submit`); a queue that
+goes stale while the run waits (`job_queue.Stale`) gives the run back: it is cancelled there, so a restarted queue never
+assigns it, and its jobs not done are adopted by `submitter.submit`, which resumes from their Jobs' labels.
 """
 import os
 import pathlib
@@ -31,6 +38,7 @@ import time
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+import job_queue  # noqa: E402
 import submitter  # noqa: E402
 
 REPO = HERE.parents[2]
@@ -168,11 +176,41 @@ def run(kind, jobs, who, classes=None, image=None, parallel=None, name=None):
         specs[job_id], backs[job_id] = spec_of(helper, store, run_name, job_id, kind, image, classes, job)
         helper.write_job(store, run_name, job_id, specs[job_id])
     try:
-        submitter.submit(run_name, specs, store, wait_scale_down=False, who=who, parallel=parallel)
+        if queued():
+            through_queue(helper, store, run_name, image, classes, specs, who, parallel)
+        else:
+            submitter.submit(run_name, specs, store, wait_scale_down=False, who=who, parallel=parallel)
     except BaseException:  # a watch that failed or a stop: what finished still comes back, then the error goes on
         bring_back(helper, store, run_name, specs, backs)
         raise
     return bring_back(helper, store, run_name, specs, backs)
+
+
+def queued():
+    """Whether runs go through the box's queue (SCORE_K8S_QUEUE set, not 0)."""
+    return os.environ.get("SCORE_K8S_QUEUE", "") not in ("", "0")
+
+
+def through_queue(helper, store, run_name, image, classes, specs, who, parallel):
+    """The run on the box's queue to its end; on today's path (submitter.submit) when the queue is not fresh, the queue
+    started for later runs; its jobs not done adopted by submitter.submit when the queue went stale while it waited."""
+    if not job_queue.fresh():
+        job_queue.start()
+        submitter.say("the box's queue is not running (one is started for later runs): this run goes on by itself")
+        submitter.submit(run_name, specs, store, wait_scale_down=False, who=who, parallel=parallel)
+        return
+    cluster = submitter.cluster_module()
+    submitter.prepare(submitter.cluster_kubectl(cluster), cluster)
+    first = next(iter(specs.values()))
+    job_queue.enqueue(run_name, image, first["image"], classes, specs,
+                      stop_line=job_queue.spent() + submitter.ledger.batch_cap()[0], who=who)
+    try:
+        job_queue.wait(run_name)
+    except job_queue.Stale as stale:
+        job_queue.cancel(run_name)
+        left = {job_id: spec for job_id, spec in specs.items() if helper.state(store, run_name, job_id) != "done"}
+        submitter.say(f"{stale}: its {len(left)} jobs not done are adopted here")
+        submitter.submit(run_name, left, store, wait_scale_down=False, who=who, parallel=parallel)
 
 
 def bring_back(helper, store, run_name, specs, backs):
