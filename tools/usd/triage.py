@@ -95,7 +95,11 @@ BANDS = (0.01, 0.05, 0.2, 1.0)
 # Only a piece standing loose on the floor is dropped (settle.py's loose pieces); SAGE's rule judges no other.
 DROPPED = ("floor",)
 LOOSE = ("floor", "held", "wall", "ceiling", "hanging")  # "part": a kit piece's glowing part, judged with its host
-STATIC_GROUPS = ("Structure", "Fixtures")
+# What the scene record and the design build that things stand on or against: its structure, its fixtures and the
+# plan's shell (/<place>/Shell, earth_seed/design_shell.py: decks, walls, roofs). Without the shell camp's domes
+# read as nothing under their furniture: the settle snapped it 30 cm into their 10 cm decks onto the ground cut
+# under them and the triage judged it floating (settle@camp, 2026-11-07).
+STATIC_GROUPS = ("Structure", "Fixtures", "Shell")
 
 
 # --- reading the stage ------------------------------------------------------------------------------------------
