@@ -1,4 +1,4 @@
-"""The hooks block exactly what their rule names, let everything else through, and fail open on what they cannot read.
+r"""The hooks block exactly what their rule names, let everything else through, and fail open on what they cannot read.
 
 Every hook is driven as the harness drives it: its own script, the payload as JSON on stdin; a PreToolUse or Stop
 guard blocks with exit 2 and a reason on stderr, allows with exit 0. Each case's answer is the rule's, worked out by

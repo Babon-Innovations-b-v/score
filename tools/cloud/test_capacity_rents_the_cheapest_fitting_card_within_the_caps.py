@@ -1,4 +1,4 @@
-"""Invariant of capacity.py (with the provider interface it reads): every job kind runs on capability classes only;
+r"""Invariant of capacity.py (with the provider interface it reads): every job kind runs on capability classes only;
 the next machine is the kind's cheapest card per job that fits, a card out of stock last and a never-class never,
 spread over the zones; a batch gets enough machines to end in about its set-up and one job, never more than its jobs
 nor than the caps (each class's quota, the run's cap, SCORE_MAX_MACHINES); all the processes of one `score run` hold
