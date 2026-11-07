@@ -189,7 +189,24 @@ def make_peek(inputs, out, seed, params):
 
 
 PEEK = graph.Stage("peek", "place", make_peek, TEXT, PASSES, after={"clean": READS})
-POD_TABLE = (CLEAN, COUNT, PEEK)
+
+
+def make_kept(inputs, out, seed, params):
+    (out / "kept.txt").write_text((inputs["clean"] / "clean.txt").read_text().lower())
+    Store.default().put_blob(out / "kept.txt", file_hash(out / "kept.txt"))  # a kept take's file: a write, no read
+
+
+def designed_files(place):
+    """The brief where the home holds the place's locked plan, else a seed nothing makes: a row's files as the stage
+    table reads them from the home's designs (score/stages earth_place: an earth place's seed from its plan)."""
+    import score.store
+    plan = score.store.PROPS_HOME / "design" / "plans" / f"{place}.json"
+    return {"brief": "{data}/{place}/brief.txt"} if plan.is_file() else {"seed": "{data}/{place}/seed.txt"}
+
+
+KEPT = graph.Stage("kept", "place", make_kept, TEXT, PASSES, after={"clean": READS})
+DESIGNED = graph.Stage("designed", "place", make_clean, TEXT, PASSES, files=designed_files)
+POD_TABLE = (CLEAN, COUNT, PEEK, KEPT, DESIGNED)
 
 
 def code_tar(folder):
@@ -231,7 +248,9 @@ def without_times(record):
 def a_pod_makes_what_the_runner_makes(monkeypatch):
     """A node made in a pod (score/graph/pod.py) gives Runner.make's output and record; a blob the bucket does not
     answer for refuses the manifest and stores nothing; a tree, lock or code version not the key's refuses and the
-    node is made here; an undeclared store read is named; of two manifests for one key the first record stands."""
+    node is made here; an undeclared store read is named, a blob written (a kept take's) is none; a row whose files
+    the home's locked designs decide declares in the pod what it declares here; of two manifests for one key the first
+    record stands."""
     from score.graph import pod
     from score.store import offload
     folder = pathlib.Path(tempfile.mkdtemp())
@@ -274,6 +293,16 @@ def a_pod_makes_what_the_runner_makes(monkeypatch):
     assert "pod" not in pod.collect(runner, COUNT, "station", keyed, refused)  # made here instead
     peeked = in_a_pod(runner, PEEK, "hangar", runner.key(PEEK, "hangar"), tree, bucket_root, folder)
     assert peeked.get("undeclared") == ["records/clean@hangar/any.json"], peeked
+    plan = pathlib.Path(os.environ["PROPS_HOME"]) / "design" / "plans" / "hangar.json"
+    plan.parent.mkdir(parents=True, exist_ok=True)
+    plan.write_text("{}")
+    for stage in (KEPT, DESIGNED):
+        keyed = runner.key(stage, "hangar")
+        manifest = in_a_pod(runner, stage, "hangar", keyed, tree, bucket_root, folder)
+        assert "listing" in manifest, {name: manifest.get(name) for name in ("refused", "undeclared", "error", "broken")}
+        assert pod.collect(runner, stage, "hangar", keyed, manifest, record=False) == \
+            local.make(stage, "hangar", keyed)["output"]
+    plan.unlink()
     assert fetched_side_by_side(pod, offload, folder, bucket_root) > 1
 
 
@@ -312,7 +341,11 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     Break: score/graph/__init__.py: '"files": self.file_keys(stage, place),' -> '"files": {},'
     Break: score/graph/pod.py: '    proven(bucket or offload.bucket_now(), manifest, node)\n' -> '' (the pod's
     manifest stored without its blobs proven).
-    Break: score/graph/pod.py: 'FETCHES = 16' -> 'FETCHES = 1' (a pod's input blobs fetched one at a time)."""
+    Break: score/graph/pod.py: 'FETCHES = 16' -> 'FETCHES = 1' (a pod's input blobs fetched one at a time).
+    Break: score/graph/pod.py: 'and not offload.writing() and' -> 'and' (a kept take's new blob named an undeclared
+    read, finish-route-views@tube 2026-11-07).
+    Break: score/graph/pod.py: '"design": designs()}' -> '"design": {}}' (the pod's table, without the home's
+    designs, declares a seed nothing makes, light-layer@tube 2026-11-07)."""
     world, store = a_world({"hangar": "a ship in a hall", "station": "a hub"}), a_store()
     runner = a_runner(world, store, LOGGED)
     runner.run(PLACES)

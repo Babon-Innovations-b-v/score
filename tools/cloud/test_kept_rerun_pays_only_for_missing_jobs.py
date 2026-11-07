@@ -31,7 +31,9 @@ turns each red (applied once, seen red, reverted):
   `blobs.place_blob(sha, place)` -> a copy of the blob (no link).
 - test_an_unchanged_take_of_a_rekeyed_row_is_linked_back_not_made_again: in `call`, `if entry is not None:` -> `if
   False:`; or in score/stages/__init__.py `per_take_kept`, the `namespace[name] = lambda ...` line -> `pass` (the
-  crate's views made again).
+  crate's views made again); or in `call`, `json.dumps(record, sort_keys=True)` -> `json.dumps(record)` (a made
+  take's record keeps its own key order, a kept one's comes back sorted: the row's output bytes depend on what was
+  kept, finish-route-views@tube 2026-11-07).
 - test_the_sweep_drops_only_what_no_current_key_asks_for: in `sweep`, `if asked(entry):` -> `if True:` (nothing
   dropped); or `- held - output_blobs()` -> `- held` (a blob a stored output holds is freed).
 - test_a_job_kept_as_copies_before_the_blobs_is_put_back_and_turned_into_blobs: in `mark_of`, `if named is None or
@@ -308,7 +310,7 @@ def views_of(source, folder):
     MADE.append(pathlib.Path(source).name)
     folder.mkdir(parents=True)
     (folder / "views.npz").write_text(f"views of {pathlib.Path(source).read_text()}")
-    return {"model": pathlib.Path(source).name, "views": 3}
+    return {"views": 3, "model": pathlib.Path(source).name}  # keys unsorted, as a made record's may be
 
 
 def test_an_unchanged_take_of_a_rekeyed_row_is_linked_back_not_made_again(monkeypatch, tmp_path):
@@ -349,6 +351,8 @@ def test_an_unchanged_take_of_a_rekeyed_row_is_linked_back_not_made_again(monkey
         runner.store.listing(first["output"])["crate/views.npz"]
     assert runner.store.read_file(second["output"], "views.json")["crate"] == {"model": "crate.glb",
                                                                                   "views": 3}
+    written = json.loads((runner.store.checkout(second["output"]) / "views.json").read_text())
+    assert list(written["crate"]) == list(written["lamp"])  # a kept take's record and a made one's, the same bytes
 
 
 def test_the_sweep_drops_only_what_no_current_key_asks_for(monkeypatch, tmp_path):

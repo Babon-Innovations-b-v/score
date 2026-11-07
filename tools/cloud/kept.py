@@ -351,8 +351,11 @@ def arguments_of(value, folders, inputs):
 def call(function, arguments, output):
     """A row's per-take call: `function(*arguments)`, which makes one take into the folder `output` and gives its
     record. Kept at its content (the function, its arguments with the files they name, the row's code, this Python):
-    the same call again, at any key, gets its folder linked back in place and its record without running. Outside a
-    make, for an output outside the making folder or a record JSON cannot hold, it runs and nothing is kept."""
+    the same call again, at any key, gets its folder linked back in place and its record without running. A record
+    made now is given as a kept one is, through JSON with its keys sorted, so a row's output is the same bytes whether
+    its takes were made or kept (finish-route-views@tube made in a pod, 2026-11-07: its views.json differed from the
+    conductor's in key order alone). Outside a make, for an output outside the making folder or a record JSON cannot
+    hold, it runs and nothing is kept."""
     folder, code, output = making(), os.environ.get(CODE), pathlib.Path(output).resolve()
     if folder is None or code is None or not output.is_relative_to(folder):
         return function(*arguments)
@@ -370,10 +373,10 @@ def call(function, arguments, output):
         return entry["record"]
     record = function(*arguments)
     try:
-        text = json.dumps(record)
+        record = json.loads(json.dumps(record, sort_keys=True))  # as its mark gives it back when kept
     except TypeError:
         return record
-    written_mark(slot, content, {"record": json.loads(text), "code": code,
+    written_mark(slot, content, {"record": record, "code": code,
                                  "system": digest(python_system()), "inputs": inputs,
                                  "files": stored(files_under(output), folder)})
     return record

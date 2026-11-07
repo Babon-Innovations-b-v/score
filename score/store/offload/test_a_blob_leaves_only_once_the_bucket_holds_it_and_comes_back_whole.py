@@ -16,10 +16,13 @@ Breaks (each applied once, seen red, reverted), in score/store/offload/__init__.
 - offload.install: drop the as_a_write wrap of Store.put_blob (a new blob's write asks the bucket; a bucket that
   fails on the network fails the write: red).
 - offload.fetched: catch the bucket's error and return (a network error read as absent).
+- offload.push: `for tried in range(PUSH_TRIES):` -> `for tried in range(1):` (a put whose connection the bucket drops
+  is never sent again: a pod's large output failed to reach the bucket, surfaces-paint@tube 2026-11-07).
 """
 import json
 import os
 
+import botocore.exceptions
 import pytest
 
 from score.conductor import disk
@@ -41,6 +44,20 @@ class FailingFetch(offload.FolderBucket):
 
     def fetch(self, key, destination):
         raise ConnectionError("the bucket did not answer")
+
+
+class Dropping(offload.FolderBucket):
+    """A bucket that closes the connection on the first `drops` puts, as the store bucket did under load."""
+
+    def __init__(self, root, drops):
+        super().__init__(root)
+        self.drops = drops
+
+    def put_new(self, path, key, sha):
+        if self.drops:
+            self.drops -= 1
+            raise botocore.exceptions.ConnectionClosedError(endpoint_url=f"https://bucket/{key}")
+        return super().put_new(path, key, sha)
 
 
 def stored(store, tmp_path, name, data):
@@ -68,6 +85,14 @@ def test_a_blob_leaves_only_once_the_bucket_holds_it_and_comes_back_whole(tmp_pa
     assert offload.push(blobs / sha, sha, bucket) == "there"
     assert offload.proven(bucket, sha, (blobs / sha).stat().st_size)
     assert not offload.proven(bucket, sha, 1) and not offload.proven(bucket, outputs["lost"][1], 1)
+
+    # a put whose connection drops is sent again; one dropped every time raises the bucket's error
+    monkeypatch.setattr(offload, "PUSH_PAUSE", 0)
+    dropping = Dropping(tmp_path / "dropping", drops=3)
+    assert offload.push(blobs / sha, sha, dropping) == "sent"
+    assert offload.proven(dropping, sha, (blobs / sha).stat().st_size)
+    with pytest.raises(botocore.exceptions.ConnectionClosedError):
+        offload.push(blobs / sha, sha, Dropping(tmp_path / "dead", drops=offload.PUSH_TRIES))
 
     # a key that holds other bytes: the put is refused as there, and the answer does not prove it
     (tmp_path / "other.bin").write_bytes(b"other bytes")

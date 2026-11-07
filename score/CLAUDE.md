@@ -154,11 +154,12 @@ stage as each stage is built; nothing moves before.
   sets `git config score.movedCheck true` and calls it from his pre-push). Before `run` starts, `rebuy.py` lists every paid row it would buy with its
   estimate (a Google ask google_spend's cache answers at EUR 0) and refuses, over EUR 5 of rows that already have an
   accepted output, unless given `--rebuy-reason "<why>"`, which goes into the run's log and the cloud ledger.
-  `graph/pod.py` (FRAMEWORK, #76) makes a free node in a pod from its whole key alone: the conductor's `job_of` and
-  `pushed` (every blob it reads in the store bucket first), the pod's `python -m score.graph.pod run` (refused when its
-  tree, uv.lock, code version, models or placed files are not the key's; a store key the job does not name is
-  `Undeclared`), and the conductor's `collect` (each blob proven in the bucket before the record; refused or undeclared:
-  made here). The pod writes only blobs and its manifest. Nothing dispatches to it yet.
+  `graph/pod.py` (FRAMEWORK, #76) makes a free node in a pod from its whole key alone: the conductor's `job_of` (with
+  the home's design JSONs the table reads) and `pushed` (every blob it reads in the store bucket first), the pod's
+  `python -m score.graph.pod run` (refused when its tree, uv.lock, code version, models or placed files are not the
+  key's; a store key the job does not name is `Undeclared`, a new blob it writes is not), and the conductor's
+  `collect` (each blob proven in the bucket before the record; refused or undeclared: made here). The pod writes only
+  blobs and its manifest. Nothing dispatches to it yet.
 - **`review/`** the review page of one output from its own record (who accepted it, and how the owner rejects it);
   `accept_automatically` (the runner's; "worse than accepted" is `review.regressions`: a measure is worse only by its
   `TOLERANCES` step, the smallest change a viewer could see, one more for a count; a failing check still fails; his
