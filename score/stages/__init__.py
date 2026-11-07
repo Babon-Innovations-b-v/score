@@ -17,13 +17,18 @@ place's scene record from its plan and concept. Cast (experimental) places each 
 and its geometry. Motion (experimental) makes each place's motion layer from its design's
 moving rows. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
 """
+import concurrent.futures
+import contextlib
 import dataclasses
 import fnmatch
 import functools
 import glob
 import hashlib
 import json
+import multiprocessing
+import os
 import pathlib
+import sys
 import tempfile
 
 from score import checks, contracts, graph, review
@@ -48,7 +53,7 @@ import score.stages.props.prop_data as prop_data
 import score.stages.shapes_first.floor_fit as floor_fit
 from score.stages.terrain import fit as ground_fit
 from score.review import concepts, plans
-from score.store import PROPS_HOME, Store, tree_hash, tree_listing
+from score.store import PROPS_HOME, Store, listing_hash, tree_listing
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 
@@ -183,7 +188,7 @@ def creator_plan(files):
         if (PROPS_HOME / "design" / "concepts" / f"{place}.png").is_file():
             found = {**found, "concept": "{home}/design/concepts/{place}.png"}
         return found
-    declared.carries = remade_same
+    declared.carries, declared.ahead = remade_same, remakes_ahead
     return declared
 
 
@@ -200,21 +205,191 @@ def remade_same(runner, stage, place, keyed):
     accepted = runner.store.accepted(graph.node_name(stage, place))
     if accepted is None:
         return False
+    made = made_again(runner, stage, place, keyed)
+    if made is None:
+        return False
+    if listing_hash(made["listing"]) == accepted:
+        return True
+    if hasattr(runner, "foreseen"):
+        runner.foreseen[graph.node_name(stage, place)] = made["json"]
+    if hasattr(runner, "foreseen_listing"):
+        runner.foreseen_listing[graph.node_name(stage, place)] = made["listing"]
+    return False
+
+
+REMAKES = "remakes"  # the store's cache: remakes/<node>/<key>.json, made_again's
+FAILED = set()  # {(node, key)} whose remake failed in this process (remakes_ahead): a prediction only, not kept
+
+
+def remake_file(runner, node, key):
+    """The store's cache file holding the node's remake on `key`, or None for a store with no cache (a test's)."""
+    cache = getattr(runner.store, "cache", None)
+    return None if cache is None else pathlib.Path(cache) / REMAKES / node / f"{key}.json"
+
+
+def made_again(runner, stage, place, keyed):
+    """What the node made again on `keyed` gives: {"listing": {path: sha256}, "json": {name: its top-level JSON
+    files}, "inputs": {path: each inputs.json}}, or None when the make fails. Its record on that key answers when it
+    has one (what a make there gives); else a make in a scratch folder, kept in the store's cache by node and key (the
+    key hashes its code version, contract, params, seed, files, models and every output it reads), so one key is made
+    again once, in this run or a later one: making them again each run took `score moved` from 45 s to 10 min,
+    2026-11-07."""
+    node, key = graph.node_name(stage, place), keyed.get("key")
+    if (node, key) in FAILED:
+        return None
+    record = runner.store.record(node, key) if key and hasattr(runner.store, "record") else None
+    if record is not None:
+        listing = runner.store.listing(record["output"])
+        return {"listing": listing, "json": {name: runner.store.read_file(record["output"], name) for name in listing
+                                             if "/" not in name and name.endswith(".json")},
+                "inputs": {name: runner.store.read_file(record["output"], name) for name in listing
+                           if pathlib.PurePosixPath(name).name == "inputs.json"}}
+    kept = remake_file(runner, node, key) if key else None
+    if kept is not None and kept.is_file():
+        return json.loads(kept.read_text())
+    if ROOM() < REMAKE_PEAK:  # never started past the floor: a scope's cap killed the run (conductor, 2026-11-07)
+        print(f"rebuy: {node} not made again here: {ROOM() / 2**30:.1f} GB free past the memory floor, a remake is "
+              f"given {REMAKE_PEAK / 2**30:.0f} GB; counted as giving another output", file=sys.stderr, flush=True)
+        return None
     with tempfile.TemporaryDirectory() as folder:
         out = pathlib.Path(folder)
         try:
             stage.make(runner.input_paths(stage, place, keyed), out, keyed["seed"], keyed["params"])
+            contracts.stamp(stage.contract, out)
         except Exception:  # a prediction only: the run makes this node and says its error there
-            return False
-        contracts.stamp(stage.contract, out)
-        if tree_hash(out) == accepted:
-            return True
-        if hasattr(runner, "foreseen"):
-            runner.foreseen[graph.node_name(stage, place)] = {path.name: json.loads(path.read_text())
-                                                              for path in out.glob("*.json")}
-        if hasattr(runner, "foreseen_listing"):
-            runner.foreseen_listing[graph.node_name(stage, place)] = tree_listing(out)
-        return False
+            FAILED.add((node, key))
+            return None
+        listing = tree_listing(out)
+        made = {"listing": listing, "json": {path.name: json.loads(path.read_text()) for path in out.glob("*.json")},
+                "inputs": {name: json.loads((out / name).read_text()) for name in listing
+                           if pathlib.PurePosixPath(name).name == "inputs.json"}}
+    if kept is not None:  # written whole, then named: a reader beside it never reads half of one
+        kept.parent.mkdir(parents=True, exist_ok=True)
+        partial = kept.with_name(f"{kept.name}.{os.getpid()}.partial")
+        partial.write_text(json.dumps(made))
+        partial.replace(kept)
+    return made
+
+
+def ahead_keys(runner, stage, place):
+    """The keys rebuy may ask the node's remake on (remade_same, remade_over_foreseen, seed_kept, foreseen): over the
+    accepted output of every node it reads (each kept, as a pass keeps it), and, for a row with a `remade` hook, over
+    the outputs its accepted record read. Worked out on lent reads (runner.kept_as) and handed back; a key not asked
+    later costs only its make."""
+    node = graph.node_name(stage, place)
+    accepted = runner.store.accepted(node)
+    if accepted is None and stage.name not in FORESEEN:
+        return []
+    reads = {graph.node_name(*before): before[0].name for before in runner.read_nodes(stage, place, every=True)}
+    kept = {name: runner.store.accepted(name) for name in reads}
+    lendings = [{name: output for name, output in kept.items() if output}]
+    record = review.record_of(runner.store, node, accepted) if accepted and hasattr(stage.files, "remade") else None
+    if record:
+        lendings.append({**lendings[0], **{name: record["after"][row] for name, row in reads.items()
+                                           if row in record.get("after", {})}})
+    found = []
+    standing = dict(runner.kept_as)
+    for lent in lendings:
+        runner.kept_as.clear()
+        runner.kept_as.update(lent)
+        try:
+            found.append(runner.worked_out_key(stage, place))
+        except graph.Blocked:
+            continue
+        finally:
+            runner.kept_as.clear()
+            runner.kept_as.update(standing)
+    return [keyed for keyed in found if "remake" not in keyed]
+
+
+def remake_ahead(job):
+    """(node, key, True when its make failed) of one remake of AHEAD, in a forked process."""
+    stage, place, keyed = AHEAD[job]
+    made_again(AHEAD_RUNNER[0], stage, place, keyed)
+    node = graph.node_name(stage, place)
+    return node, keyed["key"], (node, keyed["key"]) in FAILED
+
+
+AHEAD, AHEAD_RUNNER = [], []  # remakes_ahead's jobs and runner, read by its forked processes
+REMAKE_PEAK = 2 * 2**30  # the room one remake is given (a remake's make peaked at 0.2-0.3 GB, MEMORY_FLOOR)
+
+
+def scope_room():
+    """The bytes this process's cgroup may still take, the least over each of its levels with a cap (memory.max: a
+    detached run's scope, MemoryMax), or None outside any cap."""
+    found = None
+    with contextlib.suppress(OSError, ValueError, IndexError):
+        level = CGROUPS / pathlib.Path("/proc/self/cgroup").read_text().splitlines()[0].split("::", 1)[1].lstrip("/")
+        while level != CGROUPS.parent and level.is_relative_to(CGROUPS):
+            cap = (level / "memory.max").read_text().strip() if (level / "memory.max").is_file() else "max"
+            if cap != "max":
+                room = int(cap) - int((level / "memory.current").read_text())
+                found = room if found is None else min(found, room)
+            level = level.parent
+    return found
+
+
+CGROUPS = pathlib.Path("/sys/fs/cgroup")
+
+
+def remake_room():
+    """The bytes a remake may take now: this machine's available memory less the memory floor (the drive's rule,
+    graph.memory_floor), and no more than its scope's cap leaves (scope_room)."""
+    room = graph.AVAILABLE() - graph.memory_floor()
+    scoped = scope_room()
+    return room if scoped is None else min(room, scoped)
+
+
+ROOM = remake_room  # the tests give a fake reading
+
+
+def ahead_workers(jobs):
+    """Remakes side by side for `jobs`: one a core, and only as many as fit in the room (ROOM) at REMAKE_PEAK each;
+    0 or 1 when they go one at a time (a forked copy of the run shares its pages)."""
+    return max(0, min(jobs, os.cpu_count() or 1, int(ROOM() // REMAKE_PEAK)))
+
+
+def remakes_ahead(runner, nodes):
+    """Every remake rebuy may ask of `nodes` (rows with an `ahead` hook, and FORESEEN), made side by side into the
+    store's cache before the pass asks them in order (made_again), each on the keys it may be asked on (ahead_keys).
+    Keys worked out on a scratch copy of the pass's remembered keys, so the pass works out its own as before; the files
+    and read nodes it worked out (no lent read moves them) kept. Side by side only as many as fit the memory room
+    (ahead_workers), else one at a time; a remake that would pass the floor is not started (the conductor's 10 GB scope
+    was killed twice on 2026-11-07 by remakes in this pass). A make that fails is not made again this process."""
+    if remake_file(runner, "", "") is None:
+        return
+    saved = runner.remembered
+    if saved is not None:
+        runner.remembered = dict(saved)
+    try:
+        wanted = {}
+        for stage, place in nodes:
+            if not (hasattr(stage.files, "ahead") or stage.name in FORESEEN):
+                continue
+            for keyed in ahead_keys(runner, stage, place):
+                node = graph.node_name(stage, place)
+                if runner.store.record(node, keyed["key"]) is None and \
+                        not remake_file(runner, node, keyed["key"]).is_file():
+                    wanted[node, keyed["key"]] = (stage, place, keyed)
+    finally:
+        if saved is not None:
+            saved.update({what: found for what, found in runner.remembered.items() if what[0] not in ("key", "stale")})
+            runner.remembered = saved
+    if not wanted:
+        return
+    workers = ahead_workers(len(wanted))
+    if workers < 2:  # one at a time, each started only while it fits (made_again)
+        for stage, place, keyed in wanted.values():
+            made_again(runner, stage, place, keyed)
+        return
+    AHEAD[:], AHEAD_RUNNER[:] = list(wanted.values()), [runner]
+    try:
+        with concurrent.futures.ProcessPoolExecutor(workers, mp_context=multiprocessing.get_context("fork")) as pool:
+            for node, key, failed in pool.map(remake_ahead, range(len(AHEAD))):
+                if failed:
+                    FAILED.add((node, key))
+    finally:
+        AHEAD[:], AHEAD_RUNNER[:] = [], []
 
 
 def content_kept(row):
@@ -533,7 +708,7 @@ def boxed_split(row):
         if not prop_data.designed(place):
             return found
         return {**found, floor_fit.KEPT_PLAN: "{home}/design/plans/" + f"{place}.json"}
-    declared.carries = remade_same  # its gate reads the kept plan, its rows.json none of it
+    declared.carries, declared.ahead = remade_same, remakes_ahead  # its gate reads the kept plan, rows.json none
     fit = guarded("fits the plan", floor_fit.judge_rows_fit)
     return dataclasses.replace(row, files=declared,
                                checks=tuple(fit if check.name == fit.name else check for check in row.checks))
@@ -1340,14 +1515,8 @@ def foreseen(runner, stage):
     except graph.Blocked:
         return None
     if (stage.name, keyed["key"]) not in FORESIGHTS:
-        with tempfile.TemporaryDirectory() as folder:
-            out = pathlib.Path(folder)
-            try:
-                stage.make(runner.input_paths(stage, None, keyed), out, keyed["seed"], keyed["params"])
-                contracts.stamp(stage.contract, out)
-                FORESIGHTS[stage.name, keyed["key"]] = tree_listing(out)
-            except Exception:  # a prediction only: the run makes this node and says its error there
-                FORESIGHTS[stage.name, keyed["key"]] = None
+        made = made_again(runner, stage, None, keyed)
+        FORESIGHTS[stage.name, keyed["key"]] = made and made["listing"]
     return FORESIGHTS[stage.name, keyed["key"]]
 
 
@@ -1416,19 +1585,15 @@ def seed_kept(runner, stage, place, keyed):
     SEEDS_KEPT[node, keyed["key"]] = False
     if accepted is None or "remake" in keyed:
         return False
-    with tempfile.TemporaryDirectory() as folder:
-        out = pathlib.Path(folder)
-        try:
-            stage.make(runner.input_paths(stage, place, keyed), out, keyed["seed"], keyed["params"])
-            contracts.stamp(stage.contract, out)
-        except Exception:  # a prediction only: the run makes this node and says its error there
-            return False
-        made, then = tree_listing(out), runner.store.listing(accepted)
-        stamps = {name for name in set(made) | set(then) if pathlib.PurePosixPath(name).name == "inputs.json"}
-        if set(made) != set(then) or any(made[name] != then[name] for name in set(made) - stamps):
-            return False
-        kept = all(stamp_read(json.loads((out / name).read_text())) ==
-                   stamp_read(runner.store.read_file(accepted, name)) for name in stamps)
+    remade = made_again(runner, stage, place, keyed)
+    if remade is None:
+        return False
+    made, then = remade["listing"], runner.store.listing(accepted)
+    stamps = {name for name in set(made) | set(then) if pathlib.PurePosixPath(name).name == "inputs.json"}
+    if set(made) != set(then) or any(made[name] != then[name] for name in set(made) - stamps):
+        return False
+    kept = all(stamp_read(remade["inputs"][name]) == stamp_read(runner.store.read_file(accepted, name))
+               for name in stamps)
     SEEDS_KEPT[node, keyed["key"]] = kept
     return kept
 
@@ -1462,7 +1627,7 @@ def seed_stamped(row):
     @functools.wraps(files)
     def declared(place):
         return files(place)
-    declared.carries, declared.carried = seed_kept, seed_carried
+    declared.carries, declared.carried, declared.ahead = seed_kept, seed_carried, remakes_ahead
     return dataclasses.replace(row, files=declared)
 
 
@@ -1503,7 +1668,7 @@ def remade_kept(row):
 
     def carries(runner, stage, place, keyed):
         return bool(own and own(runner, stage, place, keyed)) or remade_same(runner, stage, place, keyed)
-    declared.carries, declared.remade = carries, remade_over_foreseen
+    declared.carries, declared.remade, declared.ahead = carries, remade_over_foreseen, remakes_ahead
     return dataclasses.replace(row, files=declared)
 
 

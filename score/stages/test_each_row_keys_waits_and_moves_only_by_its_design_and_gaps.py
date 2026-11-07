@@ -55,6 +55,11 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
 - `stamp_read`: the stamp compared whole (`return found or ...`)  -> the same test (the seed remade elsewhere made
   again); its inputs' hashes dropped, or `seed_kept` comparing no layer (`any(...)` dropped)  -> the same test (a seed
   of another inventory or layer kept).
+- `made_again`: the store's cache not read (`if False and kept is not None ...`)  -> the same test (a key remade in
+  each run).
+- `ahead_workers`: the room not counted (`int(ROOM() // REMAKE_PEAK)` -> `jobs`), or `made_again` starting a remake
+  past the floor (`if ROOM() < REMAKE_PEAK` -> `if False`)  -> the same test (the capped remakes side by side, or made
+  with no room).
 - the surfaces-check row's `"stance rules"` file dropped  -> test_the_check_reads_every_input_check_step_reads.
 - `earth_seeded.declared`: the seed-read filter dropped (`return dict(found)`)  ->
   test_the_cast_crowds_from_its_plan_never_a_hand_written_record.
@@ -340,6 +345,12 @@ def code_hashed(functions):
     return version, hashed
 
 
+@pytest.fixture(autouse=True)
+def room_for_remakes(monkeypatch):
+    """Every remake here fits the memory room (stages.ROOM): no verdict hangs on this PC's free memory."""
+    monkeypatch.setattr(stages, "ROOM", lambda: 64 * 2**30)
+
+
 def code_after_editing(stage, edited):
     """A stage's code version, as the runner works it out, as if the repository file `edited` had changed (its hash
     moved; nothing written)."""
@@ -452,6 +463,44 @@ def test_terrain_s_code_version_moves_with_its_own_code_only():
                                                              ("decks", stamp(1, "/frozen", "i"), False))):
                 seed = dataclasses.replace(rows["earth-seed"], make=seed_make(layer, written), contract=TOY)
                 assert seed.files.carries(seeding, seed, "hub", {"key": f"s{number}", "seed": 0, "params": {}}) is kept
+            # A remake is kept in the store's cache by node and key: a later run asks it of the cache, never makes it
+            # again (each run made them all again: score moved 45 s -> 10 min, 2026-11-07); a failed one is not kept.
+            makes = []
+
+            def counted(inputs, out, seed, params):
+                makes.append(1)
+                seed_make("ground", stamp(2, "/home/pc", "i"))(inputs, out, seed, params)
+
+            def failing(inputs, out, seed, params):
+                raise RuntimeError("no memory")
+            with tempfile.TemporaryDirectory() as cache:
+                for run, make in enumerate((failing, counted, counted, failing)):
+                    stages.SEEDS_KEPT.clear()
+                    stages.FAILED.clear()
+                    cached = types.SimpleNamespace(store=types.SimpleNamespace(**vars(seed_store), cache=cache),
+                                                   input_paths=seeding.input_paths)
+                    seed = dataclasses.replace(rows["earth-seed"], make=make, contract=TOY)
+                    assert seed.files.carries(cached, seed, "hub", {"key": "cached", "seed": 0, "params": {}}) is \
+                        (run > 0), run
+                assert makes == [1], makes
+            # Side by side only as many remakes as fit the memory room (a scope's cap counted); a small cap makes
+            # them one at a time, every one made, none failed; none is started past the floor (the conductor's 10 GB
+            # scope was killed twice by this pass's remakes, 2026-11-07).
+            for room, workers, made in ((3 * 2**30, 1, 2), (2**30, 0, 0)):
+                makes.clear()
+                stages.FAILED.clear()
+                stages.ROOM = lambda: room
+                with tempfile.TemporaryDirectory() as cache:
+                    ahead = types.SimpleNamespace(
+                        store=types.SimpleNamespace(**vars(seed_store), cache=cache, record=lambda node, key: None),
+                        remembered=None, kept_as={}, read_nodes=lambda stage, place, every=False: [],
+                        worked_out_key=lambda stage, place: {"key": f"ahead-{place}", "seed": 0, "params": {}},
+                        input_paths=seeding.input_paths)
+                    seed = dataclasses.replace(rows["earth-seed"], make=counted, contract=TOY)
+                    assert stages.ahead_workers(2) == workers, room
+                    stages.remakes_ahead(ahead, [(seed, "hub"), (seed, "base")])
+                    assert (len(makes), stages.FAILED) == (made, set()), room
+                    assert len(list(pathlib.Path(cache).rglob("ahead-*.json"))) == made, room
         sound = rows["sound"]
         for moves, kept in (("m", True), ("m2", False)):
             runner.foreseen_listing = {"motion@hub": {"moves.json": moves, "layer.usda": "l2"}}
