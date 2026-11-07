@@ -15,6 +15,10 @@ python3 build/build.py --check  # exit 1 when a committed output is stale (also 
 - `evidence/`: copies of the run records that numbers are read from (cloud ledger, benchmark sessions, triage and resting summaries, logs), scrubbed of local paths and addresses.
 - `build/`: the build script and the check that the build is current.
 - `out/`: pandoc's standalone `.tex` and `.pdf` (citeproc, IEEE), and `stamp.json`, the hashes the check compares.
+- `motor/`: the MOTOR paper (#98), a second paper written directly in LaTeX: `main.tex`, `references.bib`, and the
+  built `main.pdf` and `main.bbl` (`tectonic -X compile main.tex`). Same class, margins and natbib style as SCORE's;
+  gap boxes are `\gapbox`, numbers still moving are `\interim`. The main body stops at `\label{endofmain}` after a
+  `\FloatBarrier`, and its page (in `main.aux`) is at most 4.
 - `arxiv/`: upload this folder as is. One `content/<section>.tex` per top-level heading, natbib with
   `unsrtnat`, and `main.bbl` because arXiv does not run BibTeX. `main.tex` compiles with pdflatex
   and with xelatex/tectonic.
