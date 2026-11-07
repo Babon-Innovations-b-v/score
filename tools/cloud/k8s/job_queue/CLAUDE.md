@@ -32,4 +32,13 @@ sends its runs through it (S6), the runner's pod makes among them (S8, `score/gr
 - **Money is per box**: each node any of the box's pods ran on counted once (its minutes at its price), to its
   removal or the autoscaler's idle tail; one ledger row a node, kind `queue-node`. At the lowest stop line of the open
   runs nothing more is assigned or made and only this box's Jobs are deleted (`score.dev/box`).
+- **Nothing one run brings stops the box's queue**: an inbox entry the queue cannot take is refused (its state over,
+  each job failed, `refused` saying why) and the tick goes on.
+- **A pending worker never waits for good**: its chain widens every tick its waiting shows the classes cannot be had;
+  a chain of processor classes alone still without a node a start window (NODE_MINUTES) after its last class gives its
+  queued jobs back as `elsewhere` and notes the classes in `unhad.json` for UNHAD_MINUTES, so `cluster_jobs.run`
+  raises `Elsewhere` and the runner sends that work to rented machines (blender_cloud runs itself again off the
+  cluster; a pod make is made here). Card work stays on the cluster.
+- **A node is booked before the queue ends**: a finished worker's pod (kept with its Job an hour) hosts nothing, and
+  the process keeps ticking while a node is unbooked.
 - Test: `test_each_job_runs_once_on_a_warm_worker_of_its_image.py`, a fake cluster and a folder job store.

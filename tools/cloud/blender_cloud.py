@@ -638,6 +638,15 @@ def serve_on_cluster(queue, classes, who, idle_minutes):
         last = time.time()
 
 
+def on_rented_machines(elsewhere):
+    """This call made again on rented machines, SCORE_CLOUD unset for it, when the cluster cannot place its processor
+    work now (cluster_jobs.Elsewhere; 2026-11-07: the big CPU classes in shortage in every Paris zone, where the cluster
+    is, in stock in nl-ams-2 and pl-waw, which the rented path reaches)."""
+    batch.say(f"{elsewhere}: on rented machines")
+    os.execve(sys.executable, [sys.executable, *sys.argv],
+              {name: value for name, value in os.environ.items() if name != "SCORE_CLOUD"})
+
+
 def main_on_cluster(options, jobs, classes):
     """main() under SCORE_CLOUD=k8s."""
     if options.dry_run:
@@ -686,7 +695,10 @@ def main():
             raise SystemExit(refused)
     classes = options.classes.split(",") if options.classes else DEFAULT_CLASSES
     if cluster:
-        main_on_cluster(options, jobs, classes)
+        try:
+            main_on_cluster(options, jobs, classes)
+        except cluster_jobs_module().Elsewhere as elsewhere:
+            on_rented_machines(elsewhere)
         return
     account = cloud.account()
     batch.sweep(account)

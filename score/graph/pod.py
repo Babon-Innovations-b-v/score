@@ -79,6 +79,10 @@ STORE_VARIABLE = "SCORE_POD_STORE_BUCKET"  # in the job: the store bucket's name
 TABLE = "score.stages:STAGES"
 QUEUE_FOLDER = score_store.PROPS_HOME / "cloud" / "queue"  # the box's queue's control files (job_queue.QUEUE)
 POD_MINUTES = 60
+# A pod make's forecast, its clearance's when the run names no ticket: a free node costs only its pod's machine time
+# (the tube rehearsal of 2026-11-07: one worker's node, three jobs and its idle tail, EUR 0.21), its deadline the high.
+POD_FORECAST = {"euros": 0.25, "minutes": None, "high_minutes": POD_MINUTES, "measured": 0}
+ARCHIVE_TIME = "2000-01-01 00:00:00 +0000"  # every file's time in the code archive (git's approxidate reads "@0" as now)
 HEADROOM = 1.25  # a pod's memory request: its stage's measured peak this many times
 POD_COMMAND = r"""set -e
 export SCORE_UV_LOCK=$(cat /opt/score/uv.lock.sha256)
@@ -282,19 +286,22 @@ def dispatches(stage):
     return eligible(stage) and dispatching()
 
 
-def code_archive(folder=None):
-    """This tree's commit as a tar (git archive: the same bytes every time for one commit, so its sha256 names the
-    workers' warm tree), written once a commit under the system's temporary folder; an older commit's goes."""
-    commit = subprocess.run(["git", "-C", str(_code.REPO), "rev-parse", "HEAD"], capture_output=True, text=True,
-                            check=True).stdout.strip()
+def code_archive(folder=None, repo=None):
+    """This tree's files as a tar: git archive of HEAD's tree at ARCHIVE_TIME, so the same files give the same bytes
+    whatever commit holds them (a commit's archive carries its id and time: each run's frozen commit sent and unpacked
+    the code again, tube rehearsal 2026-11-07), and its sha256 names the workers' warm tree; written once a tree under
+    the system's temporary folder, an older tree's goes."""
+    repo = repo or _code.REPO
+    tree = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD^{tree}"], capture_output=True, text=True,
+                          check=True).stdout.strip()
     folder = pathlib.Path(folder or tempfile.gettempdir()) / "score-pod-code"
-    tar = folder / f"{commit}.tar"
+    tar = folder / f"{tree}.tar"
     if not tar.is_file():
         folder.mkdir(parents=True, exist_ok=True)
-        partial = folder / f".{commit}.{os.getpid()}.partial"
+        partial = folder / f".{tree}.{os.getpid()}.partial"
         with open(partial, "wb") as target:
-            subprocess.run(["git", "-C", str(_code.REPO), "archive", "--format=tar", commit], stdout=target,
-                           check=True)
+            subprocess.run(["git", "-C", str(repo), "archive", "--format=tar", f"--mtime={ARCHIVE_TIME}", tree],
+                           stdout=target, check=True)
         partial.replace(tar)
         for old in folder.glob("*.tar"):
             if old != tar:
@@ -340,10 +347,14 @@ def make_remote(runner, stage, place, keyed, table=None):
     try:
         (folder / "job.json").write_text(json.dumps(job))
         try:
-            failed = door.run("runner", [remote_job(tar, folder, bucket, requests_of(runner, stage))],
-                              who=f"pod {node}", classes=pod_classes(door), image="runner")
-        except compute.Refused as refused:
+            with pod_cleared(runner, node):
+                failed = door.run("runner", [remote_job(tar, folder, bucket, requests_of(runner, stage))],
+                                  who=f"pod {node}", classes=pod_classes(door), image="runner")
+        except (compute.Refused, graph.Blocked) as refused:
             print(f"{node}: not sent to the cluster ({refused}); made here", flush=True)
+            return None
+        except door.Elsewhere as elsewhere:  # its processor classes cannot be had on the cluster now
+            print(f"{node}: {elsewhere}; made here", flush=True)
             return None
         if failed:
             print(f"{node}: its pod job did not finish; made here", flush=True)
@@ -352,6 +363,17 @@ def make_remote(runner, stage, place, keyed, table=None):
     finally:
         shutil.rmtree(folder, ignore_errors=True)
     return collect(runner, stage, place, keyed, manifest, bucket)
+
+
+def pod_cleared(runner, node):
+    """What a pod make runs under: the ticket the run names (SCORE_SPEND_TICKET), else the node's own clearance at
+    POD_FORECAST, cleared by the runner against the stop line like a paid make's (Runner.cleared; a free node got none,
+    so a run needed a run-wide ticket or its free nodes were made here, tube rehearsal 2026-11-07). Blocked in a
+    free-only run, and on this PC's free-only run nothing (its queue refuses), so the node is made here."""
+    from score.adapters import compute  # here: compute imports score.graph for its tickets
+    if os.environ.get(compute.TICKET):
+        return contextlib.nullcontext()
+    return runner.cleared(node, POD_FORECAST["euros"], lambda: dict(POD_FORECAST))
 
 
 def downstream(reads, nodes):

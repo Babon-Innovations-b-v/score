@@ -352,10 +352,15 @@ def a_pod_makes_what_the_runner_makes(monkeypatch):
     monkeypatch.setattr(pod, "TABLE", f"{__name__}:POD_TABLE")
     monkeypatch.setattr(pod, "code_archive", lambda: folder / "code.tar")
     monkeypatch.setenv(pod.CLASSES_VARIABLE, "cpu-32c-64gb")
+    monkeypatch.delenv("SCORE_SPEND_TICKET", raising=False)
+    cleared = []  # a free node with no run-wide ticket is cleared on its own, at the pod's forecast
+    monkeypatch.setattr(runner, "cleared", lambda node, euros, forecast: cleared.append((node, euros, forecast()))
+                        or contextlib.nullcontext())
     keyed = runner.key(KEPT, "station")
     made, there = runner.make(KEPT, "station", keyed), local.make_here(KEPT, "station", keyed)
     assert without_times(made) == without_times(there) and "pod" in made, made
     assert sent == [("runner", "runner", {pod.STORE_VARIABLE: "store"}, 0, ["cpu-32c-64gb"])], sent
+    assert cleared == [("kept@station", pod.POD_FORECAST["euros"], pod.POD_FORECAST)], cleared
     monkeypatch.setattr(cluster_jobs, "run", lambda *arguments, **named: [0])
     keyed = runner.key(PEEK, "station")
     assert "pod" not in runner.make(PEEK, "station", keyed) and store.record("peek@station", keyed["key"])
@@ -402,7 +407,11 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     Break: score/graph/pod.py: '"design": designs()}' -> '"design": {}}' (the pod's table, without the home's
     designs, declares a seed nothing makes, light-layer@tube 2026-11-07).
     Break: score/graph/__init__.py: '        if pod.dispatches(stage):' -> '        if False:' (Runner.make never sends
-    a pod stage's node to the cluster, #76 S8)."""
+    a pod stage's node to the cluster, #76 S8).
+    Break: score/graph/pod.py: '"HEAD^{tree}"' -> '"HEAD"' (each run's frozen commit a new code archive, tube
+    rehearsal 2026-11-07).
+    Break: score/graph/pod.py: 'if os.environ.get(compute.TICKET):' -> 'if True:' (a free node sent to a pod with
+    no clearance of its own, tube rehearsal 2026-11-07)."""
     world, store = a_world({"hangar": "a ship in a hall", "station": "a hub"}), a_store()
     runner = a_runner(world, store, LOGGED)
     runner.run(PLACES)
@@ -423,7 +432,31 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     found = a_runner(world, store, LOGGED).run(PLACES)
     assert found["clean@station"] == "made: pass" and found["count@station"] == "fresh" and MADE == ["clean"]
     assert len(store.records("clean@station")) == 2  # both finish records kept
+    one_tree_one_code_archive()  # before the pod check patches code_archive
     a_pod_makes_what_the_runner_makes(monkeypatch)
+
+
+def one_tree_one_code_archive():
+    """Two commits of one tree (each run's frozen commit) give one code archive, byte for byte, so the queue's workers
+    upload and unpack it once; a changed file gives another."""
+    from score.graph import pod
+    repo, folder = pathlib.Path(tempfile.mkdtemp()), pathlib.Path(tempfile.mkdtemp())
+    environ = {**os.environ, **GIT_ENV}
+
+    def git(*command):
+        subprocess.run(["git", "-C", str(repo), "-c", "commit.gpgsign=false", *command], check=True,
+                       capture_output=True, env=environ)
+    (repo / "made.py").write_text("print('one')\n")
+    git("init", "-q")
+    git("add", ".")
+    git("commit", "-qm", "one")
+    first = pod.code_archive(folder, repo).read_bytes()
+    environ.update(GIT_AUTHOR_DATE="2001-01-01T00:00:00Z", GIT_COMMITTER_DATE="2001-01-01T00:00:00Z")
+    git("commit", "-q", "--allow-empty", "-m", "two")
+    assert pod.code_archive(folder, repo).read_bytes() == first
+    (repo / "made.py").write_text("print('two')\n")
+    git("commit", "-qam", "three")
+    assert pod.code_archive(folder, repo).read_bytes() != first
 
 
 def test_the_shared_loop_s_wiring_keys_no_row_that_reads_one_of_its_steps():
