@@ -5,7 +5,8 @@ Each invariant with the break that turns it red (each applied once, seen red, re
 
 - every pod that mounts the store (the conductor's, each CronJob's) is required on the conductor's role and beside the
   conductor's pod on its host, sharing the node's process ids, and the volume is one ReadWriteOnce claim of class
-  sbs-5k-retain. Break: drop `"podAffinity": ...` from `beside_conductor`, or `"hostPID": True` from `pod_spec`.
+  sbs-5k-retain; each pulls the private image with the registry's Secret. Break: drop `"podAffinity": ...` from
+  `beside_conductor`, or `"hostPID": True` or `"imagePullSecrets"` from `pod_spec`.
 - the store's folders mount at the VM's paths (PROPS_HOME, the checkout's folder), so no record's path changes.
   Break: `("props", f"{HOME}/props")` in MOUNTS.
 - the agents' account may only get and port-forward to the conductor's one pod: no exec, no other pod, no other
@@ -57,6 +58,7 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
         terms = pod["affinity"]["nodeAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"]["nodeSelectorTerms"]
         assert terms[0]["matchExpressions"][0]["values"] == ["score-conductor"]
         assert pod["tolerations"] == [conductor.TOLERATION]
+        assert pod["imagePullSecrets"] == [{"name": "score-registry"}]  # the image is private (2026-11-07 rehearsal)
         assert {volume["persistentVolumeClaim"]["claimName"] for volume in pod["volumes"]
                 if "persistentVolumeClaim" in volume} == {"score-store"}
         for box in pod["containers"]:
