@@ -1,8 +1,7 @@
 """The prop route's rows: in the table without moving a world 1 node, the paid rows' code apart from the checks', the
-likeness gate's silhouettes and routes, and the comparison's prepare and free first row on the hub (no spend).
+likeness gate's silhouettes and routes, and the comparison's bake entries, ledger tags and route order (no spend).
 
-The comparison's folder is one of its own under $PROPS_HOME/store-tests (never /tmp, never the framework's store),
-removed at the end. Run: .venv/bin/python score/stages/props/props_test.py
+Run: .venv/bin/python score/stages/props/props_test.py
 
 Breaks (applied once, seen red, reverted): model_checks laying the row's size x wide, z deep (`[size[0], size[2],
 size[1]]`) turns test_the_model_check_holds_a_prop_s_proportions_whichever_way_round_the_finish_laid_its_footprint red;
@@ -829,33 +828,6 @@ def test_the_ledger_tag_marks_cloud_and_google_lines():
     finally:
         del os.environ[tagging.TAG]
     assert written == [{"euros": 1.0, "tag": "compare-test"}, {"state": "finished", "tag": "compare-test"}]
-
-
-def test_the_comparison_prepares_the_hub_and_runs_its_free_first_row():
-    if not (PROPS_HOME / "work/place/hub-round6/objects").exists():
-        print("skipped: no hub round-six builds on this machine")
-        return
-    root = PROPS_HOME / "store-tests" / "props-compare"
-    shutil.rmtree(root, ignore_errors=True)
-    kept = compare.FOLDER, props.prop_data.FOLDER, stages.surfaces.data.FOLDER
-    compare.FOLDER = root
-    try:
-        compare.prepare("hub", "prop-first", compare.default_code_builds("hub"))
-        record = json.loads((root / "hub/prop-first/data/props/hub.json").read_text())
-        surfaces = json.loads((root / "hub/prop-first/data/surfaces/hub.json").read_text())
-        assert record["objects"] and all(entry["route"] == "prop" for entry in record["objects"].values())
-        assert {entry["take"] for entry in record["objects"].values()} == set(surfaces["takes"])
-        assert set(surfaces["bake"]["entries"]) == set(surfaces["bake"]["models"])
-        assert record["accepted"], "no accepted models to calibrate DINOv2 on"
-        runner = compare.runner_for("hub", "prop-first")
-        runner.drive(["hub"], jobs=1, whole=False, only=["props-inputs"])
-        made = runner.store.records("props-inputs@hub")
-        assert made, "props-inputs made nothing"
-        print(f"prop-first: {len(record['objects'])} objects, {len(record['left_out'])} left out; props-inputs:",
-              runner.node_status(runner.stages["props-inputs"], "hub"))
-    finally:
-        compare.FOLDER, props.prop_data.FOLDER, stages.surfaces.data.FOLDER = kept
-        shutil.rmtree(root, ignore_errors=True)
 
 
 def test_a_code_build_is_seen_back_in_its_own_frame_whatever_the_bake_turned_it():

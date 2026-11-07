@@ -327,6 +327,13 @@ READS_THE_LOOP = {
     "motion": "the moving objects' baked models laid as the settle lays them: not on an adapter yet (#41's motion "
               "track)",
     "effects-layer": "the emitting objects' baked models laid as the settle lays them: not on an adapter yet (#41)",
+    "cast": "its people measured on the stage with the bakes laid as for motion (a seat carries a seated person), "
+            "lays no model",
+    "sim-body": "its cast's sim bodies on the scene's ground with the bakes laid as the cast's, lays no model",
+    "light-layer": "the place's lights measured on it as the assembly lays it (light/passes.py LAID), lays no model",
+    "light-passes": "renders of the place as the assembly lays it (light/passes.py LAID), lays no model",
+    "light": "the place's light judged on it as the assembly lays it (light/passes.py LAID), lays no model",
+    "screens": "each screen row's picture over its bake and its finishes (#88), lays no model",
 }
 # Every paid row outside the loop and what it makes: none a model, but the named exceptions MADE_OUTSIDE holds.
 MAKES_NO_MODEL = {
@@ -339,6 +346,8 @@ MAKES_NO_MODEL = {
     "scene-clips": "Kimodo clips of each walker walked along its own route on the scene's ground",
     "people-look-*": "renders of a made body (its review page)",
     "people-dress-*": "the loop's library surfaces baked onto a made body's own model, every variant (c3a5a275)",
+    "sim-body": "a cast's musculoskeletal bodies' physics: forces, moments, activations (#65)",
+    "body-peel": "a film's layer peel, rendered", "place-peel": "a film's place peel, rendered",
 }
 # Paid rows that make a model outside the loop: each a named exception its own record names.
 MADE_OUTSIDE = {

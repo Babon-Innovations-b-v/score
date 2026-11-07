@@ -302,7 +302,9 @@ def a_baked_door(bake, paint, out, models=None):
 def test_a_design_s_door_waiting_on_its_bake_stands_on_the_stage_and_swings(tmp_path, monkeypatch):
     """Fault (Batch 1, 2026-10-27, 24 places): the scene record's design objects wait on the surface line's bake, and
     the motion stage read no bake, so every moving row had no object and `designed` failed it. The door's object
-    waits in the accepted record; the bake made its model, so it stands on the stage, swings, and `designed` passes.
+    waits in the accepted record, held in its opening as the writer's record holds a door (`on`: since #72 a thing
+    nothing holds laid in a wall is parted out of it); the bake made its model, so it stands on the stage, swings, and
+    `designed` passes.
     Break: score/stages/layer_base.py: `grounded.take_bakes(inputs, folder, seed.name)` -> `pass`"""
     import score.stages.assembly.baked as baked
     monkeypatch.setattr(baked, "take_bake", a_baked_door)
@@ -310,7 +312,9 @@ def test_a_design_s_door_waiting_on_its_bake_stands_on_the_stage_and_swings(tmp_
     shutil.rmtree(inputs["seed"].parent)
     inputs["seed"] = a_seed(tmp_path, {}, [thing for thing in DESIGNED if thing[0] != "door_1"])
     door = {"name": "door_1", "row": "door", "bake": "door_1", "kind": "object", "at": [3.0, 0.0, 1.0],
-            "rotation": [0.0, 0.0, 0.0, 1.0], "waiting": "its model door_1 comes from the surface line's bake"}
+            "rotation": [0.0, 0.0, 0.0, 1.0], "waiting": "its model door_1 comes from the surface line's bake",
+            "on": {"how": "in", "middle": [3.0, 0.0, 1.0], "along": [1.0, 0.0], "wide": 0.9, "tall": 2.0,
+                   "why": "opening"}}
     (tmp_path / "record/record").mkdir(parents=True)
     (tmp_path / f"record/record/{PLACE}.json").write_text(json.dumps({"place": PLACE, "objects": [door]}))
     (tmp_path / "bake/made").mkdir(parents=True)

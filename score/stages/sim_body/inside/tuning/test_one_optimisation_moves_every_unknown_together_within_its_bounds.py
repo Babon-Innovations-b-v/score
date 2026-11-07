@@ -132,17 +132,21 @@ def test_the_unknowns_are_solved_together_and_resumed_from_the_best():
         lower, upper = tuning.bounds(ENTRIES)
         assert (result.x >= lower).all() and (result.x <= upper).all()
 
-    # seconds waited for the card are not counted against the time limit
+    # seconds waited for the card are not counted against the time limit; a wait is counted as long as it really
+    # took, as CardShares.waited counts it (a sleep's overshoot counted as own time stopped the paused run early on a
+    # loaded gate pod), and the limit is half a second of own time: the solve's own ~0.02 s with room for a loaded box,
+    # while the timed run's first iteration alone waits about 1 s (its ten evaluations), so it stops there unsolved
     waited = [0.0]
 
     def waiting(unknowns):  # every evaluation waits 0.1 s for its card share
+        began = time.monotonic()
         time.sleep(0.1)
-        waited[0] += 0.1
+        waited[0] += time.monotonic() - began
         return coupling @ (unknowns - target)
     with tempfile.TemporaryDirectory() as folder:
-        paused = tuning.solved(waiting, ENTRIES, pattern, pathlib.Path(folder) / "a.jsonl", 0.09,
+        paused = tuning.solved(waiting, ENTRIES, pattern, pathlib.Path(folder) / "a.jsonl", 0.5,
                                start=np.zeros(len(ENTRIES)), paused=lambda: waited[0])
-        timed = tuning.solved(waiting, ENTRIES, pattern, pathlib.Path(folder) / "b.jsonl", 0.09,
+        timed = tuning.solved(waiting, ENTRIES, pattern, pathlib.Path(folder) / "b.jsonl", 0.5,
                               start=np.zeros(len(ENTRIES)))
     assert np.allclose(paused.x, target, atol=1e-3)  # solved: its waits were no time of its own
     assert timed.nfev < paused.nfev and not np.allclose(timed.x, target, atol=1e-3)  # stopped by the waits

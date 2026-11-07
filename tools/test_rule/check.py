@@ -55,7 +55,7 @@ ALLOWLIST_COUNT_DATE = "2026-11-07"
 ALLOWLIST = {
     "tools/usd/*": (21, 144),
     "score/stages/complete/*": (10, 97),
-    "score/stages/props/*": (4, 56),
+    "score/stages/props/*": (4, 55),
     "score/stages/settling/*": (1, 17),
     "score/stages/physics/*": (1, 12),
     "*prepare*": (1, 32),
