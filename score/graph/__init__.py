@@ -1069,6 +1069,7 @@ class Runner:
         self.remembered = None  # inside `still`: {(what, node): its value or its Blocked}
         self.kept_as = {}  # rebuy.buys only: {node: its accepted output} the drive keeps, re-keyed (rebuy.KEPT)
         self.foreseen = {}  # rebuy.buys only: {node: {file: JSON}} of a free node's remake in a scratch folder
+        self.foreseen_listing = {}  # rebuy.buys only: {node: {path: sha256}} of that remake, for a part reader
         self.driving = None  # (nodes running, monotonic time) at the end of drive's last pass: score run's watchdog
         self.began = {}  # {node: epoch seconds its process started} (start): score run's pool forecast (row_due)
         self.objects = None  # the object filter (`score run --object`): the names a selecting stage keeps, or None

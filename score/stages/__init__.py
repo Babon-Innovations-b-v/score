@@ -212,6 +212,8 @@ def remade_same(runner, stage, place, keyed):
         if hasattr(runner, "foreseen"):
             runner.foreseen[graph.node_name(stage, place)] = {path.name: json.loads(path.read_text())
                                                               for path in out.glob("*.json")}
+        if hasattr(runner, "foreseen_listing"):
+            runner.foreseen_listing[graph.node_name(stage, place)] = tree_listing(out)
         return False
 
 
@@ -1350,16 +1352,18 @@ def foreseen(runner, stage):
 
 
 def part_foreseen(runner, stage, place, before):
-    """True when the earlier node `before` (an environment row of FORESEEN), made again now, holds the part of it the
-    node's accepted output read when it was made: rebuy then counts the read as not moving it."""
+    """True when the earlier node `before` (an environment row of FORESEEN, or a place row remade this pass in a
+    scratch folder otherwise than its accepted output: remade_same), made again now, holds the part of it the node's
+    accepted output read when it was made: rebuy then counts the read as not moving it."""
     row = before.partition("@")[0]
-    if row not in FORESEEN or row not in READ_PARTS.get(stage.name, {}) or "@" in before:
+    placed = before in getattr(runner, "foreseen_listing", {})  # a place row's remake (remade_same), this pass
+    if row not in READ_PARTS.get(stage.name, {}) or not (placed or (row in FORESEEN and "@" not in before)):
         return False
     node = graph.node_name(stage, place)
     accepted = runner.store.accepted(node)
     record = review.record_of(runner.store, node, accepted) if accepted else None
     then = (record or {}).get("after", {}).get(row)
-    listing = foreseen(runner, runner.stages[row]) if then else None
+    listing = (runner.foreseen_listing[before] if placed else foreseen(runner, runner.stages[row])) if then else None
     return listing is not None and part_moved(runner.store, stage.name, place, row, then, listing) is None
 
 
@@ -1378,6 +1382,132 @@ def part_read(row):
 
 
 STAGES = tuple(map(part_read, STAGES))
+
+
+# Free rows rebuy makes again in a scratch folder when their key moves (remade_same; remade_over_foreseen when a read
+# they hold the same part of is not made yet): one made the same keeps its readers' keys, the drive making it free to
+# that output. 0fcfc2b2's "Shell" in tools/usd/triage.py moved the code of every row importing it, and terrain moved at
+# every place; the earth seeds, scene records, light layers, motions and the surface line's parts were counted as
+# giving another output, so every place's light passes (x26, EUR 52), sound (x26, EUR 26) and bakes (x23, EUR 46) were
+# listed again (883d65f2, 2026-11-07). One made otherwise is kept as foreseen (runner.foreseen_listing), so a reader
+# of a part of it (the sound: motion's moves.json) keeps where that part reads the same (part_foreseen).
+REMADE_SAME = ("scene-record", "light-layer", "motion", "surfaces-parts")
+SEEDS_KEPT = {}  # {(node, key): True when earth-seed made again there gives its accepted output but for its stamp}
+
+
+def stamp_read(found):
+    """A seed's inputs.json (tools/usd/stage_inputs.record_inputs) as what it records, not when or where: its
+    inventory's and inputs' file names with their hashes, and each model's hash. Its `at`, the home its paths sit in
+    and the models' files and times differ on every make, on every machine."""
+    return {"inventory": pathlib.PurePath(found.get("inventory") or "").name,
+            "inputs": sorted((pathlib.PurePath(path).name, sha) for path, sha in found.get("inputs", {}).items()),
+            "models": {model: entry.get("sha256") for model, entry in found.get("models", {}).items()}}
+
+
+def seed_kept(runner, stage, place, keyed):
+    """True when the earth seed, made again on `keyed` in a scratch folder, gives its accepted output file for file
+    but for its inputs.json's stamp of when and where (stamp_read): every remake differs there, so without this a seed
+    whose code moved (fcc59e40's design shell) moved every scene record, light layer, motion and light pass after it,
+    at every place (883d65f2). A seed whose layers or what its stamp records differ is made again. Once a key."""
+    node = graph.node_name(stage, place)
+    if (node, keyed["key"]) in SEEDS_KEPT:
+        return SEEDS_KEPT[node, keyed["key"]]
+    accepted = runner.store.accepted(node)
+    SEEDS_KEPT[node, keyed["key"]] = False
+    if accepted is None or "remake" in keyed:
+        return False
+    with tempfile.TemporaryDirectory() as folder:
+        out = pathlib.Path(folder)
+        try:
+            stage.make(runner.input_paths(stage, place, keyed), out, keyed["seed"], keyed["params"])
+            contracts.stamp(stage.contract, out)
+        except Exception:  # a prediction only: the run makes this node and says its error there
+            return False
+        made, then = tree_listing(out), runner.store.listing(accepted)
+        stamps = {name for name in set(made) | set(then) if pathlib.PurePosixPath(name).name == "inputs.json"}
+        if set(made) != set(then) or any(made[name] != then[name] for name in set(made) - stamps):
+            return False
+        kept = all(stamp_read(json.loads((out / name).read_text())) ==
+                   stamp_read(runner.store.read_file(accepted, name)) for name in stamps)
+    SEEDS_KEPT[node, keyed["key"]] = kept
+    return kept
+
+
+def seed_carried(runner, stage, place, keyed):
+    """The seed's accepted output stored under `keyed` when made again it gives that output but for its stamp
+    (seed_kept): its record and judgements copied, the carry named. Its new record, or None (the runner makes it)."""
+    if not seed_kept(runner, stage, place, keyed):
+        return None
+    node = graph.node_name(stage, place)
+    record = review.record_of(runner.store, node, runner.store.accepted(node))
+    new = {**record, **{part: keyed[part] for part in keyed if part != "remake"},
+           "output": record["output"], "carried": {"reason": "made again the same but for inputs.json's stamp",
+                                                   "from key": record["key"], "to key": keyed["key"],
+                                                   "made by": graph.made_by(record)}}
+    try:
+        runner.store.write_record(node, keyed["key"], new)
+    except FileExistsError:  # another run kept it first
+        return runner.store.record(node, keyed["key"])
+    carry.copy_judgements(runner, node, record, keyed, new["carried"])
+    return new
+
+
+def seed_stamped(row):
+    """earth-seed keeping its accepted output when made again the same but for its stamp (seed_kept, seed_carried).
+    Set here, in the table, so no row's code version moves."""
+    if row.name != "earth-seed":
+        return row
+    files = row.files
+
+    @functools.wraps(files)
+    def declared(place):
+        return files(place)
+    declared.carries, declared.carried = seed_kept, seed_carried
+    return dataclasses.replace(row, files=declared)
+
+
+def remade_over_foreseen(runner, stage, place, foreseen):
+    """True when the row, made again in a scratch folder over the outputs its accepted record read of `foreseen`
+    (earlier nodes a drive makes again, each foreseen to hold the part this row reads as then: part_foreseen), gives
+    its accepted output (remade_same): rebuy then keeps it, as the drive makes it, free, to that output."""
+    node = graph.node_name(stage, place)
+    accepted = runner.store.accepted(node)
+    record = review.record_of(runner.store, node, accepted) if accepted else None
+    then = {before: (record or {}).get("after", {}).get(before.partition("@")[0]) for before in foreseen}
+    if None in then.values():
+        return False
+    standing = dict(runner.kept_as)
+    runner.kept_as.update(then)
+    try:
+        keyed = runner.worked_out_key(stage, place)  # not runner.key: a still pass remembers keys, this one is lent
+    except graph.Blocked:
+        return False
+    finally:
+        runner.kept_as.clear()
+        runner.kept_as.update(standing)
+    return remade_same(runner, stage, place, keyed)
+
+
+def remade_kept(row):
+    """A row of REMADE_SAME keeping its readers' keys when made again to its accepted output (remade_same, and
+    remade_over_foreseen while a read it holds the same part of is not made yet), beside its own carries. Set here, in
+    the table, so no row's code version moves."""
+    if row.name not in REMADE_SAME:
+        return row
+    files = row.files if callable(row.files) else (lambda place: row.files)
+    own = getattr(files, "carries", None)
+
+    @functools.wraps(files)  # its carried and foreseen hooks come along
+    def declared(place):
+        return files(place)
+
+    def carries(runner, stage, place, keyed):
+        return bool(own and own(runner, stage, place, keyed)) or remade_same(runner, stage, place, keyed)
+    declared.carries, declared.remade = carries, remade_over_foreseen
+    return dataclasses.replace(row, files=declared)
+
+
+STAGES = tuple(map(seed_stamped, map(remade_kept, STAGES)))
 
 
 def pixal_takes_tool():
