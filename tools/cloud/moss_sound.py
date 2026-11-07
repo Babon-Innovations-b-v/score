@@ -179,18 +179,22 @@ def record(run, machines, started, out, made):
 
 
 # The Kubernetes path (SCORE_CLOUD=k8s): each share a Kubernetes Job of the moss image (tools/cloud/images/moss/, its
-# moss-run wrapper runs moss_generate.py from the job's code with MOSS and CLAP from the node cache), through
+# run.sh runs moss_generate.py from the job's code with MOSS and CLAP from the node cache), through
 # tools/cloud/k8s/cluster_jobs.py; the takes come back into the picker's cache as the machines' do.
 CLUSTER_SHARES = 8
 CLUSTER_MODELS = ["moss-soundeffect-v2", "clap-larger-general"]
+# The repo's run.sh, sent with the code (as score/stages/sound/takes.py sends it): the image's own moss-run names the
+# path moss_generate.py had when it was built (tools/props/cloud), so the job failed with "can't open file" (exit 2;
+# the cluster rehearsal of #76, 2026-11-07).
+RUN_SCRIPT = "tools/cloud/images/moss/run.sh"
 
 
 def cluster_job(number, jobs, share_file, out):
     """One share as the cluster runs it: its jobs file (written to `share_file` here) up, its takes back into
     `out`."""
     share_file.write_text(json.dumps(jobs))
-    return {"command": ["moss-run", f"{REMOTE}/jobs-{number}.json", str(number)],
-            "code": ["tools/cloud/moss_generate.py"], "models": CLUSTER_MODELS,
+    return {"command": ["bash", f"/work/repo/{RUN_SCRIPT}", f"{REMOTE}/jobs-{number}.json", str(number)],
+            "code": ["tools/cloud/moss_generate.py", RUN_SCRIPT], "models": CLUSTER_MODELS,
             "inputs": [{"local": str(share_file), "path": f"{REMOTE}/jobs-{number}.json"}],
             "outputs": [{"path": f"{REMOTE}/out", "local": str(out)}],
             "minutes": max(15.0, SETUP_MINUTES + MINUTES_A_CLIP * len(jobs) * 2)}
