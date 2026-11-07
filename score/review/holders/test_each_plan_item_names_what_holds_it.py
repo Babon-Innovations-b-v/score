@@ -645,7 +645,25 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     Break: score/review/holders/__init__.py: `apart_on_walls(found, rows, plan)` -> `pass`
     Break: score/review/holders/__init__.py: `if (spot := slid_clear(context, row, plan, height, laid)) is not None:`
         -> `if False:`
-    Break: score/review/holders/__init__.py: `if height <= 0.0:` -> `if False:`"""
+    Break: score/review/holders/__init__.py: `if height <= 0.0:` -> `if False:`
+    2026-11-07 (laid-as-designed@cockpit, @habitat, @workshop, @stairwell): a wall thing is parted at the size it is
+    made at (prepare's groups.made_size: a run read round the room's walls one piece of it; a rug keeps its reading's);
+    four 3 m pipes 'upper walls' on a 3.5 by 2 m room's south wall, which holds two (its band 2.2 to 2.6 m), put the
+    other two on the north wall's run of two 1.75 m walls, each on a 3 m stretch of it (habitat's 18 pipes, three on
+    its nearest 3.9 m wall); a tunnel keeps its stretch of wall, a monitor drawn on it before it slid off (workshop's
+    monitors packed into its glass tunnel's chord); a 12 m tall conduit the plan stands 12 m up an 11.8 m wall stands
+    on the floor (the stairwell's at 12 and 24 m); a 3 m board after two lamps on the only two walls it fits, with no
+    room left on either, is laid first and the lamps part round it (the stairwell's 12 m tall conduits after its lamps).
+    Break: score/review/holders/__init__.py: `made = groups.made_size(row, rows, plan, laid, box) if wall_held(row,
+        by_id) else None` -> `made = None`
+    Break: score/review/holders/__init__.py: `elif (moved := walled_clear(context, row, plan, height, boxes)) is not
+        None:` -> `elif False:`
+    Break: score/review/holders/__init__.py: `for chord in run_chords(plan, long)]` -> `for chord in []]`
+    Break: score/review/holders/__init__.py: `for entry in sorted(order, key=lambda entry: not
+        passage(rows[entry["row"]])):` -> `for entry in order:`
+    Break: score/review/holders/__init__.py: `top = max(wall_top(wall, plan) - tall, 0.0)` -> `top = wall_top(wall,
+        plan) - tall`
+    Break: score/review/holders/__init__.py: `first += stuck` -> `return`"""
     rows = [{"id": "left_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
             {"id": "string_lights", "noun": "lights", "anchor": "on:left_wall", "size": [3.0, 0.05, 0.05]},
             {"id": "wall_light", "noun": "light", "anchor": "on:left_wall", "size": [1.0, 0.1, 0.1]}]
@@ -744,6 +762,69 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     assert [(ducts[f"DUCT {number}"]["spot"], ducts[f"DUCT {number}"].get("height")) for number in (0, 1, 2)] == [
         ([5.0, 0.3], None), ([13.05, 0.0], None), ([13.0, 0.3], 2.25)], ducts
     assert holders.wall_band(rows[0], 0.0, 0.2, ROOM_WALLS[0], plan) == (0.0, 0.0)
+
+    def clear(found, rows, plan):  # no two wall things' built boxes meet by more than WALL_TOUCH
+        by_id, boxes = {row["id"]: row for row in rows}, []
+        for entry in found["relations"]:
+            for piece in entry.get("pieces") or [entry]:
+                if piece.get("how") == "wall":
+                    boxes.append(holders.relation_box({**entry, **piece}, by_id[entry["row"]], plan))
+        return all(holders.boxes_meet(box, other) <= holders.WALL_TOUCH for number, box in enumerate(boxes)
+                   for other in boxes[number + 1:])
+    rows = [{"id": "hull", "noun": "hull", "part": "wall", "anchor": "floor"},
+            {"id": "red_pipes", "noun": "pipes", "anchor": "on:hull", "size": [20.0, 12.0, 0.2], "count": 4},
+            {"id": "rug", "noun": "rug", "anchor": "floor", "size": [20.0, 12.0, 0.2]}]
+    plan = plan_of([[f"RED PIPES {number}", 0.0, 0.0, 20.0, 12.0, None, "item"] for number in (1, 2)],
+                   {f"RED PIPES {number}": ["red_pipes"] for number in (1, 2)}, walls=ROOM_WALLS)
+    built = {row["id"]: row["size"] for row in holders.built_rows(rows, plan, {"rows": rows, "picture": PICTURE})
+             if "size" in row}
+    assert built == {"red_pipes": [16.0, 0.2, 0.2], "rug": [20.0, 12.0, 0.2]}, built  # the run's made piece, on a wall
+    box = [{"from": [0.0, 0.0], "to": [3.5, 0.0], "thick": 0.1, "tall": 2.8},
+           {"from": [3.5, 0.0], "to": [3.5, 2.0], "thick": 0.1, "tall": 2.8},
+           {"from": [3.5, 2.0], "to": [1.75, 2.0], "thick": 0.1, "tall": 2.8},
+           {"from": [1.75, 2.0], "to": [0.0, 2.0], "thick": 0.1, "tall": 2.8},
+           {"from": [0.0, 2.0], "to": [0.0, 0.0], "thick": 0.1, "tall": 2.8}]
+    rows = [{"id": "pipe", "noun": "pipe", "anchor": "wall", "where": "upper walls", "size": [3.0, 0.2, 0.2]}]
+    plan = plan_of([[f"PIPE {number}", 0.15 + 0.1 * number, 0.1, 3.0, 0.2, None, "item"] for number in (1, 2, 3, 4)],
+                   {f"PIPE {number}": ["pipe"] for number in (1, 2, 3, 4)}, walls=box, w=3.5, d=2.0,
+                   outline=[[0.0, 0.0], [3.5, 0.0], [3.5, 2.0], [0.0, 2.0]],
+                   shapes={f"PIPE {number}": {"base": 2.6} for number in (1, 2, 3, 4)})
+    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
+    pipes = by_item_of(found)
+    assert [pipes[f"PIPE {number}"].get("height") for number in (1, 2, 3, 4)] == [None, 2.35, None, 2.35], pipes
+    for number in (3, 4):  # the south wall full at both heights its band holds: on the north run of two walls
+        pipe = pipes[f"PIPE {number}"]
+        assert pipe["wall"]["from"][1] == pipe["wall"]["to"][1] == pipe["spot"][1] == 2.0 and pipe["side"] == 1, pipe
+        assert abs(holders.wall_length(pipe["wall"]) - 3.0) < 1e-3 and "nearest wall with room" in pipe["why"], pipe
+    assert clear(found, rows, plan), found
+    rows = [{"id": "glass_tunnel", "noun": "tunnel", "anchor": "wall", "size": [5.0, 3.0, 3.0]},
+            {"id": "monitor", "noun": "monitor", "anchor": "wall", "size": [0.4, 0.1, 0.3]}]
+    plan = plan_of([["MONITOR 1", 9.8, 0.1, 0.4, 0.1, None, "item"],
+                    ["GLASS TUNNEL 1", 7.5, 0.0, 5.0, 0.5, None, "item"]],
+                   {"MONITOR 1": ["monitor"], "GLASS TUNNEL 1": ["glass_tunnel"]}, walls=ROOM_WALLS)
+    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
+    laid = by_item_of(found)
+    assert laid["GLASS TUNNEL 1"]["spot"] == [10.0, 0.25] and "slid" in laid["MONITOR 1"]["why"], laid  # its own wall
+    assert clear(found, rows, plan), found
+    rows = [{"id": "conduit", "noun": "conduit", "anchor": "wall", "size": [3.0, 0.1, 12.0]}]
+    tall = [{**wall, "tall": 11.8} for wall in ROOM_WALLS]
+    plan = plan_of([["CONDUIT 1", 8.0, 0.1, 3.0, 0.1, None, "item"]], {"CONDUIT 1": ["conduit"]}, walls=tall,
+                   shapes={"CONDUIT 1": {"base": 12.0}})
+    assert by_item_of(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["CONDUIT 1"]["height"] == 0.0
+    rows = [{"id": "wall_lamp", "noun": "lamp", "anchor": "wall", "size": [0.2, 0.1, 0.3]},
+            {"id": "notice_board", "noun": "board", "anchor": "wall", "size": [3.0, 0.1, 2.9]}]
+    narrow = [{"from": [0.0, 0.0], "to": [3.2, 0.0], "thick": 0.1, "tall": 3.0},
+              {"from": [3.2, 0.0], "to": [3.2, 1.0], "thick": 0.1, "tall": 3.0},
+              {"from": [3.2, 1.0], "to": [0.0, 1.0], "thick": 0.1, "tall": 3.0},
+              {"from": [0.0, 1.0], "to": [0.0, 0.0], "thick": 0.1, "tall": 3.0}]
+    plan = plan_of([["LAMP 1", 1.5, 0.0, 0.2, 0.1, None, "item"], ["LAMP 2", 1.5, 0.9, 0.2, 0.1, None, "item"],
+                    ["BOARD 1", 0.1, 0.0, 3.0, 0.1, None, "item"]],
+                   {"LAMP 1": ["wall_lamp"], "LAMP 2": ["wall_lamp"], "BOARD 1": ["notice_board"]}, walls=narrow,
+                   w=3.2, d=1.0, outline=[[0.0, 0.0], [3.2, 0.0], [3.2, 1.0], [0.0, 1.0]])
+    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
+    laid = by_item_of(found)
+    assert laid["BOARD 1"]["spot"] == [1.6, 0.05] and laid["LAMP 1"]["wall"]["to"] == [0.0, 1.0], laid
+    assert clear(found, rows, plan), found  # the board, stuck behind the lamps, laid first: the lamps part round it
     rows = [{"id": "front_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
             {"id": "shop_door", "noun": "door", "anchor": "on:front_wall", "size": [1.0, 0.1, 2.1]}]
     plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"],

@@ -829,6 +829,10 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     passes, and so does a chord over two walls meeting 20 degrees apart (a round wall's facets).
     Break: score/stages/scene_record/gates.py: `if at[0] != at[1]:` -> `if False:`
     Break: score/review/holders/__init__.py: `if turn > ROUND_BEND:` -> `if False:` (the chord over facets fails)
+    2026-11-07 (laid-as-designed@habitat): a chord over its facets round a closed room passes too, its far end placed
+    where its face runs on from its near one, never on the chain's other pass round the room.
+    Break: score/stages/scene_record/gates.py: `holders.chain_along(chain, ends[1], near=first)` ->
+        `holders.chain_along(chain, ends[1])`
     2026-11-06 (the square's lantern strings 6 m over its plaza): a thing hung between holders (holders' `hung`)
     passes while both of them stand as high as it hangs, and fails hung over the top of one; a floor relation's
     `height` (holders.stood_under: the square's stage screen stood at its deck's 3.3 m behind it) is where the
@@ -940,6 +944,11 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     assert gates.bent_faults([on_wall("flat_1", (0.1, 2.0), (0.1, 6.0)), on_wall("chord_1", (12.0, 19.9), (18.0, 21.0)),
                               on_wall("bent_1", (0.1, 4.0), (4.0, 0.1))], walled) == [
         "bent_1 is laid round a corner of its walls, its ends on two of their straight runs"]
+    ring = [[0.0, 2.757], [2.757, 0.0], [6.829, 0.0], [9.823, 2.994], [9.823, 6.592], [7.906, 9.101], [4.308, 9.823],
+            [2.757, 9.101], [1.325, 7.669], [0.0, 5.989]]  # habitat's walls round its room, 2026-11-07
+    ringed = {**design, "walls": [{"from": start, "to": end, "thick": 0.2}
+                                  for start, end in zip(ring, ring[1:] + ring[:1])]}
+    assert gates.bent_faults([on_wall("pipe_8", (3.285, 9.056), (1.043, 7.062))], ringed) == []  # its facets' chord
     strung = {"relations": [{"item": "CRATE 3", "row": "crate", "how": "hung", "holders": ["MODULE 1", "CRATE 4"],
                               "why": "hung between them"}, {"item": "CRATE 4", "row": "crate", "how": "floor",
                                                            "why": "on the place's floor"}]}

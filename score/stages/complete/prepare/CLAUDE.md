@@ -6,7 +6,10 @@ the one figure the creator says yes to. Today it prepares the environment's rema
 
 - **Free, local, never a row.** Reads the scene inventory readings, the library's index (read only: score never imports the
   library), `data/costs/per-unit.json`, the cloud ledgers and the store; nothing in the stage table imports it, so no
-  key moves. No Blender, nothing rented, judged or bought; the models it makes are flat sheets' and thin straight
+  key moves, but for `groups.py` (and `contract.py`, the package's `__init__.py`): the holders (score/review/holders
+  `built_rows`) lay a wall thing at `groups.made_size`, the size prepare makes it at, so an edit there re-keys the
+  scene record and every row after it (check `python -m score moved` before pushing).
+  No Blender, nothing rented, judged or bought; the models it makes are flat sheets' and thin straight
   rows' code builds, in a temporary folder, to predict them (below). `--stock` is the provider's free listing; `--moved` is
   `score moved`'s dry run (minutes).
 - **The rows are the scene inventory readings** (owner, 2026-10-21; `groups.current`): each place's and outside

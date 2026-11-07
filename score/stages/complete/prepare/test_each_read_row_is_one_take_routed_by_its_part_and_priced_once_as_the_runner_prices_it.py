@@ -33,7 +33,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   sizes it, 2026-10-29) -> test_a_take_is_sized_by_its_reading_and_routed_...
 - groups.one_each: the floor's fit dropped (the stairwell's 12 m conduit kept whole on its 7.42 m floor, failing
   `fits the plan`) -> test_a_take_is_sized_by_its_reading_and_routed_...
-- groups.sized_rows: `walled or ` dropped from "size", or groups.round_walls' `row.get("part") in KITS or ` dropped (a
+- groups.made_size: `walls_piece(row, rows, plan, pieces or row.get("count") or 1) or ` dropped (sized_rows'
+  "size" and the holders' wall things, 2026-11-07), or groups.round_walls' `row.get("part") in KITS or ` dropped (a
   ceiling hung off its walls cut to a strip), or its `abs(side - wall) <= thick` -> `True` (2026-11-06: the cockpit's
   five red pipes read at its room's 9.414 by 9.8 m footprint, each made that long on its 8.94 m wall), or
   groups.walls_piece's `max(lengths)` -> `math.inf` -> test_a_take_is_sized_by_its_reading_and_routed_...
@@ -547,6 +548,8 @@ def test_a_take_is_sized_by_its_reading_and_routed_by_its_part():
         sized = {row["id"]: row for row in groups.sized_rows(None, "cockpit", {
             "place": "cockpit", "concept": "c" * 64, "inventory": {"rows": room}})}
     assert sized["red_pipes"]["size"] == sized["red_pipes"]["read_size"] == [0.2, 7.686, 0.2], sized["red_pipes"]
+    assert groups.made_size(room[1], room, cockpit, groups.plan_sizes_of(cockpit, room)) == [0.2, 7.686, 0.2]
+    assert groups.made_size(conduit, [conduit], conduits, groups.plan_sizes_of(conduits, [conduit])) == [3.0, 0.1, 12.0]
     assert [sized[row]["size"] for row in ("ceiling_panels", "rug")] == [[9.414, 9.8, 0.1], [9.414, 9.8, 0.02]]
     engineroom = {"w": 9.328, "d": 10.9, "walls": [{"from": [0, 0], "to": [7.347, 0]}, {"from": [7.347, 0],
                                                                                         "to": [7.347, 2.0]}]}

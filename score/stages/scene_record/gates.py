@@ -496,8 +496,9 @@ def bent_faults(objects, design):
         wall = min(walls, key=lambda wall: holders.off_line(ends[0], wall)[0])
         chain = holders.chain_of(wall, walls, holders.CORNER_BEND)
         runs = holders.straight_runs(chain)
-        at = [next(number for number, (low, high) in enumerate(runs) if holders.chain_along(chain, spot) <= high + 1e-9)
-              for spot in ends]
+        first = holders.chain_along(chain, ends[0])  # the far end where the face runs on from it, never a ring's
+        at = [next(number for number, (low, high) in enumerate(runs) if along <= high + 1e-9)  # other pass
+              for along in (first, holders.chain_along(chain, ends[1], near=first))]
         if at[0] != at[1]:
             found.append(f"{entry['name']} is laid round a corner of its walls, its ends on two of their straight runs")
     return found
