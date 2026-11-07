@@ -452,6 +452,8 @@ def widths(extra):
 
 
 if __name__ == "__main__":
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[5] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, test in list(globals().items()):
         if name.startswith("test_"):
             test()
