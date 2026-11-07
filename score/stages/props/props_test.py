@@ -22,7 +22,9 @@ test_a_rejected_close_up_is_retried_strictly_at_its_own_size_and_a_kept_picture_
 reuse_row's `if today == then` made `if True`, or draw_missing's `reused_pictures(...)` dropped, turns
 test_a_take_the_cache_misses_is_read_back_from_the_accepted_output_only_for_the_same_request red; unbaked's
 `hold[:3, :3] = ...` made `pass` (the bake's turn kept) turns
-test_a_code_build_is_seen_back_in_its_own_frame_whatever_the_bake_turned_it red.
+test_a_code_build_is_seen_back_in_its_own_frame_whatever_the_bake_turned_it red; pixal_cut held to its largest
+piece (`bridged` returning its last line at once), or `bridged` closing pieces at any gap (its `== 1` test dropped),
+turns test_a_prop_close_up_is_pixal3d_s_cut_one_piece_and_filled red.
 """
 import contextlib
 import importlib.util
@@ -439,7 +441,9 @@ def test_a_close_up_s_shaded_backdrop_is_not_its_object():
 
 def test_a_prop_close_up_is_pixal3d_s_cut_one_piece_and_filled():
     """The galley's fold-down seat: white cushions on a white backdrop, which the colour cut lost; Pixal3D's own cut
-    keeps them. Its frame's holes are filled and a stray speck dropped, as every other cut."""
+    keeps them. Its frame's holes are filled and a stray speck dropped, as every other cut; an object of pieces lying
+    close is one (campgrounds' stone ring, held by its largest arc alone at 0.469, 2026-11-07), pieces far apart are
+    not."""
     from PIL import Image
     pixels = np.full((60, 80, 4), 240, dtype=np.uint8)
     pixels[..., 3] = 0
@@ -450,6 +454,19 @@ def test_a_prop_close_up_is_pixal3d_s_cut_one_piece_and_filled():
     Image.fromarray(pixels).save(folder / "input.png")
     found = likeness.closeup_object(likeness_row.pixal_cut(folder / "input.png", folder / "cut", "seat"))
     assert int(found.sum()) == 40 * 40, found.sum()
+    # campgrounds' stone ring: two arcs of stones 2 px apart are one ring, its inside filled; two posts 40 px apart
+    # (a panel's tools hung apart) stay apart, held to the larger, never one slab
+    down, across = np.mgrid[:200, :200]
+    off = np.hypot(down - 100, across - 100)
+    ring = (off > 60) & (off < 80) & (np.abs(down - 100) > 1)
+    posts = np.zeros((200, 200), dtype=bool)
+    posts[20:180, 40:60], posts[20:170, 100:120] = True, True
+    for name, alpha, expected in (("ring", ring, off < 80), ("posts", posts, posts & (across < 80))):
+        pixels = np.zeros((200, 200, 4), dtype=np.uint8)
+        pixels[..., 3] = np.where(alpha, 255, 0)
+        Image.fromarray(pixels).save(folder / "input.png")
+        found = likeness.closeup_object(likeness_row.pixal_cut(folder / "input.png", folder / "cut", name))
+        assert int((found ^ expected).sum()) < 0.01 * expected.sum(), (name, int((found ^ expected).sum()))
     shutil.rmtree(folder)
 
 

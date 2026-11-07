@@ -75,6 +75,10 @@ SWEPT_LIMIT = 0.04
 # The silhouette's drawn width, in pixels, the swept fit is measured at (`swept_stray`), and its longest side at most.
 SWEPT_WIDTH = 48
 SWEPT_SIDE = 6144
+# Gaps between an object's pieces in its Pixal3D cut up to this share of its longest reach are bridged (`bridged`): a
+# ring of stones laid apart is one ring. Campgrounds' stone ring's two arcs close their ring across gaps of 12 px of
+# its 709 (1.7%); the tube's wall panel of tools hung apart needs 106 px of 540 (20%) and is held to its largest.
+GAP_SHARE = 0.03
 
 
 def files(place):
@@ -271,20 +275,39 @@ def drawn_size(row, model, rows, inputs, person=False):
 
 
 def pixal_cut(path, folder, row):
-    """A prop object's close-up as its take's Pixal3D input cut it out, its object made one piece with its holes filled
-    as compare.closeup_mask makes every other cut (a rack's open frame stays one silhouette: storage's cargo rack, cut
-    so, passed at 0.68; its open lattice measured 0.43 on bars a pixel apart)."""
+    """A prop object's close-up as its take's Pixal3D input cut it out: every piece of its object but specks
+    (thin_straight.pieces), made one where they lie close, else its largest (`bridged`), its holes filled as
+    compare.closeup_mask fills every other cut (a rack's open frame stays one silhouette: storage's cargo rack, cut so,
+    passed at 0.68; its open lattice measured 0.43 on bars a pixel apart). Its largest piece alone was half of
+    campgrounds' stone ring, two arcs of stones a few pixels apart, held to its whole model's ring: 0.469, whole 0.902
+    (2026-11-07)."""
     from scipy import ndimage
     picture = np.asarray(Image.open(path).convert("RGBA"))
-    labels, count = ndimage.label(picture[..., 3] > 127)
-    if count == 0:
+    kept = thin_straight.pieces(picture[..., 3] > 127)
+    if not kept.any():
         raise ValueError(f"{path}: Pixal3D's cut-out holds no object")
-    largest = np.argmax(ndimage.sum(np.ones_like(labels), labels, index=range(1, count + 1))) + 1
-    mask = ndimage.binary_fill_holes(labels == largest)
+    mask = ndimage.binary_fill_holes(bridged(kept))
     folder.mkdir(parents=True, exist_ok=True)
     out = folder / f"{row}.png"
     Image.fromarray(np.dstack([picture[..., :3], np.where(mask, 255, 0).astype(np.uint8)])).save(out)
     return out
+
+
+def bridged(kept):
+    """A mask's pieces made one by closing every gap between them of at most GAP_SHARE of its longest reach (a
+    closing of half that), so a ring of stones laid apart bounds its ring's inside as its model's ring does; its
+    largest piece when they lie further apart, as before (tools hung apart on a panel)."""
+    from scipy import ndimage
+    whole = np.ones((3, 3))
+    labels, count = ndimage.label(kept, structure=whole)
+    if count < 2:
+        return kept
+    rows, columns = np.nonzero(kept)
+    step = max(1, round(GAP_SHARE * (max(np.ptp(rows), np.ptp(columns)) + 1) / 2))
+    closed = ndimage.binary_closing(np.pad(kept, step + 1), iterations=step)[step + 1:-step - 1, step + 1:-step - 1]
+    if ndimage.label(closed, structure=whole)[1] == 1:
+        return closed
+    return labels == 1 + int(np.argmax(ndimage.sum(kept, labels, range(1, count + 1))))
 
 
 def straight_cut(path, folder, row):
