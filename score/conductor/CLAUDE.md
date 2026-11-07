@@ -35,7 +35,10 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   `--jobs` there defaults to the record's `jobs` (`score/__main__.py` `default_jobs`: score.conductor's own module is in
   rows' code versions), so a price is worked out on what the pod is given,
   never on the cores of the node that answers; inside a pod `graph.AVAILABLE` and `TOTAL` read the pod's cgroup
-  (`guard_pod_memory`). Off such a home nothing changes: the VM and the PC detach as before.
+  (`guard_pod_memory`). In the conductor pod health and logs read the pods, never systemd (`pod_view`: the
+  conductor pod's containers and the sync and backup CronJobs' newest Jobs, an unanswered cluster every unit failed;
+  `pod_memory`, `cores` from the pod's cgroup; `pod_log` in place of a journal); the disk is the volume's as on the
+  VM. Off such a home nothing changes: the VM and the PC detach as before.
 - **`health.py`**: `$PROPS_HOME/health.json` for the Machine card (`python -m score.conductor health --write`, AREA 1's
   minute timer). Its `code` is the checkout's commit beside the cockpit's pin score-update last read
   (`conductor/pin.json`), red on the card when they differ. **`logs.py`**: `tails(limit_lines)`, newest run logs, fault reports and unit journals; a line naming

@@ -78,13 +78,17 @@ def journal(unit, limit_lines):
     return clean(done.stdout.splitlines())[-limit_lines:]
 
 
-def tails(limit_lines=40, logs=None, faults=None, read_journal=journal, boot_logs=BOOT_LOGS):
+def tails(limit_lines=40, logs=None, faults=None, read_journal=None, boot_logs=BOOT_LOGS):
     """{name: [lines]}, the cockpit's shape: `run <log>`, `fault <node>`, `journal <unit>` and `boot <log>` (each
     boot log there), each one's clean tail."""
     logs = pathlib.Path(logs or PROPS_HOME / "logs")
     faults = pathlib.Path(faults or Store.default().cache.parent / "faults")
     services = [unit for units in health.UNITS.values() for unit in units if unit.endswith(".service")]
     services.append(UPDATE)  # whether the checkout follows the cockpit's pin (2026-10-25: it did not, unseen)
+    if read_journal is None:
+        from score.conductor import cluster
+        on_cluster = cluster.in_pod() and cluster.record() is not None  # no journal there: the pods' own logs
+        read_journal = (lambda unit, lines: clean(cluster.pod_log(unit, lines))[-lines:]) if on_cluster else journal
     return {**{f"run {path.name}": tail(path, limit_lines) for path in newest(logs, "score-run-*.log", RUN_LOGS)},
             **{f"fault {path.stem}": tail(path, limit_lines) for path in newest(faults, "*.txt", FAULTS)},
             **{f"journal {unit}": read_journal(unit, limit_lines) for unit in services},

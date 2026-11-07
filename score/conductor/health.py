@@ -94,23 +94,29 @@ def machine_size(record):
 
 
 def read(properties=unit_properties):
-    """The conductor's health now (the module's docstring has its fields)."""
-    record = conductor.machine()
+    """The conductor's health now (the module's docstring has its fields); in the cluster's conductor pod its units,
+    memory and cores from the pod and the cluster (score/conductor/cluster.py), never systemd."""
+    from score.conductor import cluster
+    record, pod = conductor.machine(), cluster.in_pod() and cluster.record() is not None  # the cluster's conductor
     view = size.busy()
     disk = shutil.disk_usage(PROPS_HOME if PROPS_HOME.exists() else "/")
+    limit = cluster.pod_memory() if pod else None
     memory = {"available_gb": round(conductor.meminfo_gb("MemAvailable"), 2),
-              "total_gb": round(conductor.meminfo_gb("MemTotal"), 2)}
-    backup, sync = last_backup(), last_sync(properties)
+              "total_gb": round(conductor.meminfo_gb("MemTotal"), 2)} if limit is None else {
+        "available_gb": round(limit[1] / 1024 ** 3, 2), "total_gb": round(limit[0] / 1024 ** 3, 2)}
+    seen = cluster.pod_view() if pod else None
+    cores = (cluster.cores() if pod else None) or conductor.cores()
+    backup, sync = last_backup(), (seen["last_sync"] if pod else last_sync(properties))
     low = data_disk.warning(disk.free / 1024 ** 3)
     return {"at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
             "machine": (record or {}).get("name"), "size": machine_size(record),
-            "state": machine_state(record, conductor.cores()), "cores": conductor.cores(),
+            "state": machine_state(record, conductor.cores()), "cores": cores,
             "memory_total": memory["total_gb"], "memory_available": memory["available_gb"], "memory": memory,
             "disk_free": round(disk.free / 1024 ** 3, 2),
             "disk": {"free_gb": round(disk.free / 1024 ** 3, 2), "total_gb": round(disk.total / 1024 ** 3, 2),
                      "floor_gb": data_disk.FLOOR_GB},
             "load": [round(value, 2) for value in os.getloadavg()],
-            "units": {name: unit_state(units, properties) for name, units in UNITS.items()},
+            "units": seen["units"] if pod else {name: unit_state(units, properties) for name, units in UNITS.items()},
             "runs_active": view["claims"], "runs_waiting": view["waiting"], "parked_machines": view["parked"],
             "holds": view["held"],
             "last_backup": backup, "backup": backup, "last_sync": sync, "sync": sync,
