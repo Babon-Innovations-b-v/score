@@ -8,7 +8,7 @@ click makes on the store's machine (applying.apply, so every check of his click 
                         the store (grants/decide/<id>.json, score.review.web): `target` what it applies to as it stands
                         at the question (state_of), `given` his words for it: reason, worse_reason, check, a
                         reject's takes (the takes of that output to remake, the rest kept: graph.Stage.retakes), a
-                        spend's euros and purpose, and a Google month's euros
+                        spend's euros and purpose, and a books month's euros
     apply(yes id, store)
                         his decision under that yes, once: refused when there is no quoted yes, it was used already
                         (grants/decide-used/<id>.json, written before it is applied; a refused or failed apply hands
@@ -22,10 +22,11 @@ lock-film a film and the sha256 of its script as his editor shows it; go an envi
 tagged score.review.web.OWNERS_GO, counts as a bought batch for review.IN_BATCH (owner, 2026-10-27, his "sure"); spend
 the name of his override (his yes to one run outside the runner, node `override`, the run carrying
 SCORE_SPEND_TICKET="override <name>"), its euros and what it is for, with no yes under that name yet (owner,
-2026-11-02, on being sent to his terminal for one: "we talked about this, those kinda rules are stupid"); google-month
-a month (YYYY-MM, this month: the books take no other) and his Google figure for it (`score spend --google-month`, his
-cockpit's "Enter it in the books", the request kind books-figure), with the month's books as they stand, so a figure
-read back or entered since refuses it (a rent refused on his PC, "the month's spend is unknown", answered in chat).
+2026-11-02, on being sent to his terminal for one: "we talked about this, those kinda rules are stupid"); the books
+month (score.review.web.BOOKS_MONTH) a month (YYYY-MM, this month: the books take no other) and his provider's figure
+for it (his cockpit's "Enter it in the books", the request kind books-figure), with the month's books as they stand,
+so a figure read back or entered since refuses it (a rent refused on his PC, "the month's spend is unknown", answered
+in chat).
 
 Reached from the agents' door (tools/cloud/conductor/agent_door.py `decide-yes`, `decide`) and, for a run on this PC,
 tools/cloud/this_pc.py's own. The records are the cockpit's own (his accept, reject, waiver or lock by his name), so
@@ -41,10 +42,11 @@ from django.conf import settings
 from django.http import Http404
 
 from score import review
+from score.review import web
 from score.dashboard import state
 from score.dashboard.sync import applying
 
-DECISIONS = ("accept", "reject", "waive", "lock-concept", "lock-film", "go", "spend", "google-month")
+DECISIONS = ("accept", "reject", "waive", "lock-concept", "lock-film", "go", "spend", web.BOOKS_MONTH)
 
 
 class Refused(RuntimeError):
@@ -93,19 +95,19 @@ def override_state(store, name, euros, purpose):
 
 
 def books_state(month, euros):
-    """{month, euros, books}: his Google month as asked, with the month's books as they stand
+    """{month, euros, books}: his books month as asked, with the month's books as they stand
     (score.review.web.books_of); Refused for euros that are not a finite figure of at least 0, or a month that is not
     this one."""
     from score.review import web
     try:
         figure = float(euros)
     except (TypeError, ValueError):
-        raise Refused(f"a Google month names its euros as an amount, not {euros!r}") from None
+        raise Refused(f"a books month names its euros as an amount, not {euros!r}") from None
     if not math.isfinite(figure) or figure < 0:
-        raise Refused(f"a Google month is a finite figure of at least EUR 0, not {euros!r}")
+        raise Refused(f"a books month is a finite figure of at least EUR 0, not {euros!r}")
     this_month, books = web.books_of(month)
     if month != this_month:
-        raise Refused(f"the books take this month's Google figure only ({this_month}), not {month!r}")
+        raise Refused(f"the books take this month's provider figure only ({this_month}), not {month!r}")
     return {"month": month, "euros": figure, "books": books}
 
 
@@ -127,7 +129,7 @@ def state_of(decision, target, given, store):
         return {"film": target, "script": script_sha(film_script(target))}
     if decision == "spend":
         return override_state(store, target, given.get("euros"), given.get("purpose"))
-    if decision == "google-month":
+    if decision == web.BOOKS_MONTH:
         return books_state(target, given.get("euros"))
     return {"world": target}
 
@@ -148,8 +150,8 @@ def record(decision, target, answer, question, store=None, **given):
         raise Refused("only a reject names takes to remake (--takes)")
     if given.get("purpose") and decision != "spend":
         raise Refused("only a spend names a purpose (--purpose)")
-    if given.get("euros") not in ("", None) and decision not in ("spend", "google-month"):
-        raise Refused("only a spend or a Google month names euros (--euros)")
+    if given.get("euros") not in ("", None) and decision not in ("spend", web.BOOKS_MONTH):
+        raise Refused("only a spend or a books month names euros (--euros)")
     store = store or state.source().store
     given = {name: value for name, value in given.items() if value not in ("", None, [])}
     moment = datetime.datetime.now(datetime.timezone.utc)
@@ -174,7 +176,7 @@ def request_of(yes):
     if yes["decision"] == "spend":
         return {"kind": "spend-override", "user": user, "payload": {
             "name": target["override"], "euros": target["euros"], "purpose": target["purpose"]}}
-    if yes["decision"] == "google-month":
+    if yes["decision"] == web.BOOKS_MONTH:
         return {"kind": "books-figure", "user": user, "payload": {"euros": target["euros"]}}
     if yes["decision"] == "lock-concept":
         return {"kind": "concept-pick", "user": user, "payload": {"place": target["place"], "sha": target["sha"]}}

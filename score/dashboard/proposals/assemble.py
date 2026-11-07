@@ -52,6 +52,11 @@ class Overlay(runtime_store.FolderStore):
         own = self.root / key
         return self.under.path(key) if not own.is_file() and self.under.path(key).is_file() else own
 
+    def exists(self, key):
+        """Held here or by the real store (its own, not FolderStore's: offload.install replaces that one with a check of
+        this root alone, so the real store's accepts read as absent, 2026-11-04 to 11-07)."""
+        return runtime_store.FolderStore(self.root).exists(key) or self.under.exists(key)
+
     def keys(self, prefix):
         return sorted(set(runtime_store.FolderStore.keys(self.under, prefix)) |
                       set(runtime_store.FolderStore.keys(runtime_store.FolderStore(self.root), prefix)))
