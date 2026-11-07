@@ -102,7 +102,8 @@ def image_of(kind="conductor", images=IMAGES_JSON):
 
 def volumes():
     return [{"name": "store", "persistentVolumeClaim": {"claimName": CLAIM}},
-            {"name": "scw", "secret": {"secretName": SCW_SECRET, "defaultMode": 0o400}},
+            {"name": "scw-secret", "secret": {"secretName": SCW_SECRET, "defaultMode": 0o400}},
+            {"name": "scw", "emptyDir": {"medium": "Memory", "sizeLimit": "1Mi"}},
             {"name": "tmp", "emptyDir": {}},
             {"name": "run", "emptyDir": {"medium": "Memory", "sizeLimit": "64Mi"}}]
 
@@ -148,8 +149,20 @@ def container(name, image, command, resources, read_only=False):
             "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}}}
 
 
+def scw_copy(image):
+    """The init container that puts the scw config where the VM has it, owned by user score at mode 600 in memory: the
+    Secret's own files are group-readable under the pods' fsGroup, and the scw CLI then prints a warning on stdout,
+    ahead of the JSON the secret reader parses (the rehearsal of 2026-11-07)."""
+    return {"name": "scw-config", "image": image, "command": ["/bin/sh", "-c",
+            f"umask 077 && cp /secret/config.yaml {SCW_PATH}/config.yaml && chmod 600 {SCW_PATH}/config.yaml"],
+            "resources": {"requests": {"cpu": "10m", "memory": "16Mi"}, "limits": {"cpu": "100m", "memory": "64Mi"}},
+            "volumeMounts": [{"name": "scw-secret", "mountPath": "/secret", "readOnly": True},
+                             {"name": "scw", "mountPath": SCW_PATH}],
+            "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}}}
+
+
 def pod_spec(containers, affinity, restart="Always"):
-    return {"serviceAccountName": NAME, "securityContext": security(), "affinity": affinity, "hostPID": True,
+    return {"initContainers": [scw_copy(containers[0]["image"])], "serviceAccountName": NAME, "securityContext": security(), "affinity": affinity, "hostPID": True,
             "imagePullSecrets": [{"name": REGISTRY_SECRET}], "tolerations": [TOLERATION], "volumes": volumes(), "containers": containers, "restartPolicy": restart,
             "terminationGracePeriodSeconds": 120}
 
