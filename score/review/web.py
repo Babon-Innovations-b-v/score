@@ -71,6 +71,9 @@ DECISION_RETURNED = "grants/decide-returned"
 # A run the owner started himself, by his go recorded in a session (owner, 2026-10-27, his "sure"): it names the go's
 # id, and the runner treats it as a bought batch for the in-batch accept (review.IN_BATCH).
 OWNERS_GO = "SCORE_OWNERS_GO"
+# The decision that enters his provider's month figure into the books (google_month), as a session names it; named
+# here, outside the cockpit's package, which names no provider (score/dashboard overlay, "No provider here").
+BOOKS_MONTH = "google-month"
 
 DECISIONS = ("accept", "reject")
 

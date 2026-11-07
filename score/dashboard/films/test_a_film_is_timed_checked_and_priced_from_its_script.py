@@ -630,7 +630,8 @@ def test_the_state_knows_a_designed_bed_by_the_sound_stages_own_words(monkeypatc
     import types
     from score.dashboard.state import local
     from score.stages import sound
-    monkeypatch.setattr(sound, "beds", types.SimpleNamespace(of_place=lambda place, inputs: {"sounds": ["hum"]}))
+    monkeypatch.setattr(sound, "beds", types.SimpleNamespace(
+        of_place=lambda place, inputs: {"facts": {}, "sounds": ["hum"]}))
     for name in ("object_uses", "moving_uses", "bank_uses"):
         monkeypatch.setattr(sound, name, lambda *_: [])
     monkeypatch.setattr(sound, "voice_uses", lambda *_: [])

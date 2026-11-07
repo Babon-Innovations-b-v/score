@@ -69,9 +69,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside
 - chat_decisions.override_state: the `web.override_yes(...) is not None` check -> `if False:` ->
   test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question
-- chat_decisions.books_state: `"books": books` dropped from its target (a Google month asked before the books were
+- chat_decisions.books_state: `"books": books` dropped from its target (a books month asked before the books were
   written since applies anyway) -> test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question
-- chat_decisions.request_of: the "google-month" branch dropped (his Google month in chat has no request kind) ->
+- chat_decisions.request_of: the books month branch dropped (his books month in chat has no request kind) ->
   test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside
 - state/exported.py: `import numpy` at its top -> test_hosted_renders_every_page_light
 - launch/localrun.py: `from score.graph import runs` at its top (93fec2b1) -> test_hosted_renders_every_page_light,
@@ -1263,26 +1263,26 @@ def test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_mar
                       purpose=purpose)  # no purpose, no amount above 0, or a name holding a yes already
     pytest.raises(chat_decisions.Refused, chat_decisions.record, "accept", "closeup@alpha", "Yes", QUESTION,
                   output=output, euros="4")  # only a spend names euros
-    # his Google month in chat (a rent refused on his PC, "the month's spend is unknown", answered EUR 0): applied once
+    # his books month in chat (a rent refused on his PC, "the month's spend is unknown", answered EUR 0): applied once
     # through his cockpit's "Enter it in the books" (books-figure), by his name, the agent marks lifted only inside
     from score.review import web
     books = settings.SCORE_PROPS_HOME / "cloud" / "books.json"
     books.unlink(missing_ok=True)
     month = web.books_of("")[0]
-    asked = f"Enter EUR 0 as Google's bill for {month} in the books?"
-    google = chat_decisions.record("google-month", month, "EUR 0", asked, euros="0")
-    assert google["target"] == {"month": month, "euros": 0.0, "books": {}}
-    applied = chat_decisions.apply(google["id"])
+    asked = f"Enter EUR 0 as the provider's bill for {month} in the books?"
+    month_yes = chat_decisions.record(web.BOOKS_MONTH, month, "EUR 0", asked, euros="0")
+    assert month_yes["target"] == {"month": month, "euros": 0.0, "books": {}}
+    applied = chat_decisions.apply(month_yes["id"])
     assert applied.state == "done" and f"books known for {month}" in applied.detail, applied.detail
     assert seen[-1] == ({"kind": "books-figure", "user": "joey", "payload": {"euros": 0.0}}, False)
     assert os.environ[mark] == "1"
     assert {name: json.loads(books.read_text())[name] for name in ("month", "state", "google_before", "google_by")} == {
         "month": month, "state": "known", "google_before": 0.0, "google_by": "joey"}
-    pytest.raises(chat_decisions.Refused, chat_decisions.apply, google["id"])
+    pytest.raises(chat_decisions.Refused, chat_decisions.apply, month_yes["id"])
     for euros, target in (("-1", month), ("nan", month), ("zero", month), ("", month), ("0", "2020-01")):
-        pytest.raises(chat_decisions.Refused, chat_decisions.record, "google-month", target, "Yes", asked,
+        pytest.raises(chat_decisions.Refused, chat_decisions.record, web.BOOKS_MONTH, target, "Yes", asked,
                       euros=euros)  # no finite figure of at least 0, or not this month
-    pytest.raises(chat_decisions.Refused, chat_decisions.record, "google-month", month, "Yes", asked, euros="0",
+    pytest.raises(chat_decisions.Refused, chat_decisions.record, web.BOOKS_MONTH, month, "Yes", asked, euros="0",
                   purpose="x")  # only a spend names a purpose
     books.unlink()
 
@@ -1348,7 +1348,7 @@ def test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_qu
     books = settings.SCORE_PROPS_HOME / "cloud" / "books.json"
     books.unlink(missing_ok=True)
     month = web.books_of("")[0]
-    first, second = (chat_decisions.record("google-month", month, "Yes", f"EUR {euros} for {month}?", euros=euros)
+    first, second = (chat_decisions.record(web.BOOKS_MONTH, month, "Yes", f"EUR {euros} for {month}?", euros=euros)
                      for euros in ("0", "5"))
     assert chat_decisions.apply(first["id"]).state == "done"
     assert "changed since he answered" in str(pytest.raises(chat_decisions.Refused, chat_decisions.apply,
